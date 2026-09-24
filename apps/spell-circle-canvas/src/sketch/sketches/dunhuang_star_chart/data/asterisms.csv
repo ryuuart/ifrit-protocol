@@ -1,318 +1,318 @@
-id,pinyin,native,english,stars,line
-P01,Bei Ji,北极,Northern Pole,5,0 1 2 3 4
-P02,Si Fu,四辅,Four Advisors,4,5 6 7 8
-P03,Tian Yi,天一,Celestial One,2,9 9
-P04,Tai Yi,太一,Supreme One,2,10 10
-P05,Zi Wei Dong Yuan,紫微东垣,Purple Forbidden Palace East Wall,8,11 12 13 14 15 16 17 18
-P06,Zi Wei Xi Yuan,紫微西垣,Purple Forbidden Palace West Wall,7,19 20 21 22 23 24 25
-P07,Yin De,阴德,Hidden Virtue,2,26 27
-P08,Shang Shu,尚书,Royal Secretary,6,28 29 30 65535 31 29 32
-P09,Nü Shi,女史,Female Protocol,2,33 33
-P10,Zhu Shi,柱史,Official of Royal Archives,2,34 34
-P11,Nü Yu,女御,Maids-in-waiting,5,35 36 37 38 35
-P12,Tian Zhu,天柱,Celestial Pillar,6,39 40 41 65535 39 42 43
-P13,Da Li,大理,Chief Judge,2,44 45
-P14,Gou Chen,钩陈,Curved Array,6,46 47 48 49 50 51
-P15,Liu Jia,六甲,Six Jia,7,52 53 54 55 56 57 52
-P16,Tian Huang Da Di,天皇大帝,Great Emperor of Heaven,2,58 58
-P17,Wu Di Nei Zuo,五帝内座,Inner Seats of the Five Emperors,8,59 60 65535 59 61 65535 59 62 65535 59 63
-P18,Hua Gai,华盖,Canopy of the Emperor,13,64 65 66 64 67 68 69 70 65 69 65535 68 65 67
-P19,Gang,杠(附华盖),Canopy Support (Adjunct to the Canopy),9,71 72 73 74 75 76 77 78 79
-P20,Chuan She,传舍,Guest House,9,80 81 82 83 84 85 86 87 88
-P21,Nei Jie,内阶,Inner Steps,6,89 90 91 92 93 94
-P22,Tian Chu,天厨,Celestial Kitchen,9,95 96 97 98 95 65535 98 99 100 97
-P23,Ba Gu,八谷,Eight Kinds of Crops,10,101 102 103 104 105 106 101 65535 105 107 108
-P24,Tian Bang,天棓,Celestial Flail,5,109 110 111 112 113
-P25,Tian Chuang,天床,Celestial Bed,6,114 115 116 117 118 119
-P26,Nei Chu,内厨,Inner Kitchen,2,120 121
-P27,Wen Chang,文昌,Administrative Center,6,122 123 124 125 126 127
-P28,San Gong (Wuxian),三公(巫咸),Three Excellencies (Wuxian),3,128 129 130
-P29,Tai Zun,太尊,Royals,2,131 131
-P30,Tian Lao,天牢,Celestial Prison,7,132 133 134 135 136 137 132
-P31,Tai Yang Shou,太阳守,Guard of the Sun,2,138 138
-P32,Shi,势,Eunuch,5,139 140 141 142 139
-P33,Xiang,相,Prime Minister,2,143 143
-P34,San gong(Gan Shi),三公(甘氏),Three Excellencies (Gan School),3,144 145 146
-P35,Xuan Ge,玄戈,Sombre Lance,2,147 147
-P36,Tian Li,天理,Judge for Nobility,5,148 149 150 151 148
-P37,Bei Dou,北斗,Northern Dipper,7,152 153 154 155 156 157 158
-P38,Fu,辅(附北斗),Assistant (Vassal of Northern Dipper),2,159 159
-P39,Tian Qiang,天枪,Celestial Spear,4,160 161 65535 160 162
-S01,Tai Wei Zuo Yuan,太微左垣,Supreme Palace Left Wall,5,163 164 165 166 167
-S02,Tai Wei You Yuan,太微右垣,Supreme Palace Right Wall,5,168 169 170 171 172
-S03,Ye Zhe,谒者,Usher to the Court,2,173 173
-S04,San Gong Nei Zuo,三公内座,Inner Seats of Three Excellencies,4,174 175 176 174
-S05,Jiu Qing Nei Zuo,九卿内座,Inner Seats of Nine Senior Officers,3,177 178 179
-S06,Nei Wu Zhu Hou(Tai Wei Yuan),内五诸侯,Inner Five Lords,5,180 181 182 183 184
-S07,Nei Ping,内屏,Inner Screen,4,185 186 187 188
-S08,Wu Di Zuo,五帝坐,Seats of the Five Emperors,6,189 190 191 65535 192 190 193
-S09,Xing Chen,幸臣,Officer of Honour,2,194 194
-S10,Tai Zi,太子,Crown Prince,2,195 195
-S11,Cong Guan(Tai Wei),从官(太微),Retinue (In Supreme Palace),2,196 196
-S12,Lang Jiang,郎将,Captain of the Bodyguards,2,197 197
-S13,Hu Ben,虎贲,Emperor's Bodyguard,2,198 198
-S14,Chang Chen,常陈,Royal Guards,8,199 200 201 202 203 65535 202 204 205
-S15,Lang Wei,郎位,Officers of the Imperial Guard,30,206 207 208 209 210 211 65535 208 212 213 214 65535 207 215 216 217 65535 209 212 215 65535 210 213 218 216 65535 211 219 220 214 217 65535 220 217 65535 206 215
-S16,Ming Tang,明堂,The Hall of Glory,3,221 222 223
-S17,Ling Tai,灵台,Astronomical Observatory,3,224 225 226
-S18,Shao Wei,少微,Junior Officers,4,227 228 229 230
-S19,Chang Yuan,长垣,Long Wall,4,231 232 233 234
-S20,San Tai,三台(上台),Three Steps (Upper Step),2,235 236
-S21,San Tai,三台(中台),Three Steps (Middle Step),2,237 238
-S22,San Tai,三台(下台),Three Steps (Lower Step),2,239 240
-S23,San Tai,三台,Three Steps,6,235 236 237 238 239 240
-H01,Tian Shi Zuo Yuan,天市左垣,Heavenly Market Left Wall,11,241 242 243 244 245 246 247 248 249 250 251
-H02,Tian Shi You Yuan,天市右垣,Heavenly Market Right Wall,11,252 253 254 255 256 257 258 259 260 261 262
-H03,Shi Lou,市楼,Municipal Office,7,263 264 265 266 267 268 263
-H04,Che Si,车肆,Commodity Market,2,269 270
-H05,Zong Zheng,宗正,Official for the Royal Clan,2,271 272
-H06,Zong Ren,宗人,Official of Religious Ceremonies,6,273 274 65535 273 275 65535 273 276
-H07,Zong,宗,Patriarchal Clan,2,277 278
-H08,Bo Du,帛度,Textile Ruler,2,279 280
-H09,Tu Si,屠肆,Butcher's Shops,2,281 282
-H10,Hou,候,Astrologer,2,283 283
-H11,Di Zuo,帝坐(天市),Emperor's Seat,2,284 284
-H12,Huan Zhe,宦者,Eunuch Official,4,285 286 287 288
-H13,Lie Si,列肆,Jewel Market,2,289 290
-H14,Dou,斗,Dipper for Liquids,5,291 292 293 294 295
-H15,Hu,斛,Dipper for Solids,4,296 297 298 299
-H16,Guan Suo,贯索,Coiled Thong,10,300 301 302 303 304 305 306 307 308 300
-H17,Qi Gong,七公,Seven Excellencies,7,309 310 311 312 313 314 315
-H18,Tian Ji,天纪,Celestial Discipline,9,316 317 318 319 320 321 322 323 324
-H19,Nü Chuang,女床,Woman's Bed,3,325 326 327
-01A,Jiao Xiu,角,Horn,2,328 329
-01B,Ping Dao,平道,Flat Road,2,330 331
-01C,Tian Tian(Jiao Xiu),天田(角宿),Celestial Farmland (In Horn Mansion),2,332 333
-01D,Jin Xian,进贤,Recommending Virtuous Men,2,334 334
-01E,Zhou Ding,周鼎,Tripod of the Zhou,3,335 336 337
-01F,Tian Men,天门,Celestial Gate,2,338 339
-01G,Ping,平,Judging,2,340 341
-01H,Ku Lou,库楼,Arsenal,11,342 343 344 345 346 347 348 349 350 351 348
-01I,Heng,衡,Railings,4,352 353 354 355
-01J,Nan Men,南门,Southern Gate,2,356 357
-01K,Zhu(Jiao Xiu),柱(库楼),Pillars (In Arsenal),3,358 359 360
-01L,Zhu(Jiao Xiu),柱(库楼),Pillars (In Arsenal),3,361 362 363
-01M,Zhu(Jiao Xiu),柱(库楼),Pillars (In Arsenal),3,364 365 366
-01N,Zhu(Jiao Xiu),柱(库楼),Pillars (In Arsenal),3,367 368 369
-01O,Zhu(Jiao Xiu),柱(库楼),Pillars (In Arsenal),3,370 371 372
-02A,Kang,亢,Neck,5,373 374 375 65535 373 376
-02B,Da Jiao,大角,Great Horn,2,377 377
-02C,Zhe Wei,折威,Executions,7,378 379 380 381 382 383 384
-02D,Zuo She Ti,左摄提,Left Conductor,3,385 386 387
-02E,You She Ti,右摄提,Right Conductor,3,388 389 390
-02F,Dun Wan,顿顽,Trials,2,391 392
-02G,Yang Men,阳门,Gate of Yang,2,393 394
-03A,Di,氐,Root,4,395 396 397 398
-03B,Tian Ru,天乳,Celestial Milk,2,399 399
-03C,Zhao Yao,招摇,Twinkling Indicator,2,400 400
-03D,Geng He,梗河,Celestial Lance,3,401 402 403
-03E,Di Zuo (Da Jiao),帝坐(大角),Seat of the Emperor (At Great Horn),3,404 405 406
-03F,Kang Chi,亢池,Boats and Lake,7,407 408 409 410 411 412 407
-03G,Zhen Che,阵车,Battle Chariots,3,413 414 415
-03H,Che Qi,车骑,Chariots and Cavalry,4,416 417 418 416
-03I,Tian Fu,天辐,Celestial Spokes,2,419 420
-03J,Qi Zhen Jiang Jun,骑阵将军,Chariots and Cavalry General,2,421 421
-03K,Qi Guan,骑官,Imperial Guards,36,422 423 424 425 426 427 428 429 430 65535 428 431 65535 428 432 65535 422 433 434 435 65535 434 436 437 65535 434 438 439 440 441 442 443 444 65535 443 445 65535 442 446 447 448 65535 441 425
-03L,Tian Ku,天库,Celestial Arsenal,2,449 449
-04A,Fang,房,Room,6,450 451 452 453 65535 454 450
-04B,Gou Qian,钩钤(附房),Lock (Adjunct of Room),2,454 455
-04C,Jian Bi,键闭,Door Bolt,2,456 456
-04D,Fa,罚,Punishment,3,457 458 459
-04E,Dong Xian,东咸,Eastern Door,4,460 461 462 463
-04F,Xi Xian,西咸,Western Door,4,464 465 466 467
-04G,Ri,日,Solar Star,2,468 468
-04H,Cong Guan(Fang Xiu),从官(房宿),Retinue (In Room Mansion),2,469 470
-05A,Xin,心,Heart,3,471 472 473
-05B,Ji Zu,积卒,Group of Soldiers,21,474 475 65535 474 476 65535 477 478 65535 477 479 65535 480 481 65535 480 482 65535 483 484 65535 483 485 65535 474 477 480 483 474
-06A,Wei,尾,Tail,12,486 487 488 489 490 491 492 493 65535 492 494 65535 487 495
-06C,Gui,龟,Tortoise,6,496 497 498 499 500 496
-06D,Tian Jiang,天江,Celestial River,4,501 502 503 504
-06E,Fu Yue,傅说,Fu Yue,2,505 505
-06F,Yu,鱼,Fish,0,
-07A,Ji,箕,Winnowing Basket,4,506 507 508 509
-07B,Chu,杵,Pestle,3,510 511 512
-07C,Kang,糠,Chaff,2,513 513
-08A,Nan Dou,南斗,Southern Dipper,6,514 515 516 517 518 519
-08B,Jian,建,Banner,6,520 521 522 523 524 525
-08C,Tian Bian,天弁,Market Officer,9,526 527 528 529 530 531 532 533 534
-08D,Bie,鳖,River Turtle,15,535 536 537 538 539 540 541 542 543 544 545 546 547 548 535
-08E,Tian Ji,天鸡,Celestial Cock,2,549 550
-08F,Tian Yue,天籥,Celestial Keyhole,9,551 552 553 554 555 556 557 558 551
-08G,Gou,狗,Dog,2,559 560
-08H,Gou Guo,狗国,Territory of Dog,5,561 562 563 564 561
-08I,Tian Yuan,天渊,Celestial Spring,15,565 566 567 568 569 570 565 65535 571 570 65535 572 566 65535 567 573 65535 574 569
-08J,Nong Zhang Ren,农丈人,Peasant,2,575 575
-09A,Qian Niu,牵牛,Leading Ox,8,576 577 578 579 576 580 65535 576 581
-09B,Tian Tian(Niu Xiu),天田(牛宿),Celestial Farmland (In Ox Mansion),12,582 583 584 65535 585 586 587 65535 588 589 590 65535 589 586 583
-09C,Jiu Kan,九坎,Nine Water Wells,13,591 592 593 65535 592 594 595 65535 594 596 65535 594 597 598 65535 597 599
-09D,He Gu,河鼓,Drum at the River,3,600 601 602
-09E,Zhi Nü,织女,Weaving Girl,3,603 604 605
-09F,Zuo Qi,左旗,Left Flag,10,606 607 608 65535 607 609 610 611 612 613 614
-09G,Gu Qi,鼓旗,Flag of the Drum,10,615 616 617 65535 616 618 619 620 621 622 623
-09H,Tian Fu,天桴,Celestial Drumstick,4,624 625 626 627
-09I,Luo Yan,罗堰,Network of Dykes,4,628 629 65535 628 630
-09J,Jian Tai,渐台,Clepsydra Terrace,4,631 632 633 634
-09K,Nian Dao,辇道,Imperial Passageway,5,635 636 637 638 639
-10A,Xu Nü,须女,Working Woman,4,640 641 642 643
-10B,Li Zhu,离珠,Pearls on Ladies' Wear,5,644 645 646 647 648
-10C,Bai Gua,败瓜,Rotten Gourd,7,649 650 651 652 649 65535 652 653
-10D,Hu Gua,瓠瓜,Good Gourd,7,654 655 656 657 654 65535 656 658
-10E,Tian Jin,天津,Celestial Ford,10,659 660 661 662 663 664 665 666 667 659
-10F,Xi Zhong,奚仲,Xi Zhong,4,668 669 670 671
-10G,Fu Kuang,扶筐,Basket for Mulberry Leaves,8,672 673 674 675 65535 672 676 677 678
-10H,Shi Er Guo (Zhao),赵,Twelve States (Zhao State),2,679 680
-10I,Shi Er Guo (Yue),越,Twelve States (Yue State),2,681 681
-10J,Shi Er Guo (Zhou),周,Twelve States (Zhou State),2,682 683
-10K,Shi Er Guo (Qi),齐,Twelve States (Qi State),2,684 684
-10L,Shi Er Guo (Zheng),郑,Twelve States (Zheng State),2,685 685
-10M,Shi Er Guo (Chu),楚,Twelve States (Chu State),2,686 686
-10N,Shi Er Guo (Qin),秦,Twelve States (Qin State),2,687 688
-10O,Shi Er Guo (Yan),燕,Twelve States (Yan State),2,689 689
-10P,Shi Er Guo (Wei),魏,Twelve States (Wei State),2,690 690
-10Q,Shi Er Guo (Dai),代,Twelve States (Dai State),2,691 692
-10R,Shi Er Guo (Jin),晋,Twelve States (Jin State),2,693 693
-10S,Shi Er Guo (Han),韩,Twelve States (Han State),2,694 694
-11A,Xu,虚,Emptiness,2,695 696
-11B,Si Ming,司命,Deified Judge of Life,2,697 698
-11C,Si Lu,司禄,Deified Judge of Rank,2,699 700
-11D,Si wei,司危,Deified Judge of Disaster and Good Fortune,2,701 702
-11E,Si Fei,司非,Deified Judge of Right and Wrong,2,703 704
-11F,Ku,哭,Crying,2,705 706
-11G,Qi,泣,Weeping,2,707 708
-11H,Tian Lei Cheng,天垒城,Celestial Ramparts,14,709 710 711 712 713 714 715 716 717 718 719 720 721 709
-11I,Bai Jiu,败臼,Decayed Mortar,4,722 723 724 725
-11J,Li Yu,离瑜,Jade Ornament on Ladies' Wear,3,726 727 728
-12A,Wei,危,Rooftop,5,729 730 731 65535 730 732
-12B,Fen Mu,坟墓(附危),Tomb (Adjunct to Rooftop),6,733 734 65535 733 735 65535 733 732
-12C,Ren,人,Humans,8,736 737 65535 736 738 65535 736 739 65535 736 740
-12D,Jiu,臼,Mortar,5,741 742 65535 741 743 744
-12E,Nei Chu,内杵,Inner Pestle,3,745 746 747
-12F,Che Fu,车府,Big Yard for Chariots,8,748 749 750 751 752 753 754 751
-12G,Tian Gou,天钩,Celestial Hook,9,755 756 757 758 759 760 761 762 763
-12H,Zao Fu,造父,Zaofu,8,764 765 65535 764 766 65535 764 767 65535 764 768
-12I,Xu Liang,虚梁,Temple,4,769 770 771 772
-12J,Tian Qian,天钱,Celestial Money,11,773 774 775 776 777 778 779 780 781 782 773
-12K,Gai Wu,盖屋,Roofing,2,783 784
-13A,Ying Shi,营室,Military Encampment,7,785 786 787 65535 786 788 65535 786 789
-13B,Li Gong,离宫(附营室),Resting Palace (Adjunct to Military Encampment),2,789 790
-13C,Li Gong,离宫(附营室),Resting Palace (Adjunct to Military Encampment),2,788 791
-13D,Li Gong,离宫(附营室),Resting Palace (Adjunct to Military Encampment),2,787 792
-13E,Lei Dian,雷电,Thunder and Lightning,8,793 794 795 65535 794 796 797 65535 796 798
-13F,Tu Gong Li,土公吏,Official for Materials Supply,2,799 800
-13G,Lei Bi Zhen,垒壁阵,Line of Ramparts,15,801 802 803 804 801 65535 803 805 806 807 808 809 810 811 812 809
-13H,Fu Yue,𫓧钺,Axe,3,813 814 815
-13I,Bei Luo Shi Men,北落师门,North Gate of the Military Camp,2,816 816
-13J,Tian Gang,天纲,Materials for Making Tents,2,817 817
-13K,Teng She,螣蛇,Flying Serpent,27,818 819 820 65535 819 821 822 823 824 825 826 827 828 65535 819 829 65535 830 829 831 65535 829 832 833 834 835 836 837 838 839 836
-13L,Ba Kui,八魁,Net for Catching Birds,13,840 841 842 65535 841 843 844 65535 843 845 65535 843 846 847 65535 846 848
-13M,Yu Lin Jun,羽林军,Palace Guard,53,849 850 851 852 853 854 855 856 857 858 859 65535 853 860 861 862 65535 861 863 864 865 65535 864 866 65535 864 867 868 65535 867 869 65535 855 870 871 872 873 874 65535 875 876 877 878 879 880 881 65535 880 882 65535 875 883 884 885 886 65535 875 887 888 889 890 891 892
-14A,Dong Bi,东壁,Eastern Wall,2,893 894
-14B,Pi Li,霹雳,Thunderbolt,5,895 896 897 898 899
-14C,Yun Yu,云雨,Cloud and Rain,4,900 901 902 903
-14D,Tian Jiu,天厩,Celestial Stable,11,904 905 906 907 908 909 910 911 912 913 904
-14E,Fu Zhi,𫓧锧,Sickle,6,914 915 916 65535 915 917 918
-14F,Tu Gong,土公,Official for Earthworks and Buildings,2,919 920
-15A,Kui Xiu,奎,Legs,16,921 922 923 924 925 926 927 928 929 930 931 932 933 934 935 921
-15B,Wai Ping,外屏,Outer Fence,7,936 937 938 939 940 941 942
-15C,Tian Hun,天溷,Celestial Pigsty,8,943 944 945 946 947 948 949 943
-15D,Tu Si Kong(Kui Xiu),土司空(奎宿),Master of Constructions (In Legs Mansion),2,950 950
-15E,Jun Nan Men,军南门,Southern Military Gate,2,951 951
-15F,Ge Dao,阁道,Flying Corridor,6,952 953 954 955 956 957
-15G,Fu Lu,附路,Auxiliary Road,2,958 958
-15H,Wang Liang,王良,Wang Liang,12,959 960 961 962 65535 963 959 65535 963 960 65535 963 961 65535 963 962
-15I,Ce,策,Whip,2,964 964
-16A,Lou,娄,Bond,3,965 966 967
-16B,Zuo Geng,左更,Official in Charge of the Forest,6,968 969 970 971 968 972
-16C,You Geng,右更,Official in Charge of Pasturing,6,973 974 975 976 977 974
-16D,Tian Cang,天仓,Square Celestial Granary,6,978 979 980 981 982 983
-16E,Tian Yu,天庾,Ricks of Grain,3,984 985 986
-16F,Tian Da Jiang Jun,天大将军,Great General of Heaven,11,987 988 989 990 991 992 65535 988 993 994 995 996
-17A,Wei,胃,Stomach,3,997 998 999
-17B,Tian Qun,天囷,Circular Celestial Granary,13,1000 1001 1002 1003 1004 1005 1006 1007 1008 1009 1010 1011 1012
-17C,Tian Lin,天廪,Celestial Foodstuff,4,1013 1014 1015 1016
-17D,Da Ling,大陵,Mausoleum,8,1017 1018 1019 1020 1021 1022 1023 1024
-17E,Tian Chuan,天船,Celestial Boat,9,1025 1026 1027 1028 1029 1030 1031 1032 1033
-17F,Ji Shi(Da Ling),积尸(大陵),Heap of Corpses (In Mausoleum),2,1034 1034
-17G,Ji Shui(Tian Chuan),积水(天船),Stored water (In Celestial Boat),2,1035 1035
-18A,Mao,昴,Hairy Head,7,1036 1037 1038 1039 1040 1041 1042
-18B,Tian E,天阿,Celestial Concave,2,1043 1043
-18C,Yue,月,Lunar Star,2,1044 1044
-18D,Tian Yin,天阴,Celestial Yin Force,8,1045 1046 65535 1045 1047 65535 1045 1048 65535 1045 1049
-18E,Juan She,卷舌,Rolled Tongue,6,1050 1051 1052 1053 1054 1055
-18F,Tian Chan,天谗,Celestial Slander,2,1056 1056
-18G,Li Shi,砺石,Whetstone,4,1057 1058 1059 1060
-18H,Chu Hao,刍藁,Hay,6,1061 1062 1063 1064 1065 1066
-18I,Tian Yuan,天苑,Celestial Meadows,16,1067 1068 1069 1070 1071 1072 1073 1074 1075 1076 1077 1078 1079 1080 1081 1082
-19A,Bi,毕,Net,11,1083 1084 1085 1086 65535 1087 1088 1089 1086 1090 65535 1087 1091
-19B,Fu Er,附耳(附毕),Whisper (Adjunct to Net),2,1091 1091
-19C,Tian Jie,天街,Celestial Street,2,1092 1093
-19D,Tian Jie,天节,Celestial Tally,10,1094 1095 65535 1094 1096 65535 1094 1097 1098 1099 1100 1101
-19E,Zhu Wang,诸王,Feudal Kings,6,1102 1103 1104 1105 1106 1107
-19F,Tian Gao,天高,Celestial High Terrace,5,1108 1109 1110 1111 1108
-19G,Jiu Zhou Shu Kou,九州殊口,Interpreters of Nine Dialects,10,1112 1113 1114 1115 1116 1117 1118 1119 1120 1112
-19H,Wu Che,五车,Five Chariots,5,1121 1122 1123 1124 1125
-19I,Zhu(Bi Xiu),柱(五车),Pillars (In Five Chariots),4,1126 1127 65535 1126 1128
-19J,Zhu(Bi Xiu),柱(五车),Pillars (In Five Chariots),4,1129 1130 65535 1129 1131
-19K,Zhu(Bi Xiu),柱(五车),Pillars (In Five Chariots),3,1132 1133 1134
-19L,Tian Huang,天潢,Celestial Pier,6,1135 1136 1137 65535 1138 1136 1139
-19M,Xian Chi,咸池,Pool of Harmony,4,1140 1141 65535 1140 1142
-19N,Tian Guan,天关,Celestial Pass,2,1143 1143
-19O,Can Qi,参旗,Banner of Three Stars,9,1144 1145 1146 1147 1148 1149 1150 1151 1152
-19P,Jiu Liu,九斿,Imperial Military Flag,9,1153 1154 1155 1156 1157 1158 1159 1160 1161
-19Q,Tian Yuan,天园,Celestial Orchard,13,1162 1163 1164 1165 1166 1167 1168 1169 1170 1171 1172 1173 1174
-20A,Zi Xi,觜觿,Beak,4,1175 1176 65535 1175 1177
-20B,Si Guai,司怪,Deity in Charge of Monsters,4,1178 1179 1180 1181
-20C,Zuo Qi,坐旗,Seat Flags,9,1182 1183 1184 1185 1186 1187 1188 1189 1190
-21A,Shen,参,Three Stars,9,1191 1192 1193 1194 1195 65535 1194 1196 65535 1192 1197
-21B,Fa,伐(附参),Attack (Adjunct to the Three Stars),3,1198 1199 1200
-21C,Yu Jing,玉井,Jade Well,4,1201 1202 1203 1204
-21D,Ping,屏,Screen,2,1205 1206
-21E,Jun Jing,军井,Military Well,4,1207 1208 1209 1210
-21F,Ce,厕,Toilet,4,1211 1212 1213 1214
-21G,Tian Shi,天矢,Celestial Excrement,2,1215 1215
-22A,Dong Jing,东井,Eastern Well,14,1216 1217 1218 1219 65535 1218 1220 1221 65535 1220 1222 1217 65535 1222 1223 65535 1221 1224
-22B,Yue,钺(附东井),Battle Axe (Adjunct to Eastern Well),2,1224 1224
-22C,Nan He,南河,South River,3,1225 1226 1227
-22D,Bei He,北河,North River,3,1228 1229 1230
-22E,Tian Zun,天樽,Celestial Wine Cup,3,1231 1232 1233
-22F,Wu Zhu Hou(JingXiu),五诸侯(井宿),Five Feudal Kings,5,1234 1235 1236 1237 1238
-22G,Ji Shui(Jin Xiu),积水(井宿),Accumulated Water,2,1239 1239
-22H,Ji Xin,积薪,Pile of Firewood,2,1240 1240
-22I,Shui Fu,水府,Official for Irrigation,5,1241 1242 1243 1244 1241
-22J,Shui Wei,水位,Water Level,4,1245 1246 1247 1248
-22K,Si Du,四渎,Four Channels,4,1249 1250 1251 1252
-22L,Jun Shi,军市,Market for Soldiers,14,1253 1254 1255 1256 1257 1258 1259 1260 1261 1262 1263 1264 1265 1253
-22M,Ye Ji,野鸡,Wild Cockerel,2,1266 1266
-22N,Sun,孙,Grandson,2,1267 1268
-22O,Zi,子,Son,2,1269 1270
-22P,Zhang Ren,丈人,Grandfather,2,1271 1272
-22Q,Que Qiu,阙丘,Palace Gate,2,1273 1274
-22R,Lang,狼,Wolf,2,1275 1275
-22S,Hu Shi,弧矢,Bow and Arrow,12,1276 1277 1278 1279 1280 1281 1282 1283 1276 65535 1284 1281 1277
-22T,Lao Ren,老人,Old Man,2,1285 1285
-23A,Yu Gui,舆鬼,Cabin Ghosts,5,1286 1287 1288 1289 1286
-23B,Ji Shi,积尸（舆鬼）,Cumulative Corpse (In Cabin Ghosts),0,
-23C,Guan,爟,Beacon Fire,5,1290 1291 1292 1293 1290
-23D,Tian Gou,天狗,Celestial Dog,8,1294 1295 1296 65535 1295 1297 1298 1299 1300
-23E,Wai Chu,外厨,Outer Kitchen,7,1301 1302 1303 1304 65535 1305 1306 1301
-23F,Tian Ji,天记,Judge for Estimating the Age of Animals,2,1307 1307
-23G,Tian She,天社,Celestial Earth God's Temple,8,1308 1309 1310 65535 1309 1311 1312 65535 1311 1313
-24A,Liu,柳,Willow,8,1314 1315 1316 1317 1318 1319 1320 1321
-24B,Jiu Qi,酒旗,Banner of Wine Shop,5,1322 1323 65535 1322 1324 1323
-25A,Qi Xing,七星,Seven Stars,7,1325 1326 1327 1328 1329 1330 1331
-25B,Xuan Yuan,轩辕,Xuanyuan,19,1332 1333 1334 1335 1336 1337 1338 1339 1340 1341 1342 1343 1344 1345 1346 65535 1345 1347 65535 1345 1348
-25C,Nei Ping,内平,High Judge,4,1349 1350 1351 1352
-25D,Tian Xiang,天相,Celestial Premier,4,1353 1354 65535 1353 1355
-25E,Tian Ji,天稷,Celestial Cereals,6,1356 1357 1358 1359 1360 1357
-26A,Zhang,张,Extended Net,10,1361 1362 1363 1364 65535 1361 1364 65535 1361 1365 65535 1363 1366
-26B,Tian Miao,天庙,Celestial Temple,15,1367 1368 1369 1370 1371 1372 1373 1374 1375 1376 1377 1378 1379 1380 1367
-27A,Yi,翼,Wings,31,1381 1382 1383 1384 1385 65535 1383 1386 65535 1387 1388 1389 1386 1390 1391 65535 1389 1392 65535 1393 1382 65535 1393 1384 65535 1393 1394 1395 1396 65535 1394 1397 65535 1398 1399 1400 1401 1397 1402
-27B,Dong Ou,东瓯,Dongou,5,1403 1404 1405 1406 1407
-28A,Zhen,轸,Chariot,11,1408 1409 1410 1411 1408 65535 1410 1412 65535 1409 1413 65535 1411 1414
-28B,Chang Sha,长沙(附轸),Changsha (Adjunct to Chariot),2,1412 1412
-28C,Zuo Xia,左辖(附轸),Left linchpin (Adjunct to Chariot),2,1413 1413
-28D,You Xia,右辖(附轸),Right linchpin (Adjunct to Chariot),2,1414 1414
-28E,Jun Men,军门,Military Gate,2,1415 1416
-28F,Tu Si Kong(Zhen Xiu),土司空(轸宿),Master of Constructions (In Chariot Mansion),4,1417 1418 1419 1420
-28G,Qing Qiu,青丘,Green Hill,8,1421 1422 1423 1424 1425 1426 1427 1421
-28H,Qi Fu,器府,House for Musical Instruments,32,1428 1429 1430 1431 1432 1433 1434 1435 1436 65535 1437 1438 1439 1440 1441 1442 65535 1443 1444 1445 1446 1447 1448 1449 1450 1451 1452 65535 1453 1454 1455 1456 1457 1458 1459
+id,name,pinyin,english,school,line
+P01,北極,Bei Ji,Northern Pole,R,0 1 2 3 4
+P02,四輔,Si Fu,Four Advisors,B,5 6 7 8
+P03,天一,Tian Yi,Celestial One,B,9 9
+P04,太一,Tai Yi,Supreme One,B,10 10
+P05,紫微東垣,Zi Wei Dong Yuan,Purple Forbidden Palace East Wall,R,11 12 13 14 15 16 17 18
+P06,紫微西垣,Zi Wei Xi Yuan,Purple Forbidden Palace West Wall,R,19 20 21 22 23 24 25
+P07,陰德,Yin De,Hidden Virtue,,26 27
+P08,尚書,Shang Shu,Royal Secretary,B,28 29 30 | 31 29 32
+P09,女史,Nü Shi,Female Protocol,R,33 33
+P10,柱史,Zhu Shi,Official of Royal Archives,R,34 34
+P11,女御,Nü Yu,Maids-in-waiting,,35 36 37 38 35
+P12,天柱,Tian Zhu,Celestial Pillar,B,39 40 41 | 39 42 43
+P13,大理,Da Li,Chief Judge,,44 45
+P14,鈎陳,Gou Chen,Curved Array,R,46 47 48 49 50 51
+P15,六甲,Liu Jia,Six Jia,B,52 53 54 55 56 57 52
+P16,天皇大帝,Tian Huang Da Di,Great Emperor of Heaven,B,58 58
+P17,五帝內座,Wu Di Nei Zuo,Inner Seats of the Five Emperors,B,59 60 | 59 61 | 59 62 | 59 63
+P18,華蓋,Hua Gai,Canopy of the Emperor,B,64 65 66 64 67 68 69 70 65 69 | 68 65 67
+P19,杠,Gang,Canopy Support (Adjunct to the Canopy),B,71 72 73 74 75 76 77 78 79
+P20,傳舍,Chuan She,Guest House,B,80 81 82 83 84 85 86 87 88
+P21,內階,Nei Jie,Inner Steps,B,89 90 91 92 93 94
+P22,天廚,Tian Chu,Celestial Kitchen,B,95 96 97 98 95 | 98 99 100 97
+P23,八谷,Ba Gu,Eight Kinds of Crops,B,101 102 103 104 105 106 101 | 105 107 108
+P24,天棓,Tian Bang,Celestial Flail,R,109 110 111 112 113
+P25,天床,Tian Chuang,Celestial Bed,B,114 115 116 117 118 119
+P26,內廚,Nei Chu,Inner Kitchen,,120 121
+P27,文昌,Wen Chang,Administrative Center,R,122 123 124 125 126 127
+P28,三公,San Gong (Wuxian),Three Excellencies (Wuxian),B,128 129 130
+P29,太尊,Tai Zun,Royals,,131 131
+P30,天牢,Tian Lao,Celestial Prison,R,132 133 134 135 136 137 132
+P31,太陽守,Tai Yang Shou,Guard of the Sun,R,138 138
+P32,勢,Shi,Eunuch,B,139 140 141 142 139
+P33,相,Xiang,Prime Minister,R,143 143
+P34,三公,San gong(Gan Shi),Three Excellencies (Gan School),B,144 145 146
+P35,玄戈,Xuan Ge,Sombre Lance,R,147 147
+P36,天理,Tian Li,Judge for Nobility,B,148 149 150 151 148
+P37,北斗,Bei Dou,Northern Dipper,R,152 153 154 155 156 157 158
+P38,輔,Fu,Assistant (Vassal of Northern Dipper),,159 159
+P39,天槍,Tian Qiang,Celestial Spear,R,160 161 | 160 162
+S01,太微左垣,Tai Wei Zuo Yuan,Supreme Palace Left Wall,,163 164 165 166 167
+S02,太微右垣,Tai Wei You Yuan,Supreme Palace Right Wall,,168 169 170 171 172
+S03,謁者,Ye Zhe,Usher to the Court,,173 173
+S04,三公內座,San Gong Nei Zuo,Inner Seats of Three Excellencies,,174 175 176 174
+S05,九卿內座,Jiu Qing Nei Zuo,Inner Seats of Nine Senior Officers,,177 178 179
+S06,內五諸侯,Nei Wu Zhu Hou(Tai Wei Yuan),Inner Five Lords,,180 181 182 183 184
+S07,內屏,Nei Ping,Inner Screen,,185 186 187 188
+S08,五帝坐,Wu Di Zuo,Seats of the Five Emperors,,189 190 191 | 192 190 193
+S09,幸臣,Xing Chen,Officer of Honour,,194 194
+S10,太子,Tai Zi,Crown Prince,,195 195
+S11,從官,Cong Guan(Tai Wei),Retinue (In Supreme Palace),,196 196
+S12,郎將,Lang Jiang,Captain of the Bodyguards,,197 197
+S13,虎賁,Hu Ben,Emperor's Bodyguard,,198 198
+S14,常陳,Chang Chen,Royal Guards,,199 200 201 202 203 | 202 204 205
+S15,郎位,Lang Wei,Officers of the Imperial Guard,,206 207 208 209 210 211 | 208 212 213 214 | 207 215 216 217 | 209 212 215 | 210 213 218 216 | 211 219 220 214 217 | 220 217 | 206 215
+S16,明堂,Ming Tang,The Hall of Glory,,221 222 223
+S17,靈台,Ling Tai,Astronomical Observatory,,224 225 226
+S18,少微,Shao Wei,Junior Officers,,227 228 229 230
+S19,長垣,Chang Yuan,Long Wall,,231 232 233 234
+S20,三台,San Tai,Three Steps (Upper Step),,235 236
+S21,三台,San Tai,Three Steps (Middle Step),,237 238
+S22,三台,San Tai,Three Steps (Lower Step),,239 240
+S23,三台,San Tai,Three Steps,,235 236 237 238 239 240
+H01,天市左垣,Tian Shi Zuo Yuan,Heavenly Market Left Wall,,241 242 243 244 245 246 247 248 249 250 251
+H02,天市右垣,Tian Shi You Yuan,Heavenly Market Right Wall,,252 253 254 255 256 257 258 259 260 261 262
+H03,市樓,Shi Lou,Municipal Office,,263 264 265 266 267 268 263
+H04,車肆,Che Si,Commodity Market,,269 270
+H05,宗正,Zong Zheng,Official for the Royal Clan,,271 272
+H06,宗人,Zong Ren,Official of Religious Ceremonies,,273 274 | 273 275 | 273 276
+H07,宗,Zong,Patriarchal Clan,,277 278
+H08,帛度,Bo Du,Textile Ruler,,279 280
+H09,屠肆,Tu Si,Butcher's Shops,,281 282
+H10,候,Hou,Astrologer,,283 283
+H11,帝坐,Di Zuo,Emperor's Seat,,284 284
+H12,宦者,Huan Zhe,Eunuch Official,,285 286 287 288
+H13,列肆,Lie Si,Jewel Market,,289 290
+H14,斗,Dou,Dipper for Liquids,,291 292 293 294 295
+H15,斛,Hu,Dipper for Solids,,296 297 298 299
+H16,貫索,Guan Suo,Coiled Thong,,300 301 302 303 304 305 306 307 308 300
+H17,七公,Qi Gong,Seven Excellencies,,309 310 311 312 313 314 315
+H18,天紀,Tian Ji,Celestial Discipline,,316 317 318 319 320 321 322 323 324
+H19,女床,Nü Chuang,Woman's Bed,,325 326 327
+01A,角,Jiao Xiu,Horn,,328 329
+01B,平道,Ping Dao,Flat Road,,330 331
+01C,天田,Tian Tian(Jiao Xiu),Celestial Farmland (In Horn Mansion),,332 333
+01D,進賢,Jin Xian,Recommending Virtuous Men,,334 334
+01E,周鼎,Zhou Ding,Tripod of the Zhou,,335 336 337
+01F,天門,Tian Men,Celestial Gate,,338 339
+01G,平,Ping,Judging,,340 341
+01H,庫樓,Ku Lou,Arsenal,,342 343 344 345 346 347 348 349 350 351 348
+01I,衡,Heng,Railings,,352 353 354 355
+01J,南門,Nan Men,Southern Gate,,356 357
+01K,柱,Zhu(Jiao Xiu),Pillars (In Arsenal),,358 359 360
+01L,柱,Zhu(Jiao Xiu),Pillars (In Arsenal),,361 362 363
+01M,柱,Zhu(Jiao Xiu),Pillars (In Arsenal),,364 365 366
+01N,柱,Zhu(Jiao Xiu),Pillars (In Arsenal),,367 368 369
+01O,柱,Zhu(Jiao Xiu),Pillars (In Arsenal),,370 371 372
+02A,亢,Kang,Neck,,373 374 375 | 373 376
+02B,大角,Da Jiao,Great Horn,,377 377
+02C,折威,Zhe Wei,Executions,,378 379 380 381 382 383 384
+02D,左攝提,Zuo She Ti,Left Conductor,,385 386 387
+02E,右攝提,You She Ti,Right Conductor,,388 389 390
+02F,頓頑,Dun Wan,Trials,,391 392
+02G,陽門,Yang Men,Gate of Yang,,393 394
+03A,氐,Di,Root,,395 396 397 398
+03B,天乳,Tian Ru,Celestial Milk,,399 399
+03C,招搖,Zhao Yao,Twinkling Indicator,,400 400
+03D,梗河,Geng He,Celestial Lance,,401 402 403
+03E,帝坐,Di Zuo (Da Jiao),Seat of the Emperor (At Great Horn),,404 405 406
+03F,亢池,Kang Chi,Boats and Lake,,407 408 409 410 411 412 407
+03G,陣車,Zhen Che,Battle Chariots,,413 414 415
+03H,車騎,Che Qi,Chariots and Cavalry,,416 417 418 416
+03I,天輻,Tian Fu,Celestial Spokes,,419 420
+03J,騎陣將軍,Qi Zhen Jiang Jun,Chariots and Cavalry General,,421 421
+03K,騎官,Qi Guan,Imperial Guards,,422 423 424 425 426 427 428 429 430 | 428 431 | 428 432 | 422 433 434 435 | 434 436 437 | 434 438 439 440 441 442 443 444 | 443 445 | 442 446 447 448 | 441 425
+03L,天庫,Tian Ku,Celestial Arsenal,,449 449
+04A,房,Fang,Room,,450 451 452 453 | 454 450
+04B,鈎鈐,Gou Qian,Lock (Adjunct of Room),,454 455
+04C,鍵閉,Jian Bi,Door Bolt,,456 456
+04D,罰,Fa,Punishment,,457 458 459
+04E,東咸,Dong Xian,Eastern Door,,460 461 462 463
+04F,西咸,Xi Xian,Western Door,,464 465 466 467
+04G,日,Ri,Solar Star,,468 468
+04H,從官,Cong Guan(Fang Xiu),Retinue (In Room Mansion),,469 470
+05A,心,Xin,Heart,,471 472 473
+05B,積卒,Ji Zu,Group of Soldiers,,474 475 | 474 476 | 477 478 | 477 479 | 480 481 | 480 482 | 483 484 | 483 485 | 474 477 480 483 474
+06A,尾,Wei,Tail,,486 487 488 489 490 491 492 493 | 492 494 | 487 495
+06C,龜,Gui,Tortoise,,496 497 498 499 500 496
+06D,天江,Tian Jiang,Celestial River,,501 502 503 504
+06E,傅說,Fu Yue,Fu Yue,,505 505
+06F,魚,Yu,Fish,,
+07A,箕,Ji,Winnowing Basket,,506 507 508 509
+07B,杵,Chu,Pestle,,510 511 512
+07C,糠,Kang,Chaff,,513 513
+08A,南斗,Nan Dou,Southern Dipper,,514 515 516 517 518 519
+08B,建,Jian,Banner,,520 521 522 523 524 525
+08C,天弁,Tian Bian,Market Officer,,526 527 528 529 530 531 532 533 534
+08D,鱉,Bie,River Turtle,,535 536 537 538 539 540 541 542 543 544 545 546 547 548 535
+08E,天雞,Tian Ji,Celestial Cock,,549 550
+08F,天籥,Tian Yue,Celestial Keyhole,,551 552 553 554 555 556 557 558 551
+08G,狗,Gou,Dog,,559 560
+08H,狗國,Gou Guo,Territory of Dog,,561 562 563 564 561
+08I,天淵,Tian Yuan,Celestial Spring,,565 566 567 568 569 570 565 | 571 570 | 572 566 | 567 573 | 574 569
+08J,農丈人,Nong Zhang Ren,Peasant,,575 575
+09A,牽牛,Qian Niu,Leading Ox,,576 577 578 579 576 580 | 576 581
+09B,天田,Tian Tian(Niu Xiu),Celestial Farmland (In Ox Mansion),,582 583 584 | 585 586 587 | 588 589 590 | 589 586 583
+09C,九坎,Jiu Kan,Nine Water Wells,,591 592 593 | 592 594 595 | 594 596 | 594 597 598 | 597 599
+09D,河鼓,He Gu,Drum at the River,,600 601 602
+09E,織女,Zhi Nü,Weaving Girl,,603 604 605
+09F,左旗,Zuo Qi,Left Flag,,606 607 608 | 607 609 610 611 612 613 614
+09G,鼓旗,Gu Qi,Flag of the Drum,,615 616 617 | 616 618 619 620 621 622 623
+09H,天桴,Tian Fu,Celestial Drumstick,,624 625 626 627
+09I,羅堰,Luo Yan,Network of Dykes,,628 629 | 628 630
+09J,漸台,Jian Tai,Clepsydra Terrace,,631 632 633 634
+09K,輦道,Nian Dao,Imperial Passageway,,635 636 637 638 639
+10A,須女,Xu Nü,Working Woman,,640 641 642 643
+10B,離珠,Li Zhu,Pearls on Ladies' Wear,,644 645 646 647 648
+10C,敗瓜,Bai Gua,Rotten Gourd,,649 650 651 652 649 | 652 653
+10D,瓠瓜,Hu Gua,Good Gourd,,654 655 656 657 654 | 656 658
+10E,天津,Tian Jin,Celestial Ford,,659 660 661 662 663 664 665 666 667 659
+10F,奚仲,Xi Zhong,Xi Zhong,,668 669 670 671
+10G,扶筐,Fu Kuang,Basket for Mulberry Leaves,,672 673 674 675 | 672 676 677 678
+10H,趙,Shi Er Guo (Zhao),Twelve States (Zhao State),,679 680
+10I,越,Shi Er Guo (Yue),Twelve States (Yue State),,681 681
+10J,周,Shi Er Guo (Zhou),Twelve States (Zhou State),,682 683
+10K,齊,Shi Er Guo (Qi),Twelve States (Qi State),,684 684
+10L,鄭,Shi Er Guo (Zheng),Twelve States (Zheng State),,685 685
+10M,楚,Shi Er Guo (Chu),Twelve States (Chu State),,686 686
+10N,秦,Shi Er Guo (Qin),Twelve States (Qin State),,687 688
+10O,燕,Shi Er Guo (Yan),Twelve States (Yan State),,689 689
+10P,魏,Shi Er Guo (Wei),Twelve States (Wei State),,690 690
+10Q,代,Shi Er Guo (Dai),Twelve States (Dai State),,691 692
+10R,晉,Shi Er Guo (Jin),Twelve States (Jin State),,693 693
+10S,韓,Shi Er Guo (Han),Twelve States (Han State),,694 694
+11A,虛,Xu,Emptiness,,695 696
+11B,司命,Si Ming,Deified Judge of Life,,697 698
+11C,司祿,Si Lu,Deified Judge of Rank,,699 700
+11D,司危,Si wei,Deified Judge of Disaster and Good Fortune,,701 702
+11E,司非,Si Fei,Deified Judge of Right and Wrong,,703 704
+11F,哭,Ku,Crying,,705 706
+11G,泣,Qi,Weeping,,707 708
+11H,天壘城,Tian Lei Cheng,Celestial Ramparts,,709 710 711 712 713 714 715 716 717 718 719 720 721 709
+11I,敗臼,Bai Jiu,Decayed Mortar,,722 723 724 725
+11J,離瑜,Li Yu,Jade Ornament on Ladies' Wear,,726 727 728
+12A,危,Wei,Rooftop,,729 730 731 | 730 732
+12B,墳墓,Fen Mu,Tomb (Adjunct to Rooftop),,733 734 | 733 735 | 733 732
+12C,人,Ren,Humans,,736 737 | 736 738 | 736 739 | 736 740
+12D,臼,Jiu,Mortar,,741 742 | 741 743 744
+12E,內杵,Nei Chu,Inner Pestle,,745 746 747
+12F,車府,Che Fu,Big Yard for Chariots,,748 749 750 751 752 753 754 751
+12G,天鈎,Tian Gou,Celestial Hook,,755 756 757 758 759 760 761 762 763
+12H,造父,Zao Fu,Zaofu,,764 765 | 764 766 | 764 767 | 764 768
+12I,虛梁,Xu Liang,Temple,,769 770 771 772
+12J,天錢,Tian Qian,Celestial Money,,773 774 775 776 777 778 779 780 781 782 773
+12K,蓋屋,Gai Wu,Roofing,,783 784
+13A,營室,Ying Shi,Military Encampment,,785 786 787 | 786 788 | 786 789
+13B,離宮,Li Gong,Resting Palace (Adjunct to Military Encampment),,789 790
+13C,離宮,Li Gong,Resting Palace (Adjunct to Military Encampment),,788 791
+13D,離宮,Li Gong,Resting Palace (Adjunct to Military Encampment),,787 792
+13E,雷電,Lei Dian,Thunder and Lightning,,793 794 795 | 794 796 797 | 796 798
+13F,土公吏,Tu Gong Li,Official for Materials Supply,,799 800
+13G,壘壁陣,Lei Bi Zhen,Line of Ramparts,,801 802 803 804 801 | 803 805 806 807 808 809 810 811 812 809
+13H,鈇鉞,Fu Yue,Axe,,813 814 815
+13I,北落師門,Bei Luo Shi Men,North Gate of the Military Camp,,816 816
+13J,天綱,Tian Gang,Materials for Making Tents,,817 817
+13K,螣蛇,Teng She,Flying Serpent,,818 819 820 | 819 821 822 823 824 825 826 827 828 | 819 829 | 830 829 831 | 829 832 833 834 835 836 837 838 839 836
+13L,八魁,Ba Kui,Net for Catching Birds,,840 841 842 | 841 843 844 | 843 845 | 843 846 847 | 846 848
+13M,羽林軍,Yu Lin Jun,Palace Guard,,849 850 851 852 853 854 855 856 857 858 859 | 853 860 861 862 | 861 863 864 865 | 864 866 | 864 867 868 | 867 869 | 855 870 871 872 873 874 | 875 876 877 878 879 880 881 | 880 882 | 875 883 884 885 886 | 875 887 888 889 890 891 892
+14A,東壁,Dong Bi,Eastern Wall,,893 894
+14B,霹靂,Pi Li,Thunderbolt,,895 896 897 898 899
+14C,雲雨,Yun Yu,Cloud and Rain,,900 901 902 903
+14D,天廄,Tian Jiu,Celestial Stable,,904 905 906 907 908 909 910 911 912 913 904
+14E,鈇鑕,Fu Zhi,Sickle,,914 915 916 | 915 917 918
+14F,土公,Tu Gong,Official for Earthworks and Buildings,,919 920
+15A,奎,Kui Xiu,Legs,,921 922 923 924 925 926 927 928 929 930 931 932 933 934 935 921
+15B,外屏,Wai Ping,Outer Fence,,936 937 938 939 940 941 942
+15C,天溷,Tian Hun,Celestial Pigsty,,943 944 945 946 947 948 949 943
+15D,土司空,Tu Si Kong(Kui Xiu),Master of Constructions (In Legs Mansion),,950 950
+15E,軍南門,Jun Nan Men,Southern Military Gate,,951 951
+15F,閣道,Ge Dao,Flying Corridor,,952 953 954 955 956 957
+15G,附路,Fu Lu,Auxiliary Road,,958 958
+15H,王良,Wang Liang,Wang Liang,,959 960 961 962 | 963 959 | 963 960 | 963 961 | 963 962
+15I,策,Ce,Whip,,964 964
+16A,婁,Lou,Bond,,965 966 967
+16B,左更,Zuo Geng,Official in Charge of the Forest,,968 969 970 971 968 972
+16C,右更,You Geng,Official in Charge of Pasturing,,973 974 975 976 977 974
+16D,天倉,Tian Cang,Square Celestial Granary,,978 979 980 981 982 983
+16E,天庾,Tian Yu,Ricks of Grain,,984 985 986
+16F,天大將軍,Tian Da Jiang Jun,Great General of Heaven,,987 988 989 990 991 992 | 988 993 994 995 996
+17A,胃,Wei,Stomach,,997 998 999
+17B,天囷,Tian Qun,Circular Celestial Granary,,1000 1001 1002 1003 1004 1005 1006 1007 1008 1009 1010 1011 1012
+17C,天廩,Tian Lin,Celestial Foodstuff,,1013 1014 1015 1016
+17D,大陵,Da Ling,Mausoleum,,1017 1018 1019 1020 1021 1022 1023 1024
+17E,天船,Tian Chuan,Celestial Boat,,1025 1026 1027 1028 1029 1030 1031 1032 1033
+17F,積屍,Ji Shi(Da Ling),Heap of Corpses (In Mausoleum),,1034 1034
+17G,積水,Ji Shui(Tian Chuan),Stored water (In Celestial Boat),,1035 1035
+18A,昴,Mao,Hairy Head,,1036 1037 1038 1039 1040 1041 1042
+18B,天阿,Tian E,Celestial Concave,,1043 1043
+18C,月,Yue,Lunar Star,,1044 1044
+18D,天陰,Tian Yin,Celestial Yin Force,,1045 1046 | 1045 1047 | 1045 1048 | 1045 1049
+18E,捲舌,Juan She,Rolled Tongue,,1050 1051 1052 1053 1054 1055
+18F,天讒,Tian Chan,Celestial Slander,,1056 1056
+18G,礪石,Li Shi,Whetstone,,1057 1058 1059 1060
+18H,芻藁,Chu Hao,Hay,,1061 1062 1063 1064 1065 1066
+18I,天苑,Tian Yuan,Celestial Meadows,,1067 1068 1069 1070 1071 1072 1073 1074 1075 1076 1077 1078 1079 1080 1081 1082
+19A,畢,Bi,Net,,1083 1084 1085 1086 | 1087 1088 1089 1086 1090 | 1087 1091
+19B,附耳,Fu Er,Whisper (Adjunct to Net),,1091 1091
+19C,天街,Tian Jie,Celestial Street,,1092 1093
+19D,天節,Tian Jie,Celestial Tally,,1094 1095 | 1094 1096 | 1094 1097 1098 1099 1100 1101
+19E,諸王,Zhu Wang,Feudal Kings,R,1102 1103 1104 1105 1106 1107
+19F,天高,Tian Gao,Celestial High Terrace,W,1108 1109 1110 1111 1108
+19G,九州殊口,Jiu Zhou Shu Kou,Interpreters of Nine Dialects,,1112 1113 1114 1115 1116 1117 1118 1119 1120 1112
+19H,五車,Wu Che,Five Chariots,R,1121 1122 1123 1124 1125
+19I,柱,Zhu(Bi Xiu),Pillars (In Five Chariots),,1126 1127 | 1126 1128
+19J,柱,Zhu(Bi Xiu),Pillars (In Five Chariots),,1129 1130 | 1129 1131
+19K,柱,Zhu(Bi Xiu),Pillars (In Five Chariots),,1132 1133 1134
+19L,天潢,Tian Huang,Celestial Pier,,1135 1136 1137 | 1138 1136 1139
+19M,咸池,Xian Chi,Pool of Harmony,,1140 1141 | 1140 1142
+19N,天關,Tian Guan,Celestial Pass,,1143 1143
+19O,參旗,Can Qi,Banner of Three Stars,R,1144 1145 1146 1147 1148 1149 1150 1151 1152
+19P,九斿,Jiu Liu,Imperial Military Flag,B,1153 1154 1155 1156 1157 1158 1159 1160 1161
+19Q,天園,Tian Yuan,Celestial Orchard,,1162 1163 1164 1165 1166 1167 1168 1169 1170 1171 1172 1173 1174
+20A,觜觿,Zi Xi,Beak,W,1175 1176 | 1175 1177
+20B,司怪,Si Guai,Deity in Charge of Monsters,,1178 1179 1180 1181
+20C,坐旗,Zuo Qi,Seat Flags,B,1182 1183 1184 1185 1186 1187 1188 1189 1190
+21A,參,Shen,Three Stars,R,1191 1192 1193 1194 1195 | 1194 1196 | 1192 1197
+21B,伐,Fa,Attack (Adjunct to the Three Stars),H,1198 1199 1200
+21C,玉井,Yu Jing,Jade Well,R,1201 1202 1203 1204
+21D,屏,Ping,Screen,W,1205 1206
+21E,軍井,Jun Jing,Military Well,B,1207 1208 1209 1210
+21F,廁,Ce,Toilet,W,1211 1212 1213 1214
+21G,天矢,Tian Shi,Celestial Excrement,,1215 1215
+22A,東井,Dong Jing,Eastern Well,W,1216 1217 1218 1219 | 1218 1220 1221 | 1220 1222 1217 | 1222 1223 | 1221 1224
+22B,鉞,Yue,Battle Axe (Adjunct to Eastern Well),,1224 1224
+22C,南河,Nan He,South River,,1225 1226 1227
+22D,北河,Bei He,North River,,1228 1229 1230
+22E,天樽,Tian Zun,Celestial Wine Cup,B,1231 1232 1233
+22F,五諸侯,Wu Zhu Hou(JingXiu),Five Feudal Kings,,1234 1235 1236 1237 1238
+22G,積水,Ji Shui(Jin Xiu),Accumulated Water,,1239 1239
+22H,積薪,Ji Xin,Pile of Firewood,,1240 1240
+22I,水府,Shui Fu,Official for Irrigation,B,1241 1242 1243 1244 1241
+22J,水位,Shui Wei,Water Level,,1245 1246 1247 1248
+22K,四瀆,Si Du,Four Channels,B,1249 1250 1251 1252
+22L,軍市,Jun Shi,Market for Soldiers,R,1253 1254 1255 1256 1257 1258 1259 1260 1261 1262 1263 1264 1265 1253
+22M,野雞,Ye Ji,Wild Cockerel,R,1266 1266
+22N,孫,Sun,Grandson,,1267 1268
+22O,子,Zi,Son,W,1269 1270
+22P,丈人,Zhang Ren,Grandfather,B,1271 1272
+22Q,闕丘,Que Qiu,Palace Gate,,1273 1274
+22R,狼,Lang,Wolf,,1275 1275
+22S,弧矢,Hu Shi,Bow and Arrow,,1276 1277 1278 1279 1280 1281 1282 1283 1276 | 1284 1281 1277
+22T,老人,Lao Ren,Old Man,,1285 1285
+23A,輿鬼,Yu Gui,Cabin Ghosts,,1286 1287 1288 1289 1286
+23B,積屍,Ji Shi,Cumulative Corpse (In Cabin Ghosts),,
+23C,爟,Guan,Beacon Fire,,1290 1291 1292 1293 1290
+23D,天狗,Tian Gou,Celestial Dog,,1294 1295 1296 | 1295 1297 1298 1299 1300
+23E,外廚,Wai Chu,Outer Kitchen,,1301 1302 1303 1304 | 1305 1306 1301
+23F,天記,Tian Ji,Judge for Estimating the Age of Animals,,1307 1307
+23G,天社,Tian She,Celestial Earth God's Temple,,1308 1309 1310 | 1309 1311 1312 | 1311 1313
+24A,柳,Liu,Willow,,1314 1315 1316 1317 1318 1319 1320 1321
+24B,酒旗,Jiu Qi,Banner of Wine Shop,,1322 1323 | 1322 1324 1323
+25A,七星,Qi Xing,Seven Stars,,1325 1326 1327 1328 1329 1330 1331
+25B,軒轅,Xuan Yuan,Xuanyuan,,1332 1333 1334 1335 1336 1337 1338 1339 1340 1341 1342 1343 1344 1345 1346 | 1345 1347 | 1345 1348
+25C,內平,Nei Ping,High Judge,,1349 1350 1351 1352
+25D,天相,Tian Xiang,Celestial Premier,,1353 1354 | 1353 1355
+25E,天稷,Tian Ji,Celestial Cereals,,1356 1357 1358 1359 1360 1357
+26A,張,Zhang,Extended Net,,1361 1362 1363 1364 | 1361 1364 | 1361 1365 | 1363 1366
+26B,天廟,Tian Miao,Celestial Temple,,1367 1368 1369 1370 1371 1372 1373 1374 1375 1376 1377 1378 1379 1380 1367
+27A,翼,Yi,Wings,,1381 1382 1383 1384 1385 | 1383 1386 | 1387 1388 1389 1386 1390 1391 | 1389 1392 | 1393 1382 | 1393 1384 | 1393 1394 1395 1396 | 1394 1397 | 1398 1399 1400 1401 1397 1402
+27B,東甌,Dong Ou,Dongou,,1403 1404 1405 1406 1407
+28A,軫,Zhen,Chariot,,1408 1409 1410 1411 1408 | 1410 1412 | 1409 1413 | 1411 1414
+28B,長沙,Chang Sha,Changsha (Adjunct to Chariot),,1412 1412
+28C,左轄,Zuo Xia,Left linchpin (Adjunct to Chariot),,1413 1413
+28D,右轄,You Xia,Right linchpin (Adjunct to Chariot),,1414 1414
+28E,軍門,Jun Men,Military Gate,,1415 1416
+28F,土司空,Tu Si Kong(Zhen Xiu),Master of Constructions (In Chariot Mansion),,1417 1418 1419 1420
+28G,青丘,Qing Qiu,Green Hill,,1421 1422 1423 1424 1425 1426 1427 1421
+28H,器府,Qi Fu,House for Musical Instruments,,1428 1429 1430 1431 1432 1433 1434 1435 1436 | 1437 1438 1439 1440 1441 1442 | 1443 1444 1445 1446 1447 1448 1449 1450 1451 1452 | 1453 1454 1455 1456 1457 1458 1459
