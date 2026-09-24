@@ -14,6 +14,7 @@
 namespace sigil::data::schema {
 
 using flatbuffers::BaseType;
+using flatbuffers::Definition;
 using flatbuffers::EnumDef;
 using flatbuffers::EnumVal;
 using flatbuffers::FieldDef;

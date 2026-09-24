@@ -2,13 +2,15 @@
  *  a value written and read back field for field, a union through each
  *  alternative and through none, a table field that is absent and one
  *  that is there, a vector of tables, the root's own JSON form both
- *  ways, bytes that are not this schema at all, the sheet the buffer
- *  cases read coming back as a value, and every table reachable through
- *  the trait a reader that names the value asks by.
+ *  ways and every other table's through its own trait, a schema over
+ *  two namespaces, bytes that are not this schema at all, the sheet the
+ *  buffer cases read coming back as a value, and every table reachable
+ *  through the trait a reader that names the value asks by.
  */
 
 #include <flatbuffers/flatbuffers.h>
 #include <gtest/gtest.h>
+#include <sigildata/decode/Schema.h>
 #include <sigildata/values/Values.h>
 
 #include <cstddef>
@@ -21,43 +23,15 @@
 
 #include "flatbuffer_test_generated.h"
 #include "flatbuffer_test_values.h"
+#include "values_spaces_test_generated.h"
+#include "values_spaces_test_values.h"
 #include "values_test_generated.h"
 #include "values_test_values.h"
 
-// Field for field, so a case says which field moved rather than that
-// something did. These stand in the schema's own value namespace,
-// because that is where a comparison of its types is looked up from.
-namespace values_test::values {
-
-bool operator==(const Span& a, const Span& b) {
-  return a.low == b.low && a.high == b.high;
-}
-
-bool operator==(const Note& a, const Note& b) {
-  return a.text == b.text && a.weight == b.weight;
-}
-
-bool operator==(const Mark& a, const Mark& b) { return a.name == b.name; }
-
-bool operator==(const Reading& a, const Reading& b) {
-  return a.at == b.at && a.span == b.span && a.note == b.note &&
-         a.tags == b.tags;
-}
-
-bool operator==(const Sheet& a, const Sheet& b) {
-  return a.title == b.title && a.weather == b.weather && a.bounds == b.bounds &&
-         a.readings == b.readings && a.depths == b.depths &&
-         a.skies == b.skies && a.wet == b.wet;
-}
-
-bool operator==(const Log& a, const Log& b) {
-  return a.count == b.count && a.entry == b.entry;
-}
-
-}  // namespace values_test::values
-
 namespace values = values_test::values;
 namespace sheet = flatbuffer_test::values;
+namespace shared = values_spaces::shared::values;
+namespace scene = values_spaces::scene::values;
 
 namespace {
 
@@ -290,6 +264,113 @@ TEST(DataValues, EveryTableIsReadableThroughItsOwnTrait) {
   ASSERT_TRUE(back);
   EXPECT_TRUE(aLog() == *back);
   EXPECT_FALSE(trait::Read<values::Log>::from(std::span<const std::byte>()));
+}
+
+TEST(DataValues, EveryTableConvertsToAndFromItsOwnJsonForm) {
+  namespace trait = sigil::data::values;
+
+  // Every TABLE has a JSON form, the root's and every other's, and a
+  // struct, which never travels on its own, has none.
+  static_assert(trait::HasJsonForm<values::Log>);
+  static_assert(trait::HasJsonForm<values::Note>);
+  static_assert(trait::HasJsonForm<values::Sheet>);
+  static_assert(!trait::HasJsonForm<values::Span>);
+  static_assert(!trait::HasJsonForm<int>);
+
+  // A table that is no root converts through the schema read at it:
+  // the text is in the schema's own form, so written again it is the
+  // same text, byte for byte.
+  std::string why;
+  const std::optional<values::Note> note =
+      trait::fromJson<values::Note>(R"({"text": "wet", "weight": 3})", &why);
+  ASSERT_TRUE(note) << why;
+  EXPECT_EQ("wet", note->text);
+  EXPECT_EQ(3, note->weight);
+  const std::optional<std::string> text = trait::toJson(*note, &why);
+  ASSERT_TRUE(text) << why;
+  EXPECT_EQ(R"({"text": "wet","weight": 3})", *text);
+  const std::optional<values::Note> again = trait::fromJson<values::Note>(*text);
+  ASSERT_TRUE(again);
+  EXPECT_EQ(*note, *again);
+  EXPECT_EQ(text, trait::toJson(*again));
+
+  // A nested table's fields are the nested table's, and a field the
+  // table does not declare is no value, with the reader's own message.
+  const std::optional<values::Sheet> page = trait::fromJson<values::Sheet>(
+      R"({"title": "north wall", "readings": [{"at": 1.5, "note": {"text": "dry"}}]})",
+      &why);
+  ASSERT_TRUE(page) << why;
+  ASSERT_EQ(1u, page->readings.size());
+  ASSERT_TRUE(page->readings[0].note);
+  EXPECT_EQ("dry", page->readings[0].note->text);
+  why.clear();
+  EXPECT_FALSE(trait::fromJson<values::Note>(R"({"colour": "red"})", &why));
+  EXPECT_FALSE(why.empty());
+}
+
+TEST(DataValues, ASchemaReadAtATableItDoesNotDeclareIsNone) {
+  const sigil::data::Schema log = sigil::data::schema<values_test::Log>();
+  ASSERT_TRUE(log);
+  EXPECT_EQ("values_test.Log", log.rootName());
+
+  const sigil::data::Schema note = log.rootedAt("values_test.Note");
+  ASSERT_TRUE(note);
+  EXPECT_EQ("values_test.Note", note.rootName());
+
+  // A name the schema does not declare, a struct, which is never a
+  // root, and no name at all are each no schema, and say so.
+  std::string why;
+  EXPECT_FALSE(log.rootedAt("values_test.Nothing", &why));
+  EXPECT_NE(std::string::npos, why.find("values_test.Nothing"));
+  why.clear();
+  EXPECT_FALSE(log.rootedAt("values_test.Span", &why));
+  EXPECT_FALSE(why.empty());
+  EXPECT_FALSE(log.rootedAt("", &why));
+  EXPECT_FALSE(sigil::data::Schema().rootedAt("values_test.Note"));
+}
+
+TEST(DataValues, ASchemaOverTwoNamespacesHoldsOneFromTheOther) {
+  // Each namespace's values stand beside it, and a table of one holds
+  // the other's struct, table, enum and vector of tables by value.
+  scene::Mark mark;
+  mark.at = shared::Point{.x = 1.5f, .y = -2.0f};
+  mark.label = shared::Label{.text = "north"};
+  mark.tone = ::values_spaces::shared::Tone_Loud;
+  mark.asides = {shared::Label{.text = "a"}, shared::Label{.text = "b"}};
+
+  scene::Scene whole;
+  whole.marks = {mark, scene::Mark{}};
+  whole.carried = shared::Label{.text = "carried"};
+
+  const std::optional<scene::Scene> back =
+      scene::readScene(scene::writeScene(whole));
+  ASSERT_TRUE(back);
+  EXPECT_EQ(whole, *back);
+  ASSERT_TRUE(std::holds_alternative<shared::Label>(back->carried));
+  EXPECT_EQ("carried", std::get<shared::Label>(back->carried).text);
+
+  // The union's other alternative is this namespace's own table.
+  whole.carried = mark;
+  const std::optional<scene::Scene> other =
+      scene::readScene(scene::writeScene(whole));
+  ASSERT_TRUE(other);
+  EXPECT_EQ(whole, *other);
+
+  // And a table of the other namespace has its own JSON form through
+  // the schema the root carries.
+  namespace trait = sigil::data::values;
+  std::string why;
+  const std::optional<std::string> text =
+      trait::toJson(shared::Label{.text = "north"}, &why);
+  ASSERT_TRUE(text) << why;
+  EXPECT_EQ(R"({"text": "north"})", *text);
+  const std::optional<scene::Mark> read = trait::fromJson<scene::Mark>(
+      R"({"at": {"x": 1.5, "y": -2.0}, "tone": "Loud", "asides": [{"text": "a"}]})",
+      &why);
+  ASSERT_TRUE(read) << why;
+  EXPECT_EQ(::values_spaces::shared::Tone_Loud, read->tone);
+  ASSERT_EQ(1u, read->asides.size());
+  EXPECT_EQ("a", read->asides[0].text);
 }
 
 }  // namespace

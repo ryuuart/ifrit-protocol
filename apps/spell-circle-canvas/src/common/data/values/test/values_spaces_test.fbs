@@ -1,0 +1,42 @@
+// values_spaces_test.fbs — a schema over two namespaces, which the
+// generated value header's cases read across: a struct, a table and an
+// enum declared in one namespace and held, by value, in a vector and
+// through a union, by tables declared in the other.
+namespace values_spaces.shared;
+
+/// How loud a mark is.
+enum Tone : byte { Quiet = 0, Loud = 1 }
+
+/// A position, which travels inline.
+struct Point {
+  x: float;
+  y: float;
+}
+
+/// Words attached to something.
+table Label {
+  text: string;
+}
+
+namespace values_spaces.scene;
+
+/// One mark on the scene, placed and labelled by the shared
+/// definitions.
+table Mark {
+  at: values_spaces.shared.Point;
+  label: values_spaces.shared.Label;
+  tone: values_spaces.shared.Tone;
+  asides: [values_spaces.shared.Label];
+}
+
+/// What the scene carries on top: a label of the other namespace or a
+/// mark of its own.
+union Carried { values_spaces.shared.Label, Mark }
+
+/// The scene: its marks, and what it carries.
+table Scene {
+  marks: [Mark];
+  carried: Carried;
+}
+
+root_type Scene;

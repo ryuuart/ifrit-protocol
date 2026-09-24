@@ -323,7 +323,21 @@ which type it is. Every table gets a reading and a writing named for it
 — `readSky()` and `writeSky()` for a table called `Sky` — where the
 reading verifies the bytes and answers nothing when they are not that
 root or when a required field is absent, and the root gets `fromJson()`
-and `toJson()` through the schema its generated header carries.
+and `toJson()` through the schema its generated header carries. Every
+value compares, member by member, so a reader holding one asks whether
+the next message changed anything with `==`.
+
+A schema may declare several namespaces — a protocol with one per
+domain, say — and each definition's value type goes into the value
+namespace beside its own — a `values` inside the protocol's namespace
+and another inside its clock domain's — a name spelled bare inside its
+own namespace and qualified from the global one everywhere else. And where the schema
+declares a root, EVERY table has a JSON form, not the root alone: flatc
+embeds the binary schema beside every table of the file, and each
+table's form is read through that schema read at the table with
+`Schema::rootedAt()`, named once as a specialization of
+`values::JsonForm` so a caller writes `values::fromJson<Note>(text)` and
+`values::toJson(note)`, naming the value and never the table.
 
 Every table's reading is also named ONCE, as a specialization of
 `values::Read` — the trait a reader that names the VALUE type asks by,

@@ -43,7 +43,8 @@ concept CarriesSchema = requires {
  *  @trap THE ROOT IS THE ONE THE SCHEMA FILE DECLARES, not the type
  *  named: a generated header embeds its file's whole schema beside
  *  every type in it, so naming another type of the same file makes the
- *  same schema. `rootName()` says which. */
+ *  same schema. `rootName()` says which, and `rootedAt()` reads another
+ *  table of it. */
 class Schema {
  public:
   /** A SCHEMA THAT IS NONE: it converts nothing, and every reading
@@ -58,6 +59,16 @@ class Schema {
    *  for this. */
   static Schema fromBinarySchema(std::span<const std::byte> bfbs,
                                  std::string* why = nullptr);
+
+  /** THE SAME SCHEMA READ AT ANOTHER OF ITS TABLES: both conversions
+   *  go through @p table, fully qualified as the schema spells it —
+   *  `sigil.protocol.clock.StepResult` — rather than through the root
+   *  the file declares. A schema of many messages, each of which travels
+   *  on its own, is read this way one table at a time. None where the
+   *  schema declares no such table, or where this is no schema; @p why
+   *  says which where it is asked for. The binary schema is read again
+   *  for the new root, so a holder makes one per table and keeps it. */
+  Schema rootedAt(std::string_view table, std::string* why = nullptr) const;
 
   /** Whether this is a schema at all. */
   explicit operator bool() const { return m_state != nullptr; }
@@ -91,6 +102,12 @@ class Schema {
   std::string_view rootName() const;
 
  private:
+  /** THE SCHEMA IN @p bfbs READ AT @p root, or at the root the file
+   *  declares where @p root is empty: the one reading both public ways
+   *  of making a schema come through. */
+  static Schema read(std::span<const std::byte> bfbs, std::string_view root,
+                     std::string* why);
+
   /** What the token stands on: the schema as the reader under it holds
    *  it, named here and defined where that reader's headers are opened,
    *  so this header spells none of them. One pointer, so a copy of the

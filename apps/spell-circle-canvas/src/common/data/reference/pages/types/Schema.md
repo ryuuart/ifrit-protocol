@@ -51,6 +51,14 @@ it, so naming another type of the same file makes the same schema;
 qualified — `feed_sky.Sky`. The view is into the schema and stands as
 long as it does.
 
+`Schema::rootedAt` reads the same schema at another of its tables,
+named as the schema spells it — `sigil.protocol.clock.StepResult` — so
+a schema of many messages, each of which travels on its own, converts
+one table at a time. It reads the binary schema again for the new root,
+so a holder makes one per table and keeps it; a name the schema does
+not declare, a struct, and no name at all are each no schema, and `why`
+says which.
+
 `sigil::data::CarriesSchema` is whether a generated root carries its
 binary schema — a header written with the embed flag — which is what
 converting the JSON form needs.

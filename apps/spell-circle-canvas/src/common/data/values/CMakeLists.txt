@@ -55,6 +55,22 @@ add_custom_command(
   COMMENT "Generating values_test_values.h from the cases' own schema"
   VERBATIM)
 
+# A SCHEMA OVER TWO NAMESPACES, read the same way: the values of each go
+# into the value namespace beside it, and a table of one holds the
+# other's by value, in a vector and through a union.
+set(VALUES_SPACES_SCHEMA ${CMAKE_CURRENT_LIST_DIR}/test/values_spaces_test.fbs)
+add_custom_command(
+  OUTPUT ${VALUES_TEST_OUT}/values_spaces_test_generated.h
+         ${VALUES_TEST_OUT}/values_spaces_test_bfbs_generated.h
+         ${VALUES_TEST_OUT}/values_spaces_test_values.h
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${VALUES_TEST_OUT}
+  COMMAND flatbuffers::flatc --cpp -b --schema --bfbs-gen-embed
+          -o ${VALUES_TEST_OUT} ${VALUES_SPACES_SCHEMA}
+  COMMAND sigil_schema_values ${VALUES_SPACES_SCHEMA} -o ${VALUES_TEST_OUT}
+  DEPENDS ${VALUES_SPACES_SCHEMA} sigil_schema_values
+  COMMENT "Generating values_spaces_test_values.h from a schema of two namespaces"
+  VERBATIM)
+
 # THE DECODE FEATURE'S TEST SCHEMA, read as values as well. Its
 # generated header and its include directory are the decode feature's
 # already, so only the friendly header is written here: one schema read
@@ -73,13 +89,15 @@ add_custom_command(
 # depends on this.
 add_custom_target(SigilDataValuesTestSchema
   DEPENDS ${VALUES_TEST_OUT}/values_test_values.h
+          ${VALUES_TEST_OUT}/values_spaces_test_values.h
           ${VALUES_TEST_OUT}/flatbuffer_test_values.h)
 
 # The cases read a value out of bytes and write it back, so what the
 # generator wrote is judged against the wire rather than against itself:
 # a value that survives the round trip, a union through each
 # alternative, an absent table field, a vector of tables, the root's
-# JSON form both ways, and bytes that are not this schema at all.
+# JSON form both ways and every other table's, a schema of two
+# namespaces, and bytes that are not this schema at all.
 sigil_test(data_test
   SOURCES test/ValuesTest.cpp
   LIBRARIES SigilDataValues SigilDataDecode)

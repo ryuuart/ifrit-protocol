@@ -64,6 +64,29 @@ own, which is what a door asks of the type it is handed before it reads
 a message as one. A struct has none — it travels inline inside a table
 and is never a root — and neither has a type from outside a schema.
 
+### A value's JSON form is named once too
+
+`sigil::data::values::JsonForm` is the same seam for text: a
+specialization declares a static `from` that reads the schema's JSON
+form of that value and a static `to` that writes it, and a generated
+header writes one for every table of a schema that declares a root —
+the root being what makes flatc embed the binary schema both go
+through. `sigil::data::values::fromJson` and
+`sigil::data::values::toJson` are the two a caller spells, naming the
+value and never the table:
+
+```cpp
+const std::optional<StepResult> read = values::fromJson<StepResult>(text);
+const std::optional<std::string> written = values::toJson(*read);
+```
+
+Each specialization reads the embedded schema once at its own table, by
+`sigil::data::Schema::rootedAt`, and keeps it. The text is the schema's
+own form — field names quoted, no line breaks, every scalar written —
+so text written, read and written again is the same text byte for byte.
+`sigil::data::values::HasJsonForm` holds for a type one was written for;
+the primary template is left undefined, as `Read`'s is.
+
 ### The readings and the writings
 
 `sigil::data::values::bytesOf` copies out the buffer a builder has

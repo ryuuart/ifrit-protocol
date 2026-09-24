@@ -1,7 +1,8 @@
 /** @file
  * WHAT A VALUE OF EACH DEFINITION IS: the C++ type a field reads as,
- * the entry type of a vector, and the struct or variant alias the
- * written header declares for a schema's struct, table or union.
+ * the entry type of a vector, the struct or variant alias the written
+ * header declares for a schema's struct, table or union, and the
+ * comparison every value carries.
  */
 
 #include <flatbuffers/idl.h>
@@ -19,7 +20,7 @@ std::string Header::entryTypeOf(const Type& type) {
   const Type entry = type.VectorType();
   if (entry.base_type == flatbuffers::BASE_TYPE_STRING) return "std::string";
   if (entry.base_type == flatbuffers::BASE_TYPE_STRUCT)
-    return entry.struct_def->name;
+    return valueRef(*entry.struct_def);
   // A vector of unions is two fields on the wire, the tags beside the
   // values; both land here and both are refused.
   if (entry.base_type == flatbuffers::BASE_TYPE_UNION ||
@@ -27,7 +28,7 @@ std::string Header::entryTypeOf(const Type& type) {
     refuseOnce("a vector of unions has no value form here");
     return "void";
   }
-  if (entry.enum_def) return wireName(m_space, entry.enum_def->name);
+  if (entry.enum_def) return wireOf(*entry.enum_def);
   const std::string scalar = scalarName(entry.base_type);
   if (scalar.empty())
     refuseOnce(std::string("a vector of ") +
@@ -44,7 +45,7 @@ std::string Header::valueTypeOf(const FieldDef& field) {
     return "void";
   }
   if (type.base_type == flatbuffers::BASE_TYPE_UNION)
-    return type.enum_def->name;
+    return valueRef(*type.enum_def);
   if (type.base_type == flatbuffers::BASE_TYPE_STRING) return "std::string";
   if (flatbuffers::IsVector(type))
     return "std::vector<" + entryTypeOf(type) + ">";
@@ -53,12 +54,11 @@ std::string Header::valueTypeOf(const FieldDef& field) {
     // where the wire left it out; a table is an offset that may be
     // absent, and only a REQUIRED one is promised to be there.
     if (type.struct_def->fixed || field.IsRequired())
-      return type.struct_def->name;
-    return "std::optional<" + type.struct_def->name + ">";
+      return valueRef(*type.struct_def);
+    return "std::optional<" + valueRef(*type.struct_def) + ">";
   }
-  const std::string scalar = type.enum_def
-                                 ? wireName(m_space, type.enum_def->name)
-                                 : scalarName(type.base_type);
+  const std::string scalar =
+      type.enum_def ? wireOf(*type.enum_def) : scalarName(type.base_type);
   if (scalar.empty()) {
     refuseOnce("the field " + field.name + " has no value form here");
     return "void";
@@ -69,6 +69,16 @@ std::string Header::valueTypeOf(const FieldDef& field) {
   return scalar;
 }
 
+/** A VALUE COMPARES, member by member: what a reader holding one asks
+ *  when it wants to know whether the next message changed anything, and
+ *  what a round trip is proved by. Every member type compares — a
+ *  string, a vector, an optional, a variant and every value type written
+ *  here — so the comparison is the defaulted one. */
+void Header::writeComparison(std::ostream& out, const StructDef& def) {
+  out << "\n  friend bool operator==(const " << def.name << "&, const "
+      << def.name << "&) = default;\n";
+}
+
 void Header::writeStructValue(std::ostream& out, const StructDef& def) {
   writeDocComment(out, def.doc_comment, "");
   out << "struct " << def.name << " {\n";
@@ -76,6 +86,7 @@ void Header::writeStructValue(std::ostream& out, const StructDef& def) {
     writeDocComment(out, field->doc_comment, "  ");
     out << "  " << valueTypeOf(*field) << " " << field->name << "{};\n";
   }
+  writeComparison(out, def);
   out << "};\n\n";
 }
 
@@ -88,6 +99,7 @@ void Header::writeTableValue(std::ostream& out, const StructDef& def) {
     writeDocComment(out, field->doc_comment, "  ");
     out << "  " << valueTypeOf(*field) << " " << field->name << "{};\n";
   }
+  writeComparison(out, def);
   out << "};\n\n";
 }
 
@@ -96,7 +108,7 @@ void Header::writeUnionAlias(std::ostream& out, const EnumDef& def) {
   out << "using " << def.name << " = std::variant<std::monostate";
   for (const EnumVal* value : def.Vals()) {
     if (!value->union_type.struct_def) continue;
-    out << ", " << value->union_type.struct_def->name;
+    out << ", " << valueRef(*value->union_type.struct_def);
   }
   out << ">;\n\n";
 }

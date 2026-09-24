@@ -23,6 +23,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -223,5 +224,47 @@ template <class Value>
 concept Readable = requires(std::span<const std::byte> bytes) {
   { Read<Value>::from(bytes) } -> std::same_as<std::optional<Value>>;
 };
+
+/** HOW ONE VALUE IS READ OUT OF, AND WRITTEN AS, ITS SCHEMA'S JSON
+ *  FORM, for a reader that names the value and not the table. A
+ *  specialization declares a static `from(std::string_view,
+ *  std::string*)` answering an optional Value and a static
+ *  `to(const Value&, std::string*)` answering optional text, which a
+ *  generated header writes for every table of a schema that declares a
+ *  root: the root is what makes flatc embed the binary schema both
+ *  conversions read through.
+ *  @trap Left UNDEFINED, as `Read` is, so a value no header wrote a JSON
+ *  form for is a name that cannot be completed. */
+template <class Value>
+struct JsonForm;
+
+/** Whether Value has a JSON form of its own: a table of a schema that
+ *  declares a root. */
+template <class Value>
+concept HasJsonForm = requires(std::string_view text, const Value& value,
+                               std::string* why) {
+  { JsonForm<Value>::from(text, why) } -> std::same_as<std::optional<Value>>;
+  { JsonForm<Value>::to(value, why) } -> std::same_as<std::optional<std::string>>;
+};
+
+/** @p json READ AS Value through its schema: nothing where the text does
+ *  not fit the table — a field it does not declare, a value of the wrong
+ *  type, text that is no document — and @p why carries the parser's own
+ *  message where it is asked for. */
+template <HasJsonForm Value>
+std::optional<Value> fromJson(std::string_view json,
+                              std::string* why = nullptr) {
+  return JsonForm<Value>::from(json, why);
+}
+
+/** @p value WRITTEN AS its schema's JSON form: field names quoted, no
+ *  line breaks, every scalar written, so text converted twice is text
+ *  converted once. Nothing where what the value makes is no buffer of
+ *  its table. */
+template <HasJsonForm Value>
+std::optional<std::string> toJson(const Value& value,
+                                  std::string* why = nullptr) {
+  return JsonForm<Value>::to(value, why);
+}
 
 }  // namespace sigil::data::values

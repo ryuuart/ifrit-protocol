@@ -24,7 +24,13 @@
  * may not be read or written. The value types go in
  * `<namespace>::values` rather than in the schema's own namespace,
  * since the generated header already declares `Sky` there and two `Sky`
- * in one namespace is no program.
+ * in one namespace is no program. A schema that declares several
+ * namespaces gets a value namespace beside each.
+ *
+ * EVERY TABLE ALSO CROSSES TO ITS JSON FORM, where the schema declares
+ * a root: the root is what makes flatc embed the binary schema, and
+ * every table of the file carries it, so each is read and written as
+ * text through that schema read at its own table.
  *
  * AND EACH TABLE'S READING IS NAMED ONCE MORE, as a specialization of
  * the trait the values header declares, so a reader that names the
@@ -33,10 +39,9 @@
  * namespace declares is written at namespace scope.
  *
  * WHAT THIS REFUSES rather than half-answering: a fixed-size array
- * field, a vector of unions, a union alternative that is not a table, a
- * schema whose definitions do not share one namespace, and tables that
- * hold one another in a ring, which no value holding its neighbour by
- * value can be. Each names itself on the way out, so a schema that
+ * field, a vector of unions, a union alternative that is not a table,
+ * and tables that hold one another in a ring, which no value holding its
+ * neighbour by value can be. Each names itself on the way out, so a schema that
  * grows one of them stops the build instead of writing a header that
  * does not compile.
  *
@@ -61,9 +66,7 @@
 
 namespace {
 
-using sigil::data::schema::EnumDef;
 using sigil::data::schema::Header;
-using sigil::data::schema::StructDef;
 
 /** What the generator was asked to do. */
 struct Ask {
@@ -99,27 +102,6 @@ bool readAsk(int count, char** words, Ask* ask) {
   return !ask->schema.empty() && !ask->directory.empty();
 }
 
-/** The one namespace every definition of the schema shares, or nothing
- *  where they do not share one. */
-bool oneNamespace(const flatbuffers::Parser& parser, std::string* space) {
-  bool found = false;
-  for (const StructDef* def : parser.structs_.vec) {
-    const std::string here =
-        sigil::data::schema::namespaceOf(def->defined_namespace);
-    if (found && here != *space) return false;
-    *space = here;
-    found = true;
-  }
-  for (const EnumDef* def : parser.enums_.vec) {
-    const std::string here =
-        sigil::data::schema::namespaceOf(def->defined_namespace);
-    if (found && here != *space) return false;
-    *space = here;
-    found = true;
-  }
-  return true;
-}
-
 }  // namespace
 
 int main(int count, char** words) {
@@ -147,17 +129,9 @@ int main(int count, char** words) {
     return 1;
   }
 
-  std::string space;
-  if (!oneNamespace(parser, &space)) {
-    refuse(
-        "the schema's definitions do not share one namespace, and one"
-        " header of value types stands in one namespace");
-    return 1;
-  }
-
   const std::string stem = sigil::data::schema::stemOf(ask.schema);
   std::ostringstream text;
-  Header header(parser, space, stem);
+  Header header(parser, stem);
   if (!header.write(text)) {
     refuse(header.why());
     return 1;

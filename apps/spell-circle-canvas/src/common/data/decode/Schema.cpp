@@ -36,6 +36,24 @@ struct Schema::State {
 
 Schema Schema::fromBinarySchema(std::span<const std::byte> bfbs,
                                 std::string* why) {
+  return read(bfbs, {}, why);
+}
+
+Schema Schema::rootedAt(std::string_view table, std::string* why) const {
+  if (!m_state) {
+    if (why) *why = "there is no schema to read another table of";
+    return Schema();
+  }
+  if (table.empty()) {
+    if (why) *why = "no table is named, and a schema is read at one";
+    return Schema();
+  }
+  const auto* first = reinterpret_cast<const std::byte*>(m_state->bytes.data());
+  return read({first, m_state->bytes.size()}, table, why);
+}
+
+Schema Schema::read(std::span<const std::byte> bfbs, std::string_view table,
+                    std::string* why) {
   Schema made;
   if (bfbs.empty()) {
     if (why) *why = "no bytes are no schema";
@@ -51,7 +69,14 @@ Schema Schema::fromBinarySchema(std::span<const std::byte> bfbs,
   }
   const reflection::Schema* reflected =
       reflection::GetSchema(state->bytes.data());
-  const reflection::Object* root = reflected->root_table();
+  const std::string named(table);
+  const reflection::Object* root =
+      named.empty() ? reflected->root_table()
+                    : reflected->objects()->LookupByKey(named.c_str());
+  if (!named.empty() && (!root || root->is_struct())) {
+    if (why) *why = "the schema declares no table " + named;
+    return made;
+  }
   if (!root || !root->name()) {
     if (why) *why = "the schema declares no root type";
     return made;
@@ -66,6 +91,13 @@ Schema Schema::fromBinarySchema(std::span<const std::byte> bfbs,
   state->parser.opts.output_default_scalars_in_json = true;
   if (!state->parser.Deserialize(state->bytes.data(), state->bytes.size())) {
     if (why) *why = state->parser.error_;
+    return made;
+  }
+  // THE PARSER READS JSON AT ITS OWN ROOT, which is the file's until it
+  // is told otherwise; a schema read at another table tells it so here,
+  // by the same fully qualified name the reflected schema answered.
+  if (!named.empty() && !state->parser.SetRootType(named.c_str())) {
+    if (why) *why = "the schema's parser knows no table " + named;
     return made;
   }
   state->reflected = reflected;
