@@ -36,17 +36,27 @@ derived is kept by hand.
                               v                     |          v
                            AGENTS                   |     Python client, reference
                 (in the library that owns           |     pages (committed, checked)
-                 the domain; a host mounts)         |          |
+                 the domain; a host mounts;         |          |
+                 host is this library's own)        |          |
                               |                     |          |
-                              v                     v          v
-                         DISPATCHER <---------- CLIENTS ----> PANELS
-                              |                               (Seer)
-                              v
-                          ENDPOINT   ws:// on loopback, <state>/protocol-address,
-                                     the definition served at /protocol
+                              v                     |          |
+                         DISPATCHER  handlers by method, a session per client,
+                              |      events by domain, the refusals no agent sees
+                   +----------+-----------+         |          |
+                   |                      |         |          |
+                   v                      v         |          |
+               InProcess              ENDPOINT      |          |
+          a caller per client,   ws:// on loopback,  |          |
+          no socket (tests)      <state>/protocol-address,     |
+                   ^             /protocol served,  |          |
+                   |             inside hub.dispatch()         |
+                   |                      ^         |          v
+                   +------- CLIENTS ------+---------+       PANELS
+                                                            (Seer)
 ```
 
-Seven seams, in the order a message crosses them. Each promises
+Seven seams, in the order a message crosses them; the first five are
+built, and no host mounts the endpoint yet. Each promises
 something and refuses something, and a failure names the seam that
 refused.
 
@@ -105,7 +115,14 @@ schema by `sigil::data::Schema::rootedAt`.
 **3. The agents** answer a domain's commands, and each lives in the
 library that owns the domain: the registry's in the sketch library's
 core, the session's in its host tier, the clock's policy over the frame
-clock. A host only mounts them. `sigil::protocol::clock::ClockAgent` is
+clock. A host only mounts them. The `host` domain's is this library's
+own, `sigil::protocol::HostDomain`, which every dispatcher mounts on
+itself, so `host.describe` answers on every host before any other agent
+is written: the definition's revision and the domains mounted and the
+clients attached, which the dispatcher knows, beside what only the
+program knows — its name and version, its state root, its clock's
+policy and its sessions open — which it supplies as a
+`sigil::protocol::Program`. `sigil::protocol::clock::ClockAgent` is
 one such interface: a command answered at once returns a
 `sigil::protocol::Answer` — the result, or an `Error` made by
 `sigil::protocol::refusal` — and one marked asynchronous is handed a
@@ -113,38 +130,73 @@ one such interface: a command answered at once returns a
 under a domain never know the protocol; their values are tested on
 their own, and an agent is a thin reading of them.
 
-**4. The dispatcher** holds one `sigil::protocol::Handler` per method,
-filed by a generated `wire()` — `sigil::protocol::clock::wire` mounts a
-clock agent on anything that satisfies `sigil::protocol::Mounts`. Each
-handler takes the parameters' JSON text and answers through a
-`sigil::protocol::Respond`: `sigil::protocol::answerNow` and
-`sigil::protocol::answerLater` read the parameters as their table,
-refusing with `invalidParameters` before the agent is asked, and answer
-the result as its JSON form. `enable` and `disable` are the
-dispatcher's own and no `wire()` mounts them: no event of a domain
-reaches a client before its `enable` or after its `disable`. Events go
-out through a `sigil::protocol::Emit`, one generated member per event —
-`sigil::protocol::clock::ClockEvents` — each built on
+**4. The dispatcher**, `sigil::protocol::Dispatcher`, holds one
+`sigil::protocol::Handler` per method, filed by a generated `wire()` —
+`sigil::protocol::clock::wire` mounts a clock agent on anything that
+satisfies `sigil::protocol::Mounts`. Each handler takes the parameters'
+JSON text and answers through a `sigil::protocol::Respond`:
+`sigil::protocol::answerNow` and `sigil::protocol::answerLater` read the
+parameters as their table and answer the result as its JSON form.
+`enable` and `disable` are the dispatcher's own and no `wire()` mounts
+them. Events go out through the `sigil::protocol::Emit` that
+`sigil::protocol::Dispatcher::emit` hands a generated
+`sigil::protocol::clock::ClockEvents`, each member built on
 `sigil::protocol::emitEvent`, which answers false where the event's
 table cannot hold it or there is nowhere to send it, and is marked so
-the sender cannot pass that by unseen. The dispatcher itself, with its sessions
-and its in-process form, is the runtime's next link: what it will
-promise is stated here, and no header of this library declares it yet.
-It answers a method the definition does not declare with
-`methodNotFound`, one of a domain it has not mounted with `notMounted`,
-each naming the method, and a message that is no request with
-`invalidRequest`, naming the method where the message carries one; it
-never leaves a command unanswered.
+the sender cannot pass that by unseen.
 
-**5. The endpoint**, also the runtime's next link, is one of SigilData's
-connections on SigilIO's `ws://`, bound to loopback on the port asked
-for or on any free one. It writes the address it bound to
-`<state>/protocol-address` before the first frame, serves the reflected
-definition — `sigil::protocol::definition`, the very bytes the
-generator read — at `/protocol`, and runs every handler on the frame
-thread, inside the hub's dispatch, so an agent never races the paint. It
-refuses a peer that is not on loopback unless one was stated. Mounted
-with no client, a frame performs no dispatch. Sketchbook and Seer mount
+Every client attached is a SESSION, one id each. A command is answered
+in this order, and the first seam that refuses answers, naming the
+method: a method the definition does not declare is `methodNotFound`;
+one of a domain no agent is mounted for is `notMounted` — so a declared
+command a host never wired answers at once and is told apart from one
+nobody ever declared; parameters are then held against the command's
+table, member by member, and a member the table does not declare, a
+value of the wrong type, a whole number out of its type's range or a
+name no value of an enumeration carries is `invalidParameters` naming
+the parameter, and the agent is never asked; only then is the handler
+run, which reads the parameters once more as its table. Inside it,
+`sigil::protocol::Dispatcher::asking` is the session being answered, so
+an agent that sets something for one client alone keys it by that, and
+`sigil::protocol::Dispatcher::onDetach` tells it when that client has
+gone, to clear it: a detaching client's overrides go with it. Events of
+a domain reach a session only between its `enable` and its `disable`.
+An answer is owed once: a second goes nowhere, one owed to a session
+that has since detached goes nowhere, and a reply an agent lets go
+without calling is answered `failed` as it goes — no command is left
+unanswered. Everything runs on the one thread that drives the
+dispatcher.
+
+`sigil::protocol::InProcess` is the dispatcher with no socket: each
+`sigil::protocol::InProcess::connect` attaches a
+`sigil::protocol::InProcess::Client`, whose `caller()` a generated client
+speaks through and whose `send()` takes the very envelope text a socket
+carries, so a test proves what a script would be told. Letting a client
+go detaches it, as a socket closing does.
+
+**5. The endpoint**, `sigil::protocol::Endpoint`, is the dispatcher
+behind one of SigilData's connections on SigilIO's `ws://` listener at
+`/sigil`, on the port a `sigil::protocol::EndpointPolicy` asks for or
+any free one. It holds loopback alone, so another machine cannot reach
+it however it asks; where the policy states peers beyond it, it holds
+every interface and admits loopback and those peers, and every other is
+refused before it becomes a client. Before the constructor returns — so
+before the first frame — it writes the address a client dials,
+`ws://127.0.0.1:PORT/sigil`, to `<state>/protocol-address`, as a browser
+writes the port its debugging socket took, and serves the reflected
+definition — `sigil::protocol::definition`, the very bytes the generator
+read — at HTTP GET `/protocol` on the same port, written under
+`<state>/protocol-pages/`. A peer's first request attaches it as a
+session and every answer goes back to that peer alone; a peer whose
+socket closes is detached on the next frame. Text that is no JSON at all
+carries no id to answer and reaches no handler: the connection counts it
+among what it could not read, and in process the same text is answered
+`invalidRequest`. Every request is answered
+inside the hub's dispatch, on the frame thread, so an agent never races
+the paint, and with no client attached a frame runs no handler at all.
+Letting the endpoint go tells every client that enabled `host` that the
+host is closing, through `host.detached`, and takes back the address
+file while it still names this endpoint. Sketchbook and Seer will mount
 one by default; the product receiver only when `--inspect` asks.
 
 **6. The clients** speak through a `sigil::protocol::Caller`: `call`
@@ -177,8 +229,22 @@ exercise one path.
 
 **7. The panels** are Seer's, over the same clients, and come after the
 runtime; the first a client asks for is `host.describe`, which answers
-the version, the domains mounted, the clock's policy, the state root and
-the sessions open.
+the version, the domains mounted, the clock's policy, the state root,
+the sessions open and the clients attached.
+
+## The envelope
+
+On the socket every message is one JSON object. A request is
+`{"id", "session", "method", "parameters"}`: the id a number or text the
+answer carries back, the session optional and refused where it is not
+the client's own, the parameters the command's table and absent for
+the empty one. An answer is `{"id", "session", "result"}` or
+`{"id", "session", "error"}`, the error `{"code", "message"}` with the
+code by its name. An event is `{"session", "method", "parameters"}`. The
+parameter table is chosen by the method's name, so no union of every
+command caps how many there are, and a caller in the same process
+passes the plain values with no envelope at all. Images never cross as
+text: a still is written under the state root and its path answered.
 
 ## The errors
 
@@ -189,11 +255,11 @@ for the host's even where only the message is shown.
 
 | Code | Seam | When |
 | --- | --- | --- |
-| `invalidRequest` | the dispatcher | the message is no request: not JSON, or without its id or method |
+| `invalidRequest` | the dispatcher | the message is no request: not a JSON object, without its id or method, or naming a session other than its client's own |
 | `methodNotFound` | the dispatcher | the definition declares no such command |
 | `notMounted` | the dispatcher | the definition declares it, and this host mounts no agent for its domain |
-| `invalidParameters` | the handler | the parameters do not fit the command's table; the agent is not asked |
-| `failed` | the agent | the agent was asked and could not do it |
+| `invalidParameters` | the dispatcher, then the handler | the parameters do not fit the command's table, naming the parameter; the agent is not asked |
+| `failed` | the agent | the agent was asked and could not do it, or let its reply go without answering |
 | `notSent` | the client | nothing was sent: the parameters' table cannot hold them, or the client has nowhere to send |
 | `unreadable` | the client | what the host sent does not read as its table — an answer as the result, an event as its table: the two were built from different definitions |
 
@@ -231,6 +297,15 @@ two seconds at double density is `clock.setPolicy` to `Advance`,
   `callWith`, `listenFor`: the caller's side.
 - `definition/Definition.h` — `definition`: the reflected definition's
   bytes.
+- `dispatch/Program.h` — `Program`: what only the program knows about
+  itself.
+- `dispatch/Dispatcher.h` — `Dispatcher`: handlers, sessions, events and
+  the refusals no agent is asked for.
+- `dispatch/HostDomain.h` — `HostDomain`: the host domain this library
+  answers itself.
+- `dispatch/InProcess.h` — `InProcess`: the dispatcher with no socket.
+- `endpoint/Endpoint.h` — `Endpoint`, `EndpointPolicy`: the dispatcher on
+  a loopback socket.
 
 ## Changing the definition
 
@@ -273,6 +348,19 @@ up is triaged by running the layer below it:
   does not declare; its methods send the definition's names and refuse
   what the C++ client refuses; `protocol_python_types`, where
   basedpyright is installed, holds the package to its strict mode;
+- the dispatcher answers `host.describe` on a dispatcher no agent was
+  mounted on, and with what the program and the dispatcher each know;
+  refuses a method the definition does not declare apart from one no
+  agent is mounted for, parameters their table cannot hold naming the
+  parameter, a message that is no request, and a reply let go
+  unanswered; sends events only between a client's enable and disable;
+  and takes what a detaching client set with it;
+- the endpoint, on a real socket, writes its address file before the
+  first frame and takes it back, serves the definition at `/protocol`,
+  answers a command over the wire only inside the hub's dispatch, sends
+  an event to the client that enabled its domain, detaches a peer that
+  leaves, and cannot be reached from beyond loopback unless a peer was
+  stated — the last only where the machine has such an address;
 - the documentation probe compiles every qualified name this README and
   the reference pages spell.
 

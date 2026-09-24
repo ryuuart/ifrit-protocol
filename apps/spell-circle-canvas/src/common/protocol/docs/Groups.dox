@@ -8,3 +8,11 @@
  *  the reflected definition's own bytes.
  *  @{ */
 /** @} */
+
+/** @defgroup protocol-runtime The runtime
+ *  What a host mounts its agents on and a client attaches to: the
+ *  dispatcher and the host domain it answers itself, the in-process form
+ *  a test attaches to, and the endpoint that puts the dispatcher behind a
+ *  socket.
+ *  @{ */
+/** @} */

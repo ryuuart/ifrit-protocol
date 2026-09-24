@@ -41,8 +41,12 @@ sigil_library_root(SigilProtocol
 # Dependencies point down this list.
 add_subdirectory(generator)
 add_subdirectory(definition)
+add_subdirectory(dispatch)
+add_subdirectory(endpoint)
 
-sigil_library(SigilProtocol INTERFACE SigilProtocolDefinition)
+sigil_library(SigilProtocol
+  INTERFACE SigilProtocolDefinition SigilProtocolDispatch
+            SigilProtocolEndpoint)
 
 # Every API name the prose spells, compiled against the headers that own
 # it — the generated ones included, which the scan reads once they are
