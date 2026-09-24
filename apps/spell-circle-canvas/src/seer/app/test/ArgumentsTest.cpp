@@ -108,6 +108,21 @@ TEST(SeerArguments, CaptureRejectsWindowOptionsAndInvalidCounts) {
   EXPECT_FALSE(parse({"--app", "Sketchbook"}));
 }
 
+TEST(SeerArguments, InspectTakesAnOptionalPortAndTheStateRootOneDirectory) {
+  const auto window = parse({"--inspect=9333", "--state", "/tmp/seer-state"});
+  ASSERT_TRUE(window);
+  EXPECT_EQ(window->inspectPort, std::optional<uint16_t>(9333));
+  EXPECT_EQ(window->state, "/tmp/seer-state");
+  EXPECT_EQ(parse({"--inspect"})->inspectPort, std::optional<uint16_t>(0));
+  EXPECT_FALSE(parse({})->inspectPort);
+  EXPECT_FALSE(parse({"--inspect=99999"}));
+  EXPECT_FALSE(parse({"--state", "a", "--state", "b"}));
+  // A run that ends once its output is written has nothing to inspect.
+  EXPECT_FALSE(parse({"--list-textures", "--inspect"}));
+  EXPECT_FALSE(
+      parse({"--texture", "smoke", "--grab", "/tmp/x.png", "--inspect"}));
+}
+
 TEST(SeerArguments, SendingRequiresAPeer) {
   EXPECT_FALSE(parse({"--say", "hello"}));
   const auto args =

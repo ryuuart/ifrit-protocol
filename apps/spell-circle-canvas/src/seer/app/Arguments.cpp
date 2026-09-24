@@ -18,6 +18,25 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.textures = true;
     else if (flag == "--list-textures")
       args.listTextures = true;
+    else if (flag == "--inspect" || flag.starts_with("--inspect=")) {
+      if (args.inspectPort) {
+        std::fprintf(stderr, "--inspect can be supplied only once\n");
+        return std::nullopt;
+      }
+      args.inspectPort = 0;
+      if (flag.size() > 9) {
+        const std::string_view port = flag.substr(10);
+        unsigned value = 0;
+        const auto [end, error] =
+            std::from_chars(port.data(), port.data() + port.size(), value);
+        if (port.empty() || error != std::errc{} ||
+            end != port.data() + port.size() || value > 65535) {
+          std::fprintf(stderr, "--inspect=PORT takes a port from 0 to 65535\n");
+          return std::nullopt;
+        }
+        args.inspectPort = static_cast<uint16_t>(value);
+      }
+    }
     else if (!flag.empty() && flag.front() != '-')
       args.wires.emplace_back(flag);
     else {
@@ -41,6 +60,13 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
         args.textures = true;
       } else if (flag == "--app")
         args.application = value;
+      else if (flag == "--state") {
+        if (!args.state.empty() || value.empty()) {
+          std::fprintf(stderr, "--state requires one directory\n");
+          return std::nullopt;
+        }
+        args.state = value;
+      }
       else if (flag == "--grab")
         args.grabPath = value;
       else if (flag == "--frames") {
@@ -91,6 +117,10 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     return refuse("--list-textures runs alone");
   if (!args.grabPath.empty() && windowOptions)
     return refuse("--grab cannot be combined with window or wire options");
+  if (args.inspectPort && (args.listTextures || !args.grabPath.empty()))
+    return refuse(
+        "--inspect serves the window a client inspects; --list-textures and "
+        "--grab end once their output is written");
   return args;
 }
 

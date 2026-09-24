@@ -4,18 +4,31 @@
 #include <WindowChrome.h>
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QStandardPaths>
 #include <QtCore/QString>
+#include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQuick/QQuickWindow>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
+#include <system_error>
 
 #include "Arguments.h"
+#include "Inspection.h"
 #include "SeerSession.h"
 #include "TextureSources.h"
 #include "texture/Grab.h"
 #include "texture/Servers.h"
+
+namespace {
+
+/** How often the window's event loop answers the protocol: within a frame
+ *  or two of a request. */
+constexpr int kInspectionPumpMilliseconds = 30;
+
+}  // namespace
 
 int main(int argc, char* argv[]) {
   // Set before anything asks where this application's settings live: the
@@ -31,6 +44,7 @@ int main(int argc, char* argv[]) {
     std::printf(
         "usage: Seer [--schema <bfbs>] [--peer <uri>] [--say <message>]\n"
         "            [--receiver <uri>] [--shot <png>] [<uri>…]\n"
+        "            [--inspect[=<port>]] [--state <directory>]\n"
         "       Seer --textures\n"
         "       Seer --texture <name> [--app <application>] [--shot <png>]\n"
         "       Seer --list-textures\n"
@@ -51,6 +65,23 @@ int main(int argc, char* argv[]) {
   SeerSession::photographed = !shotPath.isEmpty();
 
   QGuiApplication application(argc, argv);
+
+  // THE PROTOCOL, ON BY DEFAULT: an endpoint on loopback answering what
+  // Seer is, its address under the state root, dispatched from this
+  // thread's event loop; with no client attached a dispatch runs no
+  // handler.
+  std::filesystem::path stateRoot = args.state;
+  if (stateRoot.empty())
+    stateRoot = QStandardPaths::writableLocation(
+                    QStandardPaths::AppLocalDataLocation)
+                    .toStdString();
+  std::error_code stateError;
+  std::filesystem::create_directories(stateRoot, stateError);
+  seer::Inspection inspection(args.inspectPort.value_or(0), stateRoot);
+  QTimer inspectionPump;
+  QObject::connect(&inspectionPump, &QTimer::timeout,
+                   [&inspection] { inspection.dispatch(); });
+  if (inspection.listening()) inspectionPump.start(kInspectionPumpMilliseconds);
 
   QQuickWindow::setDefaultAlphaBuffer(true);
   SeerSession session;

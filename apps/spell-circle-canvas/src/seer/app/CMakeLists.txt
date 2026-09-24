@@ -7,8 +7,11 @@ find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 QuickLayouts
                                      QuickDialogs2)
 qt_standard_project_setup(REQUIRES 6.11)
 
-qt_add_executable(Seer main.cpp Arguments.cpp)
+qt_add_executable(Seer main.cpp Arguments.cpp Inspection.cpp Inspection.h)
 sigil_qt_target(Seer)
+# The protocol's endpoint the window mounts, and the version host.describe
+# names.
+target_compile_definitions(Seer PRIVATE SIGIL_SEER_VERSION="${PROJECT_VERSION}")
 
 # A real .app: a bare Mach-O in bin/ gets no bundle identity, so macOS
 # gives it the executable's name in the menu bar and treats activation as
@@ -58,7 +61,8 @@ qt_add_qml_module(Seer
 # this target spells that vocabulary itself.
 target_include_directories(Seer PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Seer PRIVATE
-  SigilSeerWire SigilDataDecode SigilIOPublish SpellCircleModels SpellCircleCanvas
+  SigilSeerWire SigilDataDecode SigilIOPublish SigilProtocolEndpoint SigilIOHub
+  SpellCircleModels SpellCircleCanvas
   SpellCircleCanvasplugin
   IfritQt IfritQtplugin Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::QuickLayouts
   Qt6::QuickDialogs2)
