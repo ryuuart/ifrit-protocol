@@ -81,7 +81,7 @@
 // changes.
 //
 // THE CATCH IS A SECOND TRACK ON THE SAME TABLE. Each letter lifts and
-// flares for a moment as its colour arrives, which is the beat a singer
+// flares toward white for a moment as its colour arrives, which is the beat a singer
 // hits. It reads the same cues as the wipe with a longer beat of its own,
 // and its progress window is stretched by the ratio of the two spans, so a
 // cue lands at the same instant in both.
@@ -201,9 +201,12 @@ constexpr material::Color kBezel = hexColor(0x334477);
 constexpr material::Color kRoom = hexColor(0x07051A);
 constexpr material::Color kRoomFloor = hexColor(0x0E0A2C);
 constexpr material::Color kSpill{0.20f, 0.14f, 0.62f, 0.55f};
-/** The flare a letter catches as its colour arrives, SCREENED over what it
- *  paints — warm, so the swept side burns toward white at its edge. */
-constexpr material::Color kFlare{0.62f, 0.58f, 0.46f, 0};
+/** The flare a letter catches as its colour arrives, a MULTIPLIER above
+ *  one: it lifts the sung yellow's green and blue until the letter burns
+ *  near white, and leaves the black keyline black, where a screen would
+ *  lift the keyline to the flare's own colour and blur the letter's edge.
+ *  Its alpha is 1 because a multiplier's alpha is the glyph's coverage. */
+constexpr material::Color kFlare{1.0f, 1.07f, 1.45f, 1.0f};
 /** The lift the line to come takes on as the sung line is held, screened
  *  over its resting colour: the cue that it is next. */
 constexpr material::Color kCueLight{0.16f, 0.20f, 0.30f, 0};
@@ -367,12 +370,21 @@ motion::Bound progressOf(const motion::Spread& cascade, const Song& song,
 }
 
 /** THE CATCH: a letter kicks up and flares as its colour arrives, and is
- *  home by the end of its own beat. */
+ *  home by the end of its own beat. Both beats open on the same cue, so
+ *  the tint finishes `kSwitchMs` into a catch `kCatchMs` long, and that is
+ *  where the flare peaks, over the sung colour. The kick starts at once,
+ *  but the flare waits until the tint is most of the way there: over a
+ *  letter still half slate it brightens slate, which reads as a grey
+ *  ghost rather than a flare. */
 TextEffect catchEffect() {
-  return textFx::keys({{0.0f, {}},
-                       {0.22f, {.dy = -kCatchLift, .colorScreen = kFlare}},
-                       {1.0f, {}}},
-                      &choreograph::easeOutQuad);
+  constexpr float kArrived = kSwitchMs / kCatchMs;
+  constexpr float kFlareOpens = 0.6f * kArrived;
+  return textFx::keys(
+      {{0.0f, {}},
+       {kFlareOpens, {.dy = -kCatchLift * 0.8f}},
+       {kArrived, {.dy = -kCatchLift, .colorMultiplier = kFlare}},
+       {1.0f, {}}},
+      &choreograph::easeOutQuad);
 }
 
 /** THE RULER'S PLACE under a letter: the letter's foot, and the drop below
@@ -630,8 +642,8 @@ struct KaraokeWipe {
     // crosses in a hurry, so the one position it never holds is the gap
     // between two — and a moment declared mid-flight photographs exactly
     // that. This lands inside a word's own hold, with the wipe part way
-    // through it.
-    ctx.captureAt(kLeadIn + kLineSeconds * 0.44);
+    // through it and the word's first letter at the top of its catch.
+    ctx.captureAt(kLeadIn + kLineSeconds * 0.48);
 
     ctx.ticker.add([this, &ticker = ctx.ticker] {
       cycle = motion::phase(ticker.elapsed(), loop) * (float)loop;
