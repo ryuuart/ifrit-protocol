@@ -503,10 +503,10 @@ struct BakeDensityProbe {
   }
 };
 
-[[maybe_unused]] const bool kBakeDensityProbeRegistered = sigil::sketch::add(
-    "agents_bake_density", nullptr, "Test",
-    "a sketch that reads back its bake density",
-    &sigil::sketch::kindOf<BakeDensityProbe>);
+[[maybe_unused]] const bool kBakeDensityProbeRegistered =
+    sigil::sketch::add("agents_bake_density", nullptr, "Test",
+                       "a sketch that reads back its bake density",
+                       &sigil::sketch::kindOf<BakeDensityProbe>);
 
 TEST(SketchSessionAgent, ADensityPinnedBeforeTheOpenIsTheFirstFramesGrid) {
   AgentHost host;

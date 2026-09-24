@@ -67,7 +67,8 @@ TEST(ReceiverInspection, AnswersHostAsTheReceiverAndMountsNothingElse) {
   ASSERT_TRUE(described && *described);
   EXPECT_EQ(described->result().version.program, "SpellCircle");
   EXPECT_EQ(described->result().domains, (std::vector<std::string>{"host"}));
-  for (const char* method : {"session.open", "clock.current", "registry.list"}) {
+  for (const char* method :
+       {"session.open", "clock.current", "registry.list"}) {
     std::string heard;
     client.send(std::string(R"({"id": 1, "method": ")") + method + R"("})",
                 [&heard](std::string answer) { heard = std::move(answer); });

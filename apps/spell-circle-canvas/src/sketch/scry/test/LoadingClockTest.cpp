@@ -18,8 +18,8 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/plate/Sweep.h>
-#include <sigilsketch/scry/SharedEngine.h>
 #include <sigilsketch/scry/Settling.h>
+#include <sigilsketch/scry/SharedEngine.h>
 #include <sigilsketch/testing/Comparison.h>
 #include <sigilsketch/testing/InProcessHost.h>
 
@@ -78,18 +78,17 @@ struct LoadingClockPage {
   }
   void describe(sketch::SketchContext& ctx) {
     using namespace sigil::compose;
-    ctx.composer.render(
-        page && page->painted()
-            ? web(view).width(kWidth).height(kHeight)
-            : box().width(kWidth).height(kHeight).fill(
-                  Fill::color({1, 0, 1, 1})));
+    ctx.composer.render(page && page->painted()
+                            ? web(view).width(kWidth).height(kHeight)
+                            : box().width(kWidth).height(kHeight).fill(
+                                  Fill::color({1, 0, 1, 1})));
   }
 };
 
-[[maybe_unused]] const bool kRegistered = sketch::add(
-    "loading_clock_page", nullptr, "Test",
-    "a static page the loading clock photographs",
-    &sketch::kindOf<LoadingClockPage>);
+[[maybe_unused]] const bool kRegistered =
+    sketch::add("loading_clock_page", nullptr, "Test",
+                "a static page the loading clock photographs",
+                &sketch::kindOf<LoadingClockPage>);
 
 TEST(SketchLoadingClock, APageOpenedUnderItIsTheSweepsDeterministicCapture) {
   ASSERT_TRUE(sketch::scry::configureSharedEngine({}));
@@ -102,8 +101,7 @@ TEST(SketchLoadingClock, APageOpenedUnderItIsTheSweepsDeterministicCapture) {
     sweep.ledger = true;
     ASSERT_GE(sweep.only, 0);
     ASSERT_EQ(
-        sketch::sweep(sweep, sketch::test::fonts(), sketch::test::assets()),
-        0);
+        sketch::sweep(sweep, sketch::test::fonts(), sketch::test::assets()), 0);
     const std::filesystem::path plate =
         scratch.path / "sweep" / "plate_loading_clock_page.png";
     ASSERT_TRUE(std::filesystem::exists(plate));
@@ -136,8 +134,8 @@ TEST(SketchLoadingClock, APageOpenedUnderItIsTheSweepsDeterministicCapture) {
     const sketch::testing::Comparison same =
         sketch::testing::compare(still.result().path, plate);
     EXPECT_TRUE(same.identical())
-        << same.problem << " differing pixels "
-        << same.pixels.differingPixels << ", worst " << same.pixels.worst;
+        << same.problem << " differing pixels " << same.pixels.differingPixels
+        << ", worst " << same.pixels.worst;
   }
   sketch::scry::shutdownSharedEngine();
 }

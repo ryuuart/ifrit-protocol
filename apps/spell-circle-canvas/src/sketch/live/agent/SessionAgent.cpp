@@ -251,8 +251,7 @@ void SessionAgent::applyPins() {
   if (!session) return;
   if (m_promotion) session->setAutoPromotion(promotionOf(*m_promotion));
   if (m_density) {
-    m_bakeDensity =
-        *m_density > 0 ? (float)*m_density : plateDensity(*session);
+    m_bakeDensity = *m_density > 0 ? (float)*m_density : plateDensity(*session);
     session->setBakeDensity(m_bakeDensity);
   }
 }

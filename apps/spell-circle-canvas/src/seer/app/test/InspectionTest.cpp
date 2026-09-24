@@ -31,8 +31,10 @@ TEST(SeerInspection, AnswersHostAsSeerAndMountsNothingElse) {
   const protocol::InProcess client(inspection.dispatcher());
   std::optional<Answer<protocol::host::values::DescribeResult>> described;
   protocol::host::HostClient(client.caller())
-      .describe([&described](Answer<protocol::host::values::DescribeResult>
-                                 answer) { described.emplace(std::move(answer)); });
+      .describe(
+          [&described](Answer<protocol::host::values::DescribeResult> answer) {
+            described.emplace(std::move(answer));
+          });
   ASSERT_TRUE(described && *described);
   EXPECT_EQ(described->result().version.program, "Seer");
   EXPECT_EQ(described->result().domains, (std::vector<std::string>{"host"}));

@@ -108,8 +108,7 @@ class SessionAgent final : public protocol::session::SessionAgent {
       const protocol::session::values::PromotionParameters& parameters)
       override;
   protocol::Answer<protocol::values::Empty> pinDensity(
-      const protocol::session::values::DensityParameters& parameters)
-      override;
+      const protocol::session::values::DensityParameters& parameters) override;
   void still(
       const protocol::session::values::StillParameters& parameters,
       protocol::Reply<protocol::session::values::StillResult> reply) override;

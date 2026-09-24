@@ -5,13 +5,13 @@
 
 #include "Inspection.h"
 
-#include <QtCore/QStandardPaths>
 #include <sigilio/hub/Hub.h>
 #include <sigilprotocol/dispatch/Dispatcher.h>
 #include <sigilprotocol/endpoint/Endpoint.h>
 #include <sigilsketch/core/State.h>
 #include <sigilsketch/core/agent/RegistryAgent.h>
 
+#include <QtCore/QStandardPaths>
 #include <cstdio>
 #include <system_error>
 #include <utility>

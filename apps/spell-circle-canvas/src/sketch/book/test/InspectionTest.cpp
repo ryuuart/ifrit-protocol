@@ -33,7 +33,8 @@ protocol::Reply<Result> into(std::optional<Answer<Result>>& slot) {
 /** The answer an envelope's text gets from @p client, as text. */
 std::string asked(const protocol::InProcess& client, std::string_view text) {
   std::string heard;
-  client.send(text, [&heard](std::string answer) { heard = std::move(answer); });
+  client.send(text,
+              [&heard](std::string answer) { heard = std::move(answer); });
   return heard;
 }
 
@@ -59,8 +60,7 @@ TEST(SketchbookInspection, AnswersHostAndRegistryAndMountsNoSessionOrClock) {
   EXPECT_EQ(described->result().sessions[0].sketch, "cascade");
 
   std::optional<Answer<protocol::registry::values::ListResult>> listed;
-  protocol::registry::RegistryClient(client.caller())
-      .list({}, into(listed));
+  protocol::registry::RegistryClient(client.caller()).list({}, into(listed));
   ASSERT_TRUE(listed && *listed);
 
   for (const char* method : {"session.open", "clock.current"}) {

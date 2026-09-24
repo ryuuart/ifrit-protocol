@@ -186,16 +186,27 @@ TEST(ProtocolWiring, EachDomainMountsTheCommandsItsAgentAnswers) {
   protocol::session::wire(board, session);
   protocol::registry::wire(board, registry);
   // enable and disable are the dispatcher's, so no wire() mounts them.
-  EXPECT_EQ(
-      (std::set<std::string>{
-          "clock.current", "clock.pause", "clock.setPolicy",
-          "clock.setTimeScale", "clock.step", "host.describe", "host.stateRoot",
-          "host.version", "registry.catalog", "registry.list",
-          "session.compositeCounts", "session.measured", "session.open",
-          "session.pinDensity", "session.pinDevice", "session.pinPromotion",
-          "session.profile",
-          "session.sequence", "session.still", "session.timing"}),
-      board.methods());
+  EXPECT_EQ((std::set<std::string>{"clock.current",
+                                   "clock.pause",
+                                   "clock.setPolicy",
+                                   "clock.setTimeScale",
+                                   "clock.step",
+                                   "host.describe",
+                                   "host.stateRoot",
+                                   "host.version",
+                                   "registry.catalog",
+                                   "registry.list",
+                                   "session.compositeCounts",
+                                   "session.measured",
+                                   "session.open",
+                                   "session.pinDensity",
+                                   "session.pinDevice",
+                                   "session.pinPromotion",
+                                   "session.profile",
+                                   "session.sequence",
+                                   "session.still",
+                                   "session.timing"}),
+            board.methods());
 }
 
 TEST(ProtocolWiring, AHandlerReadsTheParametersAndAnswersTheResultAsText) {
