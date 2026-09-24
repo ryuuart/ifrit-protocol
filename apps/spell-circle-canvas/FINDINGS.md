@@ -508,3 +508,71 @@ because moving `--frame` onto `Session::still` runs one more update.
 A test should assert that `--frame --at 1 --scale 2` of `cascade` equals
 the sweep plate at `--at 1` byte for byte, and, in process, that
 `pinDensity(2)`, `setPolicy(Advance)`, `step(1)`, `still(2)` equals both.
+
+## `material::kit::sparkle` sizes its cells in the shader's own units, so it cannot be an ink
+
+Five of the six text paints read the run's `extent` from
+`TextPaintParameters` and work in `(point - origin) / extent`. `Sparkle.sksl`
+reads `origin` alone: its cells are a fixed 22 units of the coordinates the
+shader is sampled in, and its points a fraction of a cell. A fill samples
+a recipe in node pixels, so `sparkle(box)` as a fill twinkles as authored.
+An ink samples it in the unit square — `Composer::Impl::textInkOf` maps
+[0,1]² onto the passage's metric band — so the whole passage stands inside
+one cell and at most one point of light shows, whatever bounds are
+passed. The only way a sketch had to see it on type was an `SkShader`
+local matrix scaling a pixel-sized field into the unit square.
+
+The preset is evidently meant to be one of the six text paints, all of
+which the header says are painted over a run: its cell size should be a
+fraction of `extent`, as the other five scale their fields, so
+`sparkle(unit, t)` as an ink twinkles across a word as `sparkle(box, t)`
+does as a fill.
+
+A test should ink a word with `sparkle(SkRect::MakeWH(1, 1), t)` and
+assert that light lands on several separate glyphs, and that the same
+material as a fill over a 220 × 70 box is unchanged. Wanted by
+`text_paints` (its SPARKLE OVER A BASE cell shows the base alone);
+`stock_materials` shows it only as a fill.
+
+## A block after the first takes its first-line indent one line late under the optimizing breaker
+
+`IntervalSequence` fetches source lines lazily and insets each one as it
+is fetched, with the first-line indent only where `m_lineInBlock == 0`.
+Under `TextWrap::Pretty` (Knuth–Plass) the breaker asks for the interval
+past a block's last line while that block is still open, so the line the
+next block will start on is fetched and inset as a continuation line of
+the block before. `openBlock` then resets `m_lineInBlock`, and the NEXT
+fetched line — the new block's second — takes the first-line indent. The
+greedy breaker (`TextWrap::Auto`) fetches no further than it places and
+indents every block's first line.
+
+`textIndent` evidently means the first line of every block, whichever
+breaker sets it; the fetched-but-unplaced line should be re-inset (or
+fetched afresh) when a block opens, together with the pitch, lead and
+grid step `openBlock` hands over, which the same early fetch sets from
+the previous block.
+
+A test should set two blocks with `textIndent(20)` and
+`textWrap(TextWrap::Pretty)` and assert that each block's first line
+starts 20 px in and its second line at zero, matching the same passage
+under `TextWrap::Auto`. Wanted by `text_paints` (its long run shows the
+second paragraph's indent on its second line).
+
+## Every sketch that hyphenates English builds the same pattern hyphenator
+
+`weave::kit::englishHyphenationPatterns()` is the pattern text, and each
+sketch that hyphenates wraps it in a function-local static
+`std::make_shared<const weave::kit::PatternHyphenator>("en", …)` of its own
+— `paragraph_sheet`, `manuscript/manuscript.cpp` and `text_paints` carry
+the same five lines — because `HyphenationOptions::patterns` holds a
+shared hyphenator and the kit ships only the table.
+
+The kit evidently means the one set it carries to be the ready choice: a
+held instance beside the table (`weave::kit::englishHyphenator()`, the
+name the owner's to pick) would let `hyphens({.patterns = …})` be one
+expression, and would give every passage the same pointer, which is what
+the paragraph setting compares by.
+
+A test should assert that two calls return the same instance and that
+`hyphens({.patterns = englishHyphenator()})` breaks "specimen" where the
+hand-built table does. Wanted by the three sketches named.
