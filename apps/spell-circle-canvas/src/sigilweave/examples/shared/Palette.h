@@ -1,11 +1,12 @@
 #pragma once
 
 /** @file
- * The showcase palette the gallery and the demo share: warm paper,
- * near-black ink, and the accent colours that read on it.
+ * The showcase palette the gallery and the plate cases share: warm
+ * paper, near-black ink, and the accent colours that read on it.
  *
  * A chosen set of colours, which is a picture rather than a piece of the
- * engine — so it stands with the examples that draw it.
+ * engine — so it stands with the examples, and the plates reach it
+ * from there.
  */
 
 #include <include/core/SkColor.h>

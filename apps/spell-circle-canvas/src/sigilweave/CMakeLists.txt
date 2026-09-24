@@ -36,11 +36,12 @@ add_subdirectory(query)
 add_subdirectory(ports)
 add_subdirectory(kit)
 add_subdirectory(qt)
+add_subdirectory(testing)
 
 # The engine: every feature a consumer of the whole engine links.
-# Shaders, ports, the kit and the Qt bridge stay separate
-# targets, as content, platform glue, consumer discipline and a bridge
-# rather than engine.
+# Shaders, ports, the kit, the Qt bridge and the testing harness stay
+# separate targets, as content, platform glue, consumer discipline, a
+# bridge and a test binary's own rather than engine.
 sigil_library(SigilWeave
   INTERFACE SigilWeaveUnicode SigilWeaveStyle SigilWeaveFonts
             SigilWeaveParagraph SigilWeaveLayout SigilWeaveDecoration
@@ -115,8 +116,9 @@ sigil_doc_probes(weave
           "selectors::style=${compose_owned}"
           "selectors::inFrame=${compose_owned}"
   FLOORS 80,150,75,0,1
-  LIBRARIES SigilWeave SigilGeometryPath SigilImageField SigilCoreCache)
+  LIBRARIES SigilWeave SigilWeaveTesting SigilGeometryPath SigilImageField
+            SigilCoreCache)
 
-# Example programs: the headless PNG demo and the interactive Qt gallery.
-add_subdirectory(examples/demo)
+# The interactive Qt gallery. The headless panels are the testing
+# feature's plate cases.
 add_subdirectory(examples/gallery)

@@ -1,65 +1,69 @@
-// Scene K — the dressing a run carries, one panel each: text decorations
-// (metric underline with ink skipping, strikethrough, overline), shaded
-// decoration fills, locale-aware text-transform, word spacing,
-// variable-font axes through ShapingStyle::variations, tab stops, and line
-// clamp. Doubles as the visual-regression PNG for those panels.
-#include <include/core/SkCanvas.h>
+/** @file
+ * The dressing a run carries, one row each: metric decorations with an
+ * ink-skipping underline, decoration spans and highlight bands, bands
+ * shaded apart from their glyphs, locale-aware text-transform, word
+ * spacing, variable-font axes, tab stops, and a line clamp with an
+ * ellipsis.
+ */
+
+#include <gtest/gtest.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkShader.h>
-#include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilweave/kit/Features.h>
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/testing/Passage.h>
+#include <sigilweave/testing/Reading.h>
 
-#include <cstdio>
+#include <utility>
 
-#include "DemoScenes.h"
-#include "DemoSupport.h"
+#include "support/Plates.h"
 
 using namespace sigil::weave;
+using namespace sigil::weave::test;
+namespace weave = sigil::weave;
 
 namespace {
+
 /// A text-paint preset shaded by SigilMaterial's Skia backend.
-sk_sp<SkShader> shade(const sigil::material::Material& m) {
-  return sigil::material::skia::shader(m, {});
+sk_sp<SkShader> shade(const sigil::material::Material& material) {
+  return sigil::material::skia::shader(material, {});
 }
-}  // namespace
 
-namespace {
-
-void drawLabel(FontContext& fontContext, SkCanvas* canvas, const char8_t* label,
-               float top) {
-  sigil::weave::kit::drawLabel(canvas, fontContext, label, {40, top},
-                               {.color = kAccent, .width = 900, .height = 18});
+/// The caption above one row of the panel.
+void drawRowLabel(FontContext& fontContext, SkCanvas* canvas,
+                  const char8_t* label, float top) {
+  kit::drawLabel(canvas, fontContext, label, {40, top},
+                 {.color = kAccent, .width = 900, .height = 18});
 }
 
 }  // namespace
 
-void sceneDecorations(FontContext& fontContext,
-                      const std::filesystem::path& outputDirectory) {
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(980, 900));
-  SkCanvas* canvas = surface->getCanvas();
-  canvas->clear(kPaper);
+TEST(WeavePlates, RunDressingDrawsItsBaseline) {
+  FontContext& fontContext = sigil::test::fonts();
+  const weave::testing::Plate plate({980, 900}, kPaper);
+  SkCanvas* canvas = plate.canvas();
 
   float rowTop = 30;
 
   // ── Decorations: metric-driven bands, ink-skipping underline ──────────
-  drawLabel(fontContext, canvas,
-            u8"decorations — underline (skip-ink) / strikethrough / overline",
-            rowTop);
+  drawRowLabel(
+      fontContext, canvas,
+      u8"decorations — underline (skip-ink) / strikethrough / overline",
+      rowTop);
   {
     Paragraph paragraph;
-    TextStyle underlined = style(26, kInk);
+    TextStyle underlined = plateStyle(26, kInk);
     underlined.paint.addDecoration({});  // metric underline, skipInk default
     paragraph.appendText(u8"typography just judged ", underlined);
-    TextStyle struck = style(26, kInk);
+    TextStyle struck = plateStyle(26, kInk);
     struck.paint.addDecoration(
         {.kind = Decoration::Kind::kStrikethrough, .color = kAccent});
     paragraph.appendText(u8"corrected ", struck);
-    TextStyle overlined = style(26, kBlue);
+    TextStyle overlined = plateStyle(26, kBlue);
     overlined.paint.addDecoration({.kind = Decoration::Kind::kOverline});
     paragraph.appendText(u8"annotated", overlined);
     BlockFlow flow(SkRect::MakeXYWH(40, rowTop + 22, 900, 44));
@@ -68,20 +72,20 @@ void sceneDecorations(FontContext& fontContext,
   rowTop += 92;
 
   // ── Decoration spans: range vs per-word, and highlight bands ──────────
-  drawLabel(fontContext, canvas,
-            u8"decoration spans — range (default) / kPerWord / kHighlight "
-            u8"behind the words",
-            rowTop);
+  drawRowLabel(fontContext, canvas,
+               u8"decoration spans — range (default) / kPerWord / kHighlight "
+               u8"behind the words",
+               rowTop);
   {
     Paragraph paragraph;
-    TextStyle range = style(24, kInk);
+    TextStyle range = plateStyle(24, kInk);
     range.paint.addDecoration({.skipInk = false});  // one continuous line
     paragraph.appendText(u8"spans the range ", range);
-    TextStyle perWord = style(24, kInk);
+    TextStyle perWord = plateStyle(24, kInk);
     perWord.paint.addDecoration(
         {.span = Decoration::Span::kPerWord, .skipInk = false});
     paragraph.appendText(u8"breaks per word ", perWord);
-    TextStyle marked = style(24, kInk);
+    TextStyle marked = plateStyle(24, kInk);
     marked.paint.addDecoration(
         {.kind = Decoration::Kind::kHighlight, .color = 0x66FFD54A});
     paragraph.appendText(u8"marker over words and gaps", marked);
@@ -91,16 +95,17 @@ void sceneDecorations(FontContext& fontContext,
   rowTop += 92;
 
   // ── Decoration fills: full-paint bands, shaded independently ──────────
-  drawLabel(fontContext, canvas,
-            u8"decoration fills — Decoration::paint shades the band, not the "
-            u8"glyphs",
-            rowTop);
+  drawRowLabel(
+      fontContext, canvas,
+      u8"decoration fills — Decoration::paint shades the band, not the "
+      u8"glyphs",
+      rowTop);
   {
     const SkRect bandBounds = SkRect::MakeXYWH(40, rowTop + 22, 900, 44);
     Paragraph paragraph;
 
     // A text-paint preset behind plain ink: only the marker is shaded.
-    TextStyle meshMarked = style(26, kInk);
+    TextStyle meshMarked = plateStyle(26, kInk);
     Decoration meshHighlight;
     meshHighlight.kind = Decoration::Kind::kHighlight;
     SkPaint meshPaint;
@@ -113,7 +118,7 @@ void sceneDecorations(FontContext& fontContext,
     paragraph.appendText(u8"a mesh-gradient marker ", meshMarked);
 
     // A gradient underline under equally plain ink.
-    TextStyle gradientRuled = style(26, kInk);
+    TextStyle gradientRuled = plateStyle(26, kInk);
     Decoration gradientUnderline;
     gradientUnderline.thickness = 4.0f;
     gradientUnderline.skipInk = false;
@@ -138,15 +143,15 @@ void sceneDecorations(FontContext& fontContext,
   rowTop += 92;
 
   // ── Text transform: shaping-side case mapping, locale-aware ───────────
-  drawLabel(fontContext, canvas,
-            u8"text-transform — uppercase (full ß→SS mapping) / capitalize",
-            rowTop);
+  drawRowLabel(fontContext, canvas,
+               u8"text-transform — uppercase (full ß→SS mapping) / capitalize",
+               rowTop);
   {
     Paragraph paragraph;
-    TextStyle upper = style(24, kInk);
+    TextStyle upper = plateStyle(24, kInk);
     upper.shaping.textTransform = TextTransform::kUppercase;
     paragraph.appendText(u8"die straße wird groß — ", upper);
-    TextStyle capitalized = style(24, kBlue);
+    TextStyle capitalized = plateStyle(24, kBlue);
     capitalized.shaping.textTransform = TextTransform::kCapitalize;
     paragraph.appendText(u8"every word starts big", capitalized);
     BlockFlow flow(SkRect::MakeXYWH(40, rowTop + 22, 900, 40));
@@ -155,10 +160,11 @@ void sceneDecorations(FontContext& fontContext,
   rowTop += 88;
 
   // ── Word spacing: pure glue, cache untouched ──────────────────────────
-  drawLabel(fontContext, canvas,
-            u8"word-spacing — 0px vs 18px on identical shaped words", rowTop);
+  drawRowLabel(fontContext, canvas,
+               u8"word-spacing — 0px vs 18px on identical shaped words",
+               rowTop);
   for (int pass = 0; pass < 2; ++pass) {
-    TextStyle spaced = style(20, pass == 0 ? kInk : kAccent);
+    TextStyle spaced = plateStyle(20, pass == 0 ? kInk : kAccent);
     spaced.shaping.wordSpacing = pass == 0 ? 0.0f : 18.0f;
     Paragraph paragraph;
     paragraph.appendText(u8"the same words drift further apart", spaced);
@@ -169,15 +175,15 @@ void sceneDecorations(FontContext& fontContext,
   rowTop += 118;
 
   // ── Variable axes: ShapingStyle::variations, memoized clones ──────────
-  drawLabel(fontContext, canvas,
-            u8"variations — {\"wght\"} sweep on one base typeface", rowTop);
+  drawRowLabel(fontContext, canvas,
+               u8"variations — {\"wght\"} sweep on one base typeface", rowTop);
   {
     sk_sp<SkTypeface> variableTypeface =
         fontContext.fontManager()->matchFamilyStyle("Noto Sans",
                                                     SkFontStyle::Normal());
     float columnLeft = 40;
     for (const float weight : {300.0f, 500.0f, 700.0f, 900.0f}) {
-      TextStyle weighted = style(26, kInk);
+      TextStyle weighted = plateStyle(26, kInk);
       weighted.shaping.typeface = variableTypeface;
       weighted.shaping.variations = {{"wght", weight}};
       Paragraph paragraph;
@@ -190,9 +196,9 @@ void sceneDecorations(FontContext& fontContext,
   rowTop += 92;
 
   // ── Tab stops: explicit columns, greedy breaker ───────────────────────
-  drawLabel(fontContext, canvas,
-            u8"tab stops — positions {180, 420, 640} align three columns",
-            rowTop);
+  drawRowLabel(fontContext, canvas,
+               u8"tab stops — positions {180, 420, 640} align three columns",
+               rowTop);
   {
     ParagraphLayoutOptions options;
     options.tabStops.stops = {{180}, {420}, {640}};
@@ -202,7 +208,7 @@ void sceneDecorations(FontContext& fontContext,
     float tabRowTop = rowTop + 22;
     for (const char8_t* rowText : tabRows) {
       // Tabular figures keep the numeric column rigid.
-      TextStyle tabularStyle = style(18, kInk);
+      TextStyle tabularStyle = plateStyle(18, kInk);
       tabularStyle.shaping.fontFeatures = {features::tabularNumbers};
       Paragraph tabbed;
       tabbed.appendText(rowText, tabularStyle);
@@ -214,8 +220,8 @@ void sceneDecorations(FontContext& fontContext,
   rowTop += 128;
 
   // ── Line clamp: maxLines + ellipsis on any geometry ───────────────────
-  drawLabel(fontContext, canvas,
-            u8"line clamp — overflow.maxLines = 2 with ellipsis", rowTop);
+  drawRowLabel(fontContext, canvas,
+               u8"line clamp — overflow.maxLines = 2 with ellipsis", rowTop);
   {
     Paragraph paragraph;
     paragraph.appendText(
@@ -223,15 +229,18 @@ void sceneDecorations(FontContext& fontContext,
         u8"clamp allows is cut after exactly two, with a shaped ellipsis "
         u8"marker landing on the second line no matter how much text "
         u8"follows it in the source document",
-        style(18, kInk));
+        plateStyle(18, kInk));
     ParagraphLayoutOptions options;
     options.overflow.maxLines = 2;
     options.overflow.ellipsis = u"…";
     BlockFlow flow(SkRect::MakeXYWH(40, rowTop + 22, 560, 400));
-    layoutParagraph(fontContext, paragraph, flow, options)
-        .draw(canvas, paragraph);
+    const weave::testing::Passage clamped = weave::testing::lay(
+        fontContext, std::move(paragraph), flow, std::move(options));
+    const weave::testing::Reading reading = weave::testing::read(clamped);
+    EXPECT_EQ(reading.lineCount, 2);
+    EXPECT_TRUE(reading.ellipsized);
+    plate.draw(clamped);
   }
 
-  writePng(surface.get(), outputDirectory / "decorations.png");
-  std::printf("Scene K — decorations panel written\n\n");
+  expectPlate(plate, "decorations");
 }

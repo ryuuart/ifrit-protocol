@@ -1,28 +1,31 @@
-// Scene I — arbitrary SkPath exclusions (star / heart / donut hole). Any
-// SkPath — concave stars, compound paths, cubic hearts — carves its exact
-// region out of the line bands, and even-odd holes stay open to text.
-#include <include/core/SkCanvas.h>
+/** @file
+ * Arbitrary path exclusions: a concave star, a heart of two cubics, and
+ * a donut whose even-odd hole stays open, so the paragraph pours through
+ * the middle of it.
+ */
+
+#include <gtest/gtest.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkSurface.h>
-#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/testing/Passage.h>
 
 #include <cmath>
-#include <cstdio>
 #include <numbers>
+#include <utility>
 
-#include "DemoScenes.h"
-#include "DemoSupport.h"
+#include "support/Plates.h"
 
 using namespace sigil::weave;
+using namespace sigil::weave::test;
+namespace weave = sigil::weave;
 
-void sceneShapes(FontContext& fontContext,
-                 const std::filesystem::path& outputDirectory) {
-  SkFontMgr* fontManager = fontContext.fontManager();
-  TextStyle body = style(16.5f, kInk);
+TEST(WeavePlates, PathExclusionsDrawTheirBaseline) {
+  FontContext& fonts = sigil::test::fonts();
+  TextStyle body = plateStyle(16.5f, kInk);
   body.shaping.typeface =
-      fontManager->matchFamilyStyle("Noto Serif", SkFontStyle());
+      fonts.fontManager()->matchFamilyStyle("Noto Serif", SkFontStyle());
 
   Paragraph paragraph;
   for (int repetitionIndex = 0; repetitionIndex < 7; ++repetitionIndex)
@@ -33,7 +36,7 @@ void sceneShapes(FontContext& fontContext,
         "donut. ",
         body);
 
-  // Star (concave, winding fill).
+  // A star, concave, filled by winding.
   SkPathBuilder star;
   for (int pointIndex = 0; pointIndex < 5; ++pointIndex) {
     const float angle = -std::numbers::pi_v<float> / 2.0f +
@@ -48,14 +51,14 @@ void sceneShapes(FontContext& fontContext,
   }
   star.close();
 
-  // Heart (two cubics).
+  // A heart of two cubics.
   SkPathBuilder heart;
   heart.moveTo(700, 620);
   heart.cubicTo(540, 470, 590, 330, 700, 420);
   heart.cubicTo(810, 330, 860, 470, 700, 620);
   heart.close();
 
-  // Donut (even-odd: the hole is open to text).
+  // A donut filled even-odd, so its hole is open to text.
   SkPathBuilder donut;
   donut.addCircle(330, 660, 150);
   donut.addCircle(330, 660, 82);
@@ -73,26 +76,16 @@ void sceneShapes(FontContext& fontContext,
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
   options.lineMetrics.height = 26;
+  const weave::testing::Passage passage = weave::testing::lay(
+      fonts, std::move(paragraph), flow, std::move(options));
 
-  const auto layoutStartTime = Clock::now();
-  ParagraphLayout layout =
-      layoutParagraph(fontContext, paragraph, flow, options);
-  const auto layoutEndTime = Clock::now();
-
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1000, 880));
-  SkCanvas* canvas = surface->getCanvas();
-  canvas->clear(kPaper);
+  const weave::testing::Plate plate({1000, 880}, kPaper);
   SkPaint shapePaint;
   shapePaint.setAntiAlias(true);
   shapePaint.setColor(kShape);
   for (const SkPath& shape : {starPath, heartPath, donutPath})
-    canvas->drawPath(shape, shapePaint);
-  layout.draw(canvas, paragraph);
+    plate.canvas()->drawPath(shape, shapePaint);
+  plate.draw(passage);
 
-  writePng(surface.get(), outputDirectory / "shapes.png");
-  std::printf(
-      "Scene I — SkPath exclusions written (layout %.1f us, %d "
-      "lines)\n\n",
-      toMicroseconds(layoutEndTime - layoutStartTime), layout.lineCount);
+  expectPlate(plate, "shapes");
 }

@@ -1,23 +1,27 @@
-// Scene H — CJK typography: vertical-rl, ruby, kenten, tate-chu-yoko.
-//
-// Ruby (furigana) and kenten (emphasis dots) are deliberately *not* library
-// features: they are a dozen lines each on top of the layout's placed runs
-// — the "build externally on SigilWeave" pattern. Tate-chu-yoko needs the
-// breaker's cooperation, so it *is* a library feature
-// (VerticalForm::kTateChuYoko).
-#include <include/core/SkCanvas.h>
+/** @file
+ * CJK typography: a vertical-rl column with tate-chu-yoko digits, and
+ * ruby and kenten set beside both it and a horizontal block. Ruby and
+ * kenten are built outside the library on the layout's placed runs, a
+ * dozen lines each; tate-chu-yoko needs the breaker's cooperation, so it
+ * is the library's own (VerticalForm::kTateChuYoko).
+ */
+
+#include <gtest/gtest.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
-#include <include/core/SkSurface.h>
+#include <sigilweave/layout/Flow.h>
 #include <sigilweave/query/Query.h>
+#include <sigilweave/testing/Plate.h>
 
 #include <algorithm>
-#include <cstdio>
+#include <string_view>
+#include <vector>
 
-#include "DemoScenes.h"
-#include "DemoSupport.h"
+#include "support/Plates.h"
 
 using namespace sigil::weave;
+using namespace sigil::weave::test;
+namespace weave = sigil::weave;
 
 namespace {
 
@@ -59,27 +63,23 @@ RangeExtent placedExtent(const Paragraph& paragraph,
 
 }  // namespace
 
-void sceneCjk(FontContext& fontContext,
-              const std::filesystem::path& outputDirectory) {
+TEST(WeavePlates, CjkColumnsDrawTheirBaseline) {
+  FontContext& fontContext = sigil::test::fonts();
   SkFontMgr* fontManager = fontContext.fontManager();
   sk_sp<SkTypeface> minchoTypeface =
       fontManager->matchFamilyStyle("Hiragino Mincho ProN", SkFontStyle());
   sk_sp<SkTypeface> notoSansTypeface =
       fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
-  if (!minchoTypeface) {
-    std::printf("Scene H — cjk: Hiragino Mincho ProN missing, skipped\n\n");
-    return;
-  }
+  if (!minchoTypeface)
+    GTEST_SKIP() << "the panel is set in Hiragino Mincho ProN";
 
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(980, 700));
-  SkCanvas* canvas = surface->getCanvas();
-  canvas->clear(kPaper);
+  const weave::testing::Plate plate({980, 700}, kPaper);
+  SkCanvas* canvas = plate.canvas();
 
   const float fontSize = 26.0f;
   auto japaneseStyle = [&](float requestedFontSize,
                            VerticalForm verticalForm = VerticalForm::kAuto) {
-    TextStyle textStyle = style(requestedFontSize, kInk, "ja");
+    TextStyle textStyle = plateStyle(requestedFontSize, kInk, "ja");
     textStyle.shaping.typeface = minchoTypeface;
     textStyle.shaping.verticalForm = verticalForm;
     return textStyle;
@@ -253,13 +253,12 @@ void sceneCjk(FontContext& fontContext,
   // Captions.
   auto drawCaption = [&](const char8_t* text, float positionX,
                          float positionY) {
-    sigil::weave::kit::drawLabel(canvas, fontContext, text,
-                                 {positionX, positionY},
-                                 {.fontSize = 13,
-                                  .color = kBlue,
-                                  .width = 400,
-                                  .height = 18,
-                                  .typeface = notoSansTypeface});
+    kit::drawLabel(canvas, fontContext, text, {positionX, positionY},
+                   {.fontSize = 13,
+                    .color = kBlue,
+                    .width = 400,
+                    .height = 18,
+                    .typeface = notoSansTypeface});
   };
   drawCaption(u8"horizontal: ruby + kenten (external utilities)", 50, 90);
   drawCaption(u8"vertical-rl: UTR#50 mixed orientation, 'vert' forms,", 430,
@@ -267,6 +266,5 @@ void sceneCjk(FontContext& fontContext,
   drawCaption(u8"tate-chu-yoko digits, ruby + kenten in the column gap", 430,
               648);
 
-  writePng(surface.get(), outputDirectory / "cjk.png");
-  std::printf("Scene H — CJK vertical/ruby/kenten/tate-chu-yoko written\n\n");
+  expectPlate(plate, "cjk");
 }

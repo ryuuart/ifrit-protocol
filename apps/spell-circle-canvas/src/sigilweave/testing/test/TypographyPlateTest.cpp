@@ -1,38 +1,39 @@
-// Scene E — typographic options: last-line justification modes, hyphenated
-// narrow columns, paint effects (shadow/gradient/blur), and mixed fonts.
+/** @file
+ * Typographic options: the four ways a justified paragraph's last line
+ * can stand, a narrow Knuth-Plass column held together by soft hyphens,
+ * paint-only effects (a drop shadow, a gradient, a glyph blur), and
+ * several families and sizes in one flow.
+ */
+
+#include <gtest/gtest.h>
 #include <include/core/SkBlurTypes.h>
-#include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkMaskFilter.h>
-#include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
-#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/kit/PaintLayers.h>
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/testing/Passage.h>
+#include <sigilweave/testing/Reading.h>
 
-#include <cstdio>
+#include <utility>
 
-#include "DemoScenes.h"
-#include "DemoSupport.h"
+#include "support/Plates.h"
 
 using namespace sigil::weave;
+using namespace sigil::weave::test;
+namespace weave = sigil::weave;
 
-void sceneTypography(FontContext& fontContext,
-                     const std::filesystem::path& outputDirectory) {
-  std::printf(
-      "Scene E — typographic options (last-line modes, hyphenation, "
-      "effects, mixed fonts)\n");
-
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1060, 820));
-  SkCanvas* canvas = surface->getCanvas();
-  canvas->clear(kPaper);
+TEST(WeavePlates, TypographicOptionsDrawTheirBaseline) {
+  FontContext& fonts = sigil::test::fonts();
+  const weave::testing::Plate plate({1060, 820}, kPaper);
+  SkCanvas* canvas = plate.canvas();
 
   const char8_t* sample =
       u8"The last line of a justified paragraph reveals the typographer's "
       "intent more than any other line in the whole measure.";
 
-  // Justify with last line start / center / end / full (InDesign-style).
+  // Justified, with the last line at the start, centre, end, or full.
   const TextAlignment lastModes[] = {
       TextAlignment::kStart, TextAlignment::kCenter, TextAlignment::kEnd};
   const char8_t* labels[] = {u8"last: left", u8"last: center", u8"last: right",
@@ -42,12 +43,12 @@ void sceneTypography(FontContext& fontContext,
         30.0f + static_cast<float>(exampleIndex % 2) * 260.0f;
     const int exampleRow = exampleIndex / 2;
     const float exampleY = 40.0f + static_cast<float>(exampleRow) * 190.0f;
-    sigil::weave::kit::drawLabel(
-        canvas, fontContext, labels[exampleIndex], {exampleX, exampleY - 24},
-        {.color = kAccent, .width = 220, .height = 20});
+    kit::drawLabel(canvas, fonts, labels[exampleIndex],
+                   {exampleX, exampleY - 24},
+                   {.color = kAccent, .width = 220, .height = 20});
 
     Paragraph paragraph;
-    paragraph.appendText(sample, style(14.5f));
+    paragraph.appendText(sample, plateStyle(14.5f));
     BlockFlow flow(SkRect::MakeXYWH(exampleX, exampleY, 220, 160));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
@@ -56,15 +57,15 @@ void sceneTypography(FontContext& fontContext,
       options.justification.lastLineAlignment = lastModes[exampleIndex];
     else
       options.justification.justifyLastLine = true;
-    layoutParagraph(fontContext, paragraph, flow, options)
-        .draw(canvas, paragraph);
+    plate.draw(weave::testing::lay(fonts, std::move(paragraph), flow,
+                                   std::move(options)));
   }
 
-  // Narrow hyphenated Knuth-Plass column (soft hyphens marked with ­).
+  // A narrow Knuth-Plass column whose soft hyphens are its only
+  // discretionary breaks.
   {
-    sigil::weave::kit::drawLabel(
-        canvas, fontContext, u8"KP + soft hyphens, 130px", {570, 16},
-        {.color = kAccent, .width = 220, .height = 20});
+    kit::drawLabel(canvas, fonts, u8"KP + soft hyphens, 130px", {570, 16},
+                   {.color = kAccent, .width = 220, .height = 20});
 
     Paragraph paragraph;
     paragraph.appendText(
@@ -73,29 +74,27 @@ void sceneTypography(FontContext& fontContext,
         "jus­ti­fi­ca­tion from tear­ing the "
         "spac­ing apart, ex­act­ly as a book "
         "com­pos­i­tor would want.",
-        style(14.5f));
+        plateStyle(14.5f));
     BlockFlow flow(SkRect::MakeXYWH(570, 40, 130, 400));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = LineBreakStrategy::kKnuthPlass;
     options.alignment = TextAlignment::kJustify;
-    const auto layoutStartTime = Clock::now();
-    ParagraphLayout layout =
-        layoutParagraph(fontContext, paragraph, flow, options);
-    const auto layoutEndTime = Clock::now();
-    layout.draw(canvas, paragraph);
-    std::printf("  hyphenated 130px KP column: %.1f us cold\n",
-                toMicroseconds(layoutEndTime - layoutStartTime));
+    const weave::testing::Passage column = weave::testing::lay(
+        fonts, std::move(paragraph), flow, std::move(options));
+    const weave::testing::Reading reading = weave::testing::read(column);
+    EXPECT_EQ(reading.hyphenationPoints.size(), 20u)
+        << "every soft hyphen typed is a point the breakers may take";
+    plate.draw(column);
   }
 
-  // Effects: drop shadow, gradient shader, glyph blur — all paint-only.
+  // Effects that only paint: a drop shadow, a gradient shader, a blur.
   {
     Paragraph paragraph;
-    TextStyle title = style(40, SK_ColorWHITE);
-    title.paint.addUnderlay(
-        sigil::weave::kit::dropShadow(0x99000000, {3, 4}, 3.0f));
+    TextStyle title = plateStyle(40, SK_ColorWHITE);
+    title.paint.addUnderlay(kit::dropShadow(0x99000000, {3, 4}, 3.0f));
     paragraph.appendText(u8"Shadowed ", title);
 
-    TextStyle gradient = style(40);
+    TextStyle gradient = plateStyle(40);
     const SkPoint gradientPoints[2] = {{730, 40}, {1030, 240}};
     const SkColor4f colors[2] = {SkColor4f::FromColor(kAccent),
                                  SkColor4f::FromColor(kBlue)};
@@ -103,31 +102,29 @@ void sceneTypography(FontContext& fontContext,
         gradientPoints,
         SkGradient(SkGradient::Colors({colors, 2}, SkTileMode::kClamp),
                    SkGradient::Interpolation())));
-    gradient.paint.addUnderlay(
-        sigil::weave::kit::dropShadow(0x44000000, {2, 2}, 2.0f));
+    gradient.paint.addUnderlay(kit::dropShadow(0x44000000, {2, 2}, 2.0f));
     paragraph.appendText(u8"gradient ", gradient);
 
-    TextStyle blurred = style(40, kInk);
+    TextStyle blurred = plateStyle(40, kInk);
     blurred.paint.foreground.setMaskFilter(
         SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, 2.4f));
     paragraph.appendText(u8"blur", blurred);
 
     BlockFlow flow(SkRect::MakeXYWH(730, 40, 310, 400));
-    layoutParagraph(fontContext, paragraph, flow).draw(canvas, paragraph);
+    plate.draw(weave::testing::lay(fonts, std::move(paragraph), flow));
   }
 
-  // Mixed families and sizes in one flow (serif / sans / mono / CJK).
+  // Several families and sizes in one flow: serif, sans, mono, and CJK by
+  // fallback.
   {
-    // Noto Sans/Serif (user-installed variable fonts): richer OpenType
-    // shaping coverage than the system defaults.
-    SkFontMgr* fontManager = fontContext.fontManager();
-    TextStyle serif = style(20, kInk);
+    SkFontMgr* fontManager = fonts.fontManager();
+    TextStyle serif = plateStyle(20, kInk);
     serif.shaping.typeface =
         fontManager->matchFamilyStyle("Noto Serif", SkFontStyle());
-    TextStyle sans = style(17, kBlue);
+    TextStyle sans = plateStyle(17, kBlue);
     sans.shaping.typeface =
         fontManager->matchFamilyStyle("Noto Sans", SkFontStyle());
-    TextStyle mono = style(14, kAccent);
+    TextStyle mono = plateStyle(14, kAccent);
     mono.shaping.typeface =
         fontManager->matchFamilyStyle("Menlo", SkFontStyle());
 
@@ -144,19 +141,9 @@ void sceneTypography(FontContext& fontContext,
     ParagraphLayoutOptions options;
     options.alignment = TextAlignment::kJustify;
     options.lineMetrics.height = 34;
-    const auto coldStartTime = Clock::now();
-    ParagraphLayout layout =
-        layoutParagraph(fontContext, paragraph, flow, options);
-    const auto coldEndTime = Clock::now();
-    ParagraphLayout warm =
-        layoutParagraph(fontContext, paragraph, flow, options);
-    const auto warmEndTime = Clock::now();
-    layout.draw(canvas, paragraph);
-    std::printf("  mixed-font paragraph: cold %.1f us, warm %.1f us\n",
-                toMicroseconds(coldEndTime - coldStartTime),
-                toMicroseconds(warmEndTime - coldEndTime));
+    plate.draw(weave::testing::lay(fonts, std::move(paragraph), flow,
+                                   std::move(options)));
   }
 
-  writePng(surface.get(), outputDirectory / "typography.png");
-  std::printf("\n");
+  expectPlate(plate, "typography");
 }

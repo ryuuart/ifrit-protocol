@@ -1,36 +1,41 @@
-// Scene G(a) — 2000 tokens across a dozen writing systems scattered as
-// rotated confetti: Arabic joins, Devanagari conjuncts, emoji ZWJ sequences
-// and all — every token resolved through per-codepoint fallback and the one
-// shape cache.
-#include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
-#include <sigilmeasure/time/Stopwatch.h>
+/** @file
+ * Two thousand tokens across a dozen writing systems scattered as rotated
+ * confetti — Arabic joins, Devanagari conjuncts, emoji ZWJ sequences —
+ * every token resolved through per-codepoint fallback and one shape
+ * cache.
+ */
+
+#include <gtest/gtest.h>
+#include <sigilweave/layout/Flow.h>
+#include <sigilweave/testing/Passage.h>
 
 #include <cmath>
-#include <cstdio>
+#include <cstdint>
 #include <random>
 #include <string>
+#include <utility>
 
-#include "DemoScenes.h"
-#include "DemoSupport.h"
+#include "support/Plates.h"
 
 using namespace sigil::weave;
+using namespace sigil::weave::test;
+namespace weave = sigil::weave;
 
-void sceneBabel(FontContext& fontContext,
-                const std::filesystem::path& outputDirectory) {
+TEST(WeavePlates, ScriptConfettiDrawsItsBaseline) {
+  FontContext& fonts = sigil::test::fonts();
   const char8_t* tokens[] = {
       u8"حرف",  u8"كلمة", u8"अक्षर",  u8"शब्द",   u8"אות",   u8"מילה", u8"ตัวอักษร",
       u8"字",   u8"글",   u8"λόγος", u8"буква", u8"🎉",    u8"👍🏽", u8"文字",
       u8"ঢাকা", u8"கடல்",  u8"ᚱᚢᚾ",   u8"ainm",  u8"słowo", u8"λέξη"};
   std::mt19937 randomEngine(77);  // NOLINT(bugprone-random-generator-seed): a
-                                  // fixed seed keeps the scene reproducible
+                                  // fixed seed keeps the plate reproducible
   Paragraph paragraph;
   std::u8string text;
   for (int tokenIndex = 0; tokenIndex < 2000; ++tokenIndex) {
     text += tokens[randomEngine() % 20];
     text += ' ';
   }
-  paragraph.appendText(text, style(15));
+  paragraph.appendText(text, plateStyle(15));
   const uint32_t textLength = static_cast<uint32_t>(paragraph.text().size());
   for (uint32_t textOffset = 0; textOffset + 40 < textLength; textOffset += 40)
     paragraph.setPaint(textOffset, textOffset + 20,
@@ -48,21 +53,7 @@ void sceneBabel(FontContext& fontContext,
                       60}});
   }
 
-  const auto coldStartTime = Clock::now();
-  ParagraphLayout layout = layoutParagraph(fontContext, paragraph, flow);
-  const auto coldEndTime = Clock::now();
-  ParagraphLayout warm = layoutParagraph(fontContext, paragraph, flow);
-  const auto warmEndTime = Clock::now();
-
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(1400, 900));
-  surface->getCanvas()->clear(kPaper);
-  layout.draw(surface->getCanvas(), paragraph);
-  writePng(surface.get(), outputDirectory / "babel.png");
-  std::printf(
-      "Scene G — babel confetti: %zu tokens, %zu runs, cold %.1f us, "
-      "warm %.1f us\n",
-      paragraph.words().size(), layout.runs.size(),
-      toMicroseconds(coldEndTime - coldStartTime),
-      toMicroseconds(warmEndTime - coldEndTime));
+  const weave::testing::Plate plate({1400, 900}, kPaper);
+  plate.draw(weave::testing::lay(fonts, std::move(paragraph), flow));
+  expectPlate(plate, "babel");
 }

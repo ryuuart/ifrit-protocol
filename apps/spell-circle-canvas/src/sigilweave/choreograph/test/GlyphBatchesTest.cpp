@@ -12,6 +12,7 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 #include <sigilweave/kit/PaintLayers.h>
+#include <sigilweave/testing/Difference.h>
 
 #include <algorithm>
 #include <cmath>
@@ -195,7 +196,8 @@ TEST(GlyphBatches, UnderlaysDrawBeneathForegroundsAcrossFadeClasses) {
   SkPixmap actual, expected;
   ASSERT_TRUE(actualSurface->peekPixels(&actual));
   ASSERT_TRUE(expectedSurface->peekPixels(&expected));
-  const PixelDifference apart = worstPixelDifference(actual, expected);
+  const sigil::weave::testing::PixelDifference apart =
+      sigil::weave::testing::difference(actual, expected);
   // The two fade classes differ by 1/255 at most, so anything past a couple
   // of counts is a compositing-order divergence, not the fade.
   EXPECT_LE(apart.worst, 4) << "batched draw diverges from underlays-then-"

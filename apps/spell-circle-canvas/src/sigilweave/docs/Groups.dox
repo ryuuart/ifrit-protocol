@@ -43,6 +43,10 @@
  *  The system font manager, behind the seam the engine names fonts
  *  through (ports/SystemFontManager.h). Its own target, so the engine
  *  itself binds to no operating system. */
+/** @defgroup weave-testing Testing harness
+ *  A passage laid under a stated font context and read back as values,
+ *  rendered to a CPU raster plate and held against a committed baseline
+ *  (testing/). Its own target, linked by test binaries alone. */
 /** @defgroup weave-qt The Qt bridge
  *  QString and Skia types crossing into the engine's own
  *  (qt/SigilWeaveQt.h). Its own target, so the engine stays Qt-free. */

@@ -410,6 +410,7 @@ own.
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
+| `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilImageAsset, SigilImageEncode and SigilIOSource for the baseline file — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
 Each feature links only the features beneath it — style, then fonts, then
@@ -489,6 +490,57 @@ and what a label promises. What is only true of SigilWeave:
 feature reaches: it names the targets its cases link, so a case that
 could not have seen a font cannot accidentally have seen one.
 
+### The harness: values in, values and images out
+
+`SigilWeaveTesting` is what a test of this library reaches for, and
+nothing that ships links it. It lays a passage under the font context a
+case names and hands the setting back as values, so a case states what
+it expects rather than walking runs itself:
+
+```cpp
+#include <sigilweave/testing/Baseline.h>
+#include <sigilweave/testing/Plate.h>
+#include <sigilweave/testing/Reading.h>
+
+sigil::weave::BlockFlow flow(SkRect::MakeWH(70, 400));
+sigil::weave::ParagraphLayoutOptions options;
+options.alignment = sigil::weave::TextAlignment::kJustify;
+const sigil::weave::testing::Passage passage = sigil::weave::testing::lay(
+    fonts, std::move(paragraph), flow, std::move(options));
+
+const sigil::weave::testing::Reading reading =
+    sigil::weave::testing::read(passage);
+// reading.lines[0].box, .measure, .natural, .gaps, .adjustmentRatio,
+// .badness; reading.runs, reading.glyphs, reading.hyphenationPoints,
+// reading.hyphensTaken
+
+sigil::weave::testing::Plate plate({200, 100}, SK_ColorWHITE);
+plate.draw(passage);
+const sigil::weave::testing::BaselineComparison comparison =
+    sigil::weave::testing::compareToBaseline(plate.pixels(), baselinePath);
+```
+
+- `sigilweave/testing/Passage.h` — `Passage`, the paragraph with the
+  options and the layout it was set with, and `lay` and `layLine`.
+- `sigilweave/testing/Reading.h` — `Reading`, `LineReading`,
+  `RunReading`, `GlyphPlacement` and `read`. A line's badness is TeX's,
+  100·|ratio|³ capped at 10000, from the justification's own word-space
+  limits; a line set by a rule the reading does not restate (a turned
+  run, a column, a tab, an ideographic gap, a mojikumi table) reads no
+  ratio rather than a wrong one.
+- `sigilweave/testing/Plate.h` — `Plate`, a CPU raster surface cleared
+  to one ground, and `render`.
+- `sigilweave/testing/Difference.h` — `PixelDifference` and `difference`:
+  how many pixels two renders disagree on and the widest channel gap.
+- `sigilweave/testing/Baseline.h` — `compareToBaseline`, which judges a
+  render against a committed PNG or adopts it (`BaselineAction`), the
+  `BaselineComparison` it answers, and `describe`, the line a failing
+  case prints.
+
+The namespace is spelled `weave::testing` in a file that brings
+`sigil::weave` in with a using-directive, because GoogleTest owns
+`::testing`.
+
 What each feature's `test/` holds:
 
 - `unicode/test/` — the Unicode leaf, with no fonts at all.
@@ -548,10 +600,20 @@ What each feature's `test/` holds:
   the process, a fallback chain that runs out onto the default family at
   the style it was asked for, and the face the port holds once per ask so
   that everything keyed on a face by pointer keys on one value.
+- `testing/test/` — the harness itself (`ReadingTest`, `BaselineTest`),
+  over the instrument faces and a scratch directory, and THE PLATES: nine
+  pictures of what only this library draws, one case each, rendered
+  through the harness and held against the PNG committed beside them
+  under `testing/test/plates/` — extreme geometries and letter confetti,
+  typographic options, script confetti, OpenType features, CJK columns
+  with ruby and kenten, path exclusions, CJK fallback, and the dressing a
+  run carries. The fallback, clamp and soft-hyphen panels also assert
+  what they show as values.
 
 | label | on | what a runner must supply |
 |---|---|---|
 | `fonts` | every case in the binary | installed faces broad enough for an unstyled paragraph of mixed scripts and emoji to resolve — the machine's own fallback is what those cases are about, and the port's whole subject is the list it resolves against |
+| `plates` | `WeavePlates` | the font set the committed baselines were adopted on: the panels set named families and the machine's fallback, so a machine with other faces reads every plate as moved |
 
 The label sits on the binary rather than on a suite: most of what it
 holds shapes text, and a suite that needs nothing — the Unicode leaf,
@@ -571,8 +633,9 @@ placed, whether every run stayed inside an interval its band offered,
 and the two-word setting a decoration band is read across —
 `LayoutSupport.h` carries the breaker parameter a breaking claim is held
 to both ways, `Paints.h` a shader whose colour says where it was
-sampled, `Pixels.h` scans a rendered surface, and `Readings.h` the
-spread of a set of measurements. `Layouts.h` calls no GoogleTest
+sampled, `Pixels.h` scans a rendered surface, `Readings.h` the
+spread of a set of measurements, and `Plates.h` the palette, the span
+style and the one assertion every plate ends on. `Layouts.h` calls no GoogleTest
 assertion, so the benchmarks include it and count what the tests count.
 Each binary that needs more has a support header that includes exactly
 the headers its translation units use.
@@ -600,16 +663,18 @@ differ in one paint feature). The corpus they share sits in
 readings the tests use.
 
 ```sh
-cmake --build build --config Release --target benches weave_demo
+cmake --build build --config Release --target benches weave_test
 python3 scripts/sigil.py bench --benches weave_bench
-./build/bin/Release/weave_demo   # writes weave_demo_out/*.png in the cwd
+ctest --test-dir build -C Release -L plates             # judge the plates
+SIGIL_PLATES_REBASE=1 ctest --test-dir build -C Release -L plates  # adopt
 ```
 
-`weave_demo` renders headless PNG panels of the library-only surfaces:
-extreme geometries, typographic options, mixed-script and feature panels,
-CJK and vertical text, `SkPath` exclusions, CJK fallback, and a panel
-covering decorations, text transform, word spacing, variable axes, tab stops,
-and line clamp.
+A plate that moved fails with one line naming its baseline and the
+render written under `build/src/sigilweave/testing/plates/`, so the two
+can be opened side by side. The bar is identity: the plate is rasterized
+on the CPU, and the same layout on the same machine answers the same
+bytes. A move that was meant is adopted with `SIGIL_PLATES_REBASE=1` and
+committed with its cause.
 
 `WeaveGallery` (`examples/gallery/`) is the interactive home for the animated
 scenes — exclusions and morphing paths, greedy versus Knuth-Plass, an
