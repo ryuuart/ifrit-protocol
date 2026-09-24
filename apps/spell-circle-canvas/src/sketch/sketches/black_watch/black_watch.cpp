@@ -408,14 +408,14 @@ struct BlackWatch {
     // keeps frequency · stretch · 2^(octaves−1) under 0.4, past which its
     // y axis aliases into hash noise.
     // A mount board reads as one even card: a fine tooth the eye takes
-    // as paper, and a wear so slow and faint that it is felt rather than
-    // seen, never a blotch that competes with the cloth.
+    // as paper and almost no wear, since any slow blotch on a light card
+    // reads as marble rather than as board.
     board = material::skia::Paint::recipe(
         material::kit::board({.paint = colours.ground,
-                              .tooth = 0.065f,
-                              .toothScale = 0.05f,
-                              .wear = 0.018f,
-                              .wearScale = 0.0025f,
+                              .tooth = 0.05f,
+                              .toothScale = 0.06f,
+                              .wear = 0.004f,
+                              .wearScale = 0.004f,
                               .seed = 7.0f}));
     yarn = material::skia::Paint::recipe(
         material::field::grain(0.09f, 3, 3.0f, 0.75f));
@@ -731,12 +731,12 @@ struct BlackWatch {
     return panel;
   }
 
-  /** The cloth as a mounted sample: the woven panel, the warp running on
-   *  past its last pick into a knotted fringe, and four card corners
-   *  holding it to the board. */
+  /** The cloth as a sample laid on the board: the woven panel and the
+   *  warp running on past its last pick into a knotted fringe. Nothing
+   *  pins it — a cutting with its ends left free is laid, not cornered. */
   Element mountedCloth() const {
     const float width = kEnds * kThread;
-    constexpr float kHidden = 4, kHang = 30, kClear = 22, kCorner = 26;
+    constexpr float kHidden = 4, kHang = 30, kClear = 22;
     const Fringe fringe = tassels(kEnds, kHidden, kHang);
     // The fringe stands behind the panel, so the knots show just below
     // its edge and the tassels hang free onto the board, each lifted off
@@ -755,22 +755,6 @@ struct BlackWatch {
                  .transformOrigin(pct(0), pct(50))
                  .scaleX(bind(&loom).window(0, kBeamEnd)),
              clothPanel()});
-    const std::array<std::pair<SkPoint, float>, 4> corners{
-        {{{-5, 9}, 0}, {{width - kCorner + 5, 9}, 90},
-         {{width - kCorner + 5, 14 + kPicks * kThread - kCorner + 5}, 180},
-         {{-5, 14 + kPicks * kThread - kCorner + 5}, 270}}};
-    for (const auto& [at, turn] : corners)
-      mount.children({box()
-                          .left(at.x())
-                          .top(at.y())
-                          .width(kCorner)
-                          .height(kCorner)
-                          .rotate(turn)
-                          .shape(shapes::svg("M0 0 L1 0 L0 1 Z"))
-                          .fill(board)
-                          .stroke(stroke(0.8f, Fill::var("rule"), PathFormat::Align::Inner))
-                          .background(styles::dropShadow(
-                              faded(colours.shadow, 0.4f), {1, 1.5f}, 2.5f))});
     return mount;
   }
 
