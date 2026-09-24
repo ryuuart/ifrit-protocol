@@ -325,21 +325,6 @@ Once restored, a test should compile every source under a library's
 `reference/examples/` the way a sketch is built, so an example that
 stops compiling fails the build rather than the reader.
 
-## A paragraph partial's last-line fields are lost under a whole justification
-
-`overlay(ParagraphStyle, ParagraphBlock)` copies the partial's
-`justification` whole and ignores its `lastLineAlignment` and
-`justifyLastLine`, so a block that states both a justification and a
-last-line setting apart has the last-line setting overridden by the
-whole it copied, while `justificationMethod` stated apart is folded in.
-
-The stated-apart fields are evidently meant to land in the style's
-justification the way the method does.
-
-A test should assert that
-`paragraph({.alignment = kJustify, .justification = {}, .justifyLastLine = true})`
-on a text leaf sets its last line to the measure.
-
 ## A zoom that settles re-rasterises everything at once, and varied glyphs grow with the scale
 
 When the pane's zoom settles, `SketchbookRenderer` redraws the frame at
@@ -538,49 +523,6 @@ by `text_paints`, whose SPARKLE OVER A BASE cell states its ink over
 `PaintBox::Subtree` to sample the field in pixels; `stock_materials` shows
 it only as a fill.
 
-## A block after the first takes its first-line indent one line late under the optimizing breaker
-
-`IntervalSequence` fetches source lines lazily and insets each one as it
-is fetched, with the first-line indent only where `m_lineInBlock == 0`.
-Under `TextWrap::Pretty` (Knuth–Plass) the breaker asks for the interval
-past a block's last line while that block is still open, so the line the
-next block will start on is fetched and inset as a continuation line of
-the block before. `openBlock` then resets `m_lineInBlock`, and the NEXT
-fetched line — the new block's second — takes the first-line indent. The
-greedy breaker (`TextWrap::Auto`) fetches no further than it places and
-indents every block's first line.
-
-`textIndent` evidently means the first line of every block, whichever
-breaker sets it; the fetched-but-unplaced line should be re-inset (or
-fetched afresh) when a block opens, together with the pitch, lead and
-grid step `openBlock` hands over, which the same early fetch sets from
-the previous block.
-
-A test should set two blocks with `textIndent(20)` and
-`textWrap(TextWrap::Pretty)` and assert that each block's first line
-starts 20 px in and its second line at zero, matching the same passage
-under `TextWrap::Auto`. Wanted by `text_paints` (its long run shows the
-second paragraph's indent on its second line).
-
-## Every sketch that hyphenates English builds the same pattern hyphenator
-
-`weave::kit::englishHyphenationPatterns()` is the pattern text, and each
-sketch that hyphenates wraps it in a function-local static
-`std::make_shared<const weave::kit::PatternHyphenator>("en", …)` of its own
-— `paragraph_sheet`, `manuscript/manuscript.cpp`, `text_paints` and
-`black_watch` carry the same five lines — because `HyphenationOptions::patterns` holds a
-shared hyphenator and the kit ships only the table.
-
-The kit evidently means the one set it carries to be the ready choice: a
-held instance beside the table (`weave::kit::englishHyphenator()`, the
-name the owner's to pick) would let `hyphens({.patterns = …})` be one
-expression, and would give every passage the same pointer, which is what
-the paragraph setting compares by.
-
-A test should assert that two calls return the same instance and that
-`hyphens({.patterns = englishHyphenator()})` breaks "specimen" where the
-hand-built table does. Wanted by the three sketches named.
-
 ## A connection's vitals have no value of their own, so every Data sketch snapshots and prints them by hand
 
 `data::Connection` answers `generation()`, `dropped()`, `undecodable()`,
@@ -610,27 +552,6 @@ field moved, and a Harness case should assert the component's rows for
 an open door, a closed one and one whose URI failed to open. Wanted by
 the eleven sketches named.
 
-## An initial letter's own style reaches its shaping and not its paint
-
-`InitialLetter::style` is documented as a partial over the opening's
-style. `layout/InitialLetter.cpp` overlays it into `capStyle` and uses that
-for the cap's size and face, but the positioned run it inserts takes
-`cap.styleIndex = plan.styleIndex` — the opening word's span — and the
-painter resolves a run's paint through `spans[run.styleIndex]`
-(`paint/Paint.cpp`). So a colour, a decoration or a paint layer the
-initial states is dropped and the cap is drawn in the passage's own ink:
-`InitialLetter(style=Type(color=teal))` sets a paper-coloured cap.
-
-The partial is evidently meant to style the cap wholly, as it already does
-its shaping fields: the cap run should carry a style of its own (appended
-to the layout's spans, or resolved by the painter from the plan) so its
-paint is the overlaid one.
-
-A test should set `initialLetter({.lines = 3, .style = {.color = red}})`
-over a white passage and assert that the cap's pixels are red and the
-body's white. Wanted by `python_type_atelier` (its teal cap) and
-`bullets_dropcap` (whose cap asks for the palette's figure colour).
-
 ## Python binds no path construction outside `sigil.skia`
 
 `src/common/python/geometry/Shapes.cpp`, `Polylines.cpp` and the path
@@ -652,40 +573,6 @@ A test should build a curve through three points from `sigil.geometry`
 alone, hand it to `TextPath(path=…)` and assert the run lays out along it.
 Wanted by `python_type_atelier` (its curved baseline), `python_kit_specimen`
 (the same cubic) and `python_live_signals` (its traces).
-
-## SigilWeaveKit's line-edge tables are empty modules in Python
-
-`src/common/python/weave/Tables.cpp` registers `sigil.weave.kit.hanging`
-and `sigil.weave.kit.kinsoku` and binds nothing into them, so
-`weave::kit::hanging::latin()` and the kinsoku sets are unreachable, though
-`HangingTable`, `HangingEdge` and `KinsokuTable` are bound as values and
-`ParagraphBlock(hanging=…)` takes one.
-
-The modules evidently mean to carry the stock tables `kit/LineTables.h`
-ships. A Python passage that wants optical margin alignment today states
-its own few edges.
-
-A test should assert that `ParagraphBlock(hanging=weave.kit.hanging.latin())`
-equals the C++ table entry for entry, and likewise for each kinsoku set.
-Wanted by `python_type_atelier` (its justified story states three edges).
-
-## A text leaf in Python cannot be given a pattern hyphenator
-
-`HyphenationOptions` is bound with `enabled`, `penalty`, `limits`,
-`consecutiveLimit`, `zone` and `lastWordOfBlock`
-(`src/common/python/weave/Type.cpp`) and without `patterns`, so `hyphens(…)`
-on a node or a rule breaks a word only at the soft hyphens typed into it.
-`weave.kit.PatternHyphenator` and `englishHyphenationPatterns()` are bound
-and `layoutParagraph(…, hyphenator=…)` takes one, so the pattern hyphenator
-reaches the paragraph engine directly and never the paragraph lane.
-
-The field is evidently meant to be bound as the C++ one is, holding the
-shared hyphenator.
-
-A test should set `hyphens(HyphenationOptions(patterns=PatternHyphenator("en",
-englishHyphenationPatterns())))` on a narrow justified leaf from Python and
-assert a line ends in a hyphen. Wanted by `python_type_atelier` (its story
-carries typed soft hyphens instead).
 
 ## `rem` measures against the composer's inherited font, not the root element's
 
