@@ -95,6 +95,15 @@ add_test(NAME protocol_python_client
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/test/python_client.py
           --protocol-test $<TARGET_FILE:protocol_test>)
 set_tests_properties(protocol_python_client PROPERTIES LABELS protocol)
+
+# THE PYTHON CLIENT'S SOCKET, held to a host the check serves itself: the
+# definition read first, host.describe the first command, a host of
+# another breaking revision refused, a state directory followed to its
+# address, and events and pings met while a command waits.
+add_test(NAME protocol_python_connection
+  COMMAND ${Python3_EXECUTABLE}
+          ${CMAKE_CURRENT_LIST_DIR}/test/python_connection.py)
+set_tests_properties(protocol_python_connection PROPERTIES LABELS protocol)
 find_program(SIGIL_BASEDPYRIGHT basedpyright
   HINTS "${CMAKE_BINARY_DIR}/typing-tools/bin"
         "${CMAKE_BINARY_DIR}/typing-tools/Scripts")

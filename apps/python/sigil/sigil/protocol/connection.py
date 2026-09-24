@@ -14,8 +14,8 @@ receiver — at ``ws://127.0.0.1:PORT/sigil`` or through the state directory
 whose ``protocol-address`` names it, reads the definition the host serves at
 ``/protocol``, and refuses a host built from a definition that breaks this
 client. ``launch(state=…)`` starts a headless Sketchbook serving the protocol
-under a state directory and connects to it, as a browser automation client
-launches its browser; closing the connection ends the process.
+under a state directory and connects to it; closing the connection ends the
+process.
 """
 
 from __future__ import annotations
@@ -322,7 +322,9 @@ def _served_definition(host: str, port: int, timeout: float) -> bytes:
 
 def _address_of(where: str | os.PathLike[str]) -> str:
     text = os.fspath(where)
-    if text.startswith("ws://"):
+    # Anything with a scheme is an address, which the connection refuses
+    # unless it is a websocket's; only a plain path names a directory.
+    if "://" in text:
         return text
     return (pathlib.Path(text) / ADDRESS_FILE).read_text().strip()
 
