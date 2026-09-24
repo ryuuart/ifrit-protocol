@@ -35,6 +35,17 @@ TEST(SketchbookArguments, CaptureRejectsInvalidTimingAndScale) {
   EXPECT_TRUE(parse({"--at", "0.025", "--fps", "60", "--scale", "0.5"}));
 }
 
+TEST(SketchbookArguments, ASweepTakesItsMomentFromTheStillsTimeFlag) {
+  // One word for scene time: the sweep reads `--at` as the still does,
+  // and the sweep's own spelling of it is not understood.
+  const auto args = parse({"--headless", "plates", "--at", "1.5"});
+  ASSERT_TRUE(args);
+  EXPECT_TRUE(args->headless);
+  EXPECT_EQ(args->capture.at, 1.5);
+  EXPECT_FALSE(parse({"--headless", "plates", "--capture-at", "1.5"}));
+  EXPECT_FALSE(parse({"--headless", "plates", "--timing-json", "t.json"}));
+}
+
 TEST(SketchbookArguments, PythonInfoIsAStandaloneQuery) {
   const auto args = parse({"--python-info"});
   ASSERT_TRUE(args);

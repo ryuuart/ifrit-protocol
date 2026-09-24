@@ -25,6 +25,9 @@ int runSweep(const Arguments& args, int chosen,
   options.only = chosen;
   options.kind = args.kind;
   options.gpu = args.gpu;
+  // `--at` names the moment for a sweep as it does for a still: every
+  // plate is taken there instead of at its sketch's own moment.
+  options.at = args.capture.at;
   // `--gpu` BRINGS THE ONE DEVICE UP, whatever the selection holds.
   // A set is rendered by the runtime installed on it; a canvas is
   // photographed on a Graphite surface allocated from that same

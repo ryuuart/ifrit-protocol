@@ -11,10 +11,9 @@
  *   Sketchbook --examples                     the bundled catalogue
  *   Sketchbook --compare <dir-a> <dir-b>       compare two plate sweeps
  *   Sketchbook --headless [<outdir>] [--gpu] [--sketch <name>]
- *              [--kind <k>]
+ *              [--kind <k>] [--at <s>]
  *              [--ledger] [--no-promotion | --promotion] [--composites]
- *              [--capture-at <s>]
- *              [--timing-json <path>]          plates, and the timing table;
+ *                                              plates, and the timing table;
  *                                              into sketch_plates/ unless a
  *                                              directory is named
  *   Sketchbook --video <out.mp4> [--video-frames <n>] [--fps <n>]

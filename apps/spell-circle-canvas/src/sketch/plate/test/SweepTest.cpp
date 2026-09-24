@@ -305,12 +305,24 @@ TEST(Sweep, ASketchIsTheSamePlateAfterAnotherOneHasRunInThisProcess) {
             bytesOf(after.path / "plate_sweep_probe.png"));
 }
 
-TEST(Sweep, RefusesToReportTimingItDidNotMeasure) {
-  // A ledger run performs no benchmark, so a timing file would be zeros.
-  const ScratchDir out("sigil_sweep_timing");
-  SweepOptions options = ledgerRun(out.path);
-  options.timingJson = (out.path / "timing.json").string();
-  EXPECT_EQ(1, sweep(options, fonts(), assets()));
+TEST(Sweep, AMomentTheRunNamesOutranksTheOneTheSketchDeclared) {
+  // The probe moves, and declares half a second: a run that names that
+  // same moment writes the same bytes, and one that names the first
+  // frame — zero is a moment like any other — writes a different picture.
+  const ScratchDir declared("sigil_sweep_at_declared");
+  const ScratchDir same("sigil_sweep_at_same");
+  const ScratchDir first("sigil_sweep_at_first");
+  ASSERT_EQ(0, sweep(ledgerRun(declared.path), fonts(), assets()));
+  SweepOptions atDeclared = ledgerRun(same.path);
+  atDeclared.at = 0.5;
+  ASSERT_EQ(0, sweep(atDeclared, fonts(), assets()));
+  SweepOptions atFirst = ledgerRun(first.path);
+  atFirst.at = 0.0;
+  ASSERT_EQ(0, sweep(atFirst, fonts(), assets()));
+  EXPECT_EQ(bytesOf(declared.path / "plate_sweep_probe.png"),
+            bytesOf(same.path / "plate_sweep_probe.png"));
+  EXPECT_NE(bytesOf(declared.path / "plate_sweep_probe.png"),
+            bytesOf(first.path / "plate_sweep_probe.png"));
 }
 
 TEST(Sweep, SelectsByRuntime) {

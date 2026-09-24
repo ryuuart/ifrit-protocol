@@ -4,7 +4,7 @@
  * @ingroup sketch-plate
  *
  * The headless sweep: every sketch stepped to its declared moment and
- * photographed, with the timing table beside it.
+ * photographed, with the timing table printed beside it.
  */
 
 #include <string>
@@ -106,18 +106,15 @@ struct SweepOptions {
    *  the second directory's plates and prices the content difference by
    *  it. */
   bool countPlane = false;
-  /** Take every still at this scene time, overriding both the derived
-   *  frame and any sketch's declared moment. Sweeping at two different
-   *  times and diffing tells you which sketches are still in motion at
-   *  the moment they are photographed. */
-  double captureAt = -1.0;
+  /** Take every still at this scene time, in seconds, overriding both
+   *  the derived frame and any sketch's declared moment; negative leaves
+   *  each sketch its own. Zero is a time like any other: the still is the
+   *  scene's first frame. Sweeping at two different times and diffing
+   *  tells you which sketches are still in motion at the moment they are
+   *  photographed. */
+  double at = -1.0;
   /** Skip the benchmark phases and go straight to the capture. */
   bool ledger = false;
-  /** Also write one JSON line per sketch with the steady-state sample
-   *  numbers — the machine-readable lane a frame-time gate parses.
-   *  Stdout is untouched. Refused under `ledger`: a ledger run performs
-   *  no benchmark, and a timing file of zeros would be a lie. */
-  std::string timingJson;
 };
 
 /** Runs the sweep. Returns 0 when every selected sketch rendered. */

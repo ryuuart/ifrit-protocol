@@ -102,10 +102,6 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
       args.sweepOptions.promotion = true;
     } else if (arg == "--composites") {
       args.sweepOptions.countPlane = true;
-    } else if (arg == "--capture-at" && i + 1 < argc) {
-      args.sweepOptions.captureAt = std::strtod(argv[++i], nullptr);
-    } else if (arg == "--timing-json" && i + 1 < argc) {
-      args.sweepOptions.timingJson = argv[++i];
     } else if (arg == "--shot" && i + 1 < argc) {
       args.shotPath = argv[++i];
     } else if (arg == "--assets" && i + 1 < argc) {

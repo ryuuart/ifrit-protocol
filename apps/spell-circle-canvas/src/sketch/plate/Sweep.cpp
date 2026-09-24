@@ -96,28 +96,12 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                  "name one\n");
     return 1;
   }
-  if (!options.timingJson.empty() && options.ledger) {
-    std::fprintf(stderr,
-                 "--timing-json is refused under --ledger: ledger mode "
-                 "skips the benchmark phases, so there is no timing to "
-                 "report\n");
-    return 1;
-  }
   if (options.countPlane && options.gpu) {
     std::fprintf(stderr,
                  "--composites is refused with --gpu: the plane is read "
                  "back off each cached raster, and a device raster is not "
                  "readable where it is blitted\n");
     return 1;
-  }
-  FILE* timingJson = nullptr;
-  if (!options.timingJson.empty()) {
-    timingJson = std::fopen(options.timingJson.c_str(), "w");
-    if (!timingJson) {
-      std::fprintf(stderr, "cannot open --timing-json path %s\n",
-                   options.timingJson.c_str());
-      return 1;
-    }
   }
 
   // THE DEVICE'S OWN CONTEXT, and never one of this sweep's making: a
@@ -136,7 +120,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       std::fprintf(stderr,
                    "no device runtime (the device carries no Graphite "
                    "context)\n");
-      if (timingJson) std::fclose(timingJson);
       return 1;
     }
     std::printf("backend: Graphite GPU (work ms = CPU + synced GPU)\n");
@@ -199,7 +182,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     const Kind kind = entry.kind();
     if (!kind) {
       std::fprintf(stderr, "sketch %s has no kind\n", entry.name);
-      if (timingJson) std::fclose(timingJson);
       return 1;
     }
     // EVERY headless run writes a plate, and a plate is a picture that
@@ -374,13 +356,16 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
             ? (float)declaredOversample
             : std::max(1.0f, std::min(session->oversample(),
                                       kPlateWidthCeiling / size.width()));
-    double declared = options.captureAt > 0 ? options.captureAt
-                                            : session->canvas().captureSeconds;
+    // A MOMENT THE RUN NAMED outranks the sketch's own, and zero is one:
+    // the still is then the scene's first frame.
+    const bool named = options.at >= 0;
+    double declared = named ? options.at : session->canvas().captureSeconds;
     // A ledger run always takes the exact-stepped path; a sketch with no
     // declared moment gets the derived default, which is the identical
     // frame the benchmarked sweep captures.
-    if (options.ledger && declared <= 0) declared = kCaptureFrame / kRate;
-    if (declared > 0) {
+    if (options.ledger && !named && declared <= 0)
+      declared = kCaptureFrame / kRate;
+    if (named || declared > 0) {
       // The session standing here goes before the next one opens: a feed
       // is one object per URI for as long as anybody holds it, so a
       // capture that opened its port while the earlier session still
@@ -396,7 +381,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         std::fprintf(stderr,
                      "sketch %s declared a different canvas on reopen\n",
                      entry.name);
-        if (timingJson) std::fclose(timingJson);
         return 1;
       }
       // A CAPTURE IS PHOTOGRAPHED AT ITS OWN DENSITY, and so is everything
@@ -427,21 +411,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       for (const LaneCost& lane : lanes)
         std::printf(" %s %.2f", lane.name, lane.ms);
       std::printf("\n");
-      if (timingJson) {
-        // Both numbers a gate judges, plus the one it derives from.
-        std::fprintf(timingJson,
-                     "{\"scene\":\"%s\",\"canvas\":\"%dx%d\","
-                     "\"frame_ms\":%.3f,\"work_ms\":%.3f,"
-                     "\"p99_ms\":%.3f,\"headroom_fps\":%.1f,\"shortened\":%s,"
-                     "\"backend\":\"%s\"}\n",
-                     entry.name, (int)size.width(), (int)size.height(),
-                     sample.frameMs, sample.workMs, sample.p99Ms,
-                     sample.headroomFps, shortened ? "true" : "false",
-                     options.gpu ? "gpu" : "raster");
-        // Flush per line: a sketch that crashes later must not take the
-        // lines already written down with it.
-        std::fflush(timingJson);
-      }
     }
 
     const SkImageInfo plateInfo = SkImageInfo::MakeN32Premul(
@@ -460,7 +429,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       if (!plate) {
         std::fprintf(stderr, "could not allocate a device plate for %s\n",
                      entry.name);
-        if (timingJson) std::fclose(timingJson);
         return 1;
       }
       skia::PaintOrderCanvas orderedPlate(*graphite, plate->getCanvas());
@@ -499,7 +467,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
         // still exit as though it had one.
         std::fprintf(stderr, "could not read back the device plate for %s\n",
                      entry.name);
-        if (timingJson) std::fclose(timingJson);
         return 1;
       }
       const auto* src = static_cast<const uint8_t*>(read.result->data(0));
@@ -525,13 +492,11 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
                                          options.outputDirectory, entry.name);
       session->setCompositeCounting(false);
       if (!wrote) {
-        if (timingJson) std::fclose(timingJson);
         return 1;
       }
     }
     plate->readPixels(bitmap.pixmap(), 0, 0);
     if (!writePlate(bitmap.pixmap(), path)) {
-      if (timingJson) std::fclose(timingJson);
       return 1;
     }
     ++plates;
@@ -548,7 +513,6 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     std::printf("wrote %zu plate%s to %s\n", written, written == 1 ? "" : "s",
                 options.outputDirectory.c_str());
   }
-  if (timingJson) std::fclose(timingJson);
   return 0;
 }
 
