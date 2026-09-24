@@ -105,9 +105,11 @@ run = "python3 scripts/sigil.py sanitize --lane coverage"
 [tasks.plates]
 description = "Plate sweep over the sketch registry in Release (args go to the plates verb)"
 dir = "apps/spell-circle-canvas"
+# The verb compares plate directories through the native extension the
+# build links, so the extension is built beside Sketchbook.
 run = '''
 set -e
-cmake --build build --config Release --target Sketchbook
+cmake --build build --config Release --target Sketchbook sigil_python
 python3 scripts/sigil.py plates
 '''
 
@@ -135,10 +137,12 @@ python3 scripts/sigil.py bench --lane fps
 [tasks.sketch]
 description = "Launch Sketchbook, the live sketch host (args go to it, after --)"
 dir = "apps/spell-circle-canvas"
+# Where the binary sits inside its bundle is the build tree's arithmetic,
+# so the task asks the scripts' own door for it instead of spelling it.
 run = '''
 set -e
 cmake --build build --config Release --target Sketchbook
-exec build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook
+exec "$(python3 -c 'import sys; sys.path.insert(0, "scripts"); from sigil import tree; print(tree.sketchbook("Release"))')"
 '''
 
 # ---------------------------------------------------------------------------
