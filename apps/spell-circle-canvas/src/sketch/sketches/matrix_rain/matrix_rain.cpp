@@ -63,6 +63,7 @@
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
+#include <sigilweave/unicode/Unicode.h>
 
 #include <algorithm>
 #include <cmath>
@@ -134,19 +135,13 @@ std::vector<std::string> glyphsOf(std::string_view utf8) {
   return glyphs;
 }
 
-// workaround: `textFx::scramble` takes its charset as UTF-32 while every
-// text leaf takes UTF-8, so the charset the words file carries is decoded
-// here to reach it.
-std::u32string codepointsOf(const std::vector<std::string>& glyphs) {
+// workaround: `textFx::scramble` takes its charset as UTF-32, so the
+// charset the words file carries is converted to reach it.
+std::u32string codepointsOf(const Utf8& charset) {
+  const std::u16string units = weave::unicode::toUtf16(charset.bytes());
   std::u32string codepoints;
-  for (const std::string& glyph : glyphs) {
-    const int length = (int)glyph.size();
-    const auto lead = (unsigned char)glyph[0];
-    char32_t point = length == 1 ? lead : lead & (0x7Fu >> length);
-    for (int at = 1; at < length; ++at)
-      point = (point << 6u) | ((unsigned char)glyph[at] & 0x3Fu);
-    codepoints += point;
-  }
+  for (size_t offset = 0; offset < units.size();)
+    codepoints += weave::unicode::decodeAt(units, offset);
   return codepoints;
 }
 
@@ -387,8 +382,8 @@ struct MatrixRain {
                .digits = glyphsOf(charsets["digits"].text()),
                .digitsOneIn = std::max<uint32_t>(
                    1, (uint32_t)charsets["digitsOneIn"].number(7))};
-    kanaCodepoints = codepointsOf(charset.kana);
-    digitCodepoints = codepointsOf(charset.digits);
+    kanaCodepoints = codepointsOf(charsets["kana"]);
+    digitCodepoints = codepointsOf(charsets["digits"]);
     caption = std::string(words["caption"].text());
     if (charset.kana.empty() || charset.digits.empty()) return;
     bed = readPlane(ctx, words["bed"]);
