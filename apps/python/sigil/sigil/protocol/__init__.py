@@ -12,6 +12,7 @@ tables and enumerations of a domain stand in that domain's module:
 from __future__ import annotations
 
 from .clock import Clock
+from .connection import Connection, Envelopes, connect, launch
 from .host import Host
 from .messages import Caller, Json, MessageError
 from .registry import Registry
@@ -21,7 +22,9 @@ from .shared import Empty, Error, ErrorCode, ProtocolError, Revision
 __all__ = [
     "Caller",
     "Clock",
+    "Connection",
     "Empty",
+    "Envelopes",
     "Error",
     "ErrorCode",
     "Host",
@@ -31,4 +34,6 @@ __all__ = [
     "Registry",
     "Revision",
     "Session",
+    "connect",
+    "launch",
 ]

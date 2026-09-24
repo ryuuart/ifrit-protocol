@@ -13,9 +13,13 @@
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/python/Python.h>
+#include <sigilsketch/testing/InProcessHost.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
+#include <unistd.h>
+
+#include <cmath>
 #include <memory>
 #include <mutex>
 #include <span>
@@ -372,24 +376,65 @@ class SourceKind final : public KindOperations {
   std::filesystem::path m_source;
 };
 
+/** The answer's result, or the refusal it carries raised as the error a
+ *  script sees. */
+template <class Result>
+Result answered(protocol::Answer<Result> answer) {
+  if (!answer) throw std::runtime_error(answer.error().message);
+  return std::move(answer.result());
+}
+
+/** A HARNESS SESSION OVER ONE FILE: opened under a client's clock,
+ *  stepped to the moment it was asked for — or the one it declared, or
+ *  one and a half seconds — held there, and photographed at one pixel per
+ *  canvas unit. A step of zero seconds is one frame that moves nothing,
+ *  and the still is the held frame as it was drawn, so a scene asked for
+ *  at zero is its first frame, as a written capture's is. The state the
+ *  session keeps is a directory of its own, gone once the picture is
+ *  copied out. */
 std::string renderFile(const std::string& source, const std::string& output,
                        std::optional<double> at) {
+  static int rendered = 0;
   const auto path = std::filesystem::absolute(source);
-  weave::FontContext fonts(weave::ports::systemFontManager());
-  Host::Options options;
-  options.pythonLoader = &load;
-  options.sketchPath = path;
-  options.assetsDirectory = path.parent_path() / "assets";
-  options.clock = motion::ClockPolicy::Advance;
-  Host host(options, fonts);
-  host.poll();
-  if (!host.live()) throw std::runtime_error(host.errorLog());
-  host.prepareCapture(at);
+  const std::filesystem::path state =
+      std::filesystem::temp_directory_path() /
+      ("sigil-render-" + std::to_string(::getpid()) + "-" +
+       std::to_string(++rendered));
   const auto destination = std::filesystem::absolute(output);
-  if (!host.capture(destination))
-    throw std::runtime_error(host.errorLog().empty()
-                                 ? "Could not write the sketch capture"
-                                 : host.errorLog());
+  {
+    testing::InProcessHostOptions options;
+    options.stateDirectory = state;
+    options.program = "sigil render";
+    options.session.pythonLoader = &load;
+    testing::InProcessHost host(std::move(options));
+    (void)answered(host.clock(protocol::clock::Policy_Advance));
+    const protocol::session::values::Summary opened =
+        answered(host.open(path.string()));
+    const double seconds =
+        at.value_or(opened.moment >= 0 ? opened.moment : 1.5);
+    if (!std::isfinite(seconds) || seconds < 0)
+      throw std::invalid_argument("Capture time or frame rate is invalid");
+    (void)answered(host.step(seconds));
+    std::optional<protocol::Answer<protocol::values::Empty>> held;
+    protocol::clock::values::PauseParameters pause;
+    pause.paused = true;
+    protocol::clock::ClockClient(host.caller())
+        .pause(pause, [&held](protocol::Answer<protocol::values::Empty> answer) {
+          held.emplace(std::move(answer));
+        });
+    (void)answered(host.wait(held));
+    const protocol::session::values::StillResult still =
+        answered(host.still(1.0));
+    std::error_code error;
+    std::filesystem::create_directories(destination.parent_path(), error);
+    if (!std::filesystem::copy_file(
+            still.path, destination,
+            std::filesystem::copy_options::overwrite_existing, error))
+      throw std::runtime_error("Could not write the sketch capture to " +
+                               destination.string() + ": " + error.message());
+  }
+  std::error_code error;
+  std::filesystem::remove_all(state, error);
   return destination.string();
 }
 

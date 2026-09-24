@@ -20,6 +20,7 @@ the formatter splits it.
 
 from __future__ import annotations
 
+import pathlib
 import typing
 
 import protocol_model
@@ -40,6 +41,17 @@ HEADER = (
 )
 
 SHARED = "shared"
+
+CONNECTION = pathlib.Path(__file__).resolve().parent / "client" / "connection.py"
+"""The transport every caller of the package speaks through — the envelope,
+the socket, connect and launch — written by hand beside the generator and
+carried into the package as it stands, since nothing in it derives from the
+definition."""
+
+COPIED = (
+    "# Copied by src/common/protocol/definition/generate.py from\n"
+    "# definition/client/connection.py beside it; edit that file, not this one.\n"
+)
 
 LINE = 88
 
@@ -665,7 +677,10 @@ def example(model: Model) -> str:
 
 
 def index_text(model: Model) -> str:
-    exported: dict[str, list[str]] = {"messages": ["Caller", "Json", "MessageError"]}
+    exported: dict[str, list[str]] = {
+        "messages": ["Caller", "Json", "MessageError"],
+        "connection": ["Connection", "Envelopes", "connect", "launch"],
+    }
     shared = ["ProtocolError"]
     shared += [
         protocol_model.last_word(each.name) for each in model.enumerations_in(BASE)
@@ -707,6 +722,7 @@ def package(description: dict[str, typing.Any]) -> dict[str, str]:
     files = {
         "__init__.py": index_text(model),
         "messages.py": HEADER + "\n" + MESSAGES,
+        "connection.py": COPIED + "\n" + CONNECTION.read_text(),
         f"{SHARED}.py": module_text(model, BASE, None),
     }
     for domain in model.domains:

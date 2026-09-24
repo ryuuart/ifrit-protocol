@@ -1,0 +1,53 @@
+"""A sketch host in this process, driven through the protocol.
+
+``InProcess(state)`` holds the registry, session and clock agents on one
+dispatcher with one client attached in process, and the protocol's domain
+classes speak through it exactly as through ``sigil.protocol.connect``:
+``Session(host).open(sketch="cascade")``. Every command is answered before
+it returns, the host's loop turned until it is.
+"""
+
+import json as _json
+from os import fspath as _fspath
+
+from _sigil.testing import InProcess as _NativeInProcess
+
+from .protocol import Envelopes as _Envelopes
+
+
+class InProcess(_Envelopes):
+    """A sketch host in this process, spoken to as one over a socket is.
+
+    Its stills and every cache it keeps land under ``state``; a registry
+    entry's file is looked for under ``sketches`` and its ``res://`` is
+    ``assets``. A command not answered within ``patience`` seconds is
+    refused.
+    """
+
+    def __init__(self, state, *, sketches=None, assets=None, patience=120.0):
+        super().__init__()
+        self._native = _NativeInProcess(
+            _fspath(state),
+            sketches=None if sketches is None else _fspath(sketches),
+            assets=None if assets is None else _fspath(assets),
+            patience=patience,
+        )
+
+    def exchange(self, envelope):
+        return self._native.send(envelope)
+
+    def listen(self, method, listener):
+        self._native.listen(method, lambda text: listener(_json.loads(text)))
+
+    def frame(self):
+        """One turn of the host's loop."""
+        self._native.frame()
+
+    def readout(self):
+        """``host.describe``'s answer, the clock and the last still's path."""
+        return self._native.readout()
+
+    @property
+    def state_directory(self):
+        """Where the host keeps its state and writes its stills."""
+        return self._native.state_directory

@@ -113,6 +113,9 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.skia": "sigil.skia",
     "_sigil.skia.draw": "sigil.skia.draw",
     "_sigil.substance": "sigil.substance",
+    # A sketch host in this process, driven through the protocol: the
+    # in-process route beside sigil.protocol.connect's socket.
+    "_sigil.testing": "sigil.testing",
     "_sigil.usd": "sigil.usd",
     "_sigil.video": "sigil.video",
     "_sigil.weave": "sigil.weave",

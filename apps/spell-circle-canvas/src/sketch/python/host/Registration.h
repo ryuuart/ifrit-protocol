@@ -36,5 +36,8 @@ void bindSketchSetSketches(pybind11::module_& module);
 /** Registers the Python Set kind and a scene on the session ticker on
  *  @p module. */
 void bindSketchWorldSet(pybind11::module_& module);
+/** Registers a sketch host in this process, spoken to through the
+ *  protocol, on @p module. */
+void bindSketchTesting(pybind11::module_& module);
 
 }  // namespace sigil::sketch::python

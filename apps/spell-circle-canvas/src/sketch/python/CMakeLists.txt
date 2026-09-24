@@ -7,12 +7,12 @@ sigil_library(SigilSketchPython
   SOURCES
     Module.cpp host/Catalog.cpp host/Context.cpp host/DeviceRuntimes.cpp
     host/Entries.cpp host/Plates.cpp host/Runtime.cpp host/Schema.cpp
-    host/SetSketches.cpp host/WorldSet.cpp
+    host/SetSketches.cpp host/Testing.cpp host/WorldSet.cpp
     kit/Charts.cpp kit/Content.cpp kit/Legends.cpp kit/Panels.cpp
     kit/Rows.cpp kit/Specimen.cpp kit/Streams.cpp
   HEADERS Python.h
   PUBLIC SigilSketch
-  PRIVATE SigilPython SigilSketchKit SigilWorldFrame
+  PRIVATE SigilPython SigilSketchKit SigilSketchTesting SigilWorldFrame
           SigilGeometryMeshPopDevice SigilGeometryMeshRenderDevice
           SigilGeometryDevice SigilDataDecode)
 if(TARGET SigilScry)
