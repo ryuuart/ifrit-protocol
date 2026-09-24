@@ -75,7 +75,7 @@ ClockAgent::ClockAgent(protocol::Dispatcher& dispatcher, SessionAgent& session)
   m_session.onBudgetExpired([this](double seconds) {
     values::BudgetExpiredEvent event;
     event.seconds = seconds;
-    if (!protocol::clock::ClockEvents(m_dispatcher.emit()).budgetExpired(event))
+    if (!protocol::clock::ClockEvents(m_dispatcher.events()).budgetExpired(event))
       std::fprintf(stderr, "clock.budgetExpired could not be sent\n");
   });
 }

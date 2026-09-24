@@ -106,16 +106,16 @@ Handler answerLater(std::string method, Call call) {
   };
 }
 
-/** AN EVENT SENT: @p event's JSON form under @p method through @p emit.
+/** AN EVENT SENT: @p event's JSON form under @p method through @p send.
  *  False, and nothing sent, where the event's table cannot hold it or
  *  there is nowhere to send it; the sender is made to look at that. */
 template <class Event>
-[[nodiscard]] bool emitEvent(const Emit& emit, std::string_view method,
+[[nodiscard]] bool emitEvent(const Emit& send, std::string_view method,
                              const Event& event) {
-  if (!emit) return false;
+  if (!send) return false;
   std::optional<std::string> text = data::values::toJson(event);
   if (!text) return false;
-  emit(method, std::move(*text));
+  send(method, std::move(*text));
   return true;
 }
 

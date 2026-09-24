@@ -145,7 +145,7 @@ JSON text and answers through a `sigil::protocol::Respond`:
 parameters as their table and answer the result as its JSON form.
 `enable` and `disable` are the dispatcher's own and no `wire()` mounts
 them. Events go out through the `sigil::protocol::Emit` that
-`sigil::protocol::Dispatcher::emit` hands a generated
+`sigil::protocol::Dispatcher::events` hands a generated
 `sigil::protocol::clock::ClockEvents`, each member built on
 `sigil::protocol::emitEvent`, which answers false where the event's
 table cannot hold it or there is nowhere to send it, and is marked so

@@ -327,9 +327,10 @@ void SessionAgent::frame() {
   if (policy != motion::ClockPolicy::Wall &&
       policy != motion::ClockPolicy::PauseWhileLoading)
     return;
-  const bool arriving = m_options.arriving && m_options.arriving();
+  // Nothing is still arriving by now: the open drove every load its setup
+  // asked for through before it was answered.
   std::string why;
-  if (!drawFrame(m_clock.frame(arriving), &why)) failed(m_sketch, why);
+  if (!drawFrame(m_clock.frame(), &why)) failed(m_sketch, why);
 }
 
 // --- stills ----------------------------------------------------------------
@@ -661,7 +662,7 @@ values::Summary SessionAgent::summary() const {
 void SessionAgent::opened() {
   values::OpenedEvent event;
   event.summary = summary();
-  if (!protocol::session::SessionEvents(m_dispatcher.emit()).opened(event))
+  if (!protocol::session::SessionEvents(m_dispatcher.events()).opened(event))
     std::fprintf(stderr, "session.opened could not be sent for %s\n",
                  m_sketch.c_str());
 }
@@ -669,7 +670,7 @@ void SessionAgent::opened() {
 void SessionAgent::closed() {
   values::ClosedEvent event;
   event.sketch = m_sketch;
-  if (!protocol::session::SessionEvents(m_dispatcher.emit()).closed(event))
+  if (!protocol::session::SessionEvents(m_dispatcher.events()).closed(event))
     std::fprintf(stderr, "session.closed could not be sent for %s\n",
                  m_sketch.c_str());
 }
@@ -679,7 +680,7 @@ void SessionAgent::failed(const std::string& sketch,
   values::FailedEvent event;
   event.sketch = sketch;
   event.message = message;
-  if (!protocol::session::SessionEvents(m_dispatcher.emit()).failed(event))
+  if (!protocol::session::SessionEvents(m_dispatcher.events()).failed(event))
     std::fprintf(stderr, "session.failed could not be sent for %s\n",
                  sketch.c_str());
 }

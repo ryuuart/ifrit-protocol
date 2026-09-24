@@ -241,7 +241,7 @@ TEST_F(ProtocolEndpoint, SendsAnEventToTheClientThatEnabledItsDomain) {
   protocol::test::ClockUnderTest clock(dispatcher);
   const protocol::Endpoint endpoint(hostHub, dispatcher);
   ASSERT_TRUE(endpoint.listening()) << endpoint.error();
-  const protocol::clock::ClockEvents events(dispatcher.emit());
+  const protocol::clock::ClockEvents events(dispatcher.events());
 
   const auto client = dial(endpoint, R"({"id": 1, "method": "clock.enable"})");
   const std::optional<Json> enabled = hear(client);
@@ -285,7 +285,7 @@ TEST_F(ProtocolEndpoint, AClientInProcessStandsOnTheSameDispatcher) {
 
   protocol::clock::values::BudgetExpiredEvent expired;
   expired.seconds = 6;
-  EXPECT_TRUE(protocol::clock::ClockEvents(dispatcher.emit())
+  EXPECT_TRUE(protocol::clock::ClockEvents(dispatcher.events())
                   .budgetExpired(expired));
   EXPECT_EQ(heard, std::vector<double>{6});
   const std::optional<Json> event = hear(client);

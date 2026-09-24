@@ -162,7 +162,7 @@ void Dispatcher::onDetach(
   m_state->detached.push_back(std::move(listener));
 }
 
-Emit Dispatcher::emit() {
+Emit Dispatcher::events() {
   return [this](std::string_view method, std::string parameters) {
     const std::string_view domain = domainOf(method);
     // The list is copied first: a listener hearing the event may detach

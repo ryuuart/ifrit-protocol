@@ -82,4 +82,8 @@ std::string ReceiverInspection::address() const {
                      : m_state->endpoint->error();
 }
 
+sigil::protocol::Dispatcher& ReceiverInspection::dispatcher() {
+  return *m_state->dispatcher;
+}
+
 }  // namespace spellcircle

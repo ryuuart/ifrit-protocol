@@ -4,15 +4,18 @@
  * Seer's side of the protocol: the endpoint its window mounts on loopback
  * by default, answering what Seer is.
  *
- * Nothing of the protocol is spelled here: this header is read by Qt's
- * translation units, where `emit` is a macro, and the protocol's own
- * headers name a member so.
+ * The protocol's own types stand behind a pointer, so the window's
+ * translation units that read this header compile none of its headers.
  */
 
 #include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
+
+namespace sigil::protocol {
+class Dispatcher;
+}
 
 namespace seer {
 
@@ -35,6 +38,10 @@ class Inspection {
 
   /** Whether the endpoint holds a port. */
   [[nodiscard]] bool listening() const;
+
+  /** The dispatcher the endpoint answers through, which a client in the
+   *  same process attaches to as a socket's does. */
+  [[nodiscard]] sigil::protocol::Dispatcher& dispatcher();
 
  private:
   /** The hub, the dispatcher and the endpoint. */

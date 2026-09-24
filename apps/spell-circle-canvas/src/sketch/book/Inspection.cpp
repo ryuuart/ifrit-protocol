@@ -5,15 +5,13 @@
 
 #include "Inspection.h"
 
-// The protocol's headers come before any of Qt's, which define `emit` as a
-// macro and would unmake the dispatcher's member of that name.
+#include <QtCore/QStandardPaths>
 #include <sigilio/hub/Hub.h>
 #include <sigilprotocol/dispatch/Dispatcher.h>
 #include <sigilprotocol/endpoint/Endpoint.h>
 #include <sigilsketch/core/State.h>
 #include <sigilsketch/core/agent/RegistryAgent.h>
 
-#include <QtCore/QStandardPaths>
 #include <cstdio>
 #include <system_error>
 #include <utility>
@@ -100,3 +98,5 @@ Inspection::~Inspection() = default;
 void Inspection::dispatch() { m_state->hub.dispatch(); }
 
 bool Inspection::listening() const { return m_state->endpoint->listening(); }
+
+protocol::Dispatcher& Inspection::dispatcher() { return *m_state->dispatcher; }

@@ -42,7 +42,7 @@ protocol::clock::values::BudgetExpiredEvent at(double seconds) {
 TEST(ProtocolEvents, ReachAClientOnlyBetweenItsEnableAndItsDisable) {
   protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
-  const protocol::clock::ClockEvents events(dispatcher.emit());
+  const protocol::clock::ClockEvents events(dispatcher.events());
   const protocol::InProcess watching(dispatcher);
   const protocol::InProcess listening(dispatcher);
   const protocol::clock::ClockClient watcher(watching.caller());
@@ -87,7 +87,7 @@ TEST(ProtocolEvents, EnablingOneDomainOpensNoOther) {
       .onBudgetExpired(
           [&](const auto& event) { heard.push_back(event.seconds); });
   EXPECT_TRUE(
-      protocol::clock::ClockEvents(dispatcher.emit()).budgetExpired(at(1)));
+      protocol::clock::ClockEvents(dispatcher.events()).budgetExpired(at(1)));
   EXPECT_TRUE(heard.empty());
 }
 

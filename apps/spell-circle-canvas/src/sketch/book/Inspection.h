@@ -4,9 +4,8 @@
  * Sketchbook's side of the protocol: where it keeps the protocol's state,
  * and the endpoint a window or a sweep mounts on loopback.
  *
- * Nothing of the protocol is spelled here: this header is read by Qt's
- * translation units, where `emit` is a macro, and the protocol's own
- * headers name a member so.
+ * The protocol's own types stand behind a pointer, so the window's
+ * translation units that read this header compile none of its headers.
  */
 
 #include <sigilsketch/core/Catalog.h>
@@ -17,6 +16,10 @@
 #include <memory>
 #include <string>
 #include <vector>
+
+namespace sigil::protocol {
+class Dispatcher;
+}
 
 /** WHERE SKETCHBOOK KEEPS THE PROTOCOL'S STATE — the address file and the
  *  stills a client asks for: the run's `--state` root, or the platform's
@@ -61,6 +64,10 @@ class Inspection {
 
   /** Whether the endpoint holds a port. */
   [[nodiscard]] bool listening() const;
+
+  /** The dispatcher the endpoint answers through, which a client in the
+   *  same process attaches to as a socket's does. */
+  [[nodiscard]] sigil::protocol::Dispatcher& dispatcher();
 
  private:
   /** The hub, the dispatcher, the registry's agent and the endpoint. */

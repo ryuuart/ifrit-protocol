@@ -10,6 +10,10 @@
 #include <string>
 #include <vector>
 
+namespace sigil::protocol {
+class Dispatcher;
+}
+
 namespace spellcircle {
 
 /** WHAT THE COMMAND LINE ASKED OF THE PROTOCOL: `--inspect` with an
@@ -46,6 +50,10 @@ class ReceiverInspection {
 
   /** The address a client dials, or why nothing listens. */
   [[nodiscard]] std::string address() const;
+
+  /** The dispatcher the endpoint answers through, which a client in the
+   *  same process attaches to as a socket's does. */
+  [[nodiscard]] sigil::protocol::Dispatcher& dispatcher();
 
  private:
   struct State;

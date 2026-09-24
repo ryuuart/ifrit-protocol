@@ -51,4 +51,8 @@ void Inspection::dispatch() { m_state->hub.dispatch(); }
 
 bool Inspection::listening() const { return m_state->endpoint->listening(); }
 
+sigil::protocol::Dispatcher& Inspection::dispatcher() {
+  return *m_state->dispatcher;
+}
+
 }  // namespace seer

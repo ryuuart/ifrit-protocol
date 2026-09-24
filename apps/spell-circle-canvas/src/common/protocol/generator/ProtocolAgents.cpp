@@ -53,13 +53,14 @@ void writeEvents(std::ostream& out, const Domain& domain,
   writeDocComment(
       out, domain.events, "",
       "THE EVENTS: one member per event, each sending its table's JSON form\n"
-      "under the event's method through the emit a dispatcher hands it.\n"
+      "under the event's method through the Emit a dispatcher's events()\n"
+      "hands it.\n"
       "False, and nothing sent, where the table cannot hold what it was\n"
       "given or there is nowhere to send it, which the sender has to look\n"
       "at.");
   out << "class " << domain.service << "Events {\n public:\n";
   out << "  explicit " << domain.service
-      << "Events(Emit emit) : m_emit(std::move(emit)) {}\n";
+      << "Events(Emit send) : m_emit(std::move(send)) {}\n";
   for (const Event& event : domain.eventList) {
     out << "\n";
     writeDocComment(out, event, "  ");

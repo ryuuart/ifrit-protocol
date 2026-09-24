@@ -99,7 +99,7 @@ class Dispatcher {
    *  domain and no other.
    *  @trap It speaks to this dispatcher, so it is used only while the
    *  dispatcher stands. */
-  Emit emit();
+  Emit events();
 
   /** ONE COMMAND ANSWERED FOR @p session: @p method with its parameters'
    *  JSON text, the answer handed to @p respond once. What a typed
