@@ -116,7 +116,10 @@ subscription.
 host speaks: a FlatBuffers definition whose services are its domains,
 and, generated from it, the agent interface a host implements for each
 domain, the C++ and Python clients that ask it, and a reference page per
-domain. A test, a script and an inspector panel are three clients of the
+domain; and the runtime a host mounts its agents on — a dispatcher that
+answers `host.describe` itself, its in-process form for tests, and an
+endpoint on a loopback socket whose address is written under the state
+root. A test, a script and an inspector panel are three clients of the
 same commands.
 
 **[SigilMeasure](doxygen:SigilMeasure)** — timing, statistics and check
