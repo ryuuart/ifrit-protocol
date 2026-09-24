@@ -213,7 +213,9 @@ StyleSheet cardSheet(const CardColours& colours) {
           .textAlign(weave::TextAlignment::kJustify)
           .textWrap(TextWrap::Pretty)
           .hyphens({.patterns = hyphenator()}),
-      rule(".douglas .attribution").fontSize(11).ink(var("ash")),
+      // The attribution's words are joined by no-break spaces in the words
+      // file, so it stands whole on one line, never split around a year.
+      rule(".douglas .attribution").fontSize(10).ink(var("ash")),
   };
 }
 
@@ -865,6 +867,8 @@ struct BlackWatch {
 
   // =========================================================================
 
+  /** Each check is a row: its name, its evidence, the figure it computed
+   *  and the verdict. A reading has no verdict, and says so with a dash. */
   Element verification() const {
     std::vector<sketch::kit::Row> rows;
     for (const Proof& proof : proofs) {
@@ -873,7 +877,7 @@ struct BlackWatch {
           {.cells = {proof.name, check.label, check.actual,
                      check.judged()
                          ? (check.pass ? "PASS" : "FAIL want " + check.expected)
-                         : ""},
+                         : "—"},
            .swatch = Fill::var(!check.judged() ? "rule"
                                : check.pass    ? "ink"
                                                : "proof")});
@@ -885,14 +889,19 @@ struct BlackWatch {
              .padding(8, 12)
              .fill(faded(colours.well, 0.8f))
              .stroke(stroke(1, Fill::var("rule"), PathFormat::Align::Inner))
+             // workaround: a table row wider than its room shrinks its own
+             // cells in proportion to their widths, so a row with a longer
+             // verdict stands its columns left of the others; every column
+             // here is given its width, and the widths sum inside the frame.
              .children({sketch::kit::table(
                             std::move(rows),
                             {.columns = {{.width = 104},
-                                         {.width = 226},
+                                         {.width = 200},
                                          {.width = 56, .figure = true},
-                                         {}}})
+                                         {.width = 28}}})
                             .opacity(bind(&loom).window(
-                                kWeaveEnd, kWeaveEnd + reveal))})});
+                                kWeaveEnd, kWeaveEnd + reveal))})})
+        .flexGrow(1);
   }
 
   // =========================================================================
@@ -920,7 +929,7 @@ struct BlackWatch {
                 {comparison(),
                  document::paragraph(doc.passage("douglas"))
                      .styleClass("douglas")
-                     .width(320)
+                     .width(340)
                      .marginTop(18)}),
             box().flexGrow(),
             kit::line({.fill = Fill::var("rule")}),
