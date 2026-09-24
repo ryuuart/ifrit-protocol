@@ -196,6 +196,12 @@ InitialLetterPlan planInitialLetter(FontContext& fontContext,
   plan.fontSize = fontSize;
   plan.sinkOffset = static_cast<float>(sink) * block.pitch;
   plan.styleIndex = styleIndex;
+  // The initial's own style reaches its paint as well as its shaping: a
+  // colour, a decoration or a pass it states is the cap's, while a paint
+  // it leaves alone stays the opening span's, so restyling that span
+  // still reaches the cap.
+  if (!(capStyle.paint == openingStyle.paint))
+    plan.paint = std::make_shared<const PaintStyle>(capStyle.paint);
   plan.wordIndex = block.firstWord;
   plan.textEnd = capEnd;
   plan.capSpan = (asked.lines - 1.0f) * block.pitch + reference;
@@ -379,6 +385,7 @@ void placeInitialLetter(const InitialLetterPlan& plan,
   cap.blob = wordBlob(*plan.glyphs);
   cap.origin = origin;
   cap.styleIndex = plan.styleIndex;
+  if (plan.paint) cap.paint = LayoutAccess::retain(layout, plan.paint);
   cap.wordIndex = plan.wordIndex;
   cap.lineIndex = lineIndex;
   cap.advance = plan.glyphs->advance;

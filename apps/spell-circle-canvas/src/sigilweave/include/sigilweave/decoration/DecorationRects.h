@@ -38,6 +38,15 @@ const PaintStyle& resolvePaint(const std::vector<StyleSpan>& spans,
                                uint32_t styleIndex,
                                const PaintStyle* overridePaint);
 
+// The paint @p run draws with: the override when one is given, else the
+// paint the layout gave the run of its own, else its span's.
+inline const PaintStyle& resolvePaint(const std::vector<StyleSpan>& spans,
+                                      const PositionedRun& run,
+                                      const PaintStyle* overridePaint) {
+  if (!overridePaint && run.paint) return *run.paint;
+  return resolvePaint(spans, run.styleIndex, overridePaint);
+}
+
 /// A run that can carry a decoration band: straight glyphs, along a line or
 /// down a column. A run the layout TURNED carries none — a band would have
 /// to follow the curve it rides.
@@ -103,7 +112,7 @@ void forEachDecorationRect(const std::vector<PositionedRun>& runs,
       continue;
     }
     const PaintStyle& style =
-        resolvePaint(spans, first.styleIndex, overridePaint);
+        resolvePaint(spans, first, overridePaint);
     if (style.decorations.empty()) {
       ++groupStart;
       continue;
@@ -122,6 +131,7 @@ void forEachDecorationRect(const std::vector<PositionedRun>& runs,
       if (!canDecorateRun(candidate) ||
           candidate.lineIndex != first.lineIndex ||
           candidate.styleIndex != first.styleIndex ||
+          candidate.paint != first.paint ||
           candidate.shaped->vertical != alongColumn ||
           candidate.shaped->typeface.get() != first.shaped->typeface.get() ||
           candidate.shaped->fontSize != first.shaped->fontSize ||

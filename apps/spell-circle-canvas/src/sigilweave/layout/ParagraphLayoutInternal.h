@@ -28,6 +28,14 @@ struct LayoutAccess {
   static void retain(ParagraphLayout& layout, const ShapedWordReference& word) {
     layout.m_shapedWords.push_back(word);
   }
+  /** Keeps @p paint for as long as the layout lives, and answers the
+   *  pointer a run it made reads it through. */
+  static const PaintStyle* retain(ParagraphLayout& layout,
+                                  std::shared_ptr<const PaintStyle> paint) {
+    const PaintStyle* held = paint.get();
+    layout.m_paints.push_back(std::move(paint));
+    return held;
+  }
 };
 
 struct FlatInterval {
@@ -591,6 +599,9 @@ struct InitialLetterPlan {
   ShapedWordReference glyphs;     // the initial itself
   ShapedWordReference remainder;  // what is left of the word it split
   uint32_t styleIndex = 0;
+  // The initial's paint, when its own style paints it apart from the
+  // opening; null when the opening's span paints it.
+  std::shared_ptr<const PaintStyle> paint;
   uint32_t wordIndex = 0;
   uint32_t textEnd = 0;  // one past the last unit the initial took
   InitialLetter::Wrap wrap = InitialLetter::Wrap::kBox;

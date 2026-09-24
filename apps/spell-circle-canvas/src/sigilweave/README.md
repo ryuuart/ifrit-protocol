@@ -244,9 +244,12 @@ and hangs from its head. AN INITIAL CONSUMES GRAPHEMES AND NEVER THE
 SPACE AFTER THEM: what is left of the word it split stands at the head of
 the first band, and the travel cut there carries that word's own trailing
 glue as well, so the word after the split reads at the distance it would
-have had with no initial at all. The initial's glyphs are runs of the
-layout and draw with the rest; `ParagraphLayout::initial` reports where
-they landed.
+have had with no initial at all. `InitialLetter::style` styles the cap
+wholly — its face and size, and its colour, decorations and passes, which
+the cap's run carries as a paint of the layout's own — and a style that
+states no paint leaves the cap in the opening's. The initial's glyphs are
+runs of the layout and draw with the rest; `ParagraphLayout::initial`
+reports where they landed.
 
 ## The seams
 

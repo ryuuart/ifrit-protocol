@@ -315,6 +315,79 @@ TEST(PaintPasses, AStylePerGlyphDrawsEachGlyphInTheStyleItNames) {
       << "the second glyph's shadow covered the first glyph's fill";
 }
 
+// ── An initial letter's own paint ────────────────────────────────────────
+
+namespace {
+
+/// A white passage opened by a three-line initial set in @p initial, laid
+/// out and drawn both ways onto black, answering the red and the white
+/// pixels either side of the notch the initial cut.
+struct InitialInk {
+  int redInNotch = 0, redPastNotch = 0, whiteInNotch = 0, whitePastNotch = 0;
+};
+
+InitialInk initialInk(const Type& initial, bool batched) {
+  FontContext& fonts = sigil::test::fonts();
+  TextStyle white = basicStyle(20.0f);
+  white.paint.foreground.setColor(SK_ColorWHITE);
+  Paragraph paragraph = paragraphIn(
+      u8"Whale roads open under a sky the colour of pewter and the boats go "
+      u8"out before the light does, one after another, until the harbour is "
+      u8"empty.",
+      white);
+  BlockFlow flow(SkRect::MakeWH(300, 300));
+  ParagraphLayoutOptions options;
+  ParagraphStyle opening;
+  opening.initial = {.lines = 3, .style = initial};
+  options.blocks = {opening};
+  const ParagraphLayout layout =
+      layoutParagraph(fonts, paragraph, flow, options);
+  EXPECT_TRUE(layout.initial.placed);
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(300, 300));
+  surface->getCanvas()->clear(SK_ColorBLACK);
+  if (batched)
+    layout.drawBatched(surface->getCanvas(), paragraph);
+  else
+    layout.draw(surface->getCanvas(), paragraph);
+  SkPixmap pixmap;
+  EXPECT_TRUE(surface->peekPixels(&pixmap));
+  InitialInk ink;
+  for (int y = 0; y < pixmap.height(); ++y)
+    for (int x = 0; x < pixmap.width(); ++x) {
+      const SkColor c = pixmap.getColor(x, y);
+      const bool inNotch = (float)x < layout.initial.notch;
+      if (SkColorGetR(c) > 200 && SkColorGetG(c) < 60 && SkColorGetB(c) < 60)
+        (inNotch ? ink.redInNotch : ink.redPastNotch)++;
+      if (SkColorGetR(c) > 200 && SkColorGetG(c) > 200 && SkColorGetB(c) > 200)
+        (inNotch ? ink.whiteInNotch : ink.whitePastNotch)++;
+    }
+  return ink;
+}
+
+}  // namespace
+
+// THE INITIAL'S OWN STYLE IS ITS PAINT TOO, and not its shaping alone: a
+// colour it states reaches the cap and no other glyph, under both draws.
+TEST(PaintPasses, AnInitialLettersOwnColourPaintsTheCapAndNothingElse) {
+  for (const bool batched : {false, true}) {
+    const InitialInk ink =
+        initialInk(Type{.color = SkColor4f{1, 0, 0, 1}}, batched);
+    EXPECT_GT(ink.redInNotch, 100) << "the cap took its own colour";
+    EXPECT_EQ(ink.redPastNotch, 0) << "the body took the initial's colour";
+    EXPECT_GT(ink.whitePastNotch, 100) << "the body lost its own colour";
+  }
+}
+
+// An initial whose style states no paint is painted by its opening's span,
+// so the cap stays in the passage's colour.
+TEST(PaintPasses, AnInitialThatStatesNoPaintTakesTheOpeningsColour) {
+  const InitialInk ink = initialInk(Type{.weight = 700}, true);
+  EXPECT_EQ(ink.redInNotch + ink.redPastNotch, 0);
+  EXPECT_GT(ink.whiteInNotch, 100) << "the cap lost the opening's colour";
+}
+
 // ── The preset text paints a paint style can carry ───────────────────────
 
 namespace {

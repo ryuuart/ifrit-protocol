@@ -112,9 +112,9 @@ inline void forEachPlacedGlyph(const ParagraphLayout& layout,
       segment = &word.segments()[segmentCursor++];
 
     placed.shaped = run.shaped;
-    placed.paint = run.styleIndex < spans.size()
-                       ? &spans[run.styleIndex].style.paint
-                       : &kUnstyled;
+    placed.paint = run.paint                      ? run.paint
+                   : run.styleIndex < spans.size() ? &spans[run.styleIndex].style.paint
+                                                   : &kUnstyled;
     placed.color = placed.paint->foreground.getColor();
     placed.wordIndex = run.wordIndex;
     placed.lineIndex = run.lineIndex;

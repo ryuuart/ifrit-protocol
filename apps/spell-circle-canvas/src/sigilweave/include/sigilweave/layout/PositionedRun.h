@@ -100,6 +100,12 @@ struct PositionedRun {
   SkPoint origin = {0, 0};    ///< draw position; already baked into
                               ///< transformed blobs
   uint32_t styleIndex = 0;    ///< paint lookup into Paragraph::spans()
+  /// A PAINT OF THE LAYOUT'S OWN, standing in for the span's: set on a run
+  /// the layout made and styled apart from the text it came from — an
+  /// initial letter whose style states a paint of its own — and null on
+  /// every other run, whose paint is its span's. BORROWED from the layout,
+  /// as `shaped` is.
+  const PaintStyle* paint = nullptr;
   uint32_t wordIndex = 0;     ///< which Word produced this run
   int lineIndex = 0;          ///< 0-based flow line the run landed on
   bool transformed = false;   ///< RSXform blob (positions baked into the blob)

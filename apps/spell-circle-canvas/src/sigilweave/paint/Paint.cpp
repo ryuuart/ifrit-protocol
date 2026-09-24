@@ -104,7 +104,7 @@ void ParagraphLayout::draw(SkCanvas* canvas, const Paragraph& paragraph,
   for (const PositionedRun& run : runs) {
     if (!run.blob) continue;
     const PaintStyle& style =
-        resolvePaint(spans, run.styleIndex, overridePaint);
+        resolvePaint(spans, run, overridePaint);
 
     const SkRect bounds =
         anyMaterial(style) ? runBounds(run) : SkRect::MakeEmpty();
@@ -168,7 +168,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
   for (const PositionedRun& run : runs) {
     if (!run.blob) continue;
     const PaintStyle& style =
-        resolvePaint(spans, run.styleIndex, overridePaint);
+        resolvePaint(spans, run, overridePaint);
 
     if (run.transformed || !run.shaped) {
       // Positions are baked into the blob; draw every configured pass
@@ -341,7 +341,7 @@ void ParagraphLayout::drawBatched(SkCanvas* canvas, const Paragraph& paragraph,
     if (run.shaped) ordinal += (uint32_t)run.shaped->glyphs.size();
     if (!run.blob) continue;
     const PaintStyle& spanStyle =
-        resolvePaint(spans, run.styleIndex, overridePaint);
+        resolvePaint(spans, run, overridePaint);
     if (run.transformed || !run.shaped) {
       const uint32_t named = run.shaped ? styleAt(first) : kSpanStyle;
       const PaintStyle& style =

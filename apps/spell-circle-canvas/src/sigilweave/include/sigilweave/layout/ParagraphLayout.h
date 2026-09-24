@@ -15,6 +15,7 @@
 #include <include/core/SkPoint.h>
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <span>
 #include <vector>
@@ -227,6 +228,9 @@ struct ParagraphLayout {
   friend struct detail::LayoutAccess;
   // Owns auxiliary glyphs for leaders, overflow markers and initial letters.
   std::vector<ShapedWordReference> m_shapedWords;
+  // Owns the paints a run of the layout's own points at: an initial
+  // letter's, when its style states one.
+  std::vector<std::shared_ptr<const PaintStyle>> m_paints;
 };
 
 /** Lays @p paragraph out into @p geometry from @p firstWord: shapes what

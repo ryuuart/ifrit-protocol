@@ -424,7 +424,13 @@ for any of them; `InitialLetter::Wrap` says whether that notch is the
 initial's advance box or the outline of its own glyphs, so a line can tuck
 under the diagonal of an A. A block with fewer lines than the initial
 sinks hands the rest of the cut to the block after it, and a column's
-initial is set down the column and hangs from its head. The initial's glyphs are ordinary runs of the
+initial is set down the column and hangs from its head.
+`InitialLetter::style` is a partial over the opening's style and styles
+the cap WHOLLY: a face or a weight reaches its shaping, and a colour, a
+decoration or a pass reaches its paint, which the layout holds for the
+cap run (`PositionedRun::paint`) while the body keeps its own; a style
+that states no paint leaves the cap painted by the opening's span. The
+initial's glyphs are ordinary runs of the
 layout and draw with everything else — `ParagraphLayout::initial` is the
 report a caller rules a page against, not a second thing to draw. One
 initial per layout pass: a block a frame before this one already opened is
