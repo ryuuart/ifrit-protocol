@@ -79,10 +79,14 @@ Element table(std::span<const std::span<const Utf8>> rows, const Table& how) {
                ? Column{}
                : how.columns[std::min(index, how.columns.size() - 1)];
   };
+  // A STATED WIDTH IS THE COLUMN'S, in every row: its cells never shrink,
+  // so a row whose cells come to more than the table's room overflows
+  // at its unsized end rather than drawing its columns in against the
+  // other rows'. Only a column left to size itself gives.
   const auto sized = [&](Element cell, size_t index) {
     const Column column_ = specification(index);
     if (column_.width > 0.0f && index < how.columns.size())
-      cell.width(Dimension(column_.width));
+      cell.width(Dimension(column_.width)).flexShrink(0);
     return cell;
   };
 

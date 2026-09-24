@@ -553,29 +553,6 @@ alone, hand it to `TextPath(path=…)` and assert the run lays out along it.
 Wanted by `python_type_atelier` (its curved baseline), `python_kit_specimen`
 (the same cubic) and `python_live_signals` (its traces).
 
-## A table row wider than its room shrinks its own cells, so its columns leave the others'
-
-`compose::kit::table` (`src/common/compose/kit/Rows.cpp`) sets each row as
-its own flex row and gives each cell its column's `width`, but leaves the
-cell's `flexShrink` at 1. When a row's cells and gaps come to more than the
-table's width, Yoga shrinks that row's cells in proportion to their widths,
-and only that row's: a row whose last cell is longer ("PASS" against an
-empty cell) stands its second column a few pixels left of the rows around
-it, and every column after it further left. `Column::width` says it is
-"the width it takes", and the rows of an HTML table share their columns
-whatever each row holds.
-
-A column's width is evidently the column's, across every row: a cell under
-a stated width should not shrink (`flexShrink(0)`), or the table should
-resolve its column widths once for all rows and let only the auto-width
-last column give.
-
-A test should set a table of two rows with columns `{104, 226, 56, auto}`
-in a box narrower than their sum, the first row's last cell "PASS" and the
-second's empty, and assert that the second cell of both rows starts at the
-same x. Wanted by `black_watch`, which sizes every column so the widths sum
-inside its frame.
-
 ## A mark's insets are read as a positioned child's only in part: `bottom` and `right` size it, a sum or an `lh` reads as zero, and its margin is not read
 
 `Text::textAttach` promises that a mark "is written in exactly the

@@ -315,3 +315,37 @@ TEST(KitRows, ABarRunsInProportionToTheLargestValue) {
   EXPECT_FLOAT_EQ(first, 40 + 8 + 150 + 8);
   EXPECT_FLOAT_EQ(second, 40 + 8 + 150 + 8);
 }
+
+TEST(KitRows, AColumnsWidthIsItsOwnInEveryRowWhateverTheRowHolds) {
+  // The columns sum to more than the table's room, and only the first row
+  // carries a verdict in its last cell: a stated width is the column's
+  // across every row, so the second column starts at one x in both, and
+  // the overflow is the rows' own.
+  const std::vector<sigil::compose::Utf8> judged = {u8"name", u8"reading",
+                                                    u8"12", u8"PASS"};
+  const std::vector<sigil::compose::Utf8> unjudged = {u8"name", u8"reading",
+                                                      u8"12", u8""};
+  const std::vector<std::span<const sigil::compose::Utf8>> rows = {judged,
+                                                                   unjudged};
+  kit::Table how{
+      .columns = {{.width = 104}, {.width = 226}, {.width = 56}, {}},
+      .gap = 10};
+  how.cellLine = [](const Utf8& words, const kit::Table&, size_t column,
+                    size_t row) {
+    return text(words)
+        .key("r" + std::to_string(row) + "c" + std::to_string(column))
+        .font({.size = 10});
+  };
+  Host host(380, 120);
+  host.composer.render(box()
+                           .width(380)
+                           .height(120)
+                           .applyStyleSheet(rowClasses())
+                           .children({kit::table(rows, how)}));
+  host.frame();
+  const SkRect first = require(host.composer.bounds("r0c1"));
+  const SkRect second = require(host.composer.bounds("r1c1"));
+  EXPECT_FLOAT_EQ(first.left(), second.left());
+  EXPECT_FLOAT_EQ(first.left(), 104 + 10);
+  EXPECT_FLOAT_EQ(first.width(), 226);
+}

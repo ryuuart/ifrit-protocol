@@ -109,7 +109,9 @@ struct Column {
   /** The word over it, in the theme's section register. Empty in every
    *  column heads the table with nothing and spends no room. */
   compose::Utf8 head;
-  /** The width it takes. 0 lets it size itself, which is what the LAST
+  /** The width it takes in every row; a cell under it never shrinks, so
+   *  the columns line up whatever each row holds. 0 lets it size itself
+   *  and give where a row is wider than the room, which is what the LAST
    *  column usually wants, since nothing ranges after it. */
   float width = 0;
   /** Sets the column in the theme's figure colour and in the face a CALL

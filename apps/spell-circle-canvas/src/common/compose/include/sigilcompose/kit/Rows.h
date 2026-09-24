@@ -124,8 +124,10 @@ struct Column {
   /** The head cell's words. Empty in every column heads the table with
    *  nothing and spends no room. */
   Utf8 head;
-  /** The width it takes, px. 0 lets it size itself, which is what the
-   *  LAST column usually wants, since nothing ranges after it. */
+  /** The width it takes in EVERY row, px: a cell under it never shrinks,
+   *  so the columns line up whatever each row holds. 0 lets it size
+   *  itself and give where a row is wider than the table's room, which is
+   *  what the LAST column usually wants, since nothing ranges after it. */
   float width = 0.0f;
   /** Sets the column's cells in the class `readout` rather than in
    *  the document caption role, so its digits read as measured figures. */
