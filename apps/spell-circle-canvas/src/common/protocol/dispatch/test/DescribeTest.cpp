@@ -109,3 +109,22 @@ TEST(ProtocolDescribe, VersionAndStateRootAnswerTheirPartsAlone) {
 }
 
 }  // namespace
+
+namespace {
+
+TEST(ProtocolDescribe, ReadsWhatAnAgentFilledInAfterTheDispatcherWasMade) {
+  // An agent mounted after the dispatcher stands knows the clock's policy
+  // and the sessions open; it fills them into the program, and describe
+  // reads them at the moment it is asked.
+  protocol::Dispatcher dispatcher;
+  dispatcher.program().clockPolicy = [] {
+    return protocol::clock::Policy_Pause;
+  };
+  const protocol::InProcess client(dispatcher);
+
+  const std::optional<Answer<DescribeResult>> described = describe(client);
+  ASSERT_TRUE(described && *described);
+  EXPECT_EQ(described->result().clock, protocol::clock::Policy_Pause);
+}
+
+}  // namespace

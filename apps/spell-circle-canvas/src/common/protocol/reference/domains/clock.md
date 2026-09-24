@@ -17,7 +17,7 @@ The clock a session's frames are drawn at: who moves it, how fast, and when it i
 
 ### clock.setPolicy
 
-Replaces how the clock moves, from the next frame on.
+Replaces how the clock moves, from the next frame on, and the budget with it. A session is opened for its clock — under any policy but Wall it pins what the sketch measured about itself and holds the runtime's own re-baking off from its first frame — so a change between the wall's clock and any other opens the session again, at its own zero. What a client sets goes when it detaches.
 
 In Python, Clock.set_policy.
 
@@ -34,7 +34,7 @@ Answers nothing but that it was done.
 
 ### clock.step
 
-Advances the clock by frames or by seconds, drawing each frame, and answers once the last is drawn. Refused unless the policy is Advance.
+Advances the clock by frames or by seconds, drawing each frame, and answers once the last is drawn. Refused unless the policy is Advance and a session is open, and at a rate under four frames a second, whose frames are longer than one frame of a clock moves.
 
 In Python, Clock.step.
 
@@ -45,7 +45,7 @@ Takes `StepParameters`: What step is asked: frames, or seconds taken as frames o
 | Parameter | Type | Default | |
 | --- | --- | --- | --- |
 | `frames` | uint | 1 | Frames to advance, where seconds is absent. |
-| `seconds` | double, may be absent | absent | Seconds to advance, in frames of one over rate; absent to step by frames. |
+| `seconds` | double, may be absent | absent | Seconds to advance, in frames of one over rate, rounded to the nearest whole frame; absent to step by frames. |
 | `rate` | double | 60.0 | Frames per second the steps are taken at: each frame advances the clock by one over this. |
 
 Answers `StepResult`: Where step left the clock.

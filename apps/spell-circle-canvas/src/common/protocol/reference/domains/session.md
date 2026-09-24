@@ -17,7 +17,7 @@ The one running sketch a host holds: opening it, pinning what a repeatable run n
 
 ### session.open
 
-Opens a sketch by registry name or by path, replacing the session open, and answers once its first frame is drawn.
+Opens a sketch by registry name or by path, replacing the session open, and answers once it is set up: under the wall's clock once its first frame is drawn, and under any other with no frame drawn, so that the first frame is the client's first step, as a plate's is.
 
 In Python, Session.open.
 
@@ -74,7 +74,7 @@ Answers nothing but that it was done.
 
 ### session.still
 
-Photographs the session at the clock as it stands.
+Photographs the session at the clock as it stands, as a plate is taken: a runtime that re-renders its still at the still's size draws one frame more to do it, which the clock counts; a clock that is held draws the moment it holds, so two stills under it are one picture.
 
 In Python, Session.still.
 
@@ -94,11 +94,11 @@ Answers `StillResult`: The still, written.
 | `path` | string | "" | Where it was written. |
 | `width` | uint | 0 | Its width in pixels. |
 | `height` | uint | 0 | Its height in pixels. |
-| `seconds` | double | 0.0 | Clock seconds when it was taken. |
+| `seconds` | double | 0.0 | Clock seconds of the moment it shows. |
 
 ### session.sequence
 
-Photographs frames one after another, stepping the clock between them.
+Photographs frames one after another, stepping the clock one frame of the rate between them. Refused unless the clock's policy is Advance.
 
 In Python, Session.sequence.
 
@@ -157,6 +157,28 @@ Answers `MeasuredResult`: The numbers a sketch measured about its own execution.
 | Field | Type | Default | |
 | --- | --- | --- | --- |
 | `values` | list of MeasuredValue (table) | empty | Each one, in the order the sketch measured them. |
+
+### session.profile
+
+Attributes what the next frame spends to what spent it, and answers the most expensive rows once that frame is drawn.
+
+**Experimental**: its shape may still change.
+
+In Python, Session.profile.
+
+Answered later, through the reply the agent is handed, once the work is done.
+
+Takes `ProfileParameters`: What profile is asked.
+
+| Parameter | Type | Default | |
+| --- | --- | --- | --- |
+| `limit` | uint | 12 | The most rows to answer. |
+
+Answers `ProfileResult`: What the profiled frame spent, the most expensive first.
+
+| Field | Type | Default | |
+| --- | --- | --- | --- |
+| `rows` | list of string | empty | Each row in the runtime's own words: what spent the time, and how much. |
 
 ### session.compositeCounts
 

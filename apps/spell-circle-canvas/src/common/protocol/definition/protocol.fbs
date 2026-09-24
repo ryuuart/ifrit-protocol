@@ -118,8 +118,8 @@ table SetPolicyParameters {
 table StepParameters {
   /// Frames to advance, where seconds is absent.
   frames: uint = 1;
-  /// Seconds to advance, in frames of one over rate; absent to step by
-  /// frames.
+  /// Seconds to advance, in frames of one over rate, rounded to the
+  /// nearest whole frame; absent to step by frames.
   seconds: double = null;
   /// Frames per second the steps are taken at: each frame advances the
   /// clock by one over this.
@@ -176,11 +176,17 @@ table BudgetExpiredEvent {
 /// a sketch reads only whether its clock is the wall's, and never which
 /// client drives it.
 rpc_service Clock {
-  /// Replaces how the clock moves, from the next frame on.
+  /// Replaces how the clock moves, from the next frame on, and the
+  /// budget with it. A session is opened for its clock — under any policy
+  /// but Wall it pins what the sketch measured about itself and holds the
+  /// runtime's own re-baking off from its first frame — so a change
+  /// between the wall's clock and any other opens the session again, at
+  /// its own zero. What a client sets goes when it detaches.
   setPolicy(SetPolicyParameters): sigil.protocol.Empty;
   /// Advances the clock by frames or by seconds, drawing each frame, and
   /// answers once the last is drawn. Refused unless the policy is
-  /// Advance.
+  /// Advance and a session is open, and at a rate under four frames a
+  /// second, whose frames are longer than one frame of a clock moves.
   step(StepParameters): StepResult (asynchronous);
   /// The clock as it stands.
   current(sigil.protocol.Empty): CurrentResult;
@@ -277,7 +283,7 @@ table StillResult {
   width: uint;
   /// Its height in pixels.
   height: uint;
-  /// Clock seconds when it was taken.
+  /// Clock seconds of the moment it shows.
   seconds: double;
 }
 
@@ -340,6 +346,19 @@ table MeasuredResult {
   values: [MeasuredValue];
 }
 
+/// What profile is asked.
+table ProfileParameters {
+  /// The most rows to answer.
+  limit: uint = 12;
+}
+
+/// What the profiled frame spent, the most expensive first.
+table ProfileResult {
+  /// Each row in the runtime's own words: what spent the time, and how
+  /// much.
+  rows: [string];
+}
+
 /// The composite-count plane of the next frame.
 table CompositeCountsResult {
   /// Where the plane was written, under the state root: one saturating
@@ -378,21 +397,31 @@ table FailedEvent {
 /// its last frame cost.
 rpc_service Session {
   /// Opens a sketch by registry name or by path, replacing the session
-  /// open, and answers once its first frame is drawn.
+  /// open, and answers once it is set up: under the wall's clock once its
+  /// first frame is drawn, and under any other with no frame drawn, so
+  /// that the first frame is the client's first step, as a plate's is.
   open(OpenParameters): Summary (asynchronous);
   /// Pins the device the session draws with.
   pinDevice(DeviceParameters): sigil.protocol.Empty;
   /// Pins when the runtime may re-bake a node it was not asked to.
   pinPromotion(PromotionParameters): sigil.protocol.Empty;
-  /// Photographs the session at the clock as it stands.
+  /// Photographs the session at the clock as it stands, as a plate is
+  /// taken: a runtime that re-renders its still at the still's size draws
+  /// one frame more to do it, which the clock counts; a clock that is
+  /// held draws the moment it holds, so two stills under it are one
+  /// picture.
   still(StillParameters): StillResult (asynchronous);
-  /// Photographs frames one after another, stepping the clock between
-  /// them.
+  /// Photographs frames one after another, stepping the clock one frame
+  /// of the rate between them. Refused unless the clock's policy is
+  /// Advance.
   sequence(SequenceParameters): SequenceResult (asynchronous);
   /// How the last frame split.
   timing(sigil.protocol.Empty): TimingResult;
   /// The numbers the sketch measured about its own execution.
   measured(sigil.protocol.Empty): MeasuredResult (experimental);
+  /// Attributes what the next frame spends to what spent it, and answers
+  /// the most expensive rows once that frame is drawn.
+  profile(ProfileParameters): ProfileResult (asynchronous, experimental);
   /// Counts the composites each pixel of the next frame passes through,
   /// and answers the plane once that frame is drawn.
   compositeCounts(sigil.protocol.Empty): CompositeCountsResult (asynchronous);

@@ -288,6 +288,52 @@ class OpenedEvent:
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
+class ProfileParameters:
+    """What profile is asked."""
+
+    limit: int = 12
+    """The most rows to answer."""
+
+    def to_json(self) -> dict[str, messages.Json]:
+        """This table as the JSON object the wire carries."""
+        out: dict[str, messages.Json] = {}
+        out["limit"] = self.limit
+        return out
+
+    @classmethod
+    def from_json(cls, value: messages.Json) -> ProfileParameters:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
+        return cls(
+            limit=messages.integer(fields, "limit", 12),
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
+class ProfileResult:
+    """What the profiled frame spent, the most expensive first."""
+
+    rows: tuple[str, ...] = ()
+    """Each row in the runtime's own words: what spent the time, and how
+    much.
+    """
+
+    def to_json(self) -> dict[str, messages.Json]:
+        """This table as the JSON object the wire carries."""
+        out: dict[str, messages.Json] = {}
+        out["rows"] = list(self.rows)
+        return out
+
+    @classmethod
+    def from_json(cls, value: messages.Json) -> ProfileResult:
+        """The table a JSON object carries; MessageError where it does not fit."""
+        fields = messages.members(value, cls)
+        return cls(
+            rows=messages.texts(fields, "rows"),
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class PromotionParameters:
     """What pinPromotion is asked."""
 
@@ -423,7 +469,7 @@ class StillResult:
     """Its height in pixels."""
 
     seconds: float = 0.0
-    """Clock seconds when it was taken."""
+    """Clock seconds of the moment it shows."""
 
     def to_json(self) -> dict[str, messages.Json]:
         """This table as the JSON object the wire carries."""
@@ -542,7 +588,9 @@ class Session:
 
     def open(self, *, sketch: str, kind: str = "") -> Summary:
         """Opens a sketch by registry name or by path, replacing the session
-        open, and answers once its first frame is drawn.
+        open, and answers once it is set up: under the wall's clock once its
+        first frame is drawn, and under any other with no frame drawn, so
+        that the first frame is the client's first step, as a plate's is.
 
         Answered once the work is done.
         """
@@ -563,7 +611,11 @@ class Session:
         _shared.answer("session.pinPromotion", _shared.Empty.from_json, answer)
 
     def still(self, *, density: float = 1.0, path: str = "") -> StillResult:
-        """Photographs the session at the clock as it stands.
+        """Photographs the session at the clock as it stands, as a plate is
+        taken: a runtime that re-renders its still at the still's size draws
+        one frame more to do it, which the clock counts; a clock that is
+        held draws the moment it holds, so two stills under it are one
+        picture.
 
         Answered once the work is done.
         """
@@ -579,8 +631,9 @@ class Session:
         density: float = 1.0,
         directory: str = "",
     ) -> SequenceResult:
-        """Photographs frames one after another, stepping the clock between
-        them.
+        """Photographs frames one after another, stepping the clock one frame
+        of the rate between them. Refused unless the clock's policy is
+        Advance.
 
         Answered once the work is done.
         """
@@ -602,6 +655,18 @@ class Session:
         """
         answer = self._caller.call("session.measured", {})
         return _shared.answer("session.measured", MeasuredResult.from_json, answer)
+
+    def profile(self, *, limit: int = 12) -> ProfileResult:
+        """Attributes what the next frame spends to what spent it, and answers
+        the most expensive rows once that frame is drawn.
+
+        EXPERIMENTAL: its shape may still change.
+
+        Answered once the work is done.
+        """
+        parameters = ProfileParameters(limit=limit)
+        answer = self._caller.call("session.profile", parameters.to_json())
+        return _shared.answer("session.profile", ProfileResult.from_json, answer)
 
     def composite_counts(self) -> CompositeCountsResult:
         """Counts the composites each pixel of the next frame passes through,

@@ -174,8 +174,8 @@ class StepParameters:
     """Frames to advance, where seconds is absent."""
 
     seconds: float | None = None
-    """Seconds to advance, in frames of one over rate; absent to step by
-    frames.
+    """Seconds to advance, in frames of one over rate, rounded to the
+    nearest whole frame; absent to step by frames.
     """
 
     rate: float = 60.0
@@ -270,7 +270,13 @@ class Clock:
     def set_policy(
         self, *, policy: Policy = Policy.Wall, budget_seconds: float | None = None
     ) -> None:
-        """Replaces how the clock moves, from the next frame on."""
+        """Replaces how the clock moves, from the next frame on, and the
+        budget with it. A session is opened for its clock — under any policy
+        but Wall it pins what the sketch measured about itself and holds the
+        runtime's own re-baking off from its first frame — so a change
+        between the wall's clock and any other opens the session again, at
+        its own zero. What a client sets goes when it detaches.
+        """
         parameters = SetPolicyParameters(policy=policy, budget_seconds=budget_seconds)
         answer = self._caller.call("clock.setPolicy", parameters.to_json())
         _shared.answer("clock.setPolicy", _shared.Empty.from_json, answer)
@@ -280,7 +286,8 @@ class Clock:
     ) -> StepResult:
         """Advances the clock by frames or by seconds, drawing each frame, and
         answers once the last is drawn. Refused unless the policy is
-        Advance.
+        Advance and a session is open, and at a rate under four frames a
+        second, whose frames are longer than one frame of a clock moves.
 
         Answered once the work is done.
         """

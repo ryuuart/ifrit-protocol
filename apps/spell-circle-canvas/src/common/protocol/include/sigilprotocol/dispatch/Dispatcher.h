@@ -119,6 +119,11 @@ class Dispatcher {
   /** The program this dispatcher answers for. */
   const Program& program() const;
 
+  /** …for an agent that answers part of what `host.describe` reads — the
+   *  clock's policy, the sessions open — to fill in as it is mounted and
+   *  take back as it goes, so no host restates what its agents know. */
+  Program& program();
+
   /** A NEW CLIENT, reached as @p attachment says and answered under the
    *  session id this returns: what the way a client arrives calls as it
    *  does. */

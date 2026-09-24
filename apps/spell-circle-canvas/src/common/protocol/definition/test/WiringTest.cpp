@@ -150,6 +150,10 @@ struct DecliningSession : protocol::session::SessionAgent {
   Answer<protocol::session::values::MeasuredResult> measured() override {
     return declined("session.measured");
   }
+  void profile(const protocol::session::values::ProfileParameters&,
+               Reply<protocol::session::values::ProfileResult> reply) override {
+    reply(declined("session.profile"));
+  }
   void compositeCounts(
       Reply<protocol::session::values::CompositeCountsResult> reply) override {
     reply(declined("session.compositeCounts"));
@@ -184,7 +188,8 @@ TEST(ProtocolWiring, EachDomainMountsTheCommandsItsAgentAnswers) {
                 "host.stateRoot", "host.version", "registry.catalog",
                 "registry.list", "session.compositeCounts", "session.measured",
                 "session.open", "session.pinDevice", "session.pinPromotion",
-                "session.sequence", "session.still", "session.timing"}),
+                "session.profile", "session.sequence", "session.still",
+                "session.timing"}),
             board.methods());
 }
 

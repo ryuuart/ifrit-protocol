@@ -322,6 +322,8 @@ void Dispatcher::request(const std::string& session, const data::Json& envelope,
 
 const Program& Dispatcher::program() const { return m_state->program; }
 
+Program& Dispatcher::program() { return m_state->program; }
+
 std::string Dispatcher::attach(Attachment attachment) {
   std::string session = "session-" + std::to_string(++m_state->made);
   m_state->sessions.push_back(
