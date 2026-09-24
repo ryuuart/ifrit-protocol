@@ -465,3 +465,19 @@ the largest static subtree, placed so no blur or blend crosses them; the
 pixels must not move. A test cannot see where a specimen puts its cache,
 so `--bench` on each entry is the check: at or under the gate where the
 original met it.
+
+## The kit's theme scope declares an exit that may swallow exceptions
+
+The generated declaration of `Provide.__exit__` in the Python kit
+bindings returns `bool`, which tells a type checker the context manager
+may suppress an exception, so any function that returns from inside
+`with kit.provide(look):` is read as possibly returning `None` and a
+study written that way fails the typing check.
+
+The scope evidently never suppresses anything, so its exit should be
+declared to return `None` (or `Literal[False]`), and a study may then
+return from inside the scope as `python_live_signals` did before it was
+rewritten around the check.
+
+A typing case should assert that a function returning a page from inside
+`with kit.provide(...)` type-checks as returning `Element`.
