@@ -419,11 +419,10 @@ struct ShippingForecast {
         // the middle, and breathes with the grade the name breathes on.
         kit::disc(kEye, kPorthole)
             .key("lamp")
-            .fill(material::skia::Paint::radial(
-                {kPorthole, kPorthole}, kPorthole,
-                {{0.0f, material::withAlpha(kAmber, 0.15f)},
-                 {0.5f, material::withAlpha(kAmber, 0.05f)},
-                 {1.0f, material::withAlpha(kAmber, 0)}}))
+            .fill(radialGradient({kPorthole, kPorthole}, kPorthole,
+                                 {material::withAlpha(kAmber, 0.15f),
+                                  material::withAlpha(kAmber, 0.05f),
+                                  material::withAlpha(kAmber, 0)}))
             .scale(motion::bind(&cycle)
                        .window(reached, reached + 1.4f)
                        .map(&choreograph::easeOutCubic))
@@ -630,20 +629,24 @@ struct ShippingForecast {
     }).children(body);
   }
 
-  /** THE AREA FORECAST: one paragraph, three faces, three tracks.
+  /** THE AREA FORECAST: one paragraph, three faces, four tracks.
    *
    *  The first letter of every word lifts further than the rest of its
    *  word, and a grade passes over the initials the grotesque can carry
-   *  it on and lets them go again, as a reader's stress passes along a
-   *  line and leaves it even — the glossary terms, set in the serif, are
-   *  left out by the name they were written in. All three cascades are numbered over the PARAGRAPH
+   *  it on and settles part of the way back, as a reader's stress passes
+   *  along a line and leaves the initials marked — the glossary terms,
+   *  set in the serif, are left out by the name they were written in.
+   *  The Beaufort numerals are the quantities the bulletin exists for, so
+   *  their grade rises with the same stress and stays at its height; they
+   *  are found by pattern, repainted and re-graded at draw time, never
+   *  re-shaped. Every cascade is numbered over the PARAGRAPH
    *  (`beats::Text`), so every glyph of word ten is on beat ten whichever
-   *  track holds it. The Beaufort numerals are found by pattern and
-   *  repainted, never re-shaped. */
+   *  track holds it. */
   [[nodiscard]] Element forecast() {
     const data::Json& page = bulletin["forecast"];
     const weave::Selector initials =
         weave::selectors::each(weave::Unit::Word).take(1);
+    const weave::Selector figures = weave::selectors::regex(u8"[0-9]+");
     const auto words = [&](const weave::Selector& where, TextEffect effect,
                            float durationMs, float from, float to) {
       return Track{.where = where,
@@ -657,15 +660,16 @@ struct ShippingForecast {
         document::paragraph(bulletin.passage(page["runs"]))
             .key("forecast")
             .width(pct(100))
-            .span(weave::selectors::regex(u8"[0-9]+"),
-                  SpanStyle().ink(var("amber")))
+            .span(figures, SpanStyle().ink(var("amber")))
             .textFx(words(initials, textFx::rise(16), 460, 1.75f, 4.10f))
-            .textFx(words(initials & !selectors::style("term"),
+            .textFx(words(initials & !selectors::style("term") & !figures,
                           textFx::sequence(
                               textFx::variableAxisSweep("GRAD", 400, 900)
                                   .until(0.45f),
-                              textFx::variableAxisSweep("GRAD", 900, 400)),
+                              textFx::variableAxisSweep("GRAD", 900, 640)),
                           620, 1.75f, 4.10f))
+            .textFx(words(figures, textFx::variableAxisSweep("GRAD", 400, 900),
+                          460, 1.75f, 4.10f))
             .textFx(words(weave::selectors::each(weave::Unit::Word).drop(1),
                           textFx::rise(9), 500, 1.83f, 4.30f)),
     });
