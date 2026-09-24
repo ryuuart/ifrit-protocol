@@ -1,0 +1,28 @@
+{
+  "category": "ALCHEMY",
+  "hovered": "THAUMATORIUM",
+  "research": [
+    {"key": "BASEALCHEMY", "title": "Basic Alchemy", "column": 0, "row": 0, "plate": "round", "hidden": true, "icon": "crucible", "state": "complete"},
+    {"key": "ALUMENTUM", "title": "Alumentum", "column": 2, "row": -1, "icon": "alumentum", "state": "complete", "parents": ["BASEALCHEMY"]},
+    {"key": "METALLURGY", "title": "Alchemical Metallurgy", "column": 2, "row": 2, "icon": "ingot", "state": "complete", "parents": ["BASEALCHEMY"]},
+    {"key": "METALPURIFICATION", "title": "Metal Purification", "column": 2, "row": 4, "icon": "cluster", "state": "unlockable", "parents": ["METALLURGY"]},
+    {"key": "HEDGEALCHEMY", "title": "Hedge Alchemy", "column": -2, "row": 0, "icon": "tallow", "state": "complete", "parents": ["BASEALCHEMY"]},
+    {"key": "LIQUIDDEATH", "title": "Liquid Death", "column": -4, "row": 2, "icon": "bucket", "state": "complete", "parents": ["HEDGEALCHEMY"], "warp": 3, "badges": ["page"]},
+    {"key": "BOTTLETAINT", "title": "Bottled Taint", "column": -6, "row": 0, "icon": "bottle", "state": "unlockable", "parents": ["HEDGEALCHEMY"], "warp": 2, "badges": ["research"]},
+    {"key": "BATHSALTS", "title": "Purifying Bath Salts", "column": -4, "row": -2, "hidden": true, "icon": "salts", "state": "complete", "parents": ["HEDGEALCHEMY"]},
+    {"key": "SANESOAP", "title": "Sanity Soap", "column": -3, "row": -4, "icon": "soap", "state": "unlockable", "parents": ["BATHSALTS"]},
+    {"key": "ARCANESPA", "title": "Arcane Spa", "column": -5, "row": -4, "icon": "spa", "state": "unlockable", "parents": ["BATHSALTS"]},
+    {"key": "ESSENTIASMELTER", "title": "Essentia Smelting", "column": 4, "row": 0, "plate": "spiky", "icon": "smelter", "state": "complete", "parents": ["ALUMENTUM", "METALLURGY"], "siblings": ["WARDEDJARS"]},
+    {"key": "WARDEDJARS", "title": "Warded Jars & labels", "column": 4, "row": -2, "plate": "round", "icon": "jar", "state": "complete", "parents": ["ESSENTIASMELTER"]},
+    {"key": "TUBES", "title": "Essentia Tubes", "column": 6, "row": -2, "icon": "tube", "state": "complete", "parents": ["WARDEDJARS"]},
+    {"key": "ESSENTIASMELTERTHAUMIUM", "title": "Thaumium Essentia Smelter", "column": 8, "row": 0, "icon": "smelter-thaumium", "state": "complete", "parents": ["TUBES", "METALLURGY"], "badges": ["research", "page"]},
+    {"key": "ESSENTIASMELTERVOID", "title": "Void Metal Essentia Smelter", "column": 12, "row": 0, "icon": "smelter-void", "state": "locked", "parents": ["ESSENTIASMELTERTHAUMIUM"]},
+    {"key": "IMPROVEDSMELTING", "title": "Improved Essentia Distillation (part 1)", "column": 5, "row": -4, "icon": "smelter-auxiliary", "state": "locked", "parents": ["TUBES"]},
+    {"key": "IMPROVEDSMELTING2", "title": "Improved Essentia Distillation (part 2)", "column": 3, "row": -4, "icon": "vent", "state": "locked", "parents": ["IMPROVEDSMELTING"]},
+    {"key": "CENTRIFUGE", "title": "Essentia Centrifuge", "column": 7, "row": -4, "icon": "centrifuge", "state": "unlockable", "parents": ["TUBES"]},
+    {"key": "THAUMATORIUM", "title": "Alchemical Automation", "column": 10, "row": -2, "plate": "spiky", "icon": "thaumatorium", "state": "locked", "parents": ["CENTRIFUGE", "ESSENTIASMELTERTHAUMIUM"]},
+    {"key": "ESSENTIATRANSPORT", "title": "Advanced Essentia Transport", "column": 12, "row": -2, "icon": "essentia-input", "state": "locked", "parents": ["THAUMATORIUM"]},
+    {"key": "EVERFULLURN", "title": "Everfull Urn", "column": -2, "row": 2, "icon": "urn", "state": "complete", "parents": ["HEDGEALCHEMY"]},
+    {"key": "POTIONSPRAYER", "title": "Potion Sprayer", "column": -1, "row": -2, "reverse": true, "icon": "sprayer", "state": "unlockable", "parents": ["HEDGEALCHEMY"]}
+  ]
+}

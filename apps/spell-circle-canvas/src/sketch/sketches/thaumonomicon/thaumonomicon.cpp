@@ -1,672 +1,495 @@
-// A research web laid over parchment, stamped wires and brass controls.
+// Thaumcraft 4's research browser, open on the Alchemy category: a lattice
+// of research plates over a nebula, joined by grey wires that turn once and
+// end in an arrow at the research they unlock, inside a wooden frame with
+// the category tabs down its left side and the vanilla tooltip of the
+// hovered research over everything.
+//
+// The web is data: `data/research.json` holds every research of the
+// category — its title, lattice column and row, plate, icon, save state and
+// the research it needs — and `data/icons.json` the sixteen-pixel icons as
+// character grids. The plates state those facts and the web's operators
+// read them: one `connect::ByLane` per kind of wire, a stamp for the corner
+// badges and a pin for the tooltip.
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
-#include "ResearchArt.h"
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/brush/Lines.h>
+#include <sigilcompose/core/Core.h>
+#include <sigilcompose/kit/Connect.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Pin.h>
+#include <sigilcompose/kit/PixelType.h>
+#include <sigilcompose/kit/Routers.h>
+#include <sigilcompose/kit/Sprites.h>
+#include <sigilcompose/kit/Stamp.h>
+#include <sigilcore/compute/Noise.h>
+#include <sigildata/decode/Json.h>
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/bind/Bound.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Page.h>
+#include <sigilweave/ports/SystemFontManager.h>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <map>
+#include <string>
+#include <vector>
+
+namespace data = sigil::data;
+namespace field = sigil::material::field;
+namespace material = sigil::material;
+namespace shapes = sigil::geometry::shapes;
+namespace sketch = sigil::sketch;
+namespace weave = sigil::weave;
+namespace ch = choreograph;
+
+using namespace sigil::compose;
+using sigil::material::skia::Paint;
+
+namespace {
+
+// ---------------------------------------------------------------------------
+// The screen. Minecraft draws its interface in GUI pixels, two canvas pixels
+// each here, so the 1280 x 800 canvas is a 640 x 400 GUI screen. Every
+// length below is written in GUI pixels and scaled once by `gui()`.
+
+constexpr float kPixel = 2.0f;
+constexpr float gui(float length) { return length * kPixel; }
+
+constexpr SkSize kCanvas = {gui(640), gui(400)};
+constexpr float kInset = 16;  // the viewport stands 16 GUI px in from each edge
+constexpr float kCell = 24;   // the lattice pitch
+constexpr float kPlate = 26;  // a research plate, a little wider than a cell
+constexpr float kIcon = 16;
+
+const material::Color kPlateLight = hexColor(0xE6E0E8);
+const material::Color kPlateShade = hexColor(0x9C96A2);
+const material::Color kPlateRim = hexColor(0x1C1A20);
+const material::Color kWood = hexColor(0xA87450);
+const material::Color kWoodEdge = hexColor(0x1A100A);
+
+// The tooltip's four colours are Minecraft's formatting codes: §6 gold for
+// the title, §c red and §e yellow for what is missing.
+const material::Color kTextGold = hexColor(0xFFAA00);
+const material::Color kTextRed = hexColor(0xFF5555);
+const material::Color kTextYellow = hexColor(0xFFFF55);
+
+/** ONE RESEARCH, as `data/research.json` states it. */
+struct Research {
+  std::string key, title, plate, icon, state;
+  int column = 0, row = 0, warp = 0;
+  bool hidden = false, reverse = false;
+  std::vector<std::string> parents, siblings, badges;
+};
+
+std::vector<std::string> strings(const data::Json& list) {
+  std::vector<std::string> out;
+  for (const data::Json& item : list.items()) out.emplace_back(item.text());
+  return out;
+}
+
+std::vector<Research> readResearch(const data::Json& document) {
+  std::vector<Research> web;
+  for (const data::Json& entry : document["research"].items())
+    web.push_back({.key = std::string(entry["key"].text()),
+                   .title = std::string(entry["title"].text()),
+                   .plate = std::string(entry["plate"].text("square")),
+                   .icon = std::string(entry["icon"].text()),
+                   .state = std::string(entry["state"].text()),
+                   .column = (int)entry["column"].number(),
+                   .row = (int)entry["row"].number(),
+                   .warp = (int)entry["warp"].number(),
+                   .hidden = entry["hidden"].boolean(),
+                   .reverse = entry["reverse"].boolean(),
+                   .parents = strings(entry["parents"]),
+                   .siblings = strings(entry["siblings"]),
+                   .badges = strings(entry["badges"])});
+  return web;
+}
+
+/** `#RRGGBB` or `#RRGGBBAA`. */
+material::Color parseHex(std::string_view hex) {
+  const uint32_t word = (uint32_t)std::stoul(std::string(hex.substr(1)), nullptr, 16);
+  return hex.size() > 7 ? hexColor(word >> 8u, (float)(word & 255u) / 255.0f)
+                        : hexColor(word);
+}
+
+/** AN ICON FROM ITS CHARACTER GRID. A locked research's icon is drawn in
+ *  one dark grey wherever the art has paint, so `greyed` replaces every
+ *  entry's colour and keeps its alpha. */
+kit::Sprite readIcon(const data::Json& icon, bool greyed) {
+  std::string characters = ".";
+  std::vector<material::Color> colours = {{0, 0, 0, 0}};
+  for (const auto& [character, hex] : icon["palette"].fields()) {
+    const material::Color colour = parseHex(hex.text());
+    characters += character;
+    colours.push_back(greyed ? material::Color{0.18f, 0.18f, 0.18f, colour.a}
+                             : colour);
+  }
+  return kit::pixelMap(strings(icon["rows"]), {characters, colours})
+      .value_or(kit::Sprite{});
+}
+
+/** WHICH WIRES THERE ARE. Thaumcraft multiplies one white line by the grey
+ *  of its kind: a prerequisite already researched, one not yet researched,
+ *  and a sibling, which is the one kind with a hue and no arrow. A wire
+ *  leaves the research that needs it vertically and turns once toward the
+ *  one it needs; a REVERSE research's wires turn the other way round. The
+ *  lighter kinds are drawn over the darker. */
+struct WireKind {
+  const char* lane;
+  material::Color tint;
+  routers::Bend bend;
+  bool arrow;
+  int depth;
+};
+const std::array<WireKind, 5> kWires = {{
+    {"sibling", {0.30f, 0.30f, 0.40f, 1}, routers::Bend::VFirst, false, 1},
+    {"unknown", {0.20f, 0.20f, 0.20f, 1}, routers::Bend::VFirst, true, 2},
+    {"unknown-reversed", {0.20f, 0.20f, 0.20f, 1}, routers::Bend::HFirst, true, 2},
+    {"known", {0.60f, 0.60f, 0.60f, 1}, routers::Bend::VFirst, true, 3},
+    {"known-reversed", {0.60f, 0.60f, 0.60f, 1}, routers::Bend::HFirst, true, 3},
+}};
+
+Operator wires(const WireKind& kind) {
+  return Operator(connect::ByLane{
+                      .lane = kind.lane,
+                      .router = routers::orthogonal(kind.bend, gui(kCell / 2)),
+                      .gap = gui(kPlate / 2 + 1),
+                      .wire = lines::Line{
+                          .width = gui(2.5f),
+                          .fill = Fill::color(kind.tint),
+                          .startMarker = kind.arrow ? lines::Marker::Arrow
+                                                    : lines::Marker::None,
+                          .markerSize = gui(8)},
+                      .bleed = gui(6)})
+      .zIndex(kind.depth);
+}
+
+// ---------------------------------------------------------------------------
+// The nebula behind the viewport: a dark ground, coloured clouds, a veil of
+// fractal noise and a field of stars.
+
+struct Cloud {
+  float x, y, radius;  // x and y as fractions of the viewport
+  uint32_t colour;
+  float alpha;
+};
+constexpr std::array<Cloud, 8> kClouds = {{
+    {0.18f, 0.30f, 260, 0x6A1E78, 0.55f},
+    {0.46f, 0.62f, 300, 0x8C2A3A, 0.40f},
+    {0.74f, 0.28f, 240, 0x2A3C8C, 0.45f},
+    {0.88f, 0.74f, 220, 0x5A6A1E, 0.30f},
+    {0.30f, 0.86f, 200, 0x1E6A6A, 0.30f},
+    {0.60f, 0.18f, 180, 0x7A2A8C, 0.35f},
+    {0.08f, 0.70f, 200, 0x3A1E6A, 0.40f},
+    {0.96f, 0.10f, 160, 0x8C4A2A, 0.30f},
+}};
+
+Element nebula(SkSize size) {
+  std::vector<Element> stars;
+  for (int index = 0; index < 240; ++index) {
+    const auto unit = [index](int axis) {
+      return (float)(sigil::core::noise::lattice(7, index, axis, 3) & 0xFFFFu) /
+             65535.0f;
+    };
+    const float magnitude = unit(2);
+    stars.push_back(
+        kit::disc({unit(0) * size.width(), unit(1) * size.height()},
+                  magnitude > 0.9f ? gui(0.9f) : gui(0.5f))
+            .shape(shapes::circle())
+            .fill(Fill::color(hexColor(0xF2E8FF, 0.25f + 0.7f * magnitude * magnitude))));
+  }
+  return box()
+      .inset(0)
+      .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
+                              {{0.0f, hexColor(0x1A1030)}, {1.0f, hexColor(0x05030A)}}))
+      .children({each(kClouds,
+                      [size](const Cloud& cloud) {
+                        return kit::disc({cloud.x * size.width(), cloud.y * size.height()},
+                                         cloud.radius)
+                            .fill(Paint::glowUnit(
+                                {0.5f, 0.5f}, 1.0f,
+                                {{0.0f, hexColor(cloud.colour, cloud.alpha)},
+                                 {1.0f, hexColor(cloud.colour, 0.0f)}}))
+                            .blendMode(SkBlendMode::kScreen);
+                      }),
+                 box().inset(0).opacity(0.30f).blendMode(SkBlendMode::kOverlay).fill(
+                     Paint::recipe(field::noise(0.004f, 4, 3.0f))),
+                 box().inset(0).children(stars)});
+}
+
+// ---------------------------------------------------------------------------
+// The frame: four bands of dark grained wood, a square post at each corner.
+
+Paint wood(bool vertical) {
+  return Paint::blend(
+      {{Paint::recipe(field::grain(0.03f, 2, vertical ? 5.0f : 9.0f, 1.3f,
+                                   vertical ? 1.0f / 6.0f : 6.0f)),
+        SkBlendMode::kSrc},
+       {Paint::solid(kWood), SkBlendMode::kMultiply}});
+}
+
+Element plank(float x, float y, float width, float height) {
+  return kit::at(gui(x), gui(y), gui(width), gui(height))
+      .fill(wood(height > width))
+      .layerStyle(decorations::doubleBorder(
+          decorations::border(gui(1), Fill::color(kWoodEdge)),
+          decorations::border(gui(1), Fill::color(hexColor(0xE0B080, 0.18f)), gui(2))));
+}
+
+Element frame() {
+  constexpr float post = 20;
+  std::vector<Element> parts = {plank(0, 0, 640, kInset), plank(0, 400 - kInset, 640, kInset),
+                                plank(0, 0, kInset, 400), plank(640 - kInset, 0, kInset, 400)};
+  for (const SkPoint corner : {SkPoint{-2, -2}, SkPoint{622, -2}, SkPoint{-2, 382},
+                               SkPoint{622, 382}})
+    parts.push_back(plank(corner.x(), corner.y(), post, post)
+                        .fill(Paint::solid(hexColor(0x4A3020))));
+  return box().inset(0).children(parts);
+}
+
+}  // namespace
 
 struct Thaumonomicon {
-  /** THE HOVERED NODE, and the one parent of it that is not complete — the
-   *  tooltip's whole subject, named by key so its title, its position on the
-   *  lattice and its missing line all come off the graph rather than being
-   *  typed here three times. */
-  static constexpr std::string_view kHovered = "THAUMATORIUM";
-  static constexpr std::string_view kMissing = "CENTRIFUGE";
+  ch::Output<float> veil{0};  // how far an unlockable plate is dimmed, 0 to 0.5
+  std::map<std::string, kit::Sprite> icons, greyedIcons;
 
-  // ---- motion --------------------------------------------------------------
-  ch::Output<float> pulse{0};   // the 600 ms lockstep unlockable pulse
-  ch::Output<float> spin{0};    // drawForbidden's swirl
-  ch::Output<float> driftX{0};  // locX, in GUI px
-  ch::Output<float> driftY{0};
+  // -------------------------------------------------------------------------
+  // A research plate: the silhouette its research names, lit from above,
+  // dimmed by its save state, with its icon on it.
 
-  // ---- baked art (pointer-stable, so every brush bakes exactly once) -------
-  std::array<Element, 3> spatter;
-  std::array<Element, 3> knot;
-  std::array<Element, 3> straight;
-  // [tier][2*big + (handed>0)] — small/big elbow, left/right mirror
-  std::array<std::array<Element, 4>, 3> elbows;
-  Element runTile, cornerTile;
-  /** One sprite per reconstructed glyph, held by its `Glyph` id. The art is
-   *  a value, so a node's icon is a lookup rather than a switch run inside
-   *  a paint program on every describe. */
-  std::vector<kit::Sprite> glyphs;
+  Element plateFace(Element face, const Research& research) const {
+    if (research.plate == "round") return face.shape(shapes::circle());
+    if (research.plate == "hex") return face.shape(shapes::polygon(6, 90));
+    return face.borderRadius({gui(3)});
+  }
 
-  // ---- baked type ----------------------------------------------------------
-  sk_sp<SkTypeface> face;
-  PixText tipTitle, tipMissing, tipParent;
+  Element plate(const Research& research) const {
+    const material::Color light =
+        research.hidden ? material::scale(kPlateLight, 0.86f) : kPlateLight;
+    const float half = gui(kPlate / 2);
+    Element node = kit::at(0, 0, gui(kPlate), gui(kPlate)).key(research.key);
+    // Warp stains the page under a research with a violet corona.
+    if (research.warp > 0)
+      node.children({kit::disc({half, half}, gui(20))
+                         .fill(Paint::glowUnit(
+                             {0.5f, 0.5f}, 1.0f,
+                             {{0.0f, hexColor(0xC060FF, 0.2f * (float)research.warp)},
+                              {1.0f, hexColor(0x40006A, 0.0f)}}))});
+    if (research.plate == "spiky")
+      node.children({kit::disc({half, half}, gui(17))
+                         .shape(shapes::star(8, 0.74f, 0.35f))
+                         .fill(Fill::color(material::scale(kPlateShade, 0.8f)))});
+    node.children({plateFace(box().inset(0), research)
+                       .fill(Paint::linearUnit({0.5f, 0}, {0.5f, 1},
+                                               {{0.0f, light},
+                                                {1.0f, material::scale(kPlateShade,
+                                                                       research.hidden ? 0.86f : 1.0f)}}))
+                       .layerStyle(decorations::doubleBorder(
+                           decorations::border(gui(1.5f), Fill::color(kPlateRim)),
+                           decorations::border(gui(1), Fill::color(hexColor(0xFFFFFF, 0.5f)),
+                                               gui(2))))});
+    Element dim = plateFace(box().inset(0), research).fill(Fill::color({0, 0, 0, 1}));
+    if (research.state == "unlockable")
+      node.children({dim.opacity(sigil::motion::bind(&veil))});
+    else if (research.state == "locked")
+      node.children({dim.opacity(0.7f)});
+    const auto& art = research.state == "locked" ? greyedIcons : icons;
+    if (auto found = art.find(research.icon); found != art.end())
+      node.children({kit::pixelSprite(found->second, {.cell = kPixel})
+                         .left(gui((kPlate - kIcon) / 2))
+                         .top(gui((kPlate - kIcon) / 2))});
+    return node;
+  }
 
-  static sk_sp<SkTypeface> systemFace() {
-    return weave::ports::face({"Menlo", "Monaco", "Courier New", "Helvetica"});
+  /** THE CORNER BADGES a research states: a gold star for new research at
+   *  the plate's upper left, a page for a new page at its lower left. */
+  Operator badges() const {
+    return Operator(stamp::ByLane{
+        .lane = "badges",
+        .key = "badges",
+        .make = [this](const Scope::Node& node) {
+          Element corner = box().inset(0);
+          for (const std::string& badge :
+               node.attribute<std::vector<std::string>>("badges").value_or(
+                   std::vector<std::string>{})) {
+            const auto found = icons.find("badge-" + badge);
+            if (found == icons.end()) continue;
+            corner.children({kit::pixelSprite(found->second, {.cell = kPixel})
+                                 .left(gui(-4))
+                                 .top(gui(badge == "page" ? 15 : -4))});
+          }
+          return corner;
+        }});
   }
 
   // -------------------------------------------------------------------------
-  // The backdrop: two planes, translated at the source's 2.0 : 1.5 ratio. Both
-  // are STATIC generated art baked with Cache::Texture — the parallax is a
-  // bound transform, which is paint-only volatility, so the bakes replay under
-  // it and no shader re-runs per frame.
+  // The tooltip: Minecraft's own, a near-black violet card with a blue
+  // inner rule, its lines set in a bitmap face with a one-pixel shadow a
+  // quarter as bright. It hangs to the right of the cursor and flips to its
+  // left when the screen would cut it.
 
-  static Element backdropBase() {
-    const float w = g(kScreenX + 4 + 44), h = g(kScreenY + 4 + 44);
-    Element e = box().left(g(-22)).top(g(-22)).width(w).height(h).fill(
-        // THE BROWSER LOOKS INTO A NEBULA. The mod's own backdrop fills
-        // the inner area with cloud and star, and the two-plane parallax
-        // this file transcribes has nothing to carry over a flat brown
-        // ground — a 2.0 : 1.5 depth ratio only reads when the two planes
-        // hold structure the eye can follow.
-        Paint::radialUnit({0.44f, 0.38f}, 1.20f,
-                          {{0.00f, hexColor(0x6E2A72)},
-                           {0.22f, hexColor(0x4A1A56)},
-                           {0.46f, hexColor(0x2A1036)},
-                           {0.74f, hexColor(0x140A1C)},
-                           {1.00f, hexColor(0x060309)}}));
-    // The painted plate under it: an alchemical wheel, a ruled margin, and
-    // washes — the structure a photographed grimoire page carries and a noise
-    // field never will.
-    e.overlay(prog([](SkCanvas& c, const PaintContext& in) {
-      SkPaint p;
-      p.setAntiAlias(true);
-      const SkPoint o{in.size.width() * 0.50f, in.size.height() * 0.47f};
-      // washes first, so the linework sits on top of them
-      // The cloud: warm lobes over the ramp and cold ones under it, so
-      // the field has structure rather than a single falloff.
-      for (int i = 0; i < 46; ++i) {
-        const float x = (0.5f + 0.5f * noise1(i, 1, 5)) * in.size.width();
-        const float y = (0.5f + 0.5f * noise1(i, 2, 5)) * in.size.height();
-        const float r = g(26.0f + 72.0f * (0.5f + 0.5f * noise1(i, 3, 5)));
-        p.setColor4f(sigil::material::skia::toSkColor(
-                         (i % 2 != 0) ? hexColor(0xB03CC0, 0.055f)
-                                      : hexColor(0x120618, 0.20f)),
-                     nullptr);
-        c.drawCircle(x, y, r, p);
-      }
-      // …and the star field over it. Two magnitudes, seeded, so the near
-      // plane's drift is something to watch.
-      for (int i = 0; i < 260; ++i) {
-        const float x = (0.5f + 0.5f * noise1(i, 11, 7)) * in.size.width();
-        const float y = (0.5f + 0.5f * noise1(i, 12, 7)) * in.size.height();
-        const float m = 0.5f + 0.5f * noise1(i, 13, 7);
-        p.setColor4f(sigil::material::skia::toSkColor(
-                         hexColor(0xF2E4FF, 0.16f + 0.60f * m * m)),
-                     nullptr);
-        c.drawCircle(x, y, g(m > 0.86f ? 1.3f : 0.7f), p);
-      }
-      p.setStyle(SkPaint::kStroke_Style);
-      // the wheel: four rules and three rings, plus a 72-tick limb
-      for (int i = 0; i < 6; ++i) {
-        p.setStrokeWidth(g(i % 3 == 0 ? 2.0f : 0.9f));
-        p.setColor4f(sigil::material::skia::toSkColor(sigil::material::scale(
-                         kBrassLit, 1.0f, 0.13f + 0.05f * (float)(i % 3))),
-                     nullptr);
-        c.drawCircle(o.fX, o.fY, g(46.0f + (float)i * 30.0f), p);
-      }
-      p.setStrokeWidth(g(1.0f));
-      p.setColor4f(sigil::material::skia::toSkColor(
-                       sigil::material::scale(kBrassLit, 1.0f, 0.17f)),
-                   nullptr);
-      SkPathBuilder t;
-      for (int i = 0; i < 72; ++i) {
-        const float r0 = g(i % 6 == 0 ? 182.0f : 192.0f), r1 = g(200.0f);
-        t.moveTo(arrange::onRing((size_t)i, 72, o, {r0, r0}, 0.0f, 6.2831853f,
-                                 arrange::Turn::Closed));
-        t.lineTo(arrange::onRing((size_t)i, 72, o, {r1, r1}, 0.0f, 6.2831853f,
-                                 arrange::Turn::Closed));
-      }
-      // an inscribed pentagram and a hexagram, the plate's own furniture
-      for (int k = 0; k < 2; ++k) {
-        const int n = k ? 6 : 5;
-        const float rad = g(k ? 106.0f : 166.0f);
-        const float rot = k ? 0.26f : -1.57f;
-        for (int i = 0; i < n; ++i) {
-          const int j = (i + 2) % n;
-          t.moveTo(arrange::onRing((size_t)i, (size_t)n, o, {rad, rad}, rot,
-                                   6.2831853f, arrange::Turn::Closed));
-          t.lineTo(arrange::onRing((size_t)j, (size_t)n, o, {rad, rad}, rot,
-                                   6.2831853f, arrange::Turn::Closed));
-        }
-      }
-      c.drawPath(t.detach(), p);
-      // strata: long diagonal scrapes across the plate
-      p.setColor4f(sigil::material::skia::toSkColor(hexColor(0xD8C08A, 0.055f)),
-                   nullptr);
-      SkPathBuilder s2;
-      for (int i = 0; i < 22; ++i) {
-        const float y0 = (0.5f + 0.5f * noise1(i, 9, 4)) * in.size.height();
-        p.setStrokeWidth(g(0.6f + 1.8f * (0.5f + 0.5f * noise1(i, 8, 4))));
-        s2.moveTo(-g(20), y0);
-        s2.lineTo(in.size.width() + g(20), y0 + g(46.0f * noise1(i, 7, 4)));
-      }
-      c.drawPath(s2.detach(), p);
-    }));
-    // Paper tooth: the luminance grain, held back so it shades instead of
-    // shouting. Inside the Cache::Texture bake, so its pixels are paid once.
-    e.children({box()
-                    .inset(0)
-                    .opacity(0.42f)
-                    .blendMode(SkBlendMode::kOverlay)
-                    .fill(Paint::recipe(field::grain(0.06f, 5, 3.0f)))});
-    return e;
-  }
-
-  static Element backdropOver() {
-    const float w = g(kScreenX + 4 + 44), h = g(kScreenY + 4 + 44);
-    return box()
-        .left(g(-22))
-        .top(g(-22))
-        .width(w)
-        .height(h)
-        .blendMode(SkBlendMode::kScreen)
-        .opacity(0.34f)
-        .fill(Paint::blend({{Paint::recipe(field::grain(0.0075f, 4, 11.0f)),
-                             SkBlendMode::kSrc},
-                            {Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                               {{0.0f, hexColor(0xFFFFFF)},
-                                                {0.7f, hexColor(0x808080)},
-                                                {1.0f, hexColor(0x000000)}}),
-                             SkBlendMode::kMultiply}}));
-  }
-
-  // -------------------------------------------------------------------------
-  // One edge: a wire on the transcribed router, dressed with ONE stock
-  // brush::Pattern — 24x24 side tiles, a 24x24 or 48x48 corner tile, and
-  // cornerLength reserving the elbow's own room so the side run butts against
-  // it instead of continuing underneath. Nothing here is a stroke.
-  //
-  // The wires paint at EVEN depths and the arrowheads at the odd depth just
-  // above their own tier's wire, so an arrow stands on the leg it marks and
-  // a higher tier's wire still crosses over it.
-
-  Operator edgeEl(const Edge& e, int order) const {
-    const Node& child = nodeByKey(e.child);
-    const Node& parent = nodeByKey(e.parent);
-    const RouteShape shape = shapeOf(child, parent, e.flipped);
-    const int t = (int)e.tier;
-    const int elbow = !shape.hasCorner ? -1
-                                       : (shape.bigCorner ? 2 : 0) +
-                                             (shape.handed > 0 ? 1 : 0);
-
-    brush::Pattern pb{.side = straight[t],
-                      .advance = kCell,
-                      .cornerAngleDeg = 35.0f,
-                      .stretchToFit = true,
-                      .bleedPx = g(56)};
-    if (elbow >= 0) {
-      // An elbow of PIPE, not an ornament: entry, exit and a handedness, and
-      // elbowTile() authors it with local +x along the outgoing leg. On the
-      // bisector this art stamps 45 degrees off — and a 2x2 route is all
-      // corner and no side tiles, so the whole edge becomes a chevron. The
-      // alignment therefore travels with the art rather than being defaulted.
-      pb.corner = brush::CornerArt{elbows[t][(size_t)elbow],
-                                   brush::CornerAlign::Outgoing};
-      pb.cornerLength = 2.0f * cornerArm(shape.bigCorner);
+  pin::Request tooltip(weave::FontContext& fonts, const std::vector<std::string>& lines) const {
+    const weave::Type face{.face = weave::ports::face({"Menlo", "Monaco", "Courier New"}),
+                           .size = 10,
+                           .aliased = true};
+    const std::array<material::Color, 3> colours = {kTextGold, kTextRed, kTextYellow};
+    Element card = box()
+                       .fill(Fill::color(hexColor(0x100010, 0.94f)))
+                       .foreground(decorations::border(gui(1), Fill::color(hexColor(0x5000FF, 0.31f)),
+                                                       gui(1)));
+    float widest = 0;
+    for (size_t index = 0; index < lines.size(); ++index) {
+      const std::u8string run(lines[index].begin(), lines[index].end());
+      const kit::Coverage coverage = kit::coverage(run, fonts, face);
+      const kit::Mask mask = kit::threshold(coverage);
+      widest = std::max(widest, coverage.advance.width());
+      // The title stands two pixels clear of the lines under it.
+      const float top = 4 + 10 * (float)index + (index > 0 ? 2 : 0);
+      card.children({kit::masked(mask, {.colour = colours[std::min<size_t>(index, 2)],
+                                        .scale = kPixel,
+                                        .shadowOffset = {gui(1), gui(1)}})
+                         .left(gui(4 + (float)(mask.inkX - coverage.pad.x)))
+                         .top(gui(top + (float)(mask.inkY - coverage.pad.y)))});
     }
-    Brush br;
-    br.layer(std::move(pb));
-
-    // A REVERSE edge walks from the parent: the wire's own from/to is the
-    // walk's direction, and the route bends at the START's column.
-    return Operator(connect::Between{
-                        .from = e.flipped ? parent.key : child.key,
-                        .to = e.flipped ? child.key : parent.key,
-                        .router = thaumRoute(),
-                        .wire = br,
-                        .where = spans::upTo(animate(
-                            from(0.0f).to(1.0f),
-                            Transition{
-                                .duration = 620ms,
-                                .ease = ch::easeOutQuad,
-                                .delay =
-                                    std::chrono::milliseconds(60 * order)})),
-                        .key = std::string("edge:") + child.key + "<" +
-                               parent.key})
-        .zIndex(2 * tierZ(e.tier));
+    // The cursor rests two pixels right of and four below the plate's
+    // centre; the card's text starts three pixels right of and above it.
+    return {.element = card,
+            .size = {gui(widest + 8), gui(10 * (float)lines.size() + 9)},
+            .where = {.on = {0.5f, 0.5f},
+                      .at = {0, 0},
+                      .offset = {gui(1), gui(-3)},
+                      .fallbacks = {{.on = {0.5f, 0.5f}, .at = {1, 0},
+                                     .offset = {gui(-3), gui(-3)}}}}};
   }
 
-  Element arrowEl(const Edge& e) const {
-    const Node& child = nodeByKey(e.child);
-    const Node& parent = nodeByKey(e.parent);
-    const int dy = child.row - parent.row, dx = child.col - parent.col;
-    // The arrowhead sits on the walk's leg AT THE CHILD. An ordinary edge
-    // leaves the child vertically (the bend is at the child's column); a
-    // REVERSE edge starts at the parent instead, so it arrives at the child
-    // along the HORIZONTAL leg (the bend is at the parent's column) and the
-    // arrowhead has to ride that leg or it lands on empty canvas.
-    SkVector travel{0, 0};
-    if (!e.flipped) {
-      if (dy != 0)
-        travel = {0, dy > 0 ? 1.0f : -1.0f};
-      else if (dx != 0)
-        travel = {dx > 0 ? 1.0f : -1.0f, 0};
-    } else {
-      if (dx != 0)
-        travel = {dx > 0 ? 1.0f : -1.0f, 0};
-      else if (dy != 0)
-        travel = {0, dy > 0 ? 1.0f : -1.0f};
+  // -------------------------------------------------------------------------
+  // The category tabs down the left edge, each a rune cut in its aspect's
+  // colour on a wooden boss, and the search glass on the lower left post.
+
+  Element tabs() const {
+    static constexpr std::array<const char*, 7> kCategories = {
+        "fundamentals", "auromancy", "alchemy", "artifice",
+        "infusion", "golemancy", "eldritch"};
+    Element rail = box().inset(0);
+    for (size_t index = 0; index < kCategories.size(); ++index) {
+      const bool open = std::string_view(kCategories[index]) == "alchemy";
+      const auto found = icons.find(std::string("tab-") + kCategories[index]);
+      if (found == icons.end()) continue;
+      rail.children({kit::at(gui(open ? 3 : 1), gui(28 + 26 * (float)index), gui(22), gui(22))
+                         .borderRadius({gui(3)})
+                         .fill(wood(false))
+                         .opacity(open ? 1.0f : 0.8f)
+                         .layerStyle(decorations::doubleBorder(
+                             decorations::border(gui(1), Fill::color(kWoodEdge)),
+                             decorations::border(gui(1),
+                                                 Fill::color(open ? hexColor(0x9FFFFF, 0.8f)
+                                                                  : hexColor(0xE0B080, 0.25f)),
+                                                 gui(1))))
+                         .children({kit::pixelSprite(found->second, {.cell = kPixel})
+                                        .left(gui(3))
+                                        .top(gui(3))})});
     }
-    if (travel.fX == 0 && travel.fY == 0) return box().width(0).height(0);
-    const SkPoint c = centreOf(child.col, child.row);
-    const sigil::material::Color tint = tierTint(e.tier, kInkBody);
-    return arrowCell(tint)
-        .centerAt({c.fX - travel.fX * g(20), c.fY - travel.fY * g(20)})
-        .rotate(std::atan2(travel.fY, travel.fX) * 57.29578f)
-        .zIndex(2 * tierZ(e.tier) + 1);
-  }
-
-  // -------------------------------------------------------------------------
-
-  Element nodePlate(const Node& n) const {
-    const SkPoint c = centreOf(n.col, n.row);
-    // Cache::Texture, not the automatic picture. A plate is a torn-square
-    // outline + a radial + an Sk2D hatch + a sketchy double rule, and a
-    // PICTURE replays all of those path effects on every frame; baked to a
-    // texture each plate is one blit. The pulsing plates keep their bake too,
-    // because a bound opacity is paint-only volatility.
-    Element wrap = box()
-                       .left(c.fX - g(16))
-                       .top(c.fY - g(16))
-                       .width(g(32))
-                       .height(g(32))
-                       .key(n.key);
-    // :598 culls the whole node, art and all, but drawLine still draws its
-    // edges — so a culled node keeps its KEYED, empty box (the wire still
-    // needs somewhere to route to) and paints nothing.
-    if (culled(n.col, n.row)) return wrap;
-    wrap.cache(Cache::Texture);
-    if (n.state == kUnlockable)
-      wrap.opacity(bind(&pulse).target(0.5f, 1.0f));
-    else if (n.state == kLocked)
-      wrap.opacity(0.3f);
-
-    const uint32_t seed = (uint32_t)(n.col * 31 + n.row * 17 + 101);
-    wrap.children({plateArt(n.meta, seed, spatter[0]).inset(g(2))});
-    if (n.meta & kSpiky) wrap.children({spikyOverlay(seed + 7)});
-    wrap.children({iconEl(glyphs[(size_t)n.icon],
-                          n.state == kLocked ? 0.6f : 1.0f, n.state == kLocked)
-                       .left(g(8))
-                       .top(g(8))});
-    return wrap;
-  }
-
-  Element nodeBadges(const Node& n) const {
-    const SkPoint c = centreOf(n.col, n.row);
-    // The source's -9/+9 badge offsets are measured from the ICON'S TOP-LEFT
-    // (iconX, iconY), which sits 8 GUI px up-left of centreOf(); the + terms
-    // then step from each badge cell's top-left to the art's own centre for
-    // centerAt().
-    const float tlx = c.fX - g(8), tly = c.fY - g(8);
-    Element g0 = box().inset(0);
-    if (culled(n.col, n.row)) return g0;
-    if (n.flagResearch)
-      g0.children(
-          {researchBadge().centerAt({tlx - g(9) + g(8), tly - g(9) + g(8)})});
-    if (n.flagPage)
-      g0.children(
-          {pageBadge().centerAt({tlx - g(9) + g(6), tly + g(9) + g(7)})});
-    return g0;
-  }
-
-  // -------------------------------------------------------------------------
-  // The frame: the stock brush::Pattern corner path (closed rect, four breaks).
-
-  Element frameBand() const {
-    const float in = g(9);
-    return box()
-        .inset(0)
-        .shape(keyedShape(in,
-                          [in](SkSize s) {
-                            SkPathBuilder p;
-                            p.addRect(SkRect::MakeLTRB(in, in, s.width() - in,
-                                                       s.height() - in));
-                            return p.detach();
-                          }))
-        // Bisector, spelled out even though it is the default. edgeEl() needs
-        // Outgoing because its elbow art is drawn along the outgoing leg and a
-        // 2x2 route is all corner; this corner art is a rotationally forgiving
-        // lozenge on a closed rect, so the bisector is the right alignment for
-        // it. Stating it keeps the two brushes' choices readable side by side.
-        .stroke(brush::Pattern{
-            .side = runTile,
-            .corner =
-                brush::CornerArt{cornerTile, brush::CornerAlign::Bisector},
-            .advance = g(64),
-            .cornerAngleDeg = 35.0f,
-            .cornerLength = g(20),
-            .stretchToFit = true,
-            .bleedPx = g(26)});
-  }
-
-  /** The inner rule: four OPEN contours that STOP SHORT of the corners — a
-   *  doubled rule whose inner line is dotted. Not a rounded rect anywhere. */
-  static Element innerRule() {
-    const float m = g(22), cut = g(26);
-    Element e =
-        box().inset(0).shape(keyedShape(std::tuple{m, cut}, [m, cut](SkSize s) {
-          const float l = m, t = m, r = s.width() - m, b = s.height() - m;
-          SkPathBuilder p;
-          p.moveTo(l + cut, t);
-          p.lineTo(r - cut, t);
-          p.moveTo(r, t + cut);
-          p.lineTo(r, b - cut);
-          p.moveTo(r - cut, b);
-          p.lineTo(l + cut, b);
-          p.moveTo(l, b - cut);
-          p.lineTo(l, t + cut);
-          return p.detach();
-        }));
-    Brush br;
-    lines::Line outer;
-    outer.width = g(1.2f);
-    outer.fill = Fill::color(sigil::material::scale(kBrassDark, 1.0f, 0.85f));
-    br.layer(outer);
-    lines::Line dotted;
-    dotted.width = g(0.8f);
-    dotted.fill = Fill::color(sigil::material::scale(kBrassLit, 0.85f, 0.65f));
-    dotted.dashIntervals = {g(1.2f), g(3.0f)};
-    br.layer(dotted, {shapers::Offset{.px = -g(2.5f), .step = g(3)}});
-    e.stroke(br);
-    return e;
-  }
-
-  // -------------------------------------------------------------------------
-  // The tab rail (:219-233, :1089-1103). Left column at x = 1, and the source
-  // stacks the seven buttons at y = 10 + i*24. The loop below starts one cell
-  // lower — y = 10 + (i+1)*24 — because these coordinates are measured from
-  // the screen origin rather than from the GUI's top inset, and at the source
-  // offset the first tab would sit under the frame band.
-  //
-  // There is no right-hand rail here, and that is the source's answer rather
-  // than an omission. updateResearch() splits categories with
-  // `for (String tcc : ConfigResearch.TCCategories) if (tcc.equals(rcl))` —
-  // anything in that array is added to categoriesTC and buttoned at x = 1,
-  // everything else lands in categoriesOther at x = width-17. And
-  // ConfigResearch:334 sets TCCategories to all seven vanilla categories, so
-  // the right column and its two GuiScrollButtons only ever appear once an
-  // ADDON registers one. Naming addon categories would be inventing text, so
-  // the right margin here carries what the mod actually puts there at this
-  // scroll: the web running off the edge under the frame band.
-  // the 22x22 plate at (x-3, y-3) is UV(13,13) — the SAME cell as the frame's
-  // four corners, which is why one art element serves both here.
-
-  /** ONE STROKE OF A RUNE, in the 16-px GUI cell the tab is drawn on. */
-  struct Stroke {
-    float x, y, w, h;
-  };
-  /** A CATEGORY TAB: its name, the aspect colour its rune is cut in, and
-   *  the rune itself as the strokes it is made of — seven distinct marks
-   *  stated as DATA, so the drawing is one loop and not a switch. */
-  struct Category {
-    const char* name;
-    uint32_t aspect;
-    std::span<const Stroke> rune;
-  };
-
-  Element tabRail() const {
-    static constexpr Stroke kFundamentals[] = {{7, 2, 2, 12}, {3, 6, 10, 2}};
-    static constexpr Stroke kAuromancy[] = {
-        {3, 4, 10, 2}, {3, 10, 10, 2}, {7, 4, 2, 8}};
-    static constexpr Stroke kAlchemy[] = {{4, 3, 8, 2},
-                                          {4, 3, 2, 10},
-                                          {10, 3, 2, 10},
-                                          {4, 11, 8, 2},
-                                          {7, 7, 2, 2}};
-    static constexpr Stroke kArtifice[] = {
-        {3, 7, 10, 2}, {6, 3, 2, 10}, {10, 3, 2, 10}};
-    static constexpr Stroke kInfusion[] = {
-        {7, 2, 2, 12}, {3, 5, 10, 2}, {5, 11, 6, 2}};
-    static constexpr Stroke kGolemancy[] = {
-        {6, 2, 4, 4}, {4, 7, 8, 4}, {5, 11, 2, 3}, {9, 11, 2, 3}};
-    static constexpr Stroke kEldritch[] = {
-        {3, 3, 2, 10}, {11, 3, 2, 10}, {5, 7, 6, 2}, {7, 3, 2, 4}};
-    static const Category kCats[7] = {
-        {"Fundamentals", aspect::kHerba, kFundamentals},
-        {"Auromancy", aspect::kAuram, kAuromancy},
-        {"Alchemy", aspect::kAlkimia, kAlchemy},
-        {"Artifice", aspect::kMachina, kArtifice},
-        {"Arcane Infusion", aspect::kPraecantatio, kInfusion},
-        {"Golemancy", aspect::kHumanus, kGolemancy},
-        {"Eldritch", aspect::kAlienis, kEldritch},
-    };
-    // ALCHEMY is the open category, so its boss is tinted and its rune is
-    // cut at full strength; the other six stand back.
-    const auto tab = [](const Category& cat, std::size_t i) {
-      const float y = 10.0f + (float)(i + 1) * 24.0f;
-      const bool selected = i == 2;
-      return box().inset(0).children(
-          {cornerPlate(selected ? sigil::material::Color{0.6f, 1.0f, 1.0f, 1}
-                                : sigil::material::Color{1, 1, 1, 1})
-               .left(g(-2 - 1))
-               .top(g(y - 3 - 1))
-               .opacity(selected ? 1.0f : 0.86f),
-           box()
-               .left(g(1))
-               .top(g(y))
-               .width(g(16))
-               .height(g(16))
-               .opacity(selected ? 1.0f : 0.8f)
-               .background(prog([cat, selected](SkCanvas& c) {
-                 const kit::PixelInk k{c, U};
-                 const sigil::material::Color col =
-                     hexColor(cat.aspect, selected ? 1.0f : 0.66f);
-                 for (const Stroke& mark : cat.rune)
-                   k.rect(mark.x, mark.y, mark.w, mark.h, col);
-               }))});
-    };
-    Element rail = box().inset(0).children({each(kCats, tab)});
-    // the search button (:170, UV 160,16 at x=1, y=height-17), 0.8 grey
-    rail.children({box()
-                       .left(g(1))
-                       .top(g(kGuiH - 17))
-                       .width(g(16))
-                       .height(g(16))
-                       .opacity(0.8f)
-                       .background(prog([](SkCanvas& c) {
-                         SkPaint p;
-                         p.setAntiAlias(true);
-                         p.setStyle(SkPaint::kStroke_Style);
-                         p.setStrokeWidth(g(1.6f));
-                         p.setColor4f(
-                             sigil::material::skia::toSkColor(kBrassLit),
-                             nullptr);
-                         c.drawCircle(g(6.5f), g(6.5f), g(4.2f), p);
-                         c.drawLine(g(9.5f), g(9.5f), g(13.5f), g(13.5f), p);
-                       }))});
+    if (const auto search = icons.find("search"); search != icons.end())
+      rail.children({kit::pixelSprite(search->second, {.cell = kPixel})
+                         .left(gui(1))
+                         .top(gui(383))});
     return rail;
-  }
-
-  // -------------------------------------------------------------------------
-  // The tooltip. UtilsFX.drawCustomTooltip at (mx+3, my-3) for the hovered
-  // node (:761-796): a gold title, then the missing-research block in red with
-  // one yellow line per unknown parent. THAUMATORIUM is hovered; its parents
-  // are CENTRIFUGE (not complete) and ESSENTIASMELTERTHAUMIUM (complete), so
-  // exactly one line follows. It overlaps two edges and bleeds past the inner
-  // rule, which is what a tooltip at the right-hand end of the tree does.
-
-  Element tooltip() const {
-    const PixText a = tipTitle, b = tipMissing, d = tipParent;
-    const float wd = (float)std::max({a.w, b.w, d.w}) + 1.0f;
-    const float ht = 3.0f * 10.0f;
-    // THAUMATORIUM's hover box is 20x20 at (iconX-2, iconY-2); the cursor
-    // sits inside it, and drawCustomTooltip anchors at (mx+3, my-3). At this
-    // column that would run off the right edge, so it FLIPS to the cursor's
-    // left — the vanilla clamp, and the reason the card ends up lying across
-    // three edges and two neighbours instead of hanging in clear space.
-    const Node& hovered = nodeByKey(kHovered);
-    const SkPoint hc = centreOf(hovered.col, hovered.row);
-    const float mx = hc.fX / U + 2, my = hc.fY / U + 4;
-    const float x = (mx + 3 + wd + 4 <= kGuiW) ? mx + 3 : mx - 3 - wd;
-    const float y = my - 3;
-    return box().inset(0).background(prog([a, b, d, x, y, wd, ht](SkCanvas& c) {
-      SkPaint p;
-      p.setAntiAlias(false);
-      // Vanilla GuiScreen.drawHoveringText fills k1-3 .. k1+j1+3 under a
-      // k1-4 .. k1-3 top strip, i.e. THREE px of sill below the last
-      // line — not one. One px of sill is not enough room for a descender
-      // plus its 1 px shadow, which then cross the inner border.
-      const SkRect r =
-          SkRect::MakeLTRB(g(x - 4), g(y - 4), g(x + wd + 4), g(y + ht + 3));
-      p.setColor4f(sigil::material::skia::toSkColor(hexColor(0x100010, 0.94f)),
-                   nullptr);
-      c.drawRect(r, p);
-      // the vanilla two-tone inner border
-      p.setStyle(SkPaint::kStroke_Style);
-      p.setStrokeWidth(g(1));
-      p.setColor4f(sigil::material::skia::toSkColor(hexColor(0x5000FF, 0.31f)),
-                   nullptr);
-      c.drawRect(r.makeInset(g(1), g(1)), p);
-      p.setColor4f(sigil::material::skia::toSkColor(hexColor(0x28007F, 0.31f)),
-                   nullptr);
-      c.drawRect(r.makeInset(g(2), g(2)), p);
-      blitText(c, a, x, y, kTextGold);
-      blitText(c, b, x, y + 10, kTextRed);
-      blitText(c, d, x, y + 20, kTextYellow);
-    }));
   }
 
   // -------------------------------------------------------------------------
 
   void setup(sketch::SketchContext& ctx) {
-    // The plate at exactly 2x. One GUI px is two canvas px and four device
-    // px, so every stamped tile on the 24-px lattice lands whole.
-    sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
-                             .captureAt = 6.0,
-                             .background = hexColor(0x0B0906),
+    sketch::kit::stage(ctx, {.size = kCanvas,
+                             .captureAt = 0.3,
+                             .background = hexColor(0x0B0806),
                              .oversample = 2});
 
-    face = systemFace();
-    if (ctx.fonts) {
-      // The size is load-bearing; see kPixSizePx and the note above it.
-      // The three lines are READ OFF THE GRAPH: the hovered node's own
-      // title, and the title of the one parent of it that is not complete.
-      // A retyped line could disagree with the web it describes.
-      tipTitle =
-          bakeText(nodeByKey(kHovered).title, *ctx.fonts, face, kPixSizePx);
-      tipMissing =
-          bakeText("Missing required research:", *ctx.fonts, face, kPixSizePx);
-      tipParent = bakeText(std::string(" - ") + nodeByKey(kMissing).title,
-                           *ctx.fonts, face, kPixSizePx);
+    const auto icon_document = ctx.assets.json(ctx.local("data/icons.json"));
+    for (const auto& [name, icon] : icon_document->fields()) {
+      icons[name] = readIcon(icon, false);
+      greyedIcons[name] = readIcon(icon, true);
     }
+    const auto document = ctx.assets.json(ctx.local("data/research.json"));
+    const std::vector<Research> web = readResearch(*document);
+    const std::string hovered((*document)["hovered"].text());
 
-    for (int t = 0; t < 3; ++t) {
-      const sigil::material::Color tint = tierTint((EdgeTier)t, kInkBody);
-      spatter[t] = spatterCell(tint);
-      knot[t] = knotCell(tint);
-      straight[t] = straightTile(tint, spatter[t], knot[t]);
-      for (int q = 0; q < 4; ++q) {
-        const bool big = q >= 2;
-        const float handed = ((unsigned)q & 1u) ? 1.0f : -1.0f;
-        elbows[t][(size_t)q] =
-            elbowTile(cornerArm(big), handed, tint, spatter[t], knot[t]);
-      }
+    // The view is centred on the middle of the web's own bounds.
+    int left = 0, right = 0, top = 0, bottom = 0;
+    for (const Research& research : web) {
+      left = std::min(left, research.column), right = std::max(right, research.column);
+      top = std::min(top, research.row), bottom = std::max(bottom, research.row);
     }
-    runTile = frameRun();
-    cornerTile = cornerPlate({1, 1, 1, 1});
-    for (int glyph = 0; glyph <= gSprayer; ++glyph)
-      glyphs.push_back(glyphSprite(glyph));
+    const auto centreOf = [&](const Research& research) {
+      return SkPoint{gui(320 + ((float)research.column - (float)(left + right) / 2) * kCell),
+                     gui(200 + ((float)research.row - (float)(top + bottom) / 2) * kCell)};
+    };
+    const auto find = [&](std::string_view key) -> const Research* {
+      for (const Research& research : web)
+        if (research.key == key) return &research;
+      return nullptr;
+    };
 
-    // ---- motion ----------------------------------------------------------
+    // Thaumcraft's pulse: every unlockable plate brightens and dims together
+    // on a 600 ms sine between half and full brightness.
     ctx.ticker.add([this, &ticker = ctx.ticker] {
-      const double t = ticker.elapsed();
-      // :610 — sin(systemTime % 600 / 600 * 2pi) * 0.25 + 0.75, wall clock,
-      // so every unlockable node is in lockstep with zero phase offset.
-      pulse =
-          (float)(std::sin(std::fmod(t, 0.6) / 0.6 * 6.2831853) * 0.25 + 0.75);
-      spin = (float)std::fmod(t * 0.06, 1.0);
-      driftX = (float)(std::sin(t * 0.17) * 26.0);
-      driftY = (float)(std::cos(t * 0.11) * 16.0);
+      veil = (float)(0.25 - 0.25 * std::sin(std::fmod(ticker.elapsed(), 0.6) / 0.6 * 6.2831853));
     });
 
-    // ---- the tree --------------------------------------------------------
-    Element root = box().inset(0);
-
-    // 0. drawDefaultBackground (the world under the GUI, then the vanilla
-    //    0xC0101010 -> 0xD0101010 wash) is NOT drawn, because at this
-    //    resolution nothing of it would be visible: the painted backdrop
-    //    plate covers GUI 14..413 x 14..253 opaquely and the frame band covers
-    //    0..20 and 407..427 / 247..267, and their union is the whole canvas.
-    //    Drawing it anyway would cost a full-canvas gradient every frame — a
-    //    SHADER, which a cached picture replays as a draw call rather than as
-    //    pixels — for no visible result. The clear colour stands in for it
-    //    wherever the frame's corner art leaves a hairline.
-
-    // 1. the parallax pair, clipped to (startX-2, startY-2, screenX+4,
-    //    screenY+4) and moved at the source's 2.0 : 1.5 divisors.
-    Element plate = box()
-                        .left(g(kStartX - 2))
-                        .top(g(kStartY - 2))
-                        .width(g(kScreenX + 4))
-                        .height(g(kScreenY + 4))
-                        .overflow(Overflow::Clip);
-    plate.children({backdropBase()
-                        .cache(Cache::Texture)
-                        .translateX(bind(&driftX).scale(-U / 2.0f))
-                        .translateY(bind(&driftY).scale(-U / 2.0f)),
-                    backdropOver()
-                        .cache(Cache::Texture)
-                        .translateX(bind(&driftX).scale(-U / 1.5f))
-                        .translateY(bind(&driftY).scale(-U / 1.5f))});
-    root.children({std::move(plate)});
-
-    // 2. the web. NOT clipped — the mod culls whole nodes at the viewport
-    //    edge (:598) and lets everything else run out under the frame band,
-    //    which is drawn last and covers the margin. That is why the tree
-    //    reads as a viewport onto something larger.
-    Element inner = box().inset(0);
-
-    // 2a. warp swirls go under everything (drawForbidden, :603).
-    for (const Node& n : kNodes)
-      if (n.warp > 0 && !culled(n.col, n.row)) {
-        const SkPoint c = centreOf(n.col, n.row);
-        inner.children({warpSwirl(&spin, n.warp).centerAt(c).zIndex(-1)});
+    // Each plate states the research it needs under the lane of its wire:
+    // known or unknown by whether that research is done, reversed when the
+    // plate says so. A prerequisite that lists this research as a sibling
+    // draws the sibling wire in its place.
+    std::vector<Element> plates;
+    for (const Research& research : web) {
+      std::map<std::string, std::vector<std::string>> lanes;
+      for (const std::string& key : research.parents) {
+        const Research* parent = find(key);
+        if (!parent || std::ranges::find(parent->siblings, research.key) != parent->siblings.end()) continue;
+        lanes[std::string(parent->state == "complete" ? "known" : "unknown") +
+              (research.reverse ? "-reversed" : "")]
+            .push_back(key);
       }
-
-    // 2b. the edges, in unlock order — the delay on each wire's own span
-    //     cascades the entrance outward from BASEALCHEMY. The wires are
-    //     operators of this box, since it is the one that holds both the
-    //     plates they run between and the arrowheads that mark them.
-    std::vector<Operator> wires;
-    std::vector<int> order = edgeOrder();
-    int k = 0;
-    for (int i : order) wires.push_back(edgeEl(kEdges[i], k++));
-    inner.operators(std::move(wires));
-    for (int i : order)
-      if (kEdges[i].tier != kSiblingKnown) inner.children({arrowEl(kEdges[i])});
-
-    // 2c. the plates, then the badges at full brightness over them.
-    Element plates = box().inset(0).zIndex(10);
-    for (const Node& n : kNodes) plates.children({nodePlate(n)});
-    for (const Node& n : kNodes)
-      if (n.flagResearch || n.flagPage) plates.children({nodeBadges(n)});
-    inner.children({std::move(plates)});
-
-    root.children({std::move(inner),
-                   // 3. the frame, drawn last (genResearchBackgroundFixedPost).
-                   innerRule(), frameBand(), tabRail(),
-                   // 4. the hover tooltip, over everything including the frame.
-                   tooltip()});
-
-    ctx.composer.render(root);
-  }
-
-  /** BFS depth from BASEALCHEMY, so the draw-on cascade runs outward the way
-   *  the research actually unlocks. */
-  static std::vector<int> edgeOrder() {
-    std::array<int, kNodeCount> depth{};
-    depth.fill(99);
-    depth[(size_t)indexByKey("BASEALCHEMY")] = 0;
-    for (int pass = 0; pass < 8; ++pass)
-      for (const Edge& e : kEdges) {
-        const int ci = indexByKey(e.child), pi = indexByKey(e.parent);
-        depth[(size_t)ci] = std::min(depth[(size_t)ci], depth[(size_t)pi] + 1);
+      if (!research.siblings.empty()) lanes["sibling"] = research.siblings;
+      const SkPoint centre = centreOf(research);
+      Element node = plate(research).centerAt(centre).zIndex(10);
+      for (const auto& [lane, keys] : lanes) node.attribute(lane, keys);
+      if (!research.badges.empty()) node.attribute("badges", research.badges);
+      if (research.key == hovered && ctx.fonts) {
+        std::vector<std::string> lines = {research.title, "Missing required research:"};
+        for (const std::string& key : research.parents)
+          if (const Research* parent = find(key); parent && parent->state != "complete")
+            lines.push_back(" - " + parent->title);
+        node.attribute("tooltip", tooltip(*ctx.fonts, lines));
       }
-    std::vector<int> idx;
-    idx.reserve((size_t)kEdgeCount);
-    for (int i = 0; i < kEdgeCount; ++i) idx.push_back(i);
-    std::sort(idx.begin(), idx.end(), [&](int a, int b) {
-      return depth[(size_t)indexByKey(kEdges[a].child)] <
-             depth[(size_t)indexByKey(kEdges[b].child)];
-    });
-    return idx;
+      plates.push_back(node);
+    }
+
+    std::vector<Operator> operators;
+    for (const WireKind& kind : kWires) operators.push_back(wires(kind));
+    operators.push_back(badges());
+    operators.push_back(Operator(pin::ByLane{.lane = "tooltip"}).zIndex(30));
+
+    const SkSize viewport = {gui(640 - 2 * kInset), gui(400 - 2 * kInset)};
+    ctx.composer.render(box().inset(0).children({
+        kit::at(gui(kInset), gui(kInset), viewport.width(), viewport.height())
+            .overflow(Overflow::Clip)
+            .cache(Cache::Texture)
+            .children({nebula(viewport)}),
+        box().inset(0).operators(std::move(operators)).children(plates),
+        frame(),
+        tabs(),
+    }));
   }
 };
 
 SIGIL_SKETCH(Thaumonomicon, "Study · Game UI",
-             "Thaumcraft 6's research browser (2018) — edges that are "
-             "stamped art, not strokes")
+             "Thaumcraft 4's research browser, Alchemy open — a web of "
+             "research plates read from data, wired by what each one needs")
