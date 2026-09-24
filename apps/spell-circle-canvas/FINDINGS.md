@@ -943,3 +943,22 @@ The sketch keeps the call, with a comment beside the ground stating
 the constraint, so the grain appears when the kit's grain holds its
 strength on a dark ground.
 
+
+## `sigillum_aemeth` still marks a workaround for an echo that now follows the path
+
+`src/sketch/sketches/sigillum_aemeth/sigillum_aemeth.cpp` (around line
+130) carries a `workaround:` line above `onSide`, saying a layer
+style's echo is stamped as a straight run at the box's origin rather
+than along the text's path, so its heptagon runs set with `textOnPath`
+go without the incised echo `incised` gives every straight run. A
+layer style's echo now re-stamps a path-set run along its path, glyph
+for glyph as the real pass places it
+(`ComposeTextPathEcho` asserts it), so `grep -r workaround:` lists a
+compensation for a defect that no longer exists.
+
+What the sketch evidently intends is every lettered run incised alike:
+`onSide` should set its run through `incised` (or state the same
+`LayerStyle::echo`) and the `workaround:` line should go. The plate
+moves where the seven side runs gain their lit lip below and to the
+right of each letter, and nowhere else; that move, explained in the
+commit, is the check.
