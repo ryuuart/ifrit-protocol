@@ -5,12 +5,14 @@
  * into what the lane behind it is asked through.
  */
 
+#include <sigilmotion/clock/ClockPolicy.h>
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/plate/Thumbnails.h>
 
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -38,6 +40,8 @@ struct Arguments {
   CaptureOptions capture;
   WindowBench windowBench;
   bool headless = false, list = false, catalog = false, gpu = false;
+  /** Whether `--headless` named the directory its plates go into. */
+  bool headlessDirectoryNamed = false;
   bool noGpu = false;
   bool pythonInfo = false;
   bool noRestore = false;
@@ -53,7 +57,15 @@ struct Arguments {
    *  kind in a directory of its own. Empty leaves each where the platform
    *  keeps it. */
   std::filesystem::path stateDirectory;
-  std::optional<bool> deterministic;
+  /** WHO MOVES THE CLOCK a still's session is drawn at: `--deterministic`
+   *  is a client's steps (Advance), `--no-deterministic` the wall's.
+   *  Unstated, a still is taken under Advance and a measurement under the
+   *  wall's clock. */
+  std::optional<sigil::motion::ClockPolicy> clockPolicy;
+  /** THE PROTOCOL'S ENDPOINT, as `--inspect` or `--inspect=PORT` asked
+   *  for it: the port to hold, 0 for any free one. Unstated, the window
+   *  mounts it on a free port anyway and every other run mounts none. */
+  std::optional<uint16_t> inspectPort;
 };
 
 /** Reads the whole command line. Nothing when a flag was not understood

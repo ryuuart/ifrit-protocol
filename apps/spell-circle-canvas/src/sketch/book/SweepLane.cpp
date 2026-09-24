@@ -11,8 +11,10 @@
 
 #include <cstdio>
 #include <exception>
+#include <optional>
 
 #include "Arguments.h"
+#include "Inspection.h"
 #include "PipelineStore.h"
 #include "PipelineWarm.h"
 #include "Startup.h"
@@ -60,12 +62,22 @@ int runSweep(const Arguments& args, int chosen,
   // was is whatever the one before it happened to print. There is no
   // one file to name here — the sweep names the entry it is on.
   sketch::installCrashReporter({});
+  // `--inspect` ON A SWEEP answers `host` and `registry` between sketches,
+  // on the thread the sweep draws on; with no client attached a dispatch
+  // runs no handler, and nothing a plate holds depends on it.
+  std::optional<Inspection> inspection;
+  if (args.inspectPort) {
+    inspection.emplace(*args.inspectPort,
+                       sketch::CatalogSources{SIGIL_SKETCH_DIR, {}, {}});
+    options.betweenSketches = [&inspection] { inspection->dispatch(); };
+  }
   int result = 1;
   try {
     result = sketch::sweep(options, fonts(), assets());
   } catch (const std::exception& error) {
     std::fprintf(stderr, "sketch sweep failed: %s\n", error.what());
   }
+  inspection.reset();
   sharedWebEngine.shutdown();
   releaseDevice();
   // Last, so a program built on the way out is in the set too.

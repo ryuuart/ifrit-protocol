@@ -167,6 +167,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
   // be narrowed with --sketch on the next run.
   size_t plates = 0;
   for (int index : chosen) {
+    if (options.betweenSketches) options.betweenSketches();
     const Entry& entry = entries[index];
     // A SKETCH THIS MACHINE CANNOT DRAW IS SKIPPED RATHER THAN FAILED,
     // and no plate is written for it. What it would draw instead — a
@@ -502,6 +503,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     ++plates;
   }
 
+  if (options.betweenSketches) options.betweenSketches();
   if (anyShortened)
     std::printf(
         "\n* short run: too expensive for the full %d-frame warmup, so "

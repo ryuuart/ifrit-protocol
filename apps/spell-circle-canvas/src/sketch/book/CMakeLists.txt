@@ -20,10 +20,13 @@ qt_add_executable(Sketchbook
   PythonEnvironment.cpp PythonEnvironment.h
   Workspace.cpp Workspace.h
   FrameLane.cpp FrameLane.h
+  Inspection.cpp Inspection.h
   Keys.cpp Keys.h
   PipelineStore.cpp PipelineStore.h
   PipelineWarm.cpp PipelineWarm.h
   SketchbookRenderer.cpp SketchbookRenderer.h
+  ServeLane.cpp ServeLane.h
+  SketchbookProgram.h
   Startup.cpp Startup.h
   SweepLane.cpp SweepLane.h
   ThumbnailWarm.cpp ThumbnailWarm.h
@@ -104,8 +107,13 @@ qt_add_qml_module(Sketchbook
 # there are no compiled-in store directories. A run that names a state
 # root with `--state` keeps them under it instead.
 target_include_directories(Sketchbook PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+# The protocol: the agents a served host mounts and the endpoint every run
+# that answers one listens through, and the version host.describe names.
+target_compile_definitions(Sketchbook PRIVATE
+  SIGIL_SKETCHBOOK_VERSION="${PROJECT_VERSION}")
 target_link_libraries(Sketchbook PRIVATE
   SigilSketch SigilSketchPython SigilSketches SigilSketchesPython
+  SigilSketchSessionAgent SigilProtocolEndpoint
   SigilMeasure SigilWeavePorts SigilMaterial
   IfritQt IfritQtplugin Qt6::Gui Qt6::GuiPrivate Qt6::Quick Qt6::QuickControls2
   Qt6::QuickDialogs2)

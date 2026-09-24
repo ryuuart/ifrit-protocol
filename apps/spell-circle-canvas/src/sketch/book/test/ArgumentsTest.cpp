@@ -58,6 +58,33 @@ TEST(SketchbookArguments, AStateRootIsOneDirectoryNamedOnce) {
   EXPECT_FALSE(parse({"--thumbnails-dir", "thumbnails"}));
 }
 
+TEST(SketchbookArguments, InspectTakesAnOptionalPortOnce) {
+  const auto any = parse({"--inspect"});
+  ASSERT_TRUE(any);
+  EXPECT_EQ(any->inspectPort, std::optional<uint16_t>(0));
+  const auto stated = parse({"--inspect=9222"});
+  ASSERT_TRUE(stated);
+  EXPECT_EQ(stated->inspectPort, std::optional<uint16_t>(9222));
+  EXPECT_FALSE(parse({})->inspectPort);
+  EXPECT_FALSE(parse({"--inspect=", "--sketch", "cascade"}));
+  EXPECT_FALSE(parse({"--inspect=port"}));
+  EXPECT_FALSE(parse({"--inspect=70000"}));
+  EXPECT_FALSE(parse({"--inspect", "--inspect=1"}));
+}
+
+TEST(SketchbookArguments, TheDeterministicFlagsNameAClockPolicy) {
+  EXPECT_EQ(parse({"--deterministic"})->clockPolicy,
+            sigil::motion::ClockPolicy::Advance);
+  EXPECT_EQ(parse({"--no-deterministic"})->clockPolicy,
+            sigil::motion::ClockPolicy::Wall);
+  EXPECT_FALSE(parse({})->clockPolicy);
+}
+
+TEST(SketchbookArguments, AHeadlessRunSaysWhetherItNamedADirectory) {
+  EXPECT_FALSE(parse({"--headless", "--inspect"})->headlessDirectoryNamed);
+  EXPECT_TRUE(parse({"--headless", "plates"})->headlessDirectoryNamed);
+}
+
 TEST(SketchbookArguments, PythonInfoIsAStandaloneQuery) {
   const auto args = parse({"--python-info"});
   ASSERT_TRUE(args);

@@ -7,6 +7,7 @@
  * photographed, with the timing table printed beside it.
  */
 
+#include <functional>
 #include <string>
 #include <string_view>
 
@@ -115,6 +116,11 @@ struct SweepOptions {
   double at = -1.0;
   /** Skip the benchmark phases and go straight to the capture. */
   bool ledger = false;
+  /** Run before each sketch and once after the last, on the thread the
+   *  sweep draws on and between two sketches' frames: where a host that
+   *  answers a protocol while it sweeps dispatches its hub. Empty runs
+   *  nothing, and nothing a plate holds depends on it. */
+  std::function<void()> betweenSketches;
 };
 
 /** Runs the sweep. Returns 0 when every selected sketch rendered. */

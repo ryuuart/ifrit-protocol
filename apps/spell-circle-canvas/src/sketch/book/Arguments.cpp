@@ -32,8 +32,26 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     const std::string arg = argv[i];
     if (arg == "--headless") {
       args.headless = true;
-      if (i + 1 < argc && argv[i + 1][0] != '-')
+      if (i + 1 < argc && argv[i + 1][0] != '-') {
         args.sweepOptions.outputDirectory = argv[++i];
+        args.headlessDirectoryNamed = true;
+      }
+    } else if (arg == "--inspect" || arg.starts_with("--inspect=")) {
+      if (args.inspectPort) {
+        std::fprintf(stderr, "--inspect can be supplied only once\n");
+        return std::nullopt;
+      }
+      args.inspectPort = 0;
+      if (arg.size() > 9) {
+        const std::string port = arg.substr(10);
+        char* end = nullptr;
+        const unsigned long value = std::strtoul(port.c_str(), &end, 10);
+        if (port.empty() || *end != '\0' || value > 65535) {
+          std::fprintf(stderr, "--inspect=PORT takes a port from 0 to 65535\n");
+          return std::nullopt;
+        }
+        args.inspectPort = (uint16_t)value;
+      }
     } else if (arg == "--list") {
       args.list = true;
     } else if (arg == "--catalog") {
@@ -188,9 +206,9 @@ std::optional<Arguments> parseArguments(int argc, char* argv[]) {
     } else if (arg == "--bench-frames" && i + 1 < argc) {
       args.capture.benchFrames = std::max(1, std::stoi(argv[++i]));
     } else if (arg == "--deterministic") {
-      args.deterministic = true;
+      args.clockPolicy = sigil::motion::ClockPolicy::Advance;
     } else if (arg == "--no-deterministic") {
-      args.deterministic = false;
+      args.clockPolicy = sigil::motion::ClockPolicy::Wall;
     } else if (arg == "--jitter-dt") {
       // The amplitude is optional: a bare flag takes the default, and
       // only a following token that reads as a number is consumed.

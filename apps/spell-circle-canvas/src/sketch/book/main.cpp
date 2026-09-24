@@ -23,7 +23,11 @@
  *   Sketchbook <file.cpp> --frame <png> [--at <s>] [--scale <n>]
  *              [--frames <count>] [--fps <n>] [--gpu]
  *              [--deterministic | --no-deterministic]
- *                                              a file, photographed
+ *                                              a file, photographed; the
+ *                                              pair names the clock policy
+ *                                              its session is opened for:
+ *                                              Advance (the default) or
+ *                                              the wall's
  *   Sketchbook <file.cpp> --bench [--bench-frames <n>]
  *              [--jitter-dt [<amplitude>]] [--at <s>] [--scale <n>]
  *              [--fps <n>] [--gpu]
@@ -46,6 +50,17 @@
  *   … [--state <dir>]                          where this run keeps builds,
  *                                              thumbnails, recorded device
  *                                              programs and settings
+ *   … [--inspect[=<port>]]                     the protocol's endpoint on
+ *                                              loopback, on the port named
+ *                                              or any free one; the window
+ *                                              mounts it unasked, a sweep
+ *                                              only when asked, and every
+ *                                              other lane refuses it
+ *   Sketchbook --headless --inspect[=<port>] [--state <dir>]
+ *                                              no window and no plates: a
+ *                                              host a client drives over
+ *                                              the protocol until it is
+ *                                              interrupted
  *   … --python-executable <path> --python-abi <abi>
  *                                              the Python environment
  *
@@ -98,6 +113,7 @@
 #include <QtCore/QProcessEnvironment>
 #include <QtCore/QSettings>
 #include <QtCore/QSysInfo>
+#include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQuick/QQuickItem>
@@ -115,6 +131,7 @@
 #include "Arguments.h"
 #include "CatalogRowMap.h"
 #include "FrameLane.h"
+#include "Inspection.h"
 #include "PipelineStore.h"
 #include "PipelineWarm.h"
 #include "PythonEnvironment.h"
@@ -122,6 +139,7 @@
 #include "SketchCatalog.h"
 #include "SketchbookView.h"
 #include "Startup.h"
+#include "ServeLane.h"
 #include "SweepLane.h"
 #include "ThumbnailWarm.h"
 #include "VideoLane.h"
@@ -130,6 +148,33 @@
 #include "Workspace.h"
 
 namespace sketch = sigil::sketch;
+
+namespace {
+
+/** How often the window's event loop answers the protocol: within a frame
+ *  or two of a request, and nothing when no client is attached. */
+constexpr int kInspectionPumpMilliseconds = 30;
+
+/** THE SESSION THE WINDOW SHOWS, as `host.describe` lists it, read under
+ *  the lock the window's render thread draws under. */
+Inspection::Sessions windowSessions() {
+  return [] {
+    std::vector<OpenSession> open;
+    QMutexLocker lock(&SketchbookView::hostMutex);
+    const sketch::Host* host = SketchbookView::host;
+    if (!host || !host->live()) return open;
+    OpenSession session;
+    session.sketch = host->sketchPath().string();
+    session.kind = std::string(host->kind());
+    session.width = host->canvasSize().width();
+    session.height = host->canvasSize().height();
+    session.moment = host->captureSeconds();
+    open.push_back(std::move(session));
+    return open;
+  };
+}
+
+}  // namespace
 
 // an uncaught exception ends the app with its message
 // NOLINTNEXTLINE(bugprone-exception-escape)
@@ -328,6 +373,22 @@ int main(int argc, char* argv[]) {
     return 2;
   }
 
+  // THE PROTOCOL SERVES A HOST A CLIENT DRIVES, so a run that ends once its
+  // output is written has nothing to serve: `--inspect` is refused there,
+  // as a browser's headless commands refuse its debugging port. A sweep
+  // mounts it between its sketches; the window mounts it unasked.
+  if (args.inspectPort &&
+      (args.list || args.catalog || args.warmThumbnails ||
+       !args.compareOptions.first.empty() ||
+       !args.storyOptions.outputPath.empty() ||
+       !args.capture.outputPath.empty() || args.capture.bench)) {
+    std::fprintf(stderr,
+                 "--inspect: this run ends once its output is written, and "
+                 "a client has nothing to drive; `--headless --inspect` "
+                 "serves a host with no window\n");
+    return 2;
+  }
+
   // NOTHING IS OPENED FOR A COMPARISON: it reads two directories of
   // finished plates, so it wants no fonts, no assets, no device and no
   // registry — and it answers before any of them is built.
@@ -412,6 +473,13 @@ int main(int argc, char* argv[]) {
       args.storyOptions.framesPerSketch > 0)
     return runVideo(args, chosen, materialWarmup);
 
+  // `--headless --inspect` WITH NOTHING TO SWEEP SERVES: no directory, no
+  // sketch and no kind named, so what it is for is a client.
+  if (args.headless && args.inspectPort && !args.headlessDirectoryNamed &&
+      args.selected.empty() && args.kind.empty())
+    return runServe(args, flagsFileNear(executableDirectory(argv[0])),
+                    materialWarmup);
+
   if (args.headless) return runSweep(args, chosen, materialWarmup);
 
   // ---- one file, live or measured -------------------------------------
@@ -426,13 +494,17 @@ int main(int argc, char* argv[]) {
 
   sketch::Host::Options options;
   options.pythonLoader = &sketch::python::load;
-  // DETERMINISTIC BY DEFAULT WHEN CAPTURING. A capture exists to be
-  // looked at or diffed, and a sketch that draws its own bake time into
-  // its own plate differs from itself between two runs — so a pixel
-  // sweep reports it as changed by a patch that changed nothing. The
-  // live host keeps its real numbers, which is where they are wanted.
-  options.deterministic = args.deterministic.value_or(
-      !args.capture.outputPath.empty() && !args.capture.bench);
+  // A STILL IS TAKEN UNDER A CLIENT'S CLOCK BY DEFAULT. A capture exists
+  // to be looked at or diffed, and a sketch that draws its own bake time
+  // into its own plate differs from itself between two runs — so a pixel
+  // sweep reports it as changed by a patch that changed nothing. Its
+  // session is opened for the Advance policy, which pins those numbers;
+  // a measurement and the live host keep the wall's clock and their real
+  // numbers, which is where they are wanted.
+  options.clock = args.clockPolicy.value_or(
+      !args.capture.outputPath.empty() && !args.capture.bench
+          ? sigil::motion::ClockPolicy::Advance
+          : sigil::motion::ClockPolicy::Wall);
   // WHAT MOUNTS AT res:// unless `--assets` says otherwise: for a sketch
   // of this repository the demo assets root, and for a file anywhere else
   // on disk the assets beside it, which the host defaults to when this is
@@ -609,6 +681,19 @@ int main(int argc, char* argv[]) {
   QGuiApplication application(argc, argv);
   if (remembersWindow && (!args.workspace.empty() || fileGiven))
     history.remember({args.workspace, args.sketchFile});
+
+  // THE PROTOCOL, ON BY DEFAULT: an endpoint on loopback answering `host`
+  // and `registry`, dispatched from this thread's event loop. With no
+  // client attached a dispatch runs no handler, so the window draws what
+  // it draws without one.
+  Inspection inspection(
+      args.inspectPort.value_or(0),
+      sketch::CatalogSources{sketchDirectory, workspaceSources, args.workspace},
+      windowSessions());
+  QTimer inspectionPump;
+  QObject::connect(&inspectionPump, &QTimer::timeout,
+                   [&inspection] { inspection.dispatch(); });
+  if (inspection.listening()) inspectionPump.start(kInspectionPumpMilliseconds);
 
   finishMaterialWarmup(materialWarmup);
   // AND THE SECOND COMPILE, DECLARED BEFORE ANYTHING CAN DRAW. The
