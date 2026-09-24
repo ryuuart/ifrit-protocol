@@ -41,10 +41,10 @@ that its pixels match the original.
 | Draw · Generative | 5 | 5 | 2 |
 | Draw · Observable reproductions | 15 | 15 | 4 |
 | Draw · Procedural | 8 | 8 | 1 |
-| Kit · API | 77 | 6 | 0 |
+| Kit · API | 77 | 7 | 0 |
 | Kit · Depth | 1 | 1 | 0 |
 | Compose · Typography | 1 | 1 | 1 |
-| Specimen | 13 | 2 | 0 |
+| Specimen | 13 | 3 | 0 |
 | Set | 11 | 0 | 0 |
 | Data | 12 | 0 | 0 |
 | Media | 5 | 1 | 0 |
@@ -62,7 +62,7 @@ that its pixels match the original.
 | Study · Esoteric | 3 | 0 | 0 |
 | Study · Screens | 6 | 0 | 0 |
 | Study · Game UI | 9 | 0 | 0 |
-| **All** | **220** | **48** | **9** |
+| **All** | **220** | **50** | **9** |
 
 Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 · Procedural, Kit · Depth, Compose · Typography and Study · Paint is bound.
@@ -79,6 +79,7 @@ One surface alone stands between each of these sketches and a translation:
 - `SkSurfaces::Raster` standalone raster surfaces: `encode_write`.
 - `compose::LayeredBrush` stroke layers: `lain_navi`.
 - `compose::kit::aquaGel`, `y2kChrome`, `gloss` finishes: `surface_components`.
+- `compose::kit::ornament` palettes, frames and marks: `manuscript`.
 - `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`):
   `threaded_story`.
 - `geometry::path::PolarFrame` and `path::Grid`: `frame_grid`.
@@ -88,8 +89,6 @@ One surface alone stands between each of these sketches and a translation:
 - `material::sdf` shapes and styles: `sdf_star`.
 - `material::skia::PixelBuffer` and `Paint::buffer`: `paint_shelf`.
 - `sketch::kit::bars` over `data::Table`: `data_sources`.
-- `weave::HyphenationOptions::patterns` on a paragraph: `paragraph_sheet`.
-- `weave::kit` kinsoku and hanging stock tables: `cjk_rules`.
 
 These surfaces stand between the most sketches and a translation. Each is
 needed by eight or more; the catalog audit names every surface each sketch
@@ -164,8 +163,8 @@ These public modules are registered and export nothing yet:
 `sigil.io.publish`, `sigil.material.ocio`, `sigil.material.sdf`,
 `sigil.material.slang`, `sigil.material.stock`, `sigil.material.texture`,
 `sigil.measure`, `sigil.motion.physics`, `sigil.skia.draw`, `sigil.video`,
-`sigil.weave.kit.hanging`, `sigil.weave.kit.kinsoku`, `sigil.weave.paint`,
-`sigil.weave.ports`, `sigil.world.diligent` and `sigil.world.graph`.
+`sigil.weave.paint`, `sigil.weave.ports`, `sigil.world.diligent` and
+`sigil.world.graph`.
 
 ### Hosting and runtime
 
@@ -201,10 +200,10 @@ Python environment.
 
 | Surface | Bound | Not yet bound |
 | --- | --- | --- |
-| Retained typography | `Type` and `TextStyle` with em, rem, lh, ch and pt lengths, a field written as a keyword through `TypeField`; `PaintStyle`, `PaintLayer`, `Decoration` and the kit shadow, glow and outline layers; `ParagraphBlock` and `ParagraphStyle` with leading, justification and its method, hyphenation limits, tabs, indents, keeps, initial letters, reserved bands and the kinsoku, hanging and mojikumi tables; `FrameOptions` through `ParagraphLayoutOptions.frame` and the `Text` verbs `textFirstBaseline` and `textThreadBalance`; `TypeSheet` and Compose's `StyleSheet`; `RichText` with slots; `Story`; `weave.selectors` and Compose `selectors`; `TextPath`; Compose `Annotation`; vertical writing through `ParagraphBlock.writingMode` and `Type.verticalForm`; `reshapes` and a stated `defaultFace` | `weave::overlay` and `merge`; `HyphenationOptions::patterns` in a paragraph's style; `weave::paint::setMaterialResolver`, which a canvas session already installs, so a paint layer's material shades without one |
+| Retained typography | `Type` and `TextStyle` with em, rem, lh, ch and pt lengths, a field written as a keyword through `TypeField`; `PaintStyle`, `PaintLayer`, `Decoration` and the kit shadow, glow and outline layers; `ParagraphBlock` and `ParagraphStyle` with leading, justification and its method, hyphenation limits, tabs, indents, keeps, initial letters, reserved bands and the kinsoku, hanging and mojikumi tables; `FrameOptions` through `ParagraphLayoutOptions.frame` and the `Text` verbs `textFirstBaseline` and `textThreadBalance`; `TypeSheet` and Compose's `StyleSheet`; `RichText` with slots; `Story`; `weave.selectors` and Compose `selectors`; `TextPath`; Compose `Annotation`; vertical writing through `ParagraphBlock.writingMode` and `Type.verticalForm`; `reshapes` and a stated `defaultFace`; `weave.HyphenationOptions.patterns` | `weave::overlay` and `merge`; `weave::paint::setMaterialResolver`, which a canvas session already installs, so a paint layer's material shades without one |
 | Paragraph engine | `Paragraph` editing and inspection over UTF-16 ranges; `ParagraphBuilder`; a thread-checked `FontContext` over the system font manager; `BlockFlow`, `VerticalBlockFlow`, `PathFlow`, `LineSetFlow` and `ExclusionFlow` with `flowshape` shapes; `layoutParagraph`, `layoutSingleLine` and their options; a `ParagraphLayout` with drawing, batched drawing, line and column metrics and glyph outlines, which refuses use once its paragraph changes; `findAllOccurrences`, `findRegexMatches`, `wordRanges` and `MarkerSet`; `layoutBeside`, `warichuSplit` and `layoutWarichu`; the `weave.unicode` leaf; `weave.Selector.state` | Python subclasses of `FlowGeometry`, `FlowShape` and `Hyphenator`; `FontContext` over a supplied font manager with a fallback resolver; `ports::face` family chains and width styles; `TextContext` and `TextLayout`; shaped words (`shapeWord`, `faceMetrics`, `lineHeightOf`, `Paragraph::words`); `ParagraphLayout::placeholderRects`; `LineInterval::contour` and `placeAt` |
 | Glyph choreography | Nothing | `ParagraphLayout::runs`, `PlacedGlyph` and `forEachPlacedGlyph`; `ParagraphLayout::GlyphStyles` batched per-glyph drawing; `GlyphDress`; `GlyphRSXformBatches`; live variation drawing; `kit::GlyphBuckets` and `drawPositionedGlyphs` |
-| Weave kit | `PatternHyphenator` with the English patterns; `dropShadow`, `glow` and `outline`; the `weave.features` presets and `stylisticSet`; `makeStyle` and `tracked` | `drawLabel`; `kinsoku::japanese`, `hanging::latin` and `hanging::japanese`; `LayoutGuard`; `mixedScriptFiller` |
+| Weave kit | `PatternHyphenator` with the English patterns, and the English table held once; `dropShadow`, `glow` and `outline`; the `weave.features` presets and `stylisticSet`; `makeStyle` and `tracked`; `weave.kit.kinsoku.japanese`, `weave.kit.hanging.latin` and `weave.kit.hanging.japanese` | `drawLabel`; `LayoutGuard`; `mixedScriptFiller` |
 
 <!-- prose: typography -->
 Group ruby is `weave.Unit.Selection`: one reading stands over the whole
@@ -411,7 +410,7 @@ model, arithmetic and data become Python code and are not listed.
 | `bullets_dropcap` | Initial letters; nested opening styles; flow around a shaped ornament; hanging list kit; font fallback; wells | `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`); `geometry::shapes` silhouette generators |
 | `cascade` | Inherited type, ink transitions, classes and custom properties; lexical environment values; pen and graphics leaves; readout kit | `sketch::kit::readout`; `core::environment::Provide` / `inheritedOr` values |
 | `channel_bind` | OSC connection on the hub; kit channels writing outputs; binding chains; recording mount; readout kit | `sketch::kit::readout`; `sketch::kit::Channel` address follower; `data::Connection` |
-| `cjk_rules` | Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume | `weave::kit` kinsoku and hanging stock tables |
+| `cjk_rules` | Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume | — |
 | `codec_roundtrip` | PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; mesh painter | `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
 | `compute_variant` | Set-kind hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback | Set sketches (`sketch::SetContext`, `describe`); `geometry::mesh::pop` point-operator chains; `geometry::mesh::curve::Spline3` and frames; `world::kit` rails (`wave`, `winding`, `rail`); `world::computePass` passes and `world::readback` |
 | `connect_by_lane` | Facts read by an arranging operator; wires attached by lane and by hand; stock orthogonal and arc routers; nested scopes; comparison kit | `compose::routers` stock routers |
@@ -505,10 +504,10 @@ model, arithmetic and data become Python code and are not listed.
 | `kinetic_card` | Per-glyph text effect tracks and presets on a cascade; shared phase output; beat meters read from composer; specimen theme | `compose::Text::textFx` text tracks; `compose::Composer::beatsOf` and `units`; `compose::textFx` kinetic presets (`rise`, `pop`, `typeOn`); `compose::kit::trackMeter` and `restGhost` instruments; `motion::Spread` and `motion::Cascade` schedules |
 | `noise_shelf` | Counter, state and lattice mixers; cache key folds; pen program fields; specimen cells, wells and section headers | `core::noise::hash` / `lattice` positional hashes; `core::hash` FNV-1a words |
 | `paint_shelf` | Radial, conical, sweep and unit gradients; world-space paint; revisioned pixel buffer paint; specimen section headers | `material::skia::PixelBuffer` and `Paint::buffer` |
-| `paragraph_sheet` | Paragraph styles: leading kinds, spacing, indents, justification, tab stops, vertical writing; caption kit; panel grids, ladders | `weave::HyphenationOptions::patterns` on a paragraph |
+| `paragraph_sheet` | Paragraph styles: leading kinds, spacing, indents, justification, tab stops, vertical writing; caption kit; panel grids, ladders | — |
 | `shape_tour` | Stock silhouette generators, parametric curves and corner operators; shaped filled boxes; captions and cell runs | `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::shapes` parametric curve generators |
 | `stroke_atlas` | Line, rail and layered brush decorations; shapers; stamp and corner patterns; borders and hatches; stock silhouettes; animated dashes | `compose::lines::Line` and `lines::Rails`; `compose::onEdges` and `compose::inset` adaptors; `compose::Border` and `compose::decorations::border` rules; `compose::Brush` shaped layer stacks; `compose::brush` scatter, pattern and art brushes; `compose::lines::Hatch` and `lines::RadialHatch`; `compose::Wash` material wash; `compose::ContourWalk` path-walk stamps; `compose::lines::presets` and `compose::brush::presets`; `SkPathBuilder::arcTo` and `skpathutils::FillPathWithPaint`; `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::shapes` parametric curve generators; `geometry::shapers` and `path::Shaper` |
-| `text_paints` | One ink across a word, a paragraph and a cropped long run; eight inks on display and body type from one sheet; chrome ramps; justified Knuth-Plass text with pattern hyphenation; measured passage files; wells and comparisons | `compose::kit::sunsetChromeType`, `silverChromeType` paints; `weave::HyphenationOptions::patterns` on a paragraph; `material::kit` text paints (`water`, `starNest`, `clouds`); `material::skia::Paint` SkShader interop |
+| `text_paints` | One ink across a word, a paragraph and a cropped long run; eight inks on display and body type from one sheet; chrome ramps; justified Knuth-Plass text with pattern hyphenation; measured passage files; wells and comparisons | `compose::kit::sunsetChromeType`, `silverChromeType` paints; `material::kit` text paints (`water`, `starNest`, `clouds`); `material::skia::Paint` SkShader interop |
 | `text_wrap` | `textWrap` and `textJustify` longhands over one passage at one measure; themed specimen page | — |
 | `ui particles` | Instanced atlas stamping from a live pool; fixed-step simulation; ornament nine-slice and flourish cards; scrim; gradients | `compose::Slice` nine-slice decoration; `compose::kit::ornament` palettes, frames and marks; `compose::kit::flourish` vines and cards; `compose::kit::scrim` and `drawHaloed` legibility |
 
@@ -566,7 +565,7 @@ model, arithmetic and data become Python code and are not listed.
 | `bousen` | Vertical blocks; decorated span paints; OpenType features; phrase marks; column cascade track; kit cells | `compose::Text::textFx` text tracks; `compose::Text::textAttach` selection marks; `compose::textFx` kinetic presets (`rise`, `pop`, `typeOn`); `motion::Spread` and `motion::Cascade` schedules |
 | `chrome_type` | Layer style presets on glyph boundaries; glow and bevel decorations; themed kit cells and page | `compose::styles` layer styles (glow, inner shadow, bevel); `compose::kit::aquaGel`, `y2kChrome`, `gloss` finishes |
 | `horizontal_flow` | Document kit; specimen theme, wells and captions; stock silhouettes; shape-following flowAround exclusions | `geometry::shapes` silhouette generators; `geometry::shapes` corner operators |
-| `manuscript` | Ornament kit; nested small-caps run; Knuth-Plass with pattern hyphenation; flowAround exclusions; texture cache; page-turn update | `compose::kit::ornament` palettes, frames and marks; `weave::HyphenationOptions::patterns` on a paragraph |
+| `manuscript` | Ornament kit; nested small-caps run; Knuth-Plass with pattern hyphenation; flowAround exclusions; texture cache; page-turn update | `compose::kit::ornament` palettes, frames and marks |
 | `mawarikomi` | Vertical writing mode; silhouette exclusions; clamped column ellipsis; document kit; specimen cells; gradient ground | `geometry::shapes` silhouette generators |
 | `ruby_kenten` | Vertical writing mode; reserved ruby and kenten annotations; specimen cells with style classes; gradient ground | — |
 | `tategaki` | Vertical rich text forms; span paint; per-cluster kinetic entrance; document kit; specimen cells | `compose::Text::textFx` text tracks; `compose::textFx` kinetic presets (`rise`, `pop`, `typeOn`); `motion::Spread` and `motion::Cascade` schedules |

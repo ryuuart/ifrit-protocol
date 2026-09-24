@@ -1,8 +1,10 @@
 /** @file
  * The English (US) hyphenation table, which is a page of data and nothing
- * else: it sits beside the algorithm that reads it rather than inside it.
+ * else: it sits beside the algorithm that reads it rather than inside it,
+ * with the one hyphenator loaded from it that every passage shares.
  */
 
+#include <memory>
 #include <string>
 #include <string_view>
 
@@ -421,6 +423,13 @@ std::string_view englishHyphenationPatterns() {
       "present presents project projects reci-procity re-cog-ni-zance "
       "ref-or-ma-tion ret-ri-bu-tion ta-ble";
   return kPatterns;
+}
+
+std::shared_ptr<const PatternHyphenator> englishHyphenator() {
+  static const std::shared_ptr<const PatternHyphenator> kEnglish =
+      std::make_shared<const PatternHyphenator>("en",
+                                                englishHyphenationPatterns());
+  return kEnglish;
 }
 
 }  // namespace sigil::weave::kit

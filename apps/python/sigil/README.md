@@ -1196,7 +1196,12 @@ ink verbs, re-shaping only where a shaping field is stated; Compose's `selectors
 address named runs and story frames. Selector ranges use native UTF-16 offsets.
 
 `ParagraphBlock` exposes leading, alignment, justification, hyphenation settings, tab
-stops, CJK line tables and writing mode. `ParagraphStyle` adds per-paragraph
+stops, CJK line tables and writing mode. `HyphenationOptions(patterns=...)` holds
+the table a word breaks by, so `hyphens(HyphenationOptions(patterns=kit.englishHyphenator()))`
+hyphenates a text leaf by pattern; `weave.kit.englishHyphenator()` is one shared
+English table. `weave.kit.hanging.latin()`, `hanging.japanese()` and
+`kinsoku.japanese()` are the stock line-edge tables a block's `hanging` and
+`kinsoku` take. `ParagraphStyle` adds per-paragraph
 spacing, indents, keeps, reservations and an initial letter. Give
 `paragraphStyles` a list or tuple of those styles, or of stylesheet names.
 `Story(passage)` with `frame(story).key(...).textThreadTo(...)` flows that same

@@ -117,7 +117,7 @@ target_link_libraries(SigilPython INTERFACE
 # retained callbacks and native kit values must work in another host.
 sigil_test(python_test
   SOURCES test/BindingsTest.cpp
-  LIBRARIES SigilPython
+  LIBRARIES SigilPython SigilWeaveKit
   DEFINITIONS SIGIL_PYTHON_PACKAGE_DIR="${SIGIL_PYTHON_PACKAGE_DIR}")
 
 sigil_doc_probes(python

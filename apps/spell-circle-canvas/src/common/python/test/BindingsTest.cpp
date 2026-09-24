@@ -3,6 +3,7 @@
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Python.h>
+#include <sigilweave/kit/LineTables.h>
 
 #include <memory>
 #include <stdexcept>
@@ -187,6 +188,30 @@ with tempfile.TemporaryDirectory() as folder:
         pass
 )",
            scope);
+}
+
+// THE STOCK LINE-EDGE TABLES ARE THE NATIVE ONES: what Python reads from
+// the kit's modules, and what a block handed one holds, is the C++ table
+// entry for entry.
+TEST(PythonBindings, WeaveKitLineTablesAreTheNativeTablesEntryForEntry) {
+  auto module = native();
+  py::dict scope;
+  scope["native"] = module;
+  py::exec(R"(
+w = native.weave
+latin = w.ParagraphBlock(hanging=w.kit.hanging.latin()).hanging
+hanging_japanese = w.ParagraphBlock(hanging=w.kit.hanging.japanese()).hanging
+kinsoku_japanese = w.ParagraphBlock(kinsoku=w.kit.kinsoku.japanese()).kinsoku
+assert len(latin.entries) > 0
+)",
+           scope);
+  namespace kit = sigil::weave::kit;
+  EXPECT_EQ(scope["latin"].cast<sigil::weave::HangingTable>(),
+            kit::hanging::latin());
+  EXPECT_EQ(scope["hanging_japanese"].cast<sigil::weave::HangingTable>(),
+            kit::hanging::japanese());
+  EXPECT_EQ(scope["kinsoku_japanese"].cast<sigil::weave::KinsokuTable>(),
+            kit::kinsoku::japanese());
 }
 
 TEST(PythonBindings, HostLifetimeReleasesRetainedBoundCallbacks) {

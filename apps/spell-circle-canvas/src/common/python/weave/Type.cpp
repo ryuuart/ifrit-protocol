@@ -269,7 +269,18 @@ void bindWeave(py::module_& module) {
       .def_readwrite("limits", &HyphenationOptions::limits)
       .def_readwrite("consecutiveLimit", &HyphenationOptions::consecutiveLimit)
       .def_readwrite("zone", &HyphenationOptions::zone)
-      .def_readwrite("lastWordOfBlock", &HyphenationOptions::lastWordOfBlock);
+      .def_readwrite("lastWordOfBlock", &HyphenationOptions::lastWordOfBlock)
+      // The table that proposes breaks inside words, held shared as the
+      // native field holds it; None leaves only the soft hyphens typed in.
+      .def_property(
+          "patterns",
+          [](const HyphenationOptions& options) {
+            return std::const_pointer_cast<Hyphenator>(options.patterns);
+          },
+          [](HyphenationOptions& options,
+             std::shared_ptr<Hyphenator> patterns) {
+            options.patterns = std::move(patterns);
+          });
   auto tabStop = record<TabStop>(text, "TabStop");
   py::enum_<TabStop::Align>(tabStop, "Align")
       .value("Start", TabStop::Align::kStart)

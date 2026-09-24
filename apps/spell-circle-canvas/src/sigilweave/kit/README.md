@@ -39,7 +39,7 @@ One header per utility under `include/sigilweave/kit/`, and
 | `Features.h` | `features::tabularNumbers`, `smallCaps`, `stylisticSet(n)`, the vertical set a column asks for, … | Hand-spelled four-cc tag lists, mistyped once per call site — including the vertical features a column needs a style to name because shaping does not take them by itself. |
 | `PaintLayers.h` | `dropShadow()` / `glow()` / `outline()` | Assembling the same three arrangements of `PaintLayer` by hand, each time re-picking the blur, spread and offset constants a shadow and a glow are usually asked for. |
 | `SampleText.h` | `mixedScriptFiller()` | Every showcase growing subtly different stress content; timings stay comparable on a shared deterministic corpus. |
-| `Hyphenation.h` | `PatternHyphenator`, `englishHyphenationPatterns()` | The engine growing an opinion about where a language's words break. |
+| `Hyphenation.h` | `PatternHyphenator`, `englishHyphenationPatterns()`, `englishHyphenator()` | The engine growing an opinion about where a language's words break. |
 | `LineTables.h` | `kinsoku::japanese()`, `hanging::latin()`, `hanging::japanese()` | The engine growing an opinion about which marks may stand at a line's edge, and how far one may hang past it. |
 
 Everything here is `sigil::weave::kit` with one exception:
@@ -137,10 +137,19 @@ collects are break points, and an explicit exception spelling overrides the
 lot:
 
 ```cpp
+ParagraphLayoutOptions options;
+options.hyphenation.patterns = kit::englishHyphenator();  // held; shared
+```
+
+`englishHyphenator()` is the English table loaded once: every call answers
+the same instance, so every passage that states it holds one pointer, and a
+paragraph — which compares the hyphenator it was analysed under by pointer —
+sees one setting across all of them. A table of a caller's own is built the
+same way the kit builds that one:
+
+```cpp
 const auto english = std::make_shared<const kit::PatternHyphenator>(
     "en", kit::englishHyphenationPatterns());
-ParagraphLayoutOptions options;
-options.hyphenation.patterns = english;    // held; nothing else need keep it
 ```
 
 The table is HELD and not borrowed. The analysis asks it once per word and

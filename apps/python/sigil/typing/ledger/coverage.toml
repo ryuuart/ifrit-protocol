@@ -1095,10 +1095,11 @@ python = ["weave.kit.GlyphBuckets", "weave.kit.drawPositionedGlyphs"]
 name = "Weave kit"
 
 [[section.surface.item]]
-bound = "`PatternHyphenator` with the English patterns"
+bound = "`PatternHyphenator` with the English patterns, and the English table held once"
 python = [
   "weave.kit.PatternHyphenator",
   "weave.kit.englishHyphenationPatterns",
+  "weave.kit.englishHyphenator",
 ]
 
 [[section.surface.item]]

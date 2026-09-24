@@ -237,6 +237,12 @@ void bindWeaveLayout(py::module_& root) {
       .def("language", &kit::PatternHyphenator::language)
       .def("patternCount", &kit::PatternHyphenator::patternCount);
   kit.def("englishHyphenationPatterns", &kit::englishHyphenationPatterns);
+  // The held table answers one instance on every call, so Python sees the
+  // same object each time it asks while one is alive.
+  kit.def("englishHyphenator", [] {
+    return std::const_pointer_cast<kit::PatternHyphenator>(
+        kit::englishHyphenator());
+  });
   // Held shared, because a text leaf keeps the paragraph it is given and
   // reads a new pointer as new content: one Python paragraph is one
   // native paragraph in every describe, so its shaping stays warm.
@@ -500,7 +506,9 @@ void bindWeaveLayout(py::module_& root) {
       [](Fonts& fonts, Paragraph& p, FlowGeometry& flow,
          ParagraphLayoutOptions options, uint32_t firstWord,
          std::shared_ptr<const Hyphenator> hyphenator) {
-        options.hyphenation.patterns = std::move(hyphenator);
+        // A hyphenator passed here states the table; none leaves the one
+        // the options' hyphenation already holds.
+        if (hyphenator) options.hyphenation.patterns = std::move(hyphenator);
         return OwnedLayout(
             p, layoutParagraph(fonts.get(), p, flow, options, firstWord));
       },

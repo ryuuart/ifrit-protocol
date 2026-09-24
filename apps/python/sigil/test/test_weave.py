@@ -181,6 +181,44 @@ class Scene:
             sum(b > 200 and r < 20 and g < 20 for r, g, b in colors), 200
         )
 
+    def test_a_text_leaf_hyphenates_with_the_held_english_table(self):
+        english = weave.kit.englishHyphenator()
+        self.assertIs(english, weave.kit.englishHyphenator())
+        options = weave.HyphenationOptions(patterns=english)
+        self.assertIs(options.patterns, english)
+        self.assertIsNone(weave.HyphenationOptions().patterns)
+
+        # The table the options hold breaks a word at the end of a line.
+        words = "specimen " * 6
+        paragraph = weave.Paragraph(words, weave.Type(size=20, language="en-US"))
+        layout = weave.layoutParagraph(
+            weave.FontContext(),
+            paragraph,
+            weave.BlockFlow((0, 0, 70, 400)),
+            weave.ParagraphLayoutOptions(hyphenation=options),
+        )
+        ends = [line.textEnd for line in layout.lineMetrics(paragraph)]
+        self.assertTrue(
+            any(0 < end < len(words) and words[end - 1] != " " and words[end] != " "
+                for end in ends),
+            "no line ended inside a word",
+        )
+
+        # And a text leaf's hyphens lane carries it: a narrow leaf sets
+        # differently with the table than with only its typed hyphens.
+        source = """from sigil.compose import text
+from sigil.sketch import sketch
+from sigil.weave import HyphenationOptions, Type, kit
+@sketch(size=(120, 300), background="#000000")
+class Scene:
+    def setup(self, ctx):
+        ctx.render(text("hyphenation demonstration " * 3).font(Type(size=20, color="#ffffff", language="en-US")).hyphens(HyphenationOptions(%s)))
+"""
+        self.assertNotEqual(
+            self.render(source % "patterns=kit.englishHyphenator()"),
+            self.render(source % ""),
+        )
+
     def test_story_overflow_reaches_second_frame(self):
         pixels = self.render("""from sigil.compose import box, frame
 from sigil.sketch import sketch

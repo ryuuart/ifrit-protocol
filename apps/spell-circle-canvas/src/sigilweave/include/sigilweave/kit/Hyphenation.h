@@ -7,8 +7,9 @@
  * the engine holds. PatternHyphenator answers the engine's one question
  * from Liang's pattern method, and the tables are the caller's to
  * choose: `englishHyphenationPatterns()` is the one set this kit
- * carries, and a loaded table is a peer of it rather than a fallback
- * behind it. A table proposes positions; it never respells a word.
+ * carries, `englishHyphenator()` that set loaded once and held, and a
+ * loaded table is a peer of it rather than a fallback behind it. A table
+ * proposes positions; it never respells a word.
  */
 
 #include <cstdint>
@@ -61,5 +62,13 @@ class PatternHyphenator final : public Hyphenator {
  * never a different one; a document that needs the whole table loads the
  * whole table. */
 [[nodiscard]] std::string_view englishHyphenationPatterns();
+
+/** THE ENGLISH TABLE, LOADED ONCE AND SHARED: one `PatternHyphenator` for
+ * "en" over `englishHyphenationPatterns()`, the same instance on every
+ * call, so `HyphenationOptions{.patterns = englishHyphenator()}` is one
+ * expression and every passage that states it holds one pointer — which
+ * is what a paragraph compares a hyphenator by. Safe to call from any
+ * thread; the table is built on the first call. */
+[[nodiscard]] std::shared_ptr<const PatternHyphenator> englishHyphenator();
 
 }  // namespace sigil::weave::kit

@@ -208,4 +208,39 @@ TEST(PatternHyphenator, PatternsOpenBreaksInsideWords) {
   }
 }
 
+// THE HELD TABLE IS ONE VALUE: every call answers the same instance, and
+// it breaks a word exactly where a table built by hand from the same
+// patterns does — as a word list's break points and as a paragraph set
+// under it.
+TEST(PatternHyphenator, TheHeldEnglishTableIsOneInstanceAndBreaksAsTheTable) {
+  const std::shared_ptr<const kit::PatternHyphenator> held =
+      kit::englishHyphenator();
+  EXPECT_EQ(held, kit::englishHyphenator()) << "a second instance";
+  EXPECT_EQ(held->language(), "en");
+  const kit::PatternHyphenator byHand("en", kit::englishHyphenationPatterns());
+  const std::vector<uint32_t> points = breakPoints(*held, u"specimen", "en");
+  EXPECT_FALSE(points.empty()) << "the table breaks no specimen";
+  EXPECT_EQ(points, breakPoints(byHand, u"specimen", "en"));
+
+  const auto lineEnds = [](std::shared_ptr<const Hyphenator> table) {
+    TextStyle english = basicStyle();
+    english.shaping.languageTag = "en-US";
+    Paragraph paragraph = paragraphIn(u8"specimen specimen specimen", english);
+    BlockFlow flow(SkRect::MakeWH(60, 400));
+    ParagraphLayoutOptions options;
+    options.hyphenation = HyphenationOptions{.patterns = std::move(table)};
+    const ParagraphLayout layout =
+        layoutParagraph(sigil::test::fonts(), paragraph, flow, options);
+    std::vector<uint32_t> ends;
+    for (const LineMetrics& line : layout.lineMetrics(paragraph))
+      ends.push_back(line.textEnd);
+    return ends;
+  };
+  const std::vector<uint32_t> heldEnds = lineEnds(held);
+  EXPECT_EQ(heldEnds,
+            lineEnds(std::make_shared<const kit::PatternHyphenator>(
+                "en", kit::englishHyphenationPatterns())));
+  EXPECT_GT(heldEnds.size(), 3u) << "no word was broken";
+}
+
 }  // namespace

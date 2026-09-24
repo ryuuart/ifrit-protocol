@@ -24,14 +24,6 @@ using namespace sigil::weave::test;
 
 namespace {
 
-/// The English pattern table every table question here is asked of.
-std::shared_ptr<const Hyphenator> englishPatterns() {
-  static const std::shared_ptr<const Hyphenator> hyphenator =
-      std::make_shared<const kit::PatternHyphenator>(
-          "en", kit::englishHyphenationPatterns());
-  return hyphenator;
-}
-
 /// A word carrying one soft hyphen, and a measure too narrow for the whole
 /// of it: the only thing that can decide the line count is whether the
 /// hyphen is a break opportunity. At 16 px in the instrument face a letter
@@ -159,7 +151,7 @@ TEST(Hyphenation, PatternBreaksReachTheWordList) {
   paragraph.appendText(u8"hyphenation", style);
   BlockFlow flow(SkRect::MakeWH(40, 400));
   ParagraphLayoutOptions options;
-  options.hyphenation.patterns = englishPatterns();
+  options.hyphenation.patterns = kit::englishHyphenator();
   layoutParagraph(fonts, paragraph, flow, options);
   int opportunities = 0;
   for (const Word& word : paragraph.words())
@@ -236,7 +228,7 @@ TEST_P(HyphenationZone, AZoneAsWideAsTheMeasureLeavesTheRagAlone) {
     BlockFlow flow(SkRect::MakeWH(kMeasure, 600));
     ParagraphLayoutOptions options;
     options.lineBreakStrategy = breaker();
-    options.hyphenation.patterns = englishPatterns();
+    options.hyphenation.patterns = kit::englishHyphenator();
     options.hyphenation.penalty = 0;
     options.hyphenation.zone = zone;
     const ParagraphLayout layout =
@@ -266,7 +258,7 @@ TEST(Hyphenation, TheZoneIsARaggedSettingRuleAndAJustifiedLineIgnoresIt) {
   BlockFlow flow(SkRect::MakeWH(180, 600));
   ParagraphLayoutOptions options;
   options.alignment = TextAlignment::kJustify;
-  options.hyphenation.patterns = englishPatterns();
+  options.hyphenation.patterns = kit::englishHyphenator();
   options.hyphenation.zone = 180.0f;
   const ParagraphLayout layout =
       layoutParagraph(fonts, paragraph, flow, options);
@@ -281,7 +273,7 @@ TEST(Hyphenation, TheMinimumWordLengthIsSettledInTheAnalysis) {
   paragraph.appendText(u8"hyphenation", style);
   BlockFlow flow(SkRect::MakeWH(40, 400));
   ParagraphLayoutOptions options;
-  options.hyphenation.patterns = englishPatterns();
+  options.hyphenation.patterns = kit::englishHyphenator();
   options.hyphenation.limits.minimumWordLength = 40;
   layoutParagraph(fonts, paragraph, flow, options);
   for (const Word& word : paragraph.words()) EXPECT_FALSE(word.hyphenBreak);
