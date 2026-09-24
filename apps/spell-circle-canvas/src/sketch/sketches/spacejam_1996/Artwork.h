@@ -36,12 +36,13 @@ inline Element artJump(sigil::weave::FontContext& f) {
 }
 
 // --- p-bball.gif, 62x62 — the static build of the seam shader.
-inline Element artBball(sigil::weave::FontContext& f) {
+inline Element artBball(sigil::weave::FontContext& f,
+                        const sk_sp<SkRuntimeEffect>& ball) {
   const float W = S(62), H = S(62);
   return artBox(W, H).children(
       {kit::dot(SkPoint{S(31), S(37.5f)}, S(25.5f),
-                ballMaterial(false, C5(0xFF9C10), C5(0xC66300), C5(0x843900),
-                             0.055f))
+                ballMaterial(ball, false, C5(0xFF9C10), C5(0xC66300),
+                             C5(0x843900), 0.055f))
            .stroke(stroke(S(1.2f), Fill::color(C5(0x632900)),
                           PathFormat::Align::Inner)),
        navLabel(f, "PLANET B-BALL", 0, S(0), W, S(10))});
@@ -553,42 +554,6 @@ constexpr Slot kSlotTable[] = {
     {kSitemap, 4, 2, 4, 1, 1, Align::Center, Align::End},
     {kBehind, 0, 3, 4, 1, 1, Align::Center, Align::Center},
 };
-
-// ---------------------------------------------------------------------------
-// The display quantisation — the 216-colour web cube, in setView().
-//
-// THE SNAP CARRIES NO SCREEN, and that is a finding rather than a saving.
-// The page's palette is the 216-colour cube and the view transform rounds
-// to it; an ORDERED dither would lay a regular 4x4 lattice across every
-// disc, and the shipped GIFs carry no lattice at all — p-souvenirs.gif is
-// a smooth cyan radial with a white core, p-lunartunes.gif flat blue with
-// a hard pink ring. A 1996 encoder that dithered at all dithered by error
-// diffusion, which is scattered; a lattice is the one thing the reference
-// definitely does not have. So the shader ROUNDS: each component to the
-// nearest sixth, with no position, no cell and no time in it.
-//
-// One expression and no helper function, because a shader authored in a
-// sketch and compiled by the host's Skia cannot carry user-defined ones.
-// Unpremultiply, round, re-premultiply — rounding premultiplied colour
-// would quantise each channel against a different scale.
-
-inline sk_sp<SkRuntimeEffect> viewEffect() {
-  static constexpr char kSrc[] = R"(
-uniform shader content;
-
-half4 main(float2 pos) {
-  half4 src = content.eval(pos);
-  float  al = max(float(src.a), 1e-4);
-  float3 v  = float3(src.rgb) / al;
-
-  float3 q = clamp(floor(v * 5.0 + 0.5), 0.0, 5.0) / 5.0;
-  return half4(half3(q * al), src.a);
-}
-)";
-  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(kSrc));
-  if (!effect) SkDebugf("spacejam view: %s\n", error.c_str());
-  return effect;
-}
 
 }  // namespace sj
 

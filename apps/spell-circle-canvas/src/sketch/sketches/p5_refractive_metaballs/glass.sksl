@@ -1,0 +1,68 @@
+// THE GLASS: eight radial fields summed into one implicit surface,
+// `uBall0`..`uBall7` each a centre and a radius. Where the field
+// crosses `uThreshold` the backdrop in `uSource` is read bent
+// along the field's outward direction by `uStrength`, its three
+// channels at three offsets, then lit by a key, a rim and a
+// caustic off a normal derived from the same field.
+
+uniform shader uSource;
+uniform float4 uBall0;
+uniform float4 uBall1;
+uniform float4 uBall2;
+uniform float4 uBall3;
+uniform float4 uBall4;
+uniform float4 uBall5;
+uniform float4 uBall6;
+uniform float4 uBall7;
+uniform float uThreshold;
+uniform float uStrength;
+uniform float2 uResolution;
+uniform float uTime;
+
+float3 sampleBall(float2 xy, float4 ball) {
+  float2 delta = xy - ball.xy;
+  float squareDistance = max(dot(delta, delta), 4.0);
+  float weight = ball.z * ball.z / squareDistance;
+  return float3(weight, delta * weight / squareDistance);
+}
+
+half4 main(float2 xy) {
+  float3 s0 = sampleBall(xy, uBall0);
+  float3 s1 = sampleBall(xy, uBall1);
+  float3 s2 = sampleBall(xy, uBall2);
+  float3 s3 = sampleBall(xy, uBall3);
+  float3 s4 = sampleBall(xy, uBall4);
+  float3 s5 = sampleBall(xy, uBall5);
+  float3 s6 = sampleBall(xy, uBall6);
+  float3 s7 = sampleBall(xy, uBall7);
+  float3 sum = s0 + s1 + s2 + s3 + s4 + s5 + s6 + s7;
+  float field = sum.x;
+  float2 outward = normalize(sum.yz + float2(0.0001));
+  float alpha = smoothstep(uThreshold * 0.86, uThreshold * 1.02,
+                           field);
+  float depth = smoothstep(uThreshold, uThreshold * 4.2, field);
+  float shell = 1.0 - smoothstep(uThreshold * 0.98,
+                                 uThreshold * 1.34, field);
+  float shimmer = 0.95 + 0.07 * sin(uTime * 1.7 + field * 0.82);
+  float2 bend = -outward * uStrength * (0.20 + depth * 0.80) * shimmer;
+  half4 redSample = uSource.eval(xy + bend * 1.075);
+  half4 greenSample = uSource.eval(xy + bend);
+  half4 blueSample = uSource.eval(xy + bend * 0.925);
+
+  float3 normal = normalize(float3(outward * (0.80 - depth * 0.24),
+                                   0.60 + depth * 0.40));
+  float key = pow(max(dot(normal,
+                          normalize(float3(-0.52, -0.62, 0.58))), 0.0),
+                  42.0);
+  float rim = pow(max(dot(normal,
+                          normalize(float3(0.70, 0.10, 0.70))), 0.0),
+                  68.0);
+  float caustic = pow(max(sin(field * 11.0 - uTime * 1.8), 0.0), 18.0);
+  float3 colour = float3(redSample.r, greenSample.g, blueSample.b);
+  colour *= 1.12 + depth * 0.32;
+  colour += float3(0.22, 0.90, 1.36) * shell * 1.34;
+  colour += float3(2.20, 1.82, 0.96) * key * 1.82;
+  colour += float3(1.02, 0.46, 1.72) * rim * 1.36;
+  colour += float3(0.30, 1.08, 1.34) * caustic * depth * 0.42;
+  return half4(half3(colour * alpha), half(alpha));
+}

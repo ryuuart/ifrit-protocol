@@ -12,7 +12,6 @@
 // TAGS: Drawing/Generative
 
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -25,6 +24,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 namespace sketch = sigil::sketch;
@@ -39,27 +39,8 @@ constexpr int kTrunks = 6;
 constexpr int kDepth = 7;
 constexpr float kFirstLength = 108.0f;
 
-sk_sp<SkRuntimeEffect> branchEffect() {
-  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
-      uniform shader uGrain;
-      uniform float2 uResolution;
-      uniform float uTime;
-      half4 main(float2 xy) {
-        float2 uv = xy / max(uResolution, float2(1.0));
-        float tooth = uGrain.eval(xy * 0.72).r;
-        float current = 0.5 + 0.5 * sin(13.0 * uv.x - 9.0 * uv.y - uTime * 1.4);
-        float3 lo = float3(0.15, 0.52, 0.72);
-        float3 hi = float3(1.00, 0.48, 0.30);
-        float3 colour = mix(lo, hi, current);
-        colour *= 0.76 + 0.34 * tooth;
-        return half4(half3(colour), 0.94);
-      }
-    )"));
-  return built;
-}
-
-mskia::Paint branchInk() {
-  return mskia::Paint::sksl(branchEffect())
+mskia::Paint branchInk(sk_sp<SkRuntimeEffect> program) {
+  return mskia::Paint::sksl(std::move(program))
       .slot("uGrain", mskia::Paint::recipe(field::grain(0.08f, 3, 17.0f)))
       .quantizeTime(30.0f);
 }
@@ -87,11 +68,12 @@ struct P5FractalGarden {
     SkPoint to;
   };
 
-  const mskia::Paint branches = branchInk();
+  mskia::Paint branches;
   const mskia::Paint background = ground();
   const mskia::Paint buds = budLight();
 
   void setup(sketch::SketchContext& context) {
+    branches = branchInk(context.assets.shader(context.local("branch.sksl")));
     context.canvas(900, 900);
     context.background({6 / 255.0f, 8 / 255.0f, 16 / 255.0f, 1});
     context.captureAt(0.05);  // the tree is a direct function of the clock

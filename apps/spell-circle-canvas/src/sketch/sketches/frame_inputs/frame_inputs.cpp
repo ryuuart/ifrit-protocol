@@ -24,6 +24,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
@@ -52,68 +53,13 @@ struct BarsParameters {
   std::array<float, kBars> uBars;
 };
 
-/** The body every cell but the last two runs: bars off the table, a
- *  hairline between them one DEVICE pixel wide (which is what makes the
- *  content scale visible), and the world translation read as a phase. */
-constexpr char kBarsBody[] = R"(
-half4 main(float2 p) {
-  float2 uv = p / uResolution;
-  float2 origin = float2(uWorld[2][0], uWorld[2][1]);
-  float x = fract(uv.x + origin.x / max(uResolution.x, 1.0));
-  float h = 0.0;
-  for (int i = 0; i < 12; ++i) {
-    float lo = float(i) / 12.0;
-    float hi = float(i + 1) / 12.0;
-    h += uBars[i] * step(lo, x) * step(x, hi);
-  }
-  h *= uGain;
-  float cell = uResolution.x / 12.0;
-  float toEdge = abs(mod(p.x, cell) - cell * 0.5);
-  float hair = step(cell * 0.5 - 1.0 / uContentScale, toEdge);
-  float bar = step(1.0 - h, uv.y);
-  float3 c = mix(float3(0.09, 0.10, 0.13), uTint.rgb, bar);
-  c = mix(c, float3(0.92, 0.93, 0.97), hair * 0.85);
-  return half4(half3(c), 1.0);
-}
-)";
-
-/** THE SPECIALIZATION: the same ABI, a body that spends the table on
- *  discs rather than bars. Same values, same bindings, its own program. */
-constexpr char kDotsBody[] = R"(
-half4 main(float2 p) {
-  float2 uv = p / uResolution;
-  float3 c = float3(0.09, 0.10, 0.13);
-  float cell = uResolution.x / 12.0;
-  for (int i = 0; i < 12; ++i) {
-    float2 at = float2((float(i) + 0.5) * cell,
-                       uResolution.y * (1.0 - uBars[i] * uGain * 0.86 - 0.07));
-    float d = distance(p, at);
-    c = mix(c, uTint.rgb, smoothstep(cell * 0.32, cell * 0.32 - 2.0, d));
-  }
-  c = mix(c, float3(0.92, 0.93, 0.97),
-          step(uResolution.y - 1.5 / uContentScale, p.y));
-  return half4(half3(c), 1.0);
-}
-)";
-
-/** A body that reads NEITHER the table nor the gain: the flat tint
- *  alone. Whatever the compiler drops, the upload skips — every value
- *  the material writes to such a field, a constant or a whole bound
- *  table, reaches nothing. */
-constexpr char kFlatBody[] = R"(
-half4 main(float2 p) {
-  float2 uv = p / uResolution;
-  float3 c = mix(float3(0.09, 0.10, 0.13), uTint.rgb, uv.y);
-  return half4(half3(c), 1.0);
-}
-)";
-
-std::shared_ptr<const Recipe> make(const char* name, const char* body) {
-  return std::make_shared<const Recipe>(Recipe::of<BarsParameters>(name)
-                                            .frame(FrameInput::Resolution)
-                                            .frame(FrameInput::ContentScale)
-                                            .frame(FrameInput::WorldTransform)
-                                            .body(Target::SkSL, body));
+std::shared_ptr<const Recipe> make(const char* name, std::string body) {
+  return std::make_shared<const Recipe>(
+      Recipe::of<BarsParameters>(name)
+          .frame(FrameInput::Resolution)
+          .frame(FrameInput::ContentScale)
+          .frame(FrameInput::WorldTransform)
+          .body(Target::SkSL, std::move(body)));
 }
 
 /** THE THREE RECIPES THIS SHEET COVERS ITS CELLS WITH. Each is BUILT
@@ -121,14 +67,14 @@ std::shared_ptr<const Recipe> make(const char* name, const char* body) {
  *  and never described again. A memo in a function-local static would
  *  hold a recipe in a dylib a hot reload unloads, and hold it for the
  *  process rather than for the sketch. */
-std::shared_ptr<const Recipe> barsRecipe() {
-  return make("cover.bars", kBarsBody);
+std::shared_ptr<const Recipe> barsRecipe(std::string body) {
+  return make("cover.bars", std::move(body));
 }
-std::shared_ptr<const Recipe> dotsRecipe() {
-  return make("cover.dots", kDotsBody);
+std::shared_ptr<const Recipe> dotsRecipe(std::string body) {
+  return make("cover.dots", std::move(body));
 }
-std::shared_ptr<const Recipe> flatRecipe() {
-  return make("cover.flat", kFlatBody);
+std::shared_ptr<const Recipe> flatRecipe(std::string body) {
+  return make("cover.flat", std::move(body));
 }
 
 /** The cell's whole face, as the path a material is filled through. */
@@ -164,6 +110,11 @@ struct FrameInputs {
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     // nothing moves; the sheet is complete at once
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
+    // Each body is a recipe's rather than a whole program, so it is read as
+    // text from the file beside this one and handed to its recipe.
+    const auto body = [&](const char* name) {
+      return ctx.assets.hub().text(ctx.local(name)).value_or(std::string());
+    };
 
     // The caller's table, owned beside the model rather than in the
     // describe: a block re-made each frame would compare unequal and
@@ -184,7 +135,7 @@ struct FrameInputs {
 
     // ONE recipe pointer for the two materials that share a body: a
     // recipe is compared by pointer wherever a material is.
-    const std::shared_ptr<const Recipe> cover = barsRecipe();
+    const std::shared_ptr<const Recipe> cover = barsRecipe(body("bars.sksl"));
     material::Material bars(cover, stock);
     bars.bind("uBars", spectrum);
 
@@ -217,11 +168,11 @@ struct FrameInputs {
               example("CHANGE THE PROGRAM", "withRecipe(dotsRecipe())",
                       "The original data and tint carry over to a body that "
                       "draws discs.",
-                      bars.withRecipe(dotsRecipe()), 1),
+                      bars.withRecipe(dotsRecipe(body("dots.sksl"))), 1),
               example("LEAVE VALUES UNUSED", "withRecipe(flatRecipe())",
                       "This body reads the tint. The bound table contributes "
                       "no pixels.",
-                      bars.withRecipe(flatRecipe()), 1)},
+                      bars.withRecipe(flatRecipe(body("flat.sksl"))), 1)},
          .measure = 1020,
          .gap = 24});
     ctx.composer.render(sketch::kit::page(

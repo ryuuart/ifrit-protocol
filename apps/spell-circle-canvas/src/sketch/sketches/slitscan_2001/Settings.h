@@ -216,34 +216,6 @@ inline std::vector<Utf8> wordsOf(const data::Json& node) {
 }
 
 // ---------------------------------------------------------------------------
-// The film's transfer curve: D = 1 - e^(-kE), applied to the ACCUMULATION.
-//
-// Effect::shader hands the node's already-painted layer to the SkSL as a
-// child shader named `content`, so a tone curve over painted content is one
-// call and needs no palette lookup and no read-back. Applied here over a
-// Mode::Live instancing leaf.
-
-inline sk_sp<SkRuntimeEffect> transferCurve() {
-  const char* src = R"(
-uniform shader content;
-uniform float k;
-half4 main(float2 xy) {
-  // The layer arrives PREMULTIPLIED, and the premultiplied colour IS the
-  // accumulated exposure. Density is the saturating response to it -- the
-  // shoulder that lets a 120:1 brightness range onto a display at all.
-  half4 s = content.eval(xy);
-  float3 e = float3(s.rgb);
-  float3 d = float3(1.0) - exp(-k * e);
-  float da = 1.0 - exp(-k * float(s.a));
-  return half4(half3(d), half(da));
-}
-)";
-  auto [e, err] = SkRuntimeEffect::MakeForShader(SkString(src));
-  if (!e) std::fprintf(stderr, "[slitscan] transfer sksl: %s\n", err.c_str());
-  return e;
-}
-
-// ---------------------------------------------------------------------------
 // THE ARTWORK -- generated, not drawn.
 //
 // [C85]: high-contrast NEGATIVES of op-art paintings, architectural drawings

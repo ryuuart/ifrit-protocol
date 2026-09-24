@@ -45,7 +45,6 @@
 
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/Adaptors.h>
@@ -244,10 +243,8 @@ struct PersonaMenu {
   // not a curve: the offset is what rings down, and the two triangles
   // read it on both axes.
   motion::Spring cursorFlight{40.0f, 0.0f};
-  /** The caustic shader, compiled once per declaration and held HERE. A
-   *  function-local static would outlive the dylib a hot-reloaded sketch
-   *  is compiled into, and a face or an effect compared by pointer after
-   *  that reload is a pointer into code that is gone. */
+  /** The caustic shader, `caustic.sksl` beside this file, read once per
+   *  declaration and held HERE for the sketch's life. */
   sk_sp<SkRuntimeEffect> causticFx;
 
   void setup(sketch::SketchContext& ctx) {
@@ -256,7 +253,7 @@ struct PersonaMenu {
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
-    causticFx = compileCaustic();
+    causticFx = ctx.assets.shader(ctx.local("caustic.sksl"));
     qTime = 0;
     wedgePulse = 1;
     curDx = 40;
@@ -292,61 +289,6 @@ struct PersonaMenu {
     });
 
     composer.render(describe());
-  }
-
-  /** Both caustic layers in one pass, with a 4-tap soften standing in for
-   *  the reference's sigma-1.4 blur. One live material and one texture bake
-   *  per 6 Hz step: because the time input holds between steps, the memo
-   *  turns every intermediate frame into a blit. */
-  sk_sp<SkRuntimeEffect> compileCaustic() {
-    auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(R"(
-        uniform float2 uResolution;
-        uniform float  uTime;   // pre-quantized to 6 Hz by the host
-        uniform float4 uLight;  // cut .48 layer color (alpha = strength)
-        uniform float4 uDark;   // cut .79 layer color
-        float vhash(float2 p) {
-          return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
-        }
-        float vnoise(float2 p) {
-          float2 i = floor(p);
-          float2 f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          return mix(mix(vhash(i), vhash(i + float2(1, 0)), f.x),
-                     mix(vhash(i + float2(0, 1)), vhash(i + float2(1, 1)), f.x),
-                     f.y);
-        }
-        float layerA(float2 uv) {
-          float2 o = float2(0.03, 0.01) * uTime;
-          float p1 = vnoise((uv - o) * 13.0);
-          float p2 = vnoise((uv - o + 0.5) * 13.0);
-          return step(0.48, abs(p1 - p2));
-        }
-        float layerB(float2 uv) {
-          float2 o = float2(0.02, 0.115) * uTime;
-          float p1 = vnoise((uv - o) * 21.0);
-          float p2 = vnoise((uv - o + 0.5) * 21.0);
-          return step(0.79, abs(p1 - p2));
-        }
-        half4 sample1(float2 xy) {
-          float2 uv = xy / max(uResolution.y, 1.0);
-          float band = smoothstep(0.30, 0.55, uv.y);
-          float a1 = layerA(uv) * uLight.a * band;
-          float a2 = layerB(uv) * uDark.a * band;
-          float3 rgb = uLight.rgb * a1 + uDark.rgb * a2 * (1.0 - a1);
-          float a = a1 + a2 * (1.0 - a1);
-          return half4(half3(rgb), a);
-        }
-        half4 main(float2 xy) {
-          // 4-tap soften ~ the sigma-1.4 blur at 1/3 res of the recipe.
-          half4 acc = sample1(xy + float2(-1.1, -0.7)) +
-                      sample1(xy + float2(1.1, -0.7)) +
-                      sample1(xy + float2(-1.1, 0.9)) +
-                      sample1(xy + float2(1.1, 0.9));
-          return acc * 0.25;
-        }
-      )"));
-    if (!effect) SkDebugf("persona dualCaustic: %s\n", err.c_str());
-    return effect;
   }
 
   Paint dualCaustic() {

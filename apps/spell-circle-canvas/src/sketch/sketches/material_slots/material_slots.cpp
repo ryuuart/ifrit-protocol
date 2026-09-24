@@ -92,24 +92,6 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-/** THE SHADER. Two `uniform shader` slots, one float, and main() kept
- *  MONOLITHIC: a sketch dylib carries its own copy of Skia, so the SkSL
- *  AST is allocated in one Skia image and inlined in another, and virtual
- *  dispatch across that boundary faults on pointer authentication. A
- *  helper function here is a crash, not a style choice. */
-sk_sp<SkRuntimeEffect> paletteEffect() {
-  auto [effect, error] = SkRuntimeEffect::MakeForShader(
-      SkString("uniform shader uIndex;"
-               "uniform shader uPalette;"
-               "uniform float uShade;"
-               "half4 main(float2 xy) {"
-               "  float i = floor(uIndex.eval(xy).r * 255.0 + 0.5);"
-               "  i = min(i + uShade, 15.0);"
-               "  return uPalette.eval(float2(i + 0.5, 0.5));"
-               "}"));
-  return effect;
-}
-
 /** A 1-row LUT. No colour space, like every compose surface — the byte
  *  written here is the byte the shader reads. */
 sk_sp<SkImage> lut(const std::vector<SkColor>& entries) {
@@ -168,11 +150,12 @@ enum Table : size_t { Grey, Fire, Ice, TableCount };
 
 /** EVERY TABLE THIS SHEET DRAWS WITH, held together for the sketch's
  *  life: the index chart, the three palettes and the one effect that
- *  reads them. One value, so nothing below has to be handed five. */
+ *  reads them, `palette.sksl` beside this file, which setup reads. One
+ *  value, so nothing below has to be handed five. */
 struct Tables {
   sk_sp<SkImage> index = indexChart();
   std::array<sk_sp<SkImage>, TableCount> luts{greyLut(), fireLut(), iceLut()};
-  sk_sp<SkRuntimeEffect> effect = paletteEffect();
+  sk_sp<SkRuntimeEffect> effect;
 };
 
 mskia::Paint indexSource(const Tables& tables) {
@@ -273,7 +256,7 @@ sketch::kit::ComparisonCase stacked(const char* caseTitle, const char* call,
 
 struct MaterialChild {
   int live = 0;
-  const Tables tables;
+  Tables tables;
 
   Element describe() {
     // The theme is bound where the tree is DESCRIBED, not where setup
@@ -349,6 +332,7 @@ struct MaterialChild {
   }
 
   void setup(sketch::SketchContext& ctx) {
+    tables.effect = ctx.assets.shader(ctx.local("palette.sksl"));
     const sketch::kit::Provide look(sheetTheme());
     // the live panel is on the fire LUT here
     sketch::kit::stage(ctx, {.size = {1100, 930}, .captureAt = 1.0});

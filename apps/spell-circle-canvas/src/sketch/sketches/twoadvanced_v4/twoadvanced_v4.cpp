@@ -124,20 +124,21 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   // is what the real 1x1600 sitebackground.gif strip has.
   grain = mskia::Paint::recipe(field::grain(0.9f, 3, 4.0f, 1.25f, 1.6f));
 
-  spectrum = mskia::Paint::sksl(spectrumFx(), {{"uBars", 32.0f}})
+  spectrum = mskia::Paint::sksl(ctx.assets.shader(ctx.local("spectrum.sksl")),
+                                {{"uBars", 32.0f}})
                  .uniform("uHot", kGlow)
                  .uniform("uCool", kTealBar)
                  .quantizeTime(10.0f);  // 10 steps a second, not a slide
 
   // ONE stripe material value, reused by the nav bar and four panel
   // headers; the pan is a bound uniform, not five redraw loops.
-  stripesLive =
-      mskia::Paint::sksl(stripeFx(), {{"uOn", 6.0f}, {"uPeriod", 16.0f}})
-          .uniform("uColor", kChromeHi)
-          .uniform("uBase", kChrome)
-          .uniform("uPan", &stripePan);
+  stripesLive = mskia::Paint::sksl(ctx.assets.shader(ctx.local("stripe.sksl")),
+                                   {{"uOn", 6.0f}, {"uPeriod", 16.0f}})
+                    .uniform("uColor", kChromeHi)
+                    .uniform("uBase", kChrome)
+                    .uniform("uPan", &stripePan);
 
-  waterStreaks = mskia::Paint::sksl(waterFx());
+  waterStreaks = mskia::Paint::sksl(ctx.assets.shader(ctx.local("water.sksl")));
 
   // measure the press entries at the well's own wrap width, so the
   // auto-scroll walks the REAL overflow rather than a guessed one

@@ -1,0 +1,26 @@
+// The backdrop the glass refracts: three families of warped line
+// interference in cyan, magenta and amber over a near-black
+// ground, drifting with the clock and vignetted toward the edges.
+
+uniform float2 uResolution;
+uniform float uTime;
+half4 main(float2 xy) {
+  float side = max(min(uResolution.x, uResolution.y), 1.0);
+  float2 uv = (xy - uResolution * 0.5) / side;
+  float radius = length(uv);
+  float angle = atan(uv.y, uv.x);
+  float warpX = uv.x + sin(uv.y * 8.0 - uTime * 0.72) * 0.075;
+  float warpY = uv.y + sin(uv.x * 7.0 + uTime * 0.58) * 0.085;
+  float a = sin(warpX * 43.0 + sin(warpY * 12.0) * 3.8);
+  float b = sin(warpY * 37.0 + sin(warpX * 10.0) * 4.6);
+  float c = sin(radius * 70.0 - angle * 5.0 - uTime * 1.25);
+  float lineA = 1.0 - smoothstep(0.030, 0.095, abs(a));
+  float lineB = 1.0 - smoothstep(0.026, 0.088, abs(b));
+  float lineC = 1.0 - smoothstep(0.020, 0.072, abs(c));
+  float3 colour = float3(0.004, 0.010, 0.032);
+  colour += float3(0.02, 0.90, 1.18) * lineA;
+  colour += float3(0.92, 0.08, 1.28) * lineB;
+  colour += float3(1.34, 0.42, 0.04) * lineC * 0.72;
+  float vignette = 1.0 - 0.62 * smoothstep(0.26, 0.78, radius);
+  return half4(half3(colour * vignette), 1.0);
+}

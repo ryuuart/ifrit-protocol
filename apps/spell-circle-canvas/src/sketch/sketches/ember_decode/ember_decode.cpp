@@ -59,7 +59,7 @@
 //
 // Run:
 //   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-//       src/sketch/sketches/ember_decode.cpp \
+//       src/sketch/sketches/ember_decode/ember_decode.cpp \
 //       --frame /tmp/ember_decode.png
 
 // TAGS: Typography/Effects, Materials/Shaders
@@ -123,52 +123,6 @@ const material::Color kFaint{0.66f, 0.60f, 0.55f, 1};
 // ---------------------------------------------------------------------------
 // The pass
 
-/** THE BURN, against the pass contract: `uContent`, `uUnitRect`,
- *  `uUnitPhase` and `kUnitCount` are declared by the runtime, everything
- *  else is this material's own. The letters are baked white and the pass
- *  reads only their coverage, supplying every colour itself. A sketch
- *  dylib carries its own Skia, and an SkSL helper function called from
- *  main() faults in the host's inliner — so the noise, the threshold and
- *  the rim are all written inline. */
-constexpr const char* kBurnSksl = R"(
-half4 main(float2 xy) {
-  float cover = float(uContent.eval(xy).a);
-  // Which unit owns this pixel. step()/mix() rather than a branch: the
-  // last matching unit wins, which is what boxes that touch want.
-  float p = 0.0;
-  float seed = 0.0;
-  float u = 0.0;
-  for (int i = 0; i < kUnitCount; ++i) {
-    float4 r = uUnitRect[i];
-    float inside = step(r.x, xy.x) * step(xy.x, r.x + r.z) *
-                   step(r.y, xy.y) * step(xy.y, r.y + r.w);
-    p = mix(p, uUnitPhase[i].x, inside);
-    seed = mix(seed, uUnitPhase[i].y, inside);
-    u = mix(u, (xy.x - r.x) / max(r.z, 1.0), inside);
-  }
-  // The threshold this pixel has to clear: a fine speckle, a coarser
-  // blotch, and a bias along the unit, all seeded so the churn is the
-  // same churn on every frame.
-  float2 grain = floor(xy * 0.5) + seed;
-  float speck = fract(sin(dot(grain, float2(12.9898, 78.233))) * 43758.5453);
-  float2 blot = floor(xy * 0.09) + seed;
-  float patch = fract(sin(dot(blot, float2(39.3468, 11.135))) * 24634.6345);
-  float thr = uWeights[0] * u + uWeights[1] * speck + uWeights[2] * patch;
-  // d is how far this pixel's unit has run past the pixel's own
-  // threshold: negative is unburnt, 0 is the crossing, positive resolved.
-  float d = p - thr;
-  float body = smoothstep(0.0, 0.055, d);
-  float front = 1.25 * exp(-abs(d) * 9.0) * smoothstep(0.0, 0.03, p) *
-                (1.0 - 0.35 * body);
-  // A tighter band inside the ember one: the crossing itself, white-hot.
-  float core = exp(-abs(d) * 30.0) * smoothstep(0.0, 0.03, p);
-  float a = cover * clamp(body + front + core, 0.0, 1.0);
-  float3 emit = min(uInk.rgb * body + uEmber.rgb * front +
-                    float3(1.0, 0.92, 0.72) * core * 0.55,
-                    float3(1.0));
-  return half4(half3(emit * a), half(a));
-})";
-
 /** The burn's ABI. The three weights are one array rather than three
  *  floats because they are read as a set and the body indexes them. */
 struct BurnParameters {
@@ -180,11 +134,12 @@ struct BurnParameters {
 /** THE DEFINITION, made once and held by whoever draws with it: a recipe's
  *  identity IS the object, so a fresh one per describe compiles a fresh
  *  program and never compares equal to itself. The sketch holds it, rather
- *  than a static in this dylib, which a reload unloads. */
-std::shared_ptr<const sigil::material::Recipe> burnRecipe() {
+ *  than a static in this dylib, which a reload unloads. @p body is the pass,
+ *  `burn.sksl` beside this file. */
+std::shared_ptr<const sigil::material::Recipe> burnRecipe(std::string body) {
   return std::make_shared<const sigil::material::Recipe>(
       sigil::material::Recipe::of<BurnParameters>("ember.burn")
-          .body(sigil::material::Target::SkSL, kBurnSksl));
+          .body(sigil::material::Target::SkSL, std::move(body)));
 }
 
 mskia::Paint burnMaterial(
@@ -211,7 +166,7 @@ float masterAt(double t, double startAt, float totalMs) {
 // ===========================================================================
 
 struct EmberDecode {
-  std::shared_ptr<const sigil::material::Recipe> recipe = burnRecipe();
+  std::shared_ptr<const sigil::material::Recipe> recipe;
   choreograph::Output<float> display{0.0f}, words{0.0f};
   float displayTotalMs = 1;  // the cascades' spans, read back from beatsOf
   float wordsTotalMs = 1;
@@ -295,6 +250,10 @@ struct EmberDecode {
   }
 
   void setup(sketch::SketchContext& ctx) {
+    // The pass is a recipe's body rather than a whole program, so it is
+    // read as text and handed to the recipe.
+    recipe = burnRecipe(
+        ctx.assets.hub().text(ctx.local("burn.sksl")).value_or(std::string()));
     const sketch::kit::Provide presentation(
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(

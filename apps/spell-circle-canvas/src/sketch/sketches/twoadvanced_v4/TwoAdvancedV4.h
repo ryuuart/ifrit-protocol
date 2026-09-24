@@ -92,23 +92,6 @@ struct TwoAdvancedV4 {
   static int cycleTarget(int stop) { return (3 + stop) % 7; }
 
   // =========================================================================
-  // Live materials (SkSL).
-
-  /** The audio spectrum: a bar field whose heights are hashed per column
-   *  per TIME STEP. uTime arrives quantized at 10 Hz (quantizeTime), so the
-   *  bars STEP rather than slide — the era's digital readout feel, and the
-   *  same reason a stylised meter animates on a beat instead of smoothly. */
-  static sk_sp<SkRuntimeEffect> spectrumFx();
-
-  /** The diagonal hazard stripe as a LIVE material so every header bar can
-   *  run its slow conveyor pan — 20 px per 8 s — off ONE bound uniform.
-   *  This exact value is reused by the nav bar and four panel headers. */
-  static sk_sp<SkRuntimeEffect> stripeFx();
-
-  /** Horizontal streak water, dark teal-black, drifting slowly. */
-  static sk_sp<SkRuntimeEffect> waterFx();
-
-  // =========================================================================
   // Small parts.
 
   Element tickDots(int cluster, sigil::material::Color c = tav::kCyan);

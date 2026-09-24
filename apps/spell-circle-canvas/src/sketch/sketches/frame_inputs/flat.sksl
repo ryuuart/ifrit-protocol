@@ -1,0 +1,10 @@
+// A body that reads NEITHER the table nor the gain: the flat tint
+// alone. Whatever the compiler drops, the upload skips — every value
+// the material writes to such a field, a constant or a whole bound
+// table, reaches nothing.
+
+half4 main(float2 p) {
+  float2 uv = p / uResolution;
+  float3 c = mix(float3(0.09, 0.10, 0.13), uTint.rgb, uv.y);
+  return half4(half3(c), 1.0);
+}

@@ -384,7 +384,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   sketch::kit::stage(ctx, {.size = SkSize::Make(kCanvasW, kCanvasH),
                            .captureAt = 6.0,
                            .background = kInk});
-  transfer = transferCurve();
+  transfer = ctx.assets.shader(ctx.local("transfer.sksl"));
 
   // ---- bake the artwork ONCE. These are static images made at setup and
   // never mutated afterwards, so they are plain baked SkImages; a live

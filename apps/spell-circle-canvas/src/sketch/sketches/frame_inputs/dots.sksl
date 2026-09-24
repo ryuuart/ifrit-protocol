@@ -1,0 +1,18 @@
+// THE SPECIALIZATION: the same ABI as `bars.sksl`, a body that spends
+// the table on discs rather than bars. Same values, same bindings,
+// its own program.
+
+half4 main(float2 p) {
+  float2 uv = p / uResolution;
+  float3 c = float3(0.09, 0.10, 0.13);
+  float cell = uResolution.x / 12.0;
+  for (int i = 0; i < 12; ++i) {
+    float2 at = float2((float(i) + 0.5) * cell,
+                       uResolution.y * (1.0 - uBars[i] * uGain * 0.86 - 0.07));
+    float d = distance(p, at);
+    c = mix(c, uTint.rgb, smoothstep(cell * 0.32, cell * 0.32 - 2.0, d));
+  }
+  c = mix(c, float3(0.92, 0.93, 0.97),
+          step(uResolution.y - 1.5 / uContentScale, p.y));
+  return half4(half3(c), 1.0);
+}

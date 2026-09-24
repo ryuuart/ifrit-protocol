@@ -9,7 +9,6 @@
 
 // TAGS: Drawing/Generative, Patterns/Noise
 
-#include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -41,28 +40,8 @@ float hash01(int value) {
   return wave - std::floor(wave);
 }
 
-sk_sp<SkRuntimeEffect> flowEffect() {
-  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
-      uniform shader uField;
-      uniform float2 uResolution;
-      uniform float uTime;
-      half4 main(float2 xy) {
-        float2 uv = xy / max(uResolution, float2(1.0));
-        float field = uField.eval(xy * 0.55 + float2(uTime * 9.0, 0.0)).r;
-        float ribbon = 0.5 + 0.5 * sin(8.0 * uv.x + 11.0 * uv.y - uTime * 1.7);
-        float3 cyan = float3(0.18, 0.90, 0.94);
-        float3 violet = float3(0.72, 0.28, 1.00);
-        float3 amber = float3(1.00, 0.68, 0.20);
-        float3 colour = mix(cyan, violet, ribbon);
-        colour = mix(colour, amber, smoothstep(0.62, 0.92, field) * 0.62);
-        return half4(half3(colour), 0.72 + 0.22 * field);
-      }
-    )"));
-  return built;
-}
-
-mskia::Paint currentInk() {
-  return mskia::Paint::sksl(flowEffect())
+mskia::Paint currentInk(sk_sp<SkRuntimeEffect> program) {
+  return mskia::Paint::sksl(std::move(program))
       .slot("uField", mskia::Paint::recipe(field::noise(0.025f, 4, 23.0f)))
       .quantizeTime(30.0f);
 }
@@ -75,10 +54,11 @@ mskia::Paint particleLight() {
 }
 
 struct P5FlowField {
-  const mskia::Paint ink = currentInk();
+  mskia::Paint ink;
   const mskia::Paint sparks = particleLight();
 
   void setup(sketch::SketchContext& context) {
+    ink = currentInk(context.assets.shader(context.local("flow.sksl")));
     context.canvas(960, 720);
     context.background({4 / 255.0f, 7 / 255.0f, 17 / 255.0f, 1});
     context.captureAt(0.05);  // the field is a direct function of the clock

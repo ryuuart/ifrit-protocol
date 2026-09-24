@@ -1,0 +1,38 @@
+// The audio spectrum: a bar field whose heights are hashed per column
+// per TIME STEP. uTime arrives quantized at 10 Hz (quantizeTime), so
+// the bars STEP rather than slide — the era's digital readout feel,
+// and the same reason a stylised meter animates on a beat instead of
+// smoothly.
+
+uniform float2 uResolution;
+uniform float  uTime;
+uniform float  uBars;
+uniform float4 uHot;
+uniform float4 uCool;
+float h(float a, float b) {
+  return fract(sin(a * 12.9898 + b * 78.233) * 43758.5453);
+}
+half4 main(float2 xy) {
+  float bw = uResolution.x / uBars;
+  float i  = floor(xy.x / bw);
+  float fx = fract(xy.x / bw);
+  float gy = step(fract(xy.y / (uResolution.y / 5.0)), 0.06);
+  float4 acc = float4(0.012, 0.075, 0.082, 1.0);
+  acc = mix(acc, float4(0.04, 0.19, 0.20, 1.0), gy);
+  float gx = step(fract(xy.x / (bw * 4.0)), 0.03);
+  acc = mix(acc, float4(0.04, 0.19, 0.20, 1.0), gx);
+  if (fx > 0.72) return half4(half3(acc.rgb), 1.0);
+  float k  = floor(uTime * 10.0);
+  float n  = h(i, k);
+  float n2 = h(i * 3.1 + 7.0, k * 0.7 + 5.0);
+  float amp = 0.14 + 0.80 * n * (0.35 + 0.65 * n2);
+  amp *= 0.55 + 0.55 * sin(i / uBars * 3.14159);
+  float top = uResolution.y * (1.0 - clamp(amp, 0.0, 1.0));
+  float on  = step(top, xy.y);
+  float g = clamp((xy.y - top) / max(uResolution.y - top, 1.0),
+                  0.0, 1.0);
+  acc = mix(acc, mix(uHot, uCool, g), on);
+  float cap = step(abs(xy.y - (top - 3.0)), 1.5);
+  acc = mix(acc, float4(1.0, 1.0, 1.0, 1.0), cap * 0.7);
+  return half4(half3(acc.rgb), 1.0);
+}

@@ -1,0 +1,16 @@
+// The branch ink: a blue-to-coral current running across the
+// canvas with the clock, toothed by the grain in `uGrain`.
+
+uniform shader uGrain;
+uniform float2 uResolution;
+uniform float uTime;
+half4 main(float2 xy) {
+  float2 uv = xy / max(uResolution, float2(1.0));
+  float tooth = uGrain.eval(xy * 0.72).r;
+  float current = 0.5 + 0.5 * sin(13.0 * uv.x - 9.0 * uv.y - uTime * 1.4);
+  float3 lo = float3(0.15, 0.52, 0.72);
+  float3 hi = float3(1.00, 0.48, 0.30);
+  float3 colour = mix(lo, hi, current);
+  colour *= 0.76 + 0.34 * tooth;
+  return half4(half3(colour), 0.94);
+}

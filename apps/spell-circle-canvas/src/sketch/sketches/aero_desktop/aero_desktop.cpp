@@ -31,7 +31,6 @@
 
 // TAGS: Materials/Compositing, Interfaces/Desktop
 
-#include <include/core/SkString.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/brush/LayerStyles.h>
@@ -73,75 +72,6 @@ constexpr float kTaskbarH = 40;
 
 // Win7 "Sky" accent (registry): #74B8FC.
 constexpr material::Color kSky{0.455f, 0.722f, 0.988f, 1};
-
-// The aurora wallpaper: deep vertical ground, flowing diagonal light
-// bands, fine filaments + speckle stars (high-frequency detail so the
-// tight sigma=3 glass blur actually READS through the frame).
-inline sk_sp<SkRuntimeEffect> auroraEffect() {
-  static const char* kSkSL = R"(
-    uniform float uTime;
-    uniform float2 uResolution;
-    half4 main(float2 p) {
-      float2 uv = p / uResolution;
-      // deep night ground, faint teal horizon at the bottom
-      float3 col = mix(float3(0.006, 0.014, 0.042),
-                       float3(0.014, 0.052, 0.096), uv.y);
-      col += float3(0.02, 0.10, 0.12) * smoothstep(0.55, 1.05, uv.y);
-      // aurora curtains: wide, soft, diagonal (~40 deg), drifting slowly
-      float d = uv.x * 0.62 - uv.y * 0.78;
-      float t = uTime * 0.09;
-      // curtain waviness -- bands bend instead of staying ruler-straight
-      float wob = 0.045 * sin(uv.x * 5.1 + t * 2.0)
-                + 0.030 * sin(uv.y * 7.3 - t * 1.4);
-      // NARROW CURTAINS, WITH NIGHT BETWEEN THEM. At a gaussian this wide
-      // the first curtain covers the whole sky and the wallpaper is one
-      // smooth teal field — which is the case this scene's own header
-      // says defeats the glass, because a tight blur over a smooth field
-      // shows nothing and the pane then reads as a flat tint.
-      // SQUARED BY MULTIPLICATION, never pow: a curtain's gaussian is
-      // taken of the signed distance to its centre, half of which is
-      // negative, and pow of a negative base is undefined — a device
-      // answers it with a NaN that clamps the whole sky to black.
-      float g1 = (d - 0.05 + wob) * 8.5;
-      float g2 = (d + 0.30 - wob * 0.7) * 7.0;
-      float g3 = (d - 0.46 + wob * 1.3) * 11.0;
-      float g4 = (d - 0.24 - wob * 1.1) * 13.0;
-      float b1 = exp(-g1 * g1);
-      float b2 = exp(-g2 * g2);
-      float b3 = exp(-g3 * g3);
-      float b4 = exp(-g4 * g4);
-      // curtains hang in the upper sky
-      float sky = 1.0 - smoothstep(0.10, 0.72, uv.y);
-      // the main green curtain shifts green->cyan along its run
-      float3 c1 = mix(float3(0.05, 0.48, 0.24), float3(0.07, 0.40, 0.46),
-                      uv.x);
-      col += c1 * b1 * 0.72 * (0.12 + 0.88 * sky);
-      col += float3(0.34, 0.24, 0.68) * b2 * 0.46 * (0.20 + 0.80 * sky);
-      col += float3(0.06, 0.34, 0.38) * b3 * 0.48 * (0.12 + 0.88 * sky);
-      col += float3(0.10, 0.52, 0.30) * b4 * 0.42 * (0.12 + 0.88 * sky);
-      // faint filaments inside the curtains (detail for the glass blur)
-      // THE FILAMENTS ARE THE POINT. A curtain is a sheet of vertical
-      // rays and it is what a tight blur has to smear; at a pow of
-      // eighteen they are below the tint stack's own noise floor and the
-      // pane has nothing to blur.
-      float f = 0.5 + 0.5 * sin(d * 150.0 + wob * 40.0 + uTime * 0.4);
-      col += float3(0.35, 0.90, 0.65) * pow(f, 5.0) * b1 * 0.60 * sky;
-      float f2 = 0.5 + 0.5 * sin(d * 95.0 - uTime * 0.25 + 1.7);
-      col += float3(0.55, 0.50, 0.95) * pow(f2, 7.0) * b2 * 0.44 * sky;
-      // sparse small stars, brighter high in the sky
-      float2 cell = floor(p / 3.0);
-      float h = fract(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453);
-      float star = step(0.9950, h);
-      col += float3(0.80, 0.88, 1.0) * star *
-             (0.22 + 0.78 * fract(h * 91.7)) * (1.0 - uv.y * 0.70);
-      col = clamp(col, 0.0, 1.0);
-      return half4(half3(col), 1.0);
-    }
-  )";
-  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-  if (!fx) SkDebugf("aurora shader: %s\n", err.c_str());
-  return fx;
-}
 
 // The DWM colorization approximated as ONE flattened shader stack over
 // the blurred backdrop: Sky tint (colorBalance+afterglow read), a top
@@ -199,33 +129,6 @@ inline Paint closeBloom(float w, float h) {
                         {1.00f, {0.60f, 0.05f, 0.04f, 0.0f}}});
 }
 
-// The DWM window shadow: a rounded-box SDF falloff painted INSIDE its
-// own node bounds. Still a shader (not Shadow) on purpose: the
-// glass is translucent, so the shadow must be HOLLOW under the window
-// (the smoothstep knockout below) or the backdrop blur samples its own
-// black core and the whole pane goes murky.
-inline sk_sp<SkRuntimeEffect> windowShadowEffect() {
-  static const char* kSkSL = R"(
-    uniform float2 uResolution;
-    uniform float4 uMargins; // l, t, r, b
-    half4 main(float2 p) {
-      float2 rectMin = uMargins.xy;
-      float2 rectMax = uResolution - uMargins.zw;
-      float2 center = (rectMin + rectMax) * 0.5 + float2(0.0, 5.0);
-      float2 halfSize = (rectMax - rectMin) * 0.5;
-      float2 q = abs(p - center) - halfSize + float2(7.0, 7.0);
-      float d = length(max(q, float2(0.0)))
-              + min(max(q.x, q.y), 0.0) - 7.0;
-      float a = exp(-pow(max(d, 0.0) / 12.0, 1.6)) * 0.55;
-      a *= smoothstep(-3.0, 3.0, d); // hollow under the glass
-      return half4(0.0, 0.0, 0.0, half(a));
-    }
-  )";
-  auto [fx, err] = SkRuntimeEffect::MakeForShader(SkString(kSkSL));
-  if (!fx) SkDebugf("window shadow shader: %s\n", err.c_str());
-  return fx;
-}
-
 // Caption-button glass base (idle): faint vertical white gradient.
 inline Paint buttonBase(float h) {
   return Paint::linear({0, 0}, {0, h},
@@ -238,13 +141,12 @@ inline Paint buttonBase(float h) {
 }  // namespace aero_desktop
 
 struct AeroDesktop {
-  /** THE TWO PROGRAMS THIS DESKTOP IS PAINTED WITH, compiled once and held
-   *  for the sketch's life. An effect is compared by POINTER, so the
-   *  wallpaper, its taskbar copy and its thumbnail copy share one compile or
-   *  they are three unequal paints; and a compile held in a static outlives
-   *  this dylib, which a reload unloads. */
-  sk_sp<SkRuntimeEffect> aurora = aero_desktop::auroraEffect();
-  sk_sp<SkRuntimeEffect> windowShadow = aero_desktop::windowShadowEffect();
+  /** THE TWO PROGRAMS THIS DESKTOP IS PAINTED WITH, the files beside it,
+   *  read in setup and held for the sketch's life. An effect is compared by
+   *  POINTER, so the wallpaper, its taskbar copy and its thumbnail copy
+   *  share one program or they are three unequal paints. */
+  sk_sp<SkRuntimeEffect> aurora;
+  sk_sp<SkRuntimeEffect> windowShadow;
 
   choreograph::Output<float> bloom{0};    // close-button hover bloom fade-in
   choreograph::Output<float> orbGlow{0};  // start-orb ambient breathing
@@ -253,6 +155,8 @@ struct AeroDesktop {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
+    aurora = ctx.assets.shader(ctx.local("aurora.sksl"));
+    windowShadow = ctx.assets.shader(ctx.local("window_shadow.sksl"));
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     namespace ch = choreograph;

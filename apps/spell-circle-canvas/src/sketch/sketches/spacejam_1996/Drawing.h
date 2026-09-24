@@ -142,68 +142,16 @@ inline Element sphere(SkPoint c, float r, mskia::Paint m) {
 // ---------------------------------------------------------------------------
 // The one animated thing on the page: a sphere with rotating seams.
 //
-// Monolithic SkSL: everything inside one main(), with no user-defined
-// functions and no uniform-guarded loops or breaks. A sketch dylib's shader
-// source is compiled by the Skia the HOST links, and across that boundary
-// those two constructs fault with no diagnostic.
-//
-// Two builds of one source: `uSpin` as a constant (Planet B-Ball, static)
-// and `uTime` + quantizeTime(10) (fastbreak.gif, live, stepping at the
-// GIF's own 100 ms frame delay).
+// Two builds of one program, `ball_still.sksl` and `ball_live.sksl`:
+// `uSpin` as a constant (Planet B-Ball, static) and `uTime` +
+// quantizeTime(10) (fastbreak.gif, live, stepping at the GIF's own 100 ms
+// frame delay).
 
-inline sk_sp<SkRuntimeEffect> ballEffect(bool live) {
-  const std::string decl =
-      live ? "uniform float uTime;\n" : "uniform float uSpin;\n";
-  const std::string var = live ? "uTime" : "uSpin";
-  const std::string src = decl + R"(
-uniform float2 uResolution;
-uniform float4 uHi;
-uniform float4 uLo;
-uniform float4 uSeam;
-uniform float  uSeamW;
-
-half4 main(float2 xy) {
-  float2 p = xy / max(uResolution, float2(1.0, 1.0)) * 2.0 - 1.0;
-  float r2 = dot(p, p);
-  float z  = sqrt(max(1.0 - r2, 0.0));
-  float3 P = float3(p.x, p.y, z);
-
-  // tilt the spin axis toward the viewer (the GIF's ball is not upright)
-  float3 Q = float3(P.x, P.y * 0.940 - P.z * 0.342, P.y * 0.342 + P.z * 0.940);
-
-  float ang = )" + var + R"( * 10.4719755;   // 600 deg/s = 60 deg per GIF frame
-  float cs = cos(ang), sn = sin(ang);
-  float3 R = float3(Q.x * cs - Q.z * sn, Q.y, Q.x * sn + Q.z * cs);
-
-  // five seam planes: two meridians, one equator, two tilted side seams
-  float d1 = abs(R.x);
-  float d2 = abs(R.z);
-  float d3 = abs(R.y * 0.985 + R.x * 0.174);
-  float d4 = abs(R.y * 0.966 - R.z * 0.259);
-  float d5 = abs(R.x * 0.707 + R.z * 0.707);
-  float dm = min(min(min(d1, d2), min(d3, d4)), d5);
-  float seam = 1.0 - smoothstep(uSeamW * 0.45, uSeamW, dm);
-
-  float lit  = clamp(dot(normalize(float3(-0.42, -0.58, 0.70)), P), 0.0, 1.0);
-  float3 body = mix(float3(uLo.rgb), float3(uHi.rgb), lit * lit);
-  body *= mix(0.52, 1.0, smoothstep(0.0, 0.55, z));      // hard limb
-  float3 col = mix(body, float3(uSeam.rgb), seam);
-
-  float a = 1.0 - smoothstep(0.965, 1.0, r2);
-  return half4(half3(col * a), half(a));
-}
-)";
-  auto [effect, error] = SkRuntimeEffect::MakeForShader(SkString(src.c_str()));
-  if (!effect) SkDebugf("spacejam ballEffect: %s\n", error.c_str());
-  return effect;
-}
-
-inline mskia::Paint ballMaterial(bool live, material::Color hi,
+inline mskia::Paint ballMaterial(const sk_sp<SkRuntimeEffect>& program,
+                                 bool live, material::Color hi,
                                  material::Color lo, material::Color seam,
                                  float seamW) {
-  sk_sp<SkRuntimeEffect> fx = ballEffect(live);
-  if (!fx) return mskia::Paint::solid(hi);
-  mskia::Paint m = mskia::Paint::sksl(fx, {{"uSeamW", seamW}});
+  mskia::Paint m = mskia::Paint::sksl(program, {{"uSeamW", seamW}});
   m.uniform("uHi", hi);
   m.uniform("uLo", lo);
   m.uniform("uSeam", seam);

@@ -183,6 +183,8 @@ struct SpaceJam1996 {
   void bakeArt(sketch::SketchContext& ctx) {
     using namespace sj;
     sigil::weave::FontContext& f = *ctx.fonts;
+    const sk_sp<SkRuntimeEffect> ball =
+        ctx.assets.shader(ctx.local("ball_still.sksl"));
     struct Job {
       int ix;
       Element tree;
@@ -199,12 +201,12 @@ struct SpaceJam1996 {
              .left(0)
              .top(0)
              .shape(shapes::circle())
-             .fill(ballMaterial(false, C5(0xFF6B29), C5(0xC64210), C5(0x521800),
-                                0.050f)),
+             .fill(ballMaterial(ball, false, C5(0xFF6B29), C5(0xC64210),
+                                C5(0x521800), 0.050f)),
          S(40), S(40)},
         {kPressbox, artPressBox(f), S(131), S(56)},
         {kJamcentral, artJamCentral(f), S(55), S(67)},
-        {kBball, artBball(f), S(62), S(62)},
+        {kBball, artBball(f, ball), S(62), S(62)},
         {kLunartunes, artLunarTunes(f), S(95), S(77)},
         {kLineup, artLineup(f), S(63), S(52)},
         {kJamlogo, artLogo(f), S(272), S(165)},
@@ -360,12 +362,14 @@ struct SpaceJam1996 {
     stars = Pattern::tile({S(111), S(111)}, starTile());
     starsMat = stars.material(*ctx.fonts);
     fastballMat =
-        ballMaterial(true, C5(0xFF6B29), C5(0xC64210), C5(0x521800), 0.050f);
+        ballMaterial(ctx.assets.shader(ctx.local("ball_live.sksl")), true,
+                     C5(0xFF6B29), C5(0xC64210), C5(0x521800), 0.050f);
 
     // The 216-colour round, over the finished frame. It is a property of
     // the SCREEN, not of the artwork — which is exactly why it lives here
     // and the RGB555 snap lives in the materials.
-    ctx.composer.setView(mskia::Effect::shader(viewEffect()));
+    ctx.composer.setView(
+        mskia::Effect::shader(ctx.assets.shader(ctx.local("view.sksl"))));
 
     for (int i = 0; i < kAssetCount; ++i) {
       gotBytes[i] = 0;

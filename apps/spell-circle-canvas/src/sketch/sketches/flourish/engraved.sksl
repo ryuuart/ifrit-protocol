@@ -1,0 +1,12 @@
+// The engraved ground: diagonal rules gilded over a brown that darkens
+// away from the corner it is lit from.
+
+half4 main(float2 p) {
+  float d = mod(p.x * 0.6 - p.y * 0.4, 6.0);
+  float line = smoothstep(2.2, 3.0, d) - smoothstep(3.0, 3.8, d);
+  float r = length(p - float2(46.0, 46.0)) / 64.0;
+  half3 base = mix(half3(0.46, 0.31, 0.15), half3(0.24, 0.15, 0.10),
+                   clamp(r, 0.0, 1.0));
+  half3 gild = half3(0.92, 0.74, 0.38);
+  return half4(mix(base, gild, line * 0.6), 1.0);
+}

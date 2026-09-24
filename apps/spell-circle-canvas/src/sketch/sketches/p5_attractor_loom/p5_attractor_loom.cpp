@@ -12,7 +12,6 @@
 // TAGS: Drawing/Generative
 
 #include <include/core/SkPathBuilder.h>
-#include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -38,30 +37,8 @@ constexpr int kThreads = 9;
 constexpr int kSettlingSteps = 90;
 constexpr int kTraceSteps = 720;
 
-sk_sp<SkRuntimeEffect> threadEffect() {
-  auto [built, error] = SkRuntimeEffect::MakeForShader(SkString(R"(
-      uniform shader uGrain;
-      uniform float2 uResolution;
-      uniform float uTime;
-      half4 main(float2 xy) {
-        float2 uv = xy / max(uResolution, float2(1.0));
-        float grain = uGrain.eval(xy * 0.48).r;
-        float diagonal = 0.5 + 0.5 * sin((uv.x - uv.y) * 10.0 + uTime * 0.8);
-        float band = 0.5 + 0.5 * sin((uv.x + uv.y) * 17.0 - uTime * 1.15);
-        float3 cyan = float3(0.10, 0.88, 0.94);
-        float3 coral = float3(1.00, 0.32, 0.23);
-        float3 gold = float3(1.00, 0.78, 0.24);
-        float3 colour = mix(cyan, coral, diagonal);
-        colour = mix(colour, gold, band * 0.32);
-        colour *= 0.78 + grain * 0.34;
-        return half4(half3(colour), 0.62);
-      }
-    )"));
-  return built;
-}
-
-mskia::Paint threadInk() {
-  return mskia::Paint::sksl(threadEffect())
+mskia::Paint threadInk(sk_sp<SkRuntimeEffect> program) {
+  return mskia::Paint::sksl(std::move(program))
       .slot("uGrain", mskia::Paint::recipe(field::grain(0.07f, 3, 41.0f)))
       .quantizeTime(30.0f);
 }
@@ -76,10 +53,11 @@ mskia::Paint ground() {
 }
 
 struct P5AttractorLoom {
-  const mskia::Paint threads = threadInk();
+  mskia::Paint threads;
   const mskia::Paint background = ground();
 
   void setup(sketch::SketchContext& context) {
+    threads = threadInk(context.assets.shader(context.local("thread.sksl")));
     // The loom is a direct function of the clock, so the plate is the
     // first moment.
     sketch::kit::stage(context, {.size = {900, 720},

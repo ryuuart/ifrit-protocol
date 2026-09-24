@@ -1,0 +1,18 @@
+// The current's ink: cyan-to-violet ribbons moving with the clock,
+// warmed to amber where the field in `uField`, sliding sideways
+// with time, runs high, and more opaque there too.
+
+uniform shader uField;
+uniform float2 uResolution;
+uniform float uTime;
+half4 main(float2 xy) {
+  float2 uv = xy / max(uResolution, float2(1.0));
+  float field = uField.eval(xy * 0.55 + float2(uTime * 9.0, 0.0)).r;
+  float ribbon = 0.5 + 0.5 * sin(8.0 * uv.x + 11.0 * uv.y - uTime * 1.7);
+  float3 cyan = float3(0.18, 0.90, 0.94);
+  float3 violet = float3(0.72, 0.28, 1.00);
+  float3 amber = float3(1.00, 0.68, 0.20);
+  float3 colour = mix(cyan, violet, ribbon);
+  colour = mix(colour, amber, smoothstep(0.62, 0.92, field) * 0.62);
+  return half4(half3(colour), 0.72 + 0.22 * field);
+}

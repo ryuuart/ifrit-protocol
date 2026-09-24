@@ -1,0 +1,26 @@
+// The body every cell but the last two runs: bars off the table, a
+// hairline between them one DEVICE pixel wide (which is what makes
+// the content scale visible), and the world translation read as a
+// phase. A material recipe's body: `uResolution`, `uContentScale`
+// and `uWorld` are the frame inputs its recipe declares, and
+// `uGain`, `uTint` and `uBars` its parameters.
+
+half4 main(float2 p) {
+  float2 uv = p / uResolution;
+  float2 origin = float2(uWorld[2][0], uWorld[2][1]);
+  float x = fract(uv.x + origin.x / max(uResolution.x, 1.0));
+  float h = 0.0;
+  for (int i = 0; i < 12; ++i) {
+    float lo = float(i) / 12.0;
+    float hi = float(i + 1) / 12.0;
+    h += uBars[i] * step(lo, x) * step(x, hi);
+  }
+  h *= uGain;
+  float cell = uResolution.x / 12.0;
+  float toEdge = abs(mod(p.x, cell) - cell * 0.5);
+  float hair = step(cell * 0.5 - 1.0 / uContentScale, toEdge);
+  float bar = step(1.0 - h, uv.y);
+  float3 c = mix(float3(0.09, 0.10, 0.13), uTint.rgb, bar);
+  c = mix(c, float3(0.92, 0.93, 0.97), hair * 0.85);
+  return half4(half3(c), 1.0);
+}

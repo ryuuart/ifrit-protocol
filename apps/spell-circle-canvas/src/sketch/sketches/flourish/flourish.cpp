@@ -99,29 +99,6 @@ struct Flourish {
 
   // ---- helpers ------------------------------------------------------------
 
-  static sk_sp<SkRuntimeEffect> makeHatch() {
-    return SkRuntimeEffect::MakeForShader(SkString(R"(
-        half4 main(float2 p) {
-          float d = mod(p.x * 0.7 + p.y, 7.0);
-          float line = smoothstep(2.4, 3.1, d) - smoothstep(3.1, 3.8, d);
-          return half4(0.0, 0.0, 0.0, 0.20 * line);
-        })"))
-        .effect;
-  }
-  static sk_sp<SkRuntimeEffect> makeEngraved() {
-    return SkRuntimeEffect::MakeForShader(SkString(R"(
-        half4 main(float2 p) {
-          float d = mod(p.x * 0.6 - p.y * 0.4, 6.0);
-          float line = smoothstep(2.2, 3.0, d) - smoothstep(3.0, 3.8, d);
-          float r = length(p - float2(46.0, 46.0)) / 64.0;
-          half3 base = mix(half3(0.46, 0.31, 0.15), half3(0.24, 0.15, 0.10),
-                           clamp(r, 0.0, 1.0));
-          half3 gild = half3(0.92, 0.74, 0.38);
-          return half4(mix(base, gild, line * 0.6), 1.0);
-        })"))
-        .effect;
-  }
-
   std::shared_ptr<sigil::image::ImageAsset> makeGemAtlas() const {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
     SkCanvas& c = *s->getCanvas();
@@ -580,8 +557,8 @@ struct Flourish {
     Composer& composer = ctx.composer;
     sigil::motion::Ticker& ticker = ctx.ticker;
     sceneTicker = &ticker;
-    hatch = makeHatch();
-    engraved = makeEngraved();
+    hatch = ctx.assets.shader(ctx.local("hatch.sksl"));
+    engraved = ctx.assets.shader(ctx.local("engraved.sksl"));
     carvedFrame = std::make_shared<sigil::image::ImageAsset>(
         sigil::image::ImageAsset::wrap(
             makeCarvedFrame(toOrnamentPalette(st), 192)));

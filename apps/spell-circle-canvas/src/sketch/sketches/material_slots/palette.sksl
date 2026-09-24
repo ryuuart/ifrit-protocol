@@ -1,0 +1,13 @@
+// THE SHADER. Two `uniform shader` slots and one float: the index
+// chart's red channel is a palette index, the shade moves it along the
+// table, clamped to its last entry, and the palette is read at that
+// entry's centre.
+
+uniform shader uIndex;
+uniform shader uPalette;
+uniform float uShade;
+half4 main(float2 xy) {
+  float i = floor(uIndex.eval(xy).r * 255.0 + 0.5);
+  i = min(i + uShade, 15.0);
+  return uPalette.eval(float2(i + 0.5, 0.5));
+}
