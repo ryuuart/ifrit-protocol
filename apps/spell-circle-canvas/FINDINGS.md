@@ -708,6 +708,15 @@ leaf carries and assert local 0 still draws `from`.
 Wanted by `karaoke_wipe`, whose wipe is `textFx::tint(kPale, kSung)` over
 a lyric inked `var("sung")`.
 
+`elastic_type` meets the same constraint from `textFx::keys`: its blush
+table writes each stop's `GlyphModifier::colorMultiplier` from the two
+series colours the sheet also states as `--x` and `--y`, so the palette is
+stated twice, once as custom properties for the traces and once as
+constants for the glyphs. Whatever fixes `tint` (a `VarRef` end resolved
+against the leaf's custom properties at apply time) should reach a
+keyframe entry's colour terms too. Add `elastic_type` to that entry's
+wanted-by list.
+
 ## A run can be measured to the pen only from a held typeface, never from the family list or the leaf a sheet sets
 
 `compose::runPens`, `measureRun`, `fitRun`, `atCapHeight` and `metrics`
@@ -898,3 +907,156 @@ both comments. Taking the held table where the hand-built one held the
 same patterns should leave `paragraph_sheet` and `manuscript` byte-
 identical; `python_type_atelier` moves wherever the pattern table
 breaks a word its typed hyphens did not, and that move is the check.
+
+## A glyph-outline decoration is cut from the glyphs at rest, so a text shadow cannot follow a track's deformation
+
+`decorationOutline(Boundary::Glyphs)` hands a text leaf's decorations the
+outline `TextLayout::glyphOutline()` builds from the placement
+(`compose/core/PaintContent.cpp`, cached against `measuredRev`). A
+`textFx()` track's `GlyphModifier` — its scale, shear, offset and rotation —
+is applied at paint time after that outline is taken, so a
+`styles::dropShadow`, an `OuterGlow` or a bevel on a leaf whose letters a
+keyframe table squashes and shears stays drawn around the letters where
+they stood. `Boundary::Coverage` would follow them, but it rasterises and
+traces the leaf's layer whenever it is invalidated, which a track moving
+every frame does every frame. And `material::skia::Effect` has no offset
+drop shadow (CSS's `filter: drop-shadow(x y blur colour)`): `glow` is the
+zero-offset form, so a shadow cast AWAY from a deformed run is a second
+copy of the run, translated and blurred with `Effect::blur` — on the bench
+that copy is the most expensive node on the plate, at several ms per
+display-size word at 2x.
+
+It evidently means a shadow that belongs to what the letters DO: either
+the glyph outline is rebuilt from the deviated glyphs when a leaf carries
+displacing tracks (the tracks already know their reach, and a settled
+cascade could cache the deviated outline as a static one is), or the
+effect family carries `dropShadow(offset, sigma, colour)` so one filter on
+the leaf casts the drawn letters, deformed, without a copy.
+
+A test should lay `textFx::keys({{0, {}}, {1, {.scaleX = 2}}})` at
+progress 1 on a one-glyph leaf with `decorationOutline(Boundary::Glyphs)`
+and an `OuterGlow`, and assert the glow's painted bounds span the doubled
+glyph's width rather than the rest glyph's; and, for the effect, that a
+leaf filtered with a drop shadow of offset (0, 12) paints shadow pixels
+12 px below the deformed glyph's lowest ink and none beside its rest
+position.
+
+Wanted by `elastic_type`, whose words stand in a pool of shadow attached
+under their rest extent because neither route above follows the letters.
+
+The same outline is also painted in ONE colour: a `textFx()` track's
+`colorMultiplier`, `colorAdd` and `colorScreen` modulate the glyph passes
+and never reach a decoration drawn over `Boundary::Glyphs`
+(`compose/core/PaintContent.cpp` takes `glyphOutline()` once per
+`measuredRev` and hands the union to the decoration). So a text shadow or
+glow in the letters' own colour — CSS's `text-shadow` with no colour, which
+is `currentColor` per glyph — cannot follow a wipe: under
+`textFx::tint(pale, sung)` it glows the sung colour round letters not yet
+sung. The fix that rebuilds the outline from the deviated glyphs should
+carry each glyph's modulated colour too, or a glyph-outline decoration
+should be able to say "the glyph's own colour".
+
+A test should tint a two-glyph leaf with a track holding glyph 0 at local 1
+and glyph 1 at local 0 (`tint(black, white)` on a white leaf), dress it with
+`decorationOutline(Boundary::Glyphs)` and a zero-offset shadow in the ink
+in force, and assert pixels of the shadow beside glyph 0 are lit and beside
+glyph 1 are not.
+
+Add `karaoke_wipe` to that entry's wanted-by list: its glow is a second,
+blurred copy of the sung line sung from black, where one glyph-outline
+glow on the line would do.
+
+## `Effect::phosphorBloom` over a live layer costs the same whatever the layer's size, and far more than a blur
+
+`Effect::phosphorBloom` (`sigilmaterial/skia/Effect.h`, built in
+`skia/EffectBloom.cpp` by `makePhosphorBloom`) says its halo is gathered
+over a REDUCED layer and resampled up, which reads as a bloom meant for
+live content. Over a live node it costs the whole frame: `karaoke_wipe`
+put it on the caption box of its screen (928x318) and on the sung text
+leaf alone (810x63), and `--bench` reported the node at about 43 ms per
+frame in both cases, p99 45.6 ms, where `Effect::blur(6)` on the same text
+leaf costs 3.3 ms and `skia::bloom` (two separable Gaussians) over the
+caption box 24 ms.
+
+THE PROBABLE CAUSE, from the source. `makePhosphorBloom` builds two
+`SkImageFilters::RuntimeShader` nodes — the gather, given `reach` as its
+sample radius, and the composite over it, given none — and wraps neither
+in `SkImageFilters::Crop`. In Skia (`SkRuntimeImageFilter.cpp`) a
+runtime-shader filter's `onGetOutputLayerBounds` returns
+`LayerSpace<SkIRect>::Unbounded()` and its `computeFastBounds` returns
+`SkRectPriv::MakeLargeS32()`, whatever its inputs: a shader may paint
+where its input is transparent, so Skia assumes it covers everything. The
+sample radius only grows the INPUT a node asks for from the output it is
+asked to make (`onGetInputLayerBounds` → `applyMaxSampleRadius`); it
+never bounds the output. So the outermost node, the composite, declares an
+unbounded output, the output asked of it is the whole clip, and the
+composite, the enlarge, the gather and the reduce all run over the clip
+(the gather over the clip grown by the reach). That is why the cost does
+not follow the node. The comment above `makePhosphorBloom` says the
+opposite — that the declared sampling radius makes Skia bound the node to
+the reduced source grown by the reach instead of giving a runtime shader
+the whole clip — and is wrong on this point.
+
+It evidently means a phosphor bloom a live caption can wear: the halo's
+cost following the layer it filters, of the order of the blur it replaces
+for a caption-sized layer, which a crop of the filter graph to the
+content's bounds grown by the effect's reach would give.
+
+A test should build `Effect::phosphorBloom(radius, …)` and ask the filter
+it produces for its forward bounds over a node rect
+(`SkImageFilter::filterBounds(nodeRect, identity, kForward_MapDirection)`,
+and `computeFastBounds(nodeRect)`), asserting both equal the node's rect
+grown by the effect's reach on every side, never the canvas or an
+unbounded rect. A bench arm in the material library should run
+`phosphorBloom` over an 800x60 and a 900x300 live layer and record both,
+and the pair should scale with area.
+
+Wanted by `karaoke_wipe`, whose sung line glows through a blurred copy of
+itself added under it (a second text leaf on the same tracks) because the
+one-node bloom does not fit a frame.
+
+## `kit::grained` puts no grain on a near-black ground
+
+`compose::kit::grained(over, amount, frequency)` (`kit/Ground.h`) folds
+Skia's fractal noise into `over` by `SkBlendMode::kSoftLight`, with
+the noise reduced to luminance and faded toward mid grey by `amount`.
+Soft light has two halves, and both scale with the ground's value `d`.
+Where the noise `s` is below mid grey it darkens by `d·(1−d)·(1−2s)`;
+where it is above, it lightens by `(2s−1)·(D(d)−d)`, and for `d ≤ 0.25`
+`D(d)−d = 16d³ − 12d² + 3d`, which tends to `3d` as `d` falls and is
+about `2.3·d` at `d = 0.07`. So on a ground as dark as a night sky or
+a night sea, the noise moves the ground by under one 8-bit level either
+way. `shipping_forecast` measured it on its sea (`0x0B111A`): at
+`amount = 0.5` the ground's standard deviation over a 100 px patch at
+2x was 0.36 levels against 0.13 with no grain. Laying a mid grey
+grained at full strength over the ground as a separate translucent
+layer does not help either: the noise the kit keeps has so little
+range that at 14% opacity it lifted the ground's mean by ten levels and
+its deviation only to 0.7.
+
+The function is meant to dress ANY ground in grain as light, and says
+so in its comment ("dressed in light rather than speckled in hue").
+Dark grounds are where film grain and phosphor grain are most wanted.
+
+A test should render `grained(c, 0.1f)` over a 256×256 box for a
+near-black `c` (`0x0B111A`) and a mid-tone `c`, and assert that the
+luminance standard deviation of the dark one reaches at least a stated
+fraction of the mid-tone one's (a grain whose strength does not
+collapse with the ground's value — for instance soft light replaced by
+an additive light term scaled by `amount`, or the noise's range
+normalised before the blend), while `amount = 0` still returns `c`
+exactly.
+
+Wanted by `shipping_forecast` (its night sea carries no grain, and a
+comment beside the ground says why). `elastic_type` and `axis_ripple`
+also call `grained` and would move with it.
+
+Not a new finding: append `axis_ripple` to the wanted-by list of the
+entry of that name (filed from `shipping_forecast`). Its ground asks
+for `kit::grained(0x0C0C0E, 0.07f, 0.85f)`, and a 100 x 80 px patch of
+that ground at 2x measures a luminance standard deviation of 0.58
+8-bit levels with the vignette's slope included, so no grain reads.
+The sketch keeps the call, with a comment beside the ground stating
+the constraint, so the grain appears when the kit's grain holds its
+strength on a dark ground.
+
