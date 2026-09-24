@@ -845,19 +845,6 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                         (node.textData && !node.textData->threadTo.empty())
                     ? bounds.height()
                     : Composer::Impl::kUnbounded);
-          // Misprint echoes of the TEXT, under the real pass (textFx() text
-          // draws its own buckets — echoes skip it by contract).
-          if (!echoesOf(node).empty() && !hasTextFx(inst)) {
-            for (const Echo& e : echoesOf(node)) {
-              sigil::weave::PaintStyle stamp;
-              stamp.foreground.setColor4f(material::skia::toSkColor(e.color),
-                                          nullptr);
-              canvas.save();
-              canvas.translate(e.offset.fX, e.offset.fY);
-              inst.textLayout.drawBatched(&canvas, *inst.paragraph, &stamp);
-              canvas.restore();
-            }
-          }
           const TextPath* onPath = nullptr;
           if (onPathRun) {
             const std::optional<TextPath>& path = node.textData->onPath;
@@ -876,6 +863,27 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           const TextPainterOperations* painter = textPainterOf(inst);
           const TextPainterOperations* engine =
               painter ? painter : detail::registeredTextEngine();
+          // Misprint echoes of the TEXT, under the real pass and placed as
+          // it is: along the path for a run laid on one, level otherwise.
+          // textFx() text draws its own buckets — echoes skip it by
+          // contract.
+          if (!echoesOf(node).empty() && !hasTextFx(inst)) {
+            for (const Echo& e : echoesOf(node)) {
+              detail::TextInk stamp;
+              stamp.passage.emplace();
+              stamp.passage->foreground.setColor4f(
+                  material::skia::toSkColor(e.color), nullptr);
+              canvas.save();
+              canvas.translate(e.offset.fX, e.offset.fY);
+              if (onPath && painter)
+                painter->paint(inst, canvas, stamp, onPath,
+                               {bounds.width(), bounds.height()}, paintCtx);
+              else
+                inst.textLayout.drawBatched(&canvas, *inst.paragraph,
+                                            stamp.override());
+              canvas.restore();
+            }
+          }
           if ((hasTextFx(inst) || onPath) && painter) {
             painter->paint(inst, canvas, ink, onPath,
                            {bounds.width(), bounds.height()}, paintCtx);

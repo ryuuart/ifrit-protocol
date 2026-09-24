@@ -369,24 +369,6 @@ its own image, state a `pin::Request` on a node under `pin::ByLane`,
 and assert the pinned element is attached; `thaumonomicon` places its
 tooltip by hand until then.
 
-## A layer style's echo ignores the text's path
-
-`Element::layerStyle(LayerStyle::echo(offset, colour))` on a text leaf
-that also carries `textOnPath(...)` stamps the echo as a STRAIGHT run at
-the node box's origin, while the real pass is laid along the path: on a
-ring or a polygon's sides the echo lands as a pile of unrelated
-horizontal lettering in the box's top-left corner. The echo is evidently
-meant to re-stamp the same placed glyphs at `offset` beneath the real
-pass, as it does for a leaf set on a straight line, so an incised or
-misprinted run on a curve reads the same as one set flat.
-`src/sketch/sketches/sigillum_aemeth/sigillum_aemeth.cpp` works around it
-(`workaround:` in `onSide`) by leaving path-set runs without the echo.
-
-A test: a text leaf on `shapes::circle()` with an echo of a known colour
-and offset, rendered into a raster; every echo-coloured pixel lies within
-`|offset|` plus a glyph's extent of the real pass's ink, and none in the
-box's corner away from the circle.
-
 ## A nib brush lays white discs inside a compose pen node
 
 `draw::brush::paint` with a `Tip::Nib` tool (colour cinnabar, opacity 1,

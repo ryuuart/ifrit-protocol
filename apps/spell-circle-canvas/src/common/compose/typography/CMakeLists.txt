@@ -66,6 +66,7 @@ sigil_library(SigilComposeTypography
 sigil_test(compose_test
   SOURCES test/ComposeTestTextData.cpp test/ComposeTestTextPass.cpp
           test/ComposeTestVertical.cpp test/ComposeTestPathMotion.cpp
+          test/ComposeTestPathEcho.cpp
           test/ComposeTestParagraphs.cpp test/ComposeTestUnits.cpp
           test/ComposeTestTypeset.cpp test/ComposeTestAnnotations.cpp
           test/ComposeTestStory.cpp test/ComposeTestLiveText.cpp
