@@ -1,7 +1,7 @@
 {
   "title": "WU LEI HAO LING · A THUNDER-RITE COMMAND TALISMAN, WRITTEN",
-  "subtitle": "DAOFA HUIYUAN DZ 1220, juan 46 · iron plate, five cun by three · written in cinnabar · stroke medians from makemeahanzi, classes recovered from geometry",
-  "footer": "Never invert the brush and tap for a pregnant woman or a patient with eye disease. · SigilCompose study · no CJK font is loaded: every Han glyph here is stroke geometry",
+  "subtitle": "DAOFA HUIYUAN DZ 1220, juan 46 · iron plate, five cun by three · written in cinnabar · stroke medians from makemeahanzi",
+  "footer": "Never invert the brush and tap for a pregnant woman or a patient with eye disease. · SigilCompose study · no CJK font is loaded: every Han graph here is a written stroke",
   "registers": [
     {
       "y": 34,
@@ -24,11 +24,59 @@
       "words": "FU JIAO  foot · one breath, 38 strokes"
     }
   ],
-  "void": [
-    "left eye",
-    "right eye",
-    "tongue"
-  ],
+  "margin": {
+    "head": {
+      "heading": "TA FU TOU · TREADING THE HEAD",
+      "lines": [
+        "1st stroke  the world moves",
+        "2nd stroke  the patriarch's sword",
+        "3rd stroke  malign gods, a thousand li hence"
+      ]
+    },
+    "gall": {
+      "heading": "SUNG WHILE GANG IS DRAWN",
+      "lines": [
+        {
+          "words": "open the gate of heaven"
+        },
+        {
+          "words": "kill the ghost-road"
+        },
+        {
+          "words": "open the earth-prison"
+        },
+        {
+          "words": "bar the road of men"
+        },
+        {
+          "words": "slay the ghost-troops"
+        },
+        {
+          "words": "break the ghost's belly",
+          "style": "chant lands"
+        }
+      ],
+      "note": "the sixth phrase lands on the tenth stroke"
+    },
+    "law": {
+      "heading": "QI / XING / SHOU · THE WIDTH OVER ONE STROKE",
+      "marks": [
+        {
+          "words": "entry 1.77",
+          "s": 0.0
+        },
+        {
+          "words": "belly 0.73",
+          "s": 0.28
+        },
+        {
+          "words": "press 1.42",
+          "s": 0.88
+        }
+      ],
+      "note": "The brush enters against its own direction, thins through the body and presses before it lifts. Every stroke on the plate is laid by this one law."
+    }
+  },
   "chant": {
     "heading": "ZHAN HONG FU · SEVER THE RAINBOW",
     "lines": [
@@ -81,67 +129,72 @@
     ],
     "gloss": "the foot is 7.1x the body — doctrine, measured: \"the foot is the last step; total concentration, cut off in a single breath, no slowing or dragging.\"  A fu written at one tempo is not a fu."
   },
-  "margin": {
-    "head": {
-      "heading": "TA FU TOU · TREADING THE HEAD",
-      "lines": [
-        "1st stroke  the world moves",
-        "2nd stroke  the patriarch's sword",
-        "3rd stroke  malign gods, a thousand li hence"
-      ]
-    },
-    "law": {
-      "heading": "QI / XING / SHOU · w(s) OVER ARC LENGTH",
-      "marks": [
-        {
-          "words": "ni feng 1.77",
-          "s": 0.0
-        },
-        {
-          "words": "belly 0.73",
-          "s": 0.28
-        },
-        {
-          "words": "dun 1.42",
-          "s": 0.88
-        }
-      ],
-      "note": "s = distance / fullLength, NOT PathSample::fraction"
-    },
-    "classes": {
-      "heading": "SIX CLASSES · w0, RECOVERED"
-    },
-    "gall": {
-      "heading": "SUNG WHILE GANG IS DRAWN",
-      "lines": [
-        {
-          "words": "open the gate of heaven"
-        },
-        {
-          "words": "kill the ghost-road"
-        },
-        {
-          "words": "open the earth-prison"
-        },
-        {
-          "words": "bar the road of men"
-        },
-        {
-          "words": "slay the ghost-troops"
-        },
-        {
-          "words": "break the ghost's belly",
-          "style": "chant lands"
-        }
-      ],
-      "note": "the sixth phrase lands on the tenth stroke"
-    }
-  },
-  "colophon": {
+  "tread": {
     "heading": "BU GANG TA DOU · THE TREAD, ON THE REAL DIPPER",
     "lines": [
       "Nine stations: J2000 right ascension and declination, gnomonically projected about the asterism's own centroid. Yu bu is \"three steps, nine prints\".",
       "Zuo Fu (Alcor) lies 0.008 of the asterism's span from Kai Yang (Mizar) on the real sky — every bu gang plate separates the pair by hand, and so does this one. You Bi is invisible: its station is doctrine, and it is drawn open."
+    ],
+    "stations": [
+      {
+        "x": 0.9886,
+        "y": 0.0,
+        "star": "Dubhe",
+        "name": "TIAN SHU",
+        "starShift": -26
+      },
+      {
+        "x": 1.0,
+        "y": 0.2288,
+        "star": "Merak",
+        "name": "TIAN XUAN",
+        "nameShift": 44
+      },
+      {
+        "x": 0.6862,
+        "y": 0.3434,
+        "star": "Phecda",
+        "name": "TIAN JI"
+      },
+      {
+        "x": 0.5559,
+        "y": 0.2011,
+        "star": "Megrez",
+        "name": "TIAN QUAN"
+      },
+      {
+        "x": 0.3229,
+        "y": 0.2469,
+        "star": "Alioth",
+        "name": "YU HENG"
+      },
+      {
+        "x": 0.1425,
+        "y": 0.2909,
+        "star": "Mizar",
+        "name": "KAI YANG",
+        "starShift": 23
+      },
+      {
+        "x": 0.0,
+        "y": 0.5302,
+        "star": "Alkaid",
+        "name": "YAO GUANG"
+      },
+      {
+        "x": 0.064,
+        "y": 0.402,
+        "star": "Alcor",
+        "name": "ZUO FU",
+        "starShift": -23
+      },
+      {
+        "x": 0.218,
+        "y": 0.439,
+        "star": "",
+        "name": "YOU BI",
+        "unseen": true
+      }
     ]
   }
 }
