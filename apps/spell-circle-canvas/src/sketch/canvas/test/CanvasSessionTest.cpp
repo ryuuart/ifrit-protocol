@@ -225,10 +225,18 @@ TEST_F(CanvasSession, PaintsWhatTheSketchDescribed) {
   canvas().clear(SK_ColorBLACK);
   session->frame(canvas(), 1.0 / 60.0);
   EXPECT_EQ(pixels().getColor(10, 10), SK_ColorRED);
-  // The root box stands at the size it states, as CSS's root does, and
-  // the runtime paints what the body described and nothing past it: the
-  // corner is left as the frame found it, cleared by whoever hosts the
-  // session, which is where the declared ground is laid.
+  // The declared ground is not the session's to paint: the session hands
+  // it to its host as part of the canvas the body declared, and the host
+  // clears the surface to it before each frame. So the session reports
+  // exactly the ground the body declared…
+  const sigil::material::Color& ground = session->canvas().background;
+  EXPECT_FLOAT_EQ(ground.r, 0.1f);
+  EXPECT_FLOAT_EQ(ground.g, 0.2f);
+  EXPECT_FLOAT_EQ(ground.b, 0.3f);
+  EXPECT_FLOAT_EQ(ground.a, 1.0f);
+  // …and a frame paints the described red box, standing at the size its
+  // root states, and nothing past it: the corner keeps whatever the
+  // surface held when the frame began.
   EXPECT_EQ(pixels().getColor(300, 190), SK_ColorBLACK);
 }
 

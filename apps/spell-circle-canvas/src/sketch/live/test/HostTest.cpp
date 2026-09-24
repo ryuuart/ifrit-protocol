@@ -230,6 +230,9 @@ TEST(SketchHost, TheStillIsPixelsAndTheCaptureIsThePng) {
   ASSERT_FALSE(still.isNull());
   EXPECT_EQ(still.dimensions(), SkISize::Make(240, 180));
   EXPECT_EQ(still.getColor(5, 5), SK_ColorGREEN);
+  // Past the square is the ground the sketch declared, opaque black, laid
+  // by the host: the session paints only what the body described.
+  EXPECT_EQ(still.getColor(230, 170), SK_ColorBLACK);
   // The pixels are safe to hand to another thread, which is what the
   // thumbnail store does with them.
   EXPECT_TRUE(still.isImmutable());
