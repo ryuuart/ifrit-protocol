@@ -40,14 +40,17 @@ derived is kept by hand.
                  host is this library's own)        |          |
                               |                     |          |
                               v                     |          |
-                         DISPATCHER  handlers by method, a session per client,
-                              |      events by domain, the refusals no agent sees
+                         DISPATCHER  one per host: handlers by method, a
+                              |      session per client however it came,
+                              |      events by domain, the refusals no
+                              |      agent sees
                    +----------+-----------+         |          |
-                   |                      |         |          |
+                   | attach               | attach  |          |
                    v                      v         |          |
                InProcess              ENDPOINT      |          |
-          a caller per client,   ws:// on loopback,  |          |
-          no socket (tests)      <state>/protocol-address,     |
+          one client, a caller,  ws:// on loopback, |          |
+          no socket (tests,      text frames,       |          |
+          command lists)         <state>/protocol-address,     |
                    ^             /protocol served,  |          |
                    |             inside hub.dispatch()         |
                    |                      ^         |          v
@@ -167,21 +170,36 @@ without calling is answered `failed` as it goes — no command is left
 unanswered. Everything runs on the one thread that drives the
 dispatcher.
 
-`sigil::protocol::InProcess` is the dispatcher with no socket: each
-`sigil::protocol::InProcess::connect` attaches a
-`sigil::protocol::InProcess::Client`, whose `caller()` a generated client
+A host holds ONE dispatcher and mounts its agents on it once; every way
+a client arrives attaches to that one through
+`sigil::protocol::Dispatcher::attach`, with a
+`sigil::protocol::Attachment` saying how its events reach it and what
+it is told as it is let go, so a client in the same process and one on
+the socket are sessions of the same dispatcher, each hearing the events
+it enabled and each listed among those `host.describe` names attached.
+`sigil::protocol::InProcess` is the dispatcher with no socket: one
+client attached in the same process, whose `caller()` a generated client
 speaks through and whose `send()` takes the very envelope text a socket
-carries, so a test proves what a script would be told. Letting a client
-go detaches it, as a socket closing does.
+carries, so a test proves what a script would be told, and a host runs
+a command list the same way. Letting a client go detaches it, as a
+socket closing does; a client its dispatcher let go, one that detached
+itself and one moved from are each refused `notSent`, in words saying
+which. Letting the dispatcher go tells every client still attached that
+enabled `host` that the host is closing, and runs no `onDetach`
+listener: what an agent keyed by session goes with the host.
 
-**5. The endpoint**, `sigil::protocol::Endpoint`, is the dispatcher
-behind one of SigilData's connections on SigilIO's `ws://` listener at
-`/sigil`, on the port a `sigil::protocol::EndpointPolicy` asks for or
-any free one. It holds loopback alone, so another machine cannot reach
-it however it asks; where the policy states peers beyond it, it holds
-every interface and admits loopback and those peers, and every other is
-refused before it becomes a client. Before the constructor returns — so
-before the first frame — it writes the address a client dials,
+**5. The endpoint**, `sigil::protocol::Endpoint`, puts a host's
+dispatcher behind one of SigilData's connections on SigilIO's `ws://`
+listener at `/sigil`, on the port a `sigil::protocol::EndpointPolicy`
+asks for or any free one, and every message it sends is a text frame.
+It holds loopback alone, so another machine cannot reach it however it
+asks; where the policy states peers beyond it, it holds every interface
+and admits loopback and those peers, and every other is refused before
+it becomes a client. A stated peer is a bare IP address: one that is
+anything else opens nothing, and the endpoint's error names it. The
+state root is the dispatcher's program's, and without one the endpoint
+listens nowhere. Before the constructor returns — so before the first
+frame — it writes the address a client dials,
 `ws://127.0.0.1:PORT/sigil`, to `<state>/protocol-address`, as a browser
 writes the port its debugging socket took, and serves the reflected
 definition — `sigil::protocol::definition`, the very bytes the generator
@@ -194,10 +212,14 @@ among what it could not read, and in process the same text is answered
 `invalidRequest`. Every request is answered
 inside the hub's dispatch, on the frame thread, so an agent never races
 the paint, and with no client attached a frame runs no handler at all.
-Letting the endpoint go tells every client that enabled `host` that the
-host is closing, through `host.detached`, and takes back the address
-file while it still names this endpoint. Sketchbook and Seer will mount
-one by default; the product receiver only when `--inspect` asks.
+Letting the endpoint go detaches the clients it attached and no other,
+telling each that enabled `host` that the endpoint is closing, through
+`host.detached` sent before the socket closes, and takes back the
+address file while it still names this endpoint. It is made on a hub and
+a dispatcher and let go before either, and before the agents mounted on
+that dispatcher, whose `onDetach` listeners its going runs. Sketchbook
+and Seer will put one on their dispatcher by default; the product
+receiver only when `--inspect` asks.
 
 **6. The clients** speak through a `sigil::protocol::Caller`: `call`
 sends a method and its parameters' JSON text and hands the answer back
@@ -234,7 +256,9 @@ the sessions open and the clients attached.
 
 ## The envelope
 
-On the socket every message is one JSON object. A request is
+On the socket every message is one JSON object in one text frame, as
+the Chrome DevTools protocol's are, so a browser page or a command-line
+client reads it as a string. A request is
 `{"id", "session", "method", "parameters"}`: the id a number or text the
 answer carries back, the session optional and refused where it is not
 the client's own, the parameters the command's table and absent for
@@ -299,12 +323,14 @@ two seconds at double density is `clock.setPolicy` to `Advance`,
   bytes.
 - `dispatch/Program.h` — `Program`: what only the program knows about
   itself.
-- `dispatch/Dispatcher.h` — `Dispatcher`: handlers, sessions, events and
-  the refusals no agent is asked for.
+- `dispatch/Dispatcher.h` — `Dispatcher`, `Attachment`: handlers,
+  sessions, events and the refusals no agent is asked for, and how each
+  client is reached.
 - `dispatch/HostDomain.h` — `HostDomain`: the host domain this library
   answers itself.
-- `dispatch/InProcess.h` — `InProcess`: the dispatcher with no socket.
-- `endpoint/Endpoint.h` — `Endpoint`, `EndpointPolicy`: the dispatcher on
+- `dispatch/InProcess.h` — `InProcess`: one client attached with no
+  socket.
+- `endpoint/Endpoint.h` — `Endpoint`, `EndpointPolicy`: a dispatcher on
   a loopback socket.
 
 ## Changing the definition
@@ -351,16 +377,22 @@ up is triaged by running the layer below it:
 - the dispatcher answers `host.describe` on a dispatcher no agent was
   mounted on, and with what the program and the dispatcher each know;
   refuses a method the definition does not declare apart from one no
-  agent is mounted for, parameters their table cannot hold naming the
-  parameter, a message that is no request, and a reply let go
-  unanswered; sends events only between a client's enable and disable;
-  and takes what a detaching client set with it;
+  agent is mounted for whatever its parameters, then parameters their
+  table cannot hold naming the parameter — an enumeration's name or
+  number it does not declare among them — a message that is no request,
+  and a reply let go unanswered; sends events only between a client's
+  enable and disable; takes what a detaching client set with it; and
+  refuses, saying which, a client let go, one detached and one moved
+  from;
 - the endpoint, on a real socket, writes its address file before the
   first frame and takes it back, serves the definition at `/protocol`,
   answers a command over the wire only inside the hub's dispatch, sends
-  an event to the client that enabled its domain, detaches a peer that
-  leaves, and cannot be reached from beyond loopback unless a peer was
-  stated — the last only where the machine has such an address;
+  an event to the client that enabled its domain, stands a socket client
+  and one in process on one dispatcher, detaches a peer that leaves,
+  tells a client that enabled `host` that it is closing, refuses a
+  stated peer that is no address, and cannot be reached from beyond
+  loopback unless a peer was stated — the last only where the machine
+  has such an address;
 - the documentation probe compiles every qualified name this README and
   the reference pages spell.
 

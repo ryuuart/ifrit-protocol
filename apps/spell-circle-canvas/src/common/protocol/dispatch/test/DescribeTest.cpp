@@ -24,7 +24,7 @@ using protocol::host::values::DescribeResult;
 
 /** What describe answers @p client, which in process is at once. */
 std::optional<Answer<DescribeResult>> describe(
-    const protocol::InProcess::Client& client) {
+    const protocol::InProcess& client) {
   std::optional<Answer<DescribeResult>> answered;
   protocol::host::HostClient(client.caller())
       .describe([&](Answer<DescribeResult> answer) {
@@ -49,8 +49,8 @@ protocol::Program sketchbook() {
 }
 
 TEST(ProtocolDescribe, IsAnsweredOnADispatcherNoAgentWasMountedOn) {
-  protocol::InProcess dispatcher;
-  const protocol::InProcess::Client client = dispatcher.connect();
+  protocol::Dispatcher dispatcher;
+  const protocol::InProcess client(dispatcher);
 
   const std::optional<Answer<DescribeResult>> described = describe(client);
   ASSERT_TRUE(described);
@@ -68,10 +68,10 @@ TEST(ProtocolDescribe, IsAnsweredOnADispatcherNoAgentWasMountedOn) {
 }
 
 TEST(ProtocolDescribe, AnswersWhatTheProgramAndTheDispatcherEachKnow) {
-  protocol::InProcess dispatcher(sketchbook());
+  protocol::Dispatcher dispatcher(sketchbook());
   protocol::test::ClockUnderTest clock(dispatcher);
-  const protocol::InProcess::Client first = dispatcher.connect();
-  const protocol::InProcess::Client second = dispatcher.connect();
+  const protocol::InProcess first(dispatcher);
+  const protocol::InProcess second(dispatcher);
 
   const std::optional<Answer<DescribeResult>> described = describe(second);
   ASSERT_TRUE(described && *described);
@@ -90,8 +90,8 @@ TEST(ProtocolDescribe, AnswersWhatTheProgramAndTheDispatcherEachKnow) {
 }
 
 TEST(ProtocolDescribe, VersionAndStateRootAnswerTheirPartsAlone) {
-  protocol::InProcess dispatcher(sketchbook());
-  const protocol::InProcess::Client client = dispatcher.connect();
+  protocol::Dispatcher dispatcher(sketchbook());
+  const protocol::InProcess client(dispatcher);
   const protocol::host::HostClient host(client.caller());
 
   std::optional<std::string> root;

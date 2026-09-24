@@ -3,10 +3,12 @@
 /** @file
  * @ingroup protocol-runtime
  * THE DISPATCHER: every handler a host mounts, filed by method; the
- * clients attached, one session each; which of them has enabled which
- * domain's events; and the refusals no agent is asked for. The endpoint
- * puts it behind a socket and the in-process form behind a caller, so a
- * command crosses the same code whichever way it came.
+ * clients attached, one session each, however each arrived; which of
+ * them has enabled which domain's events; and the refusals no agent is
+ * asked for. A host holds one and mounts its agents on it once; clients
+ * in the same process attach through `InProcess`, clients on a socket
+ * through the `Endpoint` put on it, and a command crosses the same code
+ * whichever way it came.
  */
 
 #include <sigildata/decode/Json.h>
@@ -23,6 +25,23 @@ namespace sigil::protocol {
 
 class HostDomain;
 
+/** HOW ONE CLIENT IS REACHED: what the way it arrived attaches it with.
+ *  It stands beside the dispatcher rather than inside it so a transport
+ *  names it without naming the class. */
+struct Attachment {
+  /** Hands the client one event: the session it is attached as, the
+   *  event's method and its parameters' JSON text. The in-process form
+   *  calls the client's listeners; the endpoint writes the event's
+   *  envelope to the client's peer. */
+  std::function<void(const std::string& session, std::string_view method,
+                     std::string_view parameters)>
+      deliver;
+  /** Runs once as the dispatcher lets the client go, after its events
+   *  have stopped: with the reason where the host let it go, and empty
+   *  where the client left on its own. May be empty. */
+  std::function<void(std::string_view reason)> released;
+};
+
 /** ONE DISPATCHER: handlers by method, sessions by client, events by
  *  domain. It answers `host` itself, through the library's own
  *  HostDomain, and every domain's `enable` and `disable`; a method the
@@ -37,7 +56,11 @@ class Dispatcher {
   /** A dispatcher answering for @p program, with its host domain
    *  mounted. */
   explicit Dispatcher(Program program = {});
-  virtual ~Dispatcher();
+  /** Lets every client still attached go, telling each that enabled
+   *  `host` that the host is closing. No onDetach() listener runs: what
+   *  an agent keyed by session goes with the host.
+   *  @trap An endpoint put on this dispatcher is let go before it. */
+  ~Dispatcher();
 
   Dispatcher(const Dispatcher&) = delete;
   Dispatcher& operator=(const Dispatcher&) = delete;
@@ -96,24 +119,25 @@ class Dispatcher {
   /** The program this dispatcher answers for. */
   const Program& program() const;
 
- protected:
-  /** A new client, answered under the session id this returns. */
-  std::string attach();
+  /** A NEW CLIENT, reached as @p attachment says and answered under the
+   *  session id this returns: what the way a client arrives calls as it
+   *  does. */
+  std::string attach(Attachment attachment);
 
   /** Lets @p session go: its events stop, every onDetach() listener
-   *  runs, and a reply answered for it afterwards goes nowhere. Where
-   *  @p reason is not empty and the client has enabled `host`, it is
-   *  told first, through `host.detached` — the host letting a client go
-   *  says why; a client that left needs no telling. */
+   *  runs, its attachment is released, and a reply answered for it
+   *  afterwards goes nowhere. Where @p reason is not empty and the client
+   *  has enabled `host`, it is told first, through `host.detached` — the
+   *  host letting a client go says why; a client that left needs no
+   *  telling. A session not attached is left alone. */
   void detach(const std::string& session, std::string_view reason = {});
 
-  /** One event's @p parameters text under @p method, to @p session
-   *  alone: the socket writes it to that client's peer, the in-process
-   *  form to that client's listeners. */
-  virtual void deliver(const std::string& session, std::string_view method,
-                       std::string_view parameters) = 0;
-
  private:
+  /** One event's @p parameters text under @p method, to @p session
+   *  alone, through its attachment. */
+  void deliver(const std::string& session, std::string_view method,
+               std::string_view parameters);
+
   /** Everything a dispatcher holds, behind one pointer that a reply
    *  answered later knows weakly: a reply outliving its dispatcher
    *  answers nothing rather than reaching into what is gone. */

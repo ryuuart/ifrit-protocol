@@ -40,11 +40,11 @@ protocol::clock::values::BudgetExpiredEvent at(double seconds) {
 }
 
 TEST(ProtocolEvents, ReachAClientOnlyBetweenItsEnableAndItsDisable) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
   const protocol::clock::ClockEvents events(dispatcher.emit());
-  const protocol::InProcess::Client watching = dispatcher.connect();
-  const protocol::InProcess::Client listening = dispatcher.connect();
+  const protocol::InProcess watching(dispatcher);
+  const protocol::InProcess listening(dispatcher);
   const protocol::clock::ClockClient watcher(watching.caller());
   const protocol::clock::ClockClient listener(listening.caller());
 
@@ -74,9 +74,9 @@ TEST(ProtocolEvents, ReachAClientOnlyBetweenItsEnableAndItsDisable) {
 }
 
 TEST(ProtocolEvents, EnablingOneDomainOpensNoOther) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
-  const protocol::InProcess::Client client = dispatcher.connect();
+  const protocol::InProcess client(dispatcher);
   const protocol::host::HostClient host(client.caller());
   host.enable([](Answer<Empty> answer) { ASSERT_TRUE(answer); });
 
@@ -92,9 +92,9 @@ TEST(ProtocolEvents, EnablingOneDomainOpensNoOther) {
 }
 
 TEST(ProtocolEvents, TheHostLettingAClientGoTellsItWhyIfItAsked) {
-  auto dispatcher = std::make_unique<protocol::InProcess>();
-  const protocol::InProcess::Client told = dispatcher->connect();
-  const protocol::InProcess::Client untold = dispatcher->connect();
+  auto dispatcher = std::make_unique<protocol::Dispatcher>();
+  const protocol::InProcess told(*dispatcher);
+  const protocol::InProcess untold(*dispatcher);
   std::vector<std::string> reasons;
   const protocol::host::HostClient host(told.caller());
   host.onDetached([&](const auto& event) { reasons.push_back(event.reason); });

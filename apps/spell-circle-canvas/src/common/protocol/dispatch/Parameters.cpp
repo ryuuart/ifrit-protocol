@@ -159,6 +159,16 @@ std::optional<std::string> misfitField(const reflection::Field& field,
         number > range->second)
       return named + " holds " + data::encodeJson(value) + ", which " +
              (enumeration ? "no value of " : "no ") + expected + " holds";
+    // An enumeration given by its number is one of the numbers it
+    // declares, as one given by name is one of its names.
+    if (enumeration) {
+      const reflection::Enum* declared =
+          schema.enums()->Get(static_cast<uint32_t>(type.index()));
+      for (const reflection::EnumVal* each : *declared->values())
+        if (static_cast<double>(each->value()) == number) return std::nullopt;
+      return named + " holds " + data::encodeJson(value) +
+             ", which is no value of " + expected;
+    }
     return std::nullopt;
   }
   return std::nullopt;

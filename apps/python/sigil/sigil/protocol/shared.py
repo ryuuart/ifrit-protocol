@@ -15,9 +15,10 @@ from . import messages
 class ErrorCode(enum.Enum):
     """Which seam refused a command. Every one names what it refused in
     the message beside it: the method, the parameter, or the agent's own
-    reason. The dispatcher refuses with the first, second and fourth, the
-    handler with the third, the agent with the fifth, and the client —
-    whose words open with `client:` — with the last two.
+    reason. The dispatcher refuses with the first four — the handler,
+    reading the parameters once more, with the third as well — the agent
+    with the fifth, and the client — whose words open with `client:` —
+    with the last two.
     """
 
     invalidRequest = "invalidRequest"

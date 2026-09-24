@@ -1,9 +1,10 @@
 /** @file
- * What the dispatcher refuses, over the envelope a socket carries: a
- * method the definition does not declare (methodNotFound) apart from a
- * declared one no agent is mounted for (notMounted), each naming the
- * method; parameters their table cannot hold (invalidParameters),
- * naming the parameter, the agent never asked; a message that is no
+ * What the dispatcher refuses, over the envelope a socket carries, in
+ * the order it asks: a method the definition does not declare
+ * (methodNotFound) apart from a declared one no agent is mounted for
+ * (notMounted), each naming the method whatever its parameters say;
+ * parameters their table cannot hold (invalidParameters), naming the
+ * parameter, the agent never asked; a message that is no
  * request (invalidRequest); and a reply an agent let go unanswered. And
  * what an answer carries: the request's id and the client's session.
  */
@@ -25,7 +26,7 @@ using sigil::data::Json;
 
 /** The answer @p client is sent for @p envelope, read back as JSON;
  *  nothing where none came. */
-std::optional<Json> ask(const protocol::InProcess::Client& client,
+std::optional<Json> ask(const protocol::InProcess& client,
                         std::string_view envelope) {
   std::optional<Json> answered;
   client.send(envelope, [&](std::string answer) {
@@ -40,8 +41,8 @@ bool holds(std::string_view text, std::string_view part) {
 }
 
 TEST(ProtocolRefusals, AnAnswerCarriesTheRequestsIdAndTheClientsSession) {
-  protocol::InProcess dispatcher;
-  const protocol::InProcess::Client client = dispatcher.connect();
+  protocol::Dispatcher dispatcher;
+  const protocol::InProcess client(dispatcher);
 
   const std::optional<Json> answer =
       ask(client, R"({"id": "first", "method": "host.version"})");
@@ -53,9 +54,9 @@ TEST(ProtocolRefusals, AnAnswerCarriesTheRequestsIdAndTheClientsSession) {
 }
 
 TEST(ProtocolRefusals, AMethodTheDefinitionDoesNotDeclareIsNotFound) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
-  const protocol::InProcess::Client client = dispatcher.connect();
+  const protocol::InProcess client(dispatcher);
 
   const std::optional<Json> answer =
       ask(client, R"({"id": 1, "method": "clock.warp"})");
@@ -72,8 +73,8 @@ TEST(ProtocolRefusals, ADeclaredCommandNoAgentAnswersIsNotMounted) {
   // No clock agent: the definition declares clock.current, and this host
   // mounts nothing for the domain. That is not a method it has never
   // heard of, and the two answer apart.
-  protocol::InProcess dispatcher;
-  const protocol::InProcess::Client client = dispatcher.connect();
+  protocol::Dispatcher dispatcher;
+  const protocol::InProcess client(dispatcher);
 
   for (const std::string_view method : {"clock.current", "clock.enable"}) {
     const std::optional<Json> answer =
@@ -85,10 +86,28 @@ TEST(ProtocolRefusals, ADeclaredCommandNoAgentAnswersIsNotMounted) {
   }
 }
 
+TEST(ProtocolRefusals, BadParametersToADomainNoAgentAnswersAreNotMounted) {
+  // Whether an agent is there comes before what it would be asked with:
+  // parameters no table holds, sent to a command this host never wired,
+  // are answered notMounted, and so is an enable carrying them.
+  protocol::Dispatcher dispatcher;
+  const protocol::InProcess client(dispatcher);
+
+  for (const std::string_view method : {"clock.step", "clock.enable"}) {
+    const std::optional<Json> answer =
+        ask(client, R"({"id": 12, "method": ")" + std::string(method) +
+                        R"(", "parameters": {"frames": "many"}})");
+    ASSERT_TRUE(answer) << method;
+    EXPECT_EQ((*answer)["error"]["code"].text(), "notMounted") << method;
+    EXPECT_TRUE(holds((*answer)["error"]["message"].text(), method))
+        << (*answer)["error"]["message"].text();
+  }
+}
+
 TEST(ProtocolRefusals, ParametersTheTableCannotHoldNeverReachTheAgent) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
-  const protocol::InProcess::Client client = dispatcher.connect();
+  const protocol::InProcess client(dispatcher);
 
   // A value of the wrong type, and a member the table does not declare:
   // each answer names the parameter it stopped at.
@@ -125,6 +144,15 @@ TEST(ProtocolRefusals, ParametersTheTableCannotHoldNeverReachTheAgent) {
       << (*sideways)["error"]["message"].text();
   EXPECT_TRUE(holds((*sideways)["error"]["message"].text(), "Sideways"))
       << (*sideways)["error"]["message"].text();
+  // An enumeration given by a number it does not declare is refused as a
+  // name it does not carry is, though the number fits its type.
+  const std::optional<Json> seventh = ask(
+      client,
+      R"({"id": 13, "method": "clock.setPolicy", "parameters": {"policy": 7}})");
+  ASSERT_TRUE(seventh);
+  EXPECT_EQ((*seventh)["error"]["code"].text(), "invalidParameters");
+  EXPECT_TRUE(holds((*seventh)["error"]["message"].text(), "policy"))
+      << (*seventh)["error"]["message"].text();
 
   // The same command, with parameters that fit, does reach it.
   EXPECT_FALSE(
@@ -134,8 +162,8 @@ TEST(ProtocolRefusals, ParametersTheTableCannotHoldNeverReachTheAgent) {
 }
 
 TEST(ProtocolRefusals, AMessageThatIsNoRequestIsAnInvalidRequest) {
-  protocol::InProcess dispatcher;
-  const protocol::InProcess::Client client = dispatcher.connect();
+  protocol::Dispatcher dispatcher;
+  const protocol::InProcess client(dispatcher);
 
   const std::optional<Json> notJson = ask(client, "a scene arrives");
   ASSERT_TRUE(notJson);
@@ -165,10 +193,10 @@ TEST(ProtocolRefusals, AMessageThatIsNoRequestIsAnInvalidRequest) {
 }
 
 TEST(ProtocolRefusals, AReplyLetGoWithoutAnsweringIsAnsweredFailed) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
   clock.dropSteps = true;
-  const protocol::InProcess::Client client = dispatcher.connect();
+  const protocol::InProcess client(dispatcher);
 
   const std::optional<Json> answer =
       ask(client, R"({"id": 8, "method": "clock.step"})");
@@ -179,9 +207,9 @@ TEST(ProtocolRefusals, AReplyLetGoWithoutAnsweringIsAnsweredFailed) {
 }
 
 TEST(ProtocolRefusals, AReplyIsAnsweredOnceWhenTheAgentCallsIt) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
-  const protocol::InProcess::Client client = dispatcher.connect();
+  const protocol::InProcess client(dispatcher);
 
   int heard = 0;
   std::optional<Json> answered;

@@ -2,7 +2,8 @@
  * One session per client: what a client alone set goes when it detaches
  * and the next command is answered as if it never had; an answer owed to
  * a client that has gone reaches nobody; and a client outliving its
- * dispatcher is refused in its own words.
+ * dispatcher, one that detached itself and one moved from are each
+ * refused in its own words, saying which.
  */
 
 #include <gtest/gtest.h>
@@ -33,10 +34,10 @@ std::optional<protocol::clock::Policy> policyOf(
 }
 
 TEST(ProtocolSessions, EachClientIsASessionOfItsOwn) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   EXPECT_TRUE(dispatcher.sessions().empty());
-  const protocol::InProcess::Client first = dispatcher.connect();
-  const protocol::InProcess::Client second = dispatcher.connect();
+  const protocol::InProcess first(dispatcher);
+  const protocol::InProcess second(dispatcher);
   EXPECT_NE(first.session(), second.session());
   EXPECT_EQ(dispatcher.sessions(),
             (std::vector<std::string>{first.session(), second.session()}));
@@ -45,10 +46,10 @@ TEST(ProtocolSessions, EachClientIsASessionOfItsOwn) {
 }
 
 TEST(ProtocolSessions, WhatADetachingClientSetGoesWithIt) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
-  protocol::InProcess::Client setting = dispatcher.connect();
-  const protocol::InProcess::Client reading = dispatcher.connect();
+  protocol::InProcess setting(dispatcher);
+  const protocol::InProcess reading(dispatcher);
   const protocol::clock::ClockClient setter(setting.caller());
   const protocol::clock::ClockClient reader(reading.caller());
 
@@ -72,9 +73,9 @@ TEST(ProtocolSessions, WhatADetachingClientSetGoesWithIt) {
 }
 
 TEST(ProtocolSessions, AnAnswerOwedToAClientThatLeftReachesNobody) {
-  protocol::InProcess dispatcher;
+  protocol::Dispatcher dispatcher;
   protocol::test::ClockUnderTest clock(dispatcher);
-  protocol::InProcess::Client leaving = dispatcher.connect();
+  protocol::InProcess leaving(dispatcher);
 
   int answered = 0;
   protocol::clock::ClockClient(leaving.caller())
@@ -87,8 +88,8 @@ TEST(ProtocolSessions, AnAnswerOwedToAClientThatLeftReachesNobody) {
 }
 
 TEST(ProtocolSessions, AClientOutlivingItsDispatcherSendsNowhere) {
-  auto dispatcher = std::make_unique<protocol::InProcess>();
-  const protocol::InProcess::Client client = dispatcher->connect();
+  auto dispatcher = std::make_unique<protocol::Dispatcher>();
+  const protocol::InProcess client(*dispatcher);
   const protocol::clock::ClockClient clock(client.caller());
   dispatcher.reset();
 
@@ -99,6 +100,8 @@ TEST(ProtocolSessions, AClientOutlivingItsDispatcherSendsNowhere) {
   ASSERT_TRUE(refused);
   EXPECT_EQ(refused->code, protocol::ErrorCode_notSent);
   EXPECT_TRUE(refused->message.starts_with("client: clock.current: "))
+      << refused->message;
+  EXPECT_NE(refused->message.find("the host is closing"), std::string::npos)
       << refused->message;
 
   // The envelope is refused the same way, under the request's own id.
@@ -111,6 +114,51 @@ TEST(ProtocolSessions, AClientOutlivingItsDispatcherSendsNowhere) {
   EXPECT_EQ((*answered)["error"]["code"].text(), "notSent");
   EXPECT_TRUE((*answered)["error"]["message"].text().starts_with(
       "client: host.describe: "))
+      << (*answered)["error"]["message"].text();
+}
+
+TEST(ProtocolSessions, AClientThatDetachedItselfSaysSo) {
+  protocol::Dispatcher dispatcher;
+  protocol::InProcess client(dispatcher);
+  client.detach();
+  EXPECT_TRUE(dispatcher.sessions().empty());
+
+  std::optional<sigil::data::Json> answered;
+  client.send(R"({"id": 6, "method": "host.describe"})", [&](std::string text) {
+    answered = sigil::data::decodeJson(text);
+  });
+  ASSERT_TRUE(answered);
+  EXPECT_EQ((*answered)["error"]["code"].text(), "notSent");
+  // Its dispatcher still stands; it is the client that went.
+  EXPECT_NE((*answered)["error"]["message"].text().find("has detached"),
+            std::string::npos)
+      << (*answered)["error"]["message"].text();
+}
+
+TEST(ProtocolSessions, AClientMovedFromIsAnsweredAndSaysSo) {
+  protocol::Dispatcher dispatcher;
+  protocol::InProcess moved(dispatcher);
+  const protocol::InProcess kept = std::move(moved);
+  EXPECT_EQ(dispatcher.sessions(), std::vector<std::string>{kept.session()});
+
+  // What was moved from answers every envelope, rather than leaving the
+  // one listening for it waiting.
+  int heard = 0;
+  std::optional<sigil::data::Json> answered;
+  // The case is what a client moved from does, so it is used after the
+  // move on purpose.
+  // NOLINTNEXTLINE(bugprone-use-after-move)
+  moved.send(R"({"id": 7, "method": "host.describe"})",
+             [&](std::string text) {
+               ++heard;
+               answered = sigil::data::decodeJson(text);
+             });
+  EXPECT_EQ(heard, 1);
+  ASSERT_TRUE(answered);
+  EXPECT_EQ((*answered)["id"].number(), 7);
+  EXPECT_EQ((*answered)["error"]["code"].text(), "notSent");
+  EXPECT_NE((*answered)["error"]["message"].text().find("moved"),
+            std::string::npos)
       << (*answered)["error"]["message"].text();
 }
 

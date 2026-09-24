@@ -2,11 +2,13 @@
 
 /** @file
  * @ingroup protocol-runtime
- * THE ENDPOINT: the dispatcher behind a socket. One of SigilData's
+ * THE ENDPOINT: a host's dispatcher behind a socket. One of SigilData's
  * connections on SigilIO's ws:// listener, on loopback, its address
  * written under the program's state root before the first frame, the
  * definition served beside it, and every command answered on the frame
- * thread inside the hub's dispatch, so no agent races the paint.
+ * thread inside the hub's dispatch, so no agent races the paint. The
+ * clients it attaches stand on the dispatcher beside those attached in
+ * process.
  */
 
 #include <sigilprotocol/dispatch/Dispatcher.h>
@@ -33,29 +35,42 @@ struct EndpointPolicy {
   /** The port to hold; 0 for any free one, which the address file
    *  names. */
   uint16_t port = 0;
-  /** Peers beyond this machine to admit, by IP address. With none the
-   *  endpoint holds loopback alone and cannot be reached from another
-   *  machine; with any it holds every interface and admits loopback and
-   *  those, refusing every other peer before it becomes a client. */
+  /** Peers beyond this machine to admit, each a bare IP address. With
+   *  none the endpoint holds loopback alone and cannot be reached from
+   *  another machine; with any it holds every interface and admits
+   *  loopback and those, refusing every other peer before it becomes a
+   *  client. One that is no IP address opens nothing, and error() names
+   *  it. */
   std::vector<std::string> statedPeers;
 };
 
-/** ONE ENDPOINT: a dispatcher every client on a socket attaches to, one
- *  session per peer, cleared when the peer leaves.
+/** ONE ENDPOINT: every client on a socket attached to one dispatcher,
+ *  one session per peer, cleared when the peer leaves.
  *  @trap Nothing moves but by the hub's dispatch: a host that never
  *  dispatches answers no command, and one that dispatches with no
- *  client attached runs no handler at all. */
-class Endpoint final : public Dispatcher {
+ *  client attached runs no handler at all.
+ *  @trap MADE ON A HUB AND A DISPATCHER, IT IS LET GO BEFORE EITHER: it
+ *  holds a lease on the hub and answers through the dispatcher. Letting
+ *  it go detaches its clients, which runs every onDetach() listener, so
+ *  the agents mounted on that dispatcher still stand then too. */
+class Endpoint {
  public:
-  /** Listens on @p hub as @p policy says, for @p program, whose state
-   *  root is required: the address file and the served definition are
-   *  written under it before this returns. Teaches @p hub the websocket
-   *  listener where it knows no ws:// transport. Where it cannot listen,
-   *  error() says why and nothing is written. */
-  Endpoint(io::Hub& hub, Program program, EndpointPolicy policy = {});
-  /** Lets every client go, telling each that enabled `host` that the
-   *  host is closing, and takes back the address file it wrote. */
-  ~Endpoint() override;
+  /** Listens on @p hub as @p policy says, attaching every peer to
+   *  @p dispatcher, whose program's state root is required: the address
+   *  file and the served definition are written under it before this
+   *  returns. Teaches @p hub the websocket listener where it knows no
+   *  ws:// transport. Where it cannot listen, error() says why and
+   *  nothing is written. */
+  Endpoint(io::Hub& hub, Dispatcher& dispatcher, EndpointPolicy policy = {});
+  /** Lets every client it attached go, telling each that enabled `host`
+   *  that the endpoint is closing, and takes back the address file it
+   *  wrote. The telling is sent before the socket closes, and a peer
+   *  that reads it hears it; one whose socket is already full may
+   *  not. */
+  ~Endpoint();
+
+  Endpoint(const Endpoint&) = delete;
+  Endpoint& operator=(const Endpoint&) = delete;
 
   /** Whether a port is held. */
   bool listening() const;
@@ -72,10 +87,6 @@ class Endpoint final : public Dispatcher {
    *  a line ending, written whole before the first frame, which a client
    *  started beside the program reads to learn the port it was given. */
   std::filesystem::path addressFile() const;
-
- protected:
-  void deliver(const std::string& session, std::string_view method,
-               std::string_view parameters) override;
 
  private:
   /** The socket's side: the connection, the peers attached and their

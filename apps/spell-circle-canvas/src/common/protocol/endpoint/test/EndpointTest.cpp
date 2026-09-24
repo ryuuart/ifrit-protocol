@@ -2,8 +2,11 @@
  * The endpoint on a real socket: the address file written before the
  * first frame and taken back after, the definition served at /protocol,
  * a command answered over the wire only inside the hub's dispatch, an
- * event sent to the client that enabled its domain, a peer that leaves
- * detached, and a peer beyond loopback refused unless it was stated.
+ * event sent to the client that enabled its domain, a client attached in
+ * process standing on the same dispatcher, a peer that leaves detached,
+ * a client that enabled host told the endpoint is closing, and a peer
+ * beyond loopback refused unless it was stated — and a stated peer that
+ * is no address refused before anything is written.
  */
 
 #include <arpa/inet.h>
@@ -17,7 +20,9 @@
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
 #include <sigilprotocol/clock/ClockAgent.h>
+#include <sigilprotocol/clock/ClockClient.h>
 #include <sigilprotocol/definition/Definition.h>
+#include <sigilprotocol/dispatch/InProcess.h>
 #include <sigilprotocol/endpoint/Endpoint.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -32,6 +37,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <vector>
 
 #include "ClockUnderTest.h"
 #include "ScratchDir.h"
@@ -135,8 +141,8 @@ std::optional<std::string> addressBeyondLoopback() {
 }
 
 /** WHAT AN ENDPOINT CASE STANDS ON: a state root of its own, the host's
- *  hub the endpoint is mounted on, and a second hub a client dials it
- *  from. */
+ *  hub and dispatcher the endpoint is put on, and a second hub a client
+ *  dials it from. */
 class ProtocolEndpoint : public ::testing::Test {
  protected:
   ProtocolEndpoint() { sigil::io::registerWebSocketClient(clientHub); }
@@ -174,12 +180,13 @@ class ProtocolEndpoint : public ::testing::Test {
   const sigil::test::ScratchDir state{"sigilprotocol_endpoint"};
   sigil::io::Hub hostHub;
   sigil::io::Hub clientHub;
+  protocol::Dispatcher dispatcher{program()};
 };
 
 TEST_F(ProtocolEndpoint, WritesItsAddressBeforeTheFirstFrameAndTakesItBack) {
   std::string address;
   {
-    const protocol::Endpoint endpoint(hostHub, program());
+    const protocol::Endpoint endpoint(hostHub, dispatcher);
     ASSERT_TRUE(endpoint.listening()) << endpoint.error();
     address = endpoint.address();
     EXPECT_TRUE(address.starts_with("ws://127.0.0.1:")) << address;
@@ -193,7 +200,7 @@ TEST_F(ProtocolEndpoint, WritesItsAddressBeforeTheFirstFrameAndTakesItBack) {
 }
 
 TEST_F(ProtocolEndpoint, ServesTheDefinitionAtProtocol) {
-  const protocol::Endpoint endpoint(hostHub, program());
+  const protocol::Endpoint endpoint(hostHub, dispatcher);
   ASSERT_TRUE(endpoint.listening()) << endpoint.error();
 
   const Page page = get("127.0.0.1", portOf(endpoint.address()), "/protocol");
@@ -205,7 +212,7 @@ TEST_F(ProtocolEndpoint, ServesTheDefinitionAtProtocol) {
 }
 
 TEST_F(ProtocolEndpoint, AnswersACommandOverTheWireInsideTheDispatch) {
-  const protocol::Endpoint endpoint(hostHub, program());
+  const protocol::Endpoint endpoint(hostHub, dispatcher);
   ASSERT_TRUE(endpoint.listening()) << endpoint.error();
 
   const auto client = dial(endpoint, R"({"id": 1, "method": "host.describe"})");
@@ -229,14 +236,14 @@ TEST_F(ProtocolEndpoint, AnswersACommandOverTheWireInsideTheDispatch) {
 }
 
 TEST_F(ProtocolEndpoint, SendsAnEventToTheClientThatEnabledItsDomain) {
-  // The agent outlives the endpoint it is mounted on, as a host's agents
-  // do: the endpoint is let go first, at the end of the case.
-  auto endpoint = std::make_unique<protocol::Endpoint>(hostHub, program());
-  ASSERT_TRUE(endpoint->listening()) << endpoint->error();
-  protocol::test::ClockUnderTest clock(*endpoint);
-  const protocol::clock::ClockEvents events(endpoint->emit());
+  // The agent outlives the endpoint put on its dispatcher, as a host's
+  // agents do: the endpoint is let go first.
+  protocol::test::ClockUnderTest clock(dispatcher);
+  const protocol::Endpoint endpoint(hostHub, dispatcher);
+  ASSERT_TRUE(endpoint.listening()) << endpoint.error();
+  const protocol::clock::ClockEvents events(dispatcher.emit());
 
-  const auto client = dial(*endpoint, R"({"id": 1, "method": "clock.enable"})");
+  const auto client = dial(endpoint, R"({"id": 1, "method": "clock.enable"})");
   const std::optional<Json> enabled = hear(client);
   ASSERT_TRUE(enabled);
   ASSERT_TRUE((*enabled)["error"].null()) << sigil::data::encodeJson(*enabled);
@@ -249,29 +256,96 @@ TEST_F(ProtocolEndpoint, SendsAnEventToTheClientThatEnabledItsDomain) {
   EXPECT_EQ((*event)["method"].text(), "clock.budgetExpired");
   EXPECT_EQ((*event)["session"].text(), (*enabled)["session"].text());
   EXPECT_EQ((*event)["parameters"]["seconds"].number(), 4);
+}
+
+TEST_F(ProtocolEndpoint, AClientInProcessStandsOnTheSameDispatcher) {
+  // One dispatcher, the agents mounted on it once: a client in the same
+  // process and one on the socket are both its sessions, and an event
+  // reaches each that enabled its domain, whichever way it came.
+  protocol::test::ClockUnderTest clock(dispatcher);
+  const protocol::Endpoint endpoint(hostHub, dispatcher);
+  ASSERT_TRUE(endpoint.listening()) << endpoint.error();
+  const protocol::InProcess inside(dispatcher);
+  std::vector<double> heard;
+  const protocol::clock::ClockClient watcher(inside.caller());
+  watcher.onBudgetExpired(
+      [&](const auto& event) { heard.push_back(event.seconds); });
+  watcher.enable([](protocol::Answer<protocol::values::Empty> answer) {
+    ASSERT_TRUE(answer) << answer.error().message;
+  });
+
+  const auto client = dial(endpoint, R"({"id": 1, "method": "clock.enable"})");
+  ASSERT_TRUE(hear(client));
+  ASSERT_TRUE(client->send(bytesOf(R"({"id": 2, "method": "host.describe"})")));
+  const std::optional<Json> described = hear(client);
+  ASSERT_TRUE(described);
+  ASSERT_EQ((*described)["result"]["attached"].size(), 2u)
+      << sigil::data::encodeJson(*described);
+  EXPECT_EQ((*described)["result"]["attached"][0].text(), inside.session());
+
+  protocol::clock::values::BudgetExpiredEvent expired;
+  expired.seconds = 6;
+  EXPECT_TRUE(protocol::clock::ClockEvents(dispatcher.emit())
+                  .budgetExpired(expired));
+  EXPECT_EQ(heard, std::vector<double>{6});
+  const std::optional<Json> event = hear(client);
+  ASSERT_TRUE(event);
+  EXPECT_EQ((*event)["parameters"]["seconds"].number(), 6);
+}
+
+TEST_F(ProtocolEndpoint, LettingItGoTellsAClientThatEnabledHostWhy) {
+  auto endpoint = std::make_unique<protocol::Endpoint>(hostHub, dispatcher);
+  ASSERT_TRUE(endpoint->listening()) << endpoint->error();
+  const protocol::InProcess inside(dispatcher);
+
+  const auto client = dial(*endpoint, R"({"id": 1, "method": "host.enable"})");
+  const std::optional<Json> enabled = hear(client);
+  ASSERT_TRUE(enabled);
+  ASSERT_TRUE((*enabled)["error"].null()) << sigil::data::encodeJson(*enabled);
+
   endpoint.reset();
+  const std::optional<Json> told = hear(client);
+  ASSERT_TRUE(told);
+  EXPECT_EQ((*told)["method"].text(), "host.detached");
+  EXPECT_EQ((*told)["parameters"]["reason"].text(), "the endpoint is closing");
+  // Only its own clients go with it: the one attached in process stays.
+  EXPECT_EQ(dispatcher.sessions(), std::vector<std::string>{inside.session()});
 }
 
 TEST_F(ProtocolEndpoint, APeerThatLeavesIsDetached) {
-  protocol::Endpoint endpoint(hostHub, program());
+  protocol::Endpoint endpoint(hostHub, dispatcher);
   ASSERT_TRUE(endpoint.listening()) << endpoint.error();
 
   auto client = dial(endpoint, R"({"id": 1, "method": "host.version"})");
   ASSERT_TRUE(hear(client));
-  EXPECT_EQ(endpoint.sessions().size(), 1u);
+  EXPECT_EQ(dispatcher.sessions().size(), 1u);
   client->close();
   client.reset();
   EXPECT_TRUE(waitUntil([&] {
     hostHub.dispatch();
-    return endpoint.sessions().empty();
+    return dispatcher.sessions().empty();
   }));
 }
 
 TEST_F(ProtocolEndpoint, WithoutAStateRootItHoldsNoPort) {
-  const protocol::Endpoint endpoint(hostHub, protocol::Program{});
+  protocol::Dispatcher rootless;
+  const protocol::Endpoint endpoint(hostHub, rootless);
   EXPECT_FALSE(endpoint.listening());
   EXPECT_TRUE(endpoint.error().starts_with("endpoint: ")) << endpoint.error();
   EXPECT_TRUE(endpoint.address().empty());
+}
+
+TEST_F(ProtocolEndpoint, AStatedPeerThatIsNoAddressOpensNothing) {
+  // A stated peer rides in the listener's query, so one that could say
+  // more there — where the pages stand, say — is refused naming it.
+  protocol::EndpointPolicy policy;
+  policy.statedPeers = {"10.0.0.5&pages=/"};
+  const protocol::Endpoint endpoint(hostHub, dispatcher, policy);
+  EXPECT_FALSE(endpoint.listening());
+  EXPECT_TRUE(endpoint.error().starts_with("endpoint: ")) << endpoint.error();
+  EXPECT_NE(endpoint.error().find("10.0.0.5&pages=/"), std::string::npos)
+      << endpoint.error();
+  EXPECT_FALSE(std::filesystem::exists(state.path / "protocol-address"));
 }
 
 TEST_F(ProtocolEndpoint, CannotBeReachedBeyondLoopbackUnlessAPeerIsStated) {
@@ -281,7 +355,7 @@ TEST_F(ProtocolEndpoint, CannotBeReachedBeyondLoopbackUnlessAPeerIsStated) {
   // Bound to loopback, the port is not there at all from another
   // interface.
   {
-    const protocol::Endpoint endpoint(hostHub, program());
+    const protocol::Endpoint endpoint(hostHub, dispatcher);
     ASSERT_TRUE(endpoint.listening()) << endpoint.error();
     EXPECT_EQ(get(*beyond, portOf(endpoint.address()), "/protocol").status, 0);
   }
@@ -291,7 +365,7 @@ TEST_F(ProtocolEndpoint, CannotBeReachedBeyondLoopbackUnlessAPeerIsStated) {
   {
     protocol::EndpointPolicy policy;
     policy.statedPeers = {"192.0.2.10"};
-    const protocol::Endpoint endpoint(hostHub, program(), policy);
+    const protocol::Endpoint endpoint(hostHub, dispatcher, policy);
     ASSERT_TRUE(endpoint.listening()) << endpoint.error();
     const uint16_t port = portOf(endpoint.address());
     const Page refused = get(*beyond, port, "/protocol");
@@ -303,7 +377,7 @@ TEST_F(ProtocolEndpoint, CannotBeReachedBeyondLoopbackUnlessAPeerIsStated) {
   {
     protocol::EndpointPolicy policy;
     policy.statedPeers = {*beyond};
-    const protocol::Endpoint endpoint(hostHub, program(), policy);
+    const protocol::Endpoint endpoint(hostHub, dispatcher, policy);
     ASSERT_TRUE(endpoint.listening()) << endpoint.error();
     EXPECT_EQ(get(*beyond, portOf(endpoint.address()), "/protocol").status,
               200);

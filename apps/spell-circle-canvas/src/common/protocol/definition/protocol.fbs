@@ -27,9 +27,10 @@ namespace sigil.protocol;
 
 /// Which seam refused a command. Every one names what it refused in
 /// the message beside it: the method, the parameter, or the agent's own
-/// reason. The dispatcher refuses with the first, second and fourth, the
-/// handler with the third, the agent with the fifth, and the client —
-/// whose words open with `client:` — with the last two.
+/// reason. The dispatcher refuses with the first four — the handler,
+/// reading the parameters once more, with the third as well — the agent
+/// with the fifth, and the client — whose words open with `client:` —
+/// with the last two.
 enum ErrorCode : int {
   /// The message is no request: not a JSON object, or without its id
   /// or its method, or naming a session other than its client's own.

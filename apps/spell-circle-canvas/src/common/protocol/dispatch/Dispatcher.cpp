@@ -57,13 +57,19 @@ std::string answerEnvelope(const data::Json& id, std::string_view session,
 struct Dispatcher::State {
   explicit State(Program answering) : program(std::move(answering)) {}
 
+  /** ONE CLIENT ATTACHED: its id, how it is reached, and the domains
+   *  whose events it has enabled. */
+  struct Session {
+    std::string id;
+    Attachment attachment;
+    std::set<std::string, std::less<>> enabled;
+  };
+
   Program program;
   std::map<std::string, Handler, std::less<>> handlers;
-  /** Every session attached, in the order it attached, with the domains
-   *  whose events it has enabled; a session is attached exactly while it
-   *  stands here. */
-  std::vector<std::pair<std::string, std::set<std::string, std::less<>>>>
-      sessions;
+  /** Every session attached, in the order it attached; a session is
+   *  attached exactly while it stands here. */
+  std::vector<Session> sessions;
   std::vector<std::function<void(const std::string&)>> detached;
   /** The session a handler is answering for, empty between. */
   std::string asking;
@@ -74,9 +80,28 @@ struct Dispatcher::State {
   /** The domains @p session has enabled; nothing where it is not
    *  attached. */
   std::set<std::string, std::less<>>* enabledOf(std::string_view session) {
-    for (auto& [named, enabled] : sessions)
-      if (named == session) return &enabled;
+    Session* const found = find(session);
+    return found ? &found->enabled : nullptr;
+  }
+
+  /** The session @p id; nothing where it is not attached. */
+  Session* find(std::string_view id) {
+    for (Session& each : sessions)
+      if (each.id == id) return &each;
     return nullptr;
+  }
+
+  /** Takes session @p id out and hands back how it was reached, so what
+   *  its release asks afterwards finds it gone; nothing where it was not
+   *  attached. */
+  std::optional<Attachment> take(std::string_view id) {
+    const auto found =
+        std::find_if(sessions.begin(), sessions.end(),
+                     [id](const Session& each) { return each.id == id; });
+    if (found == sessions.end()) return std::nullopt;
+    Attachment attachment = std::move(found->attachment);
+    sessions.erase(found);
+    return attachment;
   }
 };
 
@@ -86,7 +111,24 @@ Dispatcher::Dispatcher(Program program)
   host::wire(*this, *m_host);
 }
 
-Dispatcher::~Dispatcher() = default;
+Dispatcher::~Dispatcher() {
+  // Copied first: releasing a client may reach back into the list.
+  const std::vector<std::string> attached = sessions();
+  for (const std::string& session : attached) {
+    State::Session* const held = m_state->find(session);
+    if (!held) continue;
+    constexpr std::string_view kClosing = "the host is closing";
+    if (held->enabled.contains(std::string_view("host"))) {
+      host::values::DetachedEvent event;
+      event.reason = std::string(kClosing);
+      if (const std::optional<std::string> text = data::values::toJson(event))
+        deliver(session, "host.detached", *text);
+    }
+    // Hearing why, the client may have let itself go already.
+    const std::optional<Attachment> attachment = m_state->take(session);
+    if (attachment && attachment->released) attachment->released(kClosing);
+  }
+}
 
 void Dispatcher::mount(std::string method, Handler handler) {
   m_state->handlers[std::move(method)] = std::move(handler);
@@ -102,8 +144,7 @@ std::vector<std::string> Dispatcher::domains() const {
 std::vector<std::string> Dispatcher::sessions() const {
   std::vector<std::string> out;
   out.reserve(m_state->sessions.size());
-  for (const auto& [session, enabled] : m_state->sessions)
-    out.push_back(session);
+  for (const State::Session& each : m_state->sessions) out.push_back(each.id);
   return out;
 }
 
@@ -185,11 +226,25 @@ void Dispatcher::answer(const std::string& session, std::string_view method,
         ErrorCode_methodNotFound,
         std::string(method) + ": the definition declares no such command"));
 
+  // WHETHER ANY AGENT IS THERE TO ASK comes before what it would be
+  // asked with: a command this host never wired is refused notMounted
+  // whatever its parameters say. Enable and disable are the
+  // dispatcher's own, and stand for a domain some agent is mounted for.
   const std::string_view domain = domainOf(method);
   const std::string_view command = method.substr(domain.size() + 1);
-  const bool mounted = std::any_of(
-      m_state->handlers.begin(), m_state->handlers.end(),
-      [domain](const auto& entry) { return domainOf(entry.first) == domain; });
+  const bool toggles = definition.eventful.contains(domain) &&
+                       (command == kEnable || command == kDisable);
+  const auto found = m_state->handlers.find(method);
+  if (toggles ? std::none_of(m_state->handlers.begin(),
+                             m_state->handlers.end(),
+                             [domain](const auto& entry) {
+                               return domainOf(entry.first) == domain;
+                             })
+              : found == m_state->handlers.end())
+    return once(dispatcherRefusal(
+        ErrorCode_notMounted, std::string(method) + ": this host mounts no " +
+                                  std::string(domain) + " agent" +
+                                  (toggles ? "" : " that answers it")));
 
   // THE PARAMETERS ARE HELD AGAINST THEIR TABLE before anyone reads
   // them, so the refusal names the parameter it stopped at; what fits
@@ -207,12 +262,7 @@ void Dispatcher::answer(const std::string& session, std::string_view method,
 
   // ENABLE AND DISABLE ARE THE DISPATCHER'S: they say which sessions a
   // domain's events reach, which no agent knows about.
-  if (definition.eventful.contains(domain) &&
-      (command == kEnable || command == kDisable)) {
-    if (!mounted)
-      return once(dispatcherRefusal(
-          ErrorCode_notMounted, std::string(method) + ": this host mounts no " +
-                                    std::string(domain) + " agent"));
+  if (toggles) {
     std::set<std::string, std::less<>>& enabled = *m_state->enabledOf(session);
     if (command == kEnable)
       enabled.emplace(domain);
@@ -220,13 +270,6 @@ void Dispatcher::answer(const std::string& session, std::string_view method,
       enabled.erase(std::string(domain));
     return once(std::string("{}"));
   }
-
-  const auto found = m_state->handlers.find(method);
-  if (found == m_state->handlers.end())
-    return once(dispatcherRefusal(
-        ErrorCode_notMounted, std::string(method) + ": this host mounts no " +
-                                  std::string(domain) +
-                                  " agent that answers it"));
 
   // The handler is held, not referred to: an agent may mount another
   // while it answers, which moves the map it stands in.
@@ -279,9 +322,10 @@ void Dispatcher::request(const std::string& session, const data::Json& envelope,
 
 const Program& Dispatcher::program() const { return m_state->program; }
 
-std::string Dispatcher::attach() {
+std::string Dispatcher::attach(Attachment attachment) {
   std::string session = "session-" + std::to_string(++m_state->made);
-  m_state->sessions.emplace_back(session, std::set<std::string, std::less<>>{});
+  m_state->sessions.push_back(
+      State::Session{session, std::move(attachment), {}});
   return session;
 }
 
@@ -293,6 +337,9 @@ void Dispatcher::detach(const std::string& session, std::string_view reason) {
     event.reason = std::string(reason);
     if (const std::optional<std::string> text = data::values::toJson(event))
       deliver(session, "host.detached", *text);
+    // Hearing why, the client may have let itself go.
+    enabled = m_state->enabledOf(session);
+    if (!enabled) return;
   }
   enabled->clear();
   // The listeners are copied: one may register another, which moves the
@@ -300,9 +347,19 @@ void Dispatcher::detach(const std::string& session, std::string_view reason) {
   const std::vector<std::function<void(const std::string&)>> listeners =
       m_state->detached;
   for (const auto& listener : listeners) listener(session);
-  std::erase_if(m_state->sessions, [&session](const auto& entry) {
-    return entry.first == session;
-  });
+  // A listener may have let it go already.
+  const std::optional<Attachment> attachment = m_state->take(session);
+  if (attachment && attachment->released) attachment->released(reason);
+}
+
+void Dispatcher::deliver(const std::string& session, std::string_view method,
+                         std::string_view parameters) {
+  const State::Session* const found = m_state->find(session);
+  if (!found || !found->attachment.deliver) return;
+  // Held, not referred to: the client hearing it may detach, which
+  // takes its attachment out of the list.
+  const auto deliver = found->attachment.deliver;
+  deliver(session, method, parameters);
 }
 
 }  // namespace sigil::protocol
