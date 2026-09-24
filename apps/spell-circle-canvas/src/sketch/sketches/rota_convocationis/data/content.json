@@ -1,0 +1,80 @@
+{
+  "invocation": "+ IN PRINCIPIO CIRCVLVS SCRIBITVR + LITTERA SVRGIT IN ORBEM + DVODECIM RADII CONVENIVNT + BIS SENA SIGILLA VIGILANT + STELLA IN STELLA VOLVITVR + NOMEN IN CORONA FRANGITVR + ORDO EX ORDINE NASCITVR + ET SIGILLVM VIVIT ",
+  "names": "AZRAEVN · VELMOTH · SIRAKEL · OMBRIAX · THELVNE · KARANDIS · VOXIMER · HALDRETH · ZEPHARIN · ",
+  "register": "ⴰⵑⵆⵆⵊ ⵔⵁⵛⵛ ⴻⴴⵍⵊ ⵁⵗⵊⵥⵗⵃ ⵀⵄⵀⵕⴷ ⵍⵝⵗⵏⵓⵜ ⵎⵀⴺⴽⴿ ⵑⴻⴶⵀ ⵄⵀⵆ ⵅⵂⵁ ⵢⵔⴰ ⴰⴱⵂⵕⵑ ⵃⵅⵥⴵⵔ ⵚⵍⴴⵊⵛⴰ ⵥⴵⴿⵚ ⵢⵄⵁ ⵚⴴⵥⵚⴼ ⴺⴳⴱⴳ ⴱⴷⵟ ⴹⵎⴹⵓ ⴻⵝⵔ ⵗⵌⴻⵜ ⵄⵎⵜⵙ ⵉⵥⵁⵆⵔ ⵀⴰⵄⵣ ⵖⵛⴿⵡⵥⴳ ⵃⵕⵄⴴⴹ ⵄⵝⴰⵜ ⵄⴰⵓⵀⵕⵢ ⴱⴽⴳⵡ ⴹⵃⵆⵑⴶ ⵆⵓⵊⵌⵛ ⵡⵆⵂⵕ ⴳⵟⴻⵆ ",
+  "texture": "ᕰᒣ ᑭᐓ ᕕᐱ ᐊᑌᑌᒃᕰ ᑌᕕᑐᔦ ᑐᘔᒣᐺ ᐯᓀᘢᕋᒋ ᐍᕋᐅ ᐍᒻᐺ ᕰᖦᑲᔁ ᕕᐐᑌᘢ ᕰᐍ ᐃᑲᒣ ᑭᒣ ᔁᐁᑭᔦᔦ ᑉᐺᑭᓪ ᗞᑌ ᒃᓓᐊᒋ ᘢᓀ ᖦᓓᖏ ᕝᒣᐱᕕᐺ ᐺᕕᑭᐊ ᘁᐱᖏ ᓓᐁᗞᕝᑦ ᐁᗞᘁᑲᓀ ᗞᑉᕋ ᕋᐃ ᐊᕕᒣᑲ ᘔᐍᐯᘁᑲ ᐱᐐᗞᖏᓪ ᑉᐐᐁᐱ ᑲᐯᕝᐐᐍ ᘢᓪᑲᒋᘔ ᐁᐃᑭᘁ ᐍᕋᐐᐱ ᓀᑦᕝᕰ ᐺᑉ ᑉᒋᑉᓪ ᐐᕝᑌ ᖦᕋ ᘔᑐᐃᕝᕕ ᐁᖦᓓᐯ ᒋᐱᗞ ᓓᘔᔁᑭ ᐓᖦᘢᒻᕕ ᐊᗞᘔᓀ ᐃᑭᒃᐅᑭ ᑦᒻᐱᐱᘁ ᐊᖦ ᐐᑌ ᒃᕰ ᕋᔦᐊ ᑐᐁ ᐱᕰᓪᕕ ᘁᐯ ᑲᐯ ᐓᐁᕕᐠᗞ ᐐᐁᑲᕰ ᖦᐃᓓᓓᒃ ᕝᗞᑌᘁᓀ ᖏᐯᔦ ᓀᑉᒻᓀ ᐃᔁᐁᕝᒋ ᐐᕝᔁᐊ ᔦᐍᘔ ᐅᐱ ᐐᐊᓪᑲᐺ ᐱᐁᐃᐯᘢ ᑉᑲᑭ ᕋᖏᓪ ᖦᑦᐐᑦ ᓓᐯᓪᐍᒻ ᑲᕝ ᑭᐊᒻᕋ ᑉᑦᔁᒃ ᓪᒃᐍᒋ ᒻᔦᐁ ᑌᘁᐁᓀ ᐠᘁᒻ ᐠᓪᑭᕰ ᑉᗞᑲ ᐍᐓᐐᖦᒣ ᖏᐊ ᐺᖏᘢᐍ ",
+  "thresholds": [
+    "LIMEN PRIMVM",
+    "LIMEN TERTIVM",
+    "LIMEN QVINTVM",
+    "LIMEN SEPTIMVM",
+    "LIMEN NONVM",
+    "LIMEN VNDECIMVM"
+  ],
+  "seals": [
+    {
+      "ordinal": "I",
+      "sides": 3,
+      "words": "ⵜⵗⵙⴷⴴⵜⵆⵂ ⴼⵣⵌⵆⴵⵥⴼ · "
+    },
+    {
+      "ordinal": "II",
+      "sides": 4,
+      "words": "ⵜⵗⵙⴷⴴⵜⵆⵂ ⴼⵣⵌⵆⴵⵥⴼ · "
+    },
+    {
+      "ordinal": "III",
+      "sides": 5,
+      "words": "ⵏⵕⵉⵎⴰⴺⵂⴽ ⴵⵊⵟⵜⴼⵓⴱⴳ · "
+    },
+    {
+      "ordinal": "IV",
+      "sides": 6,
+      "words": "ⵏⵕⵉⵎⴰⴺⵂⴽ ⴵⵊⵟⵜⴼⵓⴱⴳ · "
+    },
+    {
+      "ordinal": "V",
+      "sides": 7,
+      "words": "ⵉⵃⴷⵗⵍⴽⴹⵂ ⴿⵝⴵⵝⴺⴱⴽⵍ · "
+    },
+    {
+      "ordinal": "VI",
+      "sides": 8,
+      "words": "ⵉⵃⴷⵗⵍⴽⴹⵂ ⴿⵝⴵⵝⴺⴱⴽⵍ · "
+    },
+    {
+      "ordinal": "VII",
+      "sides": 3,
+      "words": "ⵊⴶⵥⵖⴿⵁⵢⴻ ⵀⵍⵏⵥⵥⵥⵍ · "
+    },
+    {
+      "ordinal": "VIII",
+      "sides": 4,
+      "words": "ⵊⴶⵥⵖⴿⵁⵢⴻ ⵀⵍⵏⵥⵥⵥⵍ · "
+    },
+    {
+      "ordinal": "IX",
+      "sides": 5,
+      "words": "ⵢⵟⵄⵥⴳⴵⵍⵉ ⴺⴰⵇⵑⴷⴹⵙⵝ · "
+    },
+    {
+      "ordinal": "X",
+      "sides": 6,
+      "words": "ⵢⵟⵄⵥⴳⴵⵍⵉ ⴺⴰⵇⵑⴷⴹⵙⵝ · "
+    },
+    {
+      "ordinal": "XI",
+      "sides": 7,
+      "words": "ⵕⵟⵍⵡⵔⵁⴳⵍ ⵑⴳⵛⵙⵢⵍⵂ · "
+    },
+    {
+      "ordinal": "XII",
+      "sides": 8,
+      "words": "ⵕⵟⵍⵡⵔⵁⴳⵍ ⵑⴳⵛⵙⵢⵍⵂ · "
+    }
+  ],
+  "monogram": "ⵣⵣⴴ",
+  "spur": "ⵣ",
+  "title": "ROTA CONVOCATIONIS",
+  "colophon": "four bands of script · two star compounds · twelve seals"
+}
