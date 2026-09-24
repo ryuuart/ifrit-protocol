@@ -324,10 +324,29 @@ bool Host::openSession(const Kind& kind) {
   std::fprintf(stderr, "[sketch] set up in %.0f ms\n", opened.elapsedMs());
   m_runtimeFailed = false;
   m_errorLog.clear();
+  m_assetProblems.clear();
   m_workMs.clear();
   m_drawMs.clear();
   m_presentedFrames = 0;
+  noteAssetProblems();
   return true;
+}
+
+void Host::noteAssetProblems() {
+  std::string problems = m_assets.problems();
+  if (problems == m_assetProblems) return;
+  if (problems.empty()) {
+    if (m_errorLog == m_assetProblems) m_errorLog.clear();
+    m_assetProblems.clear();
+    std::fprintf(stderr, "[sketch] shaders compile again\n");
+    return;
+  }
+  m_assetProblems = std::move(problems);
+  m_errorLog = m_assetProblems;
+  std::fprintf(stderr,
+               "[sketch] a shader failed — keeping the last program that "
+               "compiled\n%s\n",
+               m_assetProblems.c_str());
 }
 
 bool Host::restartSession() {
@@ -688,6 +707,7 @@ void Host::poll() {
       } else {
         try {
           m_session->redeclare();
+          noteAssetProblems();
         } catch (const std::exception& error) {
           sessionFailed(error);
         }

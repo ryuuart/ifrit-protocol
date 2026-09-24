@@ -598,7 +598,11 @@ The context exposes checked views of the native services:
   optional interpolation output are the native scheduler's.
 - `ctx.assets.image(uri)` reads an owned native image asset; `frameAt`
   supplies its image. `json` and `table` return owned data snapshots, and
-  `database` returns a native query view. `ctx.assets.hub()` provides
+  `database` returns a native query view. `shader(uri)` compiles an `.sksl`
+  file into the `skia.RuntimeEffect` that `Paint.sksl` takes, recompiled
+  when the file changes; a file that is missing or does not compile keeps
+  the last program that compiled, or a magenta checker, and the host shows
+  why as it shows a failed build. `ctx.assets.hub()` provides
   mounts, URI resolution, text, bytes, resource metadata, selection,
   live feeds and byte output.
   `ctx.local(name)` creates a URI for a file beside the sketch.

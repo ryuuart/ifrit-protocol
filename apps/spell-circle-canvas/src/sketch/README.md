@@ -1882,6 +1882,22 @@ forgiving contract a live-edited file wants — a magenta placeholder
 stands in for a missing or undecodable file and heals the moment one
 appears, re-running the sketch's declaration — and `hub()` opens the
 full resource surface without the sketch ever touching the filesystem.
+`shader()` is the door for a shader a sketch carries as a file: an `.sksl`
+file beside it holding one SkSL program, `half4 main(float2 xy)` with the
+uniforms and child shaders it declares, compiled into the
+`sk_sp<SkRuntimeEffect>` that `material::skia::Paint::sksl`,
+`material::skia::Effect::shader` and a pen's shader builder all take —
+`Paint::sksl(ctx.assets.shader(ctx.local("aurora.sksl")))`. One file is one
+compiled effect however often it is asked for, and an edit to it recompiles
+and re-runs setup without a rebuild. It keeps the image door's forgiving
+contract: an edit that does not compile leaves the sketch drawing with the
+last program that did, or a magenta checker before any has, and the
+compiler's message, naming the file, is the host's error log until the file
+compiles, so the window shows it where it shows a failed build. A sketch
+with a shader is a directory sketch, the `.sksl` beside `<stem>.cpp`. A
+material recipe's body is not a whole program — it reads the declarations
+the recipe adds — so it stands in a file the same way and is read as text,
+`ctx.assets.hub().text(ctx.local("burn.sksl"))`, for `Recipe::body`.
 `video()` opens encoded bytes as a streaming SigilVideo clip, caches one clip
 per URI and decode policy, and drops those clips when the hub observes the
 source changing. A video keeps only its small decoded-frame cache; the asset

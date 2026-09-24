@@ -324,7 +324,10 @@ class Host {
   [[nodiscard]] const std::string& status() const { return m_status; }
   /** Full compiler or loader output of the most recent failure; empty
    *  when the latest build is good. Python import, setup and frame failures
-   *  include the traceback. */
+   *  include the traceback. A shader the sketch reads through its assets
+   *  that is missing or does not compile stands here too, the compiler's
+   *  message beside its name, while the sketch runs on with the last
+   *  program that compiled — until the file is mended. */
   [[nodiscard]] const std::string& errorLog() const { return m_errorLog; }
 
   [[nodiscard]] const std::filesystem::path& sketchPath() const {
@@ -367,6 +370,9 @@ class Host {
   void loadPython();
   bool pythonChanged();
   void sessionFailed(const std::exception& error);
+  /** Says what the assets' last declaration found wrong the way a failed
+   *  build is said, and takes it back once nothing is. */
+  void noteAssetProblems();
   /** THE NEWEST WRITE ACROSS EVERYTHING THE SKETCH IS BUILT FROM, or
    *  nothing when the entry itself is not there.
    *
@@ -437,6 +443,9 @@ class Host {
   measure::Samples m_presentMs{60};  // rolling present-interval window
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
+  /** What `noteAssetProblems` last put in the error log, so that it takes
+   *  back its own words and never a build's. */
+  std::string m_assetProblems;
   CaptureBackend m_captureBackend;
 };
 

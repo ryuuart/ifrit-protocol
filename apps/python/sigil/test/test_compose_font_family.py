@@ -48,7 +48,9 @@ class FontFamilyList(unittest.TestCase):
 
     def test_a_list_is_set_in_its_first_installed_family(self):
         georgia = self.render("Georgia")
-        self.assertEqual(self.render("Nobody Installed This Family, Georgia, Impact"), georgia)
+        self.assertEqual(
+            self.render("Nobody Installed This Family, Georgia, Impact"), georgia
+        )
         self.assertNotEqual(self.render("Impact"), georgia)
 
     def test_a_generic_name_is_the_platforms_family(self):

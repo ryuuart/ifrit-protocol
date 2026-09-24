@@ -8,6 +8,7 @@
  * over fetched art answers its availability with.
  */
 
+#include <include/core/SkRefCnt.h>
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilvideo/decode/Decode.h>
@@ -20,6 +21,8 @@
 #include <string_view>
 #include <vector>
 
+class SkRuntimeEffect;
+
 namespace sigil::data {
 class Table;
 class Database;
@@ -31,12 +34,12 @@ namespace sigil::sketch {
 /** THE FILES A SKETCH REACHES FOR that it did not generate.
  *
  *  The demo assets root mounts at `res://` and the sketches folder at
- *  `sketch://`, under which a sketch's own files stand. `image()` keeps the
- *  forgiving contract a live-edited file wants — a magenta placeholder
- *  stands in for a missing or undecodable file and heals the moment one
- *  appears — and `hub()` opens the full resource surface (text, bytes,
- *  metadata probes, EXR layers, PSD) without the sketch ever touching
- *  the filesystem. */
+ *  `sketch://`, under which a sketch's own files stand. `image()` and
+ *  `shader()` keep the forgiving contract a live-edited file wants — a
+ *  magenta placeholder stands in for a missing or unreadable file and
+ *  heals the moment one appears — and `hub()` opens the full resource
+ *  surface (text, bytes, metadata probes, EXR layers, PSD) without the
+ *  sketch ever touching the filesystem. */
 class Assets {
  public:
   /** @p root mounts at `res://`; @p sketches, the directory the sketch
@@ -44,6 +47,8 @@ class Assets {
    *  files are `sketch://<key>/name`. */
   explicit Assets(std::filesystem::path root,
                   std::filesystem::path sketches = {});
+  /** Out of line, where the shader programs it holds are a whole type. */
+  ~Assets();
   /** Mounts @p directory as the files of the sketch keyed @p key — what a
    *  workspace sketch opened by path needs, since its files stand beside
    *  that path and not under the sketches the build compiled. */
@@ -82,6 +87,28 @@ class Assets {
    *  states the default it wants where it reads. */
   std::shared_ptr<const sigil::data::Json> json(std::string_view name);
 
+  /** THE SHADER AT @p name — an `.sksl` file holding one SkSL shader
+   *  program, `half4 main(float2 xy)` and the uniforms and child shaders
+   *  it declares — compiled into the runtime effect every paint seam
+   *  takes: `material::skia::Paint::sksl`, `material::skia::Effect::shader`
+   *  and a pen's own shader builder. Cached and recompiled by the hub when
+   *  the file changes, so an edit to it re-runs setup without a rebuild,
+   *  and one file compiles into one effect however often it is asked for.
+   *
+   *  Never null. A file that is missing or does not compile answers the
+   *  last program that compiled under the name, or a magenta checker
+   *  before any has, and says why in `problems()` until the file
+   *  compiles, which a host shows as it shows a failed build.
+   *  @trap A material recipe's body is not a whole program — it reads
+   *  the declarations its recipe adds — so it is read as text through
+   *  `hub().text()` and handed to the recipe, never through this door. */
+  sk_sp<SkRuntimeEffect> shader(std::string_view name);
+
+  /** WHAT IS WRONG WITH THE FILES ASKED FOR, one per line: each shader
+   *  that is missing or does not compile, named, with the compiler's own
+   *  message. Empty when every one compiled. */
+  [[nodiscard]] std::string problems() const;
+
   /** The full resource hub (text/bytes/probe/EXR layers…) with the
    *  sketch's assets directory mounted at "res://". */
   sigil::io::Hub& hub() { return m_hub; }
@@ -105,6 +132,14 @@ class Assets {
     sigil::video::DecodeOptions options;
     std::shared_ptr<sigil::video::Video> clip;
   };
+  /** One shader a sketch asked for: the program that last compiled under
+   *  its name, and what stands wrong with its file now. */
+  struct HeldShader {
+    std::string name;
+    sk_sp<SkRuntimeEffect> program;
+    std::string problem;
+    bool missing = false;
+  };
 
   std::filesystem::path m_root;
   std::filesystem::path m_sketches;
@@ -114,7 +149,9 @@ class Assets {
    *  looked up. */
   std::vector<std::string> m_placeholders;
   std::vector<CachedVideo> m_videos;
+  std::vector<HeldShader> m_shaders;
   std::shared_ptr<const sigil::image::ImageAsset> m_placeholder;
+  sk_sp<SkRuntimeEffect> m_placeholderShader;
 };
 
 /** WHETHER EVERY ONE OF @p urls IS ALREADY ON THIS MACHINE, in the

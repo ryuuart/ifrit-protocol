@@ -7,7 +7,7 @@
 sigil_test(sketch_test
   SOURCES test/AssetsTest.cpp test/CatalogTest.cpp test/CrashTest.cpp
           test/DeviceTest.cpp test/RegistryTest.cpp test/SourcesTest.cpp
-          test/StateTest.cpp
+          test/StateTest.cpp test/ShaderDoorTest.cpp
   LIBRARIES SigilSketch SigilVideoEncode)
 
 sigil_bench(sketch_bench

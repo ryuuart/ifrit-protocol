@@ -1,4 +1,5 @@
 #include <include/core/SkCanvas.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
@@ -564,6 +565,12 @@ void bindRuntime(py::module_& module) {
           [](const AssetsView& v, const std::string& uri) {
             return sigil::python::dataDatabase(
                 v.state()->assets->database(uri));
+          },
+          py::arg("uri"))
+      .def(
+          "shader",
+          [](const AssetsView& v, const std::string& uri) {
+            return v.state()->assets->shader(uri);
           },
           py::arg("uri"))
       .def("hub",

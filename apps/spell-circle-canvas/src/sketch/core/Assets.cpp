@@ -2,14 +2,19 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
+#include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
+#include <include/effects/SkRuntimeEffect.h>
 #include <sigildata/decode/Decoders.h>
 #include <sigildata/query/Database.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/transport/Transport.h>
 
 #include <algorithm>
+#include <iterator>
+#include <optional>
 #include <span>
+#include <string>
 
 namespace sigil::sketch {
 
@@ -32,6 +37,35 @@ std::shared_ptr<const sigil::image::ImageAsset> makePlaceholder() {
     }
   return std::make_shared<sigil::image::ImageAsset>(
       sigil::image::ImageAsset::wrap(surface->makeImageSnapshot()));
+}
+
+/** THE MISSING-TEXTURE CHECKER AS A PROGRAM, sixteen canvas units a cell:
+ *  what a shader that never compiled paints, declaring nothing a caller
+ *  could fill. */
+sk_sp<SkRuntimeEffect> makePlaceholderShader() {
+  return SkRuntimeEffect::MakeForShader(SkString(R"(
+      half4 main(float2 xy) {
+        float2 cell = floor(xy / 16.0);
+        half on = half(mod(cell.x + cell.y, 2.0));
+        return half4(on, 0.0, on, 1.0);
+      })"))
+      .effect;
+}
+
+/** One `.sksl` file as the hub caches it: the program it compiled into,
+ *  or the compiler's message where it did not. A file that does not
+ *  compile is still a value, so the hub keeps watching it and decodes
+ *  it again the moment it changes. */
+struct CompiledShader {
+  sk_sp<SkRuntimeEffect> program;
+  std::string error;
+};
+
+std::optional<CompiledShader> compileShader(const sigil::io::Bytes& bytes) {
+  auto [program, error] = SkRuntimeEffect::MakeForShader(
+      SkString(bytes.asText().data(), bytes.asText().size()));
+  if (program) return CompiledShader{std::move(program), {}};
+  return CompiledShader{nullptr, error.c_str()};
 }
 
 /** A name is a resource under `res://`; a URI written whole — one the
@@ -65,8 +99,18 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // reaches it arrives in that feed. A URI mounted onto a recording is
   // played back from the file instead, through no transport at all.
   sigil::io::registerTransports(m_hub);
+  // A shader is decoded by compiling it, here in the host's own image,
+  // so the effect a sketch is handed is the host's whichever image the
+  // sketch itself was loaded from.
+  m_hub.registerDecoder<CompiledShader>(
+      [](const sigil::io::Bytes& bytes, std::string_view) {
+        return compileShader(bytes);
+      });
   m_placeholder = makePlaceholder();
+  m_placeholderShader = makePlaceholderShader();
 }
+
+Assets::~Assets() = default;
 
 void Assets::mountSketch(std::string_view key,
                          std::filesystem::path directory) {
@@ -115,6 +159,38 @@ std::shared_ptr<sigil::video::Video> Assets::video(
   return clip;
 }
 
+sk_sp<SkRuntimeEffect> Assets::shader(std::string_view name) {
+  auto held = std::find_if(
+      m_shaders.begin(), m_shaders.end(),
+      [&](const HeldShader& shader) { return shader.name == name; });
+  if (held == m_shaders.end()) {
+    m_shaders.push_back({.name = std::string(name)});
+    held = std::prev(m_shaders.end());
+  }
+  const std::shared_ptr<const CompiledShader> compiled =
+      m_hub.load<CompiledShader>(uriFor(name));
+  held->missing = !compiled;
+  if (!compiled) {
+    held->problem = held->name + ": no such file";
+  } else if (compiled->program) {
+    held->program = compiled->program;
+    held->problem.clear();
+  } else {
+    held->problem = held->name + ": " + compiled->error;
+  }
+  return held->program ? held->program : m_placeholderShader;
+}
+
+std::string Assets::problems() const {
+  std::string said;
+  for (const HeldShader& shader : m_shaders) {
+    if (shader.problem.empty()) continue;
+    if (!said.empty()) said.push_back('\n');
+    said += shader.problem;
+  }
+  return said;
+}
+
 void Assets::dispatch(double seconds) { m_hub.dispatch(seconds); }
 
 bool Assets::poll() {
@@ -129,6 +205,13 @@ bool Assets::poll() {
       ++it;
     }
   }
+  // …and so does a shader whose file was not there. One that is there
+  // and did not compile is the hub's to watch, as any loaded file is.
+  for (HeldShader& shader : m_shaders)
+    if (shader.missing && m_hub.load<CompiledShader>(uriFor(shader.name))) {
+      shader.missing = false;
+      changed = true;
+    }
   return changed;
 }
 
