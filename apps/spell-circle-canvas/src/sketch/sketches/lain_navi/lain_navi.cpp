@@ -1,456 +1,461 @@
-// Translucent Copland OS panels layered over a moving field of type.
+// Serial Experiments Lain's Copland OS, as the NAVI shows it in Layers 04
+// and 07: no opaque window anywhere. Every stratum ADDS light to a dark
+// night plate — Japanese prose run full bleed, a lightened panel, the
+// console window whose pedestal is the blurred Copland eye, a MIPS listing
+// read through one fixed focal plane, a twisted hyperboloid in dotted
+// hairlines, and the English titles blooming in and out over all of it.
+// The tube is the last thing: one filter on the root that blooms what is
+// lit and rasters the frame into scan lines.
+//
+// The listing's first sixteen lines are verbatim off the Layer 04 frame;
+// the rest continue the same gcc -S output so the scroll has material, and
+// are not evidence. The prose is transcribed where the plate is legible and
+// filled in the same register where the tube ate it.
 
 // TAGS: Interfaces/Film
 
-#include "Navi.h"
+#include <sigilcompose/brush/Decorations.h>
+#include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/field/Crt.h>
+#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilsketch/canvas/Sketch.h>
+#include <sigilsketch/kit/Document.h>
+#include <sigilweave/ports/SystemFontManager.h>
+
+#include <algorithm>
+#include <cmath>
+#include <numbers>
+#include <string>
+
+namespace material = sigil::material;
+namespace sketch = sigil::sketch;
+namespace shapes = sigil::geometry::shapes;
+namespace weave = sigil::weave;
+using material::skia::Effect;
+using material::skia::Paint;
+
+using namespace sigil::compose;
+
+namespace {
+
+// The source frames are 1016 x 720, so a capture diffs against them.
+constexpr float kWidth = 1016, kHeight = 720;
+
+// Every colour below is what its stratum ADDS to the ground, so nothing in
+// the interface ever has to darken anything to read.
+const material::Color kGround = hexColor(0x060719);
+const material::Color kCity = hexColor(0x1A2A5C);
+const material::Color kProse = hexColor(0x1B2138);
+const material::Color kPanel = hexColor(0x101F27);
+const material::Color kBodyMiddle = hexColor(0x475F86);
+const material::Color kBodyEdge = hexColor(0x040A24);
+const material::Color kEyeLine = hexColor(0x0C1426);
+const material::Color kRail = hexColor(0x1D3242);
+const material::Color kConsoleInk = hexColor(0x46C89A);
+const material::Color kWire = hexColor(0x3A6257);
+const material::Color kMinds = hexColor(0xA6B7BE);
+const material::Color kAlright = hexColor(0xB3B6BF);
+const material::Color kCover = hexColor(0x7A3416);
+const material::Color kMagenta = hexColor(0x3A1B3C);
+const material::Color kWordmark = hexColor(0x2B3A54);
+
+// The console window. The chrome bars overhang the body; the body has no
+// corner anywhere.
+constexpr float kBodyLeft = 160, kBodyRight = 984;
+constexpr float kBodyTop = 56, kBodyBottom = 668;
+
+// The listing: fifteen lines on a 37.5 px pitch, the focal plane fixed at
+// y 402 while the text scrolls through it one line every 220 ms.
+constexpr int kConsoleLines = 15;
+constexpr float kPitch = 37.5f;
+constexpr float kListingTop = 90;
+constexpr float kFocusPlane = 402;
+constexpr int kScrollPhase = 27;
+
+// The hyperboloid: two rim circles of radius 376 at +-166 on a vertical
+// axis, the top twisted against the bottom by twice the ruling angle, seen
+// orthographically so every circle is an ellipse of eccentricity 0.163. The
+// waist is the rim radius times cos(angle), so one angle turns the figure.
+constexpr SkPoint kAxis{472, 376};
+constexpr float kRim = 376, kHalfHeight = 166, kSquash = 0.163f;
+constexpr float kRuling = 62.8f;
+// The second orbit shares the centre and not the plane.
+constexpr SkPoint kOrbitCentre{465, 300};
+
+sk_sp<SkTypeface> monoFace() {
+  return weave::ports::face({"JetBrainsMono Nerd Font", "JetBrains Mono",
+                             "Andale Mono", "Menlo"},
+                            300);
+}
+sk_sp<SkTypeface> minchoFace() {
+  return weave::ports::face(
+      {"Hiragino Mincho ProN", "YuMincho", "Noto Serif JP"}, 400);
+}
+sk_sp<SkTypeface> serifFace(int weight = 400, bool italic = false) {
+  return weave::ports::face(
+      {"Times New Roman", "Times", "Georgia"}, weight,
+      italic ? SkFontStyle::kItalic_Slant : SkFontStyle::kUpright_Slant);
+}
+sk_sp<SkTypeface> titleFace() {
+  return weave::ports::face({"Helvetica Neue", "Helvetica", "Arial"}, 500);
+}
+
+/** The registers the frame sets its words in. `.light` is the one law of
+ *  the interface: a stratum adds to what is under it. */
+StyleSheet registers() {
+  return StyleSheet{
+      rule(".light").blendMode(SkBlendMode::kPlus),
+      rule(".listing").font({.face = monoFace(), .size = 22}).ink(kConsoleInk),
+      rule(".prose")
+          .font({.face = minchoFace(), .size = 28, .track = 1.5f})
+          .ink(kProse),
+      rule(".title").font({.face = titleFace()}),
+      rule(".minds").font({.face = serifFace()}).ink(kMinds),
+  };
+}
+
+/** A straight hairline from @p from to @p to. */
+Element segment(SkPoint from, SkPoint to, float thickness,
+                material::Color colour) {
+  const float length = std::hypot(to.fX - from.fX, to.fY - from.fY);
+  const float angle =
+      std::atan2(to.fY - from.fY, to.fX - from.fX) * 180 / std::numbers::pi_v<float>;
+  return box()
+      .width(length)
+      .height(thickness)
+      .centerAt({(from.fX + to.fX) / 2, (from.fY + to.fY) / 2})
+      .rotate(angle)
+      .fill(Fill::color(colour));
+}
+
+/** An ellipse of semi-axes @p across by @p down about @p centre, turned by
+ *  @p tilt degrees, drawn from @p start through @p sweep in the frame's
+ *  dotted hairline. */
+Element orbit(SkPoint centre, float across, float down, float tilt,
+              float start, float sweep, float width, material::Color colour) {
+  PathFormat dotted = stroke(width, Fill::color(colour));
+  dotted.dashIntervals = {1.6f, 4.4f};
+  dotted.cap = sigil::geometry::path::Cap::Round;
+  return box()
+      .width(across * 2)
+      .height(down * 2)
+      .centerAt(centre)
+      .rotate(tilt)
+      .shape(shapes::arc(start, sweep))
+      .fill(Fill::none())
+      .stroke(dotted);
+}
+
+/** A point on a circle of the hyperboloid at height @p z, projected. */
+SkPoint onCircle(float radius, float z, float angle) {
+  return {kAxis.fX + radius * std::cos(angle),
+          kAxis.fY - z + radius * kSquash * std::sin(angle)};
+}
+
+/** A chrome bar: a sheared slab lit from outside its silhouette, so it is
+ *  bright at both edges and dark through the middle, like a capstan. */
+Element chromeBar(float left, float top, float width, float height,
+                  float skew, material::Color bright, material::Color dark) {
+  auto mix = [&](float amount) {
+    return material::mixLinear(dark, bright, amount);
+  };
+  return kit::at(left, top, width, height)
+      .styleClass("light")
+      .shape(shapes::parallelogram(skew))
+      .fill(Paint::linearUnit({0, 0}, {0, 1},
+                              {{0.00f, mix(0.05f)},
+                               {0.13f, mix(1.00f)},
+                               {0.30f, mix(0.32f)},
+                               {0.62f, mix(0.28f)},
+                               {0.87f, mix(1.00f)},
+                               {1.00f, mix(0.02f)}}));
+}
 
 struct LainNavi {
-  ch::Output<float> creep{0};    // scanline creep, whole px
-  ch::Output<float> flicker{0};  // phosphor dip
-  ch::Output<float> breathe{0};  // the camera hunting focus, 0.15 Hz
+  sketch::kit::Document content;
+  double seconds = 0;
+  long long frame = -1;
 
-  long long scrollLine = 0;  // console scroll, one line / 220 ms
-  long long orbitStep = 0;   // hyperboloid twist, 6 Hz over 24 s
-  long long phraseStep = 0;  // the Layer 07 sequence, 12 Hz
-  float monoSize = 22.0f;
-  float proseSize = 30.0f;
-
-  // --- the console block: 15 lines, each with its own sigma ------------------
-  Element consoleText() const {
-    using namespace lain;
-    // ONE colour for all fifteen lines. The whole focal plane is the
-    // sigma, and the sigma is on the glyph MASK.
-    //
-    // A PHOSPHOR HALO UNDER EVERY LINE. At 2x against the plate the sharp
-    // line is not a clean glyph: it peaks at 222 with a wide soft skirt
-    // that bleeds into the lines above and below. A second draw at
-    // sigma + 2.4 and 40% of the ink, DECLARED FIRST so the core paints
-    // over it, is that skirt — and it costs nothing measurable, because
-    // Skia caches blurred glyph masks per (font, sigma) and both passes
-    // hit the same cache.
-    return box().inset(0).children(
-        {each(kLines, [this](int i) -> Element {
-          const float y = kFirstBase + kPitch * (float)i;
-          const int src =
-              ((scrollLine + i + kScrollPhase) % kListingN + kListingN) %
-              kListingN;
-          const float sigma = std::max(0.10f, focusSigma(y) + breathe.value());
-          const char* const line = kListing[src];
-          const SkPoint at{kTextX, y - monoSize * 0.98f};
-          return box().inset(0).children(
-              {text(line, type(monoFace(), monoSize,
-                               sigil::material::scale(kConsoleInk, 0.40f),
-                               sigma + 2.4f))
-                   .at(at)
-                   .key("halo" + std::to_string(i)),
-               text(line, type(monoFace(), monoSize, kConsoleInk, sigma))
-                   .at(at)
-                   .key("mips" + std::to_string(i))});
+  /** The photographed city under everything, defocused until it has no
+   *  edge left: a few lit slabs, the bright massing in the right third. */
+  Element city() const {
+    return box().inset(0).filter(Effect::blur(34)).children(
+        {each(content["city"].items(), [](const sigil::data::Json& slab) {
+          return kit::at(slab["x"].number(), slab["y"].number(),
+                         slab["width"].number(), slab["height"].number())
+              .fill(Fill::color(material::scale(
+                  kCity, static_cast<float>(slab["light"].number()))));
         })});
   }
 
-  // --- the hyperboloid, one twist phase --------------------------------------
-  Element wireframe() const {
-    using namespace lain;
-    // 24 s per revolution at 6 Hz = 144 steps. The twist SWEEPS about its
-    // measured 62.8 deg rather than spinning through it, because a hyperboloid
-    // whose phi passes 90 deg turns inside out.
-    const float t = (float)orbitStep / 144.0f * 6.2831853f;
-    const float phi = kPhi0 + 16.0f * std::sin(t);
-    const float waist = kRim * std::cos(phi * 0.01745329f);
-    const float tilt2 = kOrbit2Tilt + 5.0f * std::sin(t * 0.5f + 1.1f);
-
-    auto g = box().inset(0).key("wire");
-
-    // the ruling — straight, and stopping 7% short of both rims
-    g.children(
-        {box()
-             .inset(0)
-             .shape(keyedShape(phi, [phi] { return generatrices(phi, 7); }))
-             .foreground(add(1.5f, sigil::material::scale(kWire, 0.44f), 0.0f))
-             .key("ruling")});
-
-    // the two rims and the waist — DOTTED, never solid (1.6 on 4.4 with a
-    // round cap is the frame's own broken hairline)
-    const std::vector<SkScalar> dot{1.6f, 4.4f};
-    auto ellArc = [&](SkPoint c, float a, float b, float tilt,
-                      sigil::material::Color col, float w, float t0, float t1,
-                      const char* key) {
-      g.children(
-          {box()
-               .inset(0)
-               .shape(keyedShape(std::tuple{c.fX, c.fY, a, b, tilt, t0, t1},
-                                 [c, a, b, tilt, t0, t1] {
-                                   return ellipsePath(c, a, b, tilt, t0, t1);
-                                 }))
-               .foreground(add(w, col, 0.0f, dot))
-               .key(key)});
-    };
-    auto ell = [&](SkPoint c, float a, float b, float tilt,
-                   sigil::material::Color col, float w, const char* key) {
-      ellArc(c, a, b, tilt, col, w, 0.0f, 6.2831853f, key);
-    };
-    // The rims are PARTIAL. A full rim ellipse plus a full waist plus a full
-    // tilted orbit is three concentric dotted rings and reads as a lampshade;
-    // the plate shows arcs that leave frame and never close.
-    ellArc({kAxis.fX, kAxis.fY - kHalfH}, kRim, kRim * kEcc, 0,
-           sigil::material::scale(kWire, 0.72f), 1.7f, 3.55f, 6.60f, "rimTop");
-    ellArc({kAxis.fX, kAxis.fY + kHalfH}, kRim, kRim * kEcc, 0,
-           sigil::material::scale(kWire, 0.72f), 1.7f, 0.30f, 3.05f, "rimBot");
-    ell(kAxis, waist, waist * kEcc, 0, kWire, 2.0f, "waist");
-    ell(kOrbit2C, kOrbit2A, kOrbit2B, tilt2, kWire, 2.0f, "orbit2");
-
-    // the axis: a REAL line, not a rendered artifact of the surface, and it
-    // does not pass through the waist centre — measured x 501..505 against a
-    // waist centred on 498.
-    // `make me feel alright?` stands UPRIGHT beside the orbit's lower-left
-    // arc rather than riding it. A run laid on the conic is turned per
-    // glyph, and Layer 07's English is set as a title over the picture —
-    // upright, large, in a plain face — so the arc places it and does not
-    // shape it. The anchor is the run the conic was fitted through in the
-    // first place, (185, 455) up to (840, 215).
-    g.children({box()
-                    .inset(0)
-                    .shape(keyedShape(std::string_view("wire-axis"),
-                                      [] {
-                                        SkPathBuilder b;
-                                        b.moveTo(503 + kWireShift.fX,
-                                                 28 + kWireShift.fY);
-                                        b.lineTo(503 + kWireShift.fX,
-                                                 524 + kWireShift.fY);
-                                        return b.detach();
-                                      }))
-                    .foreground(
-                        add(2.4f, sigil::material::scale(kWire, 0.72f), 0.7f)),
-                text(u8"make me feel alright?",
-                     type(phraseFace(), 44.0f, kAlright, 1.2f))
-                    .centerAt({455, 392})
-                    .key("alright")});
-    return g;
+  /** The prose runs off all four edges and ignores the window over it.
+   *  No two lines start at the same x: a vertical original set
+   *  horizontally by a compositor who did not align it. */
+  Element prose() const {
+    return box().inset(0).styleClass("light").filter(Effect::blur(0.9f)).children(
+        {each(content["prose"].items(),
+              [](const sigil::data::Json& line, size_t index) {
+                return text(line.text())
+                    .styleClass("prose")
+                    .left(-34 + 14 * std::sin(index * 1.7f))
+                    .top(-52 + 48.5f * index);
+              })});
   }
 
-  // --- the Layer 07 phrase sequence ------------------------------------------
-  Element phrases() const {
-    using namespace lain;
-    const double t = std::fmod((double)phraseStep / 12.0, 13.6);
-    auto g = box().inset(0).key("phrases");
-    for (int i = 0; i < kPhraseN; ++i) {
-      const Phrase& p = kPhrases[i];
-      const double u = t - p.at;
-      if (u < -0.1 || u > p.hold + 0.9) continue;
-      // additive bloom in and out — 0.8 s overlap, so two phrases coexist and
-      // ADD where they cross, which is the whole point of the law
-      float k = 1.0f;
-      if (u < 0.8)
-        k = (float)std::max(0.0, u / 0.8);
-      else if (u > p.hold)
-        k = (float)std::max(0.0, 1.0 - (u - p.hold) / 0.9);
-      if (k <= 0.01f) continue;
-      k = k * k * (3.0f - 2.0f * k);
-      const sigil::material::Color c = sigil::material::scale(kMinds, k);
-      // the bloom is a second, blurred pass DECLARED FIRST so it paints under
-      // the core; kPlus makes the order irrelevant for colour but not for the
-      // core's own crispness
-      // in-flow sharp CORE sizes the box; the bloom rides over it as an
-      // absolute overlay (a stack() measures to nothing here and shoots the
-      // run out of its own centre)
-      g.children(
-          {box()
-               .centerAt(p.centre)
-               .key("ph" + std::to_string(i))
-               .children(
-                   {text(p.text, type(serifFace(), p.size,
-                                      sigil::material::scale(c, 0.42f), 6.5f))
-                        .inset(0),
-                    text(p.text, type(serifFace(), p.size,
-                                      sigil::material::scale(c, 0.55f), 2.2f))
-                        .inset(0),
-                    text(p.text, type(serifFace(), p.size, c, 0.7f))})});
-    }
-    return g;
-  }
-
-  // --- the whole stack -------------------------------------------------------
-  Element describe(sketch::SketchContext& ctx) {
-    using namespace lain;
-    auto root = stack().inset(0);
-
-    // S0 — the photographic plate, and the ONLY node in the stack that does
-    // not add. It is the BOTTOM: the #060719 ground is folded into its shader
-    // and it composites kSrcOver, which is what keeps it off the every-frame
-    // saveLayer that Cache::Texture plus .blendMode() would force.
-    root.children({box()
-                       .inset(0)
-                       .fill(mskia::Paint::sksl(plateEffect()))
-                       .cache(Cache::Texture)
-                       .key("plate")});
-
-    // S1 — the Japanese prose, FULL BLEED: it starts above the frame and runs
-    // off all four edges. Leading 48-50 measured; nothing about it is aligned
-    // to the window it will sit under.
-    {
-      auto g = box().inset(0).key("prose");
-      for (int i = 0; i < kProseN; ++i) {
-        const float y = -26.0f + 48.5f * (float)i;
-        // the left edge wanders: no two lines start at the same x, which is
-        // what a right-to-left vertical original looks like when it is set
-        // horizontally by a compositor who did not care
-        const float x = -34.0f + 14.0f * std::sin((float)i * 1.7f);
-        g.children({text(kProseLines[i],
-                         type(minchoFace(), proseSize, kProse, 0.95f, 1.5f))
-                        .at({x, y})
-                        .key("prose" + std::to_string(i))});
-      }
-      root.children({std::move(g)});
-    }
-
-    // S2 — the lightened panel. Measured x 190..470, y 100..380, and it is
-    // soft-edged: a radial ramp to nothing rather than a rect with a blur.
-    root.children({box()
-                       .rect(SkRect::MakeXYWH(178, 88, 304, 304))
-                       .fill(mskia::Paint::radialUnit(
-                           {0.48f, 0.46f}, 0.95f,
-                           {{0.0f, kPanel},
-                            {0.55f, sigil::material::scale(kPanel, 0.86f)},
-                            {0.86f, sigil::material::scale(kPanel, 0.30f)},
-                            {1.0f, sigil::material::scale(kPanel, 0.0f)}}))
-                       .blendMode(SkBlendMode::kPlus)
-                       .cache(Cache::Texture)
-                       .key("panel")});
-
-    // ---- S3, THE CONSOLE WINDOW ---------------------------------------------
-
-    // the body: one radial pedestal that is also the eye's rings
-    // the eye's remaining topology — eyelids, four satellites, the stem.
-    // Enormously blurred: on the plate it is barely above the pedestal.
-    //
-    // THE ONE COMPOSITING TRAP IN THE FILE. A node whose DECORATION paints
-    // kPlus must ALSO carry `.blendMode(kPlus)` if it is Texture-cached: the
-    // bake happens onto transparent black, where kPlus is a no-op and the pass
-    // lands correctly, but the BLIT then composites kSrcOver and paints the
-    // dark blurred stroke straight over the plate. Drop the node-level blend
-    // and the eyelids come back as two black lozenges. Blending has to hit
-    // the real destination rather than the bake's transparent surface, which
-    // is also why Texture is excluded from the direct-blend path.
-    // Bounded to the eye's own box, so the bake covers the eye and not the
-    // whole canvas.
-    // the side rails: single hairlines at the body's own edges, dimmer than
-    // the bars. No corner anywhere — the bars simply overhang them.
-    // the MIPS block, in its own slot: it re-describes 4.5 times a second and
-    // nothing else in the frame should be dirtied by that
-    // the two chrome bars — parallelograms with opposite shear and an inverse
-    // bevel each, the bottom one brighter. This is the only heavy element in
-    // the interface and its 30 px against 2 px hairlines IS the contrast
-    // structure.
-    // the rotated Copland lockup, up the left margin at -55 deg. Documented
-    // wordmark, verbatim off the boot plate and the ASCII transcription both.
-    // ---- S4..S8, the Layer 07 strata over the window ------------------------
-    // `cover me` — the only warm thing in the frame, set upright as a
-    // title. x 576..884, y 136..229 measured.
-    root.children(
-        {box()
-             .rect(SkRect::MakeXYWH(kBodyL, kBodyT, kBodyR - kBodyL,
-                                    kBodyB - kBodyT))
-             .fill(pedestal())
-             .blendMode(SkBlendMode::kPlus)
-             .cache(Cache::Texture)
-             .key("body"),
-         box()
-             .rect(SkRect::MakeXYWH(370, 150, 376, 400))
-             .shape(keyedShape(std::string_view("eye-furniture"),
-                               [](SkSize s) {
-                                 return eyeFurniture(
-                                     {s.width() * 0.5f, s.height() * 0.46f},
-                                     92.0f);
-                               }))
-             .foreground(LayeredBrush{{{24.0f,
-                                        hexColor(0x070C17),
-                                        13.0f,
-                                        {},
-                                        0,
-                                        SkBlendMode::kPlus,
-                                        true},
-                                       {9.0f,
-                                        hexColor(0x0A1120),
-                                        5.0f,
-                                        {},
-                                        0,
-                                        SkBlendMode::kPlus,
-                                        true}}})
-             .blendMode(SkBlendMode::kPlus)
-             .cache(Cache::Texture)
-             .key("eye"),
-         box()
-             .inset(0)
-             .shape(keyedShape(std::string_view("side-rails"),
-                               [] {
-                                 SkPathBuilder b;
-                                 b.moveTo(kBodyL, kBarTopB - 4);
-                                 b.lineTo(kBodyL + 8, kBarBotT + 4);
-                                 b.moveTo(kBodyR, kBarTopB - 4);
-                                 b.lineTo(kBodyR - 6, kBarBotT + 4);
-                                 return b.detach();
-                               }))
-             .foreground(add(2.0f, kRail, 0.8f))
-             .key("rails"),
-         slot("mips"),
-         box()
-             .rect(SkRect::MakeXYWH(kBarTopL, kBarTopT, kBarTopR - kBarTopL,
-                                    kBarTopB - kBarTopT))
-             .shape(barOutline(kShearTop))
-             .fill(barBevel(kBarTopHi, kBarTopLo, 0.72f))
-             .blendMode(SkBlendMode::kPlus)
-             .cache(Cache::Texture)
-             .key("barTop"),
-         box()
-             .rect(SkRect::MakeXYWH(kBarBotL, kBarBotT, kBarBotR - kBarBotL,
-                                    kBarBotB - kBarBotT))
-             .shape(barOutline(kShearBot))
-             .fill(barBevel(kBarBotHi, kBarBotLo, 1.02f))
-             .blendMode(SkBlendMode::kPlus)
-             .cache(Cache::Texture)
-             .key("barBot"),
-         box()
-             .centerAt({88, 300})
-             .rotate(-55.0f)
-             .column()
-             .alignItems(Align::Center)
-             .gap(1)
-             .key("wordmark")
-             .children(
-                 {text(u8"Copland OS Enterprise",
-                       type(serifItalicFace(), 34, kWordmark, 1.9f, 1.0f)),
-                  text(u8"Produced By Tachibana Lab",
-                       type(serifItalicFace(), 16,
-                            sigil::material::scale(kWordmark, 0.7f), 1.6f,
-                            0.8f))}),
-         slot("wire"),
-         box()
-             .centerAt({730, 182})
-             .key("cover")
-             .children(
-                 {text(u8"cover me",
-                       type(phraseFace(), 62,
-                            sigil::material::scale(kCover, 0.5f), 6.5f))
-                      .centerAt({0, 0}),
-                  text(u8"cover me", type(phraseFace(), 62, kCover, 1.4f))})});
-
-    // the magenta streaks, x 466..869, y 483..639: horizontal smears, not
-    // shapes — three bands of different length at different heights, blurred
-    // hard along x only.
-    //
-    // These five bands fake a horizontal blur with hand-shaped gradient
-    // ramps. Effect::directionalBlur(sigma, 0) now spells the same intent
-    // directly, and a NEW streak should be written that way. These are not
-    // converted: a real blur is a different picture than five authored ramps,
-    // and this plate is kept as authored.
-    {
-      auto g = box().inset(0).key("magenta");
-      const float bands[5][4] = {{474, 508, 128, 0.95f},
-                                 {556, 528, 250, 0.72f},
-                                 {498, 552, 74, 0.55f},
-                                 {640, 574, 190, 0.85f},
-                                 {742, 604, 118, 0.48f}};
-      for (const auto& b : bands)
-        g.children(
-            {box()
-                 .rect(SkRect::MakeXYWH(b[0], b[1], b[2], 15))
-                 .fill(mskia::Paint::linearUnit(
-                     {0, 0}, {1, 0},
-                     {{0.0f, sigil::material::scale(kMagenta, 0.0f)},
-                      {0.30f, sigil::material::scale(kMagenta, b[3])},
-                      {0.68f, sigil::material::scale(kMagenta, b[3] * 0.8f)},
-                      {1.0f, sigil::material::scale(kMagenta, 0.0f)}}))
-                 .blendMode(SkBlendMode::kPlus)
-                 .cache(Cache::Texture)});
-      root.children({std::move(g)});
-    }
-
-    // ---- the tube -----------------------------------------------------------
-    // The creep rides this wrapper rather than the baked node beneath it.
-    // Putting .translateY(&creep) directly on the Texture-cached node draws
-    // the same picture at the same cost today, so this is not working around
-    // a demonstrated defect — read it as a habit with a reason: a cached
-    // node's transform belongs on a parent that owns no paint, so that a
-    // moving transform can never become an input to the bake. The next study
-    // reading this should not assume there is a bug behind it.
-    root.children({slot("phrases"),
-                   box().inset(0).translateY(&creep).children(
-                       {box()
-                            .rect(SkRect::MakeXYWH(0, -12, kW, kH + 24))
-                            .fill(mskia::Paint::recipe(crtTube()))
-                            .cache(Cache::Texture)
-                            .key("crt")}),
-                   box()
-                       .inset(0)
-                       .fill(Fill::color({0, 0, 0, 1}))
-                       .opacity(&flicker)
-                       .key("flicker")});
-    return root;
-  }
-
-  // --- host ------------------------------------------------------------------
-  void setup(sketch::SketchContext& ctx) {
-    using namespace lain;
-    // This sketch brings its own canvas size — the source frames' 1016x720,
-    // so a capture diffs against them directly — and its own ground colour.
-    // Both cycles are phased for the 2.5 s still: the frame's verbatim
-    // `.frame $fp,40,$31` line, which every sharpness measurement above is
-    // anchored on, sits at the focal plane, and "no double minds" is at full
-    // bloom.
-    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
-                             .captureAt = 2.5,
-                             .background = kGround});
-
-    // SOLVE the mono size from the measured advance rather than guessing it:
-    // measure a 40-character run at 100 pt and scale.
-    {
-      const std::string probe(40, 'M');
-      const SkSize m =
-          ctx.measure(text(probe, type(monoFace(), 100.0f, kConsoleInk)));
-      const float advAt100 = m.width() / 40.0f;
-      monoSize = advAt100 > 1.0f ? 100.0f * kAdvance / advAt100 : 22.0f;
-    }
-    // and the prose size from the measured 48.5 px leading (CJK sets solid at
-    // roughly 1.0 em, so the body size is the leading less the gap)
-    proseSize = 28.0f;
-
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
-      const double t = ticker.elapsed();
-      // whole-pixel creep: a fractional translate turns a cached blit into a
-      // resample, so the creep steps in whole pixels and never lands between
-      creep = (float)(motion::stepIndex(t, 0.5) % 6);
-      const double ph = std::fmod(t, 4.0);
-      flicker = ph < 0.05 ? 0.055f : 0.0f;
-      // the camera hunting focus, +-0.4 px at 0.15 Hz
-      breathe = 0.4f * (float)std::sin(t * 0.9424778);
+  /** The Copland eye, which on the plate is only a pedestal of light: the
+   *  radial ramp dips at the iris gap and recovers at the iris ring, and
+   *  the eyelids, four satellites and the stem are blurred almost into it. */
+  Element body() const {
+    const SkPoint eye{558, 334};
+    const float radius = 92;
+    PathFormat lid = stroke(16, Fill::color(kEyeLine));
+    return box().inset(0).children({
+        kit::at(kBodyLeft, kBodyTop, kBodyRight - kBodyLeft,
+                kBodyBottom - kBodyTop)
+            .styleClass("light")
+            .backdropFilter(Effect::blur(1.2f))
+            .fill(Paint::radialUnit(
+                {0.483f, 0.456f}, 0.70f,
+                {{0.00f, kBodyMiddle},
+                 {0.10f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.73f)},
+                 {0.17f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.80f)},
+                 {0.30f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.72f)},
+                 {0.40f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.50f)},
+                 {0.53f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.33f)},
+                 {0.77f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.18f)},
+                 {1.00f, material::scale(kBodyEdge, 0.55f)}})),
+        box().inset(0).styleClass("light").filter(Effect::blur(10)).children({
+            kit::disc({eye.fX + radius * 0.62f, eye.fY}, radius * 0.5f)
+                .height(radius * 1.56f)
+                .centerAt({eye.fX + radius * 0.62f, eye.fY})
+                .shape(shapes::arc(270, 180))
+                .fill(Fill::none())
+                .stroke(lid),
+            kit::disc({eye.fX - radius * 0.62f, eye.fY}, radius * 0.5f)
+                .height(radius * 1.56f)
+                .centerAt({eye.fX - radius * 0.62f, eye.fY})
+                .shape(shapes::arc(90, 180))
+                .fill(Fill::none())
+                .stroke(lid),
+            each(4,
+                 [&](size_t corner) {
+                   const float across = corner % 2 ? 1 : -1;
+                   const float down = corner / 2 ? 1 : -1;
+                   return kit::dot({eye.fX + across * radius * 0.92f,
+                                    eye.fY + down * radius * 0.92f},
+                                   radius * 0.155f, Fill::color(kEyeLine));
+                 }),
+            segment({eye.fX, eye.fY + radius * 0.95f},
+                    {eye.fX, eye.fY + radius * 1.52f}, 16, kEyeLine),
+        }),
+        // The side rails: single hairlines at the body's edges, dimmer
+        // than the bars, which simply overhang them.
+        segment({kBodyLeft, 88}, {kBodyLeft + 8, 650}, 2, kRail)
+            .styleClass("light"),
+        segment({kBodyRight, 88}, {kBodyRight - 6, 650}, 2, kRail)
+            .styleClass("light"),
     });
-
-    ctx.composer.render(describe(ctx));
-    ctx.composer.renderSlot("mips", consoleText());
-    ctx.composer.renderSlot("wire", wireframe());
-    ctx.composer.renderSlot("phrases", phrases());
   }
 
-  void update(double elapsed, sketch::SketchContext& ctx) {
-    // Three independent rates, three slots. Nothing else re-describes at all.
-    const long long line = motion::stepIndex(elapsed, 1.0 / 0.220);
-    const long long orbit = motion::stepIndex(elapsed, 6.0);
-    const long long phr = motion::stepIndex(elapsed, 12.0);
-    if (line != scrollLine) {
-      scrollLine = line;
-      ctx.composer.renderSlot("mips", consoleText());
+  /** Fifteen lines of the listing through one focal plane: the blur grows
+   *  linearly with distance from y 402 and the ink never dims, which is
+   *  what a lens does and a fade does not. */
+  Element listing() const {
+    const auto lines = content["listing"].items();
+    const long long scroll = static_cast<long long>(seconds / 0.220);
+    std::string passage;
+    for (int line = 0; line < kConsoleLines && !lines.empty(); ++line) {
+      const size_t source = (scroll + line + kScrollPhase) % lines.size();
+      passage += std::string(lines[source].text()) + "\n";
     }
-    if (orbit != orbitStep) {
-      orbitStep = orbit;
-      ctx.composer.renderSlot("wire", wireframe());
-    }
-    if (phr != phraseStep) {
-      phraseStep = phr;
-      ctx.composer.renderSlot("phrases", phrases());
-    }
+    const float blockHeight = kConsoleLines * kPitch;
+    const float focus = (kFocusPlane - kListingTop) / blockHeight;
+    // The red channel is the blur's sigma as a fraction of 3 px: a tenth
+    // of it on the plane, most of it at the block's two ends.
+    const Paint depth = Paint::linearUnit(
+        {0, 0}, {0, 1},
+        {{0, {0.8f, 0, 0, 1}}, {focus, {0.1f, 0, 0, 1}}, {1, {0.7f, 0, 0, 1}}});
+    return kit::at(text(passage)
+                       .styleClass("listing light")
+                       .paragraph({.leading = weave::Leading::absolute(kPitch)})
+                       .filter(Effect::blur(depth, 3)),
+                   188, kListingTop, 800, blockHeight);
+  }
+
+  /** The hyperboloid, its ruling angle sweeping sixteen degrees either
+   *  side of 62.8 over 24 s — past 90 it would turn inside out. */
+  Element hyperboloid() const {
+    const float turn = static_cast<float>(seconds / 24.0 * 2 * std::numbers::pi);
+    const float ruling = kRuling + 16 * std::sin(turn);
+    const float twist = ruling * std::numbers::pi_v<float> / 180;
+    const float waist = kRim * std::cos(twist);
+    const material::Color faint = material::scale(kWire, 0.44f);
+    const material::Color rim = material::scale(kWire, 0.72f);
+    return box().inset(0).styleClass("light").children({
+        // Seven straight rulings, each stopping short of both rims.
+        each(7,
+             [&](size_t index) {
+               const float angle = index * 2 * std::numbers::pi_v<float> / 7;
+               const SkPoint low = onCircle(kRim, -kHalfHeight, angle - twist);
+               const SkPoint high = onCircle(kRim, kHalfHeight, angle + twist);
+               auto along = [&](float amount) {
+                 return SkPoint{low.fX + (high.fX - low.fX) * amount,
+                                low.fY + (high.fY - low.fY) * amount};
+               };
+               return segment(along(0.07f), along(0.93f), 1.5f, faint);
+             }),
+        // The rims leave frame and never close; the waist and the tilted
+        // orbit are whole.
+        orbit({kAxis.fX, kAxis.fY - kHalfHeight}, kRim, kRim * kSquash, 0,
+              203, 175, 1.7f, rim),
+        orbit({kAxis.fX, kAxis.fY + kHalfHeight}, kRim, kRim * kSquash, 0, 17,
+              158, 1.7f, rim),
+        orbit(kAxis, waist, waist * kSquash, 0, 0, 360, 2, kWire),
+        orbit(kOrbitCentre, 373, 187,
+              -17.4f + 5 * std::sin(turn * 0.5f + 1.1f), 0, 360, 2, kWire),
+        // The axis is a real line, a few pixels off the waist's centre.
+        segment({477, 62}, {477, 558}, 2.4f, rim),
+        text(u8"make me feel alright?")
+            .styleClass("title")
+            .font({.size = 44})
+            .ink(kAlright)
+            .filter(Effect::glow(material::scale(kAlright, 0.4f), 3))
+            .centerAt({455, 392}),
+    });
+  }
+
+  /** The Layer 07 titles, each blooming in over 0.8 s, holding, and
+   *  fading over 0.9 s, so two can overlap and add where they cross. The
+   *  sequence loops at 13.6 s. */
+  Element titles() const {
+    const double clock = std::fmod(seconds, 13.6);
+    return box().inset(0).styleClass("light").children(
+        {each(content["phrases"].items(), [&](const sigil::data::Json& title) {
+          const double since = clock - title["at"].number();
+          const double hold = title["hold"].number();
+          float level = since < 0.8 ? since / 0.8 : 1 - (since - hold) / 0.9;
+          level = std::clamp(level, 0.0f, 1.0f);
+          level = level * level * (3 - 2 * level);
+          return text(title["words"].text())
+              .styleClass("minds")
+              .font({.size = static_cast<float>(title["size"].number())})
+              .opacity(level)
+              .filter(Effect::glow(material::scale(kMinds, 0.8f), 8))
+              .centerAt({static_cast<float>(title["x"].number()),
+                         static_cast<float>(title["y"].number())});
+        })});
+  }
+
+  /** The magenta smears: flat bands streaked along x only. */
+  Element streaks() const {
+    return box()
+        .inset(0)
+        .styleClass("light")
+        .filter(Effect::directionalBlur(36, 0))
+        .children({each(content["streaks"].items(),
+                        [](const sigil::data::Json& band) {
+                          return kit::at(band["x"].number(), band["y"].number(),
+                                         band["width"].number(), 15)
+                              .fill(Fill::color(material::scale(
+                                  kMagenta,
+                                  static_cast<float>(band["strength"].number()))));
+                        })});
+  }
+
+  /** The tube: what is lit blooms, then the beam rasters the whole frame
+   *  at its own 4.42 px pitch. */
+  static Effect tube() {
+    return Effect::phosphorBloom(8, 0.45f, 0.40f, 0.5f)
+        .then(Effect::recipe(material::field::crtBeam(
+            {.uBounds = {0, 0, kWidth, kHeight},
+             .uScanPitch = 4.42f,
+             .uRaster = 0.45f,
+             .uNoise = 0.02f})));
+  }
+
+  Element describe() const {
+    return box()
+        .inset(0)
+        .fill(Fill::color(kGround))
+        .applyStyleSheet(registers())
+        .filter(tube())
+        .children({
+            city(),
+            prose(),
+            // The lightened panel behind the window's left half, soft to
+            // nothing at its edge.
+            kit::at(178, 88, 304, 304)
+                .styleClass("light")
+                .fill(Paint::radialUnit(
+                    {0.48f, 0.46f}, 0.95f,
+                    {{0.00f, kPanel},
+                     {0.55f, material::scale(kPanel, 0.86f)},
+                     {0.86f, material::scale(kPanel, 0.30f)},
+                     {1.00f, material::scale(kPanel, 0)}})),
+            body(),
+            listing(),
+            chromeBar(137, 62, 856, 30, -28.4f, hexColor(0x587962),
+                      hexColor(0x234A3C)),
+            chromeBar(140, 646, 855, 26, 24.7f, hexColor(0x6FA586),
+                      hexColor(0x578C70)),
+            // The Copland lockup up the left margin.
+            box()
+                .centerAt({88, 300})
+                .rotate(-55)
+                .column()
+                .alignItems(Align::Center)
+                .styleClass("light")
+                .ink(kWordmark)
+                .filter(Effect::blur(1.4f))
+                .children({text(u8"Copland OS Enterprise")
+                               .font({.face = serifFace(700, true),
+                                      .size = 34,
+                                      .track = 1.0f}),
+                           text(u8"Produced By Tachibana Lab")
+                               .font({.face = serifFace(700, true),
+                                      .size = 16,
+                                      .track = 0.8f})
+                               .opacity(0.7f)}),
+            hyperboloid(),
+            // The only warm thing in the frame.
+            text(u8"cover me")
+                .styleClass("title light")
+                .font({.size = 62})
+                .ink(kCover)
+                .filter(Effect::glow(material::scale(kCover, 0.5f), 6.5f))
+                .centerAt({730, 182}),
+            streaks(),
+            titles(),
+        });
+  }
+
+  void setup(sketch::SketchContext& context) {
+    context.canvas(kWidth, kHeight);
+    context.background(kGround);
+    // At 2.5 s the listing's `.frame $fp,40,$31` sits on the focal plane
+    // and `no double minds` is at full bloom.
+    context.captureAt(2.5);
+    content = sketch::kit::Document(context, "data/content.json");
+    context.composer.render(describe());
+  }
+
+  void update(double elapsed, sketch::SketchContext& context) {
+    // The titles fade at twelve steps a second; the listing and the
+    // hyperboloid move within those steps.
+    const long long step = static_cast<long long>(elapsed * 12);
+    if (step == frame) return;
+    frame = step;
+    seconds = elapsed;
+    context.composer.render(describe());
   }
 };
+
+}  // namespace
 
 SIGIL_SKETCH(LainNavi, "Study · Film",
              "Serial Experiments Lain's Copland OS — no opaque window "
