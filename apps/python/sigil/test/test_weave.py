@@ -204,20 +204,60 @@ class Scene:
             "no line ended inside a word",
         )
 
-        # And a text leaf's hyphens lane carries it: a narrow leaf sets
-        # differently with the table than with only its typed hyphens.
+        # And a text leaf's hyphens lane carries it: a leaf filling a
+        # canvas narrower than the word, justified, ends a line in a hyphen
+        # under the table and never under its typed hyphens alone.
         source = """from sigil.compose import text
 from sigil.sketch import sketch
-from sigil.weave import HyphenationOptions, Type, kit
-@sketch(size=(120, 300), background="#000000")
+from sigil.weave import HyphenationOptions, TextAlignment, Type, kit
+@sketch(size=(70, 300), background="#000000")
 class Scene:
     def setup(self, ctx):
-        ctx.render(text("hyphenation demonstration " * 3).font(Type(size=20, color="#ffffff", language="en-US")).hyphens(HyphenationOptions(%s)))
+        ctx.render(text("specimen " * 4).textAlign(TextAlignment.Justify).font(Type(size=20, color="#ffffff", language="en-US")).hyphens(HyphenationOptions(%s)))
 """
-        self.assertNotEqual(
-            self.render(source % "patterns=kit.englishHyphenator()"),
-            self.render(source % ""),
+        self.assertTrue(
+            self.aLineEndsInAHyphen(
+                self.render(source % "patterns=kit.englishHyphenator()"), 70
+            ),
+            "no line of the leaf ended in a hyphen",
         )
+        self.assertFalse(
+            self.aLineEndsInAHyphen(self.render(source % ""), 70),
+            "a line ended in a hyphen with no table to break by",
+        )
+
+    @staticmethod
+    def aLineEndsInAHyphen(pixels, width):
+        """Whether the last glyph of some line of light text on a dark
+        ground is a hyphen: a mark much wider than it is tall, standing
+        clear of the line's top and bottom."""
+        height = len(pixels) // (4 * width)
+
+        def lit(x, y):
+            return pixels[(y * width + x) * 4] > 128
+
+        rows = [y for y in range(height) if any(lit(x, y) for x in range(width))]
+        bands = []
+        for y in rows:
+            if bands and y == bands[-1][1] + 1:
+                bands[-1][1] = y
+            else:
+                bands.append([y, y])
+        for top, bottom in bands:
+            def column(x):
+                return [y for y in range(top, bottom + 1) if lit(x, y)]
+
+            right = max(x for x in range(width) if column(x))
+            left = right
+            while left > 0 and column(left - 1):
+                left -= 1
+            marked = [y for x in range(left, right + 1) for y in column(x)]
+            markHeight = max(marked) - min(marked) + 1
+            markWidth = right - left + 1
+            if (markWidth >= 2 * markHeight and min(marked) > top + 2
+                    and max(marked) < bottom - 2):
+                return True
+        return False
 
     def test_story_overflow_reaches_second_frame(self):
         pixels = self.render("""from sigil.compose import box, frame
