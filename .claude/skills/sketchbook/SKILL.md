@@ -1,6 +1,6 @@
 ---
 name: sketchbook
-description: Run Sketchbook, the SigilSketch host, from the command line - headless plate sweeps, one still, bench and window-bench, video montage, plate comparison, texture promotion pins and thumbnails
+description: Run Sketchbook, the SigilSketch host, from the command line - headless plate sweeps, one still, bench and window-bench, video montage, plate comparison, texture promotion pins, thumbnails and the protocol endpoint a client drives
 ---
 
 # Sketchbook from the command line
@@ -50,3 +50,19 @@ programs in `pipelines/`, and the settings and recent workspaces in
 `settings/`. A window or command the run starts is handed the same root,
 so a scripted run that names a fresh one reads nothing an earlier run
 left and leaves nothing behind.
+
+The window mounts the protocol's endpoint on loopback without being
+asked; `--inspect[=<port>]` only picks the port. `Sketchbook --headless
+--inspect[=<port>] --state <dir>` with no plate directory, `--sketch` or
+`--kind` opens no window and writes no plates: it is a host a client
+drives over the protocol until it is interrupted, with its address in
+`<dir>/protocol-address`; the Python client reaches it through
+`sigil.protocol.launch(state=...)` or `connect(<address or state dir>)`,
+and `sigil.testing` drives the same host in process. `Sketchbook
+--headless <dir> --inspect ...` is a sweep that answers `host` and
+`registry` between sketches, with its plates unchanged. `--inspect` is
+refused on `--frame`, `--bench`, `--video`, `--list`, `--catalog`,
+`--compare` and `--thumbnails`. `--deterministic` and `--no-deterministic`
+name the clock policy a `--frame` session is opened for, `Advance` or the
+wall's; the defaults stand: a still is taken under `Advance`, and
+`--bench` runs under the wall's clock.
