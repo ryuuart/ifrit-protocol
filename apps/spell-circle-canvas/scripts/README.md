@@ -157,12 +157,15 @@ as a script run with `-P` or a `configure_file`.
 | A Slang entry point's compiled SPIR-V | `<name>.spv.h`, carrying its words | `src/common/material/cmake/SlangEmbedSpirv.cmake`, with `-P`: not yet Python | a build product |
 | SigilScry's `UltralightShaders.metal` | `ShaderSource.h` in the build tree | `configure_file` over `metal/ShaderSource.h.in`: not yet Python | a build product |
 | Decided, not built: Compose's property table, beside the kernel | The property enumeration, the declared-field writers, the one-line verbs and their Python rows | Python beside the table | its `--check`, as a `*_drift` case |
-| Decided, not built: the protocol's definition, a FlatBuffers schema | The domain agents, the C++ and Python clients and a reference page per domain | Python beside the definition | its `--check`, as a `*_drift` case |
+| `src/common/protocol/definition/protocol.fbs`, the protocol's definition | Its reflected schema with documentation and attributes kept, its generated header and its value types, under `build/generated/protocol` | `flatc` and `sigil_schema_values`, from the CMakeLists beside the definition | a build product; `protocol_test` round-trips every table |
+| The definition's reflected schema | Each domain's `<Service>Agent.h` and `<Service>Client.h`, `Tables.h` and `protocol_description.json`, under `build/generated/protocol` | `sigil_protocol`, the C++ tool in `src/common/protocol/generator` | a build product; `protocol_test` carries a command through a generated `wire()` and client |
+| The description `sigil_protocol` writes | The Python client under `apps/python/sigil/sigil/protocol` and one reference page per domain under `src/common/protocol/reference/domains`, committed | `generate.py` beside the definition | `--check`, as `protocol_drift` |
 
 `cmake --build build --config Release --target generate` rewrites every
-committed derived file that has a generator — the package modules, then
-the ledger that reads them — after building the extension they come
-from. It exists when configure found an interpreter that matches the
+committed derived file that has a generator — the protocol's Python
+client and reference pages, the package modules, then the ledger that
+reads them — after building the definition's description and the
+extension they come from. It exists when configure found an interpreter that matches the
 extension, and it fails, saying PARITY.md was not written, when that
 extension was built without a licensed SDK.
 
