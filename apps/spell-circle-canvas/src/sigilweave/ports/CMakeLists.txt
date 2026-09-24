@@ -5,7 +5,8 @@
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilWeavePorts
-  SOURCES SystemFontManager.cpp
+  SOURCES SystemFontManager.cpp GenericFamilyManager.cpp
+          GenericFamilyManager.h
   HEADERS SystemFontManager.h
   PUBLIC unofficial::skia::skia
   PRIVATE Boost::unordered)

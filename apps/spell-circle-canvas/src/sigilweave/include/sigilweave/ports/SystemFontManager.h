@@ -29,8 +29,18 @@ namespace sigil::weave::ports {
 /** Returns the process-wide system font manager, created lazily and
  * reused for the life of the process because construction enumerates the
  * installed font set. It is immutable and safe to hand to any number of
- * font contexts on any thread. */
+ * font contexts on any thread. Asked for a family by one of CSS's generic
+ * names it answers with the first installed family `genericFamilies`
+ * names for it, so `serif` is the platform's serif wherever a family
+ * name is read. */
 sk_sp<SkFontMgr> systemFontManager();
+
+/** THE FAMILIES A CSS GENERIC NAME STANDS FOR on this platform, most
+ *  wanted first: `serif`, `sans-serif`, `monospace` and `system-ui`,
+ *  each as a browser on this platform draws it, read without regard to
+ *  ASCII case as CSS reads a keyword. Empty for any other name, which is
+ *  a family's own. */
+std::span<const std::string_view> genericFamilies(std::string_view name);
 
 namespace detail {
 /** A chain spelled out at a call site, as the views the resolving calls

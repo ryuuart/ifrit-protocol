@@ -224,5 +224,39 @@ TEST_F(InstalledFonts, EveryThreadAskingAtOnceIsAnsweredWithTheOneFace) {
     EXPECT_EQ(answer.get(), answers[0].get());
 }
 
+TEST_F(InstalledFonts, AGenericNameIsThePlatformsFirstInstalledFamilyForIt) {
+  // CSS's generic names are families only in the platform's sense of
+  // them: asked for `serif`, the manager answers with the first family
+  // the platform draws a serif in that this machine has.
+  const sk_sp<SkFontMgr> manager = systemFontManager();
+  for (const char* generic :
+       {"serif", "sans-serif", "monospace", "system-ui"}) {
+    SCOPED_TRACE(generic);
+    const auto families = genericFamilies(generic);
+    ASSERT_FALSE(families.empty());
+    sk_sp<SkTypeface> expected;
+    for (const std::string_view family : families)
+      if ((expected = manager->matchFamilyStyle(std::string(family).c_str(),
+                                                SkFontStyle::Normal())))
+        break;
+    if (!expected) continue;
+    const sk_sp<SkTypeface> found =
+        manager->matchFamilyStyle(generic, SkFontStyle::Normal());
+    ASSERT_NE(found, nullptr);
+    EXPECT_EQ(familyOf(found), familyOf(expected));
+    EXPECT_NE(manager->matchFamily(generic), nullptr);
+  }
+  EXPECT_NE(familyOf(manager->matchFamilyStyle("serif", SkFontStyle())),
+            familyOf(manager->matchFamilyStyle("monospace", SkFontStyle())));
+}
+
+TEST(SystemFontManager, AFamilysOwnNameIsNoGenericName) {
+  EXPECT_TRUE(genericFamilies("Georgia").empty());
+  EXPECT_TRUE(genericFamilies("").empty());
+  EXPECT_TRUE(genericFamilies("serif family").empty());
+  // A generic name is a keyword, read without regard to case.
+  EXPECT_EQ(genericFamilies("Serif").data(), genericFamilies("serif").data());
+}
+
 }  // namespace
 }  // namespace sigil::weave::ports

@@ -13,6 +13,8 @@
 #include <string>
 #include <string_view>
 
+#include "GenericFamilyManager.h"
+
 #if defined(__APPLE__)
 #include <include/ports/SkFontMgr_mac_ct.h>
 #elif defined(_WIN32)
@@ -21,19 +23,28 @@
 
 namespace sigil::weave::ports {
 
-sk_sp<SkFontMgr> systemFontManager() {
+namespace {
+
+sk_sp<SkFontMgr> platformFontManager() {
 #if defined(__APPLE__)
-  static const sk_sp<SkFontMgr> manager = SkFontMgr_New_CoreText(nullptr);
+  return SkFontMgr_New_CoreText(nullptr);
 #elif defined(_WIN32)
   // DirectWrite over the default factory and system font collection,
   // compiled only where `_WIN32` is defined.
-  static const sk_sp<SkFontMgr> manager = SkFontMgr_New_DirectWrite();
+  return SkFontMgr_New_DirectWrite();
 #else
   // Ports for other platforms slot in here: SkFontMgr_New_FontConfig() on
   // Linux. Until one lands, an empty manager keeps the build honest instead
   // of hiding the gap behind #error.
-  static const sk_sp<SkFontMgr> manager = SkFontMgr::RefEmpty();
+  return SkFontMgr::RefEmpty();
 #endif
+}
+
+}  // namespace
+
+sk_sp<SkFontMgr> systemFontManager() {
+  static const sk_sp<SkFontMgr> manager =
+      detail::answeringGenericFamilies(platformFontManager());
   return manager;
 }
 
