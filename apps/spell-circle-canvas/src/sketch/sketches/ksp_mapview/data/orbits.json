@@ -1,0 +1,36 @@
+{
+  "kerbin": {"centre": [500, 330], "radius": 140},
+  "continents": [
+    {"seed": 4,  "amplitude": 0.30, "lobes": 9, "box": [16, 34, 152, 120],  "colour": "5F8C42"},
+    {"seed": 11, "amplitude": 0.26, "lobes": 8, "box": [126, 148, 122, 100], "colour": "A08A5C"},
+    {"seed": 19, "amplitude": 0.34, "lobes": 7, "box": [56, 172, 96, 78],   "colour": "53803A"},
+    {"seed": 29, "amplitude": 0.28, "lobes": 8, "box": [30, 178, 62, 56],   "colour": "8E7C4E"}
+  ],
+  "orbits": {
+    "vessel": {"semiLatus": 248.5, "eccentricity": 0.42, "periapsis": 150},
+    "target": {"semiLatus": 507.5, "eccentricity": 0.75, "periapsis": 270},
+    "escape": {"semiLatus": 430.0, "eccentricity": 1.55, "periapsis": 96}
+  },
+  "trajectories": [
+    {"orbit": "target", "from": -118, "to": 118, "colour": "D8CE7A", "alpha": 0.80,
+     "width": 1.4, "march": 14,
+     "label": "TGT · MUN TRANSFER", "labelAt": 0.40, "labelOffset": -9},
+    {"orbit": "target", "from": -46, "to": 46, "colour": "D8CE7A", "alpha": 0.95,
+     "width": 1.5, "march": 0},
+    {"orbit": "escape", "from": -104, "to": 98, "colour": "D9DCE2", "alpha": 0.50,
+     "width": 1.2, "march": 12,
+     "label": "ESCAPE  ·  KERBIN SOI EXIT  T+ 1h 12m", "labelAt": 0.80, "labelOffset": 8}
+  ],
+  "vessel": {"label": "KERBIN  ·  Ap 213,904 m  ·  Pe 88,012 m", "labelAt": 0.855},
+  "markers": [
+    {"label": "Ap", "orbit": "vessel", "anomaly": 180, "colour": "66D6C8", "filled": true,  "lift": [12, -9]},
+    {"label": "Pe", "orbit": "vessel", "anomaly": 0,   "colour": "B87CE0", "filled": true,  "lift": [12, -9]},
+    {"label": "AN", "orbit": "vessel", "anomaly": 100, "colour": "B7D66E", "filled": false, "lift": [12, -9]},
+    {"label": "DN", "orbit": "vessel", "anomaly": 280, "colour": "66D6C8", "filled": false, "lift": [12, 13]}
+  ],
+  "bodies": [
+    {"glyph": "◗", "label": "Mun", "orbit": "target", "anomaly": -64, "radius": 10}
+  ],
+  "craft": {"orbit": "vessel", "anomaly": -40},
+  "node": {"orbit": "vessel", "anomaly": -130}
+}
