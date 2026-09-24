@@ -757,9 +757,12 @@ a directory or a file under it — `builds/`, `thumbnails/`, `pipelines/`,
 `settings/` — instead of the platform's own locations, and a window or a
 command the run starts is handed the same root. A test or a script that
 names a fresh root reads nothing an earlier run left and leaves nothing
-behind; `sigil::sketch::setStateDirectory` is the same root for a process
-that is not Sketchbook, and `sigil::sketch::stateLocation` answers where
-one kind of state stands under it.
+behind; `sigil::sketch::setStateDirectory` is the same root for a C++
+host that is not Sketchbook, and `sigil::sketch::stateLocation` answers
+where one kind of state stands under it. Python does not bind it, so a
+sketch built from a Python process keeps its builds in the platform cache
+location. Nothing turns the build cache off; a run that must not reuse an
+earlier build names a fresh root.
 `--shot <png>` captures the app window rather than a sketch, which is
 the only way to look at the browser and the inspector.
 
