@@ -24,9 +24,11 @@ add_subdirectory(asset)
 add_subdirectory(decode)
 add_subdirectory(encode)
 add_subdirectory(field)
+add_subdirectory(difference)
 
 sigil_library(SigilImage
-  INTERFACE SigilImageAsset SigilImageDecode SigilImageEncode SigilImageField)
+  INTERFACE SigilImageAsset SigilImageDecode SigilImageEncode SigilImageField
+            SigilImageDifference)
 
 # Every API name the prose spells, compiled against the headers that own
 # it. SigilIO is scanned and linked for the two ways the encoding

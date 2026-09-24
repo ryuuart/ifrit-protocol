@@ -12,7 +12,8 @@ for rasterizing vector sources. For sources
 carrying more than plain RGBA, the raw float channel planes are exposed
 directly. And, once pixels are in hand, the two image-domain measurements
 a silhouette question needs: which pixels a picture covers, and how far
-every other pixel is from them. No Qt, no windowing, no filesystem
+every other pixel is from them; and how far two pictures stand apart, the
+reading a render is held against its baseline by. No Qt, no windowing, no filesystem
 abstraction — the library sees bytes.
 
 Namespace `sigil::image`. One feature library per directory, linked by
@@ -25,12 +26,35 @@ what a consumer uses; every public header lives under
 | `SigilImageDecode` | `decode/Decode.h`, `decode/ChannelData.h` | `DecodeOptions`, `decodeImage()`, `probeImage()` and `decodeChannels()` — the routing surface, carrying the optional backends — and `ChannelData`, the raw channel planes |
 | `SigilImageEncode` | `encode/Encode.h` | `Format`, `EncodeOptions`, `encodeImage()` — the routing surface the other way, over a pixmap, an image or named channel planes — `canEncode()`, which formats this build writes, and `formatForPath()`/`extensionFor()` |
 | `SigilImageField`  | `field/DistanceField.h` | `Mask` and `coverageMask()` — an alpha thresholded into coverage — and `DistanceField` and `distanceField()`, the exact Euclidean distance from every pixel to the nearest covered one |
+| `SigilImageDifference` | `difference/Difference.h` | `PixelDifference` and `difference()` — how many pixels two pictures disagree on, the widest gap on any one channel and where it stands |
 
-`SigilImage` is the umbrella target over all four. `SigilImageEncode`
+`SigilImage` is the umbrella target over all five. `SigilImageEncode`
 stands beside `SigilImageDecode` rather than under it: a consumer that
 only writes pictures links the encoder and pulls in no codec it will not
-call, and `SigilImageField` stands beside both — it asks nothing about
-formats, only about pixels somebody already has.
+call, and `SigilImageField` and `SigilImageDifference` stand beside
+both — they ask nothing about formats, only about pixels somebody already
+has.
+
+## The pixel difference
+
+```cpp
+#include <sigilimage/difference/Difference.h>
+
+const sigil::image::PixelDifference apart =
+    sigil::image::difference(render.pixmap(), baseline.pixmap());
+// apart.identical(), apart.differingPixels, apart.worst at apart.x, apart.y
+```
+
+It reads the two as unpremultiplied 8-bit colours, alpha included, so a
+picture stored BGRA and one stored RGBA compare as the colours they hold;
+two of one colour type are compared a row at a time as stored first, so
+the pictures a passing test holds against its baseline cost a memory
+comparison a row. The count and the widest gap separate the two things a
+render can be: a rounding difference moves many pixels by a count or
+two, a compositing or layout difference moves some pixel a long way. How
+much of either a caller accepts is its own judgement; this answers the
+facts. A library's own testing harness holds its renders against their
+baselines through it.
 
 ## The distance field
 
@@ -243,8 +267,9 @@ codec, which parses AVIF containers and then silently decodes no frames.
 
 ## Boundary
 
-Dependencies: `SigilImageAsset` and `SigilImageField` link
-`unofficial::skia::skia` publicly and nothing else. `SigilImageDecode` links `SigilImageAsset` publicly and
+Dependencies: `SigilImageAsset`, `SigilImageField` and
+`SigilImageDifference` link `unofficial::skia::skia` publicly and nothing
+else. `SigilImageDecode` links `SigilImageAsset` publicly and
 OpenImageIO and Skia's SVG module privately and optionally, each behind a
 `find_package` or target check that degrades to "that format fails to
 decode" with a configure-time warning. `SigilImageEncode` links
@@ -284,10 +309,11 @@ contract every library here is built, tested and measured under: one
 case may pin, and what a label promises. What is only true of
 SigilImage:
 
-Targets: `SigilImageAsset`, `SigilImageDecode`, `SigilImageEncode` and
-`SigilImageField` — static libraries, one per feature directory
-(`asset/`, `decode/`, `encode/` and `field/`), each holding its sources
-and its `test/`, and `decode/` and `encode/` a `bench/` besides; the
+Targets: `SigilImageAsset`, `SigilImageDecode`, `SigilImageEncode`,
+`SigilImageField` and `SigilImageDifference` — static libraries, one per
+feature directory (`asset/`, `decode/`, `encode/`, `field/` and
+`difference/`), each holding its sources and its `test/`, and `decode/`,
+`encode/` and `difference/` a `bench/` besides; the
 decode and encode backends are one translation unit each behind the
 private `Backends.h` beside them — and `SigilImage`, the umbrella.
 `encode/test/` reaches the decoder as well, because the claim a round
@@ -320,7 +346,10 @@ distances worked out by hand — three across and four down reading 5 and
 not 7, a 45-degree edge dilating by a margin of perpendicular standoff
 rather than by that margin times root two, and a mask covering nothing
 answering `kOutside` everywhere. That is what "exact, not approximate"
-has to mean to be worth saying.
+has to mean to be worth saying. The difference suite needs none either:
+`PixelDifference` counts two hand-set pixels and locates the wider gap,
+reads the same colour stored in two channel orders as identical, and
+reads only the extent both pictures cover.
 
 The fixtures are committed 4x4 px files under `test/assets/` at the
 library root — one still per format plus a three-frame animation for
@@ -329,4 +358,5 @@ megapixel over PNG and JPEG fixtures encoded in memory at several sizes,
 those committed stills for the per-call floor, and `probeImage`; its
 encode arms time each format per megapixel over a generated gradient,
 and the SkImage door against the pixmap one so the readback's share is
-visible.
+visible; its difference arms time identical pictures against pictures
+that differ in every row, per megapixel.
