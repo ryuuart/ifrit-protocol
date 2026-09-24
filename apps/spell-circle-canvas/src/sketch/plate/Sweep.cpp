@@ -88,6 +88,14 @@ bool writeCountPlane(const Session::CompositeCounts& plane,
 
 }  // namespace
 
+float plateDensity(const Session& session) {
+  const int declaredOversample = session.canvas().oversample;
+  if (declaredOversample > 0) return (float)declaredOversample;
+  return std::max(1.0f,
+                  std::min(session.oversample(),
+                           kPlateWidthCeiling / session.canvas().size.width()));
+}
+
 int sweep(const SweepOptions& options, weave::FontContext& fonts,
           Assets& assets) {
   if (options.promotion && options.noPromotion) {
@@ -351,12 +359,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // what that cannot survive, so a declaration outranks the ceiling
     // and every tier honours it alike: two plates of one sketch are
     // comparable only if they were photographed on the same grid.
-    const int declaredOversample = session->canvas().oversample;
-    const float scale =
-        declaredOversample > 0
-            ? (float)declaredOversample
-            : std::max(1.0f, std::min(session->oversample(),
-                                      kPlateWidthCeiling / size.width()));
+    const float scale = plateDensity(*session);
     // A MOMENT THE RUN NAMED outranks the sketch's own, and zero is one:
     // the still is then the scene's first frame.
     const bool named = options.at >= 0;

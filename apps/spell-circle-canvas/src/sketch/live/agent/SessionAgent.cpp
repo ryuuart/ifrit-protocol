@@ -16,6 +16,7 @@
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
 #include <sigilsketch/live/agent/ClockAgent.h>
+#include <sigilsketch/plate/Sweep.h>
 
 #include <algorithm>
 #include <cmath>
@@ -225,6 +226,14 @@ void SessionAgent::settleOpen() {
   }
   m_clock.restart();
   applyPins();
+  // Baked on a plate's grid from the first frame: a bake formed at
+  // another density is formed again only when its node describes again,
+  // so one declared later would leave the frames already stepped on the
+  // wrong grid.
+  if (Session* session = m_host->session()) {
+    m_bakeDensity = plateDensity(*session);
+    session->setBakeDensity(m_bakeDensity);
+  }
   // Under the wall's clock a session is seen from its first frame; under
   // any other its first frame is the client's first step.
   if (m_clock.wall()) {

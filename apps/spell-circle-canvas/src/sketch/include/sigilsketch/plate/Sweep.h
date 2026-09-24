@@ -39,6 +39,15 @@ inline constexpr std::string_view kCountPrefix = "counts_";
  *  here rather than typing the number again. */
 inline constexpr float kPlateWidthCeiling = 2400.0f;
 
+class Session;
+
+/** THE DENSITY A PLATE OF @p session IS PHOTOGRAPHED AT, in device pixels
+ *  per canvas unit: the oversample the sketch declared, whole, where it
+ *  declared one; otherwise its runtime's own oversample, held under the
+ *  width ceiling and never below one. Every raster the session bakes on
+ *  the way to the plate is baked at it from its first frame. */
+[[nodiscard]] float plateDensity(const Session& session);
+
 /** WHAT ONE HEADLESS RUN DOES.
  *
  *  The sweep answers two questions that want opposite conditions, which
