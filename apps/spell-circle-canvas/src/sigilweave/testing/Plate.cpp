@@ -66,8 +66,8 @@ std::string identity(const SkTypeface& face) {
   if (!face.getPostScriptName(&postScript)) postScript = "?";
   const SkFontStyle style = face.fontStyle();
   std::string line = std::string(family.c_str()) + " | " + postScript.c_str() +
-                     " | weight " + std::to_string(style.weight()) +
-                     " width " + std::to_string(style.width()) + " slant " +
+                     " | weight " + std::to_string(style.weight()) + " width " +
+                     std::to_string(style.width()) + " slant " +
                      std::to_string(int(style.slant())) + " | revision " +
                      headRevision(face);
   if (const std::string position = variationPosition(face); !position.empty())

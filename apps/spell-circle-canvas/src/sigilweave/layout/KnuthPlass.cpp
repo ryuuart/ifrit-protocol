@@ -52,8 +52,7 @@ struct Node {
 // The line a chain's node ends, as the break list keeps it.
 ChosenBreak chosenBreak(const std::vector<Node>& arena, int32_t nodeIndex) {
   const Node& node = arena[static_cast<size_t>(nodeIndex)];
-  return {node.breakAt,
-          arena[static_cast<size_t>(node.previousNode)].interval,
+  return {node.breakAt, arena[static_cast<size_t>(node.previousNode)].interval,
           node.score};
 }
 

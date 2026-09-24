@@ -63,8 +63,9 @@ TEST(WeaveReading, ALineReadsItsBoxMeasureAndNaturalWidth) {
 TEST(WeaveReading, AGreedyLineReadsNoScore) {
   // The greedy breaker weighs no break, so there is nothing to read back.
   BlockFlow flow(SkRect::MakeWH(1000, 400));
-  const weave::testing::Reading reading = weave::testing::read(
-      weave::testing::lay(sigil::test::fonts(), makeParagraph(u8"aa bb"), flow));
+  const weave::testing::Reading reading =
+      weave::testing::read(weave::testing::lay(sigil::test::fonts(),
+                                               makeParagraph(u8"aa bb"), flow));
   ASSERT_EQ(reading.lines.size(), 1u);
   EXPECT_TRUE(reading.lines.front().scores.empty());
   EXPECT_NEAR(reading.lines.front().extent, 4 * kLetter + kSpace, 1e-3f);

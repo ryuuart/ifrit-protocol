@@ -17,7 +17,8 @@ bool rowsStoredAlike(const SkPixmap& actual, const SkPixmap& expected, int y,
   if (actual.colorType() != expected.colorType() ||
       actual.alphaType() != expected.alphaType())
     return false;
-  const size_t bytes = static_cast<size_t>(width) * actual.info().bytesPerPixel();
+  const size_t bytes =
+      static_cast<size_t>(width) * actual.info().bytesPerPixel();
   return std::memcmp(actual.addr(0, y), expected.addr(0, y), bytes) == 0;
 }
 

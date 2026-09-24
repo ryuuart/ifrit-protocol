@@ -113,8 +113,8 @@ TEST(KnuthPlass, EveryLineCarriesTheScoreItWasChosenAt) {
 
   // The greedy breaker weighs nothing and scores nothing.
   BlockFlow greedyFlow(SkRect::MakeWH(300, 900));
-  EXPECT_TRUE(layoutParagraph(fontContext, paragraph, greedyFlow)
-                  .lineScores.empty());
+  EXPECT_TRUE(
+      layoutParagraph(fontContext, paragraph, greedyFlow).lineScores.empty());
 }
 
 TEST(KnuthPlass, AJustifiedCjkBlockKeepsEveryColumnInsideTheMeasure) {

@@ -30,8 +30,8 @@ enum class BaselineAction : uint8_t { kJudge, kAdopt };
 
 /** What holding a render against its baseline found. */
 enum class BaselineOutcome : uint8_t {
-  kMatched,     ///< every pixel identical
-  kDiffered,    ///< same size, some pixel differs
+  kMatched,   ///< every pixel identical
+  kDiffered,  ///< same size, some pixel differs
   /// Some pixel differs, or the size does, and the faces the plate was
   /// drawn in are not the ones its baseline was adopted on: the font set
   /// moved, which may be all that did.

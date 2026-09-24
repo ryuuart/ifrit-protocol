@@ -42,12 +42,12 @@ TEST(PixelDifference, CountsPixelsAndLocatesTheWidestChannel) {
 TEST(PixelDifference, ColourTypesAreComparedAsTheColoursTheyStore) {
   // The same white in BGRA and RGBA order: different bytes, one colour.
   SkBitmap bgra;
-  bgra.allocPixels(SkImageInfo::Make(4, 4, kBGRA_8888_SkColorType,
-                                     kPremul_SkAlphaType));
+  bgra.allocPixels(
+      SkImageInfo::Make(4, 4, kBGRA_8888_SkColorType, kPremul_SkAlphaType));
   bgra.eraseColor(SkColorSetRGB(10, 20, 30));
   SkBitmap rgba;
-  rgba.allocPixels(SkImageInfo::Make(4, 4, kRGBA_8888_SkColorType,
-                                     kPremul_SkAlphaType));
+  rgba.allocPixels(
+      SkImageInfo::Make(4, 4, kRGBA_8888_SkColorType, kPremul_SkAlphaType));
   rgba.eraseColor(SkColorSetRGB(10, 20, 30));
   EXPECT_TRUE(difference(bgra.pixmap(), rgba.pixmap()).identical());
 }
