@@ -102,7 +102,7 @@ struct SweepOptions {
    *  frame that was photographed.
    *
    *  It costs a readback per cached raster of that one frame, and asking
-   *  for it changes nothing a plate holds. `--compare` reads it beside
+   *  for it changes nothing a plate holds. A comparison reads it beside
    *  the second directory's plates and prices the content difference by
    *  it. */
   bool countPlane = false;

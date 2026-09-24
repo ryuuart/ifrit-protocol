@@ -13,11 +13,14 @@ CMakeUserPresets.json. The generator is multi-config, so a configuration
 is a directory under `bin/` rather than a tree of its own.
 """
 
+import importlib.machinery
+import importlib.util
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 from typing import NoReturn
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
@@ -68,6 +71,39 @@ def sketchbook(configuration: str, required: bool = True) -> Path | None:
             return None
         fail(f"no Sketchbook at {path} — build the Sketchbook target first")
     return path
+
+
+def extension() -> ModuleType:
+    """The native extension the build links, imported from the build tree
+    under its own module name `_sigil`.
+
+    Its values are what a verb reads where it would otherwise read a
+    binary's printed text: the comparison of two plate directories, the
+    rows a catalog holds. The public package an author imports is also
+    named `sigil`, which is this package's name, so the verbs reach the
+    extension beneath it instead. It is loaded from the file the build
+    wrote, so an installed copy elsewhere on the path is never the one
+    asked."""
+    if "_sigil" in sys.modules:
+        return sys.modules["_sigil"]
+    root = build_dir() / "python"
+    built = sorted(root.glob("_sigil.*"))
+    for suffix in importlib.machinery.EXTENSION_SUFFIXES:
+        path = root / f"_sigil{suffix}"
+        if path.exists():
+            break
+    else:
+        if built:
+            fail(
+                f"the extension at {built[0]} was built for another "
+                f"interpreter — run sigil.py with the Python the build found"
+            )
+        fail(f"no Python extension under {root} — build the sigil_python target")
+    spec = importlib.util.spec_from_file_location("_sigil", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["_sigil"] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def presets() -> list:

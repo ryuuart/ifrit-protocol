@@ -283,7 +283,18 @@ per-scene override. `--rebase` adopts; a sweep narrowed by `--kind`,
 `--sketch` or `--scenes` merges into the manifest rather than
 truncating it, and only an unnarrowed rebase rewrites it wholesale.
 `--stability N` re-renders a mover and attributes a self-disagreeing
-scene to the scene.
+scene to the scene. `sigil.py plates compare <dir-a> <dir-b>` differences
+two directories of plates, the first as the reference, one line per
+plate; it exits 0 when every plate was compared, 1 when any was missing,
+unreadable or resized, and 2 when there was nothing to compare.
+
+The comparison is the sketch library's `sigil::sketch::compare`, read as
+values — one `sigil::sketch::PlateComparison` row per plate — through the
+Python extension the build links (`build/python/_sigil…`, the
+`sigil_python` target), so no verb reads a binary's printed text to learn
+a distance. The extension is loaded from the build tree under its own
+name, because this package shares the public package's name; `sigil.py`
+therefore runs under the interpreter the build found.
 
 **Reaching the moment costs the sketch's own work, not the rasteriser's.**
 A declared moment is reached by stepping a reopened session one frame at
@@ -344,10 +355,10 @@ compares each against the CPU plate of the same run per colour channel
 — mean and p99 judged within per-sketch ceilings, max reported — because
 a device plate is not a function of the drawing code alone. It has no
 baseline and refuses `--rebase`; without a device runtime it says so and
-exits 0. The two directories of plates are differenced by
-`Sketchbook --compare <dir-a> <dir-b>`, which decodes and reports the
-distances; what stays here is the judgement, because a ceiling is a
-tolerance about a machine and not a fact about two files.
+exits 0. The two directories of plates are differenced by the
+comparison above, which decodes them and answers the distances; what
+stays here is the judgement, because a ceiling is a tolerance about a
+machine and not a fact about two files.
 
 Why a distance and not a hash: for a set the two tiers are two
 rasterisers. The host paints shaded vertices through a per-triangle sort
@@ -433,7 +444,7 @@ N bakes stands N code values from the same wash painted live, measured in
 plain Skia over every destination value, every source alpha and a spread
 of source colours. So the ON half is rendered with `--composites`, which
 writes a plane beside each plate saying how many cached rasters were
-blitted over each pixel, and `--compare` reports the content difference
+blitted over each pixel, and the comparison reports the content difference
 already divided by it. The bar itself never moves with a picture's
 depth; a run with no plane prices every pixel at one composite, which is
 the bound this bar carried before it could count.
@@ -464,9 +475,10 @@ list here.
 
 Past any of the three is a picture that MOVED — a bake somewhere else,
 rasterised against another clip, or gone stale — which is a defect to
-file against the promoter. `Sketchbook --compare` reports the worst
-difference under each bar (`clear`, `content`, `graze` and `composited`
-on its line), which is what lets them be judged apart. The tier keeps no baseline and
+file against the promoter. The comparison reports the worst difference
+under each bar (`worstOverClear`, `worstOverContent`, `worstOverGraze`
+and `worstPerComposite` on a row; `clear`, `content`, `graze` and
+`composited` on its line), which is what lets them be judged apart. The tier keeps no baseline and
 refuses `--rebase`, because there is nothing here to adopt.
 
 ### Where the plates go
@@ -479,7 +491,7 @@ and is overwritten on rebase; `cpu/` holds what the last judging sweep
 rendered; the two comparing tiers keep both halves (`device/cpu`,
 `device/gpu`, `promotion/off`, `promotion/on`). A hash says a scene
 MOVED and nothing about where, so each mover's verdict line names its
-two files and the summary prints the `Sketchbook --compare
+two files and the summary prints the `sigil.py plates compare
 build/plates_<config>/baseline build/plates_<config>/cpu` that
 differences them channel by channel.
 

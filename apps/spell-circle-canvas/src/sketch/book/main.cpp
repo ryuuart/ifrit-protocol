@@ -305,7 +305,7 @@ int main(int argc, char* argv[]) {
   // finished plates, so it wants no fonts, no assets, no device and no
   // registry — and it answers before any of them is built.
   if (!args.compareOptions.first.empty())
-    return sketch::compare(args.compareOptions);
+    return sketch::printComparison(sketch::compare(args.compareOptions));
 
   const int chosen = args.selected.empty() ? -1 : sketch::find(args.selected);
   if (!args.selected.empty() && chosen < 0) {

@@ -16,7 +16,6 @@
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Sweep.h>
 
-#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -27,9 +26,23 @@
 namespace {
 
 using sigil::sketch::compare;
-using sigil::sketch::CompareOptions;
+using sigil::sketch::Comparison;
 using sigil::sketch::kPlatePrefix;
+using sigil::sketch::PlateComparison;
+using sigil::sketch::PlateOutcome;
+using sigil::sketch::PlateSide;
+using sigil::sketch::printComparison;
 using sigil::test::ScratchDir;
+
+/** The row a comparison holds for @p name, or a failure naming it. */
+const PlateComparison& rowOf(const Comparison& comparison,
+                             const std::string& name) {
+  for (const PlateComparison& plate : comparison.plates)
+    if (plate.name == name) return plate;
+  ADD_FAILURE() << "no row for " << name;
+  static const PlateComparison none;
+  return none;
+}
 
 /** A plate of one flat colour, written where the sweep would write it. */
 void writePlate(const std::filesystem::path& dir, const std::string& name,
@@ -54,12 +67,34 @@ TEST(SketchCompare, IdenticalPlatesStandNoDistanceApart) {
   writePlate(first, "probe", SK_ColorBLUE);
   writePlate(second, "probe", SK_ColorBLUE);
 
+  const Comparison comparison = compare({first.string(), second.string()});
+  EXPECT_EQ(comparison.status(), 0);
+  ASSERT_EQ(comparison.plates.size(), 1u);
+  const PlateComparison& probe = comparison.plates.front();
+  EXPECT_EQ(probe.name, "probe");
+  EXPECT_EQ(probe.outcome, PlateOutcome::Compared);
+  EXPECT_EQ(probe.mean, 0.0);
+  EXPECT_EQ(probe.p99, 0);
+  EXPECT_EQ(probe.worst, 0);
+}
+
+/** The printed row is the value, spelled: the line Sketchbook's
+ *  `--compare` writes opens with the word that says what it is. */
+TEST(SketchCompare, PrintsEachRowAsTheLineItsWordOpens) {
+  const ScratchDir scratch("compare_printed");
+  const std::filesystem::path first = scratch.path / "a";
+  const std::filesystem::path second = scratch.path / "b";
+  writePlate(first, "probe", SK_ColorBLUE);
+  writePlate(first, "alone", SK_ColorRED);
+  writePlate(second, "probe", SK_ColorBLUE);
+
   testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({first.string(), second.string()}), 0);
+  EXPECT_EQ(printComparison(compare({first.string(), second.string()})), 1);
   const std::string report = testing::internal::GetCapturedStdout();
-  EXPECT_NE(report.find("compared probe mean 0.0000 p99 0 max 0"),
-            std::string::npos)
-      << report;
+  EXPECT_EQ(report,
+            "missing alone second\n"
+            "compared probe mean 0.0000 p99 0 max 0 clear 0 content 0 graze 0 "
+            "0 composited 0 0\n");
 }
 
 /** TWO SIZES ARE NOT A DISTANCE. A plate that changed shape is a plate
@@ -73,11 +108,14 @@ TEST(SketchCompare, APlateThatChangedShapeIsNamedRatherThanMeasured) {
   writePlate(first, "probe", SK_ColorBLUE, 8);
   writePlate(second, "probe", SK_ColorBLUE, 12);
 
-  testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({first.string(), second.string()}), 1);
-  const std::string report = testing::internal::GetCapturedStdout();
-  EXPECT_NE(report.find("size probe 8x8 12x12"), std::string::npos) << report;
-  EXPECT_EQ(report.find("compared probe"), std::string::npos) << report;
+  const Comparison comparison = compare({first.string(), second.string()});
+  EXPECT_EQ(comparison.status(), 1);
+  const PlateComparison& probe = rowOf(comparison, "probe");
+  EXPECT_EQ(probe.outcome, PlateOutcome::Resized);
+  EXPECT_EQ(probe.firstWidth, 8);
+  EXPECT_EQ(probe.firstHeight, 8);
+  EXPECT_EQ(probe.secondWidth, 12);
+  EXPECT_EQ(probe.secondHeight, 12);
 }
 
 TEST(SketchCompare, ReportsTheChannelDistanceItMeasured) {
@@ -89,12 +127,12 @@ TEST(SketchCompare, ReportsTheChannelDistanceItMeasured) {
   writePlate(first, "probe", SkColorSetARGB(255, 100, 0, 0));
   writePlate(second, "probe", SkColorSetARGB(255, 108, 0, 0));
 
-  testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({first.string(), second.string()}), 0);
-  const std::string report = testing::internal::GetCapturedStdout();
-  EXPECT_NE(report.find("compared probe mean 2.0000 p99 8 max 8"),
-            std::string::npos)
-      << report;
+  const Comparison comparison = compare({first.string(), second.string()});
+  EXPECT_EQ(comparison.status(), 0);
+  const PlateComparison& probe = rowOf(comparison, "probe");
+  EXPECT_EQ(probe.mean, 2.0);
+  EXPECT_EQ(probe.p99, 8);
+  EXPECT_EQ(probe.worst, 8);
 }
 
 /** A plate whose top half is transparent black and whose bottom half
@@ -131,11 +169,12 @@ TEST(SketchCompare, SplitsTheWorstDistanceByWhatTheFirstPlateHolds) {
   writeSplitPlate(second, "probe", SkColorSetARGB(3, 0, 0, 0),
                   SkColorSetARGB(255, 109, 0, 0));
 
-  testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({first.string(), second.string()}), 0);
-  const std::string report = testing::internal::GetCapturedStdout();
-  EXPECT_NE(report.find("max 9 clear 3 content 9"), std::string::npos)
-      << report;
+  const Comparison comparison = compare({first.string(), second.string()});
+  EXPECT_EQ(comparison.status(), 0);
+  const PlateComparison& probe = rowOf(comparison, "probe");
+  EXPECT_EQ(probe.worst, 9);
+  EXPECT_EQ(probe.worstOverClear, 3);
+  EXPECT_EQ(probe.worstOverContent, 9);
 }
 
 /** A CURVE, AND A MARK BESIDE IT. The curve is stroked and antialiased, so
@@ -174,24 +213,6 @@ void writeCurvePlate(const std::filesystem::path& dir, const std::string& name,
                     std::ios::binary);
   out.write(reinterpret_cast<const char*>(png->data()),
             (std::streamsize)png->size());
-}
-
-/** The numbers off one comparison of two directories. */
-struct Split {
-  int worst = 0, clear = 0, content = 0, graze = 0, perComposite = 0;
-  long long grazing = 0, stacked = 0;
-};
-
-Split splitOf(const std::string& report) {
-  Split split;
-  const size_t at = report.find("max ");
-  EXPECT_NE(at, std::string::npos) << report;
-  if (at == std::string::npos) return split;
-  std::sscanf(report.c_str() + at,
-              "max %d clear %d content %d graze %d %lld composited %d %lld",
-              &split.worst, &split.clear, &split.content, &split.graze,
-              &split.grazing, &split.perComposite, &split.stacked);
-  return split;
 }
 
 /** A COMPOSITE-COUNT PLANE beside a plate: one grey level per pixel,
@@ -233,22 +254,22 @@ TEST(SketchCompare, TellsAGrazingEdgeFromAMarkThatIsGone) {
   writeCurvePlate(slid, "probe", 0.25f, true);
   writeCurvePlate(gone, "probe", 0.0f, false);
 
-  testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({base.string(), slid.string()}), 0);
-  const Split grazed = splitOf(testing::internal::GetCapturedStdout());
-  testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({base.string(), gone.string()}), 0);
-  const Split dropped = splitOf(testing::internal::GetCapturedStdout());
+  const Comparison slidComparison = compare({base.string(), slid.string()});
+  const Comparison goneComparison = compare({base.string(), gone.string()});
+  EXPECT_EQ(slidComparison.status(), 0);
+  EXPECT_EQ(goneComparison.status(), 0);
+  const PlateComparison& grazed = rowOf(slidComparison, "probe");
+  const PlateComparison& dropped = rowOf(goneComparison, "probe");
 
   // The slid curve: the whole difference is edge-confined, and there is
   // real ink in it — a quarter of a pixel on a hard-contrast stroke is tens
   // of code values.
-  EXPECT_GT(grazed.graze, 20);
-  EXPECT_GT(grazed.grazing, 20);
-  EXPECT_LE(grazed.content, 2);
+  EXPECT_GT(grazed.worstOverGraze, 20);
+  EXPECT_GT(grazed.grazingPixels, 20u);
+  EXPECT_LE(grazed.worstOverContent, 2);
   // The dropped mark: the difference is the ink itself, and it is content.
-  EXPECT_GT(dropped.content, 180);
-  EXPECT_EQ(dropped.worst, dropped.content);
+  EXPECT_GT(dropped.worstOverContent, 180);
+  EXPECT_EQ(dropped.worst, dropped.worstOverContent);
 }
 
 /** A CACHED RASTER IS A COMPOSITE, AND A PIXEL CAN STAND UNDER MANY. Each
@@ -264,19 +285,18 @@ TEST(SketchCompare, PricesTheContentDifferenceByTheCompositesUnderIt) {
   writeCurvePlate(base, "probe", 0.0f, true);
   writeCurvePlate(gone, "probe", 0.0f, false);
 
-  testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({base.string(), gone.string()}), 0);
-  const Split alone = splitOf(testing::internal::GetCapturedStdout());
-  EXPECT_EQ(alone.perComposite, alone.content);
-  EXPECT_EQ(alone.stacked, 0);
+  const PlateComparison alone =
+      rowOf(compare({base.string(), gone.string()}), "probe");
+  EXPECT_EQ(alone.worstPerComposite, alone.worstOverContent);
+  EXPECT_EQ(alone.stackedPixels, 0u);
 
   writeCountPlane(gone, "probe", 4);
-  testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({base.string(), gone.string()}), 0);
-  const Split stacked = splitOf(testing::internal::GetCapturedStdout());
-  EXPECT_EQ(stacked.content, alone.content) << "the raw difference moved";
-  EXPECT_EQ(stacked.perComposite, (alone.content + 3) / 4);
-  EXPECT_GT(stacked.stacked, 0);
+  const PlateComparison stacked =
+      rowOf(compare({base.string(), gone.string()}), "probe");
+  EXPECT_EQ(stacked.worstOverContent, alone.worstOverContent)
+      << "the raw difference moved";
+  EXPECT_EQ(stacked.worstPerComposite, (alone.worstOverContent + 3) / 4);
+  EXPECT_GT(stacked.stackedPixels, 0u);
 }
 
 TEST(SketchCompare, NamesAPlateThatStandsInOnlyOneDirectory) {
@@ -287,18 +307,23 @@ TEST(SketchCompare, NamesAPlateThatStandsInOnlyOneDirectory) {
   writePlate(first, "alone", SK_ColorRED);
   writePlate(second, "probe", SK_ColorBLUE);
 
-  testing::internal::CaptureStdout();
-  EXPECT_EQ(compare({first.string(), second.string()}), 1);
-  const std::string report = testing::internal::GetCapturedStdout();
-  EXPECT_NE(report.find("missing alone second"), std::string::npos) << report;
-  EXPECT_NE(report.find("compared probe"), std::string::npos) << report;
+  const Comparison comparison = compare({first.string(), second.string()});
+  EXPECT_EQ(comparison.status(), 1);
+  const PlateComparison& alone = rowOf(comparison, "alone");
+  EXPECT_EQ(alone.outcome, PlateOutcome::Missing);
+  EXPECT_EQ(alone.side, PlateSide::Second);
+  EXPECT_EQ(rowOf(comparison, "probe").outcome, PlateOutcome::Compared);
 }
 
 TEST(SketchCompare, ADirectoryThatIsNotThereIsNotAComparison) {
   const ScratchDir scratch("compare_absent");
   const std::filesystem::path first = scratch.path / "a";
   writePlate(first, "probe", SK_ColorBLUE);
-  EXPECT_EQ(compare({first.string(), (scratch.path / "gone").string()}), 2);
+  const Comparison comparison =
+      compare({first.string(), (scratch.path / "gone").string()});
+  EXPECT_EQ(comparison.status(), 2);
+  EXPECT_FALSE(comparison.refusal.empty());
+  EXPECT_TRUE(comparison.plates.empty());
 }
 
 }  // namespace

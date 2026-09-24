@@ -63,7 +63,7 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
 
 /** Mean, 99th percentile and worst absolute channel difference, in
  *  0..255, over every channel of every pixel — and the worst split THREE
- *  ways by what the pixel it stands on is.
+ *  ways by what the pixel it stands on is, written into the plate's row.
  *
  *  The split is there because a caller's tolerance can depend on it. A
  *  picture drawn over transparent black and the same picture drawn over
@@ -78,21 +78,6 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
  *
  *  Which pixels are which is a fact about the two files and is answered
  *  here; how much each is allowed is a judgement and is not. */
-struct Distance {
-  double mean = 0;
-  int p99 = 0;
-  int worst = 0;
-  int worstOverClear = 0;    ///< where the first plate is transparent black
-  int worstOverContent = 0;  ///< where it holds content and is not a graze
-  int worstOverGraze = 0;    ///< …and where the difference is edge-confined
-  size_t grazingPixels = 0;  ///< how many pixels that was
-  /** …and the worst over content again, PER COMPOSITE the pixel stood
-   *  under. One without a count plane beside it, so this is the content
-   *  figure itself until a plane says otherwise. */
-  int worstPerComposite = 0;
-  size_t stackedPixels = 0;  ///< content pixels under more than one
-};
-
 /** THE COMPOSITE-COUNT PLANE beside a plate: how many cached rasters were
  *  blitted over each of its pixels, one grey level each, written by a
  *  headless sweep asked for it. A plate with none stands as a plate whose
@@ -140,16 +125,16 @@ std::vector<uint8_t> localSpan(const Plate& plate) {
   return span;
 }
 
-Distance distanceBetween(const Plate& first, const Plate& second,
-                         const std::vector<uint8_t>& composites) {
+void measureDistance(const Plate& first, const Plate& second,
+                     const std::vector<uint8_t>& composites,
+                     PlateComparison& distance) {
   std::array<size_t, 256> histogram{};
   const size_t count = std::min(first.pixels.size(), second.pixels.size());
   for (size_t at = 0; at < count; ++at)
     ++histogram[(size_t)std::abs((int)first.pixels[at] -
                                  (int)second.pixels[at])];
 
-  Distance distance;
-  if (count == 0) return distance;
+  if (count == 0) return;
   size_t total = 0;
   for (size_t value = 0; value < histogram.size(); ++value)
     total += value * histogram[value];
@@ -236,7 +221,6 @@ Distance distanceBetween(const Plate& first, const Plate& second,
       }
     }
   }
-  return distance;
 }
 
 /** Every plate name a directory holds, in the order the filesystem is
@@ -256,44 +240,55 @@ void collect(const std::filesystem::path& dir, std::map<std::string, int>& into,
 
 }  // namespace
 
-int compare(const CompareOptions& options) {
+int Comparison::status() const {
+  if (!refusal.empty()) return 2;
+  for (const PlateComparison& plate : plates)
+    if (plate.outcome != PlateOutcome::Compared) return 1;
+  return 0;
+}
+
+Comparison compare(const CompareOptions& options) {
+  Comparison comparison;
   const std::filesystem::path first(options.first);
   const std::filesystem::path second(options.second);
   std::error_code ec;
   if (!std::filesystem::is_directory(first, ec) ||
       !std::filesystem::is_directory(second, ec)) {
-    std::fprintf(stderr, "--compare wants two directories of plates\n");
-    return 2;
+    comparison.refusal = "a comparison wants two directories of plates";
+    return comparison;
   }
 
-  std::map<std::string, int> plates;
-  collect(first, plates, 1);
-  collect(second, plates, 2);
-  if (plates.empty()) {
-    std::fprintf(stderr, "neither directory holds a plate\n");
-    return 2;
+  std::map<std::string, int> names;
+  collect(first, names, 1);
+  collect(second, names, 2);
+  if (names.empty()) {
+    comparison.refusal = "neither directory holds a plate";
+    return comparison;
   }
 
-  int verdict = 0;
-  for (const auto& [name, sides] : plates) {
+  comparison.plates.reserve(names.size());
+  for (const auto& [name, sides] : names) {
+    PlateComparison& plate = comparison.plates.emplace_back();
+    plate.name = name;
     const std::string file = std::string(kPlatePrefix) + name + ".png";
     if ((sides & 1) == 0 || (sides & 2) == 0) {
-      std::printf("missing %s %s\n", name.c_str(),
-                  (sides & 1) == 0 ? "first" : "second");
-      verdict = 1;
+      plate.outcome = PlateOutcome::Missing;
+      plate.side = (sides & 1) == 0 ? PlateSide::First : PlateSide::Second;
       continue;
     }
     const std::optional<Plate> a = readPlate(first / file);
     const std::optional<Plate> b = readPlate(second / file);
     if (!a || !b) {
-      std::printf("unreadable %s %s\n", name.c_str(), a ? "second" : "first");
-      verdict = 1;
+      plate.outcome = PlateOutcome::Unreadable;
+      plate.side = a ? PlateSide::Second : PlateSide::First;
       continue;
     }
+    plate.firstWidth = a->width;
+    plate.firstHeight = a->height;
+    plate.secondWidth = b->width;
+    plate.secondHeight = b->height;
     if (a->width != b->width || a->height != b->height) {
-      std::printf("size %s %dx%d %dx%d\n", name.c_str(), a->width, a->height,
-                  b->width, b->height);
-      verdict = 1;
+      plate.outcome = PlateOutcome::Resized;
       continue;
     }
     // The plane, if the sweep that wrote the SECOND directory was asked
@@ -302,17 +297,43 @@ int compare(const CompareOptions& options) {
     const std::vector<uint8_t> composites =
         readCountPlane(second / (std::string(kCountPrefix) + name + ".png"),
                        a->width, a->height);
-    const Distance distance = distanceBetween(*a, *b, composites);
-    std::printf(
-        "compared %s mean %.4f p99 %d max %d clear %d content %d graze %d "
-        "%zu composited %d %zu\n",
-        name.c_str(), distance.mean, distance.p99, distance.worst,
-        distance.worstOverClear, distance.worstOverContent,
-        distance.worstOverGraze, distance.grazingPixels,
-        distance.worstPerComposite, distance.stackedPixels);
+    measureDistance(*a, *b, composites, plate);
   }
+  return comparison;
+}
+
+std::string comparisonLine(const PlateComparison& plate) {
+  const char* side = plate.side == PlateSide::First ? "first" : "second";
+  char tail[256];
+  switch (plate.outcome) {
+    case PlateOutcome::Missing:
+      return "missing " + plate.name + " " + side;
+    case PlateOutcome::Unreadable:
+      return "unreadable " + plate.name + " " + side;
+    case PlateOutcome::Resized:
+      std::snprintf(tail, sizeof tail, " %dx%d %dx%d", plate.firstWidth,
+                    plate.firstHeight, plate.secondWidth, plate.secondHeight);
+      return "size " + plate.name + tail;
+    case PlateOutcome::Compared:
+      break;
+  }
+  std::snprintf(tail, sizeof tail,
+                " mean %.4f p99 %d max %d clear %d content %d graze %d %zu "
+                "composited %d %zu",
+                plate.mean, plate.p99, plate.worst, plate.worstOverClear,
+                plate.worstOverContent, plate.worstOverGraze,
+                plate.grazingPixels, plate.worstPerComposite,
+                plate.stackedPixels);
+  return "compared " + plate.name + tail;
+}
+
+int printComparison(const Comparison& comparison) {
+  if (!comparison.refusal.empty())
+    std::fprintf(stderr, "%s\n", comparison.refusal.c_str());
+  for (const PlateComparison& plate : comparison.plates)
+    std::printf("%s\n", comparisonLine(plate).c_str());
   std::fflush(stdout);
-  return verdict;
+  return comparison.status();
 }
 
 }  // namespace sigil::sketch

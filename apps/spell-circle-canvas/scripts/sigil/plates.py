@@ -9,6 +9,7 @@
                                        # flappers from code
     sigil.py plates --tier device      # the same sketches on the GPU
     sigil.py plates --tier promotion   # …and with the promoter let go
+    sigil.py plates compare <a> <b>    # two plate directories, differenced
 
 Renders every sketch through `Sketchbook --headless --ledger` (the
 benchmark-free exact-stepped capture), N at a time, hashes the plates,
@@ -20,8 +21,9 @@ What each tier judges, what it refuses and why each ceiling stands where
 it does is scripts/README.md; this refuses to keep a second copy of it.
 The judgement is here because a ceiling is a tolerance about a machine
 and not a fact about two files: the manifest, the tolerances, the
-promotion ceiling and --stability are what this owns, and decoding,
-differencing and thumbnailing plates is Sketchbook's.
+promotion ceiling and --stability are what this owns. Decoding and
+differencing plates is the sketch library's, read here as values through
+the Python extension the build links.
 """
 
 import argparse
@@ -92,7 +94,7 @@ GPU_TOLERANCE = {
 # through N bakes stands N code values from the same wash painted live,
 # measured over every destination value, every source alpha and a spread
 # of source colours. So the bound is the two above times the count, and
-# `--compare` reports the content difference already divided by it — the
+# the comparison reports the content difference already divided by it — the
 # figure judged here is a bound PER COMPOSITE and the bar does not move
 # with the picture's depth. A run whose ON half was not asked for a
 # composite-count plane prices every pixel at one composite, which is the
@@ -120,7 +122,7 @@ GPU_TOLERANCE = {
 # picture is fixed, and this one does not.
 #
 # The held-off plate is the reference, so it is the one that says which
-# bar a differing pixel is judged by; `--compare` reports the worst
+# bar a differing pixel is judged by; the comparison reports the worst
 # difference under each. Anything past them is a picture that moved rather
 # than a picture that rounded.
 PROMOTION_DRIFT_CEILING = 1
@@ -213,48 +215,61 @@ def render_scene(binary, scene, outdir, timeout, extra_args=PROMOTION_OFF):
     return scene, baseline.digest(plate), None, elapsed, declared
 
 
-def compared(binary, first, second):
-    """Every plate in both directories, differenced by the renderer that
-    wrote them: name -> (mean, p99, max, max over the transparent-black
-    pixels of `first`, max over the rest of them, max over the pixels whose
-    difference is confined to an edge both plates draw, how many of those
-    there were, that same content difference priced PER COMPOSITE the pixel
-    stood under, and how many content pixels stood under more than one),
-    plus the names it could not compare.
+def compared(first, second):
+    """Every plate in both directories, differenced: name -> its row, for
+    the plates that were compared, and name -> the row's line for the ones
+    that were missing, unreadable or resized. A comparison that could not
+    start at all is one unusable entry under the name `compare`.
 
-    Decoding a PNG and differencing two pictures is what the binary
-    already does; what stays here is the judgement — which distance is
+    A row carries the mean, p99 and worst channel distance, the worst split
+    by what the pixel stands on — transparent black in `first`
+    (`worstOverClear`), an edge both plates draw (`worstOverGraze`, over
+    `grazingPixels`) or anything else (`worstOverContent`) — and the
+    content figure priced PER COMPOSITE the pixel stood under
+    (`worstPerComposite`, with `stackedPixels`). Decoding and differencing
+    is the library's; what stays here is the judgement — which distance is
     close enough on this machine — because that is a tolerance and not a
     fact about two files."""
-    result = tree.capture([binary, "--compare", first, second])
+    sketch = tree.extension().sketch
+    comparison = sketch.compare(first, second)
     distances, unusable = {}, {}
-    for line in result.stdout.splitlines():
-        words = line.split()
-        # A registry name CAN CARRY SPACES, so every row is read from its
-        # ends inward: the verb is the first word, the fixed-width tail is
-        # the last, and whatever lies between them is the name.
-        if len(words) >= 18 and words[0] == "compared" and words[-16] == "mean":
-            name = " ".join(words[1:-16])
-            distances[name] = (
-                float(words[-15]),
-                int(words[-13]),
-                int(words[-11]),
-                int(words[-9]),
-                int(words[-7]),
-                int(words[-5]),
-                int(words[-4]),
-                int(words[-2]),
-                int(words[-1]),
-            )
-        elif words and words[0] == "size" and len(words) >= 4:
-            name = " ".join(words[1:-2])
-            unusable[name] = "size " + " ".join(words[-2:])
-        elif words and words[0] in ("missing", "unreadable") and len(words) >= 3:
-            name = " ".join(words[1:-1])
-            unusable[name] = f"{words[0]} {words[-1]}"
-    if not distances and not unusable:
-        unusable["--compare"] = (result.stderr or result.stdout).strip()[-300:]
+    if comparison.refusal:
+        unusable["compare"] = comparison.refusal
+    for plate in comparison.plates:
+        if plate.outcome == sketch.PlateOutcome.Compared:
+            distances[plate.name] = plate
+        else:
+            unusable[plate.name] = _unusable(plate)
     return distances, unusable
+
+
+def _unusable(plate):
+    """What a plate that could not be measured says about itself: its
+    line, without the name, which can carry spaces."""
+    line = str(plate)
+    verb = line.split(" ", 1)[0]
+    return verb + line.removeprefix(f"{verb} {plate.name}")
+
+
+def compare_main(argv: list) -> int:
+    """`plates compare A B`: every plate of two directories as the line its
+    row spells, and the status the comparison answers — 0 when every plate
+    was compared, 1 when any was missing, unreadable or resized, 2 when
+    there was nothing to compare."""
+    ap = argparse.ArgumentParser(
+        prog="sigil.py plates compare",
+        description="difference two directories of plates, one line per plate; "
+        "the first directory is the reference",
+    )
+    ap.add_argument("first", help="the reference plate directory")
+    ap.add_argument("second", help="the plate directory compared against it")
+    args = ap.parse_args(argv)
+    comparison = tree.extension().sketch.compare(args.first, args.second)
+    if comparison.refusal:
+        print(comparison.refusal, file=sys.stderr)
+    for plate in comparison.plates:
+        print(plate)
+    return comparison.status()
 
 
 def plate_dir(config, *parts, fresh=True):
@@ -268,7 +283,7 @@ def plate_dir(config, *parts, fresh=True):
 
     @p fresh empties the directory first, which is what a run's own output
     wants: a sweep narrowed to two scenes must not leave the other
-    hundred's plates standing beside them, or `--compare` would report
+    hundred's plates standing beside them, or `plates compare` would report
     scenes this run never rendered. The baseline directory is the one that
     is NOT fresh — it is overwritten scene by scene as a rebase adopts
     them, and pruned to the manifest afterwards."""
@@ -363,7 +378,7 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
 
     verdict = 0
     print()
-    distances, unusable = compared(binary, host_dir, device_dir)
+    distances, unusable = compared(host_dir, device_dir)
     for scene in scenes:
         if scene in unusable:
             print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")
@@ -372,7 +387,8 @@ def device_sweep(binary, scenes, timeout, jobs, host_dir, device_dir):
         if scene not in distances:
             verdict = 1
             continue
-        mean, p99, worst = distances[scene][:3]
+        row = distances[scene]
+        mean, p99, worst = row.mean, row.p99, row.worst
         mean_cap, p99_cap = GPU_TOLERANCE.get(scene, DEFAULT_GPU_TOLERANCE)
         over = mean > mean_cap or p99 > p99_cap
         print(
@@ -445,7 +461,7 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     verdict = 0
     within = 0
     print()
-    distances, unusable = compared(binary, off_dir, on_dir)
+    distances, unusable = compared(off_dir, on_dir)
     for scene in scenes:
         if scene in unusable:
             print(f"  {unusable[scene].upper()} {scene}   <-- FINDING")
@@ -454,17 +470,12 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
         if scene not in distances:
             verdict = 1
             continue
-        (
-            mean,
-            p99,
-            worst,
-            over_clear,
-            over_content,
-            over_graze,
-            grazing,
-            per_composite,
-            stacked,
-        ) = distances[scene]
+        row = distances[scene]
+        mean, p99, worst = row.mean, row.p99, row.worst
+        over_clear = row.worstOverClear
+        over_content = row.worstOverContent
+        over_graze, grazing = row.worstOverGraze, row.grazingPixels
+        per_composite, stacked = row.worstPerComposite, row.stackedPixels
         # EACH PART AGAINST ITS OWN BAR, and the held-off plate is what
         # says which part a pixel is in.
         if (
@@ -527,6 +538,8 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
 
 
 def main(argv: list) -> int:
+    if argv[:1] == ["compare"]:
+        return compare_main(argv[1:])
     ap = argparse.ArgumentParser(
         prog="sigil.py plates",
         description="plate sweep over the sketch registry, judged against a "
@@ -668,7 +681,7 @@ def main(argv: list) -> int:
     # An adopting sweep IS the baseline, so it renders straight into the
     # kept baseline directory and the manifest is written from the same
     # plates. A judging sweep renders beside it, which leaves the two
-    # directories `--compare` differences standing when it is over.
+    # directories `plates compare` differences standing when it is over.
     kept_baseline = plate_dir(args.config, "baseline", fresh=False)
     outdir = kept_baseline if adopting else plate_dir(args.config, "cpu")
     results, errors, _ = sweep(
@@ -748,7 +761,7 @@ def main(argv: list) -> int:
         # next question has a command rather than a re-render.
         print(f"\nplates kept: {outdir}")
         if verdict:
-            print(f"  {binary} --compare {kept_baseline} {outdir}")
+            print(f"  python3 scripts/sigil.py plates compare {kept_baseline} {outdir}")
         if verdict == 0 and not errors:
             print("VERDICT: byte-neutral")
 

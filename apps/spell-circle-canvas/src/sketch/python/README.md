@@ -22,8 +22,8 @@ the package an author imports it from; both the embedded application and
 the installed extension use that assembly.
 
 * `host/Registration.h` — `bindRuntime`, `bindSketchContextSurface`,
-  `bindSketchDeviceRuntimes`, `bindSketchEntries`, `bindSketchSchema`,
-  `bindSketchSetSketches`, `bindSketchWorldSet`
+  `bindSketchDeviceRuntimes`, `bindSketchEntries`, `bindSketchPlates`,
+  `bindSketchSchema`, `bindSketchSetSketches`, `bindSketchWorldSet`
 * `kit/Registration.h` — `bindSketchKit`, `bindSketchKitCharts`,
   `bindSketchKitContent`, `bindSketchKitLegends`, `bindSketchKitPanels`,
   `bindSketchKitRows`, `bindSketchKitStreams`, `stageContext`
@@ -31,8 +31,9 @@ the installed extension use that assembly.
 `host/Runtime.cpp` owns interpreter selection for embedded hosts, fresh
 source imports, sketch instances, checked context and service views,
 callback and feed leases, and file rendering through the native host.
-`kit/Specimen.cpp` binds sketch specimen values and typed theme
-providers.
+`host/Plates.cpp` binds the comparison of two directories of plates as the
+rows a script judges. `kit/Specimen.cpp` binds sketch specimen values and
+typed theme providers.
 
 ## Ownership
 

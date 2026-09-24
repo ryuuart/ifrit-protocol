@@ -14,7 +14,12 @@ from _sigil import render_file as _native_render_file
 from _sigil.sketch import (
     Assets,
     CanvasSpecification,
+    Comparison,
     Guest,
+    PlateComparison,
+    PlateOutcome,
+    PlateSide,
+    compare,
     requireCached,
 )
 
@@ -114,8 +119,13 @@ def sketch(*, size=(960, 640), background="#121720", capture_at=1.0):
 __all__ = [
     "Assets",
     "CanvasSpecification",
+    "Comparison",
     "Guest",
+    "PlateComparison",
+    "PlateOutcome",
+    "PlateSide",
     "SketchContext",
+    "compare",
     "kit",
     "render_file",
     "requireCached",

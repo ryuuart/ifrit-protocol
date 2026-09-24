@@ -23,6 +23,8 @@ void bindSketchDeviceRuntimes(pybind11::module_& module);
 /** Registers what a Python sketch entry is filed as and what it needs
  *  on @p module. */
 void bindSketchEntries(pybind11::module_& module);
+/** Registers the comparison of two directories of plates on @p module. */
+void bindSketchPlates(pybind11::module_& module);
 /** Registers a Python sketch's own schema, and a settled page on @p
  *  module. */
 void bindSketchSchema(pybind11::module_& module);

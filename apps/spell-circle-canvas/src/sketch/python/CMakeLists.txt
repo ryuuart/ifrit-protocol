@@ -6,7 +6,8 @@
 sigil_library(SigilSketchPython
   SOURCES
     Module.cpp host/Context.cpp host/DeviceRuntimes.cpp host/Entries.cpp
-    host/Runtime.cpp host/Schema.cpp host/SetSketches.cpp host/WorldSet.cpp
+    host/Plates.cpp host/Runtime.cpp host/Schema.cpp host/SetSketches.cpp
+    host/WorldSet.cpp
     kit/Charts.cpp kit/Content.cpp kit/Legends.cpp kit/Panels.cpp
     kit/Rows.cpp kit/Specimen.cpp kit/Streams.cpp
   HEADERS Python.h
