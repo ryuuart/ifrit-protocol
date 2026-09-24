@@ -134,7 +134,7 @@ content and children, then foregrounds and the unqualified strokes.
 | [`background`](pages/verbs/background.md) | A decoration painted BENEATH the fill. |
 | [`overlay`](pages/verbs/overlay.md) | A decoration painted over the fill and under the content and children. |
 | [`foreground`](pages/verbs/foreground.md) | A decoration painted OVER the children. |
-| `layerStyle` | A whole `LayerStyle` at once: its under layers become backgrounds, its over layers foregrounds, and its echoes — `LayerStyle::echo` is the preset of one — re-stamp the fill shape and the text offset and flat beneath the real pass. |
+| `layerStyle` | A whole `LayerStyle` at once: its under layers become backgrounds, its over layers foregrounds, and its echoes — `LayerStyle::echo` is the preset of one — re-stamp the fill shape and the text offset and flat beneath the real pass; a run laid along a path is re-stamped along that path, glyph for glyph as the real pass places it. |
 | [`textStroke`](pages/verbs/textStroke.md) | Stroke the glyphs, under their fill. |
 | [`decorationOutline`](pages/verbs/decorationOutline.md) | WHICH outline the decorations follow: the node's shape, its glyphs, or what it drew — and, for that last, how much paint counts as ink. |
 

@@ -324,8 +324,10 @@ enum class Justify : uint8_t {
 };
 
 /** One misprint pass: the node's own fill shape and text re-stamped at
- *  `offset` in a flat color, UNDER the real content. Repeated echoes stack
- *  in declaration order, bottom first. This is the registration-error
+ *  `offset` in a flat color, UNDER the real content. Text is re-stamped
+ *  as the real pass places its glyphs, so a run laid along a path echoes
+ *  along that path. Repeated echoes stack in declaration order, bottom
+ *  first. This is the registration-error
  *  look — offset ink under-copies, hard-edged sticker stacks — as one call
  *  rather than duplicate sibling nodes. */
 struct Echo {
