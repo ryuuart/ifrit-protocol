@@ -8,6 +8,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/paragraph/RichText.h>
 #include <sigilweave/style/Style.h>
@@ -31,7 +32,8 @@ constexpr material::Color kAccent = hexColor(0xe0a03c);
 weave::TextStyle stated() {
   weave::TextStyle style;
   style.shaping.fontSize = 26;
-  style.paint.foreground.setColor4f(kAccent, nullptr);
+  style.paint.foreground.setColor4f(material::skia::toSkColor(kAccent),
+                                    nullptr);
   return style;
 }
 

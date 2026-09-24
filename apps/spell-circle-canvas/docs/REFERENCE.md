@@ -124,7 +124,11 @@ remembered across every page of the site.
 
 `<!-- example: fill_verb -->` names a stem under the library's
 `reference/examples/`. The picture stands above the two sources, which
-are folded.
+are folded. The build compiles every C++ example, as the object target
+`SigilReferenceExamples`, against the surface a hot-reloaded sketch
+sees, and the case `ReferenceExamples.compile` fails the moment one
+stops compiling — so an example is checked by the build rather than by
+the reader who opens the page.
 
 A link target may be written as a shorthand, which resolves to a
 correct relative path from wherever the page ends up:

@@ -283,3 +283,23 @@ if(TARGET SigilSubstance)
   target_compile_definitions(SigilSketches PUBLIC
     SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 endif()
+
+# THE REFERENCE EXAMPLES. Each library's `reference/examples/<stem>.cpp` is
+# a sketch outside the registry, drawn for its reference page by opening
+# the file the way a hot-reloaded sketch is opened, so nothing else ever
+# compiles it. Compiled here against exactly the surface such a sketch
+# sees — this target's interface, read rather than listed again — and
+# never linked, so an example that stops compiling fails the build and
+# the one case below rather than the page that shows it.
+file(GLOB SIGIL_REFERENCE_EXAMPLES CONFIGURE_DEPENDS
+     ${PROJECT_SOURCE_DIR}/src/*/*/reference/examples/*.cpp)
+if(SIGIL_REFERENCE_EXAMPLES)
+  add_library(SigilReferenceExamples OBJECT ${SIGIL_REFERENCE_EXAMPLES})
+  target_link_libraries(SigilReferenceExamples PRIVATE
+    $<TARGET_PROPERTY:SigilSketches,INTERFACE_LINK_LIBRARIES>)
+  target_compile_definitions(SigilReferenceExamples PRIVATE
+    $<TARGET_PROPERTY:SigilSketches,INTERFACE_COMPILE_DEFINITIONS>)
+  add_test(NAME ReferenceExamples.compile
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}
+            --config $<CONFIG> --target SigilReferenceExamples)
+endif()

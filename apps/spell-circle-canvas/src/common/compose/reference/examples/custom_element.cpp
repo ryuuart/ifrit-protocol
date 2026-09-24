@@ -9,6 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 #include <cmath>
@@ -36,7 +37,8 @@ void rings(SkCanvas& canvas, const PaintContext& context) {
   for (int ring = 1; ring <= 7; ++ring) {
     const float t = (float)ring / 7;
     paint.setStrokeWidth(1.0f + 2.0f * t);
-    paint.setColor4f(hexColor(0x6fb3a6, 1.0f - 0.9f * t), nullptr);
+    paint.setColor4f(
+        material::skia::toSkColor(hexColor(0x6fb3a6, 1.0f - 0.9f * t)), nullptr);
     canvas.drawCircle(centre, 14.0f * (float)ring, paint);
   }
 }

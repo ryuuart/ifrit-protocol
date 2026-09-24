@@ -13,6 +13,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -35,9 +36,9 @@ sk_sp<SkImage> checker() {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 4));
   SkCanvas& canvas = *surface->getCanvas();
-  canvas.clear(hexColor(0x25303a).toSkColor());
+  canvas.clear(material::skia::toSkColor(hexColor(0x25303a)));
   SkPaint paint;
-  paint.setColor4f(hexColor(0x6fb3a6), nullptr);
+  paint.setColor4f(material::skia::toSkColor(hexColor(0x6fb3a6)), nullptr);
   for (int y = 0; y < 4; ++y)
     for (int x = 0; x < 8; ++x)
       if ((x + y) % 2 == 0)
