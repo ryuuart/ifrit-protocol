@@ -445,6 +445,26 @@ class Scene:
         # …and a fill that is not empty still reaches the node.
         self.assertEqual(render('"#00ff00"')[:4], b"\x00\xff\x00\xff")
 
+    def test_a_root_leaf_takes_the_width_it_states_as_its_measure(self):
+        # CSS honours a width stated on the root box: the leaf wraps at
+        # seventy pixels inside a canvas of a hundred and twenty.
+        self.render("""import builtins
+from sigil.compose import text
+from sigil.sketch import sketch
+
+
+@sketch(size=(120, 60), capture_at=0)
+class Measure:
+    def setup(self, ctx):
+        ctx.render(text("a measure seventy pixels wide").key("leaf").width(70))
+
+    def update(self, elapsed, ctx):
+        if elapsed > 1 / 60:
+            builtins._sigil_compose_contract = [ctx.composer.bounds("leaf")]
+""")
+        (leaf,) = builtins._sigil_compose_contract
+        self.assertEqual((leaf.left(), leaf.width()), (0, 70))
+
     def test_rules_merge_native_partials_without_resetting_other_fields(self):
         title = (
             compose.rule(".title")

@@ -99,11 +99,13 @@ class Composer {
   Composer(const Composer&) = delete;
   Composer& operator=(const Composer&) = delete;
 
-  /** Layout viewport in canvas-space px; percent dims resolve here.
-   *  The root element always fills the viewport (its own width/height
-   *  are ignored, like the CSS root) — size content via children.
+  /** Layout viewport in canvas-space px: the root element's containing
+   *  block, so a percentage the root states is of it. The root fills the
+   *  viewport along any axis it states no size on, and a width or height
+   *  it states is its own, as CSS honours one on the root element — a
+   *  root text leaf given a width wraps at it.
    *  An EMPTY size means INTRINSIC instead: the root sizes to its content
-   *  and its own dims ARE respected. That is the rule the
+   *  wherever it states no size. That is the rule the
    *  snapshot()/intrinsicSize() path runs under. */
   void setSize(SkSize size);
 

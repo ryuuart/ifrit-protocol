@@ -23,7 +23,11 @@ using namespace detail;
 // Layout passes
 
 bool Composer::Impl::phaseYoga() {
-  YGNodeCalculateLayout(root->yoga, YGUndefined, YGUndefined, YGDirectionLTR);
+  // The viewport is the root's containing block, so a percentage the root
+  // states is of the canvas; an intrinsic root has none to be of.
+  const float across = size.isEmpty() ? YGUndefined : size.width();
+  const float down = size.isEmpty() ? YGUndefined : size.height();
+  YGNodeCalculateLayout(root->yoga, across, down, YGDirectionLTR);
   return false;
 }
 
@@ -73,12 +77,16 @@ void Composer::Impl::ensureLayout() {
     canvasLengthsAt = size;
     reapplyCanvasLengths(*root);
   }
-  // The root fills the viewport (the CSS-root rule) — except under an empty
-  // setSize(), which means "intrinsic": the root sizes to its content (the
-  // snapshot()/stamp path).
+  // The root fills the viewport (the CSS-root rule) along any axis it
+  // states no size on; a width or a height the root states is its own, as
+  // CSS honours one on the root box. Under an empty setSize(), which means
+  // "intrinsic", the root sizes to its content (the snapshot()/stamp path).
   if (!size.isEmpty()) {
-    YGNodeStyleSetWidth(root->yoga, size.width());
-    YGNodeStyleSetHeight(root->yoga, size.height());
+    const LayoutProps& stated = root->computed.layout;
+    if (stated.width.unit == Dimension::Unit::Auto)
+      YGNodeStyleSetWidth(root->yoga, size.width());
+    if (stated.height.unit == Dimension::Unit::Auto)
+      YGNodeStyleSetHeight(root->yoga, size.height());
   }
   // The runner walks `phases` in order: a non-converging phase runs once,
   // and the converging phases form one contiguous group that repeats until
