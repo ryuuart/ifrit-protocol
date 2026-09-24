@@ -54,6 +54,10 @@ struct OpenedFeed {
   /** Sends to ONE sender, named the way an arrival's `from` spells it;
    *  empty when the transport cannot address one. */
   std::function<bool(std::string_view to, const Bytes&)> sendTo;
+  /** The peers attached to the door now, each named the way an
+   *  arrival's `from` spells it; empty when the transport holds no peers
+   *  of its own. */
+  std::function<std::vector<std::string>()> peers;
   /** The local end as the transport bound it, "udp://[::]:52341";
    *  empty when it has none. */
   std::string address;
@@ -170,6 +174,14 @@ class Feed {
    *  False when the way is one-way for that purpose, when the feed is
    *  closed, and when no transport opened it. */
   bool sendTo(std::string_view to, const Bytes& bytes) const;
+
+  /** THE PEERS ATTACHED NOW, each named the way an arrival's `from`
+   *  spells it, which is how a door that holds many learns that one has
+   *  left: the name is gone from here. Empty when the feed is closed,
+   *  when no transport opened it, and when the transport holds no peers
+   *  of its own — a datagram socket has senders and never attached
+   *  peers. */
+  std::vector<std::string> peers() const;
 
   /** Appends every arrival from now on to the file at @p path in the
    *  recording format, so this feed can be played back later. An empty

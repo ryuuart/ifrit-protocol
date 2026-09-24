@@ -34,7 +34,21 @@ the reason on the feed — and what the listener keeps afterwards is the
 directory itself, read again per request, so a page edited on disk is the
 page the next reload is served. The path peers reach is the PATH alone: a
 query is the listener's own arrangement and stands in neither the address
-the feed reports nor the one an arrival names.
+the feed reports nor the one an arrival names. A pages value that is an
+absolute path is that directory itself, with no mount in between.
+
+### Where it stands and whom it admits
+
+`?bind=ADDRESS` holds that one interface instead of every one, and the
+address the feed reports is that interface's, so a listener bound to
+127.0.0.1 cannot be reached from another machine. `?admit=ADDRESS`,
+written once per peer, with `admit=loopback` for every loopback address,
+lets in those peers alone: any other is answered 403 with a sentence
+naming it, before the upgrade and before a page, and never becomes a
+peer. A listener that names nobody admits everybody; an admission or a
+bind that is no IP address opens nothing and leaves the reason on the
+feed. `Feed::peers` names the peers attached now, so a door learns that
+one has left when its name is gone.
 
 ### This registration listens
 

@@ -6,7 +6,9 @@
  *
  * A URI's query may name a directory of PAGES, and the same port then
  * answers HTTP GET out of it, so what a peer loads and the socket it
- * opens back stand at one address.
+ * opens back stand at one address. It may name the one interface to
+ * BIND, and the peers to ADMIT: a peer at no admitted address is refused
+ * before it is upgraded or served, so it never becomes a peer at all.
  *
  * Listening only. The library underneath carries a websocket client as a
  * name and an empty body, so a URI naming a host to reach opens nothing
@@ -17,9 +19,12 @@
 #include <libusockets.h>
 #include <uwebsockets/App.h>
 
+#include <algorithm>
 #include <atomic>
+#include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/address_v4.hpp>
 #include <boost/asio/ip/address_v6.hpp>
+#include <boost/system/error_code.hpp>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
@@ -30,6 +35,7 @@
 #include <iterator>
 #include <locale>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -63,30 +69,45 @@ constexpr std::uintmax_t kPageCeiling = 16u * 1024u * 1024u;
  *  index. */
 constexpr std::string_view kIndexPage = "index.html";
 
+/** The word an `admit` value names every loopback address by. */
+constexpr std::string_view kLoopback = "loopback";
+
 /** WHAT A ws:// URI NAMES: the port to listen on, the path peers reach
  *  it at, the host that makes it a peer to call rather than a door to
- *  hold, and the URI a directory of pages stands at. */
+ *  hold, the URI a directory of pages stands at, the one interface to
+ *  bind where it names one, and the peers it admits where it names
+ *  any. */
 struct Address {
   std::string host;
   std::uint16_t port = 0;
   std::string path = "/";
   std::string pages;
+  std::string bind;
+  std::vector<std::string> admit;
 };
 
-/** The `pages` value out of @p query — the URI the pages stand at — or
- *  nothing when the query names none. A query is ampersand-separated
- *  pairs, so a listener that grows a second setting spells it beside
- *  this one and neither has to know about the other. */
-std::string_view pagesNamed(std::string_view query) {
+/** The listener's settings out of @p query into @p address: `pages`,
+ *  the URI the pages stand at; `bind`, the one interface to listen on;
+ *  and `admit`, as often as it is written, a peer's address or the word
+ *  for every loopback one. A query is ampersand-separated pairs, so each
+ *  setting is spelled beside the others and none has to know about
+ *  another; a pair naming none of them is left alone. */
+void readQuery(std::string_view query, Address& address) {
   constexpr std::string_view kPages = "pages=";
+  constexpr std::string_view kBind = "bind=";
+  constexpr std::string_view kAdmit = "admit=";
   while (!query.empty()) {
     const size_t next = query.find('&');
     const std::string_view pair = query.substr(0, next);
-    if (pair.starts_with(kPages)) return pair.substr(kPages.size());
+    if (pair.starts_with(kPages))
+      address.pages = std::string(pair.substr(kPages.size()));
+    else if (pair.starts_with(kBind))
+      address.bind = std::string(pair.substr(kBind.size()));
+    else if (pair.starts_with(kAdmit))
+      address.admit.emplace_back(pair.substr(kAdmit.size()));
     if (next == std::string_view::npos) break;
     query = query.substr(next + 1);
   }
-  return {};
 }
 
 /** The address @p uri names, or nothing when it names none: a host and a
@@ -110,7 +131,7 @@ std::optional<Address> parseAddress(std::string_view uri) {
     // what the feed reports as its address, is the path alone.
     if (const size_t question = named.find('?');
         question != std::string_view::npos) {
-      address.pages = std::string(pagesNamed(named.substr(question + 1)));
+      readQuery(named.substr(question + 1), address);
       named = named.substr(0, question);
     }
     if (!named.empty()) address.path = std::string(named);
@@ -176,6 +197,50 @@ std::string peerAddress(std::string_view scheme, std::string_view binary,
   }
   printed << ":" << port;
   return printed.str();
+}
+
+/** THE PEERS A LISTENER ADMITS: every loopback address where its URI
+ *  said so, and each address it named. An IPv4 peer that reached a
+ *  dual-stack socket arrives mapped into IPv6 and is judged as the IPv4
+ *  address it is. */
+struct Admission {
+  /** Whether the URI named any peer at all; a listener that named none
+   *  admits everyone, which is what a door on a stage is for. */
+  bool named = false;
+  bool loopback = false;
+  std::vector<boost::asio::ip::address> addresses;
+};
+
+/** The address @p binary holds, four bytes or sixteen, with an IPv4
+ *  address mapped into IPv6 taken back out of it; nothing for any other
+ *  length. */
+std::optional<boost::asio::ip::address> addressOf(std::string_view binary) {
+  if (binary.size() == 4) {
+    boost::asio::ip::address_v4::bytes_type four{};
+    std::memcpy(four.data(), binary.data(), four.size());
+    return boost::asio::ip::address(boost::asio::ip::address_v4(four));
+  }
+  if (binary.size() == 16) {
+    boost::asio::ip::address_v6::bytes_type sixteen{};
+    std::memcpy(sixteen.data(), binary.data(), sixteen.size());
+    const boost::asio::ip::address_v6 six(sixteen);
+    if (six.is_v4_mapped())
+      return boost::asio::ip::address(
+          boost::asio::ip::make_address_v4(boost::asio::ip::v4_mapped, six));
+    return boost::asio::ip::address(six);
+  }
+  return std::nullopt;
+}
+
+/** Whether @p admission lets the peer at @p binary in. A peer whose
+ *  address cannot be read is let in only where nobody was named. */
+bool admits(const Admission& admission, std::string_view binary) {
+  if (!admission.named) return true;
+  const std::optional<boost::asio::ip::address> peer = addressOf(binary);
+  if (!peer) return false;
+  if (admission.loopback && peer->is_loopback()) return true;
+  return std::find(admission.addresses.begin(), admission.addresses.end(),
+                   *peer) != admission.addresses.end();
 }
 
 /** WHAT A PAGE IS SERVED AS, by the extension it ends in; anything else
@@ -301,7 +366,25 @@ struct Session {
    *  puts itself in as it arrives and takes itself out as it leaves, so
    *  nothing here outlives the socket it points at. */
   std::unordered_map<std::string, uWS::WebSocket<false, true, Peer>*> peers;
+  /** WHO MAY BECOME A PEER, written before the thread starts and only
+   *  read after. */
+  Admission admission;
+  /** The names of `peers` again, for a reader on another thread: the
+   *  loop writes both as a peer arrives and leaves, and this copy is the
+   *  only one read from outside it. */
+  std::mutex attachedMutex;
+  std::vector<std::string> attached;
 };
+
+/** Answers @p response with 403 and the sentence naming @p binary as a
+ *  peer this listener does not admit. */
+void refusePeer(uWS::HttpResponse<false>* response, std::string_view binary) {
+  const std::string named = peerAddress("ws", binary, response->getRemotePort());
+  response->writeStatus("403 Forbidden");
+  response->writeHeader("Content-Type", "text/plain");
+  response->end("ws: " + (named.empty() ? std::string("a peer") : named) +
+                " is not a peer this listener admits");
+}
 
 /** What a listener's thread answers with once it has tried to bind: the
  *  port it took, or the sentence saying why it took none. */
@@ -327,6 +410,19 @@ void hold(const std::shared_ptr<Session>& session, const Address& place,
   } else {
     uWS::App::WebSocketBehavior<Peer> behavior;
     behavior.maxPayloadLength = kMessageCeiling;
+    // ADMISSION IS DECIDED BEFORE THE UPGRADE: a peer this listener does
+    // not admit is answered with a status and a sentence and never
+    // becomes a peer, so nothing it sends arrives and no send reaches it.
+    behavior.upgrade = [session](uWS::HttpResponse<false>* response,
+                                 uWS::HttpRequest* request,
+                                 us_socket_context_t* context) {
+      if (!admits(session->admission, response->getRemoteAddress()))
+        return refusePeer(response, response->getRemoteAddress());
+      response->template upgrade<Peer>(
+          {}, request->getHeader("sec-websocket-key"),
+          request->getHeader("sec-websocket-protocol"),
+          request->getHeader("sec-websocket-extensions"), context);
+    };
     behavior.open = [session](auto* peer) {
       // Every peer on the path subscribes to that path, which is what
       // makes a broadcast one publish rather than a walk over a list
@@ -338,6 +434,10 @@ void hold(const std::shared_ptr<Session>& session, const Address& place,
                                       peer->getRemotePort());
       if (named.empty()) return;
       peer->getUserData()->address = named;
+      {
+        const std::lock_guard lock(session->attachedMutex);
+        session->attached.push_back(named);
+      }
       session->peers[std::move(named)] = peer;
     };
     behavior.message = [session](auto* peer, std::string_view message,
@@ -353,23 +453,35 @@ void hold(const std::shared_ptr<Session>& session, const Address& place,
     behavior.close = [session](auto* peer, int, std::string_view) {
       // A peer that has left is nobody to answer, and the entry that
       // would answer it points at a socket about to be freed.
-      session->peers.erase(peer->getUserData()->address);
+      const std::string& named = peer->getUserData()->address;
+      session->peers.erase(named);
+      const std::lock_guard lock(session->attachedMutex);
+      std::erase(session->attached, named);
     };
     app.ws<Peer>(place.path, std::move(behavior));
     // PAGES, WHERE THE URI NAMED THEM: the same port answers GET out of
     // one directory, so the page a peer loads and the socket it opens
     // back stand at one address. A listener whose URI named none leaves
     // every request to the answer the app already carries, which is a
-    // 404. The handler holds the directory and nothing else of the
-    // session, because a page is a file and needs nothing else.
+    // 404. A page is refused to a peer the socket would refuse, so a
+    // listener that admits only some peers shows the rest nothing.
     if (!session->pages.empty())
-      app.get("/*", [pages = session->pages](uWS::HttpResponse<false>* response,
-                                             uWS::HttpRequest* request) {
-        servePage(pages, response, request->getUrl());
+      app.get("/*", [session](uWS::HttpResponse<false>* response,
+                              uWS::HttpRequest* request) {
+        if (!admits(session->admission, response->getRemoteAddress()))
+          return refusePeer(response, response->getRemoteAddress());
+        servePage(session->pages, response, request->getUrl());
       });
-    app.listen(place.port, [&session](us_listen_socket_t* token) {
+    // A NAMED INTERFACE IS THE ONLY ONE HELD: a listener bound to
+    // loopback cannot be reached from another machine however it is
+    // asked, which admission alone cannot promise.
+    const auto taken = [&session](us_listen_socket_t* token) {
       session->listening = token;
-    });
+    };
+    if (place.bind.empty())
+      app.listen(place.port, taken);
+    else
+      app.listen(place.bind, place.port, taken);
     if (!session->listening) {
       // A refused bind comes back as no listen socket and nothing else,
       // so what the feed is told is what is known: the port was not
@@ -508,7 +620,37 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
   door->session->feed = into;
   door->session->scheme = "ws";
   door->session->topic = address->path;
-  if (!address->pages.empty()) {
+  for (const std::string& admitted : address->admit) {
+    door->session->admission.named = true;
+    if (admitted == kLoopback) {
+      door->session->admission.loopback = true;
+      continue;
+    }
+    boost::system::error_code unread;
+    const boost::asio::ip::address named =
+        boost::asio::ip::make_address(admitted, unread);
+    if (unread)
+      return refuse(into, admitted +
+                              " is no address to admit: a listener admits "
+                              "an IP address, or loopback for every "
+                              "loopback one");
+    door->session->admission.addresses.push_back(named);
+  }
+  if (!address->bind.empty()) {
+    boost::system::error_code unread;
+    boost::asio::ip::make_address(address->bind, unread);
+    if (unread)
+      return refuse(into, address->bind +
+                              " is no interface to bind: a listener binds "
+                              "an IP address");
+  }
+  if (!address->pages.empty() &&
+      std::filesystem::path(address->pages).is_absolute()) {
+    // An ABSOLUTE PATH is the directory itself, for a listener whose
+    // pages a program wrote where it keeps its own state rather than
+    // anywhere a hub mounts.
+    door->session->pages = address->pages;
+  } else if (!address->pages.empty()) {
     // WHERE THE PAGES STAND IS RESOLVED NOW, through the mount table,
     // and what the listener keeps from here on is the directory: a feed
     // may outlive the hub that opened it, and every request answered
@@ -538,11 +680,22 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
   // a v6 address with nothing in it, and the path stands behind the
   // port. It is the address a PEER reaches, so the query is not in it:
   // where the pages stand is this listener's own arrangement.
-  opened.address = "ws://[::]:" + std::to_string(bound.port) + address->path;
+  // A named interface is the one address a peer can reach it at.
+  const bool six = address->bind.find(':') != std::string::npos;
+  const std::string interface =
+      address->bind.empty() ? "[::]"
+      : six                 ? "[" + address->bind + "]"
+                            : address->bind;
+  opened.address =
+      "ws://" + interface + ":" + std::to_string(bound.port) + address->path;
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };
   opened.sendTo = [door](std::string_view to, const Bytes& message) {
     return door->sendTo(to, message);
+  };
+  opened.peers = [door] {
+    const std::lock_guard lock(door->session->attachedMutex);
+    return door->session->attached;
   };
   return opened;
 }

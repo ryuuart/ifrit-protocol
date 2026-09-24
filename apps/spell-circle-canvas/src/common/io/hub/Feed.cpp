@@ -202,6 +202,18 @@ bool Feed::sendTo(std::string_view to, const Bytes& bytes) const {
   return outward ? outward(to, bytes) : false;
 }
 
+std::vector<std::string> Feed::peers() const {
+  std::function<std::vector<std::string>()> attached;
+  {
+    const std::lock_guard lock(m_mutex);
+    if (m_closed) return {};
+    attached = m_openedEnd.peers;
+  }
+  // Outside the lock, as a send is: the transport answers from its own
+  // thread's list, and a reader never waits for a socket.
+  return attached ? attached() : std::vector<std::string>{};
+}
+
 void Feed::record(std::filesystem::path path) {
   // The file is opened, and emptied, before the lock is taken: a reader
   // never waits on a disk.

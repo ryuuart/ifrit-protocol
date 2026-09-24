@@ -107,7 +107,27 @@ feed, while a page edited on disk is the page the next reload is served,
 the directory being read per request and cached nowhere. The query is
 the listener's own arrangement and no part of the path peers reach: it
 stands in neither the address the feed reports nor the sender an arrival
-names.
+names. A pages value that is an ABSOLUTE PATH is that directory itself,
+with no mount in between, for a program that writes its pages where it
+keeps its own state.
+
+The query may also say WHERE the listener stands and WHO may reach it.
+`?bind=ADDRESS` holds that one interface instead of every one, and the
+address the feed reports is then that interface's —
+`ws://:0/sigil?bind=127.0.0.1` answers `ws://127.0.0.1:52341/sigil` — so
+a listener bound to loopback cannot be reached from another machine
+however it is asked. `?admit=ADDRESS`, written as often as there are
+peers to admit, with `admit=loopback` standing for every loopback
+address, lets in those peers and nobody else: any other is answered 403
+with a sentence naming it, before the upgrade and before a page, so it
+never becomes a peer, nothing it sends arrives and no send reaches it. A
+listener that names nobody admits everybody. An admission or a bind that
+is no IP address opens nothing and leaves the reason on the feed.
+
+`Feed::peers()` names the peers attached NOW, each spelled as its own
+arrivals' sender is: a peer is in it from the upgrade on and gone from it
+once its socket closes, which is how a door that holds many learns that
+one has left.
 
 `registerWebSocketClient()` is the other end, and it takes `ws://` and
 `wss://` both. The two ends share a scheme, and the SHAPE of the URI is
