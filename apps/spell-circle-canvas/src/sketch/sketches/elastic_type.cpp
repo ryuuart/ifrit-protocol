@@ -63,7 +63,7 @@
 // substance: a latex face lit from above and a slab of the same word set a
 // few pixels behind it for thickness, both carrying the same deformation
 // because both are the same word under the same tracks, standing in a pool
-// of shadow on a grained ground under a warm lamp. A letter BLUSHES under strain, in
+// of shadow on a dark ground under a warm lamp. A letter BLUSHES under strain, in
 // the plate's own colour key: pulled wide it warms toward the scaleX
 // trace's colour, pulled tall it cools toward the scaleY trace's, and
 // under jello's lean it warms with the size of the shear. The blush is
@@ -529,15 +529,19 @@ StyleSheet sheet() {
   };
 }
 
-/** THE GROUND THE WORDS STAND ON: paper with a grain in it, a lamp's warm
- *  pool over the two rows of specimens, and the corners falling away. None
- *  of it moves, so it is one texture. */
+/** THE GROUND THE WORDS STAND ON: dark paper, a lamp's warm pool over the
+ *  two rows of specimens, and the corners falling away. None of it moves,
+ *  so it is one texture. */
 Element ground() {
   return box()
       .absolute()
       .inset(0)
       .cache(Cache::Texture)
       .key("ground")
+      // The paper asks for a grain, but `kit::grained` puts no grain on a
+      // near-black ground: it folds its noise in by soft light, which moves
+      // a colour this dark by under one level, so this fill reads as plain
+      // `kPaper` until the kit's grain holds its strength on dark grounds.
       .fill(kit::grained(kPaper, 0.07f, 0.9f))
       .children(
           {box().absolute().inset(0).fill(linearGradient(
