@@ -505,7 +505,18 @@ differences them channel by channel.
 
 The manifest is machine-local by design (plates are deterministic per
 machine, not across machines), so a fresh checkout runs
-`sigil.py plates --rebase` once before a sweep can judge anything. The
+`sigil.py plates --rebase` once before a sweep can judge anything.
+
+A library's own plate cases are the other half of the verb: ctest cases
+labelled `plates`, each a picture the library's testing harness renders
+on the CPU and holds against a baseline COMMITTED beside its test, with
+the faces it was drawn in listed next to it so a machine with another
+font set is told that rather than shown a moved layout. An unnarrowed cpu
+sweep runs them after the sketches (`ctest -L plates`) and their verdict
+joins the sweep's; `--rebase` adopts them too, by setting
+`SIGIL_PLATES_REBASE=1` for that run, and the adopted baselines are
+committed with the cause like any other move. A sweep narrowed by
+`--kind`, `--sketch` or `--scenes` leaves them alone. The
 manifest is keyed by the registry NAME, which can carry spaces (`--scenes
 "aero desktop"`); the frame-rate ledger below is keyed by the sketch's
 STEM (`--sketch aero_desktop`).

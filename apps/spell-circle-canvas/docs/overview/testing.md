@@ -93,13 +93,14 @@ of; `ctest -LE <label>` is how a machine without it checks the rest.
 
 ## A library's own harness
 
-Every Sigil library carries a `<library>::testing` header — its own
-target, linked by test binaries and by nothing that ships — and the
-shape of each is the same:
+Every Sigil library gets a `<library>::testing` header — its own
+target, linked by test binaries and by nothing that ships — and each
+takes the same shape. SigilWeave's `weave::testing` is the only one so
+far: a passage laid, read back and plated.
 
 - **Values in.** A case states what it sets up as the library's own
-  values, under a context it names: the font context a passage is laid
-  under, the clock a motion is stepped by, the device a pass runs on.
+  values, under a context it names — for `weave::testing`, the font
+  context a passage is laid under.
 - **Values out.** What the library computed comes back as plain values
   that compare with `==` — the lines, runs and glyphs of a layout, the
   samples of a curve — so a case states what it expects as a value
@@ -109,16 +110,18 @@ shape of each is the same:
   beside the tests, one ctest case per plate, labelled `plates`. The bar
   is identity, since the same input on the same machine rasterizes to
   the same bytes; a refused render is written under the build tree and
-  the failure names both files. `SIGIL_PLATES_REBASE=1` in the
-  environment adopts every render as its baseline instead of judging it,
-  for a move that was meant, committed with its cause.
+  the failure names both files. What the machine decides about an input
+  is recorded beside the baseline too — for a plate of text, the faces
+  it was drawn in — so a refusal names that seam rather than reading as
+  a moved picture. `sigil.py plates --rebase` adopts every render as its
+  baseline instead of judging it, for a move that was meant, committed
+  with its cause.
 
 A host that exposes the same subject to a client — an inspector, a
 script, an agent driving the application — mirrors these values as a
 protocol domain: an agent that answers with the library's values,
 mounted by the host. The library never learns of the protocol; its
-values are tested on their own, here. SigilWeave's `weave::testing` is
-the first: a passage laid, read back and plated.
+values are tested on their own, here.
 
 ## Fixtures
 

@@ -1,7 +1,9 @@
 """Verb: plates — parallel plate sweeps over the sketch registry.
 
-    sigil.py plates --rebase           # bake the baseline manifest
-    sigil.py plates                    # sweep + compare + verdict
+    sigil.py plates --rebase           # bake the baseline manifest, and
+                                       # adopt the library plate cases
+    sigil.py plates                    # sweep + compare + verdict, and
+                                       # judge the library plate cases
     sigil.py plates --kind set         # only the sketches that light a set
     sigil.py plates --sketch astral_tome
     sigil.py plates --scenes "aero desktop" black_watch
@@ -24,6 +26,11 @@ and not a fact about two files: the manifest, the tolerances, the
 promotion ceiling and --stability are what this owns. Decoding and
 differencing plates is the sketch library's, read here as values through
 the Python extension the build links.
+
+A library's own plate cases are ctest cases labelled `plates`, each a
+picture held against a baseline committed beside its test; an unnarrowed
+cpu sweep runs them after the sketches, and `--rebase` adopts them the way
+it adopts the manifest, by the one environment variable those cases read.
 """
 
 import argparse
@@ -49,6 +56,11 @@ RENDER_ARGS = ("--ledger",)
 # it is.
 PROMOTION_OFF = ("--no-promotion",)
 PROMOTION_ON = ("--promotion",)
+
+# The ctest label every library plate case carries, and the variable that
+# turns such a case from judging its render into adopting it.
+LIBRARY_PLATES_LABEL = "plates"
+LIBRARY_PLATES_REBASE = "SIGIL_PLATES_REBASE"
 
 # How far a sketch's device plate may stand from its CPU plate: (mean,
 # p99) per colour channel in 0..255. Set from what the two tiers actually
@@ -549,6 +561,35 @@ def promotion_sweep(binary, scenes, timeout, jobs, off_dir, on_dir):
     return verdict or (1 if errors else 0)
 
 
+def library_plates(config: str, rebase: bool) -> int:
+    """The libraries' own plate cases, judged — or, rebasing, adopted into
+    the baselines committed beside their tests, which the caller then
+    commits with the cause. Answers ctest's exit status."""
+    environment = dict(os.environ)
+    environment.pop(LIBRARY_PLATES_REBASE, None)
+    if rebase:
+        environment[LIBRARY_PLATES_REBASE] = "1"
+    command = [
+        "ctest",
+        "--test-dir",
+        str(tree.build_dir()),
+        "-C",
+        config,
+        "-L",
+        LIBRARY_PLATES_LABEL,
+        "--output-on-failure",
+    ]
+    verb = "adopting" if rebase else "judging"
+    print(f"\nlibrary plates, {verb}: {' '.join(command)}", flush=True)
+    status = subprocess.run(command, env=environment).returncode
+    if rebase and status == 0:
+        print(
+            "library plates adopted: commit the baselines under each "
+            "library's test/plates/ with the cause"
+        )
+    return status
+
+
 def main(argv: list) -> int:
     if argv[:1] == ["compare"]:
         return compare_main(argv[1:])
@@ -586,7 +627,9 @@ def main(argv: list) -> int:
         action="store_true",
         help="write the manifest from this sweep. A sweep narrowed by --kind, "
         "--sketch or --scenes merges, so only an unnarrowed rebase rewrites "
-        "the file wholesale",
+        "the file wholesale. An unnarrowed rebase also adopts the library "
+        "plate cases (ctest label plates) into the baselines committed "
+        "beside their tests",
     )
     ap.add_argument(
         "--stability",
@@ -777,4 +820,8 @@ def main(argv: list) -> int:
         if verdict == 0 and not errors:
             print("VERDICT: byte-neutral")
 
+    # The libraries' own plates answer for the whole tree or not at all, so
+    # a sweep narrowed to some sketches leaves them standing.
+    if not narrowed and library_plates(args.config, args.rebase) != 0:
+        verdict = verdict or 1
     return verdict or (1 if errors else 0)
