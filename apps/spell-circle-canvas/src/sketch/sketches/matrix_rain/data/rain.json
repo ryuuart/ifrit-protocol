@@ -1,0 +1,17 @@
+{
+  "caption": "SIMON WHITELEY'S DIGITAL RAIN · FOUR PLANES OF HALF-WIDTH KATAKANA AND DIGITS, MIRRORED PER GLYPH, HELD UPRIGHT · THE LIGHT FALLS, THE TYPE STANDS STILL",
+  "charsets": {
+    "kana": "ｦｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝｰ｢｣･ｧｨｩｪｫｬｭｮｯ",
+    "digits": "012356789#",
+    "digitsOneIn": 7
+  },
+  "bed": {"plane": "bed", "seed": 4, "churnSeconds": 11.0},
+  "curtains": [
+    {"plane": "far", "seed": 1, "churnSeconds": 9.2, "churnOffsetSeconds": 0.0,
+     "eachMs": 130, "durationMs": 1900, "loopMs": 14200},
+    {"plane": "mid", "seed": 2, "churnSeconds": 7.6, "churnOffsetSeconds": 1.7,
+     "eachMs": 105, "durationMs": 1650, "loopMs": 11000},
+    {"plane": "near", "seed": 3, "churnSeconds": 6.4, "churnOffsetSeconds": 3.4,
+     "eachMs": 80, "durationMs": 1400, "loopMs": 8200}
+  ]
+}
