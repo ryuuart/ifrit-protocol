@@ -71,9 +71,14 @@ struct Palette {
 struct Register {
   float size = 11;
   float track = 0;
-  /** false sets the line in the theme's first face, true in its second —
-   *  the one a CALL is set in, which is monospaced on the house sheet and
-   *  whatever a theme puts there on another. */
+  /** Where the theme states the line's face — `Theme::font` and
+   *  `Theme::style` — false sets it in the theme's first face and true in
+   *  its second, the one a CALL is set in, which is monospaced on the
+   *  house sheet and whatever a theme puts there on another. A title
+   *  card's lines state neither: they take the family the sheet in force
+   *  sets, so a mono eyebrow is set in the second face under the theme's
+   *  own sheet (`Theme::styleSheet`, which a page applies) and in the
+   *  inherited family where no rule names one. */
   bool mono = false;
   /** THE LINE'S OWN FACE, for the line neither of the theme's two is set
    *  in — a masthead whose title is a display cut standing over an
