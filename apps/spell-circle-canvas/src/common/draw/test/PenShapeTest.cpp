@@ -183,16 +183,16 @@ TEST(Pen, AMeshIsDrawnWithThePensFillWhereItGoverns) {
 }
 
 TEST(Pen, AMeshTakesAFittedMaterialOverItsOwnBounds) {
+  using sigil::material::ColorStop;
   using sigil::material::skia::Paint;
-  using sigil::material::skia::Stop;
-  const std::vector<Stop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  const std::vector<ColorStop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
   // A triangle occupying the left half of the paper. Fitted, its ramp runs
   // red to blue across THAT, not across the frame.
   const SkPoint corners[3] = {{0, 0}, {50, 0}, {0, 100}};
   Paper paper;
   paper.begin();
   paper.pen.noStroke();
-  paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp), SHAPE);
+  paper.pen.fill(Paint::linearGradient({0, 0}, {1, 0}, ramp), SHAPE);
   paper.pen.vertices(SkVertices::MakeCopy(SkVertices::kTriangles_VertexMode, 3,
                                           corners, nullptr, nullptr));
   paper.end();

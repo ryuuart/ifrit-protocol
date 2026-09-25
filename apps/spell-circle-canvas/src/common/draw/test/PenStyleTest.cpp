@@ -386,8 +386,9 @@ TEST(Pen, AMaterialIsAFill) {
   Paper paper;
   paper.begin();
   paper.pen.noStroke();
-  paper.pen.fill(Paint::linear({0, 0}, {100, 0},
-                               {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}));
+  paper.pen.fill(Paint::linearGradient(
+      {0, 0}, {100, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
+      {.units = sigil::material::GradientUnits::Pixels}));
   paper.pen.rect(0, 0, 100, 100);
   paper.end();
   EXPECT_GT(SkColorGetR(paper.pixel(2, 50)), 200u);
@@ -410,18 +411,18 @@ TEST(Pen, AMaterialIsAGroundAsWellAsAFill) {
 }
 
 TEST(Pen, AMaterialFitsTheCanvasUnlessTheFillSaysTheShape) {
+  using sigil::material::ColorStop;
   using sigil::material::skia::Paint;
-  using sigil::material::skia::Stop;
-  const std::vector<Stop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  const std::vector<ColorStop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
   // ONE unit-square ramp, TWO boxes far apart. The only difference between
   // the two papers is the word on the fill.
   const auto draw = [&](Paper& paper, bool fitted) {
     paper.begin();
     paper.pen.noStroke();
     if (fitted)
-      paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp), SHAPE);
+      paper.pen.fill(Paint::linearGradient({0, 0}, {1, 0}, ramp), SHAPE);
     else
-      paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp));
+      paper.pen.fill(Paint::linearGradient({0, 0}, {1, 0}, ramp));
     paper.pen.rect(0, 0, 40, 40);
     paper.pen.rect(60, 0, 40, 40);
     paper.end();
@@ -446,16 +447,16 @@ TEST(Pen, AMaterialFitsTheCanvasUnlessTheFillSaysTheShape) {
 }
 
 TEST(Pen, AFitIsSaidOnTheFillThatSetsIt) {
+  using sigil::material::ColorStop;
   using sigil::material::skia::Paint;
-  using sigil::material::skia::Stop;
-  const std::vector<Stop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
+  const std::vector<ColorStop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
   Paper paper;
   paper.begin();
   paper.pen.noStroke();
-  paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp), SHAPE);
+  paper.pen.fill(Paint::linearGradient({0, 0}, {1, 0}, ramp), SHAPE);
   // A fill set without the word goes back to the canvas rather than
   // inheriting the fit of the fill before it.
-  paper.pen.fill(Paint::linearUnit({0, 0}, {1, 0}, ramp));
+  paper.pen.fill(Paint::linearGradient({0, 0}, {1, 0}, ramp));
   paper.pen.rect(0, 0, 40, 40);
   paper.end();
   EXPECT_LT(SkColorGetB(paper.pixel(37, 20)), 150u);

@@ -221,8 +221,9 @@ beside the verbs, never a renamed one.
 * **A material can be fitted to the shape.** `fill(paint, SHAPE)` and
   `stroke(paint, SHAPE)` measure the material against the BOUNDS OF EACH
   SHAPE the pen draws — the box's top-left is the material's origin and
-  the box is its unit square — so `linearUnit`, `radialUnit`, `glowUnit`
-  and anything else reading `uResolution` land on the shape. `CANVAS` is
+  the box is its unit square — so a box-unit `linearGradient` or
+  `radialGradient` and anything else reading `uResolution` land on the
+  shape. `CANVAS` is
   the default and measures against the frame. A compose leaf has this and
   needs no word for it, because a node paints inside its own laid-out box;
   a pen has one canvas and many shapes, so which one a material is a unit
