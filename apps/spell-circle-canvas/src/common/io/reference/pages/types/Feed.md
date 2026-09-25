@@ -16,7 +16,7 @@ A FEED: a resource that keeps arriving.
 One door, keyed by URI, with a transport on one side and readers on the
 other; this is the readers' side. The transport delivers byte messages,
 through the feed's `sigil::io::Inlet`, from whatever thread it runs on; a reader on any thread either takes the newest message whole through
-`Feed::latest`, with the generation that says how many have come, or
+`Feed::latest`, with the revision that says how many have come, or
 drains in order the ones it has not seen yet through `Feed::receive`. Neither ever waits for
 a message: a reader that finds nothing is told so and gets on with its
 frame.
@@ -27,8 +27,8 @@ oldest falls off the front and `Feed::dropped` counts it, so a reader
 that cannot keep up loses the oldest messages rather than the newest and
 can see that it happened. What `Feed::latest` answers is never dropped.
 
-`Feed::latest` is THE NEWEST ARRIVAL WHOLE: the generation it came in as,
-the second it came in at, its bytes and the address it came from, read
+`Feed::latest` is THE NEWEST MESSAGE WHOLE — a `sigil::io::Message`: its
+revision, when it arrived, its payload and the address it came from, read
 out together so they are one message's. It is latched rather than
 queued, so draining through `Feed::receive` leaves it standing.
 
@@ -38,13 +38,13 @@ queued, so draining through `Feed::receive` leaves it standing.
 is one-way, when the feed is closed, and when no transport opened it.
 
 `Feed::sendTo` sends to ONE sender: the address is spelled the way an
-arrival's `Arrival::from` is, `udp://127.0.0.1:52341`, which is how a
+message's `Message::sender` is, `udp://127.0.0.1:52341`, which is how a
 door that holds no peer of its own answers the one that wrote to it. It
 is false when the way is one-way for that purpose, when the feed is
 closed, and when no transport opened it.
 
 `Feed::peers` names the peers attached NOW, spelled the way their
-arrivals' `Arrival::from` is, through the transport's `OpenedFeed::peers`.
+messages' `Message::sender` is, through the transport's `OpenedFeed::peers`.
 A door that holds many — a websocket listener — learns that one has left
 when its name is gone from here. It is empty on a closed feed, on one no
 transport opened, and on a transport that holds senders rather than
@@ -78,7 +78,7 @@ origin, so a recording starts when its feed is first advanced; every
 recorded arrival due by then is delivered in order with its recorded
 time, and the feed closes after the last one. A live feed is unaffected.
 
-`Feed::receivedAt` maps an arrival from either half onto one steady
+`Message::receivedAt` places a message from either half on one steady
 clock, so a reader that timestamps what it draws does not have to know
 which half it is reading. A live arrival keeps the time its transport
 received it; a replayed one is measured from the first `Hub::dispatch`
@@ -88,5 +88,5 @@ time maps to that clock's origin rather than to an arbitrary instant.
 
 ## See also
 
-`sigil::io::Arrival`, `sigil::io::Inlet`, `sigil::io::Transport`,
+`sigil::io::Message`, `sigil::io::Inlet`, `sigil::io::Transport`,
 `sigil::io::Recording`, `sigil::io::RecordingWriter`.

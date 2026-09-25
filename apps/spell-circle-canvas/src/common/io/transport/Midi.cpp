@@ -231,7 +231,7 @@ struct Delivery {
   Inlet inlet;
   /** The sender every arrival names, which is the port itself spelled
    *  the way the URI that opened it is. */
-  std::string from;
+  std::string sender;
   /** Raised before the port is closed, so a message the driver is
    *  already inside the callback with is dropped rather than delivered
    *  into a feed that is giving its port back. */
@@ -366,7 +366,7 @@ void arrived(double, std::vector<unsigned char>* message, void* which) {
   if (delivery->inlet.expired()) return;
   const auto* const first = reinterpret_cast<const std::byte*>(message->data());
   delivery->inlet.deliver(Bytes(std::span(first, message->size())),
-                          delivery->from);
+                          delivery->sender);
 }
 
 /** A feed whose transport could not open: the reason stands on the
@@ -452,12 +452,12 @@ OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
 
   // The address is written before anything can arrive at it: a message
   // names its sender, and the sender is this port.
-  door->delivery->from = std::string(kScheme) +
+  door->delivery->sender = std::string(kScheme) +
                          std::string(wordFor(wanted->direction)) + "/" +
                          fullName;
 
   OpenedFeed opened;
-  opened.address = door->delivery->from;
+  opened.address = door->delivery->sender;
   opened.close = [door] { door->close(); };
   if (wanted->direction == Direction::Out) {
     opened.send = [door](const Bytes& message) { return door->send(message); };

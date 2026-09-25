@@ -147,7 +147,7 @@ TEST(DataSchema, AJsonArrivalThatFitsIsTheLatestInTheSchemasForm) {
 
   EXPECT_EQ(handled, 1);
   EXPECT_EQ(sheet.undecodable(), 0u);
-  EXPECT_EQ(sheet.generation(), 1u);
+  EXPECT_EQ(sheet.revision(), 1u);
   EXPECT_EQ(sheet.latest()["readings"][0]["name"].text(), "a");
   EXPECT_DOUBLE_EQ(sheet.latest()["readings"][0]["value"].number(), 2.5);
 }
@@ -169,7 +169,7 @@ TEST(DataSchema, AJsonArrivalThatDoesNotFitLeavesTheLatestStanding) {
 
   EXPECT_EQ(handled, 1);
   EXPECT_EQ(sheet.undecodable(), 1u);
-  EXPECT_EQ(sheet.generation(), 2u);  // the feed took it; no reader saw it
+  EXPECT_EQ(sheet.revision(), 2u);  // the feed took it; no reader saw it
   EXPECT_DOUBLE_EQ(sheet.latest()["readings"][0]["value"].number(), 2.5);
 }
 
@@ -228,7 +228,7 @@ TEST(DataSchema, AnOscDoorTakesNoSchema) {
   EXPECT_EQ(desk.feed(), nullptr);
   EXPECT_TRUE(desk.closed());
   EXPECT_TRUE(desk.latest().null());
-  EXPECT_EQ(desk.generation(), 0u);
+  EXPECT_EQ(desk.revision(), 0u);
   EXPECT_FALSE(desk.send(oneReading(2.5)));
   EXPECT_EQ(desk.uri(), "osc://:9000");
 

@@ -40,7 +40,7 @@ class Receiver : public QObject {
   QString statusText() const { return m_status; }
   void setUri(const QString& uri);
   void setPort(int port);
-  void accept(const sigil::io::Feed& feed, const sigil::io::Arrival& arrival);
+  void accept(const sigil::io::Feed& feed, const sigil::io::Message& arrival);
   void refresh();
   Q_INVOKABLE void start();
   Q_INVOKABLE void stop();

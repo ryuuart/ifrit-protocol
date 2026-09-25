@@ -70,7 +70,7 @@ TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
   inletOf(sky.feed()).deliver(bytesOf("this is no document at all"),
                               "ws://127.0.0.1:52341");
   hub.dispatch(0.0);
-  ASSERT_EQ(sky.generation(), 2u);
+  ASSERT_EQ(sky.revision(), 2u);
 
   EXPECT_TRUE(sameDrawing(
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),

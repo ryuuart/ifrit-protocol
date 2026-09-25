@@ -26,7 +26,7 @@
 namespace {
 
 using boost::asio::ip::tcp;
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -118,14 +118,14 @@ TEST_F(IOWebSocketClient, AClientsMessageArrivesOnTheListenerNamingTheClient) {
   })) << client->error();
 
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "a scene arrives");
-  const std::optional<Arrival> heard = listener->receive();
+  EXPECT_EQ(listener->latest()->payload->asText(), "a scene arrives");
+  const std::optional<Message> heard = listener->receive();
   ASSERT_TRUE(heard.has_value());
   // The client reached the listener over loopback, and the arrival names
   // that address with the port the client's own socket took, which is
   // never zero.
-  EXPECT_TRUE(heard->from.starts_with("ws://127.0.0.1:")) << heard->from;
-  EXPECT_NE(portOf(heard->from), 0) << heard->from;
+  EXPECT_TRUE(heard->sender().starts_with("ws://127.0.0.1:")) << heard->sender();
+  EXPECT_NE(portOf(heard->sender()), 0) << heard->sender();
 }
 
 TEST_F(IOWebSocketClient, AListenersSendArrivesOnTheClientNamingTheServer) {
@@ -140,16 +140,16 @@ TEST_F(IOWebSocketClient, AListenersSendArrivesOnTheClientNamingTheServer) {
   // listener has taken is what says it is.
   ASSERT_TRUE(waitUntil([&] { return client->send(bytesOf("here")); }))
       << client->error();
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() == 1u; }));
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() == 1u; }));
 
   EXPECT_TRUE(listener->send(bytesOf("out to everyone")));
   ASSERT_TRUE(waitUntil([&] { return client->latest().has_value(); }));
-  EXPECT_EQ(client->latest()->bytes->asText(), "out to everyone");
-  const std::optional<Arrival> back = client->receive();
+  EXPECT_EQ(client->latest()->payload->asText(), "out to everyone");
+  const std::optional<Message> back = client->receive();
   ASSERT_TRUE(back.has_value());
   // A client has one peer, the server it called, and every message it
   // takes is named for it.
-  EXPECT_EQ(back->from, url);
+  EXPECT_EQ(back->sender(), url);
 }
 
 TEST_F(IOWebSocketClient, AServerNobodyIsHoldingLeavesTheReasonOnTheFeed) {
@@ -190,7 +190,7 @@ TEST_F(IOWebSocketClient,
   ASSERT_TRUE(client->error().empty()) << client->error();
   ASSERT_TRUE(waitUntil([&] { return client->send(bytesOf("here")); }))
       << client->error();
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() == 1u; }));
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() == 1u; }));
 
   // Letting the last holder go closes the session from this thread: the
   // close frame goes out and the thread that was reading is joined

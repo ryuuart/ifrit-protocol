@@ -289,7 +289,7 @@ struct FeedEvents {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = door.generation(),
+    Reading now{.generation = door.revision(),
                 .undecodable = door.undecodable(),
                 .kinds = kinds,
                 .address = door.address(),

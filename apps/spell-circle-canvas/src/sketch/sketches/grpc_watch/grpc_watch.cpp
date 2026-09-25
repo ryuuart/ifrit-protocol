@@ -327,7 +327,7 @@ struct GrpcWatch {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = callers.generation(),
+    Reading now{.generation = callers.revision(),
                 .undecodable = callers.undecodable(),
                 .spoken = spoken,
                 .turns = turns,

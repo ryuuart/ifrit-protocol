@@ -304,7 +304,7 @@ TEST_F(SeerReceiver, ReplayingFromASceneSignalReleasesTheOldFeedFirst) {
   const QString path = directory.path() + "/reentrant.feed";
   {
     sigil::io::RecordingWriter writer(path.toStdString());
-    ASSERT_TRUE(writer.append({1, 0.0, bytes, {}}));
+    ASSERT_TRUE(writer.append(sigil::io::Message(bytes, {}, std::chrono::duration<double>(0.0), 1)));
   }
   auto app = session();
   const auto port = availablePort();
@@ -347,7 +347,7 @@ TEST_F(SeerReceiver, RecordingWritesTheArrivalsAlsoSeenByTheReceiver) {
   ASSERT_EQ(recorded->size(), 1u);
   EXPECT_EQ(app->messages()->rowCount(), 1);
   const auto expected = circleScene();
-  EXPECT_EQ(recorded->front().bytes->size(), expected.size());
+  EXPECT_EQ(recorded->front().payload->size(), expected.size());
 }
 
 TEST_F(SeerReceiver, ReplayReplacesThePinnedFeedAndCanRestart) {
@@ -358,7 +358,7 @@ TEST_F(SeerReceiver, ReplayReplacesThePinnedFeedAndCanRestart) {
   const QString path = directory.path() + "/scene.feed";
   {
     sigil::io::RecordingWriter writer(path.toStdString());
-    ASSERT_TRUE(writer.append({1, 0.0, bytes, {}}));
+    ASSERT_TRUE(writer.append(sigil::io::Message(bytes, {}, std::chrono::duration<double>(0.0), 1)));
   }
   auto app = session();
   const QString source = uri(availablePort());

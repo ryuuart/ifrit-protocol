@@ -169,7 +169,7 @@ TEST(DataTyped, AConnectionOntoNothingReadsAsNothing) {
   EXPECT_FALSE(none.latest<sheet::Sheet>());
   EXPECT_FALSE(none.latestBytes());
   EXPECT_FALSE(none.schema());
-  EXPECT_EQ(none.generation(), 0u);
+  EXPECT_EQ(none.revision(), 0u);
 }
 
 }  // namespace

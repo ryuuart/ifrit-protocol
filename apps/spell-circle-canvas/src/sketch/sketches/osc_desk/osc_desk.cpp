@@ -284,7 +284,7 @@ struct OscDesk {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = desk.generation(),
+    Reading now{.generation = desk.revision(),
                 .undecodable = desk.undecodable(),
                 .gusts = gusts,
                 .palettes = palettes,

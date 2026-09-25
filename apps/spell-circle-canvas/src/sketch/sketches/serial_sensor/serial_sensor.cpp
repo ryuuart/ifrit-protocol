@@ -240,7 +240,7 @@ struct SerialSensor {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = sensor.generation(),
+    Reading now{.generation = sensor.revision(),
                 .undecodable = sensor.undecodable(),
                 .closed = sensor.closed(),
                 .lux = readLux,

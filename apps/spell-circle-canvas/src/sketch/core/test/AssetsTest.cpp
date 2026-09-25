@@ -172,9 +172,9 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
   {
     sigil::io::RecordingWriter writer(recording);
     ASSERT_TRUE(writer.good());
-    ASSERT_TRUE(writer.append({1, 0.0, recorded("dawn")}));
-    ASSERT_TRUE(writer.append({2, 0.5, recorded("noon")}));
-    ASSERT_TRUE(writer.append({3, 1.0, recorded("dusk")}));
+    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("dawn"), {}, std::chrono::duration<double>(0.0), 1)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("noon"), {}, std::chrono::duration<double>(0.5), 2)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("dusk"), {}, std::chrono::duration<double>(1.0), 3)));
   }
 
   Assets assets("");
@@ -187,24 +187,24 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
   const std::shared_ptr<sigil::io::Feed> feed = hub.feed("udp://:27020");
   ASSERT_NE(feed, nullptr);
   EXPECT_TRUE(feed->error().empty());
-  EXPECT_EQ(feed->generation(), 0u);  // nothing arrives until time moves
+  EXPECT_EQ(feed->revision(), 0u);  // nothing arrives until time moves
 
   assets.dispatch(0.0);
-  EXPECT_EQ(feed->generation(), 1u);
+  EXPECT_EQ(feed->revision(), 1u);
   ASSERT_TRUE(feed->latest().has_value());
-  EXPECT_EQ(feed->latest()->bytes->asText(), "dawn");
+  EXPECT_EQ(feed->latest()->payload->asText(), "dawn");
   EXPECT_FALSE(feed->closed());
 
   // One dispatch may cover several arrivals and never covers one that is
   // still ahead: the scene time decides, not the number of calls.
   assets.dispatch(0.6);
-  EXPECT_EQ(feed->generation(), 2u);
-  EXPECT_EQ(feed->latest()->bytes->asText(), "noon");
+  EXPECT_EQ(feed->revision(), 2u);
+  EXPECT_EQ(feed->latest()->payload->asText(), "noon");
   EXPECT_FALSE(feed->closed());
 
   assets.dispatch(2.0);
-  EXPECT_EQ(feed->generation(), 3u);
-  EXPECT_EQ(feed->latest()->bytes->asText(), "dusk");
+  EXPECT_EQ(feed->revision(), 3u);
+  EXPECT_EQ(feed->latest()->payload->asText(), "dusk");
   EXPECT_TRUE(feed->closed());  // the recording ran out
 }
 

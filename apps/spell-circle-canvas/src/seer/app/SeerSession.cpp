@@ -148,7 +148,7 @@ void SeerSession::tick() {
           m_receiver.accept(*feed, *arrival);
         if (feed == inspected && m_selectedUri.toStdString() == feed->uri()) {
           m_log.append(*arrival);
-          if (arrival->bytes) echoes.push_back(arrival->bytes);
+          if (arrival->payload) echoes.push_back(arrival->payload);
         }
       }
     };

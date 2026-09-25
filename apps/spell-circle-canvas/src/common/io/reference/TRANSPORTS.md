@@ -13,9 +13,9 @@ per URI for as long as anyone holds it, and a later ask for the same URI
 while it is held is the same object, so two readers of one port share
 one socket. What arrives is a byte message, delivered by a transport from
 whichever thread it runs on; the feed latches the newest WHOLE as
-`latest()` — the generation it came in as, the second it came in at, its
-bytes and the sender it named, read out together — with a `generation()`
-that counts every arrival, and queues each arrival for `receive()`, which
+`latest()` — a `sigil::io::Message`: its `Message::revision`, when it
+arrived, its payload and the sender it named, read out together — with a
+`revision()` that counts every arrival, and queues each arrival for `receive()`, which
 hands them out in order and never waits. The queue is bounded by the feed's
 `FeedPolicy`: when it is full the oldest arrival is dropped and `dropped()`
 counts it, because a reader that fell behind a state feed wants the
@@ -40,14 +40,14 @@ through; the transport hands back an `OpenedFeed`: how the
 feed closes it, how `send()` goes back through it when the way is two-way,
 how `OpenedFeed::sendTo` answers one named sender when it can address one,
 and the local `address()` it bound. Every arrival also names where it came
-from: `sigil::io::Arrival::from` is the sender's address spelled the way a
+from: `sigil::io::Message::sender` is the sender's address spelled the way a
 URI of that scheme is, `udp://127.0.0.1:52341`, and is empty where the
 transport has no way of knowing — and on a replayed recording, which holds
 the messages and not who sent them.
 
 `Feed::sendTo()` is the OTHER way back out, and the one a door that holds
-no peer of its own has: it takes an address spelled the way an arrival's
-`from` is and writes to that sender alone. It is false where the
+no peer of its own has: it takes an address spelled the way a message's
+`sender()` is and writes to that sender alone. It is false where the
 transport cannot address one, where the feed is closed and where no
 transport opened it — a replayed recording among them, which has no
 sender to answer and no end to answer through. `send()` is unchanged by
@@ -65,7 +65,7 @@ interface, IPv4 and IPv6 alike, and `udp://HOST:PORT` is a peer that
 `send()` to and answers ONE sender instead, through `Feed::sendTo()`:
 the address is read the way a URI of that scheme is written and
 resolved as the literal it is, so answering waits on no name lookup and
-a `from` that is not literal is nobody to answer. `osc://` is that same
+a `sender()` that is not literal is nobody to answer. `osc://` is that same
 socket under another name, for a port whose messages are OSC packets; a
 feed keeps the scheme it was opened with, in its `uri()`, in its `address()`
 and in every sender it names, so a reader picks the decoding off the URI
@@ -526,7 +526,7 @@ conversation crossing one is what gives that port back. NO THREAD IS
 STARTED for any of this: the library underneath runs its own and calls
 back onto them.
 
-`Feed::receivedAt()` maps an arrival onto the steady clock (negative, nonfinite
+`Message::receivedAt()` places a message on the steady clock (negative, nonfinite
 or unrepresentable times use that clock's origin): live packets
 keep their transport receive time and replayed packets keep their recorded
 spacing relative to the first `dispatch()` that moved the recording. Use it

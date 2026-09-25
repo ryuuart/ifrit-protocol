@@ -44,7 +44,7 @@
 namespace {
 
 using boost::asio::ip::tcp;
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -303,14 +303,14 @@ TEST_F(IOWebSocket, APeersTextMessageArrivesNamingWhereItCameFrom) {
   peer.send(0x1, "a scene arrives");
 
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "a scene arrives");
-  const std::optional<Arrival> arrival = listener->receive();
+  EXPECT_EQ(listener->latest()->payload->asText(), "a scene arrives");
+  const std::optional<Message> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
   // The peer reached the listener over loopback, and the arrival names
   // that address — not the mapping a dual-stack socket holds it as —
   // with the port the peer's own socket took, which is never zero.
-  EXPECT_TRUE(arrival->from.starts_with("ws://127.0.0.1:")) << arrival->from;
-  EXPECT_NE(portOf(arrival->from), 0) << arrival->from;
+  EXPECT_TRUE(arrival->sender().starts_with("ws://127.0.0.1:")) << arrival->sender();
+  EXPECT_NE(portOf(arrival->sender()), 0) << arrival->sender();
 }
 
 TEST_F(IOWebSocket, ABinaryMessageArrivesWhole) {
@@ -330,8 +330,8 @@ TEST_F(IOWebSocket, ABinaryMessageArrivesWhole) {
   peer.send(0x2, payload);
 
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->size(), payload.size());
-  EXPECT_EQ(listener->latest()->bytes->asText(), payload);
+  EXPECT_EQ(listener->latest()->payload->size(), payload.size());
+  EXPECT_EQ(listener->latest()->payload->asText(), payload);
 }
 
 TEST_F(IOWebSocket, SendReachesEveryPeerOnThePath) {
@@ -348,7 +348,7 @@ TEST_F(IOWebSocket, SendReachesEveryPeerOnThePath) {
   // they have is a message of theirs the feed has taken.
   first.send(0x1, "here");
   second.send(0x1, "here");
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() == 2u; }));
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() == 2u; }));
 
   EXPECT_TRUE(listener->send(bytesOf("out to everyone")));
   EXPECT_EQ(first.receive(), "out to everyone");
@@ -369,11 +369,11 @@ TEST_F(IOWebSocket, SendToReachesTheOnePeerItNamesAndNoOther) {
   // the address that peer is answered by.
   first.send(0x1, "first");
   second.send(0x1, "second");
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() == 2u; }));
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() == 2u; }));
 
   std::string answering;
-  while (const std::optional<Arrival> arrival = listener->receive())
-    if (arrival->bytes->asText() == "first") answering = arrival->from;
+  while (const std::optional<Message> arrival = listener->receive())
+    if (arrival->payload->asText() == "first") answering = arrival->sender();
   ASSERT_FALSE(answering.empty());
 
   EXPECT_TRUE(listener->sendTo(answering, bytesOf("to you alone")));
@@ -399,7 +399,7 @@ TEST_F(IOWebSocket, AListenerWhoseUriSaysTextSendsTextFrames) {
   bytesPeer.send(0x1, "here");
   textPeer.send(0x1, "here");
   ASSERT_TRUE(waitUntil([&] {
-    return binary->generation() == 1u && text->generation() == 1u;
+    return binary->revision() == 1u && text->revision() == 1u;
   }));
 
   // A feed carries bytes, so what it sends is binary unless its URI
@@ -411,9 +411,9 @@ TEST_F(IOWebSocket, AListenerWhoseUriSaysTextSendsTextFrames) {
   EXPECT_TRUE(text->send(bytesOf("out")));
   EXPECT_EQ(textPeer.receive(), "out");
   EXPECT_EQ(textPeer.lastOpCode(), 0x1);
-  const std::optional<Arrival> arrival = text->receive();
+  const std::optional<Message> arrival = text->receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_TRUE(text->sendTo(arrival->from, bytesOf("to you")));
+  EXPECT_TRUE(text->sendTo(arrival->sender(), bytesOf("to you")));
   EXPECT_EQ(textPeer.receive(), "to you");
   EXPECT_EQ(textPeer.lastOpCode(), 0x1);
 }
@@ -492,7 +492,7 @@ TEST_F(IOWebSocket, TheSocketStandsBesideThePagesOnTheSamePort) {
   peer.send(0x1, "a phone is looking");
 
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "a phone is looking");
+  EXPECT_EQ(listener->latest()->payload->asText(), "a phone is looking");
 }
 
 TEST_F(IOWebSocket, AListenerWhoseUriNamedNoPagesServesNone) {
@@ -526,7 +526,7 @@ TEST_F(IOWebSocket, TheFeedNamesEveryPeerAttachedUntilItLeaves) {
     // one against the other.
     const std::vector<std::string> attached = listener->peers();
     ASSERT_EQ(attached.size(), 1u);
-    EXPECT_EQ(attached[0], listener->receive()->from);
+    EXPECT_EQ(attached[0], listener->receive()->sender());
   }
   // The socket closed with the peer, and the name goes with it: that is
   // how a door holding many learns that one has left.
@@ -582,7 +582,7 @@ TEST_F(IOWebSocket, LoopbackAdmitsEveryPeerOnThisMachine) {
   ASSERT_TRUE(peer.upgraded()) << peer.greeting();
   peer.send(0x1, "admitted");
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "admitted");
+  EXPECT_EQ(listener->latest()->payload->asText(), "admitted");
 }
 
 TEST_F(IOWebSocket, AnAdmissionOrABindThatIsNoAddressOpensNothing) {

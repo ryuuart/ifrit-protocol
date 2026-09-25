@@ -105,7 +105,7 @@ TEST(DataConnection, AJsonMessageIsTheLatestAndReachesEveryHandlerNamingIt) {
   ASSERT_EQ(gusts.size(), 1u);
   EXPECT_DOUBLE_EQ(gusts.front(), 0.5);
   EXPECT_EQ(scene.latest()["kind"].text(), "gust");
-  EXPECT_EQ(scene.generation(), 1u);
+  EXPECT_EQ(scene.revision(), 1u);
   EXPECT_EQ(scene.undecodable(), 0u);
   EXPECT_EQ(scene.uri(), "ws://:8848/scene");
   EXPECT_EQ(scene.address(), "ws://:8848/scene");
@@ -358,7 +358,7 @@ TEST(DataConnection, TheUnreadQueueFillsFromTheFirstReceiveOn) {
   arrives(R"({"kind":"step","n":1})");
   arrives(R"({"kind":"step","n":2})");
   EXPECT_EQ(handled, 2);
-  EXPECT_EQ(scene.generation(), 2u);
+  EXPECT_EQ(scene.revision(), 2u);
   EXPECT_DOUBLE_EQ(scene.latest()["n"].number(), 2);
 
   // This ask is the one that opens it, and it comes back empty because
@@ -415,7 +415,7 @@ TEST(DataConnection, AMessageThatCannotBeReadLeavesTheLatestStanding) {
 
   EXPECT_EQ(scene.undecodable(), 1u);
   EXPECT_EQ(handled, 1);
-  EXPECT_EQ(scene.generation(), 2u);  // the feed took it; no reader saw it
+  EXPECT_EQ(scene.revision(), 2u);  // the feed took it; no reader saw it
   EXPECT_EQ(scene.latest()["kind"].text(), "gust");
   ASSERT_TRUE(scene.receive().has_value());
   EXPECT_FALSE(scene.receive().has_value());
@@ -538,9 +538,9 @@ TEST(DataConnection, ARecordingHasNobodyToReplyTo) {
   {
     sigil::io::RecordingWriter writer(path);
     ASSERT_TRUE(writer.good());
-    writer.append({1, 0.0,
-                   std::make_shared<const Bytes>(
-                       bytesOf(R"({"kind":"gust","strength":1})"))});
+    writer.append(sigil::io::Message(
+                   std::make_shared<const Bytes>(bytesOf(R"({"kind":"gust","strength":1})")), {},
+                   std::chrono::duration<double>(0.0), 1));
   }
 
   Hub hub;
@@ -578,7 +578,7 @@ TEST(DataConnection, AConnectionOntoNothingAnswersNothing) {
   EXPECT_TRUE(none.uri().empty());
   EXPECT_TRUE(none.address().empty());
   EXPECT_TRUE(none.error().empty());
-  EXPECT_EQ(none.generation(), 0u);
+  EXPECT_EQ(none.revision(), 0u);
   EXPECT_EQ(none.dropped(), 0u);
   EXPECT_EQ(none.undecodable(), 0u);
   EXPECT_TRUE(none.closed());
@@ -599,12 +599,12 @@ TEST(DataConnection, ARecordingReplaysThroughAConnectionByTheTimeDispatched) {
   {
     sigil::io::RecordingWriter writer(path);
     ASSERT_TRUE(writer.good());
-    writer.append({1, 0.0,
-                   std::make_shared<const Bytes>(
-                       bytesOf(R"({"kind":"gust","strength":1})"))});
-    writer.append({2, 1.0,
-                   std::make_shared<const Bytes>(
-                       bytesOf(R"({"kind":"gust","strength":2})"))});
+    writer.append(sigil::io::Message(
+                   std::make_shared<const Bytes>(bytesOf(R"({"kind":"gust","strength":1})")), {},
+                   std::chrono::duration<double>(0.0), 1));
+    writer.append(sigil::io::Message(
+                   std::make_shared<const Bytes>(bytesOf(R"({"kind":"gust","strength":2})")), {},
+                   std::chrono::duration<double>(1.0), 2));
   }
 
   Hub hub;
@@ -617,7 +617,7 @@ TEST(DataConnection, ARecordingReplaysThroughAConnectionByTheTimeDispatched) {
     strengths.push_back(message["strength"].number());
   });
   EXPECT_TRUE(scene.error().empty());
-  EXPECT_EQ(scene.generation(), 0u);  // nothing arrives until time moves
+  EXPECT_EQ(scene.revision(), 0u);  // nothing arrives until time moves
 
   hub.dispatch(0.0);
   ASSERT_EQ(strengths.size(), 1u);

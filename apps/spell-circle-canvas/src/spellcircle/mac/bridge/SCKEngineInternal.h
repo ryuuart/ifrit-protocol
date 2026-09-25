@@ -66,12 +66,10 @@ struct BlitPalette {
 
   // The port, as a door on a resource hub: the transport takes datagrams
   // on a thread of its own and the door holds them until the drain timer
-  // reads them here, on the main queue. An arrival carries the seconds
-  // since its door was made, which _doorOpenedAt turns back into a clock
-  // reading.
+  // reads them here, on the main queue. A message carries the moment it
+  // was received on the steady clock.
   sigil::io::Hub _hub;
   std::shared_ptr<sigil::io::Feed> _door;
-  std::chrono::steady_clock::time_point _doorOpenedAt;
   dispatch_source_t _drain;
   NSDateFormatter *_timestampFormatter;
 

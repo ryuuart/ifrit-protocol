@@ -124,7 +124,7 @@ using SendOne = std::function<bool(Moment until)>;
 
 /** ONE BATCH THROUGH A DOOR: @p sendOne is offered until it is taken,
  *  kBatch times over, and the feed at the far end is spun on until it
- *  has taken that many more messages. What counts them is generation(),
+ *  has taken that many more messages. What counts them is revision(),
  *  which counts every message a feed took whether or not a reader
  *  drained it, so nothing here has to hold a batch in the feed's queue
  *  to count it and the feed keeps what its policy comes with.
@@ -136,14 +136,14 @@ using SendOne = std::function<bool(Moment until)>;
  *  sleep. */
 bool carried(const std::shared_ptr<Feed>& into, const SendOne& sendOne) {
   const Moment until = std::chrono::steady_clock::now() + kDeadline;
-  const uint64_t wanted = into->generation() + kBatch;
+  const uint64_t wanted = into->revision() + kBatch;
   for (size_t message = 0; message != kBatch; ++message) {
     while (!sendOne(until)) {
       if (std::chrono::steady_clock::now() > until) return false;
       std::this_thread::yield();
     }
   }
-  while (into->generation() < wanted) {
+  while (into->revision() < wanted) {
     if (std::chrono::steady_clock::now() > until) return false;
     std::this_thread::yield();
   }
@@ -237,9 +237,9 @@ void BM_WebSocket(benchmark::State& state) {
   // session is up at this end is the first send that goes out over it,
   // and what says the listener has the peer to publish to is that
   // message arriving there.
-  const uint64_t standing = server->generation() + 1;
+  const uint64_t standing = server->revision() + 1;
   if (!waitUntil([&] { return client->send(message); }) ||
-      !waitUntil([&] { return server->generation() >= standing; })) {
+      !waitUntil([&] { return server->revision() >= standing; })) {
     state.SkipWithError("the session never stood: " + client->error());
     return;
   }
@@ -282,9 +282,9 @@ bool carriedByRegion(SharedMemoryWriter& writer,
                      std::span<const std::byte> message) {
   const Moment until = std::chrono::steady_clock::now() + kDeadline;
   for (size_t written = 0; written != kBatch; ++written) {
-    const uint64_t wanted = into->generation() + 1;
+    const uint64_t wanted = into->revision() + 1;
     if (!writer.write(message)) return false;
-    while (into->generation() < wanted) {
+    while (into->revision() < wanted) {
       if (std::chrono::steady_clock::now() > until) return false;
       std::this_thread::yield();
     }
@@ -737,14 +737,14 @@ void BM_WebRtc(benchmark::State& state) {
   // door takes a send whether or not it has a channel to write it on,
   // so the end that called offers one until the end that waited has
   // taken it.
-  const uint64_t standing = waiting->generation() + 1;
+  const uint64_t standing = waiting->revision() + 1;
   Moment next = std::chrono::steady_clock::now();
   const bool stood = waitDispatching(hub, [&] {
     if (std::chrono::steady_clock::now() >= next) {
       next = std::chrono::steady_clock::now() + kOffer;
       calling->send(message);
     }
-    return waiting->generation() >= standing;
+    return waiting->revision() >= standing;
   });
   if (!stood) {
     const std::string why = !calling->error().empty() ? calling->error()

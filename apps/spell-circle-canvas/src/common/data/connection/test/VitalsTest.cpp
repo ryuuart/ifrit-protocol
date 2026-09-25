@@ -29,7 +29,7 @@ std::shared_ptr<const Bytes> bytesOf(std::string_view text) {
 
 /** Each field of @p vitals is the reading of that name on @p door. */
 void expectReadings(const Connection& door, const Connection::Vitals& vitals) {
-  EXPECT_EQ(vitals.generation, door.generation());
+  EXPECT_EQ(vitals.revision, door.revision());
   EXPECT_EQ(vitals.dropped, door.dropped());
   EXPECT_EQ(vitals.undecodable, door.undecodable());
   EXPECT_EQ(vitals.closed, door.closed());
@@ -44,8 +44,8 @@ TEST(DataVitals, TheValueMovesExactlyWhenAFieldDid) {
   {
     sigil::io::RecordingWriter writer(path);
     ASSERT_TRUE(writer.good());
-    writer.append({1, 0.0, bytesOf(R"({"kind":"gust","strength":1})")});
-    writer.append({2, 1.0, bytesOf("this is no document at all")});
+    writer.append(sigil::io::Message(bytesOf(R"({"kind":"gust","strength":1})"), {}, std::chrono::duration<double>(0.0), 1));
+    writer.append(sigil::io::Message(bytesOf("this is no document at all"), {}, std::chrono::duration<double>(1.0), 2));
   }
   Hub hub;
   hub.replay("ws://:8848/scene", path.string());
@@ -53,7 +53,7 @@ TEST(DataVitals, TheValueMovesExactlyWhenAFieldDid) {
 
   const Connection::Vitals opened = scene.vitals();
   expectReadings(scene, opened);
-  EXPECT_EQ(opened.generation, 0u);
+  EXPECT_EQ(opened.revision, 0u);
   EXPECT_FALSE(opened.closed);
   // Asked again with nothing dispatched between, it is the same value.
   EXPECT_EQ(scene.vitals(), opened);
@@ -62,7 +62,7 @@ TEST(DataVitals, TheValueMovesExactlyWhenAFieldDid) {
   const Connection::Vitals arrived = scene.vitals();
   expectReadings(scene, arrived);
   EXPECT_NE(arrived, opened);
-  EXPECT_EQ(arrived.generation, 1u);
+  EXPECT_EQ(arrived.revision, 1u);
   EXPECT_EQ(arrived.undecodable, 0u);
 
   // Time moves and nothing arrives: nothing moved, so the value did not.
@@ -70,12 +70,12 @@ TEST(DataVitals, TheValueMovesExactlyWhenAFieldDid) {
   EXPECT_EQ(scene.vitals(), arrived);
 
   // The last arrival is no message and the recording runs out: the
-  // generation, the undecodable count and the door's state all move.
+  // revision, the undecodable count and the door's state all move.
   hub.dispatch(1.0);
   const Connection::Vitals ended = scene.vitals();
   expectReadings(scene, ended);
   EXPECT_NE(ended, arrived);
-  EXPECT_EQ(ended.generation, 2u);
+  EXPECT_EQ(ended.revision, 2u);
   EXPECT_EQ(ended.undecodable, 1u);
   EXPECT_TRUE(ended.closed);
 

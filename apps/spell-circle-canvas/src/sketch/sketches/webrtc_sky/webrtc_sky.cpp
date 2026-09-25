@@ -388,7 +388,7 @@ struct WebRtcSky {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = phone.generation(),
+    Reading now{.generation = phone.revision(),
                 .undecodable = phone.undecodable(),
                 .turns = turns,
                 .messages = messages,

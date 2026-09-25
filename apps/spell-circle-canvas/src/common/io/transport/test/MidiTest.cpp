@@ -41,7 +41,7 @@
 
 namespace {
 
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -143,17 +143,17 @@ TEST_F(IOMidi, AMessageCrossesFromAPortToTheInputThatOpenedItByName) {
   EXPECT_TRUE(keys->send(bytesOf({0x90, 0x3C, 0x64})));
   ASSERT_TRUE(waitUntil([&] { return pads->latest().has_value(); }));
 
-  const std::optional<Arrival> arrival = pads->receive();
+  const std::optional<Message> arrival = pads->receive();
   ASSERT_TRUE(arrival.has_value());
   // The bytes are the wire's own, status byte first: what a message
   // MEANS is read by the library that owns the format.
-  ASSERT_EQ(arrival->bytes->size(), 3u);
-  EXPECT_EQ(arrival->bytes->span()[0], static_cast<std::byte>(0x90));
-  EXPECT_EQ(arrival->bytes->span()[1], static_cast<std::byte>(0x3C));
-  EXPECT_EQ(arrival->bytes->span()[2], static_cast<std::byte>(0x64));
+  ASSERT_EQ(arrival->payload->size(), 3u);
+  EXPECT_EQ(arrival->payload->span()[0], static_cast<std::byte>(0x90));
+  EXPECT_EQ(arrival->payload->span()[1], static_cast<std::byte>(0x3C));
+  EXPECT_EQ(arrival->payload->span()[2], static_cast<std::byte>(0x64));
   // Every arrival names the port it came in at, spelled the way the URI
   // that opened it is.
-  EXPECT_EQ(arrival->from, pads->address()) << arrival->from;
+  EXPECT_EQ(arrival->sender(), pads->address()) << arrival->sender();
 }
 
 TEST_F(IOMidi, AnInputIsOneWay) {

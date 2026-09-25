@@ -79,7 +79,7 @@ hub.setFeedTransport("udp", openUdpFeed);     // one per scheme
 auto scene = hub.feed("udp://:27020");        // the same feed per URI
 auto lease = hub.onDispatch(readTheScene);    // driven by that same call
 hub.dispatch();                               // once per frame
-if (auto newest = scene->latest()) draw(*newest->bytes);
+if (auto newest = scene->latest()) draw(*newest->payload);
 ```
 
 `Hub::feed` hands back the one feed a URI names for as long as anybody

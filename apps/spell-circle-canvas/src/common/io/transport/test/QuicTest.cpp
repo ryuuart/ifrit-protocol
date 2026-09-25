@@ -39,7 +39,7 @@
 namespace {
 
 using boost::asio::ip::udp;
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -213,19 +213,19 @@ TEST_F(IOQuic, ACallsMessageArrivesNamingTheConnectionItCameInOn) {
   ASSERT_TRUE(caller->error().empty()) << caller->error();
 
   ASSERT_TRUE(sendOnce(caller, "a scene arrives")) << caller->error();
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() == 1u; }))
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() == 1u; }))
       << caller->error();
-  EXPECT_EQ(listener->latest()->bytes->asText(), "a scene arrives");
+  EXPECT_EQ(listener->latest()->payload->asText(), "a scene arrives");
 
-  const std::optional<Arrival> heard = listener->receive();
+  const std::optional<Message> heard = listener->receive();
   ASSERT_TRUE(heard.has_value());
-  const size_t number = heard->from.rfind('#');
-  ASSERT_NE(number, std::string::npos) << heard->from;
+  const size_t number = heard->sender().rfind('#');
+  ASSERT_NE(number, std::string::npos) << heard->sender();
   // The first connection this feed took is the first one it numbered,
   // and the address in front of that number is the caller's own, with a
   // port behind it.
-  EXPECT_EQ(heard->from.substr(number), "#1") << heard->from;
-  const std::string where = heard->from.substr(0, number);
+  EXPECT_EQ(heard->sender().substr(number), "#1") << heard->sender();
+  const std::string where = heard->sender().substr(0, number);
   EXPECT_TRUE(where.starts_with(kScheme)) << where;
   EXPECT_NE(where.find(':', kScheme.size()), std::string::npos) << where;
 }
@@ -242,20 +242,20 @@ TEST_F(IOQuic, TheListenersSendReachesTheCallThatOpenedTheConnection) {
   // reached the listener before it: a message of the caller's the
   // listener has taken is what says one has.
   ASSERT_TRUE(sendOnce(caller, "here")) << caller->error();
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() == 1u; }))
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() == 1u; }))
       << caller->error();
 
   EXPECT_TRUE(listener->send(bytesOf("out to every caller")));
   ASSERT_TRUE(waitUntil([&] { return caller->latest().has_value(); }))
       << caller->error();
-  EXPECT_EQ(caller->latest()->bytes->asText(), "out to every caller");
+  EXPECT_EQ(caller->latest()->payload->asText(), "out to every caller");
 
-  const std::optional<Arrival> back = caller->receive();
+  const std::optional<Message> back = caller->receive();
   ASSERT_TRUE(back.has_value());
   // A call holds the one connection it opened, and every message it
   // takes is named for the end it reached — the authority alone, the
   // query being the call's own arrangement.
-  EXPECT_EQ(back->from,
+  EXPECT_EQ(back->sender(),
             "quic://127.0.0.1:" + std::to_string(portOf(listener->address())));
 }
 
@@ -279,26 +279,26 @@ TEST_F(IOQuic, SendToReachesTheOneConnectionItNamesAndNoOther) {
   // names the connection that caller is answered on.
   ASSERT_TRUE(sendOnce(first, "first")) << first->error();
   ASSERT_TRUE(sendOnce(second, "second")) << second->error();
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() == 2u; }))
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() == 2u; }))
       << listener->error();
 
   std::string answering;
-  while (const std::optional<Arrival> arrival = listener->receive())
-    if (arrival->bytes->asText() == "first") answering = arrival->from;
+  while (const std::optional<Message> arrival = listener->receive())
+    if (arrival->payload->asText() == "first") answering = arrival->sender();
   ASSERT_FALSE(answering.empty());
 
   EXPECT_TRUE(listener->sendTo(answering, bytesOf("to you alone")));
-  ASSERT_TRUE(waitUntil([&] { return first->generation() >= 1u; }));
-  EXPECT_EQ(first->latest()->bytes->asText(), "to you alone");
+  ASSERT_TRUE(waitUntil([&] { return first->revision() >= 1u; }));
+  EXPECT_EQ(first->latest()->payload->asText(), "to you alone");
 
   // What the OTHER caller reads first is the broadcast that came after,
   // which is what says the message before it went to one connection and
   // not to every connection standing.
   EXPECT_TRUE(listener->send(bytesOf("out to every caller")));
-  ASSERT_TRUE(waitUntil([&] { return second->generation() >= 1u; }));
-  const std::optional<Arrival> opening = second->receive();
+  ASSERT_TRUE(waitUntil([&] { return second->revision() >= 1u; }));
+  const std::optional<Message> opening = second->receive();
   ASSERT_TRUE(opening.has_value());
-  EXPECT_EQ(opening->bytes->asText(), "out to every caller");
+  EXPECT_EQ(opening->payload->asText(), "out to every caller");
 }
 
 TEST_F(IOQuic, ADatagramCrossesTheSameConnection) {
@@ -317,15 +317,15 @@ TEST_F(IOQuic, ADatagramCrossesTheSameConnection) {
   // then is false, and one that went may still be dropped.
   ASSERT_TRUE(waitUntil([&] {
     caller->send(bytesOf("one packet, no promises"));
-    return listener->generation() >= 1u;
+    return listener->revision() >= 1u;
   })) << caller->error();
-  EXPECT_EQ(listener->latest()->bytes->asText(), "one packet, no promises");
+  EXPECT_EQ(listener->latest()->payload->asText(), "one packet, no promises");
 
-  const std::optional<Arrival> heard = listener->receive();
+  const std::optional<Message> heard = listener->receive();
   ASSERT_TRUE(heard.has_value());
   // A datagram arrives naming the connection it crossed, exactly as a
   // stream does.
-  EXPECT_NE(heard->from.rfind('#'), std::string::npos) << heard->from;
+  EXPECT_NE(heard->sender().rfind('#'), std::string::npos) << heard->sender();
 
   // A message larger than one packet on this path carries is not a
   // datagram at all, and the door says so rather than cutting it in

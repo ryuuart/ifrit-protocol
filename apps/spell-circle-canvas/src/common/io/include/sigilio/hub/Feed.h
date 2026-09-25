@@ -8,7 +8,7 @@
  * either takes the newest message whole through latest() or drains in
  * order the ones it has not seen through receive(), and neither ever
  * waits for one. A feed holds the
- * last `FeedPolicy::capacity` arrivals for receive(), and dropped() counts
+ * last `FeedPolicy::capacity` messages for receive(), and dropped() counts
  * what fell off the front. The same door plays a recording back, and
  * writes one for as long as the Recording its record() hands out lives.
  */
@@ -23,6 +23,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "sigilio/advanced/Transport.h"
@@ -39,18 +40,54 @@ namespace detail {
 struct RecordingSlot;
 }  // namespace detail
 
-/** ONE MESSAGE OFF A FEED. */
-struct Arrival {
-  /** 1 for the first arrival on a feed, counting up from there. */
-  uint64_t generation = 0;
-  /** Seconds: on a live feed, since the feed was made; on a replayed
-   *  recording, the value the recording carries. */
-  double at = 0;
-  std::shared_ptr<const Bytes> bytes;
+/** ONE MESSAGE OFF A FEED: the payload, who sent it, and when it came.
+ *  A feed stamps its revision and the moment it was received as it
+ *  takes it; a message made by hand carries what it was made with. */
+struct Message {
+  Message() = default;
+  /** A message carrying @p payload from @p sender, arrived @p arrivedAt
+   *  after its feed opened — how a recording lists one — and numbered
+   *  @p revision. */
+  explicit Message(std::shared_ptr<const Bytes> payload,
+                   std::string sender = {},
+                   std::chrono::duration<double> arrivedAt = {},
+                   uint64_t revision = 0)
+      : payload(std::move(payload)),
+        m_sender(std::move(sender)),
+        m_arrivedAt(arrivedAt),
+        m_revision(revision) {}
+
+  /** The bytes as they arrived; never null on a message a feed took. */
+  std::shared_ptr<const Bytes> payload;
+
   /** The address the message came from, spelled the way a URI of that
    *  scheme is, `udp://127.0.0.1:52341`; empty for a recording, and for
    *  a transport that has no way of knowing. */
-  std::string from;
+  const std::string& sender() const { return m_sender; }
+
+  /** When it arrived, counted from when its feed opened; on a replayed
+   *  recording, the time the recording carries. This is what a
+   *  recording stores. */
+  std::chrono::duration<double> arrivedAt() const { return m_arrivedAt; }
+
+  /** When it arrived on the steady clock: a live message's receive
+   *  time; a replayed one's recorded spacing laid from the first advance
+   *  that moved the recording. The clock's origin on a message no feed
+   *  took. */
+  std::chrono::steady_clock::time_point receivedAt() const {
+    return m_receivedAt;
+  }
+
+  /** 1 for the first message on a feed, counting up from there. */
+  uint64_t revision() const { return m_revision; }
+
+ private:
+  friend class Feed;
+
+  std::string m_sender;
+  std::chrono::duration<double> m_arrivedAt{};
+  std::chrono::steady_clock::time_point m_receivedAt{};
+  uint64_t m_revision = 0;
 };
 
 /** HOW MUCH A FEED HOLDS FOR ITS READERS. It stands beside the class it
@@ -58,12 +95,12 @@ struct Arrival {
  *  nested class is not in hand until the class around it closes, and
  *  the constructor below takes this one as its default. */
 struct FeedPolicy {
-  /** Arrivals kept for receive() before the oldest is dropped. */
+  /** Messages kept for receive() before the oldest is dropped. */
   size_t capacity = 256;
 };
 
 /** A FEED BEING WRITTEN DOWN: what `Feed::record()` hands back. Every
- *  arrival on the feed goes to the file until this handle stops it —
+ *  message on the feed goes to the file until this handle stops it —
  *  through stop(), or by going out of scope — so a recording nobody
  *  holds is one that has ended. Move-only; a handle made empty, or
  *  moved from, stops nothing. */
@@ -99,14 +136,6 @@ class Recording {
  *  recording, messages out to readers on any thread. */
 class Feed {
  public:
-  /** Maps an arrival from this feed onto the steady clock. Live arrivals
-   *  retain their transport receive time; replay times are relative to the
-   *  first `Hub::dispatch()` that moved the recording, preserving recorded
-   *  spacing across queued reads.
-   *  Negative, nonfinite or unrepresentable times map to that clock origin. */
-  std::chrono::steady_clock::time_point receivedAt(
-      const Arrival& arrival) const;
-
   /** A door named @p uri under @p policy. Nothing is opened here: a
    *  hub hands it a transport or a recording, and a test puts messages
    *  on it through `testing::inletOf()`. */
@@ -117,25 +146,24 @@ class Feed {
   Feed(const Feed&) = delete;
   Feed& operator=(const Feed&) = delete;
 
-  /** No more arrivals are taken. What was received stays readable, and
+  /** No more messages are taken. What was received stays readable, and
    *  the opened end's close runs once. */
   void close();
 
-  /** THE NEWEST ARRIVAL WHOLE: the generation it came in as, the second
-   *  it came in at, its bytes and the address it came from, read out
-   *  together so they are one message's; nothing before the first
-   *  arrival. It is latched rather than queued, so draining through
-   *  receive() leaves it standing. */
-  std::optional<Arrival> latest() const;
+  /** THE NEWEST MESSAGE WHOLE: its revision, when it arrived, its
+   *  payload and who sent it, read out together so they are one
+   *  message's; nothing before the first. It is latched rather than
+   *  queued, so draining through receive() leaves it standing. */
+  std::optional<Message> latest() const;
 
   /** How many messages have arrived; 0 before the first. */
-  uint64_t generation() const;
+  uint64_t revision() const;
 
-  /** The next arrival this reader has not taken, in order; nothing when
+  /** The next message this reader has not taken, in order; nothing when
    *  none is waiting. Never waits for one. */
-  std::optional<Arrival> receive();
+  std::optional<Message> receive();
 
-  /** Arrivals that fell off the front because the feed was full. */
+  /** Messages that fell off the front because the feed was full. */
   uint64_t dropped() const;
 
   /** Whether the door has been shut, after which nothing more
@@ -162,13 +190,13 @@ class Feed {
   bool send(const Bytes& bytes) const;
 
   /** Sends to ONE sender: @p to is an address spelled the way an
-   *  arrival's `from` is, `udp://127.0.0.1:52341`, which is how a door
+   *  message's `sender()` is, `udp://127.0.0.1:52341`, which is how a door
    *  that holds no peer of its own answers the one that wrote to it.
    *  False when the way is one-way for that purpose, when the feed is
    *  closed, and when no transport opened it. */
   bool sendTo(std::string_view to, const Bytes& bytes) const;
 
-  /** THE PEERS ATTACHED NOW, each named the way an arrival's `from`
+  /** THE PEERS ATTACHED NOW, each named the way a message's `sender()`
    *  spells it, which is how a door that holds many learns that one has
    *  left: the name is gone from here. Empty when the feed is closed,
    *  when no transport opened it, and when the transport holds no peers
@@ -176,7 +204,7 @@ class Feed {
    *  peers. */
   std::vector<std::string> peers() const;
 
-  /** Appends every arrival from now on to the file at @p path in the
+  /** Appends every message from now on to the file at @p path in the
    *  recording format, so this feed can be played back later through
    *  `Hub::replay()`, until the handle this returns stops it. A feed
    *  writes one recording at a time: a second call stops the first.
@@ -190,11 +218,11 @@ class Feed {
 
   /** Takes one message, stamped with the seconds since the feed was
    *  made and naming the address it came from, or nobody. Any thread. */
-  void deliver(Bytes bytes, std::string from);
+  void deliver(Bytes payload, std::string sender);
 
   /** The same, with a recording's own time instead of the clock's, and
    *  no sender. */
-  void deliver(Bytes bytes, double at);
+  void deliver(Bytes payload, std::chrono::duration<double> arrivedAt);
 
   /** Says what went wrong, which error() answers from then on; an empty
    *  reason takes off what stood there. The feed stays open. */
@@ -212,21 +240,29 @@ class Feed {
 
   /** Reads @p recording instead of a transport: advance() is then what
    *  delivers, and the recording is the door this feed opened. */
-  void replay(std::vector<Arrival> recording);
+  void replay(std::vector<Message> recording);
 
   /** Moves a replayed recording's time to @p seconds on the caller's
    *  clock. The first call fixes the origin, so a recording starts when
-   *  its feed is first advanced; every recorded arrival due by then is
+   *  its feed is first advanced; every recorded message due by then is
    *  delivered in order with its recorded time, and the feed closes
    *  after the last one. A live feed ignores it. */
   void advance(double seconds);
 
-  /** Stamps and queues one arrival with the lock already held. Every
+  /** Stamps and queues one message with the lock already held. Every
    *  path that takes a message — the transport's and the recording's —
-   *  runs through here, so a generation is never handed out twice and
+   *  runs through here, so a revision is never handed out twice and
    *  the file a recording writes carries the feed's own order. */
-  void deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
-                     std::string from);
+  void deliverLocked(std::shared_ptr<const Bytes> payload,
+                     std::chrono::duration<double> arrivedAt,
+                     std::chrono::steady_clock::time_point receivedAt,
+                     std::string sender);
+
+  /** Lays @p arrivedAt onto the steady clock: from the first advance
+   *  that moved a replayed recording, else from when the feed was made.
+   *  Negative, nonfinite or unrepresentable times map to that origin. */
+  std::chrono::steady_clock::time_point receivedAtLocked(
+      std::chrono::duration<double> arrivedAt) const;
 
   /** Marks the feed closed and takes the opened end's close function
    *  out of it. The caller runs that function after releasing the lock:
@@ -240,16 +276,16 @@ class Feed {
       std::chrono::steady_clock::now();
 
   /** Guards every member below. It is held for the moves that stamp and
-   *  queue an arrival and for the append that records one, never across
+   *  queue a message and for the append that records one, never across
    *  a call into the transport: a reader waits for another reader, and
    *  never for a socket. */
   mutable std::mutex m_mutex;
-  std::deque<Arrival> m_arrivals;
-  /** The last arrival, kept whole: who sent the newest message and
+  std::deque<Message> m_messages;
+  /** The last message, kept whole: who sent the newest message and
    *  which one it is are readable without draining the queue another
    *  reader is taking messages off. */
-  std::optional<Arrival> m_latest;
-  uint64_t m_generation = 0;
+  std::optional<Message> m_latest;
+  uint64_t m_revision = 0;
   uint64_t m_dropped = 0;
   bool m_closed = false;
   std::string m_error;
@@ -262,7 +298,7 @@ class Feed {
   /** A recording being played back: what it holds, how much of it has
    *  been delivered, and the time the first advance() fixed as its
    *  start. */
-  std::vector<Arrival> m_recording;
+  std::vector<Message> m_recording;
   size_t m_replayed = 0;
   bool m_replaying = false;
   std::optional<double> m_origin;

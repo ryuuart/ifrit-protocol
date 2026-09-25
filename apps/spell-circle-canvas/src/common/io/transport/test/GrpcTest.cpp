@@ -28,7 +28,7 @@
 namespace {
 
 using boost::asio::ip::tcp;
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -119,17 +119,17 @@ TEST_F(IOGrpc, ACallersMessageArrivesOnTheServerNamingTheCallItCameIn) {
   EXPECT_TRUE(caller->send(bytesOf("a scene arrives")));
   ASSERT_TRUE(waitUntil([&] { return server->latest().has_value(); }))
       << server->error();
-  EXPECT_EQ(server->latest()->bytes->asText(), "a scene arrives");
+  EXPECT_EQ(server->latest()->payload->asText(), "a scene arrives");
 
-  const std::optional<Arrival> heard = server->receive();
+  const std::optional<Message> heard = server->receive();
   ASSERT_TRUE(heard.has_value());
-  const size_t number = heard->from.rfind('#');
-  ASSERT_NE(number, std::string::npos) << heard->from;
+  const size_t number = heard->sender().rfind('#');
+  ASSERT_NE(number, std::string::npos) << heard->sender();
   // The first call this feed took is the first call it numbered, and the
   // address in front of that number is the caller's own, with a port
   // behind it.
-  EXPECT_EQ(heard->from.substr(number), "#1") << heard->from;
-  const std::string where = heard->from.substr(0, number);
+  EXPECT_EQ(heard->sender().substr(number), "#1") << heard->sender();
+  const std::string where = heard->sender().substr(0, number);
   EXPECT_TRUE(where.starts_with(kScheme)) << where;
   EXPECT_NE(where.find(':', kScheme.size()), std::string::npos) << where;
 }
@@ -145,18 +145,18 @@ TEST_F(IOGrpc, TheServersSendReachesTheCallerThatOpenedTheStream) {
   // reached the server before it: a message of the caller's the server
   // has taken is what says it has.
   EXPECT_TRUE(caller->send(bytesOf("here")));
-  ASSERT_TRUE(waitUntil([&] { return server->generation() == 1u; }))
+  ASSERT_TRUE(waitUntil([&] { return server->revision() == 1u; }))
       << server->error();
 
   EXPECT_TRUE(server->send(bytesOf("out to every caller")));
   ASSERT_TRUE(waitUntil([&] { return caller->latest().has_value(); }));
-  EXPECT_EQ(caller->latest()->bytes->asText(), "out to every caller");
+  EXPECT_EQ(caller->latest()->payload->asText(), "out to every caller");
 
-  const std::optional<Arrival> back = caller->receive();
+  const std::optional<Message> back = caller->receive();
   ASSERT_TRUE(back.has_value());
   // A client has the one peer it called, and every message it takes is
   // named for it.
-  EXPECT_EQ(back->from, url);
+  EXPECT_EQ(back->sender(), url);
 }
 
 TEST_F(IOGrpc, SendToReachesTheOneCallerItNamesAndNoOther) {
@@ -178,26 +178,26 @@ TEST_F(IOGrpc, SendToReachesTheOneCallerItNamesAndNoOther) {
   // names the call that caller is answered on.
   EXPECT_TRUE(first->send(bytesOf("first")));
   EXPECT_TRUE(second->send(bytesOf("second")));
-  ASSERT_TRUE(waitUntil([&] { return server->generation() == 2u; }))
+  ASSERT_TRUE(waitUntil([&] { return server->revision() == 2u; }))
       << server->error();
 
   std::string answering;
-  while (const std::optional<Arrival> arrival = server->receive())
-    if (arrival->bytes->asText() == "first") answering = arrival->from;
+  while (const std::optional<Message> arrival = server->receive())
+    if (arrival->payload->asText() == "first") answering = arrival->sender();
   ASSERT_FALSE(answering.empty());
 
   EXPECT_TRUE(server->sendTo(answering, bytesOf("to you alone")));
-  ASSERT_TRUE(waitUntil([&] { return first->generation() == 1u; }));
-  EXPECT_EQ(first->latest()->bytes->asText(), "to you alone");
+  ASSERT_TRUE(waitUntil([&] { return first->revision() == 1u; }));
+  EXPECT_EQ(first->latest()->payload->asText(), "to you alone");
 
   // What the OTHER caller reads first is the broadcast that came after,
   // which is what says the message before it went to one call and not to
   // every call standing.
   EXPECT_TRUE(server->send(bytesOf("out to every caller")));
-  ASSERT_TRUE(waitUntil([&] { return second->generation() == 1u; }));
-  const std::optional<Arrival> opening = second->receive();
+  ASSERT_TRUE(waitUntil([&] { return second->revision() == 1u; }));
+  const std::optional<Message> opening = second->receive();
   ASSERT_TRUE(opening.has_value());
-  EXPECT_EQ(opening->bytes->asText(), "out to every caller");
+  EXPECT_EQ(opening->payload->asText(), "out to every caller");
 }
 
 TEST_F(IOGrpc, ACallNobodyIsHoldingIsNobodyToAnswer) {
@@ -235,7 +235,7 @@ TEST_F(IOGrpc, AServerThatGoesAwayEndedRatherThanNeverHavingBeenReached) {
   const std::shared_ptr<Feed> caller = elsewhere.feed(url);
   ASSERT_TRUE(caller->error().empty()) << caller->error();
   EXPECT_TRUE(caller->send(bytesOf("here")));
-  ASSERT_TRUE(waitUntil([&] { return server->generation() == 1u; }))
+  ASSERT_TRUE(waitUntil([&] { return server->revision() == 1u; }))
       << server->error();
 
   // Letting the server go cancels the call standing on it, which is what

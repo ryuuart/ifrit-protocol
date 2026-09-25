@@ -140,9 +140,9 @@ TEST(SeerWires, TwoWiresOnTheLoopbackCarryBytesAndTheLogDrainsThemInOrder) {
   EXPECT_EQ(wires.feeds()[1], peer);
 
   EXPECT_TRUE(sender.send(bytesOf("first")));
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() >= 1; }));
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() >= 1; }));
   EXPECT_TRUE(sender.send(bytesOf("second")));
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() >= 2; }));
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() >= 2; }));
   EXPECT_EQ(sender.sent(), 2u);
 
   Log log;
@@ -285,14 +285,14 @@ TEST_F(SeerRecorder, ARecordedWireIsAFileReadRecordingReadsBack) {
   recorder.stop();
   EXPECT_FALSE(recorder.recording());
 
-  const std::optional<std::vector<sigil::io::Arrival>> read =
+  const std::optional<std::vector<sigil::io::Message>> read =
       sigil::io::readRecording(file);
   ASSERT_TRUE(read.has_value());
   ASSERT_EQ(read->size(), 2u);
-  EXPECT_EQ((*read)[0].bytes->asText(), "first");
-  EXPECT_DOUBLE_EQ((*read)[0].at, 0.25);
-  EXPECT_EQ((*read)[1].bytes->asText(), "second");
-  EXPECT_DOUBLE_EQ((*read)[1].at, 0.75);
+  EXPECT_EQ((*read)[0].payload->asText(), "first");
+  EXPECT_DOUBLE_EQ((*read)[0].arrivedAt().count(), 0.25);
+  EXPECT_EQ((*read)[1].payload->asText(), "second");
+  EXPECT_DOUBLE_EQ((*read)[1].arrivedAt().count(), 0.75);
 }
 
 TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
@@ -318,14 +318,14 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
   // The first dispatch is where the recording starts, whatever the
   // caller's clock reads then: nothing is due at its own origin.
   wires.dispatch(10.0);
-  EXPECT_EQ(replayed->generation(), 0u);
+  EXPECT_EQ(replayed->revision(), 0u);
   wires.dispatch(10.3);
-  EXPECT_EQ(replayed->generation(), 1u);
-  EXPECT_EQ(replayed->latest()->bytes->asText(), "first");
+  EXPECT_EQ(replayed->revision(), 1u);
+  EXPECT_EQ(replayed->latest()->payload->asText(), "first");
   EXPECT_FALSE(replayed->closed());
   wires.dispatch(11.0);
-  EXPECT_EQ(replayed->generation(), 2u);
-  EXPECT_EQ(replayed->latest()->bytes->asText(), "second");
+  EXPECT_EQ(replayed->revision(), 2u);
+  EXPECT_EQ(replayed->latest()->payload->asText(), "second");
   // Nothing else is coming, and the wire says so rather than waiting on
   // a door that will not open again.
   EXPECT_TRUE(replayed->closed());
@@ -343,7 +343,7 @@ TEST_F(SeerRecorder, ReplayingAFileThatIsNoRecordingSaysSoOnTheWire) {
       recorder.replay("pigeon://the.desk", file);
   EXPECT_FALSE(replayed->error().empty());
   wires.dispatch(0.0);
-  EXPECT_EQ(replayed->generation(), 0u);
+  EXPECT_EQ(replayed->revision(), 0u);
 }
 
 TEST(SeerSender, ARepeatSendsOnceEveryPeriodTheTicksPassThrough) {
@@ -374,8 +374,8 @@ TEST(SeerSender, ARepeatSendsOnceEveryPeriodTheTicksPassThrough) {
   EXPECT_EQ(sender.sent(), 2u);
   EXPECT_FALSE(sender.repeating());
 
-  ASSERT_TRUE(waitUntil([&] { return listener->generation() >= 2; }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "again");
+  ASSERT_TRUE(waitUntil([&] { return listener->revision() >= 2; }));
+  EXPECT_EQ(listener->latest()->payload->asText(), "again");
 }
 
 TEST(SeerSender, AWireWithNoWayBackRefusesToSendAndCountsNothing) {

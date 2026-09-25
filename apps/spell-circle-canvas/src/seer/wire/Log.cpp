@@ -13,21 +13,21 @@ Log::Log(size_t capacity) : m_capacity(capacity) {}
 
 size_t Log::drain(io::Feed& feed) {
   size_t taken = 0;
-  while (std::optional<io::Arrival> arrival = feed.receive()) {
+  while (std::optional<io::Message> message = feed.receive()) {
     ++taken;
-    append(*arrival);
+    append(*message);
   }
   return taken;
 }
 
-void Log::append(const io::Arrival& arrival) {
+void Log::append(const io::Message& message) {
   if (m_capacity == 0) {
     ++m_forgotten;
     return;
   }
-  m_entries.push_back({arrival.at, arrival.generation,
-                       arrival.bytes ? arrival.bytes->size() : 0,
-                       arrival.bytes, arrival.from});
+  m_entries.push_back({message.arrivedAt().count(), message.revision(),
+                       message.payload ? message.payload->size() : 0,
+                       message.payload, message.sender()});
   if (m_entries.size() > m_capacity) {
     m_entries.pop_front();
     ++m_forgotten;

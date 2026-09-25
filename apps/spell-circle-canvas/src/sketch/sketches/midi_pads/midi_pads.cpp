@@ -357,7 +357,7 @@ struct MidiPads {
     std::string lit;
     for (size_t index = 0; index != kCells; ++index)
       lit += cells[index].shown ? '#' : '.';
-    Reading now{.generation = pads.generation(),
+    Reading now{.generation = pads.revision(),
                 .undecodable = pads.undecodable(),
                 .strikes = strikes,
                 .turns = turns,

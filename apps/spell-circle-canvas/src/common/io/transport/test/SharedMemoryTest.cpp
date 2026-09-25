@@ -30,7 +30,7 @@
 
 namespace {
 
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -99,16 +99,16 @@ TEST_F(IOSharedMemory, AFeedTakesEveryMessageTheWriterLeavesInTheRegion) {
   for (const std::string_view line : said) {
     ASSERT_TRUE(writer.write(bytesOf(line)));
     ++written;
-    ASSERT_TRUE(waitUntil([&] { return region->generation() == written; }))
+    ASSERT_TRUE(waitUntil([&] { return region->revision() == written; }))
         << "message " << written << " never arrived";
   }
 
   for (const std::string_view line : said) {
-    const std::optional<Arrival> arrival = region->receive();
+    const std::optional<Message> arrival = region->receive();
     ASSERT_TRUE(arrival.has_value());
-    EXPECT_EQ(arrival->bytes->asText(), line);
+    EXPECT_EQ(arrival->payload->asText(), line);
     // The region is the sender: there is no other end to name.
-    EXPECT_EQ(arrival->from, "shm://" + name);
+    EXPECT_EQ(arrival->sender(), "shm://" + name);
   }
   EXPECT_FALSE(region->receive().has_value());
 }
@@ -124,17 +124,17 @@ TEST_F(IOSharedMemory, TheSameMessageWrittenTwiceArrivesTwice) {
   // What makes a message new is the count of the messages written, not
   // what one says, so a sender repeating itself is heard both times.
   ASSERT_TRUE(writer.write(bytesOf("no change")));
-  ASSERT_TRUE(waitUntil([&] { return region->generation() == 1; }));
+  ASSERT_TRUE(waitUntil([&] { return region->revision() == 1; }));
   ASSERT_TRUE(writer.write(bytesOf("no change")));
-  ASSERT_TRUE(waitUntil([&] { return region->generation() == 2; }));
+  ASSERT_TRUE(waitUntil([&] { return region->revision() == 2; }));
 
-  const std::optional<Arrival> first = region->receive();
-  const std::optional<Arrival> second = region->receive();
+  const std::optional<Message> first = region->receive();
+  const std::optional<Message> second = region->receive();
   ASSERT_TRUE(first.has_value());
   ASSERT_TRUE(second.has_value());
-  EXPECT_EQ(first->bytes->asText(), "no change");
-  EXPECT_EQ(second->bytes->asText(), "no change");
-  EXPECT_EQ(second->generation, first->generation + 1);
+  EXPECT_EQ(first->payload->asText(), "no change");
+  EXPECT_EQ(second->payload->asText(), "no change");
+  EXPECT_EQ(second->revision(), first->revision() + 1);
 }
 
 TEST_F(IOSharedMemory, AFeedNamesItsRegionAndHasNoWayBackToTheWriter) {
@@ -163,15 +163,15 @@ TEST_F(IOSharedMemory, AMessageLargerThanTheRegionIsRefusedByTheWriter) {
   ASSERT_TRUE(region->error().empty()) << region->error();
 
   ASSERT_TRUE(writer.write(bytesOf("sixteen bytes...")));
-  ASSERT_TRUE(waitUntil([&] { return region->generation() == 1; }));
+  ASSERT_TRUE(waitUntil([&] { return region->revision() == 1; }));
 
   // A message is written whole or not at all, so one that does not fit
   // is not written at all: the next message that does fit is the next
   // arrival, with nothing of the refused one between them.
   EXPECT_FALSE(writer.write(bytesOf("seventeen bytes..")));
   ASSERT_TRUE(writer.write(bytesOf("still sixteen!!!")));
-  ASSERT_TRUE(waitUntil([&] { return region->generation() == 2; }));
-  EXPECT_EQ(region->latest()->bytes->asText(), "still sixteen!!!");
+  ASSERT_TRUE(waitUntil([&] { return region->revision() == 2; }));
+  EXPECT_EQ(region->latest()->payload->asText(), "still sixteen!!!");
 }
 
 TEST_F(IOSharedMemory,
@@ -199,9 +199,9 @@ TEST_F(IOSharedMemory, AWriterThatStartsAfterTheFeedIsOneTheFeedReads) {
   ASSERT_TRUE(writer.open());
   ASSERT_TRUE(writer.write(bytesOf("the sky that came late")));
 
-  ASSERT_TRUE(waitUntil([&] { return region->generation() == 1; }))
+  ASSERT_TRUE(waitUntil([&] { return region->revision() == 1; }))
       << "a region made after the feed opened was never read";
-  EXPECT_EQ(region->latest()->bytes->asText(), "the sky that came late");
+  EXPECT_EQ(region->latest()->payload->asText(), "the sky that came late");
   EXPECT_TRUE(region->error().empty()) << region->error();
 }
 
@@ -212,7 +212,7 @@ TEST_F(IOSharedMemory, ARegionMadeAgainUnderTheSameNameIsTheOneReadFromThenOn) {
 
   const std::shared_ptr<Feed> region = hub.feed("shm://" + name + kFast);
   ASSERT_TRUE(first->write(bytesOf("the writer that was here first")));
-  ASSERT_TRUE(waitUntil([&] { return region->generation() == 1; }));
+  ASSERT_TRUE(waitUntil([&] { return region->revision() == 1; }));
 
   // A writer started again takes the name back and makes its own region
   // under it, which is another object wearing that word. What the
@@ -223,9 +223,9 @@ TEST_F(IOSharedMemory, ARegionMadeAgainUnderTheSameNameIsTheOneReadFromThenOn) {
   ASSERT_TRUE(second.open());
   ASSERT_TRUE(second.write(bytesOf("the writer that came after it")));
 
-  ASSERT_TRUE(waitUntil([&] { return region->generation() == 2; }))
+  ASSERT_TRUE(waitUntil([&] { return region->revision() == 2; }))
       << "the region made again was never read";
-  EXPECT_EQ(region->latest()->bytes->asText(), "the writer that came after it");
+  EXPECT_EQ(region->latest()->payload->asText(), "the writer that came after it");
 }
 
 TEST_F(IOSharedMemory, AUriThatNamesNoRegionOpensNothingAndSaysWhy) {
@@ -272,8 +272,8 @@ TEST_F(IOSharedMemory, AMessageIsNeverSeenHalfWritten) {
   size_t arrivals = 0;
   const auto until = std::chrono::steady_clock::now() + 500ms;
   while (std::chrono::steady_clock::now() < until) {
-    while (const std::optional<Arrival> arrival = region->receive()) {
-      const std::span<const std::byte> message = arrival->bytes->span();
+    while (const std::optional<Message> arrival = region->receive()) {
+      const std::span<const std::byte> message = arrival->payload->span();
       ASSERT_EQ(message.size(), kWide);
       const std::byte one = message.front();
       ASSERT_TRUE(std::all_of(message.begin(), message.end(),

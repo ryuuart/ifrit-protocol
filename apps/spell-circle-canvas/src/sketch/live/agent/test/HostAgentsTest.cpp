@@ -592,7 +592,7 @@ struct RecordingReader {
     feed = ctx.assets.hub().feed("udp://:27183");
   }
   void update(double, sigil::sketch::SketchContext&) {
-    g_arrivals = feed ? feed->generation() : 0;
+    g_arrivals = feed ? feed->revision() : 0;
   }
 };
 
@@ -611,8 +611,8 @@ TEST(SketchClockAgent, UnderPauseARecordingDeliversNothingMore) {
   {
     sigil::io::RecordingWriter writer(g_recording);
     ASSERT_TRUE(writer.good());
-    ASSERT_TRUE(writer.append({1, 0.0, recorded("dawn")}));
-    ASSERT_TRUE(writer.append({2, 0.5, recorded("noon")}));
+    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("dawn"), {}, std::chrono::duration<double>(0.0), 1)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("noon"), {}, std::chrono::duration<double>(0.5), 2)));
   }
   AgentHost host;
   ASSERT_TRUE(host.policy(clock::Policy_Advance));

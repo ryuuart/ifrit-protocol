@@ -553,9 +553,9 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   {
     sigil::io::RecordingWriter writer(dir.path / "data" / "sky.feed");
     ASSERT_TRUE(writer.good());
-    ASSERT_TRUE(writer.append({1, 0.0, recorded("dawn")}));
-    ASSERT_TRUE(writer.append({2, 0.5, recorded("noon")}));
-    ASSERT_TRUE(writer.append({3, 5.0, recorded("dusk")}));
+    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("dawn"), {}, std::chrono::duration<double>(0.0), 1)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("noon"), {}, std::chrono::duration<double>(0.5), 2)));
+    ASSERT_TRUE(writer.append(sigil::io::Message(recorded("dusk"), {}, std::chrono::duration<double>(5.0), 3)));
   }
   Assets store("");
   store.mountSketch("listening", dir.path);
@@ -568,7 +568,7 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   EXPECT_TRUE(Listening::sky->error().empty());
   // A session that has drawn no frame has reached no scene time, so the
   // recording has not started.
-  EXPECT_EQ(Listening::sky->generation(), 0u);
+  EXPECT_EQ(Listening::sky->revision(), 0u);
 
   const sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 48));
@@ -578,9 +578,9 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   // Thirty-six frames of a sixtieth is six tenths of a scene second: the
   // two arrivals recorded by then have been delivered, and the one at
   // five seconds is still ahead.
-  EXPECT_EQ(Listening::sky->generation(), 2u);
+  EXPECT_EQ(Listening::sky->revision(), 2u);
   ASSERT_TRUE(Listening::sky->latest().has_value());
-  EXPECT_EQ(Listening::sky->latest()->bytes->asText(), "noon");
+  EXPECT_EQ(Listening::sky->latest()->payload->asText(), "noon");
   EXPECT_FALSE(Listening::sky->closed());
   // The store outlives nothing here: the feed is let go before the
   // session that opened it and the hub it was opened on.

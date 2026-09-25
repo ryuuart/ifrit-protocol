@@ -197,8 +197,8 @@ struct Peer {
    *  life: a number is never handed out twice, so an address a reader
    *  kept never comes to mean another peer. */
   std::string name;
-  /** The sender on the signalling door to answer, spelled the way an
-   *  arrival's `from` is; empty where the door has one peer and
+  /** The sender on the signalling door to answer, spelled the way a
+   *  message's `sender()` is; empty where the door has one peer and
    *  nothing to name. */
   std::string through;
   std::shared_ptr<rtc::PeerConnection> connection;
@@ -650,16 +650,16 @@ void readSignal(const std::shared_ptr<Signal>& signal) {
       ++entry;
     }
   }
-  while (const std::optional<Arrival> arrival = signal->feed->receive()) {
-    if (!arrival->bytes) continue;
+  while (const std::optional<Message> arrival = signal->feed->receive()) {
+    if (!arrival->payload) continue;
     const std::optional<detail::Introduction> message =
-        detail::readIntroduction(arrival->bytes->asText());
+        detail::readIntroduction(arrival->payload->asText());
     // A MESSAGE THIS DOOR CANNOT READ IS SOMEBODY ELSE'S: a signalling
     // socket is an ordinary door, and what crosses it may be more than
     // the introductions.
     if (!message || message->kind.empty()) continue;
     for (const std::shared_ptr<Door>& door : standing)
-      if (door->room == message->room) door->take(*message, arrival->from);
+      if (door->room == message->room) door->take(*message, arrival->sender());
   }
   for (const std::shared_ptr<Door>& door : standing) door->carry();
 }

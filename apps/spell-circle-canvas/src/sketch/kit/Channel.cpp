@@ -76,7 +76,7 @@ struct Channel::State {
    *  only when what arrived moved this reading. */
   void follow() {
     if (!connection) return;
-    const uint64_t arrived = connection->generation();
+    const uint64_t arrived = connection->revision();
     if (arrived == seen) return;
     seen = arrived;
     const std::optional<double> number = take();

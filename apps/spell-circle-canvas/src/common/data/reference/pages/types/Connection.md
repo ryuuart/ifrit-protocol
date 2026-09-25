@@ -222,7 +222,7 @@ connection's scheme, and, where it has a schema, arrivals that did not
 fit it. They reach no reader, so a sender speaking the wrong language is
 seen there rather than in the drawing.
 
-`Connection::vitals` gathers those readings — the generation, the two
+`Connection::vitals` gathers those readings — the revision, the two
 counts, whether the door is closed, the address it bound, the newest
 sender and the error — into one `Connection::Vitals`, a value compared
 field by field. A reader that shows a door's state keeps the value it

@@ -242,27 +242,30 @@ void bindIO(py::module_& module) {
       .def(py::init([](size_t capacity) { return io::FeedPolicy{capacity}; }),
            py::arg("capacity") = 256)
       .def_readwrite("capacity", &io::FeedPolicy::capacity);
-  py::class_<io::Arrival>(resources, "Arrival")
-      .def(py::init([](double at, py::handle payload, std::string from,
-                       uint64_t generation) {
-             return io::Arrival{
-                 generation, at,
+  py::class_<io::Message>(resources, "Message")
+      .def(py::init([](py::handle payload, std::string sender,
+                       double arrivedAt, uint64_t revision) {
+             return io::Message(
                  std::make_shared<const io::Bytes>(bytes(payload)),
-                 std::move(from)};
+                 std::move(sender), std::chrono::duration<double>(arrivedAt),
+                 revision);
            }),
-           py::arg("at") = 0, py::arg("bytes") = py::bytes(),
-           py::arg("from_") = "", py::arg("generation") = 0)
-      .def_readwrite("generation", &io::Arrival::generation)
-      .def_readwrite("at", &io::Arrival::at)
-      .def_readwrite("from_", &io::Arrival::from)
+           py::arg("payload") = py::bytes(), py::arg("sender") = "",
+           py::arg("arrivedAt") = 0, py::arg("revision") = 0)
+      .def_property_readonly("revision", &io::Message::revision)
+      .def_property_readonly(
+          "arrivedAt",
+          [](const io::Message& value) { return value.arrivedAt().count(); })
+      .def_property_readonly("sender", &io::Message::sender)
       .def_property(
-          "bytes",
-          [](const io::Arrival& value) {
-            return value.bytes ? py::cast<py::bytes>(copiedBytes(value.bytes))
-                               : py::bytes();
+          "payload",
+          [](const io::Message& value) {
+            return value.payload
+                       ? py::cast<py::bytes>(copiedBytes(value.payload))
+                       : py::bytes();
           },
-          [](io::Arrival& value, py::handle payload) {
-            value.bytes = std::make_shared<const io::Bytes>(bytes(payload));
+          [](io::Message& value, py::handle payload) {
+            value.payload = std::make_shared<const io::Bytes>(bytes(payload));
           });
   py::class_<io::Recording>(resources, "Recording")
       .def("stop",
@@ -289,7 +292,7 @@ void bindIO(py::module_& module) {
     return unlocked([&] { return feed->name(); }); \
   })
           SIGIL_FEED_METHOD(receive) SIGIL_FEED_METHOD(latest)
-              SIGIL_FEED_METHOD(generation) SIGIL_FEED_METHOD(dropped)
+              SIGIL_FEED_METHOD(revision) SIGIL_FEED_METHOD(dropped)
                   SIGIL_FEED_METHOD(closed) SIGIL_FEED_METHOD(opened)
                       SIGIL_FEED_METHOD(error) SIGIL_FEED_METHOD(address)
                           SIGIL_FEED_METHOD(uri) SIGIL_FEED_METHOD(close)
@@ -535,14 +538,14 @@ void bindIO(py::module_& module) {
            py::call_guard<py::gil_scoped_release>())
       .def(
           "append",
-          [](RecordingHandle& writer, io::Arrival arrival) {
-            validTime(arrival.at);
+          [](RecordingHandle& writer, io::Message message) {
+            validTime(message.arrivedAt().count());
             return unlocked([&] {
               const std::lock_guard lock(writer.mutex);
-              return writer.value->append(arrival);
+              return writer.value->append(message);
             });
           },
-          py::arg("arrival"))
+          py::arg("message"))
       .def("good", [](RecordingHandle& writer) {
         return unlocked([&] {
           const std::lock_guard lock(writer.mutex);

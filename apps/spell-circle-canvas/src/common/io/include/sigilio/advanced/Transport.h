@@ -35,11 +35,11 @@ struct OpenedFeed {
   std::function<void()> close;
   /** Sends through the same door; empty when the way is one-way. */
   std::function<bool(const Bytes&)> send;
-  /** Sends to ONE sender, named the way an arrival's `from` spells it;
+  /** Sends to ONE sender, named the way a message's `sender()` spells it;
    *  empty when the transport cannot address one. */
   std::function<bool(std::string_view to, const Bytes&)> sendTo;
-  /** The peers attached to the door now, each named the way an
-   *  arrival's `from` spells it; empty when the transport holds no peers
+  /** The peers attached to the door now, each named the way a
+   *  message's `sender()` spells it; empty when the transport holds no peers
    *  of its own. */
   std::function<std::vector<std::string>()> peers;
   /** The local end as the transport bound it, "udp://[::]:52341";

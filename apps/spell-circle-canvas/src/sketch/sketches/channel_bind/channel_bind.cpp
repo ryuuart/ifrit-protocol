@@ -233,7 +233,7 @@ struct ChannelBind {
     Shown now;
     for (size_t index = 0; index != kFaders; ++index)
       now.read[index] = faders[index].lastRead();
-    now.generation = desk.generation();
+    now.generation = desk.revision();
     now.undecodable = desk.undecodable();
     now.trouble = desk.error();
     if (now == shown) return false;

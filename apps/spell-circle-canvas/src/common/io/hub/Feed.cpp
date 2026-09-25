@@ -1,7 +1,7 @@
 /** @file
  * The feed: the conduit a transport delivers into and readers drain,
  * the end a transport opened and the one close that runs on it, the
- * file every arrival can be copied into, and the recording a feed plays
+ * file every message can be copied into, and the recording a feed plays
  * back instead of listening.
  */
 
@@ -66,22 +66,22 @@ Feed::Feed(std::string uri, FeedPolicy policy)
 
 Feed::~Feed() { close(); }
 
-void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
-                         std::string from) {
+void Feed::deliverLocked(std::shared_ptr<const Bytes> payload,
+                         std::chrono::duration<double> arrivedAt,
+                         std::chrono::steady_clock::time_point receivedAt,
+                         std::string sender) {
   if (m_closed) return;
-  // Every arrival carries bytes, empty ones included, so a reader of
+  // Every message carries a payload, empty ones included, so a reader of
   // one never meets a message with nothing where its bytes should be.
-  if (!bytes) bytes = std::make_shared<const Bytes>();
-  Arrival arrival;
-  arrival.generation = ++m_generation;
-  arrival.at = at;
-  arrival.bytes = std::move(bytes);
-  arrival.from = std::move(from);
-  // The whole arrival is latched under the same lock that stamped it,
+  if (!payload) payload = std::make_shared<const Bytes>();
+  Message message(std::move(payload), std::move(sender), arrivedAt,
+                  ++m_revision);
+  message.m_receivedAt = receivedAt;
+  // The whole message is latched under the same lock that stamped it,
   // so a reader asking what the newest message is and who sent it is
   // answered one message.
-  m_latest = arrival;
-  // The frame is written under the lock that stamped the arrival, so a
+  m_latest = message;
+  // The frame is written under the lock that stamped the message, so a
   // recording lists messages in the order the feed took them however
   // many threads are delivering. A file that stops taking frames ends
   // the recording and says so through error(): a recording that went
@@ -90,38 +90,37 @@ void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
     const std::lock_guard recording(m_recorder->mutex);
     if (!m_recorder->writer) {
       // Its handle stopped it: nothing more goes to that file.
-    } else if (!m_recorder->writer->append(arrival)) {
+    } else if (!m_recorder->writer->append(message)) {
       m_recorder->writer.reset();
       m_error = "the recording stopped: its file could not take a frame";
     }
   }
-  m_arrivals.push_back(std::move(arrival));
+  m_messages.push_back(std::move(message));
   // A reader that cannot keep up loses the OLDEST messages: the newest
   // is what a frame draws, and latest() has it whatever the queue does.
-  while (m_arrivals.size() > m_policy.capacity) {
-    m_arrivals.pop_front();
+  while (m_messages.size() > m_policy.capacity) {
+    m_messages.pop_front();
     ++m_dropped;
   }
 }
 
-void Feed::deliver(Bytes bytes, std::string from) {
-  const double at =
-      std::chrono::duration<double>(std::chrono::steady_clock::now() - m_made)
-          .count();
+void Feed::deliver(Bytes payload, std::string sender) {
+  const auto now = std::chrono::steady_clock::now();
   // Shared before the lock: copying a message is the delivering
   // thread's own work, not something the next reader waits behind.
-  auto shared = std::make_shared<const Bytes>(std::move(bytes));
+  auto shared = std::make_shared<const Bytes>(std::move(payload));
   const std::lock_guard lock(m_mutex);
-  deliverLocked(std::move(shared), at, std::move(from));
+  deliverLocked(std::move(shared), now - m_made, now, std::move(sender));
 }
 
-void Feed::deliver(Bytes bytes, double at) {
-  auto shared = std::make_shared<const Bytes>(std::move(bytes));
+void Feed::deliver(Bytes payload, std::chrono::duration<double> arrivedAt) {
+  auto shared = std::make_shared<const Bytes>(std::move(payload));
   const std::lock_guard lock(m_mutex);
   // A message carrying its own time carries no sender: it is a
   // recording's frame, and a recording is the messages and not who sent
   // them.
-  deliverLocked(std::move(shared), at, std::string());
+  deliverLocked(std::move(shared), arrivedAt, receivedAtLocked(arrivedAt),
+                std::string());
 }
 
 void Feed::fail(std::string why) {
@@ -178,22 +177,22 @@ void Feed::open(OpenedFeed opened) {
   if (unwanted) unwanted();
 }
 
-std::optional<Arrival> Feed::latest() const {
+std::optional<Message> Feed::latest() const {
   const std::lock_guard lock(m_mutex);
   return m_latest;
 }
 
-uint64_t Feed::generation() const {
+uint64_t Feed::revision() const {
   const std::lock_guard lock(m_mutex);
-  return m_generation;
+  return m_revision;
 }
 
-std::optional<Arrival> Feed::receive() {
+std::optional<Message> Feed::receive() {
   const std::lock_guard lock(m_mutex);
-  if (m_arrivals.empty()) return std::nullopt;
-  Arrival arrival = std::move(m_arrivals.front());
-  m_arrivals.pop_front();
-  return arrival;
+  if (m_messages.empty()) return std::nullopt;
+  Message message = std::move(m_messages.front());
+  m_messages.pop_front();
+  return message;
 }
 
 uint64_t Feed::dropped() const {
@@ -278,7 +277,7 @@ Recording Feed::record(std::filesystem::path path) {
   return Recording(std::move(slot));
 }
 
-void Feed::replay(std::vector<Arrival> recording) {
+void Feed::replay(std::vector<Message> recording) {
   const std::lock_guard lock(m_mutex);
   m_recording = std::move(recording);
   m_replayed = 0;
@@ -304,12 +303,13 @@ void Feed::advance(double seconds) {
       m_origin = seconds;
       m_replayOrigin = std::chrono::steady_clock::now();
     }
-    const double elapsed = seconds - *m_origin;
+    const std::chrono::duration<double> elapsed(seconds - *m_origin);
     while (m_replayed != m_recording.size() &&
-           m_recording[m_replayed].at <= elapsed) {
-      const Arrival& recorded = m_recording[m_replayed];
+           m_recording[m_replayed].arrivedAt() <= elapsed) {
+      const Message& recorded = m_recording[m_replayed];
       ++m_replayed;
-      deliverLocked(recorded.bytes, recorded.at, std::string());
+      deliverLocked(recorded.payload, recorded.arrivedAt(),
+                    receivedAtLocked(recorded.arrivedAt()), std::string());
     }
     if (m_replayed != m_recording.size()) return;
     // Nothing else is coming: a reader that watches closed() learns
@@ -320,15 +320,13 @@ void Feed::advance(double seconds) {
   if (ending) ending();
 }
 
-std::chrono::steady_clock::time_point Feed::receivedAt(
-    const Arrival& arrival) const {
-  const std::lock_guard lock(m_mutex);
+std::chrono::steady_clock::time_point Feed::receivedAtLocked(
+    std::chrono::duration<double> arrivedAt) const {
   using Clock = std::chrono::steady_clock;
   using Duration = Clock::duration;
   const auto origin = m_replayOrigin.value_or(m_made);
-  const double ticks = std::chrono::duration<double, Duration::period>(
-                           std::chrono::duration<double>(arrival.at))
-                           .count();
+  const double ticks =
+      std::chrono::duration<double, Duration::period>(arrivedAt).count();
   if (!std::isfinite(ticks) || ticks < 0 ||
       ticks >= static_cast<double>(std::numeric_limits<Duration::rep>::max()))
     return origin;

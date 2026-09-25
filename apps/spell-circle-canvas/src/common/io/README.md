@@ -144,15 +144,15 @@ reader's side, which is everything a consumer of a feed calls.
 sigil::io::registerTransports(hub);                  // udp://, osc://, artnet://, ws://, wss://, shm://, midi://, serial://, grpc://, quic://, webrtc://
 sigil::io::registerTransports(hub, {"udp"});         // …or only the ones named: this socket's three schemes
 auto scene = hub.feed("udp://:27020");               // std::shared_ptr<sigil::io::Feed>
-if (auto newest = scene->latest())                   // the newest message whole; generation() counts them
-  draw(*newest->bytes);
-while (auto arrival = scene->receive())              // every message since the last receive, in order
-  fold(*arrival->bytes, arrival->from);              // …and the address that one came from
+if (auto newest = scene->latest())                   // the newest message whole; revision() counts them
+  draw(*newest->payload);
+while (auto message = scene->receive())              // every message since the last receive, in order
+  fold(*message->payload, message->sender());        // …and the address that one came from
 auto desk = hub.feed("udp://desk.local:9001");       // a peer: send() reaches it, its replies arrive
 desk->send(reply);
 auto control = hub.feed("osc://:9000");              // the same socket, for messages that are OSC
-if (auto arrival = scene->latest())                  // a listener holds no peer of its own…
-  scene->sendTo(arrival->from, reply);               // …so it answers the one sender that wrote to it
+if (auto message = scene->latest())                  // a listener holds no peer of its own…
+  scene->sendTo(message->sender(), reply);               // …so it answers the one sender that wrote to it
 auto browsers = hub.feed("ws://:8848/scene");        // every peer that reaches that path
 browsers->send(frame);                               // …and one send goes out to all of them
 auto staged = hub.feed("ws://:8848/sky?pages=res://sky");  // …and GET serves that directory

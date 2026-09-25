@@ -28,6 +28,7 @@
 
 using namespace sigil::io;
 namespace fs = std::filesystem;
+using seconds = std::chrono::duration<double>;
 
 namespace {
 
@@ -52,14 +53,14 @@ TEST_F(IOFeed, TheLatestIsTheNewestArrivalAndGenerationsCountFromOne) {
   const auto feed = std::make_shared<Feed>("udp://:27020");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   EXPECT_FALSE(feed->latest().has_value());
-  EXPECT_EQ(feed->generation(), 0u);
+  EXPECT_EQ(feed->revision(), 0u);
 
   inlet.deliver(message("first"));
-  EXPECT_EQ(feed->generation(), 1u);
+  EXPECT_EQ(feed->revision(), 1u);
   inlet.deliver(message("second"));
   ASSERT_TRUE(feed->latest().has_value());
-  EXPECT_EQ(feed->latest()->bytes->asText(), "second");
-  EXPECT_EQ(feed->generation(), 2u);
+  EXPECT_EQ(feed->latest()->payload->asText(), "second");
+  EXPECT_EQ(feed->revision(), 2u);
   EXPECT_EQ(feed->uri(), "udp://:27020");
   EXPECT_TRUE(feed->error().empty());
 }
@@ -72,12 +73,12 @@ TEST_F(IOFeed, TheLatestIsTheWholeArrivalAndOutlastsDraining) {
   inlet.deliver(message("first"), "udp://127.0.0.1:52341");
   inlet.deliver(message("second"), "udp://127.0.0.1:52342");
 
-  std::optional<Arrival> newest = feed->latest();
+  std::optional<Message> newest = feed->latest();
   ASSERT_TRUE(newest.has_value());
-  EXPECT_EQ(newest->bytes->asText(), "second");
-  EXPECT_EQ(newest->from, "udp://127.0.0.1:52342");
-  EXPECT_EQ(newest->generation, 2u);
-  EXPECT_GE(newest->at, 0.0);
+  EXPECT_EQ(newest->payload->asText(), "second");
+  EXPECT_EQ(newest->sender(), "udp://127.0.0.1:52342");
+  EXPECT_EQ(newest->revision(), 2u);
+  EXPECT_GE(newest->arrivedAt().count(), 0.0);
 
   while (feed->receive().has_value()) {
   }
@@ -85,8 +86,8 @@ TEST_F(IOFeed, TheLatestIsTheWholeArrivalAndOutlastsDraining) {
   // the queue it was also put on is empty.
   newest = feed->latest();
   ASSERT_TRUE(newest.has_value());
-  EXPECT_EQ(newest->generation, 2u);
-  EXPECT_EQ(newest->from, "udp://127.0.0.1:52342");
+  EXPECT_EQ(newest->revision(), 2u);
+  EXPECT_EQ(newest->sender(), "udp://127.0.0.1:52342");
 }
 
 TEST_F(IOFeed, AnArrivalCarriesTheSenderItWasDeliveredWithAndNoOther) {
@@ -95,15 +96,15 @@ TEST_F(IOFeed, AnArrivalCarriesTheSenderItWasDeliveredWithAndNoOther) {
   inlet.deliver(message("from a peer"), "udp://127.0.0.1:52341");
   inlet.deliver(message("from nowhere named"));
 
-  std::optional<Arrival> arrival = feed->receive();
+  std::optional<Message> arrival = feed->receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_EQ(arrival->from, "udp://127.0.0.1:52341");
+  EXPECT_EQ(arrival->sender(), "udp://127.0.0.1:52341");
   arrival = feed->receive();
   ASSERT_TRUE(arrival.has_value());
   // A transport with no way of knowing who sent a message names
   // nobody, and the arrival is one all the same.
-  EXPECT_TRUE(arrival->from.empty());
-  EXPECT_EQ(arrival->bytes->asText(), "from nowhere named");
+  EXPECT_TRUE(arrival->sender().empty());
+  EXPECT_EQ(arrival->payload->asText(), "from nowhere named");
 }
 
 TEST_F(IOFeed, ReceiveHandsOutEveryArrivalInOrderAndThenNothing) {
@@ -113,15 +114,15 @@ TEST_F(IOFeed, ReceiveHandsOutEveryArrivalInOrderAndThenNothing) {
     inlet.deliver(message(std::to_string(number)));
 
   for (int number = 0; number != 3; ++number) {
-    const std::optional<Arrival> arrival = feed->receive();
+    const std::optional<Message> arrival = feed->receive();
     ASSERT_TRUE(arrival.has_value());
-    EXPECT_EQ(arrival->generation, (uint64_t)number + 1);
-    EXPECT_EQ(arrival->bytes->asText(), std::to_string(number));
-    EXPECT_GE(arrival->at, 0.0);
+    EXPECT_EQ(arrival->revision(), (uint64_t)number + 1);
+    EXPECT_EQ(arrival->payload->asText(), std::to_string(number));
+    EXPECT_GE(arrival->arrivedAt().count(), 0.0);
   }
   EXPECT_FALSE(feed->receive().has_value());
   // Draining is not forgetting: the newest is still the newest.
-  EXPECT_EQ(feed->latest()->bytes->asText(), "2");
+  EXPECT_EQ(feed->latest()->payload->asText(), "2");
 }
 
 TEST_F(IOFeed, AFullFeedDropsTheOldestAndCountsIt) {
@@ -132,17 +133,17 @@ TEST_F(IOFeed, AFullFeedDropsTheOldestAndCountsIt) {
   inlet.deliver(message("three"));
 
   EXPECT_EQ(feed->dropped(), 1u);
-  std::optional<Arrival> arrival = feed->receive();
+  std::optional<Message> arrival = feed->receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_EQ(arrival->bytes->asText(), "two");
+  EXPECT_EQ(arrival->payload->asText(), "two");
   arrival = feed->receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_EQ(arrival->bytes->asText(), "three");
+  EXPECT_EQ(arrival->payload->asText(), "three");
   EXPECT_FALSE(feed->receive().has_value());
   // What fell off the front is what a reader could not keep up with.
   // The newest message and the count of them are untouched.
-  EXPECT_EQ(feed->latest()->bytes->asText(), "three");
-  EXPECT_EQ(feed->generation(), 3u);
+  EXPECT_EQ(feed->latest()->payload->asText(), "three");
+  EXPECT_EQ(feed->revision(), 3u);
 }
 
 TEST_F(IOFeed, AClosedFeedKeepsWhatItHoldsAndTakesNothingNew) {
@@ -153,11 +154,11 @@ TEST_F(IOFeed, AClosedFeedKeepsWhatItHoldsAndTakesNothingNew) {
   EXPECT_TRUE(feed->closed());
 
   inlet.deliver(message("after"));
-  EXPECT_EQ(feed->generation(), 1u);
-  EXPECT_EQ(feed->latest()->bytes->asText(), "before");
-  const std::optional<Arrival> arrival = feed->receive();
+  EXPECT_EQ(feed->revision(), 1u);
+  EXPECT_EQ(feed->latest()->payload->asText(), "before");
+  const std::optional<Message> arrival = feed->receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_EQ(arrival->bytes->asText(), "before");
+  EXPECT_EQ(arrival->payload->asText(), "before");
   EXPECT_FALSE(feed->receive().has_value());
 }
 
@@ -231,7 +232,7 @@ TEST_F(IOFeed, AUriWithNoSchemeIsAFeedWhoseErrorSaysSo) {
   const std::shared_ptr<Feed> feed = hub.feed("no-door-here");
   ASSERT_NE(feed, nullptr);
   EXPECT_NE(feed->error().find("scheme"), std::string::npos);
-  EXPECT_EQ(feed->generation(), 0u);
+  EXPECT_EQ(feed->revision(), 0u);
 }
 
 TEST_F(IOFeed, AUriWithNoTransportIsAFeedWhoseErrorSaysSo) {
@@ -322,21 +323,21 @@ TEST_F(IOFeed, ARecordingReadsBackTheBytesAndTimesItWasWrittenWith) {
   {
     RecordingWriter writer(path);
     ASSERT_TRUE(writer.good());
-    EXPECT_TRUE(writer.append({7, 0.25, shared("first")}));
-    EXPECT_TRUE(writer.append({8, 1.5, shared("second")}));
+    EXPECT_TRUE(writer.append(Message(shared("first"), {}, seconds(0.25), 7)));
+    EXPECT_TRUE(writer.append(Message(shared("second"), {}, seconds(1.5), 8)));
   }
 
-  const std::optional<std::vector<Arrival>> read = readRecording(path);
+  const std::optional<std::vector<Message>> read = readRecording(path);
   ASSERT_TRUE(read.has_value());
   ASSERT_EQ(read->size(), 2u);
-  EXPECT_EQ((*read)[0].bytes->asText(), "first");
-  EXPECT_EQ((*read)[1].bytes->asText(), "second");
-  EXPECT_EQ((*read)[0].at, 0.25);
-  EXPECT_EQ((*read)[1].at, 1.5);
-  // The file carries no generations: what was written as 7 and 8 reads
+  EXPECT_EQ((*read)[0].payload->asText(), "first");
+  EXPECT_EQ((*read)[1].payload->asText(), "second");
+  EXPECT_EQ((*read)[0].arrivedAt(), seconds(0.25));
+  EXPECT_EQ((*read)[1].arrivedAt(), seconds(1.5));
+  // The file carries no revisions: what was written as 7 and 8 reads
   // back numbered from one, because the count belongs to a feed.
-  EXPECT_EQ((*read)[0].generation, 1u);
-  EXPECT_EQ((*read)[1].generation, 2u);
+  EXPECT_EQ((*read)[0].revision(), 1u);
+  EXPECT_EQ((*read)[1].revision(), 2u);
   EXPECT_FALSE(readRecording(dir.path / "never-written.feed").has_value());
 }
 
@@ -344,23 +345,23 @@ TEST_F(IOFeed, ARecordingCutShortKeepsTheWholeFramesBeforeTheCut) {
   const fs::path path = dir.path / "killed.feed";
   {
     RecordingWriter writer(path);
-    writer.append({1, 0.0, shared("whole")});
-    writer.append({2, 1.0, shared("cut through the middle")});
+    writer.append(Message(shared("whole"), {}, seconds(0.0), 1));
+    writer.append(Message(shared("cut through the middle"), {}, seconds(1.0), 2));
   }
   fs::resize_file(path, fs::file_size(path) - 6);
 
-  const std::optional<std::vector<Arrival>> read = readRecording(path);
+  const std::optional<std::vector<Message>> read = readRecording(path);
   ASSERT_TRUE(read.has_value());
   ASSERT_EQ(read->size(), 1u);
-  EXPECT_EQ((*read)[0].bytes->asText(), "whole");
+  EXPECT_EQ((*read)[0].payload->asText(), "whole");
 }
 
 TEST_F(IOFeed, AReplayedUriPlaysItsRecordingByTheTimeDispatched) {
   const fs::path path = dir.path / "scene.feed";
   {
     RecordingWriter writer(path);
-    writer.append({1, 0.0, shared("at zero")});
-    writer.append({2, 1.0, shared("at one")});
+    writer.append(Message(shared("at zero"), {}, seconds(0.0), 1));
+    writer.append(Message(shared("at one"), {}, seconds(1.0), 2));
   }
   // Named through the mount table, as a sketch names its own files.
   const std::shared_ptr<Feed> replaying =
@@ -370,26 +371,26 @@ TEST_F(IOFeed, AReplayedUriPlaysItsRecordingByTheTimeDispatched) {
   EXPECT_EQ(feed, replaying);
   ASSERT_NE(feed, nullptr);
   EXPECT_TRUE(feed->error().empty());
-  EXPECT_EQ(feed->generation(), 0u);  // nothing arrives until time moves
+  EXPECT_EQ(feed->revision(), 0u);  // nothing arrives until time moves
 
   hub.dispatch(0.0);
-  EXPECT_EQ(feed->generation(), 1u);
-  EXPECT_EQ(feed->latest()->bytes->asText(), "at zero");
+  EXPECT_EQ(feed->revision(), 1u);
+  EXPECT_EQ(feed->latest()->payload->asText(), "at zero");
   EXPECT_FALSE(feed->closed());
 
   hub.dispatch(1.0);
-  EXPECT_EQ(feed->generation(), 2u);
-  EXPECT_EQ(feed->latest()->bytes->asText(), "at one");
+  EXPECT_EQ(feed->revision(), 2u);
+  EXPECT_EQ(feed->latest()->payload->asText(), "at one");
   EXPECT_TRUE(feed->closed());  // the recording ran out
 
-  const std::optional<Arrival> first = feed->receive();
+  const std::optional<Message> first = feed->receive();
   ASSERT_TRUE(first.has_value());
-  EXPECT_EQ(first->at, 0.0);  // the recorded time, not a clock's
+  EXPECT_EQ(first->arrivedAt().count(), 0.0);  // the recorded time, not a clock's
   // A recording is the messages and not who sent them.
-  EXPECT_TRUE(first->from.empty());
-  const std::optional<Arrival> second = feed->receive();
+  EXPECT_TRUE(first->sender().empty());
+  const std::optional<Message> second = feed->receive();
   ASSERT_TRUE(second.has_value());
-  EXPECT_EQ(second->at, 1.0);
+  EXPECT_EQ(second->arrivedAt().count(), 1.0);
 }
 
 TEST_F(IOFeed, AFileThatIsNoRecordingIsAFeedWhoseErrorSaysSo) {
@@ -399,7 +400,7 @@ TEST_F(IOFeed, AFileThatIsNoRecordingIsAFeedWhoseErrorSaysSo) {
   ASSERT_NE(feed, nullptr);
   EXPECT_FALSE(feed->error().empty());
   hub.dispatch(1.0);
-  EXPECT_EQ(feed->generation(), 0u);
+  EXPECT_EQ(feed->revision(), 0u);
 }
 
 TEST_F(IOFeed, RecordingALiveFeedWritesWhatArrives) {
@@ -414,15 +415,15 @@ TEST_F(IOFeed, RecordingALiveFeedWritesWhatArrives) {
   }  // the handle is gone, so the recording is: the file stands as it is
   inlet.deliver(message("three"));
 
-  const std::optional<std::vector<Arrival>> read = readRecording(path);
+  const std::optional<std::vector<Message>> read = readRecording(path);
   ASSERT_TRUE(read.has_value());
   ASSERT_EQ(read->size(), 2u);
-  EXPECT_EQ((*read)[0].bytes->asText(), "one");
-  EXPECT_EQ((*read)[1].bytes->asText(), "two");
+  EXPECT_EQ((*read)[0].payload->asText(), "one");
+  EXPECT_EQ((*read)[1].payload->asText(), "two");
   // A live feed stamps the seconds since it was made, in the order it
   // took the messages.
-  EXPECT_GE((*read)[0].at, 0.0);
-  EXPECT_LE((*read)[0].at, (*read)[1].at);
+  EXPECT_GE((*read)[0].arrivedAt().count(), 0.0);
+  EXPECT_LE((*read)[0].arrivedAt().count(), (*read)[1].arrivedAt().count());
 }
 
 TEST_F(IOFeed, ARecordingStopsWhenToldAndWhenAnotherTakesItsPlace) {
@@ -438,16 +439,16 @@ TEST_F(IOFeed, ARecordingStopsWhenToldAndWhenAnotherTakesItsPlace) {
   EXPECT_TRUE(second.stopped());
   inlet.deliver(message("three"));
 
-  const std::optional<std::vector<Arrival>> one =
+  const std::optional<std::vector<Message>> one =
       readRecording(dir.path / "first.feed");
   ASSERT_TRUE(one.has_value());
   ASSERT_EQ(one->size(), 1u);
-  EXPECT_EQ((*one)[0].bytes->asText(), "one");
-  const std::optional<std::vector<Arrival>> two =
+  EXPECT_EQ((*one)[0].payload->asText(), "one");
+  const std::optional<std::vector<Message>> two =
       readRecording(dir.path / "second.feed");
   ASSERT_TRUE(two.has_value());
   ASSERT_EQ(two->size(), 1u);
-  EXPECT_EQ((*two)[0].bytes->asText(), "two");
+  EXPECT_EQ((*two)[0].payload->asText(), "two");
 
   // A file that cannot be opened is a handle that has already stopped.
   const Recording nowhere = feed->record(dir.path / "absent" / "x.feed");
@@ -459,7 +460,7 @@ TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
   const fs::path path = dir.path / "taken.feed";
   {
     RecordingWriter writer(path);
-    writer.append({1, 0.0, shared("recorded")});
+    writer.append(Message(shared("recorded"), {}, seconds(0.0), 1));
   }
   hub.setFeedTransport("udp", [](std::string_view, Inlet) {
     return OpenedFeed{};
@@ -484,8 +485,8 @@ TEST_F(IOFeed, ArrivalsFromAnotherThreadAreAllReceivedInOrder) {
 
   std::vector<std::string> received;
   while ((int)received.size() != count)
-    if (const std::optional<Arrival> arrival = feed->receive())
-      received.push_back(std::string(arrival->bytes->asText()));
+    if (const std::optional<Message> arrival = feed->receive())
+      received.push_back(std::string(arrival->payload->asText()));
   sender.join();
 
   ASSERT_EQ((int)received.size(), count);
@@ -531,15 +532,15 @@ TEST_F(IOFeed, ACallbackSeesWhatTheSameDispatchDelivered) {
   const fs::path path = dir.path / "seen.feed";
   {
     RecordingWriter writer(path);
-    writer.append({1, 0.0, shared("at zero")});
+    writer.append(Message(shared("at zero"), {}, seconds(0.0), 1));
   }
   const std::shared_ptr<Feed> feed =
       hub.replay("udp://:27020", path.string());
 
   std::vector<std::string> seen;
   const DispatchLease lease = hub.onDispatch([&seen, feed](double) {
-    if (const std::optional<Arrival> arrival = feed->receive())
-      seen.emplace_back(arrival->bytes->asText());
+    if (const std::optional<Message> arrival = feed->receive())
+      seen.emplace_back(arrival->payload->asText());
   });
 
   hub.dispatch(0.0);
@@ -558,10 +559,10 @@ TEST_F(IOFeed, LiveArrivalTimeIsIndependentOfQueueDrainTime) {
   const auto after = Clock::now();
   const auto arrival = feed->receive();
   ASSERT_TRUE(arrival);
-  const auto received = feed->receivedAt(*arrival);
+  const auto received = arrival->receivedAt();
   EXPECT_GE(received, before);
   EXPECT_LE(received, after);
-  EXPECT_EQ(received, feed->receivedAt(*arrival));
+  EXPECT_EQ(received, arrival->receivedAt());
 }
 
 TEST_F(IOFeed, ReplayArrivalTimeUsesFirstDispatchAndRecordedSpacing) {
@@ -570,8 +571,8 @@ TEST_F(IOFeed, ReplayArrivalTimeUsesFirstDispatchAndRecordedSpacing) {
   const fs::path path = dir.path / "clock.feed";
   {
     RecordingWriter writer(path);
-    writer.append({1, 0.0, shared("one")});
-    writer.append({2, 0.25, shared("two")});
+    writer.append(Message(shared("one"), {}, seconds(0.0), 1));
+    writer.append(Message(shared("two"), {}, seconds(0.25), 2));
   }
   const std::shared_ptr<Feed> feed = hub.replay("test://clock", path.string());
   const auto before = Clock::now();
@@ -579,27 +580,28 @@ TEST_F(IOFeed, ReplayArrivalTimeUsesFirstDispatchAndRecordedSpacing) {
   const auto after = Clock::now();
   const auto first = feed->receive();
   ASSERT_TRUE(first);
-  const auto origin = feed->receivedAt(*first);
+  const auto origin = first->receivedAt();
   EXPECT_GE(origin, before);
   EXPECT_LE(origin, after);
   hub.dispatch(900.25);
   const auto second = feed->receive();
   ASSERT_TRUE(second);
-  EXPECT_EQ(feed->receivedAt(*second) - origin, 250ms);
+  EXPECT_EQ(second->receivedAt() - origin, 250ms);
 }
 
 TEST_F(IOFeed, InvalidOrUnrepresentableArrivalTimesMapToTheClockOrigin) {
   using Clock = std::chrono::steady_clock;
   const auto feed = std::make_shared<Feed>("test://clock");
-  Arrival arrival{};
-  const auto origin = feed->receivedAt(arrival);
+  const Inlet inlet = sigil::io::testing::inletOf(feed);
+  inlet.deliver(message("at the origin"), 0.0);
+  const auto origin = feed->receive()->receivedAt();
   for (const double invalid :
        {-1.0, -std::numeric_limits<double>::infinity(),
         std::numeric_limits<double>::infinity(),
         std::numeric_limits<double>::quiet_NaN(),
         std::numeric_limits<double>::max(),
         std::chrono::duration<double>(Clock::duration::max()).count()}) {
-    arrival.at = invalid;
-    EXPECT_EQ(feed->receivedAt(arrival), origin);
+    inlet.deliver(message("out of range"), invalid);
+    EXPECT_EQ(feed->receive()->receivedAt(), origin);
   }
 }

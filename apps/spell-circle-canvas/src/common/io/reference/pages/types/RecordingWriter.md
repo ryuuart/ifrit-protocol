@@ -20,7 +20,7 @@ back.
 ### The format
 
 A recording opens with the line `sigil-feed-recording 1`. Every frame
-after it is the arrival's time as a double, then the message's length as
+after it is the message's `Message::arrivedAt` in seconds as a double, then the message's length as
 a 32-bit unsigned, then that many bytes. Both numbers are in the byte
 order of the machine that wrote them: a recording is read by that machine
 and by its peers rather than carried between architectures, and every
@@ -32,7 +32,7 @@ keeps every whole one before it.
 
 ### What a recording does not carry
 
-An arrival's generation is not written down. It counts the messages one
+A message's revision is not written down. It counts the messages one
 feed has taken, which is a property of the feed rather than of the
 recording, so a reader numbers the frames 1, 2, 3 as it reads them.
 

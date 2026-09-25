@@ -254,13 +254,13 @@ struct Connection::State {
    *  replying answers the sender of it. */
   void dispatch() {
     if (!feed) return;
-    while (const std::optional<io::Arrival> arrival = feed->receive()) {
+    while (const std::optional<io::Message> arrival = feed->receive()) {
       // The bytes are latched whether or not they are a message in this
       // door's scheme, because a reading asked for a VALUE decodes them
       // itself: a buffer arriving at a door read as JSON text is no Json
       // message and is still the value its sender wrote.
-      latestBytes = arrival->bytes;
-      std::optional<Json> message = read(*arrival->bytes);
+      latestBytes = arrival->payload;
+      std::optional<Json> message = read(*arrival->payload);
       if (!message) {
         ++undecodable;
         continue;
@@ -269,7 +269,7 @@ struct Connection::State {
       // Who sent it moves with what it says: a message that cannot be
       // read is no message, so it leaves the sender standing exactly as
       // it leaves the latest standing.
-      sender = arrival->from;
+      sender = arrival->sender();
       const std::string_view name = nameOf(latest);
       // A message that says what it is is latched under that name as
       // well as under none, so a reader asks for the newest of one name
@@ -351,8 +351,8 @@ const Json& Connection::latest(std::string_view what) const {
   return found == m_state->named.end() ? nothing() : found->second.message;
 }
 
-uint64_t Connection::generation() const {
-  return m_state && m_state->feed ? m_state->feed->generation() : 0;
+uint64_t Connection::revision() const {
+  return m_state && m_state->feed ? m_state->feed->revision() : 0;
 }
 
 std::optional<Json> Connection::receive() {
@@ -448,7 +448,7 @@ bool Connection::closed() const {
 }
 
 Connection::Vitals Connection::vitals() const {
-  return {.generation = generation(),
+  return {.revision = revision(),
           .dropped = dropped(),
           .undecodable = undecodable(),
           .closed = closed(),

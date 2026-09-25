@@ -31,7 +31,7 @@
 namespace {
 
 using boost::asio::ip::udp;
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -127,7 +127,7 @@ TEST_F(IOUdp, AListeningFeedSaysWhichPortItBoundAndTakesWhatArrivesThere) {
 
   sendTo(port, "a scene arrives");
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "a scene arrives");
+  EXPECT_EQ(listener->latest()->payload->asText(), "a scene arrives");
 }
 
 TEST_F(IOUdp, AnArrivalNamesTheSenderTheDatagramCameFrom) {
@@ -140,14 +140,14 @@ TEST_F(IOUdp, AnArrivalNamesTheSenderTheDatagramCameFrom) {
   ASSERT_NE(sender, 0);
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
 
-  const std::optional<Arrival> arrival = listener->receive();
+  const std::optional<Message> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_EQ(arrival->bytes->asText(), "from somewhere");
+  EXPECT_EQ(arrival->payload->asText(), "from somewhere");
   // The sender is the loopback socket the datagram left, named with the
   // port it took and spelled the way a URI that would reach it is — not
   // the mapping a dual-stack socket holds an IPv4 peer as.
-  EXPECT_TRUE(arrival->from.starts_with("udp://127.0.0.1:")) << arrival->from;
-  EXPECT_EQ(portOf(arrival->from), sender) << arrival->from;
+  EXPECT_TRUE(arrival->sender().starts_with("udp://127.0.0.1:")) << arrival->sender();
+  EXPECT_EQ(portOf(arrival->sender()), sender) << arrival->sender();
 }
 
 TEST_F(IOUdp, AnOscFeedIsTheSameSocketUnderItsOwnName) {
@@ -162,11 +162,11 @@ TEST_F(IOUdp, AnOscFeedIsTheSameSocketUnderItsOwnName) {
 
   ASSERT_NE(sendTo(port, "#bundle"), 0);
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "#bundle");
+  EXPECT_EQ(listener->latest()->payload->asText(), "#bundle");
 
-  const std::optional<Arrival> arrival = listener->receive();
+  const std::optional<Message> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_TRUE(arrival->from.starts_with("osc://")) << arrival->from;
+  EXPECT_TRUE(arrival->sender().starts_with("osc://")) << arrival->sender();
 }
 
 TEST_F(IOUdp, AnArtNetFeedIsTheSameSocketUnderTheLightingDesksName) {
@@ -182,11 +182,11 @@ TEST_F(IOUdp, AnArtNetFeedIsTheSameSocketUnderTheLightingDesksName) {
 
   ASSERT_NE(sendTo(port, "Art-Net"), 0);
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "Art-Net");
+  EXPECT_EQ(listener->latest()->payload->asText(), "Art-Net");
 
-  const std::optional<Arrival> arrival = listener->receive();
+  const std::optional<Message> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_TRUE(arrival->from.starts_with("artnet://")) << arrival->from;
+  EXPECT_TRUE(arrival->sender().starts_with("artnet://")) << arrival->sender();
 }
 
 TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {
@@ -202,7 +202,7 @@ TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {
   EXPECT_TRUE(sender->send(bytesOf("through the door")));
 
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->bytes->asText(), "through the door");
+  EXPECT_EQ(listener->latest()->payload->asText(), "through the door");
   // A listener answers whoever writes to it and holds no peer of its
   // own, so there is no way back out through it.
   EXPECT_FALSE(listener->send(bytesOf("no way back")));
@@ -226,13 +226,13 @@ TEST_F(IOUdp, AListenerAnswersTheSenderOfADatagram) {
                udp::endpoint(boost::asio::ip::address_v4::loopback(), port));
 
   ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  const std::optional<Arrival> arrival = listener->receive();
+  const std::optional<Message> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
   // A listener holds no peer, so there is no broadcast out of it — and
   // the sender an arrival names is an address it can write back to, so
   // the one it is answering it can answer.
   EXPECT_FALSE(listener->send(bytesOf("no way back")));
-  EXPECT_TRUE(listener->sendTo(arrival->from, bytesOf("the sky answers")));
+  EXPECT_TRUE(listener->sendTo(arrival->sender(), bytesOf("the sky answers")));
 
   ASSERT_TRUE(waitUntil([&] { return desk.available() != 0; }));
   std::array<char, 64> answer{};

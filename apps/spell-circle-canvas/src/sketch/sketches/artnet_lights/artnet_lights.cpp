@@ -418,7 +418,7 @@ struct ArtNetLights {
                                             "%4d", (int)channels[at].number())
                                       : std::string("   -");
     Reading now{
-        .generation = desk.generation(),
+        .generation = desk.revision(),
         .undecodable = desk.undecodable(),
         .answered = answered,
         .universe = newest.null() ? -1 : (int)newest["universe"].number(),

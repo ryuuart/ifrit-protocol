@@ -63,7 +63,7 @@ struct Vitals {
 };
 
 Vitals vitalsOf(const io::Feed& feed) {
-  return {.generation = feed.generation(),
+  return {.generation = feed.revision(),
           .dropped = feed.dropped(),
           .closed = feed.closed(),
           .address = feed.address(),
@@ -117,8 +117,8 @@ struct FeedVitals {
    *  to be written again. */
   bool drain() {
     if (!arrivals) return false;
-    while (const std::optional<io::Arrival> arrival = arrivals->receive())
-      ticks.push_back(arrival->at);
+    while (const std::optional<io::Message> arrival = arrivals->receive())
+      ticks.push_back(arrival->arrivedAt().count());
     while (!ticks.empty() && ticks.front() < now - (double)kWindow)
       ticks.pop_front();
     const Vitals reading = vitalsOf(*arrivals);
@@ -240,10 +240,10 @@ struct FeedVitals {
    *  is them. */
   Element bytes() {
     const sketch::kit::Theme& look = sketch::kit::theme();
-    const std::optional<io::Arrival> latest =
+    const std::optional<io::Message> latest =
         arrivals ? arrivals->latest() : std::nullopt;
     const std::shared_ptr<const io::Bytes> message =
-        latest ? latest->bytes : nullptr;
+        latest ? latest->payload : nullptr;
     std::string headline = "nothing has arrived";
     std::vector<std::string> rows;
     if (message) {

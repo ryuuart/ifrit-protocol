@@ -53,8 +53,8 @@ class Log {
    *  answers how many were taken. */
   size_t drain(io::Feed& feed);
 
-  /** Retains one arrival already drained by the host, sharing its bytes. */
-  void append(const io::Arrival& arrival);
+  /** Retains one message already drained by the host, sharing its bytes. */
+  void append(const io::Message& message);
 
   /** Every entry, oldest first. */
   const std::deque<LogEntry>& entries() const { return m_entries; }

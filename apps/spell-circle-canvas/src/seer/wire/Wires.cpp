@@ -83,7 +83,7 @@ void Wires::tick(double seconds) {
   m_vitals.reserve(m_watches.size());
   for (Watch& watch : m_watches) {
     io::Feed& feed = *watch.feed;
-    watch.samples.push_back({seconds, feed.generation()});
+    watch.samples.push_back({seconds, feed.revision()});
     // The oldest sample kept is the newest one that is already a whole
     // second old, so the span a rate is read over covers a second as
     // soon as a second has been ticked and never more than one tick
@@ -110,9 +110,9 @@ void Wires::tick(double seconds) {
     // a message between two asks cannot be shown one message's bytes
     // under another message's sender. A feed latches it rather than
     // queueing it, so a wire nobody drains names its sender too.
-    if (const std::optional<io::Arrival> arrival = feed.latest()) {
-      vitals.newest = arrival->bytes;
-      vitals.lastFrom = arrival->from;
+    if (const std::optional<io::Message> message = feed.latest()) {
+      vitals.newest = message->payload;
+      vitals.lastFrom = message->sender();
     }
     m_vitals.push_back(std::move(vitals));
   }

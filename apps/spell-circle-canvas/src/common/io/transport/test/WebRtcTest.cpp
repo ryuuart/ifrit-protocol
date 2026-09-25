@@ -68,7 +68,7 @@ extern char** environ;
 
 namespace {
 
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -213,9 +213,9 @@ TEST(IOWebRtcPeer, TheOneACaseStartsThisBinaryFor) {
       next = std::chrono::steady_clock::now() + kPeerSays;
       caller->send(bytesOf(saying));
     }
-    while (const std::optional<Arrival> arrival = caller->receive())
+    while (const std::optional<Message> arrival = caller->receive())
       caller->send(
-          bytesOf(std::string(kEcho) + std::string(arrival->bytes->asText())));
+          bytesOf(std::string(kEcho) + std::string(arrival->payload->asText())));
     std::this_thread::sleep_for(1ms);
   }
 }
@@ -416,8 +416,8 @@ class IOWebRtc : public ::testing::Test {
     PeerStanding standing;
     standing.cameUp = true;
     waitUntil([&] {
-      while (const std::optional<Arrival> arrival = onto->receive())
-        if (arrival->bytes->asText() == saying) standing.sender = arrival->from;
+      while (const std::optional<Message> arrival = onto->receive())
+        if (arrival->payload->asText() == saying) standing.sender = arrival->sender();
       return !standing.sender.empty();
     });
     return standing;
@@ -431,8 +431,8 @@ class IOWebRtc : public ::testing::Test {
     const std::string expected = std::string(kEcho) + std::string(text);
     bool heard = false;
     waitUntil([&] {
-      while (const std::optional<Arrival> arrival = onto->receive())
-        if (arrival->from == from && arrival->bytes->asText() == expected)
+      while (const std::optional<Message> arrival = onto->receive())
+        if (arrival->sender() == from && arrival->payload->asText() == expected)
           heard = true;
       return heard;
     });
@@ -530,9 +530,9 @@ TEST_F(IOWebRtc, SendToReachesTheOnePeerItNamesAndNoOther) {
   EXPECT_TRUE(waiting->send(bytesOf("out to everyone")));
   EXPECT_TRUE(echoedBy(waiting, second.sender, "out to everyone"));
   bool answeredTwice = false;
-  while (const std::optional<Arrival> arrival = waiting->receive())
-    if (arrival->from == second.sender &&
-        arrival->bytes->asText() == std::string(kEcho) + "to you alone")
+  while (const std::optional<Message> arrival = waiting->receive())
+    if (arrival->sender() == second.sender &&
+        arrival->payload->asText() == std::string(kEcho) + "to you alone")
       answeredTwice = true;
   EXPECT_FALSE(answeredTwice);
 }
@@ -553,7 +553,7 @@ TEST_F(IOWebRtc, ASignalNobodyAnswersLeavesTheCallerOpenAndSilent) {
   // as somebody may still answer.
   EXPECT_TRUE(caller->error().empty()) << caller->error();
   EXPECT_FALSE(caller->closed());
-  EXPECT_EQ(caller->generation(), 0u);
+  EXPECT_EQ(caller->revision(), 0u);
 }
 
 TEST_F(IOWebRtc, DroppingTheLastHolderOfAFeedGivesUpItsSignallingPort) {
@@ -629,8 +629,8 @@ TEST_F(IOWebRtc,
         next = std::chrono::steady_clock::now() + kPeerSays;
         calling->send(bytesOf(said));
       }
-      while (const std::optional<Arrival> arrival = waiting->receive())
-        if (arrival->bytes->asText() == said) crossed = true;
+      while (const std::optional<Message> arrival = waiting->receive())
+        if (arrival->payload->asText() == said) crossed = true;
       return crossed || !waiting->error().empty() || !calling->error().empty();
     };
     waitUntil(settled, kPairing);

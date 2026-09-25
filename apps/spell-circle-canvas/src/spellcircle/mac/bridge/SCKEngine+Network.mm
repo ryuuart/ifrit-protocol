@@ -46,15 +46,9 @@ NSString *addressOf(const std::string &from) {
 - (void)start {
   const std::string uri = "udp://:" + std::to_string(_port);
   // The hub answers one feed per URI for as long as anyone holds it, so
-  // asking for the port already open keeps the door standing — and with
-  // it the origin every arrival's time is counted from — rather than
+  // asking for the port already open keeps the door standing rather than
   // closing a socket in order to bind the same one again.
-  const auto openedAt = std::chrono::steady_clock::now();
-  std::shared_ptr<sigil::io::Feed> opened = _hub.feed(uri, {.capacity = kArrivalCapacity});
-  if (opened != _door) {
-    _door = std::move(opened);
-    _doorOpenedAt = openedAt;
-  }
+  _door = _hub.feed(uri, {.capacity = kArrivalCapacity});
 
   const std::string error = _door->error();
   if (!error.empty()) {
@@ -100,15 +94,14 @@ NSString *addressOf(const std::string &from) {
   // the receiver down, and what a closed door still holds is nobody's to
   // ingest.
   while (const std::shared_ptr<sigil::io::Feed> door = _door) {
-    const std::optional<sigil::io::Arrival> arrival = door->receive();
+    const std::optional<sigil::io::Message> arrival = door->receive();
     if (!arrival) return;
     @autoreleasepool {
-      NSData *payload = [NSData dataWithBytes:arrival->bytes->data()
-                                       length:arrival->bytes->size()];
-      const auto receivedAt =
-          _doorOpenedAt + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                              std::chrono::duration<double>(arrival->at));
-      [self receiveDatagram:payload source:addressOf(arrival->from) receivedAt:receivedAt];
+      NSData *payload = [NSData dataWithBytes:arrival->payload->data()
+                                       length:arrival->payload->size()];
+      [self receiveDatagram:payload
+                     source:addressOf(arrival->sender())
+                 receivedAt:arrival->receivedAt()];
     }
   }
 }

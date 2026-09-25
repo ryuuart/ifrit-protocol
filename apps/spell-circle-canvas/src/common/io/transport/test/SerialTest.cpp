@@ -39,7 +39,7 @@
 
 namespace {
 
-using sigil::io::Arrival;
+using sigil::io::Message;
 using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
@@ -170,19 +170,19 @@ TEST_F(IOSerial, TwoLinesAreTwoArrivalsInOrderWithoutTheirNewlines) {
   EXPECT_EQ(sensor->address(), "serial://" + m_device);
 
   toMaster("{\"lux\":412}\n{\"tilt\":-3.2}\n");
-  ASSERT_TRUE(waitUntil([&] { return sensor->generation() == 2; }));
+  ASSERT_TRUE(waitUntil([&] { return sensor->revision() == 2; }));
 
-  const std::optional<Arrival> first = sensor->receive();
+  const std::optional<Message> first = sensor->receive();
   ASSERT_TRUE(first.has_value());
-  EXPECT_EQ(first->bytes->asText(), "{\"lux\":412}");
+  EXPECT_EQ(first->payload->asText(), "{\"lux\":412}");
   // The sender is the port the line came off, spelled the way a URI
   // that opens it is — the settings this end was told to read it at
   // being no part of what the board IS.
-  EXPECT_EQ(first->from, "serial://" + m_device);
+  EXPECT_EQ(first->sender(), "serial://" + m_device);
 
-  const std::optional<Arrival> second = sensor->receive();
+  const std::optional<Message> second = sensor->receive();
   ASSERT_TRUE(second.has_value());
-  EXPECT_EQ(second->bytes->asText(), "{\"tilt\":-3.2}");
+  EXPECT_EQ(second->payload->asText(), "{\"tilt\":-3.2}");
 }
 
 TEST_F(IOSerial, ACarriageReturnBeforeTheNewlineIsNoPartOfTheLine) {
@@ -193,7 +193,7 @@ TEST_F(IOSerial, ACarriageReturnBeforeTheNewlineIsNoPartOfTheLine) {
   // and what a reader wants is the reading without either.
   toMaster("{\"tilt\":-3.2}\r\n");
   ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
-  EXPECT_EQ(sensor->latest()->bytes->asText(), "{\"tilt\":-3.2}");
+  EXPECT_EQ(sensor->latest()->payload->asText(), "{\"tilt\":-3.2}");
 }
 
 TEST_F(IOSerial, ALineThatArrivedInTwoWritesIsOneArrival) {
@@ -209,8 +209,8 @@ TEST_F(IOSerial, ALineThatArrivedInTwoWritesIsOneArrival) {
 
   toMaster("40,\"tilt\":1.5}\n");
   ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
-  EXPECT_EQ(sensor->latest()->bytes->asText(), "{\"lux\":640,\"tilt\":1.5}");
-  EXPECT_EQ(sensor->generation(), 1u);
+  EXPECT_EQ(sensor->latest()->payload->asText(), "{\"lux\":640,\"tilt\":1.5}");
+  EXPECT_EQ(sensor->revision(), 1u);
 }
 
 TEST_F(IOSerial, ABlankLineIsNoReadingAndDoesNotArrive) {
@@ -222,8 +222,8 @@ TEST_F(IOSerial, ABlankLineIsNoReadingAndDoesNotArrive) {
   // blank would read every field of it as missing.
   toMaster("\n\n{\"lux\":10}\n\n");
   ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
-  EXPECT_EQ(sensor->latest()->bytes->asText(), "{\"lux\":10}");
-  EXPECT_EQ(sensor->generation(), 1u);
+  EXPECT_EQ(sensor->latest()->payload->asText(), "{\"lux\":10}");
+  EXPECT_EQ(sensor->revision(), 1u);
 }
 
 TEST_F(IOSerial, SendWritesALineTheOtherEndReadsBack) {

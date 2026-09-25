@@ -163,7 +163,7 @@ class LiveSignals:
             if arrival is None:
                 break
             try:
-                signal = decoded(arrival.bytes)
+                signal = decoded(arrival.payload)
             except (TypeError, ValueError, RuntimeError) as error:
                 self.rejected += 1
                 self.problem = (

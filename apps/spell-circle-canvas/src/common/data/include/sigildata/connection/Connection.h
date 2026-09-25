@@ -101,7 +101,7 @@ class Connection {
 
   /** How many messages have arrived on the feed, whether or not they
    *  could be read; 0 before the first. */
-  uint64_t generation() const;
+  uint64_t revision() const;
 
   /** The next message this reader has not taken, in order; nothing when
    *  none is waiting, and never a wait. What the handlers see is not
@@ -211,8 +211,8 @@ class Connection {
    *  reader that keeps the one it last showed asks `now != shown` to know
    *  whether there is anything new to show. */
   struct Vitals {
-    /** generation(): arrivals on the feed, read or not. */
-    uint64_t generation = 0;
+    /** revision(): messages on the feed, read or not. */
+    uint64_t revision = 0;
     /** dropped(): arrivals the feed dropped before they were drained. */
     uint64_t dropped = 0;
     /** undecodable(): arrivals that were no message in this door's

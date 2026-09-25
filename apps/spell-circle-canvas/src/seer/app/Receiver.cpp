@@ -153,18 +153,18 @@ void Receiver::refresh() {
 }
 
 void Receiver::accept(const sigil::io::Feed& feed,
-                      const sigil::io::Arrival& arrival) {
-  if (!arrival.bytes) return;
-  QString from = QString::fromStdString(arrival.from);
+                      const sigil::io::Message& arrival) {
+  if (!arrival.payload) return;
+  QString from = QString::fromStdString(arrival.sender());
   const qsizetype scheme = from.indexOf("://");
   if (scheme >= 0) from = from.mid(scheme + 3);
   if (from.isEmpty()) from = recorded() ? "recording" : m_uri;
-  const sigil::io::Bytes& bytes = *arrival.bytes;
+  const sigil::io::Bytes& bytes = *arrival.payload;
   m_model.onSpellCircleReceived(
       from,
       QByteArray::fromRawData(reinterpret_cast<const char*>(bytes.data()),
                               static_cast<qsizetype>(bytes.size())),
-      feed.receivedAt(arrival));
+      arrival.receivedAt());
 }
 
 void Receiver::beginSettings() {

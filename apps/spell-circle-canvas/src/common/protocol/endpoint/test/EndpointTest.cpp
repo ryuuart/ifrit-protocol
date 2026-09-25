@@ -168,8 +168,8 @@ class ProtocolEndpoint : public ::testing::Test {
     std::optional<Json> heard;
     waitUntil([&] {
       hostHub.dispatch();
-      if (const std::optional<sigil::io::Arrival> arrival = client->receive())
-        heard = sigil::data::decodeJson(arrival->bytes->asText());
+      if (const std::optional<sigil::io::Message> arrival = client->receive())
+        heard = sigil::data::decodeJson(arrival->payload->asText());
       return heard.has_value();
     });
     return heard;
