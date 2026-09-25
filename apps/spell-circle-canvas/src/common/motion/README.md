@@ -12,6 +12,46 @@ two header-only SigilCore leaves and nothing else outside the tree but a
 private Boost table, so anything can use it without dragging in a
 graphics stack.
 
+## The first screen
+
+What a sketch writes, every other parameter defaulted — anime.js's first
+page, in C++. Each line names the header that owns it.
+
+```cpp
+using Duration = std::chrono::duration<double>;          // 320ms, 1.2s            time/Duration.h
+
+// a value that moves                                       values/Animatable.h, values/Tween.h
+Animatable<float> fade = animate({.from = 0.0f, .to = 1.0f});   // an entrance: plays on mount
+Animatable<float> lift = animate({.to = lifted ? -8.0f : 0.0f}); // eases whenever `.to` changes
+box.transition(320ms);                                    // every plain value on a node eases
+Animatable<float> wave = animatable(0.0f);                // a live value you write
+wave = std::sin(seconds);
+Animatable<float> turn = bind(wave, {.to = {-8, 8}});     // follow a live number   bind/Binding.h
+
+// curves                                                   ease/Ease.h
+ease::linear · ease::{in,out,inOut}{Quad,Cubic,Quart,Quint,Sine,Expo,Circ} · ease::outBack()
+
+// one sibling after another                                schedule/Stagger.h
+.delay = stagger(40ms) · .to = stagger({0.0f, 360.0f}) · stagger(60ms, {.from = StaggerFrom::Center})
+
+// the engine a sketch's motion runs on (ctx.engine)        clock/Engine.h
+engine.animate(glow, {.to = 1.0f, .duration = 400ms});
+engine.timeline().add(title, {.to = 1.0f}, at(500ms)).add(rule, {.to = 1.0f}, withPrevious());
+engine.timer([&] { wave = std::sin(engine.elapsed().count()); });
+play() pause() resume() restart() reverse() seek(t) complete() cancel() revert() onComplete(f)
+float phase(Duration time, Duration period);             // wrapping [0, 1)        values/Time.h
+```
+
+The defaults: a tween takes 250ms on `ease::outQuad` with no delay, from
+where the value rests; a timeline item starts after everything already on
+it has ended; a timer runs every frame until it is cancelled. When a
+default is wrong, each verb takes one options struct as its last argument
+— `Tween`, `Transition`, `Binding`, `StaggerOptions`, `TimerOptions` —
+and the chapters below spell every field. The control a host, a
+reconciler or a test needs (`Engine::advance`, `ClockPolicy`, the held
+motions and lanes) is in `advanced/` and `CLOCK.md`, never on this
+screen.
+
 Namespace `sigil::motion`. One feature library per directory, linked by
 what a consumer uses; every public header lives under
 `include/sigilmotion/<feature>/` and is spelled `<sigilmotion/<feature>/X.h>`:
