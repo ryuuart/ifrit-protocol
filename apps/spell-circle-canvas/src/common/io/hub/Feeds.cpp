@@ -1,7 +1,7 @@
 /** @file
  * The hub's feeds: the one feed a URI names while anybody holds it, the
  * transport a scheme is opened through, the recording replay() names
- * for a URI in front of that transport, and the dispatch that moves
+ * for a URI in front of that transport, and the advance that moves
  * every replayed recording forward and runs what is registered to read
  * them.
  */
@@ -170,48 +170,44 @@ std::shared_ptr<Feed> Hub::replay(std::string_view uri,
   return feed(uri, policy);
 }
 
-void Hub::dispatch() {
-  const std::chrono::duration<double> since =
-      std::chrono::steady_clock::now() - m_created;
-  dispatch(since.count());
-}
+void Hub::advance() { advance(std::chrono::steady_clock::now() - m_created); }
 
-DispatchLease Hub::onDispatch(DispatchLease::Callback callback) {
-  auto held = std::make_shared<DispatchLease::Callback>(std::move(callback));
+Lease Hub::onAdvance(Lease::Callback callback) {
+  auto held = std::make_shared<Lease::Callback>(std::move(callback));
   {
     const std::lock_guard lock(m_mutex);
-    m_dispatchers.push_back(held);
+    m_advancers.push_back(held);
   }
-  return DispatchLease(std::move(held));
+  return Lease(std::move(held));
 }
 
-void Hub::dispatch(double seconds) {
+void Hub::advance(std::chrono::duration<double> time) {
   // Every feed is taken out from under the lock first: what a recording
   // delivers is somebody else's work, and it may reach a reader that
   // asks this hub for a resource.
-  for (const std::shared_ptr<Feed>& feed : feeds()) feed->advance(seconds);
+  for (const std::shared_ptr<Feed>& feed : feeds()) feed->advance(time);
 
-  // Then what reads them, for the same reason and with the same second.
+  // Then what reads them, for the same reason and with the same time.
   // The live callbacks are copied out and the expired entries erased;
   // holding each one while it runs is what lets a callback release its
   // own lease, or register another, without pulling the list out from
   // under this loop.
-  std::vector<std::shared_ptr<DispatchLease::Callback>> live;
+  std::vector<std::shared_ptr<Lease::Callback>> live;
   {
     const std::lock_guard lock(m_mutex);
-    live.reserve(m_dispatchers.size());
-    for (auto entry = m_dispatchers.begin(); entry != m_dispatchers.end();) {
-      std::shared_ptr<DispatchLease::Callback> callback = entry->lock();
+    live.reserve(m_advancers.size());
+    for (auto entry = m_advancers.begin(); entry != m_advancers.end();) {
+      std::shared_ptr<Lease::Callback> callback = entry->lock();
       if (!callback) {
-        entry = m_dispatchers.erase(entry);  // its lease is gone
+        entry = m_advancers.erase(entry);  // its lease is gone
         continue;
       }
       live.push_back(std::move(callback));
       ++entry;
     }
   }
-  for (const std::shared_ptr<DispatchLease::Callback>& callback : live)
-    if (*callback) (*callback)(seconds);
+  for (const std::shared_ptr<Lease::Callback>& callback : live)
+    if (*callback) (*callback)(time);
 }
 
 }  // namespace sigil::io

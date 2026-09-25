@@ -32,7 +32,7 @@
  * already makes once a frame, so that is when the signalling socket is
  * drained and what this door has to say goes back out of it: a
  * handshake takes a few frames rather than a few microseconds, and a
- * host that never dispatches never finishes one. What arrives on a
+ * host that never advances never finishes one. What arrives on a
  * channel is NOT frame-paced — the library underneath delivers it from
  * a thread of its own, the moment it lands.
  *
@@ -291,7 +291,7 @@ struct Signal {
   std::shared_ptr<Feed> feed;
   std::mutex gate;
   std::vector<std::weak_ptr<Door>> doors;
-  DispatchLease lease;
+  Lease lease;
 };
 
 /** Whether @p peer's conversation is over: its channel has ended, or
@@ -673,7 +673,7 @@ struct Signals {
 };
 
 /** The signalling door at @p uri — the one standing, or one opened now
- *  — with the reading of it registered on @p hub's dispatch. Null when
+ *  — with the reading of it registered on @p hub's advance. Null when
  *  the feed underneath could not be opened, with the reason in @p
  *  trouble. */
 std::shared_ptr<Signal> signalFor(Signals& signals, Hub& hub,
@@ -697,7 +697,7 @@ std::shared_ptr<Signal> signalFor(Signals& signals, Hub& hub,
     trouble = made->feed->state().error;
     return nullptr;
   }
-  made->lease = hub.onDispatch([held = std::weak_ptr<Signal>(made)](double) {
+  made->lease = hub.onAdvance([held = std::weak_ptr<Signal>(made)](std::chrono::duration<double>) {
     if (const std::shared_ptr<Signal> standing = held.lock())
       readSignal(standing);
   });

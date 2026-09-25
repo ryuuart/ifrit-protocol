@@ -18,7 +18,7 @@ set(SIGIL_IO_REFERENCE
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/README.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ArchiveSource.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ByteSource.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/DispatchLease.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Lease.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Feed.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Hub.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Inlet.md

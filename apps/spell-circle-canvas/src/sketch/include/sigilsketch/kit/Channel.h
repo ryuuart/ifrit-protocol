@@ -55,7 +55,7 @@ namespace sigil::sketch::kit {
  *  been registered under: an address on an OSC wire, a kind on a JSON
  *  one.
  *
- *  IT MOVES ONLY WHEN THE MESSAGE MOVED. A dispatch that delivered
+ *  IT MOVES ONLY WHEN THE MESSAGE MOVED. An advance that delivered
  *  nothing, a message under another name, and a message carrying the same
  *  reading as the last all leave the value exactly where it stood, so a
  *  still fader does not rewrite a bound property once a frame. A number
@@ -65,10 +65,10 @@ namespace sigil::sketch::kit {
  *  its last reading rather than snapping to zero.
  *
  *  THE HUB IS NAMED because a connection does not carry the one it was
- *  opened on, and it is the hub's dispatch that drives this: the callback
+ *  opened on, and it is the hub's advance that drives this: the callback
  *  runs after every recording has been advanced and before the frame is
  *  described, in the order the callbacks were registered. So a channel
- *  built AFTER its connection was opened reads what that same dispatch
+ *  built AFTER its connection was opened reads what that same advance
  *  delivered, and a frame's every reading agrees with every other.
  *
  *  THE CONNECTION AND THE HUB OUTLIVE THE CHANNEL. Neither is owned: the
@@ -77,7 +77,7 @@ namespace sigil::sketch::kit {
  *
  *  Movable and not copyable. The state lives behind a pointer, so the
  *  live value is the same cell through a move — which is what a binding
- *  holding a copy of it needs — and what the dispatch runs goes on
+ *  holding a copy of it needs — and what the advance runs goes on
  *  reading the same state. */
 class Channel {
  public:
@@ -107,14 +107,14 @@ class Channel {
         : at(field != nullptr ? std::string(field) : std::string()) {}
   };
 
-  /** A channel onto nothing: no connection, no dispatch, and a value
+  /** A channel onto nothing: no connection, no advance, and a value
    *  standing still at zero. It is what a scene's member is before there
    *  is a hub to open a door on, and a binding written against it reads a
    *  number rather than nothing at all. */
   Channel() = default;
 
   /** Follows the number @p reading names in the newest message called
-   *  @p name on @p connection, and registers on @p hub's dispatch to do
+   *  @p name on @p connection, and registers on @p hub's advance to do
    *  it. */
   Channel(io::Hub& hub, data::Connection& connection, std::string name,
           Reading reading);
@@ -143,7 +143,7 @@ class Channel {
   [[nodiscard]] const std::string& name() const;
 
  private:
-  /** Everything a channel is, behind one pointer. What the dispatch runs
+  /** Everything a channel is, behind one pointer. What the advance runs
    *  reaches this rather than the channel. */
   struct State;
   std::shared_ptr<State> m_state;

@@ -167,7 +167,7 @@ class ProtocolEndpoint : public ::testing::Test {
   std::optional<Json> hear(const std::shared_ptr<sigil::io::Feed>& client) {
     std::optional<Json> heard;
     waitUntil([&] {
-      hostHub.dispatch();
+      hostHub.advance();
       if (const std::optional<sigil::io::Message> arrival = client->receive())
         heard = sigil::data::decodeJson(arrival->payload->asText());
       return heard.has_value();
@@ -320,7 +320,7 @@ TEST_F(ProtocolEndpoint, APeerThatLeavesIsDetached) {
   client->close();
   client.reset();
   EXPECT_TRUE(waitUntil([&] {
-    hostHub.dispatch();
+    hostHub.advance();
     return dispatcher.sessions().empty();
   }));
 }

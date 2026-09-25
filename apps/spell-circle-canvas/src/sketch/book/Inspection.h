@@ -45,8 +45,8 @@ struct OpenSession {
  *  clock domains are not mounted and answer `notMounted`. The sessions
  *  `host.describe` lists are what @p sessions reads, where it is given.
  *
- *  Nothing moves but by `dispatch()`, which the run calls where it may
- *  answer; with no client attached a dispatch runs no handler, so the run
+ *  Nothing moves but by `advance()`, which the run calls where it may
+ *  answer; with no client attached an advance runs no handler, so the run
  *  draws exactly what it draws without one. */
 class Inspection {
  public:
@@ -60,7 +60,7 @@ class Inspection {
   Inspection& operator=(const Inspection&) = delete;
 
   /** Answers whatever the clients attached have asked since the last. */
-  void dispatch();
+  void advance();
 
   /** Whether the endpoint holds a port. */
   [[nodiscard]] bool listening() const;

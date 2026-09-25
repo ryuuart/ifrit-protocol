@@ -1,7 +1,7 @@
 /** @file
  * The connection: the door it opened, the scheme or the schema its
  * messages are read by, the value and the latch per name and the queue
- * and the handlers one dispatch fills, and the ways a message goes back
+ * and the handlers one advance fills, and the ways a message goes back
  * out — to the door, or to the sender of the message being answered.
  */
 
@@ -75,7 +75,7 @@ io::Bytes textBytes(std::string_view text) {
 
 }  // namespace
 
-/** What a connection IS. The dispatch reaches it weakly and every
+/** What a connection IS. The advance reaches it weakly and every
  *  reading below reaches it through the connection's pointer, so the
  *  two agree however the connection is moved about. */
 struct Connection::State {
@@ -103,7 +103,7 @@ struct Connection::State {
   Json latest;
   /** THE NEWEST ARRIVAL'S BYTES AS OF THE LAST DISPATCH, whole and
    *  unread, which is what a reading asked for a value decodes. They
-   *  stand beside the Json above and move on the same dispatch, so a
+   *  stand beside the Json above and move on the same advance, so a
    *  frame never reads a value newer than the message it is drawing
    *  from. Null before the first arrival. */
   std::shared_ptr<const io::Bytes> latestBytes;
@@ -138,9 +138,9 @@ struct Connection::State {
    *  were registered. */
   std::vector<Handler> otherwise;
   uint64_t undecodable = 0;
-  /** What the hub's dispatch runs. It is released with this state, so a
+  /** What the hub's advance runs. It is released with this state, so a
    *  connection that is gone leaves nothing to run. */
-  io::DispatchLease lease;
+  io::Lease lease;
 
   /** One arrival as a value, or nothing when the bytes are no message
    *  in this connection's scheme, or no message its schema holds. */
@@ -252,7 +252,7 @@ struct Connection::State {
    *  handler that names it before the next one is taken, so a handler
    *  asking for the latest reads the message it was given and a handler
    *  replying answers the sender of it. */
-  void dispatch() {
+  void advance() {
     if (!feed) return;
     while (const std::optional<io::Message> arrival = feed->receive()) {
       // The bytes are latched whether or not they are a message in this
@@ -332,11 +332,11 @@ Connection::Connection(io::Hub& hub, std::string_view uri, Schema schema,
     return;
   }
   state->feed = hub.feed(state->uri, policy);
-  // The dispatch knows the state weakly: the state owns the lease, and
+  // The advance knows the state weakly: the state owns the lease, and
   // a lease owning the state back would keep both standing after the
   // last connection onto them was gone.
-  state->lease = hub.onDispatch([held = std::weak_ptr<State>(state)](double) {
-    if (const std::shared_ptr<State> living = held.lock()) living->dispatch();
+  state->lease = hub.onAdvance([held = std::weak_ptr<State>(state)](std::chrono::duration<double>) {
+    if (const std::shared_ptr<State> living = held.lock()) living->advance();
   });
   m_state = std::move(state);
 }

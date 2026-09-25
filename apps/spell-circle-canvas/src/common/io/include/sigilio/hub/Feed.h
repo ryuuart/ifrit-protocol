@@ -265,12 +265,12 @@ class Feed {
    *  delivers, and the recording is the door this feed opened. */
   void replay(std::vector<Message> recording);
 
-  /** Moves a replayed recording's time to @p seconds on the caller's
+  /** Moves a replayed recording's time to @p time on the caller's
    *  clock. The first call fixes the origin, so a recording starts when
    *  its feed is first advanced; every recorded message due by then is
    *  delivered in order with its recorded time, and the feed closes
    *  after the last one. A live feed ignores it. */
-  void advance(double seconds);
+  void advance(std::chrono::duration<double> time);
 
   /** Stamps and queues one message with the lock already held. Every
    *  path that takes a message — the transport's and the recording's —
@@ -324,7 +324,7 @@ class Feed {
   std::vector<Message> m_recording;
   size_t m_replayed = 0;
   bool m_replaying = false;
-  std::optional<double> m_origin;
+  std::optional<std::chrono::duration<double>> m_origin;
   std::optional<std::chrono::steady_clock::time_point> m_replayOrigin;
 };
 

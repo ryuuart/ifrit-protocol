@@ -8,12 +8,12 @@ page here.
 
 | Page | What it holds |
 | --- | --- |
-| `pages/types/Hub.md` | the mounted-URI walkthrough, the one-entry-per-URI rule, the network cache and the policies, feeds and dispatch, selection, both probes |
+| `pages/types/Hub.md` | the mounted-URI walkthrough, the one-entry-per-URI rule, the network cache and the policies, feeds and advance, selection, both probes |
 | `pages/types/Feed.md` | the door and its readers, the capacity and what dropping means, sending back, recording and replay |
 | `pages/types/Inlet.md` | the producer's side of a feed: what a transport delivers through, failing without closing, opening late, and the one entrance a test injects by |
 | `pages/types/Message.md` | one message off a feed: its payload, its sender, when it arrived on the feed and on the steady clock, and its revision |
 | `pages/types/ResourceLease.md` | what a retention lease promises and when a selector is re-run |
-| `pages/types/DispatchLease.md` | the callback the frame's own call drives |
+| `pages/types/Lease.md` | the callback the frame's own call drives |
 | `pages/types/RecordingWriter.md` | the recording format, byte for byte, and what it deliberately does not carry |
 | `pages/types/ByteSource.md` | the byte vocabulary in both directions: the four concepts, the probe seam, the type-erased source, the two filesystem ends |
 | `pages/types/ArchiveSource.md` | a zip held whole in memory, and the entry ceiling that reads a claim before it allocates for one |

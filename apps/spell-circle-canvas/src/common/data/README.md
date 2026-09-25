@@ -489,7 +489,7 @@ sky.on("/sky/ping", [&](const Json&) {
   sky.reply("/sky/pong", Json::Array{1});             // back to that sender
 });
 
-hub.dispatch(seconds);                        // the frame: handlers run here
+hub.advance(time);                        // the frame: handlers run here
 wind = sky.latest()["arguments"][0].number(); // the newest, already read
 while (const std::optional<Json> message = sky.receive()) log(*message);
 sky.send("/sky/ack", Json::Array{1});         // back out the same door
@@ -540,7 +540,7 @@ carrying whichever fields it happened to have.
 ```cpp
 Connection door(hub, "udp://:27022", schema<Sky>());   // the generated root
 
-hub.dispatch(seconds);                         // the frame: the door fills
+hub.advance(time);                         // the frame: the door fills
 if (const std::optional<Sky> state = door.latest<Sky>())   // the value type
   for (const Band& band : state->bands) draw(band);        // a field, held
 ```
@@ -558,9 +558,9 @@ speaking JSON hands out the same value as one sending the buffer, and
 text the schema cannot hold is no value.
 
 The frame is what reads it, as it is for every other reading here. What
-gets decoded is the newest bytes the last dispatch took off the feed —
+gets decoded is the newest bytes the last advance took off the feed —
 `Connection::latestBytes()`, the arrival whole and unread — so a
-delivery the dispatch has not taken yet is nothing here exactly as it is
+delivery the advance has not taken yet is nothing here exactly as it is
 nothing to `Connection::latest()`, and a frame never sees a typed value
 newer than the message it is drawing from. Those bytes are latched
 whether or not they were a message in the door's own scheme, because a
@@ -576,11 +576,11 @@ carries no name of that kind — so a door whose messages are values is
 read whole.
 
 **Nothing drives it but the frame.** Opening a connection registers it
-on the hub's dispatch, so the one call a host already makes,
-`hub.dispatch(seconds)`, drains the feed, reads what arrived and runs
+on the hub's advance, so the one call a host already makes,
+`hub.advance(time)`, drains the feed, reads what arrived and runs
 the handlers — after it has moved every replayed recording forward, so a
 recording replays through a connection exactly as a live sender arrives
-through it. Between two dispatches every reading answers what the last
+through it. Between two advances every reading answers what the last
 one left, and a frame's readings therefore agree with one another. The
 value, the queue and the handlers are written and read on that one
 thread, so a connection holds no lock of its own; the feed underneath is
@@ -797,7 +797,7 @@ none of it.
 
 `SigilDataConnection` is the one feature that does link `SigilIOHub`,
 because a connection IS a door that hub opened and a reading the
-dispatch that hub runs drives. What it adds is the READING — which
+advance that hub runs drives. What it adds is the READING — which
 scheme a message is read by, the value it becomes, the queue, the
 handlers — and nothing of the door itself: the bytes, the transport, the
 recording and the thread stay SigilIO's, which is why it links the hub

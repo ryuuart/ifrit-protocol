@@ -58,7 +58,7 @@ TEST(DataVitals, TheValueMovesExactlyWhenAFieldDid) {
   // Asked again with nothing dispatched between, it is the same value.
   EXPECT_EQ(scene.vitals(), opened);
 
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
   const Connection::Vitals arrived = scene.vitals();
   expectReadings(scene, arrived);
   EXPECT_NE(arrived, opened);
@@ -66,12 +66,12 @@ TEST(DataVitals, TheValueMovesExactlyWhenAFieldDid) {
   EXPECT_EQ(arrived.undecodable, 0u);
 
   // Time moves and nothing arrives: nothing moved, so the value did not.
-  hub.dispatch(0.5);
+  hub.advance(std::chrono::duration<double>(0.5));
   EXPECT_EQ(scene.vitals(), arrived);
 
   // The last arrival is no message and the recording runs out: the
   // revision, the undecodable count and the door's state all move.
-  hub.dispatch(1.0);
+  hub.advance(std::chrono::duration<double>(1.0));
   const Connection::Vitals ended = scene.vitals();
   expectReadings(scene, ended);
   EXPECT_NE(ended, arrived);

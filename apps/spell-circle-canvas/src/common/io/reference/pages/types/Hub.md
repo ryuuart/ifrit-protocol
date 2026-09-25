@@ -77,17 +77,17 @@ is the door on it too:
 ```cpp
 hub.setFeedTransport("udp", openUdpFeed);     // one per scheme
 auto scene = hub.feed("udp://:27020");        // the same feed per URI
-auto lease = hub.onDispatch(readTheScene);    // driven by that same call
-hub.dispatch();                               // once per frame
+auto lease = hub.onAdvance(readTheScene);    // driven by that same call
+hub.advance();                               // once per frame
 if (auto newest = scene->latest()) draw(*newest->payload);
 ```
 
 `Hub::feed` hands back the one feed a URI names for as long as anybody
 holds it. A URI named to `Hub::replay` is played back from its recording
-as `Hub::dispatch` moves time forward, so the same code reads a live
+as `Hub::advance` moves time forward, so the same code reads a live
 sender and a recorded session; anything else opens
 through the transport registered for its scheme. That one call also runs
-every callback registered through `Hub::onDispatch`, so something that
+every callback registered through `Hub::onAdvance`, so something that
 reads feeds on the frame is driven by the call a host already makes and
 no host code has to name it.
 
@@ -96,13 +96,13 @@ part before "://" — called outside the hub's lock. No scheme, no
 transport, or an unreadable recording: the feed exists and its
 `FeedState::error` says why.
 
-`Hub::onDispatch` runs its callback on every dispatch for as long as the
-lease lives. It is given the seconds that dispatch was given, and runs
+`Hub::onAdvance` runs its callback on every advance for as long as the
+lease lives. It is given the time that advance was given, and runs
 after every replayed recording has been advanced to them, on the
-dispatching thread, in the order the callbacks were registered — so a
-callback sees what this same dispatch delivered. That is how something
+advancing thread, in the order the callbacks were registered — so a
+callback sees what this same advance delivered. That is how something
 reading feeds on the frame is driven by the call a host already makes,
-with no host code naming it. A callback registered from inside a dispatch
+with no host code naming it. A callback registered from inside an advance
 runs from the next one.
 
 ### Access, not meaning
@@ -159,4 +159,4 @@ disk cache directory.
 
 ## See also
 
-`sigil::io::Feed`, `sigil::io::ResourceLease`, `sigil::io::DispatchLease`.
+`sigil::io::Feed`, `sigil::io::ResourceLease`, `sigil::io::Lease`.

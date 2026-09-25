@@ -71,7 +71,7 @@ ReceiverInspection::ReceiverInspection(const InspectionRequest& request,
 
 ReceiverInspection::~ReceiverInspection() = default;
 
-void ReceiverInspection::dispatch() { m_state->hub.dispatch(); }
+void ReceiverInspection::advance() { m_state->hub.advance(); }
 
 bool ReceiverInspection::listening() const {
   return m_state->endpoint->listening();

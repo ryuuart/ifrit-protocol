@@ -414,8 +414,8 @@ neither of two on one.
 
 #### The frame carries the introduction
 
-`Hub::dispatch` is what reads the signalling door and answers it, so a
-handshake takes a few frames and a host that never dispatches never
+`Hub::advance` is what reads the signalling door and answers it, so a
+handshake takes a few frames and a host that never advances never
 finishes one. What arrives on a channel is not frame-paced: it is
 delivered the moment it lands.
 

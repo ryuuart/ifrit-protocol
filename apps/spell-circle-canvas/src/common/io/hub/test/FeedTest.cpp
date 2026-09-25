@@ -373,12 +373,12 @@ TEST_F(IOFeed, AReplayedUriPlaysItsRecordingByTheTimeDispatched) {
   EXPECT_TRUE(feed->state().error.empty());
   EXPECT_EQ(feed->state().revision, 0u);  // nothing arrives until time moves
 
-  hub.dispatch(0.0);
+  hub.advance(seconds(0.0));
   EXPECT_EQ(feed->state().revision, 1u);
   EXPECT_EQ(feed->latest()->payload->asText(), "at zero");
   EXPECT_NE(feed->state().readiness, sigil::io::ReadyState::Closed);
 
-  hub.dispatch(1.0);
+  hub.advance(seconds(1.0));
   EXPECT_EQ(feed->state().revision, 2u);
   EXPECT_EQ(feed->latest()->payload->asText(), "at one");
   EXPECT_EQ(feed->state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out
@@ -399,7 +399,7 @@ TEST_F(IOFeed, AFileThatIsNoRecordingIsAFeedWhoseErrorSaysSo) {
       hub.replay("udp://:27020", (dir.path / "scene.bin").string());
   ASSERT_NE(feed, nullptr);
   EXPECT_FALSE(feed->state().error.empty());
-  hub.dispatch(1.0);
+  hub.advance(seconds(1.0));
   EXPECT_EQ(feed->state().revision, 0u);
 }
 
@@ -470,7 +470,7 @@ TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
       hub.replay("udp://:27020", path.string());
   EXPECT_EQ(live->state().readiness, sigil::io::ReadyState::Closed);
   EXPECT_NE(live, replaying);
-  hub.dispatch(0.0);
+  hub.advance(seconds(0.0));
   ASSERT_TRUE(replaying->latest().has_value());
 }
 
@@ -498,15 +498,15 @@ TEST_F(IOFeed, ArrivalsFromAnotherThreadAreAllReceivedInOrder) {
 TEST_F(IOFeed, DispatchRunsEveryRegisteredCallbackInOrderUntilItsLeaseGoes) {
   std::vector<std::string> ran;
   std::vector<double> given;
-  DispatchLease first = hub.onDispatch([&ran, &given](double seconds) {
+  Lease first = hub.onAdvance([&ran, &given](seconds time) {
     ran.emplace_back("first");
-    given.push_back(seconds);
+    given.push_back(time.count());
   });
-  const DispatchLease second =
-      hub.onDispatch([&ran](double) { ran.emplace_back("second"); });
+  const Lease second =
+      hub.onAdvance([&ran](std::chrono::duration<double>) { ran.emplace_back("second"); });
   EXPECT_TRUE(first.registered());
 
-  hub.dispatch(0.5);
+  hub.advance(seconds(0.5));
   const std::vector<std::string> both = {"first", "second"};
   EXPECT_EQ(ran, both);
   const std::vector<double> once = {0.5};
@@ -515,12 +515,12 @@ TEST_F(IOFeed, DispatchRunsEveryRegisteredCallbackInOrderUntilItsLeaseGoes) {
   first.release();
   EXPECT_FALSE(first.registered());
   {
-    const DispatchLease third =
-        hub.onDispatch([&ran](double) { ran.emplace_back("third"); });
+    const Lease third =
+        hub.onAdvance([&ran](std::chrono::duration<double>) { ran.emplace_back("third"); });
   }
 
   ran.clear();
-  hub.dispatch(1.5);
+  hub.advance(seconds(1.5));
   // A released lease and a lease that is gone both leave nothing to
   // run; the one still held runs on.
   const std::vector<std::string> onlySecond = {"second"};
@@ -538,12 +538,12 @@ TEST_F(IOFeed, ACallbackSeesWhatTheSameDispatchDelivered) {
       hub.replay("udp://:27020", path.string());
 
   std::vector<std::string> seen;
-  const DispatchLease lease = hub.onDispatch([&seen, feed](double) {
+  const Lease lease = hub.onAdvance([&seen, feed](std::chrono::duration<double>) {
     if (const std::optional<Message> arrival = feed->receive())
       seen.emplace_back(arrival->payload->asText());
   });
 
-  hub.dispatch(0.0);
+  hub.advance(seconds(0.0));
   // The recordings move first and the callbacks run after them, so what
   // a reader is driven for is already there when it is driven.
   const std::vector<std::string> one = {"at zero"};
@@ -576,14 +576,14 @@ TEST_F(IOFeed, ReplayArrivalTimeUsesFirstDispatchAndRecordedSpacing) {
   }
   const std::shared_ptr<Feed> feed = hub.replay("test://clock", path.string());
   const auto before = Clock::now();
-  hub.dispatch(900.0);
+  hub.advance(seconds(900.0));
   const auto after = Clock::now();
   const auto first = feed->receive();
   ASSERT_TRUE(first);
   const auto origin = first->receivedAt();
   EXPECT_GE(origin, before);
   EXPECT_LE(origin, after);
-  hub.dispatch(900.25);
+  hub.advance(seconds(900.25));
   const auto second = feed->receive();
   ASSERT_TRUE(second);
   EXPECT_EQ(second->receivedAt() - origin, 250ms);
@@ -593,7 +593,7 @@ TEST_F(IOFeed, InvalidOrUnrepresentableArrivalTimesMapToTheClockOrigin) {
   using Clock = std::chrono::steady_clock;
   const auto feed = std::make_shared<Feed>("test://clock");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
-  inlet.deliver(message("at the origin"), 0.0);
+  inlet.deliver(message("at the origin"), seconds(0.0));
   const auto origin = feed->receive()->receivedAt();
   for (const double invalid :
        {-1.0, -std::numeric_limits<double>::infinity(),
@@ -601,7 +601,7 @@ TEST_F(IOFeed, InvalidOrUnrepresentableArrivalTimesMapToTheClockOrigin) {
         std::numeric_limits<double>::quiet_NaN(),
         std::numeric_limits<double>::max(),
         std::chrono::duration<double>(Clock::duration::max()).count()}) {
-    inlet.deliver(message("out of range"), invalid);
+    inlet.deliver(message("out of range"), seconds(invalid));
     EXPECT_EQ(feed->receive()->receivedAt(), origin);
   }
 }

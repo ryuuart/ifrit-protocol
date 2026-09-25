@@ -482,9 +482,9 @@ that same door takes introductions away from them.
 to the world, may be written more than once, and is what two ends on
 different networks need and two on one network do not.
 
-THE FRAME CARRIES THE INTRODUCTION. `dispatch()` is what reads the
+THE FRAME CARRIES THE INTRODUCTION. `advance()` is what reads the
 signalling door and answers it, so a handshake takes a few frames rather
-than a few microseconds and a host that never dispatches never finishes
+than a few microseconds and a host that never advances never finishes
 one — while what arrives on a channel is not frame-paced at all, being
 delivered the moment it lands. An introduction written before its door
 can take it waits for the next frame rather than being lost, which is
@@ -529,12 +529,12 @@ back onto them.
 `Message::receivedAt()` places a message on the steady clock (negative, nonfinite
 or unrepresentable times use that clock's origin): live packets
 keep their transport receive time and replayed packets keep their recorded
-spacing relative to the first `dispatch()` that moved the recording. Use it
+spacing relative to the first `advance()` that moved the recording. Use it
 when elapsed-time accounting must remain independent of when the host drains
 the queue.
 
 A **recording** is a feed written down: `record(path)` appends every
-arrival from then on, with the seconds since the feed was made, in the
+arrival from then on, with the time since the feed was made, in the
 format `RecordingWriter` writes and `readRecording()` reads, until the
 `Recording` it hands back is stopped or goes out of scope. A feed writes
 one recording at a time; a second `record()` ends the first.
@@ -542,15 +542,15 @@ one recording at a time; a second `record()` ends the first.
 mount table resolves to one — in front of a URI: the feed standing there
 is closed, and that feed and every later one asked for on the URI is not
 opened through a transport at all but replays the file, and
-`dispatch(seconds)` advances every replay to that time on the caller's
+`advance(time)` advances every replay to that time on the caller's
 clock, delivering each recorded arrival at its recorded second and
 closing the feed after the last. That is how a deterministic run reads
 what a live one heard: `replay()` the URI from the recording, and the
 code that opened the port opens the file.
 
-Once every replay has been advanced, that same `dispatch()` runs each
-callback registered through `onDispatch()`, in registration order, on
-the dispatching thread and with the same seconds — so something that
+Once every replay has been advanced, that same `advance()` runs each
+callback registered through `onAdvance()`, in registration order, on
+the advancing thread and with the same time — so something that
 reads feeds on the frame is driven by the call a host already makes,
-sees what this very dispatch delivered, and is unregistered by letting
-its `DispatchLease` go.
+sees what this very advance delivered, and is unregistered by letting
+its `Lease` go.

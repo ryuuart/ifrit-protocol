@@ -69,7 +69,7 @@ int runSweep(const Arguments& args, int chosen,
   if (args.inspectPort) {
     inspection.emplace(*args.inspectPort,
                        sketch::CatalogSources{SIGIL_SKETCH_DIR, {}, {}});
-    options.betweenSketches = [&inspection] { inspection->dispatch(); };
+    options.betweenSketches = [&inspection] { inspection->advance(); };
   }
   int result = 1;
   try {

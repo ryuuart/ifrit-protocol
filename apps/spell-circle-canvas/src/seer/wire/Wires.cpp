@@ -74,7 +74,6 @@ bool Wires::recorded(std::string_view uri) const {
   return m_recorded.contains(std::string(uri));
 }
 
-void Wires::dispatch(double seconds) { m_hub.dispatch(seconds); }
 
 void Wires::readThrough(data::Schema schema) { m_schema = std::move(schema); }
 

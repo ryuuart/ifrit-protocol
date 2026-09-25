@@ -32,7 +32,7 @@ sky.on("/sky/gust", [&](const Json& message) {
 sky.on("*", [&](const Json&) { ++messages; });
 sky.otherwise([&](const Json&) { ++strangers; });
 ...
-hub.dispatch(seconds);                   // the frame: handlers run here
+hub.advance(time);                   // the frame: handlers run here
 wind = sky.latest()["arguments"][0].number();
 calm = sky.latest("/sky/calm")["arguments"][0].number();
 sky.send("/sky/ack", Json::Array{1});
@@ -40,9 +40,9 @@ sky.send("/sky/ack", Json::Array{1});
 
 ### Nothing drives it but the frame
 
-A connection registers on the hub's dispatch as it opens, so the call a
+A connection registers on the hub's advance as it opens, so the call a
 host already makes once a frame is what drains the feed, reads what
-arrived and runs the handlers. Between two dispatches a connection
+arrived and runs the handlers. Between two advances a connection
 answers exactly what the last one left it, so every reading a frame
 takes agrees with every other.
 
@@ -87,14 +87,14 @@ reading:
 namespace sky = feed_sky::values;    // what that schema generated
 Connection door(hub, "udp://:27022", schema<feed_sky::Sky>());
 ...
-hub.dispatch(seconds);               // the frame: the door fills
+hub.advance(time);               // the frame: the door fills
 if (const std::optional<sky::Sky> state = door.latest<sky::Sky>())
   for (const sky::Band& band : state->bands) draw(band);
 ```
 
 so a scene draws from a field of a value rather than from a lookup by
 name, and a message that is not that value is nothing rather than a
-reading of whatever it was. It reads the bytes the same dispatch left,
+reading of whatever it was. It reads the bytes the same advance left,
 so the typed reading and the Json one are readings of ONE frame.
 
 Nothing before the first arrival, where the bytes are not that value,
@@ -107,10 +107,10 @@ space — they go through the schema first, so a sender speaking JSON
 hands out the same value as one speaking the buffer.
 
 THE FRAME IS WHAT READS. What is decoded is the newest bytes the last
-dispatch took off the feed — `Connection::latestBytes` — held there
+advance took off the feed — `Connection::latestBytes` — held there
 whether or not they were a message in this door's scheme, since a buffer
 arriving at a door read as JSON text is no Json message and is still the
-value its sender wrote. So a delivery the dispatch has not taken yet is
+value its sender wrote. So a delivery the advance has not taken yet is
 nothing here exactly as it is nothing to `Connection::latest`, and every
 reading a frame takes agrees with every other.
 
@@ -127,7 +127,7 @@ read whole.
 The template reading stands in the header rather than in the
 connection's one translation unit because a template is instantiated
 where the value type is known, which is the consumer's own: everything
-it reaches — the bytes the last dispatch left, the schema the door was
+it reaches — the bytes the last advance left, the schema the door was
 opened with, and the reading the generated header wrote — is named in a
 header already.
 
@@ -165,7 +165,7 @@ newest wants; what falls off there is counted nowhere.
 `Connection::on` runs its handler for every message of that name, from
 now on. `"*"` names every message, one with no name of its own included.
 Several handlers may share a name, and each runs once per message in the
-order they were registered. Handlers run on dispatch, on the dispatching
+order they were registered. Handlers run on advance, on the advancing
 thread, in the order the messages arrived; one registered after a
 message arrived does not see it, `Connection::latest` being how a late
 reader catches up.
@@ -237,7 +237,7 @@ that wants no value reads.
 ### One thread
 
 The value, the queue and the handlers are written and read on the
-dispatching thread — the frame's — so a connection holds no lock of its
+advancing thread — the frame's — so a connection holds no lock of its
 own; the feed underneath is the thread-safe part, and a transport
 delivers into it from whatever thread it runs on. A connection DRAINS
 the feed it is on, and draining is taking, so two connections on one URI

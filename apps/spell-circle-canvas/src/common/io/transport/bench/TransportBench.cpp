@@ -684,11 +684,11 @@ uint16_t freePort() {
 bool waitDispatching(Hub& hub, const std::function<bool()>& ready) {
   const Moment until = std::chrono::steady_clock::now() + kReach;
   while (std::chrono::steady_clock::now() < until) {
-    hub.dispatch();
+    hub.advance();
     if (ready()) return true;
     std::this_thread::sleep_for(1ms);
   }
-  hub.dispatch();
+  hub.advance();
   return ready();
 }
 

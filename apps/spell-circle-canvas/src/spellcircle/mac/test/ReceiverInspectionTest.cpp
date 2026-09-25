@@ -45,7 +45,7 @@ TEST(ReceiverInspection, AnEndpointAskedForListensAndWritesItsAddress) {
   ASSERT_TRUE(inspection.listening()) << inspection.address();
   EXPECT_EQ(inspection.address().rfind("ws://127.0.0.1:", 0), 0u);
   EXPECT_TRUE(std::filesystem::exists(scratch.path / "protocol-address"));
-  inspection.dispatch();
+  inspection.advance();
 }
 
 TEST(ReceiverInspection, AnswersHostAsTheReceiverAndMountsNothingElse) {

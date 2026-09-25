@@ -104,27 +104,27 @@ class ResourceLease {
   std::vector<std::string> m_uris;
 };
 
-/** A movable lease that keeps a callback on the hub's dispatch: the
+/** A movable lease that keeps a callback on the hub's advance: the
  *  lease holds the callback, and releasing it or destroying it takes the
  *  callback off the hub. A lease may outlive its Hub, having then
  *  nothing left to unregister from. */
-class DispatchLease {
+class Lease {
  public:
-  /** What a dispatch hands a callback: the seconds it was given, which
-   *  are the seconds every replayed recording was just advanced to. */
-  using Callback = std::function<void(double seconds)>;
+  /** What an advance hands a callback: the time it was given, which is
+   *  the time every replayed recording was just advanced to. */
+  using Callback = std::function<void(std::chrono::duration<double> time)>;
 
-  DispatchLease() = default;
+  Lease() = default;
   /** Takes over the moved-from lease's registration. */
-  DispatchLease(DispatchLease&&) noexcept = default;
+  Lease(Lease&&) noexcept = default;
   /** Takes over the moved-from lease's registration, dropping this
    *  one's. */
-  DispatchLease& operator=(DispatchLease&&) noexcept = default;
-  DispatchLease(const DispatchLease&) = delete;
-  DispatchLease& operator=(const DispatchLease&) = delete;
+  Lease& operator=(Lease&&) noexcept = default;
+  Lease(const Lease&) = delete;
+  Lease& operator=(const Lease&) = delete;
 
   /** Takes the callback off the hub, which destroying the lease does
-   *  anyway. A dispatch that is already running its callbacks runs this
+   *  anyway. An advance that is already running its callbacks runs this
    *  one out: it holds what it is running. */
   void release() { m_callback.reset(); }
 
@@ -133,7 +133,7 @@ class DispatchLease {
 
  private:
   friend class Hub;
-  explicit DispatchLease(std::shared_ptr<Callback> callback)
+  explicit Lease(std::shared_ptr<Callback> callback)
       : m_callback(std::move(callback)) {}
 
   /** The one owner of the callback. The hub knows it weakly, so a lease
@@ -394,7 +394,7 @@ class Hub {
    *  closed first, and every later feed() on @p uri — for as long as
    *  this hub lives — plays the same file, so a reader written against
    *  the live wire reads the recording without knowing it. The recording
-   *  starts on the first dispatch after the feed is made and closes the
+   *  starts on the first advance after the feed is made and closes the
    *  feed after its last message.
    *  @trap Naming @p uri again replaces the recording it plays; a feed
    *  still held from the earlier call is closed, not redirected. */
@@ -413,20 +413,21 @@ class Hub {
   /** Every feed currently held by someone, in opening order. */
   std::vector<std::shared_ptr<Feed>> feeds() const;
 
-  /** Advances every replayed recording to the steady seconds since this
+  /** Advances every replayed recording to the steady time since this
    *  hub was made. A live feed is unaffected. */
-  void dispatch();
+  void advance();
 
-  /** The same, to @p seconds on the caller's own clock. */
-  void dispatch(double seconds);
+  /** The same, to @p time — an absolute time on the caller's own clock,
+   *  not a step. */
+  void advance(std::chrono::duration<double> time);
 
-  /** Runs @p callback on every dispatch for as long as the lease lives:
-   *  given the seconds that dispatch was given, after every replayed
-   *  recording has been advanced to them, on the dispatching thread and
-   *  in the order the callbacks were registered.
-   *  @trap A callback registered from inside a dispatch runs from the
+  /** Runs @p callback on every advance for as long as the lease lives:
+   *  given the time that advance was given, after every replayed
+   *  recording has been advanced to it, on the advancing thread and in
+   *  the order the callbacks were registered.
+   *  @trap A callback registered from inside an advance runs from the
    *  NEXT one. */
-  DispatchLease onDispatch(DispatchLease::Callback callback);
+  [[nodiscard]] Lease onAdvance(Lease::Callback callback);
 
  private:
   /** The one fetch a probe makes: the bytes, uncached, with @p info
@@ -527,13 +528,13 @@ class Hub {
    *  list is mutable: dropping the name of something that no longer
    *  exists changes no answer this hub can give. */
   mutable std::vector<std::pair<std::string, std::weak_ptr<Feed>>> m_feeds;
-  /** The callbacks registered through onDispatch(), held weakly so one
-   *  lives exactly as long as the lease that owns it. A dispatch copies
+  /** The callbacks registered through onAdvance(), held weakly so one
+   *  lives exactly as long as the lease that owns it. An advance copies
    *  the live ones out from under the lock — a callback reads feeds and
    *  may ask this hub for a resource — and erases the entries whose
    *  lease is gone. */
-  std::vector<std::weak_ptr<DispatchLease::Callback>> m_dispatchers;
-  /** When this hub was made: what dispatch() counts its seconds from. */
+  std::vector<std::weak_ptr<Lease::Callback>> m_advancers;
+  /** When this hub was made: what advance() counts its time from. */
   const std::chrono::steady_clock::time_point m_created =
       std::chrono::steady_clock::now();
 };

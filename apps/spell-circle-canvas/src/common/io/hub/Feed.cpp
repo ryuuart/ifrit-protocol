@@ -266,7 +266,7 @@ void Feed::replay(std::vector<Message> recording) {
   m_wasOpened = true;
 }
 
-void Feed::advance(double seconds) {
+void Feed::advance(std::chrono::duration<double> time) {
   std::function<void()> ending;
   {
     const std::lock_guard lock(m_mutex);
@@ -276,10 +276,10 @@ void Feed::advance(double seconds) {
     // so a feed opened in the middle of a run still plays from its
     // first frame.
     if (!m_origin) {
-      m_origin = seconds;
+      m_origin = time;
       m_replayOrigin = std::chrono::steady_clock::now();
     }
-    const std::chrono::duration<double> elapsed(seconds - *m_origin);
+    const std::chrono::duration<double> elapsed = time - *m_origin;
     while (m_replayed != m_recording.size() &&
            m_recording[m_replayed].arrivedAt() <= elapsed) {
       const Message& recorded = m_recording[m_replayed];

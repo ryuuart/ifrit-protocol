@@ -350,7 +350,8 @@ void bindIO(py::module_& module) {
           [](const io::Inlet& inlet, py::handle payload, double arrivedAt) {
             validTime(arrivedAt);
             auto copied = bytes(payload);
-            unlocked([&] { inlet.deliver(std::move(copied), arrivedAt); });
+            unlocked([&] { inlet.deliver(std::move(copied),
+                                        std::chrono::duration<double>(arrivedAt)); });
           },
           py::arg("bytes"), py::arg("arrivedAt"))
       .def(
@@ -495,19 +496,21 @@ void bindIO(py::module_& module) {
                result.emplace_back(std::move(feed), value);
              return result;
            })
-      .def("dispatch",
+      .def("advance",
            [](const HubHandle& value) {
              auto& hub = value.get();
-             unlocked([&] { hub.dispatch(); });
+             unlocked([&] { hub.advance(); });
            })
       .def(
-          "dispatch",
-          [](const HubHandle& value, double seconds) {
-            validTime(seconds);
+          "advance",
+          [](const HubHandle& value, double time) {
+            validTime(time);
             auto& hub = value.get();
-            unlocked([&] { hub.dispatch(seconds); });
+            unlocked([&] {
+              hub.advance(std::chrono::duration<double>(time));
+            });
           },
-          py::arg("seconds"))
+          py::arg("time"))
       .def("poll",
            [](const HubHandle& value) {
              auto& hub = value.get();

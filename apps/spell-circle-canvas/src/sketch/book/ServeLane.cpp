@@ -79,7 +79,7 @@ int runServe(const Arguments& args, const std::filesystem::path& flagsFile,
       std::signal(SIGTERM, endServing);
       auto next = std::chrono::steady_clock::now();
       while (!g_ending.load()) {
-        hub.dispatch();
+        hub.advance();
         agents.frame();
         next += kTurn;
         const auto now = std::chrono::steady_clock::now();

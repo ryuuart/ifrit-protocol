@@ -5,7 +5,7 @@
  * that are open, and what each of them is doing right now. A wire is
  * one URI a message arrives on or leaves by, and a URI nothing can open
  * is still a wire. Nothing here has a thread or a clock of its own:
- * both `dispatch()` and `tick()` are driven by the host's loop.
+ * both the hub's `advance()` and `tick()` are driven by the host's loop.
  */
 
 #include <sigildata/decode/Schema.h>
@@ -110,11 +110,6 @@ class Wires {
 
   /** Whether opens on this URI play a recording replay() named. */
   bool recorded(std::string_view uri) const;
-
-  /** Moves every replayed recording to @p seconds on the caller's clock,
-   *  delivering each arrival the file stamped at or before it. A live
-   *  wire is unaffected — its transport delivers on its own. */
-  void dispatch(double seconds);
 
   /** Reads every wire through @p schema from now on: the token a
    *  message is shown as its own form through, which a reader holds

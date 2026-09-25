@@ -691,7 +691,7 @@ int main(int argc, char* argv[]) {
       windowSessions());
   QTimer inspectionPump;
   QObject::connect(&inspectionPump, &QTimer::timeout,
-                   [&inspection] { inspection.dispatch(); });
+                   [&inspection] { inspection.advance(); });
   if (inspection.listening()) inspectionPump.start(kInspectionPumpMilliseconds);
 
   finishMaterialWarmup(materialWarmup);

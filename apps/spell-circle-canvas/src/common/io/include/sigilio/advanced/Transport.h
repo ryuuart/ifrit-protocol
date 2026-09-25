@@ -10,6 +10,7 @@
  * the verbs that put a message on a feed are the transport's alone.
  */
 
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <string>
@@ -64,10 +65,10 @@ class Inlet {
    *  when it is empty. */
   void deliver(Bytes payload, std::string sender = {}) const;
 
-  /** Puts one message on the feed stamped with @p arrivedAt, seconds as
-   *  a recording carries them, and naming no sender: a recording holds
-   *  the messages and not who sent them. */
-  void deliver(Bytes payload, double arrivedAt) const;
+  /** Puts one message on the feed stamped with @p arrivedAt, the time
+   *  since the feed opened as a recording carries it, and naming no
+   *  sender: a recording holds the messages and not who sent them. */
+  void deliver(Bytes payload, std::chrono::duration<double> arrivedAt) const;
 
   /** Says what went wrong, which the feed's `state().error` answers
    *  from then on; an empty reason takes off what stood there. The feed stays

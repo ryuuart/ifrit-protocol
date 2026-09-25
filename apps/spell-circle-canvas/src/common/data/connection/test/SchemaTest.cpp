@@ -143,7 +143,7 @@ TEST(DataSchema, AJsonArrivalThatFitsIsTheLatestInTheSchemasForm) {
   sheet.on("*", [&handled](const Json&) { ++handled; });
 
   inletOf(sheet.feed()).deliver(bytesOf(R"({"readings":[{"name":"a","value":2.5}]})"));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(handled, 1);
   EXPECT_EQ(sheet.undecodable(), 0u);
@@ -165,7 +165,7 @@ TEST(DataSchema, AJsonArrivalThatDoesNotFitLeavesTheLatestStanding) {
   // and it is not this schema's, which is the whole difference a schema
   // makes: without one it would be the newest message.
   inletOf(sheet.feed()).deliver(bytesOf(R"({"gust":0.5})"));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(handled, 1);
   EXPECT_EQ(sheet.undecodable(), 1u);
@@ -179,7 +179,7 @@ TEST(DataSchema, ABufferArrivesAsItsOwnJsonForm) {
 
   Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
   inletOf(sheet.feed()).deliver(bytesOf(builtSheet()));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   // The same reading as the JSON form: which form the sender wrote is
   // not something a reader has to know.

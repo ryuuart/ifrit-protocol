@@ -30,8 +30,8 @@ struct InspectionRequest {
 
 /** AN ENDPOINT ANSWERING `host` on loopback: the receiver holds no sketch
  *  session and no clock, so every other domain answers `notMounted`.
- *  Nothing moves but by `dispatch()`, which the receiver's main queue
- *  calls; with no client attached a dispatch runs no handler. */
+ *  Nothing moves but by `advance()`, which the receiver's main queue
+ *  calls; with no client attached an advance runs no handler. */
 class ReceiverInspection {
  public:
   /** Listens as @p request says, keeping state under @p stateRoot. */
@@ -43,7 +43,7 @@ class ReceiverInspection {
   ReceiverInspection& operator=(const ReceiverInspection&) = delete;
 
   /** Answers whatever the clients attached have asked since the last. */
-  void dispatch();
+  void advance();
 
   /** Whether a port is held. */
   [[nodiscard]] bool listening() const;

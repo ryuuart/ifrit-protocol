@@ -86,7 +86,7 @@ std::string run(const std::filesystem::path& state, bool mounted, int* asked,
   EXPECT_TRUE(host.open("quiet_endpoint_box"));
   std::string stills;
   for (int frame = 0; frame < 6; ++frame) {
-    if (mounted) hub.dispatch();
+    if (mounted) hub.advance();
     EXPECT_TRUE(host.step(1.0 / 60.0));
     const auto still =
         host.still(1.0, "still-" + std::to_string(frame) + ".png");

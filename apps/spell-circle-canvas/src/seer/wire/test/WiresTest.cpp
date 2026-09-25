@@ -280,8 +280,8 @@ TEST_F(SeerRecorder, ARecordedWireIsAFileReadRecordingReadsBack) {
   EXPECT_TRUE(recorder.recording());
   EXPECT_EQ(recorder.path(), file);
 
-  inletOf(feed).deliver(bytesOf("first"), 0.25);
-  inletOf(feed).deliver(bytesOf("second"), 0.75);
+  inletOf(feed).deliver(bytesOf("first"), std::chrono::duration<double>(0.25));
+  inletOf(feed).deliver(bytesOf("second"), std::chrono::duration<double>(0.75));
   recorder.stop();
   EXPECT_FALSE(recorder.recording());
 
@@ -302,8 +302,8 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
     const std::shared_ptr<Feed> live = wires.open("pigeon://the.desk");
     Recorder recorder(wires);
     ASSERT_TRUE(recorder.record(live, file));
-    inletOf(live).deliver(bytesOf("first"), 0.25);
-    inletOf(live).deliver(bytesOf("second"), 0.75);
+    inletOf(live).deliver(bytesOf("first"), std::chrono::duration<double>(0.25));
+    inletOf(live).deliver(bytesOf("second"), std::chrono::duration<double>(0.75));
   }
 
   Recorder recorder(wires);
@@ -317,13 +317,13 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
 
   // The first dispatch is where the recording starts, whatever the
   // caller's clock reads then: nothing is due at its own origin.
-  wires.dispatch(10.0);
+  wires.hub().advance(std::chrono::duration<double>(10.0));
   EXPECT_EQ(replayed->state().revision, 0u);
-  wires.dispatch(10.3);
+  wires.hub().advance(std::chrono::duration<double>(10.3));
   EXPECT_EQ(replayed->state().revision, 1u);
   EXPECT_EQ(replayed->latest()->payload->asText(), "first");
   EXPECT_NE(replayed->state().readiness, sigil::io::ReadyState::Closed);
-  wires.dispatch(11.0);
+  wires.hub().advance(std::chrono::duration<double>(11.0));
   EXPECT_EQ(replayed->state().revision, 2u);
   EXPECT_EQ(replayed->latest()->payload->asText(), "second");
   // Nothing else is coming, and the wire says so rather than waiting on
@@ -342,7 +342,7 @@ TEST_F(SeerRecorder, ReplayingAFileThatIsNoRecordingSaysSoOnTheWire) {
   const std::shared_ptr<Feed> replayed =
       recorder.replay("pigeon://the.desk", file);
   EXPECT_FALSE(replayed->state().error.empty());
-  wires.dispatch(0.0);
+  wires.hub().advance(std::chrono::duration<double>(0.0));
   EXPECT_EQ(replayed->state().revision, 0u);
 }
 

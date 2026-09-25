@@ -52,7 +52,7 @@ derived is kept by hand.
           no socket (tests,      text frames,       |          |
           command lists)         <state>/protocol-address,     |
                    ^             /protocol served,  |          |
-                   |             inside hub.dispatch()         |
+                   |             inside hub.advance()          |
                    |                      ^         |          v
                    +------- CLIENTS ------+---------+       PANELS
                                                             (Seer)

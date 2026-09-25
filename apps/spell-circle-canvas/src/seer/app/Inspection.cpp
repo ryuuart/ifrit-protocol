@@ -47,7 +47,7 @@ Inspection::Inspection(uint16_t port, std::filesystem::path stateRoot)
 
 Inspection::~Inspection() = default;
 
-void Inspection::dispatch() { m_state->hub.dispatch(); }
+void Inspection::advance() { m_state->hub.advance(); }
 
 bool Inspection::listening() const { return m_state->endpoint->listening(); }
 

@@ -92,7 +92,7 @@ struct Endpoint::Socket {
   Dispatcher& dispatcher;
   data::Connection connection;
   /** What notices a peer leaving: the connection hears only messages. */
-  io::DispatchLease departures;
+  io::Lease departures;
   /** Each peer attached, by the address its messages arrive under, and
    *  the session it is answered as. */
   std::map<std::string, std::string, std::less<>> sessionOfPeer;
@@ -211,7 +211,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
   });
   // A PEER THAT LEFT IS DETACHED on the frame after, which clears what
   // it alone set. With no client attached this reads nothing.
-  socket.departures = hub.onDispatch([this](double) {
+  socket.departures = hub.onAdvance([this](std::chrono::duration<double>) {
     Socket& held = *m_socket;
     if (held.sessionOfPeer.empty()) return;
     const std::vector<std::string> attached = held.connection.feed()->peers();

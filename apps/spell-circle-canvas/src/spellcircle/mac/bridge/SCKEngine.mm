@@ -130,7 +130,7 @@ constexpr uint64_t kInspectionPumpNanoseconds = 30 * NSEC_PER_MSEC;
   __weak SCKEngine *weakSelf = self;
   dispatch_source_set_event_handler(_inspectionPump, ^{
     SCKEngine *engine = weakSelf;
-    if (engine && engine->_inspection) engine->_inspection->dispatch();
+    if (engine && engine->_inspection) engine->_inspection->advance();
   });
   dispatch_resume(_inspectionPump);
 }

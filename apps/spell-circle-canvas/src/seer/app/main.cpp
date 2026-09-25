@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
   seer::Inspection inspection(args.inspectPort.value_or(0), stateRoot);
   QTimer inspectionPump;
   QObject::connect(&inspectionPump, &QTimer::timeout,
-                   [&inspection] { inspection.dispatch(); });
+                   [&inspection] { inspection.advance(); });
   if (inspection.listening()) inspectionPump.start(kInspectionPumpMilliseconds);
 
   QQuickWindow::setDefaultAlphaBuffer(true);

@@ -208,7 +208,7 @@ TEST(IOWebRtcPeer, TheOneACaseStartsThisBinaryFor) {
   while (std::chrono::steady_clock::now() < deadline) {
     // The frame, as any host makes it: what carries the introduction
     // this end is making is the same dispatch a scene would call.
-    hub.dispatch();
+    hub.advance();
     if (saying != nullptr && std::chrono::steady_clock::now() >= next) {
       next = std::chrono::steady_clock::now() + kPeerSays;
       caller->send(bytesOf(saying));
@@ -361,11 +361,11 @@ class IOWebRtc : public ::testing::Test {
                  std::chrono::seconds patience = kPatience) {
     const auto deadline = std::chrono::steady_clock::now() + patience;
     while (std::chrono::steady_clock::now() < deadline) {
-      hub.dispatch();
+      hub.advance();
       if (ready()) return true;
       std::this_thread::sleep_for(1ms);
     }
-    hub.dispatch();
+    hub.advance();
     return ready();
   }
 

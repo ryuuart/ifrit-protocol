@@ -21,9 +21,10 @@ void Inlet::deliver(Bytes payload, std::string sender) const {
     feed->deliver(std::move(payload), std::move(sender));
 }
 
-void Inlet::deliver(Bytes payload, double arrivedAt) const {
+void Inlet::deliver(Bytes payload,
+                    std::chrono::duration<double> arrivedAt) const {
   if (const std::shared_ptr<Feed> feed = m_feed.lock())
-    feed->deliver(std::move(payload), std::chrono::duration<double>(arrivedAt));
+    feed->deliver(std::move(payload), arrivedAt);
 }
 
 void Inlet::fail(std::string why) const {

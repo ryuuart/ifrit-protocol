@@ -1,5 +1,5 @@
 /** @file
- * The channel: the dispatch it registers on, the number it takes out of
+ * The channel: the advance it registers on, the number it takes out of
  * the newest message of its name, and the one write it makes when that
  * number moved.
  */
@@ -35,7 +35,7 @@ const std::string& noName() {
 
 }  // namespace
 
-/** WHAT A CHANNEL IS. The dispatch reaches it weakly and every reading
+/** WHAT A CHANNEL IS. The advance reaches it weakly and every reading
  *  below reaches it through the channel's pointer, so the two agree
  *  however the channel is moved about — and the live value keeps its cell,
  *  which is what a description that bound it needs. */
@@ -53,9 +53,9 @@ struct Channel::State {
   uint64_t seen = 0;
   /** The number as the wire spelled it; nothing until one has arrived. */
   std::optional<double> read;
-  /** What the hub's dispatch runs. It is released with this state, so a
+  /** What the hub's advance runs. It is released with this state, so a
    *  channel that is gone leaves nothing to run. */
-  io::DispatchLease lease;
+  io::Lease lease;
 
   /** THE NUMBER THE READING NAMES in the newest message of this name, or
    *  nothing where it names none: no message under the name yet, an
@@ -92,10 +92,10 @@ Channel::Channel(io::Hub& hub, data::Connection& connection, std::string name,
   state->connection = &connection;
   state->name = std::move(name);
   state->reading = std::move(reading.at);
-  // The dispatch knows the state weakly: the state owns the lease, and a
+  // The advance knows the state weakly: the state owns the lease, and a
   // lease owning the state back would keep both standing after the last
   // channel onto them was gone.
-  state->lease = hub.onDispatch([held = std::weak_ptr<State>(state)](double) {
+  state->lease = hub.onAdvance([held = std::weak_ptr<State>(state)](std::chrono::duration<double>) {
     if (const std::shared_ptr<State> living = held.lock()) living->follow();
   });
   m_state = std::move(state);

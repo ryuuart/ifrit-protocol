@@ -115,7 +115,7 @@ void SeerSession::tick() {
   const double seconds = elapsed();
   // The recordings move first, so what one of them delivered this frame
   // is read by the tick below rather than a frame later.
-  m_wires.dispatch(seconds);
+  m_wires.hub().advance(std::chrono::duration<double>(seconds));
   m_wires.tick(seconds);
   m_sender.tick(seconds);
   // What a run was given to say goes out on a frame rather than as the

@@ -203,8 +203,6 @@ void Assets::beginDeclaration() {
   for (HeldShader& shader : m_shaders) shader.asked = false;
 }
 
-void Assets::dispatch(double seconds) { m_hub.dispatch(seconds); }
-
 bool Assets::poll() {
   bool changed = m_hub.poll();
   if (changed) m_videos.clear();

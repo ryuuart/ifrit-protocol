@@ -108,8 +108,8 @@ void registerQuic(Hub& hub);
  *  crosses, and the shape of THAT URI says which end this one is: a port
  *  to hold waits, a server to call takes the room up. ?ice=stun:HOST:PORT
  *  may be given more than once.
- *  @trap Hub::dispatch() is what reads the signalling door and answers
- *  it, so a handshake takes a few frames and a host that never dispatches
+ *  @trap Hub::advance() is what reads the signalling door and answers
+ *  it, so a handshake takes a few frames and a host that never advances
  *  never finishes one. */
 void registerWebRtc(Hub& hub);
 

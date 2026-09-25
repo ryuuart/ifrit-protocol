@@ -69,7 +69,7 @@ TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
   inletOf(sky.feed()).deliver(bytesOf(R"({"kind":"gust"})"), "ws://127.0.0.1:52341");
   inletOf(sky.feed()).deliver(bytesOf("this is no document at all"),
                               "ws://127.0.0.1:52341");
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
   ASSERT_EQ(sky.revision(), 2u);
 
   EXPECT_TRUE(sameDrawing(

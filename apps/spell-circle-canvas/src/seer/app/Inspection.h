@@ -22,8 +22,8 @@ namespace seer {
 /** AN ENDPOINT ANSWERING `host` on loopback at @p port — any free one for
  *  0 — with its address written under @p stateRoot. Seer holds no
  *  sketch session and no clock, so every other domain answers
- *  `notMounted`. Nothing moves but by `dispatch()`, which the window's
- *  event loop calls; with no client attached a dispatch runs no
+ *  `notMounted`. Nothing moves but by `advance()`, which the window's
+ *  event loop calls; with no client attached an advance runs no
  *  handler. */
 class Inspection {
  public:
@@ -34,7 +34,7 @@ class Inspection {
   Inspection& operator=(const Inspection&) = delete;
 
   /** Answers whatever the clients attached have asked since the last. */
-  void dispatch();
+  void advance();
 
   /** Whether the endpoint holds a port. */
   [[nodiscard]] bool listening() const;

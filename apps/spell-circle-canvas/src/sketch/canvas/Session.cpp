@@ -171,7 +171,7 @@ class CanvasSession final : public Session {
     // the body reads them: what a frame sees is everything that had
     // arrived by the moment it draws.
     const double seconds = m_engine.elapsed().count();
-    m_assets.dispatch(seconds);
+    m_assets.hub().advance(std::chrono::duration<double>(seconds));
     {
       SketchContext ctx = context();
       m_sketch->update(seconds, ctx);

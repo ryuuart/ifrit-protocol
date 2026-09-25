@@ -189,7 +189,7 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
   EXPECT_TRUE(feed->state().error.empty());
   EXPECT_EQ(feed->state().revision, 0u);  // nothing arrives until time moves
 
-  assets.dispatch(0.0);
+  assets.hub().advance(std::chrono::duration<double>(0.0));
   EXPECT_EQ(feed->state().revision, 1u);
   ASSERT_TRUE(feed->latest().has_value());
   EXPECT_EQ(feed->latest()->payload->asText(), "dawn");
@@ -197,12 +197,12 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
 
   // One dispatch may cover several arrivals and never covers one that is
   // still ahead: the scene time decides, not the number of calls.
-  assets.dispatch(0.6);
+  assets.hub().advance(std::chrono::duration<double>(0.6));
   EXPECT_EQ(feed->state().revision, 2u);
   EXPECT_EQ(feed->latest()->payload->asText(), "noon");
   EXPECT_NE(feed->state().readiness, sigil::io::ReadyState::Closed);
 
-  assets.dispatch(2.0);
+  assets.hub().advance(std::chrono::duration<double>(2.0));
   EXPECT_EQ(feed->state().revision, 3u);
   EXPECT_EQ(feed->latest()->payload->asText(), "dusk");
   EXPECT_EQ(feed->state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out

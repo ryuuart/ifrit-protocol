@@ -100,7 +100,7 @@ TEST(DataConnection, AJsonMessageIsTheLatestAndReachesEveryHandlerNamingIt) {
   // Nothing has been read yet: the frame is what reads it.
   EXPECT_TRUE(scene.latest().null());
 
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
   EXPECT_EQ(every, 1);
   ASSERT_EQ(gusts.size(), 1u);
   EXPECT_DOUBLE_EQ(gusts.front(), 0.5);
@@ -126,7 +126,7 @@ TEST(DataConnection, AnOscPacketIsItsAddressAndReachesTheHandlerOnThatAddress) {
 
   inletOf(desk.feed()).deliver(
               bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   ASSERT_EQ(faders.size(), 1u);
   EXPECT_DOUBLE_EQ(faders.front(), 0.5);
@@ -164,7 +164,7 @@ TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
   // the release it is, so the two handlers above are the whole of it.
   inletOf(pads.feed()).deliver(bytesOf(wire({0x90, 0x3C, 0x64})));
   inletOf(pads.feed()).deliver(bytesOf(wire({0x90, 0x3C, 0x00})));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   ASSERT_EQ(struck.size(), 2u);
   EXPECT_DOUBLE_EQ(struck.front(), 60.0);
@@ -193,7 +193,7 @@ TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
 
   // Bytes that are no message at all reach no reader and are counted.
   inletOf(pads.feed()).deliver(bytesOf(wire({0x3C, 0x64})));
-  hub.dispatch(1.0);
+  hub.advance(std::chrono::duration<double>(1.0));
   EXPECT_EQ(pads.undecodable(), 1u);
   EXPECT_EQ(struck.size(), 2u);
 }
@@ -228,7 +228,7 @@ TEST(DataArtNet, AnArtNetDoorReadsAUniverseAndWritesOneBack) {
   inletOf(desk.feed()).deliver(bytesOf(
               wire({'A',  'r', 't', '-',  'N',  'e',  't',  0,   0x00, 0x50, 0x00,
                     0x0E, 7,   0,   0x02, 0x00, 0x00, 0x04, 255, 128,  0,    0})));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   ASSERT_EQ(washes.size(), 1u);
   EXPECT_DOUBLE_EQ(washes.front(), 255.0);
@@ -260,7 +260,7 @@ TEST(DataArtNet, AnArtNetDoorReadsAUniverseAndWritesOneBack) {
 
   // Bytes that are no packet at all reach no reader and are counted.
   inletOf(desk.feed()).deliver(bytesOf(wire({'A', 'r', 't', 0})));
-  hub.dispatch(1.0);
+  hub.advance(std::chrono::duration<double>(1.0));
   EXPECT_EQ(desk.undecodable(), 1u);
   EXPECT_EQ(washes.size(), 1u);
 }
@@ -276,7 +276,7 @@ TEST(DataConnection, EachNameLatchesItsOwnNewestBesideTheNewestOfAll) {
               bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
   inletOf(desk.feed()).deliver(
               bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   // One fader read off the wire with no handler at all, and the one
   // beside it standing where it was left: a name is its own latch.
@@ -297,7 +297,7 @@ TEST(DataConnection, ANameNothingIsLatchedUnderAnswersNothing) {
   Connection scene(hub, "ws://:8848/scene", {.capacity = 2});
   const auto arrives = [&scene, &hub](std::string_view text) {
     inletOf(scene.feed()).deliver(bytesOf(text));
-    hub.dispatch(0.0);
+    hub.advance(std::chrono::duration<double>(0.0));
   };
   arrives(R"({"kind":"gust","strength":1})");
   arrives(R"({"kind":"calm","strength":2})");
@@ -329,7 +329,7 @@ TEST(DataConnection, ReceiveHandsOutEveryMessageInOrderAndThenNothing) {
   for (int number = 0; number != 3; ++number)
     inletOf(scene.feed()).deliver(
                 bytesOf(R"({"kind":"step","n":)" + std::to_string(number) + "}"));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   for (int number = 0; number != 3; ++number) {
     const std::optional<Json> message = scene.receive();
@@ -350,7 +350,7 @@ TEST(DataConnection, TheUnreadQueueFillsFromTheFirstReceiveOn) {
   scene.on("*", [&handled](const Json&) { ++handled; });
   const auto arrives = [&scene, &hub](std::string_view text) {
     inletOf(scene.feed()).deliver(bytesOf(text));
-    hub.dispatch(0.0);
+    hub.advance(std::chrono::duration<double>(0.0));
   };
 
   // Nobody has asked for a queue, so these are read, handled and not
@@ -388,7 +388,7 @@ TEST(DataConnection, OtherwiseRunsForEveryMessageNoNameMatched) {
   inletOf(desk.feed()).deliver(bytesOf(encodeOsc("/sky/thunder", Json(Json::Array{}))));
   inletOf(desk.feed()).deliver(
               bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   // A name nothing was registered under reaches "*" and then, after it,
   // both otherwise handlers in the order they were registered — "*"
@@ -411,7 +411,7 @@ TEST(DataConnection, AMessageThatCannotBeReadLeavesTheLatestStanding) {
 
   inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"gust","strength":0.5})"));
   inletOf(scene.feed()).deliver(bytesOf("this is no document at all"));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(scene.undecodable(), 1u);
   EXPECT_EQ(handled, 1);
@@ -466,7 +466,7 @@ TEST(DataConnection, AReplyInAHandlerAnswersTheSenderOfTheMessage) {
   inletOf(desk.feed()).deliver(
               bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))),
               "osc://127.0.0.1:52341");
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   ASSERT_EQ(answered->size(), 1u);
   // It went to the address the arrival named, which is the sender the
@@ -494,7 +494,7 @@ TEST(DataConnection, AReplyOutsideAHandlerAnswersTheNewestSender) {
   inletOf(desk.feed()).deliver(
               bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))),
               "osc://127.0.0.1:52342");
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(desk.sender(), "osc://127.0.0.1:52342");
   EXPECT_TRUE(desk.reply("/sky/state", Json(Json::Array{Json(0.75)})));
@@ -520,7 +520,7 @@ TEST(DataConnection, AMessageThatNamedNoSenderIsNobodyToAnswer) {
   // The door answers one sender, and a message arrived; what is missing
   // is who sent it, which a transport that cannot say leaves empty.
   inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"gust"})"));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
   EXPECT_EQ(scene.latest()["kind"].text(), "gust");
   EXPECT_FALSE(scene.reply(scene.latest()));
   EXPECT_FALSE(scene.reply("/sky/state", Json(Json::Array{})));
@@ -546,7 +546,7 @@ TEST(DataConnection, ARecordingHasNobodyToReplyTo) {
   Hub hub;
   hub.replay("ws://:8848/scene", path.string());
   Connection scene(hub, "ws://:8848/scene");
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   EXPECT_DOUBLE_EQ(scene.latest()["strength"].number(), 1.0);
   // A recording holds the messages and not who sent them, so what runs
@@ -565,7 +565,7 @@ TEST(DataConnection, AMovedConnectionGoesOnDispatchingToItsHandlers) {
   Connection moved = std::move(opened);
 
   inletOf(moved.feed()).deliver(bytesOf(R"({"kind":"gust"})"));
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(seen, 1);
   EXPECT_EQ(moved.uri(), "ws://:8848/scene");
@@ -619,12 +619,12 @@ TEST(DataConnection, ARecordingReplaysThroughAConnectionByTheTimeDispatched) {
   EXPECT_TRUE(scene.error().empty());
   EXPECT_EQ(scene.revision(), 0u);  // nothing arrives until time moves
 
-  hub.dispatch(0.0);
+  hub.advance(std::chrono::duration<double>(0.0));
   ASSERT_EQ(strengths.size(), 1u);
   EXPECT_DOUBLE_EQ(strengths.front(), 1.0);
   EXPECT_FALSE(scene.closed());
 
-  hub.dispatch(1.0);
+  hub.advance(std::chrono::duration<double>(1.0));
   ASSERT_EQ(strengths.size(), 2u);
   EXPECT_DOUBLE_EQ(strengths.back(), 2.0);
   // The recording ran out: the door is shut and what it delivered

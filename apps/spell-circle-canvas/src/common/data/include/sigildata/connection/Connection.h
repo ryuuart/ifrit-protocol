@@ -7,9 +7,9 @@
  * through every other, and the schema's own form on a door opened with
  * one — so what a reader sees is a `Json`, or the value type a
  * generated header declares, and never the bytes. NOTHING DRIVES IT BUT
- * THE FRAME: a connection registers on the hub's dispatch as it opens,
- * and between two dispatches it answers exactly what the last one left
- * it. ONE THREAD, the dispatching one, so a connection holds no lock of
+ * THE FRAME: a connection registers on the hub's advance as it opens,
+ * and between two advances it answers exactly what the last one left
+ * it. ONE THREAD, the advancing one, so a connection holds no lock of
  * its own.
  */
 
@@ -48,7 +48,7 @@ class Connection {
   Connection() = default;
 
   /** Opens @p uri on @p hub — the one feed that URI names — and
-   *  registers on the hub's dispatch. The URI's SCHEME says how a
+   *  registers on the hub's advance. The URI's SCHEME says how a
    *  message is read: `osc` is an OSC packet and anything else is JSON
    *  text. @p policy is the feed's, and bounds what receive() holds as
    *  well. */
@@ -79,7 +79,7 @@ class Connection {
   const Json& latest() const;
 
   /** THE NEWEST MESSAGE AS A VALUE OF ITS OWN: the bytes the last
-   *  dispatch left, read through the reading the schema's generated
+   *  advance left, read through the reading the schema's generated
    *  value header wrote for Value. Nothing before the first arrival,
    *  where the bytes are not that value, and on a connection onto
    *  nothing. Where the door was opened with a schema and the bytes are
@@ -116,7 +116,7 @@ class Connection {
    *  MESSAGE'S NAME is its `address` where it carries one as text, and
    *  otherwise the first of `type`, `message_type` and `kind` it
    *  carries as text; `"*"` names every message. Handlers run on
-   *  dispatch, on the dispatching thread, in the order the messages
+   *  advance, on the advancing thread, in the order the messages
    *  arrived and then in the order they were registered.
    *  @trap A handler registered after a message arrived does not see
    *  it, latest() being how a late reader catches up. */
@@ -229,7 +229,7 @@ class Connection {
     bool operator==(const Vitals&) const = default;
   };
 
-  /** The door's vitals as of the last dispatch; a connection onto nothing
+  /** The door's vitals as of the last advance; a connection onto nothing
    *  answers the value that says so — nothing arrived, and closed. */
   Vitals vitals() const;
 
@@ -240,7 +240,7 @@ class Connection {
 
  private:
   /** Everything a connection is, behind one pointer. What the hub
-   *  dispatches reaches this rather than the connection, so moving a
+   *  advances reaches this rather than the connection, so moving a
    *  connection carries the handlers, the queue and the lease with it
    *  and what is registered goes on reading the same state. */
   struct State;
