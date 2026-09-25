@@ -35,7 +35,6 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace motion = sigil::motion;
-namespace ch = choreograph;
 
 using namespace sigil::compose;
 
@@ -181,7 +180,7 @@ struct TileMap {
   std::array<Edit, kChunks> edits{};
   /** The wash on each chunk, one live value per chunk: set to 1 when the
    *  chunk re-recorded and decayed by the ticker from there. */
-  std::array<ch::Output<float>, kChunks> flash{};
+  std::array<motion::Animatable<float>, kChunks> flash{};
   std::array<double, kChunks> editedAt{};
   double clock = 0.0;
   double nextMutation = 0.0;
@@ -207,20 +206,20 @@ struct TileMap {
     revisions.fill(0);
     edits.fill(Edit{});
     editedAt.fill(-1000.0);
-    for (ch::Output<float>& f : flash) f = 0.0f;
+    for (motion::Animatable<float>& f : flash) f = 0.0f;
     clock = 0.0;
     nextMutation = kPeriod;
     worked = Composer::Stats{};
     // The flash is a lane, not a re-describe: one ticker writes every
     // chunk's wash from the age of its last edit, and the bound opacity
     // beside each memo reads it.
-    ctx.ticker.add([this](double dt) {
+    ctx.engine.add([this](double dt) {
       clock += dt;
       for (int i = 0; i < kChunks; ++i)
         flash[(size_t)i] =
             motion::decay((float)(clock - editedAt[(size_t)i]), kFade);
     });
-    probe = std::make_unique<Composer>(ctx.ticker, *ctx.fonts);
+    probe = std::make_unique<Composer>(ctx.engine, *ctx.fonts);
     probe->setSize({kChunks * kChunkCols * kTile, kChunkRows * kTile});
     probe->setAutoTexturePromotion(Composer::PromotionPolicy::Off);
     probe->render(map());

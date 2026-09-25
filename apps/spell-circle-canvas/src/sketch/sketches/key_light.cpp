@@ -48,10 +48,10 @@ constexpr float kRing = 150.0f;
  *  scene time, held for as long as the study is, because a lane
  *  addresses the output rather than copying it. */
 struct Dials {
-  choreograph::Output<float> intensity = 1.0f;
-  choreograph::Output<float> red = 1.0f;
-  choreograph::Output<float> green = 1.0f;
-  choreograph::Output<float> blue = 1.0f;
+  sigil::motion::Animatable<float> intensity = sigil::motion::animatable(1.0f);
+  sigil::motion::Animatable<float> red = sigil::motion::animatable(1.0f);
+  sigil::motion::Animatable<float> green = sigil::motion::animatable(1.0f);
+  sigil::motion::Animatable<float> blue = sigil::motion::animatable(1.0f);
 };
 
 /** A ring of posts round one body — the same tree at every moment. */
@@ -94,8 +94,8 @@ world::Element rigWithDials(const world::kit::Rig& spec, Dials& dials) {
   for (const world::Element& lamp : rig.node()->children) {
     world::Element copy = lamp;
     if (lamp.node()->key == "key")
-      copy.intensity(&dials.intensity)
-          .emission(&dials.red, &dials.green, &dials.blue);
+      copy.intensity(dials.intensity)
+          .emission(dials.red, dials.green, dials.blue);
     out.children({std::move(copy)});
   }
   return out;

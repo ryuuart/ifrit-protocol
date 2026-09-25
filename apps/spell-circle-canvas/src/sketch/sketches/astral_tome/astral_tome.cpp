@@ -11,8 +11,8 @@ struct AstralTome {
   // TEN Outputs for 93 twinkling primitives: an Output per primitive is
   // a write per primitive per frame, and the twinkle reads the same at a
   // tenth of them shared round.
-  std::array<ch::Output<float>, at::kDivCount> bright;
-  ch::Output<float> arrowScale{1.0f};
+  std::array<sigil::motion::Animatable<float>, at::kDivCount> bright;
+  sigil::motion::Animatable<float> arrowScale = sigil::motion::animatable(1.0f);
 
   std::vector<int> divisors;  // the seeded list, long enough for any chart
   sk_sp<SkTypeface> serif, mono;
@@ -287,7 +287,7 @@ struct AstralTome {
     if (hovered)
       e.scale(1.1f);
     else
-      e.scale(bind(&arrowScale));
+      e.scale(sigil::motion::bind(arrowScale));
     return e;
   }
 
@@ -370,7 +370,7 @@ struct AstralTome {
     divisors = at::divisorSequence(64);
 
     // ---- motion ---------------------------------------------------------
-    ctx.ticker.add([this](double dt) {
+    ctx.engine.add([this](double dt) {
       clock += dt;
       // Cluster:243 / Render:331. clientTick runs at 20 Hz; partialTicks is
       // the sub-tick fraction, so (tick + partial) is simply t*20.
@@ -440,9 +440,8 @@ struct AstralTome {
               divisors[(size_t)pass * (size_t)c.linkCount + (size_t)li] -
               at::kDivMin;
           chartLinks.children({place(linkPass(c, li, pass, lkKey++)
-                                         .mask(by::spans(spans::upTo(animate(
-                                             from(0.0f).to(1.0f), {520ms}))))
-                                         .opacity(bind(&bright[(size_t)d])))});
+                                         .mask(by::spans(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 520ms}))))
+                                         .opacity(sigil::motion::bind(bright[(size_t)d])))});
         }
 
       // Stars. The star loop runs after both connection laps, so it picks up
@@ -452,8 +451,8 @@ struct AstralTome {
             divisors[(size_t)(2 * c.linkCount + si - 1)] - at::kDivMin;
         chartStars.children(
             {place(starEl(c, si, stKey++)
-                       .scale(animate(from(0.0f).to(1.0f), {380ms}))
-                       .opacity(bind(&bright[(size_t)d])))});
+                       .scale(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 380ms}))
+                       .opacity(sigil::motion::bind(bright[(size_t)d])))});
       }
       links.children({std::move(chartLinks)});
       stars.children({std::move(chartStars)});

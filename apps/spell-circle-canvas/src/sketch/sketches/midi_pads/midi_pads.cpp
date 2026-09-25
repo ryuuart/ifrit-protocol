@@ -51,7 +51,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
@@ -159,7 +159,7 @@ constexpr std::array<Band, 6> kBands = {{{48, -16, 15},
  *  by itself; the strike is a plain number, being over the moment it
  *  arrived. */
 struct Cell {
-  ch::Output<float> glow{0};
+  motion::Animatable<float> glow = motion::animatable(0.0f);
   float strike = 0;
   /** What the lights were last told, which is what says whether there
    *  is anything to tell them. */
@@ -206,12 +206,12 @@ struct MidiPads {
   /** The session's ticker, which outlives this sketch. A handler runs
    *  on the dispatch rather than inside a describe, so it cannot hold
    *  the per-frame context the ticker is otherwise reached through. */
-  motion::Ticker* ticker = nullptr;
+  motion::Engine* ticker = nullptr;
 
   std::array<Cell, kCells> cells;
   /** The knob, eased: where it stands, reached over kWindEase rather
    *  than jumped to, so a knob turned in steps still drifts smoothly. */
-  ch::Output<float> wind{0};
+  motion::Animatable<float> wind = motion::animatable(0.0f);
 
   /** How far the sky has travelled, in px. Integrated rather than read
    *  as a speed times the clock, because a speed that changes would
@@ -230,7 +230,7 @@ struct MidiPads {
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
-    ticker = &ctx.ticker;
+    ticker = &ctx.engine;
 
     io::Hub& hub = ctx.assets.hub();
     const std::string arriving = std::string(kPadsIn) + kController;
@@ -273,7 +273,7 @@ struct MidiPads {
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double step = elapsed - seconds;
     seconds = elapsed;
-    drift += (double)wind() * step;
+    drift += (double)wind.value() * step;
     relight();
     // The data path: the sky and the cells move without being described
     // again, because the pen reads them on every frame. What is
@@ -301,7 +301,7 @@ struct MidiPads {
     cell.strike =
         std::clamp((float)message["velocity"].number() / 127.0f, 0.0f, 1.0f);
     ticker->timeline()
-        .apply(&cell.glow)
+        .apply(cell.glow)
         .then<ch::RampTo>(cell.strike, kStrike, motion::ease::outQuad);
   }
 
@@ -312,7 +312,7 @@ struct MidiPads {
     if (!ticker) return;
     Cell& cell = cells[cellOf((int)message["note"].number())];
     ticker->timeline()
-        .apply(&cell.glow)
+        .apply(cell.glow)
         .then<ch::RampTo>(0.0f, kFade, motion::ease::inQuad);
   }
 
@@ -326,7 +326,7 @@ struct MidiPads {
     const float across = (float)message["value"].number() / 127.0f;
     // The knob runs either side of still air, because a sky that only
     // drifts one way is a knob with half its travel wasted.
-    ticker->timeline().apply(&wind).then<ch::RampTo>(
+    ticker->timeline().apply(wind).then<ch::RampTo>(
         (across * 2.0f - 1.0f) * kWindSpan, kWindEase, motion::ease::outQuad);
   }
 
@@ -490,7 +490,7 @@ struct MidiPads {
     const float left = right - kLength;
     const float centre = left + kLength * 0.5f;
     const float reach =
-        std::clamp(wind() / kWindSpan, -1.0f, 1.0f) * kLength * 0.5f;
+        std::clamp(wind.value() / kWindSpan, -1.0f, 1.0f) * kLength * 0.5f;
     pen.noStroke();
     pen.fill(rule);
     pen.rect(left, base, kLength, kThickness, kThickness * 0.5f);

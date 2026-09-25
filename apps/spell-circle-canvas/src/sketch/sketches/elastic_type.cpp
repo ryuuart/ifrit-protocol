@@ -111,7 +111,7 @@
 #include <sigilcompose/typography/Track.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -124,6 +124,8 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+using namespace std::chrono_literals;
 
 namespace material = sigil::material;
 namespace motion = sigil::motion;
@@ -568,14 +570,13 @@ Element ground() {
 struct ElasticType {
   /** Seconds into one pass, wrapping: the one value that moves. Every
    *  word, cursor and ring is a binding over it. */
-  choreograph::Output<float> seconds{0};
+  motion::Animatable<float> seconds = motion::animatable(0.0f);
 
   /** @p lengthSeconds of the loop from @p startSeconds, as 0 → 1, held at
    *  0 before and at 1 after. */
   [[nodiscard]] motion::Bound playing(float startSeconds,
                                       float lengthSeconds) const {
-    return motion::bind(&seconds).window(startSeconds,
-                                         startSeconds + lengthSeconds);
+    return motion::bind(seconds, {.from = {startSeconds, startSeconds + lengthSeconds}, .clampFrom = true});
   }
 
   /** @p value of a table over a one-body word's pass from @p startSeconds. */
@@ -605,7 +606,7 @@ struct ElasticType {
     const auto oneBodyWord = [&] {
       return deform(specimen(word).textFx(
           {.effect = tint,
-           .stagger = {.eachMs = 0, .durationMs = kDurationMs},
+           .delay = motion::stagger(0ms), .duration = std::chrono::duration<double, std::milli>(kDurationMs),
            .progress = whole}));
     };
     return box().column().gap(6).children(
@@ -731,7 +732,7 @@ struct ElasticType {
     // along the line, head to tail, and jello has just answered.
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = 0.52, .background = kPaper});
-    ctx.ticker.add([this](double, double elapsed) {
+    ctx.engine.add([this](double, double elapsed) {
       seconds = motion::phase(elapsed, kLoopSeconds) * kLoopSeconds;
     });
     ctx.composer.render(describe());

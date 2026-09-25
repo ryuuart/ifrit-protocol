@@ -26,7 +26,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Legend.h>
 #include <sigilsketch/kit/Meter.h>
@@ -60,7 +60,6 @@ using sigil::draw::Pen;
 using sigil::material::Paint;
 using sigil::material::skia::toColor;
 namespace draw = sigil::draw;
-namespace ch = choreograph;
 
 namespace genesis {
 
@@ -248,9 +247,9 @@ inline Element panel(float height, int order) {
       .fill(kPanel)
       .stroke(stroke(1.0f, Fill::color(kKeyline), PathFormat::Align::Inner))
       .opacity(
-          animate(from(0.0f).to(1.0f), {.duration = 300ms, .delay = delay}))
+          sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = delay}))
       .translateX(
-          animate(from(14.0f).to(0.0f), {.duration = 300ms, .delay = delay}))
+          sigil::motion::animate({.from = 14.0f, .to = 0.0f, .duration = 300ms, .delay = delay}))
       .key(std::string("panel") + std::to_string(order));
 }
 

@@ -73,7 +73,6 @@ using namespace std::chrono_literals;
 using sigil::material::Filter;
 using sigil::material::Paint;
 using sigil::material::skia::toColor;
-namespace ch = choreograph;
 
 namespace slit {
 

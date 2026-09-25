@@ -85,13 +85,13 @@ struct Flourish {
 
   FlourishStyle st;
 
-  ch::Output<float> reveal{0.0f};
-  ch::Output<float> titleDrop{-18.0f};
-  ch::Output<float> titleFade{0.0f};
-  ch::Output<float> sealBreathe{1.0f};
+  motion::Animatable<float> reveal = motion::animatable(0.0f);
+  motion::Animatable<float> titleDrop = motion::animatable(-18.0f);
+  motion::Animatable<float> titleFade = motion::animatable(0.0f);
+  motion::Animatable<float> sealBreathe = motion::animatable(1.0f);
   ch::Output<float> spin[4];
   ch::Output<float> breathe[4];
-  ch::Output<float> flare{0.0f};
+  motion::Animatable<float> flare = motion::animatable(0.0f);
 
   sk_sp<SkRuntimeEffect> hatch, engraved;
   std::shared_ptr<sigil::image::ImageAsset> carvedFrame, gemAtlas;
@@ -238,7 +238,7 @@ struct Flourish {
                  .inset(kMedD / 2 - 9)
                  .shape(shapes::star(8, 0.5f))
                  .fill(Fill::color(mp.accent ? st.goldBright : st.gold))
-                 .opacity(&flare)});
+                 .opacity(flare)});
   }
 
   /** The filaments between the four medallions, as operators of the scene
@@ -321,13 +321,13 @@ struct Flourish {
                    .font({.size = 34, .track = 5.0f})
                    .ink(color)
                    .key(bloom ? "titleBloom" : "title")
-                   .opacity(&titleFade);
+                   .opacity(titleFade);
       if (bloom)
         t.filter(sigil::material::skia::filter(
                      SkImageFilters::Blur(6, 6, nullptr)))
             .blendMode(material::BlendMode::PlusLighter);
       else
-        t.translateY(&titleDrop);
+        t.translateY(titleDrop);
       return kit::centred()
           .inset(0)
           .column()
@@ -373,11 +373,9 @@ struct Flourish {
                  .width(42)
                  .height(42)
                  .transformOrigin(pct(50), pct(50))
-                 .scale(&sealBreathe)
+                 .scale(sealBreathe)
                  .shape(shapes::star(12, 0.66f))
-                 .fill(animate(
-                     motion::to(Fill::color(accent ? st.rubric : st.bronze)),
-                     {600ms}))
+                 .fill(motion::animate({.to = Fill::color(accent ? st.rubric : st.bronze), .duration = 600ms}))
                  .foreground(
                      sigil::compose::stroke(1.4f, Fill::color(st.goldBright))),
              document::paragraph(
@@ -559,7 +557,7 @@ struct Flourish {
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     sceneTicker = &ticker;
     hatch = ctx.assets.shader(ctx.local("hatch.sksl"));
     engraved = ctx.assets.shader(ctx.local("engraved.sksl"));
@@ -579,13 +577,13 @@ struct Flourish {
       breathe[q] = 1.0f;
     }
 
-    ticker.timeline().apply(&reveal).then<ch::RampTo>(1.0f, 2.4f,
+    ticker.timeline().apply(reveal).then<ch::RampTo>(1.0f, 2.4f,
                                                       motion::ease::outQuint);
     ticker.timeline()
-        .apply(&titleDrop)
+        .apply(titleDrop)
         .then<ch::RampTo>(0.0f, 1.0f, motion::ease::outQuint);
-    ticker.timeline().apply(&titleFade).then<ch::RampTo>(1.0f, 1.2f);
-    ticker.timeline().apply(&flare).then<ch::RampTo>(1.0f, 1.3f);
+    ticker.timeline().apply(titleFade).then<ch::RampTo>(1.0f, 1.2f);
+    ticker.timeline().apply(flare).then<ch::RampTo>(1.0f, 1.3f);
 
     ticker.add([this, &ticker] {
       const double t = ticker.elapsed();
@@ -609,13 +607,13 @@ struct Flourish {
     // then settles back over 1.1 s.
     if (sceneTicker) {
       flare = 1.0f;
-      sceneTicker->timeline().apply(&flare).then<ch::RampTo>(0.55f, 1.1f,
+      sceneTicker->timeline().apply(flare).then<ch::RampTo>(0.55f, 1.1f,
                                                              motion::ease::outQuint);
     }
     composer.render(describe());
   }
 
-  sigil::motion::Ticker* sceneTicker = nullptr;
+  sigil::motion::Engine* sceneTicker = nullptr;
 };
 
 }  // namespace

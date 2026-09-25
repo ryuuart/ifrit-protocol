@@ -71,7 +71,7 @@ Element editorialCard(bool cooled) {
       .key("cascade.card")
       .font({.size = 14, .track = 0})
       .ink(cooled ? kCool : kWarm)
-      .transition({.duration = kFade})
+      .transition(kFade)
       .applyStyleSheet(std::move(styles))
       .var("accent", kTeal)
       .var("gutter", Dimension(12))

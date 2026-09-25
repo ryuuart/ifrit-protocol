@@ -23,7 +23,7 @@
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -205,11 +205,7 @@ struct Bg3DiceRoll {
     return box()
         .inset(0)
         .transformOrigin(Dimension(kCentre.x), Dimension(kCentre.y))
-        .scale(animate(through({{0ms, 0.8f},
-                                {1000ms, 1.0f},
-                                {1080ms, 1.07f},
-                                {1170ms, 0.98f},
-                                {1260ms, 1.0f}})))
+        .scale(sigil::motion::animate({.from = 0.8f, .keyframes = {{.to = 1.0f, .duration = 1000ms}, {.to = 1.07f, .duration = 80ms}, {.to = 0.98f, .duration = 90ms}, {.to = 1.0f, .duration = 90ms}}}))
         .children({
             each(view.faces,
                  [](const d20::Face& face) {
@@ -313,8 +309,8 @@ struct Bg3DiceRoll {
         .alignItems(Align::Center)
         .gap(16)
         .height(50)
-        .opacity(animate(from(0.0f).to(1.0f), {260ms, sigil::motion::ease::outQuad}))
-        .translateX(animate(from(18.0f).to(0.0f), {300ms, sigil::motion::ease::outQuad}))
+        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms, .ease = sigil::motion::ease::outQuad}))
+        .translateX(sigil::motion::animate({.from = 18.0f, .to = 0.0f, .duration = 300ms, .ease = sigil::motion::ease::outQuad}))
         .children({
             box().column().flexGrow().gap(2).children({
                 text(bonus.name).styleClass("bonus"),
@@ -368,9 +364,7 @@ struct Bg3DiceRoll {
                 .justifyContent(Justify::Center)
                 .children({decided ? text(passed ? "SUCCESS" : "FAILURE")
                                          .styleClass("verdict")
-                                         .opacity(animate(
-                                             from(0.0f).to(1.0f),
-                                             {380ms, sigil::motion::ease::outQuad}))
+                                         .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 380ms, .ease = sigil::motion::ease::outQuad}))
                                    : box()}),
         });
   }

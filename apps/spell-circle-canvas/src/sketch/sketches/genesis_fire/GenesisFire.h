@@ -80,11 +80,11 @@ struct GenesisFire {
    *  streak already draws — so what this interpolates is the loop
    *  PHASE: the wavefront, Duff's light and the plan ring sweep
    *  smoothly at any draw rate off one Output. */
-  ch::Output<float> simAlpha{0.0f};
+  sigil::motion::Animatable<float> simAlpha = sigil::motion::animatable(0.0f);
 
   // --- ONE phase Output; bind() derives every consumer from it -------------
-  ch::Output<float> loopU{0.0f};     // loop fraction, [0,1)
-  ch::Output<float> liveFrac{0.0f};  // census bar, [0,1]
+  sigil::motion::Animatable<float> loopU = sigil::motion::animatable(0.0f);     // loop fraction, [0,1)
+  sigil::motion::Animatable<float> liveFrac = sigil::motion::animatable(0.0f);  // census bar, [0,1]
 
   /** THE GUESTS THAT DO NOT CHANGE, built once. A guest is retained —
    *  the pen keeps a composer per call site — so a description that says

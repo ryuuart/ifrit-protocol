@@ -165,10 +165,7 @@ struct Tategaki {
                  // READING ORDER: down each column, then right to left.
                  .textFx({.effect = textFx::rise(30),
                           .stagger = tg::kSettle,
-                          .progress = animate(
-                              motion::from(0.0f).to(1.0f),
-                              {std::chrono::milliseconds((int)tg::kSettleSpan),
-                               motion::ease::linear, 180ms})}),
+                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((int)tg::kSettleSpan), .delay = 180ms, .ease = motion::ease::linear})}),
              box()
                  .absolute()
                  .inset(88, 0, 0, 64)

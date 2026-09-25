@@ -63,8 +63,8 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildata/decode/Json.h>
-#include <sigilmotion/bind/Bound.h>
-#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/schedule/Stagger.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
@@ -303,7 +303,7 @@ struct Sweep {
 struct MatrixRain {
   /** The one clock: seconds since the screen came up. Every plane's fall
    *  and churn is a phase shaped from it on the property that reads it. */
-  choreograph::Output<float> seconds{0.0f};
+  motion::Animatable<float> seconds = motion::animatable(0.0f);
   Charset charset;
   std::u32string kanaCodepoints, digitCodepoints;
   Plane bed;
@@ -357,10 +357,7 @@ struct MatrixRain {
    *  they are written. */
   Text churning(Text leaf, const Plane& plane) const {
     const motion::Animatable<float> churn =
-        motion::bind(&seconds)
-            .scale(1.0f / plane.churnSeconds)
-            .offset(plane.churnOffsetSeconds / plane.churnSeconds)
-            .wrap(1.0f);
+        motion::bind(seconds, {.to = {plane.churnOffsetSeconds / plane.churnSeconds, plane.churnOffsetSeconds / plane.churnSeconds + 1.0f / plane.churnSeconds}, .wrap = 1.0f});
     return leaf.textFx({.where = !digitCells(), .effect = mirroredKana()})
         .textFx({.where = digitCells(), .effect = uprightDigits()})
         .textFx({.where = !digitCells(),
@@ -395,9 +392,7 @@ struct MatrixRain {
                      .stagger = cascade,
                      .unit = weave::Unit::Line,
                      .innerUnit = weave::Unit::Cluster,
-                     .progress = motion::bind(&seconds)
-                                     .scale(1000.0f / plane.loopMs)
-                                     .wrap(1.0f)}),
+                     .progress = motion::bind(seconds, {.to = {0.0f, 1000.0f / plane.loopMs}, .wrap = 1.0f})}),
         plane);
   }
 
@@ -414,15 +409,10 @@ struct MatrixRain {
         .key("trace")
         .textFx({.effect = traced(),
                  .stagger = typing,
-                 .progress = motion::bind(&seconds)
-                                 .scale(1000.0f / traceLine.loopMs)
-                                 .wrap(1.0f)})
+                 .progress = motion::bind(seconds, {.to = {0.0f, 1000.0f / traceLine.loopMs}, .wrap = 1.0f})})
         .textFx({.where = cursor,
                  .effect = blink(),
-                 .progress = motion::bind(&seconds)
-                                 .source(0, traceLine.blinkSeconds)
-                                 .square(0.55f)
-                                 .invert()});
+                 .progress = motion::bind(seconds, {.from = {0, traceLine.blinkSeconds}, .envelope = motion::envelope::square(0.55f), .to = {1.0f, 0.0f}})});
   }
 
   /** THE REFRESH BAND: a soft tent of green light ADDED to whatever it
@@ -442,10 +432,7 @@ struct MatrixRain {
              {0.80f, {0.030f, 0.100f, 0.044f, 1}},
              {1.0f, {0, 0, 0, 0}}},
             {.units = material::GradientUnits::Pixels}))
-        .translateY(motion::bind(&seconds)
-                        .offset(sweep.phaseSeconds)
-                        .scale(span / sweep.seconds)
-                        .wrap(span));
+        .translateY(motion::bind(seconds, {.to = {(sweep.phaseSeconds) * (span / sweep.seconds), (sweep.phaseSeconds) * (span / sweep.seconds) + span / sweep.seconds}, .wrap = span}));
   }
 
   /** THE GLASS over the rain, which never moves: the monitor's falloff
@@ -532,7 +519,7 @@ struct MatrixRain {
     sketch::kit::stage(ctx, {.size = {kWidth, kHeight},
                              .captureAt = 7.0,
                              .background = kVoid});
-    ctx.ticker.add([this](double, double elapsed) {
+    ctx.engine.add([this](double, double elapsed) {
       seconds = (float)elapsed;
       return true;
     });

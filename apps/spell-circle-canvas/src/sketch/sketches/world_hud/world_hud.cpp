@@ -12,10 +12,10 @@ struct WorldHud {
   // full-size fill whose growing edge is pinned with transformOrigin() and
   // whose extent is carried by scaleX, so these Outputs feed the transform
   // directly and none of them needs to know the bar's size.
-  choreograph::Output<float> hp{0.62f}, energy{0.78f}, poise{0.55f};
-  choreograph::Output<float> xp{0}, enemyHp{0.4f};
-  choreograph::Output<float> lowPulse{0}, compass{0};
-  std::array<choreograph::Output<float>, 4> cooldown{};
+  motion::Animatable<float> hp = motion::animatable(0.62f), energy = motion::animatable(0.78f), poise = motion::animatable(0.55f);
+  motion::Animatable<float> xp = motion::animatable(0.0f), enemyHp = motion::animatable(0.4f);
+  motion::Animatable<float> lowPulse = motion::animatable(0.0f), compass = motion::animatable(0.0f);
+  std::array<motion::Animatable<float>, 4> cooldown{};
 
   std::shared_ptr<instancing::CellSheet> slotAtlas;
   std::shared_ptr<instancing::Pool> slotPool;
@@ -174,14 +174,14 @@ struct WorldHud {
                   .innerH = wh::kHealthInnerH,
                   .color = wh::kHp,
                   .decay = 0.14f,
-                  .live = &hp})
+                  .live = hp})
              .at({wh::kBarX, wh::kBarY})
              .children({box()
                             .rect(SkRect::MakeWH(wh::kHealthW, wh::kHealthH))
                             .borderRadius({2})
                             .fill(Paint::solid({wh::kCritHp.r, wh::kCritHp.g,
                                                 wh::kCritHp.b, 0.55f}))
-                            .opacity(&lowPulse)
+                            .opacity(lowPulse)
                             .blendMode(material::BlendMode::PlusLighter),
                         text("640 / 1030")
                             .font(wh::line(11, 0.8f))
@@ -191,7 +191,7 @@ struct WorldHud {
                   .innerW = wh::kEnergyInnerW,
                   .innerH = wh::kEnergyInnerH,
                   .color = wh::kStamina,
-                  .live = &energy})
+                  .live = energy})
              .at({ex, wh::kEnergyY}),
          // poise, with skillbar.rs's 3x10 ticks along it
          wh::bar({.frameW = wh::kEnergyW,
@@ -199,7 +199,7 @@ struct WorldHud {
                   .innerW = wh::kEnergyInnerW,
                   .innerH = wh::kEnergyInnerH,
                   .color = wh::kPoise,
-                  .live = &poise,
+                  .live = poise,
                   .ticks = true})
              .at({ex, wh::kPoiseY})});
   }
@@ -280,7 +280,7 @@ struct WorldHud {
                           .children({box()
                                          .rect(SkRect::MakeWH(28.0f, 6.0f))
                                          .transformOrigin(pct(0), pct(50))
-                                         .scaleX(&xp)
+                                         .scaleX(xp)
                                          .fill(Paint::solid(wh::kXp))}),
                       text("34").font(wh::line(13, 0.4f, 640)).at({9, 3})})});
   }
@@ -352,7 +352,7 @@ struct WorldHud {
              box()
                  .rect(SkRect::MakeXYWH(d * 0.5f - 23, d * 0.5f - 23, 46.0f,
                                         46.0f))
-                 .rotate(&compass)
+                 .rotate(compass)
                  .children(
                      {box()
                           .inset(0)
@@ -529,7 +529,7 @@ struct WorldHud {
                  .children({box()
                                 .rect(SkRect::MakeXYWH(1, 1, 166.0f, 7.0f))
                                 .transformOrigin(pct(0), pct(50))
-                                .scaleX(&enemyHp)
+                                .scaleX(enemyHp)
                                 .fill(Paint::solid(wh::kEnemyHp))})});
   }
 

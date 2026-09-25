@@ -40,7 +40,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -111,7 +111,7 @@ struct FxScatterMix {
     instrumented = false;
     ctx.composer.render(describe(ctx));
     // Request frames only until layout can supply the static beat meters.
-    ctx.ticker.add([this]() -> bool { return !instrumented; });
+    ctx.engine.add([this]() -> bool { return !instrumented; });
   }
 
   void update(double, sketch::SketchContext& ctx) {

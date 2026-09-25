@@ -61,7 +61,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -78,6 +78,8 @@
 #include <ranges>
 #include <string>
 #include <vector>
+
+using namespace std::chrono_literals;
 
 namespace arrange = sigil::geometry::arrange;
 namespace data = sigil::data;
@@ -263,22 +265,19 @@ struct ShippingForecast {
   // The two stepped clocks. `cycle` wraps once per bulletin, so every
   // beat is a window of it and the sheet re-performs on the wrap;
   // `seconds` never wraps, for the swell that outlasts a bulletin.
-  choreograph::Output<float> cycle{0};
-  choreograph::Output<float> seconds{0};
+  motion::Animatable<float> cycle = motion::animatable(0.0f);
+  motion::Animatable<float> seconds = motion::animatable(0.0f);
 
   /** A beat on the bulletin's timeline: 0 before it starts, 1 after it
    *  ends, which is what makes a list of these one schedule. */
   [[nodiscard]] motion::Animatable<float> beat(float from, float to) {
-    return motion::bind(&cycle).window(from, to);
+    return motion::bind(cycle, {.from = {from, to}, .clampFrom = true});
   }
 
   /** The sheet's own envelope: up at the head of the bulletin, held, and
    *  out before the wrap. */
   [[nodiscard]] motion::Animatable<float> envelope() {
-    return motion::bind(&cycle)
-        .source(0, kLoop)
-        .trapezoid(0.04f / kLoop, 0.42f / kLoop, 12.6f / kLoop, 14.2f / kLoop)
-        .map(motion::ease::inOutQuad);
+    return motion::bind(cycle, {.from = {0, kLoop}, .envelope = motion::envelope::trapezoid(0.04f / kLoop, 0.42f / kLoop, 12.6f / kLoop, 14.2f / kLoop), .ease = motion::ease::inOutQuad});
   }
 
   /** WHEN THE READING HAND REACHES @p bearing: at one pace from the first
@@ -318,16 +317,12 @@ struct ShippingForecast {
             .width(pct(100))
             .ink(ramp)
             .textFx({.effect = textFx::rise(92 * 1.24f),
-                     .stagger = {.amountMs = 320,
-                                 .durationMs = 560,
-                                 .from = motion::Spread::From::Start},
+                     .delay = motion::stagger({0ms, 320ms}, {.from = motion::StaggerFrom::First}), .duration = 560ms,
                      .unit = weave::Unit::Glyph,
                      .progress = beat(from, from + 2.0f)})
             .textFx({.effect = textFx::variableAxisSweep("GRAD", 400, 880),
-                     .stagger = {.eachMs = 34, .durationMs = 620},
-                     .progress = motion::bind(&seconds)
-                                     .source(0, kBreathPeriod)
-                                     .cosine()}),
+                     .delay = motion::stagger(34ms), .duration = 620ms,
+                     .progress = motion::bind(seconds, {.from = {0, kBreathPeriod}, .envelope = motion::envelope::cosine()})}),
     });
   }
 
@@ -411,7 +406,7 @@ struct ShippingForecast {
                                 .offset = 7,
                                 .autoFlip = false})
                    .textFx({.effect = textFx::rise(13),
-                            .stagger = {.eachMs = 20, .durationMs = 420},
+                            .delay = motion::stagger(20ms), .duration = 420ms,
                             .progress = beat(at, at + 0.62f)});
              }),
         // A lamp comes up behind the name as it arrives, spreading from
@@ -424,13 +419,8 @@ struct ShippingForecast {
                  material::withAlpha(kAmber, 0.05f),
                  material::withAlpha(kAmber, 0)},
                 {.units = material::GradientUnits::Pixels}))
-            .scale(motion::bind(&cycle)
-                       .window(reached, reached + 1.4f)
-                       .map(motion::ease::outCubic))
-            .opacity(motion::bind(&seconds)
-                         .source(0, kBreathPeriod)
-                         .cosine()
-                         .target(0.55f, 1)),
+            .scale(motion::bind(cycle, {.from = {reached, reached + 1.4f}, .clampFrom = true, .ease = motion::ease::outCubic}))
+            .opacity(motion::bind(seconds, {.from = {0, kBreathPeriod}, .envelope = motion::envelope::cosine(), .to = {0.55f, 1.0f}})),
         box()
             .column()
             .width(2 * kInnerRadius - 40)
@@ -458,21 +448,15 @@ struct ShippingForecast {
     const float radius = kRingRadius + 21;
     return kit::disc(kEye, radius)
         .key("reading-hand")
-        .rotate(motion::bind(&cycle)
-                    .window(kReadingStarts, reachedAt(readingBearing))
-                    .target(first - 90, readingBearing - 90))
-        .opacity(motion::bind(&cycle).source(0, kLoop).trapezoid(
-            (kReadingStarts - 0.20f) / kLoop, (kReadingStarts + 0.20f) / kLoop,
-            finished / kLoop, (finished + 0.80f) / kLoop))
+        .rotate(motion::bind(cycle, {.from = {kReadingStarts, reachedAt(readingBearing)}, .clampFrom = true, .to = {first - 90, readingBearing - 90}}))
+        .opacity(motion::bind(cycle, {.from = {0, kLoop}, .envelope = motion::envelope::trapezoid((kReadingStarts - 0.20f) / kLoop, (kReadingStarts + 0.20f) / kLoop, finished / kLoop, (finished + 0.80f) / kLoop)}))
         .children({
             // The wake is the last seventh of a sweep ramp, so the node is
             // shaped to that slice and paints nothing where the ramp is clear.
             box()
                 .cover()
                 .shape(sigil::geometry::shapes::sector(-51.5f, 51.5f))
-                .rotate(motion::bind(&cycle)
-                            .window(kReadingResumes, finished)
-                            .target(0, last - readingBearing))
+                .rotate(motion::bind(cycle, {.from = {kReadingResumes, finished}, .clampFrom = true, .to = {0.0f, last - readingBearing}}))
                 .fill(material::Paint::conicGradient(
                     {radius, radius},
                     {{0.0f, material::withAlpha(kAmber, 0)},
@@ -514,10 +498,7 @@ struct ShippingForecast {
     const SkPoint highAt =
         compass((float)high["bearing"].number(), (float)high["distance"].number());
     const auto drift = [&](float span) {
-      return motion::bind(&cycle)
-          .window(kLowFrom, kLowTo)
-          .map(motion::ease::inOutSine)
-          .target(0, span);
+      return motion::bind(cycle, {.from = {kLowFrom, kLowTo}, .clampFrom = true, .ease = motion::ease::inOutSine, .to = {0.0f, span}});
     };
     const auto isobar = [](SkPoint centre, float across, float tilt, bool bold) {
       return box()
@@ -566,9 +547,9 @@ struct ShippingForecast {
                         .children(std::move(lowRings)),
                     text(low["mark"]).styleClass("centre").centerAt(lowAt),
                     figure(lowAt + below, low["now"])
-                        .opacity(motion::bind(&cycle).window(6.0f, 7.0f).invert()),
+                        .opacity(motion::bind(cycle, {.from = {6.0f, 7.0f}, .clampFrom = true, .to = {1.0f, 0.0f}})),
                     figure(lowAt + below, low["later"])
-                        .opacity(motion::bind(&cycle).window(6.0f, 7.0f)),
+                        .opacity(motion::bind(cycle, {.from = {6.0f, 7.0f}, .clampFrom = true})),
                 }),
         });
   }
@@ -599,10 +580,7 @@ struct ShippingForecast {
                 .height(7)
                 .borderRadius({4})
                 .fill(Fill::currentInk())
-                .opacity(motion::bind(&seconds)
-                             .source(0, kLampPeriod)
-                             .square(kLampLit)
-                             .target(0.28f, 1))
+                .opacity(motion::bind(seconds, {.from = {0, kLampPeriod}, .envelope = motion::envelope::square(kLampLit), .to = {0.28f, 1.0f}}))
                 .children({
                     kit::disc({3.5f, 3.5f}, 13)
                         .fill(material::Paint::radialGradient(
@@ -617,9 +595,7 @@ struct ShippingForecast {
                 .textFx({.effect = textFx::sequence(
                              textFx::slide(-46).until(0.46f).crossfade(0.20f),
                              textFx::pop(0.86f, 2.6f)),
-                         .stagger = {.eachMs = 0,
-                                     .amountMs = 520,
-                                     .durationMs = 620},
+                         .delay = motion::stagger({0ms, 520ms}), .duration = 620ms,
                          .progress = beat(0.25f, 1.85f)}),
         });
   }
@@ -654,7 +630,7 @@ struct ShippingForecast {
                            float durationMs, float from, float to) {
       return Track{.where = where,
                    .effect = std::move(effect),
-                   .stagger = {.eachMs = 46, .durationMs = durationMs},
+                   .delay = motion::stagger(46ms), .duration = std::chrono::duration<double, std::milli>(durationMs),
                    .unit = weave::Unit::Word,
                    .beatsOver = beats::Text,
                    .progress = beat(from, to)};
@@ -691,9 +667,7 @@ struct ShippingForecast {
             .key("barometer")
             .textFx({.effect = textFx::hold(textFx::scramble(
                          U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
-                     .stagger = {.eachMs = 26,
-                                 .durationMs = 520,
-                                 .from = motion::Spread::From::Start},
+                     .delay = motion::stagger(26ms, {.from = motion::StaggerFrom::First}), .duration = 520ms,
                      .progress = beat(2.25f, 4.10f)}),
         document::caption(page["note"]).opacity(beat(3.30f, 3.90f)),
     });
@@ -717,7 +691,7 @@ struct ShippingForecast {
                                {.variations = {weave::FontVariation("GRAD", 800)}}))
             .span(figures, SpanStyle().ink(var("amber")))
             .textFx({.effect = textFx::slide(-22),
-                     .stagger = {.eachMs = 150, .durationMs = 620},
+                     .delay = motion::stagger(150ms), .duration = 620ms,
                      .unit = weave::Unit::Line,
                      .progress = beat(2.70f, 4.60f)}),
     });
@@ -798,10 +772,7 @@ struct ShippingForecast {
         .width(28)
         .height(560)
         .textFx({.effect = textFx::rise(11),
-                 .stagger = {.eachMs = 0,
-                             .amountMs = 780,
-                             .durationMs = 420,
-                             .from = motion::Spread::From::Start},
+                 .delay = motion::stagger({0ms, 780ms}, {.from = motion::StaggerFrom::First}), .duration = 420ms,
                  .progress = beat(0.45f, 2.70f)});
   }
 
@@ -816,9 +787,7 @@ struct ShippingForecast {
         {.eyebrow = {.words = page["eyebrow"], .opacity = beat(0.05f, 0.55f)},
          .title = {.words = page["title"],
                    .textFx = Track{.effect = textFx::rise(16),
-                                   .stagger = {.eachMs = 0,
-                                               .amountMs = 420,
-                                               .durationMs = 520},
+                                   .delay = motion::stagger({0ms, 420ms}), .duration = 520ms,
                                    .progress = beat(0.15f, 1.30f)}},
          .notes = std::move(slugs),
          .align = Align::Stretch,
@@ -880,7 +849,7 @@ struct ShippingForecast {
     for (const Area& area : areas)
       if (area.name == reading) readingBearing = area.bearing;
 
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double elapsed = ticker.elapsed();
       cycle = motion::phase(elapsed, kLoop) * kLoop;
       seconds = (float)elapsed;

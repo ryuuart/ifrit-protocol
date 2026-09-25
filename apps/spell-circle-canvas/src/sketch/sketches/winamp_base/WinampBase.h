@@ -3,7 +3,7 @@
 #include "Settings.h"
 
 struct WinampBase {
-  using Out = ch::Output<float>;
+  using Out = sigil::motion::Animatable<float>;
 
   // ---- THE bound outputs. Every idle motion is declared; only discrete
   // state (the digits, the 28-frame sliders, the track list) re-describes.

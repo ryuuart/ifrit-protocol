@@ -207,7 +207,7 @@ struct TwoAdvancedV3 {
 
   Element bootReadout();
 
-  ch::Output<float> beaconAlpha{1.0f};
+  sigil::motion::Animatable<float> beaconAlpha = sigil::motion::animatable(1.0f);
 
   // =========================================================================
 

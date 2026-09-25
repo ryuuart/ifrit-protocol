@@ -64,9 +64,7 @@ auto HitmanVerlet::panelA3() -> Element {
     return box()
         .fill(Fill::currentInk())
         .styleClass(i + 1 == kSoft.size() ? "hit" : "")
-        .scaleY(animate(
-            from(0.0f).to(1.0f),
-            {.duration = 220ms, .ease = ease::outBack(), .delay = 1600ms}))
+        .scaleY(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 220ms, .delay = 1600ms, .ease = ease::outBack()}))
         .transformOrigin(pct(50), pct(100));
   };
   return panel(kPanelAH[2], a3["heading"].text(), 3)
@@ -88,17 +86,13 @@ auto HitmanVerlet::panelA3() -> Element {
                     [](double u) { return 0.5 - 1.0 / (2.0 * u); },
                     {.pen = {.width = 1.4f, .dashIntervals = {3.5f, 3.0f}},
                      .along = spans::upTo(
-                         animate(to(1.0f), {.duration = 520ms,
-                                            .ease = sigil::motion::ease::outCubic,
-                                            .delay = 1400ms})),
+                         sigil::motion::animate({.to = 1.0f, .duration = 520ms, .delay = 1400ms, .ease = sigil::motion::ease::outCubic})),
                      .styleClass = "exact"}),
                 sketch::kit::trace(
                     [](double u) { return 0.5 - 1.0 / (1.0 + u * u); },
                     {.pen = {.width = 1.8f},
                      .along = spans::upTo(
-                         animate(to(1.0f), {.duration = 520ms,
-                                            .ease = sigil::motion::ease::outCubic,
-                                            .delay = 1400ms})),
+                         sigil::motion::animate({.to = 1.0f, .duration = 520ms, .delay = 1400ms, .ease = sigil::motion::ease::outCubic})),
                      .styleClass = "approx"}),
                 sketch::kit::label("s_exact", 0.52, 0.33,
                                    {.anchor = fromLeft, .styleClass = "exact"}),
@@ -276,10 +270,8 @@ auto HitmanVerlet::panelB3() -> Element {
 
 auto HitmanVerlet::header() -> Element {
   Track rise{.effect = textFx::rise(22.0f),
-             .stagger = {.eachMs = 24, .durationMs = 440},
-             .progress = animate(from(0.0f).to(1.0f), {.duration = 1100ms,
-                                                       .ease = sigil::motion::ease::outQuad,
-                                                       .delay = 120ms})};
+             .delay = sigil::motion::stagger(24ms), .duration = 440ms,
+             .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 1100ms, .delay = 120ms, .ease = sigil::motion::ease::outQuad})};
   const sigil::data::Json& head = doc()["header"];
   return box().column().height(kHeaderH).flexShrink(0).gap(3).children(
       {document::eyebrow(head["eyebrow"])
@@ -287,8 +279,8 @@ auto HitmanVerlet::header() -> Element {
                   .size = 10.0f,
                   .color = kSteel,
                   .track = 2.6f})
-           .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
-           .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
+           .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms}))
+           .translateY(sigil::motion::animate({.from = 8.0f, .to = 0.0f, .duration = 260ms})),
        document::h1(head["title"])
            .font({.face = heavyFace(),
                   .size = 42,
@@ -302,11 +294,9 @@ auto HitmanVerlet::header() -> Element {
                   .color = kSteel,
                   .track = 0.1f})
            .width(690)
-           .opacity(animate(from(0.0f).to(1.0f),
-                            {.duration = 240ms, .delay = 400ms})),
+           .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .delay = 400ms})),
        box().flexGrow(1),
        kit::line({.fill = Fill::color(kKeyline)})
            .flexShrink(0)
-           .opacity(animate(from(0.0f).to(1.0f),
-                            {.duration = 400ms, .delay = 320ms}))});
+           .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 320ms}))});
 }

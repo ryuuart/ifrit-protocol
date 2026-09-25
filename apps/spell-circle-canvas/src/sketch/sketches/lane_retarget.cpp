@@ -37,9 +37,9 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/clock/Ticker.h>
-#include <sigilmotion/values/Animated.h>
-#include <sigilmotion/values/Lanes.h>
+#include <sigilmotion/clock/Engine.h>
+#include <sigilmotion/advanced/Held.h>
+#include <sigilmotion/advanced/Held.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Kit.h>
@@ -196,8 +196,8 @@ struct LaneRetarget {
   /** One flight: a ticker stepped at a fixed delta, with the second
    *  description applied at `kAt` in whichever way the cell is about. */
   Trace run(Change change) {
-    motion::Ticker ticker;
-    motion::AnimatedFloats anims;
+    motion::Engine ticker;
+    motion::HeldMotions anims;
     anims.resize(1);
     const motion::Animatable<float> standing = 0.0f;
     const motion::Animatable<float> first = kFirst;
@@ -206,7 +206,7 @@ struct LaneRetarget {
 
     // The mount: the first description's endpoint, from the lane's own
     // standing value.
-    motion::transitionFloatAt(ticker, anims[0], standing, first, spec);
+    motion::retarget(ticker, anims[0], standing, first, spec);
 
     Trace trace;
     bool applied = false;
@@ -218,26 +218,26 @@ struct LaneRetarget {
         const Lane before{&first, {Family::Slots, 0}, 0.0f};
         const Lane after{&second, {Family::Slots, 0}, 0.0f};
         if (change == Change::Slots) {
-          motion::retargetSlots<Family>(ticker, anims, {&before, 1},
+          motion::retargetFixed<Family>(ticker, anims, {&before, 1},
                                         {&after, 1}, spec);
         } else if (change == Change::Family) {
           const Lane beforeP{&first, {Family::Points, 0}, 0.0f};
           const Lane afterP{&second, {Family::Points, 0}, 0.0f};
-          motion::retargetFamily<Family>(ticker, anims, {&beforeP, 1},
+          motion::retargetPositional<Family>(ticker, anims, {&beforeP, 1},
                                          {&afterP, 1}, spec);
         } else {
           // Two lanes where there was one: the family's shape changed.
           const Lane beforeP{&first, {Family::Points, 0}, 0.0f};
           const Lane afterP[2] = {{&second, {Family::Points, 0}, 0.0f},
                                   {&second, {Family::Points, 1}, 0.0f}};
-          motion::retargetFamily<Family>(ticker, anims, {&beforeP, 1},
+          motion::retargetPositional<Family>(ticker, anims, {&beforeP, 1},
                                          {afterP, 2}, spec);
         }
       }
       ticker.tick(kDt);
       const motion::Animatable<float>& reading =
           applied && change != Change::None ? second : first;
-      trace.push_back(motion::resolveFloatAt(
+      trace.push_back(motion::valueOf(
           anims.empty() ? nullptr : anims[0].get(), reading));
     }
     return trace;

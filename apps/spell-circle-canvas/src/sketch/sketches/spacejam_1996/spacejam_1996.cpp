@@ -4,7 +4,7 @@
 // TAGS: Interfaces/Web
 
 #include "Artwork.h"
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 
 struct SpaceJam1996 {
   using Ix = sj::Ix;
@@ -49,7 +49,7 @@ struct SpaceJam1996 {
   Element revealed(int i, bool inFlight) const {
     const sk_sp<SkPicture> p = pic[i];
     const float h = artH[i];
-    const ch::Output<float>* g = &got[i];
+    const motion::Animatable<float>& g = &got[i];
     // ARRIVED IS THE PICTURE ITSELF. A recorded picture's identity is its
     // own, so the leaf compares equal between describes and the node goes
     // static; the program below exists only for the hard scanline edge of
@@ -57,7 +57,7 @@ struct SpaceJam1996 {
     if (!inFlight) return picture(p, SkSize::Make(artW[i], artH[i]));
     // KEYLESS: the scanline edge is read off the arrival's live fraction.
     Element e = custom([p, h, g](SkCanvas& canvas, const PaintContext& ctx) {
-                  const float frac = g->value();
+                  const float frac = g.value();
                   if (frac <= 0.0f || !p) return;
                   // No interlacing on any of the sixteen (every image
                   // descriptor's flag is zero), so this is the older, simpler
@@ -114,10 +114,7 @@ struct SpaceJam1996 {
     Element field = box()
                         .inset(0)
                         .fill(starsMat)
-                        .opacity(motion::bind(&got[kStars])
-                                     .scale(1000.0f)
-                                     .offset(-999.0f)
-                                     .clamp(0.0f, 1.0f))
+                        .opacity(motion::bind(got[kStars], {.to = {-999.0f, 1.0f}, .clamp = {0.0f, 1.0f}}))
                         .key("starfield");
 
     // 2. the Fast Break row — the only left-aligned thing on the page, and
@@ -381,7 +378,7 @@ struct SpaceJam1996 {
 
     // The transport. Fixed 120 Hz so the schedule is identical whatever the
     // host draws at (and whatever --fps a capture pre-rolls with).
-    ctx.ticker.addFixed(
+    ctx.engine.addFixed(
         120.0,
         [this] {
           stepLoad(1.0 / 120.0);

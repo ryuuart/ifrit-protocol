@@ -49,26 +49,18 @@ struct KumikoAsanoha {
   material::Paint formation, fibre;
   /** Seconds into one assembly, wrapping: the one value that moves, and
    *  every entrance, the lamp and the drawing's beat are bindings over it. */
-  choreograph::Output<float> seconds{0};
+  motion::Animatable<float> seconds = motion::animatable(0.0f);
 
   /** The lamp's beat: 0 until it is lit, easing to 1. */
   motion::Bound lit() const {
-    return motion::bind(&seconds)
-        .window(kLampAt, kLampAt + kLampFor)
-        .map(motion::ease::outCubic);
+    return motion::bind(seconds, {.from = {kLampAt, kLampAt + kLampFor}, .clampFrom = true, .ease = motion::ease::outCubic});
   }
 
   /** The flame once it is lit: up on the lamp's beat, then breathing on a
    *  slow two-octave noise for the rest of the loop, so everything it
    *  lights glows brighter and dimmer with it rather than strobing. */
   motion::Bound breath() const {
-    return motion::bind(&seconds)
-        .window(kLampAt, kPeriod)
-        .trapezoid(0, kLampFor / (kPeriod - kLampAt), 1, 1)
-        .map(motion::ease::outCubic)
-        .scale(0.75f)
-        .wiggle(0.25f, 4.5f, 11, 2, 0.45f)
-        .clamp(0, 1);
+    return motion::bind(seconds, {.from = {kLampAt, kPeriod}, .clampFrom = true, .envelope = motion::envelope::trapezoid(0, kLampFor / (kPeriod - kLampAt), 1, 1), .ease = motion::ease::outCubic, .to = {0.0f, 0.75f}, .wiggle = {.amount = 0.25f, .frequency = 4.5f, .seed = 11, .octaves = 2, .falloff = 0.45f}, .clamp = {0, 1}});
   }
 
   /** The pieces of @p roles, in that order, each entering on its beat. */
@@ -77,7 +69,7 @@ struct KumikoAsanoha {
     for (const Role role : roles)
       for (const Piece& piece : panel.pieces)
         if (piece.role == role)
-          group.children({pieceElement(piece, bank, &seconds)});
+          group.children({pieceElement(piece, bank, seconds)});
     return group;
   }
 
@@ -101,9 +93,7 @@ struct KumikoAsanoha {
    *  one beat, the craftsman's seating tap. */
   Element joinery() {
     Element group = box().inset(0).opacity(
-        motion::bind(&seconds)
-            .window(kSeatAt, kSeatAt + kSeatFor)
-            .map(motion::ease::outCubic));
+        motion::bind(seconds, {.from = {kSeatAt, kSeatAt + kSeatFor}, .clampFrom = true, .ease = motion::ease::outCubic}));
     group.children(
         {pathFigure(panel.lapShadows, 2)
              .stroke(stroke(1.5f, Fill::color(kLapShadowInk))),
@@ -237,9 +227,7 @@ struct KumikoAsanoha {
   Element keyline() {
     return box()
         .rect(kOpening.makeOutset(1.5f, 1.5f))
-        .stroke(spans::upTo(motion::bind(&seconds)
-                                .window(kFrameAt, kFrameAt + kFrameFor + 0.35f)
-                                .map(motion::ease::outCubic)),
+        .stroke(spans::upTo(motion::bind(seconds, {.from = {kFrameAt, kFrameAt + kFrameFor + 0.35f}, .clampFrom = true, .ease = motion::ease::outCubic})),
                 PathFormat{.width = 2.2f,
                            .strokeFill = Fill::color(hexColor(0xC79A57, 0.60f)),
                            .align = PathFormat::Align::Center});
@@ -285,7 +273,7 @@ struct KumikoAsanoha {
                             {0.72f, {0, 0, 0, 0.30f}},
                             {1.0f, {0, 0, 0, 0.62f}}},
                            {.units = material::GradientUnits::Pixels})),
-                   shopDrawing(doc, bank, &seconds)});
+                   shopDrawing(doc, bank, seconds)});
   }
 
   void setup(sketch::SketchContext& ctx) {
@@ -326,7 +314,7 @@ struct KumikoAsanoha {
                               .stretch = 4.0f,
                               .wear = 0.0f,
                               .seed = 9}));
-    ctx.ticker.add([this](double, double elapsed) {
+    ctx.engine.add([this](double, double elapsed) {
       seconds = motion::phase(elapsed, kPeriod) * kPeriod;
     });
     ctx.composer.render(describe());

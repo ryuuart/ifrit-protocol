@@ -1,6 +1,6 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include "WinampBase.h"
 
@@ -171,7 +171,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
                 sigil::material::withAlpha(hexColor(0x5A5A82), 0.85f),
                 hexColor(0x101018))
       .children({caption(document::label(label).font(pix(6.6f, true, 1.7f)))
-                     .opacity(motion::bind(&llama).invert()),
+                     .opacity(motion::bind(llama, {.to = {1.0f, 0.0f}})),
                  caption(document::label("IT REALLY WHIPS THE LLAMA'S ASS!")
                              .font(pix(5.2f, true, 0.7f))
                              .scale(&llamaPop))

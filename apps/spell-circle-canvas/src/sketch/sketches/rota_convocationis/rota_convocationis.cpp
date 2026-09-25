@@ -29,7 +29,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Theme.h>
@@ -220,12 +220,12 @@ Element compound(int step, float radius, float width) {
 struct RotaConvocationis {
   sketch::kit::Document content;
   StyleSheet registers;
-  std::array<ch::Output<float>, kTurnings> phase{};
+  std::array<motion::Animatable<float>, kTurnings> phase{};
   std::array<float, std::size(kBands)> bandSize{};
   std::array<float, kStations> sealSize{};
 
   motion::Animatable<float> turn(Turning layer) {
-    return motion::bind(&phase[layer]).target(0.0f, 360.0f);
+    return motion::bind(phase[layer], {.to = {0.0f, 360.0f}});
   }
 
   /** The size at which @p run girds a circle of @p radius px, measured

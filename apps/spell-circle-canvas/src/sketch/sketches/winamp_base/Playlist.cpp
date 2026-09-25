@@ -1,5 +1,5 @@
 #include "WinampBase.h"
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 
 auto WinampBase::playlistWindow() -> Element {
   using namespace wa;
@@ -121,7 +121,7 @@ auto WinampBase::trackList() -> Element {
         .alignItems(Align::Center)
         .padding(0, n(3))
         .opacity(&rowIn[i])
-        .translateY(motion::bind(&rowIn[i]).invert().scale(n(2)))
+        .translateY(motion::bind(rowIn[i], {.to = {n(2), n(2) + (-1.0f) * (n(2))}}))
         .children({ellipsized((int)i, std::to_string(i + 1) + ". " + tr.title,
                               st, n(listW - 40)),
                    box().flexGrow(1), text(tr.time, st)});

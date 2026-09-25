@@ -4,6 +4,7 @@
 
 #include "WinampBase.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/values/Time.h>
 
 auto WinampBase::describe() -> Element {
   using namespace wa;
@@ -111,7 +112,7 @@ auto WinampBase::setup(sketch::SketchContext& ctx) -> void {
   if (marqueeW < 1) marqueeW = n(300);
 
   // --- one steppable drives every idle loop.
-  ctx.ticker.add([this](double dt) { step(dt); });
+  ctx.engine.add([this](double dt) { step(dt); });
 
   ctx.composer.render(describe());
   pushSlots(ctx, true);

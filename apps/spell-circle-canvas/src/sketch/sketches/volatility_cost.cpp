@@ -82,7 +82,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -185,7 +185,7 @@ std::string ms(double v) { return kit::formatted("%.2f", v); }
  *  ONE accent cell in the same row whose fill is BOUND rather than a plain
  *  value. Everything above that accent shares its volatility, which is why
  *  a single leaf decides the cost of the whole panel. */
-Element cells(const choreograph::Output<Fill>* tint) {
+Element cells(const sigil::motion::Animatable<Fill>& tint) {
   const auto cell = [](int id) {
     const float t = 0.20f + 0.04f * (float)(id % 6);
     return box()
@@ -233,8 +233,8 @@ struct VolatilityCost {
    *  pixels. And it is LET GO the moment the reading is frozen, so the
    *  sheet's steady-state frame costs exactly what it did before. */
   std::unique_ptr<Composer> probe;
-  std::vector<std::unique_ptr<choreograph::Output<float>>> movers;
-  choreograph::Output<Fill> tint{Fill::color(kAccent)};  // assigned ONCE
+  std::vector<std::unique_ptr<sigil::motion::Animatable<float>>> movers;
+  sigil::motion::Animatable<Fill> tint = sigil::motion::animatable<Fill>(Fill::color(kAccent));  // assigned ONCE
   int step = 0;
   bool snapped = false;
 
@@ -255,9 +255,9 @@ struct VolatilityCost {
    *  made ONCE. The tree below is described twice — once at setup and
    *  once when the reading is taken — and a describe that also registered
    *  steppables would double them. */
-  void makeMovers(sigil::motion::Ticker& ticker) {
+  void makeMovers(sigil::motion::Engine& ticker) {
     for (int i = 0; i < kMovers; ++i) {
-      auto out = std::make_unique<choreograph::Output<float>>(0.0f);
+      auto out = std::make_unique<sigil::motion::Animatable<float>>(0.0f);
       const float phase = (float)i * 0.7f;
       movers.push_back(std::move(out));
       ticker.add([o = movers.back().get(), phase, &ticker] {
@@ -462,7 +462,7 @@ struct VolatilityCost {
                                 {.title = "PARKED / A BOUND COLOUR THAT HOLDS",
                                  .control =
                                      "417 shaped stars · one parked bound fill",
-                                 .figure = cells(&tint),
+                                 .figure = cells(tint),
                                  .note = "After identical frames, the bound "
                                          "star can release volatility and let "
                                          "its containing panel settle."}},
@@ -479,10 +479,10 @@ struct VolatilityCost {
     marks.clear();
     worst.clear();
     snapped = false;
-    makeMovers(ctx.ticker);
+    makeMovers(ctx.engine);
     // The probe carries the same tree at the same size, so every rect it
     // answers lands where the sheet drew the node it is about.
-    probe = std::make_unique<Composer>(ctx.ticker, *ctx.fonts);
+    probe = std::make_unique<Composer>(ctx.engine, *ctx.fonts);
     probe->setSize(ctx.size);
     // The per-node reading is what this sheet is; it costs a timing call
     // per node and is off everywhere else.

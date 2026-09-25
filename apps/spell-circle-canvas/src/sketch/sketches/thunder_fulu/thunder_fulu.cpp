@@ -48,7 +48,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Rows.h>
@@ -169,7 +169,7 @@ struct ThunderFulu {
   sketch::kit::Document words;
   std::vector<Written> ink;
   std::vector<path::Polyline> sealGraphs;
-  choreograph::Output<float> score{0.0f};
+  sigil::motion::Animatable<float> score = sigil::motion::animatable(0.0f);
   StyleSheet sheet;
   weave::Type running;
   Paint ironGrain;
@@ -290,12 +290,12 @@ struct ThunderFulu {
    *  below, each graph stretched to fill its half of the square as seal
    *  script is, and cut in relief so the graphs and the frame print. */
   Element seal() const {
-    const auto pressedAt = bind(&score).window(kSeal, kSeal + 0.45f);
+    const auto pressedAt = sigil::motion::bind(score, {.from = {kSeal, kSeal + 0.45f}, .clampFrom = true});
     return kit::at(474, 786, 104, 104)
         .rotate(-6.0f)
         .transformOrigin(pct(50), pct(50))
         .opacity(pressedAt)
-        .scale(bind(&score).window(kSeal, kSeal + 0.45f).target(1.5f, 1.0f))
+        .scale(sigil::motion::bind(score, {.from = {kSeal, kSeal + 0.45f}, .clampFrom = true, .to = {1.5f, 1.0f}}))
         .foreground(decorations::border(5.0f, Fill::color(kSealInk), 2.0f))
         .children(each(sealGraphs, [](const path::Polyline& graph) {
           return box()
@@ -311,7 +311,7 @@ struct ThunderFulu {
 
   Element plate() const {
     return kit::at(kPlateLeft, kPlateTop, kPlateWidth, kPlateHeight)
-        .opacity(bind(&score).window(0.05f, 1.15f))
+        .opacity(sigil::motion::bind(score, {.from = {0.05f, 1.15f}, .clampFrom = true}))
         .children({iron(), registers(), brushwork(), seal(),
                    // The iron's grain again, faintly over the ink, so the
                    // cinnabar reads as lying on the metal and not over it.
@@ -352,7 +352,7 @@ struct ThunderFulu {
       return text(record ? line["words"] : line)
           .styleClass(std::string(record ? line["style"].text("chant")
                                          : "chant"))
-          .opacity(bind(&score).window(at, at + hold).target(0.14f, 0.98f));
+          .opacity(sigil::motion::bind(score, {.from = {at, at + hold}, .clampFrom = true, .to = {0.14f, 0.98f}}));
     });
   }
 
@@ -425,7 +425,7 @@ struct ThunderFulu {
     path::Polyline walk;
     for (size_t index = 0; index < stations.size(); ++index)
       walk.points.push_back({station(index).fX, station(index).fY});
-    const auto seen = bind(&score).window(12.7f, 13.6f);
+    const auto seen = sigil::motion::bind(score, {.from = {12.7f, 13.6f}, .clampFrom = true});
     return section(
         said["heading"],
         {box().width(kSpan + 20).height(kSpan * 0.53f + 84).children(
@@ -447,7 +447,7 @@ struct ThunderFulu {
                      const float lit = 13.1f + (float)index * 0.16f;
                      return box()
                          .inset(0)
-                         .opacity(bind(&score).window(lit, lit + 0.45f))
+                         .opacity(sigil::motion::bind(score, {.from = {lit, lit + 0.45f}, .clampFrom = true}))
                          .children(
                              {kit::disc(at, 12)
                                   .shape(shapes::star(6, 0.30f))

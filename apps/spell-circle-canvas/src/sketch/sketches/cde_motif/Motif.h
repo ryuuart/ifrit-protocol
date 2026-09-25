@@ -21,7 +21,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Patterns.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
@@ -52,7 +52,6 @@ namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
-namespace ch = choreograph;
 
 namespace cde {
 
@@ -547,7 +546,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
  *  that is ever near-white, and therefore the only one that ever takes
  *  the LITE branch. */
 inline Element textField(const Utf8& t, float w, bool caret = false,
-                         const ch::Output<float>* caretOut = nullptr) {
+                         const motion::Animatable<float>& caretOut = nullptr) {
   const ColorSet s = ambient();
   Element inner = box()
                       .row()
@@ -557,7 +556,7 @@ inline Element textField(const Utf8& t, float w, bool caret = false,
                       .children({label(t)});
   if (caret && caretOut)
     inner.children({box().width(1).height(13).fill(s.fg).opacity(
-        motion::bind(caretOut).quantize(2))});
+        motion::bind(caretOut, {.quantize = 2}))});
   Element field = surface(s)
                       .overlay(bevel(2, true, false))
                       .padding(2)

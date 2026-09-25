@@ -13,7 +13,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
@@ -59,7 +59,7 @@ Element card(Utf8 step, Utf8 title, Utf8 note, material::Color color) {
 }  // namespace
 
 struct HelloSketch {
-  choreograph::Output<float> wave{0.0f};
+  motion::Animatable<float> wave = motion::animatable(0.0f);
   int score = 0;
   double nextScoreAt = 1.0;
 
@@ -76,7 +76,7 @@ struct HelloSketch {
                        hexColor(0xf4baa5)),
                   card("02 / TRY", "Save", "Your canvas follows along.",
                        hexColor(0xbfdadf))
-                      .translateY(motion::bind(&wave).scale(-3)),
+                      .translateY(motion::bind(wave, {.to = {0.0f, -3.0f}})),
                   card("03 / PLAY", "Repeat", "Keep the part you love.",
                        hexColor(0xdbe6b4))}),
              box().row().gap(24).children(
@@ -131,7 +131,7 @@ struct HelloSketch {
     ctx.composer.render(describe());
 
     // One output animates a retained card and feeds the immediate wave.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       wave = static_cast<float>(std::sin(ticker.elapsed() * 1.6));
     });
   }

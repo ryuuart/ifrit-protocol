@@ -63,7 +63,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Connection.h>
@@ -174,11 +174,11 @@ struct FeedSky {
    *  sketch up again is handed the one it was already reading. */
   std::vector<Door> doors;
   /** The one clock every band's drift and breath is bound to. */
-  choreograph::Output<float> clock{0};
+  motion::Animatable<float> clock = motion::animatable(0.0f);
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = kCaptureAt});
-    ctx.ticker.add([this, seconds = 0.0](double step) mutable {
+    ctx.engine.add([this, seconds = 0.0](double step) mutable {
       seconds += step;
       clock = (float)seconds;
       return true;
@@ -291,13 +291,8 @@ struct FeedSky {
         .gap(kGap)
         .left(-period)
         .top(kTop + kSpacing * (float)index)
-        .translateX(motion::bind(&clock)
-                        .scale(wind + (float)band["speed"].number())
-                        .wrap(period))
-        .translateY(motion::bind(&clock)
-                        .source(breathStart, breathStart + breathPeriod)
-                        .cosine()
-                        .target(-wobble, wobble))
+        .translateX(motion::bind(clock, {.to = {0.0f, wind + (float)band["speed"].number()}, .wrap = period}))
+        .translateY(motion::bind(clock, {.from = {breathStart, breathStart + breathPeriod}, .envelope = motion::envelope::cosine(), .to = {-wobble, wobble}}))
         .cache(Cache::Texture)
         .children(each(kSegments, [&] {
           return box()

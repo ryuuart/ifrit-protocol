@@ -161,7 +161,7 @@ struct BristleCurrent {
     for (int ribbon = 0; ribbon < kRibbonCount; ++ribbon)
       placeRibbon(ribbon, false);
 
-    ctx.ticker.addFixed(kSimHz, [this] {
+    ctx.engine.addFixed(kSimHz, [this] {
       step();
       return true;
     });

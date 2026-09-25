@@ -127,7 +127,7 @@ sketch::kit::ComparisonCase panel(const char* caseTitle, const char* call,
 }  // namespace
 
 struct BlurFalloff {
-  choreograph::Output<float> rack{0.0f};  // panel 4's bound maxSigma
+  sigil::motion::Animatable<float> rack = sigil::motion::animatable(0.0f);  // panel 4's bound maxSigma
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sheetTheme());
@@ -202,7 +202,7 @@ struct BlurFalloff {
                              "breathes with time.",
                              dofMap(),
                              material::Filter::blur(dofMap(), kMaxSigma)
-                                 .bind("maxSigma", &rack),
+                                 .bind("maxSigma", rack),
                              "rack")},
                   .measure = 1020,
                   .gap = 20})})));

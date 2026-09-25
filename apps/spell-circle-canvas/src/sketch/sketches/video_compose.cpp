@@ -102,7 +102,7 @@ VideoOptions optionsFor(int source, int cell, bool overlay) {
 }  // namespace
 
 struct VideoCompose {
-  choreograph::Output<float> loading{0.0f};
+  sigil::motion::Animatable<float> loading = sigil::motion::animatable(0.0f);
 
   static bool available(std::string* why) {
     return sketch::requireCached(
@@ -137,7 +137,7 @@ struct VideoCompose {
                           optionsFor((int)i, 0, i >= 2).startSeconds);
       }
       loading = 1.0f;
-      ctx.ticker.add([this, playback, handles] {
+      ctx.engine.add([this, playback, handles] {
         for (const vid::Playback::Handle handle : handles)
           if (!playback->ready(handle)) return true;
         loading = 0.0f;
@@ -182,7 +182,7 @@ struct VideoCompose {
                           .ink(sketch::kit::theme().palette.ink))
              .cover()
              .fill(Fill::color({0, 0, 0, 1}))
-             .opacity(&loading)}));
+             .opacity(loading)}));
   }
 };
 

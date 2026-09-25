@@ -13,12 +13,12 @@
 struct LootGrid {
   // The held item's travel, the validity flip, the unique shimmer, and the
   // gold counter's tick.
-  choreograph::Output<float> dragX{0}, dragY{0};
-  choreograph::Output<float> blockedMix{0}, fitsMix{0};
+  motion::Animatable<float> dragX = motion::animatable(0.0f), dragY = motion::animatable(0.0f);
+  motion::Animatable<float> blockedMix = motion::animatable(0.0f), fitsMix = motion::animatable(0.0f);
   // A PHASE in [0,1], not a distance: the call sites shape it into pixels
   // with bind(), so this stays a unit value.
-  choreograph::Output<float> shimmer{0};
-  choreograph::Output<float> goldFrac{0};
+  motion::Animatable<float> shimmer = motion::animatable(0.0f);
+  motion::Animatable<float> goldFrac = motion::animatable(0.0f);
   int gold = 0;
 
   std::shared_ptr<instancing::CellSheet> cellAtlas;
@@ -64,7 +64,7 @@ struct LootGrid {
                                       "Iowan Old Style", "Georgia"},
                                      600);
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     namespace lt = loot;
     dragX = blockedAt().x();
     dragY = blockedAt().y();
@@ -174,7 +174,7 @@ struct LootGrid {
                           .width(w * 0.30f)
                           .height(h * 1.8f)
                           .at({-w * 0.4f, -h * 0.4f})
-                          .translateX(motion::bind(&shimmer).target(-70, 170))
+                          .translateX(motion::bind(shimmer, {.to = {-70.0f, 170.0f}}))
                           .rotate(18.0f)
                           .fill(Paint::linearGradient(
                               {0, 0}, {w * 0.35f, 0},
@@ -197,29 +197,29 @@ struct LootGrid {
              .height(dh)
              .borderRadius({2})
              .at({0, 0})
-             .translateX(&dragX)
-             .translateY(&dragY)
+             .translateX(dragX)
+             .translateY(dragY)
              .fill(Paint::solid({0.16f, 0.80f, 0.24f, 0.26f}))
              .foreground(stroke(1.4f, Fill::color({0.35f, 1.0f, 0.45f, 0.75f})))
-             .opacity(&fitsMix)
+             .opacity(fitsMix)
              .zIndex(5),
          box()
              .width(dw)
              .height(dh)
              .borderRadius({2})
              .at({0, 0})
-             .translateX(&dragX)
-             .translateY(&dragY)
+             .translateX(dragX)
+             .translateY(dragY)
              .fill(Paint::solid({0.90f, 0.16f, 0.14f, 0.30f}))
              .foreground(stroke(1.4f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f})))
-             .opacity(&blockedMix)
+             .opacity(blockedMix)
              .zIndex(6),
          kit::centred()
              .width(dw)
              .height(dh)
              .at({0, 0})
-             .translateX(&dragX)
-             .translateY(&dragY)
+             .translateX(dragX)
+             .translateY(dragY)
              .row()
 
              .zIndex(7)
@@ -423,8 +423,8 @@ struct LootGrid {
         .foreground(stroke(1.0f, Fill::color({rc.r, rc.g, rc.b, 0.45f})))
         .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 5}, 12))
         .key("tooltip")
-        .opacity(animate(motion::from(0.0f).to(1.0f), {380ms}))
-        .translateY(animate(motion::from(8.0f).to(0.0f), {460ms}))
+        .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 380ms}))
+        .translateY(motion::animate({.from = 8.0f, .to = 0.0f, .duration = 460ms}))
         .zIndex(9)
         // Every line under the name is set in this one size and tracking;
         // what each says for itself is its colour.

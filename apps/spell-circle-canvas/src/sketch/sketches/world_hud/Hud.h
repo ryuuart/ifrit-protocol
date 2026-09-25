@@ -184,7 +184,7 @@ struct Bar {
   material::Color color{1, 1, 1, 1};
   float fraction = 1.0f;
   float decay = 0.0f;
-  const choreograph::Output<float>* live = nullptr;
+  const sigil::motion::Animatable<float>& live = nullptr;
   bool ticks = false;
 };
 

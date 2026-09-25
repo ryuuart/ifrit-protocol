@@ -16,8 +16,8 @@
 #include <sigilmotion/ease/Ease.h>
 
 struct EvaMagiDefense {
-  ch::Output<float> flicker{0.0f};  // phosphor dip (alpha of a black plane)
-  ch::Output<float> blink{1.0f};    // COLLAPSING, hard on/off
+  motion::Animatable<float> flicker = motion::animatable(0.0f);  // phosphor dip (alpha of a black plane)
+  motion::Animatable<float> blink = motion::animatable(1.0f);    // COLLAPSING, hard on/off
 
   // A FALL IS A BOUND OPACITY. Every site carries both its states as two
   // bakes from the first frame, the hostile one over the friendly at this
@@ -32,7 +32,7 @@ struct EvaMagiDefense {
   motion::Cascade falls;
   // The front: the field's pan in whole px, negative as it climbs. Bound on
   // the funnel's material and on the ribbons' halo, so nothing re-describes.
-  ch::Output<float> front{0.0f};
+  motion::Animatable<float> front = motion::animatable(0.0f);
   sk_sp<SkImage> fieldStrip, haloStrip, ribbonHalo;  // baked once in setup
   std::vector<weave::Type> labelTypes;
   std::vector<weave::Type> alarmTypes;
@@ -224,7 +224,7 @@ struct EvaMagiDefense {
     material::Paint m = material::skia::image(
         strip, material::Repeat::Repeat, material::Repeat::Pad, SkMatrix::I(),
         SkSamplingOptions(SkFilterMode::kNearest));
-    m.offset(std::nullopt, &front);
+    m.offset(std::nullopt, front);
     return m;
   }
 
@@ -323,7 +323,7 @@ struct EvaMagiDefense {
                    [&, i](SkPoint origin) {
                      return pillOf(L, alarmTypes[(size_t)i], i, "col", origin);
                    })
-        .opacity(&blink);
+        .opacity(blink);
   }
 
   /** THE CAMERA, and its shape is dictated by what a cached blit costs.
@@ -366,7 +366,7 @@ struct EvaMagiDefense {
                    box()
                        .inset(0)
                        .fill(Fill::color({0, 0, 0, 1}))
-                       .opacity(&flicker)
+                       .opacity(flicker)
                        .key("flicker")});
 
     if (verdict.failures() > 0) root.children({failureBanner()});
@@ -462,7 +462,7 @@ struct EvaMagiDefense {
 
     // --- motion ---
     falls.build(eva::kFalls, eva::kFallN, 1);
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double t = ticker.elapsed();
       // phosphor flicker: a 4 s cycle, 1% duty
       const double ph = std::fmod(t, 4.0);
@@ -478,7 +478,7 @@ struct EvaMagiDefense {
                      0.0f, 1.0f);
       for (int i = 0; i < kFallN; ++i)
         fallAlpha[i] =
-            kFallRest + (1.0f - kFallRest) * motion::ease::outQuad(falls.localTime(
+            kFallRest + (1.0f - kFallRest) * motion::ease::outQuad(falls.localProgress(
                                                  master, (uint32_t)i, 0));
     });
 

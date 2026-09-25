@@ -55,7 +55,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
@@ -234,16 +234,16 @@ struct ArtNetLights {
   /** The session's ticker, which outlives this sketch. A handler runs
    *  on the dispatch rather than inside a describe, so it cannot hold
    *  the per-frame context the ticker is otherwise reached through. */
-  motion::Ticker* ticker = nullptr;
+  motion::Engine* ticker = nullptr;
 
   /** THE WASH, eased: the colour the desk last called for, reached over
    *  kFade rather than jumped to, so a desk stepping its fader still
    *  fades. */
-  ch::Output<float> red{kOpeningRed};
-  ch::Output<float> green{kOpeningGreen};
-  ch::Output<float> blue{kOpeningBlue};
+  motion::Animatable<float> red = motion::animatable<float>(kOpeningRed);
+  motion::Animatable<float> green = motion::animatable<float>(kOpeningGreen);
+  motion::Animatable<float> blue = motion::animatable<float>(kOpeningBlue);
   /** The wind fader, eased the same way. */
-  ch::Output<float> wind{0};
+  motion::Animatable<float> wind = motion::animatable(0.0f);
   /** How many times a second the lamp opens and shuts, 0 for a lamp
    *  standing on. It is a rate rather than a level, so it is taken as
    *  it arrives: easing a rate would bend the flashes on either side of
@@ -270,7 +270,7 @@ struct ArtNetLights {
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
-    ticker = &ctx.ticker;
+    ticker = &ctx.engine;
 
     io::Hub& hub = ctx.assets.hub();
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window binds the
@@ -306,7 +306,7 @@ struct ArtNetLights {
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double step = elapsed - seconds;
     seconds = elapsed;
-    drift += (double)wind() * step;
+    drift += (double)wind.value() * step;
     relight();
     // The data path: the sky moves without being described again,
     // because the pen reads it on every frame. What is described again
@@ -330,15 +330,15 @@ struct ArtNetLights {
                  ? 0.0f
                  : kStrobeSlowest + (kStrobeFastest - kStrobeSlowest) * rate;
     if (!ticker) return;
-    fade(&red, dimmer(channels, kRedChannel));
-    fade(&green, dimmer(channels, kGreenChannel));
-    fade(&blue, dimmer(channels, kBlueChannel));
+    fade(red, dimmer(channels, kRedChannel));
+    fade(green, dimmer(channels, kGreenChannel));
+    fade(blue, dimmer(channels, kBlueChannel));
     // The wind runs either side of still air, because a sky that only
     // drifts one way is a fader with half its travel wasted.
-    fade(&wind, (dimmer(channels, kWindChannel) * 2.0f - 1.0f) * kWindSpan);
+    fade(wind, (dimmer(channels, kWindChannel) * 2.0f - 1.0f) * kWindSpan);
   }
 
-  void fade(ch::Output<float>* value, float to) {
+  void fade(motion::Animatable<float>& value, float to) {
     ticker->timeline().apply(value).then<ch::RampTo>(to, kFade,
                                                      motion::ease::outQuad);
   }
@@ -351,7 +351,7 @@ struct ArtNetLights {
    *  be told two different things. */
   material::Color tint(size_t index) const {
     const float weight = kBands[index % kBands.size()].weight * flash();
-    return {red() * weight, green() * weight, blue() * weight, kBandAlpha};
+    return {red.value() * weight, green.value() * weight, blue.value() * weight, kBandAlpha};
   }
 
   /** HOW FAR OPEN THE LAMP STANDS THIS INSTANT. A strobe shuts rather

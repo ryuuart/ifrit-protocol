@@ -72,8 +72,7 @@ Element TwoAdvancedV3::bevelBar() {
                 {0, 0}, {0, 1},
                 {{0.0f, hexColor(0x98A3BA)}, {1.0f, hexColor(0x66738F)}})),
             kStageX, 0, kStageW, 8)
-      .translateY(animate(motion::from(-10.0f).to(0.0f),
-                          {300ms, motion::ease::outQuint, 1450ms}));
+      .translateY(motion::animate({.from = -10.0f, .to = 0.0f, .duration = 300ms, .delay = 1450ms, .ease = motion::ease::outQuint}));
 }
 
 Element TwoAdvancedV3::headerStrip() {
@@ -93,10 +92,8 @@ Element TwoAdvancedV3::headerStrip() {
         {at(box().fill(diag.material()).opacity(0.18f), 0, 0, kStageW, 74)});
   }
   return strip
-      .translateY(animate(motion::from(-84.0f).to(0.0f),
-                          {380ms, motion::ease::outQuint, 1500ms}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {280ms, motion::ease::outQuad, 1500ms}));
+      .translateY(motion::animate({.from = -84.0f, .to = 0.0f, .duration = 380ms, .delay = 1500ms, .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 280ms, .delay = 1500ms, .ease = motion::ease::outQuad}));
 }
 
 Element TwoAdvancedV3::wordmark() {
@@ -143,10 +140,8 @@ Element TwoAdvancedV3::wordmark() {
                                                     1.0f))}),
                box().flexGrow(1)});
   return panel
-      .translateY(animate(motion::from(-60.0f).to(0.0f),
-                          {420ms, motion::ease::outQuint, 1600ms}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, motion::ease::outQuad, 1600ms}));
+      .translateY(motion::animate({.from = -60.0f, .to = 0.0f, .duration = 420ms, .delay = 1600ms, .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = 1600ms, .ease = motion::ease::outQuad}));
 }
 
 Element TwoAdvancedV3::navBar() {
@@ -185,10 +180,8 @@ Element TwoAdvancedV3::navBar() {
        // indicator can move without re-describing the bar.
        slot("navtabs")});
   return bar
-      .translateY(animate(motion::from(-40.0f).to(0.0f),
-                          {380ms, motion::ease::outQuint, 1750ms}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {280ms, motion::ease::outQuad, 1750ms}));
+      .translateY(motion::animate({.from = -40.0f, .to = 0.0f, .duration = 380ms, .delay = 1750ms, .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 280ms, .delay = 1750ms, .ease = motion::ease::outQuad}));
 }
 
 Element TwoAdvancedV3::navTabs(int active) {
@@ -232,8 +225,7 @@ Element TwoAdvancedV3::hairlines() {
                                     .fill(vticks.material())
                                     .opacity(0.55f)})}),
             kStageX, 210, kStageW, 7)
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {280ms, motion::ease::outQuad, 1800ms}));
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 280ms, .delay = 1800ms, .ease = motion::ease::outQuad}));
 }
 
 Element TwoAdvancedV3::scrollStrip() {
@@ -261,8 +253,7 @@ Element TwoAdvancedV3::scrollStrip() {
                        micro(9, sigil::material::withAlpha(kSteel, 0.9f),
                              180))}),
             kStageX, 617, kStageW, 16)
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, motion::ease::outQuad, 2200ms}));
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = 2200ms, .ease = motion::ease::outQuad}));
 }
 
 Element TwoAdvancedV3::footerRail() {
@@ -295,8 +286,7 @@ Element TwoAdvancedV3::footerRail() {
                      box().flexGrow(1), t(foot["hosting"], micro(9, kInk, 140)),
                      box().width(12).height(12).borderRadius({6}).fill(kHost)}),
             kStageX, 1045, kStageW, 20)
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {320ms, motion::ease::outQuad, 2900ms}));
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = 2900ms, .ease = motion::ease::outQuad}));
 }
 
 Element TwoAdvancedV3::bootOverlay() {
@@ -318,17 +308,15 @@ Element TwoAdvancedV3::bootOverlay() {
 
   Element o = stack().inset(0).zIndex(90);
   o.children(
-      {box().inset(0).fill(kPreBg).opacity(animate(
-           motion::through({{0ms, 1.0f}, {1250ms, 1.0f}, {1450ms, 0.0f}}))),
+      {box().inset(0).fill(kPreBg).opacity(motion::animate({.from = 1.0f, .keyframes = {{.to = 1.0f, .duration = 1250ms}, {.to = 0.0f, .duration = 200ms}}})),
        at(box().column().alignItems(Align::Center).gap(18), kW / 2 - 300,
           kH / 2 - 170, 600, 360)
-           .opacity(animate(motion::through(
-               {{0ms, 0.0f}, {150ms, 1.0f}, {1200ms, 1.0f}, {1350ms, 0.0f}})))
+           .opacity(motion::animate({.from = 0.0f, .keyframes = {{.to = 1.0f, .duration = 150ms}, {.to = 1.0f, .duration = 1050ms}, {.to = 0.0f, .duration = 150ms}}}))
            .children({lockup,
                       text(boot["motto"], sigil::weave::kit::tracked(
                                               grot(), 10, kPreInk, 400, 1.0f)),
                       slot("bootpct")})});
-  o.opacity(animate(motion::through({{1400ms, 1.0f}, {1450ms, 0.0f}})));
+  o.opacity(motion::animate({.from = 1.0f, .keyframes = {{.to = 0.0f, .duration = 50ms}}, .delay = 1400ms}));
   return o;
 }
 

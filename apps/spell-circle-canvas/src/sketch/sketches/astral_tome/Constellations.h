@@ -41,7 +41,6 @@ using sigil::material::hexColor;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
 using sigil::material::Paint;
-namespace ch = choreograph;
 
 namespace at {
 

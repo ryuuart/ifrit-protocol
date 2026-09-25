@@ -180,10 +180,7 @@ struct AnnotatedMargin {
                  .textFx({.effect = textFx::rise(14),
                           .stagger = m::kRoll,
                           .unit = weave::Unit::Word,
-                          .progress = animate(
-                              motion::from(0.0f).to(1.0f),
-                              {std::chrono::milliseconds((int)m::kRollSpan),
-                               motion::ease::linear, 200ms})}),
+                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((int)m::kRollSpan), .delay = 200ms, .ease = motion::ease::linear})}),
              // ── The label under every word of the opening phrase
              kit::annotate(composer, "passage", weave::selectors::words(0, 6),
                            weave::Unit::Word,

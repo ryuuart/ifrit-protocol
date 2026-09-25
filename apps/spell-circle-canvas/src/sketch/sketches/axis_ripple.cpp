@@ -66,7 +66,7 @@
 #include <sigilcompose/typography/Track.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -236,7 +236,7 @@ float crestPhase(size_t index) {
 // ===========================================================================
 
 struct AxisRipple {
-  choreograph::Output<float> phase{0};
+  motion::Animatable<float> phase = motion::animatable(0.0f);
   const StyleSheet sheet = look();
 
   float heroSize = 0;
@@ -287,10 +287,7 @@ struct AxisRipple {
                             {1.0f, hexColor(0x1C3F70)}},
                            {.units = material::GradientUnits::Pixels}))
                        .transformOrigin(pct(50), pct(100))
-                       .scaleY(motion::bind(&phase)
-                                   .source(lag, 1.0f + lag)
-                                   .wave(&swell)
-                                   .target(1.0f / kLevelHeight, 1.0f))});
+                       .scaleY(motion::bind(phase, {.from = {lag, 1.0f + lag}, .envelope = motion::envelope::shaped(&swell), .to = {1.0f / kLevelHeight, 1.0f}}))});
   }
 
   /** THE WARM POOL behind the word, travelling with the crest.
@@ -318,13 +315,8 @@ struct AxisRipple {
              {1.0f, material::withAlpha(warm, 0.0f)}},
             {.units = material::GradientUnits::Pixels}))
         .scaleY(0.62f)
-        .translateX(motion::bind(&phase)
-                        .window(first, last)
-                        .target(letter * 0.5f - kPoolWidth * 0.5f,
-                                heroWidth - letter * 0.5f - kPoolWidth * 0.5f))
-        .opacity(motion::bind(&phase).trapezoid(
-            first - 2.0f * beatFraction(), first + beatFraction(),
-            last - beatFraction(), last + 3.0f * beatFraction()));
+        .translateX(motion::bind(phase, {.from = {first, last}, .clampFrom = true, .to = {letter * 0.5f - kPoolWidth * 0.5f, heroWidth - letter * 0.5f - kPoolWidth * 0.5f}}))
+        .opacity(motion::bind(phase, {.envelope = motion::envelope::trapezoid(first - 2.0f * beatFraction(), first + beatFraction(), last - beatFraction(), last + 3.0f * beatFraction())}));
   }
 
   /** The ripple: the word to the measure, every letter's grade on one
@@ -334,10 +326,8 @@ struct AxisRipple {
     const float periodMs = kPeriod * 1000.0f;
     Text hero = text(kProof).role("hero").fontSize(heroSize).key("ripple");
     hero.textFx({.effect = gradeSwell(),
-                 .stagger = {.eachMs = kBeat * 1000.0f,
-                             .durationMs = periodMs,
-                             .loopMs = periodMs},
-                 .progress = &phase});
+                 .delay = motion::stagger(std::chrono::duration<double, std::milli>(kBeat * 1000.0f)), .duration = std::chrono::duration<double, std::milli>(periodMs), .loop = std::chrono::duration<double, std::milli>(periodMs),
+                 .progress = phase});
     for (size_t index = 0; index < kProof.size(); ++index)
       hero.textAttach(weave::selectors::range({(uint32_t)index,
                                                (uint32_t)index + 1}),
@@ -508,7 +498,7 @@ struct AxisRipple {
     gradLight = widthOf(ctx, proofRun("GRAD", kGradLight));
     gradHeavy = widthOf(ctx, proofRun("GRAD", kGradHeavy));
 
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       phase = motion::phase(ticker.elapsed(), kPeriod);
     });
 

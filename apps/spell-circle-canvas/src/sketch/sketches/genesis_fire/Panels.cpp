@@ -20,10 +20,8 @@ Element GenesisFire::censusBar(float frac, sigil::material::Color c,
                          .height = Dimension(7),
                          .track = Fill::color(hexColor(0x171B24)),
                          .bar = Fill::color(c)};
-  bar.level = animate(
-      from(0.0f).to(frac),
-      {.duration = 420ms, .ease = ease::outBack(1.2f), .delay = 1200ms});
-  if (key) bar.level = bind(&liveFrac).clamp(0.02f, 1.0f);
+  bar.level = sigil::motion::animate({.from = 0.0f, .to = frac, .duration = 420ms, .delay = 1200ms, .ease = ease::outBack(1.2f)});
+  if (key) bar.level = sigil::motion::bind(liveFrac, {.clamp = {0.02f, 1.0f}});
   Element rail = sketch::kit::meter(bar).flexShrink(0);
   if (key) rail.key(key);
   return rail;
@@ -110,9 +108,7 @@ Element GenesisFire::rampPanel() {
                       .width = Dimension(28),
                       .height = Dimension(26),
                       .gap = 2,
-                      .opacity = animate(
-                          from(0.0f).to(1.0f),
-                          {.duration = 220ms, .ease = ease::outBack()})})
+                      .opacity = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 220ms, .ease = ease::outBack()})})
                      .flexShrink(0)
                      .staggerChildren(26ms),
                  box().flexGrow(1), note(ramp["note"])});
@@ -171,10 +167,8 @@ Element GenesisFire::productionPanel() {
 
 Element GenesisFire::header() {
   Track rise{.effect = textFx::rise(22),
-             .stagger = {.eachMs = 26, .durationMs = 460},
-             .progress = animate(
-                 from(0.0f).to(1.0f),
-                 {.duration = 850ms, .ease = sigil::motion::ease::linear, .delay = 120ms})};
+             .delay = sigil::motion::stagger(26ms), .duration = 460ms,
+             .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 850ms, .delay = 120ms, .ease = sigil::motion::ease::linear})};
   // The masthead is set in the interface face and steel; the title alone
   // takes the black cut and the bone.
   const sigil::data::Json& head = doc()["header"];
@@ -188,8 +182,8 @@ Element GenesisFire::header() {
       .children(
           {document::eyebrow(head["eyebrow"])
                .font({.size = 11.5f, .track = 2.7f})
-               .opacity(animate(from(0.0f).to(1.0f), {.duration = 260ms}))
-               .translateY(animate(from(8.0f).to(0.0f), {.duration = 260ms})),
+               .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms}))
+               .translateY(sigil::motion::animate({.from = 8.0f, .to = 0.0f, .duration = 260ms})),
            document::h1(head["title"])
                .font({.face = heavyFace(), .size = 46, .track = -0.4f})
                .ink(kBone)
@@ -198,11 +192,9 @@ Element GenesisFire::header() {
            document::lead(head["credit"])
                .width(670)
                .font({.size = 11.0f, .track = 0.1f})
-               .opacity(animate(from(0.0f).to(1.0f),
-                                {.duration = 240ms, .delay = 420ms})),
+               .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .delay = 420ms})),
            box().flexGrow(1),
            kit::line({.fill = Fill::color(kKeyline)})
                .flexShrink(0)
-               .opacity(animate(from(0.0f).to(1.0f),
-                                {.duration = 400ms, .delay = 320ms}))});
+               .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 320ms}))});
 }

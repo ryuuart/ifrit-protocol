@@ -55,7 +55,7 @@ auto HitmanVerlet::setup(sketch::SketchContext& ctx) -> void {
   // parameter publishes the leftover fraction of a step: a verlet body's
   // state IS the pair (x*, x), so lerp(x*, x, alpha) is the integrator's
   // own interpolant, and drawing through it costs nothing extra.
-  ctx.ticker.addFixed(
+  ctx.engine.addFixed(
       kSimHz,
       [this] {
         stepPhysics();

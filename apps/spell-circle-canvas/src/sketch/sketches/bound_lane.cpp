@@ -56,9 +56,9 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/bind/BoundFloat.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -226,8 +226,8 @@ sketch::kit::ComparisonCase track(Shape curve, MotionPath along, Element mark,
 }  // namespace
 
 struct BoundLane {
-  choreograph::Output<float> seconds{0};
-  choreograph::Output<float> phase{0};
+  sigil::motion::Animatable<float> seconds = sigil::motion::animatable(0.0f);
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(
@@ -237,23 +237,23 @@ struct BoundLane {
     // `seconds` is the SCHEDULE the shake is phased off. It ramps forever
     // rather than wrapping, so `frequency` reads as plain Hz and the noise
     // never steps at a seam.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double t = ticker.elapsed();
       seconds = (float)t;
     });
     // `phase` is the other kind of schedule: a lap, wrapped by hand here
     // because the tracks want it in [0,1) as their input, not as their
     // output.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double t = ticker.elapsed();
       phase = (float)std::fmod(t / kPeriod, 1.0);
     });
 
     // The chips' own lanes and the plots' are the SAME values: build
     // them once and hand the BoundFloat to both.
-    const Bound shakeX = wiggle(&seconds, kAmount, kFrequency, kSeedX);
-    const Bound shakeY = wiggle(&seconds, kAmount, kFrequency, kSeedY);
-    const Bound sameY = wiggle(&seconds, kAmount, kFrequency, kSeedX);
+    const Bound shakeX = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX}});
+    const Bound shakeY = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedY}});
+    const Bound sameY = sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX}});
 
     // A live chip: two lanes, noise around REST. `wiggle(&out, …)` is
     // `bind(&out).scale(0).wiggle(…)` — without the scale(0) the property
@@ -274,26 +274,25 @@ struct BoundLane {
 
     Element chain = sketch::kit::comparison(
         {.cases =
-             {panel(190, 128, "INPUT", "bind(phase)",
-                    stage("lane.bare", bind(&phase).value(), -0.15f, 1.15f)),
+             {panel(190, 128, "INPUT", "sigil::motion::bind(phase)",
+                    stage("lane.bare", sigil::motion::bind(phase).value(), -0.15f, 1.15f)),
               panel(190, 128, "ENVELOPE", "pingPong()",
-                    stage("lane.pingPong", bind(&phase).pingPong().value(),
+                    stage("lane.pingPong", sigil::motion::bind(phase, {.alternate = true}).value(),
                           -0.15f, 1.15f)),
               panel(
                   190, 128, "CURVE", "map(outBack)",
-                  stage("lane.curve", bind(&phase).map(ease::outBack()).value(),
+                  stage("lane.curve", sigil::motion::bind(phase, {.ease = ease::outBack()}).value(),
                         -0.15f, 1.15f)),
               panel(190, 128, "STEPS", "quantize(8)",
-                    stage("lane.quantize", bind(&phase).quantize(8).value(),
+                    stage("lane.quantize", sigil::motion::bind(phase, {.quantize = 8}).value(),
                           -0.15f, 1.15f)),
               panel(190, 128, "REPEAT", "scale(3).wrap(1)",
                     stage("lane.wrap",
-                          bind(&phase).scale(3.0f).wrap(1.0f).value(), -0.15f,
+                          sigil::motion::bind(phase, {.to = {0.0f, 3.0f}, .wrap = 1.0f}).value(), -0.15f,
                           1.15f)),
               panel(190, 128, "NOISE", "3 octaves · rails ±60",
                     wiggleStage("lane.wiggle",
-                                wiggle(&seconds, kAmount, kFrequency, kSeedX,
-                                       kOctaves, kFalloff)
+                                sigil::motion::bind(seconds, {.to = {0.0f, 0.0f}, .wiggle = {.amount = kAmount, .frequency = kFrequency, .seed = kSeedX, .octaves = kOctaves, .falloff = kFalloff}})
                                     .value()))},
          .measure = 1200,
          .gap = 12});
@@ -333,32 +332,32 @@ struct BoundLane {
         {.cases =
              {// 1 — the bare case. lookAhead defaults to 0, so orientation
               // is left alone: a dot rides, nothing turns.
-              track(shapes::circle(), {.t = &phase},
+              track(shapes::circle(), {.t = phase},
                     box()
                         .width(18)
                         .height(18)
                         .shape(shapes::circle())
                         .fill(Fill::color(kTraceB)),
-                    "POSITION ONLY", ".t = &phase"),
+                    "POSITION ONLY", ".t = phase"),
               // 2 — lookAhead engages auto-orient: the angle of the chord
               // ahead is ADDED to rotate() (which is 0 here).
-              track(shapes::circle(), {.t = &phase, .lookAhead = kLook},
+              track(shapes::circle(), {.t = phase, .lookAhead = kLook},
                     arrowMark(), "FOLLOW THE TANGENT", ".lookAhead = 0.02"),
               // 3 — …and rotate() still composes on top of the bank. Same
               // flight as 2; the arrow also spins as it goes.
-              track(shapes::circle(), {.t = &phase, .lookAhead = kLook},
-                    arrowMark().rotate(bind(&phase).target(0.0f, 720.0f)),
+              track(shapes::circle(), {.t = phase, .lookAhead = kLook},
+                    arrowMark().rotate(sigil::motion::bind(phase, {.to = {0.0f, 720.0f}})),
                     "ADD A SPIN", "rotate() ADDS to it"),
               // 4 — the lane is the SCHEDULE, so "two laps" is one affine
               // verb on it. A closed curve wraps; no API.
               track(shapes::circle(),
-                    {.t = bind(&phase).target(0.0f, kLaps), .lookAhead = kLook},
+                    {.t = sigil::motion::bind(phase, {.to = {0.0f, kLaps}}), .lookAhead = kLook},
                     arrowMark(), "TWO LAPS", ".target(0, 2) wraps"),
               // 5 — an OPEN curve CLAMPS at its ends and holds the last good
               // chord there, so a parked arrow still points down the final
               // leg instead of reading atan2(0, 0).
               track(shapes::arc(140.0f, 260.0f),
-                    {.t = bind(&phase).target(-0.3f, 1.3f), .lookAhead = kLook},
+                    {.t = sigil::motion::bind(phase, {.to = {-0.3f, 1.3f}}), .lookAhead = kLook},
                     arrowMark(), "OPEN PATH", ".target(-0.3, 1.3) clamps")},
          .measure = 1200,
          .gap = 15});

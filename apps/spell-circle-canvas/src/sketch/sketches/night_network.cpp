@@ -195,21 +195,20 @@ inline Element legendRow(const Legend& line) {
 }  // namespace night_network
 
 struct NightNetwork {
-  choreograph::Output<float> emberReveal{0}, railReveal{0}, cyanReveal{0},
-      ringReveal{0}, roadReveal{0};
-  choreograph::Output<float> hubGlow{0};
+  motion::Animatable<float> emberReveal = motion::animatable(0.0f), railReveal = motion::animatable(0.0f), cyanReveal = motion::animatable(0.0f), ringReveal = motion::animatable(0.0f), roadReveal = motion::animatable(0.0f);
+  motion::Animatable<float> hubGlow = motion::animatable(0.0f);
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     namespace ch = choreograph;
 
     hubGlow = 4.0f;
     auto& tl = ticker.timeline();
-    auto drawOn = [&](choreograph::Output<float>& r, float delay) {
+    auto drawOn = [&](motion::Animatable<float>& r, float delay) {
       r = 0.0f;  // scenes re-activate: reveals re-zero here
       tl.apply(&r)
           .then<ch::Hold>(0.0f, delay)
@@ -373,7 +372,7 @@ struct NightNetwork {
                                                .borderColor = nn::kInk,
                                                .glowRadius = 6,
                                                .glowColor = nn::kEmber}))
-                      .bind("uGlowR", &hubGlow))
+                      .bind("uGlowR", hubGlow))
             .zIndex(7);
 
     // The type is stated once, here: every line inherits the ash and the
@@ -407,14 +406,14 @@ struct NightNetwork {
                      connect::Along{
                          .stops = {{"rd_w"}, {"rd1"}, {"rd2"}, {"rd_e"}},
                          .router = routers::polyline(22),
-                         .mask = by::spans(spans::upTo(&roadReveal)),
+                         .mask = by::spans(spans::upTo(roadReveal)),
                          .style = LayerStyle{.over = {roadbed, busLane, curb}}})
                      .zIndex(2),
                  // ---- the carto railway ----
                  Operator(connect::Along{
                               .stops = {{"rw_w"}, {"rw1"}, {"rw2"}, {"rw_e"}},
                               .router = routers::octilinear(14),
-                              .mask = by::spans(spans::upTo(&railReveal)),
+                              .mask = by::spans(spans::upTo(railReveal)),
                               .style = brush::presets::railwayCarto(
                                   1.6f, nn::kSteel, {0.95f, 0.94f, 0.90f, 1})})
                      .zIndex(3),
@@ -426,7 +425,7 @@ struct NightNetwork {
                                                    {"em_e"}},
                                          .router = routers::octilinear(0),
                                          .wire = emberBrush,
-                                         .where = spans::upTo(&emberReveal)})
+                                         .where = spans::upTo(emberReveal)})
                      .zIndex(4),
                  // ---- the one-way line ----
                  Operator(connect::Along{.stops = {{"cy_w"},
@@ -436,7 +435,7 @@ struct NightNetwork {
                                                    {"cy_e"}},
                                          .router = routers::octilinear(8),
                                          .wire = current,
-                                         .where = spans::upTo(&cyanReveal)})
+                                         .where = spans::upTo(cyanReveal)})
                      .zIndex(4),
                  // ---- twin service (bottom-right strip) ----
                  Operator(connect::Along{.stops = {{"tw_w"}, {"tw1"}, {"tw_e"}},
@@ -462,7 +461,7 @@ struct NightNetwork {
                     .height(190)
                     .centerAt({436, 320})
                     .shape(shapes::arc(0.0f, 359.9f))
-                    .stroke(spans::upTo(&ringReveal), orbital)
+                    .stroke(spans::upTo(ringReveal), orbital)
                     .zIndex(5),
                 // ---- ARTLINE: the SkVertices art warp (brush::artAlong) — one
                 // leaf-vine cell stretched and BENT along the S-curve; rigid

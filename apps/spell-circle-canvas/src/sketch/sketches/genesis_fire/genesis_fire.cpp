@@ -60,7 +60,7 @@ void GenesisFire::setup(sketch::SketchContext& ctx) {
   // the ticker dt = 1.0, addFixed runs its 8 steps and DROPS the other
   // 16, so the sim lags the wall clock — which is the correct failure,
   // not a bug.
-  ctx.ticker.addFixed(
+  ctx.engine.addFixed(
       kSimHz,
       [this] {
         stepSim();

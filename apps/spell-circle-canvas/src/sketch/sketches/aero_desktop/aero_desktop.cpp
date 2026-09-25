@@ -42,6 +42,7 @@
 
 #include <cmath>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/values/Time.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -154,8 +155,8 @@ struct AeroDesktop {
   sk_sp<SkRuntimeEffect> aurora;
   sk_sp<SkRuntimeEffect> windowShadow;
 
-  choreograph::Output<float> bloom{0};    // close-button hover bloom fade-in
-  choreograph::Output<float> orbGlow{0};  // start-orb ambient breathing
+  motion::Animatable<float> bloom = motion::animatable(0.0f);    // close-button hover bloom fade-in
+  motion::Animatable<float> orbGlow = motion::animatable(0.0f);  // start-orb ambient breathing
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
@@ -164,13 +165,13 @@ struct AeroDesktop {
     aurora = ctx.assets.shader(ctx.local("aurora.sksl"));
     windowShadow = ctx.assets.shader(ctx.local("window_shadow.sksl"));
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     namespace ch = choreograph;
     bloom = 0.0f;
     orbGlow = 0.0f;
 
     ticker.timeline()
-        .apply(&bloom)
+        .apply(bloom)
         .then<ch::Hold>(0.0f, 0.45f)
         // Aero's hover bloom came up fast, over roughly a tenth of a second.
         .then<ch::RampTo>(1.0f, 0.10f, motion::ease::outQuad);
@@ -423,8 +424,8 @@ struct AeroDesktop {
         .inset(0)
         .transformOrigin(pct(100.0f * ((ad::kWX + ad::kWW * 0.5f) / ad::kW)),
                          pct(100.0f * ((ad::kWY + ad::kWH * 0.5f) / ad::kH)))
-        .scale(animate(motion::from(0.96f).to(1.0f), {220ms}))
-        .opacity(animate(motion::from(0.0f).to(1.0f), {180ms}))
+        .scale(motion::animate({.from = 0.96f, .to = 1.0f, .duration = 220ms}))
+        .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 180ms}))
         // the DWM soft drop shadow (SDF ring -- no filter, no overflow)
         .children({box()
                        .inset(ad::kWY - 30, ad::kW - ad::kWX - ad::kWW - 34,
@@ -451,7 +452,7 @@ struct AeroDesktop {
                            {8.5f, 7.5f, 0, 0, {0.98f, 0.74f, 0.10f, 1}}};
     // The breathing aqua glow behind the orb is NOT built here; it is
     // orbHalo(), placed by describe() outside the taskbar plane. Its opacity
-    // is bound to &orbGlow, and a binding anywhere in this subtree would mark
+    // is bound to orbGlow, and a binding anywhere in this subtree would mark
     // the whole taskbar volatile and stop it caching as one texture.
     return box()
         .inset(3, 0, 0, 14)
@@ -498,7 +499,7 @@ struct AeroDesktop {
   }
 
   /** The close-button hover bloom, hoisted ABOVE the baked window plane
-   *  (same reason as orbHalo -- the &bloom bind must not live inside a
+   *  (same reason as orbHalo -- the bloom bind must not live inside a
    *  texture plane). Position mirrors captionButtons(): row pinned
    *  top(1).right(8), close button 47 wide after 29+1+27+1 of buttons
    *  and seams. The glyph is re-drawn on top so the X keeps sitting OVER
@@ -512,12 +513,12 @@ struct AeroDesktop {
         .height(bh)
         .borderRadius({0, 0, 4, 0})
         .fill(ad::closeBloom(wClose, bh))
-        .opacity(&bloom)
+        .opacity(bloom)
         .children({buttonGlyphClose(wClose, bh)});
   }
 
   /** The orb's breathing ambient glow, hoisted ABOVE the baked taskbar
-   *  plane so its &orbGlow bind doesn't keep the plane volatile. The
+   *  plane so its orbGlow bind doesn't keep the plane volatile. The
    *  original radial ran a.35 at the orb's center down to 0 at r=25; the
    *  orb (r=17, opaque) covered everything inside t~0.68, so this halo
    *  keeps the visible outside falloff and goes transparent where the
@@ -536,7 +537,7 @@ struct AeroDesktop {
                                      {0.68f, {0.35f, 0.75f, 1.0f, 0.11f}},
                                      {1.00f, {0.35f, 0.75f, 1.0f, 0}}},
                                     {.units = material::GradientUnits::Pixels}))
-        .opacity(&orbGlow);
+        .opacity(orbGlow);
   }
 
   Element taskbar() {

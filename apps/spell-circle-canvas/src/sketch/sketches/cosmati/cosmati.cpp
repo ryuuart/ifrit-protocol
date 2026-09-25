@@ -47,7 +47,7 @@
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Grained.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Kit.h>
@@ -70,7 +70,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 namespace path = sigil::geometry::path;
-namespace ch = choreograph;
 using namespace sigil::compose;
 using sigil::material::hexColor;
 using namespace sigil::motion;
@@ -231,10 +230,8 @@ Element roundel(std::string key, SkPoint at, float radius, Shape outline,
                     .height(radius * 2)
                     .centerAt(at)
                     .cache(Cache::Texture)
-                    .opacity(animate(from(0.0f).to(1.0f),
-                                     {320ms, sigil::motion::ease::outQuad, delay}))
-                    .scale(animate(from(1.07f).to(1.0f),
-                                   {560ms, sigil::motion::ease::outCubic, delay}));
+                    .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = delay, .ease = sigil::motion::ease::outQuad}))
+                    .scale(sigil::motion::animate({.from = 1.07f, .to = 1.0f, .duration = 560ms, .delay = delay, .ease = sigil::motion::ease::outCubic}));
   set.children({box().cover().shape(outline).fill(std::move(disc)).foreground(
       stroke(kFillet, cut(marble, 70), PathFormat::Align::Inner))});
   for (Piece& piece : pieces)
@@ -266,7 +263,7 @@ struct Cosmati {
   Quarries stone;
   cosmati::Interlace band;
   /** The scene's one clock, in seconds; every beat is a window on it. */
-  ch::Output<float> seconds{0};
+  sigil::motion::Animatable<float> seconds = sigil::motion::animatable(0.0f);
 
   void setup(sketch::SketchContext& ctx) {
     words = sketch::kit::Document{ctx, "data/pavement.json"};
@@ -280,7 +277,7 @@ struct Cosmati {
     sketch::kit::stage(ctx, {.size = kCanvas,
                              .captureAt = 6.0,
                              .background = draw::parseColor(words["ink"]["ground"].text())});
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     ticker.add([this, &ticker] { seconds = (float)ticker.elapsed(); });
     ctx.composer.render(describe());
   }
@@ -362,7 +359,7 @@ struct Cosmati {
         .cover()
         .key("matrix")
         .cache(Cache::Texture)
-        .opacity(animate(from(0.0f).to(1.0f), {500ms, sigil::motion::ease::outQuad}))
+        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 500ms, .ease = sigil::motion::ease::outQuad}))
         .fill(cut(stone.purbeck, 28, 0, 0.14f, 260))
         .children({fillet(0), fillet(kLetterStrip), fillet(kBorder)});
   }
@@ -443,9 +440,7 @@ struct Cosmati {
                        .cover()
                        .key("fields")
                        .cache(Cache::Texture)
-                       .opacity(animate(from(0.0f).to(1.0f),
-                                        {800ms, sigil::motion::ease::outQuad,
-                                         std::chrono::milliseconds{(int)(kFieldsAt * 1000)}}))
+                       .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 800ms, .delay = std::chrono::milliseconds{(int)(kFieldsAt * 1000)}, .ease = sigil::motion::ease::outQuad}))
                        .children({field(turned, stone.marble)});
     for (size_t index = 0; index < corners.size(); ++index) {
       const auto& [a, b, c] = corners[index];
@@ -582,8 +577,7 @@ struct Cosmati {
   Element guilloche() const {
     const auto laying = [&](float from, float to) {
       const float span = kBandTo - kBandFrom;
-      return bind(&seconds).window(kBandFrom + span * from / band.length,
-                                   kBandFrom + span * to / band.length);
+      return sigil::motion::bind(seconds, {.from = {kBandFrom + span * from / band.length, kBandFrom + span * to / band.length}, .clampFrom = true});
     };
     Element run = stack().cover().key("band").children(
         {box().cover().shape(heldPath(band.spine)).stroke(
@@ -605,8 +599,8 @@ struct Cosmati {
   Element letters() const {
     const auto setting = [&](float from, float to) {
       return Track{.effect = textFx::enter({.fromScale = 1.5f, .fadeOver = 0.45f}),
-                   .stagger = sigil::motion::Spread{.eachMs = 40, .durationMs = 260},
-                   .progress = bind(&seconds).window(from, to)};
+                   .delay = sigil::motion::stagger(40ms), .duration = 260ms,
+                   .progress = sigil::motion::bind(seconds, {.from = {from, to}, .clampFrom = true})};
     };
     const float beat = (kLettersTo - kLettersFrom) / 5;
     Element brassWork = stack().cover().key("brass").ink(brass(), PaintBox::Canvas);
@@ -649,10 +643,7 @@ struct Cosmati {
              .width(300)
              .height(kSide + 200)
              .rotate(14.0f)
-             .translateX(bind(&seconds)
-                             .source(kLightPhase, kLightPhase + kLightPeriod)
-                             .wave(sigil::motion::ease::linear)
-                             .target(0, kSide + 600))
+             .translateX(sigil::motion::bind(seconds, {.from = {kLightPhase, kLightPhase + kLightPeriod}, .envelope = sigil::motion::envelope::shaped(sigil::motion::ease::linear), .to = {0.0f, kSide + 600}}))
              .fill(material::Paint::linearGradient(
                  {0, 0}, {300, 0},
                  {{0.0f, material::withAlpha(kDaylight, 0)},
@@ -732,8 +723,8 @@ struct Cosmati {
                        .height(15)
                        .fill(cut(*quarry, 34, 60.0f + (float)order++))
                        .foreground(stroke(1.0f, Fill::var("ash"))),
-           .opacity = animate(from(0.0f).to(1.0f), {320ms}),
-           .slide = animate(from(-12.0f).to(0.0f), {400ms})});
+           .opacity = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms}),
+           .slide = sigil::motion::animate({.from = -12.0f, .to = 0.0f, .duration = 400ms})});
     }
     // The column is static once its key has been dealt, and its swatches
     // are stone evaluated per pixel, so it is baked once.

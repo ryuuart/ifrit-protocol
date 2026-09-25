@@ -14,14 +14,14 @@ struct TwoAdvancedV4 {
   static bool available(std::string* why);
 
   // --- bound outputs: every idle motion is DECLARED, none re-describes ---
-  ch::Output<float> stripePan{0.0f};    // hazard-stripe conveyor
-  ch::Output<float> portalGlow{54.0f};  // MAINFRAME portal glow radius
-  ch::Output<float> pressScroll{0.0f};  // PRESS UPDATES auto-scroll
+  sigil::motion::Animatable<float> stripePan = sigil::motion::animatable(0.0f);    // hazard-stripe conveyor
+  sigil::motion::Animatable<float> portalGlow = sigil::motion::animatable(54.0f);  // MAINFRAME portal glow radius
+  sigil::motion::Animatable<float> pressScroll = sigil::motion::animatable(0.0f);  // PRESS UPDATES auto-scroll
   float pressOverflow = 0;              // entry list minus well, measured once
-  ch::Output<float> vuLeft{0.4f}, vuRight{0.6f};
-  std::array<ch::Output<float>, 21> dot{};  // 7 clusters × 3 dots
-  std::array<ch::Output<float>, 3> gauge{};
-  std::array<ch::Output<float>, 3> gaugeAlpha{};
+  sigil::motion::Animatable<float> vuLeft = sigil::motion::animatable(0.4f), vuRight = sigil::motion::animatable(0.6f);
+  std::array<sigil::motion::Animatable<float>, 21> dot{};  // 7 clusters × 3 dots
+  std::array<sigil::motion::Animatable<float>, 3> gauge{};
+  std::array<sigil::motion::Animatable<float>, 3> gaugeAlpha{};
 
   // --- generated materials, HELD so their identity prunes across renders ---
   Pattern hazard;          // baked 45° stripe tile — the STATIC reuse path
@@ -77,9 +77,9 @@ struct TwoAdvancedV4 {
   // shutters reopen — while the selection mark glides to the next item.
   static constexpr tav::SectionCycle kCycle{
       .start = 8.0, .hold = 4.9, .transition = 0.9, .stops = 7};
-  std::array<ch::Output<float>, 6> shutter{};  // per-slat cover fraction
-  ch::Output<float> shutterInfo{0.0f};         // ACCESSING plate opacity
-  ch::Output<float> navIndX{0.0f};             // selection mark X offset
+  std::array<sigil::motion::Animatable<float>, 6> shutter{};  // per-slat cover fraction
+  sigil::motion::Animatable<float> shutterInfo = sigil::motion::animatable(0.0f);         // ACCESSING plate opacity
+  sigil::motion::Animatable<float> navIndX = sigil::motion::animatable(0.0f);             // selection mark X offset
   int mfSection = -2;                          // section in the readout
 
   /** Nav item i's centre inside the 584-wide bar (SpaceEvenly over the

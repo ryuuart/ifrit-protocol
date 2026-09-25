@@ -142,9 +142,9 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
@@ -176,7 +176,6 @@ namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
 using sigil::material::ColorStop;
 using sigil::material::Paint;
-namespace ch = choreograph;
 
 namespace {
 
@@ -335,17 +334,17 @@ struct VertigoTitles {
   // shaped binding on `growth` and the turntable is a shaped binding on
   // the clock, so neither is a cell: a value derived from another one is
   // not its own state.
-  ch::Output<float> secs{0};
-  std::array<ch::Output<float>, 4> growth{};  // trim end   — the pen
-  std::array<ch::Output<float>, 4> cardA{};   // card opacity
-  std::array<ch::Output<float>, 4> penA{};    // nib opacity (fades at arrival)
+  sigil::motion::Animatable<float> secs = sigil::motion::animatable(0.0f);
+  std::array<sigil::motion::Animatable<float>, 4> growth{};  // trim end   — the pen
+  std::array<sigil::motion::Animatable<float>, 4> cardA{};   // card opacity
+  std::array<sigil::motion::Animatable<float>, 4> penA{};    // nib opacity (fades at arrival)
 
   /** THE TURNTABLE: 18°/s, folded into [0,360) — which is exactly what
    *  `fmod(seconds · 18, 360)` computes, said as a lane instead of as a
    *  scalar the ticker has to write. It never syncs to the 16 s card
    *  cycle (lcm(16,20) = 80 s), the way a motor keeps running across cuts
    *  the editor made without it. */
-  Bound turntable() const { return bind(&secs).scale(18.0f).wrap(360.0f); }
+  Bound turntable() const { return sigil::motion::bind(secs, {.to = {0.0f, 18.0f}, .wrap = 360.0f}); }
 
   sk_sp<SkTypeface> faceDisplay, faceGothic, faceGothicBold;
   Paint irisMat, filmGrain, paperGrain;
@@ -377,7 +376,7 @@ struct VertigoTitles {
          figureBox(kEye, R)
              .key("nib" + tag)
              .shape(figure(c))
-             .stroke(spans::range(bind(&growth[i]).offset(-kNib).clamp(0, 1),
+             .stroke(spans::range(sigil::motion::bind(growth[i], {.to = {-kNib, -kNib + 1.0f}, .clamp = {0, 1}}),
                                   &growth[i]),
                      brush::presets::pulse({1.0f, 0.90f, 0.72f, 0.42f},
                                            {1, 1, 1, 0.95f}, 0.7f))
@@ -697,9 +696,7 @@ struct VertigoTitles {
                             .lift = animate(from(8.0f).to(0.0f), ramp(0, 260))},
                 .title = {.words = "VERTIGO, 1958",
                           .textFx = Track{.effect = textFx::rise(18.0f),
-                                      .stagger = {.eachMs = 26,
-                                                  .amountMs = 0,
-                                                  .durationMs = 420},
+                                      .delay = sigil::motion::stagger({0ms, 0ms}), .duration = 420ms,
                                       .progress = animate(
                                           from(0.0f).to(1.0f),
                                           ramp(140, 900, sigil::motion::ease::outExpo))}},
@@ -793,7 +790,7 @@ struct VertigoTitles {
     // ---- the perpetual loop --------------------------------------
     // One clock, and the card cycle's own three cells. Everything the
     // turntable and the nib need is derived from these where it is used.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double t = ticker.elapsed();
       secs = (float)t;
       const double cycle = std::fmod(t, 16.0);

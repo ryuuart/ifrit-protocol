@@ -44,8 +44,8 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bound.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -133,8 +133,8 @@ struct TickerLanes {
     // A TICKER OF THIS SKETCH'S OWN, stepped at a fixed delta: everything
     // below is what it answered, sample by sample, rather than a drawing
     // of what it would answer.
-    motion::Ticker ticker;
-    ch::Output<float> source{0.0f}, derived{0.0f}, ramped{0.0f}, alpha{0.0f};
+    motion::Engine ticker;
+    motion::Animatable<float> source = motion::animatable(0.0f), derived = motion::animatable(0.0f), ramped = motion::animatable(0.0f), alpha = motion::animatable(0.0f);
     double elapsed = 0;
     int fixedSteps = 0;
     bool stillActive = false;
@@ -150,10 +150,10 @@ struct TickerLanes {
           ++fixedSteps;
           return true;
         },
-        8, &alpha);
+        8, alpha);
     const bool derived_ok =
-        ticker.derive(&derived, motion::bind(&source).quantize(kLevels));
-    ticker.timeline().apply(&ramped).then<ch::RampTo>(1.0f, kRamp);
+        ticker.derive(derived, motion::bind(source, {.quantize = kLevels}));
+    ticker.timeline().apply(ramped).then<ch::RampTo>(1.0f, kRamp);
 
     for (int i = 0; i < kSteps; ++i) {
       stillActive = ticker.tick(kDt);

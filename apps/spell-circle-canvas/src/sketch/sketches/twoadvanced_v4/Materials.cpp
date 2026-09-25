@@ -62,8 +62,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                      .padding(0, 10)
                      .gap(8),
                  kTealBar)
-          .translateY(animate(motion::from(-46.0f).to(0.0f),
-                              {380ms, motion::ease::outQuint, 1450ms}))
+          .translateY(motion::animate({.from = -46.0f, .to = 0.0f, .duration = 380ms, .delay = 1450ms, .ease = motion::ease::outQuint}))
           .children(
               {kit::centred()
                    .width(22)
@@ -108,8 +107,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                      .padding(0, 14, 0, 58)
                      .gap(10),
                  kChrome)
-          .translateY(animate(motion::from(-46.0f).to(0.0f),
-                              {380ms, motion::ease::outQuint, 1530ms}))
+          .translateY(motion::animate({.from = -46.0f, .to = 0.0f, .duration = 380ms, .delay = 1530ms, .ease = motion::ease::outQuint}))
           .children(
               {t("› GLOBAL NAVIGATOR", micro(11, kDust, 260)),
                box().flexGrow(1),
@@ -185,7 +183,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
 
         .children({t(glyph, micro(11, hot ? kNear : kDust, 0))});
   };
-  auto meter = [&](float w, const ch::Output<float>* bind,
+  auto meter = [&](float w, const motion::Animatable<float>& bind,
                    sigil::material::Color c) {
     return box()
         .width(w)

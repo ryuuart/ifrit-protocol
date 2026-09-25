@@ -33,7 +33,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
@@ -93,7 +93,7 @@ struct UiParticles {
   entt::registry posts;
   /** The leftover fraction of a step after the frame's stepping — the
    *  Ticker writes it, the pool fill reads it. */
-  choreograph::Output<float> stepAlpha;
+  sigil::motion::Animatable<float> stepAlpha = sigil::motion::animatable(0.0f);
   std::shared_ptr<instancing::CellSheet> chipAtlas, postAtlas;
   std::shared_ptr<instancing::Pool> chipPool, postPool;
 
@@ -453,7 +453,7 @@ struct UiParticles {
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     buildChipAtlas();
     buildPostAtlas();
     chips.clear();
@@ -479,7 +479,7 @@ struct UiParticles {
           step(posts, kPostW);
           return true;
         },
-        8, &stepAlpha);
+        8, stepAlpha);
 
     // A TIER IS AN ATLAS AND THE POOL THAT STAMPS IT. instances() fills
     // its parent, so each tier gets a full-canvas box and the pool's

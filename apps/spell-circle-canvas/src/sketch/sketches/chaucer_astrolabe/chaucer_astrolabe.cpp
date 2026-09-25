@@ -30,7 +30,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
@@ -266,7 +266,7 @@ Element card(const data::Json& page, Element content) {
 struct ChaucerAstrolabe {
   sketch::kit::Document words, tables;
   sk_sp<SkTypeface> engraver, copperplate, book, italic, mono;
-  choreograph::Output<float> hourAngle{kChaucerHourAngle};
+  sigil::motion::Animatable<float> hourAngle = sigil::motion::animatable<float>(kChaucerHourAngle);
   double elapsed = 0;
 
   // =========================================================================
@@ -490,8 +490,7 @@ struct ChaucerAstrolabe {
             // the rete turns so the sun's right ascension stands at the
             // hour angle the label reads
             .transformOrigin(pct(50), pct(50))
-            .rotate(bind(&hourAngle).scale(1.0f).offset(
-                sunRightAscension(kSunLongitude) - 90.0f))
+            .rotate(sigil::motion::bind(hourAngle, {.to = {sunRightAscension(kSunLongitude) - 90.0f, sunRightAscension(kSunLongitude) - 90.0f + 1.0f}}))
             .children({
                 each(stars.items(),
                      [&](const data::Json& star, std::size_t index) {
@@ -577,7 +576,7 @@ struct ChaucerAstrolabe {
     return box().inset(0).children({
         kit::at(kCentre.fX, kCentre.fY - 4.5f, kMater * 1.02f, 9)
             .transformOrigin(Dimension(0), pct(50))
-            .rotate(bind(&hourAngle).scale(1.0f).offset(-90.0f))
+            .rotate(sigil::motion::bind(hourAngle, {.to = {-90.0f, -89.0f}}))
             .fill(brass(0.80f))
             .stroke(stroke(1.2f, Fill::color(material::withAlpha(kEdge, 0.7f))))
             .background(shadow(material::withAlpha(kEdge, 0.5f), {4, 5}, 7)),

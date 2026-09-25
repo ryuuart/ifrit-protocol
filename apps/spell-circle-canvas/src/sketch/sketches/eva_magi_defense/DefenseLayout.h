@@ -22,9 +22,9 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
-#include <sigilmotion/schedule/Spread.h>
-#include <sigilmotion/schedule/Cascade.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/schedule/Stagger.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -53,7 +53,6 @@ namespace measure = sigil::measure;
 using namespace sigil::compose;
 using sigil::material::hexColor;
 using namespace std::chrono_literals;
-namespace ch = choreograph;
 
 namespace eva {
 

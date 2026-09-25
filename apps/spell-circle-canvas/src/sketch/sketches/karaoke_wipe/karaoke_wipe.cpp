@@ -130,7 +130,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -144,6 +144,8 @@
 #include <limits>
 #include <string>
 #include <vector>
+
+using namespace std::chrono_literals;
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -363,12 +365,11 @@ motion::Spread wipeCascade(const Song& song, float letterMs = kSwitchMs) {
  *  whose beats last longer runs proportionally longer, so a cue lands at
  *  the same instant in both. */
 motion::Bound progressOf(const motion::Spread& cascade, const Song& song,
-                         const choreograph::Output<float>* cycle) {
+                         const motion::Animatable<float>& cycle) {
   const auto words = (uint32_t)song.cues.size();
   const float span = cascade.spanMs(words, song.widest) /
                      wipeCascade(song).spanMs(words, song.widest);
-  return motion::bind(cycle).window(
-      (float)kLeadIn, (float)(kLeadIn + kLineSeconds * span));
+  return motion::bind(cycle, {.from = {(float)kLeadIn, (float)(kLeadIn + kLineSeconds * span)}, .clampFrom = true});
 }
 
 /** THE CATCH: a letter kicks up and flares as its colour arrives, and is
@@ -433,7 +434,7 @@ std::vector<SungWord> sungWords(const std::vector<Beat>& beats) {
   for (const Beat& beat : beats) {
     if (beat.unitIndex >= words.size()) words.resize(beat.unitIndex + 1);
     SungWord& word = words[beat.unitIndex];
-    word.coverage += beat.localTime;
+    word.coverage += beat.localProgress;
     word.letters += 1.0f;
     word.left = std::min(word.left, beat.rect.left());
     word.right = std::max(word.right, beat.rect.right());
@@ -446,7 +447,7 @@ std::vector<SungWord> sungWords(const std::vector<Beat>& beats) {
 /** THE COUNT-IN: a row of dots before the sung line, one per beat of the
  *  lead-in, each bursting — growing as it goes out — at the moment the
  *  ball lands for that beat. */
-Text withCountIn(Text line, const choreograph::Output<float>* cycle) {
+Text withCountIn(Text line, const motion::Animatable<float>& cycle) {
   const weave::Selector first = weave::selectors::range({0, 1});
   for (int index = 0; index < kCountIn; ++index) {
     const auto landing = (float)(kCountBeat * (index + 1));
@@ -456,12 +457,8 @@ Text withCountIn(Text line, const choreograph::Output<float>* cycle) {
                    .shape(sigil::geometry::shapes::circle())
                    .styleClass("count")
                    .transformOrigin(pct(50), pct(50))
-                   .scale(motion::bind(cycle)
-                              .window(landing, landing + kPop)
-                              .target(1.0f, 2.6f))
-                   .opacity(motion::bind(cycle)
-                                .window(landing, landing + kPop)
-                                .invert()));
+                   .scale(motion::bind(cycle, {.from = {landing, landing + kPop}, .clampFrom = true, .to = {1.0f, 2.6f}}))
+                   .opacity(motion::bind(cycle, {.from = {landing, landing + kPop}, .clampFrom = true, .to = {1.0f, 0.0f}})));
   }
   return line;
 }
@@ -525,12 +522,12 @@ Element glowing(Text line, Text copy) {
 // ===========================================================================
 
 struct KaraokeWipe {
-  choreograph::Output<float> cycle{0};      // seconds into one pass, wrapping
-  choreograph::Output<float> ballX{0};      // px from the first letter's edge
-  choreograph::Output<float> ballY{0};      // px above the ball's rest
-  choreograph::Output<float> ballWidth{1};  // the squash and stretch, as scales
-  choreograph::Output<float> ballHeight{1};
-  choreograph::Output<float> playhead{0};  // px from the first letter's edge
+  motion::Animatable<float> cycle = motion::animatable(0.0f);      // seconds into one pass, wrapping
+  motion::Animatable<float> ballX = motion::animatable(0.0f);      // px from the first letter's edge
+  motion::Animatable<float> ballY = motion::animatable(0.0f);      // px above the ball's rest
+  motion::Animatable<float> ballWidth = motion::animatable(1.0f);  // the squash and stretch, as scales
+  motion::Animatable<float> ballHeight = motion::animatable(1.0f);
+  motion::Animatable<float> playhead = motion::animatable(0.0f);  // px from the first letter's edge
   double loop = kLeadIn + kLineSeconds + kHold;
 
   /** The sung line with its two tracks: the wipe from @p resting to the
@@ -544,12 +541,12 @@ struct KaraokeWipe {
                  .stagger = wipe,
                  .unit = weave::Unit::Word,
                  .innerUnit = weave::Unit::Cluster,
-                 .progress = progressOf(wipe, song, &cycle)})
+                 .progress = progressOf(wipe, song, cycle)})
         .textFx({.effect = catchEffect(),
                  .stagger = lift,
                  .unit = weave::Unit::Word,
                  .innerUnit = weave::Unit::Cluster,
-                 .progress = progressOf(lift, song, &cycle)});
+                 .progress = progressOf(lift, song, cycle)});
   }
 
   [[nodiscard]] Element describe(const Song& song) const {
@@ -565,14 +562,14 @@ struct KaraokeWipe {
     // caption; it squashes and stretches about its foot, where it touches.
     const weave::Selector first = weave::selectors::range({0, 1});
     sung =
-        withCountIn(withRuler(std::move(sung), song.sung), &cycle)
+        withCountIn(withRuler(std::move(sung), song.sung), cycle)
             .textAttach(
                 first,
                 belowTheLetter(kit::line({.length = Dimension(kPlayheadLength),
                                           .thickness = 2,
                                           .column = true})
                                    .styleClass("playhead")
-                                   .translateX(&playhead),
+                                   .translateX(playhead),
                                kRulerDrop))
             .textAttach(first, kit::at(-kBallRadius, -(2 * kBallRadius + 3.0f),
                                        2 * kBallRadius, 2 * kBallRadius)
@@ -581,20 +578,18 @@ struct KaraokeWipe {
                                    .fill(kBall)
                                    .key("ball")
                                    .transformOrigin(pct(50), pct(100))
-                                   .translateX(&ballX)
-                                   .translateY(&ballY)
-                                   .scaleX(&ballWidth)
-                                   .scaleY(&ballHeight));
+                                   .translateX(ballX)
+                                   .translateY(ballY)
+                                   .scaleX(ballWidth)
+                                   .scaleY(ballHeight));
     // The line to come lifts toward the sung line's pale as the sung line
     // is held, word by word from the left: it is next.
     Text next = text(song.next).role("lyric").styleClass("next").textFx(
         {.effect = textFx::keys({{0.0f, {}}, {1.0f, {.colorScreen = kCueLight}}},
                                 motion::ease::inOutQuad),
-         .stagger = {.eachMs = 70, .durationMs = 320},
+         .delay = motion::stagger(70ms), .duration = 320ms,
          .unit = weave::Unit::Word,
-         .progress = motion::bind(&cycle).window(
-             (float)(kLeadIn + kLineSeconds + 0.25),
-             (float)(kLeadIn + kLineSeconds + kHold - 0.15))});
+         .progress = motion::bind(cycle, {.from = {(float)(kLeadIn + kLineSeconds + 0.25), (float)(kLeadIn + kLineSeconds + kHold - 0.15)}, .clampFrom = true})});
 
     return box()
         .column()
@@ -649,7 +644,7 @@ struct KaraokeWipe {
     // through it and the word's first letter at the top of its catch.
     ctx.captureAt(kLeadIn + kLineSeconds * 0.48);
 
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       cycle = motion::phase(ticker.elapsed(), loop) * (float)loop;
     });
 
@@ -691,7 +686,7 @@ struct KaraokeWipe {
     for (size_t index = 0; index < beats.size(); ++index) {
       const float next = index + 1 < beats.size() ? beats[index + 1].rect.left()
                                                   : beats[index].rect.right();
-      swept += beats[index].localTime * (next - beats[index].rect.left());
+      swept += beats[index].localProgress * (next - beats[index].rect.left());
     }
     playhead = swept;
 

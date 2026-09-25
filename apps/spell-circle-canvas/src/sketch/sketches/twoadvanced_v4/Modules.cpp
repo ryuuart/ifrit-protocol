@@ -1,5 +1,5 @@
 #include "TwoAdvancedV4.h"
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
 
 auto TwoAdvancedV4::specPair(const sigil::data::Json& spec) -> Element {
@@ -150,10 +150,8 @@ auto TwoAdvancedV4::featureSystem() -> Element {
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("feature")
       .gridArea("feature")
-      .translateX(animate(motion::from(90.0f).to(0.0f),
-                          {500ms, motion::ease::outQuint, 2600ms}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, motion::ease::outQuad, 2600ms}))
+      .translateX(motion::animate({.from = 90.0f, .to = 0.0f, .duration = 500ms, .delay = 2600ms, .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = 2600ms, .ease = motion::ease::outQuad}))
       .children({panelHeader("FEATURE", " SYSTEM", "LATEST TRANSMISSION", 1),
                  bodyArea});
   return panel;
@@ -217,9 +215,7 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
            // The list's own scroll, in the thumb's units. A list that
            // fits has no travel and the target collapses to nothing;
            // the divisor is only there to stay finite.
-           .position = motion::bind(&pressScroll)
-                           .source(0.0f, -std::max(pressOverflow, 1.0f))
-                           .target(0.0f, well.thumb().travel),
+           .position = motion::bind(pressScroll, {.from = {0.0f, -std::max(pressOverflow, 1.0f)}, .to = {0.0f, well.thumb().travel}}),
            .thumbInset = 2,
            .track = Fill::color(sigil::material::withAlpha(kPanelSh, 0.6f))})
           .width(16)
@@ -248,10 +244,8 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("press")
       .gridArea("press")
-      .translateY(animate(motion::from(60.0f).to(0.0f),
-                          {420ms, motion::ease::outQuint, 3250ms}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, motion::ease::outQuad, 3250ms}))
+      .translateY(motion::animate({.from = 60.0f, .to = 0.0f, .duration = 420ms, .delay = 3250ms, .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = 3250ms, .ease = motion::ease::outQuad}))
       .children({panelHeader("PRESS", " UPDATES", "STUDIO WIRE", 2), bodyArea});
   return panel;
 }
@@ -378,10 +372,8 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("aux")
       .gridArea("aux")
-      .translateY(animate(motion::from(56.0f).to(0.0f),
-                          {400ms, motion::ease::outQuint, 3100ms}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, motion::ease::outQuad, 3100ms}))
+      .translateY(motion::animate({.from = 56.0f, .to = 0.0f, .duration = 400ms, .delay = 3100ms, .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = 3100ms, .ease = motion::ease::outQuad}))
       .children({panelHeader("AUXILIARY", " PANEL",
                              "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 3),
                  box()
@@ -487,8 +479,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
       .gridArea("subsys")
       .background(
           styles::Overlay{hazard.material(), SkBlendMode::kSrcOver, 0.16f})
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {400ms, motion::ease::outQuad, 3650ms}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 3650ms, .ease = motion::ease::outQuad}))
       .foreground(styles::TickRail{sigil::material::withAlpha(kDust, 0.35f), 9,
                                    4, 8, 1, 4, 0.5f, path::Edge::Top})
       .children(

@@ -55,7 +55,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
@@ -170,13 +170,13 @@ struct OscDesk {
   /** The session's ticker, which outlives this sketch. A handler runs
    *  on the dispatch rather than inside a describe, so it cannot hold
    *  the per-frame context the ticker is otherwise reached through. */
-  motion::Ticker* ticker = nullptr;
+  motion::Engine* ticker = nullptr;
 
   /** The fader, eased: what the desk last said, reached over kWindEase
    *  rather than jumped to. */
-  ch::Output<float> wind{0};
+  motion::Animatable<float> wind = motion::animatable(0.0f);
   /** The burst: what a gust rose to, falling away on its own. */
-  ch::Output<float> gust{0};
+  motion::Animatable<float> gust = motion::animatable(0.0f);
   Palette palette = kOpeningPalette;
 
   /** How far the sky has travelled, in px. Integrated rather than read
@@ -198,7 +198,7 @@ struct OscDesk {
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
-    ticker = &ctx.ticker;
+    ticker = &ctx.engine;
 
     io::Hub& hub = ctx.assets.hub();
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window listens on
@@ -229,7 +229,7 @@ struct OscDesk {
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double step = elapsed - seconds;
     seconds = elapsed;
-    drift += ((double)wind() + (double)gust() * kGustPush) * step;
+    drift += ((double)wind.value() + (double)gust.value() * kGustPush) * step;
     // The data path: the sky itself moves without being described
     // again, because the pen reads it on every frame. What is described
     // again is the readout, and only when one of its figures changed.
@@ -244,9 +244,9 @@ struct OscDesk {
    *  recording has no sender, so under a capture the answer is refused
    *  and nothing goes out. */
   void fader(const data::Json& message) {
-    if (desk.reply("/sky/state", data::Json::Array{(double)wind()})) ++replies;
+    if (desk.reply("/sky/state", data::Json::Array{(double)wind.value()})) ++replies;
     if (!ticker) return;
-    ticker->timeline().apply(&wind).then<ch::RampTo>(
+    ticker->timeline().apply(wind).then<ch::RampTo>(
         (float)message["arguments"][0].number(), kWindEase, motion::ease::outQuad);
   }
 
@@ -260,7 +260,7 @@ struct OscDesk {
     const float strength = (float)message["arguments"][0].number();
     const float falls = (float)message["arguments"][1].number(kGustFall);
     ticker->timeline()
-        .apply(&gust)
+        .apply(gust)
         .then<ch::RampTo>(strength, kGustRise, motion::ease::outQuad)
         .then<ch::RampTo>(0.0f, std::max(falls, kGustRise), motion::ease::inQuad);
   }
@@ -339,7 +339,7 @@ struct OscDesk {
   void sky(Pen& pen) {
     pen.noStroke();
     const float period = kSegment + kGap;
-    const float lift = std::min(gust() * kGustLift, 1.0f - kBandAlpha);
+    const float lift = std::min(gust.value() * kGustLift, 1.0f - kBandAlpha);
     size_t index = 0;
     for (const Band& band : kBands) {
       material::Color tint = palette[index % kTints];
@@ -378,7 +378,7 @@ struct OscDesk {
     // the middle of a fader's travel and not the end of it.
     const float centre = left + kLength * 0.5f;
     const float reach =
-        std::clamp(wind() / kWindSpan, -1.0f, 1.0f) * kLength * 0.5f;
+        std::clamp(wind.value() / kWindSpan, -1.0f, 1.0f) * kLength * 0.5f;
     pen.fill(rule);
     pen.rect(left, base - kThickness, kLength, kThickness, kThickness * 0.5f);
     pen.fill(figure);
@@ -391,7 +391,7 @@ struct OscDesk {
     pen.fill(rule);
     pen.rect(left, above - kThickness, kLength, kThickness, kThickness * 0.5f);
     pen.fill(figure);
-    pen.rect(left, above - kThickness, kLength * std::clamp(gust(), 0.0f, 1.0f),
+    pen.rect(left, above - kThickness, kLength * std::clamp(gust.value(), 0.0f, 1.0f),
              kThickness, kThickness * 0.5f);
     pen.fill(ash);
     pen.text("GUST", left - kLabelGap, above);

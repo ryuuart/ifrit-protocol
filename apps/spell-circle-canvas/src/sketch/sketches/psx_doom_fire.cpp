@@ -20,7 +20,7 @@
 //   reads its neighbours' CURRENT values out of a persistent buffer, and
 //   the buffer is stepped at the historical 27 Hz whatever rate the host
 //   draws at. A pen's loop is the shape of that — the buffer is the
-//   sketch's own member, `ctx.ticker.addFixed(27, …)` owns the sim clock,
+//   sketch's own member, `ctx.engine.addFixed(27, …)` owns the sim clock,
 //   and every frame is one nearest-neighbour blit of the bitmap the last
 //   tick rasterized, at `noSmooth()` so a cell is three canvas pixels of
 //   one colour rather than a bilinear smear. The loop stands in the tree
@@ -51,9 +51,9 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/schedule/Cascade.h>
+#include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/kit/PaintLayers.h>
@@ -206,7 +206,7 @@ struct PsxDoomFire {
    *  heat buffers — so what this drives is the energy strobe: the age of
    *  the last tick, in steps, which is the one thing on this canvas that
    *  says how the sim clock and the draw clock stand to each other. */
-  ch::Output<float> alpha{0.0f};
+  motion::Animatable<float> alpha = motion::animatable(0.0f);
 
   // The palette strip's entrance ladder, resolved once: 37 swatches on a
   // 12 ms spread, read back per swatch instead of restated as i·12.
@@ -315,10 +315,8 @@ struct PsxDoomFire {
         .children(
             {compose::document::eyebrow("CELLULAR AUTOMATON")
                  .font({.size = 12, .track = 2.6f})
-                 .opacity(motion::animate(motion::from(0.0f).to(1.0f),
-                                          {.duration = 260ms}))
-                 .translateY(motion::animate(motion::from(8.0f).to(0.0f),
-                                             {.duration = 260ms})),
+                 .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms}))
+                 .translateY(motion::animate({.from = 8.0f, .to = 0.0f, .duration = 260ms})),
              compose::document::h1(kTitle)
                  .font({.face = heavyFace(),
                         .size = 50,
@@ -328,10 +326,7 @@ struct PsxDoomFire {
                  .textFx(
                      {.effect = compose::textFx::rise(24),
                       .stagger = cascade,
-                      .progress = motion::animate(motion::from(0.0f).to(1.0f),
-                                                  {.duration = span,
-                                                   .ease = motion::ease::linear,
-                                                   .delay = 120ms})}),
+                      .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = span, .delay = 120ms, .ease = motion::ease::linear})}),
              compose::document::lead(
                  "id Software / Williams · PlayStation title screen, 1995\n"
                  "A 37-colour buffer advances at 27 Hz; its heat is shown "
@@ -339,8 +334,7 @@ struct PsxDoomFire {
                  .font({.size = 11.5f, .track = 0.2f})
                  .width(690)
                  .opacity(
-                     motion::animate(motion::from(0.0f).to(1.0f),
-                                     {.duration = 320ms, .delay = 200ms}))});
+                     motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = 200ms}))});
   }
 
   /** The logo voice: heavy, huge, wide-tracked, with a dark ring underlay
@@ -359,8 +353,7 @@ struct PsxDoomFire {
     return compose::text("DOOM", std::move(s))
         .width(kPanelW)
         .paragraph({.alignment = weave::TextAlignment::kCenter})
-        .opacity(motion::animate(motion::from(0.0f).to(1.0f),
-                                 {.duration = 600ms, .delay = 380ms}));
+        .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 600ms, .delay = 380ms}));
   }
 
   // =========================================================================
@@ -487,7 +480,7 @@ struct PsxDoomFire {
     const float master = std::clamp((float)ms / kSwatchSpanMs, 0.0f, 1.0f);
     pen.noStroke();
     for (int i = 0; i < kPaletteSize; ++i) {
-      const float u = swatchCascade.localTime(master, (uint32_t)i, 0);
+      const float u = swatchCascade.localProgress(master, (uint32_t)i, 0);
       const float s = ch::easeOutBack(u);
       const float x = kPadX + (float)i * (float)(kSwatch + 2);
       const float bottom = kStripY + 34.0f;
@@ -775,7 +768,7 @@ struct PsxDoomFire {
     // a long run, so the same simulated moment lands on either side of a
     // boundary depending on how fast the host drew, and a captured frame
     // is then a function of the machine.
-    ctx.ticker.addFixed(
+    ctx.engine.addFixed(
         kSimHz,
         [this] {
           doFire();
@@ -783,7 +776,7 @@ struct PsxDoomFire {
           stepped = true;
           return true;
         },
-        6, &alpha);
+        6, alpha);
 
     ctx.composer.render(compose::graphics("psx_doom_fire.loop",
                                           [this](Pen& pen) { draw(pen); }));

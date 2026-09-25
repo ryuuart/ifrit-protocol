@@ -305,10 +305,8 @@ struct Bousen {
                  .textFx({.effect = textFx::rise(18),
                           .stagger = bs::kColumnEntrance,
                           .unit = weave::Unit::Line,
-                          .progress = animate(motion::from(0.0f).to(1.0f),
-                                              {std::chrono::milliseconds((
-                                                   int)bs::kColumnEntranceSpan),
-                                               motion::ease::linear, 220ms})}),
+                          .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((
+                                                   int)bs::kColumnEntranceSpan), .delay = 220ms, .ease = motion::ease::linear})}),
              document::caption("One column per beat.\n"
                                "The sideline remains fixed while the "
                                "letters arrive.")

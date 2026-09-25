@@ -1,5 +1,5 @@
 #include "WinampBase.h"
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 
 auto WinampBase::eqWindow() -> Element {
   using namespace wa;
@@ -19,9 +19,7 @@ auto WinampBase::eqWindow() -> Element {
                             {0, 0}, {0, 1},
                             {{0.0f, sigil::material::lighten(kBtnFace, 0.14f)},
                              {1.0f, dark(kBtnFace, 0.32f)}}))
-                        .translateY(motion::bind(&gain[(size_t)i])
-                                        .source(-1.0f, 1.0f)
-                                        .target(n(52), n(0))))
+                        .translateY(motion::bind(gain[(size_t)i], {.from = {-1.0f, 1.0f}, .to = {n(52), n(0)}})))
                  .children(
                      {at(box(), 2, 5, 8, 1)
                           .fill(sigil::material::withAlpha(kBtnLo, 0.85f))})});

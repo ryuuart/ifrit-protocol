@@ -28,7 +28,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -46,7 +46,6 @@ namespace material = sigil::material;
 namespace shapes = sigil::geometry::shapes;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-namespace ch = choreograph;
 
 using namespace sigil::compose;
 using sigil::material::hexColor;
@@ -265,7 +264,7 @@ Element frame() {
 }  // namespace
 
 struct Thaumonomicon {
-  ch::Output<float> veil{0};  // how far an unlockable plate is dimmed, 0 to 0.5
+  sigil::motion::Animatable<float> veil = sigil::motion::animatable(0.0f);  // how far an unlockable plate is dimmed, 0 to 0.5
   std::map<std::string, kit::Sprite> icons, greyedIcons;
 
   // -------------------------------------------------------------------------
@@ -310,7 +309,7 @@ struct Thaumonomicon {
                      gui(1), Fill::color(hexColor(0xFFFFFF, 0.5f)), gui(2))))});
     Element dim = plateFace(box().inset(0), research).fill(Fill::color({0, 0, 0, 1}));
     if (research.state == "unlockable")
-      node.children({dim.opacity(sigil::motion::bind(&veil))});
+      node.children({dim.opacity(sigil::motion::bind(veil))});
     else if (research.state == "locked")
       node.children({dim.opacity(0.7f)});
     const auto& art = research.state == "locked" ? greyedIcons : icons;
@@ -448,7 +447,7 @@ struct Thaumonomicon {
 
     // Thaumcraft's pulse: every unlockable plate brightens and dims together
     // on a 600 ms sine between half and full brightness.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       veil = (float)(0.25 - 0.25 * std::sin(std::fmod(ticker.elapsed(), 0.6) / 0.6 * 6.2831853));
     });
 

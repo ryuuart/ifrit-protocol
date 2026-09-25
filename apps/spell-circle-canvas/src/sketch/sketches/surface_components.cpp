@@ -58,7 +58,7 @@ Element gel(float height) {
 }
 
 struct SurfaceComponents {
-  choreograph::Output<Fill> ink{Fill::color({0.10f, 0.30f, 0.40f, 1})};
+  sigil::motion::Animatable<Fill> ink = sigil::motion::animatable<Fill>(Fill::color({0.10f, 0.30f, 0.40f, 1}));
   int sizeStep = -1;
 
   Element describe(float height) {
@@ -80,7 +80,7 @@ struct SurfaceComponents {
                        card({u8"Material", ramp},
                             document::caption(
                                 "The same prop accepts a recipe.")),
-                       card({u8"Live fill", &ink},
+                       card({u8"Live fill", ink},
                             document::caption("The binding updates in place.")),
                        card({u8"Gel · fixed size", slate}, gel(36)),
                        card({u8"Gel · resizing", slate}, gel(height))},

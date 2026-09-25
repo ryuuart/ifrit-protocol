@@ -4,8 +4,8 @@
 
 struct SlitScan2001 {
   // ---- the film clock: 24 Hz because the film runs at 24 fps -------------
-  ch::Output<float> frameAlpha{0};
-  sigil::motion::Ticker::FixedStatus fixedStatus;
+  sigil::motion::Animatable<float> frameAlpha = sigil::motion::animatable(0.0f);
+  sigil::motion::Engine::FixedStatus fixedStatus;
   long long filmNo = 0;
   bool everClamped = false;
 
@@ -66,7 +66,7 @@ struct SlitScan2001 {
   static const Shot& shotAt(int i);
 
   // The corridor banks; it does not sit still. Within +-96 x +-44 px.
-  ch::Output<float> coreX{0}, coreY{0};  ///< the convergence, bound
+  sigil::motion::Animatable<float> coreX = sigil::motion::animatable(0.0f), coreY = sigil::motion::animatable(0.0f);  ///< the convergence, bound
   SkPoint vp() const {
     return {
         slit::kFilmW * 0.5f + 96.0f * (float)std::sin(elapsed * 0.41),

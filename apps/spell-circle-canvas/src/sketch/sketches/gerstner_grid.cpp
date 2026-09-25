@@ -64,6 +64,7 @@
 #include <string>
 #include <utility>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/values/Time.h>
 
 namespace arrange = sigil::geometry::arrange;
 namespace material = sigil::material;
@@ -170,7 +171,7 @@ struct GerstnerGrid {
   // per-describe one would re-render its tile six times a loop.
   Pattern unitRule;
   Pattern emphasisRule;
-  choreograph::Output<float> sweep{0};
+  motion::Animatable<float> sweep = motion::animatable(0.0f);
   int config = 3;  // the four-column setting, Capital's default
   int shownConfig = -1;
   double nextStep = 0.0;
@@ -185,7 +186,7 @@ struct GerstnerGrid {
                              .captureAt = 1.5,
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     // The grid, in the blue a grid was drawn in: every unit ruled faintly
     // both ways, and over it every second column line and every fifth
     // baseline struck harder. Two tiles rather than ninety-three boxes.
@@ -262,10 +263,8 @@ struct GerstnerGrid {
           box()
               .key("col" + std::to_string(i))
               .rect(SkRect::MakeXYWH(x, 0, colW, g::kFieldH))
-              .opacity(animate(motion::from(0.0f).to(1.0f),
-                               {320ms, motion::ease::outQuad}))
-              .translateY(animate(motion::from(9.0f).to(0.0f),
-                                  {420ms, motion::ease::outQuint}))
+              .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .ease = motion::ease::outQuad}))
+              .translateY(motion::animate({.from = 9.0f, .to = 0.0f, .duration = 420ms, .ease = motion::ease::outQuint}))
               .fill(Fill::color({g::kRed.r, g::kRed.g, g::kRed.b, 0.045f}))
               // The field's foot is the page's foot: the copy that does not
               // fit is cut there, as it is in a magazine.
@@ -340,7 +339,7 @@ struct GerstnerGrid {
             .alignItems(Align::Center)
             .gap(10)
             .at({g::kFieldX, g::kFieldY + g::kFieldH + 16})
-            .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
+            .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms}))
             .children({text("58 =").font({.size = 13,
                                           .color = g::kInkSoft,
                                           .track = 1.2f,
@@ -400,14 +399,14 @@ struct GerstnerGrid {
          text("READING INDEX")
              .font({.size = 7, .color = g::kRed, .track = 0.6f, .weight = 620})
              .at({g::kFieldX + g::kFieldW + 6, -4})
-             .translateY(&sweep)
+             .translateY(sweep)
              .zIndex(6),
          box()
              .left(g::kFieldX - 22)
              .width(g::kFieldW + 44)
              .height(1.0f)
              .top(0)
-             .translateY(&sweep)
+             .translateY(sweep)
              .fill(material::Paint::linearGradient(
                  {0, 0}, {g::kFieldW + 44, 0},
                  {{0.0f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.0f}},

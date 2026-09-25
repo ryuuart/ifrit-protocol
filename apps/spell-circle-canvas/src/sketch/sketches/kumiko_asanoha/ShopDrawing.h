@@ -126,7 +126,7 @@ inline Element column(Utf8 heading, float width, Element body) {
  *  apart; at half again its distance each clears the others' ends. The
  *  cell is sized so the opened jigumi stay inside the box. */
 inline Element explodedCell(float size, TimberBank& bank,
-                            const choreograph::Output<float>* seconds) {
+                            const motion::Animatable<float>& seconds) {
   constexpr float side = 100, leafExplode = 0.28f, jigumiExplode = 0.5f;
   const float enlarged = side / kCellWidth;
   const float jigumi = kJigumiWidth * enlarged;
@@ -136,9 +136,7 @@ inline Element explodedCell(float size, TimberBank& bank,
       origin + vec2{side * kPastIncircle, side * kIncircle},
       origin + vec2{side * kIncircle, side * kPastIncircle}};
   const auto beat = [&](float delay) {
-    return motion::bind(seconds)
-        .window(kDrawingAt + delay, kDrawingAt + delay + kDrawingFor)
-        .map(motion::ease::outCubic);
+    return motion::bind(seconds, {.from = {kDrawingAt + delay, kDrawingAt + delay + kDrawingFor}, .clampFrom = true, .ease = motion::ease::outCubic});
   };
   const auto point = [](vec2 at) { return SkPoint{at.x, at.y}; };
   const auto exploded = [&](const Piece& piece, float explode) {
@@ -263,7 +261,7 @@ inline Utf8 readout(const sketch::kit::Document& doc) {
  *  every heading on one line and both figures' notes on another, and the
  *  title block's rule and caption along its foot. */
 inline Element shopDrawing(const sketch::kit::Document& doc, TimberBank& bank,
-                           const choreograph::Output<float>* seconds) {
+                           const motion::Animatable<float>& seconds) {
   const float left = kFrameOuter.left(), width = kFrameOuter.width();
   return kit::at(0, kRoom, kWidth, kBandHeight)
       .fill(Fill::var("ground"))

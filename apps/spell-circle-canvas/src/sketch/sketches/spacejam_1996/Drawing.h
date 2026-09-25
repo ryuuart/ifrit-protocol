@@ -43,7 +43,6 @@ namespace measure = sigil::measure;
 using namespace sigil::compose;
 using sigil::material::hexColor;
 using namespace std::chrono_literals;
-namespace ch = choreograph;
 
 namespace sj {
 

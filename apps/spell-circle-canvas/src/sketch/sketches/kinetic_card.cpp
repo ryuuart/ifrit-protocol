@@ -145,7 +145,7 @@ namespace {
 
 struct KineticCard {
   /// The one clock: a wrapping [0,1) every cascade's master reads.
-  choreograph::Output<float> phase{0};
+  motion::Animatable<float> phase = motion::animatable(0.0f);
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize, .captureAt = kPeriod * 0.5});
@@ -156,7 +156,7 @@ struct KineticCard {
     // exists to show, and late enough that each word is legible as the
     // word it is.
     phase = 0;
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double t = ticker.elapsed();
       phase = motion::phase(t, kPeriod);
     });
@@ -189,7 +189,7 @@ struct KineticCard {
                      .width(width - 8)
                      .textFx({.effect = row.effect,
                               .stagger = kCascade,
-                              .progress = &phase})}),
+                              .progress = phase})}),
             .note = row.note};
   }
 

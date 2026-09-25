@@ -462,7 +462,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   // interpolant drives the shutter bar and the sub-frame readout and
   // NOTHING in the picture: a projector holds a frame for its whole 1/24 s
   // and then replaces it, so tweening the frame would be wrong.
-  ctx.ticker.addFixed(
+  ctx.engine.addFixed(
       24.0,
       [this] {
         ++filmNo;
@@ -473,7 +473,7 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
       8, &frameAlpha, &fixedStatus);
 
   // ---- the demonstration clock: tau sweeps once per 3.0 s.
-  ctx.ticker.add([this](double dt) {
+  ctx.engine.add([this](double dt) {
     elapsed += dt;
     // Phase-offset so the recommended capture lands with the carriage
     // two thirds down its fourteen feet, mid-exposure.

@@ -91,7 +91,7 @@ struct RoutesProbe {
     // so the diagram is composed once on its own, drawn onto a scratch
     // surface, and asked there — and the sheet then prints the answers
     // beside the same diagram, described again.
-    Composer probe(ctx.ticker, *ctx.fonts);
+    Composer probe(ctx.engine, *ctx.fonts);
     probe.setSize({kDiagram, kPicture});
     probe.setProfiling(true);
     probe.render(diagram());

@@ -7,8 +7,7 @@ Element TwoAdvancedV3::stageArt() {
   using namespace tv3;
   return at(box().overflow(Overflow::Clip).children({slot("stage")}), kStageX,
             kArtY, kStageW, kArtH)
-      .mask(by::edge(0, animate(motion::from(0.0f).to(1.0f),
-                                {650ms, motion::ease::outQuint, 1900ms})));
+      .mask(by::edge(0, motion::animate({.from = 0.0f, .to = 1.0f, .duration = 650ms, .delay = 1900ms, .ease = motion::ease::outQuint})));
 }
 
 Element TwoAdvancedV3::sectionArt(int sec, float settle) {
@@ -141,12 +140,8 @@ Element TwoAdvancedV3::module(const Utf8& glyph, const Utf8& barLabel,
                    1, Fill::color(sigil::material::withAlpha(kSteelHi, 0.55f)),
                    PathFormat::Align::Inner))
                .children({body.inset(0)})})
-      .translateY(animate(motion::from(46.0f).to(0.0f),
-                          {420ms, motion::ease::outQuint,
-                           std::chrono::milliseconds(2300 + 120 * order)}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {320ms, motion::ease::outQuad,
-                        std::chrono::milliseconds(2300 + 120 * order)}));
+      .translateY(motion::animate({.from = 46.0f, .to = 0.0f, .duration = 420ms, .delay = std::chrono::milliseconds(2300 + 120 * order), .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = std::chrono::milliseconds(2300 + 120 * order), .ease = motion::ease::outQuad}));
 }
 
 Element TwoAdvancedV3::thumbPlate(Element content, const Utf8& btn) {

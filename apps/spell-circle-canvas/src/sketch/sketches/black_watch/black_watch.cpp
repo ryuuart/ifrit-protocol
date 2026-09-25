@@ -170,7 +170,7 @@ struct BlackWatch {
   std::vector<std::array<Pattern, 3>> wraps;
   material::Paint board, yarn;
 
-  choreograph::Output<float> loom{0};
+  sigil::motion::Animatable<float> loom = sigil::motion::animatable(0.0f);
 
   // =========================================================================
 
@@ -379,17 +379,14 @@ struct BlackWatch {
                         .shape(shapes::polygon(3, 180))
                         .fill(Fill::var("proof"))
                         .transformOrigin(pct(50), pct(100))
-                        .scale(bind(&loom)
-                                   .window(kWeaveEnd, kWeaveEnd + 0.035f)
-                                   .map(ease::outBack()))});
+                        .scale(sigil::motion::bind(loom, {.from = {kWeaveEnd, kWeaveEnd + 0.035f}, .clampFrom = true, .ease = ease::outBack()}))});
       if (index < verdict.mirrors.size())
         bar.children(
             {box()
                  .left(pivots[index] - 45)
                  .top(-26)
                  .width(90)
-                 .opacity(bind(&loom).window(kWeaveEnd + 0.01f,
-                                             kWeaveEnd + 0.045f))
+                 .opacity(sigil::motion::bind(loom, {.from = {kWeaveEnd + 0.01f, kWeaveEnd + 0.045f}, .clampFrom = true}))
                  .children(
                      {document::caption(doc.phrase(words["pivots"][index]))
                           .styleClass("proof")
@@ -440,23 +437,19 @@ struct BlackWatch {
                 // it only shortens it.
                 layer(warpOnBeam.material())
                     .transformOrigin(pct(50), pct(100))
-                    .scaleY(bind(&loom)
-                                .window(kBeamEnd, kWeaveEnd)
-                                .map(beaten)
-                                .invert()),
+                    .scaleY(sigil::motion::bind(loom, {.from = {kBeamEnd, kWeaveEnd}, .clampFrom = true, .ease = beaten, .to = {1.0f, 0.0f}})),
                 // Before that the warp itself is beamed on: a blind in the
                 // well's colour withdraws to the right.
                 box()
                     .cover()
                     .fill(Fill::var("well"))
                     .transformOrigin(pct(100), pct(50))
-                    .scaleX(bind(&loom).window(0, kBeamEnd).invert()),
+                    .scaleX(sigil::motion::bind(loom, {.from = {0, kBeamEnd}, .clampFrom = true, .to = {1.0f, 0.0f}})),
             });
     for (size_t turn = 1; turn < kTurns.size(); ++turn)
       panel.children(
           {layer(cloths[(size_t)kTurns[turn].card].material())
-               .opacity(bind(&loom).window(kTurns[turn].start,
-                                           kTurns[turn].start + kFade))});
+               .opacity(sigil::motion::bind(loom, {.from = {kTurns[turn].start, kTurns[turn].start + kFade}, .clampFrom = true}))});
     panel.children({layer(grooves.material())
                         .blendMode(material::BlendMode::Multiply)
                         .opacity(0.9f)
@@ -486,23 +479,15 @@ struct BlackWatch {
           .width(1)
           .height(pct(100))
           .fill(Fill::var("proof"))
-          .opacity(bind(&loom)
-                       .source(kWeaveEnd, kProveEnd)
-                       .trapezoid(0, 0.25f, 0.75f, 1)
-                       .scale(0.8f));
+          .opacity(sigil::motion::bind(loom, {.from = {kWeaveEnd, kProveEnd}, .envelope = sigil::motion::envelope::trapezoid(0, 0.25f, 0.75f, 1), .to = {0.0f, 0.8f}}));
     })});
     // The fell, the edge of the cloth the reed beats each inch home to,
     // and the shuttle flying the open shed along it between beats.
     const auto weaving = [this] {
-      return bind(&loom)
-          .source(kBeamEnd - 0.01f, kWeaveEnd + 0.01f)
-          .trapezoid(0, 0.03f, 0.97f, 1);
+      return sigil::motion::bind(loom, {.from = {kBeamEnd - 0.01f, kWeaveEnd + 0.01f}, .envelope = sigil::motion::envelope::trapezoid(0, 0.03f, 0.97f, 1)});
     };
     const auto atFell = [this, height](float lift) {
-      return bind(&loom)
-          .window(kBeamEnd, kWeaveEnd)
-          .map(beaten)
-          .target(lift, height + lift);
+      return sigil::motion::bind(loom, {.from = {kBeamEnd, kWeaveEnd}, .clampFrom = true, .ease = beaten, .to = {lift, height + lift}});
     };
     panel.children(
         {box()
@@ -535,10 +520,7 @@ struct BlackWatch {
                             .height(4)
                             .borderRadius(2)
                             .fill(cards.front().shades[B])})
-             .translateX(bind(&loom)
-                             .window(kBeamEnd, kWeaveEnd)
-                             .map(thrown)
-                             .target(-58, width))
+             .translateX(sigil::motion::bind(loom, {.from = {kBeamEnd, kWeaveEnd}, .clampFrom = true, .ease = thrown, .to = {-58.0f, width}}))
              .translateY(atFell(-5.5f))
              .opacity(weaving())});
     return panel;
@@ -566,7 +548,7 @@ struct BlackWatch {
                  .background(styles::dropShadow(faded(colours.shadow, 0.5f),
                                                 {0.6f, 1.4f}, 1.2f))
                  .transformOrigin(pct(0), pct(50))
-                 .scaleX(bind(&loom).window(0, kBeamEnd)),
+                 .scaleX(sigil::motion::bind(loom, {.from = {0, kBeamEnd}, .clampFrom = true})),
              clothPanel()});
     return mount;
   }
@@ -621,13 +603,8 @@ struct BlackWatch {
              .width(4 * kDraftCell + 6)
              .height(kDraftCell)
              .fill(faded(colours.proof, 0.3f))
-             .translateY(bind(&loom)
-                             .window(kBeamEnd, kWeaveEnd)
-                             .quantize(kDraftEnds)
-                             .target(0, (kDraftEnds - 1) * kDraftCell))
-             .opacity(bind(&loom)
-                          .source(kBeamEnd, kWeaveEnd)
-                          .trapezoid(0, 0.01f, 0.99f, 1))});
+             .translateY(sigil::motion::bind(loom, {.from = {kBeamEnd, kWeaveEnd}, .clampFrom = true, .quantize = kDraftEnds, .to = {0.0f, (kDraftEnds - 1) * kDraftCell}}))
+             .opacity(sigil::motion::bind(loom, {.from = {kBeamEnd, kWeaveEnd}, .envelope = sigil::motion::envelope::trapezoid(0, 0.01f, 0.99f, 1)}))});
     const float side = (float)kDraftEnds * kDraftCell;
     return titled(
         doc.phrase(words["heading"]),
@@ -732,9 +709,7 @@ struct BlackWatch {
                           .width(5)
                           .height(22)
                           .fill(Fill::var("proof"))
-                          .opacity(bind(&loom)
-                                       .source(kTurns[turn].start, until)
-                                       .trapezoid(0, 0.12f, 0.88f, 1))});
+                          .opacity(sigil::motion::bind(loom, {.from = {kTurns[turn].start, until}, .envelope = sigil::motion::envelope::trapezoid(0, 0.12f, 0.88f, 1)}))});
       }
       rows.push_back(std::move(row));
     }
@@ -787,9 +762,7 @@ struct BlackWatch {
                                 Fill::var("rule"), 1),
                          document::caption(doc.phrase(label))
                              .styleClass("name")
-                             .opacity(bind(&loom).window(
-                                 0.63f + (float)index * 0.022f,
-                                 0.66f + (float)index * 0.022f)));
+                             .opacity(sigil::motion::bind(loom, {.from = {0.63f + (float)index * 0.022f, 0.66f + (float)index * 0.022f}, .clampFrom = true})));
                    }),
               labelled(swatch(argyllCloth, kArgyllCrop, Fill::var("proof"),
                               1.5f),
@@ -893,8 +866,7 @@ struct BlackWatch {
                                          {.width = 200},
                                          {.width = 56, .figure = true},
                                          {}}})
-                            .opacity(bind(&loom).window(
-                                kWeaveEnd, kWeaveEnd + reveal))})})
+                            .opacity(sigil::motion::bind(loom, {.from = {kWeaveEnd, kWeaveEnd + reveal}, .clampFrom = true}))})})
         .flexGrow(1);
   }
 
@@ -984,7 +956,7 @@ struct BlackWatch {
     sketch::kit::stage(ctx, {.size = kCanvas,
                              .captureAt = 7.2,
                              .background = colours.ground});
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       loom = phase(ticker.elapsed(), kCycle);
     });
     const sketch::kit::Provide look(cardTheme(colours));

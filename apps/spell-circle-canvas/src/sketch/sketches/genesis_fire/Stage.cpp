@@ -49,7 +49,7 @@ Element GenesisFire::starField() {
   return box()
       .inset(0)
       .opacity(
-          animate(from(0.0f).to(1.0f), {.duration = 700ms, .delay = 340ms}))
+          sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 700ms, .delay = 340ms}))
       .children({instancing::instances(
           starAtlas, starPool, instancing::Mode::Data, SkBlendMode::kPlus)});
 }
@@ -91,8 +91,7 @@ Element GenesisFire::dipper() {
                                b.lineTo(P(3));
                                return b.detach();
                              }))
-           .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                       {.duration = 620ms, .delay = 1300ms})),
+           .stroke(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = 1300ms})),
                    stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.35f))))
            .key("asterism")});
 
@@ -108,15 +107,13 @@ Element GenesisFire::dipper() {
                                      : hexColor(0xD9E4FF, 0.85f)},
                          {1.0f, {1, 1, 1, 0}}}))
                     .blendMode(material::BlendMode::PlusLighter)
-                    .opacity(animate(from(0.0f).to(1.0f),
-                                     {.duration = 500ms, .delay = 1200ms}))});
+                    .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 500ms, .delay = 1200ms}))});
     g.children({text(kStars[i].name)
                     .font({.size = 7.0f, .track = 1.1f})
                     .ink(sol ? kCyan : hexColor(0x9FB0CC, 0.85f))
                     .left(p.fX + rad + 5.0f)
                     .top(p.fY - 5.0f)
-                    .opacity(animate(from(0.0f).to(1.0f),
-                                     {.duration = 400ms, .delay = 1500ms}))});
+                    .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 1500ms}))});
   }
   // Smith's joke, verified in the header block.
   const SkPoint s = at(7);
@@ -128,8 +125,7 @@ Element GenesisFire::dipper() {
                   .column()
                   .gap(1)
                   .font({.size = 7.0f, .track = 0.9f})
-                  .opacity(animate(from(0.0f).to(1.0f),
-                                   {.duration = 400ms, .delay = 1600ms}))
+                  .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 1600ms}))
                   .children({text("m = 2.63 FROM ε INDI (3.64 pc)")})
                   .children({text("\"OUR SUN WOULD APPEAR AS AN EXTRA STAR\"")
                                  .ink(hexColor(0x4FB8D8, 0.7f))})});
@@ -159,11 +155,9 @@ Element GenesisFire::regolith() {
       .overflow(Overflow::Clip)
       .fill(std::move(ground))
       .opacity(
-          animate(from(0.0f).to(1.0f), {.duration = 520ms, .delay = 420ms}))
+          sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 520ms, .delay = 420ms}))
       .translateY(
-          animate(from(12.0f).to(0.0f), {.duration = 520ms,
-                                         .ease = sigil::motion::ease::outCubic,
-                                         .delay = 420ms}))
+          sigil::motion::animate({.from = 12.0f, .to = 0.0f, .duration = 520ms, .delay = 420ms, .ease = sigil::motion::ease::outCubic}))
       // Duff's local light. ONE Output (loopU) shaped into px.
       .children(
           {kit::disc(SkPoint{0, 0}, 132)
@@ -172,13 +166,13 @@ Element GenesisFire::regolith() {
                                             {0.38f, hexColor(0xC24E14, 0.24f)},
                                             {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
                .blendMode(material::BlendMode::PlusLighter)
-               .translateX(bind(&loopU).scale(1680.0f).offset(-80.0f))
+               .translateX(sigil::motion::bind(loopU, {.to = {-80.0f, 1600.0f}}))
                .translateY(limbY(444.0f) + 26.0f)
-               .opacity(bind(&loopU).map([](float v) {
+               .opacity(sigil::motion::bind(loopU, {.ease = [](float v) {
                  const float t = v * 10.0f;
                  return std::clamp(t / 0.4f, 0.0f, 1.0f) *
                         std::clamp((9.6f - t) / 0.8f, 0.0f, 1.0f);
-               }))});
+               }}))});
 }
 
 Element GenesisFire::shockwave() {
@@ -193,7 +187,7 @@ Element GenesisFire::shockwave() {
                                         {0.25f, hexColor(0xFFE7B0, 0.6f)},
                                         {1.0f, hexColor(0xFF7A20, 0.0f)}}))
            .blendMode(material::BlendMode::PlusLighter)
-           .opacity(bind(&loopU).map([](float v) {
+           .opacity(sigil::motion::bind(loopU, {.ease = [](float v) {
              const float t = v * 10.0f;
              if (t < 0.06f) return t / 0.06f;
              if (t < 0.45f) {
@@ -201,23 +195,21 @@ Element GenesisFire::shockwave() {
                return k * k;
              }
              return 0.0f;
-           }))});
+           }}))});
   g.children({kit::disc(impact, 520)
                   .shape(shapes::circle())
                   .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
                   .blendMode(material::BlendMode::PlusLighter)
-                  .scale(bind(&loopU)
-                             .map([](float v) {
+                  .scale(sigil::motion::bind(loopU, {.ease = [](float v) {
                                return sigil::motion::ease::outCubic(
                                    std::clamp(v * 10.0f / 1.1f, 0.0f, 1.0f));
-                             })
-                             .clamp(0.001f, 1.0f))
-                  .opacity(bind(&loopU).map([](float v) {
+                             }, .clamp = {0.001f, 1.0f}}))
+                  .opacity(sigil::motion::bind(loopU, {.ease = [](float v) {
                     const float t = v * 10.0f;
                     if (t > 1.1f) return 0.0f;
                     const float k = 1.0f - t / 1.1f;
                     return k * k;
-                  }))});
+                  }}))});
   return g;
 }
 
@@ -249,9 +241,7 @@ Element GenesisFire::planInset() {
               {kit::disc(SkPoint{34, 106}, 124)
                    .shape(shapes::circle())
                    .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.75f))))
-                   .scale(bind(&loopU)
-                              .scale(10.0f / (float)kFrontCrossSeconds)
-                              .clamp(0.004f, 1.0f)),
+                   .scale(sigil::motion::bind(loopU, {.to = {0.0f, 10.0f / (float)kFrontCrossSeconds}, .clamp = {0.004f, 1.0f}})),
                box().inset(0).children({instancing::instances(
                    planAtlas, planPool, instancing::Mode::Live,
                    SkBlendMode::kPlus)})});
@@ -262,11 +252,8 @@ Element GenesisFire::planInset() {
                  .fill(hexColor(0x0B0D14, 0.86f))
                  .stroke(stroke(1.5f, Fill::color(kKeyline),
                                 PathFormat::Align::Inner))
-                 .opacity(animate(from(0.0f).to(1.0f),
-                                  {.duration = 340ms, .delay = 900ms}))
-                 .scale(animate(from(0.94f).to(1.0f), {.duration = 340ms,
-                                                       .ease = ease::outBack(),
-                                                       .delay = 900ms}))
+                 .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 340ms, .delay = 900ms}))
+                 .scale(sigil::motion::animate({.from = 0.94f, .to = 1.0f, .duration = 340ms, .delay = 900ms, .ease = ease::outBack()}))
                  .children({std::move(inner)}),
              24, 24, 208, 208)
       // the impact point itself
@@ -298,8 +285,7 @@ Element GenesisFire::stageAbove() {
                      .left(24)
                      .top(236)
                      .width(300)
-                     .opacity(animate(from(0.0f).to(1.0f),
-                                      {.duration = 300ms, .delay = 1050ms}))});
+                     .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = 1050ms}))});
 }
 
 void GenesisFire::blurCallout(Pen& pen, float x0, float y0, float w, float h,

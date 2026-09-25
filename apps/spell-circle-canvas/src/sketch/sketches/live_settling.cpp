@@ -151,7 +151,7 @@ struct LiveSettling {
     // neither the store nor the report exists until a frame has been
     // drawn. The report read afterwards is the last frame's.
     const auto sweep = [&](bool live, int candidates, float endAt) {
-      Composer probe(ctx.ticker, *ctx.fonts);
+      Composer probe(ctx.engine, *ctx.fonts);
       probe.setSize({kWide + 40, 320});
       sk_sp<SkSurface> scratch =
           SkSurfaces::Raster(SkImageInfo::MakeN32Premul((int)kWide + 40, 320));

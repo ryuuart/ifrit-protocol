@@ -82,10 +82,8 @@ auto TwoAdvancedV4::navBar() -> Element {
         return kit::centred()
             .column()
             .gap(3)
-            .translateY(animate(motion::from(16.0f).to(0.0f),
-                                {240ms, motion::ease::outQuint, 2250ms}))
-            .opacity(animate(motion::from(0.0f).to(1.0f),
-                             {240ms, motion::ease::outQuad, 2250ms}))
+            .translateY(motion::animate({.from = 16.0f, .to = 0.0f, .duration = 240ms, .delay = 2250ms, .ease = motion::ease::outQuint}))
+            .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .delay = 2250ms, .ease = motion::ease::outQuad}))
             .children({t(name, label(13, kNear, 80)),
                        box().width(8).height(2).fill(
                            sigil::material::withAlpha(kDust, 0.6f))});
@@ -139,10 +137,8 @@ auto TwoAdvancedV4::masthead() -> Element {
       .key("masthead")
       .gridArea("masthead")
       .column()
-      .translateX(animate(motion::from(320.0f).to(0.0f),
-                          {420ms, motion::ease::outQuint, 1850ms}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, motion::ease::outQuad, 1850ms}))
+      .translateX(motion::animate({.from = 320.0f, .to = 0.0f, .duration = 420ms, .delay = 1850ms, .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = 1850ms, .ease = motion::ease::outQuad}))
       .children(
           {box()
                .flexGrow(1)
@@ -225,8 +221,7 @@ auto TwoAdvancedV4::legalStrip() -> Element {
       .gap(4)
       .key("legal")
       .gridArea("legal")
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {400ms, motion::ease::outQuad, 3750ms}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 3750ms, .ease = motion::ease::outQuad}))
       .children(
           {box()
                .alignSelf(Align::Stretch)
@@ -316,8 +311,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
         .fill(stretchFill(footerGif, 1892, 220))
         .key("dock")
         .gridArea("dock")
-        .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {400ms, motion::ease::outQuad, 3850ms}))
+        .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 3850ms, .ease = motion::ease::outQuad}))
         .foreground(onEdges(path::Edge::Top, stroke(2, Fill::color(kD5),
                                                     PathFormat::Align::Inner)));
   }
@@ -335,8 +329,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
           .gap(12)
           .key("dock")
           .gridArea("dock")
-          .opacity(animate(motion::from(0.0f).to(1.0f),
-                           {400ms, motion::ease::outQuad, 3850ms}))
+          .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = 3850ms, .ease = motion::ease::outQuad}))
           .foreground(
               onEdges(path::Edge::Top,
                       stroke(2, Fill::color(kD5), PathFormat::Align::Inner)));
@@ -500,9 +493,7 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
     return at(
         box()
             .shape(ray(dx, dy))
-            .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f),
-                                        {400ms, motion::ease::outQuint,
-                                         std::chrono::milliseconds(delayMs)})),
+            .stroke(spans::upTo(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = std::chrono::milliseconds(delayMs), .ease = motion::ease::outQuint})),
                     stroke(1.5f, Fill::color(kCyan))),
         x, y, w, h);
   };
@@ -512,27 +503,23 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
       {box()
            .inset(0)
            .fill(hexColor(0x120303))
-           .opacity(animate(
-               motion::through({{0ms, 1.0f}, {1400ms, 1.0f}, {1560ms, 0.0f}}))),
+           .opacity(motion::animate({.from = 1.0f, .keyframes = {{.to = 1.0f, .duration = 1400ms}, {.to = 0.0f, .duration = 160ms}}})),
        // 1. the single cyan pixel-dot
        at(box().fill(kCyan), cx - 3, cy - 3, 6, 6)
-           .opacity(animate(motion::through(
-               {{0ms, 0.0f}, {150ms, 1.0f}, {1350ms, 1.0f}, {1450ms, 0.0f}}))),
+           .opacity(motion::animate({.from = 0.0f, .keyframes = {{.to = 1.0f, .duration = 150ms}, {.to = 1.0f, .duration = 1200ms}, {.to = 0.0f, .duration = 100ms}}})),
        // 2. the reticle drawing OUTWARD from it on four trimmed rays
        hair(cx - 470, cy, 470, 1, -1, 1, 150), hair(cx, cy, 470, 1, 1, 1, 150),
        hair(cx, cy - 300, 1, 300, 1, -1, 220), hair(cx, cy, 1, 300, 1, 1, 220),
        at(box()
               .shape(shapes::arc(-90, 359))
-              .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f),
-                                          {500ms, motion::ease::outQuint, 260ms})),
+              .stroke(spans::upTo(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 500ms, .delay = 260ms, .ease = motion::ease::outQuint})),
                       stroke(1, Fill::color(
                                     sigil::material::withAlpha(kCyan, 0.7f)))),
           cx - 92, cy - 92, 184, 184),
        // 3. the 0→100 readout (a slot: TEXT, so it cannot be a binding)
        at(box().column().alignItems(Align::Center).gap(9), cx - 260, cy + 120,
           520, 110)
-           .opacity(animate(motion::through(
-               {{520ms, 0.0f}, {620ms, 1.0f}, {1350ms, 1.0f}, {1450ms, 0.0f}})))
+           .opacity(motion::animate({.from = 0.0f, .keyframes = {{.to = 1.0f, .duration = 100ms}, {.to = 1.0f, .duration = 730ms}, {.to = 0.0f, .duration = 100ms}}, .delay = 520ms}))
            .children(
                {slot("bootpct"),
                 box()
@@ -540,8 +527,7 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
                     .height(2)
                     .fill(sigil::material::withAlpha(kCyan, 0.18f))
                     .children({box().inset(0).shape(ray(1, 1)).stroke(
-                        spans::upTo(animate(motion::from(0.0f).to(1.0f),
-                                            {800ms, motion::ease::linear, 550ms})),
+                        spans::upTo(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 800ms, .delay = 550ms, .ease = motion::ease::linear})),
                         stroke(2, Fill::color(kCyan)))}),
                 t("LOADING PROPHECY INTERFACE · 970×655",
                   micro(11, sigil::material::withAlpha(kCyan, 0.6f), 240))}),
@@ -549,10 +535,9 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
        box()
            .inset(0)
            .fill(sigil::material::Color{1, 1, 1, 1})
-           .opacity(animate(motion::through(
-               {{1330ms, 0.0f}, {1390ms, 0.7f}, {1460ms, 0.0f}})))
+           .opacity(motion::animate({.from = 0.0f, .keyframes = {{.to = 0.7f, .duration = 60ms}, {.to = 0.0f, .duration = 70ms}}, .delay = 1330ms}))
            .blendMode(material::BlendMode::PlusLighter)});
-  o.opacity(animate(motion::through({{1440ms, 1.0f}, {1480ms, 0.0f}})));
+  o.opacity(motion::animate({.from = 1.0f, .keyframes = {{.to = 0.0f, .duration = 40ms}}, .delay = 1440ms}));
   return o;
 }
 

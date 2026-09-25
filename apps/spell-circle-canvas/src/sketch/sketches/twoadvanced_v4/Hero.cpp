@@ -203,8 +203,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
     // motion::ease::outBack() takes its overshoot as a parameter and converts
     // to an EaseFn, so the kick is one animate() call rather than a
     // hand-written keyframe path through the overshoot and back.
-    portal.scale(animate(motion::from(0.80f).to(1.0f),
-                         {620ms, motion::ease::outBack(2.1f), 2400ms}));
+    portal.scale(motion::animate({.from = 0.80f, .to = 1.0f, .duration = 620ms, .delay = 2400ms, .ease = motion::ease::outBack(2.1f)}));
   scene.children({portal});
 
   // an orbital ring, trim-revealed with the panel
@@ -215,8 +214,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                  2, Fill::color(sigil::material::withAlpha(kCyanRing, 0.34f)))),
          cx - 118, horizon - 226, 236, 236);
   if (!still)
-    ring.mask(by::spans(spans::upTo(animate(
-        motion::from(0.0f).to(1.0f), {700ms, motion::ease::outQuint, 2600ms}))));
+    ring.mask(by::spans(spans::upTo(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 700ms, .delay = 2600ms, .ease = motion::ease::outQuint}))));
   scene.children({ring});
 
   // water: streaks + a mirrored, blurred copy of the portal glow
@@ -383,10 +381,8 @@ auto TwoAdvancedV4::mainframe() -> Element {
   Element panel = bevelPanel(box().column().padding(3), kChrome, 3);
   panel.key("mainframe")
       .gridArea("mainframe")
-      .translateY(animate(motion::from(70.0f).to(0.0f),
-                          {520ms, motion::ease::outQuint, 2400ms}))
-      .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, motion::ease::outQuad, 2400ms}))
+      .translateY(motion::animate({.from = 70.0f, .to = 0.0f, .duration = 520ms, .delay = 2400ms, .ease = motion::ease::outQuint}))
+      .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .delay = 2400ms, .ease = motion::ease::outQuad}))
       .children({panelHeader("MAIN", "FRAME",
                              "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 0),
                  body});

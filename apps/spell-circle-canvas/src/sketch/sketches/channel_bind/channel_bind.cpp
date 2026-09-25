@@ -53,7 +53,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -218,21 +218,13 @@ struct ChannelBind {
    *  readout evaluates them, so what a row says the property is standing
    *  at is the number the property is standing at. */
   motion::Bound rise() const {
-    return motion::bind(&faders[0].output())
-        .source(0, kFull)
-        .target(kBladeShort / kBladeTall, 1.0f);
+    return motion::bind(faders[0].live(), {.from = {0, kFull}, .to = {kBladeShort / kBladeTall, 1.0f}});
   }
   motion::Bound turn() const {
-    return motion::bind(&faders[1].output())
-        .source(0, kFull)
-        .map(&motion::ease::smoothstep)
-        .target(0, 360);
+    return motion::bind(faders[1].live(), {.from = {0, kFull}, .ease = &motion::ease::smoothstep, .to = {0.0f, 360.0f}});
   }
   motion::Bound swing() const {
-    return motion::bind(&faders[2].output())
-        .source(0, kFull)
-        .pingPong()
-        .target(-kSway, kSway);
+    return motion::bind(faders[2].live(), {.from = {0, kFull}, .alternate = true, .to = {-kSway, kSway}});
   }
 
   /** Takes what the three channels answer, and says whether the readout

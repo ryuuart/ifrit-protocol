@@ -50,7 +50,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
@@ -60,6 +60,8 @@
 #include <memory>
 
 #include "Figures.h"
+
+using namespace std::chrono_literals;
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
@@ -180,7 +182,7 @@ struct ChladniTab1 {
   /** THE ONE CLOCK. Everything that moves by itself reads it through a
    *  binding; only the sand is stepped, because a grain's hop depends on
    *  the bow as well as on its own flight. */
-  choreograph::Output<float> clock{0};
+  sigil::motion::Animatable<float> clock = sigil::motion::animatable(0.0f);
 
   /** One figure's sand: its pool, the phase each grain shivers at, and
    *  which of its two stampings shows — 1 the baked one, 0 the live one. */
@@ -188,8 +190,8 @@ struct ChladniTab1 {
     std::shared_ptr<instancing::Pool> pool =
         std::make_shared<instancing::Pool>();
     std::vector<float> shiver;
-    std::unique_ptr<choreograph::Output<float>> baked =
-        std::make_unique<choreograph::Output<float>>(0.0f);
+    std::unique_ptr<sigil::motion::Animatable<float>> baked =
+        std::make_unique<sigil::motion::Animatable<float>>(0.0f);
   };
   std::vector<Sand> sand;
   std::shared_ptr<instancing::CellSheet> marks;
@@ -281,9 +283,7 @@ struct ChladniTab1 {
               .key("frame" + std::to_string(line))
               .fill(Fill::none())
               .stroke(
-                  spans::upTo(animate(from(0.0f).to(1.0f),
-                                      ramp(kFrameAt * 1000 + (float)line * 90,
-                                           880, sigil::motion::ease::outQuint))),
+                  spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 880ms, .delay = std::chrono::duration<double, std::milli>(kFrameAt * 1000 + (float)line * 90), .ease = sigil::motion::ease::outQuint})),
                   stroke(weight, Fill::var("ink-line")));
         }));
   }
@@ -291,8 +291,7 @@ struct ChladniTab1 {
   /** The figure's own settle, from the bow's stroke to the sand at rest,
    *  as the fraction @p from to @p to of it. */
   Bound settled(size_t index, float from, float to) const {
-    return bind(&clock).window(bowAt(index) + from * kSettle,
-                               bowAt(index) + to * kSettle);
+    return sigil::motion::bind(clock, {.from = {bowAt(index) + from * kSettle, bowAt(index) + to * kSettle}, .clampFrom = true});
   }
 
   /** WHAT THE SAND DRAWS once it has found the still lines. */
@@ -394,27 +393,25 @@ struct ChladniTab1 {
                 .shape(shapes::circle())
                 .fill(Fill::none())
                 .stroke(
-                    spans::upTo(animate(from(0.0f).to(1.0f),
-                                        ramp(kRimAt * 1000 + (float)index * 26,
-                                             620, sigil::motion::ease::outQuad))),
+                    spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = std::chrono::duration<double, std::milli>(kRimAt * 1000 + (float)index * 26), .ease = sigil::motion::ease::outQuad})),
                     stroke(1.5f, Fill::var("ink-line"))),
             drawing(index),
             kit::disc(middle(), radius + kSandMargin)
                 .key(tag + "sand")
                 .opacity(
-                    animate(from(0.0f).to(1.0f), ramp(kScatterAt * 1000, 400)))
+                    sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms, .delay = std::chrono::duration<double, std::milli>(kScatterAt * 1000)}))
                 .children({
                     box()
                         .cover()
                         .key(tag + "sandbaked")
-                        .opacity(bind(sand[index].baked.get()))
+                        .opacity(sigil::motion::bind(sand[index].baked.get()))
                         .children({instancing::instances(
                             marks, sand[index].pool, instancing::Mode::Data)})
                         .cache(Cache::Texture),
                     box()
                         .cover()
                         .key(tag + "sandlive")
-                        .opacity(bind(sand[index].baked.get()).invert())
+                        .opacity(sigil::motion::bind(sand[index].baked.get(), {.to = {1.0f, 0.0f}}))
                         .children({instancing::instances(
                             marks, sand[index].pool, instancing::Mode::Live)}),
                 }),
@@ -423,8 +420,7 @@ struct ChladniTab1 {
             // shown only from its first turn on.
             box()
                 .cover()
-                .opacity(animate(from(0.0f).to(1.0f),
-                                 ramp(roundAt(index) * 1000, 1)))
+                .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 1ms, .delay = std::chrono::duration<double, std::milli>(roundAt(index) * 1000)}))
                 .children({bowed(tag + "round", roundPass[index])}),
             text(std::to_string(figure.number) + ".")
                 .role("numeral")
@@ -432,8 +428,7 @@ struct ChladniTab1 {
                 .centerAt({middle().fX - 0.82f * radius,
                            middle().fY - 1.15f * radius})
                 .opacity(
-                    animate(from(0.0f).to(1.0f),
-                            ramp(kNumeralAt * 1000 + (float)index * 22, 360))),
+                    sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 360ms, .delay = std::chrono::duration<double, std::milli>(kNumeralAt * 1000 + (float)index * 22)})),
             box().cover().children(
                 each(figure.letters,
                      [&](const Letter& letter, size_t at) {
@@ -476,10 +471,8 @@ struct ChladniTab1 {
                 .key("title")
                 .textFx(Track{
                     .effect = textFx::typeOn(),
-                    .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60},
-                    .progress = animate(
-                        from(0.0f).to(1.0f),
-                        ramp(kTitleAt * 1000, 620, sigil::motion::ease::linear))})
+                    .delay = sigil::motion::stagger({0ms, 520ms}), .duration = 60ms,
+                    .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = std::chrono::duration<double, std::milli>(kTitleAt * 1000), .ease = sigil::motion::ease::linear})})
                 .centerAt(at(title)),
         })
         .children(each(
@@ -494,7 +487,7 @@ struct ChladniTab1 {
                 .right(canvas.width() - innerFrame.right() + kCreditClear)
                 .bottom(canvas.height() - innerFrame.bottom() + kCreditClear)
                 .opacity(
-                    animate(from(0.0f).to(1.0f), ramp(kCreditAt * 1000, 700))),
+                    sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 700ms, .delay = std::chrono::duration<double, std::milli>(kCreditAt * 1000)})),
         });
   }
 
@@ -641,18 +634,18 @@ struct ChladniTab1 {
         allLanded = std::max(allLanded, flight.start + flight.duration);
       const float first = bowAt(index) - 0.22f;
       firstPass.push_back(
-          {.pressure = bind(&clock).window(first, first + 0.62f).cosine(),
-           .travel = bind(&clock).window(first, first + 0.62f),
-           .sound = bind(&clock).window(first, first + kSoundSeconds)});
+          {.pressure = sigil::motion::bind(clock, {.from = {first, first + 0.62f}, .clampFrom = true, .envelope = sigil::motion::envelope::cosine()}),
+           .travel = sigil::motion::bind(clock, {.from = {first, first + 0.62f}, .clampFrom = true}),
+           .sound = sigil::motion::bind(clock, {.from = {first, first + kSoundSeconds}, .clampFrom = true})});
       const float round = roundAt(index);
       const float cycle = round + 12 * kRoundStep;
       roundPass.push_back(
-          {.pressure = bind(&clock).source(round, cycle).wave(roundSwell),
-           .travel = bind(&clock).source(round, cycle).wave(roundTravel),
-           .sound = bind(&clock).source(round, cycle).wave(roundSound)});
+          {.pressure = sigil::motion::bind(clock, {.from = {round, cycle}, .envelope = sigil::motion::envelope::shaped(roundSwell)}),
+           .travel = sigil::motion::bind(clock, {.from = {round, cycle}, .envelope = sigil::motion::envelope::shaped(roundTravel)}),
+           .sound = sigil::motion::bind(clock, {.from = {round, cycle}, .envelope = sigil::motion::envelope::shaped(roundSound)})});
     }
 
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const float seconds = (float)ticker.elapsed();
       clock = seconds;
       stepSand(seconds);

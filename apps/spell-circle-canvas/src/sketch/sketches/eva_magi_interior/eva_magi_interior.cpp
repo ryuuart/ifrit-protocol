@@ -12,7 +12,7 @@
 #include <sigilmaterial/kit/Crt.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
@@ -42,7 +42,7 @@ const material::Color kDarkGreen = hexColor(0x407C42);
 
 struct EvaMagiInterior {
   weave::FontContext* fonts = nullptr;
-  choreograph::Output<float> turn{0};
+  motion::Animatable<float> turn = motion::animatable(0.0f);
   int second = -1;
 
   Text label(Utf8 words, SkPoint origin, float capHeight, float measure,
@@ -91,9 +91,7 @@ struct EvaMagiInterior {
                           .height(r * 2)
                           .centerAt(kCentre)
                           .textOnPath({.path = shapes::circle(),
-                                       .at = motion::bind(&turn).target(
-                                           band * 0.037f,
-                                           band * 0.037f + (band % 2 ? -1 : 1)),
+                                       .at = motion::bind(turn, {.to = {band * 0.037f, band * 0.037f + (band % 2 ? -1 : 1)}}),
                                        .align = TextPath::Align::Start,
                                        .autoFlip = false})});
     }

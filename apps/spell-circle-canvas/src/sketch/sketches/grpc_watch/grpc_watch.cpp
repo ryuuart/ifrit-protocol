@@ -46,7 +46,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
@@ -176,14 +176,14 @@ struct GrpcWatch {
   /** The session's ticker, which outlives this sketch. A handler runs on
    *  the dispatch rather than inside a describe, so it cannot hold the
    *  per-frame context the ticker is otherwise reached through. */
-  motion::Ticker* ticker = nullptr;
+  motion::Engine* ticker = nullptr;
 
   /** THE STATE a hand can set: the colours the bands are tinted from. */
   Palette palette = kOpeningPalette;
   /** WHAT IS LEFT OF THE GUSTS: a burst of wind on top of the standing
    *  one, dying away on the ticker with nothing having to arrive for it
    *  to end. */
-  ch::Output<float> gust{0};
+  motion::Animatable<float> gust = motion::animatable(0.0f);
 
   /** How far the sky has travelled, in px. Integrated rather than read
    *  as a speed times the clock, because a wind that changes would
@@ -207,7 +207,7 @@ struct GrpcWatch {
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
-    ticker = &ctx.ticker;
+    ticker = &ctx.engine;
 
     const std::string door = doorOf();
     io::Hub& hub = ctx.assets.hub();
@@ -254,11 +254,11 @@ struct GrpcWatch {
 
   /** The wind the bands ride: what stands, plus what is left of the last
    *  gust. */
-  float wind() const { return kBaseWind + gust(); }
+  float wind() const { return kBaseWind + gust.value(); }
 
   /** How long a segment is drawn at now: a gust smears a ribbon out, so
    *  a still carries the wind that a moving picture carries as speed. */
-  float segment() const { return kSegment * (1.0f + gust() / kGustStretch); }
+  float segment() const { return kSegment * (1.0f + gust.value() / kGustStretch); }
 
   /** Where band @p index stands now: its own place, breathing by its own
    *  wobble. */
@@ -295,7 +295,7 @@ struct GrpcWatch {
   void blow(const data::Json& message) {
     if (!ticker) return;
     gust = (float)message["strength"].number(kGustStrength);
-    ticker->timeline().apply(&gust).then<ch::RampTo>(
+    ticker->timeline().apply(gust).then<ch::RampTo>(
         0.0f, (float)message["seconds"].number(kGustFall), motion::ease::outQuad);
   }
 

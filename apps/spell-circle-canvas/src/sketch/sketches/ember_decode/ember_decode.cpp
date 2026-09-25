@@ -166,7 +166,7 @@ float masterAt(double t, double startAt, float totalMs) {
 
 struct EmberDecode {
   std::shared_ptr<const sigil::material::Recipe> recipe;
-  choreograph::Output<float> display{0.0f}, words{0.0f};
+  sigil::motion::Animatable<float> display = sigil::motion::animatable(0.0f), words = sigil::motion::animatable(0.0f);
   float displayTotalMs = 1;  // the cascades' spans, read back from beatsOf
   float wordsTotalMs = 1;
 
@@ -192,7 +192,7 @@ struct EmberDecode {
     // from its origin, so the two frames line up.
     const std::vector<Beat> beats = ctx.composer.beatsOf("burn-display", 0);
     const auto readBack = [](const Beat& beat, std::size_t i) {
-      return sketch::kit::meter({.fraction = beat.localTime,
+      return sketch::kit::meter({.fraction = beat.localProgress,
                                  .width = Dimension(beat.rect.width()),
                                  .height = Dimension(3),
                                  .track = Fill::color(kFaint),
@@ -215,9 +215,9 @@ struct EmberDecode {
                     .key("burn-display")
                     .textFx(
                         {.effect = textFx::pass(burn),
-                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                         .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(kEachMs)), .duration = std::chrono::duration<double, std::milli>(kUnitMs),
                          .unit = weave::Unit::Cluster,
-                         .progress = &display}),
+                         .progress = display}),
                 document::paragraph(
                     "Each letter has its own clock. The bars read "
                     "back the same schedule that drives the burn.")
@@ -228,9 +228,9 @@ struct EmberDecode {
                     .key("burn-words")
                     .textFx(
                         {.effect = textFx::pass(burn),
-                         .stagger = {.eachMs = kEachMs, .durationMs = kUnitMs},
+                         .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(kEachMs)), .duration = std::chrono::duration<double, std::milli>(kUnitMs),
                          .unit = weave::Unit::Word,
-                         .progress = &words}),
+                         .progress = words}),
                 document::paragraph(
                     "Each word is a unit here. The shader stays "
                     "the same; its schedule changes.")

@@ -30,7 +30,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
@@ -60,7 +60,6 @@ using sigil::material::hexColor;
 // where it goes rather than a layout deciding.
 using sigil::compose::kit::at;
 using namespace std::chrono_literals;
-namespace ch = choreograph;
 
 namespace tv3 {
 using namespace twoadvanced;

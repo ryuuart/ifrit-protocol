@@ -117,7 +117,7 @@ Element hazard() {
 struct KspMapView {
   sketch::kit::Document map, words;
   /** Seconds since the plate opened; the dotted trajectories march on it. */
-  ch::Output<float> clock{0};
+  sigil::motion::Animatable<float> clock = sigil::motion::animatable(0.0f);
 
   SkPoint kerbin{500, 330};
   float kerbinRadius = 140;
@@ -245,7 +245,7 @@ struct KspMapView {
       if (const float march = number(part["march"]); march > 0) {
         pen.dashIntervals = {0.01f, 6.0f};
         pen.cap = sigil::geometry::path::Cap::Round;
-        pen.dashPhaseBinding = bind(&clock).scale(-march);
+        pen.dashPhaseBinding = sigil::motion::bind(clock, {.to = {0.0f, -march}});
       }
       Element drawn = box().inset(0).shape(path).stroke(pen);
       if (!part["label"].null())
@@ -258,7 +258,7 @@ struct KspMapView {
     return box().inset(0).font({.size = 8.5f, .track = 1.3f}).children(
         {each(map["trajectories"].items(), crossing),
          box().inset(0).shape(vessel).stroke(
-             spans::upTo(animate(from(0.0f).to(1.0f), {900ms, sigil::motion::ease::outQuad})),
+             spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 900ms, .ease = sigil::motion::ease::outQuad})),
              brush::presets::filament(withAlpha(kOrbit, 0.30f),
                                       hexColor(0xDCF7F5), 0.26f)),
          along(map["vessel"]["label"], vessel,

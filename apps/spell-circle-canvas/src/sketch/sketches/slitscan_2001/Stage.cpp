@@ -4,8 +4,8 @@
 auto SlitScan2001::header() -> Element {
   using namespace slit;
   Track rise{.effect = textFx::rise(18.0f),
-             .stagger = {.eachMs = 22},
-             .progress = animate(to(1.0f), {440ms, sigil::motion::ease::outExpo, 120ms})};
+             .delay = sigil::motion::stagger(22ms),
+             .progress = sigil::motion::animate({.to = 1.0f, .duration = 440ms, .delay = 120ms, .ease = sigil::motion::ease::outExpo})};
   // The masthead is set in the interface face; the title alone takes
   // the bold cut.
   return box()
@@ -17,9 +17,9 @@ auto SlitScan2001::header() -> Element {
           {document::eyebrow("TIME AS AN AXIS OF THE IMAGE")
                .font({.size = 10, .color = kType2, .track = 2.6f})
                .key("eyebrow")
-               .opacity(animate(from(0.0f).to(1.0f), {260ms, sigil::motion::ease::outQuad}))
+               .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms, .ease = sigil::motion::ease::outQuad}))
                .translateY(
-                   animate(from(8.0f).to(0.0f), {260ms, sigil::motion::ease::outQuad})),
+                   sigil::motion::animate({.from = 8.0f, .to = 0.0f, .duration = 260ms, .ease = sigil::motion::ease::outQuad})),
            document::h1("THE SLIT-SCAN MACHINE, 1966–68")
                .font({.face = uiBoldFace(),
                       .size = 40,
@@ -34,8 +34,7 @@ auto SlitScan2001::header() -> Element {
                .font({.size = 11, .color = kType2})
                .width(690)
                .key("cite")
-               .opacity(animate(from(0.0f).to(1.0f),
-                                {240ms, sigil::motion::ease::outQuad, 400ms}))});
+               .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .delay = 400ms, .ease = sigil::motion::ease::outQuad}))});
 }
 
 auto SlitScan2001::filmFrame() -> Element {
@@ -119,7 +118,7 @@ auto SlitScan2001::filmFrame() -> Element {
       .stroke(stroke(1.0f, Fill::color(kRule)))
       .key("film")
       .mask(by::edge(
-          0.0f, animate(from(0.0f).to(1.0f), {520ms, sigil::motion::ease::outCubic, 240ms})))
+          0.0f, sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 520ms, .delay = 240ms, .ease = sigil::motion::ease::outCubic})))
       .children(
           {std::move(accumulation), std::move(vanishing), std::move(halation)})
       // The shutter bar -- the ONLY thing in the plate driven by
@@ -128,7 +127,7 @@ auto SlitScan2001::filmFrame() -> Element {
           {box()
                .rect(SkRect::MakeXYWH(0, 0, kFilmW, 2))
                .fill(al(kCold, 0.4f))
-               .mask(by::edge(0.0f, bind(&frameAlpha))),
+               .mask(by::edge(0.0f, sigil::motion::bind(frameAlpha))),
            hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)),
            hud(kit::formatted("FRAME %06lld · 24 fps · %d STAMPS/WALL · kPLUS",
                               filmNo, kKDisplay),

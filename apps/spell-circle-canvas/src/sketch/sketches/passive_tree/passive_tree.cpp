@@ -207,7 +207,7 @@ inline std::function<SkPath(SkSize)> notchRing(int count, float innerFrac,
  *  clips, and centerAt() pins the measured box on the tree position. */
 inline Element socket(const char* key, SkPoint at, float dia,
                       const sdf::Style& st,
-                      const choreograph::Output<float>* breathingGlow = nullptr,
+                      const motion::Animatable<float>& breathingGlow = nullptr,
                       int z = 3) {
   const float boxSize = sdf::minBoxFor(st, dia);
   Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
@@ -227,18 +227,18 @@ inline Element socket(const char* key, SkPoint at, float dia,
 namespace treedata = skill_tree_data;
 
 struct PassiveTree {
-  choreograph::Output<float> pulseS{0}, pulseE{0};
-  choreograph::Output<float> ringPhase{0};
-  choreograph::Output<float> breath{5.5f};
-  choreograph::Output<float> searchPulse{0};
-  choreograph::Output<float> selectSpin{0};
+  motion::Animatable<float> pulseS = motion::animatable(0.0f), pulseE = motion::animatable(0.0f);
+  motion::Animatable<float> ringPhase = motion::animatable(0.0f);
+  motion::Animatable<float> breath = motion::animatable(5.5f);
+  motion::Animatable<float> searchPulse = motion::animatable(0.0f);
+  motion::Animatable<float> selectSpin = motion::animatable(0.0f);
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     pulseS = 0;
     pulseE = 0;
     ringPhase = 0;
@@ -304,7 +304,7 @@ struct PassiveTree {
     // The declared glowRadius reserves the box pad (exp falloff reaches ~0
     // before the edge); the ACTUAL halo runs shorter, via a uniform.
     Element e =
-        pt::socket(nullptr, {n.x, n.y}, dia, st, can ? &breath : nullptr);
+        pt::socket(nullptr, {n.x, n.y}, dia, st, can ? breath : nullptr);
     if (alloc) {
       Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
       m.set("uGlowR", 5.5f);
@@ -331,7 +331,7 @@ struct PassiveTree {
                                                : 0.0f}};
     const std::string key = nodeKey(i);
     Element frame =
-        pt::socket(key.c_str(), at, dia, outer, can ? &breath : nullptr);
+        pt::socket(key.c_str(), at, dia, outer, can ? breath : nullptr);
     if (alloc) {
       Paint m = Paint::recipe(sdf::material(sdf::circle(), outer));
       m.set("uGlowR", 7.0f);
@@ -542,7 +542,7 @@ struct PassiveTree {
                        .height(bestR * 2)
                        .centerAt({g.x, g.y})
                        .shape(pt::circleOutline())
-                       .stroke(spans::wrap(0.92f, 1.06f).offset(&ringPhase),
+                       .stroke(spans::wrap(0.92f, 1.06f).offset(ringPhase),
                                brush::presets::pulse({pt::kHalo.r, pt::kHalo.g,
                                                       pt::kHalo.b, 0.22f},
                                                      {1, 1, 1, 0.75f}, 0.72f))
@@ -643,7 +643,7 @@ struct PassiveTree {
              connect::Along{.stops = anchors,
                             .wire = brush::presets::rope(2, pt::kRopeScale),
                             .where = spans::upTo(
-                                animate(motion::from(0.0f).to(1.0f), {900ms})),
+                                motion::animate({.from = 0.0f, .to = 1.0f, .duration = 900ms})),
                             .key = "spine"})
              .zIndex(2),
          Operator(
@@ -651,7 +651,7 @@ struct PassiveTree {
                             .wire = brush::presets::pulse(
                                 {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b, 0.35f},
                                 {1, 1, 1, 0.9f}, 1.25f),
-                            .where = spans::range(&pulseS, &pulseE),
+                            .where = spans::range(pulseS, pulseE),
                             .key = "spine-packet"})
              .zIndex(2)});
   }
@@ -670,7 +670,7 @@ struct PassiveTree {
                .height(d)
                .centerAt({n.x, n.y})
                .shape(pt::circleOutline())
-               .opacity(&searchPulse)
+               .opacity(searchPulse)
                .stroke(stroke(1.6f, Fill::color({pt::kSearch.r, pt::kSearch.g,
                                                  pt::kSearch.b, 0.85f})))
                .zIndex(5)});
@@ -682,7 +682,7 @@ struct PassiveTree {
              .width(d)
              .height(d)
              .centerAt({sel.x, sel.y})
-             .rotate(&selectSpin)
+             .rotate(selectSpin)
              .shape(shapes::star(12, 0.82f))
              .stroke(stroke(1.2f, Fill::color({pt::kHalo.r, pt::kHalo.g,
                                                pt::kHalo.b, 0.55f})))
@@ -722,8 +722,8 @@ struct PassiveTree {
             .foreground(stroke(1.2f, Fill::color({pt::kGold.r, pt::kGold.g,
                                                   pt::kGold.b, 0.45f})))
             .zIndex(7)
-            .opacity(animate(motion::from(0.0f).to(1.0f), {420ms}))
-            .translateY(animate(motion::from(10.0f).to(0.0f), {520ms}))
+            .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 420ms}))
+            .translateY(motion::animate({.from = 10.0f, .to = 0.0f, .duration = 520ms}))
             .children(
                 {document::h2(detail->name)
                      .font({.size = 17, .color = pt::kHalo, .track = 2.4f}),

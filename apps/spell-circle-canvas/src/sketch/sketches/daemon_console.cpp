@@ -278,13 +278,13 @@ struct DaemonConsole {
   // it into the blink, and the prompt machine REBASES it — held at 0 (the
   // pulse's ON phase) while a command types, released to the mission clock
   // while the console waits.
-  choreograph::Output<float> caretClock{0.0f};
-  choreograph::Output<float> lamp{1.0f};
+  motion::Animatable<float> caretClock = motion::animatable(0.0f);
+  motion::Animatable<float> lamp = motion::animatable(1.0f);
   choreograph::Output<float> meter[4] = {{0.5f}, {0.5f}, {0.5f}, {0.5f}};
   // The tube's two phases: where the scanline tile has crept to, and
   // where the refresh band's top stands.
-  choreograph::Output<float> scanCreep{0.0f};
-  choreograph::Output<float> refreshSweep{0.0f};
+  motion::Animatable<float> scanCreep = motion::animatable(0.0f);
+  motion::Animatable<float> refreshSweep = motion::animatable(0.0f);
   // The scanline strip: held here because its bake is its identity.
   Pattern scanlines;
 
@@ -382,7 +382,7 @@ struct DaemonConsole {
                              .captureAt = 9.0,
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     namespace dc = daemon_console;
     caretClock = 0.0f;
     lamp = 1.0f;
@@ -515,16 +515,14 @@ struct DaemonConsole {
       case dc::kTrace:
         // A trace merely surfaces: one quiet fade, no cascade.
         leaf.textFx({.effect = textFx::keys({{0.0f, {.alpha = 0}}, {1.0f, {}}}),
-                     .progress = animate(motion::from(0.0f).to(1.0f),
-                                         {180ms, motion::ease::linear})});
+                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 180ms, .ease = motion::ease::linear})});
         break;
       case dc::kFlux:
         // A warning rises glyph by glyph — more insistent than type-on,
         // still a sweep the eye can follow.
         leaf.textFx({.effect = textFx::rise(6),
-                     .stagger = {.eachMs = 4, .durationMs = 120},
-                     .progress = animate(motion::from(0.0f).to(1.0f),
-                                         {300ms, motion::ease::linear})});
+                     .delay = motion::stagger(4ms), .duration = 120ms,
+                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = motion::ease::linear})});
         break;
       case dc::kBreach:
         // A breach does not type: the whole line slams in at once, wide and
@@ -546,15 +544,13 @@ struct DaemonConsole {
                   {0.35f,
                    {.colorScreen = {0.4f, 0.28f, 0.22f, 0}, .scaleX = 0.97f}},
                   {1.0f, {}}}),
-             .progress = animate(motion::from(0.0f).to(1.0f),
-                                 {240ms, motion::ease::outQuad})});
+             .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 240ms, .ease = motion::ease::outQuad})});
         break;
       default:
         // Info and seals type on — the terminal's own voice.
         leaf.textFx({.effect = textFx::typeOn(),
-                     .stagger = {.eachMs = 6, .durationMs = 40},
-                     .progress = animate(motion::from(0.0f).to(1.0f),
-                                         {320ms, motion::ease::linear})});
+                     .delay = motion::stagger(6ms), .duration = 40ms,
+                     .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .ease = motion::ease::linear})});
         break;
     }
     if (!r.cipher.empty())
@@ -564,10 +560,9 @@ struct DaemonConsole {
       leaf.textFx(
           {.where = selectors::style("cipher"),
            .effect = textFx::hold(textFx::scramble(U"0123456789abcdef", 10)),
-           .stagger = {.eachMs = 30, .durationMs = 340},
+           .delay = motion::stagger(30ms), .duration = 340ms,
            .unit = weave::Unit::Cluster,
-           .progress = animate(motion::from(0.0f).to(1.0f),
-                               {750ms, motion::ease::linear})});
+           .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 750ms, .ease = motion::ease::linear})});
 
     Element row =
         box()
@@ -589,7 +584,7 @@ struct DaemonConsole {
    *  paint-only volatility over a cached bed, which is what the
    *  component's `level` is. The bed, the fill and the register the
    *  channel is named in are this console's, carried down by its theme. */
-  Element meterRow(const char* label, choreograph::Output<float>* level) {
+  Element meterRow(const char* label, motion::Animatable<float>& level) {
     sketch::kit::Meter bar{
         .label = label, .height = Dimension(4), .corners = 2};
     bar.level = level;
@@ -703,7 +698,7 @@ struct DaemonConsole {
                      .height(6)
                      .borderRadius({3})
                      .fill(Fill::color(dc::kOk))
-                     .opacity(&lamp),
+                     .opacity(lamp),
                  text(std::format("T+{:07.2f}", mission(clockNow)))
                      .font(chrome(11.5f, dc::kAccent, 0.6f, true, true))});
 
@@ -777,10 +772,7 @@ struct DaemonConsole {
                            // 0.62 s of every 1.06 s cycle, resting dim rather
                            // than vanishing. Phase 0 is ON, so the caret the
                            // typing machine parks at 0 sits solid.
-                           .opacity(motion::bind(&caretClock)
-                                        .source(0.0f, 1.06f)
-                                        .square(0.62f / 1.06f)
-                                        .target(0.10f, 1.0f))
+                           .opacity(motion::bind(caretClock, {.from = {0.0f, 1.06f}, .envelope = motion::envelope::square(0.62f / 1.06f), .to = {0.1f, 1.0f}}))
                            .key("caret"),
                        box().flexGrow(1),
                        text(std::format("ring 256 · {} events",
@@ -819,7 +811,7 @@ struct DaemonConsole {
                        .zIndex(3)
                        .hitTestable(false)
                        .fill(Pattern(scanlines)
-                                 .offset(std::nullopt, &scanCreep)
+                                 .offset(std::nullopt, scanCreep)
                                  .material())
                        .blendMode(material::BlendMode::Screen)})
         // …and the refresh band, baked once and slid down the panel. Its
@@ -831,7 +823,7 @@ struct DaemonConsole {
                        .zIndex(4)
                        .hitTestable(false)
                        .fill(dc::refreshBand())
-                       .translateY(&refreshSweep)
+                       .translateY(refreshSweep)
                        .cache(Cache::Texture)
                        .blendMode(material::BlendMode::Screen)});
   }

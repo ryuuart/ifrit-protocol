@@ -104,9 +104,9 @@ struct HitmanVerlet {
   size_t contactCount = 0;
 
   // Bindings
-  ch::Output<float> alpha{0.0f};       // addFixed's render interpolant
-  ch::Output<float> blastPhase{0.0f};  // 1 at detonation, decaying
-  ch::Output<float> bodyFade{1.0f};
+  sigil::motion::Animatable<float> alpha = sigil::motion::animatable(0.0f);       // addFixed's render interpolant
+  sigil::motion::Animatable<float> blastPhase = sigil::motion::animatable(0.0f);  // 1 at detonation, decaying
+  sigil::motion::Animatable<float> bodyFade = sigil::motion::animatable(1.0f);
 
   // Instancing: the particle dots (the control case) and the sticks (the
   // Pool::sizes() lane).

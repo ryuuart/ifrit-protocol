@@ -288,7 +288,7 @@ inline Element glint(float size, float rotationDeg, float alpha = 0.95f) {
 }  // namespace y2k_chrome
 
 struct Y2kChrome {
-  choreograph::Output<float> tickX{0};
+  motion::Animatable<float> tickX = motion::animatable(0.0f);
   float unitW = 0;  // strip content's intrinsic width (compose::intrinsicSize)
   float wrapLen = 1;  // marquee wrap length = unitW + gap
 
@@ -297,7 +297,7 @@ struct Y2kChrome {
                              .captureAt = 6.0,
                              .background = material::Color{0, 0, 0, 1}});
     Composer& composer = ctx.composer;
-    sigil::motion::Ticker& ticker = ctx.ticker;
+    sigil::motion::Engine& ticker = ctx.engine;
     namespace yc = y2k_chrome;
     tickX = 0;
 
@@ -508,7 +508,7 @@ struct Y2kChrome {
     // The crawl, named: a strip run past a window twice so the loop has no
     // seam, with the wrap this file already keeps on `tickX`.
     Element strip = sketch::kit::ticker(
-        {.content = stripContent(), .phase = &tickX, .gap = yc::kTickerGap});
+        {.content = stripContent(), .phase = tickX, .gap = yc::kTickerGap});
     strip.flexGrow(1);
     Element statusBar =
         box()

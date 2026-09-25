@@ -49,7 +49,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Instrument.h>
 #include <sigilsketch/kit/Theme.h>
@@ -132,7 +132,7 @@ constexpr std::array<Band, 6> kBands = {{{50, -16, 15},
  *  it was. The travel is a motion the ticker owns; the strength is a
  *  plain number, because it does not change once the gust is over. */
 struct Wave {
-  ch::Output<float> travel{1.0f};
+  motion::Animatable<float> travel = motion::animatable(1.0f);
   float strength = 0;
 };
 
@@ -167,10 +167,10 @@ struct FeedEvents {
   /** The session's ticker, which outlives this sketch. A handler runs
    *  on the dispatch rather than inside a describe, so it cannot hold
    *  the per-frame context the ticker is otherwise reached through. */
-  motion::Ticker* ticker = nullptr;
+  motion::Engine* ticker = nullptr;
 
   /** THE STATE: what the wind is, and what the colours are. */
-  ch::Output<float> wind{0};
+  motion::Animatable<float> wind = motion::animatable(0.0f);
   Palette palette = kOpeningPalette;
 
   /** THE EVENTS: what is left of the gusts that have happened. */
@@ -195,7 +195,7 @@ struct FeedEvents {
         sketch::kit::featureTheme(sketch::kit::Density::Spacious));
     sketch::kit::stage(
         ctx, {.size = kCanvas, .captureAt = kCaptureAt, .background = kGround});
-    ticker = &ctx.ticker;
+    ticker = &ctx.engine;
 
     io::Hub& hub = ctx.assets.hub();
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window listens on
@@ -231,7 +231,7 @@ struct FeedEvents {
   void update(double elapsed, sketch::SketchContext& ctx) {
     const double step = elapsed - seconds;
     seconds = elapsed;
-    drift += (double)wind() * step;
+    drift += (double)wind.value() * step;
     // The data path: the sky and the waves move without being described
     // again, because the pen reads them on every frame. What is
     // described again is the readout, and only when a figure changed.
@@ -242,7 +242,7 @@ struct FeedEvents {
    *  so a sender stepping in whole numbers still drifts smoothly. */
   void blow(const data::Json& message) {
     if (!ticker) return;
-    ticker->timeline().apply(&wind).then<ch::RampTo>(
+    ticker->timeline().apply(wind).then<ch::RampTo>(
         (float)message["value"].number(), kWindEase, motion::ease::outQuad);
   }
 
@@ -256,7 +256,7 @@ struct FeedEvents {
     wave.strength = (float)message["strength"].number();
     wave.travel = 0.0f;
     ticker->timeline()
-        .apply(&wave.travel)
+        .apply(wave.travel)
         .then<ch::RampTo>(1.0f, (float)message["seconds"].number(kWaveFall),
                           motion::ease::outQuad);
   }

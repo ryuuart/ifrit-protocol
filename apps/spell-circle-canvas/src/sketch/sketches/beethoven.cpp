@@ -169,8 +169,7 @@ struct Beethoven {
     const auto duration = std::chrono::milliseconds(
         bp::kRingBaseMs << (unsigned)std::min(ring, 5));
     e.mask(by::spans(spans::upTo(
-        animate(motion::from(0.0001f).to(span),
-                {duration, motion::ease::linear, bp::kRevealDelay}))));
+        motion::animate({.from = 0.0001f, .to = span, .duration = duration, .delay = bp::kRevealDelay, .ease = motion::ease::linear}))));
     return e;
   }
 

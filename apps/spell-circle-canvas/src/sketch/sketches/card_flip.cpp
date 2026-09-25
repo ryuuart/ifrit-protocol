@@ -117,7 +117,7 @@ Element panel(const char* caption, Element content) {
 }  // namespace
 
 struct CardFlip {
-  choreograph::Output<float> flip{0}, spinX{0}, spinY{0}, sway{0};
+  motion::Animatable<float> flip = motion::animatable(0.0f), spinX = motion::animatable(0.0f), spinY = motion::animatable(0.0f), sway = motion::animatable(0.0f);
 
   void setup(sketch::SketchContext& ctx) {
     const sketch::kit::Provide look(sketch::kit::featureTheme());
@@ -132,7 +132,7 @@ struct CardFlip {
     spinX = 0;
     spinY = 0;
     sway = 0;
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double t = ticker.elapsed();
       flip = motion::phase(t, kFlipPeriod);
       spinX = motion::phase(t, kSpinXPeriod);
@@ -166,7 +166,7 @@ struct CardFlip {
         .width(w)
         .height(h)
         .preserve3d()
-        .rotateY(motion::bind(&flip).target(0, 360))
+        .rotateY(motion::bind(flip, {.to = {0.0f, 360.0f}}))
         .children({face("FRONT", "rotateY · backface hidden", kCardFront, 0),
                    face("BACK", "pre-turned half round", kCardBack, 180)});
   }
@@ -190,8 +190,8 @@ struct CardFlip {
         .width(edge)
         .height(edge)
         .preserve3d()
-        .rotateX(motion::bind(&spinX).target(0, 360))
-        .rotateY(motion::bind(&spinY).target(0, 360))
+        .rotateX(motion::bind(spinX, {.to = {0.0f, 360.0f}}))
+        .rotateY(motion::bind(spinY, {.to = {0.0f, 360.0f}}))
         .children({each(kFaces, face)});
   }
 
@@ -214,7 +214,7 @@ struct CardFlip {
         .gap(10)
         .transformOrigin(pct(50), pct(100))  // hinged along its bottom edge
         .rotateX(kTilt)
-        .rotateY(motion::bind(&sway).source(-1, 1).target(-14, 14))
+        .rotateY(motion::bind(sway, {.from = {-1, 1}, .to = {-14.0f, 14.0f}}))
         .children(
             {document::h2("TILTED PLATE").font({.size = 18, .track = 3}),
              document::paragraph(passage).font({.size = 14}).width(pct(100))});

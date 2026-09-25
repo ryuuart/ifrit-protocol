@@ -180,7 +180,7 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   }
 
   // --- the idle motion, all of it driven from this one ticker -----------
-  ctx.ticker.add([this, &ticker = ctx.ticker] {
+  ctx.engine.add([this, &ticker = ctx.engine] {
     const double t = ticker.elapsed();
     const float s = (float)t;
     stripePan = s * 2.5f;                               // 20 px / 8 s

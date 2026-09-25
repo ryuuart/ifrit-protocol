@@ -496,7 +496,7 @@ struct Panel {
  *  of every board at each step of scale it crosses, where a settle that
  *  stays inside one step is one bake and then a blit. */
 inline Element pieceElement(const Piece& piece, TimberBank& bank,
-                            const choreograph::Output<float>* seconds) {
+                            const motion::Animatable<float>& seconds) {
   const vec2 span = piece.to - piece.from;
   const float length = glm::length(span);
   const float angle = std::atan2(span.y, span.x);
@@ -556,15 +556,8 @@ inline Element pieceElement(const Piece& piece, TimberBank& bank,
   if (seconds != nullptr) {
     const float from = piece.enters, until = piece.enters + piece.entersFor;
     element
-        .opacity(motion::bind(seconds)
-                     .window(from, until)
-                     .map(motion::ease::outCubic)
-                     .scale(1.35f)
-                     .clamp(0, 1))
-        .scale(motion::bind(seconds)
-                   .window(from, until)
-                   .map(motion::ease::outCubic)
-                   .target(0.8f, 1));
+        .opacity(motion::bind(seconds, {.from = {from, until}, .clampFrom = true, .ease = motion::ease::outCubic, .to = {0.0f, 1.35f}, .clamp = {0, 1}}))
+        .scale(motion::bind(seconds, {.from = {from, until}, .clampFrom = true, .ease = motion::ease::outCubic, .to = {0.8f, 1.0f}}));
   }
   return element;
 }

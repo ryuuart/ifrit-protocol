@@ -64,9 +64,9 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
@@ -382,15 +382,14 @@ struct NightingaleCoxcomb {
   Element titles() const {
     const auto writing = [](float startMs, float spanMs, float durationMs) {
       return Track{.effect = textFx::typeOn(),
-                   .stagger = {.eachMs = 0, .amountMs = spanMs, .durationMs = 40},
-                   .progress = animate(from(0.0f).to(1.0f),
-                                       ramp(startMs, durationMs, sigil::motion::ease::linear))};
+                   .delay = sigil::motion::stagger({0ms, std::chrono::duration<double, std::milli>(spanMs)}), .duration = 40ms,
+                   .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(durationMs), .delay = std::chrono::duration<double, std::milli>(startMs), .ease = sigil::motion::ease::linear})};
     };
     const auto arrive = [](float startMs) {
-      return animate(from(0.0f).to(1.0f), ramp(startMs, 320));
+      return sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .delay = std::chrono::duration<double, std::milli>(startMs)});
     };
     const auto ruled = [](float startMs) {
-      return animate(from(0.0f).to(1.0f), ramp(startMs, 420, sigil::motion::ease::outQuint));
+      return sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 420ms, .delay = std::chrono::duration<double, std::milli>(startMs), .ease = sigil::motion::ease::outQuint});
     };
     const auto numbered = [&](const Diagram& diagram, const char* number,
                               const char* caption, float startMs) {
@@ -466,8 +465,7 @@ struct NightingaleCoxcomb {
       const float delay =
           (diagram.wedges + diagram.wedgeStep * (float)wedge.month) * 1000.0f;
       return std::move(shape)
-          .scale(animate(from(0.002f).to(1.0f),
-                         ramp(delay, 620.0f, sigil::motion::ease::outExpo)))
+          .scale(sigil::motion::animate({.from = 0.002f, .to = 1.0f, .duration = 620ms, .delay = std::chrono::duration<double, std::milli>(delay), .ease = sigil::motion::ease::outExpo}))
           .cache(Cache::Texture);
     };
     std::vector<sketch::kit::Datum> data;
@@ -507,10 +505,7 @@ struct NightingaleCoxcomb {
       wheel.children({box()
                           .inset(0)
                           .shape(spoke((float)month * 30.0f, 0.0f, length / rim))
-                          .stroke(spans::upTo(animate(
-                                      from(0.0f).to(1.0f),
-                                      ramp(diagram.spokes * 1000.0f + month * 16.0f,
-                                           220.0f))),
+                          .stroke(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 220ms, .delay = std::chrono::duration<double, std::milli>(diagram.spokes * 1000.0f + month * 16.0f)})),
                                   stroke(0.7f))});
     }
     return wheel;
@@ -577,7 +572,7 @@ struct NightingaleCoxcomb {
                      .align = TextPath::Align::Center,
                      .autoFlip = false,
                      .orient = TextPath::Orient::Tangent})
-        .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
+        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms, .delay = std::chrono::duration<double, std::milli>(delayMs)}));
   }
 
   /** A CAMPAIGN ANNOTATION, run along its spoke and centred @p radius
@@ -597,7 +592,7 @@ struct NightingaleCoxcomb {
                      .align = TextPath::Align::Center,
                      .autoFlip = false,
                      .orient = TextPath::Orient::Tangent})
-        .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
+        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms, .delay = std::chrono::duration<double, std::milli>(delayMs)}));
   }
 
   /** THE MONTHS, each hugging its own wedge's rim. The floor is not
@@ -656,8 +651,7 @@ struct NightingaleCoxcomb {
             .points = {{yearBegins.x(), yearBegins.y()},
                        {knee.x(), knee.y()},
                        {yearEnds.x(), yearEnds.y()}}})))
-        .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                    ramp(6000, 620, sigil::motion::ease::outQuad))),
+        .stroke(spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = 6000ms, .ease = sigil::motion::ease::outQuad})),
                 dashed);
   }
 
@@ -681,8 +675,7 @@ struct NightingaleCoxcomb {
                  .stagger = pen,
                  .unit = weave::Unit::Line,
                  .innerUnit = weave::Unit::Cluster,
-                 .progress = animate(from(0.0f).to(1.0f),
-                                     ramp(6400, pen.spanMs(12, 70), sigil::motion::ease::linear))});
+                 .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(pen.spanMs(12, 70)), .delay = 6400ms, .ease = sigil::motion::ease::linear})});
   }
 
   // ------------------------------------------------------------------
@@ -700,7 +693,7 @@ struct NightingaleCoxcomb {
             document::footer("Harrison & Sons, St. Martin's Lane.")
                 .right(kRightMargin)
                 .bottom(kCanvas.height() - kBottomLine)
-                .opacity(animate(from(0.0f).to(1.0f), ramp(8900, 600))),
+                .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 600ms, .delay = 8900ms})),
             // The two campaign annotations along their spokes.
             alongSpoke(first, "BULGARIA", 358.0f, 150.0f, 3480),
             alongSpoke(first, "CRIMEA", 87.0f, 268.0f, 3560),

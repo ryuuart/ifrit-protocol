@@ -3,7 +3,7 @@
 // TAGS: Interfaces/Desktop
 
 #include "Motif.h"
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 
 struct CdeMotifSketch {
   using Set = cde::ColorSet;
@@ -21,11 +21,11 @@ struct CdeMotifSketch {
 
   // The one thing on this canvas allowed to move smoothly, because it is
   // showing a FUNCTION rather than a desktop.
-  ch::Output<float> sweep{0.0f};     // 0..1, the grey ramp under the strip
-  ch::Output<float> clockT{0.42f};   // fraction of an hour; the minute hand
-  ch::Output<float> busy{0.0f};      // the TYPE busy blinker, ~2 Hz
-  ch::Output<float> caret{0.0f};     // the text field's I-beam, ~1 Hz
-  ch::Output<float> subpanel{0.0f};  // the Text Editor subpanel's wipe
+  motion::Animatable<float> sweep = motion::animatable(0.0f);     // 0..1, the grey ramp under the strip
+  motion::Animatable<float> clockT = motion::animatable(0.42f);   // fraction of an hour; the minute hand
+  motion::Animatable<float> busy = motion::animatable(0.0f);      // the TYPE busy blinker, ~2 Hz
+  motion::Animatable<float> caret = motion::animatable(0.0f);     // the text field's I-beam, ~1 Hz
+  motion::Animatable<float> subpanel = motion::animatable(0.0f);  // the Text Editor subpanel's wipe
 
   std::array<Pattern, 4> backdrops;
   bool backdropsBuilt = false;
@@ -231,7 +231,7 @@ struct CdeMotifSketch {
               .children({cde::label(page["path"])});
       {
         environment::Provide<cde::ColorSet> field(theme[4]);
-        pathRow.children({cde::textField(page["location"], 420, true, &caret)});
+        pathRow.children({cde::textField(page["location"], 420, true, caret)});
       }
 
       Element client =
@@ -571,7 +571,7 @@ struct CdeMotifSketch {
              .height(11)
              .fill(cde::C(cde::kIconColor[0]))
              .transformOrigin(pct(50), pct(100))
-             .rotate(motion::bind(&clockT).quantize(61).scale(30).offset(300)),
+             .rotate(motion::bind(clockT, {.quantize = 61, .to = {300.0f, 330.0f}})),
          box()
              .left(23)
              .top(6)
@@ -579,7 +579,7 @@ struct CdeMotifSketch {
              .height(18)
              .fill(cde::C(cde::kIconColor[0]))
              .transformOrigin(pct(50), pct(100))
-             .rotate(motion::bind(&clockT).quantize(61).scale(360)),
+             .rotate(motion::bind(clockT, {.quantize = 61, .to = {0.0f, 360.0f}})),
          box().left(22).top(22).width(4).height(4).borderRadius({2}).fill(
              cde::C(cde::kIconColor[0]))});
     return face;
@@ -650,7 +650,7 @@ struct CdeMotifSketch {
                            .height(10)
                            .fill(cde::C(0x00C000))
                            .overlay(cde::bevel(1, true, false))
-                           .opacity(motion::bind(&busy).quantize(2))});
+                           .opacity(motion::bind(busy, {.quantize = 2}))});
     Element right = kit::centred()
                         .width(26)
 
@@ -732,7 +732,7 @@ struct CdeMotifSketch {
                  box().row().gap(6).children({cde::art(cde::icoHelp(), 1.4f),
                                               cde::art(cde::icoApps(), 1.4f)}),
                  box().height(6).width(60).overlay(cde::bevel(2, true, true))});
-    return col.mask(by::edge(270.0f, &subpanel));  // 270 = from the BOTTOM
+    return col.mask(by::edge(270.0f, subpanel));  // 270 = from the BOTTOM
   }
 
   // -------------------------------------------------------------------------
@@ -836,7 +836,7 @@ struct CdeMotifSketch {
 
     // The clock: 60x, so a minute passes every second and the hand
     // visibly steps.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double t = ticker.elapsed();
       clockT = (float)std::fmod(t / 60.0 + 0.42, 1.0);
       busy = (std::fmod(t, 0.5) < 0.25) ? 1.0f : 0.0f;

@@ -5,7 +5,7 @@
 #include "Specimens.h"
 
 struct StrokeAtlasSketch {
-  choreograph::Output<float> march{0};
+  sigil::motion::Animatable<float> march = sigil::motion::animatable(0.0f);
 
   Element describe(sketch::SketchContext& ctx) {
     // The plate's voices stand on its root, so every leaf under it
@@ -358,7 +358,7 @@ struct StrokeAtlasSketch {
       {
         PathFormat ants = stroke(1.6f, ink());
         ants.dashIntervals = {8, 6};
-        ants.dashPhaseBinding = &march;
+        ants.dashPhaseBinding = march;
         add("Animated dash phase", frameRect(8), ants, -0.8f);
       }
       {
@@ -540,7 +540,7 @@ struct StrokeAtlasSketch {
 
     // The one moving thing on the sheet: the marching-ants frame. A specimen
     // plate should still prove that a rule can be alive.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double t = ticker.elapsed();
       march = std::fmod((float)t * 22.0f, 14.0f);
     });

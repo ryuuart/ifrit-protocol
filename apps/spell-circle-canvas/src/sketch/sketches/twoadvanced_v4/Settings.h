@@ -38,7 +38,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Scrollbar.h>
@@ -76,7 +76,6 @@ using sigil::material::hexColor;
 // where it goes rather than a layout deciding.
 using sigil::compose::kit::at;
 using namespace std::chrono_literals;
-namespace ch = choreograph;
 
 namespace tav {
 using namespace twoadvanced;

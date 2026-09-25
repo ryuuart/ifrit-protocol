@@ -60,7 +60,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -85,7 +85,6 @@ using sigil::material::hexColor;
 // Absolute placement: this composition is pinned, so a node says
 // where it goes rather than a layout deciding.
 using sigil::compose::kit::at;
-namespace ch = choreograph;
 
 namespace teq {
 using namespace twoadvanced;
@@ -189,7 +188,7 @@ struct TwoAdvancedEquipment {
    *  periodic shapes of the elapsed seconds, so each is declared as a
    *  bound envelope off this one Output and nothing per-frame computes a
    *  position. */
-  ch::Output<float> clock{0.0f};
+  motion::Animatable<float> clock = motion::animatable(0.0f);
 
   float contentOverflow = 0;
 
@@ -199,11 +198,7 @@ struct TwoAdvancedEquipment {
    *  shoulders without moving them. */
   motion::Bound scrollEnvelope() const {
     using namespace teq;
-    return motion::bind(&clock)
-        .source(0.0f, kScrollCycle)
-        .trapezoid(kScrollRise / kScrollCycle, kScrollHold / kScrollCycle,
-                   kScrollFall / kScrollCycle, kScrollRest / kScrollCycle)
-        .map(motion::ease::inOutQuad);
+    return motion::bind(clock, {.from = {0.0f, kScrollCycle}, .envelope = motion::envelope::trapezoid(kScrollRise / kScrollCycle, kScrollHold / kScrollCycle, kScrollFall / kScrollCycle, kScrollRest / kScrollCycle), .ease = motion::ease::inOutQuad});
   }
 
   /** WHAT THE CONTENT FRAME SCROLLS, which is what the thumb's length and
@@ -257,9 +252,7 @@ struct TwoAdvancedEquipment {
       const float on0 = teq::kHoverFirst + (float)i * teq::kHoverStep;
       f.children(
           {at(box().fill(material::withAlpha(kWhite, 0.4f)), x, 82, w, 11)
-               .opacity(motion::bind(&clock)
-                            .source(on0, on0 + teq::kHoverCycle)
-                            .square(teq::kHoverDwell / teq::kHoverCycle))});
+               .opacity(motion::bind(clock, {.from = {on0, on0 + teq::kHoverCycle}, .envelope = motion::envelope::square(teq::kHoverDwell / teq::kHoverCycle)}))});
       x += w;
     }
     return f;
@@ -445,7 +438,7 @@ struct TwoAdvancedEquipment {
     // --- the clock ---------------------------------------------------
     // Both behaviours are shapes of it, declared where they are drawn, so
     // this is the whole per-frame side of the page.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
+    ctx.engine.add([this, &ticker = ctx.engine] {
       const double tt = ticker.elapsed();
       clock = (float)tt;
     });

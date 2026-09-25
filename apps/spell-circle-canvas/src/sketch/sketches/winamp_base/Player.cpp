@@ -1,5 +1,5 @@
 #include "WinampBase.h"
-#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
 
 auto WinampBase::tracks() -> const std::array<Track, 25>& {
@@ -103,12 +103,8 @@ auto WinampBase::mainWindow() -> Element {
                     at(box(), 0, 0, 8, 6)
                         .fill(hexColor(0xCFE4FF, 0.55f))
                         .blendMode(material::BlendMode::PlusLighter)
-                        .translateY(motion::bind(&glint).target(-n(6), n(43)))
-                        .opacity(motion::bind(&glint)
-                                     .offset(-0.5f)
-                                     .scale(2.0f)
-                                     .invert()
-                                     .clamp(0.0f, 0.75f))}),
+                        .translateY(motion::bind(glint, {.to = {-n(6), n(43)}}))
+                        .opacity(motion::bind(glint, {.to = {2.0f, 0.0f}, .clamp = {0.0f, 0.75f}}))}),
            // play-status LED (native 26,28,9,9)
            at(box(), 26, 28, 9, 9)
                .children({at(box(), 0, 1, 3, 7).fill(kGreen).opacity(&led),
@@ -188,8 +184,7 @@ auto WinampBase::mainWindow() -> Element {
                                    {{0.0f,
                                      sigil::material::lighten(kBtnFace, 0.12f)},
                                     {1.0f, dark(kBtnFace, 0.28f)}}))
-                               .translateX(motion::bind(&playPos).target(
-                                   0, n(248 - 31))))
+                               .translateX(motion::bind(playPos, {.to = {0.0f, n(248 - 31)}})))
                         .children({at(box(), 13, 2, 1, 6)
                                        .fill(sigil::material::withAlpha(kBtnLo,
                                                                         0.8f)),

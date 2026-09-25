@@ -26,7 +26,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -56,7 +56,6 @@ namespace weave = sigil::weave;
 using namespace sigil::compose;
 using sigil::material::hexColor;
 using namespace std::chrono_literals;
-namespace ch = choreograph;
 
 namespace wa {
 

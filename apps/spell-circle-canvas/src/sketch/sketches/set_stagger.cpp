@@ -40,8 +40,8 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Pbr.h>
-#include <sigilmotion/schedule/Spread.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/schedule/Stagger.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Element.h>
@@ -96,11 +96,9 @@ world::Element row(const std::string& key, float z, motion::Spread spread,
             // delays: the path plays once, when the node first
             // appears.
             .translateY(
-                motion::animate(motion::from(kRise).to(0.0f),
-                                {std::chrono::milliseconds((int)kDuration)}))
+                motion::animate({.from = kRise, .to = 0.0f, .duration = std::chrono::milliseconds((int)kDuration)}))
             .scale(
-                motion::animate(motion::from(0.35f).to(1.0f),
-                                {std::chrono::milliseconds((int)kDuration)}));
+                motion::animate({.from = 0.35f, .to = 1.0f, .duration = std::chrono::milliseconds((int)kDuration)}));
       }));
 }
 
