@@ -213,7 +213,7 @@ TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
                       .width(163)
                       .height(176)
                       .overflow(compose::Overflow::Clip)
-                      .fill(sigil::material::skia::Paint::recipe(quarry))
+                      .fill(quarry)
                       .children({subject()}),
                   kit::well({.width = compose::Dimension(163),
                              .height = compose::Dimension(176),

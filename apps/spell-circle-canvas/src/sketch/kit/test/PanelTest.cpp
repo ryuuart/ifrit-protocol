@@ -186,13 +186,13 @@ TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
           .padding(8)
           .width(200)
           .height(120)
-          .fill(sigil::material::skia::Paint::recipe(purbeck))
+          .fill(purbeck)
           .borderRadius(compose::Corners{6})
           .children(
               {compose::box()
                    .column()
                    .flexGrow(1)
-                   .fill(sigil::material::skia::Paint::recipe(mortar))
+                   .fill(mortar)
                    .overflow(compose::Overflow::Clip)
                    .borderRadius(compose::Corners{2})
                    .stroke(compose::stroke(1, Fill::color(house.palette.rule),
