@@ -52,9 +52,10 @@ byte for byte.
 left as one shorter frame; zero seconds is one frame that moves nothing,
 which runs the sketch where it stands. Only the Advance policy steps.
 
-**A still** under a moving clock is taken as a plate is: the runtime's
-own still on a raster surface of the canvas times the density, cleared to
-the declared ground, and declares its density for what the session bakes
+**A still** under a moving clock is taken as a plate is, through
+`Host::photograph`, the path a written `--frame` takes too: the runtime's
+own still on a surface of the canvas times the density, cleared to the
+declared ground, and declares its density for what the session bakes
 from then on. A bake formed earlier is formed again only when its node
 describes again, so a client that means to hold a session to a plate
 pins its density before opening it — `session.pinDensity`, zero for
@@ -119,8 +120,8 @@ so a red case is read from the layer below.
 In Python the same host is `sigil.testing.InProcess(state)`, spoken to by
 the generated domain classes exactly as `sigil.protocol.connect` is, and
 `sigil.sketch.render_file` is a harness session over one file: opened
-under Advance, stepped to its moment, held there and photographed, which
-is the still `--frame` writes. `sigil.protocol.launch(state=…)` starts
+under Advance, stepped to its moment and photographed under that moving
+clock, which is the still `--frame` writes and the sweep's plate. `sigil.protocol.launch(state=…)` starts
 the served Sketchbook below and connects to it.
 
 ## What Sketchbook mounts

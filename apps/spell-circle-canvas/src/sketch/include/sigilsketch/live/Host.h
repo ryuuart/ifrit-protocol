@@ -294,11 +294,30 @@ class Host {
    *  and at most 16384 pixels. */
   [[nodiscard]] SkBitmap still(float scale = 1.0f);
 
-  /** `still()` encoded as a PNG and written to @p out. The capture path
-   *  for both the windowed save command and headless asset generation;
-   *  synchronous, because every caller of it reads the file back the
-   *  moment it returns. */
+  /** THE STILL A PLATE IS TAKEN AS: the runtime's own `Session::still`,
+   *  drawn at @p density pixels per canvas unit onto the capture
+   *  backend's surface, cleared to the declared ground, and read back.
+   *
+   *  Unlike `still()` it MOVES THE SCENE where the runtime re-renders its
+   *  still — one `Session::stillStep()` further, which this host's clock
+   *  counts — because that is how the sweep photographs a plate. So a
+   *  scene stepped to a moment by `prepareCapture()` and photographed
+   *  here is the sweep's plate of that moment, byte for byte, and a
+   *  protocol session under a moving clock takes its still through this
+   *  same call. Null, with the reason in errorLog(), exactly where
+   *  `still()` is. */
+  [[nodiscard]] SkBitmap photograph(float density = 1.0f);
+
+  /** `still()` encoded as a PNG and written to @p out: the window's save
+   *  command, which photographs what the reader is looking at without
+   *  moving it. Synchronous, because every caller of it reads the file
+   *  back the moment it returns. */
   bool capture(const std::filesystem::path& out, float scale = 1.0f);
+
+  /** `photograph()` encoded as a PNG and written to @p out: the still a
+   *  headless `--frame` writes. Synchronous, as `capture()` is. */
+  bool writePhotograph(const std::filesystem::path& out,
+                       float density = 1.0f);
 
   /** A host on the device must route capture through its own backend:
    *  once live frames render on the GPU, the runtime's caches hold
@@ -370,6 +389,11 @@ class Host {
   void loadPython();
   bool pythonChanged();
   void sessionFailed(const std::exception& error);
+  /** The one body of `still()` and `photograph()`: a surface of the
+   *  canvas at @p scale from the capture backend, @p draw run onto it,
+   *  and the pixels read back. */
+  SkBitmap drawStill(float scale, const SkColor4f& ground,
+                     const std::function<void(SkCanvas&)>& draw);
   /** Says what the assets' last declaration found wrong the way a failed
    *  build is said, after any build output the log already holds, and
    *  takes back its own words once nothing is. */

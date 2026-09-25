@@ -386,13 +386,13 @@ Result answered(protocol::Answer<Result> answer) {
 
 /** A HARNESS SESSION OVER ONE FILE: opened under a client's clock,
  *  stepped to the moment it was asked for — or the one it declared, or
- *  one and a half seconds — held there, and photographed at one pixel per
- *  canvas unit, the density its bakes are pinned to from the first frame,
- *  as a written capture's are. A step of zero seconds is one frame that
- *  moves nothing, and the still is the held frame as it was drawn, so a
- *  scene asked for at zero is its first frame, as a written capture's is.
- *  The state the session keeps is a directory of its own, gone once the
- *  picture is copied out. */
+ *  one and a half seconds — and photographed under that moving clock at
+ *  one pixel per canvas unit, the density its bakes are pinned to from
+ *  the first frame. That is the sweep's photograph and the one a written
+ *  `--frame` takes: a runtime that re-renders its still draws one frame
+ *  more to take it. A step of zero seconds is one frame that moves
+ *  nothing. The state the session keeps is a directory of its own, gone
+ *  once the picture is copied out. */
 std::string renderFile(const std::string& source, const std::string& output,
                        std::optional<double> at) {
   static int rendered = 0;
@@ -417,15 +417,6 @@ std::string renderFile(const std::string& source, const std::string& output,
     if (!std::isfinite(seconds) || seconds < 0)
       throw std::invalid_argument("Capture time or frame rate is invalid");
     (void)answered(host.step(seconds));
-    std::optional<protocol::Answer<protocol::values::Empty>> held;
-    protocol::clock::values::PauseParameters pause;
-    pause.paused = true;
-    protocol::clock::ClockClient(host.caller())
-        .pause(pause,
-               [&held](protocol::Answer<protocol::values::Empty> answer) {
-                 held.emplace(std::move(answer));
-               });
-    (void)answered(host.wait(held));
     const protocol::session::values::StillResult still =
         answered(host.still(1.0));
     std::error_code error;

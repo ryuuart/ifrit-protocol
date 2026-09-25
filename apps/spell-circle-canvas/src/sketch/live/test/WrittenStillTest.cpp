@@ -3,7 +3,8 @@
  * scene to its moment with every raster it bakes pinned to the density
  * the still is taken at, as the sweep pins its plate's, so a pen's canvas
  * formed on the way is drawn on the still's grid rather than magnified
- * into it.
+ * into it; and it photographs through the runtime's own still, as the
+ * sweep does, so a scene that moves is the plate of the same moment.
  */
 
 #include <gtest/gtest.h>
@@ -94,7 +95,7 @@ TEST(SketchWrittenStill, AtAPlatesDensityIsThePlateOfThatMoment) {
   ASSERT_EQ(density, 2.0f);
   EXPECT_EQ(host.prepareCapture(1.0, 60.0, density), 1.0);
   const std::filesystem::path written = file.dir.path / "written.png";
-  ASSERT_TRUE(host.capture(written, density));
+  ASSERT_TRUE(host.writePhotograph(written, density));
 
   const sketch::testing::Comparison same =
       sketch::testing::compare(written, plate);
@@ -108,8 +109,74 @@ TEST(SketchWrittenStill, AtAPlatesDensityIsThePlateOfThatMoment) {
   ASSERT_TRUE(host.restartSession());
   EXPECT_EQ(host.prepareCapture(1.0, 60.0, 1.0f), 1.0);
   const std::filesystem::path magnified = file.dir.path / "magnified.png";
-  ASSERT_TRUE(host.capture(magnified, density));
+  ASSERT_TRUE(host.writePhotograph(magnified, density));
   EXPECT_FALSE(sketch::testing::compare(magnified, plate).identical());
+}
+
+/** A BOX MARCHING RIGHT a canvas unit every sixtieth of a second, so a
+ *  still one frame later than another is another picture. */
+struct MarchingBox {
+  void setup(sketch::SketchContext& ctx) {
+    ctx.canvas(64, 48);
+    ctx.background({0.1f, 0.1f, 0.2f, 1});
+    ctx.captureAt(1.0);
+  }
+  void update(double elapsed, sketch::SketchContext& ctx) {
+    using namespace sigil::compose;
+    ctx.composer.render(box()
+                            .width(10)
+                            .height(10)
+                            .inset(0, 0, 0, (float)elapsed * 30.0f)
+                            .fill(Fill::color({1, 0.5f, 0, 1})));
+  }
+};
+
+sketch::Kind marchingBoxKind() { return sketch::kindOf<MarchingBox>(); }
+
+[[maybe_unused]] const bool kMarchingRegistered =
+    sketch::add("written_still_marching_box", nullptr, "Test",
+                "a box that moves every frame, photographed as a plate",
+                &marchingBoxKind);
+
+const sketch::Entry kMarchingBox{"written_still_marching_box",
+                                 "written_still_marching_box", "Test", "",
+                                 &marchingBoxKind};
+
+TEST(SketchWrittenStill, OfAMovingSceneIsThePlateOfThatMoment) {
+  const sketch::test::Watched file("sigil_sketch_written_still_moving");
+  sketch::SweepOptions sweep;
+  sweep.outputDirectory = (file.dir.path / "sweep").string();
+  sweep.only = sketch::find("written_still_marching_box");
+  sweep.at = 1.0;
+  sweep.ledger = true;
+  ASSERT_GE(sweep.only, 0);
+  ASSERT_EQ(sketch::sweep(sweep, sketch::test::fonts(), sketch::test::assets()),
+            0);
+  const std::filesystem::path plate =
+      file.dir.path / "sweep" / "plate_written_still_marching_box.png";
+
+  sketch::Host::Options options = optionsFor(file.path);
+  options.compiledIn = &kMarchingBox;
+  sketch::Host host(options, sketch::test::fonts());
+  ASSERT_TRUE(host.live());
+  const float density = sketch::plateDensity(*host.session());
+  EXPECT_EQ(host.prepareCapture(1.0, 60.0, density), 1.0);
+  const std::filesystem::path written = file.dir.path / "written.png";
+  ASSERT_TRUE(host.writePhotograph(written, density));
+  const sketch::testing::Comparison same =
+      sketch::testing::compare(written, plate);
+  EXPECT_TRUE(same.identical())
+      << same.problem << " differing pixels " << same.pixels.differingPixels
+      << ", worst " << same.pixels.worst;
+
+  // What gives the case its power: the state the last step left, drawn
+  // without the runtime's own still, is the scene one frame earlier and
+  // another picture.
+  ASSERT_TRUE(host.restartSession());
+  EXPECT_EQ(host.prepareCapture(1.0, 60.0, density), 1.0);
+  const std::filesystem::path held = file.dir.path / "held.png";
+  ASSERT_TRUE(host.capture(held, density));
+  EXPECT_FALSE(sketch::testing::compare(held, plate).identical());
 }
 
 TEST(SketchWrittenStill, RefusesADensityWithNoPixels) {

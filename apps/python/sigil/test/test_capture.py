@@ -78,8 +78,11 @@ class CaptureParity(unittest.TestCase):
                     )
                     native_times = json.loads(source.with_suffix(".json").read_text())
                     self.assertEqual(api_times, native_times)
-                    self.assertAlmostEqual(api_times[-1], at or 0)
-                    self.assertEqual(len(api_times), 2 if at == 0.025 else 1)
+                    # Both photograph as the sweep does: the canvas runtime
+                    # draws one frame more to take its still, one sixtieth
+                    # of a second past the moment asked for.
+                    self.assertAlmostEqual(api_times[-1], (at or 0) + 1 / 60)
+                    self.assertEqual(len(api_times), 3 if at == 0.025 else 2)
                     self.assertEqual(api.read_bytes(), native.read_bytes())
                     self.assertEqual(
                         struct.unpack(">II", api.read_bytes()[16:24]), (81, 61)

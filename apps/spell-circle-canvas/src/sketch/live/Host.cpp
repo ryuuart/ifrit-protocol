@@ -820,10 +820,9 @@ void Host::markPresented() {
   m_presentSince->reset();
 }
 
-SkBitmap Host::still(float scale) {
-  if (!m_session || m_runtimeFailed) return {};
-  const CanvasSpecification& specification = m_session->canvas();
-  const auto extent = captureExtent(specification.size, scale);
+SkBitmap Host::drawStill(float scale, const SkColor4f& ground,
+                         const std::function<void(SkCanvas&)>& draw) {
+  const auto extent = captureExtent(m_session->canvas().size, scale);
   if (!extent) {
     m_errorLog = "Capture dimensions or scale are invalid";
     return {};
@@ -837,10 +836,10 @@ SkBitmap Host::still(float scale) {
   SkCanvas* through =
       m_captureBackend.canvasOf ? m_captureBackend.canvasOf(*surface) : nullptr;
   SkCanvas& canvas = through ? *through : *surface->getCanvas();
-  canvas.clear(material::skia::toSkColor(specification.background).toSkColor());
+  canvas.clear(ground);
   canvas.scale(scale, scale);
   try {
-    m_session->repaint(canvas);
+    draw(canvas);
   } catch (const std::exception& error) {
     sessionFailed(error);
     return {};
@@ -858,14 +857,55 @@ SkBitmap Host::still(float scale) {
   return bitmap;
 }
 
-bool Host::capture(const std::filesystem::path& out, float scale) {
-  const SkBitmap bitmap = still(scale);
+SkBitmap Host::still(float scale) {
+  if (!m_session || m_runtimeFailed) return {};
+  const SkColor4f ground = SkColor4f::FromColor(
+      material::skia::toSkColor(m_session->canvas().background).toSkColor());
+  return drawStill(scale, ground,
+                   [this](SkCanvas& canvas) { m_session->repaint(canvas); });
+}
+
+SkBitmap Host::photograph(float density) {
+  if (!m_session || m_runtimeFailed) return {};
+  // The ground is laid as the sweep lays a plate's, at full precision,
+  // since this is the sweep's photograph.
+  const SkColor4f ground =
+      material::skia::toSkColor(m_session->canvas().background);
+  SkBitmap bitmap = drawStill(density, ground, [this](SkCanvas& canvas) {
+    PhaseMark mark(Phase::Capture);
+    m_session->still(canvas);
+  });
+  if (!bitmap.isNull() && m_session) {
+    // The frame the runtime drew to take its still is a frame of the
+    // scene, and the clock here says so.
+    if (const double step = m_session->stillStep(); step > 0) {
+      m_clock.advance(step);
+      noteFrame(++m_frameIndex, m_clock.elapsed());
+    }
+  }
+  return bitmap;
+}
+
+namespace {
+
+/** @p bitmap as a PNG at @p out; false for no pixels or a failed write. */
+bool writePng(const SkBitmap& bitmap, const std::filesystem::path& out) {
   if (bitmap.isNull()) return false;
   // The format the capture path is named for; the directories above the
   // file are the sink's business, not this one's.
   const sk_sp<SkData> png =
       image::encodeImage(bitmap.pixmap(), image::Format::Png);
   return png && io::writeBytes(out, png->data(), png->size());
+}
+
+}  // namespace
+
+bool Host::capture(const std::filesystem::path& out, float scale) {
+  return writePng(still(scale), out);
+}
+
+bool Host::writePhotograph(const std::filesystem::path& out, float density) {
+  return writePng(photograph(density), out);
 }
 
 }  // namespace sigil::sketch

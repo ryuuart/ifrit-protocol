@@ -6,12 +6,9 @@
 #include "sigilsketch/live/agent/SessionAgent.h"
 
 #include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
-#include <include/core/SkSurface.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Session.h>
 #include <sigilsketch/core/Sources.h>
@@ -438,8 +435,8 @@ std::optional<values::StillResult> SessionAgent::takeStill(
   SkBitmap bitmap;
   if (m_clock.still()) {
     // A HELD CLOCK photographs the frame it holds as it was last drawn,
-    // drawing nothing new — the host's own still, which is also what a
-    // written capture has always been.
+    // drawing nothing new — the host's own still, the one the window's
+    // save command takes.
     bitmap = m_host->still((float)density);
     if (bitmap.isNull()) {
       *why = m_host->errorLog().empty() ? "the still could not be drawn"
@@ -447,11 +444,11 @@ std::optional<values::StillResult> SessionAgent::takeStill(
       return std::nullopt;
     }
   } else {
-    // A MOVING CLOCK photographs as a plate is taken: the runtime's own
-    // still on a raster surface of the canvas times the density, cleared
-    // to the declared ground, with every raster the session bakes taken
-    // at that density — one frame more where the runtime re-renders its
-    // still at this size, which the clock counts.
+    // A MOVING CLOCK photographs as a plate is taken, through the host's
+    // own photograph — the one path a written still takes too: the
+    // runtime's still at the density, every raster the session bakes
+    // taken at that density, and one frame more where the runtime
+    // re-renders its still at this size, which the clock counts.
     const CanvasSpecification& specification = session->canvas();
     const double width = std::ceil(specification.size.width() * density);
     const double height = std::ceil(specification.size.height() * density);
@@ -460,36 +457,19 @@ std::optional<values::StillResult> SessionAgent::takeStill(
       *why = "a still of this canvas at that density has no pixels to hold";
       return std::nullopt;
     }
-    const SkImageInfo info =
-        SkImageInfo::MakeN32Premul((int)width, (int)height);
-    sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
-    if (!surface) {
-      *why = "no raster surface could be made for the still";
-      return std::nullopt;
-    }
-    SkCanvas& canvas = *surface->getCanvas();
-    canvas.clear(material::skia::toSkColor(specification.background));
-    canvas.scale((float)density, (float)density);
     if (m_bakeDensity != (float)density) {
       session->setBakeDensity((float)density);
       m_bakeDensity = (float)density;
     }
     armFrame();
-    try {
-      PhaseMark mark(Phase::Capture);
-      session->still(canvas);
-    } catch (const std::exception& error) {
-      answerFrame();
-      *why = error.what();
-      return std::nullopt;
-    }
+    bitmap = m_host->photograph((float)density);
     answerFrame();
-    (void)m_clock.step(session->stillStep());
-    bitmap.allocPixels(info);
-    if (!surface->readPixels(bitmap.pixmap(), 0, 0)) {
-      *why = "the still could not be read back";
+    if (bitmap.isNull()) {
+      *why = m_host->errorLog().empty() ? "the still could not be drawn"
+                                        : m_host->errorLog();
       return std::nullopt;
     }
+    (void)m_clock.step(session->stillStep());
   }
   if (counting) answerCounts(*session);
   if (!writePng(bitmap.pixmap(), file)) {

@@ -35,12 +35,14 @@ class Runtime(unittest.TestCase):
                 def draw(self, pen, ctx):
                     pen.background("#ff0000" if ctx.elapsed == 0 else "#0000ff")
         """
+        # The still is the sweep's photograph: the canvas runtime draws one
+        # frame more to take it, a sixtieth of a second past the moment.
         declared = self.render(source)
-        self.assertEqual(builtins._sigil_runtime, 0)
+        self.assertAlmostEqual(builtins._sigil_runtime, 1 / 60)
         self.assertEqual(declared, self.render(source, at=0))
-        self.assertEqual(builtins._sigil_runtime, 0)
+        self.assertAlmostEqual(builtins._sigil_runtime, 1 / 60)
         self.render(source, at=0.005)
-        self.assertAlmostEqual(builtins._sigil_runtime, 0.005)
+        self.assertAlmostEqual(builtins._sigil_runtime, 0.005 + 1 / 60)
 
     def test_composer_queries_are_owned_and_slot_replacement_is_native(self):
         self.render(

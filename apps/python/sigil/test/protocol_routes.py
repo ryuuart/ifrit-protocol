@@ -7,7 +7,8 @@ python_protocol_routes, with the Sketchbook to launch named by
 SIGIL_TEST_SKETCHBOOK; the socket route is the served lane's own case —
 its address written before its first frame and taken back as it ends —
 and, end to end, a registry sketch stepped a second and photographed over
-the socket is the plate the sweep takes of it at that moment."""
+the socket is the plate the sweep takes of it at that moment, and so is
+the still a written `--frame` of its file takes."""
 
 import os
 import subprocess
@@ -178,3 +179,42 @@ class SocketRoute(unittest.TestCase):
                 (still.width, still.height), (expected.width(), expected.height())
             )
             self.assertEqual(image.load(still.path).rgba(), expected.rgba())
+
+    def test_a_written_still_is_the_sweeps_plate_and_the_sockets_still(self):
+        plate = self.plate(1.0)
+        expected = image.load(plate)
+        source = (
+            Path(__file__).resolve().parents[3]
+            / "spell-circle-canvas/src/sketch/sketches"
+            / f"{self.SCENE}.cpp"
+        )
+        written = self.root / "written.png"
+        subprocess.run(
+            [
+                self.sketchbook,
+                str(source),
+                "--frame",
+                str(written),
+                "--at",
+                "1",
+                "--scale",
+                "2",
+            ],
+            check=True,
+            capture_output=True,
+            timeout=600,
+        )
+        state = self.root / "state"
+        with launch(executable=self.sketchbook, state=state) as host:
+            Clock(host).set_policy(policy=Policy.Advance)
+            Session(host).pin_density(density=2)
+            Session(host).open(sketch=self.SCENE)
+            Clock(host).step(seconds=1)
+            still = Session(host).still(density=2, path="stepped.png")
+        pictures = (image.load(written), image.load(still.path))
+        for picture in pictures:
+            self.assertEqual(
+                (picture.width(), picture.height()),
+                (expected.width(), expected.height()),
+            )
+            self.assertEqual(picture.rgba(), expected.rgba())
