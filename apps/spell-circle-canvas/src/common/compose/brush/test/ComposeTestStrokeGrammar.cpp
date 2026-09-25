@@ -341,8 +341,8 @@ TEST(ComposeSpanBackground, RestReadsAcrossTheHalvesToo) {
 }
 
 TEST(ComposeSpanCorner, AWholeContourClaimKeepsItsCornerJoin) {
-  // A claim covering the WHOLE contour must be re-closed. SkContourMeasure's
-  // getSegment returns an OPEN run whose ends merely coincide, so stroking it
+  // A claim covering the WHOLE contour must be re-closed. A contour's
+  // segment is an OPEN run whose ends merely coincide, so stroking it
   // as-is puts two butt caps at the seam vertex where a miter join belongs —
   // a notch two pixels wide, at ONE corner, invisible until a wide additive
   // brush walks over it.

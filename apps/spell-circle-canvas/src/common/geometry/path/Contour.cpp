@@ -50,15 +50,26 @@ glm::vec2 beside(const Contour::Sample& s, float across) {
 
 }  // namespace
 
-Contour::Contour(sk_sp<SkContourMeasure> measure)
+Contour::Contour(std::shared_ptr<const SkContourMeasure> measure)
     : m_measure(std::move(measure)) {}
 
 std::vector<Contour> Contour::of(const SkPath& path, bool forceClosed) {
   std::vector<Contour> out;
   SkContourMeasureIter iter(path, forceClosed);
   while (sk_sp<SkContourMeasure> m = iter.next())
-    if (m->length() > 0) out.push_back(Contour(std::move(m)));
+    if (m->length() > 0)
+      out.push_back(Contour(std::shared_ptr<const SkContourMeasure>(
+          m.release(), [](const SkContourMeasure* measure) {
+            SkSafeUnref(measure);
+          })));
   return out;
+}
+
+float Contour::lengthOf(const SkPath& path) {
+  float total = 0;
+  SkContourMeasureIter iter(path, false);
+  while (sk_sp<SkContourMeasure> m = iter.next()) total += m->length();
+  return total;
 }
 
 float Contour::length() const { return m_measure ? m_measure->length() : 0; }
@@ -84,9 +95,53 @@ SkPath Contour::segment(float from, float to) const {
   return b.detach();
 }
 
-void Contour::appendSegment(SkPathBuilder& out, float from, float to) const {
+void Contour::appendSegment(SkPathBuilder& out, float from, float to,
+                            bool startWithMoveTo) const {
   if (!m_measure) return;
-  (void)m_measure->getSegment(from, to, &out, true);
+  (void)m_measure->getSegment(from, to, &out, startWithMoveTo);
+}
+
+std::pair<SkPath, SkPath> Contour::split(float distance) const {
+  const float len = length();
+  const float at = std::clamp(distance, 0.0f, len);
+  return {segment(0, at), segment(at, len)};
+}
+
+Contour::Nearest Contour::nearest(glm::vec2 point, float step) const {
+  const float len = length();
+  if (len <= 0) return {};
+  const float stride = std::max(step, 0.25f);
+  const auto gapAt = [&](float d) {
+    const Sample s = at(d).value_or(Sample{});
+    return glm::distance(s.position, point);
+  };
+  float best = 0, bestGap = gapAt(0);
+  const int strides = (int)std::ceil(len / stride);
+  for (int i = 1; i <= strides; ++i) {
+    const float d = std::min((float)i * stride, len);
+    const float gap = gapAt(d);
+    if (gap < bestGap) {
+      best = d;
+      bestGap = gap;
+    }
+  }
+  // Golden-section refinement over the strides either side of the best
+  // sample: the gap is unimodal there unless the contour folds back on
+  // itself inside one stride.
+  constexpr float kInverseGolden = 0.6180339887f;
+  float lo = std::max(0.0f, best - stride), hi = std::min(len, best + stride);
+  for (int iteration = 0; iteration < 32 && hi - lo > 1e-4f; ++iteration) {
+    const float left = hi - (hi - lo) * kInverseGolden;
+    const float right = lo + (hi - lo) * kInverseGolden;
+    if (gapAt(left) < gapAt(right))
+      hi = right;
+    else
+      lo = left;
+  }
+  const float refined = 0.5f * (lo + hi);
+  if (gapAt(refined) < bestGap) best = refined;
+  const Sample s = at(best).value_or(Sample{});
+  return {best, s.position, glm::distance(s.position, point)};
 }
 
 std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,

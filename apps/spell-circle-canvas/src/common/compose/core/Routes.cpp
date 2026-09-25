@@ -5,7 +5,7 @@
  * sized from.
  */
 
-#include <include/core/SkContourMeasure.h>  // the terminal gap
+#include <sigilgeometry/path/Contour.h>  // the terminal gap
 #include <include/core/SkPathBuilder.h>
 
 #include <algorithm>
@@ -34,17 +34,16 @@ SkPath routeBetween(const Router& router, const SkRect& from, const SkRect& to,
   // rects, so it works for any router — straight, orthogonal, arc.
   if (gap > 0 && !path.isEmpty()) {
     SkPathBuilder trimmed;
-    SkContourMeasureIter iter(path, false);
     bool touched = false;
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
-      if (len <= 0) continue;
-      if (contour->isClosed()) {  // no terminals to pull back
-        (void)contour->getSegment(0, len, &trimmed, true);
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(path)) {
+      const float len = contour.length();
+      if (contour.closed()) {  // no terminals to pull back
+        contour.appendSegment(trimmed, 0, len);
         continue;
       }
       const float pull = std::min(gap, len * 0.45f);
-      (void)contour->getSegment(pull, len - pull, &trimmed, true);
+      contour.appendSegment(trimmed, pull, len - pull);
       touched = true;
     }
     if (touched) path = trimmed.detach();

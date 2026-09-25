@@ -250,11 +250,17 @@ in no header.
   change the answer. THE RULES ARE NOT HERE: a fire, a slime mould and
   Conway's life share this buffer and share nothing else, so a catalogue
   of rules would be a catalogue of somebody else's pictures.
-- **`path/Contour.h`** — a path's sub-paths by arc length. `Contour::of()`
-  splits a path (skipping zero-length contours); `length()`, `closed()`,
-  `at()`, `around()`, `segment()`/`appendSegment()`, and `corners()`, which
-  walks the contour in strides and bisects to each turn sharper than a
-  threshold. Three constructions walk every contour of a path:
+- **`path/Contour.h`** — a path's sub-paths by arc length, and the one
+  place anything above this library measures an outline: the measure is
+  held opaquely, so the header names no measuring type. `Contour::of()`
+  splits a path (skipping zero-length contours) and `Contour::lengthOf()`
+  totals every contour; `length()`, `closed()`, `at()`, `around()`,
+  `segment()`/`appendSegment()` (whose `startWithMoveTo` false continues
+  the run in flight, so the two pieces of a window across a closed seam
+  join), `split()` into the pieces before and after a distance,
+  `nearest()` (the distance, point and gap closest to a query point), and
+  `corners()`, which walks the contour in strides and bisects to each turn
+  sharper than a threshold. Three constructions walk every contour of a path:
   `parallel()` (a curve a constant distance to the side, round outer
   joins and mitred inner ones), `displace()` (a sinusoidal or zigzag
   sideways wave, fitted to a whole number of cycles so both ends stay on

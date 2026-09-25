@@ -5,7 +5,8 @@
  * round every turn of the boundary.
  */
 
-#include <include/core/SkContourMeasure.h>
+#include <sigilgeometry/path/Contour.h>
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <sigilcompose/brush/Ribbons.h>
@@ -61,10 +62,10 @@ void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
       cache->image->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
                                SkSamplingOptions(SkFilterMode::kLinear)));
 
-  SkContourMeasureIter iter(ctx.outline, false);
   std::vector<SkPoint> positions, texs;
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float length = contour->length();
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(ctx.outline)) {
+    const float length = contour.length();
     if (length < 1.0f) continue;
     const int stations =
         std::max(2, (int)std::ceil(length / std::max(1.0f, stationPx)));
@@ -74,10 +75,10 @@ void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
     texs.reserve((size_t)(stations + 1) * 2);
     for (int i = 0; i <= stations; ++i) {
       const float f = (float)i / (float)stations;
-      SkPoint pos;
-      SkVector tan;
-      if (!contour->getPosTan(length * f, &pos, &tan)) continue;
-      const SkVector normal{-tan.fY, tan.fX};
+      const auto sample = contour.at(length * f);
+      if (!sample) continue;
+      const SkPoint pos = geometry::path::toSk(sample->position);
+      const SkVector normal{-sample->tangent.y, sample->tangent.x};
       positions.push_back(pos + normal * half);
       positions.push_back(pos - normal * half);
       texs.push_back({texW * f, 0.0f});

@@ -4,7 +4,6 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkStrokeRec.h>  // dashed-parallel filterPath
@@ -74,16 +73,15 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const float tailTrim = trimFor(startMarker);
   if (headTrim > 0 || tailTrim > 0) {
     SkPathBuilder trimmed;
-    SkContourMeasureIter iter(body, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
-      if (contour->isClosed()) {
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(body)) {
+      const float len = contour.length();
+      if (contour.closed()) {
         // Closed contours have no terminals — keep whole.
-        (void)contour->getSegment(0, len, &trimmed, true);
+        contour.appendSegment(trimmed, 0, len);
       } else {
-        (void)contour->getSegment(std::min(tailTrim, len * 0.4f),
-                                  len - std::min(headTrim, len * 0.4f),
-                                  &trimmed, true);
+        contour.appendSegment(trimmed, std::min(tailTrim, len * 0.4f),
+                              len - std::min(headTrim, len * 0.4f));
       }
     }
     body = trimmed.detach();
@@ -121,19 +119,18 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
         }
       return alongStops.back().color;
     };
-    SkContourMeasureIter iter(body, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(body)) {
+      const float len = contour.length();
       const int chunks = std::clamp((int)(len / 6.0f), 8, 48);
       for (int i = 0; i < chunks; ++i) {
         const float a = len * (float)i / (float)chunks;
         const float b2 = len * (float)(i + 1) / (float)chunks;
-        SkPathBuilder seg;
-        (void)contour->getSegment(a, b2, &seg, true);
+        const SkPath seg = contour.segment(a, b2);
         chunk.setColor4f(material::skia::toSkColor(
                              rampAt(((float)i + 0.5f) / (float)chunks)),
                          nullptr);
-        canvas.drawPath(seg.detach(), chunk);
+        canvas.drawPath(seg, chunk);
       }
     }
     // Ties/caps still run below; skip the flat body strokes.
@@ -194,20 +191,20 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   // 3. Railway ties: perpendicular ticks sampled by arc length.
   if (tickSpacing > 0 && tickLength > 0) {
     SkPathBuilder ties;
-    SkContourMeasureIter iter(body, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(body)) {
+      const float len = contour.length();
       // the loop walks a distance; the accumulated float is the position
       // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
       for (float d = tickSpacing * 0.5f; d < len; d += tickSpacing) {
-        SkPoint pos;
-        SkVector tan;
-        if (!contour->getPosTan(d, &pos, &tan)) continue;
-        const SkVector n{-tan.y(), tan.x()};
-        ties.moveTo(pos.x() - n.x() * tickLength * 0.5f,
-                    pos.y() - n.y() * tickLength * 0.5f);
-        ties.lineTo(pos.x() + n.x() * tickLength * 0.5f,
-                    pos.y() + n.y() * tickLength * 0.5f);
+        const auto sample = contour.at(d);
+        if (!sample) continue;
+        const glm::vec2 pos = sample->position;
+        const glm::vec2 n{-sample->tangent.y, sample->tangent.x};
+        ties.moveTo(pos.x - n.x * tickLength * 0.5f,
+                    pos.y - n.y * tickLength * 0.5f);
+        ties.lineTo(pos.x + n.x * tickLength * 0.5f,
+                    pos.y + n.y * tickLength * 0.5f);
       }
     }
     SkPaint tiePaint;
@@ -226,17 +223,20 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     SkPaint head;
     head.setAntiAlias(true);
     applyFill(head, ctx);
-    SkContourMeasureIter iter(capPath, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
-      SkPoint pos;
-      SkVector tan;
-      const bool closed = contour->isClosed();
+    using geometry::path::toSk;
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(capPath)) {
+      const float len = contour.length();
+      const bool closed = contour.closed();
       if (!closed) {
-        if (endMarker != Marker::None && contour->getPosTan(len, &pos, &tan))
-          drawMarker(canvas, head, endMarker, pos, tan);
-        if (startMarker != Marker::None && contour->getPosTan(0, &pos, &tan))
-          drawMarker(canvas, head, startMarker, pos, {-tan.x(), -tan.y()});
+        if (endMarker != Marker::None)
+          if (const auto end = contour.at(len))
+            drawMarker(canvas, head, endMarker, toSk(end->position),
+                       toSk(end->tangent));
+        if (startMarker != Marker::None)
+          if (const auto start = contour.at(0))
+            drawMarker(canvas, head, startMarker, toSk(start->position),
+                       toSk(-start->tangent));
       }
       if (midMarker != Marker::None && midSpacing > 0) {
         // Closed contours have no terminals: chevrons run the full loop.
@@ -245,8 +245,9 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
         // the loop walks a distance; the accumulated float is the position
         // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
         for (float d = from; d < until; d += midSpacing)
-          if (contour->getPosTan(d, &pos, &tan))
-            drawMarker(canvas, head, midMarker, pos, tan);
+          if (const auto sample = contour.at(d))
+            drawMarker(canvas, head, midMarker, toSk(sample->position),
+                       toSk(sample->tangent));
       }
     }
   }

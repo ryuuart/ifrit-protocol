@@ -10,11 +10,12 @@
  * arrangements use Grid.
  */
 
-#include <include/core/SkContourMeasure.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -136,29 +137,29 @@ struct AlongPath {
     if (n == 0 || !path) return;
     const SkPath resolved =
         path({arrangement.box.width(), arrangement.box.height()});
-    SkContourMeasureIter iter(resolved, false);
-    sk_sp<SkContourMeasure> contour = iter.next();
-    if (!contour) return;
-    const float length = contour->length();
+    const std::vector<geometry::path::Contour> contours =
+        geometry::path::Contour::of(resolved);
+    if (contours.empty()) return;
+    const geometry::path::Contour& contour = contours.front();
+    const float length = contour.length();
     const float d0 = length * startFraction;
     const float d1 = length * endFraction;
     // Closed stretches exclude the duplicate endpoint; open ones hit
     // both ends. Arc length divides among n children exactly as an angle
     // does around a ring, so the same run arithmetic answers both.
     const bool loop =
-        contour->isClosed() && startFraction == 0.0f && endFraction == 1.0f;
+        contour.closed() && startFraction == 0.0f && endFraction == 1.0f;
     const geometry::arrange::Turn turn =
         loop ? geometry::arrange::Turn::Closed : geometry::arrange::Turn::Open;
     for (size_t i = 0; i < n; ++i) {
-      SkPoint pos;
-      SkVector tangent;
-      if (!contour->getPosTan(geometry::arrange::along(d0, d1 - d0, i, n, turn),
-                              &pos, &tangent))
-        continue;
-      arrangement.children[i].centreAt(pos);
+      const auto sample =
+          contour.at(geometry::arrange::along(d0, d1 - d0, i, n, turn));
+      if (!sample) continue;
+      arrangement.children[i].centreAt(geometry::path::toSk(sample->position));
       if (facing)
-        arrangement.children[i].turn(std::atan2(tangent.y(), tangent.x()) *
-                                     geometry::path::kRadToDeg);
+        arrangement.children[i].turn(
+            std::atan2(sample->tangent.y, sample->tangent.x) *
+            geometry::path::kRadToDeg);
     }
   }
 };

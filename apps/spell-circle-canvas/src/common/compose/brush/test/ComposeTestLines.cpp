@@ -4,6 +4,7 @@
 
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Rails.h>
+#include <sigilgeometry/path/Contour.h>
 
 #include "support/BrushTestSupport.h"
 
@@ -429,13 +430,13 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
       cb.detach(), SkSpan(pattern.data(), pattern.size()), 0);
   auto spans = [](const SkPath& p) {
     std::vector<std::pair<double, double>> out;
-    SkContourMeasureIter it(p, false);
-    while (sk_sp<SkContourMeasure> c = it.next()) {
-      SkPoint a, b;
-      if (c->getPosTan(0, &a, nullptr) &&
-          c->getPosTan(c->length(), &b, nullptr))
-        out.emplace_back(std::atan2(a.y() - 150, a.x() - 150),
-                         std::atan2(b.y() - 150, b.x() - 150));
+    for (const sigil::geometry::path::Contour& c :
+         sigil::geometry::path::Contour::of(p)) {
+      const auto a = c.at(0);
+      const auto b = c.at(c.length());
+      if (a && b)
+        out.emplace_back(std::atan2(a->position.y - 150, a->position.x - 150),
+                         std::atan2(b->position.y - 150, b->position.x - 150));
     }
     return out;
   };

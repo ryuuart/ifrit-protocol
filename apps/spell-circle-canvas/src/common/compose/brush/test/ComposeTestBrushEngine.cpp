@@ -4,6 +4,7 @@
 
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilgeometry/path/Contour.h>
 
 #include "support/BrushTestSupport.h"
 
@@ -59,12 +60,12 @@ TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
   b.moveTo(0, 0);
   b.lineTo(300, 0);
   const SkPath jittered = geometry::shapers::Jitter{8, 2, 11}.shape(b.detach());
-  SkContourMeasureIter iter(jittered, false);
   float total = 0;
   bool anyClosed = false;
-  while (sk_sp<SkContourMeasure> c = iter.next()) {
-    total += c->length();
-    anyClosed |= c->isClosed();
+  for (const geometry::path::Contour& c :
+       geometry::path::Contour::of(jittered)) {
+    total += c.length();
+    anyClosed |= c.closed();
   }
   EXPECT_FALSE(anyClosed);
   EXPECT_LT(total, 400.0f);  // a closed loop would be ~2× the 300px run
@@ -93,13 +94,12 @@ TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
   const SkRect bounds = boxy.getBounds();
   EXPECT_NEAR(bounds.top(), -8, 0.5f);
   EXPECT_NEAR(bounds.bottom(), 8, 0.5f);
-  SkPoint last;
-  SkContourMeasureIter iter(boxy, false);
-  sk_sp<SkContourMeasure> c = iter.next();
-  ASSERT_TRUE(c);
-  ASSERT_TRUE(c->getPosTan(c->length(), &last, nullptr));
-  EXPECT_NEAR(last.y(), 0, 0.5f);  // zero-phase exit
-  EXPECT_NEAR(last.x(), 320, 1.0f);
+  const auto contours = geometry::path::Contour::of(boxy);
+  ASSERT_FALSE(contours.empty());
+  const auto last = contours.front().at(contours.front().length());
+  ASSERT_TRUE(last);
+  EXPECT_NEAR(last->position.y, 0, 0.5f);  // zero-phase exit
+  EXPECT_NEAR(last->position.x, 320, 1.0f);
 }
 
 TEST(ComposeBrushEngine, AnExplicitIntervalIsNotOverriddenBySpacing) {

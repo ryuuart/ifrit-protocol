@@ -9,7 +9,6 @@
 // compose source directory; a kit source that reached for an internal
 // header fails to compile.
 
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>

@@ -14,6 +14,9 @@
 // box, the arcs a contour leaves dangling, and the rasterized scene
 // every one of them is handed.
 
+#include <sigilgeometry/path/Contour.h>
+#include <sigilgeometry/path/Skia.h>
+
 #include "support/CoreTestSupport.h"
 
 namespace {
@@ -56,17 +59,18 @@ SkPath straightSpine() {
  *  which is what a width audit exists to find. */
 SkPath bandAlong(const SkPath& spine, float width, int steps, int pinch = -1) {
   SkPathBuilder b;
-  SkContourMeasureIter it(spine, false);
-  sk_sp<SkContourMeasure> contour = it.next();
-  if (!contour || steps < 1) return b.detach();
-  const float len = contour->length();
+  const auto contours = sigil::geometry::path::Contour::of(spine);
+  if (contours.empty() || steps < 1) return b.detach();
+  const sigil::geometry::path::Contour& contour = contours.front();
+  const float len = contour.length();
   SkPoint prevLeft{0, 0}, prevRight{0, 0};
   bool have = false;
   for (int i = 0; i <= steps; ++i) {
     const float d = len * (float)i / (float)steps;
-    SkPoint p;
-    SkVector tangent;
-    if (!contour->getPosTan(d, &p, &tangent)) continue;
+    const auto sample = contour.at(d);
+    if (!sample) continue;
+    const SkPoint p = sigil::geometry::path::toSk(sample->position);
+    const SkVector tangent = sigil::geometry::path::toSk(sample->tangent);
     float half = width * 0.5f;
     if (pinch >= 0 && (i == pinch || i == pinch + 1)) half *= 1.0f / 3.0f;
     const SkPoint left{p.x() - tangent.y() * half, p.y() + tangent.x() * half};
@@ -236,10 +240,9 @@ TEST(ComposeChecks, WidthAlongFindsOneNarrowedStepInSevenHundred) {
   ASSERT_FALSE(audit.worst.empty());
   const test::WidthStation& worst = audit.worst.front();
   EXPECT_LT(worst.measured, 15.0f) << "the pinch was not measured";
-  SkContourMeasureIter it(spine, false);
-  const sk_sp<SkContourMeasure> contour = it.next();
-  ASSERT_TRUE(contour);
-  const float pinchAt = contour->length() * (float)step / 719.0f;
+  const auto contours = sigil::geometry::path::Contour::of(spine);
+  ASSERT_FALSE(contours.empty());
+  const float pinchAt = contours.front().length() * (float)step / 719.0f;
   EXPECT_NEAR(worst.along, pinchAt, 20.0f) << "found in the wrong place";
 
   // Pinned, as the straight run is: the same stations, the same chords.

@@ -11,7 +11,6 @@
  * disagree about what a stamp at a sample means.
  */
 
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Stamps.h>
 #include <sigilcore/compute/Noise.h>
@@ -42,9 +41,9 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
   using Mode = Placement::Mode;
   if (p.mode == Mode::Interval || p.mode == Mode::CentralPoint) {
     const float interval = p.interval.value_or(spacing);
-    SkContourMeasureIter iter(path, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(path)) {
+      const float len = contour.length();
       const float step =
           interval <= 1.0f ? len * std::max(interval, 0.001f) : interval;
       // A zero-length contour, or a fractional interval on one, gives a
@@ -56,10 +55,10 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
                               ? len * p.offset
                               : p.offset;
       auto sampleAt = [&](float d) {
-        SkPoint pos;
-        SkVector tan;
-        if (contour->getPosTan(std::clamp(d, 0.0f, len), &pos, &tan))
-          out.push_back({pos, tan, d, len > 0 ? d / len : 0});
+        if (const auto sample = contour.at(d))
+          out.push_back({geometry::path::toSk(sample->position),
+                         geometry::path::toSk(sample->tangent), d,
+                         len > 0 ? d / len : 0});
       };
       if (p.mode == Mode::CentralPoint) {
         sampleAt(len * 0.5f);

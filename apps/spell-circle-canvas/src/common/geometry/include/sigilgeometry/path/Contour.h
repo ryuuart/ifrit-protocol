@@ -12,14 +12,15 @@
  * the contour through this type, so there is one definition of "distance
  * along" and one of "closed wraps around".
  */
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPath.h>
-#include <include/core/SkRefCnt.h>
 
 #include <glm/vec2.hpp>
+#include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
+class SkContourMeasure;
 class SkPathBuilder;
 
 /** THE 2D TIER. Its currency is an `SkPath`, and everything here either
@@ -64,9 +65,25 @@ class Contour {
     bool operator==(const Corner&) const = default;
   };
 
+  /** The point on a contour nearest to a query point: the distance
+   *  along the contour it sits at, where it is, and how far the query
+   *  point is from it. */
+  struct Nearest {
+    float distance = 0;
+    glm::vec2 position{0, 0};
+    float gap = 0;
+
+    /** Value equality: the same place at the same remove. */
+    bool operator==(const Nearest&) const = default;
+  };
+
   /** Every contour of `path`, in path order. Degenerate (zero-length)
    *  contours are skipped. `forceClosed` treats each as closed. */
   static std::vector<Contour> of(const SkPath& path, bool forceClosed = false);
+
+  /** The total length of every contour of `path` — the distance a walk
+   *  over the whole outline covers, seams not counted. */
+  static float lengthOf(const SkPath& path);
 
   Contour() = default;
 
@@ -86,10 +103,26 @@ class Contour {
    *  closed contour continues past its seam, an open one clamps. */
   Sample around(float distance) const;
 
-  /** The piece between two distances as its own path. */
+  /** The piece between two distances as its own path. Distances are
+   *  clamped to [0, length]; an empty or inverted window adds nothing. */
   SkPath segment(float from, float to) const;
-  /** The same piece appended to a builder, starting with a moveTo. */
-  void appendSegment(SkPathBuilder& out, float from, float to) const;
+  /** The same piece appended to a builder. It opens with a moveTo unless
+   *  `startWithMoveTo` is false, in which case it continues the
+   *  builder's current contour from where that contour stands — which
+   *  is how the two pieces of a window across a closed contour's seam
+   *  join into one run. */
+  void appendSegment(SkPathBuilder& out, float from, float to,
+                     bool startWithMoveTo = true) const;
+
+  /** The contour cut in two at `distance` (clamped to [0, length]): the
+   *  piece before it and the piece after it, each its own open path. */
+  std::pair<SkPath, SkPath> split(float distance) const;
+
+  /** The point on this contour nearest to `point`, found by walking the
+   *  contour in `step`-length strides and refining around the closest
+   *  stride. A contour that bends back within one stride of the answer
+   *  is resolved to whichever branch the walk reached first. */
+  Nearest nearest(glm::vec2 point, float step = 2.0f) const;
 
   /** Corners where the tangent turns by more than `angleDeg`, at least
    *  `minSpacing` apart, found by walking the contour in `step`-length
@@ -106,8 +139,11 @@ class Contour {
                               float* sharpestDeg = nullptr) const;
 
  private:
-  explicit Contour(sk_sp<SkContourMeasure> measure);
-  sk_sp<SkContourMeasure> m_measure;
+  explicit Contour(std::shared_ptr<const SkContourMeasure> measure);
+  /** The measure itself is the renderer's; the header holds it as an
+   *  opaque shared pointer so a consumer measuring an outline links
+   *  Skia's path type and nothing of its measuring machinery. */
+  std::shared_ptr<const SkContourMeasure> m_measure;
 };
 
 /** The curve a constant distance `across` to the side of every contour,

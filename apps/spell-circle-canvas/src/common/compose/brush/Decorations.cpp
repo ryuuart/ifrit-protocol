@@ -4,13 +4,14 @@
  */
 
 #include <include/core/SkClipOp.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/path/StrokeSkia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilskia/draw/Direct.h>
@@ -88,17 +89,17 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     const float s = s0 - std::floor(s0);
     const float e = e0 - std::floor(e0);
     SkPathBuilder window;
-    SkContourMeasureIter iter(ctx.outline, false);
-    while (sk_sp<SkContourMeasure> contour = iter.next()) {
-      const float len = contour->length();
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(ctx.outline)) {
+      const float len = contour.length();
       if (s < e) {
-        (void)contour->getSegment(s * len, e * len, &window, true);
+        contour.appendSegment(window, s * len, e * len);
       } else if (s > e) {
-        (void)contour->getSegment(s * len, len, &window, true);
+        contour.appendSegment(window, s * len, len);
         // A closed contour has a real seam, so joining both pieces avoids
         // doubled caps there. An open route has no seam: continuing without
         // a moveTo would invent a straight chord from its end to its start.
-        (void)contour->getSegment(0, e * len, &window, !contour->isClosed());
+        contour.appendSegment(window, 0, e * len, !contour.closed());
       }
     }
     windowed = window.detach();
@@ -148,17 +149,18 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     stampCache->picture = snapshot(*stamp, *ctx.fonts);
   const sk_sp<SkPicture>& stampPicture = stampCache->picture;
 
-  SkContourMeasureIter iter(ctx.outline, false);
   size_t index = 0;  // runs across contours — the sequence's position
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float length = contour->length();
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(ctx.outline)) {
+    const float length = contour.length();
     // the loop walks a distance; the accumulated float is the position
     // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = 0; d < length; d += spacing) {
-      SkPoint pos;
-      SkVector tan;
-      if (!contour->getPosTan(d, &pos, &tan)) continue;
-      PathSample sample{pos, tan, d, length > 0 ? d / length : 0};
+      const auto measured = contour.at(d);
+      if (!measured) continue;
+      PathSample sample{geometry::path::toSk(measured->position),
+                        geometry::path::toSk(measured->tangent), d,
+                        length > 0 ? d / length : 0};
       // This sample's OWN art (stampAt): baked per call, uncached — see
       // the field note. The shell box is needed because snapshot() sizes
       // by the root's CHILDREN and ignores the root's own dimensions.
@@ -168,8 +170,9 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
           own = snapshot(box().children({std::move(*e)}), *ctx.fonts);
       const sk_sp<SkPicture>& art = own ? own : stampPicture;
       canvas.save();
-      canvas.translate(pos.x(), pos.y());
-      canvas.rotate(geometry::path::degrees(std::atan2(tan.y(), tan.x())));
+      canvas.translate(sample.position.x(), sample.position.y());
+      canvas.rotate(geometry::path::degrees(
+          std::atan2(sample.tangent.y(), sample.tangent.x())));
       if (art) {
         const SkRect cull = art->cullRect();
         canvas.save();

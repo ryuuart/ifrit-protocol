@@ -5,6 +5,8 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilgeometry/path/Contour.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include "support/ShapeTestSupport.h"
 
@@ -13,15 +15,17 @@ TEST(ComposeRouters, OrbitFollowsTheRing) {
   RailRouter router = routers::orbit(center);
   const SkPoint pts[2] = {{200, 100}, {100, 200}};
   const SkPath path = router(std::span<const SkPoint>(pts, 2));
-  SkContourMeasureIter iter(path, false);
-  sk_sp<SkContourMeasure> contour = iter.next();
-  ASSERT_TRUE(contour);
+  const auto contours = sigil::geometry::path::Contour::of(path);
+  ASSERT_FALSE(contours.empty());
+  const sigil::geometry::path::Contour& contour = contours.front();
   // Quarter circle r=100: length ~157 (a chord would be ~141), and the
   // midpoint sits ON the ring.
-  EXPECT_NEAR(contour->length(), 157.1f, 3.0f);
-  SkPoint mid;
-  ASSERT_TRUE(contour->getPosTan(contour->length() / 2, &mid, nullptr));
-  EXPECT_NEAR(SkPoint::Distance(mid, center), 100.0f, 1.5f);
+  EXPECT_NEAR(contour.length(), 157.1f, 3.0f);
+  const auto mid = contour.at(contour.length() / 2);
+  ASSERT_TRUE(mid);
+  EXPECT_NEAR(SkPoint::Distance(sigil::geometry::path::toSk(mid->position),
+                                center),
+              100.0f, 1.5f);
 }
 
 TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {

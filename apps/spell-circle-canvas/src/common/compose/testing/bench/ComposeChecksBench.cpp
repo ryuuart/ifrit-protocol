@@ -10,11 +10,12 @@
 // sample is quadratic in the step count here; one that indexes it first
 // is not, and these arms are where that shows.
 
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/testing/Checks.h>
+#include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Profile.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <vector>
 
@@ -44,18 +45,18 @@ SkPath sCurve() {
  *  all in one path — the band a stroke grammar hands back. */
 SkPath bandAlong(const SkPath& spine, float width, int steps) {
   SkPathBuilder b;
-  SkContourMeasureIter it(spine, false);
-  sk_sp<SkContourMeasure> contour = it.next();
-  if (!contour || steps < 1) return b.detach();
-  const float len = contour->length();
+  const auto contours = sigil::geometry::path::Contour::of(spine);
+  if (contours.empty() || steps < 1) return b.detach();
+  const sigil::geometry::path::Contour& contour = contours.front();
+  const float len = contour.length();
   const float half = width * 0.5f;
   SkPoint prevLeft{0, 0}, prevRight{0, 0};
   bool have = false;
   for (int i = 0; i <= steps; ++i) {
-    SkPoint p;
-    SkVector tangent;
-    if (!contour->getPosTan(len * (float)i / (float)steps, &p, &tangent))
-      continue;
+    const auto sample = contour.at(len * (float)i / (float)steps);
+    if (!sample) continue;
+    const SkPoint p = sigil::geometry::path::toSk(sample->position);
+    const SkVector tangent = sigil::geometry::path::toSk(sample->tangent);
     const SkPoint left{p.x() - tangent.y() * half, p.y() + tangent.x() * half};
     const SkPoint right{p.x() + tangent.y() * half, p.y() - tangent.x() * half};
     if (have) {

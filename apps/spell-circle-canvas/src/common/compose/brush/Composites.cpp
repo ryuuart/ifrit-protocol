@@ -12,7 +12,6 @@
  * the root and the root's size ride through unchanged.
  */
 
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkStrokeRec.h>
@@ -22,6 +21,7 @@
 #include <include/effects/SkDiscretePathEffect.h>
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/brush/Brushes.h>
+#include <sigilgeometry/path/Contour.h>
 
 #include <algorithm>
 #include <any>
@@ -144,12 +144,12 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
   std::vector<float> lengths(paths.size(), 0.0f);
   std::vector<char> cyclic(paths.size(), 0);
   for (size_t i = 0; i < paths.size(); ++i) {
-    SkContourMeasureIter it(paths[i], false);
     int contours = 0;
     bool lastClosed = false;
-    while (sk_sp<SkContourMeasure> m = it.next()) {
-      lengths[i] += m->length();
-      lastClosed = m->isClosed();
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(paths[i])) {
+      lengths[i] += contour.length();
+      lastClosed = contour.closed();
       ++contours;
     }
     // ONE closed contour, and no more: with several contours the `along`

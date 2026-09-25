@@ -5,7 +5,6 @@
  * them.
  */
 
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
 #include <sigilcore/compute/Intervals.h>
@@ -37,10 +36,10 @@ namespace detail {
 std::vector<ContourRun> measureContours(const SkPath& path, float* total) {
   std::vector<ContourRun> runs;
   float at = 0;
-  SkContourMeasureIter iter(path, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
-    runs.push_back({at, len, contour->isClosed()});
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(path)) {
+    const float len = contour.length();
+    runs.push_back({at, len, contour.closed()});
     at += len;
   }
   if (total) *total = at;
@@ -103,8 +102,8 @@ std::vector<Span> fitSpans(const SkPath& outline, const SkRect& box,
   const std::vector<ContourRun> runs = measureContours(outline, &total);
   if (total <= 0) return out;
   size_t i = 0;
-  SkContourMeasureIter iter(outline, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(outline)) {
     if (i >= runs.size()) break;
     const ContourRun& run = runs[i++];
     const float step = std::max(1.0f, run.length / 512.0f);
@@ -113,10 +112,10 @@ std::vector<Span> fitSpans(const SkPath& outline, const SkRect& box,
     // the loop walks a distance; the accumulated float is the position
     // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
     for (float d = 0; d <= run.length + step * 0.5f; d += step) {
-      SkPoint pos;
       const float at = std::min(d, run.length);
-      if (!contour->getPosTan(at, &pos, nullptr)) continue;
-      const bool now = grown.contains(pos.fX, pos.fY);
+      const auto sample = contour.at(at);
+      if (!sample) continue;
+      const bool now = grown.contains(sample->position.x, sample->position.y);
       if (now && !inside) {
         enter = at;
         inside = true;
@@ -178,8 +177,8 @@ SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
   const std::vector<ContourRun> runs = measureContours(src, &total);
   if (total <= 0 || spans.empty()) return out.detach();
   size_t i = 0;
-  SkContourMeasureIter iter(src, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(src)) {
     if (i >= runs.size()) break;
     const ContourRun& run = runs[i++];
     // Emit one span against this contour. `stitch` appends WITHOUT a
@@ -192,16 +191,16 @@ SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
       // A whole contour claimed whole stays whole — closed stays closed,
       // so joins and additive brushes behave as they do untrimmed.
       //
-      // The close() is load-bearing. getSegment hands back an OPEN run
+      // The close() is load-bearing. A segment is an OPEN run
       // whose ends merely coincide, so without it the vertex at the seam
       // gets two butt caps instead of a miter join: a notch at one corner,
       // small under a hairline and obvious under any wide or additive
       // brush.
       if (lo <= 1e-4f && hi >= run.length - 1e-4f) {
-        (void)contour->getSegment(0, run.length, &out, !stitch);
+        contour.appendSegment(out, 0, run.length, !stitch);
         if (run.closed && !stitch) out.close();
       } else
-        (void)contour->getSegment(lo, hi, &out, !stitch);
+        contour.appendSegment(out, lo, hi, !stitch);
       return true;
     };
 

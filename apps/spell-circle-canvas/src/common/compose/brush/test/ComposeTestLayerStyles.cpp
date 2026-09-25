@@ -111,8 +111,8 @@ TEST(ComposePatterns, HalftoneRampSwellsDownward) {
 }
 
 // A note for anyone tempted to check the closed-contour wrap seam by
-// stitching the window with SkContourMeasure and asserting on the result:
-// that tests Skia's getSegment, not the renderer. A total failure of
+// stitching the window with a contour measure and asserting on the result:
+// that tests the measure, not the renderer. A total failure of
 // spans::wrap would leave such a test green. Read pixels instead — see
 // ComposeMask.ClosedContourWrapSeamIsOnePiece.
 TEST(ComposePatterns, HalftoneRampBandRemaps) {

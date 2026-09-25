@@ -68,8 +68,8 @@ struct SpanRestyle {
    *  where `inkBox` is a text unit, on the unit square of each unit it
    *  reaches.
    *  @trap Under a text unit the draw finds this span's glyphs by the
-   *  IDENTITY of this shader: a glyph whose foreground shader is this very
-   *  `shaderValue` is the span's, so whatever carries it into the
+   *  IDENTITY of this shader: a glyph whose foreground shader is the very
+   *  shader this fill's paint holds is the span's, so whatever carries it into the
    *  paragraph's style must share the object, never copy it. */
   std::optional<Fill> inkShader;
   /** The box the ink shader is stretched over: a text unit of the range
@@ -184,7 +184,7 @@ struct TextData {
   // per-glyph deviation like any other, and has no plumbing of its own.
   std::vector<Track> tracks;
   // textOnPath(): the run's baseline IS a path. Resolved at paint against the
-  // node's box, walked with SkContourMeasure, one RSXform per glyph.
+  // node's box, walked by distance along its contour, one RSXform per glyph.
   std::optional<TextPath> onPath;
   // textAttach(): a child of this text node whose box is the rect a selector
   // resolves to, in declaration order. The rects themselves live on the

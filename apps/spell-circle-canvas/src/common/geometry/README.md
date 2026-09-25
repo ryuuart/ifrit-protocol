@@ -192,6 +192,9 @@ past its seam), the piece between two distances as its own path, and the
 corners along the way. Anything placed *along* an outline — text on a
 path, a marching dash, a stroke's ornaments — reads it this way, so there
 is one definition of "distance along" and one of "closed wraps around".
+A consumer never measures an outline itself: splitting it at a distance,
+finding the point nearest a query and joining a window across a closed
+seam are the contour's too.
 
 **An AREA is a set of rings under the even-odd rule.** `Polyline::contains`
 is the ray test on one ring and `containsEvenOdd` the rule over a set of

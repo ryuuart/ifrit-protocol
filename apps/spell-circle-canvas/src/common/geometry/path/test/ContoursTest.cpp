@@ -5,6 +5,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
 
@@ -211,6 +212,56 @@ TEST(Contour, SegmentIsThePieceBetweenTwoDistances) {
   EXPECT_NEAR(bounds.left(), 2, 1e-3f);
   EXPECT_NEAR(bounds.right(), 8, 1e-3f);
   EXPECT_NEAR(bounds.height(), 0, 1e-3f);
+}
+
+TEST(Contour, AWindowAcrossTheSeamJoinsIntoOneRunWithoutAMoveTo) {
+  // The two pieces of a window that straddles a closed contour's seam,
+  // the second appended without a moveTo, are one contour — the run a
+  // marching trim draws with no cap at the seam.
+  const Contour c = Contour::of(square(10))[0];
+  SkPathBuilder window;
+  c.appendSegment(window, 35, 40);
+  c.appendSegment(window, 0, 5, false);
+  EXPECT_EQ(Contour::of(window.detach()).size(), 1u);
+  SkPathBuilder apart;
+  c.appendSegment(apart, 35, 40);
+  c.appendSegment(apart, 0, 5);
+  EXPECT_EQ(Contour::of(apart.detach()).size(), 2u);
+}
+
+TEST(Contour, SplitCutsAtADistanceAndKeepsBothPieces) {
+  const Contour c = Contour::of(square(10))[0];
+  const auto [before, after] = c.split(15);
+  EXPECT_NEAR(Contour::lengthOf(before), 15, 1e-3f);
+  EXPECT_NEAR(Contour::lengthOf(after), 25, 1e-3f);
+  const auto [all, none] = c.split(99);
+  EXPECT_NEAR(Contour::lengthOf(all), 40, 1e-3f);
+  EXPECT_TRUE(none.isEmpty() || Contour::lengthOf(none) == 0);
+}
+
+TEST(Contour, LengthOfIsEveryContourEndToEnd) {
+  EXPECT_NEAR(Contour::lengthOf(twoContours()),
+              Contour::of(twoContours())[0].length() +
+                  Contour::of(twoContours())[1].length(),
+              1e-3f);
+  EXPECT_EQ(Contour::lengthOf(SkPath()), 0.0f);
+}
+
+TEST(Contour, NearestFindsThePointClosestToAQuery) {
+  // A square from (0,0) to (10,10), walked from its top-left corner along
+  // the top edge first: a point above the top edge lands on it, a point
+  // right of the right edge on that one.
+  const Contour c = Contour::of(square(10))[0];
+  const Contour::Nearest above = c.nearest({3.3f, -4});
+  EXPECT_NEAR(above.position.x, 3.3f, 1e-2f);
+  EXPECT_NEAR(above.position.y, 0, 1e-2f);
+  EXPECT_NEAR(above.gap, 4, 1e-2f);
+  EXPECT_NEAR(above.distance, 3.3f, 1e-2f);
+  const Contour::Nearest beside = c.nearest({17, 6.5f});
+  EXPECT_NEAR(beside.position.x, 10, 1e-2f);
+  EXPECT_NEAR(beside.position.y, 6.5f, 1e-2f);
+  EXPECT_NEAR(beside.distance, 16.5f, 1e-2f);
+  EXPECT_EQ(Contour().nearest({1, 1}), Contour::Nearest{});
 }
 
 TEST(Contour, ParallelOfALineSitsAcrossToTheLeft) {

@@ -31,7 +31,6 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPicture.h>
@@ -42,7 +41,9 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/testing/Index.h>
+#include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Profile.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmeasure/check/Check.h>
 
 #include <algorithm>
@@ -256,17 +257,18 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
   // each one is crossed.
   std::vector<SkPoint> edges;
   {
-    SkContourMeasureIter it(band, false);
-    while (sk_sp<SkContourMeasure> contour = it.next()) {
-      const float len = contour->length();
-      SkPoint prev;
-      SkVector tan;
-      if (len <= 0 || !contour->getPosTan(0, &prev, &tan)) continue;
+    for (const geometry::path::Contour& contour :
+         geometry::path::Contour::of(band)) {
+      const float len = contour.length();
+      const auto start = contour.at(0);
+      if (len <= 0 || !start) continue;
+      SkPoint prev = geometry::path::toSk(start->position);
       const SkPoint first = prev;
       for (float d = 1.0f;; d += 1.0f) {
         const float at = std::min(d, len);
-        SkPoint here;
-        if (!contour->getPosTan(at, &here, &tan)) break;
+        const auto sample = contour.at(at);
+        if (!sample) break;
+        const SkPoint here = geometry::path::toSk(sample->position);
         edges.push_back(prev);
         edges.push_back(here);
         prev = here;
@@ -388,14 +390,14 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
   };
 
   double squared = 0;
-  SkContourMeasureIter it(spine, false);
-  while (sk_sp<SkContourMeasure> contour = it.next()) {
-    const float len = contour->length();
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(spine)) {
+    const float len = contour.length();
     const float margin = profile.max() * 0.55f + step;
     for (float d = std::max(step, margin); d < len - margin; d += step) {
-      SkPoint here;
-      SkVector tan;
-      if (!contour->getPosTan(d, &here, &tan)) continue;
+      const auto sample = contour.at(d);
+      if (!sample) continue;
+      const SkPoint here = geometry::path::toSk(sample->position);
       // The shortest chord over the rays that FOUND ink. A station with
       // no ink under it at all measures zero, which is what a hole in the
       // band is; one ray missing where others hit is the fill rule read

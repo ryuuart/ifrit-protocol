@@ -395,7 +395,7 @@ TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
   // wrapped window ARE adjacent, so spanPath must stitch them into ONE run.
   //
   // Read the RENDER, not a path the test stitched for itself. A test that
-  // rebuilds the window with SkContourMeasure and asserts on the result
+  // rebuilds the window with a contour measure and asserts on the result
   // proves something about its own arithmetic and nothing about what the
   // renderer drew.
   //

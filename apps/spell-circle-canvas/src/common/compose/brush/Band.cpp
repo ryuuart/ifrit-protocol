@@ -5,7 +5,6 @@
  * are SigilGeometry's (`geometry::path::bandRegion`).
  */
 
-#include <include/core/SkContourMeasure.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRefCnt.h>
 
@@ -15,6 +14,7 @@
 #include "ComposeInternal.h"
 #include "SpanArithmetic.h"
 #include "SpanContours.h"
+#include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose {
 
@@ -26,16 +26,15 @@ SkPoint bandPointAt(const SkPath& spine, float along, float acrossPx) {
   if (total <= 0) return {0, 0};
   const float want = std::clamp(along, 0.0f, 1.0f) * total;
   float consumed = 0;
-  SkContourMeasureIter iter(spine, false);
-  while (sk_sp<SkContourMeasure> contour = iter.next()) {
-    const float len = contour->length();
+  for (const geometry::path::Contour& contour :
+       geometry::path::Contour::of(spine)) {
+    const float len = contour.length();
     if (want <= consumed + len || consumed + len >= total - 1e-4f) {
-      SkPoint pos;
-      SkVector tan;
       const float d = std::clamp(want - consumed, 0.0f, len);
-      if (contour->getPosTan(d, &pos, &tan))
-        return {pos.fX + tan.y() * acrossPx, pos.fY - tan.x() * acrossPx};
-      return pos;
+      if (const auto sample = contour.at(d))
+        return {sample->position.x + sample->tangent.y * acrossPx,
+                sample->position.y - sample->tangent.x * acrossPx};
+      return {0, 0};
     }
     consumed += len;
   }
