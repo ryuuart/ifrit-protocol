@@ -90,7 +90,7 @@ struct Phrase {
   float value = 0;
   double durationSeconds = 0;
   double timeSeconds = 0;
-  choreograph::EaseFn ease;
+  motion::Easing ease;
 };
 
 /** @p value as animation seconds, which are finite and never negative:

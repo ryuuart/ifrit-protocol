@@ -9,6 +9,7 @@
 #include <include/core/SkColor.h>
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <functional>
@@ -99,7 +100,7 @@ motion::Animatable<SkColor4f> motionInk(pybind11::handle value);
 motion::Animatable<compose::Fill> motionFill(pybind11::handle value);
 /** An easing read from @p value: a named curve, a curve value, or a
  *  callable that shapes a fraction. None is the default ease-out. */
-choreograph::EaseFn motionEase(pybind11::handle value);
+motion::Easing motionEase(pybind11::handle value);
 /** A transition read from @p value; None is the default transition. */
 motion::Transition motionTransition(pybind11::handle value);
 

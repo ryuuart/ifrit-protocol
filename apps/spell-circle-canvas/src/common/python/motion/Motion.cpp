@@ -22,7 +22,7 @@ namespace py = pybind11;
 namespace {
 
 struct Easing {
-  choreograph::EaseFn value;
+  motion::Easing value;
 };
 
 std::chrono::milliseconds milliseconds(double seconds) {
@@ -151,8 +151,8 @@ motion::Transitioned<compose::Fill> fillTransition(
 
 }  // namespace
 
-choreograph::EaseFn motionEase(py::handle value) {
-  if (value.is_none()) return &choreograph::easeOutQuad;
+motion::Easing motionEase(py::handle value) {
+  if (value.is_none()) return motion::ease::outQuad;
   if (py::isinstance<Easing>(value)) return py::cast<Easing>(value).value;
   if (py::isinstance<motion::ease::Curve>(value))
     return py::cast<motion::ease::Curve>(value);
@@ -266,39 +266,52 @@ void bindMotion(py::module_& root) {
   const auto named = [&](const char* name, float (*function)(float)) {
     ease.attr(name) = py::cast(Easing{function});
   };
-  named("linear", &choreograph::easeNone);
-  named("inQuad", &choreograph::easeInQuad);
-  named("outQuad", &choreograph::easeOutQuad);
-  named("inOutQuad", &choreograph::easeInOutQuad);
-  named("inCubic", &choreograph::easeInCubic);
-  named("outCubic", &choreograph::easeOutCubic);
-  named("inOutCubic", &choreograph::easeInOutCubic);
-  named("inQuart", &choreograph::easeInQuart);
-  named("outQuart", &choreograph::easeOutQuart);
-  named("inOutQuart", &choreograph::easeInOutQuart);
-  named("inQuint", &choreograph::easeInQuint);
-  named("outQuint", &choreograph::easeOutQuint);
-  named("inOutQuint", &choreograph::easeInOutQuint);
-  named("inSine", &choreograph::easeInSine);
-  named("outSine", &choreograph::easeOutSine);
-  named("inOutSine", &choreograph::easeInOutSine);
-  named("inExpo", &choreograph::easeInExpo);
-  named("outExpo", &choreograph::easeOutExpo);
-  named("inOutExpo", &choreograph::easeInOutExpo);
-  named("inCirc", &choreograph::easeInCirc);
-  named("outCirc", &choreograph::easeOutCirc);
-  named("inOutCirc", &choreograph::easeInOutCirc);
+  named("linear", &motion::ease::linear);
+  named("inQuad", &motion::ease::inQuad);
+  named("outQuad", &motion::ease::outQuad);
+  named("inOutQuad", &motion::ease::inOutQuad);
+  named("inCubic", &motion::ease::inCubic);
+  named("outCubic", &motion::ease::outCubic);
+  named("inOutCubic", &motion::ease::inOutCubic);
+  named("inQuart", &motion::ease::inQuart);
+  named("outQuart", &motion::ease::outQuart);
+  named("inOutQuart", &motion::ease::inOutQuart);
+  named("inQuint", &motion::ease::inQuint);
+  named("outQuint", &motion::ease::outQuint);
+  named("inOutQuint", &motion::ease::inOutQuint);
+  named("inSine", &motion::ease::inSine);
+  named("outSine", &motion::ease::outSine);
+  named("inOutSine", &motion::ease::inOutSine);
+  named("inExpo", &motion::ease::inExpo);
+  named("outExpo", &motion::ease::outExpo);
+  named("inOutExpo", &motion::ease::inOutExpo);
+  named("inCirc", &motion::ease::inCirc);
+  named("outCirc", &motion::ease::outCirc);
+  named("inOutCirc", &motion::ease::inOutCirc);
   named("smoothstep", &motion::ease::smoothstep);
-  ease.def("outBack", &motion::ease::outBack, py::arg("overshoot") = 1.70158f);
   ease.def("inBack", &motion::ease::inBack, py::arg("overshoot") = 1.70158f);
+  ease.def("outBack", &motion::ease::outBack, py::arg("overshoot") = 1.70158f);
   ease.def("inOutBack", &motion::ease::inOutBack,
            py::arg("overshoot") = 1.70158f);
-  ease.def("outElastic", &motion::ease::outElastic, py::arg("amplitude") = 1.0f,
-           py::arg("period") = 0.3f);
   ease.def("inElastic", &motion::ease::inElastic, py::arg("amplitude") = 1.0f,
            py::arg("period") = 0.3f);
+  ease.def("outElastic", &motion::ease::outElastic, py::arg("amplitude") = 1.0f,
+           py::arg("period") = 0.3f);
+  ease.def("inOutElastic", &motion::ease::inOutElastic,
+           py::arg("amplitude") = 1.0f, py::arg("period") = 0.3f);
+  ease.def("inBounce", &motion::ease::inBounce,
+           py::arg("overshoot") = 1.70158f);
   ease.def("outBounce", &motion::ease::outBounce,
            py::arg("overshoot") = 1.70158f);
+  ease.def("inOutBounce", &motion::ease::inOutBounce,
+           py::arg("overshoot") = 1.70158f);
+  // `in` is a Python keyword, so the power family's first member takes
+  // the trailing underscore Python spells a reserved word with.
+  ease.def("in_", &motion::ease::in, py::arg("power") = 1.68f);
+  ease.def("out", &motion::ease::out, py::arg("power") = 1.68f);
+  ease.def("inOut", &motion::ease::inOut, py::arg("power") = 1.68f);
+  ease.def("steps", &motion::ease::steps, py::arg("count"),
+           py::arg("jumpAtStart") = false);
   ease.def("cubicBezier", &motion::ease::cubicBezier, py::arg("x1"),
            py::arg("y1"), py::arg("x2"), py::arg("y2"));
 
