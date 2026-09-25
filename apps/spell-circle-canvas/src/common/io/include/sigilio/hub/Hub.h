@@ -27,6 +27,7 @@
 #include <string>
 #include <string_view>
 #include <typeindex>
+#include <type_traits>
 #include <typeinfo>
 #include <utility>
 #include <vector>
@@ -142,8 +143,8 @@ class DispatchLease {
 
 /** WHERE A RESOURCE'S BYTES ARE AND HOW MANY OF THEM THERE ARE — the
  *  whole of what a hub can say about a resource without deciding what
- *  its bytes mean. What they mean is `probe<T>()`, answered by the
- *  library that owns T. */
+ *  its bytes mean, asked as `probe<ResourceInfo>()`. What they mean is
+ *  `probe<T>()` for another T, answered by the library that owns T. */
 struct ResourceInfo {
   std::uintmax_t byteSize = 0;
   /** The local file the bytes were read from — the cache file for a
@@ -151,6 +152,16 @@ struct ResourceInfo {
    *  the name a prober takes as its format hint. */
   std::filesystem::path path;
 };
+
+/** How a ResourceInfo is probed: the count of the bytes and the file
+ *  they came from, which is the hint every prober is handed. This is
+ *  what makes it `Probable`, so the hub asks for it as it asks for any
+ *  other meaning. */
+inline std::optional<ResourceInfo> probeResource(
+    std::type_identity<ResourceInfo>, std::span<const std::byte> bytes,
+    const std::filesystem::path& file) {
+  return ResourceInfo{bytes.size(), file};
+}
 
 /**
  * The resource hub: mount prefixes, ask for resources by URI.
@@ -207,17 +218,14 @@ class Hub {
    *  bytes has one name here and in every other source. */
   std::shared_ptr<const Bytes> fetch(std::string_view uri);
 
-  /** Stores @p size bytes under @p uri, through the same mount table a
-   *  read resolves by, creating the directories above the file. What the
-   *  bytes MEAN is nobody's business here. Every cached view of that URI
-   *  is dropped, so the next ask reads the file back.
+  /** Stores @p bytes under @p uri, through the same mount table a read
+   *  resolves by, creating the directories above the file. What the
+   *  bytes MEAN is nobody's business here; a `Bytes` value is the span
+   *  it holds. Every cached view of that URI is dropped, so the next ask
+   *  reads the file back.
    *  @trap A network URI cannot be written and answers false — a hub
    *  writes where it mounts. */
-  bool write(std::string_view uri, const void* bytes, size_t size);
-  /** The same, from a bytes value already in hand. */
-  bool write(std::string_view uri, const Bytes& bytes) {
-    return write(uri, bytes.data(), bytes.size());
-  }
+  bool write(std::string_view uri, std::span<const std::byte> bytes);
 
   /** Registers how a T is decoded from bytes, so load<T>() can answer.
    *  `hint` is the resource's local path when it has one, and is OFFERED:
@@ -349,18 +357,15 @@ class Hub {
    *  number of cache entries discarded. */
   size_t discardUnretained();
 
-  /** HOW MANY BYTES, AND WHERE: the size of the resource and the file
-   *  it was read from; nullopt when the URI cannot be served.
+  /** WHAT THE BYTES ARE, WITHOUT DECODING THEM: `ResourceInfo` for how
+   *  many bytes and from which file, dimensions and layers for an image,
+   *  and whatever the next kind of meaning turns out to need. The answer
+   *  comes from T's own library through the `Probable` seam, so this hub
+   *  carries no opinion about any format; nullopt when the URI cannot be
+   *  served or T's library cannot read it.
    *  @trap const but neither cheap nor side-effect-free — every call
    *  performs a full fetch and caches nothing, which for a network URI
    *  is a round trip and a write into the disk cache directory. */
-  std::optional<ResourceInfo> probe(std::string_view uri) const;
-
-  /** WHAT THE BYTES MEAN, WITHOUT DECODING THEM: dimensions and layers
-   *  for an image, and whatever the next kind of meaning turns out to
-   *  need. The answer comes from T's own library through the `Probable`
-   *  seam, so this hub carries no opinion about any format. Fetches like
-   *  `probe()` does, and caches nothing. */
   template <Probable T>
   std::optional<T> probe(std::string_view uri) const {
     ResourceInfo info;
@@ -424,7 +429,7 @@ class Hub {
   DispatchLease onDispatch(DispatchLease::Callback callback);
 
  private:
-  /** The one fetch both probes make: the bytes, uncached, with @p info
+  /** The one fetch a probe makes: the bytes, uncached, with @p info
    *  filled in from them. Null when the URI cannot be served. */
   std::shared_ptr<const Bytes> probeFetch(std::string_view uri,
                                           ResourceInfo& info) const;

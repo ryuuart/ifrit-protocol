@@ -12,13 +12,11 @@ A **feed** is a resource that keeps arriving. `feed()` answers one `Feed`
 per URI for as long as anyone holds it, and a later ask for the same URI
 while it is held is the same object, so two readers of one port share
 one socket. What arrives is a byte message, delivered by a transport from
-whichever thread it runs on; the feed latches the newest as `latest()`
-with a `generation()` that counts every arrival, and queues each arrival
-for `receive()`, which hands them out in order and never waits.
-`Feed::newest()` is that same latched message WHOLE — the generation it
-came in as, the second it came in at, its bytes and the sender it named —
-for a reader that wants more of the newest than its bytes and is not
-draining the queue to get it. The queue is bounded by the feed's
+whichever thread it runs on; the feed latches the newest WHOLE as
+`latest()` — the generation it came in as, the second it came in at, its
+bytes and the sender it named, read out together — with a `generation()`
+that counts every arrival, and queues each arrival for `receive()`, which
+hands them out in order and never waits. The queue is bounded by the feed's
 `FeedPolicy`: when it is full the oldest arrival is dropped and `dropped()`
 counts it, because a reader that fell behind a state feed wants the
 newest, not the backlog. `close()` takes nothing more and keeps what was

@@ -44,23 +44,6 @@ seeded bytes until another seed or fetch replaces them, while a
 directory selects the same platform cache directory as a hub given no
 override.
 
-## A catalogue of authored text
-
-`sigil::io::TextCatalog` is one directory of text resources mounted at
-one URI prefix — the shape a directory of AUTHORED shaders takes: a
-consumer keeps its `.sksl` or `.slang` files wherever it likes, asks for
-each by name, and may warm the whole directory before the first ask. A
-stock value over the hub, so a catalogue is a declaration rather than a
-hub, a mount and a lookup written out again. A shader a library SHIPS is
-not this: it is compiled into that library's archive, and reading one
-costs no hub.
-
-`TextCatalog::text` is the file beneath the directory, through the hub's
-cache, so a file edited on disk reaches the next ask after `Hub::poll`.
-`TextCatalog::preload` fetches every file beneath the directory
-concurrently. The hub is reachable through `TextCatalog::hub` for
-anything else — a typed decode, a poll, a lease.
-
 ## Where the platform answers
 
 `sigil::io::scratchDirectory` creates nothing: the caller decides whether

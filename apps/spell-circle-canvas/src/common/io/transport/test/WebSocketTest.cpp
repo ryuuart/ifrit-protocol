@@ -302,8 +302,8 @@ TEST_F(IOWebSocket, APeersTextMessageArrivesNamingWhereItCameFrom) {
   ASSERT_TRUE(peer.upgraded());
   peer.send(0x1, "a scene arrives");
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->asText(), "a scene arrives");
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->asText(), "a scene arrives");
   const std::optional<Arrival> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
   // The peer reached the listener over loopback, and the arrival names
@@ -329,9 +329,9 @@ TEST_F(IOWebSocket, ABinaryMessageArrivesWhole) {
   ASSERT_TRUE(peer.upgraded());
   peer.send(0x2, payload);
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->size(), payload.size());
-  EXPECT_EQ(listener->latest()->asText(), payload);
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->size(), payload.size());
+  EXPECT_EQ(listener->latest()->bytes->asText(), payload);
 }
 
 TEST_F(IOWebSocket, SendReachesEveryPeerOnThePath) {
@@ -491,8 +491,8 @@ TEST_F(IOWebSocket, TheSocketStandsBesideThePagesOnTheSamePort) {
   ASSERT_TRUE(peer.upgraded());
   peer.send(0x1, "a phone is looking");
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->asText(), "a phone is looking");
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->asText(), "a phone is looking");
 }
 
 TEST_F(IOWebSocket, AListenerWhoseUriNamedNoPagesServesNone) {
@@ -521,7 +521,7 @@ TEST_F(IOWebSocket, TheFeedNamesEveryPeerAttachedUntilItLeaves) {
     Peer peer(context, port, "/sky");
     ASSERT_TRUE(peer.upgraded());
     peer.send(0x1, "here");
-    ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
+    ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
     // The peer is named the way its own message is, so a reader matches
     // one against the other.
     const std::vector<std::string> attached = listener->peers();
@@ -581,8 +581,8 @@ TEST_F(IOWebSocket, LoopbackAdmitsEveryPeerOnThisMachine) {
   Peer peer(context, port, "/sky");
   ASSERT_TRUE(peer.upgraded()) << peer.greeting();
   peer.send(0x1, "admitted");
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->asText(), "admitted");
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->asText(), "admitted");
 }
 
 TEST_F(IOWebSocket, AnAdmissionOrABindThatIsNoAddressOpensNothing) {
@@ -617,7 +617,7 @@ TEST_F(IOWebSocket, AUriThatNamesNoPortOpensNothingAndSaysWhy) {
   const std::shared_ptr<Feed> feed = hub.feed("ws://localhost");
   EXPECT_FALSE(feed->error().empty());
   EXPECT_TRUE(feed->address().empty());
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
 }
 
 TEST_F(IOWebSocket, AUriThatNamesAHostToReachOpensNothingOnTheListenerAlone) {

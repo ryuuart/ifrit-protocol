@@ -171,7 +171,7 @@ TEST_F(IOSharedMemory, AMessageLargerThanTheRegionIsRefusedByTheWriter) {
   EXPECT_FALSE(writer.write(bytesOf("seventeen bytes..")));
   ASSERT_TRUE(writer.write(bytesOf("still sixteen!!!")));
   ASSERT_TRUE(waitUntil([&] { return region->generation() == 2; }));
-  EXPECT_EQ(region->latest()->asText(), "still sixteen!!!");
+  EXPECT_EQ(region->latest()->bytes->asText(), "still sixteen!!!");
 }
 
 TEST_F(IOSharedMemory,
@@ -183,7 +183,7 @@ TEST_F(IOSharedMemory,
   // it names the region it is waiting for and nothing is wrong with it.
   EXPECT_TRUE(region->error().empty()) << region->error();
   EXPECT_EQ(region->address(), "shm://" + name);
-  EXPECT_EQ(region->latest(), nullptr);
+  EXPECT_FALSE(region->latest().has_value());
   EXPECT_FALSE(region->closed());
 }
 
@@ -201,7 +201,7 @@ TEST_F(IOSharedMemory, AWriterThatStartsAfterTheFeedIsOneTheFeedReads) {
 
   ASSERT_TRUE(waitUntil([&] { return region->generation() == 1; }))
       << "a region made after the feed opened was never read";
-  EXPECT_EQ(region->latest()->asText(), "the sky that came late");
+  EXPECT_EQ(region->latest()->bytes->asText(), "the sky that came late");
   EXPECT_TRUE(region->error().empty()) << region->error();
 }
 
@@ -225,7 +225,7 @@ TEST_F(IOSharedMemory, ARegionMadeAgainUnderTheSameNameIsTheOneReadFromThenOn) {
 
   ASSERT_TRUE(waitUntil([&] { return region->generation() == 2; }))
       << "the region made again was never read";
-  EXPECT_EQ(region->latest()->asText(), "the writer that came after it");
+  EXPECT_EQ(region->latest()->bytes->asText(), "the writer that came after it");
 }
 
 TEST_F(IOSharedMemory, AUriThatNamesNoRegionOpensNothingAndSaysWhy) {

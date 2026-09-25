@@ -15,10 +15,9 @@ A FEED: a resource that keeps arriving.
 
 One door, keyed by URI, with a transport on one side and readers on the
 other. The transport delivers byte messages from whatever thread it runs
-on; a reader on any thread either takes the newest message —
-`Feed::latest` for its bytes and `Feed::newest` for the whole arrival,
-with the generation that says how many have come — or drains in order the
-ones it has not seen yet through `Feed::receive`. Neither ever waits for
+on; a reader on any thread either takes the newest message whole through
+`Feed::latest`, with the generation that says how many have come, or
+drains in order the ones it has not seen yet through `Feed::receive`. Neither ever waits for
 a message: a reader that finds nothing is told so and gets on with its
 frame.
 
@@ -26,13 +25,12 @@ A feed keeps the last `FeedPolicy::capacity` arrivals for
 `Feed::receive`. When one more reaches a feed nobody has drained, the
 oldest falls off the front and `Feed::dropped` counts it, so a reader
 that cannot keep up loses the oldest messages rather than the newest and
-can see that it happened. What `Feed::latest` and `Feed::newest` answer
-is never dropped.
+can see that it happened. What `Feed::latest` answers is never dropped.
 
-`Feed::newest` is THE NEWEST ARRIVAL WHOLE: the generation it came in as,
-the second it came in at, its bytes and the address it came from. It is
-latched rather than queued, so draining through `Feed::receive` leaves it
-standing, as `Feed::latest` is left standing.
+`Feed::latest` is THE NEWEST ARRIVAL WHOLE: the generation it came in as,
+the second it came in at, its bytes and the address it came from, read
+out together so they are one message's. It is latched rather than
+queued, so draining through `Feed::receive` leaves it standing.
 
 ### Sending back
 

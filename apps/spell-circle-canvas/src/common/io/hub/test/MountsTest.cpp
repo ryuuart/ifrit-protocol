@@ -8,7 +8,6 @@
 
 #include <gtest/gtest.h>
 #include <sigilio/hub/Hub.h>
-#include <sigilio/hub/TextCatalog.h>
 
 #include <filesystem>
 #include <string>
@@ -96,7 +95,7 @@ TEST_F(IOHub, ADirectoryAnswersNoBytes) {
   EXPECT_EQ(hub.fetch("res://shaders/"), nullptr);
   EXPECT_EQ(hub.text("res://shaders"), std::nullopt);
   EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://shaders"), nullptr);
-  EXPECT_FALSE(hub.probe("res://shaders").has_value());
+  EXPECT_FALSE(hub.probe<ResourceInfo>("res://shaders").has_value());
   // The file beneath it still answers, so nothing was refused wholesale.
   EXPECT_EQ(hub.text("res://shaders/a.sksl"), "a");
 }
@@ -112,31 +111,4 @@ TEST_F(IOHub, FileUrlsLoadAsLocalPaths) {
   auto bytes = hub.fetch(url);
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(bytes->size(), 15u);
-}
-
-TEST(IOTextCatalog, MountsOneDirectoryAndAnswersByName) {
-  const ScratchDir shaders("sigilio_catalog");
-  shaders.write("Glow.sksl", "half4 main(float2 p) { return half4(1); }");
-  shaders.write("nested/Mask.sksl", "mask");
-  TextCatalog catalog("shader://glow/", shaders.path);
-  EXPECT_EQ(catalog.prefix(), "shader://glow/");
-  EXPECT_EQ(catalog.preload(), 2u);
-  EXPECT_EQ(catalog.text("nested/Mask.sksl"), "mask");
-  EXPECT_EQ(catalog.text("Missing.sksl"), std::nullopt);
-  // The same cache the hub's own asks use.
-  EXPECT_EQ(catalog.hub().text("shader://glow/nested/Mask.sksl"), "mask");
-}
-
-// A prefix is a namespace and every name is BENEATH it, so a prefix
-// given without a separator is given one: otherwise the prefix and the
-// name would run together into a word naming nothing.
-TEST(IOTextCatalog, APrefixWithoutASeparatorIsGivenOne) {
-  const ScratchDir shaders("sigilio_catalog");
-  shaders.write("Glow.sksl", "glow");
-  TextCatalog catalog("shader://glow", shaders.path);
-  EXPECT_EQ(catalog.prefix(), "shader://glow/");
-  EXPECT_EQ(catalog.text("Glow.sksl"), "glow");
-  EXPECT_EQ(catalog.hub().text("shader://glow/Glow.sksl"), "glow");
-  EXPECT_EQ(catalog.hub().text("shader://glowGlow.sksl"), std::nullopt);
-  EXPECT_EQ(catalog.preload(), 1u);
 }

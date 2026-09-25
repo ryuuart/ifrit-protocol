@@ -290,19 +290,19 @@ TEST_F(IOHub, ReRegisteringADecoderAppliesToLaterAsksOnly) {
 
 TEST_F(IOHub, ProbeReportsHowManyBytesAndWhereTheyAre) {
   dir.write("table.bin", std::string(64, '\0'));
-  auto info = hub.probe("res://table.bin");
+  auto info = hub.probe<ResourceInfo>("res://table.bin");
   ASSERT_TRUE(info.has_value());
   EXPECT_EQ(info->byteSize, 64u);
   EXPECT_EQ(info->path, dir.path / "table.bin");
   // Bytes are all the hub answers for. What they mean is asked of the
   // library that owns the meaning, and these bytes are not an image.
   EXPECT_FALSE(hub.probe<sigil::image::ImageProbe>("res://table.bin"));
-  EXPECT_FALSE(hub.probe("res://nothing.bin"));
+  EXPECT_FALSE(hub.probe<ResourceInfo>("res://nothing.bin"));
 }
 
 TEST_F(IOHub, WriteStoresThroughTheMountItReadsBy) {
   const std::string_view payload = "written through the mount";
-  ASSERT_TRUE(hub.write("res://out/note.txt", payload.data(), payload.size()));
+  ASSERT_TRUE(hub.write("res://out/note.txt", std::as_bytes(std::span(payload))));
   EXPECT_TRUE(fs::exists(dir.path / "out" / "note.txt"));
   auto text = hub.text("res://out/note.txt");
   ASSERT_TRUE(text.has_value());
@@ -313,7 +313,7 @@ TEST_F(IOHub, WriteReplacesWhatWasCached) {
   dir.write("note.txt", "before");
   ASSERT_EQ(hub.text("res://note.txt"), "before");
   const std::string_view after = "after";
-  ASSERT_TRUE(hub.write("res://note.txt", after.data(), after.size()));
+  ASSERT_TRUE(hub.write("res://note.txt", std::as_bytes(std::span(after))));
   // The cached entry is gone rather than stale, so this reads the file.
   EXPECT_EQ(hub.text("res://note.txt"), "after");
 }
@@ -326,7 +326,9 @@ TEST_F(IOHub, WrittenImageBytesDecodeBackThroughTheHub) {
       sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
   ASSERT_TRUE(encoded);
   ASSERT_TRUE(
-      hub.write("res://made/tile.png", encoded->data(), encoded->size()));
+      hub.write("res://made/tile.png",
+                std::span(static_cast<const std::byte*>(encoded->data()),
+                          encoded->size())));
   auto image = hub.load<sigil::image::ImageAsset>("res://made/tile.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 7);
@@ -335,7 +337,7 @@ TEST_F(IOHub, WrittenImageBytesDecodeBackThroughTheHub) {
 TEST_F(IOHub, NetworkUrisCannotBeWritten) {
   const std::string_view payload = "nope";
   EXPECT_FALSE(
-      hub.write("https://example.com/x.txt", payload.data(), payload.size()));
+      hub.write("https://example.com/x.txt", std::as_bytes(std::span(payload))));
 }
 
 // A poll() and a write() on one URI are one entry's fate decided twice:
@@ -356,7 +358,7 @@ TEST_F(IOHub, PollBesideAWriteLeavesOneCoherentVersion) {
   std::string last;
   for (size_t i = 1; i <= kWrites; ++i) {
     last = "version " + std::to_string(i);
-    ASSERT_TRUE(hub.write(uri, last.data(), last.size()));
+    ASSERT_TRUE(hub.write(uri, std::as_bytes(std::span(last))));
   }
   writing = false;
   poller.join();

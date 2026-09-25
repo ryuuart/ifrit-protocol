@@ -26,9 +26,9 @@ a vanished source exist or suppress hot reload: `poll()` may remove a missing
 resource or replace a changed version, and `write()` invalidates the version it
 overwrites. An already returned `shared_ptr` continues to own its older value.
 
-`probe()` answers how many bytes a resource is and which file they were
-read from — nothing about what they are. `probe<T>()` answers meaning,
-and the answer comes from T's own library: a type is probeable when its
+`probe<ResourceInfo>()` answers how many bytes a resource is and which
+file they were read from — nothing about what they are. `probe<T>()` for
+any other T answers meaning, and the answer comes from T's own library: a type is probeable when its
 namespace declares `probeResource(std::type_identity<T>,
 std::span<const std::byte>, const std::filesystem::path&)`, which is the
 `Probable` concept in `source/Source.h`. SigilImage declares it for
@@ -37,7 +37,7 @@ SigilImage's prober and the hub carries no opinion about any format. A
 kind of meaning added tomorrow is one free function in the library that
 owns it, with nothing to change here.
 
-Both are `const` but neither is cheap or side-effect-free: each performs
+Every probe is `const` but none is cheap or side-effect-free: each performs
 a full fetch on every call and caches nothing. For a network URI that may
 hit the network and write into the cache directory.
 

@@ -473,7 +473,7 @@ TEST_F(IOWebRtc, AUriThatNamesNoSignalOpensNothingAndSaysWhy) {
   const std::shared_ptr<Feed> feed = open("webrtc://sky");
   EXPECT_FALSE(feed->error().empty());
   EXPECT_TRUE(feed->address().empty());
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
 }
 
 TEST_F(IOWebRtc, AUriWhoseSignalIsNoWebsocketDoorOpensNothingAndSaysWhy) {
@@ -547,7 +547,7 @@ TEST_F(IOWebRtc, ASignalNobodyAnswersLeavesTheCallerOpenAndSilent) {
   const std::shared_ptr<Feed> caller = open(callingInto(port));
   ASSERT_TRUE(caller->error().empty()) << caller->error();
 
-  EXPECT_FALSE(waitUntil([&] { return caller->latest() != nullptr; }, kQuiet));
+  EXPECT_FALSE(waitUntil([&] { return caller->latest().has_value(); }, kQuiet));
   // A conversation nobody has taken up is not a door that failed: the
   // feed stands, with nothing on it and nothing to explain, for as long
   // as somebody may still answer.

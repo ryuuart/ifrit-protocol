@@ -215,7 +215,7 @@ TEST_F(IOQuic, ACallsMessageArrivesNamingTheConnectionItCameInOn) {
   ASSERT_TRUE(sendOnce(caller, "a scene arrives")) << caller->error();
   ASSERT_TRUE(waitUntil([&] { return listener->generation() == 1u; }))
       << caller->error();
-  EXPECT_EQ(listener->latest()->asText(), "a scene arrives");
+  EXPECT_EQ(listener->latest()->bytes->asText(), "a scene arrives");
 
   const std::optional<Arrival> heard = listener->receive();
   ASSERT_TRUE(heard.has_value());
@@ -246,9 +246,9 @@ TEST_F(IOQuic, TheListenersSendReachesTheCallThatOpenedTheConnection) {
       << caller->error();
 
   EXPECT_TRUE(listener->send(bytesOf("out to every caller")));
-  ASSERT_TRUE(waitUntil([&] { return caller->latest() != nullptr; }))
+  ASSERT_TRUE(waitUntil([&] { return caller->latest().has_value(); }))
       << caller->error();
-  EXPECT_EQ(caller->latest()->asText(), "out to every caller");
+  EXPECT_EQ(caller->latest()->bytes->asText(), "out to every caller");
 
   const std::optional<Arrival> back = caller->receive();
   ASSERT_TRUE(back.has_value());
@@ -289,7 +289,7 @@ TEST_F(IOQuic, SendToReachesTheOneConnectionItNamesAndNoOther) {
 
   EXPECT_TRUE(listener->sendTo(answering, bytesOf("to you alone")));
   ASSERT_TRUE(waitUntil([&] { return first->generation() >= 1u; }));
-  EXPECT_EQ(first->latest()->asText(), "to you alone");
+  EXPECT_EQ(first->latest()->bytes->asText(), "to you alone");
 
   // What the OTHER caller reads first is the broadcast that came after,
   // which is what says the message before it went to one connection and
@@ -319,7 +319,7 @@ TEST_F(IOQuic, ADatagramCrossesTheSameConnection) {
     caller->send(bytesOf("one packet, no promises"));
     return listener->generation() >= 1u;
   })) << caller->error();
-  EXPECT_EQ(listener->latest()->asText(), "one packet, no promises");
+  EXPECT_EQ(listener->latest()->bytes->asText(), "one packet, no promises");
 
   const std::optional<Arrival> heard = listener->receive();
   ASSERT_TRUE(heard.has_value());
@@ -350,7 +350,7 @@ TEST_F(IOQuic, ACallToAPortNobodyHoldsSaysItReachedNothing) {
   const std::string called = "quic://127.0.0.1:" + std::to_string(port);
   EXPECT_TRUE(feed->error().starts_with("could not reach " + called + ":"))
       << feed->error();
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
 }
 
 TEST_F(IOQuic, AListeningUriThatNamesNoCertificateOpensNothingAndSaysWhy) {
@@ -359,7 +359,7 @@ TEST_F(IOQuic, AListeningUriThatNamesNoCertificateOpensNothingAndSaysWhy) {
   const std::shared_ptr<Feed> bare = hub.feed("quic://:0");
   EXPECT_FALSE(bare->error().empty());
   EXPECT_TRUE(bare->address().empty());
-  EXPECT_EQ(bare->latest(), nullptr);
+  EXPECT_FALSE(bare->latest().has_value());
 
   // Half a pair is no pair.
   const std::shared_ptr<Feed> half =

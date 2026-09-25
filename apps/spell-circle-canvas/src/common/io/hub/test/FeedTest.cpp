@@ -1,6 +1,6 @@
 /** @file
  * Feeds: what a reader sees of what a transport delivers — the newest
- * message as bytes and whole, the ones it has not drained, the sender
+ * message whole, the ones it has not drained, the sender
  * each one names, and the ones a feed too full to hold them dropped —
  * the one door a hub opens per URI, closes when nobody holds it any
  * more and opens again when it could not be opened, what goes back out
@@ -49,27 +49,27 @@ class IOFeed : public MountedHub {};
 
 TEST_F(IOFeed, TheLatestIsTheNewestArrivalAndGenerationsCountFromOne) {
   Feed feed("udp://:27020");
-  EXPECT_EQ(feed.latest(), nullptr);
+  EXPECT_FALSE(feed.latest().has_value());
   EXPECT_EQ(feed.generation(), 0u);
 
   feed.deliver(message("first"));
   EXPECT_EQ(feed.generation(), 1u);
   feed.deliver(message("second"));
-  ASSERT_NE(feed.latest(), nullptr);
-  EXPECT_EQ(feed.latest()->asText(), "second");
+  ASSERT_TRUE(feed.latest().has_value());
+  EXPECT_EQ(feed.latest()->bytes->asText(), "second");
   EXPECT_EQ(feed.generation(), 2u);
   EXPECT_EQ(feed.uri(), "udp://:27020");
   EXPECT_TRUE(feed.error().empty());
 }
 
-TEST_F(IOFeed, TheNewestIsTheWholeArrivalAndOutlastsDraining) {
+TEST_F(IOFeed, TheLatestIsTheWholeArrivalAndOutlastsDraining) {
   Feed feed("udp://:27020");
-  EXPECT_FALSE(feed.newest().has_value());
+  EXPECT_FALSE(feed.latest().has_value());
 
   feed.deliver(message("first"), "udp://127.0.0.1:52341");
   feed.deliver(message("second"), "udp://127.0.0.1:52342");
 
-  std::optional<Arrival> newest = feed.newest();
+  std::optional<Arrival> newest = feed.latest();
   ASSERT_TRUE(newest.has_value());
   EXPECT_EQ(newest->bytes->asText(), "second");
   EXPECT_EQ(newest->from, "udp://127.0.0.1:52342");
@@ -80,7 +80,7 @@ TEST_F(IOFeed, TheNewestIsTheWholeArrivalAndOutlastsDraining) {
   }
   // Draining is not taking it: the newest message stands whole after
   // the queue it was also put on is empty.
-  newest = feed.newest();
+  newest = feed.latest();
   ASSERT_TRUE(newest.has_value());
   EXPECT_EQ(newest->generation, 2u);
   EXPECT_EQ(newest->from, "udp://127.0.0.1:52342");
@@ -116,7 +116,7 @@ TEST_F(IOFeed, ReceiveHandsOutEveryArrivalInOrderAndThenNothing) {
   }
   EXPECT_FALSE(feed.receive().has_value());
   // Draining is not forgetting: the newest is still the newest.
-  EXPECT_EQ(feed.latest()->asText(), "2");
+  EXPECT_EQ(feed.latest()->bytes->asText(), "2");
 }
 
 TEST_F(IOFeed, AFullFeedDropsTheOldestAndCountsIt) {
@@ -135,7 +135,7 @@ TEST_F(IOFeed, AFullFeedDropsTheOldestAndCountsIt) {
   EXPECT_FALSE(feed.receive().has_value());
   // What fell off the front is what a reader could not keep up with.
   // The newest message and the count of them are untouched.
-  EXPECT_EQ(feed.latest()->asText(), "three");
+  EXPECT_EQ(feed.latest()->bytes->asText(), "three");
   EXPECT_EQ(feed.generation(), 3u);
 }
 
@@ -147,7 +147,7 @@ TEST_F(IOFeed, AClosedFeedKeepsWhatItHoldsAndTakesNothingNew) {
 
   feed.deliver(message("after"));
   EXPECT_EQ(feed.generation(), 1u);
-  EXPECT_EQ(feed.latest()->asText(), "before");
+  EXPECT_EQ(feed.latest()->bytes->asText(), "before");
   const std::optional<Arrival> arrival = feed.receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_EQ(arrival->bytes->asText(), "before");
@@ -368,12 +368,12 @@ TEST_F(IOFeed, AReplayedUriPlaysItsRecordingByTheTimeDispatched) {
 
   hub.dispatch(0.0);
   EXPECT_EQ(feed->generation(), 1u);
-  EXPECT_EQ(feed->latest()->asText(), "at zero");
+  EXPECT_EQ(feed->latest()->bytes->asText(), "at zero");
   EXPECT_FALSE(feed->closed());
 
   hub.dispatch(1.0);
   EXPECT_EQ(feed->generation(), 2u);
-  EXPECT_EQ(feed->latest()->asText(), "at one");
+  EXPECT_EQ(feed->latest()->bytes->asText(), "at one");
   EXPECT_TRUE(feed->closed());  // the recording ran out
 
   const std::optional<Arrival> first = feed->receive();
@@ -462,7 +462,7 @@ TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
   EXPECT_TRUE(live->closed());
   EXPECT_NE(live, replaying);
   hub.dispatch(0.0);
-  ASSERT_NE(replaying->latest(), nullptr);
+  ASSERT_TRUE(replaying->latest().has_value());
 }
 
 TEST_F(IOFeed, ArrivalsFromAnotherThreadAreAllReceivedInOrder) {

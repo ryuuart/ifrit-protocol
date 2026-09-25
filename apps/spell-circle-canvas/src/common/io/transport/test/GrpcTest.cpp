@@ -117,9 +117,9 @@ TEST_F(IOGrpc, ACallersMessageArrivesOnTheServerNamingTheCallItCameIn) {
   // than going nowhere, so one send is one message however early it was
   // made.
   EXPECT_TRUE(caller->send(bytesOf("a scene arrives")));
-  ASSERT_TRUE(waitUntil([&] { return server->latest() != nullptr; }))
+  ASSERT_TRUE(waitUntil([&] { return server->latest().has_value(); }))
       << server->error();
-  EXPECT_EQ(server->latest()->asText(), "a scene arrives");
+  EXPECT_EQ(server->latest()->bytes->asText(), "a scene arrives");
 
   const std::optional<Arrival> heard = server->receive();
   ASSERT_TRUE(heard.has_value());
@@ -149,8 +149,8 @@ TEST_F(IOGrpc, TheServersSendReachesTheCallerThatOpenedTheStream) {
       << server->error();
 
   EXPECT_TRUE(server->send(bytesOf("out to every caller")));
-  ASSERT_TRUE(waitUntil([&] { return caller->latest() != nullptr; }));
-  EXPECT_EQ(caller->latest()->asText(), "out to every caller");
+  ASSERT_TRUE(waitUntil([&] { return caller->latest().has_value(); }));
+  EXPECT_EQ(caller->latest()->bytes->asText(), "out to every caller");
 
   const std::optional<Arrival> back = caller->receive();
   ASSERT_TRUE(back.has_value());
@@ -188,7 +188,7 @@ TEST_F(IOGrpc, SendToReachesTheOneCallerItNamesAndNoOther) {
 
   EXPECT_TRUE(server->sendTo(answering, bytesOf("to you alone")));
   ASSERT_TRUE(waitUntil([&] { return first->generation() == 1u; }));
-  EXPECT_EQ(first->latest()->asText(), "to you alone");
+  EXPECT_EQ(first->latest()->bytes->asText(), "to you alone");
 
   // What the OTHER caller reads first is the broadcast that came after,
   // which is what says the message before it went to one call and not to
@@ -222,7 +222,7 @@ TEST_F(IOGrpc, AServerNobodyIsHoldingLeavesTheReasonOnTheFeed) {
   // than within the ask. A connection nobody takes is refused at once
   // and never waits the bound out.
   EXPECT_TRUE(waitUntil([&] { return !feed->error().empty(); }));
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
 }
 
 TEST_F(IOGrpc, AServerThatGoesAwayEndedRatherThanNeverHavingBeenReached) {
@@ -260,7 +260,7 @@ TEST_F(IOGrpc, AUriThatNamesNoMethodOpensNothingAndSaysWhy) {
   const std::shared_ptr<Feed> holding = hub.feed("grpc://:0/Sky");
   EXPECT_FALSE(holding->error().empty());
   EXPECT_TRUE(holding->address().empty());
-  EXPECT_EQ(holding->latest(), nullptr);
+  EXPECT_FALSE(holding->latest().has_value());
 
   const std::shared_ptr<Feed> calling = hub.feed("grpc://127.0.0.1:50051");
   EXPECT_FALSE(calling->error().empty());

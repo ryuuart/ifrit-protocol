@@ -192,8 +192,8 @@ TEST_F(IOSerial, ACarriageReturnBeforeTheNewlineIsNoPartOfTheLine) {
   // A board that ends its lines the way a terminal does writes both,
   // and what a reader wants is the reading without either.
   toMaster("{\"tilt\":-3.2}\r\n");
-  ASSERT_TRUE(waitUntil([&] { return sensor->latest() != nullptr; }));
-  EXPECT_EQ(sensor->latest()->asText(), "{\"tilt\":-3.2}");
+  ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
+  EXPECT_EQ(sensor->latest()->bytes->asText(), "{\"tilt\":-3.2}");
 }
 
 TEST_F(IOSerial, ALineThatArrivedInTwoWritesIsOneArrival) {
@@ -205,11 +205,11 @@ TEST_F(IOSerial, ALineThatArrivedInTwoWritesIsOneArrival) {
   // the pause here is what makes the port read the two pieces apart.
   toMaster("{\"lux\":6");
   std::this_thread::sleep_for(50ms);
-  EXPECT_EQ(sensor->latest(), nullptr);
+  EXPECT_FALSE(sensor->latest().has_value());
 
   toMaster("40,\"tilt\":1.5}\n");
-  ASSERT_TRUE(waitUntil([&] { return sensor->latest() != nullptr; }));
-  EXPECT_EQ(sensor->latest()->asText(), "{\"lux\":640,\"tilt\":1.5}");
+  ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
+  EXPECT_EQ(sensor->latest()->bytes->asText(), "{\"lux\":640,\"tilt\":1.5}");
   EXPECT_EQ(sensor->generation(), 1u);
 }
 
@@ -221,8 +221,8 @@ TEST_F(IOSerial, ABlankLineIsNoReadingAndDoesNotArrive) {
   // ends the last one twice, has said nothing: a reader handed the
   // blank would read every field of it as missing.
   toMaster("\n\n{\"lux\":10}\n\n");
-  ASSERT_TRUE(waitUntil([&] { return sensor->latest() != nullptr; }));
-  EXPECT_EQ(sensor->latest()->asText(), "{\"lux\":10}");
+  ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
+  EXPECT_EQ(sensor->latest()->bytes->asText(), "{\"lux\":10}");
   EXPECT_EQ(sensor->generation(), 1u);
 }
 
@@ -245,7 +245,7 @@ TEST_F(IOSerial, ADeviceThatIsNotThereOpensNothingAndSaysWhy) {
       hub.feed("serial:///dev/tty.no-board-of-this-name?baud=115200");
   EXPECT_FALSE(feed->error().empty());
   EXPECT_TRUE(feed->address().empty());
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
 }
 
 TEST_F(IOSerial, AUriWithNoBaudRateIsRefusedWithTheReason) {
@@ -262,7 +262,7 @@ TEST_F(IOSerial, DroppingTheLastHolderOfAFeedClosesThePort) {
     const std::shared_ptr<Feed> sensor = openSensor();
     ASSERT_TRUE(sensor->error().empty()) << sensor->error();
     toMaster("{\"lux\":1}\n");
-    ASSERT_TRUE(waitUntil([&] { return sensor->latest() != nullptr; }));
+    ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
   }
 
   // The close travels to the transport's thread, so the port goes a

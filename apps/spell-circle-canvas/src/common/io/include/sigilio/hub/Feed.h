@@ -4,9 +4,9 @@
  * @ingroup io-hub
  * A FEED: a resource that keeps arriving. One door, keyed by URI, with a
  * transport on one side and readers on the other. A reader on any thread
- * either takes the newest message — latest() for its bytes, newest() for
- * the whole arrival — or drains in order the ones it has not seen
- * through receive(), and neither ever waits for one. A feed holds the
+ * either takes the newest message whole through latest() or drains in
+ * order the ones it has not seen through receive(), and neither ever
+ * waits for one. A feed holds the
  * last `FeedPolicy::capacity` arrivals for receive(), and dropped() counts
  * what fell off the front. The same door plays a recording back, and
  * writes one for as long as the Recording its record() hands out lives.
@@ -162,15 +162,12 @@ class Feed {
    *  the opened end's close runs once. */
   void close();
 
-  /** The newest message; null before the first arrival. */
-  std::shared_ptr<const Bytes> latest() const;
-
   /** THE NEWEST ARRIVAL WHOLE: the generation it came in as, the second
-   *  it came in at, its bytes and the address it came from; nothing
-   *  before the first arrival. It is latched rather than queued, so
-   *  draining through receive() leaves it standing, as latest() is
-   *  left standing. */
-  std::optional<Arrival> newest() const;
+   *  it came in at, its bytes and the address it came from, read out
+   *  together so they are one message's; nothing before the first
+   *  arrival. It is latched rather than queued, so draining through
+   *  receive() leaves it standing. */
+  std::optional<Arrival> latest() const;
 
   /** How many messages have arrived; 0 before the first. */
   uint64_t generation() const;
@@ -275,11 +272,10 @@ class Feed {
    *  never for a socket. */
   mutable std::mutex m_mutex;
   std::deque<Arrival> m_arrivals;
-  std::shared_ptr<const Bytes> m_latest;
-  /** The last arrival, kept whole beside its bytes: who sent the newest
-   *  message and which one it is are readable without draining the
-   *  queue another reader is taking messages off. */
-  std::optional<Arrival> m_newest;
+  /** The last arrival, kept whole: who sent the newest message and
+   *  which one it is are readable without draining the queue another
+   *  reader is taking messages off. */
+  std::optional<Arrival> m_latest;
   uint64_t m_generation = 0;
   uint64_t m_dropped = 0;
   bool m_closed = false;

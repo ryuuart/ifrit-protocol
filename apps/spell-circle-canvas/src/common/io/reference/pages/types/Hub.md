@@ -28,7 +28,8 @@ auto img   = hub.load<sigil::image::ImageAsset>(        // stills+anim
     "res://ui/logo.png");
 auto hdr   = hub.load<sigil::image::ImageAsset>(        // OIIO: EXR,
     "res://light/probe.exr", {.layer = "diffuse"});     //  PSD, TIFF…
-auto info  = hub.probe("res://light/probe.exr");        // size, path
+auto info  = hub.probe<sigil::io::ResourceInfo>(       // size, path
+    "res://light/probe.exr");
 auto meta  = hub.probe<sigil::image::ImageProbe>(       // meaning,
     "res://light/probe.exr");                           //  from image
 hub.registerDecoder<Mesh>(parseMesh);                   // any T
@@ -78,7 +79,7 @@ hub.setFeedTransport("udp", openUdpFeed);     // one per scheme
 auto scene = hub.feed("udp://:27020");        // the same feed per URI
 auto lease = hub.onDispatch(readTheScene);    // driven by that same call
 hub.dispatch();                               // once per frame
-if (auto bytes = scene->latest()) draw(*bytes);
+if (auto newest = scene->latest()) draw(*newest->bytes);
 ```
 
 `Hub::feed` hands back the one feed a URI names for as long as anybody
@@ -140,20 +141,21 @@ and selects itself without a fetch; network globs cannot be enumerated.
 
 ### Probing
 
-`Hub::probe` answers HOW MANY BYTES, AND WHERE: the size of the resource
-and the file it was read from. It is const but neither cheap nor
-side-effect-free: every call performs a full fetch of the resource and
-caches nothing in the hub. For a network URI that can mean a network
-round trip and a write into the disk cache directory.
-
-The template `Hub::probe` answers WHAT THE BYTES MEAN, WITHOUT DECODING
-THEM: dimensions and layers for an image, and whatever the next kind of
-meaning turns out to need. The answer comes from T's own library through
-the `sigil::io::Probable` seam, so this hub carries no opinion about any
+`Hub::probe` answers WHAT THE BYTES ARE, WITHOUT DECODING THEM. Asked
+for a `sigil::io::ResourceInfo` it answers HOW MANY BYTES, AND WHERE: the
+size of the resource and the file it was read from, which the hub itself
+declares probeable. Asked for another T it answers what the bytes mean —
+dimensions and layers for an image, and whatever the next kind of meaning
+turns out to need. That answer comes from T's own library through the
+`sigil::io::Probable` seam, so this hub carries no opinion about any
 format — `hub.probe<sigil::image::ImageProbe>(uri)` reads SigilImage's
 prober, and a kind of meaning added tomorrow is one free function in the
-library that owns it, with nothing to change here. It fetches as the
-untyped probe does, and caches nothing.
+library that owns it, with nothing to change here.
+
+Every probe is const but neither cheap nor side-effect-free: every call
+performs a full fetch of the resource and caches nothing in the hub. For
+a network URI that can mean a network round trip and a write into the
+disk cache directory.
 
 ## See also
 

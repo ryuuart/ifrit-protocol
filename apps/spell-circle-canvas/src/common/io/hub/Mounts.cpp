@@ -78,7 +78,7 @@ void Hub::mount(std::string prefix, std::filesystem::path dir) {
   m_mounts.emplace_back(std::move(prefix), std::move(dir));
 }
 
-bool Hub::write(std::string_view uri, const void* bytes, size_t size) {
+bool Hub::write(std::string_view uri, std::span<const std::byte> bytes) {
   // A hub writes local resources through its mounts. A network URI
   // belongs to its server; changing a local cache cannot write there.
   if (detail::isNetworkUri(uri)) return false;
@@ -86,7 +86,7 @@ bool Hub::write(std::string_view uri, const void* bytes, size_t size) {
   // never waits behind it.
   const std::filesystem::path path = detail::localPath(*this, uri);
   if (path.empty()) return false;
-  if (!writeBytes(path, bytes, size)) return false;
+  if (!writeBytes(path, bytes.data(), bytes.size())) return false;
   // Every entry for this URI goes, whatever decode options made it —
   // matched on the uri each entry carries rather than on its key, since
   // a key is never parsed back into the URI it was built from.

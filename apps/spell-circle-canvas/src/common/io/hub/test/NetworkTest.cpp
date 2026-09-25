@@ -212,7 +212,7 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
   auto image = hub.load<sigil::image::ImageAsset>(url);
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
-  auto info = hub.probe(url);
+  auto info = hub.probe<ResourceInfo>(url);
   ASSERT_TRUE(info.has_value());
   EXPECT_GT(info->byteSize, 0u);
   auto probed = hub.probe<sigil::image::ImageProbe>(url);

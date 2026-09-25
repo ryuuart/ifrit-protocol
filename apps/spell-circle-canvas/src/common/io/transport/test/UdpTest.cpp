@@ -126,8 +126,8 @@ TEST_F(IOUdp, AListeningFeedSaysWhichPortItBoundAndTakesWhatArrivesThere) {
   ASSERT_NE(port, 0);
 
   sendTo(port, "a scene arrives");
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->asText(), "a scene arrives");
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->asText(), "a scene arrives");
 }
 
 TEST_F(IOUdp, AnArrivalNamesTheSenderTheDatagramCameFrom) {
@@ -138,7 +138,7 @@ TEST_F(IOUdp, AnArrivalNamesTheSenderTheDatagramCameFrom) {
 
   const uint16_t sender = sendTo(port, "from somewhere");
   ASSERT_NE(sender, 0);
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
 
   const std::optional<Arrival> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
@@ -161,8 +161,8 @@ TEST_F(IOUdp, AnOscFeedIsTheSameSocketUnderItsOwnName) {
   ASSERT_NE(port, 0);
 
   ASSERT_NE(sendTo(port, "#bundle"), 0);
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->asText(), "#bundle");
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->asText(), "#bundle");
 
   const std::optional<Arrival> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
@@ -181,8 +181,8 @@ TEST_F(IOUdp, AnArtNetFeedIsTheSameSocketUnderTheLightingDesksName) {
   ASSERT_NE(port, 0);
 
   ASSERT_NE(sendTo(port, "Art-Net"), 0);
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->asText(), "Art-Net");
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->asText(), "Art-Net");
 
   const std::optional<Arrival> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
@@ -201,8 +201,8 @@ TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {
   EXPECT_FALSE(sender->address().empty());
   EXPECT_TRUE(sender->send(bytesOf("through the door")));
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->asText(), "through the door");
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->asText(), "through the door");
   // A listener answers whoever writes to it and holds no peer of its
   // own, so there is no way back out through it.
   EXPECT_FALSE(listener->send(bytesOf("no way back")));
@@ -225,7 +225,7 @@ TEST_F(IOUdp, AListenerAnswersTheSenderOfADatagram) {
   desk.send_to(boost::asio::buffer(moved.data(), moved.size()),
                udp::endpoint(boost::asio::ip::address_v4::loopback(), port));
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
   const std::optional<Arrival> arrival = listener->receive();
   ASSERT_TRUE(arrival.has_value());
   // A listener holds no peer, so there is no broadcast out of it — and
@@ -259,7 +259,7 @@ TEST_F(IOUdp, AUriThatNamesNoAddressOpensNothingAndSaysWhy) {
   const std::shared_ptr<Feed> feed = hub.feed("udp://localhost");
   EXPECT_FALSE(feed->error().empty());
   EXPECT_TRUE(feed->address().empty());
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
 }
 
 TEST_F(IOUdp, APortSomebodyElseHoldsOpensNothingAndSaysWhy) {

@@ -69,20 +69,18 @@ Feed::~Feed() { close(); }
 void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
                          std::string from) {
   if (m_closed) return;
-  // Every arrival carries bytes, empty ones included: latest() says
-  // that nothing has arrived by being null, and an arrival that left it
-  // null would say the opposite of what happened.
+  // Every arrival carries bytes, empty ones included, so a reader of
+  // one never meets a message with nothing where its bytes should be.
   if (!bytes) bytes = std::make_shared<const Bytes>();
   Arrival arrival;
   arrival.generation = ++m_generation;
   arrival.at = at;
   arrival.bytes = std::move(bytes);
   arrival.from = std::move(from);
-  m_latest = arrival.bytes;
-  // The whole arrival is latched beside its bytes, under the same lock
-  // that stamped it, so a reader asking what the newest message is and
-  // a reader asking who sent it are answered the same message.
-  m_newest = arrival;
+  // The whole arrival is latched under the same lock that stamped it,
+  // so a reader asking what the newest message is and who sent it is
+  // answered one message.
+  m_latest = arrival;
   // The frame is written under the lock that stamped the arrival, so a
   // recording lists messages in the order the feed took them however
   // many threads are delivering. A file that stops taking frames ends
@@ -182,14 +180,9 @@ void Feed::opened(OpenedFeed opened) {
   if (unwanted) unwanted();
 }
 
-std::shared_ptr<const Bytes> Feed::latest() const {
+std::optional<Arrival> Feed::latest() const {
   const std::lock_guard lock(m_mutex);
   return m_latest;
-}
-
-std::optional<Arrival> Feed::newest() const {
-  const std::lock_guard lock(m_mutex);
-  return m_newest;
 }
 
 uint64_t Feed::generation() const {

@@ -141,7 +141,7 @@ TEST_F(IOMidi, AMessageCrossesFromAPortToTheInputThatOpenedItByName) {
 
   // A note on the middle C of the first channel, struck hard.
   EXPECT_TRUE(keys->send(bytesOf({0x90, 0x3C, 0x64})));
-  ASSERT_TRUE(waitUntil([&] { return pads->latest() != nullptr; }));
+  ASSERT_TRUE(waitUntil([&] { return pads->latest().has_value(); }));
 
   const std::optional<Arrival> arrival = pads->receive();
   ASSERT_TRUE(arrival.has_value());
@@ -201,7 +201,7 @@ TEST_F(IOMidi, ANameNoPortAnswersToOpensNothingAndSaysWhichPortsExist) {
   const std::shared_ptr<Feed> nowhere = hub.feed("midi://in/" + missing);
   EXPECT_FALSE(nowhere->error().empty());
   EXPECT_TRUE(nowhere->address().empty());
-  EXPECT_EQ(nowhere->latest(), nullptr);
+  EXPECT_FALSE(nowhere->latest().has_value());
   // The sentence carries what was looked for, so a name typed from
   // memory is seen to be the thing that was wrong.
   EXPECT_NE(nowhere->error().find(missing), std::string::npos)

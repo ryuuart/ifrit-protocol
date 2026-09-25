@@ -117,8 +117,8 @@ TEST_F(IOWebSocketClient, AClientsMessageArrivesOnTheListenerNamingTheClient) {
     return client->send(bytesOf("a scene arrives"));
   })) << client->error();
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->asText(), "a scene arrives");
+  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  EXPECT_EQ(listener->latest()->bytes->asText(), "a scene arrives");
   const std::optional<Arrival> heard = listener->receive();
   ASSERT_TRUE(heard.has_value());
   // The client reached the listener over loopback, and the arrival names
@@ -143,8 +143,8 @@ TEST_F(IOWebSocketClient, AListenersSendArrivesOnTheClientNamingTheServer) {
   ASSERT_TRUE(waitUntil([&] { return listener->generation() == 1u; }));
 
   EXPECT_TRUE(listener->send(bytesOf("out to everyone")));
-  ASSERT_TRUE(waitUntil([&] { return client->latest() != nullptr; }));
-  EXPECT_EQ(client->latest()->asText(), "out to everyone");
+  ASSERT_TRUE(waitUntil([&] { return client->latest().has_value(); }));
+  EXPECT_EQ(client->latest()->bytes->asText(), "out to everyone");
   const std::optional<Arrival> back = client->receive();
   ASSERT_TRUE(back.has_value());
   // A client has one peer, the server it called, and every message it
@@ -168,7 +168,7 @@ TEST_F(IOWebSocketClient, AServerNobodyIsHoldingLeavesTheReasonOnTheFeed) {
   // could not connect stands on the feed a moment after it is asked for
   // rather than within the ask.
   EXPECT_TRUE(waitUntil([&] { return !feed->error().empty(); }));
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
 }
 
 TEST_F(IOWebSocketClient, AUriThatNamesNoPortIsNotAServerToCallAndSaysWhy) {
@@ -178,7 +178,7 @@ TEST_F(IOWebSocketClient, AUriThatNamesNoPortIsNotAServerToCallAndSaysWhy) {
   const std::shared_ptr<Feed> feed = hub.feed("ws://desk.local/scene");
   EXPECT_FALSE(feed->error().empty());
   EXPECT_TRUE(feed->address().empty());
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
 }
 
 TEST_F(IOWebSocketClient,

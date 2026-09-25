@@ -270,12 +270,6 @@ std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,
   return std::move(fetched.bytes);
 }
 
-std::optional<ResourceInfo> Hub::probe(std::string_view uri) const {
-  ResourceInfo info;
-  if (!probeFetch(uri, info)) return std::nullopt;
-  return info;
-}
-
 /** Re-reads one entry's file and re-decodes every populated view from
  *  that one read, holding no lock: a decoder may take as long as it
  *  likes, and may even ask this hub for another resource, without
