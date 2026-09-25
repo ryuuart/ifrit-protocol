@@ -41,7 +41,7 @@ namespace {
 enum class MaskKind { Spans, Edge };
 
 Element maskedGrid(int count, MaskKind kind,
-                   choreograph::Output<float>* reveal) {
+                   sigil::motion::Animatable<float>& reveal) {
   auto root =
       positioned().inset(0);
   constexpr int kColumns = 32;
@@ -68,9 +68,9 @@ Element maskedGrid(int count, MaskKind kind,
 
 void maskArm(benchmark::State& state, MaskKind kind) {
   const int count = (int)state.range(0);
-  choreograph::Output<float> reveal{0.0f};
+  sigil::motion::Animatable<float> reveal = sigil::motion::animatable(0.0f);
   Host host(800, 800);
-  host.composer.render(maskedGrid(count, kind, &reveal));
+  host.composer.render(maskedGrid(count, kind, reveal));
   host.draw();
   int tick = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -148,7 +148,7 @@ Element profiledRibbonGrid(int count) {
  *  what real scenes use; the high ones exist so the growth is visible and so
  *  a per-Instance span cache, if one is ever added, has something to be
  *  measured against. */
-Element spanStrokeGrid(int passCount, choreograph::Output<float>& phase) {
+Element spanStrokeGrid(int passCount, sigil::motion::Animatable<float>& phase) {
   auto root =
       positioned().inset(0);
   constexpr int kColumns = 4;
@@ -168,8 +168,8 @@ Element spanStrokeGrid(int passCount, choreograph::Output<float>& phase) {
       const SkColor4f color = p % 2 == 0 ? SkColor4f{0.95f, 0.55f, 0.25f, 1.0f}
                                          : SkColor4f{0.25f, 0.65f, 0.95f, 1.0f};
       leaf.stroke(
-          spans::wrap(sigil::motion::bind(&phase).offset(base),
-                      sigil::motion::bind(&phase).offset(base + 0.6f * slot)),
+          spans::wrap(sigil::motion::bind(phase, {.to = {base, base + 1.0f}}),
+                      sigil::motion::bind(phase, {.to = {base + 0.6f * slot, base + 0.6f * slot + 1.0f}})),
           brush::solid(3.0f, Fill::color(color)));
     }
     root.children({std::move(leaf)});
@@ -233,7 +233,7 @@ BENCHMARK(BM_Draw_BrushWeave_Live)
 
 static void BM_Draw_StrokeSpans_Live(benchmark::State& state) {
   const int passes = (int)state.range(0);
-  choreograph::Output<float> phase{0.0f};
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
   Host host(640, 640);
   host.composer.render(spanStrokeGrid(passes, phase));
   host.draw();
@@ -387,7 +387,7 @@ BENCHMARK(BM_Draw_StampBorder_Cached);
  *  matrix instead of re-walking the border every frame. */
 static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
   Host host(800, 600);
-  choreograph::Output<float> spin{0.0f};
+  sigil::motion::Animatable<float> spin = sigil::motion::animatable(0.0f);
   host.composer.render(box().children(
       {box()
            .width(300)
@@ -397,7 +397,7 @@ static void BM_Draw_SpinningStamped_TransformReplay(benchmark::State& state) {
            .shape(
                geometry::shapes::rounded(geometry::shapes::star(7, 0.6f), 10))
            .fill(Fill::color({0.9f, 0.4f, 0.3f, 1}))
-           .rotate(&spin)
+           .rotate(spin)
            .foreground(starVine())}));
   host.draw();
   float angle = 0;
@@ -481,7 +481,7 @@ namespace {
 enum class AccentFill { Bound, Plain };
 
 Element slowThemedPanel(int count, AccentFill mode,
-                        const choreograph::Output<Fill>* bound,
+                        const sigil::motion::Animatable<Fill>& bound,
                         SkColor4f plain) {
   auto row = box().key("row").row().flexWrap().gap(2);
   for (int id = 0; id < count; ++id)
@@ -565,10 +565,10 @@ void accentLadder(::benchmark::Benchmark* b) {
 
 static void BM_Draw_StillAccent_Bound(benchmark::State& state) {
   const int count = (int)state.range(0);
-  choreograph::Output<Fill> tint{Fill::color(accentColor(0))};
+  sigil::motion::Animatable<Fill> tint = sigil::motion::animatable<Fill>(Fill::color(accentColor(0)));
   Host host(900, 900);
   host.composer.render(
-      slowThemedPanel(count, AccentFill::Bound, &tint, accentColor(0)));
+      slowThemedPanel(count, AccentFill::Bound, tint, accentColor(0)));
   warmPanel(host);
   CacheTally tally;
   for ([[maybe_unused]] auto iteration : state) {
@@ -598,10 +598,10 @@ BENCHMARK(BM_Draw_StillAccent_Plain)->Apply(accentLadder);
 
 static void BM_Draw_SlowAccent_Bound(benchmark::State& state) {
   const int count = (int)state.range(0);
-  choreograph::Output<Fill> tint{Fill::color(accentColor(0))};
+  sigil::motion::Animatable<Fill> tint = sigil::motion::animatable<Fill>(Fill::color(accentColor(0)));
   Host host(900, 900);
   host.composer.render(
-      slowThemedPanel(count, AccentFill::Bound, &tint, accentColor(0)));
+      slowThemedPanel(count, AccentFill::Bound, tint, accentColor(0)));
   warmPanel(host);
   CacheTally tally;
   int frame = 0;

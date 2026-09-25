@@ -177,7 +177,7 @@ TEST(TextSpans, AnInkPaintIsNotFadedByTheColourItReplaces) {
   host.composer.render(box().padding(10).children(
       {text(u8"Count 1234 now", faint)
            .span(sigil::weave::Selector{},
-                 SpanStyle().ink(material::skia::Paint::linearGradient(
+                 SpanStyle().ink(material::Paint::linearGradient(
                      {0, 0}, {400, 0},
                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {1, 0, 0, 1}}},
                      {.units = material::GradientUnits::Pixels})))}));
@@ -197,7 +197,7 @@ TEST(TextSpans, AnInkPaintResolvedAgainstABoxIsLeftOut) {
   spanned.composer.render(box().padding(10).children(
       {text(body, base)
            .span(sigil::weave::selectors::regex(u8"[0-9]+"),
-                 SpanStyle().ink(material::skia::Paint::linearGradient(
+                 SpanStyle().ink(material::Paint::linearGradient(
                      {0, 0}, {1, 0},
                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
   spanned.frame();

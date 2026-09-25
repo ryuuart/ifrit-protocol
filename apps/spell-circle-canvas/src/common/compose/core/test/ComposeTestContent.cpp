@@ -94,7 +94,7 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
     Host h;
     h.composer.declareInputSpace(space);
     h.composer.render(box().children({box().width(160).height(120).fill(
-        material::skia::Paint::linearGradient(
+        material::Paint::linearGradient(
             {0, 0}, {160, 120},
             {{0.0f, {1, 0, 0, 1}},
              {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},
@@ -388,7 +388,7 @@ TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
   wide.allocN32Pixels(40, 10);
   wide.eraseColor(SK_ColorRED);
   const sk_sp<SkImage> picture = wide.asImage();
-  const auto shown = [&](material::skia::Fit fit) {
+  const auto shown = [&](material::Fit fit) {
     Host host;
     host.composer.render(
         box().children({box()
@@ -402,13 +402,13 @@ TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
     return fig.value_or(SkRect::MakeEmpty());
   };
   // Both axes independently: the picture's proportions are the box's.
-  EXPECT_EQ(shown(material::skia::Fit::Stretch), SkRect::MakeWH(100, 100));
+  EXPECT_EQ(shown(material::Fit::Stretch), SkRect::MakeWH(100, 100));
   // As large as fits, the slack on the long axis: 4:1 in a square box.
-  const SkRect held = shown(material::skia::Fit::Contain);
+  const SkRect held = shown(material::Fit::Contain);
   EXPECT_FLOAT_EQ(held.width(), 100);
   EXPECT_FLOAT_EQ(held.height(), 25);
   // No slack at all: the short axis fills and the long one overflows.
-  const SkRect filled = shown(material::skia::Fit::Cover);
+  const SkRect filled = shown(material::Fit::Cover);
   EXPECT_FLOAT_EQ(filled.height(), 100);
   EXPECT_FLOAT_EQ(filled.width(), 400);
   // A picture that is not there draws nothing and takes no room.

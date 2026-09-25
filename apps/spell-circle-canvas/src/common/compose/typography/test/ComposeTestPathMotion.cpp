@@ -86,11 +86,11 @@ Element ringAt(sigil::motion::Animatable<float> at, float pixelSize) {
 /// segmentation.
 std::vector<SkPoint> ringTrack(float pixelSize) {
   Host host(kField, kField);
-  choreograph::Output<float> phase{0.05f};
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.05f);
   std::vector<SkPoint> track;
   for (int i = 0; i < kFrames; ++i) {
     phase = 0.05f + kPhaseStep * (float)i;
-    host.composer.render(ringAt(&phase, pixelSize));
+    host.composer.render(ringAt(phase, pixelSize));
     host.frame();
     track.push_back(inkCentroid(host, kField, kField));
   }
@@ -165,7 +165,7 @@ namespace {
 /// them -- through the node's placement rather than through its baseline.
 std::vector<SkPoint> turnedFigureTrack(float pixelSize) {
   Host host(kField, kField);
-  choreograph::Output<float> spin{0.0f};
+  sigil::motion::Animatable<float> spin = sigil::motion::animatable(0.0f);
   std::vector<SkPoint> track;
   for (int i = 0; i < kFrames; ++i) {
     spin = 0.15f * (float)i;
@@ -177,7 +177,7 @@ std::vector<SkPoint> turnedFigureTrack(float pixelSize) {
                             .top(0)
                             .width(kField)
                             .height(kField)
-                            .rotate(&spin)
+                            .rotate(spin)
                             .children({ringAt(0.05f, pixelSize)})}));
     host.frame();
     track.push_back(inkCentroid(host, kField, kField));
@@ -204,7 +204,7 @@ std::vector<SkPoint> slidingTrack(float pixelSize) {
   constexpr float kTravel = 0.5f;   // …and how far the letter goes per frame
   constexpr int kSlideFrames = 40;
   Host host(kField, kField);
-  choreograph::Output<float> progress{0.0f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
   std::vector<SkPoint> track;
   for (int i = 0; i < kSlideFrames; ++i) {
     progress = 1.0f - std::cbrt((kFromPx - kTravel * (float)i) / kDistance);
@@ -217,7 +217,7 @@ std::vector<SkPoint> slidingTrack(float pixelSize) {
                             .left(0)
                             .top(0)
                             .textFx({.effect = textFx::slide(kDistance),
-                                     .progress = &progress})}));
+                                     .progress = progress})}));
     host.frame();
     track.push_back(inkCentroid(host, kField, kField));
   }
@@ -294,10 +294,10 @@ TEST(ComposePathMotion, TypeAtRestKeepsWholePixelOrigins) {
       resting, [](float at) { return ringAt(at, 44.0f); });
 
   Host turning(kField, kField);
-  choreograph::Output<float> phase{0.05f};
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.05f);
   const int inMotion = distinctFramesAcrossOnePixel(turning, [&](float at) {
     phase = at;
-    return ringAt(&phase, 44.0f);
+    return ringAt(phase, 44.0f);
   });
 
   EXPECT_LE(atRest, kWholePixelCeiling)
@@ -312,10 +312,10 @@ TEST(ComposePathMotion, TypeAtRestKeepsWholePixelOrigins) {
 // whole-pixel origins and the cheap atlas that go with that.
 TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
   Host host(kField, kField);
-  choreograph::Output<float> progress{0.5f};  // bound: the track IS live
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.5f);  // bound: the track IS live
   const TextEffect fade = textFx::keys({{0.0f, {.alpha = 0.0f}}, {1.0f, {}}});
   const int distinct = distinctFramesAcrossOnePixel(host, [&](float at) {
-    return ringWith(at, 44.0f, {.effect = fade, .progress = &progress});
+    return ringWith(at, 44.0f, {.effect = fade, .progress = progress});
   });
   EXPECT_LE(distinct, kWholePixelCeiling)
       << "a fade-only track is paying for the subpixel grid";
@@ -326,18 +326,18 @@ TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
 // ring, the same live progress, the same slide of a pixel and a half — only
 // the lane the table publishes into differs.
 TEST(ComposePathMotion, AKeysTableEngagesTheGridOnlyWhereItMovesGlyphs) {
-  choreograph::Output<float> progress{0.5f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.5f);
   const TextEffect colourOnly = textFx::keys(
       {{0.0f, {.colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}}, {1.0f, {}}});
   const TextEffect offset = textFx::keys({{0.0f, {.dx = 9.0f}}, {1.0f, {}}});
 
   Host cheapHost(kField, kField);
   const int cheap = distinctFramesAcrossOnePixel(cheapHost, [&](float at) {
-    return ringWith(at, 44.0f, {.effect = colourOnly, .progress = &progress});
+    return ringWith(at, 44.0f, {.effect = colourOnly, .progress = progress});
   });
   Host movingHost(kField, kField);
   const int moving = distinctFramesAcrossOnePixel(movingHost, [&](float at) {
-    return ringWith(at, 44.0f, {.effect = offset, .progress = &progress});
+    return ringWith(at, 44.0f, {.effect = offset, .progress = progress});
   });
 
   EXPECT_LE(cheap, kWholePixelCeiling)
@@ -406,8 +406,8 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
         },
         60.0f);
     Host host(kField, kField);
-    choreograph::Output<float> phase{0.05f};  // bound, and standing still
-    choreograph::Output<float> progress{0.0f};
+    sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.05f);  // bound, and standing still
+    sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
     std::vector<SkBitmap> frames;
     frames.reserve(kSteps);
     for (int i = 0; i < kSteps; ++i) {
@@ -421,9 +421,9 @@ TEST(ComposePathMotion, ATrackRotationTurnsOnTheSameLadderAsTheBaseline) {
                .left(0)
                .top(0)
                .textOnPath({.path = geometry::shapes::circle(),
-                            .at = &phase,
+                            .at = phase,
                             .align = TextPath::Align::Center})
-               .textFx({.effect = turn, .progress = &progress})}));
+               .textFx({.effect = turn, .progress = progress})}));
       host.frame();
       SkBitmap bm;
       bm.allocPixels(SkImageInfo::MakeN32Premul(kField, kField));

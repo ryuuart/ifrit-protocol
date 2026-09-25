@@ -214,14 +214,14 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
     if (!e) ADD_FAILURE() << err.c_str();
     return e;
   }();
-  choreograph::Output<float> lift{0.0f};  // the material's own bound uniform
-  choreograph::Output<float> amt{1.0f};   // the effect's
+  sigil::motion::Animatable<float> lift = sigil::motion::animatable(0.0f);  // the material's own bound uniform
+  sigil::motion::Animatable<float> amt = sigil::motion::animatable(1.0f);   // the effect's
   Host host(200, 200);
   host.composer.render(box().children(
       {maskBox()
-           .fill(material::skia::Paint::sksl(matfx).uniform("lift", &lift))
+           .fill(material::skia::sksl(matfx).bind("lift", lift))
            .filter(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
-                       .uniform("amt", &amt))}));
+                       .bind("amt", amt))}));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
@@ -247,7 +247,7 @@ TEST(ComposeCaching, AMovingEffectOverStillContentBakesTheContentOnce) {
     if (!e) ADD_FAILURE() << err.c_str();
     return e;
   }();
-  choreograph::Output<float> amt{1.0f};
+  sigil::motion::Animatable<float> amt = sigil::motion::animatable(1.0f);
   Host host(200, 200);
   const auto describe = [&] {
     return box().children(
@@ -255,7 +255,7 @@ TEST(ComposeCaching, AMovingEffectOverStillContentBakesTheContentOnce) {
              .cache(Cache::Texture)
              .fill(red())
              .filter(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
-                         .uniform("amt", &amt))});
+                         .bind("amt", amt))});
   };
   host.composer.render(describe());
   host.frame();

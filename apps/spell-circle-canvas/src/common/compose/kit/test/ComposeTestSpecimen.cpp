@@ -480,17 +480,17 @@ TEST(KitSpecimen, PanelDividersKeepTheirWidthAcrossWrappedRows) {
 }
 
 TEST(KitSpecimen, SurfacePaintPreservesBindingsAndMaterialResolution) {
-  choreograph::Output<Fill> ink(Fill::color({1, 0, 0, 1}));
+  sigil::motion::Animatable<Fill> ink = sigil::motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));
   Host host(200, 100);
   host.composer.render(box().children(
-      {kit::well({.width = 100, .height = 60, .ground = &ink})}));
+      {kit::well({.width = 100, .height = 60, .ground = ink})}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorRED);
   ink = Fill::color({0, 1, 0, 1});
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
-  EXPECT_EQ(SurfacePaint(&ink), SurfacePaint(&ink));
-  const SurfacePaint paint = material::skia::Paint::linearGradient(
+  EXPECT_EQ(SurfacePaint(ink), SurfacePaint(ink));
+  const SurfacePaint paint = material::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}});
   for (float width : {80.0f, 160.0f}) {
     host.composer.render(box().children(

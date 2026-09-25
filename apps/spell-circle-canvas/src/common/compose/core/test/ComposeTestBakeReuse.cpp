@@ -58,7 +58,7 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
   // Note this cannot be a pixel assertion: every arrangement below draws
   // the correct picture. Only the bake COUNT tells them apart.
   Host host(300, 300);
-  choreograph::Output<float> slide{0.0f};
+  motion::Animatable<float> slide = motion::animatable(0.0f);
   host.composer.render(
       box()
           .cache(Cache::None)
@@ -66,7 +66,7 @@ TEST(ComposeCaching, TextureBakeReusedUnderAMovingAncestor) {
               {box()
                    .cache(Cache::None)
                    .absolute()
-                   .translateX(&slide)
+                   .translateX(slide)
                    .children({box()
                                   .width(60)
                                   .height(60)
@@ -217,14 +217,14 @@ TEST(ComposeCaching, ANodeUnderALiveTransformKeepsTheLocalBakeInItsRecording) {
   // ancestor slides — the same guarantee the moving-ancestor case gives
   // through a Cache::None parent, here through a recording.
   Host host(300, 300);
-  choreograph::Output<float> slide{0.0f};
+  motion::Animatable<float> slide = motion::animatable(0.0f);
   host.composer.render(
       box()
           .cache(Cache::None)
           .children(
               {box()
                    .absolute()
-                   .translateX(&slide)
+                   .translateX(slide)
                    .children(
                        {box().absolute().left(2).top(2).width(4).height(4).fill(
                            Fill::color({0, 0.3f, 0, 1}))})
@@ -304,7 +304,7 @@ namespace {
  *  shape a bake is most worth taking for, and the shape whose bake is
  *  mostly transparent. The letters ride a circle inscribed in the node's
  *  box, so the ink is a band and the corners are empty. */
-Element ringOfType(Cache mode, const choreograph::Output<float>* turn) {
+Element ringOfType(Cache mode, const motion::Animatable<float>& turn) {
   const float side = 640.0f, radius = 270.0f;
   Element ring = box()
                      .key("ring")
@@ -326,13 +326,13 @@ Element ringOfType(Cache mode, const choreograph::Output<float>* turn) {
                        .top(side * 0.5f + radius * std::sin(a) - 12.0f)
                        .width(80)});
   }
-  if (turn) ring.rotate(motion::bind(turn).target(0.0f, 360.0f));
+  if (turn) ring.rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}));
   return ring;
 }
 
 /** …painted every frame, so the cases below watch the ring itself rather
  *  than an ancestor's recording of it. */
-Element turnedRing(Cache mode, const choreograph::Output<float>* turn) {
+Element turnedRing(Cache mode, const motion::Animatable<float>& turn) {
   return profiledUnder(ringOfType(mode, turn));
 }
 
@@ -341,7 +341,7 @@ Element turnedRing(Cache mode, const choreograph::Output<float>* turn) {
  *  recording matrix-independent, which is what keeps the ring on the local
  *  bake — the tier the ink grid describes — and the recording is replayed
  *  under a matrix of its own, which is not the page's own space. */
-Element ringInASlidingPage(const choreograph::Output<float>* slide,
+Element ringInASlidingPage(const motion::Animatable<float>& slide,
                            Cache mode) {
   return profiledUnder(box()
                            .key("page")
@@ -363,8 +363,8 @@ TEST(ComposeCaching, ARingUnderABoundRotationBakesOnceAndBlitsEveryFrame) {
   // the ladder the local bake is quantized on cannot be moved by a
   // rotation, so no rung is ever crossed and nothing is re-rasterized.
   Host host(680, 680);
-  choreograph::Output<float> turn{0.0f};
-  host.composer.render(turnedRing(Cache::Texture, &turn));
+  motion::Animatable<float> turn = motion::animatable(0.0f);
+  host.composer.render(turnedRing(Cache::Texture, turn));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u) << "the one bake";
   for (int i = 1; i <= 12; ++i) {
@@ -405,13 +405,13 @@ TEST(ComposeCaching, ATurnedRingsBlitLosesNoneOfWhatItBaked) {
   // visible artwork may disappear at any angle.
   const int w = 680, h = 680, block = 16;
   for (float degrees : {0.0f, 7.0f, 45.0f, 90.0f, 137.0f, -60.0f}) {
-    choreograph::Output<float> turn{degrees / 360.0f};
+    motion::Animatable<float> turn = motion::animatable<float>(degrees / 360.0f);
     Host cached(w, h), plain(w, h);
-    cached.composer.render(turnedRing(Cache::Texture, &turn));
+    cached.composer.render(turnedRing(Cache::Texture, turn));
     cached.frame();
     cached.frame();  // the second frame is the blit, not the bake
     EXPECT_EQ(cached.composer.stats().texturesBaked, 0u) << degrees;
-    plain.composer.render(turnedRing(Cache::None, &turn));
+    plain.composer.render(turnedRing(Cache::None, turn));
     plain.frame();
     const std::vector<int> was = blockPeaks(plain, w, h, block);
     const std::vector<int> is = blockPeaks(cached, w, h, block);
@@ -451,11 +451,11 @@ TEST(ComposeCaching, ARecordedBakesBlitLosesNoneOfWhatItBaked) {
     canvas->restore();
   };
   Host cached(w, h), plain(w, h);
-  choreograph::Output<float> cachedSlide{0.0f}, plainSlide{0.0f};
+  motion::Animatable<float> cachedSlide = motion::animatable(0.0f), plainSlide = motion::animatable(0.0f);
   for (Host* host : {&cached, &plain})
     host->composer.setSize({(float)w / view, (float)h / view});
-  cached.composer.render(ringInASlidingPage(&cachedSlide, Cache::Texture));
-  plain.composer.render(ringInASlidingPage(&plainSlide, Cache::None));
+  cached.composer.render(ringInASlidingPage(cachedSlide, Cache::Texture));
+  plain.composer.render(ringInASlidingPage(plainSlide, Cache::None));
   drawAt(cached);
   // The page slides, its recording holds, and the blit inside it is replayed
   // somewhere else — which is the whole point of a recording, and the state

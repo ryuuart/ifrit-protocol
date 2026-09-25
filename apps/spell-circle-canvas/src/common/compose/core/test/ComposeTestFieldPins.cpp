@@ -109,16 +109,15 @@ void perturb(std::optional<sigil::motion::Transition>& v) {
 void perturb(motion::Easing& v) { v = motion::ease::inQuad; }
 
 void perturb(sigil::motion::Envelope& v) {
-  v = sigil::motion::Envelope::kCosine;
+  v = sigil::motion::envelope::cosine();
 }
 
-void perturb(const choreograph::Output<float>*& v) {
-  static choreograph::Output<float> other;
-  v = &other;
-}
+void perturb(sigil::motion::Range& v) { v.high += 1.0f; }
+
+void perturb(sigil::motion::Wiggle& v) { v.amount += 1.0f; }
 
 void perturb(sigil::motion::Animatable<float>& v) {
-  v = (v.plain() ? *v.plain() : 0.0f) + 1.0f;
+  v = (v.constant() ? *v.constant() : 0.0f) + 1.0f;
 }
 
 void perturb(std::optional<sigil::motion::Animatable<Fill>>& v) {
@@ -295,40 +294,20 @@ TEST(ComposeReconcile, EveryDepthDataFieldParticipatesInEquality) {
       kNames, kParticipates);
 }
 
-TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
-  // Against boundMapEqual() directly. Every stage of a bound float's shaping
-  // map is read live at paint, so every one of them participates — including
-  // the wiggle parameters, `wrapPeriod` and the envelope's corners, which are
-  // easy to add to the struct and forget in the comparator.
-  static const char* const kNames[] = {"source",
-                                       "inputScale",
-                                       "inputOffset",
-                                       "curve",
-                                       "clampInput",
-                                       "envelope",
-                                       "riseStart",
-                                       "holdStart",
-                                       "holdEnd",
-                                       "fallEnd",
-                                       "duty",
-                                       "waveFunction",
-                                       "steps",
-                                       "scale",
-                                       "offset",
-                                       "clamped",
-                                       "low",
-                                       "high",
-                                       "wiggleAmount",
-                                       "wiggleFrequency",
-                                       "wiggleSeed",
-                                       "wiggleOctaves",
-                                       "wiggleFalloff",
-                                       "wrapPeriod"};
-  static const bool kParticipates[] = {
-      true, true, true, true, true, true, true, true, true, true, true, true,
-      true, true, true, true, true, true, true, true, true, true, true, true};
-  walkFields<sigil::motion::BoundFloat>(cd::boundMapEqual, kNames,
-                                        kParticipates);
+TEST(ComposeReconcile, EveryBindingFieldParticipatesInEquality) {
+  // Against Binding's equality directly. Every stage of a live value's
+  // shaping is read at paint, so every one of them participates — including
+  // the wiggle, the wrap and the envelope, which are easy to add to the
+  // struct and forget in the comparator.
+  static const char* const kNames[] = {
+      "from", "clampFrom", "alternate", "envelope", "ease",  "quantize",
+      "reverse", "to",     "wrap",      "wiggle",   "clamp"};
+  static const bool kParticipates[] = {true, true, true, true, true, true,
+                                       true, true, true, true, true};
+  walkFields<sigil::motion::Binding>(
+      [](const sigil::motion::Binding& left,
+         const sigil::motion::Binding& right) { return left == right; },
+      kNames, kParticipates);
 }
 
 TEST(ComposeReconcile, EveryElementNodeFieldParticipatesInEquality) {

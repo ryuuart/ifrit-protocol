@@ -27,15 +27,14 @@ class Element;
  *  whichever it already holds:
  *
  *      Fill                        a colour or a shader
- *      motion::Animatable<Fill>    a fill that eases or is driven
- *      const choreograph::Output<Fill>*  a live binding
+ *      motion::Animatable<Fill>    a fill that eases or is driven live
  *      motion::Transitioned<Fill>  a fill mid-transition
- *      material::skia::Paint       a gradient ramp, blend stack, SkSL
+ *      material::Paint       a gradient ramp, blend stack, SkSL
  *      material::Material          a recipe, wrapped as that paint
  *
  *  `apply()` writes it onto an element exactly as the matching `fill()`
  *  overload would; an empty paint leaves that element's fill alone. A
- *  bound output must outlive the component, as it must when it is passed
+ *  live fill is shared with the component, as it is when it is passed
  *  to `Element::fill()` directly. */
 class SurfacePaint {
  public:
@@ -44,13 +43,11 @@ class SurfacePaint {
   SurfacePaint(Fill fill)
       : m_value(motion::Animatable<Fill>{std::move(fill)}) {}
   SurfacePaint(motion::Animatable<Fill> fill) : m_value(std::move(fill)) {}
-  SurfacePaint(const choreograph::Output<Fill>* fill)
-      : m_value(motion::Animatable<Fill>{fill}) {}
   SurfacePaint(motion::Transitioned<Fill> fill)
       : m_value(motion::Animatable<Fill>{std::move(fill)}) {}
-  SurfacePaint(material::skia::Paint paint) : m_value(std::move(paint)) {}
+  SurfacePaint(material::Paint paint) : m_value(std::move(paint)) {}
   SurfacePaint(material::Material recipe)
-      : m_value(material::skia::Paint::recipe(std::move(recipe))) {}
+      : m_value(material::Paint::recipe(std::move(recipe))) {}
   // NOLINTEND(google-explicit-constructor)
 
   [[nodiscard]] bool none() const;
@@ -79,7 +76,7 @@ class SurfacePaint {
    *  slot resolves without the tree and without the binding's identity;
    *  so does an empty paint, which is the one spelling that means the
    *  slot should hold nothing. `none()` separates the two. */
-  [[nodiscard]] std::optional<material::skia::Paint> collapsedPaint() const;
+  [[nodiscard]] std::optional<material::Paint> collapsedPaint() const;
   /** WAS THIS WRITTEN AS A MATERIAL PAINT rather than as a fill? Both can
    *  be one flat colour and still mean different things to a slot that
    *  treats a colour specially: `Paint::solid(c)` is a picture that
@@ -91,7 +88,7 @@ class SurfacePaint {
   bool operator==(const SurfacePaint&) const = default;
 
  private:
-  std::variant<motion::Animatable<Fill>, material::skia::Paint> m_value;
+  std::variant<motion::Animatable<Fill>, material::Paint> m_value;
 };
 
 }  // namespace sigil::compose

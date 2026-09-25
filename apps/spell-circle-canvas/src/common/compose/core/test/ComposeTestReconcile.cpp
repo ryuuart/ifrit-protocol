@@ -348,19 +348,19 @@ TEST(ComposeEnv, ALibraryComponentReadsTheEnvironmentByItsOwnPropsType) {
 }
 
 // ---------------------------------------------------------------------------
-// wiggle() and the reconciler — the prune behaviour of BoundFloat's noise
+// A binding's wiggle and the reconciler — the prune behaviour of the noise
 // stage.
 
 TEST(ComposeReconcile, WiggledBindingsPruneOnlyWhenEveryParameterMatches) {
-  // THE TRAP, pinned. `boundMapEqual()` in Reconcile.cpp compares BoundFloat
-  // FIELD BY FIELD, and a field left out of that list fails INVISIBLY: two
-  // different wiggles compare equal, the node prunes, and the instance keeps
-  // applying the OLD map forever while every other test still passes. So
-  // each of the five wiggle fields gets its own re-describe here.
+  // THE TRAP, pinned. Binding's equality compares a binding FIELD BY FIELD,
+  // and a field left out of it fails INVISIBLY: two different wiggles
+  // compare equal, the node prunes, and the instance keeps applying the OLD
+  // stages forever while every other test still passes. So each of the five
+  // wiggle fields gets its own re-describe here.
   //
-  // If this test fails, do not relax it — a field is missing from
-  // boundMapEqual().
-  static choreograph::Output<float> phase;
+  // If this test fails, do not relax it — a field is missing from Binding's
+  // equality.
+  static motion::Animatable<float> phase = motion::animatable(0.0f);
   phase = 0.35f;
   struct Rig {
     float amount = 12.0f;
@@ -372,9 +372,7 @@ TEST(ComposeReconcile, WiggledBindingsPruneOnlyWhenEveryParameterMatches) {
   auto tree = [](Rig r) {
     return box().children(
         {box().key("shaken").width(40).height(40).fill(red()).translateX(
-            motion::bind(&phase)
-                .target(-70.0f, 170.0f)
-                .wiggle(r.amount, r.frequency, r.seed, r.octaves, r.falloff))});
+            motion::bind(phase, {.to = {-70.0f, 170.0f}, .wiggle = {.amount = r.amount, .frequency = r.frequency, .seed = r.seed, .octaves = r.octaves, .falloff = r.falloff}}))});
   };
 
   Host host;
@@ -400,7 +398,7 @@ TEST(ComposeReconcile, WiggledBindingsPruneOnlyWhenEveryParameterMatches) {
     host.composer.render(tree(moved[i]));
     EXPECT_GT(host.composer.stats().patchedNodes, 0u)
         << named[i]
-        << " changed and the node PRUNED — boundMapEqual() is "
+        << " changed and the node PRUNED — Binding's equality is "
            "missing that field";
     EXPECT_TRUE(host.composer.dirty()) << named[i];
   }
@@ -412,7 +410,7 @@ TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
   // prune into one another; the prune pin is the test above. This one
   // proves the seed survives Element → reconciler → paint, which is what
   // makes a two-axis shake possible instead of a diagonal slide.)
-  static choreograph::Output<float> t;
+  static motion::Animatable<float> t = motion::animatable(0.0f);
   t = 0.0f;
   Host host(200, 200);
   auto tree = [] {
@@ -425,7 +423,7 @@ TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
              .height(8)
              .fill(red())
              .translateX(
-                 sigil::motion::wiggle(&t, 40.0f, 3.0f, 1).offset(100.0f))
+                 motion::bind(t, {.to = {100.0f, 100.0f}, .wiggle = {.amount = 40.0f, .frequency = 3.0f, .seed = 1}}))
              .translateY(30.0f),
          box()
              .key("y")
@@ -433,7 +431,7 @@ TEST(ComposeReconcile, TwoSeedsShakeIndependentlyOnScreen) {
              .height(8)
              .fill(green())
              .translateX(
-                 sigil::motion::wiggle(&t, 40.0f, 3.0f, 2).offset(100.0f))
+                 motion::bind(t, {.to = {100.0f, 100.0f}, .wiggle = {.amount = 40.0f, .frequency = 3.0f, .seed = 2}}))
              .translateY(90.0f)});
   };
   host.composer.render(tree());

@@ -39,7 +39,7 @@ void pitchLadder(::benchmark::Benchmark* b) {
 static void BM_Bake_Pattern_Halftone(benchmark::State& state) {
   const float pitch = (float)state.range(0);
   for ([[maybe_unused]] auto iteration : state) {
-    material::skia::Paint material =
+    material::Paint material =
         Pattern(material::pattern::halftone(pitch, pitch * 0.35f,
                                             {0.1f, 0.1f, 0.12f, 1}))
             .material();
@@ -54,7 +54,7 @@ BENCHMARK(BM_Bake_Pattern_Halftone)->Apply(pitchLadder);
 static void BM_Bake_Pattern_Speckle(benchmark::State& state) {
   const int count = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state) {
-    material::skia::Paint material =
+    material::Paint material =
         Pattern(material::pattern::speckle(
                     128.0f, count, 0.5f, 1.5f,
                     {{0.9f, 0.9f, 0.85f, 1}, {0.6f, 0.6f, 0.55f, 1}}))
@@ -75,7 +75,7 @@ BENCHMARK(BM_Bake_Pattern_Speckle)
 static void BM_Draw_Pattern_Fill_Live(benchmark::State& state) {
   const float pitch = (float)state.range(0);
   Host host(800, 800);
-  material::skia::Paint halftone =
+  material::Paint halftone =
       Pattern(material::pattern::halftone(pitch, pitch * 0.35f,
                                           {0.1f, 0.1f, 0.12f, 1}))
           .material();

@@ -101,15 +101,15 @@ struct PathFormat {
    *  off, a diagonal or a curve almost never does. */
   bool antiAlias = true;
   float dashPhase = 0.0f;
-  /** Bind the dash phase to a wrapping Output and the dashes MARCH — a
+  /** Bind the dash phase to a wrapping live value and the dashes MARCH — a
    *  selected route, a live link, a cut line. Like `trimPhase`, it
    *  supersedes the constant and declares the decoration animated, so the
    *  node repaints every frame without needing a re-describe.
    *
-   *  An animatable rather than a bare Output, so the arithmetic that
+   *  An animatable rather than a bare live value, so the arithmetic that
    *  shapes the march — `bind(&secs).source(0, 3).wrap(1)`, a ping-pong,
    *  a wiggle — sits next to the phase it drives instead of in a second
-   *  Output somebody has to step. What it cannot carry is its own
+   *  live value somebody has to step. What it cannot carry is its own
    *  TRANSITION: a decoration paints with a PaintContext and no instance,
    *  so there is no held motion for one to run on, and a transitioned
    *  value reads as its target. */
@@ -126,7 +126,7 @@ struct PathFormat {
   /** Per-DECORATION trim window (fractions of arc length) — one node can
    *  carry a full static band AND a marching sliver as two strokes. Wraps
    *  like `spans::wrap` (seam-crossing windows stitch into one contour).
-   *  Bind `trimPhase` to a wrapping Output and THIS stroke marches while
+   *  Bind `trimPhase` to a wrapping live value and THIS stroke marches while
    *  its siblings hold still (declares the decoration animated).
    *
    *  IT COMPOSES WITH THE PASS'S OWN SPAN, which is the part people miss.
@@ -205,7 +205,7 @@ struct Shadow {
   SkVector offset = {0, 0};
   float blur = 0;
 
-  /** Bound offsets: when set, the Output's current value REPLACES that
+  /** Bound offsets: when set, the live value's current number REPLACES that
    *  axis of `offset` each paint, and the decoration declares itself
    *  animated (per-frame volatility) — the hover-lift shadow slides
    *  without re-describing. `maxBind` reserves cull reach for the bound
@@ -289,7 +289,7 @@ struct PathSample {
  *    replayed per sample centered on the contour. Recursion is closed:
  *    the stamp's decorations may walk their own contours. With
  *    `animatedWalk` the stamp re-records each paint, sampling any
- *    bound ch::Outputs at their current values.
+ *    live values at their current values.
  *  - `stampAt`: the SEQUENCE form of `stamp` — see its own note.
  *
  *  When several are set, the sample's stamp replays first (`stampAt`'s
@@ -355,7 +355,7 @@ struct ContourWalk {
  *                                    SkBlendMode::kSoftLight, 0.35f))
  */
 struct Wash {
-  material::skia::Paint material;
+  material::Paint material;
   SkBlendMode blend = SkBlendMode::kSrcOver;
   /** Strength, 0..1, applied as alpha on the pass. Clamped at paint; 0
    *  paints nothing at all. */
@@ -462,7 +462,7 @@ struct Border {
  *  with several fields can be started from the two or three that
  *  matter. */
 namespace decorations {
-inline Wash wash(material::skia::Paint material,
+inline Wash wash(material::Paint material,
                  SkBlendMode blend = SkBlendMode::kSrcOver,
                  float amount = 1.0f) {
   return Wash{std::move(material), blend, amount};

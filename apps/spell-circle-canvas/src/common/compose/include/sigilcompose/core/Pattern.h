@@ -107,8 +107,8 @@ class Pattern {
     m_tile.offset(px);
     return *this;
   }
-  /** Pan the repeat LIVE — the bound form of the same word. Assign the
-   *  Outputs and the conveyor moves, the twill marches, with NO
+  /** Pan the repeat LIVE — the bound form of the same word. Write the live
+   *  values and the conveyor moves, the twill marches, with NO
    *  re-describe and no rebake; either axis may be null. Adds to the
    *  static offset(), which is then the phase origin.
    *
@@ -137,15 +137,15 @@ class Pattern {
   /** Bake-once + wrap as a repeating paint. PROGRAM TILES ONLY: an
    *  element-tile Pattern has no font context here, so it draws nothing
    *  and returns an EMPTY paint — use the overload below. */
-  material::skia::Paint material() const { return bake(nullptr); }
+  material::Paint material() const { return bake(nullptr); }
   /** Element-tile overload, and the required one for element tiles: the
    *  tree is laid out and shaped during the bake, which needs the fonts. */
-  material::skia::Paint material(sigil::weave::FontContext& fonts) const {
+  material::Paint material(sigil::weave::FontContext& fonts) const {
     return bake(&fonts);
   }
 
  private:
-  material::skia::Paint bake(sigil::weave::FontContext* fonts) const {
+  material::Paint bake(sigil::weave::FontContext* fonts) const {
     if (!m_tile.valid()) return {};
     if (m_tree && !m_tile.baked()) {
       if (!fonts) {
@@ -168,13 +168,13 @@ class Pattern {
     }
     sk_sp<SkImage> baked = m_tile.image();
     if (!baked) return {};
-    material::skia::Paint m = material::skia::Paint::image(
-        std::move(baked), SkTileMode::kRepeat, SkTileMode::kRepeat,
+    material::Paint m = material::skia::image(
+        std::move(baked), material::Repeat::Repeat, material::Repeat::Repeat,
         m_tile.mapping(),
         m_sampling.value_or(SkSamplingOptions(m_tile.filter())));
     if (m_boundX || m_boundY)
       m.offset(m_boundX,
-               m_boundY);  // the live pan rides material::skia::Paint's
+               m_boundY);  // the live pan rides material::Paint's
                            // bound-matrix channel
     return m;
   }

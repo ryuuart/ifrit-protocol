@@ -26,8 +26,8 @@ TEST(ComposeValues, AStaticPaintCollapsesToTheFillItResolvesTo) {
   // The collapse is what lets a paint ride the fill caching and the prune
   // path unchanged: a paint with nothing moving in it IS a fill, and the
   // per-frame resolve answers the same thing.
-  const material::skia::Paint solid =
-      material::skia::Paint::solid({0.25f, 0.5f, 0.75f, 1.0f});
+  const material::Paint solid =
+      material::Paint::solid({0.25f, 0.5f, 0.75f, 1.0f});
   const Fill collapsed = toFill(solid);
   EXPECT_EQ(collapsed.kind, Fill::Kind::Color);
   EXPECT_FLOAT_EQ(collapsed.colorValue.r, 0.25f);
@@ -50,10 +50,10 @@ TEST(ComposeValues, TheFrameAPaintResolvesAgainstIsTheContextsOwn) {
   ctx.toRoot = SkMatrix::Translate(30, 40);
   ctx.elapsedSeconds = 2.5;
   ctx.contentScale = 2.0f;
-  const material::skia::PaintFrame frame = frameOf(ctx);
-  EXPECT_EQ(frame.size, SkSize::Make(40, 20));
-  EXPECT_EQ(frame.rootSize, SkSize::Make(800, 600));
-  EXPECT_EQ(frame.toRoot, SkMatrix::Translate(30, 40));
+  const material::FrameData frame = frameOf(ctx);
+  EXPECT_EQ(frame.resolution, glm::vec2(40, 20));
+  EXPECT_EQ(frame.rootResolution, glm::vec2(800, 600));
+  EXPECT_EQ(material::skia::toSkMatrix(frame.world), SkMatrix::Translate(30, 40));
   EXPECT_DOUBLE_EQ(frame.seconds, 2.5);
   EXPECT_FLOAT_EQ(frame.contentScale, 2.0f);
 }

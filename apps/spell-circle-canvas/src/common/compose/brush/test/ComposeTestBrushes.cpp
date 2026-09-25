@@ -179,9 +179,9 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
       SkString("uniform float uTime; half4 main(float2 p) {"
                "  return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
-  material::skia::Paint stepped =
-      material::skia::Paint::sksl(fx).quantizeTime(2.0f);
-  auto sampleAt = [&](material::skia::Paint& m, double seconds) {
+  material::Paint stepped =
+      material::skia::sksl(fx).quantizeTime(2.0f);
+  auto sampleAt = [&](material::Paint& m, double seconds) {
     PaintContext ctx;
     ctx.size = {8, 8};
     ctx.elapsedSeconds = seconds;
@@ -197,7 +197,7 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
   };
   EXPECT_EQ(sampleAt(stepped, 0.6), sampleAt(stepped, 0.9));  // same step
   EXPECT_NE(sampleAt(stepped, 0.6), sampleAt(stepped, 1.1));  // next step
-  material::skia::Paint continuous = material::skia::Paint::sksl(fx);
+  material::Paint continuous = material::skia::sksl(fx);
   EXPECT_NE(sampleAt(continuous, 0.6), sampleAt(continuous, 0.9));
 }
 

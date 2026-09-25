@@ -205,8 +205,8 @@ Element SpriteSheet::cell(std::string_view name) const {
   return box()
       .width(window.width())
       .height(window.height())
-      .fill(material::skia::Paint::image(
-          m_sheet, SkTileMode::kDecal, SkTileMode::kDecal,
+      .fill(material::skia::image(
+          m_sheet, material::Repeat::None, material::Repeat::None,
           SkMatrix::Translate(-window.left(), -window.top()),
           SkSamplingOptions(SkFilterMode::kNearest)));
 }

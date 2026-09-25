@@ -32,17 +32,17 @@ TEST(ComposeSpanWrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   // spells it as arithmetic on the two ENDPOINTS of one Output, which is why
   // it owes no third parameter.
   constexpr float kWindow = 0.25f;
-  choreograph::Output<float> phase;
+  motion::Animatable<float> phase = motion::animatable(0.0f);
 
   Host trimmed(200, 200);
   trimmed.composer.render(stack().children(
       {revealBox()
-           .mask(by::spans(spans::wrap(0.0f, kWindow).offset(&phase)))
+           .mask(by::spans(spans::wrap(0.0f, kWindow).offset(phase)))
            .stroke(stroke(6, red()))}));
 
   Host spanned(200, 200);
   spanned.composer.render(stack().children({revealBox().stroke(
-      spans::wrap(motion::bind(&phase), motion::bind(&phase).offset(kWindow)),
+      spans::wrap(motion::bind(phase), motion::bind(phase, {.to = {kWindow, kWindow + 1.0f}})),
       stroke(6, red()))}));
 
   for (float p : {0.0f, 0.12f, 0.37f, 0.5f, 0.66f, 0.80f, 0.90f, 0.97f}) {
@@ -231,14 +231,14 @@ TEST(ComposeSpanTrim, AWindowReachingOutsideZeroToOnePinsRatherThanWraps) {
 
 TEST(ComposeSpanTrim, BoundEndpointsScrubTheSameWindow) {
   // Plain bound endpoints — the case both modes share.
-  choreograph::Output<float> begin, end;
+  motion::Animatable<float> begin = motion::animatable(0.0f), end = motion::animatable(0.0f);
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(
       stack().children({revealBox()
-                            .mask(by::spans(spans::range(&begin, &end)))
+                            .mask(by::spans(spans::range(begin, end)))
                             .stroke(stroke(6, red()))}));
   spanned.composer.render(stack().children(
-      {revealBox().stroke(spans::range(&begin, &end), stroke(6, red()))}));
+      {revealBox().stroke(spans::range(begin, end), stroke(6, red()))}));
   for (auto [b, e] : {std::pair{0.0f, 0.2f}, std::pair{0.3f, 0.9f},
                       std::pair{0.45f, 0.55f}}) {
     begin = b;
@@ -256,10 +256,10 @@ TEST(ComposeSpanTrim, BoundEndpointsScrubTheSameWindow) {
 TEST(ComposeSpanTrim, TheOffsetArgumentIsEndpointArithmetic) {
   // The gate's third argument. A CONSTANT offset is just addition at the
   // call site; a BOUND offset over constant ends is
-  // `motion::bind(&off).offset(k)` on each end. Both are checked against the
+  // `motion::bind(off).offset(k)` on each end. Both are checked against the
   // gate carrying the offset itself, which is what makes them spellings rather
   // than approximations.
-  choreograph::Output<float> off;
+  motion::Animatable<float> off = motion::animatable(0.0f);
   Host constTrim(200, 200), constSpan(200, 200);
   constTrim.composer.render(stack().children(
       {revealBox()
@@ -275,10 +275,10 @@ TEST(ComposeSpanTrim, TheOffsetArgumentIsEndpointArithmetic) {
   Host boundTrim(200, 200), boundSpan(200, 200);
   boundTrim.composer.render(
       stack().children({revealBox()
-                            .mask(by::spans(spans::upTo(0.3f).offset(&off)))
+                            .mask(by::spans(spans::upTo(0.3f).offset(off)))
                             .stroke(stroke(6, red()))}));
   boundSpan.composer.render(stack().children({revealBox().stroke(
-      spans::range(motion::bind(&off), motion::bind(&off).offset(0.3f)),
+      spans::range(motion::bind(off), motion::bind(off, {.to = {0.3f, 1.3f}})),
       stroke(6, red()))}));
   for (float v : {0.0f, 0.17f, 0.42f, 0.61f}) {
     off = v;
@@ -342,14 +342,14 @@ TEST(ComposeSpanOffset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
   // cannot express two independently driven values summed into one endpoint
   // — a window that both scrubs and marches. `Spans::offset()` is that third
   // live term, and this checks the sum is the same sum on both doors.
-  choreograph::Output<float> begin, end, off;
+  motion::Animatable<float> begin = motion::animatable(0.0f), end = motion::animatable(0.0f), off = motion::animatable(0.0f);
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(stack().children(
       {revealBox()
-           .mask(by::spans(spans::range(&begin, &end).offset(&off)))
+           .mask(by::spans(spans::range(begin, end).offset(off)))
            .stroke(stroke(6, red()))}));
   spanned.composer.render(stack().children({revealBox().stroke(
-      spans::range(&begin, &end).offset(&off), stroke(6, red()))}));
+      spans::range(begin, end).offset(off), stroke(6, red()))}));
   for (auto [b, e, o] :
        {std::tuple{0.0f, 0.3f, 0.0f}, std::tuple{0.0f, 0.3f, 0.25f},
         std::tuple{0.1f, 0.5f, -0.05f}, std::tuple{0.4f, 0.45f, 0.5f},
@@ -368,14 +368,14 @@ TEST(ComposeSpanOffset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
 TEST(ComposeSpanOffset, TheSummedEndpointWrapsLikeTrimDoes) {
   // The same row in Wrap mode — where the offset is the marching term and
   // the ends are the window, each on its own Output.
-  choreograph::Output<float> begin, end, off;
+  motion::Animatable<float> begin = motion::animatable(0.0f), end = motion::animatable(0.0f), off = motion::animatable(0.0f);
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(stack().children(
       {revealBox()
-           .mask(by::spans(spans::wrap(&begin, &end).offset(&off)))
+           .mask(by::spans(spans::wrap(begin, end).offset(off)))
            .stroke(stroke(6, red()))}));
   spanned.composer.render(stack().children({revealBox().stroke(
-      spans::wrap(&begin, &end).offset(&off), stroke(6, red()))}));
+      spans::wrap(begin, end).offset(off), stroke(6, red()))}));
   begin = 0.0f;
   end = 0.22f;
   for (float o : {0.0f, 0.15f, 0.44f, 0.7f, 0.88f, 0.95f, 1.3f}) {
@@ -521,12 +521,12 @@ TEST(ComposeMask, WrapWindowCrossesTheSeam) {
 
 TEST(ComposeMask, WrapOffsetBindingMarchesTheWindow) {
   Host host;
-  choreograph::Output<float> phase{0.0f};
+  motion::Animatable<float> phase = motion::animatable(0.0f);
   host.composer.render(box().children(
       {box()
            .absolute()
            .inset(50)
-           .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(&phase)))
+           .mask(by::spans(spans::wrap(0.0f, 0.25f).offset(phase)))
            .foreground(stroke(6, green()))}));
   host.frame();
   std::vector<SkIPoint> lit0;

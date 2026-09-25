@@ -55,7 +55,7 @@ inline constexpr Beats Text = Beats::Text;
  *  `progress` takes the full Animatable treatment — a plain constant,
  *  a `with()`/`animate()` transition (retarget-safe: each track owns its
  *  own transition slot, so retargeting the second track leaves the first
- *  alone), or a `ch::Output` binding. One-shot effects consume 0→1; loop
+ *  alone), or a live value. One-shot effects consume 0→1; loop
  *  effects read a WRAPPING bound phase. While any track's progress moves
  *  the element paints live; once every track settles it caches like a
  *  static leaf. */

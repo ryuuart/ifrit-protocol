@@ -176,10 +176,10 @@ TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
   // frame, which defeats the pruning the library is built on. Without a
   // bound phase the only spelling left is a DecorationScheme of one's
   // own.
-  choreograph::Output<float> march{0.0f};
+  sigil::motion::Animatable<float> march = sigil::motion::animatable(0.0f);
   PathFormat dashed = stroke(4, Fill::color({1, 1, 1, 1}));
   dashed.dashIntervals = {10.0f, 10.0f};
-  dashed.dashPhaseBinding = &march;
+  dashed.dashPhaseBinding = march;
 
   Host host(200, 200);
   host.composer.render(box().children({box()
@@ -259,7 +259,7 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
                                .children({box().absolute().inset(40).fill(
                                    Fill::color({0, 0, 1, 1}))})
                                .foreground(decorations::wash(
-                                   material::skia::Paint::solid({1, 0, 0, 1}),
+                                   material::Paint::solid({1, 0, 0, 1}),
                                    SkBlendMode::kPlus, amount))});
   };
   Host full(120, 120), half(120, 120), none(120, 120);
@@ -279,12 +279,12 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
   EXPECT_EQ(SkColorGetR(none.pixel(60, 60)), 0);
 
   // And it is a comparable VALUE, so a static wash prunes.
-  EXPECT_TRUE(decorations::wash(material::skia::Paint::solid({1, 0, 0, 1}),
+  EXPECT_TRUE(decorations::wash(material::Paint::solid({1, 0, 0, 1}),
                                 SkBlendMode::kPlus, 0.5f) ==
-              decorations::wash(material::skia::Paint::solid({1, 0, 0, 1}),
+              decorations::wash(material::Paint::solid({1, 0, 0, 1}),
                                 SkBlendMode::kPlus, 0.5f));
-  EXPECT_FALSE(decorations::wash(material::skia::Paint::solid({1, 0, 0, 1})) ==
-               decorations::wash(material::skia::Paint::solid({0, 1, 0, 1})));
+  EXPECT_FALSE(decorations::wash(material::Paint::solid({1, 0, 0, 1})) ==
+               decorations::wash(material::Paint::solid({0, 1, 0, 1})));
 }
 
 TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
@@ -320,7 +320,7 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
   // whose surfaces are mostly STROKES, that meant writing the same brass
   // twice, once per return type.
   PathFormat f = stroke(30, Fill::color({1, 1, 1, 1}));
-  f.strokeFill = material::skia::Paint::linearGradient(
+  f.strokeFill = material::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   Host host(200, 200);
   host.composer.render(box().children(
@@ -399,12 +399,12 @@ TEST(ComposeFx, EdgeGateIsBindableWithoutARedescribe) {
   // about the gate being paint-only, since nothing here checks that bounds()
   // held still.
   Host host(200, 200);
-  choreograph::Output<float> reveal{0.0f};
+  sigil::motion::Animatable<float> reveal = sigil::motion::animatable(0.0f);
   host.composer.render(box().children({box()
                                            .absolute()
                                            .inset(20)
                                            .fill(Fill::color({1, 0, 0, 1}))
-                                           .mask(by::edge(0.0f, &reveal))}));
+                                           .mask(by::edge(0.0f, reveal))}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 100), SK_ColorBLACK);
 
@@ -433,7 +433,7 @@ TEST(ComposePattern, ARepeatCanBePanned) {
     p.offset(pan).sampling(SkSamplingOptions(SkFilterMode::kNearest));
     return p.material();
   };
-  auto colourAt = [](material::skia::Paint m, int x) {
+  auto colourAt = [](material::Paint m, int x) {
     Host host(64, 64);
     host.composer.render(
         box().children({box().absolute().inset(0).fill(std::move(m))}));

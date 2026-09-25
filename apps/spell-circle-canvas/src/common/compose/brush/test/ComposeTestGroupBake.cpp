@@ -123,13 +123,21 @@ constexpr int kBoards = 24;
 constexpr double kGroupPeriod = 2.0;  // the loop
 constexpr double kGroupDone = 1.25;   // every board has finished by here
 
-std::vector<choreograph::Output<float>>& boardFade() {
-  static std::vector<choreograph::Output<float>> v(kBoards);
+/** One live value per board, each its own cell. */
+std::vector<sigil::motion::Animatable<float>> liveBoards() {
+  std::vector<sigil::motion::Animatable<float>> boards;
+  for (int i = 0; i < kBoards; ++i)
+    boards.push_back(sigil::motion::animatable(0.0f));
+  return boards;
+}
+
+std::vector<sigil::motion::Animatable<float>>& boardFade() {
+  static std::vector<sigil::motion::Animatable<float>> v = liveBoards();
   return v;
 }
 
-std::vector<choreograph::Output<float>>& boardPop() {
-  static std::vector<choreograph::Output<float>> v(kBoards);
+std::vector<sigil::motion::Animatable<float>>& boardPop() {
+  static std::vector<sigil::motion::Animatable<float>> v = liveBoards();
   return v;
 }
 
@@ -191,7 +199,7 @@ Element board(int i) {
       .height(11)
       .rotate(ang)
       .shape([shape] { return shape; })
-      .fill(material::skia::Paint::sksl(boardGrain()))
+      .fill(material::skia::sksl(boardGrain()))
       .foreground(styles::BevelEmboss{0.8f,
                                       1.2f,
                                       120.0f + ang,
@@ -441,9 +449,9 @@ TEST(ComposeCache, AGroupsOwnFadeDoesNotDropItsBake) {
   // composite exactly. Including them in the memo would have cost the bake
   // on every frame of every entrance, for a change the bake does not
   // contain.
-  static choreograph::Output<float> groupFade{1.0f};
+  static sigil::motion::Animatable<float> groupFade = sigil::motion::animatable(1.0f);
   const auto scene = [](Cache mode) {
-    Element g = lattice(mode).opacity(&groupFade);
+    Element g = lattice(mode).opacity(groupFade);
     return stack().children({box()
                                  .cache(Cache::None)
                                  .absolute()
@@ -534,12 +542,12 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
   // the tree to compare, so a group holding a bake across one would blit last
   // second's picture forever.
   EXPECT_FALSE(groupBakesWith(
-      plainExtra().fill(material::skia::Paint::sksl(heavyEffect(true)))))
+      plainExtra().fill(material::skia::sksl(heavyEffect(true)))))
       << "a group baked over a live material";
 
   // A NON-SRCOVER BLEND below the root: inside the bake it resolves against
   // transparent black instead of against the ground.
-  EXPECT_FALSE(groupBakesWith(plainExtra().blendMode(SkBlendMode::kMultiply)))
+  EXPECT_FALSE(groupBakesWith(plainExtra().blendMode(material::BlendMode::Multiply)))
       << "a group baked over a kMultiply child, which resolves against "
          "transparent black inside a bake";
 
@@ -550,10 +558,10 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
 
   // An ANIMATED DECORATION: the same argument as the live material, one
   // level out from the fill.
-  static choreograph::Output<float> dash{0};
+  static sigil::motion::Animatable<float> dash = sigil::motion::animatable(0.0f);
   PathFormat marching = stroke(2.0f, Fill::color({1, 1, 1, 1}));
   marching.dashIntervals = {4.0f, 4.0f};
-  marching.dashPhaseBinding = &dash;
+  marching.dashPhaseBinding = dash;
   EXPECT_FALSE(groupBakesWith(plainExtra().background(marching)))
       << "a group baked over an animated decoration";
 }
@@ -565,13 +573,13 @@ TEST(ComposeCache, AMovingGroupRefusesTheBakeRatherThanRemakingIt) {
   // REFUSE the bake instead of remaking it. The group's own transform is the
   // case a declaration can see coming; a resizing host is the case only the
   // device rect can.
-  static choreograph::Output<float> slide{0};
+  static sigil::motion::Animatable<float> slide = sigil::motion::animatable(0.0f);
   Host host(240, 240);
   host.composer.setAutoTexturePromotion(false);
   host.composer.setProfiling(true);
   setBoardPhase(kGroupDone + 0.4);
   slide = 0.0f;
-  Element g = lattice(Cache::Group).translateX(&slide);
+  Element g = lattice(Cache::Group).translateX(slide);
   host.composer.render(stack().children({box()
                                              .cache(Cache::None)
                                              .absolute()

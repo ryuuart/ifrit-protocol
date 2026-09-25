@@ -67,7 +67,7 @@ half4 main(float2 p) {
  *  canvas the live paint is clipped to. */
 Element promotablePage() {
   Element page = box().width(180).height(180).fill(
-      material::skia::Paint::sksl(gridEffect()));
+      material::skia::sksl(gridEffect()));
   for (int i = 0; i < 56; ++i)
     page.children({box()
                        .absolute()

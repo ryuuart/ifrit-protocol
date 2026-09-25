@@ -165,7 +165,7 @@ TEST(ComposeTextFx, TextFillAndTextStrokeTravelWithAMovingGlyph) {
   const auto tree = [](bool moving) {
     Text t = text(u8"II", whiteStyle(48))
                  .key("k")
-                 .ink(material::skia::Paint::solid({0, 1, 0, 1}));
+                 .ink(material::Paint::solid({0, 1, 0, 1}));
     if (moving)
       t.textFx({.effect = textFx::effect("still",
                                          [](const GlyphInfo&, float,
@@ -542,12 +542,12 @@ TEST(ComposeTextFx, SettledMultiTrackTextStopsPaintingLive) {
   // volatility, exactly as one does — the settle machinery covers EVERY
   // track's progress or a second track pins the node live forever.
   Host host(220, 120);
-  choreograph::Output<float> a{0.0f}, b{0.0f};
+  sigil::motion::Animatable<float> a = sigil::motion::animatable(0.0f), b = sigil::motion::animatable(0.0f);
   host.composer.render(box().padding(10).children(
       {text(u8"AAA BBB", whiteStyle(20))
            .key("k")
-           .textFx({.effect = textFx::rise(12), .progress = &a})
-           .textFx({.effect = textFx::slide(-8), .progress = &b})}));
+           .textFx({.effect = textFx::rise(12), .progress = a})
+           .textFx({.effect = textFx::slide(-8), .progress = b})}));
   host.frame();
   a = 1.0f;
   b = 1.0f;

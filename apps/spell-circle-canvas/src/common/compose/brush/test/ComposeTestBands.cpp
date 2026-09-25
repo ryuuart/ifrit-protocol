@@ -453,7 +453,7 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   // Material in the unit square and once as a node-local Fill.
   Host host;
   brush::Ribbon painted =
-      brush::presets::taper(24, 24, material::skia::Paint::solid({0, 1, 0, 1}));
+      brush::presets::taper(24, 24, material::Paint::solid({0, 1, 0, 1}));
   ASSERT_TRUE(painted.fillMaterial.has_value());
   host.composer.render(straightRun(std::move(painted)));
   host.frame();
@@ -465,7 +465,7 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
   const auto paintedPerFrame = [](bool live) {
     Host again;
     again.composer.render(straightRun(brush::presets::taper(
-        24, 24, material::skia::Paint::sksl(heavyEffect(live)))));
+        24, 24, material::skia::sksl(heavyEffect(live)))));
     again.frame();
     again.frame();
     return again.composer.stats().nodesPainted;

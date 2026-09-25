@@ -103,9 +103,9 @@ TEST(ComposeTransitions, UnmountCancelsMotions) {
 
 TEST(ComposeBindings, OutputDrivesPaintWithoutRender) {
   Host host;
-  choreograph::Output<float> x = 0.0f;
+  motion::Animatable<float> x = motion::animatable(0.0f);
   host.composer.render(
-      box().children({box().width(40).height(40).fill(blue()).translateX(&x)}));
+      box().children({box().width(40).height(40).fill(blue()).translateX(x)}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLUE);
 
@@ -124,9 +124,9 @@ TEST(ComposeBindings, ActiveWakesForABindingThatSettledAndMovedAgain) {
   // host assigns the output again, so a host polling `dirty()` alone
   // would sleep through the change.
   Host host;
-  choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
+  motion::Animatable<Fill> bar = motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));
   host.composer.render(box().children(
-      {box().absolute().left(20).top(20).width(60).height(60).fill(&bar)}));
+      {box().absolute().left(20).top(20).width(60).height(60).fill(bar)}));
   host.frame();
 
   // Held still long enough for the walk to release the binding.
@@ -240,7 +240,7 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
   // leg. Anything parameter-flavoured (per verb, per contour) lands at the
   // bend instead.
   Host host(200, 200);
-  choreograph::Output<float> t{0.5f};
+  motion::Animatable<float> t = motion::animatable(0.5f);
   const auto bent = [](SkSize) {
     SkPathBuilder b;
     b.moveTo(0, 0);
@@ -248,7 +248,7 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
     b.lineTo(100, 20);
     return b.detach();
   };
-  host.composer.render(travelFrame(rider({.path = bent, .t = &t})));
+  host.composer.render(travelFrame(rider({.path = bent, .t = t})));
   host.frame();
   SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);
   EXPECT_NEAR(ink.x(), 80.0f, 1.5f) << "t=0.5 is not 60 px along a 120 px L";
@@ -264,7 +264,7 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
     b.lineTo(100, 100);
     return b.detach();
   };
-  host.composer.render(travelFrame(rider({.path = twoRuns, .t = &t})));
+  host.composer.render(travelFrame(rider({.path = twoRuns, .t = t})));
   host.frame();
   ink = inkCentroid(host, SK_ColorRED, 200, 200);
   EXPECT_NEAR(ink.x(), 60.0f, 1.5f)
@@ -347,7 +347,7 @@ TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
   // driving both from one motion means carrying a second Output updated
   // alongside the first — two things to keep in step for no reason.
   Host host(200, 200);
-  choreograph::Output<float> phase{0.0f};
+  motion::Animatable<float> phase = motion::animatable(0.0f);
   host.composer.render(
       box().children({box()
                           .width(20)
@@ -356,7 +356,7 @@ TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
                           .left(0)
                           .top(90)
                           .fill(red())
-                          .translateX(motion::bind(&phase).target(0, 160))}));
+                          .translateX(motion::bind(phase, {.to = {0.0f, 160.0f}}))}));
   auto redAt = [&](int x) { return SkColorGetR(host.pixel(x, 100)) > 180; };
 
   host.frame();
@@ -377,7 +377,7 @@ TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
   // The map is read LIVE through the pointer, so a pruned node would keep
   // shaping through the OLD one forever. Same Output, different range.
   Host host(200, 200);
-  choreograph::Output<float> phase{1.0f};
+  motion::Animatable<float> phase = motion::animatable(1.0f);
   auto tree = [&](float far) {
     return box().children(
         {box()
@@ -388,7 +388,7 @@ TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
              .left(0)
              .top(90)
              .fill(red())
-             .translateX(motion::bind(&phase).target(0, far))});
+             .translateX(motion::bind(phase, {.to = {0.0f, far}}))});
   };
   host.composer.render(tree(40.0f));
   host.frame();
@@ -406,9 +406,9 @@ TEST(ComposeBindings, AFillCanBeBoundLive) {
   // The Output holds a Fill, and you write it from the
   // same steppable that computes the number driving everything else.
   Host host(200, 200);
-  choreograph::Output<Fill> bar{Fill::color({1, 0, 0, 1})};
+  motion::Animatable<Fill> bar = motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));
   host.composer.render(box().children(
-      {box().absolute().left(20).top(80).width(160).height(40).fill(&bar)}));
+      {box().absolute().left(20).top(80).width(160).height(40).fill(bar)}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(100, 100)), 180);
   EXPECT_LT(SkColorGetG(host.pixel(100, 100)), 80);

@@ -16,7 +16,7 @@ namespace {
  *  an explicitly asked-for bake obeys the same volatility gate automatic
  *  promotion does, without the cost-threshold timing an assertion could
  *  flap on. */
-Element settledFillPanel(const choreograph::Output<Fill>* tint) {
+Element settledFillPanel(const motion::Animatable<Fill>& tint) {
   auto row = box().key("row").row().flexWrap().gap(2);
   for (int id = 0; id < 12; ++id)
     row.children({box()
@@ -43,9 +43,9 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   // `contentStable`, because promotion is a SEPARATE consumer of
   // `subtreeVolatile` from the memo — keeping the recording while still
   // refusing the bake would keep all of the 5 ms.
-  choreograph::Output<Fill> tint{red()};
+  motion::Animatable<Fill> tint = motion::animatable<Fill>(red());
   Host host(300, 300);
-  host.composer.render(settledFillPanel(&tint));
+  host.composer.render(settledFillPanel(tint));
   host.composer.setProfiling(true);
   host.frame();
   const auto accentRect = host.composer.bounds("accent");
@@ -110,9 +110,9 @@ TEST(ComposeSettledFill, AMovingBoundFillNeverReleases) {
   // The release must NOT fire for a fill that IS moving — a
   // binding driven every frame keeps full volatility, keeps the refusal,
   // and keeps painting the true colour.
-  choreograph::Output<Fill> tint{red()};
+  motion::Animatable<Fill> tint = motion::animatable<Fill>(red());
   Host host(300, 300);
-  host.composer.render(settledFillPanel(&tint));
+  host.composer.render(settledFillPanel(tint));
   host.composer.setProfiling(true);
   host.frame();
   const auto accentRect = host.composer.bounds("accent");
@@ -148,11 +148,11 @@ TEST(ComposeCache, ABoundFillMovingUnderAHeldGateRepaints) {
   // that recording baked the fill colour into it. If the bound fill is not
   // part of the memo's comparison, moving it while the gate holds replays
   // the old colour.
-  choreograph::Output<float> reveal{1.0f};
-  choreograph::Output<Fill> tint{Fill::color({1, 0, 0, 1})};  // red
+  motion::Animatable<float> reveal = motion::animatable(1.0f);
+  motion::Animatable<Fill> tint = motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));  // red
   Host host(200, 200);
   host.composer.render(box().children(
-      {revealBox().fill(&tint).mask(by::spans(spans::upTo(&reveal)))}));
+      {revealBox().fill(tint).mask(by::spans(spans::upTo(reveal)))}));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);  // let the memo bake and hold
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";
@@ -187,15 +187,15 @@ TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
     if (!e) ADD_FAILURE() << err.c_str();
     return e;
   }();
-  choreograph::Output<float> reveal{1.0f};
-  choreograph::Output<float> amt{1.0f};
+  motion::Animatable<float> reveal = motion::animatable(1.0f);
+  motion::Animatable<float> amt = motion::animatable(1.0f);
   Host host(200, 200);
   host.composer.render(box().children(
       {revealBox()
            .fill(Fill::color({1, 0, 0, 1}))
            .filter(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
-                       .uniform("amt", &amt))
-           .mask(by::spans(spans::upTo(&reveal)))}));
+                       .bind("amt", amt))
+           .mask(by::spans(spans::upTo(reveal)))}));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);
   EXPECT_GT(redInk(host, 25, 25, 115, 115), 4000) << "red to begin with";

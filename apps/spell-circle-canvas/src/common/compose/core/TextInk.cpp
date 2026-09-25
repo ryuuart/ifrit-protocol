@@ -36,7 +36,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
         ink.spanUnits = true;
         break;
       }
-  const material::skia::Paint* metricMat = inkPaintOf(inst);
+  const material::Paint* metricMat = inkPaintOf(inst);
   // The outline in force: the leaf's own where it states one, else the
   // strongest matched rule's.
   const RuleTextLayer* ruleText = inst.ruleText.get();

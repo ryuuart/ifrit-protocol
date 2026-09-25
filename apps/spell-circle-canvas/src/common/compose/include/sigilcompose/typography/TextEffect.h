@@ -24,7 +24,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/BoundFloat.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilweave/style/ShapingStyle.h>
 
@@ -319,15 +319,15 @@ class TextEffect {
    *  addressed units' rendered pixels, not a per-glyph deviation — the
    *  factory behind `textFx::pass` below, where the contract is
    *  documented. The material must be RECIPE-BACKED
-   *  (`material::skia::Paint::recipe`)
+   *  (`material::Paint::recipe`)
    *  over a recipe with an SkSL body, because the runtime bakes the unit
    *  count into a specialization of that recipe; any other material warns
    *  once and returns an EMPTY effect, so the track draws its glyphs at
    *  rest. */
-  static TextEffect pass(material::skia::Paint material);
+  static TextEffect pass(material::Paint material);
   /** The pass material, or null for every per-glyph effect — what the
    *  runtime dispatches on. */
-  [[nodiscard]] const material::skia::Paint* passMaterial() const {
+  [[nodiscard]] const material::Paint* passMaterial() const {
     return m_state ? m_state->pass.get() : nullptr;
   }
 
@@ -400,7 +400,7 @@ class TextEffect {
     /** Set only by pass(): the material run over the units' layer. Held by
      *  pointer so an effect that is not a pass carries nothing; it rides
      *  equality by VALUE (the paint's operator==), like an Effect child. */
-    std::shared_ptr<const material::skia::Paint> pass;
+    std::shared_ptr<const material::Paint> pass;
   };
   /** restsAt()'s one body: appends the phases to the pass's parameters — a
    *  pass carries no other parameters, so its parameters slot IS the rest

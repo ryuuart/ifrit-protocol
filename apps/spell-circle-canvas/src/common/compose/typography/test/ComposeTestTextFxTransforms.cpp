@@ -87,7 +87,7 @@ TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
   // "no ink reaches the surface" — and it holds against a SECOND track whose
   // own progress is long settled, because alpha multiplies and a glyph that
   // has not arrived has not arrived.
-  choreograph::Output<float> progress{0.0f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
   GlyphModifier lift;
   lift.dy = -3;
   const auto render = [&](Host& host, TextEffect decode) {
@@ -96,7 +96,7 @@ TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
              .key("k")
              .textFx({.effect = std::move(decode),
                       .stagger = {.eachMs = 40, .durationMs = 200},
-                      .progress = &progress})
+                      .progress = progress})
              .textFx({.effect = fixed("lift", lift)})}));
     host.frame();
   };
@@ -266,8 +266,8 @@ TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
   // …and it is an opt-out of SNAPPING, not of caching: a continuous track
   // whose progress has stopped moving settles like any other.
   Host settling(200, 200);
-  choreograph::Output<float> progress{0.0f};
-  Track track{.effect = textFx::rise(14), .progress = &progress};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
+  Track track{.effect = textFx::rise(14), .progress = progress};
   track.continuous = true;
   settling.composer.render(box().padding(20).children(
       {text(u8"SETTLE", whiteStyle(24)).key("k").textFx(std::move(track))}));

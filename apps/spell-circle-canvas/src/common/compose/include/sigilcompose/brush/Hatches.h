@@ -25,7 +25,7 @@ struct Hatch {
   /** Live pitch and live angle, on the same terms as
    *  `PathFormat::dashPhaseBinding`: an animatable, so a moiré that
    *  breathes, a tightening engraving or a rotating shade pass is one
-   *  `bind()` chain rather than a second Output somebody steps by hand.
+   *  `bind()` chain rather than a second live value somebody steps by hand.
    *  Either one live makes `isAnimated()` true, which is what declares
    *  the node volatile and keeps it repainting.
    *

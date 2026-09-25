@@ -71,7 +71,7 @@ BENCHMARK(BM_Draw_Bloom_TextureBaked);
 
 namespace {
 
-Element haloedBand(Boundary boundary, const choreograph::Output<float>* turn) {
+Element haloedBand(Boundary boundary, const sigil::motion::Animatable<float>& turn) {
   const float side = 640.0f, radius = 260.0f;
   Element band = box()
                      .key("band")
@@ -83,7 +83,7 @@ Element haloedBand(Boundary boundary, const choreograph::Output<float>* turn) {
                      .cache(Cache::Texture)
                      .decorationOutline(boundary)
                      .transformOrigin(pct(50), pct(50))
-                     .rotate(sigil::motion::bind(turn).target(0.0f, 360.0f))
+                     .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
                      .filter(sigil::material::skia::Effect::glow(
                          {0.35f, 0.85f, 1.0f, 1.0f}, 6.0f));
   for (int i = 0; i < 24; ++i) {
@@ -102,9 +102,9 @@ Element haloedBand(Boundary boundary, const choreograph::Output<float>* turn) {
 /** The bake is taken once and every frame after is a blit through the turn:
  *  what a held bake costs per frame with the effect where the arm puts it. */
 void haloHeldArm(benchmark::State& state, Boundary boundary, bool turning) {
-  choreograph::Output<float> turn{0.0f};
+  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
   Host host(800, 800);
-  host.composer.render(box().children({haloedBand(boundary, &turn)}));
+  host.composer.render(box().children({haloedBand(boundary, turn)}));
   host.draw();
   float t = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -116,9 +116,9 @@ void haloHeldArm(benchmark::State& state, Boundary boundary, bool turning) {
 /** …and the other half of the bargain: a frame that RE-BAKES. The content is
  *  re-described, so the bake is remade and the arm prices the bake itself. */
 void haloRebakeArm(benchmark::State& state, Boundary boundary) {
-  choreograph::Output<float> turn{0.0f};
+  sigil::motion::Animatable<float> turn = sigil::motion::animatable(0.0f);
   Host host(800, 800);
-  host.composer.render(box().children({haloedBand(boundary, &turn)}));
+  host.composer.render(box().children({haloedBand(boundary, turn)}));
   host.draw();
   float t = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -126,7 +126,7 @@ void haloRebakeArm(benchmark::State& state, Boundary boundary) {
     turn = t;
     host.composer.render(box()
                              .opacity(1.0f - 0.0001f * t)
-                             .children({haloedBand(boundary, &turn)}));
+                             .children({haloedBand(boundary, turn)}));
     host.draw();
   }
 }
@@ -201,7 +201,7 @@ constexpr int kVaryPanelRaster = 96;  // the naive kernel is O(σ²) on the CPU
 constexpr int kVaryPanelGpu = 256;
 
 /** Hard 8px stripes in node-local space — detail for the blur to destroy. */
-sigil::material::skia::Paint stripeTarget() {
+sigil::material::Paint stripeTarget() {
   static const sk_sp<SkRuntimeEffect> fx = [] {
     auto [effect, error] = SkRuntimeEffect::MakeForShader(
         SkString("half4 main(float2 p) {"
@@ -210,12 +210,12 @@ sigil::material::skia::Paint stripeTarget() {
                  "}"));
     return effect;
   }();
-  return sigil::material::skia::Paint::sksl(fx);
+  return sigil::material::skia::sksl(fx);
 }
 
 /** The parameter: 0 at the node's left edge, 1 at its right. */
-sigil::material::skia::Paint sigmaRamp() {
-  return sigil::material::skia::Paint::linearGradient(
+sigil::material::Paint sigmaRamp() {
+  return sigil::material::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 

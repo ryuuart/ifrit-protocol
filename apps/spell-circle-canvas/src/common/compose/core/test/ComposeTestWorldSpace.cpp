@@ -31,12 +31,12 @@ SkPoint brightestPixel(Host& host) {
  *  (70,70). Flagged, it is authored once; unflagged, the caller has to
  *  hand-convert it into the node's local px, which is what the flag
  *  exists to spare them. */
-material::skia::Paint canvasLight(bool flagged,
+material::Paint canvasLight(bool flagged,
                                   SkPoint nodeOriginForHandConversion) {
-  const SkPoint c = flagged ? SkPoint{70, 70}
-                            : SkPoint{70 - nodeOriginForHandConversion.x(),
-                                      70 - nodeOriginForHandConversion.y()};
-  material::skia::Paint m = material::skia::Paint::radialGradient(
+  const glm::vec2 c = flagged ? glm::vec2{70, 70}
+                              : glm::vec2{70 - nodeOriginForHandConversion.x(),
+                                          70 - nodeOriginForHandConversion.y()};
+  material::Paint m = material::Paint::radialGradient(
       c, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}},
       {.units = material::GradientUnits::Pixels});
   if (flagged) m.worldSpace();
@@ -110,7 +110,7 @@ TEST(ComposeWorldSpace, ARotatedNodeSamplesTheWorldFieldThroughItsRotation) {
 // jumps, which is the control.
 TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
   const auto scene = [](bool flagged) {
-    material::skia::Paint ramp = material::skia::Paint::linearGradient(
+    material::Paint ramp = material::Paint::linearGradient(
         {0, 0}, {200, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
         {.units = material::GradientUnits::Pixels});
     if (flagged) ramp.worldSpace();
@@ -175,8 +175,8 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
 // world matrix moved. No other phase sees this.
 TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
   const auto scene = [](float spacer) {
-    material::skia::Paint light =
-        material::skia::Paint::radialGradient(
+    material::Paint light =
+        material::Paint::radialGradient(
             {100, 100}, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}},
             {.units = material::GradientUnits::Pixels})
             .worldSpace();
@@ -207,8 +207,8 @@ TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
 // down the walk.
 TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
   const auto scene = [](float spacerH) {
-    material::skia::Paint light =
-        material::skia::Paint::radialGradient(
+    material::Paint light =
+        material::Paint::radialGradient(
             {100, 100}, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}},
             {.units = material::GradientUnits::Pixels})
             .worldSpace();
@@ -237,13 +237,13 @@ TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
 // the old anchoring under the live rotation, which is a wrong picture rather
 // than a stale one.
 TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
-  ch::Output<float> rot{0};
+  sigil::motion::Animatable<float> rot = sigil::motion::animatable(0.0f);
   Host host;
   const auto describe = [&] {
     auto group = box()
                      .rect(SkRect::MakeXYWH(20, 20, 160, 160))
                      .key("group")
-                     .rotate(&rot)
+                     .rotate(rot)
                      .transformOrigin(pct(50), pct(50));
     group.children({box()
                         .absolute()
@@ -284,20 +284,20 @@ TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
   const std::vector<material::ColorStop> stops{{0.0f, {1, 0, 0, 1}},
                                                {1.0f, {0, 0, 1, 1}}};
   EXPECT_TRUE(
-      material::skia::Paint::linearGradient(
+      material::Paint::linearGradient(
           {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels})
           .worldSpace() ==
-      material::skia::Paint::linearGradient(
+      material::Paint::linearGradient(
           {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels})
           .worldSpace());
   EXPECT_FALSE(
-      material::skia::Paint::linearGradient(
+      material::Paint::linearGradient(
           {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels})
           .worldSpace() ==
-      material::skia::Paint::linearGradient(
+      material::Paint::linearGradient(
           {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels}));
   const auto scene = [&](bool flagged) {
-    material::skia::Paint m = material::skia::Paint::linearGradient(
+    material::Paint m = material::Paint::linearGradient(
         {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels});
     if (flagged) m.worldSpace();
     return box().children({box().width(100).height(100).key("panel").fill(m)});
@@ -329,9 +329,9 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
                "                     : half4(0, 0, 1, 1);"
                "}"));
   ASSERT_TRUE(fx) << err.c_str();
-  ch::Output<float> drive{0};  // bound and HELD — the digest's other input
-  material::skia::Paint m = material::skia::Paint::sksl(fx);
-  m.uniform("uDrive", &drive);
+  sigil::motion::Animatable<float> drive = sigil::motion::animatable(0.0f);  // bound and HELD — the digest's other input
+  material::Paint m = material::skia::sksl(fx);
+  m.bind("uDrive", drive);
   m.worldSpace();
   Host host;
   host.composer.render(box().row().children(

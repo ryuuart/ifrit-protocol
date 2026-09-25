@@ -16,7 +16,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/Utf8.h>
-#include <sigilmaterial/skia/Paint.h>  // material::skia::Fit — how a picture meets its box
+#include <sigilmaterial/skia/Paint.h>  // material::Fit — how a picture meets its box
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/style/Style.h>
@@ -203,7 +203,7 @@ Image image(std::shared_ptr<const sigil::image::ImageAsset> asset);
  *  device handed back.
  *
  *      well({.width = kCell, .height = kCell},
- *           image(frame, material::skia::Fit::Cover))
+ *           image(frame, material::Fit::Cover))
  *
  *  It is the `ImageAsset` leaf with the wrap written once and the FIT
  *  said where the picture is, so a cell showing a bake states no matrix
@@ -217,7 +217,7 @@ Image image(std::shared_ptr<const sigil::image::ImageAsset> asset);
  *  the node. A null picture draws nothing. */
 [[nodiscard]] Image image(
     sk_sp<SkImage> picture,
-    material::skia::Fit fit = material::skia::Fit::Contain);
+    material::Fit fit = material::Fit::Contain);
 /** A box whose content is one paint program (≡ box().background(p)).
  *
  *  TWO COSTS AN AUTHOR MUST KNOW. First, it is cached like any static

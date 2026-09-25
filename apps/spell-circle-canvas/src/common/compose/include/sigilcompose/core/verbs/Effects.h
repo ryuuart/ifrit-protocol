@@ -7,8 +7,8 @@
  * what is beneath it, and the two filters over a node's layer.
  */
 
-#include <include/core/SkBlendMode.h>
 #include <sigilcompose/core/Declarations.h>
+#include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmotion/values/Animatable.h>
 
@@ -25,9 +25,9 @@ class EffectVerbs {
    *  everything it and its children paint. 1 when unstated. */
   Derived& opacity(motion::Animatable<float> o);
   /** HOW THE NODE'S PAINT COMBINES with what is already beneath it —
-   *  CSS `mix-blend-mode`, over any Skia blend mode.
-   *  `SkBlendMode::kSrcOver` when unstated. */
-  Derived& blendMode(SkBlendMode mode);
+   *  CSS `mix-blend-mode`, over any of the material's blend modes.
+   *  `BlendMode::Normal` when unstated. */
+  Derived& blendMode(material::BlendMode mode);
   /** POST-PROCESSES THIS NODE'S RENDERED LAYER, its subtree included —
    *  CSS `filter`. None when unstated. Baked once under
    *  `Cache::Texture`. */

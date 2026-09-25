@@ -233,13 +233,13 @@ Gate outside(Region r);
  *
  *  Costs a `saveLayer` per masked group, so it is the expensive member of
  *  the family; `spans`, `edge` and `shape` ride path effects and clips. */
-Gate alpha(material::skia::Paint coverage);
+Gate alpha(material::Paint coverage);
 /** …and its complement, a term of its own exactly as `outside` is: the
  *  selected paint keeps what the coverage paint does NOT cover. After Effects'
  *  Alpha Inverted Matte. Costs nothing beyond `alpha` — the coverage layer
  *  composites with `kDstOut` instead of `kDstIn`, which is `1 - a` exactly
  *  and needs no shader. */
-Gate alphaOut(material::skia::Paint coverage);
+Gate alphaOut(material::Paint coverage);
 /** The other coverage source: the selected paint keeps the coverage
  *  paint's LUMA. After Effects' Luma Matte — paint a matte in greys (or in
  *  anything) and its brightness is the coverage.
@@ -258,10 +258,10 @@ Gate alphaOut(material::skia::Paint coverage);
  *  Same cost as `alpha` plus one SkSL pass over the coverage layer, and
  *  none at all when the coverage paint resolves to a colour, where the
  *  weighting is one dot product in C++. */
-Gate luma(material::skia::Paint coverage);
+Gate luma(material::Paint coverage);
 /** …and ITS complement: the selected paint keeps what the coverage
  *  paint's luma leaves DARK. After Effects' Luma Inverted Matte. */
-Gate lumaOut(material::skia::Paint coverage);
+Gate lumaOut(material::Paint coverage);
 }  // namespace by
 
 /** HOW paint arrives past a mask — a comparable value built by the `by::`
@@ -294,7 +294,7 @@ class Gate {
   Channel channel = Channel::Alpha;  ///< Coverage
   /** Coverage. Held by pointer so a gate stays copyable and comparable
    *  whatever the paint carries. */
-  std::shared_ptr<const material::skia::Paint> coverage;
+  std::shared_ptr<const material::Paint> coverage;
 
   /** Structural equality. Declared here and defined beside the
    *  reconciler's own property comparator, so an animated fraction

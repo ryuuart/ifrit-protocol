@@ -27,8 +27,8 @@ constexpr material::Color kAsh = hexColor(0x7e8f9c);
 /** The chrome ramp, authored once in the unit square: the horizon sits
  *  where the ramp's middle stops meet, and lands on the capitals at
  *  whatever size the word is set. */
-skia::Paint chrome() {
-  return skia::Paint::linearGradient({0, 0}, {0, 1},
+material::Paint chrome() {
+  return material::Paint::linearGradient({0, 0}, {0, 1},
                                      {{0.00f, hexColor(0xf2f6f8)},
                                       {0.46f, hexColor(0x8fa6b4)},
                                       {0.52f, hexColor(0x2b3d4a)},

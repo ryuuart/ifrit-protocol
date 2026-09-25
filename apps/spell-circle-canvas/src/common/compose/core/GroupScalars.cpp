@@ -100,13 +100,13 @@ void collectGroupScalars(const Instance& inst, bool root,
   // The kFillLerp row (SlotRole::Bespoke): a synthesized progress with no
   // Animatable in the description, so it is read straight off the motion.
   if (inst.anims[Instance::kFillLerp] &&
-      inst.anims[Instance::kFillLerp]->value.isConnected())
-    out.push_back(inst.anims[Instance::kFillLerp]->value.value());
+      inst.anims[Instance::kFillLerp]->isMoving())
+    out.push_back(inst.anims[Instance::kFillLerp]->current());
   // The kInkLerp row, the same way: the progress of an ink easing on this
   // node, which every text and mark under it repaints with.
   if (inst.anims[Instance::kInkLerp] &&
-      inst.anims[Instance::kInkLerp]->value.isConnected())
-    out.push_back(inst.anims[Instance::kInkLerp]->value.value());
+      inst.anims[Instance::kInkLerp]->isMoving())
+    out.push_back(inst.anims[Instance::kInkLerp]->current());
   for (const auto& child : inst.children)
     collectGroupScalars(*child, false, out);
 }

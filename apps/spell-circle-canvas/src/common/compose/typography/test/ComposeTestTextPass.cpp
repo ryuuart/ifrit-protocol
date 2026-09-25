@@ -57,7 +57,7 @@ struct NoParameters {};
  *  definition compare equal, which is what the equality assertions below
  *  rest on, and a fresh definition per call would compile a fresh program
  *  every time. */
-material::skia::Paint passOver(const char* source) {
+material::Paint passOver(const char* source) {
   struct Held {
     const char* source;
     std::shared_ptr<const sigil::material::Recipe> recipe;
@@ -65,12 +65,12 @@ material::skia::Paint passOver(const char* source) {
   static std::vector<Held> held;
   for (const Held& h : held)
     if (h.source == source)
-      return material::skia::Paint::recipe(sigil::material::Material(h.recipe));
+      return material::Paint::recipe(sigil::material::Material(h.recipe));
   auto recipe = std::make_shared<const sigil::material::Recipe>(
       sigil::material::Recipe::of<NoParameters>("test.pass")
           .body(sigil::material::Target::SkSL, source));
   held.push_back({source, recipe});
-  return material::skia::Paint::recipe(sigil::material::Material(recipe));
+  return material::Paint::recipe(sigil::material::Material(recipe));
 }
 
 }  // namespace
@@ -78,8 +78,8 @@ material::skia::Paint passOver(const char* source) {
 TEST(TextPass, RecipeMaterialsCompareByDefinition) {
   // Two materials over one recipe compare EQUAL — a helper may rebuild its
   // material every describe and still prune.
-  const material::skia::Paint a = passOver(kFloodSksl);
-  const material::skia::Paint b = passOver(kFloodSksl);
+  const material::Paint a = passOver(kFloodSksl);
+  const material::Paint b = passOver(kFloodSksl);
   EXPECT_TRUE(a == b);
   EXPECT_FALSE(a == passOver(kIdentitySksl));
   // And so do the pass effects wrapping them.
@@ -93,7 +93,7 @@ TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
   // effect is EMPTY, the track is skipped, and the text draws at rest
   // rather than vanishing.
   const TextEffect refused =
-      textFx::pass(material::skia::Paint::sksl(ukEffect()));
+      textFx::pass(material::skia::sksl(ukEffect()));
   EXPECT_FALSE(refused);
 
   Host host;
@@ -369,7 +369,7 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
   // only in their rests must compare unequal, or a re-described track
   // would prune onto the old declaration and keep (or keep skipping) a
   // shader the author changed their mind about.
-  const material::skia::Paint m = passOver(kEraseSksl);
+  const material::Paint m = passOver(kEraseSksl);
   EXPECT_FALSE(textFx::pass(m).restsAt(0.0f) == textFx::pass(m));
   EXPECT_TRUE(textFx::pass(m).restsAt(0.0f, 1.0f) ==
               textFx::pass(m).restsAt(0.0f, 1.0f));
@@ -442,10 +442,10 @@ sk_sp<SkRuntimeEffect> wideUniformEffect() {
 TEST(TextPass, WideAndArrayUniformsBindByDeclaredSize) {
   Host host;
   host.composer.render(box().children({box().width(60).height(60).fill(
-      material::skia::Paint::sksl(wideUniformEffect())
-          .uniform("uPair", std::array<float, 2>{1, 0})
-          .uniform("uQuad", std::array<float, 4>{0, 1, 0, 0})
-          .uniform("uVals", std::vector<float>{0, 0, 1, 0}))}));
+      material::skia::sksl(wideUniformEffect())
+          .set("uPair", std::array<float, 2>{1, 0})
+          .set("uQuad", std::array<float, 4>{0, 1, 0, 0})
+          .set("uVals", std::vector<float>{0, 0, 1, 0}))}));
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SK_ColorWHITE);  // all three lanes landed
 }
@@ -454,49 +454,49 @@ TEST(TextPass, MisSizedUniformsWarnOnceAndAreIgnored) {
   // An undeclared name, and a declared one at the wrong TOTAL size, are
   // both dropped at the door — so the material still equals one that never
   // made the call, and nothing was stored for the builder to refuse.
-  const material::skia::Paint base =
-      material::skia::Paint::sksl(wideUniformEffect());
-  material::skia::Paint wrong =
-      material::skia::Paint::sksl(wideUniformEffect());
-  wrong.uniform("uVals", std::vector<float>{1, 2, 3});       // [4] wants 4
-  wrong.uniform("uNothing", std::vector<float>{1, 2, 3});    // undeclared
-  wrong.uniform("uPair", std::array<float, 4>{1, 2, 3, 4});  // float2 slot
+  const material::Paint base =
+      material::skia::sksl(wideUniformEffect());
+  material::Paint wrong =
+      material::skia::sksl(wideUniformEffect());
+  wrong.set("uVals", std::vector<float>{1, 2, 3});       // [4] wants 4
+  wrong.set("uNothing", std::vector<float>{1, 2, 3});    // undeclared
+  wrong.set("uPair", std::array<float, 4>{1, 2, 3, 4});  // float2 slot
   EXPECT_TRUE(base == wrong);
 
   material::skia::Effect effect =
       material::skia::Effect::shader(wideUniformEffect());
   material::skia::Effect wrongEffect =
       material::skia::Effect::shader(wideUniformEffect());
-  wrongEffect.uniform("uVals", std::vector<float>{1, 2, 3});
-  wrongEffect.uniform("uNothing", 1.0f);
+  wrongEffect.set("uVals", std::vector<float>{1, 2, 3});
+  wrongEffect.set("uNothing", 1.0f);
   EXPECT_TRUE(effect == wrongEffect);
 }
 
 TEST(TextPass, EffectConstantLanesParticipateInEquality) {
   material::skia::Effect a =
       material::skia::Effect::shader(wideUniformEffect());
-  a.uniform("uPair", std::array<float, 2>{1, 0});
-  a.uniform("uVals", std::vector<float>{1, 2, 3, 4});
+  a.set("uPair", std::array<float, 2>{1, 0});
+  a.set("uVals", std::vector<float>{1, 2, 3, 4});
   material::skia::Effect b =
       material::skia::Effect::shader(wideUniformEffect());
-  b.uniform("uPair", std::array<float, 2>{1, 0});
-  b.uniform("uVals", std::vector<float>{1, 2, 3, 4});
+  b.set("uPair", std::array<float, 2>{1, 0});
+  b.set("uVals", std::vector<float>{1, 2, 3, 4});
   EXPECT_TRUE(a == b);
-  b.uniform("uQuad", std::array<float, 4>{1, 0, 0, 0});
+  b.set("uQuad", std::array<float, 4>{1, 0, 0, 0});
   EXPECT_FALSE(a == b);
 }
 
 TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
   auto block = std::make_shared<sigil::material::UniformBlock>(4);
-  material::skia::Paint live =
-      material::skia::Paint::sksl(wideUniformEffect()).uniform("uVals", block);
+  material::Paint live =
+      material::skia::sksl(wideUniformEffect()).bind("uVals", block);
   // The binding declares volatility — the node paints live, no cache can
   // freeze the table — exactly as a bound scalar Output does.
   EXPECT_TRUE(live.isAnimated());
   // A block at the wrong size is refused and declares nothing.
   auto wrong = std::make_shared<sigil::material::UniformBlock>(3);
-  EXPECT_FALSE(material::skia::Paint::sksl(wideUniformEffect())
-                   .uniform("uVals", wrong)
+  EXPECT_FALSE(material::skia::sksl(wideUniformEffect())
+                   .bind("uVals", wrong)
                    .isAnimated());
 
   Host host;

@@ -86,14 +86,14 @@ BENCHMARK(BM_Draw_DenseText_SlugReplay);
 static void BM_Draw_KineticText(benchmark::State& state) {
   const int lines = (int)state.range(0);
   Host host(800, 1200);
-  choreograph::Output<float> progress{0.0f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 22.0f;
   auto block = box().column().gap(8).padding(16);
   for (int i = 0; i < lines; ++i)
     block.children(
         {text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-             .textFx({.effect = textFx::rise(24), .progress = &progress})});
+             .textFx({.effect = textFx::rise(24), .progress = progress})});
   host.composer.render(block);
   host.draw();
   float t = 0;
@@ -114,7 +114,7 @@ BENCHMARK(BM_Draw_KineticText)->Arg(14)->Arg(56)->Unit(benchmark::kMicrosecond);
 static void BM_Draw_KineticColumns(benchmark::State& state) {
   const int passages = (int)state.range(0);
   Host host(800, 1200);
-  choreograph::Output<float> progress{0.0f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 22.0f;
   style.shaping.languageTag = "ja";
@@ -128,7 +128,7 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
              .textFx({.effect = textFx::rise(24),
                       .stagger = {.eachMs = 120},
                       .unit = sigil::weave::Unit::Line,
-                      .progress = &progress})});
+                      .progress = progress})});
   host.composer.render(block);
   host.draw();
   float t = 0;
@@ -208,14 +208,14 @@ static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   GraphiteTarget target(state, 800, 1200);
   if (!target.ok()) return;
   Host host(800, 1200);
-  choreograph::Output<float> progress{0.0f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
   sigil::weave::TextStyle style;
   style.shaping.fontSize = 22.0f;
   auto block = box().column().gap(8).padding(16);
   for (int i = 0; i < lines; ++i)
     block.children(
         {text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-             .textFx({.effect = textFx::rise(24), .progress = &progress})});
+             .textFx({.effect = textFx::rise(24), .progress = progress})});
   host.composer.render(block);
   host.composer.draw(target.canvas());
   target.submit();

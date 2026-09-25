@@ -11,7 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
-#include <sigilmaterial/skia/Paint.h>  // material::skia::Fit — how a frame meets its box
+#include <sigilmaterial/skia/Paint.h>  // material::Fit — how a frame meets its box
 #include <sigilvideo/decode/Decode.h>
 #include <sigilvideo/decode/Playback.h>
 
@@ -46,7 +46,7 @@ struct VideoOptions {
   /// distorts the frame to fill, `Contain` letterboxes the whole of it,
   /// `Cover` crops what overflows, and `Native` draws the frame at its
   /// own pixels from the box's corner.
-  material::skia::Fit fit = material::skia::Fit::Stretch;
+  material::Fit fit = material::Fit::Stretch;
   /// How a frame is filtered into the box; linear unless stated.
   SkSamplingOptions sampling = SkSamplingOptions(SkFilterMode::kLinear);
   float opacity = 1.0f;                       ///< 0 clear to 1 solid
@@ -79,9 +79,9 @@ inline void paintVideoFrame(SkCanvas& canvas,
   SkRect destination = SkRect::MakeSize(size);
   const float sourceAspect = image.width() / image.height();
   const float destinationAspect = destination.width() / destination.height();
-  if (options.fit == material::skia::Fit::Native) {
+  if (options.fit == material::Fit::Native) {
     destination = image;
-  } else if (options.fit == material::skia::Fit::Cover) {
+  } else if (options.fit == material::Fit::Cover) {
     if (sourceAspect > destinationAspect) {
       const float width = image.height() * destinationAspect;
       source = SkRect::MakeXYWH((image.width() - width) * 0.5f, 0.0f, width,
@@ -91,7 +91,7 @@ inline void paintVideoFrame(SkCanvas& canvas,
       source = SkRect::MakeXYWH(0.0f, (image.height() - height) * 0.5f,
                                 image.width(), height);
     }
-  } else if (options.fit == material::skia::Fit::Contain) {
+  } else if (options.fit == material::Fit::Contain) {
     if (sourceAspect > destinationAspect) {
       const float height = destination.width() / sourceAspect;
       destination =

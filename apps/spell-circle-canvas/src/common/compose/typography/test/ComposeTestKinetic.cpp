@@ -158,13 +158,13 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   // describe in between. Twelve glyphs of 19.2 px in the instrument face at
   // 32 px, plus the padding, need the width.
   Host host(300, 200);
-  choreograph::Output<float> progress{0.0f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
   host.composer.render(box().padding(10).children(
       {text(u8"IIIIIIIIIIII", whiteStyle(32))
            .key("k")
            .textFx({.effect = textFx::rise(24),
                     .stagger = {.eachMs = 40, .durationMs = 200},
-                    .progress = &progress})}));
+                    .progress = progress})}));
   host.frame();
   auto b = host.composer.bounds("k");
   ASSERT_TRUE(b.has_value());

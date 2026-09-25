@@ -389,7 +389,7 @@ constexpr bool carriedByLayer(Property property) {
  *  verbs on the element. */
 template <class T>
 bool staticValue(const motion::Animatable<T>& value) {
-  return value.plain() != nullptr;
+  return value.constant() != nullptr;
 }
 
 bool ruleCanHold(Property property, const ElementNode& node) {

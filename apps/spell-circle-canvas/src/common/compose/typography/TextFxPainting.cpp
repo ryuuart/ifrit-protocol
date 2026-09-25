@@ -226,9 +226,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // moment it settled, which is a tick in exactly the place a tick is most
   // visible.
   const bool pathDriven =
-      ridesPath && (onPath->at.binding() ||
+      ridesPath && (onPath->at.identity() ||
                     (inst.anims[Instance::kTextPathAt] &&
-                     inst.anims[Instance::kTextPathAt]->value.isConnected()));
+                     inst.anims[Instance::kTextPathAt]->isMoving()));
   batches.subpixel = pathDriven || inst.placementUnderMotion;
   // A pass lane draws the same run into its own layer, and a letter must
   // not sit one place inside a pass and another outside it.
@@ -539,9 +539,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     inputs.rects = rects.data();
     inputs.phases = phases.data();
     inputs.units = n;
-    const material::skia::Paint* passPaint =
+    const material::Paint* passPaint =
         lane->source->track->effect.passMaterial();
-    sk_sp<SkShader> pass = passPaint->resolvePass(inputs, frameOf(ctx));
+    sk_sp<SkShader> pass = material::skia::resolvePass(*passPaint, inputs, frameOf(ctx));
     if (!pass) {
       // The refusal already said why (no source, or it does not compile):
       // show resting letters rather than nothing, so the text survives

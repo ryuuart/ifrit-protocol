@@ -33,7 +33,7 @@
  * which are values over that seam and need nothing it does not expose.
  *
  * One-shot effects consume progress 0→1; loop effects (waveLoop) read a
- * WRAPPING bound phase (an Output stepped mod 1), and a looping CASCADE
+ * WRAPPING bound phase (a live value stepped mod 1), and a looping CASCADE
  * (`motion::Spread::loopMs`) reads the same wrapping phase and re-opens
  * every unit's beat once per wrap. Everything renders through batched
  * RSXform draws — moving text is never per-glyph draw calls — and every
@@ -203,7 +203,7 @@ struct Entrance {
 }
 
 /** Endless float: glyph i bobs on a sine, phase-shifted per glyph. Bind
- *  progress to a WRAPPING phase Output (t = fract(seconds / period)) and
+ *  progress to a WRAPPING phase value (t = fract(seconds / period)) and
  *  set stagger.eachMs = 0 so every glyph reads the same master phase.
  *  Amplitude is in EM — keep it at or under 0.15em, past which descenders
  *  of adjacent glyphs collide — and the phase shift is RADIANS per glyph,

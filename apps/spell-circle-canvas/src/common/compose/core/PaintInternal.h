@@ -22,7 +22,7 @@ using namespace detail;
 // ---------------------------------------------------------------------------
 // Null-safe views into ElementNode's rare-field blocks (see ComposeInternal.h)
 
-inline const material::skia::Paint* liveMaterialOf(const ElementNode& n) {
+inline const material::Paint* liveMaterialOf(const ElementNode& n) {
   return n.materialData && n.materialData->live ? &*n.materialData->live
                                                 : nullptr;
 }
@@ -42,13 +42,13 @@ inline const MaterialData* fillSlotOf(const Instance& inst) {
 }
 /** The paint the fill in force resolves per frame or per size — a live
  *  or box-relative one — or null where the fill is a plain `Fill`. */
-inline const material::skia::Paint* liveMaterialOf(const Instance& inst) {
+inline const material::Paint* liveMaterialOf(const Instance& inst) {
   const MaterialData* slot = fillSlotOf(inst);
   return slot && slot->live ? &*slot->live : nullptr;
 }
 /** THE INK IN FORCE AS A PAINT at this instance, or null where the ink
  *  is a colour — which is the whole of nearly every tree. */
-inline const material::skia::Paint* inkPaintOf(const Instance& inst) {
+inline const material::Paint* inkPaintOf(const Instance& inst) {
   return inst.inkPaint.paint ? &*inst.inkPaint.paint : nullptr;
 }
 /** The node's textFx() tracks, or an empty span. */

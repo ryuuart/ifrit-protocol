@@ -60,9 +60,9 @@ TEST(ComposeText, TextAlignCentersWithinWideBox) {
 
 TEST(ComposeKitMarquee, TwoCopiesSlideUnderOneClip) {
   Host host(200, 60);
-  choreograph::Output<float> phase{0.0f};
+  motion::Animatable<float> phase = motion::animatable(0.0f);
   host.composer.render(box().padding(10).children(
-      {kit::marquee(box().width(60).height(20).fill(red()), {.phase = &phase})
+      {kit::marquee(box().width(60).height(20).fill(red()), {.phase = phase})
            .width(Dimension(100.0f))
            .height(Dimension(20.0f))}));
   host.frame();
@@ -81,7 +81,7 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
   Host host(300, 120);
   host.composer.render(box().padding(20).children(
       {text(u8"HHH", whiteStyle(64))
-           .ink(material::skia::Paint::linearGradient(
+           .ink(material::Paint::linearGradient(
                {0, 0}, {0, 1},
                {{0.0f, {1, 0, 0, 1}},
                 {0.499f, {1, 0, 0, 1}},
@@ -247,7 +247,7 @@ TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
   }();
   host.composer.render(box().padding(20).children(
       {text(u8"HHH", styled)
-           .ink(material::skia::Paint::solid({1, 0, 0, 1}))}));
+           .ink(material::Paint::solid({1, 0, 0, 1}))}));
   host.frame();
   int red = 0, green = 0;
   for (int y = 0; y < 120; ++y)
@@ -395,7 +395,7 @@ TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
   constexpr int kHost = 300;
   constexpr int kRing = 240;
   constexpr int kInkArea = 7 * 8 * 14;
-  choreograph::Output<float> phase{0.0f};
+  motion::Animatable<float> phase = motion::animatable(0.0f);
   Host host(kHost, kHost);
   host.composer.render(
       box().children({text(u8"MARQUEE", whiteStyle(20))
@@ -406,7 +406,7 @@ TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
                           .left((kHost - kRing) / 2)
                           .top((kHost - kRing) / 2)
                           .textOnPath({.path = geometry::shapes::circle(),
-                                       .at = &phase,
+                                       .at = phase,
                                        .align = TextPath::Align::Center})}));
   host.frame();
   const SkPoint centre{kHost / 2.0f, kHost / 2.0f};
@@ -432,7 +432,7 @@ TEST(ComposeTextPath, ABoundPhaseWalksTheRunRoundAClosedBaseline) {
 TEST(ComposeTextPath, ThePhaseWrapsAcrossTheSeamWithNothingLost) {
   // 0.9 → 0.1 crosses fraction 1, which on a closed baseline is the same
   // point as fraction 0. The run must walk through it, not fall off it.
-  choreograph::Output<float> phase{0.9f};
+  motion::Animatable<float> phase = motion::animatable(0.9f);
   Host host(240, 240);
   host.composer.render(
       box().children({text(u8"SEAMLESS", whiteStyle(20))
@@ -443,7 +443,7 @@ TEST(ComposeTextPath, ThePhaseWrapsAcrossTheSeamWithNothingLost) {
                           .left(0)
                           .top(0)
                           .textOnPath({.path = geometry::shapes::circle(),
-                                       .at = &phase,
+                                       .at = phase,
                                        .align = TextPath::Align::Center})}));
   host.frame();
   const SkPoint centre{120, 120};
@@ -465,7 +465,7 @@ TEST(ComposeTextPath, ASettledPhaseStopsPaintingLiveAndCaches) {
   // The declared-volatility contract, on the marquee's lane: a phase that
   // is held still long enough releases, and the node stops declaring
   // content volatility. Driving it again re-declares in the same frame.
-  choreograph::Output<float> phase{0.0f};
+  motion::Animatable<float> phase = motion::animatable(0.0f);
   Host host(240, 240);
   host.composer.render(box().children(
       {text(u8"HELD", whiteStyle(20))
@@ -475,7 +475,7 @@ TEST(ComposeTextPath, ASettledPhaseStopsPaintingLiveAndCaches) {
            .absolute()
            .left(0)
            .top(0)
-           .textOnPath({.path = geometry::shapes::circle(), .at = &phase})}));
+           .textOnPath({.path = geometry::shapes::circle(), .at = phase})}));
   for (int frame = 0; frame < 20; ++frame) host.frame();
   EXPECT_FALSE(host.composer.dirty())
       << "a phase that never moves keeps repainting";

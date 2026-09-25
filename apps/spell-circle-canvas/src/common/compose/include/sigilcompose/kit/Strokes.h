@@ -248,7 +248,7 @@ inline std::vector<brush::Strand> braid(int n, float amplitude,
  *  own alpha, which is what sets how deep the cut reads over the surface
  *  beneath. A comparable paint, so a plate of seventy grooves prunes;
  *  `toFill` turns it into the `Fill` a `lines::Rail` takes. */
-inline material::skia::Paint grooveRamp(float radius, float width,
+inline material::Paint grooveRamp(float radius, float width,
                                         material::Color dark,
                                         material::Color lite,
                                         float shoulder = 0.22f) {
@@ -257,7 +257,7 @@ inline material::skia::Paint grooveRamp(float radius, float width,
   const float outer = (radius + width * 0.5f) / reach;
   const float mid = (inner + outer) * 0.5f;
   const float half = (outer - inner) * std::clamp(shoulder, 0.0f, 0.5f);
-  return material::skia::Paint::radialGradient(
+  return material::Paint::radialGradient(
       {radius, radius}, reach,
       {{0.0f, material::skia::toSkColor(dark)},
        {mid - half, material::skia::toSkColor(dark)},
@@ -456,7 +456,7 @@ inline brush::Ribbon taper(float widthStart, float widthEnd, Fill fill) {
 /** …painted by a recipe, which is the same taper with `fillMaterial`
  *  set: a band is a surface, and a surface a material can dress. */
 inline brush::Ribbon taper(float widthStart, float widthEnd,
-                           material::skia::Paint paint) {
+                           material::Paint paint) {
   brush::Ribbon r;
   r.widthStart = widthStart;
   r.widthEnd = widthEnd;
@@ -477,7 +477,7 @@ inline brush::Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
 }
 
 inline brush::Ribbon calligraphic(float nibAngleDeg, float width,
-                                  material::skia::Paint paint,
+                                  material::Paint paint,
                                   float contrast = 0.15f) {
   brush::Ribbon r;
   r.widthStart = width;

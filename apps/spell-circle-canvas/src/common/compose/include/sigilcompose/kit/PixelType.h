@@ -15,7 +15,7 @@
  * `text()` takes a `std::u8string`, not an animatable value, so a LIVE
  * numeric readout cannot be a text node at all. Baking to a mask and
  * blitting it inside a `custom()` leaf is how a readout gets drawn from a
- * bound `Output` without re-describing anything. If `text()` ever accepts
+ * live value without re-describing anything. If `text()` ever accepts
  * an animatable, most of the reason to reach for this file goes away —
  * what would remain is the aliased look itself.
  *
@@ -481,7 +481,7 @@ inline float widthOf(const PixFont& f, std::string_view s, const Blit& b = {}) {
 /** Draw @p s at @p at (top-left of the line box) and return the advance.
  *
  *  Immediate-mode, for inside a `custom()` leaf — which is the whole point:
- *  a live readout reads its bound `Output` here and draws the number, with
+ *  a live readout reads its live value here and draws the number, with
  *  nothing re-described and nothing reconciled. */
 inline float blit(SkCanvas& canvas, const PixFont& f, SkPoint at,
                   std::string_view s, material::Color colour,

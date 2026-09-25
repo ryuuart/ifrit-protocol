@@ -422,7 +422,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // pass of it already made.
   const material::skia::Effect* layerFx =
       deferLayerEffect ? nullptr : layerEffectOf(node);
-  const material::skia::PaintFrame layerFrame = frameOf(paintCtx);
+  const material::FrameData layerFrame = frameOf(paintCtx);
   const sk_sp<SkImageFilter> layerFilter =
       layerFx ? layerFx->resolvedImageFilter(&layerFrame) : nullptr;
   const bool hasEffect = (bool)layerFilter;
@@ -689,7 +689,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // wrappers above are recomputed rather than skipped — they are cheap,
     // they must stay balanced against their restores below, and the
     // foregrounds still trace the outline.)
-  } else if (const material::skia::Paint* live = liveMaterialOf(inst)) {
+  } else if (const material::Paint* live = liveMaterialOf(inst)) {
     // The fill's box: the paint's unit square is stretched over the
     // rectangle the fill names rather than the node's own. The painted
     // AREA does not move with it — a clip is what would move that, and
@@ -714,12 +714,12 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     }
   } else if (style.paint.fill) {
     Fill fill;
-    if (const choreograph::Output<Fill>* binding = style.paint.fill->binding())
-      fill = binding->value();
+    if (style.paint.fill->identity())
+      fill = style.paint.fill->value();
     else if (inst.anims[Instance::kFillLerp] &&
              inst.anims[Instance::kFillLerp]->started &&
-             inst.anims[Instance::kFillLerp]->value.isConnected()) {
-      const float t = inst.anims[Instance::kFillLerp]->value.value();
+             inst.anims[Instance::kFillLerp]->isMoving()) {
+      const float t = inst.anims[Instance::kFillLerp]->current();
       // Either endpoint may be written as the ink in force or a custom
       // property, so both are resolved here before the colours are mixed.
       const Fill from = resolveRef(inst.fillFrom, paintCtx);

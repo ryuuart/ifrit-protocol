@@ -36,9 +36,9 @@ namespace {
 // custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
 
-// Transition, BoundFloat and Animatable compare through SigilCore's
-// comparators (transitionEqual, boundMapEqual, propertyEqual), each pinned
-// beside its body there; the Effect and the blocks below are this
+// Transition, Binding and Animatable compare through SigilMotion's
+// comparators (transitionEqual, Binding's equality, propertyEqual), each
+// pinned beside its body there; the Effect and the blocks below are this
 // library's own.
 
 bool effectEqual(const std::optional<material::skia::Effect>& a,
@@ -88,7 +88,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   // compared where every other animated slot is, through propertyEqual.
   //
   // variationDrive()'s track rides this comparison too: its effect's key
-  // carries the axis tag AND the driven Output's address, so a re-describe
+  // carries the axis tag AND the driven value's address, so a re-describe
   // naming the same drive prunes and one naming another does not — the
   // binding identity every bound value in the tree is compared by.
   if (ta.tracks.size() != tb.tracks.size()) return false;
@@ -264,7 +264,7 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
     // exactly comparable: image identity, matrix, sampling, and the pan
     // binding compared by pointer all participate in Material::operator==.
     // So an identical re-describe prunes, and a re-BOUND pan patches —
-    // which it must, because a pruned swap would leave the old Output
+    // which it must, because a pruned swap would leave the old live value
     // driving the pixels for the life of the instance. Everything else
     // that reports isAnimated() stays never-prune, below.
     const bool panOnlyA = a->live->boundOffsetOnly();
@@ -503,11 +503,11 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   // though each describe minted a fresh SkShader, so a re-described gradient
   // prunes instead of being defeated by pointer inequality. Everything else
   // falls through to the plain fill compare (colour values, shader pointers).
-  const material::skia::Paint* recipeA =
+  const material::Paint* recipeA =
       a.materialData
           ? (a.materialData->recipe ? &*a.materialData->recipe : nullptr)
           : nullptr;
-  const material::skia::Paint* recipeB =
+  const material::Paint* recipeB =
       b.materialData
           ? (b.materialData->recipe ? &*b.materialData->recipe : nullptr)
           : nullptr;

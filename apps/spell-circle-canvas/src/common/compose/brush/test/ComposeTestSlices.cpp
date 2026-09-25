@@ -212,10 +212,10 @@ TEST(ComposeDecorations, ASlicedOuterStrokePaintsTheBandOutsideItsOwnEdges) {
 // is three sides and 60 px back along the bottom.
 
 TEST(ComposeDecorations, ARevealedInnerStrokePaintsTheBandInsideTheShapeSoFar) {
-  choreograph::Output<float> shown;
+  motion::Animatable<float> shown = motion::animatable(0.0f);
   Host host;
   host.composer.render(stack().children({revealBox().fill(blue()).stroke(
-      spans::upTo(motion::bind(&shown)),
+      spans::upTo(motion::bind(shown)),
       stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Inner))}));
 
   shown = 0.05f;  // 20 px up the left edge: y in [100, 120]
@@ -268,10 +268,10 @@ TEST(ComposeDecorations, AFullyRevealedInnerStrokeIsTheUnspannedOne) {
 }
 
 TEST(ComposeDecorations, ARevealedOuterStrokePaintsTheBandOutsideTheShape) {
-  choreograph::Output<float> shown;
+  motion::Animatable<float> shown = motion::animatable(0.0f);
   Host host;
   host.composer.render(stack().children({revealBox().fill(blue()).stroke(
-      spans::upTo(motion::bind(&shown)),
+      spans::upTo(motion::bind(shown)),
       stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Outer))}));
 
   shown = 0.20f;  // the whole left edge
@@ -285,10 +285,10 @@ TEST(ComposeDecorations, ARevealedOuterStrokePaintsTheBandOutsideTheShape) {
 TEST(ComposeDecorations, ARevealedCentredStrokeStraddlesTheRunAsItAlwaysDid) {
   // Centre never clipped, so the silhouette is nothing to it: the mark
   // stands half inside the shape and half outside, along the shown run.
-  choreograph::Output<float> shown;
+  motion::Animatable<float> shown = motion::animatable(0.0f);
   Host host;
   host.composer.render(stack().children({revealBox().fill(blue()).stroke(
-      spans::upTo(motion::bind(&shown)),
+      spans::upTo(motion::bind(shown)),
       stroke(8, Fill::color({1, 1, 1, 1}), PathFormat::Align::Center))}));
 
   shown = 0.20f;

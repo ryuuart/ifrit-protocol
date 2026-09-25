@@ -14,7 +14,7 @@ TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
                           .left(0)
                           .top(0)
                           .shape(geometry::shapes::arrow())
-                          .fill(material::skia::Paint::solid({0, 1, 0, 1}))}));
+                          .fill(material::Paint::solid({0, 1, 0, 1}))}));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(20, 30)), 200u);  // shaft on the axis
   EXPECT_LT(SkColorGetG(host.pixel(20, 6)), 60u);    // and not above it
@@ -34,7 +34,7 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
                           .absolute()
                           .inset(0)
                           .shape(geometry::shapes::sector(0, 90))
-                          .fill(material::skia::Paint::solid({1, 0, 0, 1}))}));
+                          .fill(material::Paint::solid({1, 0, 0, 1}))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(130, 130)), 200u);  // inside the wedge
   EXPECT_LT(SkColorGetR(host.pixel(70, 130)), 60u);    // lower-left: outside
@@ -49,7 +49,7 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
                           .absolute()
                           .inset(0)
                           .shape(geometry::shapes::sector(0, 350, 0.6f))
-                          .fill(material::skia::Paint::solid({1, 0, 0, 1}))}));
+                          .fill(material::Paint::solid({1, 0, 0, 1}))}));
   donut.frame();
   EXPECT_GT(SkColorGetR(donut.pixel(180, 100)), 200u);  // on the ring
   EXPECT_LT(SkColorGetR(donut.pixel(100, 100)), 60u);   // through the hole
@@ -58,7 +58,7 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
 TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
   // A live material over a custom outline(): the resolved shader must
   // fill the SHAPE, not the box that contains it, and follow the Output.
-  choreograph::Output<float> k{1.0f};
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
   Host host;
   host.composer.render(box().children(
       {box()
@@ -67,7 +67,7 @@ TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
            .inset(0, 100, 100, 0)
            .absolute()
            .shape(geometry::shapes::star(4, 0.3f))
-           .fill(material::skia::Paint::sksl(ukEffect()).uniform("uK", &k))}));
+           .fill(material::skia::sksl(ukEffect()).bind("uK", k))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // star body
   EXPECT_LT(SkColorGetR(host.pixel(8, 8)), 30u);     // outside the arms
@@ -142,9 +142,9 @@ TEST(ComposeTravel, PlacesTheTransformOriginOnTheParentSizedCurve) {
   // the whole difficulty a size-dependent Shape brings that CameraPath
   // never faced.
   Host host(200, 200);
-  choreograph::Output<float> t{0};
+  sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
   const auto describe = [&] {
-    return travelFrame(rider({.path = geometry::shapes::circle(), .t = &t}));
+    return travelFrame(rider({.path = geometry::shapes::circle(), .t = t}));
   };
 
   // Skia's addOval(dir=kCW, startIndex=1) begins at the RIGHT extreme and
@@ -164,7 +164,7 @@ TEST(ComposeTravel, PlacesTheTransformOriginOnTheParentSizedCurve) {
   // to the rider's top-left offsets the whole ink by half its box.
   t = 0.0f;
   host.composer.render(
-      travelFrame(rider({.path = geometry::shapes::circle(), .t = &t})
+      travelFrame(rider({.path = geometry::shapes::circle(), .t = t})
                       .transformOrigin(pct(0), pct(0))));
   host.frame();
   const SkPoint pinned = inkCentroid(host, SK_ColorRED, 200, 200);
@@ -175,11 +175,11 @@ TEST(ComposeTravel, PlacesTheTransformOriginOnTheParentSizedCurve) {
 
 TEST(ComposeTravel, WrapsOnAClosedCurveAndClampsOnAnOpenOne) {
   Host host(200, 200);
-  choreograph::Output<float> t{0};
+  sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
   const auto atT = [&](Shape path, float value) {
     t = value;
     host.composer.render(
-        travelFrame(rider({.path = std::move(path), .t = &t})));
+        travelFrame(rider({.path = std::move(path), .t = t})));
     host.frame();
     return inkCentroid(host, SK_ColorRED, 200, 200);
   };
@@ -210,10 +210,10 @@ TEST(ComposeTravel, WrapsOnAClosedCurveAndClampsOnAnOpenOne) {
 
 TEST(ComposeTravel, OutranksTheTranslateLanesAndHandsThemBack) {
   Host host(200, 200);
-  choreograph::Output<float> t{0.25f};
+  sigil::motion::Animatable<float> t = sigil::motion::animatable(0.25f);
   // A path and a contradicting lane on the same node: the path wins whole.
   host.composer.render(
-      travelFrame(rider({.path = geometry::shapes::circle(), .t = &t})
+      travelFrame(rider({.path = geometry::shapes::circle(), .t = t})
                       .translateX(-60)
                       .translateY(-60)));
   host.frame();
@@ -238,7 +238,7 @@ TEST(ComposeTravel, AutoOrientAddsToRotateAndHoldsTheLastGoodChord) {
   // A 40x4 bar: WIDE at 0 degrees, TALL at 90. At t=0 on a clockwise circle
   // the tangent points straight down, so auto-orient must stand it up.
   Host host(200, 200);
-  choreograph::Output<float> t{0};
+  sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
   const auto bar = [&](float lookAhead, std::optional<float> spin) {
     Element e = box()
                     .key("dot")
@@ -246,7 +246,7 @@ TEST(ComposeTravel, AutoOrientAddsToRotateAndHoldsTheLastGoodChord) {
                     .rect(SkRect::MakeXYWH(0, 0, 40, 4))
                     .fill(red())
                     .travel({.path = geometry::shapes::circle(),
-                             .t = &t,
+                             .t = t,
                              .lookAhead = lookAhead});
     if (spin) e.rotate(*spin);
     return travelFrame(std::move(e));
@@ -288,7 +288,7 @@ TEST(ComposeTravel, AutoOrientAddsToRotateAndHoldsTheLastGoodChord) {
                       .absolute()
                       .rect(SkRect::MakeXYWH(0, 0, 40, 4))
                       .fill(red())
-                      .travel({.path = ell, .t = &t, .lookAhead = 0.02f})));
+                      .travel({.path = ell, .t = t, .lookAhead = 0.02f})));
   host.frame();
   ink = inkBounds(host, 200, 200);
   EXPECT_GT(ink.height(), 3 * ink.width())
@@ -366,7 +366,7 @@ TEST(ComposeTravel, PrunesOnlyWhenEveryFieldOfThePathMatches) {
 TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsT) {
   // Paint-only: the LAID-OUT box never moves, whatever t does.
   Host host(200, 200);
-  choreograph::Output<float> t{0};
+  sigil::motion::Animatable<float> t = sigil::motion::animatable(0.0f);
   const auto describe = [&](float frameSize) {
     return box().children(
         {box()
@@ -374,7 +374,7 @@ TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsT) {
              .absolute()
              .rect(SkRect::MakeXYWH(20, 20, frameSize, frameSize))
              .children(
-                 {rider({.path = geometry::shapes::circle(), .t = &t})})});
+                 {rider({.path = geometry::shapes::circle(), .t = t})})});
   };
   host.composer.render(describe(160));
   host.frame();
@@ -408,9 +408,9 @@ TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsT) {
 
 TEST(ComposeTravel, TheHitTestUndoesTheSameMatrixPaintApplied) {
   Host host(200, 200);
-  choreograph::Output<float> t{0.25f};
+  sigil::motion::Animatable<float> t = sigil::motion::animatable(0.25f);
   host.composer.render(
-      travelFrame(rider({.path = geometry::shapes::circle(), .t = &t}, 20)));
+      travelFrame(rider({.path = geometry::shapes::circle(), .t = t}, 20)));
   host.frame();
   // The rider is laid out at the frame's top-left and painted at the
   // circle's bottom. Only the painted place may hit.

@@ -52,10 +52,10 @@ TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
   // Assign the Output, the repeat moves — per frame, two frames
   // pixel-asserted, and render() is never called again after the first
   // describe (the whole point of the bound form).
-  choreograph::Output<float> panX{0.0f};
+  sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
   pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
-      .offset(&panX, std::nullopt);
+      .offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.frame();
@@ -79,10 +79,10 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   // not only against the recording: promotion is a SEPARATE consumer of
   // `subtreeVolatile`, so a parked pan that kept its recording but was still
   // denied its bake would keep all of the cost.
-  choreograph::Output<float> panX{0.0f};
+  sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
   pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
-      .offset(&panX, std::nullopt);
+      .offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.composer.setProfiling(true);
@@ -147,10 +147,10 @@ TEST(ComposePatternPan, AMovingBoundPanNeverReleases) {
   // The release must NOT fire for a pan that IS moving — a conveyor driven
   // every frame keeps full volatility, keeps the refusal, and keeps the
   // true phase on screen.
-  choreograph::Output<float> panX{0.0f};
+  sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
   pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
-      .offset(&panX, std::nullopt);
+      .offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
   host.composer.setProfiling(true);
@@ -183,9 +183,9 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
       .offset(SkPoint{8.0f, 0.0f});
   EXPECT_FALSE(pat.material().isAnimated())
       << "a static pan must not route to the live material slot";
-  choreograph::Output<float> panX{0.0f};
+  sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern bound = pat;
-  bound.offset(&panX, std::nullopt);
+  bound.offset(panX, std::nullopt);
   EXPECT_TRUE(bound.material().isAnimated())
       << "the bound form must route live";
   EXPECT_FALSE(pat.material().isAnimated())
@@ -225,12 +225,12 @@ TEST(ComposePatternPan, ThePanBindingIsRecipe) {
   // The BINDING participates in the prune signature: the same binding
   // prunes, a different one patches. A pruned swap would leave the OLD
   // Output driving the pixels for as long as the node lives.
-  choreograph::Output<float> a{0.0f}, b{0.0f};
+  sigil::motion::Animatable<float> a = sigil::motion::animatable(0.0f), b = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
   Pattern p1 = pat, p2 = pat, p3 = pat;
-  p1.offset(&a, std::nullopt);
-  p2.offset(&b, std::nullopt);
-  p3.offset(&a, std::nullopt);
+  p1.offset(a, std::nullopt);
+  p2.offset(b, std::nullopt);
+  p3.offset(a, std::nullopt);
   EXPECT_TRUE(p1.material() == p3.material()) << "same recipe, same binding";
   EXPECT_FALSE(p1.material() == p2.material()) << "a rebound pan must patch";
   EXPECT_FALSE(p1.material() == pat.material()) << "bound differs from unbound";

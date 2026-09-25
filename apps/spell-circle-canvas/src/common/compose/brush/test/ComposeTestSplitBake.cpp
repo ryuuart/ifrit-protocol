@@ -96,12 +96,12 @@ namespace {
  *  over a large static backdrop. `clipped` and `childBlend` are
  *  parameterised because both are conditions whole-subtree promotion refuses
  *  outright, and the split must accept them. */
-choreograph::Output<float>& splitSweep() {
-  static choreograph::Output<float> sweep{0.0f};
+motion::Animatable<float>& splitSweep() {
+  static motion::Animatable<float> sweep = motion::animatable(0.0f);
   return sweep;
 }
 
-Element splitPlane(bool clipped, SkBlendMode childBlend) {
+Element splitPlane(bool clipped, material::BlendMode childBlend) {
   Element plane =
       box()
           .key("plane")
@@ -111,7 +111,7 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
           .width(200)
           .height(200)
           .background(stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
-          .fill(material::skia::Paint::sksl(sharedHeavyEffect()))
+          .fill(material::skia::sksl(sharedHeavyEffect()))
           .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
           .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})));
   if (clipped) plane.overflow(Overflow::Clip);
@@ -123,7 +123,7 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
                       .height(50)
                       .fill(Fill::color({1.0f, 0.35f, 0.1f, 0.85f}))
                       .blendMode(childBlend)
-                      .translateX(motion::bind(&splitSweep()).scale(130.0f))});
+                      .translateX(motion::bind(splitSweep(), {.to = {0.0f, 130.0f}}))});
   return profiledUnder(std::move(plane));
 }
 
@@ -133,7 +133,7 @@ Element splitPlane(bool clipped, SkBlendMode childBlend) {
  *  wrong where it crosses the bake's own overlay would pass a single
  *  capture. The sweep is what makes the claim about the mechanism rather
  *  than about one position. */
-size_t worstSplitDivergence(bool clipped, SkBlendMode childBlend) {
+size_t worstSplitDivergence(bool clipped, material::BlendMode childBlend) {
   Host on(200, 200), off(200, 200);
   off.composer.setAutoTexturePromotion(false);
   size_t worst = 0;
@@ -166,7 +166,7 @@ TEST(ComposeCache, SplitsAnExpensiveOwnPaintFromItsMovingChild) {
   host.composer.setProfiling(true);
   for (int i = 0; i < 24; ++i) {
     splitSweep() = (float)i / 24.0f;
-    host.composer.render(splitPlane(false, SkBlendMode::kSrcOver));
+    host.composer.render(splitPlane(false, material::BlendMode::Normal));
     host.frame();
   }
   const Composer::NodeCost* row = requireRow(host.composer, "plane");
@@ -196,7 +196,7 @@ TEST(ComposeCache, SplitBakeIsPixelIdenticalAcrossTheChildsMotion) {
   // srcOver is associative, so that holds in exact arithmetic. What is NOT
   // free is the 8-bit rounding of the intermediate, and this fixture's own
   // paint overlaps itself specifically so that the intermediate exists.
-  EXPECT_EQ(worstSplitDivergence(false, SkBlendMode::kSrcOver), 0u)
+  EXPECT_EQ(worstSplitDivergence(false, material::BlendMode::Normal), 0u)
       << "splitting the own paint from the children changed pixels";
 }
 
@@ -210,8 +210,8 @@ TEST(ComposeCache, ABlendingChildIsFineUnderTheSplitAndFatalUnderPromotion) {
   // BEFORE the children, so the child resolves against exactly the
   // destination bytes it would have found anyway. Same for a child with a
   // backdrop filter.
-  for (SkBlendMode mode :
-       {SkBlendMode::kMultiply, SkBlendMode::kScreen, SkBlendMode::kPlus}) {
+  for (material::BlendMode mode :
+       {material::BlendMode::Multiply, material::BlendMode::Screen, material::BlendMode::PlusLighter}) {
     EXPECT_EQ(worstSplitDivergence(false, mode), 0u)
         << "a " << (int)mode << "-blended child diverged under the split";
   }
@@ -235,14 +235,14 @@ TEST(ComposeCache, TheSplitSurvivesTheClipThatMadeTheChildAChild) {
   host.composer.setProfiling(true);
   for (int i = 0; i < 24; ++i) {
     splitSweep() = (float)i / 24.0f;
-    host.composer.render(splitPlane(true, SkBlendMode::kSrcOver));
+    host.composer.render(splitPlane(true, material::BlendMode::Normal));
     host.frame();
   }
   const Composer::NodeCost* row = requireRow(host.composer, "plane");
   ASSERT_NE(row, nullptr);
   EXPECT_EQ(row->cacheState, Composer::CacheState::SplitOwn)
       << "a clipped node was refused the split bake";
-  EXPECT_EQ(worstSplitDivergence(true, SkBlendMode::kMultiply), 0u)
+  EXPECT_EQ(worstSplitDivergence(true, material::BlendMode::Multiply), 0u)
       << "the clip was not reproduced identically in both phases";
 }
 
@@ -267,7 +267,7 @@ TEST(ComposeCache, ItIsTheVolatileChildThatSplitsTheBake) {
             .width(200)
             .height(200)
             .background(stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
-            .fill(material::skia::Paint::sksl(sharedHeavyEffect()))
+            .fill(material::skia::sksl(sharedHeavyEffect()))
             .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
             .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})))
             .children({box()
@@ -319,7 +319,7 @@ TEST(ComposeCache, ARefusalNamesEveryReasonAndNotJustTheFirst) {
                    .width(20)
                    .height(20)
                    .fill(red())
-                   .translateX(motion::bind(&splitSweep()).scale(40.0f))})));
+                   .translateX(motion::bind(splitSweep(), {.to = {0.0f, 40.0f}}))})));
   for (int i = 0; i < 24; ++i) {
     splitSweep() = (float)i / 24.0f;
     host.frame();

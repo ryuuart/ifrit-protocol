@@ -119,7 +119,7 @@ class Spans {
      *  and Wrap only; other rules ignore it.
      *
      *  It exists for the one case endpoint arithmetic cannot spell: a
-     *  window whose ENDS are driven by one Output and whose POSITION is
+     *  window whose ENDS are driven by one live value and whose POSITION is
      *  driven by another. A bound endpoint holds exactly one source
      *  pointer, and summing two live values into one number needs two. */
     motion::Animatable<float> offset = 0.0f;
@@ -134,12 +134,12 @@ class Spans {
 
   /** SLIDE THE WHOLE CLAIM: `by` is added to both endpoints of every
    *  Range/Wrap term. Same value kind as the endpoints themselves, so it
-   *  may be a constant, an `animate(...)` or a bound Output.
+   *  may be a constant, an `animate(...)` or a live value.
    *
    *      .stroke(spans::wrap(&start, &end).offset(&drift), ants)
    *
    *  Endpoint arithmetic (`bind(&o).offset(w)`) covers every case where
-   *  ONE Output drives the window; this covers the case where the ends
+   *  ONE live value drives the window; this covers the case where the ends
    *  and the position are driven independently.
    *
    *  Three things about the call, all of them easy to assume wrongly:
@@ -204,7 +204,7 @@ void warnIfNoCorners(const SkPath& path, float angleDeg);
  *  description. */
 namespace spans {
 /** `[begin, end]` of the boundary's arc length. Both ends take the full
- *  Animatable treatment (constant, `animate(...)`, or a bound Output). */
+ *  Animatable treatment (constant, `animate(...)`, or a live value). */
 Spans range(motion::Animatable<float> begin, motion::Animatable<float> end);
 /** THE SEAM-CROSSING RANGE: the boundary read as a CYCLE, so a window
  *  whose `begin` is past its `end` claims [begin,1] AND [0,end] — the
@@ -213,7 +213,7 @@ Spans range(motion::Animatable<float> begin, motion::Animatable<float> end);
  *      .stroke(spans::wrap(bind(&phase), bind(&phase).offset(0.25f)), ants)
  *
  *  Both ends take the full Animatable treatment, so the window marches by
- *  driving them; two shaped bindings on ONE Output are how a fixed-length
+ *  driving them; two shaped bindings on ONE live value are how a fixed-length
  *  window is spelled.
  *
  *  A DEDICATED TERM rather than `range()` learning to wrap, for two
@@ -232,7 +232,7 @@ Spans range(motion::Animatable<float> begin, motion::Animatable<float> end);
  *  brushes never double-hit there. */
 Spans wrap(motion::Animatable<float> begin, motion::Animatable<float> end);
 /** THE REVEAL: `range(0, end)`. `spans::upTo(animate(from(0.f).to(1.f),
- *  {600ms}))` is a stroke that DRAWS ON, and a bound Output scrubs it.
+ *  {600ms}))` is a stroke that DRAWS ON, and a live value scrubs it.
  *  Works the same way under every brush, because it claims a run of the
  *  boundary rather than modifying the mark. */
 Spans upTo(motion::Animatable<float> end);

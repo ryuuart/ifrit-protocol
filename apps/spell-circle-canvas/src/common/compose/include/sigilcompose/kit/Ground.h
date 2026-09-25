@@ -45,12 +45,12 @@ namespace sigil::compose::kit {
  */
 [[nodiscard]] inline Fill vignette(SkSize over, material::Color edge,
                                    float clear = 0.45f) {
-  const SkPoint centre{over.width() * 0.5f, over.height() * 0.5f};
-  const float radius = std::hypot(centre.fX, centre.fY);
+  const glm::vec2 centre{over.width() * 0.5f, over.height() * 0.5f};
+  const float radius = std::hypot(centre.x, centre.y);
   const float hold = std::clamp(clear, 0.0f, 1.0f);
   material::Color inner = edge;
   inner.a = 0;
-  return toFill(material::skia::Paint::radialGradient(
+  return toFill(material::Paint::radialGradient(
       centre, std::max(radius, 1.0f), {{hold, inner}, {1.0f, edge}},
       {.units = material::GradientUnits::Pixels}));
 }

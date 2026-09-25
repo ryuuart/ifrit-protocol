@@ -185,7 +185,7 @@ Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintBox box) {
   // included: a reference to the ink IS the ink, and a bound fill has no
   // paint to inherit. Nothing is written until there is something to
   // write, so a standing paint survives the asking.
-  std::optional<material::skia::Paint> stored = paint.collapsedPaint();
+  std::optional<material::Paint> stored = paint.collapsedPaint();
   if (!stored) return self();
   cascade.statesInk = true;
   cascade.inkPaint = std::move(stored);

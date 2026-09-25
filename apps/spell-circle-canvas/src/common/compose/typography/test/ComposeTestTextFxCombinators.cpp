@@ -167,7 +167,7 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
       sigil::material::Recipe::of<NoParameters>("test.identity-pass")
           .body(sigil::material::Target::SkSL,
                 "half4 main(float2 xy) { return uContent.eval(xy); }"));
-  EXPECT_FALSE(textFx::pass(material::skia::Paint::recipe(
+  EXPECT_FALSE(textFx::pass(material::Paint::recipe(
                                 sigil::material::Material(identityPass)))
                    .displaces());
 

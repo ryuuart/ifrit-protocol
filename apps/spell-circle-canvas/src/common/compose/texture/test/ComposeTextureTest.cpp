@@ -50,10 +50,10 @@ TEST(ComposeTexture, ADescriptionThatChangedPaintsAgain) {
 }
 
 TEST(ComposeTexture, ARetainedBindingPaintsWhenItsOutputMoves) {
-  choreograph::Output<float> alpha{1.0f};
+  sigil::motion::Animatable<float> alpha = sigil::motion::animatable(1.0f);
   const std::shared_ptr<TextureScene> scene =
       TextureScene::make({32, 32}, fonts());
-  const Element retained = plate(SkColors::kRed).opacity(&alpha);
+  const Element retained = plate(SkColors::kRed).opacity(alpha);
 
   scene->render(retained);
   const uint64_t painted = scene->version();

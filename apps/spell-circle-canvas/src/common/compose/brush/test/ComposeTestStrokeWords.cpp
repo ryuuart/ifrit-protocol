@@ -118,8 +118,8 @@ TEST(ComposeVolatility, IsAnimatedIsTheOnlyWordThatDeclaresIt) {
 
 TEST(ComposeVolatility, EveryLibrarySchemeDeclaresItWithTheSameWord) {
   lines::Line line;
-  choreograph::Output<float> phase;
-  line.dashPhaseBinding = &phase;
+  motion::Animatable<float> phase = motion::animatable(0.0f);
+  line.dashPhaseBinding = phase;
   EXPECT_TRUE(line.isAnimated());
 
   PathFormat pf;
@@ -127,22 +127,22 @@ TEST(ComposeVolatility, EveryLibrarySchemeDeclaresItWithTheSameWord) {
 
   // A Material answers the same question in the same word as every other
   // scheme, so a consumer never has to know which kind it is holding.
-  const material::skia::Paint stat = material::skia::Paint::solid({1, 0, 0, 1});
+  const material::Paint stat = material::Paint::solid({1, 0, 0, 1});
   EXPECT_FALSE(stat.isAnimated());
 }
 
 // ---- Bound::source / ::target ----------------------------------------------
 // -------------------------------------------
 TEST(ComposeMotionWords, TargetIsScaleAndOffsetWrittenAsTwoBounds) {
-  choreograph::Output<float> hp;
+  motion::Animatable<float> hp = motion::animatable(0.0f);
   hp = 25.0f;
   const sigil::motion::BoundFloat named =
-      motion::bind(&hp).source(0, 100).target(-70, 170).value();
+      motion::bind(hp, {.from = {0, 100}, .to = {-70.0f, 170.0f}}).value();
   // target(lo, hi) is sugar: the same mapping written as an explicit scale
   // and offset must agree with it everywhere, including outside the source
   // range, since neither form clamps.
   const sigil::motion::BoundFloat manual =
-      motion::bind(&hp).source(0, 100).scale(240).offset(-70).value();
+      motion::bind(hp, {.from = {0, 100}, .to = {-70.0f, 170.0f}}).value();
   for (float v : {0.0f, 25.0f, 50.0f, 100.0f, 137.0f})
     EXPECT_FLOAT_EQ(named.apply(v), manual.apply(v)) << "at " << v;
   EXPECT_FLOAT_EQ(named.apply(0.0f), -70.0f);
@@ -150,11 +150,11 @@ TEST(ComposeMotionWords, TargetIsScaleAndOffsetWrittenAsTwoBounds) {
 }
 
 TEST(ComposeMotionWords, WindowIsSourceThatClamps) {
-  choreograph::Output<float> t;
+  motion::Animatable<float> t = motion::animatable(0.0f);
   const sigil::motion::BoundFloat w =
-      motion::bind(&t).window(0.2f, 0.4f).value();
+      motion::bind(t, {.from = {0.2f, 0.4f}, .clampFrom = true}).value();
   const sigil::motion::BoundFloat s =
-      motion::bind(&t).source(0.2f, 0.4f).value();
+      motion::bind(t, {.from = {0.2f, 0.4f}}).value();
   EXPECT_FLOAT_EQ(w.apply(0.3f), s.apply(0.3f));
   EXPECT_FLOAT_EQ(w.apply(0.9f), 1.0f) << "window clamps";
   EXPECT_GT(s.apply(0.9f), 1.0f) << "source does not";
@@ -169,7 +169,7 @@ TEST(ComposeVolatility, ALiveMaterialOnASpanPassDeclaresItself) {
   auto paintedPerFrame = [](bool live) {
     Host host(200, 200);
     PathFormat mark = stroke(8, red());
-    mark.strokeFill = material::skia::Paint::sksl(heavyEffect(live));
+    mark.strokeFill = material::skia::sksl(heavyEffect(live));
     host.composer.render(stack().children(
         {revealBox().stroke(spans::upTo(0.6f), std::move(mark))}));
     host.frame();

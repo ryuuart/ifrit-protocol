@@ -15,7 +15,7 @@
 
 namespace sigil::compose {
 
-TextEffect TextEffect::pass(material::skia::Paint material) {
+TextEffect TextEffect::pass(material::Paint material) {
   const sigil::material::Material* backing = material.recipeMaterial();
   if (!backing || !backing->recipe().has(sigil::material::Target::SkSL)) {
     // Once per process: the door takes only the recipe-backed form,
@@ -27,7 +27,7 @@ TextEffect TextEffect::pass(material::skia::Paint material) {
       SkDebugf(
           "[compose] textFx::pass: the material carries no SkSL recipe — a "
           "pass is compiled per unit count, which needs "
-          "material::skia::Paint::recipe(...) over a recipe with an SkSL body. "
+          "material::Paint::recipe(...) over a recipe with an SkSL body. "
           "The "
           "effect is empty and the track draws its glyphs at rest.\n");
     }
@@ -52,7 +52,7 @@ TextEffect TextEffect::pass(material::skia::Paint material) {
   // pass does with them, the layer is re-rendered every frame it runs.
   state->displaces = false;
   state->pass =
-      std::make_shared<const material::skia::Paint>(std::move(material));
+      std::make_shared<const material::Paint>(std::move(material));
   TextEffect out;
   out.m_state = std::move(state);
   return out;

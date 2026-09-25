@@ -53,7 +53,7 @@ struct FillVerb {
         .children({
             swatch(box().fill(kAccent), "fill(colour)"),
             swatch(
-                box().fill(skia::Paint::linearGradient(
+                box().fill(material::Paint::linearGradient(
                     {0, 0}, {1, 1},
                     {{0.0f, hexColor(0x2f6f8f)}, {1.0f, hexColor(0x8f2f4f)}})),
                 "fill(paint)"),

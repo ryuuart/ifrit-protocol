@@ -491,12 +491,12 @@ TEST(ComposeMaskGates, ASettledBoundGateRecaches) {
   // volatility, so its ANCESTORS can cache across it. Without the release
   // the recording is kept but every frame still paints live — the node
   // looks cached and costs as if it were not.
-  choreograph::Output<float> reveal{0.0f};
+  sigil::motion::Animatable<float> reveal = sigil::motion::animatable(0.0f);
   Host host;
   host.composer.render(
       box().children({revealBox()
                           .stroke(stroke(6, red()))
-                          .mask(by::spans(spans::upTo(&reveal)))}));
+                          .mask(by::spans(spans::upTo(reveal)))}));
   host.frame();
   reveal = 1.0f;                // the ramp lands…
   for (int i = 0; i < 12; ++i)  // …and the release warms up (8 frames)
@@ -604,7 +604,7 @@ TEST(ComposeMaskGates, TheAlphaGateTakesItsCoverageFromAMaterial) {
            .width(160)
            .height(160)
            .fill(red())
-           .mask(by::alpha(material::skia::Paint::linearGradient(
+           .mask(by::alpha(material::Paint::linearGradient(
                {0, 0}, {160, 0}, {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}},
                {.units = material::GradientUnits::Pixels})))}));
   host.frame();
@@ -669,11 +669,11 @@ TEST(ComposeMaskGates, TheLumaGateIsRec601OnEncodedPremultipliedValues) {
   // black, the way After Effects' luma matte does.
   Host host(200, 200);
   host.composer.render(coveragePlates({
-      by::luma(material::skia::Paint::solid({1, 0, 0, 1})),
-      by::luma(material::skia::Paint::solid({0, 1, 0, 1})),
-      by::luma(material::skia::Paint::solid({0, 0, 1, 1})),
-      by::luma(material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 1})),
-      by::luma(material::skia::Paint::solid({1, 1, 1, 0.5f})),
+      by::luma(material::Paint::solid({1, 0, 0, 1})),
+      by::luma(material::Paint::solid({0, 1, 0, 1})),
+      by::luma(material::Paint::solid({0, 0, 1, 1})),
+      by::luma(material::Paint::solid({0.5f, 0.5f, 0.5f, 1})),
+      by::luma(material::Paint::solid({1, 1, 1, 0.5f})),
   }));
   host.frame();
   EXPECT_NEAR(plateByte(host, 0), 76, 2) << "red is 0.299, not 0.2126 (Rec.709 "
@@ -705,7 +705,7 @@ TEST(ComposeMaskGates, TheLumaLawIsTheSameThroughAShader) {
            .width(160)
            .height(160)
            .fill(Fill::color({1, 1, 1, 1}))
-           .mask(by::luma(material::skia::Paint::linearGradient(
+           .mask(by::luma(material::Paint::linearGradient(
                {0, 0}, {160, 0}, {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
                {.units = material::GradientUnits::Pixels})))}));
   host.frame();
@@ -721,8 +721,8 @@ TEST(ComposeMaskGates, EachCoverageGateHasItsComplementAsItsOwnTerm) {
   // Mechanically it is kDstOut instead of kDstIn, which is dst·(1-a): the
   // pair of plates must sum to 255 at every sample, not merely differ.
   Host host(200, 200);
-  const material::skia::Paint ramp =
-      material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 0.25f});
+  const material::Paint ramp =
+      material::Paint::solid({0.5f, 0.5f, 0.5f, 0.25f});
   host.composer.render(coveragePlates({
       by::alpha(ramp),     // 0.25            ->  64
       by::alphaOut(ramp),  // 1 - 0.25        -> 191
@@ -749,8 +749,8 @@ TEST(ComposeMaskGates, ACoverageGatesChannelAndSenseReachTheComparator) {
   // arm already, so the compile-time field pin cannot notice the Coverage
   // arm ignoring it — and a matte that compares equal to its own INVERSE
   // prunes and stays showing the wrong half for as long as the node lives.
-  const material::skia::Paint m =
-      material::skia::Paint::solid({0.5f, 0.5f, 0.5f, 1});
+  const material::Paint m =
+      material::Paint::solid({0.5f, 0.5f, 0.5f, 1});
   // Gate::operator== IS the arm the structural prune reads for a mask, so
   // the value is compared where the comparator lives.
   const auto same = [&](const Gate& a, const Gate& b) { return a == b; };
@@ -772,7 +772,7 @@ TEST(ComposeMaskGates, ThreeMasksAtThreeRatesIntersectPerFrame) {
   // one animation slot would make the second gate retarget the first, and
   // the result would be a race rather than a picture; maskAnims is indexed
   // per mask, which is what keeps them independent.
-  choreograph::Output<float> slow{1.0f}, fast{1.0f};
+  sigil::motion::Animatable<float> slow = sigil::motion::animatable(1.0f), fast = sigil::motion::animatable(1.0f);
   Host host(200, 200);
   host.composer.render(stack().children(
       {box()
@@ -782,8 +782,8 @@ TEST(ComposeMaskGates, ThreeMasksAtThreeRatesIntersectPerFrame) {
            .width(160)
            .height(160)
            .fill(red())
-           .mask(by::edge(0.0f, &fast))    // from the left
-           .mask(by::edge(180.0f, &slow))  // …and from the right
+           .mask(by::edge(0.0f, fast))    // from the left
+           .mask(by::edge(180.0f, slow))  // …and from the right
            .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 40, 160, 80))))}));
   host.frame();
   // All three open: the band the shape gate leaves is fully lit.

@@ -136,7 +136,7 @@ TEST(ComposeVideo, LeafCompositesItsSingleDrawWithoutAGroupingNode) {
   composer.setSize({64, 64});
   composer.render(box()
                       .fill(Fill::color({0, 0, 1, 1}))
-                      .children({video(clip, {.fit = material::skia::Fit::Cover,
+                      .children({video(clip, {.fit = material::Fit::Cover,
                                               .opacity = 0.5f,
                                               .blend = SkBlendMode::kPlus})}));
 

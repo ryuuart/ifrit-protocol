@@ -10,15 +10,15 @@
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
-  // A ch::Output-bound uniform makes an sksl() Material LIVE: it re-resolves
-  // every frame from the Output (no re-render), and its node paints live
-  // (never freezes into a cache). This is what gives uniform(name, &output)
-  // something to hook against.
+  // A uniform bound to a live value makes an sksl() Material LIVE: it
+  // re-resolves every frame from the value (no re-render), and its node
+  // paints live (never freezes into a cache). This is what gives
+  // uniform(name, value) something to hook against.
   auto [effect, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform float uK;"
                "half4 main(float2 p) { return half4(uK, 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
-  choreograph::Output<float> k{0.0f};
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(0.0f);
   Host host;
   host.composer.render(box().children(
       {box()
@@ -26,7 +26,7 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(material::skia::Paint::sksl(effect).uniform("uK", &k))}));
+           .fill(material::skia::sksl(effect).bind("uK", k))}));
   host.frame();
   const SkColor c0 = host.pixel(20, 20);
   k = 1.0f;      // change the bound uniform — NO re-render
@@ -40,8 +40,8 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
 TEST(ComposeMaterial, UniformOnNonShaderMaterialIsNoOp) {
   // uniform() on a material with no named uniforms (a solid) has nothing to
   // hook against: it is ignored, the material stays static and non-live.
-  material::skia::Paint m =
-      material::skia::Paint::solid({0, 1, 0, 1}).uniform("uK", 0.5f);
+  material::Paint m =
+      material::Paint::solid({0, 1, 0, 1}).set("uK", 0.5f);
   EXPECT_FALSE(m.isAnimated());
   EXPECT_TRUE(m.isSolid());
 }
@@ -51,12 +51,12 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   // the base or its sibling copies. The shape that catches this is a shared
   // base material bound to two different Outputs — with aliasing, both
   // copies read whichever binding was applied last.
-  material::skia::Paint base = material::skia::Paint::sksl(ukEffect());
-  choreograph::Output<float> low{0.2f}, high{1.0f};
-  material::skia::Paint a = base;
-  a.uniform("uK", &low);
-  material::skia::Paint b = base;
-  b.uniform("uK", &high);
+  material::Paint base = material::skia::sksl(ukEffect());
+  sigil::motion::Animatable<float> low = sigil::motion::animatable(0.2f), high = sigil::motion::animatable(1.0f);
+  material::Paint a = base;
+  a.bind("uK", low);
+  material::Paint b = base;
+  b.bind("uK", high);
   EXPECT_FALSE(base.isAnimated());  // base untouched
   EXPECT_TRUE(a.isAnimated());
   EXPECT_TRUE(b.isAnimated());
@@ -85,7 +85,7 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
   // wrong is a plain fill() following a live-material fill(): if the live
   // material is held in a separate slot that paint consults first, the later
   // plain fill is silently ignored.
-  choreograph::Output<float> k{1.0f};
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
   Host host;
   host.composer.render(box().children(
       {box()
@@ -93,8 +93,8 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(material::skia::Paint::sksl(ukEffect())
-                     .uniform("uK", &k))         // live red
+           .fill(material::skia::sksl(ukEffect())
+                     .bind("uK", k))         // live red
            .fill(Fill::color({0, 1, 0, 1}))}));  // then plain green
   host.frame();
   const SkColor c = host.pixel(20, 20);
@@ -107,11 +107,11 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
   // whole blend LIVE, so it re-resolves per frame and TRACKS the bound
   // Output. Flattening the stack eagerly at build time instead would bake
   // the shader's default uniform values in permanently.
-  choreograph::Output<float> k{0.8f};
-  material::skia::Paint m = material::skia::Paint::blend({
-      {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-      {material::skia::Paint::sksl(ukEffect()).uniform("uK", &k),
-       SkBlendMode::kPlus},
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(0.8f);
+  material::Paint m = material::Paint::blend({
+      {material::Paint::solid({0, 0, 0, 1}), material::BlendMode::Normal},
+      {material::skia::sksl(ukEffect()).bind("uK", k),
+       material::BlendMode::PlusLighter},
   });
   EXPECT_TRUE(m.isAnimated());  // inherited from the bound layer
   Host host;
@@ -139,16 +139,16 @@ TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
   // inside another blend's layer list, because blend() folds every layer to
   // a shader as it is constructed: building `outer` below is the moment it
   // happens, before anything is painted.
-  choreograph::Output<float> k{0.8f};
-  material::skia::Paint inner = material::skia::Paint::blend({
-      {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-      {material::skia::Paint::sksl(ukEffect()).uniform("uK", &k),
-       SkBlendMode::kPlus},
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(0.8f);
+  material::Paint inner = material::Paint::blend({
+      {material::Paint::solid({0, 0, 0, 1}), material::BlendMode::Normal},
+      {material::skia::sksl(ukEffect()).bind("uK", k),
+       material::BlendMode::PlusLighter},
   });
   ASSERT_TRUE(inner.isAnimated());  // inherited from the bound layer
-  material::skia::Paint outer = material::skia::Paint::blend({
-      {inner, SkBlendMode::kSrcOver},  // a nested blend layer
-      {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kPlus},
+  material::Paint outer = material::Paint::blend({
+      {inner, material::BlendMode::Normal},  // a nested blend layer
+      {material::Paint::solid({0, 0, 0, 1}), material::BlendMode::PlusLighter},
   });
   ASSERT_TRUE(outer.isAnimated());  // liveness survives one more nesting
 
@@ -156,8 +156,8 @@ TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
   // fall through to m_shader — blend()'s eager snapshot, built once at
   // construction — which is the stale-snapshot defect asShader()'s live
   // branch exists to prevent; it would answer 0.8 forever.
-  auto sampleR = [](const material::skia::Paint& m) -> uint32_t {
-    sk_sp<SkShader> s = m.asShader();
+  auto sampleR = [](const material::Paint& m) -> uint32_t {
+    sk_sp<SkShader> s = material::skia::shader(m);
     EXPECT_TRUE(s);
     sk_sp<SkSurface> surf =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
@@ -185,7 +185,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
       "uniform float uTime;"
       "half4 main(float2 p) { return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
-  material::skia::Paint m = material::skia::Paint::sksl(effect);
+  material::Paint m = material::skia::sksl(effect);
   EXPECT_TRUE(m.isAnimated());
 
   sigil::motion::FrameClock clock;
@@ -211,7 +211,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
 TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
   // The leaf fast path routes blend onto the fill paint, so a
   // live-material leaf with .blendMode(kPlus) must composite additively.
-  choreograph::Output<float> k{1.0f};  // red
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);  // red
   Host host;
   host.composer.render(
       stack()
@@ -228,9 +228,9 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
                    .height(40)
                    .inset(0, 160, 160, 0)
                    .absolute()
-                   .fill(material::skia::Paint::sksl(ukEffect())
-                             .uniform("uK", &k))
-                   .blendMode(SkBlendMode::kPlus)}));
+                   .fill(material::skia::sksl(ukEffect())
+                             .bind("uK", k))
+                   .blendMode(material::BlendMode::PlusLighter)}));
   host.frame();
   const SkColor c = host.pixel(20, 20);  // red + green = yellow
   EXPECT_GT(SkColorGetR(c), 200u);
@@ -241,10 +241,10 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
 TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
   // snapshot() — the element-tree-as-a-brush bake — samples live
   // materials at their CURRENT Output values.
-  choreograph::Output<float> k{1.0f};
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
   sk_sp<SkPicture> pic =
       snapshot(box().width(60).height(60).fill(
-                   material::skia::Paint::sksl(ukEffect()).uniform("uK", &k)),
+                   material::skia::sksl(ukEffect()).bind("uK", k)),
                fonts());
   ASSERT_TRUE(pic);
   Host host;
@@ -256,12 +256,12 @@ TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
 TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
   // A live material mounted through renderSlot() animates like
   // any other — the slot path wires volatility identically.
-  choreograph::Output<float> k{0.0f};
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(0.0f);
   Host host;
   host.composer.render(box().children({slot("s").width(40).height(40)}));
   host.composer.renderSlot(
       "s", box().width(40).height(40).fill(
-               material::skia::Paint::sksl(ukEffect()).uniform("uK", &k)));
+               material::skia::sksl(ukEffect()).bind("uK", k)));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 30u);  // k=0
   k = 1.0f;                                         // no render, no renderSlot
@@ -276,7 +276,7 @@ TEST(ComposeMaterial, ContentScaleDeclaringMaterialIsLive) {
       SkString("uniform float uContentScale;"
                "half4 main(float2 p) { return half4(1, 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
-  EXPECT_TRUE(material::skia::Paint::sksl(effect).isAnimated());
+  EXPECT_TRUE(material::skia::sksl(effect).isAnimated());
 }
 
 TEST(ComposeMaterial, StableLiveResolveReplaysThePicture) {
@@ -289,9 +289,9 @@ TEST(ComposeMaterial, StableLiveResolveReplaysThePicture) {
       "  return half4(fract(uPhase), 0.2, 1.0 - fract(uPhase), 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   Host host;
-  choreograph::Output<float> phase{0.25f};
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.25f);
   host.composer.render(box().children({box().width(100).height(100).fill(
-      material::skia::Paint::sksl(fx).uniform("uPhase", &phase))}));
+      material::skia::sksl(fx).bind("uPhase", phase))}));
   host.frame();  // records once
   const SkColor before = host.pixel(50, 50);
   host.frame();  // same phase → stable resolve → pure replay
@@ -311,9 +311,9 @@ TEST(ComposeMaterial, BoundUniformOwnsItsSlotOverInjection) {
       SkString("uniform float uTime; half4 main(float2 p) {"
                "  return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
-  choreograph::Output<float> stepped{0.5f};
-  material::skia::Paint m =
-      material::skia::Paint::sksl(fx).uniform("uTime", &stepped);
+  sigil::motion::Animatable<float> stepped = sigil::motion::animatable(0.5f);
+  material::Paint m =
+      material::skia::sksl(fx).bind("uTime", stepped);
   PaintContext ctx;
   ctx.size = {4, 4};
   ctx.elapsedSeconds = 123.789;  // continuous clock — must be IGNORED
@@ -360,20 +360,20 @@ TEST(ComposeMaterial, StableLiveResolveBlitsTheTexture) {
                "  return half4(fract(uPhase), 0.4, 0.2, 1); }"));
   ASSERT_TRUE(fx) << err.c_str();
   Host host;
-  choreograph::Output<float> phase{0.25f}, sibling{0.0f};
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.25f), sibling = sigil::motion::animatable(0.0f);
   host.composer.render(
       box()
           .children({box()
                          .width(100)
                          .height(100)
                          .cache(Cache::Texture)
-                         .fill(material::skia::Paint::sksl(fx).uniform(
-                             "uPhase", &phase))})
+                         .fill(material::skia::sksl(fx).bind(
+                             "uPhase", phase))})
           // An always-animating sibling keeps the ROOT live, which is the
           // ordinary case in a real scene: the shader-filled node must still
           // blit even though the frame as a whole is repainting.
           .children(
-              {box().width(10).height(10).fill(red()).translateX(&sibling)}));
+              {box().width(10).height(10).fill(red()).translateX(sibling)}));
   host.frame();  // bakes
   const unsigned recordedAfterBake = host.composer.stats().picturesRecorded;
   EXPECT_GE(recordedAfterBake, 1u);

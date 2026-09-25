@@ -38,7 +38,7 @@ struct ElementNode;
 // participate, or a stated reason not to — then bump the count), and then
 // — for the blocks whose fields are all comparable lanes — the field walk
 // `EveryPaintPropsFieldParticipatesInEquality` /
-// `EveryBoundFloatFieldParticipatesInEquality` picks the new field up
+// `EveryBindingFieldParticipatesInEquality` picks the new field up
 // AUTOMATICALLY and fails until the comparator notices it. Two gates, one
 // of them the compiler's.
 //
@@ -49,7 +49,7 @@ struct ElementNode;
 // wrote by hand — and the honest way to retire a pin is to give the struct
 // a defaulted `operator==`.
 //
-// CLASSES WITH PRIVATE STATE (material::skia::Paint and Effect, Region,
+// CLASSES WITH PRIVATE STATE (material::Paint and Effect, Region,
 // Animatable, Shape, Decoration, Profile) CANNOT be pinned — reading a field
 // count needs an aggregate. Their hand-written comparators sit in the same
 // header or translation unit as their members, so a field and its comparison
@@ -66,14 +66,11 @@ using ::sigil::core::kFieldCount;
  *  compares two different nodes will report a difference whatever the
  *  comparator does, and so passes even when the field is unread. */
 bool propertiesEqual(const ElementNode& a, const ElementNode& b);
-/** The shaped-binding half of the same comparator, SigilMotion's: every
- *  field of BoundFloat participates, under the pin beside its body. */
-using ::sigil::motion::boundMapEqual;
 /** An Animatable compared where every other animated slot is:
  *  SigilMotion's form-by-form comparator. */
 using ::sigil::motion::propertyEqual;
 
-/** Constant, binding, or transitioned — one animatable flattened. */
+/** Constant, live, or described — one animatable flattened. */
 using ::sigil::motion::ResolvedProperty;
 using ::sigil::motion::resolveProperty;
 

@@ -178,7 +178,7 @@ Element revealedPage(float reveal) {
                        .top(20)
                        .width(200)
                        .height(200)
-                       .fill(material::skia::Paint::sksl(gridEffect()))
+                       .fill(material::skia::sksl(gridEffect()))
                        .key("mark")});
   page.children({window.key("window")});
   return page;
@@ -239,7 +239,7 @@ namespace {
  *  moves, and its content never changes. The mark is a stroked ellipse,
  *  whose top and bottom run nearly tangent to the grid — where a
  *  sub-pixel move costs a whole step of a pixel's coverage. */
-Element settlingStamp(const ch::Output<float>* lane) {
+Element settlingStamp(const sigil::motion::Animatable<float>& lane) {
   Element page = box().width(200).height(200).fill(Fill::color({0, 0, 0, 1}));
   page.children({box()
                      .absolute()
@@ -259,11 +259,11 @@ std::vector<SkColor> stampAfterSettling(bool promoted) {
   host.composer.setAutoTexturePromotion(promoted
                                             ? Composer::PromotionPolicy::Eager
                                             : Composer::PromotionPolicy::Off);
-  ch::Output<float> lane{0.997f};
-  host.composer.render(settlingStamp(&lane));
+  sigil::motion::Animatable<float> lane = sigil::motion::animatable(0.997f);
+  host.composer.render(settlingStamp(lane));
   for (int i = 0; i < 8; ++i) host.frame();
   lane = 1.0f;
-  host.composer.render(settlingStamp(&lane));
+  host.composer.render(settlingStamp(lane));
   host.frame();
   std::vector<SkColor> out;
   out.reserve(200u * 200u);

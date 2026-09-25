@@ -32,11 +32,11 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
   // A blend containing a geometry-dependent (SDF) layer must defer its
   // flatten to resolve time, when the node's size is known. Flattening at
   // build time bakes a zero resolution and renders a degenerate speck.
-  material::skia::Paint m = material::skia::Paint::blend({
-      {material::skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-      {material::skia::Paint::recipe(material::sdf::material(
+  material::Paint m = material::Paint::blend({
+      {material::Paint::solid({0, 0, 0, 1}), material::BlendMode::Normal},
+      {material::Paint::recipe(material::sdf::material(
            material::sdf::circle(), {.fill = {1, 0, 0, 1}})),
-       SkBlendMode::kPlus},
+       material::BlendMode::PlusLighter},
   });
   EXPECT_TRUE(m.geometryDependent());  // inherited from the SDF layer
   EXPECT_FALSE(m.isAnimated());        // still cacheable
@@ -111,10 +111,10 @@ TEST(ComposeSdf, ResizeReResolvesGeometry) {
 }
 
 TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
-  // Alive chrome: bind uGlowR to a ch::Output — the material goes live and
-  // the glow breathes with the Output, no render() calls. The style's
+  // Alive chrome: bind uGlowR to a live value — the material goes live
+  // and the glow breathes with the value, no render() calls. The style's
   // glowRadius reserves the pad; the binding animates within it.
-  choreograph::Output<float> glow{0.01f};
+  sigil::motion::Animatable<float> glow = sigil::motion::animatable(0.01f);
   const material::sdf::Style style{
       .fill = {1, 0, 0, 1}, .glowRadius = 12, .glowColor = {1, 1, 1, 1}};
   Host host;
@@ -124,9 +124,9 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
            .height(100)
            .inset(0, 100, 100, 0)
            .absolute()
-           .fill(material::skia::Paint::recipe(
+           .fill(material::Paint::recipe(
                      material::sdf::material(material::sdf::circle(), style))
-                     .uniform("uGlowR", &glow))}));
+                     .bind("uGlowR", glow))}));
   host.frame();
   // Size the probe from the PUBLIC pad helper (no hand-copied formula):
   // circle radius = 50 − pad; sample 6px outside the edge.

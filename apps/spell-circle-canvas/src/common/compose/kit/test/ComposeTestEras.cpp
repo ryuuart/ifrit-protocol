@@ -144,7 +144,7 @@ TEST(KitEras, TheChromeTypeRampsSitInUnitSpaceSoTheHorizonHoldsAtAnySize) {
   // The same word at two sizes: a unit-space ramp crosses the capitals at
   // the same fraction of the cap band whatever the size, so the light half
   // of the ramp is above the dark half in both.
-  auto lit = [](float size, const material::skia::Paint& ramp) {
+  auto lit = [](float size, const material::Paint& ramp) {
     Host host(300, 200);
     host.composer.render(box().padding(20).children(
         {text(u8"HH", whiteStyle(size)).key("word").ink(ramp)}));
@@ -159,7 +159,7 @@ TEST(KitEras, TheChromeTypeRampsSitInUnitSpaceSoTheHorizonHoldsAtAnySize) {
     };
     return std::pair<int, int>{band(0.35f), band(0.62f)};
   };
-  for (const material::skia::Paint& ramp :
+  for (const material::Paint& ramp :
        {kit::sunsetChromeType(), kit::silverChromeType()}) {
     const auto smallWord = lit(40, ramp);
     const auto largeWord = lit(80, ramp);

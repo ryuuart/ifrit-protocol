@@ -69,7 +69,7 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
     ASSERT_GT(rasterDelta, 0) << "the instrument's GRAD clone renders inert";
   }
 
-  choreograph::Output<float> grade{gradeMin};
+  sigil::motion::Animatable<float> grade = sigil::motion::animatable<float>(gradeMin);
   Host host;
   auto describe = [&] {
     sigil::weave::TextStyle style = styleAt(48);
@@ -78,7 +78,7 @@ TEST(ComposeVariationDrive, GradDrivesPaintOnlyWhenAdvanceInvariant) {
     return box().children(
         {text(u8"WEIGHT", style)
              .key("t")
-             .variationDrive("GRAD", &grade)
+             .variationDrive("GRAD", grade)
              .absolute()
              .inset(60, 20)});
   };
@@ -114,7 +114,7 @@ TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
   ASSERT_TRUE(ui) << "the instrument's GRAD axis must hold advances "
                      "over a range";
 
-  choreograph::Output<float> grade{gradeMin};
+  sigil::motion::Animatable<float> grade = sigil::motion::animatable<float>(gradeMin);
   Host host(240, 240);
   sigil::weave::TextStyle style = styleAt(26);
   style.shaping.typeface = ui;
@@ -129,7 +129,7 @@ TEST(ComposeVariationDrive, TheAxisDrivesOnAPathRunToo) {
                           .top(20)
                           .textOnPath({.path = geometry::shapes::circle(),
                                        .align = TextPath::Align::Center})
-                          .variationDrive("GRAD", &grade)}));
+                          .variationDrive("GRAD", grade)}));
   host.frame();
   SkBitmap lo;
   lo.allocPixels(SkImageInfo::MakeN32Premul(240, 240));
@@ -182,7 +182,7 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   ASSERT_FALSE(fonts().axisIsAdvanceInvariant(ui, "wght"))
       << "the instrument face's wght must move advances";
 
-  choreograph::Output<float> weight{400.0f};
+  sigil::motion::Animatable<float> weight = sigil::motion::animatable(400.0f);
   Host host;
   sigil::weave::TextStyle style = styleAt(48);
   style.shaping.typeface = ui;
@@ -190,7 +190,7 @@ TEST(ComposeVariationDrive, AdvanceVariantAxisIsRefused) {
   host.composer.render(box().children(
       {text(u8"WEIGHT", style)
            .key("t")
-           .variationDrive("wght", &weight)
+           .variationDrive("wght", weight)
            .absolute()
            .inset(60, 20)}));
   host.frame();
@@ -229,13 +229,13 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   sigil::weave::TextStyle style = styleAt(48);
   style.shaping.typeface = ui;
   style.paint.foreground.setColor(SK_ColorWHITE);
-  choreograph::Output<float> grade{gradeMax};
+  sigil::motion::Animatable<float> grade = sigil::motion::animatable<float>(gradeMax);
 
   Host verb;
   verb.composer.render(box().children(
       {text(u8"GRADE", style)
            .key("t")
-           .variationDrive("GRAD", &grade)
+           .variationDrive("GRAD", grade)
            .absolute()
            .inset(60, 20)}));
   verb.frame();
@@ -267,7 +267,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
   stacked.composer.render(
       box().children({text(u8"GRADE", style)
                           .key("t")
-                          .variationDrive("GRAD", &grade)
+                          .variationDrive("GRAD", grade)
                           .textFx({.effect = textFx::rise(0)})
                           .absolute()
                           .inset(60, 20)}));
@@ -317,12 +317,12 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
     sigil::weave::TextStyle style = styleAt(kSize);
     style.shaping.typeface = ui;
     style.paint.foreground.setColor(SK_ColorWHITE);
-    choreograph::Output<float> phase{0.0f};
+    sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
     // eachMs = 0: every glyph reads the one master phase, so the coordinate
     // is exactly the sequence driven below and nothing else.
     Track track{.effect = textFx::variableAxisSweep("GRAD", gradeMin, gradeMax),
                 .stagger = {.eachMs = 0, .durationMs = 100},
-                .progress = &phase};
+                .progress = phase};
     track.continuous = continuous;
     composer.render(box().padding(10).children(
         {text(u8"GRADE", style).key("t").textFx(std::move(track))}));

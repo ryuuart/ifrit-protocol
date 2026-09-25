@@ -113,7 +113,7 @@ Image image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
   return e;
 }
 
-Image image(sk_sp<SkImage> picture, material::skia::Fit fit) {
+Image image(sk_sp<SkImage> picture, material::Fit fit) {
   if (!picture) return image(std::shared_ptr<const sigil::image::ImageAsset>());
   const float w = (float)picture->width();
   const float h = (float)picture->height();
@@ -121,15 +121,15 @@ Image image(sk_sp<SkImage> picture, material::skia::Fit fit) {
       sigil::image::ImageAsset::wrap(std::move(picture))));
   // Native asks nothing of the box, and the leaf already measures the
   // picture's own pixels.
-  if (fit == material::skia::Fit::Native) return leaf;
+  if (fit == material::Fit::Native) return leaf;
   // THE FIT IS LAYOUT AND NOT A MATRIX: the leaf takes the box it stands
   // in, and where its proportions are kept the node itself is the right
   // shape — so what is painted is the whole of the node and a caller
   // computes nothing.
-  if (fit == material::skia::Fit::Stretch || w <= 0.0f || h <= 0.0f)
+  if (fit == material::Fit::Stretch || w <= 0.0f || h <= 0.0f)
     return leaf.width(pct(100)).height(pct(100));
   leaf.aspectRatio(w / h);
-  if (fit == material::skia::Fit::Contain)
+  if (fit == material::Fit::Contain)
     leaf.width(pct(100)).maxWidth(pct(100)).maxHeight(pct(100));
   else
     leaf.height(pct(100)).minWidth(pct(100));

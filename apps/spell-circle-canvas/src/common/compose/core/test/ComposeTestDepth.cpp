@@ -235,7 +235,7 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
   // Additive, so the flattened pair is still readable: a blend that took
   // the faces to black would say nothing about which one is on top.
   flattened("a blend mode",
-            [](Element& e) { e.blendMode(SkBlendMode::kPlus); });
+            [](Element& e) { e.blendMode(material::BlendMode::PlusLighter); });
   flattened("a coverage boundary",
             [](Element& e) { e.decorationOutline(Boundary::Coverage); });
   flattened("Cache::Texture", [](Element& e) { e.cache(Cache::Texture); });
@@ -498,8 +498,8 @@ TEST(ComposeDepth, APlaneUnderAMovingViewIsMovingItself) {
   // did not would replay a recording made under the old projection, and
   // the dolly would move nothing at all.
   Host host(200, 200);
-  choreograph::Output<float> distance{400.0f};
-  host.composer.render(box().perspective(&distance).children(
+  motion::Animatable<float> distance = motion::animatable(400.0f);
+  host.composer.render(box().perspective(distance).children(
       {box()
            .absolute()
            .rect(SkRect::MakeXYWH(50, 50, 100, 100))

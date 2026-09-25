@@ -22,10 +22,10 @@ namespace sigil::compose {
 
 bool SurfacePaint::none() const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
-    const Fill* plain = fill->plain();
+    const Fill* plain = fill->constant();
     return plain && plain->kind == Fill::Kind::None;
   }
-  return std::get<material::skia::Paint>(m_value).isNone();
+  return std::get<material::Paint>(m_value).isNone();
 }
 
 template <class Node>
@@ -46,65 +46,65 @@ Fill SurfacePaint::resolve(const PaintContext& context) const {
     const auto value = motion::resolveProperty(*fill, std::nullopt);
     // A fill written as the ink in force, or as a custom property, takes
     // its colour from the node it is painted under.
-    return resolveRef(value.binding ? value.binding->value() : value.target,
+    return resolveRef(value.live ? value.live->value() : value.target,
                       context);
   }
-  return resolveFill(std::get<material::skia::Paint>(m_value), context);
+  return resolveFill(std::get<material::Paint>(m_value), context);
 }
 
 std::optional<Fill> SurfacePaint::collapsedFill() const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
-    const Fill* plain = fill->plain();
+    const Fill* plain = fill->constant();
     if (!plain) return std::nullopt;
     return *plain;
   }
-  const auto& paint = std::get<material::skia::Paint>(m_value);
+  const auto& paint = std::get<material::Paint>(m_value);
   if (paint.isAnimated() || paint.geometryDependent()) return std::nullopt;
   return toFill(paint);
 }
 
-std::optional<material::skia::Paint> SurfacePaint::collapsedPaint() const {
+std::optional<material::Paint> SurfacePaint::collapsedPaint() const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
-    const Fill* plain = fill->plain();
+    const Fill* plain = fill->constant();
     if (!plain || plain->references()) return std::nullopt;
     if (plain->kind == Fill::Kind::Color)
-      return material::skia::Paint::solid(
+      return material::Paint::solid(
           material::skia::toSkColor(plain->colorValue));
     if (plain->kind == Fill::Kind::Shader)
-      return material::skia::Paint::shader(plain->shaderValue);
+      return material::skia::paint(plain->shaderValue);
     return std::nullopt;
   }
-  return std::get<material::skia::Paint>(m_value);
+  return std::get<material::Paint>(m_value);
 }
 
 bool SurfacePaint::writtenAsPaint() const {
-  return std::holds_alternative<material::skia::Paint>(m_value);
+  return std::holds_alternative<material::Paint>(m_value);
 }
 
 bool SurfacePaint::isAnimated() const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value))
-    return fill->binding() != nullptr;
-  return std::get<material::skia::Paint>(m_value).isAnimated();
+    return fill->identity() != nullptr;
+  return std::get<material::Paint>(m_value).isAnimated();
 }
 
-material::skia::PaintFrame frameOf(const PaintContext& ctx) {
-  material::skia::PaintFrame frame;
-  frame.size = ctx.size;
-  frame.rootSize = ctx.rootSize;
-  frame.toRoot = ctx.toRoot;
+material::FrameData frameOf(const PaintContext& ctx) {
+  material::FrameData frame;
+  frame.resolution = {ctx.size.width(), ctx.size.height()};
+  frame.rootResolution = {ctx.rootSize.width(), ctx.rootSize.height()};
+  frame.world = material::skia::toMatrix(ctx.toRoot);
   frame.seconds = ctx.elapsedSeconds;
   frame.contentScale = ctx.contentScale;
   return frame;
 }
 
-Fill toFill(const material::skia::Paint& paint) {
+Fill toFill(const material::Paint& paint) {
   if (paint.isSolid()) return Fill::color(paint.solidColor());
-  if (sk_sp<SkShader> s = paint.staticShader())
+  if (sk_sp<SkShader> s = material::skia::staticShader(paint))
     return Fill::shader(std::move(s));
   return Fill::none();
 }
 
-Fill resolveInk(const material::skia::Paint& paint, const PaintContext& ctx) {
+Fill resolveInk(const material::Paint& paint, const PaintContext& ctx) {
   if (ctx.inkAnchorSize.isEmpty()) return resolveFill(paint, ctx);
   if (paint.isSolid()) return Fill::color(paint.solidColor());
   if (paint.isNone()) return Fill::none();
@@ -112,23 +112,23 @@ Fill resolveInk(const material::skia::Paint& paint, const PaintContext& ctx) {
   // the unit square onto `rootSize` and samples the field through the
   // inverse of `toRoot`, which is exactly "the slice of that box this
   // node stands on".
-  material::skia::PaintFrame frame = frameOf(ctx);
-  frame.rootSize = ctx.inkAnchorSize;
-  frame.toRoot = ctx.inkAnchorToRoot;
-  material::skia::Paint anchored = paint;
+  material::FrameData frame = frameOf(ctx);
+  frame.rootResolution = {ctx.inkAnchorSize.width(), ctx.inkAnchorSize.height()};
+  frame.world = material::skia::toMatrix(ctx.inkAnchorToRoot);
+  material::Paint anchored = paint;
   anchored.worldSpace(true);
-  if (sk_sp<SkShader> shader = anchored.shaderFor(frame))
+  if (sk_sp<SkShader> shader = material::skia::shader(anchored, frame))
     return Fill::shader(std::move(shader));
   return Fill::none();
 }
 
-Fill resolveFill(const material::skia::Paint& paint, const PaintContext& ctx) {
+Fill resolveFill(const material::Paint& paint, const PaintContext& ctx) {
   // A solid has no coordinates and nothing to resolve, so it answers the
   // same colour at every frame — asking first is what keeps a solid off
   // the shader path entirely.
   if (paint.isSolid()) return Fill::color(paint.solidColor());
   if (paint.isNone()) return Fill::none();
-  if (sk_sp<SkShader> shader = paint.shaderFor(frameOf(ctx)))
+  if (sk_sp<SkShader> shader = material::skia::shader(paint, frameOf(ctx)))
     return Fill::shader(std::move(shader));
   return Fill::none();
 }

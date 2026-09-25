@@ -88,7 +88,7 @@ namespace {
  *  ground matters: multiply against mid-grey and multiply against
  *  transparent black differ enormously, so a wrongly-baked subtree is
  *  loud rather than subtle. */
-Element blendingScene(SkBlendMode mode) {
+Element blendingScene(material::BlendMode mode) {
   return profiledUnder(stack().children(
       {box().absolute().inset(0).fill(Fill::color({0.55f, 0.55f, 0.6f, 1})),
        expensivePanel().key("reader").children(
@@ -107,7 +107,7 @@ Element blendingScene(SkBlendMode mode) {
 TEST(ComposeCache, PromotionRefusesASubtreeThatBlendsWithTheCanvas) {
   Host host(220, 220);
   host.composer.setProfiling(true);
-  host.composer.render(blendingScene(SkBlendMode::kMultiply));
+  host.composer.render(blendingScene(material::BlendMode::Multiply));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "reader");
   ASSERT_NE(row, nullptr);
@@ -137,7 +137,7 @@ TEST(ComposeCache, TheBlendingChildIsWhatCausesTheRefusal) {
   // made it fire for nothing, its sibling fails.
   Host host(220, 220);
   host.composer.setProfiling(true);
-  host.composer.render(blendingScene(SkBlendMode::kSrcOver));
+  host.composer.render(blendingScene(material::BlendMode::Normal));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "reader");
   ASSERT_NE(row, nullptr);
@@ -151,8 +151,8 @@ TEST(ComposeCache, ABlendingSubtreeKeepsItsPixelsUnderPromotion) {
   // The assertion that would catch a future relaxation of the rule. If the
   // subtree were ever baked, the multiply child would composite against a
   // transparent layer and these two renders would diverge by a lot.
-  for (SkBlendMode mode :
-       {SkBlendMode::kMultiply, SkBlendMode::kScreen, SkBlendMode::kPlus}) {
+  for (material::BlendMode mode :
+       {material::BlendMode::Multiply, material::BlendMode::Screen, material::BlendMode::PlusLighter}) {
     Host on(220, 220), off(220, 220);
     off.composer.setAutoTexturePromotion(false);
     on.composer.render(blendingScene(mode));
@@ -232,7 +232,7 @@ namespace {
 
 Element heavyLeaf(const char* key) {
   return profiledUnder(box().width(400).height(400).key(key).fill(
-      material::skia::Paint::sksl(heavyEffect(false))));
+      material::skia::sksl(heavyEffect(false))));
 }
 
 }  // namespace
@@ -277,7 +277,7 @@ TEST(ComposeCache, ARefusalNamesTheReasonItRefused) {
                         .width(400)
                         .height(400)
                         .key("wash")
-                        .fill(material::skia::Paint::sksl(heavyEffect(false)))
+                        .fill(material::skia::sksl(heavyEffect(false)))
                         .opacity(0.4f)));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "wash");

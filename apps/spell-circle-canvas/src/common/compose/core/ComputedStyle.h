@@ -39,7 +39,7 @@ namespace sigil::compose::detail {
  *  rather than by value: it compares by the recipe it was built from, so
  *  what stands here is the shader that recipe minted at the last patch
  *  rather than the one this describe minted. The two are interchangeable,
- *  and not only by the comparator's word: `fill(material::skia::Paint)`
+ *  and not only by the comparator's word: `fill(material::Paint)`
  *  routes every animated or geometry-dependent paint to the material slot
  *  and clears `paint.fill`, so only a paint that is neither reaches the
  *  recipe branch — and equal recipes mint equal shaders.

@@ -865,8 +865,8 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   float resolveFloat(Instance::Slot slot,
                      const motion::Animatable<float>& v) const;
   /** The same resolution over an explicitly-held motion — the span
-   *  endpoints, whose count the description decides. One body: a bound
-   *  Output wins, then a running ramp, then the plain value. */
+   *  endpoints, whose count the description decides. One body: a live
+   *  value wins, then a running ramp, then the constant. */
   float resolveFloatAt(const AnimatedFloat* anim,
                        const motion::Animatable<float>& v) const;
   /** Resolve every mask gate's animatable floats for this frame, in the

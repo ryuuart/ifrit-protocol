@@ -306,7 +306,7 @@ void Composer::draw(SkCanvas& canvas) {
 
   // Volatility changes only on reconcile or while animations run (and once
   // more on the frame they settle) — skip the walk otherwise. Bindings the
-  // host drives directly are the exception this scan covers: such an Output
+  // host drives directly are the exception this scan covers: such a live value
   // can start moving while no motion is running and the walk is asleep, so
   // it has to re-declare its node volatile on the spot.
   impl.scanReleasedScalars();

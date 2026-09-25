@@ -219,7 +219,7 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
   // layout placed, over a paragraph that WRAPS and carries two sizes, where
   // a re-measured line would land in the wrong place twice over.
   Host host(240, 240);
-  choreograph::Output<float> progress{0.5f};
+  motion::Animatable<float> progress = motion::animatable(0.5f);
   sigil::weave::RichText copy = sigil::weave::rich(whiteStyle(15));
   copy.add(u8"alpha bravo ").add(u8"charlie", whiteStyle(24)).add(u8" delta");
   host.composer.render(
@@ -227,7 +227,7 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
           {.effect = textFx::rise(8),
            .stagger = {.eachMs = 100, .durationMs = 200},
            .unit = sigil::weave::Unit::Word,
-           .progress = &progress})}));
+           .progress = progress})}));
   host.frame();
 
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
@@ -647,7 +647,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
   // the same reveal as a one-shot transition settles and goes back to a
   // cached picture.
   Host live(240, 120);
-  choreograph::Output<float> phase{0.0f};
+  motion::Animatable<float> phase = motion::animatable(0.0f);
   live.composer.render(box().padding(10).children(
       {text(u8"LOOP", whiteStyle(28))
            .key("p")
@@ -655,7 +655,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
                {.effect = textFx::rise(24),
                 .stagger = {.eachMs = 100, .durationMs = 200, .loopMs = 400},
                 .unit = sigil::weave::Unit::Cluster,
-                .progress = &phase})}));
+                .progress = phase})}));
   live.frame();
   double clock = 0.0;
   for (int i = 0; i < 24; ++i) {  // three settle windows, several wraps

@@ -140,8 +140,8 @@ BENCHMARK(BM_Render_100Rows_Cold);
  *  stacking paint of every node, the no-cache ceiling. */
 static void BM_Draw_100Rows_Volatile(benchmark::State& state) {
   Host host;
-  choreograph::Output<float> x = 0.0f;
-  auto list = box().translateX(&x).column().gap(4).padding(16);
+  sigil::motion::Animatable<float> x = sigil::motion::animatable(0.0f);
+  auto list = box().translateX(x).column().gap(4).padding(16);
   for (const Row& row : makeRows(100))
     list.children({memo(row, scoreRow).key(row.name)});
   host.composer.render(list);

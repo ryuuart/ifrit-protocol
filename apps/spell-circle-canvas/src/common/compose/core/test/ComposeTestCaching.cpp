@@ -151,7 +151,7 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
   // since there is nothing inside the layer for it to composite against
   // first. Asserted against the PLAIN opacity of the same value, which
   // took the direct route all along.
-  const auto plate = [](const ch::Output<float>* bound, float plain) {
+  const auto plate = [](const motion::Animatable<float>& bound, float plain) {
     auto host = std::make_unique<Host>();
     Element leaf = box()
                        .key("glow")
@@ -163,7 +163,7 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
                        .borderRadius({28.0f})
                        .hitTestable(false)
                        .fill(green())
-                       .blendMode(SkBlendMode::kPlus);
+                       .blendMode(material::BlendMode::PlusLighter);
     if (bound)
       leaf.opacity(bound);
     else
@@ -173,8 +173,8 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
     host->frame();
     return host;
   };
-  ch::Output<float> gain{0.5f};
-  const std::unique_ptr<Host> live = plate(&gain, 0.0f);
+  motion::Animatable<float> gain = motion::animatable(0.5f);
+  const std::unique_ptr<Host> live = plate(gain, 0.0f);
   const std::unique_ptr<Host> plain = plate(nullptr, 0.5f);
   EXPECT_TRUE(identicalPixels(*live, *plain, 200, 200))
       << "the alpha on the fill paint is not the alpha through a layer";
@@ -190,7 +190,7 @@ TEST(ComposeCache, ARecordedLeafKeepsItsBoundOpacityOutOfTheRecording) {
   // frame's alpha and replay a fade that has moved on. Such a leaf keeps
   // the layer, so the opacity is applied over the replay.
   Host host;
-  ch::Output<float> gain{1.0f};
+  motion::Animatable<float> gain = motion::animatable(1.0f);
   host.composer.render(profiledUnder(
       stack().children({box().inset(0).fill(red()), box()
                                                         .key("fading")
@@ -201,7 +201,7 @@ TEST(ComposeCache, ARecordedLeafKeepsItsBoundOpacityOutOfTheRecording) {
                                                         .top(10)
                                                         .fill(green())
                                                         .cache(Cache::Picture)
-                                                        .opacity(&gain)})));
+                                                        .opacity(gain)})));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 200u) << "opaque at gain 1";
   gain = 0.0f;
@@ -332,7 +332,7 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
              .inset(20, 100, 100, 20)
              .absolute()
              .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-             .blendMode(SkBlendMode::kPlus)
+             .blendMode(material::BlendMode::PlusLighter)
              .cache(texture ? Cache::Texture : Cache::Picture)}));
     for (int i = 0; i < 3; ++i)
       host.frame();  // settle: bake once, then replay/blit
@@ -360,7 +360,7 @@ TEST(ComposeCaching, ATextureBlendCompositesOnTheBlitNotALayer) {
            .inset(20, 100, 100, 20)
            .absolute()
            .fill(Fill::color({0.2f, 0.4f, 0.2f, 1}))
-           .blendMode(SkBlendMode::kPlus)
+           .blendMode(material::BlendMode::PlusLighter)
            .cache(Cache::Texture)}));
   for (int i = 0; i < 3; ++i) host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 250u);  // 1.0 + 0.2 clamps
@@ -381,7 +381,7 @@ namespace {
  *  @p boundary is the arm: a declared coverage boundary refuses the tier
  *  and changes nothing a box without decorations paints, so that arm is
  *  the same node with the filter inside its bake. */
-Element haloedNode(Boundary boundary, const choreograph::Output<float>* turn) {
+Element haloedNode(Boundary boundary, const motion::Animatable<float>& turn) {
   return box()
       .key("halo")
       .absolute()
@@ -392,7 +392,7 @@ Element haloedNode(Boundary boundary, const choreograph::Output<float>* turn) {
       .cache(Cache::Texture)
       .decorationOutline(boundary)
       .transformOrigin(pct(50), pct(50))
-      .rotate(motion::bind(turn).target(0.0f, 360.0f))
+      .rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}))
       .filter(material::skia::Effect::glow({0.1f, 0.85f, 1.0f, 1}, 6))
       .children({box().absolute().left(20).top(20).width(40).height(40).fill(
           Fill::color({1, 0.72f, 0.15f, 1}))});
@@ -412,12 +412,12 @@ TEST(ComposeCaching, AStaticEffectOverSettledContentIsRunOverItsBake) {
   // transparent margin — here the halo's sigma against the 20 px the inner
   // box is inset by — exactly as it had to before, when that same margin
   // was what the filter's own layer spread into.
-  choreograph::Output<float> still{0.0f};  // held at rest: no pixel moves
+  motion::Animatable<float> still = motion::animatable(0.0f);  // held at rest: no pixel moves
   const auto plate = [&still](Boundary boundary) {
     Host host;
     host.composer.setProfiling(true);
     host.composer.render(
-        box().children({profiledUnder(haloedNode(boundary, &still))}));
+        box().children({profiledUnder(haloedNode(boundary, still))}));
     for (int i = 0; i < 3; ++i) host.frame();  // bake once, then blit
     const Composer::NodeCost* row = requireRow(host.composer, "halo");
     return std::pair{grab(host), row && row->effectDeferred};
@@ -452,10 +452,10 @@ TEST(ComposeCaching, ADeferredEffectSpreadsInsideTheBakeAndStopsAtIt) {
   // ends it: the lifted filter has no pixels to read past the bake, and the
   // surface it draws into cuts the halo where the filter's own layer was
   // cut before.
-  choreograph::Output<float> still{0.0f};
+  motion::Animatable<float> still = motion::animatable(0.0f);
   Host host;
   host.composer.render(
-      box().children({profiledUnder(haloedNode(Boundary::Auto, &still))}));
+      box().children({profiledUnder(haloedNode(Boundary::Auto, still))}));
   for (int i = 0; i < 3; ++i) host.frame();
   EXPECT_GT(SkColorGetB(host.pixel(56, 100)), 20u);  // 4 px out: the halo
   EXPECT_EQ(host.pixel(38, 100), SK_ColorBLACK);     // 2 px past the box
@@ -548,7 +548,7 @@ namespace {
  *  on the device grid. The stripes are one unit wide, so a bake taken at
  *  one scale and blitted at twice it is an upscale of half the texels the
  *  finer bake holds. */
-Element stripedBake(const ch::Output<float>* drift) {
+Element stripedBake(const motion::Animatable<float>& drift) {
   Element bakedNode = box()
                           .absolute()
                           .left(20)
@@ -577,8 +577,8 @@ Element stripedBake(const ch::Output<float>* drift) {
 std::vector<SkColor> stripesAtTwice(bool warmFirst) {
   Host host(200, 200);
   host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
-  ch::Output<float> drift{0.0f};
-  host.composer.render(stripedBake(&drift));
+  motion::Animatable<float> drift = motion::animatable(0.0f);
+  host.composer.render(stripedBake(drift));
   if (warmFirst)
     for (int i = 0; i < 6; ++i) host.frame();
   sk_sp<SkSurface> still =

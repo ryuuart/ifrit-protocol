@@ -31,7 +31,7 @@ class Pattern;
 /** THE SURFACE. Unfilled when unstated, so a box paints nothing and
  *  only its decorations and children show. What may be passed: an
  *  `material::Color`, a `Fill`, a `motion::Animatable<Fill>`, a
- *  `material::skia::Paint`, a `material::Material` recipe, or a
+ *  `material::Paint`, a `material::Material` recipe, or a
  *  `SurfacePaint`, which is the one value all of those convert into and
  *  the type a component declares. */
 template <class Derived>
@@ -51,11 +51,11 @@ class PaintVerbs {
    *  border here is a stroke dressing the boundary rather than a box
    *  lane, so `Padding` is `Element` too. A text unit is refused, said
    *  once, and read as `Element`. */
-  Derived& fill(material::skia::Paint m, PaintBox box = PaintBox::Element);
+  Derived& fill(material::Paint m, PaintBox box = PaintBox::Element);
   /** Fill with a material recipe, which is a surface as a paint is: the
    *  recipe as its paint, over @p box exactly as that paint would be. */
   Derived& fill(material::Material recipe, PaintBox box = PaintBox::Element) {
-    return fill(material::skia::Paint::recipe(std::move(recipe)), box);
+    return fill(material::Paint::recipe(std::move(recipe)), box);
   }
   /** A surface value supplied by component properties. Exact-type
    *  deduction keeps ordinary fill and material arguments on their own

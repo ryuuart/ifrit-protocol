@@ -177,7 +177,7 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   // float for the table to point at.
   if (inst.computed.paint.fill) {
     const motion::Transitioned<Fill>* tr =
-        inst.computed.paint.fill->transitioned();
+        inst.computed.paint.fill->described();
     if (tr && tr->from && tr->from->kind == Fill::Kind::Color &&
         tr->value.kind == Fill::Kind::Color && !(*tr->from == tr->value)) {
       inst.fillFrom = *tr->from;
@@ -218,12 +218,12 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
     // with a transition must still disconnect the running lerp, or the
     // node keeps painting a color no description contains until the old
     // motion self-expires (then pops).
-    nextFillTransitions = !nf.binding && nf.transition != nullptr &&
+    nextFillTransitions = !nf.live && nf.transition != nullptr &&
                           nf.target.kind == Fill::Kind::Color;
   }
   if (!nextFillTransitions) {
     if (auto& anim = inst.anims[Instance::kFillLerp]; anim && anim->started) {
-      anim->value.disconnect();
+      anim->stop();
       anim->started = false;
     }
   }
@@ -232,15 +232,15 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
         resolveProperty(*prev.style.paint.fill, nd);
     ResolvedProperty<Fill> nextFill =
         resolveProperty(*next.style.paint.fill, nd);
-    if (!prevFill.binding && !nextFill.binding && nextFill.transition &&
+    if (!prevFill.live && !nextFill.live && nextFill.transition &&
         prevFill.target.kind == Fill::Kind::Color &&
         nextFill.target.kind == Fill::Kind::Color &&
         !(prevFill.target == nextFill.target)) {
       // Current visual color as the new "from" (retarget-from-current).
       Fill from = prevFill.target;
       auto& anim = inst.anims[Instance::kFillLerp];
-      if (anim && anim->started && anim->value.isConnected()) {
-        const float t = anim->value.value();
+      if (anim && anim->started && anim->isMoving()) {
+        const float t = anim->current();
         const material::Color& a = inst.fillFrom.colorValue;
         const material::Color& b = inst.fillTo.colorValue;
         from.colorValue = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
@@ -265,7 +265,7 @@ void Composer::Impl::retargetInk(
   if (recordOnly) return;
   if (!(inst.inkTarget && nodeTransition)) {
     if (anim && anim->started) {
-      anim->value.disconnect();
+      anim->stop();
       anim->started = false;
     }
     return;
@@ -274,8 +274,8 @@ void Composer::Impl::retargetInk(
   // The colour on screen as the new "from": mid-easing, the value the
   // ramp stands at, so a retarget never snaps back to the old endpoint.
   material::Color from = *previous;
-  if (anim && anim->started && anim->value.isConnected()) {
-    const float t = anim->value.value();
+  if (anim && anim->started && anim->isMoving()) {
+    const float t = anim->current();
     const material::Color& a = inst.inkFrom;
     const material::Color& b = *previous;
     from = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
@@ -377,9 +377,8 @@ std::vector<float> detail::Instance::resolveTrackValues() const {
 }
 
 Fill detail::Instance::resolveBoundFill() const {
-  if (computed.paint.fill)
-    if (const choreograph::Output<Fill>* binding = computed.paint.fill->binding())
-      return binding->value();
+  if (computed.paint.fill && computed.paint.fill->identity())
+    return computed.paint.fill->value();
   return {};
 }
 
@@ -391,10 +390,10 @@ std::array<float, 2> detail::Instance::resolvePatternOffset() const {
   // opaque live path, where no memo reads these floats at all. All-zero
   // otherwise, matching the ContentScalars guard, so a node without the
   // channel compares equal to itself forever.
-  const material::skia::Paint* m = liveMaterialOf(*this);
+  const material::Paint* m = liveMaterialOf(*this);
   if (!m || !m->boundOffsetOnly()) return {};
-  const SkPoint pan = m->boundOffsetValue();
-  return {pan.x(), pan.y()};
+  const glm::vec2 pan = m->boundOffsetValue();
+  return {pan.x, pan.y};
 }
 
 }  // namespace sigil::compose

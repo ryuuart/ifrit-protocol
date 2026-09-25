@@ -43,7 +43,7 @@ Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
 }
 
 template <class Derived>
-Derived& PaintVerbs<Derived>::fill(material::skia::Paint m, PaintBox box) {
+Derived& PaintVerbs<Derived>::fill(material::Paint m, PaintBox box) {
   switch (box) {
     case PaintBox::Element:
     case PaintBox::Padding:
@@ -92,7 +92,7 @@ template <class Derived>
 Derived& PaintVerbs<Derived>::fillSurface(const SurfacePaint& paint,
                                           PaintBox box) {
   if (box != PaintBox::Element && !paint.none())
-    if (std::optional<material::skia::Paint> placed = paint.collapsedPaint())
+    if (std::optional<material::Paint> placed = paint.collapsedPaint())
       return fill(std::move(*placed), box);
   if (detail::textUnitOf(box)) warnFillTakesNoTextUnit();
   paint.apply(self());

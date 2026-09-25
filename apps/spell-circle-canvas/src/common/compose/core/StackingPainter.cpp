@@ -206,7 +206,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                                    .stamps = &inst.stampCache,
                                    .toRoot = curToRoot,  // this node→root
                                    .rootSize = rootLayoutSize};
-    const material::skia::PaintFrame backdropFrame = frameOf(backdropCtx);
+    const material::FrameData backdropFrame = frameOf(backdropCtx);
     backdropFilter = backdropFx->resolvedImageFilter(&backdropFrame);
   }
   // THE DEFERRED LAYER EFFECT. A node whose only volatility is its own
@@ -376,9 +376,9 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // pixels as that path drawn at alpha, since there is nothing inside the
   // layer for it to composite against first.
   const bool opacityLive =
-      style.paint.opacity.binding() != nullptr ||
+      style.paint.opacity.identity() != nullptr ||
       (inst.anims[Instance::kOpacity] &&
-       inst.anims[Instance::kOpacity]->value.isConnected());
+       inst.anims[Instance::kOpacity]->isMoving());
   const bool leafDirectBlend =
       (node.kind == Kind::Box || node.kind == Kind::Stack) &&
       inst.children.empty() && node.backgrounds.empty() &&

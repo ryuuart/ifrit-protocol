@@ -96,13 +96,13 @@ inline constexpr float kNominalSizePx = 96.0f;
  *      auto dissolve = std::make_shared<const material::Recipe>(
  *          material::Recipe::of<Burn>("ember.burn")
  *              .body(material::Target::SkSL, kBurnSksl));
- *      auto burn = material::skia::Paint::recipe(
+ *      auto burn = material::Paint::recipe(
  *          material::Material(dissolve, Burn{ink}));
  *      text(u8"EMBER DECODE", display)
  *          .textFx({.effect = textFx::pass(burn),
  *               .stagger = {.eachMs = 260}, .unit = weave::Unit::Cluster});
  *
- *  THE MATERIAL MUST BE RECIPE-BACKED (`material::skia::Paint::recipe`) over
+ *  THE MATERIAL MUST BE RECIPE-BACKED (`material::Paint::recipe`) over
  *  a recipe
  *  with an SkSL body, because the unit count is baked into the compiled
  *  shader — a runtime effect's array size is fixed at compile and SkSL has
@@ -182,7 +182,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  no beat is mid-cycle. Undeclared, a pass always runs. The declaration
  *  rides the effect's comparable parameters, so two passes differing only in
  *  their rests compare unequal and re-patch. */
-[[nodiscard]] TextEffect pass(material::skia::Paint material);
+[[nodiscard]] TextEffect pass(material::Paint material);
 
 /** THE ESCAPE HATCH: an ad-hoc effect body under an author-given key.
  *

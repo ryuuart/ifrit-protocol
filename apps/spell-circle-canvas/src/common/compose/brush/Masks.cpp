@@ -71,25 +71,25 @@ Gate outside(Region r) {
   g.outside = true;
   return g;
 }
-Gate alpha(material::skia::Paint coverage) {
+Gate alpha(material::Paint coverage) {
   Gate g;
   g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Coverage;
   g.coverage =
-      std::make_shared<const material::skia::Paint>(std::move(coverage));
+      std::make_shared<const material::Paint>(std::move(coverage));
   return g;
 }
-Gate alphaOut(material::skia::Paint coverage) {
+Gate alphaOut(material::Paint coverage) {
   Gate g = alpha(std::move(coverage));
   g.outside = true;
   return g;
 }
-Gate luma(material::skia::Paint coverage) {
+Gate luma(material::Paint coverage) {
   Gate g = alpha(std::move(coverage));
   g.channel = Gate::Channel::Luma;
   return g;
 }
-Gate lumaOut(material::skia::Paint coverage) {
+Gate lumaOut(material::Paint coverage) {
   Gate g = luma(std::move(coverage));
   g.outside = true;
   return g;
@@ -126,7 +126,7 @@ struct MaskEngine final : MaskResolverOperations {
   }
   Fill coverage(const Gate& gate, const PaintContext& ctx) const override {
     if (!gate.coverage) return {};
-    const material::skia::Paint& mat = *gate.coverage;
+    const material::Paint& mat = *gate.coverage;
     return (mat.isAnimated() || mat.geometryDependent()) ? resolveFill(mat, ctx)
                                                          : toFill(mat);
   }

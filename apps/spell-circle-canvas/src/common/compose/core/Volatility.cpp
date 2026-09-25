@@ -158,15 +158,15 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // `ownContent == liveMat | otherThanLiveMat == scalarContent |
   // otherThanScalar` true BY CONSTRUCTION rather than by review.
   const bool fillLerp = inst.anims[Instance::kFillLerp] &&
-                        inst.anims[Instance::kFillLerp]->value.isConnected();
+                        inst.anims[Instance::kFillLerp]->isMoving();
   // The kInkLerp row: an ink easing on this node moves the colour every
   // text and mark under it is painted in, and the cascade pass repaints
   // them each frame; the node itself declares the motion here so no
   // ancestor caches across it.
   const bool inkLerp = inst.anims[Instance::kInkLerp] &&
-                       inst.anims[Instance::kInkLerp]->value.isConnected();
-  const bool boundFill = style.paint.fill && style.paint.fill->binding();
-  const material::skia::Paint* nodeLiveMat = liveMaterialOf(inst);
+                       inst.anims[Instance::kInkLerp]->isMoving();
+  const bool boundFill = style.paint.fill && style.paint.fill->identity();
+  const material::Paint* nodeLiveMat = liveMaterialOf(inst);
   // A fill material whose ONLY animation is its own bound tile pan is NOT
   // the live-material lane — it is two floats, resolvable outside paint by
   // a pointer dereference, so it rides the memoized scalar lane exactly as
@@ -182,7 +182,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // A LIVE INK PAINT moves what every mark and every glyph under this
   // node is painted in, so the node that carries it re-resolves per frame
   // exactly as a live fill material does.
-  const material::skia::Paint* inkLive = inkPaintOf(inst);
+  const material::Paint* inkLive = inkPaintOf(inst);
   const bool metricLive = inkLive && inkLive->isAnimated();
   const bool cacheNone = node.cacheMode == Cache::None;
   const bool decorLive = [&] {
@@ -273,7 +273,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool passLive = [&] {
     for (const Track& t : tracksOf(node))
       if (t.effect)
-        if (const material::skia::Paint* pm = t.effect.passMaterial())
+        if (const material::Paint* pm = t.effect.passMaterial())
           if (pm->isAnimated()) return true;
     return false;
   }();

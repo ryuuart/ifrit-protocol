@@ -13,7 +13,7 @@
 #include <sigilcompose/core/SpanStyle.h>
 #include <sigilcompose/core/verbs/Node.h>
 #include <sigilcompose/core/verbs/TextStyle.h>
-#include <sigilmotion/values/Animatable.h>  // choreograph::Output
+#include <sigilmotion/values/Animatable.h>
 #include <sigilweave/style/Style.h>
 
 #include <cstdint>
@@ -46,13 +46,13 @@ class TextContentVerbs {
    *  and alpha MULTIPLY — in declaration order, each keeping its own
    *  transition slot. */
   Derived& textFx(Track track);
-  /** Drive a variable-font axis from a bound output at DRAW time —
+  /** Drive a variable-font axis from a live value at DRAW time —
    *  paint-only volatility, no reshape, no relayout. An
    *  advance-variant axis is REFUSED with a warning and the text draws
-   *  at its shaped coordinates. It takes a bare output, not an
-   *  animatable: a drive IS a live binding. */
+   *  at its shaped coordinates. A constant is a drive that never moves:
+   *  the axis sits at that coordinate. */
   Derived& variationDrive(const char (&tag)[5],
-                          const choreograph::Output<float>* value);
+                          motion::Animatable<float> value);
   /** A SIBLING ANCHORED TO A UNIT OF THE TEXT: a caret, a callout, a
    *  tick, a rule standing at a word's edge. @p what becomes a child of
    *  this node whose PARENT BOX is the rect @p where resolves to. It

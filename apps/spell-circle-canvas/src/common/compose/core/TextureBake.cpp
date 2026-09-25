@@ -228,7 +228,7 @@ bool paintTextureBake(PaintPass& pass) {
     const auto lane = [&](Instance::Slot slot,
                           const motion::Animatable<float>& v, float& out) {
       const AnimatedFloat* a = inst.anims[slot].get();
-      if (v.binding() || !a || !a->started || !a->value.isConnected()) return;
+      if (v.identity() || !a || !a->started || !a->isMoving()) return;
       out = a->target;
       declared = true;
     };

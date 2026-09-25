@@ -415,15 +415,15 @@ struct FxData {
 };
 
 struct MaterialData {
-  // Live material fill: a Material with a ch::Output-bound uniform, resolved
+  // Live material fill: a Material with a uniform bound to a live value, resolved
   // per frame. Supersedes paint.fill when present (a static Material
   // collapses to paint.fill instead). Declares the node volatile.
-  std::optional<material::skia::Paint> live;
+  std::optional<material::Paint> live;
   // The comparable recipe behind paint.fill when it was set via
   // fill(Material): propertiesEqual compares this structurally, so a
   // re-described material fill prunes even though each describe minted a fresh
   // shader.
-  std::optional<material::skia::Paint> recipe;
+  std::optional<material::Paint> recipe;
 };
 
 /** THE DEPTH LANES — Element::rotateX/rotateY/translateZ/scaleZ, the view
@@ -468,7 +468,7 @@ struct DepthData {
  *  stretched over. The ordinary ink is a colour and holds no paint at
  *  all. */
 struct InkInForce {
-  std::optional<material::skia::Paint> paint;
+  std::optional<material::Paint> paint;
   PaintBox box = PaintBox::Element;
   bool operator==(const InkInForce&) const = default;
 };
@@ -550,7 +550,7 @@ struct CascadeData {
    *  the colour is. `statesInk` is the lane being written at all, so a
    *  node that states a plain colour clears an ancestor's paint: an
    *  absent paint beside a stated lane is the colour case. */
-  std::optional<material::skia::Paint> inkPaint;
+  std::optional<material::Paint> inkPaint;
   PaintBox inkBox = PaintBox::Element;
   bool statesInk = false;
   /** Properties supplied only where no ancestor or this node states a

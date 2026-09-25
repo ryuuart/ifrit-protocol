@@ -243,14 +243,14 @@ TEST(ComposeWire, DrawsOnWithTrim) {
   // Composition, not new machinery: a span gate on a wire = the
   // self-drawing subway line. A bound reveal advances with no render()
   // calls.
-  choreograph::Output<float> reveal{0.05f};
+  motion::Animatable<float> reveal = motion::animatable(0.05f);
   Host host;
   host.composer.render(
       stack()
           .children({station("a", 10, 40), station("b", 170, 40)})
           .operators({connect::Along{.stops = {{"a"}, {"b"}},
                                      .wire = railLine(),
-                                     .mask = by::spans(spans::upTo(&reveal))}}));
+                                     .mask = by::spans(spans::upTo(reveal))}}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 50), SK_ColorBLACK);  // reveal stops at ~x=28
   reveal = 1.0f;                                  // no render()
@@ -431,7 +431,7 @@ TEST(ComposeMask, TransitionDrawsOn) {
 TEST(ComposeMask, BoundGateRevealsWithoutRender) {
   // A bound gate end is content volatility: mutate the Output, no
   // render(), and the reveal advances — the self-drawing wire primitive.
-  choreograph::Output<float> end{0.2f};
+  motion::Animatable<float> end = motion::animatable(0.2f);
   Host host;
   host.composer.render(box().children(
       {box()
@@ -439,7 +439,7 @@ TEST(ComposeMask, BoundGateRevealsWithoutRender) {
            .height(100)
            .inset(0, 100, 100, 0)
            .absolute()
-           .mask(by::spans(spans::upTo(&end)))
+           .mask(by::spans(spans::upTo(end)))
            .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
   // (99,30) sits at ~57.5% of the perimeter (right edge, top→bottom).
@@ -590,7 +590,7 @@ TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsNodeTheBake) {
                        .width(140)
                        .height(140)
                        .foreground(decorations::wash(
-                           material::skia::Paint::solid({0.9f, 0.9f, 0.9f, 1}),
+                           material::Paint::solid({0.9f, 0.9f, 0.9f, 1}),
                            SkBlendMode::kSoftLight, 0.8f))});
   };
   const auto render = [&](Composer::PromotionPolicy policy) {

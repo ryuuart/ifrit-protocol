@@ -106,7 +106,7 @@ class Rule : public detail::Declaring,
   /** The property the ink reads, where it was written as one. */
   [[nodiscard]] const std::optional<VarRef>& inkVar() const;
   /** The paint the ink is, where it was written as one. */
-  [[nodiscard]] const std::optional<material::skia::Paint>& inkPaint() const;
+  [[nodiscard]] const std::optional<material::Paint>& inkPaint() const;
   /** The rectangle that paint's unit square is stretched over. */
   [[nodiscard]] PaintBox inkBox() const;
   /** Whether this rule writes the ink lane at all — a colour, a

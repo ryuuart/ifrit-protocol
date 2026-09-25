@@ -678,8 +678,8 @@ TEST(ComposeCascade, TheRootInheritsWhatTheComposerWasTold) {
 namespace {
 
 /** A red-to-blue ramp across the unit square, left to right. */
-material::skia::Paint redToBlue() {
-  return material::skia::Paint::linearGradient(
+material::Paint redToBlue() {
+  return material::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 
@@ -779,7 +779,7 @@ TEST(ComposeCascade, APaintHoldingOneColourIsAPaintAndAPlainColourIsTheLane) {
   Host host;
   host.composer.render(box().padding(10).children(
       {text(u8"HH", whiteStyle(48))
-           .ink(material::skia::Paint::solid({1, 0, 0, 1}))}));
+           .ink(material::Paint::solid({1, 0, 0, 1}))}));
   host.frame();
   EXPECT_GT(redInk(host), 40);
   Host plain;

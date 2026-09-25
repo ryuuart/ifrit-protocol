@@ -14,8 +14,8 @@ Derived& EffectVerbs<Derived>::opacity(motion::Animatable<float> o) {
 }
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::blendMode(SkBlendMode mode) {
-  declarations()->fields.blendMode() = mode;
+Derived& EffectVerbs<Derived>::blendMode(material::BlendMode mode) {
+  declarations()->fields.blendMode() = material::skia::toSkBlendMode(mode);
   return self();
 }
 

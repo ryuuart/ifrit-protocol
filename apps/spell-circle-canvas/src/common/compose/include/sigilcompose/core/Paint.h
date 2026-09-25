@@ -251,7 +251,7 @@ struct PaintContext {
    *  a sprite, a recipe or SkSL rather than a colour. Null is the
    *  ordinary case, where `ink` above is the whole of it; valid for the
    *  duration of the paint call. */
-  const material::skia::Paint* inkPaint = nullptr;
+  const material::Paint* inkPaint = nullptr;
   /** THE BOX THAT PAINT IS ANCHORED TO: its extent, and this node's own
    *  space mapped into it. An EMPTY extent is the own-box case — the box
    *  being painted is the box the paint maps onto — and is what a paint
@@ -311,7 +311,7 @@ using PaintProgram = core::Callable<void(SkCanvas&, const PaintContext&)>;
  *  maps the paint's unit square onto that node's box, which is what every
  *  other paint on a node does; an anchored one maps it onto the box the
  *  context names and hands back this node's slice of it. */
-[[nodiscard]] Fill resolveInk(const material::skia::Paint& paint,
+[[nodiscard]] Fill resolveInk(const material::Paint& paint,
                               const PaintContext& ctx);
 
 // ---------------------------------------------------------------------------
@@ -323,16 +323,16 @@ using PaintProgram = core::Callable<void(SkCanvas&, const PaintContext&)>;
  *  the device scale. Outside a composer the matrix is identity and the
  *  root size empty, which degrades a world-space paint to a node-local
  *  one rather than answering wrongly. */
-material::skia::PaintFrame frameOf(const PaintContext& ctx);
+material::FrameData frameOf(const PaintContext& ctx);
 
 /** The STATIC collapse a non-live paint stores, so it rides the fill
  *  caching and prune path unchanged. */
-Fill toFill(const material::skia::Paint& paint);
+Fill toFill(const material::Paint& paint);
 
 /** The current-frame fill: for a live paint, the shader rebuilt from the
- *  bound Outputs and @p ctx; for a static one, exactly `toFill`. What the
+ *  live values and @p ctx; for a static one, exactly `toFill`. What the
  *  painter calls for a live fill. */
-Fill resolveFill(const material::skia::Paint& paint, const PaintContext& ctx);
+Fill resolveFill(const material::Paint& paint, const PaintContext& ctx);
 
 /** The INSTANCE-SIDE bake store for stamped brushes: tile bakes live with
  *  the NODE, not inside the brush value. A brush value constructed fresh

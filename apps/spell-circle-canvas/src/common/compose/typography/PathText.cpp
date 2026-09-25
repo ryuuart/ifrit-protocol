@@ -35,8 +35,8 @@ using namespace detail;
  *  A BOUND phase rests at zero and is applied at paint, which is what makes
  *  a marquee a repaint rather than a reflow. */
 bool samePathLayout(const TextPath& a, const TextPath& b) {
-  const float restA = a.at.plain() ? *a.at.plain() : 0.0f;
-  const float restB = b.at.plain() ? *b.at.plain() : 0.0f;
+  const float restA = a.at.constant() ? *a.at.constant() : 0.0f;
+  const float restB = b.at.constant() ? *b.at.constant() : 0.0f;
   return a.path == b.path && a.align == b.align && a.autoFlip == b.autoFlip &&
          restA == restB;
 }
@@ -170,7 +170,7 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
       closed = SkPoint::Distance(head, tail) <= std::max(1.0f, length * 0.002f);
   }
 
-  const float restAt = spec.at.plain() ? *spec.at.plain() : 0.0f;
+  const float restAt = spec.at.constant() ? *spec.at.constant() : 0.0f;
   textStateOf(inst).pathRestAt = restAt;
   float start = restAt * length;
   if (spec.align == TextPath::Align::Center)

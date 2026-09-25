@@ -32,10 +32,10 @@ TEST(ComposeStroke, StrokeAlignInnerAndOuter) {
 
 TEST(ComposeDecorations, BoundShadowOffsetSlides) {
   Host host;
-  choreograph::Output<float> lift{0.0f};
+  sigil::motion::Animatable<float> lift = sigil::motion::animatable(0.0f);
   Shadow shadow;
   shadow.color = {0, 1, 0, 1};
-  shadow.bindOffsetX = &lift;
+  shadow.bindOffsetX = lift;
   shadow.maxBind = 40.0f;
   host.composer.render(box().children(
       {box()
@@ -70,7 +70,7 @@ TEST(ComposeDecorations, KnockoutShadowLeavesTheFootprintClear) {
 TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   // One node: full static band + a bound marching sliver — no overlay box.
   Host host;
-  choreograph::Output<float> phase{0.0f};
+  sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
   PathFormat band;
   band.width = 4;
   band.strokeFill = green();
@@ -79,7 +79,7 @@ TEST(ComposeDecorations, StrokeTrimWindowMarchesPerDecoration) {
   sliver.strokeFill = red();
   sliver.trimStart = 0.0f;
   sliver.trimEnd = 0.1f;
-  sliver.trimPhase = &phase;
+  sliver.trimPhase = phase;
   host.composer.render(box().children(
       {box()
            .absolute()

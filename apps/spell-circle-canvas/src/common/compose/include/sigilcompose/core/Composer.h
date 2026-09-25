@@ -586,7 +586,7 @@ class Composer {
    *     actually moved since the bake. `Material::quantizeTime(hz)` steps
    *     its uniforms hz times a second, so most frames resolve to the SAME
    *     shader and the previous bake is still exact. A material bound to a
-   *     continuous Output resolves to a new shader every frame, never
+   *     continuous live value resolves to a new shader every frame, never
    *     reaches that stability, and stays live — the library measures
    *     which it is rather than assuming.
    *

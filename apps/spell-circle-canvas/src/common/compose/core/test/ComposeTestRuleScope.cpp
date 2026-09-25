@@ -259,8 +259,8 @@ TEST(ComposeRuleScope, ARuleFillsAndRoundsTheElementsItMatches) {
 namespace {
 
 /** A ramp down the unit square, from @p top to @p bottom. */
-material::skia::Paint ramp(material::Color top, material::Color bottom) {
-  return material::skia::Paint::linearGradient({0, 0}, {0, 1},
+material::Paint ramp(material::Color top, material::Color bottom) {
+  return material::Paint::linearGradient({0, 0}, {0, 1},
                                                {{0.0f, top}, {1.0f, bottom}});
 }
 
@@ -307,7 +307,7 @@ TEST(ComposeRuleScope, ARuleFillsWithARampLaidOnEachElementsOwnBox) {
 
 TEST(ComposeRuleScope, ARuleFillOverTheCanvasDrawsAsTheVerbsDoes) {
   const auto across = [] {
-    return material::skia::Paint::linearGradient({0, 0}, {1, 0},
+    return material::Paint::linearGradient({0, 0}, {1, 0},
                                                  {{0.0f, kRed}, {1.0f, kBlue}});
   };
   Host ruled, stated;
@@ -388,11 +388,11 @@ TEST(ComposeRuleScope, ARulesCellAlignmentStandsBesideTheElementsOwnCell) {
 TEST(ComposeRuleScope, ARuleHoldsStaticValuesAndLeavesALiveOneOut) {
   // A binding is a verb on the element; written in a rule it is left out,
   // so the element keeps the opacity it had without it.
-  choreograph::Output<float> gain{0.0f};
+  sigil::motion::Animatable<float> gain = sigil::motion::animatable(0.0f);
   Host host;
   host.composer.render(
       box()
-          .applyStyleSheet(StyleSheet{rule(".faded").opacity(&gain)})
+          .applyStyleSheet(StyleSheet{rule(".faded").opacity(gain)})
           .children(
               {box().styleClass("faded").width(60).height(60).fill(red())}));
   host.frame();

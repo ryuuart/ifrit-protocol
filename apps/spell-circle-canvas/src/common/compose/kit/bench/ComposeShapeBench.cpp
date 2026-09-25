@@ -15,6 +15,7 @@
 #include "BenchSupport.h"
 
 using namespace sigil::compose;
+namespace material = sigil::material;
 
 namespace geometry = sigil::geometry;
 using sigil::compose::bench::cellFill;
@@ -114,7 +115,7 @@ static void BM_Draw_BlendField_Blobs(benchmark::State& state) {
              .height(60)
              .shape(geometry::shapes::blob((uint32_t)(i + 1), 0.3f, 6))
              .fill(Fill::color({0.4f, 0.2f, 0.4f, 0.5f}))
-             .blendMode(SkBlendMode::kPlus)});
+             .blendMode(material::BlendMode::PlusLighter)});
   host.composer.render(box().children({scatter}));
   host.draw();
   for ([[maybe_unused]] auto iteration : state) host.draw();

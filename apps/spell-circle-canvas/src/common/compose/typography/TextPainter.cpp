@@ -163,27 +163,27 @@ Derived& TextContentVerbs<Derived>::textAttach(sigil::weave::Selector where,
 
 template <class Derived>
 Derived& TextContentVerbs<Derived>::variationDrive(
-    const char (&tag)[5], const choreograph::Output<float>* value) {
+    const char (&tag)[5], motion::Animatable<float> value) {
   // SUGAR over textFx(): an axis coordinate is a per-glyph deviation like a
   // shove or a fade, so the drive is a whole-text track and composes with
   // whatever other tracks the element carries. A second, parallel text path
   // would be hidden by any track drawn over it, which is why the drive is
   // a track.
   //
-  // The effect reads the Output DIRECTLY rather than through the track's
+  // The effect reads the value DIRECTLY rather than through the track's
   // progress, because an axis coordinate is a design-space number (GRAD
   // runs to ±100 on the faces that have it) and a progress is a 0→1 ramp
-  // the cascade clamps. The progress is bound to the same Output for the
-  // one thing it is good for here: declaring the paint volatility, so the
-  // node repaints while the drive moves and settles when it stops.
+  // the cascade clamps. The progress holds the same value for the one
+  // thing it is good for here: declaring the paint volatility, so the node
+  // repaints while the drive moves and settles when it stops.
   const sigil::weave::FontVariation coordinate(tag, 0.0f);
   detail::TextData& text = dressedText(declarations()->textData.ensure());
   // The effect's key IS its identity, and a drive is identified by its axis
   // and by its place among the element's tracks — declaration order, the
-  // handle a keyless mark takes for the same reason. WHICH Output feeds it
-  // is carried by the track's own progress, compared where every bound
-  // value in the tree is; the Output's ADDRESS is not identity, because a
-  // destroyed Output's address comes back on the next one allocated and a
+  // handle a keyless mark takes for the same reason. WHICH value feeds it
+  // is carried by the track's own progress, compared where every live
+  // value in the tree is; the value's ADDRESS is not identity, because a
+  // released cell's address comes back on the next one allocated and a
   // key holding it would prune a live drive onto the dead body.
   char key[32];
   std::snprintf(key, sizeof(key), "variationDrive:%.4s#%zu", tag,
@@ -193,9 +193,8 @@ Derived& TextContentVerbs<Derived>::variationDrive(
       key, {},
       [coordinate, value](const GlyphInfo&, float, core::noise::Mix64Stream&) {
         GlyphModifier mod;
-        if (!value) return mod;
         sigil::weave::FontVariation driven = coordinate;
-        driven.value = value->value();
+        driven.value = value.value();
         mod.axis = driven;
         return mod;
       },
@@ -204,7 +203,7 @@ Derived& TextContentVerbs<Derived>::variationDrive(
       // a drive re-cuts outlines where they already stand, so a run under a
       // sweeping grade is type at rest and keeps its whole-pixel origins.
       /*reach=*/0.0f, /*curves=*/{}, /*displaces=*/false);
-  track.progress = value;
+  track.progress = std::move(value);
   text.tracks.push_back(std::move(track));
   return self();
 }
@@ -260,7 +259,7 @@ template Text& TextContentVerbs<Text>::textAnnotation(Annotation);
 template Text& TextContentVerbs<Text>::textAttach(sigil::weave::Selector,
                                                   Element);
 template Text& TextContentVerbs<Text>::variationDrive(
-    const char (&)[5], const choreograph::Output<float>*);
+    const char (&)[5], motion::Animatable<float>);
 template Text& TextContentVerbs<Text>::span(sigil::weave::Selector, SpanStyle);
 
 // ---------------------------------------------------------------------------

@@ -76,7 +76,7 @@ void Overlay::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setAntiAlias(true);
   if (material.isSolid())
     p.setColor4f(material::skia::toSkColor(material.solidColor()), nullptr);
-  else if (sk_sp<SkShader> s = material.asShader())
+  else if (sk_sp<SkShader> s = material::skia::shader(material))
     p.setShader(std::move(s));
   else
     return;

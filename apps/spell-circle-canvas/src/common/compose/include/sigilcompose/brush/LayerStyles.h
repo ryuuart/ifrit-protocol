@@ -7,7 +7,7 @@
  * rich surface out of: fake bevels, metallic sheens, inner shadows, glows
  * and overlays, made of gradients, blurs and blend modes and never of
  * shaders. This is the compositional peer to the SkSL route
- * (`material::sdf`, `material::skia::Paint::sksl`). It models no
+ * (`material::sdf`, `material::Paint::sksl`). It models no
  * lighting: a bevel is two opposed inner shadows, glass is a highlight
  * lens over a body ramp.
  *
@@ -130,7 +130,7 @@ struct BevelEmboss {
  *  Use `decorations::wash` for either — it declares its animation and
  *  resolves against the real context. */
 struct Overlay {
-  material::skia::Paint material;
+  material::Paint material;
   SkBlendMode blend = SkBlendMode::kSrcOver;
   float opacity = 1.0f;
 
@@ -145,10 +145,10 @@ struct Overlay {
 inline Overlay colorOverlay(material::Color color,
                             SkBlendMode blend = SkBlendMode::kSrcOver,
                             float opacity = 1.0f) {
-  return Overlay{material::skia::Paint::solid(material::skia::toSkColor(color)),
+  return Overlay{material::Paint::solid(material::skia::toSkColor(color)),
                  blend, opacity};
 }
-inline Overlay gradientOverlay(material::skia::Paint gradient,
+inline Overlay gradientOverlay(material::Paint gradient,
                                SkBlendMode blend = SkBlendMode::kSrcOver,
                                float opacity = 1.0f) {
   return Overlay{std::move(gradient), blend, opacity};

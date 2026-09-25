@@ -47,7 +47,7 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
            H * 0.40f}
         .paint(c, ctx);
   }
-  Wash{material::skia::Paint::linearGradient({0, 0}, {0, 1},
+  Wash{material::Paint::linearGradient({0, 0}, {0, 1},
                                              material::kit::aquaBodyRamp(t))}
       .paint(c, ctx);
   if (opts.topBand > 0) {  // the recess under the top edge
@@ -61,11 +61,10 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint glow;
     glow.setAntiAlias(true);
     glow.setBlendMode(SkBlendMode::kScreen);
-    glow.setShader(material::skia::Paint::linearGradient(
+    glow.setShader(material::skia::shader(material::Paint::linearGradient(
                        {0, H * 0.55f}, {0, H},
                        material::kit::aquaGlowRamp(t, opts.bottomGlow),
-                       {.units = material::GradientUnits::Pixels})
-                       .asShader());
+                       {.units = material::GradientUnits::Pixels})));
     c.save();
     c.clipPath(ctx.outline, true);
     c.drawRect(SkRect::MakeLTRB(0, H * 0.5f, ctx.size.width(), H), glow);
@@ -80,13 +79,12 @@ void AquaGloss::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
   const float fade = std::clamp(fadeEnd, 0.05f, 1.0f);
-  p.setShader(material::skia::Paint::linearGradient(
+  p.setShader(material::skia::shader(material::Paint::linearGradient(
                   {0, lens.top()}, {0, lens.bottom()},
                   {{0.0f, {1, 1, 1, alphaTop}},
                    {fade, {1, 1, 1, alphaBottom}},
                    {1.0f, {1, 1, 1, alphaBottom}}},
-                  {.units = material::GradientUnits::Pixels})
-                  .asShader());
+                  {.units = material::GradientUnits::Pixels})));
   c.save();
   c.clipPath(ctx.outline, true);
   c.drawRRect(SkRRect::MakeRectXY(lens, lens.height() / 2, lens.height() / 2),
@@ -120,7 +118,7 @@ LayerStyle aquaOrb(material::Color tint) {
 }
 
 void ChromeBody::paint(SkCanvas& c, const PaintContext& ctx) const {
-  Wash{material::skia::Paint::linearGradient(
+  Wash{material::Paint::linearGradient(
            {0, 0}, {0, 1}, material::kit::chromeRamp(palette))}
       .paint(c, ctx);
 }
@@ -180,13 +178,13 @@ LayerStyle y2kChrome(ChromeOptions opts) {
   return bundle;
 }
 
-material::skia::Paint sunsetChromeType() {
-  return material::skia::Paint::linearGradient(
+material::Paint sunsetChromeType() {
+  return material::Paint::linearGradient(
       {0, 0}, {0, 1}, material::kit::sunsetChromeText());
 }
 
-material::skia::Paint silverChromeType() {
-  return material::skia::Paint::linearGradient(
+material::Paint silverChromeType() {
+  return material::Paint::linearGradient(
       {0, 0}, {0, 1}, material::kit::silverChromeText());
 }
 

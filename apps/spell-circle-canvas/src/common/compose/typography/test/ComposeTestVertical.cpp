@@ -199,7 +199,7 @@ TEST(TextVertical, ALineSelectorAddressesAColumn) {
 TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
   // Mid-cascade the top of the column has arrived and the bottom has not:
   // reading order down a column is what a stagger beats over.
-  choreograph::Output<float> progress{0.45f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.45f);
   Host host(200, 320);
   host.composer.render(box().padding(10).children(
       {text(u8"一二三四五六七八九十", jp(24, SK_ColorWHITE))
@@ -209,7 +209,7 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
            .textFx({.effect = textFx::rise(30),
                     .stagger = {.eachMs = 90},
                     .unit = sigil::weave::Unit::Cluster,
-                    .progress = &progress})
+                    .progress = progress})
            .key("t")}));
   host.frame();
   const int top = inkCount(host, SkIRect::MakeXYWH(0, 10, 200, 120));
@@ -611,7 +611,7 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
   // `weave::Unit::Line` IS a column here. Mid-cascade the first column has
   // arrived whole and the next has not — the two halves of the same
   // passage separated by the geometry, not by the text.
-  choreograph::Output<float> progress{0.35f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.35f);
   Host host(300, 260);
   host.composer.render(box().padding(10).children(
       {text(kProse, jp(22, SK_ColorWHITE))
@@ -621,7 +621,7 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
            .textFx({.effect = textFx::typeOn(),
                     .stagger = {.eachMs = 400},
                     .unit = sigil::weave::Unit::Line,
-                    .progress = &progress})
+                    .progress = progress})
            .key("t")}));
   host.frame();
   const auto* layout = host.composer.paragraphLayout("t");
@@ -649,7 +649,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
   // the layout the letters left at rest. It therefore does NOT travel with
   // the cascade: the letters rise into place and the sideline stands still
   // the whole way, which is the same stand a mark() takes under a track.
-  choreograph::Output<float> progress{0.4f};
+  sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.4f);
   sigil::weave::Decoration sideline;
   sideline.thickness = 3.0f;
   sideline.color = SK_ColorRED;
@@ -666,7 +666,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
              .textFx({.effect = textFx::rise(24),
                       .stagger = {.eachMs = 90},
                       .unit = sigil::weave::Unit::Cluster,
-                      .progress = &progress})
+                      .progress = progress})
              .key("t")});
   };
 
