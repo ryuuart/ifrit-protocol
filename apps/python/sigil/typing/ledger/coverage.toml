@@ -2096,16 +2096,7 @@ python = [
 
 [[section.surface.item]]
 bound = "the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports"
-python = [
-  "io.registerUdp",
-  "io.registerWebSocket",
-  "io.registerSharedMemory",
-  "io.registerMidi",
-  "io.registerSerial",
-  "io.registerGrpc",
-  "io.registerQuic",
-  "io.registerWebRtc",
-]
+python = ["io.registerTransports"]
 
 [[section.surface.item]]
 native = "`Hub::onDispatch`"

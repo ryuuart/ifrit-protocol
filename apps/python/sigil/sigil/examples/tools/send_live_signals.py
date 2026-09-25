@@ -12,7 +12,7 @@ import time
 from json import dumps
 from pathlib import Path
 
-from sigil.io import Feed, Hub, registerUdp
+from sigil.io import Feed, Hub, registerTransports
 
 
 class Options(argparse.Namespace):
@@ -56,7 +56,7 @@ def main() -> int:
         parser.error("--rate must be between 0 and 120")
 
     hub = Hub()
-    registerUdp(hub)
+    registerTransports(hub, ["udp"])
     feed = hub.feed(f"udp://{options.host}:{options.port}")
     latest: bytes | None = None
     try:

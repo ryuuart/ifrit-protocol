@@ -205,7 +205,7 @@ hub.mount("out://", pathlib.Path.cwd() / "output")
 encoded = data.encodeJson(payload).encode("utf-8")
 assert hub.write("out://readings.json", encoded)
 assert hub.fetch("out://readings.json") == encoded
-io.registerUdp(hub)
+io.registerTransports(hub, ["udp"])
 listener = hub.feed("udp://:0")
 assert listener.opened(), listener.error()
 peer = hub.feed("udp://127.0.0.1:" + listener.address().rsplit(":", 1)[1])

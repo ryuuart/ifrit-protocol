@@ -696,10 +696,10 @@ rendering and catalogue thumbnails should not write application data.
 Standalone Python uses the same bindings without a Sketchbook process:
 
 ```python
-from sigil.io import Hub, registerUdp
+from sigil.io import Hub, registerTransports
 
 hub = Hub()
-registerUdp(hub)
+registerTransports(hub, ["udp"])
 peer = hub.feed("udp://127.0.0.1:27021")
 try:
     if not peer.send(b'{"sequence": 1, "pressure": 0.6, "flow": 0.4}'):
@@ -708,8 +708,9 @@ finally:
     peer.close()
 ```
 
-Register only the transports needed, or call `registerTransports(hub)` for
-the complete native set. A standalone program calls `hub.dispatch(seconds)`
+`registerTransports(hub, ["udp"])` installs only the transports that answer
+the schemes named; `registerTransports(hub)` installs the complete native
+set. A standalone program calls `hub.dispatch(seconds)`
 when replaying recordings. Sketches leave that call to their host.
 `feed.record(path)` writes arrivals for later playback and returns a
 `Recording` that stops when it is stopped, when it is garbage collected, or

@@ -538,25 +538,13 @@ void bindIO(py::module_& module) {
           },
           py::arg("policy"));
 
-#define SIGIL_REGISTER(name)              \
-  resources.def(                          \
-      #name,                              \
-      [](const HubHandle& value) {        \
-        auto& hub = value.get();          \
-        unlocked([&] { io::name(hub); }); \
-      },                                  \
-      py::arg("hub"));
-  SIGIL_REGISTER(registerUdp)
-  SIGIL_REGISTER(registerWebSocket)
-  SIGIL_REGISTER(registerWebSocketClient)
-  SIGIL_REGISTER(registerSharedMemory)
-  SIGIL_REGISTER(registerMidi)
-  SIGIL_REGISTER(registerSerial)
-  SIGIL_REGISTER(registerGrpc)
-  SIGIL_REGISTER(registerQuic)
-  SIGIL_REGISTER(registerWebRtc)
-  SIGIL_REGISTER(registerTransports)
-#undef SIGIL_REGISTER
+  resources.def(
+      "registerTransports",
+      [](const HubHandle& value, const std::vector<std::string>& schemes) {
+        auto& hub = value.get();
+        unlocked([&] { io::registerTransports(hub, schemes); });
+      },
+      py::arg("hub"), py::arg("schemes") = std::vector<std::string>{});
 
   resources.def("readRecording", &io::readRecording, py::arg("path"),
                 py::call_guard<py::gil_scoped_release>());

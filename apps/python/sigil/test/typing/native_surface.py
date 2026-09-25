@@ -133,6 +133,6 @@ def setup(ctx: sketch.SketchContext) -> None:
 
 
 standalone = io.Hub()
-io.registerUdp(standalone)
+io.registerTransports(standalone, ["udp"])
 assert_type(standalone.poll(), bool)
 standalone.dispatch(0.5)

@@ -51,7 +51,7 @@ def roundtrip(scene: SceneDefinition, output: Path) -> SceneDefinition:
     payload = encode_scene(scene)
     output = Path(output).expanduser().absolute()
     hub = io.Hub()
-    io.registerUdp(hub)
+    io.registerTransports(hub, ["udp"])
     with ExitStack() as feeds:
         listener = hub.feed("udp://:0")
         feeds.callback(listener.close)

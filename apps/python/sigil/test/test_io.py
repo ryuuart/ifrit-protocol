@@ -152,7 +152,7 @@ class IO(unittest.TestCase):
 
     def test_udp_request_reply_uses_native_sender_and_owned_payloads(self):
         hub = io.Hub()
-        io.registerUdp(hub)
+        io.registerTransports(hub, ["udp"])
         listener = hub.feed("udp://:0")
         self.assertEqual(listener.error(), "")
         port = int(listener.address().rsplit(":", 1)[1])
@@ -185,7 +185,7 @@ class IO(unittest.TestCase):
         absent = hub.feed("udp://:0")
         self.assertIn("no feed transport", absent.error())
         self.assertFalse(absent.opened())
-        io.registerUdp(hub)
+        io.registerTransports(hub, ["udp"])
         live = hub.feed("udp://:0")
         self.assertEqual(live, absent)
         self.assertTrue(live.opened())
