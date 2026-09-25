@@ -67,7 +67,7 @@ constexpr std::string_view kGood =
 struct FeedCounts {
   std::map<std::string, int> opened;
   std::map<std::string, int> closed;
-  std::map<std::string, std::weak_ptr<sigil::io::Feed>> feeds;
+  std::map<std::string, sigil::io::Inlet> feeds;
 };
 
 struct FeedFixture {
@@ -77,10 +77,10 @@ struct FeedFixture {
   FeedFixture() {
     services.hub().setFeedTransport(
         "fixture", [counts = counts](std::string_view uri,
-                                     std::weak_ptr<sigil::io::Feed> feed) {
+                                     sigil::io::Inlet inlet) {
           const std::string key(uri);
           ++counts->opened[key];
-          counts->feeds[key] = std::move(feed);
+          counts->feeds[key] = std::move(inlet);
           sigil::io::OpenedFeed result;
           result.close = [counts, key] { ++counts->closed[key]; };
           result.send = [](const sigil::io::Bytes&) { return true; };

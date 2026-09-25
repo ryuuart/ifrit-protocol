@@ -10,6 +10,7 @@
 #include <sigilcompose/kit/Rows.h>
 #include <sigildata/connection/Connection.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/testing/Testing.h>
 #include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -29,12 +30,13 @@ namespace data = sigil::data;
 using compose::Element;
 using sigil::io::Bytes;
 using sigil::io::Hub;
+using sigil::io::testing::inletOf;
 using sigil::sketch::kit::test::sameDrawing;
 
 /** A TRANSPORT WITH NO SOCKET UNDER IT, binding @p address as its local
- *  end; what arrives a case delivers into the feed itself. */
-sigil::io::FeedTransport binding(std::string address) {
-  return [address](std::string_view, std::weak_ptr<sigil::io::Feed>) {
+ *  end; what arrives a case puts on the feed through its inlet. */
+sigil::io::Transport binding(std::string address) {
+  return [address](std::string_view, sigil::io::Inlet) {
     sigil::io::OpenedFeed opened;
     opened.address = address;
     opened.send = [](const Bytes&) { return true; };
@@ -64,9 +66,9 @@ TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
   Hub hub;
   hub.setFeedTransport("ws", binding("ws://127.0.0.1:8848"));
   data::Connection sky(hub, "ws://:8848/sky");
-  sky.feed()->deliver(bytesOf(R"({"kind":"gust"})"), "ws://127.0.0.1:52341");
-  sky.feed()->deliver(bytesOf("this is no document at all"),
-                      "ws://127.0.0.1:52341");
+  inletOf(sky.feed()).deliver(bytesOf(R"({"kind":"gust"})"), "ws://127.0.0.1:52341");
+  inletOf(sky.feed()).deliver(bytesOf("this is no document at all"),
+                              "ws://127.0.0.1:52341");
   hub.dispatch(0.0);
   ASSERT_EQ(sky.generation(), 2u);
 
@@ -107,7 +109,7 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   Hub hub;
   hub.setFeedTransport("ws", binding("ws://127.0.0.1:8850"));
   data::Connection sky(hub, "ws://:8850/sky");
-  sky.feed()->fail("port 8850 is in use");
+  inletOf(sky.feed()).fail("port 8850 is in use");
   ASSERT_EQ(sky.error(), "port 8850 is in use");
 
   const Element readout =
