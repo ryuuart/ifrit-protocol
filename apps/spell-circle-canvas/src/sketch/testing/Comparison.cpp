@@ -21,7 +21,7 @@ std::optional<SkBitmap> readPicture(const std::filesystem::path& path) {
   const std::optional<io::Bytes> bytes = io::readBytes(path);
   if (!bytes) return std::nullopt;
   std::optional<image::ImageAsset> asset = image::ImageAsset::decode(
-      SkData::MakeWithCopy(bytes->bytes.data(), bytes->bytes.size()));
+      SkData::MakeWithCopy(bytes->data(), bytes->size()));
   if (!asset || asset->frames().empty() || !asset->frames().front().image)
     return std::nullopt;
   const sk_sp<SkImage>& frame = asset->frames().front().image;

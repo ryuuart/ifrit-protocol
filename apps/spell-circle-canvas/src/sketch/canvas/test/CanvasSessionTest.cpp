@@ -142,10 +142,8 @@ constexpr const char* kSkyPort = "udp://:27020";
 
 /** One recorded message carrying @p text. */
 std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
-  const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  sigil::io::Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return std::make_shared<const sigil::io::Bytes>(std::move(bytes));
+  return std::make_shared<const sigil::io::Bytes>(
+      std::as_bytes(std::span(text)));
 }
 
 /** A sketch that LISTENS: it opens a feed on a port while declaring

@@ -44,9 +44,7 @@ sigil::io::FeedTransport binding(std::string address) {
 
 Bytes bytesOf(std::string_view text) {
   const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return bytes;
+  return Bytes(std::span(first, text.size()));
 }
 
 /** Both trees under the house sheet, as a page would set them. */

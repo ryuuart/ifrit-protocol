@@ -36,10 +36,8 @@ using namespace sigil::sketch;
 /** One recorded message carrying @p text, for a case that says WHICH
  *  arrival a frame was handed rather than how many bytes it was. */
 std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
-  const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  sigil::io::Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return std::make_shared<const sigil::io::Bytes>(std::move(bytes));
+  return std::make_shared<const sigil::io::Bytes>(
+      std::as_bytes(std::span(text)));
 }
 
 sk_sp<SkData> solidVideo(SkColor color) {

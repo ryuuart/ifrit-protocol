@@ -601,10 +601,8 @@ struct RecordingReader {
     "a sketch that reads a recording", &sigil::sketch::kindOf<RecordingReader>);
 
 std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
-  const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  sigil::io::Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return std::make_shared<const sigil::io::Bytes>(std::move(bytes));
+  return std::make_shared<const sigil::io::Bytes>(
+      std::as_bytes(std::span(text)));
 }
 
 TEST(SketchClockAgent, UnderPauseARecordingDeliversNothingMore) {

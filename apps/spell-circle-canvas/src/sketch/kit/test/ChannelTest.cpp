@@ -45,15 +45,11 @@ sigil::io::FeedTransport intoNothing() {
 
 Bytes bytesOf(std::string_view text) {
   const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return bytes;
+  return Bytes(std::span(first, text.size()));
 }
 
 Bytes bytesOf(std::vector<std::byte> packet) {
-  Bytes bytes;
-  bytes.bytes = std::move(packet);
-  return bytes;
+  return Bytes(std::move(packet));
 }
 
 /** One OSC message to @p address carrying @p arguments, as a case

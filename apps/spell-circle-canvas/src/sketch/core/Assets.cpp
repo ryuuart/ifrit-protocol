@@ -151,7 +151,7 @@ std::shared_ptr<sigil::video::Video> Assets::video(
   const std::shared_ptr<const sigil::io::Bytes> encoded = m_hub.fetch(uri);
   if (!encoded) return nullptr;
   std::shared_ptr<sigil::video::Video> clip =
-      sigil::video::decodeVideo(encoded->bytes.data(), encoded->bytes.size(),
+      sigil::video::decodeVideo(encoded->data(), encoded->size(),
                                 options, m_hub.resolve(uri));
   if (clip)
     m_videos.push_back(
