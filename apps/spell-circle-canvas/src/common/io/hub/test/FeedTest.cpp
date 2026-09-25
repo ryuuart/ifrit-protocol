@@ -349,17 +349,19 @@ TEST_F(IOFeed, ARecordingCutShortKeepsTheWholeFramesBeforeTheCut) {
   EXPECT_EQ((*read)[0].bytes->asText(), "whole");
 }
 
-TEST_F(IOFeed, ARecordingMountedOnAUriReplaysByTheTimeDispatched) {
+TEST_F(IOFeed, AReplayedUriPlaysItsRecordingByTheTimeDispatched) {
   const fs::path path = dir.path / "scene.feed";
   {
     RecordingWriter writer(path);
     writer.append({1, 0.0, shared("at zero")});
     writer.append({2, 1.0, shared("at one")});
   }
-  // The URI is mounted straight onto the file: nothing is beneath it.
-  hub.mount("udp://:27020", path);
-
+  // Named through the mount table, as a sketch names its own files.
+  const std::shared_ptr<Feed> replaying =
+      hub.replay("udp://:27020", "res://scene.feed");
   const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
+  // Every later ask for the URI is handed the replaying feed.
+  EXPECT_EQ(feed, replaying);
   ASSERT_NE(feed, nullptr);
   EXPECT_TRUE(feed->error().empty());
   EXPECT_EQ(feed->generation(), 0u);  // nothing arrives until time moves
@@ -386,9 +388,8 @@ TEST_F(IOFeed, ARecordingMountedOnAUriReplaysByTheTimeDispatched) {
 
 TEST_F(IOFeed, AFileThatIsNoRecordingIsAFeedWhoseErrorSaysSo) {
   dir.write("scene.bin", "these are not frames");
-  hub.mount("udp://:27020", dir.path / "scene.bin");
-
-  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
+  const std::shared_ptr<Feed> feed =
+      hub.replay("udp://:27020", (dir.path / "scene.bin").string());
   ASSERT_NE(feed, nullptr);
   EXPECT_FALSE(feed->error().empty());
   hub.dispatch(1.0);
@@ -398,10 +399,12 @@ TEST_F(IOFeed, AFileThatIsNoRecordingIsAFeedWhoseErrorSaysSo) {
 TEST_F(IOFeed, RecordingALiveFeedWritesWhatArrives) {
   const fs::path path = dir.path / "live.feed";
   Feed feed("udp://:27020");
-  feed.record(path);
-  feed.deliver(message("one"));
-  feed.deliver(message("two"));
-  feed.record({});  // stopped: the file stands as it is
+  {
+    const Recording recording = feed.record(path);
+    EXPECT_FALSE(recording.stopped());
+    feed.deliver(message("one"));
+    feed.deliver(message("two"));
+  }  // the handle is gone, so the recording is: the file stands as it is
   feed.deliver(message("three"));
 
   const std::optional<std::vector<Arrival>> read = readRecording(path);
@@ -413,6 +416,53 @@ TEST_F(IOFeed, RecordingALiveFeedWritesWhatArrives) {
   // took the messages.
   EXPECT_GE((*read)[0].at, 0.0);
   EXPECT_LE((*read)[0].at, (*read)[1].at);
+}
+
+TEST_F(IOFeed, ARecordingStopsWhenToldAndWhenAnotherTakesItsPlace) {
+  Feed feed("udp://:27020");
+  Recording first = feed.record(dir.path / "first.feed");
+  feed.deliver(message("one"));
+  Recording second = feed.record(dir.path / "second.feed");
+  // One recording at a time: the second ended the first.
+  EXPECT_TRUE(first.stopped());
+  feed.deliver(message("two"));
+  second.stop();
+  EXPECT_TRUE(second.stopped());
+  feed.deliver(message("three"));
+
+  const std::optional<std::vector<Arrival>> one =
+      readRecording(dir.path / "first.feed");
+  ASSERT_TRUE(one.has_value());
+  ASSERT_EQ(one->size(), 1u);
+  EXPECT_EQ((*one)[0].bytes->asText(), "one");
+  const std::optional<std::vector<Arrival>> two =
+      readRecording(dir.path / "second.feed");
+  ASSERT_TRUE(two.has_value());
+  ASSERT_EQ(two->size(), 1u);
+  EXPECT_EQ((*two)[0].bytes->asText(), "two");
+
+  // A file that cannot be opened is a handle that has already stopped.
+  const Recording nowhere = feed.record(dir.path / "absent" / "x.feed");
+  EXPECT_TRUE(nowhere.stopped());
+  EXPECT_FALSE(feed.error().empty());
+}
+
+TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
+  const fs::path path = dir.path / "taken.feed";
+  {
+    RecordingWriter writer(path);
+    writer.append({1, 0.0, shared("recorded")});
+  }
+  hub.setFeedTransport("udp", [](std::string_view, std::weak_ptr<Feed>) {
+    return OpenedFeed{};
+  });
+  const std::shared_ptr<Feed> live = hub.feed("udp://:27020");
+  const std::shared_ptr<Feed> replaying =
+      hub.replay("udp://:27020", path.string());
+  EXPECT_TRUE(live->closed());
+  EXPECT_NE(live, replaying);
+  hub.dispatch(0.0);
+  ASSERT_NE(replaying->latest(), nullptr);
 }
 
 TEST_F(IOFeed, ArrivalsFromAnotherThreadAreAllReceivedInOrder) {
@@ -474,8 +524,8 @@ TEST_F(IOFeed, ACallbackSeesWhatTheSameDispatchDelivered) {
     RecordingWriter writer(path);
     writer.append({1, 0.0, shared("at zero")});
   }
-  hub.mount("udp://:27020", path);
-  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
+  const std::shared_ptr<Feed> feed =
+      hub.replay("udp://:27020", path.string());
 
   std::vector<std::string> seen;
   const DispatchLease lease = hub.onDispatch([&seen, feed](double) {

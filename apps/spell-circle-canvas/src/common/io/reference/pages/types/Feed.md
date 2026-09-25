@@ -80,10 +80,15 @@ not after.
 
 ### The same door plays a recording back
 
-`Feed::record` appends every arrival from then on to a file, and a feed
-the hub resolved to a recording file delivers what that file holds as
-`Feed::advance` moves its time forward — so a scene that ran against a
-live sender runs again against the file it wrote, arrival for arrival.
+`Feed::record` appends every arrival from then on to a file and hands
+back a `sigil::io::Recording`: the recording lasts exactly as long as that
+handle does, or until `Recording::stop`, and `Recording::stopped` says
+whether it still runs. A feed writes one recording at a time, so a second
+`Feed::record` ends the first; a feed that closes ends its recording with
+it. A feed `Hub::replay` put a recording in front of delivers what that
+file holds as `Feed::advance` moves its time forward — so a scene that ran
+against a live sender runs again against the file it wrote, arrival for
+arrival.
 
 `Feed::advance` moves a replayed recording's time to the seconds on the
 caller's clock. The first call fixes the origin, so a recording starts
@@ -102,4 +107,4 @@ time maps to that clock's origin rather than to an arbitrary instant.
 ## See also
 
 `sigil::io::Arrival`, `sigil::io::OpenedFeed`, `sigil::io::FeedTransport`,
-`sigil::io::RecordingWriter`.
+`sigil::io::Recording`, `sigil::io::RecordingWriter`.

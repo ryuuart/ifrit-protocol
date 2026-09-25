@@ -82,17 +82,15 @@ if (auto bytes = scene->latest()) draw(*bytes);
 ```
 
 `Hub::feed` hands back the one feed a URI names for as long as anybody
-holds it. A URI that resolves through the mount table to a file is played
-back from that recording as `Hub::dispatch` moves time forward, so the
-same code reads a live sender and a recorded session; anything else opens
+holds it. A URI named to `Hub::replay` is played back from its recording
+as `Hub::dispatch` moves time forward, so the same code reads a live
+sender and a recorded session; anything else opens
 through the transport registered for its scheme. That one call also runs
 every callback registered through `Hub::onDispatch`, so something that
 reads feeds on the frame is driven by the call a host already makes and
 no host code has to name it.
 
-A mount whose remainder is empty resolves with a trailing separator; it
-is stripped, so mounting a URI directly onto a recording file works. Any
-other URI opens through the transport registered for its scheme — the
+Any other URI opens through the transport registered for its scheme — the
 part before "://" — called outside the hub's lock. No scheme, no
 transport, or an unreadable recording: the feed exists and its
 `Feed::error` says why.

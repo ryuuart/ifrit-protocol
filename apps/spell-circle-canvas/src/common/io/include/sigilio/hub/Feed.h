@@ -8,7 +8,8 @@
  * the whole arrival — or drains in order the ones it has not seen
  * through receive(), and neither ever waits for one. A feed holds the
  * last `FeedPolicy::capacity` arrivals for receive(), and dropped() counts
- * what fell off the front. The same door plays a recording back.
+ * what fell off the front. The same door plays a recording back, and
+ * writes one for as long as the Recording its record() hands out lives.
  */
 
 #include <chrono>
@@ -29,6 +30,12 @@ namespace sigil::io {
 
 class Feed;
 class RecordingWriter;
+
+namespace detail {
+/** The writer one record() call opened, shared by the feed that
+ *  appends to it and the Recording that stops it. */
+struct RecordingSlot;
+}  // namespace detail
 
 /** ONE MESSAGE OFF A FEED. */
 struct Arrival {
@@ -77,6 +84,39 @@ using FeedTransport =
 struct FeedPolicy {
   /** Arrivals kept for receive() before the oldest is dropped. */
   size_t capacity = 256;
+};
+
+/** A FEED BEING WRITTEN DOWN: what `Feed::record()` hands back. Every
+ *  arrival on the feed goes to the file until this handle stops it —
+ *  through stop(), or by going out of scope — so a recording nobody
+ *  holds is one that has ended. Move-only; a handle made empty, or
+ *  moved from, stops nothing. */
+class [[nodiscard]] Recording {
+ public:
+  Recording() = default;
+  /** Stops the recording this handle holds. */
+  ~Recording();
+  /** Takes over @p other's recording, leaving it holding nothing. */
+  Recording(Recording&& other) noexcept;
+  /** Stops this handle's recording and takes over @p other's. */
+  Recording& operator=(Recording&& other) noexcept;
+  Recording(const Recording&) = delete;
+  Recording& operator=(const Recording&) = delete;
+
+  /** Takes no more frames. What reached the file stays whole, and the
+   *  file is closed before this returns. */
+  void stop();
+
+  /** Whether nothing is being written through this handle any more:
+   *  stop() was called, the feed closed, the feed started another
+   *  recording, or the file could not take a frame. */
+  bool stopped() const;
+
+ private:
+  friend class Feed;
+  explicit Recording(std::shared_ptr<detail::RecordingSlot> slot);
+
+  std::shared_ptr<detail::RecordingSlot> m_slot;
 };
 
 /** A door that keeps delivering: bytes in from a transport or a
@@ -181,9 +221,12 @@ class Feed {
   std::vector<std::string> peers() const;
 
   /** Appends every arrival from now on to the file at @p path in the
-   *  recording format, so this feed can be played back later. An empty
-   *  path stops recording. */
-  void record(std::filesystem::path path);
+   *  recording format, so this feed can be played back later through
+   *  `Hub::replay()`, until the handle this returns stops it. A feed
+   *  writes one recording at a time: a second call stops the first.
+   *  @trap A file that cannot be opened hands back a handle that has
+   *  already stopped, and error() says why. */
+  Recording record(std::filesystem::path path);
 
   /** Hands the feed the end its transport opened. Once: a second end,
    *  and one handed to a feed that is already closed, is closed rather
@@ -243,7 +286,9 @@ class Feed {
   std::string m_error;
   OpenedFeed m_openedEnd;
   bool m_wasOpened = false;
-  std::unique_ptr<RecordingWriter> m_writer;
+  /** The recording being written, shared with the Recording handle
+   *  that stops it; null when nothing is being written. */
+  std::shared_ptr<detail::RecordingSlot> m_recorder;
 
   /** A recording being played back: what it holds, how much of it has
    *  been delivered, and the time the first advance() fixed as its

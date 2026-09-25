@@ -1,7 +1,7 @@
 /** @file
  * The hub's feeds: the one feed a URI names while anybody holds it, the
- * transport a scheme is opened through, the recording a URI that
- * resolves to a file is played back from, and the dispatch that moves
+ * transport a scheme is opened through, the recording replay() names
+ * for a URI in front of that transport, and the dispatch that moves
  * every replayed recording forward and runs what is registered to read
  * them.
  */
@@ -9,7 +9,6 @@
 #include <chrono>
 #include <memory>
 #include <string>
-#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -29,19 +28,6 @@ std::string_view feedScheme(std::string_view uri) {
   const size_t mark = uri.find("://");
   return mark == 0 || mark == std::string_view::npos ? std::string_view{}
                                                      : uri.substr(0, mark);
-}
-
-/** The file a feed URI names, or an empty path when it names none. A
- *  mount whose remainder is empty joins nothing onto the mounted path
- *  and leaves a trailing separator, which names no file; the mount
- *  itself is what such a URI meant, so the empty name comes off and a
- *  URI mounted straight onto a recording resolves to it. */
-std::filesystem::path feedFile(const Hub& hub, std::string_view uri) {
-  std::filesystem::path path = detail::localPath(hub, uri);
-  if (!path.empty() && path.filename().empty()) path = path.parent_path();
-  std::error_code ec;
-  if (!std::filesystem::is_regular_file(path, ec) || ec) return {};
-  return path;
 }
 
 }  // namespace
@@ -119,13 +105,19 @@ std::shared_ptr<Feed> Hub::feed(std::string_view uri, FeedPolicy policy) {
   // the feed.
   if (again) made->fail({});
 
-  // A URI that names a file is a recording: this feed plays that file
-  // back instead of listening at a door.
-  if (const std::filesystem::path path = feedFile(*this, uri); !path.empty()) {
-    if (auto recorded = readRecording(path))
+  // A URI replay() named is a recording: this feed plays that file back
+  // instead of listening at a door.
+  std::filesystem::path recording;
+  {
+    const std::lock_guard lock(m_mutex);
+    const auto replayed = m_caches->replays.find(uri);
+    if (replayed != m_caches->replays.end()) recording = replayed->second;
+  }
+  if (!recording.empty()) {
+    if (auto recorded = readRecording(recording))
       made->replay(std::move(*recorded));
     else
-      made->fail("not a feed recording: " + path.string());
+      made->fail("not a feed recording: " + recording.string());
     return made;
   }
 
@@ -151,6 +143,30 @@ std::shared_ptr<Feed> Hub::feed(std::string_view uri, FeedPolicy policy) {
   // transport may deliver into the feed before it has answered.
   made->opened(transport(uri, std::weak_ptr<Feed>(made)));
   return made;
+}
+
+std::shared_ptr<Feed> Hub::replay(std::string_view uri,
+                                 std::string_view recording,
+                                 FeedPolicy policy) {
+  std::filesystem::path path = detail::localPath(*this, recording);
+  std::shared_ptr<Feed> standing;
+  {
+    const std::lock_guard lock(m_mutex);
+    m_caches->replays.insert_or_assign(std::string(uri), std::move(path));
+    // The feed standing at the URI is taken off the list, so the ask
+    // below makes the replaying one rather than handing back the door
+    // that is already open.
+    for (auto entry = m_feeds.begin(); entry != m_feeds.end(); ++entry)
+      if (entry->first == uri) {
+        standing = entry->second.lock();
+        m_feeds.erase(entry);
+        break;
+      }
+  }
+  // Closed outside the lock: a transport shutting its end down may call
+  // back into this hub.
+  if (standing) standing->close();
+  return feed(uri, policy);
 }
 
 void Hub::dispatch() {

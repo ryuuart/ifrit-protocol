@@ -1,11 +1,11 @@
 #pragma once
 
 /** @file
- * The three tables a hub keeps, defined where they are read rather than
- * where the hub is declared: the cache of entries keyed by the string an
- * ask is cached under, the decoder registered per decoded type, and the
- * transport registered per feed scheme. All three are read and written
- * only under the hub's mutex.
+ * The tables a hub keeps, defined where they are read rather than where
+ * the hub is declared: the cache of entries keyed by the string an ask
+ * is cached under, the decoder registered per decoded type, the
+ * transport registered per feed scheme and the recording replayed per
+ * feed URI. Every one is read and written only under the hub's mutex.
  */
 
 #include <boost/container/flat_map.hpp>
@@ -68,6 +68,10 @@ struct Hub::Caches {
       options;
   boost::container::flat_map<std::string, FeedTransport, std::less<>>
       feedTransports;
+  /** Per feed URI, the recording replay() named for it: a feed opened
+   *  on that URI plays this file instead of asking a transport. */
+  boost::container::flat_map<std::string, std::filesystem::path, std::less<>>
+      replays;
 };
 
 }  // namespace sigil::io

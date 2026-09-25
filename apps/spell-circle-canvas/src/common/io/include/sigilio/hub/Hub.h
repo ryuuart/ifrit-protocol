@@ -376,13 +376,25 @@ class Hub {
   bool poll();
 
   /** The feed at @p uri: the same object for the same URI while anyone
-   *  holds it. A URI that resolves through the mount table to a regular
-   *  file is replayed from that recording; any other opens through the
-   *  transport registered for its scheme — the part before "://" —
-   *  called outside the hub's lock.
+   *  holds it. A URI replay() named plays that recording back; any other
+   *  opens through the transport registered for its scheme — the part
+   *  before "://" — called outside the hub's lock.
    *  @trap No scheme, no transport, or an unreadable recording is not a
    *  failure to answer: the feed exists and its error() says why. */
   std::shared_ptr<Feed> feed(std::string_view uri, FeedPolicy policy = {});
+
+  /** THE FEED AT @p uri, PLAYED FROM A RECORDING instead of a door:
+   *  @p recording is a file, or a URI the mount table resolves to one,
+   *  written by `Feed::record()`. A feed already standing at @p uri is
+   *  closed first, and every later feed() on @p uri — for as long as
+   *  this hub lives — plays the same file, so a reader written against
+   *  the live wire reads the recording without knowing it. The recording
+   *  starts on the first dispatch after the feed is made and closes the
+   *  feed after its last message.
+   *  @trap Naming @p uri again replaces the recording it plays; a feed
+   *  still held from the earlier call is closed, not redirected. */
+  std::shared_ptr<Feed> replay(std::string_view uri, std::string_view recording,
+                               FeedPolicy policy = {});
 
   /** Installs the transport a scheme opens through; registering a
    *  scheme again replaces it. */
@@ -423,8 +435,9 @@ class Hub {
   using Redecode = std::function<std::shared_ptr<const void>(
       const Bytes&, const std::filesystem::path&)>;
 
-  /** THE THREE TABLES THIS HUB KEEPS — the entry cache, the decoder
-   *  registry and the feed transports — with the entry and the decoded
+  /** THE TABLES THIS HUB KEEPS — the entry cache, the decoder
+   *  registry, the feed transports and the recordings replay() put in
+   *  front of them — with the entry and the decoded
    *  view they are made of. Declared here and defined beside the code
    *  that reads it, so nothing that asks this hub for a resource takes
    *  on the containers it is kept in. */

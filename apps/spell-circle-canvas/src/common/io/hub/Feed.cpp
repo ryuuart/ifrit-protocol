@@ -9,11 +9,57 @@
 
 #include <cmath>
 #include <limits>
+#include <memory>
+#include <mutex>
 #include <utility>
 
 #include "sigilio/hub/Recording.h"
 
 namespace sigil::io {
+
+namespace detail {
+/** The writer one record() call opened. The feed appends under its own
+ *  lock and then this one; a Recording stops it under this one alone,
+ *  so stopping never waits on the feed and the two are never taken the
+ *  other way round. */
+struct RecordingSlot {
+  std::mutex mutex;
+  std::unique_ptr<RecordingWriter> writer;
+
+  /** Closes the file; nothing more is written through this slot. */
+  void stop() {
+    const std::lock_guard lock(mutex);
+    writer.reset();
+  }
+};
+}  // namespace detail
+
+Recording::Recording(std::shared_ptr<detail::RecordingSlot> slot)
+    : m_slot(std::move(slot)) {}
+
+Recording::~Recording() { stop(); }
+
+Recording::Recording(Recording&& other) noexcept
+    : m_slot(std::move(other.m_slot)) {}
+
+Recording& Recording::operator=(Recording&& other) noexcept {
+  if (this != &other) {
+    stop();
+    m_slot = std::move(other.m_slot);
+  }
+  return *this;
+}
+
+void Recording::stop() {
+  if (m_slot) m_slot->stop();
+  m_slot.reset();
+}
+
+bool Recording::stopped() const {
+  if (!m_slot) return true;
+  const std::lock_guard lock(m_slot->mutex);
+  return m_slot->writer == nullptr;
+}
 
 Feed::Feed(std::string uri, FeedPolicy policy)
     : m_uri(std::move(uri)), m_policy(policy) {}
@@ -42,9 +88,14 @@ void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
   // many threads are delivering. A file that stops taking frames ends
   // the recording and says so through error(): a recording that went
   // quiet without a word would replay as a run that stopped early.
-  if (m_writer && !m_writer->append(arrival)) {
-    m_writer.reset();
-    m_error = "the recording stopped: its file could not take a frame";
+  if (m_recorder) {
+    const std::lock_guard recording(m_recorder->mutex);
+    if (!m_recorder->writer) {
+      // Its handle stopped it: nothing more goes to that file.
+    } else if (!m_recorder->writer->append(arrival)) {
+      m_recorder->writer.reset();
+      m_error = "the recording stopped: its file could not take a frame";
+    }
   }
   m_arrivals.push_back(std::move(arrival));
   // A reader that cannot keep up loses the OLDEST messages: the newest
@@ -84,7 +135,8 @@ void Feed::fail(std::string why) {
 
 std::function<void()> Feed::closeLocked() {
   m_closed = true;
-  m_writer.reset();
+  if (m_recorder) m_recorder->stop();
+  m_recorder.reset();
   std::function<void()> ending = std::move(m_openedEnd.close);
   m_openedEnd.close = nullptr;
   return ending;
@@ -214,17 +266,25 @@ std::vector<std::string> Feed::peers() const {
   return attached ? attached() : std::vector<std::string>{};
 }
 
-void Feed::record(std::filesystem::path path) {
+Recording Feed::record(std::filesystem::path path) {
   // The file is opened, and emptied, before the lock is taken: a reader
   // never waits on a disk.
-  std::unique_ptr<RecordingWriter> writer;
-  if (!path.empty()) writer = std::make_unique<RecordingWriter>(path);
-  const std::lock_guard lock(m_mutex);
-  if (writer && !writer->good()) {
-    m_error = "cannot write a feed recording at " + path.string();
-    writer.reset();
+  auto slot = std::make_shared<detail::RecordingSlot>();
+  slot->writer = std::make_unique<RecordingWriter>(path);
+  std::shared_ptr<detail::RecordingSlot> previous;
+  {
+    const std::lock_guard lock(m_mutex);
+    if (!slot->writer->good()) {
+      m_error = "cannot write a feed recording at " + path.string();
+      return Recording();
+    }
+    if (m_closed) return Recording();
+    previous = std::exchange(m_recorder, slot);
   }
-  m_writer = std::move(writer);
+  // One recording at a time: the one this replaces ends here, and its
+  // handle reads as stopped from now on.
+  if (previous) previous->stop();
+  return Recording(std::move(slot));
 }
 
 void Feed::replay(std::vector<Arrival> recording) {

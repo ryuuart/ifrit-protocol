@@ -532,14 +532,18 @@ accounting must remain independent of when the host drains the queue.
 
 A **recording** is a feed written down: `record(path)` appends every
 arrival from then on, with the seconds since the feed was made, in the
-format `RecordingWriter` writes and `readRecording()` reads. A URI that
-resolves through the mount table to a regular file is not opened through
-a transport at all: the feed replays that file, and `dispatch(seconds)`
-advances every replay to that time on the caller's clock, delivering each
-recorded arrival at its recorded second and closing the feed after the
-last. That is how a deterministic run reads what a live one heard:
-`mount()` the URI onto the recording, and the code that opened the port
-opens the file.
+format `RecordingWriter` writes and `readRecording()` reads, until the
+`Recording` it hands back is stopped or goes out of scope. A feed writes
+one recording at a time; a second `record()` ends the first.
+`Hub::replay(uri, recording)` puts a recording — a file, or a URI the
+mount table resolves to one — in front of a URI: the feed standing there
+is closed, and that feed and every later one asked for on the URI is not
+opened through a transport at all but replays the file, and
+`dispatch(seconds)` advances every replay to that time on the caller's
+clock, delivering each recorded arrival at its recorded second and
+closing the feed after the last. That is how a deterministic run reads
+what a live one heard: `replay()` the URI from the recording, and the
+code that opened the port opens the file.
 
 Once every replay has been advanced, that same `dispatch()` runs each
 callback registered through `onDispatch()`, in registration order, on
