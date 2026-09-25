@@ -62,9 +62,7 @@ bool waitUntil(const std::function<bool()>& ready) {
 
 sigil::io::Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
-  sigil::io::Bytes out;
-  out.bytes.assign(first, first + text.size());
-  return out;
+  return sigil::io::Bytes(std::span(first, text.size()));
 }
 
 std::string readWhole(const std::filesystem::path& path) {

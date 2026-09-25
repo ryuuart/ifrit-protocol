@@ -34,9 +34,7 @@ constexpr std::string_view kDefinitionPage = "protocol";
 /** Bytes carrying @p text, which is what a feed sends. */
 io::Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
-  io::Bytes out;
-  out.bytes.assign(first, first + text.size());
-  return out;
+  return io::Bytes(std::span(first, text.size()));
 }
 
 /** The port out of an address a listening feed reports,
