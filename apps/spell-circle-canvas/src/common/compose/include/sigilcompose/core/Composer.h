@@ -21,6 +21,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/schedule/Spread.h>
 
 #include <functional>
 #include <memory>

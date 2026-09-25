@@ -35,6 +35,7 @@
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilweave/style/TypeSheet.h>
 
 #include <chrono>

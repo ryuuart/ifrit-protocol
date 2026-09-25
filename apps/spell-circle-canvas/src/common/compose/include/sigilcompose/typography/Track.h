@@ -16,7 +16,8 @@
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilcompose/typography/TextUnit.h>
 #include <sigilcore/comparable/Fields.h>
-#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/schedule/Cascade.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>

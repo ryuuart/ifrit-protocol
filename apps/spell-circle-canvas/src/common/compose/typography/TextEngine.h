@@ -11,6 +11,7 @@
  */
 
 #include <sigilcore/compute/Intervals.h>
+#include <sigilmotion/schedule/Cascade.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/Unit.h>
 

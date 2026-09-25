@@ -53,6 +53,8 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/schedule/Cascade.h>
+#include <sigilmotion/schedule/Spread.h>
 
 #include <algorithm>
 #include <cstdint>

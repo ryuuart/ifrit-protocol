@@ -16,6 +16,7 @@
  */
 
 #include <sigilcompose/typography/TextEffect.h>
+#include <sigilmotion/schedule/Spread.h>
 
 #include <initializer_list>
 #include <string>

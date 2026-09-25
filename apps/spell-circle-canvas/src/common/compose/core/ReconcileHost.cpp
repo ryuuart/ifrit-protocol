@@ -11,6 +11,7 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the ignored-shell warning
+#include <sigilmotion/schedule/Order.h>
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>

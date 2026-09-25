@@ -13,6 +13,7 @@
 #include <sigilcore/reconcile/Reads.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/Story.h>

@@ -56,6 +56,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilweave/style/ShapingStyle.h>

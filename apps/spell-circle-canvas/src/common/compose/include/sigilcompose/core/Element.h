@@ -28,7 +28,6 @@
 #include <sigilcompose/core/verbs/Node.h>
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilmotion/values/Keyframes.h>
