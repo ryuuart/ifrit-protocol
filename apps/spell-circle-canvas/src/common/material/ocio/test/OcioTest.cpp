@@ -82,7 +82,7 @@ TEST(Ocio, AChannelwiseViewLowersToATableThatPaintsWhatTheProgramPaints) {
   const Material grade = ocio::exponent(1.08f);
   ASSERT_EQ(grade.recipe().channelwiseSlot(), "lut");
 
-  const Filter lowered = Filter::of(grade, kN32_SkColorType);
+  const Filter lowered = skia::lowered(grade, kN32_SkColorType);
   ASSERT_NE(skia::colorFilter(lowered), nullptr)
       << "an eight-bit surface must lower a channelwise view to a table";
   EXPECT_EQ(skia::imageFilter(lowered), nullptr)
@@ -135,7 +135,7 @@ TEST(Ocio, ASurfaceATableCannotCarryKeepsTheProgram) {
   // neither raster nor GPU, which is what kUnknown says.
   for (const SkColorType surface :
        {kRGBA_F16_SkColorType, kRGBA_F32_SkColorType, kUnknown_SkColorType}) {
-    const Filter kept = Filter::of(grade, surface);
+    const Filter kept = skia::lowered(grade, surface);
     EXPECT_EQ(skia::colorFilter(kept), nullptr) << "colour type " << (int)surface;
     EXPECT_NE(skia::imageFilter(kept), nullptr) << "colour type " << (int)surface;
   }
@@ -152,7 +152,7 @@ TEST(Ocio, AViewThatMixesChannelsBakesTheVolumeAndKeepsTheProgram) {
   EXPECT_TRUE(mix.recipe().channelwiseSlot().empty())
       << "a channel-mixing transform must bake the volume";
   for (const SkColorType surface : {kN32_SkColorType, kRGBA_F16_SkColorType}) {
-    const Filter kept = Filter::of(mix, surface);
+    const Filter kept = skia::lowered(mix, surface);
     EXPECT_EQ(skia::colorFilter(kept), nullptr) << "colour type " << (int)surface;
     EXPECT_NE(skia::imageFilter(kept), nullptr) << "colour type " << (int)surface;
   }

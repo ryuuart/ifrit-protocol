@@ -12,6 +12,7 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
+#include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -21,14 +22,31 @@
 
 using namespace sigil::material;
 
-TEST(SkiaEffect, AFilterIsBuiltOnceAndComparesByItsIdentity) {
+TEST(SkiaEffect, AStockFilterComparesByItsRecipe) {
   const Filter glow = Filter::glow({0, 1, 1, 1}, 6.0f);
   EXPECT_NE(skia::resolvedImageFilter(glow, nullptr), nullptr);
   EXPECT_FALSE(glow.isRunning());
-  // filter() compares by the built filter's pointer, so a copy prunes and
-  // a separately built one does not.
+  // A stock pass compares by what it was built from, so one described
+  // again is equal although its built filter is a new object…
   EXPECT_TRUE(glow == Filter(glow));
-  EXPECT_FALSE(glow == Filter::glow({0, 1, 1, 1}, 6.0f));
+  EXPECT_TRUE(glow == Filter::glow({0, 1, 1, 1}, 6.0f));
+  EXPECT_FALSE(glow == Filter::glow({0, 1, 1, 1}, 7.0f));
+  EXPECT_FALSE(glow == Filter::glow({1, 0, 1, 1}, 6.0f));
+  const Filter shadow =
+      Filter::dropShadow({0, 0, 0, 0.5f}, {.blur = 4, .offset = {2, 3}});
+  EXPECT_TRUE(shadow ==
+              Filter::dropShadow({0, 0, 0, 0.5f}, {.blur = 4, .offset = {2, 3}}));
+  EXPECT_FALSE(shadow ==
+               Filter::dropShadow({0, 0, 0, 0.5f}, {.blur = 4, .offset = {2, 4}}));
+  EXPECT_TRUE(Filter::blur(3) == Filter::blur(3));
+  EXPECT_FALSE(Filter::blur(3) == Filter::blur(4));
+  EXPECT_TRUE(Filter::dilate(2) == Filter::dilate(2));
+  // …while an image filter built by hand carries no recipe, and compares by
+  // its identity.
+  const sk_sp<SkImageFilter> raw = SkImageFilters::Blur(3, 3, nullptr);
+  EXPECT_TRUE(skia::filter(raw) == skia::filter(raw));
+  EXPECT_FALSE(skia::filter(raw) ==
+               skia::filter(SkImageFilters::Blur(3, 3, nullptr)));
   // The empty effect resolves to nothing and is reflexive.
   EXPECT_EQ(skia::resolvedImageFilter(Filter(), nullptr), nullptr);
   EXPECT_TRUE(Filter() == Filter{});
@@ -117,9 +135,9 @@ TEST(SkiaEffect, RecipeSnapshotsDistinguishSurfaceLowering) {
   Material material(recipe);
   material.slot("response", Texture::of(surface->makeImageSnapshot()));
   const Filter table =
-      Filter::of(material, kRGBA_8888_SkColorType);
+      skia::lowered(material, kRGBA_8888_SkColorType);
   const Filter shader =
-      Filter::of(material, kRGBA_F16_SkColorType);
+      skia::lowered(material, kRGBA_F16_SkColorType);
   ASSERT_NE(skia::colorFilter(table), nullptr);
   ASSERT_NE(skia::imageFilter(shader), nullptr);
   EXPECT_FALSE(table == shader);

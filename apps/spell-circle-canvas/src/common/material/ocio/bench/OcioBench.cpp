@@ -41,7 +41,7 @@ void ExponentOverACanvas(benchmark::State& state, bool graded,
   output.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   SkCanvas canvas(output);
   const Filter view =
-      graded ? Filter::of(ocio::exponent(1.08f), surface)
+      graded ? skia::lowered(ocio::exponent(1.08f), surface)
              : Filter{};
   SkPaint viewPaint;
   viewPaint.setImageFilter(skia::imageFilter(view));

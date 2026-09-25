@@ -166,7 +166,7 @@ TEST(ComposeMaterial, ANullSkslEffectIsLoudAtBuild) {
   ::testing::internal::CaptureStderr();
   (void)material::skia::sksl(sk_sp<SkRuntimeEffect>(nullptr));
   const std::string log = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(log.find("material::Paint::sksl"), std::string::npos) << log;
+  EXPECT_NE(log.find("material::skia::sksl"), std::string::npos) << log;
   EXPECT_NE(log.find("nothing"), std::string::npos) << log;
 }
 

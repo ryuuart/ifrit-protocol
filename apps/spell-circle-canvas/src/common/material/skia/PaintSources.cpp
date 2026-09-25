@@ -219,7 +219,7 @@ Paint Paint::conicGradient(glm::vec2 centerPoint, ColorStops stops,
     if (!warnedSweepWindow) {
       warnedSweepWindow = true;
       SkDebugf(
-          "[material] Paint::conicGradient(start %.1f, end %.1f): "
+          "[material] material::Paint::conicGradient(start %.1f, end %.1f): "
           "angles outside [0, 360] CLAMP, they do not wrap — no canvas angle "
           "ever reaches the part of the window past the circle, so that "
           "run paints in the nearest stop's flat colour. Rotate the "
@@ -402,7 +402,7 @@ Paint PaintAccess::sksl(sk_sp<SkRuntimeEffect> effect,
     if (!warnedNullEffect) {
       warnedNullEffect = true;
       SkDebugf(
-          "[material] skia::sksl(null effect): the material is NONE "
+          "[material] material::skia::sksl(null effect): the paint is NONE "
           "and its node will paint nothing. Check the error string "
           "MakeForShader returned next to the effect. (warned once)\n");
     }

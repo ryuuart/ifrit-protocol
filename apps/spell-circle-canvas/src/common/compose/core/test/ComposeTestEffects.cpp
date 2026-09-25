@@ -664,7 +664,7 @@ TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
       material::skia::filter(SkImageFilters::Blur(4, 4, nullptr));
   plain.bind("uK", k);
   const std::string filterLog = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(filterLog.find("Filter::uniform"), std::string::npos)
+  EXPECT_NE(filterLog.find("Filter::bind"), std::string::npos)
       << filterLog;
   EXPECT_NE(filterLog.find("uK"), std::string::npos) << filterLog;
   EXPECT_FALSE(plain.isRunning());
@@ -702,7 +702,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   const material::Filter typoConst =
       material::skia::program(effect, {{"noSuchConst", 1.0f}});
   const std::string constLog = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(constLog.find("Filter::shader"), std::string::npos)
+  EXPECT_NE(constLog.find("skia::program"), std::string::npos)
       << constLog;
   EXPECT_NE(constLog.find("noSuchConst"), std::string::npos) << constLog;
   EXPECT_EQ(typoConst, material::skia::program(effect))
@@ -714,7 +714,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   material::Filter typoBound = material::skia::program(effect);
   typoBound.bind("noSuchBinding", k);
   const std::string boundLog = ::testing::internal::GetCapturedStderr();
-  EXPECT_NE(boundLog.find("Filter::uniform"), std::string::npos)
+  EXPECT_NE(boundLog.find("Filter::bind"), std::string::npos)
       << boundLog;
   EXPECT_NE(boundLog.find("noSuchBinding"), std::string::npos) << boundLog;
   EXPECT_FALSE(typoBound.isRunning())

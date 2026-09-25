@@ -101,7 +101,7 @@ inline void warnUndeclaredEffectUniform(const char* door,
   // rather than once ever.
   if (seen.size() < 16) seen.push_back(name);
   SkDebugf(
-      "[material] skia::Effect::%s(\"%s\"): the effect declares no uniform by "
+      "[material] %s(\"%s\"): the program declares no uniform by "
       "that name at this value's size — ignored (warned once; an array "
       "must supply the declared total float count exactly)\n",
       door, name.c_str());

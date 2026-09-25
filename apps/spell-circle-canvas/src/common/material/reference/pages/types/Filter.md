@@ -86,14 +86,18 @@ library's name for the value.
 
 ## Description
 
-An effect is a value so that a consumer caching a filtered layer can
-prove two frames asked for the same one. A static shader effect compares
-by RECIPE — the runtime effect pointer plus its constant uniforms — so a
-re-described effect prunes as long as the caller holds ONE runtime effect
-and rebuilds only the wrapper around it. A filter effect compares by
-filter pointer, because an already-built image filter carries no recipe
-to compare. A live effect never compares equal, conservatively, like a
-live material.
+A filter is a value so that a consumer caching a filtered layer can
+prove two frames asked for the same one. A stock pass — `Filter::blur`,
+`Filter::dropShadow`, `Filter::glow`, `Filter::dilate`, the colour
+functions — compares by what it was built from, and a static chain made
+with `Filter::then` or `Filter::emit` by its two sides, so the same
+filter described again prunes. A static program filter compares by
+RECIPE — the runtime effect pointer plus its constant parameters — so a
+re-described one prunes as long as the caller holds ONE runtime effect
+and rebuilds only the wrapper around it. A filter built by `skia::filter`
+compares by filter pointer, because an already-built image filter carries
+no recipe to compare. A live filter never compares equal, not even to
+itself, like a live material.
 
 A recipe effect reads its material's bindings ONCE, at construction, so
 animation happens by re-describing rather than by the material moving

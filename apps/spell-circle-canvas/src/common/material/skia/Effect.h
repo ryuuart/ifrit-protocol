@@ -82,6 +82,11 @@ class Effect {
   /** The layer re-emitted blurred beneath itself in @p color — a drop
    *  shadow at zero offset, which keeps the content on top. */
   static Effect glow(material::Color color, float sigma);
+  /** The layer's shadow in @p color beneath it, displaced by @p offsetX
+   *  and @p offsetY and softened by a Gaussian of @p sigma — CSS
+   *  `drop-shadow()`. */
+  static Effect dropShadow(material::Color color, float offsetX, float offsetY,
+                           float sigma);
   /** THE LAYER WITH EVERYTHING BUT ITS LIGHT TAKEN OUT: what is brighter
    *  than @p threshold, faded in over @p knee above it, carrying that
    *  brightness as its own coverage — the first half of a bloom, to
@@ -307,6 +312,20 @@ class Effect {
   std::shared_ptr<const Effect> m_chainA, m_chainB;
   // emit()'s blend of B over A; empty for then(), which composes B after A.
   std::optional<BlendMode> m_chainBlend;
+  // A STATIC chain precomposes into m_filter; its two sides are kept
+  // beside it only so the chain compares by what it was built from rather
+  // than by the composed filter, which is a new object each describe.
+  std::shared_ptr<const Effect> m_composedA, m_composedB;
+  /** A stock pass's comparable recipe — what a blur, a drop shadow, a glow
+   *  and a dilation were built from, so an equal one described again
+   *  compares equal although its built filter is a new object. */
+  struct Stock {
+    enum class Pass : uint8_t { Blur, DropShadow, Dilate };
+    Pass pass = Pass::Blur;
+    std::array<float, 7> numbers{};
+    bool operator==(const Stock&) const = default;
+  };
+  std::optional<Stock> m_stock;
 
   /** Does any child need a PaintFrame to resolve (live or geometry
    *  tier)? Material::build's memo asks exactly this of its own children,
@@ -338,13 +357,14 @@ class Effect {
     auto& [filter, colorFilter, recipeSnapshot, effect, uniforms, uniforms2,
            uniforms4, uniformArrays, bound, blocks, directionalBlur,
            parametricBlur, blurLevels, gatheredHalo, colorProgram, children,
-           chainA, chainB, chainBlend] = pinned;
+           chainA, chainB, chainBlend, composedA, composedB, stock] = pinned;
     static_assert(
         std::tuple_size_v<decltype(std::tie(
                 filter, colorFilter, recipeSnapshot, effect, uniforms,
                 uniforms2, uniforms4, uniformArrays, bound, blocks,
                 directionalBlur, parametricBlur, blurLevels, gatheredHalo,
-                colorProgram, children, chainA, chainB, chainBlend))> == 19,
+                colorProgram, children, chainA, chainB, chainBlend, composedA,
+                composedB, stock))> == 22,
         "Effect gained or lost a member — rule on it in "
         "Effect::operator==, then bump this count. "
         "(m_colorFilter compares by pointer, like m_filter, an "
@@ -364,7 +384,10 @@ class Effect {
         "m_bound and m_blocks make the effect isRunning(), which "
         "operator== already refuses; m_chainA/B and m_chainBlend "
         "exist only on a chain with a side that needs a paint frame, "
-        "and compare side by side with the blend.)");
+        "and compare side by side with the blend; m_composedA/B are a "
+        "static chain's sides, compared the same way in place of the "
+        "composed m_filter; m_stock is a stock pass's recipe, compared "
+        "in place of the m_filter built from it.)");
   }
 };
 

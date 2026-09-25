@@ -37,9 +37,7 @@ struct FilterAccess {
   /** @p effect as a filter; an effect that paints nothing is the filter
    *  of none, so the two spellings of "nothing" compare equal. */
   static Filter wrap(Effect effect) {
-    if (!effect.imageFilter() && !effect.colorFilter() && !effect.isRunning() &&
-        !effect.resolvedImageFilter())
-      return {};
+    if (effect == Effect{}) return {};
     return Filter(std::make_shared<const Filter::Node>(
         Filter::Node{std::move(effect)}));
   }
@@ -126,10 +124,8 @@ Filter Filter::directionalBlur(float sigma, float angleDegrees, float across) {
 }
 
 Filter Filter::dropShadow(Color color, ShadowOptions options) {
-  const float sigma = std::max(0.0f, options.blur);
-  return skia::filter(SkImageFilters::DropShadow(
-      options.offset.x, options.offset.y, sigma, sigma,
-      skia::toSkColor(color).toSkColor(), nullptr));
+  return FilterAccess::wrap(Effect::dropShadow(color, options.offset.x,
+                                               options.offset.y, options.blur));
 }
 
 Filter Filter::glow(Color color, float sigma) {
@@ -235,8 +231,9 @@ bool Filter::usesWorldSpace() const {
 }
 
 bool Filter::operator==(const Filter& other) const {
-  if (m_node == other.m_node) return true;
-  if (!m_node || !other.m_node) return false;
+  // The same node is not enough: a live filter never compares equal, even
+  // to itself, so a node carrying one repaints every frame.
+  if (!m_node || !other.m_node) return m_node == other.m_node;
   return m_node->effect == other.m_node->effect;
 }
 

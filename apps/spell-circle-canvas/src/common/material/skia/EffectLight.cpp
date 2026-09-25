@@ -19,7 +19,9 @@ namespace sigil::material::skia {
 
 Effect Effect::blur(float sigma) {
   const float s = std::max(0.0f, sigma);
-  return filter(SkImageFilters::Blur(s, s, nullptr));
+  Effect effect = filter(SkImageFilters::Blur(s, s, nullptr));
+  effect.m_stock = Stock{.pass = Stock::Pass::Blur, .numbers = {s}};
+  return effect;
 }
 
 Effect Effect::dilate(float pixels) {
@@ -29,9 +31,11 @@ Effect Effect::dilate(float pixels) {
                           0, 0, 1, 0, 0,
                           0, 0, 0, 4, 0};
   const float reach = pixels * 1.5f;
-  return filter(SkImageFilters::ColorFilter(
+  Effect effect = filter(SkImageFilters::ColorFilter(
       SkColorFilters::Matrix(grow),
       SkImageFilters::Blur(reach, reach, nullptr)));
+  effect.m_stock = Stock{.pass = Stock::Pass::Dilate, .numbers = {pixels}};
+  return effect;
 }
 
 Effect Effect::deepen(float amount) {
@@ -63,6 +67,9 @@ Effect Effect::emit(const Effect& light, BlendMode mode) const {
   }
   e.m_filter =
       SkImageFilters::Blend(toSkBlendMode(mode), liftedFilter(), light.liftedFilter());
+  e.m_chainBlend = mode;
+  e.m_composedA = std::make_shared<const Effect>(*this);
+  e.m_composedB = std::make_shared<const Effect>(light);
   return e;
 }
 

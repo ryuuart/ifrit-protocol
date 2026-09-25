@@ -114,7 +114,7 @@ sigil_doc_probes(material
            "<sigilskia/graphite/GraphiteContext.h>"
            "<ScratchDir.h>"
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
-  FLOORS 94,69,106,69,3
+  FLOORS 94,69,91,67,3
   LIBRARIES SigilMaterial SigilIOHub SigilCoreCache SigilSkiaGraphite)
 
 # THE DEVICE SWEEP, over the whole library rather than one feature: a body

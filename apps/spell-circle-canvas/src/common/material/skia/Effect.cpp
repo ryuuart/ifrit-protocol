@@ -219,8 +219,18 @@ Effect Effect::recipe(const Material& material, SkColorType surface) {
 }
 
 Effect Effect::glow(material::Color color, float sigma) {
-  return filter(SkImageFilters::DropShadow(
-      0, 0, sigma, sigma, toSkColor(color).toSkColor(), nullptr));
+  return dropShadow(color, 0, 0, sigma);
+}
+
+Effect Effect::dropShadow(material::Color color, float offsetX, float offsetY,
+                          float sigma) {
+  const float soft = std::max(0.0f, sigma);
+  Effect effect = filter(SkImageFilters::DropShadow(
+      offsetX, offsetY, soft, soft, toSkColor(color).toSkColor(), nullptr));
+  effect.m_stock = Stock{.pass = Stock::Pass::DropShadow,
+                         .numbers = {color.r, color.g, color.b, color.a,
+                                     offsetX, offsetY, soft}};
+  return effect;
 }
 
 Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
@@ -237,7 +247,7 @@ Effect Effect::shader(sk_sp<SkRuntimeEffect> effect,
   std::erase_if(uniforms, [&](const std::pair<std::string, float>& entry) {
     if (detail::declaresUniform(effect, entry.first, sizeof(float)))
       return false;
-    warnUndeclaredEffectUniform("shader", entry.first);
+    warnUndeclaredEffectUniform("skia::program", entry.first);
     return true;
   });
   SkRuntimeShaderBuilder builder(effect);
@@ -260,7 +270,7 @@ Effect Effect::colorProgram(sk_sp<SkRuntimeEffect> program,
   std::erase_if(uniforms, [&](const std::pair<std::string, float>& entry) {
     if (detail::declaresUniform(program, entry.first, sizeof(float)))
       return false;
-    warnUndeclaredEffectUniform("colorProgram", entry.first);
+    warnUndeclaredEffectUniform("Filter colour function", entry.first);
     return true;
   });
   SkRuntimeColorFilterBuilder builder(program);
@@ -301,6 +311,8 @@ Effect Effect::then(const Effect& next) const {
     return e;
   }
   e.m_filter = SkImageFilters::Compose(theirs, mine);
+  e.m_composedA = std::make_shared<const Effect>(*this);
+  e.m_composedB = std::make_shared<const Effect>(next);
   return e;
 }
 
@@ -456,6 +468,14 @@ bool Effect::operator==(const Effect& other) const {
   if (m_chainA || other.m_chainA)
     return m_chainA && other.m_chainA && m_chainBlend == other.m_chainBlend &&
            *m_chainA == *other.m_chainA && *m_chainB == *other.m_chainB;
+  // A static chain compares by the sides it was composed from, and a stock
+  // pass by its recipe: the filter each built is a new object every time.
+  if (m_composedA || other.m_composedA)
+    return m_composedA && other.m_composedA &&
+           m_chainBlend == other.m_chainBlend &&
+           *m_composedA == *other.m_composedA &&
+           *m_composedB == *other.m_composedB;
+  if (m_stock || other.m_stock) return m_stock == other.m_stock;
   if (m_recipeSnapshot || other.m_recipeSnapshot) {
     if (!m_recipeSnapshot || !other.m_recipeSnapshot) return false;
     if (m_recipeSnapshot->program != other.m_recipeSnapshot->program ||

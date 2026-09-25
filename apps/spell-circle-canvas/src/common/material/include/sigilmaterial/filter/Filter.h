@@ -211,9 +211,12 @@ class Filter {
   bool isRunning() const;
   /** Does any slot's paint anchor to the root frame? */
   bool usesWorldSpace() const;
-  /** Structural equality for the reconciler. A static program filter
-   *  compares by recipe, a renderer's own filter by identity, and a live
-   *  filter never compares equal. */
+  /** Structural equality for the reconciler: an equal filter described
+   *  again compares equal, so its node prunes. A stock pass — a blur, a
+   *  drop shadow, a glow, a dilation, a colour function — and a static
+   *  program filter compare by what they were built from, a chain by its
+   *  sides, a renderer's own filter by identity; a live filter never
+   *  compares equal, not even to itself. */
   bool operator==(const Filter& other) const;
 
  private:

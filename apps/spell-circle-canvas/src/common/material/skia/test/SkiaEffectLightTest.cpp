@@ -382,9 +382,15 @@ TEST(SkiaEffect, EmitStacksLightsOfTheLayerAndKeepsItWhereTheyAreDark) {
   for (size_t i = 0; i < layer.size(); ++i) ASSERT_EQ(unlit[i], layer[i]) << i;
 }
 
-TEST(SkiaEffect, EmitOfStaticSidesComparesByItsFilter) {
-  // Static sides blend once into one filter, which compares by identity.
+TEST(SkiaEffect, AStaticChainComparesByItsSides) {
+  // Static sides blend once into one filter, and the chain compares by the
+  // sides it was built from, so one described again is equal.
   const auto lit = Filter().emit(Filter::blur(2));
   EXPECT_TRUE(lit == lit);
-  EXPECT_FALSE(lit == Filter().emit(Filter::blur(2)));
+  EXPECT_TRUE(lit == Filter().emit(Filter::blur(2)));
+  EXPECT_FALSE(lit == Filter().emit(Filter::blur(3)));
+  EXPECT_FALSE(lit == Filter().emit(Filter::blur(2), BlendMode::Multiply));
+  const auto chained = Filter::brightPass().then(Filter::blur(4));
+  EXPECT_TRUE(chained == Filter::brightPass().then(Filter::blur(4)));
+  EXPECT_FALSE(chained == Filter::brightPass().then(Filter::blur(5)));
 }

@@ -44,7 +44,7 @@ Effect& Effect::slot(std::string name, Paint source) {
   if (m_parametricBlur) {
     if (name != "sigma") {
       SkDebugf(
-          "[material] skia::Effect::slot(\"%s\") on a blur() — its one slot "
+          "[material] Filter::slot(\"%s\") on a Filter::blur(map, …) — its one slot "
           "is \"sigma\", the map; ignored\n",
           name.c_str());
       return *this;
@@ -52,22 +52,21 @@ Effect& Effect::slot(std::string name, Paint source) {
   } else if (m_effect) {
     if (name == "content") {
       SkDebugf(
-          "[material] skia::Effect::slot(\"content\"): ignored — \"content\" "
+          "[material] Filter::slot(\"content\"): ignored — \"content\" "
           "is the node's own rendered layer, filled by the library\n");
       return *this;
     }
     if (!detail::declaresShaderChild(m_effect, name)) {
       SkDebugf(
-          "[material] skia::Effect::slot: \"%s\" is not declared by the "
-          "effect "
-          "as `uniform shader` — ignored\n",
+          "[material] Filter::slot: \"%s\" is not declared by the "
+          "program as `uniform shader` — ignored\n",
           name.c_str());
       return *this;
     }
   } else {
     SkDebugf(
-        "[material] skia::Effect::slot(\"%s\"): ignored — this effect has no "
-        "slots to fill (only shader() and blur() do)\n",
+        "[material] Filter::slot(\"%s\"): ignored — this filter has no "
+        "slots to fill (only a program and Filter::blur(map, …) do)\n",
         name.c_str());
     return *this;
   }
@@ -117,7 +116,7 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
     // The recipe's named parameters — anything else warns and is ignored.
     if (name != "sigma" && name != "angle" && name != "across") {
       SkDebugf(
-          "[material] skia::Effect::bind(\"%s\") on a directionalBlur() — "
+          "[material] Filter::bind(\"%s\") on a Filter::directionalBlur() — "
           "not one of \"sigma\"/\"angle\"/\"across\"; ignored\n",
           name.c_str());
       return *this;
@@ -128,7 +127,7 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
   if (m_parametricBlur) {
     if (name != "maxSigma") {
       SkDebugf(
-          "[material] skia::Effect::bind(\"%s\") on a blur() — its one "
+          "[material] Filter::bind(\"%s\") on a Filter::blur(map, …) — its one "
           "parameter is \"maxSigma\" (the MAP is slot(\"sigma\", "
           "Paint)); ignored\n",
           name.c_str());
@@ -144,16 +143,17 @@ Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
     // that still marked the node live would cost a repaint every frame
     // forever, for a value nothing reads.
     if (!detail::declaresUniform(m_effect, name, sizeof(float))) {
-      warnUndeclaredEffectUniform("uniform", name);
+      warnUndeclaredEffectUniform("Filter::bind", name);
       return *this;
     }
     putByName(m_bound, std::move(name), std::move(value));
     return *this;
   }
   SkDebugf(
-      "[material] skia::Effect::bind(\"%s\"): ignored — this effect has no "
-      "uniform to receive it (only shader(), directionalBlur() and "
-      "blur() do; a filter() wraps an already-built SkImageFilter)\n",
+      "[material] Filter::bind(\"%s\"): ignored — this filter has no "
+      "parameter to receive it (only a program, Filter::directionalBlur() "
+      "and Filter::blur(map, …) do; skia::filter() wraps an already-built "
+      "image filter)\n",
       name.c_str());
   return *this;
 }
@@ -162,20 +162,21 @@ namespace {
 /** The gate every constant-uniform door on Effect shares: only a shader()
  *  effect has named declarations to fill, and a name it does not declare
  *  at the value's size warns once and is ignored — Material's rule. */
-bool effectTakesConstant(const sk_sp<SkRuntimeEffect>& effect,
+bool effectTakesConstant(const char* door,
+                         const sk_sp<SkRuntimeEffect>& effect,
                          const std::string& name, size_t bytes,
                          bool otherKind) {
   if (otherKind || !effect) {
     SkDebugf(
-        "[material] skia::Effect::set(\"%s\"): ignored — only a "
-        "shader() effect has named declarations to fill (directionalBlur "
-        "and blur take their parameters at construction or as bound "
-        "Outputs)\n",
-        name.c_str());
+        "[material] %s(\"%s\"): ignored — only a program "
+        "filter has named declarations to fill (Filter::directionalBlur "
+        "and Filter::blur take their parameters at construction or bound "
+        "with Filter::bind)\n",
+        door, name.c_str());
     return false;
   }
   if (!detail::declaresUniform(effect, name, bytes)) {
-    warnUndeclaredEffectUniform("uniform", name);
+    warnUndeclaredEffectUniform(door, name);
     return false;
   }
   return true;
@@ -183,7 +184,7 @@ bool effectTakesConstant(const sk_sp<SkRuntimeEffect>& effect,
 }  // namespace
 
 Effect& Effect::set(std::string name, float value) {
-  if (!effectTakesConstant(m_effect, name, sizeof(float),
+  if (!effectTakesConstant("Filter::set", m_effect, name, sizeof(float),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms, std::move(name), value);
@@ -192,7 +193,7 @@ Effect& Effect::set(std::string name, float value) {
 }
 
 Effect& Effect::set(std::string name, std::array<float, 2> value) {
-  if (!effectTakesConstant(m_effect, name, 2 * sizeof(float),
+  if (!effectTakesConstant("Filter::set", m_effect, name, 2 * sizeof(float),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms2, std::move(name), value);
@@ -201,7 +202,7 @@ Effect& Effect::set(std::string name, std::array<float, 2> value) {
 }
 
 Effect& Effect::set(std::string name, std::array<float, 4> value) {
-  if (!effectTakesConstant(m_effect, name, 4 * sizeof(float),
+  if (!effectTakesConstant("Filter::set", m_effect, name, 4 * sizeof(float),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniforms4, std::move(name), value);
@@ -212,7 +213,7 @@ Effect& Effect::set(std::string name, std::array<float, 4> value) {
 Effect& Effect::set(std::string name, std::vector<float> values) {
   // An array validates by TOTAL float count — all the builder checks, and
   // the builder refuses a partial write, so the count must be exact.
-  if (!effectTakesConstant(m_effect, name, values.size() * sizeof(float),
+  if (!effectTakesConstant("Filter::set", m_effect, name, values.size() * sizeof(float),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   putByName(m_uniformArrays, std::move(name), std::move(values));
@@ -224,12 +225,12 @@ Effect& Effect::bind(std::string name,
                         std::shared_ptr<const UniformBlock> block) {
   if (!block) {
     SkDebugf(
-        "[material] skia::Effect::bind(\"%s\", block): null UniformBlock — "
+        "[material] Filter::bind(\"%s\", block): null UniformBlock — "
         "there is nothing to read at paint time; ignored\n",
         name.c_str());
     return *this;
   }
-  if (!effectTakesConstant(m_effect, name, block->size() * sizeof(float),
+  if (!effectTakesConstant("Filter::bind", m_effect, name, block->size() * sizeof(float),
                            m_directionalBlur || m_parametricBlur))
     return *this;
   // A rejected block is not recorded, so it declares no volatility —
