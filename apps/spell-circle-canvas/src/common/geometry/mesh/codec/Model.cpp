@@ -187,7 +187,7 @@ std::optional<Model> model(const std::filesystem::path& file) {
   // Resource ACCESS is SigilIO's; what the bytes MEAN is this library's.
   const std::optional<io::Bytes> read = io::readBytes(file);
   if (!read) return std::nullopt;
-  const std::vector<std::byte>& bytes = read->bytes;
+  const std::span<const std::byte> bytes = read->span();
   const std::filesystem::path dir = file.parent_path();
   const Resolver siblings =
       [dir =
@@ -195,7 +195,7 @@ std::optional<Model> model(const std::filesystem::path& file) {
     std::optional<io::Bytes> beside =
         io::readBytes(dir / std::filesystem::path(std::string(uri)));
     if (!beside) return std::nullopt;
-    return std::move(beside->bytes);
+    return std::vector<std::byte>(beside->begin(), beside->end());
   };
   return model(bytes.data(), bytes.size(), file.filename().string(), siblings);
 }
