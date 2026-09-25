@@ -36,7 +36,7 @@ struct ShaderGuest {
     ctx.canvas(40, 30);
     ctx.background({0, 0, 0, 1});
     ctx.composer.render(sigil::compose::box().width(40).height(30).fill(
-        sigil::material::skia::Paint::sksl(
+        sigil::material::skia::sksl(
             ctx.assets.shader(ctx.local("fill.sksl")))));
   }
 };

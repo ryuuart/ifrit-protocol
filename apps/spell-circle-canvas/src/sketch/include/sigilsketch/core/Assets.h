@@ -90,7 +90,7 @@ class Assets {
   /** THE SHADER AT @p name — an `.sksl` file holding one SkSL shader
    *  program, `half4 main(float2 xy)` and the uniforms and child shaders
    *  it declares — compiled into the runtime effect every paint seam
-   *  takes: `material::skia::Paint::sksl`, `material::skia::Effect::shader`
+   *  takes: `material::Paint::sksl`, `material::skia::Effect::shader`
    *  and a pen's own shader builder. Cached and recompiled by the hub when
    *  the file changes, so an edit to it re-runs setup without a rebuild,
    *  and one file compiles into one effect however often it is asked for.
