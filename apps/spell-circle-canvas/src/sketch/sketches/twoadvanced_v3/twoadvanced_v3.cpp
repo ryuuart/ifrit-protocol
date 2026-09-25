@@ -4,6 +4,7 @@
 // TAGS: Interfaces/Web
 
 #include "TwoAdvancedV3.h"
+#include <sigilmotion/ease/Ease.h>
 
 Element TwoAdvancedV3::describe() {
   using namespace tv3;
@@ -30,7 +31,7 @@ Element TwoAdvancedV3::describe() {
     ground.fill(mskia::Paint::linearUnit(
         {0, 0}, {1, 1}, {{0.0f, hexColor(0x22304A)}, {1.0f, kPage}}));
   ground.opacity(
-      animate(motion::from(0.0f).to(1.0f), {380ms, &ch::easeOutQuad, 2250ms}));
+      animate(motion::from(0.0f).to(1.0f), {380ms, motion::ease::outQuad, 2250ms}));
   page.children({ground});
 
   Element mods = at(box().row().gap(10), kStageX, kModY, kStageW, kModH);
@@ -41,7 +42,7 @@ Element TwoAdvancedV3::describe() {
        at(box().fill(sigil::material::withAlpha(hexColor(0x26314A), 0.9f)),
           kStageX, kModY + kModH + 2, kStageW, 8)
            .opacity(animate(motion::from(0.0f).to(1.0f),
-                            {320ms, &ch::easeOutQuad, 2650ms}))});
+                            {320ms, motion::ease::outQuad, 2650ms}))});
 
   Element row = at(box().row().gap(10), kStageX, kRowY, kStageW, kRowH);
   row.children({mailingList(), support2a(), follow2a()});

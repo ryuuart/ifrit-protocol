@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Settings.h"
+#include <sigilmotion/ease/Ease.h>
 
 struct GenesisFire {
   /** The host is capturing for a diff, so a figure this study took off
@@ -329,7 +330,7 @@ struct GenesisFire {
    *  as `animate(from(0).to(1), {duration, delay})`, in a loop that has
    *  the clock in its hand. */
   static float cue(double ms, float delayMs, float durationMs,
-                   const ch::EaseFn& ease = nullptr) {
+                   const sigil::motion::Easing& ease = nullptr) {
     const float u = std::clamp(
         (float)((ms - (double)delayMs) / (double)durationMs), 0.0f, 1.0f);
     return ease ? ease(u) : u;

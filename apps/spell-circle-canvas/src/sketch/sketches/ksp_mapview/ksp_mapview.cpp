@@ -38,6 +38,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -254,7 +255,7 @@ struct KspMapView {
     return box().inset(0).font({.size = 8.5f, .track = 1.3f}).children(
         {each(map["trajectories"].items(), crossing),
          box().inset(0).shape(vessel).stroke(
-             spans::upTo(animate(from(0.0f).to(1.0f), {900ms, ch::easeOutQuad})),
+             spans::upTo(animate(from(0.0f).to(1.0f), {900ms, sigil::motion::ease::outQuad})),
              brush::presets::filament(withAlpha(kOrbit, 0.30f),
                                       hexColor(0xDCF7F5), 0.26f)),
          along(map["vessel"]["label"], vessel,

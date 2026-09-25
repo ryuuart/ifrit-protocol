@@ -30,6 +30,7 @@
 // TAGS: Patterns/Tiling
 
 #include <choreograph/Easing.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
@@ -231,9 +232,9 @@ Element roundel(std::string key, SkPoint at, float radius, Shape outline,
                     .centerAt(at)
                     .cache(Cache::Texture)
                     .opacity(animate(from(0.0f).to(1.0f),
-                                     {320ms, &ch::easeOutQuad, delay}))
+                                     {320ms, sigil::motion::ease::outQuad, delay}))
                     .scale(animate(from(1.07f).to(1.0f),
-                                   {560ms, &ch::easeOutCubic, delay}));
+                                   {560ms, sigil::motion::ease::outCubic, delay}));
   set.children({box().cover().shape(outline).fill(std::move(disc)).foreground(
       stroke(kFillet, cut(marble, 70), PathFormat::Align::Inner))});
   for (Piece& piece : pieces)
@@ -361,7 +362,7 @@ struct Cosmati {
         .cover()
         .key("matrix")
         .cache(Cache::Texture)
-        .opacity(animate(from(0.0f).to(1.0f), {500ms, &ch::easeOutQuad}))
+        .opacity(animate(from(0.0f).to(1.0f), {500ms, sigil::motion::ease::outQuad}))
         .fill(cut(stone.purbeck, 28, 0, 0.14f, 260))
         .children({fillet(0), fillet(kLetterStrip), fillet(kBorder)});
   }
@@ -443,7 +444,7 @@ struct Cosmati {
                        .key("fields")
                        .cache(Cache::Texture)
                        .opacity(animate(from(0.0f).to(1.0f),
-                                        {800ms, &ch::easeOutQuad,
+                                        {800ms, sigil::motion::ease::outQuad,
                                          std::chrono::milliseconds{(int)(kFieldsAt * 1000)}}))
                        .children({field(turned, stone.marble)});
     for (size_t index = 0; index < corners.size(); ++index) {
@@ -650,7 +651,7 @@ struct Cosmati {
              .rotate(14.0f)
              .translateX(bind(&seconds)
                              .source(kLightPhase, kLightPhase + kLightPeriod)
-                             .wave(&ch::easeNone)
+                             .wave(sigil::motion::ease::linear)
                              .target(0, kSide + 600))
              .fill(linearGradient({0, 0}, {300, 0},
                                   {material::withAlpha(kDaylight, 0), material::withAlpha(kDaylight, 0.09f),

@@ -1,4 +1,5 @@
 #include "WinampBase.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto WinampBase::tracks() -> const std::array<Track, 25>& {
   static const std::array<Track, 25> v = {{
@@ -165,7 +166,7 @@ auto WinampBase::mainWindow() -> Element {
                                                  {370ms, 1.0f},
                                                  {420ms, 1.0f},
                                                  {430ms, 0.0f}}),
-                                &ch::easeNone)),
+                                motion::ease::linear)),
            // volume / balance, and the EQ+PL toggles
            at(box(), 107, 57, 108, 13).children({slot("sliders")}),
            eqPlToggle(),
@@ -271,12 +272,12 @@ auto WinampBase::transportRow() -> Element {
                .blendMode(SkBlendMode::kPlus)
                .translateX(
                    animate(motion::through({{600ms, n(10)}, {750ms, n(162)}}),
-                           &ch::easeNone))
+                           motion::ease::linear))
                .opacity(animate(motion::through({{590ms, 0.0f},
                                                  {600ms, 1.0f},
                                                  {735ms, 1.0f},
                                                  {750ms, 0.0f}}),
-                                &ch::easeNone))});
+                                motion::ease::linear))});
 }
 
 auto WinampBase::sliders(int vol, int bal) -> Element {

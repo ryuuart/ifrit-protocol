@@ -1,6 +1,7 @@
 // The page shell, navigation and boot sequence.
 
 #include "TwoAdvancedV3.h"
+#include <sigilmotion/ease/Ease.h>
 
 Element TwoAdvancedV3::moduleBar(const Utf8& glyph, const Utf8& label,
                                  float w) {
@@ -72,7 +73,7 @@ Element TwoAdvancedV3::bevelBar() {
                 {{0.0f, hexColor(0x98A3BA)}, {1.0f, hexColor(0x66738F)}})),
             kStageX, 0, kStageW, 8)
       .translateY(animate(motion::from(-10.0f).to(0.0f),
-                          {300ms, &ch::easeOutQuint, 1450ms}));
+                          {300ms, motion::ease::outQuint, 1450ms}));
 }
 
 Element TwoAdvancedV3::headerStrip() {
@@ -93,9 +94,9 @@ Element TwoAdvancedV3::headerStrip() {
   }
   return strip
       .translateY(animate(motion::from(-84.0f).to(0.0f),
-                          {380ms, &ch::easeOutQuint, 1500ms}))
+                          {380ms, motion::ease::outQuint, 1500ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {280ms, &ch::easeOutQuad, 1500ms}));
+                       {280ms, motion::ease::outQuad, 1500ms}));
 }
 
 Element TwoAdvancedV3::wordmark() {
@@ -142,9 +143,9 @@ Element TwoAdvancedV3::wordmark() {
                box().flexGrow(1)});
   return panel
       .translateY(animate(motion::from(-60.0f).to(0.0f),
-                          {420ms, &ch::easeOutQuint, 1600ms}))
+                          {420ms, motion::ease::outQuint, 1600ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, &ch::easeOutQuad, 1600ms}));
+                       {300ms, motion::ease::outQuad, 1600ms}));
 }
 
 Element TwoAdvancedV3::navBar() {
@@ -183,9 +184,9 @@ Element TwoAdvancedV3::navBar() {
        slot("navtabs")});
   return bar
       .translateY(animate(motion::from(-40.0f).to(0.0f),
-                          {380ms, &ch::easeOutQuint, 1750ms}))
+                          {380ms, motion::ease::outQuint, 1750ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {280ms, &ch::easeOutQuad, 1750ms}));
+                       {280ms, motion::ease::outQuad, 1750ms}));
 }
 
 Element TwoAdvancedV3::navTabs(int active) {
@@ -230,7 +231,7 @@ Element TwoAdvancedV3::hairlines() {
                                     .opacity(0.55f)})}),
             kStageX, 210, kStageW, 7)
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {280ms, &ch::easeOutQuad, 1800ms}));
+                       {280ms, motion::ease::outQuad, 1800ms}));
 }
 
 Element TwoAdvancedV3::scrollStrip() {
@@ -259,7 +260,7 @@ Element TwoAdvancedV3::scrollStrip() {
                              180))}),
             kStageX, 617, kStageW, 16)
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, &ch::easeOutQuad, 2200ms}));
+                       {300ms, motion::ease::outQuad, 2200ms}));
 }
 
 Element TwoAdvancedV3::footerRail() {
@@ -293,7 +294,7 @@ Element TwoAdvancedV3::footerRail() {
                      box().width(12).height(12).borderRadius({6}).fill(kHost)}),
             kStageX, 1045, kStageW, 20)
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {320ms, &ch::easeOutQuad, 2900ms}));
+                       {320ms, motion::ease::outQuad, 2900ms}));
 }
 
 Element TwoAdvancedV3::bootOverlay() {

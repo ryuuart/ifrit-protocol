@@ -1,4 +1,5 @@
 #include "SlitScan2001.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
   using namespace slit;
@@ -35,8 +36,8 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
       .stroke(stroke(1.0f, Fill::color(kRule)))
       .overflow(Overflow::Clip)
       .key(kit::formatted("panel%d", order))
-      .opacity(animate(from(0.0f).to(1.0f), {300ms, ch::easeOutQuad}))
-      .translateX(animate(from(14.0f).to(0.0f), {300ms, ch::easeOutQuad}))
+      .opacity(animate(from(0.0f).to(1.0f), {300ms, sigil::motion::ease::outQuad}))
+      .translateX(animate(from(14.0f).to(0.0f), {300ms, sigil::motion::ease::outQuad}))
       .children({document::h2(std::string(said["heading"].text()))
                      .font({.face = uiFace(), .size = 9.5f, .track = 2.2f}),
                  rule(390, kRule)});
@@ -104,7 +105,7 @@ auto SlitScan2001::s3Law() -> Element {
                         [](float s) { return SkPoint{s, s}; }, 0.0f, 1.0f, 240,
                         false))
                     .stroke(spans::upTo(animate(
-                                to(1.0f), {520ms, ch::easeOutCubic, 1500ms})),
+                                to(1.0f), {520ms, sigil::motion::ease::outCubic, 1500ms})),
                             stroke(1.6f, Fill::color(kAmber))),
                 pen([this](Pen& p2) { drawMeasuredPoints(p2); }).inset(4)}),
        slot("fit").height(21).flexShrink(0)});

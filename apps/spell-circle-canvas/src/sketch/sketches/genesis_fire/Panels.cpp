@@ -1,6 +1,7 @@
 // The explanatory panels and particle census.
 
 #include "GenesisFire.h"
+#include <sigilmotion/ease/Ease.h>
 
 Element GenesisFire::generationPanel() {
   const sigil::data::Json& law = doc()["generation"];
@@ -173,7 +174,7 @@ Element GenesisFire::header() {
              .stagger = {.eachMs = 26, .durationMs = 460},
              .progress = animate(
                  from(0.0f).to(1.0f),
-                 {.duration = 850ms, .ease = &ch::easeNone, .delay = 120ms})};
+                 {.duration = 850ms, .ease = sigil::motion::ease::linear, .delay = 120ms})};
   // The masthead is set in the interface face and steel; the title alone
   // takes the black cut and the bone.
   const sigil::data::Json& head = doc()["header"];

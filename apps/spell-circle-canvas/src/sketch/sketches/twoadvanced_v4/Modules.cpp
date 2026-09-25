@@ -1,4 +1,5 @@
 #include "TwoAdvancedV4.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto TwoAdvancedV4::specPair(const sigil::data::Json& spec) -> Element {
   using namespace tav;
@@ -149,9 +150,9 @@ auto TwoAdvancedV4::featureSystem() -> Element {
   panel.key("feature")
       .gridArea("feature")
       .translateX(animate(motion::from(90.0f).to(0.0f),
-                          {500ms, &ch::easeOutQuint, 2600ms}))
+                          {500ms, motion::ease::outQuint, 2600ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, &ch::easeOutQuad, 2600ms}))
+                       {300ms, motion::ease::outQuad, 2600ms}))
       .children({panelHeader("FEATURE", " SYSTEM", "LATEST TRANSMISSION", 1),
                  bodyArea});
   return panel;
@@ -247,9 +248,9 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
   panel.key("press")
       .gridArea("press")
       .translateY(animate(motion::from(60.0f).to(0.0f),
-                          {420ms, &ch::easeOutQuint, 3250ms}))
+                          {420ms, motion::ease::outQuint, 3250ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, &ch::easeOutQuad, 3250ms}))
+                       {300ms, motion::ease::outQuad, 3250ms}))
       .children({panelHeader("PRESS", " UPDATES", "STUDIO WIRE", 2), bodyArea});
   return panel;
 }
@@ -377,9 +378,9 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   panel.key("aux")
       .gridArea("aux")
       .translateY(animate(motion::from(56.0f).to(0.0f),
-                          {400ms, &ch::easeOutQuint, 3100ms}))
+                          {400ms, motion::ease::outQuint, 3100ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, &ch::easeOutQuad, 3100ms}))
+                       {300ms, motion::ease::outQuad, 3100ms}))
       .children({panelHeader("AUXILIARY", " PANEL",
                              "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 3),
                  box()
@@ -486,7 +487,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
       .background(
           styles::Overlay{hazard.material(), SkBlendMode::kSrcOver, 0.16f})
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {400ms, &ch::easeOutQuad, 3650ms}))
+                       {400ms, motion::ease::outQuad, 3650ms}))
       .foreground(styles::TickRail{sigil::material::withAlpha(kDust, 0.35f), 9,
                                    4, 8, 1, 4, 0.5f, path::Edge::Top})
       .children(

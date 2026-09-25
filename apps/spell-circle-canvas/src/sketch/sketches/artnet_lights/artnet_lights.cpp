@@ -46,6 +46,7 @@
 // TAGS: Data/Sources, Runtime/Resources
 
 #include <choreograph/Choreograph.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -340,7 +341,7 @@ struct ArtNetLights {
 
   void fade(ch::Output<float>* value, float to) {
     ticker->timeline().apply(value).then<ch::RampTo>(to, kFade,
-                                                     &ch::easeOutQuad);
+                                                     motion::ease::outQuad);
   }
 
   /** WHAT A BAND IS LIT IN THIS INSTANT: the wash at the band's own

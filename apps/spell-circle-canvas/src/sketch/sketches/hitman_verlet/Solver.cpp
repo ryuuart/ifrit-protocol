@@ -1,4 +1,5 @@
 #include "HitmanVerlet.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto HitmanVerlet::verlet(Body& b, SkPoint gravityStep) -> void {
   for (size_t i = 0; i < b.count(); ++i) {
@@ -195,7 +196,7 @@ auto HitmanVerlet::stepPhysics() -> void {
   if (!wantDrag) dragging = false;
   if (dragging) {
     const float u = std::clamp((float)((loopT - 6.20) / 3.20), 0.0f, 1.0f);
-    const float e = ch::easeInOutCubic(u);
+    const float e = sigil::motion::ease::inOutCubic(u);
     const SkPoint to{120.0f, 30.0f};
     dragTarget = dragFrom + (to - dragFrom) * e;
   }

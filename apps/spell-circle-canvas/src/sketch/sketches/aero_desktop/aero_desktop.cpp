@@ -41,6 +41,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -167,7 +168,7 @@ struct AeroDesktop {
         .apply(&bloom)
         .then<ch::Hold>(0.0f, 0.45f)
         // Aero's hover bloom came up fast, over roughly a tenth of a second.
-        .then<ch::RampTo>(1.0f, 0.10f, &ch::easeOutQuad);
+        .then<ch::RampTo>(1.0f, 0.10f, motion::ease::outQuad);
 
     ticker.add([this, &ticker] {
       const double t = ticker.elapsed();

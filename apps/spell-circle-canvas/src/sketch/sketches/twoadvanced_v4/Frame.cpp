@@ -1,4 +1,5 @@
 #include "TwoAdvancedV4.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto TwoAdvancedV4::panelHeader(const char* boldHalf, const char* restHalf,
                                 const char* flavor, int cluster) -> Element {
@@ -82,9 +83,9 @@ auto TwoAdvancedV4::navBar() -> Element {
             .column()
             .gap(3)
             .translateY(animate(motion::from(16.0f).to(0.0f),
-                                {240ms, &ch::easeOutQuint, 2250ms}))
+                                {240ms, motion::ease::outQuint, 2250ms}))
             .opacity(animate(motion::from(0.0f).to(1.0f),
-                             {240ms, &ch::easeOutQuad, 2250ms}))
+                             {240ms, motion::ease::outQuad, 2250ms}))
             .children({t(name, label(13, kNear, 80)),
                        box().width(8).height(2).fill(
                            sigil::material::withAlpha(kDust, 0.6f))});
@@ -139,9 +140,9 @@ auto TwoAdvancedV4::masthead() -> Element {
       .gridArea("masthead")
       .column()
       .translateX(animate(motion::from(320.0f).to(0.0f),
-                          {420ms, &ch::easeOutQuint, 1850ms}))
+                          {420ms, motion::ease::outQuint, 1850ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, &ch::easeOutQuad, 1850ms}))
+                       {300ms, motion::ease::outQuad, 1850ms}))
       .children(
           {box()
                .flexGrow(1)
@@ -225,7 +226,7 @@ auto TwoAdvancedV4::legalStrip() -> Element {
       .key("legal")
       .gridArea("legal")
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {400ms, &ch::easeOutQuad, 3750ms}))
+                       {400ms, motion::ease::outQuad, 3750ms}))
       .children(
           {box()
                .alignSelf(Align::Stretch)
@@ -316,7 +317,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
         .key("dock")
         .gridArea("dock")
         .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {400ms, &ch::easeOutQuad, 3850ms}))
+                         {400ms, motion::ease::outQuad, 3850ms}))
         .foreground(onEdges(path::Edge::Top, stroke(2, Fill::color(kD5),
                                                     PathFormat::Align::Inner)));
   }
@@ -335,7 +336,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
           .key("dock")
           .gridArea("dock")
           .opacity(animate(motion::from(0.0f).to(1.0f),
-                           {400ms, &ch::easeOutQuad, 3850ms}))
+                           {400ms, motion::ease::outQuad, 3850ms}))
           .foreground(
               onEdges(path::Edge::Top,
                       stroke(2, Fill::color(kD5), PathFormat::Align::Inner)));
@@ -499,7 +500,7 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
         box()
             .shape(ray(dx, dy))
             .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f),
-                                        {400ms, &ch::easeOutQuint,
+                                        {400ms, motion::ease::outQuint,
                                          std::chrono::milliseconds(delayMs)})),
                     stroke(1.5f, Fill::color(kCyan))),
         x, y, w, h);
@@ -522,7 +523,7 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
        at(box()
               .shape(shapes::arc(-90, 359))
               .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f),
-                                          {500ms, &ch::easeOutQuint, 260ms})),
+                                          {500ms, motion::ease::outQuint, 260ms})),
                       stroke(1, Fill::color(
                                     sigil::material::withAlpha(kCyan, 0.7f)))),
           cx - 92, cy - 92, 184, 184),
@@ -539,7 +540,7 @@ auto TwoAdvancedV4::bootOverlay() -> Element {
                     .fill(sigil::material::withAlpha(kCyan, 0.18f))
                     .children({box().inset(0).shape(ray(1, 1)).stroke(
                         spans::upTo(animate(motion::from(0.0f).to(1.0f),
-                                            {800ms, &ch::easeNone, 550ms})),
+                                            {800ms, motion::ease::linear, 550ms})),
                         stroke(2, Fill::color(kCyan)))}),
                 t("LOADING PROPHECY INTERFACE · 970×655",
                   micro(11, sigil::material::withAlpha(kCyan, 0.6f), 240))}),

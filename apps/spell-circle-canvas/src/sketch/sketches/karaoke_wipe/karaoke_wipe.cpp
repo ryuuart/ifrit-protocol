@@ -131,6 +131,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
@@ -384,7 +385,7 @@ TextEffect catchEffect() {
        {kFlareOpens, {.dy = -kCatchLift * 0.8f}},
        {kArrived, {.dy = -kCatchLift, .colorMultiplier = kFlare}},
        {1.0f, {}}},
-      &choreograph::easeOutQuad);
+      motion::ease::outQuad);
 }
 
 /** THE RULER'S PLACE under a letter: the letter's foot, and the drop below
@@ -586,7 +587,7 @@ struct KaraokeWipe {
     // is held, word by word from the left: it is next.
     Text next = text(song.next).role("lyric").styleClass("next").textFx(
         {.effect = textFx::keys({{0.0f, {}}, {1.0f, {.colorScreen = kCueLight}}},
-                                &choreograph::easeInOutQuad),
+                                motion::ease::inOutQuad),
          .stagger = {.eachMs = 70, .durationMs = 320},
          .unit = weave::Unit::Word,
          .progress = motion::bind(&cycle).window(

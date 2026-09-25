@@ -4,6 +4,7 @@
 // TAGS: Drawing/Generative, Motion/Particles
 
 #include "GenesisFire.h"
+#include <sigilmotion/ease/Ease.h>
 
 void GenesisFire::setup(sketch::SketchContext& ctx) {
   // 4.6 s into the 10 s loop: the wavefront is near the right edge, the
@@ -145,7 +146,7 @@ void GenesisFire::draw(Pen& pen) {
   // the bezel
   pen.noFill();
   pen.stroke(
-      hexColor(0x242A36, cue(pen.millis(), 260, 520, &ch::easeOutCubic)));
+      hexColor(0x242A36, cue(pen.millis(), 260, 520, sigil::motion::ease::outCubic)));
   pen.strokeWeight(1.5f);
   pen.rect(kStageX + 0.75f, kBodyY + 0.75f, kStageW - 1.5f, kStageH - 1.5f);
   pen.noStroke();

@@ -13,6 +13,7 @@
 #include <sigilmaterial/color/Color.h>
 
 #include "DefenseLayout.h"
+#include <sigilmotion/ease/Ease.h>
 
 struct EvaMagiDefense {
   ch::Output<float> flicker{0.0f};  // phosphor dip (alpha of a black plane)
@@ -477,7 +478,7 @@ struct EvaMagiDefense {
                      0.0f, 1.0f);
       for (int i = 0; i < kFallN; ++i)
         fallAlpha[i] =
-            kFallRest + (1.0f - kFallRest) * ch::easeOutQuad(falls.localTime(
+            kFallRest + (1.0f - kFallRest) * motion::ease::outQuad(falls.localTime(
                                                  master, (uint32_t)i, 0));
     });
 
@@ -490,7 +491,7 @@ struct EvaMagiDefense {
     // `elapsed`, in whole pixels, negative as the field climbs the plate.
     const double sweep = (elapsed - 3.0) / 14.0;
     const double k = sweep <= 0 ? 0.0 : (sweep >= 1 ? 1.0 : sweep);
-    const double eased = choreograph::easeInOutQuad((float)k);
+    const double eased = motion::ease::inOutQuad((float)k);
     front = -(float)(std::round(eased * eva::kFrontTravel * eva::kH /
                                 eva::kFrontStep) *
                      eva::kFrontStep);

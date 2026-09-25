@@ -33,6 +33,7 @@
 #include <string>
 
 #include "Joinery.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace kumiko {
 
@@ -137,7 +138,7 @@ inline Element explodedCell(float size, TimberBank& bank,
   const auto beat = [&](float delay) {
     return motion::bind(seconds)
         .window(kDrawingAt + delay, kDrawingAt + delay + kDrawingFor)
-        .map(choreograph::easeOutCubic);
+        .map(motion::ease::outCubic);
   };
   const auto point = [](vec2 at) { return SkPoint{at.x, at.y}; };
   const auto exploded = [&](const Piece& piece, float explode) {

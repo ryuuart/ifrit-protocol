@@ -143,6 +143,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -418,7 +419,7 @@ struct VertigoTitles {
              .blendMode(SkBlendMode::kColor)
              .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
                                .to(Fill::color(hexColor(0xC81E2C))),
-                           ramp(700, 500, ch::easeInQuad)))});
+                           ramp(700, 500, sigil::motion::ease::inQuad)))});
 
     for (int i = 0; i < 4; ++i) spiralCard(panel, i);
 
@@ -552,7 +553,7 @@ struct VertigoTitles {
              .borderRadius({10})
              .fill(Fill::none())
              .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                         ramp(260, 480, ch::easeOutCubic))),
+                                         ramp(260, 480, sigil::motion::ease::outCubic))),
                      stroke(2.0f, Fill::color(kKeyline),
                             PathFormat::Align::Inner))});
     return panel;
@@ -700,7 +701,7 @@ struct VertigoTitles {
                                                   .durationMs = 420},
                                       .progress = animate(
                                           from(0.0f).to(1.0f),
-                                          ramp(140, 900, ch::easeOutExpo))}},
+                                          ramp(140, 900, sigil::motion::ease::outExpo))}},
                 .subtitle = {.words = "Saul Bass, title design — John "
                                       "Whitney, spirals — Paramount, "
                                       "dir. Alfred Hitchcock",
@@ -719,7 +720,7 @@ struct VertigoTitles {
              .fill(Fill::color(kKeyline))
              .transformOrigin(pct(0), pct(50))
              .scale(animate(from(0.0f).to(1.0f),
-                            ramp(200, 620, ch::easeOutCubic))),
+                            ramp(200, 620, sigil::motion::ease::outCubic))),
          // ---- body -----------------------------------------------------
          box().row().gap(32).height(kPanelH).children(
              {screenPanel(),

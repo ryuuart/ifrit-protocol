@@ -1,6 +1,7 @@
 // The planet, star field and layered stage artwork.
 
 #include "GenesisFire.h"
+#include <sigilmotion/ease/Ease.h>
 
 void GenesisFire::seedStars() {
   starAtlas = std::make_shared<instancing::CellSheet>(2.0f);
@@ -160,7 +161,7 @@ Element GenesisFire::regolith() {
           animate(from(0.0f).to(1.0f), {.duration = 520ms, .delay = 420ms}))
       .translateY(animate(
           from(12.0f).to(0.0f),
-          {.duration = 520ms, .ease = &ch::easeOutCubic, .delay = 420ms}))
+          {.duration = 520ms, .ease = sigil::motion::ease::outCubic, .delay = 420ms}))
       // Duff's local light. ONE Output (loopU) shaped into px.
       .children(
           {kit::disc(SkPoint{0, 0}, 132)
@@ -204,7 +205,7 @@ Element GenesisFire::shockwave() {
                   .blendMode(SkBlendMode::kPlus)
                   .scale(bind(&loopU)
                              .map([](float v) {
-                               return choreograph::easeOutCubic(
+                               return sigil::motion::ease::outCubic(
                                    std::clamp(v * 10.0f / 1.1f, 0.0f, 1.0f));
                              })
                              .clamp(0.001f, 1.0f))

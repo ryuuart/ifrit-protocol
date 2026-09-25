@@ -676,7 +676,7 @@ ctx.ticker.add([this, t = 0.0](double dt) mutable {
 list.translateY(bind(&clock)
                     .source(0, 14.0f)
                     .trapezoid(3 / 14.f, 8 / 14.f, 9 / 14.f, 13 / 14.f)
-                    .map(ch::easeInOutQuad)
+                    .map(motion::ease::inOutQuad)
                     .target(0, -overflow));
 
 // one second lit out of every eight, starting at 2 s: a pulse, folded on

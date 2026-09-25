@@ -40,6 +40,7 @@
 // TAGS: Data/Sources, Runtime/Resources
 
 #include <choreograph/Choreograph.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -243,7 +244,7 @@ struct FeedEvents {
   void blow(const data::Json& message) {
     if (!ticker) return;
     ticker->timeline().apply(&wind).then<ch::RampTo>(
-        (float)message["value"].number(), kWindEase, &ch::easeOutQuad);
+        (float)message["value"].number(), kWindEase, motion::ease::outQuad);
   }
 
   /** AN EVENT: the gust is over, and what is left of it is a wave
@@ -258,7 +259,7 @@ struct FeedEvents {
     ticker->timeline()
         .apply(&wave.travel)
         .then<ch::RampTo>(1.0f, (float)message["seconds"].number(kWaveFall),
-                          &ch::easeOutQuad);
+                          motion::ease::outQuad);
   }
 
   /** STATE: the colours the bands are tinted from. A message carrying

@@ -3,6 +3,7 @@
 // TAGS: Interfaces/Game
 
 #include "Hud.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace {
 
@@ -506,7 +507,7 @@ struct WorldHud {
         .top(96)
         .zIndex(6)
         .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {360ms, &choreograph::easeOutQuad, 220ms}))
+                         {360ms, motion::ease::outQuad, 220ms}))
         .children(
             {text("CAVE TROLL").font(wh::line(15, 1.6f, 640)),
              text("Lv 27")

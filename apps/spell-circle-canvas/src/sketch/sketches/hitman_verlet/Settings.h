@@ -18,6 +18,7 @@
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/physics/Constraints.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/physics/Points.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -51,7 +52,6 @@ using namespace std::chrono_literals;
 using sigil::draw::Pen;
 using sigil::material::skia::Paint;
 namespace draw = sigil::draw;
-namespace ch = choreograph;
 namespace physics = sigil::motion::physics;
 
 namespace hitman_verlet {}
@@ -201,7 +201,7 @@ inline void penUi(Pen& pen, float size, material::Color c, float track = 0.0f) {
  *  `animate(from(0).to(1), {duration, delay})`, in a loop that has the
  *  clock in its hand. */
 inline float cue(double ms, float delayMs, float durationMs,
-                 const ch::EaseFn& ease = nullptr) {
+                 const sigil::motion::Easing& ease = nullptr) {
   const float u = std::clamp(
       (float)((ms - (double)delayMs) / (double)durationMs), 0.0f, 1.0f);
   return ease ? ease(u) : u;

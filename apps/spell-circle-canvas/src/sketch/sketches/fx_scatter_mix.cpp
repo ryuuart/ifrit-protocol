@@ -41,6 +41,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -91,7 +92,7 @@ Element figure(float width, const char* key, Track track) {
 /** The one spread every cell starts from — the origin and the
  *  distribution are the only fields the cells change. */
 motion::Spread ladder(motion::Spread::From from,
-                      choreograph::EaseFn distribution = nullptr) {
+                      motion::Easing distribution = nullptr) {
   return motion::Spread{.eachMs = kEach,
                         .durationMs = kDuration,
                         .from = from,

@@ -48,6 +48,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -576,10 +577,10 @@ struct Flourish {
     }
 
     ticker.timeline().apply(&reveal).then<ch::RampTo>(1.0f, 2.4f,
-                                                      &ch::easeOutQuint);
+                                                      motion::ease::outQuint);
     ticker.timeline()
         .apply(&titleDrop)
-        .then<ch::RampTo>(0.0f, 1.0f, &ch::easeOutQuint);
+        .then<ch::RampTo>(0.0f, 1.0f, motion::ease::outQuint);
     ticker.timeline().apply(&titleFade).then<ch::RampTo>(1.0f, 1.2f);
     ticker.timeline().apply(&flare).then<ch::RampTo>(1.0f, 1.3f);
 
@@ -606,7 +607,7 @@ struct Flourish {
     if (sceneTicker) {
       flare = 1.0f;
       sceneTicker->timeline().apply(&flare).then<ch::RampTo>(0.55f, 1.1f,
-                                                             &ch::easeOutQuint);
+                                                             motion::ease::outQuint);
     }
     composer.render(describe());
   }

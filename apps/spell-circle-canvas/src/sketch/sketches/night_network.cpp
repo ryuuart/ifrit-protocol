@@ -64,6 +64,7 @@
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -212,7 +213,7 @@ struct NightNetwork {
       r = 0.0f;  // scenes re-activate: reveals re-zero here
       tl.apply(&r)
           .then<ch::Hold>(0.0f, delay)
-          .then<ch::RampTo>(1.0f, 1.0f, &ch::easeInOutQuad);
+          .then<ch::RampTo>(1.0f, 1.0f, motion::ease::inOutQuad);
     };
     drawOn(emberReveal, 0.10f);
     drawOn(roadReveal, 0.25f);

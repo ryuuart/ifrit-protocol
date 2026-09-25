@@ -1,4 +1,5 @@
 #include "TwoAdvancedV4.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto TwoAdvancedV4::cityBlock(sigil::geometry::mesh::Mesh& out, glm::vec3 lo,
                               glm::vec3 hi, glm::vec4 tint) -> void {
@@ -215,7 +216,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
          cx - 118, horizon - 226, 236, 236);
   if (!still)
     ring.mask(by::spans(spans::upTo(animate(
-        motion::from(0.0f).to(1.0f), {700ms, &ch::easeOutQuint, 2600ms}))));
+        motion::from(0.0f).to(1.0f), {700ms, motion::ease::outQuint, 2600ms}))));
   scene.children({ring});
 
   // water: streaks + a mirrored, blurred copy of the portal glow
@@ -383,9 +384,9 @@ auto TwoAdvancedV4::mainframe() -> Element {
   panel.key("mainframe")
       .gridArea("mainframe")
       .translateY(animate(motion::from(70.0f).to(0.0f),
-                          {520ms, &ch::easeOutQuint, 2400ms}))
+                          {520ms, motion::ease::outQuint, 2400ms}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {300ms, &ch::easeOutQuad, 2400ms}))
+                       {300ms, motion::ease::outQuad, 2400ms}))
       .children({panelHeader("MAIN", "FRAME",
                              "SENT BACK IN TIME TO HELP SHAPE A NEW PATH", 0),
                  body});

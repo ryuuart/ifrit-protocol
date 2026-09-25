@@ -24,6 +24,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
@@ -197,7 +198,7 @@ struct Bg3DiceRoll {
   Element d20Figure() const {
     const float settling = (float)std::clamp(seconds / kStill, 0.0, 1.0);
     const d20::View view =
-        die.seen(1 - choreograph::easeOutQuint(settling), kCentre, kDie);
+        die.seen(1 - sigil::motion::ease::outQuint(settling), kCentre, kDie);
     return box()
         .inset(0)
         .transformOrigin(Dimension(kCentre.x), Dimension(kCentre.y))
@@ -305,8 +306,8 @@ struct Bg3DiceRoll {
         .alignItems(Align::Center)
         .gap(16)
         .height(50)
-        .opacity(animate(from(0.0f).to(1.0f), {260ms, choreograph::easeOutQuad}))
-        .translateX(animate(from(18.0f).to(0.0f), {300ms, choreograph::easeOutQuad}))
+        .opacity(animate(from(0.0f).to(1.0f), {260ms, sigil::motion::ease::outQuad}))
+        .translateX(animate(from(18.0f).to(0.0f), {300ms, sigil::motion::ease::outQuad}))
         .children({
             box().column().flexGrow().gap(2).children({
                 text(bonus.name).styleClass("bonus"),
@@ -362,7 +363,7 @@ struct Bg3DiceRoll {
                                          .styleClass("verdict")
                                          .opacity(animate(
                                              from(0.0f).to(1.0f),
-                                             {380ms, choreograph::easeOutQuad}))
+                                             {380ms, sigil::motion::ease::outQuad}))
                                    : box()}),
         });
   }

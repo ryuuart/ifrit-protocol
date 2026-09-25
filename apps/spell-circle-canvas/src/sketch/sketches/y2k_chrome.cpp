@@ -53,6 +53,7 @@
 #include <cmath>
 #include <string>
 #include <string_view>
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -328,7 +329,6 @@ struct Y2kChrome {
 
   Element describe() {
     namespace yc = y2k_chrome;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
 
     // ---- period page ground: gray + subtle woven checker -----------------
@@ -409,7 +409,7 @@ struct Y2kChrome {
         box()
             .key("wordmark")
             .translateY(animate(motion::from(14.0f).to(0.0f),
-                                {550ms, &ch::easeOutQuint}))
+                                {550ms, motion::ease::outQuint}))
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
             .children(
                 {plate,
@@ -462,7 +462,7 @@ struct Y2kChrome {
             .margin(18, 0, 0, 0)
             .key("pills")
             .translateY(animate(motion::from(12.0f).to(0.0f),
-                                {550ms, &ch::easeOutQuint}))
+                                {550ms, motion::ease::outQuint}))
             .opacity(animate(motion::from(0.0f).to(1.0f), {400ms}))
             .children({yc::gelPill("ENTER  PORTAL", hexColor(0x1E8FFF)),
                        yc::gelPill("HOT  LINKS", hexColor(0xE03A3A)),

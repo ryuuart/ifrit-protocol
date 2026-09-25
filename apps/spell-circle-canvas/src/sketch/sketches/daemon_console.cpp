@@ -82,6 +82,7 @@
 #include <format>
 #include <random>
 #include <string>
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -513,7 +514,7 @@ struct DaemonConsole {
         // A trace merely surfaces: one quiet fade, no cascade.
         leaf.textFx({.effect = textFx::keys({{0.0f, {.alpha = 0}}, {1.0f, {}}}),
                      .progress = animate(motion::from(0.0f).to(1.0f),
-                                         {180ms, &choreograph::easeNone})});
+                                         {180ms, motion::ease::linear})});
         break;
       case dc::kFlux:
         // A warning rises glyph by glyph — more insistent than type-on,
@@ -521,7 +522,7 @@ struct DaemonConsole {
         leaf.textFx({.effect = textFx::rise(6),
                      .stagger = {.eachMs = 4, .durationMs = 120},
                      .progress = animate(motion::from(0.0f).to(1.0f),
-                                         {300ms, &choreograph::easeNone})});
+                                         {300ms, motion::ease::linear})});
         break;
       case dc::kBreach:
         // A breach does not type: the whole line slams in at once, wide and
@@ -544,14 +545,14 @@ struct DaemonConsole {
                    {.colorScreen = {0.4f, 0.28f, 0.22f, 0}, .scaleX = 0.97f}},
                   {1.0f, {}}}),
              .progress = animate(motion::from(0.0f).to(1.0f),
-                                 {240ms, &choreograph::easeOutQuad})});
+                                 {240ms, motion::ease::outQuad})});
         break;
       default:
         // Info and seals type on — the terminal's own voice.
         leaf.textFx({.effect = textFx::typeOn(),
                      .stagger = {.eachMs = 6, .durationMs = 40},
                      .progress = animate(motion::from(0.0f).to(1.0f),
-                                         {320ms, &choreograph::easeNone})});
+                                         {320ms, motion::ease::linear})});
         break;
     }
     if (!r.cipher.empty())
@@ -564,7 +565,7 @@ struct DaemonConsole {
            .stagger = {.eachMs = 30, .durationMs = 340},
            .unit = weave::Unit::Cluster,
            .progress = animate(motion::from(0.0f).to(1.0f),
-                               {750ms, &choreograph::easeNone})});
+                               {750ms, motion::ease::linear})});
 
     Element row =
         box()

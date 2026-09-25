@@ -63,6 +63,7 @@
 #include <cstdio>
 #include <string>
 #include <utility>
+#include <sigilmotion/ease/Ease.h>
 
 namespace arrange = sigil::geometry::arrange;
 namespace material = sigil::material;
@@ -245,7 +246,6 @@ struct GerstnerGrid {
   /** The configuration: n column bands, each entering on a stagger. */
   Element columns() {
     namespace g = gerstner;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
     const g::Config& c = g::kConfigs[config];
     const float colW = c.width * g::kUnit;
@@ -263,9 +263,9 @@ struct GerstnerGrid {
               .key("col" + std::to_string(i))
               .rect(SkRect::MakeXYWH(x, 0, colW, g::kFieldH))
               .opacity(animate(motion::from(0.0f).to(1.0f),
-                               {320ms, &ch::easeOutQuad}))
+                               {320ms, motion::ease::outQuad}))
               .translateY(animate(motion::from(9.0f).to(0.0f),
-                                  {420ms, &ch::easeOutQuint}))
+                                  {420ms, motion::ease::outQuint}))
               .fill(Fill::color({g::kRed.r, g::kRed.g, g::kRed.b, 0.045f}))
               // The field's foot is the page's foot: the copy that does not
               // fit is cut there, as it is in a magazine.
@@ -331,7 +331,6 @@ struct GerstnerGrid {
   /** The arithmetic, printed where a caption goes. */
   Element arithmetic() {
     namespace g = gerstner;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
     const g::Config& c = g::kConfigs[config];
     Element row =

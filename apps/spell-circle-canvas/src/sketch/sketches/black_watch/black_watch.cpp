@@ -14,6 +14,7 @@
 // TAGS: Patterns/Tiling
 
 #include <choreograph/Easing.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
@@ -33,7 +34,6 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
-#include <sigilmotion/bind/Curve.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -118,7 +118,7 @@ float beaten(float weave) {
   const float scaled = std::max(weave, 0.0f) * kBeats;
   const float inch = std::floor(scaled);
   const float stroke = std::clamp((scaled - inch - kThrow) / (1 - kThrow), 0.0f, 1.0f);
-  return (inch + choreograph::easeOutCubic(stroke)) / kBeats;
+  return (inch + sigil::motion::ease::outCubic(stroke)) / kBeats;
 }
 
 /** Where the shuttle is across the shed: out and back on alternate

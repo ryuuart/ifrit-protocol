@@ -1,4 +1,5 @@
 #include "HitmanVerlet.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto HitmanVerlet::codeLine(const sigil::data::Json& listed,
                             sigil::material::Color c) -> Element {
@@ -88,7 +89,7 @@ auto HitmanVerlet::panelA3() -> Element {
                     {.pen = {.width = 1.4f, .dashIntervals = {3.5f, 3.0f}},
                      .along = spans::upTo(
                          animate(to(1.0f), {.duration = 520ms,
-                                            .ease = ch::easeOutCubic,
+                                            .ease = sigil::motion::ease::outCubic,
                                             .delay = 1400ms})),
                      .styleClass = "exact"}),
                 sketch::kit::trace(
@@ -96,7 +97,7 @@ auto HitmanVerlet::panelA3() -> Element {
                     {.pen = {.width = 1.8f},
                      .along = spans::upTo(
                          animate(to(1.0f), {.duration = 520ms,
-                                            .ease = ch::easeOutCubic,
+                                            .ease = sigil::motion::ease::outCubic,
                                             .delay = 1400ms})),
                      .styleClass = "approx"}),
                 sketch::kit::label("s_exact", 0.52, 0.33,
@@ -277,7 +278,7 @@ auto HitmanVerlet::header() -> Element {
   Track rise{.effect = textFx::rise(22.0f),
              .stagger = {.eachMs = 24, .durationMs = 440},
              .progress = animate(from(0.0f).to(1.0f), {.duration = 1100ms,
-                                                       .ease = ch::easeOutQuad,
+                                                       .ease = sigil::motion::ease::outQuad,
                                                        .delay = 120ms})};
   const sigil::data::Json& head = doc()["header"];
   return box().column().height(kHeaderH).flexShrink(0).gap(3).children(

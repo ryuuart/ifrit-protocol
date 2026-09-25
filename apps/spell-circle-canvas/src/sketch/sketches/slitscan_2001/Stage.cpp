@@ -1,10 +1,11 @@
 #include "SlitScan2001.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto SlitScan2001::header() -> Element {
   using namespace slit;
   Track rise{.effect = textFx::rise(18.0f),
              .stagger = {.eachMs = 22},
-             .progress = animate(to(1.0f), {440ms, ch::easeOutExpo, 120ms})};
+             .progress = animate(to(1.0f), {440ms, sigil::motion::ease::outExpo, 120ms})};
   // The masthead is set in the interface face; the title alone takes
   // the bold cut.
   return box()
@@ -16,9 +17,9 @@ auto SlitScan2001::header() -> Element {
           {document::eyebrow("TIME AS AN AXIS OF THE IMAGE")
                .font({.size = 10, .color = kType2, .track = 2.6f})
                .key("eyebrow")
-               .opacity(animate(from(0.0f).to(1.0f), {260ms, ch::easeOutQuad}))
+               .opacity(animate(from(0.0f).to(1.0f), {260ms, sigil::motion::ease::outQuad}))
                .translateY(
-                   animate(from(8.0f).to(0.0f), {260ms, ch::easeOutQuad})),
+                   animate(from(8.0f).to(0.0f), {260ms, sigil::motion::ease::outQuad})),
            document::h1("THE SLIT-SCAN MACHINE, 1966–68")
                .font({.face = uiBoldFace(),
                       .size = 40,
@@ -34,7 +35,7 @@ auto SlitScan2001::header() -> Element {
                .width(690)
                .key("cite")
                .opacity(animate(from(0.0f).to(1.0f),
-                                {240ms, ch::easeOutQuad, 400ms}))});
+                                {240ms, sigil::motion::ease::outQuad, 400ms}))});
 }
 
 auto SlitScan2001::filmFrame() -> Element {
@@ -116,7 +117,7 @@ auto SlitScan2001::filmFrame() -> Element {
       .stroke(stroke(1.0f, Fill::color(kRule)))
       .key("film")
       .mask(by::edge(
-          0.0f, animate(from(0.0f).to(1.0f), {520ms, ch::easeOutCubic, 240ms})))
+          0.0f, animate(from(0.0f).to(1.0f), {520ms, sigil::motion::ease::outCubic, 240ms})))
       .children(
           {std::move(accumulation), std::move(vanishing), std::move(halation)})
       // The shutter bar -- the ONLY thing in the plate driven by

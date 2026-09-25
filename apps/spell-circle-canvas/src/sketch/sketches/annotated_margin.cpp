@@ -48,6 +48,7 @@
 
 #include <string>
 #include <vector>
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -128,7 +129,6 @@ struct AnnotatedMargin {
 
   Element describe(sketch::SketchContext& ctx) {
     namespace m = margin;
-    namespace ch = choreograph;
     const Composer& composer = ctx.composer;
 
     // The text's voice is the page's; every note names its own. Every
@@ -183,7 +183,7 @@ struct AnnotatedMargin {
                           .progress = animate(
                               motion::from(0.0f).to(1.0f),
                               {std::chrono::milliseconds((int)m::kRollSpan),
-                               &ch::easeNone, 200ms})}),
+                               motion::ease::linear, 200ms})}),
              // ── The label under every word of the opening phrase
              kit::annotate(composer, "passage", weave::selectors::words(0, 6),
                            weave::Unit::Word,

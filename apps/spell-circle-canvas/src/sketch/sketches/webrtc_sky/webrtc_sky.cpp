@@ -52,6 +52,7 @@
 // TAGS: Data/Sources, Runtime/Resources
 
 #include <choreograph/Choreograph.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -359,7 +360,7 @@ struct WebRtcSky {
     if (!ticker) return;
     gust = (float)message["strength"].number(kGustStrength);
     ticker->timeline().apply(&gust).then<ch::RampTo>(
-        0.0f, (float)message["seconds"].number(kGustFall), &ch::easeOutQuad);
+        0.0f, (float)message["seconds"].number(kGustFall), motion::ease::outQuad);
   }
 
   /** THE SKY AS ONE MESSAGE: what the wall is drawing, in the wall's own

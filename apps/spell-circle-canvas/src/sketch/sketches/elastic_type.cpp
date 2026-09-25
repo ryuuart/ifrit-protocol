@@ -112,7 +112,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/bind/Bound.h>
-#include <sigilmotion/bind/Curve.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
@@ -168,7 +168,7 @@ using Table = std::vector<textFx::Key>;
 
 /** CSS's default `animation-timing-function`, `ease`. A keyframe list that
  *  names no timing function is crossed with it one segment at a time. */
-choreograph::EaseFn cssEase() {
+motion::Easing cssEase() {
   return motion::ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f);
 }
 

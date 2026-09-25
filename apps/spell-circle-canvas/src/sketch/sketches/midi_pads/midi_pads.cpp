@@ -42,6 +42,7 @@
 // TAGS: Data/Sources, Runtime/Resources
 
 #include <choreograph/Choreograph.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -302,7 +303,7 @@ struct MidiPads {
         std::clamp((float)message["velocity"].number() / 127.0f, 0.0f, 1.0f);
     ticker->timeline()
         .apply(&cell.glow)
-        .then<ch::RampTo>(cell.strike, kStrike, &ch::easeOutQuad);
+        .then<ch::RampTo>(cell.strike, kStrike, motion::ease::outQuad);
   }
 
   /** THE PAD CAME UP, and the cell falls away over kFade. A keyboard
@@ -313,7 +314,7 @@ struct MidiPads {
     Cell& cell = cells[cellOf((int)message["note"].number())];
     ticker->timeline()
         .apply(&cell.glow)
-        .then<ch::RampTo>(0.0f, kFade, &ch::easeInQuad);
+        .then<ch::RampTo>(0.0f, kFade, motion::ease::inQuad);
   }
 
   /** STATE: the knob stands where it stands, and the sky eases to it.
@@ -327,7 +328,7 @@ struct MidiPads {
     // The knob runs either side of still air, because a sky that only
     // drifts one way is a knob with half its travel wasted.
     ticker->timeline().apply(&wind).then<ch::RampTo>(
-        (across * 2.0f - 1.0f) * kWindSpan, kWindEase, &ch::easeOutQuad);
+        (across * 2.0f - 1.0f) * kWindSpan, kWindEase, motion::ease::outQuad);
   }
 
   /** THE LIGHTS, AND THE DIFFERENCE ALONE. An LED follows the scene, so

@@ -17,6 +17,7 @@
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Time.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
@@ -54,7 +55,7 @@ struct KumikoAsanoha {
   motion::Bound lit() const {
     return motion::bind(&seconds)
         .window(kLampAt, kLampAt + kLampFor)
-        .map(choreograph::easeOutCubic);
+        .map(motion::ease::outCubic);
   }
 
   /** The flame once it is lit: up on the lamp's beat, then breathing on a
@@ -64,7 +65,7 @@ struct KumikoAsanoha {
     return motion::bind(&seconds)
         .window(kLampAt, kPeriod)
         .trapezoid(0, kLampFor / (kPeriod - kLampAt), 1, 1)
-        .map(choreograph::easeOutCubic)
+        .map(motion::ease::outCubic)
         .scale(0.75f)
         .wiggle(0.25f, 4.5f, 11, 2, 0.45f)
         .clamp(0, 1);
@@ -102,7 +103,7 @@ struct KumikoAsanoha {
     Element group = box().inset(0).opacity(
         motion::bind(&seconds)
             .window(kSeatAt, kSeatAt + kSeatFor)
-            .map(choreograph::easeOutCubic));
+            .map(motion::ease::outCubic));
     group.children(
         {pathFigure(panel.lapShadows, 2)
              .stroke(stroke(1.5f, Fill::color(kLapShadowInk))),
@@ -234,7 +235,7 @@ struct KumikoAsanoha {
         .rect(kOpening.makeOutset(1.5f, 1.5f))
         .stroke(spans::upTo(motion::bind(&seconds)
                                 .window(kFrameAt, kFrameAt + kFrameFor + 0.35f)
-                                .map(choreograph::easeOutCubic)),
+                                .map(motion::ease::outCubic)),
                 PathFormat{.width = 2.2f,
                            .strokeFill = Fill::color(hexColor(0xC79A57, 0.60f)),
                            .align = PathFormat::Align::Center});

@@ -1,4 +1,5 @@
 #include "TwoAdvancedV4.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto TwoAdvancedV4::available(std::string* why) -> bool {
   return sketch::requireCached(
@@ -62,7 +63,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                      .gap(8),
                  kTealBar)
           .translateY(animate(motion::from(-46.0f).to(0.0f),
-                              {380ms, &ch::easeOutQuint, 1450ms}))
+                              {380ms, motion::ease::outQuint, 1450ms}))
           .children(
               {kit::centred()
                    .width(22)
@@ -107,7 +108,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                      .gap(10),
                  kChrome)
           .translateY(animate(motion::from(-46.0f).to(0.0f),
-                              {380ms, &ch::easeOutQuint, 1530ms}))
+                              {380ms, motion::ease::outQuint, 1530ms}))
           .children(
               {t("› GLOBAL NAVIGATOR", micro(11, kDust, 260)),
                box().flexGrow(1),

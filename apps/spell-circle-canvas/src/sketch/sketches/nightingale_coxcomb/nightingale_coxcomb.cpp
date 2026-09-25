@@ -65,6 +65,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -97,7 +98,6 @@ using namespace sigil::motion;
 using namespace sigil::weave::literals;
 using namespace std::chrono_literals;
 using sigil::material::skia::Paint;
-namespace ch = choreograph;
 
 namespace {
 
@@ -379,13 +379,13 @@ struct NightingaleCoxcomb {
       return Track{.effect = textFx::typeOn(),
                    .stagger = {.eachMs = 0, .amountMs = spanMs, .durationMs = 40},
                    .progress = animate(from(0.0f).to(1.0f),
-                                       ramp(startMs, durationMs, ch::easeNone))};
+                                       ramp(startMs, durationMs, sigil::motion::ease::linear))};
     };
     const auto arrive = [](float startMs) {
       return animate(from(0.0f).to(1.0f), ramp(startMs, 320));
     };
     const auto ruled = [](float startMs) {
-      return animate(from(0.0f).to(1.0f), ramp(startMs, 420, ch::easeOutQuint));
+      return animate(from(0.0f).to(1.0f), ramp(startMs, 420, sigil::motion::ease::outQuint));
     };
     const auto numbered = [&](const Diagram& diagram, const char* number,
                               const char* caption, float startMs) {
@@ -462,7 +462,7 @@ struct NightingaleCoxcomb {
           (diagram.wedges + diagram.wedgeStep * (float)wedge.month) * 1000.0f;
       return std::move(shape)
           .scale(animate(from(0.002f).to(1.0f),
-                         ramp(delay, 620.0f, ch::easeOutExpo)))
+                         ramp(delay, 620.0f, sigil::motion::ease::outExpo)))
           .cache(Cache::Texture);
     };
     std::vector<sketch::kit::Datum> data;
@@ -535,7 +535,7 @@ struct NightingaleCoxcomb {
                                          {at(passes - halfWidth), 0.0f},
                                          {at(passes), 1.0f},
                                          {at(passes + halfWidth), 0.0f}}),
-                                ch::easeNone))});
+                                sigil::motion::ease::linear))});
     }
     reading.children(
         {box()
@@ -548,13 +548,13 @@ struct NightingaleCoxcomb {
              .background(shadow(colour("brass-glow"), {0, 0}, 9))
              .transformOrigin(pct(50), pct(50))
              .rotate(animate(through({{0ms, 0.0f}, {at(start), 0.0f}, {at(end), 360.0f}}),
-                             ch::easeNone))
+                             sigil::motion::ease::linear))
              .opacity(animate(through({{0ms, 0.0f},
                                        {at(start), 0.0f},
                                        {at(start + 0.15f), 1.0f},
                                        {at(end), 1.0f},
                                        {at(end + 0.45f), 0.0f}}),
-                              ch::easeNone))});
+                              sigil::motion::ease::linear))});
     return reading;
   }
 
@@ -652,7 +652,7 @@ struct NightingaleCoxcomb {
                        {knee.x(), knee.y()},
                        {yearEnds.x(), yearEnds.y()}}})))
         .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
-                                    ramp(6000, 620, ch::easeOutQuad))),
+                                    ramp(6000, 620, sigil::motion::ease::outQuad))),
                 dashed);
   }
 
@@ -677,7 +677,7 @@ struct NightingaleCoxcomb {
                  .unit = weave::Unit::Line,
                  .innerUnit = weave::Unit::Cluster,
                  .progress = animate(from(0.0f).to(1.0f),
-                                     ramp(6400, pen.spanMs(12, 70), ch::easeNone))});
+                                     ramp(6400, pen.spanMs(12, 70), sigil::motion::ease::linear))});
   }
 
   // ------------------------------------------------------------------

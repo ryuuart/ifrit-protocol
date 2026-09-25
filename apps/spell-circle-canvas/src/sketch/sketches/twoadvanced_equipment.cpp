@@ -61,6 +61,7 @@
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Scrollbar.h>
@@ -202,7 +203,7 @@ struct TwoAdvancedEquipment {
         .source(0.0f, kScrollCycle)
         .trapezoid(kScrollRise / kScrollCycle, kScrollHold / kScrollCycle,
                    kScrollFall / kScrollCycle, kScrollRest / kScrollCycle)
-        .map(ch::easeInOutQuad);
+        .map(motion::ease::inOutQuad);
   }
 
   /** WHAT THE CONTENT FRAME SCROLLS, which is what the thumb's length and

@@ -3,6 +3,7 @@
 // TAGS: Interfaces/Desktop
 
 #include "WinampBase.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto WinampBase::describe() -> Element {
   using namespace wa;
@@ -27,7 +28,7 @@ auto WinampBase::describe() -> Element {
          Element w = std::move(d.window).left(60).top(d.top).opacity(animate(
              motion::through(
                  {{0ms, 0.0f}, {ms(d.atMs - 1), 0.0f}, {ms(d.atMs), 1.0f}}),
-             &ch::easeNone));
+             motion::ease::linear));
          if (i == 0)
            return w.transformOrigin(pct(50), pct(50))
                .scale(animate(motion::from(0.9f).to(1.0f),

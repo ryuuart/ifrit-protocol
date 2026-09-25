@@ -54,6 +54,7 @@
 #include <utility>
 
 #include "tategaki/VerticalSpecimen.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -175,7 +176,6 @@ struct Bousen {
 
   Element describe() {
     namespace bs = bousen;
-    namespace ch = choreograph;
 
     Fill ground =
         linearGradient({0, 0}, {0, bs::kH}, {bs::kKinariLift, bs::kKinari});
@@ -307,7 +307,7 @@ struct Bousen {
                           .progress = animate(motion::from(0.0f).to(1.0f),
                                               {std::chrono::milliseconds((
                                                    int)bs::kColumnEntranceSpan),
-                                               &ch::easeNone, 220ms})}),
+                                               motion::ease::linear, 220ms})}),
              document::caption("One column per beat.\n"
                                "The sideline remains fixed while the "
                                "letters arrive.")

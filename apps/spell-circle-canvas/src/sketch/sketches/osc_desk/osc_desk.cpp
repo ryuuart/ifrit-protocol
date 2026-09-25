@@ -46,6 +46,7 @@
 // TAGS: Data/Sources, Runtime/Resources
 
 #include <choreograph/Choreograph.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -247,7 +248,7 @@ struct OscDesk {
     if (desk.reply("/sky/state", data::Json::Array{(double)wind()})) ++replies;
     if (!ticker) return;
     ticker->timeline().apply(&wind).then<ch::RampTo>(
-        (float)message["arguments"][0].number(), kWindEase, &ch::easeOutQuad);
+        (float)message["arguments"][0].number(), kWindEase, motion::ease::outQuad);
   }
 
   /** A GUST IS AN EVENT: it rises to the strength the desk asked for
@@ -261,8 +262,8 @@ struct OscDesk {
     const float falls = (float)message["arguments"][1].number(kGustFall);
     ticker->timeline()
         .apply(&gust)
-        .then<ch::RampTo>(strength, kGustRise, &ch::easeOutQuad)
-        .then<ch::RampTo>(0.0f, std::max(falls, kGustRise), &ch::easeInQuad);
+        .then<ch::RampTo>(strength, kGustRise, motion::ease::outQuad)
+        .then<ch::RampTo>(0.0f, std::max(falls, kGustRise), motion::ease::inQuad);
   }
 
   /** NINE FLOATS ARE THREE COLOURS. Where one colour stops and the next

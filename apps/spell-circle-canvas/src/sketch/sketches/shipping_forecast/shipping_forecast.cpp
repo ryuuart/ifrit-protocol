@@ -62,6 +62,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
@@ -276,7 +277,7 @@ struct ShippingForecast {
     return motion::bind(&cycle)
         .source(0, kLoop)
         .trapezoid(0.04f / kLoop, 0.42f / kLoop, 12.6f / kLoop, 14.2f / kLoop)
-        .map(&choreograph::easeInOutQuad);
+        .map(motion::ease::inOutQuad);
   }
 
   /** WHEN THE READING HAND REACHES @p bearing: at one pace from the first
@@ -421,7 +422,7 @@ struct ShippingForecast {
                                   material::withAlpha(kAmber, 0)}))
             .scale(motion::bind(&cycle)
                        .window(reached, reached + 1.4f)
-                       .map(&choreograph::easeOutCubic))
+                       .map(motion::ease::outCubic))
             .opacity(motion::bind(&seconds)
                          .source(0, kBreathPeriod)
                          .cosine()
@@ -512,7 +513,7 @@ struct ShippingForecast {
     const auto drift = [&](float span) {
       return motion::bind(&cycle)
           .window(kLowFrom, kLowTo)
-          .map(&choreograph::easeInOutSine)
+          .map(motion::ease::inOutSine)
           .target(0, span);
     };
     const auto isobar = [](SkPoint centre, float across, float tilt, bool bold) {

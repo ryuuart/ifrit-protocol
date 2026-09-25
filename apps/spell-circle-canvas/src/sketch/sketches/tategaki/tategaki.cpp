@@ -47,6 +47,7 @@
 #include <sigilweave/query/Selector.h>
 
 #include "VerticalSpecimen.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -111,7 +112,6 @@ struct Tategaki {
 
   Element describe() {
     namespace tg = tategaki;
-    namespace ch = choreograph;
 
     Fill ground =
         linearGradient({0, 0}, {0, tg::kH}, {tg::kSumiLift, tg::kSumi});
@@ -167,7 +167,7 @@ struct Tategaki {
                           .progress = animate(
                               motion::from(0.0f).to(1.0f),
                               {std::chrono::milliseconds((int)tg::kSettleSpan),
-                               &ch::easeNone, 180ms})}),
+                               motion::ease::linear, 180ms})}),
              box()
                  .absolute()
                  .inset(88, 0, 0, 64)

@@ -55,6 +55,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <sigilmotion/ease/Ease.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -169,7 +170,7 @@ struct Beethoven {
         bp::kRingBaseMs << (unsigned)std::min(ring, 5));
     e.mask(by::spans(spans::upTo(
         animate(motion::from(0.0001f).to(span),
-                {duration, &choreograph::easeNone, bp::kRevealDelay}))));
+                {duration, motion::ease::linear, bp::kRevealDelay}))));
     return e;
   }
 

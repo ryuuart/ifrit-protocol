@@ -51,6 +51,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -125,7 +126,7 @@ float frontSpread(float sound, int front) {
 }
 template <int Front>
 float frontReach(float sound) {
-  return choreograph::easeOutCubic(frontSpread(sound, Front));
+  return sigil::motion::ease::outCubic(frontSpread(sound, Front));
 }
 template <int Front>
 float frontLoudness(float sound) {
@@ -137,7 +138,7 @@ float frontLoudness(float sound) {
  *  inked by a gradient across its width that is clear at both edges, so
  *  it never reads as a second rim ruled beside the first. */
 struct Front {
-  choreograph::EaseFn reach, loudness;
+  sigil::motion::Easing reach, loudness;
   float width, peak;
 };
 const std::array<Front, 2> kFronts{
@@ -282,7 +283,7 @@ struct ChladniTab1 {
               .stroke(
                   spans::upTo(animate(from(0.0f).to(1.0f),
                                       ramp(kFrameAt * 1000 + (float)line * 90,
-                                           880, choreograph::easeOutQuint))),
+                                           880, sigil::motion::ease::outQuint))),
                   stroke(weight, Fill::var("ink-line")));
         }));
   }
@@ -395,7 +396,7 @@ struct ChladniTab1 {
                 .stroke(
                     spans::upTo(animate(from(0.0f).to(1.0f),
                                         ramp(kRimAt * 1000 + (float)index * 26,
-                                             620, choreograph::easeOutQuad))),
+                                             620, sigil::motion::ease::outQuad))),
                     stroke(1.5f, Fill::var("ink-line"))),
             drawing(index),
             kit::disc(middle(), radius + kSandMargin)
@@ -443,7 +444,7 @@ struct ChladniTab1 {
                                letter.bearing, radius * letter.radius))
                            .opacity(settled(index, 0.84f, 0.99f))
                            .translateY(settled(index, 0.84f, 0.99f)
-                                           .map(choreograph::easeOutQuad)
+                                           .map(sigil::motion::ease::outQuad)
                                            .invert()
                                            .target(0, 7));
                      })),
@@ -478,7 +479,7 @@ struct ChladniTab1 {
                     .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 60},
                     .progress = animate(
                         from(0.0f).to(1.0f),
-                        ramp(kTitleAt * 1000, 620, choreograph::easeNone))})
+                        ramp(kTitleAt * 1000, 620, sigil::motion::ease::linear))})
                 .centerAt(at(title)),
         })
         .children(each(
@@ -505,7 +506,7 @@ struct ChladniTab1 {
    *  the bow first reaches its disc, and after it has landed only the
    *  figure the round is bowing moves. */
   void stepSand(float seconds) {
-    static const choreograph::EaseFn bounce = ease::outBounce();
+    static const sigil::motion::Easing bounce = ease::outBounce();
     if (gathering && seconds >= allLanded) {
       // One last step lands every grain exactly on its line.
       for (Sand& grains : sand) {

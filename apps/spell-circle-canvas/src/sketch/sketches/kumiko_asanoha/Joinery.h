@@ -9,6 +9,7 @@
  */
 
 #include <choreograph/Easing.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
@@ -20,7 +21,6 @@
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Curve.h>
 
 #include <algorithm>
 #include <cmath>
@@ -557,12 +557,12 @@ inline Element pieceElement(const Piece& piece, TimberBank& bank,
     element
         .opacity(motion::bind(seconds)
                      .window(from, until)
-                     .map(choreograph::easeOutCubic)
+                     .map(motion::ease::outCubic)
                      .scale(1.35f)
                      .clamp(0, 1))
         .scale(motion::bind(seconds)
                    .window(from, until)
-                   .map(choreograph::easeOutCubic)
+                   .map(motion::ease::outCubic)
                    .target(0.8f, 1));
   }
   return element;

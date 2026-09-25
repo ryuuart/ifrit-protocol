@@ -58,6 +58,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Spring.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -261,7 +262,6 @@ struct PersonaMenu {
     cursorFlight = {40.0f, 0.0f};
 
     ticker.add([this, &ticker](double dt) {
-      namespace ch = choreograph;
       const double t = ticker.elapsed();
       // The caustics step time at 6 Hz rather than running smoothly. This
       // is not an optimization — the stepping IS the texture, and a
@@ -271,7 +271,7 @@ struct PersonaMenu {
       const double ph = std::fmod(t, 0.6);
       float s = 1.0f;
       if (ph < 0.1)
-        s = 1.0f + 0.05f * ch::easeOutQuad((float)(ph / 0.1));
+        s = 1.0f + 0.05f * motion::ease::outQuad((float)(ph / 0.1));
       else if (ph < 0.15)
         s = 1.05f - 0.05f * (float)((ph - 0.1) / 0.05);
       wedgePulse = s;
@@ -375,7 +375,6 @@ struct PersonaMenu {
    *  ladder, entering with the fade + -30px drop. */
   Element plainRow(int i) {
     namespace nn = persona_menu;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
     const nn::Row& r = nn::kRows[i];
     // The sigma-3.5 glow re-blurs on every picture replay, and the wedge
@@ -391,9 +390,9 @@ struct PersonaMenu {
         .rotate(r.rot)
         .zIndex(r.z)
         .translateY(
-            animate(motion::from(-30.0f).to(0.0f), {400ms, &ch::easeOutQuint}))
+            animate(motion::from(-30.0f).to(0.0f), {400ms, motion::ease::outQuint}))
         .opacity(
-            animate(motion::from(0.0f).to(1.0f), {400ms, &ch::easeOutQuad}))
+            animate(motion::from(0.0f).to(1.0f), {400ms, motion::ease::outQuad}))
         .cache(Cache::Texture)
         .children({text(r.label)
                        .font(nn::menuType(41, r.color, 1.8f))
@@ -407,7 +406,6 @@ struct PersonaMenu {
    *  frame). */
   Element selectedRow() {
     namespace nn = persona_menu;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
     const nn::Row& r = nn::kRows[nn::kSelected];
     // The wedge is cut to the SELECTED label, not to the widest one:
@@ -424,9 +422,9 @@ struct PersonaMenu {
                       .rotate(r.rot)
                       .zIndex(r.z)
                       .translateY(animate(motion::from(-30.0f).to(0.0f),
-                                          {400ms, &ch::easeOutQuint}))
+                                          {400ms, motion::ease::outQuint}))
                       .opacity(animate(motion::from(0.0f).to(1.0f),
-                                       {400ms, &ch::easeOutQuad}));
+                                       {400ms, motion::ease::outQuad}));
     // pink back-wedge, misregistered under the white one
     row.children(
         {kit::at(10, 3, wW, wH)
@@ -459,7 +457,6 @@ struct PersonaMenu {
    *  spring the ticker steps. */
   Element cursor() {
     namespace nn = persona_menu;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
     const nn::Row& r = nn::kRows[nn::kSelected];
     // canvas coords: the menu container origin folded into the pins
@@ -474,7 +471,7 @@ struct PersonaMenu {
         .translateX(&curDx)
         .translateY(&curDy)
         .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {60ms, &ch::easeOutQuad, 400ms}))
+                         {60ms, motion::ease::outQuad, 400ms}))
         // The original draws this additively. At this size over the navy
         // sea, kPlus washes the red rim out completely, so it stays a plain
         // red fill.
@@ -512,7 +509,6 @@ struct PersonaMenu {
    *  it, the location under a hairline. */
   Element dateBlock() {
     namespace nn = persona_menu;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
     return box()
         .key("date")
@@ -521,7 +517,7 @@ struct PersonaMenu {
         .column()
         .zIndex(8)
         .translateX(
-            animate(motion::from(-30.0f).to(0.0f), {420ms, &ch::easeOutQuint}))
+            animate(motion::from(-30.0f).to(0.0f), {420ms, motion::ease::outQuint}))
         .opacity(animate(motion::from(0.0f).to(1.0f), {340ms}))
         .children(
             {box()
@@ -555,7 +551,6 @@ struct PersonaMenu {
    *  slides in from the right on the list's own stagger. */
   Element partyPanel() {
     namespace nn = persona_menu;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
     struct Member {
       const char* name;
@@ -620,7 +615,7 @@ struct PersonaMenu {
           .height(52)
           .rotate(-4)
           .translateX(
-              animate(motion::from(46.0f).to(0.0f), {440ms, &ch::easeOutQuint}))
+              animate(motion::from(46.0f).to(0.0f), {440ms, motion::ease::outQuint}))
           .opacity(animate(motion::from(0.0f).to(1.0f), {360ms}))
           .shape(shapes::parallelogram(9))
           .fill(Paint::linear({0, 0}, {246, 0},
@@ -646,7 +641,6 @@ struct PersonaMenu {
 
   Element describe() {
     namespace nn = persona_menu;
-    namespace ch = choreograph;
     using namespace std::chrono_literals;
 
     return stack()
@@ -712,7 +706,7 @@ struct PersonaMenu {
                  .padding(12)
                  .cache(Cache::Texture)
                  .translateX(animate(motion::from(36.0f).to(0.0f),
-                                     {400ms, &ch::easeOutQuint}))
+                                     {400ms, motion::ease::outQuint}))
                  .opacity(animate(motion::from(0.0f).to(1.0f), {300ms}))
                  .children(
                      {text("PERSONA")
@@ -738,7 +732,7 @@ struct PersonaMenu {
                        .alignItems(Align::Center)
                        .zIndex(8)
                        .opacity(animate(motion::from(0.0f).to(1.0f),
-                                        {400ms, &ch::easeOutQuad, 250ms}))
+                                        {400ms, motion::ease::outQuad, 250ms}))
                        .children({promptCircle("O"),
                                   text("CONFIRM")
                                       .font(nn::smallType(11, nn::kCyanB, 1.5f))

@@ -1,13 +1,14 @@
 // Section artwork and the lower content modules.
 
 #include "TwoAdvancedV3.h"
+#include <sigilmotion/ease/Ease.h>
 
 Element TwoAdvancedV3::stageArt() {
   using namespace tv3;
   return at(box().overflow(Overflow::Clip).children({slot("stage")}), kStageX,
             kArtY, kStageW, kArtH)
       .mask(by::edge(0, animate(motion::from(0.0f).to(1.0f),
-                                {650ms, &ch::easeOutQuint, 1900ms})));
+                                {650ms, motion::ease::outQuint, 1900ms})));
 }
 
 Element TwoAdvancedV3::sectionArt(int sec, float settle) {
@@ -141,10 +142,10 @@ Element TwoAdvancedV3::module(const Utf8& glyph, const Utf8& barLabel,
                    PathFormat::Align::Inner))
                .children({body.inset(0)})})
       .translateY(animate(motion::from(46.0f).to(0.0f),
-                          {420ms, &ch::easeOutQuint,
+                          {420ms, motion::ease::outQuint,
                            std::chrono::milliseconds(2300 + 120 * order)}))
       .opacity(animate(motion::from(0.0f).to(1.0f),
-                       {320ms, &ch::easeOutQuad,
+                       {320ms, motion::ease::outQuad,
                         std::chrono::milliseconds(2300 + 120 * order)}));
 }
 

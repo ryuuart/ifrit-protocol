@@ -1,4 +1,5 @@
 #include "HitmanVerlet.h"
+#include <sigilmotion/ease/Ease.h>
 
 auto HitmanVerlet::stageChrome(Pen& pen, double ms) -> void {
   const float a = cue(ms, 520, 400);
@@ -44,7 +45,7 @@ auto HitmanVerlet::stageChrome(Pen& pen, double ms) -> void {
 
 auto HitmanVerlet::worldBox(Pen& pen, double ms) -> void {
   // The cube's bezel, and its top wall — real, just not interesting.
-  const float g = cue(ms, 240, 620, &ch::easeOutCubic);
+  const float g = cue(ms, 240, 620, sigil::motion::ease::outCubic);
   pen.noFill();
   pen.strokeCap(draw::SQUARE);
   pen.stroke(hexColor(0x6FA8DC, 0.45f));
@@ -185,7 +186,7 @@ auto HitmanVerlet::stageOverlay() -> Element {
 }
 
 auto HitmanVerlet::blastGlow(Pen& pen) -> void {
-  const float a = std::clamp(ch::easeOutQuad(blastPhase.value()), 0.0f, 1.0f);
+  const float a = std::clamp(sigil::motion::ease::outQuad(blastPhase.value()), 0.0f, 1.0f);
   if (a <= 0.0f) return;
   const SkPoint c = toStage(kBlast);
   pen.push();

@@ -52,6 +52,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/schedule/Cascade.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -165,7 +166,7 @@ material::Color fade(material::Color c, float a) {
  *  tree spells as `animate(from(0).to(1), {duration, delay})` is this in
  *  a loop, because a loop has the clock in its hand. */
 float cue(double ms, float delayMs, float durationMs,
-          const ch::EaseFn& ease = nullptr) {
+          const motion::Easing& ease = nullptr) {
   const float u = std::clamp(
       (float)((ms - (double)delayMs) / (double)durationMs), 0.0f, 1.0f);
   return ease ? ease(u) : u;
@@ -329,7 +330,7 @@ struct PsxDoomFire {
                       .stagger = cascade,
                       .progress = motion::animate(motion::from(0.0f).to(1.0f),
                                                   {.duration = span,
-                                                   .ease = &ch::easeNone,
+                                                   .ease = motion::ease::linear,
                                                    .delay = 120ms})}),
              compose::document::lead(
                  "id Software / Williams · PlayStation title screen, 1995\n"
@@ -461,7 +462,7 @@ struct PsxDoomFire {
     pen.rect(x + kPanelW - 20, y + 30, 6, 6);
 
     // the bezel, revealed on mount, and its four registration marks
-    const float ba = cue(ms, 280, 500, &ch::easeOutCubic);
+    const float ba = cue(ms, 280, 500, motion::ease::outCubic);
     pen.noFill();
     pen.stroke(fade(kKeyline, ba));
     pen.strokeWeight(1.5f);
