@@ -1,0 +1,85 @@
+{
+  "quarries": {
+    "porphyry": {
+      "name": "porphyry",
+      "source": "Mons Claudianus",
+      "hi": "#74494A",
+      "lo": "#4C2F31"
+    },
+    "serpentine": {
+      "name": "lapis lacedaemonius",
+      "source": "Krokeai, by Sparta",
+      "hi": "#5B6552",
+      "lo": "#3E4739"
+    },
+    "giallo": {
+      "name": "giallo antico",
+      "source": "yellow limestone",
+      "hi": "#C3AA76",
+      "lo": "#9A8455"
+    },
+    "marble": {
+      "name": "white marble",
+      "source": "the fillets",
+      "hi": "#DED6C4",
+      "lo": "#B9B0A0"
+    },
+    "onyx": {
+      "name": "onyx",
+      "source": "the centre roundel",
+      "hi": "#D6C39A",
+      "lo": "#9E8659"
+    },
+    "purbeck": {
+      "name": "Purbeck",
+      "source": "the framework",
+      "hi": "#6F6D63",
+      "lo": "#48473F"
+    },
+    "red": {
+      "name": "glass, red",
+      "source": "opaque, cast",
+      "hi": "#9A5348",
+      "lo": "#63332C"
+    },
+    "turquoise": {
+      "name": "glass, turquoise",
+      "source": "opaque, cast",
+      "hi": "#62867F",
+      "lo": "#3C5550"
+    },
+    "cobalt": {
+      "name": "glass, cobalt",
+      "source": "opaque, cast",
+      "hi": "#4E5A7E",
+      "lo": "#323A55"
+    }
+  },
+  "ink": {
+    "ground": "#0E0C0A",
+    "ink": "#E8E1CE",
+    "ash": "#9A9078",
+    "rule": "#C3AA76",
+    "mortar": "#5E5B52"
+  },
+  "inscription": {
+    "sides": [
+      "✠ XPI MILLENO BIS CENTENO DVODENO",
+      "CVM SEXAGENO SVBDVCTIS QVATVOR ANNO",
+      "TERTIVS HENRICVS REX VRBS ODORICVS ET ABBAS",
+      "HOS COMPEGERE PORPHYREOS LAPIDES"
+    ],
+    "ring": "· SPHERICVS · ARCHETYPVM · GLOBVS · HIC · MONSTRAT · MACROCOSMVM "
+  },
+  "apparatus": {
+    "eyebrow": "The Great Pavement · Westminster Abbey",
+    "title": "OPUS SECTILE",
+    "lead": "Cosmatesque, laid before the high altar in 1268",
+    "reading": "The governing figure is the quincunx: four roundels about a fifth, bound by one band that loops each and crosses itself between them. Here the quincunx stands in a square turned on its point, four great roundels fill the corners it leaves, and a broad border runs twenty more around the whole. No two panels are cut alike — the four orbiting roundels are a circle, a hexagon, a heptagon and an octagon.",
+    "quote": "In the year of Christ a thousand, twice a hundred, and twelve, with sixty, four years taken away: the third King Henry, the City, Odoricus and the abbot set these porphyry stones together.",
+    "attribution": "The border, read sunwise from the top, set in brass letters in the Purbeck",
+    "key": "The quarries",
+    "settingOut": "The setting-out",
+    "settingOutNote": "Struck with cord and compass before a stone was cut: the square and its border, the square turned in it, and the circles every roundel and every loop of the band is cut to."
+  }
+}
