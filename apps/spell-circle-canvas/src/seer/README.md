@@ -165,8 +165,8 @@ nobody said is never played as one they did.
 `sigil::seer::Recorder` writes a wire down with
 `sigil::seer::Recorder::record()` and opens a URI back onto a file with
 `sigil::seer::Recorder::replay()`, which closes whatever was on that URI
-first: a feed answers for a URI as long as anyone holds it, so the door
-has to be let go before the file can take its place.
+first: the hub's own replay puts the file in front of the URI's
+transport, so every later open of that URI plays the file.
 
 `sigil::seer::hexadecimal()`, `sigil::seer::printableText()`,
 `sigil::seer::indentedJson()`, `sigil::seer::oscReading()`,

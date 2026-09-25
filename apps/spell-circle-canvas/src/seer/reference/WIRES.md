@@ -40,8 +40,8 @@ delivered.
 
 Every transport this build carries is registered on that hub when the
 list is made, so a `udp://` URI opens a socket without the caller naming
-a transport. A URI that resolves onto a file is played back from it
-instead, which is what `Wires::mountRecording` arranges.
+a transport. A URI named to `Wires::replay` is played back from a file
+instead.
 
 One schema stands over all of them, or none does. It is the wires' and
 not one wire's because a reader who was handed a schema was handed it for
@@ -59,10 +59,9 @@ wire is open on that URI. A feed that closes itself — a recording played
 out, a socket the system ended — stays in the list and says it is closed,
 because it is still a wire somebody opened.
 
-`Wires::mountRecording` resolves a URI onto a recording on disk, so the
-next open on that URI plays the file back instead of opening a socket. A
-wire already open on the URI is unaffected: it holds the door it was
-given, so it is closed first by whoever wants the file.
+`Wires::replay` opens a URI onto a recording on disk and keeps the feed:
+the wire open on that URI is closed and dropped, and every later open on
+it plays the same file back instead of opening a socket.
 
 `Wires::dispatch` moves every replayed recording to a time on the
 caller's clock, delivering each arrival the file stamped at or before it.

@@ -32,33 +32,33 @@ class Recorder {
   /** Appends every arrival on @p feed from now on to @p path. Recording
    *  a second wire stops the first: one session writes one file, so the
    *  file a reader is told about is the file being written. False when
-   *  there is no feed to record. */
+   *  there is no feed to record, and when the file cannot be written —
+   *  the feed's `error()` then says why. */
   bool record(const std::shared_ptr<io::Feed>& feed,
               std::filesystem::path path);
 
   /** Takes no more. What reached the file stays whole. */
   void stop();
 
-  /** Whether a wire is being written to a file right now. */
+  /** Whether a wire is being written to a file right now. A wire closed
+   *  while it is being recorded ends the recording with it. */
   bool recording() const;
 
   /** The file being written; empty when nothing is being recorded. */
   const std::filesystem::path& path() const { return m_path; }
 
   /** Opens @p uri onto the recording at @p path: the wire that was there
-   *  is closed, the URI is resolved onto the file, and the feed that
-   *  comes back delivers what the file holds as the wires are
-   *  dispatched. The answer carries a sentence in its `error()` when the
-   *  file is not a recording. */
+   *  is closed, and the feed that comes back delivers what the file
+   *  holds as the wires are dispatched. The answer carries a sentence in
+   *  its `error()` when the file is not a recording. */
   std::shared_ptr<io::Feed> replay(std::string_view uri,
                                    const std::filesystem::path& path);
 
  private:
   Wires& m_wires;
-  /** The feed being recorded, held weakly: a wire closed while it is
-   *  being recorded takes its writer with it, and this is left with
-   *  nothing to stop rather than with a feed nobody else has. */
-  std::weak_ptr<io::Feed> m_feed;
+  /** The recording being written; one that has stopped when nothing
+   *  is. */
+  io::Recording m_recording;
   std::filesystem::path m_path;
 };
 

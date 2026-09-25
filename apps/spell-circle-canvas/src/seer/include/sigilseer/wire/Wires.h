@@ -100,13 +100,15 @@ class Wires {
   /** The feed open on @p uri, or null. */
   std::shared_ptr<io::Feed> feed(std::string_view uri) const;
 
-  /** Resolves @p uri onto the recording at @p path, so the next open()
-   *  on that URI plays the file back instead of opening a socket. A wire
-   *  already open on the URI is unaffected: it holds the door it was
-   *  given, so it is closed first by whoever wants the file. */
-  void mountRecording(std::string_view uri, const std::filesystem::path& path);
+  /** Opens @p uri onto the recording at @p path and keeps the feed: the
+   *  wire open on that URI is closed and dropped, and every later open()
+   *  on it plays the same file back instead of opening a socket. The
+   *  answer carries a sentence in its `error()` when the file is not a
+   *  recording. */
+  std::shared_ptr<io::Feed> replay(std::string_view uri,
+                                   const std::filesystem::path& path);
 
-  /** Whether opens on this URI use a recording mounted through this object. */
+  /** Whether opens on this URI play a recording replay() named. */
   bool recorded(std::string_view uri) const;
 
   /** Moves every replayed recording to @p seconds on the caller's clock,

@@ -61,10 +61,13 @@ std::shared_ptr<io::Feed> Wires::feed(std::string_view uri) const {
   return watch ? watch->feed : nullptr;
 }
 
-void Wires::mountRecording(std::string_view uri,
-                           const std::filesystem::path& path) {
-  m_hub.mount(std::string(uri), path);
+std::shared_ptr<io::Feed> Wires::replay(std::string_view uri,
+                                        const std::filesystem::path& path) {
+  close(uri);
+  std::shared_ptr<io::Feed> feed = m_hub.replay(uri, path.string());
   m_recorded.emplace(uri);
+  m_watches.push_back({feed, {}});
+  return feed;
 }
 
 bool Wires::recorded(std::string_view uri) const {
