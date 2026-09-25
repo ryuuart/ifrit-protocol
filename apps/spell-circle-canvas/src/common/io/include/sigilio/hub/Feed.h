@@ -91,7 +91,7 @@ struct FeedPolicy {
  *  through stop(), or by going out of scope — so a recording nobody
  *  holds is one that has ended. Move-only; a handle made empty, or
  *  moved from, stops nothing. */
-class [[nodiscard]] Recording {
+class Recording {
  public:
   Recording() = default;
   /** Stops the recording this handle holds. */
@@ -223,7 +223,7 @@ class Feed {
    *  writes one recording at a time: a second call stops the first.
    *  @trap A file that cannot be opened hands back a handle that has
    *  already stopped, and error() says why. */
-  Recording record(std::filesystem::path path);
+  [[nodiscard]] Recording record(std::filesystem::path path);
 
   /** Hands the feed the end its transport opened. Once: a second end,
    *  and one handed to a feed that is already closed, is closed rather
