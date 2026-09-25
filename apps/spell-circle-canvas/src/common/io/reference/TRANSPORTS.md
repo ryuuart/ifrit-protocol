@@ -34,8 +34,9 @@ taken off it. A feed that has a door is handed back as it stands, and so
 is one that has closed, so asking twice for a URI that opened is one
 socket and not two.
 
-A scheme opens through the `FeedTransport` registered for it, called
-outside the hub's lock; the transport hands back an `OpenedFeed`: how the
+A scheme opens through the `Transport` registered for it, called
+outside the hub's lock and handed the `Inlet` it delivers every message
+through; the transport hands back an `OpenedFeed`: how the
 feed closes it, how `send()` goes back through it when the way is two-way,
 how `OpenedFeed::sendTo` answers one named sender when it can address one,
 and the local `address()` it bound. Every arrival also names where it came
@@ -528,8 +529,9 @@ back onto them.
 `Feed::receivedAt()` maps an arrival onto the steady clock (negative, nonfinite
 or unrepresentable times use that clock's origin): live packets
 keep their transport receive time and replayed packets keep their recorded
-spacing relative to the first `advance()` call. Use it when elapsed-time
-accounting must remain independent of when the host drains the queue.
+spacing relative to the first `dispatch()` that moved the recording. Use it
+when elapsed-time accounting must remain independent of when the host drains
+the queue.
 
 A **recording** is a feed written down: `record(path)` appends every
 arrival from then on, with the seconds since the feed was made, in the

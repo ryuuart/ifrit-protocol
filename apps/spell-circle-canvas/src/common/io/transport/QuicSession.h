@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/source/Source.h"
 
 namespace sigil::io::quic {
@@ -29,8 +29,8 @@ class Peer;
  *
  *  Held by the door and by every connection alike, so a callback still
  *  running when the feed is let go keeps everything it reads. The feed
- *  itself is held weakly: where it cannot be locked there is nobody left
- *  to deliver to. */
+ *  itself is reached through its inlet, which holds it weakly: where the
+ *  inlet has expired there is nobody left to deliver to. */
 struct Session : std::enable_shared_from_this<Session> {
   ~Session() { giveBack(); }
 
@@ -42,7 +42,7 @@ struct Session : std::enable_shared_from_this<Session> {
    *  this arrangement. */
   void giveBack();
 
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   HQUIC configuration = nullptr;
   bool datagrams = false;
   /** What a CALL reports and what every arrival on one names; empty on a

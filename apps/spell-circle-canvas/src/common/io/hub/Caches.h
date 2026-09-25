@@ -66,7 +66,7 @@ struct Hub::Caches {
   boost::container::flat_map<std::type_index,
                              std::vector<std::shared_ptr<const void>>>
       options;
-  boost::container::flat_map<std::string, FeedTransport, std::less<>>
+  boost::container::flat_map<std::string, Transport, std::less<>>
       feedTransports;
   /** Per feed URI, the recording replay() named for it: a feed opened
    *  on that URI plays this file instead of asking a transport. */

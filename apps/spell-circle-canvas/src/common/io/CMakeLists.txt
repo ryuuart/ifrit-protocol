@@ -21,6 +21,7 @@ set(SIGIL_IO_REFERENCE
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/DispatchLease.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Feed.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Hub.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Inlet.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/RecordingWriter.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ResourceLease.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/SharedMemoryWriter.md

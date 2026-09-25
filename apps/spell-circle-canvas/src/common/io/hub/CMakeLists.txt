@@ -1,7 +1,9 @@
 # The hub: mounts and resolution, URI selection and retention, the entry cache
 # and its poll, network fetch behind the disk cache and the decoder registry —
 # split behind private seams — the feeds a resource that keeps arriving is read
-# through, with the format one of them records itself in. A preload fans its fetches
+# through, with the format one of them records itself in, and the inlet a
+# transport delivers into one through (advanced/), with the one entrance a
+# test injects a message by (testing/). A preload fans its fetches
 # out through SigilCoreSchedule's blocking seam, which is where a call that
 # waits on a disk or a server belongs; libcurl backs the http(s):// URIs
 # (fetch + on-disk cache). Both are implementation and stay private. So is
@@ -10,10 +12,11 @@
 find_package(CURL CONFIG REQUIRED)
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilIOHub
-  SOURCES Cache.cpp Decoders.cpp Feed.cpp Feeds.cpp Mounts.cpp Network.cpp
-          Recording.cpp Retention.cpp Selection.cpp Caches.h Fetch.h
-          Residency.h
-  HEADERS Feed.h Hub.h Network.h Recording.h
+  SOURCES Cache.cpp Decoders.cpp Feed.cpp Feeds.cpp Inlet.cpp Mounts.cpp
+          Network.cpp Recording.cpp Retention.cpp Selection.cpp Caches.h
+          Fetch.h Residency.h
+  HEADERS Feed.h Hub.h Network.h Recording.h ../advanced/Transport.h
+          ../testing/Testing.h
   PUBLIC SigilIOSource SigilCoreCallable
   PRIVATE SigilCoreSchedule CURL::libcurl Boost::container)
 

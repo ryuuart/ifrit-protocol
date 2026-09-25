@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "Registration.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
@@ -134,7 +134,7 @@ struct Session {
   /** Raised before the close frame goes out, so a read racing it ends
    *  instead of speaking to a session that is being taken down. */
   std::atomic<bool> closed{false};
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   /** The URL that was called: the address the feed reports, and the
    *  sender every arrival names, a client having the one peer it
    *  dialled. */
@@ -172,10 +172,9 @@ void carry(const std::shared_ptr<Session>& session) {
     // A session closed before its handshake finished was given up on
     // purpose, and there is nobody it has to be explained to.
     if (!session->closed.load(std::memory_order_acquire))
-      if (const std::shared_ptr<Feed> feed = session->feed.lock())
-        feed->fail("could not reach " + session->url + ": " +
-                   (trouble[0] != '\0' ? std::string(trouble)
-                                       : curl_easy_strerror(reached)));
+      session->inlet.fail("could not reach " + session->url + ": " +
+                          (trouble[0] != '\0' ? std::string(trouble)
+                                              : curl_easy_strerror(reached)));
     return;
   }
   session->connected.store(true, std::memory_order_release);
@@ -210,25 +209,22 @@ void carry(const std::shared_ptr<Session>& session) {
       // A session closed here ended as it was meant to; any other
       // ending is what the feed is told, in libcurl's own words.
       if (!session->closed.load(std::memory_order_acquire))
-        if (const std::shared_ptr<Feed> feed = session->feed.lock())
-          feed->fail(session->url + " ended: " + curl_easy_strerror(read));
+        session->inlet.fail(session->url + " ended: " +
+                            curl_easy_strerror(read));
       return;
     }
     if ((flags & CURLWS_CLOSE) != 0) {
       // The server is done. The feed takes nothing more, and closing it
       // is what sends the answering close frame and ends this thread.
-      if (const std::shared_ptr<Feed> feed = session->feed.lock())
-        feed->close();
+      session->inlet.close();
       return;
     }
     if ((flags & (CURLWS_PING | CURLWS_PONG)) != 0) continue;
 
     if (message.size() + taken > kMessageCeiling) {
-      if (const std::shared_ptr<Feed> feed = session->feed.lock()) {
-        feed->fail(session->url +
-                   " sent a message larger than this feed takes");
-        feed->close();
-      }
+      session->inlet.fail(session->url +
+                          " sent a message larger than this feed takes");
+      session->inlet.close();
       return;
     }
     message.insert(message.end(), piece.begin(),
@@ -239,9 +235,8 @@ void carry(const std::shared_ptr<Session>& session) {
     Bytes whole;
     whole = Bytes(std::move(message));
     message.clear();
-    const std::shared_ptr<Feed> feed = session->feed.lock();
-    if (!feed) return;
-    feed->deliver(std::move(whole), session->url);
+    if (session->inlet.expired()) return;
+    session->inlet.deliver(std::move(whole), session->url);
   }
 }
 
@@ -318,9 +313,8 @@ bool Door::send(const Bytes& message) {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
@@ -333,7 +327,7 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  takes. What it decided reaches the feed either way: as arrivals, or
  *  as the sentence error() answers. Until it is through, a send says it
  *  went nowhere. */
-OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
+OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
   const std::optional<std::string_view> server = namedServer(uri);
   if (!server || !namesPort(*server))
     return refuse(into, std::string(uri) +
@@ -350,7 +344,7 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
 
   const auto door = std::make_shared<Door>();
   door->session->handle = handle;
-  door->session->feed = into;
+  door->session->inlet = into;
   door->session->url = std::string(uri);
   curl_easy_setopt(handle, CURLOPT_URL, door->session->url.c_str());
   // The handshake and nothing after it: libcurl hands the connection
@@ -387,9 +381,9 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
  *  whatever was registered for the scheme before this stood in front of
  *  it. A scheme with nothing behind it says so, rather than a URI meant
  *  for a door that is not there opening a call to nowhere. */
-FeedTransport openWebSocket(FeedTransport listening, FeedTransport calling) {
+Transport openWebSocket(Transport listening, Transport calling) {
   return [listening = std::move(listening), calling = std::move(calling)](
-             std::string_view uri, std::weak_ptr<Feed> into) -> OpenedFeed {
+             std::string_view uri, Inlet into) -> OpenedFeed {
     if (namedServer(uri)) return calling(uri, std::move(into));
     if (listening) return listening(uri, std::move(into));
     return refuse(into, std::string(uri) +
@@ -402,8 +396,7 @@ FeedTransport openWebSocket(FeedTransport listening, FeedTransport calling) {
 }  // namespace
 
 void detail::registerWebSocketClient(Hub& hub) {
-  const FeedTransport calling = [](std::string_view uri,
-                                   std::weak_ptr<Feed> into) {
+  const Transport calling = [](std::string_view uri, Inlet into) {
     return openFeed(uri, into);
   };
   // Each spelling stands in front of whatever was registered for it, and
@@ -411,9 +404,9 @@ void detail::registerWebSocketClient(Hub& hub) {
   // and a URI naming a port goes to the listener that was already there.
   // Nothing listens for wss:// unless something was registered for it,
   // the sockets a listener is built on carrying no TLS.
-  FeedTransport listening = hub.feedTransport("ws");
+  Transport listening = hub.feedTransport("ws");
   hub.setFeedTransport("ws", openWebSocket(std::move(listening), calling));
-  FeedTransport listeningSecurely = hub.feedTransport("wss");
+  Transport listeningSecurely = hub.feedTransport("wss");
   hub.setFeedTransport("wss",
                        openWebSocket(std::move(listeningSecurely), calling));
 }

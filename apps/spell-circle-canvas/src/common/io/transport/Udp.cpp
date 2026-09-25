@@ -40,7 +40,7 @@
 
 #include "Registration.h"
 #include "IoThread.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
@@ -153,16 +153,17 @@ std::string localAddress(std::string_view scheme, const udp::socket& socket) {
  *
  *  Every callback holds this, so a feed let go while a receive is in
  *  flight leaves it standing until that callback returns. The feed
- *  itself is held weakly: when it cannot be locked there is nobody left
- *  to deliver to, and the loop ends there. */
+ *  itself is reached through its inlet, which holds it weakly: once the
+ *  inlet has expired there is nobody left to deliver to, and the loop
+ *  ends there. */
 struct Door : std::enable_shared_from_this<Door> {
   Door(std::shared_ptr<detail::IoThread> thread, std::string scheme,
-       std::weak_ptr<Feed> feed)
+       Inlet inlet)
       : io(std::move(thread)),
         strand(boost::asio::make_strand(io->context())),
         socket(strand),
         scheme(std::move(scheme)),
-        feed(std::move(feed)) {}
+        inlet(std::move(inlet)) {}
 
   /** Arms one receive, which arms the next. */
   void receive();
@@ -178,7 +179,7 @@ struct Door : std::enable_shared_from_this<Door> {
   /** The name this socket was opened under, which every address it
    *  reports is spelled with. */
   std::string scheme;
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   udp::endpoint sender;
   std::array<std::byte, kDatagramCeiling> buffer{};
   /** Raised before the close is posted, so a callback the strand has
@@ -192,14 +193,13 @@ void Door::receive() {
       boost::asio::buffer(buffer), sender,
       [self = shared_from_this()](const error_code& error, size_t count) {
         if (self->closed.load(std::memory_order_acquire)) return;
-        const std::shared_ptr<Feed> feed = self->feed.lock();
-        if (!feed) return;
+        if (self->inlet.expired()) return;
         if (error) {
           // One datagram's error leaves the binding good. Anything else
           // ends this socket, and the feed is told in the system's own
           // words why nothing more will arrive.
           if (!describesOneDatagram(error)) {
-            feed->fail(error.message());
+            self->inlet.fail(error.message());
             return;
           }
           self->receive();
@@ -214,7 +214,7 @@ void Door::receive() {
         // buffer, and the time a consumer takes over them is not time
         // the socket spends unable to receive.
         self->receive();
-        feed->deliver(std::move(datagram), std::move(from));
+        self->inlet.deliver(std::move(datagram), std::move(from));
       });
 }
 
@@ -291,9 +291,8 @@ bool Door::sendTo(std::string_view to, const Bytes& datagram) {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
@@ -304,7 +303,7 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  feed that cannot reach its peer says so by the time it is answered. */
 OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
                     std::string_view scheme, std::string_view uri,
-                    const std::weak_ptr<Feed>& into) {
+                    const Inlet& into) {
   const std::string name(scheme);
   const std::optional<Address> address = parseAddress(uri, scheme);
   if (!address)
@@ -372,10 +371,10 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
 /** The one opener, under whichever scheme it was registered: the scheme
  *  travels with it, so the same socket answers udp:// and osc:// and
  *  each feed keeps the name it was opened with. */
-FeedTransport datagramTransport(std::shared_ptr<detail::SharedIoThread> shared,
+Transport datagramTransport(std::shared_ptr<detail::SharedIoThread> shared,
                                 std::string scheme) {
   return [shared = std::move(shared), scheme = std::move(scheme)](
-             std::string_view uri, std::weak_ptr<Feed> into) {
+             std::string_view uri, Inlet into) {
     return openFeed(shared->acquire(), scheme, uri, into);
   };
 }

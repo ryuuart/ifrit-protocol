@@ -42,7 +42,7 @@
 
 #include "Registration.h"
 #include "IoThread.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
@@ -213,21 +213,22 @@ ReadWire readWire(std::string_view uri) {
  *
  *  Every callback holds this, so a feed let go while a read is in
  *  flight leaves it standing until that callback returns. The feed
- *  itself is held weakly: when it cannot be locked there is nobody left
- *  to deliver to, and the loop ends there. */
+ *  itself is reached through its inlet, which holds it weakly: once the
+ *  inlet has expired there is nobody left to deliver to, and the loop
+ *  ends there. */
 struct Door : std::enable_shared_from_this<Door> {
   Door(std::shared_ptr<detail::IoThread> thread, std::string address,
-       std::weak_ptr<Feed> feed)
+       Inlet inlet)
       : io(std::move(thread)),
         strand(boost::asio::make_strand(io->context())),
         port(strand),
         address(std::move(address)),
-        feed(std::move(feed)) {}
+        inlet(std::move(inlet)) {}
 
   /** Arms one read, which arms the next. */
   void receive();
   /** Hands over every whole line the buffer now holds. */
-  void hand(Feed& into);
+  void hand();
   void close();
   bool send(const Bytes& line);
   /** Writes the line at the front of the queue, and the ones after it. */
@@ -242,7 +243,7 @@ struct Door : std::enable_shared_from_this<Door> {
    *  settings left off, which is what the sender IS rather than how
    *  this end was told to read it. */
   std::string address;
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   std::array<std::byte, kReadChunk> buffer{};
   /** The bytes read and not yet ended by a newline; the strand's
    *  alone. */
@@ -261,8 +262,7 @@ void Door::receive() {
       boost::asio::buffer(buffer),
       [self = shared_from_this()](const error_code& error, size_t count) {
         if (self->closed.load(std::memory_order_acquire)) return;
-        const std::shared_ptr<Feed> feed = self->feed.lock();
-        if (!feed) return;
+        if (self->inlet.expired()) return;
         if (error) {
           // The cancel this door posts as it closes ends the read it
           // was waiting on: that is this end letting go, and not a
@@ -270,7 +270,7 @@ void Door::receive() {
           // port, and the feed is told in the system's own words why
           // nothing more will arrive.
           if (error != boost::asio::error::operation_aborted)
-            feed->fail(error.message());
+            self->inlet.fail(error.message());
           return;
         }
         // The bytes leave the buffer before the next read is armed, and
@@ -279,11 +279,11 @@ void Door::receive() {
         self->partial.insert(self->partial.end(), self->buffer.begin(),
                              self->buffer.begin() + count);
         self->receive();
-        self->hand(*feed);
+        self->hand();
       });
 }
 
-void Door::hand(Feed& into) {
+void Door::hand() {
   size_t opened = 0;
   for (size_t at = 0; at != partial.size(); ++at) {
     if (partial[at] != std::byte{'\n'}) continue;
@@ -294,8 +294,8 @@ void Door::hand(Feed& into) {
     // An empty line is a sender's blank rather than a reading, and a
     // reader handed one would read every field of it as missing.
     if (ended != opened) {
-      into.deliver(Bytes(std::span(partial).subspan(opened, ended - opened)),
-                   address);
+      inlet.deliver(Bytes(std::span(partial).subspan(opened, ended - opened)),
+                    address);
     }
     opened = at + 1;
   }
@@ -303,7 +303,7 @@ void Door::hand(Feed& into) {
   if (partial.size() < kLineCeiling) return;
   Bytes unframed(std::move(partial));
   partial.clear();
-  into.deliver(std::move(unframed), address);
+  inlet.deliver(std::move(unframed), address);
 }
 
 void Door::close() {
@@ -353,16 +353,15 @@ void Door::write() {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
 /** Opens one feed's port: the device the URI names, at the settings it
  *  names, read from the first line on. */
 OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
-                    std::string_view uri, const std::weak_ptr<Feed>& into) {
+                    std::string_view uri, const Inlet& into) {
   ReadWire read = readWire(uri);
   if (!read.trouble.empty()) return refuse(into, std::move(read.trouble));
 
@@ -410,7 +409,7 @@ void detail::registerSerial(Hub& hub) {
   // scheme and never asked for a feed on it starts nothing.
   auto shared = std::make_shared<detail::SharedIoThread>();
   hub.setFeedTransport(
-      "serial", [shared](std::string_view uri, std::weak_ptr<Feed> into) {
+      "serial", [shared](std::string_view uri, Inlet into) {
         return openFeed(shared->acquire(), uri, into);
       });
 }

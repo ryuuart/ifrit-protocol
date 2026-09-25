@@ -73,7 +73,7 @@
 
 #include "Registration.h"
 #include "IoThread.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
@@ -207,19 +207,19 @@ std::optional<Region> parseRegion(std::string_view uri) {
  *
  *  Every callback holds this, so the mapping stands for as long as
  *  anything could still read it and is unmapped once the last callback
- *  has returned. The feed itself is held weakly: when it cannot be
- *  locked there is nobody left to deliver to, and the looking ends
- *  there. */
+ *  has returned. The feed itself is reached through its inlet, which
+ *  holds it weakly: once the inlet has expired there is nobody left to
+ *  deliver to, and the looking ends there. */
 struct Door : std::enable_shared_from_this<Door> {
   Door(std::shared_ptr<detail::IoThread> thread, std::string named,
-       std::chrono::nanoseconds every, std::weak_ptr<Feed> feed)
+       std::chrono::nanoseconds every, Inlet inlet)
       : io(std::move(thread)),
         strand(boost::asio::make_strand(io->context())),
         timer(strand),
         name(std::move(named)),
         address("shm://" + name),
         interval(every),
-        feed(std::move(feed)) {}
+        inlet(std::move(inlet)) {}
 
   ~Door() { release(); }
 
@@ -230,17 +230,17 @@ struct Door : std::enable_shared_from_this<Door> {
   void look();
   /** THE NAME, not the memory: whatever object stands under the name
    *  now, mapped afresh, and let go of where nothing stands there. */
-  void resolve(Feed& into);
+  void resolve(const Inlet& into);
   /** Lets the mapping go. A door with none reads nothing and waits for
    *  the name to be made again. */
   void release();
   /** Puts @p why on the feed, an empty one being nothing wrong, where
    *  that differs from what this door said last: a door looks a hundred
    *  times a second and says a thing once. */
-  void say(Feed& into, std::string why);
+  void say(const Inlet& into, std::string why);
   /** One look at the region: the message standing there, where it is
    *  whole and this feed has not had it. */
-  void read(Feed& into);
+  void read(const Inlet& into);
   void close();
 
   /** Held, not borrowed: the context has to outlive the timer standing
@@ -258,7 +258,7 @@ struct Door : std::enable_shared_from_this<Door> {
    *  called. */
   std::string address;
   std::chrono::nanoseconds interval;
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   /** The mapping, of whichever object wore the name when it was made,
    *  and null where nothing did. It is read-only, so nothing here may
    *  store through it: a reader of a region cannot disturb the writer
@@ -297,7 +297,7 @@ struct Door : std::enable_shared_from_this<Door> {
  *  message to the next look rather than spinning against the writer. */
 constexpr int kTriesPerLook = 8;
 
-void Door::read(Feed& into) {
+void Door::read(const Inlet& into) {
   std::atomic_ref<std::uint64_t> written(region->sequence);
   for (int attempt = 0; attempt != kTriesPerLook; ++attempt) {
     const std::uint64_t before = written.load(std::memory_order_acquire);
@@ -339,13 +339,13 @@ void Door::release() {
   capacity = 0;
 }
 
-void Door::say(Feed& into, std::string why) {
+void Door::say(const Inlet& into, std::string why) {
   if (why == said) return;
   said = why;
   into.fail(std::move(why));
 }
 
-void Door::resolve(Feed& into) {
+void Door::resolve(const Inlet& into) {
   const int descriptor = ::shm_open(objectName(name).c_str(), O_RDONLY);
   if (descriptor < 0) {
     // NOTHING STANDS UNDER THE NAME: a region nobody has made yet, or
@@ -436,8 +436,8 @@ void Door::look() {
     if (error || self->closed.load(std::memory_order_acquire)) return;
     // A feed nobody holds is nobody to deliver to, so the looking ends
     // rather than reading a region for no one.
-    const std::shared_ptr<Feed> into = self->feed.lock();
-    if (!into) return;
+    const Inlet& into = self->inlet;
+    if (into.expired()) return;
     // THE NAME FIRST, THE MEMORY AFTER. A door with nothing mapped asks
     // about the name at every look, which is what picks up a writer
     // that started after it did; a door that has a mapping asks on a
@@ -445,10 +445,10 @@ void Door::look() {
     const std::chrono::steady_clock::time_point now =
         std::chrono::steady_clock::now();
     if (self->region == nullptr || now >= self->askAt) {
-      self->resolve(*into);
+      self->resolve(into);
       self->askAt = now + kNameEvery;
     }
-    if (self->region != nullptr) self->read(*into);
+    if (self->region != nullptr) self->read(into);
     self->look();
   });
 }
@@ -463,9 +463,8 @@ void Door::close() {
 
 /** A feed whose transport could not open: the reason stands on the
  *  feed, and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
@@ -477,7 +476,7 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  region at all — which no writer could ever make one under — opens
  *  nothing. */
 OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
-                    std::string_view uri, const std::weak_ptr<Feed>& into) {
+                    std::string_view uri, const Inlet& into) {
   const std::optional<Region> named = parseRegion(uri);
   if (!named)
     return refuse(into,
@@ -508,7 +507,7 @@ void detail::registerSharedMemory(Hub& hub) {
   auto shared = std::make_shared<detail::SharedIoThread>();
   hub.setFeedTransport("shm",
                        [shared = std::move(shared)](std::string_view uri,
-                                                    std::weak_ptr<Feed> into) {
+                                                    Inlet into) {
                          return openFeed(shared->acquire(), uri, into);
                        });
 }

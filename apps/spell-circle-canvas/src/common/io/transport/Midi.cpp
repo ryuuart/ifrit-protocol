@@ -49,7 +49,7 @@
 #endif
 
 #include "Registration.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
@@ -224,11 +224,11 @@ std::optional<std::string> clientRefusal() {
 
 /** WHAT A CALLBACK TOUCHES, and the whole of it. The driver runs the
  *  callback on a thread of its own, so what that callback reaches is
- *  held by shared_ptr and holds the feed weakly: a feed nobody holds
- *  any more is a message with nowhere to go, and the callback ends
- *  there. */
+ *  held by shared_ptr and holds the feed's inlet, which holds the feed
+ *  weakly: a feed nobody holds any more is a message with nowhere to go,
+ *  and the callback ends there. */
 struct Delivery {
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   /** The sender every arrival names, which is the port itself spelled
    *  the way the URI that opened it is. */
   std::string from;
@@ -363,17 +363,16 @@ void arrived(double, std::vector<unsigned char>* message, void* which) {
   const std::shared_ptr<Delivery> delivery =
       *static_cast<std::shared_ptr<Delivery>*>(which);
   if (delivery->closed.load(std::memory_order_acquire)) return;
-  const std::shared_ptr<Feed> feed = delivery->feed.lock();
-  if (!feed) return;
+  if (delivery->inlet.expired()) return;
   const auto* const first = reinterpret_cast<const std::byte*>(message->data());
-  feed->deliver(Bytes(std::span(first, message->size())), delivery->from);
+  delivery->inlet.deliver(Bytes(std::span(first, message->size())),
+                          delivery->from);
 }
 
 /** A feed whose transport could not open: the reason stands on the
  *  feed, and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
@@ -386,7 +385,7 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  feed: a door that did not open, with the driver's own words for why.
  *  A construction says so by throwing and every call after it by
  *  leaving a sentence on the door, so both are read. */
-OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
+OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
   const std::optional<PortWanted> wanted = parsePort(uri);
   if (!wanted)
     return refuse(into, std::string(uri) +
@@ -467,7 +466,7 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
 
   // An input is one way: what comes back down a cable is the other
   // cable, which is a door of its own.
-  door->delivery->feed = into;
+  door->delivery->inlet = into;
   try {
     door->input->setCallback(&arrived, &door->delivery);
   } catch (const RtMidiError& trouble) {
@@ -485,7 +484,7 @@ void detail::registerMidi(Hub& hub) {
   // No thread is made here: the driver runs the callback that delivers,
   // and an output is written on the thread that asked.
   hub.setFeedTransport("midi",
-                       [](std::string_view uri, std::weak_ptr<Feed> into) {
+                       [](std::string_view uri, Inlet into) {
                          return openFeed(uri, into);
                        });
 }

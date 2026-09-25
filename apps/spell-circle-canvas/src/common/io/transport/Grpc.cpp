@@ -65,7 +65,7 @@
 #include <vector>
 
 #include "Registration.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
@@ -215,10 +215,11 @@ class ServerCall;
  *
  *  Held by the door and by every call alike, so a callback still
  *  running when the feed is let go keeps everything it reads. The feed
- *  itself is held weakly: when it cannot be locked there is nobody left
- *  to deliver to, and the call ends there. */
+ *  itself is reached through its inlet, which holds it weakly: once the
+ *  inlet has expired there is nobody left to deliver to, and the call
+ *  ends there. */
 struct ServerSession {
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   std::string method;
   /** Guards the two below. It is taken for the moves that add a call,
    *  find one and take one out, never across a write: a caller waits
@@ -278,10 +279,9 @@ class ServerCall final : public grpc::ServerGenericBidiReactor {
     // A read that is not ok is the caller saying it has written its
     // last message, which is how a peer leaves.
     if (!ok) return ending();
-    const std::shared_ptr<Feed> feed = m_session->feed.lock();
-    if (!feed) return ending();
+    if (m_session->inlet.expired()) return ending();
     if (std::optional<Bytes> message = bytesOf(m_incoming))
-      feed->deliver(std::move(*message), m_named);
+      m_session->inlet.deliver(std::move(*message), m_named);
     m_incoming.Clear();
     StartRead(&m_incoming);
   }
@@ -527,12 +527,12 @@ class ClientCall final
     : public grpc::ClientBidiReactor<grpc::ByteBuffer, grpc::ByteBuffer> {
  public:
   ClientCall(std::shared_ptr<grpc::Channel> channel, std::string url,
-             std::string method, std::weak_ptr<Feed> feed)
+             std::string method, Inlet inlet)
       : m_channel(std::move(channel)),
         m_stub(m_channel),
         m_url(std::move(url)),
         m_method(std::move(method)),
-        m_feed(std::move(feed)) {}
+        m_inlet(std::move(inlet)) {}
 
   /** Opens the call and starts reading it. */
   void begin(const std::shared_ptr<ClientCall>& self) {
@@ -608,12 +608,11 @@ class ClientCall final
       return;
     }
     m_reached.store(true, std::memory_order_release);
-    const std::shared_ptr<Feed> feed = m_feed.lock();
-    if (!feed) return;
+    if (m_inlet.expired()) return;
     if (std::optional<Bytes> message = bytesOf(m_incoming))
       // A client has the one peer it called, and every message it takes
       // is named for it.
-      feed->deliver(std::move(*message), m_url);
+      m_inlet.deliver(std::move(*message), m_url);
     m_incoming.Clear();
     StartRead(&m_incoming);
   }
@@ -641,8 +640,7 @@ class ClientCall final
 
   void OnDone(const grpc::Status& status) override {
     const InCallback callback;
-    const std::shared_ptr<Feed> feed = m_feed.lock();
-    if (feed) {
+    if (!m_inlet.expired()) {
       // A call given up on purpose ended as it was meant to and there is
       // nobody it has to be explained to; any other ending is what the
       // feed is told, in gRPC's own words — and WHICH ending it was is
@@ -651,14 +649,14 @@ class ClientCall final
       // has to be able to tell apart.
       if (!status.ok()) {
         if (!m_stopped.load(std::memory_order_acquire))
-          feed->fail(m_reached.load(std::memory_order_acquire)
-                         ? m_url + " ended: " + status.error_message()
-                         : "could not reach " + m_url + ": " +
-                               status.error_message());
+          m_inlet.fail(m_reached.load(std::memory_order_acquire)
+                           ? m_url + " ended: " + status.error_message()
+                           : "could not reach " + m_url + ": " +
+                                 status.error_message());
       } else {
         // The server ended the call. Nothing more arrives, so the feed
         // takes nothing more.
-        feed->close();
+        m_inlet.close();
       }
     }
     const std::shared_ptr<ClientCall> last = std::move(m_self);
@@ -674,8 +672,7 @@ class ClientCall final
     if (m_reached.load(std::memory_order_acquire)) return;
     if (m_channel->GetState(false) == GRPC_CHANNEL_READY) return;
     if (m_stopped.load(std::memory_order_acquire)) return;
-    if (const std::shared_ptr<Feed> feed = m_feed.lock())
-      feed->fail("could not reach " + m_url + " within ten seconds");
+    m_inlet.fail("could not reach " + m_url + " within ten seconds");
     m_context.TryCancel();
   }
 
@@ -692,7 +689,7 @@ class ClientCall final
    *  sender every arrival names. */
   const std::string m_url;
   const std::string m_method;
-  const std::weak_ptr<Feed> m_feed;
+  const Inlet m_inlet;
   std::shared_ptr<ClientCall> m_self;
   grpc::ByteBuffer m_incoming;
   /** The bound on reaching the server, which fires on a thread of
@@ -726,9 +723,8 @@ struct ClientDoor {
 
 /** A feed whose transport could not open: the reason stands on the
  *  feed, and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
@@ -738,9 +734,9 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  The bind is done here rather than left to the background, so a feed
  *  that could not take its port says so by the time it is answered. */
 OpenedFeed hold(std::string_view uri, const Address& place,
-                const std::weak_ptr<Feed>& into) {
+                const Inlet& into) {
   const auto door = std::make_shared<ServerDoor>();
-  door->session->feed = into;
+  door->session->inlet = into;
   door->session->method = place.method;
   door->service = std::make_unique<ServedMethod>(door->session);
 
@@ -783,7 +779,7 @@ OpenedFeed hold(std::string_view uri, const Address& place,
  *  What it decided reaches the feed either way: as arrivals, or as the
  *  sentence error() answers. */
 OpenedFeed reach(std::string_view uri, const Address& place,
-                 const std::weak_ptr<Feed>& into) {
+                 const Inlet& into) {
   // The authority as the URI wrote it is what gRPC takes as its target,
   // a bracketed IPv6 literal included.
   const std::string target = place.host.find(':') == std::string::npos
@@ -815,7 +811,7 @@ OpenedFeed reach(std::string_view uri, const Address& place,
 /** ONE SCHEME, TWO SHAPES, split by the shape of the URI: a URI naming
  *  a host is a server to call, and a URI naming none is a port to
  *  hold. */
-OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
+OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
   const std::optional<Address> address = parseAddress(uri);
   if (!address)
     return refuse(into, std::string(uri) +
@@ -831,7 +827,7 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
 
 void detail::registerGrpc(Hub& hub) {
   hub.setFeedTransport("grpc",
-                       [](std::string_view uri, std::weak_ptr<Feed> into) {
+                       [](std::string_view uri, Inlet into) {
                          return openFeed(uri, into);
                        });
 }

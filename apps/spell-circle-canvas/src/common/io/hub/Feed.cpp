@@ -104,8 +104,6 @@ void Feed::deliverLocked(std::shared_ptr<const Bytes> bytes, double at,
   }
 }
 
-void Feed::deliver(Bytes bytes) { deliver(std::move(bytes), std::string()); }
-
 void Feed::deliver(Bytes bytes, std::string from) {
   const double at =
       std::chrono::duration<double>(std::chrono::steady_clock::now() - m_made)
@@ -150,7 +148,7 @@ void Feed::close() {
   if (ending) ending();
 }
 
-void Feed::opened(OpenedFeed opened) {
+void Feed::open(OpenedFeed opened) {
   std::function<void()> unwanted;
   {
     const std::lock_guard lock(m_mutex);

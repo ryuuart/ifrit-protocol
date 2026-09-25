@@ -32,16 +32,16 @@ std::string_view feedScheme(std::string_view uri) {
 
 }  // namespace
 
-void Hub::setFeedTransport(std::string scheme, FeedTransport transport) {
+void Hub::setFeedTransport(std::string scheme, Transport transport) {
   const std::lock_guard lock(m_mutex);
   m_caches->feedTransports.insert_or_assign(std::move(scheme),
                                             std::move(transport));
 }
 
-FeedTransport Hub::feedTransport(std::string_view scheme) const {
+Transport Hub::feedTransport(std::string_view scheme) const {
   const std::lock_guard lock(m_mutex);
   const auto registered = m_caches->feedTransports.find(scheme);
-  return registered == m_caches->feedTransports.end() ? FeedTransport{}
+  return registered == m_caches->feedTransports.end() ? Transport{}
                                               : registered->second;
 }
 
@@ -127,7 +127,7 @@ std::shared_ptr<Feed> Hub::feed(std::string_view uri, FeedPolicy policy) {
                "\": a feed opens through the transport its scheme names");
     return made;
   }
-  FeedTransport transport;
+  Transport transport;
   {
     const std::lock_guard lock(m_mutex);
     const auto registered = m_caches->feedTransports.find(scheme);
@@ -141,7 +141,8 @@ std::shared_ptr<Feed> Hub::feed(std::string_view uri, FeedPolicy policy) {
   }
   // Called with no lock held: opening a door binds a socket, and the
   // transport may deliver into the feed before it has answered.
-  made->opened(transport(uri, std::weak_ptr<Feed>(made)));
+  const Inlet inlet(made);
+  inlet.open(transport(uri, inlet));
   return made;
 }
 

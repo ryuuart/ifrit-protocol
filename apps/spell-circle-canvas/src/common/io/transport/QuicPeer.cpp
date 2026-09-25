@@ -13,7 +13,7 @@
 #include "QuicAddress.h"
 #include "QuicLibrary.h"
 #include "QuicSession.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 
 namespace sigil::io::quic {
 namespace {
@@ -231,22 +231,22 @@ void Peer::forget() {
 
 void Peer::tell() {
   if (m_given.load(std::memory_order_acquire)) return;
-  const std::shared_ptr<Feed> feed = m_session->feed.lock();
-  if (!feed) return;
+  const Inlet& inlet = m_session->inlet;
+  if (inlet.expired()) return;
   const bool reached = m_reached.load(std::memory_order_acquire);
   if (m_byPeer || (reached && m_why == QUIC_STATUS_SUCCESS)) {
-    feed->close();
+    inlet.close();
     return;
   }
   if (reached) {
-    feed->fail(m_named + " ended: " + reasonOf(m_why));
+    inlet.fail(m_named + " ended: " + reasonOf(m_why));
     return;
   }
   if (m_why == QUIC_STATUS_CONNECTION_TIMEOUT) {
-    feed->fail("could not reach " + m_named + " within ten seconds");
+    inlet.fail("could not reach " + m_named + " within ten seconds");
     return;
   }
-  feed->fail("could not reach " + m_named + ": " + reasonOf(m_why));
+  inlet.fail("could not reach " + m_named + ": " + reasonOf(m_why));
 }
 
 QUIC_STATUS QUIC_API onConnection(HQUIC /*connection*/, void* context,

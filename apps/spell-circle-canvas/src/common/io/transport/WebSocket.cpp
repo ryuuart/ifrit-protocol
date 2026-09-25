@@ -49,7 +49,7 @@
 #include <vector>
 
 #include "Registration.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
@@ -350,15 +350,16 @@ struct Peer {
  *
  *  Held by the thread and by the door alike, so a callback still running
  *  when the feed is let go keeps everything it reads. The feed itself is
- *  held weakly: when it cannot be locked there is nobody left to deliver
- *  to, and the message is dropped there.
+ *  reached through its inlet, which holds it weakly: once the inlet has
+ *  expired there is nobody left to deliver to, and the message is
+ *  dropped there.
  *
  *  Only the loop's own thread reads or writes `app`, `listening` and
  *  `peers`; a door on another thread reaches them by deferring onto
  *  `loop`, which is published once the listener is bound and never
  *  changes after. */
 struct Session {
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   std::string scheme;
   std::string topic;
   /** WHERE THE PAGES STAND, or empty when the URI named none: the
@@ -455,10 +456,8 @@ void hold(const std::shared_ptr<Session>& session, const Address& place,
     };
     behavior.message = [session](auto* peer, std::string_view message,
                                  uWS::OpCode) {
-      const std::shared_ptr<Feed> feed = session->feed.lock();
-      if (!feed) return;
-      feed->deliver(Bytes(std::as_bytes(std::span(message))),
-                    peer->getUserData()->address);
+      session->inlet.deliver(Bytes(std::as_bytes(std::span(message))),
+                             peer->getUserData()->address);
     };
     behavior.close = [session](auto* peer, int, std::string_view) {
       // A peer that has left is nobody to answer, and the entry that
@@ -600,9 +599,8 @@ bool Door::sendTo(std::string_view to, const Bytes& message) {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
@@ -613,7 +611,7 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  feed that could not take its port says so by the time it is
  *  answered. */
 OpenedFeed openFeed(const Hub& hub, std::string_view uri,
-                    const std::weak_ptr<Feed>& into) {
+                    const Inlet& into) {
   const std::optional<Address> address = parseAddress(uri);
   if (!address)
     return refuse(into, std::string(uri) +
@@ -626,7 +624,7 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
                             "peers connect to it");
 
   const auto door = std::make_shared<Door>();
-  door->session->feed = into;
+  door->session->inlet = into;
   door->session->scheme = "ws";
   door->session->topic = address->path;
   for (const std::string& admitted : address->admit) {
@@ -725,7 +723,7 @@ void detail::registerWebSocket(Hub& hub) {
   // answers may outlive it — which is why what the listener keeps is a
   // path and not a way back here.
   hub.setFeedTransport("ws",
-                       [&hub](std::string_view uri, std::weak_ptr<Feed> into) {
+                       [&hub](std::string_view uri, Inlet into) {
                          return openFeed(hub, uri, into);
                        });
 }

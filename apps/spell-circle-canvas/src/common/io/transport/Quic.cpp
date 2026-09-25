@@ -52,7 +52,7 @@
 #include "QuicLibrary.h"
 #include "QuicPeer.h"
 #include "QuicSession.h"
-#include "sigilio/hub/Feed.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
@@ -164,9 +164,8 @@ bool Door::sendTo(std::string_view to, const Bytes& message) {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
@@ -176,7 +175,7 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  The bind is done here rather than left to the background, so a feed
  *  that could not take its port says so by the time it is answered. */
 OpenedFeed hold(const Hub& hub, std::string_view uri, const Address& place,
-                const std::weak_ptr<Feed>& into) {
+                const Inlet& into) {
   // A QUIC PORT ANSWERS FOR ITSELF OR IT ANSWERS NOBODY: there is no
   // unencrypted form of this door to fall back to.
   if (place.certificate.empty() || place.key.empty())
@@ -209,7 +208,7 @@ OpenedFeed hold(const Hub& hub, std::string_view uri, const Address& place,
   credential.CertificateFile = &pair;
 
   const auto door = std::make_shared<Door>();
-  door->session->feed = into;
+  door->session->inlet = into;
   door->session->datagrams = place.datagrams;
   QUIC_STATUS why = QUIC_STATUS_SUCCESS;
   door->session->configuration = configurationFor(credential, why);
@@ -262,7 +261,7 @@ OpenedFeed hold(const Hub& hub, std::string_view uri, const Address& place,
  *  otherwise hold whoever asked for the feed for as long as reaching it
  *  takes. What it decided reaches the feed either way: as arrivals, or
  *  as the sentence error() answers. */
-OpenedFeed reach(const Address& place, const std::weak_ptr<Feed>& into) {
+OpenedFeed reach(const Address& place, const Inlet& into) {
   const Library& lib = library();
   QUIC_CREDENTIAL_CONFIG credential{};
   credential.Type = QUIC_CREDENTIAL_TYPE_NONE;
@@ -276,7 +275,7 @@ OpenedFeed reach(const Address& place, const std::weak_ptr<Feed>& into) {
     credential.Flags |= QUIC_CREDENTIAL_FLAG_NO_CERTIFICATE_VALIDATION;
 
   const auto door = std::make_shared<Door>();
-  door->session->feed = into;
+  door->session->inlet = into;
   door->session->datagrams = place.datagrams;
   // The address a CALL reports and every arrival on it names: the
   // authority the URI wrote, the query being this end's own arrangement.
@@ -316,7 +315,7 @@ OpenedFeed reach(const Address& place, const std::weak_ptr<Feed>& into) {
 /** ONE SCHEME, TWO SHAPES, split by the shape of the URI: a URI naming a
  *  host is an end to call, and a URI naming none is a port to hold. */
 OpenedFeed openFeed(const Hub& hub, std::string_view uri,
-                    const std::weak_ptr<Feed>& into) {
+                    const Inlet& into) {
   const std::optional<Address> address = parseAddress(uri);
   if (!address)
     return refuse(into,
@@ -343,7 +342,7 @@ void detail::registerQuic(Hub& hub) {
   // is what the library read out of the two files, and not a way back
   // here.
   hub.setFeedTransport("quic",
-                       [&hub](std::string_view uri, std::weak_ptr<Feed> into) {
+                       [&hub](std::string_view uri, Inlet into) {
                          return quic::openFeed(hub, uri, into);
                        });
 }

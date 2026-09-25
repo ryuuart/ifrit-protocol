@@ -52,5 +52,5 @@ read or does not open with the format's header.
 
 ## See also
 
-`sigil::io::Feed`, whose `Feed::record` writes one and whose
-`Feed::advance` plays one back.
+`sigil::io::Feed`, whose `Feed::record` writes one, and
+`Hub::replay`, which plays one back.

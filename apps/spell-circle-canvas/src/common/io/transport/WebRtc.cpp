@@ -69,6 +69,7 @@
 
 #include "Registration.h"
 #include "Introduction.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
@@ -255,7 +256,7 @@ struct Door : std::enable_shared_from_this<Door> {
    *  up: it offers, and reads answers; a door that waits answers
    *  offers. */
   bool calling = false;
-  std::weak_ptr<Feed> feed;
+  Inlet inlet;
   /** The signalling door, held: the last door of one is what closes
    *  it. */
   std::shared_ptr<Signal> signal;
@@ -389,9 +390,7 @@ void Door::hold(const std::shared_ptr<Peer>& peer,
   channel->onMessage([door, name](rtc::message_variant data) {
     const std::shared_ptr<Door> held = door.lock();
     if (!held || held->closed.load(std::memory_order_acquire)) return;
-    const std::shared_ptr<Feed> into = held->feed.lock();
-    if (!into) return;
-    into->deliver(bytesOf(data), name);
+    held->inlet.deliver(bytesOf(data), name);
   });
   channel->onClosed([ending] {
     // The peer is only MARKED here: this runs on the library's own
@@ -454,13 +453,11 @@ void Door::callOut() {
     // frame.
     hold(peer, peer->connection->createDataChannel(std::string(kChannelLabel)));
   } catch (const std::exception& trouble) {
-    if (const std::shared_ptr<Feed> into = feed.lock())
-      into->fail(std::string("could not take up ") + address + ": " +
-                 trouble.what());
+    inlet.fail(std::string("could not take up ") + address + ": " +
+               trouble.what());
   } catch (...) {
-    if (const std::shared_ptr<Feed> into = feed.lock())
-      into->fail(std::string("could not take up ") + address +
-                 ": the library refused the call");
+    inlet.fail(std::string("could not take up ") + address +
+               ": the library refused the call");
   }
 }
 
@@ -717,9 +714,8 @@ std::shared_ptr<Signal> signalFor(Signals& signals, Hub& hub,
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
-  if (const std::shared_ptr<Feed> feed = into.lock())
-    feed->fail(std::move(why));
+OpenedFeed refuse(const Inlet& into, std::string why) {
+  into.fail(std::move(why));
   return {};
 }
 
@@ -727,7 +723,7 @@ OpenedFeed refuse(const std::weak_ptr<Feed>& into, std::string why) {
  *  door its introductions cross, and — where this end takes a room up
  *  rather than waiting to be taken up — the offer that starts one. */
 OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
-                    const std::weak_ptr<Feed>& into) {
+                    const Inlet& into) {
   ReadConversation read = readConversation(uri);
   if (!read.trouble.empty()) return refuse(into, std::move(read.trouble));
 
@@ -735,7 +731,7 @@ OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
   door->room = read.conversation.room;
   door->address = std::string(kScheme) + door->room;
   door->calling = callsOut(read.conversation.signal);
-  door->feed = into;
+  door->inlet = into;
   for (const std::string& server : read.conversation.ice) {
     // A server named here is asked what address this machine has to the
     // world, which is what two ends behind routers need and what two on
@@ -793,7 +789,7 @@ void detail::registerWebRtc(Hub& hub) {
   // while the feed that call answers may outlive it.
   auto signals = std::make_shared<Signals>();
   hub.setFeedTransport("webrtc", [&hub, signals](std::string_view uri,
-                                                 std::weak_ptr<Feed> into) {
+                                                 Inlet into) {
     return openFeed(hub, *signals, uri, into);
   });
 }

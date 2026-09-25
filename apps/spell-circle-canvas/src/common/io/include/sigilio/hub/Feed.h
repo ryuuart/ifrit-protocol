@@ -3,7 +3,8 @@
 /** @file
  * @ingroup io-hub
  * A FEED: a resource that keeps arriving. One door, keyed by URI, with a
- * transport on one side and readers on the other. A reader on any thread
+ * transport on one side and readers on the other; this is the readers'
+ * side, and the transport's is the `Inlet` it is handed. A reader on any thread
  * either takes the newest message whole through latest() or drains in
  * order the ones it has not seen through receive(), and neither ever
  * waits for one. A feed holds the
@@ -24,6 +25,7 @@
 #include <string_view>
 #include <vector>
 
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/source/Source.h"
 
 namespace sigil::io {
@@ -50,32 +52,6 @@ struct Arrival {
    *  a transport that has no way of knowing. */
   std::string from;
 };
-
-/** WHAT A TRANSPORT HANDS BACK once it has opened a URI. */
-struct OpenedFeed {
-  /** Closes the transport's end. The feed calls it once, from close()
-   *  or from its destructor. */
-  std::function<void()> close;
-  /** Sends through the same door; empty when the way is one-way. */
-  std::function<bool(const Bytes&)> send;
-  /** Sends to ONE sender, named the way an arrival's `from` spells it;
-   *  empty when the transport cannot address one. */
-  std::function<bool(std::string_view to, const Bytes&)> sendTo;
-  /** The peers attached to the door now, each named the way an
-   *  arrival's `from` spells it; empty when the transport holds no peers
-   *  of its own. */
-  std::function<std::vector<std::string>()> peers;
-  /** The local end as the transport bound it, "udp://[::]:52341";
-   *  empty when it has none. */
-  std::string address;
-};
-
-/** HOW A SCHEME OPENS A DOOR: given the URI and the feed to deliver
- *  into, hands back the opened end. The transport keeps only the weak
- *  pointer and delivers through into.lock(), so a feed nobody holds is
- *  gone and its transport stops. */
-using FeedTransport =
-    std::function<OpenedFeed(std::string_view uri, std::weak_ptr<Feed> into)>;
 
 /** HOW MUCH A FEED HOLDS FOR ITS READERS. It stands beside the class it
  *  belongs to rather than inside it because a member initializer of a
@@ -125,38 +101,21 @@ class Feed {
  public:
   /** Maps an arrival from this feed onto the steady clock. Live arrivals
    *  retain their transport receive time; replay times are relative to the
-   *  first advance() call, preserving recorded spacing across queued reads.
+   *  first `Hub::dispatch()` that moved the recording, preserving recorded
+   *  spacing across queued reads.
    *  Negative, nonfinite or unrepresentable times map to that clock origin. */
   std::chrono::steady_clock::time_point receivedAt(
       const Arrival& arrival) const;
 
   /** A door named @p uri under @p policy. Nothing is opened here: a
-   *  transport or a recording is handed over afterwards. */
+   *  hub hands it a transport or a recording, and a test puts messages
+   *  on it through `testing::inletOf()`. */
   Feed(std::string uri, FeedPolicy policy = {});
   /** Closes the opened end. */
   ~Feed();
 
   Feed(const Feed&) = delete;
   Feed& operator=(const Feed&) = delete;
-
-  /** Takes one message, stamped with the seconds since the feed was
-   *  made. Any thread. */
-  void deliver(Bytes bytes);
-
-  /** The same, naming the address the message came from — what a
-   *  transport that knows its sender delivers through. */
-  void deliver(Bytes bytes, std::string from);
-
-  /** The same, with a recording's own time instead of the clock's. */
-  void deliver(Bytes bytes, double at);
-
-  /** Says what went wrong, which error() answers from then on; an empty
-   *  reason is nothing wrong, and takes off what stood there. The feed
-   *  stays open: a transport that lost one message still has a door.
-   *  @trap A TRANSPORT THAT OPENED NOTHING SAYS SO HERE, and the feed is
-   *  then one that was never OPENED rather than one with a door — which
-   *  is what lets the next ask for its URI open it again. */
-  void fail(std::string why);
 
   /** No more arrivals are taken. What was received stays readable, and
    *  the opened end's close runs once. */
@@ -225,19 +184,34 @@ class Feed {
    *  already stopped, and error() says why. */
   [[nodiscard]] Recording record(std::filesystem::path path);
 
-  /** Hands the feed the end its transport opened. Once: a second end,
-   *  and one handed to a feed that is already closed, is closed rather
-   *  than kept. An end that stands is kept with whatever the transport
-   *  has said about it by then.
+ private:
+  friend class Inlet;
+  friend class Hub;
+
+  /** Takes one message, stamped with the seconds since the feed was
+   *  made and naming the address it came from, or nobody. Any thread. */
+  void deliver(Bytes bytes, std::string from);
+
+  /** The same, with a recording's own time instead of the clock's, and
+   *  no sender. */
+  void deliver(Bytes bytes, double at);
+
+  /** Says what went wrong, which error() answers from then on; an empty
+   *  reason takes off what stood there. The feed stays open. */
+  void fail(std::string why);
+
+  /** Takes the end its transport opened. Once: a second end, and one
+   *  handed to a feed that is already closed, is closed rather than
+   *  kept. An end that stands is kept with whatever the transport has
+   *  said about it by then.
    *  @trap AN END WITH NOTHING IN IT, HANDED TO A FEED CARRYING A
    *  REASON, IS NO END: the feed stays unopened with that reason
    *  standing, so the next ask for its URI opens it again into this
    *  same feed. */
-  void opened(OpenedFeed opened);
+  void open(OpenedFeed end);
 
-  /** This feed reads @p recording instead of a transport: advance() is
-   *  then what delivers, and the recording is the door this feed
-   *  opened. */
+  /** Reads @p recording instead of a transport: advance() is then what
+   *  delivers, and the recording is the door this feed opened. */
   void replay(std::vector<Arrival> recording);
 
   /** Moves a replayed recording's time to @p seconds on the caller's
@@ -247,7 +221,6 @@ class Feed {
    *  after the last one. A live feed ignores it. */
   void advance(double seconds);
 
- private:
   /** Stamps and queues one arrival with the lock already held. Every
    *  path that takes a message — the transport's and the recording's —
    *  runs through here, so a generation is never handed out twice and
