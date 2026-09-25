@@ -48,6 +48,9 @@ sigil_test(sketch_test
           test/TickerTest.cpp
   LIBRARIES SigilSketchKit SigilMaterialKit SigilMotionClock
             SigilMotionValues SigilDataTable
+  # The one case that asks the machine's font manager for a family by name.
+  LABELS fonts
+  SUITES SketchKitHeading.AFamilyTheSheetSetsReachesTheCardsLines
   # The chart's class table is documented in the README beside this file,
   # and the README is the canon, so the case that checks the table against
   # `Theme::styleSheet()` reads the document itself.

@@ -29,12 +29,22 @@ using sigil::sketch::test::fonts;
 
 // The headings
 
+/** A card line as the card sets it with no sheet in force: its register's
+ *  size, tracking and ink, in the family it inherits — the font context's
+ *  own here, since nothing above names one — rather than either of the
+ *  theme's two faces, which are the sheet's to state. */
+sigil::weave::TextStyle cardLine(const kit::Register& line,
+                                 sigil::material::Color ink) {
+  return sigil::weave::textStyle(
+      {.face = line.face, .size = line.size, .color = ink, .track = line.track});
+}
+
 /** The card is the header half of a page, standing alone: three lines in
  *  the theme's registers, spaced by its subtitle gap. */
 TEST(SketchKitHeading, TitleCardDrawsTheHandSpelledColumn) {
   const kit::Theme& house = kit::houseTheme();
   const auto line = [&](const kit::Register& r, sigil::material::Color c) {
-    return house.style(r, c);
+    return cardLine(r, c);
   };
   Element byHand =
       compose::box()
@@ -78,7 +88,7 @@ TEST(SketchKitHeading, AMissingLineSpendsNoGap) {
 TEST(SketchKitHeading, ACardWithNotesIsTheHandSpelledRow) {
   const kit::Theme& house = kit::houseTheme();
   const auto line = [&](const kit::Register& reg, sigil::material::Color ink) {
-    return house.style(reg, ink);
+    return cardLine(reg, ink);
   };
   Element byHand =
       compose::box()
@@ -142,6 +152,39 @@ TEST(SketchKitHeading, ARegisterNamesItsOwnFace) {
                                        .track = paper.type.title.track}))});
   EXPECT_TRUE(sameDrawing(std::move(byHand),
                           kit::titleCard({.title = {u8"THE STROKE ATLAS"}})));
+}
+
+/** A FAMILY THE SHEET SETS REACHES THE CARD'S LINES: stated once on the
+ *  root, it is the family the title is set in under a theme whose own face
+ *  is another, and a rule's weight resolves in it. */
+TEST(SketchKitHeading, AFamilyTheSheetSetsReachesTheCardsLines) {
+  const kit::Theme& feature = kit::featureTheme();
+  const kit::Provide look(feature);
+  const auto underGeorgia = [&](Element tree) {
+    return compose::box().fontFamily("Georgia").children({std::move(tree)});
+  };
+  const auto title = [&](int weight) {
+    return underGeorgia(compose::box()
+                            .column()
+                            .alignItems(compose::Align::Start)
+                            .children({compose::text(u8"T")
+                                           .font({.size = feature.type.title.size,
+                                                  .color = feature.palette.ink,
+                                                  .track = feature.type.title.track})
+                                           .fontWeight(weight)}));
+  };
+  const Element card = kit::titleCard({.title = {u8"T"}});
+  EXPECT_TRUE(sameDrawing(underGeorgia(card), title(400)));
+  EXPECT_TRUE(sameDrawing(
+      compose::box()
+          .applyStyleSheet(
+              compose::StyleSheet{compose::rule("h1").fontWeight(700)})
+          .fontFamily("Georgia")
+          .children({card}),
+      title(700)));
+  // What gives the case its power: the card with no family above it is
+  // another picture, so Georgia is what reached the title.
+  EXPECT_FALSE(sameDrawing(card, underGeorgia(card)));
 }
 
 /** The rule follows the label; the supporting note stays below the heading. */

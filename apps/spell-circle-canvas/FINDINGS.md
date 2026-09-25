@@ -646,31 +646,6 @@ Wanted by: `matrix_rain` (removes its conversion). `shipping_forecast`
 literals today and would spell them like the text they churn, or read them
 from their words files, once the door is UTF-8.
 
-## A title card's lines take the theme's face as their role default, so a family the sheet inherits does not reach them
-
-`sketch::kit::titleCard` (`src/sketch/kit/Heading.cpp`) sets its eyebrow,
-title, subtitle and notes with `.role(name, look.font(register, ink))`,
-and `Theme::font` fills the partial's `face` from the theme's own
-`type.sans`. Role defaults stand over what a node inherits, so a sheet that
-states `fontFamily(...)` on its root — the one place CSS says a family —
-reaches every other leaf of the page and none of the card's: the card
-keeps the theme's face and the weight that face was resolved at, and a
-rule `h1 { fontWeight(700) }` without a family draws the title at the
-theme face's weight. `shipping_forecast` names its grotesque again in a
-rule for `eyebrow, h1, caption` so its masthead is set in it.
-
-The card's lines are evidently meant to be set in the sheet in force where
-the card lands, as every `compose::kit` piece is ("carries no colour of its
-own", "the rules of the sheets in force … say what those are"): its role
-defaults should state sizes and tracking at most, never a face, so an
-inherited family and a rule's weight reach them.
-
-A test should state `fontFamily("Georgia")` on a root box holding
-`titleCard({.title = {"T"}})` and assert the title resolves to Georgia;
-and that `rule("h1").fontWeight(700)` under the same root resolves the
-title at weight 700. Wanted by `shipping_forecast`; the fold of `Theme`
-into a sheet removes the cause for every sketch that sets a card.
-
 ## Three sketches still build or apologise for what SigilWeave now holds
 
 `weave::kit::englishHyphenator()` answers one held `PatternHyphenator`

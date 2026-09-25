@@ -390,6 +390,16 @@ last note sits on the card's last line. `TitleCard::key` names the parts
 (`<key>-eyebrow`, `-title`, `-subtitle`, `-note0`…) the way `Page::key`
 and `Row::key` do.
 
+**THE CARD'S LINES ARE SET IN THE FAMILY THE SHEET IN FORCE SETS.** Each
+line is its document role — `eyebrow`, `h1`, `lead`, `caption` — with a
+default under every rule that matches it: the register's size and
+tracking and the ink it is set in, and a face only where the register
+names one of its own (`Register::face`). Neither of the theme's two faces
+is stated there, because a family is the sheet's to say: a page's role
+rules state the theme's, a `fontFamily` on the root reaches every line
+of a card standing under it, and `rule("h1").fontWeight(700)` sets the
+title at that weight in whichever family that is.
+
 ```cpp
 sketch::kit::titleCard(
     {.eyebrow = {.words = "MET OFFICE", .opacity = beat(0.05f, 0.55f)},
@@ -862,7 +872,9 @@ because a hot-reloaded sketch's dylib force-loads it out of the host.
 [docs/overview/testing.md](../../../docs/overview/testing.md) is the
 contract every library here is built, tested and measured under. The
 kit has no binary of its own: its cases are part of `sketch_test`,
-under the `SketchKit` suites, and none of them carries a label.
+under the `SketchKit` suites, and one of them carries a label: the case
+that sets a card under a family the sheet names asks the machine's font
+manager for that family, so it carries `fonts`.
 
 `kit/test/` asserts the claim a migrated sketch's plate rests on:
 that the theme is a comparable value a scope binds and shadows, and that

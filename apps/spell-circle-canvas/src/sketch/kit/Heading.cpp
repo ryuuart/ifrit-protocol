@@ -30,6 +30,20 @@ Element spoken(const Line& line, Text el, const std::string& key) {
   return el;
 }
 
+/** A CARD LINE'S ROLE DEFAULT: its register's size and tracking, the ink
+ *  it is set in, and a face only where the register names one of its own.
+ *  The theme's two faces are the sheet's to state — a page's role rules
+ *  state them — so a family the sheet in force sets, on the root or in a
+ *  rule, reaches the card's lines, and a rule's weight resolves in it. */
+weave::Type cardLine(const Register& line, material::Color ink) {
+  weave::Type type{.size = line.size, .color = ink, .track = line.track};
+  // Unset rather than null where the register names none: a stated null
+  // face is the default family outright, which an inherited one would not
+  // reach past.
+  if (line.face) type.face = line.face;
+  return type;
+}
+
 }  // namespace
 
 compose::Element titleCard(const TitleCard& card) {
@@ -54,15 +68,15 @@ compose::Element titleCard(const TitleCard& card) {
   };
   say(card.eyebrow,
       document::eyebrow(card.eyebrow.words)
-          .role("eyebrow", look.font(look.type.eyebrow, look.palette.ash)),
+          .role("eyebrow", cardLine(look.type.eyebrow, look.palette.ash)),
       "eyebrow", 0);
   say(card.title,
       document::h1(card.title.words)
-          .role("h1", look.font(look.type.title, look.palette.ink)),
+          .role("h1", cardLine(look.type.title, look.palette.ink)),
       "title", look.spacing.subtitleGap);
   say(card.subtitle,
       document::lead(card.subtitle.words)
-          .role("lead", look.font(look.type.subtitle, look.palette.ash)),
+          .role("lead", cardLine(look.type.subtitle, look.palette.ash)),
       "subtitle", look.spacing.subtitleGap);
   if (card.ruled)
     place(box()
@@ -83,7 +97,7 @@ compose::Element titleCard(const TitleCard& card) {
         {spoken(note,
                 document::caption(note.words)
                     .role("caption",
-                          look.font(look.type.captionNote, look.palette.ash)),
+                          cardLine(look.type.captionNote, look.palette.ash)),
                 card.key.empty() ? std::string()
                                  : card.key + "-note" + std::to_string(i))});
   }
