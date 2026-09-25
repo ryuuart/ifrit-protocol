@@ -170,10 +170,6 @@ StyleSheet sheet() {
           .fontFamily(grotesque)
           .ink(var("bone")),
       // The masthead and the line naming each panel.
-      // workaround: the title card sets its lines over role defaults that
-      // name the theme's face, which stand over an inherited family, so
-      // these three name the sheet's family again.
-      rule("eyebrow, h1, caption").fontFamily(grotesque),
       rule("eyebrow")
           .fontWeight(600)
           .fontSize(11)
