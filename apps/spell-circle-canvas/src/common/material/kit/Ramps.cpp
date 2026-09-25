@@ -27,7 +27,7 @@ Ramp evenly(std::initializer_list<uint32_t> colors) {
   size_t index = 0;
   for (uint32_t packed : colors) {
     ramp.stops.push_back(
-        {count > 1 ? (float)index / (float)(count - 1) : 0.0f, rgb(packed)});
+        {count > 1 ? (float)index / (float)(count - 1) : 0.0f, hexColor(packed)});
     ++index;
   }
   return ramp;

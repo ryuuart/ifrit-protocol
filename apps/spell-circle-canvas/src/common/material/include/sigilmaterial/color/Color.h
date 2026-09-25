@@ -62,19 +62,20 @@ struct Color {
 };
 
 /** A colour from a packed 0xRRGGBB, with @p alpha as its alpha — the spelling
- *  a palette is authored in, one hex integer per colour.
+ *  a palette is authored in, one hex integer per colour, as CSS's
+ *  `#rrggbb` is. sRGB byte values divided by 255.
  *
  *  constexpr, because a palette is a list of constants and a constant
  *  that has to be built at run time is a constant the compiler cannot
  *  fold into the value that holds it. */
-constexpr Color rgb(uint32_t hex, float alpha = 1.0f) {
-  return {(float)((hex >> 16u) & 0xffu) / 255.0f,
-          (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
-          alpha};
+constexpr Color hexColor(uint32_t rrggbb, float alpha = 1.0f) {
+  return {(float)((rrggbb >> 16u) & 0xffu) / 255.0f,
+          (float)((rrggbb >> 8u) & 0xffu) / 255.0f,
+          (float)(rrggbb & 0xffu) / 255.0f, alpha};
 }
 
 /** A colour from HUE, SATURATION and VALUE — the wheel a palette is
- *  WALKED on, where `rgb()` is the one an authored palette is typed in.
+ *  WALKED on, where `hexColor()` is the one an authored palette is typed in.
  *  @p hueDegrees is in degrees and WRAPS, so a golden-angle walk needs
  *  no fold at the call site; saturation and value clamp to 0..1.
  *  @trap Not a perceptual space: `value` is the largest channel and

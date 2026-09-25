@@ -32,19 +32,19 @@ void expectRising(const Ramp& ramp) {
 }  // namespace
 
 TEST(Ramps, TheEndsAreTheColoursTheTablesArePublishedWith) {
-  EXPECT_EQ(kit::viridis().at(0.0f), rgb(0x440154));
-  EXPECT_EQ(kit::viridis().at(1.0f), rgb(0xfde725));
-  EXPECT_EQ(kit::magma().at(0.0f), rgb(0x000004));
-  EXPECT_EQ(kit::magma().at(1.0f), rgb(0xfcfdbf));
-  EXPECT_EQ(kit::inferno().at(0.0f), rgb(0x000004));
-  EXPECT_EQ(kit::inferno().at(1.0f), rgb(0xfcffa4));
-  EXPECT_EQ(kit::plasma().at(0.0f), rgb(0x0d0887));
-  EXPECT_EQ(kit::plasma().at(1.0f), rgb(0xf0f921));
-  EXPECT_EQ(kit::turbo().at(0.0f), rgb(0x30123b));
-  EXPECT_EQ(kit::turbo().at(1.0f), rgb(0x7a0403));
+  EXPECT_EQ(kit::viridis().at(0.0f), hexColor(0x440154));
+  EXPECT_EQ(kit::viridis().at(1.0f), hexColor(0xfde725));
+  EXPECT_EQ(kit::magma().at(0.0f), hexColor(0x000004));
+  EXPECT_EQ(kit::magma().at(1.0f), hexColor(0xfcfdbf));
+  EXPECT_EQ(kit::inferno().at(0.0f), hexColor(0x000004));
+  EXPECT_EQ(kit::inferno().at(1.0f), hexColor(0xfcffa4));
+  EXPECT_EQ(kit::plasma().at(0.0f), hexColor(0x0d0887));
+  EXPECT_EQ(kit::plasma().at(1.0f), hexColor(0xf0f921));
+  EXPECT_EQ(kit::turbo().at(0.0f), hexColor(0x30123b));
+  EXPECT_EQ(kit::turbo().at(1.0f), hexColor(0x7a0403));
   // The middle of viridis is its teal, which is the sample every
   // reproduction of the map is checked against.
-  EXPECT_LT(deltaE(kit::viridis().at(0.5f), rgb(0x21918c)), 1.0f);
+  EXPECT_LT(deltaE(kit::viridis().at(0.5f), hexColor(0x21918c)), 1.0f);
 }
 
 TEST(Ramps, TheSequentialMapsClimbInLightnessTheWholeWay) {

@@ -43,7 +43,7 @@ TEST(SkiaPalette, ThePicturesOwnColoursComeBack) {
              SkColorSetRGB(0xE8, 0xD9, 0xA0)});
   const Palette table = skia::palette(image, {.entries = 3});
   ASSERT_EQ(table.size(), 3u);
-  for (const Color& wanted : {rgb(0xD01515), rgb(0x1530D0), rgb(0xE8D9A0)}) {
+  for (const Color& wanted : {hexColor(0xD01515), hexColor(0x1530D0), hexColor(0xE8D9A0)}) {
     const int entry = closestEntry(table, wanted);
     ASSERT_GE(entry, 0);
     EXPECT_LT(deltaE(table.at(entry), wanted), 3.0f);

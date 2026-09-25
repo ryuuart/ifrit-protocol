@@ -90,10 +90,10 @@ Material tunnel(const SkRect& bounds, float timeSeconds) {
 }
 
 std::vector<ColorStop> sunsetChromeText() {
-  return {{0.0f, rgb(0xEAF6FF)},   {0.12f, rgb(0x9CCFF3)},
-          {0.35f, rgb(0x3C7FC0)},  {0.495f, rgb(0x0B2A52)},
-          {0.505f, rgb(0x7A4A1A)}, {0.62f, rgb(0xB98A46)},
-          {0.82f, rgb(0xE8CE9A)},  {1.0f, rgb(0xFDF6E3)}};
+  return {{0.0f, hexColor(0xEAF6FF)},   {0.12f, hexColor(0x9CCFF3)},
+          {0.35f, hexColor(0x3C7FC0)},  {0.495f, hexColor(0x0B2A52)},
+          {0.505f, hexColor(0x7A4A1A)}, {0.62f, hexColor(0xB98A46)},
+          {0.82f, hexColor(0xE8CE9A)},  {1.0f, hexColor(0xFDF6E3)}};
 }
 
 std::vector<ColorStop> silverChromeText() {

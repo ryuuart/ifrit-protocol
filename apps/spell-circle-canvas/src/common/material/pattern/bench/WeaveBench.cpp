@@ -24,7 +24,7 @@ pattern::Cloth tartan() {
   const std::vector<uint8_t> count = pattern::threadcount(settRuns());
   return {.warp = count,
           .weft = count,
-          .shades = {rgb(0x101010), rgb(0x2C2C80), rgb(0x006818)},
+          .shades = {hexColor(0x101010), hexColor(0x2C2C80), hexColor(0x006818)},
           .rib = 0.22f};
 }
 

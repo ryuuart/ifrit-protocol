@@ -63,7 +63,7 @@ Cloth gingham() {
   const std::vector<uint8_t> count = pattern::threadcount({{8, 0}, {8, 1}});
   return {.warp = count,
           .weft = count,
-          .shades = {rgb(0xFFFFFF), rgb(0xCC2222)},
+          .shades = {hexColor(0xFFFFFF), hexColor(0xCC2222)},
           .weave = Weave::plain()};
 }
 
@@ -183,7 +183,7 @@ TEST(Weave, TheRepeatComesRoundWithTheWeaveAndNotOnlyTheSett) {
 }
 
 TEST(Weave, TheRibDarkensTheWeftFloatsAndNothingElse) {
-  const Color white = rgb(0xFFFFFF);
+  const Color white = hexColor(0xFFFFFF);
   const Cloth flat{.warp = {0}, .weft = {0}, .shades = {white}, .rib = 0.25f};
   for (int y = 0; y < 4; ++y)
     for (int x = 0; x < 4; ++x) {
@@ -201,7 +201,7 @@ TEST(Weave, OnePixelPerThreadReadsWhatTheClothReads) {
       pattern::threadcount({{5, 0}, {4, 1}, {3, 2}});
   const Cloth cloth{.warp = count,
                     .weft = count,
-                    .shades = {rgb(0x101010), rgb(0x2C2C80), rgb(0x006818)},
+                    .shades = {hexColor(0x101010), hexColor(0x2C2C80), hexColor(0x006818)},
                     .rib = 0.22f};
   // A window taken at a negative origin, so the wrap is exercised too.
   const SkIPoint origin{-7, -3};
@@ -218,7 +218,7 @@ TEST(Weave, OnePixelPerThreadReadsWhatTheClothReads) {
 TEST(Weave, TheTileBakesTheWholeRepeatOfTheSameCloth) {
   const std::vector<uint8_t> count = pattern::threadcount({{3, 0}, {3, 1}});
   const Cloth cloth{
-      .warp = count, .weft = count, .shades = {rgb(0x000000), rgb(0xFFFFFF)}};
+      .warp = count, .weft = count, .shades = {hexColor(0x000000), hexColor(0xFFFFFF)}};
   pattern::Tile tile = pattern::clothTile(cloth);
   EXPECT_EQ(tile.size().width(), 12.0f);
   EXPECT_EQ(tile.size().height(), 12.0f);
@@ -268,7 +268,7 @@ TEST(Weave, HoundstoothIsThatSettUnderTheTwillInstead) {
   const std::vector<uint8_t> count = pattern::threadcount({{4, 0}, {4, 1}});
   const Cloth plain{.warp = count,
                     .weft = count,
-                    .shades = {rgb(0x000000), rgb(0xFFFFFF)},
+                    .shades = {hexColor(0x000000), hexColor(0xFFFFFF)},
                     .weave = Weave::plain()};
   Cloth tooth = plain;
   tooth.weave = Weave::twill(2, 2);

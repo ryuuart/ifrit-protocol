@@ -153,8 +153,8 @@ TEST(Color, MixingInLinearLightIsADifferentAnswerFromMixingTheCodeValues) {
 TEST(Color, TheArithmeticVerbsAreConstexprAndSayWhichChannelsTheyTouch) {
   // A palette is a list of constants, so every verb an authored constant
   // is written through has to fold at compile time.
-  constexpr Color rubric = rgb(0x8C2F22);
-  static_assert(rgb(0xFFFFFF).r == 1.0f);
+  constexpr Color rubric = hexColor(0x8C2F22);
+  static_assert(hexColor(0xFFFFFF).r == 1.0f);
   static_assert(withAlpha(rubric, 0.4f).a == 0.4f);
   static_assert(withAlpha(rubric, 0.4f).r == rubric.r,
                 "withAlpha touches the alpha and nothing else");

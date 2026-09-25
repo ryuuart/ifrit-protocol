@@ -49,7 +49,7 @@ The four reasoning records:
 | Spelling | Language | What it gives |
 | --- | --- | --- |
 | `Color(r, g, b)` / `Color(r, g, b, a)` | C++ | the components directly |
-| `rgb(0x1f2933)` | C++ | a packed sRGB integer — the spelling a palette is authored in, constexpr, so palette constants stay constexpr |
+| `hexColor(0x1f2933)` | C++ | a packed sRGB integer — the spelling a palette is authored in, constexpr, so palette constants stay constexpr |
 | `hsv(hue, saturation, value)` | C++ | the wheel a palette is WALKED on; the hue wraps, s and v clamp |
 | an `SkColor4f`, implicitly | C++ | any `FourFloatColor`, field for field |
 | `skia::toColor(colour)` | C++ | the same crossing, spelled, from the Skia side |
@@ -60,7 +60,7 @@ The four reasoning records:
 | `"#1f2933"` | Python | a CSS colour string, implicitly |
 | `(0.12, 0.16, 0.20)` / `(0.12, 0.16, 0.20, 0.5)` | Python | a 3- or 4-tuple of unit floats, implicitly |
 | `[0.12, 0.16, 0.20]` | Python | a list, implicitly |
-| `material.rgb(0x1f2933)`, `material.hsv(...)` | Python | the two authoring spellings |
+| `material.hexColor(0x1f2933)`, `material.hsv(...)` | Python | the two authoring spellings |
 | `material.Color(0.12, 0.16, 0.20)` | Python | direct |
 
 In Python the whole of that column is the union `ColorLike`, and every
@@ -77,7 +77,7 @@ parameter that takes a colour takes every row of it.
 | `deltaE`, `luminance`, `toOklab`, `toOklch`, `toLab` | function | SigilMaterial |
 | `closestEntry` | function | SigilMaterial |
 | `skia::toSkColor` | function | SigilMaterial — the crossing back to a Skia colour |
-| `skia::Paint::solid`, `skia::Paint::uniform`, `skia::Effect::glow` | field, function | SigilMaterial — the paint model states its colours in this one |
+| `Paint::solid`, `Paint::set`, `Filter::glow` | field, function | SigilMaterial — the paint model states its colours in this one |
 
 Outside this library a colour is what a fill, an ink, a shadow and a
 light are stated in; those slots belong to the libraries that own them
@@ -130,7 +130,7 @@ SEPARATION of hues is the point.
   as one value
 - [Palette](value:sigil::material::Palette) — the ordered table read by
   index
-- [Paint](value:sigil::material::skia::Paint) — what a colour is
+- [Paint](value:sigil::material::Paint) — what a colour is
   painted WITH
 - The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
   the lattice whole, and where a colour sits in it

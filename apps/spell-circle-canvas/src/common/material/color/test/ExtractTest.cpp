@@ -43,7 +43,7 @@ TEST(Harmony, ThePolarFormRoundTripsAndAGreyHasNoDirection) {
 TEST(Harmony, ARotationHoldsTheLightnessAndGivesUpOnlyChroma) {
   // A muted colour: every hue at this chroma is inside sRGB, so the
   // rotation is exact in all three numbers.
-  const Color muted = rgb(0x8E6E7E);
+  const Color muted = hexColor(0x8E6E7E);
   const Oklch from = toOklch(muted);
   for (float degrees : {30.0f, 120.0f, 210.0f, 330.0f}) {
     const Oklch to = toOklch(rotateHue(muted, degrees));
@@ -59,7 +59,7 @@ TEST(Harmony, ARotationHoldsTheLightnessAndGivesUpOnlyChroma) {
   // A vivid one: the green sRGB cannot mix at a saturated red's chroma
   // comes back duller, and still at the hue and the weight it was asked
   // for — which is what the component-wise cut would have lost.
-  const Color vivid = rgb(0xC80000);
+  const Color vivid = hexColor(0xC80000);
   const Oklch vividFrom = toOklch(vivid);
   const Oklch vividTo = toOklch(rotateHue(vivid, 120.0f));
   EXPECT_NEAR(vividTo.L, vividFrom.L, 2e-3f);
@@ -77,7 +77,7 @@ TEST(Harmony, ARotationHoldsTheLightnessAndGivesUpOnlyChroma) {
 }
 
 TEST(Harmony, EachSchemeIsItsOwnSetOfAnglesWithTheBaseFirst) {
-  const Color base = rgb(0x6E86A2);
+  const Color base = hexColor(0x6E86A2);
   const float baseHue = toOklch(base).hueDegrees;
 
   const Palette complement = harmony(base, Scheme::Complement);
@@ -172,7 +172,7 @@ TEST(Dither, ARoundedRampAveragesToTheValueItWasAskedFor) {
 }
 
 TEST(Extract, TheTableIsTheColoursThePicturesActuallyHolds) {
-  const Color red = rgb(0xD01515), blue = rgb(0x1530D0), sand = rgb(0xE8D9A0);
+  const Color red = hexColor(0xD01515), blue = hexColor(0x1530D0), sand = hexColor(0xE8D9A0);
   std::vector<Color> pixels;
   for (int i = 0; i < 400; ++i) pixels.push_back(red);
   for (int i = 0; i < 300; ++i) pixels.push_back(blue);

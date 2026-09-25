@@ -31,7 +31,7 @@ Color aquaTopBand(Color tint);
 /** The gel's hairline keyline colour. */
 Color aquaHairline(Color tint);
 /** The default gel tint. */
-inline Color aquaTint() { return rgb(0x1E8FFF); }
+inline Color aquaTint() { return hexColor(0x1E8FFF); }
 
 /** Which chrome the bundle wears. */
 enum class ChromePalette : uint8_t {
@@ -49,7 +49,7 @@ inline constexpr float kChromeHorizonFraction = 0.50f;
 std::vector<ColorStop> chromeRamp(ChromePalette palette);
 
 /** The dark inner band the Steel palette wears beneath its top edge. */
-inline Color chromeSteelTopBand() { return rgb(0x001020, 0.30f); }
+inline Color chromeSteelTopBand() { return hexColor(0x001020, 0.30f); }
 
 // ---------------------------------------------------------------------------
 // Contour tables — a remap of BLURRED COVERAGE, which is what makes a
