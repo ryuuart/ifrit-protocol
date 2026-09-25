@@ -3,12 +3,11 @@
 /** @file
  * @ingroup material-stock
  *
- * EVERY RECIPE THIS LIBRARY SHIPS, and the one call that warms them. The
- * primitives are enumerated by the features that own them and the
- * presets by the kit; a host that wants the stock materials resident
- * before its first frame wants all three and has no reason to know how
- * many catalogues there are. So the composition is here: one list, and
- * one warm-up over it.
+ * EVERY RECIPE THIS LIBRARY SHIPS. The primitives are enumerated by the
+ * features that own them and the presets by the kit; a host that wants
+ * the stock materials resident before its first frame wants all three and
+ * has no reason to know how many catalogues there are. So the composition
+ * is here, as one list a warm-up takes whole.
  */
 
 #include <sigilmaterial/core/Material.h>
@@ -18,7 +17,8 @@
 #include <vector>
 
 /** EVERY RECIPE THE LIBRARY SHIPS, gathered from the features that own
- *  them, and the one call that compiles them all for a target. It is for
+ *  them; `material::warmup(stock::everyRecipe(), target)` compiles them all
+ *  for a target once that target's compiler is registered. It is for
  *  a caller that must reach every program without knowing what the
  *  library holds: a renderer warming its pipeline cache before the first
  *  frame, and the proof that every body compiles on a device and not
@@ -31,13 +31,5 @@ namespace sigil::material::stock {
  *  files, which is a wait rather than a computation, so they are asked
  *  side by side. */
 [[nodiscard]] std::vector<Material> everyRecipe();
-
-/** Compiles every stock recipe for @p target into the shared program
- *  cache, so the first frame that reaches for one finds it compiled.
- *
- *  A compiler for @p target must be registered before this is called —
- *  which backend a host draws through is the host's choice, and this
- *  library registers none. */
-WarmupResult warmup(Target target);
 
 }  // namespace sigil::material::stock

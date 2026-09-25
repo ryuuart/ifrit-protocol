@@ -7,7 +7,7 @@
 
 #include <sigilshaders/MaterialOcio.h>
 
-#include "sigilmaterial/ocio/Ocio.h"
+#include "LutRecipe.h"
 
 namespace sigil::material::ocio {
 

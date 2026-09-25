@@ -271,7 +271,7 @@ TEST(MaterialSlang, TheGlobeCompilesAsASurface) {
   Compiled built;
   std::string error;
   const std::string source =
-      kit::globeRecipe()->source(Target::Slang) + kSurfaceScaffold;
+      kit::globe().recipePointer()->source(Target::Slang) + kSurfaceScaffold;
   ASSERT_TRUE(
       compileModule(source, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;

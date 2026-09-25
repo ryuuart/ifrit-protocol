@@ -229,17 +229,13 @@ std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
   return ProgramCache::shared().program(std::move(recipe), target, variant);
 }
 
-WarmupResult warmup(std::span<const WarmupRequest> requests) {
-  return ProgramCache::shared().warmup(requests);
-}
-
 WarmupResult warmup(std::span<const Material> materials, Target target,
                     Variant variant) {
   std::vector<WarmupRequest> requests;
   requests.reserve(materials.size());
   for (const Material& material : materials)
     requests.push_back({material.recipePointer(), target, variant});
-  return warmup(requests);
+  return ProgramCache::shared().warmup(requests);
 }
 
 }  // namespace sigil::material

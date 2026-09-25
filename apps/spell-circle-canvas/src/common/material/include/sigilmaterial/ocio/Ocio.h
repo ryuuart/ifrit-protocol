@@ -13,13 +13,11 @@
  */
 
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
 
-#include <memory>
 #include <string_view>
 
 /** OpenColorIO's view transforms as materials: a transform baked to a
- *  3D LUT or a 1D curve, and the recipes that sample it over a layer.
+ *  3D LUT or a 1D curve and sampled over a layer.
  *  Reach for this when a colour has to arrive in the space a pipeline
  *  agreed on rather than in the one it was authored in. The feature
  *  links whether or not the build found OpenColorIO: without it
@@ -30,26 +28,6 @@ namespace sigil::material::ocio {
 /** True when OCIO support was compiled in AND the runtime can create its
  *  built-in raw config. */
 bool available();
-
-/** The ABI both bake recipes share: the number of samples along one
- *  axis of the bake in the `lut` slot. */
-struct LutParameters {
-  float lutSize;
-};
-
-/** The trilinear 3D-LUT recipe: children `content` (the layer, left to
- *  the renderer) and `lut` (the baked slices). Unpremultiplies, maps,
- *  repremultiplies, so straight colours go through the transform. */
-const std::shared_ptr<const Recipe>& lutRecipe();
-
-/** The per-channel response recipe, for a transform whose channels are
- *  independent: children `content` (the layer, left to the renderer) and
- *  `lut`, which here is ONE ROW of `lutSize` samples carrying the
- *  responses of red, green and blue in the row's own channels. Three
- *  taps rather than the volume's two, unpremultiplied and
- *  repremultiplied the same way, and DECLARED CHANNELWISE, so a renderer
- *  on an eight-bit surface may run it as a table instead. */
-const std::shared_ptr<const Recipe>& responseRecipe();
 
 /** An OCIO display/view, baked to a material. @p config is a
  *  filesystem path to a .ocio/.ocioz config, or an "ocio://" URI for the

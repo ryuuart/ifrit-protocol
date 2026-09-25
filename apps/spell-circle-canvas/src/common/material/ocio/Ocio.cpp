@@ -7,6 +7,8 @@
 
 #include "sigilmaterial/ocio/Ocio.h"
 
+#include "LutRecipe.h"
+
 #include <OpenColorIO/OpenColorIO.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>

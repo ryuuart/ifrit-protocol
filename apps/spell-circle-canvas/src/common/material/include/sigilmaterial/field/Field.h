@@ -48,10 +48,6 @@ struct HalftoneRampParameters {
 Material halftoneRamp(float spacing, float rMin, float rMax, Color color,
                       float angleDeg = 0.0f, float rampFrom = 0.0f,
                       float rampTo = 1.0f);
-/** halftoneRamp()'s recipe, defined once. A recipe's identity is the
- *  object, so this — never a fresh construction — is what a caller pins a
- *  binding to or compares a material against. */
-const std::shared_ptr<const Recipe>& halftoneRampRecipe();
 
 /** Perlin fractal noise — Skia's own generator, bound into a recipe that
  *  passes it through, so it fills a slot and compares like any material.

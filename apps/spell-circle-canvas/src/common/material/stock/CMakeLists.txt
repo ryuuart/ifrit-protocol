@@ -1,5 +1,5 @@
 # The stock catalogue: every recipe the library ships, gathered from the
-# feature catalogues that own them, and the warm-up over the list. It is
+# feature catalogues that own them, as the list a warm-up takes. It is
 # the one target that links the primitives and the kit together, because
 # composing them is what it is for; it links no renderer, so a host still
 # chooses the backend its warm-up compiles for.

@@ -126,9 +126,8 @@ void registerCompiler(Target target, Compiler compiler);
 /** `ProgramCache::shared().program(...)`. */
 std::shared_ptr<Program> program(std::shared_ptr<const Recipe> recipe,
                                  Target target, Variant variant = {});
-/** `ProgramCache::shared().warmup(requests)`. */
-WarmupResult warmup(std::span<const WarmupRequest> requests);
-/** Compiles the distinct recipes instantiated by @p materials. */
+/** Compiles the distinct recipes instantiated by @p materials into the
+ *  shared cache; `ProgramCache::warmup` takes the requests themselves. */
 WarmupResult warmup(std::span<const Material> materials, Target target,
                     Variant variant = {});
 

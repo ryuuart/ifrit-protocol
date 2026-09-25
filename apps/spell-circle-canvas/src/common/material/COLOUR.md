@@ -178,18 +178,19 @@ empty material, and `SIGILMATERIAL_ENABLE_OCIO` says which build this is.
 transform whose channels are INDEPENDENT — an exponent, a gamma, a
 contrast, a per-channel display curve — carries no more information than
 one response curve per channel, so it bakes to one row of 256 samples
-and applies through `responseRecipe()`; a transform that mixes channels
-needs the volume and applies through the trilinear `lutRecipe()`, its
-slices laid side by side in one image. Independence is ESTABLISHED, not
-assumed from the transform's type: the bake reads the three responses off
-the grey ramp, then requires a lattice of mixed colours to equal those
-three responses composed, to within half an eight-bit code. So `lutSize`
-means nothing to a transform that bakes to a row.
+and applies through the per-channel response recipe; a transform that
+mixes channels needs the volume and applies through the trilinear LUT
+recipe, its slices laid side by side in one image. Independence is
+ESTABLISHED, not assumed from the transform's type: the bake reads the
+three responses off the grey ramp, then requires a lattice of mixed
+colours to equal those three responses composed, to within half an
+eight-bit code. So `lutSize` means nothing to a transform that bakes to a
+row.
 
 **A channelwise recipe does not have to run as a program.**
 `Recipe::channelwise(slot)` is the declaration that every output channel
 depends on the same input channel and nothing else, with `slot` holding
-the response row — and `responseRecipe()` makes it. `skia::Effect::recipe(
+the response row — and the response recipe makes it. `skia::Effect::recipe(
 material, surface)` is where it is spent: on a surface carrying eight
 bits per channel it answers the row as `SkColorFilters::TableARGB`, which
 a consumer hangs on a paint and pays a blit for, and on anything else —

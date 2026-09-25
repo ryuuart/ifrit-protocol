@@ -7,6 +7,8 @@
 
 #include "sigilmaterial/ocio/Ocio.h"
 
+#include "LutRecipe.h"
+
 namespace sigil::material::ocio {
 
 bool available() { return false; }

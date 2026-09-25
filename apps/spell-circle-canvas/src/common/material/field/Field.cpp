@@ -30,8 +30,6 @@ void replace(std::string& text, std::string_view token,
   if (at != std::string::npos) text.replace(at, token.size(), value);
 }
 
-}  // namespace
-
 const std::shared_ptr<const Recipe>& halftoneRampRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<HalftoneRampParameters>("field.halftoneRamp")
@@ -39,6 +37,8 @@ const std::shared_ptr<const Recipe>& halftoneRampRecipe() {
           .body(Target::SkSL, std::string(shaderSource("HalftoneRamp.sksl"))));
   return recipe;
 }
+
+}  // namespace
 
 Material halftoneRamp(float spacing, float rMin, float rMax, Color color,
                       float angleDeg, float rampFrom, float rampTo) {

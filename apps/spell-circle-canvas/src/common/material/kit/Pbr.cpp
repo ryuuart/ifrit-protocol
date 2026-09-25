@@ -113,12 +113,16 @@ const std::shared_ptr<const Recipe>& surfaceRecipe(Reflection reflection) {
   return reflection == Reflection::SplitSum ? splitSum : additive;
 }
 
+namespace {
+
 const std::shared_ptr<const Recipe>& unlitRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(define(
           "unlit", "Unlit.sksl", std::string(shaderSource("Unlit.slang"))));
   return recipe;
 }
+
+}  // namespace
 
 Material surface(const SurfaceParameters& parameters, Reflection reflection) {
   return dress(Material(surfaceRecipe(reflection), parameters));

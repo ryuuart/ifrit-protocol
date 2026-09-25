@@ -34,9 +34,4 @@ std::vector<Material> everyRecipe() {
   return recipes;
 }
 
-WarmupResult warmup(Target target) {
-  const std::vector<Material> recipes = everyRecipe();
-  return material::warmup(recipes, target);
-}
-
 }  // namespace sigil::material::stock

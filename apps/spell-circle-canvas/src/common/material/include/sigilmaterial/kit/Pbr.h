@@ -124,12 +124,10 @@ enum class Reflection : uint8_t {
   Additive,
 };
 
-/** The recipes, defined once. Both declare every map slot above. */
+/** The lit recipe for @p reflection, defined once per model; it declares
+ *  every map slot above. */
 const std::shared_ptr<const Recipe>& surfaceRecipe(
     Reflection reflection = Reflection::SplitSum);
-/** The unlit half of that pair — the same parameters and the same slots, with
- *  no shading terms read. */
-const std::shared_ptr<const Recipe>& unlitRecipe();
 
 /** A lit metallic-roughness surface, composed from the shading terms:
  *  occlusion over the albedo, emission added, and the surface's PBR

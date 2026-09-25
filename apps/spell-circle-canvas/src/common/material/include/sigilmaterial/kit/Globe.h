@@ -54,9 +54,6 @@ struct GlobeParameters {
   float fill = 1.0f;         ///< the inscribed disc's radius the sphere takes
 };
 
-/** The globe recipe, defined once. */
-const std::shared_ptr<const Recipe>& globeRecipe();
-
 /** A globe at @p parameters. It reads the node's resolution and fills the
  *  largest disc that fits in it, so the box is what sizes and places the
  *  sphere; bind `yaw`, `pitch` and `roll` to drive an attitude. */

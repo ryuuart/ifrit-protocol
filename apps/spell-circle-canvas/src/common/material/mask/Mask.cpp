@@ -21,14 +21,6 @@ namespace sigil::material {
 
 namespace {
 
-Material sampled(Texture source, MaskParameters parameters) {
-  Material m(sampledMaskRecipe(), parameters);
-  m.slot(kMaskSourceSlot, std::move(source));
-  return m;
-}
-
-}  // namespace
-
 const std::shared_ptr<const Recipe>& constantMaskRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
@@ -55,6 +47,14 @@ const std::shared_ptr<const Recipe>& sampledMaskRecipe() {
                         .append(mask::shaderSource("MaskSampled.slang"))));
   return recipe;
 }
+
+Material sampled(Texture source, MaskParameters parameters) {
+  Material m(sampledMaskRecipe(), parameters);
+  m.slot(kMaskSourceSlot, std::move(source));
+  return m;
+}
+
+}  // namespace
 
 Material maskConstant(float value) {
   MaskParameters parameters;

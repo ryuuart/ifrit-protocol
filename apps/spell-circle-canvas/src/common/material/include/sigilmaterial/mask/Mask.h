@@ -44,13 +44,6 @@ struct MaskParameters {
   float inverted = 0;
 };
 
-/** The recipes, defined once. The sampled one declares the `source`
- *  slot; the constant one has no children. */
-const std::shared_ptr<const Recipe>& constantMaskRecipe();
-/** The sampled one, whose `source` slot holds the material the coverage
- *  is read out of. */
-const std::shared_ptr<const Recipe>& sampledMaskRecipe();
-
 /** A mask that is the same everywhere. */
 Material maskConstant(float value);
 /** One channel of @p map. The map's own sampling — its tiling, its uv

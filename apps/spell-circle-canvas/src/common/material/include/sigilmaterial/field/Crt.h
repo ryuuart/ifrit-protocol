@@ -95,7 +95,6 @@ struct CrtGlassParameters {
  * fill — which has no layer and no executor — must bind a source to it
  * or the material is refused rather than shaded with an empty child. */
 Material crt(const CrtParameters& parameters);
-const std::shared_ptr<const Recipe>& crtRecipe();
 /** Maximum source displacement for an image-filter executor: the glass's
  *  and the beam's together. */
 float crtSampleRadius(const CrtParameters& parameters);
@@ -103,7 +102,6 @@ float crtSampleRadius(const CrtParameters& parameters);
 /** THE SCANLINES ALONE, over the picture in the `content` slot: the
  *  screen's beam with no glass over it, for a flat surface. */
 Material crtBeam(const CrtBeamParameters& parameters);
-const std::shared_ptr<const Recipe>& crtBeamRecipe();
 /** Maximum source displacement for an image-filter executor: how far
  *  the sweep and the guns carry a reading. */
 float crtBeamSampleRadius(const CrtBeamParameters& parameters);
@@ -113,7 +111,6 @@ float crtBeamSampleRadius(const CrtBeamParameters& parameters);
  *  filled by an EXECUTOR from the layer blurred, so a fill must bind a
  *  source to it itself. */
 Material crtBloom(const CrtBloomParameters& parameters);
-const std::shared_ptr<const Recipe>& crtBloomRecipe();
 
 /** THE BARREL ALONE, over the picture in the `content` slot and the
  *  light in the `bloom` slot: the glass with no beam under it, for any
@@ -121,7 +118,6 @@ const std::shared_ptr<const Recipe>& crtBloomRecipe();
  *  The `bloom` slot is the executor's as it is for the whole screen,
  *  and a fill owes it a source whatever `uBloom` is. */
 Material crtGlass(const CrtGlassParameters& parameters);
-const std::shared_ptr<const Recipe>& crtGlassRecipe();
 /** Maximum source displacement for an image-filter executor: how far
  *  the bend carries a reading. */
 float crtGlassSampleRadius(const CrtGlassParameters& parameters);

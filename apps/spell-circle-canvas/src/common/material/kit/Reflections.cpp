@@ -23,8 +23,6 @@ glm::vec2 sizeOf(const EnvironmentMap& env) {
   return {(float)std::max(s.width(), 1), (float)std::max(s.height(), 1)};
 }
 
-}  // namespace
-
 const std::shared_ptr<const Recipe>& goldRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<GoldParameters>("gold").slot("normals").slot("env").body(
@@ -55,6 +53,8 @@ const std::shared_ptr<const Recipe>& glassRecipe() {
                     .append(shaderSource("ReflectiveGlass.sksl"))));
   return recipe;
 }
+
+}  // namespace
 
 Material gold(Texture normals, const EnvironmentMap& env,
               const GoldParameters& parameters) {

@@ -43,8 +43,6 @@ std::string bodyOf(std::initializer_list<std::string_view> parts,
   return source;
 }
 
-}  // namespace
-
 const std::shared_ptr<const Recipe>& crtBeamRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<CrtBeamParameters>("field.crt.beam")
@@ -54,14 +52,6 @@ const std::shared_ptr<const Recipe>& crtBeamRecipe() {
   return recipe;
 }
 
-Material crtBeam(const CrtBeamParameters& parameters) {
-  return Material(crtBeamRecipe(), parameters);
-}
-
-float crtBeamSampleRadius(const CrtBeamParameters& p) {
-  return std::abs(p.uRgbShift) + std::abs(p.uJitter) + std::abs(p.uSync);
-}
-
 const std::shared_ptr<const Recipe>& crtBloomRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<CrtBloomParameters>("field.crt.bloom")
@@ -69,10 +59,6 @@ const std::shared_ptr<const Recipe>& crtBloomRecipe() {
           .body(Target::SkSL,
                 bodyOf({shaderSource("CrtBloom.sksl")}, "crtLight(p)")));
   return recipe;
-}
-
-Material crtBloom(const CrtBloomParameters& parameters) {
-  return Material(crtBloomRecipe(), parameters);
 }
 
 const std::shared_ptr<const Recipe>& crtGlassRecipe() {
@@ -87,16 +73,6 @@ const std::shared_ptr<const Recipe>& crtGlassRecipe() {
   return recipe;
 }
 
-Material crtGlass(const CrtGlassParameters& parameters) {
-  return Material(crtGlassRecipe(), parameters);
-}
-
-float crtGlassSampleRadius(const CrtGlassParameters& p) {
-  const float extent = std::max(std::abs(p.uBounds.z), std::abs(p.uBounds.w));
-  const float distortion = std::abs(p.uCurvature) * 0.5f;
-  return extent * 0.5f * (1 + distortion) * distortion;
-}
-
 const std::shared_ptr<const Recipe>& crtRecipe() {
   static const auto recipe = std::make_shared<const Recipe>(
       Recipe::of<CrtParameters>("field.crt")
@@ -108,6 +84,30 @@ const std::shared_ptr<const Recipe>& crtRecipe() {
                         shaderSource("CrtGlass.sksl")},
                        "crtGlass(p)")));
   return recipe;
+}
+
+}  // namespace
+
+Material crtBeam(const CrtBeamParameters& parameters) {
+  return Material(crtBeamRecipe(), parameters);
+}
+
+float crtBeamSampleRadius(const CrtBeamParameters& p) {
+  return std::abs(p.uRgbShift) + std::abs(p.uJitter) + std::abs(p.uSync);
+}
+
+Material crtBloom(const CrtBloomParameters& parameters) {
+  return Material(crtBloomRecipe(), parameters);
+}
+
+Material crtGlass(const CrtGlassParameters& parameters) {
+  return Material(crtGlassRecipe(), parameters);
+}
+
+float crtGlassSampleRadius(const CrtGlassParameters& p) {
+  const float extent = std::max(std::abs(p.uBounds.z), std::abs(p.uBounds.w));
+  const float distortion = std::abs(p.uCurvature) * 0.5f;
+  return extent * 0.5f * (1 + distortion) * distortion;
 }
 
 Material crt(const CrtParameters& parameters) {

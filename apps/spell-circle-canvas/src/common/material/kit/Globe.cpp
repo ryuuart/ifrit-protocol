@@ -27,8 +27,6 @@ const std::string& globePrelude(Target target) {
   return target == Target::Slang ? kSlang : kSkSL;
 }
 
-}  // namespace
-
 const std::shared_ptr<const Recipe>& globeRecipe() {
   static const std::shared_ptr<const Recipe> recipe =
       std::make_shared<const Recipe>(
@@ -40,6 +38,8 @@ const std::shared_ptr<const Recipe>& globeRecipe() {
               .frame(FrameInput::Resolution));
   return recipe;
 }
+
+}  // namespace
 
 Material globe(const GlobeParameters& parameters) {
   return Material(globeRecipe(), parameters);

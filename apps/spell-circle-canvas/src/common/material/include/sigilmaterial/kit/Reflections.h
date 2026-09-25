@@ -69,15 +69,6 @@ struct GlassParameters {
   glm::vec2 envSize = {1, 1};
 };
 
-/** The recipes, defined once. Each declares the slots `normals`
- *  and `env`; glass also `backdrop`. */
-const std::shared_ptr<const Recipe>& goldRecipe();
-/** Chrome's, declaring `normals` and `env`. */
-const std::shared_ptr<const Recipe>& chromeRecipe();
-/** Glass's, which declares `backdrop` on top of those two — what lies
- *  behind the surface is part of what it shades. */
-const std::shared_ptr<const Recipe>& glassRecipe();
-
 /** A gold surface over @p normals, reflecting @p env at the parameters'
  *  roughness. */
 Material gold(Texture normals, const EnvironmentMap& env,
