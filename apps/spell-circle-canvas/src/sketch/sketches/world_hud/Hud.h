@@ -144,9 +144,10 @@ inline Element track(float w, float h) {
 inline Element boneFrame(float w, float h, float radius = 3) {
   return skit::well({.width = Dimension(w),
                      .height = Dimension(h),
-                     .ground = Paint::linear(
+                     .ground = Paint::linearGradient(
                          {0, 0}, {0, h},
-                         {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}}),
+                         {{0.0f, kBoneHi}, {0.45f, kBone}, {1.0f, kBoneLo}},
+                         {.units = material::GradientUnits::Pixels}),
                      .padding = 0,
                      .clip = false,
                      .corners = radius,
@@ -190,14 +191,15 @@ inline Element bar(const Bar& b) {
   const float padX = (b.frameW - b.innerW) * 0.5f;
   const float padY = (b.frameH - b.innerH) * 0.5f;
   const material::Color c = b.color;
-  const Paint body =
-      Paint::linear({0, 0}, {0, b.innerH},
-                    {{0.0f,
-                      {std::min(1.0f, c.r * 1.45f + 0.06f),
-                       std::min(1.0f, c.g * 1.45f + 0.06f),
-                       std::min(1.0f, c.b * 1.45f + 0.06f), 1}},
-                     {0.5f, c},
-                     {1.0f, {c.r * 0.62f, c.g * 0.62f, c.b * 0.62f, 1}}});
+  const Paint body = Paint::linearGradient(
+      {0, 0}, {0, b.innerH},
+      {{0.0f,
+        {std::min(1.0f, c.r * 1.45f + 0.06f),
+         std::min(1.0f, c.g * 1.45f + 0.06f),
+         std::min(1.0f, c.b * 1.45f + 0.06f), 1}},
+       {0.5f, c},
+       {1.0f, {c.r * 0.62f, c.g * 0.62f, c.b * 0.62f, 1}}},
+      {.units = material::GradientUnits::Pixels});
   Element e = boneFrame(b.frameW, b.frameH, 2)
                   .children({track(b.innerW, b.innerH).at({padX, padY})});
   if (b.decay > 0.0f)

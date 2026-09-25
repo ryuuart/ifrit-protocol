@@ -238,8 +238,13 @@ struct FieldShelf {
                                          "crtOverlay(8, 0.16, 1.1, 1.9, 0.7)",
                                          "Coarser lines and a stronger corner "
                                          "falloff.",
-                                         field::crtOverlay(8, 0.16f, 1.1f, 1.9f,
-                                                           0.7f))},
+                                         field::crtOverlay(
+                                             {.uScanPitch = 8,
+                                              .uScanStrength =
+                                                  0.16f,
+                                              .uVigInner = 1.1f,
+                                              .uVigOuter = 1.9f,
+                                              .uVigStrength = 0.7f}))},
                                .measure = 500,
                                .gap = 20})),
                       box().column().gap(18).children(

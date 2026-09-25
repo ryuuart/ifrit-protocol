@@ -173,8 +173,8 @@ using namespace sigil::compose;
 using namespace sigil::motion;
 namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
+using sigil::material::ColorStop;
 using sigil::material::skia::Paint;
-using sigil::material::skia::Stop;
 namespace ch = choreograph;
 
 namespace {
@@ -761,22 +761,28 @@ struct VertigoTitles {
     // ---- the iris: TWO gradient kinds flattened into one shader ----
     // radial sepia ramp (pupil → bright inner iris → limbus → dark) with
     // an angular sweep of fibre striations laid over it in soft light.
-    std::vector<Stop> fibres;
+    std::vector<ColorStop> fibres;
     for (int i = 0; i <= 96; ++i) {
       const float v = (i % 2 == 0) ? 0.482f : 0.518f;
       const float j = 0.012f * noise::hash(17u, (uint32_t)i);
       fibres.push_back({(float)i / 96.0f, {v + j, v + j, v + j, 1}});
     }
     irisMat = Paint::blend(
-        {{Paint::radial(kEye, 360.0f,
-                        {{0.00f, hexColor(0x100C09)},  // pupil
-                         {0.11f, hexColor(0x17110B)},
-                         {0.17f, hexColor(0x8A6A44)},  // bright inner iris
-                         {0.40f, hexColor(0x6E5230)},
-                         {0.72f, hexColor(0x6A5030)},
-                         {1.00f, hexColor(0x36271A)}}),
+        {{Paint::radialGradient(
+              kEye, 360.0f,
+              {{0.00f, hexColor(0x100C09)},  // pupil
+               {0.11f, hexColor(0x17110B)},
+               {0.17f, hexColor(0x8A6A44)},  // bright inner iris
+               {0.40f, hexColor(0x6E5230)},
+               {0.72f, hexColor(0x6A5030)},
+               {1.00f, hexColor(0x36271A)}},
+              {.units = material::GradientUnits::Pixels}),
           SkBlendMode::kSrc},
-         {Paint::sweep(kEye, fibres, 0.0f, 360.0f), SkBlendMode::kSoftLight}});
+         {Paint::conicGradient(kEye, fibres,
+                               {.units = material::GradientUnits::Pixels,
+                                .startDegrees = 0.0f,
+                                .endDegrees = 360.0f}),
+          SkBlendMode::kSoftLight}});
 
     // LUMINANCE noise — the `contrast` knob is the difference between
     // film grain and concrete.

@@ -52,10 +52,10 @@ sk_sp<SkImage> source() {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
   sigil::draw::on(
       *surface->getCanvas(), {kSide, kSide}, [](sigil::draw::Pen& pen) {
-        pen.background(
-            material::skia::Paint::linearUnit({0, 0}, {1, 1},
-                                     {{0.0f, {0.10f, 0.16f, 0.30f, 1}},
-                                      {1.0f, {0.92f, 0.62f, 0.30f, 1}}}));
+        pen.background(material::skia::Paint::linearGradient(
+            {0, 0}, {1, 1},
+            {{0.0f, {0.10f, 0.16f, 0.30f, 1}},
+             {1.0f, {0.92f, 0.62f, 0.30f, 1}}}));
         pen.noStroke();
         pen.fill(material::Color{0.98f, 0.97f, 0.94f, 1});
         for (int i = 0; i < 9; ++i)

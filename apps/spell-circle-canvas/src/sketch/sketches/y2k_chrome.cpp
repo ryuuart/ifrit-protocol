@@ -162,10 +162,12 @@ inline Element gelOrb(float d = kOrbD) {
       .children({box()
                      .inset(d * 0.50f, d * 0.14f, d * 0.02f, d * 0.14f)
                      .borderRadius({d * 0.24f})
-                     .fill(Paint::radial({d * 0.36f, d * 0.55f}, d * 0.52f,
-                                         {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
-                                          {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
-                                          {1.00f, {0.55f, 0.85f, 1.0f, 0.0f}}}))
+                     .fill(Paint::radialGradient(
+                         {d * 0.36f, d * 0.55f}, d * 0.52f,
+                         {{0.00f, {0.72f, 0.92f, 1.0f, 0.90f}},
+                          {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
+                          {1.00f, {0.55f, 0.85f, 1.0f, 0.0f}}},
+                         {.units = material::GradientUnits::Pixels}))
                      .blendMode(SkBlendMode::kScreen)});
 }
 
@@ -198,8 +200,9 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
       // halo: rgba(66,140,240,.5) offset (0,10) blur 16 - under the fill
       .background(styles::dropShadow(t.halo, {0, 10}, 16))
       // body ramp: deep .82 -> mid .9 @0.9 -> light
-      .fill(Paint::linear({0, 0}, {0, h},
-                          {{0.0f, t.deep}, {0.9f, t.mid}, {1.0f, t.light}}))
+      .fill(Paint::linearGradient(
+          {0, 0}, {0, h}, {{0.0f, t.deep}, {0.9f, t.mid}, {1.0f, t.light}},
+          {.units = material::GradientUnits::Pixels}))
       .foreground(rim(path::Edge::Top, hexColor(0x8BA2C1)))
       .foreground(rim(path::Edge::Right, hexColor(0x5890BF)))
       .foreground(rim(path::Edge::Bottom, hexColor(0x4F93CA)))
@@ -209,18 +212,20 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
           {box()
                .inset(h * 0.55f, 2, 2, 2)
                .borderRadius({r - 2})
-               .fill(Paint::linear(
+               .fill(Paint::linearGradient(
                    {0, h * 0.45f - 4}, {0, 0},
                    {{0.0f, {t.glow.r, t.glow.g, t.glow.b, 0.85f}},
-                    {1.0f, {t.glow.r, t.glow.g, t.glow.b, 0.0f}}}))
+                    {1.0f, {t.glow.r, t.glow.g, t.glow.b, 0.0f}}},
+                   {.units = material::GradientUnits::Pixels}))
                .blendMode(SkBlendMode::kScreen),
            // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
            box()
                .inset(h * 0.04f, w * 0.05f, h * 0.48f, w * 0.05f)
                .borderRadius({h * 0.24f})
-               .fill(Paint::linear(
+               .fill(Paint::linearGradient(
                    {0, 0}, {0, h * 0.48f},
-                   {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}})),
+                   {{0.0f, {1, 1, 1, 0.72f}}, {1.0f, {1, 1, 1, 0.0f}}},
+                   {.units = material::GradientUnits::Pixels})),
            // label, centered, riding above the lens
            kit::centred()
                .inset(0)
@@ -540,10 +545,12 @@ struct Y2kChrome {
         box()
             .inset(yc::kWindowY, yc::kWindowX)
             .background(styles::dropShadow({0, 0, 0, 0.38f}, {0, 7}, 18))
-            .fill(Paint::linear({0, 0}, {0, yc::kH},
-                                {{0.00f, hexColor(0x16204A)},
-                                 {0.48f, hexColor(0x0B1030)},
-                                 {1.00f, hexColor(0x050817)}}))
+            .fill(Paint::linearGradient(
+                {0, 0}, {0, yc::kH},
+                {{0.00f, hexColor(0x16204A)},
+                 {0.48f, hexColor(0x0B1030)},
+                 {1.00f, hexColor(0x050817)}},
+                {.units = material::GradientUnits::Pixels}))
             .borderRadius({6})
             .overflow(Overflow::Clip)
             .children({box()
@@ -553,11 +560,12 @@ struct Y2kChrome {
                                      .rotate(45)
                                      .material())
                            .blendMode(SkBlendMode::kPlus),
-                       box().inset(0).fill(Paint::glowUnit(
+                       box().inset(0).fill(Paint::radialGradient(
                            {0.5f, 0.42f}, 1.02f,
                            {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},
                             {0.55f, {0, 0, 0, 0.0f}},
-                            {1.0f, {0, 0, 0, 0.45f}}}))})
+                            {1.0f, {0, 0, 0, 0.45f}}},
+                           {.extent = material::RadialExtent::ClosestSide}))})
             .cache(Cache::Texture);
 
     // ---- assembly ---------------------------------------------------------
@@ -565,9 +573,10 @@ struct Y2kChrome {
     // — the pill helpers included — resolves here.
     return stack()
         .applyStyleSheet(yc::classes())
-        .fill(Paint::linear(
+        .fill(Paint::linearGradient(
             {0, 0}, {0, yc::kH},
-            {{0.0f, hexColor(0xB9BFC7)}, {1.0f, hexColor(0xA2A8B1)}}))
+            {{0.0f, hexColor(0xB9BFC7)}, {1.0f, hexColor(0xA2A8B1)}},
+            {.units = material::GradientUnits::Pixels}))
         .children(
             {box().inset(0).fill(check), windowBackplate,
              // the window
@@ -592,12 +601,13 @@ struct Y2kChrome {
                                .margin(0, 4, 10, 4)
                                .opacity(animate(motion::from(0.0f).to(1.0f),
                                                 {500ms}))
-                               .fill(
-                                   Paint::linear({0, 0}, {0, 2},
-                                                 {{0.0f, hexColor(0x8F969D)},
-                                                  {0.5f, hexColor(0x8F969D)},
-                                                  {0.501f, hexColor(0xFFFFFF)},
-                                                  {1.0f, hexColor(0xFFFFFF)}})),
+                               .fill(Paint::linearGradient(
+                                   {0, 0}, {0, 2},
+                                   {{0.0f, hexColor(0x8F969D)},
+                                    {0.5f, hexColor(0x8F969D)},
+                                    {0.501f, hexColor(0xFFFFFF)},
+                                    {1.0f, hexColor(0xFFFFFF)}},
+                                   {.units = material::GradientUnits::Pixels})),
                            // footer: preset orb, caption, 1998 plastic
                            // button
                            box()

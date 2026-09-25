@@ -288,11 +288,13 @@ inline Element starTile() {
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
     tile.children({kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
-                       .fill(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                                    {{0.0f, {1, 1, 1, 0.0f}},
-                                                     {0.74f, {1, 1, 1, 0.0f}},
-                                                     {0.89f, {1, 1, 1, 0.030f}},
-                                                     {1.0f, {1, 1, 1, 0.0f}}}))
+                       .fill(material::skia::Paint::radialGradient(
+                           {0.5f, 0.5f}, 1.0f,
+                           {{0.0f, {1, 1, 1, 0.0f}},
+                            {0.74f, {1, 1, 1, 0.0f}},
+                            {0.89f, {1, 1, 1, 0.030f}},
+                            {1.0f, {1, 1, 1, 0.0f}}},
+                           {.extent = material::RadialExtent::ClosestSide}))
                        .blendMode(SkBlendMode::kPlus)});
 
   int bright = 0;
@@ -308,12 +310,14 @@ inline Element starTile() {
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
     tile.children({kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
-                       .fill(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                                    {{0.0f, {L, L, L, 1.0f}},
-                                                     {0.24f, {L, L, L, 0.66f}},
-                                                     {0.44f, {L, L, L, 0.26f}},
-                                                     {0.70f, {L, L, L, 0.055f}},
-                                                     {1.0f, {L, L, L, 0.0f}}}))
+                       .fill(material::skia::Paint::radialGradient(
+                           {0.5f, 0.5f}, 1.0f,
+                           {{0.0f, {L, L, L, 1.0f}},
+                            {0.24f, {L, L, L, 0.66f}},
+                            {0.44f, {L, L, L, 0.26f}},
+                            {0.70f, {L, L, L, 0.055f}},
+                            {1.0f, {L, L, L, 0.0f}}},
+                           {.extent = material::RadialExtent::ClosestSide}))
                        .blendMode(SkBlendMode::kPlus)});
 
     // Spikes: thin tapered lobes, and on this tile they are the dominant

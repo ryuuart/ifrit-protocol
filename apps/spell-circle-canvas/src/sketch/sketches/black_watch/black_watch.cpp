@@ -470,13 +470,13 @@ struct BlackWatch {
                     // it near and gives it up far.
                     box()
                         .cover()
-                        .fill(radialGradient({0.12f * width, 0.02f * height},
-                                             0.85f * width,
-                                             {{1, 1, 1, 0.13f},
-                                              {1, 1, 1, 0},
-                                              {0, 0, 0, 0},
-                                              {0, 0, 0, 0.32f}},
-                                             {0, 0.4f, 0.65f, 1}))
+                        .fill(material::skia::Paint::radialGradient(
+                            {0.12f * width, 0.02f * height}, 0.85f * width,
+                            {{0, {1, 1, 1, 0.13f}},
+                             {0.4f, {1, 1, 1, 0}},
+                             {0.65f, {0, 0, 0, 0}},
+                             {1, {0, 0, 0, 0.32f}}},
+                            {.units = material::GradientUnits::Pixels}))
                         .cache(Cache::Texture)});
     // The mirror axes flash while the arithmetic proves itself.
     panel.children({each(mirrorPositions(), [this](float position) {
@@ -519,12 +519,15 @@ struct BlackWatch {
              .width(58)
              .height(11)
              .shape(shapes::svg("M0 5.5 C9 0 49 0 58 5.5 C49 11 9 11 0 5.5 Z"))
-             .fill(linearGradient({0, 0}, {0, 11},
-                                  {colourOf("#E0B878"), colourOf("#B98A4E"),
-                                   colourOf("#6E4A26")},
-                                  {0, 0.45f, 1}))
+             .fill(material::skia::Paint::linearGradient(
+                 {0, 0}, {0, 11},
+                 {{0, colourOf("#E0B878")},
+                  {0.45f, colourOf("#B98A4E")},
+                  {1, colourOf("#6E4A26")}},
+                 {.units = material::GradientUnits::Pixels}))
              .stroke(stroke(0.8f, Fill::var("ink"), PathFormat::Align::Inner))
-             .background(styles::dropShadow(faded(colours.shadow, 0.6f), {1, 3}, 3))
+             .background(
+                 styles::dropShadow(faded(colours.shadow, 0.6f), {1, 3}, 3))
              .children({box()
                             .left(17)
                             .top(3.5f)
@@ -915,10 +918,13 @@ struct BlackWatch {
             // upper left and the far corner sits in shade.
             box()
                 .cover()
-                .fill(radialGradient({0.1f * kCanvas.width(), 0},
-                                     1.15f * kCanvas.width(),
-                                     {{1, 1, 1, 0.14f}, {1, 1, 1, 0}, {0, 0, 0, 0}, {0, 0, 0, 0.11f}},
-                                     {0, 0.35f, 0.6f, 1}))
+                .fill(material::skia::Paint::radialGradient(
+                    {0.1f * kCanvas.width(), 0}, 1.15f * kCanvas.width(),
+                    {{0, {1, 1, 1, 0.14f}},
+                     {0.35f, {1, 1, 1, 0}},
+                     {0.6f, {0, 0, 0, 0}},
+                     {1, {0, 0, 0, 0.11f}}},
+                    {.units = material::GradientUnits::Pixels}))
                 .cache(Cache::Texture),
             box().cover().inset(24).stroke(
                 stroke(1, Fill::var("rule"), PathFormat::Align::Inner)),
@@ -929,16 +935,28 @@ struct BlackWatch {
                 box().row().gap(kGutter).children(
                     {box().column().flexShrink(0).children(
                          {settBar(), mountedCloth()}),
-                     box().column().width(kRail).flexShrink(0).gap(34).marginTop(26).children(
-                         {draft(), blendTable(), shadeCards()})}),
-                box().row().gap(kGutter).alignItems(Align::Start).children(
-                    {provenance().flexGrow(1), verification().width(kRail).flexGrow(0)}),
-                box().row().gap(kGutter).alignItems(Align::Start).children(
-                    {comparison().flexGrow(1),
-                     document::paragraph(doc.passage("douglas"))
-                         .styleClass("douglas")
+                     box()
+                         .column()
                          .width(kRail)
-                         .marginTop(2)}),
+                         .flexShrink(0)
+                         .gap(34)
+                         .marginTop(26)
+                         .children({draft(), blendTable(), shadeCards()})}),
+                box()
+                    .row()
+                    .gap(kGutter)
+                    .alignItems(Align::Start)
+                    .children({provenance().flexGrow(1),
+                               verification().width(kRail).flexGrow(0)}),
+                box()
+                    .row()
+                    .gap(kGutter)
+                    .alignItems(Align::Start)
+                    .children({comparison().flexGrow(1),
+                               document::paragraph(doc.passage("douglas"))
+                                   .styleClass("douglas")
+                                   .width(kRail)
+                                   .marginTop(2)}),
             }),
             box().flexGrow(),
             kit::line({.fill = Fill::var("rule")}),

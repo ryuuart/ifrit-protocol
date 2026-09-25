@@ -167,13 +167,13 @@ Element chromeBar(float left, float top, float width, float height,
   return kit::at(left, top, width, height)
       .styleClass("light")
       .shape(shapes::parallelogram(skew))
-      .fill(Paint::linearUnit({0, 0}, {0, 1},
-                              {{0.00f, mix(0.05f)},
-                               {0.13f, mix(1.00f)},
-                               {0.30f, mix(0.32f)},
-                               {0.62f, mix(0.28f)},
-                               {0.87f, mix(1.00f)},
-                               {1.00f, mix(0.02f)}}));
+      .fill(Paint::linearGradient({0, 0}, {0, 1},
+                                  {{0.00f, mix(0.05f)},
+                                   {0.13f, mix(1.00f)},
+                                   {0.30f, mix(0.32f)},
+                                   {0.62f, mix(0.28f)},
+                                   {0.87f, mix(1.00f)},
+                                   {1.00f, mix(0.02f)}}));
 }
 
 struct LainNavi {
@@ -219,7 +219,7 @@ struct LainNavi {
                 kBodyBottom - kBodyTop)
             .styleClass("light")
             .backdropFilter(Effect::blur(1.2f))
-            .fill(Paint::radialUnit(
+            .fill(Paint::radialGradient(
                 {0.483f, 0.456f}, 0.70f,
                 {{0.00f, kBodyMiddle},
                  {0.10f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.73f)},
@@ -229,30 +229,34 @@ struct LainNavi {
                  {0.53f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.33f)},
                  {0.77f, material::mixLinear(kBodyEdge, kBodyMiddle, 0.18f)},
                  {1.00f, material::scale(kBodyEdge, 0.55f)}})),
-        box().inset(0).styleClass("light").filter(Effect::blur(10)).children({
-            kit::disc({eye.fX + radius * 0.62f, eye.fY}, radius * 0.5f)
-                .height(radius * 1.56f)
-                .centerAt({eye.fX + radius * 0.62f, eye.fY})
-                .shape(shapes::arc(270, 180))
-                .fill(Fill::none())
-                .stroke(lid),
-            kit::disc({eye.fX - radius * 0.62f, eye.fY}, radius * 0.5f)
-                .height(radius * 1.56f)
-                .centerAt({eye.fX - radius * 0.62f, eye.fY})
-                .shape(shapes::arc(90, 180))
-                .fill(Fill::none())
-                .stroke(lid),
-            each(4,
-                 [&](size_t corner) {
-                   const float across = corner % 2 ? 1 : -1;
-                   const float down = corner / 2 ? 1 : -1;
-                   return kit::dot({eye.fX + across * radius * 0.92f,
-                                    eye.fY + down * radius * 0.92f},
-                                   radius * 0.155f, Fill::color(kEyeLine));
-                 }),
-            segment({eye.fX, eye.fY + radius * 0.95f},
-                    {eye.fX, eye.fY + radius * 1.52f}, 16, kEyeLine),
-        }),
+        box()
+            .inset(0)
+            .styleClass("light")
+            .filter(Effect::blur(10))
+            .children({
+                kit::disc({eye.fX + radius * 0.62f, eye.fY}, radius * 0.5f)
+                    .height(radius * 1.56f)
+                    .centerAt({eye.fX + radius * 0.62f, eye.fY})
+                    .shape(shapes::arc(270, 180))
+                    .fill(Fill::none())
+                    .stroke(lid),
+                kit::disc({eye.fX - radius * 0.62f, eye.fY}, radius * 0.5f)
+                    .height(radius * 1.56f)
+                    .centerAt({eye.fX - radius * 0.62f, eye.fY})
+                    .shape(shapes::arc(90, 180))
+                    .fill(Fill::none())
+                    .stroke(lid),
+                each(4,
+                     [&](size_t corner) {
+                       const float across = corner % 2 ? 1 : -1;
+                       const float down = corner / 2 ? 1 : -1;
+                       return kit::dot({eye.fX + across * radius * 0.92f,
+                                        eye.fY + down * radius * 0.92f},
+                                       radius * 0.155f, Fill::color(kEyeLine));
+                     }),
+                segment({eye.fX, eye.fY + radius * 0.95f},
+                        {eye.fX, eye.fY + radius * 1.52f}, 16, kEyeLine),
+            }),
         // The side rails: single hairlines at the body's edges, dimmer
         // than the bars, which simply overhang them.
         segment({kBodyLeft, 88}, {kBodyLeft + 8, 650}, 2, kRail)
@@ -277,7 +281,7 @@ struct LainNavi {
     const float focus = (kFocusPlane - kListingTop) / blockHeight;
     // The red channel is the blur's sigma as a fraction of 3 px: a tenth
     // of it on the plane, most of it at the block's two ends.
-    const Paint depth = Paint::linearUnit(
+    const Paint depth = Paint::linearGradient(
         {0, 0}, {0, 1},
         {{0, {0.8f, 0, 0, 1}}, {focus, {0.1f, 0, 0, 1}}, {1, {0.7f, 0, 0, 1}}});
     return kit::at(text(passage)
@@ -391,7 +395,7 @@ struct LainNavi {
             // nothing at its edge.
             kit::at(178, 88, 304, 304)
                 .styleClass("light")
-                .fill(Paint::radialUnit(
+                .fill(Paint::radialGradient(
                     {0.48f, 0.46f}, 0.95f,
                     {{0.00f, kPanel},
                      {0.55f, material::scale(kPanel, 0.86f)},

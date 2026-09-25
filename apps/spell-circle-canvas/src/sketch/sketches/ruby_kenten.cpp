@@ -203,7 +203,9 @@ struct RubyKenten {
             .top(320);
 
     return box()
-        .fill(linearGradient({0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari}))
+        .fill(sigil::material::skia::Paint::linearGradient(
+            {0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari},
+            {.units = sigil::material::GradientUnits::Pixels}))
         .font({.size = 10, .track = 0.2f})
         .ink(f::kUsu)
         .children(

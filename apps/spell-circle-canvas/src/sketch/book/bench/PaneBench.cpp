@@ -59,10 +59,13 @@ struct PaneProbe {
         tiles.push_back(
             compose::kit::at(column * width + 1.0f, row * height + 1.0f,
                              width - 2.0f, height - 2.0f)
-                .fill(compose::linearGradient(
+                .fill(sigil::material::skia::Paint::linearGradient(
                     {0, 0}, {width, height},
-                    {{0.3f + 0.5f * shade, 0.35f, 0.6f - 0.3f * shade, 1},
-                     {0.1f, 0.1f + 0.4f * shade, 0.3f, 1}})));
+                    {sigil::material::Color{0.3f + 0.5f * shade, 0.35f,
+                                            0.6f - 0.3f * shade, 1},
+                     sigil::material::Color{0.1f, 0.1f + 0.4f * shade, 0.3f,
+                                            1}},
+                    {.units = sigil::material::GradientUnits::Pixels})));
       }
     ctx.composer.render(
         compose::box()

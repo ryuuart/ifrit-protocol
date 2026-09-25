@@ -194,11 +194,13 @@ auto HitmanVerlet::blastGlow(Pen& pen) -> void {
   pen.noStroke();
   pen.blendMode(sigil::draw::ADD);
   pen.rectMode(sigil::draw::CENTER);
-  pen.fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                           {{0.0f, hexColor(0xFFF3E2, 1.0f * a)},
-                            {0.35f, hexColor(0xFFC98A, 0.55f * a)},
-                            {1.0f, hexColor(0xC8402F, 0.0f)}}),
-           sigil::draw::SHAPE);
+  pen.fill(
+      Paint::radialGradient({0.5f, 0.5f}, 1.0f,
+                            {{0.0f, hexColor(0xFFF3E2, 1.0f * a)},
+                             {0.35f, hexColor(0xFFC98A, 0.55f * a)},
+                             {1.0f, hexColor(0xC8402F, 0.0f)}},
+                            {.extent = material::RadialExtent::ClosestSide}),
+      sigil::draw::SHAPE);
   pen.rect(c.fX, c.fY, 240.0f, 240.0f);
   pen.pop();
 }

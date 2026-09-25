@@ -147,11 +147,12 @@ StyleSheet screen() {
  *  whole face where it is struck most, so the ground the rain falls on is
  *  a faint green at the middle falling to the void at the corners. */
 Fill tubeGlow() {
-  return radialGradient({kWidth * 0.5f, kHeight * 0.46f},
-                        std::hypot(kWidth, kHeight) * 0.5f,
-                        {{0.012f, 0.044f, 0.022f, 1}, {0.007f, 0.020f, 0.011f, 1},
-                         kVoid},
-                        {0.0f, 0.55f, 1.0f});
+  return toFill(material::skia::Paint::radialGradient(
+      {kWidth * 0.5f, kHeight * 0.46f}, std::hypot(kWidth, kHeight) * 0.5f,
+      {{0.0f, {0.012f, 0.044f, 0.022f, 1}},
+       {0.55f, {0.007f, 0.020f, 0.011f, 1}},
+       {1.0f, kVoid}},
+      {.units = material::GradientUnits::Pixels}));
 }
 
 /** The glyphs of a charset, each one character's bytes: a character opens
@@ -434,12 +435,13 @@ struct MatrixRain {
         .key("refresh")
         .hitTestable(false)
         .blendMode(SkBlendMode::kPlus)
-        .fill(linearGradient({0, 0}, {0, sweep.height},
-                             {{0, 0, 0, 0},
-                              {0.012f, 0.046f, 0.020f, 1},
-                              {0.030f, 0.100f, 0.044f, 1},
-                              {0, 0, 0, 0}},
-                             {0.0f, 0.55f, 0.80f, 1.0f}))
+        .fill(material::skia::Paint::linearGradient(
+            {0, 0}, {0, sweep.height},
+            {{0.0f, {0, 0, 0, 0}},
+             {0.55f, {0.012f, 0.046f, 0.020f, 1}},
+             {0.80f, {0.030f, 0.100f, 0.044f, 1}},
+             {1.0f, {0, 0, 0, 0}}},
+            {.units = material::GradientUnits::Pixels}))
         .translateY(motion::bind(&seconds)
                         .offset(sweep.phaseSeconds)
                         .scale(span / sweep.seconds)
@@ -458,11 +460,15 @@ struct MatrixRain {
       const material::Color clear = material::withAlpha(kVoid, 0);
       const material::Color held = material::withAlpha(kVoid, 0.92f);
       const material::Color half = material::withAlpha(kVoid, 0.72f);
-      return linearGradient({0, 0}, {0, height},
-                            fromTop ? std::vector{held, half, clear}
-                                    : std::vector{clear, half, held},
-                            fromTop ? std::vector{0.0f, 0.55f, 1.0f}
-                                    : std::vector{0.0f, 0.45f, 1.0f});
+      return material::skia::Paint::linearGradient(
+          {0, 0}, {0, height},
+          fromTop ? std::vector<material::ColorStop>{{0.0f, held},
+                                                     {0.55f, half},
+                                                     {1.0f, clear}}
+                  : std::vector<material::ColorStop>{{0.0f, clear},
+                                                     {0.45f, half},
+                                                     {1.0f, held}},
+          {.units = material::GradientUnits::Pixels});
     };
     return box()
         .cover()
@@ -473,11 +479,12 @@ struct MatrixRain {
         .children({
             box().cover().fill(kit::vignette(
                 {kWidth, kHeight}, {0.002f, 0.008f, 0.004f, 0.55f}, 0.35f)),
-            box().cover().fill(linearGradient(
+            box().cover().fill(material::skia::Paint::linearGradient(
                 {0, 0}, {kWidth * 0.55f, kHeight * 0.75f},
-                {{0.80f, 1.0f, 0.88f, 0.050f}, {0.80f, 1.0f, 0.88f, 0.012f},
-                 {0.80f, 1.0f, 0.88f, 0}},
-                {0.0f, 0.45f, 1.0f})),
+                {{0.0f, {0.80f, 1.0f, 0.88f, 0.050f}},
+                 {0.45f, {0.80f, 1.0f, 0.88f, 0.012f}},
+                 {1.0f, {0.80f, 1.0f, 0.88f, 0}}},
+                {.units = material::GradientUnits::Pixels})),
             kit::at(0, 0, kWidth, 58).fill(ground(58, true)),
             // The plate's label: who made the rain and what this screen
             // sets of it, read as a title over its line of description,

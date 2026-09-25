@@ -314,22 +314,23 @@ struct DunhuangStarChart {
       if (onThis((float)(map.number - 1) * kSlot)) columns.push_back(map);
     return kit::at(length.left, length.top, kWidth - length.left, height)
         .fill(material::kit::board({.paint = kPaper,
-                                                  .tooth = 0.07f,
-                                                  .toothScale = 0.08f,
-                                                  .stretch = 2.5f,
-                                                  .wear = 0.16f,
-                                                  .wearScale = 0.003f,
-                                                  .seed = (float)index}))
+                                    .tooth = 0.07f,
+                                    .toothScale = 0.08f,
+                                    .stretch = 2.5f,
+                                    .wear = 0.16f,
+                                    .wearScale = 0.003f,
+                                    .seed = (float)index}))
         .overflow(Overflow::Clip)
         .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 24))
-        .children({box().inset(0).fill(linearGradient(
+        .children({box().inset(0).fill(material::skia::Paint::linearGradient(
                        {0, 0}, {0, height},
-                       {material::withAlpha(kLining, 0.55f),
-                        material::withAlpha(kLining, 0.0f),
-                        material::withAlpha(kLining, 0.0f),
-                        material::withAlpha(kLining, 0.55f)},
-                       {0.0f, 0.06f, 0.94f, 1.0f})),
-                   each(columns, column), box().inset(0).children(std::move(figures))});
+                       {{0.0f, material::withAlpha(kLining, 0.55f)},
+                        {0.06f, material::withAlpha(kLining, 0.0f)},
+                        {0.94f, material::withAlpha(kLining, 0.0f)},
+                        {1.0f, material::withAlpha(kLining, 0.55f)}},
+                       {.units = material::GradientUnits::Pixels})),
+                   each(columns, column),
+                   box().inset(0).children(std::move(figures))});
   }
 
   /** The three schools as a key, on a slip of the same paper so the black

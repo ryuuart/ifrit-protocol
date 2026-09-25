@@ -374,10 +374,11 @@ struct GerstnerGrid {
     namespace g = gerstner;
     // The page's one black, stated once; a line set in the soft grey or
     // the red says so.
-    auto root =
-        stack()
-            .fill(linearGradient({0, 0}, {0, g::kH}, {g::kPaper, g::kPaperLo}))
-            .ink(g::kInk);
+    auto root = stack()
+                    .fill(material::skia::Paint::linearGradient(
+                        {0, 0}, {0, g::kH}, {g::kPaper, g::kPaperLo},
+                        {.units = material::GradientUnits::Pixels}))
+                    .ink(g::kInk);
 
     // Paper tooth: a full-canvas fractal noise that never changes. The
     // library will not bake through an opacity and a blend — it would
@@ -406,12 +407,13 @@ struct GerstnerGrid {
              .height(1.0f)
              .top(0)
              .translateY(&sweep)
-             .fill(linearGradient({0, 0}, {g::kFieldW + 44, 0},
-                                  {{g::kRed.r, g::kRed.g, g::kRed.b, 0.0f},
-                                   {g::kRed.r, g::kRed.g, g::kRed.b, 0.55f},
-                                   {g::kRed.r, g::kRed.g, g::kRed.b, 0.55f},
-                                   {g::kRed.r, g::kRed.g, g::kRed.b, 0.0f}},
-                                  {0.0f, 0.12f, 0.88f, 1.0f}))
+             .fill(material::skia::Paint::linearGradient(
+                 {0, 0}, {g::kFieldW + 44, 0},
+                 {{0.0f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.0f}},
+                  {0.12f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.55f}},
+                  {0.88f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.55f}},
+                  {1.0f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.0f}}},
+                 {.units = material::GradientUnits::Pixels}))
              .zIndex(6),
          box()
              .column()

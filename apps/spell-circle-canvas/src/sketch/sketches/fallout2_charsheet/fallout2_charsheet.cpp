@@ -75,40 +75,41 @@ const material::Color kBevelShade = hexColor(0x0C0906, 0.65f);
 const material::Color kParchmentGold = hexColor(0xBC9054);
 
 /** The cast plate, the recesses cut into it and the card stuck on it. */
-const Paint kPlate = Paint::linearUnit(
-    {0, 0}, {0.15f, 1},
-    {{0.0f, hexColor(0x483828)}, {0.4f, hexColor(0x383020)},
-     {1.0f, hexColor(0x302820)}});
+const Paint kPlate = Paint::linearGradient({0, 0}, {0.15f, 1},
+                                           {{0.0f, hexColor(0x483828)},
+                                            {0.4f, hexColor(0x383020)},
+                                            {1.0f, hexColor(0x302820)}});
 const material::Material kPlateTooth = field::grain(0.22f, 3, 11.0f, 0.65f);
 const Paint kRust =
     Paint::blend({{Paint::solid(hexColor(0x7C581C)), SkBlendMode::kSrcOver},
                   {Paint::recipe(field::grain(0.0075f, 3, 5.0f, 1.35f)),
                    SkBlendMode::kMultiply}});
-const Paint kRaised = Paint::linearUnit(
-    {0, 0}, {0, 1},
-    {{0.0f, hexColor(0x483828)}, {0.55f, hexColor(0x383020)},
-     {1.0f, hexColor(0x302820)}});
-const Paint kWheel = Paint::linearUnit(
-    {0, 0}, {0, 1},
-    {{0.0f, hexColor(0x3C3C3C)}, {0.22f, hexColor(0x545454)},
-     {0.58f, hexColor(0x282828)}, {1.0f, hexColor(0x1C1C1C)}});
+const Paint kRaised = Paint::linearGradient({0, 0}, {0, 1},
+                                            {{0.0f, hexColor(0x483828)},
+                                             {0.55f, hexColor(0x383020)},
+                                             {1.0f, hexColor(0x302820)}});
+const Paint kWheel = Paint::linearGradient({0, 0}, {0, 1},
+                                           {{0.0f, hexColor(0x3C3C3C)},
+                                            {0.22f, hexColor(0x545454)},
+                                            {0.58f, hexColor(0x282828)},
+                                            {1.0f, hexColor(0x1C1C1C)}});
 const Paint kParchment =
-    Paint::blend({{Paint::linearUnit({0.1f, 0}, {0.9f, 1},
-                                     {{0.0f, kParchmentGold},
-                                      {0.3f, hexColor(0xAC8044)},
-                                      {0.66f, hexColor(0x9C7434)},
-                                      {1.0f, hexColor(0x8C6428)}}),
+    Paint::blend({{Paint::linearGradient({0.1f, 0}, {0.9f, 1},
+                                         {{0.0f, kParchmentGold},
+                                          {0.3f, hexColor(0xAC8044)},
+                                          {0.66f, hexColor(0x9C7434)},
+                                          {1.0f, hexColor(0x8C6428)}}),
                    SkBlendMode::kSrcOver},
                   {Paint::recipe(field::grain(0.013f, 4, 21.0f, 0.62f, 1.4f)),
                    SkBlendMode::kOverlay}});
-const Paint kRivet = Paint::radialUnit(
-    {0.34f, 0.3f}, 1.15f,
-    {{0.0f, hexColor(0x6A5838)}, {0.55f, hexColor(0x3A3020)},
-     {1.0f, hexColor(0x140F08)}});
-const Paint kLamp = Paint::radialUnit(
-    {0.35f, 0.3f}, 1.1f,
-    {{0.0f, hexColor(0xFF6A4A)}, {0.45f, hexColor(0xF80000)},
-     {1.0f, hexColor(0x600000)}});
+const Paint kRivet = Paint::radialGradient({0.34f, 0.3f}, 1.15f,
+                                           {{0.0f, hexColor(0x6A5838)},
+                                            {0.55f, hexColor(0x3A3020)},
+                                            {1.0f, hexColor(0x140F08)}});
+const Paint kLamp = Paint::radialGradient({0.35f, 0.3f}, 1.1f,
+                                          {{0.0f, hexColor(0xFF6A4A)},
+                                           {0.45f, hexColor(0xF80000)},
+                                           {1.0f, hexColor(0x600000)}});
 
 /** The screen's registers. The green bitmap face is the root; a row names
  *  its state by class, and the engraved gold names its face. */
@@ -267,14 +268,15 @@ struct Fallout2CharSheet {
   Element special() const {
     const float x = 5, y = 34, width = 152, height = 232;
     std::vector<Element> panel;
-    panel.push_back(screen(x, y, width, height)
-                        .fill(Paint::linearUnit({0, 0}, {0.2f, 1},
-                                                {{0.0f, hexColor(0x54462E)},
-                                                 {0.35f, hexColor(0x483828)},
-                                                 {1.0f, hexColor(0x3A3020)}}))
-                        .borderRadius(Corners{px(4)})
-                        .stroke(stroke(px(1), Fill::color(hexColor(0x1A1610)),
-                                       PathFormat::Align::Inner)));
+    panel.push_back(
+        screen(x, y, width, height)
+            .fill(Paint::linearGradient({0, 0}, {0.2f, 1},
+                                        {{0.0f, hexColor(0x54462E)},
+                                         {0.35f, hexColor(0x483828)},
+                                         {1.0f, hexColor(0x3A3020)}}))
+            .borderRadius(Corners{px(4)})
+            .stroke(stroke(px(1), Fill::color(hexColor(0x1A1610)),
+                           PathFormat::Align::Inner)));
     kit::bevelled(panel.back(),
                   kit::bevels::plate(hexColor(0xB09868, 0.55f),
                                      hexColor(0x080604, 0.7f), px(1.6f), px(2)));
@@ -448,11 +450,12 @@ struct Fallout2CharSheet {
 
   /** The plate's frame and the three raised seams between its panels. */
   Element chrome() const {
-    const auto seam = [](float x, float y, float width, float height, bool down) {
+    const auto seam = [](float x, float y, float width, float height,
+                         bool down) {
       return screen(x, y, width, height)
-          .fill(Paint::linearUnit({0, 0}, down ? SkPoint{0, 1} : SkPoint{1, 0},
-                                  {{0.0f, hexColor(0x554430)},
-                                   {1.0f, hexColor(0x241D12)}}));
+          .fill(Paint::linearGradient(
+              {0, 0}, down ? SkPoint{0, 1} : SkPoint{1, 0},
+              {{0.0f, hexColor(0x554430)}, {1.0f, hexColor(0x241D12)}}));
     };
     static constexpr std::array<std::pair<const char*, std::array<float, 2>>, 3> kPlaques{
         {{"name", {14, 140}}, {"age", {155, 82}}, {"sex", {238, 76}}}};

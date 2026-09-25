@@ -352,18 +352,21 @@ struct RotaConvocationis {
     const float px = rHexagram * kRadius;
     return sheet().children(
         {kit::disc(kEye, rEmblem * kRadius * 1.6f)
-             .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                   {{0.0f, hexColor(0x3A240C, 0.9f)},
-                                    {0.55f, hexColor(0x241608, 0.6f)},
-                                    {1.0f, hexColor(0x100A04, 0.0f)}})),
-         sheet().rotate(turn(kHexagram)).children(
-             {kit::disc(kEye, px)
-                  .shape(shapes::chords({.sides = 6, .step = 2,
-                                         .closed = true}))
-                  .fill(Fill::none())
-                  .stroke(stroke(1.1f, Fill::color(kLine))),
-              beads(6, rKern, 4, kPitch, 1.0f, kLine),
-              beads(6, rMote, 2.2f, kPitch * 0.5f, 0.9f, kHair)}),
+             .fill(Paint::radialGradient(
+                 {0.5f, 0.5f}, 1.0f,
+                 {{0.0f, hexColor(0x3A240C, 0.9f)},
+                  {0.55f, hexColor(0x241608, 0.6f)},
+                  {1.0f, hexColor(0x100A04, 0.0f)}},
+                 {.extent = material::RadialExtent::ClosestSide})),
+         sheet()
+             .rotate(turn(kHexagram))
+             .children({kit::disc(kEye, px)
+                            .shape(shapes::chords(
+                                {.sides = 6, .step = 2, .closed = true}))
+                            .fill(Fill::none())
+                            .stroke(stroke(1.1f, Fill::color(kLine))),
+                        beads(6, rKern, 4, kPitch, 1.0f, kLine),
+                        beads(6, rMote, 2.2f, kPitch * 0.5f, 0.9f, kHair)}),
          text(content["monogram"].text())
              .font({.size = 52, .track = 6})
              .ink(kBone)
@@ -437,8 +440,9 @@ struct RotaConvocationis {
   Element describe() {
     return box()
         .inset(0)
-        .fill(Paint::glowUnit({0.5f, 0.5f}, 0.9f,
-                              {{0.0f, kNightLift}, {1.0f, kNight}}))
+        .fill(Paint::radialGradient(
+            {0.5f, 0.5f}, 0.9f, {{0.0f, kNightLift}, {1.0f, kNight}},
+            {.extent = material::RadialExtent::ClosestSide}))
         .applyStyleSheet(registers)
         .children(
             {// The line work, lit: one soft halo over every rule and figure,
@@ -455,8 +459,10 @@ struct RotaConvocationis {
                       each(kLadders, ladder),
                       // The fast layer: a hairline ladder in the tick band's
                       // inner half.
-                      sheet().rotate(turn(kFine)).children({ladder(
-                          {288, 6, rTickMid - 0.003f, 0.800f, 0.6f, kLine})}),
+                      sheet()
+                          .rotate(turn(kFine))
+                          .children({ladder({288, 6, rTickMid - 0.003f, 0.800f,
+                                             0.6f, kLine})}),
                       arcs(), star(), innerStar()}),
              each(kBands,
                   [&](const Band& band, size_t index) {

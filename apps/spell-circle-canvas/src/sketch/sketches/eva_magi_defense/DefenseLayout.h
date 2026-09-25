@@ -634,13 +634,15 @@ inline sk_sp<SkImage> fieldStrip(float hueTurn) {
   if (!surface) return nullptr;
   // The same gradient the ribbons were once filled with directly, so a
   // row of the strip is the row that gradient painted.
-  std::vector<material::skia::Stop> stops;
+  std::vector<material::ColorStop> stops;
   stops.reserve((size_t)kRampN);
   for (const auto& stop : kRamp)
     stops.push_back({stop.t, hexColor(turnHue(stop.rgb, hueTurn))});
   SkPaint paint;
-  paint.setShader(
-      material::skia::Paint::linear({0, 0}, {0, kH}, std::move(stops)).asShader());
+  paint.setShader(material::skia::Paint::linearGradient(
+                      {0, 0}, {0, kH}, std::move(stops),
+                      {.units = material::GradientUnits::Pixels})
+                      .asShader());
   surface->getCanvas()->drawPaint(paint);
   return surface->makeImageSnapshot();
 }

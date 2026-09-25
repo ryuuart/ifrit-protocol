@@ -235,19 +235,19 @@ struct ThunderFulu {
     return box().inset(0).children(
         {kit::at(-16, -8, kPlateWidth + 46, kPlateHeight + 44)
              .shape(shapes::chamfered(26.0f))
-             .fill(Paint::radialUnit({0.5f, 0.5f}, 0.78f,
-                                     {{0.0f, hexColor(0x000000, 0.66f)},
-                                      {0.72f, hexColor(0x000000, 0.40f)},
-                                      {1.0f, hexColor(0x000000, 0.0f)}})),
+             .fill(Paint::radialGradient({0.5f, 0.5f}, 0.78f,
+                                         {{0.0f, hexColor(0x000000, 0.66f)},
+                                          {0.72f, hexColor(0x000000, 0.40f)},
+                                          {1.0f, hexColor(0x000000, 0.0f)}})),
          box()
              .inset(0)
              .shape(beaten)
-             .fill(Paint::linearUnit({0.10f, -0.06f}, {0.96f, 1.0f},
-                                     {{0.0f, hexColor(0x736a5b)},
-                                      {0.18f, hexColor(0x4f4840)},
-                                      {0.46f, hexColor(0x35312c)},
-                                      {0.78f, hexColor(0x201e1d)},
-                                      {1.0f, hexColor(0x161514)}}))
+             .fill(Paint::linearGradient({0.10f, -0.06f}, {0.96f, 1.0f},
+                                         {{0.0f, hexColor(0x736a5b)},
+                                          {0.18f, hexColor(0x4f4840)},
+                                          {0.46f, hexColor(0x35312c)},
+                                          {0.78f, hexColor(0x201e1d)},
+                                          {1.0f, hexColor(0x161514)}}))
              .foreground(lines::presets::hatch(
                  Fill::color(hexColor(0xa79a83, 0.075f)), 13.0f, 1.6f, -18.0f))
              .foreground(lines::presets::hatch(

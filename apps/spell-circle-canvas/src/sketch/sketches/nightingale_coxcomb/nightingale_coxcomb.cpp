@@ -337,23 +337,29 @@ struct NightingaleCoxcomb {
             box()
                 .inset(kPlateMark + 2)
                 .fill(Fill::color(material::withAlpha(colour("paper"), 0.28f))),
-            box().inset(0).fill(linearGradient(
+            box().inset(0).fill(material::skia::Paint::linearGradient(
                 {0, 0}, {kCanvas.width(), kCanvas.height()},
-                {colour("raking-light"), colour("raking-light", 0),
-                 colour("raking-shade")},
-                {0.0f, 0.45f, 1.0f})),
+                {{0.0f, colour("raking-light")},
+                 {0.45f, colour("raking-light", 0)},
+                 {1.0f, colour("raking-shade")}},
+                {.units = material::GradientUnits::Pixels})),
             box()
                 .rect(SkRect::MakeXYWH(kAxis - gutter / 2, 0, gutter,
                                        kCanvas.height()))
-                .fill(linearGradient(
+                .fill(material::skia::Paint::linearGradient(
                     {0, 0}, {gutter, 0},
-                    {colour("gutter-shadow", 0), colour("gutter-shadow", 0.45f),
-                     colour("gutter-shadow"), colour("gutter-light"),
-                     colour("gutter-shadow", 0.35f), colour("gutter-shadow", 0)},
-                    {0.0f, 0.38f, 0.485f, 0.515f, 0.6f, 1.0f})),
+                    {{0.0f, colour("gutter-shadow", 0)},
+                     {0.38f, colour("gutter-shadow", 0.45f)},
+                     {0.485f, colour("gutter-shadow")},
+                     {0.515f, colour("gutter-light")},
+                     {0.6f, colour("gutter-shadow", 0.35f)},
+                     {1.0f, colour("gutter-shadow", 0)}},
+                    {.units = material::GradientUnits::Pixels})),
             // The plate mark: the copper's impression, a shadowed edge
             // and a lit one beside it.
-            box().inset(kPlateMark).stroke(stroke(1.0f, Fill::var("plate-shadow"))),
+            box()
+                .inset(kPlateMark)
+                .stroke(stroke(1.0f, Fill::var("plate-shadow"))),
             box()
                 .inset(kPlateMark + 2)
                 .stroke(stroke(1.0f, Fill::var("plate-light"))),

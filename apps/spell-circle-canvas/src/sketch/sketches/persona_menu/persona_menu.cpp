@@ -304,17 +304,19 @@ struct PersonaMenu {
   Element backdrop() {
     namespace nn = persona_menu;
     // 5-stop posterized band structure: HARD stops at the LUT positions.
-    Paint bands = Paint::linear({0, 0}, {0, nn::kH},
-                                {{0.000f, nn::kLut0},
-                                 {0.309f, nn::kLut0},
-                                 {0.309f, nn::kLut1},
-                                 {0.480f, nn::kLut1},
-                                 {0.480f, nn::kLut2},
-                                 {0.768f, nn::kLut2},
-                                 {0.768f, nn::kLut3},
-                                 {0.813f, nn::kLut3},
-                                 {0.813f, nn::kLut4},
-                                 {1.000f, nn::kLut4}});
+    Paint bands =
+        Paint::linearGradient({0, 0}, {0, nn::kH},
+                              {{0.000f, nn::kLut0},
+                               {0.309f, nn::kLut0},
+                               {0.309f, nn::kLut1},
+                               {0.480f, nn::kLut1},
+                               {0.480f, nn::kLut2},
+                               {0.768f, nn::kLut2},
+                               {0.768f, nn::kLut3},
+                               {0.813f, nn::kLut3},
+                               {0.813f, nn::kLut4},
+                               {1.000f, nn::kLut4}},
+                              {.units = material::GradientUnits::Pixels});
 
     // Three Z-planes so steady-state recomposition is BLITS, not
     // re-raster: everything below the sea is one static texture, the sea
@@ -328,9 +330,10 @@ struct PersonaMenu {
                  .inset(0)
                  .cache(Cache::Texture)  // static under-plane: ground +
                                          // bands + noise + veil, one blit
-                 .fill(Paint::linear(
+                 .fill(Paint::linearGradient(
                      {0, 0}, {0, nn::kH},
-                     {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}}))
+                     {{0.0f, nn::kGroundDark}, {1.0f, nn::kGround}},
+                     {.units = material::GradientUnits::Pixels}))
                  .children({box().inset(0).fill(bands).opacity(0.97f),
                             box()
                                 .inset(0)
@@ -349,23 +352,27 @@ struct PersonaMenu {
                        .cacheScale(0.5f)
                        .fill(dualCaustic())})
         // static over-plane: the framing gradients, one blit
-        .children({box()
-                       .inset(0)
-                       .cache(Cache::Texture)
-                       .children({box().inset(0).fill(Paint::linear(
-                                      {0, nn::kH * 0.60f}, {0, nn::kH},
-                                      {{0.0f,
-                                        {nn::kBotDark.r, nn::kBotDark.g,
-                                         nn::kBotDark.b, 0}},
-                                       {1.0f,
-                                        {nn::kBotDark.r, nn::kBotDark.g,
-                                         nn::kBotDark.b, 0.88f}}})),
-                                  box().inset(0).fill(Paint::linear(
-                                      {0, 0}, {0, nn::kH * 0.42f},
-                                      {{0.0f, nn::kTopCyan},
-                                       {1.0f,
-                                        {nn::kTopCyan.r, nn::kTopCyan.g,
-                                         nn::kTopCyan.b, 0}}}))})});
+        .children(
+            {box()
+                 .inset(0)
+                 .cache(Cache::Texture)
+                 .children(
+                     {box().inset(0).fill(Paint::linearGradient(
+                          {0, nn::kH * 0.60f}, {0, nn::kH},
+                          {{0.0f,
+                            {nn::kBotDark.r, nn::kBotDark.g, nn::kBotDark.b,
+                             0}},
+                           {1.0f,
+                            {nn::kBotDark.r, nn::kBotDark.g, nn::kBotDark.b,
+                             0.88f}}},
+                          {.units = material::GradientUnits::Pixels})),
+                      box().inset(0).fill(Paint::linearGradient(
+                          {0, 0}, {0, nn::kH * 0.42f},
+                          {{0.0f, nn::kTopCyan},
+                           {1.0f,
+                            {nn::kTopCyan.r, nn::kTopCyan.g, nn::kTopCyan.b,
+                             0}}},
+                          {.units = material::GradientUnits::Pixels}))})});
   }
 
   /** Unselected sticker: one of the three cyans, soft black under-glow +
@@ -515,33 +522,33 @@ struct PersonaMenu {
         .top(34)
         .column()
         .zIndex(8)
-        .translateX(
-            animate(motion::from(-30.0f).to(0.0f), {420ms, motion::ease::outQuint}))
+        .translateX(animate(motion::from(-30.0f).to(0.0f),
+                            {420ms, motion::ease::outQuint}))
         .opacity(animate(motion::from(0.0f).to(1.0f), {340ms}))
         .children(
             {box()
                  .row()
                  .alignItems(Align::End)
-                 .children(
-                     {text("07/22")
-                          .font(nn::menuType(38, nn::kPaper, 2.0f))
-                          .filter(styles::textGlow({0, 0, 0, 0.45f}, 3)),
-                      box()
-                          .column()
-                          .margin(0, 0, 5, 11)
-                          .children(
-                              {text("SUNDAY").font(
-                                   nn::smallType(11, nn::kCyanC, 2.6f)),
-                               text("EVENING")
-                                   .font(nn::smallType(11, nn::kCyanB, 2.6f))
-                                   .margin(3, 0, 0, 0)})}),
+                 .children({text("07/22")
+                                .font(nn::menuType(38, nn::kPaper, 2.0f))
+                                .filter(styles::textGlow({0, 0, 0, 0.45f}, 3)),
+                            box()
+                                .column()
+                                .margin(0, 0, 5, 11)
+                                .children({text("SUNDAY").font(nn::smallType(
+                                               11, nn::kCyanC, 2.6f)),
+                                           text("EVENING")
+                                               .font(nn::smallType(
+                                                   11, nn::kCyanB, 2.6f))
+                                               .margin(3, 0, 0, 0)})}),
              box()
                  .width(168)
                  .height(2)
                  .margin(7, 0, 5, 0)
-                 .fill(Paint::linear(
+                 .fill(Paint::linearGradient(
                      {0, 0}, {168, 0},
-                     {{0.0f, {1, 1, 1, 0.85f}}, {1.0f, {1, 1, 1, 0.0f}}})),
+                     {{0.0f, {1, 1, 1, 0.85f}}, {1.0f, {1, 1, 1, 0.0f}}},
+                     {.units = material::GradientUnits::Pixels})),
              text("IWATODAI DORM").font(nn::smallType(11, nn::kPaper, 2.2f))});
   }
 
@@ -589,14 +596,16 @@ struct PersonaMenu {
                    .height(6)
                    .flexGrow(0)
                    .fill(Paint::solid({0, 0.05f, 0.18f, 0.55f}))
-                   .children({kit::at(0, 0, 84 * frac, 6.0f)
-                                  .fill(Paint::linear(
-                                      {0, 0}, {0, 6},
-                                      {{0.0f,
-                                        {std::min(1.0f, color.r * 1.4f),
-                                         std::min(1.0f, color.g * 1.4f),
-                                         std::min(1.0f, color.b * 1.4f), 1}},
-                                       {1.0f, color}}))}),
+                   .children(
+                       {kit::at(0, 0, 84 * frac, 6.0f)
+                            .fill(Paint::linearGradient(
+                                {0, 0}, {0, 6},
+                                {{0.0f,
+                                  {std::min(1.0f, color.r * 1.4f),
+                                   std::min(1.0f, color.g * 1.4f),
+                                   std::min(1.0f, color.b * 1.4f), 1}},
+                                 {1.0f, color}},
+                                {.units = material::GradientUnits::Pixels}))}),
                text(numbers).font(nn::smallType(9, nn::kPaper, 0.6f))});
     };
 
@@ -613,13 +622,15 @@ struct PersonaMenu {
           .width(246)
           .height(52)
           .rotate(-4)
-          .translateX(
-              animate(motion::from(46.0f).to(0.0f), {440ms, motion::ease::outQuint}))
+          .translateX(animate(motion::from(46.0f).to(0.0f),
+                              {440ms, motion::ease::outQuint}))
           .opacity(animate(motion::from(0.0f).to(1.0f), {360ms}))
           .shape(shapes::parallelogram(9))
-          .fill(Paint::linear({0, 0}, {246, 0},
-                              {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
-                               {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}}))
+          .fill(
+              Paint::linearGradient({0, 0}, {246, 0},
+                                    {{0.0f, {0.02f, 0.16f, 0.42f, 0.78f}},
+                                     {1.0f, {0.02f, 0.30f, 0.62f, 0.55f}}},
+                                    {.units = material::GradientUnits::Pixels}))
           .stroke(stroke(1.4f, Fill::color({1, 1, 1, 0.55f})))
           .column()
           .padding(7, 17)

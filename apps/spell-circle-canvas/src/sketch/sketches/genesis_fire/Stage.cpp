@@ -9,11 +9,11 @@ void GenesisFire::seedStars() {
   const float sizes[5] = {7.0f, 5.4f, 4.2f, 3.2f, 2.4f};
   for (float s : sizes)
     starAtlas->cell(box().width(s).height(s).fill(
-                        Paint::radialUnit({0.5f, 0.5f}, 0.707f,
-                                          {{0.0f, {1, 1, 1, 1}},
-                                           {0.22f, {1, 1, 1, 0.78f}},
-                                           {0.58f, {1, 1, 1, 0.14f}},
-                                           {1.0f, {1, 1, 1, 0.0f}}})),
+                        Paint::radialGradient({0.5f, 0.5f}, 0.707f,
+                                              {{0.0f, {1, 1, 1, 1}},
+                                               {0.22f, {1, 1, 1, 0.78f}},
+                                               {0.58f, {1, 1, 1, 0.14f}},
+                                               {1.0f, {1, 1, 1, 0.0f}}})),
                     {s, s});
   // N(m) ~ 10^(0.6m): 1 / 5 / 19 / 76 / 319 = 420 stars.
   const int bin[5] = {1, 5, 19, 76, 319};
@@ -101,7 +101,7 @@ Element GenesisFire::dipper() {
     const float rad = std::max(1.4f, 4.6f - 0.85f * kStars[i].mag);
     const bool sol = i == 7;
     g.children({kit::disc(p, rad * 2.0f)
-                    .fill(Paint::radialUnit(
+                    .fill(Paint::radialGradient(
                         {0.5f, 0.5f}, 0.707f,
                         {{0.0f, sol ? hexColor(0xFFFFFF) : hexColor(0xEFF3FF)},
                          {0.22f, sol ? hexColor(0xFFF4D8, 0.9f)
@@ -139,18 +139,19 @@ Element GenesisFire::dipper() {
 Element GenesisFire::regolith() {
   // A generated surface, plus the ONE hand-added light in the shot
   // (Tom Duff's), riding the wavefront.
-  Paint ground = Paint::blend(
-      {{Paint::radialUnit({0.5f, 0.723f}, 0.50f,
-                          {{0.0f, hexColor(0x3B3933)},
-                           {0.42f, hexColor(0x232119)},
-                           {1.0f, hexColor(0x0A0A0C)}}),
-        SkBlendMode::kSrc},
-       {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
-        SkBlendMode::kSoftLight},
-       {Pattern(material::pattern::speckle(170, 17, 0.9f, 3.4f,
-                                  {hexColor(0x6A655B), hexColor(0x171512)}))
-            .material(),
-        SkBlendMode::kOverlay}});
+  Paint ground =
+      Paint::blend({{Paint::radialGradient({0.5f, 0.723f}, 0.50f,
+                                           {{0.0f, hexColor(0x3B3933)},
+                                            {0.42f, hexColor(0x232119)},
+                                            {1.0f, hexColor(0x0A0A0C)}}),
+                     SkBlendMode::kSrc},
+                    {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
+                     SkBlendMode::kSoftLight},
+                    {Pattern(material::pattern::speckle(
+                                 170, 17, 0.9f, 3.4f,
+                                 {hexColor(0x6A655B), hexColor(0x171512)}))
+                         .material(),
+                     SkBlendMode::kOverlay}});
 
   return box()
       .inset(0)
@@ -159,16 +160,17 @@ Element GenesisFire::regolith() {
       .fill(std::move(ground))
       .opacity(
           animate(from(0.0f).to(1.0f), {.duration = 520ms, .delay = 420ms}))
-      .translateY(animate(
-          from(12.0f).to(0.0f),
-          {.duration = 520ms, .ease = sigil::motion::ease::outCubic, .delay = 420ms}))
+      .translateY(
+          animate(from(12.0f).to(0.0f), {.duration = 520ms,
+                                         .ease = sigil::motion::ease::outCubic,
+                                         .delay = 420ms}))
       // Duff's local light. ONE Output (loopU) shaped into px.
       .children(
           {kit::disc(SkPoint{0, 0}, 132)
-               .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
-                                       {{0.0f, hexColor(0xFF8A3A, 0.62f)},
-                                        {0.38f, hexColor(0xC24E14, 0.24f)},
-                                        {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
+               .fill(Paint::radialGradient({0.5f, 0.5f}, 0.707f,
+                                           {{0.0f, hexColor(0xFF8A3A, 0.62f)},
+                                            {0.38f, hexColor(0xC24E14, 0.24f)},
+                                            {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
                .blendMode(SkBlendMode::kPlus)
                .translateX(bind(&loopU).scale(1680.0f).offset(-80.0f))
                .translateY(limbY(444.0f) + 26.0f)
@@ -184,21 +186,22 @@ Element GenesisFire::shockwave() {
   // (off-frame left). Documented as elements; timing is reconstruction.
   const SkPoint impact{kX0, limbY(kX0 < 0 ? 0.0f : kX0) + 8.0f};
   Element g = box().inset(0);
-  g.children({kit::disc(impact, 170)
-                  .fill(Paint::radialUnit({0.5f, 0.5f}, 0.707f,
-                                          {{0.0f, {1, 1, 1, 0.95f}},
-                                           {0.25f, hexColor(0xFFE7B0, 0.6f)},
-                                           {1.0f, hexColor(0xFF7A20, 0.0f)}}))
-                  .blendMode(SkBlendMode::kPlus)
-                  .opacity(bind(&loopU).map([](float v) {
-                    const float t = v * 10.0f;
-                    if (t < 0.06f) return t / 0.06f;
-                    if (t < 0.45f) {
-                      const float k = 1.0f - (t - 0.06f) / 0.39f;
-                      return k * k;
-                    }
-                    return 0.0f;
-                  }))});
+  g.children(
+      {kit::disc(impact, 170)
+           .fill(Paint::radialGradient({0.5f, 0.5f}, 0.707f,
+                                       {{0.0f, {1, 1, 1, 0.95f}},
+                                        {0.25f, hexColor(0xFFE7B0, 0.6f)},
+                                        {1.0f, hexColor(0xFF7A20, 0.0f)}}))
+           .blendMode(SkBlendMode::kPlus)
+           .opacity(bind(&loopU).map([](float v) {
+             const float t = v * 10.0f;
+             if (t < 0.06f) return t / 0.06f;
+             if (t < 0.45f) {
+               const float k = 1.0f - (t - 0.06f) / 0.39f;
+               return k * k;
+             }
+             return 0.0f;
+           }))});
   g.children({kit::disc(impact, 520)
                   .shape(shapes::circle())
                   .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
@@ -223,10 +226,10 @@ Element GenesisFire::stageBelow() {
       .width(kStageW)
       .height(kStageH)
       .overflow(Overflow::Clip)
-      .fill(Paint::linearUnit({0.5f, 0.0f}, {0.5f, 0.85f},
-                              {{0.0f, hexColor(0x03040A)},
-                               {0.55f, hexColor(0x05060D)},
-                               {1.0f, hexColor(0x0A0B13)}}))
+      .fill(Paint::linearGradient({0.5f, 0.0f}, {0.5f, 0.85f},
+                                  {{0.0f, hexColor(0x03040A)},
+                                   {0.55f, hexColor(0x05060D)},
+                                   {1.0f, hexColor(0x0A0B13)}}))
       .children({starField().zIndex(1), dipper().zIndex(2),
                  regolith().zIndex(3), shockwave().zIndex(4)});
 }

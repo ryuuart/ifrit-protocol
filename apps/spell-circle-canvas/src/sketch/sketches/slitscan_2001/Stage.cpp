@@ -74,11 +74,13 @@ auto SlitScan2001::filmFrame() -> Element {
           // full-canvas kPlus radial re-evaluated per frame costs this
           // scene more than the two exposures do.
           .cache(Cache::Texture)
-          .fill(Paint::glowUnit({0.5f, 0.5f}, 0.5f,
-                                {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
-                                 {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
-                                 {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
-                                 {1.00f, {0.6f, 0.5f, 0.4f, 0.0f}}}))
+          .fill(Paint::radialGradient(
+              {0.5f, 0.5f}, 0.5f,
+              {{0.00f, {1.0f, 0.98f, 0.92f, 0.92f}},
+               {0.12f, {1.0f, 0.94f, 0.80f, 0.42f}},
+               {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
+               {1.00f, {0.6f, 0.5f, 0.4f, 0.0f}}},
+              {.extent = sigil::material::RadialExtent::ClosestSide}))
           .blendMode(SkBlendMode::kPlus);
   // HALATION. Film's own bloom: light scattering back off the base. The
   // SAME two pools read a second time, tone-curved softer, blurred and

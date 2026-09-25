@@ -96,47 +96,52 @@ inline Paint glassTint(float w, float h) {
       // needs to stay legible.
       {Paint::solid({kSky.r, kSky.g, kSky.b, 0.19f}), SkBlendMode::kSrcOver},
       // afterglow stand-in: brighter accent breathing down from the top
-      {Paint::linear({0, 0}, {0, h},
-                     {{0.00f, {0.62f, 0.82f, 1.00f, 0.24f}},
-                      {0.10f, {0.55f, 0.78f, 1.00f, 0.11f}},
-                      {0.30f, {0.45f, 0.72f, 0.99f, 0.03f}},
-                      {1.00f, {0.45f, 0.72f, 0.99f, 0.07f}}}),
+      {Paint::linearGradient({0, 0}, {0, h},
+                             {{0.00f, {0.62f, 0.82f, 1.00f, 0.24f}},
+                              {0.10f, {0.55f, 0.78f, 1.00f, 0.11f}},
+                              {0.30f, {0.45f, 0.72f, 0.99f, 0.03f}},
+                              {1.00f, {0.45f, 0.72f, 0.99f, 0.07f}}},
+                             {.units = material::GradientUnits::Pixels}),
        SkBlendMode::kSrcOver},
       // the desktop-space diagonal sheen (~30 deg, peak a~.2)
-      {Paint::linear({0, h * 0.85f}, {w, h * 0.15f},
-                     {{0.00f, {1, 1, 1, 0.00f}},
-                      {0.40f, {1, 1, 1, 0.00f}},
-                      {0.52f, {1, 1, 1, 0.20f}},
-                      {0.66f, {1, 1, 1, 0.03f}},
-                      {0.78f, {1, 1, 1, 0.12f}},
-                      {0.88f, {1, 1, 1, 0.00f}},
-                      {1.00f, {1, 1, 1, 0.00f}}}),
+      {Paint::linearGradient({0, h * 0.85f}, {w, h * 0.15f},
+                             {{0.00f, {1, 1, 1, 0.00f}},
+                              {0.40f, {1, 1, 1, 0.00f}},
+                              {0.52f, {1, 1, 1, 0.20f}},
+                              {0.66f, {1, 1, 1, 0.03f}},
+                              {0.78f, {1, 1, 1, 0.12f}},
+                              {0.88f, {1, 1, 1, 0.00f}},
+                              {1.00f, {1, 1, 1, 0.00f}}},
+                             {.units = material::GradientUnits::Pixels}),
        SkBlendMode::kScreen},
   });
 }
 
 // Radial white corner glow, a.35->0 over ~30px, centered on a top corner.
 inline Paint cornerGlow(SkPoint center) {
-  return Paint::radial(center, 34,
-                       {{0.0f, {1, 1, 1, 0.35f}}, {1.0f, {1, 1, 1, 0.0f}}});
+  return Paint::radialGradient(
+      center, 34, {{0.0f, {1, 1, 1, 0.35f}}, {1.0f, {1, 1, 1, 0.0f}}},
+      {.units = material::GradientUnits::Pixels});
 }
 
 // The bloom that filled the close button on hover.
 inline Paint closeBloom(float w, float h) {
-  return Paint::radial({w * 0.5f, h * 0.42f}, w * 0.60f,
-                       {{0.00f, {1.000f, 0.769f, 0.706f, 0.95f}},
-                        {0.35f, {0.902f, 0.431f, 0.353f, 0.90f}},
-                        {0.70f, {0.745f, 0.098f, 0.078f, 0.85f}},
-                        {1.00f, {0.60f, 0.05f, 0.04f, 0.0f}}});
+  return Paint::radialGradient({w * 0.5f, h * 0.42f}, w * 0.60f,
+                               {{0.00f, {1.000f, 0.769f, 0.706f, 0.95f}},
+                                {0.35f, {0.902f, 0.431f, 0.353f, 0.90f}},
+                                {0.70f, {0.745f, 0.098f, 0.078f, 0.85f}},
+                                {1.00f, {0.60f, 0.05f, 0.04f, 0.0f}}},
+                               {.units = material::GradientUnits::Pixels});
 }
 
 // Caption-button glass base (idle): faint vertical white gradient.
 inline Paint buttonBase(float h) {
-  return Paint::linear({0, 0}, {0, h},
-                       {{0.00f, {1, 1, 1, 0.28f}},
-                        {0.45f, {1, 1, 1, 0.10f}},
-                        {0.50f, {1, 1, 1, 0.04f}},
-                        {1.00f, {1, 1, 1, 0.12f}}});
+  return Paint::linearGradient({0, 0}, {0, h},
+                               {{0.00f, {1, 1, 1, 0.28f}},
+                                {0.45f, {1, 1, 1, 0.10f}},
+                                {0.50f, {1, 1, 1, 0.04f}},
+                                {1.00f, {1, 1, 1, 0.12f}}},
+                               {.units = material::GradientUnits::Pixels});
 }
 
 }  // namespace aero_desktop
@@ -297,9 +302,11 @@ struct AeroDesktop {
             {// toolbar strip
              box()
                  .inset(0, 0, clientH - 34, 0)
-                 .fill(Paint::linear({0, 0}, {0, 34},
-                                     {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
-                                      {1.0f, {0.867f, 0.906f, 0.949f, 1}}})),
+                 .fill(Paint::linearGradient(
+                     {0, 0}, {0, 34},
+                     {{0.0f, {0.937f, 0.957f, 0.980f, 1}},
+                      {1.0f, {0.867f, 0.906f, 0.949f, 1}}},
+                     {.units = material::GradientUnits::Pixels})),
              box()
                  .inset(34, 0, clientH - 35, 0)
                  .fill(Fill::color({0.71f, 0.76f, 0.82f, 1})),
@@ -322,9 +329,11 @@ struct AeroDesktop {
                  .inset(50, 12, 0, 162)
                  .height(22)
                  .borderRadius({2})
-                 .fill(Paint::linear({0, 0}, {0, 22},
-                                     {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
-                                      {1.0f, {0.74f, 0.85f, 0.96f, 1}}}))
+                 .fill(Paint::linearGradient(
+                     {0, 0}, {0, 22},
+                     {{0.0f, {0.86f, 0.92f, 0.98f, 1}},
+                      {1.0f, {0.74f, 0.85f, 0.96f, 1}}},
+                     {.units = material::GradientUnits::Pixels}))
                  .stroke(stroke(1, Fill::color({0.52f, 0.70f, 0.88f, 1}))),
              each(kFiles, entry)});
   }
@@ -354,7 +363,8 @@ struct AeroDesktop {
             // half raster scale — it's about to be blurred anyway.
             .children(
                 {box()
-                     .inset(-ad::kWY, -(ad::kW - ad::kWX - ad::kWW), -(ad::kH - ad::kWY - ad::kWH), -ad::kWX)
+                     .inset(-ad::kWY, -(ad::kW - ad::kWX - ad::kWW),
+                            -(ad::kH - ad::kWY - ad::kWH), -ad::kWX)
                      .cache(Cache::Texture)
                      .cacheScale(0.5f)
                      .children(
@@ -386,9 +396,11 @@ struct AeroDesktop {
                  box()
                      .inset(8, ad::kWW - 30, ad::kWH - 24, 14)
                      .borderRadius({3})
-                     .fill(Paint::linear({0, 0}, {0, 16},
-                                         {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
-                                          {1.0f, {0.10f, 0.38f, 0.75f, 1}}}))
+                     .fill(Paint::linearGradient(
+                         {0, 0}, {0, 16},
+                         {{0.0f, {0.55f, 0.80f, 1.0f, 1}},
+                          {1.0f, {0.10f, 0.38f, 0.75f, 1}}},
+                         {.units = material::GradientUnits::Pixels}))
                      .stroke(stroke(1, Fill::color({1, 1, 1, 0.6f}))),
                  captionText(), captionButtons()});
 
@@ -451,11 +463,12 @@ struct AeroDesktop {
                  .borderRadius({d / 2})
                  .overflow(Overflow::Clip)
                  // the orb's radial base
-                 .fill(Paint::radial(
+                 .fill(Paint::radialGradient(
                      {d * 0.5f, d * 0.42f}, d * 0.62f,
-                     {{0.00f, {0.086f, 0.227f, 0.373f, 1}},    // #163A5F
-                      {0.70f, {0.043f, 0.137f, 0.251f, 1}},    // #0B2340
-                      {1.00f, {0.016f, 0.063f, 0.118f, 1}}}))  // #04101E
+                     {{0.00f, {0.086f, 0.227f, 0.373f, 1}},  // #163A5F
+                      {0.70f, {0.043f, 0.137f, 0.251f, 1}},  // #0B2340
+                      {1.00f, {0.016f, 0.063f, 0.118f, 1}}},
+                     {.units = material::GradientUnits::Pixels}))  // #04101E
                  // rim strokes
                  .stroke(stroke(1.2f, Fill::color({0.55f, 0.78f, 1.0f, 0.55f})))
                  // the four-pane flag, gently rotated
@@ -477,9 +490,11 @@ struct AeroDesktop {
                           .inset(1.5f, 4, d * 0.52f, 4)
                           .borderRadius(
                               {d * 0.36f, d * 0.36f, d * 0.20f, d * 0.20f})
-                          .fill(Paint::linear({0, 0}, {0, d * 0.46f},
-                                              {{0.0f, {1, 1, 1, 0.55f}},
-                                               {1.0f, {1, 1, 1, 0.04f}}}))})});
+                          .fill(Paint::linearGradient(
+                              {0, 0}, {0, d * 0.46f},
+                              {{0.0f, {1, 1, 1, 0.55f}},
+                               {1.0f, {1, 1, 1, 0.04f}}},
+                              {.units = material::GradientUnits::Pixels}))})});
   }
 
   /** The close-button hover bloom, hoisted ABOVE the baked window plane
@@ -515,11 +530,12 @@ struct AeroDesktop {
         .inset(ad::kH - ad::kTaskbarH + 3 - pad, 0, 0, 14 - pad)
         .width(2 * r)
         .height(2 * r)
-        .fill(Paint::radial({r, r}, r,
-                            {{0.00f, {0.35f, 0.75f, 1.0f, 0}},
-                             {0.60f, {0.35f, 0.75f, 1.0f, 0}},
-                             {0.68f, {0.35f, 0.75f, 1.0f, 0.11f}},
-                             {1.00f, {0.35f, 0.75f, 1.0f, 0}}}))
+        .fill(Paint::radialGradient({r, r}, r,
+                                    {{0.00f, {0.35f, 0.75f, 1.0f, 0}},
+                                     {0.60f, {0.35f, 0.75f, 1.0f, 0}},
+                                     {0.68f, {0.35f, 0.75f, 1.0f, 0.11f}},
+                                     {1.00f, {0.35f, 0.75f, 1.0f, 0}}},
+                                    {.units = material::GradientUnits::Pixels}))
         .opacity(&orbGlow);
   }
 
@@ -548,11 +564,13 @@ struct AeroDesktop {
                   SkBlendMode::kSrcOver},
                  {Paint::solid({ad::kSky.r, ad::kSky.g, ad::kSky.b, 0.16f}),
                   SkBlendMode::kSrcOver},
-                 {Paint::linear({0, 0}, {0, th},
-                                {{0.00f, {1, 1, 1, 0.22f}},
-                                 {0.08f, {1, 1, 1, 0.05f}},
-                                 {0.55f, {1, 1, 1, 0.00f}},
-                                 {1.00f, {0, 0, 0, 0.18f}}}),
+                 {Paint::linearGradient(
+                      {0, 0}, {0, th},
+                      {{0.00f, {1, 1, 1, 0.22f}},
+                       {0.08f, {1, 1, 1, 0.05f}},
+                       {0.55f, {1, 1, 1, 0.00f}},
+                       {1.00f, {0, 0, 0, 0.18f}}},
+                      {.units = material::GradientUnits::Pixels}),
                   SkBlendMode::kSrcOver},
              })),
              // 1px light top edge over a dark seam
@@ -563,10 +581,12 @@ struct AeroDesktop {
                  .inset(4, 0, 4, 62)
                  .width(54)
                  .borderRadius({3})
-                 .fill(Paint::linear({0, 0}, {0, th - 8},
-                                     {{0.0f, {1, 1, 1, 0.26f}},
-                                      {0.5f, {1, 1, 1, 0.08f}},
-                                      {1.0f, {1, 1, 1, 0.16f}}}))
+                 .fill(Paint::linearGradient(
+                     {0, 0}, {0, th - 8},
+                     {{0.0f, {1, 1, 1, 0.26f}},
+                      {0.5f, {1, 1, 1, 0.08f}},
+                      {1.0f, {1, 1, 1, 0.16f}}},
+                     {.units = material::GradientUnits::Pixels}))
                  .stroke(stroke(1, Fill::color({1, 1, 1, 0.35f})))
                  .children(
                      {box()
@@ -574,10 +594,11 @@ struct AeroDesktop {
                           .width(16)
                           .height(13)
                           .borderRadius({2})
-                          .fill(
-                              Paint::linear({0, 0}, {0, 13},
-                                            {{0.0f, {1.0f, 0.87f, 0.55f, 1}},
-                                             {1.0f, {0.90f, 0.67f, 0.25f, 1}}}))
+                          .fill(Paint::linearGradient(
+                              {0, 0}, {0, 13},
+                              {{0.0f, {1.0f, 0.87f, 0.55f, 1}},
+                               {1.0f, {0.90f, 0.67f, 0.25f, 1}}},
+                              {.units = material::GradientUnits::Pixels}))
                           .stroke(stroke(
                               1, Fill::color({0.55f, 0.40f, 0.10f, 0.8f})))}),
              // tray clock, pinned to the right edge (right-aligned for free)
@@ -620,9 +641,11 @@ struct AeroDesktop {
         {box()
              .inset(6, 4, 8, 2)
              .borderRadius({2, 2, 3, 3})
-             .fill(Paint::linear({0, 0}, {0, 30},
-                                 {{0.0f, {1.00f, 0.88f, 0.55f, 1}},
-                                  {1.0f, {0.86f, 0.62f, 0.20f, 1}}}))
+             .fill(Paint::linearGradient(
+                 {0, 0}, {0, 30},
+                 {{0.0f, {1.00f, 0.88f, 0.55f, 1}},
+                  {1.0f, {0.86f, 0.62f, 0.20f, 1}}},
+                 {.units = material::GradientUnits::Pixels}))
              .stroke(stroke(1, Fill::color({0.45f, 0.32f, 0.08f, 0.7f}))),
          box()
              .inset(2, 22, 34, 2)
@@ -635,10 +658,12 @@ struct AeroDesktop {
         {box()
              .inset(10, 8, 4, 8)
              .borderRadius({3, 3, 6, 6})
-             .fill(Paint::linear({0, 0}, {28, 0},
-                                 {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
-                                  {0.50f, {0.45f, 0.62f, 0.80f, 0.35f}},
-                                  {1.00f, {0.75f, 0.88f, 0.97f, 0.55f}}}))
+             .fill(Paint::linearGradient(
+                 {0, 0}, {28, 0},
+                 {{0.00f, {0.75f, 0.88f, 0.97f, 0.55f}},
+                  {0.50f, {0.45f, 0.62f, 0.80f, 0.35f}},
+                  {1.00f, {0.75f, 0.88f, 0.97f, 0.55f}}},
+                 {.units = material::GradientUnits::Pixels}))
              .stroke(stroke(1, Fill::color({0.85f, 0.93f, 1.0f, 0.8f}))),
          box()
              .inset(6, 5, 32, 5)

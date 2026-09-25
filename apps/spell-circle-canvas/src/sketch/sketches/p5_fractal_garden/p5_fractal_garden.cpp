@@ -55,11 +55,13 @@ material::skia::Paint ground() {
 }
 
 material::skia::Paint budLight() {
-  return material::skia::Paint::glowUnit({0.36f, 0.30f}, 0.92f,
-                                {{0.00f, {1.00f, 0.98f, 0.82f, 1.0f}},
-                                 {0.30f, {1.00f, 0.62f, 0.30f, 1.0f}},
-                                 {0.72f, {0.42f, 0.30f, 0.90f, 0.92f}},
-                                 {1.00f, {0.03f, 0.05f, 0.16f, 0.12f}}});
+  return material::skia::Paint::radialGradient(
+      {0.36f, 0.30f}, 0.92f,
+      {{0.00f, {1.00f, 0.98f, 0.82f, 1.0f}},
+       {0.30f, {1.00f, 0.62f, 0.30f, 1.0f}},
+       {0.72f, {0.42f, 0.30f, 0.90f, 0.92f}},
+       {1.00f, {0.03f, 0.05f, 0.16f, 0.12f}}},
+      {.extent = material::RadialExtent::ClosestSide});
 }
 
 struct P5FractalGarden {

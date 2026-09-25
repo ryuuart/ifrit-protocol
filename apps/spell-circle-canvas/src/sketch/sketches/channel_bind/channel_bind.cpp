@@ -144,8 +144,8 @@ constexpr std::array<const char*, kFaders> kDriven = {
 
 /** THE HUES OF THE WHEEL, one ring of them at one saturation and one
  *  value, so a turn of the ring is a turn of hue and nothing else. */
-std::vector<material::skia::Stop> hues() {
-  std::vector<material::skia::Stop> stops;
+std::vector<material::ColorStop> hues() {
+  std::vector<material::ColorStop> stops;
   stops.reserve(kHues + 1);
   for (int step = 0; step <= kHues; ++step) {
     const float at = (float)step / (float)kHues;
@@ -316,8 +316,9 @@ struct ChannelBind {
             .rect(SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
                                    kWheelTop + kWheelSide))
             .borderRadius(kWheelSide * 0.5f)
-            .fill(material::skia::Paint::sweep(
-                SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}, hues()))
+            .fill(material::skia::Paint::conicGradient(
+                SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}, hues(),
+                {.units = material::GradientUnits::Pixels}))
             .rotate(turn()));
     // The hub, which turns the disc into a ring, and the pointer the ring
     // is read against. Neither is bound: a pointer that moved with the

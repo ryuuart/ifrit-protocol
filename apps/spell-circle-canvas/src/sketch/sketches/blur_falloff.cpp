@@ -99,7 +99,7 @@ Element subject() {
 /** DEPTH OF FIELD: three stops down the unit square — max sigma at the
  *  top edge, zero at the focal line, max again at the bottom. */
 material::skia::Paint dofMap() {
-  return material::skia::Paint::linearUnit(
+  return material::skia::Paint::linearGradient(
       {0, 0}, {0, 1},
       {{0.0f, {1, 1, 1, 1}}, {kFocal, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
@@ -108,8 +108,9 @@ material::skia::Paint dofMap() {
  *  the one that means "fills this box" (radialUnit reaches the
  *  corners). */
 material::skia::Paint lensMap() {
-  return material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
+  return material::skia::Paint::radialGradient(
+      {0.5f, 0.5f}, 1.0f, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}},
+      {.extent = material::RadialExtent::ClosestSide});
 }
 
 sketch::kit::ComparisonCase panel(const char* caseTitle, const char* call,
@@ -161,7 +162,7 @@ struct BlurFalloff {
                                "shows where that blur is applied.")
                                .width(660),
                            box().width(660).height(42).fill(
-                               material::skia::Paint::linearUnit(
+                               material::skia::Paint::linearGradient(
                                    {0, 0}, {1, 0},
                                    {{0, {0, 0, 0, 1}}, {1, {1, 1, 1, 1}}})),
                            box()
@@ -181,18 +182,21 @@ struct BlurFalloff {
                       {panel("UNIFORM", "filter(Blur(14, 14))",
                              "Every position receives the same blur.",
                              material::skia::Paint::solid({1, 1, 1, 1}),
-                             material::skia::Effect::filter(SkImageFilters::Blur(
-                                 kMaxSigma, kMaxSigma, nullptr)),
+                             material::skia::Effect::filter(
+                                 SkImageFilters::Blur(kMaxSigma,
+                                                      kMaxSigma, nullptr)),
                              "flat"),
                        panel("DEPTH OF FIELD", "blur(linearUnit 3 stops, 14)",
                              "The dark horizon stays sharp; distance from it "
                              "increases blur.",
-                             dofMap(), material::skia::Effect::blur(dofMap(), kMaxSigma),
+                             dofMap(),
+                             material::skia::Effect::blur(dofMap(), kMaxSigma),
                              "dof"),
                        panel("LENS EDGE", "blur(glowUnit, 14)",
                              "The centre stays sharp while the edge softens.",
                              lensMap(),
-                             material::skia::Effect::blur(lensMap(), kMaxSigma), "lens"),
+                             material::skia::Effect::blur(lensMap(), kMaxSigma),
+                             "lens"),
                        panel("RACK FOCUS", "blur(dofMap, 14) · live",
                              "The depth map stays fixed. Its maximum blur "
                              "breathes with time.",

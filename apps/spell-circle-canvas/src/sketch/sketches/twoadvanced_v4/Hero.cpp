@@ -161,16 +161,16 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                             SkSamplingOptions(SkFilterMode::kLinear)))});
   else
     scene.children({box().inset(0).fill(
-        material::skia::Paint::linearUnit({0, 0}, {0, 0.66f},
-                                 {{0.0f, hexColor(0x02070A)},
-                                  {0.62f, hexColor(0x03181D)},
-                                  {1.0f, hexColor(0x073038)}}))});
+        material::skia::Paint::linearGradient({0, 0}, {0, 0.66f},
+                                              {{0.0f, hexColor(0x02070A)},
+                                               {0.62f, hexColor(0x03181D)},
+                                               {1.0f, hexColor(0x073038)}}))});
 
   // the horizon haze band, full width. Without it the outer thirds are
   // black-on-black and the silhouettes have nothing to read against;
   // one kPlus ramp is the whole of the fix.
   scene.children(
-      {at(box().fill(material::skia::Paint::linearUnit(
+      {at(box().fill(material::skia::Paint::linearGradient(
               {0, 0}, {0, 1},
               {{0.00f, sigil::material::withAlpha(kTealBar, 0.0f)},
                {0.62f, sigil::material::withAlpha(kTealBar, 0.10f)},
@@ -237,7 +237,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .top(-72)
            .width(380)
            .height(300)
-           .fill(material::skia::Paint::radialUnit(
+           .fill(material::skia::Paint::radialGradient(
                {0.5f, 0.14f}, 1.05f,
                {{0.0f, sigil::material::withAlpha(kGlow, 0.75f)},
                 {0.45f, sigil::material::withAlpha(kTealBar, 0.32f)},
@@ -254,7 +254,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .top(0)
            .width(80)
            .height(h - horizon)
-           .fill(material::skia::Paint::linearUnit(
+           .fill(material::skia::Paint::linearGradient(
                {0, 0}, {0, 1},
                {{0.00f, sigil::material::withAlpha(kGlow, 0.55f)},
                 {0.35f, sigil::material::withAlpha(kGlow, 0.20f)},
@@ -277,26 +277,26 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
 auto TwoAdvancedV4::hero(float w, float h) -> Element {
   using namespace tav;
   Element s = stack().width(w).height(h).overflow(Overflow::Clip);
-  s.children(
-      {heroScene(w, h, false),
-       // the atmospheric bloom pass: the same composite, blurred, screened
-       // back over itself. Built `still` so it is provably static and the
-       // Texture bake is paid once, not per frame.
-       heroScene(w, h, true)
-           .filter(material::skia::Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
-           .opacity(0.34f)
-           .blendMode(SkBlendMode::kPlus)
-           .cache(Cache::Texture)
-           .cacheScale(0.5f),
-       box().inset(0).fill(
-           material::skia::Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                                    {{0.00f, {0, 0, 0, 0}},
-                                     {0.58f, {0, 0, 0, 0.10f}},
-                                     {1.00f, {0, 0, 0, 0.66f}}})),
-       box().inset(0).foreground(styles::Scanlines{}),
-       box().inset(0).foreground(
-           styles::Brackets{sigil::material::withAlpha(kCyan, 0.7f), 22, 2, 8,
-                            shapes::Corner::All})});
+  s.children({heroScene(w, h, false),
+              // the atmospheric bloom pass: the same composite, blurred,
+              // screened back over itself. Built `still` so it is provably
+              // static and the Texture bake is paid once, not per frame.
+              heroScene(w, h, true)
+                  .filter(material::skia::Effect::filter(
+                      SkImageFilters::Blur(22, 22, nullptr)))
+                  .opacity(0.34f)
+                  .blendMode(SkBlendMode::kPlus)
+                  .cache(Cache::Texture)
+                  .cacheScale(0.5f),
+              box().inset(0).fill(material::skia::Paint::radialGradient(
+                  {0.5f, 0.5f}, 1.0f,
+                  {{0.00f, {0, 0, 0, 0}},
+                   {0.58f, {0, 0, 0, 0.10f}},
+                   {1.00f, {0, 0, 0, 0.66f}}})),
+              box().inset(0).foreground(styles::Scanlines{}),
+              box().inset(0).foreground(
+                  styles::Brackets{sigil::material::withAlpha(kCyan, 0.7f), 22,
+                                   2, 8, shapes::Corner::All})});
 
   auto corner = [&](const char* a, const char* b, float l, float tp, bool end) {
     return box()
@@ -342,7 +342,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
         .top(0)
         .width(pct(share))
         .height(100_pct)
-        .fill(material::skia::Paint::linearUnit(
+        .fill(material::skia::Paint::linearGradient(
             {0, 0}, {1, 0},
             {{0.0f, hexColor(0x2A0708)}, {1.0f, hexColor(0x1A0405)}}))
         .foreground(onEdges(
@@ -412,11 +412,11 @@ auto TwoAdvancedV4::monitorBody(float h) -> Element {
   using namespace tav;
   return box()
       .height(h)
-      .fill(material::skia::Paint::linearUnit({0, 0}, {0, 1},
-                                     {{0.00f, kPanelHi},
-                                      {0.15f, kPanel},
-                                      {0.88f, kPanel},
-                                      {1.00f, kPanelSh}}))
+      .fill(material::skia::Paint::linearGradient({0, 0}, {0, 1},
+                                                  {{0.00f, kPanelHi},
+                                                   {0.15f, kPanel},
+                                                   {0.88f, kPanel},
+                                                   {1.00f, kPanelSh}}))
       .foreground(kit::gloss(sigil::material::withAlpha(kPanelHi, 0.5f), 40,
                              {0, -h * 0.34f}, 0.72f, 0.28f))
       .foreground(onEdges(path::Edge::Top,
@@ -437,23 +437,24 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
         {box()
              .flexGrow(1)
              .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
-             .fill(material::skia::Paint::linearUnit(
+             .fill(material::skia::Paint::linearGradient(
                  {0, 0}, {0, 1},
                  {{0.0f, hexColor(0x0A2C33)}, {1.0f, hexColor(0x02171B)}}))
              .stroke(stroke(1,
                             Fill::color(sigil::material::withAlpha(
                                 hexColor(0x0B3B40), 0.9f)),
                             PathFormat::Align::Inner))
-             .children({box().inset(0).fill(material::skia::Paint::radialUnit(
-                            {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
-                            {{0.0f, sigil::material::withAlpha(kGlow, g)},
-                             {1.0f, sigil::material::withAlpha(kGlow, 0.0f)}})),
-                        at(box().fill(hexColor(0x011114)), 6 + 4 * (float)i, 18,
-                           12, 30),
-                        at(box().fill(hexColor(0x01191D)), 24 + 3 * (float)i, 8,
-                           16, 40),
-                        at(box().fill(sigil::material::withAlpha(kGlow, 0.55f)),
-                           0, 40, 200, 1)})
+             .children(
+                 {box().inset(0).fill(material::skia::Paint::radialGradient(
+                      {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
+                      {{0.0f, sigil::material::withAlpha(kGlow, g)},
+                       {1.0f, sigil::material::withAlpha(kGlow, 0.0f)}})),
+                  at(box().fill(hexColor(0x011114)), 6 + 4 * (float)i, 18, 12,
+                     30),
+                  at(box().fill(hexColor(0x01191D)), 24 + 3 * (float)i, 8, 16,
+                     40),
+                  at(box().fill(sigil::material::withAlpha(kGlow, 0.55f)), 0,
+                     40, 200, 1)})
              .foreground(
                  styles::Brackets{sigil::material::withAlpha(kCyan, 0.5f), 6, 1,
                                   2, shapes::Corner::All})

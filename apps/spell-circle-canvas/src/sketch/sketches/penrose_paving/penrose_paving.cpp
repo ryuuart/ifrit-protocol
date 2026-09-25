@@ -298,10 +298,13 @@ struct PenrosePaving {
             box()
                 .inset(0)
                 .blendMode(SkBlendMode::kMultiply)
-                .fill(radialGradient({470, 280}, 1280,
-                                     {hexColor(0xFFFFFF), hexColor(0xE8E8E6),
-                                      hexColor(0xB4B6BA), hexColor(0x7A7D82)},
-                                     {0.0f, 0.3f, 0.7f, 1.0f}))};
+                .fill(material::skia::Paint::radialGradient(
+                    {470, 280}, 1280,
+                    {{0.0f, hexColor(0xFFFFFF)},
+                     {0.3f, hexColor(0xE8E8E6)},
+                     {0.7f, hexColor(0xB4B6BA)},
+                     {1.0f, hexColor(0x7A7D82)}},
+                    {.units = material::GradientUnits::Pixels}))};
   }
 
   static Element panel(float left, float top, float width, float height) {
@@ -361,13 +364,15 @@ struct PenrosePaving {
             .fill(Fill::color(kJointMortar))
             // The plaza's lettering voice: small, tracked, cool grey.
             .font({.size = 10.5f, .color = hexColor(0x8E9295), .track = 1.0f})
-            .children({plaza(), weather(),
-                       // A shaded foot for the plaque and the panel to sit in.
-                       kit::at(box().fill(linearGradient(
-                                   {0, 0}, {0, 200},
-                                   {hexColor(0x08090A, 0), hexColor(0x08090A, 0.6f)})),
-                               0, kHeight - 200, kWidth, 200),
-                       plaque(), deflation(words)}));
+            .children(
+                {plaza(), weather(),
+                 // A shaded foot for the plaque and the panel to sit in.
+                 kit::at(box().fill(material::skia::Paint::linearGradient(
+                             {0, 0}, {0, 200},
+                             {hexColor(0x08090A, 0), hexColor(0x08090A, 0.6f)},
+                             {.units = material::GradientUnits::Pixels})),
+                         0, kHeight - 200, kWidth, 200),
+                 plaque(), deflation(words)}));
   }
 };
 

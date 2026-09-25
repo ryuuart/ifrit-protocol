@@ -35,18 +35,18 @@ struct AstralTome {
    *  grain, baked to PIXELS — a full-canvas material is a shader, and a
    *  picture replays the draw call, not the result. */
   Element leather() const {
-    Element e =
-        box()
-            .inset(0, 0, at::kBandH, 0)
-            .key("leather")
-            .cache(Cache::Texture)
-            .fill(Paint::blend({{Paint::radialUnit({0.5f, 0.5f}, 0.95f,
-                                                   {{0.0f, at::kLeatherWarm},
-                                                    {0.55f, at::kLeatherMid},
-                                                    {1.0f, at::kLeatherDark}}),
-                                 SkBlendMode::kSrcOver},
-                                {Paint::recipe(field::grain(2.6f, 4, 21.0f)),
-                                 SkBlendMode::kOverlay}}));
+    Element e = box()
+                    .inset(0, 0, at::kBandH, 0)
+                    .key("leather")
+                    .cache(Cache::Texture)
+                    .fill(Paint::blend(
+                        {{Paint::radialGradient({0.5f, 0.5f}, 0.95f,
+                                                {{0.0f, at::kLeatherWarm},
+                                                 {0.55f, at::kLeatherMid},
+                                                 {1.0f, at::kLeatherDark}}),
+                          SkBlendMode::kSrcOver},
+                         {Paint::recipe(field::grain(2.6f, 4, 21.0f)),
+                          SkBlendMode::kOverlay}}));
     return e;
   }
 
@@ -66,13 +66,13 @@ struct AstralTome {
             .cache(Cache::Texture)
             .fill(Paint::blend(
                 {{Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
-                 {Paint::radialUnit(
+                 {Paint::radialGradient(
                       {0.42f, 0.38f}, 0.85f,
                       {{0.0f, sigil::material::scale(at::kNebula, 2.2f)},
                        {0.5f, at::kNebula},
                        {1.0f, {0, 0, 0, 1}}}),
                   SkBlendMode::kPlus},
-                 {Paint::radialUnit(
+                 {Paint::radialGradient(
                       {0.78f, 0.74f}, 0.55f,
                       {{0.0f, sigil::material::scale(at::kNebula, 1.6f)},
                        {1.0f, {0, 0, 0, 0}}}),
@@ -241,12 +241,13 @@ struct AstralTome {
     // further and holds more of the light than the glyph does.
     // the glyph
     grp.children(
-        {box().inset(0).fill(Paint::glowUnit(
+        {box().inset(0).fill(Paint::radialGradient(
              {0.5f, 0.5f}, 0.62f,
              {{0.0f, sigil::material::scale(col, 1.0f, 0.60f)},
               {0.22f, sigil::material::scale(col, 1.0f, 0.30f)},
               {0.55f, sigil::material::scale(col, 1.0f, 0.09f)},
-              {1.0f, sigil::material::scale(col, 1.0f, 0.0f)}})),
+              {1.0f, sigil::material::scale(col, 1.0f, 0.0f)}},
+             {.extent = sigil::material::RadialExtent::ClosestSide})),
          box()
              .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
              .shape(shapes::star(4, 0.24f, 0.16f))
@@ -278,7 +279,7 @@ struct AstralTome {
             .transformOrigin(pct(50), pct(50))
             .shape(shapes::arrow(0.34f, 0.42f))
             .rotate(flip ? 180.0f : 0.0f)
-            .fill(Paint::linearUnit(
+            .fill(Paint::linearGradient(
                 {0, 0}, {0, 1}, {{0.0f, at::kOlive}, {1.0f, at::kOliveDim}}))
             .foreground(decorations::border(
                 1.2f,
@@ -342,7 +343,7 @@ struct AstralTome {
               .shape(shapes::notched(
                   at::g(9.0f), at::g(4.0f),
                   shapes::Corner::TopRight | shapes::Corner::BottomRight))
-              .fill(Paint::linearUnit(
+              .fill(Paint::linearGradient(
                   {0, 0}, {1, 0},
                   {{0.0f, sel ? at::kLeatherWarm : at::kLeatherMid},
                    {0.6f, sigil::material::scale(at::kLeatherMid, 0.8f)},

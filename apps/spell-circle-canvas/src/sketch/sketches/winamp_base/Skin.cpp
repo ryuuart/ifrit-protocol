@@ -14,14 +14,15 @@ auto WinampBase::buildMaterials() -> void {
   // in the skin. One recipe, three windows, two sizes — the unit square
   // is what makes 275x116 and 400x377 share it.
   steel = material::skia::Paint::blend(
-      {{material::skia::Paint::linearUnit({0, 0}, {0, 1},
-                                 {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
+      {{material::skia::Paint::linearGradient(
+            {0, 0}, {0, 1}, {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
         SkBlendMode::kSrcOver},
-       {material::skia::Paint::radialUnit(
+       {material::skia::Paint::radialGradient(
             {0.34f, 0.42f}, 1.15f,
             {{0.0f, {1, 1, 1, 0.055f}}, {1.0f, {1, 1, 1, 0.0f}}}),
         SkBlendMode::kSrcOver},
-       {material::skia::Paint::recipe(field::grain(0.34f, 2, 3.0f, 0.20f, 1.0f)),
+       {material::skia::Paint::recipe(
+            field::grain(0.34f, 2, 3.0f, 0.20f, 1.0f)),
         SkBlendMode::kOverlay}});
 
   // The desktop: flat teal plus ONE low-octave dither, baked once.
@@ -33,9 +34,10 @@ auto WinampBase::buildMaterials() -> void {
   // CRT glass: the flat screen colour plus a soft off-centre catch-light.
   lcdMat = material::skia::Paint::blend(
       {{material::skia::Paint::solid(kLcd), SkBlendMode::kSrcOver},
-       {material::skia::Paint::radialUnit({0.28f, 0.22f}, 1.25f,
-                                 {{0.0f, hexColor(0x2A2A46, 0.75f)},
-                                  {1.0f, hexColor(0x2A2A46, 0.0f)}}),
+       {material::skia::Paint::radialGradient(
+            {0.28f, 0.22f}, 1.25f,
+            {{0.0f, hexColor(0x2A2A46, 0.75f)},
+             {1.0f, hexColor(0x2A2A46, 0.0f)}}),
         SkBlendMode::kSrcOver}});
 
   // ONE fader-track value shared by all eleven faders (preamp + 10
@@ -47,7 +49,7 @@ auto WinampBase::buildMaterials() -> void {
   // reason. Hard stops at each twenty-eighth make the same picture the
   // sheet does.
   {
-    std::vector<material::skia::Stop> steps;
+    std::vector<material::ColorStop> steps;
     constexpr int kFrames = 28;
     const auto ramp = [](float u) {
       return u < 0.46f ? sigil::material::mixLinear(kEqTop, kEqMid, u / 0.46f)
@@ -61,7 +63,7 @@ auto WinampBase::buildMaterials() -> void {
       steps.push_back({lo, c});
       steps.push_back({hi, c});
     }
-    faderTrack = material::skia::Paint::linearUnit({0, 0}, {0, 1}, steps);
+    faderTrack = material::skia::Paint::linearGradient({0, 0}, {0, 1}, steps);
   }
 
   graphMat = material::skia::Paint::solid(kGraph);
@@ -89,7 +91,7 @@ auto WinampBase::key(float x, float y, float w, float h, Element glyph)
     -> Element {
   using namespace wa;
   Element e = at(box(), x, y, w, h);
-  e.fill(material::skia::Paint::linearUnit(
+  e.fill(material::skia::Paint::linearGradient(
       {0, 0}, {0, 1},
       {{0.0f, sigil::material::lighten(kBtnFace, 0.10f)},
        {0.55f, kBtnFace},
@@ -161,7 +163,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   };
   // the wordmark, the egg and the window buttons' glyphs: one gold
   return raised(at(box(), 0, 0, wN, hN)
-                    .fill(material::skia::Paint::linearUnit(
+                    .fill(material::skia::Paint::linearGradient(
                         {0, 0}, {0, 1},
                         {{0.0f, sigil::material::lighten(kTitle, 0.06f)},
                          {1.0f, dark(kTitle, 0.25f)}}))

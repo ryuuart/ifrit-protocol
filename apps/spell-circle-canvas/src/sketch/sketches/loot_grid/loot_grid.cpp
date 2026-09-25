@@ -146,9 +146,11 @@ struct LootGrid {
               // loudest thing on the screen and turns a hoard into a
               // status grid, so what quality carries here is a hairline
               // and, for the two lit ranks, a bloom.
-              .fill(Paint::linear({0, 0}, {0, h},
-                                  {{0.0f, {0.10f, 0.095f, 0.082f, 0.92f}},
-                                   {1.0f, {0.05f, 0.048f, 0.042f, 0.92f}}}))
+              .fill(Paint::linearGradient(
+                  {0, 0}, {0, h},
+                  {{0.0f, {0.10f, 0.095f, 0.082f, 0.92f}},
+                   {1.0f, {0.05f, 0.048f, 0.042f, 0.92f}}},
+                  {.units = material::GradientUnits::Pixels}))
               .foreground(stroke(
                   1.0f, Fill::color({rc.r, rc.g, rc.b, lit ? 0.8f : 0.34f})))
               .row()
@@ -174,10 +176,12 @@ struct LootGrid {
                           .at({-w * 0.4f, -h * 0.4f})
                           .translateX(motion::bind(&shimmer).target(-70, 170))
                           .rotate(18.0f)
-                          .fill(Paint::linear({0, 0}, {w * 0.35f, 0},
-                                              {{0.0f, {1, 1, 1, 0.0f}},
-                                               {0.5f, {1, 1, 1, 0.30f}},
-                                               {1.0f, {1, 1, 1, 0.0f}}}))
+                          .fill(Paint::linearGradient(
+                              {0, 0}, {w * 0.35f, 0},
+                              {{0.0f, {1, 1, 1, 0.0f}},
+                               {0.5f, {1, 1, 1, 0.30f}},
+                               {1.0f, {1, 1, 1, 0.0f}}},
+                              {.units = material::GradientUnits::Pixels}))
                           .blendMode(SkBlendMode::kPlus)})});
       grid.children({std::move(cell)});
     }
@@ -301,9 +305,11 @@ struct LootGrid {
                  .borderRadius({2})
                  // The same rule as the hoard's cells: the socket is a dark
                  // well whatever is worn in it, and quality is a hairline.
-                 .fill(Paint::linear({0, 0}, {0, h},
-                                     {{0.0f, {0.10f, 0.095f, 0.082f, 0.95f}},
-                                      {1.0f, {0.05f, 0.048f, 0.042f, 0.95f}}}))
+                 .fill(Paint::linearGradient(
+                     {0, 0}, {0, h},
+                     {{0.0f, {0.10f, 0.095f, 0.082f, 0.95f}},
+                      {1.0f, {0.05f, 0.048f, 0.042f, 0.95f}}},
+                     {.units = material::GradientUnits::Pixels}))
                  .foreground(
                      stroke(1.0f, Fill::color({rc.r, rc.g, rc.b, 0.5f}))),
              kit::centred()
@@ -446,10 +452,12 @@ struct LootGrid {
                        .width(180.0f)
                        .height(1.0f)
                        .margin(7, 0, 5, 0)
-                       .fill(Paint::linear({0, 0}, {180, 0},
-                                           {{0.0f, {rc.r, rc.g, rc.b, 0.0f}},
-                                            {0.5f, {rc.r, rc.g, rc.b, 0.5f}},
-                                            {1.0f, {rc.r, rc.g, rc.b, 0.0f}}})),
+                       .fill(Paint::linearGradient(
+                           {0, 0}, {180, 0},
+                           {{0.0f, {rc.r, rc.g, rc.b, 0.0f}},
+                            {0.5f, {rc.r, rc.g, rc.b, 0.5f}},
+                            {1.0f, {rc.r, rc.g, rc.b, 0.0f}}},
+                           {.units = material::GradientUnits::Pixels})),
                    text("Required Strength: 189"),
                    text("Required Level: 63").ink(hexColor(0xD04040))});
   }
@@ -568,10 +576,12 @@ struct LootGrid {
     auto root = stack()
                     .applyStyleSheet(classes(look))
                     .ink(lt::kAsh)
-                    .fill(Paint::linear({0, 0}, {0, lt::kH},
-                                        {{0.0f, hexColor(0x0D0C0A)},
-                                         {0.5f, hexColor(0x14120F)},
-                                         {1.0f, hexColor(0x080706)}}));
+                    .fill(Paint::linearGradient(
+                        {0, 0}, {0, lt::kH},
+                        {{0.0f, hexColor(0x0D0C0A)},
+                         {0.5f, hexColor(0x14120F)},
+                         {1.0f, hexColor(0x080706)}},
+                        {.units = material::GradientUnits::Pixels}));
 
     // THE GROUND IS TOOLED LEATHER, and it is tiled rather than painted:
     // two patterns over one dark ramp, each a repeating tile the
@@ -602,8 +612,8 @@ struct LootGrid {
                       .opacity(0.34f)
                       .blendMode(SkBlendMode::kOverlay),
                   box().inset(0).fill(
-                      Pattern(material::pattern::gridLines(96.0f, 1.0f,
-                                                  {0.62f, 0.50f, 0.26f, 0.10f}))
+                      Pattern(material::pattern::gridLines(
+                                  96.0f, 1.0f, {0.62f, 0.50f, 0.26f, 0.10f}))
                           .material()),
                   box()
                       .inset(0)
@@ -631,15 +641,18 @@ struct LootGrid {
              .top(38)
              .padding(7, 13)
              .borderRadius({3})
-             .fill(Paint::linear({0, 0}, {0, 32},
-                                 {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}}))
+             .fill(Paint::linearGradient(
+                 {0, 0}, {0, 32}, {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}},
+                 {.units = material::GradientUnits::Pixels}))
              .foreground(stroke(1.0f, Fill::color(lt::kBronzeDim)))
              .children(
                  {box().width(13.0f).height(13.0f).borderRadius({6.5f}).fill(
-                      Paint::radial({5, 4}, 9,
-                                    {{0.0f, hexColor(0xFFE9A8)},
-                                     {0.6f, hexColor(0xD8A93C)},
-                                     {1.0f, hexColor(0x7A5C15)}})),
+                      Paint::radialGradient(
+                          {5, 4}, 9,
+                          {{0.0f, hexColor(0xFFE9A8)},
+                           {0.6f, hexColor(0xD8A93C)},
+                           {1.0f, hexColor(0x7A5C15)}},
+                          {.units = material::GradientUnits::Pixels})),
                   text(goldText).font({.size = 17,
                                        .color = hexColor(0xD8B95C),
                                        .track = 1.6f,

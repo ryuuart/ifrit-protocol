@@ -134,18 +134,20 @@ struct Bg3DiceRoll {
     return box().inset(0).children({
         // A warm light under the ring, so it stands out of the scrim.
         circle(kRing + 120)
-            .fill(Paint::glowUnit({0.5f, 0.5f}, 1.0f,
-                                  {{0.0f, material::withAlpha(kGilt, 0.16f)},
-                                   {1.0f, material::withAlpha(kGilt, 0.0f)}})),
+            .fill(Paint::radialGradient(
+                {0.5f, 0.5f}, 1.0f,
+                {{0.0f, material::withAlpha(kGilt, 0.16f)},
+                 {1.0f, material::withAlpha(kGilt, 0.0f)}},
+                {.extent = material::RadialExtent::ClosestSide})),
         circle(kRing + 12)
             .fill(Fill::none())
             .foreground(decorations::border(0.8f, Fill::color(kBronze))),
         circle(kRing)
             .shape(shapes::annulus(1 - kBand / kRing))
-            .fill(Paint::linearUnit({0.2f, 0.0f}, {0.8f, 1.0f},
-                                    {{0.0f, hexColor(0x6B5218)},
-                                     {0.5f, kUmber},
-                                     {1.0f, hexColor(0x5E4714)}}))
+            .fill(Paint::linearGradient({0.2f, 0.0f}, {0.8f, 1.0f},
+                                        {{0.0f, hexColor(0x6B5218)},
+                                         {0.5f, kUmber},
+                                         {1.0f, hexColor(0x5E4714)}}))
             .foreground(decorations::border(2.0f, Fill::color(kGilt))),
         each(20,
              [&](size_t gap) {
@@ -158,9 +160,9 @@ struct Bg3DiceRoll {
                    .fill(Fill::color(kGilt));
              }),
         circle(kRing - kBand)
-            .fill(Paint::radialUnit({0.5f, 0.42f}, 0.72f,
-                                    {{0.0f, hexColor(0x241B10)},
-                                     {1.0f, hexColor(0x0C0906)}}))
+            .fill(Paint::radialGradient(
+                {0.5f, 0.42f}, 0.72f,
+                {{0.0f, hexColor(0x241B10)}, {1.0f, hexColor(0x0C0906)}}))
             .foreground(decorations::border(1.0f, Fill::color(kBronze), 6)),
     });
   }
@@ -217,7 +219,7 @@ struct Bg3DiceRoll {
                                   face.corners[2]},
                        .closed = true};
                    return pathFigure(path::toPath(outline))
-                       .fill(Paint::linearUnit(
+                       .fill(Paint::linearGradient(
                            {0.3f, 0.0f}, {0.7f, 1.0f},
                            {{0.0f, material::scale(tone, 1.06f)},
                             {1.0f, material::scale(tone, 0.88f)}}));
@@ -281,22 +283,26 @@ struct Bg3DiceRoll {
   /** One bonus as the chip BG3 hangs under the die: its amount in a gilt
    *  roundel, its source named beneath. */
   static Element chip(const Bonus& bonus) {
-    return box().column().alignItems(Align::Center).gap(8).children({
-        box()
-            .width(60)
-            .height(60)
-            .shape(shapes::circle())
-            .fill(Paint::radialUnit({0.5f, 0.35f}, 0.8f,
-                                    {{0.0f, hexColor(0x3A2C12)},
-                                     {1.0f, hexColor(0x120D07)}}))
-            .layerStyle(decorations::doubleBorder(
-                decorations::border(1.6f, Fill::color(kGilt)),
-                decorations::border(0.7f, Fill::color(kBronze), 4)))
-            .alignItems(Align::Center)
-            .justifyContent(Justify::Center)
-            .children({text(bonus.amount).styleClass("chip")}),
-        text(bonus.chip).styleClass("chip-name"),
-    });
+    return box()
+        .column()
+        .alignItems(Align::Center)
+        .gap(8)
+        .children({
+            box()
+                .width(60)
+                .height(60)
+                .shape(shapes::circle())
+                .fill(Paint::radialGradient(
+                    {0.5f, 0.35f}, 0.8f,
+                    {{0.0f, hexColor(0x3A2C12)}, {1.0f, hexColor(0x120D07)}}))
+                .layerStyle(decorations::doubleBorder(
+                    decorations::border(1.6f, Fill::color(kGilt)),
+                    decorations::border(0.7f, Fill::color(kBronze), 4)))
+                .alignItems(Align::Center)
+                .justifyContent(Justify::Center)
+                .children({text(bonus.amount).styleClass("chip")}),
+            text(bonus.chip).styleClass("chip-name"),
+        });
   }
 
   /** One line of the bonus list, counting in from the right. */
@@ -390,10 +396,10 @@ struct Bg3DiceRoll {
   Element describe() const {
     return box()
         .inset(0)
-        .fill(Paint::radialUnit({0.5f, 0.36f}, 0.85f,
-                                {{0.0f, hexColor(0x1C150D)},
-                                 {0.6f, kScrim},
-                                 {1.0f, hexColor(0x020201)}}))
+        .fill(Paint::radialGradient({0.5f, 0.36f}, 0.85f,
+                                    {{0.0f, hexColor(0x1C150D)},
+                                     {0.6f, kScrim},
+                                     {1.0f, hexColor(0x020201)}}))
         .font({.face = weave::ports::face(
                    {"Baskerville", "Palatino", "Hoefler Text", "Georgia"})})
         .applyStyleSheet(registers())

@@ -816,10 +816,12 @@ struct ChaucerAstrolabe {
             .children({
                 kit::at(56, 140, 1132, 1416)
                     .borderRadius({3})
-                    .fill(Paint::glowUnit({0.50f, 0.46f}, 1.05f,
-                                          {{0.0f, hexColor(0x33405a)},
-                                           {0.62f, kCase},
-                                           {1.0f, hexColor(0x080a10)}})),
+                    .fill(Paint::radialGradient(
+                        {0.50f, 0.46f}, 1.05f,
+                        {{0.0f, hexColor(0x33405a)},
+                         {0.62f, kCase},
+                         {1.0f, hexColor(0x080a10)}},
+                        {.extent = material::RadialExtent::ClosestSide})),
                 masthead(),
                 mater(),
                 plate(),

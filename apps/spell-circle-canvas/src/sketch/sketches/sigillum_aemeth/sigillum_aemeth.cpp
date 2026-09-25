@@ -208,22 +208,23 @@ struct SigillumAemeth {
 
   Element wax() const {
     return kit::dot(kSeal.centre, kWax,
-                    Paint::blend({{Paint::radialUnit({0.42f, 0.36f}, 1.05f,
-                                                     {{0.0f, kWaxPale},
-                                                      {0.45f, kWaxLit},
-                                                      {0.82f, kWaxMid},
-                                                      {1.0f, kWaxDeep}}),
-                                   SkBlendMode::kSrcOver},
-                                  {Paint::recipe(field::grain(1.6f, 4, 1582.0f,
-                                                              0.34f)),
-                                   SkBlendMode::kOverlay}}))
+                    Paint::blend(
+                        {{Paint::radialGradient({0.42f, 0.36f}, 1.05f,
+                                                {{0.0f, kWaxPale},
+                                                 {0.45f, kWaxLit},
+                                                 {0.82f, kWaxMid},
+                                                 {1.0f, kWaxDeep}}),
+                          SkBlendMode::kSrcOver},
+                         {Paint::recipe(field::grain(1.6f, 4, 1582.0f, 0.34f)),
+                          SkBlendMode::kOverlay}}))
         .layerStyle(
             {.under = {styles::dropShadow(hexColor(0x05070a, 0.7f), {6, 12},
                                           18)},
-             .over = {styles::BevelEmboss{.depth = 5,
-                                          .size = 9,
-                                          .highlight = hexColor(0xf1e2b0, 0.45f),
-                                          .shadow = hexColor(0x1c1406, 0.6f)},
+             .over = {styles::BevelEmboss{
+                          .depth = 5,
+                          .size = 9,
+                          .highlight = hexColor(0xf1e2b0, 0.45f),
+                          .shadow = hexColor(0x1c1406, 0.6f)},
                       styles::innerGlow(hexColor(0x2b2210, 0.35f), 14)}})
         .key("wax");
   }

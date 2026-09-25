@@ -151,9 +151,10 @@ struct UiParticles {
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
     return chip(t, {kSprite - 4, kSprite - 4}, std::move(label), 13)
         .shape(starburstOutline(spikes, 0.32f))
-        .fill(sigil::compose::radialGradient(
+        .fill(material::skia::Paint::radialGradient(
             {kSprite / 2 - 2, kSprite / 2 - 2}, kSprite / 2,
-            {{1.0f, 0.92f, 0.55f, 1}, t.fill}));
+            {{1.0f, 0.92f, 0.55f, 1}, t.fill},
+            {.units = material::GradientUnits::Pixels}));
   }
   Element seal(const ChipTheme& t, std::u8string label, float lobe) {
     return chip(t, {kSprite - 8, kSprite - 8}, std::move(label), 13)
@@ -486,9 +487,10 @@ struct UiParticles {
                            std::pair{postAtlas, postPool}};
     composer.render(
         stack()
-            .fill(sigil::compose::linearGradient(
+            .fill(material::skia::Paint::linearGradient(
                 {0, 0}, {0, kSceneSize.height()},
-                {{0.05f, 0.04f, 0.12f, 1}, {0.12f, 0.05f, 0.14f, 1}}))
+                {{0.05f, 0.04f, 0.12f, 1}, {0.12f, 0.05f, 0.14f, 1}},
+                {.units = material::GradientUnits::Pixels}))
             .children(
                 {each(tiers,
                       [](const auto& tier) {

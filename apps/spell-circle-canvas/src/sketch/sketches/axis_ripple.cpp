@@ -198,12 +198,12 @@ StyleSheet look() {
       rule(".refused").ink(var("refused")),
       rule(".honoured").ink(var("honoured")),
       // A proof stands on a plate lit from its top edge.
-      rule(".plate")
-          .padding(16, 22)
-          .borderRadius(12)
-          .fill(linearGradient({0, 0}, {0, 190},
-                               {material::Color{1, 1, 1, 0.055f},
-                                material::Color{1, 1, 1, 0.012f}})),
+      rule(".plate").padding(16, 22).borderRadius(12).fill(
+          material::skia::Paint::linearGradient(
+              {0, 0}, {0, 190},
+              {material::Color{1, 1, 1, 0.055f},
+               material::Color{1, 1, 1, 0.012f}},
+              {.units = material::GradientUnits::Pixels})),
   };
 }
 
@@ -279,11 +279,12 @@ struct AxisRipple {
                        .cover()
                        // Deep at the foot and hot at the top, so a full bar
                        // reads as a lit column and a low one as embers.
-                       .fill(linearGradient({0, 0}, {0, kLevelHeight},
-                                            {hexColor(0xD6ECFF),
-                                             hexColor(0x63B8FF),
-                                             hexColor(0x1C3F70)},
-                                            {0.0f, 0.35f, 1.0f}))
+                       .fill(material::skia::Paint::linearGradient(
+                           {0, 0}, {0, kLevelHeight},
+                           {{0.0f, hexColor(0xD6ECFF)},
+                            {0.35f, hexColor(0x63B8FF)},
+                            {1.0f, hexColor(0x1C3F70)}},
+                           {.units = material::GradientUnits::Pixels}))
                        .transformOrigin(pct(50), pct(100))
                        .scaleY(motion::bind(&phase)
                                    .source(lag, 1.0f + lag)
@@ -309,12 +310,12 @@ struct AxisRipple {
         .top(heroSize * 0.62f - kPoolHeight * 0.5f)
         .width(kPoolWidth)
         .height(kPoolHeight)
-        .fill(radialGradient({kPoolWidth * 0.5f, kPoolHeight * 0.5f},
-                             kPoolWidth * 0.5f,
-                             {material::withAlpha(warm, 0.16f),
-                              material::withAlpha(warm, 0.05f),
-                              material::withAlpha(warm, 0.0f)},
-                             {0.0f, 0.45f, 1.0f}))
+        .fill(material::skia::Paint::radialGradient(
+            {kPoolWidth * 0.5f, kPoolHeight * 0.5f}, kPoolWidth * 0.5f,
+            {{0.0f, material::withAlpha(warm, 0.16f)},
+             {0.45f, material::withAlpha(warm, 0.05f)},
+             {1.0f, material::withAlpha(warm, 0.0f)}},
+            {.units = material::GradientUnits::Pixels}))
         .scaleY(0.62f)
         .translateX(motion::bind(&phase)
                         .window(first, last)
@@ -447,15 +448,14 @@ struct AxisRipple {
         .key("ground")
         .cache(Cache::Texture)
         .fill(kit::grained(kPaper, 0.07f, 0.85f))
-        .children(
-            {box().cover().fill(radialGradient(
-                 {kWidth * 0.5f, kHeight * 0.36f}, kWidth * 0.62f,
-                 {material::withAlpha(skylight, 0.13f),
-                  material::withAlpha(skylight, 0.04f),
-                  material::withAlpha(skylight, 0.0f)},
-                 {0.0f, 0.5f, 1.0f})),
-             box().cover().fill(kit::vignette({kWidth, kHeight},
-                                              {0, 0, 0, 0.55f}, 0.4f))});
+        .children({box().cover().fill(material::skia::Paint::radialGradient(
+                       {kWidth * 0.5f, kHeight * 0.36f}, kWidth * 0.62f,
+                       {{0.0f, material::withAlpha(skylight, 0.13f)},
+                        {0.5f, material::withAlpha(skylight, 0.04f)},
+                        {1.0f, material::withAlpha(skylight, 0.0f)}},
+                       {.units = material::GradientUnits::Pixels})),
+                   box().cover().fill(kit::vignette({kWidth, kHeight},
+                                                    {0, 0, 0, 0.55f}, 0.4f))});
   }
 
   [[nodiscard]] Element describe() const {

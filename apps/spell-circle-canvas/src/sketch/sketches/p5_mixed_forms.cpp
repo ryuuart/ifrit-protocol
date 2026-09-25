@@ -51,9 +51,10 @@ struct P5MixedForms {
   // One shaded ball: a radial ramp in the pen's space, so each ball is
   // drawn at the origin after a translate and the highlight sits where
   // the ramp says.
-  const Paint shade = Paint::radial(
+  const Paint shade = Paint::radialGradient(
       {-6, -6}, 26,
-      {{0.0f, {1.0f, 0.85f, 0.6f, 1}}, {1.0f, {0.75f, 0.25f, 0.35f, 1}}});
+      {{0.0f, {1.0f, 0.85f, 0.6f, 1}}, {1.0f, {0.75f, 0.25f, 0.35f, 1}}},
+      {.units = material::GradientUnits::Pixels});
 
   /** THE GUEST, and every line in it style-less: the face and the ink
    *  arrive from the tree the pen stands in, and the card names only the

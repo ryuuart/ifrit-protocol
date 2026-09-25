@@ -47,10 +47,12 @@ material::skia::Paint currentInk(sk_sp<SkRuntimeEffect> program) {
 }
 
 material::skia::Paint particleLight() {
-  return material::skia::Paint::glowUnit({0.34f, 0.30f}, 0.92f,
-                                {{0.0f, {1.0f, 1.0f, 0.88f, 1.0f}},
-                                 {0.32f, {0.30f, 0.94f, 1.0f, 0.96f}},
-                                 {1.0f, {0.18f, 0.08f, 0.42f, 0.0f}}});
+  return material::skia::Paint::radialGradient(
+      {0.34f, 0.30f}, 0.92f,
+      {{0.0f, {1.0f, 1.0f, 0.88f, 1.0f}},
+       {0.32f, {0.30f, 0.94f, 1.0f, 0.96f}},
+       {1.0f, {0.18f, 0.08f, 0.42f, 0.0f}}},
+      {.extent = material::RadialExtent::ClosestSide});
 }
 
 struct P5FlowField {

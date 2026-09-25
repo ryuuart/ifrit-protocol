@@ -113,8 +113,9 @@ struct Tategaki {
   Element describe() {
     namespace tg = tategaki;
 
-    Fill ground =
-        linearGradient({0, 0}, {0, tg::kH}, {tg::kSumiLift, tg::kSumi});
+    Fill ground = toFill(material::skia::Paint::linearGradient(
+        {0, 0}, {0, tg::kH}, {tg::kSumiLift, tg::kSumi},
+        {.units = material::GradientUnits::Pixels}));
 
     // All three vertical forms in one passage. Only the two numbers and the
     // Latin word name a form; everything else takes UTR#50's, which is what

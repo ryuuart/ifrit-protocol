@@ -415,9 +415,11 @@ struct PassiveTree {
              .centerAt(at)
              .key(nodeKey(i))
              .shape(shapes::polygon(8, 22.5f))
-             .fill(Paint::radial({dia * 0.5f, dia * 0.5f}, dia * 0.62f,
-                                 {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
-                                  {1.0f, {0.07f, 0.06f, 0.05f, 1}}}))
+             .fill(Paint::radialGradient(
+                 {dia * 0.5f, dia * 0.5f}, dia * 0.62f,
+                 {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
+                  {1.0f, {0.07f, 0.06f, 0.05f, 1}}},
+                 {.units = material::GradientUnits::Pixels}))
              .stroke(stroke(2.8f, Fill::color(ring)))
              .zIndex(3),
          box()
@@ -439,12 +441,13 @@ struct PassiveTree {
              .height(dia * 0.60f)
              .centerAt(at)
              .shape(shapes::star(6, 0.40f))
-             .fill(Paint::radial(
+             .fill(Paint::radialGradient(
                  {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
                  {{0.0f,
                    {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
                     alloc ? 1.0f : 0.55f}},
-                  {1.0f, {ring.r, ring.g, ring.b, alloc ? 0.85f : 0.40f}}}))
+                  {1.0f, {ring.r, ring.g, ring.b, alloc ? 0.85f : 0.40f}}},
+                 {.units = material::GradientUnits::Pixels}))
              .zIndex(4)});
   }
 
@@ -486,11 +489,13 @@ struct PassiveTree {
                // and at half a stop over the ground it is invisible: the
                // rosettes then float on flat charcoal and the tree loses
                // the one cue that says which nodes belong together.
-               .fill(Paint::radial({discR, discR}, discR,
-                                   {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
-                                    {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
-                                    {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
-                                    {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}}))
+               .fill(Paint::radialGradient(
+                   {discR, discR}, discR,
+                   {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
+                    {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
+                    {0.86f, {0.15f, 0.12f, 0.10f, 0.28f}},
+                    {1.00f, {0.10f, 0.08f, 0.07f, 0.0f}}},
+                   {.units = material::GradientUnits::Pixels}))
                .zIndex(0),
            box()
                .width(discR * 2)
@@ -708,9 +713,11 @@ struct PassiveTree {
             .padding(13, 16)
             .gap(0)
             .borderRadius({3})
-            .fill(Paint::linear({0, 0}, {0, 170},
-                                {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
-                                 {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}}))
+            .fill(Paint::linearGradient(
+                {0, 0}, {0, 170},
+                {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
+                 {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}},
+                {.units = material::GradientUnits::Pixels}))
             .background(styles::dropShadow({0, 0, 0, 0.6f}, {0, 6}, 14))
             .foreground(stroke(1.2f, Fill::color({pt::kGold.r, pt::kGold.g,
                                                   pt::kGold.b, 0.45f})))
@@ -727,12 +734,13 @@ struct PassiveTree {
                      .width(kCardW - 32)
                      .height(1.0f)
                      .margin(9, 0)
-                     .fill(Paint::linear(
+                     .fill(Paint::linearGradient(
                          {0, 0}, {kCardW - 32, 0},
                          {{0.0f,
                            {pt::kGold.r, pt::kGold.g, pt::kGold.b, 0.55f}},
                           {1.0f,
-                           {pt::kGold.r, pt::kGold.g, pt::kGold.b, 0.0f}}}))});
+                           {pt::kGold.r, pt::kGold.g, pt::kGold.b, 0.0f}}},
+                         {.units = material::GradientUnits::Pixels}))});
     // one bulleted line per modifier the node carries
     card.children({each(detail->stats, [](const char* line) -> Element {
       if (!line) return box();
@@ -867,9 +875,10 @@ struct PassiveTree {
 
     auto root =
         stack()
-            .fill(Paint::radial(
+            .fill(Paint::radialGradient(
                 {pt::kW * 0.5f, pt::kH * 0.48f}, 600,
-                {{0.0f, pt::kBgLift}, {0.55f, pt::kBg}, {1.0f, pt::kBgSink}}))
+                {{0.0f, pt::kBgLift}, {0.55f, pt::kBg}, {1.0f, pt::kBgSink}},
+                {.units = material::GradientUnits::Pixels}))
             // THE TREE'S TYPE, stated once and inherited by every line the
             // card, the counter, the chip and the legend set: ash, the
             // colour most of them are set in, and the 8-bit colour ladder

@@ -29,10 +29,11 @@ constexpr int kCards = 3;
  *  square so that every PaintBox is a statement about the BOX and never
  *  about the ramp. */
 material::skia::Paint ramp() {
-  return material::skia::Paint::linearUnit({0, 0}, {1, 0},
-                                  {{0.0f, {0.96f, 0.29f, 0.24f, 1}},
-                                   {0.5f, {0.98f, 0.76f, 0.19f, 1}},
-                                   {1.0f, {0.16f, 0.45f, 0.93f, 1}}});
+  return material::skia::Paint::linearGradient(
+      {0, 0}, {1, 0},
+      {{0.0f, {0.96f, 0.29f, 0.24f, 1}},
+       {0.5f, {0.98f, 0.76f, 0.19f, 1}},
+       {1.0f, {0.16f, 0.45f, 0.93f, 1}}});
 }
 
 sigil::weave::Type display(float size) {

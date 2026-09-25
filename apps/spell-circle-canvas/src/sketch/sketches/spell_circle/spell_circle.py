@@ -54,7 +54,7 @@ LOOK = StyleSheet(
 
 
 def wash(accent: str) -> Paint:
-    return Paint.linearUnit((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
+    return Paint.linearGradient((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
 
 
 def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:

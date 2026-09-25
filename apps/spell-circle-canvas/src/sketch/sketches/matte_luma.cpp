@@ -127,11 +127,15 @@ sk_sp<SkImage> matte() {
   canvas->clear(SK_ColorTRANSPARENT);
   const float mid = kPanel * kSplit;
   SkPaint pen;
-  pen.setShader(
-      material::skia::verticalRamp(0, kPanel, {{0, {1, 1, 1, 1}}, {1, {0, 0, 0, 1}}}));
+  pen.setShader(material::skia::Paint::linearGradient(
+                    {0, 0}, {0, kPanel}, {{0, {1, 1, 1, 1}}, {1, {0, 0, 0, 1}}},
+                    {.units = material::GradientUnits::Pixels})
+                    .asShader());
   canvas->drawRect(SkRect::MakeWH(mid, kPanel), pen);
-  pen.setShader(
-      material::skia::verticalRamp(0, kPanel, {{0, {1, 1, 1, 1}}, {1, {1, 1, 1, 0}}}));
+  pen.setShader(material::skia::Paint::linearGradient(
+                    {0, 0}, {0, kPanel}, {{0, {1, 1, 1, 1}}, {1, {1, 1, 1, 0}}},
+                    {.units = material::GradientUnits::Pixels})
+                    .asShader());
   canvas->drawRect(SkRect::MakeXYWH(mid, 0, kPanel - mid, kPanel), pen);
   return surface->makeImageSnapshot();
 }
@@ -143,10 +147,11 @@ Element content(float w, float h) {
   return kit::centred()
       .width(w)
       .height(h)
-      .fill(material::skia::Paint::linearUnit({0, 0}, {1, 1},
-                                     {{0.0f, {1.0f, 0.85f, 0.20f, 1}},
-                                      {0.5f, {0.95f, 0.32f, 0.42f, 1}},
-                                      {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
+      .fill(material::skia::Paint::linearGradient(
+          {0, 0}, {1, 1},
+          {{0.0f, {1.0f, 0.85f, 0.20f, 1}},
+           {0.5f, {0.95f, 0.32f, 0.42f, 1}},
+           {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
       .children({text(u8"MATTE")
                      .font({.size = 30, .track = 0})
                      .ink(material::Color{1, 1, 1, 0.92f})});

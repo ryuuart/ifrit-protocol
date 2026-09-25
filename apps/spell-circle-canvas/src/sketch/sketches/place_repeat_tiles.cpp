@@ -120,9 +120,10 @@ struct PlaceRepeatTiles {
                       .width(kTile.width())
                       // Dark on one side and light on the other, so a
                       // mirrored tile is legible AS mirrored.
-                      .fill(linearGradient({0, 0}, {(float)kTile.width(), 0},
-                                           {{0.09f, 0.10f, 0.12f, 1},
-                                            {0.30f, 0.32f, 0.36f, 1}}));
+                      .fill(material::skia::Paint::linearGradient(
+                          {0, 0}, {(float)kTile.width(), 0},
+                          {{0.09f, 0.10f, 0.12f, 1}, {0.30f, 0.32f, 0.36f, 1}},
+                          {.units = material::GradientUnits::Pixels}));
     const material::Color figure = sketch::kit::theme().palette.figure;
     run.children({each(kTiles * 3, [&](int i) {
       return motif(i % 3 == 0 ? kWarm : figure);

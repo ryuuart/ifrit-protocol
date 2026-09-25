@@ -17,8 +17,8 @@ Element TwoAdvancedV3::describe() {
     // clamped down (the page is shorter than the strip).
     page.fill(stretchFill(pageTile, 10, 1600, SkTileMode::kRepeat));
   } else {
-    page.fill(material::skia::Paint::linearUnit({0, 0}, {0, 1},
-                                       {{0.0f, kPageHi}, {0.55f, kPage}}));
+    page.fill(material::skia::Paint::linearGradient(
+        {0, 0}, {0, 1}, {{0.0f, kPageHi}, {0.55f, kPage}}));
   }
   page.children({bevelBar(), headerStrip(), wordmark(), navBar(), hairlines(),
                  stageArt(), scrollStrip()});
@@ -29,7 +29,7 @@ Element TwoAdvancedV3::describe() {
   if (lowerPanelBg)
     ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
   else
-    ground.fill(material::skia::Paint::linearUnit(
+    ground.fill(material::skia::Paint::linearGradient(
         {0, 0}, {1, 1}, {{0.0f, hexColor(0x22304A)}, {1.0f, kPage}}));
   ground.opacity(
       animate(motion::from(0.0f).to(1.0f), {380ms, motion::ease::outQuad, 2250ms}));

@@ -177,8 +177,9 @@ struct Bousen {
   Element describe() {
     namespace bs = bousen;
 
-    Fill ground =
-        linearGradient({0, 0}, {0, bs::kH}, {bs::kKinariLift, bs::kKinari});
+    Fill ground = toFill(material::skia::Paint::linearGradient(
+        {0, 0}, {0, bs::kH}, {bs::kKinariLift, bs::kKinari},
+        {.units = material::GradientUnits::Pixels}));
 
     auto passage =
         weave::rich(bs::body(bs::kBodySize, bs::kSumi))

@@ -251,8 +251,9 @@ inline Element artwork(Art art, float w, float h, material::Color tint,
       .width(w)
       .height(h)
       .shape(artPath(art))
-      .fill(Paint::linear({0, 0}, {w * 0.35f, h},
-                          {{0.0f, hi}, {0.55f, tint}, {1.0f, lo}}))
+      .fill(Paint::linearGradient({0, 0}, {w * 0.35f, h},
+                                  {{0.0f, hi}, {0.55f, tint}, {1.0f, lo}},
+                                  {.units = material::GradientUnits::Pixels}))
       .stroke(stroke(1.1f, Fill::color({0.03f, 0.03f, 0.03f, 0.85f})));
 }
 
@@ -327,10 +328,11 @@ inline Element well(float w, float h, float alpha = 1.0f) {
   return sketch::kit::well(
       {.width = Dimension(w),
        .height = Dimension(h),
-       .ground =
-           Paint::linear({0, 0}, {0, h},
-                         {{0.0f, {kWellLo.r, kWellLo.g, kWellLo.b, alpha}},
-                          {1.0f, {kWellHi.r, kWellHi.g, kWellHi.b, alpha}}}),
+       .ground = Paint::linearGradient(
+           {0, 0}, {0, h},
+           {{0.0f, {kWellLo.r, kWellLo.g, kWellLo.b, alpha}},
+            {1.0f, {kWellHi.r, kWellHi.g, kWellHi.b, alpha}}},
+           {.units = material::GradientUnits::Pixels}),
        .clip = false,
        .corners = 2,
        .recess = sketch::kit::Well::Recess{
@@ -345,7 +347,9 @@ inline Element panel(float w, float h) {
       .height(h)
       .borderRadius({4})
       .background(styles::dropShadow({0, 0, 0, 0.65f}, {0, 7}, 16))
-      .fill(Paint::linear({0, 0}, {0, h}, {{0.0f, kStoneHi}, {1.0f, kStoneLo}}))
+      .fill(Paint::linearGradient({0, 0}, {0, h},
+                                  {{0.0f, kStoneHi}, {1.0f, kStoneLo}},
+                                  {.units = material::GradientUnits::Pixels}))
       .overflow(Overflow::Clip)
       // quarried, not smooth: the grain is generated, never a texture file
       .children({box()
@@ -378,9 +382,10 @@ inline Element rivets(float w, float h, float inset = 11) {
         .height(6.0f)
         .borderRadius({3})
         .at({x - 3, y - 3})
-        .fill(Paint::radial(
+        .fill(Paint::radialGradient(
             {3, 3}, 3.4f,
-            {{0.0f, kBronzeLit}, {0.7f, kBronze}, {1.0f, kBronzeDim}}));
+            {{0.0f, kBronzeLit}, {0.7f, kBronze}, {1.0f, kBronzeDim}},
+            {.units = material::GradientUnits::Pixels}));
   };
   return stack().inset(0).children({stud(inset, inset), stud(w - inset, inset),
                                     stud(inset, h - inset),

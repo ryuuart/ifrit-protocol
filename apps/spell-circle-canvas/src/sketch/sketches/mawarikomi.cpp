@@ -99,8 +99,9 @@ struct Mawarikomi {
   Element describe() {
     namespace mw = mawari;
 
-    Fill ground =
-        linearGradient({0, 0}, {0, mw::kH}, {mw::kKinariLift, mw::kKinari});
+    Fill ground = toFill(material::skia::Paint::linearGradient(
+        {0, 0}, {0, mw::kH}, {mw::kKinariLift, mw::kKinari},
+        {.units = material::GradientUnits::Pixels}));
 
     // The plate is printed as ink on unbleached paper: every run that names
     // no colour is set in the sumi.

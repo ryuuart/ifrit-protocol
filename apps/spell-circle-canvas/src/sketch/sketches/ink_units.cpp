@@ -24,10 +24,11 @@ namespace {
 /** The one ramp, authored in the unit square, so each panel differs only
  *  in the box that square lands on. */
 material::skia::Paint ramp() {
-  return material::skia::Paint::linearUnit({0, 0}, {1, 0},
-                                  {{0.0f, {0.96f, 0.29f, 0.24f, 1}},
-                                   {0.5f, {0.98f, 0.76f, 0.19f, 1}},
-                                   {1.0f, {0.16f, 0.45f, 0.93f, 1}}});
+  return material::skia::Paint::linearGradient(
+      {0, 0}, {1, 0},
+      {{0.0f, {0.96f, 0.29f, 0.24f, 1}},
+       {0.5f, {0.98f, 0.76f, 0.19f, 1}},
+       {1.0f, {0.16f, 0.45f, 0.93f, 1}}});
 }
 
 sigil::weave::Type display(float size) {

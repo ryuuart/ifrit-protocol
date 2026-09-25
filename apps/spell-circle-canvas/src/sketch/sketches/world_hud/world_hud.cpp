@@ -238,9 +238,10 @@ struct WorldHud {
                           {box()
                                .rect(SkRect::MakeXYWH(9, 9, 24.0f, 24.0f))
                                .shape(wh::glyphPath(s.glyph))
-                               .fill(Paint::linear(
+                               .fill(Paint::linearGradient(
                                    {0, 0}, {0, 24},
-                                   {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}}))
+                                   {{0.0f, wh::kBoneHi}, {1.0f, wh::kBone}},
+                                   {.units = material::GradientUnits::Pixels}))
                                // several glyphs are line-only (frost, dash,
                                // bow): a fill alone leaves them invisible
                                .stroke(stroke(2.2f, Fill::color(wh::kBoneHi)))
@@ -257,10 +258,12 @@ struct WorldHud {
                                                       wh::kSlot - 4))
                                .transformOrigin(pct(50), pct(0))
                                .scaleY(&cooldown[i - 1])
-                               .fill(Paint::linear(
+                               .fill(Paint::linearGradient(
                                    {0, 0}, {0, wh::kSlot - 4},
                                    {{0.0f, {0.06f, 0.10f, 0.16f, 0.86f}},
-                                    {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}}))});
+                                    {1.0f, {0.10f, 0.16f, 0.24f, 0.72f}}},
+                                   {.units =
+                                        material::GradientUnits::Pixels}))});
                     return cell.children({text(s.key)
                                               .font(wh::line(9, 0.6f))
                                               .ink(wh::kInkDim)
@@ -328,11 +331,12 @@ struct WorldHud {
                                        .opacity(b.opacity)
                                        .blendMode(b.blend);
                                  }),
-                            box().inset(0).fill(
-                                Paint::radial({d * 0.5f, d * 0.5f}, d * 0.55f,
-                                              {{0.0f, {0, 0, 0, 0}},
-                                               {0.72f, {0, 0, 0, 0.25f}},
-                                               {1.0f, {0, 0, 0, 0.75f}}})),
+                            box().inset(0).fill(Paint::radialGradient(
+                                {d * 0.5f, d * 0.5f}, d * 0.55f,
+                                {{0.0f, {0, 0, 0, 0}},
+                                 {0.72f, {0, 0, 0, 0.25f}},
+                                 {1.0f, {0, 0, 0, 0.75f}}},
+                                {.units = material::GradientUnits::Pixels})),
                             // the rivers Veloren's world always has
                             box()
                                 .inset(0)
@@ -371,8 +375,9 @@ struct WorldHud {
                  .borderRadius({d * 0.5f})
                  .foreground(stroke(
                      5.0f,
-                     linearGradient({0, 0}, {0, d},
-                                    {wh::kBoneHi, wh::kBone, wh::kBoneLo}),
+                     material::skia::Paint::linearGradient(
+                         {0, 0}, {0, d}, {wh::kBoneHi, wh::kBone, wh::kBoneLo},
+                         {.units = material::GradientUnits::Pixels}),
                      PathFormat::Align::Inner))
                  .foreground(
                      stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}))),
@@ -425,9 +430,10 @@ struct WorldHud {
               .borderRadius({4})
               .opacity(animate(motion::from(0.0f).to(1.0f), {320ms}))
               .translateY(animate(motion::from(-10.0f).to(0.0f), {380ms}))
-              .fill(Paint::linear(
+              .fill(Paint::linearGradient(
                   {0, 0}, {0, 30},
-                  {{0.0f, hexColor(0x2A2118)}, {1.0f, hexColor(0x120C08)}}))
+                  {{0.0f, hexColor(0x2A2118)}, {1.0f, hexColor(0x120C08)}},
+                  {.units = material::GradientUnits::Pixels}))
               .foreground(stroke(
                   1.4f, Fill::color({p.color.r, p.color.g, p.color.b, 0.28f})))
               // THE DRAIN RING: the same outline stroked again, trimmed

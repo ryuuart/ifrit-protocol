@@ -63,7 +63,7 @@ SkPoint middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
 
 /** The one ramp every radial cell runs, so what differs between them is
  *  the geometry of the falloff and never the colours. */
-std::vector<material::skia::Stop> ember() {
+std::vector<material::ColorStop> ember() {
   return {{0.0f, {1.00f, 0.96f, 0.82f, 1}},
           {0.35f, {0.98f, 0.62f, 0.24f, 1}},
           {1.0f, {0.12f, 0.10f, 0.16f, 1}}};
@@ -71,7 +71,7 @@ std::vector<material::skia::Stop> ember() {
 
 /** A wheel of hues for the two sweeps, ending where it began so the seam
  *  at the start angle is the only edge in it. */
-std::vector<material::skia::Stop> wheel() {
+std::vector<material::ColorStop> wheel() {
   return {{0.00f, {0.94f, 0.34f, 0.32f, 1}},
           {0.25f, {0.94f, 0.82f, 0.32f, 1}},
           {0.50f, {0.36f, 0.86f, 0.56f, 1}},
@@ -127,11 +127,11 @@ struct PaintShelf {
     // "the node's own box" and "the root's box" are two visibly
     // different readings of the same description.
     const auto field = [](bool world) {
-      material::skia::Paint p =
-          material::skia::Paint::linearUnit({0, 0}, {1, 1},
-                                   {{0.0f, {0.16f, 0.20f, 0.34f, 1}},
-                                    {0.5f, {0.44f, 0.78f, 0.86f, 1}},
-                                    {1.0f, {0.96f, 0.72f, 0.34f, 1}}});
+      material::skia::Paint p = material::skia::Paint::linearGradient(
+          {0, 0}, {1, 1},
+          {{0.0f, {0.16f, 0.20f, 0.34f, 1}},
+           {0.5f, {0.44f, 0.78f, 0.86f, 1}},
+           {1.0f, {0.96f, 0.72f, 0.34f, 1}}});
       return p.worldSpace(world);
     };
     // TWO NODES, ONE DESCRIPTION — which is the whole of what worldSpace
@@ -155,30 +155,38 @@ struct PaintShelf {
                       "Read the outer circle as well as the bright centre."},
                  sketch::kit::comparison(
                      {.cases =
-                          {swatch("RADIAL REFERENCE",
-                                  "Paint::radial(centre, 92, ember)",
-                                  "The hot spot and the outer circle share a "
-                                  "centre.",
-                                  material::skia::Paint::radial(middle(), 92, ember())),
+                          {swatch(
+                               "RADIAL REFERENCE",
+                               "Paint::radial(centre, 92, ember)",
+                               "The hot spot and the outer circle share a "
+                               "centre.",
+                               material::skia::Paint::radialGradient(
+                                   middle(), 92, ember(),
+                                   {.units = material::GradientUnits::Pixels})),
                            swatch(
                                "CONICAL · LEFT",
                                "conical(focus, 0, centre, 92, ember)",
                                "Move the focus while keeping the outer circle "
                                "fixed.",
-                               material::skia::Paint::conical(
-                                   {middle().fX - kFocus,
-                                    middle().fY - kFocus * 0.6f},
-                                   0, middle(), 92, ember())),
+                               material::skia::Paint::radialGradient(
+                                   middle(), 92, ember(),
+                                   {.units = material::GradientUnits::Pixels,
+                                    .focus = glm::vec2{middle().fX - kFocus,
+                                                       middle().fY -
+                                                           kFocus * 0.6f}})),
                            swatch(
                                "CONICAL · RIGHT",
                                "…"
                                "with the focus moved "
                                "across",
                                "Move the focus across the same fixed circle.",
-                               material::skia::Paint::conical(
-                                   {middle().fX + 1.3f * kFocus,
-                                    middle().fY + 0.8f * kFocus},
-                                   0, middle(), 92, ember()))},
+                               material::skia::Paint::radialGradient(
+                                   middle(), 92, ember(),
+                                   {.units = material::GradientUnits::Pixels,
+                                    .focus = glm::vec2{middle().fX +
+                                                           1.3f * kFocus,
+                                                       middle().fY +
+                                                           0.8f * kFocus}}))},
                       .measure = 1020,
                       .gap = 18})),
              box()
@@ -189,19 +197,25 @@ struct PaintShelf {
                      {sketch::kit::section(
                           {.label = "AN ANGULAR WINDOW", .note = ""},
                           sketch::kit::comparison(
-                              {.cases = {swatch("FULL TURN",
-                                                "Paint::sweep(centre, wheel)",
-                                                "The colour ramp completes a "
-                                                "full turn.",
-                                                material::skia::Paint::sweep(middle(),
-                                                                    wheel())),
-                                         swatch("CLAMPED WINDOW",
-                                                "sweep(centre, wheel, 45, 315)",
-                                                "Angles outside 45°–315° clamp "
-                                                "to the nearest stop.",
-                                                material::skia::Paint::sweep(
-                                                    middle(), wheel(),
-                                                    kWindowFrom, kWindowTo))},
+                              {.cases =
+                                   {swatch("FULL TURN",
+                                           "Paint::sweep(centre, wheel)",
+                                           "The colour ramp completes a "
+                                           "full turn.",
+                                           material::skia::Paint::conicGradient(
+                                               middle(), wheel(),
+                                               {.units = material::
+                                                    GradientUnits::Pixels})),
+                                    swatch("CLAMPED WINDOW",
+                                           "sweep(centre, wheel, 45, 315)",
+                                           "Angles outside 45°–315° clamp "
+                                           "to the nearest stop.",
+                                           material::skia::Paint::conicGradient(
+                                               middle(), wheel(),
+                                               {.units = material::
+                                                    GradientUnits::Pixels,
+                                                .startDegrees = kWindowFrom,
+                                                .endDegrees = kWindowTo}))},
                                .measure = 674,
                                .gap = 18})),
                       sketch::kit::section(
@@ -211,9 +225,9 @@ struct PaintShelf {
                                    "RASTER BUFFER", "Paint::buffer(pixels)",
                                    "Caller-owned pixels, published by "
                                    "commit().",
-                                   material::skia::Paint::buffer(pixels,
-                                                        SkTileMode::kRepeat,
-                                                        SkTileMode::kRepeat))},
+                                   material::skia::Paint::buffer(
+                                       pixels, SkTileMode::kRepeat,
+                                       SkTileMode::kRepeat))},
                                .measure = 328,
                                .gap = 18}))}),
              box()

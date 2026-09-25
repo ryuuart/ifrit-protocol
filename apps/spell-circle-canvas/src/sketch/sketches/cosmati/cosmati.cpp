@@ -652,15 +652,21 @@ struct Cosmati {
                              .source(kLightPhase, kLightPhase + kLightPeriod)
                              .wave(sigil::motion::ease::linear)
                              .target(0, kSide + 600))
-             .fill(linearGradient({0, 0}, {300, 0},
-                                  {material::withAlpha(kDaylight, 0), material::withAlpha(kDaylight, 0.09f),
-                                   material::withAlpha(kDaylight, 0.28f), material::withAlpha(kDaylight, 0.09f),
-                                   material::withAlpha(kDaylight, 0)},
-                                  {0.0f, 0.35f, 0.5f, 0.65f, 1.0f}))
+             .fill(material::skia::Paint::linearGradient(
+                 {0, 0}, {300, 0},
+                 {{0.0f, material::withAlpha(kDaylight, 0)},
+                  {0.35f, material::withAlpha(kDaylight, 0.09f)},
+                  {0.5f, material::withAlpha(kDaylight, 0.28f)},
+                  {0.65f, material::withAlpha(kDaylight, 0.09f)},
+                  {1.0f, material::withAlpha(kDaylight, 0)}},
+                 {.units = material::GradientUnits::Pixels}))
              .blendMode(SkBlendMode::kPlus),
-         box().cover().fill(radialGradient({kCentre, kCentre * 0.8f}, kSide * 0.78f,
-                                           {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0.42f}},
-                                           {0.0f, 0.55f, 1.0f}))});
+         box().cover().fill(material::skia::Paint::radialGradient(
+             {kCentre, kCentre * 0.8f}, kSide * 0.78f,
+             {{0.0f, {0, 0, 0, 0}},
+              {0.55f, {0, 0, 0, 0}},
+              {1.0f, {0, 0, 0, 0.42f}}},
+             {.units = material::GradientUnits::Pixels}))});
   }
 
   Element pavement() const {
@@ -747,22 +753,33 @@ struct Cosmati {
             {box().column().children(
                  {document::eyebrow(words.phrase(apparatus["eyebrow"])),
                   document::h1(words.phrase(apparatus["title"])).marginTop(10),
-                  document::lead(words.phrase(apparatus["lead"])).marginTop(6)}),
-             kit::line({.length = Dimension(kColumnWidth),
-                        .fill = linearGradient(
-                            {0, 0}, {kColumnWidth, 0},
-                            {draw::parseColor(words["ink"]["rule"].text()),
-                             material::withAlpha(draw::parseColor(words["ink"]["rule"].text()), 0)})}),
+                  document::lead(words.phrase(apparatus["lead"]))
+                      .marginTop(6)}),
+             kit::line(
+                 {.length = Dimension(kColumnWidth),
+                  .fill = material::skia::Paint::linearGradient(
+                      {0, 0}, {kColumnWidth, 0},
+                      {draw::parseColor(words["ink"]["rule"].text()),
+                       material::withAlpha(
+                           draw::parseColor(words["ink"]["rule"].text()), 0)},
+                      {.units = material::GradientUnits::Pixels})}),
              document::paragraph(words.phrase(apparatus["reading"])),
              // The quotation and what it is, one indented block.
-             document::quote({document::paragraph(words.phrase(apparatus["quote"])),
-                              document::caption(words.phrase(apparatus["attribution"]))})
+             document::quote(
+                 {document::paragraph(words.phrase(apparatus["quote"])),
+                  document::caption(words.phrase(apparatus["attribution"]))})
                  .gap(6),
-             box().row().gap(18).alignItems(Align::Center).children(
-                 {settingOut(128).flexShrink(0),
-                  box().column().flexShrink(1).children(
-                      {document::h2(words.phrase(apparatus["settingOut"])).marginBottom(8),
-                       document::caption(words.phrase(apparatus["settingOutNote"]))})}),
+             box()
+                 .row()
+                 .gap(18)
+                 .alignItems(Align::Center)
+                 .children(
+                     {settingOut(128).flexShrink(0),
+                      box().column().flexShrink(1).children(
+                          {document::h2(words.phrase(apparatus["settingOut"]))
+                               .marginBottom(8),
+                           document::caption(
+                               words.phrase(apparatus["settingOutNote"]))})}),
              box().column().styleClass("key").children(
                  {document::h2(words.phrase(apparatus["key"])).marginBottom(12),
                   sketch::kit::legend({.entries = std::move(quarries),
@@ -775,8 +792,11 @@ struct Cosmati {
   Element describe() const {
     return stack()
         .applyStyleSheet(sheet())
-        .fill(radialGradient({kMargin + kCentre, kMargin + kCentre}, kCanvas.fWidth * 0.8f,
-                             {hexColor(0x1C1814), draw::parseColor(words["ink"]["ground"].text())}))
+        .fill(material::skia::Paint::radialGradient(
+            {kMargin + kCentre, kMargin + kCentre}, kCanvas.fWidth * 0.8f,
+            {hexColor(0x1C1814),
+             draw::parseColor(words["ink"]["ground"].text())},
+            {.units = material::GradientUnits::Pixels}))
         .children({pavement(), apparatus()});
   }
 };

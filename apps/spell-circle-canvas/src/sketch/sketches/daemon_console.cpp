@@ -186,10 +186,12 @@ constexpr float kRefreshH = 128.0f;
 constexpr float kRefreshSpeed = 90.0f;  // px per second
 constexpr float kRefreshWrap = 820.0f;  // the sweep's period, in px
 inline Paint refreshBand() {
-  return Paint::linear({0, 0}, {0, kRefreshH},
-                       {{0.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}},
-                        {0.5f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.045f}},
-                        {1.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}}});
+  return Paint::linearGradient(
+      {0, 0}, {0, kRefreshH},
+      {{0.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}},
+       {0.5f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.045f}},
+       {1.0f, {kTubeInk.r, kTubeInk.g, kTubeInk.b, 0.0f}}},
+      {.units = material::GradientUnits::Pixels});
 }
 
 /** THE TUBE'S GRADE: the whole composited console read back through an
@@ -647,10 +649,11 @@ struct DaemonConsole {
 
     // Fade the OLDEST rows: a panel-coloured gradient over the top of the
     // well — zero row nodes touched, fully cached.
-    Paint fade = Paint::linear(
+    Paint fade = Paint::linearGradient(
         {0, 0}, {0, 64},
         {{0.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 1.0f}},
-         {1.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 0.0f}}});
+         {1.0f, {dc::kPanel.r, dc::kPanel.g, dc::kPanel.b, 0.0f}}},
+        {.units = material::GradientUnits::Pixels});
 
     // NOT `kit::console`. That component sets N rings of ONE monospaced
     // voice on one plate; this scrollback's ring carries a VALUE per row —
@@ -785,8 +788,9 @@ struct DaemonConsole {
 
     return stack()
         .applyStyleSheet(classes())
-        .fill(Paint::linear({0, 0}, {0, dc::kH},
-                            {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}}))
+        .fill(Paint::linearGradient({0, 0}, {0, dc::kH},
+                                    {{0.0f, dc::kGroundTop}, {1.0f, dc::kVoid}},
+                                    {.units = material::GradientUnits::Pixels}))
         .children({box()
                        .column()
                        .inset(22, 26)

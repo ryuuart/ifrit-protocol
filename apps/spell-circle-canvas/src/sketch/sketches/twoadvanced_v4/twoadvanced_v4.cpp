@@ -65,13 +65,14 @@ auto TwoAdvancedV4::describe() -> Element {
     // under the footer. A two-stop ramp reads as flat maroon and gets
     // figure and ground backwards, because the PANELS are the light
     // thing on this page.
-    page.fill(material::skia::Paint::linearUnit({0, 0}, {0, 1},
-                                       {{0.00f, kChrome},
-                                        {0.40f, hexColor(0x520F17)},
-                                        {0.55f, hexColor(0x470A12)},
-                                        {0.65f, hexColor(0x3D060D)},
-                                        {0.80f, hexColor(0x250002)},
-                                        {1.00f, kBgBot}}))
+    page.fill(
+            material::skia::Paint::linearGradient({0, 0}, {0, 1},
+                                                  {{0.00f, kChrome},
+                                                   {0.40f, hexColor(0x520F17)},
+                                                   {0.55f, hexColor(0x470A12)},
+                                                   {0.65f, hexColor(0x3D060D)},
+                                                   {0.80f, hexColor(0x250002)},
+                                                   {1.00f, kBgBot}}))
         .children({box().inset(0).fill(grain).opacity(0.07f).blendMode(
             SkBlendMode::kOverlay)});
   }

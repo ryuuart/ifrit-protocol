@@ -514,10 +514,12 @@ struct Flourish {
              // takes as its fill, in the pen's own space, so the sweep is
              // one rect and no shader is spelled by hand.
              p.noStroke();
-             p.fill(Paint::linear({sweep, 0}, {sweep + 130, h},
-                                  {{0.0f, {1, 1, 1, 0}},
-                                   {0.5f, {g.r, g.g, g.b, 0.22f}},
-                                   {1.0f, {1, 1, 1, 0}}}));
+             p.fill(Paint::linearGradient(
+                 {sweep, 0}, {sweep + 130, h},
+                 {{0.0f, {1, 1, 1, 0}},
+                  {0.5f, {g.r, g.g, g.b, 0.22f}},
+                  {1.0f, {1, 1, 1, 0}}},
+                 {.units = material::GradientUnits::Pixels}));
              p.rect(0, 0, w, h);
            })
         .inset(kFrameInset)
@@ -530,8 +532,9 @@ struct Flourish {
 
   Element describe() const {
     return stack()
-        .fill(sigil::compose::radialGradient({kW / 2, kH / 2}, 620,
-                                             {st.velvetCore, st.velvetEdge}))
+        .fill(material::skia::Paint::radialGradient(
+            {kW / 2, kH / 2}, 620, {st.velvetCore, st.velvetEdge},
+            {.units = material::GradientUnits::Pixels}))
         .operators(filaments())
         .children({frameBand(), frameGlow(),
                    memo(MedProps{0, accent},

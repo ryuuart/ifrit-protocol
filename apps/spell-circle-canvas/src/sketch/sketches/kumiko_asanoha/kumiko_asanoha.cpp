@@ -151,23 +151,25 @@ struct KumikoAsanoha {
         .children({
             box()
                 .cover()
-                .fill(material::skia::Paint::radial(
+                .fill(material::skia::Paint::radialGradient(
                     {middleX, middleY}, 585,
                     {{0.00f, hexColor(0xF7E8C6, 0.88f)},
                      {0.30f, hexColor(0xF2E0B4, 0.85f)},
                      {0.58f, hexColor(0xE6CE9A, 0.79f)},
                      {0.80f, hexColor(0xD3B37C, 0.71f)},
-                     {1.00f, hexColor(0xBE9862, 0.66f)}}))
+                     {1.00f, hexColor(0xBE9862, 0.66f)}},
+                    {.units = material::GradientUnits::Pixels}))
                 .cache(Cache::Texture),
             box()
                 .cover()
                 .blendMode(SkBlendMode::kPlus)
-                .fill(material::skia::Paint::radial(
+                .fill(material::skia::Paint::radialGradient(
                     {middleX, kOpening.height() * 0.64f}, 330,
                     {{0.00f, hexColor(0xFFE6B8, 0.42f)},
                      {0.35f, hexColor(0xF3C98A, 0.22f)},
                      {0.70f, hexColor(0xD9A560, 0.07f)},
-                     {1.00f, hexColor(0x000000, 0.00f)}}))
+                     {1.00f, hexColor(0x000000, 0.00f)}},
+                    {.units = material::GradientUnits::Pixels}))
                 .cache(Cache::Texture),
             sheet(formation, 0, 0.65f),
             sheet(fibre, 21, 0.38f),
@@ -203,11 +205,12 @@ struct KumikoAsanoha {
         .rect(kOpening)
         .opacity(breath())
         .blendMode(SkBlendMode::kPlus)
-        .fill(material::skia::Paint::radial(
+        .fill(material::skia::Paint::radialGradient(
             {kOpening.width() * 0.5f, kOpening.height() * 0.5f}, 380,
             {{0.00f, hexColor(0xFFF2D2, 0.17f)},
              {0.45f, hexColor(0xE6BC7C, 0.09f)},
-             {1.00f, hexColor(0x000000, 0.00f)}}))
+             {1.00f, hexColor(0x000000, 0.00f)}},
+            {.units = material::GradientUnits::Pixels}))
         .cache(Cache::Texture);
   }
 
@@ -219,12 +222,13 @@ struct KumikoAsanoha {
     return kit::at(0, top, kWidth, 122)
         .opacity(breath())
         .blendMode(SkBlendMode::kPlus)
-        .fill(material::skia::Paint::radial(
+        .fill(material::skia::Paint::radialGradient(
             {kCentre.x, kOpening.bottom() - top - 60}, 560,
             {{0.00f, hexColor(0xF6D9A2, 0.55f)},
              {0.22f, hexColor(0xE8BD7A, 0.32f)},
              {0.50f, hexColor(0xC98E4E, 0.10f)},
-             {1.00f, hexColor(0x000000, 0.00f)}}))
+             {1.00f, hexColor(0x000000, 0.00f)}},
+            {.units = material::GradientUnits::Pixels}))
         .cache(Cache::Texture);
   }
 
@@ -275,10 +279,12 @@ struct KumikoAsanoha {
                    // The near side of the room, in shadow. It stops at the
                    // room's floor: the drawing under it is a drawing.
                    kit::at(0, 0, kWidth, kRoom)
-                       .fill(radialGradient(
+                       .fill(material::skia::Paint::radialGradient(
                            {700, 500}, 920,
-                           {{0, 0, 0, 0}, {0, 0, 0, 0.30f}, {0, 0, 0, 0.62f}},
-                           {0.30f, 0.72f, 1.0f})),
+                           {{0.30f, {0, 0, 0, 0}},
+                            {0.72f, {0, 0, 0, 0.30f}},
+                            {1.0f, {0, 0, 0, 0.62f}}},
+                           {.units = material::GradientUnits::Pixels})),
                    shopDrawing(doc, bank, &seconds)});
   }
 

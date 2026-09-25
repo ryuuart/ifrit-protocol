@@ -131,21 +131,27 @@ struct Ds2Bench {
       const float alpha = (float)strut[2].number();
       return kit::at((float)strut[0].number(), -40, (float)strut[1].number(),
                      kHeight + 80)
-          .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                  {{0.0f, hexColor(0x16262F, alpha * 0.35f)},
-                                   {0.38f, hexColor(0x1C303C, alpha)},
-                                   {1.0f, hexColor(0x080F16, alpha * 0.2f)}}))
+          .fill(
+              Paint::linearGradient({0, 0}, {0, 1},
+                                    {{0.0f, hexColor(0x16262F, alpha * 0.35f)},
+                                     {0.38f, hexColor(0x1C303C, alpha)},
+                                     {1.0f, hexColor(0x080F16, alpha * 0.2f)}}))
           .filter(Effect::directionalBlur(18, 90, 12));
     };
-    return box().inset(0).cache(Cache::Texture).key("room").children({
-        each(bench["room"].items(), strut),
-        kit::at(250, 118, 176, 470)
-            .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                    {{0.0f, hexColor(0x2A4A52, 0.34f)},
-                                     {0.45f, hexColor(0x3E6A6E, 0.26f)},
-                                     {1.0f, hexColor(0x0C1A20, 0.09f)}}))
-            .filter(Effect::directionalBlur(22, 90, 16)),
-    });
+    return box()
+        .inset(0)
+        .cache(Cache::Texture)
+        .key("room")
+        .children({
+            each(bench["room"].items(), strut),
+            kit::at(250, 118, 176, 470)
+                .fill(
+                    Paint::linearGradient({0, 0}, {0, 1},
+                                          {{0.0f, hexColor(0x2A4A52, 0.34f)},
+                                           {0.45f, hexColor(0x3E6A6E, 0.26f)},
+                                           {1.0f, hexColor(0x0C1A20, 0.09f)}}))
+                .filter(Effect::directionalBlur(22, 90, 16)),
+        });
   }
 
   // ----------------------------------------------------------- the panel
@@ -156,14 +162,17 @@ struct Ds2Bench {
   static Element panel() {
     return kit::at(kPanelX, kPanelY, kPanelW, kPanelH)
         .shape(shapes::svg(kPanelOutline))
-        .fill(Paint::radialUnit({0.4f, 0.32f}, 1.15f,
-                                {{0.0f, hexColor(0x2A4A4C, 0.74f)},
-                                 {0.55f, hexColor(0x16302F, 0.72f)},
-                                 {1.0f, material::withAlpha(kBody, 0.70f)}}))
+        .fill(
+            Paint::radialGradient({0.4f, 0.32f}, 1.15f,
+                                  {{0.0f, hexColor(0x2A4A4C, 0.74f)},
+                                   {0.55f, hexColor(0x16302F, 0.72f)},
+                                   {1.0f, material::withAlpha(kBody, 0.70f)}}))
         .background(styles::OuterGlow{cyan(0.28f), 9})
-        .foreground(decorations::wash(Paint::recipe(field::grain(0.9f, 2, 7.0f)),
-                                      SkBlendMode::kOverlay, 0.07f))
-        .foreground(decorations::border(2.2f, Fill::color(hexColor(0xCFF2F5, 0.95f))))
+        .foreground(
+            decorations::wash(Paint::recipe(field::grain(0.9f, 2, 7.0f)),
+                              SkBlendMode::kOverlay, 0.07f))
+        .foreground(
+            decorations::border(2.2f, Fill::color(hexColor(0xCFF2F5, 0.95f))))
         .children({
             kit::at(12, 12, kPanelW - 24, kPanelH - 24)
                 .shape(shapes::svg(kPanelContour))
@@ -216,16 +225,19 @@ struct Ds2Bench {
         kit::disc(at, radius + 12)
             .shape(shapes::ticks({.divisions = 24, .mark = {0.72f, 1.0f}}))
             .stroke(stroke(0.9f, Fill::color(cyan(0.22f)))),
-        kit::dot(at, radius,
-                 Paint::radialUnit({0.38f, 0.34f}, 0.8f,
-                                   {{0.0f, material::mixToward(kind.core, kind.rim, 0.45f, 1)},
-                                    {0.6f, kind.core},
-                                    {1.0f, material::scale(kind.core, 0.7f)}}))
+        kit::dot(
+            at, radius,
+            Paint::radialGradient(
+                {0.38f, 0.34f}, 0.8f,
+                {{0.0f, material::mixToward(kind.core, kind.rim, 0.45f, 1)},
+                 {0.6f, kind.core},
+                 {1.0f, material::scale(kind.core, 0.7f)}}))
             .background(styles::OuterGlow{cyan(0.4f), 5})
             .foreground(decorations::border(2.4f, Fill::color(kind.rim))),
         text(cell)
             .styleClass(large ? "node" : "node-small")
-            .centerAt({at.fX + (large ? 26.0f : 22.0f), at.fY - (large ? 30.0f : 22.0f)}),
+            .centerAt({at.fX + (large ? 26.0f : 22.0f),
+                       at.fY - (large ? 30.0f : 22.0f)}),
     });
   }
 
@@ -334,25 +346,35 @@ struct Ds2Bench {
       if ((int)index >= filled)
         return pip.fill(Fill::none()).stroke(stroke(1.2f, Fill::color(cyan(0.3f))));
       return pip
-          .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                  {{0.0f, metal},
-                                   {0.45f, material::scale(metal, 0.74f)},
-                                   {0.55f, material::scale(metal, 0.6f)},
-                                   {1.0f, material::scale(metal, 0.88f)}}))
+          .fill(Paint::linearGradient({0, 0}, {0, 1},
+                                      {{0.0f, metal},
+                                       {0.45f, material::scale(metal, 0.74f)},
+                                       {0.55f, material::scale(metal, 0.6f)},
+                                       {1.0f, material::scale(metal, 0.88f)}}))
           .stroke(stroke(1, Fill::color(cyan(0.5f))));
     };
-    return box().row().alignItems(Align::Center).height(24).children({
-        box().width(160).alignItems(Align::End).children(
-            {text(stat["label"].text()).styleClass("spec")}),
-        box().width(9).height(9).margin(0, 13).shape(shapes::circle())
-            .fill(Paint::radialUnit({0.5f, 0.5f}, 0.6f,
-                                    {{0.0f, kind.rim}, {1.0f, kind.core}})),
-        box().row().gap(6).children(
-            {each((size_t)stat["total"].number(), pip)}),
-        box().flexGrow(1),
-        box().width(98).paddingLeft(12).children(
-            {text(stat["value"].text()).styleClass("value")}),
-    });
+    return box()
+        .row()
+        .alignItems(Align::Center)
+        .height(24)
+        .children({
+            box()
+                .width(160)
+                .alignItems(Align::End)
+                .children({text(stat["label"].text()).styleClass("spec")}),
+            box()
+                .width(9)
+                .height(9)
+                .margin(0, 13)
+                .shape(shapes::circle())
+                .fill(Paint::radialGradient(
+                    {0.5f, 0.5f}, 0.6f, {{0.0f, kind.rim}, {1.0f, kind.core}})),
+            box().row().gap(6).children(
+                {each((size_t)stat["total"].number(), pip)}),
+            box().flexGrow(1),
+            box().width(98).paddingLeft(12).children(
+                {text(stat["value"].text()).styleClass("value")}),
+        });
   }
 
   /** The specification table: three column heads over a rule, one row
@@ -383,33 +405,43 @@ struct Ds2Bench {
   Element counter() const {
     return bracketed(
         852, 208,
-        box().column().alignItems(Align::Center).padding(11, 16).gap(2).children({
-            kit::centred(text("NODES").styleClass("chip"))
-                .width(112)
-                .height(21)
-                .shape(shapes::chamfered(6))
-                .stroke(stroke(1, Fill::color(cyan(0.45f)))),
-            box().width(66).height(46).marginTop(6).children({
-                kit::at(2, 14, 62, 28)
-                    .borderRadius({14})
-                    .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                            {{0.0f, hexColor(0xC9A227)},
-                                             {0.45f, hexColor(0x7E6318)},
-                                             {1.0f, hexColor(0x5E4914)}})),
-                kit::at(2, 2, 62, 27)
-                    .shape(shapes::squircle(2))
-                    .fill(Paint::linearUnit({0, 0}, {1, 1},
-                                            {{0.0f, hexColor(0xE8C860)},
-                                             {0.4f, hexColor(0xD3AA33)},
-                                             {1.0f, hexColor(0x8E6F1E)}}))
-                    .stroke(stroke(1, Fill::color(hexColor(0xF3DC94, 0.75f)))),
-                kit::at(22, 8, 24, 13)
-                    .shape(shapes::squircle(2))
-                    .fill(Fill::none())
-                    .stroke(stroke(1.3f, Fill::color(hexColor(0x74590F, 0.9f)))),
-            }),
-            text(std::to_string((int)bench["nodes"].number())).styleClass("numeral"),
-        }));
+        box()
+            .column()
+            .alignItems(Align::Center)
+            .padding(11, 16)
+            .gap(2)
+            .children({
+                kit::centred(text("NODES").styleClass("chip"))
+                    .width(112)
+                    .height(21)
+                    .shape(shapes::chamfered(6))
+                    .stroke(stroke(1, Fill::color(cyan(0.45f)))),
+                box().width(66).height(46).marginTop(6).children({
+                    kit::at(2, 14, 62, 28)
+                        .borderRadius({14})
+                        .fill(Paint::linearGradient(
+                            {0, 0}, {0, 1},
+                            {{0.0f, hexColor(0xC9A227)},
+                             {0.45f, hexColor(0x7E6318)},
+                             {1.0f, hexColor(0x5E4914)}})),
+                    kit::at(2, 2, 62, 27)
+                        .shape(shapes::squircle(2))
+                        .fill(
+                            Paint::linearGradient({0, 0}, {1, 1},
+                                                  {{0.0f, hexColor(0xE8C860)},
+                                                   {0.4f, hexColor(0xD3AA33)},
+                                                   {1.0f, hexColor(0x8E6F1E)}}))
+                        .stroke(
+                            stroke(1, Fill::color(hexColor(0xF3DC94, 0.75f)))),
+                    kit::at(22, 8, 24, 13)
+                        .shape(shapes::squircle(2))
+                        .fill(Fill::none())
+                        .stroke(stroke(1.3f,
+                                       Fill::color(hexColor(0x74590F, 0.9f)))),
+                }),
+                text(std::to_string((int)bench["nodes"].number()))
+                    .styleClass("numeral"),
+            }));
   }
 
   /** The controller hints on the panel's bottom rail, under a rule, and
@@ -450,10 +482,10 @@ struct Ds2Bench {
   Element describe() const {
     return box()
         .inset(0)
-        .fill(Paint::radialUnit({0.5f, 0.5f}, 0.9f,
-                                {{0.0f, hexColor(0x09131B)},
-                                 {0.6f, hexColor(0x050B11)},
-                                 {1.0f, hexColor(0x020406)}}))
+        .fill(Paint::radialGradient({0.5f, 0.5f}, 0.9f,
+                                    {{0.0f, hexColor(0x09131B)},
+                                     {0.6f, hexColor(0x050B11)},
+                                     {1.0f, hexColor(0x020406)}}))
         .applyStyleSheet(registers())
         .children({
             room(),
@@ -465,8 +497,12 @@ struct Ds2Bench {
             hints(),
             // The tube the hologram is seen through: fine scanlines and a
             // falloff into the corners, laid over everything.
-            box().inset(0).fill(
-                field::crtOverlay(3, 0.09f, 1.0f, 1.9f, 0.6f, 0.7f)),
+            box().inset(0).fill(field::crtOverlay({.uScanPitch = 3,
+                                                   .uScanStrength = 0.09f,
+                                                   .uVigInner = 1.0f,
+                                                   .uVigOuter = 1.9f,
+                                                   .uVigStrength = 0.6f,
+                                                   .uSqueeze = 0.7f})),
         });
   }
 

@@ -207,21 +207,28 @@ Element nebula(SkSize size) {
   }
   return box()
       .inset(0)
-      .fill(Paint::radialUnit({0.5f, 0.5f}, 1.0f,
-                              {{0.0f, hexColor(0x1A1030)}, {1.0f, hexColor(0x05030A)}}))
-      .children({each(kClouds,
-                      [size](const Cloud& cloud) {
-                        return kit::disc({cloud.x * size.width(), cloud.y * size.height()},
-                                         cloud.radius)
-                            .fill(Paint::glowUnit(
-                                {0.5f, 0.5f}, 1.0f,
-                                {{0.0f, hexColor(cloud.colour, cloud.alpha)},
-                                 {1.0f, hexColor(cloud.colour, 0.0f)}}))
-                            .blendMode(SkBlendMode::kScreen);
-                      }),
-                 box().inset(0).opacity(0.30f).blendMode(SkBlendMode::kOverlay).fill(
-                     field::noise(0.004f, 4, 3.0f)),
-                 box().inset(0).children(stars)});
+      .fill(Paint::radialGradient(
+          {0.5f, 0.5f}, 1.0f,
+          {{0.0f, hexColor(0x1A1030)}, {1.0f, hexColor(0x05030A)}}))
+      .children(
+          {each(kClouds,
+                [size](const Cloud& cloud) {
+                  return kit::disc(
+                             {cloud.x * size.width(), cloud.y * size.height()},
+                             cloud.radius)
+                      .fill(Paint::radialGradient(
+                          {0.5f, 0.5f}, 1.0f,
+                          {{0.0f, hexColor(cloud.colour, cloud.alpha)},
+                           {1.0f, hexColor(cloud.colour, 0.0f)}},
+                          {.extent = material::RadialExtent::ClosestSide}))
+                      .blendMode(SkBlendMode::kScreen);
+                }),
+           box()
+               .inset(0)
+               .opacity(0.30f)
+               .blendMode(SkBlendMode::kOverlay)
+               .fill(field::noise(0.004f, 4, 3.0f)),
+           box().inset(0).children(stars)});
 }
 
 // ---------------------------------------------------------------------------
@@ -277,25 +284,29 @@ struct Thaumonomicon {
     Element node = kit::at(0, 0, gui(kPlate), gui(kPlate)).key(research.key);
     // Warp stains the page under a research with a violet corona.
     if (research.warp > 0)
-      node.children({kit::disc({half, half}, gui(30))
-                         .fill(Paint::glowUnit(
-                             {0.5f, 0.5f}, 1.0f,
-                             {{0.0f, hexColor(0xB040FF, 0.28f * (float)research.warp)},
-                              {1.0f, hexColor(0x40006A, 0.0f)}}))
-                         .blendMode(SkBlendMode::kScreen)});
+      node.children(
+          {kit::disc({half, half}, gui(30))
+               .fill(Paint::radialGradient(
+                   {0.5f, 0.5f}, 1.0f,
+                   {{0.0f, hexColor(0xB040FF, 0.28f * (float)research.warp)},
+                    {1.0f, hexColor(0x40006A, 0.0f)}},
+                   {.extent = material::RadialExtent::ClosestSide}))
+               .blendMode(SkBlendMode::kScreen)});
     if (research.plate == "spiky")
       node.children({kit::disc({half, half}, gui(21))
                          .shape(shapes::star(8, 0.74f, 0.35f))
                          .fill(Fill::color(material::scale(kPlateShade, 0.8f)))});
-    node.children({plateFace(box().inset(0), research)
-                       .fill(Paint::linearUnit({0.5f, 0}, {0.5f, 1},
-                                               {{0.0f, light},
-                                                {1.0f, material::scale(kPlateShade,
-                                                                       research.hidden ? 0.86f : 1.0f)}}))
-                       .layerStyle(decorations::doubleBorder(
-                           decorations::border(gui(1.5f), Fill::color(kPlateRim)),
-                           decorations::border(gui(1), Fill::color(hexColor(0xFFFFFF, 0.5f)),
-                                               gui(2))))});
+    node.children(
+        {plateFace(box().inset(0), research)
+             .fill(Paint::linearGradient(
+                 {0.5f, 0}, {0.5f, 1},
+                 {{0.0f, light},
+                  {1.0f, material::scale(kPlateShade,
+                                         research.hidden ? 0.86f : 1.0f)}}))
+             .layerStyle(decorations::doubleBorder(
+                 decorations::border(gui(1.5f), Fill::color(kPlateRim)),
+                 decorations::border(
+                     gui(1), Fill::color(hexColor(0xFFFFFF, 0.5f)), gui(2))))});
     Element dim = plateFace(box().inset(0), research).fill(Fill::color({0, 0, 0, 1}));
     if (research.state == "unlockable")
       node.children({dim.opacity(sigil::motion::bind(&veil))});

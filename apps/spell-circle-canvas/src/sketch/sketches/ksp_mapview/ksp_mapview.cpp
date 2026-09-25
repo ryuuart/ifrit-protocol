@@ -93,13 +93,13 @@ float bearing(glm::vec2 direction) {
 
 /** Top-lit: the light colour at the top edge, the dark at the bottom. */
 Paint ramp(material::Color top, material::Color bottom) {
-  return Paint::linearUnit({0, 0}, {0, 1}, {{0.0f, top}, {1.0f, bottom}});
+  return Paint::linearGradient({0, 0}, {0, 1}, {{0.0f, top}, {1.0f, bottom}});
 }
 /** A sphere lit from the upper left. */
 Paint lit(material::Color light, material::Color middle,
           material::Color shadow) {
-  return Paint::radialUnit({0.38f, 0.30f}, 1.0f,
-                           {{0.0f, light}, {0.5f, middle}, {1.0f, shadow}});
+  return Paint::radialGradient({0.38f, 0.30f}, 1.0f,
+                               {{0.0f, light}, {0.5f, middle}, {1.0f, shadow}});
 }
 PathFormat keyline(material::Color ink = kKeyline, float width = 1.0f) {
   return stroke(width, Fill::color(ink), PathFormat::Align::Inner);
@@ -171,7 +171,7 @@ struct KspMapView {
       band.push_back(
           kit::at(box()
                       .shape(shapes::blob(41u + 7u * index, 0.30f, 9))
-                      .fill(Paint::radialUnit(
+                      .fill(Paint::radialGradient(
                           {0.5f, 0.5f}, 1.0f,
                           {{0.0f, withAlpha(kNebula, alpha)},
                            {0.5f, withAlpha(kNebula, alpha * 0.45f)},
@@ -188,8 +188,9 @@ struct KspMapView {
     }
     return box()
         .inset(0)
-        .fill(Paint::radialUnit({0.42f, 0.45f}, 1.15f,
-                                {{0.0f, kSpace}, {1.0f, hexColor(0x06070A)}}))
+        .fill(
+            Paint::radialGradient({0.42f, 0.45f}, 1.15f,
+                                  {{0.0f, kSpace}, {1.0f, hexColor(0x06070A)}}))
         .children({band, stars});
   }
 
@@ -207,20 +208,21 @@ struct KspMapView {
                      number(place[3]));
     };
     return box().inset(0).children(
-        {kit::dot(kerbin, kerbinRadius + 16,
-                  Paint::radialUnit({0.5f, 0.5f}, 0.71f,
-                                    {{0.86f, withAlpha(kAtmosphere, 0.0f)},
-                                     {0.90f, withAlpha(kAtmosphere, 0.30f)},
-                                     {1.0f, withAlpha(kAtmosphere, 0.0f)}})),
+        {kit::dot(
+             kerbin, kerbinRadius + 16,
+             Paint::radialGradient({0.5f, 0.5f}, 0.71f,
+                                   {{0.86f, withAlpha(kAtmosphere, 0.0f)},
+                                    {0.90f, withAlpha(kAtmosphere, 0.30f)},
+                                    {1.0f, withAlpha(kAtmosphere, 0.0f)}})),
          kit::dot(kerbin, kerbinRadius,
-                  Paint::radialUnit({0.30f, 0.25f}, 1.0f,
-                                    {{0.0f, hexColor(0x2B5C7E)},
-                                     {0.30f, hexColor(0x235274)},
-                                     {0.66f, hexColor(0x1B4260)},
-                                     {1.0f, hexColor(0x12283A)}}))
+                  Paint::radialGradient({0.30f, 0.25f}, 1.0f,
+                                        {{0.0f, hexColor(0x2B5C7E)},
+                                         {0.30f, hexColor(0x235274)},
+                                         {0.66f, hexColor(0x1B4260)},
+                                         {1.0f, hexColor(0x12283A)}}))
              .overflow(Overflow::Clip)
              .children({each(map["continents"].items(), continent),
-                        box().inset(0).fill(Paint::radialUnit(
+                        box().inset(0).fill(Paint::radialGradient(
                             {0.34f, 0.28f}, 1.02f,
                             {{0.38f, hexColor(0x081420, 0.06f)},
                              {0.70f, hexColor(0x061019, 0.42f)},
@@ -362,9 +364,9 @@ struct KspMapView {
         {each(arms, arm), outOfPlane(normal, true),
          outOfPlane(normal + 180, false),
          kit::dot(hub, 20,
-                  Paint::radialUnit({0.5f, 0.5f}, 0.71f,
-                                    {{0.3f, withAlpha(kPrograde, 0.55f)},
-                                     {1.0f, withAlpha(kPrograde, 0.0f)}})),
+                  Paint::radialGradient({0.5f, 0.5f}, 0.71f,
+                                        {{0.3f, withAlpha(kPrograde, 0.55f)},
+                                         {1.0f, withAlpha(kPrograde, 0.0f)}})),
          kit::dot(hub, 9.5f, Fill::color(hexColor(0x12181C, 0.8f)))
              .stroke(stroke(1.6f, Fill::color(hexColor(0xF0F4F5))))});
   }
@@ -452,22 +454,21 @@ struct KspMapView {
     return box().inset(0).children(
         {bezel()
              .shape(shapes::circle())
-             .fill(Paint::linearUnit({0.15f, 0}, {0.85f, 1},
-                                     {{0.0f, hexColor(0xC8CDD0)},
-                                      {0.45f, hexColor(0x8B9296)},
-                                      {1.0f, hexColor(0x5A6165)}}))
+             .fill(Paint::linearGradient({0.15f, 0}, {0.85f, 1},
+                                         {{0.0f, hexColor(0xC8CDD0)},
+                                          {0.45f, hexColor(0x8B9296)},
+                                          {1.0f, hexColor(0x5A6165)}}))
              .stroke(stroke(1.2f, Fill::color(hexColor(0x2A3034)))),
          kit::dot(kBall, kBallRadius + 5, Fill::color(hexColor(0x171B1E))),
          kit::disc(kBall, kBallRadius)
-             .fill(material::kit::globe(
-                 {.sky = hexColor(0x1180AC),
-                  .skyPole = hexColor(0x8ED4E8),
-                  .ground = hexColor(0x8B5A2E),
-                  .groundPole = hexColor(0x5A3A1E),
-                  .yaw = yaw,
-                  .pitch = pitch,
-                  .roll = roll,
-                  .minorWeight = 0.22f})),
+             .fill(material::kit::globe({.sky = hexColor(0x1180AC),
+                                         .skyPole = hexColor(0x8ED4E8),
+                                         .ground = hexColor(0x8B5A2E),
+                                         .groundPole = hexColor(0x5A3A1E),
+                                         .yaw = yaw,
+                                         .pitch = pitch,
+                                         .roll = roll,
+                                         .minorWeight = 0.22f})),
          kit::disc(kBall, kBallRadius)
              .shape(shapes::circle())
              .overflow(Overflow::Clip)
@@ -499,40 +500,46 @@ struct KspMapView {
          window(kBall.fX, kBall.fY - kBezelRadius - 6, 136, 38)
              .column()
              .children({text(ball["mode"]).styleClass("lcd").font({.size = 11}),
-                        text(ball["speed"]).styleClass("lcd").ink(
-                            hexColor(0xDCEEF2))}),
+                        text(ball["speed"])
+                            .styleClass("lcd")
+                            .ink(hexColor(0xDCEEF2))}),
          window(kBall.fX, kBall.fY + kBezelRadius - 8, 104, 24)
              .row()
              .gap(6)
-             .children({text("HDG").font({.size = 10}).ink(hexColor(0xA9B4B8)),
-                        text(ball["heading"]).styleClass("lcd").font(
-                            {.size = 12})}),
+             .children(
+                 {text("HDG").font({.size = 10}).ink(hexColor(0xA9B4B8)),
+                  text(ball["heading"]).styleClass("lcd").font({.size = 12})}),
          kit::disc({kBall.fX, kBall.fY - kBezelRadius - 4}, 8)
              .height(10)
              .shape(shapes::polygon(3, 180))
              .fill(hexColor(0xD7DDE0)),
-         box().inset(0).font({.face = sans(700), .size = 10}).children(
-             {toggle("RCS", hexColor(0x73AC43), kBall.fX - kBezelRadius - 6),
-              toggle("SAS", hexColor(0x77A9B0), kBall.fX + kBezelRadius - 34)}),
+         box()
+             .inset(0)
+             .font({.face = sans(700), .size = 10})
+             .children({toggle("RCS", hexColor(0x73AC43),
+                               kBall.fX - kBezelRadius - 6),
+                        toggle("SAS", hexColor(0x77A9B0),
+                               kBall.fX + kBezelRadius - 34)}),
          // the node's Δv, as an arc outside the bezel and a tag beside it
          bezel(kBezelRadius + 16)
              .shape(shapes::arc(-72, 144))
-             .stroke(spans::upTo(0.5f),
-                     brush::presets::filament(withAlpha(hexColor(0x7FE33F), 0.5f),
-                                              hexColor(0xEBFFDA), 0.5f)),
-         kit::at(plate(hexColor(0xA0A6AA), hexColor(0x6E767B), 3)
-                     .row()
-                     .alignItems(Align::Center)
-                     .justifyContent(Justify::Center)
-                     .gap(5)
-                     .children({text(words["burn"]["tag"]).ink(hexColor(0x14181A)),
-                                kit::centred(text("×").font({.face = sans(700)}))
-                                    .width(13)
-                                    .height(13)
-                                    .borderRadius({2})
-                                    .fill(kStageTab)}),
-                 kBall.fX + kBezelRadius + 18, kBall.fY - kBezelRadius - 2, 92,
-                 20)});
+             .stroke(spans::upTo(0.5f), brush::presets::filament(
+                                            withAlpha(hexColor(0x7FE33F), 0.5f),
+                                            hexColor(0xEBFFDA), 0.5f)),
+         kit::at(
+             plate(hexColor(0xA0A6AA), hexColor(0x6E767B), 3)
+                 .row()
+                 .alignItems(Align::Center)
+                 .justifyContent(Justify::Center)
+                 .gap(5)
+                 .children({text(words["burn"]["tag"]).ink(hexColor(0x14181A)),
+                            kit::centred(text("×").font({.face = sans(700)}))
+                                .width(13)
+                                .height(13)
+                                .borderRadius({2})
+                                .fill(kStageTab)}),
+             kBall.fX + kBezelRadius + 18, kBall.fY - kBezelRadius - 2, 92,
+             20)});
   }
 
   // The staging stack down the left edge: each stage's striped tab, then its
@@ -609,12 +616,15 @@ struct KspMapView {
         .ink(hexColor(0xF0F3F0))
         .children(
             {kit::at(0, 512, 528, 288)
-                 .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                         {{0.0f, hexColor(0x0A0C10, 0.30f)},
-                                          {0.35f, hexColor(0x0A0C10, 0.62f)},
-                                          {1.0f, hexColor(0x0A0C10, 0.74f)}})),
-             kit::at(14, 528, 150, 220).column().gap(8).children(
-                 {each(words["stages"].items(), stage)}),
+                 .fill(Paint::linearGradient(
+                     {0, 0}, {0, 1},
+                     {{0.0f, hexColor(0x0A0C10, 0.30f)},
+                      {0.35f, hexColor(0x0A0C10, 0.62f)},
+                      {1.0f, hexColor(0x0A0C10, 0.74f)}})),
+             kit::at(14, 528, 150, 220)
+                 .column()
+                 .gap(8)
+                 .children({each(words["stages"].items(), stage)}),
              kit::at(8, 756, 152, 38)
                  .column()
                  .borderRadius({3})
@@ -623,21 +633,29 @@ struct KspMapView {
                  .stroke(keyline(hexColor(0x4A5157)))
                  .children(
                      {hazard().height(9),
-                      box().row().flexGrow(1).gap(5).padding(0, 6).alignItems(
-                          Align::Center).children(
-                          {box()
-                               .width(15)
-                               .height(15)
-                               .shape(shapes::circle())
-                               .fill(lit(hexColor(0xE6FDD1), hexColor(0x4CAF50),
-                                         hexColor(0x2E6E33))),
-                           text("STAGE").font({.face = sans(700), .size = 9}),
-                           box().flexGrow(1),
-                           box().row().gap(2).children(
-                               {each(panel["digits"].items(), digit)})})}),
-             box().inset(0).font({.face = sans(700), .size = 8}).children(
-                 {tape("ROLL", number(panel["roll"]), 756),
-                  tape("YAW", number(panel["yaw"]), 778)})});
+                      box()
+                          .row()
+                          .flexGrow(1)
+                          .gap(5)
+                          .padding(0, 6)
+                          .alignItems(Align::Center)
+                          .children({box()
+                                         .width(15)
+                                         .height(15)
+                                         .shape(shapes::circle())
+                                         .fill(lit(hexColor(0xE6FDD1),
+                                                   hexColor(0x4CAF50),
+                                                   hexColor(0x2E6E33))),
+                                     text("STAGE").font(
+                                         {.face = sans(700), .size = 9}),
+                                     box().flexGrow(1),
+                                     box().row().gap(2).children({each(
+                                         panel["digits"].items(), digit)})})}),
+             box()
+                 .inset(0)
+                 .font({.face = sans(700), .size = 8})
+                 .children({tape("ROLL", number(panel["roll"]), 756),
+                            tape("YAW", number(panel["yaw"]), 778)})});
   }
 
   // The altimeter at the top: a hazard cheek, the odometer ending in a red
@@ -670,10 +688,10 @@ struct KspMapView {
                       }),
                  wheel(gauge["suffix"], 18.0f + 28.0f * 6, true),
                  kit::at(18, 48, 238, 22)
-                     .fill(Paint::linearUnit({0, 0}, {0, 1},
-                                             {{0.0f, hexColor(0x2E6E9E)},
-                                              {0.5f, hexColor(0x4E9CC8)},
-                                              {1.0f, hexColor(0x1E4E72)}}))
+                     .fill(Paint::linearGradient({0, 0}, {0, 1},
+                                                 {{0.0f, hexColor(0x2E6E9E)},
+                                                  {0.5f, hexColor(0x4E9CC8)},
+                                                  {1.0f, hexColor(0x1E4E72)}}))
                      .stroke(keyline(hexColor(0x18333F)))
                      .children(
                          {kit::at(kit::ladder({.count = 46,
@@ -684,7 +702,8 @@ struct KspMapView {
                                                    hexColor(0xE8F4FA, 0.85f))}),
                                   2, 8, 234, 12),
                           text(gauge["tape"])
-                              .font({.face = sans(700), .size = 8, .track = 1.4f})
+                              .font(
+                                  {.face = sans(700), .size = 8, .track = 1.4f})
                               .ink(hexColor(0xEAF4FA))
                               .left(6)
                               .top(1),
@@ -693,10 +712,10 @@ struct KspMapView {
                               .fill(hexColor(0xFFFFFF))}),
                  kit::disc(dial, 37)
                      .shape(shapes::circle())
-                     .fill(Paint::radialUnit({0.4f, 0.32f}, 1.0f,
-                                             {{0.0f, hexColor(0xF2F4F5)},
-                                              {0.7f, hexColor(0xD3D8DB)},
-                                              {1.0f, hexColor(0x9AA2A7)}}))
+                     .fill(Paint::radialGradient({0.4f, 0.32f}, 1.0f,
+                                                 {{0.0f, hexColor(0xF2F4F5)},
+                                                  {0.7f, hexColor(0xD3D8DB)},
+                                                  {1.0f, hexColor(0x9AA2A7)}}))
                      .stroke(stroke(1.4f, Fill::color(hexColor(0x33393E)))),
                  each(13,
                       [dial](int index) {
@@ -706,14 +725,17 @@ struct KspMapView {
                             .fill(hexColor(0x3A4046))
                             .rotate(-125.0f + 20.8f * index);
                       }),
-                 box().inset(0).ink(hexColor(0x4A5157)).children(
-                     {each(gauge["dial"].items(),
-                           [&dialWords](const Json& word, std::size_t index) {
-                             return text(word)
-                                 .font({.face = sans(index < 2 ? 700 : 400),
-                                        .size = index < 2 ? 6.5f : 6.0f})
-                                 .centerAt(dialWords[index]);
-                           })}),
+                 box()
+                     .inset(0)
+                     .ink(hexColor(0x4A5157))
+                     .children({each(
+                         gauge["dial"].items(),
+                         [&dialWords](const Json& word, std::size_t index) {
+                           return text(word)
+                               .font({.face = sans(index < 2 ? 700 : 400),
+                                      .size = index < 2 ? 6.5f : 6.0f})
+                               .centerAt(dialWords[index]);
+                         })}),
                  kit::disc(dial, 31)
                      .shape(shapes::sector(-2.2f, 4.4f))
                      .fill(kGold)
@@ -761,17 +783,23 @@ struct KspMapView {
             {title(card["vessel"], kOrange, 14),
              title(card["tab"], hexColor(0x3A3A3E), 11),
              head(card["classification"]),
-             box().row().gap(8).alignItems(Align::Center).children(
-                 {box()
-                      .width(34)
-                      .height(40)
-                      .shape(shapes::polygon(7, 12))
-                      .fill(Paint::linearUnit({0, 0}, {1, 1},
-                                              {{0.0f, hexColor(0xF7F7F8)},
-                                               {1.0f, hexColor(0xB9BCC1)}}))
-                      .stroke(stroke(1.0f, Fill::color(hexColor(0x8A8E93)))),
-                  kit::readout(readings(card["ship"]), {.measure = 182, .gap = 5})
-                      .flexGrow(1)}),
+             box()
+                 .row()
+                 .gap(8)
+                 .alignItems(Align::Center)
+                 .children({box()
+                                .width(34)
+                                .height(40)
+                                .shape(shapes::polygon(7, 12))
+                                .fill(Paint::linearGradient(
+                                    {0, 0}, {1, 1},
+                                    {{0.0f, hexColor(0xF7F7F8)},
+                                     {1.0f, hexColor(0xB9BCC1)}}))
+                                .stroke(stroke(
+                                    1.0f, Fill::color(hexColor(0x8A8E93)))),
+                            kit::readout(readings(card["ship"]),
+                                         {.measure = 182, .gap = 5})
+                                .flexGrow(1)}),
              each(card["sections"].items(),
                   [&head, &readings](const Json& section) {
                     return box().children(
@@ -847,9 +875,9 @@ struct KspMapView {
         .overflow(Overflow::Clip)
         .children(
             {kit::at(5, 5, 168, 152)
-                 .fill(Paint::radialUnit({0.5f, 0.35f}, 1.1f,
-                                         {{0.0f, hexColor(0x3E4A52)},
-                                          {1.0f, hexColor(0x1A2126)}})),
+                 .fill(Paint::radialGradient(
+                     {0.5f, 0.35f}, 1.1f,
+                     {{0.0f, hexColor(0x3E4A52)}, {1.0f, hexColor(0x1A2126)}})),
              kit::at(40, 124, 104, 40)
                  .borderRadius({26})
                  .fill(ramp(hexColor(0xE7E8E4), hexColor(0x9AA0A2))),
@@ -865,10 +893,11 @@ struct KspMapView {
                  .fill(hexColor(0x2E3A18)),
              kit::disc({92, 80}, 38)
                  .shape(shapes::sector(150, 240))
-                 .fill(Paint::linearUnit({0, 0}, {1, 1},
-                                         {{0.0f, hexColor(0xBFE0D8, 0.34f)},
-                                          {0.55f, hexColor(0x6E9A94, 0.10f)},
-                                          {1.0f, hexColor(0x2E4A46, 0.26f)}}))
+                 .fill(
+                     Paint::linearGradient({0, 0}, {1, 1},
+                                           {{0.0f, hexColor(0xBFE0D8, 0.34f)},
+                                            {0.55f, hexColor(0x6E9A94, 0.10f)},
+                                            {1.0f, hexColor(0x2E4A46, 0.26f)}}))
                  .stroke(stroke(1.4f, Fill::color(hexColor(0xE8ECEA)))),
              kit::at(kit::centred(text(words["crew"]).ink(hexColor(0x14181A))),
                      5, 160, 168, 21)
@@ -908,14 +937,14 @@ struct KspMapView {
             .font({.face = sans(), .size = 11})
             .ink(hexColor(0xFFFFFF))
             .applyStyleSheet(look)
-            .children(
-                {space(), planet(), trajectories(), markers(), manoeuvre(),
-                 staging(), navball(), altimeter(), vesselCard(), chrome(),
-                 crew(),
-                 // the lens's falloff toward the corners, over everything
-                 box().inset(0).fill(Paint::radialUnit(
-                     {0.5f, 0.5f}, 1.0f, {{0.50f, hexColor(0x000000, 0.0f)},
-                                          {1.0f, hexColor(0x000000, 0.30f)}}))}));
+            .children({space(), planet(), trajectories(), markers(),
+                       manoeuvre(), staging(), navball(), altimeter(),
+                       vesselCard(), chrome(), crew(),
+                       // the lens's falloff toward the corners, over everything
+                       box().inset(0).fill(Paint::radialGradient(
+                           {0.5f, 0.5f}, 1.0f,
+                           {{0.50f, hexColor(0x000000, 0.0f)},
+                            {1.0f, hexColor(0x000000, 0.30f)}}))}));
   }
 };
 

@@ -24,7 +24,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   if (bg)
     art.fill(stretchFill(bg, kStageW, kArtH));
   else
-    art.fill(material::skia::Paint::linearUnit(
+    art.fill(material::skia::Paint::linearGradient(
         {0, 0}, {0, 1}, {{0.0f, hexColor(0x2A3A58)}, {1.0f, kDeep}}));
 
   if (sec < 0) {

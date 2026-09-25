@@ -246,8 +246,10 @@ struct FeedSky {
   /** THE NIGHT the bands cross: darker overhead, lifting toward the
    *  horizon. */
   static SurfacePaint skyGround() {
-    return linearGradient({0, 0}, {0, kSkyHeight * kSkyScale},
-                          {{0.02f, 0.025f, 0.06f, 1}, {0.07f, 0.06f, 0.14f, 1}});
+    return material::skia::Paint::linearGradient(
+        {0, 0}, {0, kSkyHeight * kSkyScale},
+        {{0.02f, 0.025f, 0.06f, 1}, {0.07f, 0.06f, 0.14f, 1}},
+        {.units = material::GradientUnits::Pixels});
   }
 
   /** The door's sky in its own coordinates, scaled into the panel: one

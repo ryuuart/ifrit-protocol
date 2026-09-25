@@ -169,8 +169,9 @@ struct ChromeType {
                      u8"a rectangle or the contours of a word.",
          .footer = u8"Boundary::Auto uses the box. Boundary::Glyphs uses "
                    u8"the shaped letters. The layer style stays the same.",
-         .ground =
-             linearGradient({0, 0}, {0, c::kH}, {c::kGroundLift, c::kGround})},
+         .ground = material::skia::Paint::linearGradient(
+             {0, 0}, {0, c::kH}, {c::kGroundLift, c::kGround},
+             {.units = material::GradientUnits::Pixels})},
         kit::cells(
             {.cells = {pair("Y2K CHROME", kit::y2kChrome()),
                        pair("AQUA GEL", kit::aquaGel(hexColor(0x1E8FFF))),

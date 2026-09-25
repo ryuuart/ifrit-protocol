@@ -491,8 +491,9 @@ Element screen(Element caption) {
       .width(kScreenWidth)
       .height(kScreenHeight)
       .background(shadow(kSpill, {0, 6}, 46))
-      .fill(radialGradient({kScreenWidth * 0.5f, kScreenHeight * 0.42f},
-                           kScreenWidth * 0.62f, {kGlass, kStage}))
+      .fill(material::skia::Paint::radialGradient(
+          {kScreenWidth * 0.5f, kScreenHeight * 0.42f}, kScreenWidth * 0.62f,
+          {kGlass, kStage}, {.units = material::GradientUnits::Pixels}))
       .stroke(stroke(1.5f, Fill::var("bezel")))
       .children({kit::centred(std::move(caption)).cover(), tube()});
 }
@@ -598,8 +599,9 @@ struct KaraokeWipe {
         .column()
         .padding(34, kMargin)
         .gap(20)
-        .fill(linearGradient({0, 0}, {0, kHeight}, {kRoom, kRoomFloor},
-                             {0.35f, 1.0f}))
+        .fill(material::skia::Paint::linearGradient(
+            {0, 0}, {0, kHeight}, {{0.35f, kRoom}, {1.0f, kRoomFloor}},
+            {.units = material::GradientUnits::Pixels}))
         .applyStyleSheet(look())
         .children({
             // The song is credited as a Song Car-Tune's title card credits

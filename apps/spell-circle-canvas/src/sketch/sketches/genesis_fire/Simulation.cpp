@@ -260,10 +260,10 @@ void GenesisFire::seedPlan() {
                                      PathFormat::Align::Inner)),
                   {4, 4});
   planAtlas->cell(box().width(4.0f).height(4.0f).fill(
-                      Paint::radialUnit({0.5f, 0.5f}, 0.707f,
-                                        {{0.0f, {1, 1, 1, 1}},
-                                         {0.45f, {1, 1, 1, 0.8f}},
-                                         {1.0f, {1, 1, 1, 0}}})),
+                      Paint::radialGradient({0.5f, 0.5f}, 0.707f,
+                                            {{0.0f, {1, 1, 1, 1}},
+                                             {0.45f, {1, 1, 1, 0.8f}},
+                                             {1.0f, {1, 1, 1, 0}}})),
                   {4, 4});
   // Seven rings from the impact point; marks per ring =
   // round(0.055 * 2*pi*r) — [R83 §3]'s circumference x density rule.
@@ -290,10 +290,10 @@ void GenesisFire::seedBench() {
   // stubby at apogee; an atlas cell is one size and a Pool scale is one
   // float, so this cell is the compromise the middle two panels show.
   abAtlas->cell(box().width(4.4f).height(2.3f).borderRadius({1.0f}).fill(
-                    Paint::radialUnit({0.5f, 0.5f}, 1.05f,
-                                      {{0.0f, {1, 1, 1, 1}},
-                                       {0.42f, {1, 1, 1, 0.9f}},
-                                       {1.0f, {1, 1, 1, 0}}})),
+                    Paint::radialGradient({0.5f, 0.5f}, 1.05f,
+                                          {{0.0f, {1, 1, 1, 1}},
+                                           {0.42f, {1, 1, 1, 0.9f}},
+                                           {1.0f, {1, 1, 1, 0}}})),
                 {4.8f, 2.6f});
   abPool = std::make_shared<instancing::Pool>();
   abPool->resize(kAbCount);

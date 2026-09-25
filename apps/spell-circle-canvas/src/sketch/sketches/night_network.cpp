@@ -386,9 +386,10 @@ struct NightNetwork {
             .height(nn::kH)
             .font({.color8 = true})
             .ink(nn::kAsh)
-            .fill(Paint::linear(
+            .fill(Paint::linearGradient(
                 {0, 0}, {0, nn::kH},
-                {{0.0f, nn::kInkHigh}, {0.5f, nn::kInk}, {1.0f, nn::kInk}}))
+                {{0.0f, nn::kInkHigh}, {0.5f, nn::kInk}, {1.0f, nn::kInk}},
+                {.units = material::GradientUnits::Pixels}))
             // ---- the routes: operators of the map, each built from where its
             // own stops settled ----
             .operators(

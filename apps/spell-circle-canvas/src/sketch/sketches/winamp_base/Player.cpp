@@ -177,24 +177,25 @@ auto WinampBase::mainWindow() -> Element {
            sunken(at(box(), 16, 72, 248, 10).fill(hexColor(0x14141F)),
                   sigil::material::withAlpha(hexColor(0x4A4A70), 0.7f),
                   hexColor(0x08080E))
-               .children({at(box(), 1, 1, 246, 8)
-                              .fill(hexColor(0x24243A))
-                              .transformOrigin(pct(0), pct(50))
-                              .scaleX(&playPos),
-                          raised(at(box(), 1, 0, 29, 10)
-                                     .fill(material::skia::Paint::linearUnit(
-                                         {0, 0}, {0, 1},
-                                         {{0.0f, sigil::material::lighten(
-                                                     kBtnFace, 0.12f)},
-                                          {1.0f, dark(kBtnFace, 0.28f)}}))
-                                     .translateX(motion::bind(&playPos).target(
-                                         0, n(248 - 31))))
-                              .children({at(box(), 13, 2, 1, 6)
-                                             .fill(sigil::material::withAlpha(
-                                                 kBtnLo, 0.8f)),
-                                         at(box(), 15, 2, 1, 6)
-                                             .fill(sigil::material::withAlpha(
-                                                 kBtnHi, 0.7f))})}),
+               .children(
+                   {at(box(), 1, 1, 246, 8)
+                        .fill(hexColor(0x24243A))
+                        .transformOrigin(pct(0), pct(50))
+                        .scaleX(&playPos),
+                    raised(at(box(), 1, 0, 29, 10)
+                               .fill(material::skia::Paint::linearGradient(
+                                   {0, 0}, {0, 1},
+                                   {{0.0f,
+                                     sigil::material::lighten(kBtnFace, 0.12f)},
+                                    {1.0f, dark(kBtnFace, 0.28f)}}))
+                               .translateX(motion::bind(&playPos).target(
+                                   0, n(248 - 31))))
+                        .children({at(box(), 13, 2, 1, 6)
+                                       .fill(sigil::material::withAlpha(kBtnLo,
+                                                                        0.8f)),
+                                   at(box(), 15, 2, 1, 6)
+                                       .fill(sigil::material::withAlpha(
+                                           kBtnHi, 0.7f))})}),
            // the six transport keys + shuffle / repeat
            transportRow(),
            // the baked Nullsoft bolt, bottom right — MAIN.BMP's bolt is a
@@ -202,7 +203,7 @@ auto WinampBase::mainWindow() -> Element {
            // wants to be
            at(box(), 253, 91, 13, 15)
                .shape(bolt())
-               .fill(material::skia::Paint::linearUnit(
+               .fill(material::skia::Paint::linearGradient(
                    {0, 0}, {0, 1},
                    {{0.0f, hexColor(0xC98A32)}, {1.0f, hexColor(0x7A4208)}}))});
 }
@@ -287,7 +288,7 @@ auto WinampBase::sliders(int vol, int bal) -> Element {
   // with one scored line down it.
   const auto thumb = [](float travel, int frame) {
     return raised(at(box(), 0, 1, 14, 11)
-                      .fill(material::skia::Paint::linearUnit(
+                      .fill(material::skia::Paint::linearGradient(
                           {0, 0}, {0, 1},
                           {{0.0f, sigil::material::lighten(kBtnFace, 0.12f)},
                            {1.0f, dark(kBtnFace, 0.30f)}}))

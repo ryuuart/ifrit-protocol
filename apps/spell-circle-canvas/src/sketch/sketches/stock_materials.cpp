@@ -115,9 +115,10 @@ struct StockMaterialsSheet {
     // by the moment their call names.
     sketch::kit::stage(ctx, {.size = {1150, 1000}, .captureAt = 0.05});
 
-    const std::vector<material::skia::Stop> ramp = {{0.0f, {0.95f, 0.35f, 0.25f, 1}},
-                                           {0.5f, {0.95f, 0.80f, 0.30f, 1}},
-                                           {1.0f, {0.20f, 0.55f, 0.95f, 1}}};
+    const std::vector<material::ColorStop> ramp = {
+        {0.0f, {0.95f, 0.35f, 0.25f, 1}},
+        {0.5f, {0.95f, 0.80f, 0.30f, 1}},
+        {1.0f, {0.20f, 0.55f, 0.95f, 1}}};
     const SkRect swatchBox = SkRect::MakeWH(kCell, kSwatch);
 
     // The tile the two content-reading fields are shown over, so the
@@ -178,31 +179,35 @@ struct StockMaterialsSheet {
          tiled("girih8 · nasrid", "kit::girih8(30, nasridPalette(), 1.6, 62°)",
                material::kit::girih8(30, material::kit::nasridPalette(), 1.6f, 62.0f))});
 
-    Element shapesAndRamps =
-        row({painted("sdf::circle, bordered and glowing",
-                     sdf::material(sdf::circle(),
-                                   {.fill = material::rgb(0x3389f2),
-                                    .borderWidth = 3,
-                                    .borderColor = material::rgb(0xffffff, 0.9f),
-                                    .glowRadius = 10,
-                                    .glowColor = material::rgb(0x66b3ff, 0.6f)})),
-             painted("sdf::roundBox(14), with a shadow",
-                     sdf::material(sdf::roundBox(14),
-                                   {.fill = material::rgb(0xf2593f),
-                                    .borderWidth = 2,
-                                    .borderColor = material::rgb(0xffe6b3, 0.9f),
-                                    .shadowOffset = {0, 4},
-                                    .shadowBlur = 8,
-                                    .shadowColor = material::rgb(0x000000, 0.55f)})),
-             painted("sdf::star(6, 2.6)",
-                     sdf::material(sdf::star(6, 2.6f),
-                                   {.fill = material::rgb(0xf2cc4d)})),
-             swatch(u8"linearUnit", "Paint::linearUnit({0,0}, {1,1}, ramp)",
-                    material::skia::Paint::linearUnit({0, 0}, {1, 1}, ramp)),
-             swatch(u8"radialUnit", "Paint::radialUnit({0.5,0.5}, 1, ramp)",
-                    material::skia::Paint::radialUnit({0.5f, 0.5f}, 1.0f, ramp)),
-             swatch(u8"glowUnit", "Paint::glowUnit({0.5,0.5}, 1, ramp)",
-                    material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f, ramp))});
+    Element shapesAndRamps = row(
+        {painted("sdf::circle, bordered and glowing",
+                 sdf::material(sdf::circle(),
+                               {.fill = material::rgb(0x3389f2),
+                                .borderWidth = 3,
+                                .borderColor = material::rgb(0xffffff, 0.9f),
+                                .glowRadius = 10,
+                                .glowColor = material::rgb(0x66b3ff, 0.6f)})),
+         painted(
+             "sdf::roundBox(14), with a shadow",
+             sdf::material(sdf::roundBox(14),
+                           {.fill = material::rgb(0xf2593f),
+                            .borderWidth = 2,
+                            .borderColor = material::rgb(0xffe6b3, 0.9f),
+                            .shadowOffset = {0, 4},
+                            .shadowBlur = 8,
+                            .shadowColor = material::rgb(0x000000, 0.55f)})),
+         painted("sdf::star(6, 2.6)",
+                 sdf::material(sdf::star(6, 2.6f),
+                               {.fill = material::rgb(0xf2cc4d)})),
+         swatch(u8"linearUnit", "Paint::linearUnit({0,0}, {1,1}, ramp)",
+                material::skia::Paint::linearGradient({0, 0}, {1, 1}, ramp)),
+         swatch(
+             u8"radialUnit", "Paint::radialUnit({0.5,0.5}, 1, ramp)",
+             material::skia::Paint::radialGradient({0.5f, 0.5f}, 1.0f, ramp)),
+         swatch(u8"glowUnit", "Paint::glowUnit({0.5,0.5}, 1, ramp)",
+                material::skia::Paint::radialGradient(
+                    {0.5f, 0.5f}, 1.0f, ramp,
+                    {.extent = material::RadialExtent::ClosestSide}))});
 
     Element textPaints = row(
         {painted("kit::water(bounds, 1.4 s)", material::kit::water(swatchBox, 1.4f)),

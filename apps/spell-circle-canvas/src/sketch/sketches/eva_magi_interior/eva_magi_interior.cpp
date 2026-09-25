@@ -62,10 +62,12 @@ struct EvaMagiInterior {
                [](Pen& p) {
                  p.noFill();
                  p.strokeWeight(4);
-                 p.stroke(Paint::linear({0, 40}, {0, 760},
-                                        {{0, kDarkGreen},
-                                         {0.55f, hexColor(0x8D9954)},
-                                         {1, hexColor(0xAF402D)}}));
+                 p.stroke(Paint::linearGradient(
+                     {0, 40}, {0, 760},
+                     {{0, kDarkGreen},
+                      {0.55f, hexColor(0x8D9954)},
+                      {1, hexColor(0xAF402D)}},
+                     {.units = material::GradientUnits::Pixels}));
                  for (int i = 0; i < 12; ++i) p.circle(kCentre, 88 + i * 56.0f);
                },
                Cache::Texture)

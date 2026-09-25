@@ -181,12 +181,13 @@ struct Zellige {
              // wet line where the glaze pools at the joint.
              .foreground(styles::innerGlow({1, 1, 1, 0.26f}, 2))
              .stroke(sigil::compose::stroke(2.5f, Fill::color(zw::kInk)))
-             .children({box().inset(0).fill(
-                 Paint::linear({0, 0}, {180, 260},
-                               {{0.00f, {1, 1, 1, 0.20f}},
-                                {0.42f, {1, 1, 1, 0.05f}},
-                                {0.58f, {0, 0, 0, 0.03f}},
-                                {1.00f, {0, 0, 0, 0.10f}}}))}),
+             .children({box().inset(0).fill(Paint::linearGradient(
+                 {0, 0}, {180, 260},
+                 {{0.00f, {1, 1, 1, 0.20f}},
+                  {0.42f, {1, 1, 1, 0.05f}},
+                  {0.58f, {0, 0, 0, 0.03f}},
+                  {1.00f, {0, 0, 0, 0.10f}}},
+                 {.units = material::GradientUnits::Pixels}))}),
          document::caption(one.caption).font({.size = 12, .track = 0.3f})});
   }
 

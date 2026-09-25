@@ -305,11 +305,11 @@ struct ShippingForecast {
    *  rise at @p from on the bulletin's clock. */
   [[nodiscard]] Element heroLine(const data::Json& line, const char* key,
                                  float from) {
-    static const material::skia::Paint ramp = material::skia::Paint::linearUnit(
-        {0.5f, 0.0f}, {0.5f, 1.0f},
-        {{0.00f, hexColor(0xFFFBF2)},
-         {0.52f, hexColor(0xE9E5DB)},
-         {1.00f, hexColor(0xC9A46A)}});
+    static const material::skia::Paint ramp =
+        material::skia::Paint::linearGradient({0.5f, 0.0f}, {0.5f, 1.0f},
+                                              {{0.00f, hexColor(0xFFFBF2)},
+                                               {0.52f, hexColor(0xE9E5DB)},
+                                               {1.00f, hexColor(0xC9A46A)}});
     return box().overflow(Overflow::Clip).width(pct(100)).children({
         text(line)
             .styleClass("hero")
@@ -353,15 +353,17 @@ struct ShippingForecast {
             .cache(Cache::Texture)
             .key("ring-ground")
             .children({
-                box().cover().fill(material::skia::Paint::glowUnit(
+                box().cover().fill(material::skia::Paint::radialGradient(
                     {0.5f, 0.5f}, 0.94f,
                     {{0.0f, kSeaLift},
                      {0.62f, hexColor(0x090E15)},
-                     {1.0f, material::withAlpha(kSea, 0)}})),
+                     {1.0f, material::withAlpha(kSea, 0)}},
+                    {.extent = material::RadialExtent::ClosestSide})),
                 kit::ring(kEye, kRingRadius + 21,
                           stroke(1, Fill::var("keyline"))),
                 kit::ring(kEye, kInnerRadius, stroke(1, Fill::var("keyline"))),
-                kit::ring(kEye, kPorthole, stroke(1, Fill::var("keyline-deep"))),
+                kit::ring(kEye, kPorthole,
+                          stroke(1, Fill::var("keyline-deep"))),
             }),
         pressureChart().opacity(beat(0.40f, 1.60f)),
         readingHand(),
@@ -370,8 +372,7 @@ struct ShippingForecast {
         kit::disc(kEye, kRingRadius + 21)
             .key("reading-slice")
             .shape(sigil::geometry::shapes::sector(
-                readingBearing - 90 - 7, 14,
-                kInnerRadius / (kRingRadius + 21)))
+                readingBearing - 90 - 7, 14, kInnerRadius / (kRingRadius + 21)))
             .fill(Fill::var("amber-wash"))
             .opacity(beat(reached, reached + 0.6f)),
         each(areas,
@@ -416,10 +417,12 @@ struct ShippingForecast {
         // the middle, and breathes with the grade the name breathes on.
         kit::disc(kEye, kPorthole)
             .key("lamp")
-            .fill(radialGradient({kPorthole, kPorthole}, kPorthole,
-                                 {material::withAlpha(kAmber, 0.15f),
-                                  material::withAlpha(kAmber, 0.05f),
-                                  material::withAlpha(kAmber, 0)}))
+            .fill(material::skia::Paint::radialGradient(
+                {kPorthole, kPorthole}, kPorthole,
+                {material::withAlpha(kAmber, 0.15f),
+                 material::withAlpha(kAmber, 0.05f),
+                 material::withAlpha(kAmber, 0)},
+                {.units = material::GradientUnits::Pixels}))
             .scale(motion::bind(&cycle)
                        .window(reached, reached + 1.4f)
                        .map(motion::ease::outCubic))
@@ -457,11 +460,9 @@ struct ShippingForecast {
         .rotate(motion::bind(&cycle)
                     .window(kReadingStarts, reachedAt(readingBearing))
                     .target(first - 90, readingBearing - 90))
-        .opacity(motion::bind(&cycle)
-                     .source(0, kLoop)
-                     .trapezoid((kReadingStarts - 0.20f) / kLoop,
-                                (kReadingStarts + 0.20f) / kLoop,
-                                finished / kLoop, (finished + 0.80f) / kLoop))
+        .opacity(motion::bind(&cycle).source(0, kLoop).trapezoid(
+            (kReadingStarts - 0.20f) / kLoop, (kReadingStarts + 0.20f) / kLoop,
+            finished / kLoop, (finished + 0.80f) / kLoop))
         .children({
             // The wake is the last seventh of a sweep ramp, so the node is
             // shaped to that slice and paints nothing where the ramp is clear.
@@ -471,18 +472,19 @@ struct ShippingForecast {
                 .rotate(motion::bind(&cycle)
                             .window(kReadingResumes, finished)
                             .target(0, last - readingBearing))
-                .fill(material::skia::Paint::sweep(
+                .fill(material::skia::Paint::conicGradient(
                     {radius, radius},
                     {{0.0f, material::withAlpha(kAmber, 0)},
                      {0.86f, material::withAlpha(kAmber, 0)},
-                     {1.0f, material::withAlpha(kAmber, 0.16f)}}))
+                     {1.0f, material::withAlpha(kAmber, 0.16f)}},
+                    {.units = material::GradientUnits::Pixels}))
                 .children({
                     box()
                         .left(radius)
                         .top(radius - 0.5f)
                         .width(radius)
                         .height(1)
-                        .fill(material::skia::Paint::linearUnit(
+                        .fill(material::skia::Paint::linearGradient(
                             {0, 0.5f}, {1, 0.5f},
                             {{0.0f, material::withAlpha(kAmber, 0)},
                              {1.0f, material::withAlpha(kAmber, 0.7f)}})),
@@ -601,11 +603,12 @@ struct ShippingForecast {
                              .square(kLampLit)
                              .target(0.28f, 1))
                 .children({
-                    kit::disc({3.5f, 3.5f}, 13).fill(
-                        material::skia::Paint::glowUnit(
+                    kit::disc({3.5f, 3.5f}, 13)
+                        .fill(material::skia::Paint::radialGradient(
                             {0.5f, 0.5f}, 1.0f,
                             {{0.0f, material::withAlpha(kAmber, 0.45f)},
-                             {1.0f, material::withAlpha(kAmber, 0)}})),
+                             {1.0f, material::withAlpha(kAmber, 0)}},
+                            {.extent = material::RadialExtent::ClosestSide})),
                 }),
             text(bulletin["gale"])
                 .styleClass("warning")
@@ -613,7 +616,9 @@ struct ShippingForecast {
                 .textFx({.effect = textFx::sequence(
                              textFx::slide(-46).until(0.46f).crossfade(0.20f),
                              textFx::pop(0.86f, 2.6f)),
-                         .stagger = {.eachMs = 0, .amountMs = 520, .durationMs = 620},
+                         .stagger = {.eachMs = 0,
+                                     .amountMs = 520,
+                                     .durationMs = 620},
                          .progress = beat(0.25f, 1.85f)}),
         });
   }
@@ -822,9 +827,10 @@ struct ShippingForecast {
   [[nodiscard]] Element describe() {
     return stack()
         .applyStyleSheet(sheet())
-        .fill(linearGradient({0, 0}, {0, kCanvas.height()},
-                             {kSea, kSeaLift, hexColor(0x05080C)},
-                             {0.0f, 0.55f, 1.0f}))
+        .fill(material::skia::Paint::linearGradient(
+            {0, 0}, {0, kCanvas.height()},
+            {{0.0f, kSea}, {0.55f, kSeaLift}, {1.0f, hexColor(0x05080C)}},
+            {.units = material::GradientUnits::Pixels}))
         .children({
             // The sea falls to near black at the corners. It carries no
             // grain: `kit::grained` lays its noise on as soft light, which

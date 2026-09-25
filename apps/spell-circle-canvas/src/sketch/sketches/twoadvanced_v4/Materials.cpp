@@ -38,7 +38,7 @@ auto TwoAdvancedV4::radarSweep(int i, sigil::material::Color tint, float inner)
   return box()
       .inset(0)
       .shape(shapes::sector(-100, 78, inner))
-      .fill(material::skia::Paint::linearUnit(
+      .fill(material::skia::Paint::linearGradient(
           {0, 0}, {1, 1},
           {{0.0f, sigil::material::withAlpha(tint, 0.85f)},
            {1.0f, sigil::material::withAlpha(tint, 0.05f)}}))
@@ -69,10 +69,11 @@ auto TwoAdvancedV4::statusBar() -> Element {
                    .width(22)
                    .height(22)
                    .borderRadius({5})
-                   .fill(material::skia::Paint::radialUnit({0.5f, 0.42f}, 1.15f,
-                                                  {{0.0f, kCyanRing},
-                                                   {0.55f, kTealBar},
-                                                   {1.0f, hexColor(0x0C2A2C)}}))
+                   .fill(material::skia::Paint::radialGradient(
+                       {0.5f, 0.42f}, 1.15f,
+                       {{0.0f, kCyanRing},
+                        {0.55f, kTealBar},
+                        {1.0f, hexColor(0x0C2A2C)}}))
                    .stroke(stroke(
                        1, Fill::color(sigil::material::withAlpha(kCyan, 0.7f)),
                        PathFormat::Align::Inner))
@@ -174,11 +175,11 @@ auto TwoAdvancedV4::audioModule() -> Element {
         .width(38)
         .height(22)
         .shape(shapes::chamfered(6, shapes::Corner::Diagonal))
-        .fill(
-            material::skia::Paint::linearUnit({0, 0}, {0, 1},
-                                     {{0.0f, hot ? kCtaHi : hexColor(0x5A2226)},
-                                      {0.5f, hot ? kCta : hexColor(0x3A0F12)},
-                                      {1.0f, hexColor(0x240607)}}))
+        .fill(material::skia::Paint::linearGradient(
+            {0, 0}, {0, 1},
+            {{0.0f, hot ? kCtaHi : hexColor(0x5A2226)},
+             {0.5f, hot ? kCta : hexColor(0x3A0F12)},
+             {1.0f, hexColor(0x240607)}}))
         .stroke(stroke(1, Fill::color(sigil::material::withAlpha(kDust, 0.35f)),
                        PathFormat::Align::Inner))
 

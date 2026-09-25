@@ -64,7 +64,7 @@ struct SurfaceComponents {
   Element describe(float height) {
     const sketch::kit::Provide presentation(sketch::kit::featureTheme());
     const SurfacePaint slate = Fill::color({0.10f, 0.13f, 0.18f, 1});
-    const SurfacePaint ramp = material::skia::Paint::linearUnit(
+    const SurfacePaint ramp = material::skia::Paint::linearGradient(
         {0, 0}, {1, 1},
         {{0, {0.28f, 0.10f, 0.38f, 1}}, {1, {0.07f, 0.28f, 0.35f, 1}}});
     return sketch::kit::page(
