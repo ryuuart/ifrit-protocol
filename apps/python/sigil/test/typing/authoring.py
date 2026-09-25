@@ -53,7 +53,7 @@ class Reading:
 
 
 def wash(accent: str) -> Paint:
-    return Paint.linearUnit(
+    return Paint.linearGradient(
         start=(0, 0), end=(1, 1), stops=((0, accent), (1, "#172b36"))
     )
 

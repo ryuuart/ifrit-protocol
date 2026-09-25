@@ -97,15 +97,15 @@ void bindMaterial(py::module_& root) {
       .def_readwrite("low", &RampBracket::low)
       .def_readwrite("high", &RampBracket::high)
       .def_readwrite("fraction", &RampBracket::fraction);
-  py::class_<RampStop>(module, "RampStop")
-      .def(py::init([](float position, py::handle value) {
-             return RampStop{position, materialColor(value)};
+  py::class_<ColorStop>(module, "ColorStop")
+      .def(py::init([](float offset, py::handle value) {
+             return ColorStop{offset, materialColor(value)};
            }),
-           py::arg("position"), py::arg("color"))
-      .def_readwrite("position", &RampStop::position)
+           py::arg("offset"), py::arg("color"))
+      .def_readwrite("offset", &ColorStop::offset)
       .def_property(
-          "color", [](const RampStop& stop) { return stop.color; },
-          [](RampStop& stop, py::handle value) {
+          "color", [](const ColorStop& stop) { return stop.color; },
+          [](ColorStop& stop, py::handle value) {
             stop.color = materialColor(value);
           })
       .def(py::self == py::self);
@@ -307,13 +307,13 @@ void bindMaterial(py::module_& root) {
       py::arg("palette"), py::arg("color"));
   module.def(
       "sampleRamp",
-      [](const std::vector<RampStop>& stops, float position) {
+      [](const std::vector<ColorStop>& stops, float position) {
         return sampleRamp(stops, position);
       },
       py::arg("stops"), py::arg("position"));
   module.def(
       "rampBracket",
-      [](const std::vector<RampStop>& stops, float position) {
+      [](const std::vector<ColorStop>& stops, float position) {
         if (stops.empty())
           throw py::value_error("A ramp bracket requires at least one stop.");
         return rampBracket(stops, position);

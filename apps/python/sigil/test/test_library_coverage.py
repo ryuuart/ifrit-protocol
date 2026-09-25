@@ -115,7 +115,7 @@ class LibraryCoverage(unittest.TestCase):
         self.assertEqual(palette.at(500), palette[-1])
         palette.entries = (c for c in ("#ff0000", "#0000ff"))
         ramp = material.Ramp(
-            stops=(material.RampStop(0, palette[0]), material.RampStop(1, palette[1])),
+            stops=(material.ColorStop(0, palette[0]), material.ColorStop(1, palette[1])),
             space=material.RampSpace.Linear,
         )
         middle = ramp(0.5)

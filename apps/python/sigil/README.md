@@ -1069,7 +1069,7 @@ from sigil.material import Paint
 
 
 def wash(accent):
-    return Paint.linearUnit((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
+    return Paint.linearGradient((0, 0), (1, 1), [(0, accent), (1, "#172b36")])
 
 
 def card(title, detail, accent):
@@ -1536,8 +1536,8 @@ with hub.retain("res://*.csv") as lease:
 
 colors = material.harmony("#7bb7ba", material.Scheme.Triad)
 ramp = material.Ramp(stops=(
-    material.RampStop(0, colors[0]),
-    material.RampStop(1, colors[1]),
+    material.ColorStop(0, colors[0]),
+    material.ColorStop(1, colors[1]),
 ))
 tint = ramp(0.5)
 ```

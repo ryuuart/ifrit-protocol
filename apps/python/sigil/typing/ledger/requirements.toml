@@ -674,9 +674,9 @@ library = "Geometry"
 python = ["geometry.path.Projection"]
 
 [requirement.ramp-shaders]
-native = "`material::skia` ramp shaders"
+native = "`material::skia::Paint` gradients over `ColorStops`"
 library = "Material"
-python = ["material.verticalRamp", "material.unitRamp"]
+python = ["material.Paint.linearGradient", "material.ColorStop"]
 
 [requirement.raster-surfaces]
 native = "`SkSurfaces::Raster` standalone raster surfaces"

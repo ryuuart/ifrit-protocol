@@ -19,18 +19,15 @@ def register(table: Table) -> None:
     table.erased(PAINT, "uniform", "_t.UniformValue")
     table.erased(PAINT, "sksl", "str | _sigil.skia.RuntimeEffect")
     table.parameters(PAINT + ".sksl", uniforms="dict[str, _t.UniformValue]")
-    table.erased(PAINT, "conical linear linearUnit", "_t.PointLike", "_t.PointLike")
-    table.erased(PAINT, "glowUnit radial radialUnit sweep", "_t.PointLike")
-    for name in (
-        "conical",
-        "linear",
-        "linearUnit",
-        "glowUnit",
-        "radial",
-        "radialUnit",
-        "sweep",
-    ):
-        table.parameters(PAINT + "." + name, stops="_t.GradientStops")
+    table.erased(
+        PAINT, "linearGradient", "_t.PointLike", "_t.PointLike", "_t.GradientStops"
+    )
+    table.erased(
+        PAINT, "radialGradient conicGradient", "_t.PointLike", "_t.GradientStops"
+    )
+    table.parameters(
+        "_sigil.material.skia.GradientOptions.focus", value="_t.PointLike | None"
+    )
     table.erased("_sigil.material.pattern", "checker", "_t.ColorLike", "_t.ColorLike")
     table.erased(
         "_sigil.material.pattern", "gridLines halftone stripes", "_t.ColorLike"
@@ -42,7 +39,7 @@ def register(table: Table) -> None:
     table.returns(
         "_sigil.material.Palette", "__iter__", "collections.abc.Iterator[Color]"
     )
-    table.erased("_sigil.material.RampStop", "__init__ color", "_t.ColorLike")
+    table.erased("_sigil.material.ColorStop", "__init__ color", "_t.ColorLike")
     table.parameters(
         "_sigil.material.Palette.__init__",
         entries="collections.abc.Iterable[_t.ColorLike]",

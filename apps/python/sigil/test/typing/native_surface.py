@@ -48,7 +48,12 @@ assert_type(
 )
 assert_type(motion.through([(0.0, 1.0), (0.4, 2.0)]), motion.Waypoints)
 
-ink = material.Paint.linear((0, 0), (40, 0), [(0, "#fff"), (1, "#123")])
+ink = material.Paint.linearGradient(
+    (0, 0),
+    (40, 0),
+    [(0, "#fff"), (1, "#123")],
+    material.GradientOptions(units=material.GradientUnits.Pixels),
+)
 shader = material.Paint.sksl(
     "uniform float gain; half4 main(float2 p) { return half4(gain); }", {"gain": 0.5}
 )

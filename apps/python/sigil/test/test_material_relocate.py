@@ -121,23 +121,19 @@ MOVED_MEMBERS = {
     ("skia", "Paint"): (
         "amount",
         "blend",
-        "conical",
+        "conicGradient",
         "copy",
         "fit",
-        "glowUnit",
         "image",
         "isAnimated",
         "isNone",
-        "linear",
-        "linearUnit",
+        "linearGradient",
         "quantizeTime",
-        "radial",
-        "radialUnit",
+        "radialGradient",
         "recipe",
         "sksl",
         "slot",
         "solid",
-        "sweep",
         "uniform",
         "worldSpace",
     ),
@@ -162,6 +158,7 @@ class MovedNames(unittest.TestCase):
         for name in (
             "Backface",
             "Color",
+            "ColorStop",
             "Dither",
             "DitherKind",
             "HueArc",
@@ -175,7 +172,6 @@ class MovedNames(unittest.TestCase):
             "Ramp",
             "RampBracket",
             "RampSpace",
-            "RampStop",
             "Scheme",
             "closestEntry",
             "deltaE",
@@ -346,8 +342,8 @@ class TheColourSubject(unittest.TestCase):
     def test_a_ramp_answers_the_colour_it_was_built_from(self):
         ramp = material.Ramp(
             stops=[
-                material.RampStop(0.0, "#000000"),
-                material.RampStop(1.0, "#ffffff"),
+                material.ColorStop(0.0, "#000000"),
+                material.ColorStop(1.0, "#ffffff"),
             ]
         )
         self.assertEqual(ramp.at(0.0), material.Color(0, 0, 0, 1))

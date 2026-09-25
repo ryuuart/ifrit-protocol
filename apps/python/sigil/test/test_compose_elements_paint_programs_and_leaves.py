@@ -16,7 +16,7 @@ import weakref
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import image, skia, weave
+from sigil import image, material, skia, weave
 from sigil.sketch import render_file
 
 RESULTS = "_sigil_paint_program_results"
@@ -132,23 +132,30 @@ class PaintProgramValues(unittest.TestCase):
         self.assertIs(element.shape(native.keyedShape(3, outline)), element)
         self.assertIs(element.shape(outline), element)
 
-    def test_gradients_are_fills_checked_before_they_are_built(self):
-        ramp = native.linearGradient((0, 0), (10, 0), ["#ff0000", (0, 0, 1)])
-        self.assertIsInstance(ramp, native.Fill)
-        self.assertNotEqual(ramp, native.Fill.none())
-        named = native.linearGradient(
-            from_=(0, 0), to=(10, 0), colors=["#ff0000", "#0000ff"], stops=[0, 1]
+    def test_a_gradient_is_a_material_paint_checked_before_it_is_built(self):
+        pixels = material.GradientOptions(units=material.GradientUnits.Pixels)
+        ramp = material.Paint.linearGradient(
+            (0, 0), (10, 0), ["#ff0000", (0, 0, 1)], pixels
         )
-        self.assertIsInstance(named, native.Fill)
-        glow = native.radialGradient(
-            center=skia.Point(5, 5), radius=5, colors=["#ffffff", "#000000"]
+        self.assertIsInstance(native.box().fill(ramp), native.Element)
+        glow = material.Paint.radialGradient(
+            center=skia.Point(0.5, 0.5),
+            radius=1,
+            stops=[(0, "#ffffff"), (1, "#000000")],
+            options=material.GradientOptions(
+                extent=material.RadialExtent.ClosestSide
+            ),
         )
-        self.assertIsInstance(glow, native.Fill)
         self.assertIsInstance(native.box().fill(glow), native.Element)
-        with self.assertRaisesRegex(ValueError, "one position per colour"):
-            native.linearGradient((0, 0), (10, 0), ["#fff", "#000"], [0.5])
-        with self.assertRaisesRegex(ValueError, "needs a colour"):
-            native.radialGradient((0, 0), 4, [])
+        walked = material.Ramp(
+            stops=[material.ColorStop(0, "#ff0000"), material.ColorStop(1, "#0000ff")]
+        )
+        wheel = material.Paint.conicGradient((0.5, 0.5), walked)
+        self.assertIsInstance(native.box().fill(wheel), native.Element)
+        with self.assertRaisesRegex(ValueError, "all plain colors"):
+            material.Paint.linearGradient((0, 0), (10, 0), [(0, "#fff"), "#000"])
+        with self.assertRaisesRegex(ValueError, "at least two stops"):
+            material.Paint.radialGradient((0, 0), 4, [])
 
     def test_a_custom_property_fill_is_named_by_reference_or_by_name(self):
         self.assertEqual(

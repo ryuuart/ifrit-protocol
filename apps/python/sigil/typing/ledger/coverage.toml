@@ -355,10 +355,6 @@ bound = "`instancing` pools and cell sheets"
 python = ["compose.instancing.Pool", "compose.instancing.CellSheet"]
 
 [[section.surface.item]]
-bound = "`linearGradient` and `radialGradient` fills"
-python = ["compose.linearGradient", "compose.radialGradient"]
-
-[[section.surface.item]]
 native = "`Text::textFx` tracks and the `textFx::` text effects (`scramble`, `keys`, `hold`, `sequence`, `mix` and `variableAxis`)"
 python = [
   "compose.Text.textFx",
@@ -1672,11 +1668,14 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`Paint` (solid, gradients, image, SkSL, recipe and blends, with uniforms, slots, fitting and world space)"
+bound = "`Paint` (solid, the three gradients over `ColorStop`s with `GradientOptions`, image, SkSL, recipe and blends, with uniforms, slots, fitting and world space)"
 python = [
   "material.Paint.solid",
-  "material.Paint.linear",
-  "material.Paint.radial",
+  "material.Paint.linearGradient",
+  "material.Paint.radialGradient",
+  "material.Paint.conicGradient",
+  "material.ColorStop",
+  "material.GradientOptions",
   "material.Paint.image",
   "material.Paint.sksl",
   "material.Paint.recipe",

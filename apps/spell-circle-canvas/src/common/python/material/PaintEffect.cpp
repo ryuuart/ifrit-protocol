@@ -5,6 +5,8 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilmaterial/color/Ramp.h>
+#include <sigilmaterial/core/Gradient.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Bloom.h>
 #include <sigilmaterial/skia/Effect.h>
@@ -25,17 +27,36 @@ namespace py = pybind11;
 namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
 
-std::vector<material::skia::Stop> stops(py::iterable values) {
-  std::vector<material::skia::Stop> result;
-  for (auto value : values) {
-    const auto pair = py::cast<py::sequence>(value);
-    if (pair.size() != 2)
-      throw py::value_error("A gradient stop is (position, color).");
-    result.push_back({py::cast<float>(pair[0]), color(pair[1])});
+/** A gradient's stops as Python writes them: a `Ramp`, a list of
+ *  `ColorStop`s or `(offset, colour)` pairs, or plain colours spaced
+ *  evenly. */
+material::ColorStops colorStops(py::handle values) {
+  if (py::isinstance<material::Ramp>(values))
+    return material::ColorStops(py::cast<const material::Ramp&>(values));
+  std::vector<material::ColorStop> stops;
+  std::vector<material::Color> colors;
+  for (auto value : py::cast<py::iterable>(values)) {
+    if (py::isinstance<material::ColorStop>(value)) {
+      stops.push_back(py::cast<material::ColorStop>(value));
+      continue;
+    }
+    if (py::isinstance<py::tuple>(value) || py::isinstance<py::list>(value)) {
+      const auto pair = py::cast<py::sequence>(value);
+      if (pair.size() == 2) {
+        stops.push_back({py::cast<float>(pair[0]), color(pair[1])});
+        continue;
+      }
+    }
+    colors.push_back(color(value));
   }
-  if (result.size() < 2)
+  if (!stops.empty() && !colors.empty())
+    throw py::value_error(
+        "A gradient's stops are all (offset, color) pairs or all plain "
+        "colors.");
+  if (stops.size() + colors.size() < 2)
     throw py::value_error("A gradient needs at least two stops.");
-  return result;
+  if (!colors.empty()) return material::ColorStops(colors);
+  return material::ColorStops(std::move(stops));
 }
 
 sk_sp<SkRuntimeEffect> runtimeEffect(const std::string& source) {
@@ -160,6 +181,40 @@ void bindMaterialPaintEffect(py::module_& module) {
   nativePaint.def("bloom", &material::skia::bloom,
                   py::arg("parameters") = material::skia::BloomParameters{});
 
+  py::enum_<material::GradientUnits>(nativePaint, "GradientUnits")
+      .value("Box", material::GradientUnits::Box)
+      .value("Pixels", material::GradientUnits::Pixels);
+  py::enum_<material::RadialExtent>(nativePaint, "RadialExtent")
+      .value("FarthestCorner", material::RadialExtent::FarthestCorner)
+      .value("ClosestSide", material::RadialExtent::ClosestSide);
+  py::enum_<material::Repeat>(nativePaint, "Repeat")
+      .value("Pad", material::Repeat::Pad)
+      .value("Repeat", material::Repeat::Repeat)
+      .value("Mirror", material::Repeat::Mirror)
+      .value("None_", material::Repeat::None);
+  bindRecord<material::GradientOptions>(nativePaint, "GradientOptions",
+                                        "Unknown GradientOptions field: ")
+      .def_readwrite("units", &material::GradientOptions::units)
+      .def_readwrite("extent", &material::GradientOptions::extent)
+      .def_readwrite("repeat", &material::GradientOptions::repeat)
+      .def_property(
+          "focus",
+          [](const material::GradientOptions& options) -> py::object {
+            if (!options.focus) return py::none();
+            return py::make_tuple(options.focus->x, options.focus->y);
+          },
+          [](material::GradientOptions& options, py::handle value) {
+            if (value.is_none()) {
+              options.focus.reset();
+              return;
+            }
+            const SkPoint at = point(value);
+            options.focus = glm::vec2{at.x(), at.y()};
+          })
+      .def_readwrite("focusRadius", &material::GradientOptions::focusRadius)
+      .def_readwrite("startDegrees", &material::GradientOptions::startDegrees)
+      .def_readwrite("endDegrees", &material::GradientOptions::endDegrees)
+      .def(py::self == py::self);
   py::enum_<material::skia::Fit>(nativePaint, "Fit")
       .value("Contain", material::skia::Fit::Contain)
       .value("Cover", material::skia::Fit::Cover)
@@ -175,65 +230,37 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def("copy", [](const material::skia::Paint& paint) { return paint; })
       .def_static(
           "solid",
-          [](py::handle value) { return material::skia::Paint::solid(color(value)); },
+          [](py::handle value) {
+            return material::skia::Paint::solid(color(value));
+          },
           py::arg("color"))
       .def_static(
-          "linear",
-          [](py::handle from, py::handle to, py::iterable gradient,
-             SkTileMode tile) {
-            return material::skia::Paint::linear(point(from), point(to),
-                                        stops(gradient), tile);
+          "linearGradient",
+          [](py::handle start, py::handle end, py::handle stops,
+             const material::GradientOptions& options) {
+            return material::skia::Paint::linearGradient(
+                point(start), point(end), colorStops(stops), options);
           },
-          py::arg("from_"), py::arg("to"), py::arg("stops"),
-          py::arg("tile") = SkTileMode::kClamp)
+          py::arg("start"), py::arg("end"), py::arg("stops"),
+          py::arg("options") = material::GradientOptions{})
       .def_static(
-          "radial",
-          [](py::handle center, float radius, py::iterable gradient,
-             SkTileMode tile) {
-            return material::skia::Paint::radial(point(center), radius, stops(gradient),
-                                        tile);
+          "radialGradient",
+          [](py::handle center, float radius, py::handle stops,
+             const material::GradientOptions& options) {
+            return material::skia::Paint::radialGradient(
+                point(center), radius, colorStops(stops), options);
           },
           py::arg("center"), py::arg("radius"), py::arg("stops"),
-          py::arg("tile") = SkTileMode::kClamp)
+          py::arg("options") = material::GradientOptions{})
       .def_static(
-          "conical",
-          [](py::handle start, float startRadius, py::handle end,
-             float endRadius, py::iterable gradient) {
-            return material::skia::Paint::conical(point(start), startRadius, point(end),
-                                         endRadius, stops(gradient));
+          "conicGradient",
+          [](py::handle center, py::handle stops,
+             const material::GradientOptions& options) {
+            return material::skia::Paint::conicGradient(
+                point(center), colorStops(stops), options);
           },
-          py::arg("start"), py::arg("startRadius"), py::arg("end"),
-          py::arg("endRadius"), py::arg("stops"))
-      .def_static(
-          "sweep",
-          [](py::handle center, py::iterable gradient, float start,
-             float end) {
-            return material::skia::Paint::sweep(point(center), stops(gradient), start,
-                                       end);
-          },
-          py::arg("center"), py::arg("stops"), py::arg("start") = 0,
-          py::arg("end") = 360)
-      .def_static(
-          "linearUnit",
-          [](py::handle start, py::handle end, py::iterable gradient) {
-            return material::skia::Paint::linearUnit(point(start), point(end),
-                                            stops(gradient));
-          },
-          py::arg("start"), py::arg("end"), py::arg("stops"))
-      .def_static(
-          "radialUnit",
-          [](py::handle center, float radius, py::iterable gradient) {
-            return material::skia::Paint::radialUnit(point(center), radius,
-                                            stops(gradient));
-          },
-          py::arg("center"), py::arg("radius"), py::arg("stops"))
-      .def_static(
-          "glowUnit",
-          [](py::handle center, float radius, py::iterable gradient) {
-            return material::skia::Paint::glowUnit(point(center), radius,
-                                          stops(gradient));
-          },
-          py::arg("center"), py::arg("radius"), py::arg("stops"))
+          py::arg("center"), py::arg("stops"),
+          py::arg("options") = material::GradientOptions{})
       .def_static(
           "image",
           [](sk_sp<SkImage> image, SkTileMode tileX, SkTileMode tileY,
@@ -248,13 +275,15 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def_static("recipe", &material::skia::Paint::recipe, py::arg("material"))
       .def_static("blend", &material::skia::Paint::blend, py::arg("layers"))
       .def("uniform", &uniform, py::arg("name"), py::arg("value"), fluent)
-      .def("slot", &material::skia::Paint::slot, py::arg("name"), py::arg("paint"),
-           fluent)
+      .def("slot", &material::skia::Paint::slot, py::arg("name"),
+           py::arg("paint"), fluent)
       .def("amount", &material::skia::Paint::amount, py::arg("amount"), fluent)
       .def("fit", &material::skia::Paint::fit, py::arg("fit"), fluent)
-      .def("worldSpace", py::overload_cast<bool>(&material::skia::Paint::worldSpace),
+      .def("worldSpace",
+           py::overload_cast<bool>(&material::skia::Paint::worldSpace),
            py::arg("on") = true, fluent)
-      .def("quantizeTime", &material::skia::Paint::quantizeTime, py::arg("rate"), fluent)
+      .def("quantizeTime", &material::skia::Paint::quantizeTime,
+           py::arg("rate"), fluent)
       .def("isAnimated", &material::skia::Paint::isAnimated)
       .def("isNone", &material::skia::Paint::isNone)
       .def(py::self == py::self);

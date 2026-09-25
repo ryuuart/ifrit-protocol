@@ -114,7 +114,7 @@ class Colors(unittest.TestCase):
 
     def test_a_flat_mark_refuses_what_it_cannot_hold(self):
         recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31"))
-        unit = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
+        unit = Paint.linearGradient((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
         # The messages are the refusal: falling back to the generic colour
         # error would say a colour is a string or a sequence, which tells
         # an author nothing about where the value they wrote does belong.
@@ -133,7 +133,7 @@ class Colors(unittest.TestCase):
         self.assertIsInstance(compose.text("words").ink(unit), compose.Text)
 
     def test_an_ink_paint_refuses_what_it_cannot_store(self):
-        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
+        ramp = Paint.linearGradient((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
         # An ink paint is one paint resolved without the tree, so a bound
         # fill says so rather than quietly dropping the ramp already set.
         # A custom-property reference is the ink lane's own spelling and
@@ -149,7 +149,7 @@ class Colors(unittest.TestCase):
         )
 
     def test_an_ink_paint_takes_the_box_it_is_stretched_over(self):
-        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
+        ramp = Paint.linearGradient((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
         for box in (
             compose.PaintBox.Element,
             compose.PaintBox.Subtree,
@@ -164,7 +164,7 @@ class Colors(unittest.TestCase):
         # A text unit restarts the paint on each letter, word or line; the
         # element's own box, the default, lays it once across the passage.
         # The rule and the span take the same keyword the element does.
-        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#f00"), (1, "#00f")])
+        ramp = Paint.linearGradient((0, 0), (1, 0), [(0, "#f00"), (1, "#00f")])
         for box in (
             compose.PaintBox.Element,
             compose.PaintBox.Glyph,
@@ -197,7 +197,7 @@ class Colors(unittest.TestCase):
         )
 
     def test_a_fill_takes_the_box_it_is_stretched_over(self):
-        ramp = Paint.linearUnit((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
+        ramp = Paint.linearGradient((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
         for box in (
             compose.PaintBox.Element,
             compose.PaintBox.Padding,

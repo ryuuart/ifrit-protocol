@@ -24,8 +24,6 @@ def register(table: Table) -> None:
         table.parameters(
             f"_sigil.compose.{node}.shape", function="_t.KeyedShapeFunction"
         )
-    table.erased("_sigil.compose", "linearGradient", "_t.PointLike", "_t.PointLike")
-    table.erased("_sigil.compose", "radialGradient", "_t.PointLike")
     table.erased(
         "_sigil.compose.VarTable",
         "find __contains__",

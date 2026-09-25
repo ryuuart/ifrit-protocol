@@ -271,8 +271,14 @@ key, because a node whose key is unchanged replays the picture it
 recorded."""
 ScalarFunction: TypeAlias = Callable[[float], float]
 EaseLike: TypeAlias = _sigil.motion.Easing | _sigil.motion.Curve | ScalarFunction | None
-GradientStops: TypeAlias = Iterable[tuple[FloatLike, ColorLike]]
-RampStops: TypeAlias = Sequence[_sigil.material.RampStop]
+GradientStops: TypeAlias = (
+    Iterable[_sigil.material.ColorStop | tuple[FloatLike, ColorLike]]
+    | Iterable[ColorLike]
+    | _sigil.material.Ramp
+)
+"""THE STOPS A GRADIENT TAKES: colour stops or `(offset, colour)` pairs,
+plain colours spaced evenly, or a ramp."""
+RampStops: TypeAlias = Sequence[_sigil.material.ColorStop]
 """THE STOPS A RAMP IS SAMPLED FROM, in the order they climb. A sequence
 rather than any iterable, because the stops are read more than once and
 a generator would be spent on the first reading."""

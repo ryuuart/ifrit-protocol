@@ -71,7 +71,12 @@ assert_type(compose.text("words").textStroke(1, None), compose.Text)
 # SurfacePaintLike — anything that can colour a surface, at Element.fill
 # and at the other surface verbs, which take the same set.
 
-ramp = material.Paint.linear((0, 0), (40, 0), [(0, "#fff"), (1, "#123")])
+ramp = material.Paint.linearGradient(
+    (0, 0),
+    (40, 0),
+    [(0, "#fff"), (1, "#123")],
+    material.GradientOptions(units=material.GradientUnits.Pixels),
+)
 recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31"))
 bound = motion.FillOutput(compose.Fill.color("#6e99bb"))
 moving = motion.entrance(compose.Fill.none(), "#6e99bb")
