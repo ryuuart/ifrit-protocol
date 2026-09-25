@@ -7,6 +7,7 @@
 #include <sigilcompose/core/Feed.h>
 
 #include "DressedTypeProbes.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace {
 
@@ -34,7 +35,7 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
         .textFx({.effect = textFx::typeOn(),
                  .stagger = {.eachMs = 12, .durationMs = 40},
                  .progress = animate(motion::from(0.0f).to(1.0f),
-                                     {300ms, &choreograph::easeNone})});
+                                     {300ms, motion::ease::linear})});
   };
   Host host(240, 120);
   host.composer.render(
@@ -89,7 +90,7 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
              .textFx({.effect = textFx::typeOn(),
                       .stagger = {.eachMs = 5, .durationMs = 30},
                       .progress = animate(motion::from(0.0f).to(1.0f),
-                                          {200ms, &choreograph::easeNone})})});
+                                          {200ms, motion::ease::linear})})});
   };
   constexpr size_t kRowNodes = 3;  // the row box, the stripe, the text leaf
 

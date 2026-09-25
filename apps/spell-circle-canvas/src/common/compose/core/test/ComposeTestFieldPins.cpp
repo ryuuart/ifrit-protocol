@@ -40,6 +40,7 @@
 // …and the RUNTIME header, for the kSlotSpecs walk at the bottom of the file.
 // It is the reason this target links yoga::yogacore (see CMakeLists.txt).
 #include "../ComposeRuntime.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace cd = sigil::compose::detail;
 
@@ -105,7 +106,7 @@ void perturb(std::optional<sigil::motion::Transition>& v) {
   v = motion::Transition{};
 }
 
-void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
+void perturb(motion::Easing& v) { v = motion::ease::inQuad; }
 
 void perturb(sigil::motion::Envelope& v) {
   v = sigil::motion::Envelope::kCosine;

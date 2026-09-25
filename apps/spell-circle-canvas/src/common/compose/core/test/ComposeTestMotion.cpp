@@ -8,13 +8,14 @@
 // builds.
 
 #include "support/CoreTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   Host host;
   auto at = [&](float target) {
     return box().children(
         {box().key("m").width(50).height(50).fill(red()).translateX(animate(
-            sigil::motion::to(target), {400ms, &choreograph::easeNone}))});
+            sigil::motion::to(target), {400ms, motion::ease::linear}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -44,7 +45,7 @@ TEST(ComposeTransitions, RetargetsFromTheStyleTheNodeStoodInAcrossAPrune) {
   auto at = [&](float target) {
     return box().children(
         {box().key("m").width(50).height(50).fill(red()).translateX(animate(
-            sigil::motion::to(target), {400ms, &choreograph::easeNone}))});
+            sigil::motion::to(target), {400ms, motion::ease::linear}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -68,7 +69,7 @@ TEST(ComposeTransitions, AStaggerLeadsAnEntranceBeforeItsOwnDelay) {
   auto card = [](std::string_view key) {
     return box().width(50).height(20).fill(red()).key(key).opacity(
         animate(sigil::motion::from(0.0f).to(1.0f),
-                {100ms, &choreograph::easeNone, 200ms}));
+                {100ms, motion::ease::linear, 200ms}));
   };
   host.composer.render(box().column().gap(10).staggerChildren(400ms).children(
       {card("a"), card("b")}));
@@ -142,11 +143,10 @@ TEST(ComposeBindings, ActiveWakesForABindingThatSettledAndMovedAgain) {
 }
 
 TEST(ComposeMotion, EaseAdaptersBindTheShapeParameter) {
-  // choreograph's back/elastic/bounce take a shape parameter with a
-  // default, so &choreograph::easeOutBack does not convert to an EaseFn.
-  // These adapters bind it — and outBack must actually OVERSHOOT, which
-  // is the only reason to reach for it.
-  const choreograph::EaseFn back = motion::ease::outBack();
+  // Back, elastic and bounce take a shape parameter, so each is a
+  // factory that binds it into a comparable curve — and outBack must
+  // actually OVERSHOOT, which is the only reason to reach for it.
+  const motion::Easing back = motion::ease::outBack();
   float peak = 0.0f;
   for (int i = 0; i <= 100; ++i) peak = std::max(peak, back((float)i / 100.0f));
   EXPECT_GT(peak, 1.05f) << "outBack did not overshoot";
@@ -168,7 +168,7 @@ TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
   host.composer.render(at(0.0f));
   host.frame();
   host.composer.render(
-      at(animate(sigil::motion::to(100.0f), {400ms, &choreograph::easeNone})));
+      at(animate(sigil::motion::to(100.0f), {400ms, motion::ease::linear})));
   host.frame(0.2);  // mid-ramp, box around x=50..100
   EXPECT_EQ(host.pixel(75, 25), SK_ColorRED);
   host.composer.render(at(0.0f));  // PLAIN: must snap home
@@ -448,7 +448,7 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
 // sees — the argument spellings are pure sugar over it.
 
 TEST(ComposeMotion, EachArgumentShapeBuildsItsOwnTransitioned) {
-  const sigil::motion::Transition spec{200ms, &choreograph::easeNone, 40ms};
+  const sigil::motion::Transition spec{200ms, motion::ease::linear, 40ms};
 
   const sigil::motion::Transitioned<float> ramp =
       animate(sigil::motion::to(1.0f), spec);
@@ -471,7 +471,7 @@ TEST(ComposeMotion, EachArgumentShapeBuildsItsOwnTransitioned) {
   const std::vector<std::pair<std::chrono::milliseconds, float>> path{
       {0ms, 40.0f}, {200ms, -20.0f}, {400ms, 0.0f}};
   const sigil::motion::Transitioned<float> phrasedPath =
-      animate(sigil::motion::through(path), &choreograph::easeNone);
+      animate(sigil::motion::through(path), motion::ease::linear);
   EXPECT_EQ(phrasedPath.value, 0.0f);
   ASSERT_TRUE(phrasedPath.from.has_value());
   EXPECT_EQ(*phrasedPath.from, 40.0f);
@@ -534,7 +534,7 @@ TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
   auto tree = [] {
     return box().children(
         {box().width(80).height(80).fill(red()).opacity(animate(
-            motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}))});
+            motion::from(0.0f).to(1.0f), {200ms, motion::ease::linear}))});
   };
   host.composer.render(tree());
   host.frame();
@@ -558,7 +558,7 @@ TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   host.composer.render(
       box().children({box().width(80).height(80).fill(motion::Animatable<Fill>(
           animate(motion::from(Fill::color({1, 1, 1, 1})).to(red()),
-                  {200ms, &choreograph::easeNone})))}));
+                  {200ms, motion::ease::linear})))}));
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);  // the declared "from"
   host.frame(0.3);

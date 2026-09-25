@@ -25,6 +25,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/BoundFloat.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilweave/style/ShapingStyle.h>
 
 #include <cstdint>
@@ -197,7 +198,7 @@ class TextEffect {
    *  leaves every glyph on its pen position. */
   TextEffect(std::string name, std::vector<float> parameters,
              GlyphModifierFunction function, float reach,
-             std::vector<choreograph::EaseFn> curves = {},
+             std::vector<motion::Easing> curves = {},
              bool displaces = true) {
     auto state = std::make_shared<State>();
     state->name = std::move(name);
@@ -390,7 +391,7 @@ class TextEffect {
     std::string name;
     std::vector<float> parameters;
     std::vector<TextEffect> operands;
-    std::vector<choreograph::EaseFn> curves;
+    std::vector<motion::Easing> curves;
     GlyphModifierFunction function;
     float reach = 0;
     /** Whether the body moves glyphs off their pen positions — see

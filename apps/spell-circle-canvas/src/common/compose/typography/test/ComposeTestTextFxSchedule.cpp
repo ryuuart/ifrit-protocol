@@ -5,6 +5,7 @@
 // The text binary's share of the content suites, one file per subject.
 
 #include "DressedTypeProbes.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace {
 
@@ -674,7 +675,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
                     .stagger = {.eachMs = 100, .durationMs = 200},
                     .unit = sigil::weave::Unit::Cluster,
                     .progress = animate(motion::from(0.0f).to(1.0f),
-                                        {200ms, &choreograph::easeNone})})}));
+                                        {200ms, motion::ease::linear})})}));
   for (int i = 0; i < 24; ++i) still.frame(0.016);
   unsigned settledPaints = 0;
   for (int i = 0; i < 4; ++i) {

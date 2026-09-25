@@ -5,6 +5,7 @@
 // The text binary's share of the content suites, one file per subject.
 
 #include "DressedTypeProbes.h"
+#include <sigilmotion/ease/Ease.h>
 
 TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
   // The stagger law: at mid-progress the early glyphs are fully revealed
@@ -131,7 +132,7 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
   host.composer.render(tree(0.001f));
   host.frame();
   host.composer.render(
-      tree(animate(sigil::motion::to(1.0f), {400ms, &choreograph::easeNone})));
+      tree(animate(sigil::motion::to(1.0f), {400ms, sigil::motion::ease::linear})));
   host.frame(0.2);                                    // mid-ramp
   EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // live while animating
   host.frame(0.3);                                    // settle

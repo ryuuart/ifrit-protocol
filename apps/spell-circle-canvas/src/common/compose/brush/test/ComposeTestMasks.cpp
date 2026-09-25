@@ -3,6 +3,7 @@
 // the coverage laws each gate resolves its own term by.
 
 #include "support/BrushTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 // ---- S1 · the helper's three strokes, gated from OUTSIDE the helper -------
 
@@ -89,7 +90,7 @@ TEST(ComposeMaskGates, TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
       e.mask(by::spans(spans::upTo(0.8f)));
     else
       e.mask(by::spans(spans::upTo(
-          animate(sigil::motion::to(0.5f), {400ms, &choreograph::easeNone}))));
+          animate(sigil::motion::to(0.5f), {400ms, sigil::motion::ease::linear}))));
     return stack().children({std::move(e)});
   };
   Host host(200, 200);
@@ -330,7 +331,7 @@ TEST(ComposeMaskGates, AGatedNodeKeepsTheScalarMemoAndPrunes) {
                                 {std::chrono::milliseconds(200), 0.6f},
                                 {std::chrono::milliseconds(600), 0.6f},
                                 {std::chrono::milliseconds(800), 1.0f}}),
-                           &choreograph::easeNone))))});
+                           sigil::motion::ease::linear))))});
   };
   Host host;
   host.composer.render(ring());

@@ -5,6 +5,7 @@
 #include <sigilcompose/core/Feed.h>
 
 #include "support/CoreTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace {
 
@@ -82,7 +83,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
         .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {200ms, &choreograph::easeNone}));
+                         {200ms, motion::ease::linear}));
   };
   Host host(160, 200);
   auto describe = [&] {
@@ -153,7 +154,7 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
         .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {200ms, &choreograph::easeNone}));
+                         {200ms, motion::ease::linear}));
   };
   Host host(160, 200);
   auto describe = [&] {

@@ -35,6 +35,7 @@
 
 #include "../ComposeRuntime.h"
 #include "support/CoreTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace cd = sigil::compose::detail;
 
@@ -198,7 +199,7 @@ std::vector<uint32_t> pixels(Host& host, int w = 200, int h = 200) {
   return out;
 }
 
-const sigil::motion::Transition kSecondFlat{1000ms, &choreograph::easeNone};
+const sigil::motion::Transition kSecondFlat{1000ms, sigil::motion::ease::linear};
 
 }  // namespace
 

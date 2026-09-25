@@ -5,6 +5,7 @@
 #include <sigilcompose/kit/Marquee.h>
 
 #include "support/BrushTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
   Host host(200, 100);
@@ -264,7 +265,7 @@ TEST(ComposeMotion, DelayStaggersTheEntrance) {
   auto card = [](float delaySec) {
     return box().width(60).height(30).fill(red()).opacity(
         animate(motion::from(0.0f).to(1.0f),
-                {200ms, &choreograph::easeNone,
+                {200ms, motion::ease::linear,
                  std::chrono::milliseconds((int)(delaySec * 1000))}));
   };
   host.composer.render(
@@ -329,7 +330,7 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
   Host host;
   auto card = [] {
     return box().width(60).height(30).fill(red()).opacity(
-        animate(motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
+        animate(motion::from(0.0f).to(1.0f), {200ms, motion::ease::linear}));
   };
   host.composer.render(
       box().column().gap(10).staggerChildren(400ms).children({card(), card()}));

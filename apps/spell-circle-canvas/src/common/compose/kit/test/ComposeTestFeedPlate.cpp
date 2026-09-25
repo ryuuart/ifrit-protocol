@@ -5,6 +5,7 @@
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <algorithm>
 
@@ -195,7 +196,7 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
       row.key(feed::rowKey(r.sequence));
       if (staggered)
         row.opacity(animate(motion::from(0.0f).to(1.0f),
-                            {200ms, &choreograph::easeNone}));
+                            {200ms, motion::ease::linear}));
       column.children({std::move(row)});
     }
     return box().children({std::move(column)});

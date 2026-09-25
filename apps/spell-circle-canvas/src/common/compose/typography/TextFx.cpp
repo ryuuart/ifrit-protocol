@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "TextEngine.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace sigil::compose {
 
@@ -176,14 +177,14 @@ bool keysDisplace(const std::vector<Key>& table) {
 
 }  // namespace
 
-TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
+TextEffect keys(std::vector<Key> table, motion::Easing ease) {
   if (table.empty()) return TextEffect();
   std::vector<float> parameters;
   parameters.reserve(table.size() * 29);
   // The table-wide curve first, then one slot per entry whether or not that
   // entry overrode it: equal tables then always compare curve lists of equal
   // length, and a curve moved from one entry to another is a difference.
-  std::vector<choreograph::EaseFn> curves;
+  std::vector<motion::Easing> curves;
   curves.reserve(table.size() + 1);
   curves.push_back(ease);
   for (const Key& key : table) {
@@ -208,7 +209,7 @@ TextEffect keys(std::vector<Key> table, choreograph::EaseFn ease) {
           const float u = span > 0 ? (t - from.at) / span : 1.0f;
           // The curve is the one named on the segment's OPENING entry, which
           // is where a keyframe list states it.
-          const choreograph::EaseFn& curve = from.ease ? from.ease : ease;
+          const motion::Easing& curve = from.ease ? from.ease : ease;
           return compose::detail::lerpModifier(from.modifier, to.modifier,
                                                curve ? curve(u) : u);
         }

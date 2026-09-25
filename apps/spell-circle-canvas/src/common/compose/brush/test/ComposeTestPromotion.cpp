@@ -292,6 +292,7 @@ TEST(ComposeCache, ARefusalNamesTheReasonItRefused) {
 
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmotion/ease/Ease.h>
 
 namespace {
 
@@ -329,7 +330,7 @@ Element arcTable() {
     arc.mask(by::spans(spans::upTo(
         animate(motion::from(0.0001f).to(r.endDeg / 360.0f),
                 {std::chrono::milliseconds(120u << (unsigned)r.ring),
-                 &choreograph::easeNone, std::chrono::milliseconds(150)}))));
+                 motion::ease::linear, std::chrono::milliseconds(150)}))));
     plate.children({std::move(arc).key("ring" + std::to_string(r.ring))});
   }
   page.children(

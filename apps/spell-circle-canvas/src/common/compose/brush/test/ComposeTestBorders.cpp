@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "support/BrushTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace {
 Fill white() { return Fill::color({1, 1, 1, 1}); }
@@ -202,7 +203,7 @@ TEST(ComposeMotion, StaggerFromEndRunsBottomUp) {
   Host host;
   auto card = [] {
     return box().width(60).height(30).fill(red()).opacity(
-        animate(motion::from(0.0f).to(1.0f), {200ms, &choreograph::easeNone}));
+        animate(motion::from(0.0f).to(1.0f), {200ms, motion::ease::linear}));
   };
   host.composer.render(box()
                            .column()
@@ -230,7 +231,7 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
                sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
                                        {std::chrono::milliseconds(200), -20.0f},
                                        {std::chrono::milliseconds(400), 0.0f}}),
-               &choreograph::easeNone))}));
+               motion::ease::linear))}));
   host.frame();
   EXPECT_EQ(host.pixel(145, 100), SK_ColorRED);  // starts at +40
   EXPECT_EQ(host.pixel(105, 100), SK_ColorBLACK);
@@ -250,7 +251,7 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
                sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
                                        {std::chrono::milliseconds(200), -20.0f},
                                        {std::chrono::milliseconds(400), 0.0f}}),
-               &choreograph::easeNone))}));
+               motion::ease::linear))}));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
@@ -306,7 +307,7 @@ TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
              .fill(std::move(f))
              .opacity(animate(
                  motion::from(0.0f).to(1.0f),
-                 {std::chrono::milliseconds(400), &choreograph::easeNone,
+                 {std::chrono::milliseconds(400), motion::ease::linear,
                   std::chrono::milliseconds(300)}))});
   };
   host.composer.render(tree(red()));
@@ -334,7 +335,7 @@ TEST(ComposeMotion, ToggleBackDuringDelayHoldLands) {
                                .height(80)
                                .fill(red())
                                .transition({std::chrono::milliseconds(200),
-                                            &choreograph::easeNone,
+                                            motion::ease::linear,
                                             std::chrono::milliseconds(300)})
                                .opacity(op)});
   };
@@ -463,7 +464,7 @@ TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
   auto card = [](std::string_view key) {
     return box().width(60).height(20).fill(red()).key(key).opacity(
         animate(motion::from(0.0f).to(1.0f),
-                {std::chrono::milliseconds(100), &choreograph::easeNone}));
+                {std::chrono::milliseconds(100), motion::ease::linear}));
   };
   host.composer.render(box()
                            .column()

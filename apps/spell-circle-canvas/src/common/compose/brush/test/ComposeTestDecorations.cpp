@@ -7,6 +7,7 @@
 #include <functional>
 
 #include "support/BrushTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
   Host host;
@@ -419,7 +420,7 @@ TEST(ComposeMask, TransitionDrawsOn) {
   host.frame();
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
   host.composer.render(
-      tree(animate(sigil::motion::to(1.0f), {400ms, &choreograph::easeNone})));
+      tree(animate(sigil::motion::to(1.0f), {400ms, motion::ease::linear})));
   host.frame(0.2);  // ~50%: left + top revealed, bottom still bare
   EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);

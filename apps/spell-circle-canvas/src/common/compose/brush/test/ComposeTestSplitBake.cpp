@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "support/BrushTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 TEST(ComposeCache, AnAddedWireSurvivesParentCaching) {
   // A wire is mounted by an operator AFTER the parent has been described,
@@ -66,7 +67,7 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   host.frame();
   host.composer.render(
       tree(animate(sigil::motion::to(0.4f),
-                   {std::chrono::milliseconds(100), &choreograph::easeNone})));
+                   {std::chrono::milliseconds(100), motion::ease::linear})));
   host.frame(0.5);  // settled at 0.4
   host.frame();     // draw again from caches
   const SkColor c = host.pixel(40, 40);

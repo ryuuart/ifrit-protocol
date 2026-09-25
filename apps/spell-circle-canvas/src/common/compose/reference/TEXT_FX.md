@@ -297,7 +297,7 @@ const TextEffect rubberBand = textFx::keys({
     {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
     {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
     {1.00f, {}},
-}, &choreograph::easeInOutCubic);
+}, motion::ease::inOutCubic);
 ```
 
 The curve applies **per segment** — every pair of entries runs the whole curve

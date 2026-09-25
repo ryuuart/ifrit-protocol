@@ -218,7 +218,7 @@ struct Key {
   /** The curve this entry's own segment is interpolated with, overriding
    *  the table's. Unset takes the table's; the LAST entry's is never read,
    *  because no segment starts there. */
-  choreograph::EaseFn ease;
+  motion::Easing ease;
 };
 
 /** THE KEYFRAME TABLE: a list of (local time, deviation) entries, and the
@@ -229,7 +229,7 @@ struct Key {
  *          {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
  *          {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
  *          {1.00f, {}},
- *      }, &choreograph::easeInOutCubic);
+ *      }, motion::ease::inOutCubic);
  *
  *  Entries are read IN ORDER and each pair is one segment; local time
  *  before the first entry holds the first entry's deviation and time after
@@ -253,7 +253,7 @@ struct Key {
  *  same named curves compare equal and prune — and it declares its own
  *  reach from the offsets, growths and leans it publishes. */
 [[nodiscard]] TextEffect keys(std::vector<Key> table,
-                              choreograph::EaseFn ease = nullptr);
+                              motion::Easing ease = nullptr);
 
 /** NOTHING UNTIL THE BEAT OPENS: `effect` as it is, except that a unit
  *  whose beat has not begun paints nothing at all.

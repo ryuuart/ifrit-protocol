@@ -12,7 +12,7 @@
  *   text(u8"KINETIC", display)
  *       .textFx({.effect = textFx::rise(),
  *            .stagger = {.eachMs = 28, .durationMs = 480},
- *            .progress = with(1.0f, {900ms, &ch::easeOutQuad})});
+ *            .progress = with(1.0f, {900ms, motion::ease::outQuad})});
  *
  * Several tracks compose per glyph — offsets and rotations add, scale and
  * alpha multiply — and each carries its own selector, cascade and
@@ -47,7 +47,7 @@
  * `variableAxisSweep` and `tint` do not.
  */
 
-#include <choreograph/Easing.h>
+#include <sigilmotion/ease/Ease.h>
 #include <include/core/SkColor.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
@@ -129,10 +129,10 @@ struct Entrance {
        e.scatterLeanDeg, e.fadeOver, (float)e.curve},
       [e](const GlyphInfo&, float t, core::noise::Mix64Stream& rng) {
         const float eased = e.curve == Curve::OutExpo
-                                ? choreograph::easeOutExpo(t)
+                                ? motion::ease::outExpo(t)
                             : e.curve == Curve::OutBack
-                                ? choreograph::easeOutBack(t, e.overshoot)
-                                : choreograph::easeOutCubic(t);
+                                ? motion::ease::outBack(e.overshoot)(t)
+                                : motion::ease::outCubic(t);
         const float left = 1.0f - eased;
         float dx = e.dx, dy = e.dy, lean = e.rotateDeg;
         if (e.scatterPx != 0) {

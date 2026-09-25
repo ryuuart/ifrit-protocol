@@ -21,6 +21,7 @@
 #include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <any>
 #include <concepts>
@@ -243,13 +244,13 @@ KeyedShape<K, F> keyedShape(K key, F fn) {
  *  The animatable lane here is a single float, @ref t — WHERE ALONG the
  *  curve — so the whole `bind()` chain still applies, to the SCHEDULE
  *  rather than to the geometry:
- *  `.map(&choreograph::easeInOutQuad)` eases the move in and out,
+ *  `.map(motion::ease::inOutQuad)` eases the move in and out,
  *  `.target(0, 2)` runs two laps of a closed curve, `.window(...)` makes
  *  the move a slice of a larger phase. The curve supplies the SHAPE, the
  *  lane supplies the SCHEDULE. That separation is the whole design.
  *
  *      .travel({.path = shapes::circle(),
- *               .t = bind(&phase).map(&choreograph::easeInOutQuad).target(0,
+ *               .t = bind(&phase).map(motion::ease::inOutQuad).target(0,
  * 1)})
  *
  *  The rules:

@@ -3,6 +3,7 @@
 // segment repaints nothing.
 
 #include "support/BrushTestSupport.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace {
 
@@ -119,7 +120,7 @@ Element gatedRing(Cache mode) {
                                       {std::chrono::milliseconds(200), 0.6f},
                                       {std::chrono::milliseconds(600), 0.6f},
                                       {std::chrono::milliseconds(800), 1.0f}}),
-                                 &choreograph::easeNone))))});
+                                 sigil::motion::ease::linear))))});
 }
 
 }  // namespace

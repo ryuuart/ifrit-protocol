@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "DressedTypeProbes.h"
+#include <sigilmotion/ease/Ease.h>
 
 namespace {
 
@@ -195,7 +196,7 @@ TEST(ComposeTextFx, KeysReproducesEveryEntryAtItsOwnPosition) {
       {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
       {0.65f, {.scaleX = 0.95f, .scaleY = 1.05f}},
       {1.00f, {}}};
-  const TextEffect rubber = textFx::keys(table, &choreograph::easeInOutCubic);
+  const TextEffect rubber = textFx::keys(table, sigil::motion::ease::inOutCubic);
   for (const textFx::Key& key : table) {
     EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleX, key.modifier.scaleX)
         << "scaleX at " << key.at;
@@ -217,7 +218,7 @@ TEST(ComposeTextFx, KeysEasesEachSegmentOnItsOwn) {
   const TextEffect linear = textFx::keys(ramp);
   EXPECT_FLOAT_EQ(evaluate(linear, 0.125f).dy, 2.5f);
 
-  const TextEffect eased = textFx::keys(ramp, &choreograph::easeInOutCubic);
+  const TextEffect eased = textFx::keys(ramp, sigil::motion::ease::inOutCubic);
   EXPECT_FLOAT_EQ(evaluate(eased, 0.5f).dy, 10.0f);  // the entry is still exact
   EXPECT_LT(evaluate(eased, 0.125f).dy, 1.5f)  // …the middle is not linear
       << "a quarter of the way into the first segment the reading is the "
@@ -229,8 +230,8 @@ TEST(ComposeTextFx, KeysEasesEachSegmentOnItsOwn) {
   // A per-entry curve governs the segment that OPENS at that entry, and no
   // other.
   std::vector<textFx::Key> mixed = ramp;
-  mixed[0].ease = &choreograph::easeNone;
-  const TextEffect part = textFx::keys(mixed, &choreograph::easeInOutCubic);
+  mixed[0].ease = sigil::motion::ease::linear;
+  const TextEffect part = textFx::keys(mixed, sigil::motion::ease::inOutCubic);
   EXPECT_FLOAT_EQ(evaluate(part, 0.125f).dy, 2.5f);
   EXPECT_NEAR(evaluate(part, 0.625f).dy, evaluate(eased, 0.625f).dy, 1e-4f);
 }
@@ -277,11 +278,11 @@ TEST(ComposeTextFx, AKeyTableIsComparableByItsNumbersAndItsCurves) {
   // motion, and an effect comparing equal to the one it replaced would go
   // on drawing the old one with no diagnostic.
   EXPECT_FALSE(textFx::keys(table(1.25f)) ==
-               textFx::keys(table(1.25f), &choreograph::easeInOutCubic));
-  EXPECT_FALSE(textFx::keys(table(1.25f), &choreograph::easeOutQuad) ==
-               textFx::keys(table(1.25f), &choreograph::easeInOutCubic));
-  EXPECT_TRUE(textFx::keys(table(1.25f), &choreograph::easeInOutCubic) ==
-              textFx::keys(table(1.25f), &choreograph::easeInOutCubic));
+               textFx::keys(table(1.25f), sigil::motion::ease::inOutCubic));
+  EXPECT_FALSE(textFx::keys(table(1.25f), sigil::motion::ease::outQuad) ==
+               textFx::keys(table(1.25f), sigil::motion::ease::inOutCubic));
+  EXPECT_TRUE(textFx::keys(table(1.25f), sigil::motion::ease::inOutCubic) ==
+              textFx::keys(table(1.25f), sigil::motion::ease::inOutCubic));
 }
 
 TEST(ComposeTextFx, AKeyedTrackPrunesWhenItsTableIsUnchanged) {
@@ -292,7 +293,7 @@ TEST(ComposeTextFx, AKeyedTrackPrunesWhenItsTableIsUnchanged) {
              .key("k")
              .textFx({.effect = textFx::keys(
                           {{0.0f, {}}, {0.5f, {.dy = -8.0f}}, {1.0f, {}}},
-                          &choreograph::easeInOutCubic)})});
+                          sigil::motion::ease::inOutCubic)})});
   };
   host.composer.render(tree());
   for (int i = 0; i < 4; ++i) host.frame(0.016);
@@ -308,7 +309,7 @@ TEST(ComposeTextFx, AKeyedTrackPrunesWhenItsTableIsUnchanged) {
            .key("k")
            .textFx({.effect = textFx::keys(
                         {{0.0f, {}}, {0.5f, {.dy = -9.0f}}, {1.0f, {}}},
-                        &choreograph::easeInOutCubic)})}));
+                        sigil::motion::ease::inOutCubic)})}));
   EXPECT_GT(host.composer.stats().patchedNodes, 0u);
 }
 
