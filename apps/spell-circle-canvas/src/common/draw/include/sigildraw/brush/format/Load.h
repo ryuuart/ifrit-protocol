@@ -66,7 +66,7 @@ inline constexpr std::string_view kGrainName = "grain.png";
 struct BrushDecoder {
   [[nodiscard]] std::optional<Tool> decode(const io::Bytes& bytes,
                                            std::string_view hint) const {
-    return decodeBrush(bytes.bytes, hint);
+    return decodeBrush(bytes, hint);
   }
 };
 
@@ -81,7 +81,7 @@ template <io::ByteSource S>
   // One file first: a brush that is one resource costs one fetch, and a
   // directory has no bytes of its own, so it falls through to its parts.
   if (const std::shared_ptr<const io::Bytes> packed = source.fetch(uri))
-    if (std::optional<Tool> tool = decodeBrush(packed->bytes, uri)) return tool;
+    if (std::optional<Tool> tool = decodeBrush(*packed, uri)) return tool;
 
   std::string base(uri);
   while (!base.empty() && base.back() == '/') base.pop_back();
@@ -94,9 +94,9 @@ template <io::ByteSource S>
     const std::shared_ptr<const io::Bytes> grain =
         source.fetch(base + "/" + std::string(kGrainName));
     static constexpr std::span<const std::byte> kNothing;
-    return assembleBrush(description ? std::span(description->bytes) : kNothing,
-                         shape ? std::span(shape->bytes) : kNothing,
-                         grain ? std::span(grain->bytes) : kNothing);
+    return assembleBrush(description ? description->span() : kNothing,
+                         shape ? shape->span() : kNothing,
+                         grain ? grain->span() : kNothing);
   }
   return std::nullopt;
 }

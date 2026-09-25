@@ -50,9 +50,9 @@ std::optional<Tool> decodeProcreateBrush(std::span<const std::byte> bytes) {
   for (const io::ArchiveEntry& entry : archive.entries()) {
     if (!isPicture(entry.name)) continue;
     if (!shape && namesPart(entry.name, "shape"))
-      shape = decodeArtwork(entry.bytes->bytes);
+      shape = decodeArtwork(*entry.bytes);
     else if (!grain && namesPart(entry.name, "grain"))
-      grain = decodeArtwork(entry.bytes->bytes);
+      grain = decodeArtwork(*entry.bytes);
   }
   if (!shape && !grain) return std::nullopt;
 

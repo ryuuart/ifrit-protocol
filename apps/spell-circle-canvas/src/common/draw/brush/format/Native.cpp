@@ -303,11 +303,11 @@ std::optional<Tool> decodeBrush(std::span<const std::byte> all,
     for (const io::ArchiveEntry& entry : archive.entries()) {
       const std::string_view name(entry.name);
       if (name.ends_with(kDescriptionName))
-        description = entry.bytes->bytes;
+        description = entry.bytes->span();
       else if (name.ends_with(kShapeName))
-        shape = entry.bytes->bytes;
+        shape = entry.bytes->span();
       else if (name.ends_with(kGrainName))
-        grain = entry.bytes->bytes;
+        grain = entry.bytes->span();
     }
     if (!description.empty() || !shape.empty())
       return assembleBrush(description, shape, grain);
