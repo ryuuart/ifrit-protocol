@@ -246,7 +246,7 @@ struct FeedVitals {
     std::string headline = "nothing has arrived";
     std::vector<std::string> rows;
     if (message) {
-      const size_t held = message->bytes.size();
+      const size_t held = message->size();
       const size_t taken = std::min(held, kHexBytes);
       headline = taken < held
                      ? kit::formatted("%zu bytes · the first %zu", held, taken)
@@ -254,7 +254,7 @@ struct FeedVitals {
       std::string row;
       for (size_t at = 0; at < taken; ++at) {
         row += kit::formatted(
-            "%02x ", (unsigned)std::to_integer<uint8_t>(message->bytes[at]));
+            "%02x ", (unsigned)std::to_integer<uint8_t>(message->span()[at]));
         if ((at + 1) % kHexPerRow == 0) {
           rows.push_back(row);
           row.clear();

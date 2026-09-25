@@ -81,10 +81,10 @@ using Clips = std::array<std::shared_ptr<vid::Video>, kSources.size()>;
 
 std::shared_ptr<vid::Video> openVideo(
     const std::shared_ptr<const io::Bytes>& encoded, std::string_view uri) {
-  if (!encoded || encoded->bytes.empty()) return nullptr;
+  if (!encoded || encoded->empty()) return nullptr;
   vid::DecodeOptions options;
   options.cachedFrames = 12;
-  return vid::decodeVideo(encoded->bytes.data(), encoded->bytes.size(), options,
+  return vid::decodeVideo(encoded->data(), encoded->size(), options,
                           std::filesystem::path(uri));
 }
 

@@ -77,9 +77,9 @@ constexpr std::string_view kModel = "res://models/Avocado.glb";
 std::optional<gm::Mesh> imported(sketch::Assets& assets) {
   const std::string uri(kModel);
   const std::shared_ptr<const io::Bytes> bytes = assets.hub().fetch(uri);
-  if (!bytes || bytes->bytes.empty()) return std::nullopt;
+  if (!bytes || bytes->empty()) return std::nullopt;
   const std::optional<gm::codec::decode::Model> model =
-      gm::codec::decode::model(bytes->bytes.data(), bytes->bytes.size(), uri);
+      gm::codec::decode::model(bytes->data(), bytes->size(), uri);
   if (!model || model->parts.empty()) return std::nullopt;
   gm::Mesh merged = model->merged();
   merged.transform(model->fitTransform(kExtent * 2.0f));

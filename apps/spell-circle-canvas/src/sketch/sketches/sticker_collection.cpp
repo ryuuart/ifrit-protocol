@@ -79,10 +79,10 @@ const std::string kWebm = "https://raw.githubusercontent.com/samdutton/simpl/" +
 
 std::shared_ptr<video::Video> loadVideo(io::Hub& hub, std::string_view uri) {
   const std::shared_ptr<const io::Bytes> encoded = hub.fetch(uri);
-  if (!encoded || encoded->bytes.empty()) return nullptr;
+  if (!encoded || encoded->empty()) return nullptr;
   video::DecodeOptions options;
   options.cachedFrames = 8;
-  return video::decodeVideo(encoded->bytes.data(), encoded->bytes.size(),
+  return video::decodeVideo(encoded->data(), encoded->size(),
                             options, std::filesystem::path(uri));
 }
 

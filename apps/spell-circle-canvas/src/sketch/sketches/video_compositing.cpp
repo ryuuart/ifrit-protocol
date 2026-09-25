@@ -77,8 +77,8 @@ constexpr std::string_view kAlphaVideo =
 
 std::shared_ptr<video::Video> loadVideo(io::Hub& hub, std::string_view uri) {
   const std::shared_ptr<const io::Bytes> encoded = hub.fetch(uri);
-  if (!encoded || encoded->bytes.empty()) return nullptr;
-  return video::decodeVideo(encoded->bytes.data(), encoded->bytes.size(),
+  if (!encoded || encoded->empty()) return nullptr;
+  return video::decodeVideo(encoded->data(), encoded->size(),
                             {.cachedFrames = 8}, std::filesystem::path(uri));
 }
 

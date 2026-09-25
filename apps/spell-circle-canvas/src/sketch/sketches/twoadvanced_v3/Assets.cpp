@@ -71,7 +71,7 @@ void TwoAdvancedV3::buildGapMask() {
   gapMask = bm.asImage();
 }
 
-void TwoAdvancedV3::extractRivImages(const std::vector<std::byte>& bytes) {
+void TwoAdvancedV3::extractRivImages(std::span<const std::byte> bytes) {
   clouds.assign(62, nullptr);
   discordSeq.assign(102, nullptr);
 

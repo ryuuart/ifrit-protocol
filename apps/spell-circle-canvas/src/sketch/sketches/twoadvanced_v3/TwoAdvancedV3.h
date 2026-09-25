@@ -1,5 +1,7 @@
 #pragma once
 
+#include <span>
+
 #include "Settings.h"
 
 struct TwoAdvancedV3 {
@@ -118,7 +120,7 @@ struct TwoAdvancedV3 {
     return -1;
   }
 
-  void extractRivImages(const std::vector<std::byte>& bytes);
+  void extractRivImages(std::span<const std::byte> bytes);
 
   // =========================================================================
   // Regions, top to bottom.

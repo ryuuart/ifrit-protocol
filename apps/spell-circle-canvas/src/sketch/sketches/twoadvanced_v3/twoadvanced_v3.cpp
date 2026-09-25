@@ -86,7 +86,7 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
     pageLogo =
         hub.image(site + "V3ExpansionsReboot/assets/images/2a-logo@2x.png");
     if (auto blob = hub.fetch(site + "v3expansionsreboot/mainstage.riv"))
-      extractRivImages(blob->bytes);
+      extractRivImages(*blob);
     buildGapMask();
     cloudLook = buildCloudLook();
   }

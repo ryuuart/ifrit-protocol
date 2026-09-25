@@ -58,8 +58,8 @@ struct Cloud {
 
 std::optional<Cloud> parseCloud(const io::Bytes& bytes, std::string_view) {
   Cloud cloud;
-  const std::string text(reinterpret_cast<const char*>(bytes.bytes.data()),
-                         bytes.bytes.size());
+  const std::string text(reinterpret_cast<const char*>(bytes.data()),
+                         bytes.size());
   float x = 0, y = 0;
   size_t at = 0;
   while (at < text.size()) {
