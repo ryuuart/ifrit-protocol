@@ -84,7 +84,7 @@ struct GifFrames {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     io::Hub& hub = ctx.assets.hub();
-    const std::optional<io::ResourceInfo> bytes = hub.probe(kSource);
+    const std::optional<io::ResourceInfo> bytes = hub.probe<io::ResourceInfo>(kSource);
     const std::optional<image::ImageProbe> meaning =
         hub.probe<image::ImageProbe>(kSource);
     const std::shared_ptr<const image::ImageAsset> gif = hub.load<image::ImageAsset>(kSource);

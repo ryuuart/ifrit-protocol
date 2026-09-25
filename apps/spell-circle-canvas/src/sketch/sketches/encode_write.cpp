@@ -122,7 +122,10 @@ struct EncodeWrite {
     img::registerDecoders(hub);
     sk_sp<SkData> bytes = img::encodeImage(*art, img::Format::Png);
     const std::string uri = std::string(kMount) + "plate.png";
-    const bool wrote = bytes && hub.write(uri, bytes->data(), bytes->size());
+    const bool wrote =
+        bytes && hub.write(uri, std::span(static_cast<const std::byte*>(
+                                              bytes->data()),
+                                          bytes->size()));
     const std::shared_ptr<const img::ImageAsset> read =
         wrote ? hub.load<img::ImageAsset>(uri) : nullptr;
     const std::string written =

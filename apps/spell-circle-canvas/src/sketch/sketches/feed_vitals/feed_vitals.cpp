@@ -240,8 +240,10 @@ struct FeedVitals {
    *  is them. */
   Element bytes() {
     const sketch::kit::Theme& look = sketch::kit::theme();
+    const std::optional<io::Arrival> latest =
+        arrivals ? arrivals->latest() : std::nullopt;
     const std::shared_ptr<const io::Bytes> message =
-        arrivals ? arrivals->latest() : nullptr;
+        latest ? latest->bytes : nullptr;
     std::string headline = "nothing has arrived";
     std::vector<std::string> rows;
     if (message) {
