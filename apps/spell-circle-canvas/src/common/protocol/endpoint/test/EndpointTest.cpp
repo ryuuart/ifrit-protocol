@@ -143,7 +143,7 @@ std::optional<std::string> addressBeyondLoopback() {
  *  dials it from. */
 class ProtocolEndpoint : public ::testing::Test {
  protected:
-  ProtocolEndpoint() { sigil::io::registerWebSocketClient(clientHub); }
+  ProtocolEndpoint() { sigil::io::registerTransports(clientHub, {"ws"}); }
 
   protocol::Program program() const {
     protocol::Program named;

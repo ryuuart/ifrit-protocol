@@ -157,7 +157,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
                     "&frames=text&admit=loopback";
   if (policy.statedPeers.empty()) uri += "&bind=127.0.0.1";
   for (const std::string& peer : policy.statedPeers) uri += "&admit=" + peer;
-  if (!hub.feedTransport("ws")) io::registerWebSocket(hub);
+  if (!hub.feedTransport("ws")) io::registerTransports(hub, {"ws"});
   socket.connection = data::Connection(hub, uri);
   if (!socket.connection.error().empty()) {
     socket.error = "endpoint: " + socket.connection.error();
