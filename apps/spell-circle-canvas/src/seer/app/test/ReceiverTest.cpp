@@ -298,9 +298,9 @@ TEST_F(SeerReceiver, RestartingFromASceneSignalOpensAFreshLiveFeed) {
 
 TEST_F(SeerReceiver, ReplayingFromASceneSignalReleasesTheOldFeedFirst) {
   const QByteArray scene = circleScene();
-  auto bytes = std::make_shared<sigil::io::Bytes>();
   const auto* first = reinterpret_cast<const std::byte*>(scene.constData());
-  bytes->bytes.assign(first, first + scene.size());
+  auto bytes = std::make_shared<const sigil::io::Bytes>(
+      std::span(first, static_cast<size_t>(scene.size())));
   const QString path = directory.path() + "/reentrant.feed";
   {
     sigil::io::RecordingWriter writer(path.toStdString());
@@ -347,14 +347,14 @@ TEST_F(SeerReceiver, RecordingWritesTheArrivalsAlsoSeenByTheReceiver) {
   ASSERT_EQ(recorded->size(), 1u);
   EXPECT_EQ(app->messages()->rowCount(), 1);
   const auto expected = circleScene();
-  EXPECT_EQ(recorded->front().bytes->bytes.size(), expected.size());
+  EXPECT_EQ(recorded->front().bytes->size(), expected.size());
 }
 
 TEST_F(SeerReceiver, ReplayReplacesThePinnedFeedAndCanRestart) {
   const QByteArray scene = circleScene();
-  auto bytes = std::make_shared<sigil::io::Bytes>();
   const auto* first = reinterpret_cast<const std::byte*>(scene.constData());
-  bytes->bytes.assign(first, first + scene.size());
+  auto bytes = std::make_shared<const sigil::io::Bytes>(
+      std::span(first, static_cast<size_t>(scene.size())));
   const QString path = directory.path() + "/scene.feed";
   {
     sigil::io::RecordingWriter writer(path.toStdString());

@@ -33,16 +33,12 @@ namespace {
 
 Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes out;
-  out.bytes.assign(first, first + text.size());
-  return out;
+  return Bytes(std::span(first, text.size()));
 }
 
 /** The bytes of @p message as a message off a wire. */
 Bytes messageOf(std::vector<std::byte> message) {
-  Bytes out;
-  out.bytes = std::move(message);
-  return out;
+  return Bytes(std::move(message));
 }
 
 /** A note struck on a channel, as the codec writes it. */
@@ -169,33 +165,32 @@ TEST(SeerDmx, APacketIsNoDocumentAndADocumentIsNoPacket) {
 }
 
 TEST(SeerMidi, AMessageIsSpelledFromItsKindItsChannelAndItsNumbers) {
-  EXPECT_EQ(sigil::seer::midiMessage("NoteOn", 1, 60, 100).bytes,
-            sigil::data::encodeMidi(noteOn(1, 60, 100)));
+  EXPECT_EQ(sigil::seer::midiMessage("NoteOn", 1, 60, 100),
+            sigil::io::Bytes(sigil::data::encodeMidi(noteOn(1, 60, 100))));
   EXPECT_EQ(
-      sigil::seer::midiMessage("ControlChange", 16, 74, 32).bytes,
-      sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("ControlChange")},
+      sigil::seer::midiMessage("ControlChange", 16, 74, 32),
+      sigil::io::Bytes(sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("ControlChange")},
                                                 {"channel", Json(16)},
                                                 {"controller", Json(74)},
-                                                {"value", Json(32)}})));
+                                                {"value", Json(32)}}))));
 
   // A kind that takes one number takes the first and leaves the second
   // off the wire, so what a form shows for it is one field.
   EXPECT_EQ(
-      sigil::seer::midiMessage("ProgramChange", 2, 7, 99).bytes,
-      sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("ProgramChange")},
+      sigil::seer::midiMessage("ProgramChange", 2, 7, 99),
+      sigil::io::Bytes(sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("ProgramChange")},
                                                 {"channel", Json(2)},
-                                                {"program", Json(7)}})));
+                                                {"program", Json(7)}}))));
   EXPECT_EQ(
-      sigil::seer::midiMessage("PitchBend", 1, -8192, 0).bytes,
-      sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("PitchBend")},
+      sigil::seer::midiMessage("PitchBend", 1, -8192, 0),
+      sigil::io::Bytes(sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("PitchBend")},
                                                 {"channel", Json(1)},
-                                                {"bend", Json(-8192)}})));
+                                                {"bend", Json(-8192)}}))));
 
   // And what a reader spells goes back down the wire as what it says: a
   // message spelled and then read is the message that was meant.
-  const Bytes played =
-      messageOf(sigil::seer::midiMessage("NoteOff", 3, 60, 40).bytes);
-  const std::optional<Json> read = sigil::data::decodeMidi(played.bytes);
+  const Bytes played = sigil::seer::midiMessage("NoteOff", 3, 60, 40);
+  const std::optional<Json> read = sigil::data::decodeMidi(played);
   ASSERT_TRUE(read.has_value());
   EXPECT_EQ((*read)["kind"].text(), "NoteOff");
   EXPECT_EQ((*read)["channel"], Json(3));
@@ -203,8 +198,8 @@ TEST(SeerMidi, AMessageIsSpelledFromItsKindItsChannelAndItsNumbers) {
   EXPECT_EQ((*read)["velocity"], Json(40));
 
   // A kind the wire has no status byte for is no message at all.
-  EXPECT_TRUE(sigil::seer::midiMessage("Applause", 1, 60, 100).bytes.empty());
-  EXPECT_TRUE(sigil::seer::midiMessage("", 1, 0, 0).bytes.empty());
+  EXPECT_TRUE(sigil::seer::midiMessage("Applause", 1, 60, 100).empty());
+  EXPECT_TRUE(sigil::seer::midiMessage("", 1, 0, 0).empty());
 }
 
 TEST(SeerMidi, TheWordsOfAMessageSpellTheMessageItsFieldsDo) {
@@ -219,9 +214,8 @@ TEST(SeerMidi, TheWordsOfAMessageSpellTheMessageItsFieldsDo) {
   EXPECT_EQ(struck->first, 60);
   EXPECT_EQ(struck->second, 100);
   EXPECT_EQ(sigil::seer::midiMessage(struck->kind, struck->channel,
-                                     struck->first, struck->second)
-                .bytes,
-            sigil::data::encodeMidi(noteOn(1, 60, 100)));
+                                     struck->first, struck->second),
+            sigil::io::Bytes(sigil::data::encodeMidi(noteOn(1, 60, 100))));
 
   // Blanks between the words and nothing else, however many of them a
   // reader left.
@@ -242,11 +236,10 @@ TEST(SeerMidi, TheWordsOfAMessageSpellTheMessageItsFieldsDo) {
   EXPECT_EQ(chosen->second, 0);
   EXPECT_EQ(
       sigil::seer::midiMessage(chosen->kind, chosen->channel, chosen->first,
-                               chosen->second)
-          .bytes,
-      sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("ProgramChange")},
+                               chosen->second),
+      sigil::io::Bytes(sigil::data::encodeMidi(Json(Json::Object{{"kind", Json("ProgramChange")},
                                                 {"channel", Json(2)},
-                                                {"program", Json(7)}})));
+                                                {"program", Json(7)}}))));
 
   // A wheel travels either side of its centre, so a minus sign is part
   // of the number and not the character that stopped it.
@@ -278,20 +271,20 @@ TEST(SeerMidi, WordsThatAreNoMessageSpellNothingRatherThanHalfOfOne) {
 }
 
 TEST(SeerDmx, AUniverseIsSpelledFromItsAddressAndItsLevelsAsADocument) {
-  EXPECT_EQ(sigil::seer::dmxMessage(3, "[255, 128, 0]").bytes,
-            sigil::data::encodeArtNet(universe(3, {255, 128, 0})));
+  EXPECT_EQ(sigil::seer::dmxMessage(3, "[255, 128, 0]"),
+            sigil::io::Bytes(sigil::data::encodeArtNet(universe(3, {255, 128, 0}))));
 
   // A list with nothing in it is every fixture dark, which a desk says
   // and a reader may mean.
-  EXPECT_EQ(sigil::seer::dmxMessage(0, "[]").bytes,
-            sigil::data::encodeArtNet(universe(0, {})));
+  EXPECT_EQ(sigil::seer::dmxMessage(0, "[]"),
+            sigil::io::Bytes(sigil::data::encodeArtNet(universe(0, {}))));
 
   // Levels that are not a list are no universe: one number where a list
   // was meant would light one fixture and darken the rig.
-  EXPECT_TRUE(sigil::seer::dmxMessage(0, "255, 128").bytes.empty());
-  EXPECT_TRUE(sigil::seer::dmxMessage(0, "255").bytes.empty());
-  EXPECT_TRUE(sigil::seer::dmxMessage(0, R"({"1": 255})").bytes.empty());
-  EXPECT_TRUE(sigil::seer::dmxMessage(0, "").bytes.empty());
+  EXPECT_TRUE(sigil::seer::dmxMessage(0, "255, 128").empty());
+  EXPECT_TRUE(sigil::seer::dmxMessage(0, "255").empty());
+  EXPECT_TRUE(sigil::seer::dmxMessage(0, R"({"1": 255})").empty());
+  EXPECT_TRUE(sigil::seer::dmxMessage(0, "").empty());
 }
 
 TEST(SeerDialect, AWireSaysWhatItSpeaksBeforeAnythingArrivesOnIt) {

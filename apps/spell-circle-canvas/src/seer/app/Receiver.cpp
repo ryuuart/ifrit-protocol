@@ -159,7 +159,7 @@ void Receiver::accept(const sigil::io::Feed& feed,
   const qsizetype scheme = from.indexOf("://");
   if (scheme >= 0) from = from.mid(scheme + 3);
   if (from.isEmpty()) from = recorded() ? "recording" : m_uri;
-  const auto& bytes = arrival.bytes->bytes;
+  const sigil::io::Bytes& bytes = *arrival.bytes;
   m_model.onSpellCircleReceived(
       from,
       QByteArray::fromRawData(reinterpret_cast<const char*>(bytes.data()),

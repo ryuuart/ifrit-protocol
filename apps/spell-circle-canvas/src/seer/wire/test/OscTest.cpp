@@ -26,16 +26,12 @@ namespace {
 
 Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes out;
-  out.bytes.assign(first, first + text.size());
-  return out;
+  return Bytes(std::span(first, text.size()));
 }
 
 /** The bytes of @p packet as a message off a wire. */
 Bytes messageOf(std::vector<std::byte> packet) {
-  Bytes out;
-  out.bytes = std::move(packet);
-  return out;
+  return Bytes(std::move(packet));
 }
 
 }  // namespace
@@ -69,19 +65,19 @@ TEST(SeerOsc, ADocumentIsNoPacketAndAPacketIsNoDocument) {
 }
 
 TEST(SeerOsc, AMessageIsSpelledFromAnAddressAndTheArgumentsAsADocument) {
-  EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", R"([0.5, "gust"])").bytes,
-            sigil::data::encodeOsc("/sky/wind", sigil::data::Json::Array{
-                                                    0.5, std::string("gust")}));
+  EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", R"([0.5, "gust"])"),
+            sigil::io::Bytes(sigil::data::encodeOsc("/sky/wind", sigil::data::Json::Array{
+                                                    0.5, std::string("gust")})));
 
   // An argument that is not a list is the one argument it is, and an
   // editor with nothing in it is a message carrying none.
-  EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", "0.5").bytes,
-            sigil::data::encodeOsc("/sky/wind", sigil::data::Json(0.5)));
-  EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", "  \n").bytes,
-            sigil::data::encodeOsc("/sky/wind", sigil::data::Json::Array{}));
+  EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", "0.5"),
+            sigil::io::Bytes(sigil::data::encodeOsc("/sky/wind", sigil::data::Json(0.5))));
+  EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", "  \n"),
+            sigil::io::Bytes(sigil::data::encodeOsc("/sky/wind", sigil::data::Json::Array{})));
 
   // Arguments that are no document, and a message with no address, are
   // no message: half a message spelled is not a shorter one.
-  EXPECT_TRUE(sigil::seer::oscMessage("/sky/wind", "gust").bytes.empty());
-  EXPECT_TRUE(sigil::seer::oscMessage("", "[0.5]").bytes.empty());
+  EXPECT_TRUE(sigil::seer::oscMessage("/sky/wind", "gust").empty());
+  EXPECT_TRUE(sigil::seer::oscMessage("", "[0.5]").empty());
 }

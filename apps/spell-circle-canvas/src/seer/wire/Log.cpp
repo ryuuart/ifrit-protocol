@@ -26,7 +26,7 @@ void Log::append(const io::Arrival& arrival) {
     return;
   }
   m_entries.push_back({arrival.at, arrival.generation,
-                       arrival.bytes ? arrival.bytes->bytes.size() : 0,
+                       arrival.bytes ? arrival.bytes->size() : 0,
                        arrival.bytes, arrival.from});
   if (m_entries.size() > m_capacity) {
     m_entries.pop_front();

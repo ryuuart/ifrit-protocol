@@ -44,9 +44,7 @@ namespace {
 
 Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes out;
-  out.bytes.assign(first, first + text.size());
-  return out;
+  return Bytes(std::span(first, text.size()));
 }
 
 /** The port out of the address a feed reports. An IPv6 address is

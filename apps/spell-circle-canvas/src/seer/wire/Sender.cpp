@@ -78,9 +78,7 @@ io::Bytes oscMessage(std::string_view address, std::string_view arguments) {
     if (!read) return {};
     carried = std::move(*read);
   }
-  io::Bytes message;
-  message.bytes = data::encodeOsc(address, carried);
-  return message;
+  return io::Bytes(data::encodeOsc(address, carried));
 }
 
 io::Bytes midiMessage(std::string_view kind, int channel, int first,
@@ -96,9 +94,7 @@ io::Bytes midiMessage(std::string_view kind, int channel, int first,
                             {"channel", data::Json(channel)}};
   played.push_back({numbers.first, data::Json(first)});
   if (numbers.second) played.push_back({numbers.second, data::Json(second)});
-  io::Bytes message;
-  message.bytes = data::encodeMidi(data::Json(std::move(played)));
-  return message;
+  return io::Bytes(data::encodeMidi(data::Json(std::move(played))));
 }
 
 std::optional<MidiWords> midiWords(std::string_view words) {
@@ -133,12 +129,10 @@ io::Bytes dmxMessage(int universe, std::string_view channels) {
   // rig dark, which is a thing a desk says and never a thing a reader
   // meant to say by typing it.
   if (!levels || levels->kind() != data::Json::Kind::List) return {};
-  io::Bytes packet;
-  packet.bytes = data::encodeArtNet(
+  return io::Bytes(data::encodeArtNet(
       data::Json(data::Json::Object{{"kind", data::Json("Dmx")},
                                     {"universe", data::Json(universe)},
-                                    {"channels", *levels}}));
-  return packet;
+                                    {"channels", *levels}})));
 }
 
 Sender::Sender(Wires& wires) : m_wires(wires) {}

@@ -274,7 +274,7 @@ void SeerSession::loadSchema(const QUrl& file) {
   }
   std::string why;
   sigil::data::Schema schema =
-      sigil::data::Schema::fromBinarySchema(bytes->bytes, &why);
+      sigil::data::Schema::fromBinarySchema(*bytes, &why);
   if (!schema) {
     // The schema that was loaded stays loaded: a reader who opened the
     // wrong file is left reading what they were reading before it.

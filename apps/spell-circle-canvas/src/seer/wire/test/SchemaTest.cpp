@@ -31,9 +31,7 @@ namespace {
 
 Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes out;
-  out.bytes.assign(first, first + text.size());
-  return out;
+  return Bytes(std::span(first, text.size()));
 }
 
 /** One message of the test schema, built the way a sender builds one. */
@@ -42,9 +40,7 @@ Bytes ping(int hops, const char* label) {
   builder.Finish(seer_test::CreatePingDirect(builder, hops, label));
   const auto* const first =
       reinterpret_cast<const std::byte*>(builder.GetBufferPointer());
-  Bytes out;
-  out.bytes.assign(first, first + builder.GetSize());
-  return out;
+  return Bytes(std::span(first, builder.GetSize()));
 }
 
 /** The schema as a reader hands it over: the file the build wrote,
@@ -55,7 +51,7 @@ Schema schemaFromFile() {
   const std::shared_ptr<const Bytes> file =
       wires.hub().fetch(SEER_TEST_SCHEMA_FILE);
   if (!file) return {};
-  return Schema::fromBinarySchema(file->bytes);
+  return Schema::fromBinarySchema(*file);
 }
 
 /** What both readings below come to: the schema's own form, laid out
@@ -78,7 +74,7 @@ TEST(SeerSchema, AWireIsReadThroughTheSchemaAFileHolds) {
   ASSERT_NE(file, nullptr);
 
   std::string why;
-  const Schema schema = Schema::fromBinarySchema(file->bytes, &why);
+  const Schema schema = Schema::fromBinarySchema(*file, &why);
   ASSERT_TRUE(static_cast<bool>(schema)) << why;
   EXPECT_EQ(schema.rootName(), "seer_test.Ping");
 

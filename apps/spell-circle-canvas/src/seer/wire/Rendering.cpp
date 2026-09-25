@@ -260,21 +260,21 @@ std::string indented(const data::Json& value, const Layout& layout = {}) {
 }  // namespace
 
 std::string hexadecimal(const io::Bytes& bytes, size_t limit) {
-  const size_t shown = bytes.bytes.size() < limit ? bytes.bytes.size() : limit;
+  const size_t shown = bytes.size() < limit ? bytes.size() : limit;
   std::string out;
   out.reserve(shown * 3);
   for (size_t at = 0; at != shown; ++at) {
     if (at != 0) out += ' ';
-    const auto octet = static_cast<uint8_t>(bytes.bytes[at]);
+    const auto octet = static_cast<uint8_t>(bytes.span()[at]);
     out += kDigits[octet >> 4];
     out += kDigits[octet & 0x0F];
   }
-  if (shown < bytes.bytes.size()) out += " …";
+  if (shown < bytes.size()) out += " …";
   return out;
 }
 
 std::string printableText(const io::Bytes& bytes) {
-  const std::span<const std::byte> span(bytes.bytes);
+  const std::span<const std::byte> span = bytes.span();
   for (size_t at = 0; at < span.size();) {
     const std::optional<std::pair<char32_t, size_t>> read =
         codePointAt(span, at);
@@ -291,19 +291,19 @@ std::string indentedJson(const io::Bytes& bytes) {
 }
 
 std::string oscReading(const io::Bytes& bytes) {
-  const std::optional<data::Json> packet = data::decodeOsc(bytes.bytes);
+  const std::optional<data::Json> packet = data::decodeOsc(bytes);
   if (!packet) return {};
   return indented(*packet);
 }
 
 std::string midiReading(const io::Bytes& bytes) {
-  const std::optional<data::Json> message = data::decodeMidi(bytes.bytes);
+  const std::optional<data::Json> message = data::decodeMidi(bytes);
   if (!message) return {};
   return indented(*message, {kNumbersPerRow});
 }
 
 std::string dmxReading(const io::Bytes& bytes) {
-  const std::optional<data::Json> packet = data::decodeArtNet(bytes.bytes);
+  const std::optional<data::Json> packet = data::decodeArtNet(bytes);
   if (!packet) return {};
   return indented(*packet, {kNumbersPerRow});
 }
@@ -326,7 +326,7 @@ std::string schemaReading(const io::Bytes& bytes, const data::Schema& schema,
             schema.binary(bytes.asText(), &trouble))
       form = schema.text(*built, &trouble);
   } else {
-    form = schema.text(bytes.bytes, &trouble);
+    form = schema.text(bytes, &trouble);
   }
   if (!form) {
     if (why) *why = trouble;

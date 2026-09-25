@@ -23,9 +23,7 @@ namespace {
 sigil::io::Bytes bytesOf(const QByteArray& array) {
   const auto* const first =
       reinterpret_cast<const std::byte*>(array.constData());
-  sigil::io::Bytes bytes;
-  bytes.bytes.assign(first, first + array.size());
-  return bytes;
+  return sigil::io::Bytes(std::span(first, array.size()));
 }
 
 /** The value of one hexadecimal digit, or -1 when it is not one. */
@@ -231,7 +229,7 @@ std::optional<sigil::io::Bytes> SendForm::messageBytes() {
   if (speaks == QLatin1String("osc")) {
     sigil::io::Bytes packet = sigil::seer::oscMessage(
         m_oscAddress.toStdString(), m_message.toStdString());
-    if (packet.bytes.empty()) {
+    if (packet.empty()) {
       setNote(QStringLiteral(
           "no packet: an OSC message is an address, and arguments spelled "
           "as a JSON list"));
@@ -242,7 +240,7 @@ std::optional<sigil::io::Bytes> SendForm::messageBytes() {
   if (speaks == QLatin1String("midi")) {
     sigil::io::Bytes played = sigil::seer::midiMessage(
         m_midiKind.toStdString(), m_midiChannel, m_midiFirst, m_midiSecond);
-    if (played.bytes.empty()) {
+    if (played.empty()) {
       setNote(QStringLiteral("no message: \"%1\" is no kind this wire carries")
                   .arg(m_midiKind));
       return std::nullopt;
@@ -252,7 +250,7 @@ std::optional<sigil::io::Bytes> SendForm::messageBytes() {
   if (speaks == QLatin1String("dmx")) {
     sigil::io::Bytes packet =
         sigil::seer::dmxMessage(m_dmxUniverse, m_message.toStdString());
-    if (packet.bytes.empty()) {
+    if (packet.empty()) {
       setNote(QStringLiteral(
           "no packet: the dimmers of a universe are a JSON list of "
           "numbers, as in [255, 128, 0]"));
@@ -262,7 +260,7 @@ std::optional<sigil::io::Bytes> SendForm::messageBytes() {
   }
   if (!m_hexadecimal) return bytesOf(m_message.toUtf8());
 
-  sigil::io::Bytes bytes;
+  std::vector<std::byte> bytes;
   int high = -1;
   for (const QChar character : m_message) {
     if (character.isSpace()) continue;
@@ -275,14 +273,14 @@ std::optional<sigil::io::Bytes> SendForm::messageBytes() {
       high = digit;
       continue;
     }
-    bytes.bytes.push_back(static_cast<std::byte>((high << 4) | digit));
+    bytes.push_back(static_cast<std::byte>((high << 4) | digit));
     high = -1;
   }
   if (high >= 0) {
     setNote(QStringLiteral("a byte is two digits, and the last one is alone"));
     return std::nullopt;
   }
-  return bytes;
+  return sigil::io::Bytes(std::move(bytes));
 }
 
 bool SendForm::reachPeer() {

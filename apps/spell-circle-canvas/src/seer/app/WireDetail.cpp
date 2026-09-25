@@ -124,7 +124,7 @@ bool WireDetail::readMessage(const sigil::seer::Vitals& vitals) {
   if (m_readUri == m_uri && m_readGeneration == m_generation) return false;
 
   const sigil::io::Bytes& bytes = *vitals.newest;
-  m_byteSize = bytes.bytes.size();
+  m_byteSize = bytes.size();
   m_hexadecimal = QString::fromStdString(
       sigil::seer::hexadecimal(bytes, kHexadecimalLimit));
   m_text = QString::fromStdString(sigil::seer::printableText(bytes));
