@@ -19,7 +19,8 @@ from sigil.compose import Element, box, column, graphics, row, text
 from sigil.compose import document as doc
 from sigil.data import decodeJson
 from sigil.draw import CENTER, LEFT, RIGHT, Pen
-from sigil.io import Arrival, Feed, FeedPolicy
+from sigil.io import Feed, FeedPolicy
+from sigil.io.testing import inletOf
 from sigil.material import Color
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import Path, PathBuilder
@@ -137,12 +138,13 @@ class LiveSignals:
         self.peer = "No sender yet"
         policy = FeedPolicy(capacity=256)
         if self.replay:
+            # A capture plays a scripted signal: the frames are delivered
+            # through the feed's inlet as their moments pass, the way a
+            # transport would deliver them.
             self.feed = Feed("replay://live-signals", policy)
-            self.feed.replay(
-                [
-                    Arrival(at=index / 30, bytes=encoded(reference(index)))
-                    for index in range(241)
-                ]
+            self.inlet = inletOf(self.feed)
+            self.pending: deque[tuple[float, bytes]] = deque(
+                (index / 30, encoded(reference(index))) for index in range(241)
             )
         else:
             self.feed = ctx.assets.hub().feed(f"udp://:{PORT}", policy)
@@ -152,7 +154,9 @@ class LiveSignals:
 
     def update(self, elapsed: float, ctx: SketchContext) -> None:
         if self.replay:
-            self.feed.advance(elapsed)
+            while self.pending and self.pending[0][0] <= elapsed:
+                arrivedAt, payload = self.pending.popleft()
+                self.inlet.deliver(payload, arrivedAt=arrivedAt)
         changed = False
         for _ in range(64):
             arrival = self.feed.receive()
