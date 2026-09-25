@@ -45,7 +45,7 @@ TEST(KitEras, TheChromeBodyFoldsAtItsHorizonRatherThanRunningOneWay) {
   // shape are far brighter than it.
   const int top = 20, height = 100;
   const int horizon =
-      top + (int)((float)height * sigil::material::kit::kChromeHorizonFrac);
+      top + (int)((float)height * sigil::material::kit::kChromeHorizonFraction);
   int darkest = 1 << 20, darkestY = top;
   for (int y = top + 2; y < top + height - 2; ++y) {
     const int v = lum(host.pixel(100, y));
@@ -65,7 +65,7 @@ TEST(KitEras, TheSliverLightsTheHorizonAndFadesAtBothEnds) {
   host.frame();
   const int left = 20, right = 180;
   const int horizon =
-      20 + (int)(100.0f * sigil::material::kit::kChromeHorizonFrac);
+      20 + (int)(100.0f * sigil::material::kit::kChromeHorizonFraction);
   const int middle = lum(host.pixel((left + right) / 2, horizon));
   const int end = lum(host.pixel(left + 2, horizon));
   EXPECT_GT(middle, 0);

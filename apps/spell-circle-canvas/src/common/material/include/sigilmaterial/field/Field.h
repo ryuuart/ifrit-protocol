@@ -38,15 +38,15 @@ struct HalftoneRampParameters {
   Color uColor;
 };
 
-/** The halftone RAMP: dot radius swells from @p rMin at the top of the
- *  box to @p rMax at its bottom, in one pass. Reads the resolution.
- *  @p angleDeg rotates the dot grid; the ramp stays vertical.
+/** The halftone RAMP: dot radius swells from @p minimumRadius at the top of the
+ *  box to @p maximumRadius at its bottom, in one pass. Reads the resolution.
+ *  @p angleDegrees rotates the dot grid; the ramp stays vertical.
  *  @p rampFrom / @p rampTo remap where the swell runs, as fractions of the
  *  height. To DRIFT the field, bind `uDriftX` / `uDriftY`: drift wraps
- *  seamlessly at a period of 2·spacing·√2 px along a 45° grid. Keep rMax
+ *  seamlessly at a period of 2·spacing·√2 px along a 45° grid. Keep maximumRadius
  *  below roughly 0.45·spacing or neighbouring dots fuse. */
-Material halftoneRamp(float spacing, float rMin, float rMax, Color color,
-                      float angleDeg = 0.0f, float rampFrom = 0.0f,
+Material halftoneRamp(float spacing, float minimumRadius, float maximumRadius, Color color,
+                      float angleDegrees = 0.0f, float rampFrom = 0.0f,
                       float rampTo = 1.0f);
 
 /** Perlin fractal noise — Skia's own generator, bound into a recipe that

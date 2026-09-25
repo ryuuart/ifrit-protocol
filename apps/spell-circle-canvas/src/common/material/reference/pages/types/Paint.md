@@ -76,7 +76,7 @@ binds a live pan, `Paint::worldSpace` anchors the coordinates to the
 root, `Paint::bleed` reserves recording cull, and `Paint::quantizeTime`
 steps the injected clock.
 
-`Stop` is one gradient stop — `Stop::pos` and `Stop::color`. `Fit` is
+`Stop` is one gradient stop — `Stop::position` and `Stop::color`. `Fit` is
 how a source meets the box: `Fit::Native`, `Fit::Stretch`, `Fit::Cover`,
 `Fit::Contain`. `PaintFrame` is what one draw supplies and no author
 sets: `PaintFrame::size`, `PaintFrame::rootSize`, `PaintFrame::toRoot`,

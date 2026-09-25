@@ -11,7 +11,7 @@ status: stable
 
 ## Description
 
-Steps the auto-injected `uTime` at a rate, as `floor(t·hz)/hz` —
+Steps the auto-injected `uTime` at a rate, as `floor(t·rate)/rate` —
 deliberate choppiness declared as a property of the PAINT rather than
 plumbed through whatever drives the clock.
 

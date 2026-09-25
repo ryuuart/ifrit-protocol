@@ -22,15 +22,15 @@
 
 namespace sigil::material::skia {
 
-/** @p ramp as a gradient running down from @p y0 to @p y1. The stops are a
+/** @p ramp as a gradient running down from @p top to @p bottom. The stops are a
  *  span, so a vector or an array passes as it stands and a brace list is
  *  written where it is used. */
-sk_sp<SkShader> verticalRamp(float y0, float y1,
+sk_sp<SkShader> verticalRamp(float top, float bottom,
                              std::span<const RampStop> ramp);
 /** The same gradient from a brace list of stops. */
-inline sk_sp<SkShader> verticalRamp(float y0, float y1,
+inline sk_sp<SkShader> verticalRamp(float top, float bottom,
                                     std::initializer_list<RampStop> ramp) {
-  return verticalRamp(y0, y1,
+  return verticalRamp(top, bottom,
                       std::span<const RampStop>(ramp.begin(), ramp.size()));
 }
 

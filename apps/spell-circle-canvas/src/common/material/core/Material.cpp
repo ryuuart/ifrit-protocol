@@ -210,13 +210,13 @@ const Leaf* Material::leaf(std::string_view name) const {
   return nullptr;
 }
 
-Material& Material::amount(float a01) {
-  m_amount = std::clamp(a01, 0.0f, 1.0f);
+Material& Material::amount(float fraction) {
+  m_amount = std::clamp(fraction, 0.0f, 1.0f);
   return *this;
 }
 
-Material& Material::quantizeTime(float hz) {
-  m_quantizeHz = hz > 0.0f ? hz : 0.0f;
+Material& Material::quantizeTime(float rate) {
+  m_quantizeHz = rate > 0.0f ? rate : 0.0f;
   return *this;
 }
 

@@ -33,7 +33,7 @@ void reportUnorderedStops() {
 
 bool inOrder(const std::vector<RampStop>& stops) {
   for (size_t i = 1; i < stops.size(); ++i)
-    if (stops[i].pos < stops[i - 1].pos) return false;
+    if (stops[i].position < stops[i - 1].position) return false;
   return true;
 }
 

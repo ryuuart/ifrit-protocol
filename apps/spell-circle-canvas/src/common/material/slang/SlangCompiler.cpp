@@ -287,12 +287,12 @@ void Uniforms::set(std::string_view name, const float* values, size_t count) {
   }
 }
 
-void Uniforms::set(std::string_view name, const glm::mat4& m) {
+void Uniforms::set(std::string_view name, const glm::mat4& matrix) {
   // The shader reads a matrix row by row, and glm holds it column by
   // column, so what is written is the transpose.
   float rows[16];
   for (int r = 0; r < 4; ++r)
-    for (int c = 0; c < 4; ++c) rows[r * 4 + c] = m[c][r];
+    for (int c = 0; c < 4; ++c) rows[r * 4 + c] = matrix[c][r];
   set(name, rows, 16);
 }
 

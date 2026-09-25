@@ -156,12 +156,12 @@ class Material {
   }
 
   /** The strength a renderer blends this material in at, in [0, 1]. */
-  Material& amount(float a01);
+  Material& amount(float fraction);
   float amount() const { return m_amount; }
-  /** Snaps the time this material sees to @p hz steps per second, so a
+  /** Snaps the time this material sees to @p rate steps per second, so a
    *  material that need not move every frame resolves only when the
    *  snapped clock advances. Zero (the default) leaves time continuous. */
-  Material& quantizeTime(float hz);
+  Material& quantizeTime(float rate);
   float quantizeTime() const { return m_quantizeHz; }
   /** Anchors the material to the root frame rather than the node's. */
   Material& worldSpace(bool on = true);

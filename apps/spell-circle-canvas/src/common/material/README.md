@@ -279,7 +279,7 @@ declares that the body reads `uTime`, `uResolution`, `uContentScale` or
 `uWorld`; the declaration adds the uniform after the parameters and
 `resolve()` fills it from the `FrameData`. Time and content scale make a
 material `isAnimated()`; resolution and the world transform make it
-`geometryDependent()`. `quantizeTime(hz)` snaps the time a material sees
+`geometryDependent()`. `quantizeTime(rate)` snaps the time a material sees
 to a step, so a material that need not move every frame resolves only
 when the snapped clock advances.
 
@@ -521,7 +521,7 @@ drawn with the first one's program.
 The kit is presets: functions that fix a colour, a proportion or a named
 style over the primitives. `kit::girih8` is the 8-fold star-and-cross
 panel as a `Tile`, with `fezPalette()` and `nasridPalette()`; its
-`contactDeg` is Hankin's contact angle, the one dial of the construction
+`contactDegrees` is Hankin's contact angle, the one dial of the construction
 — two rays leave every edge midpoint at that angle to the edge and meet
 on the bisector between neighbours, so the star sharpens as the angle
 grows. At the 45° default the rays through an octagon are collinear, the

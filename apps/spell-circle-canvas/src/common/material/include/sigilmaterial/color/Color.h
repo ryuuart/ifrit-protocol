@@ -61,16 +61,16 @@ struct Color {
   constexpr auto operator<=>(const Color&) const = default;
 };
 
-/** A colour from a packed 0xRRGGBB, with @p a as its alpha — the spelling
+/** A colour from a packed 0xRRGGBB, with @p alpha as its alpha — the spelling
  *  a palette is authored in, one hex integer per colour.
  *
  *  constexpr, because a palette is a list of constants and a constant
  *  that has to be built at run time is a constant the compiler cannot
  *  fold into the value that holds it. */
-constexpr Color rgb(uint32_t hex, float a = 1.0f) {
+constexpr Color rgb(uint32_t hex, float alpha = 1.0f) {
   return {(float)((hex >> 16u) & 0xffu) / 255.0f,
           (float)((hex >> 8u) & 0xffu) / 255.0f, (float)(hex & 0xffu) / 255.0f,
-          a};
+          alpha};
 }
 
 /** A colour from HUE, SATURATION and VALUE — the wheel a palette is
@@ -81,7 +81,7 @@ constexpr Color rgb(uint32_t hex, float a = 1.0f) {
  *  nothing else, so a ramp built by moving it bends in lightness.
  *  Interpolate with `lerpOklab` and reach for this when the SEPARATION
  *  of hues is the point. */
-Color hsv(float hueDegrees, float saturation, float value, float a = 1.0f);
+Color hsv(float hueDegrees, float saturation, float value, float alpha = 1.0f);
 
 /** A colour in OKLab, the space every perceptual interpolation runs in:
  *  lightness, the green–red axis, the blue–yellow axis, and straight alpha
@@ -92,31 +92,31 @@ struct Oklab {
 
 /** The sRGB transfer function inverted: an encoded component to linear
  *  light. Inputs outside the unit range pass through the curve as given. */
-inline float srgbToLinear(float c) {
-  return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
+inline float srgbToLinear(float component) {
+  return component <= 0.04045f ? component / 12.92f : std::pow((component + 0.055f) / 1.055f, 2.4f);
 }
 
 /** The sRGB transfer function: linear light to the encoded component,
  *  clamped to the unit range first because the curve is only defined
  *  there. */
-inline float linearToSrgb(float c) {
-  c = std::clamp(c, 0.0f, 1.0f);
-  return c <= 0.0031308f ? c * 12.92f
-                         : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
+inline float linearToSrgb(float component) {
+  component = std::clamp(component, 0.0f, 1.0f);
+  return component <= 0.0031308f ? component * 12.92f
+                         : 1.055f * std::pow(component, 1.0f / 2.4f) - 0.055f;
 }
 
 /** sRGB to OKLab: linearise, project onto the cone response, take cube
  *  roots, and rotate into Lab. Alpha is carried through untouched. */
-inline Oklab toOklab(const Color& c) {
-  const float r = srgbToLinear(c.r), g = srgbToLinear(c.g),
-              b = srgbToLinear(c.b);
+inline Oklab toOklab(const Color& color) {
+  const float r = srgbToLinear(color.r), g = srgbToLinear(color.g),
+              b = srgbToLinear(color.b);
   const float l = 0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b;
   const float m = 0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b;
   const float s = 0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b;
   const float l_ = std::cbrt(l), m_ = std::cbrt(m), s_ = std::cbrt(s);
   return {0.2104542553f * l_ + 0.7936177850f * m_ - 0.0040720468f * s_,
           1.9779984951f * l_ - 2.4285922050f * m_ + 0.4505937099f * s_,
-          0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_, c.a};
+          0.0259040371f * l_ + 0.7827717662f * m_ - 0.8086757660f * s_, color.a};
 }
 
 /** THE LIGHT AN OKLab COLOUR STANDS FOR: the three linear-light sRGB
@@ -159,13 +159,13 @@ inline Color fromOklab(const Oklab& lab) {
 }
 
 /** Perceptual interpolation: both ends to OKLab, a straight lerp of all
- *  four channels at @p t, and back. The endpoints round-trip, so t = 0 and
- *  t = 1 return the inputs up to the transfer function's rounding. */
-inline Color lerpOklab(const Color& a, const Color& b, float t) {
-  const Oklab la = toOklab(a), lb = toOklab(b);
-  return fromOklab({la.L + (lb.L - la.L) * t, la.a + (lb.a - la.a) * t,
-                    la.b + (lb.b - la.b) * t,
-                    la.alpha + (lb.alpha - la.alpha) * t});
+ *  four channels at @p amount, and back. The endpoints round-trip, so an amount of 0
+ *  and of 1 return the inputs up to the transfer function's rounding. */
+inline Color lerpOklab(const Color& start, const Color& end, float amount) {
+  const Oklab la = toOklab(start), lb = toOklab(end);
+  return fromOklab({la.L + (lb.L - la.L) * amount, la.a + (lb.a - la.a) * amount,
+                    la.b + (lb.b - la.b) * amount,
+                    la.alpha + (lb.alpha - la.alpha) * amount});
 }
 
 /** OKLab IN POLAR FORM: the same lightness, the distance from grey, and
@@ -197,7 +197,7 @@ inline Oklab oklabOf(const Oklch& lch) {
 }
 
 /** A colour read in OKLCH, through OKLab. */
-inline Oklch toOklch(const Color& c) { return oklchOf(toOklab(c)); }
+inline Oklch toOklch(const Color& color) { return oklchOf(toOklab(color)); }
 
 /** OKLCH back to sRGB, clamped component-wise the way `fromOklab`
  *  clamps.
@@ -234,10 +234,10 @@ inline Color fitToSrgb(const Oklch& lch) {
  *  scaling the colour channels are different operations, and folding
  *  both into one signature would leave a defaulted argument deciding
  *  which of the two the caller meant. */
-constexpr Color withAlpha(Color c, float a) { return {c.r, c.g, c.b, a}; }
+constexpr Color withAlpha(Color color, float alpha) { return {color.r, color.g, color.b, alpha}; }
 
-/** @p c scaled by @p k in every channel, at alpha @p a — or at its own
- *  alpha, which is what a negative @p a asks for. The shading verb a
+/** @p color scaled by @p factor in every channel, at alpha @p alpha — or at its own
+ *  alpha, which is what a negative @p alpha asks for. The shading verb a
  *  highlight and a shadow are both written with: one colour, brighter or
  *  darker, at a chosen opacity, and a tone ramp read off one sampled
  *  base when the opacity is not part of the question.
@@ -246,11 +246,11 @@ constexpr Color withAlpha(Color c, float a) { return {c.r, c.g, c.b, a}; }
  *  means something under a wide-gamut or an OCIO view; a renderer clamps
  *  when the colour lands in an eight-bit surface. A caller who needs the
  *  clamped value is asking for a different operation. */
-constexpr Color scale(Color c, float k, float a = -1.0f) {
-  return {c.r * k, c.g * k, c.b * k, a < 0.0f ? c.a : a};
+constexpr Color scale(Color color, float factor, float alpha = -1.0f) {
+  return {color.r * factor, color.g * factor, color.b * factor, alpha < 0.0f ? color.a : alpha};
 }
 
-/** THE LADDER UPWARD: @p k added to each colour channel, CLAMPED at 1,
+/** THE LADDER UPWARD: @p amount added to each colour channel, CLAMPED at 1,
  *  alpha kept — the highlight a lit edge is drawn with.
  *
  *  Clamping is what makes it a different operation from `scale`, not an
@@ -259,39 +259,39 @@ constexpr Color scale(Color c, float k, float a = -1.0f) {
  *  saturates there, and a caller lightening a nearly-white base wants
  *  the saturated answer rather than a channel above 1 that the next
  *  blend reads as glow. */
-constexpr Color lighten(Color c, float k) {
-  return {std::min(1.0f, c.r + k), std::min(1.0f, c.g + k),
-          std::min(1.0f, c.b + k), c.a};
+constexpr Color lighten(Color color, float amount) {
+  return {std::min(1.0f, color.r + amount), std::min(1.0f, color.g + amount),
+          std::min(1.0f, color.b + amount), color.a};
 }
 
-/** @p c moved a fraction @p t toward @p target, at alpha @p a. Straight
+/** @p color moved a fraction @p amount toward @p target, at alpha @p alpha. Straight
  *  sRGB, not OKLab: the caller that wants a perceptual path spells
  *  `lerpOklab`. */
-constexpr Color mixToward(Color c, Color target, float t, float a) {
-  return {c.r + (target.r - c.r) * t, c.g + (target.g - c.g) * t,
-          c.b + (target.b - c.b) * t, a};
+constexpr Color mixToward(Color color, Color target, float amount, float alpha) {
+  return {color.r + (target.r - color.r) * amount, color.g + (target.g - color.g) * amount,
+          color.b + (target.b - color.b) * amount, alpha};
 }
 
-/** @p a and @p b mixed a fraction @p t apart IN LINEAR LIGHT — each
+/** @p start and @p end mixed a fraction @p amount apart IN LINEAR LIGHT — each
  *  channel linearised, mixed, and encoded back. Alpha mixes as given,
  *  since it never went through the transfer function. This is the mix
  *  that answers a question about QUANTITIES.
  *  @trap It is a different colour from `mixToward`'s: half way between
  *  black and white is `#808080` there and near `#BCBCBC` here. */
-inline Color mixLinear(const Color& a, const Color& b, float t) {
-  auto channel = [t](float x, float y) {
+inline Color mixLinear(const Color& start, const Color& end, float amount) {
+  auto channel = [amount](float startChannel, float endChannel) {
     // Two equal channels stand for one quantity of light, so the mix of
     // them IS that channel and no transfer function can change it. The
     // check is here rather than at the call site because the whole cost
     // of this walk is the curve either side of the mix, and a grey
     // ladder, a single-hue ramp and an alpha-only fade all hand it
     // channels that are already equal.
-    if (x == y) return x;
-    const float low = srgbToLinear(x);
-    return linearToSrgb(low + (srgbToLinear(y) - low) * t);
+    if (startChannel == endChannel) return startChannel;
+    const float low = srgbToLinear(startChannel);
+    return linearToSrgb(low + (srgbToLinear(endChannel) - low) * amount);
   };
-  return {channel(a.r, b.r), channel(a.g, b.g), channel(a.b, b.b),
-          a.a + (b.a - a.a) * t};
+  return {channel(start.r, end.r), channel(start.g, end.g), channel(start.b, end.b),
+          start.a + (end.a - start.a) * amount};
 }
 
 /** RELATIVE LUMINANCE — how much light the colour stands for, on the sRGB
@@ -300,9 +300,9 @@ inline Color mixLinear(const Color& a, const Color& b, float t) {
  *  walked in the wrong space: two colours can carry the same luminance and
  *  look nothing alike, and two that look alike can differ by a factor of
  *  three. Alpha does not enter it. */
-inline float luminance(const Color& c) {
-  return 0.2126f * srgbToLinear(c.r) + 0.7152f * srgbToLinear(c.g) +
-         0.0722f * srgbToLinear(c.b);
+inline float luminance(const Color& color) {
+  return 0.2126f * srgbToLinear(color.r) + 0.7152f * srgbToLinear(color.g) +
+         0.0722f * srgbToLinear(color.b);
 }
 
 /** A colour in CIELAB under the D65 white point: lightness on 0..100, the
@@ -320,9 +320,9 @@ struct Lab {
 
 /** sRGB to CIELAB: linearise, project onto CIE XYZ, divide by the D65
  *  white point, and through the cube-root ladder. Alpha is untouched. */
-inline Lab toLab(const Color& c) {
-  const float r = srgbToLinear(c.r), g = srgbToLinear(c.g),
-              b = srgbToLinear(c.b);
+inline Lab toLab(const Color& color) {
+  const float r = srgbToLinear(color.r), g = srgbToLinear(color.g),
+              b = srgbToLinear(color.b);
   const float x = 0.4124564f * r + 0.3575761f * g + 0.1804375f * b;
   const float y = 0.2126729f * r + 0.7151522f * g + 0.0721750f * b;
   const float z = 0.0193339f * r + 0.1191920f * g + 0.9503041f * b;
@@ -334,7 +334,7 @@ inline Lab toLab(const Color& c) {
                                  : (24389.0f / 27.0f * t + 16.0f) / 116.0f;
   };
   const float fx = f(x / 0.95047f), fy = f(y), fz = f(z / 1.08883f);
-  return {116.0f * fy - 16.0f, 500.0f * (fx - fy), 200.0f * (fy - fz), c.a};
+  return {116.0f * fy - 16.0f, 500.0f * (fx - fy), 200.0f * (fy - fz), color.a};
 }
 
 /** CIELAB back to sRGB, the inverse of `toLab` up to rounding; the result
@@ -362,8 +362,8 @@ inline Color fromLab(const Lab& lab) {
  *  1976 difference, which is the one a plain Euclidean reading of that
  *  space is. Around 2.3 is where a side-by-side pair stops matching.
  *  Alpha does not enter it. */
-inline float deltaE(const Color& a, const Color& b) {
-  const Lab la = toLab(a), lb = toLab(b);
+inline float deltaE(const Color& first, const Color& second) {
+  const Lab la = toLab(first), lb = toLab(second);
   const float dL = la.L - lb.L, da = la.a - lb.a, db = la.b - lb.b;
   return std::sqrt(dL * dL + da * da + db * db);
 }
@@ -371,7 +371,7 @@ inline float deltaE(const Color& a, const Color& b) {
 /** ONE STOP OF A RAMP: a position in [0, 1] and its colour. A ramp is a
  *  vector of these, which every renderer turns into its own gradient. */
 struct RampStop {
-  float pos = 0.0f;
+  float position = 0.0f;
   Color color;
   bool operator==(const RampStop&) const = default;
 };
@@ -397,18 +397,18 @@ struct Palette {
     return entries[(size_t)std::clamp(index, 0, last)];
   }
 
-  /** The entry the unit position @p t falls IN — the table divided into
+  /** The entry the unit position @p position falls IN — the table divided into
    *  equal bands, 1 landing on the last. The reading a normalised
    *  parameter is quantised through. */
-  Color nearest(float t) const {
+  Color nearest(float position) const {
     if (entries.empty()) return {0, 0, 0, 0};
-    return at((int)std::floor(t * (float)entries.size()));
+    return at((int)std::floor(position * (float)entries.size()));
   }
 };
 
 /** THE RAMP READ ON THE CPU — the same ladder a renderer's gradient
  *  draws, for the caller that needs one colour out of it rather than a
- *  shader. Straight sRGB between neighbouring stops; @p t clamps, and
+ *  shader. Straight sRGB between neighbouring stops; @p position clamps, and
  *  an empty ramp answers transparent black.
  *  @trap Stops are read in the order given and are expected to be
  *  ordered. */
@@ -423,36 +423,36 @@ struct RampBracket {
   float fraction = 0.0f;
 };
 
-/** The bracket @p t falls in, over stops read in the order given. Every
+/** The bracket @p position falls in, over stops read in the order given. Every
  *  reading of a ramp goes through this one search — the CPU sample below,
  *  and the ramp value's own read in whatever space it names — so the two
  *  cannot disagree about which stops a position lies between. */
-inline RampBracket rampBracket(std::span<const RampStop> stops, float t) {
+inline RampBracket rampBracket(std::span<const RampStop> stops, float position) {
   const size_t last = stops.size() - 1;
-  if (t <= stops.front().pos) return {0, 0, 0.0f};
-  if (t >= stops.back().pos) return {last, last, 0.0f};
+  if (position <= stops.front().position) return {0, 0, 0.0f};
+  if (position >= stops.back().position) return {last, last, 0.0f};
   for (size_t i = 1; i < stops.size(); ++i) {
-    if (t > stops[i].pos) continue;
-    const float span = stops[i].pos - stops[i - 1].pos;
+    if (position > stops[i].position) continue;
+    const float span = stops[i].position - stops[i - 1].position;
     // Two stops at one position are a HARD EDGE, which is what a ramp
     // says a band boundary with: the upper one wins, and dividing by the
     // zero between them would not have said anything.
-    return {i - 1, i, span > 0.0f ? (t - stops[i - 1].pos) / span : 1.0f};
+    return {i - 1, i, span > 0.0f ? (position - stops[i - 1].position) / span : 1.0f};
   }
   return {last, last, 0.0f};
 }
 
-/** The colour a run of @p stops answers at position @p t, mixed
+/** The colour a run of @p stops answers at position @p position, mixed
  *  straight in sRGB between the two the bracket names; an empty run
  *  answers a fully transparent colour. */
-inline Color sampleRamp(std::span<const RampStop> stops, float t) {
+inline Color sampleRamp(std::span<const RampStop> stops, float position) {
   if (stops.empty()) return {0, 0, 0, 0};
-  const RampBracket b = rampBracket(stops, t);
-  const Color& lo = stops[b.low].color;
-  const Color& hi = stops[b.high].color;
-  const float f = b.fraction;
-  return {lo.r + (hi.r - lo.r) * f, lo.g + (hi.g - lo.g) * f,
-          lo.b + (hi.b - lo.b) * f, lo.a + (hi.a - lo.a) * f};
+  const RampBracket bracket = rampBracket(stops, position);
+  const Color& low = stops[bracket.low].color;
+  const Color& high = stops[bracket.high].color;
+  const float fraction = bracket.fraction;
+  return {low.r + (high.r - low.r) * fraction, low.g + (high.g - low.g) * fraction,
+          low.b + (high.b - low.b) * fraction, low.a + (high.a - low.a) * fraction};
 }
 
 }  // namespace sigil::material

@@ -56,33 +56,33 @@ const std::shared_ptr<const Recipe>& glassRecipe() {
 
 }  // namespace
 
-Material gold(Texture normals, const EnvironmentMap& env,
+Material gold(Texture normals, const EnvironmentMap& environment,
               const GoldParameters& parameters) {
   GoldParameters p = parameters;
-  p.envSize = sizeOf(env);
+  p.envSize = sizeOf(environment);
   Material m(goldRecipe(), p);
   m.slot("normals", std::move(normals));
-  m.slot("env", env.texture(parameters.roughness));
+  m.slot("env", environment.texture(parameters.roughness));
   return m;
 }
 
-Material chrome(Texture normals, const EnvironmentMap& env,
+Material chrome(Texture normals, const EnvironmentMap& environment,
                 const ChromeParameters& parameters) {
   ChromeParameters p = parameters;
-  p.envSize = sizeOf(env);
+  p.envSize = sizeOf(environment);
   Material m(chromeRecipe(), p);
   m.slot("normals", std::move(normals));
-  m.slot("env", env.texture(parameters.roughness));
+  m.slot("env", environment.texture(parameters.roughness));
   return m;
 }
 
-Material glass(Texture normals, const EnvironmentMap& env, Texture backdrop,
+Material glass(Texture normals, const EnvironmentMap& environment, Texture backdrop,
                const GlassParameters& parameters) {
   GlassParameters p = parameters;
-  p.envSize = sizeOf(env);
+  p.envSize = sizeOf(environment);
   Material m(glassRecipe(), p);
   m.slot("normals", std::move(normals));
-  m.slot("env", env.texture(parameters.roughness));
+  m.slot("env", environment.texture(parameters.roughness));
   m.slot("backdrop", std::move(backdrop));
   return m;
 }

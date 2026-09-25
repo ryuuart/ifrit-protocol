@@ -106,7 +106,7 @@ class Uniforms {
    *  not carry is skipped: an optimiser that dropped an unused uniform
    *  is not a mistake to report. */
   void set(std::string_view name, const float* values, size_t count);
-  void set(std::string_view name, const glm::mat4& m);
+  void set(std::string_view name, const glm::mat4& matrix);
   void set(std::string_view name, float x, float y, float z, float w);
   /** Element @p index of an array member. */
   void setElement(std::string_view name, size_t index, const float* values,

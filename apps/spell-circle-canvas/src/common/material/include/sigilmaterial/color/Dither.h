@@ -57,18 +57,18 @@ struct Dither {
 
   /** The threshold at a pixel, in [0, 1). Ordered and noise both answer
    *  a value whose average over an area is one half. */
-  [[nodiscard]] float threshold(int x, int y) const;
+  [[nodiscard]] float threshold(int column, int row) const;
 
   /** @p color rounded to `levels` per channel through the threshold at
    *  this pixel. Alpha is carried through untouched: a dither decides
    *  what colour a pixel takes, not whether it is there. */
-  [[nodiscard]] Color at(const Color& color, int x, int y) const;
+  [[nodiscard]] Color at(const Color& color, int column, int row) const;
 
   /** THE ONE-BIT READ: whether @p value, in [0, 1], survives the
    *  threshold here. The mask a stipple, a screen-door fade and a
    *  halftone coverage are drawn from, where the answer wanted is a
    *  yes or a no rather than a colour. */
-  [[nodiscard]] bool on(float value, int x, int y) const;
+  [[nodiscard]] bool on(float value, int column, int row) const;
 };
 
 }  // namespace sigil::material

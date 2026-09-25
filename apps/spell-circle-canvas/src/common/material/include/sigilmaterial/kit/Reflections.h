@@ -69,17 +69,17 @@ struct GlassParameters {
   glm::vec2 envSize = {1, 1};
 };
 
-/** A gold surface over @p normals, reflecting @p env at the parameters'
+/** A gold surface over @p normals, reflecting @p environment at the parameters'
  *  roughness. */
-Material gold(Texture normals, const EnvironmentMap& env,
+Material gold(Texture normals, const EnvironmentMap& environment,
               const GoldParameters& parameters = {});
-/** A chrome surface over @p normals, reflecting @p env. */
-Material chrome(Texture normals, const EnvironmentMap& env,
+/** A chrome surface over @p normals, reflecting @p environment. */
+Material chrome(Texture normals, const EnvironmentMap& environment,
                 const ChromeParameters& parameters = {});
 /** A glass surface over @p normals, refracting @p backdrop — an image of
  *  what sits behind the shape in the same device coordinates — and
- *  reflecting @p env. */
-Material glass(Texture normals, const EnvironmentMap& env, Texture backdrop,
+ *  reflecting @p environment. */
+Material glass(Texture normals, const EnvironmentMap& environment, Texture backdrop,
                const GlassParameters& parameters = {});
 
 }  // namespace sigil::material::kit

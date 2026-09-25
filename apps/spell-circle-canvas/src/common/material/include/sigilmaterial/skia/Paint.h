@@ -81,7 +81,7 @@ enum class Fit : uint8_t {
 /** A gradient ramp stop: where along the ramp it sits, in 0..1, and the
  *  colour there, authored in the working colour space. */
 struct Stop {
-  float pos = 0.0f;
+  float position = 0.0f;
   material::Color color = {0, 0, 0, 1};
   bool operator==(const Stop&) const = default;
 };
@@ -99,7 +99,7 @@ class Paint {
    *  @{ */
   static Paint solid(material::Color color);
   /** N-stop linear ramp between two points (working-space colors). */
-  static Paint linear(SkPoint a, SkPoint b, std::vector<Stop> stops,
+  static Paint linear(SkPoint start, SkPoint end, std::vector<Stop> stops,
                       SkTileMode tile = SkTileMode::kClamp);
   static Paint radial(SkPoint center, float radius, std::vector<Stop> stops,
                       SkTileMode tile = SkTileMode::kClamp);
@@ -111,17 +111,17 @@ class Paint {
   static Paint conical(SkPoint focus, float focusRadius, SkPoint center,
                        float radius, std::vector<Stop> stops,
                        SkTileMode tile = SkTileMode::kClamp);
-  /** Angular sweep from @p startDeg (12 o'clock is -90°) around
+  /** Angular sweep from @p startDegrees (12 o'clock is -90°) around
    *  @p center, in degrees.
    *  @trap Angles outside [0, 360) CLAMP rather than wrapping, so
    *  `sweep(c, stops, 90, 450)` paints a flat quarter; rotate the STOPS
    *  instead. The factory warns once when a window leaves the circle. */
   static Paint sweep(SkPoint center, std::vector<Stop> stops,
-                     float startDeg = 0.0f, float endDeg = 360.0f);
+                     float startDegrees = 0.0f, float endDegrees = 360.0f);
   /** Image/sprite as a fill (tiled or clamped); `local` maps source px into
    *  the node's space (a sprite's atlas sub-rect is a translate+scale). */
-  static Paint image(sk_sp<SkImage> image, SkTileMode tx = SkTileMode::kClamp,
-                     SkTileMode ty = SkTileMode::kClamp,
+  static Paint image(sk_sp<SkImage> image, SkTileMode horizontalTile = SkTileMode::kClamp,
+                     SkTileMode verticalTile = SkTileMode::kClamp,
                      const SkMatrix& local = SkMatrix::I(),
                      SkSamplingOptions sampling = {});
   /** CONTENT THAT CHANGES WITHOUT RE-DESCRIBING: a caller-owned raster the
@@ -131,8 +131,8 @@ class Paint {
    *  re-describe between commits PRUNES and the first describe after a
    *  commit patches exactly once. */
   static Paint buffer(std::shared_ptr<class PixelBuffer> source,
-                      SkTileMode tx = SkTileMode::kClamp,
-                      SkTileMode ty = SkTileMode::kClamp,
+                      SkTileMode horizontalTile = SkTileMode::kClamp,
+                      SkTileMode verticalTile = SkTileMode::kClamp,
                       const SkMatrix& local = SkMatrix::I(),
                       SkSamplingOptions sampling = {});
   /** An SkSL runtime effect as a shader. @p constants set named float
@@ -256,11 +256,11 @@ class Paint {
 
   /** LAYER STRENGTH inside a blend(), in 0..1 — the layer composites
    *  with its blend mode IN FULL and the result then mixes back toward
-   *  the accumulation by @p a01, which is not the same picture as
+   *  the accumulation by @p fraction, which is not the same picture as
    *  thinning the layer's own alpha. Clamped; the default 1 is free.
    *  @silent the paint is the blend's FIRST layer or is used directly as
    *  a fill — there is no accumulation to mix back toward. */
-  Paint& amount(float a01);
+  Paint& amount(float fraction);
 
   /** RECORDING-CULL RESERVE: how far this material's node paints beyond
    *  its own box, in px, for a shape silhouette larger than the layout
@@ -318,12 +318,12 @@ class Paint {
    *  reads the pan through. */
   SkPoint boundOffsetValue() const;
 
-  /** Step the auto-injected uTime at @p hz, as floor(t·hz)/hz —
+  /** Step the auto-injected uTime at @p rate, as floor(t·rate)/rate —
    *  deliberate choppiness declared as a property of the MATERIAL. 0,
    *  the default, is continuous time.
    *  @silent the paint is not sksl()-backed, or its effect declares no
    *  uTime (warned once). */
-  Paint& quantizeTime(float hz);
+  Paint& quantizeTime(float rate);
   /** @} */
 
   /** @name Resolution
@@ -383,7 +383,7 @@ class Paint {
    *  compiles a fresh `SkRuntimeEffect` per call never compares equal to
    *  itself and every memo above it misses. Compile the effect once and
    *  hold the resulting paint. */
-  bool operator==(const Paint& o) const;
+  bool operator==(const Paint& other) const;
   /** @} */
 
  private:
@@ -464,9 +464,9 @@ class Paint {
    *  node prune and keep painting the old shader indefinitely. This
    *  decomposition stops compiling the moment a member is added or
    *  removed. It is inside the class because the state is private. */
-  static void fieldPin(Paint& v) {
+  static void fieldPin(Paint& pinned) {
     auto& [isSolid, worldSpace, amount, bleed, boundOffset, solid, shader, live,
-           recipe, backed] = v;
+           recipe, backed] = pinned;
     static_assert(
         std::tuple_size_v<decltype(std::tie(isSolid, worldSpace, amount, bleed,
                                             boundOffset, solid, shader, live,

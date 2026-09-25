@@ -79,7 +79,7 @@ a colour for it.
 | `material.Ramp(stops=[...], space=...)` | Python | the same five decisions, by keyword |
 | `material.ramp(palette)` | Python | a fixed table read continuously |
 
-A stop is a `RampStop`: `RampStop::pos` and `RampStop::color`.
+A stop is a `RampStop`: `RampStop::position` and `RampStop::color`.
 
 ## Pass it to
 

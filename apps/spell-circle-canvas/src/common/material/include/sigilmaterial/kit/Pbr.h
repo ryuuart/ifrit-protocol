@@ -137,17 +137,17 @@ Material surface(const SurfaceParameters& parameters = {},
 /** A surface that is its own light: no shading, no shadow terms. */
 Material unlit(const SurfaceParameters& parameters = {});
 
-/** Whether @p m is an instance of either surface recipe. */
-bool isSurface(const Material& m);
-/** Whether @p m is the unlit one specifically. `isSurface` answers true
+/** Whether @p material is an instance of either surface recipe. */
+bool isSurface(const Material& material);
+/** Whether @p material is the unlit one specifically. `isSurface` answers true
  *  for these too. */
-bool isUnlit(const Material& m);
+bool isUnlit(const Material& material);
 
 /** The MAP in @p slot: the texture a caller placed there, or null when
  *  the slot still holds the neutral fill every surface is built with.
  *  A reader asking what a surface is dressed with wants this rather than
  *  `leaf()`, which never answers null on a built surface. */
-const Texture* map(const Material& m, std::string_view slot);
+const Texture* map(const Material& material, std::string_view slot);
 
 /** @p base dressed with a decoded texture set: every role that decoded
  *  placed in its slot; a packed occlusion-roughness-metallic image wired

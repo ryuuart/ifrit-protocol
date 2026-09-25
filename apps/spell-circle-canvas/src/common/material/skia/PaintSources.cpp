@@ -44,7 +44,7 @@ RampArrays split(const std::vector<Stop>& stops) {
   r.positions.reserve(stops.size());
   for (const Stop& s : stops) {
     r.colors.push_back(toSkColor(s.color));
-    r.positions.push_back(s.pos);
+    r.positions.push_back(s.position);
   }
   return r;
 }
@@ -80,15 +80,15 @@ Paint Paint::recipe(sigil::material::Material material) {
   return m;
 }
 
-Paint Paint::linear(SkPoint a, SkPoint b, std::vector<Stop> stops,
+Paint Paint::linear(SkPoint start, SkPoint end, std::vector<Stop> stops,
                     SkTileMode tile) {
-  RampArrays r = split(stops);
-  const SkPoint pts[2] = {a, b};
-  Paint m = shader(SkShaders::LinearGradient(pts, makeGradient(r, tile)));
+  RampArrays arrays = split(stops);
+  const SkPoint pts[2] = {start, end};
+  Paint m = shader(SkShaders::LinearGradient(pts, makeGradient(arrays, tile)));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Linear;
-  rec->p0 = a;
-  rec->p1 = b;
+  rec->p0 = start;
+  rec->p1 = end;
   rec->stops = std::move(stops);
   rec->tile = tile;
   m.m_recipe = std::move(rec);
@@ -127,14 +127,14 @@ Paint Paint::conical(SkPoint focus, float focusRadius, SkPoint center,
   return m;
 }
 
-Paint Paint::sweep(SkPoint center, std::vector<Stop> stops, float startDeg,
-                   float endDeg) {
-  // Skia's sweep CLAMPS outside [startDeg, endDeg] — it never wraps.
+Paint Paint::sweep(SkPoint center, std::vector<Stop> stops, float startDegrees,
+                   float endDegrees) {
+  // Skia's sweep CLAMPS outside [startDegrees, endDegrees] — it never wraps.
   // A window reaching past the circle (`sweep(c, stops, 90, 450)`, the
-  // obvious hue-wheel-starting-at-red) paints the run before startDeg in
+  // obvious hue-wheel-starting-at-red) paints the run before startDegrees in
   // the first stop's flat colour, silently. The numbers only meet here, so
   // this is where the diagnostic lives — once per process.
-  if (startDeg < 0.0f || endDeg > 360.0f) {
+  if (startDegrees < 0.0f || endDegrees > 360.0f) {
     static bool warnedSweepWindow = false;
     if (!warnedSweepWindow) {
       warnedSweepWindow = true;
@@ -144,50 +144,50 @@ Paint Paint::sweep(SkPoint center, std::vector<Stop> stops, float startDeg,
           "ever reaches the part of the window past the circle, so that "
           "run paints in the nearest stop's flat colour. Rotate the "
           "stops into [0, 360] instead. (warned once)\n",
-          startDeg, endDeg);
+          startDegrees, endDegrees);
     }
   }
   RampArrays r = split(stops);
   Paint m = shader(SkShaders::SweepGradient(
-      center, startDeg, endDeg, makeGradient(r, SkTileMode::kClamp)));
+      center, startDegrees, endDegrees, makeGradient(r, SkTileMode::kClamp)));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Sweep;
   rec->p0 = center;
-  rec->f0 = startDeg;
-  rec->f1 = endDeg;
+  rec->f0 = startDegrees;
+  rec->f1 = endDegrees;
   rec->stops = std::move(stops);
   m.m_recipe = std::move(rec);
   return m;
 }
 
-Paint Paint::image(sk_sp<SkImage> image, SkTileMode tx, SkTileMode ty,
+Paint Paint::image(sk_sp<SkImage> image, SkTileMode horizontalTile, SkTileMode verticalTile,
                    const SkMatrix& local, SkSamplingOptions sampling) {
   if (!image) return {};
-  Paint m = shader(SkShaders::Image(image, tx, ty, sampling, &local));
+  Paint m = shader(SkShaders::Image(image, horizontalTile, verticalTile, sampling, &local));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Image;
   rec->image = std::move(image);
-  rec->tx = tx;
-  rec->ty = ty;
+  rec->tx = horizontalTile;
+  rec->ty = verticalTile;
   rec->local = local;
   rec->sampling = sampling;
   m.m_recipe = std::move(rec);
   return m;
 }
 
-Paint Paint::buffer(std::shared_ptr<PixelBuffer> source, SkTileMode tx,
-                    SkTileMode ty, const SkMatrix& local,
+Paint Paint::buffer(std::shared_ptr<PixelBuffer> source, SkTileMode horizontalTile,
+                    SkTileMode verticalTile, const SkMatrix& local,
                     SkSamplingOptions sampling) {
   if (!source) return {};
   sk_sp<SkImage> snapshot = source->image();
   if (!snapshot) return {};
-  Paint m = shader(SkShaders::Image(snapshot, tx, ty, sampling, &local));
+  Paint m = shader(SkShaders::Image(snapshot, horizontalTile, verticalTile, sampling, &local));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Buffer;
   rec->revision = source->revision();
   rec->source = std::move(source);
-  rec->tx = tx;
-  rec->ty = ty;
+  rec->tx = horizontalTile;
+  rec->ty = verticalTile;
   rec->local = local;
   rec->sampling = sampling;
   m.m_recipe = std::move(rec);
@@ -294,7 +294,7 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial) {
   material.uniform("uB", std::array<float, 2>{b.x(), b.y()});
   for (size_t i = 0; i < n; ++i) {
     material.uniform("uC" + std::to_string(i), stops[i].color);
-    material.uniform("uS" + std::to_string(i), stops[i].pos);
+    material.uniform("uS" + std::to_string(i), stops[i].position);
   }
   return material;
 }

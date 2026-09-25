@@ -46,13 +46,13 @@ class Effect {
    *  Defined with the effect's body; a consumer never holds one. */
   struct BlurLevels;
 
-  static Effect filter(sk_sp<SkImageFilter> f);
+  static Effect filter(sk_sp<SkImageFilter> imageFilter);
   /** A COLOUR FILTER as the effect — a per-pixel colour map with no
    *  neighbourhood, so a consumer applies it to the layer's paint rather
    *  than through the filter graph and pays a blit instead of a pass.
    *  `colorFilter()` reads it back; where an image filter is asked for
    *  instead the colour filter is lifted into the graph. */
-  static Effect filter(sk_sp<SkColorFilter> f);
+  static Effect filter(sk_sp<SkColorFilter> colorFilter);
   /** A SigilMaterial recipe as the effect: its program runs over the
    *  layer, which arrives in the slot named `content`. @p sampleRadius
    *  bounds the largest local-coordinate source offset.
@@ -122,14 +122,14 @@ class Effect {
       sk_sp<SkRuntimeEffect> effect,
       std::vector<std::pair<std::string, float>> uniforms = {});
   /** A blur that smears ALONG one direction: @p sigma along the axis at
-   *  @p angleDeg (degrees, screen sense — 0 horizontal, 90 vertical, 45
+   *  @p angleDegrees (degrees, screen sense — 0 horizontal, 90 vertical, 45
    *  down-right), @p across perpendicular to it, 0 by default for a pure
    *  streak. It carries a comparable RECIPE, so an equal re-described
    *  one prunes, and its "sigma", "angle" and "across" take a bound
    *  uniform.
    *  @trap A spatial filter, not motion blur: it knows nothing about how
    *  the node moved. */
-  static Effect directionalBlur(float sigma, float angleDeg, float across = 0);
+  static Effect directionalBlur(float sigma, float angleDegrees, float across = 0);
   /** A blur whose SIGMA VARIES ACROSS THE NODE — a depth-of-field
    *  falloff, a lens edge, a tube's curvature. @p sigmaMap is a paint
    *  read as a NUMBER: its RED channel at a pixel, times @p maxSigma, is
@@ -216,14 +216,14 @@ class Effect {
    *  effect never compares equal at all.
    *  @trap A re-described shader effect prunes only while the caller
    *  holds ONE SkRuntimeEffect and rebuilds the wrapper around it. */
-  bool operator==(const Effect& o) const;
+  bool operator==(const Effect& other) const;
 
  private:
   /** directionalBlur()'s comparable recipe — what operator== compares
    *  (structural, like a shader recipe) and what bound "sigma" / "angle"
    *  / "across" uniforms rebuild from per paint. */
   struct DirectionalBlur {
-    float sigma = 0, angleDeg = 0, across = 0;
+    float sigma = 0, angleDegrees = 0, across = 0;
     bool operator==(const DirectionalBlur&) const = default;
   };
   /** blur()'s comparable recipe — the parameter's RANGE only. The sigma
@@ -329,11 +329,11 @@ class Effect {
    *  when the member list changes, and the static_assert's message says
    *  what to decide. The state is private, so the decomposition lives
    *  inside the class. */
-  static void fieldPin(Effect& v) {
+  static void fieldPin(Effect& pinned) {
     auto& [filter, colorFilter, recipeSnapshot, effect, uniforms, uniforms2,
            uniforms4, uniformArrays, bound, blocks, directionalBlur,
            parametricBlur, blurLevels, gatheredHalo, colorProgram, children,
-           chainA, chainB, chainBlend] = v;
+           chainA, chainB, chainBlend] = pinned;
     static_assert(
         std::tuple_size_v<decltype(std::tie(
                 filter, colorFilter, recipeSnapshot, effect, uniforms,

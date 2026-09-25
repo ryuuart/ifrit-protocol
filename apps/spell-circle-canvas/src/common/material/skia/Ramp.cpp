@@ -20,7 +20,7 @@
 
 namespace sigil::material::skia {
 
-sk_sp<SkShader> verticalRamp(float y0, float y1,
+sk_sp<SkShader> verticalRamp(float top, float bottom,
                              std::span<const RampStop> ramp) {
   std::vector<SkColor4f> colors;
   std::vector<float> stops;
@@ -28,9 +28,9 @@ sk_sp<SkShader> verticalRamp(float y0, float y1,
   stops.reserve(ramp.size());
   for (const RampStop& stop : ramp) {
     colors.push_back(toSkColor(stop.color));
-    stops.push_back(stop.pos);
+    stops.push_back(stop.position);
   }
-  const SkPoint ends[2] = {{0, y0}, {0, y1}};
+  const SkPoint ends[2] = {{0, top}, {0, bottom}};
   return SkShaders::LinearGradient(ends,
                                    SkGradient({{colors.data(), colors.size()},
                                                {stops.data(), stops.size()},
@@ -42,7 +42,7 @@ Paint unitRamp(std::span<const RampStop> ramp) {
   std::vector<Stop> stops;
   stops.reserve(ramp.size());
   for (const RampStop& stop : ramp)
-    stops.push_back({stop.pos, toSkColor(stop.color)});
+    stops.push_back({stop.position, toSkColor(stop.color)});
   return Paint::linearUnit({0, 0}, {0, 1}, std::move(stops));
 }
 

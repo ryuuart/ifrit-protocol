@@ -28,10 +28,10 @@ void Tile::detach() {
     m_state = std::make_shared<State>(*m_state);
 }
 
-Tile& Tile::seed(uint32_t s) {
-  if (m_state && m_state->seed != s) {
+Tile& Tile::seed(uint32_t value) {
+  if (m_state && m_state->seed != value) {
     detach();
-    m_state->seed = s;
+    m_state->seed = value;
     m_state->baked.reset();
   }
   return *this;

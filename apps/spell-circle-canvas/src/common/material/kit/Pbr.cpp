@@ -132,13 +132,13 @@ Material unlit(const SurfaceParameters& parameters) {
   return dress(Material(unlitRecipe(), parameters));
 }
 
-bool isSurface(const Material& m) {
-  return m.recipePointer() == surfaceRecipe(Reflection::SplitSum) ||
-         m.recipePointer() == surfaceRecipe(Reflection::Additive) ||
-         m.recipePointer() == unlitRecipe();
+bool isSurface(const Material& material) {
+  return material.recipePointer() == surfaceRecipe(Reflection::SplitSum) ||
+         material.recipePointer() == surfaceRecipe(Reflection::Additive) ||
+         material.recipePointer() == unlitRecipe();
 }
 
-bool isUnlit(const Material& m) { return m.recipePointer() == unlitRecipe(); }
+bool isUnlit(const Material& material) { return material.recipePointer() == unlitRecipe(); }
 
 SurfaceParameters SurfaceParameters::chrome() {
   // Steel is not a mirror and not white: a slight cool bias and a
@@ -191,8 +191,8 @@ SurfaceParameters SurfaceParameters::glass() {
   return p;
 }
 
-const Texture* map(const Material& m, std::string_view slot) {
-  const auto* texture = dynamic_cast<const Texture*>(m.leaf(slot));
+const Texture* map(const Material& material, std::string_view slot) {
+  const auto* texture = dynamic_cast<const Texture*>(material.leaf(slot));
   if (!texture) return nullptr;
   const auto* producer = texture->source().as<ProducerSource>();
   const bool fill = producer && producer->key().rfind(kFillPrefix, 0) == 0;

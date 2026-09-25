@@ -23,11 +23,11 @@ namespace sigil::material::skia {
 
 /** A Skia colour as this library's — the conversion `Color` already
  *  performs, named for a call that wants to say so. */
-constexpr Color toColor(const SkColor4f& c) noexcept { return Color(c); }
+constexpr Color toColor(const SkColor4f& color) noexcept { return Color(color); }
 
 /** This library's colour as Skia's. */
-constexpr SkColor4f toSkColor(const Color& c) noexcept {
-  return {c.r, c.g, c.b, c.a};
+constexpr SkColor4f toSkColor(const Color& color) noexcept {
+  return {color.r, color.g, color.b, color.a};
 }
 
 }  // namespace sigil::material::skia

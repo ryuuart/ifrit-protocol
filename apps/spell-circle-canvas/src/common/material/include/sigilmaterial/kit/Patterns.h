@@ -36,10 +36,10 @@ inline GirihPalette nasridPalette() {
 /** The 8-fold star-and-cross panel — real polygons-in-contact on the
  *  4.8.8 tiling, in closed form: octagons of edge @p edge on a square
  *  lattice of spacing edge·(1+√2), whose one tile repeats seamlessly.
- *  @p contactDeg is Hankin's CONTACT ANGLE in degrees, the one dial of
+ *  @p contactDegrees is Hankin's CONTACT ANGLE in degrees, the one dial of
  *  the construction, and the star sharpens as it grows; 45 is the
  *  classic panel. @p strapWidth 0 means 0.12·edge. */
-pattern::Tile girih8(float edge, GirihPalette pal = fezPalette(),
-                     float strapWidth = 0, float contactDeg = 45.0f);
+pattern::Tile girih8(float edge, GirihPalette palette = fezPalette(),
+                     float strapWidth = 0, float contactDegrees = 45.0f);
 
 }  // namespace sigil::material::kit

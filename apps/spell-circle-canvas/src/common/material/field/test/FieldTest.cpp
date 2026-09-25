@@ -48,7 +48,7 @@ TEST(Field, HalftoneRampSwellsDownwardAndBandRemaps) {
   const Material band =
       field::halftoneRamp(8, 0.5f, 3.5f, {0, 0, 0, 1}, 0, 0.9f, 1);
   const SkBitmap bb = render(band, 64, 64);
-  // The swell is confined to the last tenth: the top reads as rMin.
+  // The swell is confined to the last tenth: the top reads as the minimum radius.
   EXPECT_LE(coverage(bb, 30), coverage(bm, 30));
 }
 

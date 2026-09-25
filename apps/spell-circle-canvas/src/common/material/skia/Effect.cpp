@@ -31,16 +31,16 @@
 
 namespace sigil::material::skia {
 
-Effect Effect::filter(sk_sp<SkImageFilter> f) {
-  Effect e;
-  e.m_filter = std::move(f);
-  return e;
+Effect Effect::filter(sk_sp<SkImageFilter> imageFilter) {
+  Effect effect;
+  effect.m_filter = std::move(imageFilter);
+  return effect;
 }
 
-Effect Effect::filter(sk_sp<SkColorFilter> f) {
-  Effect e;
-  e.m_colorFilter = std::move(f);
-  return e;
+Effect Effect::filter(sk_sp<SkColorFilter> colorFilter) {
+  Effect effect;
+  effect.m_colorFilter = std::move(colorFilter);
+  return effect;
 }
 
 Effect Effect::recipe(const Material& material) {
@@ -348,11 +348,11 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
       if (name == "sigma")
         d.sigma = v;
       else if (name == "angle")
-        d.angleDeg = v;
+        d.angleDegrees = v;
       else if (name == "across")
         d.across = v;
     }
-    return makeDirectionalBlur(d.sigma, d.angleDeg, d.across);
+    return makeDirectionalBlur(d.sigma, d.angleDegrees, d.across);
   }
   if (!m_effect) return m_filter;
   if (m_colorProgram) {
@@ -442,41 +442,41 @@ static bool slotsEqual(
   return true;
 }
 
-bool Effect::operator==(const Effect& o) const {
-  if (isAnimated() || o.isAnimated())
+bool Effect::operator==(const Effect& other) const {
+  if (isAnimated() || other.isAnimated())
     return false;  // live never prunes — the material rule
   // A retained chain whose sides need only geometry carries no filter of
   // its own, so it compares by its sides and how they join.
-  if (m_chainA || o.m_chainA)
-    return m_chainA && o.m_chainA && m_chainBlend == o.m_chainBlend &&
-           *m_chainA == *o.m_chainA && *m_chainB == *o.m_chainB;
-  if (m_recipeSnapshot || o.m_recipeSnapshot) {
-    if (!m_recipeSnapshot || !o.m_recipeSnapshot) return false;
-    if (m_recipeSnapshot->program != o.m_recipeSnapshot->program ||
-        m_recipeSnapshot->sampleRadius != o.m_recipeSnapshot->sampleRadius)
+  if (m_chainA || other.m_chainA)
+    return m_chainA && other.m_chainA && m_chainBlend == other.m_chainBlend &&
+           *m_chainA == *other.m_chainA && *m_chainB == *other.m_chainB;
+  if (m_recipeSnapshot || other.m_recipeSnapshot) {
+    if (!m_recipeSnapshot || !other.m_recipeSnapshot) return false;
+    if (m_recipeSnapshot->program != other.m_recipeSnapshot->program ||
+        m_recipeSnapshot->sampleRadius != other.m_recipeSnapshot->sampleRadius)
       return false;
-    if (!m_recipeSnapshot->material || !o.m_recipeSnapshot->material)
-      return m_filter == o.m_filter;
-    return *m_recipeSnapshot->material == *o.m_recipeSnapshot->material;
+    if (!m_recipeSnapshot->material || !other.m_recipeSnapshot->material)
+      return m_filter == other.m_filter;
+    return *m_recipeSnapshot->material == *other.m_recipeSnapshot->material;
   }
   if (m_parametricBlur ||
-      o.m_parametricBlur)  // blur(): by RECIPE + the sigma MAP
-    return m_parametricBlur == o.m_parametricBlur &&
-           slotsEqual(m_slots, o.m_slots);
+      other.m_parametricBlur)  // blur(): by RECIPE + the sigma MAP
+    return m_parametricBlur == other.m_parametricBlur &&
+           slotsEqual(m_slots, other.m_slots);
   if (m_directionalBlur ||
-      o.m_directionalBlur)  // directionalBlur(): by RECIPE, so a
+      other.m_directionalBlur)  // directionalBlur(): by RECIPE, so a
     return m_directionalBlur ==
-           o.m_directionalBlur;  // re-described equal one prunes
-  if (m_effect || o.m_effect)
-    return m_effect == o.m_effect && m_gatheredHalo == o.m_gatheredHalo &&
-           m_colorProgram == o.m_colorProgram &&
-           m_uniforms == o.m_uniforms && m_uniforms2 == o.m_uniforms2 &&
-           m_uniforms4 == o.m_uniforms4 &&
-           m_uniformArrays == o.m_uniformArrays &&
-           slotsEqual(m_slots, o.m_slots);
+           other.m_directionalBlur;  // re-described equal one prunes
+  if (m_effect || other.m_effect)
+    return m_effect == other.m_effect && m_gatheredHalo == other.m_gatheredHalo &&
+           m_colorProgram == other.m_colorProgram &&
+           m_uniforms == other.m_uniforms && m_uniforms2 == other.m_uniforms2 &&
+           m_uniforms4 == other.m_uniforms4 &&
+           m_uniformArrays == other.m_uniformArrays &&
+           slotsEqual(m_slots, other.m_slots);
   // filter(): pointer identity, as ever, on both lanes — an already-built
   // filter of either kind carries no recipe to compare.
-  return m_filter == o.m_filter && m_colorFilter == o.m_colorFilter;
+  return m_filter == other.m_filter && m_colorFilter == other.m_colorFilter;
 }
 
 }  // namespace sigil::material::skia

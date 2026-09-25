@@ -50,7 +50,7 @@ emit adds a light of the layer, never a light of the first light.
 | `Effect::glow(colour, sigma)` | C++ | the layer re-emitted blurred beneath itself, which keeps the content on top |
 | `Effect::blur(sigma)` | C++ | the plain blur |
 | `Effect::blur(sigmaMap, maxSigma)` | C++ | a blur whose radius is read from a paint, per pixel |
-| `Effect::directionalBlur(sigma, angleDeg)` | C++ | the blur along one axis |
+| `Effect::directionalBlur(sigma, angleDegrees)` | C++ | the blur along one axis |
 | `Effect::brightPass(threshold, knee)` | C++ | the layer with everything but its light taken out — the first half of a bloom |
 | `Effect::phosphorBloom(radius, threshold)` | C++ | the whole bloom in one gather |
 | `Effect::dilate(pixels)`, `Effect::deepen(amount)`, `Effect::whiten(amount)` | C++ | the small tonal passes |

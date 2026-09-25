@@ -42,7 +42,7 @@ enum class ChromePalette : uint8_t {
 /** Where the chrome ramp's hard stop sits, as a fraction of the box's
  *  height. Position hand-added glints against this so they stay on the
  *  horizon at any size. */
-inline constexpr float kChromeHorizonFrac = 0.50f;
+inline constexpr float kChromeHorizonFraction = 0.50f;
 
 /** The chrome ramp over the box's height, with its hard stop at the
  *  horizon. */

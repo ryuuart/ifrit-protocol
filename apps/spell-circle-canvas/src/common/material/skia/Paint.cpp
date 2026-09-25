@@ -25,43 +25,43 @@ void Paint::detachBacked() {
     m_backed = std::make_shared<Backed>(*m_backed);
 }
 
-bool Paint::operator==(const Paint& o) const {
-  if (m_amount != o.m_amount)
+bool Paint::operator==(const Paint& other) const {
+  if (m_amount != other.m_amount)
     return false;  // a layer strength is recipe, like a stop or a mode
-  if (m_bleed != o.m_bleed)
+  if (m_bleed != other.m_bleed)
     return false;  // a cull reserve is recipe too — a change must re-record
-  if (m_boundOffset != o.m_boundOffset)
+  if (m_boundOffset != other.m_boundOffset)
     return false;  // the pan BINDING is recipe, compared by pointer like any
                    // other binding; the values it resolves to are the paint
                    // layer's scalar memo to track, never the prune's
-  if (m_worldSpace != o.m_worldSpace)
+  if (m_worldSpace != other.m_worldSpace)
     return false;  // the FLAG is recipe — it says which frame the author
                    // meant. W itself is layout-derived and never compares
                    // here; it is invalidated the way uResolution is
-  if (m_isSolid != o.m_isSolid) return false;
-  if (m_isSolid) return m_solid == o.m_solid;
+  if (m_isSolid != other.m_isSolid) return false;
+  if (m_isSolid) return m_solid == other.m_solid;
   // Recipe-backed: SigilMaterial's own equality — recipe identity, bytes,
   // bindings by identity, slots by value.
-  if ((m_backed != nullptr) != (o.m_backed != nullptr)) return false;
-  if (m_backed) return m_backed->material == o.m_backed->material;
+  if ((m_backed != nullptr) != (other.m_backed != nullptr)) return false;
+  if (m_backed) return m_backed->material == other.m_backed->material;
   // sksl-backed: static recipes compare structurally (effect pointer +
   // constant values); live ones by identity — conservative, they never prune.
-  if ((m_live != nullptr) != (o.m_live != nullptr)) return false;
+  if ((m_live != nullptr) != (other.m_live != nullptr)) return false;
   if (m_live) {
-    if (isAnimated() || o.isAnimated()) return m_live == o.m_live;
+    if (isAnimated() || other.isAnimated()) return m_live == other.m_live;
     // Children are recipe, recursively: two materials over one effect that
     // sample DIFFERENT palettes are different materials, and a node that
     // pruned across that swap would sample the old one forever.
-    return m_live->effect == o.m_live->effect &&
-           m_live->constants == o.m_live->constants &&
-           m_live->constants2 == o.m_live->constants2 &&
-           m_live->constants4 == o.m_live->constants4 &&
-           m_live->constantArrays == o.m_live->constantArrays &&
-           m_live->slots == o.m_live->slots;
+    return m_live->effect == other.m_live->effect &&
+           m_live->constants == other.m_live->constants &&
+           m_live->constants2 == other.m_live->constants2 &&
+           m_live->constants4 == other.m_live->constants4 &&
+           m_live->constantArrays == other.m_live->constantArrays &&
+           m_live->slots == other.m_live->slots;
   }
-  if ((m_recipe != nullptr) != (o.m_recipe != nullptr)) return false;
-  if (m_recipe) return *m_recipe == *o.m_recipe;
-  return m_shader == o.m_shader;  // raw shader wrap / none
+  if ((m_recipe != nullptr) != (other.m_recipe != nullptr)) return false;
+  if (m_recipe) return *m_recipe == *other.m_recipe;
+  return m_shader == other.m_shader;  // raw shader wrap / none
 }
 
 // uniform() and slot() mutations copy-on-write the recipe, because Paint
@@ -75,8 +75,8 @@ void Paint::detachLive() {
     m_live = std::make_shared<Live>(*m_live);
 }
 
-Paint& Paint::amount(float a01) {
-  m_amount = std::clamp(a01, 0.0f, 1.0f);
+Paint& Paint::amount(float fraction) {
+  m_amount = std::clamp(fraction, 0.0f, 1.0f);
   return *this;
 }
 
@@ -148,10 +148,10 @@ Paint& Paint::bleed(float px) {
   return *this;  // positive reserve ever grows anything)
 }
 
-Paint& Paint::quantizeTime(float hz) {
+Paint& Paint::quantizeTime(float rate) {
   if (m_backed) {
     detachBacked();
-    m_backed->material.quantizeTime(hz);
+    m_backed->material.quantizeTime(rate);
     return *this;
   }
   if (!m_live) {
@@ -167,7 +167,7 @@ Paint& Paint::quantizeTime(float hz) {
     return *this;
   }
   detachLive();
-  m_live->timeQuantizeHz = hz > 0 ? hz : 0;
+  m_live->timeQuantizeHz = rate > 0 ? rate : 0;
   return *this;
 }
 

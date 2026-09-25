@@ -40,11 +40,11 @@ const std::shared_ptr<const Recipe>& halftoneRampRecipe() {
 
 }  // namespace
 
-Material halftoneRamp(float spacing, float rMin, float rMax, Color color,
-                      float angleDeg, float rampFrom, float rampTo) {
+Material halftoneRamp(float spacing, float minimumRadius, float maximumRadius, Color color,
+                      float angleDegrees, float rampFrom, float rampTo) {
   return Material(halftoneRampRecipe(),
-                  HalftoneRampParameters{std::max(spacing, 1.0f), rMin, rMax,
-                                         angleDeg * 0.017453293f, 0.0f, 0.0f,
+                  HalftoneRampParameters{std::max(spacing, 1.0f), minimumRadius, maximumRadius,
+                                         angleDegrees * 0.017453293f, 0.0f, 0.0f,
                                          rampFrom, rampTo, color});
 }
 

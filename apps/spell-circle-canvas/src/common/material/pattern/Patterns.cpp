@@ -72,12 +72,12 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
   });
 }
 
-Tile checker(float cell, Color a, Color b) {
+Tile checker(float cell, Color first, Color second) {
   const float s = std::max(cell, 1.0f);
-  return Tile::of({2 * s, 2 * s}, [s, a, b](SkCanvas& c, SkSize, uint32_t) {
+  return Tile::of({2 * s, 2 * s}, [s, first, second](SkCanvas& c, SkSize, uint32_t) {
     SkPaint pa, pb;
-    pa.setColor4f(sk(a), nullptr);
-    pb.setColor4f(sk(b), nullptr);
+    pa.setColor4f(sk(first), nullptr);
+    pb.setColor4f(sk(second), nullptr);
     c.drawRect(SkRect::MakeWH(s, s), pa);
     c.drawRect(SkRect::MakeXYWH(s, s, s, s), pa);
     c.drawRect(SkRect::MakeXYWH(s, 0, s, s), pb);
@@ -96,10 +96,10 @@ Tile gridLines(float spacingX, float spacingY, float width, Color color) {
   });
 }
 
-Tile speckle(float tileSize, int count, float rMin, float rMax,
+Tile speckle(float tileSize, int count, float minimumRadius, float maximumRadius,
              std::vector<Color> palette) {
   const float s = std::max(tileSize, 8.0f);
-  return Tile::of({s, s}, [s, count, rMin, rMax, palette = std::move(palette)](
+  return Tile::of({s, s}, [s, count, minimumRadius, maximumRadius, palette = std::move(palette)](
                               SkCanvas& c, SkSize, uint32_t seed) {
     SkPaint p;
     p.setAntiAlias(true);
@@ -108,7 +108,7 @@ Tile speckle(float tileSize, int count, float rMin, float rMax,
       const float x = (0.5f + 0.5f * core::noise::hash(seed, 3 * k)) * s;
       const float y = (0.5f + 0.5f * core::noise::hash(seed, 3 * k + 1)) * s;
       const float t = 0.5f + 0.5f * core::noise::hash(seed, 3 * k + 2);
-      const float r = rMin + (rMax - rMin) * t;
+      const float r = minimumRadius + (maximumRadius - minimumRadius) * t;
       if (!palette.empty())
         p.setColor4f(sk(palette[k % palette.size()]), nullptr);
       // Wraparound copies keep edges seamless.

@@ -43,7 +43,7 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase = 0.0f,
               Axis along = Axis::U);
 
 /** 2×2 checkerboard. */
-Tile checker(float cell, Color a, Color b);
+Tile checker(float cell, Color first, Color second);
 
 /** Grid lines (graph paper), one pitch per axis. */
 Tile gridLines(float spacingX, float spacingY, float width, Color color);
@@ -53,9 +53,9 @@ inline Tile gridLines(float spacing, float width, Color color) {
 }
 
 /** Seeded speckle (paper grain, star fields): @p count marks per tile with
- *  radii in [rMin, rMax], colours cycled from the palette — deterministic
+ *  radii in [minimumRadius, maximumRadius], colours cycled from the palette — deterministic
  *  per seed, `seed(n)` re-rolls the field. */
-Tile speckle(float tileSize, int count, float rMin, float rMax,
+Tile speckle(float tileSize, int count, float minimumRadius, float maximumRadius,
              std::vector<Color> palette);
 
 }  // namespace sigil::material::pattern

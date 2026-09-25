@@ -47,14 +47,14 @@ class Tile {
   static Tile of(SkSize size, Program draw);
 
   /** Change the seed, drop the bake: the next image() regenerates. */
-  Tile& seed(uint32_t s);
+  Tile& seed(uint32_t value);
   /** Replace the program and drop the bake. */
   Tile& program(Program draw);
   /** Drop the bake alone; the next image() re-runs the program. */
   Tile& invalidate();
   /** Mapping only, no rebake. */
-  Tile& scale(float s) {
-    m_scale = s;
+  Tile& scale(float factor) {
+    m_scale = factor;
     return *this;
   }
   Tile& rotate(float degrees) {

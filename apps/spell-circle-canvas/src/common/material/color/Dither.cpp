@@ -50,14 +50,14 @@ float screenNoise(int x, int y) {
 
 }  // namespace
 
-float Dither::threshold(int x, int y) const {
-  if (kind == DitherKind::Noise) return screenNoise(x, y);
+float Dither::threshold(int column, int row) const {
+  if (kind == DitherKind::Noise) return screenNoise(column, row);
   const int bits = matrixBits(matrix);
   const int side = 1 << bits;
   // A negative coordinate folds forward rather than mirroring, so the
   // tiling is continuous across the origin.
-  const uint32_t cx = (uint32_t)(((x % side) + side) % side);
-  const uint32_t cy = (uint32_t)(((y % side) + side) % side);
+  const uint32_t cx = (uint32_t)(((column % side) + side) % side);
+  const uint32_t cy = (uint32_t)(((row % side) + side) % side);
   const uint32_t cells = (uint32_t)(side * side);
   // Plus a half: the cell's value stands for the band it opens, so the
   // thresholds sit at the centres of `cells` bands and their average is
@@ -65,10 +65,10 @@ float Dither::threshold(int x, int y) const {
   return ((float)bayer(cx, cy, bits) + 0.5f) / (float)cells;
 }
 
-Color Dither::at(const Color& color, int x, int y) const {
+Color Dither::at(const Color& color, int column, int row) const {
   const int steps = std::max(levels, 2) - 1;
   const float step = 1.0f / (float)steps;
-  const float offset = (threshold(x, y) - 0.5f) * amount * step;
+  const float offset = (threshold(column, row) - 0.5f) * amount * step;
   auto channel = [&](float v) {
     const float shifted = std::clamp(v + offset, 0.0f, 1.0f);
     return std::round(shifted * (float)steps) / (float)steps;
@@ -76,8 +76,8 @@ Color Dither::at(const Color& color, int x, int y) const {
   return {channel(color.r), channel(color.g), channel(color.b), color.a};
 }
 
-bool Dither::on(float value, int x, int y) const {
-  return value > 0.5f + (threshold(x, y) - 0.5f) * amount;
+bool Dither::on(float value, int column, int row) const {
+  return value > 0.5f + (threshold(column, row) - 0.5f) * amount;
 }
 
 }  // namespace sigil::material

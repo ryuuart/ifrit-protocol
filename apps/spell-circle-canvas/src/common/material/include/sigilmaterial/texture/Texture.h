@@ -60,17 +60,17 @@ struct DeviceImage {
  *  image can change between frames, and compares by value. */
 template <class S>
 concept TextureSourceType =
-    std::equality_comparable<S> && requires(const S& s) {
-      { s.image() } -> std::convertible_to<sk_sp<SkImage>>;
-      { s.animated() } -> std::convertible_to<bool>;
+    std::equality_comparable<S> && requires(const S& source) {
+      { source.image() } -> std::convertible_to<sk_sp<SkImage>>;
+      { source.animated() } -> std::convertible_to<bool>;
     };
 
 /** …and what it MAY be besides: a source whose pixels stand on a device
  *  says where. One optional member, so every source that has no device
  *  is written exactly as it was. */
 template <class S>
-concept DeviceTextureSource = requires(const S& s) {
-  { s.deviceImage() } -> std::convertible_to<DeviceImage>;
+concept DeviceTextureSource = requires(const S& source) {
+  { source.deviceImage() } -> std::convertible_to<DeviceImage>;
 };
 
 /** A source held by value with its type erased, comparable across the
@@ -115,7 +115,7 @@ class TextureSource {
   };
   template <class S>
   struct Model final : Concept {
-    explicit Model(S v) : value(std::move(v)) {}
+    explicit Model(S source) : value(std::move(source)) {}
     sk_sp<SkImage> image() const override { return value.image(); }
     bool animated() const override { return value.animated(); }
     DeviceImage deviceImage() const override {
@@ -202,9 +202,9 @@ class Texture : public ShaderLeaf {
   }
 
   /** The tiling per axis outside the image (or the region). */
-  Texture& tile(SkTileMode x, SkTileMode y) {
-    m_tileX = x;
-    m_tileY = y;
+  Texture& tile(SkTileMode horizontal, SkTileMode vertical) {
+    m_tileX = horizontal;
+    m_tileY = vertical;
     return *this;
   }
   Texture& tile(SkTileMode both) { return tile(both, both); }

@@ -57,13 +57,13 @@ std::string stackName(Blend blend);
 Material over(Material base, Material top, Material mask,
               Blend blend = Blend::Mix, float amount = 1.0f);
 
-/** The material @p m stacks on: the `base` child when @p m is an
- *  `over()` result, else @p m itself. Applied until the answer is not a
+/** The material @p material stacks on: the `base` child when @p material is an
+ *  `over()` result, else @p material itself. Applied until the answer is not a
  *  stack, this is the bottom of the stack. */
-const Material* under(const Material& m);
+const Material* under(const Material& material);
 
-/** How many materials are stacked over the bottom of @p m: zero for a
+/** How many materials are stacked over the bottom of @p material: zero for a
  *  material `over()` never combined. */
-int stackDepth(const Material& m);
+int stackDepth(const Material& material);
 
 }  // namespace sigil::material

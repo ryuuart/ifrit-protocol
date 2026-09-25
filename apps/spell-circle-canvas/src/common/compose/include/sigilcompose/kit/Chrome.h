@@ -30,7 +30,7 @@
  * horizon, a white specular sliver straddling that horizon, a chisel
  * bevel, and a dark keyline stroked outside the silhouette.
  *
- * `material::kit::kChromeHorizonFrac` is where the hard stop sits, as a
+ * `material::kit::kChromeHorizonFraction` is where the hard stop sits, as a
  * fraction of the node's height: position hand-added glints against it
  * times the height and they stay on the horizon at any size.
  */
@@ -216,7 +216,7 @@ struct ChromeBody {
  *  wordmark — where the glyphs already chop the band into segments — those
  *  stubs read as an unfinished strikethrough rather than as light. */
 struct ChromeSliver {
-  float horizonFrac = material::kit::kChromeHorizonFrac;
+  float horizonFrac = material::kit::kChromeHorizonFraction;
   /** Fraction of the width the highlight takes to reach full strength. */
   float falloff = 0.22f;
   bool operator==(const ChromeSliver&) const = default;

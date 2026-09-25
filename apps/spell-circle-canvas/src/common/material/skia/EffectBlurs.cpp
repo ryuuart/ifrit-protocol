@@ -31,25 +31,25 @@ namespace sigil::material::skia {
  *  An axis-aligned angle IS SkImageFilters::Blur with the sigmas swapped.
  *  Any other angle is a rotate → Blur → unrotate sandwich: three filter
  *  nodes, with bounds handled by the filter graph rather than by us. */
-sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDeg,
+sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDegrees,
                                          float across) {
-  float axis = std::fmod(angleDeg, 180.0f);  // a blur axis has no sign
+  float axis = std::fmod(angleDegrees, 180.0f);  // a blur axis has no sign
   if (axis < 0) axis += 180.0f;
   if (axis == 0.0f) return SkImageFilters::Blur(sigma, across, nullptr);
   if (axis == 90.0f) return SkImageFilters::Blur(across, sigma, nullptr);
   const SkSamplingOptions sampling(SkFilterMode::kLinear);
   sk_sp<SkImageFilter> aligned = SkImageFilters::MatrixTransform(
-      SkMatrix::RotateDeg(-angleDeg), sampling, nullptr);
+      SkMatrix::RotateDeg(-angleDegrees), sampling, nullptr);
   sk_sp<SkImageFilter> blurred =
       SkImageFilters::Blur(sigma, across, std::move(aligned));
-  return SkImageFilters::MatrixTransform(SkMatrix::RotateDeg(angleDeg),
+  return SkImageFilters::MatrixTransform(SkMatrix::RotateDeg(angleDegrees),
                                          sampling, std::move(blurred));
 }
 
-Effect Effect::directionalBlur(float sigma, float angleDeg, float across) {
+Effect Effect::directionalBlur(float sigma, float angleDegrees, float across) {
   Effect e;
-  e.m_directionalBlur = DirectionalBlur{sigma, angleDeg, across};
-  e.m_filter = makeDirectionalBlur(sigma, angleDeg, across);
+  e.m_directionalBlur = DirectionalBlur{sigma, angleDegrees, across};
+  e.m_filter = makeDirectionalBlur(sigma, angleDegrees, across);
   return e;
 }
 

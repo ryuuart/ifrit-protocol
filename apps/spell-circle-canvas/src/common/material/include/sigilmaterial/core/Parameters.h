@@ -122,12 +122,12 @@ constexpr std::string_view fieldName() {
 
 namespace detail {
 template <class P, class F, size_t... I>
-void forEachFieldImpl(const P& parameters, F&& f, std::index_sequence<I...>) {
-  (f(fieldName<I, P>(), boost::pfr::get<I>(parameters)), ...);
+void forEachFieldImpl(const P& parameters, F&& visitor, std::index_sequence<I...>) {
+  (visitor(fieldName<I, P>(), boost::pfr::get<I>(parameters)), ...);
 }
 template <class P, class F, size_t... I>
-void forEachFieldImpl(F&& f, std::index_sequence<I...>) {
-  (f(fieldName<I, P>(), UniformTraits<boost::pfr::tuple_element_t<I, P>>::kind,
+void forEachFieldImpl(F&& visitor, std::index_sequence<I...>) {
+  (visitor(fieldName<I, P>(), UniformTraits<boost::pfr::tuple_element_t<I, P>>::kind,
      UniformTraits<boost::pfr::tuple_element_t<I, P>>::floats),
    ...);
 }
@@ -143,18 +143,18 @@ constexpr size_t floatBytes(std::index_sequence<I...>) {
 }
 }  // namespace detail
 
-/** Calls `f(name, value)` for each field of @p parameters in order. */
+/** Calls `visitor(name, value)` for each field of @p parameters in order. */
 template <class P, class F>
-void forEachField(const P& parameters, F&& f) {
-  detail::forEachFieldImpl(parameters, std::forward<F>(f),
+void forEachField(const P& parameters, F&& visitor) {
+  detail::forEachFieldImpl(parameters, std::forward<F>(visitor),
                            std::make_index_sequence<fieldCount<P>()>{});
 }
 
-/** Calls `f(name, kind, floats)` for each field of @p P in order, with no
- *  instance. */
+/** Calls `visitor(name, kind, floats)` for each field of @p P in order,
+ *  with no instance. */
 template <class P, class F>
-void forEachField(F&& f) {
-  detail::forEachFieldImpl<P>(std::forward<F>(f),
+void forEachField(F&& visitor) {
+  detail::forEachFieldImpl<P>(std::forward<F>(visitor),
                               std::make_index_sequence<fieldCount<P>()>{});
 }
 

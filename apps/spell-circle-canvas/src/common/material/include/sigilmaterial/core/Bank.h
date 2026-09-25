@@ -81,15 +81,15 @@ class Bank {
    *  the seed, so pieces in one bucket are one material and a caller's
    *  own seed cannot make the bank unbounded. */
   template <class P>
-    requires requires(P& p) {
-      { p.seed } -> std::convertible_to<float>;
+    requires requires(P& candidate) {
+      { candidate.seed } -> std::convertible_to<float>;
     }
   const Material& get(const std::shared_ptr<const Recipe>& recipe, P parameters,
                       uint32_t seed) {
     parameters.seed = 0.0f;
-    return get(recipe, parameters, seed, [&](uint32_t b) {
+    return get(recipe, parameters, seed, [&](uint32_t bucket) {
       P seeded = parameters;
-      seeded.seed = (float)b;
+      seeded.seed = (float)bucket;
       return Material(recipe, seeded);
     });
   }

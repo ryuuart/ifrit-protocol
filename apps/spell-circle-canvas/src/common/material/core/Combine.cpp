@@ -304,15 +304,15 @@ Material over(Material base, Material top, Material mask, Blend blend,
   return fill(std::move(out));
 }
 
-const Material* under(const Material& m) {
-  if (!isStack(m.recipe().name())) return &m;
-  if (const Material* base = m.slot("base")) return base;
-  return &m;
+const Material* under(const Material& material) {
+  if (!isStack(material.recipe().name())) return &material;
+  if (const Material* base = material.slot("base")) return base;
+  return &material;
 }
 
-int stackDepth(const Material& m) {
+int stackDepth(const Material& material) {
   int depth = 0;
-  for (const Material* p = &m; under(*p) != p; p = under(*p)) ++depth;
+  for (const Material* p = &material; under(*p) != p; p = under(*p)) ++depth;
   return depth;
 }
 

@@ -63,7 +63,7 @@ sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,
 
 /** directionalBlur's filter: Skia's separable Gaussian on an axis, in a
  *  rotate/unrotate sandwich when the axis is not the box's. */
-sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDeg,
+sk_sp<SkImageFilter> makeDirectionalBlur(float sigma, float angleDegrees,
                                          float across);
 
 /** The two blurred levels of blur()'s pyramid at a declared range, or
