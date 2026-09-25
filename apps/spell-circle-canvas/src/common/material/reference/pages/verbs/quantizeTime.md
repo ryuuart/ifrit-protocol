@@ -2,7 +2,7 @@
 kind: verb
 library: SigilMaterial
 name: quantizeTime
-qualified: sigil::material::skia::Paint::quantizeTime
+qualified: sigil::material::Paint::quantizeTime
 group: Uniforms and layer properties
 status: stable
 ---
@@ -18,7 +18,7 @@ plumbed through whatever drives the clock.
 Stop-motion and flipbook surfaces read as intentional at a low rate
 where a smoothly interpolated one reads as sliding.
 
-It is meaningful only on a `Paint::sksl` paint whose effect declares
+It is meaningful only on a `skia::sksl` paint whose effect declares
 `uTime`; warned and ignored otherwise, and zero restores continuous
 time.
 

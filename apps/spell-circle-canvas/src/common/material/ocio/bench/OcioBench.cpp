@@ -10,7 +10,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <sigilmaterial/ocio/Ocio.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 using namespace sigil::material;
@@ -40,12 +40,12 @@ void ExponentOverACanvas(benchmark::State& state, bool graded,
   SkBitmap output;
   output.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   SkCanvas canvas(output);
-  const skia::Effect view =
-      graded ? skia::Effect::recipe(ocio::exponent(1.08f), surface)
-             : skia::Effect{};
+  const Filter view =
+      graded ? Filter::of(ocio::exponent(1.08f), surface)
+             : Filter{};
   SkPaint viewPaint;
-  viewPaint.setImageFilter(view.imageFilter());
-  viewPaint.setColorFilter(view.colorFilter());
+  viewPaint.setImageFilter(skia::imageFilter(view));
+  viewPaint.setColorFilter(skia::colorFilter(view));
   for ([[maybe_unused]] auto iteration : state) {
     canvas.saveLayer(nullptr, &viewPaint);
     canvas.drawColor(SkColorSetARGB(255, 128, 140, 150));

@@ -2,7 +2,7 @@
 kind: verb
 library: SigilMaterial
 name: bleed
-qualified: sigil::material::skia::Paint::bleed
+qualified: sigil::material::Paint::bleed
 group: Uniforms and layer properties
 status: stable
 ---

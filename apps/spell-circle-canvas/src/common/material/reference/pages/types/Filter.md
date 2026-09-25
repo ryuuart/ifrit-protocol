@@ -1,13 +1,13 @@
 ---
 kind: type
 library: SigilMaterial
-name: Effect
-qualified: sigil::material::skia::Effect
-group: The Skia paint
+name: Filter
+qualified: sigil::material::Filter
+group: The filter
 status: stable
 ---
 
-# Effect
+# Filter
 
 POST-PROCESSING OVER A LAYER THAT IS ALREADY RENDERED, as a comparable
 value. A paint shades a shape; an effect takes the picture a consumer has
@@ -21,18 +21,19 @@ already there".
 ## Anatomy
 
 Every effect is built by a static factory and then narrowed with the
-modifiers. `Effect::isAnimated` is the volatility declaration — one word
+modifiers. `Filter::isAnimated` is the volatility declaration — one word
 across the whole library — and it is true while any uniform is bound or
-any child material is live. `Effect::usesWorldSpace` asks whether any
+any child material is live. `Filter::usesWorldSpace` asks whether any
 child paint anchors to the root frame.
 
-`Effect::imageFilter` is the built filter; `Effect::colorFilter` is the
-colour lane, set only by the colour-filter factory and by a lowered
-recipe, and the two are never both present. `Effect::resolvedImageFilter`
-is the filter with bound uniforms resolved NOW, against the painting
-node's frame — which is what the paint phase applies.
+The Skia executor answers what a filter becomes: `skia::imageFilter` is
+the built filter; `skia::colorFilter` is the colour lane, set by the
+colour functions, the colour-filter door and a lowered program, and the
+two are never both present. `skia::resolvedImageFilter` is the filter
+with bound parameters resolved NOW, against the painting node's frame —
+which is what the paint phase applies.
 
-`Effect::then` chains: `next` runs after this one. `Effect::emit` makes a
+`Filter::then` chains: `next` runs after this one. `Filter::emit` makes a
 LIGHT from the same input this effect reads and blends it over this
 effect's own output, so lights stack rather than compound — a second
 emit adds a light of the layer, never a light of the first light.
@@ -41,31 +42,34 @@ emit adds a light of the layer, never a light of the first light.
 
 | Spelling | Language | What it gives |
 | --- | --- | --- |
-| `Effect::filter(imageFilter)` | C++ | any Skia image filter — blur, displacement, lighting, compose chains |
-| `Effect::filter(colorFilter)` | C++ | a per-pixel colour map with no neighbourhood, applied to the layer's paint as a blit rather than a pass |
-| `Effect::recipe(material)` | C++ | a recipe as the effect: its program runs over the layer, which arrives in the slot named `content` |
-| `Effect::recipe(material, sampleRadius)` | C++ | the same, bounding the largest local-coordinate source offset |
-| `Effect::recipe(material, surface)` | C++ | the same recipe LOWERED for the surface it will land on — a channelwise recipe on an eight-bit surface becomes a table and no program at all |
-| `Effect::shader(effect)` | C++ | an SkSL runtime effect whose content slot is the rendered layer |
-| `Effect::glow(colour, sigma)` | C++ | the layer re-emitted blurred beneath itself, which keeps the content on top |
-| `Effect::blur(sigma)` | C++ | the plain blur |
-| `Effect::blur(sigmaMap, maxSigma)` | C++ | a blur whose radius is read from a paint, per pixel |
-| `Effect::directionalBlur(sigma, angleDegrees)` | C++ | the blur along one axis |
-| `Effect::brightPass(threshold, knee)` | C++ | the layer with everything but its light taken out — the first half of a bloom |
-| `Effect::phosphorBloom(radius, threshold)` | C++ | the whole bloom in one gather |
-| `Effect::dilate(pixels)`, `Effect::deepen(amount)`, `Effect::whiten(amount)` | C++ | the small tonal passes |
-| `material.skia.Effect.blur(...)` and the rest | Python | the same factories under the same names |
+| `skia::filter(imageFilter)` | C++ | any Skia image filter — blur, displacement, lighting, compose chains |
+| `skia::filter(colorFilter)` | C++ | a per-pixel colour map with no neighbourhood, applied to the layer's paint as a blit rather than a pass |
+| `Filter::of(material)` | C++ | a recipe as the effect: its program runs over the layer, which arrives in the slot named `content` |
+| `Filter::of(material, sampleRadius)` | C++ | the same, bounding the largest local-coordinate source offset |
+| `skia::lowered(material, surface)` | C++ | the same recipe LOWERED for the surface it will land on — a channelwise recipe on an eight-bit surface becomes a table and no program at all |
+| `skia::program(effect)` | C++ | an SkSL runtime effect whose content slot is the rendered layer |
+| `Filter::dropShadow(colour, {.blur, .offset})` | C++ | CSS `drop-shadow()`: the layer's shadow beneath it |
+| `Filter::bloom(options)` | C++ | optical bloom: bright colour extracted, spread by two Gaussians, laid back over the source |
+| `Filter::brightness(amount)`, `Filter::contrast(amount)`, `Filter::saturate(amount)`, `Filter::hueRotate(degrees)` | C++ | CSS's colour functions, each a per-pixel map |
+| `Filter::glow(colour, sigma)` | C++ | the layer re-emitted blurred beneath itself, which keeps the content on top |
+| `Filter::blur(sigma)` | C++ | the plain blur |
+| `Filter::blur(sigmaMap, maximumSigma)` | C++ | a blur whose radius is read from a paint, per pixel |
+| `Filter::directionalBlur(sigma, angleDegrees)` | C++ | the blur along one axis |
+| `Filter::brightPass(threshold, knee)` | C++ | the layer with everything but its light taken out — the first half of a bloom |
+| `Filter::phosphorBloom(radius, threshold)` | C++ | the whole bloom in one gather |
+| `Filter::dilate(pixels)`, `Filter::deepen(amount)`, `Filter::whiten(amount)` | C++ | the small tonal passes |
+| `material.Filter.blur(...)` and the rest | Python | the same factories under the same names |
 
-Then the modifiers: `Effect::uniform` sets or binds a named uniform —
+Then the modifiers: `Filter::set` sets and `Filter::bind` binds a named parameter —
 including a `motion::Animatable<float>`, which makes the effect live —
-and `Effect::slot` fills a declared `uniform shader` with a paint.
+and `Filter::slot` fills a declared `uniform shader` with a paint.
 
 ## Pass it to
 
 | Where | Kind | Library |
 | --- | --- | --- |
-| `Effect::then` | member | SigilMaterial — as the next link of a chain |
-| `Effect::emit` | member | SigilMaterial — as the light |
+| `Filter::then` | member | SigilMaterial — as the next link of a chain |
+| `Filter::emit` | member | SigilMaterial — as the light |
 
 Outside this library an effect is what a node's own layer filter and its
 backdrop filter take, and what a composer's view transform is stated in.
@@ -77,8 +81,8 @@ library's name for the value.
 | What | Kind | Library |
 | --- | --- | --- |
 | every factory above | function | SigilMaterial |
-| `Effect::then`, `Effect::emit` | member | SigilMaterial |
-| `skia::bloom` | function | SigilMaterial |
+| `Filter::then`, `Filter::emit` | member | SigilMaterial |
+| `Filter::bloom` | function | SigilMaterial |
 
 ## Description
 
@@ -104,19 +108,19 @@ expensive filter over static content is paid once.
 
 A COLOUR FILTER is a per-pixel colour map with no neighbourhood, so a
 consumer applies it to the layer's paint rather than through the filter
-graph and pays a blit instead of a pass. `Effect::colorFilter` is how
+graph and pays a blit instead of a pass. `skia::colorFilter` is how
 that consumer reads it back, and it is set by the colour-filter factory,
 by the lowered recipe, and by the per-pixel stages —
-`Effect::brightPass`, `Effect::deepen` and `Effect::whiten`. An effect
+`Filter::brightPass`, `Filter::deepen` and `Filter::whiten`. An effect
 built that way carries no image filter of its own, and where one is
-asked for — an `Effect::then` chain,
-`Effect::resolvedImageFilter` — the colour filter is lifted into the
+asked for — an `Filter::then` chain,
+`skia::resolvedImageFilter` — the colour filter is lifted into the
 filter graph so the picture is right either way. The two are never both
 present.
 
-`Effect::resolvedImageFilter` is the filter with any bound uniforms
+`skia::resolvedImageFilter` is the filter with any bound uniforms
 resolved NOW, which is what the paint phase applies; it is identical to
-`Effect::imageFilter` for a static effect. Its paint frame is the
+`skia::imageFilter` for a static effect. Its paint frame is the
 painting node's, which the slots' materials resolve against — its box,
 its clock — exactly the context `Material::slot` hands its sources. Null
 is the context-free form: static children keep their snapshot, and it is
@@ -124,7 +128,7 @@ what a caller holding an effect outside a paint can ask for.
 
 ### The stages, one by one
 
-**`Effect::recipe` reads its material's bindings ONCE, at
+**`Filter::of` reads its material's bindings ONCE, at
 construction**, so animate by re-describing. Its program runs over the
 layer, which arrives in the slot named `content`; every other slot and
 every uniform is bound from the material as it stands. A sample radius
@@ -147,22 +151,22 @@ way and only the cost differs. The surface argument is the colour type
 of the surface the effect will be composited on, which a consumer reads
 from its canvas at the moment it paints.
 
-**`Effect::glow`** re-emits the layer blurred beneath itself in a
+**`Filter::glow`** re-emits the layer blurred beneath itself in a
 colour — a drop shadow at zero offset, which keeps the content on top.
 Chain it for a tighter core over a wider halo.
 
-**`Effect::brightPass` is the layer with everything but its light taken
+**`Filter::brightPass` is the layer with everything but its light taken
 out**: what is brighter than the threshold, faded in over the knee above
 it, carrying that brightness as its own coverage. It is the first half
 of a bloom on its own, so a consumer can spend a blur and an additive
-composite where `Effect::phosphorBloom` would spend a gather — chain it
+composite where `Filter::phosphorBloom` would spend a gather — chain it
 with a blur and lay the result back over the source.
 
 The gate is read on the STRAIGHT colour and the coverage is rewritten
 from it, because what comes back is a layer rather than light to add: a
 pixel half covered by white is white, and gating it premultiplied would
 call it grey and eat the edge of every source in the layer.
-`Effect::phosphorBloom`'s own gate reads the premultiplied colour for
+`Filter::phosphorBloom`'s own gate reads the premultiplied colour for
 the opposite reason — it never emits a layer, it accumulates energy, and
 there coverage IS part of how much light a pixel contributes.
 Brightness is the peak channel, not luminance, so a saturated primary
@@ -170,15 +174,15 @@ blooms as readily as a white, which is what a phosphor and a lamp both
 do and what a luminance gate would refuse a deep blue source.
 
 It reads its own pixel and no neighbour, so it is a COLOUR MAP and
-`Effect::colorFilter` answers it rather than `Effect::imageFilter`. That
-is what keeps `Effect::emit` honest: a filter graph holding a program
+`skia::colorFilter` answers it rather than `skia::imageFilter`. That
+is what keeps `Filter::emit` honest: a filter graph holding a program
 over coordinates is evaluated in the LAYER's pixels and resampled onto a
 scaled canvas, so a light made with one would soften the sharp layer it
 is laid back over even where the light is wholly transparent. A colour
 map carries no such constraint and the layer keeps the device's own
 pixels.
 
-**`Effect::dilate` is the rounded spread**: every edge grown outward by
+**`Filter::dilate` is the rounded spread**: every edge grown outward by
 some pixels, so the layer's colour carries past it as a body before
 anything feathers it, as a shadow's spread does. A blur at one and a
 half times the distance leaves a quarter of an edge's coverage one
@@ -189,20 +193,20 @@ plates. The straight colour is kept. It grows COVERAGE, so over an
 opaque ground it is only a blur: spread a light — a bright pass, which
 carries brightness as coverage, or a layer drawn on transparency.
 
-**`Effect::deepen` lets faint light lose its weaker channels first**, as
+**`Filter::deepen` lets faint light lose its weaker channels first**, as
 a tone curve's toe drops them: the straight colour, normalised to its
 peak, is raised to one plus the amount times the missing coverage, so a
 dense layer keeps its colour and a thin one sinks toward its strongest
 channel — orange toward red, yellow toward orange, a blue-leaning cyan
 toward blue — with its brightest channel held. Over a blurred light, the
-halo deepens as it fades. **`Effect::whiten` is the other end of that
+halo deepens as it fades. **`Filter::whiten` is the other end of that
 curve**: where the straight colour's peak is above the threshold, faded
 in over the knee, it moves the given fraction of the way toward white at
 that peak, as an overexposed core does, so a lit shape reads lighter
 than the deeper light around it. Colour below the threshold is
 untouched.
 
-**`Effect::phosphorBloom` is display bloom over the completed layer.**
+**`Filter::phosphorBloom` is display bloom over the completed layer.**
 Pixels above the threshold feed three concentric kernels; their red,
 green and blue channels are recombined with progressively different
 reach — red the widest, blue the tightest, as a phosphor's own spread
@@ -238,14 +242,14 @@ instead. The layer this runs over should still be bounded: put the glow
 sources on their own node and let the host bake that node to a texture,
 and the bloom is baked with them once.
 
-**`Effect::shader`** takes float uniforms set by name on the SkSL
+**`skia::program`** takes float uniforms set by name on the SkSL
 effect; the layer arrives as the slot named `content`. A name the effect
 does not declare as a float uniform — a typo, or a float2, float4 or
 array, none of which that door can fill — is warned about once and
 IGNORED, never a debug abort: one typo in a live-reloaded sketch must
 not take the host process down.
 
-**`Effect::directionalBlur` smears ALONG one direction**: the sigma
+**`Filter::directionalBlur` smears ALONG one direction**: the sigma
 along the axis at the given angle (degrees, screen sense — 0 smears
 horizontally, 90 vertically, 45 down-right), and the across value
 perpendicular to it, zero by default for a pure streak. It is a spatial
@@ -268,9 +272,9 @@ pixel, times the declared maximum, is the blur radius there. The natural
 authoring is therefore a box-unit gradient — `Paint::linearGradient` from
 black at the left edge to white at the right is "sharp at the left,
 softest at the right" over whatever box the layout decides — and any
-`Paint::sksl` paint is an arbitrary field.
+`skia::sksl` paint is an arbitrary field.
 
-It is written as its own effect rather than left to `Effect::shader`
+It is written as its own effect rather than left to `skia::program`
 because a hand-written SkSL kernel would have to pay the WORST sigma at
 every pixel: SkSL has no cheap dynamic loop bound, so the kernel must be
 sized for the largest radius anywhere in the node, and a Gaussian stops
@@ -298,11 +302,11 @@ pass at every paint, which is the full cost the range exists to avoid.
 
 ### The slot and the uniforms
 
-`Effect::slot` is `Material::slot` on the effect seam: same name, same
+`Filter::slot` is `Material::slot` on the effect seam: same name, same
 shape, same semantics. The effect declares `uniform shader NAME;` and
 this fills it with a paint, so the SkSL can read a source the node has
 NOT painted — a parameter field, a mask channel, a gradient, a second
-texture. `Effect::shader` fills exactly one slot itself, `content`, the
+texture. `skia::program` fills exactly one slot itself, `content`, the
 node's own rendered layer, and this is how any further declared
 `uniform shader` gets a source. The paint resolves against THIS NODE's
 box, so unit-space authoring works here as it does on a fill.
@@ -319,7 +323,7 @@ fill — a wrapped image filter, or a bare directional blur — the call is
 a no-op with a warning, exactly as a uniform is there. On a parametric
 blur the one fillable name is `sigma`, its sigma map.
 
-`Effect::uniform` has the same four shapes a material's does. A LIVE
+`Filter::set` and `Filter::bind` has the same four shapes a material's does. A LIVE
 float is read from the bound value at every paint, and the node repaints
 every frame while the effect is attached: a bound uniform declares
 volatility exactly as a live material does, which is what lets a ripple
@@ -357,11 +361,11 @@ refuses a partial array write.
 
 ### Chaining and emitting
 
-`Effect::then` applies the next effect AFTER this one — a blur followed
+`Filter::then` applies the next effect AFTER this one — a blur followed
 by a colourising shader is the glass formula. Static chains precompose
 once; a chain with a live side re-composes at each paint.
 
-`Effect::emit` is the layer and a light made from it: the light runs
+`Filter::emit` is the layer and a light made from it: the light runs
 over the same input this effect does, and its result is blended over
 this effect's own output with the given mode. So an empty effect that
 emits a light is the layer with its light screened over it, and a
@@ -373,7 +377,7 @@ re-blends at each paint.
 
 ### Every program an effect is built out of
 
-`skia::everyEffectProgram` is every SkSL body an effect is built out of,
+`skia::everyFilterProgram` is every SkSL body an effect is built out of,
 as one list in a fixed order: the bright pass and the phosphor halo a
 bloom gathers, the tap that lays that halo back over the source, the
 deepening and whitening of a light, and the mix a parametric blur
@@ -393,9 +397,10 @@ programs they are inlined into.
 
 ## See also
 
-- `skia/Effect.h` — the header: `Effect`
+- `filter/Filter.h` — the header: `Filter`, `ShadowOptions`, `BloomOptions`;
+  `skia/Filter.h` — the Skia executor
 - `skia/Bloom.h` — the header: `bloom`, `BloomParameters`
-- [Paint](value:sigil::material::skia::Paint) — what shades a shape, as
+- [Paint](value:sigil::material::Paint) — what shades a shape, as
   against what filters a layer
 - [Material](value:sigil::material::Material) — the recipe an effect can
   run

@@ -35,11 +35,19 @@
  *  Where on a surface something applies, as a material whose output is
  *  read as a scalar — what `over()` consults to decide how much of a
  *  stacked material shows at a point (mask/Mask.h). */
-/** @defgroup material-skia The Skia paint
- *  The Skia-facing half of the library: a small tree of paint nodes that
- *  compiles to one shader, the post-processing effect over a rendered
- *  layer, the colour bridge, and the one-call path fill
- *  (skia/Paint.h, skia/Effect.h, skia/Color.h, skia/Draw.h). */
+/** @defgroup material-paint The paint
+ *  What a 2D region is painted with, as one comparable value that names
+ *  no renderer, and the one blend-mode list every blend answers to
+ *  (paint/Paint.h, core/BlendMode.h). */
+/** @defgroup material-filter The filter
+ *  What runs over a layer already rendered — the stock passes, the colour
+ *  functions, a program over the layer — as one comparable value that
+ *  names no renderer (filter/Filter.h). */
+/** @defgroup material-skia The Skia executor
+ *  The one place the library spells Skia: a paint as one shader, a filter
+ *  as one image filter, the sources only Skia can supply, the colour
+ *  bridge, and the one-call path fill
+ *  (skia/Paint.h, skia/Filter.h, skia/Color.h, skia/Draw.h). */
 /** @defgroup material-slang The Slang backend
  *  Slang source compiled to SPIR-V, the reflected layout saying where
  *  each uniform's bytes go, and the buffer a draw's uniforms are written

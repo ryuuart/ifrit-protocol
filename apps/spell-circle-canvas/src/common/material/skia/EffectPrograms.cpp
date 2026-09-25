@@ -13,7 +13,7 @@
 
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/skia/Effect.h>
+#include "Effect.h"
 #include <sigilshaders/MaterialSkia.h>
 
 #include <array>
@@ -47,6 +47,7 @@ constexpr std::array<Body, (size_t)EffectProgram::Count> kBodies{{
     {"HaloDeepening.sksl", Reads::OnePixel},
     {"CoreWhitening.sksl", Reads::OnePixel},
     {"ParametricBlurMix.sksl", Reads::TheLayer},
+    {"ColorAdjust.sksl", Reads::OnePixel},
 }};
 
 /** The compiled table, and the list without the holes.

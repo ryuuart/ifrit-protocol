@@ -16,7 +16,7 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTypes.h>
 #include <include/effects/SkImageFilters.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <cmath>
@@ -99,13 +99,13 @@ sk_sp<SkImage> litField(int width, int height) {
 
 /** One frame: the layer drawn through @p filter, which is the whole of
  *  what an effect over a finished layer costs. */
-void through(benchmark::State& state, const skia::Effect& effect) {
+void through(benchmark::State& state, const Filter& effect) {
   constexpr int kWidth = 1200, kHeight = 800;
   const sk_sp<SkImage> layer = litField(kWidth, kHeight);
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   SkPaint paint;
-  paint.setImageFilter(effect.resolvedImageFilter(nullptr));
+  paint.setImageFilter(skia::resolvedImageFilter(effect, nullptr));
   // EVERY FRAME FILTERS. Skia keys a filtered result on the filter, the
   // source and the matrix it was made under, so a loop that draws the same
   // layer through the same filter at the same place measures a cache
@@ -132,19 +132,19 @@ void through(benchmark::State& state, const skia::Effect& effect) {
  *  gathered phosphor recipe is judged against. */
 void BM_Layer_BrightPass(benchmark::State& state) {
   through(state,
-          skia::Effect::brightPass(0.52f, 0.30f)
-              .then(skia::Effect::filter(SkImageFilters::Blur(4, 4, nullptr))));
+          Filter::brightPass(0.52f, 0.30f)
+              .then(skia::filter(SkImageFilters::Blur(4, 4, nullptr))));
 }
 BENCHMARK(BM_Layer_BrightPass);
 
 void BM_Layer_PhosphorBloom(benchmark::State& state) {
-  through(state, skia::Effect::phosphorBloom());
+  through(state, Filter::phosphorBloom());
 }
 BENCHMARK(BM_Layer_PhosphorBloom);
 
 void BM_Layer_PhosphorBloom_Drifted(benchmark::State& state) {
   through(state,
-          skia::Effect::phosphorBloom(9.0f, 0.52f, 0.46f, 0.80f, -40.0f, 0.5f));
+          Filter::phosphorBloom(9.0f, 0.52f, 0.46f, 0.80f, -40.0f, 0.5f));
 }
 BENCHMARK(BM_Layer_PhosphorBloom_Drifted);
 
@@ -152,7 +152,7 @@ BENCHMARK(BM_Layer_PhosphorBloom_Drifted);
  *  twenty-four taps, spread far enough that the layer they are gathered
  *  over can be reduced further than the defaults' is. */
 void BM_Layer_PhosphorBloom_Wide(benchmark::State& state) {
-  through(state, skia::Effect::phosphorBloom(24.0f));
+  through(state, Filter::phosphorBloom(24.0f));
 }
 BENCHMARK(BM_Layer_PhosphorBloom_Wide);
 

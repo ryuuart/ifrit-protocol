@@ -19,7 +19,7 @@ memoised on the last inputs.
 A material is not the top of the colouring lattice and is not a colour
 with extra parts. It is one KIND of paint — the recipe-backed kind — and
 it reaches a surface by being wrapped in a paint, through
-`skia::Paint::recipe`. Nothing goes the other way: a material has no leaf
+`Paint::recipe`. Nothing goes the other way: a material has no leaf
 that holds a paint.
 
 ## Anatomy
@@ -80,10 +80,10 @@ never affects the material it was copied from.
 
 | Where | Kind | Library |
 | --- | --- | --- |
-| `skia::Paint::recipe` | function | SigilMaterial — the wrap that makes it a paint |
-| `skia::Effect::recipe` | function | SigilMaterial — the same recipe run over an already-rendered layer |
+| `Paint::recipe` | function | SigilMaterial — the wrap that makes it a paint |
+| `Filter::of` | function | SigilMaterial — the same recipe run over an already-rendered layer |
 | `Material::slot` | member | SigilMaterial — a material fills another's slot |
-| `skia::Paint::slot` | member | SigilMaterial — through a paint |
+| `Paint::slot` | member | SigilMaterial — through a paint |
 
 Every consumer that takes a paint takes a material where the conversion
 is spelled for it. In Python a material is a member of `SurfacePaintLike`,
@@ -94,7 +94,7 @@ so a slot that colours a surface takes one directly.
 | What | Kind | Library |
 | --- | --- | --- |
 | `Material::withRecipe` | member | SigilMaterial |
-| `skia::Paint::recipeMaterial` | member | SigilMaterial — the instance behind a recipe paint, or null |
+| `Paint::recipeMaterial` | member | SigilMaterial — the instance behind a recipe paint, or null |
 | the kit's recipe functions | function | SigilMaterial |
 
 ## Description
@@ -122,9 +122,9 @@ without a cache lookup.
 - `core/Leaf.h` — the header: `Leaf`
 - `kit/Pbr.h` — the header the Python door comes from: `surface`,
   `unlit`, `SurfaceParameters`
-- [Paint](value:sigil::material::skia::Paint) — the paint model a
+- [Paint](value:sigil::material::Paint) — the paint model a
   material is one leaf of
-- [Effect](value:sigil::material::skia::Effect) — the same recipe over
+- [Effect](value:sigil::material::Filter) — the same recipe over
   an already-rendered layer
 - [Color](value:sigil::material::Color) — what a material's
   colour-typed fields hold

@@ -89,7 +89,7 @@ sigil_doc_probes(material
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/enums/Backface.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/over.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Color.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Effect.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Filter.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Material.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Paint.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Palette.md

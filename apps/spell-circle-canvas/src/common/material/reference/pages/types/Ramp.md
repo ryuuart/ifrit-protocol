@@ -125,5 +125,5 @@ of one is the caller deciding otherwise.
 - [Palette](value:sigil::material::Palette) — the fixed table, which is
   not a ramp with more stops
 - [Color](value:sigil::material::Color) — what a ramp answers
-- [Paint](value:sigil::material::skia::Paint) — where a ramp's stops
+- [Paint](value:sigil::material::Paint) — where a ramp's stops
   become a gradient

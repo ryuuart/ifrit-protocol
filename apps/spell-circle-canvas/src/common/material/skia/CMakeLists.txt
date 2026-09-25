@@ -14,11 +14,12 @@ set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilMaterialSkia
   SOURCES Bloom.cpp Draw.cpp Effect.cpp EffectBloom.cpp EffectBlurs.cpp
-          EffectDoors.cpp EffectLight.cpp EffectPrograms.cpp
+          EffectDoors.cpp EffectLight.cpp EffectPrograms.cpp Filter.cpp
           Paint.cpp PaintBlend.cpp PaintBuild.cpp
           PaintDetail.cpp PaintResolve.cpp PaintSources.cpp
           PaintUniforms.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp
-  HEADERS ../paint/Paint.h Bloom.h Color.h Draw.h Effect.h Paint.h Pass.h PixelBuffer.h
+  HEADERS ../filter/Filter.h ../paint/Paint.h Color.h Draw.h Filter.h Paint.h
+          Pass.h PixelBuffer.h
           Palette.h Ramp.h SkiaCompiler.h
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
          unofficial::skia::skia)

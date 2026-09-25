@@ -2,7 +2,7 @@
 kind: verb
 library: SigilMaterial
 name: fit
-qualified: sigil::material::skia::Paint::fit
+qualified: sigil::material::Paint::fit
 group: Uniforms and layer properties
 status: stable
 ---
@@ -12,7 +12,7 @@ status: stable
 ## Description
 
 Stretch the source, cover the box with it, or sit it inside. It is
-meaningful on `Paint::image` and `Paint::buffer` — the kinds that have a
+meaningful on `skia::image` and `skia::buffer` — the kinds that have a
 source with a size of its own — and warned and ignored elsewhere,
 matching `Paint::offset`'s guardrails.
 
@@ -23,7 +23,7 @@ pan still composes — the fit decides the mapping and the pan
 post-translates it, exactly as it does over the recipe's own local
 matrix.
 
-Resolved with no box in reach — `Paint::asShader`, a standalone
+Resolved with no box in reach — `skia::shader(paint)`, a standalone
 decoration — it degrades to `Fit::Native`, the same way a world-space
 paint degrades to node-local. The flag is recipe and joins
 `Paint::operator==`.

@@ -16,8 +16,8 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
-#include <sigilmaterial/skia/Bloom.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/skia/Filter.h>
 
 #include <algorithm>
 #include <cmath>
@@ -96,10 +96,10 @@ std::vector<uint8_t> scaledThrough(const sk_sp<SkImageFilter>& filter,
 
 /** A light that adds nothing: the alpha-scaling colour matrix at
  *  @p alpha, which at zero leaves whatever it is blended over. */
-skia::Effect dimming(float alpha) {
+Filter dimming(float alpha) {
   const float m[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0,     0,
                        0, 0, 1, 0, 0, 0, 0, 0, alpha, 0};
-  return skia::Effect::filter(SkColorFilters::Matrix(m));
+  return skia::filter(SkColorFilters::Matrix(m));
 }
 
 }  // namespace
@@ -112,9 +112,8 @@ TEST(SkiaEffect, AnEmittedLightLeavesTheSharpLayerAtDeviceResolution) {
   // the device's own pixels.
   const std::vector<uint8_t> plain = scaledThrough(nullptr, 2);
   const std::vector<uint8_t> overPass = scaledThrough(
-      skia::Effect()
-          .emit(skia::Effect::brightPass().then(dimming(0)))
-          .resolvedImageFilter(nullptr),
+      skia::resolvedImageFilter(
+          Filter().emit(Filter::brightPass().then(dimming(0))), nullptr),
       2);
   ASSERT_EQ(plain.size(), overPass.size());
   for (size_t i = 0; i < plain.size(); ++i)
@@ -134,11 +133,10 @@ TEST(SkiaEffect, AnEmittedLightLeavesTheSharpLayerAtDeviceResolution) {
   ASSERT_NE(passThrough, nullptr) << error.c_str();
   // A program whose child the filter factory will not bind builds no
   // node at all, and a graph with no node in it is no control.
-  ASSERT_NE(skia::Effect::shader(passThrough).imageFilter(), nullptr);
+  ASSERT_NE(skia::imageFilter(skia::program(passThrough)), nullptr);
   const std::vector<uint8_t> overShader = scaledThrough(
-      skia::Effect()
-          .emit(skia::Effect::shader(passThrough).then(dimming(0)))
-          .resolvedImageFilter(nullptr),
+      skia::resolvedImageFilter(
+          Filter().emit(skia::program(passThrough).then(dimming(0))), nullptr),
       2);
   ASSERT_EQ(plain.size(), overShader.size());
   int worst = 0;
@@ -149,7 +147,7 @@ TEST(SkiaEffect, AnEmittedLightLeavesTheSharpLayerAtDeviceResolution) {
 
 TEST(SkiaEffect, TheBrightPassKeepsTheLightAboveItsKneeAndNothingElse) {
   const sk_sp<SkImageFilter> pass =
-      skia::Effect::brightPass().resolvedImageFilter(nullptr);
+      skia::resolvedImageFilter(Filter::brightPass(), nullptr);
   // White is wholly above the knee and comes through whole.
   const std::vector<float> white = brightThrough(pass, {1, 1, 1, 1});
   EXPECT_NEAR(texel(white, 32, 32)[0], 1.0f, 0.01f);
@@ -172,7 +170,7 @@ TEST(SkiaEffect, TheBrightPassKeepsTheLightAboveItsKneeAndNothingElse) {
 
 TEST(SkiaEffect, TheBrightPassGatesOnColourRatherThanOnCoverage) {
   const sk_sp<SkImageFilter> pass =
-      skia::Effect::brightPass().resolvedImageFilter(nullptr);
+      skia::resolvedImageFilter(Filter::brightPass(), nullptr);
   // A white source at half coverage IS white, and blooms as white at
   // half coverage. Read premultiplied it looks like a middling grey,
   // which a gate on the premultiplied colour would refuse — and every
@@ -183,47 +181,47 @@ TEST(SkiaEffect, TheBrightPassGatesOnColourRatherThanOnCoverage) {
 }
 
 TEST(SkiaEffect, TheBrightPassIsComparableByItsThresholdAndKnee) {
-  EXPECT_TRUE(skia::Effect::brightPass() == skia::Effect::brightPass(0.68f));
-  EXPECT_FALSE(skia::Effect::brightPass() == skia::Effect::brightPass(0.5f));
-  EXPECT_FALSE(skia::Effect::brightPass(0.68f, 0.30f) ==
-               skia::Effect::brightPass(0.68f, 0.10f));
-  EXPECT_FALSE(skia::Effect::brightPass().isAnimated());
+  EXPECT_TRUE(Filter::brightPass() == Filter::brightPass(0.68f));
+  EXPECT_FALSE(Filter::brightPass() == Filter::brightPass(0.5f));
+  EXPECT_FALSE(Filter::brightPass(0.68f, 0.30f) ==
+               Filter::brightPass(0.68f, 0.10f));
+  EXPECT_FALSE(Filter::brightPass().isAnimated());
   // A knee that would run past one is cut there, so the two spellings of
   // "everything above the threshold" are one effect.
-  EXPECT_TRUE(skia::Effect::brightPass(0.9f, 0.2f) ==
-              skia::Effect::brightPass(0.9f, 4.0f));
+  EXPECT_TRUE(Filter::brightPass(0.9f, 0.2f) ==
+              Filter::brightPass(0.9f, 4.0f));
   // The pass is a colour map, so a consumer hangs it on a paint rather
   // than running it as a pass of its own.
-  EXPECT_EQ(skia::Effect::brightPass().imageFilter(), nullptr);
-  EXPECT_NE(skia::Effect::brightPass().colorFilter(), nullptr);
+  EXPECT_EQ(skia::imageFilter(Filter::brightPass()), nullptr);
+  EXPECT_NE(skia::colorFilter(Filter::brightPass()), nullptr);
 }
 
 TEST(SkiaEffect, TheLightStagesCompareByTheirParameters) {
   // deepen() and whiten() are colour maps described by their numbers, so
   // a re-described equal stage prunes where an already-built colour
   // filter compared by pointer could not.
-  EXPECT_TRUE(skia::Effect::deepen(2) == skia::Effect::deepen(2));
-  EXPECT_FALSE(skia::Effect::deepen(2) == skia::Effect::deepen(1));
-  EXPECT_TRUE(skia::Effect::whiten(0.5f) == skia::Effect::whiten(0.5f));
-  EXPECT_FALSE(skia::Effect::whiten(0.5f) == skia::Effect::whiten(0.5f, 0.4f));
-  EXPECT_NE(skia::Effect::deepen(2).colorFilter(), nullptr);
-  EXPECT_EQ(skia::Effect::deepen(2).imageFilter(), nullptr);
+  EXPECT_TRUE(Filter::deepen(2) == Filter::deepen(2));
+  EXPECT_FALSE(Filter::deepen(2) == Filter::deepen(1));
+  EXPECT_TRUE(Filter::whiten(0.5f) == Filter::whiten(0.5f));
+  EXPECT_FALSE(Filter::whiten(0.5f) == Filter::whiten(0.5f, 0.4f));
+  EXPECT_NE(skia::colorFilter(Filter::deepen(2)), nullptr);
+  EXPECT_EQ(skia::imageFilter(Filter::deepen(2)), nullptr);
   // An amount at or below zero is no stage at all.
-  EXPECT_TRUE(skia::Effect::deepen(0) == skia::Effect{});
+  EXPECT_TRUE(Filter::deepen(0) == Filter{});
 }
 
 TEST(SkiaEffect, OpticalBloomSpreadsColourBeyondTheSourceAndSoftensIt) {
-  const auto glow = skia::bloom({.sigma = 3, .strength = 1,
+  const auto glow = Filter::bloom({.sigma = 3, .strength = 1,
                                  .spread = 5, .tail = 2});
-  ASSERT_NE(glow.imageFilter(), nullptr);
-  EXPECT_TRUE(glow == skia::Effect(glow));
-  const auto pixels = bloomThrough(glow.imageFilter(), {1, 0, 0, 1});
+  ASSERT_NE(skia::imageFilter(glow), nullptr);
+  EXPECT_TRUE(glow == Filter(glow));
+  const auto pixels = bloomThrough(skia::imageFilter(glow), {1, 0, 0, 1});
   EXPECT_GT(texel(pixels, 8, 32)[0], 0);
   EXPECT_GT(texel(pixels, 16, 32)[0], texel(pixels, 8, 32)[0]);
   EXPECT_FLOAT_EQ(texel(pixels, 8, 32)[1], 0);
   EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[0], 1);
   const auto soft = bloomThrough(
-      skia::bloom({.strength = 0, .tail = 0, .softness = 2}).imageFilter(),
+      skia::imageFilter(Filter::bloom({.strength = 0, .tail = 0, .softness = 2})),
       {1, 0, 0, 1});
   EXPECT_GT(texel(soft, 19, 32)[0], 0);
   EXPECT_LT(texel(soft, 20, 32)[0], 1);
@@ -231,9 +229,9 @@ TEST(SkiaEffect, OpticalBloomSpreadsColourBeyondTheSourceAndSoftensIt) {
 
 namespace {
 
-std::vector<float> bloomHalo(skia::BloomParameters parameters,
+std::vector<float> bloomHalo(BloomOptions parameters,
                              SkColor4f colour) {
-  return bloomThrough(skia::bloom(parameters).imageFilter(), colour);
+  return bloomThrough(skia::imageFilter(Filter::bloom(parameters)), colour);
 }
 
 float greenOver(const float* rgba, int channel) {
@@ -247,7 +245,7 @@ float overRed(const float* rgba, int channel) {
 }  // namespace
 
 TEST(SkiaEffect, OpticalBloomDeepeningSinksAFadingHaloTowardItsStrongestChannel) {
-  const skia::BloomParameters broad{.sigma = 3, .strength = 0, .spread = 5,
+  const BloomOptions broad{.sigma = 3, .strength = 0, .spread = 5,
                                     .tail = 1};
   auto deep = broad;
   deep.deepening = 2;
@@ -275,7 +273,7 @@ TEST(SkiaEffect, OpticalBloomDeepeningSinksAFadingHaloTowardItsStrongestChannel)
 }
 
 TEST(SkiaEffect, OpticalBloomWhiteningLightensTheLitCoreOnly) {
-  const skia::BloomParameters none{.strength = 0, .tail = 0};
+  const BloomOptions none{.strength = 0, .tail = 0};
   auto white = none;
   white.whitening = 0.5f;
   const SkColor4f orange{1, 0.58f, 0.09f, 1};
@@ -292,7 +290,7 @@ TEST(SkiaEffect, OpticalBloomWhiteningLightensTheLitCoreOnly) {
 TEST(SkiaEffect, OpticalBloomDilationCarriesTheColourPastTheSource) {
   // The block's edge is at x = 20; two pixels out, a dilated glow keeps
   // most of the colour the plain one has only just outside the edge.
-  const skia::BloomParameters near{.sigma = 1, .tail = 0, .maxOpacity = 1};
+  const BloomOptions near{.sigma = 1, .tail = 0, .maximumOpacity = 1};
   auto grown = near;
   grown.dilation = 3;
   const auto plain = bloomHalo(near, {1, 0, 0, 1});
@@ -303,36 +301,36 @@ TEST(SkiaEffect, OpticalBloomDilationCarriesTheColourPastTheSource) {
 }
 
 TEST(SkiaEffect, OpticalBloomIsTheCompositionOfItsStages) {
-  const skia::BloomParameters p{.sigma = 2, .strength = 1.2f, .spread = 3,
+  const BloomOptions p{.sigma = 2, .strength = 1.2f, .spread = 3,
                                 .tail = 0.8f, .softness = 1,
                                 .whitening = 0.3f, .dilation = 2,
-                                .deepening = 1.5f, .maxOpacity = 0.7f};
+                                .deepening = 1.5f, .maximumOpacity = 0.7f};
   const auto gain = [](float alpha) {
     const float m[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0, 0,
                          0, 0, 1, 0, 0, 0, 0, 0, alpha, 0};
-    return skia::Effect::filter(SkColorFilters::Matrix(m));
+    return skia::filter(SkColorFilters::Matrix(m));
   };
   std::array<uint8_t, 256> ceiling{};
   for (int i = 0; i < 256; ++i)
     ceiling[i] = static_cast<uint8_t>(std::min(i, int(0.7f * 255)));
-  const auto light = skia::Effect::brightPass(p.threshold, p.knee)
-                         .then(skia::Effect::dilate(p.dilation));
+  const auto light = Filter::brightPass(p.threshold, p.knee)
+                         .then(Filter::dilate(p.dilation));
   const auto rung = [&](float sigma, float strength) {
-    return light.then(skia::Effect::blur(sigma))
-        .then(skia::Effect::deepen(p.deepening))
+    return light.then(Filter::blur(sigma))
+        .then(Filter::deepen(p.deepening))
         .then(gain(strength));
   };
   const auto halo =
       rung(2, 1.2f)
           .emit(rung(6, 0.8f), BlendMode::PlusLighter)
-          .then(skia::Effect::filter(SkColorFilters::TableARGB(
+          .then(skia::filter(SkColorFilters::TableARGB(
               ceiling.data(), nullptr, nullptr, nullptr)));
-  const auto composed = skia::Effect::blur(1)
-                            .then(skia::Effect::whiten(0.3f, p.threshold, p.knee))
+  const auto composed = Filter::blur(1)
+                            .then(Filter::whiten(0.3f, p.threshold, p.knee))
                             .emit(halo);
   const SkColor4f amber{1, 0.58f, 0.09f, 1};
-  const auto want = bloomThrough(composed.imageFilter(), amber);
-  const auto got = bloomThrough(skia::bloom(p).imageFilter(), amber);
+  const auto want = bloomThrough(skia::imageFilter(composed), amber);
+  const auto got = bloomThrough(skia::imageFilter(Filter::bloom(p)), amber);
   ASSERT_EQ(want.size(), got.size());
   for (size_t i = 0; i < want.size(); ++i) ASSERT_EQ(want[i], got[i]) << i;
 }
@@ -341,8 +339,7 @@ TEST(SkiaEffect, DilateGrowsEdgesByItsDistanceWithRoundCorners) {
   // The layer's ground is opaque black, so the spread is given the light
   // alone: the bright pass carries brightness as coverage.
   const auto grown = bloomThrough(
-      skia::Effect::brightPass(0.2f, 0.2f).then(skia::Effect::dilate(3))
-          .imageFilter(),
+      skia::imageFilter(Filter::brightPass(0.2f, 0.2f).then(Filter::dilate(3))),
       {1, 0, 0, 1});
   // The block spans 20 to 44. Three pixels out from a side, most of the
   // coverage is back; the same distance out from a corner along the
@@ -350,28 +347,28 @@ TEST(SkiaEffect, DilateGrowsEdgesByItsDistanceWithRoundCorners) {
   EXPECT_GT(texel(grown, 17, 32)[0], 0.5f);
   EXPECT_LT(texel(grown, 17, 17)[0], texel(grown, 17, 32)[0]);
   EXPECT_FLOAT_EQ(texel(grown, 32, 32)[0], 1);
-  EXPECT_EQ(skia::Effect::dilate(0).imageFilter(), nullptr);
+  EXPECT_EQ(skia::imageFilter(Filter::dilate(0)), nullptr);
 }
 
 TEST(SkiaEffect, EmitStacksLightsOfTheLayerAndKeepsItWhereTheyAreDark) {
   const auto dim = [](float alpha) {
     const float m[20] = {1, 0, 0, 0, 0, 0, 1, 0, 0, 0,
                          0, 0, 1, 0, 0, 0, 0, 0, alpha, 0};
-    return skia::Effect::filter(SkColorFilters::Matrix(m));
+    return skia::filter(SkColorFilters::Matrix(m));
   };
-  const auto near = skia::Effect::blur(2).then(dim(0.3f));
-  const auto wide = skia::Effect::blur(6).then(dim(0.3f));
+  const auto near = Filter::blur(2).then(dim(0.3f));
+  const auto wide = Filter::blur(6).then(dim(0.3f));
   const SkColor4f red{1, 0, 0, 1};
   const auto layer = bloomThrough(nullptr, red);
   const auto withNear =
-      bloomThrough(skia::Effect().emit(near, BlendMode::PlusLighter).imageFilter(), red);
+      bloomThrough(skia::imageFilter(Filter().emit(near, BlendMode::PlusLighter)), red);
   const auto withWide =
-      bloomThrough(skia::Effect().emit(wide, BlendMode::PlusLighter).imageFilter(), red);
-  const auto both = bloomThrough(skia::Effect()
-                                     .emit(near, BlendMode::PlusLighter)
-                                     .emit(wide, BlendMode::PlusLighter)
-                                     .imageFilter(),
-                                 red);
+      bloomThrough(skia::imageFilter(Filter().emit(wide, BlendMode::PlusLighter)), red);
+  const auto both = bloomThrough(
+      skia::imageFilter(Filter()
+                            .emit(near, BlendMode::PlusLighter)
+                            .emit(wide, BlendMode::PlusLighter)),
+      red);
   // Outside the block the layer is black, so each light adds alone and
   // the second reads the layer, not the first light.
   for (int x : {12, 15, 18})
@@ -380,14 +377,14 @@ TEST(SkiaEffect, EmitStacksLightsOfTheLayerAndKeepsItWhereTheyAreDark) {
         << x;
   // Where the light is transparent the layer comes through unchanged.
   const auto unlit =
-      bloomThrough(skia::Effect().emit(dim(0)).imageFilter(), red);
+      bloomThrough(skia::imageFilter(Filter().emit(dim(0))), red);
   ASSERT_EQ(unlit.size(), layer.size());
   for (size_t i = 0; i < layer.size(); ++i) ASSERT_EQ(unlit[i], layer[i]) << i;
 }
 
 TEST(SkiaEffect, EmitOfStaticSidesComparesByItsFilter) {
   // Static sides blend once into one filter, which compares by identity.
-  const auto lit = skia::Effect().emit(skia::Effect::blur(2));
+  const auto lit = Filter().emit(Filter::blur(2));
   EXPECT_TRUE(lit == lit);
-  EXPECT_FALSE(lit == skia::Effect().emit(skia::Effect::blur(2)));
+  EXPECT_FALSE(lit == Filter().emit(Filter::blur(2)));
 }

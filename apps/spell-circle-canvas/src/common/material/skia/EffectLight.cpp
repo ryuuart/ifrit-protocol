@@ -8,7 +8,7 @@
 #include <include/core/SkColorFilter.h>
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/skia/Effect.h>
+#include "Effect.h"
 
 #include <algorithm>
 #include <memory>

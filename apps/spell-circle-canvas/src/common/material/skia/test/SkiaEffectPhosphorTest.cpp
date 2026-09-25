@@ -10,7 +10,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 
 #include <cmath>
 #include <memory>
@@ -23,12 +23,12 @@ using sigil::material::test::bloomThrough;
 using sigil::material::test::texel;
 
 TEST(SkiaEffect, PhosphorBloomIsAComparableSpectralPostProcess) {
-  const skia::Effect bloom =
-      skia::Effect::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f);
-  EXPECT_NE(bloom.resolvedImageFilter(nullptr), nullptr);
+  const Filter bloom =
+      Filter::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f);
+  EXPECT_NE(skia::resolvedImageFilter(bloom, nullptr), nullptr);
   EXPECT_FALSE(bloom.isAnimated());
-  EXPECT_TRUE(bloom == skia::Effect::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f));
-  EXPECT_FALSE(bloom == skia::Effect::phosphorBloom(10.0f, 0.6f, 0.4f, 0.75f));
+  EXPECT_TRUE(bloom == Filter::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f));
+  EXPECT_FALSE(bloom == Filter::phosphorBloom(10.0f, 0.6f, 0.4f, 0.75f));
 }
 
 namespace {
@@ -84,9 +84,9 @@ half4 main(float2 p) {
 namespace {
 
 /** The plain three-kernel program at @p radius, as one effect. */
-skia::Effect plainPhosphor(const sk_sp<SkRuntimeEffect>& program,
+Filter plainPhosphor(const sk_sp<SkRuntimeEffect>& program,
                            float radius) {
-  return skia::Effect::shader(program, {{"uRadius", radius},
+  return skia::program(program, {{"uRadius", radius},
                                         {"uThreshold", 0.52f},
                                         {"uIntensity", 0.46f},
                                         {"uChroma", 0.80f}});
@@ -110,10 +110,9 @@ TEST(SkiaEffect, PhosphorBloomIsThePlainFalloffWithinTheResample) {
   // float of the picture is the plain program's own.
   {
     const std::vector<float> want = bloomThrough(
-        plainPhosphor(plain, 6.0f).resolvedImageFilter(nullptr), amber);
+        skia::resolvedImageFilter(plainPhosphor(plain, 6.0f), nullptr), amber);
     const std::vector<float> got =
-        bloomThrough(skia::Effect::phosphorBloom(6.0f, 0.52f, 0.46f, 0.80f)
-                         .resolvedImageFilter(nullptr),
+        bloomThrough(skia::resolvedImageFilter(Filter::phosphorBloom(6.0f, 0.52f, 0.46f, 0.80f), nullptr),
                      amber);
     ASSERT_EQ(want.size(), got.size());
     for (size_t i = 0; i < want.size(); ++i)
@@ -128,9 +127,9 @@ TEST(SkiaEffect, PhosphorBloomIsThePlainFalloffWithinTheResample) {
   // over the whole picture stays an order of magnitude under the worst
   // texel's.
   const std::vector<float> want = bloomThrough(
-      plainPhosphor(plain, 9.0f).resolvedImageFilter(nullptr), amber);
+      skia::resolvedImageFilter(plainPhosphor(plain, 9.0f), nullptr), amber);
   const std::vector<float> got = bloomThrough(
-      skia::Effect::phosphorBloom().resolvedImageFilter(nullptr), amber);
+      skia::resolvedImageFilter(Filter::phosphorBloom(), nullptr), amber);
   ASSERT_EQ(want.size(), got.size());
   double sum = 0, worst = 0;
   for (size_t i = 0; i < want.size(); ++i) {
@@ -157,12 +156,10 @@ TEST(SkiaEffect, PhosphorHueDriftTurnsTheHaloAndNotTheSource) {
   // without the drift.
   const SkColor4f amber{1.0f, 0.72f, 0.1f, 1.0f};
   const std::vector<float> still =
-      bloomThrough(skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0)
-                       .resolvedImageFilter(nullptr),
+      bloomThrough(skia::resolvedImageFilter(Filter::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0), nullptr),
                    amber);
   const std::vector<float> drifted = bloomThrough(
-      skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f, 0)
-          .resolvedImageFilter(nullptr),
+      skia::resolvedImageFilter(Filter::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f, 0), nullptr),
       amber);
   for (int c = 0; c < 4; ++c)
     EXPECT_EQ(texel(still, 32, 32)[c], texel(drifted, 32, 32)[c]) << c;
@@ -176,12 +173,10 @@ TEST(SkiaEffect, PhosphorHueDriftTurnsTheHaloAndNotTheSource) {
   // rule: blue's halo gains green against blue.
   const SkColor4f blue{0.2f, 0.3f, 1.0f, 1.0f};
   const std::vector<float> coolStill =
-      bloomThrough(skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0)
-                       .resolvedImageFilter(nullptr),
+      bloomThrough(skia::resolvedImageFilter(Filter::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0), nullptr),
                    blue);
   const std::vector<float> coolDrift = bloomThrough(
-      skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f, 0)
-          .resolvedImageFilter(nullptr),
+      skia::resolvedImageFilter(Filter::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f, 0), nullptr),
       blue);
   const float* coolEdgeStill = texel(coolStill, 49, 32);
   const float* coolEdgeDrift = texel(coolDrift, 49, 32);
@@ -191,12 +186,11 @@ TEST(SkiaEffect, PhosphorHueDriftTurnsTheHaloAndNotTheSource) {
   // The tail adds reach: the far field is brighter with it, the source
   // centre unchanged in hue.
   const std::vector<float> tailed =
-      bloomThrough(skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0.5f)
-                       .resolvedImageFilter(nullptr),
+      bloomThrough(skia::resolvedImageFilter(Filter::phosphorBloom(9, 0.52f, 0.46f, 0.80f, 0, 0.5f), nullptr),
                    amber);
   EXPECT_GT(texel(tailed, 52, 32)[0], texel(still, 52, 32)[0]);
   // Comparable by recipe, as any shader effect: the new parameters are
   // constant uniforms and take part in equality.
-  EXPECT_FALSE(skia::Effect::phosphorBloom() ==
-               skia::Effect::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f));
+  EXPECT_FALSE(Filter::phosphorBloom() ==
+               Filter::phosphorBloom(9, 0.52f, 0.46f, 0.80f, -40.0f));
 }

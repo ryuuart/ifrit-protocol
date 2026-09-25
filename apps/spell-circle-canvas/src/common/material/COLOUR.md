@@ -16,7 +16,7 @@ gradient. Where a value has to meet a picture, the crossing lives with
 the renderer that owns the picture (`skia::palette`) and not here.
 
 `Color` is four straight (not premultiplied) sRGB floats, uploaded as one
-float4; `rgb(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
+float4; `hexColor(0xRRGGBB)` is its packed spelling. `Color.h` also holds the
 sRGB transfer function both ways — `srgbToLinear` and `linearToSrgb`, a
 component at a time — and the OKLab round trip — `toOklab`,
 `fromOklab`, `lerpOklab` — which every perceptual interpolation in the
@@ -128,13 +128,13 @@ keeps the hue of what it scales and has no ceiling to hit, an offset
 walks every channel toward white and stops there, and a caller
 lightening a nearly-white base wants the saturated answer rather than a
 channel above 1 that the next blend reads as glow. All three are
-constexpr, as `rgb` is, because a palette is a list of constants and the
+constexpr, as `hexColor` is, because a palette is a list of constants and the
 verbs an authored constant is written through have to fold where it is
 written. There is no Skia-coloured spelling of them: a consumer holding
 Skia's colour crosses once, with `skia::toColor`, and reaches the verbs
 themselves.
 
-**Two ways to name a colour, for two different jobs.** `rgb()` is how an
+**Two ways to name a colour, for two different jobs.** `hexColor()` is how an
 authored palette is typed in; `hsv(hueDegrees, saturation, value)` is how
 a palette is WALKED — a wheel, a run of chips on a golden-angle step, one
 hue's tone ladder read off saturation and value together. The hue wraps
@@ -193,7 +193,7 @@ row.
 **A channelwise recipe does not have to run as a program.**
 `Recipe::channelwise(slot)` is the declaration that every output channel
 depends on the same input channel and nothing else, with `slot` holding
-the response row — and the response recipe makes it. `skia::Effect::recipe(
+the response row — and the response recipe makes it. `Filter::of(
 material, surface)` is where it is spent: on a surface carrying eight
 bits per channel it answers the row as `SkColorFilters::TableARGB`, which
 a consumer hangs on a paint and pays a blit for, and on anything else —
@@ -201,5 +201,5 @@ a float surface, or `kUnknown_SkColorType`, which is what a canvas backed
 by neither raster nor GPU answers — it falls to `recipe(material)` and
 the program. The picture is the same either way; only the cost differs,
 which is why the surface is a parameter rather than something the effect
-guesses. `skia::Effect::filter` takes an `sk_sp<SkColorFilter>` as well
+guesses. `skia::filter` takes an `sk_sp<SkColorFilter>` as well
 as an `sk_sp<SkImageFilter>`, and `colorFilter()` reads that lane back.

@@ -1,11 +1,13 @@
 #pragma once
 
 /** @file
- * @ingroup material-skia
+ * THE FILTER'S SKIA NODE: an image-filter recipe as a comparable value,
+ * which is what a `material::Filter` holds. A `Paint` shades a shape; an
+ * `Effect` takes the layer a consumer has already rendered and runs a
+ * filter over it.
  *
- * POST-PROCESSING over a rendered layer: an image-filter recipe as a
- * comparable value. A `Paint` shades a shape; an `Effect` takes the
- * layer a consumer has already rendered and runs a filter over it.
+ * Private to the executor: a consumer reaches it through `Filter` and the
+ * executor's functions in <sigilmaterial/skia/Filter.h>.
  */
 
 #include <include/core/SkBlendMode.h>
@@ -48,6 +50,14 @@ class Effect {
    *  Defined with the effect's body; a consumer never holds one. */
   struct BlurLevels;
 
+  /** A COLOUR MAP AS A COMPARABLE VALUE: @p program is a colour-filter
+   *  runtime effect and @p uniforms are its declared floats by name. The
+   *  built filter lands in the colour lane, and the program and the
+   *  names ride operator== so a re-described equal map prunes where an
+   *  already-built SkColorFilter — which carries no recipe — cannot. */
+  static Effect colorProgram(
+      sk_sp<SkRuntimeEffect> program,
+      std::vector<std::pair<std::string, float>> uniforms);
   static Effect filter(sk_sp<SkImageFilter> imageFilter);
   /** A COLOUR FILTER as the effect — a per-pixel colour map with no
    *  neighbourhood, so a consumer applies it to the layer's paint rather
@@ -237,14 +247,6 @@ class Effect {
     bool operator==(const ParametricBlur&) const = default;
   };
 
-  /** A COLOUR MAP AS A COMPARABLE VALUE: @p program is a colour-filter
-   *  runtime effect and @p uniforms are its declared floats by name. The
-   *  built filter lands in the colour lane, and the program and the
-   *  names ride operator== so a re-described equal map prunes where an
-   *  already-built SkColorFilter — which carries no recipe — cannot. */
-  static Effect colorProgram(
-      sk_sp<SkRuntimeEffect> program,
-      std::vector<std::pair<std::string, float>> uniforms);
 
   /** The comparable source and compiled program of one recipe()
    *  snapshot. Live sources are not retained: the filter owns their

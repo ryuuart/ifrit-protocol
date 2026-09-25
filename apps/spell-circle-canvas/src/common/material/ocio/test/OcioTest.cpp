@@ -16,7 +16,7 @@
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilmaterial/ocio/Ocio.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -82,10 +82,10 @@ TEST(Ocio, AChannelwiseViewLowersToATableThatPaintsWhatTheProgramPaints) {
   const Material grade = ocio::exponent(1.08f);
   ASSERT_EQ(grade.recipe().channelwiseSlot(), "lut");
 
-  const skia::Effect lowered = skia::Effect::recipe(grade, kN32_SkColorType);
-  ASSERT_NE(lowered.colorFilter(), nullptr)
+  const Filter lowered = Filter::of(grade, kN32_SkColorType);
+  ASSERT_NE(skia::colorFilter(lowered), nullptr)
       << "an eight-bit surface must lower a channelwise view to a table";
-  EXPECT_EQ(lowered.imageFilter(), nullptr)
+  EXPECT_EQ(skia::imageFilter(lowered), nullptr)
       << "the table replaces the program, it does not join it";
 
   const SkBitmap ramp = colourRamp();
@@ -106,7 +106,7 @@ TEST(Ocio, AChannelwiseViewLowersToATableThatPaintsWhatTheProgramPaints) {
   viaTable.allocPixels(info);
   SkCanvas tableCanvas(viaTable);
   SkPaint tablePaint;
-  tablePaint.setColorFilter(lowered.colorFilter());
+  tablePaint.setColorFilter(skia::colorFilter(lowered));
   tableCanvas.drawImage(ramp.asImage(), 0, 0, SkSamplingOptions{}, &tablePaint);
 
   // A 1.08 exponent moves the mid-tones by several codes, so a table that
@@ -135,9 +135,9 @@ TEST(Ocio, ASurfaceATableCannotCarryKeepsTheProgram) {
   // neither raster nor GPU, which is what kUnknown says.
   for (const SkColorType surface :
        {kRGBA_F16_SkColorType, kRGBA_F32_SkColorType, kUnknown_SkColorType}) {
-    const skia::Effect kept = skia::Effect::recipe(grade, surface);
-    EXPECT_EQ(kept.colorFilter(), nullptr) << "colour type " << (int)surface;
-    EXPECT_NE(kept.imageFilter(), nullptr) << "colour type " << (int)surface;
+    const Filter kept = Filter::of(grade, surface);
+    EXPECT_EQ(skia::colorFilter(kept), nullptr) << "colour type " << (int)surface;
+    EXPECT_NE(skia::imageFilter(kept), nullptr) << "colour type " << (int)surface;
   }
 }
 
@@ -152,8 +152,8 @@ TEST(Ocio, AViewThatMixesChannelsBakesTheVolumeAndKeepsTheProgram) {
   EXPECT_TRUE(mix.recipe().channelwiseSlot().empty())
       << "a channel-mixing transform must bake the volume";
   for (const SkColorType surface : {kN32_SkColorType, kRGBA_F16_SkColorType}) {
-    const skia::Effect kept = skia::Effect::recipe(mix, surface);
-    EXPECT_EQ(kept.colorFilter(), nullptr) << "colour type " << (int)surface;
-    EXPECT_NE(kept.imageFilter(), nullptr) << "colour type " << (int)surface;
+    const Filter kept = Filter::of(mix, surface);
+    EXPECT_EQ(skia::colorFilter(kept), nullptr) << "colour type " << (int)surface;
+    EXPECT_NE(skia::imageFilter(kept), nullptr) << "colour type " << (int)surface;
   }
 }

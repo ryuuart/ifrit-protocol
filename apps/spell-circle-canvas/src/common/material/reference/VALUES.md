@@ -24,7 +24,7 @@ returned by** — what hands one back.
 |---|---|---|
 | [`Paint`](pages/types/Paint.md) | The paint model as one Skia shader: solids, ramps, images, buffers, SkSL, blends and recipe instances, in three volatility tiers. | `skia/Paint.h` |
 | [`Material`](pages/types/Material.md) | A recipe instance: bytes, bindings, slots and settings, comparable by value. | `core/Material.h` |
-| [`Effect`](pages/types/Effect.md) | Post-processing over a layer already rendered — a blur, a glow, a colour map, a recipe over the content. | `skia/Effect.h` |
+| [`Filter`](pages/types/Filter.md) | Post-processing over a layer already rendered — a blur, a drop shadow, a glow, a bloom, a colour function, a program over the content. | `filter/Filter.h` |
 
 ## The surface
 
@@ -73,6 +73,8 @@ built, each copying on write, has a page of its own.
 - `core/Leaf.h` — `Leaf`
 - `core/Gradient.h` — `ColorStops`, `GradientOptions`, `GradientUnits`,
   `RadialExtent`, `Repeat`
-- `skia/Paint.h` — `Paint`, `PaintFrame`, `Fit`
-- `skia/Effect.h` — `Effect`
+- `skia/Paint.h` — `Paint`, `FrameData`, `Fit`
+- `filter/Filter.h` — `Filter`, `ShadowOptions`, `BloomOptions`
+- `paint/Paint.h` — `Paint`, `Fit`
+- `core/BlendMode.h` — `BlendMode`
 - `skia/Ramp.h` — `paletteImage`, `paletteLookup`

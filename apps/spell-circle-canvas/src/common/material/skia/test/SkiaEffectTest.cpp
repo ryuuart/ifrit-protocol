@@ -13,7 +13,7 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -22,16 +22,16 @@
 using namespace sigil::material;
 
 TEST(SkiaEffect, AFilterIsBuiltOnceAndComparesByItsIdentity) {
-  const skia::Effect glow = skia::Effect::glow({0, 1, 1, 1}, 6.0f);
-  EXPECT_NE(glow.resolvedImageFilter(nullptr), nullptr);
+  const Filter glow = Filter::glow({0, 1, 1, 1}, 6.0f);
+  EXPECT_NE(skia::resolvedImageFilter(glow, nullptr), nullptr);
   EXPECT_FALSE(glow.isAnimated());
   // filter() compares by the built filter's pointer, so a copy prunes and
   // a separately built one does not.
-  EXPECT_TRUE(glow == skia::Effect(glow));
-  EXPECT_FALSE(glow == skia::Effect::glow({0, 1, 1, 1}, 6.0f));
+  EXPECT_TRUE(glow == Filter(glow));
+  EXPECT_FALSE(glow == Filter::glow({0, 1, 1, 1}, 6.0f));
   // The empty effect resolves to nothing and is reflexive.
-  EXPECT_EQ(skia::Effect().resolvedImageFilter(nullptr), nullptr);
-  EXPECT_TRUE(skia::Effect() == skia::Effect{});
+  EXPECT_EQ(skia::resolvedImageFilter(Filter(), nullptr), nullptr);
+  EXPECT_TRUE(Filter() == Filter{});
 }
 
 TEST(SkiaEffect, RecipeSnapshotsCompareTheirValuesAndOperands) {
@@ -50,20 +50,20 @@ TEST(SkiaEffect, RecipeSnapshotsCompareTheirValuesAndOperands) {
                 "tint.eval(p) * half(gain); }"));
   Material material(recipe, Parameters{});
   material.slot("tint", Material(tint, Parameters{}));
-  const skia::Effect captured = skia::Effect::recipe(material);
-  ASSERT_NE(captured.imageFilter(), nullptr);
-  EXPECT_TRUE(captured == skia::Effect::recipe(material));
-  EXPECT_FALSE(captured == skia::Effect::recipe(material, 12.0f));
-  EXPECT_TRUE(captured == captured.then(skia::Effect{}));
-  EXPECT_FALSE(captured == skia::Effect::filter(captured.imageFilter()));
+  const Filter captured = Filter::of(material);
+  ASSERT_NE(skia::imageFilter(captured), nullptr);
+  EXPECT_TRUE(captured == Filter::of(material));
+  EXPECT_FALSE(captured == Filter::of(material, 12.0f));
+  EXPECT_TRUE(captured == captured.then(Filter{}));
+  EXPECT_FALSE(captured == skia::filter(skia::imageFilter(captured)));
 
   Material changed = material;
   changed.set("gain", 0.5f);
-  EXPECT_FALSE(captured == skia::Effect::recipe(changed));
+  EXPECT_FALSE(captured == Filter::of(changed));
   changed = material;
   changed.slot("tint", Material(tint, Parameters{0.5f}));
-  EXPECT_FALSE(captured == skia::Effect::recipe(changed));
-  EXPECT_TRUE(captured == skia::Effect::recipe(material));
+  EXPECT_FALSE(captured == Filter::of(changed));
+  EXPECT_TRUE(captured == Filter::of(material));
 }
 
 TEST(SkiaEffect, RecipeSnapshotsKeepCapturedLiveValuesApart) {
@@ -79,24 +79,24 @@ TEST(SkiaEffect, RecipeSnapshotsKeepCapturedLiveValuesApart) {
   choreograph::Output<float> gain(1.0f);
   Material material(recipe, Parameters{});
   material.bind("gain", &gain);
-  const skia::Effect first = skia::Effect::recipe(material);
+  const Filter first = Filter::of(material);
   gain = 0.5f;
-  const skia::Effect second = skia::Effect::recipe(material);
-  ASSERT_NE(first.imageFilter(), nullptr);
-  ASSERT_NE(second.imageFilter(), nullptr);
+  const Filter second = Filter::of(material);
+  ASSERT_NE(skia::imageFilter(first), nullptr);
+  ASSERT_NE(skia::imageFilter(second), nullptr);
   EXPECT_FALSE(first == second);
-  EXPECT_TRUE(first == skia::Effect(first));
+  EXPECT_TRUE(first == Filter(first));
   EXPECT_FALSE(first.isAnimated());
 
-  const skia::Effect expiredSource = [&] {
+  const Filter expiredSource = [&] {
     choreograph::Output<float> localGain(0.25f);
     Material local(recipe, Parameters{});
     local.bind("gain", &localGain);
-    return skia::Effect::recipe(local);
+    return Filter::of(local);
   }();
-  const skia::Effect copy = expiredSource;
+  const Filter copy = expiredSource;
   EXPECT_TRUE(expiredSource == copy);
-  EXPECT_NE(copy.resolvedImageFilter(nullptr), nullptr);
+  EXPECT_NE(skia::resolvedImageFilter(copy, nullptr), nullptr);
 }
 
 TEST(SkiaEffect, RecipeSnapshotsDistinguishSurfaceLowering) {
@@ -116,12 +116,12 @@ TEST(SkiaEffect, RecipeSnapshotsDistinguishSurfaceLowering) {
   surface->getCanvas()->clear(SK_ColorWHITE);
   Material material(recipe);
   material.slot("response", Texture::of(surface->makeImageSnapshot()));
-  const skia::Effect table =
-      skia::Effect::recipe(material, kRGBA_8888_SkColorType);
-  const skia::Effect shader =
-      skia::Effect::recipe(material, kRGBA_F16_SkColorType);
-  ASSERT_NE(table.colorFilter(), nullptr);
-  ASSERT_NE(shader.imageFilter(), nullptr);
+  const Filter table =
+      Filter::of(material, kRGBA_8888_SkColorType);
+  const Filter shader =
+      Filter::of(material, kRGBA_F16_SkColorType);
+  ASSERT_NE(skia::colorFilter(table), nullptr);
+  ASSERT_NE(skia::imageFilter(shader), nullptr);
   EXPECT_FALSE(table == shader);
 }
 
@@ -132,7 +132,7 @@ TEST(SkiaEffect, ABoundUniformMakesItLiveAndItNeverPrunes) {
                "half4 main(float2 p) { return content.eval(p) * half(uK); }"));
   ASSERT_NE(effect, nullptr);
   choreograph::Output<float> k(1.0f);
-  skia::Effect live = skia::Effect::shader(effect);
+  Filter live = skia::program(effect);
   EXPECT_FALSE(live.isAnimated());
   live.bind("uK", &k);
   EXPECT_TRUE(live.isAnimated());
@@ -141,13 +141,13 @@ TEST(SkiaEffect, ABoundUniformMakesItLiveAndItNeverPrunes) {
 }
 
 TEST(SkiaEffect, ChainingPrecomposesAndAnEmptySideIsTheOther) {
-  const skia::Effect blur = skia::Effect::directionalBlur(4.0f, 0.0f, 1.0f);
-  const skia::Effect glow = skia::Effect::glow({1, 0, 0, 1}, 3.0f);
-  EXPECT_NE(blur.then(glow).resolvedImageFilter(nullptr), nullptr);
+  const Filter blur = Filter::directionalBlur(4.0f, 0.0f, 1.0f);
+  const Filter glow = Filter::glow({1, 0, 0, 1}, 3.0f);
+  EXPECT_NE(skia::resolvedImageFilter(blur.then(glow), nullptr), nullptr);
   // then() over nothing is the effect itself, so a conditional chain
   // needs no branch at the call site.
-  EXPECT_TRUE(blur.then(skia::Effect{}) == blur);
-  EXPECT_TRUE(skia::Effect{}.then(blur) == blur);
+  EXPECT_TRUE(blur.then(Filter{}) == blur);
+  EXPECT_TRUE(Filter{}.then(blur) == blur);
 }
 
 TEST(SkiaEffect, ChainingKeepsTheNodesAContextNeedingChildLivesIn) {
@@ -167,17 +167,17 @@ TEST(SkiaEffect, ChainingKeepsTheNodesAContextNeedingChildLivesIn) {
   anchored.worldSpace();
   EXPECT_TRUE(anchored.geometryDependent());
 
-  skia::Effect shaded = skia::Effect::shader(effect);
+  Filter shaded = skia::program(effect);
   shaded.slot("tint", anchored);
   EXPECT_FALSE(shaded.isAnimated());
   EXPECT_TRUE(shaded.usesWorldSpace());
 
-  const skia::Effect chained = shaded.then(skia::Effect::glow({0, 1, 1, 1}, 4));
+  const Filter chained = shaded.then(Filter::glow({0, 1, 1, 1}, 4));
   EXPECT_TRUE(chained.usesWorldSpace());
-  EXPECT_NE(chained.resolvedImageFilter(nullptr), nullptr);
+  EXPECT_NE(skia::resolvedImageFilter(chained, nullptr), nullptr);
   // …and the other way round, since either side may hold the child.
   EXPECT_TRUE(
-      skia::Effect::glow({0, 1, 1, 1}, 4).then(shaded).usesWorldSpace());
+      Filter::glow({0, 1, 1, 1}, 4).then(shaded).usesWorldSpace());
 }
 
 TEST(SkiaEffect, SettingOneUniformTwiceReplacesItRatherThanStacking) {
@@ -186,12 +186,12 @@ TEST(SkiaEffect, SettingOneUniformTwiceReplacesItRatherThanStacking) {
                "uniform float uK;\n"
                "half4 main(float2 p) { return content.eval(p) * half(uK); }"));
   ASSERT_NE(effect, nullptr);
-  skia::Effect twice = skia::Effect::shader(effect);
+  Filter twice = skia::program(effect);
   twice.set("uK", 0.25f);
   twice.set("uK", 0.75f);
   // Last write wins, as slot() does: the same effect described once at
   // the final value is the same recipe, so a re-described node prunes.
-  skia::Effect once = skia::Effect::shader(effect);
+  Filter once = skia::program(effect);
   once.set("uK", 0.75f);
   EXPECT_TRUE(twice == once);
 }

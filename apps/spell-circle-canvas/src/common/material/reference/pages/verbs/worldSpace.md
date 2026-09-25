@@ -2,7 +2,7 @@
 kind: verb
 library: SigilMaterial
 name: worldSpace
-qualified: sigil::material::skia::Paint::worldSpace
+qualified: sigil::material::Paint::worldSpace
 group: Uniforms and layer properties
 status: stable
 ---
@@ -23,7 +23,7 @@ box-unit `Paint::linearGradient` or `Paint::radialGradient` reads as
 fractions of the canvas.
 
 **Per-material-LAYER, deliberately not inherited.** Flagging a
-`Paint::blend` does not flag its layers, flagging a `Paint::sksl` parent
+`Paint::blend` does not flag its layers, flagging a `skia::sksl` parent
 does not flag its slots — each paint anchors (or not) for itself. A
 flagged parent's slots still SEE root coordinates, because the wrap
 re-maps the coordinates the parent's SkSL evaluates them at; that is
@@ -31,10 +31,10 @@ Skia's local-matrix composition, not flag inheritance.
 
 **Mechanism.** At resolve the built shader is wrapped
 `makeWithLocalMatrix(W⁻¹)`, where W is the node→root matrix the paint
-walk accumulated — `PaintFrame::toRoot`, the same matrix the hit test
+walk accumulated — `FrameData::world`, the same matrix the hit test
 inverts, so a node draws its field exactly where it can be hit. There is
 one such seam, inside the resolve and the build, so every consumer
-inherits it: a fill, a coverage gate, an `Effect::slot` material and a
+inherits it: a fill, a coverage gate, an `Filter::slot` material and a
 `Paint::blend` layer.
 
 That one build is also why three things follow from the flag: the digest
@@ -52,8 +52,8 @@ connected — releasing that once the transform provably holds still. The
 flag is recipe and participates in `Paint::operator==`; W itself belongs
 to the system and never compares.
 
-**Resolved outside a composer** — `Paint::asShader`, a standalone
-decoration, a measurement — `PaintFrame::toRoot` is identity, and the
+**Resolved outside a composer** — `skia::shader(paint)`, a standalone
+decoration, a measurement — `FrameData::world` is identity, and the
 paint deterministically degrades to NODE-LOCAL coordinates: the same
 picture as the unflagged paint. A grouped subtree refuses to hold a bake
 across a moving world-space field, because W is not among the floats the

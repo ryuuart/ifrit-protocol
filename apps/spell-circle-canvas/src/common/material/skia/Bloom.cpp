@@ -1,4 +1,4 @@
-#include <sigilmaterial/skia/Bloom.h>
+#include "EffectInternal.h"
 
 #include <include/core/SkColorFilter.h>
 
@@ -31,7 +31,7 @@ Effect coverageCeiling(float ceiling) {
 
 }  // namespace
 
-Effect bloom(const BloomParameters& p) {
+Effect bloom(const BloomOptions& p) {
   // Native separable Gaussian filters spread light continuously at wide
   // radii; sparse source gathers leave distinct copies of fine lettering.
   const Effect light = Effect::brightPass(p.threshold, p.knee)
@@ -46,7 +46,7 @@ Effect bloom(const BloomParameters& p) {
       rung(sigma, p.strength)
           .emit(rung(sigma * std::max(1.0f, p.spread), p.tail),
                 BlendMode::PlusLighter)
-          .then(coverageCeiling(p.maxOpacity));
+          .then(coverageCeiling(p.maximumOpacity));
   Effect core;
   if (p.softness > 0) core = Effect::blur(p.softness);
   return core.then(Effect::whiten(p.whitening, p.threshold, p.knee))

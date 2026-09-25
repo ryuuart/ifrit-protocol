@@ -16,7 +16,7 @@
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/field/Crt.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialField.h>
@@ -209,14 +209,14 @@ namespace {
  *  path that gives a recipe an EXECUTOR, which is what fills a slot
  *  declared as one the executor fills — a fill has no layer and must
  *  bind such a slot itself. */
-SkBitmap throughEffect(const skia::Effect& effect, const sk_sp<SkImage>& source,
+SkBitmap throughEffect(const Filter& effect, const sk_sp<SkImage>& source,
                        int side) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(side, side));
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorTRANSPARENT);
   SkPaint layer;
-  layer.setImageFilter(effect.resolvedImageFilter(nullptr));
+  layer.setImageFilter(skia::resolvedImageFilter(effect, nullptr));
   canvas.saveLayer(nullptr, &layer);
   canvas.drawImage(source, 0, 0);
   canvas.restore();
@@ -230,7 +230,7 @@ SkBitmap throughEffect(const skia::Effect& effect, const sk_sp<SkImage>& source,
 /** The same, for a material run over the layer at @p reach. */
 SkBitmap throughLayer(const Material& material, float reach,
                       const sk_sp<SkImage>& source, int side) {
-  return throughEffect(skia::Effect::recipe(material, reach), source, side);
+  return throughEffect(Filter::of(material, reach), source, side);
 }
 
 /** The whole screen over a rendered layer. */
@@ -412,7 +412,7 @@ TEST(Field, TheBloomSourceAloneIsTheLayerBlurredInsideTheTube) {
   const field::CrtBloomParameters whole{.uBounds = {0, 0, 64, 64},
                                         .uBloomRadius = 6};
   EXPECT_TRUE(test::identical(throughLayer(field::crtBloom(whole), 0, band, 64),
-                              throughEffect(skia::Effect::blur(6), band, 64)));
+                              throughEffect(Filter::blur(6), band, 64)));
   // And kept inside the tube: the same light with the bounds drawn in
   // stands where the tube is and nowhere else.
   const field::CrtBloomParameters inset{.uBounds = {24, 0, 16, 64},
@@ -433,11 +433,10 @@ TEST(Field, AnAuthorsOwnLightIsNotStoodInForByTheLayer) {
                                         .uBloomRadius = 6};
   Material filled = field::crtBloom(light);
   filled.slot("bloom", Texture::of(brightBand(64, 4)));
-  EXPECT_EQ(skia::Effect::recipe(filled, 0.0f).resolvedImageFilter(nullptr),
+  EXPECT_EQ(skia::resolvedImageFilter(Filter::of(filled, 0.0f), nullptr),
             nullptr);
   // Left to the executor, the same light IS a filter of the layer.
-  EXPECT_NE(skia::Effect::recipe(field::crtBloom(light), 0.0f)
-                .resolvedImageFilter(nullptr),
+  EXPECT_NE(skia::resolvedImageFilter(Filter::of(field::crtBloom(light), 0.0f), nullptr),
             nullptr);
 }
 

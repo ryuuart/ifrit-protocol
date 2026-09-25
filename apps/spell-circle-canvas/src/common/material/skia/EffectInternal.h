@@ -13,7 +13,9 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/filter/Filter.h>
+
+#include "Effect.h"
 
 #include <memory>
 #include <string>
@@ -42,6 +44,7 @@ enum class EffectProgram {
   HaloDeepening,      ///< a fading halo sinking toward its strongest channel
   CoreWhitening,      ///< a lit source moving toward white at its own peak
   ParametricBlurMix,  ///< the mix between the fixed levels of a blur pyramid
+  ColorAdjust,        ///< CSS's brightness, contrast, saturate and hue-rotate
   Count,
 };
 
@@ -55,6 +58,11 @@ enum class EffectProgram {
  *  order before any of it can be named, and the bodies are small beside
  *  the device programs they are inlined into. */
 const sk_sp<SkRuntimeEffect>& effectProgram(EffectProgram which);
+
+/** Extract bright colour, spread it with two separable Gaussian filters,
+ *  then screen the light over the source — brightPass, dilate, blur, deepen
+ *  and whiten joined by emit. */
+Effect bloom(const BloomOptions& options);
 
 /** The bloom's filter DAG: reduce, gather, enlarge, composite. */
 sk_sp<SkImageFilter> makePhosphorBloom(SkRuntimeShaderBuilder& haloBuilder,

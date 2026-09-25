@@ -5,7 +5,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkString.h>
 #include <sigilmaterial/skia/Draw.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
@@ -72,7 +72,7 @@ bool firstUse(Entry entry) {
               .slot("content")
               .body(Target::SkSL,
                     "half4 main(float2 p) { return content.eval(p); }")));
-      return skia::Effect::recipe(effect).resolvedImageFilter(nullptr) !=
+      return skia::resolvedImageFilter(Filter::of(effect), nullptr) !=
              nullptr;
     }
     case Entry::Pass: {
@@ -154,8 +154,8 @@ bool recipeSnapshotsDistinguishCompilers() {
           .slot("content")
           .body(Target::SkSL,
                 "half4 main(float2 p) { return content.eval(p); }"));
-  const skia::Effect builtin = skia::Effect::recipe(Material(recipe));
-  if (!builtin.imageFilter()) return false;
+  const Filter builtin = Filter::of(Material(recipe));
+  if (!skia::imageFilter(builtin)) return false;
   registerCompiler(Target::SkSL,
                    [](std::shared_ptr<const Recipe> source, Variant variant,
                       std::string& error) -> std::shared_ptr<Program> {
@@ -169,8 +169,8 @@ bool recipeSnapshotsDistinguishCompilers() {
                          std::move(source), variant, std::move(effect));
                    });
   ProgramCache::shared().clear();
-  const skia::Effect custom = skia::Effect::recipe(Material(recipe));
-  return custom.imageFilter() && !(builtin == custom);
+  const Filter custom = Filter::of(Material(recipe));
+  return skia::imageFilter(custom) && !(builtin == custom);
 }
 
 TEST(SkiaEffect, RecipeSnapshotsDistinguishCompiledPrograms) {

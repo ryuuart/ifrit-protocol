@@ -13,7 +13,7 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -76,11 +76,10 @@ TEST(SkiaEffect, ASlotTheExecutorFillsIsTheLayerThroughThatFilter) {
     const Material derived(blurredSlotRecipe(), OneRadius{sigma});
     const Material plain(blurredSlotRecipe(), OneRadius{0});
     const auto fromSlot = bloomThrough(
-        skia::Effect::recipe(derived, 0).resolvedImageFilter(nullptr), amber);
+        skia::resolvedImageFilter(Filter::of(derived, 0), nullptr), amber);
     const auto fromChain = bloomThrough(
-        skia::Effect::blur(sigma)
-            .then(skia::Effect::recipe(plain, 0))
-            .resolvedImageFilter(nullptr),
+        skia::resolvedImageFilter(
+            Filter::blur(sigma).then(Filter::of(plain, 0)), nullptr),
         amber);
     ASSERT_EQ(fromSlot.size(), fromChain.size());
     for (size_t i = 0; i < fromSlot.size(); ++i)
@@ -98,7 +97,7 @@ TEST(SkiaEffect, AnAuthorFilledSlotIsNotRefilledByTheExecutor) {
   Material material(blurredSlotRecipe(), OneRadius{8});
   material.slot("bloom", Texture::of(oneColour(SK_ColorBLUE)));
   const auto pixels = bloomThrough(
-      skia::Effect::recipe(material, 0).resolvedImageFilter(nullptr),
+      skia::resolvedImageFilter(Filter::of(material, 0), nullptr),
       {1.0f, 0.72f, 0.1f, 1.0f});
   EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[2], 1.0f);
   EXPECT_FLOAT_EQ(texel(pixels, 32, 32)[0], 0.0f);
@@ -107,20 +106,20 @@ TEST(SkiaEffect, AnAuthorFilledSlotIsNotRefilledByTheExecutor) {
 TEST(SkiaEffect, ARecipeWithALayerSlotStillComparesByItsValues) {
   const Material eight(blurredSlotRecipe(), OneRadius{8});
   const Material four(blurredSlotRecipe(), OneRadius{4});
-  EXPECT_TRUE(skia::Effect::recipe(eight, 0) == skia::Effect::recipe(eight, 0));
-  EXPECT_FALSE(skia::Effect::recipe(eight, 0) == skia::Effect::recipe(four, 0));
+  EXPECT_TRUE(Filter::of(eight, 0) == Filter::of(eight, 0));
+  EXPECT_FALSE(Filter::of(eight, 0) == Filter::of(four, 0));
 }
 
 TEST(SkiaEffect, TheProgramsAnEffectIsBuiltOutOfAreOneSharedList) {
   const std::span<const sk_sp<SkRuntimeEffect>> programs =
-      skia::everyEffectProgram();
+      skia::everyFilterProgram();
   ASSERT_FALSE(programs.empty());
   // The list is what a backend can be asked to NAME, and it names the
   // object: nothing in it may be absent, and two asks must answer the
   // same objects in the same order or a name written down one run means
   // something else the next.
   const std::span<const sk_sp<SkRuntimeEffect>> again =
-      skia::everyEffectProgram();
+      skia::everyFilterProgram();
   ASSERT_EQ(again.size(), programs.size());
   std::vector<const SkRuntimeEffect*> seen;
   for (size_t at = 0; at < programs.size(); ++at) {
@@ -135,9 +134,9 @@ TEST(SkiaEffect, AnEffectDrawsThroughTheProgramTheListNames) {
   // The whole point of the list: the object declared is the object the
   // draw runs, so a stage built here is found in it.
   const std::span<const sk_sp<SkRuntimeEffect>> programs =
-      skia::everyEffectProgram();
-  const skia::Effect gate = skia::Effect::brightPass(0.5f, 0.1f);
-  const sk_sp<SkColorFilter> map = gate.colorFilter();
+      skia::everyFilterProgram();
+  const Filter gate = Filter::brightPass(0.5f, 0.1f);
+  const sk_sp<SkColorFilter> map = skia::colorFilter(gate);
   ASSERT_NE(map, nullptr);
   // The bright pass reads its own pixel, so it is one of the bodies
   // made for a colour filter rather than for a shader.

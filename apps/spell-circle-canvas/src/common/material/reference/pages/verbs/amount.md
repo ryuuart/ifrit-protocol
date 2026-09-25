@@ -2,7 +2,7 @@
 kind: verb
 library: SigilMaterial
 name: amount
-qualified: sigil::material::skia::Paint::amount
+qualified: sigil::material::Paint::amount
 group: Uniforms and layer properties
 status: stable
 ---

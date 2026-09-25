@@ -13,7 +13,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/field/Crt.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 using namespace sigil::material;
@@ -49,9 +49,9 @@ constexpr int kScreenSide = 512;
 
 /** A thin bright line drawn into a layer that carries @p effect, which
  *  is the picture every screen arm below is measured over. */
-void overLayer(benchmark::State& state, const skia::Effect& effect) {
+void overLayer(benchmark::State& state, const Filter& effect) {
   SkPaint layer;
-  layer.setImageFilter(effect.resolvedImageFilter(nullptr));
+  layer.setImageFilter(skia::resolvedImageFilter(effect, nullptr));
   SkPaint ink;
   ink.setColor(SK_ColorGREEN);
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
@@ -81,7 +81,7 @@ void CrtScreenLayer(benchmark::State& state) {
       .uNoise = 0.012f,
       .uVignette = 0.22f,
   };
-  overLayer(state, skia::Effect::recipe(field::crt(parameters),
+  overLayer(state, Filter::of(field::crt(parameters),
                                         field::crtSampleRadius(parameters)));
 }
 BENCHMARK(CrtScreenLayer)->Arg(2)->Arg(8)->Arg(24)->Arg(64);
@@ -97,7 +97,7 @@ void CrtBeamLayer(benchmark::State& state) {
       .uNoise = 0.012f,
   };
   overLayer(state,
-            skia::Effect::recipe(field::crtBeam(parameters),
+            Filter::of(field::crtBeam(parameters),
                                  field::crtBeamSampleRadius(parameters)));
 }
 BENCHMARK(CrtBeamLayer);
@@ -107,7 +107,7 @@ void CrtBloomLayer(benchmark::State& state) {
       .uBounds = {0, 0, kScreenSide, kScreenSide},
       .uBloomRadius = (float)state.range(0),
   };
-  overLayer(state, skia::Effect::recipe(field::crtBloom(parameters)));
+  overLayer(state, Filter::of(field::crtBloom(parameters)));
 }
 BENCHMARK(CrtBloomLayer)->Arg(2)->Arg(64);
 
@@ -120,7 +120,7 @@ void CrtGlassLayer(benchmark::State& state) {
       .uVignette = 0.22f,
   };
   overLayer(state,
-            skia::Effect::recipe(field::crtGlass(parameters),
+            Filter::of(field::crtGlass(parameters),
                                  field::crtGlassSampleRadius(parameters)));
 }
 BENCHMARK(CrtGlassLayer);

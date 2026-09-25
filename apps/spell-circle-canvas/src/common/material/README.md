@@ -62,7 +62,7 @@ directory, each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `ColorStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Parameters.h` includes | SigilCoreCompute |
+| `SigilMaterialColor` | `Color`, `hexColor()`, `hsv()`, the three mixes and `luminance()`, `ColorStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Parameters.h` includes | SigilCoreCompute |
 | `SigilMaterialCore` | the value model: `Target`, `Parameters`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `ColorStops` and `GradientOptions`, what a gradient is told in box units or pixels; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
@@ -70,7 +70,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, the screen `crt` and the three subjects it composes, `crtBeam`, `crtBloom` and `crtGlass`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialKit` | the presets: the colour CRT `kit::crt`; the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialField, SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
 | `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, the list a host hands a warm-up before its first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
@@ -144,7 +144,7 @@ the caller. `skia::fill(canvas, path, m)`
 is the one-call draw: clip to the path, paint the shader across it.
 
 A renderer applying a recipe-backed paint to a layer calls
-`skia::Paint::resolvePass` with `skia::PassInputs` from
+`skia::resolvePass` with `skia::PassInputs` from
 `<sigilmaterial/skia/Pass.h>`. The inputs supply the content shader, unit
 rectangles, progress and seeds. The paint owns shader specialization and
 program reuse for each unit count.
@@ -918,7 +918,7 @@ whatever `uBloom` is, or the compiler refuses the material by name.
 `kit::crt` in `<sigilmaterial/kit/Crt.h>` supplies a restrained colour CRT
 preset. The material stays renderer-independent; fill its `content` and
 `bloom` slots with textures for a material, or pass it to
-`skia::Effect::recipe` for a rendered layer, which fills `bloom` itself.
+`Filter::of` for a rendered layer, which fills `bloom` itself.
 Pass a conservative local sampling radius to the effect;
 `field::crtSampleRadius` calculates it from a parameter struct as the sum
 of its passes' own — `field::crtGlassSampleRadius`, the warp, and
@@ -928,10 +928,10 @@ uniforms on the preset, update that radius to cover them.
 
 ```cpp
 #include <sigilmaterial/kit/Crt.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 
 const auto screen = sigil::material::kit::crt(SkRect::MakeWH(1440, 1052));
-const auto effect = sigil::material::skia::Effect::recipe(screen, 40.0f);
+const auto effect = sigil::material::Filter::of(screen, 40.0f);
 ```
 
 The SkSL adaptation and its provenance are described in
@@ -940,13 +940,13 @@ The SkSL adaptation and its provenance are described in
 ## The Skia paint
 
 The paint and the effect are their own chapter:
-**[PAINT.md](PAINT.md)** — `skia::Paint` as ONE `sk_sp<SkShader>` over a
+**[PAINT.md](PAINT.md)** — `Paint` as ONE `sk_sp<SkShader>` over a
 tree of solids, ramps, images, buffers, SkSL effects and blend layers;
 the three volatility tiers it declares by what it reads; the unit-square
-ramps that need no box size written down; and `skia::Effect`, the
+ramps that need no box size written down; and `Filter`, the
 post-processing recipe over a layer a consumer has already rendered.
 
-`skia::Effect::recipe(material)` captures the material's uniforms and child
+`Filter::of(material)` captures the material's uniforms and child
 slots when constructed — the layer slots with them, whose filters are
 built from the amounts the material carries at that moment and for the
 same reason. Static captures compare by material value and compiled
@@ -983,11 +983,11 @@ different keys; a backend with thread-affine work must marshal that work at
 its own executor seam.
 
 **Every body an effect is built out of, as one list.**
-`skia::everyEffectProgram()` in `<sigilmaterial/skia/Effect.h>` answers a
+`skia::everyFilterProgram()` in `<sigilmaterial/skia/Filter.h>` answers a
 `std::span<const sk_sp<SkRuntimeEffect>>` holding the compiled SkSL an
-`skia::Effect` runs — the bright pass and phosphor halo a bloom gathers,
+`Filter` runs — the bright pass and phosphor halo a bloom gathers,
 the tap that lays that halo back, a light's deepening and whitening, and
-a parametric blur's mix. The recipes a `skia::Paint` runs are not among
+a parametric blur's mix. The recipes a `Paint` runs are not among
 them; those are reached through the program cache, one per recipe.
 
 They are the very objects the effects go on to use, not copies. A device
@@ -1043,7 +1043,7 @@ the normals passes and outlines a surface is shaded over, and links
 nothing here but the colour leaf, privately, for the OKLab interpolation
 its path blend runs in; SigilWorld's renderer is one executor of the
 surface the kit defines and adds no shading model of its own;
-SigilCompose places what a material paints — it takes a `skia::Paint` as
+SigilCompose places what a material paints — it takes a `Paint` as
 a node's fill and routes it, and holds no paint model of its own.
 
 ## Building and testing
@@ -1076,7 +1076,7 @@ installs a shader-error handler through
 `GraphiteContext::reportShaderErrorsTo`, and draws every material
 `kit::everyRecipe()`, `sdf::everyRecipe()` and `field::everyRecipe()`
 answer — plus a stack per blend, the whole terms text, and the ocio bake
-where OpenColorIO is available — through the same `skia::Paint` a
+where OpenColorIO is available — through the same `Paint` a
 consumer draws it through, demanding that not one reports an error. It
 needs Metal, and it carries its own control: the collision the reserved
 names exist to prevent, built as a raw runtime effect so it reaches the

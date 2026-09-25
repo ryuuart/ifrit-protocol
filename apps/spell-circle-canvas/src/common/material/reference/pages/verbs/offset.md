@@ -2,7 +2,7 @@
 kind: verb
 library: SigilMaterial
 name: offset
-qualified: sigil::material::skia::Paint::offset
+qualified: sigil::material::Paint::offset
 group: Uniforms and layer properties
 status: stable
 ---
@@ -16,9 +16,9 @@ content volatility while the pan is moving and is released once the
 values provably hold still, letting ancestors cache again; the per-draw
 scan re-declares it on the frame an externally-driven pan resumes.
 
-It is meaningful on `Paint::image` and `Paint::buffer` paints only — the
+It is meaningful on `skia::image` and `skia::buffer` paints only — the
 kinds whose recipe carries a local matrix for the pan to translate. On
-any other kind it is warned and IGNORED, matching `Paint::uniform`'s
+any other kind it is warned and IGNORED, matching `Paint::set`'s
 guardrails.
 
 It composes with the recipe's static matrix rather than replacing it:
