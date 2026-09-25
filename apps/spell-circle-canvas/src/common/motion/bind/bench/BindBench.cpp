@@ -1,12 +1,11 @@
 /** @file
- * motion_bind_bench — the binding chain per evaluation: BoundFloat::apply
- * under each envelope, the affine chain alone, and the wiggle field by
- * octave count. Run a Release build; Debug numbers say nothing.
+ * motion_bind_bench — a binding per evaluation: Binding::apply under each
+ * envelope, every stage at once, and the wiggle field by octave count.
+ * Run a Release build; Debug numbers say nothing.
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilmotion/bind/Bound.h>
-#include <sigilmotion/bind/BoundFloat.h>
+#include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/ease/Ease.h>
 
 #include <vector>
@@ -19,11 +18,11 @@ namespace {
  *  clamp and wrap branches are taken as well as the interior. */
 const std::vector<float>& inputs() {
   static const std::vector<float> values = [] {
-    std::vector<float> v;
-    v.reserve(1024);
-    for (int i = 0; i < 1024; ++i)
-      v.push_back(-0.25f + 1.5f * (float)i / 1023.0f);
-    return v;
+    std::vector<float> sweep;
+    sweep.reserve(1024);
+    for (int index = 0; index < 1024; ++index)
+      sweep.push_back(-0.25f + 1.5f * (float)index / 1023.0f);
+    return sweep;
   }();
   return values;
 }
@@ -33,100 +32,102 @@ void countCalls(benchmark::State& state) {
       (double)inputs().size(), benchmark::Counter::kIsIterationInvariantRate);
 }
 
-void sweep(benchmark::State& state, const BoundFloat& bound) {
+void sweep(benchmark::State& state, const Binding& binding) {
   for ([[maybe_unused]] auto iteration : state) {
     float sink = 0;
-    for (float v : inputs()) sink += bound.apply(v);
+    for (float value : inputs()) sink += binding.apply(value);
     benchmark::DoNotOptimize(sink);
   }
   countCalls(state);
 }
 
-/** The output every chain here binds to; its value is never read
- *  because apply() takes the input explicitly. */
-choreograph::Output<float>& source() {
-  static choreograph::Output<float> output = 0.0f;
-  return output;
-}
+/** The arms of the envelope benchmark: no shape, the there-and-back, and
+ *  each envelope the factories build. */
+enum class Arm { None, Alternate, Cosine, Trapezoid, Square, Shaped };
 
-Bound shaped(Envelope envelope) {
-  Bound bound = bind(&source()).source(0, 10).target(-70, 170);
-  switch (envelope) {
-    case Envelope::kNone:
+Binding shaped(Arm arm) {
+  Binding binding{.from = {0.0f, 10.0f}, .to = {-70.0f, 170.0f}};
+  switch (arm) {
+    case Arm::None:
       break;
-    case Envelope::kPingPong:
-      bound.pingPong();
+    case Arm::Alternate:
+      binding.alternate = true;
       break;
-    case Envelope::kCosine:
-      bound.cosine();
+    case Arm::Cosine:
+      binding.envelope = envelope::cosine();
       break;
-    case Envelope::kTrapezoid:
-      bound.trapezoid(0.1f, 0.3f, 0.7f, 0.9f);
+    case Arm::Trapezoid:
+      binding.envelope = envelope::trapezoid(0.1f, 0.3f, 0.7f, 0.9f);
       break;
-    case Envelope::kSquare:
-      bound.square(0.4f);
+    case Arm::Square:
+      binding.envelope = envelope::square(0.4f);
       break;
-    case Envelope::kWave:
-      bound.wave(ease::inOutQuad);
+    case Arm::Shaped:
+      binding.envelope = envelope::shaped(ease::inOutQuad);
       break;
   }
-  return bound;
+  return binding;
 }
 
-const char* envelopeName(Envelope envelope) {
-  switch (envelope) {
-    case Envelope::kNone:
+const char* armName(Arm arm) {
+  switch (arm) {
+    case Arm::None:
       return "none";
-    case Envelope::kPingPong:
-      return "pingPong";
-    case Envelope::kCosine:
+    case Arm::Alternate:
+      return "alternate";
+    case Arm::Cosine:
       return "cosine";
-    case Envelope::kTrapezoid:
+    case Arm::Trapezoid:
       return "trapezoid";
-    case Envelope::kSquare:
+    case Arm::Square:
       return "square";
-    case Envelope::kWave:
-      return "wave";
+    case Arm::Shaped:
+      return "shaped";
   }
   return "";
 }
 
-/** The source-normalise, envelope and target chain, one envelope per
- *  arm; the kNone arm is the affine floor the others add to. */
+/** The from, envelope and to stages, one envelope per arm; the none arm
+ *  is the range-to-range floor the others add to. */
 void BM_Apply_Envelope(benchmark::State& state) {
-  const auto envelope = (Envelope)state.range(0);
-  state.SetLabel(envelopeName(envelope));
-  sweep(state, shaped(envelope).value());
+  const auto arm = (Arm)state.range(0);
+  state.SetLabel(armName(arm));
+  sweep(state, shaped(arm));
 }
 BENCHMARK(BM_Apply_Envelope)
-    ->DenseRange((int)Envelope::kNone, (int)Envelope::kWave)
+    ->DenseRange((int)Arm::None, (int)Arm::Shaped)
     ->Unit(benchmark::kMicrosecond);
 
-/** Everything a chain can carry at once: window, curve, envelope,
- *  quantize, wrap, clamp — the most a single evaluation can cost without
- *  wiggle. */
-void BM_Apply_FullChain(benchmark::State& state) {
-  const Bound bound = bind(&source())
-                          .window(0, 1)
-                          .map(ease::inOutCubic)
-                          .pingPong()
-                          .quantize(12)
-                          .target(-70, 170)
-                          .wrap(100)
-                          .clamp(-50, 150);
-  sweep(state, bound.value());
+/** Every stage but the wiggle at once: clamped from, alternate, curve,
+ *  quantize, reverse, to, wrap, clamp — the most a single evaluation can
+ *  cost without noise. */
+void BM_Apply_AllStages(benchmark::State& state) {
+  const Binding binding{.from = {0.0f, 1.0f},
+                        .clampFrom = true,
+                        .alternate = true,
+                        .ease = ease::inOutCubic,
+                        .quantize = 12,
+                        .reverse = true,
+                        .to = {-70.0f, 170.0f},
+                        .wrap = 100.0f,
+                        .clamp = {-50.0f, 150.0f}};
+  sweep(state, binding);
 }
-BENCHMARK(BM_Apply_FullChain)->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_Apply_AllStages)->Unit(benchmark::kMicrosecond);
 
-/** The wiggle field on top of the affine chain, by octave: the value
+/** The wiggle field on top of the output range, by octave: the value
  *  noise is summed once per octave, so the cost is expected to grow
- *  linearly with the count, and one octave minus the kNone envelope arm
+ *  linearly with the count, and one octave minus the none envelope arm
  *  is the field's own price per sample. */
 void BM_Apply_Wiggle(benchmark::State& state) {
   const int octaves = (int)state.range(0);
-  const Bound bound =
-      wiggle(&source(), 8.0f, 3.0f, 1u, octaves, 0.5f).target(-70, 170);
-  sweep(state, bound.value());
+  const Binding binding{.to = {-70.0f, 170.0f},
+                        .wiggle = {.amount = 8.0f,
+                                   .frequency = 3.0f,
+                                   .seed = 1u,
+                                   .octaves = octaves,
+                                   .falloff = 0.5f}};
+  sweep(state, binding);
   state.counters["octaves"] = (double)octaves;
   state.SetComplexityN(octaves);
 }

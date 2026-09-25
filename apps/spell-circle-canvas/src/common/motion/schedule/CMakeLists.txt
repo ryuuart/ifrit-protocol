@@ -2,7 +2,7 @@
 # Spread spec, the five orderings its delays are dealt in, and the
 # Cascade that resolves the two against the counts a frame actually has.
 #
-# It links the bind leaf for `easeEqual` — a spread's distribution curve
+# It links the ease leaf for `easeEqual` — a spread's distribution curve
 # compares under the same rule every other curve in the library does —
 # and NOT the clock. A cascade is a pure function of a master float in
 # [0, 1] and two integer counts, which is what lets a text engine drive
@@ -15,12 +15,10 @@
 # seeded permutation is the same permutation everywhere in the tree, and
 # SigilCoreComparable supplies the field pin the spec's comparator sits under.
 find_package(boost_unordered CONFIG REQUIRED)
-find_package(choreograph CONFIG REQUIRED)
 sigil_library(SigilMotionSchedule
   SOURCES Cascade.cpp Order.cpp Spread.cpp
   HEADERS Cascade.h Order.h Spread.h
-  PUBLIC SigilMotionBind SigilCoreCompute SigilCoreComparable
-         choreograph::choreograph
+  PUBLIC SigilMotionEase SigilCoreCompute SigilCoreComparable
   PRIVATE Boost::unordered)
 
 # Links only the library it exercises — no clock, so a schedule that

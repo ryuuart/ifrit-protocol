@@ -4,11 +4,10 @@
 # needs one tier links that tier alone. `SigilMotion` is the umbrella: an
 # interface over every feature, for a consumer of the whole library.
 #
-# Choreograph itself (sansumbrella's phrase/sequence/motion library, from
-# the sigil-vcpkg-registry) is the animation vocabulary and is exposed
-# PUBLIC — consumers compose phrases directly. It stays the ONLY external
-# link dependency: anything that would drag Skia, Yoga or a kernel type
-# in here does not belong here. RESOLVING an Animatable against a paint
+# The library links nothing outside the tree but Boost, privately, in the
+# scheduler: anything that would drag Skia, Yoga or a kernel type in here
+# does not belong here. Choreograph is linked by the ease feature's test
+# alone, to hold the named curves to its numbers. RESOLVING an Animatable against a paint
 # context stays with the consumer — SigilMotion ships the value, not a
 # resolve surface.
 #
@@ -24,6 +23,7 @@ sigil_library_root(SigilMotion
        ${CMAKE_CURRENT_SOURCE_DIR}/VALUES.md)
 
 # Dependencies point down this list.
+add_subdirectory(time)
 add_subdirectory(ease)
 add_subdirectory(bind)
 add_subdirectory(clock)
@@ -33,7 +33,7 @@ add_subdirectory(values)
 
 sigil_library(SigilMotion
   INTERFACE SigilMotionClock SigilMotionValues SigilMotionBind SigilMotionEase
-            SigilMotionPhysics SigilMotionSchedule)
+            SigilMotionPhysics SigilMotionSchedule SigilMotionTime)
 
 # Every API name the prose spells, compiled against the headers that own
 # it — README.md and all five chapters, because a chapter is the same
@@ -49,6 +49,5 @@ sigil_doc_probes(motion
           ${CMAKE_CURRENT_SOURCE_DIR}/VALUES.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
   PRELUDES "<sigilcore/cache/Settle.h>"
-  ALIASES ch=choreograph
   FLOORS 6,6,8,0,0
   LIBRARIES SigilMotion SigilCoreCompute)

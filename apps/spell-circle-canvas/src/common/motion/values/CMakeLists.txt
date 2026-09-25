@@ -15,13 +15,12 @@
 # keyed step's segment is drawn with. Those are edges OUT of this
 # library, and both targets are header-only leaves over the standard
 # library (Boost.PFR aside): no kernel, no device, nothing that draws.
-find_package(choreograph CONFIG REQUIRED)
 sigil_library(SigilMotionValues
   SOURCES Animated.cpp Transition.cpp
   HEADERS Animatable.h Animated.h Keyframes.h Lanes.h
           Oscillator.h Sequence.h Spring.h Time.h Transition.h
   PUBLIC SigilMotionBind SigilMotionClock SigilCoreComparable
-         SigilCoreCompute choreograph::choreograph)
+         SigilCoreCompute)
 
 # Links the values and the clock that drives them, and nothing that
 # draws, so a link edge that pulled a drawing library in would show up

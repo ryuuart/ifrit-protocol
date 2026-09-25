@@ -1,43 +1,46 @@
 /** @file
- * The two comparators an identity prune reads a shaped binding through:
- * a curve compared by its shape and its settings, and the whole record
- * compared field by field.
+ * The two comparators an identity prune reads a binding through: a curve
+ * compared by its shape and its settings, and the whole binding compared
+ * field by field.
  */
 
+#include "support/StandsAlone.h"
+
 #include <gtest/gtest.h>
-#include <sigilmotion/bind/Bound.h>
-#include <sigilmotion/bind/BoundFloat.h>
+#include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/ease/Ease.h>
 
 #include <functional>
 
-#include "support/StandsAlone.h"
-
 using namespace sigil::motion;
-namespace ch = choreograph;
 
 namespace {
 
-/** A record with every slot carrying something other than its default,
+/** A binding with every field carrying something other than its default,
  *  so a comparator that skipped a field would have to skip a field that
  *  is actually set. */
-BoundFloat furnished(const ch::Output<float>* source) {
-  return bind(source)
-      .source(0.25f, 0.75f)
-      .trapezoid(0.1f, 0.3f, 0.7f, 0.9f)
-      .map(ease::inQuad)
-      .quantize(5)
-      .scale(3.0f)
-      .offset(-1.5f)
-      .wrap(2.0f)
-      .wiggle(4.0f, 6.0f, 11u, 3, 0.4f)
-      .clamp(-2.0f, 2.0f)
-      .value();
+Binding furnished() {
+  return Binding{
+      .from = {0.25f, 0.75f},
+      .clampFrom = true,
+      .alternate = true,
+      .envelope = envelope::trapezoid(0.1f, 0.3f, 0.7f, 0.9f),
+      .ease = ease::inQuad,
+      .quantize = 5,
+      .reverse = true,
+      .to = {-1.5f, 1.5f},
+      .wrap = 2.0f,
+      .wiggle = {.amount = 4.0f,
+                 .frequency = 6.0f,
+                 .seed = 11u,
+                 .octaves = 3,
+                 .falloff = 0.4f},
+      .clamp = {-2.0f, 2.0f}};
 }
 
 }  // namespace
 
-TEST(Bind, ACurveComparesByItsShapeAndItsSettings) {
+TEST(BindingEquality, ACurveComparesByItsShapeAndItsSettings) {
   // A plain function is its pointer, a shaped curve is its shape and its
   // numbers, and a capturing lambda is unequal to everything — including
   // to itself, because a std::function holding one cannot be read back.
@@ -45,61 +48,101 @@ TEST(Bind, ACurveComparesByItsShapeAndItsSettings) {
   EXPECT_FALSE(easeEqual(ease::inQuad, ease::outQuad));
   EXPECT_TRUE(easeEqual(ease::outBack(1.7f), ease::outBack(1.7f)));
   EXPECT_FALSE(easeEqual(ease::outBack(1.7f), ease::outBack(2.4f)));
-  const float k = 2.0f;
-  const Easing captured = [k](float t) { return t * k; };
+  const float factor = 2.0f;
+  const Easing captured = [factor](float progress) { return progress * factor; };
   EXPECT_FALSE(easeEqual(captured, captured));
   // Two empty slots are the same slot: a binding that shapes nothing
   // must not re-patch against another that shapes nothing.
   EXPECT_TRUE(easeEqual({}, {}));
 }
 
-TEST(Bind, ABoundMapComparesEveryFieldItHolds) {
-  // The map is read LIVE, so a record that pruned on a field it does not
-  // compare would keep shaping through the old value for as long as the
-  // node lives. Every field is named here, one claim each.
-  ch::Output<float> phase = 0.0f, other = 0.0f;
-  EXPECT_TRUE(boundMapEqual(furnished(&phase), furnished(&phase)));
+TEST(BindingEquality, TwoBindingsThatShapeNothingAreEqual) {
+  EXPECT_TRUE(Binding{} == Binding{});
+}
 
-  const auto differs = [&](const std::function<void(BoundFloat&)>& change) {
-    BoundFloat changed = furnished(&phase);
+TEST(BindingEquality, ABindingComparesEveryFieldItHolds) {
+  // The stages are read LIVE, so a binding that pruned on a field it does
+  // not compare would keep shaping through the old value for as long as
+  // the node lives. Every field is named here, one claim each.
+  EXPECT_TRUE(furnished() == furnished());
+
+  const auto differs = [](const std::function<void(Binding&)>& change) {
+    Binding changed = furnished();
     change(changed);
-    return !boundMapEqual(furnished(&phase), changed);
+    return !(furnished() == changed);
   };
-  EXPECT_TRUE(differs([&](BoundFloat& b) { b.source = &other; })) << "source";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.inputScale += 1.0f; })) << "inputScale";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.inputOffset += 1.0f; })) << "inputOffset";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.curve = ease::outQuad; }))
-      << "curve";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.clampInput = !b.clampInput; }))
-      << "clampInput";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.envelope = Envelope::kCosine; }))
-      << "envelope";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.riseStart += 0.01f; }))
-      << "riseStart";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.holdStart += 0.01f; }))
-      << "holdStart";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.holdEnd += 0.01f; })) << "holdEnd";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.fallEnd += 0.01f; })) << "fallEnd";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.duty += 0.01f; })) << "duty";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.waveFunction = ease::inQuad; }))
-      << "waveFunction";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.steps += 1; })) << "steps";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.scale += 1.0f; })) << "scale";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.offset += 1.0f; })) << "offset";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.clamped = !b.clamped; }))
-      << "clamped";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.low -= 1.0f; })) << "low";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.high += 1.0f; })) << "high";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.wiggleAmount += 1.0f; }))
-      << "wiggleAmount";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.wiggleFrequency += 1.0f; }))
-      << "wiggleFrequency";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.wiggleSeed += 1u; }))
-      << "wiggleSeed";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.wiggleOctaves += 1; }))
-      << "wiggleOctaves";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.wiggleFalloff += 0.1f; }))
-      << "wiggleFalloff";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.wrapPeriod += 1.0f; }))
-      << "wrapPeriod";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.from.low += 0.1f; }))
+      << "from.low";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.from.high += 0.1f; }))
+      << "from.high";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.clampFrom = false; }))
+      << "clampFrom";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.alternate = false; }))
+      << "alternate";
+  EXPECT_TRUE(differs([](Binding& binding) {
+    binding.envelope.shape = Envelope::Shape::Cosine;
+  })) << "envelope.shape";
+  EXPECT_TRUE(
+      differs([](Binding& binding) { binding.envelope.riseStart += 0.01f; }))
+      << "envelope.riseStart";
+  EXPECT_TRUE(
+      differs([](Binding& binding) { binding.envelope.holdStart += 0.01f; }))
+      << "envelope.holdStart";
+  EXPECT_TRUE(
+      differs([](Binding& binding) { binding.envelope.holdEnd += 0.01f; }))
+      << "envelope.holdEnd";
+  EXPECT_TRUE(
+      differs([](Binding& binding) { binding.envelope.fallEnd += 0.01f; }))
+      << "envelope.fallEnd";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.envelope.duty += 0.01f; }))
+      << "envelope.duty";
+  EXPECT_TRUE(
+      differs([](Binding& binding) { binding.envelope.curve = ease::inQuad; }))
+      << "envelope.curve";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.ease = ease::outQuad; }))
+      << "ease";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.quantize += 1; }))
+      << "quantize";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.reverse = false; }))
+      << "reverse";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.to.low -= 1.0f; }))
+      << "to.low";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.to.high += 1.0f; }))
+      << "to.high";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.wrap += 1.0f; }))
+      << "wrap";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.wiggle.amount += 1.0f; }))
+      << "wiggle.amount";
+  EXPECT_TRUE(
+      differs([](Binding& binding) { binding.wiggle.frequency += 1.0f; }))
+      << "wiggle.frequency";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.wiggle.seed += 1u; }))
+      << "wiggle.seed";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.wiggle.octaves += 1; }))
+      << "wiggle.octaves";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.wiggle.falloff += 0.1f; }))
+      << "wiggle.falloff";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.clamp.low -= 1.0f; }))
+      << "clamp.low";
+  EXPECT_TRUE(differs([](Binding& binding) { binding.clamp.high += 1.0f; }))
+      << "clamp.high";
+}
+
+TEST(BindingEquality, BothCurvesCompareUnderTheCurveRule) {
+  // A curve that cannot be read back — a capturing lambda — makes the
+  // binding holding it unequal even to a copy of itself, in either slot,
+  // so the binding re-patches every describe rather than pruning onto a
+  // stale curve.
+  const float factor = 2.0f;
+  const Easing captured = [factor](float progress) { return progress * factor; };
+  const Binding eased{.ease = captured};
+  EXPECT_FALSE(eased == eased);
+  const Binding shaped{.envelope = envelope::shaped(captured)};
+  EXPECT_FALSE(shaped == shaped);
+
+  // A shaped curve at the same settings is the same curve.
+  EXPECT_TRUE((Binding{.ease = ease::outBack(1.7f)} ==
+               Binding{.ease = ease::outBack(1.7f)}));
+  EXPECT_FALSE((Binding{.ease = ease::outBack(1.7f)} ==
+                Binding{.ease = ease::outBack(2.4f)}));
 }

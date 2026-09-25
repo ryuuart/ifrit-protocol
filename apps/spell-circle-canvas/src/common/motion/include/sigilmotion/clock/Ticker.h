@@ -3,35 +3,37 @@
 /** @file
  * @ingroup motion-clock
  *
- * The ticker: a master choreograph::Timeline stepped from frame deltas
- * beside any registered steppables, Outputs derived through a bound
- * chain, and the report of whether anything still moves.
+ * The ticker: the motions a host started, stepped from frame deltas
+ * beside any registered steppables, and the report of whether anything
+ * still moves.
  */
 
-#include <choreograph/Choreograph.h>
-
 #include <functional>
+#include <memory>
 #include <type_traits>
 #include <vector>
 
 #include "sigilcore/callable/Callable.h"
-#include "sigilmotion/bind/Bound.h"
 
 namespace sigil::motion {
 
+namespace detail {
+/** ONE MOTION the ticker steps: advanced by a frame's delta, answering
+ *  whether it still runs. The values feature supplies the motions; the
+ *  ticker only moves them, in the order they were started. */
+class Stepped {
+ public:
+  virtual ~Stepped() = default;
+  virtual bool advance(double deltaSeconds) = 0;
+};
+}  // namespace detail
+
 /**
- * The ticking engine for animation: owns a master choreograph::Timeline
- * and steps it, plus any registered steppables, from per-frame deltas.
- * It reports whether anything is still animating, so a host can stay
- * event-driven — render while active() or while content is dirty, sleep
- * otherwise.
+ * The ticking engine for animation: steps the motions a host started,
+ * plus any registered steppables, from per-frame deltas. It reports
+ * whether anything is still animating, so a host can stay event-driven —
+ * render while active() or while content is dirty, sleep otherwise.
  *
- * Choreograph supplies the vocabulary (Phrase/Sequence/Motion/Output —
- * see <choreograph/Choreograph.h>); the Ticker only drives it:
- *
- *   ch::Output<float> opacity = 0.0f;
- *   ticker.timeline().apply(&opacity).then<ch::RampTo>(1.0f, 0.4f);
- *   ...
  *   bool animating = ticker.tick(clock.tick());
  *
  * Not thread-safe. Use one Ticker per animation domain and touch it only
@@ -39,11 +41,9 @@ namespace sigil::motion {
  */
 class Ticker {
  public:
-  Ticker();
-
-  /** The master timeline. Finished motions are removed automatically so
-   *  active() naturally settles to false. */
-  choreograph::Timeline& timeline() { return m_timeline; }
+  /** Starts stepping @p motion from the next tick on. A finished motion
+   *  leaves the ticker, so active() settles to false by itself. */
+  void run(std::shared_ptr<detail::Stepped> motion);
 
   /**
    * Registers an additional steppable. The frame's delta and the ticker's
@@ -99,8 +99,7 @@ class Ticker {
    * this frame's stepping — the standard render interpolant. A fixed-rate
    * simulation drawn straight from its own state judders whenever the
    * draw rate is not a multiple of `rate`; drawing
-   * `lerp(previous, current, alpha)` removes it. It is an ordinary
-   * Output, so `bind(alphaOut)` reaches a property directly.
+   * `lerp(previous, current, alpha)` removes it.
    */
   /** What one frame's fixed stepping did. When `clamped` is true the
    *  simulation DROPPED time, so anything measured on that frame — a
@@ -114,7 +113,7 @@ class Ticker {
   template <class Fn>
     requires core::PrefixCallable<Fn, void()>
   void addFixed(double rate, Fn steppable, int maxCatchUp = 8,
-                choreograph::Output<float>* alphaOut = nullptr,
+                float* alphaOut = nullptr,
                 FixedStatus* statusOut = nullptr) {
     addFixedStep(
         rate,
@@ -129,61 +128,12 @@ class Ticker {
         maxCatchUp, alphaOut, statusOut);
   }
 
-  /**
-   * A DERIVED OUTPUT: `output` is recomputed every tick as `chain` applied
-   * to its source Output's current value — the `bind()` shaping
-   * vocabulary (`source`/`window`/`map`/`quantize`/the affine chain/
-   * `wrap`/`wiggle`/`clamp`), verbatim, reaching an OUTPUT instead of a
-   * property slot. The Ticker owns the write; the caller owns both
-   * cells, exactly as with any bound Output.
-   *
-   *     ch::Output<float> phase, penTip, stepped, backwards;
-   *     ticker.add([&](double deltaSeconds) { phase = ...; });
-   *     ticker.derive(&penTip,    bind(&phase).offset(-0.008f).clamp(0, 1));
-   *     ticker.derive(&stepped,   bind(&phase).quantize(8));
-   *     ticker.derive(&backwards, bind(&phase).invert());
-   *
-   * A derived Output is an ordinary Output: `bind(&penTip)`,
-   * `wiggle(&penTip, …)` and every `Output*`-typed consumer read it like
-   * any other cell, with no knowledge that the Ticker owns the write.
-   *
-   * WHAT IT IS NOT: `derive()` remaps a schedule's VALUE, which equals a
-   * remap of TIME only when the schedule is affine in time — for
-   * `phase = k·t`, `0.5·phase(t)` is `phase(t/2)`, but for a non-linear
-   * phase the two differ. If you need the source evaluated at another
-   * time, retime the source, not its value.
-   *
-   * THE STEPPING CONTRACT: derivations run in a SECOND PHASE, after the
-   * timeline and after every steppable, so **a derivation never reads a
-   * stale source** and registration order does not matter. A hand-rolled
-   * shadow copy inside a steppable does not have that property: it is one
-   * frame late whenever it is registered before its source's writer.
-   *
-   * ONE LEVEL ONLY, refused loudly. Phase two has no topological order,
-   * so an Output may not be both a derivation's destination and a
-   * derivation's source. Chaining two derivations (in either
-   * registration order), writing one destination twice, and deriving a
-   * cell from itself are all REFUSED with a warning, returning false.
-   * The silent one-frame lag such a registration would otherwise hide is
-   * the exact failure this contract exists to prevent.
-   *
-   * The chain is applied once at registration, so `output` is correct before
-   * the first tick. Derivations are pure in their source and are never
-   * retired, and they do NOT hold active() true: when nothing else is
-   * active the source cannot move, so neither can the derived value.
-   *
-   * @return true if registered; false (with a warning) when refused.
-   */
-  bool derive(choreograph::Output<float>* output, const Bound& chain);
-
-  /** Steps the timeline and steppables by `deltaSeconds`, then the
-   *  derivations (see derive() for the two-phase contract); returns
+  /** Steps the motions, then the steppables, by `deltaSeconds`; returns
    *  active(). A zero delta — a paused clock — still steps everything
    *  and still reports activity. */
   bool tick(double deltaSeconds);
 
-  /** True while the timeline holds motions or any steppable remains
-   *  registered. Derivations never contribute.
+  /** True while a motion runs or any steppable remains registered.
    *
    *  THE DOMAIN-WIDE form of "is anything moving", and a DECLARATION like
    *  every other: it says machinery is registered, never that the numbers
@@ -207,23 +157,15 @@ class Ticker {
   double elapsed() const { return m_elapsed; }
 
  private:
-  /** One derived Output: the destination cell and the shaping applied to
-   *  its source each tick. Stepped in phase two — see derive(). */
-  struct Derivation {
-    choreograph::Output<float>* output = nullptr;
-    BoundFloat map;
-  };
-
   /** The erased steppable every `add` spelling lands on: the delta and the
    *  elapsed time, answering whether it still needs frames. */
   void addStep(std::function<bool(double, double)> steppable);
   void addFixedStep(double rate, std::function<bool()> steppable, int maxCatchUp,
-                    choreograph::Output<float>* alphaOut,
+                    float* alphaOut,
                     FixedStatus* statusOut);
 
-  choreograph::Timeline m_timeline;
+  std::vector<std::shared_ptr<detail::Stepped>> m_motions;
   std::vector<std::function<bool(double, double)>> m_steppables;
-  std::vector<Derivation> m_derivations;
   double m_elapsed = 0.0;
 };
 

@@ -10,38 +10,39 @@ ticker a moving one moves on.
 
 ## The four forms
 
-`Animatable<T>` is the property slot a consumer stores. It accepts a
-constant, a transition spec, a bare `Output<T>*`, or a shaped `bind()`:
+`Animatable<T>` is the one noun for a value that can change over time:
+what every property verb takes, and what a sketch holds for a number it
+drives. It holds a constant, a described motion, a live value somebody
+writes, or a live value followed through a `Binding`:
 
 ```cpp
 Animatable<float> a = 1.0f;                                  // constant
 Animatable<float> b = animate(from(0.0f).to(1.0f), {400ms}); // entrance
-Animatable<float> c = &opacity;                              // live cell
-Animatable<float> d = bind(&phase).window(0.2f, 0.6f)
-                          .map(ease::outBack()).target(-70, 170);
+Animatable<float> c = animatable(0.0f);                      // live value
+c = std::sin(seconds);                                       // …written
+Animatable<float> d = bind(c, {.from = {0.2f, 0.6f}, .clampFrom = true,
+                               .ease = ease::outBack(), .to = {-70, 170}});
 ```
 
-Those are the four forms it holds, discriminated by `index()`: `0` plain
-constant, `1` `Transitioned<T>`, `2` bare `Output<T>*`, `3` shaped
-binding. `BIND.md` is the chapter on the fourth.
+Those are the four forms, read back by `Animatable::form()`:
+`Form::Constant`, `Form::Described`, `Form::Live` and `Form::Bound`.
+`BIND.md` is the chapter on the fourth. `Animatable::value()` is the
+number now whatever the form — a described motion answers where it
+rests — and `Animatable::isRunning()` says whether the value is declared
+to move: a live value always is, a shaped one when its source is.
 
-A number reaches the constant form whatever its type: the binding
-constructor takes a POINTER and nothing a pointer can be made from, so
-the literal `0` — which is a null-pointer constant as well as a number —
-is the number, and a consumer's numeric verb needs no integral overload
-of its own to say so.
-
-A raw Output pointer is borrowed and must outlive the description. An
-`Animatable<T>` constructed from a shared Output retains that source through
-description copies. A chain built by `bind(sharedOutput)` transfers the same
-ownership into any animatable made from it. Both spellings compare by the
-Output's identity; ownership does not change the value or its pruning rule.
-Plain values and raw bindings allocate no ownership storage.
+A LIVE value is shared, not copied: `animatable()` makes one cell, and
+every copy reads and writes it, so handing `c` to a property connects the
+property to the number rather than taking a snapshot of it. The cell
+lives as long as any copy does. Assigning a number to a live value writes
+the cell; assigning one to any other form makes it that constant. Two
+live values compare by the cell they read (`Animatable::identity()`),
+never by the number behind it.
 
 ## The held motion
 
 A moving `Animatable<float>` has a second half: the motion a ticker is
-actually running for it. That is `AnimatedFloat` — a held `Output<float>`,
+actually running for it. That is `AnimatedFloat` — a held live value,
 whether it has started, and the endpoint it is flying at — and a consumer
 that retains state keeps one beside each animatable it lets move. Four
 operations are stated over one held motion, so the consumer's storage (a
@@ -55,22 +56,22 @@ mountEntrance(ticker, held, v, extraDelaySeconds);      // the first appearance
 ```
 
 `resolveFloatAt` is the reading order and the reason there is one body:
-a bound `Output` wins (shaped through its map when it has one), then a
-running ramp, then the plain value. `transitionFloatAt` starts a ramp
+a live value wins (shaped through its stages when it has any), then a
+running ramp, then the constant. `transitionFloatAt` starts a ramp
 from WHERE THE VALUE IS rather than from the previous description, so a
 target that moves mid-flight bends the motion instead of restarting it;
 a motion already headed at the new target keeps flying, and a next value
-that is plain or bound snaps and disconnects. `mountEntrance` plays the
+that is constant or live snaps and stops the ramp. `mountEntrance` plays the
 `from` an `animate(from(a).to(b))` declares, or a `through({…})`
 waypoint list segment by segment, after whatever extra delay the caller
 staggers by. `resolveProperty<T>` is the flattening underneath: an animatable
-read against a fallback transition, giving a target, a binding, or a
+read against a fallback transition, giving a target, a live value, or a
 spec.
 
 ## Two signals that are functions of a time and nothing else
 
 `bind()` shapes a phase somebody else is stepping, and `Transitioned`
-plays once when a node mounts. Both need a ticker and an `Output`. These
+plays once when a node mounts. Both need a ticker and a live value. These
 two need neither: a number in, a number out, the same answer every time
 it is asked. That is what makes them readable from a bake, a scrub, a
 force's strength and a test as well as from a frame.

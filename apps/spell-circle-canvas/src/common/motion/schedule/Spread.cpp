@@ -4,7 +4,7 @@
  */
 
 #include <sigilcore/comparable/Fields.h>
-#include <sigilmotion/bind/BoundFloat.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/schedule/Cascade.h>
 #include <sigilmotion/schedule/Spread.h>
 

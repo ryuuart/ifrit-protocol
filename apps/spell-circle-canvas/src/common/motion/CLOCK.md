@@ -1,42 +1,35 @@
 # SigilMotion — the clock
 
 The chapter on the frame clock and the ticker: wall-clock time turned
-into well-behaved per-frame deltas, the timeline and the steppables one
+into well-behaved per-frame deltas, the motions and the steppables one
 tick runs, the fixed-rate lane a simulation is driven from, and the
 signal a host sleeps on. `README.md` beside this file is the library;
-`VALUES.md` is what the ticker moves, `BIND.md` the shaping a derivation
-runs, `SCHEDULE.md` the spreads that read no clock at all and
-`PHYSICS.md` the point set a fixed lane steps.
+`VALUES.md` is what the ticker moves, `SCHEDULE.md` the spreads that read
+no clock at all and `PHYSICS.md` the point set a fixed lane steps.
 
 ## Using it
 
 ```cpp
-#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 
 using namespace sigil::motion;
-using namespace std::chrono_literals;
 
 FrameClock clock;
 Ticker ticker;
 
-// A live value cell, ramped to 1 over 0.4 s by the master timeline.
-ch::Output<float> opacity = 0.0f;
-ticker.timeline().apply(&opacity).then<ch::RampTo>(1.0f, 0.4f);
-
-// A second cell computed from the first every tick, shaped on the way.
-ch::Output<float> trail;
-ticker.derive(&trail, bind(&opacity).offset(-0.1f).clamp(0.0f, 1.0f));
+// A per-frame job, offered the frame's delta.
+float angle = 0.0f;
+ticker.add([&](double deltaSeconds) { angle += deltaSeconds * 90.0f; });
 
 // A fixed-rate simulation, stepped 27 times a second whatever the draw rate.
-ch::Output<float> alpha;
+float betweenSteps = 0.0f;
 Ticker::FixedStatus status;
-ticker.addFixed(27.0, [&] { stepFire(); return true; }, 8, &alpha, &status);
+ticker.addFixed(27.0, [&] { stepFire(); return true; }, 8, &betweenSteps, &status);
 
 while (running) {
   const bool animating = ticker.tick(clock.tick());
-  draw(opacity.value(), trail.value(), alpha.value());
+  draw(angle, betweenSteps);
   if (!animating)
     blockUntilNextEvent();   // nothing is moving; stop burning frames
 }
@@ -44,21 +37,16 @@ while (running) {
 
 ## Mental model
 
-Choreograph supplies the vocabulary — `Timeline`, `Motion`, `Phrase`,
-`Output<T>`. This library only drives it; the curves a phrase eases by
-are `ease::`'s, which any choreograph phrase takes. `Output<T>` is the
-live value cell: your code owns it, the ticker writes it, and everything
-downstream reads it through a pointer.
-
 `FrameClock` produces deltas; `Ticker` consumes them. `Ticker::active()`
-is the event-driven-redraw signal — true while the timeline holds motions
-or any steppable remains registered, so a host can render when it is true
-and sleep when it is not.
+is the event-driven-redraw signal — true while a motion runs or any
+steppable remains registered, so a host can render when it is true and
+sleep when it is not.
 
-`Ticker::tick` runs two phases. First the timeline and every steppable, in
-registration order; then the derivations. Because derivations run second,
-a derived cell never reads a source that has not been stepped this frame,
-whatever order things were registered in.
+`Ticker::tick` steps the motions first, in the order they were started
+(`Ticker::run`, which the held motions in `VALUES.md` start), then every
+steppable in registration order, so a steppable reading a moving value
+reads this frame's number. A value shaped through `bind()` needs no step
+of its own: it reads its source whenever it is read.
 
 `Ticker::add` offers a steppable the frame's delta and the ticker's total
 elapsed time, and it names the ones it reads: `[] {…}`, `[](double deltaSeconds) {…}`
@@ -121,12 +109,6 @@ rather than a giant one.
 `Ticker::elapsed()` accumulates the deltas handed to `tick()`. It is not
 wall time — a paused or time-scaled clock changes it accordingly.
 
-`derive()` allows exactly one level. Self-derivation, deriving from
-another derivation's destination, and two derivations writing the same
-cell are all refused: the call returns `false` and writes a message to
-stderr. The chain is also applied once at registration, so the destination
-holds a correct value before the first tick.
-
 `addFixed` *discards* simulated time when the backlog exceeds
 `maxCatchUp` — running slow for one frame instead of spiralling. When
 that happens the frame's `FixedStatus::clamped` is the only signal, and
@@ -137,6 +119,4 @@ meaningless.
 is only dropped when it returns `false`. A steppable that always returns
 `true` pins the host awake forever — and so does one that returns NOTHING:
 saying nothing about being finished is taken as never finished, so a void
-steppable holds `active()` true for as long as it is added. Derivations never contribute to
-`active()` — they are pure in their source, so if nothing else moves,
-neither can they.
+steppable holds `active()` true for as long as it is added.

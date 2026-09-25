@@ -14,8 +14,6 @@
 #include <tuple>
 #include <utility>
 
-#include "sigilmotion/bind/BoundFloat.h"
-
 namespace sigil::motion {
 
 /** How a property change animates instead of snapping.

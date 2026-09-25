@@ -15,8 +15,6 @@
  * business.
  */
 
-#include <choreograph/Choreograph.h>
-
 #include <memory>
 #include <optional>
 #include <vector>
@@ -27,14 +25,22 @@
 
 namespace sigil::motion {
 
-/** One float property that can transition: the Choreograph output is the
- *  source of truth while a motion is connected. */
+/** One float property that can transition: its live value is the source
+ *  of truth while a motion is writing it. */
 struct AnimatedFloat {
-  choreograph::Output<float> value{0.0f};
+  Animatable<float> value = animatable(0.0f);
   bool started = false;
   // Where the running motion is headed — lets a patch that does not change
   // this value's target leave the motion ALONE (no hitch, no re-held delay).
   float target = 0.0f;
+
+  /** A motion is writing the value now. */
+  [[nodiscard]] bool isMoving() const { return value.cell()->moving; }
+  /** Stops whatever motion is writing the value; the number stays where
+   *  the motion left it. */
+  void stop();
+  /** The value this frame. */
+  [[nodiscard]] float current() const { return value.value(); }
 };
 
 /** A run of held motions, in declaration order — what a consumer keeps
@@ -42,40 +48,42 @@ struct AnimatedFloat {
  *  description rather than of the consumer. */
 using AnimatedFloats = std::vector<std::unique_ptr<AnimatedFloat>>;
 
-/** Constant, binding, or transitioned — one animatable flattened. */
+/** Constant, live, or described — one animatable flattened. */
 template <typename T>
 struct ResolvedProperty {
   T target{};
-  const choreograph::Output<T>* binding = nullptr;
+  /** The slot, when it holds a live or shaped value: it is already a
+   *  running number, so it takes no transition. */
+  const Animatable<T>* live = nullptr;
   const Transition* transition = nullptr;  ///< the value's own or the default
 };
 
 /** Reads one animatable against a transition the caller supplies as its
- *  default: a plain value takes that default, a transitioned value keeps
- *  its own spec instead, and a binding takes neither — it is already a
- *  running curve. */
+ *  default: a constant takes that default, a described motion keeps its
+ *  own spec instead, and a live value takes neither — it is already a
+ *  running number. */
 template <typename T>
 ResolvedProperty<T> resolveProperty(const Animatable<T>& property,
                                     const std::optional<Transition>& fallback) {
   ResolvedProperty<T> out;
-  if (const T* plain = property.plain()) {
-    out.target = *plain;
+  if (const T* constant = property.constant()) {
+    out.target = *constant;
     if (fallback) out.transition = &*fallback;
-  } else if (const Transitioned<T>* held = property.transitioned()) {
+  } else if (const Transitioned<T>* held = property.described()) {
     out.target = held->value;
     out.transition = &held->spec;
   } else {
-    out.binding = property.binding();
+    out.live = &property;
   }
   return out;
 }
 
-/** The value an animatable reads as this frame: a bound Output wins
- *  (shaped through its map when it has one), then a running ramp, then
- *  the plain value. One body, so every reader agrees. */
+/** The value an animatable reads as this frame: a live value wins
+ *  (shaped through its stages when it has any), then a running ramp, then
+ *  the constant. One body, so every reader agrees. */
 float resolveFloatAt(const AnimatedFloat* animated, const Animatable<float>& property);
 
-/** Starts (or retargets) the ramp held in `held` when the plain target
+/** Starts (or retargets) the ramp held in `held` when the target
  *  changed. Returns true if a motion is running. The motion is passed
  *  rather than an index into a store, because how many of these a
  *  consumer keeps and where is the consumer's business — one body,
@@ -94,20 +102,13 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
 void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                    const Animatable<float>& property, float extraDelaySeconds);
 
-/** IS THIS VALUE MOVING RIGHT NOW? A slot with a live binding always is —
- *  the host writes the Output every frame and nothing here can see when
- *  it stops — and a slot with a ramp is moving while the ramp is
- *  CONNECTED.
- *
- *  Connected, not started. `AnimatedFloat::started` says a motion was
- *  begun and stays true for the rest of the value's life, so a reader
- *  that asks it can never learn that an entrance has landed and a node
- *  can cache again. `Output::isConnected()` is the fact: choreograph
- *  disconnects the output when its motion finishes.
+/** IS THIS VALUE MOVING RIGHT NOW? A live value always is — the hand that
+ *  writes it can stop at any frame and nothing here can see when — and a
+ *  held ramp is moving while a motion is writing it.
  *
  *  This is the DECLARED half of stillness, and it is the half a
  *  description can answer on its own. What it cannot answer is whether a
- *  connected motion is actually changing the number — a wave held at one
+ *  moving value is actually changing the number — a wave held at one
  *  phase moves nothing — which is what `settled()` is for. */
 bool isLive(const AnimatedFloat* animated, const Animatable<float>& property);
 

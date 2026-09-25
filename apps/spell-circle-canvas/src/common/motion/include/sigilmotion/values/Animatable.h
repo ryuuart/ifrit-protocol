@@ -3,148 +3,231 @@
 /** @file
  * @ingroup motion-values
  *
- * Animatable<T>, the property slot that holds exactly one of a
- * constant, a constant with its own transition, a live Output, or an
- * Output shaped through a bound chain — the fat forms behind one
- * out-of-line block so the slot itself stays small — and the comparator
- * an identity prune reads two slots through.
+ * `Animatable<T>`, the one noun for a value that can change over time:
+ * what every property verb takes, and what `animatable()` and `bind()`
+ * hand back. It holds exactly one of a constant, a described motion, a
+ * live value somebody writes, or a live value followed through a
+ * `Binding` — the fat forms behind one out-of-line block so the slot
+ * itself stays small — and compares under the rule an identity prune
+ * reads two slots by.
  */
 
-#include <choreograph/Choreograph.h>
 #include <sigilcore/comparable/Fields.h>
+#include <sigilmotion/bind/Binding.h>
 
-#include <concepts>
 #include <cstdint>
 #include <memory>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
-#include "sigilmotion/bind/Bound.h"
 #include "sigilmotion/values/Keyframes.h"
-#include "sigilmotion/values/Transition.h"
 
 namespace sigil::motion {
 
+namespace detail {
+/** THE CELL a live value is: the number, and whether a motion is writing
+ *  it. Every copy of a live `Animatable` shares one, which is what makes a
+ *  live value live — the sketch writes it, the engine writes it, and every
+ *  property holding a copy reads the same number. */
+template <typename T>
+struct Cell {
+  T value{};
+  /** Which motion may write the cell: a motion started on it takes the
+   *  next number, and one holding an older number has been replaced and
+   *  writes nothing more. */
+  uint32_t writer = 0;
+  /** A motion is writing the cell. */
+  bool moving = false;
+};
+}  // namespace detail
+
 /**
- * An ANIMATABLE property value — the slot type behind every property
- * that can move. It holds exactly one of: a constant, a constant with
- * its own transition, a live Choreograph binding, or that binding shaped
- * through `bind()`. A constant is animatable too; the name says what the
- * slot CAN hold, not what it is doing.
+ * A VALUE THAT CAN CHANGE OVER TIME — the one type every property that can
+ * move takes, and the one a sketch holds for a number it drives.
  *
- * A raw bound `Output` belongs to the caller and must outlive the slot.
- * A shared Output is retained by the slot and its copies. The caller owns
- * the clock that steps either form.
+ *     Animatable<float> opacity = 1.0f;                       // a constant
+ *     Animatable<float> fade = animate(from(0.0f).to(1.0f));  // a described motion
+ *     Animatable<float> wave = animatable(0.0f);              // a live value you write
+ *     wave = std::sin(seconds);
+ *     Animatable<float> tilt = bind(wave, {.to = {-8, 8}});   // a live value, shaped
  *
- * Stored compactly rather than as a variant: `Transitioned<T>` is the fat
- * form — spec, entrance value and waypoint list — while most properties
- * on most objects are plain constants, so both fat forms share one
- * out-of-line block and the slot itself stays small. Consumers that carry
- * many of these per object depend on that; do not inline the payload.
+ * A constant is animatable too: the name says what the slot CAN hold, not
+ * what it is doing.
+ *
+ * A LIVE value is shared, not copied: every copy of one reads and writes
+ * the same cell, so handing `wave` to a property connects the property to
+ * the number rather than taking a snapshot of it, and the cell lives for
+ * as long as any copy does. Assigning a number to a live value writes the
+ * cell; assigning one to any other form makes it that constant.
+ *
+ * Stored compactly rather than as a variant: the described and shaped
+ * forms are fat while most properties on most objects are plain
+ * constants, so every fat form shares one out-of-line block and the slot
+ * itself stays small. Consumers that carry many of these per object depend
+ * on that; do not inline the payload.
  */
 template <typename T>
 class Animatable {
  public:
+  /** Which form holds. The numbering is part of the public behaviour — a
+   *  shaped live value sorts after a bare one rather than taking its place
+   *  — so append new forms at the end and never renumber. */
+  enum class Form : uint8_t { Constant, Described, Live, Bound };
+
   Animatable() = default;
-  Animatable(T value) : m_plain(std::move(value)) {}
-  Animatable(Transitioned<T> transitioned) : m_kind(Kind::kTransitioned) {
-    extra().transitioned = std::move(transitioned);
-  }
-  /** A NULL Output is not a binding: the slot holds its plain value
-   *  instead. A caller passing one has nothing for the slot to read at
-   *  paint, and the alternative — a slot that says it is bound and points
-   *  at nothing — has no value to answer with at all.
-   *
-   *  It takes a POINTER and nothing a pointer can be MADE from, which is
-   *  why it is constrained rather than written out. A literal `0` is a
-   *  null-pointer constant, so an unconstrained parameter here would tie
-   *  with the plain value above at the same conversion rank and
-   *  `Animatable<float>(0)` — the integer spelling of every numeric
-   *  property — would be ambiguous rather than the number it reads as.
-   *  A shared Output arrives through the overload below, not here. */
-  template <typename Pointer>
-    requires std::is_pointer_v<Pointer> &&
-             std::convertible_to<Pointer, const choreograph::Output<T>*>
-  Animatable(Pointer bound)
-      : m_kind(bound ? Kind::kBound : Kind::kPlain), m_bound(bound) {}
-  /** Retains the source for the lifetime of this description and its copies.
-   *  The owner uses the existing out-of-line payload: plain values and raw
-   *  bindings allocate no storage for ownership. A null owner is plain. */
-  Animatable(std::shared_ptr<const choreograph::Output<T>> bound)
-      : Animatable(bound.get()) {
-    if (bound) extra().owner = std::move(bound);
-  }
-  /** bind(&out).…  — a shaped binding. Float properties only; the extra
-   *  block is the same one the transitioned form allocates, so this adds
-   *  nothing to sizeof(Animatable) and nothing to a slot that never uses
-   *  it. */
-  Animatable(const Bound& shapedBinding) : m_kind(Kind::kBoundMapped) {
-    m_bound = shapedBinding.value().source;
-    extra().bound = shapedBinding.value();
-    extra().owner = shapedBinding.owner();
+  Animatable(T value) : m_constant(std::move(value)) {}
+  Animatable(Transitioned<T> described) : m_form(Form::Described) {
+    extra().described = std::move(described);
   }
   Animatable(const Animatable& other) { *this = other; }
   Animatable(Animatable&&) noexcept = default;
   Animatable& operator=(const Animatable& other) {
     if (this == &other) return *this;
-    m_kind = other.m_kind;
-    m_plain = other.m_plain;
-    m_bound = other.m_bound;
+    m_form = other.m_form;
+    m_constant = other.m_constant;
     m_extra = other.m_extra ? std::make_unique<Extra>(*other.m_extra) : nullptr;
     return *this;
   }
   Animatable& operator=(Animatable&&) noexcept = default;
+  /** A live value takes the number — every copy reads it from here on; any
+   *  other form becomes that constant. */
+  Animatable& operator=(T value) {
+    if (m_form == Form::Live) {
+      m_extra->cell->value = std::move(value);
+    } else {
+      m_form = Form::Constant;
+      m_constant = std::move(value);
+      m_extra.reset();
+    }
+    return *this;
+  }
 
-  /** Which form holds: 0 plain, 1 transitioned, 2 bound, 3 shaped
-   *  binding.
-   *
-   *  A stable discriminant and nothing more: any consumer comparing two
-   *  animatable values needs one. The numbering is part of the public
-   *  behaviour — a shaped binding sorts AFTER a bare one rather than
-   *  taking its place — so append new forms at the end and never
-   *  renumber. */
-  int index() const { return (int)m_kind; }
-  const T* plain() const { return m_kind == Kind::kPlain ? &m_plain : nullptr; }
-  const Transitioned<T>* transitioned() const {
-    return m_kind == Kind::kTransitioned ? &m_extra->transitioned : nullptr;
+  /** THE VALUE NOW: a live value's number, a shaped one's source run
+   *  through its stages, a constant, or a described motion's settled
+   *  value — where it rests when it is not moving. */
+  [[nodiscard]] T value() const {
+    switch (m_form) {
+      case Form::Constant:
+        return m_constant;
+      case Form::Described:
+        return m_extra->described.value;
+      case Form::Live:
+        return m_extra->cell->value;
+      case Form::Bound:
+        if constexpr (std::is_same_v<T, float>)
+          return m_extra->binding.apply(m_extra->source->value());
+        else
+          return m_constant;
+    }
+    return m_constant;
   }
-  /** The bound Output, shaped or not, so a consumer asking only "is this
-   *  driven live?" reads one accessor and does not have to know which of
-   *  the two bound forms it holds. */
-  const choreograph::Output<T>* binding() const {
-    return m_kind == Kind::kBound || m_kind == Kind::kBoundMapped ? m_bound
-                                                                  : nullptr;
+
+  /** WHETHER THE VALUE IS DECLARED TO MOVE: a live value always is — the
+   *  hand that writes it can stop at any moment and nothing here can see
+   *  when — and a shaped one is when its source is. A constant and a
+   *  described motion are not; a described motion moves only once a host
+   *  runs it, and the host holds that motion. */
+  [[nodiscard]] bool isRunning() const {
+    return m_form == Form::Live ||
+           (m_form == Form::Bound && m_extra->source->isRunning());
   }
-  /** The shaping, if this binding has any. */
-  const BoundFloat* boundMap() const {
-    return m_kind == Kind::kBoundMapped ? &m_extra->bound : nullptr;
+
+  // ── the forms, read back: for the reconciler that runs them and the
+  //    prune that compares them ─────────────────────────────────────────
+
+  [[nodiscard]] Form form() const { return m_form; }
+  /** The constant, when that is the form held. */
+  [[nodiscard]] const T* constant() const {
+    return m_form == Form::Constant ? &m_constant : nullptr;
   }
+  /** The described motion, when that is the form held. */
+  [[nodiscard]] const Transitioned<T>* described() const {
+    return m_form == Form::Described ? &m_extra->described : nullptr;
+  }
+  /** The stages a shaped value runs its source through. */
+  [[nodiscard]] const Binding* binding() const {
+    return m_form == Form::Bound ? &m_extra->binding : nullptr;
+  }
+  /** The value a shaped value follows. */
+  [[nodiscard]] const Animatable<float>* source() const {
+    return m_form == Form::Bound ? m_extra->source.get() : nullptr;
+  }
+  /** WHICH live cell this value reads — its own, or, for a shaped value,
+   *  the one its source reads — and null for a constant or a described
+   *  motion. Two live values are the same value exactly when this is. */
+  [[nodiscard]] const void* identity() const {
+    if (m_form == Form::Live) return m_extra->cell.get();
+    if (m_form == Form::Bound) return m_extra->source->identity();
+    return nullptr;
+  }
+  /** The cell itself, for the engine that writes it; null unless live. */
+  [[nodiscard]] const std::shared_ptr<detail::Cell<T>>& cell() const {
+    static const std::shared_ptr<detail::Cell<T>> kNone;
+    return m_form == Form::Live ? m_extra->cell : kNone;
+  }
+
+  template <typename U>
+  friend Animatable<U> animatable(U initial);
+  friend Animatable<float> bind(const Animatable<float>& source,
+                                Binding stages);
 
  private:
-  enum class Kind : uint8_t { kPlain, kTransitioned, kBound, kBoundMapped };
-  /** The out-of-line block for the two FAT forms. They are mutually
-   *  exclusive, so one pointer carries both and a slot holding neither
-   *  allocates nothing at all. */
+  /** The out-of-line block for the fat forms. They are mutually
+   *  exclusive, so one pointer carries all of them and a slot holding a
+   *  constant allocates nothing at all. */
   struct Extra {
-    Transitioned<T> transitioned{};
-    BoundFloat bound{};
-    std::shared_ptr<const choreograph::Output<T>> owner;
+    Transitioned<T> described{};
+    std::shared_ptr<detail::Cell<T>> cell;
+    Binding binding{};
+    std::shared_ptr<const Animatable<float>> source;
   };
   Extra& extra() {
     if (!m_extra) m_extra = std::make_unique<Extra>();
     return *m_extra;
   }
 
-  Kind m_kind = Kind::kPlain;
-  T m_plain{};
-  const choreograph::Output<T>* m_bound = nullptr;
+  Form m_form = Form::Constant;
+  T m_constant{};
   std::unique_ptr<Extra> m_extra;
 };
 
+/** A LIVE VALUE, starting at @p initial: write it (`wave = std::sin(t)`),
+ *  hand it to a property, and the property follows. Every copy shares the
+ *  one cell. */
+template <typename T>
+Animatable<T> animatable(T initial) {
+  Animatable<T> live;
+  live.m_form = Animatable<T>::Form::Live;
+  live.extra().cell = std::make_shared<detail::Cell<T>>();
+  live.m_extra->cell->value = std::move(initial);
+  return live;
+}
+
+/** FOLLOW A LIVE NUMBER, shaped on its way: the result reads @p source
+ *  through @p stages whenever it is read, so it is exactly as live as the
+ *  source is and costs nothing until somebody reads it.
+ *
+ *      .rotateY(bind(flip, {.to = {0, 360}}))
+ *      .opacity(bind(seconds, {.from = {0, 1.06f},
+ *                              .envelope = envelope::square(0.58f),
+ *                              .to = {0.1f, 1.0f}}))
+ *
+ *  A shaped value can itself be followed, and the stages compose: the
+ *  result of `bind(bind(x, a), b)` reads `b` applied to `a` applied to
+ *  `x`. */
+inline Animatable<float> bind(const Animatable<float>& source,
+                              Binding stages = {}) {
+  Animatable<float> bound;
+  bound.m_form = Animatable<float>::Form::Bound;
+  bound.extra().binding = std::move(stages);
+  bound.m_extra->source = std::make_shared<const Animatable<float>>(source);
+  return bound;
+}
+
 namespace detail {
-/** A transitioned value decomposed member by member, for a comparator
- *  that wants to WALK it rather than name each field one at a time. */
+/** A described motion decomposed member by member, for a comparator that
+ *  wants to WALK it rather than name each field one at a time. */
 template <typename T>
 auto fields(Transitioned<T>& transitioned) {
   auto& [value, spec, from, waypoints] = transitioned;
@@ -155,26 +238,34 @@ auto fields(Transitioned<T>& transitioned) {
 static_assert(core::kFieldCount<Transitioned<float>> == 4,
               "Transitioned gained or lost a field — rule on it in "
               "propertyEqual() below, then bump this count.");
-/** Two animatable slots are equal when they take the same form and that
- *  form's contents are equal: a plain value by `==`, a transitioned value
- *  by target, origin, waypoints and spec, a shaped binding by
- *  `boundMapEqual`, and a bare binding by the Output's identity — the
- *  pointer, not the number behind it. A LIVE binding therefore never
- *  compares equal to a different Output, and a slot that is moving is
- *  never pruned into a slot that is moving to something else. */
+
+/** TWO SLOTS ARE EQUAL when they take the same form and that form's
+ *  contents are equal: a constant by `==`, a described motion by target,
+ *  origin, waypoints and spec, a live value by the CELL it reads — its
+ *  identity, never the number behind it — and a shaped value by its
+ *  source's identity and its stages. A live value therefore never compares
+ *  equal to a different one, and a slot that is moving is never pruned
+ *  into a slot that is moving to something else. */
 template <typename T>
 bool propertyEqual(const Animatable<T>& left, const Animatable<T>& right) {
-  if (left.index() != right.index()) return false;
-  if (const T* leftPlain = left.plain()) return *leftPlain == *right.plain();
-  if (const Transitioned<T>* leftTransitioned = left.transitioned()) {
-    const Transitioned<T>* rightTransitioned = right.transitioned();
-    return leftTransitioned->value == rightTransitioned->value && leftTransitioned->from == rightTransitioned->from &&
-           leftTransitioned->waypoints == rightTransitioned->waypoints &&
-           transitionEqual(leftTransitioned->spec, rightTransitioned->spec);
+  using Form = typename Animatable<T>::Form;
+  if (left.form() != right.form()) return false;
+  switch (left.form()) {
+    case Form::Constant:
+      return *left.constant() == *right.constant();
+    case Form::Described: {
+      const Transitioned<T>& a = *left.described();
+      const Transitioned<T>& b = *right.described();
+      return a.value == b.value && a.from == b.from &&
+             a.waypoints == b.waypoints && transitionEqual(a.spec, b.spec);
+    }
+    case Form::Live:
+      return left.identity() == right.identity();
+    case Form::Bound:
+      return propertyEqual(*left.source(), *right.source()) &&
+             *left.binding() == *right.binding();
   }
-  if (const BoundFloat* leftMap = left.boundMap())
-    return boundMapEqual(*leftMap, *right.boundMap());
-  return left.binding() == right.binding();
+  return false;
 }
 
 /** `propertyEqual` under the operator, so a description struct holding an
