@@ -80,15 +80,6 @@ Derived& StructureVerbs<Derived>::operators(std::vector<Operator> list) {
 }
 
 template <class Derived>
-Derived& StructureVerbs<Derived>::staggerChildren(
-    std::chrono::milliseconds each, motion::Spread::From from) {
-  detail::FxData& fx = declarations()->fxData.ensure();
-  fx.staggerChildrenMs = (float)each.count();
-  fx.staggerFrom = from;
-  return self();
-}
-
-template <class Derived>
 Derived& StructureVerbs<Derived>::children(
     std::initializer_list<Children> runs) {
   for (const Children& run : runs)

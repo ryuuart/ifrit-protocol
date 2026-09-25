@@ -4,14 +4,14 @@
  * Internal to the typography tier — the text engine's runtime side over the
  * kernel's descriptions and instances: the per-walk glyph structure every
  * track shares, selection resolution as glyphs and as text ranges, the
- * cascade arithmetic that turns one master progress into a local time per
+ * schedule arithmetic that turns one master progress into a local time per
  * glyph, the composition algebra of glyph deviations, and the engine
  * operations the painter value installed on a text description calls
  * through.
  */
 
 #include <sigilcore/compute/Intervals.h>
-#include <sigilmotion/schedule/Cascade.h>
+#include <sigilmotion/schedule/Schedule.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/paragraph/Unit.h>
 
@@ -69,7 +69,7 @@ struct GlyphStructure {
   std::array<std::vector<uint32_t>, kUnits> unitOf;
   std::array<uint32_t, kUnits> unitCounts{};
   /** THE SAME LANES NUMBERED OVER THE STORY, for a leaf that is one frame
-   *  of a chain: the beats of a cascade over a threaded story run on one
+   *  of a chain: the beats of a schedule over a threaded story run on one
    *  clock across the whole of it, so the fortieth word is beat forty
    *  wherever it landed and a stagger does not restart at each frame.
    *
@@ -78,7 +78,7 @@ struct GlyphStructure {
    *  every frame builds the whole story's paragraph and resumes at a word.
    *  A CLUSTER AND A GLYPH DO NOT: a cluster's ordinal is a walk position
    *  and the walk is this frame's, so those two lanes are the frame's
-   *  numbering and a cascade over them restarts per frame. Empty on a leaf
+   *  numbering and a schedule over them restarts per frame. Empty on a leaf
    *  that is not a frame of a chain, which then reads the lanes above and
    *  is numbered exactly as it always was. */
   std::array<std::vector<uint32_t>, kUnits> storyUnitOf;
@@ -154,20 +154,20 @@ std::vector<sigil::weave::CharRange> resolveTextRanges(
     std::span<const sigil::weave::ColumnMetrics> columns,
     std::span<const NamedRun> named, TextScope scope = {});
 
-/** ONE TRACK'S CASCADE RESOLVED AGAINST A LAID-OUT PARAGRAPH: which beat
+/** ONE TRACK'S SCHEDULE RESOLVED AGAINST A LAID-OUT PARAGRAPH: which beat
  *  every glyph falls in at each level, and the ladder those beats run on.
  *
  *  ONE BODY for the painter and for the `beatsOf` query. A second spelling
- *  would let a mark travelling beside a cascade be told a different
+ *  would let a mark travelling beside a schedule be told a different
  *  schedule from the glyphs it is marking, which is the whole defect the
  *  query exists to close. Reused in place across frames: build() assigns
  *  into the per-glyph lanes rather than clearing them, so a page of
  *  animated type does not mint a pair of vectors per track per frame. */
-struct TrackCascade {
-  motion::Cascade cascade;
+struct TrackBeats {
+  motion::Schedule schedule;
   std::vector<uint32_t> outerUnit;  ///< glyph → its beat
   std::vector<uint32_t> innerUnit;  ///< glyph → its beat inside that beat;
-                                    ///< empty without a nested cascade
+                                    ///< empty without a nested schedule
 
   /** THE GLYPH ADAPTER, and the whole of what compose adds to a schedule:
    *  @p track says what a unit is (`unit`, `innerUnit`) and which list the
@@ -262,9 +262,9 @@ sigil::weave::ReservedBand reservedBandOf(
  *  pieces in proportion to the base's advance either side. */
 void resolveTextAnnotations(Composer::Impl& impl, Instance& inst);
 /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms — the read-back behind
- *  Composer::cascadeSpanMs, resolved by the same body as beatsOfTrack.
+ *  Composer::scheduleSpan, resolved by the same body as beatsOfTrack.
  *  0 wherever beatsOfTrack answers empty. */
-float cascadeSpanOfTrack(Instance& inst, size_t trackIndex);
+motion::Duration scheduleSpanOfTrack(Instance& inst, size_t trackIndex);
 /** WHERE EACH mark() ANCHORS, refilling `textMarkRects` from the layout
  *  the letters are drawn from: one rect per anchor, the union of the
  *  advance boxes of the glyphs its selector addressed. A flow run's

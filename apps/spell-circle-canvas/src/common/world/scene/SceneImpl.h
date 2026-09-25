@@ -97,6 +97,9 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   /** One motion slot per fixed lane row, so a lane keeps its meaning
    *  across a patch that changed what the node holds. */
   std::array<std::unique_ptr<motion::AnimatedFloat>, kLaneCount> anims;
+  /** Where this node stood among the siblings that mounted with it — the
+   *  place every staggered tween on it resolves against. */
+  motion::Place mountPlace;
 
   /** What the lanes resolved to this frame. */
   TransformValues values;
@@ -247,10 +250,6 @@ struct Scene::Impl {
   std::unique_ptr<Instance> create(const Description& description,
                                    Instance* parent, size_t ordinal,
                                    size_t count);
-  /** The entrance delay this subtree's mount inherits, in seconds: the
-   *  sum of every ancestor cascade's start time for the branch being
-   *  walked. Live only for the depth of one create(); zero elsewhere. */
-  float mountDelayCarrySeconds = 0.0f;
   void onPatched(Instance& inst, const ElementNode* prev,
                  const ElementNode& next);
   void reorder(Instance& parent, bool structureChanged);

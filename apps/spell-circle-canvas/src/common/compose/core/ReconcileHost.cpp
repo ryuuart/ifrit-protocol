@@ -11,7 +11,6 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf — the ignored-shell warning
-#include <sigilmotion/schedule/Order.h>
 
 #include <algorithm>
 #include <boost/unordered/unordered_flat_set.hpp>
@@ -119,7 +118,7 @@ void detail::warnIgnoredMemoShellProps(const ElementNode& shell) {
        !shell.backgrounds.empty() || !shell.foregrounds.empty()},
       {"a transition", shell.nodeTransition.has_value()},
       {"a child", !shell.children.empty()},
-      {"a mask, overlay, effect or stagger", (bool)shell.fxData},
+      {"a mask, overlay or effect", (bool)shell.fxData},
       {"a stroke pass", (bool)shell.strokeData},
       {"travel()", (bool)shell.motionData},
       {"a depth lane", (bool)shell.depthData},
@@ -160,35 +159,15 @@ bool Composer::Impl::remountRequired(const Instance& match,
 std::unique_ptr<Instance> Composer::Impl::create(const Description& node,
                                                  Instance* parent,
                                                  size_t ordinal, size_t count) {
-  // staggerChildren(): the child's whole subtree mounts with
-  // order·each extra entrance delay (saved/restored so siblings don't
-  // leak; nested staggered containers compound). `from` remaps the
-  // order — End counts from the last child (the bottom-up cascade),
-  // Center ripples outward.
-  const float saved = mountDelayCarryMs;
-  const float staggerMs = parent && parent->description->fxData
-                              ? parent->description->fxData->staggerChildrenMs
-                              : 0.0f;
-  if (staggerMs > 0) {
-    // Order among NEWLY MOUNTED children: the initial cascade staggers
-    // the whole list, but one item appended to a LIVE list enters with
-    // no extra delay (it is the only new mount) instead of inheriting
-    // its full-list ordinal.
-    // The SAME ordering an textFx() track's units take, so `From` means one
-    // thing wherever it is written.
-    static thread_local std::vector<float> order;
-    // Child stagger has no seed knob: a Random child order is the
-    // count-keyed deal, as it always was.
-    // staggerMs > 0 only when parent->description->fxData exists: the ternary
-    // above yields 0 for a null parent, so this dereference is guarded.
-    // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
-    motion::cascadeOrder(parent->description->fxData->staggerFrom,
-                         (uint32_t)count, 0u, order);
-    if (ordinal < order.size()) mountDelayCarryMs += staggerMs * order[ordinal];
-  }
   auto inst = std::make_unique<Instance>();
   inst->owner = this;
   inst->parent = parent;
+  // WHERE IT STANDS AMONG ITS SIBLINGS, which a staggered tween on it
+  // resolves against. The index is its order among the children NEWLY
+  // MOUNTED in this patch: the first describe staggers the whole list,
+  // while one item appended to a live list is the only new mount and
+  // enters at once instead of waiting out its full-list step.
+  inst->mountPlace = {ordinal, std::max<size_t>(count, 1)};
   // Positioned subtrees skip Yoga entirely: a child of a positioned()
   // container — and everything below it — carries its rect in its own
   // description, resolved by instanceRect() with no flex engine behind
@@ -199,7 +178,6 @@ std::unique_ptr<Instance> Composer::Impl::create(const Description& node,
     YGNodeSetContext(inst->yoga, inst.get());
   }
   reconciler.patch(*inst, node);
-  mountDelayCarryMs = saved;
   needsLayout = true;
   return inst;
 }

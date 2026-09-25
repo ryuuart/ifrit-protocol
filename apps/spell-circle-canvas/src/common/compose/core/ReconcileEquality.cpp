@@ -219,7 +219,7 @@ bool strokeEqual(const Box<StrokeData>& a, const Box<StrokeData>& b) {
   return true;
 }
 
-static_assert(kFieldCount<FxData> == 8 && kFieldCount<Mask> == 2,
+static_assert(kFieldCount<FxData> == 6 && kFieldCount<Mask> == 2,
               "FxData/Mask gained or lost a field — rule on it in fxEqual() "
               "below, where a mask compares by its own operator, then bump "
               "this count.");
@@ -227,9 +227,6 @@ bool fxEqual(const Box<FxData>& a, const Box<FxData>& b) {
   if ((bool)a != (bool)b) return false;
   if (!a) return true;
   if (a->echoes != b->echoes) return false;
-  if (a->staggerChildrenMs != b->staggerChildrenMs ||
-      a->staggerFrom != b->staggerFrom)
-    return false;
   // A mask is read live at paint, so it must participate in this equality:
   // a mask change that pruned would leave the node showing whatever the
   // mask revealed on the frame the recording was made. This is also why the

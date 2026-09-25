@@ -126,7 +126,7 @@ bool materialsEqual(const ElementNode& a, const ElementNode& b) {
 }  // namespace
 
 static_assert(
-    core::kFieldCount<ElementNode> == 19,
+    core::kFieldCount<ElementNode> == 18,
     "A field of ElementNode appeared or vanished. Rule on it in "
     "propertiesEqual() below — participate, or a stated reason not to "
     "— then bump this count. A miss is silent: the node prunes, "
@@ -161,10 +161,6 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (a.nodeTransition &&
       !motion::transitionEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
-  // A cascade that changed is a different mount order for whatever
-  // arrives next, so the node must be told rather than pruned.
-  if (a.childStagger.has_value() != b.childStagger.has_value()) return false;
-  if (a.childStagger && !(*a.childStagger == *b.childStagger)) return false;
   // `memo` is compared earlier and more strictly by the reconciler, and
   // `children` are reconciled by key rather than compared.
   return true;

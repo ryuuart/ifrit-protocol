@@ -35,7 +35,6 @@
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilmotion/schedule/Spread.h>
 #include <sigilweave/style/TypeSheet.h>
 
 #include <chrono>
@@ -118,23 +117,12 @@ struct Options {
    *  of thousands costs a column of this many nodes and the rest are not
    *  mounted, laid out or painted. */
   size_t visible = 24;
-  /** Between rows, along the column. */
+  /** Between rows, along the column. A row's ENTRANCE is its own: a row
+   *  that writes `animate({.from = 0.0f, .to = 1.0f, .delay =
+   *  motion::stagger(40ms)})` staggers against the rows that mounted with
+   *  it, so the first describe cascades the whole window and each later
+   *  append — the only new mount in its patch — enters at once. */
   float gap = 2.0f;
-  /** The entrance cascade for rows that mount, in the schedule vocabulary
-   *  the glyph engine and `staggerChildren()` already speak. `eachMs` is
-   *  the delay step and `from` is where the cascade starts; the fields
-   *  that describe a per-unit remap inside one element (`durationMs`,
-   *  `amountMs`, `distribution`, `inner`) belong to `textFx()` tracks and a
-   *  feed does not read them — a ROW is the beat here.
-   *
-   *  It delays only rows that actually mount, which is what makes it usable
-   *  on a live feed: the first describe cascades the whole window, and each
-   *  later append is the only new mount in its patch, so it enters at once
-   *  instead of waiting out a full window's worth of steps. Rows already on
-   *  screen never re-enter — an append does not re-cascade them.
-   *
-   *  Zero (the default) mounts every row immediately. */
-  motion::Spread entrance{.eachMs = 0, .durationMs = 0};
 
   bool operator==(const Options&) const = default;
 };
@@ -154,10 +142,6 @@ template <class T, class RowFunction>
 [[nodiscard]] Element feed(const Ring<T>& ring, const Options& options,
                            RowFunction&& row) {
   Element column = box().column().gap(options.gap).overflow(Overflow::Clip);
-  if (options.entrance.eachMs > 0)
-    column.staggerChildren(
-        std::chrono::milliseconds(std::lroundf(options.entrance.eachMs)),
-        options.entrance.from);
   const std::deque<Row<T>>& rows = ring.rows();
   const size_t n = rows.size();
   const size_t first = n > options.visible ? n - options.visible : 0;

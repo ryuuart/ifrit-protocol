@@ -53,8 +53,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/schedule/Cascade.h>
-#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/schedule/Schedule.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -144,7 +143,7 @@ class Pool {
    *
    *  `start` and `duration` are seconds on whatever clock the caller
    *  steps `fly()` with; they are per instance because the STAGGER is the
-   *  point. A schedule (`motion::Spread`, `motion::Cascade`) divides one
+   *  point. A schedule (`motion::Timing`, `motion::Schedule`) divides one
    *  progress between N units and is the right thing when the units are
    *  a run; these are the times themselves, which is what a field of
    *  thousands seeded from a distribution actually has. */

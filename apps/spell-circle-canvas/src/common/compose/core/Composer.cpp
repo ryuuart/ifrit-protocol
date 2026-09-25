@@ -619,14 +619,16 @@ std::vector<TextUnit> Composer::units(std::string_view key,
   return units;
 }
 
-float Composer::cascadeSpanMs(std::string_view key, size_t trackIndex) const {
+motion::Duration Composer::scheduleSpan(std::string_view key,
+                                       size_t trackIndex) const {
   auto it = m_impl->byKey.find(key);
-  if (it == m_impl->byKey.end()) return 0.0f;
+  if (it == m_impl->byKey.end()) return {};
   // Logically const: resolving a schedule fills the same per-instance
   // scratch the painter does and changes nothing the next draw can see.
   Impl& impl = *m_impl;
   const TextPainterOperations* painter = Impl::textPainterOf(*it->second);
-  return painter ? painter->cascadeSpanMs(*it->second, trackIndex) : 0.0f;
+  return painter ? painter->scheduleSpan(*it->second, trackIndex)
+                 : motion::Duration{};
 }
 
 std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {

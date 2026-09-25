@@ -13,7 +13,6 @@
 #include <sigilcompose/core/Layout.h>  // Cache
 #include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Transition.h>
 
 #include <chrono>
@@ -155,15 +154,6 @@ class StructureVerbs {
   Derived& transition(motion::Duration duration) {
     return transition(motion::Transition{.duration = duration});
   }
-  /** Container stagger: child i's subtree enters with an EXTRA
-   *  order-times-each delay on every `animate()` mount transition under
-   *  it, compounding through nested staggered containers. @p from picks
-   *  the origin — declaration order, last child first (a bottom-up
-   *  cascade that leaves the paint order alone), or outward from the
-   *  centre. One call, and no per-child delay arithmetic. */
-  Derived& staggerChildren(
-      std::chrono::milliseconds each,
-      motion::Spread::From from = motion::Spread::From::Start);
   /** @} */
 
   /** @name Composition

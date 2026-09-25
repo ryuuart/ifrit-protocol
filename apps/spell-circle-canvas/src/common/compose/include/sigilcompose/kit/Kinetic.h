@@ -11,11 +11,11 @@
  *
  *   text(u8"KINETIC", display)
  *       .textFx({.effect = textFx::rise(),
- *            .stagger = {.eachMs = 28, .durationMs = 480},
+ *            .delay = motion::stagger(28ms), .duration = 480ms,
  *            .progress = with(1.0f, {900ms, motion::ease::outQuad})});
  *
  * Several tracks compose per glyph — offsets and rotations add, scale and
- * alpha multiply — and each carries its own selector, cascade and
+ * alpha multiply — and each carries its own selector, schedule and
  * progress:
  *
  *   text(u8"ONE LINE, TWO MOVES", display)
@@ -33,8 +33,8 @@
  * which are values over that seam and need nothing it does not expose.
  *
  * One-shot effects consume progress 0→1; loop effects (waveLoop) read a
- * WRAPPING bound phase (a live value stepped mod 1), and a looping CASCADE
- * (`motion::Spread::loopMs`) reads the same wrapping phase and re-opens
+ * WRAPPING bound phase (a live value stepped mod 1), and a looping SCHEDULE
+ * (`Track::loop`) reads the same wrapping phase and re-opens
  * every unit's beat once per wrap. Everything renders through batched
  * RSXform draws — moving text is never per-glyph draw calls — and every
  * preset declares the reach its motion needs so the recording cull does
@@ -56,7 +56,6 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilweave/style/ShapingStyle.h>
@@ -189,7 +188,7 @@ struct Entrance {
 }
 
 /** Hard typewriter: a glyph is absent, then simply THERE (pair with a
- *  short durationMs and Start stagger). */
+ *  short duration and a first-to-last stagger). */
 [[nodiscard]] inline TextEffect typeOn() {
   return TextEffect(
       "typeOn", {},
@@ -204,7 +203,7 @@ struct Entrance {
 
 /** Endless float: glyph i bobs on a sine, phase-shifted per glyph. Bind
  *  progress to a WRAPPING phase value (t = fract(seconds / period)) and
- *  set stagger.eachMs = 0 so every glyph reads the same master phase.
+ *  set `.delay = 0ms` so every glyph reads the same master phase.
  *  Amplitude is in EM — keep it at or under 0.15em, past which descenders
  *  of adjacent glyphs collide — and the phase shift is RADIANS per glyph,
  *  where roughly 0.4–0.6 gives one readable travelling wave. */
@@ -245,7 +244,7 @@ struct Entrance {
       0.0f, {}, /*displaces=*/false);
 }
 
-/** A COLOUR REVEAL AS A CASCADE: the glyphs read @p from at local 0 and
+/** A COLOUR REVEAL AS A SCHEDULE: the glyphs read @p from at local 0 and
  *  @p to at local 1 — a karaoke wipe, a highlight sweeping a word, an
  *  initial catching its colour as it lands.
  *
@@ -271,7 +270,7 @@ struct Entrance {
  *  Alpha is untouched: a reveal that also fades wants an alpha track, which
  *  composes with this one. The ramp is a smoothstep because a hard cut at
  *  display size flickers at any frame rate; the width of the edge is bought
- *  with the cascade's `durationMs`, not with the curve. */
+ *  with the track's `duration`, not with the curve. */
 [[nodiscard]] inline TextEffect tint(material::Color from, material::Color to) {
   const material::Color origin{to.r > 0 ? from.r / to.r : 1.0f,
                                to.g > 0 ? from.g / to.g : 1.0f,

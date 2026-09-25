@@ -5,10 +5,11 @@
  *
  * SigilCompose typography — the TRACK: one entry of a text leaf's `textFx()`
  * list, which is which glyphs (`weave::Selector`), what deviation from rest
- * (`TextEffect`), how the beats spread (`motion::Spread`), what a unit is,
+ * (`TextEffect`), when each unit's beat opens and how long it runs (a
+ * `motion::Timing`, spelled as the track's own fields), what a unit is,
  * and the master progress that drives it — with `Beats`, which list a
- * cascade numbers its beats against, and `Beat`, one beat of a resolved
- * cascade read back where the text put it.
+ * schedule numbers its beats against, and `Beat`, one beat of a resolved
+ * schedule read back where the text put it.
  */
 
 #include <include/core/SkRect.h>
@@ -16,8 +17,8 @@
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilcompose/typography/TextUnit.h>
 #include <sigilcore/comparable/Fields.h>
-#include <sigilmotion/schedule/Cascade.h>
-#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
@@ -26,7 +27,7 @@
 
 namespace sigil::compose {
 
-/** WHICH LIST A CASCADE NUMBERS ITS BEATS AGAINST.
+/** WHICH LIST A SCHEDULE NUMBERS ITS BEATS AGAINST.
  *
  *  `Selection` numbers the units the track's OWN selector resolved: a
  *  track addressing one word beats once, whatever the paragraph's word
@@ -36,13 +37,13 @@ namespace sigil::compose {
  *  and the frame they stop doing so the two halves of every unit start
  *  arriving at different times with no diagnostic.
  *
- *  `Text` numbers every unit of the cascade's granularity in the whole
+ *  `Text` numbers every unit of the schedule's granularity in the whole
  *  paragraph, addressed or not, so word ten is beat ten in every track
  *  that beats over words. Two tracks that partition one paragraph then
  *  share one clock BY CONSTRUCTION rather than by coincidence. */
 enum class Beats : uint8_t { Selection, Text };
 
-/** The beat-numbering names, spelled the way a cascade reads:
+/** The beat-numbering names, spelled the way a schedule reads:
  *  `beats::Text`. */
 namespace beats {
 inline constexpr Beats Selection = Beats::Selection;
@@ -62,32 +63,42 @@ inline constexpr Beats Text = Beats::Text;
 struct Track {
   sigil::weave::Selector where;  ///< default: every glyph
   TextEffect effect;             /**< what it does */
-  /** THE PER-UNIT TIME REMAP (the GSAP stagger model), which is
-   *  SigilMotion's and says nothing about text: the master progress
-   *  [0,1] spans `durationMs + eachMs·(N−1)` of virtual time, where N is
-   *  the number of UNITS the cascade numbers, and unit i starts after its
-   *  delay and runs for `durationMs`. The three fields below say what a
-   *  unit IS, which is the whole of what makes this a cascade over TEXT
-   *  rather than over a set's children or a feed's rows. */
-  motion::Spread stagger;
+  /** WHEN EACH UNIT'S BEAT OPENS: `motion::stagger(30ms)` steps from one
+   *  unit to the next, `motion::stagger({0ms, 620ms})` spreads a fixed
+   *  span across however many there are, `motion::cues({…})` states every
+   *  start, and a plain duration opens every unit together. The master
+   *  progress [0,1] spans the last unit's start plus `duration` — the
+   *  per-unit time remap, which is SigilMotion's and says nothing about
+   *  text. The fields after these say what a unit IS, which is the whole of
+   *  what makes this a schedule over TEXT. */
+  motion::Staggered<motion::Duration> delay =
+      motion::stagger(std::chrono::milliseconds(30));
+  /** How long one unit's own motion lasts — under `within`, one inner
+   *  unit's. */
+  motion::Duration duration = std::chrono::milliseconds(450);
+  /** Above zero the schedule LOOPS: every beat re-opens once per period,
+   *  offset by its start, and one sweep of the master is one period. */
+  motion::Duration loop{};
+  /** A second stagger inside every beat, over `innerUnit`: words, then the
+   *  letters inside each word. */
+  std::optional<motion::Staggered<motion::Duration>> within;
   /** Which units get a beat. It is what makes the remap above more than
    *  per-glyph spacing: `unit = weave::Unit::Word` beats once per word, and
    *  every glyph of that word shares its beat. The default,
    *  `weave::Unit::Cluster`, is per-glyph for ordinary Latin text and keeps a
    *  base letter attached to its combining marks everywhere else. It is
    *  the word an Annotation spells the same way: one `Unit`, one name for
-   *  the thing a cascade and a reading are both addressed by. */
+   *  the thing a schedule and a reading are both addressed by. */
   sigil::weave::Unit unit = sigil::weave::Unit::Cluster;
-  /** Which units the NESTED cascade — `stagger.then({…})` — beats over
-   *  inside each of `unit`'s beats. Read only when the spread nests; a
-   *  spread with no inner level never looks at it. */
+  /** Which units the NESTED stagger — `within` — beats over inside each of
+   *  `unit`'s beats. Read only when `within` is set. */
   sigil::weave::Unit innerUnit = sigil::weave::Unit::Glyph;
   /** WHICH LIST those beats are numbered against — see `Beats`. The
    *  default numbers the track's own selection, which is what a track
    *  that owns its text means; `beats::Text` numbers the paragraph, which
    *  is what two tracks partitioning one paragraph need if they are to
-   *  share a clock. ONE setting governs both levels of a nested cascade,
-   *  as one `loopMs` governs both periods. */
+   *  share a clock. ONE setting governs both levels of a nested schedule,
+   *  as one `loop` governs both periods. */
   Beats beatsOver = Beats::Selection;
   motion::Animatable<float> progress = 1.0f;
   /** Pixels beyond the element's box this track may paint, which the
@@ -112,23 +123,27 @@ struct Track {
   [[nodiscard]] float reachPx() const {
     return reach >= 0 ? reach : effect.reach();
   }
-  /** THE VIRTUAL SPAN, in ms: what `progress` maps onto when this track's
-   *  cascade numbers @p unitCount units, each holding @p innerUnitCount
-   *  units of a nested spread — the moment the last beat closes, and above
-   *  all the duration a progress transition should carry so the schedule
-   *  runs at its authored ms. `Composer::cascadeSpanMs` reads the same
-   *  number off a MOUNTED track, with the unit counts the laid-out text
-   *  supplies; the two agree because one resolved-cascade body computes
-   *  both. */
-  [[nodiscard]] float spanMs(uint32_t unitCount,
-                             uint32_t innerUnitCount = 1) const {
-    return stagger.spanMs(unitCount, innerUnitCount);
+  /** The track's timing as the schedule reads it. */
+  [[nodiscard]] motion::Timing timing() const {
+    return {delay, duration, loop, within};
+  }
+  /** THE SPAN what `progress` maps onto when this track numbers
+   *  @p unitCount units, each holding @p innerUnitCount inner units — the
+   *  moment the last beat closes, and above all the duration a progress
+   *  transition should carry so the schedule runs at its authored times.
+   *  `Composer::scheduleSpan` reads the same number off a MOUNTED track,
+   *  with the unit counts the laid-out text supplies; the two agree because
+   *  one resolved body computes both. */
+  [[nodiscard]] motion::Duration span(uint32_t unitCount,
+                                      uint32_t innerUnitCount = 1) const {
+    return timing().span(unitCount, innerUnitCount);
   }
   /** Structural equality, EXCLUDING `progress` — an Animatable is compared
    *  where every other animated slot is, by the reconciler. */
   bool sameShape(const Track& other) const {
     return where == other.where && effect == other.effect &&
-           stagger == other.stagger && unit == other.unit &&
+           delay == other.delay && duration == other.duration &&
+           loop == other.loop && within == other.within && unit == other.unit &&
            innerUnit == other.innerUnit && beatsOver == other.beatsOver &&
            reach == other.reach && continuous == other.continuous;
   }
@@ -138,29 +153,35 @@ struct Track {
   }
 };
 
-// FIELD PIN: a field added to Track is a build failure until it is ruled
-// on in sameShape() above — participate, or a stated reason not to — and
-// the count bumped. A cascade field left out makes two different cascades
-// compare equal, the text node prunes, and it keeps beating to the old
-// ladder forever. `progress` is deliberately NOT compared in sameShape():
-// it is an Animatable, and the reconciler compares it through propertyEqual
-// with every other animated slot.
-static_assert(core::kFieldCount<Track> == 9,
-              "Track gained or lost a field — rule on it in "
-              "Track::sameShape(), then bump this count.");
+/** FIELD PIN: a field added to Track is a build failure until it is ruled
+ *  on in sameShape() above — participate, or a stated reason not to — and
+ *  named in this binding. A timing field left out makes two different
+ *  schedules compare equal, the text node prunes, and it keeps beating to
+ *  the old ladder forever. `progress` is deliberately NOT compared in
+ *  sameShape(): it is an Animatable, and the reconciler compares it through
+ *  propertyEqual with every other animated slot. A staggered field converts
+ *  from anything its value does, which a counted pin cannot see past, so
+ *  this one is spelled out. Defined here, never called. */
+inline void trackFieldPin(Track& track) {
+  auto& [where, effect, delay, duration, loop, within, unit, innerUnit,
+         beatsOver, progress, reach, continuous] = track;
+  (void)where, (void)effect, (void)delay, (void)duration, (void)loop,
+      (void)within, (void)unit, (void)innerUnit, (void)beatsOver,
+      (void)progress, (void)reach, (void)continuous;
+}
 
-/** ONE BEAT OF A RESOLVED CASCADE, WHERE THE TEXT PUT IT — what
+/** ONE BEAT OF A RESOLVED SCHEDULE, WHERE THE TEXT PUT IT — what
  *  `Composer::beatsOf` reports.
  *
  *  A stagger is otherwise an invisible remap: it numbers units, spreads
- *  them, and tells nobody. Anything that must travel WITH a cascade and is
+ *  them, and tells nobody. Anything that must travel WITH a schedule and is
  *  not a glyph — a bouncing ball, a playhead, a travelling underline, a
- *  caret, a per-unit meter — then has to restate `i · eachMs` in its own
- *  arithmetic, which stops agreeing with the engine the moment the cascade
+ *  caret, a per-unit meter — then has to restate the delay ladder in its own
+ *  arithmetic, which stops agreeing with the engine the moment the schedule
  *  nests or takes a cue table. This is the schedule read back instead.
  *
- *  The schedule half — `unitIndex`, `startMs`, `localTime`, `active` — is
- *  `motion::Beat`, answered by the same cascade the glyphs are drawn
+ *  The schedule half — `unitIndex`, `start`, `localProgress`, `active` —
+ *  is `motion::Beat`, answered by the same schedule the glyphs are drawn
  *  through. What this library adds is where the beat LANDED. */
 struct Beat : motion::Beat {
   /** The unit's laid-out rect, in the composer's coordinate space: the

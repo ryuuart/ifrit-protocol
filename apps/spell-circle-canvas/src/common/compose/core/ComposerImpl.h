@@ -211,10 +211,6 @@ struct Composer::Impl {
   // declaring a space only changes what the mismatch warning in
   // declareInputSpace() says at declaration time.
   InputSpace inputSpace = InputSpace::EncodedSRGB;
-  // staggerChildren(): the accumulated extra mount delay for the subtree
-  // being mounted right now (depth-first, saved/restored per child — a
-  // nested staggered container compounds on its parent's carry).
-  float mountDelayCarryMs = 0;
 
   mutable Stats stats;
   // ---- per-node paint profiler (opt-in; Composer::setProfiling) ----------
@@ -446,8 +442,8 @@ struct Composer::Impl {
   // Acting on an instance:
   /** A fresh instance for @p node under @p parent, patched once. @p ordinal
    *  is its order among the children created in the same patch and @p count
-   *  the parent's child count, which is what staggerChildren() cascades
-   *  over; the carry that cascade accumulates is host state. */
+   *  the parent's child count: the place a staggered tween on it resolves
+   *  against. */
   std::unique_ptr<detail::Instance> create(const Description& node,
                                            detail::Instance* parent,
                                            size_t ordinal, size_t count);

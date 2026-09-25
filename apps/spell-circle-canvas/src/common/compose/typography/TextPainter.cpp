@@ -89,8 +89,9 @@ struct TextEngine final : TextPainterOperations {
   std::vector<Beat> beats(Instance& inst, size_t trackIndex) const override {
     return beatsOfTrack(inst, trackIndex);
   }
-  float cascadeSpanMs(Instance& inst, size_t trackIndex) const override {
-    return cascadeSpanOfTrack(inst, trackIndex);
+  motion::Duration scheduleSpan(Instance& inst,
+                                size_t trackIndex) const override {
+    return scheduleSpanOfTrack(inst, trackIndex);
   }
 };
 

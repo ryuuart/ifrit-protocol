@@ -13,7 +13,6 @@
 #include <sigilcore/reconcile/Reads.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/Story.h>
@@ -392,8 +391,6 @@ struct FxData {
   std::optional<material::Filter> backdropEffect;
   // Misprint echoes (offset flat-color re-stamps under fill/text)
   std::vector<Echo> echoes;
-  float staggerChildrenMs = 0;  // extra order·each mount delay per subtree
-  motion::Spread::From staggerFrom = motion::Spread::From::Start;
   // Element::overlay(): decorations painted OVER the fill and UNDER the
   // content and children. Lives in this block rather than beside
   // backgrounds/foregrounds so sizeof(ElementNode) does not grow — the

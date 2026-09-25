@@ -39,7 +39,7 @@ sigil_library(SigilComposeTypography
     # the vocabulary's out-of-line members
     TextEffect.cpp
     # the engine
-    TextStructure.cpp TextSelection.cpp TextCascade.cpp TextFx.cpp
+    TextStructure.cpp TextSelection.cpp TextSchedule.cpp TextFx.cpp
     TextSubstitution.cpp TextUnitBox.cpp TextFxPainting.cpp TextInkUnits.cpp
     TextAnnotations.cpp TextMarks.cpp
     PathText.cpp TextPainter.cpp AxisGate.h TextEngine.h TextPose.h

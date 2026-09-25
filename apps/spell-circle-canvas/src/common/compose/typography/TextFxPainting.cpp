@@ -124,13 +124,13 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     textStateOf(inst).selectionHeight = inst.measuredForHeight;
   }
 
-  // Each track's cascade, numbered against whichever list its stagger names
+  // Each track's schedule, numbered against whichever list its stagger names
   // — its own selection by default, the whole paragraph under beats::Text.
   struct Resolved {
     const Track* track = nullptr;
     const std::vector<uint8_t>* selected = nullptr;
     const std::vector<uint32_t>* pieces = nullptr;
-    detail::TrackCascade resolved;
+    detail::TrackBeats resolved;
     float master = 1.0f;
   };
   // Kept across frames and reused in place: clearing would drop the two
@@ -188,7 +188,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   // PASS TRACKS (textFx::pass): each renders its addressed glyphs into its own
   // lane instead of the canvas, accumulating one rect and one local time
   // per (outer, inner) beat — the same enumeration beatsOfTrack reports,
-  // from the same TrackCascade, so the pass and the query cannot disagree
+  // from the same TrackBeats, so the pass and the query cannot disagree
   // about the schedule. A glyph a pass addresses draws only inside that
   // pass's layer; a glyph two passes address renders in both.
   using BeatKey = std::pair<uint32_t, uint32_t>;  // (outer, inner)
@@ -274,12 +274,12 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           // A pass deviates nothing per glyph — its whole evaluation is
           // the layer draw below, downstream of every deviation here.
           if (r.track->effect.passMaterial()) continue;
-          const detail::TrackCascade& rc = r.resolved;
+          const detail::TrackBeats& rc = r.resolved;
           info.unitIndex = rc.outerUnit[g];
           info.unitCount =
-              std::max<uint32_t>((uint32_t)rc.cascade.outerOrder.size(), 1u);
+              std::max<uint32_t>((uint32_t)rc.schedule.outerOrder.size(), 1u);
           const float t =
-              rc.cascade.localTime(r.master, rc.outerUnit[g],
+              rc.schedule.localProgress(r.master, rc.outerUnit[g],
                                    rc.innerUnit.empty() ? 0u : rc.innerUnit[g]);
           core::noise::Mix64Stream rng(detail::glyphSeed(info));
           detail::compose(modifier, r.track->effect(info, t, rng));
@@ -292,7 +292,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
         // beat after it and hand the material a different unit's rect and
         // phase from the one the author asked about.
         const auto noteBeat = [&](PassLane& lane) {
-          const detail::TrackCascade& rc = lane.source->resolved;
+          const detail::TrackBeats& rc = lane.source->resolved;
           const BeatKey key{rc.outerUnit[g],
                             rc.innerUnit.empty() ? 0u : rc.innerUnit[g]};
           const SkRect box =
@@ -305,7 +305,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           lane.keys.push_back(key);
           lane.rects.push_back(box);
           lane.locals.push_back(
-              rc.cascade.localTime(lane.source->master, key.first, key.second));
+              rc.schedule.localProgress(lane.source->master, key.first, key.second));
         };
         const auto noteBeatsAndDrop = [&] {
           for (const std::unique_ptr<PassLane>& lane : passes)
@@ -478,9 +478,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     // and the shader are skipped and the glyphs draw directly — the route
     // the compile refusal already takes, so a resting pass is
     // byte-identical to resting type. The test is EXACT equality, which is
-    // what the schedule supplies: a one-shot cascade clamps a unit to
+    // what the schedule supplies: a one-shot schedule clamps a unit to
     // exactly 0 before its beat and exactly 1 after it. Under a looping
-    // cascade a unit touches 0 only at the instant its beat re-opens, so a
+    // schedule a unit touches 0 only at the instant its beat re-opens, so a
     // rest declared at 0 effectively never engages there — correctly, the
     // cycle is always mid-flight somewhere — while units genuinely REST at
     // exactly 1 between beats, so a rest at 1 engages whenever no beat is

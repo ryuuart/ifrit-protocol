@@ -13,7 +13,6 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilworld/element/Environment.h>
@@ -246,12 +245,6 @@ class Element {
   Element& transition(motion::Duration duration) {
     return transition(motion::Transition{.duration = duration});
   }
-  /** CASCADES THE ENTRANCES of this node's children as they mount, on
-   *  the schedule SigilMotion speaks. The delay compounds down the
-   *  subtree, so a grandchild enters after its parent did.
-   *  @silent a child was already standing: only children that actually
-   *  MOUNT are delayed. */
-  Element& staggerChildren(motion::Spread spread);
   /** @} */
 
   // ---- integer-literal sugar --------------------------------------------

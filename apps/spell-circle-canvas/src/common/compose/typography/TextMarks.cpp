@@ -1,6 +1,6 @@
 /** @file
  * The schedule read back: where each mark's selector landed, and the beats
- * and span of one track's cascade, resolved from the same pieces the painter
+ * and span of one track's schedule, resolved from the same pieces the painter
  * uses.
  */
 
@@ -26,7 +26,7 @@ using namespace detail;
 // THE SCHEDULE, READ BACK
 //
 // Resolved out of the same three pieces the painter uses and in the same
-// order — the glyph structure, the track's selection, and TrackCascade — so
+// order — the glyph structure, the track's selection, and TrackBeats — so
 // a mark placed from this is on the beat the glyphs are on by construction
 // rather than by an author keeping two sets of numbers in step.
 //
@@ -230,8 +230,8 @@ std::vector<TextUnit> detail::unitsOfText(
 
 namespace {
 /** ONE TRACK'S SCHEDULE RESOLVED FOR A QUERY — the front half `beatsOfTrack`
- *  and `cascadeSpanOfTrack` share: which layout the letters are on, which
- *  glyphs the track addresses, and the cascade those glyphs run. ONE BODY,
+ *  and `scheduleSpanOfTrack` share: which layout the letters are on, which
+ *  glyphs the track addresses, and the schedule those glyphs run. ONE BODY,
  *  so the span, the beats and the glyphs cannot disagree about the
  *  schedule. False means the track runs nothing a query can report: no
  *  text, no such track, no effect, or a path baseline that has not
@@ -246,7 +246,7 @@ struct TrackSchedule {
   /// Filled only where the track beats over the selection, which is the
   /// one unit the walk does not number.
   std::vector<uint32_t> selectionPieces;
-  detail::TrackCascade resolved;
+  detail::TrackBeats resolved;
 };
 
 bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
@@ -283,10 +283,11 @@ bool resolveTrackSchedule(Instance& inst, size_t trackIndex,
 }
 }  // namespace
 
-float detail::cascadeSpanOfTrack(Instance& inst, size_t trackIndex) {
+motion::Duration detail::scheduleSpanOfTrack(Instance& inst,
+                                             size_t trackIndex) {
   TrackSchedule schedule;
-  if (!resolveTrackSchedule(inst, trackIndex, schedule)) return 0.0f;
-  return schedule.resolved.cascade.totalMs;
+  if (!resolveTrackSchedule(inst, trackIndex, schedule)) return {};
+  return schedule.resolved.schedule.total();
 }
 
 std::vector<Beat> detail::beatsOfTrack(Instance& inst, size_t trackIndex) {
@@ -296,7 +297,7 @@ std::vector<Beat> detail::beatsOfTrack(Instance& inst, size_t trackIndex) {
   const Track& track = *schedule.track;
   const auto count = schedule.glyphCount;
   const std::vector<uint8_t>& selected = schedule.selected;
-  const detail::TrackCascade& resolved = schedule.resolved;
+  const detail::TrackBeats& resolved = schedule.resolved;
   const sigil::weave::ParagraphLayout& layout = *schedule.layout;
 
   const AnimatedFloat* anim = trackIndex < inst.trackAnims.size()
@@ -337,10 +338,10 @@ std::vector<Beat> detail::beatsOfTrack(Instance& inst, size_t trackIndex) {
           beats[at].rect.join(box);
           return;
         }
-        // The schedule half is the cascade's own answer, so a mark
+        // The schedule half is the schedule's own answer, so a mark
         // travelling beside a track cannot be told a different one from
         // the glyphs it is marking; the rect is this library's.
-        Beat beat{resolved.cascade.beat(master, outer, inner)};
+        Beat beat{resolved.schedule.beat(master, outer, inner)};
         beat.rect = box;
         keys.push_back(key);
         beats.push_back(beat);

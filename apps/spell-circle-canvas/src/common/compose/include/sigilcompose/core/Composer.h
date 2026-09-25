@@ -21,7 +21,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilmotion/schedule/Spread.h>
+#include <sigilmotion/time/Duration.h>
 
 #include <functional>
 #include <memory>
@@ -293,29 +293,28 @@ class Composer {
   [[nodiscard]] std::vector<TextUnit> units(
       std::string_view key, const sigil::weave::Selector& selector,
       sigil::weave::Unit unit) const;
-  /** THE CASCADE'S WHOLE VIRTUAL SPAN, in ms — what track @p trackIndex's
-   *  master progress [0,1] maps onto: the moment its last beat closes,
-   *  compounded under a nested cascade and read off the table under a cue
-   *  table. `beatsOf` reports where each beat OPENS; this is the one
-   *  number that says when the whole schedule is over — what a progress
-   *  duration must equal for the cascade to run at its authored ms, and
-   *  what anything sequenced after the cascade offsets from. It is
-   *  computed by the same resolved cascade `beatsOf` and the glyphs read,
-   *  so the three cannot disagree about the schedule.
+  /** THE SCHEDULE'S WHOLE SPAN — what track @p trackIndex's master
+   *  progress [0,1] maps onto: the moment its last beat closes, compounded
+   *  under a nested stagger and read off the table under cues. `beatsOf`
+   *  reports where each beat OPENS; this is the one number that says when
+   *  the whole schedule is over — what a progress duration must equal for
+   *  the schedule to run at its authored times, and what anything
+   *  sequenced after it offsets from. It is computed by the same resolved
+   *  schedule `beatsOf` and the glyphs read, so the three cannot disagree.
    *
-   *  A LOOPING track (`motion::Spread::loopMs`) answers its PERIOD: the master
+   *  A LOOPING track (`Track::loop`) answers its PERIOD: the master
    *  maps onto one cycle rather than a one-shot span, so the period is
    *  what a wrapping phase's wall time must span for the schedule to run
-   *  at its authored ms.
+   *  at its authored times.
    *
-   *  Valid after a draw(), like `beatsOf`. `Track::spanMs` is the
+   *  Valid after a draw(), like `beatsOf`. `Track::span` is the
    *  DECLARE-TIME form of the same number, for the site that needs it
    *  before any layout exists — handed its unit count, where this reads
    *  the count off the laid-out text. An unknown key, a node that is not
    *  text, a track index past the node's list and a track carrying no
-   *  effect all resolve to 0, silently, as `beatsOf` resolves empty. */
-  [[nodiscard]] float cascadeSpanMs(std::string_view key,
-                                    size_t trackIndex) const;
+   *  effect all resolve to zero, silently, as `beatsOf` resolves empty. */
+  [[nodiscard]] motion::Duration scheduleSpan(std::string_view key,
+                                              size_t trackIndex) const;
   /** Topmost key at a canvas-space point. Valid after a draw().
    *
    *  Paint-order aware (zIndex, then declaration order, topmost first),

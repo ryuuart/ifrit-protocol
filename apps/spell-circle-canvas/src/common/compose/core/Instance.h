@@ -376,6 +376,12 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kSlots
   };
   std::unique_ptr<AnimatedFloat> anims[kSlots];
+  /** Where this node stood among the siblings that MOUNTED WITH IT — the
+   *  place every staggered tween on it resolves against, set when it
+   *  mounts. Unlike `place`, which a selector reads, it counts only the
+   *  children new in that patch, so one row appended to a live list enters
+   *  at once rather than waiting out its whole-list step. */
+  motion::Place mountPlace;
   Fill fillFrom, fillTo;                // endpoints for kFillLerp
   material::Color inkFrom{0, 0, 0, 1};  // where kInkLerp started
   // THE INK TARGET IN FORCE, as the cascade pass last resolved it: the

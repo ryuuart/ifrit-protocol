@@ -4,8 +4,8 @@
  * @ingroup compose-kit
  *
  * SigilCompose KIT — instruments for looking at arithmetic while you
- * author it: `trackMeter`, a cascade's schedule drawn, and `restGhost`,
- * the same text at rest under the moving copy. A cascade is an invisible
+ * author it: `trackMeter`, a track's schedule drawn, and `restGhost`,
+ * the same text at rest under the moving copy. A schedule is an invisible
  * remap and a deviation has nothing on screen to be measured against, so
  * both draw what is otherwise only inferable.
  */
@@ -36,7 +36,7 @@ namespace sigil::compose::kit {
 
 /** WHERE A METER'S CELLS STAND relative to the beats they report on.
  *
- *  A cell over its beat is the reading a cascade wants while it is being
+ *  A cell over its beat is the reading a schedule wants while it is being
  *  tuned: the fraction is on the letter it belongs to and nothing else has
  *  to be looked at. It is the wrong reading when the letters themselves
  *  are what is being watched — under a pass that paints the type, a cell
@@ -62,18 +62,18 @@ struct MeterPlacement {
  *  keyed text node, at that beat's own laid-out rect, filled left to right
  *  by that beat's local progress.
  *
- *  Every cascade is otherwise invisible — it numbers units, spreads them
+ *  Every schedule is otherwise invisible — it numbers units, spreads them
  *  and tells nobody — so tuning one means watching letters and guessing.
  *  This is `Composer::beatsOf` drawn without an intermediate: a beat that
  *  has not opened shows bed alone, one running shows its own fraction, one
- *  finished is full, and the pitch between cells is the cascade's real
+ *  finished is full, and the pitch between cells is the schedule's real
  *  pitch, uneven where a cue table made it uneven.
  *
  *  THE RECTS ARE IN THE COMPOSER'S SPACE, because that is the space
  *  `beatsOf` answers in. Put the result over the whole composition —
  *  `root.children({kit::trackMeter(...).absolute().inset(0)})` — and the cells
  *  land on the type wherever it is. It is read at DESCRIBE time from the
- *  layout the last draw left standing, so a moving cascade wants a
+ *  layout the last draw left standing, so a moving schedule wants a
  *  re-describe per frame to move with it; that is the cost, and it is why
  *  this is an instrument and not a component.
  *
@@ -107,7 +107,7 @@ struct MeterPlacement {
                       .key(cell + "-t")
                       .left(0)
                       .top(0)
-                      .width(width * std::clamp(beats[i].localTime, 0.0f, 1.0f))
+                      .width(width * std::clamp(beats[i].localProgress, 0.0f, 1.0f))
                       .height(height)
                       .fill(Fill::color(fill))})});
   }

@@ -16,6 +16,7 @@
 
 #include <include/core/SkSize.h>
 #include <sigilcore/comparable/Erased.h>
+#include <sigilmotion/time/Duration.h>
 #include <sigilweave/layout/LayoutOptions.h>
 #include <sigilweave/layout/PositionedRun.h>
 #include <sigilweave/paragraph/Paragraph.h>
@@ -176,10 +177,10 @@ class TextPainterOperations {
    *  last draw produced; rects in the node's own space. */
   virtual std::vector<Beat> beats(detail::Instance& inst,
                                   size_t trackIndex) const = 0;
-  /** THE SAME SCHEDULE'S WHOLE VIRTUAL SPAN in ms; 0 wherever beats()
-   *  answers empty. */
-  virtual float cascadeSpanMs(detail::Instance& inst,
-                              size_t trackIndex) const = 0;
+  /** THE SAME SCHEDULE'S WHOLE SPAN; zero wherever beats() answers
+   *  empty. */
+  virtual motion::Duration scheduleSpan(detail::Instance& inst,
+                                        size_t trackIndex) const = 0;
 };
 
 /** The painter as a description carries it: a comparable value, excluded

@@ -1,10 +1,10 @@
 /** @file
  * THE WALK THAT DECIDES WHICH BEAT each glyph falls in, at each level of
- * a nested cascade, and the algebra that composes the deviations those
+ * a nested schedule, and the algebra that composes the deviations those
  * beats produce: offsets and rotations add, scale and alpha multiply,
  * substitutions take the last one, and the lerp a crossfade and a
  * keyframe table both run. The arithmetic over the beat NUMBERS is
- * SigilMotion's cascade; what is here is how a paragraph's units are
+ * SigilMotion's schedule; what is here is how a paragraph's units are
  * numbered against it and what a glyph does with the answer.
  */
 
@@ -23,10 +23,9 @@ namespace sigil::compose {
 
 namespace detail {
 
-void TrackCascade::build(const Track& track, const GlyphStructure& structure,
+void TrackBeats::build(const Track& track, const GlyphStructure& structure,
                          const std::vector<uint8_t>& selected,
                          std::span<const uint32_t> selectionPieces) {
-  const motion::Spread& spec = track.stagger;
   const auto count = (uint32_t)structure.glyphs.size();
   // THE SELECTION'S OWN LANE, for a track that beats over the extent it
   // addressed rather than over a size the text is divided into. It is
@@ -41,7 +40,7 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
     selectionUnits =
         buildSelectionLane(selected, selectionPieces, outerSelection);
   // THE STORY'S NUMBERING where this leaf is one frame of a chain, the
-  // leaf's own everywhere else. A cascade over a threaded story runs one
+  // leaf's own everywhere else. A schedule over a threaded story runs one
   // clock across the whole of it: the fortieth word is beat forty wherever
   // it landed, so a stagger does not restart at each frame. The lanes are
   // empty for an ordinary leaf, which is then numbered exactly as it always
@@ -69,7 +68,7 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
                          : structure.unitCounts[(size_t)track.unit];
   } else {
     // Renumber the units the SELECTION covers, from 0, in draw order — then
-    // a stagger's From, its amount-mode division and its distribution all
+    // a stagger's origin, a range's division and its curve all
     // read the count the author sees rather than the paragraph's.
     uint32_t previous = ~0u;
     for (uint32_t g = 0; g < count; ++g) {
@@ -83,9 +82,9 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
   }
 
   uint32_t innerCount = 0;
-  if (spec.inner) {
+  if (track.within) {
     // The nested level is numbered against the same list as the outer one:
-    // one setting governs the cascade, so a nested beat cannot be counted
+    // one setting governs the schedule, so a nested beat cannot be counted
     // one way at the top and another underneath.
     const bool overText = track.beatsOver == Beats::Text;
     const bool innerBySelection =
@@ -114,7 +113,7 @@ void TrackCascade::build(const Track& track, const GlyphStructure& structure,
   } else {
     innerUnit.clear();
   }
-  cascade.build(spec, outerCount, innerCount);
+  schedule.build(track.timing(), outerCount, innerCount);
 }
 
 // ---------------------------------------------------------------------------

@@ -141,12 +141,11 @@ std::vector<Lane> Composer::Impl::lanes(StyledNode styled) {
 void Composer::Impl::applyMountTransitions(Instance& inst) {
   if (liveOnly) return;
 
-  // staggerChildren()'s carry is the extra lead every entrance on this
-  // node holds for, in seconds.
-  const float carrySeconds = mountDelayCarryMs / 1000.0f;
+  // Every entrance on the node resolves its staggered fields against the
+  // node's place among its siblings.
   auto entranceAt = [&](std::unique_ptr<AnimatedFloat>& slotAnim,
                         const motion::Animatable<float>& v) {
-    motion::mountEntrance(ticker, slotAnim, v, carrySeconds);
+    motion::mountEntrance(ticker, slotAnim, v, inst.mountPlace);
   };
   // Every lane the node carries. A mount entrance asks nothing of a slot's
   // ROLE: the description either declared a `from` or it did not.
@@ -176,15 +175,19 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   // 0→1 progress, because the description holds an Animatable<Fill> and no
   // float for the table to point at.
   if (inst.computed.paint.fill) {
-    const motion::Tween<Fill>* tween = inst.computed.paint.fill->described();
+    const motion::Tween<Fill>* described =
+        inst.computed.paint.fill->described();
+    const std::optional<motion::Tween<Fill>> tween =
+        described ? std::optional(described->resolved(inst.mountPlace))
+                  : std::nullopt;
     const Fill rest = tween ? tween->rest() : Fill{};
-    if (tween && tween->from && tween->from->kind == Fill::Kind::Color &&
-        rest.kind == Fill::Kind::Color && !(*tween->from == rest)) {
-      inst.fillFrom = *tween->from;
+    const Fill from = tween && tween->from ? tween->from->value() : Fill{};
+    if (tween && tween->from && from.kind == Fill::Kind::Color &&
+        rest.kind == Fill::Kind::Color && !(from == rest)) {
+      inst.fillFrom = from;
       inst.fillTo = rest;
       motion::progressRamp(ticker, inst.anims[Instance::kFillLerp],
-                           motion::transitionOf(*tween),
-                           mountDelayCarryMs / 1000.0f);  // stagger carry
+                           motion::transitionOf(*tween, inst.mountPlace));
     }
   }
 }
@@ -206,7 +209,8 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
   motion::retargetSlots(ticker,
                         std::span<std::unique_ptr<AnimatedFloat>>(inst.anims),
                         familyLanes(prevLanes, LaneFamily::Slot),
-                        familyLanes(nextLanes, LaneFamily::Slot), nd);
+                        familyLanes(nextLanes, LaneFamily::Slot), nd,
+                        inst.mountPlace);
 
   // The kFillLerp row (SlotRole::Bespoke): color→color lerp via a
   // synthesized progress output. A next fill with NO transition is a plain
@@ -214,7 +218,8 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
   // shadow rule as the float slots).
   bool nextFillTransitions = false;
   if (next.style.paint.fill) {
-    ResolvedProperty<Fill> nf = resolveProperty(*next.style.paint.fill, nd);
+    ResolvedProperty<Fill> nf =
+        resolveProperty(*next.style.paint.fill, nd, inst.mountPlace);
     // Only a COLOR target can continue a color lerp: a shader/none fill
     // with a transition must still disconnect the running lerp, or the
     // node keeps painting a color no description contains until the old
@@ -230,9 +235,9 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
   }
   if (prev.style.paint.fill && next.style.paint.fill) {
     ResolvedProperty<Fill> prevFill =
-        resolveProperty(*prev.style.paint.fill, nd);
+        resolveProperty(*prev.style.paint.fill, nd, inst.mountPlace);
     ResolvedProperty<Fill> nextFill =
-        resolveProperty(*next.style.paint.fill, nd);
+        resolveProperty(*next.style.paint.fill, nd, inst.mountPlace);
     if (!prevFill.live && !nextFill.live && nextFill.transition &&
         prevFill.target.kind == Fill::Kind::Color &&
         nextFill.target.kind == Fill::Kind::Color &&
@@ -248,7 +253,7 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
       }
       inst.fillFrom = std::move(from);
       inst.fillTo = nextFill.target;
-      motion::progressRamp(ticker, anim, *nextFill.transition, 0.0f);
+      motion::progressRamp(ticker, anim, *nextFill.transition);
     }
   }
 }
@@ -282,7 +287,7 @@ void Composer::Impl::retargetInk(
     from = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
   }
   inst.inkFrom = from;
-  motion::progressRamp(ticker, anim, *nodeTransition, 0.0f);
+  motion::progressRamp(ticker, anim, *nodeTransition);
 }
 
 void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
@@ -322,7 +327,7 @@ void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
   for (const LaneFamily family : kPositionalFamilies)
     motion::retargetFamily(ticker, familyAnims(inst, family),
                            familyLanes(prevLanes, family),
-                           familyLanes(nextLanes, family), nd);
+                           familyLanes(nextLanes, family), nd, inst.mountPlace);
 }
 
 // ---------------------------------------------------------------------------

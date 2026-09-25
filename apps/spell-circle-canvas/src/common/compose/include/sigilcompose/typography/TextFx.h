@@ -16,7 +16,6 @@
  */
 
 #include <sigilcompose/typography/TextEffect.h>
-#include <sigilmotion/schedule/Spread.h>
 
 #include <initializer_list>
 #include <string>
@@ -88,7 +87,7 @@ inline constexpr float kNominalSizePx = 96.0f;
 /** A SHADER PASS AS A TRACK'S EFFECT — "a shader per letter" without a
  *  shader per letter. The track's units are rendered ONCE into a layer and
  *  @p material runs once over that layer, handed each unit's box and each
- *  unit's own cascade clock as uniform data, so per-letter treatment is
+ *  unit's own schedule clock as uniform data, so per-letter treatment is
  *  data rather than scene structure and the cost is one draw plus one pass
  *  whatever the unit count is.
  *
@@ -100,7 +99,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *          material::Material(dissolve, Burn{ink}));
  *      text(u8"EMBER DECODE", display)
  *          .textFx({.effect = textFx::pass(burn),
- *               .stagger = {.eachMs = 260}, .unit = weave::Unit::Cluster});
+ *               .delay = motion::stagger(260ms), .unit = weave::Unit::Cluster});
  *
  *  THE MATERIAL MUST BE RECIPE-BACKED (`material::Paint::recipe`) over
  *  a recipe
@@ -132,11 +131,11 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  supersampled bake. `uUnitRect` entries are the SAME rects
  *  `Composer::beatsOf` reports (that query lifts them to composer space);
  *  `uUnitPhase[i].x` is the same `Beat::localTime`, driven by the track's
- *  progress through its cascade, so the pass, a mark and the glyphs can
+ *  progress through its schedule, so the pass, a mark and the glyphs can
  *  never disagree about the schedule. `uUnitPhase[i].y` is a per-unit seed
  *  in [1, 256), stable across frames and relayouts, which is what lets a
  *  seeded dissolve settle and cache instead of churning forever. Under a
- *  nested cascade there is one entry per (outer, inner) beat, matching the
+ *  nested schedule there is one entry per (outer, inner) beat, matching the
  *  beats the query reports.
  *
  *  THE PASS IS BOUNDED, unlike a raw `Element::filter` shader: it paints
@@ -173,9 +172,9 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  `bleed()`: declare a phase where the shader is not a pass-through and
  *  the picture POPS at the seam, snapping between shaded and raw glyphs as
  *  the schedule crosses the declared phase, with no diagnostic. The
- *  comparison is exact — which the schedule supplies, a one-shot cascade
+ *  comparison is exact — which the schedule supplies, a one-shot schedule
  *  clamping a unit to exactly 0 before its beat and exactly 1 after. Under
- *  a LOOPING cascade (`motion::Spread::loopMs`) a unit touches 0 only at the
+ *  a LOOPING schedule (`Track::loop`) a unit touches 0 only at the
  *  instant its beat re-opens, so `restsAt(0)` effectively never engages
  *  there — correctly, the cycle is always mid-flight somewhere — while a
  *  unit RESTS at exactly 1 between beats, so `restsAt(1)` engages whenever
@@ -259,7 +258,7 @@ struct Key {
 /** NOTHING UNTIL THE BEAT OPENS: `effect` as it is, except that a unit
  *  whose beat has not begun paints nothing at all.
  *
- *  A cascade hands every unit a local time clamped to [0,1], so a unit
+ *  A schedule hands every unit a local time clamped to [0,1], so a unit
  *  waiting its turn is handed 0 — and an effect that deviates at 0 is
  *  already performing before its beat. A substitution is the case that
  *  shows: `textFx::scramble` churns from local 0, so a glyph still waiting
@@ -274,11 +273,11 @@ struct Key {
  *
  *  A ONE-SHOT effect is what this is for. A loop effect reads a wrapping
  *  phase that passes through 0 on every cycle, and a held loop would blink
- *  its glyphs out each time it did. A LOOPING CASCADE
- * (`motion::Spread::loopMs`) has nothing for this to withhold either: its fold
+ *  its glyphs out each time it did. A LOOPING SCHEDULE
+ * (`Track::loop`) has nothing for this to withhold either: its fold
  * keeps every unit somewhere in its cycle — there is no "not yet" — and local
  * time touches 0 only at the instant a beat re-opens, so the veto blanks that
- * single instant and nothing else. An effect on a looping cascade gates its own
+ * single instant and nothing else. An effect on a looping schedule gates its own
  *  arrival, the way a streak table's head is its own entrance. */
 [[nodiscard]] TextEffect hold(TextEffect effect);
 
