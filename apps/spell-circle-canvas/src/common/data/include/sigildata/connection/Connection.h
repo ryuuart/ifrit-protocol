@@ -264,7 +264,7 @@ std::optional<Value> Connection::latest() const {
     if (!buffer) return std::nullopt;
     return values::Read<Value>::from(*buffer);
   }
-  return values::Read<Value>::from(newest->bytes);
+  return values::Read<Value>::from(newest->span());
 }
 
 }  // namespace sigil::data

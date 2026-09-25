@@ -45,7 +45,7 @@ sigil::io::FeedTransport intoVector(std::shared_ptr<Sent> sent) {
     sigil::io::OpenedFeed opened;
     opened.address = std::string(uri);
     opened.send = [sent](const Bytes& bytes) {
-      sent->push_back(bytes.bytes);
+      sent->emplace_back(bytes.begin(), bytes.end());
       return true;
     };
     return opened;
@@ -54,15 +54,11 @@ sigil::io::FeedTransport intoVector(std::shared_ptr<Sent> sent) {
 
 Bytes bytesOf(std::string_view text) {
   const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return bytes;
+  return Bytes(std::span(first, text.size()));
 }
 
 Bytes bytesOf(std::vector<std::byte> buffer) {
-  Bytes bytes;
-  bytes.bytes = std::move(buffer);
-  return bytes;
+  return Bytes(std::move(buffer));
 }
 
 /** One sheet of two readings, built the way a sender that speaks the

@@ -714,10 +714,7 @@ void bindData(py::module_& root) {
           "fromBytes",
           [](py::bytes bytes, std::string hint) {
             const auto text = bytes.cast<std::string>();
-            io::Bytes source;
-            source.bytes.resize(text.size());
-            if (!text.empty())
-              std::memcpy(source.bytes.data(), text.data(), text.size());
+            const io::Bytes source(std::as_bytes(std::span(text)));
             std::string why;
             auto database = data::Database::fromBytes(source, hint, &why);
             if (!database) throw std::runtime_error(why);

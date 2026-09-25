@@ -43,15 +43,11 @@ sigil::io::FeedTransport intoNowhere() {
 
 Bytes bytesOf(std::string_view text) {
   const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return bytes;
+  return Bytes(std::span(first, text.size()));
 }
 
 Bytes bytesOf(std::vector<std::byte> buffer) {
-  Bytes bytes;
-  bytes.bytes = std::move(buffer);
-  return bytes;
+  return Bytes(std::move(buffer));
 }
 
 /** The sheet every case reads: two readings, each named and measured. */
@@ -96,7 +92,7 @@ TEST(DataTyped, ABufferOnTheDoorIsTheNewestValue) {
   EXPECT_TRUE(door.latest().null());
   EXPECT_EQ(door.undecodable(), 1u);
   ASSERT_TRUE(door.latestBytes());
-  EXPECT_EQ(door.latestBytes()->bytes, sheet::writeSheet(aSheet()));
+  EXPECT_EQ(*door.latestBytes(), Bytes(sheet::writeSheet(aSheet())));
 
   // And it is a reading rather than a latch: asking again reads the
   // same bytes again and answers the same value.

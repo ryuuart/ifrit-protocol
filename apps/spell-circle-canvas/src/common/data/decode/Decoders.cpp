@@ -54,7 +54,7 @@ std::optional<Json> JsonDecoder::decode(const io::Bytes& bytes,
   // A packet is bytes and a document is text, and no reading of the
   // first byte tells the two apart, so the name is the whole of what
   // there is to go on.
-  if (looksLikeOsc(hint)) return decodeOsc(bytes.bytes);
+  if (looksLikeOsc(hint)) return decodeOsc(bytes);
   return decodeJson(withoutMark(bytes.asText()));
 }
 

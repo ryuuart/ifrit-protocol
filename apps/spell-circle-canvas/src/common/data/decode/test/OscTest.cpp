@@ -90,10 +90,7 @@ std::vector<std::byte> bytesOf(const unsigned char (&wire)[N]) {
 
 /** @p text as the bytes a hub would hand a decoder. */
 Bytes bytesOfText(std::string_view text) {
-  Bytes bytes;
-  for (const char value : text)
-    bytes.bytes.push_back(static_cast<std::byte>(value));
-  return bytes;
+  return Bytes(std::as_bytes(std::span(text)));
 }
 
 TEST(DataOsc, AMessageIsItsAddressAndAnArgumentOfEveryTypeTheWireCarries) {

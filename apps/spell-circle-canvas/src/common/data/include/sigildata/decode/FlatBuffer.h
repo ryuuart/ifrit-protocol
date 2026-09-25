@@ -113,8 +113,7 @@ struct FlatBufferDecoder {
         return flatBufferFromJson<Root>(bytes.asText());
     }
     return flatBufferFromBytes<Root>(
-        {reinterpret_cast<const uint8_t*>(bytes.bytes.data()),
-         bytes.bytes.size()});
+        {reinterpret_cast<const uint8_t*>(bytes.data()), bytes.size()});
   }
 };
 
@@ -208,7 +207,7 @@ struct SchemaBufferDecoder {
                                      std::string_view hint) const {
     if (flatBufferLooksLikeJson(bytes.asText(), hint))
       return schemaBufferFromJson(schema, bytes.asText());
-    return schemaBufferFromBytes(schema, bytes.bytes);
+    return schemaBufferFromBytes(schema, bytes);
   }
 };
 

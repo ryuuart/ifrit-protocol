@@ -70,9 +70,7 @@ std::string_view nameOf(const Json& message) {
 
 io::Bytes textBytes(std::string_view text) {
   const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  io::Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return bytes;
+  return io::Bytes(std::span(first, text.size()));
 }
 
 }  // namespace
@@ -147,9 +145,9 @@ struct Connection::State {
   /** One arrival as a value, or nothing when the bytes are no message
    *  in this connection's scheme, or no message its schema holds. */
   std::optional<Json> read(const io::Bytes& bytes) const {
-    if (osc) return decodeOsc(std::span<const std::byte>(bytes.bytes));
-    if (midi) return decodeMidi(std::span<const std::byte>(bytes.bytes));
-    if (artnet) return decodeArtNet(std::span<const std::byte>(bytes.bytes));
+    if (osc) return decodeOsc(bytes);
+    if (midi) return decodeMidi(bytes);
+    if (artnet) return decodeArtNet(bytes);
     if (!schema) return decodeJson(bytes.asText());
     return readThroughSchema(bytes);
   }
@@ -173,7 +171,7 @@ struct Connection::State {
       if (!buffer) return std::nullopt;
       form = schema.text(*buffer);
     } else {
-      form = schema.text(bytes.bytes);
+      form = schema.text(bytes);
     }
     if (!form) return std::nullopt;
     return decodeJson(*form);
@@ -211,16 +209,12 @@ struct Connection::State {
     if (midi) {
       std::vector<std::byte> played = encodeMidi(message);
       if (played.empty()) return std::nullopt;
-      io::Bytes bytes;
-      bytes.bytes = std::move(played);
-      return bytes;
+      return io::Bytes(std::move(played));
     }
     if (artnet) {
       std::vector<std::byte> universe = encodeArtNet(message);
       if (universe.empty()) return std::nullopt;
-      io::Bytes bytes;
-      bytes.bytes = std::move(universe);
-      return bytes;
+      return io::Bytes(std::move(universe));
     }
     if (!osc) {
       if (!schema) return textBytes(encodeJson(message));
@@ -230,15 +224,11 @@ struct Connection::State {
       std::optional<std::vector<std::byte>> buffer =
           schema.binary(encodeJson(message));
       if (!buffer) return std::nullopt;
-      io::Bytes bytes;
-      bytes.bytes = std::move(*buffer);
-      return bytes;
+      return io::Bytes(std::move(*buffer));
     }
     std::vector<std::byte> packet = encodeOsc(message);
     if (packet.empty()) return std::nullopt;
-    io::Bytes bytes;
-    bytes.bytes = std::move(packet);
-    return bytes;
+    return io::Bytes(std::move(packet));
   }
 
   /** THE SAME, spelled as @p arguments under @p address. */
@@ -253,9 +243,7 @@ struct Connection::State {
                                      {"arguments", arguments}}));
     std::vector<std::byte> packet = encodeOsc(address, arguments);
     if (packet.empty()) return std::nullopt;
-    io::Bytes bytes;
-    bytes.bytes = std::move(packet);
-    return bytes;
+    return io::Bytes(std::move(packet));
   }
 
   /** ONE FRAME'S MESSAGES. The feed is drained in order, and each

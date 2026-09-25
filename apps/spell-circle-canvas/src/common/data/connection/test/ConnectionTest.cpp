@@ -56,12 +56,12 @@ sigil::io::FeedTransport intoVector(std::shared_ptr<Sent> sent,
         // asked for: enough for a case to see that the end reaches through.
         opened.address = std::string(uri);
         opened.send = [sent](const Bytes& bytes) {
-          sent->push_back(bytes.bytes);
+          sent->emplace_back(bytes.begin(), bytes.end());
           return true;
         };
         if (answered)
           opened.sendTo = [answered](std::string_view to, const Bytes& bytes) {
-            answered->emplace_back(std::string(to), bytes.bytes);
+            answered->emplace_back(std::string(to), std::vector<std::byte>(bytes.begin(), bytes.end()));
             return true;
           };
         return opened;
@@ -70,15 +70,11 @@ sigil::io::FeedTransport intoVector(std::shared_ptr<Sent> sent,
 
 Bytes bytesOf(std::string_view text) {
   const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return bytes;
+  return Bytes(std::span(first, text.size()));
 }
 
 Bytes bytesOf(std::vector<std::byte> packet) {
-  Bytes bytes;
-  bytes.bytes = std::move(packet);
-  return bytes;
+  return Bytes(std::move(packet));
 }
 
 std::string textOf(const std::vector<std::byte>& raw) {

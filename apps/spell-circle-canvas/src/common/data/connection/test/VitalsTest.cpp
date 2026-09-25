@@ -24,9 +24,7 @@ namespace {
 
 std::shared_ptr<const Bytes> bytesOf(std::string_view text) {
   const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  auto bytes = std::make_shared<Bytes>();
-  bytes->bytes.assign(first, first + text.size());
-  return bytes;
+  return std::make_shared<const Bytes>(std::span(first, text.size()));
 }
 
 /** Each field of @p vitals is the reading of that name on @p door. */

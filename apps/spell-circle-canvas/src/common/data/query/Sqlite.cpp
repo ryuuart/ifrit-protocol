@@ -304,14 +304,14 @@ std::unique_ptr<Database::Impl> sqliteFromBytes(const io::Bytes& bytes,
     sqlite3_close(db);
     return nullptr;
   }
-  const sqlite3_int64 size = (sqlite3_int64)bytes.bytes.size();
+  const sqlite3_int64 size = (sqlite3_int64)bytes.size();
   auto* copy = (unsigned char*)sqlite3_malloc64((sqlite3_uint64)size);
   if (!copy) {
     if (why) *why = "sqlite could not hold the bytes";
     sqlite3_close(db);
     return nullptr;
   }
-  std::memcpy(copy, bytes.bytes.data(), (size_t)size);
+  std::memcpy(copy, bytes.data(), (size_t)size);
   if (sqlite3_deserialize(db, "main", copy, size, size,
                           SQLITE_DESERIALIZE_FREEONCLOSE |
                               SQLITE_DESERIALIZE_READONLY) != SQLITE_OK) {

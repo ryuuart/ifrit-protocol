@@ -39,13 +39,7 @@ std::filesystem::path scratch(const char* name) {
 
 /** The whole of a file as the bytes a hub hands a decoder. */
 sigil::io::Bytes readAll(const std::filesystem::path& file) {
-  sigil::io::Bytes bytes;
-  std::ifstream in(file, std::ios::binary | std::ios::ate);
-  const std::streamsize size = in.tellg();
-  in.seekg(0);
-  bytes.bytes.resize((size_t)std::max<std::streamsize>(size, 0));
-  in.read(reinterpret_cast<char*>(bytes.bytes.data()), size);
-  return bytes;
+  return sigil::io::readBytes(file).value_or(sigil::io::Bytes());
 }
 
 }  // namespace
