@@ -110,7 +110,7 @@ void Wires::tick(double seconds) {
     // a message between two asks cannot be shown one message's bytes
     // under another message's sender. A feed latches it rather than
     // queueing it, so a wire nobody drains names its sender too.
-    if (const std::optional<io::Arrival> arrival = feed.newest()) {
+    if (const std::optional<io::Arrival> arrival = feed.latest()) {
       vitals.newest = arrival->bytes;
       vitals.lastFrom = arrival->from;
     }

@@ -98,7 +98,7 @@ TEST(SeerWires, AUriNoTransportOpensAnswersAWireThatSaysSo) {
   ASSERT_NE(feed, nullptr);
   EXPECT_FALSE(feed->error().empty());
   EXPECT_TRUE(feed->address().empty());
-  EXPECT_EQ(feed->latest(), nullptr);
+  EXPECT_FALSE(feed->latest().has_value());
   // It is a wire all the same: a reader has to see the sentence beside
   // the URI they mistyped, which means the row has to be there.
   ASSERT_EQ(wires.feeds().size(), 1u);
@@ -319,11 +319,11 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
   EXPECT_EQ(replayed->generation(), 0u);
   wires.dispatch(10.3);
   EXPECT_EQ(replayed->generation(), 1u);
-  EXPECT_EQ(replayed->latest()->asText(), "first");
+  EXPECT_EQ(replayed->latest()->bytes->asText(), "first");
   EXPECT_FALSE(replayed->closed());
   wires.dispatch(11.0);
   EXPECT_EQ(replayed->generation(), 2u);
-  EXPECT_EQ(replayed->latest()->asText(), "second");
+  EXPECT_EQ(replayed->latest()->bytes->asText(), "second");
   // Nothing else is coming, and the wire says so rather than waiting on
   // a door that will not open again.
   EXPECT_TRUE(replayed->closed());
@@ -373,7 +373,7 @@ TEST(SeerSender, ARepeatSendsOnceEveryPeriodTheTicksPassThrough) {
   EXPECT_FALSE(sender.repeating());
 
   ASSERT_TRUE(waitUntil([&] { return listener->generation() >= 2; }));
-  EXPECT_EQ(listener->latest()->asText(), "again");
+  EXPECT_EQ(listener->latest()->bytes->asText(), "again");
 }
 
 TEST(SeerSender, AWireWithNoWayBackRefusesToSendAndCountsNothing) {

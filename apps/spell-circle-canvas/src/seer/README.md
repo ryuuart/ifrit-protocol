@@ -120,7 +120,7 @@ senders and which of them sent a message is a fact about the message.
 The bytes and the sender come out of one ask. The sender travels with
 the arrival — it is `sigil::io::Arrival::from` — and `sigil::io::Feed`
 latches its newest arrival whole beside the queue it hands out, so
-`sigil::io::Feed::newest()` answers both at once to a tick that drains
+`sigil::io::Feed::latest()` answers both at once to a tick that drains
 nothing. Every row therefore names where its own messages are coming
 from, not only the row being read, and no row can show one message's
 bytes under another message's sender.
