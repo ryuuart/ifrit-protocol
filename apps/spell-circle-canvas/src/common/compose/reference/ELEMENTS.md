@@ -46,7 +46,7 @@ its own; nothing on this page needs it.
 | `memo` | Deferred description: the function runs only when its properties changed. | Whatever the function produced. |
 | `each` | The children a range or a count describes, for a `children` block. | Not an element: a list of them. |
 
-`material::skia::Fit` is the enum `image` takes: `Stretch`,
+`material::Fit` is the enum `image` takes: `Stretch`,
 `Contain`, `Cover` or `Native`.
 `Children` is what a `children({…})` block is made of — an element, or
 the list `each` made, so one block mixes both.
@@ -94,7 +94,7 @@ content.
 - `core/Factories.h` — `box`, `stack`, `positioned`, `point`, `text`,
   `frame`, `image`, `picture`, `pathFigure`, `custom`, `layout`, `slot`, `memo`
   and `each`; the fit a picture meets its box under is
-  `material::skia::Fit`.
+  `material::Fit`.
 - `core/Derive.h` — `band`, with the `Anchor` a wire is strung through
   and the `RailRouter` that routes it.
 - `core/Instances.h` — `instances`, and `pick`, which answers which

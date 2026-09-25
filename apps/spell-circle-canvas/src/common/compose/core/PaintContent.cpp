@@ -420,11 +420,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   // that does not is the one case where the two are not the same picture in
   // cost, since a filter over an image whose identity holds finds any held
   // pass of it already made.
-  const material::skia::Effect* layerFx =
+  const material::Filter* layerFx =
       deferLayerEffect ? nullptr : layerEffectOf(node);
   const material::FrameData layerFrame = frameOf(paintCtx);
   const sk_sp<SkImageFilter> layerFilter =
-      layerFx ? layerFx->resolvedImageFilter(&layerFrame) : nullptr;
+      layerFx ? material::skia::resolvedImageFilter(*layerFx, &layerFrame) : nullptr;
   const bool hasEffect = (bool)layerFilter;
   if (hasEffect) {
     SkPaint effectPaint;

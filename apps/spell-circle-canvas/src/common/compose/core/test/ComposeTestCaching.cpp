@@ -91,7 +91,7 @@ TEST(ComposeCaching, APhosphorBloomOnATextureNodeIsBakedWithIt) {
                    .width(80)
                    .height(80)
                    .cache(Cache::Texture)
-                   .filter(material::skia::Effect::phosphorBloom(
+                   .filter(material::Filter::phosphorBloom(
                        9, 0.5f, 1.0f, 0.8f, -30.0f, 0.5f))
                    .children({box()
                                   .absolute()
@@ -392,7 +392,7 @@ Element haloedNode(Boundary boundary, const motion::Animatable<float>& turn) {
       .decorationOutline(boundary)
       .transformOrigin(pct(50), pct(50))
       .rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}))
-      .filter(material::skia::Effect::glow({0.1f, 0.85f, 1.0f, 1}, 6))
+      .filter(material::Filter::glow({0.1f, 0.85f, 1.0f, 1}, 6))
       .children({box().absolute().left(20).top(20).width(40).height(40).fill(
           Fill::color({1, 0.72f, 0.15f, 1}))});
 }

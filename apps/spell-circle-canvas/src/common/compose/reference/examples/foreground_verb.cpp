@@ -19,11 +19,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 250};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kPlate = hexColor(0x223039);
-constexpr material::Color kInk = hexColor(0xe8eef2);
-constexpr material::Color kKey = hexColor(0xf0f4f7);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kPlate = material::hexColor(0x223039);
+constexpr material::Color kInk = material::hexColor(0xe8eef2);
+constexpr material::Color kKey = material::hexColor(0xf0f4f7);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 /** A tile whose child fills the whole box, so a mark under the children
  *  would be covered and a mark over them is not. */

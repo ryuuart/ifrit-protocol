@@ -26,7 +26,7 @@
 #include <sigilcompose/core/Text.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/core/verbs/Node.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animated.h>

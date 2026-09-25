@@ -260,8 +260,8 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // node drew and may therefore be lifted off a bake of it, while a
   // backdrop effect reads what is already on the canvas and can be applied
   // nowhere else than live.
-  const material::skia::Effect* layerFx = layerEffectOf(node);
-  const material::skia::Effect* backdropFx = backdropEffectOf(node);
+  const material::Filter* layerFx = layerEffectOf(node);
+  const material::Filter* backdropFx = backdropEffectOf(node);
   const bool liveLayerEffect = layerFx && layerFx->isAnimated();
   const bool liveBackdropEffect = backdropFx && backdropFx->isAnimated();
   // A LIVE pass material on an textFx() track — uTime, a bound uniform, a

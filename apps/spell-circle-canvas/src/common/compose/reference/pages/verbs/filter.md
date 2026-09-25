@@ -20,7 +20,7 @@ result — CSS's `filter`.
 ## Syntax
 
 ```cpp
-Element& filter(material::skia::Effect e);
+Element& filter(material::Filter e);
 ```
 
 ```python
@@ -31,7 +31,7 @@ def filter(self, effect: material.Effect) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `material::skia::Effect` | A filter over pixels: blurs, glows, colour programs, whole recipes. | [`material::skia::Effect`](../../VALUES.md#the-layer) — `Effect::blur`, `Effect::glow`, `Effect::filter`, `Effect::recipe` |
+| `material::Filter` | A filter over pixels: blurs, glows, colour programs, whole recipes. | [`material::Filter`](../../VALUES.md#the-layer) — `Effect::blur`, `Effect::glow`, `Effect::filter`, `Effect::recipe` |
 
 ## Description
 

@@ -18,11 +18,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {600, 250};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kBusy = hexColor(0x6a8f7f);
-constexpr material::Color kInk = hexColor(0xf4f7f9);
-constexpr material::Color kOutline = hexColor(0x121a1e);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kBusy = material::hexColor(0x6a8f7f);
+constexpr material::Color kInk = material::hexColor(0xf4f7f9);
+constexpr material::Color kOutline = material::hexColor(0x121a1e);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 /** The same word over the same ground, once plain and once engraved. */
 Element cell(const char* caption, Element label) {

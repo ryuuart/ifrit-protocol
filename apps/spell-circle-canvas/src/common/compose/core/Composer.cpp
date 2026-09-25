@@ -81,7 +81,7 @@ void Composer::setClock(const motion::FrameClock* clock) {
   m_impl->clock = clock;
 }
 
-void Composer::setView(material::skia::Effect view) {
+void Composer::setView(material::Filter view) {
   m_impl->viewMaterial.reset();  // an Effect is already lowered
   m_impl->view = std::move(view);
   m_impl->contentDirty = true;  // the composite changes even if no node did
@@ -90,7 +90,7 @@ void Composer::setView(material::skia::Effect view) {
 void Composer::setView(const sigil::material::Material& view) {
   // The program is the answer for a surface nothing is known about, and
   // is what stands until draw meets a canvas that says otherwise.
-  setView(material::skia::Effect::recipe(view));
+  setView(material::Filter::of(view));
   m_impl->viewMaterial = view;
   m_impl->viewColorType = kUnknown_SkColorType;
 }
@@ -334,14 +334,14 @@ void Composer::draw(SkCanvas& canvas) {
     const SkColorType surface = canvas.imageInfo().colorType();
     if (surface != impl.viewColorType) {
       impl.viewColorType = surface;
-      impl.view = material::skia::Effect::recipe(*impl.viewMaterial, surface);
+      impl.view = material::skia::lowered(*impl.viewMaterial, surface);
     }
   }
-  const bool hasView = impl.view.imageFilter() || impl.view.colorFilter();
+  const bool hasView = material::skia::imageFilter(impl.view) || material::skia::colorFilter(impl.view);
   if (hasView) {
     SkPaint viewPaint;
-    viewPaint.setImageFilter(impl.view.imageFilter());
-    viewPaint.setColorFilter(impl.view.colorFilter());
+    viewPaint.setImageFilter(material::skia::imageFilter(impl.view));
+    viewPaint.setColorFilter(material::skia::colorFilter(impl.view));
     canvas.saveLayer(nullptr, &viewPaint);
   }
   impl.paint(*impl.root, canvas);

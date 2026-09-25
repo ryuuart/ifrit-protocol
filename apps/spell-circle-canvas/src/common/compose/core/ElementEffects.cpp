@@ -20,13 +20,13 @@ Derived& EffectVerbs<Derived>::blendMode(material::BlendMode mode) {
 }
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::filter(material::skia::Effect e) {
+Derived& EffectVerbs<Derived>::filter(material::Filter e) {
   declarations()->fxData.ensure().layerEffect = std::move(e);
   return self();
 }
 
 template <class Derived>
-Derived& EffectVerbs<Derived>::backdropFilter(material::skia::Effect e) {
+Derived& EffectVerbs<Derived>::backdropFilter(material::Filter e) {
   declarations()->fxData.ensure().backdropEffect = std::move(e);
   return self();
 }

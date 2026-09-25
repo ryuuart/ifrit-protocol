@@ -220,7 +220,7 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
   host.composer.render(box().children(
       {maskBox()
            .fill(material::skia::sksl(matfx).bind("lift", lift))
-           .filter(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
+           .filter(material::skia::program(fx, {{"amt", 1.0f}})
                        .bind("amt", amt))}));
   host.frame();
   for (int i = 0; i < 4; ++i) host.frame(0.016);
@@ -254,7 +254,7 @@ TEST(ComposeCaching, AMovingEffectOverStillContentBakesTheContentOnce) {
         {maskBox()
              .cache(Cache::Texture)
              .fill(red())
-             .filter(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
+             .filter(material::skia::program(fx, {{"amt", 1.0f}})
                          .bind("amt", amt))});
   };
   host.composer.render(describe());

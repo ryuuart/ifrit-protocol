@@ -8,7 +8,7 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace material = sigil::material;
@@ -20,10 +20,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {640, 250};
-constexpr material::Color kGround = hexColor(0x0f1318);
-constexpr material::Color kPlate = hexColor(0x1d2730);
-constexpr material::Color kInk = hexColor(0x9fe3d4);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x0f1318);
+constexpr material::Color kPlate = material::hexColor(0x1d2730);
+constexpr material::Color kInk = material::hexColor(0x9fe3d4);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 /** The same subtree — a plate, a word and a disc — under each filter. */
 Element cell(const char* caption, Element plate) {
@@ -58,9 +58,9 @@ struct FilterVerb {
   Element describe() const {
     return box().row().gap(16).padding(24).children({
         cell("no filter", box()),
-        cell("filter(blur)", box().filter(skia::Effect::blur(3))),
+        cell("filter(blur)", box().filter(Filter::blur(3))),
         cell("filter(glow)",
-             box().filter(skia::Effect::glow(hexColor(0x3fd6b0), 9))),
+             box().filter(Filter::glow(material::hexColor(0x3fd6b0), 9))),
     });
   }
 };

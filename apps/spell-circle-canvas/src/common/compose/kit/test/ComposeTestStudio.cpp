@@ -260,18 +260,18 @@ TEST(ComposeReport, ATableLandsInTheFeedRowByRowInTheInkOfItsStanding) {
 // arguments run out, and the verdict a check prints into a scene.
 
 TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
-  // hexColor() is the one colour spelling this library carries, and it
+  // material::hexColor() is the one colour spelling this library carries, and it
   // answers in SigilMaterial's colour.
-  constexpr sigil::material::Color rubric = hexColor(0x8C2F22);
-  static_assert(hexColor(0xFFFFFF).r == 1.0f,
+  constexpr sigil::material::Color rubric = material::hexColor(0x8C2F22);
+  static_assert(material::hexColor(0xFFFFFF).r == 1.0f,
                 "must stay constexpr — the "
                 "palettes are constexpr");
   EXPECT_FLOAT_EQ(rubric.r, 0x8C / 255.0f);
   EXPECT_FLOAT_EQ(rubric.g, 0x2F / 255.0f);
   EXPECT_FLOAT_EQ(rubric.b, 0x22 / 255.0f);
   EXPECT_FLOAT_EQ(rubric.a, 1.0f);
-  EXPECT_FLOAT_EQ(hexColor(0x000000, 0.25f).a, 0.25f);
-  EXPECT_EQ(rubric, sigil::material::rgb(0x8C2F22))
+  EXPECT_FLOAT_EQ(material::hexColor(0x000000, 0.25f).a, 0.25f);
+  EXPECT_EQ(rubric, sigil::material::hexColor(0x8C2F22))
       << "the same colour SigilMaterial's own spelling answers";
 
   // phase() wraps and never NaNs on a zero period.

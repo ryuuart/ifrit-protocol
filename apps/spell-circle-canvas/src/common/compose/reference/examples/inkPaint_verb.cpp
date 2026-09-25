@@ -21,19 +21,19 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 260};
-constexpr material::Color kGround = hexColor(0x101418);
-constexpr material::Color kAsh = hexColor(0x7e8f9c);
+constexpr material::Color kGround = material::hexColor(0x101418);
+constexpr material::Color kAsh = material::hexColor(0x7e8f9c);
 
 /** The chrome ramp, authored once in the unit square: the horizon sits
  *  where the ramp's middle stops meet, and lands on the capitals at
  *  whatever size the word is set. */
 material::Paint chrome() {
   return material::Paint::linearGradient({0, 0}, {0, 1},
-                                     {{0.00f, hexColor(0xf2f6f8)},
-                                      {0.46f, hexColor(0x8fa6b4)},
-                                      {0.52f, hexColor(0x2b3d4a)},
-                                      {0.58f, hexColor(0xcfe0e8)},
-                                      {1.00f, hexColor(0x6d8593)}});
+                                     {{0.00f, material::hexColor(0xf2f6f8)},
+                                      {0.46f, material::hexColor(0x8fa6b4)},
+                                      {0.52f, material::hexColor(0x2b3d4a)},
+                                      {0.58f, material::hexColor(0xcfe0e8)},
+                                      {1.00f, material::hexColor(0x6d8593)}});
 }
 
 }  // namespace

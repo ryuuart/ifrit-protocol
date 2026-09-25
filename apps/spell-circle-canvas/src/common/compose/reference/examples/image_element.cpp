@@ -26,9 +26,9 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 260};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kCell = hexColor(0x1c232a);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kCell = material::hexColor(0x1c232a);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 /** Eight by four pixels of checker, twice as wide as it is tall, so a
  *  square box is a box the fit has to do something about. */
@@ -36,9 +36,9 @@ sk_sp<SkImage> checker() {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(8, 4));
   SkCanvas& canvas = *surface->getCanvas();
-  canvas.clear(material::skia::toSkColor(hexColor(0x25303a)));
+  canvas.clear(material::skia::toSkColor(material::hexColor(0x25303a)));
   SkPaint paint;
-  paint.setColor4f(material::skia::toSkColor(hexColor(0x6fb3a6)), nullptr);
+  paint.setColor4f(material::skia::toSkColor(material::hexColor(0x6fb3a6)), nullptr);
   for (int y = 0; y < 4; ++y)
     for (int x = 0; x < 8; ++x)
       if ((x + y) % 2 == 0)

@@ -17,7 +17,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
@@ -130,7 +130,7 @@ class Composer {
    *  display/view baked from a colour config (SigilMaterial's colour
    *  transforms), but any Effect works. Per-node caches are unaffected
    *  (this is post-cache, at composite). */
-  void setView(material::skia::Effect view);
+  void setView(material::Filter view);
   /** The view as a SigilMaterial recipe whose `content` slot is the
    *  output. The Material is KEPT rather than built once, because a
    *  recipe that maps each channel independently — an exponent, a gamma,

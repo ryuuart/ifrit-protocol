@@ -19,7 +19,7 @@ unless it says otherwise, which is the ordinary "draw it on top".
 ## Syntax
 
 ```cpp
-Element& blendMode(SkBlendMode mode);
+Element& blendMode(material::BlendMode mode);
 ```
 
 ```python
@@ -30,9 +30,9 @@ def blendMode(self, mode: skia.BlendMode) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `SkBlendMode` | The compositing operator — `kSrcOver`, `kMultiply`, `kScreen`, `kDifference`, and the rest of Skia's set. | Skia's own enumeration |
+| `material::BlendMode` | The compositing operator — `BlendMode::Normal`, `BlendMode::Multiply`, `BlendMode::Screen`, `BlendMode::Difference`, and the rest of CSS's and Canvas's list. | SigilMaterial's own enumeration |
 
-Python spells the members without the `k`: `skia.BlendMode.Multiply`.
+Python spells the members the same way: `material.BlendMode.Multiply`.
 
 ## Description
 

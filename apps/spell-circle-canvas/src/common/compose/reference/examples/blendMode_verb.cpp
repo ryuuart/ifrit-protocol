@@ -17,13 +17,13 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {640, 250};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kBed = hexColor(0xc4763c);
-constexpr material::Color kDisc = hexColor(0x4f8fd8);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kBed = material::hexColor(0xc4763c);
+constexpr material::Color kDisc = material::hexColor(0x4f8fd8);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 /** One bed with one disc over it, the disc blended as named. */
-Element cell(const char* caption, SkBlendMode mode) {
+Element cell(const char* caption, material::BlendMode mode) {
   return box()
       .column()
       .gap(10)
@@ -57,10 +57,10 @@ struct BlendModeVerb {
 
   Element describe() const {
     return box().row().gap(16).padding(24).children({
-        cell("kSrcOver", SkBlendMode::kSrcOver),
-        cell("kMultiply", SkBlendMode::kMultiply),
-        cell("kScreen", SkBlendMode::kScreen),
-        cell("kDifference", SkBlendMode::kDifference),
+        cell("Normal", material::BlendMode::Normal),
+        cell("Multiply", material::BlendMode::Multiply),
+        cell("Screen", material::BlendMode::Screen),
+        cell("Difference", material::BlendMode::Difference),
     });
   }
 };

@@ -344,9 +344,9 @@ namespace {
 SkRect filteredReach(const ElementNode& node, const SkRect& local,
                      bool forBake) {
   if (!forBake) return local;
-  const material::skia::Effect* fx = layerEffectOf(node);
+  const material::Filter* fx = layerEffectOf(node);
   if (!fx) return local;
-  const sk_sp<SkImageFilter> filter = fx->resolvedImageFilter(nullptr);
+  const sk_sp<SkImageFilter> filter = material::skia::resolvedImageFilter(*fx, nullptr);
   return filter ? filter->computeFastBounds(local) : local;
 }
 

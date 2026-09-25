@@ -22,10 +22,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 300};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kInk = hexColor(0xe2e9ee);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
-constexpr material::Color kAccent = hexColor(0xe0a03c);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kInk = material::hexColor(0xe2e9ee);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
+constexpr material::Color kAccent = material::hexColor(0xe0a03c);
 
 /** A total style: a `weave::TextStyle` states every field itself, so a
  *  leaf set in one inherits nothing from the tree above it. */

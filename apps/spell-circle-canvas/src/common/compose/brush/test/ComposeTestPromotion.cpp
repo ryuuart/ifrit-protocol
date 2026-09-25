@@ -182,7 +182,7 @@ TEST(ComposeCache, PromotionRefusesABackdropFilter) {
                 .top(20)
                 .width(90)
                 .height(90)
-                .backdropFilter(material::skia::Effect::filter(
+                .backdropFilter(material::skia::filter(
                     SkImageFilters::Blur(3, 3, nullptr)))})})));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "reader");

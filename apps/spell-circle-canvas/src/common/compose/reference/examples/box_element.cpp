@@ -17,11 +17,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {640, 260};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kCard = hexColor(0x1e252c);
-constexpr material::Color kInk = hexColor(0xdde6ec);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
-constexpr material::Color kAccent = hexColor(0x5fb0a4);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kCard = material::hexColor(0x1e252c);
+constexpr material::Color kInk = material::hexColor(0xdde6ec);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
+constexpr material::Color kAccent = material::hexColor(0x5fb0a4);
 
 /** A card: a column of boxes, one of which is a bare leaf standing in as
  *  a rule. Nothing here is a kit component — every line is a factory and

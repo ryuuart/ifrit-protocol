@@ -25,7 +25,7 @@ whose value IS the node's colour.
 
 ```cpp
 Element& fill(motion::Animatable<Fill> colour);
-Element& fill(material::skia::Paint paint, PaintBox box = PaintBox::Element);
+Element& fill(material::Paint paint, PaintBox box = PaintBox::Element);
 Element& fill(material::Material recipe, PaintBox box = PaintBox::Element);
 Element& fill(material::Color colour);
 template <typename P>                               // a SurfacePaint
@@ -42,8 +42,8 @@ def fill(self, value: SurfacePaintLike, box: PaintBox = ...) -> Element: ...
 |---|---|---|
 | `Fill` | Nothing, a colour, a shader, or a reference the tree resolves at paint. | [`Fill`](../types/Fill.md) |
 | `motion::Animatable<Fill>` | The same, at rest, in transition, or bound to a live output. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
-| `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::skia::Paint`](../../VALUES.md#the-surface) |
-| `material::Material` | A recipe, painted as `material::skia::Paint::recipe` of it. | any recipe SigilMaterial builds: a field, a mount board, a signed-distance surface |
+| `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::Paint`](../../VALUES.md#the-surface) |
+| `material::Material` | A recipe, painted as `material::Paint::recipe` of it. | any recipe SigilMaterial builds: a field, a mount board, a signed-distance surface |
 | `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
 | `SurfacePaint` | A component's surface property: any of the above, or empty. | [`SurfacePaint`](../types/SurfacePaint.md) |
 | `PaintBox` | The rectangle the paint's unit square is stretched over. | [`PaintBox`](../types/PaintBox.md): `Element`, `Padding`, `Content`, `Canvas` |
@@ -81,13 +81,13 @@ fill's statement, so a later fill replaces it with its own, and a colour
 or a surface with no picture to place takes the element's.
 
 **A static paint collapses to a fill.** Handing over a
-`material::skia::Paint` that reads nothing live stores the shader it
+`material::Paint` that reads nothing live stores the shader it
 resolves to, so it caches and prunes on exactly the path a colour does.
 A live paint re-resolves per frame instead.
 
 **A material is passed as it stands.** `fill(material::field::grain(…))`
 paints exactly what the same material does wrapped in a
-`material::skia::Paint`, over the same box. The wrapper is for what only a
+`material::Paint`, over the same box. The wrapper is for what only a
 paint states: a layer of a blend stack, or a uniform bound to a live
 output.
 

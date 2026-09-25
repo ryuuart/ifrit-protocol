@@ -85,9 +85,9 @@ void Overlay::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.drawPath(ctx.outline, p);
 }
 
-material::skia::Effect ripple(float amplitudePx, float wavelengthPx,
+material::Filter ripple(float amplitudePx, float wavelengthPx,
                               float phase, bool vertical) {
-  return material::skia::Effect::recipe(
+  return material::Filter::of(
       material::field::ripple(amplitudePx, wavelengthPx, phase, vertical));
 }
 

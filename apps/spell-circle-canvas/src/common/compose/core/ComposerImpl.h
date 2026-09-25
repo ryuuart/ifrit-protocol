@@ -194,7 +194,7 @@ struct Composer::Impl {
   bool hasAdding = false;  // any adding operator, or any addition standing
   bool hasCenterPins = false;  // any centerAt() in the tree
   bool liveOnly = false;       // snapshot(): skip per-node caches
-  material::skia::Effect
+  material::Filter
       view;  // output view transform (no filter = pass-through)
   // The view as its author described it, when they described a Material.
   // Kept because how a Material LOWERS depends on the surface it lands

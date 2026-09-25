@@ -33,7 +33,7 @@ Element bloomBlock(Cache mode) {
   return box()
       .padding(24)
       .cache(mode)
-      .filter(sigil::material::skia::Effect::filter(
+      .filter(sigil::material::skia::filter(
           SkImageFilters::Blur(12, 12, nullptr)))
       .children({text(u8"BLOOM PIPELINE", style)});
 }
@@ -84,7 +84,7 @@ Element haloedBand(Boundary boundary, const sigil::motion::Animatable<float>& tu
                      .decorationOutline(boundary)
                      .transformOrigin(pct(50), pct(50))
                      .rotate(sigil::motion::bind(turn, {.to = {0.0f, 360.0f}}))
-                     .filter(sigil::material::skia::Effect::glow(
+                     .filter(sigil::material::Filter::glow(
                          {0.35f, 0.85f, 1.0f, 1.0f}, 6.0f));
   for (int i = 0; i < 24; ++i) {
     const float a = (float)i * (float)(2 * M_PI) / 24.0f;
@@ -258,7 +258,7 @@ sk_sp<SkRuntimeEffect> naiveVaryingBlur(int radius) {
   return effect;
 }
 
-Element varyingPanel(int side, sigil::material::skia::Effect e) {
+Element varyingPanel(int side, sigil::material::Filter e) {
   return box()
       .width((float)side)
       .height((float)side)
@@ -268,21 +268,21 @@ Element varyingPanel(int side, sigil::material::skia::Effect e) {
 
 enum class BlurArm { Pyramid, Naive, ConstantMax };
 
-sigil::material::skia::Effect blurEffect(BlurArm arm, float sigma) {
+sigil::material::Filter blurEffect(BlurArm arm, float sigma) {
   switch (arm) {
     case BlurArm::Pyramid:
-      return sigil::material::skia::Effect::blur(sigmaRamp(), sigma);
+      return sigil::material::Filter::blur(sigmaRamp(), sigma);
     case BlurArm::Naive: {
       // A Gaussian is negligible past three standard deviations, so R = 3σ
       // is the radius the worst pixel in the node needs — and every pixel
       // pays it.
       const int radius = (int)std::lround(3.0f * sigma);
-      return sigil::material::skia::Effect::shader(naiveVaryingBlur(radius),
+      return sigil::material::skia::program(naiveVaryingBlur(radius),
                                                    {{"uMaxSigma", sigma}})
           .slot("param", sigmaRamp());
     }
     case BlurArm::ConstantMax:
-      return sigil::material::skia::Effect::filter(
+      return sigil::material::skia::filter(
           SkImageFilters::Blur(sigma, sigma, nullptr));
   }
   return {};

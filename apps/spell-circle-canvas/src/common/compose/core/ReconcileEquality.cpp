@@ -41,8 +41,8 @@ namespace {
 // pinned beside its body there; the Effect and the blocks below are this
 // library's own.
 
-bool effectEqual(const std::optional<material::skia::Effect>& a,
-                 const std::optional<material::skia::Effect>& b) {
+bool effectEqual(const std::optional<material::Filter>& a,
+                 const std::optional<material::Filter>& b) {
   if (a.has_value() != b.has_value()) return false;
   if (!a) return true;
   // Structural (Effect::operator==): static shader recipes compare by

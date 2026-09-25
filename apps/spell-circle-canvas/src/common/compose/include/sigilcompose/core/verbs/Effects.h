@@ -9,7 +9,7 @@
 
 #include <sigilcompose/core/Declarations.h>
 #include <sigilmaterial/core/BlendMode.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmotion/values/Animatable.h>
 
 namespace sigil::compose {
@@ -31,12 +31,12 @@ class EffectVerbs {
   /** POST-PROCESSES THIS NODE'S RENDERED LAYER, its subtree included —
    *  CSS `filter`. None when unstated. Baked once under
    *  `Cache::Texture`. */
-  Derived& filter(material::skia::Effect e);
+  Derived& filter(material::Filter e);
   /** Filters what is already painted beneath this node's bounds before
    *  the node paints — CSS `backdrop-filter`. Incompatible with
    *  `Cache::Texture`, since the backdrop depends on the live
    *  destination; such nodes fall back to picture caching. */
-  Derived& backdropFilter(material::skia::Effect e);
+  Derived& backdropFilter(material::Filter e);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

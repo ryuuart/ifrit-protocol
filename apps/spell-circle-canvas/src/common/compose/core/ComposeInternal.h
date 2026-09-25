@@ -11,7 +11,7 @@
 #include <sigilcore/compute/Noise.h>
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Reads.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Animated.h>
@@ -388,8 +388,8 @@ struct MarkLabel {
 };
 
 struct FxData {
-  std::optional<material::skia::Effect> layerEffect;
-  std::optional<material::skia::Effect> backdropEffect;
+  std::optional<material::Filter> layerEffect;
+  std::optional<material::Filter> backdropEffect;
   // Misprint echoes (offset flat-color re-stamps under fill/text)
   std::vector<Echo> echoes;
   float staggerChildrenMs = 0;  // extra order·each mount delay per subtree

@@ -20,7 +20,7 @@ sheet over a photograph, the tinted glass over a lattice.
 ## Syntax
 
 ```cpp
-Element& backdropFilter(material::skia::Effect e);
+Element& backdropFilter(material::Filter e);
 ```
 
 ```python
@@ -31,7 +31,7 @@ def backdropFilter(self, effect: material.Effect) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `material::skia::Effect` | A filter over pixels: blurs, glows, colour programs, whole recipes. | [`material::skia::Effect`](../../VALUES.md#the-layer) — `Effect::blur` is the frosted one |
+| `material::Filter` | A filter over pixels: blurs, glows, colour programs, whole recipes. | [`material::Filter`](../../VALUES.md#the-layer) — `Effect::blur` is the frosted one |
 
 ## Description
 

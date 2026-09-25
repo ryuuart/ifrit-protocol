@@ -193,7 +193,7 @@ TEST(ComposeCache, ALiveEffectMovingUnderAHeldGateRepaints) {
   host.composer.render(box().children(
       {revealBox()
            .fill(Fill::color({1, 0, 0, 1}))
-           .filter(material::skia::Effect::shader(fx, {{"amt", 1.0f}})
+           .filter(material::skia::program(fx, {{"amt", 1.0f}})
                        .bind("amt", amt))
            .mask(by::spans(spans::upTo(reveal)))}));
   host.frame();

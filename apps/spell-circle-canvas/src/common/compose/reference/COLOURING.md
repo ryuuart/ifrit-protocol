@@ -12,7 +12,7 @@ The short answer, before the detail:
 - **A material enters a surface paint through a recipe paint, and never
   the other way.** Every verb that takes a surface takes a
   `material::Material` as it stands and paints it as
-  `material::skia::Paint::recipe` of it; the wrap is spelled only where a
+  `material::Paint::recipe` of it; the wrap is spelled only where a
   paint is needed for its own sake, as a layer of a blend or to bind a
   uniform. There is no leaf of a material that holds a paint, and no verb
   anywhere that turns a colour into a material.
@@ -26,7 +26,7 @@ The short answer, before the detail:
                             |
               +-------------+--------------+
               |                            |
-   motion::Animatable<Fill>        material::skia::Paint
+   motion::Animatable<Fill>        material::Paint
      - a plain Fill                  - solid
      - a Transitioned<Fill>          - linearGradient, radialGradient,
      - an Output<Fill>, live           conicGradient
@@ -49,7 +49,7 @@ The short answer, before the detail:
 ### One paragraph per node
 
 **`compose::SurfacePaint`** — a two-branch variant: a
-`motion::Animatable<Fill>` or a `material::skia::Paint`. It is what a
+`motion::Animatable<Fill>` or a `material::Paint`. It is what a
 component prop asks for when it means "colour this surface, however the
 caller likes", and every branch converts into it implicitly.
 `SurfacePaint::apply` is the one place that decides which fill overload a
@@ -64,7 +64,7 @@ a bound fill declare volatility without defeating the prune.
 the tree resolves where the mark lands. Five scalars, compared in one
 line. See [Fill](pages/types/Fill.md).
 
-**`material::skia::Paint`** — this project's paint model as one Skia
+**`material::Paint`** — this project's paint model as one Skia
 shader: solids, ramps in node px and in the unit square, images, buffers,
 raw SkSL, raw shaders, blends, and recipe instances. It carries the
 volatility tier — static, geometry, live — that decides what a node's
@@ -74,7 +74,7 @@ paint costs. See
 **`material::Material`** — a recipe instance: the recipe, the parameter
 bytes, the live bindings, the slots, the instance settings. One KIND of
 paint, beside solid and gradient and image, handed to `fill`, `ink` or
-`textStroke` as it stands and wrapped in `material::skia::Paint::recipe`
+`textStroke` as it stands and wrapped in `material::Paint::recipe`
 where a paint is needed for its own sake. See
 [Material](../../material/reference/pages/types/Material.md).
 
@@ -86,7 +86,7 @@ class. A Skia colour converts to it implicitly, field for field. See
 reasoned about in: interpolated, measured, lifted, fitted. Each has a
 round trip to and from a colour, and nothing paints from one directly.
 
-**`material::skia::Effect`** stands beside the lattice rather than in it.
+**`material::Filter`** stands beside the lattice rather than in it.
 A paint shades a shape; an effect filters a layer that is already drawn.
 See [Effect](../../material/reference/pages/types/Effect.md).
 
@@ -119,7 +119,7 @@ material animates SCALARS inside itself, binding one float field at a
 time — a different mechanism with different equality.
 
 **A paint already is the general paint value.** A material is one leaf of
-`material::skia::Paint`, beside solid, gradients, image, buffer, SkSL,
+`material::Paint`, beside solid, gradients, image, buffer, SkSL,
 raw shader and blend. Inverting the containment would mean teaching a
 material every one of those, which is a paint under another name.
 
@@ -192,7 +192,7 @@ colour and the ramp; SigilWeave owns the text paint, and links no
 renderer's paint model, which is why it holds a material by pointer and a
 Skia paint by value.
 
-- `core/Paint.h` — `Fill`, `hexColor`, `PaintContext`, `resolveRef`,
+- `core/Paint.h` — `Fill`, `PaintContext`, `resolveRef`,
   `frameOf`, `toFill`, `resolveFill`
 - `core/SurfacePaint.h` — `SurfacePaint`
 - `core/verbs/Paint.h` — `fill`

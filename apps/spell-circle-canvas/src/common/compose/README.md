@@ -219,7 +219,7 @@ identity of its own keys itself; the rest reconcile by position, as
 unkeyed siblings do.
 
 A surface is anything `fill` takes: a colour, a `Fill`, a
-`material::skia::Paint` ramp, or a `material::Material` exactly as
+`material::Paint` ramp, or a `material::Material` exactly as
 SigilMaterial builds it. A component whose caller chooses the surface
 declares one `SurfacePaint` property, which converts from each of those,
 and passes it to `fill`, `ink` or `textStroke` as it stands:

@@ -25,9 +25,9 @@ element.image(tileset).imageRendering(SkSamplingOptions(SkFilterMode::kNearest))
 
 **It is set on any node and inherited by every image leaf under it**,
 so a panel of pixel art states nearest once rather than once per
-sprite. `material::skia::Paint::image` takes the same options for a sprite
+sprite. `material::Paint::image` takes the same options for a sprite
 fill.
 
 ## See also
 
-`image`, `imageRegion`, `material::skia::Paint`.
+`image`, `imageRegion`, `material::Paint`.

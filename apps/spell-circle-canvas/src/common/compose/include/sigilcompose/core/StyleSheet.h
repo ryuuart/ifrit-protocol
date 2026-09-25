@@ -96,8 +96,8 @@ class Rule : public detail::Declaring,
   Rule& shape(Arguments&&...) = delete;
   Rule& cover() = delete;
   Rule& gridArea(std::string_view) = delete;
-  Rule& filter(material::skia::Effect) = delete;
-  Rule& backdropFilter(material::skia::Effect) = delete;
+  Rule& filter(material::Filter) = delete;
+  Rule& backdropFilter(material::Filter) = delete;
   Rule& travel(MotionPath) = delete;
   Rule& contentFlowAround(std::string_view, float = 0.0f) = delete;
 

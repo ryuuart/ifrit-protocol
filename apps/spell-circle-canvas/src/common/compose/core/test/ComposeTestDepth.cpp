@@ -226,11 +226,11 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
   });
   flattened("a layer effect", [](Element& e) {
     e.filter(
-        material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)));
+        material::skia::filter(SkImageFilters::Blur(1, 1, nullptr)));
   });
   flattened("a backdrop effect", [](Element& e) {
     e.backdropFilter(
-        material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)));
+        material::skia::filter(SkImageFilters::Blur(1, 1, nullptr)));
   });
   // Additive, so the flattened pair is still readable: a blend that took
   // the faces to black would say nothing about which one is on top.

@@ -190,7 +190,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   pass.spaceHost = spaceHost;
   pass.parentCanvasM = parentCanvasM;
 
-  const material::skia::Effect* backdropFx = backdropEffectOf(node);
+  const material::Filter* backdropFx = backdropEffectOf(node);
   sk_sp<SkImageFilter> backdropFilter;
   if (backdropFx) {
     // A backdrop effect's child materials resolve against the node's box
@@ -207,7 +207,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                                    .toRoot = curToRoot,  // this node→root
                                    .rootSize = rootLayoutSize};
     const material::FrameData backdropFrame = frameOf(backdropCtx);
-    backdropFilter = backdropFx->resolvedImageFilter(&backdropFrame);
+    backdropFilter = material::skia::resolvedImageFilter(*backdropFx, &backdropFrame);
   }
   // THE DEFERRED LAYER EFFECT. A node whose only volatility is its own
   // layer effect's bound parameters paints static content under a moving

@@ -19,10 +19,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 240};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kPlate = hexColor(0x6fb3a6);
-constexpr material::Color kDisc = hexColor(0x27343d);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kPlate = material::hexColor(0x6fb3a6);
+constexpr material::Color kDisc = material::hexColor(0x27343d);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 /** A card with an overlapping child, at one opacity. */
 Element card(float value, const char* caption) {

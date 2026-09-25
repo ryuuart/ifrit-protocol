@@ -462,22 +462,22 @@ TEST(TextPass, MisSizedUniformsWarnOnceAndAreIgnored) {
   wrong.set("uPair", std::array<float, 4>{1, 2, 3, 4});  // float2 slot
   EXPECT_TRUE(base == wrong);
 
-  material::skia::Effect effect =
-      material::skia::Effect::shader(wideUniformEffect());
-  material::skia::Effect wrongEffect =
-      material::skia::Effect::shader(wideUniformEffect());
+  material::Filter effect =
+      material::skia::program(wideUniformEffect());
+  material::Filter wrongEffect =
+      material::skia::program(wideUniformEffect());
   wrongEffect.set("uVals", std::vector<float>{1, 2, 3});
   wrongEffect.set("uNothing", 1.0f);
   EXPECT_TRUE(effect == wrongEffect);
 }
 
 TEST(TextPass, EffectConstantLanesParticipateInEquality) {
-  material::skia::Effect a =
-      material::skia::Effect::shader(wideUniformEffect());
+  material::Filter a =
+      material::skia::program(wideUniformEffect());
   a.set("uPair", std::array<float, 2>{1, 0});
   a.set("uVals", std::vector<float>{1, 2, 3, 4});
-  material::skia::Effect b =
-      material::skia::Effect::shader(wideUniformEffect());
+  material::Filter b =
+      material::skia::program(wideUniformEffect());
   b.set("uPair", std::array<float, 2>{1, 0});
   b.set("uVals", std::vector<float>{1, 2, 3, 4});
   EXPECT_TRUE(a == b);

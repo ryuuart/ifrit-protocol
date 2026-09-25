@@ -20,9 +20,9 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {600, 220};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kLabel = hexColor(0x8ea0ad);
-constexpr material::Color kAccent = hexColor(0xe2714b);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kLabel = material::hexColor(0x8ea0ad);
+constexpr material::Color kAccent = material::hexColor(0xe2714b);
 
 /** One labelled swatch: the square, and the spelling under it. */
 Element swatch(Element square, const char* spelling) {
@@ -55,7 +55,7 @@ struct FillVerb {
             swatch(
                 box().fill(material::Paint::linearGradient(
                     {0, 0}, {1, 1},
-                    {{0.0f, hexColor(0x2f6f8f)}, {1.0f, hexColor(0x8f2f4f)}})),
+                    {{0.0f, material::hexColor(0x2f6f8f)}, {1.0f, material::hexColor(0x8f2f4f)}})),
                 "fill(paint)"),
             swatch(box().fill(Fill::currentInk()), "fill(the ink in force)"),
         });

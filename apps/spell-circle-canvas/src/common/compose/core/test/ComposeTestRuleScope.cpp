@@ -58,12 +58,12 @@ template <class Value>
 concept SaysContentFlowAround =
     requires(Value value) { value.contentFlowAround("k"); };
 template <class Value>
-concept SaysFilter = requires(Value value, material::skia::Effect effect) {
+concept SaysFilter = requires(Value value, material::Filter effect) {
   value.filter(effect);
 };
 template <class Value>
 concept SaysBackdropFilter =
-    requires(Value value, material::skia::Effect effect) {
+    requires(Value value, material::Filter effect) {
       value.backdropFilter(effect);
     };
 template <class Value>

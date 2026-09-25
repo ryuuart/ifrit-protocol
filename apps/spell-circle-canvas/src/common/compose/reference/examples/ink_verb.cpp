@@ -19,10 +19,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {600, 260};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kPlate = hexColor(0x1b2229);
-constexpr material::Color kPale = hexColor(0xd9e3ea);
-constexpr material::Color kAmber = hexColor(0xe0a03c);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kPlate = material::hexColor(0x1b2229);
+constexpr material::Color kPale = material::hexColor(0xd9e3ea);
+constexpr material::Color kAmber = material::hexColor(0xe0a03c);
 
 /** One panel. Nothing inside it names a colour: the text takes the ink,
  *  the stroke takes the ink because it names none, and the square takes

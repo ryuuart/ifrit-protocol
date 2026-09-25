@@ -20,11 +20,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {600, 250};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kPlate = hexColor(0xd9a441);
-constexpr material::Color kInk = hexColor(0x1a1206);
-constexpr material::Color kVignette = hexColor(0x1a1206, 0.45f);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kPlate = material::hexColor(0xd9a441);
+constexpr material::Color kInk = material::hexColor(0x1a1206);
+constexpr material::Color kVignette = material::hexColor(0x1a1206, 0.45f);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 /** A band 56 px wide inside the node's own boundary — wide enough to
  *  cross the digit standing in the middle of it, so which slot it is in

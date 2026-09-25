@@ -18,11 +18,11 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {520, 300};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kPlate = hexColor(0x223039);
-constexpr material::Color kInk = hexColor(0xe8eef2);
-constexpr material::Color kBadge = hexColor(0xd8603f);
-constexpr material::Color kWash = hexColor(0x0d1116, 0.55f);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kPlate = material::hexColor(0x223039);
+constexpr material::Color kInk = material::hexColor(0xe8eef2);
+constexpr material::Color kBadge = material::hexColor(0xd8603f);
+constexpr material::Color kWash = material::hexColor(0x0d1116, 0.55f);
 
 }  // namespace
 

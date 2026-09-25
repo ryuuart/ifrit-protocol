@@ -19,10 +19,10 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {620, 250};
-constexpr material::Color kGround = hexColor(0x1a2027);
-constexpr material::Color kPlate = hexColor(0xe9eef1);
-constexpr material::Color kShade = hexColor(0x05080b, 0.55f);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x1a2027);
+constexpr material::Color kPlate = material::hexColor(0xe9eef1);
+constexpr material::Color kShade = material::hexColor(0x05080b, 0.55f);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 Element cell(const char* caption, Element plate) {
   return box()

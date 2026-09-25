@@ -39,8 +39,8 @@ sound model; nothing below them changes kernel semantics.
   context are both offered, so `[](SkCanvas& c) {…}`,
   `[](SkCanvas& c, const PaintContext& ctx) {…}` and `[] {…}` are all paint
   programs and nothing spells a parameter in order to ignore it —
-  `StampCache`, and `hexColor`, the one colour spelling here: a source
-  palette's hex integer as a `material::Color`. A `Fill` may be written as a
+  and `StampCache`. A colour from a source palette's hex integer is
+  SigilMaterial's `material::hexColor`. A `Fill` may be written as a
   REFERENCE the tree resolves at paint — `Fill::currentInk`, the ink in
   force, and `Fill::var`, a custom property — through `resolveRef`, which
   every consumer holding a `PaintContext` runs a fill through; the
@@ -180,7 +180,7 @@ sound model; nothing below them changes kernel semantics.
   header is for a value that inherits the family.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
   `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
-  raw `SkImage` with a `material::skia::Fit` — `Stretch`, `Contain`,
+  raw `SkImage` with a `material::Fit` — `Stretch`, `Contain`,
   `Cover` or `Native` — which is
   the wrap written once and the fit said as LAYOUT rather than as a
   matrix the caller builds, so the node itself carries the picture's
@@ -278,7 +278,7 @@ sound model; nothing below them changes kernel semantics.
   feeds, which a pen or paint program under a node reads.
 - `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
   and `resolveFill`, the three lines that put SigilMaterial's
-  `material::skia::Paint` on a node. The paint model itself is that
+  `material::Paint` on a node. The paint model itself is that
   library's — gradients, images, raw SkSL with live uniforms, blend
   stacks, world-space anchoring — and what is compose's is the routing: a
   static paint collapses to a `Fill` and rides the caching and prune path,
@@ -596,7 +596,7 @@ MEASURES what was drawn does not have to transcribe how it is built. `Ribbon::fi
 band with a recipe instead of a `Fill` — the door `strokeFill` opens
 on a stroke, mirrored here, so a ribbon beside a stroked outline does not
 have to have the same paint written twice; `brush::presets::taper` and
-`brush::presets::calligraphic` each take a `material::skia::Paint` beside a
+`brush::presets::calligraphic` each take a `material::Paint` beside a
 `Fill`, and a live material declares the ribbon animated. The line vocabulary is three
 more:
 `brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
@@ -611,7 +611,7 @@ namespace apart as `lines::presets::` in `kit/Strokes.h`, which — with
 tier because each is spelled in its types.
 
 **Fills.** The paint vocabulary is SigilMaterial's and is spelled there:
-`material::skia::Paint` is what `Element::fill` takes, and
+`material::Paint` is what `Element::fill` takes, and
 `material::sdf`, `material::pattern` and `material::field` are where the
 signed-distance surfaces, the tiles and the fields come from.
 `brush/LayerStyles.h` is the Photoshop route to rich surfaces — the
@@ -659,8 +659,8 @@ panel and well under it. `kit::bevels::motif`, `motifEtched`, `flash`,
 `skin` and `plate` are the token sets four toolkits' edges resolve to.
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance
-becomes a paint through `material::skia::Paint::recipe`, an effect
-through `material::skia::Effect::recipe`, and an output-stage view
+becomes a paint through `material::Paint::recipe`, an effect
+through `material::Filter::recipe`, and an output-stage view
 transform for
 `Composer::setView` is SigilMaterial's colour transform, compiled only
 when the build finds OpenColorIO. A view handed over as a Material is
@@ -712,7 +712,7 @@ from the encoded frame, samples presentation time from the composer's motion
 clock, and disables picture caching while the clip's own decoded-frame cache
 stays active. On a Graphite canvas the leaf passes its recorder to the video
 device executor, so a native YUV frame remains on the GPU through composition;
-the compose kernel links no codec. `material::skia::Fit` states how the decoded frame meets its box, under
+the compose kernel links no codec. `material::Fit` states how the decoded frame meets its box, under
 the same four names every other source meets one by. The leaf's
 `VideoOptions` also carries opacity and blend mode into its single image draw,
 so an additive black-backed effect does not need a grouping layer.

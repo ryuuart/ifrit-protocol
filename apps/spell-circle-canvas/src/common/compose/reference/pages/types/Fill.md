@@ -56,8 +56,8 @@ version of its top.
 | `Fill::currentInk()` | C++ | the ink in force where the mark lands |
 | `Fill::var(reference)` | C++ | the colour a custom property holds |
 | `Fill::var(name)` | C++ | the same, interning the name through `compose::var` — C++ only, since Python's `Fill.var` takes the reference alone |
-| `compose::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as the `material::Color` a `Fill::color` takes |
-| `compose::toFill(paint)` | C++ | the static collapse of a material paint — a solid or a built shader, and nothing for a paint that needs a frame; a gradient placed in pixels, `toFill(material::skia::Paint::linearGradient(from, to, colours, {.units = material::GradientUnits::Pixels}))`, is a shader fill this way |
+| `material::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as the `material::Color` a `Fill::color` takes |
+| `compose::toFill(paint)` | C++ | the static collapse of a material paint — a solid or a built shader, and nothing for a paint that needs a frame; a gradient placed in pixels, `toFill(material::Paint::linearGradient(from, to, colours, {.units = material::GradientUnits::Pixels}))`, is a shader fill this way |
 | `"#1f2933"` | Python | a CSS colour string, implicitly |
 | `(0.12, 0.16, 0.20)` | Python | a 3-tuple of unit floats, implicitly |
 | `(0.12, 0.16, 0.20, 0.5)` | Python | a 4-tuple, the fourth being alpha |
@@ -117,7 +117,7 @@ subtree without re-describing it.
 
 ## See also
 
-- `core/Paint.h` — the header: `Fill`, `Corners`, `hexColor`,
+- `core/Paint.h` — the header: `Fill`, `Corners`,
   `PaintContext`, `resolveRef`, `frameOf`, `toFill`, `resolveFill`
 - [SurfacePaint](value:sigil::compose::SurfacePaint) — the widest
   colouring value, which a fill converts into

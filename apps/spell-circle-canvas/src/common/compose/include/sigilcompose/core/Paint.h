@@ -118,19 +118,6 @@ struct Fill {
   }
 };
 
-// Colour — source palettes arrive as lists of hex integers.
-
-/** `0xRRGGBB` with alpha @p a, as a colour: sRGB byte values divided by
- *  255. The spelling a source palette is written in, one hex integer per
- *  colour. constexpr, so a palette stays a constant.
- *
- *  The only colour verb here. What a colour BECOMES — a different alpha,
- *  a tone off a base, a lighter edge, a mix — is SigilMaterial's
- *  vocabulary: `material::withAlpha`, `scale`, `lighten`, `mixLinear`. */
-constexpr material::Color hexColor(uint32_t rrggbb, float a = 1.0f) noexcept {
-  return material::rgb(rrggbb, a);
-}
-
 /** Corner radii, clockwise from top-left. `{r}` rounds all four; the
  *  four-value form dresses each corner independently. For shapes whose
  *  corners aren't box corners (stars, polygons, custom outlines), use

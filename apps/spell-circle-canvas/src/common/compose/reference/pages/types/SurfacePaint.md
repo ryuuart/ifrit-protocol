@@ -17,8 +17,8 @@ surface, however the caller likes".
 
 It is a two-branch variant. The left branch is a
 `motion::Animatable<Fill>` — the cheap, comparable, prunable slot. The
-right branch is a `material::skia::Paint` — the shader tree, which a
-`material::Material` enters through `material::skia::Paint::recipe`. The
+right branch is a `material::Paint` — the shader tree, which a
+`material::Material` enters through `material::Paint::recipe`. The
 containment runs that way and only that way: a material is one kind of
 paint, and a paint is one branch of a surface paint.
 
@@ -49,8 +49,8 @@ word every value in this tree spells it with.
 | `SurfacePaint(animatable)` | C++ | implicit from a `motion::Animatable<Fill>` |
 | `SurfacePaint(output)` | C++ | implicit from a `choreograph::Output<Fill>*` — the live binding |
 | `SurfacePaint(transitioned)` | C++ | implicit from a `motion::Transitioned<Fill>` |
-| `SurfacePaint(paint)` | C++ | implicit from a `material::skia::Paint` |
-| `SurfacePaint(recipe)` | C++ | implicit from a `material::Material`, wrapped through `material::skia::Paint::recipe` |
+| `SurfacePaint(paint)` | C++ | implicit from a `material::Paint` |
+| `SurfacePaint(recipe)` | C++ | implicit from a `material::Material`, wrapped through `material::Paint::recipe` |
 | `"#1f2933"`, a tuple, `material.Color(...)` | Python | every colour spelling, implicitly |
 | `material.Paint.linearGradient(...)` | Python | a material paint, implicitly |
 | `material.kit.unlit()` | Python | a recipe instance, implicitly — the kit's recipe functions are Python's door to a material |
@@ -113,7 +113,7 @@ is where a paint LANDS and what it costs the tree.
   colour boils down to
 - The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
   the lattice whole
-- [Paint](value:sigil::material::skia::Paint) — the right branch, in
+- [Paint](value:sigil::material::Paint) — the right branch, in
   SigilMaterial
 - [Material](value:sigil::material::Material) — a recipe instance,
   which enters through a recipe paint

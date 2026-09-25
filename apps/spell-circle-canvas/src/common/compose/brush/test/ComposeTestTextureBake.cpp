@@ -321,7 +321,7 @@ TEST(ComposeCache, SparseFurnitureSurvivesAFractionalCaptureScale) {
         .inset(0)
         .cache(Cache::None)
         .filter(
-            material::skia::Effect::filter(SkImageFilters::Blur(1, 1, nullptr)))
+            material::skia::filter(SkImageFilters::Blur(1, 1, nullptr)))
         .children({std::move(furniture)});
   };
   Host cached(1440, 1052), plain(1440, 1052);

@@ -194,7 +194,7 @@ struct ChromeOptions {
   /** material::Color, as every other era look states its colours in: these
    *  values are painted, and a look whose knobs are in two colour types
    *  makes an author convert to set one of them. */
-  material::Color keyline = hexColor(0x10141A);
+  material::Color keyline = material::hexColor(0x10141A);
   float bevelDepth = 3.0f, bevelSize = 5.0f;
   bool operator==(const ChromeOptions&) const = default;
 };

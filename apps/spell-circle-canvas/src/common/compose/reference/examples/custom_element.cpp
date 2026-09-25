@@ -22,9 +22,9 @@ using namespace sigil::compose;
 namespace {
 
 constexpr SkSize kCanvas = {520, 280};
-constexpr material::Color kGround = hexColor(0x14181d);
-constexpr material::Color kCell = hexColor(0x1b2229);
-constexpr material::Color kAsh = hexColor(0x8ea0ad);
+constexpr material::Color kGround = material::hexColor(0x14181d);
+constexpr material::Color kCell = material::hexColor(0x1b2229);
+constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 
 /** The program: rings measured off the box the node was laid out at,
  *  which is what `PaintContext::size` carries. */
@@ -38,7 +38,7 @@ void rings(SkCanvas& canvas, const PaintContext& context) {
     const float t = (float)ring / 7;
     paint.setStrokeWidth(1.0f + 2.0f * t);
     paint.setColor4f(
-        material::skia::toSkColor(hexColor(0x6fb3a6, 1.0f - 0.9f * t)), nullptr);
+        material::skia::toSkColor(material::hexColor(0x6fb3a6, 1.0f - 0.9f * t)), nullptr);
     canvas.drawCircle(centre, 14.0f * (float)ring, paint);
   }
 }

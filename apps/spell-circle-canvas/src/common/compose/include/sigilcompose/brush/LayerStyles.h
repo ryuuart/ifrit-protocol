@@ -159,8 +159,8 @@ inline Overlay gradientOverlay(material::Paint gradient,
  *  on top. Attach with `.filter()`, and chain with `.then()` for a tighter
  *  core over a wider halo: `text(...).filter(styles::textGlow(cyan, 6))`.
  *  The kernel's `Effect::glow`, under the name this family gives it. */
-inline material::skia::Effect textGlow(material::Color color, float sigma) {
-  return material::skia::Effect::glow(material::skia::toSkColor(color), sigma);
+inline material::Filter textGlow(material::Color color, float sigma) {
+  return material::Filter::glow(color, sigma);
 }
 
 /** The water/heat warp: the node's rendered layer resampled through a sine
@@ -174,7 +174,7 @@ inline material::skia::Effect textGlow(material::Color color, float sigma) {
  *  a moving `phase`, and the node re-records on every change. Keep it for
  *  moments that earn it, or pair it with Cache::None so the node is not
  *  paying to invalidate a cache it never keeps. */
-material::skia::Effect ripple(float amplitudePx, float wavelengthPx,
+material::Filter ripple(float amplitudePx, float wavelengthPx,
                               float phase = 0.0f, bool vertical = false);
 
 }  // namespace sigil::compose::styles

@@ -97,7 +97,7 @@ TEST(KitEras, TheKeylineIsStrokedOutsideTheSilhouetteAndZeroWidthDropsIt) {
 
 TEST(KitEras, TheGelBodyLightsItsBottomEdgeAndTheHaloIsWhatItReserves) {
   Host host(200, 140);
-  const kit::AquaBody body{hexColor(0x1E8FFF), {}};
+  const kit::AquaBody body{material::hexColor(0x1E8FFF), {}};
   host.composer.render(panel(Decoration(body)));
   host.frame();
   // Light from below: the bottom of the surface beats its middle.
@@ -109,7 +109,7 @@ TEST(KitEras, TheGelBodyLightsItsBottomEdgeAndTheHaloIsWhatItReserves) {
   kit::AquaGelOptions dark;
   dark.halo = false;
   EXPECT_GT(body.bleed({160, 100}), 0.0f);
-  const kit::AquaBody unhaloed{hexColor(0x1E8FFF), dark};
+  const kit::AquaBody unhaloed{material::hexColor(0x1E8FFF), dark};
   EXPECT_FLOAT_EQ(unhaloed.bleed({160, 100}), 0.0f);
 }
 
@@ -128,7 +128,7 @@ TEST(KitEras, TheLensRampFadesToItsEndAndPaintsNothingBelowIt) {
 }
 
 TEST(KitEras, AnOrbReservesItsHaloFromTheResolvedSize) {
-  const LayerStyle orb = kit::aquaOrb(hexColor(0x1E8FFF));
+  const LayerStyle orb = kit::aquaOrb(material::hexColor(0x1E8FFF));
   ASSERT_FALSE(orb.under.empty());
   for (float height : {64.0f, 256.0f}) {
     const Shadow shadow{{}, {0, height * 0.25f}, height * 0.40f};
