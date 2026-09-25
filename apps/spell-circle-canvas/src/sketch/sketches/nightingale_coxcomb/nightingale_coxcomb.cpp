@@ -103,19 +103,21 @@ namespace {
 
 // ---------------------------------------------------------------------------
 // THE SHEET'S GRID. The canvas keeps the plate's 35:19. Both hubs stand on
-// one row, the titles and captions on two rows above them, and the legend
-// and the imprint close the sheet on a shared bottom line inside the
-// plate mark.
+// one row, the titles and captions on two rows above them with every rule
+// under them on a third, and the legend and the imprint close the sheet on
+// a shared bottom line inside the plate mark. The legend's margin is the
+// small wheel's west rim, so the wheel and the passage under it hang from
+// one edge.
 
 constexpr SkSize kCanvas{1900, 1032};
 constexpr float kPlateMark = 22.0f;  // inset of the copper's impression
 constexpr float kAxis = 950.0f;      // the fold, and the titles' centre
 constexpr float kTitleRow = 56.0f;
 constexpr float kCaptionRow = 94.0f;
+constexpr float kRuleRow = kCaptionRow + 16.0f;
 constexpr float kHubRow = 396.0f;
-constexpr float kLegendLeft = 170.0f;
 constexpr float kLegendTop = 616.0f;
-constexpr float kLegendMeasure = 720.0f;
+constexpr float kLegendRight = 890.0f;
 constexpr float kBottomLine = 980.0f;  // the last line the sheet sets
 constexpr float kRightMargin = kPlateMark + 40.0f;
 
@@ -282,6 +284,9 @@ struct NightingaleCoxcomb {
             .textStroke(0.9f, Fill::currentInk()),
         rule("h2").fontSize(1.35_rem),
         rule("caption").fontSize(1.05_rem),
+        // The hairline ruled under each diagram's date line, a little
+        // shorter than the line it closes.
+        rule(".date-rule").width(292).ink(var("ink-soft")),
         rule(".numeral").fontWeight(700).fontSize(1.2_rem),
         rule(".first label").fontSize(1_rem).letterSpacing(0.4).textStroke(
             0.35f, Fill::currentInk()),
@@ -379,6 +384,9 @@ struct NightingaleCoxcomb {
     const auto arrive = [](float startMs) {
       return animate(from(0.0f).to(1.0f), ramp(startMs, 320));
     };
+    const auto ruled = [](float startMs) {
+      return animate(from(0.0f).to(1.0f), ramp(startMs, 420, ch::easeOutQuint));
+    };
     const auto numbered = [&](const Diagram& diagram, const char* number,
                               const char* caption, float startMs) {
       return box().cover().children({
@@ -387,6 +395,10 @@ struct NightingaleCoxcomb {
           document::caption(caption)
               .centerAt({diagram.hub.x(), kCaptionRow})
               .opacity(arrive(startMs + 90)),
+          kit::line({})
+              .styleClass("date-rule")
+              .centerAt({diagram.hub.x(), kRuleRow + 0.5f})
+              .scaleX(ruled(startMs + 200)),
       });
     };
     // An echo takes its colour as a value and not as the ink in force, so
@@ -404,10 +416,9 @@ struct NightingaleCoxcomb {
             .centerAt({kAxis, kCaptionRow}),
         kit::line({.length = Dimension(368),
                    .pair = kit::Line::Companion{.thickness = 1.0f, .gap = 3.0f}})
-            .at({kAxis - 184, kCaptionRow + 18})
+            .at({kAxis - 184, kRuleRow})
             .transformOrigin(pct(0), pct(50))
-            .scaleX(animate(from(0.0f).to(1.0f),
-                            ramp(1120, 420, ch::easeOutQuint))),
+            .scaleX(ruled(1120)),
         numbered(first, "1.", "APRIL 1854 to MARCH 1855.", first.spokes * 1000 - 150),
         numbered(second, "2.", "APRIL 1855 to MARCH 1856.", second.spokes * 1000 - 150),
     });
@@ -647,16 +658,20 @@ struct NightingaleCoxcomb {
 
   /** THE LEGEND in the engraver's roundhand: one passage of five
    *  sentences, each hung at the margin with its run-on lines indented,
-   *  on one leading. A pen writes it line by line, each line starting
-   *  a fifth of a second after the one above. */
+   *  on one leading. Its margin is the small wheel's west rim — the outer
+   *  corner of the April 1855 wedge at nine o'clock, where the leader
+   *  leaves it. A pen writes it line by line, each line starting a fifth
+   *  of a second after the one above. */
   Element key() const {
+    const float margin =
+        kPlate.about(second.hub).px(270.0f, radiusOf(second.months[9].disease)).x();
     std::string words;
     for (const std::string& sentence : legend)
       words += (words.empty() ? "" : "\n") + sentence;
     const Spread pen = Spread{.eachMs = 200}.then({.amountMs = 620, .durationMs = 30});
     return document::paragraph(words)
-        .at({kLegendLeft, kLegendTop})
-        .width(kLegendMeasure)
+        .at({margin, kLegendTop})
+        .width(kLegendRight - margin)
         .textFx({.effect = textFx::typeOn(),
                  .stagger = pen,
                  .unit = weave::Unit::Line,
@@ -717,7 +732,7 @@ struct NightingaleCoxcomb {
                 .months = readWheel(*deaths, 2),
                 .hub = {430, kHubRow},
                 .labelFloor = 160,
-                .labelGap = 14,
+                .labelGap = 11,
                 .labelLineStep = 14,
                 .spokes = 3.85f,
                 .wedges = 4.05f,
