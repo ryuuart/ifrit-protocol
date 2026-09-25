@@ -17,7 +17,7 @@ sigil_library(SigilMotionValues
   SOURCES Animated.cpp Transition.cpp
   HEADERS Animatable.h Animated.h Lanes.h
           Oscillator.h Spring.h Tween.h Time.h Transition.h
-  PUBLIC SigilMotionBind SigilMotionClock SigilCoreComparable
+  PUBLIC SigilMotionBind SigilMotionClock SigilMotionSchedule SigilCoreComparable
          SigilCoreCompute)
 
 # Links the values and the clock that drives them, and nothing that

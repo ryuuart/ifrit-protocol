@@ -190,9 +190,10 @@ float resolveFloatAt(const AnimatedFloat* animated, const Animatable<float>& pro
 bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                        const Animatable<float>& previousValue,
                        const Animatable<float>& nextValue,
-                       const std::optional<Transition>& fallback) {
-  ResolvedProperty<float> prev = resolveProperty(previousValue, fallback);
-  ResolvedProperty<float> next = resolveProperty(nextValue, fallback);
+                       const std::optional<Transition>& fallback,
+                       Place place) {
+  ResolvedProperty<float> prev = resolveProperty(previousValue, fallback, place);
+  ResolvedProperty<float> next = resolveProperty(nextValue, fallback, place);
   // Snap semantics must actually LAND: a lingering ramp from an earlier
   // transition would shadow the constant description forever
   // (resolveFloatAt prefers a started ramp), so the snap paths stop it.
@@ -256,15 +257,18 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
 }
 
 void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
-                   const Animatable<float>& property, float extraDelaySeconds) {
-  const Tween<float>* tween = property.described();
-  if (!tween || !tween->from) return;
-  const float from = *tween->from;
+                   const Animatable<float>& property, Place place) {
+  const Tween<float>* described = property.described();
+  if (!described || !described->from) return;
+  const Tween<float> resolved = described->resolved(place);
+  const Tween<float>* tween = &resolved;
+  const float from = tween->from->value();
   std::vector<Ramp::Segment> segments;
   if (!tween->keyframes.empty()) {
     // An undurationed step takes the tween's duration divided by the
     // number of steps; an uncurved one takes the tween's curve.
-    const Duration share = tween->duration / (double)tween->keyframes.size();
+    const Duration share =
+        tween->duration.value() / (double)tween->keyframes.size();
     float at = from;
     for (const Keyframe<float>& step : tween->keyframes) {
       segments.push_back({at, step.to,
@@ -274,8 +278,9 @@ void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
     }
   } else {
     // A from→to that goes nowhere and does not repeat is not an entrance.
-    if (!tween->to || (from == *tween->to && tween->loop == 0)) return;
-    segments.push_back({from, *tween->to, segmentSeconds(tween->duration),
+    if (!tween->to || (from == tween->to->value() && tween->loop == 0)) return;
+    segments.push_back({from, tween->to->value(),
+                        segmentSeconds(tween->duration.value()),
                         tween->easing()});
   }
   auto& anim = held;
@@ -283,9 +288,9 @@ void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
   anim->value = from;
   anim->started = true;
   anim->target = tween->rest();
-  // A staggered entrance's carry, then the declared delay: the `from` is
-  // held for both before the motion starts.
-  const float lead = segmentSeconds(tween->delay) + extraDelaySeconds;
+  // The declared delay — a staggered one already resolved for this child —
+  // holds the `from` before the motion starts.
+  const float lead = segmentSeconds(tween->delay.value());
   start(ticker, *anim,
         std::make_shared<Ramp>(anim->value.cell(), from, lead > 0 ? lead : 0.0,
                                std::move(segments), passesOf(tween->loop),
@@ -297,12 +302,12 @@ bool isLive(const AnimatedFloat* animated, const Animatable<float>& property) {
 }
 
 void progressRamp(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
-                  const Transition& spec, float extraDelaySeconds) {
+                  const Transition& spec) {
   if (!held) held = std::make_unique<AnimatedFloat>();
   held->value = 0.0f;
   held->started = true;
   held->target = 1.0f;
-  const float delay = segmentSeconds(spec.delay) + extraDelaySeconds;
+  const float delay = segmentSeconds(spec.delay);
   start(ticker, *held,
         std::make_shared<Ramp>(
             held->value.cell(), 0.0f, delay > 0 ? delay : 0.0,

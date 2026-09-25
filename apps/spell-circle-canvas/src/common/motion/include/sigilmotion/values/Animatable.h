@@ -225,10 +225,20 @@ inline Animatable<float> bind(const Animatable<float>& source,
   return bound;
 }
 
-static_assert(core::kFieldCount<Tween<float>> == 9,
-              "Tween gained or lost a field — rule on it in tweenEqual(), "
-              "which propertyEqual() below reads a described motion by, then "
-              "bump this count.");
+namespace detail {
+/** THE FIELD PIN on a tween: a structured binding names every field, so a
+ *  field added to or taken from `Tween` fails to compile here until it is
+ *  ruled on in `tweenEqual()` — which `propertyEqual()` below reads a
+ *  described motion by — and named in this list. A staggered field
+ *  converts from anything its value does, which a counted pin cannot see
+ *  past, so this one is spelled out. */
+inline auto fields(Tween<float>& tween) {
+  auto& [from, to, keyframes, duration, delay, ease, loop, alternate,
+         composition] = tween;
+  return std::tie(from, to, keyframes, duration, delay, ease, loop, alternate,
+                  composition);
+}
+}  // namespace detail
 
 /** TWO SLOTS ARE EQUAL when they take the same form and that form's
  *  contents are equal: a constant by `==`, a described motion by

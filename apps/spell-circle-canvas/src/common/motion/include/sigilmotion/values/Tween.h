@@ -10,6 +10,7 @@
  */
 
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/time/Duration.h>
 
 #include <chrono>
@@ -65,8 +66,10 @@ struct Keyframe {
  *    carries a different one the property eases there from wherever it is,
  *    over this tween's timing, instead of snapping.
  *
- *  `delay` holds the value where it stands before the motion starts, which
- *  is the stagger primitive. `loop` plays the motion that many more times
+ *  `delay` holds the value where it stands before the motion starts.
+ *  `from`, `to`, `duration` and `delay` each take a plain value or a
+ *  `stagger()`, which a host resolves from the child's place among its
+ *  siblings: `.delay = stagger(40ms)` is the one-line cascade. `loop` plays the motion that many more times
  *  (-1 for ever) and `alternate` plays every other one backwards.
  *  `composition` says what a change mid-flight does to the motion already
  *  running.
@@ -75,25 +78,40 @@ struct Keyframe {
  *  `from` before `to`. */
 template <typename T>
 struct Tween {
-  std::optional<T> from;
-  std::optional<T> to;
+  std::optional<Staggered<T>> from;
+  std::optional<Staggered<T>> to;
   /** The path after `from`, step by step. Non-empty, the last step's `to`
    *  is where the motion comes to rest and `.to` is not read. */
   std::vector<Keyframe<T>> keyframes;
-  Duration duration = std::chrono::milliseconds(250);
-  Duration delay{};
+  Staggered<Duration> duration = Duration(std::chrono::milliseconds(250));
+  Staggered<Duration> delay = Duration{};
   Easing ease = ease::outQuad;
   int loop = 0;
   bool alternate = false;
   Composition composition = Composition::Replace;
 
   /** WHERE THE MOTION COMES TO REST: the last keyframe's `to`, else `to`,
-   *  else `from`. */
+   *  else `from` — for a child alone; `resolved()` places it first. */
   [[nodiscard]] T rest() const {
     if (!keyframes.empty()) return keyframes.back().to;
-    if (to) return *to;
-    if (from) return *from;
+    if (to) return to->value();
+    if (from) return from->value();
     return T{};
+  }
+  /** THIS TWEEN FOR THE CHILD AT @p place: every staggered field resolved
+   *  to that child's plain value. */
+  [[nodiscard]] Tween resolved(Place place) const {
+    Tween out = *this;
+    if (from) out.from = from->at(place);
+    if (to) out.to = to->at(place);
+    out.duration = duration.at(place);
+    out.delay = delay.at(place);
+    return out;
+  }
+  /** Whether any field differs per child. */
+  [[nodiscard]] bool isStaggered() const {
+    return (from && from->isStaggered()) || (to && to->isStaggered()) ||
+           duration.isStaggered() || delay.isStaggered();
   }
   /** The curve, with an empty one read as the default. */
   [[nodiscard]] const Easing& easing() const {
@@ -111,14 +129,16 @@ struct Tween {
    *  tween with no `from` starts at `to`. Needs `T` to add, subtract and
    *  scale by a float. */
   [[nodiscard]] T at(Duration time) const {
-    const T start = from ? *from : rest();
+    const T start = from ? from->value() : rest();
+    const Duration length = duration.value();
+    const Duration wait = delay.value();
     std::vector<Keyframe<T>> steps = keyframes;
-    if (steps.empty()) steps.push_back({rest(), duration, {}});
-    const Duration share = duration / (double)steps.size();
+    if (steps.empty()) steps.push_back({rest(), length, {}});
+    const Duration share = length / (double)steps.size();
     Duration pass{};
     for (const Keyframe<T>& step : steps) pass += step.duration.value_or(share);
-    if (time <= delay) return start;
-    Duration into = time - delay;
+    if (time <= wait) return start;
+    Duration into = time - wait;
     int index = 0;
     if (pass > Duration{}) {
       index = (int)std::floor(into / pass);
@@ -128,13 +148,14 @@ struct Tween {
     if (alternate && index % 2 == 1) into = pass - into;
     T at = start;
     for (const Keyframe<T>& step : steps) {
-      const Duration length = step.duration.value_or(share);
-      if (into <= length) {
-        const float unit = length > Duration{} ? (float)(into / length) : 1.0f;
+      const Duration stepLength = step.duration.value_or(share);
+      if (into <= stepLength) {
+        const float unit =
+            stepLength > Duration{} ? (float)(into / stepLength) : 1.0f;
         const Easing& curve = step.ease ? step.ease : easing();
         return at + (step.to - at) * curve(unit);
       }
-      into -= length;
+      into -= stepLength;
       at = step.to;
     }
     return at;

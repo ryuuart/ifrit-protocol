@@ -23,7 +23,7 @@ what a consumer uses; every public header lives under
 | `SigilMotionBind`   | `bind/Binding.h`, `bind/WiggleNoise.h` | `Binding`, the stages a followed number is shaped through as fields, with `Range`, `Envelope` and its `envelope::` factories, and `Wiggle`; the wiggle noise field |
 | `SigilMotionValues` | `values/Tween.h`, `values/Transition.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Spring.h`, `values/Time.h` | `Tween`, `Keyframe`, `Composition`, `animate()` and `tweenEqual()`; `Transition`, `clamp01()` and `transitionEqual()`; `Animatable<T>`, `animatable()`, `bind()` and `propertyEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/ClockPolicy.h`, `clock/Ticker.h` | the clock; `ClockPolicy` and `PolicyClock`, who moves it and the budget set with it; and the ticker |
-| `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h` | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
+| `SigilMotionSchedule` | `schedule/Stagger.h`, `schedule/Schedule.h` | `stagger()`, `cues()` and `Staggered<V>`, a value that differs per child, with `StaggerOptions`, `StaggerFrom`, `StaggerAxis` and `Place`; `staggerSteps()`, the orderings; `Timing`, and `Schedule` and `Beat`, a timing resolved against a frame's counts |
 | `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Neighbourhood.h`, `physics/Constraints.h`, `physics/Verlet.h`, `physics/Particles.h` | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Neighbourhood`, the grid a flock and everything else that reads more than one point at a time asks what is near what; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper; `Particles` and `Attribute`, a point set that is born, ages and dies, with `Emitter`, `EmitFrom`, `Roughly`, `BirthAttribute` and `FixedAttribute`, what puts particles into one |
 
 `SigilMotion` is the umbrella target over all seven, so a consumer of
@@ -50,7 +50,7 @@ feature it names, and everything below is the library as a whole.
 | **[VALUES.md](VALUES.md)** | `Tween` and `Transition`, `Animatable<T>` and its four forms, the held `AnimatedFloat` a ticker runs, `Oscillator`, `Spring`, the lanes a host retargets through, and the three words for stillness |
 | **[BIND.md](BIND.md)** | `bind()`, the `Binding` fields and the fixed order `Binding::apply` runs them in, the envelopes that are the waveform vocabulary, and the wiggle field |
 | **[PHYSICS.md](PHYSICS.md)** | `Points`, `Force`, `Neighbourhood`, `Constraint` and `Verlet`: the one feature here that is stepped rather than read, and `Particles` with the `Emitter` that fills it |
-| **[SCHEDULE.md](SCHEDULE.md)** | `Spread`, `cascadeOrder()` and `Cascade`: how N units share one progress, from a master float and nothing else |
+| **[SCHEDULE.md](SCHEDULE.md)** | `stagger()`, a value per child resolved from its place among its siblings; `Timing` and `Schedule`: how N units share one progress, from a master float and nothing else |
 
 ## Comparing two descriptions
 
@@ -84,7 +84,7 @@ under SigilCore that depend on the standard library and nothing else:
 sits under — so that a `static_assert` about `Binding`'s field count
 lives in the same file as `Binding` — and `SigilCoreCompute` for the
 seeded mixer the scattered ordering ranks with, so that a
-`Spread::From::Random` permutation is the same permutation wherever in
+`StaggerFrom::Random` permutation is the same permutation wherever in
 the tree it is dealt,
 for the noise field a wind reads, so that a flow a simulation drifts
 along and the same flow drawn as a picture are the same field, and for
@@ -139,7 +139,7 @@ the umbrella.
 | `clock/test/` | `FrameClock`, `PolicyClock`, `Ticker` | one reading after another, pause, time scale and the stall ceiling; which frames each policy lets move the clock and the budget that runs out once; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
 | `values/test/` | `Values`, `Forms`, `Animated`, `Lanes`, `Oscillator`, `Spring` | `Tween` and `Transition`, a tween read at a time, `quantizeTime`, the four forms an `Animatable<T>` holds, the two signals read from a time alone, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
 | `physics/test/` | `Physics`, `Particles` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, the same run reproduced from the same `timeStep`, and the degenerate settings a caller can hand in; then a rate that produces the count it promises, a mouth that puts its births where its shape says, lifetimes that expire and compact the set, a named attribute that rides through a death, and the same seed twice as the same cloud | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
-| `schedule/test/` | `Spread`, `Order`, `Cascade`, `CascadeOrdering` | the orderings, the ladder, cue tables, the nested and looping cascade, and the field walk over a spread's equality | **the clock** — a cascade is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
+| `schedule/test/` | `Stagger`, `Order`, `Schedule`, `ScheduleOrdering` | a stagger resolved per child, the orderings, the ladder, cue tables, the nested and looping schedule, and a stagger's equality | **the clock** — a schedule is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
 
 No binary needs a GPU, a font, an asset or a network, so none carries a
 label and none skips. **No test in any of them reads a wall clock

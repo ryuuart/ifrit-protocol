@@ -24,10 +24,9 @@
  *  through as fields, and the wiggle noise laid over the result
  *  (bind/Binding.h, bind/WiggleNoise.h). */
 /** @defgroup motion-schedule Schedules
- *  How a run of units shares one progress: the spread, the orderings a
- *  cascade runs in, and a spread resolved against a frame's counts into
- *  a beat per unit (schedule/Spread.h, schedule/Order.h,
- *  schedule/Cascade.h). */
+ *  A value that differs per child, the orderings it deals in, and how a
+ *  run of units shares one progress: a timing resolved against a frame's
+ *  counts into a beat per unit (schedule/Stagger.h, schedule/Schedule.h). */
 /** @defgroup motion-physics Physics
  *  A point set that is stepped rather than read: the lanes a simulation
  *  is, the forces and constraints over them, the grid that answers what

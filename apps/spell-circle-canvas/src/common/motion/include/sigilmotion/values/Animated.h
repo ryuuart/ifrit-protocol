@@ -64,26 +64,29 @@ struct ResolvedProperty {
   std::optional<Transition> transition;
 };
 
-/** A described motion's timing as the transition a change eases by. */
+/** A described motion's timing as the transition a change eases by, for
+ *  the child at @p place. */
 template <typename T>
-Transition transitionOf(const Tween<T>& tween) {
-  return {tween.duration, tween.delay, tween.easing(), tween.composition};
+Transition transitionOf(const Tween<T>& tween, Place place = {}) {
+  return {tween.duration.at(place), tween.delay.at(place), tween.easing(),
+          tween.composition};
 }
 
 /** Reads one animatable against a transition the caller supplies as its
  *  default: a constant takes that default, a described motion keeps its
- *  own spec instead, and a live value takes neither — it is already a
- *  running number. */
+ *  own timing instead — resolved for the child at @p place — and a live
+ *  value takes neither: it is already a running number. */
 template <typename T>
 ResolvedProperty<T> resolveProperty(const Animatable<T>& property,
-                                    const std::optional<Transition>& fallback) {
+                                    const std::optional<Transition>& fallback,
+                                    Place place = {}) {
   ResolvedProperty<T> out;
   if (const T* constant = property.constant()) {
     out.target = *constant;
     out.transition = fallback;
   } else if (const Tween<T>* described = property.described()) {
-    out.target = described->rest();
-    out.transition = transitionOf(*described);
+    out.target = described->resolved(place).rest();
+    out.transition = transitionOf(*described, place);
   } else {
     out.live = &property;
   }
@@ -99,20 +102,22 @@ float resolveFloatAt(const AnimatedFloat* animated, const Animatable<float>& pro
  *  changed. Returns true if a motion is running. The motion is passed
  *  rather than an index into a store, because how many of these a
  *  consumer keeps and where is the consumer's business — one body,
- *  every storage. */
+ *  every storage. @p place is where the value's owner stands among its
+ *  siblings, which a staggered tween resolves against. */
 bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                        const Animatable<float>& previousValue,
                        const Animatable<float>& nextValue,
-                       const std::optional<Transition>& fallback);
+                       const std::optional<Transition>& fallback,
+                       Place place = {});
 
 /** An entrance: a tween that names `.from` plays from there — through its
  *  keyframes, or to `.to` — when it FIRST appears: there is no previous
  *  value to diff against, so `from` is the "previous" the author
- *  declared. It repeats as its `loop` and `alternate` say.
- *  `extraDelaySeconds` is what the caller adds before the declared delay
- *  (a staggered entrance). A value with no entrance starts nothing. */
+ *  declared. It repeats as its `loop` and `alternate` say, and every
+ *  staggered field resolves against @p place, where the owner stands among
+ *  its siblings. A value with no entrance starts nothing. */
 void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
-                   const Animatable<float>& property, float extraDelaySeconds);
+                   const Animatable<float>& property, Place place = {});
 
 /** IS THIS VALUE MOVING RIGHT NOW? A live value always is — the hand that
  *  writes it can stop at any frame and nothing here can see when — and a
@@ -132,9 +137,8 @@ bool isLive(const AnimatedFloat* animated, const Animatable<float>& property);
  *  two-image dissolve. The host keeps the endpoints and reads this
  *  progress between them, and because the ramp is authored here rather
  *  than at each such site, the mount and the retarget of one cannot drift
- *  apart. `extraDelaySeconds` is what the caller adds before the
- *  transition's own delay, exactly as `mountEntrance` takes it. */
+ *  apart. */
 void progressRamp(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
-                  const Transition& spec, float extraDelaySeconds);
+                  const Transition& spec);
 
 }  // namespace sigil::motion

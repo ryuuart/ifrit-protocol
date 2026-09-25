@@ -1,57 +1,89 @@
 # SigilMotion — the schedules
 
-The chapter on how a run of units shares one progress: the spread that
-says it, the orderings it deals in, and the cascade that resolves it
-against the counts a frame actually has. `README.md` beside this file is
-the library. Nothing here reads a clock, which is the point.
+The chapter on values that differ per child and on how a run of units
+shares one progress: `stagger()`, the value a tween field takes to step or
+spread from one sibling to the next; the orderings it deals in; and the
+`Schedule` a `Timing` resolves into against the counts a frame actually
+has. `README.md` beside this file is the library. Nothing here reads a
+clock, which is the point.
+
+## A value per child
+
+A stagger is a VALUE, not a verb on a parent: it sits in the field of
+the child's own tween, and a host resolves it from the child's `Place`
+among its siblings when it lays the child out.
+
+```cpp
+#include <sigilmotion/schedule/Stagger.h>
+
+using namespace sigil::motion;
+
+.opacity(animate({.from = 0.0f, .to = 1.0f, .delay = stagger(40ms)}))    // 0, 40, 80… ms
+.rotate(animate({.to = stagger({0.0f, 360.0f})}))                         // first child 0, last 360
+.opacity(animate({.from = 0.0f, .to = 1.0f,
+                  .delay = stagger(60ms, {.from = StaggerFrom::Center})}))  // outward from the middle
+```
+
+`stagger(each)` steps from one child to the next; `stagger({first, last})`
+spreads a value from the first child's to the last's, whatever the count;
+`cues({…})` states every child's value outright, past the end the last.
+The options are anime.js's — `.from` (`StaggerFrom::First`, `Center`,
+`Last`, `Edges`, `Random`, or a child's index), `.grid = {columns, rows}`
+and `.axis` for a distance across a grid, `.ease` for how the values
+crowd, `.start` added to every value, `.reverse` — plus the house `.seed`
+for the scatter and `.rankBy`, an order stated as one number per child,
+dealt smallest first with ties together. `Staggered<V>::at()` is the
+resolution a host runs; `Staggered<V>::value()` is the value for a child
+alone.
+
+`StaggerFrom::Center` and `StaggerFrom::Edges` span the same number of
+steps as `StaggerFrom::First`, so a run's total is the same whichever end
+it opens from.
 
 ## How N units share one progress
 
-A `Spread` says how a run of units divides one master progress between
-them — the delay between one and the next, the order they are dealt in,
-how long one unit's own motion lasts, and whether the whole thing loops.
-It says nothing about WHAT a unit is. `Cascade` resolves it against the
-counts a frame actually has, and then answers per index:
+A text track's glyphs are units, not children, and they share ONE master
+progress: `Timing{.delay, .duration, .loop, .within}` says when each
+unit's beat opens (a stagger, a table, or a plain duration they all
+share), how long one unit's own motion lasts, whether the whole thing
+loops, and a second stagger inside every beat. `Schedule` resolves it
+against the counts a frame actually has, and then answers per index:
 
 ```cpp
-Spread spec{.eachMs = 60, .durationMs = 420};
-spec.from = Spread::From::Center;
+#include <sigilmotion/schedule/Schedule.h>
 
-Cascade cascade;                     // reused in place across frames
-cascade.build(spec, unitCount, 0);
+const Timing timing{.delay = stagger(60ms, {.from = StaggerFrom::Center}),
+                    .duration = 420ms};
+Schedule schedule;                   // reused in place across frames
+schedule.build(timing, unitCount, 0);
 for (uint32_t i = 0; i < unitCount; ++i)
-  paint(i, cascade.localTime(master, i, 0));   // this unit's own 0→1
+  paint(i, schedule.localProgress(master, i));   // this unit's own 0→1
 ```
 
 `master` is a float in [0, 1] the caller owns — a track's progress, a
 lane, a bare `phase()`. That is the whole interface, and it is why the
-schedule feature links no clock: nothing in it reads time, so a text
-engine, a set mounting its children, a feed's rows and a study's loop
-counter can all drive the same body from four different clocks.
+schedule feature links no clock: nothing in it reads time.
 
-`spanMs()` is the DECLARE-TIME half: what a progress transition's
+`Timing::span()` is the DECLARE-TIME half: what a progress transition's
 duration has to be for the last beat to close exactly as the master
-arrives at 1, before any of the units exist. `Cascade::totalMs` is the
-same number off a resolved cascade, and the two agree because one body
-computes both.
+arrives at 1, before any of the units exist. `Schedule::total()` is the
+same number off a resolved schedule, and the two agree because one body
+computes both. `Timing::loop` turns any timing into a wrapping beat: each
+unit re-opens on its own cycle, offset by its start, and one sweep of the
+master 0→1 is one cycle.
 
-Four things a spread can be, in the order they override each other: an
-even ladder (`eachMs`), a fixed total divided across whatever the count
-turns out to be (`amountMs`), an irregular table of start times cut
-against a recording (`cueMs`, which replaces the ladder, the order and
-the distribution outright, and which `Spread::cues()` sets on a spread
-already in hand), and a second spread nested inside every beat
-of the first (`then()`, exactly one level deep). `rankBy` is the ORDER
-said the same way: one number per unit — a radius, a role, a depth from a
-root — and the ladder is dealt smallest first, ties opening together. It
-replaces `from` and `seed` and yields to a cue table, and everything else
-the spread says still applies. `loopMs` turns any of
-them into a wrapping beat: each unit re-opens on its own cycle, phase-
-offset by its start, and one sweep of the master 0→1 is one cycle.
+`Schedule::beat()` is the schedule read BACK rather than driven — start,
+local progress and whether the beat is running — for anything that has
+to travel with a schedule without being one of its units: a playhead, a
+travelling underline, a per-unit meter.
 
-`Cascade::beat()` is the schedule read BACK rather than driven — start
-time, local time and whether the beat is running — for anything that has
-to travel with a cascade without being one of its units: a playhead, a
-travelling underline, a per-unit meter. Without it each of those restates
-`i · eachMs` and stops agreeing with the engine the moment the cascade
-nests or takes a table.
+## Gotchas
+
+A cue table of the wrong length warns once per shape: a unit past the end
+starts at the table's last time, and entries past the last unit are
+never read. A `rankBy` of the wrong length does the same.
+
+A scatter (`StaggerFrom::Random`) is keyed on the unit count and the
+seed, so the same count and seed deal the same order on every frame and
+after every rebuild; two same-count staggers with seed 0 scatter
+identically, and a nonzero seed deals an independent one.

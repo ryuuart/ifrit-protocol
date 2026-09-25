@@ -67,20 +67,23 @@ std::span<const Lane<Family>> familyLanes(std::span<const Lane<Family>> lanes,
 
 /** The fixed slots between two descriptions: every row both lists carry
  *  is retargeted; a row neither carries is skipped; a row one side lacks
- *  ramps from or to the lane's standing value. */
+ *  ramps from or to the lane's standing value. @p place is where the
+ *  node stands among its siblings, for a staggered tween. */
 template <class Family>
 void retargetSlots(Ticker& ticker,
                    std::span<std::unique_ptr<AnimatedFloat>> animated,
                    std::span<const Lane<Family>> previous,
                    std::span<const Lane<Family>> next,
-                   const std::optional<Transition>& nodeDefault) {
+                   const std::optional<Transition>& nodeDefault,
+                   Place place = {}) {
   for (size_t i = 0; i < next.size(); ++i) {
     if (!previous[i].value && !next[i].value)
       continue;  // neither description carries it: nothing to ramp
     const Animatable<float> standing = next[i].standing;
     transitionFloatAt(ticker, animated[next[i].slot.index],
                       previous[i].value ? *previous[i].value : standing,
-                      next[i].value ? *next[i].value : standing, nodeDefault);
+                      next[i].value ? *next[i].value : standing, nodeDefault,
+                      place);
   }
 }
 
@@ -93,7 +96,8 @@ template <class Family>
 void retargetFamily(Ticker& ticker, AnimatedFloats& animated,
                     std::span<const Lane<Family>> previous,
                     std::span<const Lane<Family>> next,
-                    const std::optional<Transition>& nodeDefault) {
+                    const std::optional<Transition>& nodeDefault,
+                    Place place = {}) {
   if (previous.size() != next.size()) {
     animated.clear();
     animated.resize(next.size());
@@ -104,7 +108,7 @@ void retargetFamily(Ticker& ticker, AnimatedFloats& animated,
     if (animated.size() != next.size()) animated.resize(next.size());
     for (size_t i = 0; i < next.size(); ++i)
       transitionFloatAt(ticker, animated[i], *previous[i].value, *next[i].value,
-                        nodeDefault);
+                        nodeDefault, place);
   }
 }
 
