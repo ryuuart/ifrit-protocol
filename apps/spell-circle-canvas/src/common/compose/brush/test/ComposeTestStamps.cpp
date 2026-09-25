@@ -91,17 +91,17 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
 
 TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
   // A custom() leaf hosting an entire nested Composer: the recursion closes
-  // at the paint phase, with the inner composer owning its own ticker and
+  // at the paint phase, with the inner composer owning its own engine and
   // size and drawing straight onto the outer canvas.
   Host host;
-  auto nestedTicker = std::make_shared<sigil::motion::Ticker>();
-  auto nested = std::make_shared<Composer>(*nestedTicker, fonts());
+  auto nestedEngine = std::make_shared<sigil::motion::Engine>();
+  auto nested = std::make_shared<Composer>(*nestedEngine, fonts());
   nested->setSize({60, 60});
   nested->render(box().padding(10).fill(green()).children(
       {box().flexGrow(1).fill(red())}));
 
   host.composer.render(box().children(
-      {custom([nested, nestedTicker](SkCanvas& c) {
+      {custom([nested, nestedEngine](SkCanvas& c) {
          nested->draw(c);
        })
            .width(60)

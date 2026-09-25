@@ -8,7 +8,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <cstdint>
@@ -50,9 +50,9 @@ Element describeTree(int nodes, const geometry::mesh::Mesh& body, float phase) {
 void MountTree(benchmark::State& state) {
   const int nodes = (int)state.range(0);
   const geometry::mesh::Mesh body = triangle();
-  motion::Ticker ticker;
+  motion::Engine engine;
   for ([[maybe_unused]] auto iteration : state) {
-    Scene scene(ticker);
+    Scene scene(engine);
     scene.render(describeTree(nodes, body, 0.0f));
     int64_t nodes = scene.stats().nodes;
     benchmark::DoNotOptimize(nodes);
@@ -64,8 +64,8 @@ BENCHMARK(MountTree)->Arg(64)->Arg(512)->Arg(2048);
 void SteadyFrame(benchmark::State& state) {
   const int nodes = (int)state.range(0);
   const geometry::mesh::Mesh body = triangle();
-  motion::Ticker ticker;
-  Scene scene(ticker);
+  motion::Engine engine;
+  Scene scene(engine);
   scene.render(describeTree(nodes, body, 0.0f));
   float phase = 0.0f;
   for ([[maybe_unused]] auto iteration : state) {
@@ -81,8 +81,8 @@ BENCHMARK(SteadyFrame)->Arg(64)->Arg(512)->Arg(2048);
 void PrunedFrame(benchmark::State& state) {
   const int nodes = (int)state.range(0);
   const geometry::mesh::Mesh body = triangle();
-  motion::Ticker ticker;
-  Scene scene(ticker);
+  motion::Engine engine;
+  Scene scene(engine);
   const Element still = describeTree(nodes, body, 0.0f);
   for (int warm = 0; warm < 8; ++warm) scene.render(still);
   for ([[maybe_unused]] auto iteration : state) {
@@ -100,8 +100,8 @@ BENCHMARK(PrunedFrame)->Arg(64)->Arg(512)->Arg(2048);
 void FramePasses(benchmark::State& state) {
   const int nodes = (int)state.range(0);
   const geometry::mesh::Mesh body = triangle();
-  motion::Ticker ticker;
-  Scene scene(ticker);
+  motion::Engine engine;
+  Scene scene(engine);
   float phase = 0.0f;
   geometry::mesh::camera::Camera lens;
   lens.eye = {0, 0, 620};
@@ -131,8 +131,8 @@ BENCHMARK(FramePasses)->Arg(64)->Arg(512);
 void DrawFrame(benchmark::State& state) {
   const int nodes = (int)state.range(0);
   const geometry::mesh::Mesh body = triangle();
-  motion::Ticker ticker;
-  Scene scene(ticker);
+  motion::Engine engine;
+  Scene scene(engine);
   scene.render(describeTree(nodes, body, 0.0f));
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(320, 240));

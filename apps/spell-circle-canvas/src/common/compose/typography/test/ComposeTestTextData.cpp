@@ -622,7 +622,7 @@ TEST(ComposeText, EveryCascadeFieldOfATrackParticipatesInEquality) {
   //
   // The pin beside `Track::sameShape()` makes a NEW field a build failure;
   // this makes the decision about it mechanical.
-  const Track base{.stagger = {.eachMs = 30}};
+  const Track base{.delay = sigil::motion::stagger(30ms)};
   Track over = base;
   over.unit = sigil::weave::Unit::Line;
   EXPECT_FALSE(base.sameShape(over)) << "over";
@@ -632,9 +632,18 @@ TEST(ComposeText, EveryCascadeFieldOfATrackParticipatesInEquality) {
   Track beatsOver = base;
   beatsOver.beatsOver = Beats::Text;
   EXPECT_FALSE(base.sameShape(beatsOver)) << "beatsOver";
-  Track schedule = base;
-  schedule.stagger.eachMs = 31;
-  EXPECT_FALSE(base.sameShape(schedule)) << "the schedule itself";
+  Track delay = base;
+  delay.delay = sigil::motion::stagger(31ms);
+  EXPECT_FALSE(base.sameShape(delay)) << "delay";
+  Track duration = base;
+  duration.duration = 451ms;
+  EXPECT_FALSE(base.sameShape(duration)) << "duration";
+  Track loop = base;
+  loop.loop = 400ms;
+  EXPECT_FALSE(base.sameShape(loop)) << "loop";
+  Track within = base;
+  within.within = sigil::motion::stagger(40ms);
+  EXPECT_FALSE(base.sameShape(within)) << "within";
   EXPECT_TRUE(base.sameShape(base));
 }
 

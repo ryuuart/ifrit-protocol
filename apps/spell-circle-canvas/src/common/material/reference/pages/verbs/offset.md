@@ -24,13 +24,13 @@ guardrails.
 It composes with the recipe's static matrix rather than replacing it:
 the bound values post-translate, so a static phase origin and a bound
 pan add. Either axis may be left empty to pan the other alone, and an
-axis may be a shaped binding chain — a wrapped ramp is a conveyor, a
-ping-pong is a rocking weave — so the arithmetic sits beside the pan it
+axis may be a shaped binding — a wrapped ramp is a conveyor, one that
+alternates is a rocking weave — so the arithmetic sits beside the pan it
 drives.
 
 The BINDING is recipe and participates in `Paint::operator==` as an
-animatable does: a live axis by its output's identity, like a bound
-fill; the values it resolves to belong to the system and never enter the
+animatable does: a live axis by the identity of the cell it reads, like
+a live fill; the values it resolves to belong to the system and never enter the
 prune comparison.
 
 ## Is the pan the whole of what moves?

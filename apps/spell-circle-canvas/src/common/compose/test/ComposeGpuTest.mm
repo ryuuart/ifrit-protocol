@@ -178,8 +178,8 @@ class DirectImageDraw : public testing::TestWithParam<DirectDraw> {};
 TEST_P(DirectImageDraw, ItsPixelsArriveOnGraphite) {
   REQUIRE_GPU();
   const DirectDraw &draw = GetParam();
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
   composer.setSize({200, 200});
   composer.render(draw.describe());
   SkBitmap bm = drawOnGpu(composer, 200, 200);
@@ -345,12 +345,14 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
     return box().padding(20).children({text(u8"VERTIGO", style)
                                            .key("word")
                                            .textFx({.effect = textFx::pop(),
-                                                    .stagger = {.eachMs = 30, .durationMs = 480},
+                                                    .delay = sigil::motion::stagger(
+                                                        std::chrono::milliseconds(30)),
+                                                    .duration = std::chrono::milliseconds(480),
                                                     .progress = 0.55f})});
   };
 
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
   composer.setSize({(float)w, (float)h});
   composer.render(tree());
 
@@ -405,14 +407,14 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
                       .reach = reach})});
   };
   const int w = 200, h = 200;
-  sigil::motion::Ticker snugTicker;
-  Composer snug(snugTicker, fonts());
+  sigil::motion::Engine snugEngine;
+  Composer snug(snugEngine, fonts());
   snug.setSize({(float)w, (float)h});
   snug.render(describe(0.0f));
   const SkBitmap snugPx = drawOnGpu(snug, w, h);
   ASSERT_FALSE(snugPx.empty());
-  sigil::motion::Ticker wideTicker;
-  Composer wide(wideTicker, fonts());
+  sigil::motion::Engine wideEngine;
+  Composer wide(wideEngine, fonts());
   wide.setSize({(float)w, (float)h});
   wide.render(describe(40.0f));
   const SkBitmap widePx = drawOnGpu(wide, w, h);

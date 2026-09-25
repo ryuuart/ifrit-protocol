@@ -55,10 +55,10 @@ TEST(SkiaEffect, AParameterBlurReachesItsOwnBoxAndNotTheClip) {
   // unbound blur answers its store-time snapshot, which knows no box.
   FrameData frame;
   frame.resolution = {120, 120};
-  choreograph::Output<float> sigma(5.0f);
+  sigil::motion::Animatable<float> sigma = sigil::motion::animatable(5.0f);
   Filter blur =
       Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
-  blur.bind("maxSigma", &sigma);
+  blur.bind("maxSigma", sigma);
   const sk_sp<SkImageFilter> filter = skia::resolvedImageFilter(blur, &frame);
   ASSERT_NE(filter, nullptr);
   const SkIRect small =
@@ -79,10 +79,10 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   // only the mix, so two resolves at different sigmas share their blur
   // inputs by identity — which is what lets Skia's filter cache keep the
   // blurred layers between frames while the sigma breathes.
-  choreograph::Output<float> sigma(2.0f);
+  sigil::motion::Animatable<float> sigma = sigil::motion::animatable(2.0f);
   Filter blur =
       Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
-  blur.bind("maxSigma", &sigma);
+  blur.bind("maxSigma", sigma);
   EXPECT_TRUE(blur.isRunning());
   const sk_sp<SkImageFilter> at2 = skia::resolvedImageFilter(blur, nullptr);
   sigma = 6.0f;

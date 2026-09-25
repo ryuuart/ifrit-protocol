@@ -27,7 +27,7 @@ READS.** Three tiers, and nothing chooses between them by hand:
   an image or buffer carrying a `fit()`. It depends on the box, not on the
   clock: `geometryDependent()` is true, and `shaderFor(frame)` answers
   against the box the frame names.
-- LIVE — an effect with a uniform bound to an `Output`, or one reading
+- LIVE — an effect with a uniform bound to a live value, or one reading
   `uTime` or `uContentScale`. `isRunning()` is true and the paint is
   rebuilt every draw; a live CHILD or blend layer makes its parent live,
   which is what stops a cache from freezing the parameter.

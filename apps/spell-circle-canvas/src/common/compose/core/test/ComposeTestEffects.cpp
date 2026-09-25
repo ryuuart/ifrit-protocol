@@ -342,7 +342,7 @@ TEST(ComposeEffects, AStaticDirectionalBlurPrunesByRecipe) {
 
 TEST(ComposeEffects, ABoundDirectionalBlurAngleAnimatesWithoutRedescribe) {
   // Live parameters ride the same uniform channel a Material uses: the
-  // recipe's named parameters accept a bound Output, and the rotate/blur/
+  // recipe's named parameters accept a bound live value, and the rotate/blur/
   // unrotate sandwich is rebuilt per paint. So an animated smear angle needs
   // no new mechanism and no re-describe — which is the difference between
   // animating it and faking it with a stack of pre-baked gradients.
@@ -649,7 +649,7 @@ TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
   // uniform to receive a binding at all. It must warn like the blur paths
   // do — an author animating a filter() uniform otherwise gets neither
   // motion nor diagnostic. Control first: a valid binding on a shader()
-  // stays silent. (The other drop this once covered, a null Output, can no
+  // stays silent. (The other drop this once covered, a null live value, can no
   // longer be spelled: the parameter is an animatable, and the empty case
   // of one is a plain number.)
   sigil::motion::Animatable<float> k = sigil::motion::animatable(0.5f);

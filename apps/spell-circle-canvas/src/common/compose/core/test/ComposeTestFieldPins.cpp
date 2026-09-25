@@ -112,7 +112,11 @@ void perturb(sigil::motion::Envelope& v) {
   v = sigil::motion::envelope::cosine();
 }
 
-void perturb(sigil::motion::Range& v) { v.high += 1.0f; }
+// A range may be unbounded (the clamp's default runs from minus to plus
+// infinity), where adding to an end changes nothing, so it is replaced.
+void perturb(sigil::motion::Range& v) {
+  v = {v.low == 1.0f ? 2.0f : 1.0f, 3.0f};
+}
 
 void perturb(sigil::motion::Wiggle& v) { v.amount += 1.0f; }
 
@@ -419,8 +423,8 @@ TEST(ComposeSlotPins, EverySlotRowReachesItsOwnFieldAtItsStandingDefault) {
     // …and the STANDING endpoint applyTransitions substitutes when a node
     // gains or loses the block really is this field's own default. A wrong
     // number here is a node that jumps on the frame it starts travelling.
-    ASSERT_NE(v->plain(), nullptr) << "slot " << index;
-    EXPECT_FLOAT_EQ(*v->plain(), spec.standing)
+    ASSERT_NE(v->constant(), nullptr) << "slot " << index;
+    EXPECT_FLOAT_EQ(*v->constant(), spec.standing)
         << "slot " << index << "'s `standing` is not the field's default";
   }
   EXPECT_EQ((int)seen.size() + bespoke, (int)cd::Instance::kSlots);

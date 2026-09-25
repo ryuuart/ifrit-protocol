@@ -39,7 +39,7 @@ TEST(ComposeMotionWords, AnimateToIsTheChangeRamp) {
       if (plain)
         inner.opacity(opacity);
       else
-        inner.opacity(animate({.to = opacity, .duration = 200ms}));
+        inner.opacity(motion::animate({.to = opacity, .duration = 200ms}));
       return stack().children({std::move(inner)});
     };
     host.composer.render(describe(1.0f));
@@ -66,9 +66,9 @@ TEST(ComposeMotionWords, ToAloneHasNoEntranceAndFromToDoes) {
     Host host(200, 200);
     Element inner = box().width(100).height(100).fill(red());
     if (withEntrance)
-      inner.opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 400ms}));
+      inner.opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms}));
     else
-      inner.opacity(animate({.to = 1.0f, .duration = 400ms}));
+      inner.opacity(motion::animate({.to = 1.0f, .duration = 400ms}));
     host.composer.render(stack().children({std::move(inner)}));
     host.frame(0.001);
     return (int)SkColorGetR(host.pixel(50, 50));
@@ -131,33 +131,27 @@ TEST(ComposeVolatility, EveryLibrarySchemeDeclaresItWithTheSameWord) {
   EXPECT_FALSE(stat.isRunning());
 }
 
-// ---- Bound::source / ::target ----------------------------------------------
-// -------------------------------------------
-TEST(ComposeMotionWords, TargetIsScaleAndOffsetWrittenAsTwoBounds) {
-  motion::Animatable<float> hp = motion::animatable(0.0f);
-  hp = 25.0f;
-  const sigil::motion::BoundFloat named =
-      motion::bind(hp, {.from = {0, 100}, .to = {-70.0f, 170.0f}}).value();
-  // target(lo, hi) is sugar: the same mapping written as an explicit scale
-  // and offset must agree with it everywhere, including outside the source
-  // range, since neither form clamps.
-  const sigil::motion::BoundFloat manual =
-      motion::bind(hp, {.from = {0, 100}, .to = {-70.0f, 170.0f}}).value();
-  for (float v : {0.0f, 25.0f, 50.0f, 100.0f, 137.0f})
-    EXPECT_FLOAT_EQ(named.apply(v), manual.apply(v)) << "at " << v;
-  EXPECT_FLOAT_EQ(named.apply(0.0f), -70.0f);
-  EXPECT_FLOAT_EQ(named.apply(100.0f), 170.0f);
+// ---- Binding::from / ::to --------------------------------------------------
+TEST(ComposeMotionWords, ToPutsTheSourceRangeOntoTheOutputWithoutClamping) {
+  const motion::Binding mapping{.from = {0, 100}, .to = {-70.0f, 170.0f}};
+  EXPECT_FLOAT_EQ(mapping.apply(0.0f), -70.0f);
+  EXPECT_FLOAT_EQ(mapping.apply(25.0f), -10.0f);
+  EXPECT_FLOAT_EQ(mapping.apply(100.0f), 170.0f);
+  // Outside the source range the line goes on: neither end clamps.
+  EXPECT_NEAR(mapping.apply(137.0f), 258.8f, 1e-3f);
+
+  // A bound value reads the live one through the same stages.
+  motion::Animatable<float> hitPoints = motion::animatable(0.0f);
+  hitPoints = 25.0f;
+  EXPECT_FLOAT_EQ(motion::bind(hitPoints, mapping).value(), -10.0f);
 }
 
-TEST(ComposeMotionWords, WindowIsSourceThatClamps) {
-  motion::Animatable<float> t = motion::animatable(0.0f);
-  const sigil::motion::BoundFloat w =
-      motion::bind(t, {.from = {0.2f, 0.4f}, .clampFrom = true}).value();
-  const sigil::motion::BoundFloat s =
-      motion::bind(t, {.from = {0.2f, 0.4f}}).value();
-  EXPECT_FLOAT_EQ(w.apply(0.3f), s.apply(0.3f));
-  EXPECT_FLOAT_EQ(w.apply(0.9f), 1.0f) << "window clamps";
-  EXPECT_GT(s.apply(0.9f), 1.0f) << "source does not";
+TEST(ComposeMotionWords, ClampFromIsTheSourceRangeThatClamps) {
+  const motion::Binding clamped{.from = {0.2f, 0.4f}, .clampFrom = true};
+  const motion::Binding open{.from = {0.2f, 0.4f}};
+  EXPECT_FLOAT_EQ(clamped.apply(0.3f), open.apply(0.3f));
+  EXPECT_FLOAT_EQ(clamped.apply(0.9f), 1.0f) << "clampFrom clamps";
+  EXPECT_GT(open.apply(0.9f), 1.0f) << "from alone does not";
 }
 
 TEST(ComposeVolatility, ALiveMaterialOnASpanPassDeclaresItself) {

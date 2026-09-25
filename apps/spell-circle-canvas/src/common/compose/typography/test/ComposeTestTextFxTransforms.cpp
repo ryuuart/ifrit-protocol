@@ -95,7 +95,7 @@ TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
         {text(u8"HOLD", whiteStyle(36))
              .key("k")
              .textFx({.effect = std::move(decode),
-                      .stagger = {.eachMs = 40, .durationMs = 200},
+                      .delay = sigil::motion::stagger(40ms), .duration = 200ms,
                       .progress = progress})
              .textFx({.effect = fixed("lift", lift)})}));
     host.frame();

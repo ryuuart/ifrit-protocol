@@ -142,7 +142,7 @@ std::vector<sigil::motion::Animatable<float>>& boardPop() {
 }
 
 /** The staggered entrance, driven from the test loop rather than from a
- *  ticker so both hosts read exactly the same numbers on the same frame. */
+ *  motion so both hosts read exactly the same numbers on the same frame. */
 void setBoardPhase(double t) {
   const double now = std::fmod(t, kGroupPeriod);
   for (int i = 0; i < kBoards; ++i) {
@@ -207,8 +207,8 @@ Element board(int i) {
                                       {0.14f, 0.09f, 0.03f, 0.45f}})
       .stroke(stroke(0.6f, Fill::color({0.29f, 0.21f, 0.12f, 0.55f}),
                      PathFormat::Align::Inner))
-      .opacity(&boardFade()[i])
-      .scale(&boardPop()[i]);
+      .opacity(boardFade()[i])
+      .scale(boardPop()[i]);
 }
 
 Element lattice(Cache mode) {

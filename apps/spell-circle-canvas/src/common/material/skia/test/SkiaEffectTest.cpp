@@ -76,9 +76,9 @@ TEST(SkiaEffect, RecipeSnapshotsKeepCapturedLiveValuesApart) {
           .body(
               Target::SkSL,
               "half4 main(float2 p) { return content.eval(p) * half(gain); }"));
-  choreograph::Output<float> gain(1.0f);
+  sigil::motion::Animatable<float> gain = sigil::motion::animatable(1.0f);
   Material material(recipe, Parameters{});
-  material.bind("gain", &gain);
+  material.bind("gain", gain);
   const Filter first = Filter::of(material);
   gain = 0.5f;
   const Filter second = Filter::of(material);
@@ -89,9 +89,9 @@ TEST(SkiaEffect, RecipeSnapshotsKeepCapturedLiveValuesApart) {
   EXPECT_FALSE(first.isRunning());
 
   const Filter expiredSource = [&] {
-    choreograph::Output<float> localGain(0.25f);
+    sigil::motion::Animatable<float> localGain = sigil::motion::animatable(0.25f);
     Material local(recipe, Parameters{});
-    local.bind("gain", &localGain);
+    local.bind("gain", localGain);
     return Filter::of(local);
   }();
   const Filter copy = expiredSource;
@@ -131,10 +131,10 @@ TEST(SkiaEffect, ABoundUniformMakesItLiveAndItNeverPrunes) {
                "uniform float uK;\n"
                "half4 main(float2 p) { return content.eval(p) * half(uK); }"));
   ASSERT_NE(effect, nullptr);
-  choreograph::Output<float> k(1.0f);
+  sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
   Filter live = skia::program(effect);
   EXPECT_FALSE(live.isRunning());
-  live.bind("uK", &k);
+  live.bind("uK", k);
   EXPECT_TRUE(live.isRunning());
   // Live never prunes — the same rule a live paint follows.
   EXPECT_FALSE(live == live);

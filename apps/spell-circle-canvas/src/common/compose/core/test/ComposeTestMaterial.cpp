@@ -422,7 +422,7 @@ TEST(ComposeMaterial, ALiveChildMakesTheParentLive) {
   // TIER INHERITANCE, upward. The parent effect declares no uniform of its
   // own and no clock: everything volatile about it belongs to the child.
   // If the tier did not propagate, the parent would collapse to a Fill and
-  // freeze the child at whatever the Output read on the frame it recorded.
+  // freeze the child at whatever the live value read on the frame it recorded.
   static const sk_sp<SkRuntimeEffect> passthrough = [] {
     auto [fx, err] = SkRuntimeEffect::MakeForShader(
         SkString("uniform shader uSrc;"

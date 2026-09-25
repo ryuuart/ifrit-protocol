@@ -107,7 +107,7 @@ BENCHMARK_F(Scoreboard, Layout_WidthChange)(benchmark::State& state) {
   }
 }
 
-/** A transition step: ticker + one animating node repainting over a
+/** A transition step: engine + one animating node repainting over a
  *  static cached background of 99 rows. */
 BENCHMARK_F(Scoreboard, Frame_OneTransitionActive)(benchmark::State& state) {
   int flip = 0;
@@ -119,7 +119,7 @@ BENCHMARK_F(Scoreboard, Frame_OneTransitionActive)(benchmark::State& state) {
       list.children({memo(row, scoreRow).key(row.name)});
     host->composer.render(list);
     state.ResumeTiming();
-    host->ticker.tick(1.0 / 120.0);
+    host->engine.advance(host->engine.elapsed() + sigil::motion::Duration(1.0 / 120.0));
     host->draw();
   }
 }

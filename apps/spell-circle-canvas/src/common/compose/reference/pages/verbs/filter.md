@@ -31,7 +31,7 @@ def filter(self, effect: material.Effect) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `material::Filter` | A filter over pixels: blurs, glows, colour programs, whole recipes. | [`material::Filter`](../../VALUES.md#the-layer) — `Effect::blur`, `Effect::glow`, `Effect::filter`, `Effect::recipe` |
+| `material::Filter` | A filter over pixels: blurs, glows, colour programs, whole recipes. | [`material::Filter`](../../VALUES.md#the-layer) — `Filter::blur`, `Filter::glow`, `material::skia::filter`, `Filter::of` |
 
 ## Description
 

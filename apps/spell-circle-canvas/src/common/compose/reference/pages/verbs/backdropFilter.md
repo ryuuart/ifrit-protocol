@@ -31,7 +31,7 @@ def backdropFilter(self, effect: material.Effect) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `material::Filter` | A filter over pixels: blurs, glows, colour programs, whole recipes. | [`material::Filter`](../../VALUES.md#the-layer) — `Effect::blur` is the frosted one |
+| `material::Filter` | A filter over pixels: blurs, glows, colour programs, whole recipes. | [`material::Filter`](../../VALUES.md#the-layer) — `Filter::blur` is the frosted one |
 
 ## Description
 

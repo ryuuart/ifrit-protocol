@@ -14,7 +14,7 @@ TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   Host host;
   auto at = [&](float target) {
     return box().children(
-        {box().key("m").width(50).height(50).fill(red()).translateX(animate({.to = target, .duration = 400ms, .ease = motion::ease::linear}))});
+        {box().key("m").width(50).height(50).fill(red()).translateX(motion::animate({.to = target, .duration = 400ms, .ease = motion::ease::linear}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -30,7 +30,7 @@ TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
 
   host.frame(1.0);  // settle
   EXPECT_EQ(host.pixel(25, 25), SK_ColorRED);
-  EXPECT_FALSE(host.ticker.active());  // motion removed on finish
+  EXPECT_FALSE(host.engine.isRunning());  // motion removed on finish
 }
 
 TEST(ComposeTransitions, RetargetsFromTheStyleTheNodeStoodInAcrossAPrune) {
@@ -43,7 +43,7 @@ TEST(ComposeTransitions, RetargetsFromTheStyleTheNodeStoodInAcrossAPrune) {
   Host host;
   auto at = [&](float target) {
     return box().children(
-        {box().key("m").width(50).height(50).fill(red()).translateX(animate({.to = target, .duration = 400ms, .ease = motion::ease::linear}))});
+        {box().key("m").width(50).height(50).fill(red()).translateX(motion::animate({.to = target, .duration = 400ms, .ease = motion::ease::linear}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -57,28 +57,32 @@ TEST(ComposeTransitions, RetargetsFromTheStyleTheNodeStoodInAcrossAPrune) {
   EXPECT_EQ(host.pixel(125, 25), SK_ColorRED);
 }
 
-TEST(ComposeTransitions, AStaggerLeadsAnEntranceBeforeItsOwnDelay) {
+TEST(ComposeTransitions, AStaggeredDelayAddsItsStepToTheDeclaredStart) {
   // The fade a card says as it arrives is the entrance value at the lane
-  // it moves — opacity — and a staggered container LEADS it rather than
-  // replacing what it declared: child i holds its `from` for its own
-  // delay PLUS i times the container's step. The second card here would
-  // be whole by 0.3s on its own delay alone; it is not.
+  // it moves — opacity — and its delay is a stagger with a start: child i
+  // holds its `from` for the start PLUS i times the step, i counted among
+  // the siblings that mounted with it. The second card here would be whole
+  // by 0.3s on the start alone; it is not.
   Host host;
   auto card = [](std::string_view key) {
     return box().width(50).height(20).fill(red()).key(key).opacity(
-        animate({.from = 0.0f, .to = 1.0f, .duration = 100ms, .delay = 200ms, .ease = motion::ease::linear}));
+        motion::animate({.from = 0.0f,
+                         .to = 1.0f,
+                         .duration = 100ms,
+                         .delay = motion::stagger(400ms, {.start = 200ms}),
+                         .ease = motion::ease::linear}));
   };
-  host.composer.render(box().column().gap(10).staggerChildren(400ms).children(
-      {card("a"), card("b")}));
+  host.composer.render(
+      box().column().gap(10).children({card("a"), card("b")}));
   host.frame(0.15);  // inside the declared delay: neither has started
   EXPECT_EQ(host.pixel(25, 10), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(25, 40), SK_ColorBLACK);
-  host.frame(0.2);  // 0.35s: the first card's own delay elapsed and it ramped
+  host.frame(0.2);  // 0.35s: the first card's start elapsed and it ramped
   EXPECT_EQ(host.pixel(25, 10), SK_ColorRED);
   EXPECT_EQ(host.pixel(25, 40), SK_ColorBLACK);
-  host.frame(0.2);  // 0.55s: still held — the carry is added, not substituted
+  host.frame(0.2);  // 0.55s: still held — the step is added to the start
   EXPECT_EQ(host.pixel(25, 40), SK_ColorBLACK);
-  host.frame(0.25);  // 0.8s: 200ms delay + 400ms carry + 100ms ramp, in
+  host.frame(0.25);  // 0.8s: 200ms start + 400ms step + 100ms ramp, in
   EXPECT_EQ(host.pixel(25, 40), SK_ColorRED);
 }
 
@@ -86,16 +90,16 @@ TEST(ComposeTransitions, UnmountCancelsMotions) {
   Host host;
   host.composer.render(
       box().children({box().key("gone").width(10).height(10).translateX(
-          animate({.to = 500.0f, .duration = 1000ms}))}));
+          motion::animate({.to = 500.0f, .duration = 1000ms}))}));
   host.frame();
   host.composer.render(
       box().children({box().key("gone").width(10).height(10).translateX(
-          animate({.to = 0.0f, .duration = 1000ms}))}));
+          motion::animate({.to = 0.0f, .duration = 1000ms}))}));
   host.frame(0.1);
-  EXPECT_TRUE(host.ticker.active());
+  EXPECT_TRUE(host.engine.isRunning());
   host.composer.render(box());  // unmount mid-flight
   host.frame(0.1);              // stepping must not touch dead outputs
-  EXPECT_FALSE(host.ticker.active());
+  EXPECT_FALSE(host.engine.isRunning());
 }
 
 TEST(ComposeBindings, OutputDrivesPaintWithoutRender) {
@@ -165,7 +169,7 @@ TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
   host.composer.render(at(0.0f));
   host.frame();
   host.composer.render(
-      at(animate({.to = 100.0f, .duration = 400ms, .ease = motion::ease::linear})));
+      at(motion::animate({.to = 100.0f, .duration = 400ms, .ease = motion::ease::linear})));
   host.frame(0.2);  // mid-ramp, box around x=50..100
   EXPECT_EQ(host.pixel(75, 25), SK_ColorRED);
   host.composer.render(at(0.0f));  // PLAIN: must snap home
@@ -339,9 +343,9 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
 // aggregate leaves empty.
 
 TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
-  // One Output, two units. A phase in [0,1] is what a reveal or an opacity
+  // One live value, two units. A phase in [0,1] is what a reveal or an opacity
   // wants; a translation wants PIXELS. Without a shaping map on the binding,
-  // driving both from one motion means carrying a second Output updated
+  // driving both from one motion means carrying a second live value updated
   // alongside the first — two things to keep in step for no reason.
   Host host(200, 200);
   motion::Animatable<float> phase = motion::animatable(0.0f);
@@ -372,7 +376,7 @@ TEST(ComposeBindings, AShapedBindingDrivesThePropertyInPixels) {
 
 TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
   // The map is read LIVE through the pointer, so a pruned node would keep
-  // shaping through the OLD one forever. Same Output, different range.
+  // shaping through the OLD one forever. Same live value, different range.
   Host host(200, 200);
   motion::Animatable<float> phase = motion::animatable(1.0f);
   auto tree = [&](float far) {
@@ -400,7 +404,7 @@ TEST(ComposeBindings, AChangedShapeRepatchesRatherThanPruning) {
 TEST(ComposeBindings, AFillCanBeBoundLive) {
   // A Fill can be bound, which is easy to miss and expensive to work
   // around — the alternative is rebuilding the widget on renderSlot().
-  // The Output holds a Fill, and you write it from the
+  // The live value holds a Fill, and you write it from the
   // same steppable that computes the number driving everything else.
   Host host(200, 200);
   motion::Animatable<Fill> bar = motion::animatable<Fill>(Fill::color({1, 0, 0, 1}));
@@ -431,7 +435,7 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
                           .left(0)
                           .top(80)
                           .fill(red())
-                          .translateX(animate({.from = 0.0f, .to = 120.0f, .duration = 200ms, .delay = 0ms}))}));
+                          .translateX(motion::animate({.from = 0.0f, .to = 120.0f, .duration = 200ms, .delay = 0ms}))}));
   host.frame();     // would throw here
   host.frame(0.4);  // land the entrance
   EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
@@ -443,7 +447,7 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
 
 TEST(ComposeMotion, EachShapeOfATweenSaysWhatItDoes) {
   const motion::Animatable<float> change =
-      animate({.to = 1.0f, .duration = 200ms, .delay = 40ms,
+      motion::animate({.to = 1.0f, .duration = 200ms, .delay = 40ms,
                .ease = motion::ease::linear});
   ASSERT_NE(change.described(), nullptr);
   EXPECT_EQ(change.value(), 1.0f);
@@ -453,14 +457,14 @@ TEST(ComposeMotion, EachShapeOfATweenSaysWhatItDoes) {
   EXPECT_EQ(change.described()->delay, 40ms);
 
   const motion::Animatable<float> entrance =
-      animate({.from = 0.0f, .to = 1.0f, .duration = 200ms,
+      motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms,
                .ease = motion::ease::linear});
   EXPECT_EQ(entrance.value(), 1.0f) << "a described motion reads where it rests";
   ASSERT_TRUE(entrance.described()->isEntrance());
   EXPECT_EQ(*entrance.described()->from, 0.0f);
   EXPECT_FLOAT_EQ(entrance.described()->easing()(0.25f), 0.25f);
 
-  const motion::Animatable<float> path = animate(
+  const motion::Animatable<float> path = motion::animate(
       {.from = 40.0f,
        .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}},
        .ease = motion::ease::linear});
@@ -478,7 +482,7 @@ TEST(ComposeMotion, AnEmptyTweenIsDETERMINATE) {
   // A tween that names nothing is a degenerate ask that must still produce
   // a definite answer: where it rests is a value-initialized T, so a float
   // property reads zero rather than whatever was on the stack.
-  const motion::Animatable<float> empty = animate(motion::Tween<float>{});
+  const motion::Animatable<float> empty = motion::animate(motion::Tween<float>{});
   EXPECT_EQ(empty.value(), 0.0f);
   EXPECT_FALSE(empty.described()->isEntrance());
 
@@ -486,7 +490,7 @@ TEST(ComposeMotion, AnEmptyTweenIsDETERMINATE) {
   // value rather than at a number nobody chose.
   Host host;
   host.composer.render(box().children({box().width(80).height(80).fill(red()).opacity(
-      animate(motion::Tween<float>{}))}));
+      motion::animate(motion::Tween<float>{}))}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK);  // opacity 0, not garbage
 }
@@ -509,7 +513,7 @@ TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
   Host host;
   auto tree = [] {
     return box().children(
-        {box().width(80).height(80).fill(red()).opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}))});
+        {box().width(80).height(80).fill(red()).opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}))});
   };
   host.composer.render(tree());
   host.frame();

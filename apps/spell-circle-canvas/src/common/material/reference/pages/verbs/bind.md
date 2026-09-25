@@ -51,7 +51,7 @@ against the declared array's total float count.
 node volatile for as long as the binding is attached. It takes an
 animatable, so the arithmetic that shapes the number — a wrapped ramp, a
 raised cosine, a wiggle — sits beside the uniform it feeds rather than
-in a second output somebody steps by hand. A paint holds no instance, so
+in a second live value somebody steps by hand. A paint holds no instance, so
 a value carrying its own TRANSITION has nothing to run it and reads as
 its target.
 

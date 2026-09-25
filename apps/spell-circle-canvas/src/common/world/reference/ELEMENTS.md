@@ -138,22 +138,21 @@ zero draws none of it, so the dial is also the switch — blurred by
 same terms as an emitter: the camera's eye and target are carried by the
 node's transform.
 
-### Cascading an entrance
+### Staggering an entrance
 
-`Element::staggerChildren` CASCADES THE ENTRANCES of this node's children
-as they mount, on the schedule SigilMotion speaks — an even ladder, a
-fixed total divided across however many children there are, a cue table,
-an origin and a distribution curve. The delay compounds down the subtree,
-so a grandchild enters after its parent did. Only children that actually
-mount are delayed.
+An entrance on a child of a set is staggered by the child's OWN tween:
+`.opacity(motion::animate({.from = 0.0f, .to = 1.0f, .delay =
+motion::stagger(60ms)}))` resolves the delay at the child's place among
+the siblings mounting with it — a step per child, a fixed total spread
+across however many there are, a cue table, an origin and an easing
+curve are all the stagger's own options. There is no stagger verb on the
+parent, and nothing compounds down the subtree: a grandchild staggers
+among its own siblings, by its own tween.
 
-`ElementNode::childStagger` is that cascade on the retained side: each
-child's entrance is delayed by the start time the schedule gives its
-ordinal, and the delay compounds down the subtree, so a set that arrives
-arrives in an order rather than all at once. It delays only children that
-actually MOUNT — the first describe cascades the whole list, a child
-appended to a live list is the only new mount in its patch and enters at
-once, and children already standing never re-enter.
+Only children that actually MOUNT are placed: the first describe mounts
+the whole list, so the list arrives in an order rather than all at once;
+a child appended to a live list is the only new mount in its patch and
+enters at once; and children already standing never re-enter.
 
 ### Deferring a describe
 

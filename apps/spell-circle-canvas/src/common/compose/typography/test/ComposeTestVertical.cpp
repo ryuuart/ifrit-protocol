@@ -207,7 +207,7 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
            .height(300)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textFx({.effect = textFx::rise(30),
-                    .stagger = {.eachMs = 90},
+                    .delay = sigil::motion::stagger(90ms),
                     .unit = sigil::weave::Unit::Cluster,
                     .progress = progress})
            .key("t")}));
@@ -400,7 +400,7 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
            .height(240)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textFx({.effect = textFx::rise(10),
-                    .stagger = {.eachMs = 40},
+                    .delay = sigil::motion::stagger(40ms),
                     .unit = sigil::weave::Unit::Cluster})}));
   host.frame();
 
@@ -619,7 +619,7 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
            .height(200)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textFx({.effect = textFx::typeOn(),
-                    .stagger = {.eachMs = 400},
+                    .delay = sigil::motion::stagger(400ms),
                     .unit = sigil::weave::Unit::Line,
                     .progress = progress})
            .key("t")}));
@@ -664,7 +664,7 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
              .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .span(sigil::weave::selectors::text(u8"三四五六"), sidelined)
              .textFx({.effect = textFx::rise(24),
-                      .stagger = {.eachMs = 90},
+                      .delay = sigil::motion::stagger(90ms),
                       .unit = sigil::weave::Unit::Cluster,
                       .progress = progress})
              .key("t")});

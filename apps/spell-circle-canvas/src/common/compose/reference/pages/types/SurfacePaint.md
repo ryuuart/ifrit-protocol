@@ -46,15 +46,14 @@ word every value in this tree spells it with.
 | --- | --- | --- |
 | `SurfacePaint()` | C++ | nothing — leaves the element's own fill alone |
 | `SurfacePaint(fill)` | C++ | implicit from a `Fill`, so `Fill::currentInk()` and every colour spelling reach it |
-| `SurfacePaint(animatable)` | C++ | implicit from a `motion::Animatable<Fill>` |
-| `SurfacePaint(output)` | C++ | implicit from a `choreograph::Output<Fill>*` — the live binding |
-| `SurfacePaint(transitioned)` | C++ | implicit from a `motion::Transitioned<Fill>` |
+| `SurfacePaint(animatable)` | C++ | implicit from a `motion::Animatable<Fill>` — a described motion, or a live value from `motion::animatable` |
+| `SurfacePaint(tween)` | C++ | implicit from a `motion::Tween<Fill>`, animated as `motion::animate` would |
 | `SurfacePaint(paint)` | C++ | implicit from a `material::Paint` |
 | `SurfacePaint(recipe)` | C++ | implicit from a `material::Material`, wrapped through `material::Paint::recipe` |
 | `"#1f2933"`, a tuple, `material.Color(...)` | Python | every colour spelling, implicitly |
 | `material.Paint.linearGradient(...)` | Python | a material paint, implicitly |
 | `material.kit.unlit()` | Python | a recipe instance, implicitly — the kit's recipe functions are Python's door to a material |
-| `motion.bind(...)`, an output, a transition | Python | the moving forms, implicitly |
+| `motion.animate(...)`, `motion.animatable(...)` | Python | the moving forms, implicitly |
 | `compose.SurfacePaint(...)` | Python | direct, when a name for the value is wanted |
 
 In Python the whole of that column is the union `SurfacePaintLike`. Every

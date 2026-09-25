@@ -28,8 +28,8 @@ The short answer, before the detail:
               |                            |
    motion::Animatable<Fill>        material::Paint
      - a plain Fill                  - solid
-     - a Transitioned<Fill>          - linearGradient, radialGradient,
-     - an Output<Fill>, live           conicGradient
+     - a Tween<Fill>, described      - linearGradient, radialGradient,
+     - an animatable<Fill>, live       conicGradient
               |                      - image, buffer
               |                      - sksl, shader
        compose::Fill                 - blend
@@ -56,9 +56,10 @@ caller likes", and every branch converts into it implicitly.
 branch reaches. See [SurfacePaint](pages/types/SurfacePaint.md).
 
 **`motion::Animatable<Fill>`** — a fill that may be a plain value, a
-`motion::Transitioned<Fill>`, or a live `choreograph::Output<Fill>*`
-compared by the output's IDENTITY. That identity comparison is what lets
-a bound fill declare volatility without defeating the prune.
+described motion (`motion::animate` over a `motion::Tween<Fill>`), or a
+live value made by `motion::animatable` and compared by the IDENTITY of
+the cell it reads. That identity comparison is what lets a live fill
+declare volatility without defeating the prune.
 
 **`compose::Fill`** — nothing, a colour, a Skia shader, or a REFERENCE
 the tree resolves where the mark lands. Five scalars, compared in one
@@ -114,7 +115,7 @@ settings. Every node's paint prune would move from the first to the
 second.
 
 **Motion is typed on the fill.** The animation family is
-`motion::Animatable<Fill>` and its transitioned and output forms. A
+`motion::Animatable<Fill>` and its described and live forms. A
 material animates SCALARS inside itself, binding one float field at a
 time — a different mechanism with different equality.
 

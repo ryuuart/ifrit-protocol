@@ -304,7 +304,7 @@ namespace {
  *  shape a bake is most worth taking for, and the shape whose bake is
  *  mostly transparent. The letters ride a circle inscribed in the node's
  *  box, so the ink is a band and the corners are empty. */
-Element ringOfType(Cache mode, const motion::Animatable<float>& turn) {
+Element ringOfType(Cache mode, const motion::Animatable<float>* turn) {
   const float side = 640.0f, radius = 270.0f;
   Element ring = box()
                      .key("ring")
@@ -326,14 +326,14 @@ Element ringOfType(Cache mode, const motion::Animatable<float>& turn) {
                        .top(side * 0.5f + radius * std::sin(a) - 12.0f)
                        .width(80)});
   }
-  if (turn) ring.rotate(motion::bind(turn, {.to = {0.0f, 360.0f}}));
+  if (turn) ring.rotate(motion::bind(*turn, {.to = {0.0f, 360.0f}}));
   return ring;
 }
 
 /** …painted every frame, so the cases below watch the ring itself rather
  *  than an ancestor's recording of it. */
 Element turnedRing(Cache mode, const motion::Animatable<float>& turn) {
-  return profiledUnder(ringOfType(mode, turn));
+  return profiledUnder(ringOfType(mode, &turn));
 }
 
 /** …and the other placement every scene has: the same ring inside a PAGE

@@ -58,8 +58,8 @@ bool redAt(SkSurface& surface, int x, int y) {
 TEST(ComposeVideo, ClipIsALiveSizedLeaf) {
   std::shared_ptr<sigil::video::Video> clip = redClip();
   ASSERT_NE(clip, nullptr);
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
   composer.setSize({128, 128});
   composer.render(box()
                       .fill(Fill::color({0, 0, 1, 1}))
@@ -89,8 +89,8 @@ TEST(ComposeVideo, SharedPlaybackSuppliesTheLeafAndRegistersItsClipOnce) {
   // in where the decode runs.
   auto playback = std::make_shared<sigil::video::Playback>(
       sigil::video::Playback::Options{.workerThreads = 0});
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
   composer.setSize({64, 64});
   composer.render(video(clip, playback));
 
@@ -112,8 +112,8 @@ TEST(ComposeVideo, RegisteredHandleFansOnePlayerOutToSeveralLeaves) {
   auto playback = std::make_shared<sigil::video::Playback>(
       sigil::video::Playback::Options{.workerThreads = 0});
   const sigil::video::Playback::Handle handle = playback->add(clip);
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
   composer.setSize({128, 64});
   composer.render(stack().children(
       {video(clip, playback, handle).rect(SkRect::MakeXYWH(0, 0, 64, 64)),
@@ -131,8 +131,8 @@ TEST(ComposeVideo, RegisteredHandleFansOnePlayerOutToSeveralLeaves) {
 TEST(ComposeVideo, LeafCompositesItsSingleDrawWithoutAGroupingNode) {
   std::shared_ptr<sigil::video::Video> clip = redClip();
   ASSERT_NE(clip, nullptr);
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
   composer.setSize({64, 64});
   composer.render(box()
                       .fill(Fill::color({0, 0, 1, 1}))

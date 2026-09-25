@@ -496,29 +496,29 @@ its own execution reads `ctx.deterministic` while declaring and keeps it:
 the flag says the same thing for the whole session. Nothing feeds a
 pointer or a key into the node, so `pen.mouseX` stays at zero.
 
-**A simulation is stepped by the context's ticker, not by the frame
-delta.** `ctx.ticker` is the session's `motion::Ticker`, stepped by the
-session's own clock on every frame — including the frames a
-`frameRate(fps)` request or a `noLoop` skipped, since the node is painted
-on those and time passed on them. `addFixed(hz, fn, maxCatchUp, &alphaOut)` runs the body at
-exactly `hz` from accumulated time and publishes the leftover fraction
-of a step into the Output, so a piece drawn as
-`lerp(previous, current, alpha)` is one picture at every draw rate and a
-capture of it is a claim about the piece rather than about the machine.
-Register in `setup` and keep the Outputs on the sketch: a registration
-made in `draw` is made again every frame, and an Output that lives no
-longer than the call is read by nobody. A fresh setup gets a fresh
-ticker, so a sketch set up twice is stepped once.
+**A simulation is stepped by the context's engine, not by the frame
+delta.** `ctx.engine` is the session's `motion::Engine`, advanced by the
+session on every frame — including the frames a `frameRate(fps)` request
+or a `noLoop` skipped, since the node is painted on those and time passed
+on them. A timer with a `motion::TimerOptions::stepRate` runs its body at
+exactly that rate from accumulated time, and `motion::Timer::betweenSteps`
+is the leftover fraction of a step, so a piece drawn as
+`lerp(previous, current, solver.betweenSteps())` is one picture at every
+draw rate and a capture of it is a claim about the piece rather than
+about the machine. Start timers in `setup` and keep the handles on the
+sketch: a timer started in `draw` is started again every frame. A fresh
+setup gets a fresh engine, so a sketch set up twice is stepped once.
 
 ```cpp
 struct Cloth {
-  ch::Output<float> alpha{0.0f};
+  motion::Timer solver;
   void setup(sketch::SketchContext& ctx) {
     ctx.canvas(640, 480);
     ctx.oversample(2);
-    ctx.ticker.addFixed(60.0, [this] { solve(); return true; }, 8, &alpha);
+    solver = ctx.engine.timer([this] { solve(); }, {.stepRate = 60.0});
     ctx.composer.render(
-        compose::graphics("cloth.loop", [this](Pen& pen) { paint(pen, alpha); })
+        compose::graphics("cloth.loop",
+                          [this](Pen& pen) { paint(pen, solver.betweenSteps()); })
             .absolute()
             .inset(0));
   }
@@ -584,11 +584,11 @@ passes, so the page's plate and its live picture are one picture.
 
 `seconds` is the MOMENT of the bake, on the baked scene's own clock,
 which starts when the scene mounts — what a set with an entrance is
-photographed at. A `staggerChildren` cascade is a schedule of transitions
-that begin at the mount, so at zero every one of them is still at its
+photographed at. A run of entrances staggered by `motion::stagger` is a
+schedule of transitions that begin at the mount, so at zero every one of them is still at its
 start pose and the picture is the set before it arrived. The clock is the
 bake's and not the sketch's: reaching the moment on the sketch's own
-ticker would step the sketch, and a document photographing a set in one
+engine would step the sketch, and a document photographing a set in one
 of its panels would move everything else on the page to do it.
 
 Each door names the other library's value by forward declaration and
@@ -647,7 +647,7 @@ through its own `available()` probe rather than drawing an empty set.
 The canvas runtime is retained-mode, not a redraw loop:
 
 1. `setup()` **declares** the scene once, animation wiring included —
-   bound outputs, transitions, ticker steppables. The runtime then
+   live values, transitions, the engine's animations and timers. The runtime then
    animates every frame without re-describing anything. Reach for this
    first.
 2. `custom()` leaves with `Cache::None` are the immediate-mode floor:
@@ -657,39 +657,40 @@ The canvas runtime is retained-mode, not a redraw loop:
    habit — bindings are cheaper.
 
 The first path is the one most sketches reach for last, because the
-familiar move is a ticker lambda that computes a position and writes it
-into an Output. A **shaped bound Output** does that at declaration time
-instead: one Output carries the clock, and every value derived from it is
-a named envelope on the property that reads it.
+familiar move is a timer that computes a position and writes it into a
+live value. A **bound** value does that at declaration time instead: one
+live value carries the clock, and every value derived from it is a named
+`motion::Binding` on the property that reads it.
 
 ```cpp
-ch::Output<float> clock{0};                       // the only thing ticking
-ctx.ticker.add([this, t = 0.0](double dt) mutable {
-  t += dt;
-  clock = (float)t;
-  return true;
+motion::Animatable<float> seconds = motion::animatable(0.0f);  // the only thing ticking
+ctx.engine.timer([this, &engine = ctx.engine] {
+  seconds = static_cast<float>(engine.elapsed().count());
 });
 
 // hold, glide down over five seconds, hold, four seconds back — the four
 // corners are positions in one 14 s cycle, and the ease rounds both
 // shoulders without moving them
-list.translateY(bind(&clock)
-                    .source(0, 14.0f)
-                    .trapezoid(3 / 14.f, 8 / 14.f, 9 / 14.f, 13 / 14.f)
-                    .map(motion::ease::inOutQuad)
-                    .target(0, -overflow));
+list.translateY(motion::bind(
+    seconds, {.from = {0, 14.0f},
+              .envelope = motion::envelope::trapezoid(3 / 14.f, 8 / 14.f,
+                                                      9 / 14.f, 13 / 14.f),
+              .ease = motion::ease::inOutQuad,
+              .to = {0, -overflow}}));
 
 // one second lit out of every eight, starting at 2 s: a pulse, folded on
 // its own period, so it repeats for as long as the clock runs
-button.opacity(bind(&clock).source(2.0f, 10.0f).square(1.0f / 8.0f));
+button.opacity(motion::bind(seconds, {.from = {2.0f, 10.0f},
+                                      .envelope = motion::envelope::square(1.0f / 8.0f)}));
 ```
 
-`cosine()` is the swell, `pingPong()` the there-and-back, `trapezoid()`
-the loop envelope that can cut while it is dark, `square()` the pulse,
-and `wave()` takes a shape of your own. Each replaces the `std::sin`,
-`std::fmod` or four-branch `if` ladder a ticker lambda would otherwise
-carry, and the value is then a declared property the reconciler can
-prune on rather than a write nobody can compare.
+`motion::envelope::cosine` is the swell, `alternate` the there-and-back,
+`motion::envelope::trapezoid` the loop envelope that can cut while it is
+dark, `motion::envelope::square` the pulse, and `motion::envelope::shaped`
+takes a shape of your own. Each replaces the `std::sin`, `std::fmod` or
+four-branch `if` ladder a timer would otherwise carry, and the value is
+then a declared property the reconciler can prune on rather than a write
+nobody can compare.
 
 Keep state in members. Every reload constructs a fresh instance, so a
 reload restarts the piece from zero: the entrance you are editing plays
@@ -737,8 +738,8 @@ the chapter [HOST.md](HOST.md).
 src/sketch/
   core/       what a sketch is, what it declares, the registry, the kind seam, the crash reporter;
               agent/, the registry domain's agent
-  canvas/     the 2D runtime: a clock, a ticker and a Composer
-  set/        the 3D runtime: a ticker and a retained Scene
+  canvas/     the 2D runtime: an engine and a Composer
+  set/        the 3D runtime: an engine and a retained Scene
   kit/        the sheet a sketch stands on: the theme, the page and the furniture over it
   live/       the reload engine, the resident set and the sweep's cadence;
               agent/, the session and clock domains' agents
@@ -847,7 +848,7 @@ file beside it holding one SkSL program, `half4 main(float2 xy)` with the
 uniforms and child shaders it declares, compiled into the
 `sk_sp<SkRuntimeEffect>` that `material::skia::sksl`,
 `material::skia::program` and a pen's shader builder all take —
-`Paint::sksl(ctx.assets.shader(ctx.local("aurora.sksl")))`. One file is one
+`material::skia::sksl(ctx.assets.shader(ctx.local("aurora.sksl")))`. One file is one
 compiled effect however often it is asked for, and an edit to it recompiles
 and re-runs setup without a rebuild. It keeps the image door's forgiving
 contract: an edit that does not compile leaves the sketch drawing with the

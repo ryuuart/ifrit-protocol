@@ -18,7 +18,7 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
         {text(u8"IIIIIIIIIIII", whiteStyle(32))
              .key("k")
              .textFx({.effect = textFx::rise(24),
-                      .stagger = {.eachMs = 40, .durationMs = 200},
+                      .delay = sigil::motion::stagger(40ms), .duration = 200ms,
                       .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.0f));
@@ -79,7 +79,7 @@ TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
         .absolute()
         .inset(20)
         .textFx({.effect = textFx::pop(),
-                 .stagger = {.eachMs = 30, .durationMs = 480},
+                 .delay = sigil::motion::stagger(30ms), .duration = 480ms,
                  .progress = kMidCascade});
   };
 
@@ -126,13 +126,13 @@ TEST(ComposeKinetic, ADescribedProgressPaintsLive) {
         {text(u8"POP", whiteStyle(40))
              .key("k")
              .textFx({.effect = textFx::pop(),
-                      .stagger = {.eachMs = 20, .durationMs = 150},
+                      .delay = sigil::motion::stagger(20ms), .duration = 150ms,
                       .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.001f));
   host.frame();
   host.composer.render(
-      tree(animate({.to = 1.0f, .duration = 400ms, .ease = sigil::motion::ease::linear})));
+      tree(motion::animate({.to = 1.0f, .duration = 400ms, .ease = sigil::motion::ease::linear})));
   host.frame(0.2);                                    // mid-ramp
   EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // live while animating
   host.frame(0.3);                                    // settle
@@ -150,7 +150,7 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   // `ownContent` and `subtreeVolatile` false, the picture is never reset,
   // and the reveal FREEZES at whatever progress the last describe recorded.
   //
-  // Driving the reveal from a BOUND Output is the only way to see that. Any
+  // Driving the reveal from a BOUND live value is the only way to see that. Any
   // case that moves the reveal by RE-DESCRIBING marks the node paint-dirty
   // and hides the question entirely, and a case that only checks for ink
   // after settling is satisfied by a frozen half-revealed recording. Hence
@@ -163,7 +163,7 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
       {text(u8"IIIIIIIIIIII", whiteStyle(32))
            .key("k")
            .textFx({.effect = textFx::rise(24),
-                    .stagger = {.eachMs = 40, .durationMs = 200},
+                    .delay = sigil::motion::stagger(40ms), .duration = 200ms,
                     .progress = progress})}));
   host.frame();
   auto b = host.composer.bounds("k");

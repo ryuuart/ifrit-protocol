@@ -18,7 +18,7 @@
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 
 #include <cstring>
 #include <utility>
@@ -36,8 +36,8 @@ inline constexpr int kTall = 300;
 /** A composer over a raster surface, so a tree can be compared to another
  *  tree by the pixels the two produce. */
 struct Drawn {
-  sigil::motion::Ticker ticker;
-  compose::Composer composer{ticker, sigil::sketch::test::fonts()};
+  sigil::motion::Engine engine;
+  compose::Composer composer{engine, sigil::sketch::test::fonts()};
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kWide, kTall));
 

@@ -151,7 +151,7 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
   // since there is nothing inside the layer for it to composite against
   // first. Asserted against the PLAIN opacity of the same value, which
   // took the direct route all along.
-  const auto plate = [](const motion::Animatable<float>& bound, float plain) {
+  const auto plate = [](const motion::Animatable<float>* bound, float plain) {
     auto host = std::make_unique<Host>();
     Element leaf = box()
                        .key("glow")
@@ -165,7 +165,7 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
                        .fill(green())
                        .blendMode(material::BlendMode::PlusLighter);
     if (bound)
-      leaf.opacity(bound);
+      leaf.opacity(*bound);
     else
       leaf.opacity(plain);
     host->composer.render(profiledUnder(
@@ -174,7 +174,7 @@ TEST(ComposeCache, ABlendedLeafWithABoundOpacityPaintsWithoutALayer) {
     return host;
   };
   motion::Animatable<float> gain = motion::animatable(0.5f);
-  const std::unique_ptr<Host> live = plate(gain, 0.0f);
+  const std::unique_ptr<Host> live = plate(&gain, 0.0f);
   const std::unique_ptr<Host> plain = plate(nullptr, 0.5f);
   EXPECT_TRUE(identicalPixels(*live, *plain, 200, 200))
       << "the alpha on the fill paint is not the alpha through a layer";
@@ -296,7 +296,7 @@ TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
                         .height(80)
                         .fill(green())
                         .cache(Cache::Texture)
-                        .scale(animate({.from = 0.2f, .to = 1.0f, .duration = std::chrono::milliseconds(400)}))));
+                        .scale(motion::animate({.from = 0.2f, .to = 1.0f, .duration = std::chrono::milliseconds(400)}))));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
       << "the bake, taken at the scale the motion names";

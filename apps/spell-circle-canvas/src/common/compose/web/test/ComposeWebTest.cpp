@@ -48,8 +48,8 @@ TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
       "<html><body style='background:#00ff00;margin:0'></body></html>");
   ASSERT_TRUE(waitForFrame(*view, 0));
 
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
   composer.setSize({200, 200});
   composer.render(box()
                       .padding(50)
@@ -81,8 +81,8 @@ TEST(ComposeWeb, WebLeafDrawsPublishedFrame) {
 TEST(ComposeWeb, ComposerDrawsIntoPageFacingCanvas) {
   // The reverse direction: a Composer is a guest in any canvas — here a
   // raster surface standing in for a WebImage::paint() callback canvas.
-  sigil::motion::Ticker ticker;
-  Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
   composer.setSize({64, 64});
   composer.render(box()
                       .fill(Fill::color({0, 0, 1, 1}))

@@ -322,23 +322,23 @@ struct Baking {
 };
 
 /** THE SAME CARD WITH AN ENTRANCE, cascaded: it slides in from the left
- *  over its own transition, and the parent staggers when each of its
+ *  over its own tween, and its delay staggers when each of the set's
  *  children starts. A still of it is a claim about that entrance, so the
  *  bake has to be able to reach a moment of it. */
 world::Frame enteringFrame() {
   const auto card = [](const char* key, float x) {
     return world::Element()
         .key(key)
-        .translateX(sigil::motion::animate(
-            sigil::motion::from(x - kSlideIn).to(x), {kEnter}))
+        .translateX(sigil::motion::animate({.from = x - kSlideIn,
+                                            .to = x,
+                                            .duration = kEnter,
+                                            .delay = sigil::motion::stagger(kStagger)}))
         .mesh(gm::quad(kCardW * 0.4f, kCardH))
         .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}));
   };
   return world::Frame(
       world::Element()
           .key("set")
-          .staggerChildren({.eachMs = (float)kStagger.count(),
-                            .durationMs = (float)kEnter.count()})
           .children({card("left", -40.0f), card("right", 40.0f)}));
 }
 

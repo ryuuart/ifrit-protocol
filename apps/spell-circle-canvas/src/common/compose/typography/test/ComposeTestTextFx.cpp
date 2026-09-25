@@ -40,13 +40,15 @@ std::vector<size_t> addressed(const std::vector<FxSample>& samples) {
 
 /** A track whose effect records, over the whole text unless told otherwise. */
 Track probeTrack(std::vector<FxSample>* into, sigil::weave::Selector where = {},
-                 sigil::motion::Spread cascade = {.eachMs = 0,
-                                                  .durationMs = 100},
+                 motion::Timing timing = {.delay = 0ms, .duration = 100ms},
                  float progress = 1.0f,
                  sigil::weave::Unit over = sigil::weave::Unit::Cluster) {
   return Track{.where = std::move(where),
                .effect = probe("probe", into),
-               .stagger = std::move(cascade),
+               .delay = std::move(timing.delay),
+               .duration = timing.duration,
+               .loop = timing.loop,
+               .within = std::move(timing.within),
                .unit = over,
                .progress = progress};
 }
@@ -63,7 +65,7 @@ TEST(ComposeTextFx, AWordCascadeBeatsOncePerWordAndInOrder) {
   host.composer.render(box().padding(10).children(
       {text(u8"AAA BBB CCC", whiteStyle(20))
            .key("k")
-           .textFx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
+           .textFx(probeTrack(&samples, {}, {.delay = motion::stagger(100ms), .duration = 100ms},
                               0.5f, sigil::weave::Unit::Word))}));
   host.frame();
   ASSERT_EQ(samples.size(), 9u) << "the probe did not see every glyph";
@@ -88,7 +90,7 @@ TEST(ComposeTextFx, ASentenceCascadeBeatsOncePerSentence) {
       {text(u8"One two. Three four. Five.", whiteStyle(16))
            .key("k")
            .width(pct(100))
-           .textFx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
+           .textFx(probeTrack(&samples, {}, {.delay = motion::stagger(100ms), .duration = 100ms},
                               0.5f, sigil::weave::Unit::Sentence))}));
   host.frame();
   ASSERT_FALSE(samples.empty());
@@ -118,7 +120,7 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
   host.composer.render(box().padding(10).children(
       {text(u8"x́ýz", markStyle(28))
            .key("k")
-           .textFx(probeTrack(&samples, {}, {.eachMs = 100, .durationMs = 100},
+           .textFx(probeTrack(&samples, {}, {.delay = motion::stagger(100ms), .duration = 100ms},
                               0.5f))}));
   host.frame();
   ASSERT_FALSE(samples.empty());
@@ -141,7 +143,7 @@ TEST(ComposeTextFx, AClusterIsOneBeatSoAMarkNeverLeavesItsLetter) {
   host.composer.render(box().padding(10).children(
       {text(u8"x́ýz", markStyle(28))
            .key("k")
-           .textFx(probeTrack(&raw, {}, {.eachMs = 100, .durationMs = 400},
+           .textFx(probeTrack(&raw, {}, {.delay = motion::stagger(100ms), .duration = 400ms},
                               0.5f, sigil::weave::Unit::Glyph))}));
   host.frame();
   ASSERT_EQ(raw.size(), samples.size());
@@ -287,9 +289,10 @@ TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
         {text(u8"AAA BBB CCC", whiteStyle(20))
              .key("k")
              .textFx(probeTrack(into, {},
-                                {.eachMs = 100,
-                                 .durationMs = 100,
-                                 .from = sigil::motion::Spread::From::Random},
+                                {.delay = motion::stagger(
+                                     100ms,
+                                     {.from = motion::StaggerFrom::Random}),
+                                 .duration = 100ms},
                                 0.5f))});
   };
   // TWO HOSTS, one paint each: re-describing the same tracks into one host
@@ -305,37 +308,39 @@ TEST(ComposeTextFx, RandomOriginIsAStableScatterAcrossFrames) {
   for (size_t i = 0; i < first.size(); ++i)
     EXPECT_FLOAT_EQ(first[i].t, second[i].t)
         << "the seeded cascade reshuffled between frames";
-  // …and it really is a scatter, not the Start ladder wearing a new name.
+  // …and it really is a scatter, not the First ladder wearing a new name.
   bool anyOutOfOrder = false;
   for (size_t i = 1; i < first.size(); ++i)
     if (first[i].t > first[i - 1].t) anyOutOfOrder = true;
-  EXPECT_TRUE(anyOutOfOrder) << "Random produced the Start ordering";
+  EXPECT_TRUE(anyOutOfOrder) << "Random produced the First ordering";
   // The stream an effect draws from is seeded per glyph and is stable too.
   for (size_t i = 0; i < first.size(); ++i)
     EXPECT_FLOAT_EQ(first[i].random, second[i].random);
 }
 
 TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
-  // From::Random ranks units by a hash keyed on the count and the seed.
+  // StaggerFrom::Random ranks units by a hash keyed on the count and the
+  // seed.
   // Three claims, each a behaviour an author leans on: seed 0 IS the
   // count-keyed deal (pinned against the exact ranks that key hashes to, so
   // every settled scene keeps its scatter bit for bit), a nonzero seed deals
   // a different permutation, and two nonzero seeds deal independently.
   const auto ranksOf = [](uint32_t seed) {
     Host host(300, 120);
-    sigil::motion::Spread scatter{.eachMs = 100,
-                                  .durationMs = 100,
-                                  .from = sigil::motion::Spread::From::Random};
-    scatter.seed = seed;
     host.composer.render(box().padding(10).children(
         {text(u8"AAA BBB CCC", whiteStyle(20))
              .key("k")
-             .textFx({.effect = textFx::rise(6), .stagger = scatter})}));
+             .textFx({.effect = textFx::rise(6),
+                      .delay = motion::stagger(
+                          100ms, {.from = motion::StaggerFrom::Random,
+                                  .seed = seed}),
+                      .duration = 100ms})}));
     host.frame();
     const std::vector<Beat> beats = host.composer.beatsOf("k", 0);
     std::vector<int> ranks;
     ranks.reserve(beats.size());
-    for (const Beat& b : beats) ranks.push_back((int)(b.startMs / 100.0f));
+    for (const Beat& beat : beats)
+      ranks.push_back((int)(inMilliseconds(beat.start) / 100.0f));
     return ranks;
   };
   // The count-9 permutation the count-alone key hashes to. Recomputing it
@@ -353,28 +358,29 @@ TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
   EXPECT_EQ(sorted, ladder) << "a seeded scatter dropped or doubled a rank";
   // A different seed is a different cascade to the reconciler, or a
   // re-described field would prune onto the old scatter and keep it.
-  sigil::motion::Spread a{.from = sigil::motion::Spread::From::Random},
-      b{.from = sigil::motion::Spread::From::Random};
-  b.seed = 42;
-  EXPECT_FALSE(a == b);
-  a.seed = 42;
-  EXPECT_TRUE(a == b);
+  const auto scatterSeeded = [](uint32_t seed) {
+    return motion::stagger(
+        30ms, {.from = motion::StaggerFrom::Random, .seed = seed});
+  };
+  EXPECT_FALSE(scatterSeeded(0) == scatterSeeded(42));
+  EXPECT_TRUE(scatterSeeded(42) == scatterSeeded(42));
 }
 
 TEST(ComposeTextFx, NestedStaggerDelaysGlyphsInsideTheirWordsBeat) {
-  // then() compounds: each word gets its beat, and inside that beat each
+  // `within` compounds: each word gets its beat, and inside that beat each
   // glyph gets its own start. Two ladders, one master progress.
   Host host(300, 120);
   std::vector<FxSample> samples;
-  sigil::motion::Spread cascade{.eachMs = 200, .durationMs = 100};
-  cascade.then({.eachMs = 50, .durationMs = 100});
+  const motion::Timing nested{.delay = motion::stagger(200ms),
+                              .duration = 100ms,
+                              .within = motion::stagger(50ms)};
   // A beat is 100 + 50·2 = 200 ms and the whole cascade spans 400; 0.3 of
   // that lands inside the first word's beat, where the two ladders are
   // both readable.
   host.composer.render(box().padding(10).children(
       {text(u8"AAA BBB", whiteStyle(20))
            .key("k")
-           .textFx(probeTrack(&samples, {}, cascade, 0.3f,
+           .textFx(probeTrack(&samples, {}, nested, 0.3f,
                               sigil::weave::Unit::Word))}));
   host.frame();
   ASSERT_EQ(samples.size(), 6u);

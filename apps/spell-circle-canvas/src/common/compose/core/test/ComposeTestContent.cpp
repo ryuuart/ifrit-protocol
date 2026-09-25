@@ -379,7 +379,7 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
 // -------------------------------------------------------------------------
 // What a picture and an atlas region meet their box as, and what a
 // paint program is handed: the parameters it named, the host scale,
-// and the ticker's state.
+// and the engine's state.
 
 TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
   // A raw picture is a leaf with the wrap written once, and the FIT is
@@ -488,9 +488,9 @@ TEST(ComposePaint, ContentScaleReportsHostScale) {
   EXPECT_FLOAT_EQ(seen, 2.0f);
 }
 
-TEST(ComposePaint, AnimatingReportsTheTickersState) {
+TEST(ComposePaint, AnimatingReportsTheEnginesState) {
   // `PaintContext::animating` looks dead from inside the library: the painter
-  // assigns it from `ticker.active()` (and the Brushes.h wrappers copy that
+  // assigns it from `engine.isRunning()` (and the Brushes.h wrappers copy that
   // forward rather than a constant), but nothing in the library ever reads
   // it back. Its only consumer is a paint program written by a caller, so
   // this test is the only thing keeping the field wired up.
@@ -498,7 +498,7 @@ TEST(ComposePaint, AnimatingReportsTheTickersState) {
   bool seen = false;
   host.composer.render(
       box().children({box().width(40).height(40).fill(red()).opacity(
-                          animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
+                          motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
                       custom([&seen](SkCanvas&, const PaintContext& ctx) {
                         seen = ctx.animating;
                       })
@@ -506,7 +506,7 @@ TEST(ComposePaint, AnimatingReportsTheTickersState) {
                           .height(10)
                           .cache(Cache::None)}));
   host.frame(0.016);
-  EXPECT_TRUE(seen) << "an entrance is running: the ticker is active";
+  EXPECT_TRUE(seen) << "an entrance is running: the engine is running";
   for (int i = 0; i < 40; ++i)
     host.frame(0.016);  // 640 ms — well past the 400 ms entrance
   EXPECT_FALSE(seen) << "and false again once nothing is moving";

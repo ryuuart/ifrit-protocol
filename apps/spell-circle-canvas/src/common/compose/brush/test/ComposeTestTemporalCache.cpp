@@ -7,24 +7,19 @@
 
 namespace {
 
-/** Host with a real FrameClock, so a material's injected uTime advances.
- *  (The shared Host deliberately has none — most tests want elapsed 0.) */
+/** A host whose engine a material reads its injected uTime from, so the
+ *  time a frame states is the time the material sees. */
 struct ClockedHost {
-  sigil::motion::Ticker ticker;
-  sigil::motion::FrameClock clock;
-  Composer composer{ticker, fonts()};
+  sigil::motion::Engine engine;
+  Composer composer{engine, fonts()};
   sk_sp<SkSurface> surface;
-  double now = 0;
 
   ClockedHost(int w, int h) {
-    composer.setClock(&clock);
     composer.setSize({(float)w, (float)h});
     surface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
   }
   void frame(double dt) {
-    now += dt;
-    clock.tick(now);
-    ticker.tick(dt);
+    engine.advance(engine.elapsed() + sigil::motion::Duration(dt));
     surface->getCanvas()->clear(SK_ColorBLACK);
     composer.draw(*surface->getCanvas());
   }
@@ -115,7 +110,7 @@ Element gatedRing(Cache mode) {
                      .shape(geometry::shapes::circle())
                      .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
                      .mask(by::spans(spans::upTo(
-                         animate({.from = 0.0f, .keyframes = {{.to = 0.6f, .duration = 200ms}, {.to = 0.6f, .duration = 400ms}, {.to = 1.0f, .duration = 200ms}}, .ease = sigil::motion::ease::linear}))))});
+                         motion::animate({.from = 0.0f, .keyframes = {{.to = 0.6f, .duration = 200ms}, {.to = 0.6f, .duration = 400ms}, {.to = 1.0f, .duration = 200ms}}, .ease = sigil::motion::ease::linear}))))});
 }
 
 }  // namespace

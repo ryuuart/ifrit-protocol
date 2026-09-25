@@ -33,8 +33,8 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
   auto typed = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
         .textFx({.effect = textFx::typeOn(),
-                 .stagger = {.eachMs = 12, .durationMs = 40},
-                 .progress = animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = motion::ease::linear})});
+                 .delay = motion::stagger(12ms), .duration = 40ms,
+                 .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = motion::ease::linear})});
   };
   Host host(240, 120);
   host.composer.render(
@@ -87,8 +87,8 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
         {box().width(3).height(10).fill(Fill::color(SkColors::kRed)),
          text(std::move(line))
              .textFx({.effect = textFx::typeOn(),
-                      .stagger = {.eachMs = 5, .durationMs = 30},
-                      .progress = animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear})})});
+                      .delay = motion::stagger(5ms), .duration = 30ms,
+                      .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear})})});
   };
   constexpr size_t kRowNodes = 3;  // the row box, the stripe, the text leaf
 

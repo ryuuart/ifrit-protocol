@@ -30,12 +30,11 @@ def opacity(self, value: ScalarLike) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `motion::Animatable<float>` | A number at rest, a number in transition, or a number bound to a live output. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) — `motion::animate`, `motion::bind`, or the bare number |
+| `motion::Animatable<float>` | A number at rest, a described motion, a live number somebody writes, or a live number followed through a binding. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) — `motion::animate`, `motion::animatable`, `motion::bind`, or the bare number |
 
 `opacity(1)` compiles: the animatable takes a plain number, and an
 integer reaches it the same way a float does. In Python the parameter
-is `ScalarLike`: a number, an animatable, a transition, or a bound
-output.
+is `ScalarLike`: a number or an animatable.
 
 ## Description
 
@@ -53,10 +52,12 @@ replays under the new alpha.
 
 **A mount entrance is this verb over an entering value.** The fade
 every card, panel and strip says as it arrives is
-`opacity(animate(from(0).to(1), how))`: the node is clear the frame it
-mounts and ramps to solid over `how`. A staggered container adds its
-own share of delay in front of that ramp, so the entrance is written
-once per node and dealt by the container.
+`opacity(motion::animate({.from = 0.0f, .to = 1.0f}))`: the node is
+clear the frame it mounts and ramps to solid over the tween's duration.
+A run of siblings entering one after another writes
+`.delay = motion::stagger(40ms)` in that same tween, and each child's
+delay is resolved from its place among its siblings — the entrance is
+written once and dealt by position.
 
 ## Examples
 
@@ -66,7 +67,7 @@ once per node and dealt by the container.
 
 ## See also
 
-`transition` for the node's default easing, `staggerChildren` for the
-delay a container deals its entering children,
+`transition` for the node's default easing, `motion::stagger` for a
+delay that steps from one entering sibling to the next,
 [`blendMode`](blendMode.md), [`filter`](filter.md), and `mask` for a
 reveal that is a shape rather than a level.

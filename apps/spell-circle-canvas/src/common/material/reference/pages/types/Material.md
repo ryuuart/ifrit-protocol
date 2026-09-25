@@ -51,7 +51,7 @@ to a step rate, `Material::worldSpace` anchors it to the root frame
 rather than the node's.
 
 QUERIES are the two the rest of the tree asks. `Material::isRunning` is
-whether the upload can change with no edit — a bound output or block, a
+whether the upload can change with no edit — a bound live value or block, a
 recipe reading time or content scale, or an animated child.
 `Material::geometryDependent` is whether it depends on where and how
 large the node is. `Material::resolve` answers the program and the bytes
@@ -100,8 +100,8 @@ so a slot that colours a surface takes one directly.
 ## Description
 
 EQUALITY is by value: recipe identity, bytes, bindings under SigilMotion's
-rule for an animatable — a live binding by the Output's IDENTITY, never
-the number behind it — a block by pointer, children by value, and the
+rule for an animatable — a live value by the IDENTITY of the cell it
+reads, never the number behind it — a block by pointer, children by value, and the
 instance settings. Two materials describing the same thing compare equal,
 which is what lets a node prune.
 

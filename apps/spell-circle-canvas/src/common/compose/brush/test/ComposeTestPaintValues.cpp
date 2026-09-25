@@ -74,7 +74,7 @@ TEST(ComposeSdf, AStarFillsItsCentreAndMissesTheBoxCorners) {
 
 TEST(ComposeSdf, GeometryStaticCachesAndPrunes) {
   // An SDF material reads uResolution (geometry-dependent) but binds no
-  // Outputs: it must CACHE like static content (0 live paints, 0 re-records)
+  // live values: it must CACHE like static content (0 live paints, 0 re-records)
   // AND prune across an identical re-describe (recipe equality — same
   // per-kind effect pointer, equal constants).
   Host host;

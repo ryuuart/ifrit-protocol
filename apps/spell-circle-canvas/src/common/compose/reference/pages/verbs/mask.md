@@ -19,9 +19,9 @@ shape.
 **Reach for the one-argument form first.**
 
 ```cpp
-element.mask(by::spans(spans::upTo(motion::animate(motion::from(0.f).to(1.f),
-                                                   {600ms}))));
-element.mask(by::edge(90.f, motion::bind(&sweep)));
+element.mask(by::spans(spans::upTo(
+    motion::animate({.from = 0.0f, .to = 1.0f, .duration = 600ms}))));
+element.mask(by::edge(90.f, sweep));   // a live motion::Animatable<float>
 element.mask(by::shape(Region::path(seal)));
 ```
 

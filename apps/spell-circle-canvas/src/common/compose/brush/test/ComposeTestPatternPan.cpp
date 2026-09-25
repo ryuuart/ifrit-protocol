@@ -49,7 +49,7 @@ Element pannedPanel(Pattern& pat) {
 }  // namespace
 
 TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
-  // Assign the Output, the repeat moves — per frame, two frames
+  // Assign the live value, the repeat moves — per frame, two frames
   // pixel-asserted, and render() is never called again after the first
   // describe (the whole point of the bound form).
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
@@ -224,7 +224,7 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
 TEST(ComposePatternPan, ThePanBindingIsRecipe) {
   // The BINDING participates in the prune signature: the same binding
   // prunes, a different one patches. A pruned swap would leave the OLD
-  // Output driving the pixels for as long as the node lives.
+  // live value driving the pixels for as long as the node lives.
   sigil::motion::Animatable<float> a = sigil::motion::animatable(0.0f), b = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
   Pattern p1 = pat, p2 = pat, p3 = pat;

@@ -82,9 +82,9 @@ that skips a describe, the caching proof, the device seam, and the
 compute values a drawing is drawn from.
 
 **[SigilMotion](doxygen:SigilMotion)** — animation timing and animation
-*values*, with no renderer in them: a monotonic frame clock, a ticker
-over a Choreograph timeline, the value types that describe how a
-property changes, bindings, and physics.
+*values*, with no renderer in them: one engine that animations,
+timelines and timers run on, the value types that describe how a
+property changes, staggers and schedules, bindings, and physics.
 
 **[SigilData](doxygen:SigilData)** — tabular data, and the one value
 that maps a domain onto a range. Named, typed columns as contiguous

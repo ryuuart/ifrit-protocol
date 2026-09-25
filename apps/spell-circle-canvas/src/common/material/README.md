@@ -124,7 +124,7 @@ auto glow = std::make_shared<const Recipe>(
 
 // An instance: values now, a bound clock and a live table later.
 Material m(glow, Glow{1.0f, {1, 0.8f, 0.2f, 1}, {}});
-m.bind("uScale", &scaleOutput);        // a choreograph::Output<float>
+m.bind("uScale", scale);              // a live motion::Animatable<float>
 m.bind("uBars", spectrumBlock);        // a shared_ptr<UniformBlock>, 8 floats
 m.slot("uSrc", Material(gradientRecipe, GradientParameters{...}));
 
@@ -261,14 +261,15 @@ appended to. `Variant` is a small ordered key the
 backend owns the meaning of — a premultiplied build, a debug view — and
 the default variant is the plain build.
 
-**Bindings are live, and equality is by identity.** `bind(name, Output*)`
-makes a float field read the output's current value at every resolve;
+**Bindings are live, and equality is by identity.** `bind(name, animatable)`
+makes a float field read a `motion::Animatable<float>`'s current value at
+every resolve;
 `bind(name, shared_ptr<UniformBlock>)` does the same for an array field
 and a caller-owned table. A bound material `isRunning()`;
 `isBound(name)` is the other question — whether a field carries a binding
-at all, an output or a number or a block, rather than only the bytes
+at all, a live value or a number or a block, rather than only the bytes
 `set()` last wrote. Two materials
-bound to the same output or block compare equal; bound to different ones,
+bound to the same live value or block compare equal; bound to different ones,
 unequal; the values behind them never enter the comparison. A `UniformBlock`
 carries a revision (`commit()` advances it) so a caller can tell an edited
 frame from an untouched one, and its values are read live whether or not

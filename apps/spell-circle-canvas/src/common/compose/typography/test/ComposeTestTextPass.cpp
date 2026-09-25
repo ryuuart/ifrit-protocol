@@ -111,7 +111,8 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
       {text(u8"ABC DEF", whiteStyle(30))
            .key("probe")
            .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
-                    .stagger = {.eachMs = 90, .durationMs = 200},
+                    .delay = sigil::motion::stagger(90ms),
+                    .duration = 200ms,
                     .unit = sigil::weave::Unit::Cluster,
                     .progress = 0.55f})}));
   host.frame();
@@ -126,10 +127,11 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
     const SkColor probe =
         host.pixel((int)beat.rect.centerX(), (int)beat.rect.centerY());
     const float painted = (float)SkColorGetR(probe) / 255.0f;
-    EXPECT_NEAR(painted, beat.localTime, 0.02f)
+    EXPECT_NEAR(painted, beat.localProgress, 0.02f)
         << "unit " << beat.unitIndex << " painted a different local time "
         << "than beatsOf reports";
-    sawDistinct |= std::abs(beat.localTime - beats.front().localTime) > 0.05f;
+    sawDistinct |=
+        std::abs(beat.localProgress - beats.front().localProgress) > 0.05f;
   }
   EXPECT_TRUE(sawDistinct) << "every beat read the same time — the cascade "
                               "never reached the uniforms";
@@ -255,10 +257,10 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
         {text(u8"ABCD", whiteStyle(30))
              .key("run")
              .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
-                      .stagger = {.eachMs = 60, .durationMs = 200},
+                      .delay = sigil::motion::stagger(60ms), .duration = 200ms,
                       .unit = sigil::weave::Unit::Cluster,
                       .progress =
-                          animate({.to = target, .duration = 200ms})})});
+                          motion::animate({.to = target, .duration = 200ms})})});
   };
   host.composer.render(describe(0.0f));
   host.frame();
@@ -322,27 +324,31 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // what makes the skip observable: at a phase covered by the declaration
   // the batches draw directly and the letters show, while any phase off
   // the declaration still runs the shader and erases them.
-  const auto lettersShow = [](TextEffect effect, sigil::motion::Spread cascade,
+  const auto lettersShow = [](TextEffect effect,
+                              const sigil::motion::Timing& timing,
                               float master) {
     Host host;
     host.composer.render(box().padding(30).children(
         {text(u8"REST", whiteStyle(40))
              .key("t")
              .textFx({.effect = std::move(effect),
-                      .stagger = std::move(cascade),
+                      .delay = timing.delay,
+                      .duration = timing.duration,
+                      .loop = timing.loop,
                       .unit = sigil::weave::Unit::Cluster,
                       .progress = master})}));
     host.frame();
     return anyWhiteIn(host, SkIRect::MakeXYWH(10, 10, 180, 180));
   };
-  const sigil::motion::Spread oneShot{.eachMs = 60, .durationMs = 200};
+  const sigil::motion::Timing oneShot{.delay = sigil::motion::stagger(60ms),
+                                      .duration = 200ms};
   const TextEffect erase = textFx::pass(passOver(kEraseSksl));
 
   // Undeclared: the pass runs at every phase, both ends included.
   EXPECT_FALSE(lettersShow(erase, oneShot, 0.0f));
   EXPECT_FALSE(lettersShow(erase, oneShot, 1.0f));
 
-  // Declared at both ends: a one-shot cascade clamps every unit to exactly
+  // Declared at both ends: a one-shot schedule clamps every unit to exactly
   // 0 at master 0 and exactly 1 at master 1, so both ends skip — and the
   // middle, where the units straddle their beats, still runs the shader.
   const TextEffect rests = erase.restsAt(0.0f, 1.0f);
@@ -354,11 +360,12 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   EXPECT_TRUE(lettersShow(erase.restsAt(0.0f), oneShot, 0.0f));
   EXPECT_FALSE(lettersShow(erase.restsAt(0.0f), oneShot, 1.0f));
 
-  // A LOOPING cascade: units genuinely rest at exactly 1 between beats, so
+  // A LOOPING schedule: units genuinely rest at exactly 1 between beats, so
   // restsAt(1) engages whenever no beat is mid-cycle — and does not while
   // any unit is mid-beat.
-  sigil::motion::Spread loop{.eachMs = 60, .durationMs = 100};
-  loop.loopMs = 1000;
+  const sigil::motion::Timing loop{.delay = sigil::motion::stagger(60ms),
+                                   .duration = 100ms,
+                                   .loop = 1000ms};
   EXPECT_TRUE(lettersShow(erase.restsAt(1.0f), loop, 0.5f));
   EXPECT_FALSE(lettersShow(erase.restsAt(1.0f), loop, 0.05f));
 }
@@ -490,7 +497,7 @@ TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
   material::Paint live =
       material::skia::sksl(wideUniformEffect()).bind("uVals", block);
   // The binding declares volatility — the node paints live, no cache can
-  // freeze the table — exactly as a bound scalar Output does.
+  // freeze the table — exactly as a bound scalar live value does.
   EXPECT_TRUE(live.isRunning());
   // A block at the wrong size is refused and declares nothing.
   auto wrong = std::make_shared<sigil::material::UniformBlock>(3);

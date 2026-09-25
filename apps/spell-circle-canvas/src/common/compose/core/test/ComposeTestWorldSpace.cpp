@@ -259,7 +259,7 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
   host.frame();
   const SkPoint anchored = brightestPixel(host);
   EXPECT_LT(SkPoint::Distance(anchored, {70, 70}), 3.0f);
-  // Drive the rotation externally — no re-describe, no ticker motion.
+  // Drive the rotation externally — no re-describe, no engine motion.
   for (float angle : {10.0f, 25.0f, 40.0f}) {
     rot = angle;
     host.frame(1.0 / 60.0);

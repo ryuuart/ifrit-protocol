@@ -8,6 +8,7 @@
 #include <include/core/SkFont.h>
 #include <include/core/SkPictureRecorder.h>
 #include <sigilcompose/core/Feed.h>
+#include <sigilmotion/values/Time.h>
 
 #include <numeric>
 
@@ -31,16 +32,17 @@ TextEffect fixed(std::string key, GlyphModifier mod) {
 
 TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
   // The meter is beatsOf drawn: a cell on each unit's own rect, filled by
-  // that unit's local time. Half way through a four-beat cascade, the first
-  // cells are full, the last are empty, and every cell stands where its
-  // letters do.
+  // that unit's local progress. Half way through a four-beat schedule, the
+  // first cells are full, the last are empty, and every cell stands where
+  // its letters do.
   Host host(300, 140);
   const auto describe = [&](bool withMeter) {
     Element root = box().padding(10).children(
         {text(u8"ABCD", whiteStyle(28))
              .key("word")
              .textFx({.effect = textFx::rise(4),
-                      .stagger = {.eachMs = 100, .durationMs = 100},
+                      .delay = motion::stagger(100ms),
+                      .duration = 100ms,
                       .progress = 0.5f})});
     if (withMeter)
       root.children(
@@ -57,7 +59,7 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
   host.frame();
 
   // Every beat's rect carries a cell: bed where the beat has not run, fill
-  // where it has, and the boundary between them at its localTime.
+  // where it has, and the boundary between them at its localProgress.
   int running = 0, unfinished = 0;
   for (const Beat& beat : beats) {
     const int y = (int)beat.rect.centerY();
@@ -65,12 +67,12 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
     const int right = (int)beat.rect.right() - 1;
     ASSERT_LT(left, right) << "a beat rect with no width to draw in";
     const SkColor at = host.pixel(left, y);
-    if (beat.localTime > 0.05f) {
+    if (beat.localProgress > 0.05f) {
       ++running;
       EXPECT_GT(SkColorGetR(at), 200u)
           << "a beat that has run shows no fill at its left edge";
     }
-    if (beat.localTime < 0.95f) {
+    if (beat.localProgress < 0.95f) {
       ++unfinished;
       EXPECT_GT(SkColorGetB(host.pixel(right, y)), 200u)
           << "a beat that has not finished shows no bed at its right edge";
@@ -275,10 +277,10 @@ TEST(ComposeStudio, TheColourOpsAreOneNamePerLookInsteadOfOneBodyPerCallSite) {
       << "the same colour SigilMaterial's own spelling answers";
 
   // phase() wraps and never NaNs on a zero period.
-  EXPECT_FLOAT_EQ(motion::phase(0.0, 4.0), 0.0f);
-  EXPECT_FLOAT_EQ(motion::phase(3.0, 4.0), 0.75f);
-  EXPECT_FLOAT_EQ(motion::phase(9.0, 4.0), 0.25f);
-  EXPECT_FLOAT_EQ(motion::phase(1.0, 0.0), 0.0f);
+  EXPECT_FLOAT_EQ(motion::phase(0s, 4s), 0.0f);
+  EXPECT_FLOAT_EQ(motion::phase(3s, 4s), 0.75f);
+  EXPECT_FLOAT_EQ(motion::phase(9s, 4s), 0.25f);
+  EXPECT_FLOAT_EQ(motion::phase(1s, 0s), 0.0f);
 }
 
 TEST(ComposeStudio, ATypedOptionsValueCarriesWhatPositionalArgumentsCannot) {

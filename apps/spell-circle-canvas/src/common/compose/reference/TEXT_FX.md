@@ -4,12 +4,14 @@ A chapter of [TYPOGRAPHY.md](../TYPOGRAPHY.md), the type chapter of
 [SigilCompose](../README.md).
 
 Motion inside a text leaf is a list of **tracks**. One `Track` is five
-values — *which* glyphs (`weave::Selector`), *what* deviation from rest
-(`TextEffect`), *how* the beats spread (`motion::Spread`), what a unit IS
+things — *which* glyphs (`weave::Selector`), *what* deviation from rest
+(`TextEffect`), *when* each beat opens and how long it lasts (the timing
+fields `Track::delay`, `Track::duration`, `Track::loop` and
+`Track::within`, read together as a `motion::Timing`), what a unit IS
 (`Track::unit`), and the master `Animatable<float>` progress that drives
-it. The spread is SigilMotion's and says nothing about text; `unit` is the
-whole of what makes it a cascade over glyphs rather than over a set's
-children or a feed's rows. `Text::textFx` appends one;
+it. The timing is SigilMotion's and says nothing about text; `unit` is the
+whole of what makes it a schedule over glyphs rather than over any other
+run of units. `Text::textFx` appends one;
 several compose per glyph, with `GlyphModifier` offsets and rotations adding
 and scale and alpha multiplying. The seam is three headers:
 
@@ -21,7 +23,7 @@ and scale and alpha multiplying. The seam is three headers:
   evaluates by STRUCTURE rather than by calling a body, and
   `kNominalSizePx`, the display size a preset's reach is declared
   against.
-- `typography/Track.h` — the cascade. `Track` is the five values above,
+- `typography/Track.h` — the schedule. `Track` is the five things above,
   and `Beats` is which list its beats are numbered against.
 - `kit/Kinetic.h` — the stock effects an example reaches for: `rise`,
   `waveLoop` and the rest are values over the seam, and so the kit's.
@@ -31,10 +33,10 @@ text(u8"ONE LINE, TWO MOVES", display)
     .textFx({.effect = textFx::rise(20), .unit = weave::Unit::Word})
     .textFx({.where = weave::selectors::text(u8"TWO"),
          .effect = textFx::waveLoop(),
-         .progress = &phase});
+         .progress = phase});   // a motion::animatable the sketch steps
 ```
 
-**Units.** `weave::Unit` is the granularity a selector slices and a cascade
+**Units.** `weave::Unit` is the granularity a selector slices and a schedule
 beats over: `weave::Unit::Glyph`, `weave::Unit::Cluster`,
 `weave::Unit::Word`, `weave::Unit::Line`, `weave::Unit::Sentence`,
 `weave::Unit::Selection`. `weave::Unit::Cluster` is the default, and it is
@@ -74,37 +76,41 @@ named `weave::rich()` run carries a name: plain text, a run given a style
 directly, and the paragraph overload have none, so there it selects nothing
 and warns once per name, as does a name no run was written with.
 
-**Cascades.** `motion::Spread` keeps the GSAP model — `eachMs` or
-`amountMs`, `durationMs`, and a `motion::Spread::From` origin: `Start`,
-`Center`, `End`, a seeded `Random` and a two-ended `Edges`. `Random` deals
-a scrambled EVEN ladder — every unit takes a distinct rank, so no two units
-open together — and it is deterministic: the ranking hash is keyed on the
-unit count and the seed, so the same text scatters the same way on every
-frame and after every relayout. At the default seed of 0 the key is the
-count alone, which makes two same-count cascades scatter identically; give
-each field its own nonzero seed for independent scatters.
-`motion::Spread::distribution` shapes the start times across the cascade,
-and `motion::Spread::then` nests a second cascade inside every beat of the
-first — `Track::innerUnit` says what a unit is at that second level.
+**Staggers.** When each unit's beat opens is `Track::delay`, a
+`motion::Staggered` duration — the same stagger value any tween field
+takes, with anime.js's model: `motion::stagger(28ms)` steps from one unit
+to the next, `motion::stagger({0ms, 620ms})` spreads a fixed span across
+however many units there are, and a plain duration opens every unit
+together. `motion::StaggerOptions` says where the run opens from —
+`motion::StaggerFrom::First`, `Center`, `Last`, a two-ended `Edges` and a
+seeded `Random` — and `.ease` crowds the start times along a curve.
+`Random` deals a scrambled EVEN ladder — every unit takes a distinct rank,
+so no two units open together — and it is deterministic: the ranking hash
+is keyed on the unit count and the seed, so the same text scatters the
+same way on every frame and after every relayout. At the default seed of
+0 the key is the count alone, which makes two same-count staggers scatter
+identically; give each field its own nonzero seed for independent
+scatters. `Track::duration` is how long one unit's own motion lasts, and
+`Track::within` nests a second stagger inside every beat of the first —
+`Track::innerUnit` says what a unit is at that second level.
 
-**Irregular timing.** `motion::Spread::cues` replaces the even spread with
-a TABLE — one start time per unit, in ms — which is what caption, lyric
-and lip-sync timing actually is:
+**Irregular timing.** `motion::cues` replaces the even steps with a TABLE
+— one start time per unit — which is what caption, lyric and lip-sync
+timing actually is:
 
 ```cpp
 text(lyric).textFx({.effect = textFx::rise(12),
-                .stagger = motion::Spread{.durationMs = 180}
-                               .cues({0, 340, 720, 1180}),
-                .unit = weave::Unit::Word});
+                    .delay = motion::cues({0ms, 340ms, 720ms, 1180ms}),
+                    .duration = 180ms,
+                    .unit = weave::Unit::Word});
 ```
 
-It answers the spread itself, so it goes anywhere one goes and compares
-like one. A table says only *when unit k starts*; `durationMs` and `then`
-are untouched by it, while `eachMs`, `amountMs`, `from` and `distribution`
-have nothing left to say and are ignored. A unit past the end of
-`motion::Spread::cueMs` starts at the last entry (the tail piles, visibly, rather than being given
-times nobody wrote), entries past the last unit go unread, and either
-mismatch warns once.
+A table is a stagger, so it goes anywhere one goes and compares like one.
+It says only *when unit k starts*; `Track::duration` and `Track::within`
+are untouched by it. A unit past the end of the table starts at the last
+entry (the tail piles, visibly, rather than being given times nobody
+wrote), entries past the last unit go unread, and either mismatch warns
+once.
 
 **Which list the beats are numbered against.** `Track::beatsOver` takes a
 `Beats`: `beats::Selection` — the default, numbering only the units the track's own
@@ -112,28 +118,29 @@ selector resolved — or `beats::Text`, numbering every unit of that
 granularity in the paragraph, addressed or not. Two tracks that partition
 one paragraph share a clock *by construction* only under `beats::Text`;
 under the default they line up while their selections happen to resolve
-lists of the same length and silently drift apart when they stop. A nested
-cascade takes the outer one's answer, as it already takes the outer
-`durationMs`.
+lists of the same length and silently drift apart when they stop. The
+nested stagger takes the outer one's answer, as one `Track::loop`
+governs both levels.
 
-**Reading the schedule back.** `Composer::beatsOf` reports the cascade one
+**Reading the schedule back.** `Composer::beatsOf` reports the schedule one
 track is actually running, after layout:
 
 ```cpp
-for (const Beat& b : composer.beatsOf("lyric", 0))
-  if (b.active) markTheWordAt(b.rect, b.localTime);
+for (const Beat& beat : composer.beatsOf("lyric", 0))
+  if (beat.running) markTheWordAt(beat.rect, beat.localProgress);
 ```
 
 `Beat::rect` is the unit's laid-out rect in the composer's coordinate space
 — read off the placement, so it follows a wrapped line, a mixed-style run's
 own size, a path baseline and a vertical column; `Beat::unitIndex` is the
-outer unit the beat belongs to (a nested cascade reports several beats
-sharing one, one per inner unit); `Beat::startMs` is the compounded delay;
-`Beat::localTime` and `Beat::active` are that beat's own progress right now.
-This is what anything travelling WITH a cascade and made of something other
-than glyphs — a bouncing ball, a playhead, an underline, a caret, a
-per-unit meter — reads instead of restating `i * eachMs`, which stops
-agreeing with the engine the moment the cascade nests or takes a table.
+outer unit the beat belongs to (a nested schedule reports several beats
+sharing one, one per inner unit); `Beat::start` is the compounded delay;
+`Beat::localProgress` and `Beat::running` are that beat's own progress
+right now. This is what anything travelling WITH a schedule and made of
+something other than glyphs — a bouncing ball, a playhead, an underline, a
+caret, a per-unit meter — reads instead of restating `i * step`, which
+stops agreeing with the engine the moment the schedule nests or takes a
+table.
 An unknown key or track index resolves to an empty vector, silently, like
 the rest of the query family. For a run that is *not* in the tree,
 `measureRun` and `runPens` are the static answer instead: `runPens` returns
@@ -159,76 +166,79 @@ floor left. Neither floor is a promise to fit: a run that cannot reach
 the width comes back at them, over-wide, rather than at a size nothing
 could read.
 
-**The whole span.** A beat says when it *opens*; `Composer::cascadeSpanMs`
-says when the whole schedule is *over* — the ms of virtual time the track's
-master progress [0,1] maps onto: `durationMs + eachMs·(N−1)` for the flat
-even ladder, `durationMs + amountMs` in amount mode, the compounded extent
-under `motion::Spread::then`, and the latest time any unit reads plus `durationMs`
-under a cue table. It is the number a progress duration must equal for a
-cascade to run at its authored ms — a table's times are absolute only when
-the window driving the track spans exactly the span — and the number
-anything sequenced *after* the cascade offsets from. It is computed by the
-same resolved cascade the glyphs and `beatsOf` read, so the three cannot
-disagree; an unknown key or track index resolves to 0, silently.
-`Track::spanMs` is the same number at *declare* time, computed from unit
-counts alone for the site that needs it before any node exists — above all
-the progress transition written right next to the stagger:
+**The whole span.** A beat says when it *opens*; `Composer::scheduleSpan`
+says when the whole schedule is *over* — the virtual time the track's
+master progress [0,1] maps onto: `duration + step·(N−1)` for a stagger
+that steps, `duration` plus the spread for one that spreads a fixed
+span, the compounded extent under `Track::within`, and the latest time
+any unit reads plus `duration` under a cue table. It is the number a
+progress duration must equal for a schedule to run at its authored times
+— a table's times are absolute only when the window driving the track
+spans exactly the span — and the number anything sequenced *after* the
+schedule offsets from. It is computed by the same resolved schedule the
+glyphs and `beatsOf` read, so the three cannot disagree; an unknown key
+or track index resolves to zero, silently. `Track::span` is the same
+number at *declare* time, computed from unit counts alone for the site
+that needs it before any node exists — above all the progress
+transition written right next to the stagger:
 
 ```cpp
-const motion::Spread cascade{.eachMs = 28, .durationMs = 480};
-const float span = cascade.spanMs(13);  // 480 + 28·12, before any layout
-// Drive the track's progress over exactly `span` ms and the last glyph
+const Track title{.effect = textFx::rise(20),
+                  .delay = motion::stagger(28ms), .duration = 480ms};
+const motion::Duration span = title.span(13);  // 480 + 28·12 ms, before any layout
+// Drive the track's progress over exactly `span` and the last glyph
 // lands as the master arrives at 1. After a draw,
-// composer.cascadeSpanMs("title", 0) reads the same number off the
+// composer.scheduleSpan("title", 0) reads the same number off the
 // mounted track — with the unit count the laid-out text supplies.
 ```
 
-For a nested cascade the second argument is how many inner units one beat
-holds (the widest beat's count, where they vary), and an amount-mode span
-is the same for every count past one, because the amount *is* the spread.
+For a nested schedule the second argument is how many inner units one
+beat holds (the widest beat's count, where they vary), and a spread
+span is the same for every count past one, because the spread *is* the
+span.
 
-**The looping cascade.** `motion::Spread::loopMs` makes the schedule wrap: above 0,
-every unit's beat re-opens on its own cycle of that period, phase-offset by
-the unit's start time — even ladder and cue table alike — so steady
-continuous motion (rain re-dropping column by column, arrivals that never
-stop) is *declared* rather than faked by re-running a one-shot. The master
-stays the one clock, and one sweep 0→1 is exactly one cycle: unit *i* reads
-`clamp(((master·loopMs − startᵢ) mod loopMs) / durationMs)`, so master 0
-and master 1 name the same instant of the cycle and a **wrapping bound
-phase** — an `Output` stepped mod 1, the clock `textFx::waveLoop` already reads
-— drives it seamlessly forever:
+**The looping schedule.** `Track::loop` makes the schedule wrap: above
+zero, every unit's beat re-opens on its own cycle of that period,
+phase-offset by the unit's start time — stepped stagger and cue table
+alike — so steady continuous motion (rain re-dropping column by column,
+arrivals that never stop) is *declared* rather than faked by re-running a
+one-shot. The master stays the one clock, and one sweep 0→1 is exactly
+one cycle: unit *i* reads `clamp(((master·loop − startᵢ) mod loop) /
+duration)`, so master 0 and master 1 name the same instant of the cycle
+and a **wrapping live phase** — a `motion::animatable` stepped mod 1, the
+clock `textFx::waveLoop` already reads — drives it seamlessly forever:
 
 ```cpp
-motion::Spread cascade = motion::Spread{}.cues(columnStartsMs);
-cascade.then({.eachMs = 80, .durationMs = 1400});
-cascade.loopMs = 5000;  // every column re-drops on its own cue, forever
 text(field, rain).textFx({.effect = streak,
-                      .stagger = cascade,
-                      .unit = weave::Unit::Line,
-                      .innerUnit = weave::Unit::Cluster,
-                      .progress = &phase});  // phase wraps every 5 s
+                          .delay = motion::cues(columnStarts),
+                          .duration = 1400ms,
+                          .loop = 5s,     // every column re-drops on its own cue, forever
+                          .within = motion::stagger(80ms),
+                          .unit = weave::Unit::Line,
+                          .innerUnit = weave::Unit::Cluster,
+                          .progress = phase});  // phase wraps every 5 s
 ```
 
 Between its beat's close and its next opening a unit rests at local 1 — its
 landed deviation — and returns to 0 the instant the beat re-opens, so an
 effect that loops cleanly ends where nothing shows. Start offsets fold mod
-the period (a start past `loopMs` lands at start mod `loopMs`), and the
+the period (a start past `loop` lands at start mod `loop`), and the
 fold means every unit is *always* somewhere in its cycle: there is no
 "before the first beat", which leaves `textFx::hold` nothing to veto (local
-time touches 0 only at the instant of re-opening) — an effect on a looping
-cascade gates its own arrival instead, the way a streak table's head is its
-own entrance. `Composer::cascadeSpanMs` and `Track::spanMs` answer the
-**period** — still the ms the master maps onto, and the number a driver's
-wrap must span for the schedule to run at its authored ms. One loop governs
-the whole cascade, read off the outer spec under `motion::Spread::then` as
-`Track::beatsOver` is; `Beat::localTime` reports the wrapped local time (the
-same number the effect is handed) and no cycle index rides beside it — the
-master is a phase mod 1, so cycle identity lives with whoever steps the
-phase. Driving that phase is also what keeps the element live: a looping
-cascade at a *constant* master is one still frame of its cycle, exactly as
-a wave at one phase is, so permanent volatility is declared by the wrapping
-binding, never by the field, and `loopMs = 0` — the default — is the
-one-shot cascade.
+progress touches 0 only at the instant of re-opening) — an effect on a
+looping schedule gates its own arrival instead, the way a streak table's
+head is its own entrance. `Composer::scheduleSpan` and `Track::span`
+answer the **period** — still the time the master maps onto, and the
+number a driver's wrap must span for the schedule to run at its authored
+times. One loop governs the whole schedule, both levels, as
+`Track::beatsOver` does; `Beat::localProgress` reports the wrapped local
+progress (the same number the effect is handed) and no cycle index rides
+beside it — the master is a phase mod 1, so cycle identity lives with
+whoever steps the phase. Driving that phase is also what keeps the
+element live: a looping schedule at a *constant* master is one still
+frame of its cycle, exactly as a wave at one phase is, so permanent
+volatility is declared by the wrapping live value, never by the field,
+and a zero `loop` — the default — is the one-shot schedule.
 
 **Marking the type.** `Text::textAttach` anchors a child to the rect a
 *selector
@@ -250,7 +260,7 @@ out as though it were not there. A selector resolving several units gives
 one rect, the union of all of them; one resolving nothing places nothing and
 warns once. The rect is the **rest** rect — where the layout put those
 glyphs, not where a track has thrown them this frame — so a mark follows a
-reflow and stands still under a cascade; read `Composer::beatsOf` and drive
+reflow and stands still under a schedule; read `Composer::beatsOf` and drive
 the mark's own transform for one that must ride the motion. On a path run
 (`textOnPath`) the rect is on the curve, at the run's *resting* placement — a
 run driven along its baseline is a paint-time deviation like any track's.
@@ -314,7 +324,7 @@ other's special case — a `Phase` is an effect re-clocked over its window, a
 `textFx::Key` is one deviation standing still.
 
 **Holding a beat.** `textFx::hold` wraps an effect so a unit whose beat has not
-opened paints *nothing*: a cascade hands a waiting unit a local time clamped
+opened paints *nothing*: a schedule hands a waiting unit a local progress clamped
 to 0, and an effect that deviates at 0 is already performing out of turn.
 `textFx::scramble` is the case that shows — it substitutes from local 0, so an
 unheld glyph still waiting shows a *wrong* letter rather than no letter. The
@@ -322,9 +332,9 @@ hold is alpha 0 and not the identity, because the identity is a glyph sitting
 at rest, which for a substitution is exactly the answer the effect exists to
 withhold. Alpha multiplies, so a hold is a **veto**: a glyph whose held track
 has not opened paints nothing however many other tracks have opened on it.
-Put it on the track that owns the glyph's arrival. A *looping* cascade
+Put it on the track that owns the glyph's arrival. A *looping* schedule
 leaves it nothing to veto — every unit is always somewhere in its cycle —
-so there an effect gates its own arrival instead (the looping-cascade
+so there an effect gates its own arrival instead (the looping-schedule
 passage above).
 
 **What an effect is handed.** A body is `(glyph, local t, stream) →
@@ -367,7 +377,7 @@ PASS rather than a per-glyph deviation: the runtime renders the units the
 track addresses into a layer and runs the material ONCE over it, handing
 the track's own schedule in as uniform data — `uContent` (the layer),
 `uUnitRect[]` (each unit's box, node-local px) and `uUnitPhase[]` (each
-unit's cascade-local 0→1, then a stable per-unit seed) — so per-letter
+unit's schedule-local 0→1, then a stable per-unit seed) — so per-letter
 treatment is data rather than scene structure, and the cost is one draw
 plus one pass whatever the unit count is:
 
@@ -377,7 +387,7 @@ plus one pass whatever the unit count is:
 auto burn = material::Paint::recipe(
     sigil::material::Material(emberDissolve, Burn{ink}));
 text(u8"EMBER DECODE", display)
-    .textFx({.effect = textFx::pass(burn), .stagger = {.eachMs = 260}});
+    .textFx({.effect = textFx::pass(burn), .delay = motion::stagger(260ms)});
 ```
 
 The paint must be RECIPE-BACKED — `material::Paint::recipe` over a recipe
@@ -392,7 +402,7 @@ the track draws its glyphs at rest. `main(xy)` runs in the node's own px, the la
 device's resolution (a 2x host stays sharp with no supersampled bake), and
 the pass is BOUNDED: it paints the node's box grown by the track's `reach`
 and nothing outside it, unlike an `Element::filter` shader pass. The
-per-unit rects and times are resolved from the SAME cascade
+per-unit rects and times are resolved from the SAME schedule
 `Composer::beatsOf` reports, so a pass, a mark and the glyphs cannot
 disagree about the schedule.
 
@@ -410,8 +420,8 @@ repaints for unrelated reasons (an orbiting `textOnPath` ring) stops paying
 for a shader that changes nothing. The promise is unverifiable, in the
 family of `reach` and `bleed()`: declare a phase where the shader is not
 a pass-through and the picture pops at the seam, with no diagnostic. The
-test is exact — a one-shot cascade clamps a unit to exactly 0 before its
-beat and exactly 1 after. A looping cascade touches 0 only at the instant
+test is exact — a one-shot schedule clamps a unit to exactly 0 before its
+beat and exactly 1 after. A looping schedule touches 0 only at the instant
 a beat re-opens, so `restsAt(0)` effectively never engages there
 (correctly — the cycle is always mid-flight somewhere), while units rest
 at exactly 1 between beats, so `restsAt(1)` engages whenever no beat is
@@ -432,7 +442,7 @@ both. A pass is a whole-track statement: inside `textFx::sequence`,
 pass by driving its progress, and gate its onset in its own SkSL, which holds
 the whole schedule.
 
-**Colour as a cascade.** `textFx::tint(from, to)` is the colour reveal — a
+**Colour as a staggered reveal.** `textFx::tint(from, to)` is the colour reveal — a
 karaoke wipe, a highlight sweeping a word — and it carries one inversion
 worth stating once. `GlyphModifier::colorMultiplier` MULTIPLIES, and a multiplier only
 takes a colour toward black, so **the element is set in `to` and the effect

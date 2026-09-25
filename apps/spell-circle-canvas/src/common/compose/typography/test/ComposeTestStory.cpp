@@ -226,7 +226,8 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
     track.effect = textFx::rise(20.0f);
     track.unit = sigil::weave::Unit::Word;
     track.beatsOver = beats::Text;
-    track.stagger = {.eachMs = 20.0f, .durationMs = 100.0f};
+    track.delay = sigil::motion::stagger(20ms);
+    track.duration = 100ms;
     track.progress = 0.5f;
     return track;
   };
@@ -248,5 +249,5 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
   // last word left off rather than restarting at beat 0.
   EXPECT_EQ(first.front().unitIndex, 0u);
   EXPECT_GT(second.front().unitIndex, first.back().unitIndex);
-  EXPECT_GT(second.front().startMs, first.back().startMs);
+  EXPECT_GT(second.front().start, first.back().start);
 }

@@ -309,8 +309,8 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
   };
   const auto retainedAfter = [&](bool continuous) {
     sigil::weave::FontContext local(sigil::weave::ports::systemFontManager());
-    sigil::motion::Ticker ticker;
-    Composer composer(ticker, local);
+    sigil::motion::Engine engine;
+    Composer composer(engine, local);
     composer.setSize({200, 200});
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));
@@ -318,10 +318,11 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
     style.shaping.typeface = ui;
     style.paint.foreground.setColor(SK_ColorWHITE);
     sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
-    // eachMs = 0: every glyph reads the one master phase, so the coordinate
-    // is exactly the sequence driven below and nothing else.
+    // A zero delay: every glyph reads the one master phase, so the
+    // coordinate is exactly the sequence driven below and nothing else.
     Track track{.effect = textFx::variableAxisSweep("GRAD", gradeMin, gradeMax),
-                .stagger = {.eachMs = 0, .durationMs = 100},
+                .delay = 0ms,
+                .duration = 100ms,
                 .progress = phase};
     track.continuous = continuous;
     composer.render(box().padding(10).children(
@@ -332,7 +333,7 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
       constexpr double kGolden = 0.6180339887498949;
       walk = std::fmod(walk + kGolden, 1.0);
       phase = (float)walk;
-      ticker.tick(1.0 / 60.0);
+      engine.advance(engine.elapsed() + sigil::motion::Duration(1.0 / 60.0));
       surface->getCanvas()->clear(SK_ColorBLACK);
       composer.draw(*surface->getCanvas());
       if (f + 1 == kHalf) out.half = local.variedTypefaceCount();

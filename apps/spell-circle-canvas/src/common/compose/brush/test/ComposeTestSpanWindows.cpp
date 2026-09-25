@@ -29,7 +29,7 @@ TEST(ComposeSpanWrap, MarchingAntsMatchTrimAtEveryPhaseIncludingMidSeam) {
   // one of which sits exactly ON it.
   //
   // The node gate spells the window as (start, end, OFFSET); the pass door
-  // spells it as arithmetic on the two ENDPOINTS of one Output, which is why
+  // spells it as arithmetic on the two ENDPOINTS of one live value, which is why
   // it owes no third parameter.
   constexpr float kWindow = 0.25f;
   motion::Animatable<float> phase = motion::animatable(0.0f);
@@ -61,19 +61,19 @@ TEST(ComposeSpanWrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
   // The composer-driven half: BOTH endpoints on animate() ramps that carry
   // the window past 1.0, so the seam is crossed by a transition rather than
   // by a bound value.
-  constexpr float kWindow = 0.2f;
+  static constexpr float kWindow = 0.2f;
   auto host = [](bool useLegacyTrim) {
     auto h = std::make_unique<Host>(200, 200);
     Element e = revealBox();
     if (useLegacyTrim)
       e.mask(by::spans(
                  spans::wrap(0.0f, kWindow)
-                     .offset(animate({.from = 0.0f, .to = 1.0f, .duration = 1000ms}))))
+                     .offset(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 1000ms}))))
           .stroke(stroke(6, red()));
     else
       e.stroke(spans::wrap(
-                   animate({.from = 0.0f, .to = 1.0f, .duration = 1000ms}),
-                   animate({.from = kWindow, .to = 1.0f + kWindow, .duration = 1000ms})),
+                   motion::animate({.from = 0.0f, .to = 1.0f, .duration = 1000ms}),
+                   motion::animate({.from = kWindow, .to = 1.0f + kWindow, .duration = 1000ms})),
                stroke(6, red()));
     h->composer.render(stack().children({std::move(e)}));
     return h;
@@ -297,10 +297,10 @@ TEST(ComposeSpanTrim, AnimatedEndpointsRampTheSameWindow) {
     Element e = revealBox();
     if (useLegacyTrim)
       e.mask(by::spans(
-                 spans::upTo(animate({.from = 0.0f, .to = 1.0f, .duration = 800ms}))))
+                 spans::upTo(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 800ms}))))
           .stroke(stroke(6, red()));
     else
-      e.stroke(spans::upTo(animate({.from = 0.0f, .to = 1.0f, .duration = 800ms})),
+      e.stroke(spans::upTo(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 800ms})),
                stroke(6, red()));
     h->composer.render(stack().children({std::move(e)}));
     return h;
@@ -367,7 +367,7 @@ TEST(ComposeSpanOffset, TwoLiveSourcesSummedIntoOneEndpointMatchTrim) {
 
 TEST(ComposeSpanOffset, TheSummedEndpointWrapsLikeTrimDoes) {
   // The same row in Wrap mode — where the offset is the marching term and
-  // the ends are the window, each on its own Output.
+  // the ends are the window, each on its own live value.
   motion::Animatable<float> begin = motion::animatable(0.0f), end = motion::animatable(0.0f), off = motion::animatable(0.0f);
   Host trimmed(200, 200), spanned(200, 200);
   trimmed.composer.render(stack().children(

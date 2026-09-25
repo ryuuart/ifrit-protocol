@@ -222,6 +222,8 @@ sigil_doc_probes(compose
            ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/kit
            ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/core
+           ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/paint
+           ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/filter
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia/draw
            ${CMAKE_CURRENT_SOURCE_DIR}/../draw/include/sigildraw
@@ -229,7 +231,6 @@ sigil_doc_probes(compose
            ${CMAKE_CURRENT_SOURCE_DIR}/../../test
   PRELUDES "\"support/DocsTestSupport.h\""
            "<sigilskia/draw/Direct.h>"
-  ALIASES ch=choreograph
   SKIP_HEADERS Web.h
   EXCLUDE "kit::PatternHyphenator=${weave_owned}"
           "kit::englishHyphenator=${weave_owned}"

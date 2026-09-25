@@ -17,7 +17,7 @@ path, and one animatable float says where along it.
 
 ```cpp
 dot.travel({.path = shapes::circle(),
-            .t = bind(&phase).target(0, 1),
+            .t = phase,          // a live motion::Animatable<float>
             .lookAhead = 0.02f});   // auto-orient along the tangent
 ```
 

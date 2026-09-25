@@ -1,6 +1,6 @@
 // MANY ITEMS IN ONE DRAW: the flyweight repeat layer, where a pool of
 // placements is stamped from an atlas of cells, and the particle field,
-// where an EnTT registry stepped as a ticker steppable is batched by one
+// where an EnTT registry stepped once per frame is batched by one
 // Cache::None leaf into a single drawAtlas — beside the per-item draw
 // loop each of them exists to replace. Both are run again on a Graphite
 // Metal surface, which is where a batch of this size belongs.
@@ -76,7 +76,7 @@ BENCHMARK(BM_Draw_Instances_DataCached)->Arg(10000);
 // ---- "UI as particles": the scale answer ----------------------------------
 // Millions of visual items are ONE element, not a million elements: an
 // EnTT registry (SoA component pools, cache-friendly iteration) stepped
-// as a Ticker steppable, rendered by a single Cache::None custom leaf
+// as an engine motion, rendered by a single Cache::None custom leaf
 // batching everything into one SkCanvas::drawAtlas call — the same
 // GlyphRSXformBatches pattern the glyph engine uses for text.
 

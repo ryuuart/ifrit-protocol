@@ -83,10 +83,10 @@ exercise every feature this library has:
   map; the sky is a node whose `rotateY` turns the reflections while the
   lights and bodies stand still, and the row stands under a held
   crossfade of two panoramas.
-- **`set_stagger`** — the entrances of a set's children, cascaded, and
+- **`set_stagger`** — the entrances of a set's children, staggered, and
   the two selectors that address a subtree afterwards. Two rows differ
-  only in their spread's origin, so at one moment they hold different
-  shapes of the same cascade; `selectors::under` and `selectors::material` narrow a
+  only in their stagger's origin, so at one moment they hold different
+  shapes of the same run; `selectors::under` and `selectors::material` narrow a
   pass to one of them.
 - **`key_light`** — the emitter's dials. One still set under the kit's
   three-point rig, with the key light's strength and colour bound to live

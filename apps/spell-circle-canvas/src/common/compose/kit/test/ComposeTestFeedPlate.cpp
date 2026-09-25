@@ -190,12 +190,15 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
   host.frame();
   auto byHand = [&](bool staggered) {
     auto column = box().column().gap(st.window.gap).overflow(Overflow::Clip);
-    if (staggered) column.staggerChildren(400ms);
     for (const feed::Row<feed::TextRow>& r : ring.rows()) {
       Element row = feed::textRow(r.value, st.styles);
       row.key(feed::rowKey(r.sequence));
       if (staggered)
-        row.opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
+        row.opacity(motion::animate({.from = 0.0f,
+                                     .to = 1.0f,
+                                     .duration = 200ms,
+                                     .delay = motion::stagger(400ms),
+                                     .ease = motion::ease::linear}));
       column.children({std::move(row)});
     }
     return box().children({std::move(column)});
@@ -218,9 +221,9 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
     }
   EXPECT_GT(redInk, 10) << "the row did not take the style it named";
 
-  // And now the feed types out: each row's OWN mount animation is what the
-  // container cascade has to delay, so row 2 is still dark while row 1 has
-  // finished.
+  // And now the feed types out: each row's OWN mount animation carries a
+  // staggered delay, resolved from its place among the rows that mounted
+  // with it, so row 2 is still dark while row 1 has finished.
   auto brightest = [](Host& h, SkRect r) {
     int best = 0;
     for (int y = (int)r.top(); y < (int)r.bottom(); ++y)

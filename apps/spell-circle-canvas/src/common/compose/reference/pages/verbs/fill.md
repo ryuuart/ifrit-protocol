@@ -41,7 +41,7 @@ def fill(self, value: SurfacePaintLike, box: PaintBox = ...) -> Element: ...
 | Value | What it is | Where one comes from |
 |---|---|---|
 | `Fill` | Nothing, a colour, a shader, or a reference the tree resolves at paint. | [`Fill`](../types/Fill.md) |
-| `motion::Animatable<Fill>` | The same, at rest, in transition, or bound to a live output. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
+| `motion::Animatable<Fill>` | The same, at rest, as a described motion, or as a live value somebody writes. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
 | `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::Paint`](../../VALUES.md#the-surface) |
 | `material::Material` | A recipe, painted as `material::Paint::recipe` of it. | any recipe SigilMaterial builds: a field, a mount board, a signed-distance surface |
 | `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
@@ -98,20 +98,20 @@ CSS's `currentColor`, the same colour the text under that node is set in
 against the node's own context, so one component reads differently under
 two panels with no argument passed down.
 
-**The binding form is for a colour that IS a value.** A level meter
-whose hue is the level, a readout that reddens: write the fill into a
-bound output from the same step that computes the number.
+**The live form is for a colour that IS a value.** A level meter whose
+hue is the level, a readout that reddens: write the fill into a live
+value from the same step that computes the number.
 
 ```cpp
-choreograph::Output<float> level;
-choreograph::Output<Fill> bar;
-ticker.add([&] { level = value; bar = Fill::color(ramp(value)); });
-box().scaleX(motion::bind(&level)).fill(&bar);
+motion::Animatable<float> level = motion::animatable(0.0f);
+motion::Animatable<Fill> bar = motion::animatable(Fill::color(cold));
+engine.timer([&] { level = value; bar = Fill::color(heat(value)); });
+box().scaleX(level).fill(bar);
 ```
 
 What does not exist is deriving one from the other at the binding site:
-the shaping chain maps numbers to numbers, so compute the fill where the
-number is computed.
+a `motion::Binding` maps numbers to numbers, so compute the fill where
+the number is computed.
 
 **Neither a tile nor a pattern is a fill.** A pattern's bake is its
 identity, and one minted inside a describe has no bake in it and

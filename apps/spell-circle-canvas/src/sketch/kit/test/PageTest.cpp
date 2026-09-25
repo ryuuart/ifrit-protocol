@@ -32,10 +32,10 @@ using sigil::sketch::test::fonts;
 // The stage
 
 TEST(SketchKitStage, DeclaresTheWholeCanvas) {
-  sigil::motion::Ticker ticker;
-  compose::Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  compose::Composer composer(engine, fonts());
   sigil::sketch::CanvasSpecification specification;
-  sigil::sketch::SketchContext ctx(composer, ticker, assets(), {0, 0},
+  sigil::sketch::SketchContext ctx(composer, engine, assets(), {0, 0},
                                    &specification, &fonts());
 
   kit::stage(ctx, {.size = {1100, 424}, .captureAt = 0.05});
@@ -48,10 +48,10 @@ TEST(SketchKitStage, DeclaresTheWholeCanvas) {
 }
 
 TEST(SketchKitStage, TheGroundIsTheThemesUnlessTheStageSaysOtherwise) {
-  sigil::motion::Ticker ticker;
-  compose::Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  compose::Composer composer(engine, fonts());
   sigil::sketch::CanvasSpecification specification;
-  sigil::sketch::SketchContext ctx(composer, ticker, assets(), {0, 0},
+  sigil::sketch::SketchContext ctx(composer, engine, assets(), {0, 0},
                                    &specification, &fonts());
 
   kit::Theme paper = kit::houseTheme();

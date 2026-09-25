@@ -22,7 +22,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 #include <sigilworld/diligent/Runtime.h>
@@ -96,11 +96,11 @@ inline SkBitmap photograph(const Frame& frame,
                            const ::sigil::world::Runtime& executor,
                            SkISize extent,
                            const geometry::mesh::camera::Camera& camera) {
-  motion::Ticker ticker;
-  Scene scene(ticker);
+  motion::Engine engine;
+  Scene scene(engine);
   Frame copy = frame;
   copy.runtime(executor);
-  ticker.tick(1.0 / 60.0);
+  engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
   scene.render(copy);
 
   SkBitmap bitmap;

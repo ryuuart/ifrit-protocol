@@ -139,13 +139,13 @@ TEST(Material, EqualityIsByValueWithBindingsByIdentity) {
   // material.
   Material c(twoRecipe(), p);
   EXPECT_FALSE(a == c);
-  choreograph::Output<float> out{0.5f};
-  a.bind("uScale", &out);
+  sigil::motion::Animatable<float> out = sigil::motion::animatable(0.5f);
+  a.bind("uScale", out);
   EXPECT_FALSE(a == b);
-  b.bind("uScale", &out);
+  b.bind("uScale", out);
   EXPECT_TRUE(a == b);
-  choreograph::Output<float> other{0.5f};
-  b.bind("uScale", &other);
+  sigil::motion::Animatable<float> other = sigil::motion::animatable(0.5f);
+  b.bind("uScale", other);
   EXPECT_FALSE(a == b);
   b.unbind("uScale");
   a.unbind("uScale");
@@ -193,9 +193,9 @@ TEST(Material, TiersFollowBindingsFrameInputsAndChildren) {
   EXPECT_FALSE(still.isRunning());
   EXPECT_FALSE(still.geometryDependent());
 
-  choreograph::Output<float> out{0.0f};
+  sigil::motion::Animatable<float> out = sigil::motion::animatable(0.0f);
   Material bound = still;
-  bound.bind("uScale", &out);
+  bound.bind("uScale", out);
   EXPECT_TRUE(bound.isRunning());
   EXPECT_FALSE(bound.geometryDependent());
 
@@ -245,8 +245,8 @@ TEST(Material, AFieldSaysWhetherItCarriesABindingAtAll) {
 
   // An output, a plain number and a block are all bindings; only the
   // output makes the material move, which is the other question.
-  choreograph::Output<float> out{0.5f};
-  m.bind("uScale", &out);
+  sigil::motion::Animatable<float> out = sigil::motion::animatable(0.5f);
+  m.bind("uScale", out);
   EXPECT_TRUE(m.isBound("uScale"));
   EXPECT_FALSE(m.isBound("uTable"));
   m.bind("uScale", 2.0f);
@@ -263,7 +263,7 @@ TEST(Material, AFieldSaysWhetherItCarriesABindingAtAll) {
   m.bind("uTable", std::shared_ptr<const UniformBlock>{});
   EXPECT_FALSE(m.isBound("uTable"));
   // A binding the material refused is no binding.
-  const std::string said = captureStderr([&] { m.bind("uTable", &out); });
+  const std::string said = captureStderr([&] { m.bind("uTable", out); });
   EXPECT_NE(said.find("\"uTable\""), std::string::npos) << said;
   EXPECT_FALSE(m.isBound("uTable"));
 }
@@ -279,9 +279,9 @@ TEST(Material, ResolveSamplesBindingsInjectsFrameAndMemoises) {
                                               .frame(FrameInput::Resolution)
                                               .body(Target::Slang, "x"));
   Material m(r, P{1.0f, {1, 2, 3, 4}});
-  choreograph::Output<float> out{5.0f};
+  sigil::motion::Animatable<float> out = sigil::motion::animatable(5.0f);
   auto block = std::make_shared<UniformBlock>(4);
-  m.bind("uScale", &out).bind("uTable", block);
+  m.bind("uScale", out).bind("uTable", block);
   m.bind("uTable", std::make_shared<UniformBlock>(3));  // wrong size: ignored
   EXPECT_TRUE(m.isRunning());
 

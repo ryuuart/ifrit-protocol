@@ -486,8 +486,9 @@ not part of the naming.
 MEASUREMENT — the steps a reading is taken at are lit and the rest stand
 in the quiet ash — and `SwatchStrip::opacity` is every step's alpha,
 written as an entrance where the strip is DEALT rather than printed, so
-such a strip says `.staggerChildren(26ms)` on what comes back, exactly
-as a legend does.
+such a strip's `opacity` is a tween whose `.delay = motion::stagger(26ms)`,
+each step resolving it at its own place in the strip, exactly as a
+legend's entries do.
 
 `LegendEntry::mark` is the other half: where a patch of colour is not
 what the key shows — a quarried sample at its own two dimensions, a live
@@ -495,8 +496,8 @@ figure, a sprite — the caller hands over the drawing itself, and it
 stands exactly where the swatch would while keeping whatever size,
 corners and edge it was built with. An entry that is DEALT rather than
 printed carries its own `opacity` and `slide`; what tells one entry from
-the next is the run's own `staggerChildren`, chained onto what `legend`
-returns.
+the next is a `motion::stagger` in their tweens' `.delay`, resolved at
+each entry's place in the run.
 
 ### A fraction drawn — `Meter.h`
 
@@ -671,7 +672,7 @@ sketch::kit::scrollbar({.leading = stepper(true), .trailing = stepper(false),
                         .thumb = slider(),
                         .scrolled = {.view = shown, .content = whole,
                                      .track = trackH},
-                        .position = envelope().target(0.0f, travel)})
+                        .position = motion::bind(scroll, {.to = {0.0f, travel}})})
     .width(Dimension(19))
     .padding(2)
 ```
@@ -737,12 +738,12 @@ A timeline's `ink` is the whole mark's — a tick and the word under it are
 one mark and take one colour. A mark that states its own `ink` keeps its
 word out of the scale's, the way a legend entry does.
 
-### A number off a wire, as a motion output — `Channel.h`
+### A number off a wire, as a live value — `Channel.h`
 
 | | |
 | --- | --- |
-| `sketch::kit::Channel` | one number of one message name, followed on the hub's dispatch and written into a `choreograph::Output<float>` |
-| `Channel::output` | that output, which is what a binding chain is pointed at |
+| `sketch::kit::Channel` | one number of one message name, followed on the hub's dispatch and written into a live `motion::Animatable<float>` |
+| `Channel::live` | that live value, which is what `motion::bind` follows |
 | `Channel::value` | the number it stands at |
 | `Channel::lastRead` | the same reading as the wire spelled it, at the width the message carried it at; nothing until one has arrived |
 | `Channel::name` | the message name it follows |
@@ -752,7 +753,7 @@ sketch::kit::Channel wind{hub, desk, "/sky/wind", 0};       // an argument
 sketch::kit::Channel gust{hub, phone, "Gust", "strength"};  // a field
 …
 compose::box().scaleY(
-    motion::bind(&wind.output()).source(0, 127).target(0.2f, 1.0f))
+    motion::bind(wind.live(), {.from = {0, 127}, .to = {0.2f, 1.0f}}))
 ```
 
 **A CHANNEL IS THE HANDLER TAKEN OUT.** A desk sends a fader reading and
@@ -760,7 +761,7 @@ a property has to move by it, and what usually stands between the two is
 a function: read the message, write a member, scale it into the units the
 property wants, describe again. Every step of that but the first is
 arithmetic `motion::bind` already spells, so a channel follows the number
-and the chain does the rest — the whole path from a socket to a drawn
+and the binding does the rest — the whole path from a socket to a drawn
 property with nothing of the sketch's own in it.
 
 **TWO READINGS, because a number stands in one of two places.**
@@ -774,7 +775,7 @@ handler read the same wire the same way.
 
 **IT MOVES ONLY WHEN THE MESSAGE MOVED.** A dispatch that delivered
 nothing, a message under another name, and a message carrying the same
-reading as the last all leave the output exactly where it stood, so a
+reading as the last all leave the live value exactly where it stood, so a
 still fader does not rewrite a bound property once a frame. A number that
 is not there leaves it standing too — an argument short of the index, a
 field the record does not carry, a value that is not a number — so a
@@ -790,7 +791,7 @@ dispatch delivered, and every reading a frame takes agrees with every
 other. Neither the connection nor the hub is owned, and both outlive the
 channel.
 
-The output keeps its address for the life of the channel, moves included,
+The live value is one cell for the life of the channel, moves included,
 so a description that bound it once goes on reading it — which is why the
 state stands behind a pointer, as a connection's does.
 
@@ -888,6 +889,6 @@ and failed.
 
 The channel's cases are the one exception, because what a channel makes
 is a number and not a picture: they stand a door with no socket behind it
-on a hub, deliver bytes into it, and read the output — and a binding
-chain over it — after a dispatch, so no port has to be free and no clock
+on a hub, deliver bytes into it, and read the live value — and a binding
+over it — after a dispatch, so no port has to be free and no clock
 has to run for them to pass.

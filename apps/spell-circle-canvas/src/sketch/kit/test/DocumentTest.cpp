@@ -31,10 +31,10 @@ struct Beside {
   std::filesystem::path root =
       std::filesystem::temp_directory_path() / "sketch_kit_document";
   sigil::sketch::Assets store{""};
-  sigil::motion::Ticker ticker;
-  compose::Composer composer{ticker, fonts()};
+  sigil::motion::Engine engine;
+  compose::Composer composer{engine, fonts()};
   sigil::sketch::CanvasSpecification specification;
-  sigil::sketch::SketchContext ctx{composer, ticker,         store,
+  sigil::sketch::SketchContext ctx{composer, engine,         store,
                                    {0, 0},   &specification, &fonts(),
                                    false,    nullptr,        "document"};
 

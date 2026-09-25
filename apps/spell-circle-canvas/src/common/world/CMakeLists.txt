@@ -61,8 +61,8 @@ sigil_library(SigilWorld
 # The libraries this one stands on are scanned so a borrowed name
 # resolves where it lives: the mesh currency and its runtimes, the
 # reconcile phases and the settle policy, the shader compiler, and the
-# schedule whose cascade order means the same thing in a set as in a line
-# of type. The entity store's own names are EnTT's, whose headers no
+# stagger whose origins mean the same thing in a set as in a line of
+# type. The entity store's own names are EnTT's, whose headers no
 # include root here carries.
 sigil_doc_probes(world
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
@@ -75,7 +75,7 @@ sigil_doc_probes(world
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
-  PRELUDES "<sigilmotion/schedule/Spread.h>"
+  PRELUDES "<sigilmotion/schedule/Stagger.h>"
            "<sigilcore/reconcile/Phases.h>"
            "<sigilcore/cache/Settle.h>"
            "<sigilcore/cache/Cache.h>"

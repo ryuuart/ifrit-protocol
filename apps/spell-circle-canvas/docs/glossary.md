@@ -42,7 +42,7 @@ about those two is the commonest way to read a signature backwards.
 | **track** | SigilWeave | One kinetic effect over a run of units, with the units being the glyphs, words or lines it addresses. |
 | **value** | every library | What you CREATE to pass to a verb. The reference gives each one a page saying how to make one, what takes it, and what returns it. |
 | **verb** | SigilCompose, SigilDraw | Something you SAY to a node or a pen: a member that returns it, so calls chain. A verb naming a CSS-inherited property writes that lane and inherits. |
-| **volatility** | SigilCompose, SigilMaterial | Whether a value repaints differently from one frame to the next. Every value that can answer it spells it `isAnimated`, always derived from how the value was built and never a setter. A value that repaints and does not declare it is frozen by the first cache that sees it, with no error and no warning. |
+| **volatility** | SigilCompose, SigilMaterial | Whether a value repaints differently from one frame to the next. Every value that can answer it spells it `isRunning`, always derived from how the value was built and never a setter. A value that repaints and does not declare it is frozen by the first cache that sees it, with no error and no warning. |
 | **wire** | SigilSeer, SigilIO | One URI a message arrives on or leaves by. Seer is the tool that watches all of them at once. |
 
 ## Words about the build, not the libraries

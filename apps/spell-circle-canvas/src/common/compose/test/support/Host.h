@@ -14,6 +14,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
+#include <sigilmotion/time/Duration.h>
 
 #include <chrono>
 #include <cstring>
@@ -45,6 +46,13 @@ namespace {
 
 using sigil::test::fonts;
 
+/** A duration read as float milliseconds — the unit a schedule does its
+ *  arithmetic in, so a start or a span compares with `EXPECT_FLOAT_EQ` to
+ *  the number the case authored. */
+inline float inMilliseconds(sigil::motion::Duration time) {
+  return std::chrono::duration<float, std::milli>(time).count();
+}
+
 /** The optional's value; an empty optional is a test failure, not a crash. */
 template <class T>
 const T& require(const std::optional<T>& maybe) {
@@ -73,10 +81,10 @@ sigil::weave::TextStyle machineStyleAt(float size) {
   return s;
 }
 
-/** A composer with its own ticker, drawn into a raster surface. */
+/** A composer with its own engine, drawn into a raster surface. */
 struct Host {
-  sigil::motion::Ticker ticker;
-  Composer composer{ticker, fonts()};
+  sigil::motion::Engine engine;
+  Composer composer{engine, fonts()};
   sk_sp<SkSurface> surface;
 
   explicit Host(int w = 200, int h = 200) {
@@ -91,8 +99,10 @@ struct Host {
     return bm.getColor(0, 0);
   }
 
-  void frame(double dt = 0.0) {
-    if (dt > 0) ticker.tick(dt);
+  /** Moves the engine `seconds` past where it stands, then draws. */
+  void frame(double seconds = 0.0) {
+    if (seconds > 0)
+      engine.advance(engine.elapsed() + sigil::motion::Duration(seconds));
     surface->getCanvas()->clear(SK_ColorBLACK);
     composer.draw(*surface->getCanvas());
   }

@@ -61,12 +61,13 @@ point the author typed, not a geometry source.)
 
 ## Lifetime
 
-Every live binding is a **non-owning raw pointer** to an `Output` the
-caller owns; the composer holds its `FontContext` and its `Ticker` by
-reference, and both must outlive it. A recreated `Output` at a new address
-does more than dangle: bindings compare by *identity*, so the new address
-also breaks prune equality and re-patches the node on every describe. Hold
-your outputs where you hold your model.
+Every live value shares **one cell** among its copies, and the cell lives
+as long as any copy does; the composer holds its `FontContext` and its
+`motion::Engine` by reference, and both must outlive it. A live value made
+afresh on every describe is a new cell: live values compare by
+*identity*, so it breaks prune equality and re-patches the node on every
+describe. Make each `motion::animatable` once and hold it where you hold
+your model.
 
 ## Pruning
 

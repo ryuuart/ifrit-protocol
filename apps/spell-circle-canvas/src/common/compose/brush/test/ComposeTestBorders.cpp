@@ -199,17 +199,18 @@ TEST(ComposeText, EchoStampsTextUnderThePass) {
   EXPECT_GT(redCount, 20);    // the misprint peeking out at (6,−8)
 }
 
-TEST(ComposeMotion, StaggerFromEndRunsBottomUp) {
+TEST(ComposeMotion, StaggerFromLastRunsBottomUp) {
   Host host;
   auto card = [] {
-    return box().width(60).height(30).fill(red()).opacity(
-        animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
+    return box().width(60).height(30).fill(red()).opacity(motion::animate(
+        {.from = 0.0f,
+         .to = 1.0f,
+         .duration = 200ms,
+         .delay = motion::stagger(400ms, {.from = motion::StaggerFrom::Last}),
+         .ease = motion::ease::linear}));
   };
-  host.composer.render(box()
-                           .column()
-                           .gap(10)
-                           .staggerChildren(400ms, motion::Spread::From::End)
-                           .children({card(), card()}));
+  host.composer.render(
+      box().column().gap(10).children({card(), card()}));
   host.frame(0.3);  // LAST child leads; first still holds its `from`
   EXPECT_EQ(host.pixel(30, 15), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(30, 55), SK_ColorRED);
@@ -227,7 +228,7 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
            .absolute()
            .inset(80, 60, 80, 100)
            .fill(red())
-           .translateX(animate({.from = 40.0f, .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}}, .ease = motion::ease::linear}))}));
+           .translateX(motion::animate({.from = 40.0f, .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}}, .ease = motion::ease::linear}))}));
   host.frame();
   EXPECT_EQ(host.pixel(145, 100), SK_ColorRED);  // starts at +40
   EXPECT_EQ(host.pixel(105, 100), SK_ColorBLACK);
@@ -243,7 +244,7 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
            .absolute()
            .inset(80, 60, 80, 100)
            .fill(red())
-           .translateX(animate({.from = 40.0f, .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}}, .ease = motion::ease::linear}))}));
+           .translateX(motion::animate({.from = 40.0f, .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}}, .ease = motion::ease::linear}))}));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
@@ -297,7 +298,7 @@ TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
              .width(80)
              .height(80)
              .fill(std::move(f))
-             .opacity(animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds(400), .delay = std::chrono::milliseconds(300), .ease = motion::ease::linear}))});
+             .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds(400), .delay = std::chrono::milliseconds(300), .ease = motion::ease::linear}))});
   };
   host.composer.render(tree(red()));
   host.frame(0.35);  // 50ms into the ramp (after the 300ms hold)
@@ -323,9 +324,9 @@ TEST(ComposeMotion, ToggleBackDuringDelayHoldLands) {
                                .width(80)
                                .height(80)
                                .fill(red())
-                               .transition({std::chrono::milliseconds(200),
-                                            motion::ease::linear,
-                                            std::chrono::milliseconds(300)})
+                               .transition({.duration = 200ms,
+                                            .delay = 300ms,
+                                            .ease = motion::ease::linear})
                                .opacity(op)});
   };
   host.composer.render(tree(1.0f));
@@ -447,25 +448,23 @@ TEST(ComposePaint, BackdropLeavesDecorationsUnclipped) {
 TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
   // A stagger delay is an ordinal times a step, so an item appended to a
   // list whose cascade already finished would sit invisible for its full
-  // ordinal delay before entering. Only newly mounted children take a
-  // stagger, and their delay is counted from the mount, not from the list.
+  // ordinal delay before entering. A staggered delay is resolved against
+  // the child's place among the siblings that mounted WITH it, so the
+  // appended card is the first and only one of its patch.
   Host host;
   auto card = [](std::string_view key) {
     return box().width(60).height(20).fill(red()).key(key).opacity(
-        animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds(100), .ease = motion::ease::linear}));
+        motion::animate({.from = 0.0f,
+                         .to = 1.0f,
+                         .duration = std::chrono::milliseconds(100),
+                         .delay = motion::stagger(std::chrono::milliseconds(400)),
+                         .ease = motion::ease::linear}));
   };
-  host.composer.render(box()
-                           .column()
-                           .gap(10)
-                           .staggerChildren(std::chrono::milliseconds(400))
-                           .children({card("a"), card("b")}));
+  host.composer.render(
+      box().column().gap(10).children({card("a"), card("b")}));
   host.frame(1.2);  // initial cascade done
-  host.composer.render(box()
-                           .column()
-                           .gap(10)
-                           .staggerChildren(std::chrono::milliseconds(400))
-                           .children({card("a"), card("b"),
-                                      card("c")}));  // appended: only new mount
+  host.composer.render(box().column().gap(10).children(
+      {card("a"), card("b"), card("c")}));  // appended: only new mount
   host.frame(0.15);  // > its 100ms entrance, << 2·400ms ordinal delay
   EXPECT_EQ(host.pixel(30, 70), SK_ColorRED);  // "c" already in
 }

@@ -23,8 +23,8 @@ const ElementNode& nodeOf(const Element& element) { return *element.node(); }
 
 /** A lane's constant, for a preset that puts no motion on one. */
 float constantOf(const motion::Animatable<float>& lane) {
-  const float* plain = lane.plain();
-  return plain ? *plain : 0.0f;
+  const float* constant = lane.constant();
+  return constant ? *constant : 0.0f;
 }
 
 const ElementNode* childOf(const Element& element, const std::string& key) {

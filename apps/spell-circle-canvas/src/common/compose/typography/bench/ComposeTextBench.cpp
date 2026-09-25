@@ -9,6 +9,7 @@
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 
+#include <chrono>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -16,6 +17,7 @@
 #include "BenchSupport.h"
 
 using namespace sigil::compose;
+using namespace std::chrono_literals;
 using sigil::compose::bench::Host;
 
 namespace {
@@ -126,7 +128,7 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
              .height(1100)
              .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .textFx({.effect = textFx::rise(24),
-                      .stagger = {.eachMs = 120},
+                      .delay = sigil::motion::stagger(120ms),
                       .unit = sigil::weave::Unit::Line,
                       .progress = progress})});
   host.composer.render(block);

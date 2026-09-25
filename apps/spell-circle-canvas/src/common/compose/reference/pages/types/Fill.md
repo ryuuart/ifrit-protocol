@@ -96,7 +96,7 @@ fill REFERS to, so a reference in that slot would have nothing to read.
 | --- | --- | --- |
 | `compose::resolveRef` | function | SigilCompose — a reference resolved against a paint context |
 | `compose::toFill` | function | SigilCompose — a static material paint collapsed |
-| `compose::resolveFill` | function | SigilCompose — the same paint for THIS frame, bound outputs sampled |
+| `compose::resolveFill` | function | SigilCompose — the same paint for THIS frame, live values sampled |
 | `SurfacePaint::resolve` | member | SigilCompose |
 
 ## Description

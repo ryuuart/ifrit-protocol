@@ -6,8 +6,8 @@ layout through Yoga — with text leaves measured and drawn by SigilWeave,
 the sibling paragraph-layout library — diffs each new description against
 a retained tree to find what actually
 changed, paints in an explicit CSS-like stacking order, and automatically
-caches subtrees it can prove are not changing. Animation is Choreograph
-outputs and timelines, stepped by a clock the host owns.
+caches subtrees it can prove are not changing. Animation is SigilMotion's
+tweens and live values, run on an engine the host owns and advances.
 
 It owns no window, no surface, no render loop and no thread. You call
 `Composer::render()` when your data changes and `Composer::draw()` inside
@@ -183,7 +183,7 @@ Element meter(const Channel &c) {
                  // The bar ramps because the DESCRIBED value moved. Nobody
                  // steps it; the reconciler sees the change and starts a
                  // motion that retargets from wherever the bar is now.
-                 .scaleX(animate(to(c.level), Transition{.duration = 220ms}))});
+                 .scaleX(motion::animate({.to = c.level, .duration = 220ms}))});
 }
 
 Element dashboard(const std::vector<Channel> &channels) {
@@ -236,46 +236,44 @@ card({.ground = material::field::grain(0.08f, 4, 3.0f)});  // a material, unwrap
 box().fill(material::field::noise(0.05f, 4, 2.0f));        // and the verb takes one too
 ```
 
-The host side is three objects — a clock, a ticker and the composer —
-which the host owns and wires together:
+The host side is two objects — the engine and the composer — which the
+host owns and wires together:
 
 ```cpp
 sigil::weave::FontContext fonts = /* yours */;
-motion::FrameClock clock;
-motion::Ticker ticker;
-Composer composer(ticker, fonts);       // both must outlive the composer
-composer.setClock(&clock);
+motion::Engine engine;
+Composer composer(engine, fonts);       // both must outlive the composer
 composer.setSize({960, 540});
 composer.render(dashboard(model));
 
-const double dt = clock.tick();
-const bool moving = ticker.tick(dt);
+engine.advance();                       // one frame: the wall clock's movement
 composer.draw(canvas);
-const bool again = moving || composer.isRunning();
+const bool again = composer.isRunning();
 ```
 
 `Composer::isRunning()` is the whole gate: it answers `dirty()` — a
 description or a layout that changed — and, beyond it, whether a motion
-is running or a retained binding can still move without another
-`render()`, which is the one thing a host polling `dirty()` alone would
-miss on a scene driven from outside.
+on the engine is running or a retained binding can still move without
+another `render()`, which is the one thing a host polling `dirty()` alone
+would miss on a scene driven from outside. The composer reads every
+motion's time off the engine it was built with, so there is no second
+clock to wire.
 
-SigilSketch bundles exactly those three lines behind its own session, so
-a sketch declares a scene and never a loop. That is a convenience of a
-host and not of this library — spell the objects out when the clock or
-the ticker is shared with something else.
+SigilSketch bundles exactly those lines behind its own session, so a
+sketch declares a scene and never a loop. That is a convenience of a host
+and not of this library — spell the objects out when the engine is shared
+with something else.
 
-The other write path is a live binding — a `choreograph::Output` the host
-mutates every frame, read straight out of paint with no `render()` call:
+The other write path is a live value — a `motion::animatable` the host
+writes every frame, read straight out of paint with no `render()` call:
 
 ```cpp
-choreograph::Output<float> spin{0.0f};
-ticker.add([&](double) {
-  spin = motion::phase(ticker.elapsed(), 6.0);   // a wrapping [0,1) phase
-  return true;
+motion::Animatable<float> spin = motion::animatable(0.0f);
+engine.timer([&] {
+  spin = motion::phase(engine.elapsed(), 6s);   // a wrapping [0,1) phase
 });
 
-box().rotate(bind(&spin).target(0, 360));
+box().rotate(motion::bind(spin, {.to = {0, 360}}));
 ```
 
 ---
@@ -310,8 +308,8 @@ There are exactly two ways to change what is on screen, and both are
    *is* the child-swap API. There is no imperative node mutation, and that
    absence is deliberate: it is the door that would make every cache
    unsound.
-2. **Bind** — store a pointer to a live `choreograph::Output` in the
-   description and mutate it per frame. Bound properties are paint-only by
+2. **Bind** — put a live `motion::animatable` value in the description
+   and write it per frame. Bound properties are paint-only by
    contract. They never relayout, and the node's cached content replays
    under the new transform or the new value.
 
@@ -474,7 +472,7 @@ the type, a passage whose measure moves, and vertical CJK columns — is in
 checked against the headers by the same probe this page is.
 
 The shape of it in one paragraph: a text leaf holds an ordered list of
-`textFx()` TRACKS, each `(selector, effect, stagger, progress)` — which
+`textFx()` TRACKS, each `(selector, effect, timing, progress)` — which
 glyphs, what deviation from rest, how their start times spread, what
 drives it — and the same `selectors::` vocabulary addresses glyphs for a track,
 characters for a `span`, and units for anything standing beside the
@@ -621,7 +619,7 @@ hold is any of the four vocabularies it draws with. A silhouette, a width
 law, a deviation, a band, a crossing and a figure's coordinate frame are
 `geometry::`; a paint, a post-processing effect, a signed-distance
 surface, a tile and a field are `material::`; a style, a face and a
-paragraph are `weave::`; an animatable, a transition and a cascade are
+paragraph are `weave::`; an animatable, a transition and a stagger are
 `motion::`. Each is spelled at its own origin here — compose re-exports
 none of them. `SigilCoreReconcile` is the reconciler: the
 keyed and positional match, the memo, the identity prune, the
@@ -680,8 +678,8 @@ retained `Element` through a seam it declares for any guest,
 `paintRetained`, which this feature defines for `Element` in compose's
 own namespace. The clock is whoever steps the pen: a `compose::pen` or
 `compose::graphics` node's pen reads the composer's clock through the
-paint context, and a retained element's composer runs on a clock stepped
-by the pen's frame delta, advancing on the frames it is painted and
+paint context, and a retained element's composer runs on an engine
+advanced by the pen's frame delta, advancing on the frames it is painted and
 standing still on the frames it is not. Neither side reads the wall,
 which is what keeps a plate with a pen in it reproducible. The cascade
 crosses in both directions too: a node's ink and resolved type seed the
@@ -707,8 +705,10 @@ What it refuses to be:
   A serialization schema can be a *producer* of element values, never the
   API.
 - **No imperative node mutation.** Describe or bind, and nothing else.
-- **No timeline object.** Multi-beat choreography is windowed bindings
-  over one phase output (`bind(&phase).window(lo, hi)`).
+- **No timeline object of its own.** Multi-beat choreography is the
+  engine's (`motion::Engine::timeline`), or bindings windowed over one
+  live phase (`motion::bind(phase, {.from = {low, high}, .clampFrom =
+  true})`).
 - **No surface, loop or thread ownership — outside `texture/`.** The
   composer is a guest in someone else's canvas, and a host that wants
   many surfaces makes many composers. `compose::TextureScene` is the one
@@ -753,7 +753,7 @@ stroke grammar's engine and the mask gates, with `kit/Flourish.h`,
 `kit/Ornament.h`, `kit/Plate.h` and `kit/Strokes.h`),
 `SigilComposeTexture` (`texture/` — a scene painted into a surface and
 handed out as a texture value), `SigilComposeVideo` (`video/` — a
-streaming SigilVideo clip sampled from the motion clock),
+streaming SigilVideo clip sampled from the motion engine),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the

@@ -167,7 +167,7 @@ sound model; nothing below them changes kernel semantics.
   than how it looks — the cascade it NAMES with `applyStyleSheet`,
   `role` and `styleClass`, its identity with `key`,
   `hitTestable`, `cache`,
-  `cacheScale`, `transition` and `staggerChildren`, and `children`.
+  `cacheScale` and `transition`, and `children`.
 - `core/verbs/Node.h` — `NodeVerbs`: the verb families EVERY node has,
   gathered so the list is stated once. A kind of node with verbs of its
   own inherits this and adds them.
@@ -242,8 +242,8 @@ sound model; nothing below them changes kernel semantics.
   and lands in position, rotation, scale and opacity, and the second it
   leaves and how long it takes. `Pool::fly(seconds, ease)` steps them all
   and writes the lanes the stamp reads. The times are per instance because
-  the STAGGER is what a field of thousands is: `motion::Spread` and
-  `motion::Cascade` divide one progress between N units and are the right
+  the STAGGER is what a field of thousands is: `motion::stagger` and
+  `motion::Schedule` divide one progress between N units and are the right
   thing when the units are a run, while a field seeded from a distribution
   has its times already. One ease serves the whole pool, since the
   variation between sprites belongs in their times and not in their
@@ -299,38 +299,41 @@ sound model; nothing below them changes kernel semantics.
 
 **The animation vocabulary is SigilMotion's and is spelled that way.**
 `motion::Animatable` is the property slot every setter here takes,
-`motion::Transition` the eased change, `motion::animate` the keyframe
-builder, `motion::bind` the shaped binding of a live `Output`, and
-`motion::ease::` the curves — each from the SigilMotion header that
-declares it, under `<sigilmotion/values/>` and `<sigilmotion/bind/>`. The
-SCHEDULE is the same value wherever it runs: a cascade over glyphs, over
-a set's children or over a feed's rows is one `motion::Spread`, and what
-compose adds to it — what a unit IS — sits beside it on the track. The
-time helpers a scene reaches for are there too: `motion::ramp`, a delayed
-eased transition in float milliseconds; `motion::phase`, a wrapping
-`[0, 1)` over a period; `motion::quantizeTime` and its integer
+`motion::Transition` the eased change, `motion::animate` the one
+description of a motion (a `motion::Tween`), `motion::animatable` a live
+value, `motion::bind` a live value followed through a `motion::Binding`,
+and `motion::ease::` the curves — each from the SigilMotion header that
+declares it, under `<sigilmotion/values/>` and `<sigilmotion/bind/>`. A
+value that differs per child is one `motion::stagger` in the field of the
+child's own tween, and a SCHEDULE over glyphs is one `motion::Timing`:
+what compose adds to it — what a unit IS — sits beside it on the track.
+The time helpers a scene reaches for are there too: `motion::phase`, a
+wrapping `[0, 1)` over a period; `motion::quantizeTime` and its integer
 counterpart `motion::stepIndex`; `motion::decay`, the open-ended settle a
 duration-based curve cannot be. So is the whole of "is this value
-moving": `motion::isLive`, declared in
-`<sigilmotion/values/Animated.h>`, is the one body every volatility walk
-in this library asks, and what it can and cannot say is stated in that
+moving": `motion::Animatable::isRunning` says what a value declares, and
+`motion::isRunning`, declared in `<sigilmotion/advanced/Held.h>` over a
+value and the motion held for it, is the one body every volatility walk
+in this library asks; what each can and cannot say is stated in that
 library's README.
 
 **NO ENTRANCE HAS A VERB OF ITS OWN.** Every one of them — a fade, a
-scale out of a base, a slide, a spin — is `animate(from(a).to(b), how)`
-at the property it moves, so the fade every card, panel and strip says
-as it arrives is `opacity(animate(from(0).to(1), how))` and reads the
-same way as the rest. A property with an entrance is at `b` once the
-ramp lands and behaves from then on as any other stated value does.
+scale out of a base, a slide, a spin — is `motion::animate({.from = a,
+.to = b})` at the property it moves, so the fade every card, panel and
+strip says as it arrives is `opacity(motion::animate({.from = 0.0f, .to
+= 1.0f}))` and reads the same way as the rest. A property with an
+entrance is at `b` once the motion lands and behaves from then on as any
+other stated value does.
 
 What compose OWNS is resolution, not the value. An `Animatable` is
-resolved against a `PaintContext`, taking node transitions, stagger,
-mount entrances and the per-frame composer state into account; SigilMotion
-supplies the value and compose decides what a described change means to a
-node. That is also why a bound `Output<T>*` compares BY IDENTITY — the
-pointer, not the number behind it — so a node holding one is declared
-volatile and does not cache, and handing back a freshly constructed
-Output at a new address breaks pruning even when the value is unchanged.
+resolved against a `PaintContext`, taking node transitions, the child's
+place among its siblings, mount entrances and the per-frame composer
+state into account; SigilMotion supplies the value and compose decides
+what a described change means to a node. That is also why a live value
+compares BY IDENTITY — the cell it reads, not the number behind it — so
+a node holding one is declared volatile and does not cache, and handing
+back a fresh `motion::animatable` each describe breaks pruning even when
+the value is unchanged: make it once and keep it.
 
 **Geometry — `kit/`.** The silhouette and curve catalog is
 SigilGeometry's, spelled `geometry::shapes::` from
@@ -660,7 +663,7 @@ panel and well under it. `kit::bevels::motif`, `motifEtched`, `flash`,
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance
 becomes a paint through `material::Paint::recipe`, an effect
-through `material::Filter::recipe`, and an output-stage view
+through `material::Filter::of`, and an output-stage view
 transform for
 `Composer::setView` is SigilMaterial's colour transform, compiled only
 when the build finds OpenColorIO. A view handed over as a Material is

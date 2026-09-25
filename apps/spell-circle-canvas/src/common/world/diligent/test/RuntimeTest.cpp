@@ -28,7 +28,7 @@
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilshaders/WorldDiligent.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
@@ -146,8 +146,8 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
       gm::pop::on(path).count(200).spread(6.0f);
 
   const auto cooked = [&](const Runtime& runtime) {
-    motion::Ticker ticker;
-    Scene scene(ticker);
+    motion::Engine engine;
+    Scene scene(engine);
     Frame frame(set());
     frame.extent(kExtent)
         .camera(diligent::raisedEye())
@@ -173,8 +173,8 @@ TEST(GpuRuntime, ACookedChainMatchesTheHostCook) {
 TEST(GpuRuntime, AReadbackArrivesTheFrameAfter) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << "no Vulkan device: " << on.error;
-  motion::Ticker ticker;
-  Scene scene(ticker);
+  motion::Engine engine;
+  Scene scene(engine);
   int delivered = 0;
   int width = 0;
   Frame frame = lit();

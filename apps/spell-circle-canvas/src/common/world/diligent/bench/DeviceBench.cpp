@@ -22,7 +22,7 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmeasure/time/Stopwatch.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -108,8 +108,8 @@ void BM_FrameOnDevice(benchmark::State& state) {
   }
   namespace gm = ::sigil::geometry::mesh;
   const Runtime runtime = diligent::runtime(*gpu);
-  motion::Ticker ticker;
-  Scene scene(ticker);
+  motion::Engine engine;
+  Scene scene(engine);
 
   const std::shared_ptr<const material::Recipe> recipe = freshRecipe();
   Element set;
@@ -141,7 +141,7 @@ void BM_FrameOnDevice(benchmark::State& state) {
 
   scene.render(frame);
   for ([[maybe_unused]] auto iteration : state) {
-    ticker.tick(1.0 / 60.0);
+    engine.advance(engine.elapsed() + motion::Duration(1.0 / 60.0));
     scene.render(frame);
   }
 }

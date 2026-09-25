@@ -198,14 +198,16 @@ its parent's. Paint-only, like the transforms.
 ## Entrances and transitions
 
 An entrance is not a verb. A property enters by being set to
-`animate(from(a).to(b), how)`, which plays `a → b` the frame the node
-mounts — a fade is that at `opacity`, a rise is that at `translateY`.
-The two verbs here say WHEN an entrance runs, never what it moves.
+`motion::animate({.from = a, .to = b})`, which plays `a → b` the frame
+the node mounts — a fade is that at `opacity`, a rise is that at
+`translateY`. A run of siblings entering one after another is not a verb
+either: each child's own tween carries `.delay = motion::stagger(40ms)`,
+resolved from the child's place among its siblings. The verb here says
+how a node's plain values change, never what moves.
 
 | Verb | What it says |
 |---|---|
-| `transition` | The node's default transition for the plain constants set on it. |
-| `staggerChildren` | Child *i*'s subtree enters with an extra delay, compounding through nested containers. |
+| `transition` | The node's default transition for the plain constants set on it — `.transition(320ms)`, or a whole `motion::Transition`. |
 
 ## Caching
 
@@ -282,7 +284,7 @@ compile.
 | [`textAnnotation`](pages/verbs/textAnnotation.md) | A reading set beside the type — furigana, emphasis dots, a gloss — reserved before breaking. |
 | [`span`](pages/verbs/span.md) | Restyle the range a selector finds with the font and ink declarations, an ink paint restarting per unit where it names one; re-shapes only where a shaping field is stated, and only the words it covers. |
 | `textFx` | Append a text-fx track: which glyphs, what deviation, how the beats spread, what drives it. |
-| [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a bound output at draw time, with no reshape. |
+| [`variationDrive`](pages/verbs/variationDrive.md) | Drive a variable-font axis from a live value at draw time, with no reshape. |
 | [`textAttach`](pages/verbs/textAttach.md) | A sibling anchored to a unit of the text, placed on the rect that unit rests at. |
 | `textOnPath` | Lay the run out along a path instead of a line. |
 | [`atRest`](pages/verbs/atRest.md) | This leaf as it stands at rest, RETURNED BY VALUE as a second leaf that can stand beside it — the one verb that does not chain. |
@@ -395,6 +397,6 @@ spelling is the feature's.
   that has both these and the text properties.
 - `core/Image.h` — `imageRegion`, and the `Image` leaf that has it.
 - `core/verbs/Structure.h` — the cascade a node names,
-  `applyStyleSheet`, `styleClass` and `role`; `key`, `hitTestable`, `cache`, `cacheScale`, `transition`,
-  `staggerChildren`; and `children`.
+  `applyStyleSheet`, `styleClass` and `role`; `key`, `hitTestable`, `cache`, `cacheScale`, `transition`;
+  and `children`.
 - `core/Element.h` — `Children`, the value a `children({…})` run is.

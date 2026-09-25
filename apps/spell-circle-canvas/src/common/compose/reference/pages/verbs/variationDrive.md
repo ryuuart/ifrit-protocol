@@ -10,14 +10,14 @@ status: stable
 
 # variationDrive
 
-Drive a variable-font axis from a bound output at DRAW time —
+Drive a variable-font axis from a live value at DRAW time —
 paint-only volatility, with no reshape and no relayout.
 
 ## Syntax
 
 ```cpp
 Element& variationDrive(const char (&tag)[5],
-                        const choreograph::Output<float>* value);
+                        motion::Animatable<float> value);
 ```
 
 ## Description
@@ -35,10 +35,12 @@ being a second text path they would hide. Being a track, it also draws
 through the batched glyph path, so a span's band stands at its rest
 placement while the letters move.
 
-**It takes a bare OUTPUT and not an animatable**, deliberately: a drive
-IS a live binding — a constant axis coordinate is the style's own
-variations, not this — and the effect's identity is keyed on WHICH
-output feeds it, so two drives of one axis from two outputs cannot prune
+**It takes an animatable, and a live one is what makes it a drive.** A
+constant sits the axis at that coordinate and never moves, which is what
+the style's own variations already say; a `motion::animatable` or a
+`motion::bind` over one moves it every frame. The effect's identity is
+keyed on WHICH live value feeds it — the cell it reads, never the number
+behind it — so two drives of one axis from two live values cannot prune
 onto each other.
 
 ## See also

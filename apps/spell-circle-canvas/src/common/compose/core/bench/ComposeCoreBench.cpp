@@ -129,8 +129,8 @@ BENCHMARK(BM_Describe_Cold)->Apply(nodeLadder);
 static void BM_Mount_Cold(benchmark::State& state) {
   const int count = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state) {
-    sigil::motion::Ticker ticker;
-    Composer composer(ticker, fonts());
+    sigil::motion::Engine engine;
+    Composer composer(engine, fonts());
     composer.setSize({1024, 1024});
     composer.render(flexGrid(count));
     benchmark::DoNotOptimize(composer.dirty());

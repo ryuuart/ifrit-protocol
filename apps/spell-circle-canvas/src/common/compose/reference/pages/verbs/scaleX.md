@@ -29,7 +29,7 @@ while the fill happens to be a gradient along the OTHER axis.
 **Pin the growing edge with `transformOrigin`.**
 
 ```cpp
-element.transformOrigin(pct(0), pct(50)).scaleX(motion::bind(&fraction));
+element.transformOrigin(pct(0), pct(50)).scaleX(fraction);   // a live motion::Animatable<float>
 ```
 
 grows a bar rightward from its left edge.

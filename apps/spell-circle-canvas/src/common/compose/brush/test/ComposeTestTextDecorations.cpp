@@ -170,7 +170,7 @@ TEST(ComposeDecorations, OverlayPaintsOverTheFillAndUnderTheContent) {
 }
 
 TEST(ComposeDecorations, DashPhaseCanBeBoundSoDashesMarch) {
-  // trimPhase took a bound Output and declared isRunning(); dashPhase was
+  // trimPhase took a bound live value and declared isRunning(); dashPhase was
   // a plain float, so marching ants — the commonest animated-line idiom
   // in map and diagram UI — could only be had by re-describing every
   // frame, which defeats the pruning the library is built on. Without a

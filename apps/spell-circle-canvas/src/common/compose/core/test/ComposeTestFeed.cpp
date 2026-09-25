@@ -82,7 +82,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   const feed::TextOptions options = feedOptions(6, 16.0f);
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
+        .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
   };
   Host host(160, 200);
   auto describe = [&] {
@@ -141,18 +141,21 @@ TEST(ComposeFeed, TheWindowNeverMountsTheRowsOutsideIt) {
 }
 
 TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
-  // Options::entrance is a motion::Spread — the same value the glyph
-  // engine and staggerChildren speak — with a ROW as the beat. The initial
-  // describe cascades the window; an append is the only new mount in its patch,
-  // so it enters AT ONCE instead of inheriting a full window's worth of steps,
-  // and no row already on screen re-enters.
+  // A row's entrance is the row's own tween, its delay a stagger the host
+  // resolves from the row's place among the rows that mounted WITH it. The
+  // initial describe cascades the window; an append is the only new mount
+  // in its patch, so it enters AT ONCE instead of inheriting a full
+  // window's worth of steps, and no row already on screen re-enters.
   feed::TextRing ring;
   for (int i = 0; i < 3; ++i) ring.append({u8"row"});
   feed::TextOptions options = feedOptions(6, 16.0f);
-  options.window.entrance = {.eachMs = 400};
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
+        .opacity(motion::animate({.from = 0.0f,
+                                  .to = 1.0f,
+                                  .duration = 200ms,
+                                  .delay = motion::stagger(400ms),
+                                  .ease = motion::ease::linear}));
   };
   Host host(160, 200);
   auto describe = [&] {

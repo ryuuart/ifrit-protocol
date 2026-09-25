@@ -23,14 +23,14 @@ using sigil::sketch::test::fonts;
 class GuestContext {
  public:
   explicit GuestContext(bool deterministic)
-      : m_composer(m_ticker, fonts()),
-        m_context(m_composer, m_ticker, assets(), {0, 0}, &m_specification,
+      : m_composer(m_engine, fonts()),
+        m_context(m_composer, m_engine, assets(), {0, 0}, &m_specification,
                   &fonts(), deterministic) {}
 
   sigil::sketch::SketchContext& context() { return m_context; }
 
  private:
-  sigil::motion::Ticker m_ticker;
+  sigil::motion::Engine m_engine;
   sigil::compose::Composer m_composer;
   sigil::sketch::CanvasSpecification m_specification;
   sigil::sketch::SketchContext m_context;

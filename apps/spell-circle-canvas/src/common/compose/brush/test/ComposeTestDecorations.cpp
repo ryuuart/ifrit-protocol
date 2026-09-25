@@ -420,7 +420,7 @@ TEST(ComposeMask, TransitionDrawsOn) {
   host.frame();
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
   host.composer.render(
-      tree(animate({.to = 1.0f, .duration = 400ms, .ease = motion::ease::linear})));
+      tree(motion::animate({.to = 1.0f, .duration = 400ms, .ease = motion::ease::linear})));
   host.frame(0.2);  // ~50%: left + top revealed, bottom still bare
   EXPECT_EQ(host.pixel(50, 1), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(50, 99), SK_ColorBLACK);
@@ -429,7 +429,7 @@ TEST(ComposeMask, TransitionDrawsOn) {
 }
 
 TEST(ComposeMask, BoundGateRevealsWithoutRender) {
-  // A bound gate end is content volatility: mutate the Output, no
+  // A bound gate end is content volatility: mutate the live value, no
   // render(), and the reveal advances — the self-drawing wire primitive.
   motion::Animatable<float> end = motion::animatable(0.2f);
   Host host;

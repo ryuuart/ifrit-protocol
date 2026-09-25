@@ -19,7 +19,7 @@ the translate outermost of all.
 
 ```cpp
 box().perspective(800)  // the view, for the children
-    .children({box().rect(card).fill(paper).rotateY(bind(&turn).target(0, 360))});
+    .children({box().rect(card).fill(paper).rotateY(motion::bind(turn, {.to = {0, 360}}))});
 ```
 
 **One 4x4 per node, flattened at paint.** A node composes its parent's
@@ -43,7 +43,7 @@ then moved half an edge along the cube's axis in the host's frame, since
 the translate is outermost:
 
 ```cpp
-box().preserve3d().rotateY(bind(&yaw).target(0, 360))
+box().preserve3d().rotateY(motion::bind(yaw, {.to = {0, 360}}))
     .children({face().translateZ(half)})                 // front
     .children({face().rotateY(90).translateX(half)})     // right
     .children({face().rotateX(90).translateY(-half)})    // top

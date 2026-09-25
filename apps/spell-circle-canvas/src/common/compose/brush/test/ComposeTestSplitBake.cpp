@@ -66,7 +66,7 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   host.composer.render(tree(1.0f));
   host.frame();
   host.composer.render(
-      tree(animate({.to = 0.4f, .duration = std::chrono::milliseconds(100), .ease = motion::ease::linear})));
+      tree(motion::animate({.to = 0.4f, .duration = std::chrono::milliseconds(100), .ease = motion::ease::linear})));
   host.frame(0.5);  // settled at 0.4
   host.frame();     // draw again from caches
   const SkColor c = host.pixel(40, 40);
@@ -90,7 +90,7 @@ namespace {
  *  children, so a bake that swallowed them would draw them UNDER the child
  *  and this test would see it.
  *
- *  The child rides a bound Output, which is what makes the node volatile and
+ *  The child rides a bound live value, which is what makes the node volatile and
  *  is the ordinary shape of the problem: a small element driven by a loop
  *  over a large static backdrop. `clipped` and `childBlend` are
  *  parameterised because both are conditions whole-subtree promotion refuses

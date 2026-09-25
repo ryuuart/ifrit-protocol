@@ -20,7 +20,7 @@ find out.
   immediate-mode floor and it costs a repaint per frame, which is the
   point.
 - A `material::Paint` that reads `uTime` or carries a uniform bound
-  to an `Output` is live by construction and declares itself; so is a
+  to a live value is live by construction and declares itself; so is a
   `material::Filter` with a bound uniform or a live child. Tier
   inheritance is real: a live child makes the parent effect live, so no
   cache can freeze the parameter.
@@ -103,7 +103,7 @@ belongs to the scale it was taken at: a local bake is a texel grid the
 blit stretches over the node's own units, and a node inside a held
 recording is never asked for a new rung, so it narrows that recording's
 scale window to the rung's own span. An entrance is the opposite case:
-a `from(a).to(b)` on `scale`, `scaleX` or `scaleY` names where it is
+a `motion::animate({.from = a, .to = b})` on `scale`, `scaleX` or `scaleY` names where it is
 going, so the bake is taken there once and the blit minifies through the
 entrance, which is the sharp direction. A scale driven by a binding names
 nothing and keeps the ladder.

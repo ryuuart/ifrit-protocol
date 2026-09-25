@@ -49,7 +49,7 @@ TEST(ComposeMaterial, UniformOnNonShaderMaterialIsNoOp) {
 TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   // Materials are VALUES: binding a uniform on a copy must not contaminate
   // the base or its sibling copies. The shape that catches this is a shared
-  // base material bound to two different Outputs — with aliasing, both
+  // base material bound to two different live values — with aliasing, both
   // copies read whichever binding was applied last.
   material::Paint base = material::skia::sksl(ukEffect());
   sigil::motion::Animatable<float> low = sigil::motion::animatable(0.2f), high = sigil::motion::animatable(1.0f);
@@ -102,10 +102,10 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
   EXPECT_LT(SkColorGetR(c), 40u);
 }
 
-TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
+TEST(ComposeMaterial, BlendWithLiveLayerTracksLiveValues) {
   // A blend inherits its layers' volatility tier: a live layer makes the
   // whole blend LIVE, so it re-resolves per frame and TRACKS the bound
-  // Output. Flattening the stack eagerly at build time instead would bake
+  // live value. Flattening the stack eagerly at build time instead would bake
   // the shader's default uniform values in permanently.
   sigil::motion::Animatable<float> k = sigil::motion::animatable(0.8f);
   material::Paint m = material::Paint::blend({
@@ -179,7 +179,7 @@ TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
 
 TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
   // "Reading the clock IS the volatility declaration": an sksl effect that
-  // declares uTime takes the live path with no bound Outputs — it re-resolves
+  // declares uTime takes the live path with no bound live values — it re-resolves
   // per frame with PaintContext time instead of freezing a uTime=0 snapshot.
   auto [effect, err] = SkRuntimeEffect::MakeForShader(SkString(
       "uniform float uTime;"
@@ -188,9 +188,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
   material::Paint m = material::skia::sksl(effect);
   EXPECT_TRUE(m.isRunning());
 
-  sigil::motion::FrameClock clock;
   Host host;
-  host.composer.setClock(&clock);
   host.composer.render(box().children(
       {box()
            .width(40)
@@ -199,11 +197,9 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
            .absolute()
            .fill(m)}));
   host.frame();
-  const uint32_t r0 = SkColorGetR(host.pixel(20, 20));  // uTime ≈ 0 → black
-  clock.tick();                                         // advance real time…
-  // …but pin the readable elapsed via a fabricated wait: FrameClock elapsed
-  // is wall-time based; just assert the material painted live (r0 near 0 is
-  // the frozen-snapshot failure mode this test guards).
+  // The engine stands at zero, so uTime is zero and the fill is black; the
+  // claim is that the material painted live rather than from a snapshot.
+  const uint32_t r0 = SkColorGetR(host.pixel(20, 20));
   EXPECT_LT(r0, 30u);
   EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // live, not cached
 }
@@ -240,7 +236,7 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
 
 TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
   // snapshot() — the element-tree-as-a-brush bake — samples live
-  // materials at their CURRENT Output values.
+  // materials at the CURRENT values of their live values.
   sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
   sk_sp<SkPicture> pic =
       snapshot(box().width(60).height(60).fill(
@@ -305,7 +301,7 @@ TEST(ComposeMaterial, StableLiveResolveReplaysThePicture) {
 }
 
 TEST(ComposeMaterial, BoundUniformOwnsItsSlotOverInjection) {
-  // Binding uTime to an Output is the documented stepping idiom — the
+  // Binding uTime to a live value is the documented stepping idiom — the
   // auto-inject must not overwrite it with continuous clock time.
   auto [fx, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform float uTime; half4 main(float2 p) {"

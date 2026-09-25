@@ -57,7 +57,7 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
 
 TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
   // A live material over a custom outline(): the resolved shader must
-  // fill the SHAPE, not the box that contains it, and follow the Output.
+  // fill the SHAPE, not the box that contains it, and follow the live value.
   sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
   Host host;
   host.composer.render(box().children(

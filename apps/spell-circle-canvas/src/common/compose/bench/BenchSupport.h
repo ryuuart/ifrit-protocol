@@ -17,6 +17,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
 
@@ -44,8 +45,8 @@ inline sigil::weave::FontContext& fonts() {
 
 /** A composer sized to a raster surface. `draw()` is the frame. */
 struct Host {
-  sigil::motion::Ticker ticker;
-  Composer composer{ticker, fonts()};
+  sigil::motion::Engine engine;
+  Composer composer{engine, fonts()};
   sk_sp<SkSurface> surface;
 
   explicit Host(int width = 800, int height = 2400) {

@@ -143,7 +143,7 @@ Element profiledRibbonGrid(int count) {
  *
  *  The fixture makes that the only variable: a 16-node grid where each node
  *  carries `passes` marching `spans::wrap` passes — disjoint windows driven
- *  off one shared Output, the marching-ants idiom — so every endpoint
+ *  off one shared live value, the marching-ants idiom — so every endpoint
  *  resolves and every boundary re-walks each frame. The low pass counts are
  *  what real scenes use; the high ones exist so the growth is visible and so
  *  a per-Instance span cache, if one is ever added, has something to be
@@ -461,7 +461,7 @@ BENCHMARK(BM_Draw_Hatch_Live);
 //
 // The fixture isolates that: a panel of `count` stroked, shaped cells, each
 // recording its own picture, plus ONE accent cell in the same row whose fill
-// is spelled either as a binding to an external Output or as a plain value.
+// is spelled either as a binding to an external live value or as a plain value.
 // Everything else about the arms is identical, so the difference is entirely
 // what declaring the binding costs the row, the frame and the root above it.
 //
@@ -472,7 +472,7 @@ BENCHMARK(BM_Draw_Hatch_Live);
 // PAIR TWO — the same colour actually moves, once every kSlowPeriod frames
 // (three seconds at 60 Hz: slow enough that re-describing on the change is
 // clearly an option). Each arm does the minimum work its spelling allows:
-// the bound arm assigns the Output and never re-describes; the plain arm
+// the bound arm assigns the live value and never re-describes; the plain arm
 // re-describes only on the frame the colour changes, and prunes everything
 // except the one node that moved.
 
@@ -584,7 +584,7 @@ static void BM_Draw_StillAccent_Plain(benchmark::State& state) {
   const int count = (int)state.range(0);
   Host host(900, 900);
   host.composer.render(
-      slowThemedPanel(count, AccentFill::Plain, nullptr, accentColor(0)));
+      slowThemedPanel(count, AccentFill::Plain, {}, accentColor(0)));
   warmPanel(host);
   CacheTally tally;
   for ([[maybe_unused]] auto iteration : state) {
@@ -620,13 +620,13 @@ static void BM_Draw_SlowAccent_Plain(benchmark::State& state) {
   const int count = (int)state.range(0);
   Host host(900, 900);
   host.composer.render(
-      slowThemedPanel(count, AccentFill::Plain, nullptr, accentColor(0)));
+      slowThemedPanel(count, AccentFill::Plain, {}, accentColor(0)));
   warmPanel(host);
   CacheTally tally;
   int frame = 0;
   for ([[maybe_unused]] auto iteration : state) {
     if (++frame % kSlowPeriod == 0)
-      host.composer.render(slowThemedPanel(count, AccentFill::Plain, nullptr,
+      host.composer.render(slowThemedPanel(count, AccentFill::Plain, {},
                                            accentColor(frame / kSlowPeriod)));
     host.draw();
     tally.add(host.composer.stats());

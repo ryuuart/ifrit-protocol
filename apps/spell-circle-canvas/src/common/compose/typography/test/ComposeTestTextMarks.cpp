@@ -65,10 +65,10 @@ TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {
            // Both tracks are AT REST (progress 0), where each contributes
            // its own origin: 0.5 on red and 0.5 on green.
            .textFx({.effect = textFx::tint({0.5f, 1, 1, 1}, {1, 1, 1, 1}),
-                    .stagger = {.eachMs = 0, .durationMs = 100},
+                    .delay = sigil::motion::stagger(0ms), .duration = 100ms,
                     .progress = 0.0f})
            .textFx({.effect = textFx::tint({1, 0.5f, 1, 1}, {1, 1, 1, 1}),
-                    .stagger = {.eachMs = 0, .durationMs = 100},
+                    .delay = sigil::motion::stagger(0ms), .duration = 100ms,
                     .progress = 0.0f})}));
   host.frame();
   bool sawProduct = false;
@@ -173,7 +173,7 @@ TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
         {text(u8"ALPHA BETA", whiteStyle(24))
              .key("line")
              .textFx({.effect = textFx::rise(40),
-                      .stagger = {.eachMs = 0, .durationMs = 100},
+                      .delay = sigil::motion::stagger(0ms), .duration = 100ms,
                       .progress = progress})
              .textAttach(sigil::weave::selectors::word(1),
                          box().key("caret").fill(green()))}));

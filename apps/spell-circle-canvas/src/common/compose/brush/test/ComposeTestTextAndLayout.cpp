@@ -266,7 +266,7 @@ TEST(ComposeMotion, DelayStaggersTheEntrance) {
   Host host;
   auto card = [](float delaySec) {
     return box().width(60).height(30).fill(red()).opacity(
-        animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .delay = std::chrono::milliseconds((int)(delaySec * 1000)), .ease = motion::ease::linear}));
+        motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .delay = std::chrono::milliseconds((int)(delaySec * 1000)), .ease = motion::ease::linear}));
   };
   host.composer.render(
       box().column().gap(10).children({card(0.0f), card(0.4f)}));
@@ -323,17 +323,21 @@ TEST(ComposeLayout, CenterAtPinsMeasuredBoxOnPoint) {
   EXPECT_EQ(host.pixel(120, 80), SK_ColorRED);
 }
 
-TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
-  // One container call replaces per-child delay arithmetic: child i's whole
-  // subtree enters i·each later, so inserting a child does not require
-  // renumbering its siblings.
+TEST(ComposeMotion, AStaggeredDelayCascadesSiblingEntrances) {
+  // One staggered value replaces per-child delay arithmetic: child i enters
+  // i·each later, its place read from where it stands among its siblings,
+  // so inserting a child does not require renumbering them.
   Host host;
   auto card = [] {
     return box().width(60).height(30).fill(red()).opacity(
-        animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
+        motion::animate({.from = 0.0f,
+                         .to = 1.0f,
+                         .duration = 200ms,
+                         .delay = motion::stagger(400ms),
+                         .ease = motion::ease::linear}));
   };
   host.composer.render(
-      box().column().gap(10).staggerChildren(400ms).children({card(), card()}));
+      box().column().gap(10).children({card(), card()}));
   host.frame(0.3);  // child 0 settled; child 1 still holding its `from`
   EXPECT_EQ(host.pixel(30, 15), SK_ColorRED);
   EXPECT_EQ(host.pixel(30, 55), SK_ColorBLACK);

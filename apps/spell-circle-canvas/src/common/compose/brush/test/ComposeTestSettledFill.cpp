@@ -84,7 +84,7 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   EXPECT_EQ(settledPaints, 0u) << "a settled bound fill painted live";
   EXPECT_EQ(host.pixel(ax, ay), SK_ColorRED);
 
-  // THE STALENESS CONTROL. On the frame the Output moves again, the scan
+  // THE STALENESS CONTROL. On the frame the live value moves again, the scan
   // must re-declare volatility and stale every recording AND the root's
   // bake BEFORE anything paints. One frame, and never a stale pixel.
   tint = green();

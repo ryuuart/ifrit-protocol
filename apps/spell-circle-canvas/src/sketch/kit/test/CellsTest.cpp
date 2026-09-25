@@ -279,8 +279,8 @@ TEST(SketchKitCells, ComparisonAlignsFiguresAfterWrappedTitlesAndControls) {
 
 TEST(SketchKitCells, ComparisonInAPagePreservesFiguresAndWrapsNotes) {
   const kit::Provide look(kit::studyTheme());
-  sigil::motion::Ticker ticker;
-  compose::Composer composer(ticker, fonts());
+  sigil::motion::Engine engine;
+  compose::Composer composer(engine, fonts());
   composer.setSize({900, 1050});
   const auto result = [](const char* key) {
     return compose::box().key(key).width(160).height(240).fill(

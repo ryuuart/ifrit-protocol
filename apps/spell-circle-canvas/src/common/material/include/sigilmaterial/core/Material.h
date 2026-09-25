@@ -103,10 +103,10 @@ class Material {
   }
 
   /** Binds a float field to @p value: each resolve uploads what the
-   *  animatable reads as now. `&someOutput` is the live case, a shaped
-   *  `bind(&phase).cosine().target(…)` chain is the same case with the
-   *  arithmetic moved next to the uniform it feeds, and a plain number is
-   *  a value written once per resolve. `unbind()` clears it.
+   *  animatable reads as now. A `motion::animatable(…)` value is the live
+   *  case, a shaped `motion::bind(phase, {.envelope = …, .to = {…}})` is
+   *  the same case with the arithmetic moved next to the uniform it feeds,
+   *  and a plain number is a value written once per resolve. `unbind()` clears it.
    *
    *  A material holds no clock, so an animatable carrying its OWN
    *  transition has nothing to run it and reads as its target. Motion

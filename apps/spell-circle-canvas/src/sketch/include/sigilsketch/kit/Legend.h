@@ -53,9 +53,9 @@ struct LegendEntry {
   std::optional<compose::Element> mark;
   /** THE BEAT THIS ENTRY RIDES IN ON, for a key that is DEALT rather than
    *  printed: `opacity` fades the whole entry and `slide` moves it
-   *  across, px. What tells one entry from the next is the run's own
-   *  `staggerChildren`, chained onto what `legend` returns. Unset leaves
-   *  the entry at rest. */
+   *  across, px. What tells one entry from the next is a stagger in the
+   *  tween itself — `.delay = motion::stagger(60ms)` — which each entry
+   *  resolves from its place in the run. Unset leaves the entry at rest. */
   std::optional<motion::Animatable<float>> opacity;
   std::optional<motion::Animatable<float>> slide;
 };
@@ -116,10 +116,10 @@ struct SwatchStrip {
   std::optional<float> gap;
   float corners = 0;
   /** EVERY STEP'S ALPHA — the strip that is DEALT rather than printed,
-   *  written as an entrance: `animate(from(0).to(1), {220ms})`. Unset
-   *  leaves every step at rest. What tells one step from the next is the
-   *  run's own `staggerChildren`, chained onto what `swatchStrip`
-   *  returns, as a legend's entries are. */
+   *  written as an entrance: `motion::animate({.from = 0.0f, .to = 1.0f,
+   *  .duration = 220ms, .delay = motion::stagger(40ms)})`, the stagger
+   *  resolved from each step's place in the strip, as a legend's entries
+   *  are. Unset leaves every step at rest. */
   std::optional<motion::Animatable<float>> opacity;
 };
 

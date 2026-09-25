@@ -180,7 +180,7 @@ inline void trackFieldPin(Track& track) {
  *  arithmetic, which stops agreeing with the engine the moment the schedule
  *  nests or takes a cue table. This is the schedule read back instead.
  *
- *  The schedule half — `unitIndex`, `start`, `localProgress`, `active` —
+ *  The schedule half — `unitIndex`, `start`, `localProgress`, `running` —
  *  is `motion::Beat`, answered by the same schedule the glyphs are drawn
  *  through. What this library adds is where the beat LANDED. */
 struct Beat : motion::Beat {

@@ -4,7 +4,6 @@
  */
 
 #include <sigilcompose/draw/Draw.h>
-#include <sigilmotion/clock/FrameClock.h>
 
 #include <string>
 #include <vector>
@@ -137,9 +136,7 @@ TEST(GraphicsNode, TheKeysReachTheProgram) {
 }
 
 TEST(GraphicsNode, TheProgramCountsItsOwnRunsAndItsOwnStep) {
-  sigil::motion::FrameClock clock;
   Host host;
-  host.composer.setClock(&clock);
   std::vector<int> counts;
   std::vector<double> steps;
   host.composer.render(stack().children({graphics([&](Pen& pen) {
@@ -151,10 +148,8 @@ TEST(GraphicsNode, TheProgramCountsItsOwnRunsAndItsOwnStep) {
                                              .width(50)
                                              .height(50)}));
   host.frame();
-  for (int i = 0; i < 3; ++i) {
-    clock.advance(1.0 / 60.0);
+  for (int i = 0; i < 3; ++i)
     host.frame(1.0 / 60.0);
-  }
   // Four frames at a sixtieth under a requested thirtieth: the program ran
   // on the first and the third, and its clock says so — two runs, the
   // second a thirtieth after the first.

@@ -20,8 +20,9 @@ the host tier a window stands on link no protocol:
   definition's table and nothing added.
 - `sigil::sketch::SessionAgent` (target `SigilSketchSessionAgent`, beside
   `live/`) holds the one running sketch a protocol host holds — a `Host`
-  opened by registry name or by path — and the policy clock its frames
-  are drawn at, SigilMotion's `sigil::motion::PolicyClock`.
+  opened by registry name or by path — and the engine its frames are
+  drawn at, SigilMotion's `sigil::motion::Engine` under a
+  `sigil::motion::ClockPolicy`.
 - `sigil::sketch::ClockAgent`, in the same leaf, answers the clock
   domain over that session's clock and sends `clock.budgetExpired` when
   a budget runs out.

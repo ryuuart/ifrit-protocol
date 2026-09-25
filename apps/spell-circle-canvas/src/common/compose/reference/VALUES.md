@@ -25,9 +25,9 @@ read before the four rows under *The surface*.
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
 | [`Fill`](pages/types/Fill.md) | Nothing, a colour, a shader, or a reference the tree resolves at paint. | `Fill::color`, `Fill::shader`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `toFill` | `Element::fill`, `Text::textStroke`, every decoration's own paint |
-| [`SurfacePaint`](pages/types/SurfacePaint.md) | A component's surface: a fill, a live fill binding, or a material. | Implicitly from a `Fill`, an animatable fill, a bound output, a transition, a paint or a recipe | `Element::fill`, `PathFormat::strokeFill`, the kit's wells and sheets |
+| [`SurfacePaint`](pages/types/SurfacePaint.md) | A component's surface: a fill, a moving or live fill, or a material. | Implicitly from a `Fill`, an animatable fill, a `motion::Tween` of a fill, a paint or a recipe | `Element::fill`, `PathFormat::strokeFill`, the kit's wells and sheets |
 | [`PaintBox`](pages/types/PaintBox.md) | The rectangle a paint's unit square is stretched over: the element's own box, its padding or content box, the subtree's, the canvas, or each glyph, cluster, word, line or sentence of a passage. | `PaintBox::Element`, `PaintBox::Canvas`, `PaintBox::Glyph`, … | `Element::fill`, `Element::ink`, `Rule::ink`, `SpanStyle::ink` |
-| `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linearGradient`, `Paint::radialGradient`, `Paint::conicGradient`, `Paint::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Element::ink` |
+| `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linearGradient`, `Paint::radialGradient`, `Paint::conicGradient`, `material::skia::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Element::ink` |
 | `material::Material` | A recipe — a pattern described rather than a shader built. | SigilMaterial's own catalogue | `Element::fill`, `Element::ink`, `Text::textStroke`, `SurfacePaint`, and `Paint::recipe` where a blend or a uniform needs a paint |
 | `material::Color` | The one colour class: a colour in a stated space, convertible to Skia's. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, through `material::skia::toSkColor` |
 
@@ -46,7 +46,7 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| `material::Filter` | A filter over pixels: blurs, glows, colour programs, recipes. | `Filter::blur`, `Filter::glow`, `material::skia::filter`, `Effect::recipe`, `Effect::directionalBlur` | `Element::filter`, `Element::backdropFilter` |
+| `material::Filter` | A filter over pixels: blurs, glows, colour programs, recipes. | `Filter::blur`, `Filter::glow`, `material::skia::filter`, `Filter::of`, `Filter::directionalBlur` | `Element::filter`, `Element::backdropFilter` |
 | `Cache` | How a node's paint is held: `Auto`, `Picture`, `Texture`, `Group`, `None`. | The enumeration itself | `Element::cache` |
 | `PaintContext` | What a paint program is handed: the box, the outline, the clock, the ink, the font, the properties. | The composer builds it; a program reads it | Every `PaintProgram` and every decoration |
 | `PaintProgram` | A drawing on a canvas that names only the parameters it reads. | Any callable taking a prefix of `(SkCanvas&, const PaintContext&)` | `custom`, and `Decoration` |
@@ -55,8 +55,9 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| `motion::Animatable` | A value at rest, a value in transition, or a value bound to a live output. | Implicitly from the value; `motion::animate`, `motion::bind` | `Element::fill`, `Element::opacity`, every transform lane |
-| `motion::Transition` | How a change is eased: a duration, a curve, a delay. | SigilMotion's own vocabulary | `Element::transition`, the second argument of `motion::animate` |
+| `motion::Animatable` | A value at rest, a described motion, a live value somebody writes, or a live value followed through a binding. | Implicitly from the value; `motion::animate`, `motion::animatable`, `motion::bind` | `Element::fill`, `Element::opacity`, every transform lane |
+| `motion::Tween` | One description of a motion: where it starts and lands, the keyframes between, how long, after what delay, on what curve. | A braced list handed to `motion::animate` | Every property verb, through `motion::animate` |
+| `motion::Transition` | How a change to a plain value is eased: a duration, a delay, a curve. | A duration alone, or the struct | `Element::transition`, `Rule::transition` |
 
 ## The custom properties
 
@@ -90,7 +91,8 @@ a three- or four-number sequence, or as a colour value. The paint and
 the effect are `material.Paint` and `material.Filter`.
 
 A fill is anything in that list plus `compose.Fill`, a custom property
-reference, a transitioned or bound value, a `material.Paint` and a
+reference, a value from `motion.animate` or `motion.animatable`, a
+`material.Paint` and a
 `compose.SurfacePaint`; the annotation for that whole union is
 `SurfacePaintLike`, and the narrower ones under it are `FillLike` and
 `ColorLike`. A dimension is a number, a string in the length grammar

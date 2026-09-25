@@ -214,8 +214,8 @@ TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
   const float window = (hi - lo) / 32.0f;
   const auto clonesAcrossTheWindow = [&](float pixelSize) {
     sigil::weave::FontContext local(sigil::weave::ports::systemFontManager());
-    sigil::motion::Ticker ticker;
-    Composer composer(ticker, local);
+    sigil::motion::Engine engine;
+    Composer composer(engine, local);
     composer.setSize({200, 200});
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(200, 200));
@@ -229,7 +229,7 @@ TEST(TextSpanAxis, TheCoordinateTakesTheSizeScaledLadder) {
            text(u8"888", style)
                .key("t")
                .span(sigil::weave::Selector{}, axis("GRAD", value))}));
-      ticker.tick(1.0 / 60.0);
+      engine.advance(engine.elapsed() + sigil::motion::Duration(1.0 / 60.0));
       surface->getCanvas()->clear(SK_ColorBLACK);
       composer.draw(*surface->getCanvas());
     }

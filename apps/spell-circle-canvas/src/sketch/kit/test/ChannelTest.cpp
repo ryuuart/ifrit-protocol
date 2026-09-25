@@ -1,7 +1,7 @@
 /** @file
  * The channel: the number it takes off a wire through each of its two
- * readings, what leaves that number standing, and the binding chain that
- * reads the output it writes.
+ * readings, what leaves that number standing, and the binding that reads
+ * the live value it writes.
  */
 
 #include <gtest/gtest.h>
@@ -10,8 +10,9 @@
 #include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/testing/Testing.h>
-#include <sigilmotion/bind/Bound.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/advanced/Held.h>
+#include <sigilmotion/bind/Binding.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/kit/Channel.h>
 
 #include <cstddef>
@@ -138,7 +139,7 @@ TEST(SketchKitChannel, AReadingThatNamesNoNumberLeavesTheValueWhereItWas) {
   EXPECT_FLOAT_EQ(fader.value(), 63.5f);
 }
 
-TEST(SketchKitChannel, ABoundChainOverTheOutputReadsTheMappedValue) {
+TEST(SketchKitChannel, ABindingOverTheLiveValueReadsTheMappedValue) {
   Hub hub;
   hub.setFeedTransport("osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
@@ -149,15 +150,15 @@ TEST(SketchKitChannel, ABoundChainOverTheOutputReadsTheMappedValue) {
   // the arithmetic.
   const motion::Animatable<float> level =
       motion::bind(fader.live(), {.from = {0, 127}, .to = {0.0f, 1.0f}});
-  EXPECT_FLOAT_EQ(motion::resolveFloatAt(nullptr, level), 0.0f);
+  EXPECT_FLOAT_EQ(motion::valueOf(nullptr, level), 0.0f);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
   hub.dispatch(0.0);
-  EXPECT_NEAR(motion::resolveFloatAt(nullptr, level), 0.5f, 0.001f);
+  EXPECT_NEAR(motion::valueOf(nullptr, level), 0.5f, 0.001f);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(127.0)}));
   hub.dispatch(0.1);
-  EXPECT_NEAR(motion::resolveFloatAt(nullptr, level), 1.0f, 0.001f);
+  EXPECT_NEAR(motion::valueOf(nullptr, level), 1.0f, 0.001f);
 }
 
 TEST(SketchKitChannel, AMovedChannelGoesOnFollowingTheSameWire) {
@@ -187,7 +188,7 @@ TEST(SketchKitChannel, AChannelOntoNothingStandsStillAtZero) {
 
   const motion::Animatable<float> level =
       motion::bind(none.live(), {.from = {0, 127}, .to = {0.0f, 1.0f}});
-  EXPECT_FLOAT_EQ(motion::resolveFloatAt(nullptr, level), 0.0f);
+  EXPECT_FLOAT_EQ(motion::valueOf(nullptr, level), 0.0f);
 }
 
 }  // namespace

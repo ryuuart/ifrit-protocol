@@ -11,7 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilworld/scene/Scene.h>
@@ -75,8 +75,8 @@ bool hasInk(const std::vector<uint8_t>& pixels) {
  *  with, and the only state any of them shares. */
 class WorldScene : public testing::Test {
  protected:
-  motion::Ticker ticker;
-  Scene scene{ticker};
+  motion::Engine engine;
+  Scene scene{engine};
 };
 
 }  // namespace
@@ -195,13 +195,13 @@ TEST_F(WorldScene, ALaneRampsAPlacement) {
   EXPECT_FLOAT_EQ(reach(), 0.0f);
 
   scene.render(describe(100.0f));
-  ticker.tick(0.1);
+  engine.advance(engine.elapsed() + motion::Duration(0.1));
   scene.render(describe(100.0f));
   const float midway = reach();
   EXPECT_GT(midway, 0.0f);
   EXPECT_LT(midway, 100.0f);
 
-  ticker.tick(0.2);
+  engine.advance(engine.elapsed() + motion::Duration(0.2));
   scene.render(describe(100.0f));
   EXPECT_NEAR(reach(), 100.0f, 1e-3f);
 }
@@ -257,14 +257,14 @@ TEST_F(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
   EXPECT_EQ(scene.stats().replayed, 0);
 
   // …and it lands where a scene that has held nothing draws it.
-  Scene fresh(ticker);
+  Scene fresh(engine);
   motion::Animatable<float> panned = motion::animatable(30.0f);
   fresh.render(describe(panned));
   EXPECT_EQ(plate(scene), plate(fresh));
 }
 
 TEST_F(WorldScene, ADrawIsAFunctionOfTheDescriptionAlone) {
-  Scene second(ticker);
+  Scene second(engine);
   const auto describe = [] {
     return Element().key("root").children(
         {Element().key("sun").light(light::sun({-0.4f, -0.7f, -0.6f})),
@@ -437,7 +437,7 @@ TEST_F(WorldScene, ACulledGeometryPassDrawsOnlyItsSelection) {
 
 TEST_F(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
   Scene& plain = scene;
-  Scene masked(ticker);
+  Scene masked(engine);
   Frame flat = framed(pair());
   flat.pass(geometryPass("main").writes("colour"));
   plain.render(flat);

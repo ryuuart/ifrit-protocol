@@ -511,7 +511,7 @@ TEST(ComposeDepth, APlaneUnderAMovingViewIsMovingItself) {
     if (host.pixel(x, 100) == SK_ColorRED) ++near;
   EXPECT_GT(near, 0);
 
-  distance = 4000.0f;  // the viewer walks back: no render(), no ticker
+  distance = 4000.0f;  // the viewer walks back: no render(), no engine
   host.frame();
   int far = 0;
   for (int x = 0; x < 200; ++x)
@@ -601,12 +601,12 @@ TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {
            .rect(SkRect::MakeXYWH(50, 50, 100, 100))
            .fill(red())
            .rotateY(
-               animate({.to = 90.0f, .duration = 200ms, .ease = motion::ease::linear}))}));
+               motion::animate({.to = 90.0f, .duration = 200ms, .ease = motion::ease::linear}))}));
   host.frame(0.1);  // 45°: cos(45°) · 100 ≈ 71 px about the centre
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(70, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(55, 100), SK_ColorBLACK);
-  EXPECT_TRUE(host.ticker.active());
+  EXPECT_TRUE(host.engine.isRunning());
   host.frame(0.2);  // landed at 90°: gone
   EXPECT_FALSE(anyRedIn(host, 200, 200));
 }

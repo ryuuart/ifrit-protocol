@@ -148,7 +148,7 @@ slice; `PaintBox::Canvas` stretches it over the whole canvas, so
 elements anywhere in the tree line up and moving one of them moves which
 slice it shows.
 
-**A live paint re-resolves per frame**, so a ramp bound to an output
+**A live paint re-resolves per frame**, so a ramp bound to a live value
 moves under the letters without re-shaping them, and it composes with
 the textFx tracks: a letter in flight is painted with it exactly as a
 resting one is.

@@ -311,7 +311,7 @@ TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
     host.composer.render(box().padding(10).children(
         {text(copy).key("t").textFx({.where = std::move(where),
                                      .effect = textFx::rise(0),
-                                     .stagger = {.eachMs = 1, .durationMs = 1},
+                                     .delay = sigil::motion::stagger(1ms), .duration = 1ms,
                                      .unit = sigil::weave::Unit::Word})}));
     host.frame();
     return host.composer.beatsOf("t", 0);
@@ -340,7 +340,7 @@ TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
     host.composer.render(box().padding(10).children(
         {text(copy).key("t").textFx({.where = std::move(where),
                                      .effect = textFx::rise(0),
-                                     .stagger = {.eachMs = 1, .durationMs = 1},
+                                     .delay = sigil::motion::stagger(1ms), .duration = 1ms,
                                      .unit = sigil::weave::Unit::Glyph})}));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
@@ -375,7 +375,7 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
              .key("t")
              .textFx({.where = selectors::style("unregistered-register"),
                       .effect = textFx::rise(0),
-                      .stagger = {.durationMs = 1},
+                      .duration = 1ms,
                       .unit = sigil::weave::Unit::Glyph})});
   };
   host.composer.render(describe());
@@ -390,7 +390,7 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
            .key("t")
            .textFx({.where = selectors::style("unregistered-register"),
                     .effect = textFx::rise(0),
-                    .stagger = {.durationMs = 1},
+                    .duration = 1ms,
                     .unit = sigil::weave::Unit::Glyph})}));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -414,7 +414,7 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
       {.where = sigil::weave::selectors::text(u8"beta"),
        .effect = textFx::rise(0),
-       .stagger = {.eachMs = 1, .durationMs = 1},
+       .delay = sigil::motion::stagger(1ms), .duration = 1ms,
        .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
@@ -474,7 +474,7 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
              .key("t")
              .textFx({.where = selectors::style("term"),
                       .effect = textFx::rise(0),
-                      .stagger = {.eachMs = 1, .durationMs = 1},
+                      .delay = sigil::motion::stagger(1ms), .duration = 1ms,
                       .unit = sigil::weave::Unit::Glyph})}));
     host.frame();
     return host.composer.beatsOf("t", 0).size();

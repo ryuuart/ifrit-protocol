@@ -328,8 +328,11 @@ Element arcTable() {
                       .shape(sigil::geometry::shapes::arc(-r.endDeg))
                       .stroke(ink);
     arc.mask(by::spans(spans::upTo(
-        animate({.from = 0.0001f, .to = r.endDeg / 360.0f, .duration = std::chrono::milliseconds(120u << (unsigned)r.ring),
-                 motion::ease::linear, std::chrono::milliseconds(150)}))));
+        motion::animate({.from = 0.0001f,
+                         .to = r.endDeg / 360.0f,
+                         .duration = std::chrono::milliseconds(120u << (unsigned)r.ring),
+                         .delay = std::chrono::milliseconds(150),
+                         .ease = motion::ease::linear}))));
     plate.children({std::move(arc).key("ring" + std::to_string(r.ring))});
   }
   page.children(
@@ -350,7 +353,7 @@ std::vector<SkColor> warmedStill(bool promotion) {
   host.composer.render(arcTable());
   SkNoDrawCanvas discarded(900, 640);
   for (int i = 0; i < 360; ++i) {
-    host.ticker.tick(1.0 / 60.0);
+    host.engine.advance(host.engine.elapsed() + sigil::motion::Duration(1.0 / 60.0));
     host.composer.draw(discarded);
   }
   sk_sp<SkSurface> still =

@@ -5,7 +5,8 @@ into a frame — a scene, an ordered list of passes and the readbacks the
 caller asked for — and executes that frame. It owns three things and
 nothing else: the 3D scene description, the frame graph that orders
 passes from their declared inputs and outputs, and the execution of that
-graph. It holds no window, no swapchain, no clock, and no second
+graph. It holds no window, no swapchain, no clock of its own — its motion
+runs on the `motion::Engine` its caller hands the `Scene` — and no second
 copy of anything a library beneath it already defines: meshes, point
 operators, splines, cameras — including the clip-space view a device
 draws with, which is `camera::Camera::clipProjection()` — the CPU
@@ -58,10 +59,10 @@ An author builds a fresh `Element` tree every frame and hands it to a
 using namespace sigil;
 using namespace sigil::world;
 
-motion::Ticker ticker;
-Scene scene(ticker);
+motion::Engine engine;
+Scene scene(engine);
 
-choreograph::Output<float> spin = 0.0f;   // written by whatever drives it
+motion::Animatable<float> spin = motion::animatable(0.0f);   // written by whatever drives it
 
 scene.render(
     Element()
@@ -73,7 +74,7 @@ scene.render(
                 .key("tube")
                 .mesh(geometry::mesh::pop::sweep(loop, profile))
                 .fill(surface)
-                .rotateY(bind(&spin))
+                .rotateY(spin)
                 .tag("lit"),
             Element()
                 .key("comet")
@@ -419,27 +420,29 @@ itself. Operation by operation:
 | `reconcilesChildren` | true: children are described, never filled by another path |
 | `children` / `descriptionOf` | the description's `children`, and the node handle off each `Element` |
 | `memoOf` / `produce` | the description's `Memo`, and the deferred describe run under the environment its author had |
-| `create` | a node, an entity with a `Placement`, and the first patch — with the child's ordinal read through the parent's `staggerChildren()` schedule, so the entrance the patch mounts is delayed by where this child sits in the cascade |
-| `onPatched` | retargets the lanes (mounting entrances on the first patch, at whatever the enclosing cascade delayed this branch by), marks the geometry slot for resolution when it or its window changed, and stales every bake above |
+| `create` | a node, an entity with a `Placement`, and the first patch — with the child's place among the siblings mounting with it, which every staggered tween on it resolves against |
+| `onPatched` | retargets the lanes (mounting entrances on the first patch, each resolved at the child's place), marks the geometry slot for resolution when it or its window changed, and stales every bake above |
 | `reorder` | stales every bake above when a child mounted, unmounted or moved |
 | `remountRequired` | **false, always** — nothing a node retains is welded to what its slots hold |
 | `invalidate` | stales every bake above |
 | `destroy` | destroys the subtree's entities and releases its resource references |
 
-**Entrances cascade.** `Element::staggerChildren(motion::Spread)` puts a
-schedule on a node, and each child that MOUNTS enters at the start time
-that schedule gives its ordinal — an even ladder, a fixed total divided
-across however many children turn up, an irregular cue table, one of five
-orderings, a distribution curve. It is SigilMotion's schedule, the same
-body a paragraph's glyphs cascade through, so `From::Center` means one
-thing in a set and in a line of type. The delay compounds down the
-subtree and only children that actually mount are delayed: appending one
-node to a live list enters it at once rather than making it wait out the
-whole list.
+**Entrances are staggered by value.** A child's own entrance carries
+`.delay = motion::stagger(40ms)` — or any other `motion::stagger`, a
+fixed total spread across however many children turn up, a
+`motion::cues` table, one of five origins, an easing curve — and each
+child that MOUNTS resolves it at its place among the siblings mounting
+with it. It is SigilMotion's stagger, the same value a paragraph's
+glyphs are scheduled with, so `motion::StaggerFrom::Center` means one
+thing in a set and in a line of type. Only children that actually mount
+are delayed, and they are placed among the children mounting with them:
+appending one node to a live list enters it at once rather than making
+it wait out the whole list.
 
 **Lanes and the values on them are SigilMotion's.** `Lane`,
-`retargetSlots`, `mountEntrance`, `isLive` and the comparators that decide
-two animatable slots are the same live in `<sigilmotion/values/…>`; this
+`retargetFixed`, `enter`, `isRunning` and the comparators that decide
+two animatable slots are the same live in `<sigilmotion/advanced/Held.h>`
+and `<sigilmotion/values/…>`; this
 library names the FAMILY (`LaneFamily::Slot`), the 27 rows, and what each
 row's standing value is when a description does not carry the block that
 holds it.
@@ -591,7 +594,7 @@ header is unreachable from kit code — which is what makes "the kit sees
 public headers only" a property of the build rather than a convention.
 
 `scene/test/` covers the retained side, every case over one fixture
-holding a clock and a scene reading it: an emitter dial reaching the
+holding an engine and a scene running on it: an emitter dial reaching the
 light it scales while the tree stands still, identity across a keyed
 reorder, the three lifetimes pulling apart under a geometry-slot change,
 the store sharing one cooked artefact, a lane ramping a placement, the
