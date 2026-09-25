@@ -123,7 +123,6 @@ void ComposerHandle::draw(SkCanvas& canvas) const {
 namespace {
 
 using compose::Composer;
-namespace mskia = material::skia;
 
 /** A layout viewport read from @p value: a size, or a width and a
  *  height. */
@@ -278,7 +277,7 @@ void bindDescribePath(py::class_<ComposerHandle>& composer) {
           py::arg("font"), py::arg("ink"))
       .def(
           "setView",
-          [](const ComposerHandle& self, mskia::Effect view) {
+          [](const ComposerHandle& self, material::skia::Effect view) {
             self.get().setView(std::move(view));
           },
           py::arg("view"))

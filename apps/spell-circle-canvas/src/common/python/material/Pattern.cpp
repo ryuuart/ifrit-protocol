@@ -43,7 +43,7 @@ void bindMaterialPattern(py::module_& module) {
         return pattern::checker(cell, materialColor(first),
                                 materialColor(second));
       },
-      py::arg("cell"), py::arg("a"), py::arg("b"));
+      py::arg("cell"), py::arg("first"), py::arg("second"));
   patterns.def(
       "halftone",
       [](float spacing, float radius, py::handle value, bool staggered) {

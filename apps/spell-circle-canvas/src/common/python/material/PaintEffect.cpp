@@ -22,12 +22,11 @@
 
 namespace sigil::python {
 namespace py = pybind11;
-namespace mskia = material::skia;
 namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
 
-std::vector<mskia::Stop> stops(py::iterable values) {
-  std::vector<mskia::Stop> result;
+std::vector<material::skia::Stop> stops(py::iterable values) {
+  std::vector<material::skia::Stop> result;
   for (auto value : values) {
     const auto pair = py::cast<py::sequence>(value);
     if (pair.size() != 2)
@@ -45,7 +44,7 @@ sk_sp<SkRuntimeEffect> runtimeEffect(const std::string& source) {
   return effect;
 }
 
-mskia::Paint& uniform(mskia::Paint& paint, const std::string& name,
+material::skia::Paint& uniform(material::skia::Paint& paint, const std::string& name,
                       py::handle value) {
   if (py::isinstance<py::int_>(value) || py::isinstance<py::float_>(value))
     return paint.uniform(name, py::cast<float>(value));
@@ -69,9 +68,9 @@ mskia::Paint& uniform(mskia::Paint& paint, const std::string& name,
   return paint.uniform(name, values);
 }
 
-mskia::Paint sksl(py::handle effect, py::dict uniforms) {
+material::skia::Paint sksl(py::handle effect, py::dict uniforms) {
   auto paint =
-      mskia::Paint::sksl(py::isinstance<py::str>(effect)
+      material::skia::Paint::sksl(py::isinstance<py::str>(effect)
                              ? runtimeEffect(py::cast<std::string>(effect))
                              : py::cast<sk_sp<SkRuntimeEffect>>(effect));
   for (const auto& [name, value] : uniforms)
@@ -82,44 +81,44 @@ mskia::Paint sksl(py::handle effect, py::dict uniforms) {
 
 void bindMaterialPaintEffect(py::module_& module) {
   auto nativePaint = submodule(module, "material.skia");
-  py::class_<mskia::Effect>(nativePaint, "Effect")
+  py::class_<material::skia::Effect>(nativePaint, "Effect")
       .def_static(
           "recipe",
-          py::overload_cast<const material::Material&>(&mskia::Effect::recipe),
+          py::overload_cast<const material::Material&>(&material::skia::Effect::recipe),
           py::arg("material"))
       .def_static(
           "glow",
           [](py::object ink, float sigma) {
-            return mskia::Effect::glow(color(ink), sigma);
+            return material::skia::Effect::glow(color(ink), sigma);
           },
           py::arg("ink"), py::arg("sigma"))
-      .def_static("brightPass", &mskia::Effect::brightPass,
+      .def_static("brightPass", &material::skia::Effect::brightPass,
                   py::arg("threshold") = 0.68f, py::arg("knee") = 0.30f)
-      .def_static("phosphorBloom", &mskia::Effect::phosphorBloom,
+      .def_static("phosphorBloom", &material::skia::Effect::phosphorBloom,
                   py::arg("radius") = 9.0f, py::arg("threshold") = 0.52f,
                   py::arg("intensity") = 0.46f, py::arg("chroma") = 0.80f,
                   py::arg("hueDrift") = 0.0f, py::arg("tail") = 0.0f)
       .def_static(
-          "shader", &mskia::Effect::shader, py::arg("effect"),
+          "shader", &material::skia::Effect::shader, py::arg("effect"),
           py::arg("uniforms") = std::vector<std::pair<std::string, float>>{})
-      .def_static("directionalBlur", &mskia::Effect::directionalBlur,
-                  py::arg("sigma"), py::arg("angleDeg"),
+      .def_static("directionalBlur", &material::skia::Effect::directionalBlur,
+                  py::arg("sigma"), py::arg("angleDegrees"),
                   py::arg("across") = 0.0f)
       .def_static("blur",
-                  py::overload_cast<mskia::Paint, float>(&mskia::Effect::blur),
+                  py::overload_cast<material::skia::Paint, float>(&material::skia::Effect::blur),
                   py::arg("sigmaMap"), py::arg("maxSigma"))
-      .def_static("blur", py::overload_cast<float>(&mskia::Effect::blur),
+      .def_static("blur", py::overload_cast<float>(&material::skia::Effect::blur),
                   py::arg("sigma"))
-      .def_static("dilate", &mskia::Effect::dilate, py::arg("pixels"))
-      .def_static("deepen", &mskia::Effect::deepen, py::arg("amount"))
-      .def_static("whiten", &mskia::Effect::whiten, py::arg("amount"),
+      .def_static("dilate", &material::skia::Effect::dilate, py::arg("pixels"))
+      .def_static("deepen", &material::skia::Effect::deepen, py::arg("amount"))
+      .def_static("whiten", &material::skia::Effect::whiten, py::arg("amount"),
                   py::arg("threshold") = 0.2f, py::arg("knee") = 0.2f)
-      .def("slot", &mskia::Effect::slot, py::arg("name"), py::arg("paint"),
+      .def("slot", &material::skia::Effect::slot, py::arg("name"), py::arg("paint"),
            fluent)
       .def(
           "uniform",
-          [](mskia::Effect& self, const std::string& name,
-             py::object value) -> mskia::Effect& {
+          [](material::skia::Effect& self, const std::string& name,
+             py::object value) -> material::skia::Effect& {
             // A colour is four floats here as it is on a paint's
             // uniform — the colour class or a CSS string — so one
             // effect and one paint take a colour uniform written the
@@ -137,52 +136,52 @@ void bindMaterialPaintEffect(py::module_& module) {
             return self.uniform(name, motionAnimatable(value));
           },
           py::arg("name"), py::arg("value"), fluent)
-      .def("then", &mskia::Effect::then, py::arg("effect"))
+      .def("then", &material::skia::Effect::then, py::arg("effect"))
       .def(py::init<>())
-      .def("emit", &mskia::Effect::emit, py::arg("light"),
+      .def("emit", &material::skia::Effect::emit, py::arg("light"),
            py::arg("mode") = SkBlendMode::kScreen)
-      .def("isAnimated", &mskia::Effect::isAnimated)
-      .def("usesWorldSpace", &mskia::Effect::usesWorldSpace)
+      .def("isAnimated", &material::skia::Effect::isAnimated)
+      .def("usesWorldSpace", &material::skia::Effect::usesWorldSpace)
       .def(py::self == py::self);
 
-  bindRecord<mskia::BloomParameters>(nativePaint, "BloomParameters",
+  bindRecord<material::skia::BloomParameters>(nativePaint, "BloomParameters",
                                      "Unknown bloom parameter: ")
-      .def_readwrite("sigma", &mskia::BloomParameters::sigma)
-      .def_readwrite("strength", &mskia::BloomParameters::strength)
-      .def_readwrite("spread", &mskia::BloomParameters::spread)
-      .def_readwrite("tail", &mskia::BloomParameters::tail)
-      .def_readwrite("threshold", &mskia::BloomParameters::threshold)
-      .def_readwrite("knee", &mskia::BloomParameters::knee)
-      .def_readwrite("softness", &mskia::BloomParameters::softness)
-      .def_readwrite("whitening", &mskia::BloomParameters::whitening)
-      .def_readwrite("dilation", &mskia::BloomParameters::dilation)
-      .def_readwrite("deepening", &mskia::BloomParameters::deepening)
-      .def_readwrite("maxOpacity", &mskia::BloomParameters::maxOpacity);
-  nativePaint.def("bloom", &mskia::bloom,
-                  py::arg("parameters") = mskia::BloomParameters{});
+      .def_readwrite("sigma", &material::skia::BloomParameters::sigma)
+      .def_readwrite("strength", &material::skia::BloomParameters::strength)
+      .def_readwrite("spread", &material::skia::BloomParameters::spread)
+      .def_readwrite("tail", &material::skia::BloomParameters::tail)
+      .def_readwrite("threshold", &material::skia::BloomParameters::threshold)
+      .def_readwrite("knee", &material::skia::BloomParameters::knee)
+      .def_readwrite("softness", &material::skia::BloomParameters::softness)
+      .def_readwrite("whitening", &material::skia::BloomParameters::whitening)
+      .def_readwrite("dilation", &material::skia::BloomParameters::dilation)
+      .def_readwrite("deepening", &material::skia::BloomParameters::deepening)
+      .def_readwrite("maxOpacity", &material::skia::BloomParameters::maxOpacity);
+  nativePaint.def("bloom", &material::skia::bloom,
+                  py::arg("parameters") = material::skia::BloomParameters{});
 
-  py::enum_<mskia::Fit>(nativePaint, "Fit")
-      .value("Contain", mskia::Fit::Contain)
-      .value("Cover", mskia::Fit::Cover)
-      .value("Stretch", mskia::Fit::Stretch)
-      .value("Native", mskia::Fit::Native);
-  py::class_<mskia::Paint>(nativePaint, "Paint")
+  py::enum_<material::skia::Fit>(nativePaint, "Fit")
+      .value("Contain", material::skia::Fit::Contain)
+      .value("Cover", material::skia::Fit::Cover)
+      .value("Stretch", material::skia::Fit::Stretch)
+      .value("Native", material::skia::Fit::Native);
+  py::class_<material::skia::Paint>(nativePaint, "Paint")
       .def(py::init<>())
-      .def(py::init<const mskia::Paint&>(), py::arg("paint"))
+      .def(py::init<const material::skia::Paint&>(), py::arg("paint"))
       .def(py::init([](const material::Material& recipe) {
-             return mskia::Paint::recipe(recipe);
+             return material::skia::Paint::recipe(recipe);
            }),
            py::arg("material"))
-      .def("copy", [](const mskia::Paint& paint) { return paint; })
+      .def("copy", [](const material::skia::Paint& paint) { return paint; })
       .def_static(
           "solid",
-          [](py::handle value) { return mskia::Paint::solid(color(value)); },
+          [](py::handle value) { return material::skia::Paint::solid(color(value)); },
           py::arg("color"))
       .def_static(
           "linear",
           [](py::handle from, py::handle to, py::iterable gradient,
              SkTileMode tile) {
-            return mskia::Paint::linear(point(from), point(to),
+            return material::skia::Paint::linear(point(from), point(to),
                                         stops(gradient), tile);
           },
           py::arg("from_"), py::arg("to"), py::arg("stops"),
@@ -191,7 +190,7 @@ void bindMaterialPaintEffect(py::module_& module) {
           "radial",
           [](py::handle center, float radius, py::iterable gradient,
              SkTileMode tile) {
-            return mskia::Paint::radial(point(center), radius, stops(gradient),
+            return material::skia::Paint::radial(point(center), radius, stops(gradient),
                                         tile);
           },
           py::arg("center"), py::arg("radius"), py::arg("stops"),
@@ -200,7 +199,7 @@ void bindMaterialPaintEffect(py::module_& module) {
           "conical",
           [](py::handle start, float startRadius, py::handle end,
              float endRadius, py::iterable gradient) {
-            return mskia::Paint::conical(point(start), startRadius, point(end),
+            return material::skia::Paint::conical(point(start), startRadius, point(end),
                                          endRadius, stops(gradient));
           },
           py::arg("start"), py::arg("startRadius"), py::arg("end"),
@@ -209,7 +208,7 @@ void bindMaterialPaintEffect(py::module_& module) {
           "sweep",
           [](py::handle center, py::iterable gradient, float start,
              float end) {
-            return mskia::Paint::sweep(point(center), stops(gradient), start,
+            return material::skia::Paint::sweep(point(center), stops(gradient), start,
                                        end);
           },
           py::arg("center"), py::arg("stops"), py::arg("start") = 0,
@@ -217,21 +216,21 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def_static(
           "linearUnit",
           [](py::handle start, py::handle end, py::iterable gradient) {
-            return mskia::Paint::linearUnit(point(start), point(end),
+            return material::skia::Paint::linearUnit(point(start), point(end),
                                             stops(gradient));
           },
           py::arg("start"), py::arg("end"), py::arg("stops"))
       .def_static(
           "radialUnit",
           [](py::handle center, float radius, py::iterable gradient) {
-            return mskia::Paint::radialUnit(point(center), radius,
+            return material::skia::Paint::radialUnit(point(center), radius,
                                             stops(gradient));
           },
           py::arg("center"), py::arg("radius"), py::arg("stops"))
       .def_static(
           "glowUnit",
           [](py::handle center, float radius, py::iterable gradient) {
-            return mskia::Paint::glowUnit(point(center), radius,
+            return material::skia::Paint::glowUnit(point(center), radius,
                                           stops(gradient));
           },
           py::arg("center"), py::arg("radius"), py::arg("stops"))
@@ -239,31 +238,31 @@ void bindMaterialPaintEffect(py::module_& module) {
           "image",
           [](sk_sp<SkImage> image, SkTileMode tileX, SkTileMode tileY,
              const SkMatrix& local) {
-            return mskia::Paint::image(std::move(image), tileX, tileY, local);
+            return material::skia::Paint::image(std::move(image), tileX, tileY, local);
           },
           py::arg("image"), py::arg("tileX") = SkTileMode::kClamp,
           py::arg("tileY") = SkTileMode::kClamp,
           py::arg("local") = SkMatrix::I())
       .def_static("sksl", &sksl, py::arg("effect"),
                   py::arg("uniforms") = py::dict())
-      .def_static("recipe", &mskia::Paint::recipe, py::arg("material"))
-      .def_static("blend", &mskia::Paint::blend, py::arg("layers"))
+      .def_static("recipe", &material::skia::Paint::recipe, py::arg("material"))
+      .def_static("blend", &material::skia::Paint::blend, py::arg("layers"))
       .def("uniform", &uniform, py::arg("name"), py::arg("value"), fluent)
-      .def("slot", &mskia::Paint::slot, py::arg("name"), py::arg("paint"),
+      .def("slot", &material::skia::Paint::slot, py::arg("name"), py::arg("paint"),
            fluent)
-      .def("amount", &mskia::Paint::amount, py::arg("amount"), fluent)
-      .def("fit", &mskia::Paint::fit, py::arg("fit"), fluent)
-      .def("worldSpace", py::overload_cast<bool>(&mskia::Paint::worldSpace),
+      .def("amount", &material::skia::Paint::amount, py::arg("amount"), fluent)
+      .def("fit", &material::skia::Paint::fit, py::arg("fit"), fluent)
+      .def("worldSpace", py::overload_cast<bool>(&material::skia::Paint::worldSpace),
            py::arg("on") = true, fluent)
-      .def("quantizeTime", &mskia::Paint::quantizeTime, py::arg("hz"), fluent)
-      .def("isAnimated", &mskia::Paint::isAnimated)
-      .def("isNone", &mskia::Paint::isNone)
+      .def("quantizeTime", &material::skia::Paint::quantizeTime, py::arg("rate"), fluent)
+      .def("isAnimated", &material::skia::Paint::isAnimated)
+      .def("isNone", &material::skia::Paint::isNone)
       .def(py::self == py::self);
   // A recipe instance is one kind of paint, so everything that takes a
   // paint takes a material: a slot, a blend layer, an effect's source.
   // The native constructor stays spelled, because a C++ overload set
   // holding both would become ambiguous.
-  py::implicitly_convertible<material::Material, mskia::Paint>();
+  py::implicitly_convertible<material::Material, material::skia::Paint>();
 }
 
 }  // namespace sigil::python

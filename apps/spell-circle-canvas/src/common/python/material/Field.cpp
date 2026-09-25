@@ -21,14 +21,14 @@ void bindMaterialField(py::module_& module) {
              py::arg("vertical") = false);
   fields.def(
       "halftoneRamp",
-      [](float spacing, float rMin, float rMax, py::handle value,
+      [](float spacing, float minimumRadius, float maximumRadius, py::handle value,
          float angleDegrees, float rampFrom, float rampTo) {
-        return material::field::halftoneRamp(spacing, rMin, rMax,
+        return material::field::halftoneRamp(spacing, minimumRadius, maximumRadius,
                                              materialColor(value),
                                              angleDegrees, rampFrom, rampTo);
       },
-      py::arg("spacing"), py::arg("rMin"), py::arg("rMax"), py::arg("color"),
-      py::arg("angleDeg") = 0.0f, py::arg("rampFrom") = 0.0f,
+      py::arg("spacing"), py::arg("minimumRadius"), py::arg("maximumRadius"), py::arg("color"),
+      py::arg("angleDegrees") = 0.0f, py::arg("rampFrom") = 0.0f,
       py::arg("rampTo") = 1.0f);
   bindRecord<CrtOverlayParameters>(fields, "CrtOverlayParameters",
                                    "Unknown CRT field: ")

@@ -101,8 +101,8 @@ void bindMaterial(py::module_& root) {
       .def(py::init([](float position, py::handle value) {
              return RampStop{position, materialColor(value)};
            }),
-           py::arg("pos"), py::arg("color"))
-      .def_readwrite("pos", &RampStop::pos)
+           py::arg("position"), py::arg("color"))
+      .def_readwrite("position", &RampStop::position)
       .def_property(
           "color", [](const RampStop& stop) { return stop.color; },
           [](RampStop& stop, py::handle value) {
@@ -185,14 +185,16 @@ void bindMaterial(py::module_& root) {
   ramp.def("at", &Ramp::at, py::arg("value"))
       .def("__call__", &Ramp::operator(), py::arg("value"))
       .def("position", &Ramp::position, py::arg("value"));
-  dither.def("threshold", &Dither::threshold, py::arg("x"), py::arg("y"))
-      .def("on", &Dither::on, py::arg("value"), py::arg("x"), py::arg("y"))
+  dither
+      .def("threshold", &Dither::threshold, py::arg("column"), py::arg("row"))
+      .def("on", &Dither::on, py::arg("value"), py::arg("column"),
+           py::arg("row"))
       .def(
           "at",
-          [](const Dither& d, py::handle c, int x, int y) {
-            return d.at(materialColor(c), x, y);
+          [](const Dither& self, py::handle color, int column, int row) {
+            return self.at(materialColor(color), column, row);
           },
-          py::arg("color"), py::arg("x"), py::arg("y"));
+          py::arg("color"), py::arg("column"), py::arg("row"));
   module.def("rgb", &rgb, py::arg("hex"), py::arg("alpha") = 1.0f);
   module.def("hsv", &hsv, py::arg("hueDegrees"), py::arg("saturation"),
              py::arg("value"), py::arg("alpha") = 1.0f);
@@ -229,44 +231,52 @@ void bindMaterial(py::module_& root) {
              py::arg("channel"));
   module.def(
       "mixLinear",
-      [](py::handle a, py::handle b, float t) {
-        return material::mixLinear(materialColor(a), materialColor(b), t);
+      [](py::handle start, py::handle end, float amount) {
+        return material::mixLinear(materialColor(start), materialColor(end),
+                                   amount);
       },
-      py::arg("a"), py::arg("b"), py::arg("t"));
+      py::arg("start"), py::arg("end"), py::arg("amount"));
   module.def(
       "lerpOklab",
-      [](py::handle a, py::handle b, float t) {
-        return material::lerpOklab(materialColor(a), materialColor(b), t);
+      [](py::handle start, py::handle end, float amount) {
+        return material::lerpOklab(materialColor(start), materialColor(end),
+                                   amount);
       },
-      py::arg("a"), py::arg("b"), py::arg("t"));
+      py::arg("start"), py::arg("end"), py::arg("amount"));
   module.def("inSrgbGamut", &inSrgbGamut, py::arg("lab"),
              py::arg("slack") = 1e-4f);
   module.def(
       "withAlpha",
-      [](py::handle c, float a) { return withAlpha(materialColor(c), a); },
+      [](py::handle color, float alpha) {
+        return withAlpha(materialColor(color), alpha);
+      },
       py::arg("color"), py::arg("alpha"));
   module.def(
       "scale",
-      [](py::handle c, float k, float a) {
-        return scale(materialColor(c), k, a);
+      [](py::handle color, float factor, float alpha) {
+        return scale(materialColor(color), factor, alpha);
       },
       py::arg("color"), py::arg("factor"), py::arg("alpha") = -1.0f);
   module.def(
       "lighten",
-      [](py::handle c, float k) { return lighten(materialColor(c), k); },
+      [](py::handle color, float amount) {
+        return lighten(materialColor(color), amount);
+      },
       py::arg("color"), py::arg("amount"));
   module.def(
       "mixToward",
-      [](py::handle c, py::handle target, float t, float a) {
-        return mixToward(materialColor(c), materialColor(target), t, a);
+      [](py::handle color, py::handle target, float amount, float alpha) {
+        return mixToward(materialColor(color), materialColor(target), amount,
+                         alpha);
       },
-      py::arg("color"), py::arg("target"), py::arg("t"), py::arg("alpha"));
+      py::arg("color"), py::arg("target"), py::arg("amount"),
+      py::arg("alpha"));
   module.def(
       "deltaE",
-      [](py::handle a, py::handle b) {
-        return deltaE(materialColor(a), materialColor(b));
+      [](py::handle first, py::handle second) {
+        return deltaE(materialColor(first), materialColor(second));
       },
-      py::arg("a"), py::arg("b"));
+      py::arg("first"), py::arg("second"));
   module.def(
       "rotateHue",
       [](py::handle c, float degrees) {
@@ -297,17 +307,17 @@ void bindMaterial(py::module_& root) {
       py::arg("palette"), py::arg("color"));
   module.def(
       "sampleRamp",
-      [](const std::vector<RampStop>& stops, float t) {
-        return sampleRamp(stops, t);
+      [](const std::vector<RampStop>& stops, float position) {
+        return sampleRamp(stops, position);
       },
-      py::arg("stops"), py::arg("t"));
+      py::arg("stops"), py::arg("position"));
   module.def(
       "rampBracket",
-      [](const std::vector<RampStop>& stops, float t) {
+      [](const std::vector<RampStop>& stops, float position) {
         if (stops.empty())
           throw py::value_error("A ramp bracket requires at least one stop.");
-        return rampBracket(stops, t);
+        return rampBracket(stops, position);
       },
-      py::arg("stops"), py::arg("t"));
+      py::arg("stops"), py::arg("position"));
 }
 }  // namespace sigil::python

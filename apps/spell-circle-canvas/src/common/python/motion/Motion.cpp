@@ -506,12 +506,12 @@ void bindMotion(py::module_& root) {
       py::arg("seed") = 0, py::arg("octaves") = 1, py::arg("falloff") = 0.5f);
   module.def("phase", &motion::phase, py::arg("seconds"), py::arg("period"));
   module.def("quantizeTime", &motion::quantizeTime<double>, py::arg("seconds"),
-             py::arg("hz"));
+             py::arg("rate"));
   module.def("stepIndex", &motion::stepIndex, py::arg("seconds"),
-             py::arg("hz"));
-  module.def("decay", &motion::decay, py::arg("age"), py::arg("tau"));
+             py::arg("rate"));
+  module.def("decay", &motion::decay, py::arg("age"), py::arg("timeConstant"));
   module.def("flash", &motion::flash, py::arg("age"), py::arg("attack"),
-             py::arg("tau"), py::arg("rest") = 0.0f);
+             py::arg("timeConstant"), py::arg("rest") = 0.0f);
   module.def("clamp01", &motion::clamp01, py::arg("value"));
   module.def(
       "ramp",

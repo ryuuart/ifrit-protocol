@@ -133,14 +133,14 @@ void addSteppable(const TickerHandle& handle, py::function function) {
   auto& ticker = handle.get();
   const int arity = callbackArity(function, 2);
   auto retained = retainForTicker(handle, std::move(function));
-  ticker.add([retained, arity](double dt, double elapsed) {
+  ticker.add([retained, arity](double deltaSeconds, double elapsed) {
     const py::gil_scoped_acquire lock;
     const CallbackBoundary boundary;
     try {
       auto callback = retained->get();
       if (arity == 0) return continueTick(callback());
-      if (arity == 1) return continueTick(callback(dt));
-      return continueTick(callback(dt, elapsed));
+      if (arity == 1) return continueTick(callback(deltaSeconds));
+      return continueTick(callback(deltaSeconds, elapsed));
     } catch (const py::error_already_set& error) {
       throw std::runtime_error(error.what());
     }
@@ -460,7 +460,7 @@ void bindMotionClock(py::module_& module) {
           },
           py::arg("deltaSeconds"))
       .def("add", &addSteppable, py::arg("function"))
-      .def("addFixed", &addFixedSteppable, py::arg("hz"), py::arg("function"),
+      .def("addFixed", &addFixedSteppable, py::arg("rate"), py::arg("function"),
            py::arg("maxCatchUp") = 8, py::arg("alphaOut") = nullptr,
            py::arg("statusOut") = nullptr)
       .def("derive", &deriveOutput, py::arg("destination"), py::arg("chain"),
