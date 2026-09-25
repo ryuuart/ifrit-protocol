@@ -542,7 +542,7 @@ TEST(DataConnection, ARecordingHasNobodyToReplyTo) {
   }
 
   Hub hub;
-  hub.mount("ws://:8848/scene", path);
+  hub.replay("ws://:8848/scene", path.string());
   Connection scene(hub, "ws://:8848/scene");
   hub.dispatch(0.0);
 
@@ -606,9 +606,8 @@ TEST(DataConnection, ARecordingReplaysThroughAConnectionByTheTimeDispatched) {
   }
 
   Hub hub;
-  // The URI is mounted straight onto the file: nothing is beneath it,
-  // and no transport is needed for a door that reads a recording.
-  hub.mount("ws://:8848/scene", path);
+  // No transport is needed for a door that reads a recording.
+  hub.replay("ws://:8848/scene", path.string());
 
   Connection scene(hub, "ws://:8848/scene");
   std::vector<double> strengths;

@@ -48,7 +48,7 @@ TEST(DataVitals, TheValueMovesExactlyWhenAFieldDid) {
     writer.append({2, 1.0, bytesOf("this is no document at all")});
   }
   Hub hub;
-  hub.mount("ws://:8848/scene", path);
+  hub.replay("ws://:8848/scene", path.string());
   Connection scene(hub, "ws://:8848/scene");
 
   const Connection::Vitals opened = scene.vitals();
