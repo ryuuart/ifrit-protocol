@@ -1,562 +1,556 @@
 #pragma once
 
-#include <include/core/SkPathBuilder.h>
+/** @file
+ * THE PANEL AS A CARPENTER CUTS IT: the room's dimensions, the timber the
+ * pieces are cut from, one piece of stock with a cut face at each end, the
+ * generator that lays out the frame, the register, the jigumi and the
+ * seven ha of every cell, and the one element every piece is drawn as.
+ * Nothing here knows how the page is set.
+ */
+
+#include <choreograph/Easing.h>
+#include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
-#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/typography/Typography.h>
-#include <sigildata/decode/Json.h>
-#include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Operations.h>
+#include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Segments.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Bank.h>
 #include <sigilmaterial/kit/Grained.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Keyframes.h>
-#include <sigilmotion/values/Transition.h>
-#include <sigilsketch/canvas/Sketch.h>
-#include <sigilsketch/kit/Document.h>
-#include <sigilsketch/kit/Page.h>
-#include <sigilweave/style/Type.h>
+#include <sigilmotion/bind/Curve.h>
 
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <memory>
-#include <span>
-#include <string>
+#include <cstdint>
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <vector>
 
-namespace data = sigil::data;
-namespace sketch = sigil::sketch;
-namespace matkit = sigil::material::kit;
-namespace mat = sigil::material;
-namespace operations = sigil::geometry::path::operations;
-namespace shapes = sigil::geometry::shapes;
-namespace skia = sigil::material::skia;
-namespace weave = sigil::weave;
+namespace kumiko {
 
+namespace material = sigil::material;
+namespace path = sigil::geometry::path;
+namespace motion = sigil::motion;
 using namespace sigil::compose;
-using namespace sigil::motion;
-using sigil::material::skia::Paint;
-using namespace std::chrono_literals;
-
-namespace {
-
-using kit::dot;
-using kit::ring;
+using glm::vec2;
 
 // ---------------------------------------------------------------------------
-// Palette — wood-tone matches by eye, not a colorimeter reading
-
-// Hinoki #E9D3A0 is the colour of the stock in daylight. This
-// panel is BACKLIT: the wood faces away from the lamp, so the body sits a
-// couple of stops under it and only the arris reaches the daylight value —
-// otherwise cream wood and cream light have no separation and the fretwork
-// stops silhouetting, which is the whole point of a ranma.
-const mat::Color kHinoki = hexColor(0xD6BC89);      // planed cypress, room-side
-const mat::Color kHinokiLit = hexColor(0xF5E6C4);   // #E9D3A0's daylight arris
-const mat::Color kHinokiDark = hexColor(0x8E6C3B);  // notch shadow
-const mat::Color kKeyaki = hexColor(0x76472A);      // zelkova frame
-const mat::Color kKeyakiLit = hexColor(0x9C6B3E);
-const mat::Color kKeyakiDark = hexColor(0x4B2A12);
-const mat::Color kGlow = hexColor(0xF4E3B8);  // the far room's lamp
-const mat::Color kNight = hexColor(0x0D0906);
-const mat::Color kSeam = hexColor(0x4A3620, 0.55f);
-const mat::Color kCaption = hexColor(0xD8C9A8, 0.60f);
-
-// ---------------------------------------------------------------------------
-// Composition. The field is FIXED; the pitch is the free constant —
-// change kCell alone and cols/rows re-derive, so the lattice just gets denser.
-
-// The room is 1400 x 1000; under it stands the SHOP DRAWING band, where the
-// panel's whole argument — seven pieces per cell, from the incircle, on
-// three jigs — is taken apart at cell scale.
-constexpr float kW = 1400, kRoom = 1000;
-constexpr float kBandH = 240;
-constexpr float kH = kRoom + kBandH;
-
-constexpr float kCell =
-    90.0f;  // <<< THE PITCH. 60 → a 15×9 field, still legal.
-constexpr float kFieldW = 900, kFieldH = 540;
-// NOLINTBEGIN(bugprone-throwing-static-initialization): arithmetic on constants
-// cannot throw
-const int kCols = std::max(2, (int)std::lround(kFieldW / kCell));
-const int kRows = std::max(2, (int)std::lround(kFieldH / kCell));
-const float kCellW = kFieldW / (float)kCols;
-const float kCellH = kFieldH / (float)kRows;
-
-const SkRect kField =
-    SkRect::MakeXYWH(700 - kFieldW / 2, 500 - kFieldH / 2, kFieldW, kFieldH);
-// The register band is exactly HALF the field pitch, so its plain cells come
-// out square (masu = "measuring box") and its members interleave with the
-// field's own jigumi at a clean 2:1.
-const float kBand = kCell * 0.5f;  // plain masu register band
-constexpr float kBorder = 45;      // kumiko-buchi frame
-const SkRect kRegOuter = kField.makeOutset(kBand, kBand);
-const SkRect kFrameOuter = kRegOuter.makeOutset(kBorder, kBorder);
-
-// Stock face widths, as fractions of the pitch so they re-derive with kCell.
-// Real stock is 12.7 mm deep × 3.2 mm face, which on a 22 mm pitch is ≈0.145;
-// the jigumi here is drawn a little under that and the ha narrower again,
-// because the infill is thinner stock than the framework it seats into.
-const float kJigumiW = std::max(6.0f, 0.125f * kCell);
-const float kHaW = std::max(5.0f, 0.096f * kCell);
-const float kRegW = kJigumiW * 0.80f;
-// NOLINTEND(bugprone-throwing-static-initialization)
-
-// ---------------------------------------------------------------------------
-// Timeline. One clock, per-piece delays computed from role/row/col. Six
-// laws, not one ladder: the frame's four boards, the register's grid, the
-// two jig passes and the leaves each open on their own base at their own
-// step, and a leaf's base is a function of which CELL it belongs to. A
-// cascade numbers units 0..N-1 and spaces them evenly, which is one of
-// the six.
-
-constexpr double kPeriod = 6.4;
-constexpr double kTFrame = 0.00, kDFrame = 0.55;
-constexpr double kTReg = 0.45, kDReg = 0.55;
-constexpr double kTJigV = 0.95, kTJigH = 1.28, kDJig = 0.42;
-constexpr double kTLeaf = 1.62, kLeafSweep = 0.62, kDLeaf = 0.30;
-constexpr double kLeafDiag = 0.00, kLeafFill = 0.09, kLeafLock = 0.17;
-constexpr double kTSeat = 2.62, kDSeat = 0.24;
-constexpr double kTGlow = 2.78, kDGlow = 0.60;
-
-inline float clamp01(double v) { return (float)std::clamp(v, 0.0, 1.0); }
-
-// ---------------------------------------------------------------------------
-// The timber material — ONE SkSL recipe, seeded per strip.
+// Wood tones, matched by eye.
 //
-// EVERY PIECE IS A BOARD, and `mat::kit::timber` is what a board is: a
-// flat face between a narrow lit arris and a narrow shadowed one, with grain
-// running down the piece and a fine tooth over the whole face — generated
-// per pixel from its parameters and a seed, never from an image.
-//
-//  * `span` is the piece's face width, so the cross-section shading is
-//    authored once and lands correctly on a 45 px frame member and a 10 px
-//    leaf piece alike.
-//  * `flip` picks WHICH long edge is lit, computed per strip from the world
-//    light so a rotated lattice still reads under one raking source.
-//  * `along` turns the piece to run down local y, so one recipe boards the
-//    lattice's rails and its posts.
-//
-// A `mat::Bank` of 24 buckets holds them: the seed folds to 24 values, so a
-// panel of hundreds of boards costs a bounded number of materials rather than
-// one per board, and because the instance is held rather than re-minted the
-// identity is stable and a re-describe prunes.
+// Hinoki is #E9D3A0 in daylight. This panel is BACKLIT: the wood faces
+// away from the lamp, so the body sits a couple of stops under it and only
+// the arris reaches the daylight value — otherwise cream wood and cream
+// light have no separation and the fretwork stops silhouetting, which is
+// the whole point of a ranma.
 
+/** A board's three tones and how strongly its grain and figure read. */
 struct Timber {
-  mat::Color base, light, dark;
+  material::Color base, light, dark;
   float grain;
   float figure;
 };
 
-const Timber kHinokiTimber{kHinoki, kHinokiLit, kHinokiDark, 0.19f, 0.26f};
-const Timber kKeyakiTimber{kKeyaki, kKeyakiLit, kKeyakiDark, 0.055f, 0.38f};
-// The room-side members face AWAY from the far room's lamp, so the same
-// keyaki reads two stops down on the nageshi/kamoi and the posts.
+/** Planed cypress, room side, with its daylight arris and notch shadow. */
+const Timber kHinoki{hexColor(0xD6BC89), hexColor(0xF5E6C4),
+                     hexColor(0x8E6C3B), 0.19f, 0.26f};
+/** The zelkova frame. */
+const Timber kKeyaki{hexColor(0x76472A), hexColor(0x9C6B3E),
+                     hexColor(0x4B2A12), 0.055f, 0.38f};
+/** The room-side members face AWAY from the far room's lamp, so the same
+ *  keyaki reads two stops down on the nageshi, the kamoi and the posts. */
 const Timber kKeyakiShade{hexColor(0x33200F), hexColor(0x54341B),
                           hexColor(0x140C05), 0.045f, 0.42f};
 
+// ---------------------------------------------------------------------------
+// The room. The field is FIXED and the pitch is the free constant: change
+// kCell alone and the columns and rows re-derive, so the lattice only gets
+// denser.
+
+constexpr float kWidth = 1400, kRoom = 1000;
+/** The shop drawing's band under the room. */
+constexpr float kBandHeight = 364;
+constexpr float kHeight = kRoom + kBandHeight;
+constexpr vec2 kCentre{700, 500};
+
+/** THE PITCH. 60 gives a 15×9 field, still legal. */
+constexpr float kCell = 90;
+constexpr float kFieldWidth = 900, kFieldHeight = 540;
+// NOLINTBEGIN(bugprone-throwing-static-initialization): arithmetic on constants
+// cannot throw
+const int kColumns = std::max(2, (int)std::lround(kFieldWidth / kCell));
+const int kRows = std::max(2, (int)std::lround(kFieldHeight / kCell));
+const float kCellWidth = kFieldWidth / (float)kColumns;
+const float kCellHeight = kFieldHeight / (float)kRows;
+
+const SkRect kField = SkRect::MakeXYWH(kCentre.x - kFieldWidth / 2,
+                                       kCentre.y - kFieldHeight / 2,
+                                       kFieldWidth, kFieldHeight);
+/** The register band is exactly HALF the pitch, so its plain cells come
+ *  out square (masu, "measuring box") and its members interleave with the
+ *  field's own jigumi at a clean 2:1. */
+const float kRegisterBand = kCell * 0.5f;
+/** The kumiko-buchi, the frame's face. */
+constexpr float kBorder = 45;
+/** The frame's opening. */
+const SkRect kOpening = kField.makeOutset(kRegisterBand, kRegisterBand);
+const SkRect kFrameOuter = kOpening.makeOutset(kBorder, kBorder);
+
+// Stock face widths, as fractions of the pitch so they re-derive with it.
+// Real stock is 12.7 mm deep by 3.2 mm face, which on a 22 mm pitch is
+// about 0.145; the jigumi is drawn a little under that and the ha narrower
+// again, because the infill is thinner stock than the framework it seats
+// into.
+const float kJigumiWidth = std::max(6.0f, 0.125f * kCell);
+const float kLeafWidth = std::max(5.0f, 0.096f * kCell);
+const float kRegisterWidth = kJigumiWidth * 0.80f;
+// NOLINTEND(bugprone-throwing-static-initialization)
+
+/** Where a leg of a right isosceles triangle meets its incircle, as a
+ *  fraction of the leg: the incircle's radius is s(2 − √2)/2. */
+constexpr float kIncircle = 0.2928932f;
+constexpr float kPastIncircle = 1.0f - kIncircle;
+
+// ---------------------------------------------------------------------------
+// The assembly, as beats of one loop. Six laws rather than one ladder: the
+// frame's four boards, the register's grid, the two jig passes and the
+// leaves each open on their own base at their own step, and a leaf's base
+// is a function of which CELL it belongs to.
+
+constexpr float kPeriod = 6.4f;
+constexpr float kFrameAt = 0.00f, kFrameFor = 0.55f;
+constexpr float kRegisterAt = 0.45f, kRegisterFor = 0.55f;
+constexpr float kVerticalJigAt = 0.95f, kHorizontalJigAt = 1.28f,
+                kJigFor = 0.42f;
+constexpr float kLeavesAt = 1.62f, kLeafSweep = 0.62f, kLeafFor = 0.30f;
+constexpr float kDiagonalAfter = 0.00f, kFillerAfter = 0.09f,
+                kLockAfter = 0.17f;
+/** The seating tap: every lap and tenon arrives on one beat. */
+constexpr float kSeatAt = 2.62f, kSeatFor = 0.24f;
+/** The far room's lamp comes up behind the finished panel. */
+constexpr float kLampAt = 2.78f, kLampFor = 0.60f;
+/** The shop drawing takes its cell apart once the panel is lit. */
+constexpr float kDrawingAt = 3.05f, kDrawingFor = 0.70f;
+
+// ---------------------------------------------------------------------------
+// The timber, ONE recipe seeded per piece.
+//
+// EVERY PIECE IS A BOARD, and `material::kit::timber` is what a board is: a
+// flat face between a narrow lit arris and a narrow shadowed one, with
+// grain running down the piece and a fine tooth over the whole face.
+// `span` is the piece's face width, so the cross-section shading lands
+// correctly on a 45 px frame member and a 10 px leaf alike; `flip` picks
+// WHICH long edge is lit, from the world light, so a rotated lattice still
+// reads under one raking source; `along` turns the piece to run down local
+// y, so one recipe boards rails and posts. The bank folds the seed to 24
+// buckets, so hundreds of boards cost a bounded number of materials whose
+// identity holds across describes.
 class TimberBank {
  public:
-  Paint get(const Timber& t, float span, bool flip, uint32_t seed,
-            bool along = false) {
-    return Paint::recipe(m_bank.get(
-        matkit::timberRecipe(),
-        matkit::TimberParameters{.base = t.base,
-                                 .light = t.light,
-                                 .dark = t.dark,
-                                 .span = span,
-                                 .flip = flip ? 1.0f : 0.0f,
-                                 .along = along ? 1.0f : 0.0f,
-                                 .grain = t.grain,
-                                 .figure = t.figure,
-                                 // The tooth is the surface; the figure above
-                                 // is the wood's story. Keep toothScale x
-                                 // stretch under about a tenth or the tooth
-                                 // aliases into hash noise with no diagnostic.
-                                 .tooth = 0.26f,
-                                 .toothScale = 0.045f,
-                                 .stretch = 2.0f},
+  material::skia::Paint get(const Timber& timber, float span, bool flip,
+                            uint32_t seed, bool along = false) {
+    return material::skia::Paint::recipe(m_bank.get(
+        material::kit::timberRecipe(),
+        material::kit::TimberParameters{.base = timber.base,
+                                        .light = timber.light,
+                                        .dark = timber.dark,
+                                        .span = span,
+                                        .flip = flip ? 1.0f : 0.0f,
+                                        .along = along ? 1.0f : 0.0f,
+                                        .grain = timber.grain,
+                                        .figure = timber.figure,
+                                        // The tooth is the surface and the
+                                        // figure the wood's story; toothScale
+                                        // times stretch stays under a tenth
+                                        // or the tooth aliases into hash.
+                                        .tooth = 0.26f,
+                                        .toothScale = 0.045f,
+                                        .stretch = 2.0f},
         seed));
   }
 
  private:
-  mat::Bank m_bank{24};
+  material::Bank m_bank{24};
 };
 
 // ---------------------------------------------------------------------------
-// A strip: a centreline, a face width, and a CUT-FACE DIRECTION at each end.
-//
-// The mitre falls straight out of that last field. The two corners of an end
-// are the intersections of the cut line (through the centreline endpoint, along
-// `cut`) with the two edge lines — in the piece's own frame that is a pure
-// shear k = (w/2)·(cut.x / cut.y), which is all outline() needs.
+// A piece: a centreline, a face width, and a CUT-FACE DIRECTION at each
+// end. The mitre falls straight out of that last field: the two corners of
+// an end are where the cut line through the centreline's end meets the two
+// edge lines, which in the piece's own frame is a pure shear of
+// (w/2)·(cut.x / cut.y).
 
-enum Role : uint8_t {
-  kRoleFrame,
-  kRoleRegister,
-  kRoleJigumiV,
-  kRoleJigumiH,
-  kRoleDiagonal,
-  kRoleFiller,
-  kRoleLock,
-  kRoleBeam
+enum class Role : uint8_t {
+  Frame,
+  Register,
+  VerticalJigumi,
+  HorizontalJigumi,
+  Diagonal,
+  Filler,
+  Lock,
 };
 
-struct Strip {
-  SkPoint a{}, b{};
-  SkVector cutA{}, cutB{};  // cut-face directions (canvas space)
-  float w = 10;
-  Role role = kRoleJigumiV;
-  const Timber* timber = &kHinokiTimber;
+struct Piece {
+  vec2 from{0, 0}, to{0, 0};
+  /** Cut-face directions at each end, in canvas space. */
+  vec2 cutFrom{0, 0}, cutTo{0, 0};
+  float width = 10;
+  Role role = Role::VerticalJigumi;
+  const Timber* timber = &kHinoki;
   uint32_t seed = 0;
-  double delay = 0;
-  double dur = 0.3;
-  bool litToCenter = false;  // frame members catch light from the opening
+  /** When the piece's entrance starts in the loop, and how long it runs. */
+  float enters = 0, entersFor = 0.3f;
+  /** Frame members catch the light of the opening instead of the room's. */
+  bool litFromOpening = false;
 };
 
-SkVector perp(SkVector v) { return {-v.y(), v.x()}; }
-SkVector norm(SkVector v) {
-  const float l = v.length();
-  return l > 1e-6f ? SkVector{v.x() / l, v.y() / l} : SkVector{1, 0};
+inline vec2 perpendicular(vec2 v) { return {-v.y, v.x}; }
+inline vec2 direction(vec2 v) {
+  const float length = glm::length(v);
+  return length > 1e-6f ? v / length : vec2{1, 0};
+}
+inline uint32_t scatter(uint32_t counter) {
+  return counter * 2654435761u >> 13u;
+}
+
+/** A piece from @p from to @p to, each end cut square unless it names a
+ *  cut face. */
+inline Piece cut(vec2 from, vec2 to, float width, Role role,
+                 const Timber& timber, uint32_t seed, vec2 cutFrom = {0, 0},
+                 vec2 cutTo = {0, 0}) {
+  const vec2 along = direction(to - from);
+  return Piece{
+      .from = from,
+      .to = to,
+      .cutFrom = glm::length(cutFrom) < 1e-4f ? perpendicular(along)
+                                              : direction(cutFrom),
+      .cutTo = glm::length(cutTo) < 1e-4f ? perpendicular(along)
+                                          : direction(cutTo),
+      .width = width,
+      .role = role,
+      .timber = &timber,
+      .seed = scatter(seed),
+  };
+}
+
+/** THE SEVEN HA OF ONE CELL of @p width by @p height at @p origin, cut from
+ *  @p stock of that face width and mirrored
+ *  across the cell when @p mirrored so neighbouring cells alternate their
+ *  diagonal. Each runs from a vertex of one of the two right triangles the
+ *  diagonal makes to that triangle's INCENTER, stopping @p seat short of
+ *  the jigumi face it starts against and running @p overlap past the
+ *  incenter into the Y-joint. In cutting order: the diagonal, the two
+ *  fillers off the right angles, the four locking pieces off the 45°
+ *  corners — a locking piece's face is the jigumi it grazes. */
+inline std::vector<Piece> cellLeaves(vec2 origin, float width, float height,
+                                     float stock, bool mirrored, float seat,
+                                     float overlap, uint32_t& seed) {
+  const auto at = [&](float x, float y) {
+    return origin + vec2{mirrored ? width - x : x, y};
+  };
+  const vec2 corner = at(0, 0), right = at(width, 0),
+             opposite = at(width, height), left = at(0, height);
+  const vec2 upperIncentre = at(width * kPastIncircle, height * kIncircle);
+  const vec2 lowerIncentre = at(width * kIncircle, height * kPastIncircle);
+  const float shallowSeat = seat / 0.3826834f;   // the 22.5° and 67.5° arms
+  const float bisectSeat = seat * 1.4142136f;    // the 45° arms, the diagonal
+
+  std::vector<Piece> leaves;
+  const auto arm = [&](vec2 from, vec2 incentre, float stop, vec2 face,
+                       Role role) {
+    const vec2 along = direction(incentre - from);
+    leaves.push_back(cut(from + along * stop, incentre + along * overlap,
+                         stock, role, kHinoki, seed++, face));
+  };
+  const vec2 diagonal = direction(opposite - corner);
+  leaves.push_back(cut(corner + diagonal * bisectSeat,
+                       opposite - diagonal * bisectSeat, stock,
+                       Role::Diagonal, kHinoki, seed++));
+  arm(right, upperIncentre, bisectSeat, {0, 0}, Role::Filler);
+  arm(left, lowerIncentre, bisectSeat, {0, 0}, Role::Filler);
+  arm(corner, upperIncentre, shallowSeat, {1, 0}, Role::Lock);
+  arm(corner, lowerIncentre, shallowSeat, {0, 1}, Role::Lock);
+  arm(opposite, upperIncentre, shallowSeat, {0, 1}, Role::Lock);
+  arm(opposite, lowerIncentre, shallowSeat, {1, 0}, Role::Lock);
+  return leaves;
 }
 
 // ---------------------------------------------------------------------------
-// The panel generator
+// The panel generator.
 
 struct Panel {
-  std::vector<Strip> strips;
-  // Half-lap seam marks: (point, along, halfSpan, width) generated from the
-  // crossing graph, not authored.
-  struct Seam {
-    SkPoint p;
-    SkVector along;
-    float halfSpan;
-    float w;
-  };
-  std::vector<Seam> seams;
-  std::vector<Strip> nubs;  // terminations seating into the register groove
+  /** Every piece, in the order it is laid: frame, register, jigumi, ha. */
+  std::vector<Piece> pieces;
+  /** Tenon heads where a jigumi seats into the register's groove. */
+  std::vector<Piece> tenons;
+  /** The half-lap seams, as two sets of hairlines: the shadow the upper
+   *  piece's edge casts across the lower, and the lit arris beside it. */
+  SkPath lapShadows, lapHighlights;
 
-  uint32_t seedCounter = 1;
+  uint32_t seed = 1;
 
-  void push(SkPoint a, SkPoint b, float w, Role role, const Timber* t,
-            double delay, double dur, SkVector cutA = {0, 0},
-            SkVector cutB = {0, 0}, bool litToCenter = false) {
-    Strip s;
-    s.a = a;
-    s.b = b;
-    s.w = w;
-    s.role = role;
-    s.timber = t;
-    s.delay = delay;
-    s.dur = dur;
-    s.seed = seedCounter++ * 2654435761u >> 13u;
-    s.litToCenter = litToCenter;
-    const SkVector u = norm({b.x() - a.x(), b.y() - a.y()});
-    s.cutA = (cutA.length() < 1e-4f) ? perp(u) : norm(cutA);
-    s.cutB = (cutB.length() < 1e-4f) ? perp(u) : norm(cutB);
-    strips.push_back(s);
+  void add(Piece piece, float enters, float entersFor,
+           bool litFromOpening = false) {
+    piece.enters = enters;
+    piece.entersFor = entersFor;
+    piece.litFromOpening = litFromOpening;
+    pieces.push_back(piece);
   }
 
   void build() {
-    buildFrame();
-    buildRegister();
-    buildJigumi();
-    buildLeaves();
-    buildSeams();
+    frame();
+    reg();
+    jigumi();
+    leaves();
+    laps();
   }
 
-  // --- the mitred kumiko-buchi: four members, 45° corner cuts --------------
-  void buildFrame() {
-    const SkRect& f = kFrameOuter;
-    const float h = kBorder * 0.5f;
-    const SkVector dTL{0.7071f, 0.7071f}, dTR{-0.7071f, 0.7071f};
-    // top, bottom, left, right — each mitred into the corner diagonals.
-    push({f.left() + h, f.top() + h}, {f.right() - h, f.top() + h}, kBorder,
-         kRoleFrame, &kKeyakiTimber, kTFrame + 0.00, kDFrame, dTL, dTR, true);
-    push({f.right() - h, f.top() + h}, {f.right() - h, f.bottom() - h}, kBorder,
-         kRoleFrame, &kKeyakiTimber, kTFrame + 0.10, kDFrame, dTR, dTL, true);
-    push({f.right() - h, f.bottom() - h}, {f.left() + h, f.bottom() - h},
-         kBorder, kRoleFrame, &kKeyakiTimber, kTFrame + 0.20, kDFrame, dTL, dTR,
-         true);
-    push({f.left() + h, f.bottom() - h}, {f.left() + h, f.top() + h}, kBorder,
-         kRoleFrame, &kKeyakiTimber, kTFrame + 0.30, kDFrame, dTR, dTL, true);
-  }
-
-  // --- the plain masu register ---------------------------------------------
-  // Its inner boundary IS the field's outermost jigumi (in real work one
-  // member serves both), so this emits only the outer ring that seats into the
-  // frame groove plus the half-pitch ties that square the band's cells up.
-  void buildRegister() {
-    const SkRect& o = kRegOuter;
-    const float h = kRegW * 0.5f;
-    int n = 0;
-    auto stagger = [&] { return kTReg + 0.008 * (double)(n++); };
-
-    push({o.left(), o.top() + h}, {o.right(), o.top() + h}, kRegW,
-         kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-    push({o.left(), o.bottom() - h}, {o.right(), o.bottom() - h}, kRegW,
-         kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-    push({o.left() + h, o.top()}, {o.left() + h, o.bottom()}, kRegW,
-         kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-    push({o.right() - h, o.top()}, {o.right() - h, o.bottom()}, kRegW,
-         kRoleRegister, &kHinokiTimber, stagger(), kDReg);
-
-    // Half-pitch ties: one per field cell, landing exactly between the jigumi
-    // members that already run through the band — square masu cells.
-    for (int i = 0; i < kCols; ++i) {
-      const float x = kField.left() + kCellW * ((float)i + 0.5f);
-      push({x, o.top() + h}, {x, kField.top()}, kRegW, kRoleRegister,
-           &kHinokiTimber, stagger(), kDReg);
-      push({x, kField.bottom()}, {x, o.bottom() - h}, kRegW, kRoleRegister,
-           &kHinokiTimber, stagger(), kDReg);
-    }
-    for (int j = 0; j < kRows; ++j) {
-      const float y = kField.top() + kCellH * ((float)j + 0.5f);
-      push({o.left() + h, y}, {kField.left(), y}, kRegW, kRoleRegister,
-           &kHinokiTimber, stagger(), kDReg);
-      push({kField.right(), y}, {o.right() - h, y}, kRegW, kRoleRegister,
-           &kHinokiTimber, stagger(), kDReg);
+  /** The mitred kumiko-buchi: four members, each cut 45° into the corner
+   *  diagonals, laid clockwise from the top. */
+  void frame() {
+    const SkRect& outer = kFrameOuter;
+    const float half = kBorder * 0.5f;
+    const vec2 falling{0.7071f, 0.7071f}, rising{-0.7071f, 0.7071f};
+    const vec2 topLeft{outer.left() + half, outer.top() + half},
+        topRight{outer.right() - half, outer.top() + half},
+        bottomRight{outer.right() - half, outer.bottom() - half},
+        bottomLeft{outer.left() + half, outer.bottom() - half};
+    const vec2 corners[] = {topLeft, topRight, bottomRight, bottomLeft,
+                            topLeft};
+    for (int side = 0; side < 4; ++side) {
+      const bool even = side % 2 == 0;
+      add(cut(corners[side], corners[side + 1], kBorder, Role::Frame, kKeyaki,
+              seed++, even ? falling : rising, even ? rising : falling),
+          kFrameAt + 0.10f * (float)side, kFrameFor, true);
     }
   }
 
-  // --- the structural jigumi, running the whole opening -------------------
-  // In real work a jigumi member is never a strip sliced mid-length: every
-  // one runs groove to groove and carries a tenon head where it seats.
-  void buildJigumi() {
-    const SkRect& o = kRegOuter;
-    for (int i = 0; i <= kCols; ++i) {
-      const float x = kField.left() + kCellW * (float)i;
-      push({x, o.top()}, {x, o.bottom()}, kJigumiW, kRoleJigumiV,
-           &kHinokiTimber, kTJigV + 0.012 * (double)i, kDJig);
-      addNub({x, o.top() + 2.5f}, {0, 1});
-      addNub({x, o.bottom() - 2.5f}, {0, 1});
+  /** The plain masu register. Its inner boundary IS the field's outermost
+   *  jigumi — in real work one member serves both — so this lays only the
+   *  outer ring that seats into the frame's groove and the half-pitch ties
+   *  that square the band's cells, one per field cell, landing exactly
+   *  between the jigumi already running through the band. */
+  void reg() {
+    const SkRect& opening = kOpening;
+    const float half = kRegisterWidth * 0.5f;
+    int laid = 0;
+    const auto lay = [&](vec2 from, vec2 to) {
+      add(cut(from, to, kRegisterWidth, Role::Register, kHinoki, seed++),
+          kRegisterAt + 0.008f * (float)laid++, kRegisterFor);
+    };
+    lay({opening.left(), opening.top() + half},
+        {opening.right(), opening.top() + half});
+    lay({opening.left(), opening.bottom() - half},
+        {opening.right(), opening.bottom() - half});
+    lay({opening.left() + half, opening.top()},
+        {opening.left() + half, opening.bottom()});
+    lay({opening.right() - half, opening.top()},
+        {opening.right() - half, opening.bottom()});
+    for (int column = 0; column < kColumns; ++column) {
+      const float x = kField.left() + kCellWidth * ((float)column + 0.5f);
+      lay({x, opening.top() + half}, {x, kField.top()});
+      lay({x, kField.bottom()}, {x, opening.bottom() - half});
     }
-    for (int j = 0; j <= kRows; ++j) {
-      const float y = kField.top() + kCellH * (float)j;
-      push({o.left(), y}, {o.right(), y}, kJigumiW, kRoleJigumiH,
-           &kHinokiTimber, kTJigH + 0.016 * (double)j, kDJig);
-      addNub({o.left() + 2.5f, y}, {1, 0});
-      addNub({o.right() - 2.5f, y}, {1, 0});
+    for (int row = 0; row < kRows; ++row) {
+      const float y = kField.top() + kCellHeight * ((float)row + 0.5f);
+      lay({opening.left() + half, y}, {kField.left(), y});
+      lay({kField.right(), y}, {opening.right() - half, y});
     }
   }
 
-  // A tenon head so a terminated strip reads as SEATED into a milled groove
-  // rather than sliced off by a rectangle — one per termination.
-  void addNub(SkPoint at, SkVector along) {
-    const SkVector n = perp(norm(along));
-    const float half = kJigumiW * 0.80f;
-    Strip s;
-    s.a = {at.x() - n.x() * half, at.y() - n.y() * half};
-    s.b = {at.x() + n.x() * half, at.y() + n.y() * half};
-    s.w = kRegW * 0.5f;
-    s.role = kRoleRegister;
-    s.timber = &kHinokiTimber;
-    s.seed = seedCounter++ * 2654435761u >> 13u;
-    s.cutA = perp(norm({s.b.x() - s.a.x(), s.b.y() - s.a.y()}));
-    s.cutB = s.cutA;
-    nubs.push_back(s);
+  /** The structural jigumi, running the whole opening. A jigumi member is
+   *  never a strip sliced mid-length: every one runs groove to groove and
+   *  carries a tenon head where it seats. */
+  void jigumi() {
+    const SkRect& opening = kOpening;
+    for (int column = 0; column <= kColumns; ++column) {
+      const float x = kField.left() + kCellWidth * (float)column;
+      add(cut({x, opening.top()}, {x, opening.bottom()}, kJigumiWidth,
+              Role::VerticalJigumi, kHinoki, seed++),
+          kVerticalJigAt + 0.012f * (float)column, kJigFor);
+      tenon({x, opening.top() + 2.5f}, {0, 1});
+      tenon({x, opening.bottom() - 2.5f}, {0, 1});
+    }
+    for (int row = 0; row <= kRows; ++row) {
+      const float y = kField.top() + kCellHeight * (float)row;
+      add(cut({opening.left(), y}, {opening.right(), y}, kJigumiWidth,
+              Role::HorizontalJigumi, kHinoki, seed++),
+          kHorizontalJigAt + 0.016f * (float)row, kJigFor);
+      tenon({opening.left() + 2.5f, y}, {1, 0});
+      tenon({opening.right() - 2.5f, y}, {1, 0});
+    }
   }
 
-  // --- the ha: seven pieces per cell, incenter construction ---------------
-  void buildLeaves() {
-    const float rIn = 0.2928932f;   // incircle radius / leg
-    const float rOut = 0.7071068f;  // 1 − rIn
-    const float sin225 = 0.3826834f;
-    const float d = kJigumiW * 0.5f + 1.0f;  // seat depth against a jigumi face
-    const float tShallow = d / sin225;       // 22.5°/67.5° arms
-    const float tBisect = d * 1.4142136f;    // 45° arms and the diagonal
-    const float over = kHaW * 0.55f;         // overlap at the incenter Y-joint
+  /** A tenon head, so a terminated member reads as SEATED into a milled
+   *  groove rather than sliced off by a rectangle. */
+  void tenon(vec2 at, vec2 along) {
+    const vec2 across = perpendicular(direction(along)) * (kJigumiWidth * 0.8f);
+    tenons.push_back(cut(at - across, at + across, kRegisterWidth * 0.5f,
+                         Role::Register, kHinoki, seed++));
+  }
 
-    const double span = (double)std::max(1, kCols + kRows - 2);
-
-    for (int j = 0; j < kRows; ++j) {
-      for (int i = 0; i < kCols; ++i) {
-        const bool flip = ((unsigned)(i + j) & 1u) != 0;
-        const float ox = kField.left() + kCellW * (float)i;
-        const float oy = kField.top() + kCellH * (float)j;
-        auto P = [&](float lx, float ly) {
-          return SkPoint{ox + (flip ? kCellW - lx : lx), oy + ly};
-        };
-        // Canonical: A=TL, B=TR, C=BR, D=BL; the diagonal is A→C.
-        const SkPoint A = P(0, 0), B = P(kCellW, 0), C = P(kCellW, kCellH),
-                      D = P(0, kCellH);
-        const SkPoint I1 = P(kCellW * rOut, kCellH * rIn);  // incenter of ABC
-        const SkPoint I2 = P(kCellW * rIn, kCellH * rOut);  // incenter of ACD
-
-        const double cellT = (double)(i + j) / span;
-        const double base = kTLeaf + kLeafSweep * cellT;
-
-        auto arm = [&](SkPoint from, SkPoint to, float tStart, SkVector cut,
-                       Role role, double off) {
-          const SkVector u = norm({to.x() - from.x(), to.y() - from.y()});
-          const SkPoint s0{from.x() + u.x() * tStart,
-                           from.y() + u.y() * tStart};
-          const SkPoint s1{to.x() + u.x() * over, to.y() + u.y() * over};
-          push(s0, s1, kHaW, role, &kHinokiTimber, base + off, kDLeaf, cut,
-               {0, 0});
-        };
-
-        // 1. the long diagonal — 45° into both 90° corners
-        {
-          const SkVector u = norm({C.x() - A.x(), C.y() - A.y()});
-          push({A.x() + u.x() * tBisect, A.y() + u.y() * tBisect},
-               {C.x() - u.x() * tBisect, C.y() - u.y() * tBisect}, kHaW,
-               kRoleDiagonal, &kHinokiTimber, base + kLeafDiag, kDLeaf);
-        }
-        // 2. two fillers off the right-angle corners (cut 45°/45°)
-        arm(B, I1, tBisect, {0, 0}, kRoleFiller, kLeafFill);
-        arm(D, I2, tBisect, {0, 0}, kRoleFiller, kLeafFill + 0.03);
-        // 3. four locking pieces off the 45° corners. The shallow one seats
-        //    against the jigumi it grazes, so its face is that jigumi's line.
-        arm(A, I1, tShallow, {1, 0}, kRoleLock, kLeafLock);
-        arm(A, I2, tShallow, {0, 1}, kRoleLock, kLeafLock + 0.02);
-        arm(C, I1, tShallow, {0, 1}, kRoleLock, kLeafLock + 0.04);
-        arm(C, I2, tShallow, {1, 0}, kRoleLock, kLeafLock + 0.06);
+  /** The ha, seven per cell, the diagonal alternating cell to cell. A
+   *  leaf's base is where its cell stands on the sweep from the top-left
+   *  corner to the bottom-right. */
+  void leaves() {
+    const float seat = kJigumiWidth * 0.5f + 1.0f;
+    const float overlap = kLeafWidth * 0.55f;
+    const float sweep = (float)std::max(1, kColumns + kRows - 2);
+    constexpr float after[] = {kDiagonalAfter,     kFillerAfter,
+                               kFillerAfter + 0.03f, kLockAfter,
+                               kLockAfter + 0.02f, kLockAfter + 0.04f,
+                               kLockAfter + 0.06f};
+    for (int row = 0; row < kRows; ++row)
+      for (int column = 0; column < kColumns; ++column) {
+        const float base =
+            kLeavesAt + kLeafSweep * (float)(row + column) / sweep;
+        const std::vector<Piece> cell = cellLeaves(
+            {kField.left() + kCellWidth * (float)column,
+             kField.top() + kCellHeight * (float)row},
+            kCellWidth, kCellHeight, kLeafWidth, ((row + column) & 1) != 0,
+            seat, overlap, seed);
+        for (size_t index = 0; index < cell.size(); ++index)
+          add(cell[index], base + after[index], kLeafFor);
       }
-    }
   }
 
-  // --- the half-lap seam marks, from the crossing graph -------------------
-  // Every jigumi vertical crosses every jigumi horizontal; a half-lap shows
-  // as the pair of hairlines where the upper piece's edges cross the lower.
-  static int rank(Role r) {
-    switch (r) {
-      case kRoleDiagonal:
+  /** Which layer of the lattice a role is cut into, the ha on top. Only
+   *  the lattice laps: a leaf sits on the face of what it crosses, and two
+   *  members of one layer butt instead of lapping. */
+  static int layer(Role role) {
+    switch (role) {
+      case Role::HorizontalJigumi:
         return 1;
-      case kRoleFiller:
+      case Role::VerticalJigumi:
         return 2;
-      case kRoleLock:
+      case Role::Register:
         return 3;
-      case kRoleJigumiH:
-        return 4;
-      case kRoleJigumiV:
-        return 5;
-      case kRoleRegister:
-        return 6;
       default:
         return 0;
     }
   }
 
-  void buildSeams() {
-    // Every piece as stock, indexed as the panel holds it, so a lap the
-    // joinery finds names the boards it is between. The tolerance is the
-    // distance at which a crossing is a piece landing on another's face
-    // — a butt joint, which shows no lap.
-    std::vector<operations::Strip> stock;
-    stock.reserve(strips.size());
-    for (const Strip& s : strips)
-      stock.push_back({{s.a.x(), s.a.y()}, {s.b.x(), s.b.y()}, s.w});
-
-    for (const operations::StripLap& lap :
-         operations::stripLaps(stock, {.tolerance = 2.5f, .lapLimit = 3.0f})) {
-      const Strip& s1 = strips[(size_t)lap.pieces[0]];
-      const Strip& s2 = strips[(size_t)lap.pieces[1]];
-      // Only the lattice laps: a leaf piece sits on the face of what it
-      // crosses rather than through it, and two members of one notch
-      // layer butt instead of lapping.
-      if (rank(s1.role) < 4 || rank(s2.role) < 4) continue;
-      if (rank(s1.role) == rank(s2.role)) continue;
-      const int up = rank(s1.role) > rank(s2.role) ? 0 : 1;
-      seams.push_back({{lap.at.x, lap.at.y},
-                       {lap.along[up].x, lap.along[up].y},
-                       lap.halfSpan[up],
-                       strips[(size_t)lap.pieces[up]].w});
+  /** The half-lap seams, read off the crossing graph rather than authored:
+   *  where two members of different layers cross, the upper one's two
+   *  edges show across the lower as a shadowed hairline with a lit one
+   *  just outside it. The tolerance is the distance at which a crossing
+   *  is a piece landing on another's face — a butt joint, which shows no
+   *  lap. */
+  void laps() {
+    std::vector<path::operations::Strip> stock;
+    stock.reserve(pieces.size());
+    for (const Piece& piece : pieces)
+      stock.push_back({piece.from, piece.to, piece.width});
+    std::vector<path::SegmentContour> shadows, highlights;
+    const auto line = [](vec2 from, vec2 to) {
+      return path::SegmentContour{
+          .segments = {{.kind = path::SegmentKind::Line, .points = {from, to}}}};
+    };
+    for (const path::operations::StripLap& lap : path::operations::stripLaps(
+             stock, {.tolerance = 2.5f, .lapLimit = 3.0f})) {
+      const Piece& first = pieces[(size_t)lap.pieces[0]];
+      const Piece& second = pieces[(size_t)lap.pieces[1]];
+      const int firstLayer = layer(first.role), secondLayer = layer(second.role);
+      if (firstLayer == 0 || secondLayer == 0 || firstLayer == secondLayer)
+        continue;
+      const int upper = firstLayer > secondLayer ? 0 : 1;
+      const vec2 along = lap.along[upper];
+      const vec2 across = perpendicular(along);
+      const vec2 reach = along * lap.halfSpan[upper];
+      const float half = pieces[(size_t)lap.pieces[upper]].width * 0.5f;
+      for (const float side : {-1.0f, 1.0f}) {
+        const vec2 edge = lap.at + across * (side * half);
+        shadows.push_back(line(edge - reach, edge + reach));
+        const vec2 arris = edge + across * (side * 0.9f);
+        highlights.push_back(line(arris - reach, arris + reach));
+      }
     }
+    lapShadows = path::toPath(shadows);
+    lapHighlights = path::toPath(highlights);
   }
 };
 
 // ---------------------------------------------------------------------------
-// Element for one strip. The mitre becomes an outline(); the timber becomes a
-// fill; the arris becomes a counter-rotated BevelEmboss so the light stays
-// world-fixed across ~700 differently-angled boards.
+// One piece as an element. The mitre becomes the node's outline; the timber
+// becomes its fill; the arris becomes a counter-rotated bevel so the light
+// stays fixed in the room across hundreds of differently-angled boards.
 
-Element stripElement(const Strip& s, TimberBank& bank,
-                     const choreograph::Output<float>* fade,
-                     const choreograph::Output<float>* pop) {
-  const SkVector d{s.b.x() - s.a.x(), s.b.y() - s.a.y()};
-  const float len = d.length();
-  const float ang = std::atan2(d.y(), d.x());
-  const float cs = std::cos(-ang), sn = std::sin(-ang);
-  auto shear = [&](SkVector c) {
-    const float cx = c.x() * cs - c.y() * sn;
-    const float cy = c.x() * sn + c.y() * cs;
-    if (std::abs(cy) < 0.02f) return 0.0f;
-    return (s.w * 0.5f) * (cx / cy);
+/** @p piece, entering on the loop @p seconds is read from when one is
+ *  given: it fades up and swells into its seat across its own beat. */
+inline Element pieceElement(const Piece& piece, TimberBank& bank,
+                            const choreograph::Output<float>* seconds) {
+  const vec2 span = piece.to - piece.from;
+  const float length = glm::length(span);
+  const float angle = std::atan2(span.y, span.x);
+  const float cosine = std::cos(-angle), sine = std::sin(-angle);
+  const auto shear = [&](vec2 face) {
+    const float x = face.x * cosine - face.y * sine;
+    const float y = face.x * sine + face.y * cosine;
+    return std::abs(y) < 0.02f ? 0.0f : piece.width * 0.5f * (x / y);
   };
-  const float kA = shear(s.cutA);
-  const float kB = shear(s.cutB);
-  const float pad = std::max(std::abs(kA), std::abs(kB)) + 0.5f;
-  const float boxW = len + 2 * pad;
-  const float xa = pad, xb = pad + len;
+  const float shearFrom = shear(piece.cutFrom), shearTo = shear(piece.cutTo);
+  const float pad = std::max(std::abs(shearFrom), std::abs(shearTo)) + 0.5f;
+  const float start = pad, end = pad + length;
+  const SkPath outline = path::toPath(path::Polyline{
+      .points = {{start - shearFrom, 0},
+                 {end - shearTo, 0},
+                 {end + shearTo, piece.width},
+                 {start + shearFrom, piece.width}},
+      .closed = true});
 
-  SkPathBuilder quad;
-  quad.moveTo(xa - kA, 0);
-  quad.lineTo(xb - kB, 0);
-  quad.lineTo(xb + kB, s.w);
-  quad.lineTo(xa + kA, s.w);
-  quad.close();
-  SkPath shape = quad.detach();
+  // Which long edge catches the light: lattice pieces take one raking
+  // source from the upper left, frame members the light of the opening.
+  const vec2 outward{direction(span).y, -direction(span).x};
+  const vec2 middle = (piece.from + piece.to) * 0.5f;
+  const bool lit =
+      piece.litFromOpening
+          ? glm::dot(outward, direction(kCentre - middle)) > 0
+          : glm::dot(outward, vec2{-0.45f, -0.89f}) > 0;
 
-  // Which long edge catches the light? Lattice pieces take one raking source
-  // from the upper left; frame members take the light of the opening.
-  const SkVector u = norm(d);
-  const SkVector outward{u.y(), -u.x()};  // outward normal of the y=0 edge
-  bool lit;
-  if (s.litToCenter) {
-    const SkVector toCenter = norm(
-        {700 - (s.a.x() + s.b.x()) * 0.5f, 500 - (s.a.y() + s.b.y()) * 0.5f});
-    lit = outward.x() * toCenter.x() + outward.y() * toCenter.y() > 0;
-  } else {
-    lit = outward.x() * -0.45f + outward.y() * -0.89f > 0;
-  }
-
-  const float angDeg = ang * 57.29578f;
-  // The timber material already paints the arris. A bevel sized for a 45 px
-  // frame member, applied to an 8 px leaf piece, double-counts it and the
-  // piece stops being a board and becomes a length of rope — so the bevel
-  // scales with the stock and stays a hint on the thin stuff.
-  const bool heavy = s.w > 20.0f;
-  const float bevelDepth = heavy ? s.w * 0.09f : 0.7f;
-  const float bevelSize = heavy ? s.w * 0.14f : 1.0f;
+  // The timber already paints the arris. A bevel sized for a 45 px frame
+  // member on an 8 px leaf double-counts it and the piece becomes a length
+  // of rope, so the bevel scales with the stock and stays a hint on the
+  // thin stuff.
+  const bool heavy = piece.width > 20.0f;
   const float bevelAlpha = heavy ? 0.42f : 0.26f;
+  const float degrees = angle * 57.29578f;
+  const float width = length + 2 * pad;
 
-  Element e =
-      kit::at((s.a.x() + s.b.x()) * 0.5f - boxW * 0.5f,
-              (s.a.y() + s.b.y()) * 0.5f - s.w * 0.5f, boxW, s.w)
-          .rotate(angDeg)
-          .shape(heldPath(shape))
-          .fill(bank.get(*s.timber, s.w, !lit, s.seed))
-          // The arris: light angle counter-rotated into the piece's
-          // own frame so one raking source lights every board.
-          .foreground(styles::BevelEmboss{bevelDepth,
-                                          bevelSize,
-                                          120.0f + angDeg,
+  Element element =
+      kit::at(middle.x - width * 0.5f, middle.y - piece.width * 0.5f, width,
+              piece.width)
+          .rotate(degrees)
+          .shape(heldPath(outline))
+          .fill(bank.get(*piece.timber, piece.width, !lit, piece.seed))
+          .foreground(styles::BevelEmboss{heavy ? piece.width * 0.09f : 0.7f,
+                                          heavy ? piece.width * 0.14f : 1.0f,
+                                          120.0f + degrees,
                                           {1, 0.96f, 0.86f, bevelAlpha},
                                           {0.14f, 0.09f, 0.03f, bevelAlpha}})
           // The seam every abutting piece shows against its neighbour.
-          .stroke(stroke(0.6f, Fill::color(kSeam), PathFormat::Align::Inner))
-          // A PIECE IS A PICTURE OF A PIECE. The timber is a shader and
-          // the arris a decoration over it, and neither changes once the
-          // board is cut: what the entrance moves is where the board is
-          // and how present it is, never what is on its face. Baked, the
-          // face is resolved once at the sheet's own density and the
-          // entrance is a blit that fades and swells; recorded, every
-          // strip re-runs its grain over every one of its pixels on every
-          // frame of the entrance, and there are hundreds of them.
+          .stroke(stroke(0.6f, Fill::color(hexColor(0x4A3620, 0.55f)),
+                         PathFormat::Align::Inner))
+          // A PIECE IS A PICTURE OF A PIECE. Neither the grain nor the arris
+          // changes once the board is cut: the entrance moves where the
+          // board is and how present it is, never what is on its face, so
+          // the face is resolved once and the entrance is a blit.
           .cache(Cache::Texture);
-  if (fade) e.opacity(fade);
-  if (pop) e.scale(pop);
-  return e;
+  if (seconds != nullptr) {
+    const float from = piece.enters, until = piece.enters + piece.entersFor;
+    element
+        .opacity(motion::bind(seconds)
+                     .window(from, until)
+                     .map(choreograph::easeOutCubic)
+                     .scale(1.35f)
+                     .clamp(0, 1))
+        .scale(motion::bind(seconds)
+                   .window(from, until)
+                   .map(motion::ease::outBack())
+                   .target(0.55f, 1));
+  }
+  return element;
 }
 
-// ---------------------------------------------------------------------------
-
-}  // namespace
-
-// ===========================================================================
+}  // namespace kumiko

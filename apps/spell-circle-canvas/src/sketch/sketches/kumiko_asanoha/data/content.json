@@ -1,15 +1,27 @@
 {
   "caption": "ASANOHA KUMIKO · SQUARE JIGUMI · HINOKI ON KEYAKI · 900×400mm TYPE",
+  "sheet": "SHOP DRAWING · ONE CELL OF THE FIELD",
+  "title": [
+    {"base": "麻の葉", "reading": "あさのは"},
+    {"base": "組子", "reading": "くみこ"}
+  ],
+  "cell": {
+    "heading": "SEVEN PIECES",
+    "note": "Cut to its two incircles"
+  },
   "jigs": {
-    "angles": ["22.5°", "45°", "67.5°"],
+    "heading": "THREE JIGS",
+    "angles": [22.5, 45, 67.5],
     "note": "Three cutting jigs · one repeated cell"
   },
   "reading": {
     "title": "ONE CELL, TAKEN APART",
-    "lines": [
-      "The diagonal cuts the cell into two right isosceles triangles. In each, the three infill pieces run from the triangle's vertices to its INCENTER — and every number the panel is built on falls out of that one rule.",
-      "incircle r = s(2−√2)/2 = 0.29289 s  ·  arm off a 45° corner = atan(√2−1) = 22.5°",
-      "1 diagonal + 2 fillers + 4 locking pieces = 7 per cell  ·  60 cells = 420 ha"
+    "prose": "The diagonal cuts the cell into two right isosceles triangles. In each, the three infill pieces run from the triangle's vertices to its INCENTER — and every number the panel is built on falls out of that one rule.",
+    "formulas": [
+      "incircle r = s(2−√2)/2 = {incircle} s",
+      "arm off a 45° corner = atan(√2−1) = 22.5°",
+      "1 diagonal + 2 fillers + 4 locking pieces = 7",
+      "{cells} cells = {leaves} ha"
     ]
   }
 }
