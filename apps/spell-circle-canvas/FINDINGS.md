@@ -1042,3 +1042,18 @@ change between cooks of one graph; only the parameter values do. The list
 evidently belongs to the graph, built once when it is opened. A test should
 cook one graph twice and assert the descriptions are the same objects, or a
 bench arm should show the second cook paying only for the render.
+
+## Two Compose warning cases pass alone and fail when the whole binary runs
+
+`ComposeMaterial.AFillRefusesATextUnitOnASurfaceWithNoPaintToPlace`
+(`src/common/compose/core/test/ComposeTestMaterial.cpp:935`) and
+`ComposeInkUnits.ARulesUnitLandingOnABoxDrawsAsTheVerbsDoes`
+(`src/common/compose/typography/test/ComposeTestInkUnits.cpp:525`) assert
+that a warning reaches the captured log, but the warnings they wait for are
+issued once per process. Run as ctest runs them, one case per process, both
+pass; run as `compose_test` with no filter, an earlier case has already
+spent the warning and both fail with an empty find. Intended: each case
+states its own warning whatever ran before it. A test should assert the
+warning lands when the case runs after another case that triggers the same
+warning in the same process — which means the case resets the once-only
+state it reads, or the capture the case reads is the one that issues it.
