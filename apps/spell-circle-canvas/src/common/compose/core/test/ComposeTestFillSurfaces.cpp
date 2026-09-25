@@ -1,8 +1,10 @@
 // What the fill verb takes: every surface a `SurfacePaint` holds, a
 // material recipe among them, and neither of the two values that are not
-// fills.
+// fills. Every other verb that takes a surface takes a material as well.
 
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/core/Text.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Tile.h>
 
@@ -26,6 +28,23 @@ std::vector<SkColor> pixelsOf(Host& host, int width, int height) {
 template <class Value>
 concept FillableWith = requires(Element element, Value value) {
   element.fill(value);
+};
+
+template <class Value>
+concept InkableWith = requires(Element element, Value value) {
+  element.ink(value);
+};
+
+template <class Value>
+concept TextStrokableWith = requires(Text text, Value value) {
+  text.textStroke(1.0f, value);
+};
+
+template <class Value>
+concept RuleFillableWith = requires(Rule rule, Value value) {
+  rule.fill(value);
+  rule.ink(value);
+  rule.textStroke(1.0f, value);
 };
 
 }  // namespace
@@ -53,4 +72,10 @@ TEST(ComposeFill, NeitherATileNorAPatternIsAFill) {
   static_assert(FillableWith<material::Material>);
   static_assert(!FillableWith<material::pattern::Tile>);
   static_assert(!FillableWith<Pattern>);
+}
+
+TEST(ComposeFill, EveryVerbThatTakesASurfaceTakesAMaterial) {
+  static_assert(InkableWith<material::Material>);
+  static_assert(TextStrokableWith<material::Material>);
+  static_assert(RuleFillableWith<material::Material>);
 }

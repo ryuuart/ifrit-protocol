@@ -15,8 +15,9 @@ Paints the node's own box. It is the ground the node stands on: under
 its content, under its children, and over whatever
 [`background`](background.md) put beneath it.
 
-A colour, a gradient, a whole authored paint, a transition between two
-of them, or a live binding whose value IS the node's colour.
+A colour, a gradient, a material as SigilMaterial builds it, a whole
+authored paint, a transition between two of them, or a live binding
+whose value IS the node's colour.
 
 <!-- example: fill_verb -->
 
@@ -83,6 +84,12 @@ or a surface with no picture to place takes the element's.
 `material::skia::Paint` that reads nothing live stores the shader it
 resolves to, so it caches and prunes on exactly the path a colour does.
 A live paint re-resolves per frame instead.
+
+**A material is passed as it stands.** `fill(material::field::grain(…))`
+paints exactly what the same material does wrapped in a
+`material::skia::Paint`, over the same box. The wrapper is for what only a
+paint states: a layer of a blend stack, or a uniform bound to a live
+output.
 
 **A fill may be written as a REFERENCE the tree answers.**
 `Fill::currentInk()` is the ink in force where the node is painted —

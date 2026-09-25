@@ -133,8 +133,8 @@ Element cardGrid(int count, float side, CardPaint paint) {
     Element card = box().key("card" + std::to_string(id));
     if (paint == CardPaint::Sdf) {
       card.width(padded).height(padded).fill(
-          material::skia::Paint::recipe(material::sdf::material(
-              material::sdf::roundBox(side * 0.2f), style)));
+          material::sdf::material(
+              material::sdf::roundBox(side * 0.2f), style));
     } else {
       card.width(side)
           .height(side)

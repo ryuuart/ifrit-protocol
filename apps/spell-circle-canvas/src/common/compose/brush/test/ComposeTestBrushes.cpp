@@ -347,7 +347,7 @@ TEST(ComposeBrushes, PatternCornerTileSitsOnTheBend) {
 TEST(ComposeSeams, PerlinNoiseFillsWithVariation) {
   Host host(100, 100);
   host.composer.render(box().children({box().width(100).height(100).fill(
-      material::skia::Paint::recipe(material::field::noise(0.05f, 4, 2.0f)))}));
+      material::field::noise(0.05f, 4, 2.0f))}));
   host.frame();
   std::set<SkColor> distinct;
   for (int y = 10; y < 90; y += 8)

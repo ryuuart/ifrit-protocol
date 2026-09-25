@@ -10,10 +10,12 @@ The short answer, before the detail:
   where a colour, a gradient shader, and a reference to the ink in force
   all end up.
 - **A material enters a surface paint through a recipe paint, and never
-  the other way.** `material::skia::Paint::recipe` wraps a
-  `material::Material` into a paint; there is no leaf of a material that
-  holds a paint, and no verb anywhere that turns a colour into a
-  material.
+  the other way.** Every verb that takes a surface takes a
+  `material::Material` as it stands and paints it as
+  `material::skia::Paint::recipe` of it; the wrap is spelled only where a
+  paint is needed for its own sake, as a layer of a blend or to bind a
+  uniform. There is no leaf of a material that holds a paint, and no verb
+  anywhere that turns a colour into a material.
 - **The single top is `SurfacePaint`**, in Compose's kernel. Everything
   else converts into it.
 
@@ -71,8 +73,9 @@ paint costs. See
 
 **`material::Material`** — a recipe instance: the recipe, the parameter
 bytes, the live bindings, the slots, the instance settings. One KIND of
-paint, beside solid and gradient and image, reached by being wrapped in
-`material::skia::Paint::recipe`. See
+paint, beside solid and gradient and image, handed to `fill`, `ink` or
+`textStroke` as it stands and wrapped in `material::skia::Paint::recipe`
+where a paint is needed for its own sake. See
 [Material](../../material/reference/pages/types/Material.md).
 
 **`material::Color`** — four straight sRGB floats, and the one colour

@@ -218,6 +218,24 @@ A range goes into `children()` as it stands. An element that needs an
 identity of its own keys itself; the rest reconcile by position, as
 unkeyed siblings do.
 
+A surface is anything `fill` takes: a colour, a `Fill`, a
+`material::skia::Paint` ramp, or a `material::Material` exactly as
+SigilMaterial builds it. A component whose caller chooses the surface
+declares one `SurfacePaint` property, which converts from each of those,
+and passes it to `fill`, `ink` or `textStroke` as it stands:
+
+```cpp
+struct Card {
+  SurfacePaint ground = Fill::color(hexColor(0x0e1218));
+  bool operator==(const Card &) const = default;
+};
+
+Element card(const Card &props) { return box().padding(12).fill(props.ground); }
+
+card({.ground = material::field::grain(0.08f, 4, 3.0f)});  // a material, unwrapped
+box().fill(material::field::noise(0.05f, 4, 2.0f));        // and the verb takes one too
+```
+
 The host side is three objects — a clock, a ticker and the composer —
 which the host owns and wires together:
 

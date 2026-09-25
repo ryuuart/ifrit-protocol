@@ -12,8 +12,7 @@ TEST(ComposePatterns, GrainIsMonochromeAndVaries) {
   Host host(120, 120);
   host.composer.render(
       box().children({box().width(120).height(120).absolute().inset(0).fill(
-          material::skia::Paint::recipe(
-              material::field::grain(0.08f, 4, 3.0f)))}));
+          material::field::grain(0.08f, 4, 3.0f))}));
   host.frame();
   int lo = 255, hi = 0;
   for (int y = 4; y < 116; y += 3)
@@ -64,8 +63,8 @@ TEST(ComposeSdf, AStarFillsItsCentreAndMissesTheBoxCorners) {
            .height(100)
            .inset(0, 100, 100, 0)
            .absolute()
-           .fill(material::skia::Paint::recipe(material::sdf::material(
-               material::sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}})))}));
+           .fill(material::sdf::material(
+               material::sdf::star(5, 2.4f), {.fill = {1, 0, 0, 1}}))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // body
   const SkColor corner = host.pixel(4, 4);           // outside the arms
@@ -81,9 +80,9 @@ TEST(ComposeSdf, GeometryStaticCachesAndPrunes) {
   Host host;
   auto tree = [] {
     return box().children({box().width(80).height(60).fill(
-        material::skia::Paint::recipe(material::sdf::material(
+        material::sdf::material(
             material::sdf::roundBox(12),
-            {.fill = {0, 1, 0, 1}, .borderWidth = 3})))});
+            {.fill = {0, 1, 0, 1}, .borderWidth = 3}))});
   };
   host.composer.render(tree());
   host.frame();  // records
@@ -100,8 +99,8 @@ TEST(ComposeSdf, ResizeReResolvesGeometry) {
   // the materialSize invalidation, without any prop change.
   Host host;  // 200x200 surface
   host.composer.render(box().children({box().flexGrow(1).fill(
-      material::skia::Paint::recipe(material::sdf::material(
-          material::sdf::circle(), {.fill = {1, 0, 0, 1}})))}));
+      material::sdf::material(
+          material::sdf::circle(), {.fill = {1, 0, 0, 1}}))}));
   host.frame();  // circle c=(100,100) r≈99
   host.composer.setSize({120, 120});
   host.frame();  // circle c=(60,60) r≈59
@@ -154,8 +153,8 @@ TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
   {
     Host host;
     host.composer.render(box().children(
-        {box().width(60).height(60).fill(material::skia::Paint::recipe(
-            material::sdf::material(material::sdf::circle(), style)))}));
+        {box().width(60).height(60).fill(
+            material::sdf::material(material::sdf::circle(), style))}));
     host.frame();
   }
   const std::string first = ::testing::internal::GetCapturedStderr();
@@ -167,8 +166,8 @@ TEST(ComposeSdf, PadSwallowingTheBoxWarnsOnceNamingMinBoxFor) {
   {
     Host host;
     host.composer.render(box().children(
-        {box().width(50).height(50).fill(material::skia::Paint::recipe(
-            material::sdf::material(material::sdf::circle(), style)))}));
+        {box().width(50).height(50).fill(
+            material::sdf::material(material::sdf::circle(), style))}));
     host.frame();
   }
   EXPECT_EQ(
