@@ -10,6 +10,7 @@
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/testing/Testing.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -25,6 +26,7 @@
 using namespace sigil::data;
 using sigil::io::Bytes;
 using sigil::io::Hub;
+using sigil::io::testing::inletOf;
 
 namespace {
 
@@ -38,10 +40,10 @@ using Sent = std::vector<std::vector<std::byte>>;
 
 /** A TRANSPORT WITH NO SOCKET UNDER IT: it opens every URI it is given
  *  and takes what is sent into @p sent, while what arrives a case
- *  delivers into the feed itself, so one thread runs a case from its
+ *  puts on the feed through its inlet, so one thread runs a case from its
  *  first line to its last and no port has to be free for it to pass. */
-sigil::io::FeedTransport intoVector(std::shared_ptr<Sent> sent) {
-  return [sent](std::string_view uri, std::weak_ptr<sigil::io::Feed>) {
+sigil::io::Transport intoVector(std::shared_ptr<Sent> sent) {
+  return [sent](std::string_view uri, sigil::io::Inlet) {
     sigil::io::OpenedFeed opened;
     opened.address = std::string(uri);
     opened.send = [sent](const Bytes& bytes) {
@@ -140,7 +142,7 @@ TEST(DataSchema, AJsonArrivalThatFitsIsTheLatestInTheSchemasForm) {
   int handled = 0;
   sheet.on("*", [&handled](const Json&) { ++handled; });
 
-  sheet.feed()->deliver(bytesOf(R"({"readings":[{"name":"a","value":2.5}]})"));
+  inletOf(sheet.feed()).deliver(bytesOf(R"({"readings":[{"name":"a","value":2.5}]})"));
   hub.dispatch(0.0);
 
   EXPECT_EQ(handled, 1);
@@ -158,11 +160,11 @@ TEST(DataSchema, AJsonArrivalThatDoesNotFitLeavesTheLatestStanding) {
   int handled = 0;
   sheet.on("*", [&handled](const Json&) { ++handled; });
 
-  sheet.feed()->deliver(bytesOf(R"({"readings":[{"name":"a","value":2.5}]})"));
+  inletOf(sheet.feed()).deliver(bytesOf(R"({"readings":[{"name":"a","value":2.5}]})"));
   // A document the schema does not declare a field of. It is a document
   // and it is not this schema's, which is the whole difference a schema
   // makes: without one it would be the newest message.
-  sheet.feed()->deliver(bytesOf(R"({"gust":0.5})"));
+  inletOf(sheet.feed()).deliver(bytesOf(R"({"gust":0.5})"));
   hub.dispatch(0.0);
 
   EXPECT_EQ(handled, 1);
@@ -176,7 +178,7 @@ TEST(DataSchema, ABufferArrivesAsItsOwnJsonForm) {
   hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
 
   Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
-  sheet.feed()->deliver(bytesOf(builtSheet()));
+  inletOf(sheet.feed()).deliver(bytesOf(builtSheet()));
   hub.dispatch(0.0);
 
   // The same reading as the JSON form: which form the sender wrote is

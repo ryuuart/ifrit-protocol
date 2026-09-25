@@ -9,6 +9,7 @@
 #include <sigildata/connection/Connection.h>
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/testing/Testing.h>
 
 #include <cstddef>
 #include <memory>
@@ -23,17 +24,18 @@
 using namespace sigil::data;
 using sigil::io::Bytes;
 using sigil::io::Hub;
+using sigil::io::testing::inletOf;
 
 namespace sheet = flatbuffer_test::values;
 
 namespace {
 
 /** A TRANSPORT WITH NO SOCKET UNDER IT: it opens every URI it is given
- *  and swallows what is sent, while what arrives a case delivers into
- *  the feed itself, so one thread runs a case from its first line to
- *  its last and no port has to be free for it to pass. */
-sigil::io::FeedTransport intoNowhere() {
-  return [](std::string_view uri, std::weak_ptr<sigil::io::Feed>) {
+ *  and swallows what is sent, while what arrives a case puts on the
+ *  feed through its inlet, so one thread runs a case from its first line
+ *  to its last and no port has to be free for it to pass. */
+sigil::io::Transport intoNowhere() {
+  return [](std::string_view uri, sigil::io::Inlet) {
     sigil::io::OpenedFeed opened;
     opened.address = std::string(uri);
     opened.send = [](const Bytes&) { return true; };
@@ -67,7 +69,7 @@ TEST(DataTyped, ABufferOnTheDoorIsTheNewestValue) {
   EXPECT_FALSE(door.latest<sheet::Sheet>());
   EXPECT_FALSE(door.latestBytes());
 
-  door.feed()->deliver(bytesOf(sheet::writeSheet(aSheet())));
+  inletOf(door.feed()).deliver(bytesOf(sheet::writeSheet(aSheet())));
   // THE FRAME IS WHAT READS IT. A delivery the dispatch has not taken
   // off the feed yet is no message here, exactly as it is none to the
   // reading beside this one.
@@ -107,8 +109,8 @@ TEST(DataTyped, TheSchemasJsonFormReadsAsTheSameValue) {
 
   Connection door(hub, "ws://:8851/sheet", schema<flatbuffer_test::Sheet>());
   ASSERT_TRUE(door.schema());
-  door.feed()->deliver(bytesOf(R"({"readings": [{"name": "a", "value": 2.5},)"
-                               R"( {"name": "c", "value": -1.0}]})"));
+  inletOf(door.feed()).deliver(bytesOf(R"({"readings": [{"name": "a", "value": 2.5},)"
+                                       R"( {"name": "c", "value": -1.0}]})"));
   hub.dispatch(0.0);
 
   const std::optional<sheet::Sheet> read = door.latest<sheet::Sheet>();
@@ -126,7 +128,7 @@ TEST(DataTyped, TheSchemasJsonFormReadsAsTheSameValue) {
   // different sheet, so which frame's message is answered is visible.
   sheet::Sheet later;
   later.readings = {sheet::Reading{.name = "z", .value = 9.0f}};
-  door.feed()->deliver(bytesOf(sheet::writeSheet(later)));
+  inletOf(door.feed()).deliver(bytesOf(sheet::writeSheet(later)));
 
   const std::optional<sheet::Sheet> before = door.latest<sheet::Sheet>();
   ASSERT_TRUE(before);
@@ -146,7 +148,7 @@ TEST(DataTyped, BytesThatAreNoSheetReadAsNothing) {
   hub.setFeedTransport("ws", intoNowhere());
 
   Connection plain(hub, "ws://:8852/sheet");
-  plain.feed()->deliver(bytesOf("not a sheet at all"));
+  inletOf(plain.feed()).deliver(bytesOf("not a sheet at all"));
   hub.dispatch(0.0);
   // The bytes do not verify as the root the value is read from, so
   // there is no value rather than a reading of whatever they were.
@@ -155,8 +157,8 @@ TEST(DataTyped, BytesThatAreNoSheetReadAsNothing) {
   // Through a schema the refusal is the schema's: text it cannot hold
   // makes no buffer, and there is nothing to read a value out of.
   Connection through(hub, "ws://:8853/sheet", schema<flatbuffer_test::Sheet>());
-  through.feed()->deliver(
-      bytesOf(R"({"readings": [{"name": "a", "value": "tall"}]})"));
+  inletOf(through.feed()).deliver(
+              bytesOf(R"({"readings": [{"name": "a", "value": "tall"}]})"));
   hub.dispatch(0.0);
   EXPECT_FALSE(through.latest<sheet::Sheet>());
   EXPECT_EQ(through.undecodable(), 1u);

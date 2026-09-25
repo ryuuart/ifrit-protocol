@@ -13,6 +13,7 @@
 #include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
+#include <sigilio/testing/Testing.h>
 
 #include <cstddef>
 #include <filesystem>
@@ -29,6 +30,7 @@
 using namespace sigil::data;
 using sigil::io::Bytes;
 using sigil::io::Hub;
+using sigil::io::testing::inletOf;
 using sigil::test::ScratchDir;
 
 namespace {
@@ -43,14 +45,14 @@ using Answered = std::vector<std::pair<std::string, std::vector<std::byte>>>;
 
 /** A TRANSPORT WITH NO SOCKET UNDER IT. It opens every URI it is given
  *  and takes what is sent into @p sent and what is answered into @p
- *  answered; what arrives a case delivers into the feed itself, so one
+ *  answered; what arrives a case puts on the feed through its inlet, so one
  *  thread runs a case from its first line to its last and no port has
  *  to be free for it to pass. A null @p answered is a door that cannot
  *  address one sender, which is what a case not about replies has. */
-sigil::io::FeedTransport intoVector(std::shared_ptr<Sent> sent,
+sigil::io::Transport intoVector(std::shared_ptr<Sent> sent,
                                     std::shared_ptr<Answered> answered = {}) {
   return
-      [sent, answered](std::string_view uri, std::weak_ptr<sigil::io::Feed>) {
+      [sent, answered](std::string_view uri, sigil::io::Inlet) {
         sigil::io::OpenedFeed opened;
         // It binds nothing, so the local end it names is the URI it was
         // asked for: enough for a case to see that the end reaches through.
@@ -94,7 +96,7 @@ TEST(DataConnection, AJsonMessageIsTheLatestAndReachesEveryHandlerNamingIt) {
   });
   scene.on("calm", [&gusts](const Json&) { gusts.push_back(-1); });
 
-  scene.feed()->deliver(bytesOf(R"({"kind":"gust","strength":0.5})"));
+  inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"gust","strength":0.5})"));
   // Nothing has been read yet: the frame is what reads it.
   EXPECT_TRUE(scene.latest().null());
 
@@ -122,8 +124,8 @@ TEST(DataConnection, AnOscPacketIsItsAddressAndReachesTheHandlerOnThatAddress) {
   });
   desk.on("/sky/calm", [&faders](const Json&) { faders.push_back(-1); });
 
-  desk.feed()->deliver(
-      bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
+  inletOf(desk.feed()).deliver(
+              bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
   hub.dispatch(0.0);
 
   ASSERT_EQ(faders.size(), 1u);
@@ -160,8 +162,8 @@ TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
   // A pad struck, and the same pad coming back up — which a keyboard
   // says with a note on at no velocity, and which the codec reads as
   // the release it is, so the two handlers above are the whole of it.
-  pads.feed()->deliver(bytesOf(wire({0x90, 0x3C, 0x64})));
-  pads.feed()->deliver(bytesOf(wire({0x90, 0x3C, 0x00})));
+  inletOf(pads.feed()).deliver(bytesOf(wire({0x90, 0x3C, 0x64})));
+  inletOf(pads.feed()).deliver(bytesOf(wire({0x90, 0x3C, 0x00})));
   hub.dispatch(0.0);
 
   ASSERT_EQ(struck.size(), 2u);
@@ -190,7 +192,7 @@ TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
   EXPECT_EQ(sent->size(), 1u);
 
   // Bytes that are no message at all reach no reader and are counted.
-  pads.feed()->deliver(bytesOf(wire({0x3C, 0x64})));
+  inletOf(pads.feed()).deliver(bytesOf(wire({0x3C, 0x64})));
   hub.dispatch(1.0);
   EXPECT_EQ(pads.undecodable(), 1u);
   EXPECT_EQ(struck.size(), 2u);
@@ -223,9 +225,9 @@ TEST(DataArtNet, AnArtNetDoorReadsAUniverseAndWritesOneBack) {
     washes.push_back(message["channels"][0].number());
   });
 
-  desk.feed()->deliver(bytesOf(
-      wire({'A',  'r', 't', '-',  'N',  'e',  't',  0,   0x00, 0x50, 0x00,
-            0x0E, 7,   0,   0x02, 0x00, 0x00, 0x04, 255, 128,  0,    0})));
+  inletOf(desk.feed()).deliver(bytesOf(
+              wire({'A',  'r', 't', '-',  'N',  'e',  't',  0,   0x00, 0x50, 0x00,
+                    0x0E, 7,   0,   0x02, 0x00, 0x00, 0x04, 255, 128,  0,    0})));
   hub.dispatch(0.0);
 
   ASSERT_EQ(washes.size(), 1u);
@@ -257,7 +259,7 @@ TEST(DataArtNet, AnArtNetDoorReadsAUniverseAndWritesOneBack) {
   EXPECT_EQ(sent->size(), 1u);
 
   // Bytes that are no packet at all reach no reader and are counted.
-  desk.feed()->deliver(bytesOf(wire({'A', 'r', 't', 0})));
+  inletOf(desk.feed()).deliver(bytesOf(wire({'A', 'r', 't', 0})));
   hub.dispatch(1.0);
   EXPECT_EQ(desk.undecodable(), 1u);
   EXPECT_EQ(washes.size(), 1u);
@@ -268,12 +270,12 @@ TEST(DataConnection, EachNameLatchesItsOwnNewestBesideTheNewestOfAll) {
   hub.setFeedTransport("osc", intoVector(std::make_shared<Sent>()));
 
   Connection desk(hub, "osc://:9000");
-  desk.feed()->deliver(
-      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))));
-  desk.feed()->deliver(
-      bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
-  desk.feed()->deliver(
-      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))));
+  inletOf(desk.feed()).deliver(
+              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))));
+  inletOf(desk.feed()).deliver(
+              bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
+  inletOf(desk.feed()).deliver(
+              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))));
   hub.dispatch(0.0);
 
   // One fader read off the wire with no handler at all, and the one
@@ -294,7 +296,7 @@ TEST(DataConnection, ANameNothingIsLatchedUnderAnswersNothing) {
   // would fall off the front before the connection read it.
   Connection scene(hub, "ws://:8848/scene", {.capacity = 2});
   const auto arrives = [&scene, &hub](std::string_view text) {
-    scene.feed()->deliver(bytesOf(text));
+    inletOf(scene.feed()).deliver(bytesOf(text));
     hub.dispatch(0.0);
   };
   arrives(R"({"kind":"gust","strength":1})");
@@ -325,8 +327,8 @@ TEST(DataConnection, ReceiveHandsOutEveryMessageInOrderAndThenNothing) {
   // messages it expects to be held.
   EXPECT_FALSE(scene.receive().has_value());
   for (int number = 0; number != 3; ++number)
-    scene.feed()->deliver(
-        bytesOf(R"({"kind":"step","n":)" + std::to_string(number) + "}"));
+    inletOf(scene.feed()).deliver(
+                bytesOf(R"({"kind":"step","n":)" + std::to_string(number) + "}"));
   hub.dispatch(0.0);
 
   for (int number = 0; number != 3; ++number) {
@@ -347,7 +349,7 @@ TEST(DataConnection, TheUnreadQueueFillsFromTheFirstReceiveOn) {
   int handled = 0;
   scene.on("*", [&handled](const Json&) { ++handled; });
   const auto arrives = [&scene, &hub](std::string_view text) {
-    scene.feed()->deliver(bytesOf(text));
+    inletOf(scene.feed()).deliver(bytesOf(text));
     hub.dispatch(0.0);
   };
 
@@ -383,9 +385,9 @@ TEST(DataConnection, OtherwiseRunsForEveryMessageNoNameMatched) {
   });
   desk.otherwise([&ran](const Json&) { ran.push_back("otherwise again"); });
 
-  desk.feed()->deliver(bytesOf(encodeOsc("/sky/thunder", Json(Json::Array{}))));
-  desk.feed()->deliver(
-      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))));
+  inletOf(desk.feed()).deliver(bytesOf(encodeOsc("/sky/thunder", Json(Json::Array{}))));
+  inletOf(desk.feed()).deliver(
+              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))));
   hub.dispatch(0.0);
 
   // A name nothing was registered under reaches "*" and then, after it,
@@ -407,8 +409,8 @@ TEST(DataConnection, AMessageThatCannotBeReadLeavesTheLatestStanding) {
   scene.on("*", [&handled](const Json&) { ++handled; });
   EXPECT_FALSE(scene.receive().has_value());  // the queue opens here
 
-  scene.feed()->deliver(bytesOf(R"({"kind":"gust","strength":0.5})"));
-  scene.feed()->deliver(bytesOf("this is no document at all"));
+  inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"gust","strength":0.5})"));
+  inletOf(scene.feed()).deliver(bytesOf("this is no document at all"));
   hub.dispatch(0.0);
 
   EXPECT_EQ(scene.undecodable(), 1u);
@@ -461,9 +463,9 @@ TEST(DataConnection, AReplyInAHandlerAnswersTheSenderOfTheMessage) {
     desk.reply("/sky/state", Json(Json::Array{message["arguments"][0]}));
   });
 
-  desk.feed()->deliver(
-      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))),
-      "osc://127.0.0.1:52341");
+  inletOf(desk.feed()).deliver(
+              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))),
+              "osc://127.0.0.1:52341");
   hub.dispatch(0.0);
 
   ASSERT_EQ(answered->size(), 1u);
@@ -486,12 +488,12 @@ TEST(DataConnection, AReplyOutsideAHandlerAnswersTheNewestSender) {
   EXPECT_FALSE(desk.reply("/sky/state", Json(Json::Array{})));
   EXPECT_TRUE(desk.sender().empty());
 
-  desk.feed()->deliver(
-      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))),
-      "osc://127.0.0.1:52341");
-  desk.feed()->deliver(
-      bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))),
-      "osc://127.0.0.1:52342");
+  inletOf(desk.feed()).deliver(
+              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))),
+              "osc://127.0.0.1:52341");
+  inletOf(desk.feed()).deliver(
+              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))),
+              "osc://127.0.0.1:52342");
   hub.dispatch(0.0);
 
   EXPECT_EQ(desk.sender(), "osc://127.0.0.1:52342");
@@ -517,7 +519,7 @@ TEST(DataConnection, AMessageThatNamedNoSenderIsNobodyToAnswer) {
   Connection scene(hub, "ws://:8848/scene");
   // The door answers one sender, and a message arrived; what is missing
   // is who sent it, which a transport that cannot say leaves empty.
-  scene.feed()->deliver(bytesOf(R"({"kind":"gust"})"));
+  inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"gust"})"));
   hub.dispatch(0.0);
   EXPECT_EQ(scene.latest()["kind"].text(), "gust");
   EXPECT_FALSE(scene.reply(scene.latest()));
@@ -562,7 +564,7 @@ TEST(DataConnection, AMovedConnectionGoesOnDispatchingToItsHandlers) {
   opened.on("*", [&seen](const Json&) { ++seen; });
   Connection moved = std::move(opened);
 
-  moved.feed()->deliver(bytesOf(R"({"kind":"gust"})"));
+  inletOf(moved.feed()).deliver(bytesOf(R"({"kind":"gust"})"));
   hub.dispatch(0.0);
 
   EXPECT_EQ(seen, 1);
