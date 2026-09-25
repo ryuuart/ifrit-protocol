@@ -272,7 +272,7 @@ TEST(Bind, WaveEvaluatesTheCallersShapeOnTheFoldedPhase) {
                                 .map(ease::inQuad)
                                 .scale(100.0f)
                                 .value();
-  EXPECT_FLOAT_EQ(staged.apply(0.5f),ease::inQuad(0.5f) * 100.0f);
+  EXPECT_FLOAT_EQ(staged.apply(0.5f), ease::inQuad(0.5f) * 100.0f);
 
   // An empty function passes the folded phase through rather than calling
   // nothing.

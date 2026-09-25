@@ -127,7 +127,7 @@ TEST(Values, TransitionSurvivesAnEmptyEase) {
   EXPECT_EQ(named.delay, 220ms);
   EXPECT_FALSE((bool)named.ease);
   EXPECT_TRUE((bool)named.easing());
-  EXPECT_NEAR(named.easing()(0.5f),ease::outQuad(0.5f), 1e-6f);
+  EXPECT_NEAR(named.easing()(0.5f), ease::outQuad(0.5f), 1e-6f);
 
   const Transition spec{200ms, ease::outBack()};
   EXPECT_GT(spec.easing()(0.8f), 1.0f);  // overshoot, then settle
