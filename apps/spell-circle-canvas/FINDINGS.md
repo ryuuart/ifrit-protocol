@@ -1057,3 +1057,30 @@ states its own warning whatever ran before it. A test should assert the
 warning lands when the case runs after another case that triggers the same
 warning in the same process — which means the case resets the once-only
 state it reads, or the capture the case reads is the one that issues it.
+
+## A Filter's uniforms and a Paint's warnings answer as `skia::Effect`, and ten Compose cases say otherwise
+
+After the Filter and Paint reshape, a `material::Filter` built by
+`Filter::blur(map, …)` refuses `bind("maxSigma", …)` with "this effect
+has no uniform to receive it", a shader filter's `bind`/`set` warn as
+`skia::Effect::bind` rather than `Filter::uniform`, a `skia::program`
+filter compares equal to itself while live (`Filter::operator==` answers
+true for one node before asking the effect, which answers false for any
+live effect), and the conic and null-SkSL warnings name
+`Paint::conicGradient` and `skia::sksl` rather than `material::Paint::…`.
+Evidently a Filter was meant to forward its parameters to the effect it
+wraps and to keep the effect's rule that a live effect never prunes.
+`ComposeEffects.ABoundMaxSigmaAnimatesOnTheExistingChannel`,
+`ADroppedUniformBindingIsLoudNotSilent`,
+`AnUndeclaredShaderUniformIsWarnedAndIgnored`,
+`ComposeMaterial.AConicWarnsWhenTheWindowLeavesTheCircle`,
+`ANullSkslEffectIsLoudAtBuild`, `TextPass.MisSizedUniformsWarnOnceAndAreIgnored`,
+`TextPass.EffectConstantLanesParticipateInEquality` and
+`SkiaEffect.ABoundUniformMakesItLiveAndItNeverPrunes` should pass once the
+Filter forwards `bind`/`set` to its effect, compares a live filter
+unequal even to itself, and the messages name the Material words the
+tests read. `MaterialDocs.EveryNameInTheDocsResolvesAgainstTheHeaders`'
+floors (106 member names, 69 listed names) and the two `colorFilter`
+lowerings (`SkiaEffect.RecipeSnapshotsDistinguishSurfaceLowering`,
+`Ocio.AChannelwiseViewLowersToATableThatPaintsWhatTheProgramPaints`)
+fail beside them and belong to the same pass.
