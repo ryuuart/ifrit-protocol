@@ -19,7 +19,11 @@
 # whatever it draws through.
 sigil_library_root(SigilSketch
   BRIEF "Sketches: one file per scene, one registry, one host"
-  DOCS ${CMAKE_CURRENT_LIST_DIR}/kit/README.md
+  DOCS ${CMAKE_CURRENT_LIST_DIR}/RUNNING.md
+       ${CMAKE_CURRENT_LIST_DIR}/REGISTRY.md
+       ${CMAKE_CURRENT_LIST_DIR}/HOST.md
+       ${CMAKE_CURRENT_LIST_DIR}/TESTING.md
+       ${CMAKE_CURRENT_LIST_DIR}/kit/README.md
        ${CMAKE_CURRENT_LIST_DIR}/PROTOCOL.md)
 # Where the live host finds the file behind a registry entry, and what
 # mounts at res://: the demo assets a machine fetched (fonts, models,
@@ -149,7 +153,11 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 file(GLOB_RECURSE SIGIL_SKETCH_STEM_DOCS CONFIGURE_DEPENDS
      ${CMAKE_CURRENT_LIST_DIR}/../README.md
      ${CMAKE_CURRENT_LIST_DIR}/../FEATURES.md
-     ${CMAKE_CURRENT_LIST_DIR}/../TYPOGRAPHY.md)
+     ${CMAKE_CURRENT_LIST_DIR}/../TYPOGRAPHY.md
+     ${CMAKE_CURRENT_LIST_DIR}/RUNNING.md
+     ${CMAKE_CURRENT_LIST_DIR}/REGISTRY.md
+     ${CMAKE_CURRENT_LIST_DIR}/HOST.md
+     ${CMAKE_CURRENT_LIST_DIR}/TESTING.md)
 set(SIGIL_SKETCH_STEM_DOC_ARGS)
 foreach(doc IN LISTS SIGIL_SKETCH_STEM_DOCS)
   list(APPEND SIGIL_SKETCH_STEM_DOC_ARGS --doc ${doc})
@@ -189,12 +197,16 @@ else()
 endif()
 
 # Every API name the prose spells, compiled against the headers that own
-# it — README.md, the kit's page and the studies' page, because each is
-# canon for what it covers. This library composes every other, so every
+# it — README.md and its chapters, the protocol's page, the kit's page and
+# the studies' page, because each is canon for what it covers. This library composes every other, so every
 # one it names is scanned and linked: a sketch's prose is written in the
 # whole vocabulary a sketch is written in.
 sigil_doc_probes(sketch
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/RUNNING.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/REGISTRY.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/HOST.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/TESTING.md
           ${CMAKE_CURRENT_SOURCE_DIR}/PROTOCOL.md
           ${CMAKE_CURRENT_SOURCE_DIR}/kit/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/sketches/README.md
