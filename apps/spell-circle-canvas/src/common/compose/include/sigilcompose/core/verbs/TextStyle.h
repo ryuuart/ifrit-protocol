@@ -9,7 +9,7 @@
  */
 
 #include <sigilcompose/core/Declarations.h>
-#include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/style/Style.h>
@@ -75,8 +75,10 @@ class TextStyleVerbs {
   Derived& maxTextLines(int lines);
   /** Stroke the GLYPHS, under the fill — engraved display type, an
    *  outlined label, a caption that has to survive over an image. Not
-   *  `stroke()`, which dresses the node's box. */
-  Derived& textStroke(float width, SurfacePaint paint);
+   *  `stroke()`, which dresses the node's box. A paint that needs a frame
+   *  — a live one, or one reading the box — outlines in the ink in force,
+   *  since the outline is measured without a frame. */
+  Derived& textStroke(float width, Fill paint);
   /** Flow this paragraph around the keyed node, with @p margin px of
    *  standoff. A target that declares a silhouette is subtracted by
    *  that outline; one that declares none is subtracted by its box.

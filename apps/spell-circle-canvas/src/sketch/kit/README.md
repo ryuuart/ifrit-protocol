@@ -209,10 +209,10 @@ text prop is a `compose::Utf8`** — it takes `"…"` and `u8"…"`, a
 `std::string` and a `std::u8string` alike — so a sketch writes
 `.title = "THE STROKE ATLAS"` and never a conversion around the words.
 
-Every component field that paints an area uses `compose::SurfacePaint`
-from `<sigilcompose/core/SurfacePaint.h>`. It accepts a Fill, a live fill
-binding, a material paint or a recipe directly. Neutral Compose wells and
-sheets accept the same value. Theme wrappers resolve defaults, then pass
+Every component field that paints an area uses `compose::Fill` from
+`<sigilcompose/core/Paint.h>`. It accepts a colour fill, a reference, a
+material paint or a recipe directly. Neutral Compose wells and sheets
+accept the same value. Theme wrappers resolve defaults, then pass
 that value through unchanged. Pass it to `compose::Element::fill` when
 painting an Element directly.
 

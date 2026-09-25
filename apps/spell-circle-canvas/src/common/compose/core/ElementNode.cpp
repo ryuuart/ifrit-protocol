@@ -1,10 +1,9 @@
 /** @file
- * The paint values with bodies: a shader Fill, the copy-on-write handle
+ * The copy-on-write handle
  * every declaring value is, and the conversion each typed leaf makes
  * into the node any container takes.
  */
 
-#include <include/core/SkShader.h>
 
 #include <memory>
 
@@ -14,13 +13,6 @@ namespace sigil::compose {
 
 using detail::ElementNode;
 using detail::Kind;
-
-Fill Fill::shader(sk_sp<SkShader> s) {
-  Fill f;
-  f.kind = Fill::Kind::Shader;
-  f.shaderValue = std::move(s);
-  return f;
-}
 
 detail::Declaring::Declaring() : m_node(std::make_shared<ElementNode>()) {}
 

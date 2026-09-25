@@ -9,26 +9,29 @@ status: stable
 
 # Fill
 
-What one surface is painted with, in the form the reconciler stores: no
-paint at all, a flat colour, a Skia shader, or a REFERENCE the tree
-resolves where the mark lands. It is the cheap end of the colouring
-lattice — five scalars that compare in one line — and it is what every
-richer colouring value collapses to when it can.
+What one surface is painted with: no paint at all, a flat colour, a
+`material::Paint`, or a REFERENCE the tree resolves where the mark lands.
+It is the top of the colouring lattice — the one value a component
+declares and every verb that paints a surface takes — and the references
+are the part of it only a cascade can mean.
 
-A colour boils down to a `Fill`. It does not boil down to a material:
-`Fill` is the slot a node's paint is pruned on, and a material reaches a
-node by being wrapped in a paint and carried in a
-[SurfacePaint](value:sigil::compose::SurfacePaint).
+A `material::Paint` and a `material::Material` convert to a `Fill`
+implicitly, the material as `material::Paint::recipe` of it, so a caller
+writes whichever it holds. A fill that moves is `motion::Animatable<Fill>`.
 
 ## Anatomy
 
-Two small enumerations and three numbers.
+Two small enumerations, two numbers and a paint.
 
 `Fill::kind` is which of three things the fill is. `Fill::Kind::None`
 paints nothing and is a value, not an absence — a slot holding it is
 answered, not skipped. `Fill::Kind::Color` carries `Fill::colorValue`,
-four straight sRGB floats. `Fill::Kind::Shader` carries
-`Fill::shaderValue`, anything Skia can shade.
+four straight sRGB floats. `Fill::Kind::Paint` carries a
+`material::Paint`, read through `Fill::paint`; the fill holds it once and
+shares it, so a fill costs a node a colour and a pointer however much a
+paint grows. `Fill::needsFrame` answers whether that paint is live or
+reads the box it lands on — a paint a slot measured without a frame
+cannot hold as it stands.
 
 `Fill::ref` is where a colour fill READS its colour from. `Fill::Ref::None`
 is the ordinary case: the colour is the value in hand. `Fill::Ref::CurrentInk`
@@ -51,13 +54,14 @@ version of its top.
 | Spelling | Language | What it gives |
 | --- | --- | --- |
 | `Fill::color(colour)` | C++ | a flat `material::Color` |
-| `Fill::shader(shader)` | C++ | any `sk_sp<SkShader>`, gradients included |
+| `Fill{paint}`, or a `material::Paint` where a fill is taken | C++ | the paint, implicitly |
+| `Fill{material}`, or a `material::Material` where a fill is taken | C++ | the material's recipe paint, implicitly |
 | `Fill::none()` | C++ | the value that paints nothing |
 | `Fill::currentInk()` | C++ | the ink in force where the mark lands |
 | `Fill::var(reference)` | C++ | the colour a custom property holds |
 | `Fill::var(name)` | C++ | the same, interning the name through `compose::var` — C++ only, since Python's `Fill.var` takes the reference alone |
 | `material::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as the `material::Color` a `Fill::color` takes |
-| `compose::toFill(paint)` | C++ | the static collapse of a material paint — a solid or a built shader, and nothing for a paint that needs a frame; a gradient placed in pixels, `toFill(material::Paint::linearGradient(from, to, colours, {.units = material::GradientUnits::Pixels}))`, is a shader fill this way |
+| `compose::toFill(paint)` | C++ | the static collapse of a material paint — a solid is its colour, a static paint is itself, and a paint that needs a frame is nothing |
 | `"#1f2933"` | Python | a CSS colour string, implicitly |
 | `(0.12, 0.16, 0.20)` | Python | a 3-tuple of unit floats, implicitly |
 | `(0.12, 0.16, 0.20, 0.5)` | Python | a 4-tuple, the fourth being alpha |
@@ -67,6 +71,7 @@ version of its top.
 | `compose.var("gutter")` | Python | a custom-property reference, implicitly — the colour the nearest ancestor set under that name |
 | `compose.Fill.color(...)`, `compose.Fill.currentInk()` | Python | the named constructors, each under its own name |
 | `compose.Fill.var(compose.var("gutter"))` | Python | the reference form, which is the only one Python's `Fill.var` takes |
+| `material.Paint.linearGradient(...)`, a `material.Material` | Python | a paint or a material, implicitly |
 | `None` | Python | `Fill::none()` |
 
 In Python the whole of that column is the union `FillLike`, and a
@@ -77,9 +82,10 @@ parameter that takes a fill takes every row of it.
 | Where | Kind | Library |
 | --- | --- | --- |
 | `Element::fill` | verb | SigilCompose |
+| `Element::ink` | verb | SigilCompose — a colour is the inherited ink lane, a paint the ink's paint |
 | `Text::textStroke` | verb | SigilCompose |
-| `SurfacePaint` | type | SigilCompose — the implicit constructor, which is how a fill reaches every slot that takes a surface paint |
-| `PathFormat::strokeFill` | field | SigilCompose — through `SurfacePaint` |
+| `PathFormat::strokeFill` | field | SigilCompose |
+| `kit::Well::ground`, `kit::Board::ground`, `kit::Table::swatches` | field | SigilCompose — every component property that paints an area |
 | `Line::fill`, `Line::Companion::fill` | field | SigilCompose |
 | `Scrim::fill` | field | SigilCompose |
 | `Sheet::rule` | field | SigilCompose |
@@ -87,8 +93,9 @@ parameter that takes a fill takes every row of it.
 | `lines::presets::hatch`, `crosshatch`, `radialHatch`, `concentric` | function | SigilCompose |
 | `motion::Animatable` | type | SigilMotion — a fill that moves is `motion::Animatable<Fill>` |
 
-An `Element::ink` takes a colour rather than a fill: the ink is what a
-fill REFERS to, so a reference in that slot would have nothing to read.
+An `Element::ink` given a reference leaves the ink where it was: the ink
+is what a fill REFERS to, so a reference in that slot would have nothing
+to read.
 
 ## Also returned by
 
@@ -96,31 +103,28 @@ fill REFERS to, so a reference in that slot would have nothing to read.
 | --- | --- | --- |
 | `compose::resolveRef` | function | SigilCompose — a reference resolved against a paint context |
 | `compose::toFill` | function | SigilCompose — a static material paint collapsed |
-| `compose::resolveFill` | function | SigilCompose — the same paint for THIS frame, live values sampled |
-| `SurfacePaint::resolve` | member | SigilCompose |
+| `compose::resolveFill` | function | SigilCompose — a paint or a fill for THIS frame, references resolved and live values sampled |
 
 ## Description
 
-The reconciler keeps a node's paint as a `Fill` wherever it can, because
-`Fill` compares in five scalar comparisons and a material compares by
-recipe identity, bytes, bindings, children and settings. That is the
-whole reason the type exists and the reason `Element::fill` routes a
-static material paint through `compose::toFill` rather than holding it
-whole: a flat colour on a static node must cost a prune, not a resolve.
-A live or geometry-dependent paint cannot collapse, so it is kept whole
-on the node and the painter resolves it per frame.
+The reconciler keeps a node's paint as a `Fill`, and `Element::fill`
+routes a static material paint through `compose::toFill`: a flat paint
+becomes its colour, so a flat colour on a static node costs a prune, not
+a resolve. A live or geometry-dependent paint is kept whole on the node
+and the painter resolves it against the frame it is drawn at.
 
 Equality is structural and includes the reference, so two nodes both
 painted `Fill::currentInk()` compare equal even where they resolve to
 different colours — which is what lets a recoloured ancestor recolour a
-subtree without re-describing it.
+subtree without re-describing it. A paint compares by its recipe, so the
+same gradient described again is an equal fill and its node prunes.
 
 ## See also
 
 - `core/Paint.h` — the header: `Fill`, `Corners`,
   `PaintContext`, `resolveRef`, `frameOf`, `toFill`, `resolveFill`
-- [SurfacePaint](value:sigil::compose::SurfacePaint) — the widest
-  colouring value, which a fill converts into
+- [Paint](value:sigil::material::Paint) — the paint a fill carries, in
+  SigilMaterial
 - The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
   the lattice whole, and which of the three spellings of the current ink
   is which

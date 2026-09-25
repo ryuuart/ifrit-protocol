@@ -1,4 +1,4 @@
-// What the fill verb takes: every surface a `SurfacePaint` holds, a
+// What the fill verb takes: every surface a `Fill` holds, a
 // material recipe among them, and neither of the two values that are not
 // fills. Every other verb that takes a surface takes a material as well.
 
@@ -59,7 +59,7 @@ TEST(ComposeFill, AMaterialFillsAsTheSurfaceHoldingItDoes) {
   direct.composer.render(page(box().fill(grain)));
   direct.frame();
   Host wrapped(96, 64);
-  wrapped.composer.render(page(box().fill(SurfacePaint{grain})));
+  wrapped.composer.render(page(box().fill(Fill{grain})));
   wrapped.frame();
   const std::vector<SkColor> expected = pixelsOf(wrapped, 96, 64);
   EXPECT_EQ(pixelsOf(direct, 96, 64), expected);

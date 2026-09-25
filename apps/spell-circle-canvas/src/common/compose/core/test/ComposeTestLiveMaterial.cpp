@@ -4,6 +4,7 @@
 // uTime making a material live, a snapshot sampling it now, and a stable live
 // resolve replaying its picture and blitting its texture.
 
+#include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 
@@ -316,7 +317,7 @@ TEST(ComposeMaterial, BoundUniformOwnsItsSlotOverInjection) {
   Fill f = resolveFill(m, ctx);
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
   SkPaint p;
-  p.setShader(f.shaderValue);
+  p.setShader(material::skia::staticShader(f.paint()));
   s->getCanvas()->drawPaint(p);
   SkBitmap bm;
   bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));

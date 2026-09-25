@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkShader.h>
 #include <sigilcompose/brush/Decorations.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
@@ -238,7 +239,7 @@ TEST(SketchKitHeading, DocumentRulesStyleAPreviouslyConstructedCard) {
 TEST(SketchKitHeading, AnAuthoredShaderKeepsDocumentTypography) {
   const Element card = kit::titleCard(
       {.title = {.words = "AAAA",
-                 .ink = Fill::shader(SkShaders::Color(SK_ColorGREEN))},
+                 .ink = Fill{sigil::material::skia::paint(SkShaders::Color(SK_ColorGREEN))}},
        .key = "card"});
   Drawn original(compose::box().children({card}));
   Drawn styled(

@@ -24,7 +24,6 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/kit/Part.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -57,7 +56,7 @@ struct Reading {
   /** A patch standing BEFORE the name, for a row that is also a key — a
    *  tier, a channel, a series on a chart beside it. None (default) draws
    *  none and spends no room. */
-  SurfacePaint swatch;
+  Fill swatch;
   /** THE COLOUR THIS ROW IS SET IN, over whatever its lines' classes name:
    *  a foot row in cinnabar, a reading in the colour of the thing it
    *  reads. Unset leaves each line in its own class's colour, which is
@@ -154,7 +153,7 @@ struct Table {
    *  column. When any row has a patch, the head and every row reserve the
    *  same leading space. A row past the end of this run, or one whose
    *  patch is none, leaves that space empty. */
-  std::span<const SurfacePaint> swatches;
+  std::span<const Fill> swatches;
   float swatchSide = 10.0f;
   float swatchCorners = 0.0f;
   /** ONE KEY PER ROW, in row order, so a query can read a row back and a
@@ -213,10 +212,10 @@ struct Bars {
   /** Between rows, px. */
   float rowGap = 4.0f;
   /** The bar itself. None (default) is the ink in force. */
-  SurfacePaint bar;
+  Fill bar;
   /** The track behind the bar — the room the longest bar takes, so a
    *  short bar reads against the extent. None (default) draws none. */
-  SurfacePaint rest;
+  Fill rest;
   /** THE LABEL, as a function of its words and then of this value. Empty
    *  is `captionNote`. */
   Part<Utf8, Bars> labelLine = captionNote;

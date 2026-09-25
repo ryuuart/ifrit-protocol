@@ -13,9 +13,9 @@ namespace sigil::compose::kit {
 namespace {
 
 /** The patch a row carries before its first cell. */
-Element mark(const SurfacePaint& paint, float side, float corners) {
+Element mark(const Fill& paint, float side, float corners) {
   Element patch = box().width(Dimension(side)).height(Dimension(side));
-  paint.apply(patch);
+  if (paint.kind != Fill::Kind::None) patch.fill(paint);
   patch.flexShrink(0);
   if (corners > 0.0f) patch.borderRadius(Corners{corners});
   return patch;
@@ -33,7 +33,7 @@ Element reading(const Reading& one, const Rows& how) {
   Element row =
       box().row().alignItems(Align::Center).gap(Dimension(how.labelGap));
   if (how.measure > 0.0f) row.width(Dimension(how.measure));
-  if (!one.swatch.none())
+  if (one.swatch.kind != Fill::Kind::None)
     row.children({mark(one.swatch, how.swatchSide, how.swatchCorners)});
   if (!one.name.empty()) {
     Element name =
@@ -94,7 +94,7 @@ Element table(std::span<const std::span<const Utf8>> rows, const Table& how) {
       how.columns, [](const Column& one) { return !one.head.empty(); });
   const bool marked = std::ranges::any_of(
       how.swatches.first(std::min(rows.size(), how.swatches.size())),
-      [](const SurfacePaint& paint) { return !paint.none(); });
+      [](const Fill& paint) { return paint.kind != Fill::Kind::None; });
   if (headed) {
     Element head =
         box().row().alignItems(Align::Center).gap(Dimension(how.gap));
@@ -118,7 +118,7 @@ Element table(std::span<const std::span<const Utf8>> rows, const Table& how) {
       row.key(how.keys[index]);
     if (marked)
       row.children({mark(
-          index < how.swatches.size() ? how.swatches[index] : SurfacePaint{},
+          index < how.swatches.size() ? how.swatches[index] : Fill{},
           how.swatchSide, how.swatchCorners)});
     const std::span<const Utf8> cells = rows[index];
     for (size_t at = 0; at < cells.size(); ++at) {
@@ -171,13 +171,13 @@ Element bars(std::span<const Utf8> labels, std::span<const double> values,
     if (ink)
       bar.fill(Fill::color(*ink));
     else
-      (how.bar.none() ? SurfacePaint(Fill::currentInk()) : how.bar).apply(bar);
-    if (how.rest.none()) {
+      bar.fill(how.bar.kind == Fill::Kind::None ? Fill::currentInk() : how.bar);
+    if (how.rest.kind == Fill::Kind::None) {
       row.children({std::move(bar)});
     } else {
       Element track =
           box().width(Dimension(how.length)).height(Dimension(how.barHeight));
-      how.rest.apply(track);
+      track.fill(how.rest);
       row.children({std::move(track.children({std::move(bar)}))});
     }
     row.children(

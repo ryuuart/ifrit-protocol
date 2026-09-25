@@ -240,7 +240,7 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
                                  : toFill(*said.inkPaint);
       if (flat.kind == Fill::Kind::Color) {
         restyle.partial.color = flat.colorValue;
-      } else if (flat.kind == Fill::Kind::Shader) {
+      } else if (flat.kind == Fill::Kind::Paint) {
         restyle.inkShader = flat;
         if (restarts) restyle.inkBox = said.inkBox;
       }

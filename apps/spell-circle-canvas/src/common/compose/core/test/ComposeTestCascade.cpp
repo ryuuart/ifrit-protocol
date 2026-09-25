@@ -685,7 +685,7 @@ material::Paint redToBlue() {
 
 /** Two 40x40 boxes filled with the ink in force, side by side inside a
  *  120-wide box that states @p ink stretched over @p over. */
-Element twoSwatches(SurfacePaint ink, PaintBox over) {
+Element twoSwatches(Fill ink, PaintBox over) {
   const auto swatch = [](std::string key) {
     return box()
         .key(std::move(key))
@@ -766,7 +766,7 @@ TEST(ComposeCascade, AnEmptyInkPaintClearsAnAncestorsAndLeavesTheColour) {
           .ink({0, 1, 0, 1})
           .ink(redToBlue())
           .children({box()
-                         .ink(SurfacePaint{})
+                         .ink(Fill::none())
                          .children({box().key("c").width(40).height(40).fill(
                              Fill::currentInk())})}));
   host.frame();

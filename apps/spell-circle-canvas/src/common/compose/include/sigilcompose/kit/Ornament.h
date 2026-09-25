@@ -20,10 +20,12 @@
 #include <include/effects/SkDashPathEffect.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilcompose/Compose.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <cmath>
 #include <vector>
@@ -84,10 +86,10 @@ inline Palette oakPalette() {
 inline Fill parchmentFill(material::Color base, float frequency = 0.045f) {
   sk_sp<SkShader> noise =
       SkShaders::MakeFractalNoise(frequency, frequency, 3, 7.0f);
-  return Fill::shader(SkShaders::Blend(
+  return Fill{material::skia::paint(SkShaders::Blend(
       SkBlendMode::kSoftLight,
       SkShaders::Color(material::skia::toSkColor(base), nullptr),
-      std::move(noise)));
+      std::move(noise)))};
 }
 
 // ---------------------------------------------------------------------------

@@ -22,7 +22,7 @@ and is a different thing entirely. This one thickens the letterforms.
 ## Syntax
 
 ```cpp
-Element& textStroke(float width, SurfacePaint paint);
+Element& textStroke(float width, Fill paint);
 ```
 
 ```python
@@ -34,14 +34,13 @@ def textStroke(self, width: float, paint: FillLike) -> Element: ...
 | Value | What it is | Where one comes from |
 |---|---|---|
 | `width` | The stroke width in pixels, centred on the letterform's edge. | A number |
-| `paint` | What the stroke is painted with. | [`SurfacePaint`](../types/SurfacePaint.md), including `Fill::currentInk()` |
+| `paint` | What the stroke is painted with. | [`Fill`](../types/Fill.md), including `Fill::currentInk()` |
 
-The stroke settles to one comparable `Fill` on the node, so a static
-paint collapses onto it and a live one strokes with nothing.
+The stroke settles to one comparable `Fill` on the node, measured without
+a frame, so a static paint collapses onto it and a live or
+geometry-dependent one strokes in the ink in force.
 
-In Python the parameter is `FillLike`, the flat mark: a static paint
-collapses onto it as it does in C++, and a live or geometry-dependent
-one raises rather than stroking with nothing.
+In Python the parameter is `FillLike`, and reads the same way.
 
 ## Description
 

@@ -19,7 +19,7 @@ compose::Element well(const Well& specification, compose::Element surface) {
   // The theme supplies the ground and the padding; the plate, its corners
   // and its keyline are the primitive's, and the two looks below are this
   // library's own.
-  const compose::SurfacePaint bed = specification.ground.value_or(
+  const compose::Fill bed = specification.ground.value_or(
       compose::Fill::color(look.palette.cellGround));
   std::optional<compose::kit::Well::Content> held;
   if (specification.content)

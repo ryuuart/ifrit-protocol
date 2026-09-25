@@ -146,16 +146,14 @@ Derived& FontVerbs<Derived>::ink(VarRef reference) {
 }
 
 template <class Derived>
-Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintBox box) {
+Derived& FontVerbs<Derived>::ink(Fill paint, PaintBox box) {
   detail::CascadeData& cascade = declarations()->ink();
-  // A PLAIN COLOUR is the ink lane as it has always been, and has no unit
-  // square for a box to stretch. A paint that happens to be flat is not
-  // one: it overrides the glyphs of a leaf set in a style of its own,
-  // which an inherited colour does not reach.
-  const std::optional<Fill> flat =
-      paint.writtenAsPaint() ? std::nullopt : paint.collapsedFill();
-  if (flat && flat->kind == Fill::Kind::Color && !flat->references())
-    return ink(flat->colorValue);
+  // A PLAIN COLOUR is the ink lane, and has no unit square for a box to
+  // stretch. A paint that happens to be flat is not one: it overrides the
+  // glyphs of a leaf set in a style of its own, which an inherited colour
+  // does not reach.
+  if (paint.kind == Fill::Kind::Color && !paint.references())
+    return ink(paint.colorValue);
   // A box the ink cannot stretch a paint over is read as the element's
   // own, and said so: the padding and the content rectangles place a
   // fill, and a text unit needs a passage to cut. A span always lands on
@@ -174,21 +172,19 @@ Derived& FontVerbs<Derived>::ink(SurfacePaint paint, PaintBox box) {
   }
   // An empty paint STATES the lane and holds nothing, which clears an
   // ancestor's paint and leaves the colour in force standing.
-  if (paint.none()) {
+  if (paint.kind == Fill::Kind::None) {
     cascade.statesInk = true;
     cascade.inkPaint.reset();
     cascade.inkBox = box;
     return self();
   }
-  // A fill the slot cannot hold — a live binding, the ink in force, a
-  // custom property — leaves the ink exactly where it was, paint
-  // included: a reference to the ink IS the ink, and a bound fill has no
-  // paint to inherit. Nothing is written until there is something to
-  // write, so a standing paint survives the asking.
-  std::optional<material::Paint> stored = paint.collapsedPaint();
-  if (!stored) return self();
+  // A reference the slot cannot hold — the ink in force, a custom
+  // property — leaves the ink exactly where it was, paint included: a
+  // reference to the ink IS the ink. Nothing is written until there is
+  // something to write, so a standing paint survives the asking.
+  if (paint.kind != Fill::Kind::Paint) return self();
   cascade.statesInk = true;
-  cascade.inkPaint = std::move(stored);
+  cascade.inkPaint = paint.paint();
   cascade.inkBox = box;
   return self();
 }

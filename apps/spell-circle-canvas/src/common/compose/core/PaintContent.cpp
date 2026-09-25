@@ -545,9 +545,12 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
                            ? m.with.resolver->coverage(m.with, paintCtx)
                            : Fill{};
         const bool luma = m.with.channel == Gate::Channel::Luma;
-        if (f.kind == Fill::Kind::Shader && f.shaderValue)
-          cover.setShader(luma ? lumaCoverageShader(f.shaderValue)
-                               : f.shaderValue);
+        if (sk_sp<SkShader> shader =
+                f.kind == Fill::Kind::Paint
+                    ? material::skia::staticShader(f.paint())
+                    : nullptr)
+          cover.setShader(luma ? lumaCoverageShader(std::move(shader))
+                               : std::move(shader));
         else if (f.kind == Fill::Kind::Color)
           cover.setColor4f(
               material::skia::toSkColor(luma ? lumaCoverageColor(f.colorValue)
@@ -708,9 +711,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       originCtx.size = {std::max(bounds.width() - inset.across(), 1.0f),
                         std::max(bounds.height() - inset.down(), 1.0f)};
       Fill placed = resolveFill(*live, originCtx);
-      if (placed.kind == Fill::Kind::Shader && placed.shaderValue)
-        placed.shaderValue = placed.shaderValue->makeWithLocalMatrix(
-            SkMatrix::Translate(inset.left, inset.top));
+      if (placed.kind == Fill::Kind::Paint)
+        if (sk_sp<SkShader> shader =
+                material::skia::staticShader(placed.paint()))
+          placed = Fill{material::skia::paint(shader->makeWithLocalMatrix(
+              SkMatrix::Translate(inset.left, inset.top)))};
       resolvedFill = std::move(placed);
     }
   } else if (style.paint.fill) {
@@ -723,8 +728,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       const float t = inst.anims[Instance::kFillLerp]->value();
       // Either endpoint may be written as the ink in force or a custom
       // property, so both are resolved here before the colours are mixed.
-      const Fill from = resolveRef(inst.fillFrom, paintCtx);
-      const Fill to = resolveRef(inst.fillTo, paintCtx);
+      const Fill from = resolveFill(inst.fillFrom, paintCtx);
+      const Fill to = resolveFill(inst.fillTo, paintCtx);
       fill = to;
       const material::Color& a = from.colorValue;
       const material::Color& b = to.colorValue;
@@ -735,7 +740,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
           resolveProperty(*style.paint.fill, inst.transitionInForce());
       fill = resolved.target;
     }
-    resolvedFill = resolveRef(fill, paintCtx);
+    resolvedFill = resolveFill(fill, paintCtx);
   }
 
   // The SURFACE — the fill and its echo re-stamps — under whatever gates
@@ -768,7 +773,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     if (fill.kind == Fill::Kind::Color)
       paint.setColor4f(material::skia::toSkColor(fill.colorValue), nullptr);
     else
-      paint.setShader(fill.shaderValue);
+      paint.setShader(material::skia::staticShader(fill.paint()));
     // Leaf fast path: paint() proved a layer is unnecessary and routed the
     // node's blend/opacity straight onto the fill.
     paint.setBlendMode(leafBlend);

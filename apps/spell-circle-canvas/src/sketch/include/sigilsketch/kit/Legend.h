@@ -11,7 +11,6 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/kit/Theme.h>
@@ -24,7 +23,7 @@ namespace sigil::sketch::kit {
 
 /** ONE ENTRY OF A KEY: a colour and what it stands for. */
 struct LegendEntry {
-  compose::SurfacePaint swatch;
+  compose::Fill swatch;
   compose::Utf8 label;
   /** After the label, in the quieter ink. */
   compose::Utf8 note;
@@ -99,7 +98,7 @@ struct Legend {
 /** A RAMP'S STEPS IN ORDER, each shown at the same size, with the words
  *  that name them under. */
 struct SwatchStrip {
-  std::vector<compose::SurfacePaint> swatches;
+  std::vector<compose::Fill> swatches;
   /** Parallel to the swatches, and shorter is allowed: a strip that names
    *  only its ends labels only its ends. An empty label names nothing. */
   std::vector<compose::Utf8> labels;
@@ -136,7 +135,7 @@ struct SwatchStrip {
 struct Chip {
   compose::Utf8 label;
   /** Unset is the theme's figure colour. */
-  std::optional<compose::SurfacePaint> ground;
+  std::optional<compose::Fill> ground;
   /** Unset is the theme's page ground, so the word is knocked out of the
    *  chip rather than laid over it. A shader shades the word. */
   std::optional<compose::Fill> ink;

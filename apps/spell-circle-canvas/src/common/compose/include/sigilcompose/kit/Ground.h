@@ -22,6 +22,7 @@
 #include <include/core/SkSize.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 
@@ -89,10 +90,10 @@ namespace sigil::compose::kit {
           SkBlendMode::kDstIn, std::move(value),
           SkShaders::Color(SkColorSetARGB(
               (uint8_t)std::lround(strength * 255.0f), 255, 255, 255))));
-  return Fill::shader(SkShaders::Blend(
+  return Fill{material::skia::paint(SkShaders::Blend(
       SkBlendMode::kSoftLight,
       SkShaders::Color(material::skia::toSkColor(over).toSkColor()),
-      std::move(reached)));
+      std::move(reached)))};
 }
 
 }  // namespace sigil::compose::kit

@@ -82,11 +82,14 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     outline.paint.setStrokeWidth(ruleStroke ? ruleText->textStrokeWidth
                                             : node.textData->textStrokeWidth);
     outline.paint.setStrokeJoin(SkPaint::kRound_Join);
-    const Fill sf = resolveRef(
+    const Fill sf = resolveFill(
         ruleStroke ? ruleText->textStrokeFill : node.textData->textStrokeFill,
         paintCtx);
-    if (sf.kind == Fill::Kind::Shader && sf.shaderValue)
-      outline.paint.setShader(sf.shaderValue);
+    if (sk_sp<SkShader> shader =
+            sf.kind == Fill::Kind::Paint
+                ? material::skia::staticShader(sf.paint())
+                : nullptr)
+      outline.paint.setShader(std::move(shader));
     else
       outline.paint.setColor4f(
           material::skia::toSkColor(sf.kind == Fill::Kind::Color
@@ -107,8 +110,11 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   // own reading.
   if (spreadsAcrossTree(inst.inkPaint.box)) {
     const Fill anchored = resolveInk(*metricMat, paintCtx);
-    if (anchored.kind == Fill::Kind::Shader && anchored.shaderValue) {
-      metric.foreground.setShader(anchored.shaderValue);
+    if (sk_sp<SkShader> shader =
+            anchored.kind == Fill::Kind::Paint
+                ? material::skia::staticShader(anchored.paint())
+                : nullptr) {
+      metric.foreground.setShader(std::move(shader));
       havePaint = true;
     } else if (anchored.kind == Fill::Kind::Color) {
       metric.foreground.setColor4f(
@@ -134,11 +140,14 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   // text engine lays it on each unit's own box. The passage mapping below
   // still dresses the decoration bands, which span a run, not a unit.
   const std::optional<sigil::weave::Unit> unit = textUnitOf(inst.inkPaint.box);
-  if (f.kind == Fill::Kind::Shader && f.shaderValue && unit) {
-    ink.unitSquare = f.shaderValue;
+  const sk_sp<SkShader> shader = f.kind == Fill::Kind::Paint
+                                     ? material::skia::staticShader(f.paint())
+                                     : nullptr;
+  if (shader && unit) {
+    ink.unitSquare = shader;
     ink.unit = *unit;
   }
-  if (f.kind == Fill::Kind::Shader && f.shaderValue && !inst.columns.empty()) {
+  if (shader && !inst.columns.empty()) {
     // A VERTICAL passage has no cap band to hang the ramp on: a column's
     // glyphs centre across its axis rather than standing on a baseline. The
     // unit square maps onto the COLUMN BLOCK instead — x across the columns,
@@ -149,10 +158,9 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
       block.join(column.rect());
     SkMatrix map = SkMatrix::Translate(block.left(), block.top());
     map.preScale(std::max(block.width(), 1.0f), std::max(block.height(), 1.0f));
-    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
+    metric.foreground.setShader(shader->makeWithLocalMatrix(map));
     havePaint = true;
-  } else if (f.kind == Fill::Kind::Shader && f.shaderValue &&
-             !inst.lines.empty()) {
+  } else if (shader && !inst.lines.empty()) {
     // The first run that carries glyphs is the face the cap band is read
     // from — the runs in draw order, and no walk of every glyph in the
     // passage to reach the first one.
@@ -180,7 +188,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     const float bottom = inst.lines.back().baseline;
     SkMatrix map = SkMatrix::Translate(left, top);
     map.preScale(std::max(right - left, 1.0f), std::max(bottom - top, 1.0f));
-    metric.foreground.setShader(f.shaderValue->makeWithLocalMatrix(map));
+    metric.foreground.setShader(shader->makeWithLocalMatrix(map));
     havePaint = true;
   } else if (f.kind == Fill::Kind::Color) {
     metric.foreground.setColor4f(material::skia::toSkColor(f.colorValue),

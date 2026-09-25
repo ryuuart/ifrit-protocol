@@ -21,7 +21,7 @@ using compose::Fill;
 compose::Element backdrop(const Backdrop& ground) {
   const Theme& look = theme();
   Element surface = box().absolute().inset(0);
-  ground.ground.value_or(Fill::color(look.palette.ground)).apply(surface);
+  surface.fill(ground.ground.value_or(Fill::color(look.palette.ground)));
   if (!ground.key.empty()) surface.key(ground.key);
   if (ground.grain > 0) {
     // The grain is a fill of its own laid over the ground rather than a
@@ -63,7 +63,7 @@ compose::Element panel(const Panel& region, compose::Element content) {
 compose::Element frame(const Frame& chrome, compose::Element screen) {
   const Theme& look = theme();
   Element opening = compose::box().column().flexGrow(1);
-  chrome.screen.value_or(Fill::color(look.palette.ground)).apply(opening);
+  opening.fill(chrome.screen.value_or(Fill::color(look.palette.ground)));
   opening.overflow(compose::Overflow::Clip).children({std::move(screen)});
   if (const float round =
           chrome.screenCorners.value_or(look.spacing.screenCorners);
@@ -75,7 +75,7 @@ compose::Element frame(const Frame& chrome, compose::Element screen) {
 
   const float bezel = chrome.bezel.value_or(look.spacing.bezel);
   Element shell = compose::box().column().padding(bezel);
-  chrome.shell.value_or(Fill::color(look.palette.cellGround)).apply(shell);
+  shell.fill(chrome.shell.value_or(Fill::color(look.palette.cellGround)));
   if (chrome.width.unit != Dimension::Unit::Auto) shell.width(chrome.width);
   if (chrome.height.unit != Dimension::Unit::Auto) shell.height(chrome.height);
   if (const float round = chrome.corners.value_or(look.spacing.panelCorners);

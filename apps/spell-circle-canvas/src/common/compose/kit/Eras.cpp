@@ -22,6 +22,7 @@
 #include <sigilmaterial/kit/LayerStyles.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Ramp.h>
 
 #include <algorithm>

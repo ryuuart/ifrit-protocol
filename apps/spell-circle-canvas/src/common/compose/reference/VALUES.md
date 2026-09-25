@@ -24,11 +24,10 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a shader, or a reference the tree resolves at paint. | `Fill::color`, `Fill::shader`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `toFill` | `Element::fill`, `Text::textStroke`, every decoration's own paint |
-| [`SurfacePaint`](pages/types/SurfacePaint.md) | A component's surface: a fill, a moving or live fill, or a material. | Implicitly from a `Fill`, an animatable fill, a `motion::Tween` of a fill, a paint or a recipe | `Element::fill`, `PathFormat::strokeFill`, the kit's wells and sheets |
+| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a material paint, or a reference the tree resolves at paint — the one value a component declares for a surface. | `Fill::color`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `toFill`, and implicitly from a `material::Paint` or a `material::Material` | `Element::fill`, `Element::ink`, `Text::textStroke`, `PathFormat::strokeFill`, the kit's wells and sheets, every decoration's own paint |
 | [`PaintBox`](pages/types/PaintBox.md) | The rectangle a paint's unit square is stretched over: the element's own box, its padding or content box, the subtree's, the canvas, or each glyph, cluster, word, line or sentence of a passage. | `PaintBox::Element`, `PaintBox::Canvas`, `PaintBox::Glyph`, … | `Element::fill`, `Element::ink`, `Rule::ink`, `SpanStyle::ink` |
 | `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linearGradient`, `Paint::radialGradient`, `Paint::conicGradient`, `material::skia::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Element::ink` |
-| `material::Material` | A recipe — a pattern described rather than a shader built. | SigilMaterial's own catalogue | `Element::fill`, `Element::ink`, `Text::textStroke`, `SurfacePaint`, and `Paint::recipe` where a blend or a uniform needs a paint |
+| `material::Material` | A recipe — a pattern described rather than a shader built. | SigilMaterial's own catalogue | `Element::fill`, `Element::ink`, `Text::textStroke`, `Fill`, and `Paint::recipe` where a blend or a uniform needs a paint |
 | `material::Color` | The one colour class: a colour in a stated space, convertible to Skia's. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, through `material::skia::toSkColor` |
 
 ## The marks
@@ -91,11 +90,10 @@ a three- or four-number sequence, or as a colour value. The paint and
 the effect are `material.Paint` and `material.Filter`.
 
 A fill is anything in that list plus `compose.Fill`, a custom property
-reference, a value from `motion.animate` or `motion.animatable`, a
-`material.Paint` and a
-`compose.SurfacePaint`; the annotation for that whole union is
-`SurfacePaintLike`, and the narrower ones under it are `FillLike` and
-`ColorLike`. A dimension is a number, a string in the length grammar
+reference, a `material.Paint` and a `material.Material`; the annotation
+for it is `FillLike`. A verb that takes a fill that moves adds a value
+from `motion.animate` or `motion.animatable`, and that union is
+`MotionFillLike`; the narrowest is `ColorLike`. A dimension is a number, a string in the length grammar
 `compose.parseDimension` reads, a `compose.Dimension`, a weave length or
 a property reference; `compose.em`, `rem`, `lh`, `ch` and `pt` spell the
 units that have no literal suffix in this language, beside `pct`, `pw`
@@ -105,11 +103,10 @@ scheme of your own is C++ only.
 
 ## Where they live
 
-- `core/Paint.h` — `Fill`, with `Fill::color`, `Fill::shader`,
-  `Fill::none`, `Fill::currentInk` and `Fill::var`; `Corners`; `PaintContext`, and the
+- `core/Paint.h` — `Fill`, with `Fill::color`, `Fill::none`,
+  `Fill::currentInk`, `Fill::var`, `Fill::paint` and `Fill::needsFrame`; `Corners`; `PaintContext`, and the
   `KeyState` and `PromotionPolicy` it carries; `PaintProgram`;
   `StampCache`; and `resolveRef`, `toFill`, `resolveFill` and `frameOf`.
-- `core/SurfacePaint.h` — `SurfacePaint`, the surface a component takes.
 - `core/PaintBox.h` — `PaintBox`, the rectangle a paint is stretched over.
 - `core/Var.h` — `VarRef`, the `var` that interns one, and the `varName`
   that reads it back.

@@ -221,12 +221,12 @@ unkeyed siblings do.
 A surface is anything `fill` takes: a colour, a `Fill`, a
 `material::Paint` ramp, or a `material::Material` exactly as
 SigilMaterial builds it. A component whose caller chooses the surface
-declares one `SurfacePaint` property, which converts from each of those,
+declares one `Fill` property, which converts from a paint and a material,
 and passes it to `fill`, `ink` or `textStroke` as it stands:
 
 ```cpp
 struct Card {
-  SurfacePaint ground = Fill::color(hexColor(0x0e1218));
+  Fill ground = Fill::color(hexColor(0x0e1218));
   bool operator==(const Card &) const = default;
 };
 

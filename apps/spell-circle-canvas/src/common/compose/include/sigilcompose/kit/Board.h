@@ -17,7 +17,6 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/kit/Part.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -46,7 +45,7 @@ struct Board {
   SkSize size{0, 0};
   /** Behind the whole board. Fill::none() (default) paints nothing, for
    *  a canvas the host already cleared. */
-  SurfacePaint ground;
+  Fill ground;
 };
 
 [[nodiscard]] Element board(const Board& plate);

@@ -1,7 +1,7 @@
 /** @file
- * A paint as a node's fill: the frame a paint context supplies, the two
- * collapses onto the reconciler's Fill slot, and the two verbs that put a
- * paint on a description.
+ * A paint as a node's fill: the frame a paint context supplies, the
+ * collapse onto the reconciler's Fill slot, and the resolves a painter
+ * reads a fill through.
  *
  * The paint model itself is SigilMaterial's. What is compose's is the
  * routing: a static paint collapses to a Fill and rides the existing
@@ -11,6 +11,7 @@
  */
 
 #include <include/core/SkShader.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/core/Paint.h>
 
 #include <optional>
@@ -19,73 +20,6 @@
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
-
-bool SurfacePaint::none() const {
-  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
-    const Fill* plain = fill->constant();
-    return plain && plain->kind == Fill::Kind::None;
-  }
-  return std::get<material::Paint>(m_value).isNone();
-}
-
-template <class Node>
-Node& SurfacePaint::apply(Node& node) const {
-  if (!none())
-    std::visit([&](const auto& paint) { node.fill(paint); }, m_value);
-  return node;
-}
-
-template Element& SurfacePaint::apply(Element&) const;
-template Text& SurfacePaint::apply(Text&) const;
-template Image& SurfacePaint::apply(Image&) const;
-template Band& SurfacePaint::apply(Band&) const;
-template Rule& SurfacePaint::apply(Rule&) const;
-
-Fill SurfacePaint::resolve(const PaintContext& context) const {
-  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
-    const auto value = motion::resolveProperty(*fill, std::nullopt);
-    // A fill written as the ink in force, or as a custom property, takes
-    // its colour from the node it is painted under.
-    return resolveRef(value.live ? value.live->value() : value.target,
-                      context);
-  }
-  return resolveFill(std::get<material::Paint>(m_value), context);
-}
-
-std::optional<Fill> SurfacePaint::collapsedFill() const {
-  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
-    const Fill* plain = fill->constant();
-    if (!plain) return std::nullopt;
-    return *plain;
-  }
-  const auto& paint = std::get<material::Paint>(m_value);
-  if (paint.isRunning() || paint.geometryDependent()) return std::nullopt;
-  return toFill(paint);
-}
-
-std::optional<material::Paint> SurfacePaint::collapsedPaint() const {
-  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value)) {
-    const Fill* plain = fill->constant();
-    if (!plain || plain->references()) return std::nullopt;
-    if (plain->kind == Fill::Kind::Color)
-      return material::Paint::solid(
-          material::skia::toSkColor(plain->colorValue));
-    if (plain->kind == Fill::Kind::Shader)
-      return material::skia::paint(plain->shaderValue);
-    return std::nullopt;
-  }
-  return std::get<material::Paint>(m_value);
-}
-
-bool SurfacePaint::writtenAsPaint() const {
-  return std::holds_alternative<material::Paint>(m_value);
-}
-
-bool SurfacePaint::isRunning() const {
-  if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value))
-    return fill->identity() != nullptr;
-  return std::get<material::Paint>(m_value).isRunning();
-}
 
 material::FrameData frameOf(const PaintContext& ctx) {
   material::FrameData frame;
@@ -99,9 +33,9 @@ material::FrameData frameOf(const PaintContext& ctx) {
 
 Fill toFill(const material::Paint& paint) {
   if (paint.isSolid()) return Fill::color(paint.solidColor());
-  if (sk_sp<SkShader> s = material::skia::staticShader(paint))
-    return Fill::shader(std::move(s));
-  return Fill::none();
+  if (paint.isNone() || !material::skia::staticShader(paint))
+    return Fill::none();
+  return Fill{paint};
 }
 
 Fill resolveInk(const material::Paint& paint, const PaintContext& ctx) {
@@ -118,7 +52,7 @@ Fill resolveInk(const material::Paint& paint, const PaintContext& ctx) {
   material::Paint anchored = paint;
   anchored.worldSpace(true);
   if (sk_sp<SkShader> shader = material::skia::shader(anchored, frame))
-    return Fill::shader(std::move(shader));
+    return Fill{material::skia::paint(std::move(shader))};
   return Fill::none();
 }
 
@@ -128,9 +62,17 @@ Fill resolveFill(const material::Paint& paint, const PaintContext& ctx) {
   // the shader path entirely.
   if (paint.isSolid()) return Fill::color(paint.solidColor());
   if (paint.isNone()) return Fill::none();
+  // A static paint already holds its shader, and handing the same paint
+  // back keeps the fill equal to the one the node stored.
+  if (!paint.isRunning() && !paint.geometryDependent()) return toFill(paint);
   if (sk_sp<SkShader> shader = material::skia::shader(paint, frameOf(ctx)))
-    return Fill::shader(std::move(shader));
+    return Fill{material::skia::paint(std::move(shader))};
   return Fill::none();
+}
+
+Fill resolveFill(const Fill& fill, const PaintContext& ctx) {
+  if (fill.kind == Fill::Kind::Paint) return resolveFill(fill.paint(), ctx);
+  return resolveRef(fill, ctx);
 }
 
 }  // namespace sigil::compose

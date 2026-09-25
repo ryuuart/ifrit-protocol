@@ -7,7 +7,7 @@
  * one piece of it. A sketch that reaches for one includes that one.
  */
 
-#include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilsketch/kit/Cells.h>
 #include <sigilsketch/kit/Channel.h>
 #include <sigilsketch/kit/Chart.h>

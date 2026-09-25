@@ -292,6 +292,7 @@ TEST(ComposeCache, ARefusalNamesTheReasonItRefused) {
 
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 
 namespace {

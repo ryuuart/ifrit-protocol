@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "support/BrushTestSupport.h"
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 
 TEST(ComposeCache, AnAddedWireSurvivesParentCaching) {

@@ -9,10 +9,9 @@
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/PaintBox.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/paint/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <concepts>
@@ -29,11 +28,11 @@ namespace sigil::compose {
 class Pattern;
 
 /** THE SURFACE. Unfilled when unstated, so a box paints nothing and
- *  only its decorations and children show. What may be passed: an
+ *  only its decorations and children show. What may be passed: a
  *  `material::Color`, a `Fill`, a `motion::Animatable<Fill>`, a
- *  `material::Paint`, a `material::Material` recipe, or a
- *  `SurfacePaint`, which is the one value all of those convert into and
- *  the type a component declares. */
+ *  `material::Paint` or a `material::Material` recipe. A `Fill` is the
+ *  one value the others but the animatable convert into, and the type a
+ *  component declares. */
 template <class Derived>
 class PaintVerbs {
  public:
@@ -57,17 +56,12 @@ class PaintVerbs {
   Derived& fill(material::Material recipe, PaintBox box = PaintBox::Element) {
     return fill(material::Paint::recipe(std::move(recipe)), box);
   }
-  /** A surface value supplied by component properties. Exact-type
-   *  deduction keeps ordinary fill and material arguments on their own
-   *  overloads. A box other than `Element` places a paint's unit square,
-   *  so a surface with no paint to place — a colour, the ink in force, a
-   *  custom property, a bound fill — is applied whole. A text unit is
-   *  refused and said once, whatever the surface. */
-  template <typename P>
-    requires std::same_as<std::remove_cvref_t<P>, SurfacePaint>
-  Derived& fill(P&& paint, PaintBox box = PaintBox::Element) {
-    return fillSurface(paint, box);
-  }
+  /** A FILL, as a component property hands it on: a paint in it is
+   *  placed over @p box exactly as `fill(material::Paint, box)` places
+   *  it, and a colour, the ink in force or a custom property — which have
+   *  no unit square to place — is applied whole. A text unit is refused
+   *  and said once, whatever the fill. */
+  Derived& fill(Fill fill, PaintBox box = PaintBox::Element);
 
   /** NEITHER A TILE NOR A PATTERN IS A FILL: a pattern's bake is its
    *  identity, and one minted inside a describe has no bake in it and
@@ -83,7 +77,6 @@ class PaintVerbs {
   }
 
  private:
-  Derived& fillSurface(const SurfacePaint& paint, PaintBox box);
   Derived& self() { return static_cast<Derived&>(*this); }
   detail::ElementNode* declarations() {
     return detail::NodeAccess::declarations(self());

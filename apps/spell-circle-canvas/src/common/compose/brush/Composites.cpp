@@ -22,6 +22,7 @@
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilgeometry/path/Contour.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <any>

@@ -10,7 +10,6 @@
 
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
@@ -40,7 +39,7 @@ struct Reading {
   /** A mark standing BEFORE the name, for a row that is also a key —
    *  a tier, a channel, a series on a chart beside it. Empty (default)
    *  draws none and spends no room. */
-  compose::SurfacePaint swatch;
+  compose::Fill swatch;
   /** THE COLOUR THIS ROW IS SET IN, over the theme's own: a foot row in
    *  cinnabar, a reading in the colour of the thing it reads. Unset is
    *  the theme's, which is the common case. WHICH rows are lit is the
@@ -94,7 +93,7 @@ struct Readout {
 struct Row {
   std::vector<compose::Utf8> cells;
   /** Before the first column, for a table that is also a key. */
-  compose::SurfacePaint swatch;
+  compose::Fill swatch;
   /** Names the row, so a query can read it back and a reveal can address
    *  it one row at a time. Empty keys nothing. */
   std::string key;
@@ -172,11 +171,11 @@ struct Bars {
   /** Between rows; unset is the theme's row gap. */
   std::optional<float> rowGap;
   /** The bar itself; unset is the theme's figure colour. */
-  std::optional<compose::SurfacePaint> bar;
+  std::optional<compose::Fill> bar;
   /** The track behind it — the room the longest bar takes, so a short bar
    *  reads against the extent. Unset is the theme's figure dimmed;
    *  `Fill::none()` draws no track. */
-  std::optional<compose::SurfacePaint> rest;
+  std::optional<compose::Fill> rest;
   /** ONE INK PER ROW, in the values' own order, over the bar's paint and
    *  the row's two lines — the row that IS the reading lit, the rest
    *  quiet. Empty leaves every row as the props say. */

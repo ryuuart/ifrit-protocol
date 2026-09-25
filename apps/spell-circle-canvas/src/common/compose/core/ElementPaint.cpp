@@ -27,6 +27,10 @@ void warnFillTakesNoTextUnit() {
 
 template <class Derived>
 Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
+  // A paint written as a fill is the paint: it takes the paint's own
+  // route, so a live or geometry-dependent one is resolved with the frame.
+  if (const Fill* plain = f.constant(); plain && plain->kind == Fill::Kind::Paint)
+    return fill(plain->paint(), PaintBox::Element);
   detail::ElementNode* node = declarations();
   node->fields.fill() = std::move(f);
   // The box is part of the fill's statement, so a fill with no picture to
@@ -89,14 +93,11 @@ Derived& PaintVerbs<Derived>::fill(material::Paint m, PaintBox box) {
 }
 
 template <class Derived>
-Derived& PaintVerbs<Derived>::fillSurface(const SurfacePaint& paint,
-                                          PaintBox box) {
-  if (box != PaintBox::Element && !paint.none())
-    if (std::optional<material::Paint> placed = paint.collapsedPaint())
-      return fill(std::move(*placed), box);
+Derived& PaintVerbs<Derived>::fill(Fill fill, PaintBox box) {
+  if (fill.kind == Fill::Kind::Paint)
+    return this->fill(fill.paint(), box);
   if (detail::textUnitOf(box)) warnFillTakesNoTextUnit();
-  paint.apply(self());
-  return self();
+  return this->fill(motion::Animatable<Fill>{std::move(fill)});
 }
 
 template class PaintVerbs<Element>;

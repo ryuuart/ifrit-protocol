@@ -193,8 +193,8 @@ exception through it would leave open.
 
 * `Bindings.h` — `color`
 * `skia/Values.h` — `point`, `rect`
-* `compose/Convert.h` — `dimension`, `fill`, `surfacePaint`, `alignment`,
-  `justification`, `shape`, `elements`
+* `compose/Convert.h` — `dimension`, `fill`, `alignment`, `justification`,
+  `shape`, `elements`
 * `compose/Kit.h` — `converted`, `record`, `field`, `wellFields`,
   `contentType`
 * `material/Convert.h` — `materialColor`
@@ -224,21 +224,21 @@ verbs on it. `bindColor` registers it ahead of every other library, because
 a signature that names a colour is written when its function is registered
 and reads the class's own name only once the class exists.
 
-Three named unions describe what a colouring parameter accepts, and each
-parameter takes the widest its slot can honour: a colour through `color`, a
-flat mark through `fill`, and anything that colours a surface through
-`surfacePaint`. `fill` collapses a static paint onto the one comparable Fill
-a flat mark holds and refuses a live or geometry-dependent one, naming the
-verb that takes it — which is why `Element.textStroke`, whose outline is one
-such Fill, is declared as a flat mark while `Element.ink` is declared as
-a surface. A recipe instance converts to a paint wherever Python takes a
+Two named unions describe what a colouring parameter accepts, and each
+parameter takes the widest its slot can honour: a colour through `color`, and
+anything that colours a surface through `fill` — a colour, a paint, a
+material, a custom-property reference or the ink in force — with
+`motionFill` adding a fill that eases or is driven live where the verb takes
+one. A fill that needs a frame is resolved where it paints; a slot measured
+without one, such as `Element.textStroke`'s outline, reads such a paint as
+the ink in force. A recipe instance converts to a paint wherever Python takes a
 paint; the native constructor stays spelled, because a C++ overload set
 holding both would be ambiguous.
 
 A slot that can hold only part of the union it is declared with says so when
 it is given the rest, rather than painting something nobody asked for.
-`Element.ink` stores one paint resolved without the tree, so a bound fill
-raises there and `None` is how a paint is cleared; a custom-property
+`Element.ink` stores one paint resolved without the tree, so the ink in
+force raises there and `None` is how a paint is cleared; a custom-property
 reference is the ink lane's own spelling and sets the ink from that
 property. Every other surface verb takes the whole set. A paired
 `kit.line` is the one place a value is narrowed silently, and the narrowing

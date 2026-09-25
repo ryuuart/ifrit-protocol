@@ -21,7 +21,6 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Frame.h>
 
@@ -129,7 +128,7 @@ inline Element ring(SkPoint centre, float radius, Decoration pen) {
 
 /** ONE FILLED CIRCLE of @p radius about @p centre: a pole, a star, a
  *  crossing, a marked point of a construction. */
-inline Element dot(SkPoint centre, float radius, SurfacePaint fill) {
+inline Element dot(SkPoint centre, float radius, Fill fill) {
   return disc(centre, radius)
       .shape(geometry::shapes::circle())
       .fill(std::move(fill));
@@ -187,7 +186,7 @@ struct Line {
    *  material reading the clock — has no colour to give a rail measured
    *  without a frame, and the pair rules in the ink in force. An
    *  unpaired rule is a node's own fill and takes the whole set. */
-  SurfacePaint fill;
+  Fill fill;
   /** Held off at BOTH ends, px — the separator that stops short of the
    *  edges it runs between. */
   float inset = 0.0f;
@@ -207,7 +206,7 @@ struct Line {
     float gap = 4.0f;
     /** Empty (default) is the first rail's own, and so is a paint this
      *  rail cannot collapse to one comparable fill. */
-    SurfacePaint fill;
+    Fill fill;
     /** Dash on/off intervals, px; empty is solid. */
     std::vector<SkScalar> dash;
   };
@@ -240,7 +239,7 @@ struct Ladder {
    *  runs them down and ranges them across, which is the column rhythm. */
   bool column = false;
   /** Empty (default) is `Fill::currentInk()`, as a line's is. */
-  SurfacePaint fill;
+  Fill fill;
 };
 
 /** THE LADDER, as deep as `count · pitch`. */

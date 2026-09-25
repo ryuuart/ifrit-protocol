@@ -33,7 +33,7 @@ compose::Element scrollbar(Scrollbar bar) {
   if (bar.leading) shell.children({std::move(*bar.leading)});
 
   Element rail = box().flexGrow(1);
-  bar.track.value_or(Fill::color(look.palette.cellGround)).apply(rail);
+  rail.fill(bar.track.value_or(Fill::color(look.palette.cellGround)));
 
   const Thumb reading = bar.scrolled.thumb();
   Dimension length = bar.thumbLength;

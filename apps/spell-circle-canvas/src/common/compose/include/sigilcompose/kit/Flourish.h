@@ -14,9 +14,11 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilcompose/Compose.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <string>
 #include <vector>
@@ -62,10 +64,10 @@ inline Fill flourishParchment(const FlourishStyle& s, float freq = 0.04f) {
   sk_sp<SkShader> muted = SkShaders::Blend(
       SkBlendMode::kLuminosity,
       SkShaders::Color(SkColorSetARGB(255, 128, 128, 128)), std::move(noise));
-  return Fill::shader(SkShaders::Blend(
+  return Fill{material::skia::paint(SkShaders::Blend(
       SkBlendMode::kSoftLight,
       SkShaders::Color(material::skia::toSkColor(s.parchment).toSkColor()),
-      std::move(muted)));
+      std::move(muted)))};
 }
 
 // ---------------------------------------------------------------------------

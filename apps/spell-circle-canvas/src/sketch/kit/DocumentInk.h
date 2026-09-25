@@ -14,7 +14,7 @@ inline void documentInk(compose::Text& line, const compose::Fill& ink) {
     line.ink(compose::VarRef{ink.varId});
     return;
   }
-  if (ink.kind == compose::Fill::Kind::Shader) {
+  if (ink.kind == compose::Fill::Kind::Paint) {
     line.span(weave::Selector{}, compose::SpanStyle().ink(ink));
   } else {
     line.ink(ink.kind == compose::Fill::Kind::Color ? ink.colorValue

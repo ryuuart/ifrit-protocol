@@ -14,7 +14,7 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/LineSetting.h>
 #include <sigilcompose/core/PaintBox.h>
-#include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/layout/ParagraphBlock.h>

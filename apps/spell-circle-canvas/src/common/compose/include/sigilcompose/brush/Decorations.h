@@ -79,7 +79,7 @@ struct PathFormat {
   /** THE INK IN FORCE UNLESS ONE IS NAMED — a stroke that says no colour
    *  is painted in the colour the nearest `Element::ink` set, exactly as a
    *  text leaf that names no style is set in it. */
-  SurfacePaint strokeFill = Fill::currentInk();
+  Fill strokeFill = Fill::currentInk();
   Align align = Align::Center;
 
   /** Dash on/off intervals in px (empty → solid). */
@@ -169,7 +169,7 @@ struct PathFormat {
   bool isRunning() const {
     return (trimPhase && trimPhase->isRunning()) ||
            (dashPhaseBinding && dashPhaseBinding->isRunning()) ||
-           strokeFill.isRunning();
+           strokeFill.paint().isRunning();
   }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value()
@@ -182,7 +182,7 @@ struct PathFormat {
 /** A solid stroke of the node outline (dash/stamp via PathFormat).
  *  `align` positions it: Center (default) straddles the outline, Inner
  *  keeps it inside the silhouette, Outer outside (the keyline). */
-inline PathFormat stroke(float width, SurfacePaint fill,
+inline PathFormat stroke(float width, Fill fill,
                          PathFormat::Align align = PathFormat::Align::Center) {
   PathFormat f;
   f.width = width;

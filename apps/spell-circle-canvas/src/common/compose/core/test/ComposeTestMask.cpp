@@ -1,3 +1,4 @@
+#include <sigilmaterial/skia/Paint.h>
 #include "support/CoreTestSupport.h"
 
 namespace {

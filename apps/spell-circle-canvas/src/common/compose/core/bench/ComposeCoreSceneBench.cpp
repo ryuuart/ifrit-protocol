@@ -12,6 +12,7 @@
 #include <include/core/SkString.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilimage/asset/ImageAsset.h>
 
 #include <memory>
@@ -144,7 +145,7 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
   host.composer.render(box().children({box()
                                            .width(960)
                                            .height(640)
-                                           .fill(Fill::shader(field))
+                                           .fill(Fill{material::skia::paint(field)})
                                            .cache(Cache::None)}));
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }

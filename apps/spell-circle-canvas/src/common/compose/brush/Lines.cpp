@@ -16,6 +16,8 @@
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilgeometry/path/StrokeSkia.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
 #include <cmath>
@@ -269,11 +271,11 @@ float Line::trimFor(Marker marker) const {
 void Line::applyFill(SkPaint& p, const PaintContext& ctx) const {
   // A fill written as the ink in force, or as a custom property, takes
   // its colour from the node the line is painted under.
-  const Fill resolved = resolveRef(fill, ctx);
+  const Fill resolved = resolveFill(fill, ctx);
   if (resolved.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
-  else if (resolved.kind == Fill::Kind::Shader)
-    p.setShader(resolved.shaderValue);
+  else if (resolved.kind == Fill::Kind::Paint)
+    p.setShader(material::skia::staticShader(resolved.paint()));
 }
 
 void Line::drawMarker(SkCanvas& canvas, const SkPaint& head, Marker marker,
@@ -362,11 +364,11 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setStrokeWidth(rail.width);
     p.setStrokeCap(geometry::path::toSk(rail.cap));
     p.setStrokeJoin(geometry::path::toSk(rail.join));
-    const Fill railFill = resolveRef(rail.fill, ctx);
+    const Fill railFill = resolveFill(rail.fill, ctx);
     if (railFill.kind == Fill::Kind::Color)
       p.setColor4f(material::skia::toSkColor(railFill.colorValue), nullptr);
-    else if (railFill.kind == Fill::Kind::Shader)
-      p.setShader(railFill.shaderValue);
+    else if (railFill.kind == Fill::Kind::Paint)
+      p.setShader(material::skia::staticShader(railFill.paint()));
     canvas.drawPath(run, p);
   }
 }
@@ -383,11 +385,11 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (pitchPx <= 0.5f) return;
   SkPaint p;
   p.setAntiAlias(true);
-  const Fill hatchFill = resolveRef(strokeFill, ctx);
+  const Fill hatchFill = resolveFill(strokeFill, ctx);
   if (hatchFill.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(hatchFill.colorValue), nullptr);
-  else if (hatchFill.kind == Fill::Kind::Shader)
-    p.setShader(hatchFill.shaderValue);
+  else if (hatchFill.kind == Fill::Kind::Paint)
+    p.setShader(material::skia::staticShader(hatchFill.paint()));
   c.save();
   c.clipPath(ctx.outline, true);
   auto pass = [&](float deg) {
@@ -417,11 +419,11 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setAntiAlias(true);
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(width);
-  const Fill ringFill = resolveRef(strokeFill, ctx);
+  const Fill ringFill = resolveFill(strokeFill, ctx);
   if (ringFill.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(ringFill.colorValue), nullptr);
-  else if (ringFill.kind == Fill::Kind::Shader)
-    p.setShader(ringFill.shaderValue);
+  else if (ringFill.kind == Fill::Kind::Paint)
+    p.setShader(material::skia::staticShader(ringFill.paint()));
 
   c.save();
   c.clipPath(ctx.outline, true);

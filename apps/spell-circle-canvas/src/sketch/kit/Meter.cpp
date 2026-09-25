@@ -20,13 +20,13 @@ namespace document = compose::document;
 compose::Element meter(const Meter& bar) {
   const Theme& look = theme();
   const float filled = std::clamp(bar.fraction, 0.0f, 1.0f);
-  const compose::SurfacePaint trackPaint =
+  const compose::Fill trackPaint =
       bar.track.value_or(Fill::color(look.palette.cellGround));
-  const compose::SurfacePaint barPaint =
+  const compose::Fill barPaint =
       bar.bar.value_or(Fill::color(look.palette.figure));
 
   Element rail = box();
-  trackPaint.apply(rail);
+  rail.fill(trackPaint);
   rail.overflow(compose::Overflow::Clip);
   if (bar.width.unit != Dimension::Unit::Auto) rail.width(bar.width);
   rail.height(bar.height.value_or(Dimension(look.spacing.barHeight)));
@@ -39,7 +39,7 @@ compose::Element meter(const Meter& bar) {
     // Scaled from the left edge rather than sized: the bed keeps its
     // recording and only the transform moves.
     Element run = box().absolute().inset(bar.inset.value_or(0.0f));
-    barPaint.apply(run);
+    run.fill(barPaint);
     run.transformOrigin(compose::pct(0), compose::pct(50)).scaleX(*bar.level);
     if (bar.corners > 0) run.borderRadius(Corners{bar.corners});
     rail.children({std::move(run)});
@@ -50,7 +50,7 @@ compose::Element meter(const Meter& bar) {
     // half of them.
     Element run =
         box().width(compose::pct(filled * 100)).height(compose::pct(100));
-    barPaint.apply(run);
+    run.fill(barPaint);
     run.alignSelf(Align::Stretch);
     if (bar.corners > 0) run.borderRadius(Corners{bar.corners});
     rail.children({std::move(run)});
@@ -83,10 +83,10 @@ compose::Element gauge(const Gauge& dial) {
   // `thickness` px on a dial of `diameter` px leaves this much of it.
   const float inner =
       std::clamp(1.0f - (2.0f * dial.thickness) / diameter, 0.0f, 0.999f);
-  const auto ring = [&](float sweep, const compose::SurfacePaint& paint) {
+  const auto ring = [&](float sweep, const compose::Fill& paint) {
     Element band = box().absolute().inset(0).shape(
         geometry::shapes::sector(dial.startDeg, sweep, inner));
-    paint.apply(band);
+    band.fill(paint);
     return band;
   };
 

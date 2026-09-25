@@ -290,7 +290,7 @@ sketch must not take a live-reload host down.
   already-rendered layer
 - [Ramp](value:sigil::material::Ramp) — the stops as one value, for the
   gradients above
-- [SurfacePaint](value:sigil::compose::SurfacePaint) — the colouring
-  value this is one branch of
+- [Fill](value:sigil::compose::Fill) — the colouring value a paint
+  converts to, beside the cascade's references
 - The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
   the lattice whole, and which Paint is which

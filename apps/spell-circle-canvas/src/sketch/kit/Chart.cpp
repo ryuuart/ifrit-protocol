@@ -6,6 +6,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Theme.h>
 

@@ -1,4 +1,5 @@
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
@@ -84,11 +85,13 @@ weave::TextStyle Theme::style(const Register& line,
   switch (ink.kind) {
     case compose::Fill::Kind::Color:
       return style(line, ink.colorValue);
-    case compose::Fill::Kind::Shader: {
+    case compose::Fill::Kind::Paint: {
+      if (ink.paint().isSolid())
+        return style(line, ink.paint().solidColor());
       // The glyphs are painted through the shader itself; the colour
       // under it only has to be opaque for the shader to show.
       weave::TextStyle word = style(line, SkColors::kWhite);
-      word.paint.foreground.setShader(ink.shaderValue);
+      word.paint.foreground.setShader(material::skia::staticShader(ink.paint()));
       return word;
     }
     case compose::Fill::Kind::None:

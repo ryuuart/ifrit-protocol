@@ -11,8 +11,8 @@ namespace sigil::compose::kit {
 
 Element line(const Line& mark) {
   const bool open = mark.length.unit == Dimension::Unit::Auto;
-  const SurfacePaint ink =
-      mark.fill.none() ? SurfacePaint{Fill::currentInk()} : mark.fill;
+  const Fill ink =
+      mark.fill.kind == Fill::Kind::None ? Fill::currentInk() : mark.fill;
   // A PAIR IS ONE NODE, NOT TWO LINES. Its rails share one route, so the
   // companion's dashes are measured along the same curve the heavy rail is
   // and cannot drift off it; the node is as deep as both rails and the gap
@@ -48,7 +48,11 @@ Element line(const Line& mark) {
   // or geometry-dependent one has no colour to give a rail that is
   // measured without a frame, so the pair rules in the ink in force
   // rather than in the black an empty fill would leave it.
-  const Fill railInk = ink.collapsedFill().value_or(Fill::currentInk());
+  const auto collapsed = [](const Fill& fill, const Fill& otherwise) {
+    if (fill.kind != Fill::Kind::Paint) return fill;
+    return fill.needsFrame() ? otherwise : toFill(fill.paint());
+  };
+  const Fill railInk = collapsed(ink, Fill::currentInk());
   return std::move(
       rule.fill(Fill::none())
           .shape(keyedShape(std::tuple{column, across},
@@ -65,9 +69,9 @@ Element line(const Line& mark) {
                   {.across = 0.0f, .width = mark.thickness, .fill = railInk},
                   {.across = column ? off : -off,
                    .width = second.thickness,
-                   .fill = second.fill.none()
+                   .fill = second.fill.kind == Fill::Kind::None
                                ? railInk
-                               : second.fill.collapsedFill().value_or(railInk),
+                               : collapsed(second.fill, railInk),
                    .dash = second.dash}}}));
 }
 

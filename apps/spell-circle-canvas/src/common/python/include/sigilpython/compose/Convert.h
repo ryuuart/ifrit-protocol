@@ -16,12 +16,10 @@ namespace sigil::python {
 /** A length read from @p value: a number is pixels, and a string is
  *  "auto", a percentage, or a number with its unit after it. */
 compose::Dimension dimension(pybind11::handle value);
-/** A fill read from @p value: None is no fill, a shader is a shader, a
- *  token is the variable it names, and anything else is a colour. */
+/** A fill read from @p value: None is no fill, a paint or a material is
+ *  that paint, a token is the variable it names, and anything else is a
+ *  colour. */
 compose::Fill fill(pybind11::handle value);
-/** What a node's surface is painted with, read from @p value: a fill,
- *  an animatable one, or a material paint. */
-compose::SurfacePaint surfacePaint(pybind11::handle value);
 /** A cross-axis alignment read from @p value's name. */
 compose::Align alignment(pybind11::handle value);
 /** A main-axis justification read from @p value's name. */

@@ -26,6 +26,7 @@
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/sdf/Sdf.h>
+#include <sigilmaterial/skia/Paint.h>
 #ifdef SIGILMATERIAL_ENABLE_OCIO
 #include <sigilmaterial/ocio/Ocio.h>
 #endif

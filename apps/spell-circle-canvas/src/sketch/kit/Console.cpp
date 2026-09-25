@@ -33,10 +33,7 @@ compose::Element console(const Console& panel) {
                  .gap = look.spacing.labelGap,
                  .border = border,
                  .divider = border}});
-  // The ground goes on after the primitive rather than through it,
-  // because the primitive takes a Fill and a ground may be a material.
-  panel.ground.value_or(compose::Fill::color(look.palette.cellGround))
-      .apply(plate);
+  plate.fill(panel.ground.value_or(compose::Fill::color(look.palette.cellGround)));
   return plate;
 }
 

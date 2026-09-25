@@ -9,7 +9,6 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/kit/Theme.h>
@@ -40,9 +39,9 @@ struct Meter {
   /** Unset is the theme's bar height. */
   std::optional<compose::Dimension> height;
   /** The empty part; unset is the theme's cell ground. */
-  std::optional<compose::SurfacePaint> track;
+  std::optional<compose::Fill> track;
   /** The filled part; unset is the theme's figure colour. */
-  std::optional<compose::SurfacePaint> bar;
+  std::optional<compose::Fill> bar;
   float corners = 0;
   /** ONE HAIRLINE ROUND THE RAIL, over its track — the bezel a
    *  heads-up gauge is set in, where the same reading on a sheet is a
@@ -81,9 +80,9 @@ struct Gauge {
   float startDeg = 135;
   float sweepDeg = 270;
   /** The unswept part; unset is the theme's cell ground. */
-  std::optional<compose::SurfacePaint> track;
+  std::optional<compose::Fill> track;
   /** The swept part; unset is the theme's figure colour. */
-  std::optional<compose::SurfacePaint> bar;
+  std::optional<compose::Fill> bar;
   /** Inside the dial, in the theme's figure colour; empty draws none. */
   compose::Utf8 reading;
 };

@@ -23,8 +23,8 @@ same value through `decorations::paintOn`.
 ## Anatomy
 
 `PathFormat::width` and `PathFormat::strokeFill` are the mark.
-`PathFormat::strokeFill` is a `SurfacePaint`, so the stroke takes
-everything a fill does — including `Fill::currentInk()`, which is its
+`PathFormat::strokeFill` is a `Fill`, so the stroke takes
+everything a fill does — a colour, a paint, a material — including `Fill::currentInk()`, which is its
 default: a stroke that names no colour is painted in the ink in force,
 and a recoloured ancestor recolours it.
 
@@ -118,7 +118,7 @@ the head of a self-drawing line.
 
 - `brush/Decorations.h` — the header: `PathFormat`, `stroke`, `Shadow`,
   `shadow`, `Wash`, `Slice`, `ContourWalk`, `PathSample`, `paintOn`
-- [SurfacePaint](value:sigil::compose::SurfacePaint) — what
+- [Fill](value:sigil::compose::Fill) — what
   `PathFormat::strokeFill` takes
 - [Shadow](value:sigil::compose::Shadow) — the other value decoration
 - [Corners](value:sigil::compose::Corners) — the outline a box stroke

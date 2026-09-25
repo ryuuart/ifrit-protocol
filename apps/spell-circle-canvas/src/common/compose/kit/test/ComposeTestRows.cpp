@@ -145,7 +145,7 @@ TEST(KitRows, ARowIsItsOwnRunOfCellsSoAShortRowStaysShort) {
   const std::vector<sigil::compose::Utf8> second = {u8"beta", u8"12", u8"held"};
   const std::vector<std::span<const sigil::compose::Utf8>> rows = {first,
                                                                    second};
-  const std::vector<SurfacePaint> swatches = {SurfacePaint{}, green()};
+  const std::vector<Fill> swatches = {Fill{}, green()};
   kit::Table how{.columns = {{.width = 120}, {.width = 60, .figure = true}},
                  .gap = 10,
                  .rowGap = 5,
@@ -207,13 +207,13 @@ TEST(KitRows, ATableHeadsItsColumnsInTheSectionClassAndRulesUnderThem) {
 
 TEST(KitRows, SwatchesReserveOneColumnAcrossTheHeadAndEveryRow) {
   const Utf8 cells[] = {"marked", "12", "empty", "34", "missing", "56"};
-  const SurfacePaint swatches[] = {red(), Fill::none()};
+  const Fill swatches[] = {red(), Fill::none()};
   for (const bool marked : {false, true}) {
     kit::Table how{.columns = {{.head = "NAME", .width = 120},
                                {.head = "VALUE", .width = 60}},
                    .gap = 10,
-                   .swatches = marked ? std::span<const SurfacePaint>(swatches)
-                                      : std::span<const SurfacePaint>{},
+                   .swatches = marked ? std::span<const Fill>(swatches)
+                                      : std::span<const Fill>{},
                    .swatchSide = 12};
     how.headLine = [](const Utf8& words) {
       return text(words).key(words == "NAME" ? "nameHead" : "valueHead");

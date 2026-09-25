@@ -88,7 +88,7 @@ compose::Element table(std::vector<Row> rows, const Table& how) {
   // The rows are held by value for the length of this call, so the spans
   // the arrangement reads stand on them.
   std::vector<std::span<const Utf8>> cells;
-  std::vector<compose::SurfacePaint> swatches;
+  std::vector<compose::Fill> swatches;
   std::vector<std::string> keys;
   std::vector<std::optional<material::Color>> inks;
   cells.reserve(rows.size());

@@ -3,6 +3,7 @@
 // the corner shapes a silhouette is cut to, and how far a ribbon
 // reaches when its profile rather than its own defaults decides.
 
+#include <sigilmaterial/skia/Paint.h>
 #include <utility>
 
 #include "support/BrushTestSupport.h"
@@ -188,7 +189,7 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
     Fill f = resolveFill(m, ctx);
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
     SkPaint p;
-    p.setShader(f.shaderValue);
+    p.setShader(material::skia::staticShader(f.paint()));
     s->getCanvas()->drawPaint(p);
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));

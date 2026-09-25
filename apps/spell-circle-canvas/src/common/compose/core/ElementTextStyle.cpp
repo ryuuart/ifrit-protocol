@@ -106,8 +106,7 @@ Derived& TextStyleVerbs<Derived>::maxTextLines(int lines) {
 }
 
 template <class Derived>
-Derived& TextStyleVerbs<Derived>::textStroke(float width,
-                                             SurfacePaint paint) {
+Derived& TextStyleVerbs<Derived>::textStroke(float width, Fill paint) {
   detail::TextData& text = declarations()->textData.ensure();
   text.options.set |= detail::TextOptions::kTextStroke;
   text.hasTextStroke = width > 0.0f;
@@ -117,7 +116,9 @@ Derived& TextStyleVerbs<Derived>::textStroke(float width,
   // has no single colour to give a slot that is measured without a
   // frame, and the glyphs are outlined in the ink in force rather than
   // in the black an empty fill would leave them.
-  text.textStrokeFill = paint.collapsedFill().value_or(Fill::currentInk());
+  text.textStrokeFill = paint.kind != Fill::Kind::Paint ? std::move(paint)
+                        : paint.needsFrame() ? Fill::currentInk()
+                                             : toFill(paint.paint());
   return self();
 }
 

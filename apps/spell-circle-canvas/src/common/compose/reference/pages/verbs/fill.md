@@ -28,31 +28,29 @@ Element& fill(motion::Animatable<Fill> colour);
 Element& fill(material::Paint paint, PaintBox box = PaintBox::Element);
 Element& fill(material::Material recipe, PaintBox box = PaintBox::Element);
 Element& fill(material::Color colour);
-template <typename P>                               // a SurfacePaint
-Element& fill(P&& surface, PaintBox box = PaintBox::Element);
+Element& fill(Fill fill, PaintBox box = PaintBox::Element);
 ```
 
 ```python
-def fill(self, value: SurfacePaintLike, box: PaintBox = ...) -> Element: ...
+def fill(self, value: MotionFillLike, box: PaintBox = ...) -> Element: ...
 ```
 
 ## Parameters
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `Fill` | Nothing, a colour, a shader, or a reference the tree resolves at paint. | [`Fill`](../types/Fill.md) |
+| `Fill` | Nothing, a colour, a material paint, or a reference the tree resolves at paint — what a component property hands on. A paint in it is placed over the box as the paint form below places it. | [`Fill`](../types/Fill.md) |
 | `motion::Animatable<Fill>` | The same, at rest, as a described motion, or as a live value somebody writes. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
 | `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::Paint`](../../VALUES.md#the-surface) |
 | `material::Material` | A recipe, painted as `material::Paint::recipe` of it. | any recipe SigilMaterial builds: a field, a mount board, a signed-distance surface |
 | `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
-| `SurfacePaint` | A component's surface property: any of the above, or empty. | [`SurfacePaint`](../types/SurfacePaint.md) |
 | `PaintBox` | The rectangle the paint's unit square is stretched over. | [`PaintBox`](../types/PaintBox.md): `Element`, `Padding`, `Content`, `Canvas` |
 
-In Python the parameter is `SurfacePaintLike`, which additionally
+In Python the parameter is `MotionFillLike`, which additionally
 accepts a `"#rrggbb"` or `"#rrggbbaa"` string, a three- or four-number
 sequence, `material.Color`, `material.Paint`, `material.Material`,
-`compose.SurfacePaint`, a custom property reference, a bound or
-transitioned fill, and `None` for no fill at all.
+a custom property reference, a bound or transitioned fill, and `None`
+for no fill at all.
 
 ## Description
 

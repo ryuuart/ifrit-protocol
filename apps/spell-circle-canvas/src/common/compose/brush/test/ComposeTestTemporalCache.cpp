@@ -3,6 +3,7 @@
 // segment repaints nothing.
 
 #include "support/BrushTestSupport.h"
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/ease/Ease.h>
 
 namespace {

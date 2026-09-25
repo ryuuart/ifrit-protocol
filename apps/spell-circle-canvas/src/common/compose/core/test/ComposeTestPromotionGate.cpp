@@ -4,6 +4,7 @@
 // the two things that send a promoted node back for a rebake — the clip
 // that cut it opening, and its matrix moving inside its own rect.
 
+#include <sigilmaterial/skia/Paint.h>
 #include <vector>
 
 #include "support/PromotionTestSupport.h"

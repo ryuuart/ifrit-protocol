@@ -8,6 +8,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Graphics.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <src/core/SkScopeExit.h>
 

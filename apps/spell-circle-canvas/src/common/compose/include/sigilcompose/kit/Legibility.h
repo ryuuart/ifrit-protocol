@@ -38,6 +38,7 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilgeometry/path/StrokeSkia.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilweave/style/Type.h>
 
 #include <initializer_list>

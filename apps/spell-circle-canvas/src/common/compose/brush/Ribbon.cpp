@@ -12,6 +12,8 @@
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilgeometry/path/Band.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
 
@@ -52,11 +54,11 @@ void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
   // body a stroke's does, so a recipe means the same thing on a band as
   // on the outline beside it — unit square, node's box, one clock.
   const Fill band =
-      fillMaterial ? resolveFill(*fillMaterial, ctx) : resolveRef(fill, ctx);
+      fillMaterial ? resolveFill(*fillMaterial, ctx) : resolveFill(fill, ctx);
   if (band.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(band.colorValue), nullptr);
-  else if (band.kind == Fill::Kind::Shader)
-    p.setShader(band.shaderValue);
+  else if (band.kind == Fill::Kind::Paint)
+    p.setShader(material::skia::staticShader(band.paint()));
   c.drawPath(region, p);
 }
 

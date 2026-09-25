@@ -3,6 +3,7 @@
 // along its own spine, and the comparable spine that lets the node
 // carrying one prune.
 
+#include <sigilmaterial/skia/Paint.h>
 #include "support/BrushTestSupport.h"
 
 namespace {

@@ -4,6 +4,7 @@
 // transform. The flag rides the prune signature and the node's world matrix
 // joins the resolve digest.
 
+#include <sigilmaterial/skia/Paint.h>
 #include "support/CoreTestSupport.h"
 
 namespace {
@@ -156,10 +157,10 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   PaintContext bare;
   bare.size = {120, 120};
   const Fill f = resolveFill(canvasLight(true, {0, 0}), bare);
-  ASSERT_EQ(f.kind, Fill::Kind::Shader);
+  ASSERT_EQ(f.kind, Fill::Kind::Paint);
   Host raw;
   SkPaint p;
-  p.setShader(f.shaderValue);
+  p.setShader(material::skia::staticShader(f.paint()));
   raw.surface->getCanvas()->clear(SK_ColorBLACK);
   raw.surface->getCanvas()->save();
   raw.surface->getCanvas()->translate(40, 40);

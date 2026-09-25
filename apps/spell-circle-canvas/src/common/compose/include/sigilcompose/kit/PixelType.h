@@ -66,6 +66,7 @@
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <array>

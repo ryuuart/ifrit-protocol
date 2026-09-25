@@ -20,11 +20,6 @@ translation unit links.
 **Kernel — `core/`.** A user who reads these headers has a complete and
 sound model; nothing below them changes kernel semantics.
 
-- `core/SurfacePaint.h` — `SurfacePaint`, a component prop accepting a
-  Fill, an animatable Fill or a material. Pass it to Element's fill verb.
-  Empty paint preserves the element's fill; bindings retain their source
-  identity and materials retain their frame-dependent behavior. Neutral
-  wells and sheets accept this same value as their ground.
 - `core/PaintBox.h` — `PaintBox`, the rectangle a fill's or an ink's
   paint is stretched over: the element's own box, its padding or content
   box, the subtree's, the canvas, or each unit of a passage.

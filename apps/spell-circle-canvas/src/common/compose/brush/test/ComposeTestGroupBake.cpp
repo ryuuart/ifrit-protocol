@@ -2,6 +2,7 @@
 // what it charges, when it drops, what its memo cannot see, and the area it
 // bakes wherever the node sits.
 
+#include <sigilmaterial/skia/Paint.h>
 #include <utility>
 
 #include "support/BrushTestSupport.h"

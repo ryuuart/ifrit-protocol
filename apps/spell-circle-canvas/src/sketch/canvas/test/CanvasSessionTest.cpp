@@ -8,6 +8,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>

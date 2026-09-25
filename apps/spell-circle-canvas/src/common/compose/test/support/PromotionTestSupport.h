@@ -9,6 +9,7 @@
 // differencing it, so the pair of runs is the fixture rather than
 // anything a single case sets up.
 
+#include <sigilmaterial/skia/Paint.h>
 #include <functional>
 #include <vector>
 

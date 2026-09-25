@@ -11,7 +11,6 @@
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>
@@ -96,7 +95,7 @@ struct Page {
    *  colour — a gradient behind the whole sheet, a material under it —
    *  names that here, because a palette holds colours and neither of
    *  those is one. */
-  std::optional<compose::SurfacePaint> ground;
+  std::optional<compose::Fill> ground;
   /** The prefix the parts are keyed under, so a query can read the page
    *  back; empty keys nothing. */
   std::string key;

@@ -220,7 +220,7 @@ bool paintPromotedBake(PaintPass& pass) {
         inst.textureBakeClip = pass.deviceClip();
         inst.textureBakeMatrix = totalM;
         inst.bakedLiveShader = inst.hasPendingLiveFill
-                                   ? inst.pendingLiveFill.shaderValue
+                                   ? material::skia::staticShader(inst.pendingLiveFill.paint())
                                    : nullptr;
         inst.bakedScalars = scalarsNow;
         inst.paintDirty = false;

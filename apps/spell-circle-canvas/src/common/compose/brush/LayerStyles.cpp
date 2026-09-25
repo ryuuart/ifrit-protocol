@@ -15,6 +15,8 @@
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/TextPaint.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
 #include <cmath>

@@ -10,6 +10,7 @@
 
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkMatrix.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilweave/choreograph/Choreograph.h>  // forEachPlacedGlyph
 #include <sigilweave/fonts/Shaper.h>             // makeFont — the cap height
 
@@ -116,24 +117,25 @@ void detail::inkByUnit(const sigil::weave::ParagraphLayout& layout,
         if (ordinal >= structure.glyphs.size()) return;
         uint32_t whose = kNone;
         const sigil::weave::PaintStyle* base = nullptr;
-        const sk_sp<SkShader>* unitSquare = nullptr;
+        sk_sp<SkShader> unitSquare;
         sigil::weave::Unit unit = ink.unit;
         if (ink.unitSquare && ink.passage) {
           whose = 0;
           base = &*ink.passage;
-          unitSquare = &ink.unitSquare;
+          unitSquare = ink.unitSquare;
         } else if (ink.spanUnits && spans) {
           const SkShader* painted = placed.paint->foreground.getShader();
           for (size_t index = spans->size(); painted && index-- > 0;) {
             const SpanRestyle& span = (*spans)[index];
             const std::optional<sigil::weave::Unit> spanUnit =
                 textUnitOf(span.inkBox);
-            if (!spanUnit || !span.inkShader ||
-                span.inkShader->shaderValue.get() != painted)
-              continue;
+            if (!spanUnit || !span.inkShader) continue;
+            sk_sp<SkShader> spanShader =
+                material::skia::staticShader(span.inkShader->paint());
+            if (spanShader.get() != painted) continue;
             whose = (uint32_t)index + 1;
             base = placed.paint;
-            unitSquare = &span.inkShader->shaderValue;
+            unitSquare = std::move(spanShader);
             unit = *spanUnit;
             break;
           }
@@ -144,7 +146,7 @@ void detail::inkByUnit(const sigil::weave::ParagraphLayout& layout,
         }
         const uint32_t unitIndex = structure.unitOf[(size_t)unit][ordinal];
         if (whose != openInk || unitIndex != openUnit) {
-          groups.push_back({base, *unitSquare});
+          groups.push_back({base, std::move(unitSquare)});
           openInk = whose;
           openUnit = unitIndex;
         }

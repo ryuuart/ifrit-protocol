@@ -119,7 +119,7 @@ void Composer::Impl::recordPicture(Instance& inst, const SkMatrix& deviceMatrix,
   inst.bakedLeafOpacity = leafOpacity;  // a settled transition re-bakes
   inst.bakedLeafBlend = leafBlend;      // (the recording froze them in)
   inst.bakedLiveShader =
-      inst.hasPendingLiveFill ? inst.pendingLiveFill.shaderValue : nullptr;
+      inst.hasPendingLiveFill ? material::skia::staticShader(inst.pendingLiveFill.paint()) : nullptr;
   inst.bakedScalars = std::move(scalars);
   inst.paintDirty = false;
   stats.picturesRecorded++;

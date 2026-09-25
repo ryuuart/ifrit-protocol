@@ -210,7 +210,7 @@ void bindComponents(py::module_& module) {
   module.def(
       "dot",
       [](py::handle centre, float radius, py::handle ink) {
-        return composeKit::dot(point(centre), radius, surfacePaint(ink));
+        return composeKit::dot(point(centre), radius, fill(ink));
       },
       py::arg("centre"), py::arg("radius"), py::arg("ink"));
   module.def(

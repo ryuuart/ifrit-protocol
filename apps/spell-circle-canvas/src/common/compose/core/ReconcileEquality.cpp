@@ -419,7 +419,7 @@ static_assert(kFieldCount<ElementNode> == 25 &&
                   kFieldCount<DeclaredFields::Storage> == 6 &&
                   kFieldCount<PaintProps> == 15 &&
                   kFieldCount<ImageData> == 2 && kFieldCount<CustomData> == 2 &&
-                  kFieldCount<MotionPath> == 3 && kFieldCount<Fill> == 5,
+                  kFieldCount<MotionPath> == 3,
               "A struct propertiesEqual() compares BY HAND gained or lost a "
               "field. Rule on it below — participate, or a stated reason "
               "not to — then bump this count. A miss is silent: the node "

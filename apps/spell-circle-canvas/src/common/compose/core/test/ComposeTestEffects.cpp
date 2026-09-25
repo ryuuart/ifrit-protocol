@@ -8,6 +8,7 @@
 #include <include/core/SkStream.h>
 #include <include/effects/SkImageFilters.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include "support/CoreTestSupport.h"
 

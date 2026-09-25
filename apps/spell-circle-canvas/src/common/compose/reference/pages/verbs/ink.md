@@ -29,7 +29,7 @@ and the glyphs under it are painted with it.
 ```cpp
 Element& ink(material::Color colour);
 Element& ink(VarRef reference);
-Element& ink(SurfacePaint paint, PaintBox box = PaintBox::Element);
+Element& ink(Fill paint, PaintBox box = PaintBox::Element);
 ```
 
 ```python
@@ -42,7 +42,7 @@ def ink(self, value: ElementInkLike, box: PaintBox = ...) -> Element: ...
 |---|---|---|
 | `material::Color` | The colour outright. | `hexColor(0xRRGGBB)`, or the four channels |
 | `VarRef` | The custom property to read it from: `ink(var("accent"))`. | [`VarRef`](../../VALUES.md#the-custom-properties), through `compose::var` |
-| `SurfacePaint` | Everything a surface takes — a `Fill`, a material paint, a recipe — because the ink and the fill dress the same kinds of thing. | [`SurfacePaint`](../types/SurfacePaint.md) |
+| `Fill` | Everything a surface takes — a colour, a material paint, a recipe — because the ink and the fill dress the same kinds of thing. | [`Fill`](../types/Fill.md) |
 | `PaintBox` | The rectangle a paint's unit square is stretched over: the element's own, the subtree's, the canvas, or each unit of a passage. | [`PaintBox`](../types/PaintBox.md): `Element`, `Subtree`, `Canvas`, `Glyph`, `Cluster`, `Word`, `Line`, `Sentence` |
 
 A `Fill` holding one colour is that colour, and a box handed with it is

@@ -107,8 +107,8 @@ something to centre inside.
 `fill` takes a colour here, but that is the narrowest of what it
 accepts — it takes a gradient, a shader, a moving colour and a whole
 material just as happily. The value is a
-[`Fill`](value:sigil::compose::Fill), and the widest form of the same
-argument is a [`SurfacePaint`](value:sigil::compose::SurfacePaint). If
+[`Fill`](value:sigil::compose::Fill), which holds a colour, a paint or a
+reference to a colour the tree supplies. If
 you are unsure which of the four colour-ish things to reach for, read
 the colour chapter on the [SigilCompose](doxygen:SigilCompose) site once
 and you will not have to ask again.

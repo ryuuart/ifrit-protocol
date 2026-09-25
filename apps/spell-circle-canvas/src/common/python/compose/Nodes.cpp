@@ -119,19 +119,19 @@ void bindFontVerbs(py::class_<Node>& element) {
           [](Node& self, py::object value, compose::PaintBox box) -> Node& {
             if (py::isinstance<compose::VarRef>(value))
               return self.ink(value.cast<compose::VarRef>());
-            // The ink takes everything a surface takes. A colour — the
+            // The ink takes everything a fill takes. A colour — the
             // ordinary case, and the one an author writes as a tuple or
-            // a name — is the inherited, easing lane it has always been;
-            // anything else is a paint, and a paint that will not resolve
-            // without the tree says so rather than leaving a standing ink
-            // untouched and the author guessing why.
-            const compose::SurfacePaint paint = surfacePaint(value);
-            if (!paint.none() && !paint.collapsedPaint())
+            // a name — is the inherited, easing lane; anything else is a
+            // paint, and a reference that will not resolve without the
+            // tree says so rather than leaving a standing ink untouched
+            // and the author guessing why.
+            const compose::Fill paint = fill(value);
+            if (paint.references())
               throw py::type_error(
                   "An ink paint is stored as one paint and resolved without "
-                  "the tree, so the ink in force, a custom property and a "
-                  "bound fill have no paint to give it. State a colour, or "
-                  "clear the paint with None.");
+                  "the tree, so the ink in force and a custom property have "
+                  "no paint to give it. State a colour, or clear the paint "
+                  "with None.");
             return self.ink(paint, box);
           },
           py::arg("value"), py::arg("box") = compose::PaintBox::Element,
@@ -164,15 +164,14 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
           [](Node& self, py::object value, compose::PaintBox box) -> Node& {
             // One conversion for every surface-colouring parameter, so a
             // material reaches the node's fill exactly as it reaches a
-            // stroke's or a kit ground's. Empty is STATED rather than
-            // applied, because applying nothing leaves a standing fill
-            // where it is — and all three spellings of nothing, None, an
-            // empty Fill and an empty paint, must clear the same way.
-            const compose::SurfacePaint paint = surfacePaint(value);
-            if (paint.none()) return self.fill(compose::Fill::none());
-            // A box places a paint's unit square, so a surface with no
-            // paint to place is applied whole, as the native verb does.
-            return self.fill(paint, box);
+            // stroke's or a kit ground's, and all three spellings of
+            // nothing — None, an empty Fill and an empty paint — clear it.
+            const motion::Animatable<compose::Fill> surface = motionFill(value);
+            // A box places a paint's unit square, so a fill with no paint
+            // to place is applied whole, as the native verb does.
+            if (const compose::Fill* plain = surface.constant())
+              return self.fill(*plain, box);
+            return self.fill(surface);
           },
           py::arg("value"), py::arg("box") = compose::PaintBox::Element, fluent)
       .def(

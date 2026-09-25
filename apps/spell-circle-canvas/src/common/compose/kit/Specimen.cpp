@@ -20,7 +20,7 @@ Element well(const Well& spec, Element surface) {
   if (spec.content) return well(spec).children({std::move(surface)});
   if (spec.width.unit != Dimension::Unit::Auto) surface.width(spec.width);
   if (spec.height.unit != Dimension::Unit::Auto) surface.height(spec.height);
-  if (!spec.ground.none()) surface.fill(spec.ground);
+  if (spec.ground.kind != Fill::Kind::None) surface.fill(spec.ground);
   if (spec.paddingY)
     surface.padding(Dimension(*spec.paddingY), Dimension(spec.padding));
   else if (spec.padding != 0.0f)

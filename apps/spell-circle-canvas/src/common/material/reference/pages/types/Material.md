@@ -86,7 +86,7 @@ never affects the material it was copied from.
 | `Paint::slot` | member | SigilMaterial — through a paint |
 
 Every consumer that takes a paint takes a material where the conversion
-is spelled for it. In Python a material is a member of `SurfacePaintLike`,
+is spelled for it. In Python a material is a member of `FillLike`,
 so a slot that colours a surface takes one directly.
 
 ## Also returned by

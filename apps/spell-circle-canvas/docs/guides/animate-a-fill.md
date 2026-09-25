@@ -132,10 +132,10 @@ constructed, never a setter.
 `Element::fill` takes a `motion::Animatable<Fill>`, and that one type
 covers all of: a plain fill, a motion described by `motion::animate`,
 and a live value made by `motion::animatable`. Beside it the same
-verb takes a material paint, and the widest form of the argument is a
-[`SurfacePaint`](value:sigil::compose::SurfacePaint).
+verb takes a material paint, and a [`Fill`](value:sigil::compose::Fill)
+holds either a colour or a paint.
 
-In Python the whole union is `SurfacePaintLike`, which is what a
+In Python the whole union is `MotionFillLike`, which is what a
 colouring parameter is annotated with unless it has a stated reason to
 be narrower. One such reason is worth knowing: `Element::ink` takes a
 colour and NOT an animatable, because the ink inherits, and a live ink

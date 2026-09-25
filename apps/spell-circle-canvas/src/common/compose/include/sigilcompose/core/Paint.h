@@ -12,24 +12,24 @@
  * which the three lines below carry onto a node.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRefCnt.h>
-#include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Backface.h>
-#include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/paint/Paint.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
+#include <concepts>
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -43,8 +43,6 @@
 #include <vector>
 
 class SkCanvas;
-class SkImageFilter;
-class SkRuntimeEffect;
 
 namespace sigil::weave {
 class FontContext;
@@ -61,23 +59,51 @@ struct ElementNode;
 // ---------------------------------------------------------------------------
 // Paint values
 
-/** A paint slot: nothing, a color, or anything Skia can shade (a
- *  material's gradient through `toFill`, SkSL via SkRuntimeEffect) — or a
- *  REFERENCE to a colour the tree supplies where the fill is painted: the
- *  ink in force, or a custom property. */
+/** WHAT A SLOT IS PAINTED WITH: nothing, a colour, a `material::Paint`
+ *  — a gradient, a recipe, a blend, an image, a program — or a REFERENCE
+ *  to a colour the tree supplies where the fill is painted: the ink in
+ *  force, or a custom property. The references are the part only a
+ *  cascade can mean; everything else is the paint's.
+ *
+ *  A `material::Paint` and a `material::Material` convert to a fill
+ *  implicitly, so a component declares one `Fill` property and its caller
+ *  writes whichever it holds. It compares as its paint does, by recipe:
+ *  the same gradient described again is the same fill. */
 struct Fill {
   /** Which of the three things a fill holds. */
   enum class Kind : uint8_t {
     None,   ///< nothing is painted
     Color,  ///< a single colour, or a reference that resolves to one
-    Shader  ///< anything Skia can shade
+    Paint   ///< a material paint
   };
   /** Where a colour fill READS its colour from when it was written as a
    *  reference rather than a value. `None` is a value. */
   enum class Ref : uint8_t { None, CurrentInk, Var };
 
-  static Fill color(material::Color c) { return {Kind::Color, c, nullptr}; }
-  static Fill shader(sk_sp<SkShader> s);
+  Fill() = default;
+  /** @p paint as a fill. A paint of nothing is no fill; a flat paint stays
+   *  a paint, which the ink tells apart from a colour: a colour is the
+   *  inherited ink lane, and a paint is a paint. */
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  Fill(material::Paint paint) {
+    if (paint.isNone()) return;
+    kind = Kind::Paint;
+    m_paint = std::make_shared<const material::Paint>(std::move(paint));
+  }
+  /** A material recipe, as the paint that wears it. */
+  template <class Recipe>
+    requires std::convertible_to<Recipe, material::Material>
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  Fill(Recipe&& recipe)
+      : Fill(material::Paint::recipe(
+            material::Material(std::forward<Recipe>(recipe)))) {}
+
+  static Fill color(material::Color c) {
+    Fill f;
+    f.kind = Kind::Color;
+    f.colorValue = c;
+    return f;
+  }
   static Fill none() { return {}; }
   /** THE INK IN FORCE where the fill is painted — CSS's currentColor: the
    *  colour the nearest `Element::ink` set, which is also the colour text
@@ -87,7 +113,7 @@ struct Fill {
    *  a consumer that reads the colour with no context in hand draws that
    *  rather than nothing. */
   static Fill currentInk() {
-    Fill f{Kind::Color, {0, 0, 0, 1}, nullptr};
+    Fill f = color({0, 0, 0, 1});
     f.ref = Ref::CurrentInk;
     return f;
   }
@@ -95,7 +121,7 @@ struct Fill {
    *  ancestor's `Element::var` set it. A name nobody set, or one holding a
    *  length, resolves to no fill and says so once. */
   static Fill var(VarRef reference) {
-    Fill f{Kind::Color, {0, 0, 0, 0}, nullptr};
+    Fill f = color({0, 0, 0, 0});
     f.ref = Ref::Var;
     f.varId = reference.id;
     return f;
@@ -104,17 +130,50 @@ struct Fill {
 
   Kind kind = Kind::None;
   material::Color colorValue = {0, 0, 0, 0};
-  sk_sp<SkShader> shaderValue;
   Ref ref = Ref::None;
   uint32_t varId = 0;
+
+  /** The paint, when `kind` is `Paint`; a paint of nothing otherwise. */
+  [[nodiscard]] const material::Paint& paint() const {
+    static const material::Paint nothing;
+    return m_paint ? *m_paint : nothing;
+  }
 
   /** Whether the colour is a reference the paint context still has to
    *  resolve — see `resolveRef`. */
   [[nodiscard]] bool references() const { return ref != Ref::None; }
+  /** Does this fill need a frame to paint — a live paint, or one that
+   *  reads the box it lands on? A slot that stores a fill without a frame
+   *  cannot hold one of these as it stands. */
+  [[nodiscard]] bool needsFrame() const {
+    return m_paint && (m_paint->isRunning() || m_paint->geometryDependent());
+  }
 
+  /** A paint compares by its recipe, so the same paint described again is
+   *  an equal fill. */
   bool operator==(const Fill& o) const {
-    return kind == o.kind && colorValue == o.colorValue &&
-           shaderValue == o.shaderValue && ref == o.ref && varId == o.varId;
+    return kind == o.kind && colorValue == o.colorValue && ref == o.ref &&
+           varId == o.varId &&
+           (m_paint == o.m_paint ||
+            (m_paint && o.m_paint && *m_paint == *o.m_paint));
+  }
+
+ private:
+  // Held once and shared, so a fill costs a node no more than a colour and
+  // a pointer however much a paint grows.
+  std::shared_ptr<const material::Paint> m_paint;
+
+  /** FIELD PIN. `operator==` above is written by hand, and a fill that
+   *  compares equal when it is not lets its node prune and keep painting
+   *  the old result. This decomposition stops compiling the moment a
+   *  member is added or removed. */
+  static void fieldPin(Fill& pinned) {
+    auto& [pinnedKind, colour, reference, variable, paint] = pinned;
+    static_assert(
+        std::tuple_size_v<decltype(std::tie(pinnedKind, colour, reference,
+                                            variable, paint))> == 5,
+        "Fill gained or lost a member — rule on it in Fill::operator==, "
+        "then bump this count.");
   }
 };
 
@@ -313,13 +372,20 @@ using PaintProgram = core::Callable<void(SkCanvas&, const PaintContext&)>;
 material::FrameData frameOf(const PaintContext& ctx);
 
 /** The STATIC collapse a non-live paint stores, so it rides the fill
- *  caching and prune path unchanged. */
+ *  caching and prune path unchanged: a flat paint is its colour, a static
+ *  one is itself, and one that needs a frame is no fill. */
 Fill toFill(const material::Paint& paint);
 
-/** The current-frame fill: for a live paint, the shader rebuilt from the
- *  live values and @p ctx; for a static one, exactly `toFill`. What the
- *  painter calls for a live fill. */
+/** The current-frame fill: a flat paint as its colour, and any other as a
+ *  paint whose shader was built against @p ctx — for a live paint from
+ *  the live values, for a geometry-dependent one from the node's box. What
+ *  the painter calls for a live fill. */
 Fill resolveFill(const material::Paint& paint, const PaintContext& ctx);
+
+/** @p fill AS IT PAINTS at the node @p ctx describes: a reference resolved
+ *  to the colour it names, and a paint as `resolveFill` above resolves it.
+ *  What a decoration reads a fill it was handed through. */
+Fill resolveFill(const Fill& fill, const PaintContext& ctx);
 
 /** The INSTANCE-SIDE bake store for stamped brushes: tile bakes live with
  *  the NODE, not inside the brush value. A brush value constructed fresh

@@ -15,7 +15,7 @@
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Selector.h>
 #include <sigilcompose/core/Shape.h>
-#include <sigilcompose/core/SurfacePaint.h>
+#include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcompose/core/verbs/Box.h>
 #include <sigilcompose/core/verbs/Cascade.h>

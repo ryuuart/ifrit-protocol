@@ -459,13 +459,6 @@ void bindCompose(py::module_& module) {
                   py::arg("reference"))
       .def_readonly("colorValue", &Fill::colorValue)
       .def(py::self == py::self);
-  py::class_<SurfacePaint>(composition, "SurfacePaint")
-      .def(py::init<>())
-      .def(py::init([](py::object value) { return surfacePaint(value); }),
-           py::arg("value"))
-      .def("none", &SurfacePaint::none)
-      .def("isRunning", &SurfacePaint::isRunning)
-      .def(py::self == py::self);
   py::class_<CellSpan>(composition, "CellSpan")
       .def(py::init<>())
       .def_readwrite("column", &CellSpan::column)
@@ -516,7 +509,7 @@ void bindCompose(py::module_& module) {
       .def_property(
           "strokeFill", [](const PathFormat& self) { return self.strokeFill; },
           [](PathFormat& self, py::object value) {
-            self.strokeFill = surfacePaint(value);
+            self.strokeFill = fill(value);
           })
       .def_readwrite("align", &PathFormat::align)
       .def_readwrite("dashIntervals", &PathFormat::dashIntervals)
@@ -549,9 +542,8 @@ void bindCompose(py::module_& module) {
       "stroke",
       [](float width, py::object paint, PathFormat::Align align) {
         return compose::stroke(width,
-                               paint.is_none()
-                                   ? SurfacePaint{Fill::currentInk()}
-                                   : surfacePaint(paint),
+                               paint.is_none() ? Fill::currentInk()
+                                               : fill(paint),
                                align);
       },
       py::arg("width"), py::arg("paint") = py::none(),

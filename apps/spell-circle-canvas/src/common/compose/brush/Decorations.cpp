@@ -14,6 +14,8 @@
 #include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/path/StrokeSkia.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <cmath>
@@ -62,12 +64,12 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   p.setStrokeWidth(aligned ? width * 2 : width);
   p.setStrokeCap(geometry::path::toSk(cap));
   p.setStrokeJoin(geometry::path::toSk(join));
-  const Fill stroke = strokeFill.resolve(ctx);
+  const Fill stroke = resolveFill(strokeFill, ctx);
   if (stroke.kind == Fill::Kind::None) return;
   if (stroke.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(stroke.colorValue), nullptr);
-  else if (stroke.kind == Fill::Kind::Shader)
-    p.setShader(stroke.shaderValue);
+  else if (stroke.kind == Fill::Kind::Paint)
+    p.setShader(material::skia::staticShader(stroke.paint()));
 
   sk_sp<SkPathEffect> chosen = effect;
   if (!chosen && stampAdvance > 0 && !stampPath.isEmpty())
@@ -198,8 +200,8 @@ void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     material::Color c = fill.colorValue;
     c.a *= a;
     p.setColor4f(material::skia::toSkColor(c), nullptr);
-  } else if (fill.kind == Fill::Kind::Shader) {
-    p.setShader(fill.shaderValue);
+  } else if (fill.kind == Fill::Kind::Paint) {
+    p.setShader(material::skia::staticShader(fill.paint()));
     p.setAlphaf(a);
   } else {
     return;
@@ -222,7 +224,7 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
 
   // A fill written as the ink in force, or as a custom property, takes
   // its colour from the node the border is painted under.
-  const Fill resolved = resolveRef(fill, ctx);
+  const Fill resolved = resolveFill(fill, ctx);
   auto strokeWith = [&](const SkPath& path, float w) {
     if (path.isEmpty() || w <= 0) return;
     SkPaint p;
@@ -233,8 +235,8 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setStrokeJoin(geometry::path::toSk(join));
     if (resolved.kind == Fill::Kind::Color)
       p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
-    else if (resolved.kind == Fill::Kind::Shader)
-      p.setShader(resolved.shaderValue);
+    else if (resolved.kind == Fill::Kind::Paint)
+      p.setShader(material::skia::staticShader(resolved.paint()));
     if (!dash.empty())
       p.setPathEffect(
           SkDashPathEffect::Make(SkSpan(dash.data(), dash.size()), phase()));

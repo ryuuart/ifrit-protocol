@@ -53,7 +53,7 @@ Element swatchOf(const Legend& key, const LegendEntry& entry, float side) {
         compose::stroke(key.strokeWidth, entry.swatch);
     mark.stroke(std::move(outline));
   } else {
-    entry.swatch.apply(mark);
+    mark.fill(entry.swatch);
   }
   if (key.corners > 0) mark.borderRadius(Corners{key.corners});
   if (entry.keyline)
@@ -100,7 +100,7 @@ compose::Element swatchStrip(const SwatchStrip& strip) {
                     .alignItems(Align::Start);
   for (size_t i = 0; i < strip.swatches.size(); ++i) {
     Element patch = box();
-    strip.swatches[i].apply(patch);
+    patch.fill(strip.swatches[i]);
     if (strip.width.unit != Dimension::Unit::Auto) patch.width(strip.width);
     if (strip.height.unit != Dimension::Unit::Auto) patch.height(strip.height);
     if (strip.corners > 0) patch.borderRadius(Corners{strip.corners});
@@ -134,7 +134,7 @@ compose::Element chip(const Chip& tag) {
   const Theme& look = theme();
   Element plate =
       box().padding(look.spacing.chipPaddingY, look.spacing.chipPaddingX);
-  tag.ground.value_or(Fill::color(look.palette.figure)).apply(plate);
+  plate.fill(tag.ground.value_or(Fill::color(look.palette.figure)));
   Text label = document::eyebrow(tag.label).role(
       "eyebrow", look.font(look.type.eyebrow, look.palette.ground));
   if (tag.ink) detail::documentInk(label, *tag.ink);

@@ -6,6 +6,7 @@
 // TrackCascade and must never disagree.
 
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <memory>
 #include <vector>

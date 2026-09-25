@@ -2,6 +2,7 @@
 // a rider reads at a fraction of the way round, and what a kit silhouette
 // is when the kernel asks for one.
 
+#include <sigilmaterial/skia/Paint.h>
 #include "support/ShapeTestSupport.h"
 
 TEST(ComposeShapes, ArrowPointsAlongPositiveX) {

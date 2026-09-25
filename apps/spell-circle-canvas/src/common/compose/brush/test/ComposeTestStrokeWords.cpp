@@ -2,6 +2,7 @@
 // entrances, the one word that declares volatility, and the shape that
 // overrides a node's rect.
 
+#include <sigilmaterial/skia/Paint.h>
 #include "support/BrushTestSupport.h"
 
 TEST(ComposeShapeRename, ShapeOverridesTheBox) {

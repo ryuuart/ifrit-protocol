@@ -81,7 +81,7 @@ namespace sigil::compose::kit {
 struct Well {
   Dimension width;
   Dimension height;
-  SurfacePaint ground;
+  Fill ground;
   /** Across, px. */
   float padding = 0.0f;
   /** Down, where a plate is set tighter or looser than it is wide; unset
@@ -246,7 +246,7 @@ struct Caption {
                            : figure(caption.reading)});
     // The scrim is the cell's own ground, so the reading stands off
     // whatever the body draws under it.
-    if (caption.body && !caption.body->ground.none())
+    if (caption.body && caption.body->ground.kind != Fill::Kind::None)
       scrim.fill(caption.body->ground);
     body = box().children({std::move(body), std::move(scrim)});
   }
@@ -470,7 +470,7 @@ struct Sheet {
   float contentGap = 18.0f;
   /** The page's own ground. Fill::none() (default) paints nothing, for a
    *  canvas the host already cleared. */
-  SurfacePaint ground;
+  Fill ground;
   /** The hairline under the header and over the footer. Fill::none()
    *  (default) rules neither. */
   Fill rule;
@@ -491,7 +491,7 @@ struct Sheet {
     return part;
   };
   Element root = box().column().padding(page.marginTop, page.marginX, page.marginBottom, page.marginX);
-  if (!page.ground.none()) root.fill(page.ground);
+  if (page.ground.kind != Fill::Kind::None) root.fill(page.ground);
 
   const bool ruled = page.rule.kind != Fill::Kind::None;
   // A rule bisects the content gap: the same distance from the header to

@@ -22,7 +22,6 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/core/Text.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/core/verbs/Node.h>

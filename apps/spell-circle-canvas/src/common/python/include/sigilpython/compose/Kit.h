@@ -63,8 +63,6 @@ T converted(py::handle value) {
     return dimension(value);
   } else if constexpr (std::is_same_v<T, compose::Fill>) {
     return fill(value);
-  } else if constexpr (std::is_same_v<T, compose::SurfacePaint>) {
-    return surfacePaint(value);
   } else if constexpr (std::is_same_v<T, compose::Align>) {
     return alignment(value);
   } else if constexpr (std::is_same_v<T, compose::Justify>) {

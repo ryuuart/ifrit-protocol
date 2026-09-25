@@ -18,7 +18,7 @@ Element board(const Board& plate) {
     root.height(Dimension(plate.size.height()));
   else
     root.bottom(Dimension(0));
-  if (!plate.ground.none()) root.fill(plate.ground);
+  if (plate.ground.kind != Fill::Kind::None) root.fill(plate.ground);
   return root;
 }
 

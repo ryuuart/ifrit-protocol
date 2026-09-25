@@ -95,7 +95,7 @@ native enumeration values work too where you prefer them.
 4-sequence of unit floats, or a `material.Color`; a dimension is a
 number, `"50%"` or `"auto"`; a corner radius is a number. These are not
 conveniences bolted on the side — they are the declared unions
-`ColorLike`, `FillLike`, `SurfacePaintLike` and `DimensionLike`, which
+`ColorLike`, `FillLike`, `MotionFillLike` and `DimensionLike`, which
 the shipped type declarations name, so an editor completes and checks
 them.
 

@@ -53,6 +53,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Shelf.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <optional>

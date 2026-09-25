@@ -440,7 +440,7 @@ TEST(ComposeText, AnInkPaintTheSlotCannotStoreLeavesTheOneItHas) {
   // while an EMPTY paint is how the paint is meant to be cleared.
   const auto ramp = material::Paint::linearGradient(
       {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
-  auto rampedPixels = [&](SurfacePaint after) {
+  auto rampedPixels = [&](Fill after) {
     Host host(320, 160);
     host.composer.render(box().padding(20).children(
         {text(u8"HH", whiteStyle(96)).ink(ramp).ink(after)}));
