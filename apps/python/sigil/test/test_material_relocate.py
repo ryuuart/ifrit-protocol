@@ -312,7 +312,7 @@ class TheFieldSubject(unittest.TestCase):
         for value in ("#ff0000", (1, 0, 0), [1, 0, 0, 1], material.Color(1, 0, 0)):
             with self.subTest(colour=value):
                 made = material.field.halftoneRamp(
-                    spacing=6, rMin=1, rMax=2, color=value
+                    spacing=6, minimumRadius=1, maximumRadius=2, color=value
                 )
                 self.assertIsInstance(made, material.Material)
 
