@@ -50,7 +50,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -131,7 +131,7 @@ struct CrtBloom {
 
     // LEFT — one node. The effect owns the whole construction.
     Element primitive =
-        panel(headline(kCore).filter(material::skia::Effect::glow(kHalo, kSigma)));
+        panel(headline(kCore).filter(material::Filter::glow(kHalo, kSigma)));
 
     // RIGHT — two nodes in the same place, the second blurred and ADDED.
     // The blur is spelled as an axis-aligned directional blur rather than
@@ -148,9 +148,9 @@ struct CrtBloom {
                   .children({kit::centred(headline(kHalo))
                                  .cover()
                                  .zIndex(1)
-                                 .filter(material::skia::Effect::directionalBlur(
+                                 .filter(material::Filter::directionalBlur(
                                      kSigma, 0.0f, kSigma))
-                                 .blendMode(SkBlendMode::kPlus)
+                                 .blendMode(material::BlendMode::PlusLighter)
                                  .cache(Cache::Texture),
                              headline(kCore).zIndex(2)}));
 

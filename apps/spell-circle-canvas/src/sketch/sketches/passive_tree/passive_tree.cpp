@@ -93,7 +93,7 @@ namespace sdf = sigil::material::sdf;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -211,7 +211,7 @@ inline Element socket(const char* key, SkPoint at, float dia,
                       int z = 3) {
   const float boxSize = sdf::minBoxFor(st, dia);
   Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
-  if (breathingGlow) m.uniform("uGlowR", breathingGlow);
+  if (breathingGlow) m.set("uGlowR", breathingGlow);
   Element e = box()
                   .width(boxSize)
                   .height(boxSize)
@@ -307,7 +307,7 @@ struct PassiveTree {
         pt::socket(nullptr, {n.x, n.y}, dia, st, can ? &breath : nullptr);
     if (alloc) {
       Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
-      m.uniform("uGlowR", 5.5f);
+      m.set("uGlowR", 5.5f);
       e.fill(std::move(m));
     }
     parent.children({e.key(nodeKey(i))});
@@ -334,7 +334,7 @@ struct PassiveTree {
         pt::socket(key.c_str(), at, dia, outer, can ? &breath : nullptr);
     if (alloc) {
       Paint m = Paint::recipe(sdf::material(sdf::circle(), outer));
-      m.uniform("uGlowR", 7.0f);
+      m.set("uGlowR", 7.0f);
       frame.fill(std::move(m));
     }
     // the inner ring and the notch rosette that make it read "notable"

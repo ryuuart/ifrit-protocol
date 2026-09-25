@@ -36,7 +36,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/stats/Fit.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -70,8 +70,8 @@ using namespace sigil::compose;
 using sigil::draw::Pen;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
-using sigil::material::skia::Effect;
-using sigil::material::skia::Paint;
+using sigil::material::Filter;
+using sigil::material::Paint;
 using sigil::material::skia::toColor;
 namespace ch = choreograph;
 

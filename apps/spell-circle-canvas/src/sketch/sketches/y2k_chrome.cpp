@@ -63,7 +63,8 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::hexColor;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -168,7 +169,7 @@ inline Element gelOrb(float d = kOrbD) {
                           {0.60f, {0.55f, 0.85f, 1.0f, 0.35f}},
                           {1.00f, {0.55f, 0.85f, 1.0f, 0.0f}}},
                          {.units = material::GradientUnits::Pixels}))
-                     .blendMode(SkBlendMode::kScreen)});
+                     .blendMode(material::BlendMode::Screen)});
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +218,7 @@ inline Element aquaPill(std::string_view label, const PillTint& t,
                    {{0.0f, {t.glow.r, t.glow.g, t.glow.b, 0.85f}},
                     {1.0f, {t.glow.r, t.glow.g, t.glow.b, 0.0f}}},
                    {.units = material::GradientUnits::Pixels}))
-               .blendMode(SkBlendMode::kScreen),
+               .blendMode(material::BlendMode::Screen),
            // the LENS: x in [5%,95%] y in [4%,52%], white .72->0
            box()
                .inset(h * 0.04f, w * 0.05f, h * 0.48f, w * 0.05f)
@@ -559,7 +560,7 @@ struct Y2kChrome {
                                              1, 4, hexColor(0x6E8CD8, 0.16f)))
                                      .rotate(45)
                                      .material())
-                           .blendMode(SkBlendMode::kPlus),
+                           .blendMode(material::BlendMode::PlusLighter),
                        box().inset(0).fill(Paint::radialGradient(
                            {0.5f, 0.42f}, 1.02f,
                            {{0.0f, {0.36f, 0.52f, 0.92f, 0.16f}},

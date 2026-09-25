@@ -26,8 +26,8 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Crt.h>
-#include <sigilmaterial/skia/Bloom.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
 
@@ -212,8 +212,8 @@ inline sk_sp<SkTypeface> minchoHeavy() {
  *  the phosphor light first — lit cores whitened, a close glow spread and
  *  deepened toward each colour's strongest channel — then the tube, whose
  *  own bloom is the last pass over everything. */
-inline sigil::material::skia::Effect crt(float width, float height) {
-  static const auto light = sigil::material::skia::bloom({
+inline sigil::material::Filter crt(float width, float height) {
+  static const auto light = sigil::material::Filter::bloom({
       .sigma = 2.5f,
       .strength = 0.5f,
       .spread = 2.2f,
@@ -225,32 +225,32 @@ inline sigil::material::skia::Effect crt(float width, float height) {
       .dilation = 1.0f,
       .deepening = 2.0f,
   });
-  using sigil::material::skia::Effect;
+  using sigil::material::Filter;
   // The tube's own light is drawn outside the recipe: its gather spends
   // 192 taps a pixel every frame, where the same two Gaussians — 0.8 and
   // 2.4 px, weighted 0.7 and 0.3, at 0.38, held at half and added — are
   // separable blurs over the finished screen.
   auto screen = sigil::material::kit::crt(SkRect::MakeWH(width, height));
   screen.set("uBloom", 0.0f);
-  static const Effect tubeLight = [] {
+  static const Filter tubeLight = [] {
     const auto weigh = [](float w) {
       const float m[20] = {w, 0, 0, 0, 0, 0, w, 0, 0, 0,
                            0, 0, w, 0, 0, 0, 0, 0, 1, 0};
-      return Effect::filter(SkColorFilters::Matrix(m));
+      return material::skia::filter(SkColorFilters::Matrix(m));
     };
     std::array<uint8_t, 256> half{};
     for (int i = 0; i < 256; ++i)
       half[i] = static_cast<uint8_t>(std::min(i, 128));
-    const Effect glow =
-        Effect::blur(0.8f).then(weigh(0.7f * 0.38f))
-            .emit(Effect::blur(2.4f).then(weigh(0.3f * 0.38f)),
-                  SkBlendMode::kPlus)
-            .then(Effect::filter(SkColorFilters::TableARGB(
+    const Filter glow =
+        Filter::blur(0.8f).then(weigh(0.7f * 0.38f))
+            .emit(Filter::blur(2.4f).then(weigh(0.3f * 0.38f)),
+                  material::BlendMode::PlusLighter)
+            .then(material::skia::filter(SkColorFilters::TableARGB(
                 nullptr, half.data(), half.data(), half.data())));
-    return Effect().emit(glow, SkBlendMode::kPlus);
+    return Effect().emit(glow, material::BlendMode::PlusLighter);
   }();
   return light
-      .then(Effect::recipe(screen, std::max(width, height) * 0.05f + 10.0f))
+      .then(Filter::of(screen, std::max(width, height) * 0.05f + 10.0f))
       .then(tubeLight);
 }
 

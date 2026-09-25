@@ -113,7 +113,7 @@ struct Tategaki {
   Element describe() {
     namespace tg = tategaki;
 
-    Fill ground = toFill(material::skia::Paint::linearGradient(
+    Fill ground = toFill(material::Paint::linearGradient(
         {0, 0}, {0, tg::kH}, {tg::kSumiLift, tg::kSumi},
         {.units = material::GradientUnits::Pixels}));
 

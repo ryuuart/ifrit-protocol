@@ -92,7 +92,7 @@ VideoOptions optionsFor(int source, int cell, bool overlay) {
   options.startSeconds = source * 0.41;
   options.playbackRate = 0.72 + source * 0.13;
   options.loop = true;
-  options.fit = source == 4 ? material::skia::Fit::Contain : material::skia::Fit::Cover;
+  options.fit = source == 4 ? material::Fit::Contain : material::Fit::Cover;
   options.opacity = overlay && source == 2 ? 0.90f : 1.0f;
   if (source == 2 || source == 3 || (source == 4 && (cell & 1)))
     options.blend = SkBlendMode::kPlus;

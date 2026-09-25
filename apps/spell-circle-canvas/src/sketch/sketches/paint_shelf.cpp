@@ -90,7 +90,7 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 
 /** One paint across the whole cell. */
 sketch::kit::ComparisonCase swatch(const char* caseTitle, const char* call,
-                                   const char* note, material::skia::Paint fill) {
+                                   const char* note, material::Paint fill) {
   return cell(caseTitle, call, note,
               box().children({box().cover().fill(std::move(fill))}));
 }
@@ -127,7 +127,7 @@ struct PaintShelf {
     // "the node's own box" and "the root's box" are two visibly
     // different readings of the same description.
     const auto field = [](bool world) {
-      material::skia::Paint p = material::skia::Paint::linearGradient(
+      material::Paint p = material::Paint::linearGradient(
           {0, 0}, {1, 1},
           {{0.0f, {0.16f, 0.20f, 0.34f, 1}},
            {0.5f, {0.44f, 0.78f, 0.86f, 1}},
@@ -160,7 +160,7 @@ struct PaintShelf {
                                "Paint::radial(centre, 92, ember)",
                                "The hot spot and the outer circle share a "
                                "centre.",
-                               material::skia::Paint::radialGradient(
+                               material::Paint::radialGradient(
                                    middle(), 92, ember(),
                                    {.units = material::GradientUnits::Pixels})),
                            swatch(
@@ -168,7 +168,7 @@ struct PaintShelf {
                                "conical(focus, 0, centre, 92, ember)",
                                "Move the focus while keeping the outer circle "
                                "fixed.",
-                               material::skia::Paint::radialGradient(
+                               material::Paint::radialGradient(
                                    middle(), 92, ember(),
                                    {.units = material::GradientUnits::Pixels,
                                     .focus = glm::vec2{middle().fX - kFocus,
@@ -180,7 +180,7 @@ struct PaintShelf {
                                "with the focus moved "
                                "across",
                                "Move the focus across the same fixed circle.",
-                               material::skia::Paint::radialGradient(
+                               material::Paint::radialGradient(
                                    middle(), 92, ember(),
                                    {.units = material::GradientUnits::Pixels,
                                     .focus = glm::vec2{middle().fX +
@@ -202,7 +202,7 @@ struct PaintShelf {
                                            "Paint::sweep(centre, wheel)",
                                            "The colour ramp completes a "
                                            "full turn.",
-                                           material::skia::Paint::conicGradient(
+                                           material::Paint::conicGradient(
                                                middle(), wheel(),
                                                {.units = material::
                                                     GradientUnits::Pixels})),
@@ -210,7 +210,7 @@ struct PaintShelf {
                                            "sweep(centre, wheel, 45, 315)",
                                            "Angles outside 45°–315° clamp "
                                            "to the nearest stop.",
-                                           material::skia::Paint::conicGradient(
+                                           material::Paint::conicGradient(
                                                middle(), wheel(),
                                                {.units = material::
                                                     GradientUnits::Pixels,
@@ -225,9 +225,9 @@ struct PaintShelf {
                                    "RASTER BUFFER", "Paint::buffer(pixels)",
                                    "Caller-owned pixels, published by "
                                    "commit().",
-                                   material::skia::Paint::buffer(
-                                       pixels, SkTileMode::kRepeat,
-                                       SkTileMode::kRepeat))},
+                                   material::skia::buffer(
+                                       pixels, material::Repeat::Repeat,
+                                       material::Repeat::Repeat))},
                                .measure = 328,
                                .gap = 18}))}),
              box()

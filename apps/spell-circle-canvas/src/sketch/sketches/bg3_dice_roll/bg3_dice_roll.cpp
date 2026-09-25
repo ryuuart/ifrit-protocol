@@ -42,8 +42,9 @@ namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 namespace path = sigil::geometry::path;
 namespace weave = sigil::weave;
-using material::skia::Paint;
+using material::Paint;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
 

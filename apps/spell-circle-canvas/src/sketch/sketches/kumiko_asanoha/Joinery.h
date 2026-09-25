@@ -35,6 +35,7 @@ namespace material = sigil::material;
 namespace path = sigil::geometry::path;
 namespace motion = sigil::motion;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using glm::vec2;
 
 // ---------------------------------------------------------------------------
@@ -159,9 +160,9 @@ constexpr float kDrawingAt = 3.05f, kDrawingFor = 0.70f;
 // identity holds across describes.
 class TimberBank {
  public:
-  material::skia::Paint get(const Timber& timber, float span, bool flip,
+  material::Paint get(const Timber& timber, float span, bool flip,
                             uint32_t seed, bool along = false) {
-    return material::skia::Paint::recipe(m_bank.get(
+    return material::Paint::recipe(m_bank.get(
         material::kit::timberRecipe(),
         material::kit::TimberParameters{.base = timber.base,
                                         .light = timber.light,

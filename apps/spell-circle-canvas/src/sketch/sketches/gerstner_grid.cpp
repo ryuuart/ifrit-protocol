@@ -75,6 +75,7 @@ namespace pattern = sigil::material::pattern;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace std::chrono_literals;
 
 namespace {
@@ -375,7 +376,7 @@ struct GerstnerGrid {
     // The page's one black, stated once; a line set in the soft grey or
     // the red says so.
     auto root = stack()
-                    .fill(material::skia::Paint::linearGradient(
+                    .fill(material::Paint::linearGradient(
                         {0, 0}, {0, g::kH}, {g::kPaper, g::kPaperLo},
                         {.units = material::GradientUnits::Pixels}))
                     .ink(g::kInk);
@@ -389,7 +390,7 @@ struct GerstnerGrid {
              .inset(0)
              .fill(field::noise(0.9f, 3, 5.0f))
              .opacity(0.05f)
-             .blendMode(SkBlendMode::kMultiply)
+             .blendMode(material::BlendMode::Multiply)
              .cache(Cache::Texture),
          gridPlate(), columns(), headline(), arithmetic(),
          // THE READING INDEX: one hairline sweeping the baseline grid, the
@@ -407,7 +408,7 @@ struct GerstnerGrid {
              .height(1.0f)
              .top(0)
              .translateY(&sweep)
-             .fill(material::skia::Paint::linearGradient(
+             .fill(material::Paint::linearGradient(
                  {0, 0}, {g::kFieldW + 44, 0},
                  {{0.0f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.0f}},
                   {0.12f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.55f}},

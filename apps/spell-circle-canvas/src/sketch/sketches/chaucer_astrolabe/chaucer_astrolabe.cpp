@@ -51,7 +51,8 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using material::skia::Paint;
+using sigil::material::hexColor;
+using material::Paint;
 using sigil::motion::bind;
 
 namespace {

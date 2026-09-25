@@ -52,7 +52,7 @@ sk_sp<SkImage> source() {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
   sigil::draw::on(
       *surface->getCanvas(), {kSide, kSide}, [](sigil::draw::Pen& pen) {
-        pen.background(material::skia::Paint::linearGradient(
+        pen.background(material::Paint::linearGradient(
             {0, 0}, {1, 1},
             {{0.0f, {0.10f, 0.16f, 0.30f, 1}},
              {1.0f, {0.92f, 0.62f, 0.30f, 1}}}));

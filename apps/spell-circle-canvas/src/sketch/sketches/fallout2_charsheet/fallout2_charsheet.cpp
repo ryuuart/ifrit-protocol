@@ -44,8 +44,9 @@ namespace weave = sigil::weave;
 namespace field = sigil::material::field;
 namespace document = sigil::compose::document;
 using sigil::data::Json;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -81,9 +82,9 @@ const Paint kPlate = Paint::linearGradient({0, 0}, {0.15f, 1},
                                             {1.0f, hexColor(0x302820)}});
 const material::Material kPlateTooth = field::grain(0.22f, 3, 11.0f, 0.65f);
 const Paint kRust =
-    Paint::blend({{Paint::solid(hexColor(0x7C581C)), SkBlendMode::kSrcOver},
+    Paint::blend({{Paint::solid(hexColor(0x7C581C)), material::BlendMode::Normal},
                   {Paint::recipe(field::grain(0.0075f, 3, 5.0f, 1.35f)),
-                   SkBlendMode::kMultiply}});
+                   material::BlendMode::Multiply}});
 const Paint kRaised = Paint::linearGradient({0, 0}, {0, 1},
                                             {{0.0f, hexColor(0x483828)},
                                              {0.55f, hexColor(0x383020)},
@@ -99,9 +100,9 @@ const Paint kParchment =
                                           {0.3f, hexColor(0xAC8044)},
                                           {0.66f, hexColor(0x9C7434)},
                                           {1.0f, hexColor(0x8C6428)}}),
-                   SkBlendMode::kSrcOver},
+                   material::BlendMode::Normal},
                   {Paint::recipe(field::grain(0.013f, 4, 21.0f, 0.62f, 1.4f)),
-                   SkBlendMode::kOverlay}});
+                   material::BlendMode::Overlay}});
 const Paint kRivet = Paint::radialGradient({0.34f, 0.3f}, 1.15f,
                                            {{0.0f, hexColor(0x6A5838)},
                                             {0.55f, hexColor(0x3A3020)},
@@ -479,8 +480,8 @@ struct Fallout2CharSheet {
                        .foreground(stroke(px(3), Fill::color(hexColor(0x1E1810)),
                                           PathFormat::Align::Inner));
     face.children(
-        {box().inset(0).fill(kPlateTooth).blendMode(SkBlendMode::kOverlay).opacity(0.3f),
-         box().inset(0).fill(kRust).blendMode(SkBlendMode::kSoftLight).opacity(0.55f),
+        {box().inset(0).fill(kPlateTooth).blendMode(material::BlendMode::Overlay).opacity(0.3f),
+         box().inset(0).fill(kRust).blendMode(material::BlendMode::SoftLight).opacity(0.55f),
          chrome(), special(), statistics(), folder(), skills(), card(), buttons()});
     return box().inset(0).children(
         {face,

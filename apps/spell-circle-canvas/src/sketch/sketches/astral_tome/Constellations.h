@@ -37,9 +37,10 @@ namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 namespace ch = choreograph;
 
 namespace at {

@@ -47,7 +47,7 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;

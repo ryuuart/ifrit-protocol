@@ -27,7 +27,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
@@ -44,9 +44,10 @@ namespace path = sigil::geometry::path;
 namespace field = sigil::material::field;
 namespace weave = sigil::weave;
 namespace data = sigil::data;
-using material::skia::Effect;
-using material::skia::Paint;
+using material::Filter;
+using material::Paint;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -136,7 +137,7 @@ struct Ds2Bench {
                                     {{0.0f, hexColor(0x16262F, alpha * 0.35f)},
                                      {0.38f, hexColor(0x1C303C, alpha)},
                                      {1.0f, hexColor(0x080F16, alpha * 0.2f)}}))
-          .filter(Effect::directionalBlur(18, 90, 12));
+          .filter(Filter::directionalBlur(18, 90, 12));
     };
     return box()
         .inset(0)
@@ -150,7 +151,7 @@ struct Ds2Bench {
                                           {{0.0f, hexColor(0x2A4A52, 0.34f)},
                                            {0.45f, hexColor(0x3E6A6E, 0.26f)},
                                            {1.0f, hexColor(0x0C1A20, 0.09f)}}))
-                .filter(Effect::directionalBlur(22, 90, 16)),
+                .filter(Filter::directionalBlur(22, 90, 16)),
         });
   }
 

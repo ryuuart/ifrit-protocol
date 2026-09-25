@@ -58,8 +58,9 @@ namespace shapes = sigil::geometry::shapes;
 namespace field = sigil::material::field;
 namespace document = sigil::compose::document;
 namespace data = sigil::data;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -214,9 +215,9 @@ struct SigillumAemeth {
                                                  {0.45f, kWaxLit},
                                                  {0.82f, kWaxMid},
                                                  {1.0f, kWaxDeep}}),
-                          SkBlendMode::kSrcOver},
+                          material::BlendMode::Normal},
                          {Paint::recipe(field::grain(1.6f, 4, 1582.0f, 0.34f)),
-                          SkBlendMode::kOverlay}}))
+                          material::BlendMode::Overlay}}))
         .layerStyle(
             {.under = {styles::dropShadow(hexColor(0x05070a, 0.7f), {6, 12},
                                           18)},

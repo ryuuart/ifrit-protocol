@@ -16,7 +16,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -41,6 +41,7 @@ namespace weave = sigil::weave;
 namespace measure = sigil::measure;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -133,7 +134,7 @@ inline Element rect(float x, float y, float w, float h) {
 
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
  *  here is flat-shaded with a hard limb — two stops and a dark edge. */
-inline Element sphere(SkPoint c, float r, material::skia::Paint m) {
+inline Element sphere(SkPoint c, float r, material::Paint m) {
   return kit::dot(c, r, std::move(m));
 }
 
@@ -145,18 +146,18 @@ inline Element sphere(SkPoint c, float r, material::skia::Paint m) {
 // quantizeTime(10) (fastbreak.gif, live, stepping at the GIF's own 100 ms
 // frame delay).
 
-inline material::skia::Paint ballMaterial(const sk_sp<SkRuntimeEffect>& program,
+inline material::Paint ballMaterial(const sk_sp<SkRuntimeEffect>& program,
                                  bool live, material::Color hi,
                                  material::Color lo, material::Color seam,
                                  float seamW) {
-  material::skia::Paint m = material::skia::Paint::sksl(program, {{"uSeamW", seamW}});
-  m.uniform("uHi", hi);
-  m.uniform("uLo", lo);
-  m.uniform("uSeam", seam);
+  material::Paint m = material::skia::sksl(program, {{"uSeamW", seamW}});
+  m.set("uHi", hi);
+  m.set("uLo", lo);
+  m.set("uSeam", seam);
   if (live)
     m.quantizeTime(10.0f);  // fastbreak.gif: six frames, duration=100 on each
   else
-    m.uniform("uSpin", 0.083f);  // one frozen frame
+    m.set("uSpin", 0.083f);  // one frozen frame
   return m;
 }
 
@@ -288,14 +289,14 @@ inline Element starTile() {
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
     tile.children({kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
-                       .fill(material::skia::Paint::radialGradient(
+                       .fill(material::Paint::radialGradient(
                            {0.5f, 0.5f}, 1.0f,
                            {{0.0f, {1, 1, 1, 0.0f}},
                             {0.74f, {1, 1, 1, 0.0f}},
                             {0.89f, {1, 1, 1, 0.030f}},
                             {1.0f, {1, 1, 1, 0.0f}}},
                            {.extent = material::RadialExtent::ClosestSide}))
-                       .blendMode(SkBlendMode::kPlus)});
+                       .blendMode(material::BlendMode::PlusLighter)});
 
   int bright = 0;
   for (const Star& s : kStarField) {
@@ -310,7 +311,7 @@ inline Element starTile() {
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
     tile.children({kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
-                       .fill(material::skia::Paint::radialGradient(
+                       .fill(material::Paint::radialGradient(
                            {0.5f, 0.5f}, 1.0f,
                            {{0.0f, {L, L, L, 1.0f}},
                             {0.24f, {L, L, L, 0.66f}},
@@ -318,7 +319,7 @@ inline Element starTile() {
                             {0.70f, {L, L, L, 0.055f}},
                             {1.0f, {L, L, L, 0.0f}}},
                            {.extent = material::RadialExtent::ClosestSide}))
-                       .blendMode(SkBlendMode::kPlus)});
+                       .blendMode(material::BlendMode::PlusLighter)});
 
     // Spikes: thin tapered lobes, and on this tile they are the dominant
     // visual, not the glows. Four read as axial (+) crosses and two as
@@ -333,7 +334,7 @@ inline Element starTile() {
       Element sp = kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, len)
                        .shape(shapes::star(pts, 0.035f, waist))
                        .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * L}))
-                       .blendMode(SkBlendMode::kPlus);
+                       .blendMode(material::BlendMode::PlusLighter);
       if (diagSpike(s.x, s.y)) sp.rotate(45);
       tile.children({std::move(sp)});
     }
@@ -381,7 +382,7 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
 
 /** A ring seen edge-on: an annulus on a squashed, rotated box. */
 inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
-                    float innerRatio, material::skia::Paint m) {
+                    float innerRatio, material::Paint m) {
   return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
       .shape(shapes::annulus(innerRatio))
       .fill(std::move(m))

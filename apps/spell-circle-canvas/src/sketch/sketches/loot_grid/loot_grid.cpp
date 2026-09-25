@@ -182,7 +182,7 @@ struct LootGrid {
                                {0.5f, {1, 1, 1, 0.30f}},
                                {1.0f, {1, 1, 1, 0.0f}}},
                               {.units = material::GradientUnits::Pixels}))
-                          .blendMode(SkBlendMode::kPlus)})});
+                          .blendMode(material::BlendMode::PlusLighter)})});
       grid.children({std::move(cell)});
     }
 
@@ -610,7 +610,7 @@ struct LootGrid {
                       .inset(0)
                       .fill(field::noise(0.9f, 4, 3.0f))
                       .opacity(0.34f)
-                      .blendMode(SkBlendMode::kOverlay),
+                      .blendMode(material::BlendMode::Overlay),
                   box().inset(0).fill(
                       Pattern(material::pattern::gridLines(
                                   96.0f, 1.0f, {0.62f, 0.50f, 0.26f, 0.10f}))

@@ -128,7 +128,7 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/ease/Ease.h>
@@ -151,6 +151,7 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -491,7 +492,7 @@ Element screen(Element caption) {
       .width(kScreenWidth)
       .height(kScreenHeight)
       .background(shadow(kSpill, {0, 6}, 46))
-      .fill(material::skia::Paint::radialGradient(
+      .fill(material::Paint::radialGradient(
           {kScreenWidth * 0.5f, kScreenHeight * 0.42f}, kScreenWidth * 0.62f,
           {kGlass, kStage}, {.units = material::GradientUnits::Pixels}))
       .stroke(stroke(1.5f, Fill::var("bezel")))
@@ -514,8 +515,8 @@ Element glowing(Text line, Text copy) {
            .inset(Dimension(-kHaloReach))
            .padding(kHaloReach)
            .children({std::move(copy)})
-           .filter(material::skia::Effect::blur(kHaloBlur))
-           .blendMode(SkBlendMode::kPlus),
+           .filter(material::Filter::blur(kHaloBlur))
+           .blendMode(material::BlendMode::PlusLighter),
        std::move(line)});
 }
 
@@ -599,7 +600,7 @@ struct KaraokeWipe {
         .column()
         .padding(34, kMargin)
         .gap(20)
-        .fill(material::skia::Paint::linearGradient(
+        .fill(material::Paint::linearGradient(
             {0, 0}, {0, kHeight}, {{0.35f, kRoom}, {1.0f, kRoomFloor}},
             {.units = material::GradientUnits::Pixels}))
         .applyStyleSheet(look())

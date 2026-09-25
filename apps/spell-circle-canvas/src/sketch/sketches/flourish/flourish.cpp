@@ -39,7 +39,7 @@
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
@@ -59,7 +59,7 @@ namespace motion = sigil::motion;
 
 using namespace sigil::compose;
 using sigil::draw::Pen;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 using namespace sigil::compose::kit::ornament;
 using namespace sigil::compose::kit::flourish;
@@ -182,7 +182,7 @@ struct Flourish {
         .inset(kFrameInset)
         .borderRadius({22})
         .foreground(glow)
-        .blendMode(SkBlendMode::kPlus)
+        .blendMode(material::BlendMode::PlusLighter)
         .cache(Cache::None);
   }
 
@@ -323,9 +323,9 @@ struct Flourish {
                    .key(bloom ? "titleBloom" : "title")
                    .opacity(&titleFade);
       if (bloom)
-        t.filter(sigil::material::skia::Effect::filter(
+        t.filter(sigil::material::skia::filter(
                      SkImageFilters::Blur(6, 6, nullptr)))
-            .blendMode(SkBlendMode::kPlus);
+            .blendMode(material::BlendMode::PlusLighter);
       else
         t.translateY(&titleDrop);
       return kit::centred()
@@ -344,7 +344,7 @@ struct Flourish {
         .borderRadius({16})
         .zIndex(3)
         .overflow(Overflow::Clip)
-        .backdropFilter(sigil::material::skia::Effect::filter(
+        .backdropFilter(sigil::material::skia::filter(
             SkImageFilters::Blur(8, 8, nullptr)))
         .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {0, 6}, 16))
         .fill(flourishParchment(st))
@@ -500,7 +500,7 @@ struct Flourish {
         .inset(0)
         .zIndex(6)
         .cache(Cache::None)
-        .blendMode(SkBlendMode::kPlus);
+        .blendMode(material::BlendMode::PlusLighter);
   }
 
   Element shimmer() const {
@@ -525,14 +525,14 @@ struct Flourish {
         .inset(kFrameInset)
         .zIndex(5)
         .cache(Cache::None)
-        .blendMode(SkBlendMode::kPlus);
+        .blendMode(material::BlendMode::PlusLighter);
   }
 
   // ---- assembly -----------------------------------------------------------
 
   Element describe() const {
     return stack()
-        .fill(material::skia::Paint::radialGradient(
+        .fill(material::Paint::radialGradient(
             {kW / 2, kH / 2}, 620, {st.velvetCore, st.velvetEdge},
             {.units = material::GradientUnits::Pixels}))
         .operators(filaments())

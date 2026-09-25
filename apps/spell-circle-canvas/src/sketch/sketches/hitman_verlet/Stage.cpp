@@ -10,9 +10,9 @@ auto HitmanVerlet::stageChrome(Pen& pen, double ms) -> void {
   // one fill, rather than costing a second pass over the same band.
   const float floorTop = kStage - kCapsule * kUnit;
   const Paint floor =
-      Paint::blend({{Paint::solid(fadeTo(kSolid, a)), SkBlendMode::kSrc},
+      Paint::blend({{Paint::solid(fadeTo(kSolid, a)), material::BlendMode::Source},
                     {Paint::recipe(field::grain(0.035f, 3, 11.0f, 0.5f)),
-                     SkBlendMode::kSoftLight}});
+                     material::BlendMode::SoftLight}});
   pen.noStroke();
   pen.fill(floor);
   pen.rect(0, floorTop, kStage, kStage - floorTop);

@@ -21,7 +21,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>

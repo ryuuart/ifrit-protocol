@@ -33,8 +33,9 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace path = sigil::geometry::path;
 namespace field = sigil::material::field;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -330,7 +331,7 @@ struct Minard1869 {
                 box()
                     .inset(0)
                     .fill(field::grain(0.5f, 3, 1869.0f))
-                    .blendMode(SkBlendMode::kMultiply)
+                    .blendMode(material::BlendMode::Multiply)
                     .opacity(0.08f),
                 // The printed frame: a heavy rule outside a fine one.
                 kit::at(box().foreground(

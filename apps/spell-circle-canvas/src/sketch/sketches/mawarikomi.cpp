@@ -99,7 +99,7 @@ struct Mawarikomi {
   Element describe() {
     namespace mw = mawari;
 
-    Fill ground = toFill(material::skia::Paint::linearGradient(
+    Fill ground = toFill(material::Paint::linearGradient(
         {0, 0}, {0, mw::kH}, {mw::kKinariLift, mw::kKinari},
         {.units = material::GradientUnits::Pixels}));
 

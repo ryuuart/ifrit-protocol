@@ -44,9 +44,9 @@ struct AstralTome {
                                                 {{0.0f, at::kLeatherWarm},
                                                  {0.55f, at::kLeatherMid},
                                                  {1.0f, at::kLeatherDark}}),
-                          SkBlendMode::kSrcOver},
+                          material::BlendMode::Normal},
                          {Paint::recipe(field::grain(2.6f, 4, 21.0f)),
-                          SkBlendMode::kOverlay}}));
+                          material::BlendMode::Overlay}}));
     return e;
   }
 
@@ -65,18 +65,18 @@ struct AstralTome {
             .key("page")
             .cache(Cache::Texture)
             .fill(Paint::blend(
-                {{Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrcOver},
+                {{Paint::solid({0, 0, 0, 1}), material::BlendMode::Normal},
                  {Paint::radialGradient(
                       {0.42f, 0.38f}, 0.85f,
                       {{0.0f, sigil::material::scale(at::kNebula, 2.2f)},
                        {0.5f, at::kNebula},
                        {1.0f, {0, 0, 0, 1}}}),
-                  SkBlendMode::kPlus},
+                  material::BlendMode::PlusLighter},
                  {Paint::radialGradient(
                       {0.78f, 0.74f}, 0.55f,
                       {{0.0f, sigil::material::scale(at::kNebula, 1.6f)},
                        {1.0f, {0, 0, 0, 0}}}),
-                  SkBlendMode::kPlus}}));
+                  material::BlendMode::PlusLighter}}));
     // The field. Six scatter runs on lissajous routes with a wide normal
     // jitter — a brush, seeded, not a table of hand-placed dots. The measured
     // budget is the constraint: ~0.95% of the plate's pixels exceed L = 60, so
@@ -259,7 +259,7 @@ struct AstralTome {
     grp.children({box()
                       .rect(SkRect::MakeXYWH((side - cr) * 0.5f,
                                              (side - cr) * 0.5f, cr, cr))
-                      .blendMode(SkBlendMode::kPlus)
+                      .blendMode(material::BlendMode::PlusLighter)
                       .shape(shapes::circle())
                       .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.52f}))});
     return grp;

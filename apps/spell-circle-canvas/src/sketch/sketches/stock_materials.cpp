@@ -79,7 +79,7 @@ sketch::kit::Theme sheetTheme() {
 
 /** The one voice: the recipe's name under the swatch, the call that made
  *  it under that, both ranged left at the cell's width. */
-Element swatch(Utf8 name, const char* call, material::skia::Paint paint) {
+Element swatch(Utf8 name, const char* call, material::Paint paint) {
   return sketch::kit::caption(
       kCell, std::move(name), call,
       box()
@@ -92,13 +92,13 @@ Element swatch(Utf8 name, const char* call, material::skia::Paint paint) {
 /** A material's own recipe names the cell — nothing here retypes it. */
 Element painted(const char* call, material::Material material) {
   const std::string name = material.recipe().name();
-  return swatch(name, call, material::skia::Paint::recipe(std::move(material)));
+  return swatch(name, call, material::Paint::recipe(std::move(material)));
 }
 
 /** A tile names itself by its generator, since a baked tile has no recipe
  *  of its own: what repeats is an image, sampled through the mapping. */
 Element tiled(const char* name, const char* call, material::pattern::Tile tile) {
-  return swatch(name, call, material::skia::Paint::shader(tile.texture().shader()));
+  return swatch(name, call, material::skia::paint(tile.texture().shader()));
 }
 
 Element row(std::vector<Element> cells) {
@@ -123,47 +123,47 @@ struct StockMaterialsSheet {
 
     // The tile the two content-reading fields are shown over, so the
     // warp has something to displace and the tube something to darken.
-    const material::skia::Paint under = material::skia::Paint::shader(
-        material::pattern::checker(14, material::rgb(0x2b3a54), material::rgb(0x8fa6c8))
+    const material::Paint under = material::skia::paint(
+        material::pattern::checker(14, material::hexColor(0x2b3a54), material::hexColor(0x8fa6c8))
             .texture()
             .shader());
 
     Element fields = row(
         {painted("field::halftoneRamp(9, 1, 3.6, gold)",
-                 field::halftoneRamp(9, 1.0f, 3.6f, material::rgb(0xf2cc4d), 18.0f)),
+                 field::halftoneRamp(9, 1.0f, 3.6f, material::hexColor(0xf2cc4d), 18.0f)),
          painted("field::noise(0.03, 4)", field::noise(0.03f, 4, 3.0f)),
          painted("field::grain(0.35, 4, stretch 2.4)",
                  field::grain(0.35f, 4, 3.0f, 1.0f, 2.4f)),
          swatch(field::rippleRecipe()->name(),
                 "field::ripple(7 px, 46 px) over a checker child",
-                material::skia::Paint::recipe(field::ripple(7.0f, 46.0f, 0.6f))
+                material::Paint::recipe(field::ripple(7.0f, 46.0f, 0.6f))
                     .slot("content", under)),
          swatch(field::crtOverlayRecipe()->name(),
                 "field::crtOverlay(4 px) laid over the same checker",
-                material::skia::Paint::blend({{under, SkBlendMode::kSrc},
-                                     {material::skia::Paint::recipe(field::crtOverlay()),
-                                      SkBlendMode::kSrcOver}})),
+                material::Paint::blend({{under, material::BlendMode::Source},
+                                     {material::Paint::recipe(field::crtOverlay()),
+                                      material::BlendMode::Normal}})),
          painted("field::noise(0.02, 5, turbulence)",
                  field::noise(0.02f, 5, 9.0f, true))});
 
     Element patterns =
         row({tiled("halftone", "pattern::halftone(11, 3.4, ink)",
-                   material::pattern::halftone(11, 3.4f, material::rgb(0xe8e2d2))),
+                   material::pattern::halftone(11, 3.4f, material::hexColor(0xe8e2d2))),
              tiled("stripes", "pattern::stripes(6, 10, gold).rotate(30)",
-                   material::pattern::stripes(6, 10, material::rgb(0xf2cc4d)).rotate(30)),
+                   material::pattern::stripes(6, 10, material::hexColor(0xf2cc4d)).rotate(30)),
              tiled("sequence",
                    "pattern::sequence({{18, navy}, {6, bone}, "
                    "{10, red}})",
-                   material::pattern::sequence({{18, material::rgb(0x1d2b45)},
-                                  {6, material::rgb(0xe8e2d2)},
-                                  {10, material::rgb(0xa33328)}})),
+                   material::pattern::sequence({{18, material::hexColor(0x1d2b45)},
+                                  {6, material::hexColor(0xe8e2d2)},
+                                  {10, material::hexColor(0xa33328)}})),
              tiled("checker", "pattern::checker(16, slate, bone)",
-                   material::pattern::checker(16, material::rgb(0x2b3a54), material::rgb(0xd8dbe2))),
+                   material::pattern::checker(16, material::hexColor(0x2b3a54), material::hexColor(0xd8dbe2))),
              tiled("gridLines", "pattern::gridLines(20, 1, ash)",
-                   material::pattern::gridLines(20, 1.0f, material::rgb(0x7f88a0))),
+                   material::pattern::gridLines(20, 1.0f, material::hexColor(0x7f88a0))),
              tiled("speckle", "pattern::speckle(120, 34, 1.2, 4.2)",
                    material::pattern::speckle(120, 34, 1.2f, 4.2f,
-                                {material::rgb(0xe8e2d2), material::rgb(0xf2cc4d)}))});
+                                {material::hexColor(0xe8e2d2), material::hexColor(0xf2cc4d)}))});
 
     Element grained = row(
         {painted("kit::stone({.bedAngle = 24, .bedLength = 46})",
@@ -182,30 +182,30 @@ struct StockMaterialsSheet {
     Element shapesAndRamps = row(
         {painted("sdf::circle, bordered and glowing",
                  sdf::material(sdf::circle(),
-                               {.fill = material::rgb(0x3389f2),
+                               {.fill = material::hexColor(0x3389f2),
                                 .borderWidth = 3,
-                                .borderColor = material::rgb(0xffffff, 0.9f),
+                                .borderColor = material::hexColor(0xffffff, 0.9f),
                                 .glowRadius = 10,
-                                .glowColor = material::rgb(0x66b3ff, 0.6f)})),
+                                .glowColor = material::hexColor(0x66b3ff, 0.6f)})),
          painted(
              "sdf::roundBox(14), with a shadow",
              sdf::material(sdf::roundBox(14),
-                           {.fill = material::rgb(0xf2593f),
+                           {.fill = material::hexColor(0xf2593f),
                             .borderWidth = 2,
-                            .borderColor = material::rgb(0xffe6b3, 0.9f),
+                            .borderColor = material::hexColor(0xffe6b3, 0.9f),
                             .shadowOffset = {0, 4},
                             .shadowBlur = 8,
-                            .shadowColor = material::rgb(0x000000, 0.55f)})),
+                            .shadowColor = material::hexColor(0x000000, 0.55f)})),
          painted("sdf::star(6, 2.6)",
                  sdf::material(sdf::star(6, 2.6f),
-                               {.fill = material::rgb(0xf2cc4d)})),
+                               {.fill = material::hexColor(0xf2cc4d)})),
          swatch(u8"linearUnit", "Paint::linearUnit({0,0}, {1,1}, ramp)",
-                material::skia::Paint::linearGradient({0, 0}, {1, 1}, ramp)),
+                material::Paint::linearGradient({0, 0}, {1, 1}, ramp)),
          swatch(
              u8"radialUnit", "Paint::radialUnit({0.5,0.5}, 1, ramp)",
-             material::skia::Paint::radialGradient({0.5f, 0.5f}, 1.0f, ramp)),
+             material::Paint::radialGradient({0.5f, 0.5f}, 1.0f, ramp)),
          swatch(u8"glowUnit", "Paint::glowUnit({0.5,0.5}, 1, ramp)",
-                material::skia::Paint::radialGradient(
+                material::Paint::radialGradient(
                     {0.5f, 0.5f}, 1.0f, ramp,
                     {.extent = material::RadialExtent::ClosestSide}))});
 

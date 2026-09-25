@@ -48,7 +48,7 @@ namespace sketch = sigil::sketch;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -94,7 +94,7 @@ inline Paint glassTint(float w, float h) {
       // blurred desktop, and the glass stops reading as glass; lower it and
       // the Sky character goes, along with the contrast the dark caption text
       // needs to stay legible.
-      {Paint::solid({kSky.r, kSky.g, kSky.b, 0.19f}), SkBlendMode::kSrcOver},
+      {Paint::solid({kSky.r, kSky.g, kSky.b, 0.19f}), material::BlendMode::Normal},
       // afterglow stand-in: brighter accent breathing down from the top
       {Paint::linearGradient({0, 0}, {0, h},
                              {{0.00f, {0.62f, 0.82f, 1.00f, 0.24f}},
@@ -102,7 +102,7 @@ inline Paint glassTint(float w, float h) {
                               {0.30f, {0.45f, 0.72f, 0.99f, 0.03f}},
                               {1.00f, {0.45f, 0.72f, 0.99f, 0.07f}}},
                              {.units = material::GradientUnits::Pixels}),
-       SkBlendMode::kSrcOver},
+       material::BlendMode::Normal},
       // the desktop-space diagonal sheen (~30 deg, peak a~.2)
       {Paint::linearGradient({0, h * 0.85f}, {w, h * 0.15f},
                              {{0.00f, {1, 1, 1, 0.00f}},
@@ -113,7 +113,7 @@ inline Paint glassTint(float w, float h) {
                               {0.88f, {1, 1, 1, 0.00f}},
                               {1.00f, {1, 1, 1, 0.00f}}},
                              {.units = material::GradientUnits::Pixels}),
-       SkBlendMode::kScreen},
+       material::BlendMode::Screen},
   });
 }
 
@@ -370,8 +370,8 @@ struct AeroDesktop {
                      .children(
                          {box()
                               .inset(0)
-                              .fill(Paint::sksl(aurora).uniform("uTime", 0.75f))
-                              .filter(sigil::material::skia::Effect::filter(
+                              .fill(Paint::sksl(aurora).set("uTime", 0.75f))
+                              .filter(sigil::material::skia::filter(
                                   SkImageFilters::Blur(3, 3, nullptr)))}),
                  // ...then the colorization tint stack over it
                  box().inset(0).fill(ad::glassTint(ad::kWW, ad::kWH)),
@@ -431,7 +431,7 @@ struct AeroDesktop {
                               ad::kH - ad::kWY - ad::kWH - 40, ad::kWX - 34)
                        .cache(Cache::Texture)  // static SDF shadow: bake once
                        .fill(Paint::sksl(windowShadow)
-                                 .uniform("uMargins",
+                                 .set("uMargins",
                                           material::Color{34, 30, 34, 40})),
                    std::move(frame)});
   }
@@ -556,14 +556,14 @@ struct AeroDesktop {
                  .children(
                      {box()
                           .inset(0)
-                          .fill(Paint::sksl(aurora).uniform("uTime", 0.75f))
-                          .filter(sigil::material::skia::Effect::filter(
+                          .fill(Paint::sksl(aurora).set("uTime", 0.75f))
+                          .filter(sigil::material::skia::filter(
                               SkImageFilters::Blur(3, 3, nullptr)))}),
              box().inset(0).fill(Paint::blend({
                  {Paint::solid({0.02f, 0.05f, 0.10f, 0.52f}),
-                  SkBlendMode::kSrcOver},
+                  material::BlendMode::Normal},
                  {Paint::solid({ad::kSky.r, ad::kSky.g, ad::kSky.b, 0.16f}),
-                  SkBlendMode::kSrcOver},
+                  material::BlendMode::Normal},
                  {Paint::linearGradient(
                       {0, 0}, {0, th},
                       {{0.00f, {1, 1, 1, 0.22f}},
@@ -571,7 +571,7 @@ struct AeroDesktop {
                        {0.55f, {1, 1, 1, 0.00f}},
                        {1.00f, {0, 0, 0, 0.18f}}},
                       {.units = material::GradientUnits::Pixels}),
-                  SkBlendMode::kSrcOver},
+                  material::BlendMode::Normal},
              })),
              // 1px light top edge over a dark seam
              box().inset(0, 0, th - 1, 0).fill(Fill::color({1, 1, 1, 0.30f})),
@@ -631,7 +631,7 @@ struct AeroDesktop {
                        .inset(2, 24, 26, 24)
                        .children({std::move(glyph)}),
                    lbl({0, 0, 0, 0.85f})
-                       .filter(sigil::material::skia::Effect::filter(
+                       .filter(sigil::material::skia::filter(
                            SkImageFilters::Blur(1.6f, 1.6f, nullptr))),
                    lbl({1, 1, 1, 0.95f})});
   }

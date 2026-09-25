@@ -170,11 +170,12 @@ namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace sigil::motion;
 namespace noise = sigil::core::noise;
 using namespace std::chrono_literals;
 using sigil::material::ColorStop;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 namespace ch = choreograph;
 
 namespace {
@@ -416,7 +417,7 @@ struct VertigoTitles {
          box()
              .key("stain")
              .inset(0)
-             .blendMode(SkBlendMode::kColor)
+             .blendMode(material::BlendMode::Color)
              .fill(animate(from(Fill::color(hexColor(0x3A2A1C)))
                                .to(Fill::color(hexColor(0xC81E2C))),
                            ramp(700, 500, sigil::motion::ease::inQuad)))});
@@ -543,7 +544,7 @@ struct VertigoTitles {
          box()
              .inset(0)
              .fill(filmGrain)
-             .blendMode(SkBlendMode::kOverlay)
+             .blendMode(material::BlendMode::Overlay)
              .opacity(0.42f),
          // the bezel is its OWN node: trim() on the panel would reveal the
          // iris fill along with the keyline.
@@ -735,7 +736,7 @@ struct VertigoTitles {
          box()
              .inset(0)
              .fill(paperGrain)
-             .blendMode(SkBlendMode::kOverlay)
+             .blendMode(material::BlendMode::Overlay)
              .opacity(0.16f)
              .cache(Cache::Texture)});
     return root;
@@ -777,12 +778,12 @@ struct VertigoTitles {
                {0.72f, hexColor(0x6A5030)},
                {1.00f, hexColor(0x36271A)}},
               {.units = material::GradientUnits::Pixels}),
-          SkBlendMode::kSrc},
+          material::BlendMode::Source},
          {Paint::conicGradient(kEye, fibres,
                                {.units = material::GradientUnits::Pixels,
                                 .startDegrees = 0.0f,
                                 .endDegrees = 360.0f}),
-          SkBlendMode::kSoftLight}});
+          material::BlendMode::SoftLight}});
 
     // LUMINANCE noise — the `contrast` knob is the difference between
     // film grain and concrete.

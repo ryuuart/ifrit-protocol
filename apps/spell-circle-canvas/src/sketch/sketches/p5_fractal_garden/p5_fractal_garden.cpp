@@ -39,23 +39,23 @@ constexpr int kTrunks = 6;
 constexpr int kDepth = 7;
 constexpr float kFirstLength = 108.0f;
 
-material::skia::Paint branchInk(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::Paint::sksl(std::move(program))
-      .slot("uGrain", material::skia::Paint::recipe(field::grain(0.08f, 3, 17.0f)))
+material::Paint branchInk(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::sksl(std::move(program))
+      .slot("uGrain", material::Paint::recipe(field::grain(0.08f, 3, 17.0f)))
       .quantizeTime(30.0f);
 }
 
-material::skia::Paint ground() {
-  return material::skia::Paint::blend(
-      {{material::skia::Paint::solid({0.025f, 0.032f, 0.065f, 1.0f}),
-        SkBlendMode::kSrcOver},
-       {material::skia::Paint::recipe(field::grain(0.012f, 4, 31.0f, 0.6f, 2.2f))
+material::Paint ground() {
+  return material::Paint::blend(
+      {{material::Paint::solid({0.025f, 0.032f, 0.065f, 1.0f}),
+        material::BlendMode::Normal},
+       {material::Paint::recipe(field::grain(0.012f, 4, 31.0f, 0.6f, 2.2f))
             .amount(0.22f),
-        SkBlendMode::kSoftLight}});
+        material::BlendMode::SoftLight}});
 }
 
-material::skia::Paint budLight() {
-  return material::skia::Paint::radialGradient(
+material::Paint budLight() {
+  return material::Paint::radialGradient(
       {0.36f, 0.30f}, 0.92f,
       {{0.00f, {1.00f, 0.98f, 0.82f, 1.0f}},
        {0.30f, {1.00f, 0.62f, 0.30f, 1.0f}},
@@ -70,9 +70,9 @@ struct P5FractalGarden {
     SkPoint to;
   };
 
-  material::skia::Paint branches;
-  const material::skia::Paint background = ground();
-  const material::skia::Paint buds = budLight();
+  material::Paint branches;
+  const material::Paint background = ground();
+  const material::Paint buds = budLight();
 
   void setup(sketch::SketchContext& context) {
     branches = branchInk(context.assets.shader(context.local("branch.sksl")));

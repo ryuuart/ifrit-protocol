@@ -156,25 +156,25 @@ struct Tables {
   sk_sp<SkRuntimeEffect> effect;
 };
 
-material::skia::Paint indexSource(const Tables& tables) {
-  return material::skia::Paint::image(tables.index, SkTileMode::kClamp,
-                             SkTileMode::kClamp,
+material::Paint indexSource(const Tables& tables) {
+  return material::skia::image(tables.index, material::Repeat::Pad,
+                             material::Repeat::Pad,
                              SkMatrix::Scale(kPanel / kCells, kPanel / kCells),
                              SkSamplingOptions(SkFilterMode::kNearest));
 }
 
-material::skia::Paint lutSource(const sk_sp<SkImage>& table) {
-  return material::skia::Paint::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
+material::Paint lutSource(const sk_sp<SkImage>& table) {
+  return material::skia::image(table, material::Repeat::Pad, material::Repeat::Pad,
                              SkMatrix::I(),
                              SkSamplingOptions(SkFilterMode::kNearest));
 }
 
 /** THE CALL SITE, in one place: one effect, two children, one uniform.
  *  Everything compiles to ONE shader — no saveLayer, no second node. */
-material::skia::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
+material::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
                       float shade) {
-  return material::skia::Paint::sksl(tables.effect)
-      .uniform("uShade", shade)
+  return material::skia::sksl(tables.effect)
+      .set("uShade", shade)
       .slot("uIndex", indexSource(tables))
       .slot("uPalette", lutSource(table));
 }
@@ -182,7 +182,7 @@ material::skia::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table
 /** The LUT itself, shown as the 16-swatch strip it is. */
 Element lutStrip(const sk_sp<SkImage>& table) {
   return box().width(kPanel).height(14).fill(
-      material::skia::Paint::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
+      material::skia::image(table, material::Repeat::Pad, material::Repeat::Pad,
                           SkMatrix::Scale(kPanel / 16.0f, 14.0f),
                           SkSamplingOptions(SkFilterMode::kNearest)));
 }
@@ -243,7 +243,7 @@ sketch::kit::ComparisonCase operand(const char* caseTitle, const char* call,
 }
 
 sketch::kit::ComparisonCase stacked(const char* caseTitle, const char* call,
-                                    const char* note, material::Blend blend,
+                                    const char* note, material::BlendMode blend,
                                     std::string key) {
   return operand(caseTitle, call, note,
                  material::over(stackBase(), stackTop(), stackMask(), blend),
@@ -320,11 +320,11 @@ struct MaterialChild {
                                  stacked("MIX", "over(base, top, mask)",
                                          "The mask interpolates between "
                                          "base and top.",
-                                         material::Blend::Mix, "over.mix"),
+                                         material::BlendMode::Normal, "over.mix"),
                                  stacked("MULTIPLY", "over(…, Blend::Multiply)",
                                          "The mask controls a "
                                          "multiplicative blend.",
-                                         material::Blend::Multiply, "over.mul")},
+                                         material::BlendMode::Multiply, "over.mul")},
                        .measure = 1020,
                        .gap = 20})})}));
   }

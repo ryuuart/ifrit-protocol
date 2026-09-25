@@ -102,7 +102,7 @@ auto WinampBase::mainWindow() -> Element {
                          }),
                     at(box(), 0, 0, 8, 6)
                         .fill(hexColor(0xCFE4FF, 0.55f))
-                        .blendMode(SkBlendMode::kPlus)
+                        .blendMode(material::BlendMode::PlusLighter)
                         .translateY(motion::bind(&glint).target(-n(6), n(43)))
                         .opacity(motion::bind(&glint)
                                      .offset(-0.5f)
@@ -183,7 +183,7 @@ auto WinampBase::mainWindow() -> Element {
                         .transformOrigin(pct(0), pct(50))
                         .scaleX(&playPos),
                     raised(at(box(), 1, 0, 29, 10)
-                               .fill(material::skia::Paint::linearGradient(
+                               .fill(material::Paint::linearGradient(
                                    {0, 0}, {0, 1},
                                    {{0.0f,
                                      sigil::material::lighten(kBtnFace, 0.12f)},
@@ -203,7 +203,7 @@ auto WinampBase::mainWindow() -> Element {
            // wants to be
            at(box(), 253, 91, 13, 15)
                .shape(bolt())
-               .fill(material::skia::Paint::linearGradient(
+               .fill(material::Paint::linearGradient(
                    {0, 0}, {0, 1},
                    {{0.0f, hexColor(0xC98A32)}, {1.0f, hexColor(0x7A4208)}}))});
 }
@@ -271,7 +271,7 @@ auto WinampBase::transportRow() -> Element {
            // the six keys with NO easing, entirely as mount keyframes
            at(box(), 0, 0, 8, 18)
                .fill(hexColor(0xE8F4FF, 0.55f))
-               .blendMode(SkBlendMode::kPlus)
+               .blendMode(material::BlendMode::PlusLighter)
                .translateX(
                    animate(motion::through({{600ms, n(10)}, {750ms, n(162)}}),
                            motion::ease::linear))
@@ -288,7 +288,7 @@ auto WinampBase::sliders(int vol, int bal) -> Element {
   // with one scored line down it.
   const auto thumb = [](float travel, int frame) {
     return raised(at(box(), 0, 1, 14, 11)
-                      .fill(material::skia::Paint::linearGradient(
+                      .fill(material::Paint::linearGradient(
                           {0, 0}, {0, 1},
                           {{0.0f, sigil::material::lighten(kBtnFace, 0.12f)},
                            {1.0f, dark(kBtnFace, 0.30f)}}))

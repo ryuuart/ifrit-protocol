@@ -45,7 +45,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -80,9 +80,9 @@ sketch::kit::Theme sheetTheme() {
  *  rules 7 px apart (detail a blur destroys visibly) under three discs.
  *  The tile is baked once and repeated; the rotation only remaps the
  *  sampling, so the run stays seamless. */
-material::skia::Paint rules() {
-  return material::skia::Paint::shader(
-      material::pattern::sequence({{3.5f, material::rgb(0x293147)}, {3.5f, material::rgb(0x9eb3db)}})
+material::Paint rules() {
+  return material::skia::paint(
+      material::pattern::sequence({{3.5f, material::hexColor(0x293147)}, {3.5f, material::hexColor(0x9eb3db)}})
           .rotate(90)
           .texture()
           .shader());
@@ -90,16 +90,16 @@ material::skia::Paint rules() {
 
 Element subject() {
   return stack().width(kPanel).height(kPanel).fill(rules()).children(
-      {kit::dot({64, 68}, 38, material::skia::Paint::solid({0.98f, 0.44f, 0.34f, 1})),
-       kit::dot({122, 122}, 26, material::skia::Paint::solid({0.42f, 0.86f, 0.72f, 1})),
+      {kit::dot({64, 68}, 38, material::Paint::solid({0.98f, 0.44f, 0.34f, 1})),
+       kit::dot({122, 122}, 26, material::Paint::solid({0.42f, 0.86f, 0.72f, 1})),
        kit::dot({166, 180}, 48,
-                material::skia::Paint::solid({0.96f, 0.82f, 0.36f, 1}))});
+                material::Paint::solid({0.96f, 0.82f, 0.36f, 1}))});
 }
 
 /** DEPTH OF FIELD: three stops down the unit square — max sigma at the
  *  top edge, zero at the focal line, max again at the bottom. */
-material::skia::Paint dofMap() {
-  return material::skia::Paint::linearGradient(
+material::Paint dofMap() {
+  return material::Paint::linearGradient(
       {0, 0}, {0, 1},
       {{0.0f, {1, 1, 1, 1}}, {kFocal, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
@@ -107,15 +107,15 @@ material::skia::Paint dofMap() {
 /** A LENS EDGE: zero on axis, max at the inscribed circle. The closest
  *  side is the extent that means "fills this box" (the farthest corner
  *  reaches the corners). */
-material::skia::Paint lensMap() {
-  return material::skia::Paint::radialGradient(
+material::Paint lensMap() {
+  return material::Paint::radialGradient(
       {0.5f, 0.5f}, 1.0f, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}},
       {.extent = material::RadialExtent::ClosestSide});
 }
 
 sketch::kit::ComparisonCase panel(const char* caseTitle, const char* call,
-                                  const char* note, material::skia::Paint map,
-                                  material::skia::Effect e, std::string key) {
+                                  const char* note, material::Paint map,
+                                  material::Filter e, std::string key) {
   return {.title = caseTitle,
           .control = call,
           .figure = box().column().gap(12).children(
@@ -162,7 +162,7 @@ struct BlurFalloff {
                                "shows where that blur is applied.")
                                .width(660),
                            box().width(660).height(42).fill(
-                               material::skia::Paint::linearGradient(
+                               material::Paint::linearGradient(
                                    {0, 0}, {1, 0},
                                    {{0, {0, 0, 0, 1}}, {1, {1, 1, 1, 1}}})),
                            box()
@@ -181,8 +181,8 @@ struct BlurFalloff {
                  {.cases =
                       {panel("UNIFORM", "filter(Blur(14, 14))",
                              "Every position receives the same blur.",
-                             material::skia::Paint::solid({1, 1, 1, 1}),
-                             material::skia::Effect::filter(
+                             material::Paint::solid({1, 1, 1, 1}),
+                             material::skia::filter(
                                  SkImageFilters::Blur(kMaxSigma,
                                                       kMaxSigma, nullptr)),
                              "flat"),
@@ -190,19 +190,19 @@ struct BlurFalloff {
                              "The dark horizon stays sharp; distance from it "
                              "increases blur.",
                              dofMap(),
-                             material::skia::Effect::blur(dofMap(), kMaxSigma),
+                             material::Filter::blur(dofMap(), kMaxSigma),
                              "dof"),
                        panel("LENS EDGE", "blur(glowUnit, 14)",
                              "The centre stays sharp while the edge softens.",
                              lensMap(),
-                             material::skia::Effect::blur(lensMap(), kMaxSigma),
+                             material::Filter::blur(lensMap(), kMaxSigma),
                              "lens"),
                        panel("RACK FOCUS", "blur(dofMap, 14) · live",
                              "The depth map stays fixed. Its maximum blur "
                              "breathes with time.",
                              dofMap(),
-                             material::skia::Effect::blur(dofMap(), kMaxSigma)
-                                 .uniform("maxSigma", &rack),
+                             material::Filter::blur(dofMap(), kMaxSigma)
+                                 .bind("maxSigma", &rack),
                              "rack")},
                   .measure = 1020,
                   .gap = 20})})));

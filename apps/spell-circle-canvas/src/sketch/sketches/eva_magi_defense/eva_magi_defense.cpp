@@ -171,7 +171,7 @@ struct EvaMagiDefense {
                         .gap(-6)
                         .rotate(-s.rotation)
                         .ink({0, 0, 0, 1})
-                        .blendMode(SkBlendMode::kDstOut)
+                        .blendMode(material::BlendMode::DestinationOut)
                         .children({text(u8"MAGI").font(type(36, 0.86f)),
                                    text(s.name).font(type(50, 0.95f))})});
     return plate;
@@ -220,9 +220,9 @@ struct EvaMagiDefense {
   // --- the layers ------------------------------------------------------------
   /** The field's strip as a material, panned by the front. Nearest sampling
    *  and a whole-pixel pan: a row of the strip IS a row of the plate. */
-  material::skia::Paint field(const sk_sp<SkImage>& strip) const {
-    material::skia::Paint m = material::skia::Paint::image(
-        strip, SkTileMode::kRepeat, SkTileMode::kClamp, SkMatrix::I(),
+  material::Paint field(const sk_sp<SkImage>& strip) const {
+    material::Paint m = material::skia::image(
+        strip, material::Repeat::Repeat, material::Repeat::Pad, SkMatrix::I(),
         SkSamplingOptions(SkFilterMode::kNearest));
     m.offset(std::nullopt, &front);
     return m;
@@ -255,9 +255,9 @@ struct EvaMagiDefense {
     return box()
         .width(kW)
         .height(kH)
-        .fill(material::skia::Paint::blend(
-            {{material::skia::Paint::image(ribbonHalo), SkBlendMode::kSrc},
-             {field(haloStrip), SkBlendMode::kSrcIn}}))
+        .fill(material::Paint::blend(
+            {{material::skia::image(ribbonHalo), material::BlendMode::Source},
+             {field(haloStrip), material::BlendMode::SourceIn}}))
         .cache(Cache::Texture)
         .cacheScale(0.5f)
         .key("ribbonglow");
@@ -345,7 +345,7 @@ struct EvaMagiDefense {
     };
 
     auto root = stack().inset(0);
-    auto picture = stack().inset(0).fill(material::skia::Paint::solid(kGround));
+    auto picture = stack().inset(0).fill(material::Paint::solid(kGround));
 
 
     // The ribbons: flat fills of one continuous field, panned by the front.

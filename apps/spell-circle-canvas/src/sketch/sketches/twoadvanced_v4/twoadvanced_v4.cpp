@@ -66,7 +66,7 @@ auto TwoAdvancedV4::describe() -> Element {
     // figure and ground backwards, because the PANELS are the light
     // thing on this page.
     page.fill(
-            material::skia::Paint::linearGradient({0, 0}, {0, 1},
+            material::Paint::linearGradient({0, 0}, {0, 1},
                                                   {{0.00f, kChrome},
                                                    {0.40f, hexColor(0x520F17)},
                                                    {0.55f, hexColor(0x470A12)},
@@ -74,7 +74,7 @@ auto TwoAdvancedV4::describe() -> Element {
                                                    {0.80f, hexColor(0x250002)},
                                                    {1.00f, kBgBot}}))
         .children({box().inset(0).fill(grain).opacity(0.07f).blendMode(
-            SkBlendMode::kOverlay)});
+            material::BlendMode::Overlay)});
   }
   return page.children(
       {rail(false), rail(true), statusBar(), sheet, bootOverlay()});
@@ -124,23 +124,23 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   // `field::noise()` is fractal RGB and turns the page into rainbow
   // terrazzo. `stretch` gives the grain a slight vertical tooth, which
   // is what the real 1x1600 sitebackground.gif strip has.
-  grain = material::skia::Paint::recipe(field::grain(0.9f, 3, 4.0f, 1.25f, 1.6f));
+  grain = material::Paint::recipe(field::grain(0.9f, 3, 4.0f, 1.25f, 1.6f));
 
-  spectrum = material::skia::Paint::sksl(ctx.assets.shader(ctx.local("spectrum.sksl")),
+  spectrum = material::skia::sksl(ctx.assets.shader(ctx.local("spectrum.sksl")),
                                 {{"uBars", 32.0f}})
-                 .uniform("uHot", kGlow)
-                 .uniform("uCool", kTealBar)
+                 .set("uHot", kGlow)
+                 .set("uCool", kTealBar)
                  .quantizeTime(10.0f);  // 10 steps a second, not a slide
 
   // ONE stripe material value, reused by the nav bar and four panel
   // headers; the pan is a bound uniform, not five redraw loops.
-  stripesLive = material::skia::Paint::sksl(ctx.assets.shader(ctx.local("stripe.sksl")),
+  stripesLive = material::skia::sksl(ctx.assets.shader(ctx.local("stripe.sksl")),
                                    {{"uOn", 6.0f}, {"uPeriod", 16.0f}})
-                    .uniform("uColor", kChromeHi)
-                    .uniform("uBase", kChrome)
-                    .uniform("uPan", &stripePan);
+                    .set("uColor", kChromeHi)
+                    .set("uBase", kChrome)
+                    .bind("uPan", &stripePan);
 
-  waterStreaks = material::skia::Paint::sksl(ctx.assets.shader(ctx.local("water.sksl")));
+  waterStreaks = material::skia::sksl(ctx.assets.shader(ctx.local("water.sksl")));
 
   // measure the press entries at the well's own wrap width, so the
   // auto-scroll walks the REAL overflow rather than a guessed one

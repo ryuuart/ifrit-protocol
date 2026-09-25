@@ -44,8 +44,9 @@ namespace weave = sigil::weave;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
 namespace field = sigil::material::field;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -268,7 +269,7 @@ struct ChevreulCircle {
                        box()
                            .inset(0)
                            .fill(paperGrain)
-                           .blendMode(SkBlendMode::kMultiply)
+                           .blendMode(material::BlendMode::Multiply)
                            .opacity(0.07f)
                            .cache(Cache::Texture)}));
   }

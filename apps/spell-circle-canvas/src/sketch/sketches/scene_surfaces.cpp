@@ -100,13 +100,13 @@ constexpr int kTapeHeight = 160;
 compose::StyleSheet screenType() {
   compose::StyleSheet sheet{
       compose::rule("h1").font(
-          {.size = 22.0f, .color = compose::hexColor(0xbfd4ef)}),
+          {.size = 22.0f, .color = sigil::material::hexColor(0xbfd4ef)}),
       compose::rule("paragraph")
-          .font({.size = 19.0f, .color = compose::hexColor(0x7e93b4)}),
+          .font({.size = 19.0f, .color = sigil::material::hexColor(0x7e93b4)}),
       compose::rule(".display")
-          .font({.size = 46.0f, .color = compose::hexColor(0xf2ebdc)}),
+          .font({.size = 46.0f, .color = sigil::material::hexColor(0xf2ebdc)}),
       compose::rule("caption, .caption")
-          .font({.size = 20.0f, .color = compose::hexColor(0x9eb8d9)})};
+          .font({.size = 20.0f, .color = sigil::material::hexColor(0x9eb8d9)})};
   return sheet;
 }
 
@@ -138,7 +138,7 @@ compose::Element levels(float seconds, material::Color accent) {
         {compose::box().width(compose::pct(100)).height(92.0f - height),
          compose::box().width(compose::pct(100)).height(height).fill(accent)});
   };
-  return screen(8.0f, compose::hexColor(0x12171f))
+  return screen(8.0f, sigil::material::hexColor(0x12171f))
       .children({compose::document::h1(u8"LEVELS"),
                  compose::box()
                      .row()
@@ -161,7 +161,7 @@ compose::Element trace(float seconds, material::Color accent) {
         .fill(material::Color{accent.r * lit, accent.g * lit, accent.b * lit,
                               1.0f});
   };
-  return screen(10.0f, compose::hexColor(0x0f141c))
+  return screen(10.0f, sigil::material::hexColor(0x0f141c))
       .children({compose::document::h1(u8"TRACE"),
                  compose::box().row().gap(5.0f).height(44.0f).children(
                      {compose::each(kCells, cell)}),
@@ -173,12 +173,12 @@ compose::Element trace(float seconds, material::Color accent) {
  *  a gauge. */
 compose::Element dial(float seconds, material::Color accent) {
   const float reading = 0.5f + 0.5f * std::sin(seconds * 1.15f);
-  return screen(10.0f, compose::hexColor(0x14121f))
+  return screen(10.0f, sigil::material::hexColor(0x14121f))
       .children({compose::document::h1(u8"DIAL"),
                  compose::box()
                      .width(compose::pct(100))
                      .height(26.0f)
-                     .fill(compose::hexColor(0x242938))
+                     .fill(sigil::material::hexColor(0x242938))
                      .children({compose::box()
                                     .width(10.0f)
                                     .height(26.0f)
@@ -206,7 +206,7 @@ compose::Element band(float seconds) {
         .height(compose::pct(100))
         .fill(material::Color{0.30f * lit, 0.95f * lit, 0.70f * lit, 1.0f});
   };
-  return screen(6.0f, compose::hexColor(0x0d121a), 12.0f)
+  return screen(6.0f, sigil::material::hexColor(0x0d121a), 12.0f)
       .row()
       .children({compose::each(kCells, cell)});
 }
@@ -220,9 +220,9 @@ compose::Element tape(float seconds) {
         46.0f +
         34.0f * (0.5f + 0.5f * std::sin(seconds * 1.7f + (float)i * 0.7f));
     return compose::box().width(length).height(6.0f).fill(
-        compose::hexColor(0xeb8c40));
+        sigil::material::hexColor(0xeb8c40));
   };
-  return screen(6.0f, compose::hexColor(0x1f2430), 14.0f)
+  return screen(6.0f, sigil::material::hexColor(0x1f2430), 14.0f)
       .children({compose::text(u8"WOVEN").styleClass("display"),
                  compose::document::caption(u8"a scene, sampled"),
                  compose::box()

@@ -70,10 +70,11 @@ namespace shapes = sigil::geometry::shapes;
 namespace shapers = sigil::geometry::shapers;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-using material::skia::Paint;
+using material::Paint;
 using sigil::motion::bind;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -319,7 +320,7 @@ struct ThunderFulu {
                        .shape(shapes::chamfered(17.0f))
                        .fill(ironGrain)
                        .opacity(0.085f)
-                       .blendMode(SkBlendMode::kSoftLight)
+                       .blendMode(material::BlendMode::SoftLight)
                        .cache(Cache::Texture)});
   }
 

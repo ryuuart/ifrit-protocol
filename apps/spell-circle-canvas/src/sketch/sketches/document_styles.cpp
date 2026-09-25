@@ -20,6 +20,7 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 constexpr float kColumn = 501;

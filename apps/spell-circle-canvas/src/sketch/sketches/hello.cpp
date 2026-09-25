@@ -28,6 +28,7 @@ namespace draw = sigil::draw;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 

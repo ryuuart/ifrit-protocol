@@ -13,7 +13,7 @@ Element TwoAdvancedV3::moduleBar(const Utf8& glyph, const Utf8& label,
       .alignItems(Align::Center)
       .padding(0, 7)
       .gap(8)
-      .fill(material::skia::Paint::linearGradient({0, 0}, {0, 1},
+      .fill(material::Paint::linearGradient({0, 0}, {0, 1},
                                                   {{0.0f, hexColor(0x8B98B2)},
                                                    {0.55f, hexColor(0x64738F)},
                                                    {1.0f, hexColor(0x4C5A73)}}))
@@ -47,7 +47,7 @@ Element TwoAdvancedV3::button(const Utf8& label, float w, float h) {
   return kit::centred()
       .width(w)
       .height(h)
-      .fill(material::skia::Paint::linearGradient(
+      .fill(material::Paint::linearGradient(
           {0, 0}, {0, 1},
           {{0.0f, kSteelHi}, {0.5f, kSteel}, {1.0f, kSteelDim}}))
       .stroke(stroke(1, Fill::color(sigil::material::withAlpha(kInk, 0.7f)),
@@ -68,7 +68,7 @@ Element TwoAdvancedV3::meter(int lit) {
 
 Element TwoAdvancedV3::bevelBar() {
   using namespace tv3;
-  return at(box().fill(material::skia::Paint::linearGradient(
+  return at(box().fill(material::Paint::linearGradient(
                 {0, 0}, {0, 1},
                 {{0.0f, hexColor(0x98A3BA)}, {1.0f, hexColor(0x66738F)}})),
             kStageX, 0, kStageW, 8)
@@ -86,7 +86,7 @@ Element TwoAdvancedV3::headerStrip() {
     strip.children(
         {at(box().fill(stretchFill(topHeader, 1381, 77)), 0, 0, 1381, 77)});
   } else {
-    strip.fill(material::skia::Paint::linearGradient(
+    strip.fill(material::Paint::linearGradient(
         {0, 0}, {1, 0.4f},
         {{0.0f, hexColor(0x2E3F5D)}, {1.0f, hexColor(0x25334C)}}));
     strip.children(
@@ -118,7 +118,7 @@ Element TwoAdvancedV3::wordmark() {
   Element panel =
       at(box().row().alignItems(Align::Center).padding(0, 30).gap(16), kStageX,
          82, kStageW, 86)
-          .fill(material::skia::Paint::linearGradient(
+          .fill(material::Paint::linearGradient(
               {0, 0}, {0, 1},
               {{0.0f, hexColor(0x8C99B4)},
                {0.6f, kSteel},
@@ -160,7 +160,7 @@ Element TwoAdvancedV3::navBar() {
     bar.overflow(Overflow::Clip).fill(stretchFill(navbarBg, 1338, 33));
   else
     bar.fill(
-        material::skia::Paint::linearGradient({0, 0}, {0, 1},
+        material::Paint::linearGradient({0, 0}, {0, 1},
                                               {{0.0f, hexColor(0x5A6A88)},
                                                {0.5f, kNavbar},
                                                {1.0f, hexColor(0x3C4A63)}}));
@@ -273,7 +273,7 @@ Element TwoAdvancedV3::footerRail() {
                 .alignItems(Align::Center)
                 .padding(0, 10)
                 .gap(8)
-                .fill(material::skia::Paint::linearGradient(
+                .fill(material::Paint::linearGradient(
                     {0, 0}, {0, 1},
                     {{0.0f, hexColor(0x5A6880)}, {1.0f, hexColor(0x49556C)}}))
                 // the three links, divided — the divider stands between

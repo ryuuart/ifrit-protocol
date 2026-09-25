@@ -54,6 +54,7 @@ namespace path = sigil::geometry::path;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 

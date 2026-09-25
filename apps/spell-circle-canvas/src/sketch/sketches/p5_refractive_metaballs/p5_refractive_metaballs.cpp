@@ -38,12 +38,12 @@ struct Lobe {
   float radius;
 };
 
-material::skia::Paint lineField(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::Paint::sksl(std::move(program)).quantizeTime(30.0f);
+material::Paint lineField(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::sksl(std::move(program)).quantizeTime(30.0f);
 }
 
-material::skia::Paint tendrilInk(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::Paint::sksl(std::move(program)).quantizeTime(30.0f);
+material::Paint tendrilInk(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::sksl(std::move(program)).quantizeTime(30.0f);
 }
 
 std::array<float, 4> uniform(const Lobe& lobe) {
@@ -52,16 +52,16 @@ std::array<float, 4> uniform(const Lobe& lobe) {
 
 /** THE REFRACTION, over @p source. The effect is handed in rather than
  *  read here, because this is asked for on every frame. */
-material::skia::Paint glass(const sk_sp<SkRuntimeEffect>& effect,
-                   const material::skia::Paint& source,
+material::Paint glass(const sk_sp<SkRuntimeEffect>& effect,
+                   const material::Paint& source,
                    const std::array<Lobe, kLobeCount>& lobes) {
-  material::skia::Paint paint = material::skia::Paint::sksl(effect, {{"uThreshold", kThreshold},
+  material::Paint paint = material::skia::sksl(effect, {{"uThreshold", kThreshold},
                                                    {"uStrength", 42.0f}})
                            .slot("uSource", source)
                            .quantizeTime(30.0f);
   for (int index = 0; index < kLobeCount; ++index)
     paint =
-        paint.uniform("uBall" + std::to_string(index), uniform(lobes[index]));
+        paint.set("uBall" + std::to_string(index), uniform(lobes[index]));
   return paint;
 }
 
@@ -84,8 +84,8 @@ void drawTendril(Pen& pen, SkPoint from, SkPoint to, int index, float clock,
 }
 
 struct P5RefractiveMetaballs {
-  material::skia::Paint source;
-  material::skia::Paint filament;
+  material::Paint source;
+  material::Paint filament;
   /** Held on the sketch: the frame asks for it. */
   sk_sp<SkRuntimeEffect> refraction;
 

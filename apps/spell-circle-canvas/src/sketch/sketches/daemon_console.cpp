@@ -92,7 +92,8 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::hexColor;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -820,7 +821,7 @@ struct DaemonConsole {
                        .fill(Pattern(scanlines)
                                  .offset(std::nullopt, &scanCreep)
                                  .material())
-                       .blendMode(SkBlendMode::kScreen)})
+                       .blendMode(material::BlendMode::Screen)})
         // …and the refresh band, baked once and slid down the panel. Its
         // rest position puts the tent's centre 90 px above the top edge,
         // so the sweep enters from above and leaves below the foot.
@@ -832,7 +833,7 @@ struct DaemonConsole {
                        .fill(dc::refreshBand())
                        .translateY(&refreshSweep)
                        .cache(Cache::Texture)
-                       .blendMode(SkBlendMode::kScreen)});
+                       .blendMode(material::BlendMode::Screen)});
   }
 };
 

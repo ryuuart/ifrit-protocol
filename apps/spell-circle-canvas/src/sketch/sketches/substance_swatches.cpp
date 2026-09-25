@@ -46,6 +46,7 @@ namespace weave = sigil::weave;
 namespace substance = sigil::substance;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 

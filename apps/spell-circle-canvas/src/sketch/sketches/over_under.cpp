@@ -146,7 +146,7 @@ struct OverUnder {
         material::over(stone(), brass(), material::maskMap(placedRamp()));
     const material::Material twice = material::over(
         mixed, material::kit::board({.paint = {0.10f, 0.11f, 0.13f, 1}}),
-        material::maskConstant(0.35f), material::Blend::Multiply);
+        material::maskConstant(0.35f), material::BlendMode::Multiply);
 
     ctx.composer.render(sketch::kit::page(
         {.title = "A surface over another surface",
@@ -242,7 +242,7 @@ struct OverUnder {
                                                   stone(), brass(),
                                                   material::maskMap(
                                                       placedRamp()),
-                                                  material::Blend::Add)),
+                                                  material::BlendMode::PlusLighter)),
                                          cell("A STACK OVER A STACK",
                                               "over(over(…), …, Multiply)",
                                               "Multiply another masked layer "

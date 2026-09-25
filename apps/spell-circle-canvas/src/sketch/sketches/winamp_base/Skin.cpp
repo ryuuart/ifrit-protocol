@@ -13,32 +13,32 @@ auto WinampBase::buildMaterials() -> void {
   // window, which is then the loudest texture in the picture and is not
   // in the skin. One recipe, three windows, two sizes — the unit square
   // is what makes 275x116 and 400x377 share it.
-  steel = material::skia::Paint::blend(
-      {{material::skia::Paint::linearGradient(
+  steel = material::Paint::blend(
+      {{material::Paint::linearGradient(
             {0, 0}, {0, 1}, {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
-        SkBlendMode::kSrcOver},
-       {material::skia::Paint::radialGradient(
+        material::BlendMode::Normal},
+       {material::Paint::radialGradient(
             {0.34f, 0.42f}, 1.15f,
             {{0.0f, {1, 1, 1, 0.055f}}, {1.0f, {1, 1, 1, 0.0f}}}),
-        SkBlendMode::kSrcOver},
-       {material::skia::Paint::recipe(
+        material::BlendMode::Normal},
+       {material::Paint::recipe(
             field::grain(0.34f, 2, 3.0f, 0.20f, 1.0f)),
-        SkBlendMode::kOverlay}});
+        material::BlendMode::Overlay}});
 
   // The desktop: flat teal plus ONE low-octave dither, baked once.
-  deskMat = material::skia::Paint::blend(
-      {{material::skia::Paint::solid(kDesk), SkBlendMode::kSrcOver},
-       {material::skia::Paint::recipe(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f)),
-        SkBlendMode::kOverlay}});
+  deskMat = material::Paint::blend(
+      {{material::Paint::solid(kDesk), material::BlendMode::Normal},
+       {material::Paint::recipe(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f)),
+        material::BlendMode::Overlay}});
 
   // CRT glass: the flat screen colour plus a soft off-centre catch-light.
-  lcdMat = material::skia::Paint::blend(
-      {{material::skia::Paint::solid(kLcd), SkBlendMode::kSrcOver},
-       {material::skia::Paint::radialGradient(
+  lcdMat = material::Paint::blend(
+      {{material::Paint::solid(kLcd), material::BlendMode::Normal},
+       {material::Paint::radialGradient(
             {0.28f, 0.22f}, 1.25f,
             {{0.0f, hexColor(0x2A2A46, 0.75f)},
              {1.0f, hexColor(0x2A2A46, 0.0f)}}),
-        SkBlendMode::kSrcOver}});
+        material::BlendMode::Normal}});
 
   // ONE fader-track value shared by all eleven faders (preamp + 10
   // bands), and it is a LADDER rather than a ramp. EQMAIN.BMP carries
@@ -63,10 +63,10 @@ auto WinampBase::buildMaterials() -> void {
       steps.push_back({lo, c});
       steps.push_back({hi, c});
     }
-    faderTrack = material::skia::Paint::linearGradient({0, 0}, {0, 1}, steps);
+    faderTrack = material::Paint::linearGradient({0, 0}, {0, 1}, steps);
   }
 
-  graphMat = material::skia::Paint::solid(kGraph);
+  graphMat = material::Paint::solid(kGraph);
 
   // The title-bar grip: horizontal hairlines, as a rotated stripe tile.
   // TITLEBAR.BMP's grip rails are CREAM, not the body's blue-grey — the
@@ -91,7 +91,7 @@ auto WinampBase::key(float x, float y, float w, float h, Element glyph)
     -> Element {
   using namespace wa;
   Element e = at(box(), x, y, w, h);
-  e.fill(material::skia::Paint::linearGradient(
+  e.fill(material::Paint::linearGradient(
       {0, 0}, {0, 1},
       {{0.0f, sigil::material::lighten(kBtnFace, 0.10f)},
        {0.55f, kBtnFace},
@@ -163,7 +163,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   };
   // the wordmark, the egg and the window buttons' glyphs: one gold
   return raised(at(box(), 0, 0, wN, hN)
-                    .fill(material::skia::Paint::linearGradient(
+                    .fill(material::Paint::linearGradient(
                         {0, 0}, {0, 1},
                         {{0.0f, sigil::material::lighten(kTitle, 0.06f)},
                          {1.0f, dark(kTitle, 0.25f)}}))

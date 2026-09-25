@@ -56,6 +56,7 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 namespace weave = sigil::weave;
 
 namespace {
@@ -169,7 +170,7 @@ struct ChromeType {
                      u8"a rectangle or the contours of a word.",
          .footer = u8"Boundary::Auto uses the box. Boundary::Glyphs uses "
                    u8"the shaped letters. The layer style stays the same.",
-         .ground = material::skia::Paint::linearGradient(
+         .ground = material::Paint::linearGradient(
              {0, 0}, {0, c::kH}, {c::kGroundLift, c::kGround},
              {.units = material::GradientUnits::Pixels})},
         kit::cells(

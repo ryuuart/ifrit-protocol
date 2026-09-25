@@ -182,7 +182,7 @@ struct WorldHud {
                             .fill(Paint::solid({wh::kCritHp.r, wh::kCritHp.g,
                                                 wh::kCritHp.b, 0.55f}))
                             .opacity(&lowPulse)
-                            .blendMode(SkBlendMode::kPlus),
+                            .blendMode(material::BlendMode::PlusLighter),
                         text("640 / 1030")
                             .font(wh::line(11, 0.8f))
                             .at({wh::kHealthW * 0.5f - 30, 5})}),
@@ -296,11 +296,11 @@ struct WorldHud {
       float frequency;
       int octaves;
       float gain, opacity;
-      SkBlendMode blend;
+      material::BlendMode blend;
     };
-    const Band kBands[3] = {{0.014f, 5, 3.0f, 0.85f, SkBlendMode::kMultiply},
-                            {0.030f, 4, 2.0f, 0.55f, SkBlendMode::kOverlay},
-                            {0.070f, 2, 5.0f, 0.30f, SkBlendMode::kMultiply}};
+    const Band kBands[3] = {{0.014f, 5, 3.0f, 0.85f, material::BlendMode::Multiply},
+                            {0.030f, 4, 2.0f, 0.55f, material::BlendMode::Overlay},
+                            {0.070f, 2, 5.0f, 0.30f, material::BlendMode::Multiply}};
     // a marker on the map: a small rounded pip at a fraction of the dial
     const auto pin = [](float u, float v, sigil::material::Color ink) {
       return box()
@@ -375,7 +375,7 @@ struct WorldHud {
                  .borderRadius({d * 0.5f})
                  .foreground(stroke(
                      5.0f,
-                     material::skia::Paint::linearGradient(
+                     material::Paint::linearGradient(
                          {0, 0}, {0, d}, {wh::kBoneHi, wh::kBone, wh::kBoneLo},
                          {.units = material::GradientUnits::Pixels}),
                      PathFormat::Align::Inner))

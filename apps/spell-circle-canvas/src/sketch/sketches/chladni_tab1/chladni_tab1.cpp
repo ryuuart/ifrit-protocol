@@ -67,7 +67,7 @@ namespace field = sigil::material::field;
 using namespace sigil::compose;
 using namespace sigil::motion;
 using namespace sigil::weave::literals;
-using material::skia::Paint;
+using material::Paint;
 
 namespace {
 
@@ -256,7 +256,7 @@ struct ChladniTab1 {
                                                    edge.b * 0.6f, 0.5f}}),
             box().cover().fill(
                 kit::vignette(canvas, {edge.r, edge.g, edge.b, 0.26f}, 0.62f)),
-            box().cover().fill(material::skia::Paint::linearGradient(
+            box().cover().fill(material::Paint::linearGradient(
                 {0, 0}, {canvas.width() * 0.09f, 0},
                 {{edge.r * 0.5f, edge.g * 0.5f, edge.b * 0.5f, 0.22f},
                  {edge.r, edge.g, edge.b, 0}},
@@ -576,9 +576,9 @@ struct ChladniTab1 {
     // Ink on rag paper is never flat: luminance noise shades the fill
     // without moving its hue.
     ink = Paint::blend(
-        {{Paint::solid(colourOf(plate["ink"]["ink"])), SkBlendMode::kSrc},
+        {{Paint::solid(colourOf(plate["ink"]["ink"])), material::BlendMode::Source},
          {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)),
-          SkBlendMode::kSoftLight}});
+          material::BlendMode::SoftLight}});
     // Sparse, and on a tile large enough that its repeat is not the
     // strongest mark on the page.
     foxing =
@@ -610,7 +610,7 @@ struct ChladniTab1 {
       const auto across = [&](float share) {
         return figure.inner + share * (1 - figure.inner);
       };
-      fans.push_back(toFill(material::skia::Paint::radialGradient(
+      fans.push_back(toFill(material::Paint::radialGradient(
           {radius, radius}, radius,
           {{across(0.2f), material::withAlpha(fur, 0)},
            {across(0.6f), fur},
@@ -621,7 +621,7 @@ struct ChladniTab1 {
     const material::Color line = colourOf(plate["ink"]["ink-line"]);
     for (const Front& front : kFronts) {
       const float outer = radius + front.width * 0.5f;
-      frontInks.push_back(toFill(material::skia::Paint::radialGradient(
+      frontInks.push_back(toFill(material::Paint::radialGradient(
           {radius, radius}, outer,
           {{(radius - front.width * 0.5f) / outer,
             material::withAlpha(line, 0)},

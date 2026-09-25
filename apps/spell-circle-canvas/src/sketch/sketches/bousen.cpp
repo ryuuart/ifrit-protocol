@@ -177,7 +177,7 @@ struct Bousen {
   Element describe() {
     namespace bs = bousen;
 
-    Fill ground = toFill(material::skia::Paint::linearGradient(
+    Fill ground = toFill(material::Paint::linearGradient(
         {0, 0}, {0, bs::kH}, {bs::kKinariLift, bs::kKinari},
         {.units = material::GradientUnits::Pixels}));
 

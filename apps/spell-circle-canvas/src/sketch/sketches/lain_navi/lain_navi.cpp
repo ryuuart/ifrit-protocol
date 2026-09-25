@@ -21,7 +21,7 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Crt.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
@@ -36,10 +36,11 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
-using material::skia::Effect;
-using material::skia::Paint;
+using material::Filter;
+using material::Paint;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -109,7 +110,7 @@ sk_sp<SkTypeface> titleFace() {
  *  the interface: a stratum adds to what is under it. */
 StyleSheet registers() {
   return StyleSheet{
-      rule(".light").blendMode(SkBlendMode::kPlus),
+      rule(".light").blendMode(material::BlendMode::PlusLighter),
       rule(".listing").font({.face = monoFace(), .size = 22}).ink(kConsoleInk),
       rule(".prose")
           .font({.face = minchoFace(), .size = 28, .track = 1.5f})
@@ -184,7 +185,7 @@ struct LainNavi {
   /** The photographed city under everything, defocused until it has no
    *  edge left: a few lit slabs, the bright massing in the right third. */
   Element city() const {
-    return box().inset(0).filter(Effect::blur(34)).children(
+    return box().inset(0).filter(Filter::blur(34)).children(
         {each(content["city"].items(), [](const sigil::data::Json& slab) {
           return kit::at(slab["x"].number(), slab["y"].number(),
                          slab["width"].number(), slab["height"].number())
@@ -197,7 +198,7 @@ struct LainNavi {
    *  No two lines start at the same x: a vertical original set
    *  horizontally by a compositor who did not align it. */
   Element prose() const {
-    return box().inset(0).styleClass("light").filter(Effect::blur(0.9f)).children(
+    return box().inset(0).styleClass("light").filter(Filter::blur(0.9f)).children(
         {each(content["prose"].items(),
               [](const sigil::data::Json& line, size_t index) {
                 return text(line.text())
@@ -218,7 +219,7 @@ struct LainNavi {
         kit::at(kBodyLeft, kBodyTop, kBodyRight - kBodyLeft,
                 kBodyBottom - kBodyTop)
             .styleClass("light")
-            .backdropFilter(Effect::blur(1.2f))
+            .backdropFilter(Filter::blur(1.2f))
             .fill(Paint::radialGradient(
                 {0.483f, 0.456f}, 0.70f,
                 {{0.00f, kBodyMiddle},
@@ -232,7 +233,7 @@ struct LainNavi {
         box()
             .inset(0)
             .styleClass("light")
-            .filter(Effect::blur(10))
+            .filter(Filter::blur(10))
             .children({
                 kit::disc({eye.fX + radius * 0.62f, eye.fY}, radius * 0.5f)
                     .height(radius * 1.56f)
@@ -287,7 +288,7 @@ struct LainNavi {
     return kit::at(text(passage)
                        .styleClass("listing light")
                        .paragraph({.leading = weave::Leading::absolute(kPitch)})
-                       .filter(Effect::blur(depth, 3)),
+                       .filter(Filter::blur(depth, 3)),
                    188, kListingTop, 800, blockHeight);
   }
 
@@ -328,7 +329,7 @@ struct LainNavi {
             .styleClass("title")
             .font({.size = 44})
             .ink(kAlright)
-            .filter(Effect::glow(material::scale(kAlright, 0.4f), 3))
+            .filter(Filter::glow(material::scale(kAlright, 0.4f), 3))
             .centerAt({455, 392}),
     });
   }
@@ -349,7 +350,7 @@ struct LainNavi {
               .styleClass("minds")
               .font({.size = static_cast<float>(title["size"].number())})
               .opacity(level)
-              .filter(Effect::glow(material::scale(kMinds, 0.8f), 8))
+              .filter(Filter::glow(material::scale(kMinds, 0.8f), 8))
               .centerAt({static_cast<float>(title["x"].number()),
                          static_cast<float>(title["y"].number())});
         })});
@@ -360,7 +361,7 @@ struct LainNavi {
     return box()
         .inset(0)
         .styleClass("light")
-        .filter(Effect::directionalBlur(36, 0))
+        .filter(Filter::directionalBlur(36, 0))
         .children({each(content["streaks"].items(),
                         [](const sigil::data::Json& band) {
                           return kit::at(band["x"].number(), band["y"].number(),
@@ -373,9 +374,9 @@ struct LainNavi {
 
   /** The tube: what is lit blooms, then the beam rasters the whole frame
    *  at its own 4.42 px pitch. */
-  static Effect tube() {
-    return Effect::phosphorBloom(8, 0.45f, 0.40f, 0.5f)
-        .then(Effect::recipe(material::field::crtBeam(
+  static Filter tube() {
+    return Filter::phosphorBloom(8, 0.45f, 0.40f, 0.5f)
+        .then(Filter::of(material::field::crtBeam(
             {.uBounds = {0, 0, kWidth, kHeight},
              .uScanPitch = 4.42f,
              .uRaster = 0.45f,
@@ -415,7 +416,7 @@ struct LainNavi {
                 .alignItems(Align::Center)
                 .styleClass("light")
                 .ink(kWordmark)
-                .filter(Effect::blur(1.4f))
+                .filter(Filter::blur(1.4f))
                 .children({text(u8"Copland OS Enterprise")
                                .font({.face = serifFace(700, true),
                                       .size = 34,
@@ -431,7 +432,7 @@ struct LainNavi {
                 .styleClass("title light")
                 .font({.size = 62})
                 .ink(kCover)
-                .filter(Effect::glow(material::scale(kCover, 0.5f), 6.5f))
+                .filter(Filter::glow(material::scale(kCover, 0.5f), 6.5f))
                 .centerAt({730, 182}),
             streaks(),
             titles(),

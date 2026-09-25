@@ -31,6 +31,7 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 using sigil::data::Json;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 

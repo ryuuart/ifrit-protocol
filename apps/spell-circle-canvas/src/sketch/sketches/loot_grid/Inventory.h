@@ -36,7 +36,8 @@ namespace motion = sigil::motion;
 namespace field = sigil::material::field;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::hexColor;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -356,7 +357,7 @@ inline Element panel(float w, float h) {
                      .inset(0)
                      .fill(field::noise(0.06f, 4, 7.0f))
                      .opacity(0.16f)
-                     .blendMode(SkBlendMode::kOverlay)})
+                     .blendMode(material::BlendMode::Overlay)})
       .foreground(
           styles::BevelEmboss{2.5f,
                               4.0f,

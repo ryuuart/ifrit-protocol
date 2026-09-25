@@ -88,7 +88,7 @@ struct TwoAdvancedV3 {
   bool booted = false;
 
   /** A bitmap stretched to exactly (w, h). */
-  static material::skia::Paint stretchFill(const ImagePtr& asset, float w, float h,
+  static material::Paint stretchFill(const ImagePtr& asset, float w, float h,
                                   SkTileMode tx = SkTileMode::kClamp,
                                   SkTileMode ty = SkTileMode::kClamp);
 

@@ -19,7 +19,7 @@
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
 #include <sigilmotion/schedule/Spread.h>
@@ -51,6 +51,7 @@ namespace weave = sigil::weave;
 namespace measure = sigil::measure;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace std::chrono_literals;
 namespace ch = choreograph;
 
@@ -639,10 +640,9 @@ inline sk_sp<SkImage> fieldStrip(float hueTurn) {
   for (const auto& stop : kRamp)
     stops.push_back({stop.t, hexColor(turnHue(stop.rgb, hueTurn))});
   SkPaint paint;
-  paint.setShader(material::skia::Paint::linearGradient(
+  paint.setShader(sigil::material::skia::shader(material::Paint::linearGradient(
                       {0, 0}, {0, kH}, std::move(stops),
-                      {.units = material::GradientUnits::Pixels})
-                      .asShader());
+                      {.units = material::GradientUnits::Pixels})));
   surface->getCanvas()->drawPaint(paint);
   return surface->makeImageSnapshot();
 }

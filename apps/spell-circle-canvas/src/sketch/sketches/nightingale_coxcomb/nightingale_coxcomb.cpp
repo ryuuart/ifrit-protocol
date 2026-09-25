@@ -96,7 +96,7 @@ using namespace sigil::compose;
 using namespace sigil::motion;
 using namespace sigil::weave::literals;
 using namespace std::chrono_literals;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 
 namespace {
 
@@ -225,11 +225,11 @@ Paint tintStone(material::Color wash, material::Color ink, int fine,
                            {material::withAlpha(ink, 0.12f)});
   blot.seed(seed * 7 + 3);
   return Paint::blend(
-      {{Paint::solid(wash), SkBlendMode::kSrc},
-       {stipple.material(), SkBlendMode::kSrcOver},
-       {blot.material(), SkBlendMode::kSrcOver},
+      {{Paint::solid(wash), material::BlendMode::Source},
+       {stipple.material(), material::BlendMode::Normal},
+       {blot.material(), material::BlendMode::Normal},
        {Paint::recipe(field::grain(0.010f, 3, (float)seed)),
-        SkBlendMode::kSoftLight}});
+        material::BlendMode::SoftLight}});
 }
 
 }  // namespace
@@ -337,7 +337,7 @@ struct NightingaleCoxcomb {
             box()
                 .inset(kPlateMark + 2)
                 .fill(Fill::color(material::withAlpha(colour("paper"), 0.28f))),
-            box().inset(0).fill(material::skia::Paint::linearGradient(
+            box().inset(0).fill(material::Paint::linearGradient(
                 {0, 0}, {kCanvas.width(), kCanvas.height()},
                 {{0.0f, colour("raking-light")},
                  {0.45f, colour("raking-light", 0)},
@@ -346,7 +346,7 @@ struct NightingaleCoxcomb {
             box()
                 .rect(SkRect::MakeXYWH(kAxis - gutter / 2, 0, gutter,
                                        kCanvas.height()))
-                .fill(material::skia::Paint::linearGradient(
+                .fill(material::Paint::linearGradient(
                     {0, 0}, {gutter, 0},
                     {{0.0f, colour("gutter-shadow", 0)},
                      {0.38f, colour("gutter-shadow", 0.45f)},

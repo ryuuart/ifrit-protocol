@@ -81,7 +81,7 @@ auto SlitScan2001::filmFrame() -> Element {
                {0.42f, {0.90f, 0.80f, 0.60f, 0.10f}},
                {1.00f, {0.6f, 0.5f, 0.4f, 0.0f}}},
               {.extent = sigil::material::RadialExtent::ClosestSide}))
-          .blendMode(SkBlendMode::kPlus);
+          .blendMode(material::BlendMode::PlusLighter);
   // HALATION. Film's own bloom: light scattering back off the base. The
   // SAME two pools read a second time, tone-curved softer, blurred and
   // added -- so it is still the accumulation, not a painted glow.
@@ -90,7 +90,7 @@ auto SlitScan2001::filmFrame() -> Element {
           .filter(Effect::shader(transfer, {{"k", transferK() * 0.55f}})
                       .then(Effect::filter(
                           SkImageFilters::Blur(9.0f, 9.0f, nullptr))))
-          .blendMode(SkBlendMode::kPlus)
+          .blendMode(material::BlendMode::PlusLighter)
           .opacity(0.55f);
 
   auto hud = [&](const std::string& str, float l, float tp, float r, float b,

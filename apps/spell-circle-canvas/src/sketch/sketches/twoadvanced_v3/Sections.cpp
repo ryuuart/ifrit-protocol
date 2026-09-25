@@ -24,7 +24,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   if (bg)
     art.fill(stretchFill(bg, kStageW, kArtH));
   else
-    art.fill(material::skia::Paint::linearGradient(
+    art.fill(material::Paint::linearGradient(
         {0, 0}, {0, 1}, {{0.0f, hexColor(0x2A3A58)}, {1.0f, kDeep}}));
 
   if (sec < 0) {
@@ -40,11 +40,11 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                .children({at(
                    box().overflow(Overflow::Clip).children({slot("clouds")}),
                    415, 35, 310, 255)})
-               .mask(by::alpha(material::skia::Paint::image(
-                   gapMask, SkTileMode::kClamp, SkTileMode::kClamp,
+               .mask(by::alpha(material::skia::image(
+                   gapMask, material::Repeat::Pad, material::Repeat::Pad,
                    SkMatrix::Scale(kStageW / (float)gapMask->width(),
                                    kArtH / (float)gapMask->height()))))
-               .filter(material::skia::Effect::filter(cloudLook))
+               .filter(material::skia::filter(cloudLook))
                .opacity(0.95f)});
     }
     // Idle beacon on the art's readout cluster: the one light that
@@ -121,7 +121,7 @@ Element TwoAdvancedV3::transitionArt(int fromSec, int toSec, int step) {
   const float x = kStageW * f;
   out.children({at(box().fill(sigil::material::withAlpha(kSteelHi, 0.85f)),
                    x - 5, 0, 10, kArtH)
-                    .blendMode(SkBlendMode::kScreen)
+                    .blendMode(material::BlendMode::Screen)
                     .opacity(0.28f + 0.5f * std::sin(f * 3.14159f))});
   return out;
 }

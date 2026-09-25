@@ -181,7 +181,7 @@ class LiquidGlass:
         balls = self.lobes(t)
         glass = self.glass.copy()
         for i, (x, y, radius) in enumerate(balls):
-            glass.uniform(f"uBall{i}", (x, y, radius, 0))
+            glass.set(f"uBall{i}", (x, y, radius, 0))
         pen.background(self.source)
         pen.blendMode(BLEND)
         pen.noStroke()

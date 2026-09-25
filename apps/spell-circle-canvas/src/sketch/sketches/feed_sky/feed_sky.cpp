@@ -246,7 +246,7 @@ struct FeedSky {
   /** THE NIGHT the bands cross: darker overhead, lifting toward the
    *  horizon. */
   static SurfacePaint skyGround() {
-    return material::skia::Paint::linearGradient(
+    return material::Paint::linearGradient(
         {0, 0}, {0, kSkyHeight * kSkyScale},
         {{0.02f, 0.025f, 0.06f, 1}, {0.07f, 0.06f, 0.14f, 1}},
         {.units = material::GradientUnits::Pixels});

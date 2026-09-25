@@ -27,7 +27,7 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Frame.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -45,10 +45,11 @@ namespace motion = sigil::motion;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
-using material::skia::Effect;
-using material::skia::Paint;
+using material::Filter;
+using material::Paint;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -448,7 +449,7 @@ struct RotaConvocationis {
             {// The line work, lit: one soft halo over every rule and figure,
              // so the circle reads as charged rather than merely drawn.
              sheet()
-                 .filter(Effect::glow(hexColor(0xE79A32, 0.45f), 3.0f))
+                 .filter(Filter::glow(hexColor(0xE79A32, 0.45f), 3.0f))
                  .children(
                      {each(kRules,
                            [](const Rule& rule) {

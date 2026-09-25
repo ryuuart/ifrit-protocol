@@ -10,7 +10,7 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Crt.h>
-#include <sigilmaterial/skia/Bloom.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -28,8 +28,9 @@ namespace shapes = sigil::geometry::shapes;
 namespace motion = sigil::motion;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using sigil::draw::Pen;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 
 namespace {
 constexpr float kWidth = 1428, kHeight = 800;
@@ -213,7 +214,7 @@ struct EvaMagiInterior {
                              .nonlinearPicture = true});
     auto tube = material::kit::crt(SkRect::MakeWH(kWidth, kHeight));
     tube.set("uBloom", 0.22f);
-    const auto phosphor = material::skia::bloom({.sigma = 1.6f,
+    const auto phosphor = material::Filter::bloom({.sigma = 1.6f,
                                                 .strength = 0.24f,
                                                 .spread = 2.2f,
                                                 .tail = 0.12f,
@@ -234,7 +235,7 @@ struct EvaMagiInterior {
                               "on MAGI-01 ORIGINAL", false),
                         slot("timers")})
              .filter(phosphor.then(
-                 material::skia::Effect::recipe(tube, 82.0f)))}));
+                 material::Filter::of(tube, 82.0f)))}));
     second = 0;
     ctx.composer.renderSlot("timers", timers(second));
   }

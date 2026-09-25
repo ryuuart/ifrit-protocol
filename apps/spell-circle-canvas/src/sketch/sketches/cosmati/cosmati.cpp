@@ -72,6 +72,7 @@ namespace shapes = sigil::geometry::shapes;
 namespace path = sigil::geometry::path;
 namespace ch = choreograph;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace sigil::motion;
 using namespace sigil::weave::literals;
 using namespace std::chrono_literals;
@@ -652,7 +653,7 @@ struct Cosmati {
                              .source(kLightPhase, kLightPhase + kLightPeriod)
                              .wave(sigil::motion::ease::linear)
                              .target(0, kSide + 600))
-             .fill(material::skia::Paint::linearGradient(
+             .fill(material::Paint::linearGradient(
                  {0, 0}, {300, 0},
                  {{0.0f, material::withAlpha(kDaylight, 0)},
                   {0.35f, material::withAlpha(kDaylight, 0.09f)},
@@ -660,8 +661,8 @@ struct Cosmati {
                   {0.65f, material::withAlpha(kDaylight, 0.09f)},
                   {1.0f, material::withAlpha(kDaylight, 0)}},
                  {.units = material::GradientUnits::Pixels}))
-             .blendMode(SkBlendMode::kPlus),
-         box().cover().fill(material::skia::Paint::radialGradient(
+             .blendMode(material::BlendMode::PlusLighter),
+         box().cover().fill(material::Paint::radialGradient(
              {kCentre, kCentre * 0.8f}, kSide * 0.78f,
              {{0.0f, {0, 0, 0, 0}},
               {0.55f, {0, 0, 0, 0}},
@@ -757,7 +758,7 @@ struct Cosmati {
                       .marginTop(6)}),
              kit::line(
                  {.length = Dimension(kColumnWidth),
-                  .fill = material::skia::Paint::linearGradient(
+                  .fill = material::Paint::linearGradient(
                       {0, 0}, {kColumnWidth, 0},
                       {draw::parseColor(words["ink"]["rule"].text()),
                        material::withAlpha(
@@ -792,7 +793,7 @@ struct Cosmati {
   Element describe() const {
     return stack()
         .applyStyleSheet(sheet())
-        .fill(material::skia::Paint::radialGradient(
+        .fill(material::Paint::radialGradient(
             {kMargin + kCentre, kMargin + kCentre}, kCanvas.fWidth * 0.8f,
             {hexColor(0x1C1814),
              draw::parseColor(words["ink"]["ground"].text())},

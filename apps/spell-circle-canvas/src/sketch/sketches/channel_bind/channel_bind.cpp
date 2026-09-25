@@ -316,7 +316,7 @@ struct ChannelBind {
             .rect(SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
                                    kWheelTop + kWheelSide))
             .borderRadius(kWheelSide * 0.5f)
-            .fill(material::skia::Paint::conicGradient(
+            .fill(material::Paint::conicGradient(
                 SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}, hues(),
                 {.units = material::GradientUnits::Pixels}))
             .rotate(turn()));

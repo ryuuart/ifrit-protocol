@@ -36,24 +36,24 @@ constexpr int kThreads = 9;
 constexpr int kSettlingSteps = 90;
 constexpr int kTraceSteps = 720;
 
-material::skia::Paint threadInk(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::Paint::sksl(std::move(program))
-      .slot("uGrain", material::skia::Paint::recipe(field::grain(0.07f, 3, 41.0f)))
+material::Paint threadInk(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::sksl(std::move(program))
+      .slot("uGrain", material::Paint::recipe(field::grain(0.07f, 3, 41.0f)))
       .quantizeTime(30.0f);
 }
 
-material::skia::Paint ground() {
-  return material::skia::Paint::blend(
-      {{material::skia::Paint::solid({0.018f, 0.025f, 0.052f, 1.0f}),
-        SkBlendMode::kSrcOver},
-       {material::skia::Paint::recipe(field::grain(0.018f, 4, 29.0f, 0.8f, 1.7f))
+material::Paint ground() {
+  return material::Paint::blend(
+      {{material::Paint::solid({0.018f, 0.025f, 0.052f, 1.0f}),
+        material::BlendMode::Normal},
+       {material::Paint::recipe(field::grain(0.018f, 4, 29.0f, 0.8f, 1.7f))
             .amount(0.18f),
-        SkBlendMode::kSoftLight}});
+        material::BlendMode::SoftLight}});
 }
 
 struct P5AttractorLoom {
-  material::skia::Paint threads;
-  const material::skia::Paint background = ground();
+  material::Paint threads;
+  const material::Paint background = ground();
 
   void setup(sketch::SketchContext& context) {
     threads = threadInk(context.assets.shader(context.local("thread.sksl")));

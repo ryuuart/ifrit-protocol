@@ -33,7 +33,7 @@
 //    resolved from the SAME cascade `Composer::beatsOf` reports — the meter
 //    bars under the display line are drawn from that query, so the bars and
 //    the burn read one schedule by construction;
-//  - the material is `material::skia::Paint::recipe(...)` over a SigilMaterial recipe,
+//  - the material is `material::Paint::recipe(...)` over a SigilMaterial recipe,
 //    and the runtime owns the per-count specialization and its cache;
 //  - the layer is sampled at the device's resolution, so a 2x host stays
 //    sharp with no supersampled bake;
@@ -69,7 +69,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -141,12 +141,12 @@ std::shared_ptr<const sigil::material::Recipe> burnRecipe(std::string body) {
           .body(sigil::material::Target::SkSL, std::move(body)));
 }
 
-material::skia::Paint burnMaterial(
+material::Paint burnMaterial(
     const std::shared_ptr<const sigil::material::Recipe>& recipe) {
-  return material::skia::Paint::recipe(sigil::material::Material(recipe))
-      .uniform("uInk", kInk)
-      .uniform("uEmber", kEmber)
-      .uniform("uWeights", std::vector<float>{kSweep, kSpeckle, kPatch});
+  return material::Paint::recipe(sigil::material::Material(recipe))
+      .set("uInk", kInk)
+      .set("uEmber", kEmber)
+      .set("uWeights", std::vector<float>{kSweep, kSpeckle, kPatch});
 }
 
 /** One track's master progress across the loop: a linear ramp up from
@@ -183,7 +183,7 @@ struct EmberDecode {
                          .color = material::Color{1, 1, 1, 1},
                          .track = track};
     };
-    const material::skia::Paint burn = burnMaterial(recipe);
+    const material::Paint burn = burnMaterial(recipe);
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
     // meter per beat of the display track, at that beat's laid-out rect,

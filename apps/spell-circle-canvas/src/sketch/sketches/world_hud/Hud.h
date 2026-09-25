@@ -48,7 +48,8 @@ namespace path = sigil::geometry::path;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::hexColor;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -164,7 +165,7 @@ inline Element boneFrame(float w, float h, float radius = 3) {
                      .borderRadius({radius})
                      .fill(field::noise(0.36f, 3, 1.0f))
                      .opacity(0.38f)
-                     .blendMode(SkBlendMode::kMultiply)})
+                     .blendMode(material::BlendMode::Multiply)})
       .foreground(stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}),
                          PathFormat::Align::Outer));
 }

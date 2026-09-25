@@ -49,7 +49,8 @@ namespace weave = sigil::weave;
 namespace ch = choreograph;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::hexColor;
+using sigil::material::Paint;
 
 namespace {
 
@@ -221,12 +222,12 @@ Element nebula(SkSize size) {
                           {{0.0f, hexColor(cloud.colour, cloud.alpha)},
                            {1.0f, hexColor(cloud.colour, 0.0f)}},
                           {.extent = material::RadialExtent::ClosestSide}))
-                      .blendMode(SkBlendMode::kScreen);
+                      .blendMode(material::BlendMode::Screen);
                 }),
            box()
                .inset(0)
                .opacity(0.30f)
-               .blendMode(SkBlendMode::kOverlay)
+               .blendMode(material::BlendMode::Overlay)
                .fill(field::noise(0.004f, 4, 3.0f)),
            box().inset(0).children(stars)});
 }
@@ -238,8 +239,8 @@ Paint wood(bool vertical) {
   return Paint::blend(
       {{Paint::recipe(field::grain(0.03f, 2, vertical ? 5.0f : 9.0f, 1.3f,
                                    vertical ? 1.0f / 6.0f : 6.0f)),
-        SkBlendMode::kSrc},
-       {Paint::solid(kWood), SkBlendMode::kMultiply}});
+        material::BlendMode::Source},
+       {Paint::solid(kWood), material::BlendMode::Multiply}});
 }
 
 Element plank(float x, float y, float width, float height) {
@@ -291,7 +292,7 @@ struct Thaumonomicon {
                    {{0.0f, hexColor(0xB040FF, 0.28f * (float)research.warp)},
                     {1.0f, hexColor(0x40006A, 0.0f)}},
                    {.extent = material::RadialExtent::ClosestSide}))
-               .blendMode(SkBlendMode::kScreen)});
+               .blendMode(material::BlendMode::Screen)});
     if (research.plate == "spiky")
       node.children({kit::disc({half, half}, gui(21))
                          .shape(shapes::star(8, 0.74f, 0.35f))

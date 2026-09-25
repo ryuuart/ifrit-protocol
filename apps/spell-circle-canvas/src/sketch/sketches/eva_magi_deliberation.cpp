@@ -12,7 +12,7 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 
@@ -26,6 +26,7 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -123,7 +124,7 @@ struct EvaMagiDeliberation {
     return kit::at(box()
                        .rotate(layout.rotationFor(number))
                        .transformOrigin(pct(50), pct(50))
-                       .fill(material::skia::Paint::solid(kMint)),
+                       .fill(material::Paint::solid(kMint)),
                    rect.left(), rect.top(), side, side)
         // The module's ink is its label colour; the inner rule is drawn in it.
         .ink(kInk)
@@ -134,7 +135,7 @@ struct EvaMagiDeliberation {
         .children(
             {text(numeral)
                  .ink({0, 0, 0, 1})
-                 .blendMode(SkBlendMode::kDstOut)
+                 .blendMode(material::BlendMode::DestinationOut)
                  .font(fit(evangelion::groteskBold(), numeral, 88.0f,
                            side - 48.0f))
                  .centerAt({side * 0.5f, side * layout.numberSlotY(number)}),
@@ -174,7 +175,7 @@ struct EvaMagiDeliberation {
              .centerAt({720.0f, 535.0f}),
          kit::at(
              box()
-                 .fill(material::skia::Paint::solid(hexColor(0x150103)))
+                 .fill(material::Paint::solid(hexColor(0x150103)))
                  .layerStyle(decorations::doubleBorder(
                      decorations::border(7.0f, Fill::color(kRed), 0.0f),
                      decorations::border(3.0f, Fill::color(kRedHot), 14.0f)))
@@ -188,7 +189,7 @@ struct EvaMagiDeliberation {
     return box().inset(0).children(
         {box()
              .inset(0)
-             .fill(material::skia::Paint::solid(kGround))
+             .fill(material::Paint::solid(kGround))
              .filter(evangelion::crt(layout.canvasWidth, layout.canvasHeight))
              .cache(Cache::Texture)
              .key("crt")

@@ -107,7 +107,7 @@ Element GenesisFire::dipper() {
                          {0.22f, sol ? hexColor(0xFFF4D8, 0.9f)
                                      : hexColor(0xD9E4FF, 0.85f)},
                          {1.0f, {1, 1, 1, 0}}}))
-                    .blendMode(SkBlendMode::kPlus)
+                    .blendMode(material::BlendMode::PlusLighter)
                     .opacity(animate(from(0.0f).to(1.0f),
                                      {.duration = 500ms, .delay = 1200ms}))});
     g.children({text(kStars[i].name)
@@ -144,14 +144,14 @@ Element GenesisFire::regolith() {
                                            {{0.0f, hexColor(0x3B3933)},
                                             {0.42f, hexColor(0x232119)},
                                             {1.0f, hexColor(0x0A0A0C)}}),
-                     SkBlendMode::kSrc},
+                     material::BlendMode::Source},
                     {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
-                     SkBlendMode::kSoftLight},
+                     material::BlendMode::SoftLight},
                     {Pattern(material::pattern::speckle(
                                  170, 17, 0.9f, 3.4f,
                                  {hexColor(0x6A655B), hexColor(0x171512)}))
                          .material(),
-                     SkBlendMode::kOverlay}});
+                     material::BlendMode::Overlay}});
 
   return box()
       .inset(0)
@@ -171,7 +171,7 @@ Element GenesisFire::regolith() {
                                            {{0.0f, hexColor(0xFF8A3A, 0.62f)},
                                             {0.38f, hexColor(0xC24E14, 0.24f)},
                                             {1.0f, hexColor(0xFF8A3A, 0.0f)}}))
-               .blendMode(SkBlendMode::kPlus)
+               .blendMode(material::BlendMode::PlusLighter)
                .translateX(bind(&loopU).scale(1680.0f).offset(-80.0f))
                .translateY(limbY(444.0f) + 26.0f)
                .opacity(bind(&loopU).map([](float v) {
@@ -192,7 +192,7 @@ Element GenesisFire::shockwave() {
                                        {{0.0f, {1, 1, 1, 0.95f}},
                                         {0.25f, hexColor(0xFFE7B0, 0.6f)},
                                         {1.0f, hexColor(0xFF7A20, 0.0f)}}))
-           .blendMode(SkBlendMode::kPlus)
+           .blendMode(material::BlendMode::PlusLighter)
            .opacity(bind(&loopU).map([](float v) {
              const float t = v * 10.0f;
              if (t < 0.06f) return t / 0.06f;
@@ -205,7 +205,7 @@ Element GenesisFire::shockwave() {
   g.children({kit::disc(impact, 520)
                   .shape(shapes::circle())
                   .stroke(stroke(2.0f, Fill::color(hexColor(0xFFB070, 0.85f))))
-                  .blendMode(SkBlendMode::kPlus)
+                  .blendMode(material::BlendMode::PlusLighter)
                   .scale(bind(&loopU)
                              .map([](float v) {
                                return sigil::motion::ease::outCubic(

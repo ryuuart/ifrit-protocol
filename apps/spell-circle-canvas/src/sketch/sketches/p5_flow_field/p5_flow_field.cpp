@@ -40,14 +40,14 @@ float hash01(int value) {
   return wave - std::floor(wave);
 }
 
-material::skia::Paint currentInk(sk_sp<SkRuntimeEffect> program) {
-  return material::skia::Paint::sksl(std::move(program))
-      .slot("uField", material::skia::Paint::recipe(field::noise(0.025f, 4, 23.0f)))
+material::Paint currentInk(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::sksl(std::move(program))
+      .slot("uField", material::Paint::recipe(field::noise(0.025f, 4, 23.0f)))
       .quantizeTime(30.0f);
 }
 
-material::skia::Paint particleLight() {
-  return material::skia::Paint::radialGradient(
+material::Paint particleLight() {
+  return material::Paint::radialGradient(
       {0.34f, 0.30f}, 0.92f,
       {{0.0f, {1.0f, 1.0f, 0.88f, 1.0f}},
        {0.32f, {0.30f, 0.94f, 1.0f, 0.96f}},
@@ -56,8 +56,8 @@ material::skia::Paint particleLight() {
 }
 
 struct P5FlowField {
-  material::skia::Paint ink;
-  const material::skia::Paint sparks = particleLight();
+  material::Paint ink;
+  const material::Paint sparks = particleLight();
 
   void setup(sketch::SketchContext& context) {
     ink = currentInk(context.assets.shader(context.local("flow.sksl")));

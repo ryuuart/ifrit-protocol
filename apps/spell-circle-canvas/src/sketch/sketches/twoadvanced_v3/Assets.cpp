@@ -13,10 +13,10 @@ bool TwoAdvancedV3::available(std::string* why) {
       why);
 }
 
-material::skia::Paint TwoAdvancedV3::stretchFill(const ImagePtr& asset, float w, float h,
+material::Paint TwoAdvancedV3::stretchFill(const ImagePtr& asset, float w, float h,
                                         SkTileMode tx, SkTileMode ty) {
   const sk_sp<SkImage>& img = asset->frames()[0].image;
-  return material::skia::Paint::image(
+  return material::skia::image(
       img, tx, ty,
       SkMatrix::Scale(w / (float)img->width(), h / (float)img->height()),
       SkSamplingOptions(SkFilterMode::kLinear));

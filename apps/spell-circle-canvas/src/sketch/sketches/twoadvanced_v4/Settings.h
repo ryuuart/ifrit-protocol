@@ -36,7 +36,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -71,6 +71,7 @@ namespace styles = sigil::compose::styles;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 // Absolute placement: this composition is pinned, so a node says
 // where it goes rather than a layout deciding.
 using sigil::compose::kit::at;

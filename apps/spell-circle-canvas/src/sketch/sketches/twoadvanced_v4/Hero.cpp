@@ -155,13 +155,13 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // this page keeps.
   if (heroPlate)
     scene.children({box().inset(0).fill(
-        material::skia::Paint::image(heroPlate, SkTileMode::kClamp, SkTileMode::kClamp,
+        material::skia::image(heroPlate, material::Repeat::Pad, material::Repeat::Pad,
                             SkMatrix::Scale(w / (float)heroPlate->width(),
                                             h / (float)heroPlate->height()),
                             SkSamplingOptions(SkFilterMode::kLinear)))});
   else
     scene.children({box().inset(0).fill(
-        material::skia::Paint::linearGradient({0, 0}, {0, 0.66f},
+        material::Paint::linearGradient({0, 0}, {0, 0.66f},
                                               {{0.0f, hexColor(0x02070A)},
                                                {0.62f, hexColor(0x03181D)},
                                                {1.0f, hexColor(0x073038)}}))});
@@ -170,13 +170,13 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // black-on-black and the silhouettes have nothing to read against;
   // one kPlus ramp is the whole of the fix.
   scene.children(
-      {at(box().fill(material::skia::Paint::linearGradient(
+      {at(box().fill(material::Paint::linearGradient(
               {0, 0}, {0, 1},
               {{0.00f, sigil::material::withAlpha(kTealBar, 0.0f)},
                {0.62f, sigil::material::withAlpha(kTealBar, 0.10f)},
                {1.00f, sigil::material::withAlpha(kTealBar, 0.34f)}})),
           0, horizon - 132, w, 132)
-           .blendMode(SkBlendMode::kPlus)});
+           .blendMode(material::BlendMode::PlusLighter)});
 
   // THE portal: one SDF circle. Its box must RESERVE sdf::pad() for the
   // glow — sdf::minBoxFor() is the only honest way to size it, since
@@ -193,11 +193,11 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                  .glowRadius = 54,
                  .glowColor = sigil::material::withAlpha(kGlow, 0.42f)};
   const float pbox = material::sdf::minBoxFor(ps, 132);
-  material::skia::Paint pm = material::skia::Paint::recipe(material::sdf::material(material::sdf::circle(), ps));
-  if (!still) pm.uniform("uGlowR", &portalGlow);  // ±8 % sine, period 4 s
+  material::Paint pm = material::Paint::recipe(material::sdf::material(material::sdf::circle(), ps));
+  if (!still) pm.bind("uGlowR", &portalGlow);  // ±8 % sine, period 4 s
   Element portal = at(box().fill(pm), cx - pbox * 0.5f,
                       horizon - 108 - pbox * 0.5f, pbox, pbox)
-                       .blendMode(SkBlendMode::kPlus);
+                       .blendMode(material::BlendMode::PlusLighter);
   if (!still)
     // the one deliberately bouncy beat: the power core kicking on.
     // motion::ease::outBack() takes its overshoot as a parameter and converts
@@ -230,23 +230,23 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
                         .inset(0)
                         .fill(waterStreaks)
                         .opacity(0.55f)
-                        .blendMode(SkBlendMode::kPlus)});
+                        .blendMode(material::BlendMode::PlusLighter)});
   water.children(
       {box()
            .left(cx - 190)
            .top(-72)
            .width(380)
            .height(300)
-           .fill(material::skia::Paint::radialGradient(
+           .fill(material::Paint::radialGradient(
                {0.5f, 0.14f}, 1.05f,
                {{0.0f, sigil::material::withAlpha(kGlow, 0.75f)},
                 {0.45f, sigil::material::withAlpha(kTealBar, 0.32f)},
                 {1.0f, sigil::material::withAlpha(kTealBar, 0.0f)}}))
            // smear the reflection down into the water: sigma 26
            // along the 90° axis (straight down), 14 across it
-           .filter(material::skia::Effect::directionalBlur(26, 90, 14))
+           .filter(material::Filter::directionalBlur(26, 90, 14))
            .opacity(0.78f)
-           .blendMode(SkBlendMode::kPlus),
+           .blendMode(material::BlendMode::PlusLighter),
        // the specular COLUMN — the vertical smear of a light in water, and
        // the single cue that reads "reflection" from across the room
        box()
@@ -254,15 +254,15 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .top(0)
            .width(80)
            .height(h - horizon)
-           .fill(material::skia::Paint::linearGradient(
+           .fill(material::Paint::linearGradient(
                {0, 0}, {0, 1},
                {{0.00f, sigil::material::withAlpha(kGlow, 0.55f)},
                 {0.35f, sigil::material::withAlpha(kGlow, 0.20f)},
                 {1.00f, sigil::material::withAlpha(kGlow, 0.0f)}}))
            // soften the column's sides: sigma 10 along the 0° axis
            // (horizontal), only 3 down its length
-           .filter(material::skia::Effect::directionalBlur(10, 0, 3))
-           .blendMode(SkBlendMode::kPlus)});
+           .filter(material::Filter::directionalBlur(10, 0, 3))
+           .blendMode(material::BlendMode::PlusLighter)});
   scene.children(
       {water,
        // THE horizon hairline. A hard, bright edge where the water starts
@@ -282,13 +282,13 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
               // screened back over itself. Built `still` so it is provably
               // static and the Texture bake is paid once, not per frame.
               heroScene(w, h, true)
-                  .filter(material::skia::Effect::filter(
+                  .filter(material::skia::filter(
                       SkImageFilters::Blur(22, 22, nullptr)))
                   .opacity(0.34f)
-                  .blendMode(SkBlendMode::kPlus)
+                  .blendMode(material::BlendMode::PlusLighter)
                   .cache(Cache::Texture)
                   .cacheScale(0.5f),
-              box().inset(0).fill(material::skia::Paint::radialGradient(
+              box().inset(0).fill(material::Paint::radialGradient(
                   {0.5f, 0.5f}, 1.0f,
                   {{0.00f, {0, 0, 0, 0}},
                    {0.58f, {0, 0, 0, 0.10f}},
@@ -342,7 +342,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
         .top(0)
         .width(pct(share))
         .height(100_pct)
-        .fill(material::skia::Paint::linearGradient(
+        .fill(material::Paint::linearGradient(
             {0, 0}, {1, 0},
             {{0.0f, hexColor(0x2A0708)}, {1.0f, hexColor(0x1A0405)}}))
         .foreground(onEdges(
@@ -412,7 +412,7 @@ auto TwoAdvancedV4::monitorBody(float h) -> Element {
   using namespace tav;
   return box()
       .height(h)
-      .fill(material::skia::Paint::linearGradient({0, 0}, {0, 1},
+      .fill(material::Paint::linearGradient({0, 0}, {0, 1},
                                                   {{0.00f, kPanelHi},
                                                    {0.15f, kPanel},
                                                    {0.88f, kPanel},
@@ -437,7 +437,7 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
         {box()
              .flexGrow(1)
              .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
-             .fill(material::skia::Paint::linearGradient(
+             .fill(material::Paint::linearGradient(
                  {0, 0}, {0, 1},
                  {{0.0f, hexColor(0x0A2C33)}, {1.0f, hexColor(0x02171B)}}))
              .stroke(stroke(1,
@@ -445,7 +445,7 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
                                 hexColor(0x0B3B40), 0.9f)),
                             PathFormat::Align::Inner))
              .children(
-                 {box().inset(0).fill(material::skia::Paint::radialGradient(
+                 {box().inset(0).fill(material::Paint::radialGradient(
                       {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
                       {{0.0f, sigil::material::withAlpha(kGlow, g)},
                        {1.0f, sigil::material::withAlpha(kGlow, 0.0f)}})),

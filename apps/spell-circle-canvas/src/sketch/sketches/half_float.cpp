@@ -199,7 +199,7 @@ struct HalfFloat {
             0xff000000u | (channel(2) << 16) | (channel(1) << 8) | channel(0);
       }
     bitmap.setImmutable();
-    return image(bitmap.asImage(), material::skia::Fit::Stretch)
+    return image(bitmap.asImage(), material::Fit::Stretch)
         .width(kCell - 20)
         .height(kCell - 20);
   }

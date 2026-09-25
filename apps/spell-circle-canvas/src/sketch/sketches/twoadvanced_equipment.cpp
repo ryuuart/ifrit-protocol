@@ -81,6 +81,7 @@ namespace path = sigil::geometry::path;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 // Absolute placement: this composition is pinned, so a node says
 // where it goes rather than a layout deciding.
 using sigil::compose::kit::at;

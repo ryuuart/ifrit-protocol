@@ -81,7 +81,7 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -293,9 +293,9 @@ struct PersonaMenu {
   Paint dualCaustic() {
     namespace nn = persona_menu;
     Paint m = Paint::sksl(causticFx);
-    m.uniform("uLight", nn::kCausLight)
-        .uniform("uDark", nn::kCausBub)
-        .uniform("uTime", &qTime);
+    m.set("uLight", nn::kCausLight)
+        .set("uDark", nn::kCausBub)
+        .bind("uTime", &qTime);
     return m;
   }
 
@@ -339,7 +339,7 @@ struct PersonaMenu {
                                 .inset(0)
                                 .fill(field::noise(0.006f, 4))
                                 .opacity(0.20f)
-                                .blendMode(SkBlendMode::kSoftLight),
+                                .blendMode(material::BlendMode::SoftLight),
                             box().inset(0).fill(Paint::solid(nn::kTintVeil))})})
         // The sea: one dual-layer 6Hz shader, its own texture plane --
         // baked at HALF raster scale and linear-upscaled at the blit.
@@ -671,7 +671,7 @@ struct PersonaMenu {
                        .centerAt({450, 306})
                        .rotate(90)
                        .zIndex(1)
-                       .blendMode(SkBlendMode::kScreen)
+                       .blendMode(material::BlendMode::Screen)
                        .opacity(animate(motion::from(0.0f).to(0.85f), {500ms}))
                        // 220px digits render as glyph PATHS (over the atlas
                        // cutoff); bake them once, the rotation rides outside

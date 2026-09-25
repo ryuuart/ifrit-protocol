@@ -44,12 +44,13 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
 using namespace sigil::compose;
+using sigil::material::hexColor;
 using namespace sigil::motion;
 using namespace std::chrono_literals;
 using sigil::data::Json;
 using sigil::geometry::path::Conic;
 using sigil::material::withAlpha;
-using sigil::material::skia::Paint;
+using sigil::material::Paint;
 
 namespace {
 

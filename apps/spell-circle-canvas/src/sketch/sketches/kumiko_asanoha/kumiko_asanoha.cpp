@@ -46,7 +46,7 @@ struct KumikoAsanoha {
   /** The washi's two faces, held so each keeps one identity across
    *  describes: its FORMATION, the cloud of thick and thin the sheet was
    *  couched with, and its FIBRE, the long kozo strands laid in it. */
-  material::skia::Paint formation, fibre;
+  material::Paint formation, fibre;
   /** Seconds into one assembly, wrapping: the one value that moves, and
    *  every entrance, the lamp and the drawing's beat are bindings over it. */
   choreograph::Output<float> seconds{0};
@@ -135,13 +135,13 @@ struct KumikoAsanoha {
                 middleY = kOpening.height() * 0.5f;
     // The paper is cut larger than the opening so a turned sheet still
     // covers every corner of it.
-    const auto sheet = [&](const material::skia::Paint& face, float degrees,
+    const auto sheet = [&](const material::Paint& face, float degrees,
                            float opacity) {
       return kit::at(-160, -260, kOpening.width() + 320,
                      kOpening.height() + 520)
           .rotate(degrees)
           .opacity(opacity)
-          .blendMode(SkBlendMode::kMultiply)
+          .blendMode(material::BlendMode::Multiply)
           .fill(face)
           .cache(Cache::Texture);
     };
@@ -151,7 +151,7 @@ struct KumikoAsanoha {
         .children({
             box()
                 .cover()
-                .fill(material::skia::Paint::radialGradient(
+                .fill(material::Paint::radialGradient(
                     {middleX, middleY}, 585,
                     {{0.00f, hexColor(0xF7E8C6, 0.88f)},
                      {0.30f, hexColor(0xF2E0B4, 0.85f)},
@@ -162,8 +162,8 @@ struct KumikoAsanoha {
                 .cache(Cache::Texture),
             box()
                 .cover()
-                .blendMode(SkBlendMode::kPlus)
-                .fill(material::skia::Paint::radialGradient(
+                .blendMode(material::BlendMode::PlusLighter)
+                .fill(material::Paint::radialGradient(
                     {middleX, kOpening.height() * 0.64f}, 330,
                     {{0.00f, hexColor(0xFFE6B8, 0.42f)},
                      {0.35f, hexColor(0xF3C98A, 0.22f)},
@@ -204,8 +204,8 @@ struct KumikoAsanoha {
     return box()
         .rect(kOpening)
         .opacity(breath())
-        .blendMode(SkBlendMode::kPlus)
-        .fill(material::skia::Paint::radialGradient(
+        .blendMode(material::BlendMode::PlusLighter)
+        .fill(material::Paint::radialGradient(
             {kOpening.width() * 0.5f, kOpening.height() * 0.5f}, 380,
             {{0.00f, hexColor(0xFFF2D2, 0.17f)},
              {0.45f, hexColor(0xE6BC7C, 0.09f)},
@@ -221,8 +221,8 @@ struct KumikoAsanoha {
     const float top = kRoom - 122;
     return kit::at(0, top, kWidth, 122)
         .opacity(breath())
-        .blendMode(SkBlendMode::kPlus)
-        .fill(material::skia::Paint::radialGradient(
+        .blendMode(material::BlendMode::PlusLighter)
+        .fill(material::Paint::radialGradient(
             {kCentre.x, kOpening.bottom() - top - 60}, 560,
             {{0.00f, hexColor(0xF6D9A2, 0.55f)},
              {0.22f, hexColor(0xE8BD7A, 0.32f)},
@@ -279,7 +279,7 @@ struct KumikoAsanoha {
                    // The near side of the room, in shadow. It stops at the
                    // room's floor: the drawing under it is a drawing.
                    kit::at(0, 0, kWidth, kRoom)
-                       .fill(material::skia::Paint::radialGradient(
+                       .fill(material::Paint::radialGradient(
                            {700, 500}, 920,
                            {{0.30f, {0, 0, 0, 0}},
                             {0.72f, {0, 0, 0, 0.30f}},
@@ -313,13 +313,13 @@ struct KumikoAsanoha {
     // darkens it, and both lean warm because kozo does, so a thick place
     // reads amber rather than grey: the formation all wear and no tooth, the fibre all
     // tooth drawn out into strands and no wear.
-    formation = material::skia::Paint::recipe(
+    formation = material::Paint::recipe(
         material::kit::board({.paint = hexColor(0xFFEFD8),
                               .tooth = 0.0f,
                               .wear = 0.42f,
                               .wearScale = 0.011f,
                               .seed = 5}));
-    fibre = material::skia::Paint::recipe(
+    fibre = material::Paint::recipe(
         material::kit::board({.paint = hexColor(0xFFF3E4),
                               .tooth = 0.4f,
                               .toothScale = 0.06f,

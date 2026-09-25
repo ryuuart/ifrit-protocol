@@ -54,7 +54,8 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
-using material::skia::Paint;
+using sigil::material::hexColor;
+using material::Paint;
 
 namespace {
 
@@ -322,7 +323,7 @@ struct DunhuangStarChart {
                                     .seed = (float)index}))
         .overflow(Overflow::Clip)
         .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 24))
-        .children({box().inset(0).fill(material::skia::Paint::linearGradient(
+        .children({box().inset(0).fill(material::Paint::linearGradient(
                        {0, 0}, {0, height},
                        {{0.0f, material::withAlpha(kLining, 0.55f)},
                         {0.06f, material::withAlpha(kLining, 0.0f)},

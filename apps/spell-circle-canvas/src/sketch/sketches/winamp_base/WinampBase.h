@@ -24,7 +24,7 @@ struct WinampBase {
   std::array<Out, 25> rowIn{};  // playlist row reveal, in bands of four
 
   // ---- generated materials, held so their identity prunes ----
-  material::skia::Paint steel, deskMat, lcdMat, faderTrack, graphMat;
+  material::Paint steel, deskMat, lcdMat, faderTrack, graphMat;
   Pattern gripTile, visDots, graphGrid, previewCheck;
 
   // ---- instancing: the spectrum analyser LEDs and the playlist rows ----

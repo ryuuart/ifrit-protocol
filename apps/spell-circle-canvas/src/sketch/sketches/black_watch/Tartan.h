@@ -42,7 +42,7 @@ using Shades = std::array<sigil::material::Color, kShadeCount>;
 
 /** "#2C2C80" as a colour. */
 inline sigil::material::Color colourOf(std::string_view hex) {
-  return sigil::compose::hexColor(
+  return sigil::material::hexColor(
       (uint32_t)std::stoul(std::string(hex.substr(1)), nullptr, 16));
 }
 

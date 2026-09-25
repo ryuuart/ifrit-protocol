@@ -76,7 +76,8 @@ namespace weave = sigil::weave;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
-using sigil::material::skia::Paint;
+using sigil::material::hexColor;
+using sigil::material::Paint;
 using namespace std::chrono_literals;
 
 namespace {
@@ -372,7 +373,7 @@ struct NightNetwork {
                                                .borderColor = nn::kInk,
                                                .glowRadius = 6,
                                                .glowColor = nn::kEmber}))
-                      .uniform("uGlowR", &hubGlow))
+                      .bind("uGlowR", &hubGlow))
             .zIndex(7);
 
     // The type is stated once, here: every line inherits the ash and the

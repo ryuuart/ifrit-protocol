@@ -133,7 +133,7 @@ float thrown(float weave) {
 }
 
 /** A layer filling the box it stands in. */
-Element layer(material::skia::Paint paint) {
+Element layer(material::Paint paint) {
   return box().cover().fill(std::move(paint));
 }
 
@@ -168,7 +168,7 @@ struct BlackWatch {
   std::array<Pattern, 9> blends;
   /** One wound card per shade card, a wrap of yarn per shade. */
   std::vector<std::array<Pattern, 3>> wraps;
-  material::skia::Paint board, yarn;
+  material::Paint board, yarn;
 
   choreograph::Output<float> loom{0};
 
@@ -218,14 +218,14 @@ struct BlackWatch {
     // A mount board reads as one even card: a fine tooth the eye takes
     // as paper and almost no wear, since any slow blotch on a light card
     // reads as marble rather than as board.
-    board = material::skia::Paint::recipe(
+    board = material::Paint::recipe(
         material::kit::board({.paint = colours.ground,
                               .tooth = 0.05f,
                               .toothScale = 0.06f,
                               .wear = 0.004f,
                               .wearScale = 0.004f,
                               .seed = 7.0f}));
-    yarn = material::skia::Paint::recipe(
+    yarn = material::Paint::recipe(
         material::field::grain(0.09f, 3, 3.0f, 0.75f));
     // A shade card is yarn wound round a board: each turn a lit crown and
     // a shadowed valley where it presses on the next.
@@ -458,11 +458,11 @@ struct BlackWatch {
                .opacity(bind(&loom).window(kTurns[turn].start,
                                            kTurns[turn].start + kFade))});
     panel.children({layer(grooves.material())
-                        .blendMode(SkBlendMode::kMultiply)
+                        .blendMode(material::BlendMode::Multiply)
                         .opacity(0.9f)
                         .cache(Cache::Texture),
                     layer(yarn)
-                        .blendMode(SkBlendMode::kOverlay)
+                        .blendMode(material::BlendMode::Overlay)
                         .opacity(0.14f)
                         .cache(Cache::Texture),
                     // Light rakes the cloth from the upper left, as it
@@ -470,7 +470,7 @@ struct BlackWatch {
                     // it near and gives it up far.
                     box()
                         .cover()
-                        .fill(material::skia::Paint::radialGradient(
+                        .fill(material::Paint::radialGradient(
                             {0.12f * width, 0.02f * height}, 0.85f * width,
                             {{0, {1, 1, 1, 0.13f}},
                              {0.4f, {1, 1, 1, 0}},
@@ -519,7 +519,7 @@ struct BlackWatch {
              .width(58)
              .height(11)
              .shape(shapes::svg("M0 5.5 C9 0 49 0 58 5.5 C49 11 9 11 0 5.5 Z"))
-             .fill(material::skia::Paint::linearGradient(
+             .fill(material::Paint::linearGradient(
                  {0, 0}, {0, 11},
                  {{0, colourOf("#E0B878")},
                   {0.45f, colourOf("#B98A4E")},
@@ -763,7 +763,7 @@ struct BlackWatch {
         .fill(cut.material())
         .stroke(stroke(edgeWidth, std::move(edge), PathFormat::Align::Outer))
         .children({layer(grooves.material())
-                       .blendMode(SkBlendMode::kMultiply)
+                       .blendMode(material::BlendMode::Multiply)
                        .opacity(0.85f)})
         .cache(Cache::Texture);
   }
@@ -918,7 +918,7 @@ struct BlackWatch {
             // upper left and the far corner sits in shade.
             box()
                 .cover()
-                .fill(material::skia::Paint::radialGradient(
+                .fill(material::Paint::radialGradient(
                     {0.1f * kCanvas.width(), 0}, 1.15f * kCanvas.width(),
                     {{0, {1, 1, 1, 0.14f}},
                      {0.35f, {1, 1, 1, 0}},

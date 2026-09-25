@@ -38,6 +38,7 @@ namespace shapes = sigil::geometry::shapes;
 namespace sketch = sigil::sketch;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
@@ -293,12 +294,12 @@ struct PenrosePaving {
     return {box()
                 .inset(0)
                 .fill(field::grain(0.0042f, 2, 91, 0.62f, 1.15f))
-                .blendMode(SkBlendMode::kSoftLight)
+                .blendMode(material::BlendMode::SoftLight)
                 .opacity(0.5f),
             box()
                 .inset(0)
-                .blendMode(SkBlendMode::kMultiply)
-                .fill(material::skia::Paint::radialGradient(
+                .blendMode(material::BlendMode::Multiply)
+                .fill(material::Paint::radialGradient(
                     {470, 280}, 1280,
                     {{0.0f, hexColor(0xFFFFFF)},
                      {0.3f, hexColor(0xE8E8E6)},
@@ -367,7 +368,7 @@ struct PenrosePaving {
             .children(
                 {plaza(), weather(),
                  // A shaded foot for the plaque and the panel to sit in.
-                 kit::at(box().fill(material::skia::Paint::linearGradient(
+                 kit::at(box().fill(material::Paint::linearGradient(
                              {0, 0}, {0, 200},
                              {hexColor(0x08090A, 0), hexColor(0x08090A, 0.6f)},
                              {.units = material::GradientUnits::Pixels})),

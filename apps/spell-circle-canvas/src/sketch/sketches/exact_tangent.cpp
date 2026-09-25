@@ -168,7 +168,7 @@ Element tangentDetail(weave::FontContext& fonts) {
                           (210 - overview.height() * scale) / 2};
   return box().column().gap(10).children(
       {box().width(kCell).height(210).children(
-           {image(pixels, material::skia::Fit::Stretch)
+           {image(pixels, material::Fit::Stretch)
                 .imageRegion(overview)
                 .width(overview.width() * scale)
                 .height(overview.height() * scale)
@@ -180,7 +180,7 @@ Element tangentDetail(weave::FontContext& fonts) {
                     crop.width() * scale, crop.height() * scale))
                 .foreground(decorations::border(1, Fill::color(marker)))}),
        document::label("EDGE DETAIL \u00b7 8\u00d7 RASTER").padding(0, 10),
-       image(pixels, material::skia::Fit::Stretch)
+       image(pixels, material::Fit::Stretch)
            .imageRegion(crop)
            .imageRendering(SkSamplingOptions(SkFilterMode::kNearest))
            .width(kCrop.width() * kMagnification)

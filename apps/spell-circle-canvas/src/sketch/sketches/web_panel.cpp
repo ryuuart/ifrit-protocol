@@ -69,6 +69,7 @@ namespace sketch = sigil::sketch;
 namespace scry = sigil::scry;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
