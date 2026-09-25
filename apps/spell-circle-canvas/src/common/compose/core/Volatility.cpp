@@ -36,7 +36,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     size_t slot = 0;
     bool live = false;
     for (const StrokePass& pass : node.strokeData->passes) {
-      live |= pass.what.isAnimated();
+      live |= pass.what.isRunning();
       for (const Spans::Term& term : pass.where.terms)
         for (const motion::Animatable<float>* v :
              {&term.begin, &term.end, &term.offset}) {
@@ -79,7 +79,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
         case Gate::Kind::Shape:
           break;
         case Gate::Kind::Coverage:
-          if (m.with.coverage && m.with.coverage->isAnimated())
+          if (m.with.coverage && m.with.coverage->isRunning())
             maskOpaque = true;
           break;
       }
@@ -174,7 +174,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // answers that in one word (boundOffsetOnly); a material with a bound pan
   // AND anything else stays on the opaque live path. The split is a
   // partition: patternPan and liveMat can never both be true.
-  const bool liveMatAnimated = nodeLiveMat && nodeLiveMat->isAnimated();
+  const bool liveMatAnimated = nodeLiveMat && nodeLiveMat->isRunning();
   const bool patternPan = liveMatAnimated && nodeLiveMat->boundOffsetOnly();
   // truly live (bound/uTime) — geometry-dependent materials resolve at
   // record time and stay cacheable
@@ -183,14 +183,14 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // node is painted in, so the node that carries it re-resolves per frame
   // exactly as a live fill material does.
   const material::Paint* inkLive = inkPaintOf(inst);
-  const bool metricLive = inkLive && inkLive->isAnimated();
+  const bool metricLive = inkLive && inkLive->isRunning();
   const bool cacheNone = node.cacheMode == Cache::None;
   const bool decorLive = [&] {
     bool live = false;
-    for (const Decoration& d : node.backgrounds) live |= d.isAnimated();
-    for (const Decoration& d : node.foregrounds) live |= d.isAnimated();
+    for (const Decoration& d : node.backgrounds) live |= d.isRunning();
+    for (const Decoration& d : node.foregrounds) live |= d.isRunning();
     if (node.fxData)
-      for (const Decoration& d : node.fxData->overlays) live |= d.isAnimated();
+      for (const Decoration& d : node.fxData->overlays) live |= d.isRunning();
     return live;
   }();
   // …and the other declaration a decoration makes about the canvas: a mark
@@ -262,8 +262,8 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // nowhere else than live.
   const material::Filter* layerFx = layerEffectOf(node);
   const material::Filter* backdropFx = backdropEffectOf(node);
-  const bool liveLayerEffect = layerFx && layerFx->isAnimated();
-  const bool liveBackdropEffect = backdropFx && backdropFx->isAnimated();
+  const bool liveLayerEffect = layerFx && layerFx->isRunning();
+  const bool liveBackdropEffect = backdropFx && backdropFx->isRunning();
   // A LIVE pass material on an textFx() track — uTime, a bound uniform, a
   // bound block — repaints the pass's output every frame with no float the
   // scalar lane could compare, so it is opaque volatility, exactly as a
@@ -274,7 +274,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     for (const Track& t : tracksOf(node))
       if (t.effect)
         if (const material::Paint* pm = t.effect.passMaterial())
-          if (pm->isAnimated()) return true;
+          if (pm->isRunning()) return true;
     return false;
   }();
   // The MEMOIZABLE scalars, tracked apart from the rest of ownContent: each

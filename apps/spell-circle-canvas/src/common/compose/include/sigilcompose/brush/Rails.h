@@ -91,7 +91,7 @@ struct Rails {
 
   bool operator==(const Rails&) const = default;
 
-  bool isAnimated() const {
+  bool isRunning() const {
     return dashPhaseBinding && dashPhaseBinding->isRunning();
   }
   float phase() const {

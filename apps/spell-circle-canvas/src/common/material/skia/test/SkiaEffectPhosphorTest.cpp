@@ -26,7 +26,7 @@ TEST(SkiaEffect, PhosphorBloomIsAComparableSpectralPostProcess) {
   const Filter bloom =
       Filter::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f);
   EXPECT_NE(skia::resolvedImageFilter(bloom, nullptr), nullptr);
-  EXPECT_FALSE(bloom.isAnimated());
+  EXPECT_FALSE(bloom.isRunning());
   EXPECT_TRUE(bloom == Filter::phosphorBloom(8.0f, 0.6f, 0.4f, 0.75f));
   EXPECT_FALSE(bloom == Filter::phosphorBloom(10.0f, 0.6f, 0.4f, 0.75f));
 }

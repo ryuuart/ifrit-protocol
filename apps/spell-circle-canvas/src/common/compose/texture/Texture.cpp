@@ -139,7 +139,7 @@ void TextureScene::render(const Element& root, double seconds) {
   // and no transition in flight means the pixels standing in the surface
   // are already the answer, and a consumer must be able to tell that
   // from the value alone.
-  if (impl.painted && !impl.composer->active()) return;
+  if (impl.painted && !impl.composer->isRunning()) return;
   impl.paint();
   impl.painted = true;
   ++impl.version;
@@ -170,7 +170,7 @@ material::DeviceImage TextureScene::deviceImage() const {
   return out;
 }
 
-bool TextureScene::active() const { return m_impl->composer->active(); }
+bool TextureScene::isRunning() const { return m_impl->composer->isRunning(); }
 
 const Composer& TextureScene::composer() const { return *m_impl->composer; }
 

@@ -118,7 +118,7 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
    *  is dirty, or a transition is still running. A scene that answers
    *  false has settled, and a consumer holding its texture may cache
    *  whatever it made of it. */
-  bool active() const;
+  bool isRunning() const;
 
   /** The composer behind the scene — its stats and its queries, for a
    *  caller verifying what a frame cost. */
@@ -148,7 +148,7 @@ class SceneSource {
       : m_scene(std::move(scene)), m_version(version) {}
 
   sk_sp<SkImage> image() const { return m_scene ? m_scene->image() : nullptr; }
-  bool animated() const { return m_scene && m_scene->active(); }
+  bool animated() const { return m_scene && m_scene->isRunning(); }
   material::DeviceImage deviceImage() const {
     return m_scene ? m_scene->deviceImage() : material::DeviceImage{};
   }

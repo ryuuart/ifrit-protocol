@@ -39,7 +39,7 @@ class Values(unittest.TestCase):
         copy = paint.copy()
         copy.set("tone", [0, 1, 0, 1])
         self.assertNotEqual(paint, copy)
-        self.assertFalse(paint.isAnimated())
+        self.assertFalse(paint.isRunning())
         self.assertFalse(Paint.recipe(field.noise(0.02)).isNone())
         with self.assertRaises(ValueError):
             Paint.sksl("invalid shader source")
@@ -239,9 +239,9 @@ class Colors(unittest.TestCase):
             "uniform float amount; half4 main(float2 p) { return half4(amount); }"
         )
         output = motion.Output(0.0)
-        self.assertTrue(Paint.sksl(moving).bind("amount", output).isAnimated())
+        self.assertTrue(Paint.sksl(moving).bind("amount", output).isRunning())
         self.assertTrue(
-            material.Filter.program(moving).bind("amount", output).isAnimated()
+            material.Filter.program(moving).bind("amount", output).isRunning()
         )
 
 

@@ -170,8 +170,8 @@ TEST(Cascade, TheBeatReadBackAgreesWithTheTwoAccessors) {
   EXPECT_TRUE(beat.active);
   // Begun and not finished is the whole of "running": a clamped local
   // time reads 0 before the beat opens and 1 forever after it closes.
-  EXPECT_FALSE(cascade.beat(0.0f, 3, 0).active);
-  EXPECT_FALSE(cascade.beat(1.0f, 3, 0).active);
+  EXPECT_FALSE(cascade.beat(0.0f, 3, 0).running);
+  EXPECT_FALSE(cascade.beat(1.0f, 3, 0).running);
 }
 
 TEST(Spread, EqualityReadsEveryFieldAndDescendsIntoTheNesting) {

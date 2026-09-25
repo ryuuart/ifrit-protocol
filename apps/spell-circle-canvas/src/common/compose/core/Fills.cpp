@@ -59,7 +59,7 @@ std::optional<Fill> SurfacePaint::collapsedFill() const {
     return *plain;
   }
   const auto& paint = std::get<material::Paint>(m_value);
-  if (paint.isAnimated() || paint.geometryDependent()) return std::nullopt;
+  if (paint.isRunning() || paint.geometryDependent()) return std::nullopt;
   return toFill(paint);
 }
 
@@ -81,10 +81,10 @@ bool SurfacePaint::writtenAsPaint() const {
   return std::holds_alternative<material::Paint>(m_value);
 }
 
-bool SurfacePaint::isAnimated() const {
+bool SurfacePaint::isRunning() const {
   if (const auto* fill = std::get_if<motion::Animatable<Fill>>(&m_value))
     return fill->identity() != nullptr;
-  return std::get<material::Paint>(m_value).isAnimated();
+  return std::get<material::Paint>(m_value).isRunning();
 }
 
 material::FrameData frameOf(const PaintContext& ctx) {

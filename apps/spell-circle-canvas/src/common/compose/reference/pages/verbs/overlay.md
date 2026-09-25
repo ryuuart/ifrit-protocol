@@ -55,7 +55,7 @@ own shape, corners and boundary, and moves and caches with it.
 `paint(canvas, PaintContext)` is a decoration too, and one that also
 answers `operator==` prunes with no memo around it. A scheme that
 repaints differently from frame to frame must say so with
-`isAnimated()`, or its node is treated as static and the mark freezes.
+`isRunning()`, or its node is treated as static and the mark freezes.
 Nothing introspects on your behalf.
 
 ## Examples

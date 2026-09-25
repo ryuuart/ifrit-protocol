@@ -54,7 +54,7 @@ Effect Effect::whiten(float amount, float threshold, float knee) {
 
 Effect Effect::emit(const Effect& light, BlendMode mode) const {
   Effect e;
-  if (isAnimated() || anyChildNeedsContext() || light.isAnimated() ||
+  if (isRunning() || anyChildNeedsContext() || light.isRunning() ||
       light.anyChildNeedsContext()) {
     e.m_chainA = std::make_shared<const Effect>(*this);
     e.m_chainB = std::make_shared<const Effect>(light);

@@ -230,7 +230,7 @@ Derived& TextContentVerbs<Derived>::span(sigil::weave::Selector where,
     // unless it restarts per unit, when its box is the unit square the
     // engine lays on each unit.
     const bool restarts = textUnitOf(said.inkBox).has_value();
-    if (said.inkPaint && (said.inkPaint->isAnimated() ||
+    if (said.inkPaint && (said.inkPaint->isRunning() ||
                           (said.inkPaint->geometryDependent() && !restarts))) {
       warnSpanInkHasNoOneShader();
     } else if (said.inkPaint) {

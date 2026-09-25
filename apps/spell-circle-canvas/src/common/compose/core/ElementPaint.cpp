@@ -73,7 +73,7 @@ Derived& PaintVerbs<Derived>::fill(material::Paint m, PaintBox box) {
   std::optional<motion::Animatable<Fill>>& fill = node->fields.fill();
   node->fields.fillBox() = box;
   detail::MaterialData& slots = node->materialData.ensure();
-  if (m.isAnimated() || m.geometryDependent()) {
+  if (m.isRunning() || m.geometryDependent()) {
     // Live paints re-resolve per frame; geometry-dependent ones resolve
     // when the node records (and re-record on size change) — both route
     // through the material slot so the painter resolves with the frame.

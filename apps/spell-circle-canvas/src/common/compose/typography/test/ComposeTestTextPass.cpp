@@ -491,12 +491,12 @@ TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
       material::skia::sksl(wideUniformEffect()).bind("uVals", block);
   // The binding declares volatility — the node paints live, no cache can
   // freeze the table — exactly as a bound scalar Output does.
-  EXPECT_TRUE(live.isAnimated());
+  EXPECT_TRUE(live.isRunning());
   // A block at the wrong size is refused and declares nothing.
   auto wrong = std::make_shared<sigil::material::UniformBlock>(3);
   EXPECT_FALSE(material::skia::sksl(wideUniformEffect())
                    .bind("uVals", wrong)
-                   .isAnimated());
+                   .isRunning());
 
   Host host;
   host.composer.render(

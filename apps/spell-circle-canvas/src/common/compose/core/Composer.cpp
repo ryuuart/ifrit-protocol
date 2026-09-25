@@ -211,7 +211,7 @@ bool Composer::dirty() const {
   return m_impl->contentDirty || m_impl->needsLayout;
 }
 
-bool Composer::active() const {
+bool Composer::isRunning() const {
   Impl& impl = *m_impl;
   // A settled external binding has no reconciliation event to wake the
   // composer. Poll its retained value here, before a texture scene decides

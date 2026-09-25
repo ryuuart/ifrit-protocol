@@ -144,7 +144,7 @@ class Owned(unittest.TestCase):
         self.assertEqual(composer.stats().instances, 0)
         composer.render(root=plate())
         self.assertTrue(composer.dirty())
-        self.assertTrue(composer.active())
+        self.assertTrue(composer.isRunning())
         stats = composer.stats()
         self.assertGreater(stats.describedNodes, 0)
         self.assertGreater(stats.instances, 0)

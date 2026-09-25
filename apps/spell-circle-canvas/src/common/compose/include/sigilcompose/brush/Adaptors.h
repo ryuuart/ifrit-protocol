@@ -52,7 +52,7 @@ struct EdgeSlice {
   bool blends() const { return inner.blends(); }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
-  bool isAnimated() const { return inner.isAnimated(); }
+  bool isRunning() const { return inner.isRunning(); }
   /** Structural equality, so a static per-edge border prunes like any
    *  other decoration. Without it every `onEdges(...)` compares unequal
    *  and re-records its subtree on every describe, redoing the edge
@@ -98,7 +98,7 @@ struct Inset {
   bool blends() const { return inner.blends(); }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
-  bool isAnimated() const { return inner.isAnimated(); }
+  bool isRunning() const { return inner.isRunning(); }
   bool operator==(const Inset& o) const {
     return px == o.px && inner == o.inner;
   }

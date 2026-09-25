@@ -193,7 +193,7 @@ Beat Schedule::beat(float master, uint32_t outerUnit, uint32_t innerUnit) const 
   // A beat that has begun and not finished. The clamped progress reads 0
   // both before the beat opens and exactly as it does, and 1 for the whole
   // of the rest of the schedule's life.
-  out.active = out.localProgress > 0.0f && out.localProgress < 1.0f;
+  out.running = out.localProgress > 0.0f && out.localProgress < 1.0f;
   return out;
 }
 

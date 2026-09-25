@@ -136,7 +136,7 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
     // recipe and never vary, so they leave the memo intact.
     bool childNeedsCtx = false;
     for (const auto& [name, child] : live.slots)
-      childNeedsCtx |= child.isAnimated() || child.geometryDependent();
+      childNeedsCtx |= child.isRunning() || child.geometryDependent();
     if (!childNeedsCtx)
       if (sk_sp<SkShader> memoised = live.memo.hit(inputs)) return memoised;
   }

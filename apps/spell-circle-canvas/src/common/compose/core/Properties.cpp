@@ -399,7 +399,7 @@ bool ruleCanHold(Property property, const ElementNode& node) {
       // A paint resolved against the box it lands on travels in the
       // layer's material slot; one that animates is a live form.
       if (node.materialData && node.materialData->live &&
-          node.materialData->live->isAnimated())
+          node.materialData->live->isRunning())
         return false;
       return !paint.fill || staticValue(*paint.fill);
     case Property::Opacity:

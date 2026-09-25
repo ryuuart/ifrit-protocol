@@ -115,7 +115,7 @@ struct Ribbon {
                ? w * std::max(miterLimit, 1.0f)
                : w;
   }
-  bool isAnimated() const { return fillMaterial && fillMaterial->isAnimated(); }
+  bool isRunning() const { return fillMaterial && fillMaterial->isRunning(); }
   bool operator==(const Ribbon& o) const {
     return fill == o.fill && fillMaterial == o.fillMaterial &&
            widthStart == o.widthStart && widthEnd == o.widthEnd &&
@@ -166,7 +166,7 @@ struct Art {
    *  `reach()`. */
   float bleedPx = 32.0f;
 
-  bool isAnimated() const { return false; }
+  bool isRunning() const { return false; }
   float bleed() const { return bleedPx; }
   /** The mark's full width: the ribbon is centred on the path, so it
    *  spans the reserve on both sides of it. */

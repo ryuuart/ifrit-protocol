@@ -34,7 +34,7 @@ what it is made of rather than declared:
 | geometry | an effect declaring only `uResolution`, a stated `Paint::fit`, `Paint::worldSpace` | resolves when the node RECORDS and caches between layouts — it depends on the box, not on the clock |
 | live | a bound uniform, an effect reading `uTime` or `uContentScale`, a live child | re-resolved every frame; its node is declared volatile and no cache can freeze it |
 
-`Paint::isAnimated` and `Paint::geometryDependent` are how the tier is
+`Paint::isRunning` and `Paint::geometryDependent` are how the tier is
 asked, and a blend or a slot INHERITS the tier of what it holds.
 
 `Paint::isSolid` with `Paint::solidColor` is the short-circuit every

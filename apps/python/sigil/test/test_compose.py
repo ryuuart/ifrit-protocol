@@ -358,7 +358,7 @@ class Scene:
         self.assertEqual(mark.dashPhaseBinding, retained)
         del source, path
         self.assertAlmostEqual(mark.trimPhase.value, 0.75)
-        self.assertTrue(mark.isAnimated())
+        self.assertTrue(mark.isRunning())
 
     def test_alignment_strings_and_enums_share_native_layout(self):
         def render(mode):
@@ -522,7 +522,7 @@ class Measure:
         mark = layers.over[0]
         layers.over = []
         del layers
-        self.assertFalse(mark.isAnimated())
+        self.assertFalse(mark.isRunning())
 
     def test_abandoned_constructor_theme_closes_before_setup(self):
         self.render(

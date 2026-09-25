@@ -177,9 +177,9 @@ struct Weave {
   bool operator==(const Weave& o) const {
     return strands == o.strands && crossing == o.crossing && patch == o.patch;
   }
-  bool isAnimated() const {
+  bool isRunning() const {
     for (const Strand& s : strands)
-      if (s.brush.isAnimated()) return true;
+      if (s.brush.isRunning()) return true;
     return false;
   }
   /** A strand that blends makes the whole weave blend: forwarded, or the
@@ -287,9 +287,9 @@ struct Brush {
   bool operator==(const Brush& o) const {
     return pipeline == o.pipeline && layers == o.layers;
   }
-  bool isAnimated() const {
+  bool isRunning() const {
     for (const Layer& l : layers)
-      if (l.decoration.isAnimated()) return true;
+      if (l.decoration.isRunning()) return true;
     return false;
   }
   /** Forwarded, for the reason a weave forwards it. */
@@ -353,7 +353,7 @@ struct Restyled {
   Decoration inner;
   float extraBleed = 8.0f;  ///< the operation's own overhang (wave amplitude…)
 
-  bool isAnimated() const { return inner.isAnimated(); }
+  bool isRunning() const { return inner.isRunning(); }
   /** Forwarded, for the reason a weave forwards it. */
   bool blends() const { return inner.blends(); }
   float bleed(SkSize size) const { return inner.bleed(size) + extraBleed; }

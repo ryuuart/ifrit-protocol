@@ -471,7 +471,7 @@ TEST(ComposeRibbon, ARecipeCanPaintTheBandAndALiveOneDeclaresItself) {
     return again.composer.stats().nodesPainted;
   };
   EXPECT_GT(paintedPerFrame(true), 0u)
-      << "a live band material must declare isAnimated()";
+      << "a live band material must declare isRunning()";
   EXPECT_EQ(paintedPerFrame(false), 0u) << "…and a static one must cache";
 }
 

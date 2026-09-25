@@ -124,20 +124,20 @@ sk_sp<SkRuntimeEffect> resolutionEffect() {
 
 TEST(SkiaPaint, TheThreeTiersAreDeclaredByWhatTheEffectReads) {
   const Paint flat = Paint::solid({1, 0, 0, 1});
-  EXPECT_FALSE(flat.isAnimated());
+  EXPECT_FALSE(flat.isRunning());
   EXPECT_FALSE(flat.geometryDependent());
   EXPECT_TRUE(flat.isSolid());
 
   Paint constants = skia::sksl(constantEffect(), {{"uK", 1.0f}});
-  EXPECT_FALSE(constants.isAnimated());
+  EXPECT_FALSE(constants.isRunning());
   EXPECT_FALSE(constants.geometryDependent());
   // A constants-only sksl paint has resolved already, so it answers a
   // shader with no frame at all.
   EXPECT_NE(skia::staticShader(constants), nullptr);
 
-  EXPECT_TRUE(skia::sksl(timeEffect()).isAnimated());
+  EXPECT_TRUE(skia::sksl(timeEffect()).isRunning());
   const Paint sized = skia::sksl(resolutionEffect());
-  EXPECT_FALSE(sized.isAnimated());
+  EXPECT_FALSE(sized.isRunning());
   EXPECT_TRUE(sized.geometryDependent());
   // Geometry-dependent means the frame decides: the box-less snapshot is
   // not what a consumer paints with, and the framed answer is a different
@@ -150,14 +150,14 @@ TEST(SkiaPaint, ChildAndBlendInheritTheirLayersTier) {
   Paint parent = skia::sksl(
       effectFor("uniform shader uSrc;\n"
                 "half4 main(float2 p) { return uSrc.eval(p); }"));
-  EXPECT_FALSE(parent.isAnimated());
+  EXPECT_FALSE(parent.isRunning());
   parent.slot("uSrc", skia::sksl(timeEffect()));
-  EXPECT_TRUE(parent.isAnimated());
+  EXPECT_TRUE(parent.isRunning());
 
   const Paint stack = Paint::blend(
       {{Paint::solid({0, 0, 0, 1}), BlendMode::Source},
        {skia::sksl(resolutionEffect()), BlendMode::PlusLighter}});
-  EXPECT_FALSE(stack.isAnimated());
+  EXPECT_FALSE(stack.isRunning());
   EXPECT_TRUE(stack.geometryDependent());
 }
 

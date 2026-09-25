@@ -41,7 +41,7 @@ TEST(SkiaCompiler, TwoUniformRecipeMatchesHandCompiledSkSL) {
   auto recipe = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("two").body(Target::SkSL, kBody));
   Material m(recipe, TwoParameters{0.5f, {0.8f, 0.4f, 0.2f, 1.0f}});
-  EXPECT_FALSE(m.isAnimated());
+  EXPECT_FALSE(m.isRunning());
 
   const FrameData frame;
   sk_sp<SkShader> ours = skia::shader(m, frame);

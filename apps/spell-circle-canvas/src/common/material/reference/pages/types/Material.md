@@ -50,7 +50,7 @@ renderer blends it in at, `Material::quantizeTime` snaps the time it sees
 to a step rate, `Material::worldSpace` anchors it to the root frame
 rather than the node's.
 
-QUERIES are the two the rest of the tree asks. `Material::isAnimated` is
+QUERIES are the two the rest of the tree asks. `Material::isRunning` is
 whether the upload can change with no edit — a bound output or block, a
 recipe reading time or content scale, or an animated child.
 `Material::geometryDependent` is whether it depends on where and how

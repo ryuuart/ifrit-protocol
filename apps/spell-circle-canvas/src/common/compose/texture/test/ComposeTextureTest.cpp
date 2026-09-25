@@ -37,7 +37,7 @@ TEST(ComposeTexture, AStillTreeBumpsNothing) {
   for (int frame = 0; frame < 8; ++frame)
     scene->render(still, (double)(frame + 1) / 60.0);
   EXPECT_EQ(scene->version(), painted);
-  EXPECT_FALSE(scene->active());
+  EXPECT_FALSE(scene->isRunning());
 }
 
 TEST(ComposeTexture, ADescriptionThatChangedPaintsAgain) {
@@ -57,7 +57,7 @@ TEST(ComposeTexture, ARetainedBindingPaintsWhenItsOutputMoves) {
 
   scene->render(retained);
   const uint64_t painted = scene->version();
-  ASSERT_TRUE(scene->active());
+  ASSERT_TRUE(scene->isRunning());
 
   alpha = 0.0f;
   scene->render(retained, 1.0 / 60.0);

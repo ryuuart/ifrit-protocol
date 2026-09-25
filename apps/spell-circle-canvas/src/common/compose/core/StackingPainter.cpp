@@ -352,7 +352,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   // bake there to make cheaper.
   const bool staticEffectCandidate =
       !deferLiveEffect && node.cacheMode == Cache::Texture &&
-      layerEffectOf(node) && !layerEffectOf(node)->isAnimated() &&
+      layerEffectOf(node) && !layerEffectOf(node)->isRunning() &&
       (!inst.subtreeVolatile || memoized) && !backdropEffectOf(node) &&
       !inst.subtreeReadsBackdrop && !node.hasMasks() &&
       node.boundary == Boundary::Auto;

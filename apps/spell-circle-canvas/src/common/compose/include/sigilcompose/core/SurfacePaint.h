@@ -84,7 +84,7 @@ class SurfacePaint {
    *  `Element::ink` is the slot that asks — a colour is the inherited,
    *  easing ink lane, and a paint is a paint. */
   [[nodiscard]] bool writtenAsPaint() const;
-  [[nodiscard]] bool isAnimated() const;
+  [[nodiscard]] bool isRunning() const;
   bool operator==(const SurfacePaint&) const = default;
 
  private:

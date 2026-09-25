@@ -84,7 +84,7 @@ namespace {
  *  There is exactly one spelling the concept duck-types on. */
 struct SaysAnimated {
   bool live = true;
-  bool isAnimated() const { return live; }
+  bool isRunning() const { return live; }
   void paint(SkCanvas& c, const PaintContext&) const {
     SkPaint p;
     p.setColor4f({1, 0, 0, 1}, nullptr);
@@ -109,26 +109,26 @@ struct SaysTheDeadWord {
 TEST(ComposeVolatility, IsAnimatedIsTheOnlyWordThatDeclaresIt) {
   static_assert(AnimatedDecoration<SaysAnimated>);
   static_assert(!AnimatedDecoration<SaysTheDeadWord>,
-                "only isAnimated() declares volatility");
-  EXPECT_TRUE(Decoration(SaysAnimated{true}).isAnimated());
-  EXPECT_FALSE(Decoration(SaysAnimated{false}).isAnimated());
+                "only isRunning() declares volatility");
+  EXPECT_TRUE(Decoration(SaysAnimated{true}).isRunning());
+  EXPECT_FALSE(Decoration(SaysAnimated{false}).isRunning());
   // A near-miss spelling declares nothing: it wraps, it paints, it is static.
-  EXPECT_FALSE(Decoration(SaysTheDeadWord{true}).isAnimated());
+  EXPECT_FALSE(Decoration(SaysTheDeadWord{true}).isRunning());
 }
 
 TEST(ComposeVolatility, EveryLibrarySchemeDeclaresItWithTheSameWord) {
   lines::Line line;
   motion::Animatable<float> phase = motion::animatable(0.0f);
   line.dashPhaseBinding = phase;
-  EXPECT_TRUE(line.isAnimated());
+  EXPECT_TRUE(line.isRunning());
 
   PathFormat pf;
-  EXPECT_FALSE(pf.isAnimated());
+  EXPECT_FALSE(pf.isRunning());
 
   // A Material answers the same question in the same word as every other
   // scheme, so a consumer never has to know which kind it is holding.
   const material::Paint stat = material::Paint::solid({1, 0, 0, 1});
-  EXPECT_FALSE(stat.isAnimated());
+  EXPECT_FALSE(stat.isRunning());
 }
 
 // ---- Bound::source / ::target ----------------------------------------------
@@ -161,7 +161,7 @@ TEST(ComposeMotionWords, WindowIsSourceThatClamps) {
 }
 
 TEST(ComposeVolatility, ALiveMaterialOnASpanPassDeclaresItself) {
-  // spanVolatile reads the PASS BRUSH's isAnimated(), which means a live
+  // spanVolatile reads the PASS BRUSH's isRunning(), which means a live
   // MATERIAL on a span pass must declare itself just as a bound endpoint
   // does: a stroke whose colour comes from a uTime shader has to repaint
   // every frame with no re-describe anywhere. The static arm is the other
@@ -177,6 +177,6 @@ TEST(ComposeVolatility, ALiveMaterialOnASpanPassDeclaresItself) {
     return host.composer.stats().nodesPainted;
   };
   EXPECT_GT(paintedPerFrame(true), 0u)
-      << "a live stroke material on a span pass must declare isAnimated()";
+      << "a live stroke material on a span pass must declare isRunning()";
   EXPECT_EQ(paintedPerFrame(false), 0u) << "…and a static one must still cache";
 }

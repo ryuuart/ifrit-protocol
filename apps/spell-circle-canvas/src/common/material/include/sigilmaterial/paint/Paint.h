@@ -247,7 +247,7 @@ class Paint {
    *  program reads uTime or uContentScale: the paint re-resolves per
    *  frame and its node stays volatile. A blend() inherits it from its
    *  layers. */
-  bool isAnimated() const;
+  bool isRunning() const;
   /** True when the paint needs the node's layout size to resolve — a
    *  program declaring uResolution, a stated fit(), worldSpace(). It
    *  resolves when its node records, CACHES between layouts, and
@@ -286,7 +286,7 @@ class Paint {
    *  is a placed tile, not an animation, and must not put its node on the
    *  live path forever. */
   bool boundOffsetLive() const;
-  /** Everything isAnimated() reports EXCEPT this paint's own bound
+  /** Everything isRunning() reports EXCEPT this paint's own bound
    *  offset: live parameter bindings, uTime/uContentScale, and any
    *  animated slot or blend() layer — including a NESTED bound offset,
    *  which the node-level scalar lane cannot reach. */

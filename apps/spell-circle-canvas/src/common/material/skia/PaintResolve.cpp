@@ -25,7 +25,7 @@ sk_sp<SkShader> PaintAccess::asShader(const Paint& self) {
   // m_shader is the eager snapshot blend() built, which is precisely the
   // stale answer the live branch exists to avoid. Fold the layers instead,
   // per call.
-  if (self.m_recipe && self.m_recipe->kind == Paint::Recipe::Kind::Blend && self.isAnimated())
+  if (self.m_recipe && self.m_recipe->kind == Paint::Recipe::Kind::Blend && self.isRunning())
     return foldBlend(self, nullptr);
   // A bound-offset image material's m_shader snapshot baked the static
   // matrix — rebuild with the pan's current values, the same
@@ -36,10 +36,10 @@ sk_sp<SkShader> PaintAccess::asShader(const Paint& self) {
   // fresh and let bound Outputs contribute their CURRENT values — this is
   // what blend() flattens, and returning the snapshot would bake whatever
   // the Outputs happened to hold at construction. The m_live guard is
-  // explicit rather than implied by isAnimated(): a bound pan (handled just
+  // explicit rather than implied by isRunning(): a bound pan (handled just
   // above) reports animated with no sksl recipe behind it.
-  if (self.m_live && self.isAnimated()) return build(*self.m_live, nullptr);
-  if (self.m_backed && self.isAnimated()) return buildBacked(self, nullptr);
+  if (self.m_live && self.isRunning()) return build(*self.m_live, nullptr);
+  if (self.m_backed && self.isRunning()) return buildBacked(self, nullptr);
   if (snapshot(self)) return snapshot(self);
   if (self.m_isSolid) return SkShaders::Color(toSkColor(self.m_solid), nullptr);
   return nullptr;  // none
@@ -54,7 +54,7 @@ sk_sp<SkShader> PaintAccess::shaderFor(const Paint& self, const PaintFrame& pain
   // whole fold here, while a flagged LAYER already anchored itself on the
   // way through childShader → resolve.
   if (self.m_recipe && self.m_recipe->kind == Paint::Recipe::Kind::Blend &&
-      (self.isAnimated() || self.geometryDependent())) {
+      (self.isRunning() || self.geometryDependent())) {
     sk_sp<SkShader> folded = foldBlend(self, &paintFrame);
     if (self.m_worldSpace) folded = anchorToRoot(std::move(folded), paintFrame);
     return folded;
@@ -63,10 +63,10 @@ sk_sp<SkShader> PaintAccess::shaderFor(const Paint& self, const PaintFrame& pain
   // inside its memo. Guarded on m_live because a world-space flag makes
   // gradient-factory materials geometry-dependent too, and those have no
   // sksl recipe; they take the final branch below instead.
-  if (self.m_live && (self.isAnimated() || self.geometryDependent()))
+  if (self.m_live && (self.isRunning() || self.geometryDependent()))
     return build(*self.m_live, &paintFrame, self.m_worldSpace);
   // The recipe-backed path — the same rule, through the core's cache.
-  if (self.m_backed && (self.isAnimated() || self.geometryDependent()))
+  if (self.m_backed && (self.isRunning() || self.geometryDependent()))
     return buildBacked(self, &paintFrame);
   // The fit: the source mapped onto THIS box, which neither the static
   // snapshot below nor the recipe matrix could know. It carries the bound

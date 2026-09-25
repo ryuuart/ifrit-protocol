@@ -127,7 +127,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   // the type because the band is what it is mapped onto.
   PaintContext metricCtx = paintCtx;
   metricCtx.size = {1.0f, 1.0f};
-  const Fill f = (metricMat->isAnimated() || metricMat->geometryDependent())
+  const Fill f = (metricMat->isRunning() || metricMat->geometryDependent())
                      ? resolveFill(*metricMat, metricCtx)
                      : toFill(*metricMat);
   // AN INK THAT RESTARTS PER UNIT keeps its paint on the unit square: the

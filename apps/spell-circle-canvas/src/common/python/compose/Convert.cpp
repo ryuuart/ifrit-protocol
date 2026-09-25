@@ -51,7 +51,7 @@ compose::Fill fill(py::handle value) {
     // frame in hand, so a static paint collapses onto it while a live or
     // geometry-dependent one has no single colour to give.
     const auto paint = value.cast<material::Paint>();
-    if (paint.isAnimated() || paint.geometryDependent())
+    if (paint.isRunning() || paint.geometryDependent())
       throw py::type_error(
           "A live or geometry-dependent paint is not a flat fill. Give it to "
           "a verb that resolves against the frame it paints at, such as "

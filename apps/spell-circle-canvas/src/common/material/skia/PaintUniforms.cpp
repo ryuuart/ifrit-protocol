@@ -34,7 +34,7 @@ class MaterialLeaf final : public sigil::material::ShaderLeaf {
   sk_sp<SkShader> shader() const override {
     return skia::PaintAccess::asShader(m_source);
   }
-  bool animated() const override { return m_source.isAnimated(); }
+  bool animated() const override { return m_source.isRunning(); }
 
  protected:
   bool equals(const sigil::material::Leaf& other) const override {

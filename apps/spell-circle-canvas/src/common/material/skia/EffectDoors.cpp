@@ -94,7 +94,7 @@ Effect& Effect::slot(std::string name, Paint source) {
 
 bool Effect::anyChildNeedsContext() const {
   for (const auto& [name, child] : m_slots)
-    if (child && (child->isAnimated() || child->geometryDependent()))
+    if (child && (child->isRunning() || child->geometryDependent()))
       return true;
   // A chain is retained only because a side needs a paint frame, and it
   // has no precomposed filter to stand in for it.

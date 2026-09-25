@@ -217,7 +217,7 @@ class Effect {
   /** THE VOLATILITY DECLARATION — one word across the whole library:
    *  does this effect change without a re-describe? True while any
    *  uniform is bound, or while any child material is live. */
-  bool isAnimated() const;
+  bool isRunning() const;
   /** Does any child paint anchor to the root frame? The reconcile walk
    *  asks this so it can mark the node's world matrix stale when an
    *  ancestor's static transform is re-described. */
@@ -274,7 +274,7 @@ class Effect {
   std::vector<std::pair<std::string, std::vector<float>>> m_uniformArrays;
   std::vector<std::pair<std::string, motion::Animatable<float>>> m_bound;
   // Live arrays: caller-owned UniformBlocks, read at every paint.
-  // Their presence makes the effect isAnimated(), like a bound scalar.
+  // Their presence makes the effect isRunning(), like a bound scalar.
   std::vector<std::pair<std::string, std::shared_ptr<const UniformBlock>>>
       m_blocks;
   std::optional<DirectionalBlur>
@@ -361,7 +361,7 @@ class Effect {
         "rather than a shader, so the value built from it is a colour "
         "map; it is derived from nothing and is compared beside the "
         "program; "
-        "m_bound and m_blocks make the effect isAnimated(), which "
+        "m_bound and m_blocks make the effect isRunning(), which "
         "operator== already refuses; m_chainA/B and m_chainBlend "
         "exist only on a chain with a side that needs a paint frame, "
         "and compare side by side with the blend.)");

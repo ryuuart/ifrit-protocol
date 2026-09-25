@@ -264,7 +264,7 @@ the default variant is the plain build.
 **Bindings are live, and equality is by identity.** `bind(name, Output*)`
 makes a float field read the output's current value at every resolve;
 `bind(name, shared_ptr<UniformBlock>)` does the same for an array field
-and a caller-owned table. A bound material `isAnimated()`;
+and a caller-owned table. A bound material `isRunning()`;
 `isBound(name)` is the other question — whether a field carries a binding
 at all, an output or a number or a block, rather than only the bytes
 `set()` last wrote. Two materials
@@ -278,7 +278,7 @@ they were committed.
 declares that the body reads `uTime`, `uResolution`, `uContentScale` or
 `uWorld`; the declaration adds the uniform after the parameters and
 `resolve()` fills it from the `FrameData`. Time and content scale make a
-material `isAnimated()`; resolution and the world transform make it
+material `isRunning()`; resolution and the world transform make it
 `geometryDependent()`. `quantizeTime(rate)` snaps the time a material sees
 to a step, so a material that need not move every frame resolves only
 when the snapped clock advances.

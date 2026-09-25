@@ -124,7 +124,7 @@ TEST(Texture, FillsAMaterialSlotAsALeaf) {
   EXPECT_EQ(a, b);
   ASSERT_NE(a.leaf("uImage"), nullptr);
   EXPECT_EQ(a.slot("uImage"), nullptr);
-  EXPECT_FALSE(a.isAnimated());
+  EXPECT_FALSE(a.isRunning());
   b.slot("uImage", Texture::of(img).tile(SkTileMode::kRepeat));
   EXPECT_FALSE(a == b);
   // A slot holding a leaf and one holding a material are unequal.

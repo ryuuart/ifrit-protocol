@@ -333,7 +333,7 @@ class TextEffect {
 
   /** DECLARES A PHASE WHERE THIS PASS IS AN EXACT PASS-THROUGH — an
    *  author's promise the runtime spends but cannot verify, in the same
-   *  family as `isAnimated`, `bleed()` and `reach`. When every unit the
+   *  family as `isRunning`, `bleed()` and `reach`. When every unit the
    *  track addresses sits at a declared phase, the runtime skips the layer
    *  and the shader and draws the glyphs directly. The contract, and what
    *  a false promise looks like, is documented at `textFx::pass` below.

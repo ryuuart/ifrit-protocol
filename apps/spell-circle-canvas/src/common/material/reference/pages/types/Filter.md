@@ -21,7 +21,7 @@ already there".
 ## Anatomy
 
 Every effect is built by a static factory and then narrowed with the
-modifiers. `Filter::isAnimated` is the volatility declaration — one word
+modifiers. `Filter::isRunning` is the volatility declaration — one word
 across the whole library — and it is true while any uniform is bound or
 any child material is live. `Filter::usesWorldSpace` asks whether any
 child paint anchors to the root frame.

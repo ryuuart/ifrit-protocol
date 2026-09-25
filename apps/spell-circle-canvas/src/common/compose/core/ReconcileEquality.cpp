@@ -263,11 +263,11 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
     // So an identical re-describe prunes, and a re-BOUND pan patches —
     // which it must, because a pruned swap would leave the old live value
     // driving the pixels for the life of the instance. Everything else
-    // that reports isAnimated() stays never-prune, below.
+    // that reports isRunning() stays never-prune, below.
     const bool panOnlyA = a->live->boundOffsetOnly();
     const bool panOnlyB = b->live->boundOffsetOnly();
     if (panOnlyA != panOnlyB) return false;
-    if (!panOnlyA && (a->live->isAnimated() || b->live->isAnimated()))
+    if (!panOnlyA && (a->live->isRunning() || b->live->isRunning()))
       return false;
     if (!(*a->live == *b->live)) return false;
   }
@@ -390,7 +390,7 @@ bool Gate::operator==(const Gate& other) const {
       if (outside != other.outside || channel != other.channel) return false;
       if ((bool)coverage != (bool)other.coverage) return false;
       if (!coverage) return true;
-      if (coverage->isAnimated() || other.coverage->isAnimated()) return false;
+      if (coverage->isRunning() || other.coverage->isRunning()) return false;
       return *coverage == *other.coverage;
   }
   return false;
@@ -483,8 +483,8 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   // one recipe compare equal, and the subtree under them is painted from
   // uniforms that moved since the recording was made.
   if (a.cascadeData && a.cascadeData->inkPaint &&
-      (a.cascadeData->inkPaint->isAnimated() ||
-       b.cascadeData->inkPaint->isAnimated()))
+      (a.cascadeData->inkPaint->isRunning() ||
+       b.cascadeData->inkPaint->isRunning()))
     return false;
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;

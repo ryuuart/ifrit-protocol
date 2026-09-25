@@ -464,7 +464,7 @@ void bindCompose(py::module_& module) {
       .def(py::init([](py::object value) { return surfacePaint(value); }),
            py::arg("value"))
       .def("none", &SurfacePaint::none)
-      .def("isAnimated", &SurfacePaint::isAnimated)
+      .def("isRunning", &SurfacePaint::isRunning)
       .def(py::self == py::self);
   py::class_<CellSpan>(composition, "CellSpan")
       .def(py::init<>())
@@ -529,7 +529,7 @@ void bindCompose(py::module_& module) {
       .def_readwrite("trimStart", &PathFormat::trimStart)
       .def_readwrite("trimEnd", &PathFormat::trimEnd)
       .def_readwrite("trimOffset", &PathFormat::trimOffset)
-      .def("isAnimated", &PathFormat::isAnimated)
+      .def("isRunning", &PathFormat::isRunning)
       .def_property(
           "trimPhase", [](const PathFormat& self) { return self.trimPhase; },
           [](PathFormat& self, py::object value) {
@@ -576,7 +576,7 @@ void bindCompose(py::module_& module) {
   py::class_<Decoration>(composition, "Decoration")
       .def(py::init([](py::object value) { return decoration(value); }),
            py::arg("value"))
-      .def("isAnimated", &Decoration::isAnimated)
+      .def("isRunning", &Decoration::isRunning)
       .def("blends", &Decoration::blends)
       .def(py::self == py::self);
   py::implicitly_convertible<PathFormat, Decoration>();

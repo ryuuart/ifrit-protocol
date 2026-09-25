@@ -36,7 +36,7 @@ struct Beat {
    *  looping schedule it is the WRAPPED progress of the current cycle. */
   float localProgress = 0;
   /** The beat is running: it has begun and has not finished. */
-  bool active = false;
+  bool running = false;
 
   bool operator==(const Beat&) const = default;
 };

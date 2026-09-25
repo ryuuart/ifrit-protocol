@@ -123,7 +123,7 @@ class Material {
   /** Whether @p name carries a binding — an animatable or a block —
    *  rather than only the bytes `set()` last wrote. A field bound to a
    *  plain number is bound like any other; whether anything behind a
-   *  binding MOVES is `isAnimated()`. */
+   *  binding MOVES is `isRunning()`. */
   bool isBound(std::string_view name) const;
   /** Fills the slot @p name. A slot the recipe does not declare is
    *  reported once and ignored. */
@@ -170,7 +170,7 @@ class Material {
   /** Whether the upload can change between frames with no edit to the
    *  material: a bound output or block, a recipe reading time or content
    *  scale, or an animated child. */
-  bool isAnimated() const;
+  bool isRunning() const;
   /** Whether the upload depends on where and how large the node is: a
    *  recipe reading the resolution or the world transform, or a
    *  geometry-dependent child. */

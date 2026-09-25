@@ -127,7 +127,7 @@ struct MaskEngine final : MaskResolverOperations {
   Fill coverage(const Gate& gate, const PaintContext& ctx) const override {
     if (!gate.coverage) return {};
     const material::Paint& mat = *gate.coverage;
-    return (mat.isAnimated() || mat.geometryDependent()) ? resolveFill(mat, ctx)
+    return (mat.isRunning() || mat.geometryDependent()) ? resolveFill(mat, ctx)
                                                          : toFill(mat);
   }
 };

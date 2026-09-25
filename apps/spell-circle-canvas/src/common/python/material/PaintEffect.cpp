@@ -251,7 +251,7 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def("emit", &material::Filter::emit, py::arg("light"),
            py::arg("mode") = material::BlendMode::Screen)
       .def("isNone", &material::Filter::isNone)
-      .def("isAnimated", &material::Filter::isAnimated)
+      .def("isRunning", &material::Filter::isRunning)
       .def("usesWorldSpace", &material::Filter::usesWorldSpace)
       .def(py::self == py::self);
 
@@ -366,7 +366,7 @@ void bindMaterialPaintEffect(py::module_& module) {
            py::arg("on") = true, fluent)
       .def("quantizeTime", &material::Paint::quantizeTime,
            py::arg("rate"), fluent)
-      .def("isAnimated", &material::Paint::isAnimated)
+      .def("isRunning", &material::Paint::isRunning)
       .def("isNone", &material::Paint::isNone)
       .def(py::self == py::self);
   // A recipe instance is one kind of paint, so everything that takes a

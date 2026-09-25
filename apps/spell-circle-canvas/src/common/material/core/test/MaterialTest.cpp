@@ -190,32 +190,32 @@ TEST(Material, AnEmptyLeafSlotComparesAgainstAFilledOneWithoutReadingIt) {
 TEST(Material, TiersFollowBindingsFrameInputsAndChildren) {
   auto plain = twoRecipe();
   Material still(plain, TwoParameters{});
-  EXPECT_FALSE(still.isAnimated());
+  EXPECT_FALSE(still.isRunning());
   EXPECT_FALSE(still.geometryDependent());
 
   choreograph::Output<float> out{0.0f};
   Material bound = still;
   bound.bind("uScale", &out);
-  EXPECT_TRUE(bound.isAnimated());
+  EXPECT_TRUE(bound.isRunning());
   EXPECT_FALSE(bound.geometryDependent());
 
   auto timed = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("timed").frame(FrameInput::Time));
-  EXPECT_TRUE(Material(timed).isAnimated());
+  EXPECT_TRUE(Material(timed).isRunning());
   auto sized = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("sized").frame(FrameInput::Resolution));
-  EXPECT_FALSE(Material(sized).isAnimated());
+  EXPECT_FALSE(Material(sized).isRunning());
   EXPECT_TRUE(Material(sized).geometryDependent());
 
   auto parentRecipe = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("parent").slot("uA").slot("uB"));
   Material parent(parentRecipe);
-  EXPECT_FALSE(parent.isAnimated());
+  EXPECT_FALSE(parent.isRunning());
   parent.slot("uB", Material(sized));
   EXPECT_TRUE(parent.geometryDependent());
-  EXPECT_FALSE(parent.isAnimated());
+  EXPECT_FALSE(parent.isRunning());
   parent.slot("uA", bound);
-  EXPECT_TRUE(parent.isAnimated());
+  EXPECT_TRUE(parent.isRunning());
   ASSERT_EQ(parent.slots().size(), 2u);
   // Slots sit in recipe order however they were filled.
   EXPECT_EQ(parent.slots()[0].first, "uA");
@@ -251,7 +251,7 @@ TEST(Material, AFieldSaysWhetherItCarriesABindingAtAll) {
   EXPECT_FALSE(m.isBound("uTable"));
   m.bind("uScale", 2.0f);
   EXPECT_TRUE(m.isBound("uScale"));
-  EXPECT_FALSE(m.isAnimated());
+  EXPECT_FALSE(m.isRunning());
   m.unbind("uScale");
   EXPECT_FALSE(m.isBound("uScale"));
   // Bytes are not a binding: what `set()` writes stays a value.
@@ -283,7 +283,7 @@ TEST(Material, ResolveSamplesBindingsInjectsFrameAndMemoises) {
   auto block = std::make_shared<UniformBlock>(4);
   m.bind("uScale", &out).bind("uTable", block);
   m.bind("uTable", std::make_shared<UniformBlock>(3));  // wrong size: ignored
-  EXPECT_TRUE(m.isAnimated());
+  EXPECT_TRUE(m.isRunning());
 
   FrameData frame;
   frame.seconds = 1.25;

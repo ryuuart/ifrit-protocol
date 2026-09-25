@@ -225,7 +225,7 @@ Material& Material::worldSpace(bool on) {
   return *this;
 }
 
-bool Material::isAnimated() const {
+bool Material::isRunning() const {
   // A bound BLOCK is live by construction — the host revises it — and a
   // bound animatable is live exactly when SigilMotion says it is: a
   // plain number written into a uniform every resolve moves nothing.
@@ -235,7 +235,7 @@ bool Material::isAnimated() const {
       m_recipe->reads(FrameInput::ContentScale))
     return true;
   for (const auto& [slot, s] : m_slots) {
-    if (s.material && s.material->isAnimated()) return true;
+    if (s.material && s.material->isRunning()) return true;
     if (s.leaf && s.leaf->animated()) return true;
   }
   return false;

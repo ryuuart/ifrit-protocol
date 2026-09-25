@@ -149,7 +149,7 @@ Effect Effect::recipe(const Material& material, float sampleRadius) {
                                                  (int)leave.size()));
   if (!effect.m_filter) return {};
   std::optional<Material> comparable;
-  if (!material.isAnimated()) comparable = material;
+  if (!material.isRunning()) comparable = material;
   effect.m_recipeSnapshot =
       std::make_shared<const RecipeSnapshot>(RecipeSnapshot{
           std::move(comparable), sk_ref_sp(built->effect()), sampleRadius});
@@ -288,8 +288,8 @@ Effect Effect::then(const Effect& next) const {
   // is the box, would paint the box it was first described in for ever —
   // and the composed effect would answer usesWorldSpace() with false
   // because the sources it was built from are gone.
-  const bool mineNeedsCtx = isAnimated() || anyChildNeedsContext();
-  const bool nextNeedsCtx = next.isAnimated() || next.anyChildNeedsContext();
+  const bool mineNeedsCtx = isRunning() || anyChildNeedsContext();
+  const bool nextNeedsCtx = next.isRunning() || next.anyChildNeedsContext();
   const bool thisReal = mine || mineNeedsCtx;
   const bool nextReal = theirs || nextNeedsCtx;
   if (!thisReal) return next;
@@ -402,7 +402,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
 }
 
-bool Effect::isAnimated() const {
+bool Effect::isRunning() const {
   // A bound block is a bound Output whose value is a table: read at every
   // paint, so the node must stay volatile for as long as it is attached.
   if (!m_blocks.empty()) return true;
@@ -416,12 +416,12 @@ bool Effect::isAnimated() const {
   // freeze it. Material answers this question for its own subtree, so the
   // recursion stops at the slot.
   for (const auto& [name, source] : m_slots)
-    if (source && source->isAnimated()) return true;
-  return m_chainA && (m_chainA->isAnimated() || m_chainB->isAnimated());
+    if (source && source->isRunning()) return true;
+  return m_chainA && (m_chainA->isRunning() || m_chainB->isRunning());
 }
 
 bool Effect::usesWorldSpace() const {
-  // Same tier-inheritance shape as isAnimated(): Material's own recursion
+  // Same tier-inheritance shape as isRunning(): Material's own recursion
   // answers for blend layers and nested slots.
   for (const auto& [name, source] : m_slots)
     if (source && source->usesWorldSpace()) return true;
@@ -449,7 +449,7 @@ static bool slotsEqual(
 }
 
 bool Effect::operator==(const Effect& other) const {
-  if (isAnimated() || other.isAnimated())
+  if (isRunning() || other.isRunning())
     return false;  // live never prunes — the material rule
   // A retained chain whose sides need only geometry carries no filter of
   // its own, so it compares by its sides and how they join.

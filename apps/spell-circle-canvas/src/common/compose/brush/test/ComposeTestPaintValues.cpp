@@ -39,7 +39,7 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
        material::BlendMode::PlusLighter},
   });
   EXPECT_TRUE(m.geometryDependent());  // inherited from the SDF layer
-  EXPECT_FALSE(m.isAnimated());        // still cacheable
+  EXPECT_FALSE(m.isRunning());        // still cacheable
   Host host;
   host.composer.render(box().children(
       {box()

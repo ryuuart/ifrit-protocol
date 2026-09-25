@@ -37,7 +37,7 @@ set of its own.
 decoration reads, since a decoration paints with a context and no
 instance, and therefore runs no transition of its own.
 
-`SurfacePaint::isAnimated` is the volatility declaration, spelled the same
+`SurfacePaint::isRunning` is the volatility declaration, spelled the same
 word every value in this tree spells it with.
 
 ## Make one

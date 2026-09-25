@@ -262,16 +262,16 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
   // the front stands at 250 ms: word 0 is done, word 1 is three quarters
   // through its own 200 ms beat, word 2 has just started and word 3 has not
   // opened at all.
-  EXPECT_FLOAT_EQ(beats[0].startMs, 0.0f);
-  EXPECT_FLOAT_EQ(beats[3].startMs, 300.0f);
-  EXPECT_FLOAT_EQ(beats[0].localTime, 1.0f);
-  EXPECT_FLOAT_EQ(beats[1].localTime, 0.75f);
-  EXPECT_FLOAT_EQ(beats[2].localTime, 0.25f);
-  EXPECT_FLOAT_EQ(beats[3].localTime, 0.0f);
-  EXPECT_FALSE(beats[0].active) << "a finished beat is not running";
-  EXPECT_TRUE(beats[1].active);
-  EXPECT_TRUE(beats[2].active);
-  EXPECT_FALSE(beats[3].active) << "a beat that has not opened is not running";
+  EXPECT_FLOAT_EQ(inMilliseconds(beats[0].start), 0.0f);
+  EXPECT_FLOAT_EQ(inMilliseconds(beats[3].start), 300.0f);
+  EXPECT_FLOAT_EQ(beats[0].localProgress, 1.0f);
+  EXPECT_FLOAT_EQ(beats[1].localProgress, 0.75f);
+  EXPECT_FLOAT_EQ(beats[2].localProgress, 0.25f);
+  EXPECT_FLOAT_EQ(beats[3].localProgress, 0.0f);
+  EXPECT_FALSE(beats[0].running) << "a finished beat is not running";
+  EXPECT_TRUE(beats[1].running);
+  EXPECT_TRUE(beats[2].running);
+  EXPECT_FALSE(beats[3].running) << "a beat that has not opened is not running";
 }
 
 TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
@@ -504,8 +504,8 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
     EXPECT_FLOAT_EQ(beats[2].localTime, 1.0f)
         << "a unit short of its start must rest at 1 mid-cycle, not wait "
            "at 0";
-    EXPECT_TRUE(beats[0].active);
-    EXPECT_FALSE(beats[2].active) << "resting between beats is not active";
+    EXPECT_TRUE(beats[0].running);
+    EXPECT_FALSE(beats[2].running) << "resting between beats is not active";
   }
   // Three quarters on: the ladder has rolled through — the tail is now the
   // one mid-beat.

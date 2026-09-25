@@ -37,7 +37,7 @@ struct FilterAccess {
   /** @p effect as a filter; an effect that paints nothing is the filter
    *  of none, so the two spellings of "nothing" compare equal. */
   static Filter wrap(Effect effect) {
-    if (!effect.imageFilter() && !effect.colorFilter() && !effect.isAnimated() &&
+    if (!effect.imageFilter() && !effect.colorFilter() && !effect.isRunning() &&
         !effect.resolvedImageFilter())
       return {};
     return Filter(std::make_shared<const Filter::Node>(
@@ -226,8 +226,8 @@ Filter Filter::emit(const Filter& light, BlendMode mode) const {
   return FilterAccess::wrap(self.emit(light.m_node->effect, mode));
 }
 
-bool Filter::isAnimated() const {
-  return m_node && m_node->effect.isAnimated();
+bool Filter::isRunning() const {
+  return m_node && m_node->effect.isRunning();
 }
 
 bool Filter::usesWorldSpace() const {

@@ -166,10 +166,10 @@ struct PathFormat {
   float reach() const { return width; }
   /** A bound trim phase, a bound dash phase, or a live stroke material
    *  repaints per frame (declared volatility). */
-  bool isAnimated() const {
+  bool isRunning() const {
     return (trimPhase && trimPhase->isRunning()) ||
            (dashPhaseBinding && dashPhaseBinding->isRunning()) ||
-           strokeFill.isAnimated();
+           strokeFill.isRunning();
   }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value()
@@ -221,7 +221,7 @@ struct Shadow {
   bool knockout = false;
 
   bool operator==(const Shadow&) const = default;
-  bool isAnimated() const {
+  bool isRunning() const {
     return (bindOffsetX && bindOffsetX->isRunning()) ||
            (bindOffsetY && bindOffsetY->isRunning());
   }
@@ -323,7 +323,7 @@ struct ContourWalk {
    *  frame, which is the author's call to make. */
   core::Callable<std::optional<Element>(const PathSample&, size_t)> stampAt;
 
-  bool isAnimated() const { return animatedWalk; }
+  bool isRunning() const { return animatedWalk; }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 
@@ -364,7 +364,7 @@ struct Wash {
   bool operator==(const Wash& o) const {
     return material == o.material && blend == o.blend && amount == o.amount;
   }
-  bool isAnimated() const { return material.isAnimated(); }
+  bool isRunning() const { return material.isRunning(); }
   /** A wash through anything but source-over reads what is under the node
    *  — which is the point of it, and why such a node cannot be baked. */
   bool blends() const { return blend != SkBlendMode::kSrcOver; }
@@ -437,7 +437,7 @@ struct Border {
   geometry::path::Join join = geometry::path::Join::Miter;
 
   bool operator==(const Border&) const = default;
-  bool isAnimated() const {
+  bool isRunning() const {
     return dashPhaseBinding && dashPhaseBinding->isRunning();
   }
   float phase() const {

@@ -324,9 +324,9 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
       movingPlacement = true;
     }
   }
-  if (node.material && node.material->isAnimated()) movingContent = true;
+  if (node.material && node.material->isRunning()) movingContent = true;
   for (const material::Material& slot : node.slots)
-    if (slot.isAnimated()) movingContent = true;
+    if (slot.isRunning()) movingContent = true;
   if (const Generator* generator = std::get_if<Generator>(&node.geometry))
     if (*generator && !generator->comparable()) {
       // A generator that cannot say whether it is the same generator

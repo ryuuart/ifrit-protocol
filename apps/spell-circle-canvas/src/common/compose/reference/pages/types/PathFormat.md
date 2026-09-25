@@ -103,7 +103,7 @@ by pointer identity, so holding one effect and rebuilding the wrapper
 around it still prunes; building a fresh `SkPathEffect` per describe does
 not.
 
-`PathFormat::isAnimated` answers true for a bound trim phase, a bound
+`PathFormat::isRunning` answers true for a bound trim phase, a bound
 dash phase, or a live stroke paint, and the node then repaints every
 frame without needing a re-describe. Say nothing and the node is treated
 as static: its first frame is recorded and replayed forever, with no

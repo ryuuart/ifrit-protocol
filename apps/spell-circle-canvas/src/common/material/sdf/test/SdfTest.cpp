@@ -89,12 +89,12 @@ TEST(Sdf, StyleIsTheRecipeAndAGlowBindingIsLive) {
   EXPECT_EQ(x, sdf::material(sdf::circle(), a));
   EXPECT_FALSE(x == sdf::material(sdf::roundBox(2), a));
   EXPECT_TRUE(x.geometryDependent());
-  EXPECT_FALSE(x.isAnimated());
+  EXPECT_FALSE(x.isRunning());
   EXPECT_FLOAT_EQ(x.get<float>("uPad"), sdf::pad(a));
   choreograph::Output<float> glow;
   Material bound = x;
   bound.bind("uGlowR", &glow);
-  EXPECT_TRUE(bound.isAnimated());
+  EXPECT_TRUE(bound.isRunning());
   // Star's pointiness clamps into [2, points].
   EXPECT_EQ(sdf::star(5, 9.0f), sdf::star(5, 5.0f));
 }

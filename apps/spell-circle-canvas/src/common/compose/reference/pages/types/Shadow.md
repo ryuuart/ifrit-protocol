@@ -32,7 +32,7 @@ animated — the hover-lift shadow slides without re-describing.
 `Shadow::bleed` cannot read a future value and a shadow that escapes the
 reserved rect is simply cut off.
 
-`Shadow::isAnimated` is the volatility declaration; `Shadow::paint` is
+`Shadow::isRunning` is the volatility declaration; `Shadow::paint` is
 the decoration entry point the seam calls.
 
 ## Make one
@@ -70,7 +70,7 @@ prove two frames asked for the same one. `Decoration` keeps a comparator
 for any scheme that is equality-comparable, and this one is, so a static
 shadowed node records once and replays.
 
-Bind an offset and that stops: the decoration answers `Shadow::isAnimated`
+Bind an offset and that stops: the decoration answers `Shadow::isRunning`
 truthfully, the node is declared volatile, and the picture cache lets go
 of it for as long as the binding is attached. That is the trade a moving
 shadow makes, and the reason `Shadow::maxBind` exists — the cull rect is

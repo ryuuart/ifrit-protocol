@@ -26,7 +26,7 @@ struct Hatch {
    *  `PathFormat::dashPhaseBinding`: an animatable, so a moiré that
    *  breathes, a tightening engraving or a rotating shade pass is one
    *  `bind()` chain rather than a second live value somebody steps by hand.
-   *  Either one live makes `isAnimated()` true, which is what declares
+   *  Either one live makes `isRunning()` true, which is what declares
    *  the node volatile and keeps it repainting.
    *
    *  A decoration paints with only a `PaintContext` and has no instance
@@ -35,7 +35,7 @@ struct Hatch {
   std::optional<motion::Animatable<float>> spacingBinding;
   std::optional<motion::Animatable<float>> angleBinding;
 
-  bool isAnimated() const {
+  bool isRunning() const {
     return (spacingBinding && spacingBinding->isRunning()) ||
            (angleBinding && angleBinding->isRunning());
   }

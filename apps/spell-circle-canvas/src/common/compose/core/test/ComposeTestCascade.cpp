@@ -364,7 +364,7 @@ TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
   host.frame(0.3);
   EXPECT_EQ(host.pixel(30, 30), SkColorSetARGB(255, 0, 0, 255));
   host.frame(0.1);
-  EXPECT_FALSE(host.composer.active());
+  EXPECT_FALSE(host.composer.isRunning());
 }
 
 TEST(ComposeCascade, AnInkChangedThroughAClassEasesAsTheVerbsChangeDoes) {
@@ -448,7 +448,7 @@ TEST(ComposeCascade, AnInheritedInkEasesUnderTheNodesOwnTransition) {
   EXPECT_EQ(host.pixel(90, 30), SkColorSetARGB(255, 0, 0, 255))
       << "settled on the target the ancestor is headed for";
   host.frame(0.1);
-  EXPECT_FALSE(host.composer.active());
+  EXPECT_FALSE(host.composer.isRunning());
 }
 
 TEST(ComposeCascade, AnInkReadFromACustomPropertyEasesWhenThePropertyMoves) {

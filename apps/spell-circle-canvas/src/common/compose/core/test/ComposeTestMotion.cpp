@@ -129,11 +129,11 @@ TEST(ComposeBindings, ActiveWakesForABindingThatSettledAndMovedAgain) {
   // Held still long enough for the walk to release the binding.
   for (int frame = 0; frame < 12; ++frame) host.frame();
   EXPECT_FALSE(host.composer.dirty());
-  EXPECT_FALSE(host.composer.active()) << "a settled scene has nothing to draw";
+  EXPECT_FALSE(host.composer.isRunning()) << "a settled scene has nothing to draw";
 
   bar = Fill::color({0, 1, 0, 1});  // the host wrote the output itself
   EXPECT_FALSE(host.composer.dirty()) << "no describe and no layout ran";
-  EXPECT_TRUE(host.composer.active()) << "…and the next draw is a new colour";
+  EXPECT_TRUE(host.composer.isRunning()) << "…and the next draw is a new colour";
 
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(50, 50)), 180u);

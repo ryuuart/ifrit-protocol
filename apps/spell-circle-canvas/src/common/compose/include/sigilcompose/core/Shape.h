@@ -366,7 +366,7 @@ struct MotionPath {
 enum class Boundary : uint8_t { Auto, Outline, Glyphs, Coverage };
 
 /** Anything with paint(canvas, PaintContext) — decorations, effect
- *  bodies. An optional `bool isAnimated() const` declares per-frame
+ *  bodies. An optional `bool isRunning() const` declares per-frame
  *  volatility; see AnimatedDecoration below. */
 template <typename D>
 concept DecorationScheme =
@@ -379,7 +379,7 @@ concept DecorationScheme =
  *
  *  A scheme that repaints differently from one frame to the next — a
  *  bound dash phase, a live material, a walk keyed to elapsed time — must
- *  say so with `bool isAnimated() const`. The library then stops caching
+ *  say so with `bool isRunning() const`. The library then stops caching
  *  its node's picture. Say nothing and the node is treated as static: its
  *  first frame is recorded and replayed forever, and the mark freezes with
  *  no error and no warning.
@@ -389,13 +389,13 @@ concept DecorationScheme =
  *  is no way to look inside a lambda and see that it read the clock. The
  *  value declares, or the value freezes.
  *
- *  `isAnimated()` is the one word for this question across the whole
+ *  `isRunning()` is the one word for this question across the whole
  *  library — Material, Effect and Decoration all spell it the same way,
  *  and it is always a query derived from how the value was constructed,
  *  never a setter. */
 template <typename D>
 concept AnimatedDecoration = requires(const D& d) {
-  { d.isAnimated() } -> std::convertible_to<bool>;
+  { d.isRunning() } -> std::convertible_to<bool>;
 };
 
 /** Optional on a DecorationScheme: how far it paints BEYOND the node's
@@ -446,7 +446,7 @@ concept ReachingDecoration = requires(const D& d) {
  *  whole mark rather than a rounding. Declaring it refuses that node, and
  *  every ancestor, the automatic bake and the memo hold.
  *
- *  Declared rather than introspected, for the same reason isAnimated() is:
+ *  Declared rather than introspected, for the same reason isRunning() is:
  *  a type-erased value cannot be looked inside. Say nothing and the mark
  *  is taken to draw only over what it covers. A bare PaintProgram declares
  *  nothing and can draw anything, so it is counted as blending. */
@@ -461,7 +461,7 @@ concept BlendingDecoration = requires(const D& d) {
  *  `PaintContext::borrowed`, on the same flat walk that resolves
  *  contentFlowAround and connector/rail borrows.
  *
- *  Declared rather than introspected, for the same reason isAnimated() is:
+ *  Declared rather than introspected, for the same reason isRunning() is:
  *  the element cannot look inside a type-erased value. A composite
  *  decoration must forward its children's keys, or their borrows resolve
  *  to nothing and they draw nothing. */
@@ -480,7 +480,7 @@ class Decoration {
   Decoration(D scheme)  // NOLINT: implicit by design
       : m_animated([&] {
           if constexpr (AnimatedDecoration<D>)
-            return scheme.isAnimated();
+            return scheme.isRunning();
           else
             return false;
         }()),
@@ -546,7 +546,7 @@ class Decoration {
     if (m_paint) m_paint(canvas, ctx);
   }
   /** Declared volatility, read off whichever word the scheme spelled. */
-  bool isAnimated() const { return m_animated; }
+  bool isRunning() const { return m_animated; }
   float bleed(SkSize size) const {
     return m_sizedBleed ? m_sizedBleed(size) : m_bleed;
   }

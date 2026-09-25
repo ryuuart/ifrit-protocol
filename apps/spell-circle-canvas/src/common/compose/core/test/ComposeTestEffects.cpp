@@ -239,12 +239,12 @@ TEST(ComposeEffects, LiveChainsRecomposeAndStaticChainsStayCheap) {
   const material::Filter liveChain =
       material::skia::program(effect).bind("uK", k).then(
           material::skia::program(effect, {{"uK", 0.5f}}));
-  EXPECT_TRUE(liveChain.isAnimated());
+  EXPECT_TRUE(liveChain.isRunning());
   ASSERT_TRUE(material::skia::resolvedImageFilter(liveChain) != nullptr);
   const material::Filter staticChain =
       material::skia::program(effect, {{"uK", 0.5f}})
           .then(material::skia::program(effect, {{"uK", 0.5f}}));
-  EXPECT_FALSE(staticChain.isAnimated());
+  EXPECT_FALSE(staticChain.isRunning());
   EXPECT_TRUE(material::skia::imageFilter(staticChain) != nullptr);  // precomposed once
 
   // The chain applies BOTH stages: 1.0 * 0.5 through the live chain dims
@@ -378,11 +378,11 @@ TEST(ComposeEffects, AnUnknownDirectionalBlurUniformIsIgnoredNotLive) {
   sigil::motion::Animatable<float> v = sigil::motion::animatable(1.0f);
   const material::Filter typo =
       material::Filter::directionalBlur(10, 0).bind("sgima", v);
-  EXPECT_FALSE(typo.isAnimated());
+  EXPECT_FALSE(typo.isRunning());
   // The control: a real parameter name does bind.
   const material::Filter bound =
       material::Filter::directionalBlur(10, 0).bind("sigma", v);
-  EXPECT_TRUE(bound.isAnimated());
+  EXPECT_TRUE(bound.isRunning());
 }
 
 namespace {
@@ -501,7 +501,7 @@ TEST(ComposeEffects, ALiveSigmaMapMakesTheWholeEffectLive) {
   // Liveness has to be INHERITED: a live parameter must lift the whole
   // effect to live, or a bake samples the map once and the effect freezes
   // at that sample while everything around it keeps moving. The recursion
-  // is Material::isAnimated()'s own.
+  // is Material::isRunning()'s own.
   auto [fx, err] = SkRuntimeEffect::MakeForShader(
       SkString("uniform float uK;"
                "half4 main(float2 p) { return half4(half(uK), 0, 0, 1); }"));
@@ -509,8 +509,8 @@ TEST(ComposeEffects, ALiveSigmaMapMakesTheWholeEffectLive) {
   sigil::motion::Animatable<float> k = sigil::motion::animatable(0.0f);
   const material::Paint liveMap =
       material::skia::sksl(fx).bind("uK", k);
-  EXPECT_TRUE(material::Filter::blur(liveMap, 16).isAnimated());
-  EXPECT_FALSE(material::Filter::blur(focalRamp(), 16).isAnimated())
+  EXPECT_TRUE(material::Filter::blur(liveMap, 16).isRunning());
+  EXPECT_FALSE(material::Filter::blur(focalRamp(), 16).isRunning())
       << "a static map must NOT declare volatility (the control)";
 
   // The pixels follow the live map with no re-describe: uK 0 is sharp
@@ -608,7 +608,7 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
   material::Filter plain = material::skia::filter(raw);
   plain.slot("param", liveMap);
   EXPECT_EQ(material::skia::imageFilter(plain), raw) << "filter()'s filter was replaced";
-  EXPECT_FALSE(plain.isAnimated());
+  EXPECT_FALSE(plain.isRunning());
 
   // (b) a shader() effect that declares no such child.
   auto [oneChild, err2] = SkRuntimeEffect::MakeForShader(
@@ -617,16 +617,16 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
   ASSERT_TRUE(oneChild) << err2.c_str();
   material::Filter narrow = material::skia::program(oneChild);
   narrow.slot("param", liveMap);
-  EXPECT_FALSE(narrow.isAnimated());
+  EXPECT_FALSE(narrow.isRunning());
   // …and "content" is the library's, never the author's to overwrite.
   material::Filter content = material::skia::program(oneChild);
   content.slot("content", liveMap);
-  EXPECT_FALSE(content.isAnimated());
+  EXPECT_FALSE(content.isRunning());
 
   // (c) a blur()'s one child is "sigma"; a typo must not bind.
   material::Filter typo = material::Filter::blur(focalRamp(), 8);
   typo.slot("sgima", liveMap);
-  EXPECT_FALSE(typo.isAnimated());
+  EXPECT_FALSE(typo.isRunning());
   // THE CONTROL: the declared name does bind, and does go live.
   auto [twoChild, err3] = SkRuntimeEffect::MakeForShader(
       SkString("uniform shader content;"
@@ -636,12 +636,12 @@ TEST(ComposeEffects, AnUndeclaredEffectChildIsIgnoredNotBound) {
   ASSERT_TRUE(twoChild) << err3.c_str();
   material::Filter bound = material::skia::program(twoChild);
   bound.slot("param", liveMap);
-  EXPECT_TRUE(bound.isAnimated());
+  EXPECT_TRUE(bound.isRunning());
   // …and blur()'s real name re-aims the map, which is what makes the
   // child vector one mechanism rather than two.
   material::Filter reaimed = material::Filter::blur(focalRamp(), 8);
   reaimed.slot("sigma", liveMap);
-  EXPECT_TRUE(reaimed.isAnimated());
+  EXPECT_TRUE(reaimed.isRunning());
 }
 
 TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
@@ -666,7 +666,7 @@ TEST(ComposeEffects, ADroppedUniformBindingIsLoudNotSilent) {
   EXPECT_NE(filterLog.find("Filter::uniform"), std::string::npos)
       << filterLog;
   EXPECT_NE(filterLog.find("uK"), std::string::npos) << filterLog;
-  EXPECT_FALSE(plain.isAnimated());
+  EXPECT_FALSE(plain.isRunning());
 }
 
 TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
@@ -692,7 +692,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   goodBound.bind("uK", k);
   EXPECT_EQ(::testing::internal::GetCapturedStderr(), "")
       << "a declared float uniform must bind without a word";
-  EXPECT_TRUE(goodBound.isAnimated());
+  EXPECT_TRUE(goodBound.isRunning());
   EXPECT_TRUE(material::skia::imageFilter(good) != nullptr);
 
   // (a) a typo'd constant on shader(): warned, and the filter it builds is
@@ -716,7 +716,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   EXPECT_NE(boundLog.find("Filter::uniform"), std::string::npos)
       << boundLog;
   EXPECT_NE(boundLog.find("noSuchBinding"), std::string::npos) << boundLog;
-  EXPECT_FALSE(typoBound.isAnimated())
+  EXPECT_FALSE(typoBound.isRunning())
       << "an ignored binding must not mark the node live forever";
   EXPECT_EQ(typoBound, material::skia::program(effect));
 
@@ -728,7 +728,7 @@ TEST(ComposeEffects, AnUndeclaredShaderUniformIsWarnedAndIgnored) {
   wrongType.bind("uV", k);
   const std::string typeLog = ::testing::internal::GetCapturedStderr();
   EXPECT_NE(typeLog.find("uV"), std::string::npos) << typeLog;
-  EXPECT_FALSE(wrongType.isAnimated());
+  EXPECT_FALSE(wrongType.isRunning());
   EXPECT_EQ(wrongType, material::skia::program(effect));
 
   // Once per name, not once per call: a description is rebuilt every frame

@@ -175,7 +175,7 @@ bool resolve(const material::Paint& material, SkPaint& paint,
     return false;
   }
   paint.setColor4f({0, 0, 0, 1}, nullptr);
-  const bool live = material.isAnimated() || material.geometryDependent();
+  const bool live = material.isRunning() || material.geometryDependent();
   paint.setShader(material::skia::shader(material, frame));
   return live;
 }

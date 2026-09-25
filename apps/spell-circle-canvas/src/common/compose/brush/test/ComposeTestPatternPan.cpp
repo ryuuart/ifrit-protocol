@@ -181,14 +181,14 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
   Pattern pat = halfTilePattern();
   pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
       .offset(SkPoint{8.0f, 0.0f});
-  EXPECT_FALSE(pat.material().isAnimated())
+  EXPECT_FALSE(pat.material().isRunning())
       << "a static pan must not route to the live material slot";
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern bound = pat;
   bound.offset(panX, std::nullopt);
-  EXPECT_TRUE(bound.material().isAnimated())
+  EXPECT_TRUE(bound.material().isRunning())
       << "the bound form must route live";
-  EXPECT_FALSE(pat.material().isAnimated())
+  EXPECT_FALSE(pat.material().isRunning())
       << "binding a COPY must not contaminate the original (value law)";
   // ONE QUESTION, three answers. Whether the bound pan is the whole of
   // what a material animates is what routes it onto the scalar lane,
@@ -200,7 +200,7 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
   Pattern parked = halfTilePattern();
   parked.offset(8.0f, std::nullopt);
   EXPECT_TRUE(parked.material().boundOffsetOnly()) << "a parked pan is a pan";
-  EXPECT_FALSE(parked.material().isAnimated()) << "…and it is not moving";
+  EXPECT_FALSE(parked.material().isRunning()) << "…and it is not moving";
   EXPECT_TRUE(bound.material().boundOffsetOnly()) << "…so is a moving one";
   EXPECT_FALSE(pat.material().boundOffsetOnly())
       << "the describe-time offset is the recipe's, not the lane's";

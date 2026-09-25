@@ -51,7 +51,7 @@ bool Paint::operator==(const Paint& other) const {
   // constant values); live ones by identity — conservative, they never prune.
   if ((m_live != nullptr) != (other.m_live != nullptr)) return false;
   if (m_live) {
-    if (isAnimated() || other.isAnimated()) return m_live == other.m_live;
+    if (isRunning() || other.isRunning()) return m_live == other.m_live;
     // Children are recipe, recursively: two materials over one effect that
     // sample DIFFERENT palettes are different materials, and a node that
     // pruned across that swap would sample the old one forever.
@@ -180,7 +180,7 @@ Paint& Paint::quantizeTime(float rate) {
   return *this;
 }
 
-bool Paint::isAnimated() const {
+bool Paint::isRunning() const {
   // A bound pan IS animation: the material re-resolves per frame while the
   // pan moves, so it has to occupy the live slot and every consumer — the
   // deferred blend flatten, child-slot liveness, decoration volatility —
@@ -194,7 +194,7 @@ bool Paint::isAnimated() const {
 }
 
 bool Paint::animatedBeyondBoundOffset() const {
-  if (m_backed && m_backed->material.isAnimated()) return true;
+  if (m_backed && m_backed->material.isRunning()) return true;
   // A bound UniformBlock is a bind whose value is a table: the material
   // re-resolves per frame (the resolve memo reads the revision), and its
   // node is declared volatile so a cache cannot freeze the array.
@@ -210,16 +210,16 @@ bool Paint::animatedBeyondBoundOffset() const {
   // A slot's volatility is the parent's: the parent samples it, so a
   // live child that did not lift the parent to the live path would be
   // resolved once and frozen into the parent's cache. A NESTED bound
-  // offset deliberately counts here (child.isAnimated(), not the
+  // offset deliberately counts here (child.isRunning(), not the
   // subtraction): the node-level scalar lane resolves only the TOP
   // material's own pan, so anything deeper stays conservatively opaque.
   if (m_live)
     for (const auto& [name, child] : m_live->slots)
-      if (child.isAnimated()) return true;
+      if (child.isRunning()) return true;
   // A blend inherits liveness from its layers (deferred fold in resolve()).
   if (m_recipe && m_recipe->kind == Recipe::Kind::Blend)
     for (const auto& layer : m_recipe->layers)
-      if (layer.first.isAnimated()) return true;
+      if (layer.first.isRunning()) return true;
   return false;
 }
 

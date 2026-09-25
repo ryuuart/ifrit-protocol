@@ -28,7 +28,7 @@ READS.** Three tiers, and nothing chooses between them by hand:
   clock: `geometryDependent()` is true, and `shaderFor(frame)` answers
   against the box the frame names.
 - LIVE — an effect with a uniform bound to an `Output`, or one reading
-  `uTime` or `uContentScale`. `isAnimated()` is true and the paint is
+  `uTime` or `uContentScale`. `isRunning()` is true and the paint is
   rebuilt every draw; a live CHILD or blend layer makes its parent live,
   which is what stops a cache from freezing the parameter.
 

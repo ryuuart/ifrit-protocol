@@ -83,7 +83,7 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   Filter blur =
       Filter::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
   blur.bind("maxSigma", &sigma);
-  EXPECT_TRUE(blur.isAnimated());
+  EXPECT_TRUE(blur.isRunning());
   const sk_sp<SkImageFilter> at2 = skia::resolvedImageFilter(blur, nullptr);
   sigma = 6.0f;
   const sk_sp<SkImageFilter> at6 = skia::resolvedImageFilter(blur, nullptr);

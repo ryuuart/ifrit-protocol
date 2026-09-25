@@ -208,7 +208,7 @@ class Filter {
   /** THE VOLATILITY DECLARATION: does this filter change without a
    *  re-describe? True while any parameter is bound, or while any slot's
    *  paint is live. */
-  bool isAnimated() const;
+  bool isRunning() const;
   /** Does any slot's paint anchor to the root frame? */
   bool usesWorldSpace() const;
   /** Structural equality for the reconciler. A static program filter

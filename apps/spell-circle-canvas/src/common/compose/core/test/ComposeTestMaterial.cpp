@@ -435,10 +435,10 @@ TEST(ComposeMaterial, ALiveChildMakesTheParentLive) {
       material::skia::sksl(passthrough)
           .slot("uSrc",
                 material::skia::sksl(ukEffect()).bind("uK", k));
-  EXPECT_TRUE(live.isAnimated()) << "the child's volatility is the parent's";
+  EXPECT_TRUE(live.isRunning()) << "the child's volatility is the parent's";
   EXPECT_FALSE(material::skia::sksl(passthrough)
                    .slot("uSrc", material::Paint::solid({0, 1, 0, 1}))
-                   .isAnimated())
+                   .isRunning())
       << "…and a static child leaves the parent static";
 
   Host host;
@@ -474,7 +474,7 @@ TEST(ComposeMaterial, AGeometryChildPropagatesTheGeometryTier) {
       material::skia::sksl(passthrough)
           .slot("uSrc", material::skia::sksl(unitRamp));
   EXPECT_TRUE(m.geometryDependent()) << "the child's tier is the parent's";
-  EXPECT_FALSE(m.isAnimated()) << "geometry is not live";
+  EXPECT_FALSE(m.isRunning()) << "geometry is not live";
 
   Host host(100, 20);
   host.composer.render(stack().children({box().absolute().inset(0).fill(m)}));
@@ -496,7 +496,7 @@ TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
           .slot("uIndex", indexSource())
           .slot("uPalette", paletteSource(rampPalette()))
           .slot("uNoSuchSlot", material::Paint::solid({1, 1, 1, 1}));
-  EXPECT_FALSE(m.isAnimated());
+  EXPECT_FALSE(m.isRunning());
   host.composer.render(stack().children({box().absolute().inset(0).fill(m)}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "the declared slots still ran";
@@ -505,7 +505,7 @@ TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
   material::Paint solid =
       material::Paint::solid({0, 1, 0, 1}).slot("uSrc", indexSource());
   EXPECT_TRUE(solid.isSolid());
-  EXPECT_FALSE(solid.isAnimated());
+  EXPECT_FALSE(solid.isRunning());
 }
 
 // ---- Pattern: runtime-procedural regenerable tiles --------------------------
@@ -828,7 +828,7 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
       material::skia::sksl(ukEffect(), {{"uTypo", 1.0f}});
   motion::Animatable<float> o = motion::animatable(1.0f);
   m.bind("uAlsoMissing", o);  // dropped → still not live
-  EXPECT_FALSE(m.isAnimated());
+  EXPECT_FALSE(m.isRunning());
   Host host;
   host.composer.render(box().children(
       {box()

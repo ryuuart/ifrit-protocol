@@ -100,7 +100,7 @@ struct Scatter {
   StampModifierFunction modifier;
   bool animatedModifier = false;  ///< modifier reads time → repaint per frame
 
-  bool isAnimated() const { return animatedModifier; }
+  bool isRunning() const { return animatedModifier; }
   float bleed() const { return bleedPx; }
   /** The mark's full width: a stamp is centred on the path, so it spans
    *  the reserve on both sides of it. */
@@ -222,7 +222,7 @@ struct Pattern {
   StampModifierFunction modifier;  ///< side tiles only
   bool animatedModifier = false;
 
-  bool isAnimated() const { return animatedModifier; }
+  bool isRunning() const { return animatedModifier; }
   float bleed() const { return bleedPx; }
   /** The mark's full width: a tile is centred on the path, so it spans
    *  the reserve on both sides of it. */

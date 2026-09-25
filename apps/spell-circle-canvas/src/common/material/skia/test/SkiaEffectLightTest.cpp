@@ -185,7 +185,7 @@ TEST(SkiaEffect, TheBrightPassIsComparableByItsThresholdAndKnee) {
   EXPECT_FALSE(Filter::brightPass() == Filter::brightPass(0.5f));
   EXPECT_FALSE(Filter::brightPass(0.68f, 0.30f) ==
                Filter::brightPass(0.68f, 0.10f));
-  EXPECT_FALSE(Filter::brightPass().isAnimated());
+  EXPECT_FALSE(Filter::brightPass().isRunning());
   // A knee that would run past one is cut there, so the two spellings of
   // "everything above the threshold" are one effect.
   EXPECT_TRUE(Filter::brightPass(0.9f, 0.2f) ==

@@ -251,10 +251,10 @@ composer.render(dashboard(model));
 const double dt = clock.tick();
 const bool moving = ticker.tick(dt);
 composer.draw(canvas);
-const bool again = moving || composer.active();
+const bool again = moving || composer.isRunning();
 ```
 
-`Composer::active()` is the whole gate: it answers `dirty()` — a
+`Composer::isRunning()` is the whole gate: it answers `dirty()` — a
 description or a layout that changed — and, beyond it, whether a motion
 is running or a retained binding can still move without another
 `render()`, which is the one thing a host polling `dirty()` alone would

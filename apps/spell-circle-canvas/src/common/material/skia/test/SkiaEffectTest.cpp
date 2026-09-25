@@ -24,7 +24,7 @@ using namespace sigil::material;
 TEST(SkiaEffect, AFilterIsBuiltOnceAndComparesByItsIdentity) {
   const Filter glow = Filter::glow({0, 1, 1, 1}, 6.0f);
   EXPECT_NE(skia::resolvedImageFilter(glow, nullptr), nullptr);
-  EXPECT_FALSE(glow.isAnimated());
+  EXPECT_FALSE(glow.isRunning());
   // filter() compares by the built filter's pointer, so a copy prunes and
   // a separately built one does not.
   EXPECT_TRUE(glow == Filter(glow));
@@ -86,7 +86,7 @@ TEST(SkiaEffect, RecipeSnapshotsKeepCapturedLiveValuesApart) {
   ASSERT_NE(skia::imageFilter(second), nullptr);
   EXPECT_FALSE(first == second);
   EXPECT_TRUE(first == Filter(first));
-  EXPECT_FALSE(first.isAnimated());
+  EXPECT_FALSE(first.isRunning());
 
   const Filter expiredSource = [&] {
     choreograph::Output<float> localGain(0.25f);
@@ -133,9 +133,9 @@ TEST(SkiaEffect, ABoundUniformMakesItLiveAndItNeverPrunes) {
   ASSERT_NE(effect, nullptr);
   choreograph::Output<float> k(1.0f);
   Filter live = skia::program(effect);
-  EXPECT_FALSE(live.isAnimated());
+  EXPECT_FALSE(live.isRunning());
   live.bind("uK", &k);
-  EXPECT_TRUE(live.isAnimated());
+  EXPECT_TRUE(live.isRunning());
   // Live never prunes — the same rule a live paint follows.
   EXPECT_FALSE(live == live);
 }
@@ -169,7 +169,7 @@ TEST(SkiaEffect, ChainingKeepsTheNodesAContextNeedingChildLivesIn) {
 
   Filter shaded = skia::program(effect);
   shaded.slot("tint", anchored);
-  EXPECT_FALSE(shaded.isAnimated());
+  EXPECT_FALSE(shaded.isRunning());
   EXPECT_TRUE(shaded.usesWorldSpace());
 
   const Filter chained = shaded.then(Filter::glow({0, 1, 1, 1}, 4));

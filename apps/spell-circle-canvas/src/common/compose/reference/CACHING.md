@@ -12,7 +12,7 @@ find out.
 **So anything that changes without a re-describe must say so.** Concretely:
 
 - A decoration whose paint moves — a bound dash phase, a walk keyed to
-  elapsed time — declares `bool isAnimated() const`. The seam reads it off
+  elapsed time — declares `bool isRunning() const`. The seam reads it off
   the value at construction; a scheme that stays silent is treated as
   static and its node's picture will be replayed forever.
 - A `custom()` paint program that reads the clock (or anything else the

@@ -42,7 +42,7 @@ TEST(ComposeMaterial, UniformOnNonShaderMaterialIsNoOp) {
   // hook against: it is ignored, the material stays static and non-live.
   material::Paint m =
       material::Paint::solid({0, 1, 0, 1}).set("uK", 0.5f);
-  EXPECT_FALSE(m.isAnimated());
+  EXPECT_FALSE(m.isRunning());
   EXPECT_TRUE(m.isSolid());
 }
 
@@ -57,9 +57,9 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
   a.bind("uK", low);
   material::Paint b = base;
   b.bind("uK", high);
-  EXPECT_FALSE(base.isAnimated());  // base untouched
-  EXPECT_TRUE(a.isAnimated());
-  EXPECT_TRUE(b.isAnimated());
+  EXPECT_FALSE(base.isRunning());  // base untouched
+  EXPECT_TRUE(a.isRunning());
+  EXPECT_TRUE(b.isRunning());
 
   Host host;
   host.composer.render(box().children(
@@ -113,7 +113,7 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksOutputs) {
       {material::skia::sksl(ukEffect()).bind("uK", k),
        material::BlendMode::PlusLighter},
   });
-  EXPECT_TRUE(m.isAnimated());  // inherited from the bound layer
+  EXPECT_TRUE(m.isRunning());  // inherited from the bound layer
   Host host;
   host.composer.render(box().children(
       {box()
@@ -145,12 +145,12 @@ TEST(ComposeMaterial, NestedBlendAsShaderFoldsItsLiveLayersPerCall) {
       {material::skia::sksl(ukEffect()).bind("uK", k),
        material::BlendMode::PlusLighter},
   });
-  ASSERT_TRUE(inner.isAnimated());  // inherited from the bound layer
+  ASSERT_TRUE(inner.isRunning());  // inherited from the bound layer
   material::Paint outer = material::Paint::blend({
       {inner, material::BlendMode::Normal},  // a nested blend layer
       {material::Paint::solid({0, 0, 0, 1}), material::BlendMode::PlusLighter},
   });
-  ASSERT_TRUE(outer.isAnimated());  // liveness survives one more nesting
+  ASSERT_TRUE(outer.isRunning());  // liveness survives one more nesting
 
   // And the answer must be folded PER CALL. Merely guarding the null would
   // fall through to m_shader — blend()'s eager snapshot, built once at
@@ -186,7 +186,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
       "half4 main(float2 p) { return half4(fract(uTime), 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
   material::Paint m = material::skia::sksl(effect);
-  EXPECT_TRUE(m.isAnimated());
+  EXPECT_TRUE(m.isRunning());
 
   sigil::motion::FrameClock clock;
   Host host;
@@ -276,7 +276,7 @@ TEST(ComposeMaterial, ContentScaleDeclaringMaterialIsLive) {
       SkString("uniform float uContentScale;"
                "half4 main(float2 p) { return half4(1, 0, 0, 1); }"));
   ASSERT_TRUE(effect) << err.c_str();
-  EXPECT_TRUE(material::skia::sksl(effect).isAnimated());
+  EXPECT_TRUE(material::skia::sksl(effect).isRunning());
 }
 
 TEST(ComposeMaterial, StableLiveResolveReplaysThePicture) {
