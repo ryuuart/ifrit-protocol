@@ -1013,3 +1013,32 @@ fill a box with `Fill::var("stone")` under it, and assert the box paints what
 as a length leaves the target standing and says so once, as a colour var read
 as a length does today. Wanted by `cosmati`; `black_watch` holds its board and
 yarn paints as members for the same reason.
+
+## The Substance find module scores the documented install layout as version zero
+
+`src/common/substance/cmake/FindSubstance.cmake` reads a candidate's version
+from a `v<major>.<minor>…` field in its directory name and otherwise scores
+it 0. The layout the library's README and the machine follow is
+`~/.local/opt/substance/<version>/` with no `v`, so the installed `9.4.6`
+scores 0, and a second install beside it wins or loses by glob order rather
+than by version. The module evidently means to choose the newest install.
+A test should lay out `9.4.6` and `10.0.1` side by side and assert the
+second is chosen, with and without a `v`.
+
+## A Substance render drops the colour space its graph declared
+
+`src/common/substance/graph/Describe.cpp` records whether each output is
+sRGB from the SDK's channel description, and `graph/Render.cpp` copies every
+result into an image with no colour space, so nothing downstream can tell a
+base-colour output from a normal map. The description evidently means to
+tag the image. A test should render a graph with one sRGB and one linear
+output and assert each image carries its declared space.
+
+## A Substance render rebuilds every output description on each cook
+
+`src/common/substance/graph/Render.cpp` rebuilds the full list of output
+descriptions every time a graph is cooked, although the descriptions do not
+change between cooks of one graph; only the parameter values do. The list
+evidently belongs to the graph, built once when it is opened. A test should
+cook one graph twice and assert the descriptions are the same objects, or a
+bench arm should show the second cook paying only for the render.
