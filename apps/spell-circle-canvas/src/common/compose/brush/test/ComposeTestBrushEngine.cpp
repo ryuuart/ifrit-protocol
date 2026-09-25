@@ -548,19 +548,25 @@ TEST(ComposeBrushEngine, AStepThatCannotAdvanceSkipsItsContour) {
   SUCCEED();  // it finished
 }
 
-TEST(ComposeBrushEngine, AGeometryOpComparesByTheShaperItHolds) {
-  // The op a restyle carries is comparable when it was built from a
-  // comparable shaper, and never when it was built from a raw callable —
-  // which is the whole difference between the two doors.
-  const GeometryOperation wave{
-      geometry::shapers::Wave{.amplitude = 8, .wavelength = 24}};
-  const GeometryOperation same{
-      geometry::shapers::Wave{.amplitude = 8, .wavelength = 24}};
-  const GeometryOperation wider{
-      geometry::shapers::Wave{.amplitude = 12, .wavelength = 24}};
-  const GeometryOperation raw{geometry::path::operations::PathOperation(
-      [](const SkPath& p) { return p; })};
+TEST(ComposeBrushEngine, ARestyleComparesByTheShaperItHolds) {
+  // The shaper a restyle carries is comparable when it was built from a
+  // comparable shaper value, and never when it was built from a raw
+  // callable — which is the whole difference between the two doors.
+  const auto carried = [](geometry::path::Shaper shaper) {
+    return brush::restyle(std::move(shaper), brush::solid(1.0f, Fill::color({1, 1, 1, 1})))
+        .operation;
+  };
+  const geometry::path::Shaper wave =
+      carried(geometry::shapers::Wave{.amplitude = 8, .wavelength = 24});
+  const geometry::path::Shaper same =
+      carried(geometry::shapers::Wave{.amplitude = 8, .wavelength = 24});
+  const geometry::path::Shaper wider =
+      carried(geometry::shapers::Wave{.amplitude = 12, .wavelength = 24});
+  const geometry::path::Shaper raw = carried(geometry::path::Shaper::incomparable(
+      [](const SkPath& p) { return p; }, 3.0f));
   EXPECT_TRUE(wave == same);
   EXPECT_FALSE(wave == wider);
   EXPECT_FALSE(raw == raw);
+  EXPECT_FALSE(raw.comparable());
+  EXPECT_FLOAT_EQ(raw.bleed(), 3.0f);
 }

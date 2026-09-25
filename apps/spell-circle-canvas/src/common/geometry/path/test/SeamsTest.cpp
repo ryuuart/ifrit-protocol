@@ -59,6 +59,21 @@ TEST(PathShaper, ComparesByTheHeldSchemeAndItsParameters) {
   EXPECT_FALSE(Shaper() == Shaper(Identity{}));
 }
 
+TEST(PathShaper, AnIncomparableShaperRunsItsCallableAndEqualsNothing) {
+  const Shaper raw = Shaper::incomparable(
+      [](const SkPath& p) { return p.makeTransform(SkMatrix::Translate(4, 0)); },
+      4.0f);
+  SkPathBuilder b;
+  b.addRect(SkRect::MakeWH(10, 10));
+  EXPECT_EQ(raw.shape(b.detach()).getBounds().left(), 4.0f);
+  EXPECT_FLOAT_EQ(raw.bleed(), 4.0f);
+  // Not even itself: a closure carries no equality to be reflexive with.
+  EXPECT_FALSE(raw == raw);
+  EXPECT_FALSE(raw == Shaper());
+  EXPECT_FALSE(raw.comparable());
+  EXPECT_TRUE(Shaper(Identity{}).comparable());
+}
+
 TEST(PathShaper, BleedIsReadOffTheSchemeAndIsZeroWhenNotDeclared) {
   EXPECT_FLOAT_EQ(Shaper(NudgeX{-5}).bleed(), 5.0f);
   EXPECT_FLOAT_EQ(Shaper(Identity{}).bleed(), 0.0f);

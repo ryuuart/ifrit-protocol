@@ -569,11 +569,12 @@ ring is SHOWN. A `kit::bevelled` panel under `spans::upTo` draws that
 fraction of its ring inside the shape instead of losing the whole ring
 until the run closes. The
 brush engine is
-five headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
-`LayeredBrush`); `brush/GeometryOperations.h`, the one mechanism door for
-deviating an outline (`operations::`, `GeometryOperation`); `brush/Brushes.h`, the
-brush and its composites — `brush::solid`, `brush::layers`,
-`brush::weave` and `brush::Restyled`; and the two shelves of leaf kinds
+four headers: `brush/Layered.h`, the stroke stack (`StrokeLayer`,
+`LayeredBrush`); `brush/Brushes.h`, the brush and its composites —
+`brush::solid`, `brush::layers`, `brush::weave` and `brush::Restyled`,
+the one mechanism door for deviating an outline, which takes
+SigilGeometry's `Shaper` (a raw path callable through
+`Shaper::incomparable`); and the two shelves of leaf kinds
 beside it, `brush/Stamps.h` for the STAMPED ones (`brush::Scatter`,
 `brush::Pattern`, with `brush::Placement` and `brush::CornerArt`) and
 `brush/Ribbons.h` for the SWEPT ones (`brush::Ribbon`, `brush::Art`). A ribbon is the variable-width band, and the

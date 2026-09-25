@@ -52,16 +52,6 @@ void LayeredBrush::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
 }
 
-GeometryOperation::GeometryOperation(geometry::path::Shaper s)
-    : m_bleed(s.bleed()) {
-  m_held = s;
-  m_equals = [](const std::any& a, const std::any& b) {
-    return std::any_cast<const geometry::path::Shaper&>(a) ==
-           std::any_cast<const geometry::path::Shaper&>(b);
-  };
-  m_apply = [held = std::move(s)](const SkPath& p) { return held.shape(p); };
-}
-
 namespace brush {
 
 Solid solid(float width, Fill fill, PathFormat::Align align) {
@@ -242,10 +232,10 @@ void Brush::paint(SkCanvas& c, const PaintContext& ctx) const {
 namespace brush {
 
 void Restyled::paint(SkCanvas& c, const PaintContext& ctx) const {
-  // No null check: GeometryOperation::apply passes the path through unchanged
-  // when it holds nothing.
+  // No null check: a shaper passes the path through unchanged when it holds
+  // nothing.
   PaintContext restyled = ctx;
-  restyled.outline = operation.apply(ctx.outline);
+  restyled.outline = operation.shape(ctx.outline);
   inner.paint(c, restyled);
 }
 

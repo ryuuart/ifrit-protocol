@@ -39,12 +39,12 @@
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>  // lines::displace (the wave operation)
 #include <sigilgeometry/kit/Shapers.h>
+#include <sigilgeometry/path/Shaper.h>
 
 #include <memory>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
-#include "sigilcompose/brush/GeometryOperations.h"
 #include "sigilcompose/brush/Layered.h"
 
 namespace sigil::compose {
@@ -340,16 +340,17 @@ namespace brush {
  *  any decoration (LayeredBrush, lines::Line, PathFormat…) gains waves,
  *  jitter, rounding without knowing.
  *
- *  THE ONE MECHANISM DOOR. It takes a `GeometryOperation`, which a comparable
- *  shaper value and a raw `geometry::path::operations::PathOperation` lambda
- * both convert to — and the lambda has nowhere else to go.
+ *  THE ONE MECHANISM DOOR. It takes SigilGeometry's `Shaper`, which any
+ *  comparable shaper value converts to, and which a raw path callable
+ *  reaches through `geometry::path::Shaper::incomparable` — the lambda has
+ *  nowhere else to go.
  *
  *  The WRAPPER is incomparable either way, because it has no operator== at
  *  all, so a node wearing one never prunes whichever operation it was handed:
  *  memo the host node, or keep the value pointer-stable. Prefer
  *  `Brush::shaped(value)` whenever a shaper can say it — that prunes. */
 struct Restyled {
-  GeometryOperation operation;
+  geometry::path::Shaper operation;
   Decoration inner;
   float extraBleed = 8.0f;  ///< the operation's own overhang (wave amplitude…)
 
@@ -365,7 +366,7 @@ struct Restyled {
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
 
-inline Restyled restyle(GeometryOperation operation, Decoration inner,
+inline Restyled restyle(geometry::path::Shaper operation, Decoration inner,
                         float extraBleed = 8.0f) {
   return Restyled{std::move(operation), std::move(inner), extraBleed};
 }

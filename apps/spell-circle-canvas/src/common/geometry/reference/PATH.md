@@ -431,7 +431,9 @@ in no header.
   continuous mark — a wave, a zigzag, a jitter, an offset. Comparable is
   the point: a consumer that caches drawings proves two frames asked for
   the same deviation and keeps the recording it has, which `operations::PathOperation`
-  cannot answer.
+  cannot answer. `Shaper::incomparable(callable, bleed)` is the one door a
+  raw path callable has into the seam, and it pays for it by comparing
+  equal to nothing, itself included.
 - **`path/Profile.h`** — `Profile`, the comparable WIDTH LAW, over the
   `ProfileScheme` concept (`across(along)`, `max()`, equality); a bare
   number converts to the constant width, so `band(spine, 22)` reads. `max()`

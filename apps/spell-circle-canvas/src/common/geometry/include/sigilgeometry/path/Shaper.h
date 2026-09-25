@@ -12,8 +12,9 @@
  *
  * Comparable is the point: a consumer that caches drawings can prove two
  * frames asked for the same deviation and keep the recording it already
- * has. `operations::PathOperation` is the incomparable sibling, for a one-off
- * chain nothing has to prune against.
+ * has. `Shaper::incomparable` carries any path callable (an
+ * `operations::PathOperation` chain among them) through the same seam, at
+ * the price of never comparing equal — the one door a raw callable has.
  */
 
 #include <include/core/SkPath.h>
@@ -68,15 +69,37 @@ class Shaper {
   }
   Shaper() = default;
 
+  /** ANY PATH CALLABLE as a shaper — the escape hatch for a deviation no
+   *  comparable value can say. A closure has no equality, so the result
+   *  compares unequal to everything, ITSELF INCLUDED: a consumer that
+   *  prunes on equality re-records whatever wears one, every time. That
+   *  price is the point of the name; a shaper is a comparable struct with
+   *  `SkPath shape(const SkPath &) const`, and writing one is four lines.
+   *  `bleed` is how far the callable's result reaches past its input,
+   *  which only the caller knows. */
+  static Shaper incomparable(std::function<SkPath(const SkPath&)> operation,
+                             float bleed = 0.0f) {
+    Shaper out;
+    out.m_bleed = bleed;
+    out.m_shape = std::move(operation);
+    out.m_incomparable = true;
+    return out;
+  }
+
   SkPath shape(const SkPath& p) const { return m_shape ? m_shape(p) : p; }
   float bleed() const { return m_bleed; }
+  /** Whether this shaper can ever compare equal — false only for one
+   *  made by `incomparable`. */
+  bool comparable() const { return !m_incomparable; }
   bool operator==(const Shaper& o) const {
+    if (m_incomparable || o.m_incomparable) return false;
     if (!m_equals || !o.m_equals) return !m_equals && !o.m_equals;
     return m_held.type() == o.m_held.type() && m_equals(m_held, o.m_held);
   }
 
  private:
   float m_bleed = 0.0f;
+  bool m_incomparable = false;
   std::function<SkPath(const SkPath&)> m_shape;
   std::any m_held;
   std::function<bool(const std::any&, const std::any&)> m_equals;

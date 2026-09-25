@@ -448,7 +448,7 @@ TEST(ComposeBrushes, ANestedBrushKeepsEverythingButTheOutline) {
   const ContextProbe woven, layered, restyled;
   brush::layers({woven}).paint(canvas, ctx);
   Brush{}.layer(layered).paint(canvas, ctx);
-  brush::restyle(geometry::path::operations::PathOperation(
+  brush::restyle(geometry::path::Shaper::incomparable(
                      [](const SkPath& p) { return p; }),
                  restyled)
       .paint(canvas, ctx);
@@ -470,7 +470,7 @@ TEST(ComposeBrushes, ACompositeBlendsWhenAnythingInsideItDoes) {
   EXPECT_TRUE(Decoration(brush::layers({BlendingMark{}})).blends());
   EXPECT_TRUE(Decoration(Brush{}.layer(BlendingMark{})).blends());
   EXPECT_TRUE(
-      Decoration(brush::restyle(geometry::path::operations::PathOperation(
+      Decoration(brush::restyle(geometry::path::Shaper::incomparable(
                                     [](const SkPath& p) { return p; }),
                                 BlendingMark{}))
           .blends());
