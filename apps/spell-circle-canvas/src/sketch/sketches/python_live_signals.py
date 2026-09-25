@@ -291,7 +291,7 @@ class LiveSignals:
                         metric(
                             "ARRIVALS / REPLIES",
                             f"{self.received:03} / {self.replies:03}",
-                            f"{self.rejected} invalid · {self.feed.dropped()} queue drops",
+                            f"{self.rejected} invalid · {self.feed.state().dropped} queue drops",
                             "#92b4e4",
                         ),
                     )

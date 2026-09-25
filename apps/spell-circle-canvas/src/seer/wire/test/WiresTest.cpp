@@ -437,10 +437,13 @@ TEST(SeerRendering, AJsonMessageIsShownIndentedAndAnythingElseIsNot) {
 TEST(SeerSender, ClosingThePeerReleasesItAndReopeningResolvesTheNewFeed) {
   sigil::seer::Wires wires;
   sigil::seer::Sender sender(wires);
-  const sigil::io::Feed previous = sender.openPeer("udp://:0");
+  sigil::io::Feed previous = sender.openPeer("udp://:0");
   ASSERT_TRUE(previous.state().isOpen());
   ASSERT_TRUE(wires.close("udp://:0"));
   EXPECT_EQ(previous.state().readiness, sigil::io::ReadyState::Closed);
+  // A handle still held onto the closed door is that door: the URI opens
+  // anew once nobody holds it.
+  previous = {};
   EXPECT_FALSE(sender.peer());
   const auto reopened = wires.open("udp://:0");
   EXPECT_EQ(sender.peer(), reopened);

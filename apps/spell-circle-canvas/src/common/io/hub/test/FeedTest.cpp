@@ -236,9 +236,10 @@ TEST_F(IOFeed, AUriWithNoSchemeIsAFeedWhoseErrorSaysSo) {
 }
 
 TEST_F(IOFeed, AUriWithNoTransportIsAFeedWhoseErrorSaysSo) {
-  const Feed feed = hub.listen("udp://:27020");
+  // No transport linked into this program answers the scheme.
+  const Feed feed = hub.listen("pigeon://roof:27020");
   ASSERT_TRUE(feed);
-  EXPECT_NE(feed.state().error.find("udp"), std::string::npos);
+  EXPECT_NE(feed.state().error.find("pigeon"), std::string::npos);
   EXPECT_FALSE(feed.send(message("nowhere to go")));
   EXPECT_FALSE(feed.send(message("nobody"), {.to = "udp://127.0.0.1:52341"}));
   EXPECT_TRUE(feed.state().localAddress.empty());

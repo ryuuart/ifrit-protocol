@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "Registration.h"
+#include "sigilio/advanced/Transport.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/transport/Transport.h"
 
@@ -57,5 +58,18 @@ void detail::installLinkedTransports(Hub& hub) {
     if (!hub.feedTransport(scheme)) missing.emplace_back(scheme);
   if (!missing.empty()) registerTransports(hub, missing);
 }
+
+namespace {
+
+// The same hand-over Linked.cpp makes, from inside the archive: a program
+// that names registerTransports() anywhere links this member, and a
+// library that links the transports privately carries no Linked.cpp of
+// its own into the program above it.
+const bool linked = [] {
+  detail::setLinkedTransports(&detail::installLinkedTransports);
+  return true;
+}();
+
+}  // namespace
 
 }  // namespace sigil::io

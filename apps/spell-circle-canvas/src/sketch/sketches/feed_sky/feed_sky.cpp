@@ -161,8 +161,8 @@ std::string waitingLine(const Door& door) {
     return std::to_string(vitals.undecodable) + " arrivals were no sky";
   if (vitals.closed) return "the door is closed: nothing else is coming";
   return "waiting at " +
-         (vitals.address.empty() ? std::string(door["address"].text())
-                                 : vitals.address) +
+         (vitals.localAddress.empty() ? std::string(door["address"].text())
+                                 : vitals.localAddress) +
          " · nothing has arrived";
 }
 
