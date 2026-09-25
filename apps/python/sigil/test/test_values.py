@@ -112,23 +112,16 @@ class Colors(unittest.TestCase):
         with self.assertRaises(TypeError):
             compose.Fill.color(7)
 
-    def test_a_flat_mark_refuses_what_it_cannot_hold(self):
+    def test_a_fill_takes_a_paint_and_a_material(self):
         recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31"))
         unit = Paint.linearGradient((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
-        # The messages are the refusal: falling back to the generic colour
-        # error would say a colour is a string or a sequence, which tells
-        # an author nothing about where the value they wrote does belong.
-        with self.assertRaisesRegex(TypeError, "A material is not a flat fill"):
-            compose.Fill(recipe)
-        with self.assertRaisesRegex(TypeError, "geometry-dependent paint"):
-            compose.Fill(unit)
-        # A glyph outline is one such flat mark, and the node's own fill
-        # is not, so the same value is refused at one and taken at the other.
-        with self.assertRaisesRegex(TypeError, "geometry-dependent paint"):
-            compose.text("words").textStroke(1, unit)
-        # The same values are a surface paint, which is what the message
-        # sends the author to.
-        self.assertFalse(compose.SurfacePaint(recipe).none())
+        # A fill is a paint or a cascade reference, so both are fills, and
+        # the same paint described twice is one fill.
+        self.assertEqual(compose.Fill(unit), compose.Fill(unit))
+        self.assertNotEqual(compose.Fill(recipe), compose.Fill.none())
+        # A glyph outline is measured without a frame, and reads a paint
+        # that needs one as the ink in force rather than refusing it.
+        self.assertIsInstance(compose.text("words").textStroke(1, unit), compose.Text)
         self.assertIsInstance(compose.box().fill(recipe), compose.Element)
         self.assertIsInstance(compose.text("words").ink(unit), compose.Text)
 
@@ -138,7 +131,7 @@ class Colors(unittest.TestCase):
         # fill says so rather than quietly dropping the ramp already set.
         # A custom-property reference is the ink lane's own spelling and
         # sets the ink from that property.
-        with self.assertRaisesRegex(TypeError, "clear the paint with None"):
+        with self.assertRaisesRegex(TypeError, "clear the paint"):
             compose.text("words").ink(ramp).ink(compose.Fill.currentInk())
         self.assertIsInstance(
             compose.text("words").ink(ramp).ink(None), compose.Text

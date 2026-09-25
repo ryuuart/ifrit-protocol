@@ -233,9 +233,9 @@ library = "Skia"
 python = ["skia.draw.drawLattice"]
 
 [requirement.effect-filter]
-native = "`material::skia::Effect::filter`"
+native = "`material::skia::filter` over an already-built image filter"
 library = "Material"
-python = ["material.Effect.filter"]
+python = ["material.Filter.filter"]
 
 [requirement.embedded-pngs]
 native = "`image::embeddedPngs` signature scan"
@@ -371,7 +371,7 @@ library = "Image"
 python = ["image.probeImage", "image.decodeChannels"]
 
 [requirement.image-sampling]
-native = "`material::skia::Paint::image` sampling options"
+native = "`material::skia::image` sampling options"
 library = "Material"
 python = ["material.Paint.image(image, tileX, tileY, local, sampling)"]
 
@@ -567,7 +567,7 @@ library = "Material"
 python = ["material.over"]
 
 [requirement.paint-motion]
-native = "`material::skia::Paint` motion-driven uniforms and offsets"
+native = "`material::Paint::offset` bound to motion values"
 library = "Material"
 python = ["material.Paint.offset"]
 
@@ -577,7 +577,7 @@ library = "Compose"
 python = ["compose.PaintProgram"]
 
 [requirement.paint-shader]
-native = "`material::skia::Paint` SkShader interop"
+native = "`material::skia::paint` SkShader interop"
 library = "Material"
 python = ["material.Paint.shader"]
 
@@ -612,7 +612,7 @@ library = "Compose"
 python = ["compose.pin.ByLane", "compose.outline.Hull"]
 
 [requirement.pixel-buffer]
-native = "`material::skia::PixelBuffer` and `Paint::buffer`"
+native = "`material::skia::PixelBuffer` and `skia::buffer`"
 library = "Material"
 python = ["material.PixelBuffer", "material.Paint.buffer"]
 
@@ -674,7 +674,7 @@ library = "Geometry"
 python = ["geometry.path.Projection"]
 
 [requirement.ramp-shaders]
-native = "`material::skia::Paint` gradients over `ColorStops`"
+native = "`material::Paint` gradients over `ColorStops`"
 library = "Material"
 python = ["material.Paint.linearGradient", "material.ColorStop"]
 

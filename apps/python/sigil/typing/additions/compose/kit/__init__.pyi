@@ -15,7 +15,7 @@ _Part: typing.TypeAlias = (
 class _WellProperties(typing.TypedDict, total=False):
     width: _t.DimensionLike
     height: _t.DimensionLike
-    ground: _t.SurfacePaintLike
+    ground: _t.FillLike
     padding: float
     padding_y: float | None
     paddingY: float | None
@@ -77,7 +77,7 @@ class _SheetProperties(typing.TypedDict, total=False):
     subtitleGap: float
     content_gap: float
     contentGap: float
-    ground: _t.SurfacePaintLike
+    ground: _t.FillLike
     rule: _t.FillLike
     rule_width: float
     ruleWidth: float
@@ -91,7 +91,7 @@ class _SheetProperties(typing.TypedDict, total=False):
 
 class _BoardProperties(typing.TypedDict, total=False):
     size: _t.SizeLike
-    ground: _t.SurfacePaintLike
+    ground: _t.FillLike
 
 class _PanelProperties(typing.TypedDict, total=False):
     eyebrow: str
@@ -115,7 +115,7 @@ class _LineProperties(typing.TypedDict, total=False):
     length: _t.DimensionLike
     thickness: float
     column: bool
-    fill: _t.SurfacePaintLike
+    fill: _t.FillLike
     inset: float
     pair: LineCompanion | None
 
@@ -124,7 +124,7 @@ class _LadderProperties(typing.TypedDict, total=False):
     pitch: float
     thickness: float
     column: bool
-    fill: _t.SurfacePaintLike
+    fill: _t.FillLike
 
 def well(
     surface: _t.NodeLike | None = ...,

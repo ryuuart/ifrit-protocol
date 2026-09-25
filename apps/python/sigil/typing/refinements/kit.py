@@ -11,7 +11,7 @@ from .table import Table
 def register(table: Table) -> None:
     table.erased("_sigil.compose.kit", "at", "_t.DimensionLike", "_t.DimensionLike")
     table.erased("_sigil.compose.kit", "disc", "_t.PointLike")
-    table.erased("_sigil.compose.kit", "dot", "_t.PointLike", "_t.SurfacePaintLike")
+    table.erased("_sigil.compose.kit", "dot", "_t.PointLike", "_t.FillLike")
     table.erased("_sigil.compose.kit", "ring", "_t.PointLike")
     for record, names in {
         "Caption": "label note readingLine",

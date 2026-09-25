@@ -135,7 +135,7 @@ def inset(self, *, top: _t.DimensionLike | None = ..., right: _t.DimensionLike |
         "_t.ScalarLike",
     )
     registerFont(table, node)
-    table.erased(node, "fill", "_t.SurfacePaintLike")
+    table.erased(node, "fill", "_t.MotionFillLike")
     table.erased(node, "alignItems alignSelf", "_t.AlignLike")
     table.erased(node, "justifyContent", "_t.JustifyLike")
     table.erased(node, "gridCellAlign", "_t.AlignLike", "_t.AlignLike")
@@ -242,11 +242,10 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
         "dashPhaseBinding trimPhase",
         "_t.ScalarLike | None",
     )
-    table.erased("_sigil.compose.PathFormat", "strokeFill", "_t.SurfacePaintLike")
+    table.erased("_sigil.compose.PathFormat", "strokeFill", "_t.FillLike")
     table.erased("_sigil.compose.Shadow", "color", "_t.ColorLike")
     table.erased("_sigil.compose.Shadow", "offset", "_t.PointLike")
     table.erased("_sigil.compose.Shape", "__init__", "_t.ShapeLike")
-    table.erased("_sigil.compose.SurfacePaint", "__init__", "_t.SurfacePaintLike")
     table.erased("_sigil.compose", "shadow", "_t.ColorLike", "_t.PointLike")
     table.erased("_sigil.compose", "shape", "_t.ShapeLike")
     # A band's spine is any shape a node takes; the leaf it hands back
@@ -256,7 +255,7 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
         "band",
         "def band(spine: _t.ShapeLike, width: float) -> Band: ...\n",
     )
-    table.erased("_sigil.compose", "stroke", "_t.SurfacePaintLike")
+    table.erased("_sigil.compose", "stroke", "_t.FillLike")
     table.erased(
         "_sigil.compose",
         "text",

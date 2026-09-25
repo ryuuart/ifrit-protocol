@@ -59,7 +59,6 @@ def setter_type(annotation: ast.expr, module: str) -> ast.expr:
                 "_sigil.skia.Size": "_t.SizeLike",
                 "_sigil.compose.Dimension": "_t.DimensionLike",
                 "_sigil.compose.Fill": "_t.FillLike",
-                "_sigil.compose.SurfacePaint": "_t.SurfacePaintLike",
                 "_sigil.compose.Align": "_t.AlignLike",
                 "_sigil.compose.Justify": "_t.JustifyLike",
             }

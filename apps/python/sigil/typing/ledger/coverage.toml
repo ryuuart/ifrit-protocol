@@ -1678,7 +1678,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`Paint` (solid, the three gradients over `ColorStop`s with `GradientOptions`, image, SkSL, recipe and blends, with uniforms, slots, fitting and world space)"
+bound = "`Paint` (solid, the three gradients over `ColorStop`s with `GradientOptions`, image, SkSL, recipe and blends over `BlendMode`, with `set` and `bind` parameters, slots, fitting and world space)"
 python = [
   "material.Paint.solid",
   "material.Paint.linearGradient",
@@ -1690,27 +1690,43 @@ python = [
   "material.Paint.sksl",
   "material.Paint.recipe",
   "material.Paint.blend",
-  "material.Paint.uniform",
+  "material.BlendMode",
+  "material.Paint.set",
+  "material.Paint.bind",
   "material.Paint.slot",
   "material.Paint.fit",
   "material.Paint.worldSpace",
 ]
 
 [[section.surface.item]]
-bound = "`Effect` (glow, bloom, blurs, the light stages `dilate`, `deepen` and `whiten` joined by `emit`, shaders, slots and uniforms driven by motion outputs) and `bloom` over `BloomParameters`"
+bound = "`Filter` (blur, `dropShadow` over `ShadowOptions`, glow, `bloom` over `BloomOptions`, `phosphorBloom`, the colour functions `brightness`, `contrast`, `saturate` and `hueRotate`, the light stages `dilate`, `deepen` and `whiten` joined by `emit` and `then`, `of` a recipe, `program` over SkSL, slots, and `set` and `bind` parameters driven by motion)"
 python = [
-  "material.Effect.glow",
-  "material.Effect.blur",
-  "material.Effect.dilate",
-  "material.Effect.deepen",
-  "material.Effect.whiten",
-  "material.Effect.emit",
-  "material.Effect.shader",
-  "material.Effect.slot",
-  "material.Effect.uniform",
-  "material.bloom",
-  "material.BloomParameters",
+  "material.Filter.blur",
+  "material.Filter.dropShadow",
+  "material.ShadowOptions",
+  "material.Filter.glow",
+  "material.Filter.bloom",
+  "material.BloomOptions",
+  "material.Filter.phosphorBloom",
+  "material.Filter.brightness",
+  "material.Filter.contrast",
+  "material.Filter.saturate",
+  "material.Filter.hueRotate",
+  "material.Filter.dilate",
+  "material.Filter.deepen",
+  "material.Filter.whiten",
+  "material.Filter.emit",
+  "material.Filter.then",
+  "material.Filter.of",
+  "material.Filter.program",
+  "material.Filter.slot",
+  "material.Filter.set",
+  "material.Filter.bind",
 ]
+
+[[section.surface.item]]
+bound = "`hexColor`"
+python = ["material.hexColor"]
 
 [[section.surface.item]]
 bound = "a recipe `Material` stands where a paint does, on an element's fills and glyph paints and on the pen's fills, strokes and grounds"
@@ -1757,24 +1773,24 @@ native = "`skia::fill`, `shader` and palette images"
 python = ["material.fill", "material.shader"]
 
 [[section.surface.item]]
-native = "`PixelBuffer` with `Paint::buffer`"
+native = "`PixelBuffer` with `skia::buffer`"
 python = ["material.PixelBuffer", "material.Paint.buffer"]
 
 [[section.surface.item]]
-native = "`Paint::shader`"
+native = "`skia::paint`"
 python = ["material.Paint.shader"]
 
 [[section.surface.item]]
-native = "paint uniforms driven by motion outputs and `Paint::offset`"
+native = "`Paint::offset`"
 python = ["material.Paint.offset"]
 
 [[section.surface.item]]
-native = "`Paint::image` sampling options"
+native = "`skia::image` sampling options"
 python = ["material.Paint.image(image, sampling)"]
 
 [[section.surface.item]]
-native = "`Effect::filter`"
-python = ["material.Effect.filter"]
+native = "`skia::filter` and `skia::lowered`"
+python = ["material.Filter.filter", "material.Filter.lowered"]
 
 [[section.surface.item]]
 native = "the kit's ramps, grained surfaces, globe, girih, reflection materials (`gold`, `chrome` and `glass` over normals and an environment map), environments, text paints and texture-mapped surfaces"

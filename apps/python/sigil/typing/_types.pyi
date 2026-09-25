@@ -40,6 +40,7 @@ __all__ = [
     "JsonValue",
     "JustifyLike",
     "KeyedShapeFunction",
+    "MotionFillLike",
     "NodeLike",
     "OperatorLike",
     "PaintProgram",
@@ -57,7 +58,6 @@ __all__ = [
     "ShapeLike",
     "SilhouetteLike",
     "SizeLike",
-    "SurfacePaintLike",
     "TextureProducer",
     "TileProgram",
     "TimerCallback",
@@ -109,36 +109,28 @@ FillLike: TypeAlias = (
     | _sigil.compose.Fill
     | _sigil.compose.VarRef
     | _sigil.material.skia.Paint
+    | _sigil.material.Material
     | None
 )
-"""A FLAT MARK, which may be a reference the tree resolves. Everything a
-colour is, plus a Fill, a custom-property reference, and None for no
-mark at all. A slot that takes it stores one comparable fill, so a paint
-is accepted only where it collapses to one: a solid or a static shader
-passes and a live or geometry-dependent paint raises, naming the verb
-that does take it."""
-SurfacePaintLike: TypeAlias = (
+"""WHAT A SURFACE IS PAINTED WITH: a colour, a Fill, a paint of any
+tier, a recipe instance, a custom-property reference, and None for no
+fill at all. A paint that needs a frame is resolved where it paints; a
+slot measured without one reads it as the ink in force."""
+MotionFillLike: TypeAlias = (
     FillLike
-    | _sigil.compose.SurfacePaint
-    | _sigil.material.Material
     | _sigil.motion.FillAnimatable
     | _sigil.motion.FillTween
     | _sigil.motion.ColorTween
 )
-"""ANYTHING THAT CAN COLOUR A SURFACE, and the widest of the three.
-Everything a flat mark is, plus a paint of any tier, a recipe instance,
-a fill that changes over time, and a fill or colour tween. A slot that
-takes it resolves against the frame it paints at, so a gradient
-measured on the node and a material that reads the clock both belong
-in it."""
-ElementInkLike: TypeAlias = SurfacePaintLike | _sigil.compose.VarRef
-"""THE INK AN ELEMENT SETS for itself and everything under it. Anything
-that colours a surface, or a custom-property reference. A colour is the
-inherited lane it has always been and eases under a transition; any
-other paint inherits the same way and snaps. Deliberately nothing
-animatable as an INK: a bound ink would make every inheriting node
-volatile, so one that has to move is set on a fill that names it, and a
-bound fill raises here."""
+"""A FILL THAT MAY MOVE: everything a fill is, plus a fill that changes
+over time and a fill or colour tween — what `Element.fill` takes."""
+ElementInkLike: TypeAlias = FillLike
+"""THE INK AN ELEMENT SETS for itself and everything under it. A colour
+is the inherited lane and eases under a transition; any other paint
+inherits the same way and snaps. Deliberately nothing animatable as an
+INK: a bound ink would make every inheriting node volatile, so one that
+has to move is set on a fill that names it. The ink in force raises
+here, since it is what the ink is."""
 AlignLike: TypeAlias = (
     _sigil.compose.Align
     | Literal["auto", "start", "center", "end", "stretch", "baseline"]

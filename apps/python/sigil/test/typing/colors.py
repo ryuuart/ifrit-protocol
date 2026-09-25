@@ -41,7 +41,7 @@ assert all(abs(read.r - 0.43) < 0.01 and abs(read.a - 1.0) < 0.01 for read in wr
 assert_type(material.Paint.solid(written[0]), material.Paint)
 
 # ---------------------------------------------------------------------------
-# FillLike — a flat mark that may reference the tree, at compose.Fill.
+# FillLike — a colour, a paint, a material or a reference, at compose.Fill.
 
 accent = compose.var("accent")
 solid = material.Paint.solid("#b34a2f")
@@ -55,10 +55,10 @@ assert_type(compose.Fill(accent), compose.Fill)
 assert_type(compose.Fill(solid), compose.Fill)
 assert_type(compose.Fill(None), compose.Fill)
 assert compose.Fill(None) == compose.Fill.none()
-# A static paint collapses onto the one comparable fill a flat mark holds.
-assert compose.Fill(solid) == compose.Fill.color("#b34a2f")
-# The glyph OUTLINE is one such fill on the node, so it is written with
-# the flat-mark set rather than the surface one.
+# A fill compares as its paint does, so the same paint written twice is
+# one fill.
+assert compose.Fill(solid) == compose.Fill(material.Paint.solid("#b34a2f"))
+# The glyph OUTLINE is one fill on the node.
 assert_type(compose.text("words").textStroke(1, "#6e99bb"), compose.Text)
 assert_type(
     compose.text("words").textStroke(1, compose.Fill.currentInk()), compose.Text
@@ -68,8 +68,8 @@ assert_type(compose.text("words").textStroke(1, solid), compose.Text)
 assert_type(compose.text("words").textStroke(1, None), compose.Text)
 
 # ---------------------------------------------------------------------------
-# SurfacePaintLike — anything that can colour a surface, at Element.fill
-# and at the other surface verbs, which take the same set.
+# MotionFillLike — a fill that may move, at Element.fill; the other
+# surface verbs take FillLike.
 
 ramp = material.Paint.linearGradient(
     (0, 0),
@@ -90,7 +90,7 @@ assert_type(compose.box().fill(compose.Fill.currentInk()), compose.Element)
 assert_type(compose.box().fill(accent), compose.Element)
 assert_type(compose.box().fill(solid), compose.Element)
 assert_type(compose.box().fill(None), compose.Element)
-assert_type(compose.box().fill(compose.SurfacePaint(ramp)), compose.Element)
+assert_type(compose.box().fill(compose.Fill(ramp)), compose.Element)
 assert_type(compose.box().fill(ramp), compose.Element)
 assert_type(compose.box().fill(recipe), compose.Element)
 assert_type(compose.box().fill(bound), compose.Element)
@@ -99,14 +99,14 @@ assert_type(compose.box().fill(tinting), compose.Element)
 
 # The surface verbs that are not Element.fill, on the widest member each
 # of them could have been narrowed against: a recipe instance.
-assert_type(compose.SurfacePaint(recipe), compose.SurfacePaint)
+assert_type(compose.Fill(recipe), compose.Fill)
 assert_type(compose.stroke(1, recipe), compose.PathFormat)
 assert_type(compose.text("words").ink(recipe), compose.Text)
 assert_type(compose.kit.dot((0, 0), 2, recipe), compose.Element)
 assert_type(compose.kit.line(fill=recipe), compose.Element)
 assert_type(compose.kit.ladder(count=2, pitch=8, fill=ramp), compose.Element)
-assert compose.SurfacePaint(None).none()
-assert not compose.SurfacePaint(recipe).none()
+assert compose.Fill(None) == compose.Fill.none()
+assert compose.Fill(recipe) != compose.Fill.none()
 # A material is one kind of paint, so a paint slot takes one too.
 program = material.Paint.sksl(
     "uniform shader source; half4 main(float2 p) { return source.eval(p); }"

@@ -22,13 +22,13 @@ class _PageProperties(typing.TypedDict, total=False):
     subtitle: str
     footer: str
     ruled: bool
-    ground: _t.SurfacePaintLike | None
+    ground: _t.FillLike | None
     key: str
 
 class _WellProperties(typing.TypedDict, total=False):
     width: _t.DimensionLike
     height: _t.DimensionLike
-    ground: _t.SurfacePaintLike | None
+    ground: _t.FillLike | None
     padding: float | None
     padding_y: float | None
     paddingY: float | None
