@@ -10,287 +10,225 @@
 //   Physical plate 19 x 35 cm.
 //
 //   Scan studied: David Rumsey Map Collection / Internet Archive item
-//   dr_diagram-of-the-causes-of-mortality-in-the-army-in-the-east-10563002,
-//   6996 x 3826 JPEG (507 dpi). Every geometric constant below was
-//   re-derived from that scan with a pixel sampler, not eyeballed:
-//   the blue-ink bounding boxes of both wheels give two independent
-//   least-squares fits for the radius constant k and both centres, and
-//   they agree to 5% — which is also the proof that the two wheels share
-//   ONE scale (k_left = 61.0, k_right = 62.8 scan px per sqrt(rate)).
+//   dr_diagram-of-the-causes-of-mortality-in-the-army-in-the-east-10563002.
+//   The blue-ink bounding boxes of both wheels fit ONE radius constant:
+//   the two wheels share one scale.
 //
 //   Data: Nightingale's own published figures via HistData::Nightingale
 //   (R), rate = 12 * 1000 * deaths / army = "annual rate of mortality
-//   per 1000". Radius law r = k*sqrt(rate) — the 1858 innovation: at a
-//   fixed 30 deg wedge, only a square-root radius makes AREA
-//   proportional to the number of dead.
+//   per 1000". Radius law r = k*sqrt(rate): at a fixed 30 deg wedge only
+//   a square-root radius makes AREA proportional to the number of dead.
 //
-// TWO THINGS THE PLATE DOES THAT REPRODUCTIONS USUALLY GET WRONG,
-// settled here off the scan itself:
-//   1. Month labels are NOT on a common label ring. Each one hugs its
-//      OWN wedge's rim (APRIL 1854 sits ~160 px from the hub, JANUARY
-//      1855 sits ~570 px out), with a floor so the tiny spring months
-//      clear the black hub. That scalloped label ring is most of what
-//      makes the plate read as engraved rather than plotted.
-//   2. The lower-half labels are NOT flipped. The engraver used one
-//      convention — glyph-up points radially OUTWARD, everywhere — so
-//      DECEMBER, JANUARY, FEBRUARY and the left wheel's "1856" all come
-//      out genuinely upside down. The left wheel's "1856" is often read
-//      as a unique quirk; it is simply that rule, applied consistently.
-//   Also: the two campaign annotations (BULGARIA, CRIMEA) are set
-//   RADIALLY along their spoke, not tangentially like the months.
+// WHAT THE PLATE DOES THAT REPRODUCTIONS USUALLY GET WRONG
+//   1. Month labels are NOT on a common label ring. Each hugs its OWN
+//      wedge's rim, with a floor so the tiny spring months clear the hub.
+//      That scalloped label ring is most of what makes the plate read as
+//      engraved rather than plotted.
+//   2. The lower-half labels are NOT flipped. Glyph-up points radially
+//      OUTWARD everywhere, so DECEMBER, JANUARY, FEBRUARY and the left
+//      wheel's "1856" come out upside down.
+//   3. The two campaign annotations (BULGARIA, CRIMEA) run ALONG their
+//      spoke, not round the rim like the months.
 //
-// BUILT FROM (the library, not by hand):
-//   shapes::sector()      all 72 petals — one call each, no path building
-//   patterns::speckle()   the litho stipple, per band, over a colour wash
-//   field::grain()     plate tone + the ink-density wander inside a band
-//   Paint::blend()     wash + stipple + blot + density, one fill value
-//   textFx::typeOn()          the pen writing the title and the legend
-//   spans::upTo / scale / animate  the whole 13.6 s reading order
-//   Text::textOnPath       every label — ONE LEAF EACH, shaped once with
-//                         real kerning and placed by arc length. The months
-//                         ride a clockwise ring beginning at 12 o'clock, so
-//                         a label's bearing over 360 IS the fraction it
-//                         sits at; glyph-up points radially outward and
-//                         autoFlip is off, so the lower half reads upside
-//                         down as it is printed
-//   shapes::ticks         the two campaign annotations' baseline: one tick
-//                         of a one-division ladder IS a straight spoke,
-//                         and a comparable value, so BULGARIA and CRIMEA
-//                         run outward along the radius as they are set
+// THE SHEET AS AN OBJECT
+//   It is a folded plate bound into a book, so the paper carries what a
+//   bound sheet carries: a raking light across it, the gutter's valley at
+//   the fold, the pressed field inside the plate mark, foxing, and the
+//   running head of the page behind it showing through. The tints were
+//   printed from their own stones and the key outlines from another, so
+//   the key sits a hair off the tints, as a registered lithograph does.
 //
-// Run:
-//   ./build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
-//       src/sketch/sketches/nightingale_coxcomb/nightingale_coxcomb.cpp \
-//       --frame /tmp/nightingale_coxcomb.png
-//
-// The 13.6 s mark is the settled plate. Earlier moments show the argument
-// being made: 2.2 s is diagram 1 growing clockwise out of July 1854.
+// The capture at 13.6 s is the settled plate. Earlier moments show the
+// argument being made: 2.2 s is diagram 1 growing clockwise out of July
+// 1854; from 9.4 s two brass index needles read each year round.
 
 // TAGS: Data/Charts
 
-#include <include/core/SkFont.h>
-#include <include/core/SkFontMgr.h>
-#include <include/core/SkFontStyle.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Pattern.h>
+#include <sigilcompose/core/StyleSheet.h>
+#include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
+#include <sigilcompose/kit/Ground.h>
 #include <sigilcompose/kit/Kinetic.h>
-#include <sigilcompose/kit/Legibility.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/scale/Scale.h>
 #include <sigildata/table/Table.h>
+#include <sigildraw/Color.h>
 #include <sigilgeometry/kit/Divisions.h>
-#include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilgeometry/path/Arrange.h>
+#include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/pattern/Patterns.h>
-#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/values/Keyframes.h>
-#include <sigilmotion/values/Time.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilweave/fonts/FontContext.h>
-#include <sigilweave/ports/SystemFontManager.h>
-#include <sigilweave/style/Type.h>
+#include <sigilweave/layout/ParagraphStyle.h>
+#include <sigilweave/style/Length.h>
 
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <numbers>
+#include <chrono>
+#include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
-namespace arrange = sigil::geometry::arrange;
 namespace data = sigil::data;
-namespace material = sigil::material;
-namespace sketch = sigil::sketch;
+namespace document = sigil::compose::document;
+namespace draw = sigil::draw;
 namespace field = sigil::material::field;
-namespace motion = sigil::motion;
-namespace patterns = sigil::material::pattern;
+namespace material = sigil::material;
 namespace path = sigil::geometry::path;
+namespace patterns = sigil::material::pattern;
 namespace shapes = sigil::geometry::shapes;
+namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-
-namespace skia = sigil::material::skia;
 
 using namespace sigil::compose;
 using namespace sigil::motion;
-using sigil::material::skia::Paint;
+using namespace sigil::weave::literals;
 using namespace std::chrono_literals;
+using sigil::material::skia::Paint;
 namespace ch = choreograph;
 
 namespace {
 
 // ---------------------------------------------------------------------------
-// palette — sampled from the scan (patch means + the darkest/lightest
-// deciles, which separate "ink dot" from "paper showing through")
+// THE SHEET'S GRID. The canvas keeps the plate's 35:19. Both hubs stand on
+// one row, the titles and captions on two rows above them, and the legend
+// and the imprint close the sheet on a shared bottom line inside the
+// plate mark.
 
-constexpr material::Color kPaper =
-    hexColor(0xf2e9d9);  // aged ivory, WARM CREAM
-constexpr material::Color kInk =
-    hexColor(0x241c15);  // engraver's warm black-brown
-constexpr material::Color kInkSoft = hexColor(0x241c15, 0.55f);
-constexpr material::Color kFox = hexColor(0xc9a688, 0.10f);
+constexpr SkSize kCanvas{1900, 1032};
+constexpr float kPlateMark = 22.0f;  // inset of the copper's impression
+constexpr float kAxis = 950.0f;      // the fold, and the titles' centre
+constexpr float kTitleRow = 56.0f;
+constexpr float kCaptionRow = 94.0f;
+constexpr float kHubRow = 396.0f;
+constexpr float kLegendLeft = 170.0f;
+constexpr float kLegendTop = 616.0f;
+constexpr float kLegendMeasure = 720.0f;
+constexpr float kBottomLine = 980.0f;  // the last line the sheet sets
+constexpr float kRightMargin = kPlateMark + 40.0f;
 
-// per band: the paper-side wash and the ink dot laid over it
-// Read off the lithograph rather than off a modern chart of it: the blue
-// is a POWDER blue, the pink a pale greyish rose, and both sit on warm
-// cream. A saturated teal and a salmon on a pink-lilac ground are the
-// same data a stop or two too strong, and at that strength the sheet
-// stops looking like a stone-printed diagram.
-constexpr material::Color kBlueWash = hexColor(0xccd9e0);
-constexpr material::Color kBlueInk = hexColor(0x5d7f8c);
-constexpr material::Color kRoseWash = hexColor(0xe6cec6);
-constexpr material::Color kRoseInk = hexColor(0xb07a6a);
-constexpr material::Color kGreyWash = hexColor(0xd9d0c8);
-constexpr material::Color kGreyInk = hexColor(0x241f19);
-
-// ---------------------------------------------------------------------------
-// geometry — canvas 1900x1032 keeps the plate's 35:19 ratio
-
-constexpr float kW = 1900.0f;
-constexpr float kH = 1032.0f;
-// ONE SCALE FOR BOTH WHEELS, and the plate's whole argument: a wedge's
-// AREA is its death rate, so the radius goes as the root of the rate.
-// A rate of 1 per 1000 stands 17 px off the centre and every other
-// follows from that; both diagrams read against the same rule, which is
-// what lets the second year be compared with the first at a glance.
+// ONE SCALE FOR BOTH WHEELS, and the plate's whole argument: a wedge's AREA
+// is its death rate, so the radius goes as the root of the rate. A rate of
+// 1 per 1000 stands 17 px off the centre; both diagrams read against that
+// one rule, which is what lets the second year be compared with the first.
 const data::Scale kRadius{
     .domain = {0, 1}, .range = {0, 17}, .transform = data::Transform::Sqrt};
 
-/** A death rate as a radius in px. */
 float radiusOf(float rate) { return (float)kRadius(rate); }
 
-/** THE RATE THAT REACHES A WHEEL'S OWN RIM — the inverse of the one
- *  scale, so a wheel states the radius it was drawn at and the domain
- *  follows. Both wheels read against the same rule, which is the plate's
- *  whole argument. */
-float rimRate(float rMax) {
-  const float unit = (float)kRadius(1.0);
-  return (rMax / unit) * (rMax / unit);
-}
 // The paper sliver between two blue wedges, in degrees of the 30 deg pitch.
-constexpr float kBlueGapDeg = 0.9f;
-// How far a radial runs, as a fraction of the wheel's own rim. On the
-// lithograph the faint radials live INSIDE the central cluster and stop
-// there; run to the rim they cross the blue, which nothing on the stone
-// does.
+constexpr float kBlueGapDegrees = 0.9f;
+// How far a hairline radial runs, as a fraction of the wheel's rim: on the
+// lithograph they live inside the central cluster and never cross the blue.
 constexpr float kSpokeReach = 0.24f;
-constexpr SkPoint kC1{1397, 386};  // Diagram 1 (right) — Apr 1854..Mar 1855
-constexpr SkPoint kC2{430, 384};   // Diagram 2 (left)  — Apr 1855..Mar 1856
-constexpr float kR1 = 543.7f;      // radiusOf(1022.8), Jan 1855 disease
-constexpr float kR2 = 267.5f;      // radiusOf(247.6),  Jun 1855 disease
+// How far the key stone printed off the tint stones, px.
+constexpr SkVector kRegistration{0.9f, -0.6f};
+
+// The plate's coordinate convention: 0 deg is 12 o'clock and bearings run
+// clockwise, because the year starts at the top and reads round to the
+// right. Radius 1, so a node's own box scales it.
+constexpr path::PolarFrame kPlate{.centre = {0, 0},
+                                  .radius = 1.0f,
+                                  .zero = path::Zero::North,
+                                  .sense = path::Sense::CW};
 
 // ---------------------------------------------------------------------------
-// the data (HistData::Nightingale) and the legend, read from the files
-// beside this sketch. The rows are in WHEEL order: the engraver's seam is
-// the June/July boundary at 12 o'clock, so the wheel runs July..June even
-// though the report year runs April..March.
+// The data, read from the files beside this sketch. The rows are in WHEEL
+// order: the engraver's seam is the June/July boundary at 12 o'clock, so a
+// wheel runs July..June even though the report year runs April..March.
 
 struct Month {
-  std::string label;             // the outer label line
-  std::string line2;             // the inner one, empty for a single line
+  std::string label;  // the outer line
+  std::string year;   // the inner line, where the plate letters one
   float disease, wounds, other;  // annual rate per 1000
+  float largest() const { return std::max({disease, wounds, other}); }
 };
 
-struct LegendLine {
-  int indent;
-  std::string text;
-};
-
-/** The twelve months of one wheel, in the order the file wrote them. */
-std::vector<Month> readWheel(const data::Table& t, double wheel) {
-  const auto which = t.column<double>("wheel");
-  const auto label = t.column<std::string>("label");
-  const auto disease = t.column<double>("disease");
-  const auto wounds = t.column<double>("wounds");
-  const auto other = t.column<double>("other");
-  std::vector<Month> out;
-  for (size_t i = 0; i < which.size(); ++i) {
-    if (which[i] != wheel) continue;
-    // A label is one field of one or two lines: the month, and under it
-    // the year where the plate letters one.
-    const size_t brk = label[i].find('\n');
-    out.push_back(
-        {label[i].substr(0, brk),
-         brk == std::string::npos ? std::string() : label[i].substr(brk + 1),
-         (float)disease[i], (float)wounds[i], (float)other[i]});
+std::vector<Month> readWheel(const data::Table& table, double wheel) {
+  const auto which = table.column<double>("wheel");
+  const auto label = table.column<std::string>("label");
+  const auto disease = table.column<double>("disease");
+  const auto wounds = table.column<double>("wounds");
+  const auto other = table.column<double>("other");
+  std::vector<Month> months;
+  for (size_t row = 0; row < which.size(); ++row) {
+    if (which[row] != wheel) continue;
+    const size_t lineBreak = label[row].find('\n');
+    months.push_back(
+        {label[row].substr(0, lineBreak),
+         lineBreak == std::string::npos ? std::string()
+                                        : label[row].substr(lineBreak + 1),
+         (float)disease[row], (float)wounds[row], (float)other[row]});
   }
-  return out;
+  return months;
 }
 
-// ---------------------------------------------------------------------------
-// helpers
+/** ONE OF THE TWO DIAGRAMS: its months, where its hub stands, how its
+ *  labels clear the hub, and when each part of it arrives (seconds). */
+struct Diagram {
+  std::string name;  // the class every part of it is set under
+  std::vector<Month> months;
+  SkPoint hub;
+  float labelFloor, labelGap, labelLineStep;
+  float spokes, wedges, wedgeStep, labels, needle, needleEnd;
 
-constexpr float kDeg = 3.14159265358979f / 180.0f;
+  /** The wheel is drawn at its largest rate, so its box is that radius on
+   *  the one scale and the rate domain follows. */
+  float largestRate() const {
+    float largest = 0;
+    for (const Month& month : months) largest = std::max(largest, month.largest());
+    return largest;
+  }
+  float rim() const { return radiusOf(largestRate()); }
+  /** The box the wheel is inscribed in, in the sheet's space. */
+  SkRect box(float radius) const {
+    return path::PolarFrame{.centre = hub, .radius = radius}.box();
+  }
+};
 
-// The plate's own coordinate convention, as a value: 0 deg is 12 o'clock and
-// bearings run clockwise, because the 1858 coxcomb starts its year at the
-// top and reads round to the right. `radius` is 1 so px radii can be passed
-// straight to `px()`; every wheel makes its own frame with `about()`.
-constexpr path::PolarFrame kPlate{.centre = {0, 0},
-                             .radius = 1.0f,
-                             .zero = path::Zero::North,
-                             .sense = path::Sense::CW};
-
-/** Bearing (deg clockwise from 12 o'clock) + radius -> canvas point. */
-SkPoint polar(SkPoint c, float radius, float bearingDeg) {
-  return kPlate.about(c).px(bearingDeg, radius);
+/** THE SPOKE a line is drawn or lettered along: one tick of a
+ *  one-division ladder at @p bearing, from @p inner to @p outer of the
+ *  node's own radius — a straight baseline AND a comparable value. */
+shapes::TicksShape spoke(float bearing, float inner, float outer) {
+  return shapes::ticks({.divisions = 1, .from = bearing, .mark = {inner, outer}},
+                       kPlate);
 }
 
-/** THE PLATE'S OWN BASELINE: a clockwise ring beginning at 12 o'clock, so
- *  the arc-length fraction a run is placed at IS its bearing over 360 and
- *  no conversion stands between the plate's coordinate and the library's.
- *  Clockwise is what puts glyph-up radially OUTWARD, which is the
- *  engraver's one convention on this sheet — with `autoFlip` off,
- *  DECEMBER, JANUARY, FEBRUARY and the left wheel's 1856 come out
- *  genuinely upside down, as they are printed. */
-inline shapes::Circle rimBaseline() {
-  return shapes::circle(SkPathDirection::kCW, 0);
-}
+/** THE MONTHS' BASELINE: a clockwise ring from 12 o'clock, so a run's
+ *  arc-length fraction IS its bearing over 360, and glyph-up points
+ *  radially outward — the engraver's one convention on this sheet. */
+const shapes::Circle kRimBaseline{.startIndex = 0};
 
-/** THE SPOKE a campaign annotation is lettered along: one tick of a
- *  one-division ladder at @p bearing, running from @p inner to @p outer of
- *  the node's own radius. A straight baseline AND a comparable value, so
- *  the run prunes.
- *
- *  It is not `Orient::Radial`. That turns each glyph off the tangent while
- *  the run still advances round the arc, which is right for a numeral on a
- *  dial and wrong for a word: BULGARIA laid out that way spreads its eight
- *  letters across the top of the wheel. The plate sets both annotations
- *  ALONG their spoke, so the baseline is the spoke and the orientation is
- *  the ordinary tangent. */
-inline shapes::TicksShape spokeBaseline(float bearing, float inner,
-                                        float outer) {
-  return shapes::ticks(
-      {.divisions = 1, .from = bearing, .mark = {inner, outer}}, kPlate);
-}
-
-/** A square box of radius @p r centred on @p c, in the parent's space —
- *  the frame every shapes::sector / shapes::arc wedge is inscribed in. */
-Element discBox(SkPoint c, float r) {
-  return box().rect(path::PolarFrame{.centre = c, .radius = r}.box());
-}
-
-/** A straight spoke from the box centre out to radiusFraction. One tick of
- *  a one-division ladder: kit::ticks resolves the centre and radius from
- *  the node's own laid-out box, so the caller never computes them. The
- *  spokes stay one node EACH — each carries its own trim reveal off its own
- *  delay, and a single multi-tick path would own one animation for all
- *  twelve and lose the stagger. */
-std::function<SkPath(SkSize)> spoke(float radiusFraction, float bearing) {
-  return shapes::ticks(
-      {.divisions = 1, .from = bearing, .mark = {0.0f, radiusFraction}},
-      kPlate);
+/** The paint of a tint stone: the paper-side wash and the ink dot laid
+ *  over it — a fine stipple for the tint, a coarse sparse one so the ink
+ *  density wanders, and a luminance grain for the stone's own unevenness.
+ *  The stipple's tile is larger than the eye's patch, so its repeat never
+ *  reads as a motif. */
+Paint tintStone(material::Color wash, material::Color ink, int fine,
+                int coarse, uint32_t seed, Pattern& stipple, Pattern& blot) {
+  stipple = patterns::speckle(128, fine * 10, 0.25f, 0.66f, {ink});
+  stipple.seed(seed);
+  blot = patterns::speckle(320, coarse * 8, 1.8f, 5.0f,
+                           {material::withAlpha(ink, 0.12f)});
+  blot.seed(seed * 7 + 3);
+  return Paint::blend(
+      {{Paint::solid(wash), SkBlendMode::kSrc},
+       {stipple.material(), SkBlendMode::kSrcOver},
+       {blot.material(), SkBlendMode::kSrcOver},
+       {Paint::recipe(field::grain(0.010f, 3, (float)seed)),
+        SkBlendMode::kSoftLight}});
 }
 
 }  // namespace
@@ -298,77 +236,347 @@ std::function<SkPath(SkSize)> spoke(float radiusFraction, float bearing) {
 // ===========================================================================
 
 struct NightingaleCoxcomb {
-  // --- the plate's own reading order, as a clock (seconds) ---
-  static constexpr float tTitle1 = 0.0f;
-  static constexpr float tTitle2 = 0.9f;
-  static constexpr float tCap1 = 1.0f;
-  static constexpr float tSpoke1 = 1.15f;
-  static constexpr float tWedge1 = 1.35f;  // + 0.115 s per month
-  static constexpr float tLabel1 = 3.10f;
-  static constexpr float tCap2 = 3.70f;
-  static constexpr float tSpoke2 = 3.85f;
-  static constexpr float tWedge2 = 4.05f;  // + 0.100 s per month
-  static constexpr float tLabel2 = 5.45f;
-  static constexpr float tLeader = 6.00f;
-  static constexpr float tLegend = 6.40f;  // + 0.20 s per line
-  static constexpr float tNeedle1 = 9.40f;
-  static constexpr float tNeedle2 = 11.50f;
-  static constexpr float tNeedleEnd = 13.10f;
+  Diagram first, second;
+  std::vector<std::string> legend;
+  std::map<std::string, material::Color> palette;
 
-  // bound outputs: the two index needles and the 24 rim flashes they ring
-  ch::Output<float> needle1Deg{0}, needle1A{0};
-  ch::Output<float> needle2Deg{0}, needle2A{0};
-  std::array<ch::Output<float>, 24> flash;
+  // Held so their identity, and the stipple's bake, survive re-describes.
+  std::array<Pattern, 6> stipples;
+  Pattern foxing;
+  Paint disease, wounds, other;
 
-  // held so their identity (and the speckle bake) survives re-describes
-  Pattern blueGrain, roseGrain, greyGrain, foxing;
-  Paint blueMat, roseMat, greyMat, paperMat;
-
-  sk_sp<SkTypeface> faceDisplay, faceGrotesque, faceLabel, faceScript;
+  material::Color colour(const std::string& name) const {
+    const auto found = palette.find(name);
+    return found == palette.end() ? material::Color{0, 0, 0, 1} : found->second;
+  }
+  /** The palette's @p name at @p share of its own strength. */
+  material::Color colour(const std::string& name, float share) const {
+    material::Color faded = colour(name);
+    faded.a *= share;
+    return faded;
+  }
 
   // ------------------------------------------------------------------
-  /** ONE LABEL ON A RING. The run is shaped ONCE — real kerning, real
-   *  ligatures, real advances — and every glyph is placed by arc length
-   *  and turned to its bearing through one batched RSXform draw. The
-   *  baseline resolves against the TEXT NODE'S OWN box, which is why the
-   *  leaf carries the ring's diameter and stands at the wheel's centre;
-   *  wrapping it in a sized parent collapses the whole run onto a point.
+  /** HOW THE SHEET IS SET. The tokens are the palette file's; the type is
+   *  three hands — an engraved inline roman for the title, an engraver's
+   *  copperplate capital for every label, a roundhand for the legend and
+   *  the imprint — and the root states the one size the scale is in rems
+   *  of. The display lines carry a stroke under their fill in the ink,
+   *  because the plate's lettering is heavier than any installed face. */
+  StyleSheet sheet() const {
+    const std::string engraved = "Academy Engraved LET, Bodoni 72, serif";
+    const std::string capitals = "Copperplate, Helvetica Neue, sans-serif";
+    const std::string roundhand = "Snell Roundhand, Apple Chancery, cursive";
+    Rule root = rule(":root");
+    for (const auto& [name, value] : palette) root.var(name, value);
+    return StyleSheet{
+        root.fontFamily(capitals).fontSize(20).ink(var("ink")),
+        rule("h1")
+            .fontFamily(engraved)
+            .fontSize(1.8_rem)
+            .letterSpacing(0.8)
+            .textStroke(1.1f, Fill::currentInk()),
+        rule("h2, caption")
+            .fontWeight(700)
+            .letterSpacing(0.4)
+            .textStroke(0.9f, Fill::currentInk()),
+        rule("h2").fontSize(1.35_rem),
+        rule("caption").fontSize(1.05_rem),
+        rule(".numeral").fontWeight(700).fontSize(1.2_rem),
+        rule(".first label").fontSize(1_rem).letterSpacing(0.4).textStroke(
+            0.35f, Fill::currentInk()),
+        // The small wheel's lettering is cut through whatever line it
+        // crosses, as an engraver breaks a rule for a word.
+        rule(".second label")
+            .fontSize(0.6_rem)
+            .letterSpacing(0)
+            .textStroke(4.0f, Fill::var("paper")),
+        rule(".campaign").fontSize(0.8_rem).letterSpacing(1.9),
+        rule(".verso")
+            .fontFamily(engraved)
+            .fontSize(1.1_rem)
+            .letterSpacing(1.5)
+            .ink(var("verso")),
+        rule("paragraph")
+            .fontFamily(roundhand)
+            .fontSize(1.3_rem)
+            .lineHeight(weave::Leading::absolute(30.5f))
+            .textWrap(TextWrap::Pretty)
+            .textIndent(-22)
+            .paddingLeft(22),
+        rule("footer").fontFamily(roundhand).fontSize(1_rem).ink(
+            var("ink-soft")),
+        rule(".spoke").ink(var("ink-soft")),
+        rule(".tint .disease").fill(disease),
+        rule(".tint .wounds").fill(wounds),
+        rule(".tint .other").fill(other),
+        rule(".key").ink(var("ink")),
+        rule(".flash").ink(var("flash")),
+        rule(".needle").ink(var("brass")),
+        rule(".leader").ink(var("ink")),
+    };
+  }
+
+  // ------------------------------------------------------------------
+  /** THE PAPER: a grained cream, sparse foxing and the corners darkened,
+   *  then the sheet as a bound object — the field inside the plate mark
+   *  pressed smooth by the stone, the gutter's valley at the fold, and a
+   *  light raking across from the upper left. Static, so it is one bake. */
+  Element paper() const {
+    const float gutter = 180.0f;
+    return stack()
+        .inset(0)
+        .fill(kit::grained(colour("paper"), 0.05f, 0.011f))
+        .children({
+            box().inset(0).fill(foxing.material()),
+            box().inset(0).fill(kit::vignette(kCanvas, colour("umber"), 0.62f)),
+            box()
+                .inset(kPlateMark + 2)
+                .fill(Fill::color(material::withAlpha(colour("paper"), 0.28f))),
+            box().inset(0).fill(linearGradient(
+                {0, 0}, {kCanvas.width(), kCanvas.height()},
+                {colour("raking-light"), colour("raking-light", 0),
+                 colour("raking-shade")},
+                {0.0f, 0.45f, 1.0f})),
+            box()
+                .rect(SkRect::MakeXYWH(kAxis - gutter / 2, 0, gutter,
+                                       kCanvas.height()))
+                .fill(linearGradient(
+                    {0, 0}, {gutter, 0},
+                    {colour("gutter-shadow", 0), colour("gutter-shadow", 0.45f),
+                     colour("gutter-shadow"), colour("gutter-light"),
+                     colour("gutter-shadow", 0.35f), colour("gutter-shadow", 0)},
+                    {0.0f, 0.38f, 0.485f, 0.515f, 0.6f, 1.0f})),
+            // The plate mark: the copper's impression, a shadowed edge
+            // and a lit one beside it.
+            box().inset(kPlateMark).stroke(stroke(1.0f, Fill::var("plate-shadow"))),
+            box()
+                .inset(kPlateMark + 2)
+                .stroke(stroke(1.0f, Fill::var("plate-light"))),
+            // The running head of the page behind, read through the sheet
+            // and so reversed.
+            text("ENGLAND AND HER SOLDIERS.")
+                .styleClass("verso")
+                .scaleX(-1)
+                .centerAt({775, 300}),
+        })
+        .cache(Cache::Texture)
+        .key("paper");
+  }
+
+  // ------------------------------------------------------------------
+  /** THE TITLE BLOCK on the sheet's two top rows: each diagram's number
+   *  over its caption, centred over its own hub, and the title over the
+   *  subtitle on the fold, closed by a double rule. The pen writes the
+   *  title and subtitle; the captions arrive with their wheels. */
+  Element titles() const {
+    const auto writing = [](float startMs, float spanMs, float durationMs) {
+      return Track{.effect = textFx::typeOn(),
+                   .stagger = {.eachMs = 0, .amountMs = spanMs, .durationMs = 40},
+                   .progress = animate(from(0.0f).to(1.0f),
+                                       ramp(startMs, durationMs, ch::easeNone))};
+    };
+    const auto arrive = [](float startMs) {
+      return animate(from(0.0f).to(1.0f), ramp(startMs, 320));
+    };
+    const auto numbered = [&](const Diagram& diagram, const char* number,
+                              const char* caption, float startMs) {
+      return box().cover().children({
+          text(number).styleClass("numeral").centerAt(
+              {diagram.hub.x(), kTitleRow}).opacity(arrive(startMs)),
+          document::caption(caption)
+              .centerAt({diagram.hub.x(), kCaptionRow})
+              .opacity(arrive(startMs + 90)),
+      });
+    };
+    // An echo takes its colour as a value and not as the ink in force, so
+    // the doubled pass under each display line reads the palette's ink.
+    return box().cover().children({
+        document::h1("DIAGRAM of the CAUSES of MORTALITY")
+            .textFx(writing(0, 620, 700))
+            .layerStyle(LayerStyle::echo({0.8f, 0.5f},
+                                         material::withAlpha(colour("ink"), 0.8f)))
+            .centerAt({kAxis, kTitleRow}),
+        document::h2("in the ARMY in the EAST.")
+            .textFx(writing(900, 340, 400))
+            .layerStyle(LayerStyle::echo({0.6f, 0.4f},
+                                         material::withAlpha(colour("ink"), 0.7f)))
+            .centerAt({kAxis, kCaptionRow}),
+        kit::line({.length = Dimension(368),
+                   .pair = kit::Line::Companion{.thickness = 1.0f, .gap = 3.0f}})
+            .at({kAxis - 184, kCaptionRow + 18})
+            .transformOrigin(pct(0), pct(50))
+            .scaleX(animate(from(0.0f).to(1.0f),
+                            ramp(1120, 420, ch::easeOutQuint))),
+        numbered(first, "1.", "APRIL 1854 to MARCH 1855.", first.spokes * 1000 - 150),
+        numbered(second, "2.", "APRIL 1855 to MARCH 1856.", second.spokes * 1000 - 150),
+    });
+  }
+
+  // ------------------------------------------------------------------
+  /** THE WEDGES OF ONE STONE. A month owns a band of the sweep and a wedge
+   *  is that band grown out to the radius its rate stands at, so nothing
+   *  here turns a rate into a pixel. The three causes are painted per month
+   *  BIGGEST FIRST, so every band shows its own colour with no stacking
+   *  arithmetic, and declaration order is that painter's order.
    *
-   *  `Tangent` is the months' running lettering, glyph-up outward.
-   *  `Radial` runs the baseline along the radius instead, which is how the
-   *  two campaign annotations are set — along their spoke, and the one
-   *  thing on this plate that genuinely radiates. */
-  Element ringRun(const weave::TextStyle& style, SkPoint centre,
-                  const std::string& content, float bearingDeg, float radius,
-                  float delayMs, const std::string& key) {
-    return text(content, style)
-        .key(key)
+   *  The TINT stone lays the three washes; the KEY stone outlines the red
+   *  and black wedges only — on the plate the blue tint simply stops, and a
+   *  hairline round every wedge is what makes a sheet read as a modern
+   *  vector chart. Each wedge grows out of the hub on its month's beat and
+   *  is baked once: only its scale moves. */
+  Element stone(const Diagram& diagram, bool key) const {
+    struct Wedge {
+      sketch::kit::Datum datum;
+      std::string cause;
+      int month;
+    };
+    std::vector<Wedge> wedges;
+    for (int month = 0; month < 12; ++month) {
+      const Month& rates = diagram.months[month];
+      std::array<Wedge, 3> causes{{{{(double)month, rates.disease}, "disease", month},
+                                   {{(double)month, rates.wounds}, "wounds", month},
+                                   {{(double)month, rates.other}, "other", month}}};
+      std::ranges::sort(causes, std::greater{},
+                        [](const Wedge& wedge) { return wedge.datum.y; });
+      for (const Wedge& wedge : causes)
+        if (wedge.datum.y > 0 && !(key && wedge.cause == "disease"))
+          wedges.push_back(wedge);
+    }
+    const auto part = [wedges, diagram, key](std::size_t index) {
+      const Wedge& wedge = wedges[index];
+      Element shape = box().styleClass(wedge.cause);
+      if (key) shape.stroke(stroke(1.0f));
+      const float delay =
+          (diagram.wedges + diagram.wedgeStep * (float)wedge.month) * 1000.0f;
+      return std::move(shape)
+          .scale(animate(from(0.002f).to(1.0f),
+                         ramp(delay, 620.0f, ch::easeOutExpo)))
+          .cache(Cache::Texture);
+    };
+    std::vector<sketch::kit::Datum> data;
+    for (const Wedge& wedge : wedges) data.push_back(wedge.datum);
+    Element plate =
+        sketch::kit::plot(
+            diagram.name + (key ? "-key" : "-tint"),
+            {.x = {.transform = data::Transform::Band,
+                   .steps = 12,
+                   .padding = kBlueGapDegrees / 30.0f},
+             .y = {.domain = {0, diagram.largestRate()},
+                   .transform = data::Transform::Sqrt},
+             .polar = sketch::kit::Polar{.sweep = {-90, 270}}},
+            {sketch::kit::bands(data, {.x = &sketch::kit::Datum::x,
+                                       .y = &sketch::kit::Datum::y,
+                                       .part = part,
+                                       .styleClass = key ? "key" : "tint"})})
+            .rect(diagram.box(diagram.rim()));
+    if (key) plate.translateX(kRegistration.x()).translateY(kRegistration.y());
+    return plate;
+  }
+
+  /** THE TWELVE HAIRLINE RADIALS. A radial exists only where both
+   *  neighbouring months have ink, so each runs out to the smaller of its
+   *  two months' rims, and never past the central cluster. One node each,
+   *  so each draws itself on its own beat. */
+  Element radials(const Diagram& diagram) const {
+    const float rim = diagram.rim();
+    const auto rimOf = [&](int month) {
+      return radiusOf(std::max(diagram.months[(month + 12) % 12].largest(), 0.1f));
+    };
+    Element wheel = box().rect(diagram.box(rim)).styleClass("spoke");
+    for (int month = 0; month < 12; ++month) {
+      const float length =
+          std::min({rimOf(month - 1), rimOf(month), rim * kSpokeReach}) * 0.98f;
+      if (length < 4.0f) continue;
+      wheel.children({box()
+                          .inset(0)
+                          .shape(spoke((float)month * 30.0f, 0.0f, length / rim))
+                          .stroke(spans::upTo(animate(
+                                      from(0.0f).to(1.0f),
+                                      ramp(diagram.spokes * 1000.0f + month * 16.0f,
+                                           220.0f))),
+                                  stroke(0.7f))});
+    }
+    return wheel;
+  }
+
+  /** THE INDEX NEEDLE that reads a wheel round once, clockwise from its
+   *  seam, and the flash it rings out of each month's rim as it passes. */
+  Element needle(const Diagram& diagram) const {
+    const float rim = diagram.rim();
+    const auto at = [](float seconds) {
+      return std::chrono::milliseconds((int)(seconds * 1000.0f));
+    };
+    const float start = diagram.needle, end = diagram.needleEnd;
+    const float sweep = end - start;
+    Element reading = box().rect(diagram.box(rim));
+    for (int month = 0; month < 12; ++month) {
+      const float passes = start + sweep * ((float)month * 30.0f + 15.0f) / 360.0f;
+      const float halfWidth = sweep * 13.0f / 360.0f;
+      const float rimOfMonth = radiusOf(std::max(diagram.months[month].largest(), 1.0f)) + 10.0f;
+      reading.children(
+          {box()
+               .rect(path::PolarFrame{.centre = {rim, rim}, .radius = rimOfMonth}.box())
+               .styleClass("flash")
+               .shape(shapes::arc((float)month * 30.0f - 90.0f + 1.0f, 28.0f))
+               .stroke(stroke(2.4f))
+               .opacity(animate(through({{0ms, 0.0f},
+                                         {at(passes - halfWidth), 0.0f},
+                                         {at(passes), 1.0f},
+                                         {at(passes + halfWidth), 0.0f}}),
+                                ch::easeNone))});
+    }
+    reading.children(
+        {box()
+             .inset(0)
+             .styleClass("needle")
+             .shape(spoke(0.0f, 0.0f, 1.0f))
+             .stroke(stroke(1.4f))
+             // A shadow takes its colour as a value, so the glow names the
+             // palette's brass rather than the needle's ink.
+             .background(shadow(colour("brass-glow"), {0, 0}, 9))
+             .transformOrigin(pct(50), pct(50))
+             .rotate(animate(through({{0ms, 0.0f}, {at(start), 0.0f}, {at(end), 360.0f}}),
+                             ch::easeNone))
+             .opacity(animate(through({{0ms, 0.0f},
+                                       {at(start), 0.0f},
+                                       {at(start + 0.15f), 1.0f},
+                                       {at(end), 1.0f},
+                                       {at(end + 0.45f), 0.0f}}),
+                              ch::easeNone))});
+    return reading;
+  }
+
+  // ------------------------------------------------------------------
+  /** ONE LABEL ON ITS OWN RING: a leaf the ring's diameter across,
+   *  standing on the hub, its run shaped once and laid along the rim. */
+  static Element onRing(Text label, const Diagram& diagram, float bearing,
+                        float radius, float delayMs) {
+    return std::move(label)
         .width(2 * radius)
         .height(2 * radius)
-        .centerAt(centre)
-        .textOnPath(TextPath{.path = rimBaseline(),
-                             .at = bearingDeg / 360.0f,
-                             .align = TextPath::Align::Center,
-                             .autoFlip = false,
-                             .orient = TextPath::Orient::Tangent})
+        .centerAt(diagram.hub)
+        .textOnPath({.path = kRimBaseline,
+                     .at = bearing / 360.0f,
+                     .align = TextPath::Align::Center,
+                     .autoFlip = false,
+                     .orient = TextPath::Orient::Tangent})
         .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
   }
 
-  /** A CAMPAIGN ANNOTATION, set along its spoke: the same one-leaf run on
-   *  a straight radial baseline, centred at @p radius from the hub. */
-  Element spokeRun(const weave::TextStyle& style, SkPoint centre,
-                   const std::string& content, float bearingDeg, float radius,
-                   float delayMs, const std::string& key) {
-    const float half = 120.0f;  // half the reach the run is given, px
-    const float box = radius + half;
-    return text(content, style)
-        .key(key)
+  /** A CAMPAIGN ANNOTATION, run along its spoke and centred @p radius
+   *  from the hub. */
+  static Element alongSpoke(const Diagram& diagram, const char* words,
+                            float bearing, float radius, float delayMs) {
+    const float reach = 120.0f;
+    const float box = radius + reach;
+    return text(words)
+        .styleClass("campaign")
         .width(2 * box)
         .height(2 * box)
-        .centerAt(centre)
-        .textOnPath(
-            TextPath{.path = spokeBaseline(bearingDeg, (radius - half) / box,
-                                           (radius + half) / box),
+        .centerAt(diagram.hub)
+        .textOnPath({.path = spoke(bearing, (radius - reach) / box,
+                                   (radius + reach) / box),
                      .at = 0.5f,
                      .align = TextPath::Align::Center,
                      .autoFlip = false,
@@ -376,508 +584,167 @@ struct NightingaleCoxcomb {
         .opacity(animate(from(0.0f).to(1.0f), ramp(delayMs, 260.0f)));
   }
 
-  // ------------------------------------------------------------------
-  Element wheel(sketch::SketchContext& ctx, const std::vector<Month>& data,
-                SkPoint centre, float rMax, float startSec, float stepSec,
-                float spokeSec, int flashBase, const char* tag) {
-    (void)ctx;
-    const SkPoint local{rMax, rMax};  // the wheel box's own centre
-    auto wheelBox = discBox(centre, rMax);
-
-    // The 12 hairline spokes. On the plate a radial line only exists where
-    // BOTH neighbouring months have ink, so each spoke runs out to the
-    // smaller of its two months' rims — otherwise stray hairlines shoot
-    // across the empty spring quadrant.
-    auto rimOf = [&](int m) {
-      const Month& d = data[(m % 12 + 12) % 12];
-      return radiusOf(std::max({d.disease, d.wounds, d.other, 0.1f}));
-    };
-    for (int i = 0; i < 12; ++i) {
-      const float len =
-          std::min({rimOf(i - 1), rimOf(i), rMax * kSpokeReach}) * 0.98f;
-      if (len < 4.0f) continue;
-      wheelBox.children(
-          {box()
-               .inset(0)
-               .key(std::string(tag) + "spoke" + std::to_string(i))
-               .shape(spoke(len / rMax, (float)i * 30.0f))
-               .stroke(
-                   spans::upTo(animate(
-                       from(0.0f).to(1.0f),
-                       ramp(spokeSec * 1000.0f + (float)i * 16.0f, 220.0f))),
-                   stroke(0.7f, Fill::color(kInkSoft)))});
+  /** THE MONTHS, each hugging its own wedge's rim. The floor is not
+   *  decoration: twelve labels must fit the circumference they sit on, so
+   *  the ring cannot close tighter than twelve widest labels — which is
+   *  why the plate sets the small wheel in a smaller size. */
+  Element months(const Diagram& diagram) const {
+    Element ring = box().cover();
+    for (int month = 0; month < 12; ++month) {
+      const Month& rates = diagram.months[month];
+      const float base = std::max(radiusOf(std::max(rates.largest(), 0.5f)) +
+                                      diagram.labelGap,
+                                  diagram.labelFloor);
+      const float bearing = (float)month * 30.0f + 15.0f;
+      const float delay = (diagram.labels + (float)month * 0.028f) * 1000.0f;
+      const bool twoLines = !rates.year.empty();
+      ring.children({onRing(document::label(rates.label), diagram, bearing,
+                            base + (twoLines ? diagram.labelLineStep : 0.0f),
+                            delay)});
+      if (twoLines)
+        ring.children({onRing(document::label(rates.year), diagram, bearing,
+                              base, delay + 60.0f)});
     }
+    return ring;
+  }
 
-    // THE 36 WEDGES AS ONE BAND LAYER. A month owns a band of the sweep
-    // and a wedge is that band grown out to the radius its rate stands at,
-    // so nothing here turns a rate into a pixel. They are ONE run and not
-    // three because the three causes are painted per month BIGGEST FIRST —
-    // every band shows its own colour with no stacking arithmetic — and
-    // declaration order is that painter's order.
-    struct Band {
-      float rate;
-      const Paint* mat;
-      int month;
-    };
-    std::vector<Band> painted;
-    std::vector<sketch::kit::Datum> wedges;
-    for (int m = 0; m < 12; ++m) {
-      const Month& mo = data[m];
-      std::array<Band, 3> three = {{{mo.disease, &blueMat, m},
-                                    {mo.wounds, &roseMat, m},
-                                    {mo.other, &greyMat, m}}};
-      std::sort(three.begin(), three.end(),
-                [](const Band& a, const Band& b) { return a.rate > b.rate; });
-      for (const Band& band : three) {
-        if (band.rate <= 0.0f) continue;
-        painted.push_back(band);
-        wedges.push_back({(double)m, (double)band.rate});
-      }
-    }
-    // THE BLUE WEDGES CARRY NO BORDER. On the stone the tint simply stops,
-    // and adjacent blue wedges are parted by a sliver of paper at their
-    // outer ends — an ANGULAR gap, so it opens toward the rim, which is
-    // what the band scale's own padding is. Only the inner black and pink
-    // wedges are outlined, and a hairline round every wedge is the one
-    // decision that makes the sheet read as a modern vector chart.
-    const Paint* tint = &blueMat;
-    const auto wedgeOf = [painted, startSec, stepSec, tint](std::size_t i) {
-      const Band& band = painted[i];
-      Element wedge = box().fill(*band.mat);
-      if (band.mat != tint) wedge.stroke(stroke(1.0f));
-      const float delay = (startSec + stepSec * (float)band.month) * 1000.0f;
-      // The entrance scales the wedge about the WHEEL'S CENTRE, which the
-      // band layer sets as the pivot: the sector grows out of the hub.
-      //
-      // Each band's litho fill is a Paint::blend of four shaders (wash +
-      // speckle + blot + grain) over an area that never changes. Uncached,
-      // every one of those shaders re-runs on every frame for all ~24
-      // bands. The content is static — only the entrance SCALE animates —
-      // and the cache captures NODE-LOCAL content, so the transform rides
-      // the blit and the texture is baked once.
-      //
-      // The trade is resampling: the scale transform now samples a baked
-      // texture rather than re-rasterising, so sector edges are
-      // texture-filtered and the stipple (noise generated in node-local
-      // space) shifts by a fraction of a pixel. On a data plate that is
-      // invisible; if pixel-exact sector edges matter more than the shader
-      // cost, drop this cache.
-      return std::move(wedge)
-          .scale(animate(from(0.002f).to(1.0f),
-                         ramp(delay, 620.0f, ch::easeOutExpo)))
-          .cache(Cache::Texture);
-    };
-    wheelBox.children(
-        {sketch::kit::plot(
-             std::string(tag) + "wheel",
-             {.x = {.transform = data::Transform::Band,
-                    .steps = 12,
-                    .padding = kBlueGapDeg / 30.0f},
-              .y = {.domain = {0, rimRate(rMax)},
-                    .transform = data::Transform::Sqrt},
-              .polar = sketch::kit::Polar{.sweep = {-90, 270}}},
-             {sketch::kit::bands(wedges, {.x = &sketch::kit::Datum::x,
-                                          .y = &sketch::kit::Datum::y,
-                                          .part = wedgeOf})})
-             .cover()});
-
-    for (int m = 0; m < 12; ++m) {
-      const Month& mo = data[m];
-      // the flash the index needle rings out of each month's rim
-      const float skia0 = (float)m * 30.0f - 90.0f;
-      const float rim =
-          radiusOf(std::max({mo.disease, mo.wounds, mo.other, 1.0f})) + 10.0f;
-      wheelBox.children(
-          {discBox(local, rim)
-               .key(std::string(tag) + "flash" + std::to_string(m))
-               .shape(shapes::arc(skia0 + 1.0f, 28.0f))
-               .stroke(stroke(2.4f, Fill::color(hexColor(0xc8a24a, 0.9f))))
-               .opacity(&flash[flashBase + m])});
-    }
-    return wheelBox;
+  /** ONE DIAGRAM, back to front: the hairline radials, the tint stone,
+   *  the key stone over it, the lettering, and the needle that reads it. */
+  Element wheel(const Diagram& diagram) const {
+    return box().cover().styleClass(diagram.name).children({
+        radials(diagram),
+        stone(diagram, false),
+        stone(diagram, true),
+        months(diagram),
+        needle(diagram),
+    });
   }
 
   // ------------------------------------------------------------------
-  Element needle(SkPoint centre, float rMax, const ch::Output<float>* deg,
-                 const ch::Output<float>* alpha, const char* key) {
-    return discBox(centre, rMax)
-        .key(key)
-        .shape(spoke(1.0f, 0.0f))
-        .stroke(stroke(1.4f, Fill::color(hexColor(0xd8b45c))))
-        .background(shadow(hexColor(0xd8b45c, 0.5f), {0, 0}, 9))
-        .transformOrigin(pct(50), pct(50))
-        .rotate(deg)
-        .opacity(alpha)
-        .cache(Cache::None);
+  /** THE DASHED LEADER that carries the reader from the end of the first
+   *  year to the start of the second: from the March 1855 wedge's outer
+   *  corner at nine o'clock on diagram 1, down under the gap between the
+   *  wheels, to the April 1855 wedge's on diagram 2. */
+  Element leader() const {
+    const SkPoint yearEnds =
+        kPlate.about(first.hub).px(270.0f, radiusOf(first.months[8].disease));
+    const SkPoint yearBegins =
+        kPlate.about(second.hub).px(270.0f, radiusOf(second.months[9].disease));
+    const SkPoint knee{(yearEnds.x() + yearBegins.x()) * 0.5f, kHubRow + 138.0f};
+    PathFormat dashed = stroke(1.1f);
+    dashed.dashIntervals = {7.0f, 5.0f};
+    return box()
+        .inset(0)
+        .styleClass("leader")
+        .shape(heldPath(path::toPath(path::Polyline{
+            .points = {{yearBegins.x(), yearBegins.y()},
+                       {knee.x(), knee.y()},
+                       {yearEnds.x(), yearEnds.y()}}})))
+        .stroke(spans::upTo(animate(from(0.0f).to(1.0f),
+                                    ramp(6000, 620, ch::easeOutQuad))),
+                dashed);
+  }
+
+  /** THE LEGEND in the engraver's roundhand: one passage of five
+   *  sentences, each hung at the margin with its run-on lines indented,
+   *  on one leading. A pen writes it line by line, each line starting
+   *  a fifth of a second after the one above. */
+  Element key() const {
+    std::string words;
+    for (const std::string& sentence : legend)
+      words += (words.empty() ? "" : "\n") + sentence;
+    const Spread pen = Spread{.eachMs = 200}.then({.amountMs = 620, .durationMs = 30});
+    return document::paragraph(words)
+        .at({kLegendLeft, kLegendTop})
+        .width(kLegendMeasure)
+        .textFx({.effect = textFx::typeOn(),
+                 .stagger = pen,
+                 .unit = weave::Unit::Line,
+                 .innerUnit = weave::Unit::Cluster,
+                 .progress = animate(from(0.0f).to(1.0f),
+                                     ramp(6400, pen.spanMs(12, 70), ch::easeNone))});
   }
 
   // ------------------------------------------------------------------
-  Element describe(sketch::SketchContext& ctx) {
-    // The engraver's one ink, stated once: every line of type and every
-    // mark that names no colour is printed in it.
-    auto root = stack().fill(Fill::color(kPaper)).ink(kInk);
-
-    // ---- paper: fractal mottle, sparse foxing, a soft vignette ------
-    // The paper base is three static but expensive layers: a procedural
-    // fractal under a full-canvas softLight composite, a speckle foxing
-    // material, and a vignette. They are wrapped in ONE opaque box whose own
-    // fill is kPaper — the exact backdrop the softLight would otherwise
-    // blend against as separate root children, so folding them changes no
-    // pixels — and cached together. The softLight then resolves once at bake
-    // time and each frame blits a single opaque texture instead of running
-    // three shaders across the whole canvas.
-    //
-    // The group boundary sits exactly here: everything inside is the static
-    // base, and the wedges and titles above it animate, so they stay outside
-    // where the cache cannot be invalidated by them.
-    root.children(
-        {stack()
-             .inset(0)
-             .fill(Fill::color(kPaper))
-             .children({box().inset(0).fill(paperMat).opacity(0.17f).blendMode(
-                 SkBlendMode::kSoftLight)})
-             .children({box().inset(0).fill(foxing.material())})
-             .children({box().inset(0).fill(radialGradient(
-                 {kW * 0.5f, kH * 0.5f}, kW * 0.72f,
-                 {hexColor(0x000000, 0.0f), hexColor(0x000000, 0.0f),
-                  hexColor(0x6b4a33, 0.085f)},
-                 {0.0f, 0.70f, 1.0f}))})
-             .cache(Cache::Texture),
-         // ---- the reverse page showing through (custom leaf, raw Skia) ----
-         // The verso title never changes and the face is resolved before the
-         // tree is described, so the program is named and the node settles.
-         custom(std::string_view("verso-title"),
-                [this](SkCanvas& canvas) {
-                  if (!faceDisplay) return;
-                  SkFont f(faceDisplay, 46);
-                  SkPaint p;
-                  p.setAntiAlias(true);
-                  p.setColor4f(
-                      material::skia::toSkColor(hexColor(0x241c15, 0.055f)),
-                      nullptr);
-                  canvas.save();
-                  canvas.translate(760, 118);  // mirrored: the verso title
-                  canvas.scale(-1, 1);
-                  canvas.drawString("ENGLAND", 0, 0, f, p);
-                  canvas.restore();
-                })
-             .inset(0),
-         // ---- the plate mark: the physical impression of the copper ------
-         box()
-             .inset(26)
-             .fill(Fill::none())
-             .stroke(stroke(1.0f, Fill::color(hexColor(0x8a7060, 0.20f)))),
-         box()
-             .inset(28)
-             .fill(Fill::none())
-             .stroke(stroke(1.0f, Fill::color(hexColor(0xffffff, 0.35f)))),
-         // ---- the spine fold at the sheet's centre -----------------------
-         box()
-             .rect(SkRect::MakeXYWH(938, 0, 24, kH))
-             .fill(linearGradient(
-                 {0, 0}, {24, 0},
-                 {hexColor(0x3a2a20, 0.0f), hexColor(0x3a2a20, 0.06f),
-                  hexColor(0xffffff, 0.09f), hexColor(0x3a2a20, 0.0f)},
-                 {0.0f, 0.42f, 0.60f, 1.0f}))});
-
-    // ---- title block -------------------------------------------------
-    // An emboldening underlay lives on a whole style, so the two titles
-    // and the ring labels carry theirs and inherit nothing.
-    const auto title1 = kit::emboldened(
-        weave::textStyle(
-            {.face = faceDisplay, .size = 39, .color = kInk, .track = 0.8f}),
-        2.0f, kInk);
-    const auto title2 = kit::emboldened(
-        weave::textStyle(
-            {.face = faceGrotesque, .size = 27, .color = kInk, .track = 0.4f}),
-        0.9f, kInk);
-
-    Track t1{.effect = textFx::typeOn(),
-             .stagger = {.eachMs = 0, .amountMs = 620, .durationMs = 40},
-             .progress = animate(from(0.0f).to(1.0f),
-                                 ramp(tTitle1 * 1000, 700, ch::easeNone))};
-    root.children({text("DIAGRAM of the CAUSES of MORTALITY", title1)
-                       .key("title1")
-                       .textFx(std::move(t1))
-                       .layerStyle(LayerStyle::echo({0.8f, 0.5f},
-                                                    hexColor(0x241c15, 0.8f)))
-                       .centerAt({968, 38})});
-
-    Track t2{.effect = textFx::typeOn(),
-             .stagger = {.eachMs = 0, .amountMs = 340, .durationMs = 40},
-             .progress = animate(from(0.0f).to(1.0f),
-                                 ramp(tTitle2 * 1000, 400, ch::easeNone))};
-    root.children({text("in the ARMY in the EAST.", title2)
-                       .key("title2")
-                       .textFx(std::move(t2))
-                       .layerStyle(LayerStyle::echo({0.6f, 0.4f},
-                                                    hexColor(0x241c15, 0.7f)))
-                       .centerAt({945, 84})});
-
-    // the double hairline under the title
-    for (int i = 0; i < 2; ++i)
-      root.children(
-          {box()
-               .rect(SkRect::MakeXYWH(775, 108.0f + (float)i * 4.0f, 368, 1))
-               .fill(Fill::currentInk())
-               .transformOrigin(pct(0), pct(50))
-               .scale(animate(from(0.0f).to(1.0f),
-                              ramp(tTitle2 * 1000 + 220 + (float)i * 60, 420,
-                                   ch::easeOutQuint)))});
-
-    // ---- the two diagram captions -----------------------------------
-    auto caption = [&](const char* num, const char* label, float cx, float numX,
-                       float startSec, const char* key) {
-      root.children(
-          {text(num)
-               .font({.face = faceGrotesque, .size = 24})
-               .key(std::string(key) + "n")
-               .centerAt({numX, 40})
-               .opacity(
-                   animate(from(0.0f).to(1.0f), ramp(startSec * 1000, 320))),
-           text(label)
-               .font({.face = faceGrotesque, .size = 21, .track = 0.4f})
-               .key(std::string(key) + "t")
-               .centerAt({cx, 78})
-               .opacity(animate(from(0.0f).to(1.0f),
-                                ramp(startSec * 1000 + 90, 320))),
-           box()
-               .rect(SkRect::MakeXYWH(cx - 140, 94, 280, 1))
-               .fill(Fill::color(kInkSoft))
-               .transformOrigin(pct(0), pct(50))
-               .scale(animate(
-                   from(0.0f).to(1.0f),
-                   ramp(startSec * 1000 + 180, 380, ch::easeOutQuint)))});
-    };
-    caption("1.", "APRIL 1854 to MARCH 1855.", 1320, 1489, tCap1, "cap1");
-    caption("2.", "APRIL 1855 to MARCH 1856.", 413, 394, tCap2, "cap2");
-
-    // ---- the wheels --------------------------------------------------
-    root.children(
-        {wheel(ctx, d1, kC1, kR1, tWedge1, 0.115f, tSpoke1, 0, "a"),
-         wheel(ctx, d2, kC2, kR2, tWedge2, 0.100f, tSpoke2, 12, "b")});
-
-    // ---- the ring labels: each hugging its own wedge's rim ----------
-    const auto labelStyle = kit::emboldened(
-        weave::textStyle(
-            {.face = faceLabel, .size = 20, .color = kInk, .track = 0.4f}),
-        0.35f, kInk);
-    const auto smallLabel = weave::textStyle(
-        {.face = faceLabel, .size = 12, .color = kInk, .track = 0.0f});
-    // The two campaign annotations are tracked wider than the months.
-    // A run on a path is shaped once, so tracking is part of the shaping
-    // and belongs to the style rather than to the call.
-    const auto campaign = weave::textStyle(
-        {.face = faceLabel, .size = 16, .color = kInk, .track = 1.9f});
-    std::vector<Element> labels;
-
-    // The floor is not decoration: twelve labels must fit the circumference
-    // they sit on, so the ring cannot close tighter than 12 * (widest label)
-    // / 2pi. That is why the plate sets the small left wheel in a smaller
-    // face — the same constraint, solved the same way.
-    auto ringLabels = [&](const std::vector<Month>& data, SkPoint centre,
-                          float floorR, const weave::TextStyle& style,
-                          float gap, float step, float startSec,
-                          const char* tag) {
-      for (int m = 0; m < 12; ++m) {
-        const Month& mo = data[m];
-        const float rim =
-            radiusOf(std::max({mo.disease, mo.wounds, mo.other, 0.5f}));
-        const float base = std::max(rim + gap, floorR);
-        const float bearing = (float)m * 30.0f + 15.0f;
-        const float delay = (startSec + (float)m * 0.028f) * 1000.0f;
-        const bool twoLines = !mo.line2.empty();
-        labels.push_back(ringRun(
-            style, centre, mo.label, bearing, base + (twoLines ? step : 0.0f),
-            delay, std::string(tag) + "L" + std::to_string(m) + "a"));
-        if (twoLines)
-          labels.push_back(
-              ringRun(style, centre, mo.line2, bearing, base, delay + 60.0f,
-                      std::string(tag) + "L" + std::to_string(m) + "b"));
-      }
-    };
-    ringLabels(d1, kC1, 172.0f, labelStyle, 26.0f, 24.0f, tLabel1, "a");
-    ringLabels(d2, kC2, 160.0f, smallLabel, 14.0f, 14.0f, tLabel2, "b");
-
-    // the campaign annotations — set RADIALLY along their spoke
-    labels.push_back(spokeRun(campaign, kC1, "BULGARIA", 358.0f, 150.0f,
-                              tLabel1 * 1000 + 380, "bulg"));
-    labels.push_back(spokeRun(campaign, kC1, "CRIMEA", 94.0f, 268.0f,
-                              tLabel1 * 1000 + 460, "crim"));
-    // the left wheel's year marker, upside down at 6 o'clock — which is
-    // simply the outward-up rule arriving at the bottom of the circle
-    labels.push_back(ringRun(smallLabel, kC2, "1856", 180.0f, 134.0f,
-                             tLabel2 * 1000 + 300, "y1856"));
-
-    for (Element& e : labels) root.children({std::move(e)});
-
-    // ---- the dashed leader between the two wheels -------------------
-    PathFormat dash = stroke(1.1f);
-    dash.dashIntervals = {7.0f, 5.0f};
-    root.children({box()
-                       .inset(0)
-                       .key("leader")
-                       .fill(Fill::none())
-                       .shape(keyedShape(std::string_view("leader"),
-                                         [] {
-                                           SkPathBuilder p;
-                                           p.moveTo(202, 398);
-                                           p.lineTo(614, 522);
-                                           p.lineTo(1024, 374);
-                                           return p.detach();
-                                         }))
-                       .stroke(spans::upTo(animate(
-                                   from(0.0f).to(1.0f),
-                                   ramp(tLeader * 1000, 620, ch::easeOutQuad))),
-                               dash)});
-
-    // ---- the engraved-hand legend -----------------------------------
-    // Twelve hand-placed lines, one node each: every line sits at the
-    // engraving's own indent and leading, which no single paragraph's
-    // layout can reproduce — so the lines stay separate nodes and only
-    // the SCHEDULE rides the engine. The container's staggerChildren is
-    // the 200 ms per-line ladder, and each line's pen runs for exactly
-    // its cascade's span, so the writing speed is the cascade's own. The
-    // hand they are written in is the container's, inherited.
-    const motion::Spread penStagger{.amountMs = 620, .durationMs = 30};
-    Element legend = stack().inset(0).staggerChildren(200ms).font(
-        {.face = faceScript, .size = 27});
-    for (size_t i = 0; i < legendText.size(); ++i) {
-      Track pen{.effect = textFx::typeOn(),
-                .stagger = penStagger,
-                .progress = animate(
-                    from(0.0f).to(1.0f),
-                    ramp(tLegend * 1000, penStagger.spanMs(2), ch::easeNone))};
-      legend.children({text(legendText[i].text)
-                           .key("leg" + std::to_string(i))
-                           .textFx(std::move(pen))
-                           .at({171.0f + (float)legendText[i].indent * 22.0f,
-                                628.0f + (float)i * 30.7f})});
-    }
-    root.children(
-        {std::move(legend),
-         // ---- printer's imprint ------------------------------------------
-         text("Harrison & Sons, St. Martin's Lane.")
-             .font({.face = faceScript, .size = 20})
-             .ink(kInkSoft)
-             .key("imprint")
-             .centerAt({1712, 1004})
-             .opacity(animate(from(0.0f).to(1.0f),
-                              ramp(tLegend * 1000 + 2500, 600))),
-         // ---- the index needles ------------------------------------------
-         needle(kC1, kR1, &needle1Deg, &needle1A, "needle1"),
-         needle(kC2, kR2, &needle2Deg, &needle2A, "needle2")});
-
-    return root;
+  Element describe() const {
+    return stack()
+        .applyStyleSheet(sheet())
+        .fill(Fill::var("paper"))
+        .children({
+            paper(),
+            titles(),
+            leader(),
+            wheel(second),
+            wheel(first),
+            key(),
+            document::footer("Harrison & Sons, St. Martin's Lane.")
+                .right(kRightMargin)
+                .bottom(kCanvas.height() - kBottomLine)
+                .opacity(animate(from(0.0f).to(1.0f), ramp(8900, 600))),
+            // The two campaign annotations along their spokes.
+            alongSpoke(first, "BULGARIA", 358.0f, 150.0f, 3480),
+            alongSpoke(first, "CRIMEA", 87.0f, 268.0f, 3560),
+            // The left wheel's year marker, upside down at six o'clock —
+            // the outward-up rule arriving at the bottom of the circle.
+            box().cover().styleClass(second.name).children(
+                {onRing(document::label("1856"), second, 180.0f, 134.0f, 5750)}),
+        });
   }
-
-  // ------------------------------------------------------------------
-  std::vector<Month> d1, d2;
-  std::vector<LegendLine> legendText;
 
   void setup(sketch::SketchContext& ctx) {
+    // A colour is read from its CSS text by the p5 canvas library's parser,
+    // the one such parser the libraries hold.
+    if (const auto colours = ctx.assets.table(ctx.local("data/palette.csv"))) {
+      const auto names = colours->column<std::string>("name");
+      const auto values = colours->column<std::string>("colour");
+      for (size_t row = 0; row < names.size(); ++row)
+        palette[names[row]] = draw::parseColor(values[row]);
+    }
     if (const auto deaths = ctx.assets.table(ctx.local("data/deaths.csv"))) {
-      d1 = readWheel(*deaths, 1);
-      d2 = readWheel(*deaths, 2);
+      first = {.name = "first",
+               .months = readWheel(*deaths, 1),
+               .hub = {1397, kHubRow},
+               .labelFloor = 172,
+               .labelGap = 26,
+               .labelLineStep = 24,
+               .spokes = 1.15f,
+               .wedges = 1.35f,
+               .wedgeStep = 0.115f,
+               .labels = 3.10f,
+               .needle = 9.40f,
+               .needleEnd = 11.40f};
+      second = {.name = "second",
+                .months = readWheel(*deaths, 2),
+                .hub = {430, kHubRow},
+                .labelFloor = 160,
+                .labelGap = 14,
+                .labelLineStep = 14,
+                .spokes = 3.85f,
+                .wedges = 4.05f,
+                .wedgeStep = 0.100f,
+                .labels = 5.45f,
+                .needle = 11.50f,
+                .needleEnd = 13.10f};
     }
-    if (const auto legend = ctx.assets.table(ctx.local("data/legend.csv"))) {
-      const auto indent = legend->column<double>("indent");
-      const auto text = legend->column<std::string>("text");
-      for (size_t i = 0; i < indent.size(); ++i)
-        legendText.push_back({(int)indent[i], text[i]});
-    }
+    if (const auto sentences = ctx.assets.table(ctx.local("data/legend.csv")))
+      for (const auto& sentence : sentences->column<std::string>("sentence"))
+        legend.emplace_back(sentence);
 
-    // The still frame this sketch photographs itself at: the first clean
-    // instant after the second needle sweep has faded out (tNeedleEnd plus
-    // its 0.45 s fade), by which point every entrance has finished and the
-    // plate holds unchanged. Capturing earlier catches the legend half
-    // written and the dashed leader mid-draw.
-    sketch::kit::stage(ctx, {.size = SkSize::Make(kW, kH),
-                             .captureAt = 13.6,
-                             .background = kPaper});
-
-    // The plate's title face is an ornamental Victorian INLINE Roman —
-    // dark stems carrying a white hairline. "Academy Engraved LET" is the
-    // only installed face of that genre; it draws lighter than the plate,
-    // so the title carries a glyph-level stroke underlay to thicken the
-    // ink ribbon (Bodoni 72 Bold matches the WEIGHT but loses the genre).
-    // ONE FALLBACK CHAIN PER LETTERING SYSTEM, resolved through the
-    // library's own walk: the first installed family wins, and a machine
-    // with none of them gets the default face AT THE WEIGHT ASKED FOR
-    // rather than silently at Normal.
-    faceDisplay =
-        weave::ports::face({"Academy Engraved LET"}, SkFontStyle::Normal());
-    if (!faceDisplay)
-      faceDisplay =
-          weave::ports::face({"Bodoni 72"}, SkFontStyle::kBold_Weight);
-    faceGrotesque = weave::ports::face({"Copperplate", "Helvetica Neue"},
-                                       SkFontStyle::kBold_Weight);
-    faceLabel = weave::ports::face({"Copperplate", "Helvetica Neue"});
-    faceScript = weave::ports::face({"Snell Roundhand", "Apple Chancery"});
-
-    // The litho tint: a paper-side wash with the ink dot field over it.
-    // Two speckle layers per band — a fine one for the tint itself and a
-    // coarse sparse one so the ink density visibly wanders, which is what
-    // separates a stone-printed tint from a flat vector fill.
-    auto band = [](material::Color wash, material::Color ink, int fine,
-                   int coarse, uint32_t seed, Pattern& grainOut) {
-      // THE TILE HAS TO BE BIGGER THAN THE EYE'S PATCH. A forty-pixel
-      // stipple repeats a dozen times across a wheel, and at that pitch
-      // the tile's own little clusters read as an ordered motif — which
-      // an aquatint stipple never is. At this tile it repeats three or
-      // four times across the same wheel and the repeat stops being
-      // findable; the mark count rises with the area so the density is
-      // the density it was.
-      grainOut = patterns::speckle(128, fine * 10, 0.25f, 0.66f, {ink});
-      grainOut.seed(seed);
-      Pattern blot =
-          patterns::speckle(320, coarse * 8, 1.8f, 5.0f,
-                            {material::Color{ink.r, ink.g, ink.b, 0.12f}});
-      blot.seed(seed * 7 + 3);
-      return Paint::blend(
-          {{Paint::solid(wash), SkBlendMode::kSrc},
-           {grainOut.material(), SkBlendMode::kSrcOver},
-           {blot.material(), SkBlendMode::kSrcOver},
-           // ink density wanders across the stone: LUMINANCE noise, so it
-           // reads as light on the tint instead of hue-shifting it
-           {Paint::recipe(field::grain(0.010f, 3, (float)seed)),
-            SkBlendMode::kSoftLight}});
-    };
-    blueMat = band(kBlueWash, kBlueInk, 1150, 14, 11, blueGrain);
-    roseMat = band(kRoseWash, kRoseInk, 900, 10, 23, roseGrain);
-    greyMat = band(kGreyWash, kGreyInk, 900, 18, 37, greyGrain);
-
-    paperMat = Paint::recipe(field::grain(0.011f, 4, 5.0f));
-    foxing = patterns::speckle(190, 4, 1.5f, 6.5f, {kFox});
+    disease = tintStone(colour("disease-wash"), colour("disease-ink"), 1150, 14,
+                        11, stipples[0], stipples[1]);
+    wounds = tintStone(colour("wounds-wash"), colour("wounds-ink"), 900, 10, 23,
+                       stipples[2], stipples[3]);
+    other = tintStone(colour("other-wash"), colour("other-ink"), 900, 18, 37,
+                      stipples[4], stipples[5]);
+    foxing = patterns::speckle(190, 4, 1.5f, 6.5f, {colour("fox")});
     foxing.seed(91);
 
-    // The needles and the rim flashes they ring.
-    ctx.ticker.add([this, &ticker = ctx.ticker] {
-      const double t = ticker.elapsed();
-      const float s = (float)t;
-      auto sweep = [&](float t0, float t1, ch::Output<float>& deg,
-                       ch::Output<float>& alpha, int base) {
-        if (s < t0 || s > t1 + 0.45f) {
-          alpha = 0.0f;
-          return;
-        }
-        const float u = std::clamp((s - t0) / (t1 - t0), 0.0f, 1.0f);
-        deg = u * 360.0f;
-        alpha = s > t1 ? std::max(0.0f, 1.0f - (s - t1) / 0.45f)
-                       : std::min(1.0f, (s - t0) / 0.15f);
-        for (int m = 0; m < 12; ++m) {
-          const float centreB = (float)m * 30.0f + 15.0f;
-          float d = std::fabs(deg.value() - centreB);
-          if (d > 180.0f) d = 360.0f - d;
-          flash[base + m] = alpha.value() * std::max(0.0f, 1.0f - d / 13.0f);
-        }
-      };
-      sweep(tNeedle1, tNeedle2 - 0.1f, needle1Deg, needle1A, 0);
-      sweep(tNeedle2, tNeedleEnd, needle2Deg, needle2A, 12);
-      return true;
-    });
-
-    ctx.composer.render(describe(ctx));
+    // The still is the first clean instant after the second needle has
+    // faded: every entrance has finished and the plate holds unchanged.
+    sketch::kit::stage(ctx, {.size = kCanvas,
+                             .captureAt = 13.6,
+                             .background = colour("paper")});
+    ctx.composer.render(describe());
   }
 
   void update(double, sketch::SketchContext&) {}
