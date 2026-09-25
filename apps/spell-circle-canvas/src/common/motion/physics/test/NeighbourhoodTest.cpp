@@ -8,6 +8,8 @@
  * radius, and the same run twice.
  */
 
+#include "support/StandsAlone.h"
+
 #include <gtest/gtest.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigilmotion/physics/Forces.h>
@@ -21,9 +23,10 @@
 #include <span>
 #include <vector>
 
-#include "support/StandsAlone.h"
 
 using namespace sigil::motion::physics;
+using sigil::motion::Duration;
+using namespace std::chrono_literals;
 
 namespace {
 
@@ -210,7 +213,7 @@ TEST(Neighbourhood, AFlockSteersOnTheSameSumTheWalkOverEveryPairMakes) {
     indexed.velocity[i] = {std::sin((float)i), std::cos((float)i * 0.7f)};
   Points walked = indexed;
 
-  boids(weights, reach, 2.0f).apply(indexed, 1.0f / 60.0f);
+  boids(weights, reach, 2.0f).apply(indexed, 1s / 60.0);
 
   // The same three steerings, over every pair, in index order — which is
   // the body the force had before there was a grid to ask.
@@ -254,7 +257,7 @@ TEST(Neighbourhood, AFlockReachesNoFurtherThanItsRadius) {
   const size_t away = points.add({500.0f, 0.0f});
   points.velocity[beside] = {0.0f, 20.0f};
 
-  boids({}, 60.0f, 1.0f).apply(points, 1.0f / 60.0f);
+  boids({}, 60.0f, 1.0f).apply(points, 1s / 60.0);
 
   // The pair inside the radius sees each other and is pushed; the loner
   // is outside every reach and is not touched at all.
@@ -265,14 +268,14 @@ TEST(Neighbourhood, AFlockReachesNoFurtherThanItsRadius) {
   // And a radius that reaches nobody pushes nobody, however many points
   // there are.
   Points tight = restingAt(cloud(300, 8));
-  boids({}, 0.001f, 1.0f).apply(tight, 1.0f / 60.0f);
+  boids({}, 0.001f, 1.0f).apply(tight, 1s / 60.0);
   for (size_t i = 0; i < tight.size(); ++i) EXPECT_EQ(tight.force[i], Vec2{});
 }
 
 TEST(Neighbourhood, TheSameCloudFlocksTheSameWayTwice) {
   const std::vector<Vec2> places = cloud(500, 2718);
   const std::vector<Force> forces{boids({}, 70.0f), drag(0.3f)};
-  const Verlet stepper{.timeStep = 1.0f / 60.0f, .damping = 0.2f};
+  const Verlet stepper{.timeStep = 1s / 60.0, .damping = 0.2f};
 
   auto run = [&] {
     Points points = restingAt(places);

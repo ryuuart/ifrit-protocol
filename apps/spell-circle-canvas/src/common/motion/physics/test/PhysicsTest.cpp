@@ -10,6 +10,8 @@
  * it) answer rather than dividing.
  */
 
+#include "support/StandsAlone.h"
+
 #include <gtest/gtest.h>
 #include <sigilmotion/physics/Constraints.h>
 #include <sigilmotion/physics/Forces.h>
@@ -20,9 +22,10 @@
 #include <cmath>
 #include <vector>
 
-#include "support/StandsAlone.h"
 
 using namespace sigil::motion::physics;
+using sigil::motion::Duration;
+using namespace std::chrono_literals;
 
 namespace {
 
@@ -34,7 +37,7 @@ float apart(const Points& points, size_t a, size_t b) {
 }  // namespace
 
 TEST(Physics, TheSameStepTwiceIsTheSameRun) {
-  const Verlet stepper{.timeStep = 1.0f / 120.0f, .damping = 0.4f, .iterations = 6};
+  const Verlet stepper{.timeStep = 1s / 120.0, .damping = 0.4f, .iterations = 6};
   const std::vector<Force> forces{gravity({0, 900}), drag(0.2f),
                                   attract({40, 40}, 300.0f, 200.0f)};
   const std::vector<Constraint> sticks{distance(0, 1, 30.0f)};
@@ -53,13 +56,13 @@ TEST(Physics, TheSameStepTwiceIsTheSameRun) {
 
 TEST(Physics, GravityLandsOnTheClosedForm) {
   const float acceleration = 980.0f;
-  const Verlet stepper{.timeStep = 1.0f / 240.0f};
+  const Verlet stepper{.timeStep = 1s / 240.0};
   const std::vector<Force> forces{gravity({0, acceleration})};
   Points points;
   points.add({0, 0});
   const int steps = 240;
   for (int i = 0; i < steps; ++i) stepper.step(points, forces);
-  const float seconds = (float)steps * stepper.timeStep;
+  const float seconds = (float)steps * (float)stepper.timeStep.count();
   // Half a t squared, to within the step's own first-order error: the
   // sum of a constant acceleration over n steps is the closed form
   // times (1 + 1/n), so a finer step is a closer answer and no step at
@@ -72,7 +75,7 @@ TEST(Physics, GravityLandsOnTheClosedForm) {
 }
 
 TEST(Physics, APinnedSpringSettlesOnItsRestLength) {
-  const Verlet stepper{.timeStep = 1.0f / 120.0f, .damping = 2.0f, .iterations = 8};
+  const Verlet stepper{.timeStep = 1s / 120.0, .damping = 2.0f, .iterations = 8};
   const std::vector<Force> forces{gravity({0, 400})};
   const std::vector<Constraint> sticks{spring(0, 1, 50.0f, 0.6f)};
   Points points;
@@ -88,7 +91,7 @@ TEST(Physics, APinnedSpringSettlesOnItsRestLength) {
 }
 
 TEST(Physics, ABandDoesNothingUntilItIsTaut) {
-  const Verlet stepper{.timeStep = 1.0f / 120.0f, .iterations = 8};
+  const Verlet stepper{.timeStep = 1s / 120.0, .iterations = 8};
   Points points;
   points.add({0, 0}, {}, 1.0f, true);
   points.add({60, 0});
@@ -147,7 +150,7 @@ TEST(Physics, TheApproximateStickPushesApartWhenTooClose) {
 }
 
 TEST(Physics, AnImmovablePointTakesNoneOfTheCorrection) {
-  const Verlet stepper{.timeStep = 1.0f / 60.0f, .iterations = 4};
+  const Verlet stepper{.timeStep = 1s / 60.0, .iterations = 4};
   Points points;
   points.add({0, 0}, {}, 0.0f);  // a mass of zero is a wall
   points.add({10, 0});
@@ -158,7 +161,7 @@ TEST(Physics, AnImmovablePointTakesNoneOfTheCorrection) {
 }
 
 TEST(Physics, APinIsWhereTheCallerPutsItThisFrame) {
-  const Verlet stepper{.timeStep = 1.0f / 60.0f, .iterations = 4};
+  const Verlet stepper{.timeStep = 1s / 60.0, .iterations = 4};
   Points points;
   points.add({0, 0});
   std::vector<Constraint> held{pin(0, {12, -7})};
@@ -171,7 +174,7 @@ TEST(Physics, APinIsWhereTheCallerPutsItThisFrame) {
 }
 
 TEST(Physics, AFlockKeepsEveryBirdAndStaysWhereItCanBeDrawn) {
-  const Verlet stepper{.timeStep = 1.0f / 60.0f, .damping = 0.5f, .iterations = 1};
+  const Verlet stepper{.timeStep = 1s / 60.0, .damping = 0.5f, .iterations = 1};
   const std::vector<Force> forces{
       boids({.separation = 2.0f, .alignment = 1.0f, .cohesion = 1.0f}, 60.0f,
             0.8f),
@@ -242,7 +245,7 @@ TEST(Physics, ACallersOwnForceIsAValueLikeTheOthers) {
   };
   Points points;
   points.add({0, 0});
-  const Verlet stepper{.timeStep = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1s / 60.0};
   const std::vector<Force> forces{custom};
   stepper.step(points, forces);
   EXPECT_GT(points.position[0].x, 0.0f);
@@ -256,7 +259,7 @@ TEST(Physics, APreLoadedForceMovesThePointItWasWrittenOn) {
   // The lane is the caller's to pre-load. A push written into it between
   // two steps is what the step's own forces accumulate onto, and the
   // step clears it once it has integrated, so the push is spent once.
-  const Verlet stepper{.timeStep = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1s / 60.0};
   Points points;
   points.add({0, 0});
   points.add({0, 0});
@@ -266,9 +269,10 @@ TEST(Physics, APreLoadedForceMovesThePointItWasWrittenOn) {
   // One step of a constant force on a unit mass: the velocity it buys is
   // force times the step, and the distance that velocity covers is the
   // force times the step squared.
-  const float expected = 600.0f * stepper.timeStep * stepper.timeStep;
+  const float seconds = (float)stepper.timeStep.count();
+  const float expected = 600.0f * seconds * seconds;
   EXPECT_NEAR(points.position[0].x, expected, expected * 1e-4f);
-  EXPECT_FLOAT_EQ(points.velocity[0].x, 600.0f * stepper.timeStep);
+  EXPECT_FLOAT_EQ(points.velocity[0].x, 600.0f * seconds);
   // The point nobody pushed stands where it was.
   EXPECT_FLOAT_EQ(points.position[1].x, 0.0f);
   EXPECT_FLOAT_EQ(points.velocity[1].x, 0.0f);
@@ -291,11 +295,11 @@ TEST(Physics, AStepOfNoTimeMovesNothing) {
   const std::vector<Vec2> before = points.position;
   const std::vector<Vec2> speeds = points.velocity;
 
-  for (float dt : {0.0f, -1.0f / 60.0f}) {
-    const Verlet stepper{.timeStep = dt};
+  for (Duration step : {Duration{}, -1s / 60.0}) {
+    const Verlet stepper{.timeStep = step};
     stepper.step(points, forces, stick);
-    EXPECT_EQ(points.position, before) << "at dt " << dt;
-    EXPECT_EQ(points.velocity, speeds) << "at dt " << dt;
+    EXPECT_EQ(points.position, before) << "at a step of " << step.count() << "s";
+    EXPECT_EQ(points.velocity, speeds) << "at a step of " << step.count() << "s";
   }
 }
 
@@ -305,7 +309,7 @@ TEST(Physics, AStepAsLongAsTheClocksCeilingIsCoarseAndNotExploded) {
   // projection onto POSITIONS and runs last, so it is satisfied at the
   // end of the pass whatever the step before it did — the coarse step
   // costs accuracy in the middle of the motion, not the structure.
-  const Verlet stepper{.timeStep = 0.25f, .damping = 0.5f, .iterations = 8};
+  const Verlet stepper{.timeStep = 250ms, .damping = 0.5f, .iterations = 8};
   const std::vector<Force> forces{gravity({0, 980}), drag(0.3f)};
   const std::vector<Constraint> stick{distance(0, 1, 20.0f)};
   Points pair;
@@ -344,7 +348,7 @@ TEST(Physics, NoIterationsIsStillOnePassOverTheList) {
   // work.
   const std::vector<Constraint> stick{distance(0, 1, 40.0f)};
   auto run = [&](int iterations) {
-    const Verlet stepper{.timeStep = 1.0f / 60.0f, .iterations = iterations};
+    const Verlet stepper{.timeStep = 1s / 60.0, .iterations = iterations};
     Points points;
     points.add({0, 0}, {}, 1.0f, true);
     points.add({10, 0});
@@ -359,7 +363,7 @@ TEST(Physics, AStiffnessAboveOneIsHeldAtRigidRatherThanOvershooting) {
   // Above one, a pass would take out MORE than the whole error and land
   // the pair on the far side of the band; the number is held at one, so
   // the softest reading of "stiffer than rigid" is rigid.
-  const Verlet stepper{.timeStep = 1.0f / 60.0f, .iterations = 1};
+  const Verlet stepper{.timeStep = 1s / 60.0, .iterations = 1};
   auto once = [&](float stiffness) {
     Points points;
     points.add({0, 0}, {}, 1.0f, true);
@@ -382,12 +386,12 @@ TEST(Physics, AnAttractorPullsNoHarderThanItsStrengthAtTheCentre) {
   // pull at one unit away and is the most there is.
   const float strength = 300.0f;
   const std::vector<Force> forces{attract({0, 0}, strength)};
-  const Verlet stepper{.timeStep = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1s / 60.0};
   // A step leaves the force lane empty, so what the pull WAS is read off
   // the speed it bought: a unit mass gains the push times the step, and
   // nothing here takes any of it back.
   const auto pushOn = [&](const Points& points) {
-    return points.velocity[0].length() / stepper.timeStep;
+    return points.velocity[0].length() / (float)stepper.timeStep.count();
   };
   for (float away : {1e-6f, 1e-3f, 0.5f, 1.0f}) {
     Points points;
@@ -413,10 +417,10 @@ TEST(Physics, ABodyForceWithNothingInItPushesNothing) {
   Points points;
   points.add({3, 4}, {1, 1});
   const std::vector<Vec2> before = points.position;
-  const Verlet stepper{.timeStep = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1s / 60.0};
   const std::vector<Force> forces{empty};
   stepper.step(points, forces);
   EXPECT_EQ(points.force[0], (Vec2{0, 0}));
   // It coasts on the speed it had and nothing else touched it.
-  EXPECT_EQ(points.position[0], (before[0] + Vec2{1, 1} * stepper.timeStep));
+  EXPECT_EQ(points.position[0], (before[0] + Vec2{1, 1} * (float)stepper.timeStep.count()));
 }

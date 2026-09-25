@@ -1,19 +1,18 @@
 /** @file
  * motion_values_bench — the Animatable slot per lane: what a consumer
- * pays to read a property that may be plain, transitioning, bound or
- * bound through a shaping chain, and what copying a lane of slots
- * costs, since a transition or a chain lives behind an allocation.
- * Resolving stays with the consumer — the library ships the value, not
- * a resolve surface — so the read here is the one every consumer
- * writes: ask which kind the slot holds, then evaluate that kind. Run a
- * Release build; Debug numbers say nothing.
+ * pays to read a property that may be a constant, a described motion, a
+ * live value or a live value shaped through a binding, and what copying a
+ * lane of slots costs, since every form but the constant lives behind an
+ * allocation. The read here is the one a consumer writes: ask which form
+ * the slot holds, then evaluate that form — a described motion read at a
+ * time with no engine. Run a Release build; Debug numbers say nothing.
  */
 
 #include <benchmark/benchmark.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Oscillator.h>
-#include <sigilmotion/values/Sequence.h>
+#include <sigilmotion/values/Tween.h>
 
 #include <chrono>
 #include <vector>
@@ -23,45 +22,45 @@ using namespace std::chrono_literals;
 
 namespace {
 
-/** The live output every bound slot reads. */
-choreograph::Output<float>& live() {
-  static choreograph::Output<float> output = 0.5f;
-  return output;
+/** The live value every live and shaped slot reads. */
+const Animatable<float>& live() {
+  static const Animatable<float> cell = animatable(0.5f);
+  return cell;
 }
 
 enum Kind {
-  kPlain = 0,
-  kTransition = 1,
-  kBound = 2,
-  kBoundMapped = 3,
+  kConstant = 0,
+  kDescribed = 1,
+  kLive = 2,
+  kBound = 3,
   kMixed = 4
 };
 
 const char* kindName(int kind) {
   switch (kind) {
-    case kPlain:
-      return "plain";
-    case kTransition:
-      return "transition";
+    case kConstant:
+      return "constant";
+    case kDescribed:
+      return "described";
+    case kLive:
+      return "live";
     case kBound:
       return "bound";
-    case kBoundMapped:
-      return "boundMapped";
     default:
       return "mixed";
   }
 }
 
-Animatable<float> make(int kind, int i) {
-  switch (kind == kMixed ? i % 4 : kind) {
-    case kPlain:
-      return Animatable<float>((float)i);
-    case kTransition:
-      return animate(from(0.0f).to((float)i), {400ms});
-    case kBound:
-      return Animatable<float>(&live());
+Animatable<float> make(int kind, int index) {
+  switch (kind == kMixed ? index % 4 : kind) {
+    case kConstant:
+      return Animatable<float>((float)index);
+    case kDescribed:
+      return animate({.from = 0.0f, .to = (float)index, .duration = 400ms});
+    case kLive:
+      return live();
     default:
-      return bind(&live()).source(0, 1).target(-70, 170);
+      return bind(live(), {.from = {0.0f, 1.0f}, .to = {-70.0f, 170.0f}});
   }
 }
 
@@ -69,23 +68,17 @@ Animatable<float> make(int kind, int i) {
 std::vector<Animatable<float>> lane(int kind, int count) {
   std::vector<Animatable<float>> slots;
   slots.reserve((size_t)count);
-  for (int i = 0; i < count; ++i) slots.push_back(make(kind, i));
+  for (int index = 0; index < count; ++index) slots.push_back(make(kind, index));
   return slots;
 }
 
-/** The consumer's read of one slot at a moment `t` seconds into any
- *  transition it holds. */
-float resolve(const Animatable<float>& slot, float t) {
-  if (const float* plain = slot.plain()) return *plain;
-  if (const Transitioned<float>* anim = slot.transitioned()) {
-    const float duration = (float)anim->spec.duration.count() / 1000.0f;
-    const float progress = duration > 0 ? std::min(t / duration, 1.0f) : 1.0f;
-    const float start = anim->from.value_or(anim->value);
-    return start + (anim->value - start) * anim->spec.easing()(progress);
-  }
-  if (const BoundFloat* map = slot.boundMap())
-    return map->apply(live().value());
-  return slot.binding()->value();
+/** The consumer's read of one slot at @p time into any motion it
+ *  describes. */
+float resolve(const Animatable<float>& slot, Duration time) {
+  if (const float* constant = slot.constant()) return *constant;
+  if (const Tween<float>* described = slot.described())
+    return described->at(time);
+  return slot.value();
 }
 
 void countSlots(benchmark::State& state, int count) {
@@ -97,17 +90,17 @@ void BM_Resolve(benchmark::State& state) {
   const int count = 1024;
   const std::vector<Animatable<float>> slots = lane((int)state.range(0), count);
   state.SetLabel(kindName((int)state.range(0)));
-  float t = 0;
+  Duration time{};
   for ([[maybe_unused]] auto iteration : state) {
-    t += 0.016f;
+    time += 16ms;
     float sink = 0;
-    for (const Animatable<float>& slot : slots) sink += resolve(slot, t);
+    for (const Animatable<float>& slot : slots) sink += resolve(slot, time);
     benchmark::DoNotOptimize(sink);
   }
   countSlots(state, count);
 }
 BENCHMARK(BM_Resolve)
-    ->DenseRange(kPlain, kMixed)
+    ->DenseRange(kConstant, kMixed)
     ->Unit(benchmark::kMicrosecond);
 
 void BM_Copy(benchmark::State& state) {
@@ -121,7 +114,7 @@ void BM_Copy(benchmark::State& state) {
   }
   countSlots(state, count);
 }
-BENCHMARK(BM_Copy)->DenseRange(kPlain, kMixed)->Unit(benchmark::kMicrosecond);
+BENCHMARK(BM_Copy)->DenseRange(kConstant, kMixed)->Unit(benchmark::kMicrosecond);
 
 void BM_Construct(benchmark::State& state) {
   const int count = 1024;
@@ -135,7 +128,7 @@ void BM_Construct(benchmark::State& state) {
   countSlots(state, count);
 }
 BENCHMARK(BM_Construct)
-    ->DenseRange(kPlain, kMixed)
+    ->DenseRange(kConstant, kMixed)
     ->Unit(benchmark::kMicrosecond);
 
 /** The repeating signal read at a time, per wave: the fold plus one
@@ -148,7 +141,7 @@ void OscillatorAt(benchmark::State& state) {
   double seconds = 0.0;
   for ([[maybe_unused]] auto iteration : state) {
     seconds += 1.0 / 60.0;
-    benchmark::DoNotOptimize(wave.at(seconds));
+    benchmark::DoNotOptimize(wave.at(Duration(seconds)));
   }
 }
 BENCHMARK(OscillatorAt)
@@ -156,21 +149,20 @@ BENCHMARK(OscillatorAt)
     ->Arg((int)Wave::Triangle)
     ->Arg((int)Wave::Square);
 
-/** The keyed track read at a time. The argument is the key count, since
- *  the segment is found by walking the keys — a scan a track long
- *  enough to matter would bisect instead. */
-void SequenceAt(benchmark::State& state) {
-  Sequence track;
-  const int keys = (int)state.range(0);
-  for (int i = 0; i < keys; ++i)
-    track.steps.push_back({(float)i, (float)((i * 37) % 11)});
-  track.interpolation = Interpolation::CatmullRom;
-  float when = 0.0f;
+/** A keyframed tween read at a time with no engine. The argument is the
+ *  keyframe count, since the step that owns a time is found by walking
+ *  the keyframes. */
+void KeyframesAt(benchmark::State& state) {
+  Tween<float> path{.from = 0.0f, .duration = 1s, .ease = ease::linear};
+  const int keyframes = (int)state.range(0);
+  for (int index = 0; index < keyframes; ++index)
+    path.keyframes.push_back({.to = (float)((index * 37) % 11)});
+  Duration time{};
   for ([[maybe_unused]] auto iteration : state) {
-    when = when < (float)keys ? when + 0.01f : 0.0f;
-    benchmark::DoNotOptimize(track.at(when));
+    time = time < 1s ? Duration(time + 1ms) : Duration{};
+    benchmark::DoNotOptimize(path.at(time));
   }
 }
-BENCHMARK(SequenceAt)->Arg(4)->Arg(64);
+BENCHMARK(KeyframesAt)->Arg(4)->Arg(64);
 
 }  // namespace

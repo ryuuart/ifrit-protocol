@@ -14,6 +14,8 @@
 #include <vector>
 
 using namespace sigil::motion::physics;
+using sigil::motion::Duration;
+using namespace std::chrono_literals;
 namespace chance = sigil::core::chance;
 
 namespace {
@@ -75,7 +77,7 @@ BENCHMARK(ParticleBirth)->Arg(1000)->Arg((int64_t)kCount);
 void ParticleCloudStep(benchmark::State& state) {
   Particles cloud = crowd();
   const std::vector<Force> forces{gravity({0, 900}), drag(0.4f)};
-  const Verlet stepper{.timeStep = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1s / 60.0};
   for ([[maybe_unused]] auto iteration : state)
     stepper.step(cloud.points, forces);
 }
@@ -86,7 +88,7 @@ BENCHMARK(ParticleCloudStep);
 void ParticleLive(benchmark::State& state) {
   Particles cloud = crowd();
   for ([[maybe_unused]] auto iteration : state) {
-    cloud.live(1.0f / 60.0f);
+    cloud.ageBy(1s / 60.0);
     benchmark::DoNotOptimize(cloud.age.data());
   }
 }
@@ -103,7 +105,7 @@ void ParticleReap(benchmark::State& state) {
     state.PauseTiming();
     cloud.clear();
     mouth.burst(cloud, stream, kCount);
-    cloud.live(10.0f);
+    cloud.ageBy(10s);
     state.ResumeTiming();
     benchmark::DoNotOptimize(cloud.reap());
   }

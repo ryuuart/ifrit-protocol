@@ -125,11 +125,12 @@ the held motion that serves it:
 
 ```cpp
 enum class Family : uint8_t { Slot, Span };   // the HOST's storages
+using enum Family;                            // named unqualified below
 std::vector<Lane<Family>> previous, next;     // filled by the host
-retargetFixed<Family>(engine, slots, familyLanes(previous, Family::Slot),
-                      familyLanes(next, Family::Slot), nodeTransition, place);
-retargetPositional<Family>(engine, spans, familyLanes(previous, Family::Span),
-                           familyLanes(next, Family::Span), nodeTransition, place);
+retargetFixed<Family>(engine, slots, familyLanes(previous, Slot),
+                      familyLanes(next, Slot), nodeTransition, place);
+retargetPositional<Family>(engine, spans, familyLanes(previous, Span),
+                           familyLanes(next, Span), nodeTransition, place);
 ```
 
 A **fixed** family is a slot array whose rows are a property of the host,

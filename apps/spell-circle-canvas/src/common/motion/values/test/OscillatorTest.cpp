@@ -5,12 +5,16 @@
  * is chosen, and a still oscillator is not a division by zero.
  */
 
+#include "support/StandsAlone.h"
+
 #include <gtest/gtest.h>
 #include <sigilmotion/values/Oscillator.h>
 
+#include <chrono>
 #include <cmath>
 
 using namespace sigil::motion;
+using namespace std::chrono_literals;
 
 TEST(Oscillator, EachWaveIsTheShapeItsNameSays) {
   const Oscillator sine{.wave = Wave::Sine};
@@ -45,13 +49,13 @@ TEST(Oscillator, EachWaveIsTheShapeItsNameSays) {
 
 TEST(Oscillator, TheFoldSurvivesANegativeTimeAndAThousandCycles) {
   const Oscillator wave{.wave = Wave::Sawtooth, .hertz = 3.0f};
-  EXPECT_NEAR(wave.fold(0.0), 0.0f, 1e-6f);
+  EXPECT_NEAR(wave.fold(0s), 0.0f, 1e-6f);
   // The fold is the whole reason this is a value: a phase written by
   // hand is what gets a negative time wrong.
-  EXPECT_NEAR(wave.fold(-1.0 / 6.0), 0.5f, 1e-5f);
-  EXPECT_NEAR(wave.fold(1000.0 / 3.0 + 1.0 / 12.0), 0.25f, 1e-4f);
-  EXPECT_GE(wave.fold(-12345.678), 0.0f);
-  EXPECT_LT(wave.fold(-12345.678), 1.0f);
+  EXPECT_NEAR(wave.fold(Duration(-1.0 / 6.0)), 0.5f, 1e-5f);
+  EXPECT_NEAR(wave.fold(Duration(1000.0 / 3.0 + 1.0 / 12.0)), 0.25f, 1e-4f);
+  EXPECT_GE(wave.fold(Duration(-12345.678)), 0.0f);
+  EXPECT_LT(wave.fold(Duration(-12345.678)), 1.0f);
 }
 
 TEST(Oscillator, TheFourNumbersMeanTheSameThingWhicheverWaveItIs) {
@@ -59,8 +63,8 @@ TEST(Oscillator, TheFourNumbersMeanTheSameThingWhicheverWaveItIs) {
        {Wave::Sine, Wave::Triangle, Wave::Sawtooth, Wave::Square}) {
     const Oscillator wave{
         .wave = shape, .hertz = 2.0f, .amplitude = 30.0f, .centre = 100.0f};
-    for (int i = 0; i < 64; ++i) {
-      const float value = wave.at((double)i * 0.013);
+    for (int index = 0; index < 64; ++index) {
+      const float value = wave.at(Duration(index * 0.013));
       EXPECT_GE(value, 70.0f - 1e-3f);
       EXPECT_LE(value, 130.0f + 1e-3f);
     }
@@ -71,16 +75,16 @@ TEST(Oscillator, PhaseMovesTheCycleAndNoRateHoldsItStill) {
   const Oscillator plain{.wave = Wave::Sine, .hertz = 1.0f};
   const Oscillator quarterTurnIn{
       .wave = Wave::Sine, .hertz = 1.0f, .phase = 0.25f};
-  EXPECT_NEAR(quarterTurnIn.at(0.0), plain.at(0.25), 1e-6f);
+  EXPECT_NEAR(quarterTurnIn.at(0s), plain.at(250ms), 1e-6f);
   // A phase past a whole turn wraps, so an offset per index needs no
   // fold at the call site.
   const Oscillator wrapped{.wave = Wave::Sine, .hertz = 1.0f, .phase = 4.25f};
-  EXPECT_NEAR(wrapped.at(0.0), quarterTurnIn.at(0.0), 1e-5f);
+  EXPECT_NEAR(wrapped.at(0s), quarterTurnIn.at(0s), 1e-5f);
 
   // No rate is the spelling of "not moving", not a division by zero.
   const Oscillator still{.wave = Wave::Sine, .hertz = 0.0f, .phase = 0.25f};
-  EXPECT_FLOAT_EQ(still.at(0.0), still.at(9999.0));
-  EXPECT_NEAR(still.at(9999.0), 1.0f, 1e-6f);
+  EXPECT_FLOAT_EQ(still.at(0s), still.at(9999s));
+  EXPECT_NEAR(still.at(9999s), 1.0f, 1e-6f);
 }
 
 TEST(Oscillator, ItIsAValueACallerCanCarryAndCall) {
@@ -89,8 +93,8 @@ TEST(Oscillator, ItIsAValueACallerCanCarryAndCall) {
             (Oscillator{.wave = Wave::Square, .hertz = 12.0f, .duty = 0.3f}));
   EXPECT_NE(flicker, Oscillator{});
   // Callable, so anything that hands a number to an interpolator takes
-  // one — including the wave stage of a shaped binding, which is handed
-  // the folded phase this reads on.
-  auto read = [](double t, const auto& signal) { return signal(t); };
-  EXPECT_FLOAT_EQ(read(0.0, flicker), flicker.at(0.0));
+  // one — including a binding's `envelope::shaped`, which is handed the
+  // folded phase this reads on.
+  auto read = [](double seconds, const auto& signal) { return signal(seconds); };
+  EXPECT_FLOAT_EQ(read(0.0, flicker), flicker.at(0s));
 }

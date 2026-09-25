@@ -9,6 +9,8 @@
  * cloud.
  */
 
+#include "support/StandsAlone.h"
+
 #include <gtest/gtest.h>
 #include <sigilmotion/physics/Forces.h>
 #include <sigilmotion/physics/Particles.h>
@@ -20,9 +22,10 @@
 #include <utility>
 #include <vector>
 
-#include "support/StandsAlone.h"
 
 using namespace sigil::motion::physics;
+using sigil::motion::Duration;
+using namespace std::chrono_literals;
 namespace chance = sigil::core::chance;
 
 namespace {
@@ -56,7 +59,7 @@ TEST(Particles, ARateProducesTheCountItPromisesOverASpan) {
   // than two per step by luck of the arithmetic.
   size_t born = 0;
   for (int step = 0; step < 200; ++step)
-    born += mouth.emit(cloud, stream, 1.0f / 60.0f);
+    born += mouth.emit(cloud, stream, 1s / 60.0);
   EXPECT_EQ(born, 400u);
   EXPECT_EQ(cloud.size(), 400u);
 
@@ -67,7 +70,7 @@ TEST(Particles, ARateProducesTheCountItPromisesOverASpan) {
   Particles slow;
   size_t few = 0;
   for (int step = 0; step < 100; ++step)
-    few += trickle.emit(slow, stream, 1.0f / 60.0f);
+    few += trickle.emit(slow, stream, 1s / 60.0);
   EXPECT_EQ(few, 20u);
 }
 
@@ -181,15 +184,15 @@ TEST(Particles, EachMouthPutsItsBirthsWhereItsShapeSays) {
 
 TEST(Particles, LifetimesExpireAndTheSetCompacts) {
   Particles cloud;
-  for (int i = 0; i < 10; ++i) cloud.add({(float)i, 0}, {}, 1.0f + (float)i);
+  for (int i = 0; i < 10; ++i) cloud.add({(float)i, 0}, {}, Duration(1.0 + i));
 
   EXPECT_EQ(cloud.size(), 10u);
-  cloud.live(0.5f);
+  cloud.ageBy(500ms);
   EXPECT_EQ(cloud.reap(), 0u);
 
   // Five and a half of the way through: the five whose lifetimes are at
   // or under it are gone, and every attribute is the length of what is left.
-  cloud.live(5.0f);
+  cloud.ageBy(5s);
   EXPECT_EQ(cloud.reap(), 5u);
   EXPECT_EQ(cloud.size(), 5u);
   EXPECT_EQ(cloud.age.size(), 5u);
@@ -202,16 +205,16 @@ TEST(Particles, LifetimesExpireAndTheSetCompacts) {
   // one to.
   Particles forever;
   forever.add({0, 0});
-  forever.live(1.0e6f);
+  forever.ageBy(1.0e6s);
   EXPECT_EQ(forever.reap(), 0u);
   EXPECT_FALSE(forever.expired(0));
 
   // A consumer's own rule is spelled beside the age one rather than
   // instead of it.
   Particles fallen;
-  for (int i = 0; i < 6; ++i) fallen.add({0, (float)i}, {}, 10.0f);
-  fallen.live(11.0f);
-  fallen.add({0, -1.0f}, {}, 100.0f);
+  for (int i = 0; i < 6; ++i) fallen.add({0, (float)i}, {}, 10s);
+  fallen.ageBy(11s);
+  fallen.add({0, -1.0f}, {}, 100s);
   EXPECT_EQ(fallen.reap([&](size_t i) {
     return fallen.expired(i) || fallen.points.position[i].y > 3.0f;
   }),
@@ -224,7 +227,7 @@ TEST(Particles, ANamedLaneRidesThroughADeathWithItsParticle) {
   Particles cloud;
   std::vector<float>& tag = cloud.attribute("tag").values;
   for (int i = 0; i < 8; ++i) {
-    const size_t index = cloud.add({(float)i, 0}, {}, i % 2 == 0 ? 1.0f : 9.0f);
+    const size_t index = cloud.add({(float)i, 0}, {}, i % 2 == 0 ? 1s : 9s);
     // The attribute says what its particle's position says, so an attribute
     // that came loose from its point set is readable as a mismatch rather than
     // as a plausible number.
@@ -232,7 +235,7 @@ TEST(Particles, ANamedLaneRidesThroughADeathWithItsParticle) {
   }
   EXPECT_EQ(tag.size(), 8u);
 
-  cloud.live(2.0f);
+  cloud.ageBy(2s);
   EXPECT_EQ(cloud.reap(), 4u);
   EXPECT_EQ(cloud.size(), 4u);
 
@@ -280,7 +283,7 @@ TEST(Particles, AnAttributeFilledWithANumberCostsNoDraw) {
                     cloud.points.position[i].x < 300.0f ? 1.0f : 2.0f);
 
   // And it rides through a death like any other attribute.
-  cloud.live(10.0f);
+  cloud.ageBy(10s);
   EXPECT_EQ(cloud.reap([&](size_t i) { return mouth[i] == 1.0f; }), 300u);
   EXPECT_EQ(cloud.size(), 200u);
   for (size_t i = 0; i < cloud.size(); ++i) EXPECT_FLOAT_EQ(mouth[i], 2.0f);
@@ -295,20 +298,20 @@ TEST(Particles, ALaneDriftsAtItsOwnRateAndStopsAtItsOwnBound) {
   grow.rate = 2.0f;
   grow.most = 5.0f;
 
-  for (int i = 0; i < 3; ++i) cloud.add({0, 0}, {}, 100.0f);
+  for (int i = 0; i < 3; ++i) cloud.add({0, 0}, {}, 100s);
   for (size_t i = 0; i < cloud.size(); ++i) {
     cloud.attribute("red").values[i] = 1.0f;
     cloud.attribute("size").values[i] = 1.0f;
   }
 
-  cloud.live(2.0f);
+  cloud.ageBy(2s);
   EXPECT_FLOAT_EQ(cloud.attribute("red").values[0], 0.5f);
   EXPECT_FLOAT_EQ(cloud.attribute("size").values[0], 5.0f);
   EXPECT_FLOAT_EQ(cloud.age[0], 2.0f);
 
   // Past the bound and it stops there rather than going through: a
   // channel that ran negative is a number no renderer can read.
-  cloud.live(10.0f);
+  cloud.ageBy(10s);
   EXPECT_FLOAT_EQ(cloud.attribute("red").values[0], 0.0f);
   EXPECT_FLOAT_EQ(cloud.attribute("size").values[0], 5.0f);
   EXPECT_FLOAT_EQ(cloud.age[0], 12.0f);
@@ -443,7 +446,7 @@ TEST(Particles, AHeavierParticleMovesLessUnderTheSamePush) {
   // not an acceleration, since an acceleration is what weight is taken
   // out of.
   for (Vec2& push : cloud.points.force) push = {0.0f, 600.0f};
-  const Verlet stepper{.timeStep = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1s / 60.0};
   stepper.step(cloud.points, {});
 
   size_t lightest = 0, heaviest = 0;
@@ -495,10 +498,10 @@ TEST(Particles, ACloudIsSteppedByWhatStepsAPointSet) {
   mouth.burst(cloud, stream, 64);
 
   const std::vector<Force> forces{gravity({0, 100.0f}), drag(0.5f)};
-  const Verlet stepper{.timeStep = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1s / 60.0};
   for (int frame = 0; frame < 60; ++frame) {
     stepper.step(cloud.points, forces);
-    cloud.live(stepper.timeStep);
+    cloud.ageBy(stepper.timeStep);
     cloud.reap();
   }
   EXPECT_EQ(cloud.size(), cloud.age.size());

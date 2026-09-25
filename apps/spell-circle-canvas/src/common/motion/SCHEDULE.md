@@ -43,7 +43,7 @@ it opens from.
 ## How N units share one progress
 
 A text track's glyphs are units, not children, and they share ONE master
-progress: `Timing{.delay, .duration, .loop, .within}` says when each
+progress: a `Timing` — its delay, duration, loop and within — says when each
 unit's beat opens (a stagger, a table, or a plain duration they all
 share), how long one unit's own motion lasts, whether the whole thing
 loops, and a second stagger inside every beat. `Schedule` resolves it

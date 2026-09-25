@@ -23,8 +23,8 @@ Animatable<float> d = bind(c, {.from = {0.2f, 0.6f}, .clampFrom = true,
                                .ease = ease::outBack(), .to = {-70, 170}});
 ```
 
-Those are the four forms, read back by `Animatable::form()`:
-`Form::Constant`, `Form::Described`, `Form::Live` and `Form::Bound`.
+Those are the four forms, read back by `Animatable::form()` — constant,
+described, live and bound.
 `BIND.md` is the chapter on the fourth. `Animatable::value()` is the
 number now whatever the form — a described motion answers where it
 rests — and `Animatable::isRunning()` says whether the value is declared

@@ -220,8 +220,9 @@ class Staggered {
           along = m_options.ease(step.step / step.last) * step.last;
         if (m_form == Form::Each)
           return m_options.start + m_value * (double)along;
-        const float unit = step.last > 0.0f ? along / step.last : 0.0f;
-        return m_options.start + m_value + (m_last - m_value) * (double)unit;
+        const double unit =
+            step.last > 0.0f ? (double)along / (double)step.last : 0.0;
+        return m_options.start + m_value + (m_last - m_value) * unit;
         }
       }
     }

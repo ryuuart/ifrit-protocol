@@ -46,6 +46,14 @@ class PlaybackState;
 class TimelineState;
 class TimerState;
 
+/** WHAT AN ENGINE IS STEPPING, in order: its motions, then its timers.
+ *  Shared with the playbacks it runs, so one that finished and is played
+ *  again goes back on the engine that started it. */
+struct Running {
+  std::vector<std::shared_ptr<Stepped>> motions;
+  std::vector<std::shared_ptr<Stepped>> timers;
+};
+
 /** The motion `engine.animate` starts on one live value: the tween
  *  resolved to a path from where the value stands, written into its cell
  *  on every step. Built by `Engine::animate` and `Timeline::add`. */
@@ -193,8 +201,9 @@ class Timeline : public Playback {
 /** WHAT THE ENGINE IS BUILT WITH, by whoever owns it. */
 struct EngineOptions {
   /** Above zero: every frame the engine takes on its own moves EXACTLY
-   *  this far — the headless sweep, a capture, a test. Zero: the wall
-   *  clock moves it. */
+   *  this far instead of by the wall — the headless sweep, a capture, a
+   *  test — under the policies the wall moves under. Zero: the wall clock
+   *  moves it. */
   Duration fixedStep{};
   /** The most the wall clock moves one frame: a stalled or suspended
    *  frame does not jump every motion forward by the length of the stall. */
@@ -325,8 +334,7 @@ class Engine {
   bool m_expired = false;
   bool m_held = false;
   bool m_arriving = false;
-  std::vector<std::shared_ptr<detail::Stepped>> m_motions;
-  std::vector<std::shared_ptr<detail::Stepped>> m_timers;
+  std::shared_ptr<detail::Running> m_running = std::make_shared<detail::Running>();
 };
 
 }  // namespace sigil::motion
