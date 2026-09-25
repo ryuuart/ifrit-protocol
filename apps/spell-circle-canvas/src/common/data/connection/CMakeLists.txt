@@ -23,4 +23,5 @@ sigil_library(SigilDataConnection
 # door over it and the value it hands out.
 sigil_test(data_test
   SOURCES test/ConnectionTest.cpp test/SchemaTest.cpp test/TypedTest.cpp
+          test/VitalsTest.cpp
   LIBRARIES SigilDataConnection)

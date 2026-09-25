@@ -874,6 +874,10 @@ python = ["sketch.kit.ticker", "sketch.kit.timeline"]
 native = "`Channel`"
 python = ["sketch.kit.Channel"]
 
+[[section.surface.item]]
+native = "`connectionReadout` over a connection's vitals"
+python = ["sketch.kit.connectionReadout"]
+
 [[section]]
 title = "Typography"
 prose = "typography"

@@ -222,6 +222,14 @@ connection's scheme, and, where it has a schema, arrivals that did not
 fit it. They reach no reader, so a sender speaking the wrong language is
 seen there rather than in the drawing.
 
+`Connection::vitals` gathers those readings — the generation, the two
+counts, whether the door is closed, the address it bound, the newest
+sender and the error — into one `Connection::Vitals`, a value compared
+field by field. A reader that shows a door's state keeps the value it
+last showed and describes again exactly when `vitals() != shown`, and a
+readout of the door reads its rows off the one value rather than off
+seven calls in an order of its own.
+
 `Connection::feed` is THE FLOOR BELOW, for whoever wants the bytes: the
 feed itself, which is what a recording is written from and what a reader
 that wants no value reads.

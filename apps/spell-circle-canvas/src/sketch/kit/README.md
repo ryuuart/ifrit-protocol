@@ -784,6 +784,31 @@ The output keeps its address for the life of the channel, moves included,
 so a description that bound it once goes on reading it — which is why the
 state stands behind a pointer, as a connection's does.
 
+### A door's own words — `Connection.h`
+
+| | |
+| --- | --- |
+| `sketch::kit::connectionReadout` | a `data::Connection`'s vitals as the compose kit's readout rows: the door, its generation, what it dropped, what was undecodable, and the newest sender — or its error in that row |
+| `sketch::kit::ConnectionReadout` | what the door row calls the door where the transport bound no address, and how the rows range |
+
+```cpp
+sketch::kit::connectionReadout(sky, {.door = "the sky's recording",
+                                     .rows = {.measure = 360}})
+```
+
+**EVERY FIGURE IS WHAT THE DOOR ANSWERS.** The rows are read off one
+`data::Connection::Vitals` taken as the readout is described, so a sketch
+that shows a door's state keeps the vitals it last showed and describes
+again exactly when `connection.vitals() != shown`, and the readout it
+describes says what that value says, in one order for every door. The
+door row is the address the transport bound; a recording binds none, so
+there it is `ConnectionReadout::door`, what the sketch calls the door,
+and the URI the connection was opened on where the sketch names none. A
+door that reports an error shows it where the sender stood, since a door
+that failed has nobody to answer. Nothing here sets type or colour: the
+names are captions and the figures the `readout` class, as the compose
+kit's readout sets them in the sheet in force.
+
 ## What is NOT here, and where it is
 
 A leaf may not invent what an ancestor should own.
@@ -813,6 +838,8 @@ A leaf may not invent what an ancestor should own.
   over it — `data::Connection`, opened by the sketch on the hub its assets
   carry. `Channel` follows ONE number of what a connection already answers:
   it opens nothing, decodes nothing, and registers no handler of its own.
+  What a door says about itself is `data::Connection::vitals()`, a value of
+  SigilData's; `connectionReadout` only sets its rows.
 * Numbers a sketch measured about its own execution — `ctx.measured`,
   before they reach any component here. A sketch that draws its own
   timings into its own plate differs from itself between runs.
@@ -826,9 +853,9 @@ canvas runtime's own context: no device backend and no window come with
 that, but the reload engine and the headless renderer stand in the same
 archive and do. It LINKS THE CONNECTION for the same kind of reason:
 `Channel` follows a door the sketch opened and is driven by `io::Hub`'s
-dispatch, so this library names `data::Connection` and that hub and opens
-neither. It is PIC, because a hot-reloaded sketch's dylib force-loads it
-out of the host.
+dispatch, and `connectionReadout` reads a door's vitals, so this library
+names `data::Connection` and that hub and opens neither. It is PIC,
+because a hot-reloaded sketch's dylib force-loads it out of the host.
 
 ## Build and test
 
@@ -841,6 +868,11 @@ under the `SketchKit` suites, and none of them carries a label.
 that the theme is a comparable value a scope binds and shadows, and that
 every component here draws — **in pixels** — exactly what the compose kit
 spelled by hand with the same values draws.
+
+The readout of a door is asserted in pixels like the rest, against the
+compose kit's readout of the rows its vitals answer, over a door with no
+socket behind it: open with a sender heard, shut with no address bound,
+and failed.
 
 The channel's cases are the one exception, because what a channel makes
 is a number and not a picture: they stand a door with no socket behind it

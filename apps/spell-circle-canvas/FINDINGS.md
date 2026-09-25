@@ -405,35 +405,6 @@ by `text_paints`, whose SPARKLE OVER A BASE cell states its ink over
 `PaintBox::Subtree` to sample the field in pixels; `stock_materials` shows
 it only as a fill.
 
-## A connection's vitals have no value of their own, so every Data sketch snapshots and prints them by hand
-
-`data::Connection` answers `generation()`, `dropped()`, `undecodable()`,
-`closed()`, `address()`, `sender()` and `error()` one call at a time, and
-nothing in SigilData or the sketch kit gathers them. So every sketch that
-shows a door's state declares its own comparable struct of those fields,
-a function that fills it from the connection, a "did it change" test that
-decides whether to describe again, and a readout of name–figure rows:
-`feed_sky` (`Vitals`, `vitalsOf`, `Door::read`, `readout`), and a `Reading`
-or equivalent in `phone_sky`, `webrtc_sky`, `osc_desk`, `feed_events`,
-`grpc_watch`, `midi_pads`, `serial_sensor`, `artnet_lights`,
-`channel_bind` and `feed_vitals` — eleven copies of one shape, each
-naming and ordering the rows its own way.
-
-The connection evidently means its own words to be what a reader shows:
-one comparable value taken off a connection (the fields above, equality
-by value) would make the change test `now != shown`, and one sketch-kit
-component over it (a readout of that value in the theme's `caption` and
-`.readout` registers, the error row standing in for the sender where
-there is one; `connectionReadout` is a provisional name, the owner's to
-pick) would take the struct, the fill and the rows out of every sketch
-named.
-
-A test should take the value off a connection before and after a
-recorded arrival and assert that it compares unequal exactly when a
-field moved, and a Harness case should assert the component's rows for
-an open door, a closed one and one whose URI failed to open. Wanted by
-the eleven sketches named.
-
 ## Python binds no path construction outside `sigil.skia`
 
 `src/common/python/geometry/Shapes.cpp`, `Polylines.cpp` and the path

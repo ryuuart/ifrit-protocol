@@ -459,6 +459,16 @@ bool Connection::closed() const {
   return m_state && m_state->feed ? m_state->feed->closed() : true;
 }
 
+Connection::Vitals Connection::vitals() const {
+  return {.generation = generation(),
+          .dropped = dropped(),
+          .undecodable = undecodable(),
+          .closed = closed(),
+          .address = address(),
+          .sender = sender(),
+          .error = error()};
+}
+
 std::shared_ptr<io::Feed> Connection::feed() const {
   return m_state ? m_state->feed : nullptr;
 }

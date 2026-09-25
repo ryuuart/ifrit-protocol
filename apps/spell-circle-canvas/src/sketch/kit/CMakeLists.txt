@@ -17,10 +17,11 @@
 # names the door it follows and the hub whose dispatch drives it, and the
 # connection brings that hub and the dynamic value with it.
 sigil_library(SigilSketchKit
-  SOURCES Cells.cpp Channel.cpp Chart.cpp ChartMarks.cpp Console.cpp
-          Document.cpp Heading.cpp Instrument.cpp Legend.cpp Meter.cpp Page.cpp Panel.cpp
+  SOURCES Cells.cpp Channel.cpp Chart.cpp ChartMarks.cpp Connection.cpp
+          Console.cpp Document.cpp Heading.cpp Instrument.cpp Legend.cpp Meter.cpp Page.cpp Panel.cpp
           Passage.cpp Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp
-  HEADERS Cells.h Channel.h Chart.h Console.h Document.h Heading.h Kit.h
+  HEADERS Cells.h Channel.h Chart.h Connection.h Console.h Document.h
+          Heading.h Kit.h
           Instrument.h Legend.h Meter.h Page.h Panel.h Passage.h Rows.h Scrollbar.h
           Theme.h Ticker.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
@@ -40,7 +41,7 @@ sigil_library(SigilSketchKit
 # their own name.
 sigil_test(sketch_test
   SOURCES test/CellsTest.cpp test/ChannelTest.cpp test/ChartTest.cpp
-          test/ConsoleTest.cpp test/DocumentTest.cpp
+          test/ConnectionReadoutTest.cpp test/ConsoleTest.cpp test/DocumentTest.cpp
           test/HeadingTest.cpp test/LegendTest.cpp test/MeterTest.cpp
           test/PageTest.cpp test/PanelTest.cpp test/PassageTest.cpp
           test/RowsTest.cpp test/ScrollbarTest.cpp test/ThemeTest.cpp

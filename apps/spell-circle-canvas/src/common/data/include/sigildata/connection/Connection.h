@@ -205,6 +205,34 @@ class Connection {
    *  closed: there is no door for a message to arrive at. */
   bool closed() const;
 
+  /** WHAT A DOOR SAYS ABOUT ITSELF, as one value: every reading above
+   *  that moves as messages arrive and the door opens or shuts, taken
+   *  together. Two compare equal exactly when every field does, so a
+   *  reader that keeps the one it last showed asks `now != shown` to know
+   *  whether there is anything new to show. */
+  struct Vitals {
+    /** generation(): arrivals on the feed, read or not. */
+    uint64_t generation = 0;
+    /** dropped(): arrivals the feed dropped before they were drained. */
+    uint64_t dropped = 0;
+    /** undecodable(): arrivals that were no message in this door's
+     *  scheme or did not fit its schema. */
+    uint64_t undecodable = 0;
+    /** closed(): nothing more is coming. */
+    bool closed = true;
+    /** address(): the local end as the transport bound it. */
+    std::string address;
+    /** sender(): whom a reply outside a handler answers. */
+    std::string sender;
+    /** error(): what went wrong at the door. */
+    std::string error;
+    bool operator==(const Vitals&) const = default;
+  };
+
+  /** The door's vitals as of the last dispatch; a connection onto nothing
+   *  answers the value that says so — nothing arrived, and closed. */
+  Vitals vitals() const;
+
   /** THE FLOOR BELOW, for whoever wants the bytes: the feed itself,
    *  which is what a recording is written from and what a reader that
    *  wants no value reads. Null for a connection onto nothing. */
