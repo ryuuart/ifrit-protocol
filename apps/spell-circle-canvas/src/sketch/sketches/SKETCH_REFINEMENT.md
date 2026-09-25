@@ -315,14 +315,14 @@ build/bin/Release/Sketchbook.app/Contents/MacOS/Sketchbook \
 | `slitscan_2001` | Retain · reference study | Cached preview |
 | `vertigo_titles` | Retain · reference study | Cached preview |
 | `black_watch` | Retain · reference study | Reviewed GPU plate |
-| `cosmati` | Retain · reference study | Cached preview |
-| `kumiko_asanoha` | Retain · reference study | Cached preview |
+| `cosmati` | Rewritten · the whole pavement on one sheet; a directory sketch with its quarries in data/ | Cached preview |
+| `kumiko_asanoha` | Rewritten · washi-lit ranma, a shop drawing on the frame's grid | Cached preview |
 | `penrose_paving` | Retain · reference study | Rendered plate |
 | `chaucer_astrolabe` | Retain · reference study | Reviewed GPU plate |
 | `chevreul_circle` | Retain · reference study | Reviewed GPU plate |
-| `chladni_tab1` | Retain · reference study | Cached preview |
+| `chladni_tab1` | Rewritten · printed from its plate; a directory sketch with its geometry in data/ | Cached preview |
 | `minard_1869` | Retain · reference study | Reviewed GPU plate |
-| `nightingale_coxcomb` | Retain · reference study | Cached preview |
+| `nightingale_coxcomb` | Rewritten · lithographed and bound, one sheet of roles and tokens | Cached preview |
 | `cde_motif` | Retain · reference study | Cached preview |
 | `spacejam_1996` | Retain · reference study | Rendered plate |
 | `twoadvanced_equipment` | Retain · reference study | Cached preview |

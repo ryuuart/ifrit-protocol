@@ -267,7 +267,7 @@ requires = [
 ]
 
 [sketch.chladni_tab1]
-needs = "Instanced flight pool; stock silhouettes; polar frame; contour sampling; radial hatch; type-on track; speckle tile; bound entrances"
+needs = "A plate printed from its copper: concave engraved stars from data, combed fans cut by a channel mask, a recessed platemark and gutter as layer styles, sand scattered by path regions and sampling, one sheet of roles on a rem scale, a bow on one declared clock with rings of sound"
 requires = [
   "text-fx",
   "instancing",
@@ -317,7 +317,7 @@ needs = "Corner treatments as comparable shapes: rounding wrapper, chamfers and 
 requires = ["kit-section-header", "silhouettes", "corners"]
 
 [sketch.cosmati]
-needs = "Stone recipe; shape-function paths; trimmed strokes; drop shadow; text on arc; bezel frame; legend kit; entrance transitions"
+needs = "Stone recipes read through the one colour reader; the whole Great Pavement: a lettered Purbeck border, the turned square, great roundels and a guilloche that crosses itself; a setting-out diagram and a quarry key on one rhythm; text on arc; entrance transitions"
 requires = ["kit-legend", "kit-panel-chrome", "silhouettes", "grained"]
 
 [sketch.coverage_boundary]
@@ -768,7 +768,7 @@ requires = [
 ]
 
 [sketch.kumiko_asanoha]
-needs = "Timber recipe bank; strip lap operation; bevel, inner shadow and glow styles; trimmed strokes; group caching; canvas drawing"
+needs = "Timber recipe bank; strip lap operation; bevel, inner shadow and glow styles; a ranma lit through washi by a breathing andon whose spill reaches the kamoi; a shop drawing on the frame's own grid with an exploded cell; bindings over one clock"
 requires = [
   "kit-document",
   "layer-styles",
@@ -898,7 +898,7 @@ requires = [
 ]
 
 [sketch.nightingale_coxcomb]
-needs = "Polar band chart; speckle litho materials; per-glyph type-on tracks; text on ring paths; shared needle outputs"
+needs = "Polar band chart on one sheet of roles and palette tokens; a key stone printed a hair off register; the sheet bound into its book with a gutter and raking light; per-glyph type-on tracks; text on ring paths; needles as declared waypoints; a hanging-indent legend under Knuth-Plass"
 requires = [
   "kit-plot",
   "text-fx",
