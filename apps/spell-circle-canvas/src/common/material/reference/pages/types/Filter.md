@@ -399,7 +399,6 @@ programs they are inlined into.
 
 - `filter/Filter.h` — the header: `Filter`, `ShadowOptions`, `BloomOptions`;
   `skia/Filter.h` — the Skia executor
-- `skia/Bloom.h` — the header: `bloom`, `BloomParameters`
 - [Paint](value:sigil::material::Paint) — what shades a shape, as
   against what filters a layer
 - [Material](value:sigil::material::Material) — the recipe an effect can

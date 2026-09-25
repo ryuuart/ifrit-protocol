@@ -4,7 +4,7 @@ The Python twin of blendMode_verb.cpp. A reference example: it is rendered
 with ``sigil render`` and belongs to no sketch registry.
 """
 
-from sigil import compose, material, skia
+from sigil import compose, material
 from sigil.sketch import SketchContext, sketch
 
 GROUND = "#14181d"

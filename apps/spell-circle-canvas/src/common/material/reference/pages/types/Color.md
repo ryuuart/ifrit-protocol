@@ -87,7 +87,7 @@ and each takes this value.
 
 | What | Kind | Library |
 | --- | --- | --- |
-| `rgb`, `hsv` | function | SigilMaterial |
+| `hexColor`, `hsv` | function | SigilMaterial |
 | `fromOklab`, `fromOklch`, `fromLab`, `fitToSrgb` | function | SigilMaterial |
 | `lerpOklab`, `mixLinear`, `mixToward`, `withAlpha`, `scale`, `lighten` | function | SigilMaterial |
 | `sampleRamp`, `Ramp::at` | function | SigilMaterial — and a ramp is callable, so the same reading answers wherever an interpolator is taken |
@@ -119,7 +119,7 @@ SEPARATION of hues is the point.
 
 ## See also
 
-- `color/Color.h` — the header: `Color`, `FourFloatColor`, `rgb`, `hsv`,
+- `color/Color.h` — the header: `Color`, `FourFloatColor`, `hexColor`, `hsv`,
   `Oklab`, `Oklch`, `Lab`, `LinearRgb`, `toOklab`, `fromOklab`,
   `lerpOklab`, `toOklch`, `fromOklch`, `fitToSrgb`, `inSrgbGamut`,
   `linearOf`, `toLab`, `fromLab`, `deltaE`, `srgbToLinear`,

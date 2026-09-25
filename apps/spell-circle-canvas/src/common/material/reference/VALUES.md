@@ -61,7 +61,7 @@ built, each copying on write, has a page of its own.
 
 ## The headers these come from
 
-- `color/Color.h` — `Color`, `FourFloatColor`, `rgb`, `hsv`, `Oklab`,
+- `color/Color.h` — `Color`, `FourFloatColor`, `hexColor`, `hsv`, `Oklab`,
   `Oklch`, `Lab`, `LinearRgb`, `ColorStop`, `Palette`, `RampBracket`,
   `rampBracket`, `sampleRamp`, `deltaE`, `luminance`, `withAlpha`,
   `scale`, `lighten`, `mixToward`, `mixLinear`, `fitToSrgb`

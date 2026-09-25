@@ -58,7 +58,7 @@ names and builds no static shader for it:
 the picture comes from `resolvePass`, and used as an ordinary fill the
 material draws nothing rather than failing loudly at load.
 
-`skia::PassInputs` is the public input to `Paint::resolvePass`: the layer
+`skia::PassInputs` is the public input to `skia::resolvePass`: the layer
 shader, a unit count, four floats per unit for its rectangle, and two for
 its progress and stable seed. The arrays are borrowed only for that call.
 The paint owns specialization and program reuse; repeated calls with the

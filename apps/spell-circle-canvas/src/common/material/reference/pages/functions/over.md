@@ -31,11 +31,12 @@ operands' fields, so setting `amount` on the result is a per-field write
 a caller has to know to make, and a caller who does not make it gets a
 stack at full strength that reads as a wrong mask.
 
-`Blend` is how the top's output combines with the one beneath it where
-the mask says: `Blend::Mix` moves the base toward the top by the mask,
-`Blend::Add` adds the top scaled by the mask, and `Blend::Multiply`
-moves the base toward base times top by the mask. `name` spells a blend
-the way messages and a recipe name do. `OverParameters::amount` is the
+The `BlendMode` is how the top's output combines with the one beneath it
+where the mask says: `BlendMode::Normal` moves the base toward the top by
+the mask, `BlendMode::PlusLighter` adds the top scaled by the mask, and
+`BlendMode::Multiply` moves the base toward base times top by the mask;
+any other mode stacks as `Normal`, said once. `name` spells a mode the
+way CSS and messages do. `OverParameters::amount` is the
 uniform the combinator's recipes read.
 
 ## Two kinds of target read a stack
@@ -78,7 +79,8 @@ never combined.
 
 ## See also
 
-- `core/Combine.h` — the header: `over`, `under`, `stackDepth`, `Blend`,
-  `OverParameters`, `overRecipe`, `stackName`, `name`
+- `core/Combine.h` — the header: `over`, `under`, `stackDepth`,
+  `OverParameters`, `overRecipe`, `stackName`; `core/BlendMode.h` —
+  `BlendMode`, `name`
 - [Material](../types/Material.md) — what a stack is made of and answers
   as
