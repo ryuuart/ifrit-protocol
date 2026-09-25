@@ -17,7 +17,7 @@ writes, or a live value followed through a `Binding`:
 
 ```cpp
 Animatable<float> a = 1.0f;                                  // constant
-Animatable<float> b = animate(from(0.0f).to(1.0f), {400ms}); // entrance
+Animatable<float> b = animate({.from = 0.0f, .to = 1.0f});   // entrance
 Animatable<float> c = animatable(0.0f);                      // live value
 c = std::sin(seconds);                                       // …written
 Animatable<float> d = bind(c, {.from = {0.2f, 0.6f}, .clampFrom = true,
@@ -61,26 +61,57 @@ running ramp, then the constant. `transitionFloatAt` starts a ramp
 from WHERE THE VALUE IS rather than from the previous description, so a
 target that moves mid-flight bends the motion instead of restarting it;
 a motion already headed at the new target keeps flying, and a next value
-that is constant or live snaps and stops the ramp. `mountEntrance` plays the
-`from` an `animate(from(a).to(b))` declares, or a `through({…})`
-waypoint list segment by segment, after whatever extra delay the caller
-staggers by. `resolveProperty<T>` is the flattening underneath: an animatable
+that is constant or live snaps and stops the ramp; a change whose
+transition says `Composition::Blend` rides on top of the running ramp
+instead, so the value's velocity carries through. `mountEntrance` plays
+the `from` a tween names, through its keyframes or to its `to`, after
+whatever extra delay the caller staggers by, as many times as its `loop`
+says. `resolveProperty<T>` is the flattening underneath: an animatable
 read against a fallback transition, giving a target, a live value, or a
 spec.
 
+## The tween
+
+`Tween<T>` is the one description of a motion, and `animate()` makes a
+property value of one:
+
+```cpp
+.opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 320ms}))   // an entrance
+.translateY(animate({.to = lifted ? -8.0f : 0.0f}))                 // eases on change
+.scale(animate({.from = 0.8f, .keyframes = {{.to = 1.07f, .duration = 80ms},
+                                            {.to = 1.0f}}}))        // a path
+```
+
+Its fields are declared in the order a designated initialiser names
+them: `from`, `to`, `keyframes`, `duration` (250ms), `delay` (0ms), `ease`
+(`ease::outQuad`), `loop`, `alternate`, `composition`. A tween that NAMES
+`.from` is an entrance: it plays once, when its owner first appears, and
+afterwards the property behaves as though only `.to` had been written. A
+tween with `.to` alone eases on change: the property starts out holding
+it, and a later description carrying a different one eases there from
+wherever the value is. A keyframe with no duration takes the tween's
+duration divided by the number of keyframes; one with no curve takes the
+tween's. `Tween::rest()` is where it comes to rest, and `Composition`
+says what a change mid-flight does to the motion already running —
+`Replace` starts again from the value on screen, `Blend` adds the change
+on top so its velocity carries. `Transition` is the same timing for every
+plain value on a node, and a consumer's `.transition(320ms)` takes a
+duration alone.
+
 ## Two signals that are functions of a time and nothing else
 
-`bind()` shapes a phase somebody else is stepping, and `Transitioned`
-plays once when a node mounts. Both need a ticker and a live value. These
-two need neither: a number in, a number out, the same answer every time
-it is asked. That is what makes them readable from a bake, a scrub, a
-force's strength and a test as well as from a frame.
+`bind()` shapes a phase somebody else is stepping, and a tween plays when
+a host runs it. `Tween::at` reads a tween with no host at all, and so do
+these two: a number in, a number out, the same answer every time it is
+asked. That is what makes them readable from a bake, a scrub, a force's
+strength and a test as well as from a frame.
 
 ```cpp
 const Oscillator breath{.wave = Wave::Sine, .hertz = 0.4f,
                         .amplitude = 0.08f, .centre = 1.0f};
-const Sequence flare{.steps = {{0.0f, 0.f}, {0.06f, 1.f}, {0.4f, 0.15f}},
-                     .interpolation = Interpolation::CatmullRom};
+const Tween<float> flare{.from = 0.0f,
+                         .keyframes = {{.to = 1.0f, .duration = 60ms},
+                                       {.to = 0.15f, .duration = 340ms}}};
 
 scale(breath.at(clock.elapsed()));      // read wherever the number is wanted
 glow(flare.at(ageOfTheHit));
@@ -95,26 +126,19 @@ the range and changes only the feel; the triangle is on the sine's
 phase for exactly that reason. `fold(seconds)` is where in the cycle a
 time falls, for anything travelling with the signal, and `shape(u)` is
 the waveform on a phase that has already been folded — which is what
-`bind(&value).source(0, period).wave(...)` is handed. What it removes at
+`envelope::shaped(...)` is handed. What it removes at
 a call site is the FOLD: `sin(t*k)` is one expression, but a wave that
 starts somewhere, swings by something and sits about something is four,
 and a hand-written modulus is what gets a negative time wrong.
 
-**`Sequence` is a number given at several times.** `Step{at, value,
-curve}` are the keys, in the caller's own units, and `interpolation`
-says what happens between them: `Hold` for states that cut, `Linear`
-shaped by each key's own `core::curve::Curve`, `CatmullRom` for the spline
-through them — a prop rather than a second type, since the keys are the
-same keys. An envelope is one of these, and so is a step sequencer, a
-cue list and a curve authored elsewhere. Outside the keys it is flat
-unless it `loop`s, in which case the last key's time is the wrap point
-and a loop is authored with its last key repeating its first; across
-that seam the spline reaches for the keys either side of the join
-rather than for the key that closes it. Two keys at one time are a cut.
+**A tween read at a time is a number given at several times**: its
+keyframes are the keys, the delay holds `from`, the passes repeat as
+`loop` and `alternate` say, and past the last pass it rests. An envelope
+is one of these, and so is a cue list and a curve authored elsewhere.
 
-Both are comparable, and both are CALLABLE — so either one plugs into
-the bind chain's `wave()` or `map()` as the shape, and into anything
-else that hands a number to an interpolator. A capturing lambda would
+The oscillator is comparable and CALLABLE — so it plugs into a binding's
+`ease` or `envelope::shaped` as the shape, and into anything else that
+hands a number to an interpolator. A capturing lambda would
 compare unequal to everything and re-patch every describe, which is what
 carrying the shape as a value rather than as a closure avoids.
 
@@ -226,8 +250,8 @@ signal a host sleeps on.
 
 ## Gotchas
 
-`Transition` is an aggregate, so `{360ms, {}, 220ms}` value-initialises
-`ease` to an *empty* `Easing`, which compiles and then throws
+`Transition` and `Tween` are aggregates, so `.ease = {}` value-initialises
+the curve to an *empty* `Easing`, which compiles and then throws
 `bad_function_call` when called. Read the curve through
-`Transition::easing()`, which substitutes the default; never read `ease`
-directly.
+`Transition::easing()` or `Tween::easing()`, which substitute the
+default; never read `ease` directly.

@@ -41,6 +41,10 @@ struct AnimatedFloat {
   void stop();
   /** The value this frame. */
   [[nodiscard]] float current() const { return value.value(); }
+
+  /** The motion writing the value, while there is one — what a blended
+   *  retarget adds its change onto. */
+  std::shared_ptr<detail::Stepped> running;
 };
 
 /** A run of held motions, in declaration order — what a consumer keeps
@@ -55,8 +59,16 @@ struct ResolvedProperty {
   /** The slot, when it holds a live or shaped value: it is already a
    *  running number, so it takes no transition. */
   const Animatable<T>* live = nullptr;
-  const Transition* transition = nullptr;  ///< the value's own or the default
+  /** How a change to `target` eases: a described motion's own timing, or
+   *  the default for a constant; nothing where a change snaps. */
+  std::optional<Transition> transition;
 };
+
+/** A described motion's timing as the transition a change eases by. */
+template <typename T>
+Transition transitionOf(const Tween<T>& tween) {
+  return {tween.duration, tween.delay, tween.easing(), tween.composition};
+}
 
 /** Reads one animatable against a transition the caller supplies as its
  *  default: a constant takes that default, a described motion keeps its
@@ -68,10 +80,10 @@ ResolvedProperty<T> resolveProperty(const Animatable<T>& property,
   ResolvedProperty<T> out;
   if (const T* constant = property.constant()) {
     out.target = *constant;
-    if (fallback) out.transition = &*fallback;
-  } else if (const Transitioned<T>* held = property.described()) {
-    out.target = held->value;
-    out.transition = &held->spec;
+    out.transition = fallback;
+  } else if (const Tween<T>* described = property.described()) {
+    out.target = described->rest();
+    out.transition = transitionOf(*described);
   } else {
     out.live = &property;
   }
@@ -93,12 +105,12 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                        const Animatable<float>& nextValue,
                        const std::optional<Transition>& fallback);
 
-/** An entrance: an animate(from(a).to(b)) value plays `from → value` when
- *  it FIRST appears — there is no previous value to diff against, so this
- *  is the "previous" the author declared — and a waypoint list plays its
- *  segments in turn. `extraDelaySeconds` is what the caller adds before
- *  the declared delay (a staggered entrance). A value with no entrance
- *  starts nothing. */
+/** An entrance: a tween that names `.from` plays from there — through its
+ *  keyframes, or to `.to` — when it FIRST appears: there is no previous
+ *  value to diff against, so `from` is the "previous" the author
+ *  declared. It repeats as its `loop` and `alternate` say.
+ *  `extraDelaySeconds` is what the caller adds before the declared delay
+ *  (a staggered entrance). A value with no entrance starts nothing. */
 void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                    const Animatable<float>& property, float extraDelaySeconds);
 

@@ -1,14 +1,16 @@
 /** @file
  * The operations on a held motion: reading the value for this frame,
- * retargeting a running ramp from where it is when the target moves, and
- * starting an entrance from the value the description declared — and the
- * ramp itself, the keyed segments a ticker steps into a live value.
+ * retargeting a running ramp from where it is when the target moves (or
+ * blending the change onto it), and starting an entrance from the value
+ * the description declared — and the ramp itself, the keyed segments a
+ * ticker steps into a live value.
  */
 
 #include "sigilmotion/values/Animated.h"
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <utility>
 
 namespace sigil::motion {
@@ -22,71 +24,149 @@ float segmentSeconds(std::chrono::duration<float> length) {
   return length.count();
 }
 
-/** ONE KEYED RAMP writing one live value: a list of segments, each
- *  holding or easing from the end of the last, stepped by the ticker.
+/** ONE KEYED RAMP writing one live value: a hold, then a list of segments
+ *  played once, a number of times or for ever — every other pass
+ *  backwards when it alternates — with any blended changes added on top.
  *
  *  A segment's value at a time is `from + (to − from) · ease(t / length)`
  *  in float, the time is the sum of the frame deltas in double, and the
  *  segment that owns a time is the first whose length the remaining time
  *  does not exceed — so a boundary belongs to the segment it ends. At or
- *  past the end of the last segment the value is that segment's end, the
- *  ramp stops writing, and the ticker drops it on the same frame. */
+ *  past the end of the last pass and the last blended change the value is
+ *  where they all come to rest, the ramp stops writing, and the ticker
+ *  drops it on the same frame. */
 class Ramp final : public detail::Stepped {
  public:
   struct Segment {
     float from = 0.0f;
     float to = 0.0f;
     double seconds = 0.0;
-    Easing ease;  ///< empty: held at `from` (a hold), or linear
+    Easing ease;  ///< empty: held at `from`
   };
 
-  Ramp(std::shared_ptr<detail::Cell<float>> cell, std::vector<Segment> segments)
-      : m_cell(std::move(cell)), m_segments(std::move(segments)) {
+  /** @p passes: how many times the segments play; 0 plays them for ever. */
+  Ramp(std::shared_ptr<detail::Cell<float>> cell, float start, double lead,
+       std::vector<Segment> segments, int passes, bool alternate)
+      : m_cell(std::move(cell)),
+        m_start(start),
+        m_lead(lead),
+        m_segments(std::move(segments)),
+        m_passes(passes),
+        m_alternate(alternate) {
     m_writer = ++m_cell->writer;
     m_cell->moving = true;
-    for (const Segment& segment : m_segments) m_total += segment.seconds;
+    // One pass summed on its own for the passes; the single pass's end
+    // summed from the lead segment by segment, which is the rounding its
+    // last frame is decided at.
+    double single = m_lead;
+    for (const Segment& segment : m_segments) {
+      m_pass += segment.seconds;
+      single += segment.seconds;
+    }
+    m_end = m_passes == 1 ? single
+                          : (m_passes > 1 ? m_lead + m_pass * m_passes : -1.0);
+  }
+
+  /** ADDS A CHANGE ON TOP of the running motion: @p delta eased in over
+   *  @p seconds after @p delay, counted from now. The running motion keeps
+   *  its course, so the value's velocity carries through. */
+  void blend(float delta, double delay, double seconds, Easing ease) {
+    m_layers.push_back({m_time + delay, seconds, delta, std::move(ease)});
+    if (m_end >= 0.0) m_end = std::max(m_end, m_time + delay + seconds);
+  }
+
+  /** Where the motion comes to rest, blended changes included. */
+  float rest() const {
+    float value = passEnd(m_passes > 0 ? m_passes - 1 : 0);
+    for (const Layer& layer : m_layers) value += layer.delta;
+    return value;
   }
 
   bool advance(double deltaSeconds) override {
     // A motion started on the same value since has taken it over.
     if (m_cell->writer != m_writer) return false;
     m_time += deltaSeconds;
-    if (m_time >= m_total) {
-      m_cell->value = m_segments.empty() ? m_cell->value : m_segments.back().to;
+    if (m_end >= 0.0 && m_time >= m_end) {
+      m_cell->value = rest();
       m_cell->moving = false;
       return false;
     }
-    double at = m_time;
+    float value = base(m_time);
+    for (const Layer& layer : m_layers) {
+      if (m_time <= layer.begin) continue;
+      const double into = m_time - layer.begin;
+      const float unit =
+          layer.seconds > 0.0 ? (float)std::min(into / layer.seconds, 1.0) : 1.0f;
+      value += layer.delta * (layer.ease ? layer.ease(unit) : unit);
+    }
+    m_cell->value = value;
+    return true;
+  }
+
+ private:
+  struct Layer {
+    double begin = 0.0;
+    double seconds = 0.0;
+    float delta = 0.0f;
+    Easing ease;
+  };
+
+  /** Where pass @p index ends: backwards passes end where they began. */
+  float passEnd(int index) const {
+    if (m_segments.empty()) return m_start;
+    const bool backwards = m_alternate && (index % 2 == 1);
+    return backwards ? m_segments.front().from : m_segments.back().to;
+  }
+
+  /** One pass's value @p at seconds into it, played forwards. */
+  float within(double at) const {
     for (const Segment& segment : m_segments) {
       if (segment.seconds < at) {
         at -= segment.seconds;
         continue;
       }
       const float unit = (float)(at / segment.seconds);
-      const float shaped = segment.ease ? segment.ease(unit) : unit;
-      m_cell->value = segment.from + (segment.to - segment.from) * shaped;
-      break;
+      const float shaped = segment.ease ? segment.ease(unit) : 0.0f;
+      return segment.from + (segment.to - segment.from) * shaped;
     }
-    return true;
+    return m_segments.empty() ? m_start : m_segments.back().to;
   }
 
- private:
+  /** The motion without its blended changes, @p time seconds in. */
+  float base(double time) const {
+    if (m_segments.empty()) return m_start;
+    if (time <= m_lead) return m_segments.front().from;
+    double into = time - m_lead;
+    if (m_passes == 1) return within(into);
+    if (m_passes > 1 && into >= m_pass * m_passes) return passEnd(m_passes - 1);
+    const double passes = m_pass > 0.0 ? std::floor(into / m_pass) : 0.0;
+    const int index = (int)passes;
+    into -= passes * m_pass;
+    const bool backwards = m_alternate && (index % 2 == 1);
+    return within(backwards ? m_pass - into : into);
+  }
+
   std::shared_ptr<detail::Cell<float>> m_cell;
+  float m_start = 0.0f;
+  double m_lead = 0.0;
   std::vector<Segment> m_segments;
+  int m_passes = 1;
+  bool m_alternate = false;
+  std::vector<Layer> m_layers;
   uint32_t m_writer = 0;
   double m_time = 0.0;
-  double m_total = 0.0;
+  double m_pass = 0.0;
+  double m_end = 0.0;  ///< negative: runs until replaced
 };
 
-/** A hold at @p value for @p seconds: a segment whose ends agree. */
-Ramp::Segment hold(float value, double seconds) {
-  return {value, value, seconds, [](float) { return 0.0f; }};
-}
+/** How many times a tween's segments play: once plus its loops, or for
+ *  ever (0) when it loops for ever. */
+int passesOf(int loop) { return loop < 0 ? 0 : 1 + loop; }
 
-/** Starts @p segments on @p held's value. */
-void start(Ticker& ticker, AnimatedFloat& held,
-           std::vector<Ramp::Segment> segments) {
-  ticker.run(std::make_shared<Ramp>(held.value.cell(), std::move(segments)));
+/** Starts a ramp on @p held's value. */
+void start(Ticker& ticker, AnimatedFloat& held, std::shared_ptr<Ramp> ramp) {
+  held.running = ramp;
+  ticker.run(std::move(ramp));
 }
 
 }  // namespace
@@ -95,6 +175,7 @@ void AnimatedFloat::stop() {
   const std::shared_ptr<detail::Cell<float>>& cell = value.cell();
   ++cell->writer;
   cell->moving = false;
+  running.reset();
 }
 
 float resolveFloatAt(const AnimatedFloat* animated, const Animatable<float>& property) {
@@ -137,6 +218,17 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
   if (anim && anim->started && anim->isMoving() && anim->target == next.target)
     return true;
   const float current = anim && anim->started ? anim->current() : prev.target;
+  const Transition& how = *next.transition;
+  // BLEND: the change rides on top of the motion already running, so its
+  // velocity carries through instead of stopping at the retarget.
+  if (how.composition == Composition::Blend && anim && anim->started &&
+      anim->isMoving() && anim->running) {
+    auto& ramp = static_cast<Ramp&>(*anim->running);
+    ramp.blend(next.target - anim->target, segmentSeconds(how.delay),
+               segmentSeconds(how.duration), how.easing());
+    anim->target = next.target;
+    return true;
+  }
   if (current == next.target) {
     // The value COINCIDES with the new target, but a moving ramp that
     // passed the keeps-flying guard is provably headed somewhere else —
@@ -152,59 +244,52 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
   anim->value = current;  // seed the retarget start point
   anim->started = true;
   anim->target = next.target;
-  std::vector<Ramp::Segment> segments;
-  const float delay = segmentSeconds(next.transition->delay);
-  if (delay > 0) segments.push_back(hold(current, delay));  // the stagger primitive
-  segments.push_back({current, next.target,
-                      segmentSeconds(next.transition->duration),
-                      next.transition->easing()});
-  start(ticker, *anim, std::move(segments));
+  const float delay = segmentSeconds(how.delay);  // the stagger primitive
+  start(ticker, *anim,
+        std::make_shared<Ramp>(
+            anim->value.cell(), current, delay > 0 ? delay : 0.0,
+            std::vector<Ramp::Segment>{{current, next.target,
+                                        segmentSeconds(how.duration),
+                                        how.easing()}},
+            1, false));
   return true;
 }
 
 void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                    const Animatable<float>& property, float extraDelaySeconds) {
-  const Transitioned<float>* transitioned = property.described();
-  if (!transitioned) return;
-  // animate(through({…})): the multi-segment entrance — checked BEFORE
-  // the from==value guard (a shake 0→−20→0 starts and ends equal).
-  if (transitioned->waypoints.size() >= 2) {
-    auto& anim = held;
-    if (!anim) anim = std::make_unique<AnimatedFloat>();
-    const float first = transitioned->waypoints.front().second;
-    anim->value = first;
-    anim->started = true;
-    anim->target = transitioned->waypoints.back().second;
-    std::vector<Ramp::Segment> segments;
-    const float lead = segmentSeconds(transitioned->spec.delay) +
-                       extraDelaySeconds +
-                       segmentSeconds(transitioned->waypoints.front().first);
-    if (lead > 0) segments.push_back(hold(first, lead));
-    for (size_t i = 1; i < transitioned->waypoints.size(); ++i) {
-      const float length = segmentSeconds(transitioned->waypoints[i].first -
-                                          transitioned->waypoints[i - 1].first);
-      segments.push_back({transitioned->waypoints[i - 1].second,
-                          transitioned->waypoints[i].second,
-                          std::max(length, 0.0f), transitioned->spec.easing()});
+  const Tween<float>* tween = property.described();
+  if (!tween || !tween->from) return;
+  const float from = *tween->from;
+  std::vector<Ramp::Segment> segments;
+  if (!tween->keyframes.empty()) {
+    // An undurationed step takes the tween's duration divided by the
+    // number of steps; an uncurved one takes the tween's curve.
+    const Duration share = tween->duration / (double)tween->keyframes.size();
+    float at = from;
+    for (const Keyframe<float>& step : tween->keyframes) {
+      segments.push_back({at, step.to,
+                          segmentSeconds(step.duration.value_or(share)),
+                          step.ease ? step.ease : tween->easing()});
+      at = step.to;
     }
-    start(ticker, *anim, std::move(segments));
-    return;
+  } else {
+    // A from→to that goes nowhere and does not repeat is not an entrance.
+    if (!tween->to || (from == *tween->to && tween->loop == 0)) return;
+    segments.push_back({from, *tween->to, segmentSeconds(tween->duration),
+                        tween->easing()});
   }
-  if (!transitioned->from || *transitioned->from == transitioned->value) return;
   auto& anim = held;
   if (!anim) anim = std::make_unique<AnimatedFloat>();
-  anim->value = *transitioned->from;
+  anim->value = from;
   anim->started = true;
-  anim->target = transitioned->value;
-  std::vector<Ramp::Segment> segments;
-  const float delay = segmentSeconds(transitioned->spec.delay) +
-                      extraDelaySeconds;  // a staggered entrance's carry
-  if (delay > 0)  // stagger: hold the `from` before entering
-    segments.push_back(hold(*transitioned->from, delay));
-  segments.push_back({*transitioned->from, transitioned->value,
-                      segmentSeconds(transitioned->spec.duration),
-                      transitioned->spec.easing()});
-  start(ticker, *anim, std::move(segments));
+  anim->target = tween->rest();
+  // A staggered entrance's carry, then the declared delay: the `from` is
+  // held for both before the motion starts.
+  const float lead = segmentSeconds(tween->delay) + extraDelaySeconds;
+  start(ticker, *anim,
+        std::make_shared<Ramp>(anim->value.cell(), from, lead > 0 ? lead : 0.0,
+                               std::move(segments), passesOf(tween->loop),
+                               tween->alternate));
 }
 
 bool isLive(const AnimatedFloat* animated, const Animatable<float>& property) {
@@ -217,11 +302,13 @@ void progressRamp(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
   held->value = 0.0f;
   held->started = true;
   held->target = 1.0f;
-  std::vector<Ramp::Segment> segments;
   const float delay = segmentSeconds(spec.delay) + extraDelaySeconds;
-  if (delay > 0) segments.push_back(hold(0.0f, delay));
-  segments.push_back({0.0f, 1.0f, segmentSeconds(spec.duration), spec.easing()});
-  start(ticker, *held, std::move(segments));
+  start(ticker, *held,
+        std::make_shared<Ramp>(
+            held->value.cell(), 0.0f, delay > 0 ? delay : 0.0,
+            std::vector<Ramp::Segment>{
+                {0.0f, 1.0f, segmentSeconds(spec.duration), spec.easing()}},
+            1, false));
 }
 
 }  // namespace sigil::motion

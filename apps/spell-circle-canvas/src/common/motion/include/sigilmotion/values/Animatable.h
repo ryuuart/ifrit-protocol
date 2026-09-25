@@ -21,7 +21,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "sigilmotion/values/Keyframes.h"
+#include "sigilmotion/values/Tween.h"
 
 namespace sigil::motion {
 
@@ -47,7 +47,7 @@ struct Cell {
  * move takes, and the one a sketch holds for a number it drives.
  *
  *     Animatable<float> opacity = 1.0f;                       // a constant
- *     Animatable<float> fade = animate(from(0.0f).to(1.0f));  // a described motion
+ *     Animatable<float> fade = animate({.from = 0.0f, .to = 1.0f});  // a described motion
  *     Animatable<float> wave = animatable(0.0f);              // a live value you write
  *     wave = std::sin(seconds);
  *     Animatable<float> tilt = bind(wave, {.to = {-8, 8}});   // a live value, shaped
@@ -77,7 +77,7 @@ class Animatable {
 
   Animatable() = default;
   Animatable(T value) : m_constant(std::move(value)) {}
-  Animatable(Transitioned<T> described) : m_form(Form::Described) {
+  Animatable(Tween<T> described) : m_form(Form::Described) {
     extra().described = std::move(described);
   }
   Animatable(const Animatable& other) { *this = other; }
@@ -111,7 +111,7 @@ class Animatable {
       case Form::Constant:
         return m_constant;
       case Form::Described:
-        return m_extra->described.value;
+        return m_extra->described.rest();
       case Form::Live:
         return m_extra->cell->value;
       case Form::Bound:
@@ -142,7 +142,7 @@ class Animatable {
     return m_form == Form::Constant ? &m_constant : nullptr;
   }
   /** The described motion, when that is the form held. */
-  [[nodiscard]] const Transitioned<T>* described() const {
+  [[nodiscard]] const Tween<T>* described() const {
     return m_form == Form::Described ? &m_extra->described : nullptr;
   }
   /** The stages a shaped value runs its source through. */
@@ -177,7 +177,7 @@ class Animatable {
    *  exclusive, so one pointer carries all of them and a slot holding a
    *  constant allocates nothing at all. */
   struct Extra {
-    Transitioned<T> described{};
+    Tween<T> described{};
     std::shared_ptr<detail::Cell<T>> cell;
     Binding binding{};
     std::shared_ptr<const Animatable<float>> source;
@@ -225,23 +225,14 @@ inline Animatable<float> bind(const Animatable<float>& source,
   return bound;
 }
 
-namespace detail {
-/** A described motion decomposed member by member, for a comparator that
- *  wants to WALK it rather than name each field one at a time. */
-template <typename T>
-auto fields(Transitioned<T>& transitioned) {
-  auto& [value, spec, from, waypoints] = transitioned;
-  return std::tie(value, spec, from, waypoints);
-}
-}  // namespace detail
-
-static_assert(core::kFieldCount<Transitioned<float>> == 4,
-              "Transitioned gained or lost a field — rule on it in "
-              "propertyEqual() below, then bump this count.");
+static_assert(core::kFieldCount<Tween<float>> == 9,
+              "Tween gained or lost a field — rule on it in tweenEqual(), "
+              "which propertyEqual() below reads a described motion by, then "
+              "bump this count.");
 
 /** TWO SLOTS ARE EQUAL when they take the same form and that form's
- *  contents are equal: a constant by `==`, a described motion by target,
- *  origin, waypoints and spec, a live value by the CELL it reads — its
+ *  contents are equal: a constant by `==`, a described motion by
+ *  `tweenEqual`, a live value by the CELL it reads — its
  *  identity, never the number behind it — and a shaped value by its
  *  source's identity and its stages. A live value therefore never compares
  *  equal to a different one, and a slot that is moving is never pruned
@@ -253,12 +244,8 @@ bool propertyEqual(const Animatable<T>& left, const Animatable<T>& right) {
   switch (left.form()) {
     case Form::Constant:
       return *left.constant() == *right.constant();
-    case Form::Described: {
-      const Transitioned<T>& a = *left.described();
-      const Transitioned<T>& b = *right.described();
-      return a.value == b.value && a.from == b.from &&
-             a.waypoints == b.waypoints && transitionEqual(a.spec, b.spec);
-    }
+    case Form::Described:
+      return tweenEqual(*left.described(), *right.described());
     case Form::Live:
       return left.identity() == right.identity();
     case Form::Bound:
@@ -274,6 +261,15 @@ bool propertyEqual(const Animatable<T>& left, const Animatable<T>& right) {
 template <typename T>
 bool operator==(const Animatable<T>& left, const Animatable<T>& right) {
   return propertyEqual(left, right);
+}
+
+inline Animatable<float> animate(Tween<float> tween) {
+  return Animatable<float>(std::move(tween));
+}
+
+template <typename T>
+Animatable<T> animate(Tween<T> tween) {
+  return Animatable<T>(std::move(tween));
 }
 
 }  // namespace sigil::motion
