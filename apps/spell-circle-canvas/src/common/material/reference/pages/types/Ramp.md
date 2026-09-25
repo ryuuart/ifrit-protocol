@@ -79,7 +79,7 @@ a colour for it.
 | `material.Ramp(stops=[...], space=...)` | Python | the same five decisions, by keyword |
 | `material.ramp(palette)` | Python | a fixed table read continuously |
 
-A stop is a `RampStop`: `RampStop::position` and `RampStop::color`.
+A stop is a `ColorStop`: `ColorStop::offset` and `ColorStop::color`.
 
 ## Pass it to
 
@@ -120,7 +120,7 @@ of one is the caller deciding otherwise.
 
 - `color/Ramp.h` — the header: `Ramp`, `RampSpace`, `HueArc`, `palette`,
   `ramp`
-- `color/Color.h` — the ladder underneath: `RampStop`, `RampBracket`,
+- `color/Color.h` — the ladder underneath: `ColorStop`, `RampBracket`,
   `rampBracket`, `sampleRamp`
 - [Palette](value:sigil::material::Palette) — the fixed table, which is
   not a ramp with more stops

@@ -18,9 +18,9 @@ samples it where it actually sits, through its layout offset and its
 transforms. A ROTATED node samples through its rotation, so the
 highlight stays put while the object turns — which is the behaviour a
 per-node hand conversion cannot reproduce, since that turns with the
-node. `uResolution` becomes the ROOT canvas size when flagged, so
-`Paint::linearUnit` and `Paint::glowUnit` read as fractions of the
-canvas.
+node. `uResolution` becomes the ROOT canvas size when flagged, so a
+box-unit `Paint::linearGradient` or `Paint::radialGradient` reads as
+fractions of the canvas.
 
 **Per-material-LAYER, deliberately not inherited.** Flagging a
 `Paint::blend` does not flag its layers, flagging a `Paint::sksl` parent

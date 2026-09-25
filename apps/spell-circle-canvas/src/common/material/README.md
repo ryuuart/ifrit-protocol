@@ -62,15 +62,15 @@ directory, each a static archive that links only what sits beneath it:
 
 | target | holds | links |
 |--------|-------|-------|
-| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `RampStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Parameters.h` includes | SigilCoreCompute |
-| `SigilMaterialCore` | the value model: `Target`, `Parameters`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
+| `SigilMaterialColor` | `Color`, `rgb()`, `hsv()`, the three mixes and `luminance()`, `ColorStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Parameters.h` includes | SigilCoreCompute |
+| `SigilMaterialCore` | the value model: `Target`, `Parameters`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `ColorStops` and `GradientOptions`, what a gradient is told in box units or pixels; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
 | `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, applied through a private 3D-LUT recipe or a per-channel response recipe | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, the screen `crt` and the three subjects it composes, `crtBeam`, `crtBloom` and `crtGlass`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::verticalRamp` and `skia::unitRamp`, the two crossings a list of `RampStop`s reaches Skia through (a span, with a brace list written where it is used), with `skia::paletteImage` and `skia::paletteLookup` the palette's two beside them; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader, with `skia::PassInputs` for a pass over a layer; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `skia::Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `skia::Effect`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialKit` | the presets: the colour CRT `kit::crt`; the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialField, SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
 | `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, the list a host hands a warm-up before its first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
@@ -551,7 +551,7 @@ a globe on a raster surface are the same ball.
 
 The gel and
 chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`,
-`contourRing` — are `RampStop` lists and alpha ladders a renderer turns
+`contourRing` — are `ColorStop` lists and alpha ladders a renderer turns
 into its own gradient, and nothing else: which highlight a bundle shows
 and how deep its bevel cuts are knobs on that renderer's decorations, so
 its option sets are its own. The text paints
@@ -859,9 +859,8 @@ is absent at no strength, so one recipe covers a monitor across a room
 and a plate shot close: a hard line at `uScanPitch`, the beam's own
 profile at `uBeamPitch` and `uBeamFalloff`, the beat a composite signal
 carries under it at `uBeatPitch`, `uGrain` moving how much light a cell
-gives up, and the corner falloff. The positional `crtOverlay(scanPitch,
-…)` is the hard line alone; `crtOverlay(CrtOverlayParameters)` is the whole
-tube.
+gives up, and the corner falloff. `crtOverlay()` at its defaults is the
+hard line alone; a `CrtOverlayParameters` naming more is the whole tube.
 
 ### CRT screens
 

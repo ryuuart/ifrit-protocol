@@ -19,7 +19,8 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>  // sk_sp<SkShader> data member
 #include <include/core/SkTileMode.h>
-#include <include/effects/SkRuntimeEffect.h>  // the unit-space ramps
+#include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/core/Gradient.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Pass.h>
 #include <sigilmaterial/skia/PixelBuffer.h>  // the source buffer() takes
@@ -78,14 +79,6 @@ enum class Fit : uint8_t {
   Contain,  ///< keep the aspect, sit inside the box, leave the margin
 };
 
-/** A gradient ramp stop: where along the ramp it sits, in 0..1, and the
- *  colour there, authored in the working colour space. */
-struct Stop {
-  float position = 0.0f;
-  material::Color color = {0, 0, 0, 1};
-  bool operator==(const Stop&) const = default;
-};
-
 /** The polymorphic paint value. Construct via the static factories; pass to
  *  Element::fill(). */
 class Paint {
@@ -94,30 +87,37 @@ class Paint {
 
   /** @name Leaves
    *  The paints that are not made of other paints: a colour, the
-   *  gradients, an image or a caller-owned raster, a hand-built
+   *  three gradients, an image or a caller-owned raster, a hand-built
    *  shader, an SkSL body, and a recipe instance.
    *  @{ */
   static Paint solid(material::Color color);
-  /** N-stop linear ramp between two points (working-space colors). */
-  static Paint linear(SkPoint start, SkPoint end, std::vector<Stop> stops,
-                      SkTileMode tile = SkTileMode::kClamp);
-  static Paint radial(SkPoint center, float radius, std::vector<Stop> stops,
-                      SkTileMode tile = SkTileMode::kClamp);
-  /** OFFSET-FOCUS radial: the ramp runs from the circle
-   *  (@p focus, @p focusRadius) to the circle (@p center, @p radius), so a
-   *  highlight displaced off a sphere's centre is
-   *  `conical(hot, 0, centre, R, …)`. Both radii are node-local px.
-   *  Unlike a moved radial's, the outer circle stays put. */
-  static Paint conical(SkPoint focus, float focusRadius, SkPoint center,
-                       float radius, std::vector<Stop> stops,
-                       SkTileMode tile = SkTileMode::kClamp);
-  /** Angular sweep from @p startDegrees (12 o'clock is -90°) around
-   *  @p center, in degrees.
-   *  @trap Angles outside [0, 360) CLAMP rather than wrapping, so
-   *  `sweep(c, stops, 90, 450)` paints a flat quarter; rotate the STOPS
-   *  instead. The factory warns once when a window leaves the circle. */
-  static Paint sweep(SkPoint center, std::vector<Stop> stops,
-                     float startDegrees = 0.0f, float endDegrees = 360.0f);
+  /** THE LINEAR GRADIENT from @p start to @p end. In box units — the
+   *  default — the two points are fractions of the painted box, so
+   *  `linearGradient({0, 0}, {0, 1}, stops)` runs top to bottom of
+   *  whatever box it lands on; `{.units = GradientUnits::Pixels}` places
+   *  them in the node's px. A box-unit gradient rides the GEOMETRY tier;
+   *  a pixel one is static. */
+  static Paint linearGradient(SkPoint start, SkPoint end,
+                              material::ColorStops stops,
+                              material::GradientOptions options = {});
+  /** THE RADIAL GRADIENT out of @p center to @p radius. In box units the
+   *  centre is a fraction of the box and the radius a multiple of
+   *  `options.extent` — at the default, a centred radius of 1 reaches the
+   *  box's corners, and with `RadialExtent::ClosestSide` it is the
+   *  ellipse inscribed in the box. In pixel units both are px.
+   *  `options.focus` moves where the stops start from, as an offset
+   *  highlight, while the outer circle stays put. */
+  static Paint radialGradient(SkPoint center, float radius,
+                              material::ColorStops stops,
+                              material::GradientOptions options = {});
+  /** THE CONIC GRADIENT: the stops swept around @p center, over the
+   *  window `options.startDegrees` to `options.endDegrees` (clockwise from
+   *  3 o'clock). In box units the centre is a fraction of the box and the
+   *  angles stay true angles on a box that is not square.
+   *  @trap The window CLAMPS outside [0, 360] rather than wrapping; the
+   *  factory warns once when it leaves the circle. */
+  static Paint conicGradient(SkPoint center, material::ColorStops stops,
+                             material::GradientOptions options = {});
   /** Image/sprite as a fill (tiled or clamped); `local` maps source px into
    *  the node's space (a sprite's atlas sub-rect is a translate+scale). */
   static Paint image(sk_sp<SkImage> image, SkTileMode horizontalTile = SkTileMode::kClamp,
@@ -168,35 +168,6 @@ class Paint {
    *  and its `amount` are both ignored — there is nothing beneath it to
    *  composite with or mix back toward. */
   static Paint blend(std::vector<std::pair<Paint, SkBlendMode>> layers);
-  /** @} */
-
-  /** @name Unit-space ramps
-   *  The same gradients authored in the box's UNIT SQUARE rather
-   *  than in pixels, for a box whose size the layout decides. Each
-   *  rides the GEOMETRY tier through uResolution and takes any number
-   *  of stops.
-   *  @{ */
-  /** linear() authored in the node's UNIT SQUARE: (0,0) is the box's
-   *  top-left, (1,1) its bottom-right, whatever the box turns out to
-   *  be. */
-  static Paint linearUnit(SkPoint from01, SkPoint to01,
-                          std::vector<Stop> stops);
-  /** The unit-square radial: @p center01 and @p radius01 as a fraction
-   *  of the box's HALF-DIAGONAL, so a ramp centred at {0.5, 0.5} with
-   *  radius 1 reaches the box's CORNERS.
-   *  @trap 0.707 is the radius that reaches the INSCRIBED circle, so a
-   *  glow authored at 1 on a circle-shaped node is cut off mid-falloff
-   *  and one authored past 1 never intersects the shape at all. Use
-   *  glowUnit() for "fills this box". */
-  static Paint radialUnit(SkPoint center01, float radius01,
-                          std::vector<Stop> stops);
-  /** A soft round light that FILLS the box: @p radius01 is a fraction of
-   *  the box's SHORTER SIDE, so radius 1 is the inscribed circle.
-   *  @trap Like the other two it works in the UNIT SQUARE, so on a
-   *  non-square box the falloff is elliptical; put it on a square node
-   *  for a true circle. */
-  static Paint glowUnit(SkPoint center01, float radius01,
-                        std::vector<Stop> stops);
   /** @} */
 
   /** @name Uniforms and layer properties

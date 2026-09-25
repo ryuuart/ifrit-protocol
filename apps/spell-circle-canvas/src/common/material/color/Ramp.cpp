@@ -31,9 +31,9 @@ void reportUnorderedStops() {
   });
 }
 
-bool inOrder(const std::vector<RampStop>& stops) {
+bool inOrder(const std::vector<ColorStop>& stops) {
   for (size_t i = 1; i < stops.size(); ++i)
-    if (stops[i].position < stops[i - 1].position) return false;
+    if (stops[i].offset < stops[i - 1].offset) return false;
   return true;
 }
 

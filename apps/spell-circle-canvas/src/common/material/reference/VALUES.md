@@ -62,7 +62,7 @@ built, each copying on write, has a page of its own.
 ## The headers these come from
 
 - `color/Color.h` — `Color`, `FourFloatColor`, `rgb`, `hsv`, `Oklab`,
-  `Oklch`, `Lab`, `LinearRgb`, `RampStop`, `Palette`, `RampBracket`,
+  `Oklch`, `Lab`, `LinearRgb`, `ColorStop`, `Palette`, `RampBracket`,
   `rampBracket`, `sampleRamp`, `deltaE`, `luminance`, `withAlpha`,
   `scale`, `lighten`, `mixToward`, `mixLinear`, `fitToSrgb`
 - `color/Ramp.h` — `Ramp`, `RampSpace`, `HueArc`, `palette`, `ramp`
@@ -71,7 +71,8 @@ built, each copying on write, has a page of its own.
 - `core/Backface.h` — `Backface`
 - `core/Material.h` — `Material`
 - `core/Leaf.h` — `Leaf`
-- `skia/Paint.h` — `Paint`, `PaintFrame`, `Stop`, `Fit`
+- `core/Gradient.h` — `ColorStops`, `GradientOptions`, `GradientUnits`,
+  `RadialExtent`, `Repeat`
+- `skia/Paint.h` — `Paint`, `PaintFrame`, `Fit`
 - `skia/Effect.h` — `Effect`
-- `skia/Ramp.h` — `verticalRamp`, `unitRamp`, `paletteImage`,
-  `paletteLookup`
+- `skia/Ramp.h` — `paletteImage`, `paletteLookup`

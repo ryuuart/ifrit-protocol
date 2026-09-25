@@ -204,9 +204,9 @@ TEST(Color, CielabMeasuresWhereOklabInterpolates) {
 }
 
 TEST(Color, ARampReadsOnTheCpuTheWayAGradientDraws) {
-  const RampStop stops[] = {{0.0f, Color{0, 0, 0, 1}},
-                            {0.5f, Color{1, 0, 0, 1}},
-                            {1.0f, Color{1, 1, 1, 1}}};
+  const ColorStop stops[] = {{0.0f, Color{0, 0, 0, 1}},
+                             {0.5f, Color{1, 0, 0, 1}},
+                             {1.0f, Color{1, 1, 1, 1}}};
   EXPECT_EQ(sampleRamp(stops, 0.5f).r, 1.0f);
   EXPECT_NEAR(sampleRamp(stops, 0.25f).r, 0.5f, 1e-5f);
   EXPECT_NEAR(sampleRamp(stops, 0.75f).g, 0.5f, 1e-5f);
@@ -218,10 +218,10 @@ TEST(Color, ARampReadsOnTheCpuTheWayAGradientDraws) {
 
   // Two stops at one position are a hard edge, which is how a ramp says
   // a band boundary.
-  const RampStop banded[] = {{0.0f, Color{1, 0, 0, 1}},
-                             {0.5f, Color{1, 0, 0, 1}},
-                             {0.5f, Color{0, 0, 1, 1}},
-                             {1.0f, Color{0, 0, 1, 1}}};
+  const ColorStop banded[] = {{0.0f, Color{1, 0, 0, 1}},
+                              {0.5f, Color{1, 0, 0, 1}},
+                              {0.5f, Color{0, 0, 1, 1}},
+                              {1.0f, Color{0, 0, 1, 1}}};
   EXPECT_EQ(sampleRamp(banded, 0.49f), (Color{1, 0, 0, 1}));
   EXPECT_EQ(sampleRamp(banded, 0.51f), (Color{0, 0, 1, 1}));
 

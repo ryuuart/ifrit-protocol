@@ -71,13 +71,13 @@ parameter that takes a colour takes every row of it.
 | Where | Kind | Library |
 | --- | --- | --- |
 | every `Color`-typed field of a recipe's parameter struct | field | SigilMaterial — it mirrors to bytes as a float4 |
-| `RampStop::color` | field | SigilMaterial |
+| `ColorStop::color` | field | SigilMaterial |
 | `Palette::entries` | field | SigilMaterial |
 | `harmony`, `rotateHue` | function | SigilMaterial |
 | `deltaE`, `luminance`, `toOklab`, `toOklch`, `toLab` | function | SigilMaterial |
 | `closestEntry` | function | SigilMaterial |
 | `skia::toSkColor` | function | SigilMaterial — the crossing back to a Skia colour |
-| `skia::Stop::color`, `skia::Paint::solid`, `skia::Paint::uniform`, `skia::Effect::glow` | field, function | SigilMaterial — the paint model states its colours in this one |
+| `skia::Paint::solid`, `skia::Paint::uniform`, `skia::Effect::glow` | field, function | SigilMaterial — the paint model states its colours in this one |
 
 Outside this library a colour is what a fill, an ink, a shadow and a
 light are stated in; those slots belong to the libraries that own them
@@ -124,7 +124,7 @@ SEPARATION of hues is the point.
   `lerpOklab`, `toOklch`, `fromOklch`, `fitToSrgb`, `inSrgbGamut`,
   `linearOf`, `toLab`, `fromLab`, `deltaE`, `srgbToLinear`,
   `linearToSrgb`, `withAlpha`, `scale`, `lighten`, `mixToward`,
-  `mixLinear`, `luminance`, `RampStop`, `Palette`, `RampBracket`,
+  `mixLinear`, `luminance`, `ColorStop`, `Palette`, `RampBracket`,
   `rampBracket`, `sampleRamp`
 - [Ramp](value:sigil::material::Ramp) — the colours between two stops,
   as one value

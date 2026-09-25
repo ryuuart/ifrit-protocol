@@ -143,8 +143,8 @@ TEST(Ramp, ATableIsReadAtBandCentresAndComesBackAsARamp) {
 
   const Ramp back = ramp(table);
   ASSERT_EQ(back.stops.size(), 4u);
-  EXPECT_FLOAT_EQ(back.stops.front().position, 0.0f);
-  EXPECT_FLOAT_EQ(back.stops.back().position, 1.0f);
+  EXPECT_FLOAT_EQ(back.stops.front().offset, 0.0f);
+  EXPECT_FLOAT_EQ(back.stops.back().offset, 1.0f);
   EXPECT_EQ(back.stops.front().color, table.at(0));
 }
 

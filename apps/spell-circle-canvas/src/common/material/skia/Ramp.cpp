@@ -1,5 +1,6 @@
 /** @file
- * The two ramp crossings.
+ * The palette's two crossings: an N x 1 image and the nearest-sampled
+ * material over it.
  */
 
 #include "sigilmaterial/skia/Ramp.h"
@@ -19,32 +20,6 @@
 #include <utility>
 
 namespace sigil::material::skia {
-
-sk_sp<SkShader> verticalRamp(float top, float bottom,
-                             std::span<const RampStop> ramp) {
-  std::vector<SkColor4f> colors;
-  std::vector<float> stops;
-  colors.reserve(ramp.size());
-  stops.reserve(ramp.size());
-  for (const RampStop& stop : ramp) {
-    colors.push_back(toSkColor(stop.color));
-    stops.push_back(stop.position);
-  }
-  const SkPoint ends[2] = {{0, top}, {0, bottom}};
-  return SkShaders::LinearGradient(ends,
-                                   SkGradient({{colors.data(), colors.size()},
-                                               {stops.data(), stops.size()},
-                                               SkTileMode::kClamp},
-                                              {}));
-}
-
-Paint unitRamp(std::span<const RampStop> ramp) {
-  std::vector<Stop> stops;
-  stops.reserve(ramp.size());
-  for (const RampStop& stop : ramp)
-    stops.push_back({stop.position, toSkColor(stop.color)});
-  return Paint::linearUnit({0, 0}, {0, 1}, std::move(stops));
-}
 
 sk_sp<SkImage> paletteImage(const Palette& palette) {
   if (palette.empty()) return nullptr;

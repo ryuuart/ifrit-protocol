@@ -1,10 +1,10 @@
 /** @file
  * THE LEAVES A PAINT IS BUILT FROM: the solid, the raw shader wrap, the
- * material instance, the four gradients and the unit-square ramp they
- * share, the image and the caller-owned pixel buffer behind it, and the
- * SkSL runtime effect. Each factory mints the shader it can resolve
- * eagerly and the comparable recipe two independently built paints are
- * compared by.
+ * material instance, the three gradients with the unit-square ramp and
+ * the box read their box units compile to, the image and the caller-owned pixel
+ * buffer behind it, and the SkSL runtime effect. Each factory mints the shader
+ * it can resolve eagerly and the comparable recipe two independently built
+ * paints are compared by.
  */
 
 #include <include/core/SkBitmap.h>
@@ -38,15 +38,36 @@ struct RampArrays {
   std::vector<float> positions;   // empty → evenly spaced
 };
 
-RampArrays split(const std::vector<Stop>& stops) {
+/** The stops as the shader builder takes them. Evenly spaced stops hand
+ *  over no offsets, so Skia spaces them itself exactly as it always has. */
+RampArrays split(const ColorStops& stops) {
   RampArrays r;
   r.colors.reserve(stops.size());
-  r.positions.reserve(stops.size());
-  for (const Stop& s : stops) {
+  for (const ColorStop& s : stops.stops())
     r.colors.push_back(toSkColor(s.color));
-    r.positions.push_back(s.position);
-  }
+  if (stops.evenlySpaced()) return r;
+  r.positions.reserve(stops.size());
+  for (const ColorStop& s : stops.stops()) r.positions.push_back(s.offset);
   return r;
+}
+
+SkTileMode tileOf(Repeat repeat) {
+  switch (repeat) {
+    case Repeat::Pad:
+      return SkTileMode::kClamp;
+    case Repeat::Repeat:
+      return SkTileMode::kRepeat;
+    case Repeat::Mirror:
+      return SkTileMode::kMirror;
+    case Repeat::None:
+      return SkTileMode::kDecal;
+  }
+  return SkTileMode::kClamp;
+}
+
+/** What a radius of 1 is in the unit square, for a box-unit radial. */
+float extentOf(RadialExtent extent) {
+  return extent == RadialExtent::ClosestSide ? 0.5f : 0.70710678f;
 }
 
 // SkGradient's color/position spans are non-owning — keep `r` alive across the
@@ -80,8 +101,48 @@ Paint Paint::recipe(sigil::material::Material material) {
   return m;
 }
 
-Paint Paint::linear(SkPoint start, SkPoint end, std::vector<Stop> stops,
-                    SkTileMode tile) {
+namespace {
+
+/** The same options with the points read as px: what a box-unit gradient
+ *  builds its unit-square child with before the box scales it. */
+GradientOptions inPixels(GradientOptions options) {
+  options.units = GradientUnits::Pixels;
+  return options;
+}
+
+/** A BOX-UNIT GRADIENT that the unit-square ramp cannot draw — a repeat, a
+ *  focus, a conic: the gradient laid out over the unit square (a conic,
+ *  around the origin) as a child, read at the painted point's place in
+ *  the box. It rides the GEOMETRY tier through uResolution. A conic is
+ *  read in px around its centre, so its angles stay true on a box that
+ *  is not square. */
+Paint boxGradient(Paint unitGradient, SkPoint center, bool conic) {
+  static const sk_sp<SkRuntimeEffect> effect = [] {
+    auto [built, error] = SkRuntimeEffect::MakeForShader(
+        SkString(std::string(shaderSource("BoxGradient.sksl")).c_str()));
+    if (!built)
+      SkDebugf("sigilmaterial box gradient shader: %s\n", error.c_str());
+    return built;
+  }();
+  if (!effect) return unitGradient;
+  Paint box = Paint::sksl(effect, {{"uConic", conic ? 1.0f : 0.0f}});
+  box.uniform("uCenter", std::array<float, 2>{center.x(), center.y()});
+  box.slot("uGradient", std::move(unitGradient));
+  return box;
+}
+
+}  // namespace
+
+Paint Paint::linearGradient(SkPoint start, SkPoint end, ColorStops stops,
+                            GradientOptions options) {
+  if (options.units == GradientUnits::Box) {
+    if (options.repeat == Repeat::Pad)
+      return detail::unitRamp(start, end, stops.stops(), false);
+    return boxGradient(
+        linearGradient(start, end, std::move(stops), inPixels(options)), {0, 0},
+        false);
+  }
+  const SkTileMode tile = tileOf(options.repeat);
   RampArrays arrays = split(stops);
   const SkPoint pts[2] = {start, end};
   Paint m = shader(SkShaders::LinearGradient(pts, makeGradient(arrays, tile)));
@@ -95,67 +156,87 @@ Paint Paint::linear(SkPoint start, SkPoint end, std::vector<Stop> stops,
   return m;
 }
 
-Paint Paint::radial(SkPoint center, float radius, std::vector<Stop> stops,
-                    SkTileMode tile) {
+Paint Paint::radialGradient(SkPoint center, float radius, ColorStops stops,
+                            GradientOptions options) {
+  if (options.units == GradientUnits::Box) {
+    if (!options.focus && options.repeat == Repeat::Pad) {
+      // The unit-square ramp reads its radius against the half-diagonal,
+      // so the closest side is that radius over the square root of two.
+      const float scaled = options.extent == RadialExtent::ClosestSide
+                               ? radius * 0.70710678f
+                               : radius;
+      return detail::unitRamp(center, {scaled, scaled}, stops.stops(), true);
+    }
+    const float unit = extentOf(options.extent);
+    GradientOptions unitOptions = inPixels(options);
+    unitOptions.focusRadius *= unit;
+    return boxGradient(
+        radialGradient(center, radius * unit, std::move(stops), unitOptions),
+        {0, 0}, false);
+  }
+  const SkTileMode tile = tileOf(options.repeat);
   RampArrays r = split(stops);
-  Paint m =
-      shader(SkShaders::RadialGradient(center, radius, makeGradient(r, tile)));
   auto rec = std::make_shared<Recipe>();
-  rec->kind = Recipe::Kind::Radial;
-  rec->p0 = center;
-  rec->f0 = radius;
+  Paint m;
+  if (options.focus) {
+    const SkPoint focus{options.focus->x, options.focus->y};
+    m = shader(SkShaders::TwoPointConicalGradient(
+        focus, options.focusRadius, center, radius, makeGradient(r, tile)));
+    rec->kind = Recipe::Kind::Conical;
+    rec->p0 = focus;
+    rec->p1 = center;
+    rec->f0 = options.focusRadius;
+    rec->f1 = radius;
+  } else {
+    m = shader(
+        SkShaders::RadialGradient(center, radius, makeGradient(r, tile)));
+    rec->kind = Recipe::Kind::Radial;
+    rec->p0 = center;
+    rec->f0 = radius;
+  }
   rec->stops = std::move(stops);
   rec->tile = tile;
   m.m_recipe = std::move(rec);
   return m;
 }
 
-Paint Paint::conical(SkPoint focus, float focusRadius, SkPoint center,
-                     float radius, std::vector<Stop> stops, SkTileMode tile) {
-  RampArrays r = split(stops);
-  Paint m = shader(SkShaders::TwoPointConicalGradient(
-      focus, focusRadius, center, radius, makeGradient(r, tile)));
-  auto rec = std::make_shared<Recipe>();
-  rec->kind = Recipe::Kind::Conical;
-  rec->p0 = focus;
-  rec->p1 = center;
-  rec->f0 = focusRadius;
-  rec->f1 = radius;
-  rec->stops = std::move(stops);
-  rec->tile = tile;
-  m.m_recipe = std::move(rec);
-  return m;
-}
-
-Paint Paint::sweep(SkPoint center, std::vector<Stop> stops, float startDegrees,
-                   float endDegrees) {
+Paint Paint::conicGradient(SkPoint center, ColorStops stops,
+                           GradientOptions options) {
+  if (options.units == GradientUnits::Box)
+    return boxGradient(
+        conicGradient({0, 0}, std::move(stops), inPixels(options)), center,
+        true);
+  const float startDegrees = options.startDegrees;
+  const float endDegrees = options.endDegrees;
   // Skia's sweep CLAMPS outside [startDegrees, endDegrees] — it never wraps.
-  // A window reaching past the circle (`sweep(c, stops, 90, 450)`, the
-  // obvious hue-wheel-starting-at-red) paints the run before startDegrees in
-  // the first stop's flat colour, silently. The numbers only meet here, so
+  // A window reaching past the circle (90 to 450, the obvious
+  // hue-wheel-starting-at-red) paints the run before startDegrees in the
+  // first stop's flat colour, silently. The numbers only meet here, so
   // this is where the diagnostic lives — once per process.
   if (startDegrees < 0.0f || endDegrees > 360.0f) {
     static bool warnedSweepWindow = false;
     if (!warnedSweepWindow) {
       warnedSweepWindow = true;
       SkDebugf(
-          "[material] skia::Paint::sweep(start %.1f, end %.1f): angles "
-          "outside [0, 360] CLAMP, they do not wrap — no canvas angle "
+          "[material] skia::Paint::conicGradient(start %.1f, end %.1f): "
+          "angles outside [0, 360] CLAMP, they do not wrap — no canvas angle "
           "ever reaches the part of the window past the circle, so that "
           "run paints in the nearest stop's flat colour. Rotate the "
           "stops into [0, 360] instead. (warned once)\n",
           startDegrees, endDegrees);
     }
   }
+  const SkTileMode tile = tileOf(options.repeat);
   RampArrays r = split(stops);
-  Paint m = shader(SkShaders::SweepGradient(
-      center, startDegrees, endDegrees, makeGradient(r, SkTileMode::kClamp)));
+  Paint m = shader(SkShaders::SweepGradient(center, startDegrees, endDegrees,
+                                            makeGradient(r, tile)));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Sweep;
   rec->p0 = center;
   rec->f0 = startDegrees;
   rec->f1 = endDegrees;
   rec->stops = std::move(stops);
+  rec->tile = tile;
   m.m_recipe = std::move(rec);
   return m;
 }
@@ -224,7 +305,8 @@ sk_sp<SkImage> PixelBuffer::image() {
 
 namespace detail {
 
-Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial) {
+Paint unitRamp(SkPoint a, SkPoint b, std::vector<ColorStop> stops,
+               bool radial) {
   // The stop count is baked into the source and one effect is cached per
   // count. Generating per count leaves no arbitrary ceiling below the
   // uniform budget and avoids a uniform-guarded fixed-maximum loop.
@@ -294,30 +376,12 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial) {
   material.uniform("uB", std::array<float, 2>{b.x(), b.y()});
   for (size_t i = 0; i < n; ++i) {
     material.uniform("uC" + std::to_string(i), stops[i].color);
-    material.uniform("uS" + std::to_string(i), stops[i].position);
+    material.uniform("uS" + std::to_string(i), stops[i].offset);
   }
   return material;
 }
 
 }  // namespace detail
-
-Paint Paint::linearUnit(SkPoint from01, SkPoint to01, std::vector<Stop> stops) {
-  return detail::unitRamp(from01, to01, std::move(stops), false);
-}
-
-Paint Paint::radialUnit(SkPoint center01, float radius01,
-                        std::vector<Stop> stops) {
-  return detail::unitRamp(center01, {radius01, radius01}, std::move(stops),
-                          true);
-}
-
-Paint Paint::glowUnit(SkPoint center01, float radius01,
-                      std::vector<Stop> stops) {
-  // Convert the radius from half-sides to half-diagonals of the unit square.
-  return detail::unitRamp(center01,
-                          {radius01 * 0.70710678f, radius01 * 0.70710678f},
-                          std::move(stops), true);
-}
 
 Paint Paint::sksl(sk_sp<SkRuntimeEffect> effect,
                   std::vector<std::pair<std::string, float>> constants) {

@@ -54,8 +54,8 @@ Material tunnel(const SkRect& bounds, float timeSeconds);
 
 /** The sunset-chrome ramp in unit space, top to bottom: sky to a hard
  *  horizon to warm ground. */
-std::vector<RampStop> sunsetChromeText();
+std::vector<ColorStop> sunsetChromeText();
 /** The silver-chrome ramp in unit space. */
-std::vector<RampStop> silverChromeText();
+std::vector<ColorStop> silverChromeText();
 
 }  // namespace sigil::material::kit

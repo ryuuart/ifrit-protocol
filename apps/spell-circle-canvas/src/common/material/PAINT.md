@@ -2,16 +2,16 @@
 
 The chapter on `skia::Paint` and `skia::Effect`: the model as ONE Skia
 shader, the three volatility tiers a paint declares by what it reads,
-the blend stack, the unit-square ramps, the buffer a caller writes into,
-and the post-processing recipe over a layer that is already rendered.
+the blend stack, the three gradients and their box units, the buffer a
+caller writes into, and the post-processing recipe over a layer that is already rendered.
 `README.md` beside this file is the library; `COLOUR.md` is the colour
 leaf underneath it.
 
 ## The Skia paint
 
 `skia::Paint` is the model as ONE `sk_sp<SkShader>`. A small tree of
-paint nodes — a solid, an N-stop `linear`/`radial`/`conical`/`sweep`
-ramp, an `image` or a caller-owned `buffer`, a raw `sksl` effect, a
+paint nodes — a solid, an N-stop `linearGradient`/`radialGradient`/
+`conicGradient` over `ColorStops`, an `image` or a caller-owned `buffer`, a raw `sksl` effect, a
 `blend` stack, or `recipe` over a `Material` instance — that compiles to
 a single shader through nested `SkShaders::Blend`, never a stack of
 saveLayers. Its slots nest and still compile to one shader.

@@ -265,7 +265,7 @@ re-describing per frame.
 depth-of-field falloff, a lens edge, a tube's curvature. The sigma map
 is a paint read as a NUMBER rather than as paint: its RED channel at a
 pixel, times the declared maximum, is the blur radius there. The natural
-authoring is therefore a unit-space ramp — `Paint::linearUnit` from
+authoring is therefore a box-unit gradient — `Paint::linearGradient` from
 black at the left edge to white at the right is "sharp at the left,
 softest at the right" over whatever box the layout decides — and any
 `Paint::sksl` paint is an arbitrary field.

@@ -101,9 +101,12 @@ half. **Two Lab spaces, for two jobs.** OKLab is where colour is
 INTERPOLATED, CIELAB (`toLab`, `fromLab`) is where it is MEASURED — it
 is the space a published difference is quoted in, and `deltaE` is that
 difference, with about 2.3 the point where a side-by-side pair stops
-matching. `sampleRamp` reads a `RampStop` ladder on the CPU exactly as a
+matching. `sampleRamp` reads a `ColorStop` ladder on the CPU exactly as a
 renderer's gradient draws it, for the caller that needs one colour out of
-a ramp rather than a shader.
+a ramp rather than a shader. The other way round, a `Ramp` is a
+gradient's stops as it stands: `ColorStops` takes one, handing over its
+own stops when it walks straight sRGB and reading it at even offsets
+when it walks another space or an easing.
 
 **A PALETTE IS NOT A RAMP.** A ramp says what lies between its stops; a
 `Palette` says there is nothing between its entries, so every read of it

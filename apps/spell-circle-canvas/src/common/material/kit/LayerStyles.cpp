@@ -10,13 +10,13 @@
 
 namespace sigil::material::kit {
 
-std::vector<RampStop> aquaBodyRamp(Color tint) {
+std::vector<ColorStop> aquaBodyRamp(Color tint) {
   return {{0.0f, scale(tint, 0.72f, 0.9f)},
           {0.55f, tint},
           {1.0f, mixToward(tint, {1, 1, 1, 1}, 0.35f, 0.95f)}};
 }
 
-std::vector<RampStop> aquaGlowRamp(Color tint, float strength) {
+std::vector<ColorStop> aquaGlowRamp(Color tint, float strength) {
   return {{0.0f, {1, 1, 1, 0}},
           {1.0f, mixToward(tint, {1, 1, 1, 1}, 0.80f, strength)}};
 }
@@ -27,7 +27,7 @@ Color aquaHalo(Color tint) {
 Color aquaTopBand(Color tint) { return scale(tint, 0.36f, 0.45f); }
 Color aquaHairline(Color tint) { return scale(tint, 0.45f, 0.6f); }
 
-std::vector<RampStop> chromeRamp(ChromePalette palette) {
+std::vector<ColorStop> chromeRamp(ChromePalette palette) {
   if (palette == ChromePalette::Silver)
     return {{0.0f, rgb(0xFDFDFD)},  {0.2f, rgb(0xD2D8DD)},
             {0.48f, rgb(0xA5ADB5)}, {0.5f, rgb(0x6F7880)},

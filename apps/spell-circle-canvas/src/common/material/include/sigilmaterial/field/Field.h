@@ -113,18 +113,14 @@ struct CrtOverlayParameters {
 
 /** THE TUBE, as something laid OVER a picture: its lines and a corner
  *  falloff, in black, with the alpha carrying both, so it is drawn as
- *  the last layer over the frame it ages. @p scanPitch is the full
+ *  the last layer over the frame it ages. The scan pitch is the full
  *  period in px and the darker half is the first half of it, which is
- *  what makes these lines hard-edged; @p squeeze under 1 makes the
+ *  what makes these lines hard-edged; a squeeze under 1 makes the
  *  falloff reach in from the sides sooner than from the top. It reads
  *  the resolution, and the defaults are a monitor seen straight on with
- *  the lines just visible. */
-Material crtOverlay(float scanPitch = 4.0f, float scanStrength = 0.052f,
-                    float vigInner = 1.45f, float vigOuter = 2.15f,
-                    float vigStrength = 0.34f, float squeeze = 0.70f);
-/** THE WHOLE TUBE, for the plate that carries more of it than a hard
- *  line — the beam's own profile, the beat under it, the grain. */
-Material crtOverlay(const CrtOverlayParameters& parameters);
+ *  the lines just visible; the beam, the beat and the grain are off
+ *  until a field names them. */
+Material crtOverlay(const CrtOverlayParameters& parameters = {});
 /** crtOverlay()'s recipe, defined once. */
 const std::shared_ptr<const Recipe>& crtOverlayRecipe();
 

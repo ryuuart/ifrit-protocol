@@ -47,7 +47,7 @@ struct Ramp {
   /** The colours and where they sit, in [0, 1], in order. Two stops at
    *  one position are a hard edge — the band boundary a ramp says with no
    *  blend across it. */
-  std::vector<RampStop> stops;
+  std::vector<ColorStop> stops;
   RampSpace space = RampSpace::Oklab;
   HueArc arc = HueArc::Shorter;
   /** The shape of the walk: the position is passed through this before

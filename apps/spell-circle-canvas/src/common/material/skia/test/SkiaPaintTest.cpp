@@ -196,16 +196,18 @@ TEST(SkiaPaint, TheFirstBlendLayerIsTheAccumulationAndItsLayerPropsAreNot) {
               SkColorGetB(whole.getColor(1, 1)) / 2, 2);
 }
 
-TEST(SkiaPaint, ASweepWindowPastTheCircleClampsRatherThanWraps) {
-  // A hue wheel that is meant to start at red is written `sweep(c, stops,
-  // 90, 450)` by everyone who writes it once — and no canvas angle ever
+TEST(SkiaPaint, AConicWindowPastTheCircleClampsRatherThanWraps) {
+  // A hue wheel that is meant to start at red is written with a window
+  // from 90 to 450 by everyone who writes it once — and no canvas angle ever
   // reaches past 360, so the run before 90 degrees paints the first
   // stop's flat colour instead of the ramp's tail. The factory says so,
   // once for the process.
-  const std::vector<skia::Stop> stops{{0.0f, {1, 0, 0, 1}},
-                                      {1.0f, {0, 0, 1, 1}}};
+  const std::vector<ColorStop> stops{{0.0f, {1, 0, 0, 1}},
+                                     {1.0f, {0, 0, 1, 1}}};
   testing::internal::CaptureStderr();
-  const skia::Paint past = skia::Paint::sweep({50, 50}, stops, 90, 450);
+  const skia::Paint past = skia::Paint::conicGradient(
+      {50, 50}, stops,
+      {.units = GradientUnits::Pixels, .startDegrees = 90, .endDegrees = 450});
   const std::string said = testing::internal::GetCapturedStderr();
   EXPECT_NE(said.find("do not wrap"), std::string::npos) << said;
 
@@ -217,31 +219,38 @@ TEST(SkiaPaint, ASweepWindowPastTheCircleClampsRatherThanWraps) {
   EXPECT_EQ(SkColorGetB(bm.getColor(85, 85)), 0u);
   // …and a window inside the circle says nothing at all.
   testing::internal::CaptureStderr();
-  const skia::Paint inside = skia::Paint::sweep({50, 50}, stops, 0, 360);
+  const skia::Paint inside = skia::Paint::conicGradient(
+      {50, 50}, stops, {.units = GradientUnits::Pixels});
   EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
   EXPECT_FALSE(inside == past);
 }
 
-TEST(SkiaPaint, AConicalRampMovesItsHotSpotAndLeavesItsOuterCircle) {
-  // What a radial cannot do: moving a radial's centre slides the whole
-  // ramp, its outer edge included, where a conical keeps the outer circle
+TEST(SkiaPaint, AFocusMovesTheHotSpotAndLeavesTheOuterCircle) {
+  // What moving the centre cannot do: moving a radial's centre slides the
+  // whole ramp, its outer edge included, where a focus keeps the outer circle
   // where it was put and moves only the focus. A displaced highlight on a
   // sphere is the case, and the corner farthest from the displacement is
   // where the difference shows.
-  const std::vector<skia::Stop> stops{{0.0f, {1, 1, 1, 1}},
-                                      {1.0f, {0, 0, 0, 1}}};
-  const SkBitmap centred =
-      render(skia::Paint::radial({50, 50}, 50, stops).staticShader(), 100, 100);
-  const SkBitmap displaced = render(
-      skia::Paint::conical({30, 30}, 0, {50, 50}, 50, stops).staticShader(),
+  const std::vector<ColorStop> stops{{0.0f, {1, 1, 1, 1}},
+                                     {1.0f, {0, 0, 0, 1}}};
+  const GradientOptions pixels{.units = GradientUnits::Pixels};
+  const SkBitmap centred = render(
+      skia::Paint::radialGradient({50, 50}, 50, stops, pixels).staticShader(),
       100, 100);
-  const SkBitmap slid =
-      render(skia::Paint::radial({30, 30}, 50, stops).staticShader(), 100, 100);
+  const SkBitmap displaced =
+      render(skia::Paint::radialGradient(
+                 {50, 50}, 50, stops,
+                 {.units = GradientUnits::Pixels, .focus = glm::vec2{30, 30}})
+                 .staticShader(),
+             100, 100);
+  const SkBitmap slid = render(
+      skia::Paint::radialGradient({30, 30}, 50, stops, pixels).staticShader(),
+      100, 100);
 
   // The hot spot moved in both.
   EXPECT_GT(SkColorGetR(displaced.getColor(30, 30)),
             SkColorGetR(centred.getColor(30, 30)));
-  // The outer circle did not, in the conical: at the left edge the ramp
+  // The outer circle did not, with the focus: at the left edge the ramp
   // has all but run out, as it had before the focus moved — where the
   // slid radial, whose whole ramp went with its centre, still has a long
   // way to go there.
@@ -314,7 +323,8 @@ TEST(SkiaPaint, TwoThreadsResolveOneSharedPaintsMemo) {
 }
 
 TEST(SkiaPaint, EqualityIsTheRecipeSoARebuiltPaintPrunes) {
-  const std::vector<skia::Stop> stops{{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}};
+  const std::vector<ColorStop> stops{{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}};
+  const GradientOptions pixels{.units = GradientUnits::Pixels};
   EXPECT_TRUE(skia::Paint::solid({1, 0, 0, 1}) ==
               skia::Paint::solid({1, 0, 0, 1}));
   EXPECT_FALSE(skia::Paint::solid({1, 0, 0, 1}) ==
@@ -322,10 +332,10 @@ TEST(SkiaPaint, EqualityIsTheRecipeSoARebuiltPaintPrunes) {
   // Two separately built gradients over the same recipe are equal even
   // though each minted its own SkShader — that is what lets a node prune
   // across describes.
-  EXPECT_TRUE(skia::Paint::linear({0, 0}, {10, 0}, stops) ==
-              skia::Paint::linear({0, 0}, {10, 0}, stops));
-  EXPECT_FALSE(skia::Paint::linear({0, 0}, {10, 0}, stops) ==
-               skia::Paint::linear({0, 0}, {20, 0}, stops));
+  EXPECT_TRUE(skia::Paint::linearGradient({0, 0}, {10, 0}, stops, pixels) ==
+              skia::Paint::linearGradient({0, 0}, {10, 0}, stops, pixels));
+  EXPECT_FALSE(skia::Paint::linearGradient({0, 0}, {10, 0}, stops, pixels) ==
+               skia::Paint::linearGradient({0, 0}, {20, 0}, stops, pixels));
   // The empty paint is reflexive; a holder that compared unequal to itself
   // would patch forever.
   EXPECT_TRUE(skia::Paint() == skia::Paint{});

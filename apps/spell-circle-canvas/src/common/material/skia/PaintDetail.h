@@ -16,6 +16,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Recipe.h>
 
 #include <cstdint>
@@ -27,17 +28,17 @@ namespace sigil::material::skia {
 
 class Paint;
 struct PaintFrame;
-struct Stop;
 
 namespace detail {
 
-/** The unit-square ramp both linearUnit() and radialUnit() compile to: one
+/** The unit-square ramp a box-unit linear or radial gradient compiles to: one
  *  SkSL pass that divides by uResolution, so the gradient's coordinates are
  *  fractions of the node's laid-out box rather than pixels. Any number of
  *  stops — the count is baked into the generated source as a chain of
  *  mixes, each taking effect past its own start, and one effect is cached
  *  per stop count. */
-Paint unitRamp(SkPoint a, SkPoint b, std::vector<Stop> stops, bool radial);
+Paint unitRamp(SkPoint a, SkPoint b, std::vector<material::ColorStop> stops,
+               bool radial);
 
 /** THE CHILD-SLOT CONVERSION, in one place because its callers must agree:
  *  sksl()'s children, blend()'s layers and Effect's children all need this

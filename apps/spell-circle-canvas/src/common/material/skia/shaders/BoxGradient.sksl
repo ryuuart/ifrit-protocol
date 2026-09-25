@@ -1,0 +1,12 @@
+uniform shader uGradient;
+uniform float2 uResolution;
+uniform float2 uCenter;
+uniform float uConic;
+
+half4 main(float2 xy) {
+  float2 box = max(uResolution, float2(1.0, 1.0));
+  if (uConic > 0.5) {
+    return uGradient.eval(xy - uCenter * box);
+  }
+  return uGradient.eval(xy / box);
+}

@@ -1,7 +1,6 @@
 /** @file
- * The four crossings out of the colour leaf: the same stops as a
- * gradient over a span of node-local pixels and as a paint over the unit
- * square, and a palette as a table sampled nearest.
+ * The gradients a list of colour stops reaches Skia through, in box units
+ * and in pixels, and a palette as a table sampled nearest.
  */
 
 #include <gtest/gtest.h>
@@ -35,7 +34,7 @@ sk_sp<SkRuntimeEffect> effectFor(const char* src) {
 
 /** Red at the top, blue at the bottom, with green halfway — three stops
  *  a wrong span shows as a flat band of the last one. */
-std::vector<RampStop> threeStops() {
+std::vector<ColorStop> threeStops() {
   return {{0.0f, Color{1, 0, 0, 1}},
           {0.5f, Color{0, 1, 0, 1}},
           {1.0f, Color{0, 0, 1, 1}}};
@@ -43,13 +42,15 @@ std::vector<RampStop> threeStops() {
 
 }  // namespace
 
-TEST(SkiaRamp, TheUnitRampFillsWhateverBoxItIsGiven) {
-  // The unit square is what a text fill and a mask paint in: a ramp
-  // measured in node-local PIXELS instead runs out one pixel down and
-  // paints every row below it the last stop, so the picture is flat but
-  // for its first line. Asked over a 100 px box, the ramp is spread over
-  // all 100 rows: red at the top, green halfway, blue at the bottom.
-  const skia::Paint ramp = skia::unitRamp(threeStops());
+TEST(SkiaGradient, ABoxUnitGradientFillsWhateverBoxItIsGiven) {
+  // Box units are the default and what a text fill and a mask paint in: a
+  // gradient measured in node-local PIXELS instead runs out one pixel down
+  // and paints every row below it the last stop, so the picture is flat
+  // but for its first line. Asked over a 100 px box, the gradient is
+  // spread over all 100 rows: red at the top, green halfway, blue at the
+  // bottom.
+  const skia::Paint ramp =
+      skia::Paint::linearGradient({0, 0}, {0, 1}, threeStops());
   EXPECT_TRUE(ramp.geometryDependent());
   const SkBitmap bm =
       render(ramp.shaderFor(skia::PaintFrame{.size = {100, 100}}), 100, 100);
@@ -60,13 +61,14 @@ TEST(SkiaRamp, TheUnitRampFillsWhateverBoxItIsGiven) {
   EXPECT_LT(SkColorGetR(bm.getColor(50, 97)), 60u);
 }
 
-TEST(SkiaRamp, TheVerticalRampRunsBetweenTheTwoRowsItIsGiven) {
-  // The other crossing measures in the coordinates a node is painted in,
-  // so a caller who knows its span says it, and both ends clamp because
-  // a ramp carries no answer beyond its stops.
-  const sk_sp<SkShader> shader = skia::verticalRamp(20, 80, threeStops());
-  ASSERT_NE(shader, nullptr);
-  const SkBitmap bm = render(shader, 100, 100);
+TEST(SkiaGradient, APixelGradientRunsBetweenTheTwoPointsItIsGiven) {
+  // Pixel units measure in the coordinates a node is painted in, so a
+  // caller who knows its span says it, and both ends pad because the
+  // stops carry no answer beyond themselves.
+  const skia::Paint ramp = skia::Paint::linearGradient(
+      {0, 20}, {0, 80}, threeStops(), {.units = GradientUnits::Pixels});
+  EXPECT_FALSE(ramp.geometryDependent());
+  const SkBitmap bm = render(ramp.staticShader(), 100, 100);
   EXPECT_GT(SkColorGetR(bm.getColor(50, 22)), 180u);
   EXPECT_GT(SkColorGetG(bm.getColor(50, 50)), 180u);
   EXPECT_GT(SkColorGetB(bm.getColor(50, 78)), 180u);
@@ -77,25 +79,77 @@ TEST(SkiaRamp, TheVerticalRampRunsBetweenTheTwoRowsItIsGiven) {
   EXPECT_GT(SkColorGetB(bm.getColor(50, 98)), 200u);
 }
 
-TEST(SkiaRamp, TheStopsComeFromAnyContiguousHolderOrABraceList) {
-  // The stops are a span: the vector a palette helper returns, a
-  // std::array, a C array, and a brace list written where it is used all
-  // reach the same gradient, so nothing builds a vector to cross the call.
-  const std::vector<RampStop> held = threeStops();
-  const std::array<RampStop, 3> fixed{held[0], held[1], held[2]};
-  const RampStop raw[3] = {held[0], held[1], held[2]};
-  const SkBitmap wanted = render(
-      skia::unitRamp(held).shaderFor(skia::PaintFrame{.size = {8, 64}}), 8, 64);
+TEST(SkiaGradient, TheStopsComeFromAListPlainColoursOrARamp) {
+  // Three spellings of one gradient: the stops written out, the colours
+  // alone (spaced evenly), and a ramp read straight in sRGB, which hands
+  // over its own stops.
+  const GradientOptions pixels{.units = GradientUnits::Pixels};
+  const SkBitmap wanted =
+      render(skia::Paint::linearGradient({0, 0}, {0, 64}, threeStops(), pixels)
+                 .staticShader(),
+             8, 64);
+  const Ramp straight{.stops = threeStops(), .space = RampSpace::Srgb};
   for (const skia::Paint& other :
-       {skia::unitRamp(fixed), skia::unitRamp(raw),
-        skia::unitRamp({held[0], held[1], held[2]})}) {
-    const SkBitmap got =
-        render(other.shaderFor(skia::PaintFrame{.size = {8, 64}}), 8, 64);
-    EXPECT_EQ(wanted.getColor(4, 8), got.getColor(4, 8));
-    EXPECT_EQ(wanted.getColor(4, 56), got.getColor(4, 56));
+       {skia::Paint::linearGradient(
+            {0, 0}, {0, 64},
+            {Color{1, 0, 0, 1}, Color{0, 1, 0, 1}, Color{0, 0, 1, 1}}, pixels),
+        skia::Paint::linearGradient({0, 0}, {0, 64}, straight, pixels)}) {
+    const SkBitmap got = render(other.staticShader(), 8, 64);
+    for (int y : {4, 20, 32, 44, 60})
+      EXPECT_EQ(wanted.getColor(4, y), got.getColor(4, y)) << y;
   }
-  EXPECT_TRUE(skia::verticalRamp(0, 64, fixed) != nullptr);
-  EXPECT_TRUE(skia::verticalRamp(0, 64, {held[0], held[2]}) != nullptr);
+  // A ramp walked in OKLab is read at offsets, so its middle is the
+  // perceptual midpoint rather than the straight sRGB one.
+  const Ramp perceptual{
+      .stops = {{0.0f, Color{1, 0, 0, 1}}, {1.0f, Color{0, 0, 1, 1}}}};
+  const ColorStops read(perceptual);
+  EXPECT_GT(read.size(), 2u);
+  EXPECT_EQ(read.stops()[read.size() / 2].color, perceptual.at(0.5f));
+}
+
+TEST(SkiaGradient, ARepeatingBoxGradientStartsOverPastItsEnd) {
+  // Half the box long, repeated: the lower half paints what the upper
+  // half does, where the default pad would paint it flat blue.
+  const skia::Paint repeated = skia::Paint::linearGradient(
+      {0, 0}, {0, 0.5f}, threeStops(), {.repeat = Repeat::Repeat});
+  EXPECT_TRUE(repeated.geometryDependent());
+  const SkBitmap bm = render(
+      repeated.shaderFor(skia::PaintFrame{.size = {100, 100}}), 100, 100);
+  EXPECT_EQ(bm.getColor(50, 10), bm.getColor(50, 60));
+  EXPECT_GT(SkColorGetR(bm.getColor(50, 52)), 200u);
+}
+
+TEST(SkiaGradient, TheExtentSaysWhatARadiusOfOneReaches) {
+  // Centred on a 100 px box, a radius of 1 reaches the corners at the
+  // default and the middle of each side with ClosestSide: at the right
+  // edge's middle the first has not yet run out and the second has.
+  const std::vector<ColorStop> whiteToBlack{{0.0f, Color{1, 1, 1, 1}},
+                                            {1.0f, Color{0, 0, 0, 1}}};
+  const skia::PaintFrame frame{.size = {100, 100}};
+  const SkBitmap corner =
+      render(skia::Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack)
+                 .shaderFor(frame),
+             100, 100);
+  const SkBitmap side =
+      render(skia::Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack,
+                                         {.extent = RadialExtent::ClosestSide})
+                 .shaderFor(frame),
+             100, 100);
+  EXPECT_GT(SkColorGetR(corner.getColor(99, 50)), 60u);
+  EXPECT_LT(SkColorGetR(side.getColor(99, 50)), 8u);
+  EXPECT_LT(SkColorGetR(corner.getColor(99, 99)), 8u);
+}
+
+TEST(SkiaGradient, AConicInBoxUnitsTurnsAroundThePointOfTheBoxItNames) {
+  // Centred at a quarter across, the sweep's seam runs right from there:
+  // just below it is the start of the stops and just above it the end.
+  const skia::Paint conic = skia::Paint::conicGradient(
+      {0.25f, 0.5f}, {Color{1, 0, 0, 1}, Color{0, 0, 1, 1}});
+  EXPECT_TRUE(conic.geometryDependent());
+  const SkBitmap bm =
+      render(conic.shaderFor(skia::PaintFrame{.size = {100, 100}}), 100, 100);
+  EXPECT_GT(SkColorGetR(bm.getColor(60, 52)), 200u);
+  EXPECT_GT(SkColorGetB(bm.getColor(60, 48)), 200u);
 }
 
 TEST(SkiaRamp, APaletteCrossesToAShaderAsATableSampledNearest) {

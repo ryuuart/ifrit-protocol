@@ -149,7 +149,7 @@ struct Paint::Recipe {
   SkPoint p0 = {0, 0}, p1 = {0, 0};  // Conical: (focus, center)
   float f0 = 0.0f, f1 = 0.0f;        // radius / (startDeg, endDeg) /
                                      // Conical: (focusRadius, radius)
-  std::vector<Stop> stops;
+  material::ColorStops stops;
   SkTileMode tile = SkTileMode::kClamp;
   // Image: pointer identity + mapping.
   sk_sp<SkImage> image;

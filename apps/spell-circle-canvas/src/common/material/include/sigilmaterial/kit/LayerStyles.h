@@ -20,10 +20,10 @@ namespace sigil::material::kit {
 
 /** The gel body ramp over the box's height: deep at the top, saturated in
  *  the middle, light below. */
-std::vector<RampStop> aquaBodyRamp(Color tint);
+std::vector<ColorStop> aquaBodyRamp(Color tint);
 /** The bottom glow's ramp, from clear at mid-height to the tint lightened
  *  at @p strength. */
-std::vector<RampStop> aquaGlowRamp(Color tint, float strength);
+std::vector<ColorStop> aquaGlowRamp(Color tint, float strength);
 /** The halo's colour: a lightened, half-transparent cast of the tint. */
 Color aquaHalo(Color tint);
 /** The recessed band's colour beneath the gel's top edge. */
@@ -46,7 +46,7 @@ inline constexpr float kChromeHorizonFraction = 0.50f;
 
 /** The chrome ramp over the box's height, with its hard stop at the
  *  horizon. */
-std::vector<RampStop> chromeRamp(ChromePalette palette);
+std::vector<ColorStop> chromeRamp(ChromePalette palette);
 
 /** The dark inner band the Steel palette wears beneath its top edge. */
 inline Color chromeSteelTopBand() { return rgb(0x001020, 0.30f); }

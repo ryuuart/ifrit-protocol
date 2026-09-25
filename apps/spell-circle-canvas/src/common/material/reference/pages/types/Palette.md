@@ -83,7 +83,7 @@ failure the type exists to prevent.
 
 ## See also
 
-- `color/Color.h` — the header: `Palette`, `Color`, `RampStop`,
+- `color/Color.h` — the header: `Palette`, `Color`, `ColorStop`,
   `sampleRamp`
 - `color/Extract.h` — the header: `palette`, `closestEntry`
 - `color/Harmony.h` — the header: `harmony`, `rotateHue`, `Scheme`

@@ -122,24 +122,28 @@ TEST(Field, CrtOverlayStripesEveryOtherHalfPitchAndDarkensTheCorners) {
 }
 
 TEST(Field, CrtOverlayScanStrengthAndVignetteAreTheCallersNumbers) {
-  const SkBitmap none =
-      render(field::crtOverlay(4.0f, 0.0f, 1.45f, 2.15f, 0.0f), 64, 64);
+  const SkBitmap none = render(
+      field::crtOverlay({.uScanStrength = 0.0f, .uVigStrength = 0.0f}), 64, 64);
   // Every parameter off: the overlay is fully transparent and changes
   // nothing about what it sits over.
   for (int y = 0; y < 4; ++y) EXPECT_EQ(SkColorGetA(none.getColor(32, y)), 0u);
-  const SkBitmap strong =
-      render(field::crtOverlay(4.0f, 0.5f, 1.45f, 2.15f, 0.0f), 64, 64);
+  const SkBitmap strong = render(
+      field::crtOverlay({.uScanStrength = 0.5f, .uVigStrength = 0.0f}), 64, 64);
   EXPECT_GT(SkColorGetA(strong.getColor(32, 0)), 100u);
   EXPECT_EQ(SkColorGetA(strong.getColor(32, 2)), 0u);
 }
 
 TEST(Field, TheBeamTheBeatAndTheGrainAreAbsentUntilTheyAreGivenStrength) {
-  // The tube's darkening is a sum, and the positional entry point is the
-  // hard line alone: nothing the parameters added may reach a picture that
-  // did not ask for it.
-  const SkBitmap plain = render(field::crtOverlay(4.0f, 0.10f), 64, 64);
-  const SkBitmap same = render(
-      field::crtOverlay({.uScanPitch = 4.0f, .uScanStrength = 0.10f}), 64, 64);
+  // The tube's darkening is a sum, and the defaults are the hard line
+  // alone: nothing the other fields add may reach a picture that did not
+  // ask for it.
+  const SkBitmap plain =
+      render(field::crtOverlay({.uScanStrength = 0.10f}), 64, 64);
+  const SkBitmap same = render(field::crtOverlay({.uScanStrength = 0.10f,
+                                                  .uBeamStrength = 0.0f,
+                                                  .uBeatStrength = 0.0f,
+                                                  .uGrain = 0.0f}),
+                               64, 64);
   for (int y = 0; y < 16; ++y)
     EXPECT_EQ(SkColorGetA(plain.getColor(32, y)),
               SkColorGetA(same.getColor(32, y)));

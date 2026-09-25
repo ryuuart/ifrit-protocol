@@ -368,12 +368,13 @@ inline float deltaE(const Color& first, const Color& second) {
   return std::sqrt(dL * dL + da * da + db * db);
 }
 
-/** ONE STOP OF A RAMP: a position in [0, 1] and its colour. A ramp is a
- *  vector of these, which every renderer turns into its own gradient. */
-struct RampStop {
-  float position = 0.0f;
+/** ONE COLOUR STOP: where along a ramp or a gradient it sits, as an
+ *  offset in [0, 1], and the colour there. A ramp is a vector of these,
+ *  and so is every gradient, which each renderer turns into its own. */
+struct ColorStop {
+  float offset = 0.0f;
   Color color;
-  bool operator==(const RampStop&) const = default;
+  bool operator==(const ColorStop&) const = default;
 };
 
 /** AN ORDERED TABLE OF COLOURS READ BY INDEX — the fixed palette, which
@@ -427,17 +428,19 @@ struct RampBracket {
  *  reading of a ramp goes through this one search — the CPU sample below,
  *  and the ramp value's own read in whatever space it names — so the two
  *  cannot disagree about which stops a position lies between. */
-inline RampBracket rampBracket(std::span<const RampStop> stops, float position) {
+inline RampBracket rampBracket(std::span<const ColorStop> stops,
+                               float position) {
   const size_t last = stops.size() - 1;
-  if (position <= stops.front().position) return {0, 0, 0.0f};
-  if (position >= stops.back().position) return {last, last, 0.0f};
+  if (position <= stops.front().offset) return {0, 0, 0.0f};
+  if (position >= stops.back().offset) return {last, last, 0.0f};
   for (size_t i = 1; i < stops.size(); ++i) {
-    if (position > stops[i].position) continue;
-    const float span = stops[i].position - stops[i - 1].position;
+    if (position > stops[i].offset) continue;
+    const float span = stops[i].offset - stops[i - 1].offset;
     // Two stops at one position are a HARD EDGE, which is what a ramp
     // says a band boundary with: the upper one wins, and dividing by the
     // zero between them would not have said anything.
-    return {i - 1, i, span > 0.0f ? (position - stops[i - 1].position) / span : 1.0f};
+    return {i - 1, i,
+            span > 0.0f ? (position - stops[i - 1].offset) / span : 1.0f};
   }
   return {last, last, 0.0f};
 }
@@ -445,7 +448,7 @@ inline RampBracket rampBracket(std::span<const RampStop> stops, float position) 
 /** The colour a run of @p stops answers at position @p position, mixed
  *  straight in sRGB between the two the bracket names; an empty run
  *  answers a fully transparent colour. */
-inline Color sampleRamp(std::span<const RampStop> stops, float position) {
+inline Color sampleRamp(std::span<const ColorStop> stops, float position) {
   if (stops.empty()) return {0, 0, 0, 0};
   const RampBracket bracket = rampBracket(stops, position);
   const Color& low = stops[bracket.low].color;

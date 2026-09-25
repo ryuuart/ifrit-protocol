@@ -3,12 +3,9 @@
 /** @file
  * @ingroup material-skia
  *
- * A ramp of stops as Skia takes it: the same stops as a shader over a
- * vertical span in the coordinates a node is painted in, and as a paint
- * over the unit square, which is what a text fill and a mask take. Both
- * clamp outside their span. The other two crossings are the PALETTE's,
- * and a palette is not a ramp — it says there is nothing between its
- * entries, so its crossing samples nearest and never blends.
+ * A PALETTE as Skia takes it. A palette is not a ramp — it says there is
+ * nothing between its entries, so its crossing samples nearest and never
+ * blends. A ramp's stops reach Skia through the gradients on `Paint`.
  */
 
 #include <include/core/SkRefCnt.h>
@@ -16,30 +13,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
-#include <initializer_list>
-#include <span>
-#include <vector>
-
 namespace sigil::material::skia {
-
-/** @p ramp as a gradient running down from @p top to @p bottom. The stops are a
- *  span, so a vector or an array passes as it stands and a brace list is
- *  written where it is used. */
-sk_sp<SkShader> verticalRamp(float top, float bottom,
-                             std::span<const RampStop> ramp);
-/** The same gradient from a brace list of stops. */
-inline sk_sp<SkShader> verticalRamp(float top, float bottom,
-                                    std::initializer_list<RampStop> ramp) {
-  return verticalRamp(top, bottom,
-                      std::span<const RampStop>(ramp.begin(), ramp.size()));
-}
-
-/** The same stops over the unit square, top to bottom. */
-Paint unitRamp(std::span<const RampStop> ramp);
-/** The same unit-square paint from a brace list of stops. */
-inline Paint unitRamp(std::initializer_list<RampStop> ramp) {
-  return unitRamp(std::span<const RampStop>(ramp.begin(), ramp.size()));
-}
 
 /** @p palette as an N x 1 image, one texel per entry, straight (not
  *  premultiplied) so an entry's own alpha survives the crossing.

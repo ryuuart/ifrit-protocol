@@ -52,13 +52,9 @@ Every leaf is a static factory, and each names what it is made of.
 | --- | --- | --- |
 | `Paint()` | C++ | nothing — fully transparent, draws nothing |
 | `Paint::solid(colour)` | C++ | a flat colour |
-| `Paint::linear(a, b, stops)` | C++ | an n-stop ramp between two points, in node-local px |
-| `Paint::radial(centre, radius, stops)` | C++ | a circular ramp |
-| `Paint::conical(focus, focusRadius, centre, radius, stops)` | C++ | an offset-focus radial: the outer circle stays put while the hot spot moves |
-| `Paint::sweep(centre, stops)` | C++ | an angular sweep; angles outside the circle CLAMP rather than wrapping |
-| `Paint::linearUnit(from01, to01, stops)` | C++ | the linear ramp in the node's UNIT SQUARE, for a box whose size the layout decides |
-| `Paint::radialUnit(centre01, radius01, stops)` | C++ | the unit radial, whose radius is a fraction of the HALF-DIAGONAL — radius 1 reaches the corners |
-| `Paint::glowUnit(centre01, radius01, stops)` | C++ | the soft round light that FILLS the box — radius 1 is the inscribed circle |
+| `Paint::linearGradient(start, end, stops)` | C++ | an n-stop gradient between two points, in the box's unit square unless `{.units = GradientUnits::Pixels}` |
+| `Paint::radialGradient(centre, radius, stops)` | C++ | a gradient out of a centre; in box units a radius of 1 reaches the box's corners, or its sides with `{.extent = RadialExtent::ClosestSide}`; `.focus` moves the hot spot while the outer circle stays put |
+| `Paint::conicGradient(centre, stops)` | C++ | a gradient swept around a centre; its window CLAMPS outside the circle rather than wrapping |
 | `Paint::image(image)` | C++ | an image or sprite as a fill, tiled or clamped |
 | `Paint::buffer(source)` | C++ | a caller-owned raster the paint samples — a simulation, a decoded frame, a scrollback |
 | `Paint::sksl(effect, constants)` | C++ | a runtime effect as a shader |
@@ -76,7 +72,14 @@ binds a live pan, `Paint::worldSpace` anchors the coordinates to the
 root, `Paint::bleed` reserves recording cull, and `Paint::quantizeTime`
 steps the injected clock.
 
-`Stop` is one gradient stop — `Stop::position` and `Stop::color`. `Fit` is
+The three gradients take their stops as `ColorStops` — a list of
+`ColorStop` (`ColorStop::offset` and `ColorStop::color`), plain colours
+spaced evenly, or a `Ramp` — and share one `GradientOptions`:
+`GradientOptions::units`, `GradientOptions::extent`,
+`GradientOptions::repeat` (`Repeat::Pad`, `Repeat::Repeat`,
+`Repeat::Mirror`, `Repeat::None`), `GradientOptions::focus` with
+`GradientOptions::focusRadius`, and `GradientOptions::startDegrees` with
+`GradientOptions::endDegrees`. `Fit` is
 how a source meets the box: `Fit::Native`, `Fit::Stretch`, `Fit::Cover`,
 `Fit::Contain`. `PaintFrame` is what one draw supplies and no author
 sets: `PaintFrame::size`, `PaintFrame::rootSize`, `PaintFrame::toRoot`,
@@ -100,7 +103,6 @@ none re-exports it.
 | What | Kind | Library |
 | --- | --- | --- |
 | every leaf factory above | function | SigilMaterial |
-| `skia::unitRamp` | function | SigilMaterial — a stop list over the unit square, which is what a text fill and a mask take |
 
 ## Description
 
@@ -112,20 +114,20 @@ stage and applies to a whole composite.
 
 ### The leaves, one by one
 
-**`Paint::conical` is what a plain radial cannot do.** The ramp runs
-from the circle (focus, focusRadius) to the circle (centre, radius), so
-a highlight displaced off a sphere's centre is
-`conical(hot, 0, centre, R, …)`. Moving a radial's centre instead
-couples the falloff to the displacement — the entire ramp slides,
-including its outer edge — where here the outer circle stays put and
-only the hot spot moves. Both radii are node-local px.
+**A focus is what moving a radial's centre cannot do.** With
+`GradientOptions::focus` the stops run from the circle (focus,
+focusRadius) to the circle (centre, radius), so a highlight displaced off
+a sphere's centre is `radialGradient(centre, R, stops, {.focus = hot})`.
+Moving the centre instead couples the falloff to the displacement — the
+entire ramp slides, including its outer edge — where here the outer
+circle stays put and only the hot spot moves.
 
-**`Paint::sweep` starts at 12 o'clock at -90°, and its angles CLAMP
-rather than wrapping.** `sweep(c, stops, 90, 450)` — the obvious way to
-start a hue wheel at red — paints the quarter before 90° in the first
-stop's flat colour, because no canvas angle ever reaches past 360.
-Rotate the STOPS into [0, 360) instead; the factory warns once when a
-window leaves the circle.
+**`Paint::conicGradient` starts at 3 o'clock, so 12 o'clock is -90°, and
+its window CLAMPS rather than wrapping.** A window from 90 to 450 — the
+obvious way to start a hue wheel at red — paints the quarter before 90°
+in the first stop's flat colour, because no canvas angle ever reaches
+past 360. Rotate the STOPS into [0, 360) instead; the factory warns once
+when a window leaves the circle.
 
 **`Paint::image` takes a local matrix that maps source px into the
 node's space**, which is where a sprite's atlas sub-rect goes as a
@@ -179,38 +181,37 @@ resolve time, per frame or per record respectively, so bound uniforms
 and distance-field layers contribute their correct current form. The
 blend simply inherits its layers' volatility tier.
 
-### The unit-square ramps
+### Box units and pixels
 
-`Paint::linear` takes PIXELS in node-local space, which is workable for
-a box whose size you wrote down and impossible for one the layout
-decides — a card as tall as its copy, a button that grows with its
-label. `Paint::linearUnit` is the same ramp authored in the node's UNIT
-SQUARE: (0,0) is the box's top-left, (1,1) its bottom-right, whatever
-the box turns out to be. There is no number to guess. It rides the
-GEOMETRY tier through `uResolution`, so it costs nothing per frame, and
-takes any number of stops.
+A gradient in PIXELS is workable for a box whose size you wrote down and
+impossible for one the layout decides — a card as tall as its copy, a
+button that grows with its label. Box units, the default, author the
+same gradient in the node's UNIT SQUARE: (0,0) is the box's top-left,
+(1,1) its bottom-right, whatever the box turns out to be. There is no
+number to guess. A box-unit gradient rides the GEOMETRY tier through
+`uResolution`, so it costs nothing per frame, and takes any number of
+stops; a pixel one is static. A gradient placed against a canvas whose
+size the sketch fixes says `{.units = GradientUnits::Pixels}`.
 
-**`Paint::radialUnit`'s radius is a fraction of the box's
-HALF-DIAGONAL**, so a ramp centred at {0.5, 0.5} with radius 1 reaches
-the CORNERS of any box — which is a trap for the commonest use. A soft
-round light authored at radius 1 still has alpha left where the
-INSCRIBED circle is, so if the node also carries a circular shape the
-shape cuts the ramp off mid-falloff and the glow gets a visible hard
-rim. The number that reaches the inscribed circle instead is 0.707. The
-trap cuts the other way too: a ramp authored past 1 — a planet
-terminator at radius 1.28 — puts its far end entirely OUTSIDE the
-inscribed disc, so on a circle-shaped node the shading silently
-disappears. Nothing is drawn wrong; the interesting part of the ramp
-just never intersects the shape.
+**A box-unit radial's radius is a multiple of its extent.** At the
+default, `RadialExtent::FarthestCorner`, a gradient centred at
+{0.5, 0.5} with radius 1 reaches the CORNERS of any box — which is a trap
+for a soft round light: it still has alpha left where the INSCRIBED
+circle is, so a node that also carries a circular shape cuts the ramp off
+mid-falloff with a visible hard rim. `RadialExtent::ClosestSide` is the
+one that means "a glow filling this node": radius 1 reaches the middle
+of each side, which is the inscribed circle. The trap cuts the other way
+too: a ramp authored past 1 — a planet terminator at radius 1.28 — puts
+its far end entirely outside the inscribed disc, so on a circle-shaped
+node the shading silently disappears.
 
-**`Paint::glowUnit` is the min-side-relative variant**: the radius is a
-fraction of the box's shorter side, so radius 1 IS the inscribed circle
-— which is what "a glow filling this node" means every time anyone
-writes it. Everything else is `Paint::radialUnit`. Like the other two it
-works in the box's UNIT SQUARE, so on a non-square box the falloff is
-elliptical: it fills the box rather than staying circular. That is what
-you want for a panel wash and not for a lamp; for a true circle, put it
-on a square node.
+Both extents are measured from the BOX's centre, so a gradient moved off
+the centre keeps its size, and both work in the unit square, so on a
+non-square box the falloff is elliptical: it fills the box rather than
+staying circular. That is what you want for a panel wash and not for a
+lamp; for a true circle, put it on a square node or place it in pixels.
+A conic in box units is the exception: its centre is a fraction of the
+box, and its angles stay true angles.
 
 ### Reading a finished paint
 
@@ -239,7 +240,7 @@ rather than nothing.
 
 `Paint::operator==` is the prune signature. Two paints compare equal
 when they were built from the same recipe: solids by colour; gradients
-by geometry, stops and tile mode; images by image pointer, tile modes,
+by geometry, stops and repeat; images by image pointer, tile modes,
 matrix and sampling; a static SkSL paint by effect pointer, constant
 values and CHILD paints; blend stacks recursively by layer recipes and
 modes. So re-running the same describe code yields EQUAL paints even
@@ -269,7 +270,9 @@ sketch must not take a live-reload host down.
 
 ## See also
 
-- `skia/Paint.h` — the header: `Paint`, `PaintFrame`, `Stop`, `Fit`
+- `skia/Paint.h` — the header: `Paint`, `PaintFrame`, `Fit`
+- `core/Gradient.h` — what a gradient is told: `ColorStops`,
+  `GradientOptions`, `GradientUnits`, `RadialExtent`, `Repeat`
 - The verbs on this value: [`uniform`](../verbs/uniform.md),
   [`slot`](../verbs/slot.md), [`amount`](../verbs/amount.md),
   [`fit`](../verbs/fit.md), [`offset`](../verbs/offset.md),

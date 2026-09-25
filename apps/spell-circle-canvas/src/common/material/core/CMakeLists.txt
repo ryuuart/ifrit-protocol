@@ -4,7 +4,9 @@
 # a node transform does, and the same rule decides whether it is moving —
 # Boost.PFR for the reflection that turns a parameter struct into a layout
 # and its declarations. No Skia, no Slang: compilers arrive from the
-# backend features through registerCompiler().
+# backend features through registerCompiler(). Gradient.h is what a
+# gradient is told before a renderer draws it — its stops and the one
+# options struct — so its units and extents are the value's, not Skia's.
 #
 # Parameters.h includes <boost/pfr.hpp>, so the include path must reach every
 # consumer that instantiates schema<P>(); the target is header-only, and
@@ -29,9 +31,9 @@ find_package(boost_pfr CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 sigil_library(SigilMaterialCore
-  SOURCES Combine.cpp Material.cpp Parameters.cpp Program.cpp Recipe.cpp Terms.cpp
+  SOURCES Combine.cpp Gradient.cpp Material.cpp Parameters.cpp Program.cpp Recipe.cpp Terms.cpp
           ${SIGIL_MATERIAL_SHADING_PROOF}
-  HEADERS Backface.h Bank.h Combine.h FrameData.h Leaf.h
+  HEADERS Backface.h Bank.h Combine.h FrameData.h Gradient.h Leaf.h
           Material.h Parameters.h Program.h Recipe.h Target.h Terms.h
           UniformBlock.h
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr
