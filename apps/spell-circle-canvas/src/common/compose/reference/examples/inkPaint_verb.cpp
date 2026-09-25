@@ -28,12 +28,12 @@ constexpr material::Color kAsh = hexColor(0x7e8f9c);
  *  where the ramp's middle stops meet, and lands on the capitals at
  *  whatever size the word is set. */
 skia::Paint chrome() {
-  return skia::Paint::linearUnit({0, 0}, {0, 1},
-                                 {{0.00f, hexColor(0xf2f6f8)},
-                                  {0.46f, hexColor(0x8fa6b4)},
-                                  {0.52f, hexColor(0x2b3d4a)},
-                                  {0.58f, hexColor(0xcfe0e8)},
-                                  {1.00f, hexColor(0x6d8593)}});
+  return skia::Paint::linearGradient({0, 0}, {0, 1},
+                                     {{0.00f, hexColor(0xf2f6f8)},
+                                      {0.46f, hexColor(0x8fa6b4)},
+                                      {0.52f, hexColor(0x2b3d4a)},
+                                      {0.58f, hexColor(0xcfe0e8)},
+                                      {1.00f, hexColor(0x6d8593)}});
 }
 
 }  // namespace

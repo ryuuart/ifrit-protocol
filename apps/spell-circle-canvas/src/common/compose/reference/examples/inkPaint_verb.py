@@ -17,7 +17,7 @@ def chrome() -> material.Paint:
     """The chrome ramp, authored once in the unit square: the horizon
     sits where the ramp's middle stops meet, and lands on the capitals
     at whatever size the word is set."""
-    return material.Paint.linearUnit(
+    return material.Paint.linearGradient(
         (0, 0),
         (0, 1),
         [

@@ -320,7 +320,7 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
   // whose surfaces are mostly STROKES, that meant writing the same brass
   // twice, once per return type.
   PathFormat f = stroke(30, Fill::color({1, 1, 1, 1}));
-  f.strokeFill = material::skia::Paint::linearUnit(
+  f.strokeFill = material::skia::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   Host host(200, 200);
   host.composer.render(box().children(

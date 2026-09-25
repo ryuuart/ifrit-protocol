@@ -57,9 +57,7 @@ version of its top.
 | `Fill::var(reference)` | C++ | the colour a custom property holds |
 | `Fill::var(name)` | C++ | the same, interning the name through `compose::var` — C++ only, since Python's `Fill.var` takes the reference alone |
 | `compose::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as the `material::Color` a `Fill::color` takes |
-| `compose::linearGradient(from, to, colours)` | C++ | a two-point ramp, as a shader fill |
-| `compose::radialGradient(centre, radius, colours)` | C++ | a circular ramp, as a shader fill |
-| `compose::toFill(paint)` | C++ | the static collapse of a material paint — a solid or a built shader, and nothing for a paint that needs a frame |
+| `compose::toFill(paint)` | C++ | the static collapse of a material paint — a solid or a built shader, and nothing for a paint that needs a frame; a gradient placed in pixels, `toFill(material::skia::Paint::linearGradient(from, to, colours, {.units = material::GradientUnits::Pixels}))`, is a shader fill this way |
 | `"#1f2933"` | Python | a CSS colour string, implicitly |
 | `(0.12, 0.16, 0.20)` | Python | a 3-tuple of unit floats, implicitly |
 | `(0.12, 0.16, 0.20, 0.5)` | Python | a 4-tuple, the fourth being alpha |
@@ -100,7 +98,6 @@ fill REFERS to, so a reference in that slot would have nothing to read.
 | `compose::toFill` | function | SigilCompose — a static material paint collapsed |
 | `compose::resolveFill` | function | SigilCompose — the same paint for THIS frame, bound outputs sampled |
 | `SurfacePaint::resolve` | member | SigilCompose |
-| `compose::linearGradient`, `compose::radialGradient` | function | SigilCompose |
 
 ## Description
 
@@ -121,8 +118,7 @@ subtree without re-describing it.
 ## See also
 
 - `core/Paint.h` — the header: `Fill`, `Corners`, `hexColor`,
-  `PaintContext`, `resolveRef`, `frameOf`, `toFill`, `resolveFill`,
-  `linearGradient`, `radialGradient`
+  `PaintContext`, `resolveRef`, `frameOf`, `toFill`, `resolveFill`
 - [SurfacePaint](value:sigil::compose::SurfacePaint) — the widest
   colouring value, which a fill converts into
 - The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —

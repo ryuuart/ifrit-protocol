@@ -162,7 +162,7 @@ says so once, as every silent no-op in this library does.
   ink and one setting its own, with the text, the stroke and the swatch
   in each following it.
 - `reference/examples/ink_verb.py` — the same picture in Python.
-- `reference/examples/inkPaint_verb.cpp` — one unit-square ramp
+- `reference/examples/inkPaint_verb.cpp` — one box-unit gradient
   painting the same word at two sizes.
 - `reference/examples/inkPaint_verb.py` — the same picture in Python.
 - `src/sketch/sketches/ink_units.cpp` — one ramp laid across a passage

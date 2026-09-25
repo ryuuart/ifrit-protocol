@@ -257,12 +257,13 @@ inline material::skia::Paint grooveRamp(float radius, float width,
   const float outer = (radius + width * 0.5f) / reach;
   const float mid = (inner + outer) * 0.5f;
   const float half = (outer - inner) * std::clamp(shoulder, 0.0f, 0.5f);
-  return material::skia::Paint::radial(
+  return material::skia::Paint::radialGradient(
       {radius, radius}, reach,
       {{0.0f, material::skia::toSkColor(dark)},
        {mid - half, material::skia::toSkColor(dark)},
        {mid + half, material::skia::toSkColor(lite)},
-       {1.0f, material::skia::toSkColor(lite)}});
+       {1.0f, material::skia::toSkColor(lite)}},
+      {.units = material::GradientUnits::Pixels});
 }
 
 /** The groove as the stroke a disc's outline wears: @p width px centred

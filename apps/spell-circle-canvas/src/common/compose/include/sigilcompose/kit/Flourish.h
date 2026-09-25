@@ -109,7 +109,9 @@ inline Element acanthusLeaf(const FlourishStyle& s, float w = 28.0f,
       .width(w)
       .height(h)
       .shape(leafOutline())
-      .fill(sigil::compose::linearGradient({0, 0}, {w, h}, {s.leaf, s.bronze}))
+      .fill(material::skia::Paint::linearGradient(
+          {0, 0}, {w, h}, {s.leaf, s.bronze},
+          {.units = material::GradientUnits::Pixels}))
       .foreground(sigil::compose::stroke(1.1f, Fill::color(s.goldBright)))
       .foreground(midrib)
       .foreground(veins);

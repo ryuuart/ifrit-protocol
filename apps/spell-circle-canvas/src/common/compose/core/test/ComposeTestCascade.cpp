@@ -679,7 +679,7 @@ namespace {
 
 /** A red-to-blue ramp across the unit square, left to right. */
 material::skia::Paint redToBlue() {
-  return material::skia::Paint::linearUnit(
+  return material::skia::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 

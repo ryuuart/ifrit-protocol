@@ -27,7 +27,7 @@
 
 #include <include/core/SkPath.h>
 #include <sigilgeometry/path/Stroke.h>
-#include <sigilmaterial/skia/Paint.h>  // material::skia::Stop — the along-arc gradient ramp
+#include <sigilmaterial/skia/Paint.h>  // material::ColorStop — the along-arc gradient ramp
 
 #include <optional>
 #include <vector>
@@ -176,7 +176,7 @@ struct Line {
    *
    *  **It applies to a single run only.** With `parallels > 1` or a dash
    *  pattern set, this list is IGNORED and the casings paint flat. */
-  std::vector<material::skia::Stop> alongStops;
+  std::vector<material::ColorStop> alongStops;
 
   bool operator==(const Line&) const = default;
 

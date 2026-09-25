@@ -490,7 +490,7 @@ TEST(KitSpecimen, SurfacePaintPreservesBindingsAndMaterialResolution) {
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorGREEN);
   EXPECT_EQ(SurfacePaint(&ink), SurfacePaint(&ink));
-  const SurfacePaint paint = material::skia::Paint::linearUnit(
+  const SurfacePaint paint = material::skia::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}});
   for (float width : {80.0f, 160.0f}) {
     host.composer.render(box().children(

@@ -94,10 +94,12 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
     Host h;
     h.composer.declareInputSpace(space);
     h.composer.render(box().children({box().width(160).height(120).fill(
-        material::skia::Paint::linear({0, 0}, {160, 120},
-                                      {{0.0f, {1, 0, 0, 1}},
-                                       {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},
-                                       {1.0f, {0, 0, 1, 1}}}))}));
+        material::skia::Paint::linearGradient(
+            {0, 0}, {160, 120},
+            {{0.0f, {1, 0, 0, 1}},
+             {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},
+             {1.0f, {0, 0, 1, 1}}},
+            {.units = material::GradientUnits::Pixels}))}));
     h.frame();
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(200, 200));

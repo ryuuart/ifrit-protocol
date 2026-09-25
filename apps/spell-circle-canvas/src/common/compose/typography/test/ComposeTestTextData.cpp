@@ -318,7 +318,7 @@ TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
   Host host(320, 160);
   host.composer.render(box().padding(20).children(
       {text(u8"HH", whiteStyle(96))
-           .ink(material::skia::Paint::linearUnit(
+           .ink(material::skia::Paint::linearGradient(
                {0, 0}, {0, 1},
                {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
@@ -388,7 +388,7 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
   host.composer.render(box().padding(20).children(
       {text(u8"HH", whiteStyle(96))
            .textStroke(9.0f, Fill::color({0, 1, 0, 1}))
-           .ink(material::skia::Paint::linearUnit(
+           .ink(material::skia::Paint::linearGradient(
                {0, 0}, {0, 1},
                {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
@@ -416,11 +416,12 @@ TEST(ComposeText, AGlyphOutlineTakesTheInkWhenAPaintHasNoOneColour) {
       box()
           .padding(20)
           .ink({0, 1, 0, 1})
-          .children({text(u8"HH", whiteStyle(96))
-                         .textStroke(8.0f, material::skia::Paint::linearUnit(
-                                               {0, 0}, {0, 1},
-                                               {{0.0f, {1, 0, 0, 1}},
-                                                {1.0f, {0, 0, 1, 1}}}))}));
+          .children(
+              {text(u8"HH", whiteStyle(96))
+                   .textStroke(8.0f, material::skia::Paint::linearGradient(
+                                         {0, 0}, {0, 1},
+                                         {{0.0f, {1, 0, 0, 1}},
+                                          {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
   int green = 0;
   for (int y = 0; y < 160; ++y)
@@ -437,7 +438,7 @@ TEST(ComposeText, AnInkPaintTheSlotCannotStoreLeavesTheOneItHas) {
   // tree. Writing one over a ramp must therefore leave the ramp alone —
   // blanking it would repaint the letters in a colour nobody named,
   // while an EMPTY paint is how the paint is meant to be cleared.
-  const auto ramp = material::skia::Paint::linearUnit(
+  const auto ramp = material::skia::Paint::linearGradient(
       {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   auto rampedPixels = [&](SurfacePaint after) {
     Host host(320, 160);

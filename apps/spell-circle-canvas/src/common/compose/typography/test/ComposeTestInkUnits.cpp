@@ -17,13 +17,13 @@ namespace {
 
 /** Red on the left of the unit square, blue on the right. */
 material::skia::Paint across() {
-  return material::skia::Paint::linearUnit(
+  return material::skia::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 
 /** Red at the top of the unit square, blue at the bottom. */
 material::skia::Paint down() {
-  return material::skia::Paint::linearUnit(
+  return material::skia::Paint::linearGradient(
       {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 

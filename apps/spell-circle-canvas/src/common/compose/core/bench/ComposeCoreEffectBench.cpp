@@ -215,7 +215,7 @@ sigil::material::skia::Paint stripeTarget() {
 
 /** The parameter: 0 at the node's left edge, 1 at its right. */
 sigil::material::skia::Paint sigmaRamp() {
-  return sigil::material::skia::Paint::linearUnit(
+  return sigil::material::skia::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 

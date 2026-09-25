@@ -20,7 +20,6 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
-#include <include/effects/SkGradient.h>
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/callable/Callable.h>
@@ -62,8 +61,8 @@ struct ElementNode;
 // ---------------------------------------------------------------------------
 // Paint values
 
-/** A paint slot: nothing, a color, or anything Skia can shade (gradient
- *  helpers live in util, SkSL via SkRuntimeEffect works here) — or a
+/** A paint slot: nothing, a color, or anything Skia can shade (a
+ *  material's gradient through `toFill`, SkSL via SkRuntimeEffect) — or a
  *  REFERENCE to a colour the tree supplies where the fill is painted: the
  *  ink in force, or a custom property. */
 struct Fill {
@@ -396,51 +395,5 @@ class StampCache {
   };
   std::vector<Row> m_entries;
 };
-
-// ---------------------------------------------------------------------------
-// Gradient Fills — the flat-value spelling, one line over Fill::shader.
-
-namespace detail {
-/** The ramp's colours as the shader builder takes them. A colour is four
- *  straight sRGB floats either side, so this is a copy and nothing more.
- *  Not a name a caller spells: the two gradient lines below are inline,
- *  so it stands in the header and nowhere else. */
-inline std::vector<SkColor4f> rampColors(
-    const std::vector<material::Color>& colors) {
-  std::vector<SkColor4f> out;
-  out.reserve(colors.size());
-  for (const material::Color& c : colors)
-    out.push_back(material::skia::toSkColor(c));
-  return out;
-}
-}  // namespace detail
-
-/** Linear gradient Fill — one line over Fill::shader + SkShaders. */
-inline Fill linearGradient(SkPoint from, SkPoint to,
-                           std::vector<material::Color> colors,
-                           std::vector<float> stops = {}) {
-  SkPoint pts[2] = {from, to};
-  const std::vector<SkColor4f> ramp = detail::rampColors(colors);
-  return Fill::shader(
-      SkShaders::LinearGradient(pts, SkGradient({{ramp.data(), ramp.size()},
-                                                 {stops.data(), stops.size()},
-                                                 SkTileMode::kClamp},
-                                                {})));
-}
-
-/** A radial ramp out of @p center to @p radius, in the node's local
- *  space. @p stops are positions in [0,1], one per colour; an empty
- *  list spaces them evenly. Clamped past the radius. */
-inline Fill radialGradient(SkPoint center, float radius,
-                           std::vector<material::Color> colors,
-                           std::vector<float> stops = {}) {
-  const std::vector<SkColor4f> ramp = detail::rampColors(colors);
-  return Fill::shader(
-      SkShaders::RadialGradient(center, radius,
-                                SkGradient({{ramp.data(), ramp.size()},
-                                            {stops.data(), stops.size()},
-                                            SkTileMode::kClamp},
-                                           {})));
-}
 
 }  // namespace sigil::compose

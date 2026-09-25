@@ -36,8 +36,9 @@ material::skia::Paint canvasLight(bool flagged,
   const SkPoint c = flagged ? SkPoint{70, 70}
                             : SkPoint{70 - nodeOriginForHandConversion.x(),
                                       70 - nodeOriginForHandConversion.y()};
-  material::skia::Paint m = material::skia::Paint::radial(
-      c, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}});
+  material::skia::Paint m = material::skia::Paint::radialGradient(
+      c, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}},
+      {.units = material::GradientUnits::Pixels});
   if (flagged) m.worldSpace();
   return m;
 }
@@ -109,8 +110,9 @@ TEST(ComposeWorldSpace, ARotatedNodeSamplesTheWorldFieldThroughItsRotation) {
 // jumps, which is the control.
 TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
   const auto scene = [](bool flagged) {
-    material::skia::Paint ramp = material::skia::Paint::linear(
-        {0, 0}, {200, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
+    material::skia::Paint ramp = material::skia::Paint::linearGradient(
+        {0, 0}, {200, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
+        {.units = material::GradientUnits::Pixels});
     if (flagged) ramp.worldSpace();
     return box().row().children({box().width(100).height(200).fill(ramp),
                                  box().width(100).height(200).fill(ramp)});
@@ -174,8 +176,9 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
 TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
   const auto scene = [](float spacer) {
     material::skia::Paint light =
-        material::skia::Paint::radial(
-            {100, 100}, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}})
+        material::skia::Paint::radialGradient(
+            {100, 100}, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}},
+            {.units = material::GradientUnits::Pixels})
             .worldSpace();
     // The corner child makes the panel RECORD (a childless leaf paints
     // live and would re-resolve on every reach, hiding the stale-W hole
@@ -205,8 +208,9 @@ TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
 TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
   const auto scene = [](float spacerH) {
     material::skia::Paint light =
-        material::skia::Paint::radial(
-            {100, 100}, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}})
+        material::skia::Paint::radialGradient(
+            {100, 100}, 70, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0.1f, 0.05f, 0, 1}}},
+            {.units = material::GradientUnits::Pixels})
             .worldSpace();
     // column: spacer, then a group whose panel child is absolutely inset —
     // the group MOVES, the panel's rect relative to the group does not.
@@ -277,17 +281,24 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
 // it set prunes, and flipping it patches. Leave it out of Material equality
 // and a node that stops being world-space keeps the old anchoring forever.
 TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
-  const std::vector<material::skia::Stop> stops{{0.0f, {1, 0, 0, 1}},
-                                                {1.0f, {0, 0, 1, 1}}};
+  const std::vector<material::ColorStop> stops{{0.0f, {1, 0, 0, 1}},
+                                               {1.0f, {0, 0, 1, 1}}};
   EXPECT_TRUE(
-      material::skia::Paint::linear({0, 0}, {200, 0}, stops).worldSpace() ==
-      material::skia::Paint::linear({0, 0}, {200, 0}, stops).worldSpace());
+      material::skia::Paint::linearGradient(
+          {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels})
+          .worldSpace() ==
+      material::skia::Paint::linearGradient(
+          {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels})
+          .worldSpace());
   EXPECT_FALSE(
-      material::skia::Paint::linear({0, 0}, {200, 0}, stops).worldSpace() ==
-      material::skia::Paint::linear({0, 0}, {200, 0}, stops));
+      material::skia::Paint::linearGradient(
+          {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels})
+          .worldSpace() ==
+      material::skia::Paint::linearGradient(
+          {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels}));
   const auto scene = [&](bool flagged) {
-    material::skia::Paint m =
-        material::skia::Paint::linear({0, 0}, {200, 0}, stops);
+    material::skia::Paint m = material::skia::Paint::linearGradient(
+        {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels});
     if (flagged) m.worldSpace();
     return box().children({box().width(100).height(100).key("panel").fill(m)});
   };

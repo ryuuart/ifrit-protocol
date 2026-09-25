@@ -604,9 +604,9 @@ TEST(ComposeMaskGates, TheAlphaGateTakesItsCoverageFromAMaterial) {
            .width(160)
            .height(160)
            .fill(red())
-           .mask(by::alpha(material::skia::Paint::linear(
-               {0, 0}, {160, 0},
-               {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}})))}));
+           .mask(by::alpha(material::skia::Paint::linearGradient(
+               {0, 0}, {160, 0}, {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}},
+               {.units = material::GradientUnits::Pixels})))}));
   host.frame();
   // Opaque at the left of the ramp, gone at the right, monotone between.
   EXPECT_GT(SkColorGetR(host.pixel(25, 100)), 200);
@@ -705,9 +705,9 @@ TEST(ComposeMaskGates, TheLumaLawIsTheSameThroughAShader) {
            .width(160)
            .height(160)
            .fill(Fill::color({1, 1, 1, 1}))
-           .mask(by::luma(material::skia::Paint::linear(
-               {0, 0}, {160, 0},
-               {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
+           .mask(by::luma(material::skia::Paint::linearGradient(
+               {0, 0}, {160, 0}, {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
+               {.units = material::GradientUnits::Pixels})))}));
   host.frame();
   EXPECT_NEAR((int)SkColorGetR(host.pixel(22, 100)), 150, 4) << "green end";
   EXPECT_NEAR((int)SkColorGetR(host.pixel(100, 100)), 89, 4) << "the mix";

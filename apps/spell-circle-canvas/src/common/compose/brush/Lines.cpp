@@ -109,12 +109,12 @@ void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     chunk.setStrokeCap(SkPaint::kRound_Cap);
     chunk.setStrokeJoin(SkPaint::kRound_Join);
     auto rampAt = [&](float t) {
-      if (t <= alongStops.front().position) return alongStops.front().color;
+      if (t <= alongStops.front().offset) return alongStops.front().color;
       for (size_t i = 1; i < alongStops.size(); ++i)
-        if (t <= alongStops[i].position) {
-          const float span = alongStops[i].position - alongStops[i - 1].position;
+        if (t <= alongStops[i].offset) {
+          const float span = alongStops[i].offset - alongStops[i - 1].offset;
           const float k =
-              span > 1e-6f ? (t - alongStops[i - 1].position) / span : 1.0f;
+              span > 1e-6f ? (t - alongStops[i - 1].offset) / span : 1.0f;
           const material::Color& a = alongStops[i - 1].color;
           const material::Color& b2 = alongStops[i].color;
           return material::mixToward(a, b2, k, a.a + (b2.a - a.a) * k);

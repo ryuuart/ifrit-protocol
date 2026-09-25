@@ -260,8 +260,8 @@ namespace {
 
 /** A ramp down the unit square, from @p top to @p bottom. */
 material::skia::Paint ramp(material::Color top, material::Color bottom) {
-  return material::skia::Paint::linearUnit({0, 0}, {0, 1},
-                                           {{0.0f, top}, {1.0f, bottom}});
+  return material::skia::Paint::linearGradient({0, 0}, {0, 1},
+                                               {{0.0f, top}, {1.0f, bottom}});
 }
 
 const material::Color kRed{1, 0, 0, 1};
@@ -307,8 +307,8 @@ TEST(ComposeRuleScope, ARuleFillsWithARampLaidOnEachElementsOwnBox) {
 
 TEST(ComposeRuleScope, ARuleFillOverTheCanvasDrawsAsTheVerbsDoes) {
   const auto across = [] {
-    return material::skia::Paint::linearUnit({0, 0}, {1, 0},
-                                             {{0.0f, kRed}, {1.0f, kBlue}});
+    return material::skia::Paint::linearGradient({0, 0}, {1, 0},
+                                                 {{0.0f, kRed}, {1.0f, kBlue}});
   };
   Host ruled, stated;
   ruled.composer.render(

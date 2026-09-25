@@ -283,8 +283,7 @@ sound model; nothing below them changes kernel semantics.
   stacks, world-space anchoring — and what is compose's is the routing: a
   static paint collapses to a `Fill` and rides the caching and prune path,
   a live or geometry-dependent one is kept whole on the node so the
-  painter resolves it against the frame it is drawn at. The one-line
-  gradient `Fill`s, `linearGradient` and `radialGradient`, are here too.
+  painter resolves it against the frame it is drawn at.
 - `core/Feed.h` — the streaming collection: a `feed::Ring` of rows,
   windowed to the newest `feed::Options::visible` and keyed by sequence
   id, so an append costs one mount and every surviving row keeps its

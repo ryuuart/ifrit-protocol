@@ -24,10 +24,10 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a shader, or a reference the tree resolves at paint. | `Fill::color`, `Fill::shader`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `linearGradient`, `radialGradient`, `toFill` | `Element::fill`, `Text::textStroke`, every decoration's own paint |
+| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a shader, or a reference the tree resolves at paint. | `Fill::color`, `Fill::shader`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `toFill` | `Element::fill`, `Text::textStroke`, every decoration's own paint |
 | [`SurfacePaint`](pages/types/SurfacePaint.md) | A component's surface: a fill, a live fill binding, or a material. | Implicitly from a `Fill`, an animatable fill, a bound output, a transition, a paint or a recipe | `Element::fill`, `PathFormat::strokeFill`, the kit's wells and sheets |
 | [`PaintBox`](pages/types/PaintBox.md) | The rectangle a paint's unit square is stretched over: the element's own box, its padding or content box, the subtree's, the canvas, or each glyph, cluster, word, line or sentence of a passage. | `PaintBox::Element`, `PaintBox::Canvas`, `PaintBox::Glyph`, … | `Element::fill`, `Element::ink`, `Rule::ink`, `SpanStyle::ink` |
-| `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linear`, `Paint::radial`, `Paint::sweep`, `Paint::linearUnit`, `Paint::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Element::ink` |
+| `material::skia::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linearGradient`, `Paint::radialGradient`, `Paint::conicGradient`, `Paint::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Element::ink` |
 | `material::Material` | A recipe — a pattern described rather than a shader built. | SigilMaterial's own catalogue | `Element::fill`, `Element::ink`, `Text::textStroke`, `SurfacePaint`, and `Paint::recipe` where a blend or a uniform needs a paint |
 | `material::Color` | The one colour class: a colour in a stated space, convertible to Skia's. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, through `material::skia::toSkColor` |
 | `hexColor` | Not a type: the one colour SPELLING here, `0xRRGGBB` and an alpha as a Skia colour. | — | — |
@@ -108,8 +108,7 @@ scheme of your own is C++ only.
   `Fill::none`, `Fill::currentInk` and `Fill::var`; `hexColor`, the one
   colour spelling here; `Corners`; `PaintContext`, and the
   `KeyState` and `PromotionPolicy` it carries; `PaintProgram`;
-  `StampCache`; `resolveRef`, `toFill`, `resolveFill` and `frameOf`; and
-  the gradient fills `linearGradient` and `radialGradient`.
+  `StampCache`; and `resolveRef`, `toFill`, `resolveFill` and `frameOf`.
 - `core/SurfacePaint.h` — `SurfacePaint`, the surface a component takes.
 - `core/PaintBox.h` — `PaintBox`, the rectangle a paint is stretched over.
 - `core/Var.h` — `VarRef`, the `var` that interns one, and the `varName`

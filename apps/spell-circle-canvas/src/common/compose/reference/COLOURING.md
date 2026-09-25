@@ -27,9 +27,9 @@ The short answer, before the detail:
               +-------------+--------------+
               |                            |
    motion::Animatable<Fill>        material::skia::Paint
-     - a plain Fill                  - solid, linear, radial,
-     - a Transitioned<Fill>            conical, sweep
-     - an Output<Fill>, live         - linearUnit, radialUnit, glowUnit
+     - a plain Fill                  - solid
+     - a Transitioned<Fill>          - linearGradient, radialGradient,
+     - an Output<Fill>, live           conicGradient
               |                      - image, buffer
               |                      - sksl, shader
        compose::Fill                 - blend
@@ -193,7 +193,7 @@ renderer's paint model, which is why it holds a material by pointer and a
 Skia paint by value.
 
 - `core/Paint.h` — `Fill`, `hexColor`, `PaintContext`, `resolveRef`,
-  `frameOf`, `toFill`, `resolveFill`, `linearGradient`, `radialGradient`
+  `frameOf`, `toFill`, `resolveFill`
 - `core/SurfacePaint.h` — `SurfacePaint`
 - `core/verbs/Paint.h` — `fill`
 - `core/verbs/Cascade.h` — `ink`, `var`

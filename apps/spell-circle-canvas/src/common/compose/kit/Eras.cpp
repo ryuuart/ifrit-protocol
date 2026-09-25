@@ -47,7 +47,9 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
            H * 0.40f}
         .paint(c, ctx);
   }
-  Wash{material::skia::unitRamp(material::kit::aquaBodyRamp(t))}.paint(c, ctx);
+  Wash{material::skia::Paint::linearGradient({0, 0}, {0, 1},
+                                             material::kit::aquaBodyRamp(t))}
+      .paint(c, ctx);
   if (opts.topBand > 0) {  // the recess under the top edge
     sigil::material::Color band = material::kit::aquaTopBand(t);
     band.a *= opts.topBand;
@@ -59,8 +61,11 @@ void AquaBody::paint(SkCanvas& c, const PaintContext& ctx) const {
     SkPaint glow;
     glow.setAntiAlias(true);
     glow.setBlendMode(SkBlendMode::kScreen);
-    glow.setShader(material::skia::verticalRamp(
-        H * 0.55f, H, material::kit::aquaGlowRamp(t, opts.bottomGlow)));
+    glow.setShader(material::skia::Paint::linearGradient(
+                       {0, H * 0.55f}, {0, H},
+                       material::kit::aquaGlowRamp(t, opts.bottomGlow),
+                       {.units = material::GradientUnits::Pixels})
+                       .asShader());
     c.save();
     c.clipPath(ctx.outline, true);
     c.drawRect(SkRect::MakeLTRB(0, H * 0.5f, ctx.size.width(), H), glow);
@@ -75,10 +80,13 @@ void AquaGloss::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(true);
   const float fade = std::clamp(fadeEnd, 0.05f, 1.0f);
-  p.setShader(material::skia::verticalRamp(lens.top(), lens.bottom(),
-                                           {{0.0f, {1, 1, 1, alphaTop}},
-                                            {fade, {1, 1, 1, alphaBottom}},
-                                            {1.0f, {1, 1, 1, alphaBottom}}}));
+  p.setShader(material::skia::Paint::linearGradient(
+                  {0, lens.top()}, {0, lens.bottom()},
+                  {{0.0f, {1, 1, 1, alphaTop}},
+                   {fade, {1, 1, 1, alphaBottom}},
+                   {1.0f, {1, 1, 1, alphaBottom}}},
+                  {.units = material::GradientUnits::Pixels})
+                  .asShader());
   c.save();
   c.clipPath(ctx.outline, true);
   c.drawRRect(SkRRect::MakeRectXY(lens, lens.height() / 2, lens.height() / 2),
@@ -112,8 +120,9 @@ LayerStyle aquaOrb(material::Color tint) {
 }
 
 void ChromeBody::paint(SkCanvas& c, const PaintContext& ctx) const {
-  Wash{material::skia::unitRamp(material::kit::chromeRamp(palette))}.paint(c,
-                                                                           ctx);
+  Wash{material::skia::Paint::linearGradient(
+           {0, 0}, {0, 1}, material::kit::chromeRamp(palette))}
+      .paint(c, ctx);
 }
 
 void ChromeSliver::paint(SkCanvas& c, const PaintContext& ctx) const {
@@ -172,11 +181,13 @@ LayerStyle y2kChrome(ChromeOptions opts) {
 }
 
 material::skia::Paint sunsetChromeType() {
-  return material::skia::unitRamp(material::kit::sunsetChromeText());
+  return material::skia::Paint::linearGradient(
+      {0, 0}, {0, 1}, material::kit::sunsetChromeText());
 }
 
 material::skia::Paint silverChromeType() {
-  return material::skia::unitRamp(material::kit::silverChromeText());
+  return material::skia::Paint::linearGradient(
+      {0, 0}, {0, 1}, material::kit::silverChromeText());
 }
 
 void GlossContour::paint(SkCanvas& c, const PaintContext& ctx) const {

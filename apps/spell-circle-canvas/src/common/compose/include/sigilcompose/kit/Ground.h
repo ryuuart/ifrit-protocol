@@ -50,8 +50,9 @@ namespace sigil::compose::kit {
   const float hold = std::clamp(clear, 0.0f, 1.0f);
   material::Color inner = edge;
   inner.a = 0;
-  return radialGradient(centre, std::max(radius, 1.0f), {inner, edge},
-                        {hold, 1.0f});
+  return toFill(material::skia::Paint::radialGradient(
+      centre, std::max(radius, 1.0f), {{hold, inner}, {1.0f, edge}},
+      {.units = material::GradientUnits::Pixels}));
 }
 
 /** @p over WITH A GRAIN IN IT: value noise collapsed to one channel and

@@ -87,7 +87,7 @@ namespace {
  *  Any map will do here — what these cases are about is the PARAMETER
  *  moving, and a map is what makes an effect carry one at all. */
 material::skia::Paint sigmaMap() {
-  return material::skia::Paint::linearUnit(
+  return material::skia::Paint::linearGradient(
       {0, 0}, {0, 1}, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}});
 }
 }  // namespace
@@ -407,7 +407,7 @@ material::skia::Paint stripeFill() {
  *  the UNIT SQUARE — which is the point of using a Material as the
  *  carrier, because the box here is decided by the layout. */
 material::skia::Paint focalRamp() {
-  return material::skia::Paint::linearUnit(
+  return material::skia::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
@@ -490,7 +490,7 @@ TEST(ComposeEffects, AStaticParamBlurPrunesByRecipeAndByItsMap) {
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
   host.frame();
   // …and so is a different MAP at the same range.
-  const material::skia::Paint flipped = material::skia::Paint::linearUnit(
+  const material::skia::Paint flipped = material::skia::Paint::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}});
   host.composer.render(tree(14, flipped));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u)

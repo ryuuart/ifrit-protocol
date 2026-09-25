@@ -162,12 +162,13 @@ TEST(KitLine, ARuleIsASurfaceAndAPairedOneRulesInTheInkItCannotCollapse) {
   // An UNPAIRED rule is a node's own fill, so it takes the whole surface
   // set: a gradient rules it as it grounds a well.
   Host gradient(120, 40);
-  gradient.composer.render(box().width(120).height(40).column().children(
-      {kit::line({.length = Dimension(100),
-                  .thickness = 8,
-                  .fill = material::skia::Paint::linear(
-                      {0, 0}, {100, 0},
-                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})})}));
+  gradient.composer.render(
+      box().width(120).height(40).column().children({kit::line(
+          {.length = Dimension(100),
+           .thickness = 8,
+           .fill = material::skia::Paint::linearGradient(
+               {0, 0}, {100, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
+               {.units = material::GradientUnits::Pixels})})}));
   gradient.frame();
   EXPECT_GT(SkColorGetR(gradient.pixel(2, 4)), 200u);
   EXPECT_GT(SkColorGetB(gradient.pixel(97, 4)), 200u);
@@ -186,7 +187,7 @@ TEST(KitLine, ARuleIsASurfaceAndAPairedOneRulesInTheInkItCannotCollapse) {
           .children(
               {kit::line({.length = Dimension(100),
                           .thickness = 4,
-                          .fill = material::skia::Paint::linearUnit(
+                          .fill = material::skia::Paint::linearGradient(
                               {0, 0}, {1, 0},
                               {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}),
                           .pair = {{.thickness = 2, .gap = 6}}})}));

@@ -81,11 +81,13 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
   Host host(300, 120);
   host.composer.render(box().padding(20).children(
       {text(u8"HHH", whiteStyle(64))
-           .ink(material::skia::Paint::linear({0, 0}, {0, 1},
-                                                   {{0.0f, {1, 0, 0, 1}},
-                                                    {0.499f, {1, 0, 0, 1}},
-                                                    {0.501f, {0, 0, 1, 1}},
-                                                    {1.0f, {0, 0, 1, 1}}}))}));
+           .ink(material::skia::Paint::linearGradient(
+               {0, 0}, {0, 1},
+               {{0.0f, {1, 0, 0, 1}},
+                {0.499f, {1, 0, 0, 1}},
+                {0.501f, {0, 0, 1, 1}},
+                {1.0f, {0, 0, 1, 1}}},
+               {.units = material::GradientUnits::Pixels}))}));
   host.frame();
   // Find the lit band first, then judge its top vs bottom thirds — the
   // ramp midline lives at the CAP BAND's middle, not the canvas's.
