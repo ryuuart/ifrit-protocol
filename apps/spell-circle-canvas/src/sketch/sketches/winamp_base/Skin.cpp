@@ -1,5 +1,6 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmotion/bind/Bound.h>
 
 #include "WinampBase.h"
 

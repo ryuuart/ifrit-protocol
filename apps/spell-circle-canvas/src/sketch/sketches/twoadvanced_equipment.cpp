@@ -60,7 +60,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>

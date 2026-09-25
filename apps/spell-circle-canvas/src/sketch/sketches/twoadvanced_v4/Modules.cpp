@@ -1,4 +1,5 @@
 #include "TwoAdvancedV4.h"
+#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/ease/Ease.h>
 
 auto TwoAdvancedV4::specPair(const sigil::data::Json& spec) -> Element {

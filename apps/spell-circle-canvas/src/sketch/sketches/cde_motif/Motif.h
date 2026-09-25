@@ -21,7 +21,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Patterns.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>

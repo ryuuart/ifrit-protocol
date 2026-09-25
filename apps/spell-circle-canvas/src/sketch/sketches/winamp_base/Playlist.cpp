@@ -1,4 +1,5 @@
 #include "WinampBase.h"
+#include <sigilmotion/bind/Bound.h>
 
 auto WinampBase::playlistWindow() -> Element {
   using namespace wa;

@@ -22,7 +22,7 @@
 #include <sigilmaterial/skia/Effect.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/schedule/Cascade.h>
 #include <sigilmotion/values/Keyframes.h>
 #include <sigilmotion/values/Time.h>

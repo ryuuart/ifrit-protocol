@@ -1,4 +1,5 @@
 #include "WinampBase.h"
+#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/ease/Ease.h>
 
 auto WinampBase::tracks() -> const std::array<Track, 25>& {

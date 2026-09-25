@@ -1,6 +1,7 @@
 // Particle emission, fixed steps and streak geometry.
 
 #include "GenesisFire.h"
+#include <sigilmotion/physics/Points.h>
 
 physics::Emitter GenesisFire::mouthFor(const Site& s, int index,
                                        float speedScale, float sizeScale,

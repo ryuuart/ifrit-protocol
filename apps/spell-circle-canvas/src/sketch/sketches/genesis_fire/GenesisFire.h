@@ -2,6 +2,7 @@
 
 #include "Settings.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/physics/Particles.h>
 
 struct GenesisFire {
   /** The host is capturing for a diff, so a figure this study took off

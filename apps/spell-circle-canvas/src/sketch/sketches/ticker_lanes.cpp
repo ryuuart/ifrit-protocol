@@ -44,7 +44,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>

@@ -3,6 +3,7 @@
 // TAGS: Interfaces/Desktop
 
 #include "Motif.h"
+#include <sigilmotion/bind/Bound.h>
 
 struct CdeMotifSketch {
   using Set = cde::ColorSet;

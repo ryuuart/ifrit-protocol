@@ -4,6 +4,7 @@
 // TAGS: Interfaces/Web
 
 #include "Artwork.h"
+#include <sigilmotion/bind/Bound.h>
 
 struct SpaceJam1996 {
   using Ix = sj::Ix;

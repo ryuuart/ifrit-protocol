@@ -12,7 +12,7 @@
 #include <sigilmaterial/kit/Crt.h>
 #include <sigilmaterial/skia/Bloom.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
