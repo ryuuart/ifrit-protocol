@@ -19,14 +19,14 @@ namespace sigil::io::detail {
  *  long as the hub holds the transport.
  *  @trap A listening socket holds no one peer, so send() goes nowhere by
  *  itself; what it can answer is the ONE sender an arrival names,
- *  through Feed::sendTo(). */
+ *  through Feed::send() with SendOptions::to. */
 void registerUdp(Hub& hub);
 
 /** Installs the WebSocket LISTENER on @p hub for the scheme "ws".
  *  ws://:PORT/PATH holds that path on every interface, PORT 0 meaning any
  *  free port and an omitted PATH meaning "/"; a ?pages=URI query answers
  *  HTTP GET out of that directory on the same port. send() reaches every
- *  peer at once and Feed::sendTo() one, on a thread per listening feed.
+ *  peer at once and Feed::send() with SendOptions::to one, on a thread per listening feed.
  *  @trap There is no client here and no "wss" to hold a port for: a URI
  *  naming a host to CALL opens nothing, and the client in front of it is
  *  what takes those. */
@@ -52,7 +52,7 @@ void registerWebSocketClient(Hub& hub);
  *  @trap A name nobody has made a region under is a door onto NOTHING
  *  rather than one that failed — no error(), and delivery the moment a
  *  writer makes one.
- *  @silent send() and Feed::sendTo(): a reader has no way back to a
+ *  @silent send() and Feed::send() with SendOptions::to: a reader has no way back to a
  *  writer through a region. */
 void registerSharedMemory(Hub& hub);
 
@@ -64,7 +64,7 @@ void registerSharedMemory(Hub& hub);
  *  driver's own callback is the thread a message arrives on.
  *  @trap A PORT IS NAMED AND NEVER NUMBERED, because which port a machine
  *  calls its second depends on what else was plugged in this morning.
- *  @silent send() and Feed::sendTo() on an INPUT: what comes back down a
+ *  @silent send() and Feed::send() with SendOptions::to on an INPUT: what comes back down a
  *  cable is the other cable. */
 void registerMidi(Hub& hub);
 
@@ -77,7 +77,7 @@ void registerMidi(Hub& hub);
  *  @trap THE RATE IS REQUIRED and there is none to fall back on: two ends
  *  that disagree about it read each other as noise, so a URI carrying
  *  none opens nothing.
- *  @silent Feed::sendTo(): a cable holds one peer, so there is no sender
+ *  @silent Feed::send() with SendOptions::to: a cable holds one peer, so there is no sender
  *  to pick out by name. */
 void registerSerial(Hub& hub);
 

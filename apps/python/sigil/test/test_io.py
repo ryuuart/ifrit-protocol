@@ -18,7 +18,7 @@ def receive(feed):
         if arrival is not None:
             return arrival
         time.sleep(0.001)
-    raise AssertionError(f"No arrival on {feed.uri()}: {feed.error()}")
+    raise AssertionError(f"No arrival on {feed.uri()}: {feed.state().error}")
 
 
 class IO(unittest.TestCase):
@@ -44,39 +44,39 @@ class IO(unittest.TestCase):
             self.assertFalse(hub.write("https://example.invalid/output", b"x"))
 
     def test_arrivals_copy_buffers_and_survive_feed_destruction(self):
-        feed = io.Feed("fixture://owned", io.FeedPolicy(capacity=2))
+        feed = io.Feed("fixture://owned", io.ListenOptions(capacity=2))
         inlet = io.testing.inletOf(feed)
         original = bytearray(b"one")
         inlet.deliver(memoryview(original), sender="fixture://sender")
         original[:] = b"two"
         inlet.deliver(b"second")
         inlet.deliver(b"third")
-        self.assertEqual(feed.generation(), 3)
-        self.assertEqual(feed.dropped(), 1)
-        self.assertEqual(feed.receive().bytes, b"second")
+        self.assertEqual(feed.state().revision, 3)
+        self.assertEqual(feed.state().dropped, 1)
+        self.assertEqual(feed.receive().payload, b"second")
         arrival = feed.receive()
-        self.assertEqual(arrival.bytes, b"third")
+        self.assertEqual(arrival.payload, b"third")
         self.assertIsNone(feed.receive())
-        self.assertEqual(feed.latest().bytes, b"third")
-        self.assertEqual(feed.latest().generation, 3)
+        self.assertEqual(feed.latest().payload, b"third")
+        self.assertEqual(feed.latest().revision, 3)
         del feed
         gc.collect()
         self.assertTrue(inlet.expired())
-        self.assertEqual(arrival.bytes, b"third")
-        owned = io.Arrival(bytes=original, from_="peer", at=0.5)
+        self.assertEqual(arrival.payload, b"third")
+        owned = io.Message(payload=original, sender="peer", arrivedAt=0.5)
         original[:] = b"xxx"
-        self.assertEqual(owned.bytes, b"two")
-        self.assertEqual(owned.from_, "peer")
-        self.assertEqual(owned.at, 0.5)
+        self.assertEqual(owned.payload, b"two")
+        self.assertEqual(owned.sender, "peer")
+        self.assertEqual(owned.arrivedAt, 0.5)
 
     def test_zero_capacity_keeps_only_the_newest_snapshot(self):
-        feed = io.Feed("fixture://latest", io.FeedPolicy(capacity=0))
+        feed = io.Feed("fixture://latest", io.ListenOptions(capacity=0))
         io.testing.inletOf(feed).deliver(b"data")
-        self.assertEqual(feed.latest().bytes, b"data")
+        self.assertEqual(feed.latest().payload, b"data")
         self.assertIsNone(feed.receive())
-        self.assertEqual(feed.dropped(), 1)
+        self.assertEqual(feed.state().dropped, 1)
         with self.assertRaises((TypeError, OverflowError)):
-            io.FeedPolicy(capacity=-1)
+            io.ListenOptions(capacity=-1)
 
     def test_buffers_must_be_contiguous_and_byte_data_is_not_text(self):
         feed = io.Feed("fixture://buffers")
@@ -85,30 +85,30 @@ class IO(unittest.TestCase):
             inlet.deliver(memoryview(b"abcdef")[::2])
         with self.assertRaises(TypeError):
             inlet.deliver("encode text explicitly")
-        self.assertEqual(feed.generation(), 0)
+        self.assertEqual(feed.state().revision, 0)
 
     def test_replay_preserves_recorded_spacing_and_names_no_sender(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "spacing.feed"
             writer = io.RecordingWriter(path)
-            self.assertTrue(writer.append(io.Arrival(at=0, bytes=b"first", from_="ignored")))
-            self.assertTrue(writer.append(io.Arrival(at=0.25, bytes=b"second")))
+            self.assertTrue(writer.append(io.Message(arrivedAt=0, payload=b"first", sender="ignored")))
+            self.assertTrue(writer.append(io.Message(arrivedAt=0.25, payload=b"second")))
             del writer
             gc.collect()
             hub = io.Hub()
             feed = hub.replay("fixture://replay", path)
-            hub.dispatch(10)
+            hub.advance(10)
             arrival = feed.receive()
-            self.assertEqual(arrival.bytes, b"first")
-            self.assertEqual(arrival.from_, "")
-            origin = arrival.at
+            self.assertEqual(arrival.payload, b"first")
+            self.assertEqual(arrival.sender, "")
+            origin = arrival.arrivedAt
             self.assertIsNone(feed.receive())
-            self.assertFalse(feed.closed())
-            hub.dispatch(10.25)
+            self.assertNotEqual(feed.state().readiness, io.ReadyState.Closed)
+            hub.advance(10.25)
             next_arrival = feed.receive()
-            self.assertEqual(next_arrival.bytes, b"second")
-            self.assertAlmostEqual(next_arrival.at - origin, 0.25)
-            self.assertTrue(feed.closed())
+            self.assertEqual(next_arrival.payload, b"second")
+            self.assertAlmostEqual(next_arrival.arrivedAt - origin, 0.25)
+            self.assertEqual(feed.state().readiness, io.ReadyState.Closed)
             self.assertFalse(feed.send(b"no transport"))
 
     def test_invalid_times_are_refused_before_they_reach_a_feed(self):
@@ -120,34 +120,34 @@ class IO(unittest.TestCase):
             for invalid in (-1, math.inf, math.nan):
                 with self.subTest(invalid=invalid):
                     with self.assertRaises(ValueError):
-                        writer.append(io.Arrival(at=invalid))
+                        writer.append(io.Message(arrivedAt=invalid))
                     with self.assertRaises(ValueError):
                         inlet.deliver(b"late", arrivedAt=invalid)
                     with self.assertRaises(ValueError):
-                        hub.dispatch(invalid)
-        self.assertFalse(feed.opened())
-        self.assertEqual(feed.generation(), 0)
+                        hub.advance(invalid)
+        self.assertFalse(feed.state().isOpen())
+        self.assertEqual(feed.state().revision, 0)
 
     def test_recording_file_roundtrip_through_a_replaying_hub(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.feed"
             writer = io.RecordingWriter(path)
             self.assertTrue(writer.good())
-            self.assertTrue(writer.append(io.Arrival(at=0, bytes=b"zero")))
-            self.assertTrue(writer.append(io.Arrival(at=0.5, bytes=b"half")))
+            self.assertTrue(writer.append(io.Message(arrivedAt=0, payload=b"zero")))
+            self.assertTrue(writer.append(io.Message(arrivedAt=0.5, payload=b"half")))
             arrivals = io.readRecording(path)
-            self.assertEqual([a.bytes for a in arrivals], [b"zero", b"half"])
+            self.assertEqual([a.payload for a in arrivals], [b"zero", b"half"])
             self.assertIsNone(io.readRecording(Path(directory) / "absent"))
             hub = io.Hub()
             replaying = hub.replay("recording://scene", path)
-            feed = hub.feed("recording://scene")
+            feed = hub.listen("recording://scene")
             self.assertEqual(feed, replaying)
-            self.assertEqual(feed.error(), "")
-            hub.dispatch(100)
-            self.assertEqual(feed.receive().bytes, b"zero")
-            hub.dispatch(100.5)
-            self.assertEqual(feed.receive().bytes, b"half")
-            self.assertTrue(feed.closed())
+            self.assertEqual(feed.state().error, "")
+            hub.advance(100)
+            self.assertEqual(feed.receive().payload, b"zero")
+            hub.advance(100.5)
+            self.assertEqual(feed.receive().payload, b"half")
+            self.assertEqual(feed.state().readiness, io.ReadyState.Closed)
 
     def test_a_recording_lasts_as_long_as_its_handle(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -159,29 +159,29 @@ class IO(unittest.TestCase):
                 inlet.deliver(b"one", arrivedAt=0.0)
             self.assertTrue(recording.stopped())
             inlet.deliver(b"two", arrivedAt=1.0)
-            self.assertEqual([a.bytes for a in io.readRecording(path)], [b"one"])
+            self.assertEqual([a.payload for a in io.readRecording(path)], [b"one"])
 
     def test_udp_request_reply_uses_native_sender_and_owned_payloads(self):
         hub = io.Hub()
         io.registerTransports(hub, ["udp"])
-        listener = hub.feed("udp://:0")
-        self.assertEqual(listener.error(), "")
-        port = int(listener.address().rsplit(":", 1)[1])
-        sender = hub.feed(f"udp://127.0.0.1:{port}")
+        listener = hub.listen("udp://:0")
+        self.assertEqual(listener.state().error, "")
+        port = int(listener.state().localAddress.rsplit(":", 1)[1])
+        sender = hub.listen(f"udp://127.0.0.1:{port}")
         try:
-            self.assertEqual(hub.feed("udp://:0"), listener)
+            self.assertEqual(hub.listen("udp://:0"), listener)
             self.assertIn(listener, hub.feeds())
             payload = bytearray(b"request")
             self.assertTrue(sender.send(payload))
             payload[:] = b"changed"
             arrival = receive(listener)
-            self.assertEqual(arrival.bytes, b"request")
-            self.assertTrue(arrival.from_.startswith("udp://"))
-            self.assertTrue(listener.sendTo(arrival.from_, b"reply"))
-            self.assertEqual(receive(sender).bytes, b"reply")
+            self.assertEqual(arrival.payload, b"request")
+            self.assertTrue(arrival.sender.startswith("udp://"))
+            self.assertTrue(listener.send(b"reply", to=arrival.sender))
+            self.assertEqual(receive(sender).payload, b"reply")
             self.assertFalse(listener.send(b"no default peer"))
             listener.close()
-            self.assertFalse(listener.sendTo(arrival.from_, b"closed"))
+            self.assertFalse(listener.send(b"closed", to=arrival.sender))
             with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as replacement:
                 replacement.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
                 replacement.bind(("::", port))
@@ -193,19 +193,19 @@ class IO(unittest.TestCase):
         self,
     ):
         hub = io.Hub()
-        absent = hub.feed("udp://:0")
-        self.assertIn("no feed transport", absent.error())
-        self.assertFalse(absent.opened())
-        io.registerTransports(hub, ["udp"])
-        live = hub.feed("udp://:0")
-        self.assertEqual(live, absent)
-        self.assertTrue(live.opened())
+        absent = hub.listen("pigeon://roof")
+        self.assertIn("no feed transport", absent.state().error)
+        self.assertFalse(absent.state().isOpen())
+        # Every linked transport is ready on the first listen, with no
+        # registration.
+        live = hub.listen("udp://:0")
+        self.assertTrue(live.state().isOpen())
         del hub
         gc.collect()
-        port = int(live.address().rsplit(":", 1)[1])
+        port = int(live.state().localAddress.rsplit(":", 1)[1])
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender:
             sender.sendto(b"still alive", ("127.0.0.1", port))
-        self.assertEqual(receive(live).bytes, b"still alive")
+        self.assertEqual(receive(live).payload, b"still alive")
         live.close()
 
 

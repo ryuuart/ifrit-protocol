@@ -105,9 +105,9 @@ many have arrived, how many were dropped, the local end, the error,
 whether it is closed, and `sigil::seer::Vitals::lastFrom`, the address
 that message came from. The rate is worked out from the generations
 earlier ticks read, so it is a property of how often the host calls
-this and needs no thread behind it. Nothing here has a clock:
-`sigil::seer::Wires::dispatch()` and the tick both take the caller's
-seconds.
+this and needs no thread behind it. Nothing here has a clock: the
+hub's `sigil::io::Hub::advance()`, reached through
+`sigil::seer::Wires::hub()`, and the tick both take the caller's time.
 
 `sigil::seer::Log` keeps what `sigil::seer::Log::drain()` takes off one
 feed, newest last, up to the capacity it was made with;
@@ -118,8 +118,8 @@ sender the arrival named, since one wire carries messages from many
 senders and which of them sent a message is a fact about the message.
 
 The bytes and the sender come out of one ask. The sender travels with
-the arrival — it is `sigil::io::Arrival::from` — and `sigil::io::Feed`
-latches its newest arrival whole beside the queue it hands out, so
+the message — it is `sigil::io::Message::sender` — and `sigil::io::Feed`
+latches its newest message whole beside the queue it hands out, so
 `sigil::io::Feed::latest()` answers both at once to a tick that drains
 nothing. Every row therefore names where its own messages are coming
 from, not only the row being read, and no row can show one message's

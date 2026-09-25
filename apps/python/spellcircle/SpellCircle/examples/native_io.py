@@ -53,26 +53,26 @@ def roundtrip(scene: SceneDefinition, output: Path) -> SceneDefinition:
     hub = io.Hub()
     io.registerTransports(hub, ["udp"])
     with ExitStack() as feeds:
-        listener = hub.feed("udp://:0")
+        listener = hub.listen("udp://:0")
         feeds.callback(listener.close)
-        if not listener.opened() or listener.error():
-            raise RuntimeError(f"Could not listen: {listener.error()}")
-        port = int(listener.address().rsplit(":", 1)[1])
-        peer = hub.feed(f"udp://127.0.0.1:{port}")
+        if not listener.state().isOpen() or listener.state().error:
+            raise RuntimeError(f"Could not listen: {listener.state().error}")
+        port = int(listener.state().localAddress.rsplit(":", 1)[1])
+        peer = hub.listen(f"udp://127.0.0.1:{port}")
         feeds.callback(peer.close)
-        if not peer.opened() or peer.error():
-            raise RuntimeError(f"Could not connect: {peer.error()}")
+        if not peer.state().isOpen() or peer.state().error:
+            raise RuntimeError(f"Could not connect: {peer.state().error}")
         if not peer.send(payload):
-            raise RuntimeError(f"Could not send scene: {peer.error()}")
+            raise RuntimeError(f"Could not send scene: {peer.state().error}")
 
         deadline = time.monotonic() + 5
         while (arrival := listener.receive()) is None:
-            if listener.error():
-                raise RuntimeError(f"Could not receive: {listener.error()}")
+            if listener.state().error:
+                raise RuntimeError(f"Could not receive: {listener.state().error}")
             if time.monotonic() >= deadline:
                 raise TimeoutError("No scene arrived on the native UDP feed")
             time.sleep(0.001)
-        received = arrival.bytes
+        received = arrival.payload
         if received != payload:
             raise RuntimeError("The received datagram differs from the sent scene")
         decoded = decode_scene(received)

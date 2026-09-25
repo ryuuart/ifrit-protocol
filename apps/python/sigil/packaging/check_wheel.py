@@ -206,9 +206,9 @@ encoded = data.encodeJson(payload).encode("utf-8")
 assert hub.write("out://readings.json", encoded)
 assert hub.fetch("out://readings.json") == encoded
 io.registerTransports(hub, ["udp"])
-listener = hub.feed("udp://:0")
-assert listener.opened(), listener.error()
-peer = hub.feed("udp://127.0.0.1:" + listener.address().rsplit(":", 1)[1])
+listener = hub.listen("udp://:0")
+assert listener.state().isOpen(), listener.state().error
+peer = hub.listen("udp://127.0.0.1:" + listener.state().localAddress.rsplit(":", 1)[1])
 
 
 def receive(feed):
@@ -222,11 +222,11 @@ def receive(feed):
 
 
 try:
-    assert peer.send(encoded), peer.error()
+    assert peer.send(encoded), peer.state().error
     arrival = receive(listener)
-    assert arrival.bytes == encoded
-    assert listener.sendTo(arrival.from_, b"ack")
-    assert receive(peer).bytes == b"ack"
+    assert arrival.payload == encoded
+    assert listener.send(b"ack", to=arrival.sender)
+    assert receive(peer).payload == b"ack"
 finally:
     peer.close()
     listener.close()

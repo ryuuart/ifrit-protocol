@@ -75,7 +75,7 @@ TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
   EXPECT_TRUE(sameDrawing(
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),
       byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8848"},
-              {.name = u8"generation", .value = u8"2"},
+              {.name = u8"revision", .value = u8"2"},
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"1"},
               {.name = u8"sender", .value = u8"ws://127.0.0.1:52341"}})));
@@ -91,7 +91,7 @@ TEST(SketchKitConnectionReadout, AShutDoorWithNoAddressReadsWhatItIsCalled) {
   // Named by the sketch where it names the door, and by its URI where not.
   const auto rows = [](std::u8string_view door) {
     return byHand({{.name = u8"door", .value = door},
-                   {.name = u8"generation", .value = u8"0"},
+                   {.name = u8"revision", .value = u8"0"},
                    {.name = u8"dropped", .value = u8"0"},
                    {.name = u8"undecodable", .value = u8"0"},
                    {.name = u8"sender", .value = u8"-"}});
@@ -117,7 +117,7 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   EXPECT_TRUE(sameDrawing(
       readout,
       byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8850"},
-              {.name = u8"generation", .value = u8"0"},
+              {.name = u8"revision", .value = u8"0"},
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"0"},
               {.name = u8"error", .value = u8"port 8850 is in use"}})));
@@ -125,7 +125,7 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   EXPECT_FALSE(sameDrawing(
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),
       byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8850"},
-              {.name = u8"generation", .value = u8"0"},
+              {.name = u8"revision", .value = u8"0"},
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"0"},
               {.name = u8"sender", .value = u8"-"}})));
@@ -145,7 +145,7 @@ TEST(SketchKitConnectionReadout,
 
   const auto rows = [&why](std::u8string_view door) {
     return byHand({{.name = u8"door", .value = door},
-                   {.name = u8"generation", .value = u8"0"},
+                   {.name = u8"revision", .value = u8"0"},
                    {.name = u8"dropped", .value = u8"0"},
                    {.name = u8"undecodable", .value = u8"0"},
                    {.name = u8"error", .value = compose::Utf8(why)}});

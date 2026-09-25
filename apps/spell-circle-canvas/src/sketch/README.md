@@ -878,9 +878,9 @@ told; `Feed::receive()` drains in order the ones this frame has not seen,
 for a scene that folds every message in. Neither ever waits.
 
 The host moves those feeds forward, and there is nothing for a sketch to
-call: both runtimes hand `Assets::dispatch()` the scene time the frame is
-being drawn at, after the clock has advanced and before the sketch's own
-body runs, which is `Hub::dispatch()` over every feed the sketch opened.
+call: both runtimes hand `Hub::advance()` on `Assets::hub()` the scene
+time the frame is being drawn at, after the clock has advanced and before
+the sketch's own body runs, which moves every feed the sketch opened.
 A window and a headless capture step through the same call, so a sketch
 reads what had arrived by the moment it is drawing either way.
 

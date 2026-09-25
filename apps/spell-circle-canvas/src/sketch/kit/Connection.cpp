@@ -10,12 +10,12 @@ compose::Element connectionReadout(const data::Connection& connection,
                                    const ConnectionReadout& how) {
   const data::Connection::Vitals vitals = connection.vitals();
   const compose::Utf8 door =
-      !vitals.address.empty()
-          ? compose::Utf8(vitals.address)
+      !vitals.localAddress.empty()
+          ? compose::Utf8(vitals.localAddress)
           : (!how.door.empty() ? how.door : compose::Utf8(connection.uri()));
   const std::vector<compose::kit::Reading> rows{
       {.name = u8"door", .value = door},
-      {.name = u8"generation", .value = std::to_string(vitals.generation)},
+      {.name = u8"revision", .value = std::to_string(vitals.revision)},
       {.name = u8"dropped", .value = std::to_string(vitals.dropped)},
       {.name = u8"undecodable", .value = std::to_string(vitals.undecodable)},
       vitals.error.empty()

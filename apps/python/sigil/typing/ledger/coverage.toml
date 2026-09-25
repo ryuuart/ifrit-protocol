@@ -2091,23 +2091,27 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`Hub.dispatch`"
-python = ["io.Hub.dispatch"]
+bound = "`Hub.advance`"
+python = ["io.Hub.advance"]
 
 [[section.surface.item]]
-bound = "`Feed` with `receive`, `latest`, status, `send` and `sendTo`; the `Inlet` a test delivers onto one through, from `io.testing.inletOf`; owned `Arrival`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`"
+bound = "`Feed` from `Hub.listen` with `ListenOptions`, with `receive`, `latest`, `state` as a `FeedState` and `ReadyState`, and `send` to a peer or `to` one sender; the `Inlet` a test delivers onto one through, from `io.testing.inletOf`; owned `Message`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`"
 python = [
   "io.Feed",
   "io.Feed.receive",
   "io.Feed.latest",
   "io.Feed.send",
-  "io.Feed.sendTo",
+  "io.Feed.state",
+  "io.FeedState",
+  "io.ReadyState",
+  "io.Hub.listen",
+  "io.ListenOptions",
   "io.testing.inletOf",
   "io.testing.Inlet",
   "io.Feed.record",
   "io.Recording",
   "io.Hub.replay",
-  "io.Arrival",
+  "io.Message",
   "io.RecordingWriter",
   "io.readRecording",
 ]
@@ -2117,8 +2121,8 @@ bound = "the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC 
 python = ["io.registerTransports"]
 
 [[section.surface.item]]
-native = "`Hub::onDispatch`"
-python = ["io.Hub.onDispatch"]
+native = "`Hub::onAdvance`"
+python = ["io.Hub.onAdvance"]
 
 [[section.surface.item]]
 native = "`Hub::registerDecoder` for further types"
@@ -2139,8 +2143,8 @@ native = "archives, byte sources and `writeBytes`"
 python = ["io.Hub.writeBytes"]
 
 [[section.surface.item]]
-native = "`Feed::receivedAt`"
-python = ["io.Feed.receivedAt"]
+native = "`Message::receivedAt`"
+python = ["io.Message.receivedAt"]
 
 [[section.surface]]
 name = "Texture publication"
@@ -2149,8 +2153,8 @@ name = "Texture publication"
 bound = "Sketchbook publishes a Python canvas through its own publisher"
 
 [[section.surface.item]]
-native = "`io::publish` publishers, subscriptions and publication listing"
-python = ["io.publish.Publisher"]
+native = "`io::frames` publishers, subscriptions and publication listing"
+python = ["io.frames.Publisher"]
 
 [library.Video]
 native = "SigilVideo"

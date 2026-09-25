@@ -1,7 +1,7 @@
-"""SigilIOPublish: publications, publishers and subscriptions.
+"""SigilIOFrames: publications, publishers and subscriptions.
 
 Input contracts for the erased signatures of the
-data-io-and-unbound-libraries/io-publish package, and nothing else: a fragment is one
+data-io-and-unbound-libraries/io-frames package, and nothing else: a fragment is one
 author's alone.
 """
 

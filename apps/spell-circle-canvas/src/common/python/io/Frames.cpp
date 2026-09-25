@@ -3,8 +3,8 @@
 
 namespace sigil::python {
 
-void bindIOPublish(pybind11::module_& module) {
-  submodule(module, "io.publish");
+void bindIOFrames(pybind11::module_& module) {
+  submodule(module, "io.frames");
 }
 
 }  // namespace sigil::python

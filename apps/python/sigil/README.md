@@ -639,27 +639,28 @@ from sigil.sketch import SketchContext
 
 
 def setup(self, ctx: SketchContext) -> None:
-    self.input = ctx.assets.hub().feed("udp://:27021")
-    if not self.input.opened():
-        raise RuntimeError(self.input.error())
+    self.input = ctx.assets.hub().listen("udp://:27021")
+    if not self.input.state().isOpen():
+        raise RuntimeError(self.input.state().error)
     self.level = 0.0
 
 
 def update(self, elapsed: float, ctx: SketchContext) -> None:
     while (arrival := self.input.receive()) is not None:
-        document = decodeJson(arrival.bytes.decode("utf-8"))
+        document = decodeJson(arrival.payload.decode("utf-8"))
         if document is not None:
             self.level = document["level"].number(self.level)
             reply = encodeJson({"level": self.level}).encode("utf-8")
-            self.input.sendTo(arrival.from_, reply)
+            self.input.send(reply, to=arrival.sender)
 ```
 
-`receive()` takes the next queued arrival and returns `None` immediately when
-the queue is empty. `latest()` reads the newest arrival whole without draining
-the queue. Arrivals own their bytes and carry
-`generation`, `at` and `from_`; they remain readable after the feed closes.
-`FeedPolicy(capacity=...)` bounds the queue, and `dropped()` reports overflow.
-Check `opened()`, `closed()` and `error()` when presenting connection status.
+`receive()` takes the next queued message and returns `None` immediately when
+the queue is empty. `latest()` reads the newest message whole without draining
+the queue. A `Message` owns its `payload` and carries
+`revision`, `arrivedAt` and `sender`; it remains readable after the feed closes.
+`ListenOptions(capacity=...)` bounds the queue, and `state().dropped` reports
+overflow. Present connection status from `state()`: its `readiness`, a
+`ReadyState`, and its `error`.
 
 Feeds opened through a sketch context belong to that session. Successful
 reloads retain connections that the replacement sketch still uses and release
@@ -672,10 +673,11 @@ Closing is terminal for that feed: end its owning session, or release all
 standalone references, before opening that URI anew. Queue policy is selected
 when a feed is first created.
 
-A listening UDP feed replies to the sender named by an arrival with `sendTo`.
-A peer feed such as `hub.feed("udp://127.0.0.1:27021")` uses `send` to reach
+A listening UDP feed replies to the sender a message names with
+`send(payload, to=message.sender)`.
+A peer feed such as `hub.listen("udp://127.0.0.1:27021")` uses `send` to reach
 its configured destination. A WebSocket listener broadcasts with `send` or
-addresses one peer with `sendTo`. These calls return whether the transport
+addresses one peer with `send(payload, to=peer)`. These calls return whether the transport
 accepted the send; acceptance is not a delivery acknowledgement. Payloads are
 bytes or Python buffer objects. SigilIO transports bytes; the sketch chooses
 JSON, CSV, FlatBuffers or another data format.
@@ -705,7 +707,7 @@ from sigil.io import Hub, registerTransports
 
 hub = Hub()
 registerTransports(hub, ["udp"])
-peer = hub.feed("udp://127.0.0.1:27021")
+peer = hub.listen("udp://127.0.0.1:27021")
 try:
     if not peer.send(b'{"sequence": 1, "pressure": 0.6, "flow": 0.4}'):
         raise RuntimeError(peer.error() or "Could not send readings")
@@ -715,7 +717,7 @@ finally:
 
 `registerTransports(hub, ["udp"])` installs only the transports that answer
 the schemes named; `registerTransports(hub)` installs the complete native
-set. A standalone program calls `hub.dispatch(seconds)`
+set. A standalone program calls `hub.advance(time)`
 when replaying recordings. Sketches leave that call to their host.
 `feed.record(path)` writes arrivals for later playback and returns a
 `Recording` that stops when it is stopped, when it is garbage collected, or

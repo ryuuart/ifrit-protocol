@@ -14,8 +14,8 @@ still a wire: the feed exists and carries the sentence that says why,
 which is what a reader has to see to correct it.
 
 Nothing in the library has a thread or a clock of its own.
-`Wires::dispatch` moves every replayed recording to the caller's seconds
-and `Wires::tick` reads the wires and writes down what they are doing,
+The hub's `advance`, reached through `Wires::hub`, moves every replayed
+recording to the caller's time and `Wires::tick` reads the wires and writes down what they are doing,
 both of them driven by whatever loop the host runs.
 
 `Vitals` is WHAT ONE WIRE IS DOING, as of the tick that read it. It is a
@@ -63,9 +63,10 @@ because it is still a wire somebody opened.
 the wire open on that URI is closed and dropped, and every later open on
 it plays the same file back instead of opening a socket.
 
-`Wires::dispatch` moves every replayed recording to a time on the
-caller's clock, delivering each arrival the file stamped at or before it.
-A live wire is unaffected — its transport delivers on its own.
+The hub's `advance`, reached through `Wires::hub`, moves every replayed
+recording to a time on the caller's clock, delivering each message the
+file stamped at or before it. A live wire is unaffected — its transport
+delivers on its own.
 
 `Wires::readThrough` reads every wire through a schema from then on: the
 token a message is shown as its own form through, which a reader holds

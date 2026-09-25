@@ -31,8 +31,8 @@ def load(self, type: type[_sigil.image.ImageAsset], uri: str) -> _sigil.image.Im
         """def probe(self, type: type[_sigil.io.ResourceInfo], uri: str) -> _sigil.io.ResourceInfo | None: ...
 """,
     )
-    table.erased("_sigil.io.Arrival", "__init__ bytes", "collections.abc.Buffer")
-    table.erased("_sigil.io.Feed", "send sendTo", "collections.abc.Buffer")
+    table.erased("_sigil.io.Message", "__init__ payload", "collections.abc.Buffer")
+    table.erased("_sigil.io.Feed", "send", "collections.abc.Buffer")
     table.erased("_sigil.io.testing.Inlet", "deliver", "collections.abc.Buffer")
     table.erased("_sigil.io.SharedMemoryWriter", "write", "collections.abc.Buffer")
     for path in (

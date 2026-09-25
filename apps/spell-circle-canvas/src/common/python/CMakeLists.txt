@@ -30,7 +30,7 @@ sigil_library(SigilPython
     geometry/PointOperations.cpp geometry/Polylines.cpp geometry/Profiles.cpp
     geometry/Regions.cpp geometry/Seams.cpp geometry/Shapes.cpp
     geometry/Structures.cpp image/Meaning.cpp image/Values.cpp
-    io/Publish.cpp material/Core.cpp
+    io/Frames.cpp material/Core.cpp
     material/Environment.cpp material/Field.cpp material/KitGrained.cpp
     material/KitText.cpp material/PaintEffect.cpp material/Pattern.cpp
     material/Shading.cpp material/SkiaDraw.cpp material/Texture.cpp

@@ -14,8 +14,8 @@ namespace sigil::python {
 
 /** Registers resource access on @p module. */
 void bindIO(pybind11::module_& module);
-/** Adds the io.publish submodule to @p module; it registers no names
+/** Adds the io.frames submodule to @p module; it registers no names
  *  yet, so publishers and subscriptions are reachable only from C++. */
-void bindIOPublish(pybind11::module_& module);
+void bindIOFrames(pybind11::module_& module);
 
 }  // namespace sigil::python

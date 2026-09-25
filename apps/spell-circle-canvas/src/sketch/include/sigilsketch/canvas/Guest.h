@@ -18,16 +18,14 @@
 #include <string>
 #include <string_view>
 
+#include <sigilio/frames/Subscription.h>
+
 class SkCanvas;
 class SkSurface;
 
 namespace skgpu::graphite {
 class Recorder;
 }  // namespace skgpu::graphite
-
-namespace sigil::io::frames {
-class Subscription;
-}
 
 namespace sigil::sketch {
 

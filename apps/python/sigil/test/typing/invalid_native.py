@@ -14,9 +14,9 @@ material.Paint.sksl("code", {"gain": object()})  # error: reportArgumentType
 motion.animate(42)  # error: reportCallIssue,reportArgumentType
 data.Table().filter(lambda row: "yes")  # error: reportArgumentType
 io.Hub().write("output.json", {"value": 1})  # error: reportArgumentType
-io.Hub().feed(42)  # error: reportArgumentType
-io.Hub().feed("udp://:27021").send("text")  # error: reportArgumentType
-io.FeedPolicy(capacity="unbounded")  # error: reportArgumentType
+io.Hub().listen(42)  # error: reportArgumentType
+io.Hub().listen("udp://:27021").send("text")  # error: reportArgumentType
+io.ListenOptions(capacity="unbounded")  # error: reportArgumentType
 
 
 def invalid(pen: draw.Pen) -> None:

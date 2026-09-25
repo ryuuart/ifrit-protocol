@@ -28,9 +28,9 @@ def receive(feed: Feed, latest: bytes | None) -> bytes | None:
         arrival = feed.receive()
         if arrival is None:
             break
-        latest = arrival.bytes
+        latest = arrival.payload
         print(
-            f"reply {arrival.from_}: {latest.decode('utf-8', errors='replace')}",
+            f"reply {arrival.sender}: {latest.decode('utf-8', errors='replace')}",
             flush=True,
         )
     return latest
@@ -57,13 +57,13 @@ def main() -> int:
 
     hub = Hub()
     registerTransports(hub, ["udp"])
-    feed = hub.feed(f"udp://{options.host}:{options.port}")
+    feed = hub.listen(f"udp://{options.host}:{options.port}")
     latest: bytes | None = None
     try:
-        if feed.error():
-            raise RuntimeError(feed.error())
+        if feed.state().error:
+            raise RuntimeError(feed.state().error)
         print(
-            f"Sending to {feed.uri()}; replies arrive at {feed.address()}", flush=True
+            f"Sending to {feed.uri()}; replies arrive at {feed.state().localAddress}", flush=True
         )
         started = time.monotonic()
         sequence = 0
@@ -78,7 +78,7 @@ def main() -> int:
             ).encode()
             if not feed.send(message):
                 raise RuntimeError(
-                    feed.error() or "The native feed refused the message."
+                    feed.state().error or "The native feed refused the message."
                 )
             latest = receive(feed, latest)
             sequence += 1

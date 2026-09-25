@@ -4,14 +4,14 @@
  * @ingroup io-hub
  * A FEED: a resource that keeps arriving. One door, keyed by URI, with a
  * transport on one side and readers on the other; this is the readers'
- * side, and the transport's is the `Inlet` it is handed. A reader on any thread
- * either takes the newest message whole through latest() or drains in
- * order the ones it has not seen through receive(), and neither ever
- * waits for one. A feed holds the
- * last `FeedPolicy::capacity` messages for receive(), and dropped() counts
- * what fell off the front. The same door plays a recording back, and
- * writes one for as long as the Recording its record() hands out lives.
- */
+ * side, a copyable handle, and the transport's is the `Inlet` it is
+ * handed. A reader on any thread either takes the newest message whole
+ * through latest() or drains in order the ones it has not seen through
+ * receive(), and neither ever waits for one. A feed holds the last
+ * `ListenOptions::capacity` messages for receive(), and its state's
+ * `dropped` counts what fell off the front. The same door plays a
+ * recording back, and writes one for as long as the Recording its
+ * record() hands out lives. */
 
 #include <chrono>
 #include <cstdint>

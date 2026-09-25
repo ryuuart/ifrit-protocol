@@ -131,7 +131,7 @@ void bindLibraries(pybind11::module_& module) {
   bindWorldPlan(module);
   bindWorldDevice(module);
   bindIO(module);
-  bindIOPublish(module);
+  bindIOFrames(module);
   bindData(module);
   bindDataTables(module);
   bindDataSchema(module);
