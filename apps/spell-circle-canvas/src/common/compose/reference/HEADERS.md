@@ -849,7 +849,8 @@ draw, and `kit::SpriteSheet` holds sprites under names and packs them onto one
 image, each handed the rectangle it occupies — `kit::Scrim` and the halo/shade
 legibility helpers, the stock text effects over the `Text::textFx` seam in
 `kit/Kinetic.h` — `textFx::enter`, the one entrance every unit-offset reveal is
-a setting of, with `textFx::rise`, `textFx::slide`, `textFx::pop`,
+a setting of, said as a tween's entrance is (`textFx::Entrance`: `.from` the
+`textFx::Displaced` lanes, `.ease` any SigilMotion easing), with `textFx::rise`, `textFx::slide`, `textFx::pop`,
 `textFx::spinIn` and `textFx::scatter` over it, and `textFx::typeOn`,
 `textFx::waveLoop`, `textFx::variableAxisSweep` and `textFx::tint` beside them,
 each a comparable `TextEffect` built from the constructor any caller may use —

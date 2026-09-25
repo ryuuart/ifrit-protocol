@@ -180,3 +180,23 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
       << "the tail never appeared: the node replayed the recording it made at "
          "progress 0, so glyph progress is not invalidating its own picture";
 }
+
+TEST(ComposeKinetic, AnEntranceComparesByItsDisplacementAndItsCurve) {
+  // The curve is a motion easing, compared the way every curve slot is: a
+  // named curve by identity, a parameterised one by its numbers.
+  const auto rising = [](sigil::motion::Easing ease) {
+    return textFx::enter({.from = {.dy = 26}, .ease = std::move(ease)});
+  };
+  EXPECT_TRUE(rising(sigil::motion::ease::outExpo) ==
+              rising(sigil::motion::ease::outExpo));
+  EXPECT_FALSE(rising(sigil::motion::ease::outExpo) ==
+               rising(sigil::motion::ease::outCubic));
+  EXPECT_TRUE(textFx::pop(0.35f, 1.7f) == textFx::pop(0.35f, 1.7f));
+  EXPECT_FALSE(textFx::pop(0.35f, 1.7f) == textFx::pop(0.35f, 2.4f));
+  // A curve that stays inside [0, 1] reserves the travel alone; one that
+  // overshoots reserves its overshoot of the travel and the glyph beyond.
+  EXPECT_FLOAT_EQ(rising(sigil::motion::ease::outCubic).reach(), 26.0f);
+  EXPECT_FLOAT_EQ(textFx::overshootOf(sigil::motion::ease::outCubic), 0.0f);
+  EXPECT_NEAR(textFx::overshootOf(sigil::motion::ease::outBack()), 0.1f, 0.01f);
+  EXPECT_GT(rising(sigil::motion::ease::outBack()).reach(), 26.0f);
+}

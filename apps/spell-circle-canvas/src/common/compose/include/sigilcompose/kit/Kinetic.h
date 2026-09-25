@@ -68,87 +68,114 @@ namespace sigil::compose::textFx {
 
 // A scale-only effect's reach is read against `kNominalSizePx`, the
 // display size the seam declares reaches at when no effect knows its font
-// size at construction. `motion::ease::outBack` is the same curve as
-// `Curve::OutBack` in the form a Transition holds.
+// size at construction.
 
-/** THE CURVE an entrance settles on — named rather than a callable,
- *  because a preset shapes one float per glyph per frame and an `EaseFn`
- *  through a `std::function` puts an indirect call in that loop. These
- *  are Choreograph's own, called directly by the body. `OutBack` is the
- *  shape-parameterised overshoot the elastic pop lands with. */
-enum class Curve : uint8_t { OutCubic, OutExpo, OutBack };
+/** WHERE A GLYPH ENTERS FROM: the lanes it is displaced on before it comes
+ *  home. `scatterPx` and `scatterLeanDeg` are the lanes that are not a
+ *  constant: each glyph draws its own offset inside a `scatterPx` disc,
+ *  and its own lean up to `scatterLeanDeg`, from the stream seeded on the
+ *  glyph's own identity — so the draw is stable across frames and
+ *  relayouts, which is what lets a settled scatter cache instead of
+ *  jittering forever. */
+struct Displaced {
+  float dx = 0;              ///< px to the side the glyph comes in from
+  float dy = 0;              ///< px below (positive) or above its rest
+  float rotateDeg = 0;       ///< the lean it straightens out of
+  float scale = 1;           ///< the size it grows from (1 = no growth)
+  float scatterPx = 0;       ///< seeded per-glyph disc, added to dx/dy
+  float scatterLeanDeg = 0;  ///< seeded per-glyph lean, added to rotateDeg
 
-/** THE ENTRANCE: one shape for every staggered reveal, said in the lanes
- *  a glyph can travel on.
+  bool operator==(const Displaced&) const = default;
+};
+
+/** THE ENTRANCE: one shape for every staggered reveal, said as a tween's
+ *  entrance is — `.from` where the glyph starts, `.ease` the curve it
+ *  comes home on — over the lanes a glyph can travel on.
  *
  *  Every entrance is the same sentence — the glyph starts displaced and
- *  the displacement is multiplied by `1 - curve(t)` until it is home,
+ *  the displacement is multiplied by `1 - ease(t)` until it is home,
  *  while the alpha completes over the first `fadeOver` of local progress
  *  so a glyph is opaque while it is still moving. What differs between a
  *  rise, a slide and a tumble is only WHICH LANES carry the displacement,
  *  so they are properties here and not six bodies.
  *
- *      text(u8"KINETIC", display).textFx({.effect = textFx::enter({.dy = 26})})
+ *      text(u8"KINETIC", display)
+ *          .textFx({.effect = textFx::enter({.from = {.dy = 26},
+ *                                            .ease = motion::ease::outBack()})})
  *
- *  The `scatter` lanes are the one lane that is not a constant: each
- *  glyph draws its own offset inside a `scatterPx` disc, and its own lean
- *  up to `scatterLeanDeg`, from the stream seeded on the glyph's own
- *  identity — so the draw is stable across frames and relayouts, which is
- *  what lets a settled scatter cache instead of jittering forever. */
+ *  It is not a `motion::Tween` itself: WHEN a glyph moves — its delay,
+ *  duration and stagger — is the track's, and this value says only what
+ *  one unit of local progress does to it. */
 struct Entrance {
-  float dx = 0;                ///< px to the side the glyph comes in from
-  float dy = 0;                ///< px below (positive) or above its rest
-  float rotateDeg = 0;         ///< the lean it straightens out of
-  float fromScale = 1;         ///< the size it grows from (1 = no growth)
-  float overshoot = 1.70158f;  ///< OutBack's shape, ignored by the others
-  float scatterPx = 0;         ///< seeded per-glyph disc, added to dx/dy
-  float scatterLeanDeg = 0;    ///< seeded per-glyph lean, added to rotateDeg
+  Displaced from;
+  /** Any curve; a named one or a `motion::ease::Curve` compares, so the
+   *  effect prunes, and a lambda compares unequal. */
+  motion::Easing ease = motion::ease::outCubic;
   /** The share of local progress the fade takes; 0 enters at full alpha. */
   float fadeOver = 0.35f;
-  Curve curve = Curve::OutCubic;
 
-  bool operator==(const Entrance&) const = default;
+  bool operator==(const Entrance& other) const {
+    return from == other.from && fadeOver == other.fadeOver &&
+           motion::easeEqual(ease, other.ease);
+  }
 };
+
+/** How far past its ends a curve reaches over [0, 1] — the overshoot of a
+ *  back or elastic ease, zero for one that stays inside. Sampled, because a
+ *  curve is any function. */
+[[nodiscard]] inline float overshootOf(const motion::Easing& ease) {
+  if (!ease) return 0.0f;
+  float excess = 0.0f;
+  constexpr int kSamples = 256;
+  for (int index = 0; index <= kSamples; ++index) {
+    const float value = ease((float)index / (float)kSamples);
+    excess = std::max({excess, value - 1.0f, -value});
+  }
+  // Below this a curve is inside to its own rounding, not overshooting.
+  constexpr float kRounding = 1e-4f;
+  return excess > kRounding ? excess : 0.0f;
+}
 
 /** The entrance as an effect value. */
 [[nodiscard]] inline TextEffect enter(Entrance e) {
+  const Displaced& from = e.from;
   // A rotated or scaled glyph swings its corners out of its advance box;
-  // half the nominal size covers any angle, and OutBack's overshoot peaks
-  // about a tenth of its shape above 1.
-  float reach =
-      std::max(std::abs(e.dx), std::abs(e.dy)) + std::abs(e.scatterPx);
-  if (e.rotateDeg != 0 || e.scatterLeanDeg != 0) reach += kNominalSizePx * 0.5f;
-  if (e.curve == Curve::OutBack)
-    reach += std::max(e.overshoot, 0.0f) * 0.1f * kNominalSizePx;
-  const bool moves = e.dx != 0 || e.dy != 0 || e.rotateDeg != 0 ||
-                     e.fromScale != 1 || e.scatterPx != 0 ||
-                     e.scatterLeanDeg != 0;
+  // half the nominal size covers any angle. A curve that overshoots
+  // carries the displacement, and the glyph itself, that share past home.
+  const float travel =
+      std::max(std::abs(from.dx), std::abs(from.dy)) + std::abs(from.scatterPx);
+  float reach = travel;
+  if (from.rotateDeg != 0 || from.scatterLeanDeg != 0)
+    reach += kNominalSizePx * 0.5f;
+  reach += overshootOf(e.ease) * (travel + kNominalSizePx);
+  const bool moves = from.dx != 0 || from.dy != 0 || from.rotateDeg != 0 ||
+                     from.scale != 1 || from.scatterPx != 0 ||
+                     from.scatterLeanDeg != 0;
+  motion::Easing ease = e.ease ? e.ease : motion::Easing(motion::ease::outCubic);
   return TextEffect(
       "enter",
-      {e.dx, e.dy, e.rotateDeg, e.fromScale, e.overshoot, e.scatterPx,
-       e.scatterLeanDeg, e.fadeOver, (float)e.curve},
-      [e](const GlyphInfo&, float t, core::noise::Mix64Stream& rng) {
-        const float eased = e.curve == Curve::OutExpo
-                                ? motion::ease::outExpo(t)
-                            : e.curve == Curve::OutBack
-                                ? motion::ease::outBack(e.overshoot)(t)
-                                : motion::ease::outCubic(t);
+      {from.dx, from.dy, from.rotateDeg, from.scale, from.scatterPx,
+       from.scatterLeanDeg, e.fadeOver},
+      [from, ease, fadeOver = e.fadeOver](const GlyphInfo&, float t,
+                                          core::noise::Mix64Stream& rng) {
+        const float eased = ease(t);
         const float left = 1.0f - eased;
-        float dx = e.dx, dy = e.dy, lean = e.rotateDeg;
-        if (e.scatterPx != 0) {
-          dx += rng.signedUnit() * e.scatterPx;
-          dy += rng.signedUnit() * e.scatterPx;
+        float dx = from.dx, dy = from.dy, lean = from.rotateDeg;
+        if (from.scatterPx != 0) {
+          dx += rng.signedUnit() * from.scatterPx;
+          dy += rng.signedUnit() * from.scatterPx;
         }
-        if (e.scatterLeanDeg != 0) lean += rng.signedUnit() * e.scatterLeanDeg;
+        if (from.scatterLeanDeg != 0)
+          lean += rng.signedUnit() * from.scatterLeanDeg;
         GlyphModifier m;
         m.dx = left * dx;
         m.dy = left * dy;
         m.rotateDeg = left * lean;
-        if (e.fromScale != 1) m.scale = e.fromScale + (1 - e.fromScale) * eased;
-        m.alpha = e.fadeOver > 0 ? std::min(1.0f, t / e.fadeOver) : 1.0f;
+        if (from.scale != 1) m.scale = from.scale + (1 - from.scale) * eased;
+        m.alpha = fadeOver > 0 ? std::min(1.0f, t / fadeOver) : 1.0f;
         return m;
       },
-      reach, {}, moves);
+      reach, {ease}, moves);
 }
 
 /** The stagger-reveal workhorse: glyphs rise from `distancePx` below their
@@ -156,34 +183,33 @@ struct Entrance {
  *  first 35% of local progress, so a glyph is fully opaque while it is
  *  still moving rather than fading and settling together. */
 [[nodiscard]] inline TextEffect rise(float distancePx = 26) {
-  return enter({.dy = distancePx, .curve = Curve::OutExpo});
+  return enter({.from = {.dy = distancePx}, .ease = motion::ease::outExpo});
 }
 
 /** Slide-in from the side (negative = from the left). */
 [[nodiscard]] inline TextEffect slide(float distancePx = -32) {
-  return enter({.dx = distancePx, .fadeOver = 1.0f / 1.7f});
+  return enter({.from = {.dx = distancePx}, .fadeOver = 1.0f / 1.7f});
 }
 
 /** Scale-overshoot entrance (back.out(1.7) — the elastic pop). */
 [[nodiscard]] inline TextEffect pop(float fromScale = 0.35f,
                                     float overshoot = 1.70158f) {
-  return enter({.fromScale = fromScale,
-                .overshoot = overshoot,
-                .fadeOver = 1.0f / 2.2f,
-                .curve = Curve::OutBack});
+  return enter({.from = {.scale = fromScale},
+                .ease = motion::ease::outBack(overshoot),
+                .fadeOver = 1.0f / 2.2f});
 }
 
 /** Tumble-in: glyphs spin from `degrees` while rising and fading. */
 [[nodiscard]] inline TextEffect spinIn(float degrees = 70, float risePx = 14) {
-  return enter({.dy = risePx, .rotateDeg = degrees, .fadeOver = 1.0f / 1.7f});
+  return enter({.from = {.dy = risePx, .rotateDeg = degrees},
+                .fadeOver = 1.0f / 1.7f});
 }
 
 /** Seeded scatter: every glyph flies in from its own random offset inside
  *  a `radiusPx` disc, with its own random lean. */
 [[nodiscard]] inline TextEffect scatter(float radiusPx = 40,
                                         float leanDeg = 24) {
-  return enter({.scatterPx = radiusPx,
-                .scatterLeanDeg = leanDeg,
+  return enter({.from = {.scatterPx = radiusPx, .scatterLeanDeg = leanDeg},
                 .fadeOver = 1.0f / 1.7f});
 }
 
