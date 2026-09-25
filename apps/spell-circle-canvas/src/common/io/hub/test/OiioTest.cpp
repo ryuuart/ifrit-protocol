@@ -56,7 +56,7 @@ void writeLayeredExr(const fs::path& path) {
 
 TEST_F(IOOiio, ExrDecodesToFloatImage) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto image = hub.image("res://probe.exr");
+  auto image = hub.load<sigil::image::ImageAsset>("res://probe.exr");
   ASSERT_NE(image, nullptr);
   ASSERT_FALSE(image->frames().empty());
   const sk_sp<SkImage>& sk = image->frames().front().image;
@@ -66,7 +66,7 @@ TEST_F(IOOiio, ExrDecodesToFloatImage) {
 
 TEST_F(IOOiio, ExrLayerSelectionReadsHdrChannels) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto glow = hub.image("res://probe.exr", {.layer = "glow"});
+  auto glow = hub.load<sigil::image::ImageAsset>("res://probe.exr", {.layer = "glow"});
   ASSERT_NE(glow, nullptr);
   const sk_sp<SkImage>& sk = glow->frames().front().image;
   SkPixmap pixmap;

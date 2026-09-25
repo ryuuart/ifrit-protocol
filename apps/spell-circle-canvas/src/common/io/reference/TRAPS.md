@@ -46,7 +46,7 @@ vanished, skips `http(s)://` entries entirely, and reloads by decoding
 again into a *new* `shared_ptr`. Anyone still holding the previous pointer
 keeps the old data; picking up the new data means asking the hub again.
 
-`image()` after `fetch()` decodes the bytes `fetch()` already read. If the
+`load<T>()` after `fetch()` decodes the bytes `fetch()` already read. If the
 file changed on disk between the two asks, the decoded view catches up at
 the next `poll()` — which re-decodes every populated view from one fresh
 read — not at the ask itself.

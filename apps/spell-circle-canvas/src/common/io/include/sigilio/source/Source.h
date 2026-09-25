@@ -143,6 +143,26 @@ concept Probable = requires(std::span<const std::byte> bytes,
   } -> std::same_as<std::optional<T>>;
 };
 
+/** WHAT A KIND OF MEANING IS LOADED WITH, beyond its URI: a free
+ *  function found by argument-dependent lookup in T's own namespace,
+ *  `Options loadOptions(std::type_identity<T>)`, answering the options
+ *  at their defaults. Declaring it is what lets a hub take
+ *  `load<T>(uri, {…})` for a T it has never heard of, the options
+ *  spelled as T's own library spells them; a T that declares none loads
+ *  from its URI alone.
+ *  @trap Two asks for one resource are one decode only when their
+ *  options compare equal, so the options must be a value that compares. */
+template <typename T>
+concept Configurable = requires {
+  { loadOptions(std::type_identity<T>{}) } -> std::copy_constructible;
+  requires std::equality_comparable<
+      decltype(loadOptions(std::type_identity<T>{}))>;
+};
+
+/** The options a Configurable T is loaded with. */
+template <Configurable T>
+using LoadOptions = decltype(loadOptions(std::type_identity<T>{}));
+
 /** A ByteSource VALUE holding any ByteSource: the type-erased form for
  *  code that stores a source rather than being templated on one.
  *

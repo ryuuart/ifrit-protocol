@@ -14,7 +14,6 @@
  */
 
 #include <sigilcore/callable/Callable.h>
-#include <sigilimage/decode/Decode.h>
 
 #include <chrono>
 #include <cstddef>
@@ -28,6 +27,7 @@
 #include <string>
 #include <string_view>
 #include <typeindex>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -40,6 +40,20 @@ namespace sigil::io {
 
 namespace detail {
 struct Residency;
+
+/** What a decoder for T is called with: the bytes, the resource's name
+ *  as a hint, and — for a Configurable T — the options the load asked
+ *  for. Every parameter after the bytes is offered, never demanded. */
+template <typename T>
+struct DecoderCall {
+  using type = std::optional<T>(const Bytes&, std::string_view hint);
+};
+/** The same for a T loaded with options, which are offered third. */
+template <Configurable T>
+struct DecoderCall<T> {
+  using type = std::optional<T>(const Bytes&, std::string_view hint,
+                                const LoadOptions<T>& options);
+};
 }  // namespace detail
 
 class Hub;
@@ -143,16 +157,17 @@ struct ResourceInfo {
  *
  * Each URI is cached as one entry whose bytes and decoded views are
  * independent, each populated the first time its accessor is asked, and
- * an image() ask with a layer or an explicit size is a different decode
- * in an entry of its own. A failed lookup is NOT cached: a missing file
+ * a load<T>() ask with options other than T's defaults is a different
+ * decode in an entry of its own. A failed lookup is NOT cached: a missing file
  * loads as soon as it appears. Calls on one Hub may overlap — mount,
  * decoder, cache and retention state are synchronized internally — and
  * a Hub satisfies ByteSource and ResolvingByteSource.
  */
 class Hub {
  public:
-  /** Registers the SigilImage decoders: ImageAsset (the routed decode
-   *  at default options) and ChannelData. */
+  /** A hub with nothing mounted and no decoder registered: the library
+   *  that owns a meaning puts its decoders on a hub itself, so bytes are
+   *  all this one answers until one does. */
   Hub();
   ~Hub();
 
@@ -207,22 +222,41 @@ class Hub {
   /** Registers how a T is decoded from bytes, so load<T>() can answer.
    *  `hint` is the resource's local path when it has one, and is OFFERED:
    *  a decoder reading the bytes alone takes `[](const Bytes& bytes) {…}`.
-   *  ImageAsset and ChannelData are registered by the constructor.
+   *  For a Configurable T the options a load asked for are offered third,
+   *  T's defaults when it named none. A hub registers nothing itself: the
+   *  library that owns T calls this, as SigilImage's and SigilData's
+   *  `registerDecoders(hub)` do.
    *  @trap Replacing a decoder leaves a view already decoded holding its
    *  value and the decoder that made it, which is what poll() re-runs. */
   template <typename T>
-  void registerDecoder(
-      core::Callable<std::optional<T>(const Bytes&, std::string_view hint)>
-          decode) {
-    setDecoder(
-        std::type_index(typeid(T)),
-        [decode = std::move(decode)](
-            const Bytes& bytes,
-            const std::filesystem::path& path) -> std::shared_ptr<const void> {
-          auto value = decode(bytes, path.native());
+  void registerDecoder(core::Callable<typename detail::DecoderCall<T>::type> decode) {
+    if constexpr (Configurable<T>) {
+      using Options = LoadOptions<T>;
+      const auto configure =
+          [decode](std::shared_ptr<const void> options) -> Redecode {
+        return [decode, options = std::move(options)](
+                   const Bytes& bytes, const std::filesystem::path& path)
+                   -> std::shared_ptr<const void> {
+          auto value = decode(bytes, path.native(),
+                              *static_cast<const Options*>(options.get()));
           if (!value) return nullptr;
           return std::make_shared<const T>(std::move(*value));
-        });
+        };
+      };
+      setDecoder(std::type_index(typeid(T)),
+                 configure(std::make_shared<const Options>()), configure);
+    } else {
+      setDecoder(std::type_index(typeid(T)),
+                 [decode = std::move(decode)](const Bytes& bytes,
+                                              const std::filesystem::path&
+                                                  path)
+                     -> std::shared_ptr<const void> {
+                   auto value = decode(bytes, path.native());
+                   if (!value) return nullptr;
+                   return std::make_shared<const T>(std::move(*value));
+                 },
+                 {});
+    }
   }
 
   /** The same, from any object satisfying the Decoder concept — which
@@ -249,12 +283,31 @@ class Hub {
    *  null on failure, and null (with no fetch) when no decoder is
    *  registered for T. Decodes on the first ask, from bytes a prior
    *  fetch() ask already cached when they are present, and caches the
-   *  result as one view of the URI's entry. load<ImageAsset>(uri) is
-   *  image(uri) and shares its view. */
+   *  result as one view of the URI's entry. */
   template <typename T>
   std::shared_ptr<const T> load(std::string_view uri) {
     return std::static_pointer_cast<const T>(loadRegisteredView(
-        cacheKey(uri, nullptr), uri, std::type_index(typeid(T))));
+        std::string(uri), uri, std::type_index(typeid(T))));
+  }
+
+  /** The same, decoded with @p options — T's own, as the library that
+   *  owns T names them: `load<image::ImageAsset>(uri, {.width = 124})`.
+   *  Options equal to T's defaults are the ask above and share its view;
+   *  any others are a decode of their own in an entry of their own, which
+   *  every later ask with equal options shares and poll() re-runs with
+   *  the same options. */
+  template <Configurable T>
+  std::shared_ptr<const T> load(std::string_view uri,
+                                const LoadOptions<T>& options) {
+    using Options = LoadOptions<T>;
+    if (options == Options{}) return load<T>(uri);
+    return std::static_pointer_cast<const T>(loadConfiguredView(
+        uri, std::type_index(typeid(T)),
+        std::make_shared<const Options>(options),
+        [](const void* left, const void* right) {
+          return *static_cast<const Options*>(left) ==
+                 *static_cast<const Options*>(right);
+        }));
   }
 
   /** UTF-8 text convenience over fetch(). */
@@ -295,15 +348,6 @@ class Hub {
    *  already returned in shared_ptrs stay alive for their holders. Returns the
    *  number of cache entries discarded. */
   size_t discardUnretained();
-
-  /** Decoded image (stills and animations); null on failure. Decodes
-   *  on this first ask, from bytes a prior fetch() ask already cached
-   *  when they are present (no second read of the source). At default
-   *  options this is the ImageAsset decoder registered on the hub, so
-   *  it answers whatever load<ImageAsset>() answers; with a layer or
-   *  size named it is its own decode in its own entry. */
-  std::shared_ptr<const sigil::image::ImageAsset> image(
-      std::string_view uri, const image::DecodeOptions& options = {});
 
   /** HOW MANY BYTES, AND WHERE: the size of the resource and the file
    *  it was read from; nullopt when the URI cannot be served.
@@ -423,22 +467,29 @@ class Hub {
                                                  std::string_view uri,
                                                  std::type_index type);
 
+  /** Whether two option values of one type are equal, compared through
+   *  the type that load<T>() knew and this hub does not. */
+  using SameOptions = bool (*)(const void* left, const void* right);
+
+  /** The registered decoder of `type` with `options` bound into it:
+   *  options equal to ones asked before share their entry. Null when no
+   *  decoder that takes options is registered for `type`. */
+  std::shared_ptr<const void> loadConfiguredView(
+      std::string_view uri, std::type_index type,
+      std::shared_ptr<const void> options, SameOptions same);
+
+  /** A registered decoder with a load's options bound into it. */
+  using Configure = std::function<Redecode(std::shared_ptr<const void>)>;
+
   /** The decoder registered for `type`, or an empty function. */
   Redecode registeredDecoder(std::type_index type) const;
-  void setDecoder(std::type_index type, Redecode decode);
+  /** Registers `decode` for `type` at its defaults, and — for a type
+   *  loaded with options — `configure`, which binds other options in. */
+  void setDecoder(std::type_index type, Redecode decode, Configure configure);
 
   std::vector<std::pair<std::string, std::filesystem::path>>
   mountedDirectories() const;
   std::shared_ptr<detail::Residency> residency();
-
-  /** The map key for an ask: the URI alone for fetch()/text()/
-   *  load<T>() and default-options image(); with a layer or size
-   *  set, the URI plus each option behind a '\0' separator — a byte
-   *  no URI that names a real resource can contain, so option
-   *  suffixes never collide with URI content. Keys are write-only:
-   *  nothing parses one back (entries carry their own uri). */
-  static std::string cacheKey(std::string_view uri,
-                              const image::DecodeOptions* options);
 
   /** Guards every member below. It is never held across a fetch, a
    *  decode or a file write, so one slow source never stalls another

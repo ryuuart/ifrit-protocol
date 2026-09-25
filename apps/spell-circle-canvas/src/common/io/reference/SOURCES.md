@@ -18,17 +18,18 @@ fetch, for `resolve()` and for a selector alike. A URI that names a
 directory rather than a file answers nothing too: the hub answers bytes.
 
 The cache holds one entry per URI. An entry carries the bytes and one
-decoded view per type — the image, the channel data, and whatever
-`load<T>()` has been asked for — each populated the first time its
-accessor is asked. Asking for bytes never decodes, and a later `image()`
-or `load<T>()` ask on the same URI decodes the bytes the
-entry already holds instead of reading the source again. Each view
-remembers the decode that made it, which is what `poll()` re-runs. An
-`image()` ask with a layer or an explicit size is a different decode, so
-it gets its own entry, keyed by the URI plus the options behind a
-separator byte no URI can contain; at default options `image()` is the
-registered `ImageAsset` decoder, so it and `load<ImageAsset>()` share one
-view. Every entry also remembers the URI it was asked by, which is
+decoded view per type — whatever `load<T>()` has been asked for, an
+image and its channel data among them — each populated the first time
+its accessor is asked. Asking for bytes never decodes, and a later
+`load<T>()` ask on the same URI decodes the bytes the entry already
+holds instead of reading the source again. Each view remembers the
+decode that made it, which is what `poll()` re-runs. A `load<T>(uri,
+options)` ask with options other than T's defaults — an image with a
+layer or an explicit size — is a different decode, so it gets its own
+entry, keyed by the URI plus the options' place among the distinct
+options asked of T, behind a separator byte no URI can contain; every
+later ask with equal options shares it, and options equal to T's
+defaults are the plain `load<T>(uri)` and share its view. Every entry also remembers the URI it was asked by, which is
 what reloading goes back to — a URI is never re-derived from a key
 string, so no character a URI may contain is special.
 
@@ -70,9 +71,11 @@ unprotected cache entry; values already held through a `shared_ptr` survive that
 removal for their holders. Nothing in this repository evicts, so a lease is
 for a host that clears a hub between scenes.
 
-Every decode is a registered decoder. The constructor registers
-SigilImage's two — `ImageAsset` and `ChannelData` — and
-`registerDecoder<T>()` adds any other — an object whose `decode()`
+Every decode is a registered decoder, and a hub is built with none: the
+library that owns a meaning registers its own, as
+`sigil::image::registerDecoders(hub)` does for `ImageAsset` and
+`ChannelData` and `sigil::data::registerDecoders(hub)` for `Table` and
+`Json`. `registerDecoder<T>()` is what each of them calls — an object whose `decode()`
 satisfies the `Decoder` concept, or a callable, either of them reading the
 bytes and the name hint or the bytes alone: SigilDrawBrush's
 `format::BrushDecoder` is one such, answering a `brush::Tool` from a
@@ -82,3 +85,12 @@ the decoder later asks run, while a view already decoded keeps its value
 and the decoder that made it, which is what `poll()` re-runs for it.
 `load<T>()` with no decoder registered for `T` answers null without
 fetching. The hub never inspects bytes.
+
+A type is loaded with options when its own namespace declares
+`loadOptions(std::type_identity<T>)`, answering the options at their
+defaults — the `Configurable` concept, found by argument-dependent lookup
+so the hub names no such type: SigilImage declares one for `ImageAsset`
+answering its `DecodeOptions`, which is what makes
+`load<ImageAsset>(uri, {.width = 256})` spell the options as SigilImage
+spells them. `LoadOptions<T>` is that type. A decoder registered for a
+Configurable type is offered the load's options after the name hint.

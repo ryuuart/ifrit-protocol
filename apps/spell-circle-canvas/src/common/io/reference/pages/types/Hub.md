@@ -21,11 +21,13 @@ loaded), and typed:
 
 ```cpp
 hub.mount("res://", assetsDir);
+sigil::image::registerDecoders(hub);                    // image meaning
 auto bytes = hub.fetch("res://data/table.bin");
 auto text  = hub.text("res://shaders/glow.sksl");
-auto img   = hub.image("res://ui/logo.png");            // stills+anim
-auto hdr   = hub.image("res://light/probe.exr",         // OIIO: EXR,
-                       {.layer = "diffuse"});           //  PSD, TIFF…
+auto img   = hub.load<sigil::image::ImageAsset>(        // stills+anim
+    "res://ui/logo.png");
+auto hdr   = hub.load<sigil::image::ImageAsset>(        // OIIO: EXR,
+    "res://light/probe.exr", {.layer = "diffuse"});     //  PSD, TIFF…
 auto info  = hub.probe("res://light/probe.exr");        // size, path
 auto meta  = hub.probe<sigil::image::ImageProbe>(       // meaning,
     "res://light/probe.exr");                           //  from image
@@ -37,10 +39,10 @@ auto mesh  = hub.load<Mesh>("res://props/crate.obj");
 
 Each URI is cached as one entry whose bytes and decoded views are
 independent: each populates the first time its accessor is asked, and
-asking for one never affects another. A view is one decoded type —
-`Hub::image` and each type `Hub::load` is asked for populate their own —
-and a `Hub::image` ask with a layer or an explicit size is a different
-decode that gets its own entry. `Hub::poll` re-stats every previously
+asking for one never affects another. A view is one decoded type — each
+type `Hub::load` is asked for populates its own — and a `Hub::load` ask
+with options other than the type's defaults, an image with a layer or an
+explicit size, is a different decode that gets its own entry. `Hub::poll` re-stats every previously
 requested resource and reloads the changed ones, returning true so hosts
 can re-render (holders of old shared_ptrs keep the old data — swap by
 re-asking). Failed lookups are NOT cached: a missing file loads as soon
@@ -111,8 +113,9 @@ SigilIO owns ACCESS: where bytes come from, caching, reload. A `Hub` is a
 typed view is a registered `sigil::io::Decoder` run over those bytes.
 What pixels mean is SigilImage's concern — the Skia codecs plus, when
 built in, the OpenImageIO backend (EXR with layer selection, PSD, TIFF,
-HDR; float sources land as RGBA_F32) — and the hub registers those
-decoders by default.
+HDR; float sources land as RGBA_F32) — and SigilImage registers those
+decoders on a hub itself, through `sigil::image::registerDecoders`; a hub
+registers none of its own.
 
 `Hub::write` stores bytes under a URI through the same mount table a read
 resolves by, creating the directories above the file. What the bytes MEAN

@@ -6,8 +6,8 @@
 #
 # Access only: the hub is a ByteSource (the source leaf) and every typed
 # view is a registered decoder run over the bytes it fetched. All image
-# format knowledge lives in SigilImageDecode, whose decoders the hub
-# registers by default.
+# format knowledge lives in SigilImageDecode, which registers its own
+# decoders on a hub it is handed; this library links no image library.
 #
 # Every public header lives under one include root, include/sigilio/
 # <feature>/, so a feature adds the root and spells its own directory.
@@ -56,9 +56,10 @@ sigil_library(SigilIO
 # it — the README, the publish feature's page and every chapter under
 # reference/, because a chapter is the same canon as the page that links
 # it, and the wires' whole vocabulary lives in one of them.
-# SigilImage's decode leaf is scanned and linked because the hub
-# links it publicly: the probe and encode names the walkthrough writes
-# are that library's, reached through this one.
+# SigilImage's decode leaf is scanned and linked because the
+# walkthrough registers its decoders, probes with its probe and encodes
+# with its encoder: those names are that library's, which a consumer of
+# this one links beside it.
 #
 # The names it borrows from ABOVE are exempted instead — the brush
 # decoder is registered from SigilDrawBrush, which stands on this
@@ -74,8 +75,10 @@ sigil_doc_probes(io
           ${SIGIL_IO_REFERENCE}
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../image/include/sigilimage
   PRELUDES "<sigilimage/asset/ImageAsset.h>"
+           "<sigilimage/decode/Decoders.h>"
            "<sigilimage/encode/Encode.h>"
-  EXCLUDE "format::BrushDecoder=SigilDrawBrush stands on this library, so its decoder is named and not probed"
+  EXCLUDE "sigil::data::registerDecoders=SigilData stands on this library, so its registration is named and not probed"
+          "format::BrushDecoder=SigilDrawBrush stands on this library, so its decoder is named and not probed"
           "brush::Tool=SigilDrawBrush stands on this library, so its brush value is named and not probed"
           "CURL::libcurl=a CMake target name, not a C++ name"
           "std::filesystem::path=a nested standard namespace, which the scanner reads as a class and its member"

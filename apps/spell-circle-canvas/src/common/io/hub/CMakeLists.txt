@@ -15,12 +15,13 @@ sigil_library(SigilIOHub
           Recording.cpp Retention.cpp Selection.cpp Caches.h Fetch.h
           Residency.h
   HEADERS Feed.h Hub.h Network.h Recording.h TextCatalog.h
-  PUBLIC SigilIOSource SigilImageDecode SigilCoreCallable
+  PUBLIC SigilIOSource SigilCoreCallable
   PRIVATE SigilCoreSchedule CURL::libcurl Boost::container)
 
-# The test builds its own PNG fixtures through the image encoder and
-# writes its own EXR ones through OIIO directly — the library itself
-# encodes nothing.
+# The test builds its own PNG fixtures through the image encoder,
+# writes its own EXR ones through OIIO directly and reads them back
+# through SigilImage's decoders, registered on each hub the way a host
+# registers them — the library itself decodes and encodes nothing.
 find_package(OpenImageIO CONFIG QUIET)
 # SigilCoreSchedule is named here as well as in the library: one case
 # preloads more resources than a fan-out runs at once, and it asks that
@@ -30,7 +31,7 @@ sigil_test(io_test
           test/NetworkTest.cpp test/OiioTest.cpp test/RetentionTest.cpp
           test/SelectionTest.cpp test/StandardExceptionsTest.cpp
           test/MountedHub.h
-  LIBRARIES SigilIOHub SigilImageEncode SigilCoreSchedule)
+  LIBRARIES SigilIOHub SigilImageDecode SigilImageEncode SigilCoreSchedule)
 # The four EXR cases write their own fixtures through OpenImageIO, so
 # they exist only in a build that has it; the label says so.
 if(OpenImageIO_FOUND)

@@ -10,6 +10,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
 #include <sigilimage/decode/ChannelData.h>
+#include <sigilimage/decode/Decode.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
@@ -50,6 +51,21 @@ struct WordCounter {
   }
 };
 static_assert(Decoder<WordCounter, WordCount>);
+
+namespace excerpt {
+/** A type of the test's own that loads with options: the first `count`
+ *  characters of the text, with the options its namespace declares. */
+struct Excerpt {
+  std::string text;
+};
+struct ExcerptOptions {
+  size_t count = 0;  ///< 0 keeps the whole text.
+  bool operator==(const ExcerptOptions&) const = default;
+};
+inline ExcerptOptions loadOptions(std::type_identity<Excerpt>) { return {}; }
+}  // namespace excerpt
+static_assert(Configurable<excerpt::Excerpt>);
+static_assert(!Configurable<WordCount>);
 
 TEST_F(IOHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
   dir.write("live.txt", "one two three");
@@ -92,48 +108,85 @@ TEST_F(IOHub, ConcurrentColdLoadsPublishOneCachedView) {
   for (const auto& view : views) EXPECT_EQ(view, views.front());
 }
 
-TEST_F(IOHub, LoadImageAssetIsTheImageView) {
+TEST_F(IOHub, ImagesLoadOnlyOnceSigilImageRegistersItsDecoders) {
   writePng(dir.path / "logo.png", 3, SK_ColorRED);
-  auto image = hub.image("res://logo.png");
+  Hub bare;
+  bare.mount("res://", dir.path);
+  EXPECT_EQ(bare.load<sigil::image::ImageAsset>("res://logo.png"), nullptr);
+  EXPECT_NE(bare.fetch("res://logo.png"), nullptr);
+  auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://logo.png"), image);
   EXPECT_EQ(image->width(), 3);
+  // Options at their defaults are the plain ask, and share its view.
+  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://logo.png", {}), image);
 }
 
-// fetch(), image(), and load<ChannelData>() are independent views of one
+// Options are the decoder's own, bound into the decode a load runs:
+// equal options share one view, different ones are a decode of their
+// own, and poll() re-runs each with the options it was made with.
+TEST_F(IOHub, LoadWithOptionsDecodesOncePerDistinctOptions) {
+  using excerpt::Excerpt;
+  dir.write("poem.txt", "whose woods these are");
+  std::atomic<int> decodes = 0;
+  hub.registerDecoder<Excerpt>(
+      [&decodes](const Bytes& bytes, std::string_view,
+                 const excerpt::ExcerptOptions& options) {
+        ++decodes;
+        const std::string_view text = bytes.asText();
+        return std::optional<Excerpt>(Excerpt{std::string(
+            options.count ? text.substr(0, options.count) : text)});
+      });
+  auto whole = hub.load<Excerpt>("res://poem.txt");
+  auto first = hub.load<Excerpt>("res://poem.txt", {.count = 5});
+  ASSERT_NE(whole, nullptr);
+  ASSERT_NE(first, nullptr);
+  EXPECT_EQ(whole->text, "whose woods these are");
+  EXPECT_EQ(first->text, "whose");
+  EXPECT_EQ(hub.load<Excerpt>("res://poem.txt", {.count = 5}), first);
+  EXPECT_EQ(hub.load<Excerpt>("res://poem.txt", {.count = 0}), whole);
+  EXPECT_EQ(decodes.load(), 2);
+
+  dir.write("poem.txt", "stopping by woods");
+  touchForward(dir.path / "poem.txt");
+  EXPECT_TRUE(hub.poll());
+  EXPECT_EQ(hub.load<Excerpt>("res://poem.txt", {.count = 5})->text, "stopp");
+  EXPECT_EQ(hub.load<Excerpt>("res://poem.txt")->text, "stopping by woods");
+}
+
+// fetch(), load<ImageAsset>(), and load<ChannelData>() are independent views of one
 // resource: asking for one must not null a later ask for another.
 TEST_F(IOHub, FetchThenImageThenChannelsAllAnswer) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
   ASSERT_NE(hub.fetch("res://logo.png"), nullptr);
-  auto image = hub.image("res://logo.png");
+  auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
   ASSERT_NE(hub.load<sigil::image::ChannelData>("res://logo.png"), nullptr);
   // The earlier views are still served, not evicted by the later asks.
   EXPECT_NE(hub.fetch("res://logo.png"), nullptr);
-  EXPECT_NE(hub.image("res://logo.png"), nullptr);
+  EXPECT_NE(hub.load<sigil::image::ImageAsset>("res://logo.png"), nullptr);
 }
 
 // fetch() never decodes: bytes no image codec accepts still load, and
-// the failed image() ask that follows does not disturb them. This is
+// the failed load<ImageAsset>() ask that follows does not disturb them. This is
 // the observable face of "asking for bytes costs no decode" — a fetch
 // ask cannot depend on decodability in any way.
 TEST_F(IOHub, FetchAloneDoesNotDecode) {
   dir.write("fake.png", "not an image at all");
   auto bytes = hub.fetch("res://fake.png");
   ASSERT_NE(bytes, nullptr);
-  EXPECT_EQ(hub.image("res://fake.png"), nullptr);
+  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://fake.png"), nullptr);
   EXPECT_NE(hub.fetch("res://fake.png"), nullptr);
 }
 
-// image() after fetch() decodes the bytes the entry already holds:
+// load<ImageAsset>() after fetch() decodes the bytes the entry already holds:
 // with the file deleted in between, the cached bytes are the only
 // possible source, and no second read of the source happens.
 TEST_F(IOHub, ImageDecodesOnDemandFromCachedBytes) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
   ASSERT_NE(hub.fetch("res://logo.png"), nullptr);
   fs::remove(dir.path / "logo.png");
-  auto image = hub.image("res://logo.png");
+  auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
 }
@@ -144,18 +197,18 @@ TEST_F(IOHub, ImageDecodesOnDemandFromCachedBytes) {
 TEST_F(IOHub, PollReloadsFilesWhoseNamesContainHash) {
   writePng(dir.path / "tile", 2, SK_ColorGREEN);      // decoy
   writePng(dir.path / "tile#3.png", 1, SK_ColorRED);  // the resource
-  auto image = hub.image("res://tile#3.png");
+  auto image = hub.load<sigil::image::ImageAsset>("res://tile#3.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
   // Nothing changed: no spurious erase, no reload against the decoy.
   EXPECT_FALSE(hub.poll());
-  ASSERT_NE(hub.image("res://tile#3.png"), nullptr);
-  EXPECT_EQ(hub.image("res://tile#3.png")->width(), 1);
+  ASSERT_NE(hub.load<sigil::image::ImageAsset>("res://tile#3.png"), nullptr);
+  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://tile#3.png")->width(), 1);
   // Touch the real file: poll() reloads that same file.
   writePng(dir.path / "tile#3.png", 2, SK_ColorBLUE);
   touchForward(dir.path / "tile#3.png");
   EXPECT_TRUE(hub.poll());
-  auto reloaded = hub.image("res://tile#3.png");
+  auto reloaded = hub.load<sigil::image::ImageAsset>("res://tile#3.png");
   ASSERT_NE(reloaded, nullptr);
   EXPECT_EQ(reloaded->width(), 2);
 }
@@ -274,7 +327,7 @@ TEST_F(IOHub, WrittenImageBytesDecodeBackThroughTheHub) {
   ASSERT_TRUE(encoded);
   ASSERT_TRUE(
       hub.write("res://made/tile.png", encoded->data(), encoded->size()));
-  auto image = hub.image("res://made/tile.png");
+  auto image = hub.load<sigil::image::ImageAsset>("res://made/tile.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 7);
 }

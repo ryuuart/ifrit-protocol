@@ -26,30 +26,8 @@ using detail::isNetworkUri;
 using detail::localPath;
 using detail::readFile;
 
-std::string Hub::cacheKey(std::string_view uri,
-                          const image::DecodeOptions* options) {
-  std::string key(uri);
-  // Each option component rides behind a '\0' separator. No URI that
-  // names a real resource can contain that byte, so an option suffix
-  // can never alias another URI's key. Nothing ever parses a key back
-  // apart — the entry stores its own uri.
-  if (options && !options->layer.empty()) {
-    key += '\0';
-    key += "layer=";
-    key += options->layer;
-  }
-  if (options && (options->width || options->height)) {
-    key += '\0';
-    key += "size=";
-    key += std::to_string(options->width);
-    key += 'x';
-    key += std::to_string(options->height);
-  }
-  return key;
-}
-
 std::shared_ptr<const Bytes> Hub::fetch(std::string_view uri) {
-  const std::string key = cacheKey(uri, nullptr);
+  const std::string key(uri);
   detail::NetworkAccess network;
   {
     const std::lock_guard lock(m_mutex);
@@ -105,7 +83,7 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
     network = {m_networkCacheDirectory, m_networkPolicy, m_networkTransport};
     for (std::string_view uri : uris) {
       if (!seen.emplace(uri).second) continue;
-      const std::string key = cacheKey(uri, nullptr);
+      const std::string key(uri);
       const auto cached = m_caches->entries.find(key);
       if (cached != m_caches->entries.end() && cached->second.bytes) {
         ++ready;
@@ -246,26 +224,36 @@ std::shared_ptr<const void> Hub::loadRegisteredView(const std::string& key,
   return loadView(key, uri, type, decode);
 }
 
-std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
-    std::string_view uri, const image::DecodeOptions& options) {
-  using sigil::image::ImageAsset;
-  const std::type_index type(typeid(ImageAsset));
-  if (options == image::DecodeOptions{})
-    return std::static_pointer_cast<const ImageAsset>(
-        loadRegisteredView(cacheKey(uri, nullptr), uri, type));
-  // A layer or a size is a different decode: its own entry, with the
-  // options riding in the decode so poll() re-runs the same one.
-  const Redecode decode =
-      [options = options](
-          const Bytes& bytes,
-          const std::filesystem::path& path) -> std::shared_ptr<const void> {
-    auto decoded = sigil::image::decodeImage(bytes.data(),
-                                             bytes.size(), options, path);
-    if (!decoded) return nullptr;
-    return std::make_shared<const ImageAsset>(std::move(*decoded));
-  };
-  return std::static_pointer_cast<const ImageAsset>(
-      loadView(cacheKey(uri, &options), uri, type, decode));
+std::shared_ptr<const void> Hub::loadConfiguredView(
+    std::string_view uri, std::type_index type,
+    std::shared_ptr<const void> options, SameOptions same) {
+  Redecode decode;
+  std::string key(uri);
+  {
+    const std::lock_guard lock(m_mutex);
+    const auto configure = m_caches->configured.find(type);
+    if (configure == m_caches->configured.end()) return nullptr;
+    // Each options value asked of a type holds one place, and the key is
+    // the URI and that place behind a '\0' — a byte no URI that names a
+    // real resource contains, so no URI can alias an options entry.
+    // Nothing parses a key back apart: the entry stores its own uri.
+    std::vector<std::shared_ptr<const void>>& asked = m_caches->options[type];
+    size_t place = 0;
+    while (place < asked.size() && !same(asked[place].get(), options.get()))
+      ++place;
+    if (place == asked.size()) asked.push_back(options);
+    key += '\0';
+    key += "options=";
+    key += std::to_string(place);
+    const auto entry = m_caches->entries.find(key);
+    if (entry != m_caches->entries.end())
+      if (const auto view = entry->second.views.find(type);
+          view != entry->second.views.end() && view->second.value)
+        return view->second.value;
+    // The options ride in the decode, so poll() re-runs the same one.
+    decode = configure->second(asked[place]);
+  }
+  return loadView(key, uri, type, decode);
 }
 
 std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,

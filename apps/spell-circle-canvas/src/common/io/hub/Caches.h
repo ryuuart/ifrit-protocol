@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 #include <typeindex>
+#include <vector>
 
 #include "sigilio/hub/Hub.h"
 
@@ -30,8 +31,9 @@ struct Hub::Caches {
   /** One cached resource. The bytes and each decoded view are
    *  independent, each populated the first time its accessor asks;
    *  asking for bytes never decodes, and decoding never drops bytes
-   *  already served. An image decoded with a layer or explicit size
-   *  lives in its own entry (see cacheKey).
+   *  already served. A load<T>() with options other than T's defaults
+   *  lives in an entry of its own, keyed by the URI and the options'
+   *  place among those asked of T before.
    *
    *  `uri` is the original request string. reload() and poll() use it
    *  directly — a URI is never recovered by parsing a map key, so no
@@ -55,6 +57,15 @@ struct Hub::Caches {
 
   boost::container::flat_map<std::string, Entry, std::less<>> entries;
   boost::container::flat_map<std::type_index, Redecode> decoders;
+  /** Per type loaded with options, what binds other options into its
+   *  registered decoder. */
+  boost::container::flat_map<std::type_index, Configure> configured;
+  /** Per type, every distinct non-default options value asked of it, in
+   *  the order first asked: an options value's place here is what its
+   *  entries are keyed by, so equal options share one decode. */
+  boost::container::flat_map<std::type_index,
+                             std::vector<std::shared_ptr<const void>>>
+      options;
   boost::container::flat_map<std::string, FeedTransport, std::less<>>
       feedTransports;
 };

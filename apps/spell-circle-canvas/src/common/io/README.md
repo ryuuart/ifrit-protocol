@@ -9,8 +9,9 @@ fetches it concurrently, and a lease says how long the hub promises to
 keep it. `write()` stores bytes back through the same mounts. `http://`
 and `https://` URIs fetch over libcurl behind an on-disk cache with a
 selectable policy; `file://` strips to a plain local path. What a byte
-MEANS is not its job in either direction: it hands bytes to registered
-decoders, SigilImage's by default, and takes already-encoded bytes back.
+MEANS is not its job in either direction: it hands bytes to the decoders
+the libraries that own a meaning register on it — SigilImage's, SigilData's
+— and takes already-encoded bytes back.
 
 Namespace `sigil::io`. One feature library per directory, linked by
 what a consumer uses; every public header lives under
@@ -18,7 +19,7 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder` and `Probable` concepts, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
+| `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h` | the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder`, `Probable` and `Configurable` concepts with `LoadOptions`, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
 | `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `hub/TextCatalog.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Arrival`, `OpenedFeed` and `FeedTransport` — a resource that keeps arriving, opened through the hub's `feed()` and moved forward by its `dispatch()`, whose `Feed::peers()` names the peers a door holds attached now; `DispatchLease` and `Hub::onDispatch()` — a callback the same `dispatch()` drives, for as long as the lease lives; `RecordingWriter` and `readRecording()`, the format a feed records itself in; and `TextCatalog`, the stock value over the hub that a directory of authored shaders is |
 | `SigilIOTransport` | `transport/Transport.h` | `registerUdp()`, `registerWebSocket()`, `registerWebSocketClient()`, `registerSharedMemory()`, `registerMidi()`, `registerSerial()`, `registerGrpc()`, `registerQuic()`, `registerWebRtc()` and `registerTransports()`, with `SharedMemoryWriter` beside them — the UDP transport, one socket per feed on a thread of its own, answering to udp://, to osc:// for messages that are OSC packets and to artnet:// for the universes a lighting desk sends; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port, where it names an interface, holding that one alone, and where it names the peers to admit, refusing every other before it becomes a peer, and where it says `frames=text`, sending every message as a text frame; the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; and the shared memory reader, answering to shm://, which is a region another process on this machine wrote and no socket at all, with the writer's end of such a region standing beside it; and the MIDI transport, answering to midi://, which is the controller standing beside the screen — its pads and knobs in at midi://in/NAME, its lights out at midi://out/NAME, and a port made rather than found under virtual:NAME — on the thread the driver itself runs its callbacks on and none of this feature's own; and the serial transport, answering to serial://, which is the board on a cable printing one line per reading — a device file and a baud rate, one arrival per line and a line out of every send — one port per feed on a thread every port of a registration shares; and the gRPC transport, answering to grpc:// at both ends of one generic method — a server holding grpc://:PORT/Service/Method and a call reaching grpc://HOST:PORT/Service/Method — which carries bytes and parses nothing, so a feed's buffers cross it with no generated stub in the transport, and which starts no thread of this feature's at all; and the QUIC transport, answering to quic:// at both ends of one encrypted connection — a port held at quic://:PORT?cert=FILE&key=FILE and a call reaching quic://HOST:PORT, ?insecure=1 on the call being what reaches the self-signed pair a machine on a stage carries — where a message is one unidirectional stream and ?datagrams=1 makes it one unreliable datagram instead, on threads of the library underneath and none of this feature's; and the WebRTC transport, answering to webrtc://, which is the door with nothing in the middle of it — `webrtc://ROOM?signal=URI` is introduced over the websocket door that signal names, a port to hold or a server to call, and every message afterwards crosses straight between the two ends, one connection per peer and one channel on each, on threads of the library underneath and none of this feature's; either listener fills `OpenedFeed::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::sendTo()`; linked by a consumer that opens a feed over a wire or over a region, and by no other |
 
@@ -31,16 +32,23 @@ and handed a hub, a fixture, or an `AnyByteSource` holding either.
 ## Using it
 
 ```cpp
+#include <sigilimage/decode/Decoders.h>
 #include <sigilio/hub/Hub.h>
+
+using sigil::image::ImageAsset;
 
 sigil::io::Hub hub;
 hub.mount("res://", "/opt/myapp/assets");
+// What an image MEANS is SigilImage's: it puts its own decoders on the
+// hub, once, wherever the hub is built.
+sigil::image::registerDecoders(hub);
 
 auto shader = hub.text("res://shaders/glow.sksl");   // std::optional<std::string>
 auto table  = hub.fetch("res://data/table.bin");      // shared_ptr<const Bytes>
-auto logo   = hub.image("res://ui/logo.png");        // stills and animations
-auto icon   = hub.image("res://ui/mark.svg", {.width = 256});
-auto layer  = hub.image("res://light/probe.exr", {.layer = "diffuse"});
+auto logo   = hub.load<ImageAsset>("res://ui/logo.png");        // stills and animations
+// The options are the decoder's own — SigilImage's DecodeOptions here.
+auto icon   = hub.load<ImageAsset>("res://ui/mark.svg", {.width = 256});
+auto layer  = hub.load<ImageAsset>("res://light/probe.exr", {.layer = "diffuse"});
 auto planes = hub.load<sigil::image::ChannelData>("res://light/probe.exr");
 
 // A Bytes is an immutable run read as data() and size(), as a span —
@@ -57,6 +65,9 @@ if (auto probed = hub.probe<sigil::image::ImageProbe>("res://light/probe.exr"))
 
 // Any type, once its decoder is registered: a Decoder<T> object or a
 // function from bytes (and the resource's name as a hint) to optional<T>.
+// A type whose namespace declares loadOptions() — the Configurable
+// concept — is loaded with those options too, and its decoder is offered
+// them third.
 hub.registerDecoder<Mesh>(ObjParser{});
 auto crate = hub.load<Mesh>("res://props/crate.obj");   // shared_ptr<const Mesh>
 
@@ -71,7 +82,7 @@ auto raw = source.fetch("res://data/table.bin");
 hub.setNetworkCacheDirectory("/opt/myapp/assets/.netcache");
 hub.setNetworkPolicy(sigil::io::NetworkPolicy::Offline);
 hub.setNetworkTransport(myHttpClient);
-auto remote = hub.image("https://example.com/tex.png");
+auto remote = hub.load<ImageAsset>("https://example.com/tex.png");
 
 // Inspect or seed the persistent cache by URL without fetching. The same
 // directory override is supplied to these operations and the hub.
@@ -194,10 +205,12 @@ asked for is not there.
 
 ## Boundary
 
-Dependencies: `SigilIOHub` links `SigilIOSource`, `SigilImageDecode` and
-Boost.Container publicly and `CURL::libcurl` plus `SigilCoreSchedule`
-privately — private because they are transport and where a fetch that
-blocks runs, while curl remains a hard requirement to configure. `SigilIOTransport` links `SigilIOHub` publicly and Boost.Asio,
+Dependencies: `SigilIOHub` links `SigilIOSource` and `SigilCoreCallable`
+publicly — no image library, and no library of any other meaning — and
+`CURL::libcurl`, `SigilCoreSchedule` and Boost.Container privately —
+private because they are transport, where a fetch that blocks runs and
+the tables no public header shows, while curl remains a hard requirement
+to configure. `SigilIOTransport` links `SigilIOHub` publicly and Boost.Asio,
 uWebSockets and `CURL::libcurl` privately — the last one for the
 websocket client, which is also where the TLS a `wss://` feed is carried
 over comes from, the sockets a listener stands on being built without
@@ -236,14 +249,18 @@ codec.
 SigilIO owns **access**: URIs, mounts, caching, hot reload, network
 fetch, the disk cache, and the file write. SigilImage owns **meaning**:
 format sniffing, decode and encode backends, probing, layer and channel
-semantics. The hub adds zero format knowledge of its own — every image
-ask takes SigilImage's own `DecodeOptions`, every decode is a
-delegation, `ResourceInfo` says only how many bytes there are and where
-they came from, `probe<T>()` asks T's own library what they mean, and
-`write()` takes bytes somebody else encoded. The dependency runs one way
-only: SigilImage does not know the hub exists, and does not open a file
-in either direction — its prober is declared against a span of bytes and
-a name, which is why it costs SigilImage nothing to be askable.
+semantics. The hub adds zero format knowledge of its own and names no
+image type: a hub starts with no decoder at all, `sigil::image::registerDecoders(hub)`
+is SigilImage putting its own on it, `load<T>(uri, options)` takes the
+options T's library declares through `loadOptions()` — SigilImage's
+`DecodeOptions` for an image — every decode is a delegation,
+`ResourceInfo` says only how many bytes there are and where they came
+from, `probe<T>()` asks T's own library what they mean, and `write()`
+takes bytes somebody else encoded. Neither library links the other:
+SigilImage's registration is a template over whatever hub it is handed,
+and its prober and its options are declared against the standard
+library alone, which is why it costs SigilImage nothing to be askable and
+this library nothing to ask.
 
 ## One file with files inside it
 

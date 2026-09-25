@@ -1,7 +1,7 @@
 /** @file
- * The hub's construction and its decoder registry: the SigilImage
- * decoders registered by the constructor, and the lookup that answers a
- * typed ask with the decoder registered for its type.
+ * The hub's construction and its decoder registry: the lookup that
+ * answers a typed ask with the decoder registered for its type, and the
+ * one that binds a load's options into it.
  */
 
 #include "Caches.h"
@@ -9,24 +9,18 @@
 
 namespace sigil::io {
 
-Hub::Hub() : m_caches(std::make_unique<Caches>()) {
-  registerDecoder<sigil::image::ImageAsset>(
-      [](const Bytes& bytes, std::string_view hint) {
-        return sigil::image::decodeImage(bytes.data(), bytes.size(),
-                                         {}, std::filesystem::path(hint));
-      });
-  registerDecoder<sigil::image::ChannelData>([](const Bytes& bytes,
-                                                std::string_view hint) {
-    return sigil::image::decodeChannels(bytes.data(), bytes.size(),
-                                        std::filesystem::path(hint));
-  });
-}
+Hub::Hub() : m_caches(std::make_unique<Caches>()) {}
 
 Hub::~Hub() = default;
 
-void Hub::setDecoder(std::type_index type, Redecode decode) {
+void Hub::setDecoder(std::type_index type, Redecode decode,
+                     Configure configure) {
   const std::lock_guard lock(m_mutex);
   m_caches->decoders[type] = std::move(decode);
+  if (configure)
+    m_caches->configured[type] = std::move(configure);
+  else
+    m_caches->configured.erase(type);
 }
 
 Hub::Redecode Hub::registeredDecoder(std::type_index type) const {

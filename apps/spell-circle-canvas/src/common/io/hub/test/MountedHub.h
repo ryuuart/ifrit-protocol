@@ -3,7 +3,8 @@
 /** @file
  * What a hub needs before it can be asked anything, shared by every file
  * of the hub's cases: one scratch directory mounted at res://, the
- * fixture classes the suite names hang off, and the three helpers more
+ * image decoders a host registers, the fixture classes the suite names
+ * hang off, and the three helpers more
  * than one file needs — a decodable image whose size says which file it
  * came from, an mtime stamped forward rather than waited for, and a
  * lease's URIs as a comparable vector.
@@ -13,6 +14,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
+#include <sigilimage/decode/Decoders.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
@@ -59,10 +61,14 @@ inline std::vector<std::string> leaseUris(const ResourceLease& lease) {
 }  // namespace sigil::io::test
 
 /** WHAT A HUB NEEDS BEFORE IT CAN BE ASKED ANYTHING: one scratch
- *  directory of its own, mounted at res://. */
+ *  directory of its own, mounted at res://, and SigilImage's decoders,
+ *  registered the way a host registers them. */
 class MountedHub : public ::testing::Test {
  protected:
-  MountedHub() { hub.mount("res://", dir.path); }
+  MountedHub() {
+    hub.mount("res://", dir.path);
+    sigil::image::registerDecoders(hub);
+  }
 
   sigil::test::ScratchDir dir{"sigilio_hub"};
   sigil::io::Hub hub;
