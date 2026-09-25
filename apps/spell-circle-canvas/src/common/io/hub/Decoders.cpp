@@ -9,7 +9,15 @@
 
 namespace sigil::io {
 
-Hub::Hub() : m_caches(std::make_unique<Caches>()) {}
+Hub::Hub(HubOptions options)
+    : m_caches(std::make_unique<Caches>()),
+      m_networkCacheDirectory(std::move(options.network.cacheDirectory)),
+      m_networkPolicy(options.network.policy),
+      m_networkTransport(std::move(options.network.transport)),
+      m_transportSchemes(std::move(options.transports)) {
+  for (auto& [prefix, directory] : options.mounts)
+    mount(prefix, std::move(directory));
+}
 
 Hub::~Hub() = default;
 

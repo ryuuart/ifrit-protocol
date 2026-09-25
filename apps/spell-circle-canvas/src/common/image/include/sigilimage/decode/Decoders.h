@@ -28,13 +28,13 @@ namespace sigil::image {
  *  a host wanting its own image decode registers it AFTERWARDS. */
 template <typename Hub>
 void registerDecoders(Hub& hub) {
-  hub.template registerDecoder<ImageAsset>(
+  registerDecoder<ImageAsset>(hub,
       [](const auto& bytes, std::string_view hint,
          const DecodeOptions& options) {
         return decodeImage(bytes.data(), bytes.size(), options,
                            std::filesystem::path(hint));
       });
-  hub.template registerDecoder<ChannelData>(
+  registerDecoder<ChannelData>(hub,
       [](const auto& bytes, std::string_view hint) {
         return decodeChannels(bytes.data(), bytes.size(),
                               std::filesystem::path(hint));

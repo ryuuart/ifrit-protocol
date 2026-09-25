@@ -13,6 +13,7 @@
 #include <system_error>
 
 #include "sigilio/hub/Hub.h"
+#include "sigilio/advanced/Places.h"
 
 namespace sigil::io::quic {
 
@@ -87,7 +88,7 @@ std::string authorityOf(const Address& place) {
 
 std::filesystem::path fileAt(const Hub& hub, const std::string& named) {
   if (named.empty()) return {};
-  std::filesystem::path path = hub.resolve(named);
+  std::filesystem::path path = io::resolve(hub, named);
   if (path.empty()) path = named;
   std::error_code ec;
   if (!std::filesystem::is_regular_file(path, ec) || ec) return {};

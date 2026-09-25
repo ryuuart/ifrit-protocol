@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Places.h>
 
 #include <filesystem>
 #include <string>
@@ -52,20 +53,20 @@ TEST_F(IOHub, SelectsFilesDirectoriesAndSegmentAwareGlobs) {
       "res://shaders/a.sksl", "res://shaders/literal*.sksl",
       "res://shaders/nested/b.slang", "res://shaders/nested/c.sksl"};
 
-  EXPECT_EQ(hub.select("res://shaders/a.sksl"),
+  EXPECT_EQ(select(hub, "res://shaders/a.sksl"),
             std::vector<std::string>{"res://shaders/a.sksl"});
-  EXPECT_EQ(hub.select("res://shaders"), all);
-  EXPECT_EQ(hub.select("res://shaders/"), all);
-  EXPECT_EQ(hub.select("res://shaders/*.sksl"),
+  EXPECT_EQ(select(hub, "res://shaders"), all);
+  EXPECT_EQ(select(hub, "res://shaders/"), all);
+  EXPECT_EQ(select(hub, "res://shaders/*.sksl"),
             (std::vector<std::string>{"res://shaders/a.sksl",
                                       "res://shaders/literal*.sksl"}));
-  EXPECT_EQ(hub.select("res://shaders/**/*.sksl"),
+  EXPECT_EQ(select(hub, "res://shaders/**/*.sksl"),
             (std::vector<std::string>{"res://shaders/a.sksl",
                                       "res://shaders/literal*.sksl",
                                       "res://shaders/nested/c.sksl"}));
-  EXPECT_EQ(hub.select("res://shaders/nested/?.slang"),
+  EXPECT_EQ(select(hub, "res://shaders/nested/?.slang"),
             std::vector<std::string>{"res://shaders/nested/b.slang"});
-  EXPECT_EQ(hub.select("res://shaders/literal\\*.sksl"),
+  EXPECT_EQ(select(hub, "res://shaders/literal\\*.sksl"),
             std::vector<std::string>{"res://shaders/literal*.sksl"});
 }
 
@@ -74,9 +75,9 @@ TEST_F(IOHub, SelectionHonorsNestedMounts) {
   dir.write("shaders/overlay/hidden.sksl", "hidden by mount");
   const ScratchDir overlay("sigilio_overlay");
   overlay.write("visible.sksl", "visible");
-  hub.mount("res://shaders/overlay/", overlay.path);
+  mount(hub, "res://shaders/overlay/", overlay.path);
 
-  EXPECT_EQ(hub.select("res://shaders"),
+  EXPECT_EQ(select(hub, "res://shaders"),
             (std::vector<std::string>{"res://shaders/base.sksl",
                                       "res://shaders/overlay/visible.sksl"}));
 }
@@ -88,16 +89,16 @@ TEST_F(IOHub, FileUrlsSelectDirectoriesAndGlobsWithoutAMount) {
   const std::string base =
       "file://" + (dir.path / "files").lexically_normal().generic_string();
 
-  EXPECT_EQ(hub.select(base), (std::vector<std::string>{
+  EXPECT_EQ(select(hub, base), (std::vector<std::string>{
                                   base + "/a.sksl", base + "/nested/b.slang",
                                   base + "/nested/c.sksl"}));
   EXPECT_EQ(
-      hub.select(base + "/**/*.sksl"),
+      select(hub, base + "/**/*.sksl"),
       (std::vector<std::string>{base + "/a.sksl", base + "/nested/c.sksl"}));
 
   const std::string plain =
       (dir.path / "files").lexically_normal().generic_string();
-  EXPECT_EQ(hub.select(plain + "/nested/*.sksl"),
+  EXPECT_EQ(select(hub, plain + "/nested/*.sksl"),
             std::vector<std::string>{plain + "/nested/c.sksl"});
 }
 
@@ -111,21 +112,21 @@ TEST_F(IOHub, ARelativeSelectorSelectsWhatItsPlainSpellingSelects) {
   dir.write("shaders/skipped.slang", "skipped");
   const WorkingDirectory here(dir.path);
 
-  const std::vector<std::string> plain = hub.select("shaders/*.sksl");
+  const std::vector<std::string> plain = select(hub, "shaders/*.sksl");
   EXPECT_EQ(plain, std::vector<std::string>{"shaders/a.sksl"});
-  EXPECT_EQ(hub.select("./shaders/*.sksl"), plain);
-  EXPECT_EQ(hub.select("./shaders/**/*.sksl"), hub.select("shaders/**/*.sksl"));
-  EXPECT_EQ(hub.select("./shaders"), hub.select("shaders"));
-  EXPECT_EQ(hub.select("./shaders/a.sksl"), hub.select("shaders/a.sksl"));
+  EXPECT_EQ(select(hub, "./shaders/*.sksl"), plain);
+  EXPECT_EQ(select(hub, "./shaders/**/*.sksl"), select(hub, "shaders/**/*.sksl"));
+  EXPECT_EQ(select(hub, "./shaders"), select(hub, "shaders"));
+  EXPECT_EQ(select(hub, "./shaders/a.sksl"), select(hub, "shaders/a.sksl"));
 }
 
 TEST_F(IOHub, NetworkSelectorsAreExactAndCannotGlob) {
-  EXPECT_TRUE(hub.select("https://example.invalid/**/*.webm").empty());
-  EXPECT_EQ(hub.select("https://example.invalid/assets/"),
+  EXPECT_TRUE(select(hub, "https://example.invalid/**/*.webm").empty());
+  EXPECT_EQ(select(hub, "https://example.invalid/assets/"),
             std::vector<std::string>{"https://example.invalid/assets/"});
   EXPECT_EQ(
-      hub.select("https://example.invalid/assets/clip.webm"),
+      select(hub, "https://example.invalid/assets/clip.webm"),
       std::vector<std::string>{"https://example.invalid/assets/clip.webm"});
-  EXPECT_EQ(hub.select("https://example.invalid/image.png?v=2"),
+  EXPECT_EQ(select(hub, "https://example.invalid/image.png?v=2"),
             std::vector<std::string>{"https://example.invalid/image.png?v=2"});
 }

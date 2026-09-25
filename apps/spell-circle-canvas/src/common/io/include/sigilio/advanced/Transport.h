@@ -33,7 +33,8 @@ class FeedDoor;
  *  hub asked to listen on a scheme nothing is registered for runs it
  *  once — so linking the transports is what makes `Hub::listen()` open
  *  them. */
-void setLinkedTransports(void (*install)(Hub& hub));
+void setLinkedTransports(
+    void (*install)(Hub& hub, const std::vector<std::string>& schemes));
 }  // namespace detail
 
 namespace testing {
@@ -117,5 +118,14 @@ class Inlet {
  *  and delivers through it from whatever thread it runs on. */
 using Transport =
     std::function<TransportEnd(std::string_view uri, Inlet inlet)>;
+
+/** Installs on @p hub the transport @p scheme opens through; registering
+ *  a scheme again replaces it. */
+void registerTransport(Hub& hub, std::string scheme, Transport transport);
+
+/** The transport registered on @p hub for @p scheme, or an empty
+ *  function. A transport that stands in front of another reads the one
+ *  it wraps through here before it registers itself. */
+Transport transport(const Hub& hub, std::string_view scheme);
 
 }  // namespace sigil::io

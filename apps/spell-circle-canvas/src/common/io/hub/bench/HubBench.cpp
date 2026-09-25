@@ -9,6 +9,8 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Decoding.h>
+#include <sigilio/advanced/Places.h>
 #include <unistd.h>
 
 #include <filesystem>
@@ -36,7 +38,7 @@ struct Mounted {
       std::ofstream(dir / name) << std::string(4096, 'x');
       uris.push_back("res://bench/" + name);
     }
-    hub.mount("res://bench/", dir);
+    mount(hub, "res://bench/", dir);
   }
   ~Mounted() { std::filesystem::remove_all(dir); }
 };
@@ -50,10 +52,10 @@ void countCalls(benchmark::State& state, int64_t calls) {
  *  is the key construction and the entry lookup. */
 void BM_Fetch_CacheHit(benchmark::State& state) {
   Mounted fixture((int)state.range(0));
-  for (const std::string& uri : fixture.uris) (void)fixture.hub.fetch(uri);
+  for (const std::string& uri : fixture.uris) (void)fixture.hub.read(uri);
   for ([[maybe_unused]] auto iteration : state) {
     for (const std::string& uri : fixture.uris) {
-      std::shared_ptr<const Bytes> bytes = fixture.hub.fetch(uri);
+      std::shared_ptr<const Bytes> bytes = fixture.hub.read(uri);
       benchmark::DoNotOptimize(bytes.get());
     }
   }
@@ -73,8 +75,7 @@ struct Length {
  *  decoder lookup, the entry lookup and the view lookup. */
 void BM_Load_ViewHit(benchmark::State& state) {
   Mounted fixture((int)state.range(0));
-  fixture.hub.registerDecoder<Length>(
-      [](const Bytes& bytes) -> std::optional<Length> {
+  registerDecoder<Length>(fixture.hub, [](const Bytes& bytes) -> std::optional<Length> {
         return Length{bytes.size()};
       });
   for (const std::string& uri : fixture.uris)
@@ -101,11 +102,11 @@ void BM_Resolve(benchmark::State& state) {
   std::string prefix = "res://";
   for (int i = 0; i < mounts; ++i) {
     prefix += "m" + std::to_string(i) + "/";
-    hub.mount(prefix, std::filesystem::path("/tmp") / std::to_string(i));
+    mount(hub, prefix, std::filesystem::path("/tmp") / std::to_string(i));
   }
   const std::string uri = prefix + "leaf.png";
   for ([[maybe_unused]] auto iteration : state) {
-    std::filesystem::path path = hub.resolve(uri);
+    std::filesystem::path path = resolve(hub, uri);
     benchmark::DoNotOptimize(path);
   }
   countCalls(state, 1);

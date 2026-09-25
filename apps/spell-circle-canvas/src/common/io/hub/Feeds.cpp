@@ -18,6 +18,7 @@
 #include "FeedDoor.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
+#include "sigilio/advanced/Lease.h"
 #include "sigilio/hub/Recording.h"
 
 namespace sigil::io {
@@ -26,7 +27,8 @@ namespace {
 
 /** The installer the transport feature handed over as the program
  *  started; null when no transport is linked. */
-std::atomic<void (*)(Hub&)> linkedTransports{nullptr};
+std::atomic<void (*)(Hub&, const std::vector<std::string>&)>
+    linkedTransports{nullptr};
 
 /** The part of a URI before "://", which is what a transport is
  *  registered under. Empty when the URI names no scheme. */
@@ -38,7 +40,8 @@ std::string_view feedScheme(std::string_view uri) {
 
 }  // namespace
 
-void detail::setLinkedTransports(void (*install)(Hub& hub)) {
+void detail::setLinkedTransports(
+    void (*install)(Hub& hub, const std::vector<std::string>& schemes)) {
   linkedTransports.store(install);
 }
 
@@ -150,9 +153,10 @@ Feed Hub::listen(std::string_view uri, ListenOptions options) {
       install = !m_linkedTransports;
       m_linkedTransports = true;
     }
-    if (void (*const linked)(Hub&) = linkedTransports.load();
+    if (void (*const linked)(Hub&, const std::vector<std::string>&) =
+            linkedTransports.load();
         install && linked) {
-      linked(*this);
+      linked(*this, m_transportSchemes);
       transport = feedTransport(scheme);
     }
   }
@@ -193,7 +197,7 @@ Feed Hub::replay(std::string_view uri, std::string_view recording,
 
 void Hub::advance() { advance(std::chrono::steady_clock::now() - m_created); }
 
-Lease Hub::onAdvance(Lease::Callback callback) {
+Lease Hub::onAdvance(AdvanceCallback callback) {
   auto held = std::make_shared<Lease::Callback>(std::move(callback));
   {
     const std::lock_guard lock(m_mutex);

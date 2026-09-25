@@ -16,8 +16,10 @@
 #include <include/core/SkImage.h>
 #include <sigilimage/decode/Decoders.h>
 #include <sigilimage/encode/Encode.h>
+#include <sigilio/advanced/Residency.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
+#include <sigilio/advanced/Places.h>
 
 #include <chrono>
 #include <filesystem>
@@ -66,7 +68,7 @@ inline std::vector<std::string> leaseUris(const ResourceLease& lease) {
 class MountedHub : public ::testing::Test {
  protected:
   MountedHub() {
-    hub.mount("res://", dir.path);
+    sigil::io::mount(hub, "res://", dir.path);
     sigil::image::registerDecoders(hub);
   }
 

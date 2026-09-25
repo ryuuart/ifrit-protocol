@@ -99,15 +99,17 @@ struct RecordingHub {
   std::function<std::optional<sigil::image::ChannelData>(const Bytes&,
                                                          std::string_view)>
       channels;
-
-  template <typename T, typename Decode>
-  void registerDecoder(Decode decode) {
-    if constexpr (std::is_same_v<T, sigil::image::ImageAsset>)
-      image = std::move(decode);
-    else if constexpr (std::is_same_v<T, sigil::image::ChannelData>)
-      channels = std::move(decode);
-  }
 };
+
+/** The registration a hub's own library declares beside it, found by the
+ *  hub's namespace as the real one is. */
+template <typename T, typename Decode>
+void registerDecoder(RecordingHub& hub, Decode decode) {
+  if constexpr (std::is_same_v<T, sigil::image::ImageAsset>)
+    hub.image = std::move(decode);
+  else if constexpr (std::is_same_v<T, sigil::image::ChannelData>)
+    hub.channels = std::move(decode);
+}
 
 // The options a hub's load takes for an image are this library's own,
 // named through the hook a hub finds by argument-dependent lookup.

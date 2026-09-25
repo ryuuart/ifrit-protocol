@@ -38,10 +38,10 @@ void registerTransports(Hub& hub, const std::vector<std::string>& schemes = {});
 
 namespace detail {
 /** Registers every scheme this feature answers that @p hub has no
- *  transport for yet: what `Hub::listen()` runs on its first ask nothing
- *  answers, through the installer this feature hands the hub as the
- *  program starts. */
-void installLinkedTransports(Hub& hub);
+ *  transport for yet — only those @p schemes names when it is not empty:
+ *  what `Hub::listen()` runs on its first ask nothing answers, through
+ *  the installer this feature hands the hub as the program starts. */
+void installLinkedTransports(Hub& hub, const std::vector<std::string>& schemes);
 }  // namespace detail
 
 /** THE OTHER END OF A shm:// REGION: the one process that puts the

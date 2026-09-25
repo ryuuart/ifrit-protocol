@@ -140,14 +140,14 @@ TEST(IOArchive, AnswersEveryFileItHoldsByTheNameItListsThemUnder) {
   EXPECT_EQ(archive.entries()[0].name, "brush.json");
   EXPECT_EQ(archive.entries()[1].name, "art/shape.png");
 
-  const std::shared_ptr<const Bytes> described = archive.fetch("brush.json");
+  const std::shared_ptr<const Bytes> described = archive.read("brush.json");
   ASSERT_NE(described, nullptr);
   EXPECT_EQ(described->asText(), "{\"width\":3}");
-  EXPECT_EQ(archive.fetch("art/shape.png")->asText(), "not really a png");
+  EXPECT_EQ(archive.read("art/shape.png")->asText(), "not really a png");
   // A name it does not hold is null, as any source answers a URI it
   // cannot serve — including the same name spelled without its path.
-  EXPECT_EQ(archive.fetch("shape.png"), nullptr);
-  EXPECT_EQ(archive.fetch(""), nullptr);
+  EXPECT_EQ(archive.read("shape.png"), nullptr);
+  EXPECT_EQ(archive.read(""), nullptr);
 }
 
 TEST(IOArchive, RefusesAnEntryThatClaimsMoreThanCouldBeThere) {
@@ -161,11 +161,11 @@ TEST(IOArchive, RefusesAnEntryThatClaimsMoreThanCouldBeThere) {
   ASSERT_LT(bytes.size(), 1024u);
 
   ArchiveSource archive(bytes);
-  EXPECT_EQ(archive.fetch("greedy.bin"), nullptr);
+  EXPECT_EQ(archive.read("greedy.bin"), nullptr);
   // …and the file beside it still arrives: one hostile claim does not
   // cost the archive its other entries.
-  ASSERT_NE(archive.fetch("honest.txt"), nullptr);
-  EXPECT_EQ(archive.fetch("honest.txt")->asText(), "here");
+  ASSERT_NE(archive.read("honest.txt"), nullptr);
+  EXPECT_EQ(archive.read("honest.txt")->asText(), "here");
 }
 
 TEST(IOArchive, BytesThatAreNotAnArchiveHoldNothing) {
@@ -175,7 +175,7 @@ TEST(IOArchive, BytesThatAreNotAnArchiveHoldNothing) {
 
   const ArchiveSource empty;
   EXPECT_TRUE(empty.empty());
-  EXPECT_EQ(empty.fetch("anything"), nullptr);
+  EXPECT_EQ(empty.read("anything"), nullptr);
 
   const ArchiveSource notAnArchive{textBytes("not an archive at all")};
   EXPECT_TRUE(notAnArchive.empty());

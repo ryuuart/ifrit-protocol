@@ -13,6 +13,8 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
 #include <sigilio/testing/Testing.h>
+#include <sigilio/advanced/Feeds.h>
+#include <sigilio/advanced/Time.h>
 
 #include <cstdint>
 #include <filesystem>
@@ -164,7 +166,7 @@ TEST_F(IOFeed, AClosedFeedKeepsWhatItHoldsAndTakesNothingNew) {
 
 TEST_F(IOFeed, AHubHoldsOneFeedPerUriWhileSomebodyHoldsItAndOpensAgainAfter) {
   std::vector<std::string> opened;
-  hub.setFeedTransport("udp",
+  registerTransport(hub, "udp",
                        [&opened](std::string_view uri, Inlet) {
                          opened.emplace_back(uri);
                          return TransportEnd{};
@@ -178,12 +180,12 @@ TEST_F(IOFeed, AHubHoldsOneFeedPerUriWhileSomebodyHoldsItAndOpensAgainAfter) {
   EXPECT_NE(other, scene);
   const std::vector<std::string> both = {"udp://:27020", "udp://:27021"};
   EXPECT_EQ(opened, both);
-  ASSERT_EQ(hub.feeds().size(), 2u);
-  EXPECT_EQ(hub.feeds().front(), scene);  // opening order
+  ASSERT_EQ(feeds(hub).size(), 2u);
+  EXPECT_EQ(feeds(hub).front(), scene);  // opening order
 
   scene = {};
   again = {};
-  EXPECT_EQ(hub.feeds().size(), 1u);
+  EXPECT_EQ(feeds(hub).size(), 1u);
   const Feed reopened = hub.listen("udp://:27020");
   ASSERT_TRUE(reopened);
   // Nobody was holding that URI any more, so it is a new door.
@@ -193,7 +195,7 @@ TEST_F(IOFeed, AHubHoldsOneFeedPerUriWhileSomebodyHoldsItAndOpensAgainAfter) {
 
 TEST_F(IOFeed, ADoorThatCouldNotBeOpenedIsOpenedAgainByTheNextAskForItsUri) {
   int opens = 0;
-  hub.setFeedTransport("udp",
+  registerTransport(hub, "udp",
                        [&opens](std::string_view, Inlet into) {
                          TransportEnd opened;
                          // The first ask finds the outside world in the way and
@@ -247,7 +249,7 @@ TEST_F(IOFeed, AUriWithNoTransportIsAFeedWhoseErrorSaysSo) {
 
 TEST_F(IOFeed, ATransportsOpenedEndIsClosedExactlyOnceWhenTheFeedGoes) {
   const auto closes = std::make_shared<int>(0);
-  hub.setFeedTransport("udp", [closes](std::string_view, Inlet) {
+  registerTransport(hub, "udp", [closes](std::string_view, Inlet) {
     TransportEnd opened;
     opened.close = [closes] { ++*closes; };
     opened.localAddress = "udp://[::]:52341";
@@ -266,7 +268,7 @@ TEST_F(IOFeed, ATransportsOpenedEndIsClosedExactlyOnceWhenTheFeedGoes) {
 
 TEST_F(IOFeed, SendGoesThroughTheOpenedEnd) {
   const auto sent = std::make_shared<std::string>();
-  hub.setFeedTransport("udp", [sent](std::string_view, Inlet) {
+  registerTransport(hub, "udp", [sent](std::string_view, Inlet) {
     TransportEnd opened;
     opened.send = [sent](const Bytes& bytes) {
       *sent = bytes.asText();
@@ -285,7 +287,7 @@ TEST_F(IOFeed, SendGoesThroughTheOpenedEnd) {
 
 TEST_F(IOFeed, ASendNamingNobodyGoesToThePeerTheFeedWasOpenedWith) {
   const auto answered = std::make_shared<std::string>();
-  hub.setFeedTransport("udp", [answered](std::string_view, Inlet) {
+  registerTransport(hub, "udp", [answered](std::string_view, Inlet) {
     TransportEnd opened;  // a listener: no peer of its own
     opened.sendTo = [answered](std::string_view to, const Bytes& bytes) {
       *answered = std::string(to) + " " + std::string(bytes.asText());
@@ -305,7 +307,7 @@ TEST_F(IOFeed, ASendNamingNobodyGoesToThePeerTheFeedWasOpenedWith) {
 
 TEST_F(IOFeed, EveryHandleOntoOneUriReadsOneDoorAndTheLastOneClosesIt) {
   const auto closes = std::make_shared<int>(0);
-  hub.setFeedTransport("udp", [closes](std::string_view, Inlet) {
+  registerTransport(hub, "udp", [closes](std::string_view, Inlet) {
     TransportEnd opened;
     opened.close = [closes] { ++*closes; };
     return opened;
@@ -321,7 +323,7 @@ TEST_F(IOFeed, EveryHandleOntoOneUriReadsOneDoorAndTheLastOneClosesIt) {
 }
 
 TEST_F(IOFeed, AOneWayFeedAnswersFalseToSend) {
-  hub.setFeedTransport("udp", [](std::string_view, Inlet) {
+  registerTransport(hub, "udp", [](std::string_view, Inlet) {
     TransportEnd opened;  // listening only: no way back out
     opened.localAddress = "udp://[::]:52341";
     return opened;
@@ -335,8 +337,7 @@ TEST_F(IOFeed, AOneWayFeedAnswersFalseToSend) {
 
 TEST_F(IOFeed, SendToGoesThroughTheOpenedEndNamingTheSenderToAnswer) {
   const auto answered = std::make_shared<std::string>();
-  hub.setFeedTransport(
-      "udp", [answered](std::string_view, Inlet) {
+  registerTransport(hub, "udp", [answered](std::string_view, Inlet) {
         // A door that answers one sender and broadcasts to none, which
         // is what a listening socket is.
         TransportEnd opened;
@@ -411,12 +412,12 @@ TEST_F(IOFeed, AReplayedUriPlaysItsRecordingByTheTimeDispatched) {
   EXPECT_TRUE(feed.state().error.empty());
   EXPECT_EQ(feed.state().revision, 0u);  // nothing arrives until time moves
 
-  hub.advance(seconds(0.0));
+  advance(hub, seconds(0.0));
   EXPECT_EQ(feed.state().revision, 1u);
   EXPECT_EQ(feed.latest()->payload->asText(), "at zero");
   EXPECT_NE(feed.state().readiness, sigil::io::ReadyState::Closed);
 
-  hub.advance(seconds(1.0));
+  advance(hub, seconds(1.0));
   EXPECT_EQ(feed.state().revision, 2u);
   EXPECT_EQ(feed.latest()->payload->asText(), "at one");
   EXPECT_EQ(feed.state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out
@@ -437,7 +438,7 @@ TEST_F(IOFeed, AFileThatIsNoRecordingIsAFeedWhoseErrorSaysSo) {
       hub.replay("udp://:27020", (dir.path / "scene.bin").string());
   ASSERT_TRUE(feed);
   EXPECT_FALSE(feed.state().error.empty());
-  hub.advance(seconds(1.0));
+  advance(hub, seconds(1.0));
   EXPECT_EQ(feed.state().revision, 0u);
 }
 
@@ -500,7 +501,7 @@ TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
     RecordingWriter writer(path);
     writer.append(Message(shared("recorded"), {}, seconds(0.0), 1));
   }
-  hub.setFeedTransport("udp", [](std::string_view, Inlet) {
+  registerTransport(hub, "udp", [](std::string_view, Inlet) {
     return TransportEnd{};
   });
   const Feed live = hub.listen("udp://:27020");
@@ -508,7 +509,7 @@ TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
       hub.replay("udp://:27020", path.string());
   EXPECT_EQ(live.state().readiness, sigil::io::ReadyState::Closed);
   EXPECT_NE(live, replaying);
-  hub.advance(seconds(0.0));
+  advance(hub, seconds(0.0));
   ASSERT_TRUE(replaying.latest().has_value());
 }
 
@@ -536,15 +537,15 @@ TEST_F(IOFeed, ArrivalsFromAnotherThreadAreAllReceivedInOrder) {
 TEST_F(IOFeed, DispatchRunsEveryRegisteredCallbackInOrderUntilItsLeaseGoes) {
   std::vector<std::string> ran;
   std::vector<double> given;
-  Lease first = hub.onAdvance([&ran, &given](seconds time) {
+  Lease first = onAdvance(hub, [&ran, &given](seconds time) {
     ran.emplace_back("first");
     given.push_back(time.count());
   });
   const Lease second =
-      hub.onAdvance([&ran](std::chrono::duration<double>) { ran.emplace_back("second"); });
+      onAdvance(hub, [&ran](std::chrono::duration<double>) { ran.emplace_back("second"); });
   EXPECT_TRUE(first.registered());
 
-  hub.advance(seconds(0.5));
+  advance(hub, seconds(0.5));
   const std::vector<std::string> both = {"first", "second"};
   EXPECT_EQ(ran, both);
   const std::vector<double> once = {0.5};
@@ -554,11 +555,11 @@ TEST_F(IOFeed, DispatchRunsEveryRegisteredCallbackInOrderUntilItsLeaseGoes) {
   EXPECT_FALSE(first.registered());
   {
     const Lease third =
-        hub.onAdvance([&ran](std::chrono::duration<double>) { ran.emplace_back("third"); });
+        onAdvance(hub, [&ran](std::chrono::duration<double>) { ran.emplace_back("third"); });
   }
 
   ran.clear();
-  hub.advance(seconds(1.5));
+  advance(hub, seconds(1.5));
   // A released lease and a lease that is gone both leave nothing to
   // run; the one still held runs on.
   const std::vector<std::string> onlySecond = {"second"};
@@ -576,12 +577,12 @@ TEST_F(IOFeed, ACallbackSeesWhatTheSameDispatchDelivered) {
       hub.replay("udp://:27020", path.string());
 
   std::vector<std::string> seen;
-  const Lease lease = hub.onAdvance([&seen, feed](std::chrono::duration<double>) {
+  const Lease lease = onAdvance(hub, [&seen, feed](std::chrono::duration<double>) {
     if (const std::optional<Message> arrival = feed.receive())
       seen.emplace_back(arrival->payload->asText());
   });
 
-  hub.advance(seconds(0.0));
+  advance(hub, seconds(0.0));
   // The recordings move first and the callbacks run after them, so what
   // a reader is driven for is already there when it is driven.
   const std::vector<std::string> one = {"at zero"};
@@ -614,14 +615,14 @@ TEST_F(IOFeed, ReplayArrivalTimeUsesFirstDispatchAndRecordedSpacing) {
   }
   const Feed feed = hub.replay("test://clock", path.string());
   const auto before = Clock::now();
-  hub.advance(seconds(900.0));
+  advance(hub, seconds(900.0));
   const auto after = Clock::now();
   const auto first = feed.receive();
   ASSERT_TRUE(first);
   const auto origin = first->receivedAt();
   EXPECT_GE(origin, before);
   EXPECT_LE(origin, after);
-  hub.advance(seconds(900.25));
+  advance(hub, seconds(900.25));
   const auto second = feed.receive();
   ASSERT_TRUE(second);
   EXPECT_EQ(second->receivedAt() - origin, 250ms);

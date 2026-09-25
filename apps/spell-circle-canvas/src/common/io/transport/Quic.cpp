@@ -341,7 +341,7 @@ void detail::registerQuic(Hub& hub) {
   // call answers may outlive it — which is why what the listener keeps
   // is what the library read out of the two files, and not a way back
   // here.
-  hub.setFeedTransport("quic",
+  io::registerTransport(hub, "quic",
                        [&hub](std::string_view uri, Inlet into) {
                          return quic::openFeed(hub, uri, into);
                        });

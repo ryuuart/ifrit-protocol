@@ -55,7 +55,7 @@ class ArchiveSource {
   [[nodiscard]] static bool isArchive(std::span<const std::byte> archive);
 
   /** The entry @p uri names, or null. */
-  [[nodiscard]] std::shared_ptr<const Bytes> fetch(std::string_view uri) const;
+  [[nodiscard]] std::shared_ptr<const Bytes> read(std::string_view uri) const;
 
   /** Every entry, in the order the archive lists them. */
   [[nodiscard]] std::span<const ArchiveEntry> entries() const {

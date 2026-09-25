@@ -14,6 +14,8 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
+#include <sigilio/advanced/Decoding.h>
+#include <sigilio/advanced/Places.h>
 
 #include <array>
 #include <atomic>
@@ -71,7 +73,7 @@ TEST_F(IOHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
   dir.write("live.txt", "one two three");
   // No decoder for the type: null, and nothing fetched.
   EXPECT_EQ(hub.load<WordCount>("res://live.txt"), nullptr);
-  hub.registerDecoder<WordCount>(WordCounter{});
+  registerDecoder<WordCount>(hub, WordCounter{});
   auto counted = hub.load<WordCount>("res://live.txt");
   ASSERT_NE(counted, nullptr);
   EXPECT_EQ(counted->words, 3u);
@@ -81,7 +83,7 @@ TEST_F(IOHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
   // A changed file re-decodes every populated view from one read.
   dir.write("live.txt", "four five");
   touchForward(dir.path / "live.txt");
-  EXPECT_TRUE(hub.poll());
+  EXPECT_TRUE(poll(hub));
   auto recounted = hub.load<WordCount>("res://live.txt");
   ASSERT_NE(recounted, nullptr);
   EXPECT_NE(recounted, counted);
@@ -91,7 +93,7 @@ TEST_F(IOHub, RegisteredDecodersAnswerLoadAndReloadOnPoll) {
 
 TEST_F(IOHub, ConcurrentColdLoadsPublishOneCachedView) {
   dir.write("shared.txt", "one two three");
-  hub.registerDecoder<WordCount>(WordCounter{});
+  registerDecoder<WordCount>(hub, WordCounter{});
   constexpr size_t kReaders = 8;
   std::barrier start(static_cast<std::ptrdiff_t>(kReaders));
   std::array<std::shared_ptr<const WordCount>, kReaders> views;
@@ -111,9 +113,9 @@ TEST_F(IOHub, ConcurrentColdLoadsPublishOneCachedView) {
 TEST_F(IOHub, ImagesLoadOnlyOnceSigilImageRegistersItsDecoders) {
   writePng(dir.path / "logo.png", 3, SK_ColorRED);
   Hub bare;
-  bare.mount("res://", dir.path);
+  mount(bare, "res://", dir.path);
   EXPECT_EQ(bare.load<sigil::image::ImageAsset>("res://logo.png"), nullptr);
-  EXPECT_NE(bare.fetch("res://logo.png"), nullptr);
+  EXPECT_NE(bare.read("res://logo.png"), nullptr);
   auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 3);
@@ -128,8 +130,7 @@ TEST_F(IOHub, LoadWithOptionsDecodesOncePerDistinctOptions) {
   using excerpt::Excerpt;
   dir.write("poem.txt", "whose woods these are");
   std::atomic<int> decodes = 0;
-  hub.registerDecoder<Excerpt>(
-      [&decodes](const Bytes& bytes, std::string_view,
+  registerDecoder<Excerpt>(hub, [&decodes](const Bytes& bytes, std::string_view,
                  const excerpt::ExcerptOptions& options) {
         ++decodes;
         const std::string_view text = bytes.asText();
@@ -148,7 +149,7 @@ TEST_F(IOHub, LoadWithOptionsDecodesOncePerDistinctOptions) {
 
   dir.write("poem.txt", "stopping by woods");
   touchForward(dir.path / "poem.txt");
-  EXPECT_TRUE(hub.poll());
+  EXPECT_TRUE(poll(hub));
   EXPECT_EQ(hub.load<Excerpt>("res://poem.txt", {.count = 5})->text, "stopp");
   EXPECT_EQ(hub.load<Excerpt>("res://poem.txt")->text, "stopping by woods");
 }
@@ -157,13 +158,13 @@ TEST_F(IOHub, LoadWithOptionsDecodesOncePerDistinctOptions) {
 // resource: asking for one must not null a later ask for another.
 TEST_F(IOHub, FetchThenImageThenChannelsAllAnswer) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
-  ASSERT_NE(hub.fetch("res://logo.png"), nullptr);
+  ASSERT_NE(hub.read("res://logo.png"), nullptr);
   auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
   ASSERT_NE(hub.load<sigil::image::ChannelData>("res://logo.png"), nullptr);
   // The earlier views are still served, not evicted by the later asks.
-  EXPECT_NE(hub.fetch("res://logo.png"), nullptr);
+  EXPECT_NE(hub.read("res://logo.png"), nullptr);
   EXPECT_NE(hub.load<sigil::image::ImageAsset>("res://logo.png"), nullptr);
 }
 
@@ -173,10 +174,10 @@ TEST_F(IOHub, FetchThenImageThenChannelsAllAnswer) {
 // ask cannot depend on decodability in any way.
 TEST_F(IOHub, FetchAloneDoesNotDecode) {
   dir.write("fake.png", "not an image at all");
-  auto bytes = hub.fetch("res://fake.png");
+  auto bytes = hub.read("res://fake.png");
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://fake.png"), nullptr);
-  EXPECT_NE(hub.fetch("res://fake.png"), nullptr);
+  EXPECT_NE(hub.read("res://fake.png"), nullptr);
 }
 
 // load<ImageAsset>() after fetch() decodes the bytes the entry already holds:
@@ -184,7 +185,7 @@ TEST_F(IOHub, FetchAloneDoesNotDecode) {
 // possible source, and no second read of the source happens.
 TEST_F(IOHub, ImageDecodesOnDemandFromCachedBytes) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
-  ASSERT_NE(hub.fetch("res://logo.png"), nullptr);
+  ASSERT_NE(hub.read("res://logo.png"), nullptr);
   fs::remove(dir.path / "logo.png");
   auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
   ASSERT_NE(image, nullptr);
@@ -201,13 +202,13 @@ TEST_F(IOHub, PollReloadsFilesWhoseNamesContainHash) {
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
   // Nothing changed: no spurious erase, no reload against the decoy.
-  EXPECT_FALSE(hub.poll());
+  EXPECT_FALSE(poll(hub));
   ASSERT_NE(hub.load<sigil::image::ImageAsset>("res://tile#3.png"), nullptr);
   EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://tile#3.png")->width(), 1);
   // Touch the real file: poll() reloads that same file.
   writePng(dir.path / "tile#3.png", 2, SK_ColorBLUE);
   touchForward(dir.path / "tile#3.png");
-  EXPECT_TRUE(hub.poll());
+  EXPECT_TRUE(poll(hub));
   auto reloaded = hub.load<sigil::image::ImageAsset>("res://tile#3.png");
   ASSERT_NE(reloaded, nullptr);
   EXPECT_EQ(reloaded->width(), 2);
@@ -223,8 +224,7 @@ struct Concatenation {
 TEST_F(IOHub, PollRunsDecodersOutsideTheCacheLock) {
   dir.write("head.txt", "head");
   dir.write("tail.txt", "tail");
-  hub.registerDecoder<Concatenation>(
-      [this](const Bytes& bytes) {
+  registerDecoder<Concatenation>(hub, [this](const Bytes& bytes) {
         auto tail = hub.text("res://tail.txt");
         return Concatenation{std::string(bytes.asText()) + tail.value_or("")};
       });
@@ -234,7 +234,7 @@ TEST_F(IOHub, PollRunsDecodersOutsideTheCacheLock) {
 
   dir.write("head.txt", "HEAD");
   touchForward(dir.path / "head.txt");
-  EXPECT_TRUE(hub.poll());
+  EXPECT_TRUE(poll(hub));
   auto reloaded = hub.load<Concatenation>("res://head.txt");
   ASSERT_NE(reloaded, nullptr);
   EXPECT_EQ(reloaded->text, "HEADtail");
@@ -255,12 +255,12 @@ TEST_F(IOHub, ADecoderThatNeedsNoHintDoesNotNameOne) {
   // object whose decode() reads the bytes alone satisfies the concept, and a
   // callable that names only the bytes is as good as one that names both.
   dir.write("live.txt", "abcd");
-  hub.registerDecoder<WordCount>(ByteCounter{});
+  registerDecoder<WordCount>(hub, ByteCounter{});
   auto counted = hub.load<WordCount>("res://live.txt");
   ASSERT_NE(counted, nullptr);
   EXPECT_EQ(counted->words, 4u);
 
-  hub.registerDecoder<Concatenation>([](const Bytes& bytes) {
+  registerDecoder<Concatenation>(hub, [](const Bytes& bytes) {
     return Concatenation{"<" + std::string(bytes.asText()) + ">"};
   });
   auto wrapped = hub.load<Concatenation>("res://live.txt");
@@ -270,17 +270,16 @@ TEST_F(IOHub, ADecoderThatNeedsNoHintDoesNotNameOne) {
 
 TEST_F(IOHub, ReRegisteringADecoderAppliesToLaterAsksOnly) {
   dir.write("live.txt", "one two three");
-  hub.registerDecoder<WordCount>(WordCounter{});
+  registerDecoder<WordCount>(hub, WordCounter{});
   auto counted = hub.load<WordCount>("res://live.txt");
   ASSERT_NE(counted, nullptr);
   EXPECT_EQ(counted->words, 3u);
 
   // A decoder that counts nothing, registered after the view exists.
-  hub.registerDecoder<WordCount>(
-      [] { return WordCount{0}; });
+  registerDecoder<WordCount>(hub, [] { return WordCount{0}; });
   dir.write("live.txt", "one two three four");
   touchForward(dir.path / "live.txt");
-  EXPECT_TRUE(hub.poll());
+  EXPECT_TRUE(poll(hub));
   // The view keeps the decoder that made it.
   EXPECT_EQ(hub.load<WordCount>("res://live.txt")->words, 4u);
   // A fresh entry takes the new one.
@@ -290,14 +289,14 @@ TEST_F(IOHub, ReRegisteringADecoderAppliesToLaterAsksOnly) {
 
 TEST_F(IOHub, ProbeReportsHowManyBytesAndWhereTheyAre) {
   dir.write("table.bin", std::string(64, '\0'));
-  auto info = hub.probe<ResourceInfo>("res://table.bin");
+  auto info = probe<ResourceInfo>(hub, "res://table.bin");
   ASSERT_TRUE(info.has_value());
   EXPECT_EQ(info->byteSize, 64u);
   EXPECT_EQ(info->path, dir.path / "table.bin");
   // Bytes are all the hub answers for. What they mean is asked of the
   // library that owns the meaning, and these bytes are not an image.
-  EXPECT_FALSE(hub.probe<sigil::image::ImageProbe>("res://table.bin"));
-  EXPECT_FALSE(hub.probe<ResourceInfo>("res://nothing.bin"));
+  EXPECT_FALSE(probe<sigil::image::ImageProbe>(hub, "res://table.bin"));
+  EXPECT_FALSE(probe<ResourceInfo>(hub, "res://nothing.bin"));
 }
 
 TEST_F(IOHub, WriteStoresThroughTheMountItReadsBy) {
@@ -353,7 +352,7 @@ TEST_F(IOHub, PollBesideAWriteLeavesOneCoherentVersion) {
 
   std::atomic<bool> writing{true};
   std::thread poller([&] {
-    while (writing.load()) hub.poll();
+    while (writing.load()) poll(hub);
   });
   std::string last;
   for (size_t i = 1; i <= kWrites; ++i) {

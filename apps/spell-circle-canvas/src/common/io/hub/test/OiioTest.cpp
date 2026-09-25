@@ -16,6 +16,7 @@
 #include <include/core/SkPixmap.h>
 #include <sigilimage/decode/ChannelData.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Decoding.h>
 
 #include <filesystem>
 #include <vector>
@@ -78,7 +79,7 @@ TEST_F(IOOiio, ExrLayerSelectionReadsHdrChannels) {
 
 TEST_F(IOOiio, ProbeListsLayersAndChannels) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto info = hub.probe<sigil::image::ImageProbe>("res://probe.exr");
+  auto info = probe<sigil::image::ImageProbe>(hub, "res://probe.exr");
   ASSERT_TRUE(info.has_value());
   EXPECT_EQ(info->format, "openexr");
   EXPECT_EQ(info->width, 4);

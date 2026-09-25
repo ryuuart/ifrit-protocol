@@ -37,7 +37,7 @@ void registerTransports(Hub& hub, const std::vector<std::string>& schemes) {
   // there. A webrtc feed opens its signalling door through this same hub,
   // so both ends of that door come with it.
   if (webRtc || named({"ws", "wss"})) {
-    hub.setFeedTransport("wss", {});
+    io::registerTransport(hub, "wss", {});
     detail::registerWebSocket(hub);
     detail::registerWebSocketClient(hub);
   }
@@ -49,13 +49,18 @@ void registerTransports(Hub& hub, const std::vector<std::string>& schemes) {
   if (webRtc) detail::registerWebRtc(hub);
 }
 
-void detail::installLinkedTransports(Hub& hub) {
-  // Only the schemes nothing answers yet: a transport a host set by hand
-  // stands.
+void detail::installLinkedTransports(Hub& hub,
+                                     const std::vector<std::string>& schemes) {
+  // Only the schemes nothing answers yet, of those the hub was made to
+  // speak: a transport a host set by hand stands.
   std::vector<std::string> missing;
   for (const char* scheme : {"udp", "osc", "artnet", "ws", "wss", "shm", "midi",
-                             "serial", "grpc", "quic", "webrtc"})
-    if (!hub.feedTransport(scheme)) missing.emplace_back(scheme);
+                             "serial", "grpc", "quic", "webrtc"}) {
+    const bool wanted =
+        schemes.empty() ||
+        std::find(schemes.begin(), schemes.end(), scheme) != schemes.end();
+    if (wanted && !transport(hub, scheme)) missing.emplace_back(scheme);
+  }
   if (!missing.empty()) registerTransports(hub, missing);
 }
 

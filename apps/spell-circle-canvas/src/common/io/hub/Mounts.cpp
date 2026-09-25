@@ -11,6 +11,7 @@
 #include "Caches.h"
 #include "Fetch.h"
 #include "sigilio/hub/Hub.h"
+#include "sigilio/advanced/Places.h"
 
 namespace sigil::io {
 
@@ -43,7 +44,7 @@ std::shared_ptr<const Bytes> readFile(const std::filesystem::path& path) {
 std::filesystem::path localPath(const Hub& hub, std::string_view uri) {
   if (uri.starts_with("file://"))
     return std::filesystem::path(std::string(uri.substr(7)));
-  std::filesystem::path path = hub.resolve(uri);
+  std::filesystem::path path = io::resolve(hub, uri);
   if (path.empty()) path = std::string(uri);
   return path;
 }

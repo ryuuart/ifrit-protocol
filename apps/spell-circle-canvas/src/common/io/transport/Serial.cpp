@@ -408,8 +408,7 @@ void detail::registerSerial(Hub& hub) {
   // The thread is made when the first port opens, so a hub taught the
   // scheme and never asked for a feed on it starts nothing.
   auto shared = std::make_shared<detail::SharedIoThread>();
-  hub.setFeedTransport(
-      "serial", [shared](std::string_view uri, Inlet into) {
+  io::registerTransport(hub, "serial", [shared](std::string_view uri, Inlet into) {
         return openFeed(shared->acquire(), uri, into);
       });
 }

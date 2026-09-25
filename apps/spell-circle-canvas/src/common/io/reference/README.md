@@ -37,8 +37,8 @@ with the network taken out from under it.
 
 ## The network cache
 
-`sigil::io::probeNetworkCache` checks metadata, not file contents, and
-creates no directories or files. `sigil::io::seedNetworkCache` publishes
+`sigil::io::NetworkCache::byteSize` checks metadata, not file contents, and
+creates no directories or files. `sigil::io::NetworkCache::put` publishes
 a complete resource on a successful write; a failure leaves any previous
 resource intact, and empty bytes are valid. Later disk-cache reads answer
 seeded bytes until another seed or fetch replaces them, while a

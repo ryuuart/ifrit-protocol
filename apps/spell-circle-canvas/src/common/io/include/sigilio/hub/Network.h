@@ -2,9 +2,9 @@
 
 /** @file
  * @ingroup io-hub
- * The hub's network contract: NetworkPolicy, when an http(s):// ask may
- * touch the network against its on-disk cache, and the resource operations
- * that inspect and populate that cache without contacting a server.
+ * The hub's network settings: NetworkPolicy, when an http(s):// ask may
+ * touch the network against its on-disk cache, and NetworkOptions, the
+ * whole of how a hub fetches.
  */
 
 #include <cstddef>
@@ -40,22 +40,20 @@ enum class NetworkPolicy {
 using NetworkTransport =
     std::function<std::optional<std::vector<std::byte>>(std::string_view url)>;
 
-/** The byte count of a regular file retained for an http(s):// URL,
- *  without fetching or decoding it. Nothing when the URL is not a
- *  network resource, the cache entry is missing, or its size cannot be
- *  read; zero is a present, empty resource. An empty @p cacheDirectory
- *  selects the same platform cache directory as a Hub given no
- *  override. */
-std::optional<std::uintmax_t> probeNetworkCache(
-    std::string_view url, const std::filesystem::path& cacheDirectory = {});
-
-/** Retains @p bytes for an http(s):// URL without contacting its server,
- *  so later disk-cache reads answer them until another seed or fetch
- *  replaces them; empty bytes are valid. False for a non-network URL or
- *  a failed write. An empty @p cacheDirectory selects the same platform
- *  cache directory as a Hub given no override.
- *  @silent a Hub's already-loaded views, which keep their values. */
-bool seedNetworkCache(std::string_view url, std::span<const std::byte> bytes,
-                      const std::filesystem::path& cacheDirectory = {});
+/** HOW A HUB FETCHES http(s):// RESOURCES, given once in
+ *  `HubOptions::network`. */
+struct NetworkOptions {
+  /** When the network may be touched against the disk cache. */
+  NetworkPolicy policy = NetworkPolicy::CacheFirst;
+  /** Where fetches persist; empty is the platform cache location /
+   *  "SigilIO/network", the temp directory only where the platform names
+   *  no cache location. A present resource is served without touching
+   *  the network. */
+  std::filesystem::path cacheDirectory;
+  /** What answers a URL with its body; empty is libcurl. A host with its
+   *  own HTTP stack, or a test that needs a fetch to fail without
+   *  touching a resolver, hands one in. */
+  NetworkTransport transport;
+};
 
 }  // namespace sigil::io

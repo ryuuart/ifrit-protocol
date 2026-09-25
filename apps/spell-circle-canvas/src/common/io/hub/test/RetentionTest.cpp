@@ -8,6 +8,8 @@
 #include <gtest/gtest.h>
 #include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Places.h>
+#include <sigilio/advanced/Residency.h>
 
 #include <atomic>
 #include <filesystem>
@@ -28,7 +30,7 @@ TEST_F(IOHub, PreloadFetchesDistinctUrisIntoTheByteCache) {
   dir.write("two.slang", "two");
   const std::string_view uris[] = {"res://one.sksl", "res://two.slang",
                                    "res://one.sksl", "res://missing.sksl"};
-  EXPECT_EQ(hub.preload(uris), 2u);
+  EXPECT_EQ(preload(hub, uris), 2u);
 
   dir.write("one.sksl", "changed on disk");
   EXPECT_EQ(hub.text("res://one.sksl"), "one");
@@ -49,7 +51,7 @@ TEST_F(IOHub, PreloadFetchesMoreResourcesThanItFetchesAtOnce) {
   }
   std::vector<std::string_view> asked(uris.begin(), uris.end());
 
-  EXPECT_EQ(hub.preload(asked), count);
+  EXPECT_EQ(preload(hub, asked), count);
 
   // Written over afterwards: what comes back is what the preload read,
   // so a URI that was never fetched shows up as the newer text.
@@ -62,8 +64,8 @@ TEST_F(IOHub, PreloadFetchesMoreResourcesThanItFetchesAtOnce) {
 TEST_F(IOHub, PreloadingADirectoryDiscoversNestedResourcesByUri) {
   dir.write("shaders/a.sksl", "a");
   dir.write("shaders/nested/b.slang", "b");
-  hub.mount("shader://", dir.path / "shaders");
-  EXPECT_EQ(hub.preload("shader://"), 2u);
+  mount(hub, "shader://", dir.path / "shaders");
+  EXPECT_EQ(preload(hub, "shader://"), 2u);
 
   dir.write("shaders/nested/b.slang", "changed after preload");
   EXPECT_EQ(hub.text("shader://a.sksl"), "a");
@@ -74,7 +76,7 @@ TEST_F(IOHub, PreloadSelectorCachesOnlyMatchingResources) {
   dir.write("shaders/a.sksl", "a");
   dir.write("shaders/nested/b.slang", "b");
   dir.write("shaders/nested/c.sksl", "c");
-  EXPECT_EQ(hub.preload("res://shaders/**/*.sksl"), 2u);
+  EXPECT_EQ(preload(hub, "res://shaders/**/*.sksl"), 2u);
 
   dir.write("shaders/a.sksl", "changed after preload");
   dir.write("shaders/nested/b.slang", "not preloaded");
@@ -89,21 +91,21 @@ TEST_F(IOHub, ResourceLeaseRetainsTheUnionOfMultipleSelectors) {
   dir.write("material/ignored.slang", "ignored");
   plugins.write("compose/nested/b.slang", "compose");
   dir.write("loose.txt", "loose");
-  hub.mount("plugin://", plugins.path);
+  mount(hub, "plugin://", plugins.path);
   ResourceLease shaders =
-      hub.retain({"res://material/**/*.sksl", "plugin://**/*.slang"});
+      retain(hub, {"res://material/**/*.sksl", "plugin://**/*.slang"});
 
   EXPECT_EQ(leaseUris(shaders),
             (std::vector<std::string>{"plugin://compose/nested/b.slang",
                                       "res://material/a.sksl"}));
   EXPECT_EQ(shaders.preload(), 2u);
-  auto loose = hub.fetch("res://loose.txt");
+  auto loose = hub.read("res://loose.txt");
   ASSERT_NE(loose, nullptr);
 
   dir.write("material/a.sksl", "changed material");
   plugins.write("compose/nested/b.slang", "changed compose");
   dir.write("loose.txt", "changed loose");
-  EXPECT_EQ(hub.discardUnretained(), 1u);
+  EXPECT_EQ(discardUnretained(hub), 1u);
   EXPECT_EQ(hub.text("res://material/a.sksl"), "material");
   EXPECT_EQ(hub.text("plugin://compose/nested/b.slang"), "compose");
   EXPECT_EQ(hub.text("res://loose.txt"), "changed loose");
@@ -112,7 +114,7 @@ TEST_F(IOHub, ResourceLeaseRetainsTheUnionOfMultipleSelectors) {
 
 TEST_F(IOHub, ResourceLeaseRefreshesItsSelectorSnapshots) {
   dir.write("shaders/a.sksl", "a");
-  ResourceLease shaders = hub.retain("res://shaders/**/*.sksl");
+  ResourceLease shaders = retain(hub, "res://shaders/**/*.sksl");
   ASSERT_EQ(shaders.preload(), 1u);
   EXPECT_EQ(leaseUris(shaders),
             std::vector<std::string>{"res://shaders/a.sksl"});
@@ -130,25 +132,25 @@ TEST_F(IOHub, ResourceLeaseRefreshesItsSelectorSnapshots) {
   EXPECT_EQ(shaders.refresh(), 1u);
   EXPECT_EQ(leaseUris(shaders),
             std::vector<std::string>{"res://shaders/b.sksl"});
-  EXPECT_EQ(hub.discardUnretained(), 1u);
+  EXPECT_EQ(discardUnretained(hub), 1u);
 }
 
 TEST_F(IOHub, OverlappingResourceLeasesRetainIndependently) {
   dir.write("shared.sksl", "shared");
-  ResourceLease first = hub.retain("res://shared.sksl");
-  ResourceLease second = hub.retain("res://shared.sksl");
+  ResourceLease first = retain(hub, "res://shared.sksl");
+  ResourceLease second = retain(hub, "res://shared.sksl");
   ASSERT_EQ(first.preload(), 1u);
 
   first = ResourceLease{};
-  EXPECT_EQ(hub.discardUnretained(), 0u);
+  EXPECT_EQ(discardUnretained(hub), 0u);
   second = ResourceLease{};
-  EXPECT_EQ(hub.discardUnretained(), 1u);
+  EXPECT_EQ(discardUnretained(hub), 1u);
 }
 
 TEST_F(IOHub, EmptyResourceLeaseCanIncludeSeveralSelectors) {
   dir.write("material/a.sksl", "a");
   dir.write("compose/b.slang", "b");
-  ResourceLease shaders = hub.retain();
+  ResourceLease shaders = retain(hub);
 
   EXPECT_EQ(shaders.include("res://material/**/*.sksl"), 1u);
   EXPECT_EQ(shaders.include("res://compose/**/*.slang"), 2u);
@@ -179,7 +181,7 @@ TEST_F(IOHub, ConcurrentLoadsRunBesideLeasesAndDiscards) {
   }
   writePng(dir.path / "kept" / "tile.png", 3, SK_ColorRED);
 
-  ResourceLease retained = hub.retain("res://kept/**");
+  ResourceLease retained = retain(hub, "res://kept/**");
   ASSERT_EQ(retained.uris().size(), kFiles + 1);
   ASSERT_EQ(retained.preload(), kFiles + 1);
   ASSERT_NE(hub.load<sigil::image::ImageAsset>("res://kept/tile.png"), nullptr);
@@ -200,13 +202,13 @@ TEST_F(IOHub, ConcurrentLoadsRunBesideLeasesAndDiscards) {
     });
   std::thread churn([&] {
     while (running.load()) {
-      ResourceLease temporary = hub.retain("res://loose/**");
+      ResourceLease temporary = retain(hub, "res://loose/**");
       temporary.refresh();
       temporary = ResourceLease{};
     }
   });
   std::thread discarding([&] {
-    while (running.load()) hub.discardUnretained();
+    while (running.load()) discardUnretained(hub);
   });
 
   for (std::thread& worker : workers) worker.join();
@@ -229,7 +231,7 @@ TEST(IOResourceLease, MayBeDestroyedAfterItsHub) {
   ResourceLease lease;
   {
     Hub hub;
-    lease = hub.retain();
+    lease = retain(hub);
   }
   lease = ResourceLease{};
 }

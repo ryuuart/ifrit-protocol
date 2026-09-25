@@ -16,6 +16,8 @@
 #include "Caches.h"
 #include "Fetch.h"
 #include "Residency.h"
+#include "sigilio/advanced/Decoding.h"
+#include "sigilio/advanced/Residency.h"
 #include "sigilio/hub/Hub.h"
 
 namespace sigil::io {
@@ -26,7 +28,7 @@ using detail::isNetworkUri;
 using detail::localPath;
 using detail::readFile;
 
-std::shared_ptr<const Bytes> Hub::fetch(std::string_view uri) {
+std::shared_ptr<const Bytes> Hub::read(std::string_view uri) {
   const std::string key(uri);
   detail::NetworkAccess network;
   {
@@ -55,7 +57,7 @@ std::shared_ptr<const Bytes> Hub::fetch(std::string_view uri) {
 }
 
 std::optional<std::string> Hub::text(std::string_view uri) {
-  auto bytes = fetch(uri);
+  auto bytes = read(uri);
   if (!bytes) return std::nullopt;
   return std::string(bytes->asText());
 }

@@ -102,7 +102,7 @@ inline std::optional<Bytes> readBytes(const std::filesystem::path& path) {
  *  a cached copy and a caller may keep it for as long as it likes. */
 template <typename S>
 concept ByteSource = requires(S& source, std::string_view uri) {
-  { source.fetch(uri) } -> std::convertible_to<std::shared_ptr<const Bytes>>;
+  { source.read(uri) } -> std::convertible_to<std::shared_ptr<const Bytes>>;
 };
 
 /** A ByteSource that can also say WHERE a URI's bytes live on the local
@@ -111,7 +111,7 @@ concept ByteSource = requires(S& source, std::string_view uri) {
 template <typename S>
 concept ResolvingByteSource =
     ByteSource<S> && requires(const S& source, std::string_view uri) {
-      { source.resolve(uri) } -> std::convertible_to<std::filesystem::path>;
+      { resolve(source, uri) } -> std::convertible_to<std::filesystem::path>;
     };
 
 /** Turns bytes into a T, or nothing when the bytes are not one. `hint`
@@ -163,6 +163,15 @@ concept Configurable = requires {
 template <Configurable T>
 using LoadOptions = decltype(loadOptions(std::type_identity<T>{}));
 
+namespace detail {
+/** The file a resolving source says @p uri stands for, asked by the free
+ *  `resolve(source, uri)` its own namespace declares. */
+template <typename S>
+std::filesystem::path resolvedPath(const S& source, std::string_view uri) {
+  return std::filesystem::path(resolve(source, uri));
+}
+}  // namespace detail
+
 /** A ByteSource VALUE holding any ByteSource: the type-erased form for
  *  code that stores a source rather than being templated on one.
  *
@@ -176,34 +185,34 @@ class AnyByteSource {
   /** Borrows @p source, which must outlive this value. */
   template <ByteSource S>
   explicit AnyByteSource(S& source)
-      : m_fetch([&source](std::string_view uri) {
-          return std::shared_ptr<const Bytes>(source.fetch(uri));
+      : m_read([&source](std::string_view uri) {
+          return std::shared_ptr<const Bytes>(source.read(uri));
         }) {
     if constexpr (ResolvingByteSource<S>)
       m_resolve = [&source](std::string_view uri) {
-        return std::filesystem::path(source.resolve(uri));
+        return detail::resolvedPath(source, uri);
       };
   }
 
   /** Shares ownership of @p source, so this value keeps it alive. */
   template <ByteSource S>
   explicit AnyByteSource(const std::shared_ptr<S>& source)
-      : m_owner(source), m_fetch([source](std::string_view uri) {
-          return std::shared_ptr<const Bytes>(source->fetch(uri));
+      : m_owner(source), m_read([source](std::string_view uri) {
+          return std::shared_ptr<const Bytes>(source->read(uri));
         }) {
     if constexpr (ResolvingByteSource<S>)
       m_resolve = [source](std::string_view uri) {
-        return std::filesystem::path(source->resolve(uri));
+        return detail::resolvedPath(*source, uri);
       };
   }
 
   /** Whether a source is held at all. */
-  explicit operator bool() const { return static_cast<bool>(m_fetch); }
+  explicit operator bool() const { return static_cast<bool>(m_read); }
 
   /** The bytes of @p uri from the held source; null when it holds none
    *  or the source answers none. */
-  std::shared_ptr<const Bytes> fetch(std::string_view uri) {
-    return m_fetch ? m_fetch(uri) : nullptr;
+  std::shared_ptr<const Bytes> read(std::string_view uri) {
+    return m_read ? m_read(uri) : nullptr;
   }
 
   /** The file @p uri stands for, or an empty path when the held source
@@ -214,9 +223,16 @@ class AnyByteSource {
 
  private:
   std::shared_ptr<void> m_owner;
-  std::function<std::shared_ptr<const Bytes>(std::string_view)> m_fetch;
+  std::function<std::shared_ptr<const Bytes>(std::string_view)> m_read;
   std::function<std::filesystem::path(std::string_view)> m_resolve;
 };
+
+/** The file @p uri stands for in @p source's held source: what makes an
+ *  AnyByteSource a ResolvingByteSource. */
+inline std::filesystem::path resolve(const AnyByteSource& source,
+                                     std::string_view uri) {
+  return source.resolve(uri);
+}
 
 static_assert(ResolvingByteSource<AnyByteSource>);
 

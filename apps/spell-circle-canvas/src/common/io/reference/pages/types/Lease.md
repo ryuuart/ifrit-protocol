@@ -15,7 +15,7 @@ A movable lease that keeps a callback on the hub's advance.
 
 Something that reads feeds on the frame — a reader draining one, a
 decoder over what arrived — has to be driven, and the call a host already
-makes once a frame is `Hub::advance`. This is how that driving is
+makes once a frame is `sigil::io::advance`. This is how that driving is
 registered without the host naming the reader: the lease holds the
 callback, and releasing it or destroying it takes the callback off the
 hub. A lease may outlive its `sigil::io::Hub`, having then nothing left
@@ -34,4 +34,4 @@ hub through this lease.
 
 ## See also
 
-`sigil::io::Hub`, whose `Hub::onAdvance` makes one.
+`sigil::io::Hub`, whose `sigil::io::onAdvance` makes one.

@@ -15,6 +15,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
+#include <sigilio/advanced/Places.h>
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/buffers_iterator.hpp>
@@ -266,7 +267,7 @@ constexpr std::string_view kIndex = "<!doctype html><title>the sky</title>";
 void standPages(Hub& hub, const sigil::test::ScratchDir& scratch) {
   scratch.write("pages/index.html", kIndex);
   scratch.write("secret", "what stands outside the pages");
-  hub.mount("pages://", scratch.path / "pages");
+  sigil::io::mount(hub, "pages://", scratch.path / "pages");
 }
 
 /** WHAT A WEBSOCKET CASE NEEDS BEFORE IT CAN OPEN ANYTHING: a hub that

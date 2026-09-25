@@ -4,6 +4,8 @@
  * the resource operations over that cache, and the hub's network settings.
  */
 
+#include "sigilio/advanced/Network.h"
+#include "sigilio/hub/Hub.h"
 #include "sigilio/hub/Network.h"
 
 #include <curl/curl.h>
@@ -185,22 +187,22 @@ std::filesystem::path defaultNetworkCacheDirectory() {
 
 }  // namespace detail
 
-std::optional<std::uintmax_t> probeNetworkCache(
-    std::string_view url, const std::filesystem::path& cacheDirectory) {
+std::optional<std::uintmax_t> NetworkCache::byteSize(
+    std::string_view url) const {
   if (!detail::isNetworkUri(url)) return std::nullopt;
   const std::filesystem::path cached =
-      detail::networkCachePath(url, cacheDirectory);
+      detail::networkCachePath(url, m_directory);
   std::error_code ec;
   if (!std::filesystem::is_regular_file(cached, ec) || ec) return std::nullopt;
   const std::uintmax_t size = std::filesystem::file_size(cached, ec);
   return ec ? std::nullopt : std::optional<std::uintmax_t>(size);
 }
 
-bool seedNetworkCache(std::string_view url, std::span<const std::byte> bytes,
-                      const std::filesystem::path& cacheDirectory) {
+bool NetworkCache::put(std::string_view url,
+                       std::span<const std::byte> bytes) const {
   if (!detail::isNetworkUri(url)) return false;
   return detail::persistNetworkResource(
-      detail::networkCachePath(url, cacheDirectory), bytes);
+      detail::networkCachePath(url, m_directory), bytes);
 }
 
 void Hub::setNetworkCacheDirectory(std::filesystem::path directory) {

@@ -46,6 +46,7 @@
 #include <sigilio/source/Places.h>
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
+#include <sigilio/advanced/Time.h>
 #include <signal.h>
 #include <spawn.h>
 #include <sys/wait.h>
@@ -208,7 +209,7 @@ TEST(IOWebRtcPeer, TheOneACaseStartsThisBinaryFor) {
   while (std::chrono::steady_clock::now() < deadline) {
     // The frame, as any host makes it: what carries the introduction
     // this end is making is the same dispatch a scene would call.
-    hub.advance();
+    sigil::io::advance(hub);
     if (saying != nullptr && std::chrono::steady_clock::now() >= next) {
       next = std::chrono::steady_clock::now() + kPeerSays;
       caller.send(bytesOf(saying));
@@ -361,11 +362,11 @@ class IOWebRtc : public ::testing::Test {
                  std::chrono::seconds patience = kPatience) {
     const auto deadline = std::chrono::steady_clock::now() + patience;
     while (std::chrono::steady_clock::now() < deadline) {
-      hub.advance();
+      sigil::io::advance(hub);
       if (ready()) return true;
       std::this_thread::sleep_for(1ms);
     }
-    hub.advance();
+    sigil::io::advance(hub);
     return ready();
   }
 

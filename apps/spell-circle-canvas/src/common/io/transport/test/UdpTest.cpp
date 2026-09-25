@@ -89,18 +89,18 @@ TEST(IOTransports, NamedSchemesInstallTheTransportsThatAnswerThemAndNoOther) {
   Hub named;
   sigil::io::registerTransports(named, {"osc"});
   // One socket answers three schemes, and naming one installs all three.
-  EXPECT_TRUE(named.feedTransport("udp"));
-  EXPECT_TRUE(named.feedTransport("osc"));
-  EXPECT_TRUE(named.feedTransport("artnet"));
-  EXPECT_FALSE(named.feedTransport("ws"));
-  EXPECT_FALSE(named.feedTransport("midi"));
+  EXPECT_TRUE(sigil::io::transport(named, "udp"));
+  EXPECT_TRUE(sigil::io::transport(named, "osc"));
+  EXPECT_TRUE(sigil::io::transport(named, "artnet"));
+  EXPECT_FALSE(sigil::io::transport(named, "ws"));
+  EXPECT_FALSE(sigil::io::transport(named, "midi"));
 
   // A webrtc door is introduced over a websocket one of the same hub, so
   // naming it brings both ends of that door.
   sigil::io::registerTransports(named, {"webrtc"});
-  EXPECT_TRUE(named.feedTransport("webrtc"));
-  EXPECT_TRUE(named.feedTransport("ws"));
-  EXPECT_TRUE(named.feedTransport("wss"));
+  EXPECT_TRUE(sigil::io::transport(named, "webrtc"));
+  EXPECT_TRUE(sigil::io::transport(named, "ws"));
+  EXPECT_TRUE(sigil::io::transport(named, "wss"));
 
   // Registering again replaces rather than stacking a caller in front of
   // a caller: a hostless wss:// URI still has nothing to listen with.
@@ -112,14 +112,14 @@ TEST(IOTransports, NamedSchemesInstallTheTransportsThatAnswerThemAndNoOther) {
   sigil::io::registerTransports(everything);
   for (const char* scheme : {"udp", "osc", "artnet", "ws", "wss", "shm", "midi",
                              "serial", "grpc", "quic", "webrtc"})
-    EXPECT_TRUE(everything.feedTransport(scheme)) << scheme;
+    EXPECT_TRUE(sigil::io::transport(everything, scheme)) << scheme;
 }
 
 TEST_F(IOUdp, ListeningOpensThroughTheLinkedTransportsWithNoRegistration) {
   Hub fresh;
   const Feed listener = fresh.listen("udp://:0");
   EXPECT_TRUE(listener.state().isOpen()) << listener.state().error;
-  EXPECT_TRUE(fresh.feedTransport("osc"));
+  EXPECT_TRUE(sigil::io::transport(fresh, "osc"));
 }
 
 TEST_F(IOUdp, AListeningFeedSaysWhichPortItBoundAndTakesWhatArrivesThere) {

@@ -12,10 +12,13 @@
 find_package(CURL CONFIG REQUIRED)
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilIOHub
-  SOURCES Cache.cpp Decoders.cpp Feed.cpp Feeds.cpp Inlet.cpp Mounts.cpp
+  SOURCES Advanced.cpp Cache.cpp Decoders.cpp Feed.cpp Feeds.cpp Inlet.cpp Mounts.cpp
           Network.cpp Recording.cpp Retention.cpp Selection.cpp Caches.h
           FeedDoor.h Fetch.h Residency.h
-  HEADERS Feed.h Hub.h Network.h Recording.h ../advanced/Transport.h
+  HEADERS Feed.h Hub.h Network.h Recording.h ../advanced/Decoding.h
+          ../advanced/Feeds.h ../advanced/Lease.h ../advanced/Network.h
+          ../advanced/Places.h ../advanced/Residency.h ../advanced/Time.h
+          ../advanced/Transport.h
           ../testing/Testing.h
   PUBLIC SigilIOSource SigilCoreCallable
   PRIVATE SigilCoreSchedule CURL::libcurl Boost::container)

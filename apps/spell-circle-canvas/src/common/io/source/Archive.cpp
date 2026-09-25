@@ -97,7 +97,7 @@ ArchiveSource::ArchiveSource(std::span<const std::byte> archive,
   mz_zip_reader_close(reader.handle);
 }
 
-std::shared_ptr<const Bytes> ArchiveSource::fetch(std::string_view uri) const {
+std::shared_ptr<const Bytes> ArchiveSource::read(std::string_view uri) const {
   for (const ArchiveEntry& entry : m_entries)
     if (entry.name == uri) return entry.bytes;
   return nullptr;

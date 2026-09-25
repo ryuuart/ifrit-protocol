@@ -22,7 +22,7 @@ as long as its door stands:
 ```cpp
 #include <sigilio/advanced/Transport.h>
 
-hub.setFeedTransport("pigeon", [](std::string_view uri, sigil::io::Inlet inlet) {
+sigil::io::registerTransport(hub, "pigeon", [](std::string_view uri, sigil::io::Inlet inlet) {
   auto door = openPigeonDoor(uri);                 // whatever the scheme is made of
   if (!door) {
     inlet.fail("no pigeon answers " + std::string(uri));

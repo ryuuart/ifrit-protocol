@@ -2,15 +2,13 @@
 
 /** @file
  * @ingroup io-hub
- * The resource hub: game-engine-style mounted URIs over pluggable
- * decode backends. A Hub maps URI prefixes onto directories, so
- * application code asks for "res://ui/logo.png" and never touches the
- * filesystem again; results are cached per resource, poll() re-stats
- * what has been loaded, and every typed view is a registered decoder
- * run over the bytes it fetched. http(s):// bypasses the mounts and
- * fetches over the network behind an on-disk cache. A resource that
- * keeps ARRIVING is a feed rather than a fetch, and the hub is the door
- * on that too.
+ * The resource hub: one object that answers a URI. It reads and caches a
+ * resource's bytes, decodes them into what they mean through the decoder
+ * the owning library registered, writes bytes back where it mounts,
+ * listens on a door for a resource that keeps ARRIVING, and shares
+ * drawn frames with other applications. The control a host needs —
+ * advancing time, late mounts, residency, decoders, transports — is
+ * declared in `sigilio/advanced/`, as free functions over the hub.
  */
 
 #include <sigilcore/callable/Callable.h>
@@ -20,6 +18,7 @@
 #include <filesystem>
 #include <functional>
 #include <initializer_list>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -32,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilio/frames/Frame.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Network.h"
 #include "sigilio/source/Sink.h"
@@ -39,132 +39,37 @@
 
 namespace sigil::io {
 
+class Lease;
+class ResourceLease;
+struct ResourceInfo;
+
+namespace frames {
+class Publisher;
+class Subscription;
+}  // namespace frames
+
 namespace detail {
 struct Residency;
-
-/** What a decoder for T is called with: the bytes, the resource's name
- *  as a hint, and — for a Configurable T — the options the load asked
- *  for. Every parameter after the bytes is offered, never demanded. */
-template <typename T>
-struct DecoderCall {
-  using type = std::optional<T>(const Bytes&, std::string_view hint);
-};
-/** The same for a T loaded with options, which are offered third. */
-template <Configurable T>
-struct DecoderCall<T> {
-  using type = std::optional<T>(const Bytes&, std::string_view hint,
-                                const LoadOptions<T>& options);
-};
+/** The one door the control in `sigilio/advanced/` reaches the hub by. */
+struct HubAccess;
 }  // namespace detail
 
-class Hub;
-
-/** A movable lease that keeps an inspectable set of resource URIs resident.
- *
- * Selectors are snapshots. include() adds a selector and immediately refreshes
- * the union; refresh() reruns every selector so newly created files join and
- * vanished files leave. Multiple leases may retain the same URI independently.
- * Destroying a lease releases only its own claim. The Hub must outlive calls on
- * its leases, but a lease may be destroyed safely after its Hub. */
-class ResourceLease {
- public:
-  ResourceLease() = default;
-  ~ResourceLease();
-
-  /** Takes over @p other's claim, leaving it holding nothing. */
-  ResourceLease(ResourceLease&& other) noexcept;
-  /** Takes over @p other's claim, releasing this one's. */
-  ResourceLease& operator=(ResourceLease&& other) noexcept;
-  ResourceLease(const ResourceLease&) = delete;
-  ResourceLease& operator=(const ResourceLease&) = delete;
-
-  /** Adds @p selector and refreshes the retained union. Returns its new size.
-   */
-  size_t include(std::string_view selector);
-
-  /** Reruns every included selector and updates the retained URI snapshot. */
-  size_t refresh();
-
-  /** Loads the retained resources into their Hub's byte cache concurrently. */
-  size_t preload();
-
-  /** The sorted, duplicate-free URI snapshot this lease currently retains. */
-  std::span<const std::string> uris() const { return m_uris; }
-
- private:
-  friend class Hub;
-  ResourceLease(Hub& hub, std::shared_ptr<detail::Residency> residency,
-                std::vector<std::string> selectors);
-
-  void release();
-
-  Hub* m_hub = nullptr;
-  std::weak_ptr<detail::Residency> m_residency;
-  std::vector<std::string> m_selectors;
-  std::vector<std::string> m_uris;
+/** WHAT A HUB IS MADE WITH, passed once to its constructor. */
+struct HubOptions {
+  /** URI prefix → directory: `{"res://", "assets"}` answers
+   *  "res://ui/logo.png" from assets/ui/logo.png. The longest matching
+   *  prefix wins; none by default. */
+  std::map<std::string, std::filesystem::path> mounts;
+  /** The schemes of the linked transports the first listen() nothing
+   *  answers registers — `{"udp"}` for a program that speaks nothing
+   *  else; empty registers every one the program links. */
+  std::vector<std::string> transports;
+  /** How http(s):// resources are fetched and cached. */
+  NetworkOptions network;
 };
-
-/** A movable lease that keeps a callback on the hub's advance: the
- *  lease holds the callback, and releasing it or destroying it takes the
- *  callback off the hub. A lease may outlive its Hub, having then
- *  nothing left to unregister from. */
-class Lease {
- public:
-  /** What an advance hands a callback: the time it was given, which is
-   *  the time every replayed recording was just advanced to. */
-  using Callback = std::function<void(std::chrono::duration<double> time)>;
-
-  Lease() = default;
-  /** Takes over the moved-from lease's registration. */
-  Lease(Lease&&) noexcept = default;
-  /** Takes over the moved-from lease's registration, dropping this
-   *  one's. */
-  Lease& operator=(Lease&&) noexcept = default;
-  Lease(const Lease&) = delete;
-  Lease& operator=(const Lease&) = delete;
-
-  /** Takes the callback off the hub, which destroying the lease does
-   *  anyway. An advance that is already running its callbacks runs this
-   *  one out: it holds what it is running. */
-  void release() { m_callback.reset(); }
-
-  /** Whether a callback still stands on the hub through this lease. */
-  bool registered() const { return m_callback != nullptr; }
-
- private:
-  friend class Hub;
-  explicit Lease(std::shared_ptr<Callback> callback)
-      : m_callback(std::move(callback)) {}
-
-  /** The one owner of the callback. The hub knows it weakly, so a lease
-   *  that is gone leaves nothing to run. */
-  std::shared_ptr<Callback> m_callback;
-};
-
-/** WHERE A RESOURCE'S BYTES ARE AND HOW MANY OF THEM THERE ARE — the
- *  whole of what a hub can say about a resource without deciding what
- *  its bytes mean, asked as `probe<ResourceInfo>()`. What they mean is
- *  `probe<T>()` for another T, answered by the library that owns T. */
-struct ResourceInfo {
-  std::uintmax_t byteSize = 0;
-  /** The local file the bytes were read from — the cache file for a
-   *  network URI — or empty when they came from no file. It is also
-   *  the name a prober takes as its format hint. */
-  std::filesystem::path path;
-};
-
-/** How a ResourceInfo is probed: the count of the bytes and the file
- *  they came from, which is the hint every prober is handed. This is
- *  what makes it `Probable`, so the hub asks for it as it asks for any
- *  other meaning. */
-inline std::optional<ResourceInfo> probeResource(
-    std::type_identity<ResourceInfo>, std::span<const std::byte> bytes,
-    const std::filesystem::path& file) {
-  return ResourceInfo{bytes.size(), file};
-}
 
 /**
- * The resource hub: mount prefixes, ask for resources by URI.
+ * The resource hub: ask for resources by URI.
  *
  * Each URI is cached as one entry whose bytes and decoded views are
  * independent, each populated the first time its accessor is asked, and
@@ -172,14 +77,15 @@ inline std::optional<ResourceInfo> probeResource(
  * decode in an entry of its own. A failed lookup is NOT cached: a missing file
  * loads as soon as it appears. Calls on one Hub may overlap — mount,
  * decoder, cache and retention state are synchronized internally — and
- * a Hub satisfies ByteSource and ResolvingByteSource.
+ * a Hub satisfies ByteSource and, with `sigilio/advanced/Places.h`,
+ * ResolvingByteSource.
  */
 class Hub {
  public:
-  /** A hub with nothing mounted and no decoder registered: the library
-   *  that owns a meaning puts its decoders on a hub itself, so bytes are
-   *  all this one answers until one does. */
-  Hub();
+  /** A hub made with @p options. Nothing is decoded until the library
+   *  that owns a meaning registers its decoder on it, so bytes are all a
+   *  new hub answers. */
+  explicit Hub(HubOptions options = {});
   ~Hub();
 
   Hub(const Hub&) = delete;
@@ -187,110 +93,19 @@ class Hub {
   Hub(Hub&&) = delete;
   Hub& operator=(Hub&&) = delete;
 
-  /** Maps every URI starting with `prefix` to files under `dir`
-   *  ("res://" + "ui/logo.png" → dir/ui/logo.png). Longest matching
-   *  prefix wins; re-mounting a prefix replaces it. */
-  void mount(std::string prefix, std::filesystem::path dir);
+  /** The resource's bytes, cached per URI: a mounted `res://` URI, a
+   *  network `https://` URL behind the disk cache, or a plain path. Null
+   *  when unresolvable or unreadable. Never decodes: bytes load and
+   *  cache whether or not any decoder accepts them. */
+  std::shared_ptr<const Bytes> read(std::string_view uri);
 
-  /** The mounted filesystem path a URI resolves to (empty when no
-   *  mount matches — the URI is then tried as a plain path). */
-  std::filesystem::path resolve(std::string_view uri) const;
-
-  /** Where network fetches persist (default: the platform cache
-   *  location / "SigilIO/network", the temp directory only where the
-   *  platform names no cache location). A present resource is served
-   *  without touching the network. */
-  void setNetworkCacheDirectory(std::filesystem::path directory);
-
-  /** How http(s):// asks may use the network (default: CacheFirst). */
-  void setNetworkPolicy(NetworkPolicy policy);
-
-  /** What answers an http(s):// URL with its body (default: libcurl). A
-   *  host with its own HTTP stack, or a test that needs a fetch to fail
-   *  without touching a resolver, hands one in; an empty function
-   *  restores libcurl. The disk cache and the policy stay in front of
-   *  whichever transport is set. */
-  void setNetworkTransport(NetworkTransport transport);
-
-  /** Raw bytes; null when unresolvable/unreadable. Never decodes:
-   *  bytes load and cache whether or not any decoder accepts them. This
-   *  is the ByteSource spelling, and the hub's only one — asking for
-   *  bytes has one name here and in every other source. */
-  std::shared_ptr<const Bytes> fetch(std::string_view uri);
-
-  /** Stores @p bytes under @p uri, through the same mount table a read
-   *  resolves by, creating the directories above the file. What the
-   *  bytes MEAN is nobody's business here; a `Bytes` value is the span
-   *  it holds. Every cached view of that URI is dropped, so the next ask
-   *  reads the file back.
-   *  @trap A network URI cannot be written and answers false — a hub
-   *  writes where it mounts. */
-  bool write(std::string_view uri, std::span<const std::byte> bytes);
-
-  /** Registers how a T is decoded from bytes, so load<T>() can answer.
-   *  `hint` is the resource's local path when it has one, and is OFFERED:
-   *  a decoder reading the bytes alone takes `[](const Bytes& bytes) {…}`.
-   *  For a Configurable T the options a load asked for are offered third,
-   *  T's defaults when it named none. A hub registers nothing itself: the
-   *  library that owns T calls this, as SigilImage's and SigilData's
-   *  `registerDecoders(hub)` do.
-   *  @trap Replacing a decoder leaves a view already decoded holding its
-   *  value and the decoder that made it, which is what poll() re-runs. */
-  template <typename T>
-  void registerDecoder(core::Callable<typename detail::DecoderCall<T>::type> decode) {
-    if constexpr (Configurable<T>) {
-      using Options = LoadOptions<T>;
-      const auto configure =
-          [decode](std::shared_ptr<const void> options) -> Redecode {
-        return [decode, options = std::move(options)](
-                   const Bytes& bytes, const std::filesystem::path& path)
-                   -> std::shared_ptr<const void> {
-          auto value = decode(bytes, path.native(),
-                              *static_cast<const Options*>(options.get()));
-          if (!value) return nullptr;
-          return std::make_shared<const T>(std::move(*value));
-        };
-      };
-      setDecoder(std::type_index(typeid(T)),
-                 configure(std::make_shared<const Options>()), configure);
-    } else {
-      setDecoder(std::type_index(typeid(T)),
-                 [decode = std::move(decode)](const Bytes& bytes,
-                                              const std::filesystem::path&
-                                                  path)
-                     -> std::shared_ptr<const void> {
-                   auto value = decode(bytes, path.native());
-                   if (!value) return nullptr;
-                   return std::make_shared<const T>(std::move(*value));
-                 },
-                 {});
-    }
-  }
-
-  /** The same, from any object satisfying the Decoder concept — which
-   *  reads the hint or the bytes alone, as the callable form does. */
-  template <typename T, Decoder<T> D>
-  void registerDecoder(D decoder) {
-    registerDecoder<T>([decoder = std::move(decoder)](const Bytes& bytes,
-                                                      std::string_view hint) {
-      return core::callPrefix(
-          [&decoder](const Bytes& resourceBytes,
-                     std::string_view resourceHint) {
-            if constexpr (requires {
-                            decoder.decode(resourceBytes, resourceHint);
-                          })
-              return decoder.decode(resourceBytes, resourceHint);
-            else
-              return decoder.decode(resourceBytes);
-          },
-          bytes, hint);
-    });
-  }
+  /** The same, as UTF-8 text. */
+  std::optional<std::string> text(std::string_view uri);
 
   /** The resource decoded as a T through the decoder registered for T;
-   *  null on failure, and null (with no fetch) when no decoder is
+   *  null on failure, and null (with no read) when no decoder is
    *  registered for T. Decodes on the first ask, from bytes a prior
-   *  fetch() ask already cached when they are present, and caches the
+   *  read() already cached when they are present, and caches the
    *  result as one view of the URI's entry. */
   template <typename T>
   std::shared_ptr<const T> load(std::string_view uri) {
@@ -302,7 +117,7 @@ class Hub {
    *  owns T names them: `load<image::ImageAsset>(uri, {.width = 124})`.
    *  Options equal to T's defaults are the ask above and share its view;
    *  any others are a decode of their own in an entry of their own, which
-   *  every later ask with equal options shares and poll() re-runs with
+   *  every later ask with equal options shares and a reload re-runs with
    *  the same options. */
   template <Configurable T>
   std::shared_ptr<const T> load(std::string_view uri,
@@ -318,76 +133,21 @@ class Hub {
         }));
   }
 
-  /** UTF-8 text convenience over fetch(). */
-  std::optional<std::string> text(std::string_view uri);
-
-  /** The regular-file URIs named by @p selector, in lexical order: an
-   *  exact file, a directory URI read recursively, or a glob in which
-   *  `*` matches within one path segment, `?` one non-separator
-   *  character and `**` across `/`, a backslash quoting what follows it.
-   *  @trap Only LOCAL resources are enumerated: a network selector
-   *  without a star is one exact URL and selects itself without a fetch,
-   *  and a network glob cannot be enumerated at all. */
-  std::vector<std::string> select(std::string_view selector) const;
-
-  /** Fetches the distinct @p uris concurrently into the byte cache and
-   *  returns how many are ready. No decoding is performed. */
-  size_t preload(std::span<const std::string_view> uris);
-
-  /** The same, over the strings a lease answers with, so a retained set
-   *  reaches this call without being copied into a second vector. */
-  size_t preload(std::span<const std::string> uris);
-
-  /** Selects @p selector and concurrently fetches the resulting files. */
-  size_t preload(std::string_view selector);
-
-  /** An empty resource-retention lease bound to this Hub. */
-  ResourceLease retain();
-
-  /** A lease retaining the current files selected by @p selector. */
-  ResourceLease retain(std::string_view selector);
-
-  /** A lease retaining the union of the current selector snapshots. */
-  ResourceLease retain(std::span<const std::string_view> selectors);
-  /** The same from selectors written out at the call site. */
-  ResourceLease retain(std::initializer_list<std::string_view> selectors);
-
-  /** Discards every cached entry not protected by a resource lease. Values
-   *  already returned in shared_ptrs stay alive for their holders. Returns the
-   *  number of cache entries discarded. */
-  size_t discardUnretained();
-
-  /** WHAT THE BYTES ARE, WITHOUT DECODING THEM: `ResourceInfo` for how
-   *  many bytes and from which file, dimensions and layers for an image,
-   *  and whatever the next kind of meaning turns out to need. The answer
-   *  comes from T's own library through the `Probable` seam, so this hub
-   *  carries no opinion about any format; nullopt when the URI cannot be
-   *  served or T's library cannot read it.
-   *  @trap const but neither cheap nor side-effect-free — every call
-   *  performs a full fetch and caches nothing, which for a network URI
-   *  is a round trip and a write into the disk cache directory. */
-  template <Probable T>
-  std::optional<T> probe(std::string_view uri) const {
-    ResourceInfo info;
-    const std::shared_ptr<const Bytes> bytes = probeFetch(uri, info);
-    if (!bytes) return std::nullopt;
-    return probeResource(std::type_identity<T>{},
-                         bytes->span(), info.path);
-  }
-
-  /** Re-checks every previously loaded resource; reloads changes and
-   *  drops entries whose files vanished. Returns true if anything
-   *  changed. */
-  bool poll();
+  /** Stores @p bytes under @p uri, through the same mount table a read
+   *  resolves by, creating the directories above the file. Every cached
+   *  view of that URI is dropped, so the next ask reads the file back.
+   *  @trap A network URI cannot be written and answers false — a hub
+   *  writes where it mounts. */
+  bool write(std::string_view uri, std::span<const std::byte> bytes);
 
   /** THE FEED AT @p uri: a handle onto the same door for the same URI
    *  while anyone holds one. A URI replay() named plays that recording
    *  back; any other opens through the transport registered for its
-   *  scheme — the part before "://" — called outside the hub's lock.
-   *  Every transport linked into the program is registered on the first
-   *  ask for a scheme nothing answers yet; `registerTransports()` is the
-   *  explicit form. @p options are the first ask's: a later ask for a
-   *  door that stands is handed that door as it was opened.
+   *  scheme — the part before "://". Every transport linked into the
+   *  program (or those `HubOptions::transports` names) is registered on
+   *  the first ask for a scheme nothing answers yet. @p options are the
+   *  first ask's: a later ask for a door that stands is handed that door
+   *  as it was opened.
    *  @trap No scheme, no transport, or an unreadable recording is not a
    *  failure to answer: the feed exists and `state().error` says why. */
   Feed listen(std::string_view uri, ListenOptions options = {});
@@ -405,35 +165,52 @@ class Hub {
   Feed replay(std::string_view uri, std::string_view recording,
               ListenOptions options = {});
 
-  /** Installs the transport a scheme opens through; registering a
-   *  scheme again replaces it. */
-  void setFeedTransport(std::string scheme, Transport transport);
+  /** A PUBLICATION OF DRAWN FRAMES under the name @p uri carries —
+   *  `syphon://NAME` over Metal on macOS, `spout://NAME` over Direct3D11
+   *  where Spout is built — on @p options' device, this machine's default
+   *  Metal device when it names none. Defined by `SigilIOFrames`, which
+   *  a caller links to publish.
+   *  @trap AN EMPTY HANDLE IS AN ORDINARY ANSWER — another scheme, no
+   *  device, an empty name, a protocol this build lacks — and means a
+   *  run that does not publish, never another way to. */
+  frames::Publisher publish(std::string_view uri,
+                            const frames::PublishOptions& options = {});
 
-  /** The transport registered for @p scheme, or an empty function. A
-   *  transport that stands in front of another reads the one it wraps
-   *  through here before it registers itself. */
-  Transport feedTransport(std::string_view scheme) const;
-
-  /** Every feed currently held by someone, in opening order. */
-  std::vector<Feed> feeds() const;
-
-  /** Advances every replayed recording to the steady time since this
-   *  hub was made. A live feed is unaffected. */
-  void advance();
-
-  /** The same, to @p time — an absolute time on the caller's own clock,
-   *  not a step. */
-  void advance(std::chrono::duration<double> time);
-
-  /** Runs @p callback on every advance for as long as the lease lives:
-   *  given the time that advance was given, after every replayed
-   *  recording has been advanced to it, on the advancing thread and in
-   *  the order the callbacks were registered.
-   *  @trap A callback registered from inside an advance runs from the
-   *  NEXT one. */
-  [[nodiscard]] Lease onAdvance(Lease::Callback callback);
+  /** THE FRAMES ANOTHER APPLICATION PUBLISHES under the name @p uri
+   *  carries, received on @p options' device; a name nothing publishes
+   *  yet is waited for. Defined by `SigilIOFrames`.
+   *  @trap An empty handle is an ordinary answer, as for publish(). */
+  frames::Subscription subscribe(std::string_view uri,
+                                 const frames::SubscribeOptions& options = {});
 
  private:
+  friend struct detail::HubAccess;
+
+  // What `sigilio/advanced/` reaches through HubAccess: each is
+  // documented on the free function that spells it there.
+  void mount(std::string prefix, std::filesystem::path dir);
+  std::filesystem::path resolve(std::string_view uri) const;
+  void setNetworkCacheDirectory(std::filesystem::path directory);
+  void setNetworkPolicy(NetworkPolicy policy);
+  void setNetworkTransport(NetworkTransport transport);
+  std::vector<std::string> select(std::string_view selector) const;
+  size_t preload(std::span<const std::string_view> uris);
+  size_t preload(std::span<const std::string> uris);
+  size_t preload(std::string_view selector);
+  ResourceLease retain();
+  ResourceLease retain(std::string_view selector);
+  ResourceLease retain(std::span<const std::string_view> selectors);
+  size_t discardUnretained();
+  bool poll();
+  void setFeedTransport(std::string scheme, Transport transport);
+  Transport feedTransport(std::string_view scheme) const;
+  std::vector<Feed> feeds() const;
+  void advance();
+  void advance(std::chrono::duration<double> time);
+  /** What an advance hands a callback: the time it was given. */
+  using AdvanceCallback = std::function<void(std::chrono::duration<double>)>;
+  Lease onAdvance(AdvanceCallback callback);
+
   /** The one fetch a probe makes: the bytes, uncached, with @p info
    *  filled in from them. Null when the URI cannot be served. */
   std::shared_ptr<const Bytes> probeFetch(std::string_view uri,
@@ -536,15 +313,23 @@ class Hub {
   /** Whether the transports linked into the program were registered on
    *  this hub, which happens once, on the first ask nothing answered. */
   bool m_linkedTransports = false;
+  /** The linked transport schemes that registration is limited to;
+   *  empty for every one. */
+  std::vector<std::string> m_transportSchemes;
   /** The callbacks registered through onAdvance(), held weakly so one
    *  lives exactly as long as the lease that owns it. An advance copies
    *  the live ones out from under the lock — a callback reads feeds and
    *  may ask this hub for a resource — and erases the entries whose
    *  lease is gone. */
-  std::vector<std::weak_ptr<Lease::Callback>> m_advancers;
+  std::vector<std::weak_ptr<AdvanceCallback>> m_advancers;
   /** When this hub was made: what advance() counts its time from. */
   const std::chrono::steady_clock::time_point m_created =
       std::chrono::steady_clock::now();
 };
 
 }  // namespace sigil::io
+
+// The decoder registration a library's generic `registerDecoders(hub)`
+// reaches by argument-dependent lookup, which only finds what the
+// translation unit can see: wherever a hub is, so is the way to teach it.
+#include "sigilio/advanced/Decoding.h"

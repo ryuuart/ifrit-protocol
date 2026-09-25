@@ -404,10 +404,10 @@ void detail::registerWebSocketClient(Hub& hub) {
   // and a URI naming a port goes to the listener that was already there.
   // Nothing listens for wss:// unless something was registered for it,
   // the sockets a listener is built on carrying no TLS.
-  Transport listening = hub.feedTransport("ws");
-  hub.setFeedTransport("ws", openWebSocket(std::move(listening), calling));
-  Transport listeningSecurely = hub.feedTransport("wss");
-  hub.setFeedTransport("wss",
+  Transport listening = io::transport(hub, "ws");
+  io::registerTransport(hub, "ws", openWebSocket(std::move(listening), calling));
+  Transport listeningSecurely = io::transport(hub, "wss");
+  io::registerTransport(hub, "wss",
                        openWebSocket(std::move(listeningSecurely), calling));
 }
 

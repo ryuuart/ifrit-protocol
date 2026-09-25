@@ -5,7 +5,9 @@
 #include <utility>
 
 #include "Residency.h"
+#include "sigilio/advanced/Residency.h"
 #include "sigilio/hub/Hub.h"
+#include "sigilio/advanced/Places.h"
 
 namespace sigil::io {
 
@@ -82,7 +84,7 @@ size_t ResourceLease::refresh() {
 
   std::vector<std::string> selected;
   for (const std::string& selector : m_selectors) {
-    std::vector<std::string> matches = m_hub->select(selector);
+    std::vector<std::string> matches = io::select(*m_hub, selector);
     selected.insert(selected.end(), std::make_move_iterator(matches.begin()),
                     std::make_move_iterator(matches.end()));
   }
@@ -95,7 +97,7 @@ size_t ResourceLease::refresh() {
 
 size_t ResourceLease::preload() {
   if (!m_hub || m_residency.expired()) return 0;
-  return m_hub->preload(std::span<const std::string>(m_uris));
+  return io::preload(*m_hub, std::span<const std::string>(m_uris));
 }
 
 void ResourceLease::release() {
@@ -118,11 +120,6 @@ ResourceLease Hub::retain(std::span<const std::string_view> selectors) {
   owned.reserve(selectors.size());
   for (std::string_view selector : selectors) owned.emplace_back(selector);
   return ResourceLease(*this, residency(), std::move(owned));
-}
-
-ResourceLease Hub::retain(std::initializer_list<std::string_view> selectors) {
-  return retain(
-      std::span<const std::string_view>(selectors.begin(), selectors.size()));
 }
 
 std::shared_ptr<detail::Residency> Hub::residency() {

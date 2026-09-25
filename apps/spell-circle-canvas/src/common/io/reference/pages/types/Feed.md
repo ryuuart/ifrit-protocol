@@ -80,11 +80,11 @@ handle does, or until `Recording::stop`, and `Recording::stopped` says
 whether it still runs. A feed writes one recording at a time, so a second
 `Feed::record` ends the first; a feed that closes ends its recording with
 it. A feed `Hub::replay` put a recording in front of delivers what that
-file holds as `Hub::advance` moves its time forward — so a scene that ran
+file holds as `sigil::io::advance` moves its time forward — so a scene that ran
 against a live sender runs again against the file it wrote, arrival for
 arrival.
 
-`Hub::advance` moves a replayed recording's time to the time on the
+`sigil::io::advance` moves a replayed recording's time to the time on the
 caller's clock. The first advance after the feed is made fixes the
 origin, so a recording starts when its feed is first advanced; every
 recorded arrival due by then is delivered in order with its recorded
@@ -93,7 +93,7 @@ time, and the feed closes after the last one. A live feed is unaffected.
 `Message::receivedAt` places a message from either half on one steady
 clock, so a reader that timestamps what it draws does not have to know
 which half it is reading. A live arrival keeps the time its transport
-received it; a replayed one is measured from the first `Hub::advance`
+received it; a replayed one is measured from the first `sigil::io::advance`
 that moved it, which preserves the recorded spacing however many arrivals a
 single read drains at once. A negative, nonfinite or unrepresentable
 time maps to that clock's origin rather than to an arbitrary instant.

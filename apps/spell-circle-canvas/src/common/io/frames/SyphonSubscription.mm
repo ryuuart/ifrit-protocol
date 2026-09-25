@@ -12,6 +12,7 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -90,7 +91,7 @@ class SyphonSubscription final : public detail::SubscriptionEnd {
   SyphonSubscription(const SyphonSubscription &) = delete;
   SyphonSubscription &operator=(const SyphonSubscription &) = delete;
 
-  void *latest() override {
+  std::optional<Frame> latest() override {
     @autoreleasepool {
       // ASKING IS ALSO WHAT OPENS: a publication that was not there when
       // this subscription was made, and one that stopped and came back,
@@ -104,7 +105,12 @@ class SyphonSubscription final : public detail::SubscriptionEnd {
       // reference the client hands over is this object's to hold and to
       // let go of on the next ask.
       m_frame = m_client ? [m_client newFrameImage] : nil;
-      return (__bridge void *)m_frame;
+      if (!m_frame) return std::nullopt;
+      Frame frame;
+      frame.texture = (__bridge void *)m_frame;
+      frame.width = static_cast<int>(m_frame.width);
+      frame.height = static_cast<int>(m_frame.height);
+      return frame;
     }
   }
 

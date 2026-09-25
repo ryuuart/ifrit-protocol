@@ -8,6 +8,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Decoding.h>
+#include <sigilio/advanced/Places.h>
 
 #include <filesystem>
 #include <string>
@@ -26,25 +28,25 @@ static_assert(ResolvingByteSource<Hub>);
 
 TEST_F(IOSource, HubFetchesAndErasesToAnyByteSource) {
   dir.write("notes/hello.txt", "carry the coal");
-  auto fetched = hub.fetch("res://notes/hello.txt");
+  auto fetched = hub.read("res://notes/hello.txt");
   ASSERT_NE(fetched, nullptr);
   EXPECT_EQ(fetched->asText(), "carry the coal");
-  EXPECT_EQ(fetched, hub.fetch("res://notes/hello.txt"));
+  EXPECT_EQ(fetched, hub.read("res://notes/hello.txt"));
 
   AnyByteSource any(hub);
   ASSERT_TRUE(any);
-  EXPECT_EQ(any.fetch("res://notes/hello.txt"), fetched);
+  EXPECT_EQ(any.read("res://notes/hello.txt"), fetched);
   EXPECT_EQ(any.resolve("res://notes/hello.txt"),
             dir.path / "notes" / "hello.txt");
-  EXPECT_EQ(any.fetch("res://missing.txt"), nullptr);
+  EXPECT_EQ(any.read("res://missing.txt"), nullptr);
   EXPECT_FALSE(AnyByteSource{});
 }
 
 TEST_F(IOHub, MountsResolveLongestPrefix) {
-  hub.mount("res://deep/", dir.path / "elsewhere");
-  EXPECT_EQ(hub.resolve("res://a.txt"), dir.path / "a.txt");
-  EXPECT_EQ(hub.resolve("res://deep/b.txt"), dir.path / "elsewhere" / "b.txt");
-  EXPECT_TRUE(hub.resolve("other://x").empty());
+  mount(hub, "res://deep/", dir.path / "elsewhere");
+  EXPECT_EQ(resolve(hub, "res://a.txt"), dir.path / "a.txt");
+  EXPECT_EQ(resolve(hub, "res://deep/b.txt"), dir.path / "elsewhere" / "b.txt");
+  EXPECT_TRUE(resolve(hub, "other://x").empty());
 }
 
 TEST_F(IOHub, FetchAndTextLoadThroughMounts) {
@@ -52,10 +54,10 @@ TEST_F(IOHub, FetchAndTextLoadThroughMounts) {
   auto text = hub.text("res://notes/hello.txt");
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(*text, "carry the coal");
-  auto bytes = hub.fetch("res://notes/hello.txt");
+  auto bytes = hub.read("res://notes/hello.txt");
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(bytes->size(), 14u);
-  EXPECT_EQ(hub.fetch("res://missing.bin"), nullptr);
+  EXPECT_EQ(hub.read("res://missing.bin"), nullptr);
 }
 
 TEST_F(IOHub, MissingFilesHealWithoutStaleCache) {
@@ -73,15 +75,15 @@ TEST_F(IOHub, AMountNamesNothingAboveItsDirectory) {
   ScratchDir inside("sigilio_inside");
   inside.write("secret.txt", "not through this mount");
   above.write("sibling.txt", "not through this mount either");
-  hub.mount("res://inside/", inside.path);
+  mount(hub, "res://inside/", inside.path);
 
   const std::string climbing =
       "res://inside/../" + above.path.filename().string() + "/sibling.txt";
-  EXPECT_TRUE(hub.resolve(climbing).empty());
-  EXPECT_EQ(hub.fetch(climbing), nullptr);
+  EXPECT_TRUE(resolve(hub, climbing).empty());
+  EXPECT_EQ(hub.read(climbing), nullptr);
   EXPECT_EQ(hub.text("res://inside/../inside/secret.txt"), std::nullopt);
-  EXPECT_TRUE(hub.select("res://inside/../*/*.txt").empty());
-  EXPECT_TRUE(hub.select("res://inside/..").empty());
+  EXPECT_TRUE(select(hub, "res://inside/../*/*.txt").empty());
+  EXPECT_TRUE(select(hub, "res://inside/..").empty());
   // The same names, without the climb, are there to be had.
   EXPECT_EQ(hub.text("res://inside/secret.txt"), "not through this mount");
 }
@@ -91,11 +93,11 @@ TEST_F(IOHub, AMountNamesNothingAboveItsDirectory) {
 // whether something is there would have taken for a resource.
 TEST_F(IOHub, ADirectoryAnswersNoBytes) {
   dir.write("shaders/a.sksl", "a");
-  EXPECT_EQ(hub.fetch("res://shaders"), nullptr);
-  EXPECT_EQ(hub.fetch("res://shaders/"), nullptr);
+  EXPECT_EQ(hub.read("res://shaders"), nullptr);
+  EXPECT_EQ(hub.read("res://shaders/"), nullptr);
   EXPECT_EQ(hub.text("res://shaders"), std::nullopt);
   EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://shaders"), nullptr);
-  EXPECT_FALSE(hub.probe<ResourceInfo>("res://shaders").has_value());
+  EXPECT_FALSE(probe<ResourceInfo>(hub, "res://shaders").has_value());
   // The file beneath it still answers, so nothing was refused wholesale.
   EXPECT_EQ(hub.text("res://shaders/a.sksl"), "a");
 }
@@ -108,7 +110,7 @@ TEST_F(IOHub, FileUrlsLoadAsLocalPaths) {
   auto text = hub.text(url);
   ASSERT_TRUE(text.has_value());
   EXPECT_EQ(*text, "no mount needed");
-  auto bytes = hub.fetch(url);
+  auto bytes = hub.read(url);
   ASSERT_NE(bytes, nullptr);
   EXPECT_EQ(bytes->size(), 15u);
 }

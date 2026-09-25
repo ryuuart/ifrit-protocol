@@ -385,11 +385,11 @@ void detail::registerUdp(Hub& hub) {
   // All three names share one thread, because they are one socket: a hub
   // asked for none of the schemes still starts nothing.
   auto shared = std::make_shared<detail::SharedIoThread>();
-  hub.setFeedTransport("udp", datagramTransport(shared, "udp"));
-  hub.setFeedTransport("osc", datagramTransport(shared, "osc"));
+  io::registerTransport(hub, "udp", datagramTransport(shared, "udp"));
+  io::registerTransport(hub, "osc", datagramTransport(shared, "osc"));
   // The lighting desks' datagrams, under the name their wire is called
   // by, on the port that wire holds: artnet://:6454 listens for them.
-  hub.setFeedTransport("artnet", datagramTransport(shared, "artnet"));
+  io::registerTransport(hub, "artnet", datagramTransport(shared, "artnet"));
 }
 
 }  // namespace sigil::io

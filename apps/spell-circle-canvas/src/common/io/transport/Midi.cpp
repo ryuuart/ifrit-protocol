@@ -483,7 +483,7 @@ TransportEnd openFeed(std::string_view uri, const Inlet& into) {
 void detail::registerMidi(Hub& hub) {
   // No thread is made here: the driver runs the callback that delivers,
   // and an output is written on the thread that asked.
-  hub.setFeedTransport("midi",
+  io::registerTransport(hub, "midi",
                        [](std::string_view uri, Inlet into) {
                          return openFeed(uri, into);
                        });

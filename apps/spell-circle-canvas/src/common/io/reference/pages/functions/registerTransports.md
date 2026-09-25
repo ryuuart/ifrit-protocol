@@ -414,7 +414,7 @@ neither of two on one.
 
 #### The frame carries the introduction
 
-`Hub::advance` is what reads the signalling door and answers it, so a
+`sigil::io::advance` is what reads the signalling door and answers it, so a
 handshake takes a few frames and a host that never advances never
 finishes one. What arrives on a channel is not frame-paced: it is
 delivered the moment it lands.

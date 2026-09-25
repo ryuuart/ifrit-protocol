@@ -53,6 +53,7 @@
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
+#include "sigilio/advanced/Places.h"
 
 namespace sigil::io {
 namespace {
@@ -668,7 +669,7 @@ TransportEnd openFeed(const Hub& hub, std::string_view uri,
     // and what the listener keeps from here on is the directory: a feed
     // may outlive the hub that opened it, and every request answered
     // afterwards reads the filesystem and nothing else.
-    door->session->pages = hub.resolve(address->pages);
+    door->session->pages = io::resolve(hub, address->pages);
     if (door->session->pages.empty())
       return refuse(into, address->pages +
                               " is mounted nowhere: a listener's pages stand "
@@ -722,7 +723,7 @@ void detail::registerWebSocket(Hub& hub) {
   // stands for every call made through this, while the feed that call
   // answers may outlive it — which is why what the listener keeps is a
   // path and not a way back here.
-  hub.setFeedTransport("ws",
+  io::registerTransport(hub, "ws",
                        [&hub](std::string_view uri, Inlet into) {
                          return openFeed(hub, uri, into);
                        });

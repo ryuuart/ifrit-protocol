@@ -2,18 +2,19 @@
 
 /** @file
  * @ingroup io-frames
- * The door another application's frames arrive by: the seam a host holds
- * a publication over, and the one factory that answers with whatever
- * this build can subscribe through.
+ * The door another application's frames arrive by: the handle
+ * `hub.subscribe()` answers, and the seam a backend implements behind it.
  */
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "sigilio/frames/Frame.h"
 #include "sigilio/source/State.h"
 
 namespace sigil::io::frames {
@@ -34,12 +35,12 @@ class SubscriptionEnd {
  public:
   virtual ~SubscriptionEnd() = default;
 
-  /** THE NEWEST PUBLISHED FRAME, or null before the first one arrives —
-   *  and the ask that OPENS onto a publication that has appeared.
+  /** THE NEWEST PUBLISHED FRAME, or nothing before the first one arrives
+   *  — and the ask that OPENS onto a publication that has appeared.
    *  @trap BORROWED UNTIL THE NEXT CALL: the previous frame is let go
    *  whenever another is asked for, so a caller keeping one past that
    *  takes its own reference, which wrapping it as an image does. */
-  virtual void* latest() = 0;
+  virtual std::optional<Frame> latest() = 0;
 
   /** Where the publication stands, in the value a feed answers:
    *  `ReadyState::Open` while frames can still arrive — the publication
@@ -85,12 +86,15 @@ class Subscription {
   explicit Subscription(std::shared_ptr<detail::SubscriptionEnd> end)
       : m_end(std::move(end)) {}
 
-  /** THE NEWEST PUBLISHED FRAME, or null before the first one arrives —
-   *  and the ask that OPENS onto a publication that has appeared.
+  /** THE NEWEST PUBLISHED FRAME — its texture and size, with no command
+   *  buffer — or nothing before the first one arrives, and the ask that
+   *  OPENS onto a publication that has appeared.
    *  @trap BORROWED UNTIL THE NEXT CALL: the previous frame is let go
    *  whenever another is asked for, so a caller keeping one past that
    *  takes its own reference, which wrapping it as an image does. */
-  void* latest() const { return m_end ? m_end->latest() : nullptr; }
+  std::optional<Frame> latest() const {
+    return m_end ? m_end->latest() : std::nullopt;
+  }
 
   /** Where the publication stands, in the value a feed answers:
    *  `ReadyState::Open` while frames can still arrive, and a revision
@@ -120,17 +124,6 @@ class Subscription {
  private:
   std::shared_ptr<detail::SubscriptionEnd> m_end;
 };
-
-/** A subscription to @p name on @p metalDevice — and, where @p application
- * is not empty, only that application's. @p metalDevice is an
- * `id<MTLDevice>` as an opaque pointer, the caller staying its owner. A
- * name nothing publishes yet is NOT a refusal: the subscription waits.
- * @trap AN EMPTY HANDLE IS AN ORDINARY ANSWER — no protocol, no device, an
- * empty name — and means a run that receives nothing, never another way
- * to. */
-Subscription subscribe(std::string name,
-                                        std::string application,
-                                        void* metalDevice);
 
 /** THE METAL DEVICE THIS MACHINE DRAWS ON, as an `id<MTLDevice>` bridged
  * to `void*` — what a caller that holds no device of its own subscribes

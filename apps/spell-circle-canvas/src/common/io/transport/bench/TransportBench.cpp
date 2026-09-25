@@ -32,6 +32,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
+#include <sigilio/advanced/Time.h>
 #include <sys/socket.h>
 #include <termios.h>
 #include <unistd.h>
@@ -684,11 +685,11 @@ uint16_t freePort() {
 bool waitDispatching(Hub& hub, const std::function<bool()>& ready) {
   const Moment until = std::chrono::steady_clock::now() + kReach;
   while (std::chrono::steady_clock::now() < until) {
-    hub.advance();
+    sigil::io::advance(hub);
     if (ready()) return true;
     std::this_thread::sleep_for(1ms);
   }
-  hub.advance();
+  sigil::io::advance(hub);
   return ready();
 }
 

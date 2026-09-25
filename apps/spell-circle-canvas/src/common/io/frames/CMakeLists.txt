@@ -1,7 +1,8 @@
 # BOTH ENDS OF ONE DOOR: one abstract publisher over the graphics API's
 # own texture and command-buffer handles, one abstract subscription over
-# the same kind of handle coming the other way, and one factory each that
-# answers with whatever this build can carry a frame over.
+# the same kind of handle coming the other way, and the hub's publish()
+# and subscribe(), defined here, which answer with whatever this build can
+# carry a frame over.
 #
 # IT KNOWS NO WINDOW, NO TOOLKIT AND NO DRAWING. The handles cross the
 # seam as opaque pointers, so a host that owns its device and a host
@@ -9,7 +10,7 @@
 # headers compile wherever this repository compiles. Syphon is the macOS
 # protocol at both ends; Spout supplies Direct3D11 publication where its
 # SDK is configured. Unsupported combinations return null.
-set(SIGIL_FRAMES_SOURCES Publisher.cpp Subscription.cpp)
+set(SIGIL_FRAMES_SOURCES Publisher.cpp Subscription.cpp Protocol.h)
 if(APPLE)
   find_package(unofficial-syphon CONFIG REQUIRED)
   list(APPEND SIGIL_FRAMES_SOURCES
@@ -24,8 +25,8 @@ endif()
 
 sigil_library(SigilIOFrames
   SOURCES ${SIGIL_FRAMES_SOURCES}
-  HEADERS Publisher.h Subscription.h
-  PUBLIC SigilIOSource
+  HEADERS Frame.h Publisher.h Subscription.h
+  PUBLIC SigilIOSource SigilIOHub
   FRAMEWORKS Foundation Metal)
 
 # The server owns the reference alloc/init handed it and releases it
@@ -39,7 +40,8 @@ elseif(TARGET Spout2::SpoutDX)
   target_compile_definitions(SigilIOFrames PRIVATE SIGIL_FRAMES_SPOUT)
 endif()
 
-# Factory refusals join the resource library's test binary.
+# The refusals of publish and subscribe join the resource library's test
+# binary.
 sigil_test(io_test
   SOURCES test/PublisherTest.cpp test/SubscriptionTest.cpp
   LIBRARIES SigilIOFrames)

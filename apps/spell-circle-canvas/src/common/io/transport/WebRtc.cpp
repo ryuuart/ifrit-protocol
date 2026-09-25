@@ -74,6 +74,7 @@
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
 #include "sigilio/transport/Transport.h"
+#include "sigilio/advanced/Time.h"
 
 namespace sigil::io {
 namespace {
@@ -697,7 +698,7 @@ std::shared_ptr<Signal> signalFor(Signals& signals, Hub& hub,
     trouble = made->feed.state().error;
     return nullptr;
   }
-  made->lease = hub.onAdvance([held = std::weak_ptr<Signal>(made)](std::chrono::duration<double>) {
+  made->lease = io::onAdvance(hub, [held = std::weak_ptr<Signal>(made)](std::chrono::duration<double>) {
     if (const std::shared_ptr<Signal> standing = held.lock())
       readSignal(standing);
   });
@@ -788,7 +789,7 @@ void detail::registerWebRtc(Hub& hub) {
   // nowhere else — a transport is registered ON a hub and held by it,
   // while the feed that call answers may outlive it.
   auto signals = std::make_shared<Signals>();
-  hub.setFeedTransport("webrtc", [&hub, signals](std::string_view uri,
+  io::registerTransport(hub, "webrtc", [&hub, signals](std::string_view uri,
                                                  Inlet into) {
     return openFeed(hub, *signals, uri, into);
   });

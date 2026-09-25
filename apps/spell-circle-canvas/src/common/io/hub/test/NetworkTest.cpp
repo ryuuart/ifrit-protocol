@@ -16,6 +16,9 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/source/Sink.h>
+#include <sigilio/advanced/Decoding.h>
+#include <sigilio/advanced/Network.h>
+#include <sigilio/advanced/Places.h>
 
 #include <atomic>
 #include <barrier>
@@ -89,24 +92,24 @@ TEST(IONetwork, DefaultCacheDirIsUnderThePlatformCacheLocation) {
   const std::string url = "https://fake.invalid/overridden.txt";
   const std::string body = "written where the hub was told";
   Hub hub;
-  hub.setNetworkCacheDirectory(cache.path);
-  hub.setNetworkTransport([&](std::string_view) {
+  setNetworkCacheDirectory(hub, cache.path);
+  setNetworkTransport(hub, [&](std::string_view) {
     const auto* bytes = reinterpret_cast<const std::byte*>(body.data());
     return std::vector<std::byte>(bytes, bytes + body.size());
   });
   ASSERT_EQ(hub.text(url), body);
-  EXPECT_EQ(probeNetworkCache(url, cache.path), body.size());
-  EXPECT_FALSE(probeNetworkCache(url));
+  EXPECT_EQ(NetworkCache(cache.path).byteSize(url), body.size());
+  EXPECT_FALSE(NetworkCache().byteSize(url));
 }
 
 TEST(IONetwork, SeededCacheServesWithoutNetwork) {
   const ScratchDir cache("sigilio_net");
   const std::string url = "https://fake.invalid/x.txt";
-  ASSERT_TRUE(seedNetworkCache(url, bytesOf("from the cache"), cache.path));
+  ASSERT_TRUE(NetworkCache(cache.path).put(url, bytesOf("from the cache")));
   Hub hub;
-  hub.setNetworkCacheDirectory(cache.path);
+  setNetworkCacheDirectory(hub, cache.path);
   size_t requests = 0;
-  hub.setNetworkTransport([&](std::string_view) {
+  setNetworkTransport(hub, [&](std::string_view) {
     ++requests;
     return std::optional<std::vector<std::byte>>{};
   });
@@ -120,23 +123,23 @@ TEST(IONetwork, CacheProbeDistinguishesMissingAndEmptyWithoutCreatingFiles) {
   const ScratchDir root("sigilio_net_probe");
   const fs::path directory = root.path / "not-created";
   const std::string url = "https://fake.invalid/empty.txt";
-  EXPECT_FALSE(probeNetworkCache(url, directory));
+  EXPECT_FALSE(NetworkCache(directory).byteSize(url));
   EXPECT_FALSE(fs::exists(directory));
 
-  ASSERT_TRUE(seedNetworkCache(url, {}, directory));
-  EXPECT_EQ(probeNetworkCache(url, directory), 0u);
+  ASSERT_TRUE(NetworkCache(directory).put(url, {}));
+  EXPECT_EQ(NetworkCache(directory).byteSize(url), 0u);
   EXPECT_FALSE(
-      probeNetworkCache("https://fake.invalid/missing.txt", directory));
+      NetworkCache(directory).byteSize("https://fake.invalid/missing.txt"));
 
   Hub offline;
-  offline.setNetworkCacheDirectory(directory);
-  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  setNetworkCacheDirectory(offline, directory);
+  setNetworkPolicy(offline, NetworkPolicy::Offline);
   size_t requests = 0;
-  offline.setNetworkTransport([&](std::string_view) {
+  setNetworkTransport(offline, [&](std::string_view) {
     ++requests;
     return std::optional<std::vector<std::byte>>{};
   });
-  auto bytes = offline.fetch(url);
+  auto bytes = offline.read(url);
   ASSERT_NE(bytes, nullptr);
   EXPECT_TRUE(bytes->empty());
   EXPECT_EQ(requests, 0u);
@@ -148,24 +151,24 @@ TEST(IONetwork, SeedingUsesTheRequestedDirectoryAndKeepsUrlsDistinct) {
   const fs::path second = root.path / "second";
   const std::string url = "https://fake.invalid/art.png?v=1";
   const std::string revision = "https://fake.invalid/art.png?v=2";
-  ASSERT_TRUE(seedNetworkCache(url, bytesOf("first"), first));
-  ASSERT_TRUE(seedNetworkCache(url, bytesOf("second"), second));
-  ASSERT_TRUE(seedNetworkCache(revision, bytesOf("revision"), first));
-  EXPECT_EQ(probeNetworkCache(url, first), 5u);
-  EXPECT_EQ(probeNetworkCache(url, second), 6u);
-  EXPECT_EQ(probeNetworkCache(revision, first), 8u);
-  EXPECT_FALSE(probeNetworkCache(revision, second));
+  ASSERT_TRUE(NetworkCache(first).put(url, bytesOf("first")));
+  ASSERT_TRUE(NetworkCache(second).put(url, bytesOf("second")));
+  ASSERT_TRUE(NetworkCache(first).put(revision, bytesOf("revision")));
+  EXPECT_EQ(NetworkCache(first).byteSize(url), 5u);
+  EXPECT_EQ(NetworkCache(second).byteSize(url), 6u);
+  EXPECT_EQ(NetworkCache(first).byteSize(revision), 8u);
+  EXPECT_FALSE(NetworkCache(second).byteSize(revision));
 
   Hub offline;
-  offline.setNetworkCacheDirectory(first);
-  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  setNetworkCacheDirectory(offline, first);
+  setNetworkPolicy(offline, NetworkPolicy::Offline);
   EXPECT_EQ(offline.text(url), "first");
   EXPECT_EQ(offline.text(revision), "revision");
-  ASSERT_TRUE(seedNetworkCache(url, bytesOf("replacement"), first));
+  ASSERT_TRUE(NetworkCache(first).put(url, bytesOf("replacement")));
   EXPECT_EQ(offline.text(url), "first");
   Hub reopened;
-  reopened.setNetworkCacheDirectory(first);
-  reopened.setNetworkPolicy(NetworkPolicy::Offline);
+  setNetworkCacheDirectory(reopened, first);
+  setNetworkPolicy(reopened, NetworkPolicy::Offline);
   EXPECT_EQ(reopened.text(url), "replacement");
 }
 
@@ -173,8 +176,8 @@ TEST(IONetwork, CacheOperationsRefuseNonNetworkUrls) {
   const ScratchDir root("sigilio_net_uri");
   const fs::path directory = root.path / "not-created";
   for (std::string_view url : {"", "file:///tmp/data", "res://data", "data"}) {
-    EXPECT_FALSE(seedNetworkCache(url, bytesOf("bytes"), directory));
-    EXPECT_FALSE(probeNetworkCache(url, directory));
+    EXPECT_FALSE(NetworkCache(directory).put(url, bytesOf("bytes")));
+    EXPECT_FALSE(NetworkCache(directory).byteSize(url));
   }
   EXPECT_FALSE(fs::exists(directory));
 }
@@ -186,8 +189,8 @@ TEST(IONetwork, FailedSeedLeavesNoPartialResource) {
   fs::create_directory(blocked);
   ASSERT_TRUE(writeBytes(blocked / "keep", "kept", 4));
 
-  EXPECT_FALSE(seedNetworkCache(url, bytesOf("replacement"), cache.path));
-  EXPECT_FALSE(probeNetworkCache(url, cache.path));
+  EXPECT_FALSE(NetworkCache(cache.path).put(url, bytesOf("replacement")));
+  EXPECT_FALSE(NetworkCache(cache.path).byteSize(url));
   EXPECT_TRUE(fs::is_regular_file(blocked / "keep"));
   EXPECT_EQ(std::distance(fs::directory_iterator(cache.path),
                           fs::directory_iterator{}),
@@ -203,19 +206,17 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
   const sk_sp<SkData> png =
       sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
   ASSERT_TRUE(png);
-  ASSERT_TRUE(seedNetworkCache(
-      url, {static_cast<const std::byte*>(png->data()), png->size()},
-      cache.path));
+  ASSERT_TRUE(NetworkCache(cache.path).put(url, {static_cast<const std::byte*>(png->data()), png->size()}));
   Hub hub;
   sigil::image::registerDecoders(hub);
-  hub.setNetworkCacheDirectory(cache.path);
+  setNetworkCacheDirectory(hub, cache.path);
   auto image = hub.load<sigil::image::ImageAsset>(url);
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
-  auto info = hub.probe<ResourceInfo>(url);
+  auto info = probe<ResourceInfo>(hub, url);
   ASSERT_TRUE(info.has_value());
   EXPECT_GT(info->byteSize, 0u);
-  auto probed = hub.probe<sigil::image::ImageProbe>(url);
+  auto probed = probe<sigil::image::ImageProbe>(hub, url);
   ASSERT_TRUE(probed.has_value());
   EXPECT_EQ(probed->format, "png");
 }
@@ -223,12 +224,12 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
 TEST(IONetwork, PollSkipsNetworkEntries) {
   const ScratchDir cache("sigilio_net");
   const std::string url = "https://fake.invalid/data.bin";
-  ASSERT_TRUE(seedNetworkCache(url, bytesOf("abc"), cache.path));
+  ASSERT_TRUE(NetworkCache(cache.path).put(url, bytesOf("abc")));
   Hub hub;
-  hub.setNetworkCacheDirectory(cache.path);
-  ASSERT_NE(hub.fetch(url), nullptr);
-  EXPECT_FALSE(hub.poll());  // no mtime to watch, nothing erased
-  auto again = hub.fetch(url);
+  setNetworkCacheDirectory(hub, cache.path);
+  ASSERT_NE(hub.read(url), nullptr);
+  EXPECT_FALSE(poll(hub));  // no mtime to watch, nothing erased
+  auto again = hub.read(url);
   ASSERT_NE(again, nullptr);
   EXPECT_EQ(again->size(), 3u);
 }
@@ -236,26 +237,26 @@ TEST(IONetwork, PollSkipsNetworkEntries) {
 TEST(IONetwork, OfflinePolicyServesCacheAndNeverFetches) {
   const ScratchDir cache("sigilio_net");
   const std::string cached = "https://fake.invalid/have.txt";
-  ASSERT_TRUE(seedNetworkCache(cached, bytesOf("kept"), cache.path));
+  ASSERT_TRUE(NetworkCache(cache.path).put(cached, bytesOf("kept")));
   Hub hub;
-  hub.setNetworkCacheDirectory(cache.path);
-  hub.setNetworkPolicy(NetworkPolicy::Offline);
+  setNetworkCacheDirectory(hub, cache.path);
+  setNetworkPolicy(hub, NetworkPolicy::Offline);
   EXPECT_EQ(hub.text(cached), "kept");
   // A miss fails without touching the network (fake host untried).
-  EXPECT_EQ(hub.fetch("https://fake.invalid/missing.txt"), nullptr);
+  EXPECT_EQ(hub.read("https://fake.invalid/missing.txt"), nullptr);
 }
 
 TEST(IONetwork, RefreshPolicyFallsBackToCacheOnFetchFailure) {
   const ScratchDir cache("sigilio_net");
   const std::string url = "https://fake.invalid/live.txt";
-  ASSERT_TRUE(seedNetworkCache(url, bytesOf("yesterday's copy"), cache.path));
+  ASSERT_TRUE(NetworkCache(cache.path).put(url, bytesOf("yesterday's copy")));
   Hub hub;
-  hub.setNetworkCacheDirectory(cache.path);
-  hub.setNetworkPolicy(NetworkPolicy::Refresh);
+  setNetworkCacheDirectory(hub, cache.path);
+  setNetworkPolicy(hub, NetworkPolicy::Refresh);
   // A transport that fails every fetch stands in for the network, so no
   // resolver is consulted: Refresh asks it first, then the cache answers.
   size_t asked = 0;
-  hub.setNetworkTransport([&asked](std::string_view) {
+  setNetworkTransport(hub, [&asked](std::string_view) {
     ++asked;
     return std::optional<std::vector<std::byte>>{};
   });
@@ -267,23 +268,23 @@ TEST(IONetwork, FetchedBytesPersistWholeOrNotAtAll) {
   const ScratchDir cache("sigilio_net");
   const std::string url = "https://fake.invalid/fresh.bin";
   Hub hub;
-  hub.setNetworkCacheDirectory(cache.path);
-  hub.setNetworkTransport([](std::string_view) {
+  setNetworkCacheDirectory(hub, cache.path);
+  setNetworkTransport(hub, [](std::string_view) {
     return std::optional<std::vector<std::byte>>{
         std::vector<std::byte>{std::byte{'o'}, std::byte{'k'}}};
   });
-  auto fetched = hub.fetch(url);
+  auto fetched = hub.read(url);
   ASSERT_NE(fetched, nullptr);
   EXPECT_EQ(fetched->asText(), "ok");
   // Persisted under the cache name, and nothing partial beside it.
-  EXPECT_EQ(probeNetworkCache(url, cache.path), 2u);
+  EXPECT_EQ(NetworkCache(cache.path).byteSize(url), 2u);
   EXPECT_EQ(std::distance(fs::directory_iterator(cache.path),
                           fs::directory_iterator{}),
             1);
 
   Hub offline;
-  offline.setNetworkCacheDirectory(cache.path);
-  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  setNetworkCacheDirectory(offline, cache.path);
+  setNetworkPolicy(offline, NetworkPolicy::Offline);
   EXPECT_EQ(offline.text(url), "ok");
 }
 
@@ -299,10 +300,10 @@ TEST(IONetwork, TwoConcurrentFetchesOfOneUrlCommitOneWholeFile) {
   // Long enough that one writer is still writing when the other starts.
   const std::string body(512 * 1024, 'x');
   Hub hub;
-  hub.setNetworkCacheDirectory(cache.path);
+  setNetworkCacheDirectory(hub, cache.path);
   std::barrier inside(2);
   std::atomic<size_t> fetches{0};
-  hub.setNetworkTransport([&](std::string_view) {
+  setNetworkTransport(hub, [&](std::string_view) {
     ++fetches;
     inside.arrive_and_wait();
     std::vector<std::byte> bytes(body.size());
@@ -313,7 +314,7 @@ TEST(IONetwork, TwoConcurrentFetchesOfOneUrlCommitOneWholeFile) {
   std::shared_ptr<const Bytes> fetched[2];
   std::thread askers[2];
   for (int i = 0; i != 2; ++i)
-    askers[i] = std::thread([&, i] { fetched[i] = hub.fetch(url); });
+    askers[i] = std::thread([&, i] { fetched[i] = hub.read(url); });
   for (std::thread& asker : askers) asker.join();
 
   EXPECT_EQ(fetches.load(), 2u);
@@ -330,8 +331,8 @@ TEST(IONetwork, TwoConcurrentFetchesOfOneUrlCommitOneWholeFile) {
   EXPECT_EQ(left, std::vector<std::string>{detail::networkCacheKey(url)});
 
   Hub offline;
-  offline.setNetworkCacheDirectory(cache.path);
-  offline.setNetworkPolicy(NetworkPolicy::Offline);
+  setNetworkCacheDirectory(offline, cache.path);
+  setNetworkPolicy(offline, NetworkPolicy::Offline);
   EXPECT_EQ(offline.text(url), body);
 }
 
@@ -350,15 +351,15 @@ TEST(IONetwork, LiveFetchThenOfflineRoundTrip) {
       "glTF-Sample-Assets/2bac6f8c57bf471df0d2a1e8a8ec023c7801dddf/"
       "Models/Duck/glTF-Binary/Duck.glb";
   Hub online;
-  online.setNetworkCacheDirectory(cache.path);
-  auto fetched = online.fetch(url);
+  setNetworkCacheDirectory(online, cache.path);
+  auto fetched = online.read(url);
   if (!fetched) GTEST_SKIP() << "no route to " << url;
   EXPECT_FALSE(fetched->empty());
 
   Hub offline;
-  offline.setNetworkCacheDirectory(cache.path);
-  offline.setNetworkPolicy(NetworkPolicy::Offline);
-  auto replay = offline.fetch(url);
+  setNetworkCacheDirectory(offline, cache.path);
+  setNetworkPolicy(offline, NetworkPolicy::Offline);
+  auto replay = offline.read(url);
   ASSERT_NE(replay, nullptr);
   EXPECT_EQ(*replay, *fetched);
 }

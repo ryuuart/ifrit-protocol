@@ -32,7 +32,7 @@ any other T answers meaning, and the answer comes from T's own library: a type i
 namespace declares `probeResource(std::type_identity<T>,
 std::span<const std::byte>, const std::filesystem::path&)`, which is the
 `Probable` concept in `source/Source.h`. SigilImage declares it for
-`ImageProbe`, so `hub.probe<sigil::image::ImageProbe>(uri)` reads
+`ImageProbe`, so `sigil::io::probe<sigil::image::ImageProbe>(hub, uri)` reads
 SigilImage's prober and the hub carries no opinion about any format. A
 kind of meaning added tomorrow is one free function in the library that
 owns it, with nothing to change here.
@@ -46,7 +46,7 @@ vanished, skips `http(s)://` entries entirely, and reloads by decoding
 again into a *new* `shared_ptr`. Anyone still holding the previous pointer
 keeps the old data; picking up the new data means asking the hub again.
 
-`load<T>()` after `fetch()` decodes the bytes `fetch()` already read. If the
+`load<T>()` after `read()` decodes the bytes `read()` already read. If the
 file changed on disk between the two asks, the decoded view catches up at
 the next `poll()` — which re-decodes every populated view from one fresh
 read — not at the ask itself.
@@ -72,17 +72,17 @@ schedule (macOS deletes what has not been touched for three days), and a
 lane that renders network-fetched assets without fetching depends on the
 cache still being there. The resolver reads the environment directly:
 SigilIO stands below every UI toolkit and cannot ask one where the caches
-go. `setNetworkCacheDirectory()` overrides it per hub.
+go. `NetworkOptions::cacheDirectory` overrides it per hub.
 
 Cache filenames are private to the hub and implementation-dependent. Cache
 directories are local scratch, not portable artifacts. To ask whether a URL
-has bytes on this machine, `probeNetworkCache(url, directory)` returns its
+has bytes on this machine, `NetworkCache(directory).byteSize(url)` returns its
 cached byte count without reading or decoding the file. A missing entry or a
 metadata error answers nothing; zero is a present, empty resource. The probe
 creates no files or directories. A consumer needing actual content can reject
 zero separately.
 
-`seedNetworkCache(url, bytes, directory)` stores already-held bytes for later
+`NetworkCache(directory).put(url, bytes)` stores already-held bytes for later
 cache reads, including empty bytes. It creates the directory when needed and
 publishes the whole resource through the same complete-file write as a fetch;
 a failed write leaves an existing resource intact. Both calls accept only
@@ -97,7 +97,7 @@ goes through `writeBytes()` into a sibling file that takes the cache name
 only once every byte is there, so a fetch that cannot be written to disk
 still returns its bytes and a later run finds the whole resource or
 nothing. `curl_global_init` runs lazily on the first fetch and
-`curl_global_cleanup` is never called. `setNetworkTransport()` replaces
+`curl_global_cleanup` is never called. `NetworkOptions::transport` replaces
 libcurl with any function from a URL to its body; the cache and the
 policy stay in front of it.
 

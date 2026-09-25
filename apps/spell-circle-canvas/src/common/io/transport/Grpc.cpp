@@ -826,7 +826,7 @@ TransportEnd openFeed(std::string_view uri, const Inlet& into) {
 }  // namespace
 
 void detail::registerGrpc(Hub& hub) {
-  hub.setFeedTransport("grpc",
+  io::registerTransport(hub, "grpc",
                        [](std::string_view uri, Inlet into) {
                          return openFeed(uri, into);
                        });

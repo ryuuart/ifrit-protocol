@@ -39,7 +39,7 @@ bytes never becomes a resource by accident. Two are equal when they hold
 the same bytes in the same order.
 
 ```cpp
-const std::shared_ptr<const sigil::io::Bytes> table = hub.fetch("res://data/table.bin");
+const std::shared_ptr<const sigil::io::Bytes> table = hub.read("res://data/table.bin");
 const sigil::io::Bytes line(std::as_bytes(std::span(std::string_view("a line"))));
 decodeRows(*table);                    // any function over std::span<const std::byte>
 ```
@@ -78,7 +78,7 @@ std::optional<sigil::image::ImageProbe> probeResource(
 
 The library that owns the meaning declares it, against nothing from the
 byte vocabulary but the standard library — a span of bytes and a name.
-That is what lets a byte source answer `Hub::probe` for a T it has never
+That is what lets a byte source answer `sigil::io::probe` for a T it has never
 heard of, and keeps deciding what a format is out of the code that only
 knows where bytes live. The hint is the resource's name, which a prober
 may use to sharpen format detection and must never require.

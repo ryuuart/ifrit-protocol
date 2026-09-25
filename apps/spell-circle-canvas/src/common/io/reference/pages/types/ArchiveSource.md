@@ -24,7 +24,7 @@ Whole, not streamed: an archive small enough to hold in memory is the
 only kind this reads, and holding it is what lets every entry be answered
 without seeking the source again.
 
-Construction reads every entry; `ArchiveSource::fetch` then answers a
+Construction reads every entry; `ArchiveSource::read` then answers a
 name with the bytes already in hand, so a decoder that asks for three
 files out of a brush pays for one read. A name is matched as the archive
 spells it. Directories are left out — a name is a path, and what a reader

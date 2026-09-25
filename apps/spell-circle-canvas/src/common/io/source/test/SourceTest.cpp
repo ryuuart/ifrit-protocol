@@ -30,7 +30,7 @@ namespace {
 struct TableSource {
   boost::container::flat_map<std::string, std::string, std::less<>> table;
 
-  std::shared_ptr<const Bytes> fetch(std::string_view uri) {
+  std::shared_ptr<const Bytes> read(std::string_view uri) {
     const auto it = table.find(uri);
     if (it == table.end()) return nullptr;
     return std::make_shared<const Bytes>(std::as_bytes(std::span(it->second)));
@@ -62,14 +62,14 @@ TEST(SourceVocabulary, AnyByteSourceBorrowsAndAnswersEmptyResolve) {
   table.table["mem://a"] = "alpha";
   AnyByteSource any(table);
   ASSERT_TRUE(any);
-  auto fetched = any.fetch("mem://a");
+  auto fetched = any.read("mem://a");
   ASSERT_NE(fetched, nullptr);
   EXPECT_EQ(fetched->asText(), "alpha");
-  EXPECT_EQ(any.fetch("mem://missing"), nullptr);
+  EXPECT_EQ(any.read("mem://missing"), nullptr);
   // A source with no resolve of its own answers an empty path.
   EXPECT_TRUE(any.resolve("mem://a").empty());
   EXPECT_FALSE(AnyByteSource{});
-  EXPECT_EQ(AnyByteSource{}.fetch("mem://a"), nullptr);
+  EXPECT_EQ(AnyByteSource{}.read("mem://a"), nullptr);
 }
 
 TEST(SourceVocabulary, AnyByteSourceSharesOwnership) {
@@ -78,7 +78,7 @@ TEST(SourceVocabulary, AnyByteSourceSharesOwnership) {
   AnyByteSource any(table);
   EXPECT_GT(table.use_count(), 1);
   table.reset();
-  auto fetched = any.fetch("mem://b");
+  auto fetched = any.read("mem://b");
   ASSERT_NE(fetched, nullptr);
   EXPECT_EQ(fetched->asText(), "beta");
 }
@@ -87,7 +87,7 @@ TEST(SourceVocabulary, DecoderRunsOverFetchedBytes) {
   TableSource table;
   table.table["mem://c"] = "gamma";
   const LengthDecoder decoder;
-  auto bytes = table.fetch("mem://c");
+  auto bytes = table.read("mem://c");
   ASSERT_NE(bytes, nullptr);
   const auto length = decoder.decode(*bytes, "mem://c");
   ASSERT_TRUE(length.has_value());

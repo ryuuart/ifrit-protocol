@@ -26,5 +26,5 @@ duplicate-free URI snapshot the lease currently retains.
 
 ## See also
 
-`sigil::io::Hub`, whose `Hub::retain` makes one, and
+`sigil::io::Hub`, whose `sigil::io::retain` makes one, and
 `sigil::io::Lease`.

@@ -505,7 +505,7 @@ void detail::registerSharedMemory(Hub& hub) {
   // The looks of every region opened through one registration share one
   // thread, made when the first of them opens.
   auto shared = std::make_shared<detail::SharedIoThread>();
-  hub.setFeedTransport("shm",
+  io::registerTransport(hub, "shm",
                        [shared = std::move(shared)](std::string_view uri,
                                                     Inlet into) {
                          return openFeed(shared->acquire(), uri, into);

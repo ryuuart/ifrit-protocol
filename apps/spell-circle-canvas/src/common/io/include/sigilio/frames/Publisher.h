@@ -2,15 +2,16 @@
 
 /** @file
  * @ingroup io-frames
- * The door a drawn frame leaves by: the seam a host offers its texture
- * over, and the one factory that answers with whatever this build can
- * publish through.
+ * The door a drawn frame leaves by: the handle `hub.publish()` answers,
+ * and the seam a backend implements behind it.
  */
 
 #include <memory>
 #include <utility>
 #include <string>
 #include <string_view>
+
+#include "sigilio/frames/Frame.h"
 
 /** A TEXTURE SHARED WITH ANOTHER APPLICATION ON THIS MACHINE, in both
  *  directions: a frame this process has drawn offered under a name, and
@@ -19,9 +20,6 @@
  *  tool or a compositor, or to bring one of theirs in. The handles are
  *  the graphics API's own and nothing here is anybody's toolkit. */
 namespace sigil::io::frames {
-
-/** The graphics API whose native handles a publisher consumes. */
-enum class Backend { Metal, Direct3D11 };
 
 namespace detail {
 /** WHAT A BACKEND IMPLEMENTS behind a `Publisher` handle: the copy of
@@ -65,13 +63,17 @@ class Publisher {
   explicit Publisher(std::shared_ptr<detail::PublisherEnd> end)
       : m_end(std::move(end)) {}
 
-  /** Appends the publication of the @p width by @p height region of
-   *  @p nativeTexture to the still-open @p nativeCommandBuffer. The newest
-   *  image remains available to clients that subscribe after this call.
-   *  Direct3D11 uses its immediate context and ignores the command buffer. */
-  void publishFrame(void* nativeTexture, void* nativeCommandBuffer, int width,
-                    int height) const {
-    if (m_end) m_end->publishFrame(nativeTexture, nativeCommandBuffer, width, height);
+  /** Appends the publication of @p frame's region of its texture to its
+   *  still-open command buffer. The newest image remains available to
+   *  clients that subscribe after this call. Direct3D11 uses its
+   *  immediate context and ignores the command buffer. False on a handle
+   *  onto nothing or a frame with no texture or no area. */
+  bool send(const Frame& frame) const {
+    if (!m_end || !frame.texture || frame.width <= 0 || frame.height <= 0)
+      return false;
+    m_end->publishFrame(frame.texture, frame.commandBuffer, frame.width,
+                        frame.height);
+    return true;
   }
 
   /** The name a subscriber finds this publication under; empty on a
@@ -86,15 +88,5 @@ class Publisher {
  private:
   std::shared_ptr<detail::PublisherEnd> m_end;
 };
-
-/** The publisher this build has for @p backend and @p nativeDevice under
- * @p name: Syphon on Metal, Spout on Direct3D11 when that SDK is present.
- * @p nativeDevice is an `id<MTLDevice>` or an `ID3D11Device*`; the caller
- * owns it and outlives the publisher.
- * @trap AN EMPTY HANDLE IS AN ORDINARY ANSWER — no protocol, no device, an
- * empty name — and means a run that does not publish, never another way
- * to. */
-Publisher createPublisher(std::string name, Backend backend,
-                                           void* nativeDevice);
 
 }  // namespace sigil::io::frames
