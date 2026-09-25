@@ -6,7 +6,7 @@
 
 #include "sigilmaterial/core/Material.h"
 
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
 
 #include <algorithm>
@@ -230,7 +230,7 @@ bool Material::isAnimated() const {
   // bound animatable is live exactly when SigilMotion says it is: a
   // plain number written into a uniform every resolve moves nothing.
   for (const Binding& b : m_bindings)
-    if (b.block || motion::isLive(nullptr, b.value)) return true;
+    if (b.block || b.value.isRunning()) return true;
   if (m_recipe->reads(FrameInput::Time) ||
       m_recipe->reads(FrameInput::ContentScale))
     return true;
@@ -293,7 +293,7 @@ Material::Resolved Material::resolve(Target target, const FrameData& frame,
       // No held motion: a material has no ticker, so what an animatable
       // reads here is its binding (shaped, where the chain shapes it) or
       // its plain number.
-      const float v = motion::resolveFloatAt(nullptr, b.value);
+      const float v = b.value.value();
       std::memcpy(m_scratch.data() + f->offset, &v, sizeof(float));
     }
   }

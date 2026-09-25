@@ -33,7 +33,7 @@
 #include "Resources.h"
 
 namespace sigil::motion {
-class Ticker;
+class Engine;
 }
 
 namespace sigil::world {
@@ -96,7 +96,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   entt::entity entity = entt::null;
   /** One motion slot per fixed lane row, so a lane keeps its meaning
    *  across a patch that changed what the node holds. */
-  std::array<std::unique_ptr<motion::AnimatedFloat>, kLaneCount> anims;
+  std::array<std::unique_ptr<motion::HeldMotion>, kLaneCount> anims;
   /** Where this node stood among the siblings that mounted with it — the
    *  place every staggered tween on it resolves against. */
   motion::Place mountPlace;
@@ -173,9 +173,9 @@ struct Scene::Impl {
     std::vector<entt::entity>* into = nullptr;
   };
 
-  explicit Impl(motion::Ticker& t);
+  explicit Impl(motion::Engine& t);
 
-  motion::Ticker& ticker;
+  motion::Engine& engine;
   core::Reconciler<Impl, Instance, Description> reconciler;
   std::unique_ptr<Instance> root;
   entt::registry registry;

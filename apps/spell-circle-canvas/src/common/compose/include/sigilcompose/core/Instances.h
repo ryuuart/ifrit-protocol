@@ -16,7 +16,7 @@
  *    stamps at scales up to `oversample` never magnify baked pixels. Hold
  *    it wherever you hold assets; it outlives any one describe.
  *  - The POOL is yours: plain parallel arrays (position / rotation / uniform
- *    scale / tint / frame). Mutate it directly, from a ticker, or by copying
+ *    scale / tint / frame). Mutate it directly, from an engine timer, or by copying
  *    out of an ECS — no registry type crosses this seam. It can also carry
  *    one FLIGHT per instance — from, to, start, duration — and step them
  *    all with `Pool::fly`, which is the entrance a field of thousands
@@ -32,7 +32,7 @@
  *    silently**: the description compares equal, the node prunes, and the
  *    cached picture of the old pool replays with no diagnostic.
  *  - Mode::Live: an uncached leaf that reads the pool every frame — the
- *    particle path. Mutate from a ticker and keep the host redrawing;
+ *    particle path. Mutate from an engine timer and keep the host redrawing;
  *    there is nothing to commit.
  *
  * Past a few thousand instances the stamp culls each sprite against the
@@ -84,7 +84,7 @@ namespace sigil::compose::instancing {
 // Pool — the user-owned SoA store
 
 /** Per-instance data as parallel arrays. The caller owns and mutates this
- *  — directly, from a ticker, or by copying out of an ECS view; the
+ *  — directly, from an engine timer, or by copying out of an ECS view; the
  *  element only reads it. After mutating in Mode::Data, call commit() so
  *  the next render() sees a changed revision.
  *
@@ -348,7 +348,7 @@ enum class Mode {
    *  commit() prunes and replays the old picture. */
   Data,
   /** Uncached: the leaf reads the pool every frame (particles — mutate
-   *  from a ticker and keep the host redrawing). */
+   *  from an engine timer and keep the host redrawing). */
   Live,
 };
 

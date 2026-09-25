@@ -183,10 +183,10 @@ struct Line {
   /** A bound dash phase makes the node volatile, the same declared-
    *  volatility contract PathFormat::trimPhase uses. */
   bool isAnimated() const {
-    return dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding);
+    return dashPhaseBinding && dashPhaseBinding->isRunning();
   }
   float phase() const {
-    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+    return dashPhaseBinding ? dashPhaseBinding->value()
                             : dashPhase;
   }
 

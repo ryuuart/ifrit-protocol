@@ -21,7 +21,7 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/UniformBlock.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include <array>
 #include <memory>

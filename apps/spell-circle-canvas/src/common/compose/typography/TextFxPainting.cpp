@@ -146,7 +146,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     r.track = &track;
     r.selected = &textStateOf(inst).selectionMasks[i];
     r.pieces = &textStateOf(inst).selectionPieces[i];
-    const AnimatedFloat* anim =
+    const HeldMotion* anim =
         i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
     r.master =
         std::clamp(inst.resolveFloatAt(anim, track.progress), 0.0f, 1.0f);
@@ -228,7 +228,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
   const bool pathDriven =
       ridesPath && (onPath->at.identity() ||
                     (inst.anims[Instance::kTextPathAt] &&
-                     inst.anims[Instance::kTextPathAt]->isMoving()));
+                     inst.anims[Instance::kTextPathAt]->isRunning()));
   batches.subpixel = pathDriven || inst.placementUnderMotion;
   // A pass lane draws the same run into its own layer, and a letter must
   // not sit one place inside a pass and another outside it.

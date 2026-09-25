@@ -1,6 +1,6 @@
 /** @file
  * The Composer facade: the public retained-side surface — construct with a
- * Ticker + FontContext, render() on data change, draw(canvas) inside the
+ * Engine + FontContext, render() on data change, draw(canvas) inside the
  * host's paint callback — and the Impl/Instance lifecycle under it. The
  * phase machinery lives in the sibling TUs — Reconcile, Layout, Derive,
  * Transitions and Query, and the paint phase's own files — all sharing
@@ -59,15 +59,15 @@ detail::Instance::~Instance() {
     YGNodeRemoveAllChildren(yoga);  // detach before children free theirs
   children.clear();
   if (yoga) YGNodeFree(yoga);
-  // AnimatedFloat outputs die here; Choreograph disconnects their motions
+  // HeldMotion outputs die here; Choreograph disconnects their motions
   // automatically — unmount cancels transitions by construction.
 }
 
 // ---------------------------------------------------------------------------
 // Composer public surface
 
-Composer::Composer(motion::Ticker& ticker, sigil::weave::FontContext& fonts)
-    : m_impl(std::make_unique<Impl>(ticker, fonts)) {}
+Composer::Composer(motion::Engine& engine, sigil::weave::FontContext& fonts)
+    : m_impl(std::make_unique<Impl>(engine, fonts)) {}
 Composer::~Composer() = default;
 
 void Composer::setSize(SkSize size) {
@@ -75,10 +75,6 @@ void Composer::setSize(SkSize size) {
   m_impl->size = size;
   m_impl->needsLayout = true;
   m_impl->contentDirty = true;
-}
-
-void Composer::setClock(const motion::FrameClock* clock) {
-  m_impl->clock = clock;
 }
 
 void Composer::setView(material::Filter view) {
@@ -222,7 +218,7 @@ bool Composer::active() const {
   // that drawing can be skipped.
   impl.scanReleasedScalars();
   return impl.contentDirty || impl.needsLayout || impl.volatileDirty ||
-         impl.ticker.active() || impl.rootVolatile;
+         impl.engine.isRunning() || impl.rootVolatile;
 }
 
 void Composer::draw(SkCanvas& canvas) {
@@ -310,13 +306,13 @@ void Composer::draw(SkCanvas& canvas) {
   // can start moving while no motion is running and the walk is asleep, so
   // it has to re-declare its node volatile on the spot.
   impl.scanReleasedScalars();
-  const bool active = impl.ticker.active();
-  if (impl.volatileDirty || active || impl.tickerWasActive) {
+  const bool active = impl.engine.isRunning();
+  if (impl.volatileDirty || active || impl.engineWasRunning) {
     impl.releasedScalars.clear();  // the walk re-registers what stays released
     impl.rootVolatile = impl.computeVolatile(*impl.root).volatileAbove;
     impl.volatileDirty = false;
   }
-  impl.tickerWasActive = active;
+  impl.engineWasRunning = active;
   impl.stats.volatileMs = laps.mark("volatile");
 
   // Output view transform: the composer's whole output renders into one

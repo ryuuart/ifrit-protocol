@@ -12,8 +12,8 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmeasure/stats/Samples.h>
 #include <sigilmeasure/time/Stopwatch.h>
-#include <sigilmotion/clock/ClockPolicy.h>
-#include <sigilmotion/clock/FrameClock.h>
+#include <sigilmotion/advanced/ClockPolicy.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
@@ -459,7 +459,7 @@ class Host {
    *  deltas under a fixed step, wall time when it is free-running. The
    *  asset poll and the crash reporter's frame line read it, and both
    *  want the same clock the session is stepped by. */
-  motion::FrameClock m_clock;
+  motion::Engine m_clock;
   double m_lastAssetPoll = 0.0;
   std::chrono::steady_clock::time_point m_compileStart;
   // Absent until the first presentation: there is no interval to measure

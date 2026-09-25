@@ -14,8 +14,7 @@
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmotion/clock/FrameClock.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -31,8 +30,7 @@ struct TextureScene::Impl {
 
   SkISize size{0, 0};
   material::Color background{0, 0, 0, 0};
-  motion::Ticker ticker;
-  motion::FrameClock clock;
+  motion::Engine engine;
   std::unique_ptr<Composer> composer;
 
   /** The raster surface, which every scene starts on. Null once a device
@@ -90,10 +88,9 @@ std::shared_ptr<TextureScene> TextureScene::make(SkISize size,
   Impl& impl = *scene->m_impl;
   impl.size = {std::max(1, size.width()), std::max(1, size.height())};
   impl.background = background;
-  impl.composer = std::make_unique<Composer>(impl.ticker, fonts);
+  impl.composer = std::make_unique<Composer>(impl.engine, fonts);
   impl.composer->setSize(
       SkSize::Make((float)impl.size.width(), (float)impl.size.height()));
-  impl.composer->setClock(&impl.clock);
   impl.makeRaster();
   return scene;
 }
@@ -136,8 +133,7 @@ void TextureScene::render(const Element& root, double seconds) {
   Impl& impl = *m_impl;
   const double delta = std::max(0.0, seconds - impl.seconds);
   impl.seconds = seconds;
-  impl.ticker.tick(delta);
-  impl.clock.tick(seconds);
+  impl.engine.advance(impl.engine.elapsed() + motion::Duration(delta));
   impl.composer->render(root);
   // THE ONE PLACE THE VERSION MOVES. A reconcile that changed nothing
   // and no transition in flight means the pixels standing in the surface

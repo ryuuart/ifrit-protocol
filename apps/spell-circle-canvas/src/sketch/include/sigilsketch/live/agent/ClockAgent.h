@@ -20,7 +20,7 @@ namespace sigil::sketch {
 [[nodiscard]] protocol::clock::Policy policyOf(motion::ClockPolicy policy);
 
 /** THE CLOCK OF THE SESSION AGENT'S SESSION, answered over the clock
- *  domain. The clock itself is SigilMotion's `motion::PolicyClock`, held
+ *  domain. The clock itself is a SigilMotion `motion::Engine`, held
  *  by the session agent whose frames it times; this agent reads and
  *  drives it and sends `clock.budgetExpired` when a budget runs out.
  *

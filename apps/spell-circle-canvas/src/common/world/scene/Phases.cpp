@@ -9,8 +9,8 @@
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Pbr.h>
-#include <sigilmotion/clock/Ticker.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/clock/Engine.h>
+#include <sigilmotion/advanced/Held.h>
 
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cstdio>
@@ -136,8 +136,8 @@ std::array<float, 16> scalarsOf(const glm::mat4& world) {
 
 }  // namespace
 
-Scene::Impl::Impl(motion::Ticker& t)
-    : ticker(t), reconciler(*this), bake(DrawOrderBake{}) {}
+Scene::Impl::Impl(motion::Engine& t)
+    : engine(t), reconciler(*this), bake(DrawOrderBake{}) {}
 
 // ---- describe --------------------------------------------------------------
 
@@ -156,7 +156,7 @@ void Scene::Impl::sampleLanes(Instance& inst) {
   const auto read = [this, &inst](Slot slot) {
     const Lane& lane = laneScratch[slot];
     return lane.value
-               ? motion::resolveFloatAt(inst.anims[slot].get(), *lane.value)
+               ? motion::valueOf(inst.anims[slot].get(), *lane.value)
                : lane.standing;
   };
   inst.values.translate = {read(kTranslateX), read(kTranslateY),
@@ -305,7 +305,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
     // started: a lane whose entrance has landed is still, and a lane that
     // could never be told so would hold the whole subtree volatile for
     // the rest of the scene's life.
-    if (!motion::isLive(inst.anims[i].get(), *lane.value)) continue;
+    if (!motion::isRunning(inst.anims[i].get(), *lane.value)) continue;
     // A window drives what the node IS MADE OF; the emitter's dials
     // drive what the frame is LIT BY and nothing about any node; every
     // other lane drives only where the node stands.

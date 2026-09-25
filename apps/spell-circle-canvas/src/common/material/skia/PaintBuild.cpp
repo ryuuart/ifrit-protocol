@@ -99,7 +99,7 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
   if (paintFrame) {
     inputs.reserve(live.binds.size() + 2 * live.blocks.size() + 10);
     for (const auto& [name, out] : live.binds)
-      inputs.push_back(motion::resolveFloatAt(nullptr, out));
+      inputs.push_back(out.value());
     // A block's REVISION stands in for its values: commit() moves it, an
     // uncommitted frame leaves it, and two floats carry it without the
     // digest walking the whole table. Split because a float holds 24 bits
@@ -180,7 +180,7 @@ sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
   for (const auto& [name, values] : live.constantArrays)
     b.uniform(name).set(values.data(), (int)values.size());
   for (const auto& [name, out] : live.binds)
-    b.uniform(name) = motion::resolveFloatAt(nullptr, out);
+    b.uniform(name) = out.value();
   for (const auto& [name, block] : live.blocks)
     if (block)  // size pre-validated at store: a full array write, exactly
       b.uniform(name).set(block->values().data(), (int)block->size());

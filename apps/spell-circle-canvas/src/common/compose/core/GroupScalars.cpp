@@ -41,7 +41,7 @@ void collectGroupScalars(const Instance& inst, bool root,
   const ElementNode& node = *inst.description;
   const auto push = [&](Instance::Slot slot,
                         const motion::Animatable<float>& v) {
-    if (motion::isLive(inst.anims[slot].get(), v))
+    if (motion::isRunning(inst.anims[slot].get(), v))
       out.push_back(inst.resolveFloat(slot, v));
   };
   // Every slot the table can reach, in enum order (kSlotSpecs,
@@ -72,9 +72,9 @@ void collectGroupScalars(const Instance& inst, bool root,
     size_t slot = 0;
     for (const Mask& m : node.fxData->masks) {
       const auto pushGate = [&](const motion::Animatable<float>& v) {
-        const AnimatedFloat* a =
+        const HeldMotion* a =
             slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
-        if (motion::isLive(a, v)) out.push_back(inst.resolveFloatAt(a, v));
+        if (motion::isRunning(a, v)) out.push_back(inst.resolveFloatAt(a, v));
         ++slot;
       };
       if (m.with.kind == Gate::Kind::Spans)
@@ -93,20 +93,20 @@ void collectGroupScalars(const Instance& inst, bool root,
   if (node.textData)
     for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
       const motion::Animatable<float>& v = node.textData->tracks[i].progress;
-      const AnimatedFloat* a =
+      const HeldMotion* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
-      if (motion::isLive(a, v)) out.push_back(inst.resolveFloatAt(a, v));
+      if (motion::isRunning(a, v)) out.push_back(inst.resolveFloatAt(a, v));
     }
   // The kFillLerp row (SlotRole::Bespoke): a synthesized progress with no
   // Animatable in the description, so it is read straight off the motion.
   if (inst.anims[Instance::kFillLerp] &&
-      inst.anims[Instance::kFillLerp]->isMoving())
-    out.push_back(inst.anims[Instance::kFillLerp]->current());
+      inst.anims[Instance::kFillLerp]->isRunning())
+    out.push_back(inst.anims[Instance::kFillLerp]->value());
   // The kInkLerp row, the same way: the progress of an ink easing on this
   // node, which every text and mark under it repaints with.
   if (inst.anims[Instance::kInkLerp] &&
-      inst.anims[Instance::kInkLerp]->isMoving())
-    out.push_back(inst.anims[Instance::kInkLerp]->current());
+      inst.anims[Instance::kInkLerp]->isRunning())
+    out.push_back(inst.anims[Instance::kInkLerp]->value());
   for (const auto& child : inst.children)
     collectGroupScalars(*child, false, out);
 }

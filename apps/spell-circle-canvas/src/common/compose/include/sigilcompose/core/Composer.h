@@ -19,8 +19,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/clock/FrameClock.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/time/Duration.h>
 
 #include <functional>
@@ -91,10 +90,10 @@ struct TextSettling {
 class Composer {
  public:
   /** BOTH REFERENCES ARE HELD, not copied, and both must outlive the
-   *  composer. @p ticker drives transitions and, through its FrameClock
-   *  when one is attached, PaintContext time; @p fontContext measures and
-   *  shapes every text leaf. */
-  Composer(motion::Ticker& ticker, sigil::weave::FontContext& fontContext);
+   *  composer. @p engine runs every transition and entrance and is the
+   *  PaintContext's time; @p fontContext measures and shapes every text
+   *  leaf. */
+  Composer(motion::Engine& engine, sigil::weave::FontContext& fontContext);
   ~Composer();
 
   Composer(const Composer&) = delete;
@@ -109,10 +108,6 @@ class Composer {
    *  wherever it states no size. That is the rule the
    *  snapshot()/intrinsicSize() path runs under. */
   void setSize(SkSize size);
-
-  /** Feeds PaintContext::elapsedSeconds (one clock everywhere). Null
-   *  freezes paint time at 0 — fine for static content and goldens. */
-  void setClock(const motion::FrameClock* clock);
 
   /** WHAT A LEAF UNDER NOTHING IS SET IN: the font and the ink the root
    *  inherits from, which every node that leaves them unset takes in turn.
@@ -191,11 +186,11 @@ class Composer {
   void renderSlot(std::string_view name, const Element& content);
 
   /** Content or layout changed since the last draw(). Redraw when
-   *  dirty() || ticker.active(). */
+   *  dirty() || engine.isRunning(). */
   bool dirty() const;
 
   /** Whether another draw can produce different pixels: a description or
-   *  layout is dirty, a ticker motion is running, or a retained binding can
+   *  layout is dirty, an engine motion is running, or a retained binding can
    *  change without another render(). Unlike dirty(), this also polls
    *  externally-driven bindings that previously settled. */
   bool active() const;

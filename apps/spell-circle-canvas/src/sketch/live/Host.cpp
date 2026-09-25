@@ -362,10 +362,10 @@ void Host::noteAssetProblems() {
 bool Host::restartSession() {
   if (!m_kind) return false;
   if (!openSession(m_kind)) return false;
-  // The new Session owns its own fresh clock and ticker. Reset the host-side
-  // clock as well so asset polling and crash-report frame coordinates describe
-  // the same new run, not the session that was just released.
-  m_clock = motion::FrameClock{};
+  // The new Session owns its own fresh engine. Reset the host-side clock as
+  // well so asset polling and crash-report frame coordinates describe the
+  // same new run, not the session that was just released.
+  m_clock.restart();
   m_lastAssetPoll = 0.0;
   m_frameIndex = -1;
   m_presentSince.reset();
@@ -709,8 +709,8 @@ void Host::poll() {
 
   // Asset hot reload (twice a second is plenty for filesystem stats).
   if (m_session && !m_runtimeFailed &&
-      m_clock.elapsed() - m_lastAssetPoll > 0.5) {
-    m_lastAssetPoll = m_clock.elapsed();
+      m_clock.elapsed().count() - m_lastAssetPoll > 0.5) {
+    m_lastAssetPoll = m_clock.elapsed().count();
     if (m_assets.poll()) {
       PhaseMark mark(Phase::Setup);
       if (m_options.sketchPath.extension() == ".py") {
@@ -736,10 +736,10 @@ bool Host::frame(SkCanvas& canvas, double fixedDt) {
   // measures its half-second against this reading, and a free-running
   // host whose reading never moved would poll once and never again.
   if (fixedDt >= 0)
-    m_clock.advance(fixedDt);
+    m_clock.advance(m_clock.elapsed() + motion::Duration(fixedDt));
   else
-    m_clock.tick();
-  noteFrame(++m_frameIndex, m_clock.elapsed());
+    m_clock.advance();
+  noteFrame(++m_frameIndex, m_clock.elapsed().count());
   {
     PhaseMark mark(Phase::Update);
     try {
@@ -776,7 +776,8 @@ double Host::prepareCapture(std::optional<double> at, double fps,
   if (!std::isfinite(seconds) || seconds < 0 || !std::isfinite(fps) ||
       fps <= 0 || !std::isfinite(1.0 / fps))
     throw std::invalid_argument("Capture time or frame rate is invalid");
-  const double rate = std::max(fps, 1.0 / motion::FrameClockOptions{}.maxDelta);
+  const double rate =
+      std::max(fps, 1.0 / motion::EngineOptions{}.maxWallStep.count());
   if (seconds * rate > double(std::numeric_limits<int>::max()))
     throw std::invalid_argument("Capture time or frame rate is invalid");
   if (!std::isfinite(density) || density <= 0)
@@ -890,8 +891,8 @@ SkBitmap Host::photograph(float density) {
     // The frame the runtime drew to take its still is a frame of the
     // scene, and the clock here says so.
     if (const double step = m_session->stillStep(); step > 0) {
-      m_clock.advance(step);
-      noteFrame(++m_frameIndex, m_clock.elapsed());
+      m_clock.advance(m_clock.elapsed() + motion::Duration(step));
+      noteFrame(++m_frameIndex, m_clock.elapsed().count());
     }
   }
   return bitmap;

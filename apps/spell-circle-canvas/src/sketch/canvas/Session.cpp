@@ -1,5 +1,5 @@
 /** @file
- * The 2D session: a clock, a ticker and a Composer wired together, with
+ * The 2D session: an engine and a Composer wired together, with
  * one sketch body describing into them.
  */
 
@@ -8,8 +8,7 @@
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmeasure/time/Laps.h>
-#include <sigilmotion/clock/FrameClock.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilweave/paint/Paint.h>
@@ -117,8 +116,7 @@ class CanvasSession final : public Session {
     // Setup declares too, so the painter is the session's from the first
     // line of the body onward.
     const PainterScope on(m_painter);
-    m_composer = std::make_unique<compose::Composer>(m_ticker, m_fonts);
-    m_composer->setClock(&m_clock);
+    m_composer = std::make_unique<compose::Composer>(m_engine, m_fonts);
     // A deterministic session is one whose picture will be diffed, and the
     // composer's automatic texture promotion decides by a STOPWATCH: a node
     // whose paint measures over a millisecond for eight frames is baked and
@@ -160,36 +158,23 @@ class CanvasSession final : public Session {
   void frame(SkCanvas& canvas, double dt) override {
     const PainterScope on(m_painter);
     m_laps.reset();
-    // A STATED step and a wall-clock one are the same clock: `advance`
-    // takes the caller's delta through the same pause, time scale and
-    // stall clamp `tick` puts a wall reading through, so a stepped run
-    // and a live one differ in where the number came from and in nothing
-    // else. Coming back to wall time, the clock's raw reading is rebased
-    // without advancing elapsed, or the first live frame after a sweep
-    // injects one whole maxDelta.
-    double step = 0.0;
-    if (dt >= 0.0) {
-      m_stepping = true;
-      step = m_clock.advance(dt);
-    } else {
-      if (m_stepping) {
-        const bool wasPaused = m_clock.paused();
-        m_clock.setPaused(true);
-        m_clock.tick();
-        m_clock.setPaused(wasPaused);
-        m_stepping = false;
-      }
-      step = m_clock.tick();
-    }
-    m_ticker.tick(step);
+    // A STATED step and a wall-clock frame move the same engine, so a
+    // stepped run and a live one differ in where the number came from and
+    // in nothing else; coming back to the wall after a sweep, the engine
+    // counts from its next reading rather than catching up on the sweep.
+    if (dt >= 0.0)
+      m_engine.advance(m_engine.elapsed() + motion::Duration(dt));
+    else
+      m_engine.advance();
     // A recording plays back as a function of the scene time, so the
-    // feeds the body reads are moved by the same clock that moved the
-    // ticker, and moved before the body reads them: what a frame sees is
-    // everything that had arrived by the moment it draws.
-    m_assets.dispatch(m_clock.elapsed());
+    // feeds the body reads are moved by the same engine, and moved before
+    // the body reads them: what a frame sees is everything that had
+    // arrived by the moment it draws.
+    const double seconds = m_engine.elapsed().count();
+    m_assets.dispatch(seconds);
     {
       SketchContext ctx = context();
-      m_sketch->update(m_clock.elapsed(), ctx);
+      m_sketch->update(seconds, ctx);
     }
     applySize();  // a sketch may resize itself mid-run, p5 style
     m_timing.updateMs = m_laps.mark("update");
@@ -369,7 +354,7 @@ class CanvasSession final : public Session {
   SketchContext context() {
     // A prvalue: SketchContext is non-copyable, so guaranteed elision is
     // the only way it travels.
-    return SketchContext{*m_composer,          m_ticker,         m_assets,
+    return SketchContext{*m_composer,          m_engine,         m_assets,
                          m_specification.size, &m_specification, &m_fonts,
                          m_deterministic,      &m_scenes,        m_key};
   }
@@ -377,8 +362,7 @@ class CanvasSession final : public Session {
   weave::FontContext& m_fonts;
   Assets& m_assets;
   std::string m_key;  // the sketch's registry key, for the context's local()
-  motion::FrameClock m_clock;
-  motion::Ticker m_ticker;
+  motion::Engine m_engine;
   CanvasSpecification m_specification;
   /** The texture scenes the context handed out. Before the sketch and
    *  the composer, so they outlive both: an image a sketch took from one
@@ -395,7 +379,6 @@ class CanvasSession final : public Session {
   measure::Laps m_laps;
   std::array<LaneCost, 4> m_lanes{};
   SkSize m_applied = m_specification.size;  // what the composer was last told
-  bool m_stepping = false;                  // the last frame took a stated step
   geometry::mesh::render::Runtime m_painter;
   bool m_deterministic;
 };

@@ -79,7 +79,7 @@ std::vector<std::vector<Span>> resolveSpans(const Instance& inst,
   values.reserve(inst.spanAnims.size());
   size_t slot = 0;
   auto push = [&](const motion::Animatable<float>& v) {
-    const AnimatedFloat* a =
+    const HeldMotion* a =
         slot < inst.spanAnims.size() ? inst.spanAnims[slot].get() : nullptr;
     values.push_back(inst.resolveFloatAt(a, v));
     ++slot;

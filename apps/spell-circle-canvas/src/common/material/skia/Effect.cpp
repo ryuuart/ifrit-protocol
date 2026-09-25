@@ -338,7 +338,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
                            // scale
     float sigma = m_parametricBlur->maxSigma;
     for (const auto& [name, out] : m_bound)
-      if (name == "maxSigma") sigma = motion::resolveFloatAt(nullptr, out);
+      if (name == "maxSigma") sigma = out.value();
     // A declared 0 holds no pyramid; a bound value then builds one at
     // the value, at every paint — the cost declaring the range avoids.
     const std::shared_ptr<const BlurLevels> levels =
@@ -350,7 +350,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
   if (m_directionalBlur) {  // rebuild the sandwich from the bound parameters
     DirectionalBlur d = *m_directionalBlur;
     for (const auto& [name, out] : m_bound) {
-      const float v = motion::resolveFloatAt(nullptr, out);
+      const float v = out.value();
       if (name == "sigma")
         d.sigma = v;
       else if (name == "angle")
@@ -368,7 +368,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
     SkRuntimeColorFilterBuilder map(m_effect);
     for (const auto& [name, value] : m_uniforms) map.uniform(name) = value;
     for (const auto& [name, out] : m_bound)
-      map.uniform(name) = motion::resolveFloatAt(nullptr, out);
+      map.uniform(name) = out.value();
     return SkImageFilters::ColorFilter(map.makeColorFilter(), nullptr);
   }
   SkRuntimeShaderBuilder builder(m_effect);
@@ -378,7 +378,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
   for (const auto& [name, values] : m_uniformArrays)
     builder.uniform(name).set(values.data(), (int)values.size());
   for (const auto& [name, out] : m_bound)
-    builder.uniform(name) = motion::resolveFloatAt(nullptr, out);
+    builder.uniform(name) = out.value();
   for (const auto& [name, block] : m_blocks)
     builder.uniform(name).set(block->values().data(), (int)block->size());
   // The slots, against the painting node's box (Paint::slot's
@@ -396,7 +396,7 @@ sk_sp<SkImageFilter> Effect::buildFilter(const PaintFrame* paintFrame) const {
     for (const auto& [name, value] : m_uniforms)
       if (name == "uRadius") radius = value;
     for (const auto& [name, out] : m_bound)
-      if (name == "uRadius") radius = motion::resolveFloatAt(nullptr, out);
+      if (name == "uRadius") radius = out.value();
     return makePhosphorBloom(builder, composite, radius);
   }
   return SkImageFilters::RuntimeShader(builder, "content", nullptr);
@@ -410,7 +410,7 @@ bool Effect::isAnimated() const {
   // number is a uniform value, and a node does not repaint forever for a
   // constant.
   for (const auto& [name, out] : m_bound)
-    if (motion::isLive(nullptr, out)) return true;
+    if (out.isRunning()) return true;
   // Tier inheritance: a live slot makes the whole effect live, so the node
   // is declared volatile and no cache can sample the parameter once and
   // freeze it. Material answers this question for its own subtree, so the

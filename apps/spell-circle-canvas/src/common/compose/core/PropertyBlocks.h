@@ -8,7 +8,7 @@
 
 #include <include/core/SkBlendMode.h>
 #include <include/core/SkPoint.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/advanced/Held.h>
 
 #include <optional>
 

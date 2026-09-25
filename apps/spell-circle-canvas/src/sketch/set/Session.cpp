@@ -1,5 +1,5 @@
 /** @file
- * The 3D session: a ticker, a retained Scene and one set body describing
+ * The 3D session: an engine, a retained Scene and one set body describing
  * a frame into them.
  */
 
@@ -8,8 +8,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmeasure/time/Laps.h>
-#include <sigilmotion/clock/FrameClock.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/frame/Pass.h>
@@ -72,7 +71,7 @@ class SetSession final : public Session {
              Assets& assets, bool deterministic, world::Runtime runtime)
       : m_set(std::move(set)),
         m_assets(assets),
-        m_scene(m_ticker),
+        m_scene(m_engine),
         m_runtime(std::move(runtime)) {
     m_specification.size = {900, 640};
     m_specification.background = {0.04f, 0.045f, 0.06f, 1.0f};
@@ -91,19 +90,20 @@ class SetSession final : public Session {
 
   void frame(SkCanvas& canvas, double dt) override {
     m_laps.reset();
-    // ONE CLOCK, whether the step is stated or read off the wall: a
-    // stated delta goes through `advance`, a live frame through `tick`,
-    // and both take the same pause, time scale and stall clamp. A host
-    // that kept its own accumulator here would drift from the ticker the
+    // ONE ENGINE, whether the step is stated or read off the wall. A host
+    // that kept its own accumulator here would drift from the engine the
     // first time either was paused.
-    const double step = dt >= 0.0 ? m_clock.advance(dt) : m_clock.tick();
-    m_ticker.tick(step);
+    if (dt >= 0.0)
+      m_engine.advance(m_engine.elapsed() + motion::Duration(dt));
+    else
+      m_engine.advance();
     // A recording plays back as a function of the scene time, so the
-    // feeds the set reads are moved by the same clock that moved the
-    // ticker, and moved before it describes: what a frame is described
-    // from is everything that had arrived by the moment it draws.
-    m_assets.dispatch(m_clock.elapsed());
-    world::Frame frame = m_set->describe((float)m_clock.elapsed());
+    // feeds the set reads are moved by the same engine, and moved before
+    // it describes: what a frame is described from is everything that had
+    // arrived by the moment it draws.
+    const double seconds = m_engine.elapsed().count();
+    m_assets.dispatch(seconds);
+    world::Frame frame = m_set->describe((float)seconds);
     // The plate's size and its viewpoint are the host's to state: a set
     // says what it is of, not where it lands. The size is the declared
     // canvas in the pixels this canvas actually has, so the frame is
@@ -245,7 +245,7 @@ class SetSession final : public Session {
   /** Taken once, when this session opened: every frame it draws goes
    *  through this one, whatever the process installed after. */
   world::Runtime m_runtime;
-  motion::Ticker m_ticker;
+  motion::Engine m_engine;
   world::Scene m_scene;
   CanvasSpecification m_specification;
   /** The fallback the set was handed at setup, for a tree declaring no
@@ -262,7 +262,6 @@ class SetSession final : public Session {
   // lays cost no allocation inside the span they are timing.
   measure::Laps m_laps;
   std::array<LaneCost, 4> m_lanes{};
-  motion::FrameClock m_clock;
 };
 
 }  // namespace

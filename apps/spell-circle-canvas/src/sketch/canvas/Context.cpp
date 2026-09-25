@@ -9,7 +9,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/scene/Scene.h>
@@ -49,17 +49,17 @@ sk_sp<SkImage> SketchContext::bakeSet(
   // A scene for this call, on a CLOCK OF ITS OWN: nothing here is
   // retained between bakes, so the picture is a function of the frame
   // and the moment and not of how many times the sketch has baked one —
-  // and the moment is reached without touching the sketch's ticker,
+  // and the moment is reached without touching the sketch's engine,
   // which a document baking a set into one of its panels must not move.
-  motion::Ticker clock;
-  world::Scene scene(clock);
+  motion::Engine engine;
+  world::Scene scene(engine);
   // MOUNT, THEN MOVE. A node's entrance begins when it mounts, so the
   // motions the moment is measured against do not exist until the first
   // render; the second is what samples the lanes where the clock has
   // taken them.
   scene.render(framed);
   if (seconds > 0.0) {
-    clock.tick(seconds);
+    engine.advance(motion::Duration(seconds));
     scene.render(framed);
   }
   scene.draw(canvas);

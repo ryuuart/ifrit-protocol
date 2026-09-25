@@ -89,7 +89,7 @@ Answer<protocol::values::Empty> ClockAgent::setPolicy(
 
 void ClockAgent::step(const values::StepParameters& parameters,
                       protocol::Reply<values::StepResult> reply) {
-  const motion::PolicyClock& clock = m_session.clock();
+  const motion::Engine& clock = m_session.clock();
   if (clock.policy() != motion::ClockPolicy::Advance) {
     reply(refusal(ErrorCode_failed,
                   std::string("clock.step: the clock moves by steps only "
@@ -128,20 +128,21 @@ void ClockAgent::step(const values::StepParameters& parameters,
     return;
   }
   values::StepResult result;
-  result.seconds = clock.elapsed();
+  result.seconds = clock.elapsed().count();
   result.frame = clock.frames();
   reply(result);
 }
 
 Answer<values::CurrentResult> ClockAgent::current() {
-  const motion::PolicyClock& clock = m_session.clock();
+  const motion::Engine& clock = m_session.clock();
   values::CurrentResult result;
   result.policy = policyOf(clock.policy());
-  result.seconds = clock.elapsed();
+  result.seconds = clock.elapsed().count();
   result.frame = clock.frames();
-  result.paused = clock.held();
-  result.time_scale = clock.timeScale();
-  result.budget_remaining = clock.budgetRemaining();
+  result.paused = clock.isHeld();
+  result.time_scale = clock.speed();
+  if (const std::optional<motion::Duration> left = clock.budgetRemaining())
+    result.budget_remaining = left->count();
   return result;
 }
 

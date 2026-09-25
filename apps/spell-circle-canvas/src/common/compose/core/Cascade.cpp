@@ -708,8 +708,8 @@ void Composer::Impl::resolveCascade(
   // colour that arrived from above, so it follows an ancestor's ramp as
   // that ramp happens.
   if (const auto& anim = inst.anims[Instance::kInkLerp];
-      anim && anim->started && anim->isMoving() && inst.inkTarget) {
-    font.color = lerpColour(inst.inkFrom, *inst.inkTarget, anim->current());
+      anim && anim->started && anim->isRunning() && inst.inkTarget) {
+    font.color = lerpColour(inst.inkFrom, *inst.inkTarget, anim->value());
     inkAnimating = true;
   } else if (inkTransition && inst.inkTarget) {
     font.color = *inst.inkTarget;

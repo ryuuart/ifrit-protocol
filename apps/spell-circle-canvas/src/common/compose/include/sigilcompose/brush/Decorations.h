@@ -167,12 +167,12 @@ struct PathFormat {
   /** A bound trim phase, a bound dash phase, or a live stroke material
    *  repaints per frame (declared volatility). */
   bool isAnimated() const {
-    return (trimPhase && motion::isLive(nullptr, *trimPhase)) ||
-           (dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding)) ||
+    return (trimPhase && trimPhase->isRunning()) ||
+           (dashPhaseBinding && dashPhaseBinding->isRunning()) ||
            strokeFill.isAnimated();
   }
   float phase() const {
-    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+    return dashPhaseBinding ? dashPhaseBinding->value()
                             : dashPhase;
   }
 
@@ -222,8 +222,8 @@ struct Shadow {
 
   bool operator==(const Shadow&) const = default;
   bool isAnimated() const {
-    return (bindOffsetX && motion::isLive(nullptr, *bindOffsetX)) ||
-           (bindOffsetY && motion::isLive(nullptr, *bindOffsetY));
+    return (bindOffsetX && bindOffsetX->isRunning()) ||
+           (bindOffsetY && bindOffsetY->isRunning());
   }
   /** Paint reach beyond the node's bounds; the recording's cull rect grows
    *  by this. Under-report it and a big soft shadow is clipped at the
@@ -438,10 +438,10 @@ struct Border {
 
   bool operator==(const Border&) const = default;
   bool isAnimated() const {
-    return dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding);
+    return dashPhaseBinding && dashPhaseBinding->isRunning();
   }
   float phase() const {
-    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+    return dashPhaseBinding ? dashPhaseBinding->value()
                             : dashPhase;
   }
   float bleed() const {

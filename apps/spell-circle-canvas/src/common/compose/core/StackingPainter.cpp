@@ -201,7 +201,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     const PaintContext backdropCtx{.size = {rect.width(), rect.height()},
                                    .elapsedSeconds = elapsed(),
                                    .contentScale = hostScale,
-                                   .animating = ticker.active(),
+                                   .animating = engine.isRunning(),
                                    .fonts = &fonts,
                                    .stamps = &inst.stampCache,
                                    .toRoot = curToRoot,  // this node→root
@@ -263,7 +263,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         .size = {rect.width(), rect.height()},
         .elapsedSeconds = elapsed(),
         .contentScale = hostScale,
-        .animating = ticker.active(),
+        .animating = engine.isRunning(),
         .fonts = &fonts,
         .toRoot = curToRoot,  // so the memo digest sees this move
         .rootSize = rootLayoutSize};
@@ -378,7 +378,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
   const bool opacityLive =
       style.paint.opacity.identity() != nullptr ||
       (inst.anims[Instance::kOpacity] &&
-       inst.anims[Instance::kOpacity]->isMoving());
+       inst.anims[Instance::kOpacity]->isRunning());
   const bool leafDirectBlend =
       (node.kind == Kind::Box || node.kind == Kind::Stack) &&
       inst.children.empty() && node.backgrounds.empty() &&

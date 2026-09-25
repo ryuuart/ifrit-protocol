@@ -26,7 +26,7 @@
 class SkCanvas;
 
 namespace sigil::motion {
-class Ticker;
+class Engine;
 }
 
 namespace sigil::world {
@@ -41,9 +41,9 @@ namespace sigil::world {
  *  retained node from outside. */
 class Scene {
  public:
-  /** @p ticker drives the lanes' transitions; the Scene neither owns it
+  /** @p engine drives the lanes' transitions; the Scene neither owns it
    *  nor steps it. */
-  explicit Scene(motion::Ticker& ticker);
+  explicit Scene(motion::Engine& engine);
   /** Takes over the moved-from scene's retained tree. */
   Scene(Scene&&) noexcept;
   /** Takes over the moved-from scene's retained tree, dropping this

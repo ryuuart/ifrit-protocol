@@ -10,7 +10,7 @@
  * on ramping when the geometry slot's value type changes underneath it.
  */
 
-#include <sigilmotion/values/Lanes.h>
+#include <sigilmotion/advanced/Held.h>
 #include <sigilworld/element/Node.h>
 
 #include <cstddef>

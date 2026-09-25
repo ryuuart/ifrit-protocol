@@ -104,14 +104,14 @@ Paint& Paint::offset(std::optional<motion::Animatable<float>> x,
 }
 
 bool Paint::boundOffsetLive() const {
-  return (m_boundOffset[0] && motion::isLive(nullptr, *m_boundOffset[0])) ||
-         (m_boundOffset[1] && motion::isLive(nullptr, *m_boundOffset[1]));
+  return (m_boundOffset[0] && m_boundOffset[0]->isRunning()) ||
+         (m_boundOffset[1] && m_boundOffset[1]->isRunning());
 }
 
 glm::vec2 Paint::boundOffsetValue() const {
-  return {m_boundOffset[0] ? motion::resolveFloatAt(nullptr, *m_boundOffset[0])
+  return {m_boundOffset[0] ? m_boundOffset[0]->value()
                            : 0.0f,
-          m_boundOffset[1] ? motion::resolveFloatAt(nullptr, *m_boundOffset[1])
+          m_boundOffset[1] ? m_boundOffset[1]->value()
                            : 0.0f};
 }
 
@@ -206,7 +206,7 @@ bool Paint::animatedBeyondBoundOffset() const {
   // repaint forever for a constant.
   if (m_live)
     for (const auto& [name, out] : m_live->binds)
-      if (motion::isLive(nullptr, out)) return true;
+      if (out.isRunning()) return true;
   // A slot's volatility is the parent's: the parent samples it, so a
   // live child that did not lift the parent to the live path would be
   // resolved once and frozen into the parent's cache. A NESTED bound

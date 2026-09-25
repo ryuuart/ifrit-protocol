@@ -5,7 +5,7 @@
  * into what the lane behind it is asked through.
  */
 
-#include <sigilmotion/clock/ClockPolicy.h>
+#include <sigilmotion/advanced/ClockPolicy.h>
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>

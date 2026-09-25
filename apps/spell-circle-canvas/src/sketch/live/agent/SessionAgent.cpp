@@ -228,9 +228,9 @@ void SessionAgent::settleOpen() {
   applyPins();
   // Under the wall's clock a session is seen from its first frame; under
   // any other its first frame is the client's first step.
-  if (m_clock.wall()) {
+  if (m_clock.isWall()) {
     std::string why;
-    if (!drawFrame(m_clock.frame(), &why)) {
+    if (!drawFrame(m_clock.advance().count(), &why)) {
       m_host.reset();
       m_sketch.clear();
       failed(pending.sketch, why);
@@ -317,8 +317,9 @@ bool SessionAgent::drawFrame(double delta, std::string* why) {
                                       : m_host->errorLog();
     return false;
   }
-  if (m_clock.budgetExpired())
-    for (const auto& listener : m_budgetListeners) listener(m_clock.elapsed());
+  if (m_clock.isBudgetExpired())
+    for (const auto& listener : m_budgetListeners)
+      listener(m_clock.elapsed().count());
   return true;
 }
 
@@ -329,7 +330,7 @@ bool SessionAgent::step(uint64_t frames, double seconds, std::string* why) {
     return false;
   }
   for (uint64_t frame = 0; frame < frames; ++frame)
-    if (!drawFrame(m_clock.step(seconds), why)) return false;
+    if (!drawFrame(statedFrame(seconds), why)) return false;
   return true;
 }
 
@@ -347,7 +348,7 @@ void SessionAgent::frame() {
   // Nothing is still arriving by now: the open drove every load its setup
   // asked for through before it was answered.
   std::string why;
-  if (!drawFrame(m_clock.frame(), &why)) failed(m_sketch, why);
+  if (!drawFrame(m_clock.advance().count(), &why)) failed(m_sketch, why);
 }
 
 // --- stills ----------------------------------------------------------------
@@ -433,7 +434,7 @@ std::optional<values::StillResult> SessionAgent::takeStill(
   const bool counting = !m_pendingCounts.empty();
   if (counting) session->setCompositeCounting(true);
   SkBitmap bitmap;
-  if (m_clock.still()) {
+  if (m_clock.isPaused()) {
     // A HELD CLOCK photographs the frame it holds as it was last drawn,
     // drawing nothing new — the host's own still, the one the window's
     // save command takes.
@@ -469,7 +470,7 @@ std::optional<values::StillResult> SessionAgent::takeStill(
                                         : m_host->errorLog();
       return std::nullopt;
     }
-    (void)m_clock.step(session->stillStep());
+    (void)statedFrame(session->stillStep());
   }
   if (counting) answerCounts(*session);
   if (!writePng(bitmap.pixmap(), file)) {
@@ -481,7 +482,7 @@ std::optional<values::StillResult> SessionAgent::takeStill(
   result.path = file.string();
   result.width = (uint32_t)bitmap.width();
   result.height = (uint32_t)bitmap.height();
-  result.seconds = m_clock.elapsed();
+  result.seconds = m_clock.elapsed().count();
   return result;
 }
 
@@ -589,12 +590,22 @@ void SessionAgent::compositeCounts(
 
 // --- the clock -------------------------------------------------------------
 
+double SessionAgent::statedFrame(double seconds) {
+  // A stated frame moves the clock only under Advance; under any other
+  // policy it is a frame that moves nothing, and is counted as one.
+  const motion::Duration step(
+      m_clock.policy() == motion::ClockPolicy::Advance ? seconds : 0.0);
+  return m_clock.advance(m_clock.elapsed() + step).count();
+}
+
 void SessionAgent::setPolicy(motion::ClockPolicy policy,
                              std::optional<double> budgetSeconds) {
-  const bool wasWall = m_clock.wall();
-  m_clock.setPolicy(policy, budgetSeconds);
+  const bool wasWall = m_clock.isWall();
+  m_clock.setPolicy(policy, budgetSeconds
+                                ? std::optional(motion::Duration(*budgetSeconds))
+                                : std::nullopt);
   own("policy");
-  if (wasWall != m_clock.wall()) reopen();
+  if (wasWall != m_clock.isWall()) reopen();
 }
 
 void SessionAgent::setHeld(bool held) {
@@ -603,7 +614,7 @@ void SessionAgent::setHeld(bool held) {
 }
 
 void SessionAgent::setTimeScale(double scale) {
-  m_clock.setTimeScale(scale);
+  m_clock.setSpeed(scale);
   own("scale");
 }
 
@@ -628,7 +639,7 @@ void SessionAgent::release(const std::string& session) {
     if (what == "held") {
       m_clock.setHeld(false);
     } else if (what == "scale") {
-      m_clock.setTimeScale(1.0);
+      m_clock.setSpeed(1.0);
     } else if (what == "density") {
       m_density.reset();
       // No pin is the runtime's own density again, which only a session
@@ -640,7 +651,7 @@ void SessionAgent::release(const std::string& session) {
       // anew holds from its first frame.
       if (m_host && m_host->session()) reopen();
     } else if (what == "policy") {
-      const bool wasWall = m_clock.wall();
+      const bool wasWall = m_clock.isWall();
       m_clock.setPolicy(motion::ClockPolicy::Wall);
       if (!wasWall) reopen();
     }

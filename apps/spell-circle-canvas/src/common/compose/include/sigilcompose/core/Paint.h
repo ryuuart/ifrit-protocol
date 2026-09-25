@@ -159,7 +159,7 @@ enum class PromotionPolicy : uint8_t {
 
 /** The one paint-program context: custom leaves (and, in extensions,
  *  decorations and contour walks) all receive this. `elapsedSeconds` is
- *  the Ticker's FrameClock time — pause/time-scale affect it. `fonts`
+ *  the engine's time — a hold and the speed affect it. `fonts`
  *  is the owning composer's FontContext (null only when a decoration
  *  is painted outside a composer) — what element stamps and ad-hoc
  *  SigilWeave drawing inside paint programs lay text out with. */
@@ -182,13 +182,13 @@ struct PaintContext {
   SkPath silhouette;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;
-  /** Is the composer's Ticker running anything at all this frame, as
+  /** Is the composer's engine running anything at all this frame, as
    *  read by a node that REPAINTS this frame (a cached node replays its
    *  recording and keeps its last-read value) — the
    *  WHOLE tree's answer, not this node's. A program that wants cheap
    *  chrome while something moves reads it; nothing in the library does.
    *  False outside a composer (a decoration painted standalone), which is
-   *  the honest answer there: there is no ticker to be active. */
+   *  the honest answer there: there is no engine to be running. */
   bool animating = false;
   sigil::weave::FontContext* fonts = nullptr;
   /** Paths this node BORROWED from keyed elements in the derive phase, in

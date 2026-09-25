@@ -43,9 +43,9 @@ void Shadow::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
   canvas.save();
   if (knockout) canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
-  canvas.translate(bindOffsetX ? motion::resolveFloatAt(nullptr, *bindOffsetX)
+  canvas.translate(bindOffsetX ? bindOffsetX->value()
                                : offset.x(),
-                   bindOffsetY ? motion::resolveFloatAt(nullptr, *bindOffsetY)
+                   bindOffsetY ? bindOffsetY->value()
                                : offset.y());
   canvas.drawPath(ctx.outline, p);
   canvas.restore();
@@ -81,7 +81,7 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const SkPath* drawn = &ctx.outline;
   SkPath windowed;
   const float off =
-      trimPhase ? motion::resolveFloatAt(nullptr, *trimPhase) : trimOffset;
+      trimPhase ? trimPhase->value() : trimOffset;
   const float s0 = trimStart + off, e0 = trimEnd + off;
   const float span = e0 - s0;
   if (span > 0.0f && span < 1.0f) {

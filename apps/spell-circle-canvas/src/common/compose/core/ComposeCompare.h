@@ -7,7 +7,7 @@
  */
 
 #include <sigilcore/reconcile/Reads.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/advanced/Held.h>
 
 namespace sigil::compose::detail {
 

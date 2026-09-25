@@ -9,7 +9,7 @@
  * the frame. None of the three ever ends another.
  */
 
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/schedule/Stagger.h>
 
 #include <algorithm>
@@ -45,15 +45,15 @@ void Scene::Impl::onPatched(Instance& inst, const ElementNode* prev,
   lanesOf(next, laneScratch);
   if (prev) {
     lanesOf(*prev, prevLaneScratch);
-    motion::retargetSlots<LaneFamily>(
-        ticker, std::span<std::unique_ptr<motion::AnimatedFloat>>(inst.anims),
+    motion::retargetFixed<LaneFamily>(
+        engine, std::span<std::unique_ptr<motion::HeldMotion>>(inst.anims),
         std::span<const Lane>(prevLaneScratch),
         std::span<const Lane>(laneScratch), next.nodeTransition,
         inst.mountPlace);
   } else {
     for (const Lane& lane : laneScratch)
       if (lane.value)
-        motion::mountEntrance(ticker, inst.anims[lane.slot.index], *lane.value,
+        motion::enter(engine, inst.anims[lane.slot.index], *lane.value,
                               inst.mountPlace);
   }
 

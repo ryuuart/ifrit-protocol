@@ -137,7 +137,7 @@ void bindContext(py::module_& module) {
           [](const Context& ctx) {
             const auto state = ctx.state();
             return sigil::python::TickerHandle(
-                [view = Context(state)]() -> motion::Ticker& {
+                [view = Context(state)]() -> motion::Engine& {
                   return *view.state()->ticker;
                 },
                 [view = Context(state)](std::shared_ptr<const void> owner) {

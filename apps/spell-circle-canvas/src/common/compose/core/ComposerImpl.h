@@ -83,9 +83,8 @@ struct PictureBake : core::BakeOperations<PictureBakeTarget> {
 // fields are grouped by what they belong to, not by size
 // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding)
 struct Composer::Impl {
-  motion::Ticker& ticker;
+  motion::Engine& engine;
   sigil::weave::FontContext& fonts;
-  const motion::FrameClock* clock = nullptr;
 
   SkSize size = SkSize::MakeEmpty();
   /** Whether any node in the tree declares a canvas-relative length, and the
@@ -171,7 +170,7 @@ struct Composer::Impl {
   // that stops being a target is unbounded again the moment it does.
   std::vector<detail::Instance*> threadTargets;
   bool volatileDirty = true;  // recompute needed (render or animation)
-  bool tickerWasActive = false;
+  bool engineWasRunning = false;
   // The root verdict's volatileAbove bit: unlike Instance::subtreeVolatile,
   // this includes the root's own opacity and transform, which can change the
   // composited pixels without invalidating any content cache below it.
@@ -180,7 +179,7 @@ struct Composer::Impl {
   // glyph progress and the other memoized scalar lanes). Rebuilt by every
   // computeVolatile walk, and scanned once per draw so an EXTERNALLY-driven
   // output that starts moving again re-declares volatility the same frame:
-  // the walk itself only re-runs on reconcile or while the ticker is
+  // the walk itself only re-runs on reconcile or while the engine is
   // active, so without this scan a released node driven from outside the
   // library would never notice it had resumed. Guarded by !volatileDirty —
   // a pending recompute means the tree changed and these pointers may be
@@ -377,8 +376,8 @@ struct Composer::Impl {
   // draw() publishes it as stats.reconcileMs and zeroes the accumulator.
   double reconcileAccumMs = 0;
 
-  Impl(motion::Ticker& t, sigil::weave::FontContext& f)
-      : ticker(t), fonts(f), reconciler(*this) {
+  Impl(motion::Engine& t, sigil::weave::FontContext& f)
+      : engine(t), fonts(f), reconciler(*this) {
     yogaConfig = YGConfigNew();
   }
   ~Impl() {
@@ -386,7 +385,7 @@ struct Composer::Impl {
     YGConfigFree(yogaConfig);
   }
 
-  double elapsed() const { return clock ? clock->elapsed() : 0.0; }
+  double elapsed() const { return engine.elapsed().count(); }
 
   // ---- the reconciler's host (ReconcileHost.cpp) ----
   // The ReconcileHost operations, in the reconciler's terms. Reading a

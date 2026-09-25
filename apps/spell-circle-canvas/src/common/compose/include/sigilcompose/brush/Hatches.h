@@ -36,15 +36,15 @@ struct Hatch {
   std::optional<motion::Animatable<float>> angleBinding;
 
   bool isAnimated() const {
-    return (spacingBinding && motion::isLive(nullptr, *spacingBinding)) ||
-           (angleBinding && motion::isLive(nullptr, *angleBinding));
+    return (spacingBinding && spacingBinding->isRunning()) ||
+           (angleBinding && angleBinding->isRunning());
   }
   float pitch() const {
-    return spacingBinding ? motion::resolveFloatAt(nullptr, *spacingBinding)
+    return spacingBinding ? spacingBinding->value()
                           : spacing;
   }
   float angle() const {
-    return angleBinding ? motion::resolveFloatAt(nullptr, *angleBinding)
+    return angleBinding ? angleBinding->value()
                         : angleDeg;
   }
 

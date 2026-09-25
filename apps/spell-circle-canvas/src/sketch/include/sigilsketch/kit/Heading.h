@@ -12,7 +12,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilcompose/typography/Track.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <optional>

@@ -34,18 +34,18 @@ using namespace detail;
 
 float detail::Instance::resolveFloat(Slot slot,
                                      const motion::Animatable<float>& v) const {
-  return motion::resolveFloatAt(anims[slot].get(), v);
+  return motion::valueOf(anims[slot].get(), v);
 }
 
 float detail::Instance::resolveFloatAt(
-    const AnimatedFloat* anim, const motion::Animatable<float>& v) const {
-  return motion::resolveFloatAt(anim, v);
+    const HeldMotion* anim, const motion::Animatable<float>& v) const {
+  return motion::valueOf(anim, v);
 }
 
 namespace {
 
 /** The vector holding a positional family's motions on the instance. */
-std::vector<std::unique_ptr<AnimatedFloat>>& familyAnims(Instance& inst,
+std::vector<std::unique_ptr<HeldMotion>>& familyAnims(Instance& inst,
                                                          LaneFamily family) {
   switch (family) {
     case LaneFamily::Span:
@@ -143,9 +143,9 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
 
   // Every entrance on the node resolves its staggered fields against the
   // node's place among its siblings.
-  auto entranceAt = [&](std::unique_ptr<AnimatedFloat>& slotAnim,
+  auto entranceAt = [&](std::unique_ptr<HeldMotion>& slotAnim,
                         const motion::Animatable<float>& v) {
-    motion::mountEntrance(ticker, slotAnim, v, inst.mountPlace);
+    motion::enter(engine, slotAnim, v, inst.mountPlace);
   };
   // Every lane the node carries. A mount entrance asks nothing of a slot's
   // ROLE: the description either declared a `from` or it did not.
@@ -164,7 +164,7 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
     if (lane.value) entranceAt(inst.anims[lane.slot.index], *lane.value);
   for (const LaneFamily family : kPositionalFamilies) {
     const std::span<const Lane> members = familyLanes(nodeLanes, family);
-    std::vector<std::unique_ptr<AnimatedFloat>>& anims =
+    std::vector<std::unique_ptr<HeldMotion>>& anims =
         familyAnims(inst, family);
     anims.resize(members.size());
     for (size_t i = 0; i < members.size(); ++i)
@@ -186,7 +186,7 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
         rest.kind == Fill::Kind::Color && !(from == rest)) {
       inst.fillFrom = from;
       inst.fillTo = rest;
-      motion::progressRamp(ticker, inst.anims[Instance::kFillLerp],
+      motion::progress(engine, inst.anims[Instance::kFillLerp],
                            motion::transitionOf(*tween, inst.mountPlace));
     }
   }
@@ -206,8 +206,8 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
   // the same "positional list" rule the span endpoints use.
   lanes(prev, prevLanes);
   lanes(next, nextLanes);
-  motion::retargetSlots(ticker,
-                        std::span<std::unique_ptr<AnimatedFloat>>(inst.anims),
+  motion::retargetFixed(engine,
+                        std::span<std::unique_ptr<HeldMotion>>(inst.anims),
                         familyLanes(prevLanes, LaneFamily::Slot),
                         familyLanes(nextLanes, LaneFamily::Slot), nd,
                         inst.mountPlace);
@@ -245,15 +245,15 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
       // Current visual color as the new "from" (retarget-from-current).
       Fill from = prevFill.target;
       auto& anim = inst.anims[Instance::kFillLerp];
-      if (anim && anim->started && anim->isMoving()) {
-        const float t = anim->current();
+      if (anim && anim->started && anim->isRunning()) {
+        const float t = anim->value();
         const material::Color& a = inst.fillFrom.colorValue;
         const material::Color& b = inst.fillTo.colorValue;
         from.colorValue = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
       }
       inst.fillFrom = std::move(from);
       inst.fillTo = nextFill.target;
-      motion::progressRamp(ticker, anim, *nextFill.transition);
+      motion::progress(engine, anim, *nextFill.transition);
     }
   }
 }
@@ -280,14 +280,14 @@ void Composer::Impl::retargetInk(
   // The colour on screen as the new "from": mid-easing, the value the
   // ramp stands at, so a retarget never snaps back to the old endpoint.
   material::Color from = *previous;
-  if (anim && anim->started && anim->isMoving()) {
-    const float t = anim->current();
+  if (anim && anim->started && anim->isRunning()) {
+    const float t = anim->value();
     const material::Color& a = inst.inkFrom;
     const material::Color& b = *previous;
     from = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
   }
   inst.inkFrom = from;
-  motion::progressRamp(ticker, anim, *nodeTransition);
+  motion::progress(engine, anim, *nodeTransition);
 }
 
 void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
@@ -325,7 +325,7 @@ void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
   // Add or remove a track and the shape changed — the motions drop rather
   // than carrying onto a progress that now drives a different effect.
   for (const LaneFamily family : kPositionalFamilies)
-    motion::retargetFamily(ticker, familyAnims(inst, family),
+    motion::retargetPositional(engine, familyAnims(inst, family),
                            familyLanes(prevLanes, family),
                            familyLanes(nextLanes, family), nd, inst.mountPlace);
 }
@@ -342,7 +342,7 @@ std::vector<float> detail::Instance::resolveGateValues() const {
   if (!node.hasMasks()) return values;
   size_t slot = 0;
   const auto push = [&](const motion::Animatable<float>& v) {
-    const AnimatedFloat* a =
+    const HeldMotion* a =
         slot < maskAnims.size() ? maskAnims[slot].get() : nullptr;
     values.push_back(resolveFloatAt(a, v));
     ++slot;
@@ -375,7 +375,7 @@ std::vector<float> detail::Instance::resolveTrackValues() const {
           : std::span<const Track>();
   values.reserve(tracks.size());
   for (size_t i = 0; i < tracks.size(); ++i) {
-    const AnimatedFloat* a =
+    const HeldMotion* a =
         i < trackAnims.size() ? trackAnims[i].get() : nullptr;
     values.push_back(resolveFloatAt(a, tracks[i].progress));
   }

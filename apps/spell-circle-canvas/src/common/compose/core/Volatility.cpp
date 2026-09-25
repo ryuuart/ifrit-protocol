@@ -24,7 +24,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
 
   auto boundOrRunning = [&](Instance::Slot slot,
                             const motion::Animatable<float>& v) {
-    return motion::isLive(inst.anims[slot].get(), v);
+    return motion::isRunning(inst.anims[slot].get(), v);
   };
   // Span passes: an animated reveal rebuilds the pass's geometry, and an
   // animated brush repaints it. Both are CONTENT volatility, and both are
@@ -40,7 +40,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
       for (const Spans::Term& term : pass.where.terms)
         for (const motion::Animatable<float>* v :
              {&term.begin, &term.end, &term.offset}) {
-          if (motion::isLive(slot < inst.spanAnims.size()
+          if (motion::isRunning(slot < inst.spanAnims.size()
                                  ? inst.spanAnims[slot].get()
                                  : nullptr,
                              *v))
@@ -59,9 +59,9 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   if (node.hasMasks()) {
     size_t slot = 0;
     const auto live = [&](const motion::Animatable<float>& v) {
-      const AnimatedFloat* a =
+      const HeldMotion* a =
           slot < inst.maskAnims.size() ? inst.maskAnims[slot].get() : nullptr;
-      if (motion::isLive(a, v)) maskScalarLive = true;
+      if (motion::isRunning(a, v)) maskScalarLive = true;
       ++slot;
     };
     for (const Mask& m : node.fxData->masks) {
@@ -158,13 +158,13 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   // `ownContent == liveMat | otherThanLiveMat == scalarContent |
   // otherThanScalar` true BY CONSTRUCTION rather than by review.
   const bool fillLerp = inst.anims[Instance::kFillLerp] &&
-                        inst.anims[Instance::kFillLerp]->isMoving();
+                        inst.anims[Instance::kFillLerp]->isRunning();
   // The kInkLerp row: an ink easing on this node moves the colour every
   // text and mark under it is painted in, and the cascade pass repaints
   // them each frame; the node itself declares the motion here so no
   // ancestor caches across it.
   const bool inkLerp = inst.anims[Instance::kInkLerp] &&
-                       inst.anims[Instance::kInkLerp]->isMoving();
+                       inst.anims[Instance::kInkLerp]->isRunning();
   const bool boundFill = style.paint.fill && style.paint.fill->identity();
   const material::Paint* nodeLiveMat = liveMaterialOf(inst);
   // A fill material whose ONLY animation is its own bound tile pan is NOT
@@ -292,9 +292,9 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     for (size_t i = 0; i < node.textData->tracks.size(); ++i) {
       const Track& track = node.textData->tracks[i];
       const motion::Animatable<float>& v = track.progress;
-      const AnimatedFloat* a =
+      const HeldMotion* a =
           i < inst.trackAnims.size() ? inst.trackAnims[i].get() : nullptr;
-      if (!motion::isLive(a, v)) continue;
+      if (!motion::isRunning(a, v)) continue;
       scalarContent = true;
       // …and the THIRD way a run's placement creeps: a live track whose
       // effect moves glyphs off their pen positions carries every addressed
@@ -349,7 +349,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool scalarDeclared = scalarContent;
   // The stability RELEASE, read side. The settle counter accumulates at
   // PAINT time, because this walk re-runs only on reconcile or while the
-  // ticker is active and so cannot count frames by itself. Here the walk
+  // engine is running and so cannot count frames by itself. Here the walk
   // merely honours a warmed-up release and registers the instance for the
   // per-draw scan (scanReleasedScalars) that re-declares volatility THE
   // FRAME an externally-driven binding moves again. The node's own

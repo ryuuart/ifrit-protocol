@@ -34,7 +34,7 @@ constexpr core::Phase<Scene::Impl> kPhases[] = {
 
 }  // namespace
 
-Scene::Scene(motion::Ticker& ticker) : m_impl(std::make_unique<Impl>(ticker)) {}
+Scene::Scene(motion::Engine& engine) : m_impl(std::make_unique<Impl>(engine)) {}
 Scene::Scene(Scene&&) noexcept = default;
 Scene& Scene::operator=(Scene&&) noexcept = default;
 Scene::~Scene() = default;

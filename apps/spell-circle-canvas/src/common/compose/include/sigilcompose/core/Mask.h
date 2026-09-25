@@ -16,7 +16,7 @@
 #include <sigilcore/comparable/Erased.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include <cassert>
 #include <cstdint>

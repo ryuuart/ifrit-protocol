@@ -386,7 +386,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .silhouette = std::move(marksSilhouette),
       .elapsedSeconds = elapsed(),
       .contentScale = contentScale,
-      .animating = ticker.active(),
+      .animating = engine.isRunning(),
       .fonts = &fonts,
       .borrowed = inst.borrowedPaths.empty() ? nullptr : &inst.borrowedPaths,
       .stamps = &inst.stampCache,
@@ -718,8 +718,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       fill = style.paint.fill->value();
     else if (inst.anims[Instance::kFillLerp] &&
              inst.anims[Instance::kFillLerp]->started &&
-             inst.anims[Instance::kFillLerp]->isMoving()) {
-      const float t = inst.anims[Instance::kFillLerp]->current();
+             inst.anims[Instance::kFillLerp]->isRunning()) {
+      const float t = inst.anims[Instance::kFillLerp]->value();
       // Either endpoint may be written as the ink in force or a custom
       // property, so both are resolved here before the colours are mixed.
       const Fill from = resolveRef(inst.fillFrom, paintCtx);

@@ -135,7 +135,7 @@ sk_sp<SkImageFilter> PaintPass::resolveLayerFilter() {
   const PaintContext effectCtx{.size = {rect.width(), rect.height()},
                                .elapsedSeconds = impl.elapsed(),
                                .contentScale = impl.hostScale,
-                               .animating = impl.ticker.active(),
+                               .animating = impl.engine.isRunning(),
                                .fonts = &impl.fonts,
                                .stamps = &inst.stampCache,
                                .toRoot = impl.curToRoot,

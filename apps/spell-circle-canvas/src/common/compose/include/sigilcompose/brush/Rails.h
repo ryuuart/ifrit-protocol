@@ -92,10 +92,10 @@ struct Rails {
   bool operator==(const Rails&) const = default;
 
   bool isAnimated() const {
-    return dashPhaseBinding && motion::isLive(nullptr, *dashPhaseBinding);
+    return dashPhaseBinding && dashPhaseBinding->isRunning();
   }
   float phase() const {
-    return dashPhaseBinding ? motion::resolveFloatAt(nullptr, *dashPhaseBinding)
+    return dashPhaseBinding ? dashPhaseBinding->value()
                             : dashPhase;
   }
 

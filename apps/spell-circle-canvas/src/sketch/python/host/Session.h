@@ -32,16 +32,16 @@ namespace sigil::sketch::python::detail {
 
 /** EVERYTHING ONE OPEN SESSION LENDS PYTHON, and what it holds on
  *  Python's behalf: the callables a description retained, the feeds a
- *  declaration opened, and the outputs a ticker call was handed. */
+ *  declaration opened, and the values an engine call was handed. */
 struct State {
   sigil::python::CallbackLifetime callbacks;
   compose::Composer* composer = nullptr;
   CanvasSpecification* specification = nullptr;
-  motion::Ticker* ticker = nullptr;
+  motion::Engine* engine = nullptr;
   Assets* assets = nullptr;
   weave::FontContext* fonts = nullptr;
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
-  std::vector<std::shared_ptr<const void>> tickerOwners;
+  std::vector<std::shared_ptr<const void>> engineOwners;
   std::unordered_map<io::Feed*, std::shared_ptr<void>> feedLeases;
   std::thread::id thread;
   std::string key;
@@ -64,7 +64,7 @@ struct State {
 
   void update(SketchContext& ctx) {
     composer = &ctx.composer;
-    ticker = &ctx.ticker;
+    engine = &ctx.engine;
     assets = &ctx.assets;
     fonts = ctx.fonts;
     scenes = ctx.scenes;
@@ -76,7 +76,7 @@ struct State {
   }
 
   SketchContext context() const {
-    return {*composer,           *ticker,       *assets,
+    return {*composer,           *engine,       *assets,
             specification->size, specification, fonts,
             deterministic,       scenes,        key};
   }

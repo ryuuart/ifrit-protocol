@@ -300,7 +300,7 @@ std::vector<Beat> detail::beatsOfTrack(Instance& inst, size_t trackIndex) {
   const detail::TrackBeats& resolved = schedule.resolved;
   const sigil::weave::ParagraphLayout& layout = *schedule.layout;
 
-  const AnimatedFloat* anim = trackIndex < inst.trackAnims.size()
+  const HeldMotion* anim = trackIndex < inst.trackAnims.size()
                                   ? inst.trackAnims[trackIndex].get()
                                   : nullptr;
   const float master =

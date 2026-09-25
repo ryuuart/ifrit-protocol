@@ -9,7 +9,8 @@
  */
 
 #include <include/core/SkRefCnt.h>
-#include <sigilmotion/clock/ClockPolicy.h>
+#include <sigilmotion/advanced/ClockPolicy.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilprotocol/dispatch/Dispatcher.h>
 #include <sigilprotocol/session/SessionAgent.h>
 #include <sigilsketch/core/Registry.h>
@@ -127,8 +128,9 @@ class SessionAgent final : public protocol::session::SessionAgent {
 
   // --- the clock, as the clock domain's agent drives it -------------------
 
-  /** The policy clock frames are drawn at. */
-  [[nodiscard]] const motion::PolicyClock& clock() const { return m_clock; }
+  /** The engine whose frames time the ones the session is drawn at: its
+   *  policy, budget, hold and speed are the clock domain's. */
+  [[nodiscard]] const motion::Engine& clock() const { return m_clock; }
 
   /** Replaces the clock's policy and budget for the client asking, and
    *  opens the session again where the wall's clock gave way to another
@@ -185,6 +187,11 @@ class SessionAgent final : public protocol::session::SessionAgent {
     protocol::Reply<protocol::session::values::ProfileResult> reply;
   };
 
+  /** ONE FRAME A CLIENT STATES, @p seconds long: it moves the clock only
+   *  under Advance, and is counted as a frame under every policy. Answers
+   *  how far the clock moved. */
+  double statedFrame(double seconds);
+
   /** The host for @p sketch, built for the clock as it stands; null with
    *  the reason in @p why where the name matches nothing. */
   std::unique_ptr<Host> build(const std::string& sketch, std::string* why);
@@ -230,7 +237,7 @@ class SessionAgent final : public protocol::session::SessionAgent {
 
   protocol::Dispatcher& m_dispatcher;
   SessionAgentOptions m_options;
-  motion::PolicyClock m_clock;
+  motion::Engine m_clock;
   std::unique_ptr<Host> m_host;
   std::string m_sketch;  // what the standing session was opened by
   std::optional<PendingOpen> m_pendingOpen;

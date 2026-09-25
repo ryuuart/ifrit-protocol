@@ -105,7 +105,7 @@ namespace sigil::sketch {
  * the sketch's life) or plain data instead. */
 struct SketchContext {
   compose::Composer& composer;    ///< render()/renderSlot()/query surface
-  sigil::motion::Ticker& ticker;  ///< steppables + choreograph timeline
+  sigil::motion::Engine& engine;  ///< animations, timelines and timers
   Assets& assets;                 ///< hot-reloading resource access
   SkSize size;                    ///< the current logical canvas size
   /// Host-owned; written through the declaration calls below.
@@ -125,7 +125,7 @@ struct SketchContext {
   }
 
   SketchContext(
-      compose::Composer& composerIn, sigil::motion::Ticker& tickerIn,
+      compose::Composer& composerIn, sigil::motion::Engine& engineIn,
       Assets& assetsIn, SkSize sizeIn,
       CanvasSpecification* specificationIn = nullptr,
       sigil::weave::FontContext* fontsIn = nullptr,
@@ -133,7 +133,7 @@ struct SketchContext {
       std::vector<std::shared_ptr<compose::TextureScene>>* scenesIn = nullptr,
       std::string_view keyIn = {})
       : composer(composerIn),
-        ticker(tickerIn),
+        engine(engineIn),
         assets(assetsIn),
         size(sizeIn),
         specification(specificationIn),
@@ -196,7 +196,7 @@ struct SketchContext {
    *  before it arrived — which is a still no author ever wanted.
    *
    *  The clock is the BAKE'S, not the sketch's. Reaching the moment on
-   *  the sketch's own ticker would step the sketch, and a document that
+   *  the sketch's own engine would step the sketch, and a document that
    *  photographed a set in one of its panels would move everything else
    *  on the page to do it. The moment is reached in one step, so a set
    *  whose motion is a fixed-rate steppable rather than a transition is
@@ -340,8 +340,8 @@ struct SketchContext {
  *  programs.
  *
  *  Retained-mode, not p5's redraw loop — three paths for motion:
- *   1. setup() DECLARES the scene once, wiring in its animation (bound
- *      Outputs, transitions, ticker steppables); the runtime then
+ *   1. setup() DECLARES the scene once, wiring in its animation (live
+ *      values, tweens, engine timers); the runtime then
  *      animates every frame without re-describing anything.
  *   2. custom() leaves with Cache::None are the immediate-mode floor:
  *      their paint program runs per frame with elapsedSeconds.

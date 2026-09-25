@@ -26,7 +26,7 @@
 #include <sigilgeometry/path/Profile.h>
 #include <sigilgeometry/path/Shaper.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
 
 #include <any>

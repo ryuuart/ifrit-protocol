@@ -26,8 +26,8 @@ using namespace detail;
 
 sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
                           SkSize maxSize) {
-  motion::Ticker ticker;  // inert: nothing steps it, transitions can't run
-  Composer composer(ticker, fonts);
+  motion::Engine engine;  // inert: nothing steps it, transitions can't run
+  Composer composer(engine, fonts);
   Composer::Impl& impl = *composer.m_impl;
   impl.liveOnly = true;  // one-shot: per-node caches would be pure waste
   composer.render(root);
@@ -204,8 +204,8 @@ sigil::weave::TextStyle fitRun(std::u8string_view utf8,
 
 SkSize intrinsicSize(const Element& root, sigil::weave::FontContext& fonts,
                      SkSize maxSize) {
-  motion::Ticker ticker;  // inert — same sampling rules as snapshot()
-  Composer composer(ticker, fonts);
+  motion::Engine engine;  // inert — same sampling rules as snapshot()
+  Composer composer(engine, fonts);
   Composer::Impl& impl = *composer.m_impl;
   impl.liveOnly = true;
   composer.render(root);

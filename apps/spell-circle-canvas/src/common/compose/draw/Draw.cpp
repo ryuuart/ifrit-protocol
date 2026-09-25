@@ -8,8 +8,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Graphics.h>
-#include <sigilmotion/clock/FrameClock.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <src/core/SkScopeExit.h>
 
 #include <algorithm>
@@ -157,11 +156,10 @@ PaintProgram onto(PenProgram program) {
   };
 }
 
-/** What a pen keeps for one retained element: a composer with the clock
- *  and ticker it runs on, stepped by the pen and never by the wall. */
+/** What a pen keeps for one retained element: a composer with the engine
+ *  it runs on, stepped by the pen and never by the wall. */
 struct Guest {
-  motion::FrameClock clock;
-  motion::Ticker ticker;
+  motion::Engine engine;
   /** The context the composer holds a REFERENCE to for its life, kept so
    *  a pen arriving with a different one is answered with a composer
    *  built on THAT one rather than with one measuring against a context
@@ -176,8 +174,7 @@ struct Guest {
   explicit Guest(weave::FontContext& context) { adopt(context); }
   void adopt(weave::FontContext& context) {
     fonts = &context;
-    composer = std::make_unique<Composer>(ticker, context);
-    composer->setClock(&clock);
+    composer = std::make_unique<Composer>(engine, context);
     promotion.reset();
   }
 };
@@ -261,8 +258,10 @@ void paintRetained(draw::Pen& pen, const Element& element, const SkRect& box,
     guest.composer->setAutoTexturePromotion(policy);
     guest.promotion = policy;
   }
-  const double step = guest.clock.advance(pen.deltaTime / 1000.0);
-  guest.ticker.tick(step);
+  // A pen's own step, held to the wall's stall clamp: a first frame or a
+  // resumed one does not jump the guest's motions forward by the stall.
+  const motion::Duration step(std::clamp(pen.deltaTime / 1000.0, 0.0, 0.25));
+  guest.engine.advance(guest.engine.elapsed() + step);
   guest.composer->setSize({box.width(), box.height()});
   // THE TREE CASCADES FROM THE PEN: what the pen was told it inherits is
   // what this tree's root inherits, so a guest painted inside a pen

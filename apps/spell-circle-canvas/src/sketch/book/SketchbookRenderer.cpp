@@ -180,8 +180,8 @@ void SketchbookRenderer::synchronize(QQuickRhiItem* item) {
   const bool pauseStarted = !m_paused && view->m_paused;
   m_paused = view->m_paused;
   m_timeScale = view->m_timeScale;
-  m_clock.setPaused(m_paused);
-  m_clock.setTimeScale(m_timeScale);
+  m_clock.setHeld(m_paused);
+  m_clock.setSpeed(m_timeScale);
   m_requestedIndex = view->m_sketchIndex;
   if (view->m_replayIndex >= 0)
     m_replayIndex = std::exchange(view->m_replayIndex, -1);
@@ -274,11 +274,9 @@ void SketchbookRenderer::resetPresentation() {
   m_thumbnailTaken = false;
   m_submitMsAverage = 0.0;
   m_metricsDirty = true;
-  m_clock = motion::FrameClock{};  // a new sketch starts at its own zero
-  // synchronize() applied these before openSketch(). Replacing the clock
-  // above must not silently unpause it or return it to normal speed.
-  m_clock.setPaused(m_paused);
-  m_clock.setTimeScale(m_timeScale);
+  // A new sketch starts at its own zero; the hold and the speed
+  // synchronize() applied before openSketch() stand.
+  m_clock.restart();
   const bool orbits = SketchbookView::host->session() &&
                       SketchbookView::host->session()->hasViewpoint();
   // THE ITEM'S OWN STATE IS WRITTEN ON THE GUI THREAD. This runs on the
@@ -416,7 +414,7 @@ void SketchbookRenderer::paintFrame(SkCanvas& canvas, sketch::Host& host) {
   // window has magnified it: taken at the screen's density, once.
   if (sketch::Session* session = host.session())
     session->setBakeDensity(m_deviceRatio);
-  const double step = m_clock.tick();
+  const double step = m_clock.advance().count();
   host.frame(canvas, step);
   m_sceneSeconds += step;
 }

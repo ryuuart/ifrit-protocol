@@ -7,12 +7,12 @@
  */
 
 #include <include/core/SkRefCnt.h>
-#include <sigilmotion/clock/FrameClock.h>
 
 #include <QtCore/QPointF>
 #include <QtCore/QSize>
 #include <QtCore/QSizeF>
 #include <QtQuick/QQuickRhiItem>
+#include <sigilmotion/clock/Engine.h>
 #include <cstdint>
 #include <future>
 #include <memory>
@@ -208,7 +208,7 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  dragging the window or stopping in a debugger resumes at the next
    *  frame instead of jumping every animation forward by the length of
    *  the pause. */
-  sigil::motion::FrameClock m_clock;
+  sigil::motion::Engine m_clock;
   /** WHICH STILLS HAVE LANDED, written by the writer's worker and drained
    *  by the render thread on the frame after. */
   std::mutex m_writtenMutex;

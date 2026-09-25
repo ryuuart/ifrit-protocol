@@ -11,7 +11,7 @@
 #include <sigilcore/cache/Settle.h>
 #include <sigilcore/reconcile/Node.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/values/Lanes.h>
+#include <sigilmotion/advanced/Held.h>
 #include <yoga/Yoga.h>
 
 #include "ComposeInternal.h"
@@ -61,7 +61,7 @@ inline bool childrenCarryYoga(const Instance& inst);
 /** One float property that can transition: the Choreograph output is the
  *  source of truth while a motion is connected. SigilMotion's, because a
  *  moving animatable is the motion library's business. */
-using AnimatedFloat = motion::AnimatedFloat;
+using HeldMotion = motion::HeldMotion;
 
 /** ONE RESOLVED `contentFlowAround` TARGET, in the text node's own space.
  *
@@ -375,7 +375,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
     kInkLerp,
     kSlots
   };
-  std::unique_ptr<AnimatedFloat> anims[kSlots];
+  std::unique_ptr<HeldMotion> anims[kSlots];
   /** Where this node stood among the siblings that MOUNTED WITH IT — the
    *  place every staggered tween on it resolves against, set when it
    *  mounts. Unlike `place`, which a selector reads, it counts only the
@@ -429,7 +429,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // Animated span endpoints (THREE per term — begin, end, offset — per
   // pass, in declaration order). A vector rather than the fixed Slot array
   // because the count is a property of the description, not of the kernel.
-  std::vector<std::unique_ptr<AnimatedFloat>> spanAnims;
+  std::vector<std::unique_ptr<HeldMotion>> spanAnims;
   // Animated MASK GATE scalars, in declaration order: three per Spans term
   // (begin, end, offset), one per Edge fraction, none for Shape or Alpha.
   //
@@ -440,7 +440,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // Positional like spanAnims: a description that changes the SHAPE of its
   // mask list drops the running motions rather than carrying them onto
   // numbers that now mean something else.
-  std::vector<std::unique_ptr<AnimatedFloat>> maskAnims;
+  std::vector<std::unique_ptr<HeldMotion>> maskAnims;
   // Animated textFx() TRACK progresses, one per track in declaration order.
   //
   // Positional and separately indexed for the same reason mask gates are:
@@ -448,7 +448,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // would make the third retarget the first. A description that changes the
   // NUMBER of tracks drops the running motions rather than carrying them
   // onto a progress that now drives a different effect.
-  std::vector<std::unique_ptr<AnimatedFloat>> trackAnims;
+  std::vector<std::unique_ptr<HeldMotion>> trackAnims;
 
   // Caching
   sk_sp<SkPicture> picture;
@@ -873,7 +873,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   /** The same resolution over an explicitly-held motion — the span
    *  endpoints, whose count the description decides. One body: a live
    *  value wins, then a running ramp, then the constant. */
-  float resolveFloatAt(const AnimatedFloat* anim,
+  float resolveFloatAt(const HeldMotion* anim,
                        const motion::Animatable<float>& v) const;
   /** Resolve every mask gate's animatable floats for this frame, in the
    *  order maskAnims indexes them (and ContentScalars::gates stores
