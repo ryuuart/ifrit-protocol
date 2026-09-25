@@ -7,7 +7,8 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/schedule/Cascade.h>
+#include <sigilmotion/schedule/Spread.h>
 
 using namespace sigil::motion;
 

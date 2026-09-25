@@ -18,7 +18,7 @@ find_package(boost_unordered CONFIG REQUIRED)
 find_package(choreograph CONFIG REQUIRED)
 sigil_library(SigilMotionSchedule
   SOURCES Cascade.cpp Order.cpp Spread.cpp
-  HEADERS Cascade.h Order.h Schedule.h Spread.h
+  HEADERS Cascade.h Order.h Spread.h
   PUBLIC SigilMotionBind SigilCoreCompute SigilCoreComparable
          choreograph::choreograph
   PRIVATE Boost::unordered)

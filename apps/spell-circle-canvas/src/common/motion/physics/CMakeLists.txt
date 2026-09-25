@@ -16,7 +16,7 @@
 sigil_library(SigilMotionPhysics
   SOURCES Constraints.cpp Forces.cpp Neighbourhood.cpp Particles.cpp Points.cpp
           Verlet.cpp
-  HEADERS Constraints.h Forces.h Neighbourhood.h Particles.h Physics.h Points.h
+  HEADERS Constraints.h Forces.h Neighbourhood.h Particles.h Points.h
           Verlet.h
   PUBLIC SigilCoreCompute)
 

@@ -10,7 +10,10 @@
 
 #include <gtest/gtest.h>
 #include <sigilcore/compute/Chance.h>
-#include <sigilmotion/physics/Physics.h>
+#include <sigilmotion/physics/Forces.h>
+#include <sigilmotion/physics/Neighbourhood.h>
+#include <sigilmotion/physics/Points.h>
+#include <sigilmotion/physics/Verlet.h>
 
 #include <algorithm>
 #include <cmath>

@@ -6,7 +6,11 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilmotion/physics/Physics.h>
+#include <sigilmotion/physics/Constraints.h>
+#include <sigilmotion/physics/Forces.h>
+#include <sigilmotion/physics/Neighbourhood.h>
+#include <sigilmotion/physics/Points.h>
+#include <sigilmotion/physics/Verlet.h>
 
 #include <cmath>
 #include <cstdint>

@@ -16,7 +16,10 @@ form for that — so this is the one feature here that is stepped rather
 than read.
 
 ```cpp
-#include <sigilmotion/physics/Physics.h>
+#include <sigilmotion/physics/Constraints.h>
+#include <sigilmotion/physics/Forces.h>
+#include <sigilmotion/physics/Points.h>
+#include <sigilmotion/physics/Verlet.h>
 using namespace sigil::motion::physics;
 
 Points cloth;                                  // the attributes

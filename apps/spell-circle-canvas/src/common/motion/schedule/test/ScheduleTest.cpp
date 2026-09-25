@@ -8,7 +8,9 @@
 
 #include <gtest/gtest.h>
 #include <sigilcore/comparable/Fields.h>
-#include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/schedule/Cascade.h>
+#include <sigilmotion/schedule/Order.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilmotion/ease/Ease.h>
 
 #include <algorithm>

@@ -10,7 +10,10 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmotion/physics/Physics.h>
+#include <sigilmotion/physics/Forces.h>
+#include <sigilmotion/physics/Particles.h>
+#include <sigilmotion/physics/Points.h>
+#include <sigilmotion/physics/Verlet.h>
 
 #include <algorithm>
 #include <cmath>

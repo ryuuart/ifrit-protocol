@@ -5,7 +5,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/bind/BoundFloat.h>
 #include <sigilmotion/ease/Ease.h>
 
 #include <functional>

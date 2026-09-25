@@ -5,7 +5,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
