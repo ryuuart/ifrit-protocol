@@ -120,10 +120,10 @@ TEST_F(WorldScene, AVisibleBackfaceKeepsAPlaneUnderAnOrbit) {
 }
 
 TEST_F(WorldScene, AGeometrySlotChangeKeepsTheNodeAndItsLanes) {
-  choreograph::Output<float> lift = 0.0f;
+  motion::Animatable<float> lift = motion::animatable(0.0f);
 
   const auto describe = [&lift](bool asCloud) {
-    Element body = Element().key("body").translateY(&lift);
+    Element body = Element().key("body").translateY(lift);
     if (asCloud) {
       geometry::mesh::Cloud points;
       points.positions = {{-20, 0, 0}, {20, 0, 0}};
@@ -207,10 +207,10 @@ TEST_F(WorldScene, ALaneRampsAPlacement) {
 }
 
 TEST_F(WorldScene, ASettledSubtreeBakesOnceAndADrivenLaneBelowUnsettlesIt) {
-  choreograph::Output<float> spin = 0.0f;
+  motion::Animatable<float> spin = motion::animatable(0.0f);
   const auto describe = [&spin] {
     return Element().key("root").children({Element().key("rig").children(
-        {Element().key("body").mesh(card(10)).rotateY(&spin)})});
+        {Element().key("body").mesh(card(10)).rotateY(spin)})});
   };
 
   // Still frames: the placement resolves identically, the settle
@@ -236,8 +236,8 @@ TEST_F(WorldScene, ASettledSubtreeBakesOnceAndADrivenLaneBelowUnsettlesIt) {
 }
 
 TEST_F(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
-  choreograph::Output<float> pan = 0.0f;
-  const auto describe = [](choreograph::Output<float>* lane) {
+  motion::Animatable<float> pan = motion::animatable(0.0f);
+  const auto describe = [](motion::Animatable<float>& lane) {
     return Element().key("root").children(
         {Element().key("rig").translateX(lane).children(
             {Element().key("body").mesh(card(20))})});
@@ -246,20 +246,20 @@ TEST_F(WorldScene, AStillChildInsideAMovingRigIsDrawnWhereItNowStands) {
   // `body` declares no motion of its own, so its draw order is recorded on
   // the first frame — before any hold has warmed up, and while `rig`, whose
   // lane is live, is still painting live around it.
-  scene.render(describe(&pan));
+  scene.render(describe(pan));
 
   // The lane is then assigned from OUTSIDE. Nothing about `body`'s own
   // description changed — only the matrix above it — and the order it
   // recorded carries the placement it was recorded with, so a replay draws
   // it where it used to stand.
   pan = 30.0f;
-  scene.render(describe(&pan));
+  scene.render(describe(pan));
   EXPECT_EQ(scene.stats().replayed, 0);
 
   // …and it lands where a scene that has held nothing draws it.
   Scene fresh(ticker);
-  choreograph::Output<float> panned = 30.0f;
-  fresh.render(describe(&panned));
+  motion::Animatable<float> panned = motion::animatable(30.0f);
+  fresh.render(describe(panned));
   EXPECT_EQ(plate(scene), plate(fresh));
 }
 
@@ -303,16 +303,16 @@ TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
 }
 
 TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
-  choreograph::Output<float> strength = 0.25f;
-  choreograph::Output<float> red = 1.0f;
+  motion::Animatable<float> strength = motion::animatable(0.25f);
+  motion::Animatable<float> red = motion::animatable(1.0f);
 
   const auto describe = [&] {
     return Element().key("root").children(
         {Element()
              .key("lamp")
              .light(light::point({0, 0, 0}, {0.1f, 0.2f, 0.3f, 1.0f}, 0.6f))
-             .intensity(&strength)
-             .emission(&red, 0.5f, 0.5f)});
+             .intensity(strength)
+             .emission(red, 0.5f, 0.5f)});
   };
 
   scene.render(describe());

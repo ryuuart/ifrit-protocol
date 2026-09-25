@@ -3,11 +3,11 @@
 /** @file
  * @ingroup sketch-kit
  *
- * ONE NUMBER OF A WIRE AS A MOTION OUTPUT: the channel a fader reaches a
+ * ONE NUMBER OF A WIRE AS A LIVE VALUE: the channel a fader reaches a
  * bound property through, with no handler standing between the two.
  */
 
-#include <choreograph/Choreograph.h>
+#include <sigilmotion/values/Animatable.h>
 
 #include <concepts>
 #include <cstddef>
@@ -31,21 +31,20 @@ class Hub;
 
 namespace sigil::sketch::kit {
 
-/** A CONNECTION'S NUMBER, AS THE OUTPUT A BINDING CHAIN READS.
+/** A CONNECTION'S NUMBER, AS THE LIVE VALUE A BINDING READS.
  *
  *  A desk sends a fader reading and a property has to move by it. What
  *  usually stands between the two is a handler: read the message, write
  *  a member, scale it into the units the property wants, describe again.
- *  Every step of that but the first is arithmetic the binding chain
- *  already spells, so this is the piece that takes the handler out — the
- *  channel follows one number of one message, and the chain does the
- *  rest:
+ *  Every step of that but the first is arithmetic a binding already
+ *  spells, so this is the piece that takes the handler out — the channel
+ *  follows one number of one message, and the binding does the rest:
  *
  *      sketch::kit::Channel wind{hub, desk, "/sky/wind", 0};
  *      …
- *      compose::box().scaleY(motion::bind(&wind.output())
- *                                .source(0, 127)
- *                                .target(0.2f, 1.0f))
+ *      compose::box().scaleY(motion::bind(wind.live(),
+ *                                         {.from = {0, 127},
+ *                                          .to = {0.2f, 1.0f}}))
  *
  *  TWO READINGS, because a number stands in one of two places. An
  *  argument INDEX takes it out of a message whose arguments are a list,
@@ -58,7 +57,7 @@ namespace sigil::sketch::kit {
  *
  *  IT MOVES ONLY WHEN THE MESSAGE MOVED. A dispatch that delivered
  *  nothing, a message under another name, and a message carrying the same
- *  reading as the last all leave the output exactly where it stood, so a
+ *  reading as the last all leave the value exactly where it stood, so a
  *  still fader does not rewrite a bound property once a frame. A number
  *  that is not there — no message of that name yet, an argument short of
  *  the index, a field the record does not carry, a value that is not a
@@ -77,8 +76,8 @@ namespace sigil::sketch::kit {
  *  it, and a channel standing after either is gone reads freed memory.
  *
  *  Movable and not copyable. The state lives behind a pointer, so the
- *  output keeps its address through a move — which is what a binding
- *  holding a pointer to it needs — and what the dispatch runs goes on
+ *  live value is the same cell through a move — which is what a binding
+ *  holding a copy of it needs — and what the dispatch runs goes on
  *  reading the same state. */
 class Channel {
  public:
@@ -108,7 +107,7 @@ class Channel {
         : at(field != nullptr ? std::string(field) : std::string()) {}
   };
 
-  /** A channel onto nothing: no connection, no dispatch, and an output
+  /** A channel onto nothing: no connection, no dispatch, and a value
    *  standing still at zero. It is what a scene's member is before there
    *  is a hub to open a door on, and a binding written against it reads a
    *  number rather than nothing at all. */
@@ -125,19 +124,19 @@ class Channel {
   Channel(const Channel&) = delete;
   Channel& operator=(const Channel&) = delete;
 
-  /** THE OUTPUT A BINDING READS — `motion::bind(&channel.output())`. It
+  /** THE LIVE VALUE A BINDING READS — `motion::bind(channel.live())`. It
    *  keeps its address for the life of the channel, moves included, so a
    *  description that bound it once goes on reading it. */
-  [[nodiscard]] const choreograph::Output<float>& output() const;
+  [[nodiscard]] const motion::Animatable<float>& live() const;
 
-  /** The number that output stands at, for a caller that wants the
+  /** The number that live value stands at, for a caller that wants the
    *  reading rather than a binding onto it. */
   [[nodiscard]] float value() const;
 
   /** THE NUMBER AS THE WIRE SPELLED IT, at the width the message carried
    *  it at; nothing until one has arrived that this reading could take a
-   *  number out of. It is what a readout says about the door — the output
-   *  is the same reading narrowed to what a property is driven by. */
+   *  number out of. It is what a readout says about the door — the live
+   *  value is the same reading narrowed to what a property is driven by. */
   [[nodiscard]] std::optional<double> lastRead() const;
 
   /** The message name this follows; empty for a channel onto nothing. */

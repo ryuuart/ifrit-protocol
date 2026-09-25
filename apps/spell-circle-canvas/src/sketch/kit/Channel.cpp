@@ -20,11 +20,11 @@ namespace sigil::sketch::kit {
 
 namespace {
 
-/** The output a channel onto nothing answers: one, still at zero, so a
+/** The value a channel onto nothing answers: one, still at zero, so a
  *  binding written against a member that was never opened reads a number
  *  rather than nothing at all. */
-const choreograph::Output<float>& stillOutput() {
-  static const choreograph::Output<float> still{0.0f};
+const motion::Animatable<float>& stillValue() {
+  static const motion::Animatable<float> still = 0.0f;
   return still;
 }
 
@@ -37,7 +37,7 @@ const std::string& noName() {
 
 /** WHAT A CHANNEL IS. The dispatch reaches it weakly and every reading
  *  below reaches it through the channel's pointer, so the two agree
- *  however the channel is moved about — and the output keeps its address,
+ *  however the channel is moved about — and the live value keeps its cell,
  *  which is what a description that bound it needs. */
 struct Channel::State {
   /** The door the number arrives at. Not owned: a connection outlives the
@@ -47,7 +47,7 @@ struct Channel::State {
   /** The reading itself, which a channel onto nothing holds as the index
    *  of a message it will never be given. */
   std::variant<size_t, std::string> reading;
-  choreograph::Output<float> output{0.0f};
+  motion::Animatable<float> live = motion::animatable(0.0f);
   /** How many arrivals the connection had counted when this last looked.
    *  Nothing has to be read until it moves. */
   uint64_t seen = 0;
@@ -82,7 +82,7 @@ struct Channel::State {
     const std::optional<double> number = take();
     if (!number || number == read) return;
     read = number;
-    output = (float)*number;
+    live = (float)*number;
   }
 };
 
@@ -101,11 +101,11 @@ Channel::Channel(io::Hub& hub, data::Connection& connection, std::string name,
   m_state = std::move(state);
 }
 
-const choreograph::Output<float>& Channel::output() const {
-  return m_state ? m_state->output : stillOutput();
+const motion::Animatable<float>& Channel::live() const {
+  return m_state ? m_state->live : stillValue();
 }
 
-float Channel::value() const { return output().value(); }
+float Channel::value() const { return live().value(); }
 
 std::optional<double> Channel::lastRead() const {
   return m_state ? m_state->read : std::optional<double>{};

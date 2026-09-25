@@ -60,7 +60,7 @@ Bytes packet(std::string_view address, data::Json::Array arguments) {
   return bytesOf(data::encodeOsc(address, data::Json(std::move(arguments))));
 }
 
-TEST(SketchKitChannel, AnOscArgumentOfTheNamedAddressMovesTheOutputOnDispatch) {
+TEST(SketchKitChannel, AnOscArgumentOfTheNamedAddressMovesTheValueOnDispatch) {
   Hub hub;
   hub.setFeedTransport("osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
@@ -80,7 +80,7 @@ TEST(SketchKitChannel, AnOscArgumentOfTheNamedAddressMovesTheOutputOnDispatch) {
   EXPECT_DOUBLE_EQ(*fader.lastRead(), 63.5);
 }
 
-TEST(SketchKitChannel, AMessageOnAnotherAddressLeavesTheOutputWhereItWas) {
+TEST(SketchKitChannel, AMessageOnAnotherAddressLeavesTheValueWhereItWas) {
   Hub hub;
   hub.setFeedTransport("osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
@@ -95,7 +95,7 @@ TEST(SketchKitChannel, AMessageOnAnotherAddressLeavesTheOutputWhereItWas) {
   EXPECT_DOUBLE_EQ(*fader.lastRead(), 63.5);
 }
 
-TEST(SketchKitChannel, AJsonFieldOfTheNamedKindMovesTheOutput) {
+TEST(SketchKitChannel, AJsonFieldOfTheNamedKindMovesTheValue) {
   Hub hub;
   hub.setFeedTransport("ws", intoNothing());
   data::Connection phone(hub, "ws://:8849/desk");
@@ -113,7 +113,7 @@ TEST(SketchKitChannel, AJsonFieldOfTheNamedKindMovesTheOutput) {
   EXPECT_FLOAT_EQ(wind.value(), 12.25f);
 }
 
-TEST(SketchKitChannel, AReadingThatNamesNoNumberLeavesTheOutputWhereItWas) {
+TEST(SketchKitChannel, AReadingThatNamesNoNumberLeavesTheValueWhereItWas) {
   Hub hub;
   hub.setFeedTransport("osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
@@ -148,7 +148,7 @@ TEST(SketchKitChannel, ABoundChainOverTheOutputReadsTheMappedValue) {
   // onto the unit the property wants, with nothing between the wire and
   // the arithmetic.
   const motion::Animatable<float> level =
-      motion::bind(&fader.output()).source(0, 127).target(0, 1);
+      motion::bind(fader.live(), {.from = {0, 127}, .to = {0.0f, 1.0f}});
   EXPECT_FLOAT_EQ(motion::resolveFloatAt(nullptr, level), 0.0f);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
@@ -166,17 +166,17 @@ TEST(SketchKitChannel, AMovedChannelGoesOnFollowingTheSameWire) {
   data::Connection desk(hub, "osc://:27080");
   kit::Channel first(hub, desk, "/fader/1", 0);
 
-  // The address a description binds. It is the whole reason the state
-  // stands behind a pointer: a binding that outlives the move has to keep
-  // reading the same output.
-  const choreograph::Output<float>* bound = &first.output();
+  // The cell a description binds. It is the whole reason the state stands
+  // behind a pointer: a binding that outlives the move has to keep reading
+  // the same live value.
+  const motion::Animatable<float> bound = first.live();
   kit::Channel moved = std::move(first);
-  EXPECT_EQ(&moved.output(), bound);
+  EXPECT_EQ(moved.live().identity(), bound.identity());
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
   hub.dispatch(0.0);
   EXPECT_FLOAT_EQ(moved.value(), 63.5f);
-  EXPECT_FLOAT_EQ(bound->value(), 63.5f);
+  EXPECT_FLOAT_EQ(bound.value(), 63.5f);
 }
 
 TEST(SketchKitChannel, AChannelOntoNothingStandsStillAtZero) {
@@ -186,7 +186,7 @@ TEST(SketchKitChannel, AChannelOntoNothingStandsStillAtZero) {
   EXPECT_TRUE(none.name().empty());
 
   const motion::Animatable<float> level =
-      motion::bind(&none.output()).source(0, 127).target(0, 1);
+      motion::bind(none.live(), {.from = {0, 127}, .to = {0.0f, 1.0f}});
   EXPECT_FLOAT_EQ(motion::resolveFloatAt(nullptr, level), 0.0f);
 }
 
