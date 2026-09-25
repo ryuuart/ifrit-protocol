@@ -10,7 +10,6 @@
  * one — and a fact nothing reads does nothing.
  */
 
-#include <any>
 #include <concepts>
 #include <memory>
 #include <optional>
@@ -46,22 +45,26 @@ class Attributes {
   void set(std::string_view name, T value) {
     if constexpr (std::is_convertible_v<T, std::string_view> &&
                   !std::same_as<T, std::string>) {
-      setEntry(name, std::any(std::string(std::string_view(value))),
-               &equalsAs<std::string>);
+      set(name, std::string(std::string_view(value)));
     } else {
-      setEntry(name, std::any(std::move(value)), &equalsAs<T>);
+      setEntry(name,
+               Entry{std::string(), std::make_shared<const T>(std::move(value)),
+                     &typeid(T), &equalsAs<T>});
     }
   }
 
   /** The fact under @p name, read as a @p T — or nothing, when no fact
    *  has that name or it was written as another type. A fact written as
-   *  an `int` is not read as a `float`: the type is part of the fact. */
+   *  an `int` is not read as a `float`: the type is part of the fact.
+   *
+   *  A fact reads back in its type WHEREVER THE READER WAS COMPILED: a
+   *  sketch built as an image of its own states a fact of a library type
+   *  and the library, in the host, reads it. */
   template <typename T>
   std::optional<T> get(std::string_view name) const {
     const Entry* entry = find(name);
-    if (!entry) return std::nullopt;
-    if (const T* value = std::any_cast<T>(&entry->value)) return *value;
-    return std::nullopt;
+    if (!entry || !sameType(*entry->type, typeid(T))) return std::nullopt;
+    return *static_cast<const T*>(entry->value.get());
   }
 
   /** Whether a fact stands under @p name, whatever its type. */
@@ -79,20 +82,32 @@ class Attributes {
   bool operator==(const Attributes& other) const;
 
  private:
+  /** One fact: its name, its value — immutable, so copies of a table
+   *  share it — the identity of the type it was written in, and the
+   *  equality of that type. */
   struct Entry {
     std::string name;
-    std::any value;
-    bool (*equals)(const std::any&, const std::any&) = nullptr;
+    std::shared_ptr<const void> value;
+    const std::type_info* type = nullptr;
+    bool (*equals)(const void*, const void*) = nullptr;
   };
   template <typename T>
-  static bool equalsAs(const std::any& a, const std::any& b) {
-    const T* left = std::any_cast<T>(&a);
-    const T* right = std::any_cast<T>(&b);
-    return left && right && *left == *right;
+  static bool equalsAs(const void* a, const void* b) {
+    return *static_cast<const T*>(a) == *static_cast<const T*>(b);
   }
+  /** WHETHER TWO TYPE IDENTITIES NAME ONE TYPE across images. An image
+   *  that keeps a type's identity private to itself — a sketch compiled
+   *  with hidden visibility — holds its own copy of the identity of a
+   *  type the host also names, and the platform compares a copy it
+   *  marked private against the host's shared one by address, so the two
+   *  differ. Their mangled names are one spelling, so the names decide —
+   *  except for a type in an anonymous namespace, whose spelling repeats
+   *  in another translation unit for another type, and which only its
+   *  own image can name. */
+  static bool sameType(const std::type_info& written,
+                       const std::type_info& read);
   const Entry* find(std::string_view name) const;
-  void setEntry(std::string_view name, std::any value,
-                bool (*equals)(const std::any&, const std::any&));
+  void setEntry(std::string_view name, Entry entry);
 
   std::shared_ptr<const std::vector<Entry>> m_entries;
 };

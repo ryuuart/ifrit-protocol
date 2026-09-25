@@ -1609,8 +1609,13 @@ embedding a scripting language — so a sketch never leaves the real API.
   registration macro exports carry `visibility("default")` explicitly, so
   `dlsym` finds them. The cost is that a guest gets its own copy of every
   inline the host also has, which is right for code and would be wrong
-  only for a mutable static inside one, and typeinfo equality survives
-  because a duplicated typeinfo is compared by name. `--frame` on a
+  only for a mutable static inside one. Typeinfo equality is the other
+  thing it touches: the platform compares two copies it marked private
+  by name, but a private copy against the one the host shares by
+  address, so a library type's identity in a guest differs from the
+  host's. A fact on an element is the place that crosses, and
+  `compose::Attributes` matches a fact's type by its spelled name for
+  that reason. `--frame` on a
   registry sketch with one colour changed is the whole of the proof, and
   the `sketch_reload_runs_the_file` test is exactly that.
 * **The build directory belongs to the run that made it.** The objects

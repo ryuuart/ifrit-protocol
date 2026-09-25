@@ -30,6 +30,14 @@ written in and in no other — an `int` is not read as a `float` — except
 by `number`, which an arranging operator reads a lane through whichever
 numeric type it was written in.
 
+**It reads back wherever the reader was compiled.** A sketch the live
+host compiled as an image of its own states a fact of a library type — a
+`pin::Request` — and the library, compiled into the host, reads it in
+that type. Such an image keeps its own copy of the type's identity, so
+the type is matched by its spelled name; a type in an anonymous
+namespace, whose spelling another translation unit may repeat for
+another type, is matched only within the image that wrote it.
+
 **Who reads it decides what it means.** The scheme or operator on the
 parent reads the facts of the children it places — `layouts::Radial`
 told a `lane` stands each child at the fraction its fact makes of the

@@ -333,26 +333,6 @@ at fraction 1 ends within a pixel of where it starts, for two runs of
 different lengths in the same box, and that a spacing fit leaves the
 font size unchanged.
 
-## A fact of a library type stated by a live-compiled sketch is not read back
-
-`Attributes::get<T>` reads a fact with `std::any_cast`, which compares
-the type identity the writer's image recorded against the reader's.
-When Sketchbook compiles a sketch live and loads it beside the host, a
-fact the sketch states in one of the libraries' own types —
-`pin::Request` — is written with the sketch image's identity and read by
-`pin::ByLane::add` in the host with the host's, and the cast answers
-nothing: `pin::ByLane` finds the node through `Scope::having` and then
-hangs nothing. `pins_and_hulls` shows it: rendered live with `--frame`,
-none of its callouts appear. A fact of a standard type
-(`std::vector<std::string>`, `int`) crosses fine, which is why
-`connect::ByLane` and `stamp::ByLane` work in the same sketch.
-
-A fact is evidently meant to read back in the type it was written in
-wherever the reader was compiled. A test should load a sketch built as
-its own image, state a `pin::Request` on a node under `pin::ByLane`,
-and assert the pinned element is attached; `thaumonomicon` places its
-tooltip by hand until then.
-
 ## A nib brush lays white discs inside a compose pen node
 
 `draw::brush::paint` with a `Tip::Nib` tool (colour cinnabar, opacity 1,

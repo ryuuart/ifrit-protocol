@@ -60,11 +60,35 @@ sigil_test(compose_test
           test/ComposeTestRows.cpp test/ComposeTestShapeValues.cpp
           test/ComposeTestSpecimen.cpp test/ComposeTestSprites.cpp
           test/ComposeTestStudio.cpp test/ComposeTestTiling.cpp
-          test/ComposeTestTravel.cpp
+          test/ComposeTestTravel.cpp test/ComposeTestFactsAcrossImages.cpp
   LIBRARIES SigilComposeKit SigilComposeBrush SigilMeasure
             SigilComposeTesting SigilWeavePorts
   LABELS fonts
   SUITES KitPixelType.InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing)
+
+# A GUEST IMAGE that states a fact of a library type, compiled hidden as the
+# live host compiles a sketch, so its identity for the type is its own, and
+# resolving the library out of the test binary as a sketch resolves it out
+# of Sketchbook.
+if(TARGET compose_test)
+  add_library(compose_test_pin_guest MODULE test/guest/PinStatingGuest.cpp)
+  target_link_libraries(compose_test_pin_guest PRIVATE
+    $<COMPILE_ONLY:SigilComposeKit>)
+  set_target_properties(compose_test_pin_guest PROPERTIES
+    CXX_VISIBILITY_PRESET hidden
+    VISIBILITY_INLINES_HIDDEN ON)
+  if(APPLE)
+    target_link_options(compose_test_pin_guest PRIVATE
+      -undefined dynamic_lookup)
+  endif()
+  add_dependencies(compose_test compose_test_pin_guest)
+  # The binary is created by the library's first call, in another
+  # directory, and a source's properties are read in the target's.
+  set_source_files_properties(test/ComposeTestFactsAcrossImages.cpp
+    TARGET_DIRECTORY compose_test PROPERTIES
+    COMPILE_DEFINITIONS
+      "SIGIL_COMPOSE_PIN_GUEST=\"$<TARGET_FILE:compose_test_pin_guest>\"")
+endif()
 
 # Comparable silhouettes, hit testing and blended shaped leaves.
 sigil_bench(compose_bench
