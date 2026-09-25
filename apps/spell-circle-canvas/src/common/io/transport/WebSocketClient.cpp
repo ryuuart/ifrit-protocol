@@ -28,6 +28,7 @@
 #include <utility>
 #include <vector>
 
+#include "Registration.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
@@ -400,7 +401,7 @@ FeedTransport openWebSocket(FeedTransport listening, FeedTransport calling) {
 
 }  // namespace
 
-void registerWebSocketClient(Hub& hub) {
+void detail::registerWebSocketClient(Hub& hub) {
   const FeedTransport calling = [](std::string_view uri,
                                    std::weak_ptr<Feed> into) {
     return openFeed(uri, into);

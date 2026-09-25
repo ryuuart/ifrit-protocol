@@ -71,6 +71,7 @@
 #include <system_error>
 #include <utility>
 
+#include "Registration.h"
 #include "IoThread.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
@@ -501,7 +502,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
 
 }  // namespace
 
-void registerSharedMemory(Hub& hub) {
+void detail::registerSharedMemory(Hub& hub) {
   // The looks of every region opened through one registration share one
   // thread, made when the first of them opens.
   auto shared = std::make_shared<detail::SharedIoThread>();

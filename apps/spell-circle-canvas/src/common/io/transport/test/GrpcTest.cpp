@@ -79,7 +79,7 @@ uint16_t portNobodyHolds(boost::asio::io_context& context) {
  *  order to keep. */
 class IOGrpc : public ::testing::Test {
  protected:
-  IOGrpc() { sigil::io::registerGrpc(hub); }
+  IOGrpc() { sigil::io::registerTransports(hub, {"grpc"}); }
 
   /** The URL a caller reaches @p server at: the loopback, the port it
    *  bound, and the method it answers to. */
@@ -168,7 +168,7 @@ TEST_F(IOGrpc, SendToReachesTheOneCallerItNamesAndNoOther) {
   // hub of its own: two feeds on one URI would be one call drained by
   // two readers, which is not two callers.
   Hub elsewhere;
-  sigil::io::registerGrpc(elsewhere);
+  sigil::io::registerTransports(elsewhere, {"grpc"});
   const std::shared_ptr<Feed> first = hub.feed(url);
   ASSERT_TRUE(first->error().empty()) << first->error();
   const std::shared_ptr<Feed> second = elsewhere.feed(url);
@@ -231,7 +231,7 @@ TEST_F(IOGrpc, AServerThatGoesAwayEndedRatherThanNeverHavingBeenReached) {
   const std::string url = urlOf(server);
 
   Hub elsewhere;
-  sigil::io::registerGrpc(elsewhere);
+  sigil::io::registerTransports(elsewhere, {"grpc"});
   const std::shared_ptr<Feed> caller = elsewhere.feed(url);
   ASSERT_TRUE(caller->error().empty()) << caller->error();
   EXPECT_TRUE(caller->send(bytesOf("here")));

@@ -161,7 +161,7 @@ uint16_t portNobodyHolds(boost::asio::io_context& context) {
 class IOQuic : public ::testing::Test {
  protected:
   IOQuic() : scratch("sigilio_quic") {
-    sigil::io::registerQuic(hub);
+    sigil::io::registerTransports(hub, {"quic"});
     standing = standCredentials(scratch);
   }
 
@@ -269,7 +269,7 @@ TEST_F(IOQuic, SendToReachesTheOneConnectionItNamesAndNoOther) {
   // hub of its own: two feeds on one URI would be one connection drained
   // by two readers, which is not two callers.
   Hub elsewhere;
-  sigil::io::registerQuic(elsewhere);
+  sigil::io::registerTransports(elsewhere, {"quic"});
   const std::shared_ptr<Feed> first = hub.feed(url);
   ASSERT_TRUE(first->error().empty()) << first->error();
   const std::shared_ptr<Feed> second = elsewhere.feed(url);

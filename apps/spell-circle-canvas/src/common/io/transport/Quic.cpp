@@ -47,6 +47,7 @@
 #include <utility>
 #include <vector>
 
+#include "Registration.h"
 #include "QuicAddress.h"
 #include "QuicLibrary.h"
 #include "QuicPeer.h"
@@ -333,7 +334,7 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
 }  // namespace
 }  // namespace quic
 
-void registerQuic(Hub& hub) {
+void detail::registerQuic(Hub& hub) {
   // The certificate and key a URI's query names are resolved through
   // this hub as the feed opens. The reference is read there and nowhere
   // else: a transport is registered ON a hub and is held by it, so the

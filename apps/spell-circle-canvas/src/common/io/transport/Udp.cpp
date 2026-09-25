@@ -38,6 +38,7 @@
 #include <system_error>
 #include <utility>
 
+#include "Registration.h"
 #include "IoThread.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
@@ -381,7 +382,7 @@ FeedTransport datagramTransport(std::shared_ptr<detail::SharedIoThread> shared,
 
 }  // namespace
 
-void registerUdp(Hub& hub) {
+void detail::registerUdp(Hub& hub) {
   // All three names share one thread, because they are one socket: a hub
   // asked for none of the schemes still starts nothing.
   auto shared = std::make_shared<detail::SharedIoThread>();
@@ -390,24 +391,6 @@ void registerUdp(Hub& hub) {
   // The lighting desks' datagrams, under the name their wire is called
   // by, on the port that wire holds: artnet://:6454 listens for them.
   hub.setFeedTransport("artnet", datagramTransport(shared, "artnet"));
-}
-
-void registerTransports(Hub& hub) {
-  registerUdp(hub);
-  // The listener first and the caller after it: the caller stands in
-  // front of whatever the scheme holds and hands a URI with no host back
-  // to it, so the order is what makes both forms open.
-  registerWebSocket(hub);
-  registerWebSocketClient(hub);
-  registerSharedMemory(hub);
-  registerMidi(hub);
-  registerSerial(hub);
-  registerGrpc(hub);
-  registerQuic(hub);
-  // After both ends of the websocket, because a webrtc feed opens its
-  // signalling door through this same hub: whichever end of that door
-  // its URI names has to be registered before one can be asked for.
-  registerWebRtc(hub);
 }
 
 }  // namespace sigil::io

@@ -24,15 +24,7 @@ set(SIGIL_IO_REFERENCE
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/RecordingWriter.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ResourceLease.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/SharedMemoryWriter.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerGrpc.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerMidi.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerQuic.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerSerial.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerSharedMemory.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerUdp.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerWebRtc.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerWebSocket.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerWebSocketClient.md)
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/registerTransports.md)
 
 sigil_library_root(SigilIO
   BRIEF "Runtime resource access, byte transports and native frame sharing"

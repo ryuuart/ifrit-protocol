@@ -49,4 +49,4 @@ from then on.
 
 ## See also
 
-`sigil::io::registerSharedMemory`, the reading end.
+`sigil::io::registerTransports`, which installs the reading end under "shm".

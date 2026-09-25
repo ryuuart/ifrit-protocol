@@ -59,16 +59,13 @@ uint16_t portOf(const std::string& address) {
   return static_cast<uint16_t>(std::stoul(address.substr(colon + 1)));
 }
 
-/** WHAT A CLIENT CASE NEEDS BEFORE IT CAN OPEN ANYTHING: a hub with the
- *  listener taught first and the client standing in front of it, which
- *  is the order the two are registered in — the client reads the
- *  transport already holding the scheme so it can hand the URIs that
- *  name a port to it. */
+/** WHAT A CLIENT CASE NEEDS BEFORE IT CAN OPEN ANYTHING: a hub taught
+ *  the websocket schemes, which puts the listener behind the client so
+ *  the client can hand the URIs that name a port to it. */
 class IOWebSocketClient : public ::testing::Test {
  protected:
   IOWebSocketClient() {
-    sigil::io::registerWebSocket(hub);
-    sigil::io::registerWebSocketClient(hub);
+    sigil::io::registerTransports(hub, {"ws"});
   }
 
   /** The URL a client reaches @p listener at: the loopback, the port it

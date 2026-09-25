@@ -38,6 +38,7 @@
 #include <thread>
 #include <vector>
 
+#include "../Registration.h"
 #include "ScratchDir.h"
 
 namespace {
@@ -621,11 +622,12 @@ TEST_F(IOWebSocket, AUriThatNamesNoPortOpensNothingAndSaysWhy) {
 
 TEST_F(IOWebSocket, AUriThatNamesAHostToReachOpensNothingOnTheListenerAlone) {
   // The listener does not call, so on a hub taught the listener and
-  // nothing else a peer to reach is not something it can open — and the
-  // feed says that rather than binding something else. A hub taught the
-  // caller as well hands such a URI to the caller.
+  // nothing else — which only this feature's own installer can make — a
+  // peer to reach is not something it can open, and the feed says that
+  // rather than binding something else. registerTransports puts the
+  // caller in front of it, which takes such a URI.
   Hub listening;
-  sigil::io::registerWebSocket(listening);
+  sigil::io::detail::registerWebSocket(listening);
   const std::shared_ptr<Feed> feed =
       listening.feed("ws://desk.local:9001/scene");
   EXPECT_FALSE(feed->error().empty());

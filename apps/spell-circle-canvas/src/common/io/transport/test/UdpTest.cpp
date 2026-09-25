@@ -85,6 +85,36 @@ class IOUdp : public ::testing::Test {
   boost::asio::io_context context;
 };
 
+TEST(IOTransports, NamedSchemesInstallTheTransportsThatAnswerThemAndNoOther) {
+  Hub named;
+  sigil::io::registerTransports(named, {"osc"});
+  // One socket answers three schemes, and naming one installs all three.
+  EXPECT_TRUE(named.feedTransport("udp"));
+  EXPECT_TRUE(named.feedTransport("osc"));
+  EXPECT_TRUE(named.feedTransport("artnet"));
+  EXPECT_FALSE(named.feedTransport("ws"));
+  EXPECT_FALSE(named.feedTransport("midi"));
+
+  // A webrtc door is introduced over a websocket one of the same hub, so
+  // naming it brings both ends of that door.
+  sigil::io::registerTransports(named, {"webrtc"});
+  EXPECT_TRUE(named.feedTransport("webrtc"));
+  EXPECT_TRUE(named.feedTransport("ws"));
+  EXPECT_TRUE(named.feedTransport("wss"));
+
+  // Registering again replaces rather than stacking a caller in front of
+  // a caller: a hostless wss:// URI still has nothing to listen with.
+  sigil::io::registerTransports(named, {"ws"});
+  const std::shared_ptr<Feed> secure = named.feed("wss://:0/scene");
+  EXPECT_FALSE(secure->error().empty());
+
+  Hub everything;
+  sigil::io::registerTransports(everything);
+  for (const char* scheme : {"udp", "osc", "artnet", "ws", "wss", "shm", "midi",
+                             "serial", "grpc", "quic", "webrtc"})
+    EXPECT_TRUE(everything.feedTransport(scheme)) << scheme;
+}
+
 TEST_F(IOUdp, AListeningFeedSaysWhichPortItBoundAndTakesWhatArrivesThere) {
   const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
   ASSERT_TRUE(listener->error().empty()) << listener->error();

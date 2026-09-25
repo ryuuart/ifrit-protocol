@@ -176,7 +176,7 @@ std::string uniqueName(std::string_view what) {
 void BM_Udp(benchmark::State& state) {
   const size_t size = static_cast<size_t>(state.range(0));
   Hub hub;
-  sigil::io::registerUdp(hub);
+  sigil::io::registerTransports(hub, {"udp"});
   const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
   if (!listener->error().empty()) {
     state.SkipWithError(listener->error());
@@ -219,8 +219,7 @@ void BM_WebSocket(benchmark::State& state) {
   // The listener is taught first and the client stands in front of it:
   // one scheme, and the shape of the URI is what says which end a feed
   // is.
-  sigil::io::registerWebSocket(hub);
-  sigil::io::registerWebSocketClient(hub);
+  sigil::io::registerTransports(hub, {"ws"});
   const std::shared_ptr<Feed> server = hub.feed("ws://:0/bench");
   if (!server->error().empty()) {
     state.SkipWithError(server->error());
@@ -302,7 +301,7 @@ void BM_SharedMemory(benchmark::State& state) {
     return;
   }
   Hub hub;
-  sigil::io::registerSharedMemory(hub);
+  sigil::io::registerTransports(hub, {"shm"});
   const std::shared_ptr<Feed> region = hub.feed("shm://" + name + kLookRate);
   if (!region->error().empty()) {
     state.SkipWithError(region->error());
@@ -338,7 +337,7 @@ constexpr size_t kNoteBytes = 3;
  *  driver and the callback of its own it delivers the message on. */
 void BM_Midi(benchmark::State& state) {
   Hub hub;
-  sigil::io::registerMidi(hub);
+  sigil::io::registerTransports(hub, {"midi"});
   const std::string name = uniqueName("midi");
   const std::shared_ptr<Feed> keys = hub.feed("midi://out/virtual:" + name);
   if (!keys->error().empty()) {
@@ -442,7 +441,7 @@ void BM_Serial(benchmark::State& state) {
     return;
   }
   Hub hub;
-  sigil::io::registerSerial(hub);
+  sigil::io::registerTransports(hub, {"serial"});
   const std::shared_ptr<Feed> board =
       hub.feed("serial://" + pair.device + "?baud=115200");
   if (!board->error().empty()) {
@@ -483,7 +482,7 @@ BENCHMARK(BM_Serial)->Arg(64)->Arg(1400)->Unit(benchmark::kMicrosecond);
 void BM_Grpc(benchmark::State& state) {
   const size_t size = static_cast<size_t>(state.range(0));
   Hub hub;
-  sigil::io::registerGrpc(hub);
+  sigil::io::registerTransports(hub, {"grpc"});
   const std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
   if (!server->error().empty()) {
     state.SkipWithError(server->error());
@@ -585,7 +584,7 @@ void measureQuic(benchmark::State& state, bool asDatagrams) {
     return;
   }
   Hub hub;
-  sigil::io::registerQuic(hub);
+  sigil::io::registerTransports(hub, {"quic"});
   std::string listening =
       "quic://:0?cert=" + (scratch.path / "cert.pem").string() +
       "&key=" + (scratch.path / "key.pem").string();
@@ -718,9 +717,7 @@ void BM_WebRtc(benchmark::State& state) {
   // The door the introductions cross is a websocket one this same hub
   // opens: a port held at the end that waits, a server called at the
   // end that takes the room up.
-  sigil::io::registerWebSocket(hub);
-  sigil::io::registerWebSocketClient(hub);
-  sigil::io::registerWebRtc(hub);
+  sigil::io::registerTransports(hub, {"webrtc"});
   const std::shared_ptr<Feed> waiting = hub.feed(
       "webrtc://bench?signal=ws://:" + std::to_string(port) + "/signal");
   if (!waiting->error().empty()) {

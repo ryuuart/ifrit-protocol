@@ -67,6 +67,7 @@
 #include <variant>
 #include <vector>
 
+#include "Registration.h"
 #include "Introduction.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
@@ -783,7 +784,7 @@ OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
 
 }  // namespace
 
-void registerWebRtc(Hub& hub) {
+void detail::registerWebRtc(Hub& hub) {
   // The signalling doors this registration opens are its own: the hub
   // is where they are asked for, as the pages a listener serves are
   // resolved through the hub that opened it, and one of them is shared

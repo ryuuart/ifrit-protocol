@@ -48,6 +48,7 @@
 #include <utility>
 #include <vector>
 
+#include "Registration.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
@@ -716,7 +717,7 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
 
 }  // namespace
 
-void registerWebSocket(Hub& hub) {
+void detail::registerWebSocket(Hub& hub) {
   // The pages a URI's query names are resolved through this hub as the
   // feed opens. The reference is read there and nowhere else: a
   // transport is registered ON a hub and is held by it, so the hub

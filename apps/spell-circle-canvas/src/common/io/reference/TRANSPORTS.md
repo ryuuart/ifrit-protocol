@@ -55,9 +55,12 @@ sender to answer and no end to answer through. `send()` is unchanged by
 it: a peer's feed still writes to its peer and a listening WebSocket
 still broadcasts to every peer on its path.
 
-`SigilIOTransport` registers nine transports under eleven schemes, two of
-those transports sharing a scheme.
-`registerUdp()` takes the UDP ones: `udp://:PORT` listens on every
+`SigilIOTransport` carries nine transports under eleven schemes, two of
+those transports sharing a scheme, and `registerTransports(hub, schemes)`
+installs the ones that answer the schemes it is handed — every one of them
+when it is handed none; naming one scheme of a transport installs it under
+all of its schemes, and naming it again replaces it.
+The UDP transport takes the UDP ones: `udp://:PORT` listens on every
 interface, IPv4 and IPv6 alike, and `udp://HOST:PORT` is a peer that
 `send()` reaches and whose replies arrive. A listener has no peer to
 `send()` to and answers ONE sender instead, through `Feed::sendTo()`:
@@ -74,7 +77,7 @@ send them to. Sockets in one UDP registration share a private IO thread.
 Closing a feed releases its socket before returning, so its port can be
 rebound immediately even while the closed feed object remains held.
 
-`registerWebSocket()` takes `ws://`. `ws://:PORT/PATH` listens on every
+The WebSocket listener takes `ws://`. `ws://:PORT/PATH` listens on every
 interface for peers reaching that path — an omitted PATH being the root —
 every text or binary message from any of them arrives naming that peer,
 and one `send()` goes out to all of them at once while `Feed::sendTo()`
@@ -136,14 +139,14 @@ arrivals' sender is: a peer is in it from the upgrade on and gone from it
 once its socket closes, which is how a door that holds many learns that
 one has left.
 
-`registerWebSocketClient()` is the other end, and it takes `ws://` and
+The WebSocket client is the other end, and it takes `ws://` and
 `wss://` both. The two ends share a scheme, and the SHAPE of the URI is
 what says which one a feed is: `ws://HOST:PORT/PATH` and
 `wss://HOST:PORT/PATH` name a server to call, `ws://:PORT/PATH` names a
 port to hold. The client stands in front of whatever was registered for
 those schemes and splits the two in one place — a URI with a host it
 calls itself, a URI without one it hands to the listener behind it — so
-`registerWebSocket()` is installed first, and a scheme with nothing
+the listener is installed first, and a scheme with nothing
 behind it refuses a hostless URI with the reason. The port is spelled
 rather than taken from the scheme, so what a feed reaches is what its
 URI says. A call is made over libcurl, which is where the TLS `wss://`
@@ -157,7 +160,7 @@ answered before its server has been reached, `error()` carries the
 reason when it cannot be, and a `send()` before then goes nowhere and
 says so. A server that ends the session closes the feed.
 
-`registerSharedMemory()` takes `shm://`, and it is the one transport
+The shared memory reader takes `shm://`, and it is the one transport
 here with no network under it. `shm://NAME` maps the shared memory
 object of that name and answers what the ONE writer of that region put
 there, so a scene crosses from another process on this machine through
@@ -231,7 +234,7 @@ rather than the memory: a region made after a feed was opened on its
 name is one that feed reads, and so is the one a writer started again
 makes under a name it took back.
 
-`registerMidi()` takes `midi://`, and what stands behind it is not a
+The MIDI transport takes `midi://`, and what stands behind it is not a
 network either: it is the controller on the desk beside the screen, its
 pads and knobs coming in and its lights going out. `midi://in/NAME`
 opens the first INPUT port whose own name holds NAME, letter for letter
@@ -267,7 +270,7 @@ callback of its own on every arriving message, which is the thread an
 arrival is delivered from, and an output is written on the thread that
 asked.
 
-`registerSerial()` takes `serial://`, and what stands behind it is the
+The serial transport takes `serial://`, and what stands behind it is the
 oldest wire there is: a board on a cable, printing a line whenever it
 has something to say. `serial://DEVICE?baud=RATE` opens the device file
 of that path — whole and absolute, as in
@@ -307,7 +310,7 @@ as the `address()` such a feed reports is. The ports every registration
 opens share ONE thread, made when the first of them opens, so a hub
 taught the scheme and never asked for a port starts nothing.
 
-`registerGrpc()` takes `grpc://`, and it is one scheme at both ends: the
+The gRPC transport takes `grpc://`, and it is one scheme at both ends: the
 SHAPE of the URI is what says which end a feed is, as it is for the two
 websocket ones, but here one registration takes both. `grpc://:PORT/
 Service/Method` holds that port and serves that one method — PORT 0
@@ -370,7 +373,7 @@ inside such a callback hands its shutdown to, a server being shut down
 by waiting for every call's callbacks to end and a callback not being
 able to wait for itself.
 
-`registerQuic()` takes `quic://`, and it is one scheme at both ends, the
+The QUIC transport takes `quic://`, and it is one scheme at both ends, the
 SHAPE of the URI saying which end a feed is, exactly as the gRPC one
 beside it. `quic://:PORT?cert=FILE&key=FILE` holds that port — PORT 0
 meaning any free port — and `quic://HOST:PORT` calls an end there.
@@ -450,7 +453,7 @@ registration its workers run under are made on the first `quic://` feed
 and stand for the life of the process, giving either back being the same
 wait.
 
-`registerWebRtc()` takes `webrtc://`, and what it opens is the only door
+The WebRTC transport takes `webrtc://`, and what it opens is the only door
 here with NOTHING IN THE MIDDLE OF IT. A phone on a mobile network and a
 scene behind a router have no address for each other, so neither can be
 dialled; what they can do is say what addresses they might be reachable

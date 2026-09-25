@@ -64,6 +64,7 @@
 #include <utility>
 #include <vector>
 
+#include "Registration.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
@@ -828,7 +829,7 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
 
 }  // namespace
 
-void registerGrpc(Hub& hub) {
+void detail::registerGrpc(Hub& hub) {
   hub.setFeedTransport("grpc",
                        [](std::string_view uri, std::weak_ptr<Feed> into) {
                          return openFeed(uri, into);

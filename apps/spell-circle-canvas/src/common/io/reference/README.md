@@ -16,15 +16,16 @@ page here.
 | `pages/types/ByteSource.md` | the byte vocabulary in both directions: the four concepts, the probe seam, the type-erased source, the two filesystem ends |
 | `pages/types/ArchiveSource.md` | a zip held whole in memory, and the entry ceiling that reads a claim before it allocates for one |
 | `pages/types/SharedMemoryWriter.md` | the writing end of a shm:// region |
-| `pages/functions/register*.md` | one page per door: the URI grammar it answers to, what a message is on it, which way it sends, and what thread it runs on |
+| `pages/functions/registerTransports.md` | the one registration and which schemes bring which transport, then one section per door: the URI grammar it answers to, what a message is on it, which way it sends, and what thread it runs on |
 
 ## The doors
 
-`sigil::io::registerTransports` installs every transport this feature
-carries: UDP, the OSC name over it, WebSocket at both ends — the listener
-first, and the client in front of it — the shared memory reader, MIDI,
-the serial port, gRPC at both ends, QUIC at both ends, and WebRTC over a
-signalling door of the same hub.
+`sigil::io::registerTransports` installs the transports that answer the
+schemes it is handed, and every transport this feature carries when it is
+handed none: UDP, the OSC name over it, WebSocket at both ends — the
+listener first, and the client in front of it — the shared memory reader,
+MIDI, the serial port, gRPC at both ends, QUIC at both ends, and WebRTC
+over a signalling door of the same hub.
 
 Three of them carry no socket at all: a shm:// feed reads a region of
 memory another process on this machine has mapped, a midi:// feed is a

@@ -48,6 +48,7 @@
 #include <CoreMIDI/CoreMIDI.h>
 #endif
 
+#include "Registration.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
 #include "sigilio/source/Source.h"
@@ -480,7 +481,7 @@ OpenedFeed openFeed(std::string_view uri, const std::weak_ptr<Feed>& into) {
 
 }  // namespace
 
-void registerMidi(Hub& hub) {
+void detail::registerMidi(Hub& hub) {
   // No thread is made here: the driver runs the callback that delivers,
   // and an output is written on the thread that asked.
   hub.setFeedTransport("midi",

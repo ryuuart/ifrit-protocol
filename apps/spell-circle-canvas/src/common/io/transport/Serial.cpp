@@ -40,6 +40,7 @@
 #include <utility>
 #include <vector>
 
+#include "Registration.h"
 #include "IoThread.h"
 #include "sigilio/hub/Feed.h"
 #include "sigilio/hub/Hub.h"
@@ -404,7 +405,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
 
 }  // namespace
 
-void registerSerial(Hub& hub) {
+void detail::registerSerial(Hub& hub) {
   // The thread is made when the first port opens, so a hub taught the
   // scheme and never asked for a feed on it starts nothing.
   auto shared = std::make_shared<detail::SharedIoThread>();
