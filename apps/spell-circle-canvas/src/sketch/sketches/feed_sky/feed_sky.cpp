@@ -60,7 +60,6 @@
 #include <choreograph/Choreograph.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Rows.h>
 #include <sigildata/connection/Connection.h>
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigildata/decode/Json.h>
@@ -69,13 +68,13 @@
 #include <sigilmotion/bind/Bound.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Cells.h>
+#include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/kit/Panel.h>
 #include <sigilsketch/kit/Theme.h>
 
 #include <cstddef>
-#include <cstdint>
 #include <numbers>
 #include <span>
 #include <string>
@@ -114,38 +113,12 @@ constexpr size_t kSegments = (size_t)(kSkyWidth / (kSegment + kGap)) + 2;
  *  radian further along than the one above it. */
 constexpr float kBreath = 0.7f;
 
-/** WHAT A DOOR SAYS ABOUT ITSELF — the whole of it. The readout prints
- *  these, and a reading that differs from the one the description was
- *  written from is what says to write it again. A connection's vitals have
- *  no value of their own, so this sketch gathers them field by field and
- *  prints them as its own rows. */
-struct Vitals {
-  uint64_t generation = 0;
-  uint64_t dropped = 0;
-  uint64_t undecodable = 0;
-  bool closed = false;
-  std::string address;
-  std::string sender;
-  std::string trouble;
-  bool operator==(const Vitals&) const = default;
-};
-
-Vitals vitalsOf(const data::Connection& door) {
-  return {.generation = door.generation(),
-          .dropped = door.dropped(),
-          .undecodable = door.undecodable(),
-          .closed = door.closed(),
-          .address = door.address(),
-          .sender = door.sender(),
-          .trouble = door.error()};
-}
-
 /** One door of the sheet: what `data/content.json` says about it, the
  *  connection it opened, and what its panel was last described from. */
 struct Door {
   const data::Json* entry = nullptr;
   data::Connection connection;
-  Vitals shown;
+  data::Connection::Vitals shown;
 
   const data::Json& operator[](std::string_view key) const {
     return (*entry)[key];
@@ -156,7 +129,7 @@ struct Door {
    *  backlog: a sky is a state, so a reader that fell behind draws what
    *  is true now rather than every step that led to it. */
   bool read() {
-    const Vitals now = vitalsOf(connection);
+    const data::Connection::Vitals now = connection.vitals();
     if (now == shown) return false;
     shown = now;
     return true;
@@ -184,8 +157,8 @@ material::Color tintOf(std::span<const data::Json> palette, size_t index) {
 
 /** The door's state in one line, for the panel that has no sky yet. */
 std::string waitingLine(const Door& door) {
-  const Vitals& vitals = door.shown;
-  if (!vitals.trouble.empty()) return vitals.trouble;
+  const data::Connection::Vitals& vitals = door.shown;
+  if (!vitals.error.empty()) return vitals.error;
   if (vitals.undecodable != 0)
     return std::to_string(vitals.undecodable) + " arrivals were no sky";
   if (vitals.closed) return "the door is closed: nothing else is coming";
@@ -193,27 +166,6 @@ std::string waitingLine(const Door& door) {
          (vitals.address.empty() ? std::string(door["address"].text())
                                  : vitals.address) +
          " · nothing has arrived";
-}
-
-/** THE DOOR'S OWN WORDS: where it is, how many messages have arrived, how
- *  many fell off the queue behind a reader, how many were no sky, and who
- *  sent the newest — or the sentence saying why there is none. Nothing
- *  here is computed about the sky; every figure is what the door answers. */
-Element readout(const Door& door) {
-  const Vitals& vitals = door.shown;
-  const auto either = [](const std::string& answer, std::string_view none) {
-    return answer.empty() ? std::string(none) : answer;
-  };
-  const std::vector<kit::Reading> rows{
-      {.name = u8"door",
-       .value = either(vitals.address, door["address"].text())},
-      {.name = u8"generation", .value = std::to_string(vitals.generation)},
-      {.name = u8"dropped", .value = std::to_string(vitals.dropped)},
-      {.name = u8"undecodable", .value = std::to_string(vitals.undecodable)},
-      vitals.trouble.empty()
-          ? kit::Reading{.name = u8"sender", .value = either(vitals.sender, "-")}
-          : kit::Reading{.name = u8"error", .value = vitals.trouble}};
-  return kit::readout(rows, {.measure = kShownWidth});
 }
 
 struct FeedSky {
@@ -286,7 +238,10 @@ struct FeedSky {
                                 .ground = skyGround(),
                                 .placed = true},
                                stack().children({sky(door), waiting(door)})),
-             document::caption(door["note"].text()), readout(door)}));
+             document::caption(door["note"].text()),
+             sketch::kit::connectionReadout(
+                 door.connection, {.door = door["address"].text(),
+                                   .rows = {.measure = kShownWidth}})}));
   }
 
   /** THE NIGHT the bands cross: darker overhead, lifting toward the

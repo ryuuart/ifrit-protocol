@@ -535,7 +535,7 @@ model, arithmetic and data become Python code and are not listed.
 | `data_scales` | Scale transforms; chart plot kit layers; stylesheet classes; stated default face; caption and panel grid | `sketch::kit::plot` chart layers |
 | `data_sources` | Asset table and database; DuckDB memory query; bars and section header kit; comparison well | `sketch::kit::bars` over `data::Table` |
 | `feed_events` | JSON Connection kind handlers; recording mount; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
-| `feed_sky` | One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording mount per door; kit panels and vitals readouts; cached band elements on one bound clock | `data::Connection`; `data::FlatBuffer` roots and `data::schema` |
+| `feed_sky` | One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording mount per door; kit panels and vitals readouts; cached band elements on one bound clock | `data::Connection`; `data::FlatBuffer` roots and `data::schema`; `sketch::kit::connectionReadout` over `data::Connection::Vitals` |
 | `grpc_watch` | gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
 | `midi_pads` | MIDI Connection in and out; eased ticker ramps; instrument page; pen cells and knob | `sketch::kit::instrument`; `data::Connection` |
 | `osc_desk` | OSC Connection address handlers and replies; chained ticker ramps; instrument page; pen faders | `sketch::kit::instrument`; `data::Connection` |

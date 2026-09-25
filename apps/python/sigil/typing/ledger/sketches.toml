@@ -550,7 +550,7 @@ requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.feed_sky]
 needs = "One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording mount per door; kit panels and vitals readouts; cached band elements on one bound clock"
-requires = ["sketch-schemas", "connection", "flatbuffer"]
+requires = ["sketch-schemas", "connection", "flatbuffer", "kit-connection-readout"]
 
 [sketch.feed_vitals]
 needs = "Hub mount and feed; arrival queue, latest bytes and feed vitals; section header kit; pen strip"
