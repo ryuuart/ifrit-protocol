@@ -26,6 +26,7 @@ from _sigil.io import (
 
 from . import (
     publish,
+    testing,
 )
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "publish",
     "readRecording",
     "registerTransports",
+    "testing",
 ]

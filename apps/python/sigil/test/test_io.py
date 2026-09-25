@@ -45,11 +45,12 @@ class IO(unittest.TestCase):
 
     def test_arrivals_copy_buffers_and_survive_feed_destruction(self):
         feed = io.Feed("fixture://owned", io.FeedPolicy(capacity=2))
+        inlet = io.testing.inletOf(feed)
         original = bytearray(b"one")
-        feed.deliver(memoryview(original), from_="fixture://sender")
+        inlet.deliver(memoryview(original), sender="fixture://sender")
         original[:] = b"two"
-        feed.deliver(b"second")
-        feed.deliver(b"third")
+        inlet.deliver(b"second")
+        inlet.deliver(b"third")
         self.assertEqual(feed.generation(), 3)
         self.assertEqual(feed.dropped(), 1)
         self.assertEqual(feed.receive().bytes, b"second")
@@ -60,6 +61,7 @@ class IO(unittest.TestCase):
         self.assertEqual(feed.latest().generation, 3)
         del feed
         gc.collect()
+        self.assertTrue(inlet.expired())
         self.assertEqual(arrival.bytes, b"third")
         owned = io.Arrival(bytes=original, from_="peer", at=0.5)
         original[:] = b"xxx"
@@ -69,7 +71,7 @@ class IO(unittest.TestCase):
 
     def test_zero_capacity_keeps_only_the_newest_snapshot(self):
         feed = io.Feed("fixture://latest", io.FeedPolicy(capacity=0))
-        feed.deliver(b"data")
+        io.testing.inletOf(feed).deliver(b"data")
         self.assertEqual(feed.latest().bytes, b"data")
         self.assertIsNone(feed.receive())
         self.assertEqual(feed.dropped(), 1)
@@ -78,43 +80,51 @@ class IO(unittest.TestCase):
 
     def test_buffers_must_be_contiguous_and_byte_data_is_not_text(self):
         feed = io.Feed("fixture://buffers")
+        inlet = io.testing.inletOf(feed)
         with self.assertRaises((BufferError, ValueError)):
-            feed.deliver(memoryview(b"abcdef")[::2])
+            inlet.deliver(memoryview(b"abcdef")[::2])
         with self.assertRaises(TypeError):
-            feed.deliver("encode text explicitly")
+            inlet.deliver("encode text explicitly")
         self.assertEqual(feed.generation(), 0)
 
-    def test_replay_copies_arrivals_and_preserves_recorded_spacing(self):
-        first = io.Arrival(at=0, bytes=b"first", from_="ignored")
-        second = io.Arrival(at=0.25, bytes=b"second")
-        feed = io.Feed("fixture://replay")
-        feed.replay([first, second])
-        first.bytes = b"edited"
-        second.at = 0
-        feed.advance(10)
-        arrival = feed.receive()
-        self.assertEqual(arrival.bytes, b"first")
-        self.assertEqual(arrival.from_, "")
-        origin = arrival.at
-        self.assertIsNone(feed.receive())
-        self.assertFalse(feed.closed())
-        feed.advance(10.25)
-        next_arrival = feed.receive()
-        self.assertEqual(next_arrival.bytes, b"second")
-        self.assertAlmostEqual(next_arrival.at - origin, 0.25)
-        self.assertTrue(feed.closed())
-        self.assertFalse(feed.send(b"no transport"))
+    def test_replay_preserves_recorded_spacing_and_names_no_sender(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "spacing.feed"
+            writer = io.RecordingWriter(path)
+            self.assertTrue(writer.append(io.Arrival(at=0, bytes=b"first", from_="ignored")))
+            self.assertTrue(writer.append(io.Arrival(at=0.25, bytes=b"second")))
+            del writer
+            gc.collect()
+            hub = io.Hub()
+            feed = hub.replay("fixture://replay", path)
+            hub.dispatch(10)
+            arrival = feed.receive()
+            self.assertEqual(arrival.bytes, b"first")
+            self.assertEqual(arrival.from_, "")
+            origin = arrival.at
+            self.assertIsNone(feed.receive())
+            self.assertFalse(feed.closed())
+            hub.dispatch(10.25)
+            next_arrival = feed.receive()
+            self.assertEqual(next_arrival.bytes, b"second")
+            self.assertAlmostEqual(next_arrival.at - origin, 0.25)
+            self.assertTrue(feed.closed())
+            self.assertFalse(feed.send(b"no transport"))
 
-    def test_replay_rejects_invalid_order_and_times_before_mutation(self):
+    def test_invalid_times_are_refused_before_they_reach_a_feed(self):
         feed = io.Feed("fixture://invalid")
-        for invalid in (-1, math.inf, math.nan):
-            with self.subTest(invalid=invalid):
-                with self.assertRaises(ValueError):
-                    feed.replay([io.Arrival(at=invalid)])
-                with self.assertRaises(ValueError):
-                    feed.advance(invalid)
-        with self.assertRaises(ValueError):
-            feed.replay([io.Arrival(at=1), io.Arrival(at=0)])
+        inlet = io.testing.inletOf(feed)
+        hub = io.Hub()
+        with tempfile.TemporaryDirectory() as directory:
+            writer = io.RecordingWriter(Path(directory) / "invalid.feed")
+            for invalid in (-1, math.inf, math.nan):
+                with self.subTest(invalid=invalid):
+                    with self.assertRaises(ValueError):
+                        writer.append(io.Arrival(at=invalid))
+                    with self.assertRaises(ValueError):
+                        inlet.deliver(b"late", arrivedAt=invalid)
+                    with self.assertRaises(ValueError):
+                        hub.dispatch(invalid)
         self.assertFalse(feed.opened())
         self.assertEqual(feed.generation(), 0)
 
@@ -143,11 +153,12 @@ class IO(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "live.feed"
             feed = io.Feed("fixture://recorded")
+            inlet = io.testing.inletOf(feed)
             with feed.record(path) as recording:
                 self.assertFalse(recording.stopped())
-                feed.deliver(b"one", at=0.0)
+                inlet.deliver(b"one", arrivedAt=0.0)
             self.assertTrue(recording.stopped())
-            feed.deliver(b"two", at=1.0)
+            inlet.deliver(b"two", arrivedAt=1.0)
             self.assertEqual([a.bytes for a in io.readRecording(path)], [b"one"])
 
     def test_udp_request_reply_uses_native_sender_and_owned_payloads(self):

@@ -11,6 +11,7 @@ def register(table: Table) -> None:
     table.returns("_sigil.io.Hub", "fetch", "bytes | None")
     table.erased("_sigil.io.Hub", "write", "collections.abc.Buffer")
     table.erased("_sigil.io.ResourceLease", "__exit__", "object", "object", "object")
+    table.erased("_sigil.io.Recording", "__exit__", "object", "object", "object")
     table.declares(
         "_sigil.io.Hub",
         "load",
@@ -31,7 +32,8 @@ def load(self, type: type[_sigil.image.ImageAsset], uri: str) -> _sigil.image.Im
 """,
     )
     table.erased("_sigil.io.Arrival", "__init__ bytes", "collections.abc.Buffer")
-    table.erased("_sigil.io.Feed", "deliver send sendTo", "collections.abc.Buffer")
+    table.erased("_sigil.io.Feed", "send sendTo", "collections.abc.Buffer")
+    table.erased("_sigil.io.testing.Inlet", "deliver", "collections.abc.Buffer")
     table.erased("_sigil.io.SharedMemoryWriter", "write", "collections.abc.Buffer")
     for path in (
         "_sigil.io.Hub.mount",

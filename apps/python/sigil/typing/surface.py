@@ -88,6 +88,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.image": "sigil.image",
     "_sigil.io": "sigil.io",
     "_sigil.io.publish": "sigil.io.publish",
+    "_sigil.io.testing": "sigil.io.testing",
     "_sigil.material": "sigil.material",
     "_sigil.material.field": "sigil.material.field",
     "_sigil.material.kit": "sigil.material.kit",

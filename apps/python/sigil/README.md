@@ -716,8 +716,10 @@ when replaying recordings. Sketches leave that call to their host.
 `Recording` that stops when it is stopped, when it is garbage collected, or
 at the end of a `with` block. `hub.replay(uri, path)` plays that file back at
 the feed URI — before or after the URI is opened — so the same authoring code
-reads the same input again. `RecordingWriter`, `readRecording` and
-`Feed.replay` also expose the recording format for generated fixtures.
+reads the same input again. `RecordingWriter` and `readRecording` expose the
+recording format for generated fixtures, and a test that stands in for a
+transport puts messages on a feed through `io.testing.inletOf(feed)`, whose
+`deliver` a reader of the feed does not have.
 Use a recording or explicit sample data when `ctx.deterministic` is true.
 
 The bundled `python_live_signals.py` sketch shows received pressure and flow,

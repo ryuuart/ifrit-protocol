@@ -4,6 +4,7 @@
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
+#include <sigilio/testing/Testing.h>
 #include <sigilio/transport/Transport.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/data/Convert.h>
@@ -57,16 +58,6 @@ py::object copiedBytes(const std::shared_ptr<const io::Bytes>& value) {
 void validTime(double seconds) {
   if (!std::isfinite(seconds) || seconds < 0)
     throw py::value_error("Feed times must be finite and nonnegative");
-}
-
-void validRecording(const std::vector<io::Arrival>& recording) {
-  double previous = 0;
-  for (const auto& arrival : recording) {
-    validTime(arrival.at);
-    if (arrival.at < previous)
-      throw py::value_error("Recording arrivals must be ordered by time");
-    previous = arrival.at;
-  }
 }
 
 class ResourceHandle {
@@ -304,13 +295,6 @@ void bindIO(py::module_& module) {
                           SIGIL_FEED_METHOD(uri) SIGIL_FEED_METHOD(close)
 #undef SIGIL_FEED_METHOD
       .def(
-          "fail",
-          [](const FeedHandle& value, std::string why) {
-            auto feed = value.get();
-            unlocked([&] { feed->fail(std::move(why)); });
-          },
-          py::arg("why"))
-      .def(
           "send",
           [](const FeedHandle& value, py::handle payload) {
             const auto copied = bytes(payload);
@@ -328,32 +312,6 @@ void bindIO(py::module_& module) {
           },
           py::arg("to"), py::arg("bytes"))
       .def(
-          "deliver",
-          [](const FeedHandle& value, py::handle payload) {
-            auto copied = bytes(payload);
-            auto feed = value.get();
-            unlocked([&] { feed->deliver(std::move(copied)); });
-          },
-          py::arg("bytes"))
-      .def(
-          "deliver",
-          [](const FeedHandle& value, py::handle payload,
-             const std::string& from) {
-            auto copied = bytes(payload);
-            auto feed = value.get();
-            unlocked([&] { feed->deliver(std::move(copied), from); });
-          },
-          py::arg("bytes"), py::arg("from_"))
-      .def(
-          "deliver",
-          [](const FeedHandle& value, py::handle payload, double at) {
-            validTime(at);
-            auto copied = bytes(payload);
-            auto feed = value.get();
-            unlocked([&] { feed->deliver(std::move(copied), at); });
-          },
-          py::arg("bytes"), py::arg("at"))
-      .def(
           "record",
           [](const FeedHandle& value, const std::filesystem::path& path) {
             auto feed = value.get();
@@ -361,27 +319,43 @@ void bindIO(py::module_& module) {
           },
           py::arg("path"))
       .def(
-          "replay",
-          [](const FeedHandle& value, std::vector<io::Arrival> recording) {
-            validRecording(recording);
-            auto feed = value.get();
-            unlocked([&] { feed->replay(std::move(recording)); });
-          },
-          py::arg("recording"))
-      .def(
-          "advance",
-          [](const FeedHandle& value, double seconds) {
-            validTime(seconds);
-            auto feed = value.get();
-            unlocked([&] { feed->advance(seconds); });
-          },
-          py::arg("seconds"))
-      .def(
           "__eq__",
           [](const FeedHandle& left, const FeedHandle& right) {
             return left.get() == right.get();
           },
           py::is_operator(), py::arg("other"));
+
+  // A test that stands in for a transport puts messages on a feed it holds
+  // through the feed's inlet, the one way in a reader does not have.
+  auto testing = resources.def_submodule("testing");
+  py::class_<io::Inlet>(testing, "Inlet")
+      .def(
+          "deliver",
+          [](const io::Inlet& inlet, py::handle payload,
+             const std::string& sender) {
+            auto copied = bytes(payload);
+            unlocked([&] { inlet.deliver(std::move(copied), sender); });
+          },
+          py::arg("bytes"), py::arg("sender") = "")
+      .def(
+          "deliver",
+          [](const io::Inlet& inlet, py::handle payload, double arrivedAt) {
+            validTime(arrivedAt);
+            auto copied = bytes(payload);
+            unlocked([&] { inlet.deliver(std::move(copied), arrivedAt); });
+          },
+          py::arg("bytes"), py::arg("arrivedAt"))
+      .def(
+          "fail",
+          [](const io::Inlet& inlet, std::string why) {
+            unlocked([&] { inlet.fail(std::move(why)); });
+          },
+          py::arg("why"))
+      .def("expired", &io::Inlet::expired);
+  testing.def(
+      "inletOf",
+      [](const FeedHandle& value) { return io::testing::inletOf(value.get()); },
+      py::arg("feed"));
 
   py::class_<HubHandle>(resources, "Hub")
       .def(py::init<>())

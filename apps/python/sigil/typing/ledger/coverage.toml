@@ -2070,15 +2070,15 @@ bound = "`Hub.dispatch`"
 python = ["io.Hub.dispatch"]
 
 [[section.surface.item]]
-bound = "`Feed` with `receive`, `latest`, status, `send`, `sendTo`, delivery and replay; owned `Arrival`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`"
+bound = "`Feed` with `receive`, `latest`, status, `send` and `sendTo`; the `Inlet` a test delivers onto one through, from `io.testing.inletOf`; owned `Arrival`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`"
 python = [
   "io.Feed",
   "io.Feed.receive",
   "io.Feed.latest",
   "io.Feed.send",
   "io.Feed.sendTo",
-  "io.Feed.deliver",
-  "io.Feed.replay",
+  "io.testing.inletOf",
+  "io.testing.Inlet",
   "io.Feed.record",
   "io.Recording",
   "io.Hub.replay",
