@@ -8,6 +8,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilio/hub/Recording.h>
+#include <sigilio/testing/Testing.h>
 #include <sigilseer/wire/Log.h>
 #include <sigilseer/wire/Recorder.h>
 #include <sigilseer/wire/Rendering.h>
@@ -33,6 +34,7 @@ namespace fs = std::filesystem;
 
 using sigil::io::Bytes;
 using sigil::io::Feed;
+using sigil::io::testing::inletOf;
 using sigil::seer::Log;
 using sigil::seer::Recorder;
 using sigil::seer::Sender;
@@ -160,9 +162,9 @@ TEST(SeerWires, TwoWiresOnTheLoopbackCarryBytesAndTheLogDrainsThemInOrder) {
 TEST(SeerLog, AnEntryCarriesTheSenderItWasDeliveredWith) {
   Wires wires;
   const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
-  feed->deliver(bytesOf("from the field"),
-                std::string("udp://127.0.0.1:52341"));
-  feed->deliver(bytesOf("from nobody"));
+  inletOf(feed).deliver(bytesOf("from the field"),
+                        std::string("udp://127.0.0.1:52341"));
+  inletOf(feed).deliver(bytesOf("from nobody"));
 
   Log log;
   EXPECT_EQ(log.drain(*feed), 2u);
@@ -184,10 +186,10 @@ TEST(SeerWires, EveryWireNamesTheSenderOfItsNewestMessage) {
   ASSERT_NE(wires.vitalsOf("pigeon://the.desk"), nullptr);
   EXPECT_TRUE(wires.vitalsOf("pigeon://the.desk")->lastFrom.empty());
 
-  desk->deliver(bytesOf("from the field"),
-                std::string("udp://127.0.0.1:52341"));
-  window->deliver(bytesOf("from the roof"),
-                  std::string("udp://127.0.0.1:52342"));
+  inletOf(desk).deliver(bytesOf("from the field"),
+                        std::string("udp://127.0.0.1:52341"));
+  inletOf(window).deliver(bytesOf("from the roof"),
+                          std::string("udp://127.0.0.1:52342"));
   wires.tick(1.0);
 
   // Nobody drained either wire. The sender travels with the arrival and
@@ -205,7 +207,7 @@ TEST(SeerWires, EveryWireNamesTheSenderOfItsNewestMessage) {
 
   // A message delivered by a transport that cannot tell who sent it
   // leaves the wire naming nobody rather than the sender before it.
-  desk->deliver(bytesOf("from nobody"));
+  inletOf(desk).deliver(bytesOf("from nobody"));
   wires.tick(2.0);
   EXPECT_TRUE(wires.vitalsOf("pigeon://the.desk")->lastFrom.empty());
 }
@@ -213,9 +215,9 @@ TEST(SeerWires, EveryWireNamesTheSenderOfItsNewestMessage) {
 TEST(SeerLog, AFullLogLetsGoOfTheOldestAndCountsIt) {
   Wires wires;
   const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
-  feed->deliver(bytesOf("one"));
-  feed->deliver(bytesOf("two"));
-  feed->deliver(bytesOf("three"));
+  inletOf(feed).deliver(bytesOf("one"));
+  inletOf(feed).deliver(bytesOf("two"));
+  inletOf(feed).deliver(bytesOf("three"));
 
   Log log(2);
   EXPECT_EQ(log.drain(*feed), 3u);
@@ -237,7 +239,7 @@ TEST(SeerWires, VitalsCountARateOverTheLastSecondOfTicks) {
   // four a second whatever the wall clock did meanwhile.
   wires.tick(0.0);
   for (int number = 0; number != 4; ++number)
-    feed->deliver(bytesOf(std::to_string(number)));
+    inletOf(feed).deliver(bytesOf(std::to_string(number)));
   wires.tick(1.0);
 
   const Vitals* vitals = wires.vitalsOf("pigeon://the.desk");
@@ -258,7 +260,7 @@ TEST(SeerWires, VitalsCountARateOverTheLastSecondOfTicks) {
 TEST(SeerWires, ATickReadsAClosedWireAsClosed) {
   Wires wires;
   const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
-  feed->deliver(bytesOf("last words"));
+  inletOf(feed).deliver(bytesOf("last words"));
   feed->close();
 
   wires.tick(0.0);
@@ -278,8 +280,8 @@ TEST_F(SeerRecorder, ARecordedWireIsAFileReadRecordingReadsBack) {
   EXPECT_TRUE(recorder.recording());
   EXPECT_EQ(recorder.path(), file);
 
-  feed->deliver(bytesOf("first"), 0.25);
-  feed->deliver(bytesOf("second"), 0.75);
+  inletOf(feed).deliver(bytesOf("first"), 0.25);
+  inletOf(feed).deliver(bytesOf("second"), 0.75);
   recorder.stop();
   EXPECT_FALSE(recorder.recording());
 
@@ -300,8 +302,8 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
     const std::shared_ptr<Feed> live = wires.open("pigeon://the.desk");
     Recorder recorder(wires);
     ASSERT_TRUE(recorder.record(live, file));
-    live->deliver(bytesOf("first"), 0.25);
-    live->deliver(bytesOf("second"), 0.75);
+    inletOf(live).deliver(bytesOf("first"), 0.25);
+    inletOf(live).deliver(bytesOf("second"), 0.75);
   }
 
   Recorder recorder(wires);
