@@ -17,8 +17,6 @@
 namespace sigil::compose::kit {
 namespace {
 
-namespace mskia = sigil::material::skia;
-
 /** ONE RING, drawn or moulded. The tokens mean the same thing on both
  *  sides of that choice, so the two mechanisms differ only in which value
  *  is built here. */
