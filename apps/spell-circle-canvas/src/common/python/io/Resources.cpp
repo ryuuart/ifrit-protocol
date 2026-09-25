@@ -40,18 +40,16 @@ io::Bytes bytes(py::handle value) {
     Py_buffer* view;
     ~Release() { PyBuffer_Release(view); }
   } release{&view};
-  io::Bytes result;
-  result.bytes.resize(static_cast<size_t>(view.len));
-  if (view.len) std::memcpy(result.bytes.data(), view.buf, result.bytes.size());
-  return result;
+  return io::Bytes(std::span(static_cast<const std::byte*>(view.buf),
+                            static_cast<size_t>(view.len)));
 }
 
 py::object copiedBytes(const std::shared_ptr<const io::Bytes>& value) {
   if (!value) return py::none();
-  return py::bytes(value->bytes.empty()
+  return py::bytes(value->empty()
                        ? ""
-                       : reinterpret_cast<const char*>(value->bytes.data()),
-                   value->bytes.size());
+                       : reinterpret_cast<const char*>(value->data()),
+                   value->size());
 }
 
 void validTime(double seconds) {
@@ -565,7 +563,7 @@ void bindIO(py::module_& module) {
             const auto copied = bytes(payload);
             return unlocked([&] {
               const std::lock_guard lock(writer.mutex);
-              return writer.value->write(copied.bytes);
+              return writer.value->write(copied);
             });
           },
           py::arg("bytes"));
