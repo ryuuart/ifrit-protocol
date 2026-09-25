@@ -161,8 +161,8 @@ void normalizeArc(float& startOut, float& stopOut, float w, float h,
 /** One material onto one SkPaint: a solid is a colour, anything else a
  *  shader. Returns whether the shader has to be resolved again on every
  *  draw, which a live or box-dependent material does. */
-bool resolve(const material::skia::Paint& material, SkPaint& paint,
-             const material::skia::PaintFrame& frame) {
+bool resolve(const material::Paint& material, SkPaint& paint,
+             const material::FrameData& frame) {
   if (material.isSolid()) {
     paint.setShader(nullptr);
     paint.setColor4f(sigil::material::skia::toSkColor(material.solidColor()),
@@ -176,7 +176,7 @@ bool resolve(const material::skia::Paint& material, SkPaint& paint,
   }
   paint.setColor4f({0, 0, 0, 1}, nullptr);
   const bool live = material.isAnimated() || material.geometryDependent();
-  paint.setShader(material.shaderFor(frame));
+  paint.setShader(material::skia::shader(material, frame));
   return live;
 }
 

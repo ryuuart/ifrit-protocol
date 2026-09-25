@@ -110,13 +110,13 @@ void Pen::inherit(material::Color ink, const weave::Type& font) {
   // would raise the flag itself and put back a `noFill()` the program
   // asked for — the seed must not become a choice.
   if (!m_style.fillSet) {
-    m_style.fill = material::skia::Paint::solid(ink);
+    m_style.fill = material::Paint::solid(ink);
     m_style.fillFitted = false;
     m_style.fillSeeded = true;
     resolveFill();
   }
   if (!m_style.strokeSet) {
-    m_style.stroke = material::skia::Paint::solid(ink);
+    m_style.stroke = material::Paint::solid(ink);
     m_style.strokeFitted = false;
     resolveStroke();
   }
@@ -154,9 +154,9 @@ void Pen::blendMode(Constant mode) {
   blendInto(m_strokePaint);
 }
 
-material::skia::PaintFrame Pen::paintFrame() const {
-  material::skia::PaintFrame frame;
-  frame.size = {width, height};
+material::FrameData Pen::paintFrame() const {
+  material::FrameData frame;
+  frame.resolution = {width, height};
   frame.seconds = m_seconds;
   frame.contentScale = m_contentScale;
   return frame;
@@ -170,17 +170,17 @@ void Pen::resolveStroke() {
   m_strokeLive = resolve(m_style.stroke, m_strokePaint, paintFrame());
 }
 
-sk_sp<SkShader> Pen::fittedShader(const material::skia::Paint& paint,
+sk_sp<SkShader> Pen::fittedShader(const material::Paint& paint,
                                   const SkRect& box) const {
   // The material is asked for a shader as though the shape were the whole
   // canvas — its unit square IS this box — and the answer is then moved to
   // where the box actually sits, since the pen paints in canvas
   // coordinates and a compose node paints at its own origin.
-  material::skia::PaintFrame frame = paintFrame();
-  frame.size = {box.width(), box.height()};
-  frame.rootSize = {width, height};
-  frame.toRoot = SkMatrix::Translate(box.left(), box.top());
-  sk_sp<SkShader> shader = paint.shaderFor(frame);
+  material::FrameData frame = paintFrame();
+  frame.resolution = {box.width(), box.height()};
+  frame.rootResolution = {width, height};
+  frame.world = material::skia::toMatrix(SkMatrix::Translate(box.left(), box.top()));
+  sk_sp<SkShader> shader = material::skia::shader(paint, frame);
   if (!shader) return nullptr;
   return shader->makeWithLocalMatrix(
       SkMatrix::Translate(box.left(), box.top()));
@@ -197,7 +197,7 @@ const SkPaint* Pen::fillPaint(const SkRect* box) {
     m_fillPaint.setShader(fittedShader(m_style.fill, *box));
     return &m_fillPaint;
   }
-  if (m_fillLive) m_fillPaint.setShader(m_style.fill.shaderFor(paintFrame()));
+  if (m_fillLive) m_fillPaint.setShader(material::skia::shader(m_style.fill, paintFrame()));
   return &m_fillPaint;
 }
 
@@ -209,7 +209,7 @@ const SkPaint* Pen::strokePaint(const SkRect* box) {
     return &m_strokePaint;
   }
   if (m_strokeLive)
-    m_strokePaint.setShader(m_style.stroke.shaderFor(paintFrame()));
+    m_strokePaint.setShader(material::skia::shader(m_style.stroke, paintFrame()));
   return &m_strokePaint;
 }
 
@@ -267,10 +267,10 @@ void Pen::background(float v1, float v2, float v3, float alpha) {
 }
 void Pen::background(std::string_view css) { background(parseColor(css)); }
 void Pen::background(material::Color color) {
-  background(material::skia::Paint::solid(color));
+  background(material::Paint::solid(color));
 }
 
-void Pen::background(const material::skia::Paint& paint) {
+void Pen::background(const material::Paint& paint) {
   if (!m_canvas || paint.isNone() || m_clipRecording) return;
   SkPaint ground;
   resolve(paint, ground, paintFrame());
@@ -284,7 +284,7 @@ void Pen::background(const material::skia::Paint& paint) {
 }
 
 void Pen::background(const material::Material& material) {
-  background(material::skia::Paint::recipe(material));
+  background(material::Paint::recipe(material));
 }
 
 void Pen::clear() {
@@ -304,9 +304,9 @@ void Pen::fill(float v1, float v2, float v3, float alpha) {
 }
 void Pen::fill(std::string_view css) { fill(parseColor(css)); }
 void Pen::fill(material::Color color) {
-  fill(material::skia::Paint::solid(color));
+  fill(material::Paint::solid(color));
 }
-void Pen::fill(const material::skia::Paint& paint) {
+void Pen::fill(const material::Paint& paint) {
   m_style.fill = paint;
   // The fit belongs to the material it was set with, so a fill set without
   // a word is measured against the canvas whatever the fill before it said.
@@ -315,12 +315,12 @@ void Pen::fill(const material::skia::Paint& paint) {
   m_style.fillSet = true;
   resolveFill();
 }
-void Pen::fill(const material::skia::Paint& paint, Constant fit) {
+void Pen::fill(const material::Paint& paint, Constant fit) {
   fill(paint);
   m_style.fillFitted = fit == SHAPE;
 }
 void Pen::fill(const material::Material& material) {
-  fill(material::skia::Paint::recipe(material));
+  fill(material::Paint::recipe(material));
 }
 void Pen::noFill() { m_style.doFill = false; }
 
@@ -332,21 +332,21 @@ void Pen::stroke(float v1, float v2, float v3, float alpha) {
 }
 void Pen::stroke(std::string_view css) { stroke(parseColor(css)); }
 void Pen::stroke(material::Color color) {
-  stroke(material::skia::Paint::solid(color));
+  stroke(material::Paint::solid(color));
 }
-void Pen::stroke(const material::skia::Paint& paint) {
+void Pen::stroke(const material::Paint& paint) {
   m_style.stroke = paint;
   m_style.strokeFitted = false;
   m_style.doStroke = true;
   m_style.strokeSet = true;
   resolveStroke();
 }
-void Pen::stroke(const material::skia::Paint& paint, Constant fit) {
+void Pen::stroke(const material::Paint& paint, Constant fit) {
   stroke(paint);
   m_style.strokeFitted = fit == SHAPE;
 }
 void Pen::stroke(const material::Material& material) {
-  stroke(material::skia::Paint::recipe(material));
+  stroke(material::Paint::recipe(material));
 }
 void Pen::noStroke() { m_style.doStroke = false; }
 

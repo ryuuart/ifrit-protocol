@@ -53,8 +53,8 @@ void normalizeArc(float& startOut, float& stopOut, float w, float h,
 /** One material onto one SkPaint: a solid is a colour, anything else a
  *  shader. Answers whether the shader has to be resolved again on every
  *  draw, which a live or box-dependent material does. */
-bool resolve(const material::skia::Paint& material, SkPaint& paint,
-             const material::skia::PaintFrame& frame);
+bool resolve(const material::Paint& material, SkPaint& paint,
+             const material::FrameData& frame);
 
 /** Whether @p box is a unit square a material can be measured against: a
  *  horizontal line and a zero-radius circle are not, and asking a

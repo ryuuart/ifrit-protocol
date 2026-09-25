@@ -382,7 +382,7 @@ TEST(Pen, NoDashPutsTheSolidStrokeBackAndPushPopCarriesIt) {
 // ---- this library's own --------------------------------------------------
 
 TEST(Pen, AMaterialIsAFill) {
-  using sigil::material::skia::Paint;
+  using sigil::material::Paint;
   Paper paper;
   paper.begin();
   paper.pen.noStroke();
@@ -412,7 +412,7 @@ TEST(Pen, AMaterialIsAGroundAsWellAsAFill) {
 
 TEST(Pen, AMaterialFitsTheCanvasUnlessTheFillSaysTheShape) {
   using sigil::material::ColorStop;
-  using sigil::material::skia::Paint;
+  using sigil::material::Paint;
   const std::vector<ColorStop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
   // ONE unit-square ramp, TWO boxes far apart. The only difference between
   // the two papers is the word on the fill.
@@ -448,7 +448,7 @@ TEST(Pen, AMaterialFitsTheCanvasUnlessTheFillSaysTheShape) {
 
 TEST(Pen, AFitIsSaidOnTheFillThatSetsIt) {
   using sigil::material::ColorStop;
-  using sigil::material::skia::Paint;
+  using sigil::material::Paint;
   const std::vector<ColorStop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
   Paper paper;
   paper.begin();

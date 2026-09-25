@@ -184,7 +184,7 @@ TEST(Pen, AMeshIsDrawnWithThePensFillWhereItGoverns) {
 
 TEST(Pen, AMeshTakesAFittedMaterialOverItsOwnBounds) {
   using sigil::material::ColorStop;
-  using sigil::material::skia::Paint;
+  using sigil::material::Paint;
   const std::vector<ColorStop> ramp{{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}};
   // A triangle occupying the left half of the paper. Fitted, its ramp runs
   // red to blue across THAT, not across the frame.

@@ -192,7 +192,7 @@ class Pen {
   void background(std::string_view css);
   void background(material::Color color);
   /** A material as the ground: a gradient, a shader, a recipe. */
-  void background(const material::skia::Paint& paint);
+  void background(const material::Paint& paint);
   /** A recipe instance as the ground, as the fill and the stroke take
    *  one: the three ground verbs accept the same set. */
   void background(const material::Material& material);
@@ -208,13 +208,13 @@ class Pen {
   /** A material as the fill — the pen's own overload. A live material
    *  is resolved against the pen's clock on every draw; a static one
    *  once, here. */
-  void fill(const material::skia::Paint& paint);
+  void fill(const material::Paint& paint);
   /** THE SAME MATERIAL, FITTED TO WHAT IT PAINTS: `SHAPE` measures it
    *  against the bounds of each shape the pen draws, `CANVAS` — the
    *  default — against the frame. It is style, so `push` saves it.
    *  @trap Text, images and `background` are always the canvas, being no
    *  shape; a box with no width or no height falls back to it too. */
-  void fill(const material::skia::Paint& paint, Constant fit);
+  void fill(const material::Paint& paint, Constant fit);
   /** A recipe instance as the fill: a shader. */
   void fill(const material::Material& material);
   void noFill();
@@ -225,10 +225,10 @@ class Pen {
   void stroke(float v1, float v2, float v3, float alpha);
   void stroke(std::string_view css);
   void stroke(material::Color color);
-  void stroke(const material::skia::Paint& paint);
+  void stroke(const material::Paint& paint);
   /** Fitted exactly as the fill is: `SHAPE` measures the material against
    *  each shape's bounds, `CANVAS` against the frame. */
-  void stroke(const material::skia::Paint& paint, Constant fit);
+  void stroke(const material::Paint& paint, Constant fit);
   void stroke(const material::Material& material);
   void noStroke();
   void strokeWeight(float weight);
@@ -518,8 +518,8 @@ class Pen {
      *  against each shape's bounds rather than against the canvas. */
     bool fillFitted = false;
     bool strokeFitted = false;
-    material::skia::Paint fill = material::skia::Paint::solid({1, 1, 1, 1});
-    material::skia::Paint stroke = material::skia::Paint::solid({0, 0, 0, 1});
+    material::Paint fill = material::Paint::solid({1, 1, 1, 1});
+    material::Paint stroke = material::Paint::solid({0, 0, 0, 1});
     float strokeWeight = 1.0f;
     geometry::path::Cap cap = geometry::path::Cap::Round;
     geometry::path::Join join = geometry::path::Join::Miter;
@@ -566,13 +566,13 @@ class Pen {
   void blendInto(SkPaint& paint) const;
   void resolveFill();
   void resolveStroke();
-  [[nodiscard]] material::skia::PaintFrame paintFrame() const;
+  [[nodiscard]] material::FrameData paintFrame() const;
   /** The fill and the stroke resolved against @p box when the material was
    *  set `SHAPE`-fitted, and against the canvas otherwise. A null or
    *  degenerate box is the canvas. */
   [[nodiscard]] const SkPaint* fillPaint(const SkRect* box);
   [[nodiscard]] const SkPaint* strokePaint(const SkRect* box);
-  [[nodiscard]] sk_sp<SkShader> fittedShader(const material::skia::Paint& paint,
+  [[nodiscard]] sk_sp<SkShader> fittedShader(const material::Paint& paint,
                                              const SkRect& box) const;
   void paintFilled(const SkPath& path);
   /** The mesh a shape whose corners carry different fills is drawn as:
