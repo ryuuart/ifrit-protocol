@@ -25,8 +25,11 @@ def register(table: Table) -> None:
     table.erased(
         PAINT, "radialGradient conicGradient", "_t.PointLike", "_t.GradientStops"
     )
+    table.attribute(
+        "_sigil.material.skia.GradientOptions.focus", "_t.PointLike | None"
+    )
     table.parameters(
-        "_sigil.material.skia.GradientOptions.focus", value="_t.PointLike | None"
+        "_sigil.material.skia.GradientOptions.__init__", focus="_t.PointLike | None"
     )
     table.erased("_sigil.material.pattern", "checker", "_t.ColorLike", "_t.ColorLike")
     table.erased(
