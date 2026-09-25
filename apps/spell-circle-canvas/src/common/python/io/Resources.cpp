@@ -273,6 +273,22 @@ void bindIO(py::module_& module) {
           [](io::Arrival& value, py::handle payload) {
             value.bytes = std::make_shared<const io::Bytes>(bytes(payload));
           });
+  py::class_<io::Recording>(resources, "Recording")
+      .def("stop",
+           [](io::Recording& recording) {
+             unlocked([&] { recording.stop(); });
+           })
+      .def("stopped", &io::Recording::stopped)
+      .def(
+          "__enter__",
+          [](io::Recording& recording) -> io::Recording& { return recording; },
+          py::return_value_policy::reference_internal)
+      .def(
+          "__exit__",
+          [](io::Recording& recording, py::object, py::object, py::object) {
+            unlocked([&] { recording.stop(); });
+          },
+          py::arg("exc_type"), py::arg("exc_value"), py::arg("traceback"));
   py::class_<FeedHandle>(resources, "Feed")
       .def(py::init<std::string, io::FeedPolicy>(), py::arg("uri"),
            py::arg("policy") = io::FeedPolicy{})
@@ -346,7 +362,7 @@ void bindIO(py::module_& module) {
           "record",
           [](const FeedHandle& value, const std::filesystem::path& path) {
             auto feed = value.get();
-            unlocked([&] { feed->record(path); });
+            return unlocked([&] { return feed->record(path); });
           },
           py::arg("path"))
       .def(
@@ -466,6 +482,19 @@ void bindIO(py::module_& module) {
                               value);
           },
           py::arg("uri"), py::arg("policy") = io::FeedPolicy{})
+      .def(
+          "replay",
+          [](const HubHandle& value, const std::string& uri,
+             const std::filesystem::path& recording, io::FeedPolicy policy) {
+            auto& hub = value.get();
+            return FeedHandle(unlocked([&] {
+                                return hub.replay(uri, recording.string(),
+                                                  policy);
+                              }),
+                              value);
+          },
+          py::arg("uri"), py::arg("recording"),
+          py::arg("policy") = io::FeedPolicy{})
       .def("feeds",
            [](const HubHandle& value) {
              auto& hub = value.get();

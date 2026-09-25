@@ -36,3 +36,4 @@ def load(self, type: type[_sigil.image.ImageAsset], uri: str) -> _sigil.image.Im
         "_sigil.io.readRecording",
     ):
         table.parameters(path, path=PATH_INPUT)
+    table.parameters("_sigil.io.Hub.replay", recording=PATH_INPUT)

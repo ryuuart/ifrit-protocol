@@ -58,7 +58,7 @@ requires = [
 ]
 
 [sketch.artnet_lights]
-needs = "Art-Net Connection handlers and sends; recording mount; eased ticker ramps; instrument page; themed pen drawing"
+needs = "Art-Net Connection handlers and sends; recording replay; eased ticker ramps; instrument page; themed pen drawing"
 requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.astral_tome]
@@ -217,7 +217,7 @@ requires = [
 ]
 
 [sketch.channel_bind]
-needs = "OSC connection on the hub; kit channels writing outputs; binding chains; recording mount; readout kit"
+needs = "OSC connection on the hub; kit channels writing outputs; binding chains; recording replay; readout kit"
 requires = ["kit-readout", "kit-channel", "connection"]
 
 [sketch.chaucer_astrolabe]
@@ -545,11 +545,11 @@ requires = [
 ]
 
 [sketch.feed_events]
-needs = "JSON Connection kind handlers; recording mount; eased ticker ramps; instrument page; pen bands"
+needs = "JSON Connection kind handlers; recording replay; eased ticker ramps; instrument page; pen bands"
 requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.feed_sky]
-needs = "One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording mount per door; kit panels and vitals readouts; cached band elements on one bound clock"
+needs = "One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording replay per door; kit panels and vitals readouts; cached band elements on one bound clock"
 requires = ["sketch-schemas", "connection", "flatbuffer", "kit-connection-readout"]
 
 [sketch.feed_vitals]
@@ -1220,7 +1220,7 @@ needs = "Signed-distance star shapes; layered SDF style (shadow, glow, fill, bor
 requires = ["kit-section-header", "sdf"]
 
 [sketch.serial_sensor]
-needs = "Serial line Connection; recording mount; instrument page; transformed pen ribbons"
+needs = "Serial line Connection; recording replay; instrument page; transformed pen ribbons"
 requires = ["kit-instrument", "connection"]
 
 [sketch.set_stagger]

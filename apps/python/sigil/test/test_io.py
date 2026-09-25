@@ -118,7 +118,7 @@ class IO(unittest.TestCase):
         self.assertFalse(feed.opened())
         self.assertEqual(feed.generation(), 0)
 
-    def test_recording_file_roundtrip_through_a_mounted_hub(self):
+    def test_recording_file_roundtrip_through_a_replaying_hub(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.feed"
             writer = io.RecordingWriter(path)
@@ -129,14 +129,26 @@ class IO(unittest.TestCase):
             self.assertEqual([a.bytes for a in arrivals], [b"zero", b"half"])
             self.assertIsNone(io.readRecording(Path(directory) / "absent"))
             hub = io.Hub()
-            hub.mount("recording://scene", path)
+            replaying = hub.replay("recording://scene", path)
             feed = hub.feed("recording://scene")
+            self.assertEqual(feed, replaying)
             self.assertEqual(feed.error(), "")
             hub.dispatch(100)
             self.assertEqual(feed.receive().bytes, b"zero")
             hub.dispatch(100.5)
             self.assertEqual(feed.receive().bytes, b"half")
             self.assertTrue(feed.closed())
+
+    def test_a_recording_lasts_as_long_as_its_handle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "live.feed"
+            feed = io.Feed("fixture://recorded")
+            with feed.record(path) as recording:
+                self.assertFalse(recording.stopped())
+                feed.deliver(b"one", at=0.0)
+            self.assertTrue(recording.stopped())
+            feed.deliver(b"two", at=1.0)
+            self.assertEqual([a.bytes for a in io.readRecording(path)], [b"one"])
 
     def test_udp_request_reply_uses_native_sender_and_owned_payloads(self):
         hub = io.Hub()

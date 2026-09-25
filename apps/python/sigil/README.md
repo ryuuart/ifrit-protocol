@@ -711,10 +711,12 @@ finally:
 Register only the transports needed, or call `registerTransports(hub)` for
 the complete native set. A standalone program calls `hub.dispatch(seconds)`
 when replaying recordings. Sketches leave that call to their host.
-`feed.record(path)` writes arrivals for later playback; an empty path stops
-recording. Mount a feed URI onto that file before opening it to replay the
-same input through the same authoring code. `RecordingWriter`, `readRecording`
-and `Feed.replay` also expose the recording format for generated fixtures.
+`feed.record(path)` writes arrivals for later playback and returns a
+`Recording` that stops when it is stopped, when it is garbage collected, or
+at the end of a `with` block. `hub.replay(uri, path)` plays that file back at
+the feed URI — before or after the URI is opened — so the same authoring code
+reads the same input again. `RecordingWriter`, `readRecording` and
+`Feed.replay` also expose the recording format for generated fixtures.
 Use a recording or explicit sample data when `ctx.deterministic` is true.
 
 The bundled `python_live_signals.py` sketch shows received pressure and flow,
