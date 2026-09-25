@@ -28,6 +28,8 @@
 #include <sigilweave/query/Selector.h>
 
 #include <array>
+#include <cmath>
+#include <numbers>
 #include <string>
 
 #include "Joinery.h"
@@ -69,7 +71,10 @@ inline StyleSheet drawingSheet() {
           .fontWeight(600)
           .letterSpacing(0.16_em)
           .ink(var("ink")),
-      rule("caption").fontSize(0.95_rem).ink(var("muted")),
+      rule("caption")
+          .fontSize(0.95_rem)
+          .lineHeight(weave::Leading::absolute(16))
+          .ink(var("muted")),
       rule("label").fontSize(1.05_rem).textAlign(weave::TextAlignment::kCenter),
       rule("paragraph")
           .fontFamily(book)
@@ -81,7 +86,7 @@ inline StyleSheet drawingSheet() {
       rule(".formula")
           .fontFamily(drafting)
           .fontSize(1_rem)
-          .lineHeight(weave::Leading::absolute(16))
+          .lineHeight(weave::Leading::absolute(19))
           .letterSpacing(0.02_em)
           .ink(var("muted")),
       rule("footer").fontSize(0.9_rem).letterSpacing(0.14_em).ink(var("muted")),
@@ -94,6 +99,13 @@ inline StyleSheet drawingSheet() {
   };
 }
 
+/** THE DRAWING'S MEASURES. Every column's body is one height, and what
+ *  closes it — a figure's caption, the reading's last formula — stands on
+ *  its foot, so the band's last lines share one baseline whatever each
+ *  column holds above them. A figure is drawn in a square of `kFigure`
+ *  with its caption under it in what is left. */
+constexpr float kBody = 200, kFigure = 170;
+
 /** A column of the drawing: its heading over what it announces, at a
  *  width of its own. */
 inline Element column(Utf8 heading, float width, Element body) {
@@ -105,11 +117,16 @@ inline Element column(Utf8 heading, float width, Element body) {
 /** THE CELL, TAKEN APART, in a @p size square box: its four jigumi and
  *  its seven ha at the panel's proportions, drawn larger. On the drawing's
  *  beat every piece moves away from the cell's centre in proportion to its
- *  distance from it — an exploded view, so every joint opens by the same
- *  share — while the construction the ha were cut to is struck. */
+ *  distance from it — an exploded view, so every joint of one kind opens
+ *  by the same share — while the construction the ha were cut to is
+ *  struck. The jigumi open further than the ha: a jigumi runs past the
+ *  crossing it laps at, so until its neighbours have cleared that reach
+ *  the four read as a frame knocked out of true rather than one taken
+ *  apart; at half again its distance each clears the others' ends. The
+ *  cell is sized so the opened jigumi stay inside the box. */
 inline Element explodedCell(float size, TimberBank& bank,
                             const choreograph::Output<float>* seconds) {
-  constexpr float side = 124, explode = 0.22f;
+  constexpr float side = 100, leafExplode = 0.28f, jigumiExplode = 0.5f;
   const float enlarged = side / kCellWidth;
   const float jigumi = kJigumiWidth * enlarged;
   const vec2 origin{(size - side) * 0.5f, (size - side) * 0.5f};
@@ -123,7 +140,7 @@ inline Element explodedCell(float size, TimberBank& bank,
         .map(choreograph::easeOutCubic);
   };
   const auto point = [](vec2 at) { return SkPoint{at.x, at.y}; };
-  const auto exploded = [&](const Piece& piece) {
+  const auto exploded = [&](const Piece& piece, float explode) {
     const vec2 away = ((piece.from + piece.to) * 0.5f - centre) * explode;
     return pieceElement(piece, bank, nullptr)
         .translateX(beat(0).target(0, away.x))
@@ -158,8 +175,9 @@ inline Element explodedCell(float size, TimberBank& bank,
        cellLeaves(origin, side, side, kLeafWidth * enlarged, false,
                   jigumi * 0.5f + enlarged, kLeafWidth * enlarged * 0.55f,
                   seed))
-    art.children({exploded(piece)});
-  for (const Piece& piece : frame) art.children({exploded(piece)});
+    art.children({exploded(piece, leafExplode)});
+  for (const Piece& piece : frame)
+    art.children({exploded(piece, jigumiExplode)});
   art.children({each(incentres, [&](vec2 incentre) {
     return kit::dot(point(incentre), 2.2f, Fill::var("centre"))
         .opacity(beat(0.3f));
@@ -167,7 +185,7 @@ inline Element explodedCell(float size, TimberBank& bank,
   // The two jig angles a locking piece is cut at, arced at the corner it
   // leaves: 22.5° off the top edge and 22.5° off the side.
   for (const float start : {0.0f, 67.5f})
-    art.children({kit::disc(point(origin), 56)
+    art.children({kit::disc(point(origin), side * 0.45f)
                       .shape(shapes::arc(start, 22.5f))
                       .stroke(spans::upTo(beat(0.2f)),
                               PathFormat{.width = 1.0f,
@@ -175,25 +193,40 @@ inline Element explodedCell(float size, TimberBank& bank,
   return art;
 }
 
-/** THE THREE JIGS, each showing its own cutting angle against the same
- *  vertical fence, with the angle named under it. */
-inline Element jigs(const data::Json& angles, float height) {
+/** THE THREE JIGS, each showing its own cutting angle off the same
+ *  vertical fence, with the angle named under it. A jig is the sector of
+ *  a @p radius circle from straight up to its angle, drawn so the fence is
+ *  its left edge and the circle's centre its foot: each stands in a box
+ *  exactly as wide as its wedge reaches, so the first fence is the
+ *  column's edge and the widest jig ends on the column's far one. Each
+ *  name stands under its jig at the distance a figure's caption stands
+ *  under the figure, and the row is @p height tall with the wedges'
+ *  tops on its head, level with the cell beside it. */
+inline Element jigs(const data::Json& angles, float radius, float height) {
   return box()
       .row()
       .height(height)
       .justifyContent(Justify::SpaceBetween)
-      .alignItems(Align::Center)
-      .children({each(angles.items(), [](const data::Json& angle) {
+      .children({each(angles.items(), [radius](const data::Json& angle) {
         const float degrees = (float)angle.number();
-        return box().column().gap(16).alignItems(Align::Center).children(
-            {box()
-                 .width(88)
-                 .height(88)
-                 .shape(shapes::sector(-90.0f, degrees, 0.0f))
-                 .fill(Fill::var("wedge"))
-                 .stroke(stroke(0.9f, Fill::var("accent"),
-                                PathFormat::Align::Inner)),
-             document::label(kit::formatted("%g°", degrees))});
+        const float reach = radius * std::sin(degrees * std::numbers::pi_v<float> / 180);
+        return box()
+            .column()
+            .gap(10)
+            .alignItems(Align::Start)
+            .children(
+                {box().width(reach).height(radius).children(
+                     {box()
+                          .absolute()
+                          .left(-radius)
+                          .top(0)
+                          .width(radius * 2)
+                          .height(radius * 2)
+                          .shape(shapes::sector(-90.0f, degrees, 0.0f))
+                          .fill(Fill::var("wedge"))
+                          .stroke(stroke(0.9f, Fill::var("accent"),
+                                         PathFormat::Align::Inner))}),
+                 document::label(kit::formatted("%g°", degrees))});
       })});
 }
 
@@ -213,12 +246,23 @@ inline Element title(const data::Json& words) {
   return column;
 }
 
+/** The reading's formulas as one paragraph, a line each, so the drawing's
+ *  leading alone sets their pitch. */
+inline Utf8 readout(const sketch::kit::Document& doc) {
+  std::u8string lines;
+  for (const sketch::kit::Document::Line& line :
+       doc.run(doc["reading"]["formulas"])) {
+    if (!lines.empty()) lines += u8"\n";
+    lines += line.words.bytes();
+  }
+  return Utf8(std::move(lines));
+}
+
 /** THE WHOLE DRAWING: the band's four columns on the frame's own edges,
  *  every heading on one line and both figures' notes on another, and the
  *  title block's rule and caption along its foot. */
 inline Element shopDrawing(const sketch::kit::Document& doc, TimberBank& bank,
                            const choreograph::Output<float>* seconds) {
-  constexpr float figure = 160;
   const float left = kFrameOuter.left(), width = kFrameOuter.width();
   return kit::at(0, kRoom, kWidth, kBandHeight)
       .fill(Fill::var("ground"))
@@ -235,22 +279,24 @@ inline Element shopDrawing(const sketch::kit::Document& doc, TimberBank& bank,
               .gap(40)
               .children({
                   column(doc["cell"]["heading"].text(), 230,
-                         document::figure(explodedCell(figure, bank, seconds),
-                                          doc["cell"]["note"].text())),
+                         document::figure(explodedCell(kFigure, bank, seconds),
+                                          doc["cell"]["note"].text())
+                             .height(kBody)
+                             .justifyContent(Justify::SpaceBetween)),
                   column(doc["jigs"]["heading"].text(), 270,
-                         document::figure(jigs(doc["jigs"]["angles"], figure),
-                                          doc["jigs"]["note"].text())),
+                         document::figure(
+                             jigs(doc["jigs"]["angles"], 114, kFigure),
+                             doc["jigs"]["note"].text())
+                             .height(kBody)
+                             .justifyContent(Justify::SpaceBetween)),
                   kit::panel(
                       {.eyebrow = doc["reading"]["title"].text(), .gap = 18},
-                      box().column().gap(18).children(
+                      box().column().height(kBody).justifyContent(
+                          Justify::SpaceBetween).children(
                           {document::paragraph(
                                doc.phrase(doc["reading"]["prose"])),
-                           box().column().gap(4).children({each(
-                               doc.run(doc["reading"]["formulas"]),
-                               [](const sketch::kit::Document::Line& line) {
-                                 return document::paragraph(line.words)
-                                     .styleClass("formula");
-                               })})}))
+                           document::paragraph(readout(doc))
+                               .styleClass("formula")}))
                       .flexGrow()
                       .flexShrink(1),
                   title(doc["title"]),

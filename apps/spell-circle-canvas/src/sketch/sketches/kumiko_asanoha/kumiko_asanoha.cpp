@@ -42,8 +42,10 @@ struct KumikoAsanoha {
   /** The shop drawing's words, and the figures its sentences quote from
    *  the panel as built. */
   sketch::kit::Document doc;
-  /** Washi, held so its material keeps one identity across describes. */
-  material::skia::Paint washi;
+  /** The washi's two faces, held so each keeps one identity across
+   *  describes: its FORMATION, the cloud of thick and thin the sheet was
+   *  couched with, and its FIBRE, the long kozo strands laid in it. */
+  material::skia::Paint formation, fibre;
   /** Seconds into one assembly, wrapping: the one value that moves, and
    *  every entrance, the lamp and the drawing's beat are bindings over it. */
   choreograph::Output<float> seconds{0};
@@ -53,6 +55,19 @@ struct KumikoAsanoha {
     return motion::bind(&seconds)
         .window(kLampAt, kLampAt + kLampFor)
         .map(choreograph::easeOutCubic);
+  }
+
+  /** The flame once it is lit: up on the lamp's beat, then breathing on a
+   *  slow two-octave noise for the rest of the loop, so everything it
+   *  lights glows brighter and dimmer with it rather than strobing. */
+  motion::Bound breath() const {
+    return motion::bind(&seconds)
+        .window(kLampAt, kPeriod)
+        .trapezoid(0, kLampFor / (kPeriod - kLampAt), 1, 1)
+        .map(choreograph::easeOutCubic)
+        .scale(0.75f)
+        .wiggle(0.25f, 4.5f, 11, 2, 0.45f)
+        .clamp(0, 1);
   }
 
   /** The pieces of @p roles, in that order, each entering on its beat. */
@@ -90,9 +105,9 @@ struct KumikoAsanoha {
             .map(choreograph::easeOutCubic));
     group.children(
         {pathFigure(panel.lapShadows, 2)
-             .stroke(stroke(1.5f, Fill::color(hexColor(0x472E12, 0.55f)))),
+             .stroke(stroke(1.5f, Fill::color(kLapShadowInk))),
          pathFigure(panel.lapHighlights, 2)
-             .stroke(stroke(0.7f, Fill::color(hexColor(0xFFF2D1, 0.30f))))});
+             .stroke(stroke(0.7f, Fill::color(kLapArrisInk)))});
     for (const Piece& tenon : panel.tenons)
       group.children({pieceElement(tenon, bank, nullptr)});
     return group;
@@ -102,52 +117,114 @@ struct KumikoAsanoha {
    *  a lit field, not a point source seen through a hole, so the ramp
    *  falls a third of a stop from the middle of the opening to its
    *  corners and the pattern — the whole subject — reads everywhere
-   *  across it. */
+   *  across it. The andon stands on the far room's floor, so its hot core
+   *  sits low in the opening, added over the ramp. The paper is laid over
+   *  both and MULTIPLIES them: washi seen against a lamp is read by what
+   *  it holds back, so its formation shows as clouds of thick and thin and
+   *  its kozo as long dark strands, strongest where the light behind is
+   *  strongest — the core is where a reader sees the fibre.
+   *
+   *  The field is painted from the first frame and the lamp's rise is a
+   *  veil of night lifting off it, so every bake under it is taken while
+   *  the panel is still being assembled rather than on the frame the lamp
+   *  comes up. Every layer is a bake of its own; the blend each one adds
+   *  or multiplies with rides that bake's blit. */
   Element backlight() {
     const float middleX = kOpening.width() * 0.5f,
                 middleY = kOpening.height() * 0.5f;
+    // The paper is cut larger than the opening so a turned sheet still
+    // covers every corner of it.
+    const auto sheet = [&](const material::skia::Paint& face, float degrees,
+                           float opacity) {
+      return kit::at(-160, -260, kOpening.width() + 320,
+                     kOpening.height() + 520)
+          .rotate(degrees)
+          .opacity(opacity)
+          .blendMode(SkBlendMode::kMultiply)
+          .fill(face)
+          .cache(Cache::Texture);
+    };
     return box()
         .rect(kOpening)
         .overflow(Overflow::Clip)
-        .opacity(lit())
+        .children({
+            box()
+                .cover()
+                .fill(material::skia::Paint::radial(
+                    {middleX, middleY}, 585,
+                    {{0.00f, hexColor(0xF7E8C6, 0.88f)},
+                     {0.30f, hexColor(0xF2E0B4, 0.85f)},
+                     {0.58f, hexColor(0xE6CE9A, 0.79f)},
+                     {0.80f, hexColor(0xD3B37C, 0.71f)},
+                     {1.00f, hexColor(0xBE9862, 0.66f)}}))
+                .cache(Cache::Texture),
+            box()
+                .cover()
+                .blendMode(SkBlendMode::kPlus)
+                .fill(material::skia::Paint::radial(
+                    {middleX, kOpening.height() * 0.64f}, 330,
+                    {{0.00f, hexColor(0xFFE6B8, 0.42f)},
+                     {0.35f, hexColor(0xF3C98A, 0.22f)},
+                     {0.70f, hexColor(0xD9A560, 0.07f)},
+                     {1.00f, hexColor(0x000000, 0.00f)}}))
+                .cache(Cache::Texture),
+            sheet(formation, 0, 0.65f),
+            sheet(fibre, 21, 0.38f),
+            sheet(fibre, -48, 0.26f),
+        });
+  }
+
+  /** The paper's halo round the opening, where the lit field bleeds past
+   *  its edge onto the frame's shadow. It stands apart from the paper
+   *  because a bake that held the paper's layers would resolve their
+   *  multiply and add against its own transparent ground rather than the
+   *  light under them. */
+  Element halo() {
+    return box()
+        .rect(kOpening)
         .background(styles::OuterGlow{hexColor(0xF4E3B8, 0.34f), 70, 6})
-        .children({box().cover().fill(material::skia::Paint::radial(
-                 {middleX, middleY}, 585,
-                 {{0.00f, hexColor(0xF7E8C6, 0.88f)},
-                  {0.30f, hexColor(0xF2E0B4, 0.85f)},
-                  {0.58f, hexColor(0xE6CE9A, 0.79f)},
-                  {0.80f, hexColor(0xD3B37C, 0.71f)},
-                  {1.00f, hexColor(0xBE9862, 0.62f)}}))
-                       // The washi: kozo fibre in an uneven formation, seen
-                       // only because the light comes through it — a faint
-                       // cloud over the ramp, baked with it once.
-                       .cache(Cache::Texture)
-                       .children({box().cover().opacity(0.22f).fill(washi)})});
+        .cache(Cache::Texture);
+  }
+
+  /** Night over the paper until the lamp is lit. */
+  Element veil() {
+    return box()
+        .rect(kOpening.makeOutset(90, 90))
+        .fill(Fill::color(kNight))
+        .opacity(lit().target(1, 0));
   }
 
   /** THE ANDON'S FLAME: the lamp's halo added OVER the fretwork, so the
    *  light visibly wraps the pieces it stands behind instead of stopping
-   *  dead at their silhouettes. It comes up on the lamp's beat and then
-   *  breathes on a slow two-octave noise for the rest of the loop, so the
-   *  paper glows brighter and dimmer with the flame rather than strobing,
-   *  while the ramp and the paper under it hold still. */
+   *  dead at their silhouettes, while the paper under it holds still. */
   Element flame() {
     return box()
         .rect(kOpening)
-        .overflow(Overflow::Clip)
-        .opacity(motion::bind(&seconds)
-                     .window(kLampAt, kPeriod)
-                     .trapezoid(0, kLampFor / (kPeriod - kLampAt), 1, 1)
-                     .map(choreograph::easeOutCubic)
-                     .scale(0.75f)
-                     .wiggle(0.25f, 4.5f, 11, 2, 0.45f)
-                     .clamp(0, 1))
+        .opacity(breath())
         .blendMode(SkBlendMode::kPlus)
         .fill(material::skia::Paint::radial(
             {kOpening.width() * 0.5f, kOpening.height() * 0.5f}, 380,
             {{0.00f, hexColor(0xFFF2D2, 0.17f)},
              {0.45f, hexColor(0xE6BC7C, 0.09f)},
-             {1.00f, hexColor(0x000000, 0.00f)}}));
+             {1.00f, hexColor(0x000000, 0.00f)}}))
+        .cache(Cache::Texture);
+  }
+
+  /** THE LAMP'S SPILL on the kamoi: what the lit paper throws into the
+   *  near room falls warmest on the face of the beam just under the
+   *  opening and fades along it and down it, breathing with the flame. */
+  Element spill() {
+    const float top = kRoom - 122;
+    return kit::at(0, top, kWidth, 122)
+        .opacity(breath())
+        .blendMode(SkBlendMode::kPlus)
+        .fill(material::skia::Paint::radial(
+            {kCentre.x, kOpening.bottom() - top - 60}, 560,
+            {{0.00f, hexColor(0xF6D9A2, 0.55f)},
+             {0.22f, hexColor(0xE8BD7A, 0.32f)},
+             {0.50f, hexColor(0xC98E4E, 0.10f)},
+             {1.00f, hexColor(0x000000, 0.00f)}}))
+        .cache(Cache::Texture);
   }
 
   /** The mitred keyline draws itself on around the frame's opening — one
@@ -190,10 +267,10 @@ struct KumikoAsanoha {
   Element describe() {
     return stack()
         .fill(Fill::color(kNight))
-        .children({backlight(), lattice(), joinery(), flame(),
+        .children({halo(), backlight(), veil(), lattice(), joinery(), flame(),
                    pieces({Role::Frame}).cache(Cache::Group), keyline(),
                    post(0, 146), post(kWidth - 146, 146), beam(0, 122, true),
-                   beam(kRoom - 122, 122, false),
+                   beam(kRoom - 122, 122, false), spill(),
                    // The near side of the room, in shadow. It stops at the
                    // room's floor: the drawing under it is a drawing.
                    kit::at(0, 0, kWidth, kRoom)
@@ -224,14 +301,24 @@ struct KumikoAsanoha {
     doc.figures({{"incircle", kit::formatted("%.5f", kIncircle)},
                  {"cells", kit::formatted("%d", kColumns * kRows)},
                  {"leaves", kit::formatted("%ld", (long)leaves)}});
-    washi = material::skia::Paint::recipe(
-        material::kit::board({.paint = hexColor(0xE9D3A4),
-                              .tooth = 0.08f,
-                              .toothScale = 0.03f,
-                              .stretch = 3.0f,
-                              .wear = 0.35f,
-                              .wearScale = 0.005f,
+    // Both faces are near-white boards, since a multiplied white is the
+    // light let through untouched and only what the paper holds back
+    // darkens it, and both lean warm because kozo does, so a thick place
+    // reads amber rather than grey: the formation all wear and no tooth, the fibre all
+    // tooth drawn out into strands and no wear.
+    formation = material::skia::Paint::recipe(
+        material::kit::board({.paint = hexColor(0xFFEFD8),
+                              .tooth = 0.0f,
+                              .wear = 0.42f,
+                              .wearScale = 0.011f,
                               .seed = 5}));
+    fibre = material::skia::Paint::recipe(
+        material::kit::board({.paint = hexColor(0xFFF3E4),
+                              .tooth = 0.4f,
+                              .toothScale = 0.06f,
+                              .stretch = 4.0f,
+                              .wear = 0.0f,
+                              .seed = 9}));
     ctx.ticker.add([this](double, double elapsed) {
       seconds = motion::phase(elapsed, kPeriod) * kPeriod;
     });

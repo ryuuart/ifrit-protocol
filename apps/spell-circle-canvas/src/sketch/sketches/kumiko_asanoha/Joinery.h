@@ -64,6 +64,16 @@ const Timber kKeyaki{hexColor(0x76472A), hexColor(0x9C6B3E),
 const Timber kKeyakiShade{hexColor(0x33200F), hexColor(0x54341B),
                           hexColor(0x140C05), 0.045f, 0.42f};
 
+/** THE JOINT INKS, stated beside the timber they mark because they are
+ *  its own shadows and lights rather than the page's: the seam every
+ *  abutting piece shows against its neighbour, the shadow a half-lap's
+ *  upper edge casts across the member under it, and the lit arris just
+ *  outside that shadow. Each is translucent so the timber under it still
+ *  shows its grain through the line. */
+const material::Color kSeamInk = hexColor(0x4A3620, 0.55f);
+const material::Color kLapShadowInk = hexColor(0x472E12, 0.55f);
+const material::Color kLapArrisInk = hexColor(0xFFF2D1, 0.30f);
+
 // ---------------------------------------------------------------------------
 // The room. The field is FIXED and the pitch is the free constant: change
 // kCell alone and the columns and rows re-derive, so the lattice only gets
@@ -478,7 +488,12 @@ struct Panel {
 // stays fixed in the room across hundreds of differently-angled boards.
 
 /** @p piece, entering on the loop @p seconds is read from when one is
- *  given: it fades up and swells into its seat across its own beat. */
+ *  given: it fades up and settles into its seat across its own beat.
+ *  The settle starts at four fifths of full size and never overshoots,
+ *  because the piece's face is a bake taken at the scale it is drawn at:
+ *  a swell that passes through full size and back asks for a fresh bake
+ *  of every board at each step of scale it crosses, where a settle that
+ *  stays inside one step is one bake and then a blit. */
 inline Element pieceElement(const Piece& piece, TimberBank& bank,
                             const choreograph::Output<float>* seconds) {
   const vec2 span = piece.to - piece.from;
@@ -530,7 +545,7 @@ inline Element pieceElement(const Piece& piece, TimberBank& bank,
                                           {1, 0.96f, 0.86f, bevelAlpha},
                                           {0.14f, 0.09f, 0.03f, bevelAlpha}})
           // The seam every abutting piece shows against its neighbour.
-          .stroke(stroke(0.6f, Fill::color(hexColor(0x4A3620, 0.55f)),
+          .stroke(stroke(0.6f, Fill::color(kSeamInk),
                          PathFormat::Align::Inner))
           // A PIECE IS A PICTURE OF A PIECE. Neither the grain nor the arris
           // changes once the board is cut: the entrance moves where the
@@ -547,8 +562,8 @@ inline Element pieceElement(const Piece& piece, TimberBank& bank,
                      .clamp(0, 1))
         .scale(motion::bind(seconds)
                    .window(from, until)
-                   .map(motion::ease::outBack())
-                   .target(0.55f, 1));
+                   .map(choreograph::easeOutCubic)
+                   .target(0.8f, 1));
   }
   return element;
 }
