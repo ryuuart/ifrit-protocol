@@ -11,6 +11,7 @@
  */
 
 #include <choreograph/Choreograph.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <cstdint>
 #include <tuple>
@@ -53,8 +54,8 @@ enum class Envelope : uint8_t {
  *       turns the one-way phase into a SHAPE across that span: there and
  *       back, a swell, a hold between two ramps, a pulse, or a shape of
  *       the caller's own;
- *    3. `map(ease)` shapes it (any `choreograph::EaseFn`, so the whole
- *       `ease::` namespace and every choreograph curve fits);
+ *    3. `map(ease)` shapes it (any `Easing`, so every curve under
+ *       `ease::` and a caller's own function fits);
  *    4. the affine chain — `scale`/`offset`/`target`/`invert` — composes
  *       in CALL ORDER, so `.scale(240).offset(-70)` is `v*240 - 70` and
  *       `.offset(-70).scale(240)` is `(v-70)*240`, each reading the way
@@ -73,7 +74,7 @@ enum class Envelope : uint8_t {
 struct BoundFloat {
   const choreograph::Output<float>* source = nullptr;
   float inScale = 1.0f, inOffset = 0.0f;  ///< source(): pre-curve normalise
-  choreograph::EaseFn curve;              ///< map()
+  Easing curve;                           ///< map()
   bool clampInput = false;  ///< window(): clamp before the curve
   /** The envelope stage: the shape, and the trapezoid's four corners in
    *  NORMALISED phase. The corners are stored non-decreasing, so a
@@ -84,7 +85,7 @@ struct BoundFloat {
   /** square(): the ON fraction of each period, stored clamped to [0,1]. */
   float duty = 0.5f;
   /** wave(): the caller's own periodic shape, read on the folded phase. */
-  choreograph::EaseFn waveFunction;
+  Easing waveFunction;
   int steps = 0;                      ///< quantize(): 0 = continuous
   float scale = 1.0f, offset = 0.0f;  ///< the affine chain
   bool clamped = false;
@@ -102,21 +103,6 @@ struct BoundFloat {
   /** Runs the chain on one sample of the bound Output. */
   float apply(float v) const;
 };
-
-/** Equal only when PROVABLY identical: two easing curves compare equal
- *  when both are the same plain function pointer, or both are the same
- *  `ease::Curve` shape at the same settings — the two forms a
- *  std::function can be read back as. A lambda-valued curve compares
- *  unequal, conservatively, because a std::function holding one cannot be
- *  inspected.
- *
- *  ONE BODY for every curve slot in the library — the two on the record
- *  above, a Transition's, a Spread's distribution — because a second
- *  spelling of this rule would let two comparators disagree about
- *  whether the value that holds a curve may prune. It lives at the
- *  bottom of the library because the record above is the lowest thing in
- *  it that carries a curve. */
-bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b);
 
 /** Shaped bindings prune like anything else: same Output, same affine,
  *  same curve under easeEqual's rule. A re-describe that only changes the

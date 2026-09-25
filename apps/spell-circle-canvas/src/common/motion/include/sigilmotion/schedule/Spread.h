@@ -12,7 +12,7 @@
  * feed row, a child node or a tile.
  */
 
-#include <choreograph/Choreograph.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <cstdint>
 #include <memory>
@@ -130,7 +130,7 @@ struct Spread {
    *  which the driven value owns): the linear ramp of delays is passed
    *  through this curve, so an ease-in distribution crowds the early units
    *  together and lets the tail spread out. Null is the uniform spacing. */
-  choreograph::EaseFn distribution = nullptr;
+  Easing distribution = nullptr;
   /** A NESTED cascade inside each of this one's beats — see `then()`.
    *  Held out of line because a Spread cannot contain itself by value.
    *  Exactly ONE level deep: a cascade reads this and stops. */

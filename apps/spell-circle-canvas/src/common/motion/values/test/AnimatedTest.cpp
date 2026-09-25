@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilmotion/values/Keyframes.h>
 
@@ -33,7 +34,7 @@ Animatable<float> entrance(float from, float to, int ms) {
   t.value = to;
   t.from = from;
   t.spec.duration = std::chrono::milliseconds(ms);
-  t.spec.ease = &choreograph::easeNone;
+  t.spec.ease = sigil::motion::ease::linear;
   return t;
 }
 
@@ -91,7 +92,7 @@ TEST(Animated, ACallersDefaultTransitionRampsAPlainChange) {
   std::unique_ptr<AnimatedFloat> anim;
   Transition spec;
   spec.duration = std::chrono::milliseconds(1000);
-  spec.ease = &choreograph::easeNone;
+  spec.ease = sigil::motion::ease::linear;
   EXPECT_TRUE(transitionFloatAt(ticker, anim, 0.0f, 8.0f, spec));
   ticker.tick(0.5);
   EXPECT_NEAR(anim->value.value(), 4.0f, 1e-4f);
@@ -116,7 +117,7 @@ TEST(Animated, AWaypointEntrancePlaysItsSegmentsInTurn) {
   std::unique_ptr<AnimatedFloat> anim;
   Transitioned<float> t;
   t.value = 0.0f;
-  t.spec.ease = &choreograph::easeNone;
+  t.spec.ease = sigil::motion::ease::linear;
   t.waypoints = {{std::chrono::milliseconds(0), 0.0f},
                  {std::chrono::milliseconds(1000), 10.0f},
                  {std::chrono::milliseconds(2000), 0.0f}};

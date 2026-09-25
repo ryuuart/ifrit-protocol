@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <algorithm>
 #include <cmath>
@@ -147,7 +148,7 @@ TEST(Bind, WindowIsSourceThatAlsoClampsItsDomain) {
   const BoundFloat overshoot =
       bind(&phase)
           .window(0.2f, 0.4f)
-          .map([](float t) { return ch::easeOutBack(t); })
+          .map(ease::outBack())
           .value();
   EXPECT_NEAR(overshoot.apply(5.0f), 1.0f, 1e-4f);
 }
@@ -192,10 +193,10 @@ INSTANTIATE_TEST_SUITE_P(
         Pair{"AnEnvelopeAndACurve",
              unshaped()
                  .trapezoid(0.1f, 0.2f, 0.8f, 0.9f)
-                 .map(&ch::easeInQuad)
+                 .map(ease::inQuad)
                  .value(),
              unshaped()
-                 .map(&ch::easeInQuad)
+                 .map(ease::inQuad)
                  .trapezoid(0.1f, 0.2f, 0.8f, 0.9f)
                  .value()},
         Pair{"AnEnvelopeAndAClamp",
@@ -209,6 +210,6 @@ INSTANTIATE_TEST_SUITE_P(
              unshaped().target(0.f, 80.f).quantize(5).value()},
         // …and after the curve, so an eased value still lands on a step.
         Pair{"AQuantiseAndACurve",
-             unshaped().quantize(5).map(&ch::easeInQuad).value(),
-             unshaped().map(&ch::easeInQuad).quantize(5).value()}),
+             unshaped().quantize(5).map(ease::inQuad).value(),
+             unshaped().map(ease::inQuad).quantize(5).value()}),
     pairName);

@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <sigilcore/comparable/Fields.h>
 #include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <algorithm>
 #include <boost/pfr/core.hpp>
@@ -203,7 +204,7 @@ void perturb(float& v) { v += 1.0f; }
 void perturb(uint32_t& v) { v += 1u; }
 void perturb(std::vector<float>& v) { v.push_back(1.0f); }
 void perturb(Spread::From& v) { v = Spread::From::End; }
-void perturb(choreograph::EaseFn& v) { v = &choreograph::easeInQuad; }
+void perturb(Easing& v) { v = ease::inQuad; }
 void perturb(std::shared_ptr<const Spread>& v) {
   v = std::make_shared<const Spread>();
 }

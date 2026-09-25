@@ -114,7 +114,7 @@ float Cascade::startMs(uint32_t outerUnit, uint32_t innerUnit) const {
   // normalise-and-rescale, which would differ in the last bit and move
   // every pixel of a settled reveal.
   const auto delayOf = [](const std::vector<float>& order, uint32_t index,
-                          float each, const choreograph::EaseFn& shape) {
+                          float each, const Easing& shape) {
     if (order.empty()) return 0.0f;
     const uint32_t clamped = std::min<uint32_t>(index, order.size() - 1);
     if (!shape) return order[clamped] * each;

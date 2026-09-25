@@ -11,7 +11,6 @@
 
 #include <cmath>
 
-#include "sigilmotion/bind/Curve.h"
 #include "sigilmotion/bind/WiggleNoise.h"
 
 namespace sigil::motion {
@@ -101,24 +100,6 @@ float BoundFloat::apply(float v) const {
                                             wiggleOctaves, wiggleFalloff);
   if (clamped) v = v < lo ? lo : (v > hi ? hi : v);
   return v;
-}
-
-bool easeEqual(const choreograph::EaseFn& a, const choreograph::EaseFn& b) {
-  const bool aSet = (bool)a, bSet = (bool)b;
-  if (aSet != bSet) return false;
-  if (!aSet) return true;
-  using Ptr = float (*)(float);
-  if (const Ptr* pa = a.target<Ptr>(); pa) {
-    const Ptr* pb = b.target<Ptr>();
-    return pb && *pa == *pb;
-  }
-  // A shaped curve keeps its shape and its numbers where they can be read
-  // back (see ease::Curve); anything else is a lambda and stays unequal.
-  if (const ease::Curve* ca = a.target<ease::Curve>(); ca) {
-    const ease::Curve* cb = b.target<ease::Curve>();
-    return cb && *ca == *cb;
-  }
-  return false;
 }
 
 static_assert(core::kFieldCount<BoundFloat> == 24,

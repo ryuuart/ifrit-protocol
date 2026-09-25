@@ -24,6 +24,7 @@ sigil_library_root(SigilMotion
        ${CMAKE_CURRENT_SOURCE_DIR}/VALUES.md)
 
 # Dependencies point down this list.
+add_subdirectory(ease)
 add_subdirectory(bind)
 add_subdirectory(clock)
 add_subdirectory(physics)
@@ -31,7 +32,7 @@ add_subdirectory(schedule)
 add_subdirectory(values)
 
 sigil_library(SigilMotion
-  INTERFACE SigilMotionClock SigilMotionValues SigilMotionBind
+  INTERFACE SigilMotionClock SigilMotionValues SigilMotionBind SigilMotionEase
             SigilMotionPhysics SigilMotionSchedule)
 
 # Every API name the prose spells, compiled against the headers that own

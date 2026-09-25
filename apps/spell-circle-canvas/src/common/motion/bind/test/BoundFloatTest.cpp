@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <cmath>
 #include <string>
@@ -268,10 +269,10 @@ TEST(Bind, WaveEvaluatesTheCallersShapeOnTheFoldedPhase) {
   // lands it in the property's units — the fixed stage order.
   const BoundFloat staged = bind(&phase)
                                 .wave([](float u) { return u; })
-                                .map(&ch::easeInQuad)
+                                .map(ease::inQuad)
                                 .scale(100.0f)
                                 .value();
-  EXPECT_FLOAT_EQ(staged.apply(0.5f), ch::easeInQuad(0.5f) * 100.0f);
+  EXPECT_FLOAT_EQ(staged.apply(0.5f),ease::inQuad(0.5f) * 100.0f);
 
   // An empty function passes the folded phase through rather than calling
   // nothing.
@@ -312,7 +313,7 @@ TEST(Bind, TheEnvelopeOccupiesOneFixedPlaceInTheChain) {
   // makes the shoulder shape a separate decision from the corners.
   const BoundFloat eased = bind(&phase)
                                .trapezoid(0.1f, 0.3f, 0.7f, 0.9f)
-                               .map(&ch::easeInOutQuad)
+                               .map(ease::inOutQuad)
                                .value();
   EXPECT_FLOAT_EQ(eased.apply(0.5f), 1.0f);
   EXPECT_FLOAT_EQ(eased.apply(0.05f), 0.0f);

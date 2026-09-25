@@ -1,20 +1,16 @@
-# The bind leaf: bind(), the Bound chain builder, the BoundFloat
-# evaluator it fills, the value-noise field behind wiggle(), and the two
-# comparators an identity prune reads a curve and a shaped binding
-# through — here because the record this feature owns is the lowest thing
-# in the library that carries a curve.
+# The bind feature: bind(), the Bound chain builder, the BoundFloat
+# evaluator it fills, the value-noise field behind wiggle(), and the
+# comparator an identity prune reads a shaped binding through. It links
+# the ease feature for the curves a binding's map and wave hold.
 #
-# Choreograph, cmath and integers, plus two edges OUT of this library,
-# both to header-only leaves over the standard library: SigilCoreComparable
-# for the field pin the shaped-binding comparator sits under, and
-# SigilCoreCompute for the shaped curve value itself, which a colour ramp
-# and a keyed track read as well and which therefore lives below all
-# three.
+# Choreograph, cmath and integers, plus one edge OUT of this library, to a
+# header-only leaf over the standard library: SigilCoreComparable for the
+# field pin the shaped-binding comparator sits under.
 find_package(choreograph CONFIG REQUIRED)
 sigil_library(SigilMotionBind
   SOURCES Bound.cpp BoundFloat.cpp WiggleNoise.cpp
-  HEADERS Bind.h Bound.h BoundFloat.h Curve.h WiggleNoise.h
-  PUBLIC SigilCoreComparable SigilCoreCompute choreograph::choreograph)
+  HEADERS Bind.h Bound.h BoundFloat.h WiggleNoise.h
+  PUBLIC SigilMotionEase SigilCoreComparable choreograph::choreograph)
 
 # Links only the library it exercises, so a link edge that pulled a
 # drawing library in would show up as a build failure here.

@@ -8,6 +8,7 @@
  */
 
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Keyframes.h>
 
 #include <chrono>
@@ -19,7 +20,7 @@ inline Animatable<float> ramped(float to, int ms) {
   Transitioned<float> t;
   t.value = to;
   t.spec.duration = std::chrono::milliseconds(ms);
-  t.spec.ease = &choreograph::easeNone;
+  t.spec.ease = ease::linear;
   return t;
 }
 

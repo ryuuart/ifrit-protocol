@@ -47,13 +47,13 @@ Bound& Bound::square(float duty) {
   return *this;
 }
 
-Bound& Bound::wave(choreograph::EaseFn shape) {
+Bound& Bound::wave(Easing shape) {
   m_b.envelope = Envelope::kWave;
   m_b.waveFunction = std::move(shape);
   return *this;
 }
 
-Bound& Bound::map(choreograph::EaseFn curve) {
+Bound& Bound::map(Easing curve) {
   m_b.curve = std::move(curve);
   return *this;
 }

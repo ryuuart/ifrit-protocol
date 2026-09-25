@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <functional>
 
@@ -23,7 +24,7 @@ BoundFloat furnished(const ch::Output<float>* source) {
   return bind(source)
       .source(0.25f, 0.75f)
       .trapezoid(0.1f, 0.3f, 0.7f, 0.9f)
-      .map(&ch::easeInQuad)
+      .map(ease::inQuad)
       .quantize(5)
       .scale(3.0f)
       .offset(-1.5f)
@@ -39,12 +40,12 @@ TEST(Bind, ACurveComparesByItsShapeAndItsSettings) {
   // A plain function is its pointer, a shaped curve is its shape and its
   // numbers, and a capturing lambda is unequal to everything — including
   // to itself, because a std::function holding one cannot be read back.
-  EXPECT_TRUE(easeEqual(&ch::easeInQuad, &ch::easeInQuad));
-  EXPECT_FALSE(easeEqual(&ch::easeInQuad, &ch::easeOutQuad));
+  EXPECT_TRUE(easeEqual(ease::inQuad, ease::inQuad));
+  EXPECT_FALSE(easeEqual(ease::inQuad, ease::outQuad));
   EXPECT_TRUE(easeEqual(ease::outBack(1.7f), ease::outBack(1.7f)));
   EXPECT_FALSE(easeEqual(ease::outBack(1.7f), ease::outBack(2.4f)));
   const float k = 2.0f;
-  const ch::EaseFn captured = [k](float t) { return t * k; };
+  const Easing captured = [k](float t) { return t * k; };
   EXPECT_FALSE(easeEqual(captured, captured));
   // Two empty slots are the same slot: a binding that shapes nothing
   // must not re-patch against another that shapes nothing.
@@ -66,7 +67,7 @@ TEST(Bind, ABoundMapComparesEveryFieldItHolds) {
   EXPECT_TRUE(differs([&](BoundFloat& b) { b.source = &other; })) << "source";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.inScale += 1.0f; })) << "inScale";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.inOffset += 1.0f; })) << "inOffset";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.curve = &ch::easeOutQuad; }))
+  EXPECT_TRUE(differs([](BoundFloat& b) { b.curve = ease::outQuad; }))
       << "curve";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.clampInput = !b.clampInput; }))
       << "clampInput";
@@ -79,7 +80,7 @@ TEST(Bind, ABoundMapComparesEveryFieldItHolds) {
   EXPECT_TRUE(differs([](BoundFloat& b) { b.holdEnd += 0.01f; })) << "holdEnd";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.fallEnd += 0.01f; })) << "fallEnd";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.duty += 0.01f; })) << "duty";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.waveFunction = &ch::easeInQuad; }))
+  EXPECT_TRUE(differs([](BoundFloat& b) { b.waveFunction = ease::inQuad; }))
       << "waveFunction";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.steps += 1; })) << "steps";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.scale += 1.0f; })) << "scale";

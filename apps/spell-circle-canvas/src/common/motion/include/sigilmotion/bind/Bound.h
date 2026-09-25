@@ -138,10 +138,10 @@ class Bound {
    *  to everything — so a described binding carrying one re-patches on
    *  every describe instead of pruning. Name the shape as a free function
    *  where that cost matters. */
-  Bound& wave(choreograph::EaseFn shape);
-  /** Shape the (normalised) value — any choreograph easing, including the
-   *  parameterised `ease::` family. */
-  Bound& map(choreograph::EaseFn curve);
+  Bound& wave(Easing shape);
+  /** Shape the (normalised) value — any curve under `ease::`, the
+   *  parameterised families included. */
+  Bound& map(Easing curve);
   Bound& scale(float s);
   Bound& offset(float o);
   /** Map [0,1] onto the TARGET range [lo,hi] — exactly

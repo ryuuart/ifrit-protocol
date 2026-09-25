@@ -45,7 +45,8 @@ while (running) {
 ## Mental model
 
 Choreograph supplies the vocabulary — `Timeline`, `Motion`, `Phrase`,
-`Output<T>`, `EaseFn`. This library only drives it. `Output<T>` is the
+`Output<T>`. This library only drives it; the curves a phrase eases by
+are `ease::`'s, which any choreograph phrase takes. `Output<T>` is the
 live value cell: your code owns it, the ticker writes it, and everything
 downstream reads it through a pointer.
 

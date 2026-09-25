@@ -6,6 +6,7 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <vector>
 
@@ -65,7 +66,7 @@ Bound shaped(Envelope envelope) {
       bound.square(0.4f);
       break;
     case Envelope::kWave:
-      bound.wave(&choreograph::easeInOutQuad);
+      bound.wave(ease::inOutQuad);
       break;
   }
   return bound;
@@ -106,7 +107,7 @@ BENCHMARK(BM_Apply_Envelope)
 void BM_Apply_FullChain(benchmark::State& state) {
   const Bound bound = bind(&source())
                           .window(0, 1)
-                          .map(&choreograph::easeInOutCubic)
+                          .map(ease::inOutCubic)
                           .pingPong()
                           .quantize(12)
                           .target(-70, 170)

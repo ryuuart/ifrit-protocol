@@ -226,7 +226,7 @@ signal a host sleeps on.
 ## Gotchas
 
 `Transition` is an aggregate, so `{360ms, {}, 220ms}` value-initialises
-`ease` to an *empty* `std::function`, which compiles and then throws
+`ease` to an *empty* `Easing`, which compiles and then throws
 `bad_function_call` when called. Read the curve through
 `Transition::easing()`, which substitutes the default; never read `ease`
 directly.

@@ -12,10 +12,14 @@
  *  the transition, the keyed track, the spring, the oscillator, the
  *  property that can hold any of them, and the lanes a held motion is
  *  retargeted through (values/Values.h). */
+/** @defgroup motion-ease Curves
+ *  The curves a motion is shaped by: the one type every curve slot
+ *  holds, the named catalogue, the parameterised families, and the rule
+ *  two held curves compare by (ease/Ease.h). */
 /** @defgroup motion-bind Bindings
  *  One number shaped into another: the chain builder, the evaluator it
- *  compiles to, the easing curves it is shaped by, and the wiggle noise
- *  laid over the result (bind/Bind.h). */
+ *  compiles to, and the wiggle noise laid over the result
+ *  (bind/Bind.h). */
 /** @defgroup motion-schedule Schedules
  *  How a run of units shares one progress: the spread, the orderings a
  *  cascade runs in, and a spread resolved against a frame's counts into

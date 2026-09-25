@@ -17,14 +17,16 @@ what a consumer uses; every public header lives under
 
 | target | headers | holds |
 |--------|---------|-------|
-| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/Curve.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all four | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; `ease::`, the animation's name for SigilCore's shaped curve value and its house shapes; the wiggle noise field; `easeEqual()` and `boundMapEqual()` |
+| `SigilMotionEase`   | `ease/Ease.h` | `Easing`, the one type every curve slot holds; the named curves `ease::linear`, then `ease::inQuad`, `ease::outQuad`, `ease::inOutQuad` and the same three for Cubic, Quart, Quint, Sine, Expo and Circ as plain functions, and for Back, Elastic and Bounce as factories over their shape parameter (`ease::outBack(overshoot)`, `ease::outElastic(amplitude, period)`, `ease::inOutBounce(overshoot)`); the families `ease::in(power)`, `ease::out(power)`, `ease::inOut(power)`, `ease::steps(count, jumpAtStart)`, `ease::cubicBezier(x1, y1, x2, y2)` and `ease::smoothstep`; `ease::Curve`, SigilCore's comparable shaped curve; `easeEqual()` |
+| `SigilMotionBind`   | `bind/Bound.h`, `bind/BoundFloat.h`, `bind/WiggleNoise.h`; `bind/Bind.h` includes all three and the curves | `bind()`, `wiggle()` and the `Bound` chain builder; `BoundFloat` and `Envelope`, the evaluator; the wiggle noise field; `boundMapEqual()` |
 | `SigilMotionValues` | `values/Transition.h`, `values/Keyframes.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Sequence.h`, `values/Spring.h`, `values/Time.h` | `Transition`, `ramp()`, `clamp01()` and `transitionEqual()`; `Transitioned`, `animate()`/`from()`/`to()`/`through()`; `Animatable<T>` and `propertyEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal; `Sequence`, `Step` and `Interpolation`, the keyed track |
 | `SigilMotionClock`  | `clock/FrameClock.h`, `clock/ClockPolicy.h`, `clock/Ticker.h` | the clock; `ClockPolicy` and `PolicyClock`, who moves it and the budget set with it; and the ticker |
 | `SigilMotionSchedule` | `schedule/Spread.h`, `schedule/Order.h`, `schedule/Cascade.h`; `schedule/Schedule.h` includes all three | `Spread`, the spec; `cascadeOrder()`, the five orderings; `Cascade` and `Beat`, a spread resolved against a frame's counts |
 | `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Neighbourhood.h`, `physics/Constraints.h`, `physics/Verlet.h`, `physics/Particles.h`; `physics/Physics.h` includes all six | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Neighbourhood`, the grid a flock and everything else that reads more than one point at a time asks what is near what; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper; `Particles` and `Attribute`, a point set that is born, ages and dies, with `Emitter`, `EmitFrom`, `Roughly`, `BirthAttribute` and `FixedAttribute`, what puts particles into one |
 
-`SigilMotion` is the umbrella target over all five, so a consumer of
-every value and binding names one link. Bind is the leaf: Values
+`SigilMotion` is the umbrella target over all six, so a consumer of
+every value and binding names one link. Ease is the leaf, because every
+other feature holds a curve; Bind links it and is the next floor: Values
 links it because `Animatable<T>` can hold a shaped binding, Clock links
 it because `Ticker::derive` runs one, and Schedule links it because a
 spread's distribution curve compares under the same rule every other
@@ -67,7 +69,10 @@ would let a moving value prune into a still one.
 
 ## Boundary
 
-Every feature but physics links `choreograph::choreograph` publicly. The
+Every feature but ease and physics links `choreograph::choreograph`
+publicly. The curves are this library's own: `ease::` spells the
+standard curves itself, to the same numbers, so a caller names a curve
+without naming the animation runtime. The
 only other edges out of this directory reach the two header-only leaves
 under SigilCore that depend on the standard library and nothing else:
 `SigilCoreComparable` for `kFieldCount`, the pin each comparator above
@@ -81,9 +86,9 @@ along and the same flow drawn as a picture are the same field, and for
 the SHAPED CURVE itself: `core::curve::Curve` and every house shape are
 that leaf's, because a colour ramp and a keyed track reshape a unit
 position exactly as an easing does and the colour leaf links no
-animation runtime. `ease::` here is the animation's word for those, and
-nothing more — a curve gets its arithmetic and its equality from the
-leaf, and reads the same wherever it is held.
+animation runtime. The parameterised `ease::` curves are values of that
+leaf's type, so a shaped curve gets its equality from the leaf and reads
+the same wherever it is held.
 Both carry no kernel, no device and nothing that draws. Boost is
 private, in one place: the scheduler's own table — a Boost unordered map
 on `SigilMotionSchedule` — which no public header names.
@@ -115,14 +120,16 @@ contract every library here is built, tested and measured under: one
 every feature's `bench/`, ctest one entry per CASE, what a case may pin,
 and what a label promises. What is only true of SigilMotion:
 
-Targets: `SigilMotionBind`, `SigilMotionValues`, `SigilMotionClock`,
-`SigilMotionPhysics` and `SigilMotionSchedule` — one per feature
-directory (`bind/`, `values/`, `clock/`, `physics/`, `schedule/`), each
+Targets: `SigilMotionEase`, `SigilMotionBind`, `SigilMotionValues`,
+`SigilMotionClock`, `SigilMotionPhysics` and `SigilMotionSchedule` — one
+per feature directory (`ease/`, `bind/`, `values/`, `clock/`, `physics/`,
+`schedule/`), each
 holding its sources, its `test/` and its `bench/` — plus `SigilMotion`,
 the umbrella.
 
 | directory | suites | what they prove | what the feature must not be able to link |
 |---|---|---|---|
+| `ease/test/` | `Ease` | every named curve against the animation runtime's own numbers at 65 positions, exactly; the power families at a whole power against the named curve; the steps; and `easeEqual` over plain, shaped and captured curves | the rest of the library — the curves are its bottom floor, and the animation runtime is linked only to read its numbers against |
 | `bind/test/` | `Bind`, `Stages`, `StagePairs`, `Envelopes`, `PeriodicEnvelopes`, `BindNoise` | the `bind()` chain: every stage against the arithmetic it stands in for, the place each stage owns, the envelopes, `wrap`, the wiggle field, and the two comparators field by field | anything above the leaf — the record that carries a curve is the lowest thing here |
 | `clock/test/` | `FrameClock`, `PolicyClock`, `Ticker` | one reading after another, pause, time scale and the stall ceiling; which frames each policy lets move the clock and the budget that runs out once; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
 | `values/test/` | `Values`, `Forms`, `Animated`, `Lanes`, `Oscillator`, `Sequence`, `Spring` | `Transition`, the `animate()` builders, `quantizeTime`, the four forms an `Animatable<T>` holds, the two signals read from a time alone, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
@@ -142,7 +149,8 @@ orderings a cascade deals its ranks in.
 One file per subject: in `bind/test/`, `BindTest` (the chain builder),
 `BoundFloatTest` (the evaluation, the envelopes and the wrap),
 `WiggleNoiseTest` (the noise stage and the field under it) and
-`CurveComparatorTest` (the two comparators); then
+`CurveComparatorTest` (the two comparators); `ease/test/EaseTest.cpp`;
+then
 `clock/test/ClockTest.cpp`; then `physics/test/PhysicsTest.cpp` (the
 stepper) and `ParticlesTest.cpp` (what is born, ages and dies);
 `schedule/test/ScheduleTest.cpp`; and, in `values/test/`, `ValuesTest`
@@ -164,7 +172,9 @@ through and name the number without evaluating a curve. Otherwise each
 test links only the library it exercises, plus the clock where a value
 is driven by the ticker, and GoogleTest.
 
-`motion_bench`'s arms: `bind/bench/` (`BoundFloat::apply` per call under
+`motion_bench`'s arms: `ease/bench/` (one curve per call through the
+`Easing` a slot holds — a plain function, a shaped curve, and the CSS
+Bézier), `bind/bench/` (`BoundFloat::apply` per call under
 each envelope and the full chain, and the wiggle field by octave),
 `values/bench/` (the consumer's read of an `Animatable` lane per slot
 for each kind it can hold, copying and constructing such a lane, and the

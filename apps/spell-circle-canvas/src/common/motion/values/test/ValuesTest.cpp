@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Animatable.h>
@@ -126,7 +127,7 @@ TEST(Values, TransitionSurvivesAnEmptyEase) {
   EXPECT_EQ(named.delay, 220ms);
   EXPECT_FALSE((bool)named.ease);
   EXPECT_TRUE((bool)named.easing());
-  EXPECT_NEAR(named.easing()(0.5f), choreograph::easeOutQuad(0.5f), 1e-6f);
+  EXPECT_NEAR(named.easing()(0.5f),ease::outQuad(0.5f), 1e-6f);
 
   const Transition spec{200ms, ease::outBack()};
   EXPECT_GT(spec.easing()(0.8f), 1.0f);  // overshoot, then settle
@@ -181,7 +182,7 @@ TEST(Values, AShapedCurveComparesEqualAtTheSameSettings) {
   // capturing lambda still compares to nothing.
   EXPECT_TRUE(easeEqual(&ease::smoothstep, &ease::smoothstep));
   const float k = 2.0f;
-  choreograph::EaseFn captured = [k](float t) { return t * k; };
+  Easing captured = [k](float t) { return t * k; };
   EXPECT_FALSE(easeEqual(captured, captured));
   // …and it still evaluates the curve it says it is.
   EXPECT_FLOAT_EQ(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)(0.0f), 0.0f);

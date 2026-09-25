@@ -8,8 +8,7 @@
  * comparator an identity prune reads two specs through.
  */
 
-#include <choreograph/Choreograph.h>
-#include <sigilmotion/bind/Curve.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <chrono>
 #include <tuple>
@@ -26,7 +25,7 @@ namespace sigil::motion {
  *  rather than bookkeeping. */
 struct Transition {
   std::chrono::milliseconds duration{250};
-  choreograph::EaseFn ease = &choreograph::easeOutQuad;
+  Easing ease = ease::outQuad;
   std::chrono::milliseconds delay{0};
 
   /** ALWAYS read the curve through here, never through `ease` directly.
@@ -37,20 +36,20 @@ struct Transition {
    *  It compiles, and calling it throws `bad_function_call` on the first
    *  frame. This accessor substitutes the default curve for an empty
    *  function, so `{}` means what the author meant. */
-  const choreograph::EaseFn& easing() const {
-    static const choreograph::EaseFn kDefault = &choreograph::easeOutQuad;
+  const Easing& easing() const {
+    static const Easing kDefault = ease::outQuad;
     return ease ? ease : kDefault;
   }
 };
 
-/** THE HOUSE CURVES live in `bind/Curve.h`, included above, because a
- *  binding, a keyed step and this spec all shape a unit position with the
- *  same value. `Transition::ease` holds a `choreograph::EaseFn`, a plain
- *  float→float function, and every one of them converts to it:
+/** THE CURVES live in `ease/Ease.h`, included above, because a binding,
+ *  a keyed step and this spec all shape a unit position with the same
+ *  value. `Transition::ease` holds an `Easing`, and every one of them
+ *  converts to it:
  *
  *      {520ms, ease::outBack()}
  *      {360ms, ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)}
- *      {200ms, &ease::smoothstep}
+ *      {200ms, ease::smoothstep}
  */
 
 /** A value held inside [0, 1] — the range every house curve is defined
@@ -70,7 +69,7 @@ inline float clamp01(float v) {
  *  would put a cast at every such site. `Transition{.duration = 400ms}`
  *  remains the spelling wherever the numbers are literals. */
 inline Transition ramp(float delayMs, float durationMs,
-                       choreograph::EaseFn ease = &choreograph::easeOutQuad) {
+                       Easing ease = ease::outQuad) {
   Transition t;
   t.duration = std::chrono::milliseconds((int)durationMs);
   t.delay = std::chrono::milliseconds((int)delayMs);

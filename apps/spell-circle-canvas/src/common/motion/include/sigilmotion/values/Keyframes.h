@@ -8,8 +8,6 @@
  * `animate(through({…}))` spellings that build one.
  */
 
-#include <choreograph/Choreograph.h>
-
 #include <chrono>
 #include <initializer_list>
 #include <optional>
@@ -164,7 +162,7 @@ Transitioned<T> animate(To<T> t, Transition spec = {}) {
  *  `animate(to(last))`. */
 template <typename T>
 Transitioned<T> animate(Waypoints<T> w,
-                        choreograph::EaseFn ease = &choreograph::easeOutQuad) {
+                        Easing ease = ease::outQuad) {
   Transitioned<T> t;
   t.spec.ease = std::move(ease);
   if (!w.frames.empty()) {

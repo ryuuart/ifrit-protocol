@@ -61,7 +61,7 @@ struct Cascade {
    *  even ladder above. A table names delays outright, so the order, the
    *  spacing and the distribution curve have nothing left to say. */
   std::vector<float> outerCue, innerCue;
-  choreograph::EaseFn outerDistribution, innerDistribution;
+  Easing outerDistribution, innerDistribution;
   float outerEach = 0;  ///< ms between outer starts
   float innerEach = 0;  ///< ms between inner starts
   float duration = 1;   ///< ms one unit's own motion lasts

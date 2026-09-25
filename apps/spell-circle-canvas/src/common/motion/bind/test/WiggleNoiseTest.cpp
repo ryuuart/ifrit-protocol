@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/ease/Ease.h>
 
 #include <algorithm>
 #include <cmath>
@@ -195,7 +196,7 @@ TEST(Bind, WigglePhaseComesFromTheScheduleNotTheOutput) {
   // before map() means an eased chain's wiggle keeps its own rate.
   const BoundFloat eased = bind(&phase)
                                .scale(0.f)
-                               .map(&choreograph::easeInQuint)
+                               .map(ease::inQuint)
                                .wiggle(1.f, 6.f, 3)
                                .value();
   for (int i = 0; i <= 200; ++i) {
