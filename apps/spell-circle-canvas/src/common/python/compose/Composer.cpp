@@ -12,7 +12,7 @@
 #include <sigilcompose/typography/TextUnit.h>
 #include <sigilcompose/typography/Track.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmotion/clock/FrameClock.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilpython/Bindings.h>
@@ -277,7 +277,7 @@ void bindDescribePath(py::class_<ComposerHandle>& composer) {
           py::arg("font"), py::arg("ink"))
       .def(
           "setView",
-          [](const ComposerHandle& self, material::skia::Effect view) {
+          [](const ComposerHandle& self, material::Filter view) {
             self.get().setView(std::move(view));
           },
           py::arg("view"))

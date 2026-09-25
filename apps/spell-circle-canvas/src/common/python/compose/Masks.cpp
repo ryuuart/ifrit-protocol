@@ -198,13 +198,13 @@ void bindGates(py::module_& composition, py::module_& gates) {
                      "reads.")
       .def_property(
           "coverage",
-          [](const Gate& self) -> std::optional<material::skia::Paint> {
+          [](const Gate& self) -> std::optional<material::Paint> {
             if (!self.coverage) return std::nullopt;
             return *self.coverage;
           },
-          [](Gate& self, std::optional<material::skia::Paint> coverage) {
+          [](Gate& self, std::optional<material::Paint> coverage) {
             self.coverage = coverage
-                                ? std::make_shared<const material::skia::Paint>(
+                                ? std::make_shared<const material::Paint>(
                                       std::move(*coverage))
                                 : nullptr;
           },

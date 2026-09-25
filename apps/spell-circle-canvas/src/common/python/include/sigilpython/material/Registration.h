@@ -32,7 +32,7 @@ void bindMaterialKitGrained(pybind11::module_& module);
  *  named colormaps and the gel tables on @p module. */
 void bindMaterialKitText(pybind11::module_& module);
 /** Registers the revisioned pixel buffer, raw shader interop, bound
- *  pans, live paint uniforms and Effect::filter on @p module. */
+ *  pans, live paint parameters and the filter on @p module. */
 void bindMaterialPaintEffect(pybind11::module_& module);
 /** Registers tile programs and mapping, the sequence and speckle
  *  generators, and the woven cloth on @p module. */

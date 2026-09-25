@@ -46,11 +46,11 @@ compose::Fill fill(py::handle value) {
   if (py::isinstance<compose::Fill>(value)) return value.cast<compose::Fill>();
   if (py::isinstance<compose::VarRef>(value))
     return compose::Fill::var(value.cast<compose::VarRef>());
-  if (py::isinstance<material::skia::Paint>(value)) {
+  if (py::isinstance<material::Paint>(value)) {
     // A flat mark holds one comparable Fill and is measured with no
     // frame in hand, so a static paint collapses onto it while a live or
     // geometry-dependent one has no single colour to give.
-    const auto paint = value.cast<material::skia::Paint>();
+    const auto paint = value.cast<material::Paint>();
     if (paint.isAnimated() || paint.geometryDependent())
       throw py::type_error(
           "A live or geometry-dependent paint is not a flat fill. Give it to "
@@ -68,8 +68,8 @@ compose::Fill fill(py::handle value) {
 compose::SurfacePaint surfacePaint(py::handle value) {
   if (py::isinstance<compose::SurfacePaint>(value))
     return value.cast<compose::SurfacePaint>();
-  if (py::isinstance<material::skia::Paint>(value))
-    return value.cast<material::skia::Paint>();
+  if (py::isinstance<material::Paint>(value))
+    return value.cast<material::Paint>();
   if (py::isinstance<material::Material>(value))
     return value.cast<material::Material>();
   return compose::SurfacePaint{motionFill(value)};

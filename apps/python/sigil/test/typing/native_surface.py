@@ -57,7 +57,7 @@ ink = material.Paint.linearGradient(
 shader = material.Paint.sksl(
     "uniform float gain; half4 main(float2 p) { return half4(gain); }", {"gain": 0.5}
 )
-assert_type(shader.uniform("gain", 0.7), material.Paint)
+assert_type(shader.set("gain", 0.7), material.Paint)
 tree.fill(ink).opacity(motion.bind(motion.Output(1.0)))
 outline = compose.stroke(2, ink)
 outline.strokeFill = ink

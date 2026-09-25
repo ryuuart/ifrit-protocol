@@ -11,12 +11,15 @@ PAINT = "_sigil.material.skia.Paint"
 
 
 def register(table: Table) -> None:
-    table.erased("_sigil.material.skia.Effect", "glow", "_t.ColorLike")
-    table.parameters("_sigil.material.skia.Effect.blur", sigmaMap="Paint")
-    table.erased("_sigil.material.skia.Effect", "uniform", "_t.UniformValue")
-    table.parameters("_sigil.material.skia.Effect.slot", paint="Paint")
+    table.erased("_sigil.material.skia.Filter", "glow dropShadow", "_t.ColorLike")
+    table.parameters("_sigil.material.skia.Filter.blur", sigmaMap="Paint")
+    table.erased("_sigil.material.skia.Filter", "set", "_t.UniformValue")
+    table.erased("_sigil.material.skia.Filter", "bind", "_t.ScalarLike")
+    table.erased("_sigil.material.skia.Filter", "program", "str | _sigil.skia.RuntimeEffect")
+    table.parameters("_sigil.material.skia.Filter.slot", paint="Paint")
     table.erased(PAINT, "solid", "_t.ColorLike")
-    table.erased(PAINT, "uniform", "_t.UniformValue")
+    table.erased(PAINT, "set", "_t.UniformValue")
+    table.erased(PAINT, "bind", "_t.ScalarLike")
     table.erased(PAINT, "sksl", "str | _sigil.skia.RuntimeEffect")
     table.parameters(PAINT + ".sksl", uniforms="dict[str, _t.UniformValue]")
     table.erased(
@@ -28,6 +31,7 @@ def register(table: Table) -> None:
     table.attribute(
         "_sigil.material.skia.GradientOptions.focus", "_t.PointLike | None"
     )
+    table.attribute("_sigil.material.skia.ShadowOptions.offset", "_t.PointLike")
     table.parameters(
         "_sigil.material.skia.GradientOptions.__init__", focus="_t.PointLike | None"
     )

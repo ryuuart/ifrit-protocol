@@ -195,7 +195,7 @@ void bindMaterial(py::module_& root) {
             return self.at(materialColor(color), column, row);
           },
           py::arg("color"), py::arg("column"), py::arg("row"));
-  module.def("rgb", &rgb, py::arg("hex"), py::arg("alpha") = 1.0f);
+  module.def("hexColor", &hexColor, py::arg("rrggbb"), py::arg("alpha") = 1.0f);
   module.def("hsv", &hsv, py::arg("hueDegrees"), py::arg("saturation"),
              py::arg("value"), py::arg("alpha") = 1.0f);
   module.def(

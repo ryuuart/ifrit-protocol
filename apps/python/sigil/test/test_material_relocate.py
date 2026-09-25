@@ -40,7 +40,7 @@ MOVED_NAMES = {
     ),
     "kit": ("Reflection", "SurfaceParameters", "surface", "unlit"),
     "pattern": ("Tile", "checker", "gridLines", "halftone", "stripes"),
-    "skia": ("BloomParameters", "Effect", "Fit", "Paint", "bloom"),
+    "skia": ("BlendMode", "BloomOptions", "Filter", "Fit", "Paint", "ShadowOptions"),
 }
 
 # The members the classes carried across with them: the fields a record
@@ -87,11 +87,11 @@ MOVED_MEMBERS = {
         "transmission",
     ),
     ("pattern", "Tile"): ("image", "offset", "paint", "rotate", "scale", "seed"),
-    ("skia", "BloomParameters"): (
+    ("skia", "BloomOptions"): (
         "deepening",
         "dilation",
         "knee",
-        "maxOpacity",
+        "maximumOpacity",
         "sigma",
         "softness",
         "spread",
@@ -100,21 +100,29 @@ MOVED_MEMBERS = {
         "threshold",
         "whitening",
     ),
-    ("skia", "Effect"): (
+    ("skia", "Filter"): (
+        "bind",
+        "bloom",
         "brightPass",
+        "brightness",
         "blur",
+        "contrast",
         "deepen",
         "dilate",
         "directionalBlur",
+        "dropShadow",
         "emit",
         "glow",
+        "hueRotate",
         "isAnimated",
+        "isNone",
+        "of",
         "phosphorBloom",
-        "recipe",
-        "shader",
+        "program",
+        "saturate",
+        "set",
         "slot",
         "then",
-        "uniform",
         "usesWorldSpace",
         "whiten",
     ),
@@ -131,10 +139,11 @@ MOVED_MEMBERS = {
         "quantizeTime",
         "radialGradient",
         "recipe",
+        "bind",
+        "set",
         "sksl",
         "slot",
         "solid",
-        "uniform",
         "worldSpace",
     ),
 }
@@ -194,7 +203,7 @@ class MovedNames(unittest.TestCase):
             "palette",
             "ramp",
             "rampBracket",
-            "rgb",
+            "hexColor",
             "rotateHue",
             "sampleRamp",
             "scale",
@@ -222,7 +231,7 @@ class MovedNames(unittest.TestCase):
                 if member.startswith("_"):
                     continue
                 self.assertTrue(hasattr(published, member), f"{name}.{member}")
-        for name in ("BloomParameters", "Effect", "Fit", "Paint", "bloom"):
+        for name in ("BlendMode", "BloomOptions", "Filter", "Fit", "Paint", "ShadowOptions"):
             self.assertIs(
                 getattr(material, name), getattr(_sigil.material.skia, name), name
             )
@@ -265,9 +274,9 @@ class MovedInventories(unittest.TestCase):
         # the subjects are registered in is what keeps a recipe a value
         # these two take rather than a type error.
         recipe = material.field.noise(0.02)
-        self.assertIsInstance(material.Effect.blur(recipe, 4.0), material.Effect)
+        self.assertIsInstance(material.Filter.blur(recipe, 4.0), material.Filter)
         self.assertIsInstance(
-            material.Paint.blend([(recipe, skia.BlendMode.Multiply)]), material.Paint
+            material.Paint.blend([(recipe, material.BlendMode.Multiply)]), material.Paint
         )
 
     def test_a_surface_colour_goes_back_out_the_way_it_came_in(self):
@@ -336,7 +345,7 @@ class TheColourSubject(unittest.TestCase):
 
     def test_a_colour_is_written_as_channels_or_as_a_string(self):
         self.assertEqual(material.Color("#ff0000"), material.Color(1, 0, 0, 1))
-        self.assertEqual(material.rgb(0xFF0000), material.Color(1, 0, 0, 1))
+        self.assertEqual(material.hexColor(0xFF0000), material.Color(1, 0, 0, 1))
         self.assertEqual(tuple(material.Color(red=1, green=0, blue=0)), (1, 0, 0, 1))
 
     def test_a_ramp_answers_the_colour_it_was_built_from(self):
@@ -384,7 +393,7 @@ class RegistrationOrder(unittest.TestCase):
     def test_a_crossing_signature_carries_the_python_spelling(self):
         for named, spelled in (
             (_sigil.material.pattern.Tile.paint, "_sigil.material.skia.Paint"),
-            (_sigil.material.skia.Effect.recipe, "_sigil.material.Material"),
+            (_sigil.material.skia.Filter.of, "_sigil.material.Material"),
             (_sigil.material.skia.Paint.recipe, "_sigil.material.Material"),
             (_sigil.material.kit.surface, "_sigil.material.kit.SurfaceParameters"),
             (_sigil.material.kit.unlit, "_sigil.material.Material"),

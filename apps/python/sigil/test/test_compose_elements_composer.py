@@ -249,8 +249,8 @@ class Owned(unittest.TestCase):
         composer.setInherited(font=weave.Type(), ink=(0.0, 0.5, 1.0))
         with self.assertRaises(TypeError):
             composer.setInherited("serif", "#112233")
-        composer.setView(material.Effect())
-        composer.setView(view=material.Effect.blur(2.0))
+        composer.setView(material.Filter())
+        composer.setView(view=material.Filter.blur(2.0))
         with self.assertRaises(TypeError):
             composer.setView("blur")
 

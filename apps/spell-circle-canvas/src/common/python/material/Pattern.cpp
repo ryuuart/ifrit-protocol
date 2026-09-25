@@ -23,7 +23,7 @@ void bindMaterialPattern(py::module_& module) {
            py::arg("offset"), fluent)
       .def("image", &pattern::Tile::image)
       .def("paint", [](const pattern::Tile& tile) {
-        return material::skia::Paint::shader(tile.texture().shader());
+        return material::skia::paint(tile.texture().shader());
       });
   patterns.def(
       "gridLines",

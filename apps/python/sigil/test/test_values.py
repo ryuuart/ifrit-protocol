@@ -37,7 +37,7 @@ class Values(unittest.TestCase):
         )
         paint = Paint.sksl(source, {"tone": [1, 0, 0, 1]})
         copy = paint.copy()
-        copy.uniform("tone", [0, 1, 0, 1])
+        copy.set("tone", [0, 1, 0, 1])
         self.assertNotEqual(paint, copy)
         self.assertFalse(paint.isAnimated())
         self.assertFalse(Paint.recipe(field.noise(0.02)).isNone())
@@ -227,21 +227,21 @@ class Colors(unittest.TestCase):
         # A colour uniform, written as the colour class and as a CSS
         # string, is the same uniform on either seam.
         self.assertEqual(
-            Paint.sksl(source).uniform("tint", "#ff0000"),
-            Paint.sksl(source).uniform("tint", material.Color("#ff0000")),
+            Paint.sksl(source).set("tint", "#ff0000"),
+            Paint.sksl(source).set("tint", material.Color("#ff0000")),
         )
         self.assertEqual(
-            material.Effect.shader(source).uniform("tint", "#ff0000"),
-            material.Effect.shader(source).uniform("tint", material.Color("#ff0000")),
+            material.Filter.program(source).set("tint", "#ff0000"),
+            material.Filter.program(source).set("tint", material.Color("#ff0000")),
         )
         # …and so is a live scalar, which is what makes either animate.
         moving = skia.RuntimeEffect.MakeForShader(
             "uniform float amount; half4 main(float2 p) { return half4(amount); }"
         )
         output = motion.Output(0.0)
-        self.assertTrue(Paint.sksl(moving).uniform("amount", output).isAnimated())
+        self.assertTrue(Paint.sksl(moving).bind("amount", output).isAnimated())
         self.assertTrue(
-            material.Effect.shader(moving).uniform("amount", output).isAnimated()
+            material.Filter.program(moving).bind("amount", output).isAnimated()
         )
 
 

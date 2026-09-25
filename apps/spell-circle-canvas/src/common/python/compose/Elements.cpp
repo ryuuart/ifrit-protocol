@@ -713,8 +713,8 @@ void bindCompose(py::module_& module) {
       .def("slot", &slot, py::arg("name"));
   composition.def(
       "image",
-      py::overload_cast<sk_sp<SkImage>, material::skia::Fit>(&compose::image),
-      py::arg("image"), py::arg("fit") = material::skia::Fit::Contain);
+      py::overload_cast<sk_sp<SkImage>, material::Fit>(&compose::image),
+      py::arg("image"), py::arg("fit") = material::Fit::Contain);
   composition.def(
       "picture",
       [](sk_sp<SkPicture> value, float width, float height) {

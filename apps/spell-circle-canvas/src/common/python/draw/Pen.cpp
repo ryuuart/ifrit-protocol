@@ -271,8 +271,8 @@ void bindPen(py::module_& root) {
       return;
     }
     if (args.size() >= 1 && args.size() <= 2 &&
-        py::isinstance<material::skia::Paint>(args[0])) {
-      const auto paint = py::cast<material::skia::Paint>(args[0]);
+        py::isinstance<material::Paint>(args[0])) {
+      const auto paint = py::cast<material::Paint>(args[0]);
       if (args.size() == 2)
         pen.fill(paint, py::cast<draw::Constant>(args[1]));
       else
@@ -288,8 +288,8 @@ void bindPen(py::module_& root) {
       return;
     }
     if (args.size() >= 1 && args.size() <= 2 &&
-        py::isinstance<material::skia::Paint>(args[0])) {
-      const auto paint = py::cast<material::skia::Paint>(args[0]);
+        py::isinstance<material::Paint>(args[0])) {
+      const auto paint = py::cast<material::Paint>(args[0]);
       if (args.size() == 2)
         pen.stroke(paint, py::cast<draw::Constant>(args[1]));
       else
@@ -304,8 +304,8 @@ void bindPen(py::module_& root) {
       pen.background(py::cast<material::Material>(args[0]));
       return;
     }
-    if (args.size() == 1 && py::isinstance<material::skia::Paint>(args[0])) {
-      pen.background(py::cast<material::skia::Paint>(args[0]));
+    if (args.size() == 1 && py::isinstance<material::Paint>(args[0])) {
+      pen.background(py::cast<material::Paint>(args[0]));
       return;
     }
     pen.background(penColor(pen, args));
