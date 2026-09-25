@@ -40,6 +40,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/TextPath.h>
+#include <sigildraw/Color.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilgeometry/path/Polyline.h>
@@ -62,6 +63,7 @@
 
 #include "Construction.h"
 
+namespace draw = sigil::draw;
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -142,17 +144,14 @@ struct Quarry {
   material::Color hi, lo;
 };
 
-/** "#74494A" as a colour. No library reads a colour written as CSS hex
- *  text, so the words file's colours are read here. */
-material::Color colourOf(std::string_view hex) {
-  return hexColor((uint32_t)std::stoul(std::string(hex.substr(1)), nullptr, 16));
-}
-
+/** A quarry as the words file names it. Its tones are CSS colour text
+ *  ("#74494A", or "#74494A80" with an alpha), and only the pen library
+ *  reads a colour's text, so they are read through it. */
 Quarry quarryOf(const sketch::kit::Document& words, std::string_view key) {
   const auto& stone = words["quarries"][key];
   return {std::string(stone["name"].text()), std::string(stone["source"].text()),
-          colourOf(stone["hi"].text("#808080")),
-          colourOf(stone["lo"].text("#606060"))};
+          draw::parseColor(stone["hi"].text("#808080")),
+          draw::parseColor(stone["lo"].text("#606060"))};
 }
 
 struct Quarries {
@@ -279,7 +278,7 @@ struct Cosmati {
                                       kSatelliteLoop, kOrbit, -kTurn * 0.25f);
     sketch::kit::stage(ctx, {.size = kCanvas,
                              .captureAt = 6.0,
-                             .background = colourOf(words["ink"]["ground"].text())});
+                             .background = draw::parseColor(words["ink"]["ground"].text())});
     sigil::motion::Ticker& ticker = ctx.ticker;
     ticker.add([this, &ticker] { seconds = (float)ticker.elapsed(); });
     ctx.composer.render(describe());
@@ -294,10 +293,10 @@ struct Cosmati {
     const std::string book = "Palatino, Book Antiqua, Baskerville, serif";
     return StyleSheet{
         rule(":root")
-            .var("ink", colourOf(ink["ink"].text()))
-            .var("ash", colourOf(ink["ash"].text()))
-            .var("rule", colourOf(ink["rule"].text()))
-            .var("mortar", colourOf(ink["mortar"].text()))
+            .var("ink", draw::parseColor(ink["ink"].text()))
+            .var("ash", draw::parseColor(ink["ash"].text()))
+            .var("rule", draw::parseColor(ink["rule"].text()))
+            .var("mortar", draw::parseColor(ink["mortar"].text()))
             .fontFamily(inscriptional)
             .fontSize(11)
             .ink(var("ash")),
@@ -314,7 +313,6 @@ struct Cosmati {
             .letterSpacing(0)
             .ink(var("ink"))
             .lineHeight(weave::Leading::absolute(19))
-            .textAlign(weave::TextAlignment::kJustify)
             .textWrap(TextWrap::Pretty)
             .hyphens({.patterns = weave::kit::englishHyphenator()})
             .paragraph({.hanging = weave::kit::hanging::latin()}),
@@ -732,6 +730,10 @@ struct Cosmati {
     }
     // The column is static once its key has been dealt, and its swatches
     // are stone evaluated per pixel, so it is baked once.
+    // Every block of the rail stands on one rhythm: the column spends
+    // what the blocks leave of the pavement's height as equal gaps between
+    // them, so its first line starts on the pavement's top edge and the
+    // key's last row closes on its bottom edge.
     return box()
         .key("apparatus")
         .cache(Cache::Texture)
@@ -745,26 +747,26 @@ struct Cosmati {
             {box().column().children(
                  {document::eyebrow(words.phrase(apparatus["eyebrow"])),
                   document::h1(words.phrase(apparatus["title"])).marginTop(10),
-                  document::lead(words.phrase(apparatus["lead"])).marginTop(6),
-                  kit::line({.length = Dimension(kColumnWidth),
-                             .fill = linearGradient(
-                                 {0, 0}, {kColumnWidth, 0},
-                                 {colourOf(words["ink"]["rule"].text()),
-                                  material::withAlpha(colourOf(words["ink"]["rule"].text()), 0)})})
-                      .marginTop(16)
-                      .marginBottom(16),
-                  document::paragraph(words.phrase(apparatus["reading"])),
-                  document::quote(words.phrase(apparatus["quote"])).marginTop(16),
-                  document::caption(words.phrase(apparatus["attribution"])).marginTop(6)}),
+                  document::lead(words.phrase(apparatus["lead"])).marginTop(6)}),
+             kit::line({.length = Dimension(kColumnWidth),
+                        .fill = linearGradient(
+                            {0, 0}, {kColumnWidth, 0},
+                            {draw::parseColor(words["ink"]["rule"].text()),
+                             material::withAlpha(draw::parseColor(words["ink"]["rule"].text()), 0)})}),
+             document::paragraph(words.phrase(apparatus["reading"])),
+             // The quotation and what it is, one indented block.
+             document::quote({document::paragraph(words.phrase(apparatus["quote"])),
+                              document::caption(words.phrase(apparatus["attribution"]))})
+                 .gap(6),
              box().row().gap(18).alignItems(Align::Center).children(
-                 {settingOut(150).flexShrink(0),
+                 {settingOut(128).flexShrink(0),
                   box().column().flexShrink(1).children(
                       {document::h2(words.phrase(apparatus["settingOut"])).marginBottom(8),
                        document::caption(words.phrase(apparatus["settingOutNote"]))})}),
              box().column().styleClass("key").children(
                  {document::h2(words.phrase(apparatus["key"])).marginBottom(12),
                   sketch::kit::legend({.entries = std::move(quarries),
-                                       .gap = 7,
+                                       .gap = 6,
                                        .labelGap = 12})
                       .key("quarries")
                       .staggerChildren(60ms)})});
@@ -774,7 +776,7 @@ struct Cosmati {
     return stack()
         .applyStyleSheet(sheet())
         .fill(radialGradient({kMargin + kCentre, kMargin + kCentre}, kCanvas.fWidth * 0.8f,
-                             {hexColor(0x1C1814), colourOf(words["ink"]["ground"].text())}))
+                             {hexColor(0x1C1814), draw::parseColor(words["ink"]["ground"].text())}))
         .children({pavement(), apparatus()});
   }
 };
