@@ -106,6 +106,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.measure": "sigil.measure",
     "_sigil.motion": "sigil.motion",
     "_sigil.motion.ease": "sigil.motion.ease",
+    "_sigil.motion.envelope": "sigil.motion.envelope",
     "_sigil.motion.physics": "sigil.motion.physics",
     "_sigil.scry": "sigil.scry",
     "_sigil.sketch": "sigil.sketch",

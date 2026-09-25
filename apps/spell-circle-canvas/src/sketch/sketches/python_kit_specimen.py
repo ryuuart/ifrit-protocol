@@ -8,7 +8,7 @@ from sigil.compose import box, column, layout, memo, row, text
 from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import AlongPath, BaselineGrid, Diagonal, Jittered, Radial
-from sigil.motion import entrance
+from sigil.motion import animate
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import PathBuilder
 
@@ -154,7 +154,7 @@ def specimen(picture, index, label, note):
     ).children(picture)
     return kit.caption(
         surface, measure=WIDTH, label=f"{index:02} / {label}", note=note
-    ).opacity(entrance(0, 1, duration=0.45, delay=index * 0.05))
+    ).opacity(animate(from_=0, to=1, duration=0.45, delay=index * 0.05))
 
 
 @sketch(size=(1200, 760), capture_at=1.1)

@@ -41,14 +41,14 @@ node = raw.kit.cell(props, "A", "", raw.box())
 page = raw.kit.sheet(raw.kit.Sheet(title="Native"), node)
 assert isinstance(page, raw.Element)
 assert isinstance(raw.layouts.fr(1), raw.layouts.Track)
-assert native.motion.FixedStatus().stepsRun == 0
+assert native.motion.Engine().elapsed() == 0
 assert hasattr(raw, "ComposerStats") and hasattr(raw, "TextSettling")
 assert "sigil._loader" not in sys.modules
 )",
            scope);
 }
 
-TEST(PythonBindings, WorldOwnsItsTickerFrameAndPixelsWithoutASketchHost) {
+TEST(PythonBindings, WorldOwnsItsEngineFrameAndPixelsWithoutASketchHost) {
   auto module = native();
   py::dict scope;
   scope["native"] = module;
@@ -58,7 +58,7 @@ import sys
 import weakref
 
 scene = native.world.Scene()
-angle = native.motion.Output(0)
+angle = native.motion.animatable(0)
 angle_ref = weakref.ref(angle)
 camera = native.geometry.mesh.camera.Camera()
 camera.eye = (0, 0, 320)
@@ -67,7 +67,7 @@ body = (native.world.Element().key("body")
         .fill(native.material.kit.unlit(
             native.material.kit.SurfaceParameters(baseColor="#e75a31")))
         .rotateZ(angle)
-        .translateX(native.motion.entrance(0, 30, duration=1)))
+        .translateX(native.motion.animate(from_=0, to=30, duration=1)))
 frame = native.world.Frame(body).camera(camera)
 scene.render(frame)
 first = scene.image((96, 96)).rgba()
@@ -96,7 +96,7 @@ assert "sigil._loader" not in sys.modules
            scope);
 }
 
-TEST(PythonBindings, AnOwnedTickerAndItsTimelineOutliveTheirPythonWrappers) {
+TEST(PythonBindings, AnOwnedEngineAndItsPlaybacksOutliveTheirPythonWrappers) {
   auto module = native();
   py::dict scope;
   scope["native"] = module;
@@ -105,34 +105,31 @@ import gc
 import weakref
 
 motion = native.motion
-ticker = motion.Ticker()
-ramped = motion.Output(0)
-timeline = ticker.timeline()
-timeline.apply(ramped, [motion.rampTo(1.0, 0.2, ease=motion.ease.linear)])
+engine = motion.Engine()
+ramped = motion.animatable(0)
+timeline = engine.timeline().add(
+    ramped, motion.Tween(to=1.0, duration=0.2, ease=motion.ease.linear))
 
-# A timeline is a view onto the one the ticker owns, so what is written
-# through one wrapper is read through the next, and dropping a wrapper
-# takes nothing with it.
-assert ticker.timeline().size() == 1
+# The timeline is a shared state the engine runs, so dropping the wrapper
+# takes nothing with it: the motion keeps writing the live value.
 timeline_ref = weakref.ref(timeline)
 del timeline
 gc.collect()
 assert timeline_ref() is None
-ticker.tick(0.1)
+engine.advance(0.1)
 assert abs(ramped.value - 0.5) < 1e-5
-assert ticker.timeline().size() == 1
+assert engine.isRunning()
 
-# The other way round, a timeline outlives the name its ticker was held
-# by: the handle it reads through holds the ticker, so the motion keeps
-# running rather than reading storage that has gone.
-kept = ticker.timeline()
-ticker_ref = weakref.ref(ticker)
-del ticker
+# The other way round, a playback outlives the engine that ran it: it is
+# the state, not a view into the engine, so it still answers.
+kept = engine.animate(ramped, motion.Tween(to=0.0, duration=1.0))
+engine_ref = weakref.ref(engine)
+del engine
 gc.collect()
-assert ticker_ref() is None
-assert kept.size() == 1
-kept.clear()
-assert kept.empty()
+assert engine_ref() is None
+assert kept.isRunning()
+kept.cancel()
+assert not kept.isRunning()
 assert not hasattr(native, "Context")
 )",
            scope);

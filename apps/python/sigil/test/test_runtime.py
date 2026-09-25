@@ -172,7 +172,7 @@ from sigil.sketch import sketch
 @sketch(size=(20, 20), capture_at=0)
 class Threads:
     def setup(self, ctx):
-        views = [ctx, ctx.composer, ctx.assets, ctx.assets.hub(), ctx.ticker]
+        views = [ctx, ctx.composer, ctx.assets, ctx.assets.hub(), ctx.engine]
         operations = [
             lambda: ctx.elapsed,
             views[1].stats,

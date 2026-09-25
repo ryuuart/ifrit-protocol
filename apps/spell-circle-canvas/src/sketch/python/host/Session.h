@@ -31,8 +31,8 @@
 namespace sigil::sketch::python::detail {
 
 /** EVERYTHING ONE OPEN SESSION LENDS PYTHON, and what it holds on
- *  Python's behalf: the callables a description retained, the feeds a
- *  declaration opened, and the values an engine call was handed. */
+ *  Python's behalf: the callables a description retained and the feeds
+ *  a declaration opened. */
 struct State {
   sigil::python::CallbackLifetime callbacks;
   compose::Composer* composer = nullptr;
@@ -41,7 +41,6 @@ struct State {
   Assets* assets = nullptr;
   weave::FontContext* fonts = nullptr;
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
-  std::vector<std::shared_ptr<const void>> engineOwners;
   std::unordered_map<io::Feed*, std::shared_ptr<void>> feedLeases;
   std::thread::id thread;
   std::string key;

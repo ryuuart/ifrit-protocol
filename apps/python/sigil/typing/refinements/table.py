@@ -13,6 +13,9 @@ from __future__ import annotations
 # same four floats, and the bindings' caster makes this the class every colour
 # is read back as.
 COLOR = "_sigil.material.Color"
+# A length of time crosses one caster, which takes a number of seconds or a
+# timedelta and names both; every parameter it reads is the one alias.
+DURATION = "datetime.timedelta | typing.SupportsFloat"
 # A recipe instance is one kind of paint, and Python converts one into a paint
 # wherever a paint is taken, so every parameter written as the material paint
 # accepts a material as well.
@@ -43,6 +46,20 @@ class Table:
     def declares(self, prefix: str, name: str, text: str) -> None:
         """Replace one member's generated declaration with this text."""
         self.declarations[prefix + "." + name] = text
+
+    def accessor(self, owner: str, name: str, reading: str, writing: str) -> None:
+        """Declare a property read back as one type and written with another.
+
+        pybind11 erases both halves of a property whose getter hands back
+        a Python object, and the generator writes some of those as a bare
+        field, so the whole property is stated whichever it wrote.
+        """
+        self.declares(
+            owner,
+            name,
+            f"@property\ndef {name}(self) -> {reading}: ...\n"
+            f"@{name}.setter\ndef {name}(self, value: {writing}) -> None: ...\n",
+        )
 
     def parameters(self, member: str, /, **types: str) -> None:
         """Name the input types of one member's erased parameters.

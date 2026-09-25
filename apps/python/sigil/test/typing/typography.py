@@ -2,7 +2,7 @@
 
 from sigil.compose import SpanStyle, Element, Text, TextPath, box, frame, text
 from sigil.compose import selectors as compose_selectors
-from sigil.motion import Output
+from sigil.motion import animatable
 from sigil.skia import Paint, Path
 from sigil.weave import (
     ParagraphBlock,
@@ -60,7 +60,7 @@ node: Text = (
     .textFirstBaseline(FrameOptions.FirstBaseline.CapHeight)
     .children(box().key("marker").fill("#ffffff"))
 )
-progress = Output(0.75)
+progress = animatable(0.75)
 curved: Text = text(passage).textOnPath(
     TextPath(path=Path.Circle(60, 60, 50), at=progress)
 )

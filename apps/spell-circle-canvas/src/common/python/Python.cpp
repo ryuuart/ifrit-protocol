@@ -41,12 +41,14 @@ void bindLibraries(pybind11::module_& module) {
   bindSkiaFonts(module);
   bindImageValues(module);
   bindImageMeaning(module);
+  // A tween's fields take a staggered value and resolve at a place, so
+  // the schedule vocabulary stands ahead of the values that read it.
+  bindMotionSchedule(module);
   bindMotion(module);
   bindMotionSignals(module);
   bindMotionAnimatableForms(module);
   bindMotionClock(module);
   bindMotionLanes(module);
-  bindMotionSchedule(module);
   bindMotionPhysics(module);
   bindMotionParticles(module);
   bindMaterial(module);

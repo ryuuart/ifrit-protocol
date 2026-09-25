@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 
 SKETCH = """from sigil.compose import box, column, memo, text
 from sigil.compose import kit as marks
-from sigil.motion import Output, bind
+from sigil.motion import animatable, bind
 from sigil.sketch import kit
 from sigil.sketch import sketch
 
@@ -42,7 +42,7 @@ class InstalledSketch:
         look.palette.cellGround = "#142333"
         look.palette.ink = "#e8eef2"
         look.palette.figure = "#8bd0bd"
-        alpha = Output(1)
+        alpha = animatable(1)
         with kit.provide(look):
             tree = memo(("Installed Sigil",), content)
         ctx.render(
@@ -169,7 +169,7 @@ import sigil
 from importlib.metadata import version
 from sigil import compose, data, io, material, motion, sketch
 from sigil.compose import kit as compose_kit
-from sigil.motion import Output
+from sigil.motion import Animatable
 from sigil.sketch import kit as sketch_kit
 from sigil.sketch import render_file
 
@@ -193,7 +193,7 @@ assert material.Paint.__module__ == "sigil.material"
 assert not hasattr(material, "skia")
 assert compose_kit.Well is compose.kit.Well
 assert sketch_kit.Theme is sketch.kit.Theme
-assert Output is motion.Output
+assert Animatable is motion.Animatable
 assert data.Json.__module__ == "sigil.data"
 assert io.Hub.__module__ == "sigil.io"
 payload = {"values": [1, 2, 3], "label": "installed"}

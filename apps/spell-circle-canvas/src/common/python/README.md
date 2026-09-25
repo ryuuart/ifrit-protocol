@@ -198,9 +198,10 @@ exception through it would leave open.
 * `compose/Kit.h` — `converted`, `record`, `field`, `wellFields`,
   `contentType`
 * `material/Convert.h` — `materialColor`
-* `motion/Convert.h` — `TickerHandle`, `TimelineHandle`,
-  `motionAnimatable`, `motionInk`, `motionFill`, `motionEase`,
-  `motionTransition`
+* `motion/Convert.h` — `EngineHandle`, `motionAnimatable`, `motionInk`,
+  `motionFill`, `motionEase`, `easingReading`, `motionTransition`,
+  `motionTween`, `staggeredNumber`, `staggeredDuration`,
+  `staggeredReading`
 * `draw/Canvas.h` — `CanvasSource`, `BorrowedCanvas`, `penCanvasSource`,
   `borrowedCanvas`, `canvas`, `invalidateCanvas`
 * `compose/PaintPrograms.h` — `BorrowedPaintContext`, `PaintContextLoan`,
@@ -244,14 +245,21 @@ property. Every other surface verb takes the whole set. A paired
 is the rails', not the verb's: each rail stores one comparable fill, so a
 paint that needs a frame rules the pair in the ink in force.
 
-A TICKER AND A COMPOSER ARE EACH ONE PYTHON CLASS, OWNED OR LENT. A handle
-holds the value it made, or an access function a host supplies, which is
-asked at every call and reports a closed session in the host's own words.
-An owned composer keeps its ticker and a system-backed font context beside
-it, refuses another thread, and refuses every call made from inside its own
-draw; a lent one refuses the size, the clock and the draw, which stay the
-host's. A timeline is read back through its ticker's access, so one that
-outlives its session refuses instead of reading storage that has gone.
+AN ENGINE AND A COMPOSER ARE EACH ONE PYTHON CLASS, OWNED OR LENT. A
+handle holds the value it made, or an access function a host supplies,
+which is asked at every call and reports a closed session in the host's
+own words. A lent engine refuses every call that moves its clock, which
+stays the host's. An owned composer keeps its engine and a system-backed
+font context beside it, refuses another thread, and refuses every call
+made from inside its own draw; a lent one refuses the size and the draw,
+which stay the host's. A playback the engine hands back — an animation, a
+timeline, a timer — is a shared state rather than a view into the engine,
+so it outlives the engine and its session without reading storage that
+has gone.
+
+A LENGTH OF TIME IS A NUMBER OF SECONDS OR A `datetime.timedelta` going
+in and a number of seconds coming back: `Bindings.h` carries the one
+caster every duration, delay, step and period crosses through.
 
 A canvas reaches Python as `draw.Canvas` over a canvas source, and the
 source is asked for the canvas at every verb, so a wrapper kept past its
@@ -340,11 +348,11 @@ assembly guards their calls the same way.
 
 World declarations use the native element, frame, light, selector and kit
 values. Meshes and cameras remain Geometry values; surface parameters and
-factories remain Material values. The Python scene owner contains a ticker
-before its native scene, because the scene borrows that ticker. The owner
+factories remain Material values. The Python scene owner contains an engine
+before its native scene, because the scene borrows that engine. The owner
 cannot move and checks its creating thread on every operation. It retains
 the current frame so advancing time can resample its native motion lanes.
-Scene destruction precedes ticker destruction.
+Scene destruction precedes engine destruction.
 
 The supported executor is the native CPU renderer. Image capture returns
 an owned image; drawing into a sketch accepts the existing checked pen.
@@ -373,7 +381,7 @@ and modules alone instead of deleting them.
 
 `python_test` links this library without any sketch target. It checks common
 module registration, neutral Compose kit callbacks, explicit callback cleanup,
-native scope unwinding and retained World ticker, frame and image ownership. The sketch adapter separately tests hot reload,
+native scope unwinding and retained World engine, frame and image ownership. The sketch adapter separately tests hot reload,
 context invalidation and its session-owned resources. Package tests exercise
 the combined extension and its Python convenience surface.
 

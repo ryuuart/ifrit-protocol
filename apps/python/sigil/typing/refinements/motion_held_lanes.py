@@ -1,4 +1,4 @@
-"""AnimatedFloat, held-motion resolution and the lane retargets.
+"""Held-motion resolution and the lane retargets.
 
 Input contracts for the erased signatures of the
 motion/held-lanes package, and nothing else: a fragment is one

@@ -7,7 +7,7 @@ from math import sin
 
 from sigil.compose import box, column, row, text
 from sigil.compose import document as doc
-from sigil.motion import entrance
+from sigil.motion import animate
 from sigil.sketch import SketchContext, kit, sketch
 
 READINGS = [
@@ -43,8 +43,8 @@ def metric(label, value, detail, accent, level, index):
         .gap(15)
         .flexGrow(1)
         .key(label)
-        .opacity(entrance(0, 1, duration=0.6, delay=index * 0.1))
-        .translateY(entrance(12, 0, duration=0.6, delay=index * 0.1))
+        .opacity(animate(from_=0, to=1, duration=0.6, delay=index * 0.1))
+        .translateY(animate(from_=12, to=0, duration=0.6, delay=index * 0.1))
         .children(
             (
                 row()
@@ -66,7 +66,7 @@ def metric(label, value, detail, accent, level, index):
                         .width(f"{level * 100}%")
                         .height(3)
                         .fill(accent)
-                        .scaleX(entrance(0.02, 1, duration=0.9, delay=index * 0.12))
+                        .scaleX(animate(from_=0.02, to=1, duration=0.9, delay=index * 0.12))
                     ),
                 )
             ),
@@ -116,7 +116,7 @@ def signal_panel():
                             .fill("#8bd0bd" if i < 32 else "#edbb83")
                             .key(f"sample.{i}")
                             .scaleY(
-                                entrance(0.03, 1, duration=0.7, delay=0.2 + i * 0.01)
+                                animate(from_=0.03, to=1, duration=0.7, delay=0.2 + i * 0.01)
                             )
                         )
                         for i, sample in enumerate(samples)

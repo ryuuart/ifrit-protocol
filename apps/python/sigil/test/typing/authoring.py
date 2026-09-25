@@ -25,7 +25,7 @@ from sigil.compose.layouts import Grid, fr
 from sigil.draw import Pen
 from sigil.image import load
 from sigil.material import Paint
-from sigil.motion import Output, bind, entrance
+from sigil.motion import animatable, animate, bind
 from sigil.sketch import SketchContext, kit, render_file, sketch
 from sigil.weave import Type, em, rich, textStyle
 
@@ -65,7 +65,7 @@ def component(model: Reading) -> Element:
         .padding(horizontal=20, vertical=16)
         .borderRadius(topLeft=8, topRight=8, bottomRight=4, bottomLeft=4)
         .alignItems(alignment="start")
-        .opacity(entrance(0, 1, duration=0.5))
+        .opacity(animate(from_=0, to=1, duration=0.5))
         .children(
             text(model.title, size=22),
             (box().height(8).width("100%").fill(wash("#356c69")).scaleX(model.level)),
@@ -98,7 +98,7 @@ class TypedSketch:
         look = kit.house_theme()
         look.palette.ground = "#13252e"
         look.type.title.size = 34
-        progress = Output(1)
+        progress = animatable(1)
         native: Element = raw.box().width(24).fill("#abcdef")
         with kit.provide(look):
             body = (

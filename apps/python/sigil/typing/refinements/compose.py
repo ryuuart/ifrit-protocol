@@ -89,6 +89,7 @@ def children(self, *children: _t.NodeLike) -> Element: ...
     )
     table.erased(node, "shape", "_t.ShapeLike")
     table.erased(node, "background foreground overlay stroke", "_t.DecorationLike")
+    table.erased(node, "transition", "_sigil.motion.Transition | _t.DurationLike")
 
 
 def registerFont(table: _Returning, node: str) -> None:

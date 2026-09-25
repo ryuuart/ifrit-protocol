@@ -11,7 +11,7 @@ TAGS: Runtime/Starter, Geometry/Layout, Materials/Gradients, Motion/Animation
 from sigil.compose import Element, row
 from sigil.compose import document as doc
 from sigil.material import Paint
-from sigil.motion import entrance
+from sigil.motion import animate
 from sigil.sketch import SketchContext, kit, sketch
 
 TITLE = "Hello, Compose."
@@ -40,8 +40,8 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
         .borderRadius(16)
         .ink("#ffffff")
         .fill(wash(accent))
-        .opacity(entrance(0, 1, duration=0.6, delay=delay))
-        .translateY(entrance(16, 0, duration=0.6, delay=delay))
+        .opacity(animate(from_=0, to=1, duration=0.6, delay=delay))
+        .translateY(animate(from_=16, to=0, duration=0.6, delay=delay))
     )
 
 

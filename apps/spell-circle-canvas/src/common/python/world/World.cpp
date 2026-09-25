@@ -2,7 +2,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <sigildraw/Pen.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/geometry/Casters.h>
 #include <sigilpython/motion/Convert.h>
@@ -53,11 +53,11 @@ SkISize extent(std::array<int, 2> size) {
   return {size[0], size[1]};
 }
 
-// Scene borrows its ticker. This owner keeps that native dependency alive
-// through scene destruction and lets a headless caller supply frame deltas.
+// Scene borrows its engine. This owner keeps that native dependency alive
+// through scene destruction and lets a headless caller state frame steps.
 class Scene {
  public:
-  Scene() : m_owner(std::this_thread::get_id()), m_scene(m_ticker) {}
+  Scene() : m_owner(std::this_thread::get_id()), m_scene(m_engine) {}
   Scene(const Scene&) = delete;
   Scene& operator=(const Scene&) = delete;
   Scene(Scene&&) = delete;
@@ -81,7 +81,7 @@ class Scene {
     if (!std::isfinite(seconds) || seconds < 0)
       throw py::value_error("A World step must be finite and nonnegative.");
     const CallbackBoundary boundary;
-    m_ticker.tick(seconds);
+    m_engine.advance(m_engine.elapsed() + motion::Duration(seconds));
     if (m_frame) {
       m_scene.render(*m_frame);
       if (!m_scene.error().empty()) throw py::value_error(m_scene.error());
@@ -102,7 +102,7 @@ class Scene {
 
  private:
   const std::thread::id m_owner;
-  motion::Ticker m_ticker;
+  motion::Engine m_engine;
   world::Scene m_scene;
   std::optional<world::Frame> m_frame;
 };
@@ -245,8 +245,15 @@ void bindWorld(py::module_& root) {
           .def("tag", &world::Element::tag, py::arg("tag"), fluent)
           .def("light", &world::Element::light, py::arg("light"), fluent)
           .def("camera", &world::Element::camera, py::arg("camera"), fluent)
-          .def("transition", &world::Element::transition, py::arg("transition"),
-               fluent);
+          .def(
+              "transition",
+              [](world::Element& self, py::handle how) -> world::Element& {
+                return self.transition(motionTransition(how));
+              },
+              py::arg("transition"), fluent,
+              "The node's default transition for the plain values on it: a "
+              "Transition, or a number of seconds for one of that "
+              "duration.");
   using Lane = world::Element& (world::Element::*)(motion::Animatable<float>);
   for (const auto& [name, member] :
        std::initializer_list<std::pair<const char*, Lane>>{

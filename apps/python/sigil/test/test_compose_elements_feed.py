@@ -7,10 +7,6 @@ canvas, count what a description mounts through a composer of their own,
 and go to a session for the two things only a session can say: where the
 rows landed once a layout ran, and what a ring of Python's own values
 answers after the session that retained them has closed.
-
-The entrance is written in the schedule vocabulary and is registered
-with it, so the case that reads it stands down where that vocabulary is
-not there yet.
 """
 
 import builtins
@@ -23,7 +19,7 @@ import weakref
 from pathlib import Path
 
 from _sigil.compose import feed as native
-from sigil import compose, motion, weave
+from sigil import compose, weave
 from sigil.compose import Composer, box, feed, text
 from sigil.sketch import render_file
 
@@ -101,20 +97,6 @@ class Records(unittest.TestCase):
                 duplicate.gap = 11.0
                 self.assertNotEqual(duplicate, options)
                 self.assertEqual(options.gap, 2.0)
-
-    @unittest.skipUnless(
-        hasattr(motion, "Spread") and hasattr(native.Options, "entrance"),
-        "no schedule vocabulary",
-    )
-    def test_the_entrance_is_a_spread_that_mounts_at_once_by_default(self):
-        options = feed.Options()
-        self.assertEqual(options.entrance.eachMs, 0)
-        options.entrance = motion.Spread(eachMs=40)
-        self.assertEqual(options.entrance.eachMs, 40)
-        self.assertNotEqual(options, feed.Options())
-        self.assertEqual(options, feed.Options(entrance=motion.Spread(eachMs=40)))
-        options.entrance = feed.Options().entrance
-        self.assertEqual(options, feed.Options())
 
     def test_a_text_row_reads_and_writes_its_line_as_a_string(self):
         row = feed.TextRow()

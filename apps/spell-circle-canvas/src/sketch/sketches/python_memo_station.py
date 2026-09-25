@@ -17,7 +17,7 @@ from sigil.compose import (
     text,
 )
 from sigil.compose import document as doc
-from sigil.motion import Transition, animate, ease, from_
+from sigil.motion import animate, ease
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.weave import Type
 
@@ -47,7 +47,7 @@ def instrument(reading):
         .column()
         .width(272)
         .gap(20)
-        .opacity(animate(from_(0).to(1), Transition(0.4, ease.outQuad)))
+        .opacity(animate(from_=0, to=1, duration=0.4, ease=ease.outQuad))
         .children(
             doc.label(reading.label),
             (

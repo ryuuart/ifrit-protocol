@@ -13,8 +13,7 @@
 #include <sigilcompose/typography/Track.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Filter.h>
-#include <sigilmotion/clock/FrameClock.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Composer.h>
@@ -44,16 +43,16 @@ namespace sigil::python {
 namespace py = pybind11;
 
 /** EVERYTHING AN OWNED COMPOSER BORROWS, held beside it. The native
- *  composer keeps references to its ticker and its font context, so the
+ *  composer keeps references to its engine and its font context, so the
  *  two are declared ahead of it and outlive it. The font context is a
  *  system-backed one of the composer's own. */
 struct ComposerHandle::Owned {
-  explicit Owned(TickerHandle drivenBy)
-      : ticker(std::move(drivenBy)),
+  explicit Owned(EngineHandle drivenBy)
+      : engine(std::move(drivenBy)),
         fonts(weave::ports::systemFontManager()),
-        composer(ticker.get(), fonts) {}
+        composer(engine.get(), fonts) {}
 
-  TickerHandle ticker;
+  EngineHandle engine;
   weave::FontContext fonts;
   compose::Composer composer;
   std::thread::id thread = std::this_thread::get_id();
@@ -61,10 +60,10 @@ struct ComposerHandle::Owned {
 };
 
 ComposerHandle::ComposerHandle()
-    : m_owner(std::make_shared<Owned>(TickerHandle())) {}
+    : m_owner(std::make_shared<Owned>(EngineHandle())) {}
 
-ComposerHandle::ComposerHandle(const TickerHandle& ticker)
-    : m_owner(std::make_shared<Owned>(ticker)) {}
+ComposerHandle::ComposerHandle(const EngineHandle& engine)
+    : m_owner(std::make_shared<Owned>(engine)) {}
 
 ComposerHandle::ComposerHandle(std::function<compose::Composer&()> access)
     : m_access(std::move(access)) {}
@@ -85,10 +84,10 @@ compose::Composer& ComposerHandle::get() const {
     throw std::runtime_error(
         "A composer is not described, asked or drawn from inside its own "
         "draw");
-  // The ticker is asked first because the composer reads it on nearly
+  // The engine is asked first because the composer reads it on nearly
   // every call, and one a host lent refuses here once its session has
   // closed instead of being read after it has gone.
-  (void)m_owner->ticker.get();
+  (void)m_owner->engine.get();
   return m_owner->composer;
 }
 
@@ -243,13 +242,13 @@ void bindReports(py::class_<ComposerHandle>& composer) {
 
 void bindDescribePath(py::class_<ComposerHandle>& composer) {
   composer
-      .def(py::init([](std::optional<TickerHandle> ticker) {
-             return ticker ? ComposerHandle(*ticker) : ComposerHandle();
+      .def(py::init([](std::optional<EngineHandle> engine) {
+             return engine ? ComposerHandle(*engine) : ComposerHandle();
            }),
-           py::arg("ticker") = py::none(),
+           py::arg("engine") = py::none(),
            "A composer of Python's own, measuring and shaping with a "
            "system-backed font context it keeps. Its transitions run on "
-           "the ticker it is given; with none, nothing steps them.")
+           "the engine it is given; with none, nothing moves them.")
       .def(
           "setSize",
           [](const ComposerHandle& self, py::handle size) {
@@ -260,16 +259,6 @@ void bindDescribePath(py::class_<ComposerHandle>& composer) {
                 .setSize(value);
           },
           py::arg("size"))
-      // The native composer keeps the pointer, so the clock is kept
-      // alive for as long as the composer's Python object is.
-      .def(
-          "setClock",
-          [](const ComposerHandle& self, const motion::FrameClock* clock) {
-            self.ownedComposer(
-                    "A host sets the clock of the composer it lends")
-                .setClock(clock);
-          },
-          py::arg("clock").none(true), py::keep_alive<1, 2>())
       .def(
           "setInherited",
           [](const ComposerHandle& self, const weave::Type& font,
@@ -312,8 +301,8 @@ void bindDescribePath(py::class_<ComposerHandle>& composer) {
           py::arg("name"), py::arg("content"))
       .def("dirty",
            [](const ComposerHandle& self) { return self.get().dirty(); })
-      .def("active",
-           [](const ComposerHandle& self) { return self.get().active(); })
+      .def("isRunning",
+           [](const ComposerHandle& self) { return self.get().isRunning(); })
       .def(
           "draw",
           [](const ComposerHandle& self, BorrowedCanvas& canvas) {
@@ -339,10 +328,10 @@ void bindQueries(py::class_<ComposerHandle>& composer) {
           },
           py::arg("key"))
       .def(
-          "cascadeSpanMs",
+          "scheduleSpan",
           [](const ComposerHandle& self, const std::string& key,
              std::size_t trackIndex) {
-            return self.get().cascadeSpanMs(key, trackIndex);
+            return self.get().scheduleSpan(key, trackIndex);
           },
           py::arg("key"), py::arg("trackIndex"))
       .def(

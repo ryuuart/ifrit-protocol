@@ -127,21 +127,17 @@ void bindContext(py::module_& module) {
                   return *view.state()->composer;
                 });
           })
-      // The session's own ticker, handed over as the one Ticker class
-      // Python has: the host owns the stepping, so the handle borrows
-      // rather than owns, and what a ticker call is given — an output,
-      // a status, a callable — is held by the session rather than by
-      // the wrapper a body happened to keep.
+      // The session's own engine, handed over as the one Engine class
+      // Python has: the host moves the clock, so the handle borrows
+      // rather than owns, and the callables a body hands it are held
+      // against the session rather than by the wrapper a body kept.
       .def_property_readonly(
-          "ticker",
+          "engine",
           [](const Context& ctx) {
             const auto state = ctx.state();
-            return sigil::python::TickerHandle(
+            return sigil::python::EngineHandle(
                 [view = Context(state)]() -> motion::Engine& {
-                  return *view.state()->ticker;
-                },
-                [view = Context(state)](std::shared_ptr<const void> owner) {
-                  view.state()->tickerOwners.push_back(std::move(owner));
+                  return *view.state()->engine;
                 },
                 &state->callbacks);
           })
@@ -204,7 +200,7 @@ void bindContext(py::module_& module) {
           "key", [](const Context& ctx) { return ctx.state()->key; })
       .def_property_readonly(
           "elapsed",
-          [](const Context& ctx) { return ctx.state()->ticker->elapsed(); })
+          [](const Context& ctx) { return ctx.state()->engine->elapsed(); })
       .def_property_readonly("width",
                              [](const Context& ctx) {
                                return ctx.state()->specification->size.width();

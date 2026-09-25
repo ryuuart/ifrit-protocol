@@ -15,7 +15,6 @@
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextPath.h>
-#include <sigilmotion/schedule/Spread.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Nodes.h>
@@ -444,7 +443,14 @@ void bindNodeVerbs(py::class_<Node>& element) {
       .def("preserve3d", &Node::preserve3d, py::arg("preserve") = true, fluent)
       .def("backface", &Node::backface, py::arg("visibility"), fluent)
       .def("cacheScale", &Node::cacheScale, py::arg("scale"), fluent)
-      .def("transition", &Node::transition, py::arg("transition"), fluent)
+      .def(
+          "transition",
+          [](Node& self, py::handle how) -> Node& {
+            return self.transition(motionTransition(how));
+          },
+          py::arg("transition"), fluent,
+          "How the plain values on this node ease when they change: a "
+          "Transition, or a number of seconds for one of that duration.")
       .def(
           "perspectiveOrigin",
           [](Node& self, py::object x, py::object y) -> Node& {
@@ -464,21 +470,6 @@ void bindNodeVerbs(py::class_<Node>& element) {
           return (self.*setter)(motionAnimatable(value));
         },
         py::arg("value"), fluent);
-  element.def(
-      "staggerChildren",
-      [](Node& self, double seconds, const std::string& origin) -> Node& {
-        if (!std::isfinite(seconds) || seconds < 0 || seconds > 1e12)
-          throw py::value_error("Stagger needs nonnegative finite seconds.");
-        const auto from = origin == "start" ? motion::Spread::From::Start
-                          : origin == "end" ? motion::Spread::From::End
-                                            : motion::Spread::From::Center;
-        if (origin != "start" && origin != "end" && origin != "center")
-          throw py::value_error("Stagger origin is start, center, or end.");
-        return self.staggerChildren(
-            std::chrono::milliseconds{static_cast<int64_t>(seconds * 1000)},
-            from);
-      },
-      py::arg("seconds"), py::arg("from_") = "start", fluent);
   for (const auto& [name, setter] : std::initializer_list<
            std::pair<const char*, Node& (Node::*)(Decoration, std::string)>>{
            {"overlay", &Node::overlay},

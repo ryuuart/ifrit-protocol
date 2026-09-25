@@ -26,7 +26,7 @@ from sigil.compose import (
 from sigil.geometry.path import Formation
 from sigil.material import Paint
 from sigil.skia import PathBuilder
-from sigil.motion import entrance
+from sigil.motion import animate
 from sigil.sketch import SketchContext, kit, sketch
 from sigil.weave import Type
 
@@ -69,8 +69,8 @@ def card(title: str, detail: str, accent: str, delay: float = 0) -> Element:
         .flexGrow(1)
         .borderRadius(16)
         .fill(wash(accent))
-        .opacity(entrance(0, 1, duration=0.6, delay=delay))
-        .translateY(entrance(16, 0, duration=0.6, delay=delay))
+        .opacity(animate(from_=0, to=1, duration=0.6, delay=delay))
+        .translateY(animate(from_=16, to=0, duration=0.6, delay=delay))
         .children(
             text(title).styleClass("title"),
             text(detail).styleClass("detail"),

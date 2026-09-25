@@ -20,7 +20,6 @@ import tempfile
 import textwrap
 import threading
 import unittest
-import weakref
 from pathlib import Path
 
 from _sigil import compose as native
@@ -34,10 +33,10 @@ NESTED = ("CacheState", "CompositePlane", "InputSpace", "NodeCost", "Promotion")
 # The calls a sketch's composer answered while the sketch adapter owned
 # the class, which the one class still answers.
 HOSTED = (
-    "active",
     "bounds",
     "dirty",
     "hitTest",
+    "isRunning",
     "purgeCaches",
     "render",
     "renderSlot",
@@ -50,7 +49,6 @@ GROWN = (
     "autoTexturePromotion",
     "autoTexturePromotionPolicy",
     "bakeDensity",
-    "cascadeSpanMs",
     "compositeCounting",
     "compositePlane",
     "declareInputSpace",
@@ -59,9 +57,9 @@ GROWN = (
     "profile",
     "profiling",
     "promotionReason",
+    "scheduleSpan",
     "setAutoTexturePromotion",
     "setBakeDensity",
-    "setClock",
     "setCompositeCounting",
     "setInherited",
     "setKey",
@@ -123,18 +121,18 @@ class Spellings(unittest.TestCase):
 
 
 class Owned(unittest.TestCase):
-    def test_a_composer_is_built_with_or_without_a_ticker(self):
+    def test_a_composer_is_built_with_or_without_an_engine(self):
         self.assertIsInstance(Composer(), Composer)
         self.assertIsInstance(Composer(None), Composer)
-        self.assertIsInstance(Composer(motion.Ticker()), Composer)
-        self.assertIsInstance(Composer(ticker=motion.Ticker()), Composer)
+        self.assertIsInstance(Composer(motion.Engine()), Composer)
+        self.assertIsInstance(Composer(engine=motion.Engine()), Composer)
         with self.assertRaises(TypeError):
-            Composer("ticker")
+            Composer("engine")
 
-    def test_a_composer_keeps_the_ticker_it_was_made_over(self):
-        ticker = motion.Ticker()
-        composer = Composer(ticker)
-        del ticker
+    def test_a_composer_keeps_the_engine_it_was_made_over(self):
+        engine = motion.Engine()
+        composer = Composer(engine)
+        del engine
         gc.collect()
         composer.render(plate())
         self.assertTrue(composer.dirty())
@@ -170,8 +168,8 @@ class Owned(unittest.TestCase):
         composer.render(plate())
         self.assertIsNone(composer.bounds("missing"))
         self.assertIsNone(composer.bounds(key="missing"))
-        self.assertEqual(composer.cascadeSpanMs("missing", 0), 0)
-        self.assertEqual(composer.cascadeSpanMs(key="missing", trackIndex=3), 0)
+        self.assertEqual(composer.scheduleSpan("missing", 0), 0)
+        self.assertEqual(composer.scheduleSpan(key="missing", trackIndex=3), 0)
         settling = composer.settling("missing")
         self.assertEqual(
             (settling.live, settling.reused, settling.degraded), (False, 0, 0)
@@ -262,20 +260,6 @@ class Owned(unittest.TestCase):
         composer.setKey(name="a", code=65, pressed=False)
         with self.assertRaises(TypeError):
             composer.setPointer("here", True)
-
-    def test_a_clock_is_kept_for_as_long_as_the_composer_is(self):
-        composer = Composer()
-        clock = motion.FrameClock()
-        kept = weakref.ref(clock)
-        composer.setClock(clock)
-        del clock
-        gc.collect()
-        self.assertIsNotNone(kept())
-        composer.setClock(None)
-        composer.setClock(clock=None)
-        del composer
-        gc.collect()
-        self.assertIsNone(kept())
 
     def test_drawing_takes_a_lent_canvas_and_nothing_else(self):
         composer = Composer()
@@ -537,11 +521,11 @@ class Frames(Session):
         self.assertIn("inside its own draw", self.results["refusal"])
         self.assertGreater(self.results["after"], 0)
 
-    def test_a_probe_may_run_on_the_ticker_its_session_lends(self):
+    def test_a_probe_may_run_on_the_engine_its_session_lends(self):
         self.render(
             "pen.background('#000000')",
             setup="""
-                probe = Composer(ctx.ticker)
+                probe = Composer(ctx.engine)
                 probe.render(plate())
                 results['probe'] = probe
                 results['dirty'] = probe.dirty()
@@ -549,7 +533,7 @@ class Frames(Session):
             """,
         )
         self.assertTrue(self.results["dirty"])
-        # The ticker was the session's, so the composer over it stops
+        # The engine was the session's, so the composer over it stops
         # answering when the session that lent it has closed.
         with self.assertRaisesRegex(RuntimeError, "closed session"):
             self.results["probe"].dirty()
@@ -605,7 +589,6 @@ class Lent(Session):
                 results['composer'] = ctx.composer
                 for name, call in (
                     ('size', lambda: ctx.composer.setSize((10, 10))),
-                    ('clock', lambda: ctx.composer.setClock(None)),
                 ):
                     try:
                         call()
@@ -613,7 +596,7 @@ class Lent(Session):
                         results[name] = str(error)
             """,
         )
-        for name in ("size", "clock", "draw"):
+        for name in ("size", "draw"):
             with self.subTest(name=name):
                 self.assertIn("host", self.results[name])
 
@@ -635,7 +618,7 @@ class Lent(Session):
                     results['rows'] = ctx.composer.profile()
                     results['policy'] = ctx.composer.autoTexturePromotionPolicy()
                     results['density'] = ctx.composer.bakeDensity()
-                    results['span'] = ctx.composer.cascadeSpanMs('plate', 0)
+                    results['span'] = ctx.composer.scheduleSpan('plate', 0)
                     results['composer'] = ctx.composer
             """,
             at=0.05,

@@ -479,9 +479,9 @@ library = "Sketch kit"
 python = ["sketch.kit.titleCard"]
 
 [requirement.lanes]
-native = "`motion::Lane` retargeting over `AnimatedFloats`"
+native = "`motion::Lane` retargeting over `HeldMotions`"
 library = "Motion"
-python = ["motion.Lane", "motion.AnimatedFloats"]
+python = ["motion.Lane", "motion.HeldMotions"]
 
 [requirement.layer-styles]
 native = "`compose::styles` layer styles (glow, inner shadow, bevel)"
@@ -722,9 +722,9 @@ python = [
 ]
 
 [requirement.schedules]
-native = "`motion::Spread` and `motion::Cascade` schedules"
+native = "`motion::stagger` values and the `motion::Schedule` they resolve into"
 library = "Motion"
-python = ["motion.Spread", "motion.Cascade"]
+python = ["motion.stagger", "motion.Schedule"]
 
 [requirement.sdf]
 native = "`material::sdf` shapes and styles"
@@ -792,16 +792,15 @@ library = "Geometry"
 python = ["geometry.mesh.curve.Spline3"]
 
 [requirement.springs]
-native = "`motion::Spring` value and `motion::spring` step"
+native = "`motion::Spring` value and its `step`"
 library = "Motion"
-python = ["motion.Spring", "motion.spring"]
+python = ["motion.Spring", "motion.Spring.step"]
 
 [requirement.standalone-composer]
 native = "Standalone `compose::Composer` over a caller canvas"
 library = "Compose"
 python = [
   "compose.Composer.setSize",
-  "compose.Composer.setClock",
   "compose.Composer.draw",
   "compose.Composer.setPointer",
   "compose.Composer.setKey",
@@ -905,9 +904,9 @@ library = "Compose"
 python = ["compose.tiles.Tiles"]
 
 [requirement.timelines]
-native = "`motion::Ticker::timeline` and standalone tickers"
+native = "`motion::Engine::timeline` and an engine a caller moves"
 library = "Motion"
-python = ["motion.Ticker.timeline", "motion.Ticker.tick", "motion.Timeline"]
+python = ["motion.Engine.timeline", "motion.Engine.advance", "motion.Timeline"]
 
 [requirement.track-meter]
 native = "`compose::kit::trackMeter` and `restGhost` instruments"
@@ -989,11 +988,10 @@ library = "World"
 python = ["world.Environment", "world.Element.environmentMap"]
 
 [requirement.world-placement]
-native = "`world::Element::along`, `staggerChildren` and `node`"
+native = "`world::Element::along` and `node`"
 library = "World"
 python = [
   "world.Element.along",
-  "world.Element.staggerChildren",
   "world.Element.node",
 ]
 

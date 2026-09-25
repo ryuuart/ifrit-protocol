@@ -1,4 +1,4 @@
-"""Oscillator, Wave, Sequence and the closed-form Spring.
+"""Oscillator, Wave, SpringParameters and the closed-form Spring.
 
 Input contracts for the erased signatures of the
 motion/signals package, and nothing else: a fragment is one

@@ -33,7 +33,7 @@ void bindSketchPlates(pybind11::module_& module);
 void bindSketchSchema(pybind11::module_& module);
 /** Registers a Python sketch that dresses a set on @p module. */
 void bindSketchSetSketches(pybind11::module_& module);
-/** Registers the Python Set kind and a scene on the session ticker on
+/** Registers the Python Set kind and a scene on the session engine on
  *  @p module. */
 void bindSketchWorldSet(pybind11::module_& module);
 /** Registers a sketch host in this process, spoken to through the

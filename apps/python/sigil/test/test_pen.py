@@ -267,8 +267,8 @@ class PenContracts(unittest.TestCase):
             pen.element(self.guest, (16, 16, 12, 12))
         """,
             setup="""
-            from sigil.motion import entrance
-            self.guest = compose.box().absolute().inset(0).fill('#ffffff').opacity(entrance(0, 1, duration=0.25))
+            from sigil.motion import animate
+            self.guest = compose.box().absolute().inset(0).fill('#ffffff').opacity(animate(from_=0, to=1, duration=0.25))
         """,
             at=0.1,
         )

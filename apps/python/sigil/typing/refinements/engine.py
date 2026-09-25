@@ -11,7 +11,7 @@ import ast
 import copy
 import re
 
-from .table import COLOR, MATERIAL, PAINT, Table
+from .table import COLOR, DURATION, MATERIAL, PAINT, Table
 
 # The element, spelled every way the generated declarations spell it: bare
 # inside the module that registers it, through the submodule's name inside
@@ -241,6 +241,12 @@ def refine(table: Table, seen: set[str], module: str, tree: ast.Module) -> None:
                     if COLOR in text:
                         text = text.replace(COLOR, "_t.ColorLike")
                         arg.annotation = expression(text)
+                    # A length of time is read through one caster too, which
+                    # names both spellings it takes; the alias says the same
+                    # in one word.
+                    if DURATION in text:
+                        text = text.replace(DURATION, "_t.DurationLike")
+                        arg.annotation = expression(text)
                     # The paint's own constructor states the material
                     # overload the conversion is registered against, so
                     # widening its paint overload would only repeat it.
@@ -263,9 +269,15 @@ def refine(table: Table, seen: set[str], module: str, tree: ast.Module) -> None:
                 ):
                     node.returns = expression(returns[full])
                 positional = [*node.args.posonlyargs, *node.args.args]
-                for arg, default in zip(
-                    positional[-len(node.args.defaults) :], node.args.defaults
-                ):
+                defaulted = list(
+                    zip(positional[-len(node.args.defaults) :], node.args.defaults)
+                ) if node.args.defaults else []
+                defaulted += [
+                    (arg, default)
+                    for arg, default in zip(node.args.kwonlyargs, node.args.kw_defaults)
+                    if default is not None
+                ]
+                for arg, default in defaulted:
                     if (
                         isinstance(default, ast.Constant)
                         and default.value is None

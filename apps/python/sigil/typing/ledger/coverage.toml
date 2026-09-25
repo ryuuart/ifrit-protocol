@@ -121,7 +121,7 @@ python = ["sketch.scry.settle"]
 name = "Composer"
 
 [[section.surface.item]]
-bound = "Checked `ctx.composer`: `render`, `renderSlot`, `bounds`, `hitTest`, `settling`, `active`, `dirty`, `purgeCaches` and owned `stats`"
+bound = "Checked `ctx.composer`: `render`, `renderSlot`, `bounds`, `hitTest`, `settling`, `isRunning`, `dirty`, `purgeCaches` and owned `stats`"
 python = [
   "sketch.SketchContext.composer",
   "compose.Composer.render",
@@ -129,16 +129,16 @@ python = [
   "compose.Composer.bounds",
   "compose.Composer.hitTest",
   "compose.Composer.settling",
-  "compose.Composer.active",
+  "compose.Composer.isRunning",
   "compose.Composer.dirty",
   "compose.Composer.purgeCaches",
   "compose.Composer.stats",
 ]
 
 [[section.surface.item]]
-native = "`cascadeSpanMs`"
-bound_text = "`cascadeSpanMs`"
-python = ["compose.Composer.cascadeSpanMs"]
+native = "`scheduleSpan`"
+bound_text = "`scheduleSpan`, in seconds"
+python = ["compose.Composer.scheduleSpan"]
 
 [[section.surface.item]]
 native = "`paragraphLayout`, `beatsOf` and `units`"
@@ -169,50 +169,69 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "a standalone `compose::Composer` driven through `setSize`, `setClock`, `draw`, `setPointer` and `setKey`"
-bound_text = "a standalone `compose.Composer` driven through `setSize`, `setClock`, `draw`, `setPointer` and `setKey`"
+native = "a standalone `compose::Composer` over an engine, driven through `setSize`, `draw`, `setPointer` and `setKey`"
+bound_text = "a standalone `compose.Composer` over an optional `motion.Engine`, driven through `setSize`, `draw`, `setPointer` and `setKey`"
 python = [
   "compose.Composer",
   "compose.Composer.setSize",
-  "compose.Composer.setClock",
   "compose.Composer.draw",
   "compose.Composer.setPointer",
   "compose.Composer.setKey",
 ]
 
 [[section.surface]]
-name = "Ticker"
+name = "Engine"
 
 [[section.surface.item]]
-bound = "Checked `ctx.ticker`: `add` with a callback of zero to two arguments that returns `False` to leave, `addFixed` with its catch-up limit, interpolation output and `FixedStatus`, `derive`, `elapsed` and `active`"
+bound = "Checked `ctx.engine`: `animate` over a live value, `timeline` with `add`, `call` and `label` at `at`, `afterEnd`, `afterPrevious`, `withPrevious` and `atLabel`, and `timer` with a callback of zero to two arguments that returns `False` to stop, a `stepRate` with its catch-up limit, `betweenSteps` and `droppedTime`, a `frameRate`, a `duration` and a `delay`; `elapsed` and `isRunning`"
 python = [
-  "sketch.SketchContext.ticker",
-  "motion.Ticker.add",
-  "motion.Ticker.addFixed",
-  "motion.FixedStatus",
-  "motion.Ticker.derive",
-  "motion.Ticker.elapsed",
-  "motion.Ticker.active",
+  "sketch.SketchContext.engine",
+  "motion.Engine.animate",
+  "motion.Engine.timeline",
+  "motion.Engine.timer",
+  "motion.Engine.elapsed",
+  "motion.Engine.isRunning",
+  "motion.Timeline.add",
+  "motion.Timeline.call",
+  "motion.Timeline.label",
+  "motion.at",
+  "motion.afterEnd",
+  "motion.afterPrevious",
+  "motion.withPrevious",
+  "motion.atLabel",
+  "motion.Timer.betweenSteps",
+  "motion.Timer.droppedTime",
 ]
 
 [[section.surface.item]]
-bound = "a World scene steps its own ticker through `Scene.advance`"
+bound = "every `Playback` verb: `play`, `pause`, `resume`, `restart`, `reverse`, `alternate`, `seek`, `complete`, `cancel`, `revert` and `onComplete`, with `isRunning`, `isPaused`, `isCompleted`, `currentTime` and `progress`"
+python = [
+  "motion.Playback.play",
+  "motion.Playback.seek",
+  "motion.Playback.revert",
+  "motion.Playback.onComplete",
+  "motion.Playback.progress",
+]
+
+[[section.surface.item]]
+bound = "a World scene moves its own engine through `Scene.advance`"
 python = ["world.Scene.advance"]
 
 [[section.surface.item]]
-native = "A standalone `motion::Ticker` with `tick`"
-bound_text = "a standalone `motion.Ticker` with `tick`"
-python = ["motion.Ticker", "motion.Ticker.tick"]
-
-[[section.surface.item]]
-native = "`Ticker::timeline()` over choreograph"
-bound_text = "`Ticker.timeline()` and its `Timeline`"
-python = ["motion.Ticker.timeline", "motion.Timeline"]
-
-[[section.surface.item]]
-native = "`motion::FrameClock`"
-bound_text = "`motion.FrameClock`"
-python = ["motion.FrameClock"]
+native = "A standalone `motion::Engine` a caller moves, under a `ClockPolicy` and a budget"
+bound_text = "a standalone `motion.Engine` over `EngineOptions`, moved by `advance` or `advanceWall`, under a `ClockPolicy` and a budget, held, sped and restarted"
+python = [
+  "motion.Engine",
+  "motion.EngineOptions",
+  "motion.Engine.advance",
+  "motion.Engine.advanceWall",
+  "motion.Engine.setPolicy",
+  "motion.ClockPolicy",
+  "motion.Engine.budgetRemaining",
+  "motion.Engine.setHeld",
+  "motion.Engine.setSpeed",
+  "motion.Engine.restart",
+]
 
 [[section.surface]]
 name = "Memo"
@@ -1148,33 +1167,47 @@ prose = "motion"
 name = "Values and bindings"
 
 [[section.surface.item]]
-bound = "Shared `Output`, `ColorOutput` and `FillOutput`"
-python = ["motion.Output", "motion.ColorOutput", "motion.FillOutput"]
+bound = "`Animatable` in its four forms, with the colour and fill `ColorAnimatable` and `FillAnimatable`; `animatable` for a live value every copy shares, read and written through `value` and `set`, with `isRunning` and the forms read back"
+python = [
+  "motion.Animatable",
+  "motion.ColorAnimatable",
+  "motion.FillAnimatable",
+  "motion.AnimatableForm",
+  "motion.animatable",
+]
 
 [[section.surface.item]]
-bound = "`bind` and every `Bound` stage; `wiggle`"
-python = ["motion.bind", "motion.Bound", "motion.wiggle"]
+bound = "`bind` over a `Binding` of every stage — `from_`, `clampFrom`, `alternate`, `envelope`, `ease`, `quantize`, `reverse`, `to`, `wrap`, `wiggle` and `clamp` — with `Range`, `Wiggle`, the `envelope` factories and `Binding.apply`"
+python = [
+  "motion.bind",
+  "motion.Binding",
+  "motion.Binding.apply",
+  "motion.Range",
+  "motion.Wiggle",
+  "motion.Envelope",
+  "motion.envelope.cosine",
+  "motion.envelope.square",
+  "motion.envelope.trapezoid",
+  "motion.envelope.shaped",
+]
 
 [[section.surface.item]]
 bound = "`ease` curves and Python callables"
 python = ["motion.ease.inOutCubic", "motion.Curve"]
 
 [[section.surface.item]]
-bound = "`Transition`, `ramp`, `animate` over `from_`, `to` and `through`, and `entrance` and `transition` for floats, colors and fills, with read-back"
+bound = "`Tween` with `Keyframe` for numbers, colours and fills, read with no engine through `at`, `rest` and `resolved`; `animate` over a tween or its fields; `Transition` and `Composition`, with read-back"
 python = [
-  "motion.Transition",
-  "motion.ramp",
+  "motion.Tween",
+  "motion.Tween.at",
+  "motion.Tween.resolved",
+  "motion.Keyframe",
+  "motion.ColorTween",
+  "motion.FillTween",
   "motion.animate",
-  "motion.from_",
-  "motion.to",
-  "motion.through",
-  "motion.entrance",
-  "motion.transition",
+  "motion.Transition",
+  "motion.Composition",
 ]
-
-[[section.surface.item]]
-bound = "the float `Animatable`"
-python = ["motion.Animatable"]
 
 [[section.surface.item]]
 bound = "`phase`, `quantizeTime`, `stepIndex`, `decay`, `flash` and `clamp01`"
@@ -1188,43 +1221,26 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`hold`, `holdUntil`, `rampTo` and `setValue`"
+bound = "`Oscillator` and `Wave`; `Spring` with `step` and `isSettled` over `SpringParameters`"
 python = [
-  "motion.hold",
-  "motion.holdUntil",
-  "motion.rampTo",
-  "motion.setValue",
+  "motion.Oscillator",
+  "motion.Oscillator.at",
+  "motion.Wave",
+  "motion.Spring",
+  "motion.Spring.step",
+  "motion.SpringParameters",
 ]
 
 [[section.surface.item]]
-bound = "times in seconds, truncated to whole milliseconds"
+bound = "times in seconds or `datetime.timedelta`, read back in seconds"
 
 [[section.surface.item]]
-native = "`Oscillator` and `Wave`"
-python = ["motion.Oscillator", "motion.Wave"]
+native = "`HeldMotion` and held-motion resolution"
+python = ["motion.HeldMotion"]
 
 [[section.surface.item]]
-native = "`Sequence`"
-python = ["motion.Sequence"]
-
-[[section.surface.item]]
-native = "`Spring` with `spring` and `springMoving`"
-python = ["motion.Spring", "motion.spring", "motion.springMoving"]
-
-[[section.surface.item]]
-native = "`AnimatedFloat` and held-motion resolution"
-python = ["motion.AnimatedFloat"]
-
-[[section.surface.item]]
-native = "`Lane` with `retargetSlots` and `retargetFamily`"
-python = ["motion.Lane", "motion.retargetSlots", "motion.retargetFamily"]
-
-[[section.surface.item]]
-native = "`BoundFloat`, `Envelope` and `Bound::value`"
-python = ["motion.BoundFloat", "motion.Envelope", "motion.Bound.value"]
-
-[[section.surface.item]]
-native = "the color and fill `Animatable` and its accessors"
+native = "`Lane` with `retargetFixed` and `retargetPositional`"
+python = ["motion.Lane", "motion.retargetFixed", "motion.retargetPositional"]
 
 [[section.surface.item]]
 native = "curve shape read-back, without which a Python-authored curve compares unequal"
@@ -1233,25 +1249,19 @@ native = "curve shape read-back, without which a Python-authored curve compares 
 name = "Schedule"
 
 [[section.surface.item]]
-bound = "`Element.staggerChildren(seconds, from_)` with `from_` of `\"start\"`, `\"center\"` or `\"end\"`"
-python = ["compose.Element.staggerChildren"]
-
-[[section.surface.item]]
-native = "`Spread` with its random and edge origins"
-python = ["motion.Spread"]
-
-[[section.surface.item]]
-native = "`cascadeOrder`, `cascadeRanks`, `Cascade` and `Beat`"
+bound = "`stagger` of a step or a first-and-last spread, from a `StaggerFrom` or an index, over a grid, an axis, a curve, a start, a reversal, a seed and a stated order; `cues`; `Staggered` resolved at a `Place`, which every tween field takes"
 python = [
-  "motion.cascadeOrder",
-  "motion.cascadeRanks",
-  "motion.Cascade",
-  "motion.Beat",
+  "motion.stagger",
+  "motion.cues",
+  "motion.Staggered",
+  "motion.Place",
+  "motion.StaggerFrom",
+  "motion.StaggerAxis",
 ]
 
 [[section.surface.item]]
-native = "World `Element::staggerChildren`"
-python = ["world.Element.staggerChildren"]
+bound = "`Timing` with its `span`, the `Schedule` it resolves into, and the `Beat` a schedule reads back"
+python = ["motion.Timing", "motion.Schedule", "motion.Beat"]
 
 [[section.surface]]
 name = "Physics"
@@ -1901,7 +1911,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "a thread-checked `Scene` that owns its ticker, with `render`, `advance`, `image`, `draw(pen)`, handles and statistics"
+bound = "a thread-checked `Scene` that owns its engine, with `render`, `advance`, `image`, `draw(pen)`, handles and statistics"
 python = [
   "world.Scene",
   "world.Scene.render",
@@ -1947,10 +1957,9 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`cache`, `staggerChildren` and `world::memo`"
+native = "`cache` and `world::memo`"
 python = [
   "world.Element.cache",
-  "world.Element.staggerChildren",
   "world.memo",
 ]
 
@@ -1982,7 +1991,7 @@ python = ["world.Element.node"]
 native = "`Pass` equality"
 
 [[section.surface.item]]
-native = "a scene over the session ticker"
+native = "a scene over the session engine"
 
 [[section.surface.item]]
 native = "texture-dressed surfaces"

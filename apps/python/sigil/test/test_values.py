@@ -238,7 +238,7 @@ class Colors(unittest.TestCase):
         moving = skia.RuntimeEffect.MakeForShader(
             "uniform float amount; half4 main(float2 p) { return half4(amount); }"
         )
-        output = motion.Output(0.0)
+        output = motion.animatable(0.0)
         self.assertTrue(Paint.sksl(moving).bind("amount", output).isRunning())
         self.assertTrue(
             material.Filter.program(moving).bind("amount", output).isRunning()

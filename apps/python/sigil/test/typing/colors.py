@@ -78,9 +78,9 @@ ramp = material.Paint.linearGradient(
     material.GradientOptions(units=material.GradientUnits.Pixels),
 )
 recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31"))
-bound = motion.FillOutput(compose.Fill.color("#6e99bb"))
-moving = motion.entrance(compose.Fill.none(), "#6e99bb")
-tinting = motion.entrance("#000000", "#6e99bb")
+bound = motion.animatable(compose.Fill.color("#6e99bb"))
+moving = motion.animate(from_=compose.Fill.none(), to=compose.Fill.color("#6e99bb"))
+tinting = motion.ColorTween(from_="#000000", to="#6e99bb")
 assert_type(compose.box().fill(material.Color("#6e99bb")), compose.Element)
 assert_type(compose.box().fill("#6e99bb"), compose.Element)
 assert_type(compose.box().fill((0.43, 0.6, 0.73)), compose.Element)

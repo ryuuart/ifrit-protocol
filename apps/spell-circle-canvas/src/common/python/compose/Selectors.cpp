@@ -12,6 +12,7 @@
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Nodes.h>
 #include <sigilpython/compose/Registration.h>
+#include <sigilpython/motion/Convert.h>
 
 #include <optional>
 #include <string>
@@ -375,8 +376,8 @@ void bindRule(py::module_& composition) {
   bindTextPropertyVerbs(rule);
   rule.def(
           "transition",
-          [](Rule& self, motion::Transition how) -> Rule& {
-            return self.transition(std::move(how));
+          [](Rule& self, py::handle how) -> Rule& {
+            return self.transition(motionTransition(how));
           },
           py::arg("how"), fluent,
           "How a matched element's values change when a later describe "

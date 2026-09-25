@@ -9,7 +9,7 @@ from sigil import compose
 from sigil import compose as raw
 from sigil import image, skia, weave
 from sigil.compose import Align, Dimension, Fill, box, pct, stroke
-from sigil.motion import Output
+from sigil.motion import animatable
 from sigil.sketch import render_file
 
 
@@ -345,8 +345,8 @@ class Scene:
         self.assertEqual(row[5 * 4 : 5 * 4 + 4], b"\x00\x00\x00\xff")
         self.assertEqual(row[35 * 4 : 35 * 4 + 4], b"\xff\x00\x00\xff")
 
-    def test_animatable_fields_roundtrip_without_losing_live_output(self):
-        source = Output(0.25)
+    def test_animatable_fields_roundtrip_without_losing_a_live_value(self):
+        source = animatable(0.25)
         path = raw.MotionPath(skia.Path.Circle(0, 0, 40), t=source)
         retained = path.t
         path.t = retained

@@ -1,107 +1,105 @@
 #pragma once
 
 /** @file
- * Binding animation: the clock and the schedules, and the readings
- * that take an animatable number, colour, fill, easing or transition
- * from the shapes Python spells them as.
+ * Binding animation: the engine and the readings that take an
+ * animatable number, colour or fill, a tween, a staggered value, an
+ * easing or a transition from the shapes Python spells them as.
  */
 
 #include <include/core/SkColor.h>
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/schedule/Stagger.h>
+#include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 
 #include <functional>
 #include <memory>
 #include <thread>
-#include <vector>
-
-namespace sigil::motion {
-class Ticker;
-}
 
 namespace sigil::python {
 
 class CallbackLifetime;
 
-/** A ticker of Python's own, or checked access to the one a host is
+/** An engine of Python's own, or checked access to the one a host is
  *  lending. The native calls are the same in both cases; what differs
- *  is who owns the stepping and who holds what the ticker was handed.
+ *  is who moves the engine's clock.
  *
- *  A ticker is not thread-safe, so every handle refuses a thread other
- *  than the one that made it, and a borrowed one refuses again through
- *  the access it was given once the host's session has closed.
+ *  An engine is not thread-safe, so an owned handle refuses a thread
+ *  other than the one that made it, and a borrowed one refuses through
+ *  the access it was given, which also reports a session that has
+ *  closed.
  *
- *  An owned handle holds the outputs and statuses a ticker call was
- *  given, because nothing else would; a borrowed one hands them to the
- *  session, whose lifetime they belong to rather than an escaped
- *  Python wrapper's. Callables go the same way: a borrowed handle
- *  names the host lifetime they are retained against, and an owned one
- *  names none, which leaves them ordinary shared ownership released
- *  when the native holder lets go. */
-class TickerHandle {
+ *  Nothing an engine is handed is held by a bare pointer: a live value
+ *  shares its cell with every copy, and a playback is a shared state.
+ *  What remains is the Python callables, which a borrowed handle
+ *  retains against the host lifetime it names, and an owned one leaves
+ *  to ordinary shared ownership released when the native holder lets
+ *  go. */
+class EngineHandle {
  public:
-  /** A ticker of this handle's own, stepped from Python. */
-  TickerHandle();
-  /** A handle onto the host's ticker: @p access reaches it and throws
-   *  when the session is gone, @p retain gives the session something
-   *  the ticker was handed to hold, and @p callbacks is the lifetime
-   *  Python callables are retained against. */
-  TickerHandle(std::function<motion::Ticker&()> access,
-               std::function<void(std::shared_ptr<const void>)> retain,
+  /** An engine of this handle's own, moved from Python. */
+  explicit EngineHandle(motion::EngineOptions options = {});
+  /** A handle onto the host's engine: @p access reaches it and throws
+   *  when the session is gone, and @p callbacks is the lifetime Python
+   *  callables are retained against. */
+  EngineHandle(std::function<motion::Engine&()> access,
                CallbackLifetime* callbacks);
-  /** The ticker itself: the one this handle owns, or the host's through
+  /** The engine itself: the one this handle owns, or the host's through
    *  the access it was given. Throws on a thread other than the one
-   *  that made the handle, and on a session that has closed. */
-  motion::Ticker& get() const;
-  /** Whether this handle owns its ticker, and so may step it. */
+   *  that made an owned handle, and on a session that has closed. */
+  motion::Engine& get() const;
+  /** Whether this handle owns its engine, and so may move its clock. */
   bool owned() const { return m_owner != nullptr; }
-  /** Holds @p value for as long as the ticker can read it: the handle
-   *  itself when it owns the ticker, the host's session otherwise. */
-  void retain(std::shared_ptr<const void> value) const;
-  /** The lifetime Python callables given to this ticker are retained
+  /** The engine on the same terms as `get`, for a call only the owner
+   *  of an engine makes. Throws @p refusal on a borrowed handle. */
+  motion::Engine& ownedEngine(const char* refusal) const;
+  /** The lifetime Python callables given to this engine are retained
    *  against, or null on an owned handle, which has no host. */
   CallbackLifetime* callbacks() const { return m_callbacks; }
 
  private:
-  std::shared_ptr<motion::Ticker> m_owner;
-  std::shared_ptr<std::vector<std::shared_ptr<const void>>> m_held;
-  std::function<motion::Ticker&()> m_access;
-  std::function<void(std::shared_ptr<const void>)> m_retain;
+  std::shared_ptr<motion::Engine> m_owner;
+  std::function<motion::Engine&()> m_access;
   CallbackLifetime* m_callbacks = nullptr;
   std::thread::id m_thread;
 };
 
-/** The master timeline of a ticker, reached through the same access the
- *  ticker's own handle was made with. The timeline lives inside the
- *  ticker, so a Python wrapper that outlives its session refuses rather
- *  than reading storage that has gone. */
-class TimelineHandle {
- public:
-  /** The timeline of the ticker @p ticker reaches. */
-  explicit TimelineHandle(TickerHandle ticker);
-  /** The timeline itself, on the same terms as `TickerHandle::get`. */
-  choreograph::Timeline& get() const;
-  /** The ticker this timeline belongs to, for whatever the timeline is
-   *  handed and the ticker has to hold. */
-  const TickerHandle& ticker() const { return m_ticker; }
-
- private:
-  TickerHandle m_ticker;
-};
-
-/** An animatable number read from @p value: an output, a binding or a
- *  transitioned value, or a plain number that stands still. */
+/** An animatable number read from @p value: an animatable, a tween,
+ *  or a plain number that stands still. */
 motion::Animatable<float> motionAnimatable(pybind11::handle value);
 /** An animatable colour read from @p value, on the same terms. */
 motion::Animatable<SkColor4f> motionInk(pybind11::handle value);
-/** An animatable fill read from @p value, on the same terms. */
+/** An animatable fill read from @p value, on the same terms; a colour
+ *  animatable or tween is read as the fill of that colour. */
 motion::Animatable<compose::Fill> motionFill(pybind11::handle value);
 /** An easing read from @p value: a named curve, a curve value, or a
  *  callable that shapes a fraction. None is the default ease-out. */
 motion::Easing motionEase(pybind11::handle value);
-/** A transition read from @p value; None is the default transition. */
+/** @p curve as Python reads it back: the `Easing` class, callable and
+ *  comparable under the rule two held curves compare by. */
+pybind11::object easingReading(const motion::Easing& curve);
+/** A transition read from @p value: a transition, or a number of
+ *  seconds for a transition of that duration. None is the default. */
 motion::Transition motionTransition(pybind11::handle value);
+/** A tween of a number read from @p value, which must be one. */
+motion::Tween<float> motionTween(pybind11::handle value);
+
+/** A number that may differ per child, read from @p value: a plain
+ *  number or a `Staggered`. */
+motion::Staggered<float> staggeredNumber(pybind11::handle value);
+/** A length of time that may differ per child, read from @p value: a
+ *  number of seconds, a `datetime.timedelta`, or a `Staggered` whose
+ *  values are seconds. */
+motion::Staggered<motion::Duration> staggeredDuration(pybind11::handle value);
+/** @p value as Python reads it back: the plain number when it is the
+ *  same for every child, the `Staggered` otherwise. */
+pybind11::object staggeredReading(const motion::Staggered<float>& value);
+/** @p value as Python reads it back, in seconds. */
+pybind11::object staggeredReading(const motion::Staggered<motion::Duration>& value);
 
 }  // namespace sigil::python

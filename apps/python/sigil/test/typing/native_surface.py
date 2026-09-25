@@ -1,6 +1,7 @@
 """Representative direct binding contracts, checked without running sketches."""
 
 from array import array
+from datetime import timedelta
 from dataclasses import dataclass
 from typing import assert_type
 
@@ -39,14 +40,17 @@ assert_type(
     tree.alignItems(compose.Align.Auto).justifyContent(compose.Justify.End),
     compose.Element,
 )
-assert_type(motion.from_(0).to(1), motion.FromTo)
-assert_type(motion.animate(motion.from_(0).to(1)), motion.Transitioned)
-assert_type(motion.entrance("#000", "#fff"), motion.ColorTransitioned)
+assert_type(motion.Tween(from_=0, to=1), motion.Tween)
+assert_type(motion.animate(motion.Tween(from_=0, to=1)), motion.Animatable)
+assert_type(motion.animate(from_=0, to=1), motion.Animatable)
+assert_type(motion.animate(from_="#000", to="#fff"), motion.ColorAnimatable)
 assert_type(
-    motion.animate(motion.from_(compose.Fill.none()).to("#fff")),
-    motion.FillTransitioned,
+    motion.animate(from_=compose.Fill.none(), to=compose.Fill.color("#fff")),
+    motion.FillAnimatable,
 )
-assert_type(motion.through([(0.0, 1.0), (0.4, 2.0)]), motion.Waypoints)
+assert_type(motion.animatable(0.5), motion.Animatable)
+assert_type(motion.stagger(0.04), motion.Staggered)
+assert_type(motion.phase(timedelta(seconds=1), 2), float)
 
 ink = material.Paint.linearGradient(
     (0, 0),
@@ -58,11 +62,11 @@ shader = material.Paint.sksl(
     "uniform float gain; half4 main(float2 p) { return half4(gain); }", {"gain": 0.5}
 )
 assert_type(shader.set("gain", 0.7), material.Paint)
-tree.fill(ink).opacity(motion.bind(motion.Output(1.0)))
+tree.fill(ink).opacity(motion.bind(motion.animatable(1.0), to=(0, 1)))
 outline = compose.stroke(2, ink)
 outline.strokeFill = ink
 outline.trimPhase = None
-outline.dashPhaseBinding = motion.Output(0)
+outline.dashPhaseBinding = motion.animatable(0)
 
 style = weave.Type(size=weave.Length(16), features=[weave.FontFeature("liga", 1)])
 label = compose.text("Native", weave.textStyle(style))
@@ -122,8 +126,8 @@ def paint(pen: draw.Pen) -> None:
 def setup(ctx: sketch.SketchContext) -> None:
     ctx.canvas(320, 240)
     ctx.render(compose.graphics("ink", paint))
-    ctx.ticker.add(lambda dt, elapsed: elapsed < 2)
-    ctx.ticker.addFixed(60, lambda: None)
+    assert_type(ctx.engine.timer(lambda delta, elapsed: elapsed < 2), motion.Timer)
+    ctx.engine.timer(lambda: None, stepRate=60)
     hub = ctx.assets.hub()
     assert_type(hub, io.Hub)
     feed = hub.feed("udp://:27021", io.FeedPolicy(capacity=64))

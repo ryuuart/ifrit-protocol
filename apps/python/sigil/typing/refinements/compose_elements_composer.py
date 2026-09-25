@@ -7,10 +7,8 @@ author's alone.
 Most of the composer states itself: its reports are registered ahead of
 the calls that answer in them, so a profile is a list of rows, a plane's
 counts are bytes and an inherited ink is a colour without a word here.
-What is left is the three inputs read through a shared conversion, and
-the one pointer parameter whose absence is a value. The point a hit test
-is asked about is named by the compose fragment, which spoke for it
-while the sketch adapter owned the class.
+What is left is the inputs read through a shared conversion. The point
+a hit test is asked about is named by the compose fragment.
 """
 
 from __future__ import annotations
@@ -28,13 +26,6 @@ def register(table: Table) -> None:
     # Where the pointer stands is a point, however it is spelled; whether
     # its button is down is a plain truth value pybind11 already names.
     table.erased(COMPOSER, "setPointer", "_t.PointLike")
-    # No clock freezes paint time at zero, and a pointer parameter that
-    # admits None is written without it.
-    table.declares(
-        COMPOSER,
-        "setClock",
-        "def setClock(self, clock: _sigil.motion.FrameClock | None) -> None: ...",
-    )
     # The buffer protocol's two slots are C slots, so they carry no
     # signature of their own: the reading hands out the counts where the
     # plane keeps them, one byte per device pixel, and the release gives

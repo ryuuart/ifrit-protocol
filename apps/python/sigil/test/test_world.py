@@ -11,7 +11,7 @@ from sigil import image, world
 from sigil.geometry import mesh
 from sigil.material import Color, Material
 from sigil.material import kit as surfaces
-from sigil.motion import Output
+from sigil.motion import animatable
 from sigil.sketch import render_file
 
 
@@ -124,8 +124,8 @@ class World(unittest.TestCase):
         self.assertEqual(scene.error, "")
         self.assertEqual(scene.image((96, 96)).rgba(), original)
 
-    def test_motion_is_sampled_and_keeps_native_output_alive(self):
-        angle = Output(0)
+    def test_motion_is_sampled_and_keeps_a_live_value_alive(self):
+        angle = animatable(0)
         reference = weakref.ref(angle)
         scene = world.Scene()
         scene.render(world.Frame(body().rotateZ(angle)).camera(camera()))

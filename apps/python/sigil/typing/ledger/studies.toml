@@ -50,7 +50,7 @@ combines = "Retained model descriptions, memo invalidation and native motion"
 combines = "Parametric, lathed and regular meshes with a camera and native lighting"
 
 [study.python_motion_signals]
-combines = "Shared outputs, native bindings and keyframe motion"
+combines = "One live value, native bindings and a keyframe entrance"
 
 [study.python_observable_flowfield]
 combines = "A NumPy angle field drawn as packed line batches"

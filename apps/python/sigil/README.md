@@ -595,11 +595,16 @@ The context exposes checked views of the native services:
 
 - `ctx.composer` renders trees and named slots, reads keyed bounds and hit
   tests, reports settling and cache statistics, and purges caches.
-- `ctx.ticker` schedules callbacks with `add`, fixed steps with `addFixed`,
-  and a bound chain with `derive`. A regular callback may take no arguments,
-  `dt`, or `dt, elapsed`; returning `False` removes it and returning `None`
-  keeps it. Fixed callbacks take no arguments. Their catch-up limit and
-  optional interpolation output are the native scheduler's.
+- `ctx.engine` is the one clock the sketch's motion runs on:
+  `animate(target, tween)` runs a tween on a live value, `timeline()`
+  places tweens and calls in time, and `timer(callback, ...)` runs a
+  callback every frame, at a fixed `stepRate`, or throttled to a
+  `frameRate`. A timer callback may take no arguments, `delta`, or
+  `delta, elapsed`, in seconds; returning `False` stops it and returning
+  `None` keeps it. Each answers a playback — `play`, `pause`, `seek`,
+  `cancel`, `revert`, `onComplete` and the rest — and a fixed-rate timer
+  reports `betweenSteps()`, the render interpolant, and whether a frame
+  `droppedTime()`. The host moves the clock; a body never does.
 - `ctx.assets.image(uri)` reads an owned native image asset; `frameAt`
   supplies its image. `json` and `table` return owned data snapshots, and
   `database` returns a native query view. `shader(uri)` compiles an `.sksl`
@@ -780,7 +785,7 @@ Components are ordinary Python functions returning native elements:
 
 ```python
 from sigil.compose import box, column, row, text
-from sigil.motion import entrance
+from sigil.motion import animate
 from sigil.sketch import sketch
 
 
@@ -792,7 +797,7 @@ def metric(label, value, accent):
         .fill("#1b2735")
         .borderRadius(16)
         .flexGrow(1)
-        .opacity(entrance(0, 1, duration=0.6))
+        .opacity(animate(from_=0, to=1, duration=0.6))
         .children(
             text(label, size=13, color="#92a4b6"),
             text(value, size=42, color=accent),
@@ -1105,20 +1110,29 @@ normally; local helper changes participate in hot reload.
 
 ## Motion and type values
 
-`Output(value)` is a shared native cell. Set its `.value` from model logic
-or a scene ticker, then feed `bind(output)` into native element properties.
-The native binding chain supports domain mapping, wrapping, ping-pong,
-wave forms, easing, quantization and seeded wiggle. A chain is mutable;
-use `.copy()` before branching it. Descriptions retain shared ownership
-of their source outputs, so collecting the Python wrapper does not leave
-a pointer dangling in a retained tree.
+Every property that can move takes an `Animatable`: a constant, a
+described motion, a live value somebody writes, or a live value followed
+through a `Binding`. `animatable(value)` makes a live value — a number, a
+colour or a fill — and every copy of it reads and writes one cell, so a
+property handed it follows whatever writes `.value` next, from model logic
+or an engine timer. Descriptions share that cell, so collecting the Python
+wrapper leaves nothing dangling in a retained tree.
+`bind(source, from_=(a, b), alternate=..., envelope=..., ease=...,
+quantize=..., reverse=..., to=(c, d), wrap=..., wiggle=Wiggle(...),
+clamp=(e, f))` follows a live number through those stages, which run in
+that order whatever order they are named in; `envelope.cosine()`,
+`square()`, `trapezoid()` and `shaped()` shape the phase.
 
-`animate(from_(start).to(end), Transition(...))` declares an entrance;
-`animate(to(target), Transition(...))` declares a transition.
-`through([(time, value), ...])` declares keyframes. Python durations,
-delays and keyframe times are **seconds**. Native easing values live in
-`sigil.motion.ease`. The existing `entrance` and `transition` functions
-remain concise wrappers over native declarations.
+`animate(from_=start, to=end, duration=..., delay=..., ease=...)` declares
+an entrance; `animate(to=target, ...)` alone eases the property whenever a
+later description changes its target; `keyframes=[Keyframe(value,
+duration=...), ...]` declares a path. `Tween(...)` is the same description
+as a value, which `animate(tween)` and `ctx.engine.animate` take. `from_`,
+`to`, `duration` and `delay` each take a `stagger(...)` as well — a delay
+ladder, a spread from the first child's value to the last's, or a table of
+`cues` — which the host resolves at each child's `Place`. A length of time
+is a number of seconds or a `datetime.timedelta`, and one read back is a
+number of seconds. Native easing values live in `sigil.motion.ease`.
 
 `sigil.weave` supplies native `Type`, `TextStyle`, `ParagraphBlock` and `TypeSheet`
 values. A partial type inherits unspecified fields; a complete text style
@@ -1410,9 +1424,9 @@ image.save(scene.image((640, 480), background="#141d25"), "world.png")
 An `Element` supports keyed children, mesh and material values, tags,
 transforms, cameras and lights. `children` takes variadic elements or one
 iterable, including a tuple. Re-describing keyed nodes preserves native
-identity and shares equal mesh resources. Scalar lanes accept native motion
-outputs, bindings and transitions; `scene.advance(seconds)` advances the
-owned ticker and samples the retained frame. Use it from an update callback
+identity and shares equal mesh resources. Scalar lanes accept animatables,
+bindings and tweens; `scene.advance(seconds)` moves the owned engine and
+samples the retained frame. Use it from an update callback
 when the scene includes timed transitions. Explicit time can instead drive
 fresh descriptions, as it does in `python_world_study`.
 
@@ -1425,7 +1439,7 @@ disables selection filtering. Invalid frame graphs raise `ValueError`.
 
 `Scene.image(size)` returns an owned native image with no window required;
 `Scene.draw(pen)` draws into a live sketch's checked pen. A scene stays on
-its creating thread and owns the ticker its native renderer borrows. Camera,
+its creating thread and owns the engine its native renderer borrows. Camera,
 light and statistics getters return copies. The three-point rig, turntable
 and lit-set kit compose ordinary native elements. Light and rig colors are
 linear RGBA sequences, matching the native light records.
@@ -1449,7 +1463,7 @@ Render one with `sigil render --example NAME -o preview.png`.
 | `python_type_atelier` | Mixed runs and inline objects, selector styling, initial letters, a threaded story and curved lettering |
 | `python_document` | One semantic document under two inherited role stylesheets |
 | `python_kit_specimen` | Native page and captions, stock layouts, scoped theme and deferred memo |
-| `python_motion_signals` | Shared native outputs, ticker callbacks, binding chains and keyframe entrance |
+| `python_motion_signals` | One live value, an engine timer, bindings and a keyframe entrance |
 | `python_memo_station` | Retained model descriptions, memo invalidation and native motion |
 | `python_data_garden` | Native CSV tables, sorting, and linear, band and square-root scales |
 | `python_mesh_observatory` | Parametric 3D knot, lathed vessel, regular solid, camera, native lighting |

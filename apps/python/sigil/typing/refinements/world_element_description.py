@@ -1,4 +1,4 @@
-"""cache, staggerChildren, world.memo and the node read-back.
+"""cache, world.memo and the node read-back.
 
 Input contracts for the erased signatures of the
 world/element-description package, and nothing else: a fragment is one

@@ -14,7 +14,7 @@ namespace sigil::python {
 
 /** Registers 3D scenes on @p module. */
 void bindWorld(pybind11::module_& module);
-/** Registers cache, staggerChildren, world.memo and the node read-back
+/** Registers cache, world.memo and the node read-back
  *  on @p module. */
 void bindWorldDescription(pybind11::module_& module);
 /** Registers the Diligent runtime, importNative and the native texture

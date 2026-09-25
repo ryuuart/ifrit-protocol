@@ -81,9 +81,7 @@ material::Paint& setParameter(material::Paint& paint, const std::string& name,
   if (py::isinstance<material::Color>(value) || py::isinstance<py::str>(value))
     return paint.set(name, color(value));
   if (py::isinstance<motion::Animatable<float>>(value) ||
-      py::isinstance<motion::Transitioned<float>>(value) ||
-      py::isinstance<choreograph::Output<float>>(value) ||
-      py::isinstance<motion::Bound>(value))
+      py::isinstance<motion::Tween<float>>(value))
     return paint.bind(name, motionAnimatable(value));
   const auto values = py::cast<std::vector<float>>(value);
   if (values.size() == 2)

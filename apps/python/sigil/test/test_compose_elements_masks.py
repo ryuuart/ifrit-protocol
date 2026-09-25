@@ -243,8 +243,8 @@ class Gates(unittest.TestCase):
         self.assertNotEqual(gate, by.edge(90, 0.4))
         self.assertNotEqual(gate, by.edge(180, 0.3))
 
-    def test_an_edge_fraction_keeps_the_output_it_was_bound_to(self):
-        source = motion.Output(0.25)
+    def test_an_edge_fraction_keeps_the_live_value_it_was_bound_to(self):
+        source = motion.animatable(0.25)
         gate = by.edge(0, source)
         self.assertAlmostEqual(gate.fraction.value, 0.25)
         source.set(0.75)
@@ -459,7 +459,7 @@ class Session(unittest.TestCase):
     def test_a_gate_outlives_the_session_it_was_made_in(self):
         self.render("""
             plate().mask(
-                results.setdefault('gate', by.edge(0, motion.Output(0.5)))
+                results.setdefault('gate', by.edge(0, motion.animatable(0.5)))
             )
         """)
         gc.collect()

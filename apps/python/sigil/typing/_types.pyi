@@ -1,3 +1,4 @@
+import datetime
 from collections.abc import Buffer, Callable, Iterable, Sequence
 from typing import Literal, Protocol, SupportsFloat, SupportsIndex, TypeAlias
 
@@ -27,6 +28,7 @@ __all__ = [
     "DimensionLike",
     "DirectionLike",
     "DrawCallback",
+    "DurationLike",
     "EaseLike",
     "ElementInkLike",
     "FillLike",
@@ -38,7 +40,6 @@ __all__ = [
     "JsonValue",
     "JustifyLike",
     "KeyedShapeFunction",
-    "MotionCallback",
     "NodeLike",
     "OperatorLike",
     "PaintProgram",
@@ -58,8 +59,8 @@ __all__ = [
     "SizeLike",
     "SurfacePaintLike",
     "TextureProducer",
-    "TickCallback",
     "TileProgram",
+    "TimerCallback",
     "UniformValue",
     "Vec2",
     "Vec2Like",
@@ -89,13 +90,13 @@ IntRectLike: TypeAlias = Sequence[SupportsIndex]
 region of an image addresses texels rather than measuring a distance
 across them, so it is written as four integers and read back as four."""
 SizeLike: TypeAlias = _sigil.skia.Size | Sequence[FloatLike]
-ScalarLike: TypeAlias = (
-    FloatLike
-    | _sigil.motion.Animatable
-    | _sigil.motion.Transitioned
-    | _sigil.motion.Output
-    | _sigil.motion.Bound
-)
+ScalarLike: TypeAlias = FloatLike | _sigil.motion.Animatable | _sigil.motion.Tween
+"""A NUMBER THAT CAN CHANGE OVER TIME. A plain number, an animatable —
+constant, described, live or bound — or a tween, which is the motion it
+describes."""
+DurationLike: TypeAlias = datetime.timedelta | SupportsFloat | SupportsIndex
+"""A LENGTH OF TIME: a number of seconds or a `datetime.timedelta`. A
+length read back is always a number of seconds."""
 DimensionLike: TypeAlias = (
     FloatLike
     | str
@@ -120,15 +121,16 @@ SurfacePaintLike: TypeAlias = (
     FillLike
     | _sigil.compose.SurfacePaint
     | _sigil.material.Material
-    | _sigil.motion.FillOutput
-    | _sigil.motion.FillTransitioned
-    | _sigil.motion.ColorTransitioned
+    | _sigil.motion.FillAnimatable
+    | _sigil.motion.FillTween
+    | _sigil.motion.ColorTween
 )
 """ANYTHING THAT CAN COLOUR A SURFACE, and the widest of the three.
 Everything a flat mark is, plus a paint of any tier, a recipe instance,
-a bound fill and a fill transition. A slot that takes it resolves
-against the frame it paints at, so a gradient measured on the node and a
-material that reads the clock both belong in it."""
+a fill that changes over time, and a fill or colour tween. A slot that
+takes it resolves against the frame it paints at, so a gradient
+measured on the node and a material that reads the clock both belong
+in it."""
 ElementInkLike: TypeAlias = SurfacePaintLike | _sigil.compose.VarRef
 """THE INK AN ELEMENT SETS for itself and everything under it. Anything
 that colours a surface, or a custom-property reference. A colour is the
@@ -324,16 +326,14 @@ DirectionLike: TypeAlias = (
     | Callable[[_sigil.skia.Point, float], float]
     | None
 )
-TickCallback: TypeAlias = (
+TimerCallback: TypeAlias = (
     Callable[[], bool | None]
     | Callable[[float], bool | None]
     | Callable[[float, float], bool | None]
 )
-MotionCallback: TypeAlias = Callable[[], None] | Callable[[float], None]
-"""WHAT A MOTION REPORTS TO when it starts, on each frame it writes, and
-when it finishes. A report that names a parameter is handed the value
-the motion has just written into its output; one that names none is
-simply called."""
+"""WHAT AN ENGINE'S TIMER CALLS: handed as many of the frame's delta and
+the timer's elapsed time, in seconds, as it names, and running on until
+it answers False. Answering nothing runs on."""
 TileProgram: TypeAlias = Callable[[_sigil.draw.Canvas, Vec2, int], None]
 """THE DRAWING ONE TILE IS BAKED FROM: the canvas of the bake, the
 tile's size in pixels, and the seed the bake was asked for. The same

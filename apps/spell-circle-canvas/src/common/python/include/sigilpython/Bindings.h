@@ -3,8 +3,9 @@
 /** @file
  * The pieces every binding in this library is written out of: record
  * construction from keyword arguments, the colour reading, the pen a
- * callback may draw through, and the ownership that lets a Python
- * callable be held by a native description without outliving its host.
+ * callback may draw through, the length of time, and the ownership
+ * that lets a Python callable be held by a native description without
+ * outliving its host.
  */
 
 #include <include/core/SkColor.h>
@@ -12,6 +13,8 @@
 #include <pybind11/typing.h>
 #include <sigilmaterial/color/Color.h>
 
+#include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <exception>
 #include <functional>
@@ -278,6 +281,54 @@ struct type_caster<SkColor4f> {
 
   static handle cast(const SkColor4f& input, return_value_policy, handle) {
     return pybind11::cast(sigil::material::Color(input)).release();
+  }
+};
+
+/** A LENGTH OF TIME IN PYTHON: a number of seconds or a
+ *  `datetime.timedelta` going in, and a number of seconds coming back.
+ *  Every duration, delay, step and period the libraries state is this
+ *  one type, so one reading covers all of them. A whole number is taken
+ *  as readily as a fraction, because `duration=1` is a second, and a
+ *  reading is a plain number, because a time read back is most often
+ *  fed into arithmetic. */
+template <>
+struct type_caster<std::chrono::duration<double>> {
+  PYBIND11_TYPE_CASTER(std::chrono::duration<double>,
+                       io_name("datetime.timedelta | typing.SupportsFloat",
+                               "float"));
+
+  bool load(handle input, bool convert) {
+    if (!input || input.is_none() || PyBool_Check(input.ptr())) return false;
+    if (PyFloat_Check(input.ptr()) || PyLong_Check(input.ptr())) {
+      const double seconds = PyFloat_AsDouble(input.ptr());
+      if (PyErr_Occurred()) {
+        PyErr_Clear();
+        return false;
+      }
+      value = std::chrono::duration<double>(seconds);
+      return true;
+    }
+    const auto timedelta =
+        pybind11::module_::import("datetime").attr("timedelta");
+    if (pybind11::isinstance(input, timedelta)) {
+      value = std::chrono::duration<double>(
+          input.attr("total_seconds")().cast<double>());
+      return true;
+    }
+    if (!convert || !PyNumber_Check(input.ptr())) return false;
+    PyObject* number = PyNumber_Float(input.ptr());
+    if (!number) {
+      PyErr_Clear();
+      return false;
+    }
+    value = std::chrono::duration<double>(PyFloat_AsDouble(number));
+    Py_DECREF(number);
+    return true;
+  }
+
+  static handle cast(const std::chrono::duration<double>& input,
+                     return_value_policy, handle) {
+    return PyFloat_FromDouble(input.count());
   }
 };
 

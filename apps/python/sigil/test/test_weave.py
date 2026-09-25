@@ -8,7 +8,7 @@ from _sigil import weave as native_weave
 from sigil import geometry, image, material, skia, weave
 from sigil.compose import SpanStyle, Text, TextPath, frame, text
 from sigil.compose import selectors as composition_selectors
-from sigil.motion import Output
+from sigil.motion import animatable
 from sigil.sketch import render_file
 
 
@@ -139,7 +139,7 @@ class Typography(unittest.TestCase):
             where=selection,
             style=SpanStyle().font(weave.Type(weight=700)),
         )
-        progress = Output(0.25)
+        progress = animatable(0.25)
         path = TextPath(
             path=skia.Path.Circle(50, 50, 40),
             at=progress,

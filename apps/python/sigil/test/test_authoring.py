@@ -9,7 +9,7 @@ from types import ModuleType
 from _sigil import compose as raw
 from sigil import image
 from sigil.compose import Element, box, column, graphics, row, text
-from sigil.motion import entrance
+from sigil.motion import animate
 from sigil.sketch import render_file, sketch
 
 
@@ -78,7 +78,7 @@ class Authoring(unittest.TestCase):
         tree = (
             column()
             .padding(horizontal=12, vertical=18)
-            .opacity(entrance(0, 1, duration=0.4))
+            .opacity(animate(from_=0, to=1, duration=0.4))
             .children(
                 [
                     text("A heading"),

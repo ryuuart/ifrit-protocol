@@ -101,9 +101,9 @@ struct Oscillator {
   /** THE WAVEFORM ITSELF on a phase already folded into [0, 1), in
    *  [-1, 1] and before the amplitude and the centre.
    *
-   *  It is the shape a bound Output's own phase takes, so this is what
-   *  `bind(&value).source(0, period).wave(...)` is handed: the binding
-   *  folds the phase, and this says what the fold means. */
+   *  It is the shape a live value's own phase takes, so this is what a
+   *  binding's `envelope::shaped(…)` is handed over `.from = {0, period}`:
+   *  the binding folds the phase, and this says what the fold means. */
   [[nodiscard]] float shape(float unitPhase) const {
     constexpr float kTurn = 6.2831853071795864769f;
     switch (wave) {

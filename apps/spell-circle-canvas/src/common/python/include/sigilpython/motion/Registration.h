@@ -2,7 +2,7 @@
 
 /** @file
  * Every registration this library's packages add to the extension
- * module: the clock, the animatable forms, schedules and physics.
+ * module: the engine, the animatable forms, schedules and physics.
  *
  * One package owns one of these functions and the source file that
  * defines it, so two authors never write in one file.
@@ -12,15 +12,17 @@
 
 namespace sigil::python {
 
-/** Registers animation on @p module. */
+/** Registers the easings, the transition, the tween and its keyframes,
+ *  animate, animatable, the animatable number, colour and fill, and the
+ *  arithmetic over a clock reading on @p module. */
 void bindMotion(pybind11::module_& module);
-/** Registers the four Animatable forms, Envelope and the BoundFloat
- *  record on @p module. */
+/** Registers Binding, Range, Envelope and its factories, Wiggle and bind
+ *  on @p module. */
 void bindMotionAnimatableForms(pybind11::module_& module);
-/** Registers frameClock, a constructible Ticker and the choreograph
- *  timeline on @p module. */
+/** Registers the Engine, its options and clock policy, the playbacks it
+ *  hands back and the timeline positions on @p module. */
 void bindMotionClock(pybind11::module_& module);
-/** Registers animatedFloat, held-motion resolution and the lane
+/** Registers held-motion resolution and the lane
  *  retargets on @p module. */
 void bindMotionLanes(pybind11::module_& module);
 /** Registers roughly, Attribute, Particles, EmitFrom and the Emitter on
@@ -29,11 +31,11 @@ void bindMotionParticles(pybind11::module_& module);
 /** Registers vec2, Points, forces, Neighbourhood, constraints and
  *  Verlet on @p module. */
 void bindMotionPhysics(pybind11::module_& module);
-/** Registers spread, cascadeOrder, cascadeRanks, Cascade and Beat on @p
- *  module. */
+/** Registers Place, stagger, cues, Staggered, Timing, Schedule and Beat
+ *  on @p module. */
 void bindMotionSchedule(pybind11::module_& module);
-/** Registers oscillator, Wave, Sequence and the closed-form Spring on
- *  @p module. */
+/** Registers Oscillator, Wave, SpringParameters and the closed-form
+ *  Spring on @p module. */
 void bindMotionSignals(pybind11::module_& module);
 
 }  // namespace sigil::python

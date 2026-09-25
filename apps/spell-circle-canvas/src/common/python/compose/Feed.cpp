@@ -1,7 +1,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <sigilcompose/core/Feed.h>
-#include <sigilmotion/schedule/Spread.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
@@ -188,17 +187,6 @@ void bindRecords(py::module_& module) {
       .def_readwrite("gap", &feed::Options::gap,
                      "The space between rows, along the column.")
       .def(py::self == py::self);
-  // The entrance is written in the schedule vocabulary, which another
-  // file registers ahead of this one. A property's signature is written
-  // when it is registered, so the field is offered once that value has a
-  // Python name to be read back under.
-  if (py::detail::get_type_info(typeid(motion::Spread)))
-    options.def_readwrite(
-        "entrance", &feed::Options::entrance,
-        "The entrance cascade for rows that mount: `eachMs` is the delay "
-        "step and `from` is where the cascade starts. It delays only rows "
-        "that mount, so the first describe cascades the window and a later "
-        "append enters at once. Zero mounts every row immediately.");
 
   auto textRow =
       bindRecord<feed::TextRow>(module, "TextRow", "Unknown TextRow field: ");

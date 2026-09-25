@@ -1,153 +1,349 @@
 /** @file
- * Native motion descriptions and shared sources for retained Python trees.
+ * The value that can change over time, in Python: the easings, the
+ * transition, the tween and its keyframes, `animate()` and
+ * `animatable()`, the animatable number, colour and fill, and the
+ * arithmetic over a clock reading.
  */
 
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
-#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilmotion/clock/Ticker.h>
+#include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
+#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/motion/Convert.h>
+#include <sigilpython/motion/Registration.h>
 
 #include <cmath>
-#include <memory>
-#include <sigilpython/motion/Registration.h>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace sigil::python {
 namespace py = pybind11;
 namespace {
 
+/** A curve as Python holds it: callable, and comparable under the rule
+ *  two held curves compare by. */
 struct Easing {
   motion::Easing value;
 };
 
-std::chrono::milliseconds milliseconds(double seconds) {
-  if (!std::isfinite(seconds) || seconds < 0 || seconds > 1e12)
-    throw py::value_error(
-        "Animation time must be finite, nonnegative seconds.");
-  return std::chrono::milliseconds{
-      static_cast<std::chrono::milliseconds::rep>(seconds * 1000)};
-}
-
-double seconds(std::chrono::milliseconds value) {
-  return static_cast<double>(value.count()) / 1000;
-}
-
-motion::Transition transition(double duration, py::handle easing,
-                              double delay) {
-  return {milliseconds(duration), motionEase(easing), milliseconds(delay)};
-}
-
 bool numeric(py::handle value) {
-  return py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value);
+  return !PyBool_Check(value.ptr()) &&
+         (py::isinstance<py::float_>(value) || py::isinstance<py::int_>(value));
 }
 
-template <class T, class Convert>
-void outputType(py::module_& module, const char* name, Convert convert) {
-  using Output = choreograph::Output<T>;
-  py::class_<Output, std::shared_ptr<Output>>(module, name)
-      .def(py::init([convert](py::handle value) {
-             return std::make_shared<Output>(value.is_none() ? T{}
-                                                             : convert(value));
-           }),
-           py::arg("value") = py::none())
-      .def_property(
-          "value", [](const Output& value) -> T { return value.value(); },
-          [convert](Output& output, py::handle value) {
-            output = convert(value);
-          })
-      .def(
-          "set",
-          [convert](Output& output, py::handle value) {
-            output = convert(value);
-          },
-          py::arg("value"))
-      .def("get", [](const Output& value) -> T { return value.value(); })
-      .def("__call__", [](const Output& value) -> T { return value.value(); })
-      .def("isConnected", &Output::isConnected)
-      .def("endValue", &Output::endValue)
-      .def("disconnect", &Output::disconnect);
+/** @p value as a length of animation time, which is finite and never
+ *  negative: a motion only goes forward. @p what opens the message. */
+motion::Duration animationTime(motion::Duration value, const char* what) {
+  if (!std::isfinite(value.count()) || value.count() < 0)
+    throw py::value_error(std::string(what) +
+                          " must be finite, nonnegative seconds.");
+  return value;
 }
 
-template <class T, class Convert>
-void frameTypes(py::module_& module, const char* prefix, Convert convert) {
-  const std::string p(prefix);
-  py::class_<motion::From<T>>(module, (p + "From").c_str())
-      .def(
-          "to",
-          [convert](const motion::From<T>& start, py::handle value) {
-            return motion::FromTo<T>{start.value, convert(value)};
-          },
-          py::arg("value"));
-  py::class_<motion::FromTo<T>>(module, (p + "FromTo").c_str());
-  py::class_<motion::To<T>>(module, (p + "To").c_str());
-  py::class_<motion::Waypoints<T>>(module, (p + "Waypoints").c_str());
-  py::class_<motion::Transitioned<T>>(module, (p + "Transitioned").c_str())
-      .def_property_readonly(
-          "value",
-          [](const motion::Transitioned<T>& value) { return value.value; })
-      .def_property_readonly(
-          "from_value",
-          [](const motion::Transitioned<T>& value) { return value.from; })
-      .def_readwrite("spec", &motion::Transitioned<T>::spec)
-      .def_property_readonly(
-          "waypoints",
-          [](const motion::Transitioned<T>& value) {
-            py::list result;
-            for (const auto& [time, point] : value.waypoints)
-              result.append(py::make_tuple(seconds(time), point));
-            return result;
-          })
-      .def("copy", [](const motion::Transitioned<T>& value) { return value; });
+motion::Staggered<motion::Duration> animationTimes(py::handle value,
+                                                   const char* what) {
+  auto times = staggeredDuration(value);
+  if (!times.isStaggered()) animationTime(times.value(), what);
+  return times;
 }
 
-template <class T, class Convert>
-motion::Waypoints<T> waypoints(const py::list& frames, Convert convert) {
-  std::vector<std::pair<std::chrono::milliseconds, T>> values;
-  double previous = 0;
-  for (auto item : frames) {
-    const auto frame = py::cast<py::sequence>(item);
-    if (frame.size() != 2)
-      throw py::value_error("A waypoint needs a time and a value.");
-    const auto time = py::cast<double>(frame[0]);
-    const auto when = milliseconds(time);
-    if (time < previous)
-      throw py::value_error("Waypoint times must be nondecreasing.");
-    values.emplace_back(when, convert(frame[1]));
-    previous = time;
+// ── the three value families a tween moves ────────────────────────────
+
+/** What differs between a tween of a number, of a colour and of a fill:
+ *  how a Python value is read as one, as a value that may differ per
+ *  child, and how one is read back. */
+template <class T>
+struct Family;
+
+template <>
+struct Family<float> {
+  static float read(py::handle value) { return py::cast<float>(value); }
+  static motion::Staggered<float> readStaggered(py::handle value) {
+    return staggeredNumber(value);
   }
-  return motion::through<T>(std::move(values));
+  static py::object reading(const motion::Staggered<float>& value) {
+    return staggeredReading(value);
+  }
+  static py::object reading(float value) { return py::float_(value); }
+};
+
+template <>
+struct Family<SkColor4f> {
+  static SkColor4f read(py::handle value) { return color(value); }
+  static motion::Staggered<SkColor4f> readStaggered(py::handle value) {
+    return color(value);
+  }
+  static py::object reading(const motion::Staggered<SkColor4f>& value) {
+    return py::cast(value.value());
+  }
+  static py::object reading(const SkColor4f& value) { return py::cast(value); }
+};
+
+template <>
+struct Family<compose::Fill> {
+  static compose::Fill read(py::handle value) { return fill(value); }
+  static motion::Staggered<compose::Fill> readStaggered(py::handle value) {
+    return fill(value);
+  }
+  static py::object reading(const motion::Staggered<compose::Fill>& value) {
+    return py::cast(value.value());
+  }
+  static py::object reading(const compose::Fill& value) {
+    return py::cast(value);
+  }
+};
+
+template <class T>
+motion::Keyframe<T> keyframe(py::handle value) {
+  if (py::isinstance<motion::Keyframe<T>>(value))
+    return py::cast<motion::Keyframe<T>>(value);
+  return {Family<T>::read(value), std::nullopt, {}};
+}
+
+/** A tween of @p T written out of the fields Python names, each None
+ *  where the author named nothing and the default stands. */
+template <class T>
+motion::Tween<T> tweenOf(py::handle from, py::handle to, py::handle keyframes,
+                         py::handle duration, py::handle delay,
+                         py::handle ease, int loop, bool alternate,
+                         motion::Composition composition) {
+  motion::Tween<T> tween;
+  if (!from.is_none()) tween.from = Family<T>::readStaggered(from);
+  if (!to.is_none()) tween.to = Family<T>::readStaggered(to);
+  if (!keyframes.is_none())
+    for (auto item : py::iter(keyframes))
+      tween.keyframes.push_back(keyframe<T>(item));
+  if (!duration.is_none())
+    tween.duration = animationTimes(duration, "A tween's duration");
+  if (!delay.is_none()) tween.delay = animationTimes(delay, "A tween's delay");
+  if (!ease.is_none()) tween.ease = motionEase(ease);
+  tween.loop = loop;
+  tween.alternate = alternate;
+  tween.composition = composition;
+  return tween;
 }
 
 template <class T>
-py::object animatePath(py::handle path, const motion::Transition& spec) {
-  if (py::isinstance<motion::FromTo<T>>(path))
-    return py::cast(motion::animate(py::cast<motion::FromTo<T>>(path), spec));
-  if (py::isinstance<motion::To<T>>(path))
-    return py::cast(motion::animate(py::cast<motion::To<T>>(path), spec));
-  if (py::isinstance<motion::Waypoints<T>>(path)) {
-    auto value =
-        motion::animate(py::cast<motion::Waypoints<T>>(path), spec.easing());
-    value.spec.delay = spec.delay;
-    return py::cast(std::move(value));
-  }
-  return {};
+py::class_<motion::Keyframe<T>> bindKeyframe(py::module_& module,
+                                             const char* name) {
+  using Keyframe = motion::Keyframe<T>;
+  py::class_<Keyframe> type(module, name);
+  type.def(py::init([](py::handle to, std::optional<motion::Duration> duration,
+                       py::handle ease) {
+             Keyframe step{Family<T>::read(to), std::nullopt, {}};
+             if (duration)
+               step.duration = animationTime(*duration, "A keyframe's duration");
+             if (!ease.is_none()) step.ease = motionEase(ease);
+             return step;
+           }),
+           py::arg("to"), py::arg("duration") = py::none(),
+           py::arg("ease") = py::none())
+      .def_property(
+          "to", [](const Keyframe& step) { return Family<T>::reading(step.to); },
+          [](Keyframe& step, py::handle value) {
+            step.to = Family<T>::read(value);
+          })
+      .def_property(
+          "duration",
+          [](const Keyframe& step) { return step.duration; },
+          [](Keyframe& step, std::optional<motion::Duration> value) {
+            if (value) animationTime(*value, "A keyframe's duration");
+            step.duration = value;
+          })
+      .def_property(
+          "ease",
+          [](const Keyframe& step) -> py::object {
+            if (!step.ease) return py::none();
+            return py::cast(Easing{step.ease});
+          },
+          [](Keyframe& step, py::handle value) {
+            step.ease = value.is_none() ? motion::Easing{} : motionEase(value);
+          })
+      .def("copy", [](const Keyframe& step) { return step; })
+      .def(
+          "__eq__",
+          [](const Keyframe& left, const Keyframe& right) {
+            return left == right;
+          },
+          py::arg("other"));
+  copyProtocol(type);
+  return type;
 }
 
-motion::Transitioned<compose::Fill> fillTransition(
-    const motion::Transitioned<SkColor4f>& value) {
-  motion::Transitioned<compose::Fill> result;
-  result.value = compose::Fill::color(value.value);
-  result.spec = value.spec;
-  if (value.from) result.from = compose::Fill::color(*value.from);
-  for (const auto& [when, color] : value.waypoints)
-    result.waypoints.emplace_back(when, compose::Fill::color(color));
+template <class T>
+py::class_<motion::Tween<T>> bindTween(py::module_& module, const char* name,
+                                       const char* keyframeName) {
+  using Tween = motion::Tween<T>;
+  bindKeyframe<T>(module, keyframeName);
+  py::class_<Tween> type(module, name);
+  type.def(py::init([](py::handle from, py::handle to, py::handle keyframes,
+                       py::handle duration, py::handle delay, py::handle ease,
+                       int loop, bool alternate,
+                       motion::Composition composition) {
+             return tweenOf<T>(from, to, keyframes, duration, delay, ease, loop,
+                               alternate, composition);
+           }),
+           py::kw_only(), py::arg("from_") = py::none(),
+           py::arg("to") = py::none(), py::arg("keyframes") = py::none(),
+           py::arg("duration") = 0.25, py::arg("delay") = 0.0,
+           py::arg("ease") = py::none(), py::arg("loop") = 0,
+           py::arg("alternate") = false,
+           py::arg("composition") = motion::Composition::Replace)
+      .def_property(
+          "from_",
+          [](const Tween& tween) -> py::object {
+            if (!tween.from) return py::none();
+            return Family<T>::reading(*tween.from);
+          },
+          [](Tween& tween, py::handle value) {
+            if (value.is_none())
+              tween.from.reset();
+            else
+              tween.from = Family<T>::readStaggered(value);
+          })
+      .def_property(
+          "to",
+          [](const Tween& tween) -> py::object {
+            if (!tween.to) return py::none();
+            return Family<T>::reading(*tween.to);
+          },
+          [](Tween& tween, py::handle value) {
+            if (value.is_none())
+              tween.to.reset();
+            else
+              tween.to = Family<T>::readStaggered(value);
+          })
+      .def_property(
+          "keyframes",
+          [](const Tween& tween) {
+            py::list steps;
+            for (const auto& step : tween.keyframes) steps.append(py::cast(step));
+            return steps;
+          },
+          [](Tween& tween, py::handle steps) {
+            tween.keyframes.clear();
+            for (auto item : py::iter(steps))
+              tween.keyframes.push_back(keyframe<T>(item));
+          })
+      .def_property(
+          "duration",
+          [](const Tween& tween) { return staggeredReading(tween.duration); },
+          [](Tween& tween, py::handle value) {
+            tween.duration = animationTimes(value, "A tween's duration");
+          })
+      .def_property(
+          "delay",
+          [](const Tween& tween) { return staggeredReading(tween.delay); },
+          [](Tween& tween, py::handle value) {
+            tween.delay = animationTimes(value, "A tween's delay");
+          })
+      .def_property(
+          "ease", [](const Tween& tween) { return Easing{tween.easing()}; },
+          [](Tween& tween, py::handle value) { tween.ease = motionEase(value); })
+      .def_readwrite("loop", &Tween::loop)
+      .def_readwrite("alternate", &Tween::alternate)
+      .def_readwrite("composition", &Tween::composition)
+      .def("rest", [](const Tween& tween) { return Family<T>::reading(tween.rest()); })
+      .def("resolved", &Tween::resolved, py::arg("place"))
+      .def("isStaggered", &Tween::isStaggered)
+      .def("isEntrance", &Tween::isEntrance)
+      .def("copy", [](const Tween& tween) { return tween; })
+      .def(
+          "__eq__",
+          [](const Tween& left, const Tween& right) {
+            return motion::tweenEqual(left, right);
+          },
+          py::arg("other"));
+  copyProtocol(type);
+  return type;
+}
+
+// ── the animatable number, colour and fill ─────────────────────────────
+
+template <class T>
+py::class_<motion::Animatable<T>> bindAnimatable(
+    py::module_& module, const char* name,
+    motion::Animatable<T> (*read)(py::handle), const char* doc) {
+  using Animatable = motion::Animatable<T>;
+  using FloatForm = motion::Animatable<float>::Form;
+  py::class_<Animatable> type(module, name, doc);
+  type.def(py::init([read](py::handle value) { return read(value); }),
+           py::arg("value"))
+      .def_property(
+          "value",
+          [](const Animatable& value) { return Family<T>::reading(value.value()); },
+          [](Animatable& value, py::handle next) {
+            value = Family<T>::read(next);
+          },
+          "The value now. Setting it writes a live value, which every "
+          "copy reads; any other form becomes that constant.")
+      .def(
+          "set",
+          [](Animatable& value, py::handle next) {
+            value = Family<T>::read(next);
+          },
+          py::arg("value"))
+      .def("__call__", [](const Animatable& value) {
+        return Family<T>::reading(value.value());
+      })
+      .def("isRunning", &Animatable::isRunning)
+      .def_property_readonly("form",
+                             [](const Animatable& value) {
+                               return static_cast<FloatForm>(value.form());
+                             })
+      .def_property_readonly("described",
+                             [](const Animatable& value) -> py::object {
+                               const auto* tween = value.described();
+                               if (!tween) return py::none();
+                               return py::cast(*tween);
+                             })
+      .def("copy", [](const Animatable& value) { return value; })
+      .def(
+          "__eq__",
+          [](const Animatable& left, const Animatable& right) {
+            return motion::propertyEqual(left, right);
+          },
+          py::arg("other"));
+  copyProtocol(type);
+  return type;
+}
+
+motion::Tween<compose::Fill> fillTween(const motion::Tween<SkColor4f>& tween) {
+  motion::Tween<compose::Fill> result;
+  if (tween.from) result.from = compose::Fill::color(tween.from->value());
+  if (tween.to) result.to = compose::Fill::color(tween.to->value());
+  for (const auto& step : tween.keyframes)
+    result.keyframes.push_back(
+        {compose::Fill::color(step.to), step.duration, step.ease});
+  result.duration = tween.duration;
+  result.delay = tween.delay;
+  result.ease = tween.ease;
+  result.loop = tween.loop;
+  result.alternate = tween.alternate;
+  result.composition = tween.composition;
   return result;
+}
+
+/** Which family a tween's values belong to, read off the first value an
+ *  author named. */
+enum class Kind { Number, Colour, Fill };
+
+Kind kindOf(py::handle value) {
+  if (numeric(value) || py::isinstance<motion::Staggered<double>>(value) ||
+      py::isinstance<motion::Keyframe<float>>(value))
+    return Kind::Number;
+  if (py::isinstance<compose::Fill>(value) ||
+      py::isinstance<motion::Keyframe<compose::Fill>>(value))
+    return Kind::Fill;
+  return Kind::Colour;
 }
 
 }  // namespace
@@ -171,75 +367,68 @@ motion::Easing motionEase(py::handle value) {
   };
 }
 
+py::object easingReading(const motion::Easing& curve) {
+  return py::cast(Easing{curve});
+}
+
 motion::Transition motionTransition(py::handle value) {
-  return value.is_none() ? motion::Transition{}
-                         : py::cast<motion::Transition>(value);
+  if (value.is_none()) return {};
+  if (py::isinstance<motion::Transition>(value))
+    return py::cast<motion::Transition>(value);
+  motion::Transition transition;
+  transition.duration =
+      animationTime(py::cast<motion::Duration>(value), "A transition's duration");
+  return transition;
+}
+
+motion::Tween<float> motionTween(py::handle value) {
+  if (!py::isinstance<motion::Tween<float>>(value))
+    throw py::type_error("A motion on a number needs a Tween.");
+  return py::cast<motion::Tween<float>>(value);
 }
 
 motion::Animatable<float> motionAnimatable(py::handle value) {
   if (py::isinstance<motion::Animatable<float>>(value))
     return py::cast<motion::Animatable<float>>(value);
-  if (py::isinstance<motion::Transitioned<float>>(value))
-    return py::cast<motion::Transitioned<float>>(value);
-  if (py::isinstance<choreograph::Output<float>>(value))
-    return motion::Animatable<float>(
-        py::cast<std::shared_ptr<choreograph::Output<float>>>(value));
-  if (py::isinstance<motion::Bound>(value))
-    return py::cast<motion::Bound>(value);
+  if (py::isinstance<motion::Tween<float>>(value))
+    return motion::animate(py::cast<motion::Tween<float>>(value));
+  if (!PyNumber_Check(value.ptr()))
+    throw py::type_error(
+        "An animatable number is a number, an Animatable or a Tween.");
   return py::cast<float>(value);
 }
 
 motion::Animatable<SkColor4f> motionInk(py::handle value) {
-  if (py::isinstance<motion::Transitioned<SkColor4f>>(value))
-    return py::cast<motion::Transitioned<SkColor4f>>(value);
-  if (py::isinstance<choreograph::Output<SkColor4f>>(value))
-    return motion::Animatable<SkColor4f>(
-        py::cast<std::shared_ptr<choreograph::Output<SkColor4f>>>(value));
+  if (py::isinstance<motion::Animatable<SkColor4f>>(value))
+    return py::cast<motion::Animatable<SkColor4f>>(value);
+  if (py::isinstance<motion::Tween<SkColor4f>>(value))
+    return motion::animate(py::cast<motion::Tween<SkColor4f>>(value));
   return color(value);
 }
 
 motion::Animatable<compose::Fill> motionFill(py::handle value) {
-  if (py::isinstance<motion::Transitioned<compose::Fill>>(value))
-    return py::cast<motion::Transitioned<compose::Fill>>(value);
-  if (py::isinstance<motion::Transitioned<SkColor4f>>(value))
-    return fillTransition(py::cast<motion::Transitioned<SkColor4f>>(value));
-  if (py::isinstance<choreograph::Output<compose::Fill>>(value))
-    return motion::Animatable<compose::Fill>(
-        py::cast<std::shared_ptr<choreograph::Output<compose::Fill>>>(value));
+  if (py::isinstance<motion::Animatable<compose::Fill>>(value))
+    return py::cast<motion::Animatable<compose::Fill>>(value);
+  if (py::isinstance<motion::Tween<compose::Fill>>(value))
+    return motion::animate(py::cast<motion::Tween<compose::Fill>>(value));
+  if (py::isinstance<motion::Tween<SkColor4f>>(value))
+    return motion::animate(fillTween(py::cast<motion::Tween<SkColor4f>>(value)));
+  if (py::isinstance<motion::Animatable<SkColor4f>>(value)) {
+    const auto ink = py::cast<motion::Animatable<SkColor4f>>(value);
+    if (const auto* tween = ink.described())
+      return motion::animate(fillTween(*tween));
+    if (const auto* constant = ink.constant())
+      return compose::Fill::color(*constant);
+    throw py::type_error(
+        "A live colour cannot fill a surface; make the live value a fill: "
+        "animatable(Fill.color(...)).");
+  }
   return fill(value);
 }
 
 void bindMotion(py::module_& root) {
   auto module = root.def_submodule("motion");
-  py::class_<motion::Ticker::FixedStatus,
-             std::shared_ptr<motion::Ticker::FixedStatus>>(module,
-                                                           "FixedStatus")
-      .def(py::init<>())
-      .def_readonly("stepsRun", &motion::Ticker::FixedStatus::stepsRun)
-      .def_readonly("clamped", &motion::Ticker::FixedStatus::clamped);
 
-  py::class_<motion::Animatable<float>>(module, "Animatable")
-      .def(py::init([](py::handle value) { return motionAnimatable(value); }),
-           py::arg("value"))
-      .def("copy", [](const motion::Animatable<float>& value) { return value; })
-      .def_property_readonly("index", &motion::Animatable<float>::index)
-      .def_property_readonly(
-          "value",
-          [](const motion::Animatable<float>& value) {
-            if (const auto* plain = value.plain()) return *plain;
-            if (const auto* keyed = value.transitioned()) return keyed->value;
-            const float current = value.binding()->value();
-            return value.boundMap() ? value.boundMap()->apply(current)
-                                    : current;
-          },
-          "The constant, transition target, or current bound source value.")
-      .def(
-          "__eq__",
-          [](const motion::Animatable<float>& a,
-             const motion::Animatable<float>& b) {
-            return motion::propertyEqual(a, b);
-          },
-          py::arg("other"));
   py::class_<Easing>(module, "Easing")
       .def(
           "__call__",
@@ -316,20 +505,36 @@ void bindMotion(py::module_& root) {
   ease.def("cubicBezier", &motion::ease::cubicBezier, py::arg("x1"),
            py::arg("y1"), py::arg("x2"), py::arg("y2"));
 
-  py::class_<motion::Transition>(module, "Transition")
-      .def(py::init(&transition), py::arg("duration") = 0.25,
-           py::arg("ease") = py::none(), py::arg("delay") = 0.0)
+  py::enum_<motion::Composition>(
+      module, "Composition",
+      "How a change mid-flight composes with the motion already running: "
+      "Replace starts again from the value on screen, Blend adds the change "
+      "on top so the velocity carries through.")
+      .value("Replace", motion::Composition::Replace)
+      .value("Blend", motion::Composition::Blend);
+
+  auto transition = py::class_<motion::Transition>(module, "Transition");
+  transition
+      .def(py::init([](motion::Duration duration, motion::Duration delay,
+                       py::handle easing, motion::Composition composition) {
+             return motion::Transition{
+                 animationTime(duration, "A transition's duration"),
+                 animationTime(delay, "A transition's delay"),
+                 motionEase(easing), composition};
+           }),
+           py::arg("duration") = 0.25, py::arg("delay") = 0.0,
+           py::arg("ease") = py::none(),
+           py::arg("composition") = motion::Composition::Replace)
       .def_property(
           "duration",
-          [](const motion::Transition& spec) { return seconds(spec.duration); },
-          [](motion::Transition& spec, double value) {
-            spec.duration = milliseconds(value);
+          [](const motion::Transition& spec) { return spec.duration; },
+          [](motion::Transition& spec, motion::Duration value) {
+            spec.duration = animationTime(value, "A transition's duration");
           })
       .def_property(
-          "delay",
-          [](const motion::Transition& spec) { return seconds(spec.delay); },
-          [](motion::Transition& spec, double value) {
-            spec.delay = milliseconds(value);
+          "delay", [](const motion::Transition& spec) { return spec.delay; },
+          [](motion::Transition& spec, motion::Duration value) {
+            spec.delay = animationTime(value, "A transition's delay");
           })
       .def_property(
           "ease",
@@ -337,188 +542,134 @@ void bindMotion(py::module_& root) {
           [](motion::Transition& spec, py::handle value) {
             spec.ease = motionEase(value);
           })
+      .def_readwrite("composition", &motion::Transition::composition)
       .def("copy", [](const motion::Transition& spec) { return spec; })
       .def("__eq__", &motion::transitionEqual, py::arg("other"));
-  outputType<float>(module, "Output",
-                    [](py::handle value) { return py::cast<float>(value); });
-  outputType<SkColor4f>(module, "ColorOutput", &color);
-  outputType<compose::Fill>(module, "FillOutput", &fill);
-  frameTypes<float>(module, "",
-                    [](py::handle value) { return py::cast<float>(value); });
-  frameTypes<SkColor4f>(module, "Color", &color);
-  frameTypes<compose::Fill>(module, "Fill", &fill);
+  copyProtocol(transition);
+
+  auto tween = bindTween<float>(module, "Tween", "Keyframe");
+  tween.doc() =
+      "A motion, described: from_ named is an entrance, to alone eases on "
+      "change. from_, to, duration and delay each take a plain value or a "
+      "stagger().";
+  tween.def(
+      "at", [](const motion::Tween<float>& value, motion::Duration time) {
+        return value.at(time);
+      },
+      py::arg("time"),
+      "The value this long after the motion starts, read with no engine.");
+  bindTween<SkColor4f>(module, "ColorTween", "ColorKeyframe");
+  bindTween<compose::Fill>(module, "FillTween", "FillKeyframe");
+
+  py::enum_<motion::Animatable<float>::Form>(module, "AnimatableForm")
+      .value("Constant", motion::Animatable<float>::Form::Constant)
+      .value("Described", motion::Animatable<float>::Form::Described)
+      .value("Live", motion::Animatable<float>::Form::Live)
+      .value("Bound", motion::Animatable<float>::Form::Bound);
+  auto number = bindAnimatable<float>(
+      module, "Animatable", &motionAnimatable,
+      "A number that can change over time: a constant, a described motion, "
+      "a live value somebody writes, or a live value followed through a "
+      "Binding. Every copy of a live value reads and writes one cell.");
+  number
+      .def_property_readonly("binding",
+                             [](const motion::Animatable<float>& value)
+                                 -> py::object {
+                               const auto* stages = value.binding();
+                               if (!stages) return py::none();
+                               return py::cast(*stages);
+                             })
+      .def_property_readonly("source",
+                             [](const motion::Animatable<float>& value)
+                                 -> py::object {
+                               const auto* source = value.source();
+                               if (!source) return py::none();
+                               return py::cast(*source);
+                             });
+  bindAnimatable<SkColor4f>(module, "ColorAnimatable", &motionInk,
+                            "A colour that can change over time.");
+  bindAnimatable<compose::Fill>(module, "FillAnimatable", &motionFill,
+                                "A fill that can change over time.");
 
   module.def(
-      "from_",
+      "animatable",
       [](py::handle value) -> py::object {
         if (numeric(value))
-          return py::cast(motion::from(py::cast<float>(value)));
+          return py::cast(motion::animatable(py::cast<float>(value)));
         if (py::isinstance<compose::Fill>(value))
-          return py::cast(motion::from(fill(value)));
-        return py::cast(motion::from(color(value)));
+          return py::cast(motion::animatable(fill(value)));
+        return py::cast(motion::animatable(color(value)));
       },
-      py::arg("value"));
-  module.def(
-      "to",
-      [](py::handle value) -> py::object {
-        if (numeric(value)) return py::cast(motion::to(py::cast<float>(value)));
-        if (py::isinstance<compose::Fill>(value))
-          return py::cast(motion::to(fill(value)));
-        return py::cast(motion::to(color(value)));
-      },
-      py::arg("value"));
-  module.def(
-      "through",
-      [](py::iterable input) -> py::object {
-        py::list frames(input);
-        if (frames.empty()) return py::cast(motion::Waypoints<float>{});
-        const auto first = py::cast<py::sequence>(frames[0]);
-        if (first.size() != 2)
-          throw py::value_error("A waypoint needs a time and a value.");
-        if (numeric(first[1]))
-          return py::cast(waypoints<float>(
-              frames, [](py::handle v) { return py::cast<float>(v); }));
-        if (py::isinstance<compose::Fill>(first[1]))
-          return py::cast(waypoints<compose::Fill>(frames, &fill));
-        return py::cast(waypoints<SkColor4f>(frames, &color));
-      },
-      py::arg("frames"));
+      py::arg("value"),
+      "A live value starting at the value given: write it, hand it to a "
+      "property, and the property follows.");
   module.def(
       "animate",
-      [](py::handle path, py::handle options, py::handle easing) {
-        auto spec = motionTransition(options);
-        if (!easing.is_none()) spec.ease = motionEase(easing);
-        if (auto result = animatePath<float>(path, spec)) return result;
-        if (auto result = animatePath<SkColor4f>(path, spec)) return result;
-        if (auto result = animatePath<compose::Fill>(path, spec)) return result;
-        throw py::type_error(
-            "animate() needs from_(a).to(b), to(value), or through(frames).");
-      },
-      py::arg("path"), py::arg("spec") = py::none(), py::kw_only(),
-      py::arg("ease") = py::none());
-  module.def(
-      "entrance",
-      [](py::handle start, py::handle stop, double duration, double delay,
-         py::handle easing) -> py::object {
-        const auto spec = transition(duration, easing, delay);
-        if (numeric(start))
+      [](py::handle described, py::handle from, py::handle to,
+         py::handle keyframes, py::handle duration, py::handle delay,
+         py::handle easing, int loop, bool alternate,
+         motion::Composition composition) -> py::object {
+        if (py::isinstance<motion::Tween<float>>(described))
+          return py::cast(
+              motion::animate(py::cast<motion::Tween<float>>(described)));
+        if (py::isinstance<motion::Tween<SkColor4f>>(described))
+          return py::cast(
+              motion::animate(py::cast<motion::Tween<SkColor4f>>(described)));
+        if (py::isinstance<motion::Tween<compose::Fill>>(described))
           return py::cast(motion::animate(
-              motion::from(py::cast<float>(start)).to(py::cast<float>(stop)),
-              spec));
-        if (py::isinstance<compose::Fill>(start))
-          return py::cast(
-              motion::animate(motion::from(fill(start)).to(fill(stop)), spec));
-        return py::cast(
-            motion::animate(motion::from(color(start)).to(color(stop)), spec));
+              py::cast<motion::Tween<compose::Fill>>(described)));
+        if (!described.is_none())
+          throw py::type_error("animate() takes a Tween, or a tween's fields.");
+        py::object frames = py::none();
+        py::handle first = !from.is_none() ? from : to;
+        if (!keyframes.is_none()) {
+          py::list steps(py::reinterpret_borrow<py::object>(keyframes));
+          if (first.is_none() && !steps.empty()) first = steps[0];
+          frames = std::move(steps);
+        }
+        if (first.is_none())
+          throw py::value_error("animate() needs from_, to or keyframes.");
+        const py::object length = duration.is_none()
+                                      ? py::object(py::float_(0.25))
+                                      : py::reinterpret_borrow<py::object>(duration);
+        switch (kindOf(first)) {
+          case Kind::Number:
+            return py::cast(motion::animate(
+                tweenOf<float>(from, to, frames, length, delay, easing, loop,
+                               alternate, composition)));
+          case Kind::Fill:
+            return py::cast(motion::animate(
+                tweenOf<compose::Fill>(from, to, frames, length, delay,
+                                       easing, loop, alternate, composition)));
+          case Kind::Colour:
+            break;
+        }
+        return py::cast(motion::animate(
+            tweenOf<SkColor4f>(from, to, frames, length, delay, easing, loop,
+                               alternate, composition)));
       },
-      py::arg("start"), py::arg("stop"), py::arg("duration") = 0.25,
-      py::arg("delay") = 0.0, py::arg("ease") = py::none());
-  module.def(
-      "transition",
-      [](py::handle target, double duration, double delay,
-         py::handle easing) -> py::object {
-        const auto spec = transition(duration, easing, delay);
-        if (numeric(target))
-          return py::cast(
-              motion::animate(motion::to(py::cast<float>(target)), spec));
-        if (py::isinstance<compose::Fill>(target))
-          return py::cast(motion::animate(motion::to(fill(target)), spec));
-        return py::cast(motion::animate(motion::to(color(target)), spec));
-      },
-      py::arg("target"), py::arg("duration") = 0.25, py::arg("delay") = 0.0,
-      py::arg("ease") = py::none());
+      py::arg("tween") = py::none(), py::kw_only(),
+      py::arg("from_") = py::none(), py::arg("to") = py::none(),
+      py::arg("keyframes") = py::none(), py::arg("duration") = py::none(),
+      py::arg("delay") = py::none(), py::arg("ease") = py::none(),
+      py::arg("loop") = 0, py::arg("alternate") = false,
+      py::arg("composition") = motion::Composition::Replace,
+      "A property value that moves: the tween given, or one written out of "
+      "the fields named. A number, a colour and a fill each make their own "
+      "animatable.");
 
-  constexpr auto fluent = py::return_value_policy::reference_internal;
-  py::class_<motion::Bound>(module, "Bound")
-      .def(py::init([](std::shared_ptr<choreograph::Output<float>> output) {
-             if (!output) throw py::type_error("A binding needs an Output.");
-             return motion::bind(std::move(output));
-           }),
-           py::arg("output"))
-      .def("copy", [](const motion::Bound& value) { return value; })
-      .def("source", &motion::Bound::source, py::arg("low"), py::arg("high"),
-           fluent)
-      .def("window", &motion::Bound::window, py::arg("low"), py::arg("high"),
-           fluent)
-      .def("pingPong", &motion::Bound::pingPong, fluent)
-      .def("cosine", &motion::Bound::cosine, fluent)
-      .def("trapezoid", &motion::Bound::trapezoid, py::arg("riseStart"),
-           py::arg("holdStart"), py::arg("holdEnd"), py::arg("fallEnd"), fluent)
-      .def("square", &motion::Bound::square, py::arg("duty") = 0.5f, fluent)
-      .def(
-          "wave",
-          [](motion::Bound& chain, py::handle easing) -> motion::Bound& {
-            return chain.wave(motionEase(easing));
-          },
-          py::arg("easing"), fluent)
-      .def(
-          "map",
-          [](motion::Bound& chain, py::handle easing) -> motion::Bound& {
-            return chain.map(motionEase(easing));
-          },
-          py::arg("function"), fluent)
-      .def("scale", &motion::Bound::scale, py::arg("factor"), fluent)
-      .def("offset", &motion::Bound::offset, py::arg("amount"), fluent)
-      .def("target", &motion::Bound::target, py::arg("low"), py::arg("high"),
-           fluent)
-      .def("invert", &motion::Bound::invert, fluent)
-      .def("quantize", &motion::Bound::quantize, py::arg("steps"), fluent)
-      .def("wrap", &motion::Bound::wrap, py::arg("period"), fluent)
-      .def("wiggle", &motion::Bound::wiggle, py::arg("amount") = 1.0f,
-           py::arg("frequency") = 2.0f, py::arg("seed") = 0,
-           py::arg("octaves") = 1, py::arg("falloff") = 0.5f, fluent)
-      .def("clamp", &motion::Bound::clamp, py::arg("low"), py::arg("high"),
-           fluent)
-      .def("sample",
-           [](const motion::Bound& chain) {
-             return chain.value().apply(
-                 chain.value().source ? chain.value().source->value() : 0.0f);
-           })
-      .def(
-          "apply",
-          [](const motion::Bound& chain, float input) {
-            return chain.value().apply(input);
-          },
-          py::arg("input"))
-      .def(
-          "__eq__",
-          [](const motion::Bound& a, const motion::Bound& b) {
-            return motion::boundMapEqual(a.value(), b.value());
-          },
-          py::arg("other"));
+  module.def("phase", &motion::phase, py::arg("time"), py::arg("period"));
   module.def(
-      "bind",
-      [](std::shared_ptr<choreograph::Output<float>> output) {
-        if (!output) throw py::type_error("A binding needs an Output.");
-        return motion::bind(std::move(output));
+      "quantizeTime",
+      [](motion::Duration time, double rate) {
+        return motion::quantizeTime(time, rate);
       },
-      py::arg("output"));
-  module.def(
-      "wiggle",
-      [](std::shared_ptr<choreograph::Output<float>> output, float amount,
-         float frequency, uint32_t seed, int octaves, float falloff) {
-        if (!output) throw py::type_error("A binding needs an Output.");
-        return motion::bind(std::move(output))
-            .scale(0)
-            .wiggle(amount, frequency, seed, octaves, falloff);
-      },
-      py::arg("output"), py::arg("amount") = 1.0f, py::arg("frequency") = 2.0f,
-      py::arg("seed") = 0, py::arg("octaves") = 1, py::arg("falloff") = 0.5f);
-  module.def("phase", &motion::phase, py::arg("seconds"), py::arg("period"));
-  module.def("quantizeTime", &motion::quantizeTime<double>, py::arg("seconds"),
-             py::arg("rate"));
-  module.def("stepIndex", &motion::stepIndex, py::arg("seconds"),
-             py::arg("rate"));
+      py::arg("time"), py::arg("rate"));
+  module.def("stepIndex", &motion::stepIndex, py::arg("time"), py::arg("rate"));
   module.def("decay", &motion::decay, py::arg("age"), py::arg("timeConstant"));
   module.def("flash", &motion::flash, py::arg("age"), py::arg("attack"),
              py::arg("timeConstant"), py::arg("rest") = 0.0f);
   module.def("clamp01", &motion::clamp01, py::arg("value"));
-  module.def(
-      "ramp",
-      [](double delay, double duration, py::handle easing) {
-        return transition(duration, easing, delay);
-      },
-      py::arg("delay"), py::arg("duration"), py::arg("ease") = py::none());
 }
 
 }  // namespace sigil::python
