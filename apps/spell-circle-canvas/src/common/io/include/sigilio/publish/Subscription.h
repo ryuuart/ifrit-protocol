@@ -70,15 +70,15 @@ class Subscription {
   [[nodiscard]] virtual std::string_view publishingApplication() const = 0;
 };
 
-/** A subscription to @p name on @p mtlDevice — and, where @p application
- * is not empty, only that application's. @p mtlDevice is an
+/** A subscription to @p name on @p metalDevice — and, where @p application
+ * is not empty, only that application's. @p metalDevice is an
  * `id<MTLDevice>` as an opaque pointer, the caller staying its owner. A
  * name nothing publishes yet is NOT a refusal: the subscription waits.
  * @trap NULL IS AN ORDINARY ANSWER — no protocol, no device, an empty
  * name — and means a run that receives nothing, never another way to. */
 std::unique_ptr<Subscription> subscribe(std::string name,
                                         std::string application,
-                                        void* mtlDevice);
+                                        void* metalDevice);
 
 /** THE METAL DEVICE THIS MACHINE DRAWS ON, as an `id<MTLDevice>` bridged
  * to `void*` — what a caller that holds no device of its own subscribes

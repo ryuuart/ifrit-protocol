@@ -24,11 +24,11 @@ std::vector<Publication> publications() {
 
 std::unique_ptr<Subscription> subscribe(std::string name,
                                         std::string application,
-                                        void* mtlDevice) {
-  if (name.empty() || !mtlDevice) return nullptr;
+                                        void* metalDevice) {
+  if (name.empty() || !metalDevice) return nullptr;
 #if defined(__APPLE__)
   return makeSyphonSubscription(std::move(name), std::move(application),
-                                mtlDevice);
+                                metalDevice);
 #else
   return nullptr;
 #endif

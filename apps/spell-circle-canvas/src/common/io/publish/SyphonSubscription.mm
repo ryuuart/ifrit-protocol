@@ -179,7 +179,7 @@ class SyphonSubscription final : public Subscription {
 }  // namespace
 
 std::unique_ptr<Subscription> makeSyphonSubscription(std::string name, std::string application,
-                                                     void *mtlDevice) {
+                                                     void *metalDevice) {
   @autoreleasepool {
     // KEEPS HEARING WHILE THIS APPLICATION IS NOT THE ACTIVE ONE. What
     // one process has to say to another is held back from an application
@@ -189,7 +189,7 @@ std::unique_ptr<Subscription> makeSyphonSubscription(std::string name, std::stri
     // application of its own is never held back and is unaffected.
     [[NSDistributedNotificationCenter defaultCenter] setSuspended:NO];
   }
-  id<MTLDevice> device = (__bridge id<MTLDevice>)mtlDevice;
+  id<MTLDevice> device = (__bridge id<MTLDevice>)metalDevice;
   return std::make_unique<SyphonSubscription>(std::move(name), std::move(application), device);
 }
 

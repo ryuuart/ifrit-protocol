@@ -71,8 +71,8 @@ class SyphonPublisher final : public Publisher {
 
 }  // namespace
 
-std::unique_ptr<Publisher> makeSyphonPublisher(std::string name, void *mtlDevice) {
-  id<MTLDevice> device = (__bridge id<MTLDevice>)mtlDevice;
+std::unique_ptr<Publisher> makeSyphonPublisher(std::string name, void *metalDevice) {
+  id<MTLDevice> device = (__bridge id<MTLDevice>)metalDevice;
   SyphonMetalServer *server = [[SyphonMetalServer alloc] initWithName:@(name.c_str())
                                                                device:device
                                                               options:nil];

@@ -17,11 +17,11 @@ std::vector<Publication> syphonPublications();
 
 /** A subscription to the publication @p name — and, where
  *  @p application is not empty, that application's — receiving on
- *  @p mtlDevice. It stands whether or not anything is publishing yet,
+ *  @p metalDevice. It stands whether or not anything is publishing yet,
  *  and is null only when a client could not be stood up at all. */
 std::unique_ptr<Subscription> makeSyphonSubscription(std::string name,
                                                      std::string application,
-                                                     void* mtlDevice);
+                                                     void* metalDevice);
 
 /** This machine's own Metal device, as an `id<MTLDevice>` bridged to
  *  `void*`; null where there is none. */

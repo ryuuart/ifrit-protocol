@@ -232,11 +232,14 @@ class Hub {
     registerDecoder<T>([decoder = std::move(decoder)](const Bytes& bytes,
                                                       std::string_view hint) {
       return core::callPrefix(
-          [&decoder](const Bytes& b, std::string_view h) {
-            if constexpr (requires { decoder.decode(b, h); })
-              return decoder.decode(b, h);
+          [&decoder](const Bytes& resourceBytes,
+                     std::string_view resourceHint) {
+            if constexpr (requires {
+                            decoder.decode(resourceBytes, resourceHint);
+                          })
+              return decoder.decode(resourceBytes, resourceHint);
             else
-              return decoder.decode(b);
+              return decoder.decode(resourceBytes);
           },
           bytes, hint);
     });
