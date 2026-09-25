@@ -160,12 +160,12 @@ TEST(Assets, VideoUsesTheClipCacheAndInvalidatesAfterSourceChange) {
   EXPECT_NE(second, first);
 }
 
-/** A recording standing among a sketch's own files, mounted onto the URI
+/** A recording standing among a sketch's own files, replayed at the URI
  *  the sketch listens on: the store answers a feed that plays the file
  *  back, and what a dispatch delivers is everything recorded at or
  *  before the scene time it is handed. This is what a capture does with
  *  the port a window binds. */
-TEST(Assets, AMountedRecordingIsAFeedThatReplaysByTheSceneTimeDispatched) {
+TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
   sigil::test::ScratchDir dir("sketch_assets_feed");
   const std::filesystem::path recording = dir.path / "data" / "sky.feed";
   std::filesystem::create_directories(recording.parent_path());
@@ -181,9 +181,9 @@ TEST(Assets, AMountedRecordingIsAFeedThatReplaysByTheSceneTimeDispatched) {
   assets.mountSketch("sky", dir.path);
   sigil::io::Hub& hub = assets.hub();
   // The two lines a sketch writes while a capture is being taken: the
-  // port is mounted onto the file, and the ask for the port opens the
+  // port is replayed from the file, and the ask for the port opens the
   // recording rather than a socket.
-  hub.mount("udp://:27020", hub.resolve("sketch://sky/data/sky.feed"));
+  hub.replay("udp://:27020", "sketch://sky/data/sky.feed");
   const std::shared_ptr<sigil::io::Feed> feed = hub.feed("udp://:27020");
   ASSERT_NE(feed, nullptr);
   EXPECT_TRUE(feed->error().empty());

@@ -582,13 +582,13 @@ std::filesystem::path g_recording;
  *  frame. */
 uint64_t g_arrivals = 0;
 
-/** A sketch reading a recording through a port mounted onto it, as a
- *  capture of a live feed does. */
+/** A sketch reading a recording replayed at a port, as a capture of a
+ *  live feed does. */
 struct RecordingReader {
   std::shared_ptr<sigil::io::Feed> feed;
   void setup(sigil::sketch::SketchContext& ctx) {
     ctx.canvas(16, 16);
-    ctx.assets.hub().mount("udp://:27183", g_recording);
+    ctx.assets.hub().replay("udp://:27183", g_recording.string());
     feed = ctx.assets.hub().feed("udp://:27183");
   }
   void update(double, sigil::sketch::SketchContext&) {

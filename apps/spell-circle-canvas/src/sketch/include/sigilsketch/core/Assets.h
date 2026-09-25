@@ -125,7 +125,7 @@ class Assets {
   sigil::io::Hub& hub() { return m_hub; }
 
   /** Moves every feed opened through this store's hub to @p seconds, the
-   *  scene time of the frame about to be drawn. A recording mounted onto
+   *  scene time of the frame about to be drawn. A recording replayed at
    *  a feed's URI delivers exactly the arrivals recorded at or before
    *  that time; a live feed is unaffected, because what reaches it is
    *  its sender's to decide. */

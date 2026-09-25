@@ -147,7 +147,7 @@ std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
 }
 
 /** A sketch that LISTENS: it opens a feed on a port while declaring
- *  itself, and under a capture it first mounts its own recording onto
+ *  itself, and under a capture it first replays its own recording at
  *  that port, so the door it opens is the file. The feed is kept where
  *  the case can read it, which is what stands for the drawing a real
  *  body would do from what arrived. */
@@ -157,7 +157,7 @@ struct Listening {
     ctx.canvas(64, 48);
     sigil::io::Hub& hub = ctx.assets.hub();
     if (ctx.deterministic)
-      hub.mount(kSkyPort, hub.resolve(ctx.local("data/sky.feed")));
+      hub.replay(kSkyPort, ctx.local("data/sky.feed"));
     sky = hub.feed(kSkyPort);
   }
 };

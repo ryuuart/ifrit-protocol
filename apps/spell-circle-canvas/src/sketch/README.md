@@ -884,16 +884,16 @@ A window and a headless capture step through the same call, so a sketch
 reads what had arrived by the moment it is drawing either way.
 
 That is what lets a CAPTURE read the port out of a file. A recording is a
-feed written down, and a URI that resolves through the mount table to one
-is played back from it instead of being opened, each arrival delivered at
-the scene second it was recorded at. So a sketch mounts its own recording
-while it is being captured and opens the same port either way:
+feed written down, and `Hub::replay()` plays one back at a URI instead of
+opening it, each arrival delivered at the scene second it was recorded
+at. So a sketch replays its own recording while it is being captured and
+opens the same port either way:
 
 ```cpp
 void setup(SketchContext& ctx) {
   sigil::io::Hub& hub = ctx.assets.hub();
   if (ctx.deterministic)  // a plate reads the file the window heard
-    hub.mount("udp://:27020", hub.resolve(ctx.local("data/sky.feed")));
+    hub.replay("udp://:27020", ctx.local("data/sky.feed"));
   m_sky = hub.feed("udp://:27020");
 }
 ```
