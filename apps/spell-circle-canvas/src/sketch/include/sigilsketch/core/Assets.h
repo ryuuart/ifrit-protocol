@@ -90,7 +90,7 @@ class Assets {
   /** THE SHADER AT @p name — an `.sksl` file holding one SkSL shader
    *  program, `half4 main(float2 xy)` and the uniforms and child shaders
    *  it declares — compiled into the runtime effect every paint seam
-   *  takes: `material::Paint::sksl`, `material::skia::Effect::shader`
+   *  takes: `material::skia::sksl`, `material::skia::program`
    *  and a pen's own shader builder. Cached and recompiled by the hub when
    *  the file changes, so an edit to it re-runs setup without a rebuild,
    *  and one file compiles into one effect however often it is asked for.
@@ -100,7 +100,7 @@ class Assets {
    *  before any has, and says why in `problems()` until the file
    *  compiles, which a host shows as it shows a failed build. The checker
    *  is a FILL: it declares no uniform and no `content` child, so handed
-   *  to `material::skia::Effect::shader` over a layer it filters nothing
+   *  to `material::skia::program` over a layer it filters nothing
    *  and the layer shows through unchanged.
    *  @trap A material recipe's body is not a whole program — it reads
    *  the declarations its recipe adds — so it is read as text through

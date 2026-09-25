@@ -23,7 +23,7 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/core/Target.h>
-#include <sigilmaterial/skia/Effect.h>
+#include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
@@ -223,7 +223,7 @@ std::vector<sk_sp<SkRuntimeEffect>> everyDeclarableProgram() {
   std::vector<sk_sp<SkRuntimeEffect>> programs;
   std::unordered_set<const SkRuntimeEffect*> seen;
   for (const sk_sp<SkRuntimeEffect>& effect :
-       material::skia::everyEffectProgram())
+       material::skia::everyFilterProgram())
     if (effect && seen.insert(effect.get()).second) programs.push_back(effect);
   for (const material::Material& recipe : stockRecipes())
     gatherPrograms(recipe, programs, seen);
@@ -324,7 +324,7 @@ void openPipelineWarmup(const std::filesystem::path& storeDirectory) {
       everyDeclarableProgram();
   g_stages.clear();
   for (const sk_sp<SkRuntimeEffect>& effect :
-       material::skia::everyEffectProgram())
+       material::skia::everyFilterProgram())
     if (effect) g_stages.push_back(effect);
   const size_t taken =
       sigil::skia::GraphiteContext::registerRuntimeEffects(declarable);

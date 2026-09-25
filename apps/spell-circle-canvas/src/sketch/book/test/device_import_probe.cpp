@@ -30,6 +30,7 @@ namespace weave = sigil::weave;
 namespace world = sigil::world;
 
 using namespace sigil::compose;
+using sigil::material::hexColor;
 
 namespace {
 
