@@ -180,3 +180,13 @@ assert_type(memo(Reading("A leaf", 1.0), lambda model: text(model.title)), Eleme
 def banded(leaf: Band) -> Element:
     """A band is a node like the others, wherever one is taken."""
     return marks.sheet(row(leaf).children(leaf))
+
+
+def themed_page() -> Element:
+    """A page returned from inside a theme's scope: the scope suppresses
+    nothing, so every path through the function returns an element."""
+    with kit.provide(kit.house_theme()):
+        return kit.page(text("Inside the scope"), title="A themed page")
+
+
+assert_type(themed_page(), Element)

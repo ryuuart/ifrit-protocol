@@ -186,9 +186,11 @@ void bindTheme(py::module_& module) {
       .def("__enter__", &ThemeProvider::enter)
       .def(
           "__exit__",
+          // Answers nothing, so the scope never suppresses what was raised
+          // inside it: a function may return from within `with`, and its
+          // type is the value it returns.
           [](ThemeProvider& scope, py::object, py::object, py::object) {
             scope.close();
-            return false;
           },
           py::arg("exc_type"), py::arg("exc_value"), py::arg("traceback"))
       .def("close", &ThemeProvider::close)
