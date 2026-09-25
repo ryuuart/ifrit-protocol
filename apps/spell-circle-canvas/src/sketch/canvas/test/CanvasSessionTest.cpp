@@ -578,8 +578,8 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   // two arrivals recorded by then have been delivered, and the one at
   // five seconds is still ahead.
   EXPECT_EQ(Listening::sky->generation(), 2u);
-  ASSERT_NE(Listening::sky->latest(), nullptr);
-  EXPECT_EQ(Listening::sky->latest()->asText(), "noon");
+  ASSERT_TRUE(Listening::sky->latest().has_value());
+  EXPECT_EQ(Listening::sky->latest()->bytes->asText(), "noon");
   EXPECT_FALSE(Listening::sky->closed());
   // The store outlives nothing here: the feed is let go before the
   // session that opened it and the hub it was opened on.

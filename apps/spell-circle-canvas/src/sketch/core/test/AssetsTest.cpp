@@ -191,20 +191,20 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
 
   assets.dispatch(0.0);
   EXPECT_EQ(feed->generation(), 1u);
-  ASSERT_NE(feed->latest(), nullptr);
-  EXPECT_EQ(feed->latest()->asText(), "dawn");
+  ASSERT_TRUE(feed->latest().has_value());
+  EXPECT_EQ(feed->latest()->bytes->asText(), "dawn");
   EXPECT_FALSE(feed->closed());
 
   // One dispatch may cover several arrivals and never covers one that is
   // still ahead: the scene time decides, not the number of calls.
   assets.dispatch(0.6);
   EXPECT_EQ(feed->generation(), 2u);
-  EXPECT_EQ(feed->latest()->asText(), "noon");
+  EXPECT_EQ(feed->latest()->bytes->asText(), "noon");
   EXPECT_FALSE(feed->closed());
 
   assets.dispatch(2.0);
   EXPECT_EQ(feed->generation(), 3u);
-  EXPECT_EQ(feed->latest()->asText(), "dusk");
+  EXPECT_EQ(feed->latest()->bytes->asText(), "dusk");
   EXPECT_TRUE(feed->closed());  // the recording ran out
 }
 
