@@ -207,11 +207,11 @@ library's.
 Each of these is an ADDED overload on the same verb, or a value standing
 beside the verbs, never a renamed one.
 
-* **A material is a fill.** `fill(material::skia::Paint)` and
-  `stroke(material::skia::Paint)` take this repository's paint value —
+* **A material is a fill.** `fill(material::Paint)` and
+  `stroke(material::Paint)` take this repository's paint value —
   a gradient, an image, an SkSL effect, a blend — and
   `fill(material::Material)` takes a recipe instance as a shader. The
-  ground takes the same set, `background(material::skia::Paint)` and
+  ground takes the same set, `background(material::Paint)` and
   `background(material::Material)`, so the three verbs that put a
   colour down accept one vocabulary between them. A
   static paint resolves once, when set; a live one, and one that reads
@@ -472,7 +472,7 @@ src/common/draw/
 ## Boundaries
 
 * **Links material's Skia paint, weave's shaping, layout and paint, and
-  core's mixers.** A fill IS `material::skia::Paint`; text IS a
+  core's mixers.** A fill IS `material::Paint`; text IS a
   `weave::Paragraph` laid out and drawn; the random stream and the noise
   corners ARE `core::noise`. None of that is re-spelled here.
 * **Boost.Unordered and Boost's hash fold are in public headers.** The

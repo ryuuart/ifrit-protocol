@@ -845,8 +845,8 @@ full resource surface without the sketch ever touching the filesystem.
 `shader()` is the door for a shader a sketch carries as a file: an `.sksl`
 file beside it holding one SkSL program, `half4 main(float2 xy)` with the
 uniforms and child shaders it declares, compiled into the
-`sk_sp<SkRuntimeEffect>` that `material::skia::Paint::sksl`,
-`material::skia::Effect::shader` and a pen's shader builder all take —
+`sk_sp<SkRuntimeEffect>` that `material::skia::sksl`,
+`material::skia::program` and a pen's shader builder all take —
 `Paint::sksl(ctx.assets.shader(ctx.local("aurora.sksl")))`. One file is one
 compiled effect however often it is asked for, and an edit to it recompiles
 and re-runs setup without a rebuild. It keeps the image door's forgiving

@@ -90,7 +90,7 @@ thing that writes the output: the description reads it by pointer.
 ## 3. Put the motion inside the paint
 
 When the mark is a shader rather than a colour, the fill is a
-`material::skia::Paint` and the moving part is a uniform inside it. A
+`material::Paint` and the moving part is a uniform inside it. A
 bound uniform makes the paint LIVE, which makes its node volatile, which
 is what stops a cache freezing the first frame.
 
@@ -98,7 +98,7 @@ is what stops a cache freezing the first frame.
 namespace skia = sigil::material::skia;
 
 box().width(220).height(140).borderRadius({16})
-    .fill(skia::Paint::sksl(effect).uniform("uPhase", &phase));
+    .fill(material::skia::sksl(effect).bind("uPhase", &phase));
 ```
 
 The same rule reaches the whole paint tree: a blend inherits the tier of
@@ -120,8 +120,8 @@ warning.
 Every value in the tree spells this the same way:
 [`Shadow`](value:sigil::compose::Shadow),
 [`PathFormat`](value:sigil::compose::PathFormat),
-[`Paint`](value:sigil::material::skia::Paint),
-[`Effect`](value:sigil::material::skia::Effect) and
+[`Paint`](value:sigil::material::Paint),
+[`Filter`](value:sigil::material::Filter) and
 [`Material`](value:sigil::material::Material)
 all answer `isAnimated`, and it is always derived from how the value was
 constructed, never a setter.

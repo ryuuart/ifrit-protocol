@@ -541,7 +541,7 @@ TEST(ComposeEffects, ABoundMaxSigmaAnimatesOnTheExistingChannel) {
 }
 
 TEST(ComposeEffects, AnEffectChildFillsASecondDeclaredShaderSlot) {
-  // Effect::shader fills exactly ONE child — "content", the node's own
+  // skia::program fills exactly ONE child — "content", the node's own
   // layer — so a second declared `uniform shader` has nothing to bind it.
   // child() fills it with a Material, resolved against THIS node's box, so
   // unit-space authoring works here exactly as it does on a fill.

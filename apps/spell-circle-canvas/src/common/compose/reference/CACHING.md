@@ -90,7 +90,7 @@ own layer was cut by the bake surface it composited into.
 from a runtime shader may write any pixel, so Skia gives it a layer the
 size of the whole clip and a small node's effect then evaluates over the
 entire canvas — the same node twice as expensive on a canvas twice the
-size. `Effect::blur(map, maxSigma)` declares its reach (the box the map
+size. `Filter::blur(map, maxSigma)` declares its reach (the box the map
 is defined over, grown by the range's Gaussian support) and costs its own
 node. An author writing a runtime-shader effect of their own owes the
 same declaration.

@@ -46,7 +46,7 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| `material::Filter` | A filter over pixels: blurs, glows, colour programs, recipes. | `Effect::blur`, `Effect::glow`, `Effect::filter`, `Effect::recipe`, `Effect::directionalBlur` | `Element::filter`, `Element::backdropFilter` |
+| `material::Filter` | A filter over pixels: blurs, glows, colour programs, recipes. | `Filter::blur`, `Filter::glow`, `material::skia::filter`, `Effect::recipe`, `Effect::directionalBlur` | `Element::filter`, `Element::backdropFilter` |
 | `Cache` | How a node's paint is held: `Auto`, `Picture`, `Texture`, `Group`, `None`. | The enumeration itself | `Element::cache` |
 | `PaintContext` | What a paint program is handed: the box, the outline, the clock, the ink, the font, the properties. | The composer builds it; a program reads it | Every `PaintProgram` and every decoration |
 | `PaintProgram` | A drawing on a canvas that names only the parameters it reads. | Any callable taking a prefix of `(SkCanvas&, const PaintContext&)` | `custom`, and `Decoration` |
@@ -87,7 +87,7 @@ Python the reference is `compose.var` and the table is the dictionary
 `material.Color` is the one colour class, and a colour is accepted
 wherever it is written as a string — `"#rrggbb"` and `"#rrggbbaa"` — as
 a three- or four-number sequence, or as a colour value. The paint and
-the effect are `material.Paint` and `material.Effect`.
+the effect are `material.Paint` and `material.Filter`.
 
 A fill is anything in that list plus `compose.Fill`, a custom property
 reference, a transitioned or bound value, a `material.Paint` and a

@@ -7,7 +7,7 @@
  * rich surface out of: fake bevels, metallic sheens, inner shadows, glows
  * and overlays, made of gradients, blurs and blend modes and never of
  * shaders. This is the compositional peer to the SkSL route
- * (`material::sdf`, `material::Paint::sksl`). It models no
+ * (`material::sdf`, `material::skia::sksl`). It models no
  * lighting: a bevel is two opposed inner shadows, glass is a highlight
  * lens over a body ramp.
  *
@@ -158,7 +158,7 @@ inline Overlay gradientOverlay(material::Paint gradient,
  *  beneath itself — a drop shadow at zero offset, which keeps the content
  *  on top. Attach with `.filter()`, and chain with `.then()` for a tighter
  *  core over a wider halo: `text(...).filter(styles::textGlow(cyan, 6))`.
- *  The kernel's `Effect::glow`, under the name this family gives it. */
+ *  The kernel's `Filter::glow`, under the name this family gives it. */
 inline material::Filter textGlow(material::Color color, float sigma) {
   return material::Filter::glow(color, sigma);
 }

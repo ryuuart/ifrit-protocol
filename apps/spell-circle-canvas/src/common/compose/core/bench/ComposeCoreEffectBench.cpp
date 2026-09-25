@@ -172,7 +172,7 @@ BENCHMARK(BM_Draw_StaticGlow_Rebake_OverBake);
 
 // ---- A blur whose SIGMA VARIES across the node, three ways ----------------
 //
-// The question these arms answer: how does Effect::blur's pyramid scale in
+// The question these arms answer: how does Filter::blur's pyramid scale in
 // the sigma range, against writing the same effect by hand. The pyramid
 // builds a fixed number of levels and mixes between them, so its cost does
 // not follow sigma; a hand-written variable-sigma kernel cannot be made
@@ -183,11 +183,11 @@ BENCHMARK(BM_Draw_StaticGlow_Rebake_OverBake);
 // has detail to destroy — driven by the SAME parameter map, and differ only
 // in the effect:
 //
-//  Pyramid     Effect::blur(map, sigma) — fixed levels plus one mix pass.
+//  Pyramid     Filter::blur(map, sigma) — fixed levels plus one mix pass.
 //  Naive       the workaround that produces the same PICTURE: one SkSL pass
 //              whose kernel is sized for the worst sigma anywhere in the
 //              node.
-//  ConstantMax Effect::filter(Blur(σ, σ)) — the floor. It does not produce
+//  ConstantMax skia::filter(Blur(σ, σ)) — the floor. It does not produce
 //              the picture (nothing varies across the node), but it is what
 //              an author reaches for when they give up on varying it, so it
 //              prices the feature against giving up.
