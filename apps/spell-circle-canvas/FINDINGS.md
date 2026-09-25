@@ -646,33 +646,21 @@ Wanted by: `matrix_rain` (removes its conversion). `shipping_forecast`
 literals today and would spell them like the text they churn, or read them
 from their words files, once the door is UTF-8.
 
-## Three sketches still build or apologise for what SigilWeave now holds
+## Two sketches still build the English hyphenator SigilWeave now holds
 
 `weave::kit::englishHyphenator()` answers one held `PatternHyphenator`
-over the English table, and Python reaches it together with
-`HyphenationOptions.patterns` on a text leaf and the
-`weave.kit.hanging.latin` table. Three registered sketches outside the
-link that grew them still say otherwise:
+over the English table. Two registered sketches outside the link that
+grew it still build their own:
 
 - `src/sketch/sketches/paragraph_sheet.cpp` (around line 87) and
   `src/sketch/sketches/manuscript/manuscript.cpp` (around line 90) each
-  build their own `PatternHyphenator` over
-  `englishHyphenationPatterns()`, so each passage holds a table of its
-  own where one expression, `hyphens({.patterns =
-  weave::kit::englishHyphenator()})`, shares the kit's.
-- `src/sketch/sketches/python_type_atelier.py` states its three hanging
-  marks by hand under a comment saying the stock Latin table is not
-  reachable from Python (`MARGIN_HANGS`), and types soft hyphens into
-  `ARTICLE` under a comment saying a text leaf reaches no pattern
-  hyphenator from Python. Both comments are false now.
+  build a `PatternHyphenator` over `englishHyphenationPatterns()`, so each
+  passage holds a table of its own where one expression, `hyphens({.patterns
+  = weave::kit::englishHyphenator()})`, shares the kit's.
 
-What the sketches should say: the two C++ sketches take the held table,
-and `python_type_atelier` takes `weave.kit.hanging.latin` and
-`HyphenationOptions(patterns=weave.kit.englishHyphenator())` and drops
-both comments. Taking the held table where the hand-built one held the
-same patterns should leave `paragraph_sheet` and `manuscript` byte-
-identical; `python_type_atelier` moves wherever the pattern table
-breaks a word its typed hyphens did not, and that move is the check.
+What the sketches should say: both take the held table. Taking it where
+the hand-built one held the same patterns should leave `paragraph_sheet`
+and `manuscript` byte-identical, and that is the check.
 
 ## A glyph-outline decoration is cut from the glyphs at rest, so a text shadow cannot follow a track's deformation
 

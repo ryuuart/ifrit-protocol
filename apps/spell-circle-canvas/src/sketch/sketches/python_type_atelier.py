@@ -27,8 +27,7 @@ from sigil.sketch import SketchContext, kit, sketch
 from sigil.skia import PathBuilder
 from sigil.weave import (
     Decoration,
-    HangingEdge,
-    HangingTable,
+    HyphenationOptions,
     InitialLetter,
     KeepOptions,
     Leading,
@@ -40,37 +39,22 @@ from sigil.weave import (
     Type,
     rich,
 )
+from sigil.weave.kit import englishHyphenator, hanging
 
 SIZE = (1100, 900)
 WIDTH = 328
 TEAL = "#8ccbbb"
 HIGHLIGHT = "#31584f"
 STORY_LEADING = Leading.absolute(24)
-# The marks this passage ends its lines on stand partly past the measure,
-# so a justified edge squares on the ink rather than on the advances. The
-# stock Latin table is not reachable from Python, so the three are stated.
-MARGIN_HANGS = HangingTable(
-    entries=(
-        HangingEdge(character="-", atEnd=0.55),
-        HangingEdge(character=".", atEnd=0.35),
-        HangingEdge(character=",", atEnd=0.35),
-    )
-)
-
-# The soft hyphens (U+00AD) are the only places a word of the story may
-# break: a text leaf's hyphenation reaches no pattern hyphenator from
-# Python, so the breaker takes only the breaks typed here.
 ARTICLE = (
-    "A sen\u00adtence is more than a string of let\u00adters. It is a small "
-    "jour\u00adney: the eye finds a be\u00adgin\u00adning, gath\u00aders a "
-    "rhythm, and fol\u00adlows a thought across a mea\u00adsure. An "
-    "ob\u00adject can join that jour\u00adney with\u00adout be\u00adcom\u00ading "
-    "a sec\u00adond lay\u00adout. A change of voice can carry em\u00adpha\u00adsis "
-    "with\u00adout split\u00adting the pas\u00adsage into boxes.\n"
+    "A sentence is more than a string of letters. It is a small journey: "
+    "the eye finds a beginning, gathers a rhythm, and follows a thought "
+    "across a measure. An object can join that journey without becoming a "
+    "second layout. A change of voice can carry emphasis without splitting "
+    "the passage into boxes.\n"
     "When this frame runs out of room, the next takes up the same story. "
-    "No one choos\u00ades the last word of the first col\u00adumn. The na\u00adtive "
-    "break\u00ader finds it from the type, the mea\u00adsure, and the space "
-    "that re\u00admains."
+    "No one chooses the last word of the first column. The native breaker "
+    "finds it from the type, the measure, and the space that remains."
 )
 
 # The palette is stated once as custom properties at the root the sheet is
@@ -96,7 +80,12 @@ SHEET = StyleSheet(
         .lineHeight(STORY_LEADING)
         .textAlign(TextAlignment.Justify)
         .textWrap(TextWrap.Pretty)
-        .paragraph(ParagraphBlock(hanging=MARGIN_HANGS)),
+        # The marks a line ends on stand partly past the measure, so the
+        # justified edge squares on the ink; a word breaks where the
+        # English patterns allow, which they do for a passage set in English.
+        .font(Type(language="en-US"))
+        .paragraph(ParagraphBlock(hanging=hanging.latin()))
+        .hyphens(HyphenationOptions(patterns=englishHyphenator())),
         rule(".inscription")
         .fontSize(23)
         .fontStyle(FontStyle.Italic)
