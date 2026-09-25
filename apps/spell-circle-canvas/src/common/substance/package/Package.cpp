@@ -77,7 +77,7 @@ std::unique_ptr<Package> Package::load(const std::filesystem::path& file,
     if (error) *error = "cannot read " + file.string();
     return nullptr;
   }
-  return load(bytes->bytes.data(), bytes->bytes.size(), error);
+  return load(bytes->data(), bytes->size(), error);
 }
 
 size_t Package::graphCount() const { return m_impl->graphs.size(); }
