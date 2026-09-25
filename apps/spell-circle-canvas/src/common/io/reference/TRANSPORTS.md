@@ -19,7 +19,7 @@ for `receive()`, which hands them out in order and never waits.
 came in as, the second it came in at, its bytes and the sender it named —
 for a reader that wants more of the newest than its bytes and is not
 draining the queue to get it. The queue is bounded by the feed's
-`Policy`: when it is full the oldest arrival is dropped and `dropped()`
+`FeedPolicy`: when it is full the oldest arrival is dropped and `dropped()`
 counts it, because a reader that fell behind a state feed wants the
 newest, not the backlog. `close()` takes nothing more and keeps what was
 received readable. A feed's `error()` says why a door could not be

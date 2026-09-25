@@ -7,7 +7,7 @@
  * either takes the newest message — latest() for its bytes, newest() for
  * the whole arrival — or drains in order the ones it has not seen
  * through receive(), and neither ever waits for one. A feed holds the
- * last `Policy::capacity` arrivals for receive(), and dropped() counts
+ * last `FeedPolicy::capacity` arrivals for receive(), and dropped() counts
  * what fell off the front. The same door plays a recording back.
  */
 
@@ -83,9 +83,6 @@ struct FeedPolicy {
  *  recording, messages out to readers on any thread. */
 class Feed {
  public:
-  /** How much the door holds and what happens when it fills. */
-  using Policy = FeedPolicy;
-
   /** Maps an arrival from this feed onto the steady clock. Live arrivals
    *  retain their transport receive time; replay times are relative to the
    *  first advance() call, preserving recorded spacing across queued reads.
@@ -95,7 +92,7 @@ class Feed {
 
   /** A door named @p uri under @p policy. Nothing is opened here: a
    *  transport or a recording is handed over afterwards. */
-  Feed(std::string uri, Policy policy = {});
+  Feed(std::string uri, FeedPolicy policy = {});
   /** Closes the opened end. */
   ~Feed();
 
@@ -225,7 +222,7 @@ class Feed {
   std::function<void()> closeLocked();
 
   const std::string m_uri;
-  const Policy m_policy;
+  const FeedPolicy m_policy;
   const std::chrono::steady_clock::time_point m_made =
       std::chrono::steady_clock::now();
 

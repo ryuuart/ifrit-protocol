@@ -41,7 +41,7 @@ auto table  = hub.fetch("res://data/table.bin");      // shared_ptr<const Bytes>
 auto logo   = hub.image("res://ui/logo.png");        // stills and animations
 auto icon   = hub.image("res://ui/mark.svg", {.width = 256});
 auto layer  = hub.image("res://light/probe.exr", {.layer = "diffuse"});
-auto planes = hub.channels("res://light/probe.exr"); // every raw channel
+auto planes = hub.load<sigil::image::ChannelData>("res://light/probe.exr");
 
 if (auto info = hub.probe("res://light/probe.exr"))   // bytes: size, path
   budgetFor(info->byteSize);

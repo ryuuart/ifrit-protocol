@@ -38,7 +38,7 @@ auto mesh  = hub.load<Mesh>("res://props/crate.obj");
 Each URI is cached as one entry whose bytes and decoded views are
 independent: each populates the first time its accessor is asked, and
 asking for one never affects another. A view is one decoded type —
-`Hub::image`, `Hub::channels` and `Hub::load` each populate their own —
+`Hub::image` and each type `Hub::load` is asked for populate their own —
 and a `Hub::image` ask with a layer or an explicit size is a different
 decode that gets its own entry. `Hub::poll` re-stats every previously
 requested resource and reloads the changed ones, returning true so hosts

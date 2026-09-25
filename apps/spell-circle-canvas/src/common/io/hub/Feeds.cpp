@@ -75,7 +75,7 @@ std::vector<std::shared_ptr<Feed>> Hub::feeds() const {
   return held;
 }
 
-std::shared_ptr<Feed> Hub::feed(std::string_view uri, Feed::Policy policy) {
+std::shared_ptr<Feed> Hub::feed(std::string_view uri, FeedPolicy policy) {
   std::shared_ptr<Feed> made;
   bool again = false;
   {

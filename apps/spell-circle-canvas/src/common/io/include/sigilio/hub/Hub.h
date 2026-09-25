@@ -302,12 +302,6 @@ class Hub {
   std::shared_ptr<const sigil::image::ImageAsset> image(
       std::string_view uri, const image::DecodeOptions& options = {});
 
-  /** The raw decoded color data — every channel the source carries
-   *  (EXR layers included) as named float planes; null on failure.
-   *  See sigil::image::ChannelData for Skia composition helpers. */
-  std::shared_ptr<const sigil::image::ChannelData> channels(
-      std::string_view uri);
-
   /** HOW MANY BYTES, AND WHERE: the size of the resource and the file
    *  it was read from; nullopt when the URI cannot be served.
    *  @trap const but neither cheap nor side-effect-free — every call
@@ -341,7 +335,7 @@ class Hub {
    *  called outside the hub's lock.
    *  @trap No scheme, no transport, or an unreadable recording is not a
    *  failure to answer: the feed exists and its error() says why. */
-  std::shared_ptr<Feed> feed(std::string_view uri, Feed::Policy policy = {});
+  std::shared_ptr<Feed> feed(std::string_view uri, FeedPolicy policy = {});
 
   /** Installs the transport a scheme opens through; registering a
    *  scheme again replaces it. */
@@ -435,7 +429,7 @@ class Hub {
   std::shared_ptr<detail::Residency> residency();
 
   /** The map key for an ask: the URI alone for fetch()/text()/
-   *  channels() and default-options image(); with a layer or size
+   *  load<T>() and default-options image(); with a layer or size
    *  set, the URI plus each option behind a '\0' separator — a byte
    *  no URI that names a real resource can contain, so option
    *  suffixes never collide with URI content. Keys are write-only:

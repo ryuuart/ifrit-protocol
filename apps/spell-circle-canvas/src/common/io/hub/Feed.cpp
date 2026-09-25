@@ -15,7 +15,7 @@
 
 namespace sigil::io {
 
-Feed::Feed(std::string uri, Policy policy)
+Feed::Feed(std::string uri, FeedPolicy policy)
     : m_uri(std::move(uri)), m_policy(policy) {}
 
 Feed::~Feed() { close(); }

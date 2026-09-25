@@ -268,11 +268,6 @@ std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
       loadView(cacheKey(uri, &options), uri, type, decode));
 }
 
-std::shared_ptr<const sigil::image::ChannelData> Hub::channels(
-    std::string_view uri) {
-  return load<sigil::image::ChannelData>(uri);
-}
-
 std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,
                                              ResourceInfo& info) const {
   detail::NetworkAccess network;

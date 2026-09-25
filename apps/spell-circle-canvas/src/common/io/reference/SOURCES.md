@@ -20,8 +20,8 @@ directory rather than a file answers nothing too: the hub answers bytes.
 The cache holds one entry per URI. An entry carries the bytes and one
 decoded view per type — the image, the channel data, and whatever
 `load<T>()` has been asked for — each populated the first time its
-accessor is asked. Asking for bytes never decodes, and a later `image()`,
-`channels()` or `load<T>()` ask on the same URI decodes the bytes the
+accessor is asked. Asking for bytes never decodes, and a later `image()`
+or `load<T>()` ask on the same URI decodes the bytes the
 entry already holds instead of reading the source again. Each view
 remembers the decode that made it, which is what `poll()` re-runs. An
 `image()` ask with a layer or an explicit size is a different decode, so

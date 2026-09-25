@@ -9,6 +9,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
+#include <sigilimage/decode/ChannelData.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
@@ -99,7 +100,7 @@ TEST_F(IOHub, LoadImageAssetIsTheImageView) {
   EXPECT_EQ(image->width(), 3);
 }
 
-// fetch(), image(), and channels() are independent views of one
+// fetch(), image(), and load<ChannelData>() are independent views of one
 // resource: asking for one must not null a later ask for another.
 TEST_F(IOHub, FetchThenImageThenChannelsAllAnswer) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
@@ -107,7 +108,7 @@ TEST_F(IOHub, FetchThenImageThenChannelsAllAnswer) {
   auto image = hub.image("res://logo.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->width(), 1);
-  ASSERT_NE(hub.channels("res://logo.png"), nullptr);
+  ASSERT_NE(hub.load<sigil::image::ChannelData>("res://logo.png"), nullptr);
   // The earlier views are still served, not evicted by the later asks.
   EXPECT_NE(hub.fetch("res://logo.png"), nullptr);
   EXPECT_NE(hub.image("res://logo.png"), nullptr);
@@ -326,7 +327,7 @@ TEST_F(IOChannels, LdrFormatsNormalizeToFloats) {
       sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
   ASSERT_TRUE(png);
   ASSERT_TRUE(writeBytes(dir.path / "red.png", png->data(), png->size()));
-  auto channels = hub.channels("res://red.png");
+  auto channels = hub.load<sigil::image::ChannelData>("res://red.png");
   ASSERT_NE(channels, nullptr);
   ASSERT_EQ(channels->names.size(), 4u);
   EXPECT_FALSE(channels->floatingPoint);

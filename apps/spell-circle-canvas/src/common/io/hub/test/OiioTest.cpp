@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
+#include <sigilimage/decode/ChannelData.h>
 #include <sigilio/hub/Hub.h>
 
 #include <filesystem>
@@ -89,7 +90,7 @@ TEST_F(IOOiio, ProbeListsLayersAndChannels) {
 
 TEST_F(IOOiio, ChannelsExposeRawFloatData) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto channels = hub.channels("res://probe.exr");
+  auto channels = hub.load<sigil::image::ChannelData>("res://probe.exr");
   ASSERT_NE(channels, nullptr);
   EXPECT_EQ(channels->width, 4);
   EXPECT_TRUE(channels->floatingPoint);
