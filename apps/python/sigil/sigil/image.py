@@ -12,6 +12,7 @@ from _sigil.image import (
     decodeAsset,
     encode,
     from_rgba,
+    registerDecoders,
 )
 
 
@@ -36,5 +37,6 @@ __all__ = [
     "encode",
     "from_rgba",
     "load",
+    "registerDecoders",
     "save",
 ]

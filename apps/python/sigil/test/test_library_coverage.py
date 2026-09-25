@@ -90,6 +90,17 @@ class LibraryCoverage(unittest.TestCase):
                 hub.load(str, "res://sample.csv")
         self.assertEqual(table.size(), 2)
 
+    def test_owned_hub_loads_images_once_image_registers_its_decoders(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image.save(image.from_rgba(bytes([255, 0, 0, 255]) * 4, 2, 2), root / "red.png")
+            hub = io.Hub()
+            hub.mount("res://", root)
+            self.assertIsNone(hub.load(image.ImageAsset, "res://red.png"))
+            image.registerDecoders(hub)
+            asset = hub.load(image.ImageAsset, "res://red.png")
+            self.assertEqual((asset.width(), asset.height()), (2, 2))
+
     def test_palette_color_spaces_and_python_iteration(self):
         self.assertEqual(material.Oklch(L=0.5, chroma=0.1, hueDegrees=20).alpha, 1)
         color = material.Color("#6e99bb")

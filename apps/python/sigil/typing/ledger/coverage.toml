@@ -1517,7 +1517,7 @@ python = [
 name = "Image"
 
 [[section.surface.item]]
-bound = "`image.decode`, `decodeAsset` with animated `ImageAsset.frameAt`, `encode` to PNG, JPEG, WebP and EXR, `from_rgba`, `load` and `save`; hub and session image loading"
+bound = "`image.decode`, `decodeAsset` with animated `ImageAsset.frameAt`, `encode` to PNG, JPEG, WebP and EXR, `from_rgba`, `load` and `save`; `registerDecoders`, which puts the image decoders on an owned hub; hub and session image loading"
 python = [
   "image.decode",
   "image.decodeAsset",
@@ -1526,6 +1526,7 @@ python = [
   "image.Format",
   "image.from_rgba",
   "image.load",
+  "image.registerDecoders",
   "image.save",
 ]
 
