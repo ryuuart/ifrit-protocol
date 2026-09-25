@@ -129,8 +129,6 @@ void bindLibraries(pybind11::module_& module) {
   bindWorldPlan(module);
   bindWorldDevice(module);
   bindIO(module);
-  bindIOHubGrowth(module);
-  bindIOSources(module);
   bindIOPublish(module);
   bindData(module);
   bindDataTables(module);

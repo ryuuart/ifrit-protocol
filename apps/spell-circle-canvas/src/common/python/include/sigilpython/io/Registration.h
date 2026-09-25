@@ -14,14 +14,8 @@ namespace sigil::python {
 
 /** Registers resource access on @p module. */
 void bindIO(pybind11::module_& module);
-/** Registers hub::onDispatch, Python decoders and transports,
- *  image/channel/probe views, Feed::receivedAt on @p module. */
-void bindIOHubGrowth(pybind11::module_& module);
-/** Registers sigilIOPublish: publications, publishers and subscriptions
- *  on @p module. */
+/** Adds the io.publish submodule to @p module; it registers no names
+ *  yet, so publishers and subscriptions are reachable only from C++. */
 void bindIOPublish(pybind11::module_& module);
-/** Registers writeBytes, places, archives, AnyByteSource, TextCatalog
- *  and the network cache on @p module. */
-void bindIOSources(pybind11::module_& module);
 
 }  // namespace sigil::python

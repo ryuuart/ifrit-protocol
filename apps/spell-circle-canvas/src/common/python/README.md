@@ -327,8 +327,7 @@ assembly guards their calls the same way.
 * `world/Registration.h` — `bindWorld`, `bindWorldDescription`,
   `bindWorldDevice`, `bindWorldEnvironment`, `bindWorldGeometry`,
   `bindWorldPasses`, `bindWorldPlan`, `bindWorldTargets`, `bindWorldView`
-* `io/Registration.h` — `bindIO`, `bindIOHubGrowth`, `bindIOPublish`,
-  `bindIOSources`
+* `io/Registration.h` — `bindIO`, `bindIOPublish`
 * `data/Registration.h` — `bindData`, `bindDataConnection`,
   `bindDataSchema`, `bindDataTables`
 * `measure/Registration.h` — `bindMeasure`
