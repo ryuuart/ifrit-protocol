@@ -29,8 +29,9 @@
  * The leaf is printed from a copper plate: the plate's edge is pressed
  * into the paper as a recess, the ink the wiping left behind lies as a
  * film inside it, and the leaf curls into the book's gutter at the left.
- * Wherever the bow touches, the disc sounds and a ring of sound leaves
- * the rim; on its first pass the grains hop under it as they gather.
+ * Wherever the bow touches, the disc sounds: two wavefronts leave the
+ * rim and fade as they spread, and the grains hop under the bow, on its
+ * first pass as they gather and on every round after.
  */
 // TAGS: Drawing/Generative
 
@@ -55,6 +56,8 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <memory>
+
 #include "Figures.h"
 
 namespace sketch = sigil::sketch;
@@ -75,6 +78,8 @@ constexpr float kTip = 0.985f;
 constexpr float kCellReach = 1.36f;
 /** Room around a disc for a grain still hopping outside it. */
 constexpr float kSandMargin = 10;
+/** The signature's clearance from the inner rule, in pixels. */
+constexpr float kCreditClear = 12;
 
 // The reading order, in seconds: the frame is ruled, the title engraved,
 // the numerals and rims drawn, the sand strewn, then the bow passes each
@@ -102,6 +107,42 @@ float roundSwell(float phase) {
 }
 /** How far along the rim the bow has drawn in that twelfth. */
 float roundTravel(float phase) { return std::min(phase * 12, 1.0f); }
+/** How far the figure's sound has spread: it leaves the rim with the bow
+ *  and dies away across two twelfths of the round. */
+float roundSound(float phase) { return std::min(phase * 6, 1.0f); }
+constexpr float kSoundSeconds = 2 * kRoundStep;
+
+/** THE SOUND IS TWO WAVEFRONTS, the second leaving the rim a little
+ *  after the first. Each spreads fast and slows as it goes, and its
+ *  loudness falls with the distance it has spread, not with the bow's
+ *  pressure: a ring that faded with the pressure alone would stand at its
+ *  widest at full strength, a second rim rather than a sound. */
+constexpr float kFrontLag = 0.26f;
+constexpr float kSoundReach = 0.24f;
+float frontSpread(float sound, int front) {
+  const float lag = kFrontLag * (float)front;
+  return std::clamp((sound - lag) / (1 - lag), 0.0f, 1.0f);
+}
+template <int Front>
+float frontReach(float sound) {
+  return choreograph::easeOutCubic(frontSpread(sound, Front));
+}
+template <int Front>
+float frontLoudness(float sound) {
+  const float spread = frontSpread(sound, Front);
+  if (spread <= 0 || spread >= 1) return 0;
+  return std::min(spread * 14, 1.0f) * std::pow(1 - spread, 2.4f);
+}
+/** A wavefront is a band of pressure, not a line: it is stroked wide and
+ *  inked by a gradient across its width that is clear at both edges, so
+ *  it never reads as a second rim ruled beside the first. */
+struct Front {
+  choreograph::EaseFn reach, loudness;
+  float width, peak;
+};
+const std::array<Front, 2> kFronts{
+    Front{frontReach<0>, frontLoudness<0>, 8.0f, 0.9f},
+    Front{frontReach<1>, frontLoudness<1>, 5.0f, 0.65f}};
 
 /** HOW THE PLATE IS SET. The tokens are its inks; the lettering is three
  *  hands — italic figures for the numerals, the same italic for the
@@ -123,7 +164,7 @@ StyleSheet plateSheet(const data::Json& inks) {
           .fontStyle(FontStyle::Normal)
           .fontWeight(400),
       rule("h1").fontSize(1.9_rem).letterSpacing(1),
-      rule("footer").fontSize(0.85_rem).letterSpacing(0.3).ink(var("ink-soft")),
+      rule("footer").fontSize(0.62_rem).letterSpacing(0.3).ink(var("ink-soft")),
   };
 }
 
@@ -141,21 +182,37 @@ struct ChladniTab1 {
    *  the bow as well as on its own flight. */
   choreograph::Output<float> clock{0};
 
-  /** One figure's sand: its pool and the phase each grain shivers at. */
+  /** One figure's sand: its pool, the phase each grain shivers at, and
+   *  which of its two stampings shows — 1 the baked one, 0 the live one. */
   struct Sand {
     std::shared_ptr<instancing::Pool> pool =
         std::make_shared<instancing::Pool>();
     std::vector<float> shiver;
+    std::unique_ptr<choreograph::Output<float>> baked =
+        std::make_unique<choreograph::Output<float>>(0.0f);
   };
   std::vector<Sand> sand;
   std::shared_ptr<instancing::CellSheet> marks;
-  /** The pressure of the bow's first pass on each figure, 0 to 1, read
-   *  by the drawing and by the sand alike. */
-  std::vector<Bound> firstPass;
-  /** THE SAND IS STAMPED LIVE until every grain has landed, and baked
-   *  from then on: the tree is described once more, at that moment. */
+  /** ONE PASS OF THE BOW, as the clock reads it: the pressure, 0 to 1,
+   *  read by the drawing and by the sand alike; how far along the rim the
+   *  contact has drawn; how far its sound has spread. */
+  struct BowPass {
+    Bound pressure, travel, sound;
+  };
+  std::vector<BowPass> firstPass, roundPass;
+  /** THE SAND IS STAMPED TWICE, live and baked, and one of the two
+   *  shows: the live stamping while the sand gathers, the baked one once
+   *  every grain has landed, and the live one again for the figure the
+   *  round is bowing, so its grains hop, until the bow moves on. The
+   *  switch is a stepped value rather than a new description, because a
+   *  node filled with a material recipe takes its bake again on every
+   *  describe, however unchanged; the tree is described once more only
+   *  when the sand has landed, so the baked stamping holds the grains at
+   *  rest. */
+  static constexpr size_t kNoFigure = SIZE_MAX;
   float allLanded = 0;
-  bool sandLive = true, restingDescribed = false;
+  bool gathering = true, describeAgain = false;
+  size_t hopping = kNoFigure;
 
   Paint ink;
   Pattern foxing, foxingLow;
@@ -163,7 +220,7 @@ struct ChladniTab1 {
    *  unequal to the one before, so a node described again with it would
    *  have its bake taken again. */
   Element paper;
-  std::vector<Fill> fans;
+  std::vector<Fill> fans, frontInks;
 
   // =========================================================================
 
@@ -250,8 +307,11 @@ struct ChladniTab1 {
             .opacity(settled(index, 0.58f, 0.94f))
             .cache(Cache::Texture);
       case Kind::Valleys: {
-        // The engraved tone is a radial fan of combed strokes, heavier
-        // toward the rim, and the star's channel is cut out of it.
+        // The engraved tone is a radial fan of combed strokes under the
+        // sand, and the star's channel is cut out of it. The fan's spokes
+        // are evenly spaced and open out toward the rim, where they would
+        // read as a ruled band, so the fan fades out before the rim and
+        // the combed grains alone carry the fur there.
         return kit::disc(middle(), radius)
             .key(tag + "fan")
             .shape(shapes::circle())
@@ -283,33 +343,37 @@ struct ChladniTab1 {
   }
 
   /** ONE PASS OF THE BOW over a figure: the contact drawn along the rim
-   *  under its pressure, and the ring of sound the disc sends out. */
-  Element bowed(const Figure& figure, const std::string& key, Bound pressure,
-                Bound travel) const {
+   *  under its pressure, and the sound the disc sends out, 0 at the rim
+   *  and 1 where it has died away. */
+  Element bowed(const std::string& key, const BowPass& pass) const {
     PathFormat contact =
         stroke(3.0f, Fill::currentInk(), PathFormat::Align::Inner);
     contact.trimEnd = 0.065f;
-    contact.trimPhase = travel;
-    return box().cover().children({
-        kit::disc(middle(), radius)
-            .key(key + "contact")
-            .shape(shapes::circle())
-            .fill(Fill::none())
-            .stroke(contact)
-            .opacity(Bound(pressure).target(0, 0.66f))
-            .cache(Cache::None),
-        kit::disc(middle(), radius)
-            .key(key + "sound")
-            .shape(shapes::circle())
-            .fill(Fill::none())
-            .stroke(stroke(1.0f, Fill::var("ink-line")))
-            .scale(Bound(travel)
-                       .map(choreograph::easeOutCubic)
-                       .target(1.0f, 1.09f))
-            .opacity(Bound(pressure).target(0, 0.4f))
-            .cache(Cache::None),
-    });
+    contact.trimPhase = pass.travel;
+    return box()
+        .cover()
+        .children({kit::disc(middle(), radius)
+                       .key(key + "contact")
+                       .shape(shapes::circle())
+                       .fill(Fill::none())
+                       .stroke(contact)
+                       .opacity(Bound(pass.pressure).target(0, 0.66f))
+                       .cache(Cache::None)})
+        .children(each(kFronts, [&](const Front& front, size_t at) {
+          return kit::disc(middle(), radius)
+              .key(key + "sound" + std::to_string(at))
+              .shape(shapes::circle())
+              .fill(Fill::none())
+              .stroke(stroke(front.width, frontInks[at]))
+              .scale(
+                  Bound(pass.sound).map(front.reach).target(1, 1 + kSoundReach))
+              .opacity(
+                  Bound(pass.sound).map(front.loudness).target(0, front.peak))
+              .cache(Cache::None);
+        }));
   }
+
+  bool stamping(size_t index) const { return gathering || index == hopping; }
 
   /** A figure's centre in its own cell. */
   SkPoint middle() const { return {kCellReach * radius, kCellReach * radius}; }
@@ -338,27 +402,29 @@ struct ChladniTab1 {
                 .key(tag + "sand")
                 .opacity(
                     animate(from(0.0f).to(1.0f), ramp(kScatterAt * 1000, 400)))
-                .children(
-                    {instancing::instances(marks, sand[index].pool,
-                                           sandLive ? instancing::Mode::Live
-                                                    : instancing::Mode::Data)})
-                .cache(sandLive ? Cache::None : Cache::Texture),
-            bowed(figure, tag + "first", firstPass[index],
-                  bind(&clock).window(bowAt(index) - 0.22f,
-                                      bowAt(index) + 0.40f)),
+                .children({
+                    box()
+                        .cover()
+                        .key(tag + "sandbaked")
+                        .opacity(bind(sand[index].baked.get()))
+                        .children({instancing::instances(
+                            marks, sand[index].pool, instancing::Mode::Data)})
+                        .cache(Cache::Texture),
+                    box()
+                        .cover()
+                        .key(tag + "sandlive")
+                        .opacity(bind(sand[index].baked.get()).invert())
+                        .children({instancing::instances(
+                            marks, sand[index].pool, instancing::Mode::Live)}),
+                }),
+            bowed(tag + "first", firstPass[index]),
+            // The round's waves repeat on a folded phase, so the pass is
+            // shown only from its first turn on.
             box()
                 .cover()
                 .opacity(animate(from(0.0f).to(1.0f),
                                  ramp(roundAt(index) * 1000, 1)))
-                .children({bowed(figure, tag + "round",
-                                 bind(&clock)
-                                     .source(roundAt(index),
-                                             roundAt(index) + 12 * kRoundStep)
-                                     .wave(roundSwell),
-                                 bind(&clock)
-                                     .source(roundAt(index),
-                                             roundAt(index) + 12 * kRoundStep)
-                                     .wave(roundTravel))}),
+                .children({bowed(tag + "round", roundPass[index])}),
             text(std::to_string(figure.number) + ".")
                 .role("numeral")
                 .key(tag + "numeral")
@@ -387,6 +453,13 @@ struct ChladniTab1 {
   Element describe() const {
     const data::Json& title = plate["title"];
     const data::Json& credit = plate["credit"];
+    const data::Json& rule = plate["frame"];
+    const float gap = (float)rule["gap"].number() * scale;
+    const SkRect innerFrame =
+        SkRect::MakeLTRB((float)rule["left"].number() * scale + gap,
+                         (float)rule["top"].number() * scale + gap,
+                         (float)rule["right"].number() * scale - gap,
+                         (float)rule["bottom"].number() * scale - gap);
     const auto at = [&](const data::Json& place) {
       return SkPoint{(float)place["centre"][0].number() * scale,
                      (float)place["centre"][1].number() * scale};
@@ -412,9 +485,13 @@ struct ChladniTab1 {
             figures,
             [&](const Figure&, size_t index) { return figureCell(index); }))
         .children({
+            // The signature is small, as an engraver's is, and stands in the
+            // frame's lower right corner, in from the inner rule and clear
+            // of the curve of the last disc above it.
             document::footer(Utf8(credit["words"].text()))
                 .key("credit")
-                .centerAt(at(credit))
+                .right(canvas.width() - innerFrame.right() + kCreditClear)
+                .bottom(canvas.height() - innerFrame.bottom() + kCreditClear)
                 .opacity(
                     animate(from(0.0f).to(1.0f), ramp(kCreditAt * 1000, 700))),
         });
@@ -425,16 +502,46 @@ struct ChladniTab1 {
   /** THE SAND, stepped: every grain's flight toward its line, then the
    *  hop no flight holds — a shiver that decays across the walk, and a
    *  nudge while the bow is on the figure's rim. Sand lies still until
-   *  the bow first reaches its disc. */
+   *  the bow first reaches its disc, and after it has landed only the
+   *  figure the round is bowing moves. */
   void stepSand(float seconds) {
-    if (!sandLive) return;
     static const choreograph::EaseFn bounce = ease::outBounce();
+    if (gathering && seconds >= allLanded) {
+      // One last step lands every grain exactly on its line.
+      for (Sand& grains : sand) {
+        grains.pool->fly(allLanded + 1, bounce);
+        grains.pool->commit();
+      }
+      for (Sand& grains : sand) *grains.baked = 1.0f;
+      gathering = false;
+      describeAgain = true;
+    }
+    if (!gathering) {
+      const size_t bowing =
+          seconds < kRoundAt
+              ? kNoFigure
+              : (size_t)((seconds - kRoundAt) / kRoundStep) % figures.size();
+      if (bowing != hopping) {
+        if (hopping != kNoFigure) {
+          sand[hopping].pool->fly(allLanded + 1, bounce);
+          *sand[hopping].baked = 1.0f;
+        }
+        hopping = bowing;
+        if (hopping != kNoFigure) *sand[hopping].baked = 0.0f;
+      }
+    }
     for (size_t index = 0; index < sand.size(); ++index) {
+      if (!stamping(index)) continue;
       Sand& grains = sand[index];
       grains.pool->fly(seconds, bounce);
       const auto flights = std::as_const(*grains.pool).flights();
       auto positions = grains.pool->positions();
-      const float nudge = firstPass[index].value().apply(seconds) * 1.5f;
+      const float pressure =
+          firstPass[index].pressure.value().apply(seconds) +
+          (seconds >= roundAt(index)
+               ? roundPass[index].pressure.value().apply(seconds)
+               : 0.0f);
+      const float nudge = pressure * 1.8f;
       for (size_t at = 0; at < flights.size(); ++at) {
         const instancing::Pool::Flight& flight = flights[at];
         const float walked =
@@ -446,14 +553,6 @@ struct ChladniTab1 {
             std::sin(seconds * 21 + phase) * hop,
             std::cos(seconds * 17 + phase * 1.7f) * hop * 0.8f);
       }
-    }
-    if (seconds >= allLanded) {
-      // One last step lands every grain exactly on its line.
-      for (Sand& grains : sand) {
-        grains.pool->fly(allLanded + 1, bounce);
-        grains.pool->commit();
-      }
-      sandLive = false;
     }
   }
 
@@ -468,9 +567,9 @@ struct ChladniTab1 {
     sheet = plateSheet(plate["ink"]);
 
     // The still is the settled plate, the signature in, and the round's
-    // bow at its full pressure on figure 8's rim.
+    // bow on figure 8's rim with both wavefronts of its sound spreading.
     sketch::kit::stage(ctx, {.size = canvas,
-                             .captureAt = 10.6,
+                             .captureAt = 10.72,
                              .background = colourOf(plate["ink"]["paper"])});
 
     // Ink on rag paper is never flat: luminance noise shades the fill
@@ -505,11 +604,25 @@ struct ChladniTab1 {
     marks->cell(mark(16.0f, 1.1f, 0.86f), {18, 3});
 
     paper = leaf();
-    for (const Figure& figure : figures)
+    const material::Color fur = colourOf(plate["ink"]["fur"]);
+    for (const Figure& figure : figures) {
+      const auto across = [&](float share) {
+        return figure.inner + share * (1 - figure.inner);
+      };
       fans.push_back(radialGradient(
           {radius, radius}, radius,
-          {material::Color{0, 0, 0, 0}, colourOf(plate["ink"]["fur"])},
-          {figure.inner + 0.3f * (1 - figure.inner), 1.0f}));
+          {material::withAlpha(fur, 0), fur, material::withAlpha(fur, 0)},
+          {across(0.2f), across(0.6f), 0.95f}));
+    }
+
+    const material::Color line = colourOf(plate["ink"]["ink-line"]);
+    for (const Front& front : kFronts) {
+      const float outer = radius + front.width * 0.5f;
+      frontInks.push_back(radialGradient(
+          {radius, radius}, outer,
+          {material::withAlpha(line, 0), line, material::withAlpha(line, 0)},
+          {(radius - front.width * 0.5f) / outer, radius / outer, 1.0f}));
+    }
 
     sand.resize(figures.size());
     for (size_t index = 0; index < figures.size(); ++index) {
@@ -520,10 +633,17 @@ struct ChladniTab1 {
       for (const instancing::Pool::Flight& flight :
            std::as_const(*grains.pool).flights())
         allLanded = std::max(allLanded, flight.start + flight.duration);
+      const float first = bowAt(index) - 0.22f;
       firstPass.push_back(
-          bind(&clock)
-              .window(bowAt(index) - 0.22f, bowAt(index) + 0.40f)
-              .cosine());
+          {.pressure = bind(&clock).window(first, first + 0.62f).cosine(),
+           .travel = bind(&clock).window(first, first + 0.62f),
+           .sound = bind(&clock).window(first, first + kSoundSeconds)});
+      const float round = roundAt(index);
+      const float cycle = round + 12 * kRoundStep;
+      roundPass.push_back(
+          {.pressure = bind(&clock).source(round, cycle).wave(roundSwell),
+           .travel = bind(&clock).source(round, cycle).wave(roundTravel),
+           .sound = bind(&clock).source(round, cycle).wave(roundSound)});
     }
 
     ctx.ticker.add([this, &ticker = ctx.ticker] {
@@ -535,10 +655,10 @@ struct ChladniTab1 {
     ctx.composer.render(describe());
   }
 
-  /** Described once more, when the sand has come to rest. */
+  /** Described once more, when the sand has landed. */
   void update(double, sketch::SketchContext& ctx) {
-    if (sandLive || restingDescribed) return;
-    restingDescribed = true;
+    if (!describeAgain) return;
+    describeAgain = false;
     ctx.composer.render(describe());
   }
 };

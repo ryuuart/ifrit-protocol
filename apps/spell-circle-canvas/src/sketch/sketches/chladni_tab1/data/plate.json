@@ -14,7 +14,7 @@
   "frame": { "left": 48, "top": 153, "right": 1517, "bottom": 1977, "gap": 11 },
   "platemark": { "left": 22, "top": 36, "right": 1542, "bottom": 2003 },
   "title": { "words": "Tab. I.", "centre": [1436, 106] },
-  "credit": { "words": "Capieux. sculps. 1786.", "centre": [1359, 1945] },
+  "credit": { "words": "Capieux. sculps. 1786." },
   "figures": [
     { "number": 1, "centre": [289, 394], "kind": "star", "points": 2, "inner": 0.05, "waist": 0.0, "lines": 1, "grains": 240,
       "letters": [[0, 1.14, "n"], [90, 1.16, "m"], [180, 1.15, "p"], [270, 1.16, "q"]] },
