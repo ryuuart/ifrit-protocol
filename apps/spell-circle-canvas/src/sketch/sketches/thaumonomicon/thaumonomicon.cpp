@@ -220,7 +220,7 @@ Element nebula(SkSize size) {
                             .blendMode(SkBlendMode::kScreen);
                       }),
                  box().inset(0).opacity(0.30f).blendMode(SkBlendMode::kOverlay).fill(
-                     Paint::recipe(field::noise(0.004f, 4, 3.0f))),
+                     field::noise(0.004f, 4, 3.0f)),
                  box().inset(0).children(stars)});
 }
 

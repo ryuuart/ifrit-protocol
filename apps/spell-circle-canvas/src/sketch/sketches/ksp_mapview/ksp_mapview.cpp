@@ -459,7 +459,7 @@ struct KspMapView {
              .stroke(stroke(1.2f, Fill::color(hexColor(0x2A3034)))),
          kit::dot(kBall, kBallRadius + 5, Fill::color(hexColor(0x171B1E))),
          kit::disc(kBall, kBallRadius)
-             .fill(Paint::recipe(material::kit::globe(
+             .fill(material::kit::globe(
                  {.sky = hexColor(0x1180AC),
                   .skyPole = hexColor(0x8ED4E8),
                   .ground = hexColor(0x8B5A2E),
@@ -467,7 +467,7 @@ struct KspMapView {
                   .yaw = yaw,
                   .pitch = pitch,
                   .roll = roll,
-                  .minorWeight = 0.22f}))),
+                  .minorWeight = 0.22f})),
          kit::disc(kBall, kBallRadius)
              .shape(shapes::circle())
              .overflow(Overflow::Clip)

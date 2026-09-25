@@ -313,13 +313,13 @@ struct DunhuangStarChart {
     for (const Map& map : maps)
       if (onThis((float)(map.number - 1) * kSlot)) columns.push_back(map);
     return kit::at(length.left, length.top, kWidth - length.left, height)
-        .fill(Paint::recipe(material::kit::board({.paint = kPaper,
+        .fill(material::kit::board({.paint = kPaper,
                                                   .tooth = 0.07f,
                                                   .toothScale = 0.08f,
                                                   .stretch = 2.5f,
                                                   .wear = 0.16f,
                                                   .wearScale = 0.003f,
-                                                  .seed = (float)index})))
+                                                  .seed = (float)index}))
         .overflow(Overflow::Clip)
         .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 24))
         .children({box().inset(0).fill(linearGradient(

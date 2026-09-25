@@ -105,7 +105,7 @@ Element headline(material::Color color) {
  *  glass. */
 Element tube() {
   return box().cover().zIndex(9).fill(
-      material::skia::Paint::recipe(field::crtOverlay(kPitch, 0.10f)));
+      field::crtOverlay(kPitch, 0.10f));
 }
 
 /** A panel: the ground, the construction, the tube. Both panels are laid

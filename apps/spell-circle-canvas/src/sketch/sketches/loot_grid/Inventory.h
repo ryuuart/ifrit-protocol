@@ -350,7 +350,7 @@ inline Element panel(float w, float h) {
       // quarried, not smooth: the grain is generated, never a texture file
       .children({box()
                      .inset(0)
-                     .fill(Paint::recipe(field::noise(0.06f, 4, 7.0f)))
+                     .fill(field::noise(0.06f, 4, 7.0f))
                      .opacity(0.16f)
                      .blendMode(SkBlendMode::kOverlay)})
       .foreground(

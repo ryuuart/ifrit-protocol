@@ -118,7 +118,7 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
           .figure = sketch::kit::well(
               {.width = kCell,
                .height = kPicture,
-               .ground = material::skia::Paint::recipe(std::move(paint))}),
+               .ground = std::move(paint)}),
           .note = note};
 }
 

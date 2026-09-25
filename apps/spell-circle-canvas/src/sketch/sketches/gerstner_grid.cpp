@@ -386,7 +386,7 @@ struct GerstnerGrid {
     root.children(
         {box()
              .inset(0)
-             .fill(material::skia::Paint::recipe(field::noise(0.9f, 3, 5.0f)))
+             .fill(field::noise(0.9f, 3, 5.0f))
              .opacity(0.05f)
              .blendMode(SkBlendMode::kMultiply)
              .cache(Cache::Texture),

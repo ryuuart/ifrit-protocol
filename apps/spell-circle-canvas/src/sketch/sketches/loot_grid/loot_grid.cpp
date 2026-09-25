@@ -598,7 +598,7 @@ struct LootGrid {
              .children(
                  {box()
                       .inset(0)
-                      .fill(Paint::recipe(field::noise(0.9f, 4, 3.0f)))
+                      .fill(field::noise(0.9f, 4, 3.0f))
                       .opacity(0.34f)
                       .blendMode(SkBlendMode::kOverlay),
                   box().inset(0).fill(

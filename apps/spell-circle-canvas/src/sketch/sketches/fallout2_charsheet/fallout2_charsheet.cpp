@@ -79,7 +79,7 @@ const Paint kPlate = Paint::linearUnit(
     {0, 0}, {0.15f, 1},
     {{0.0f, hexColor(0x483828)}, {0.4f, hexColor(0x383020)},
      {1.0f, hexColor(0x302820)}});
-const Paint kPlateTooth = Paint::recipe(field::grain(0.22f, 3, 11.0f, 0.65f));
+const material::Material kPlateTooth = field::grain(0.22f, 3, 11.0f, 0.65f);
 const Paint kRust =
     Paint::blend({{Paint::solid(hexColor(0x7C581C)), SkBlendMode::kSrcOver},
                   {Paint::recipe(field::grain(0.0075f, 3, 5.0f, 1.35f)),

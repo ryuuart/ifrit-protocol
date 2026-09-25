@@ -114,9 +114,9 @@ inline Element station(const char* key, float x, float y, float size = 16) {
       .width(size)
       .height(size)
       .centerAt({x, y})
-      .fill(Paint::recipe(sdf::material(
+      .fill(sdf::material(
           sdf::circle(),
-          {.fill = kBone, .borderWidth = 2.5f, .borderColor = kInk})))
+          {.fill = kBone, .borderWidth = 2.5f, .borderColor = kInk}))
       .zIndex(6);
 }
 
@@ -286,10 +286,10 @@ struct NightNetwork {
     //    INSTANCED along the route (snapshot-baked once, replayed per
     //    slot). dia. 190 circle -> circumference ~597 -> 8 stamps at 74.6.
     Element ringStamp =
-        box().width(11).height(11).fill(Paint::recipe(sdf::material(
+        box().width(11).height(11).fill(sdf::material(
             sdf::circle(), {.fill = nn::kBone,
                             .borderWidth = 2.0f,
-                            .borderColor = {0.30f, 0.18f, 0.48f, 1}})));
+                            .borderColor = {0.30f, 0.18f, 0.48f, 1}}));
     Brush orbital;
     orbital.layer(lines::Line{.width = 3.2f, .fill = Fill::color(nn::kViolet)});
     orbital.layer(brush::Scatter{.art = ringStamp,

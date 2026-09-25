@@ -466,7 +466,7 @@ struct Ds2Bench {
             // The tube the hologram is seen through: fine scanlines and a
             // falloff into the corners, laid over everything.
             box().inset(0).fill(
-                Paint::recipe(field::crtOverlay(3, 0.09f, 1.0f, 1.9f, 0.6f, 0.7f))),
+                field::crtOverlay(3, 0.09f, 1.0f, 1.9f, 0.6f, 0.7f)),
         });
   }
 

@@ -323,8 +323,8 @@ struct WorldHud {
                                  [](const Band& b) {
                                    return box()
                                        .inset(0)
-                                       .fill(Paint::recipe(field::noise(
-                                           b.frequency, b.octaves, b.gain)))
+                                       .fill(field::noise(
+                                           b.frequency, b.octaves, b.gain))
                                        .opacity(b.opacity)
                                        .blendMode(b.blend);
                                  }),

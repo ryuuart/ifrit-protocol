@@ -237,7 +237,7 @@ sketch::kit::ComparisonCase operand(const char* caseTitle, const char* call,
                         .key(std::move(key))
                         .width(kPanel)
                         .height(kPanel)
-                        .fill(material::skia::Paint::recipe(std::move(material)))
+                        .fill(std::move(material))
                         .stroke(stroke(1.0f, Fill::color(kFrame))),
           .note = note};
 }

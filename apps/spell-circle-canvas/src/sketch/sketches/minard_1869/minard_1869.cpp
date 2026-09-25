@@ -329,7 +329,7 @@ struct Minard1869 {
                 // The sheet's tooth, laid under everything printed.
                 box()
                     .inset(0)
-                    .fill(Paint::recipe(field::grain(0.5f, 3, 1869.0f)))
+                    .fill(field::grain(0.5f, 3, 1869.0f))
                     .blendMode(SkBlendMode::kMultiply)
                     .opacity(0.08f),
                 // The printed frame: a heavy rule outside a fine one.

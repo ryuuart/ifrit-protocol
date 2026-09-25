@@ -334,7 +334,7 @@ struct PersonaMenu {
                  .children({box().inset(0).fill(bands).opacity(0.97f),
                             box()
                                 .inset(0)
-                                .fill(Paint::recipe(field::noise(0.006f, 4)))
+                                .fill(field::noise(0.006f, 4))
                                 .opacity(0.20f)
                                 .blendMode(SkBlendMode::kSoftLight),
                             box().inset(0).fill(Paint::solid(nn::kTintVeil))})})

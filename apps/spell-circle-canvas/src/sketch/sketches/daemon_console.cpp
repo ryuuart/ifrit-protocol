@@ -641,7 +641,7 @@ struct DaemonConsole {
                                 .borderColor = hexColor(0x3B5474, 0.95f),
                                 .glowRadius = 6,
                                 .glowColor = hexColor(0x3EC2DC, 0.22f)};
-    Paint panel = Paint::recipe(sdf::material(sdf::roundBox(12), panelStyle));
+    material::Material panel = sdf::material(sdf::roundBox(12), panelStyle);
     const float padX = sdf::pad(panelStyle) + 17.0f;
     const float padY = sdf::pad(panelStyle) + 12.0f;
 

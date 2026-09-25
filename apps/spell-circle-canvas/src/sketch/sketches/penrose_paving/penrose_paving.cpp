@@ -22,7 +22,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/kit/Grained.h>
-#include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
@@ -37,7 +36,6 @@ namespace field = sigil::material::field;
 namespace material = sigil::material;
 namespace shapes = sigil::geometry::shapes;
 namespace sketch = sigil::sketch;
-using material::skia::Paint;
 
 using namespace sigil::compose;
 
@@ -197,8 +195,8 @@ Element rhombOf(const Rhomb& sett, float side) {
 
 /** Granite cut from one slab per sett: the stone's two tones, grain and
  *  speckle, seeded by the sett's place so no two neighbours match. */
-Paint granite(bool fat, int place) {
-  return Paint::recipe(material::kit::stone({
+material::Material granite(bool fat, int place) {
+  return material::kit::stone({
       .hi = fat ? kWhiteLit : kGreyLit,
       .lo = fat ? kWhiteShade : kGreyShade,
       .bedLength = 260,
@@ -209,7 +207,7 @@ Paint granite(bool fat, int place) {
       .speckleCell = fat ? 4.0f : 6.5f,
       .speckleAlpha = 0.26f,
       .seed = (float)(place % 37),
-  }));
+  });
 }
 
 /** THE STEEL ARC round one corner: radius half an edge, from the midpoint
@@ -294,7 +292,7 @@ struct PenrosePaving {
   static std::vector<Element> weather() {
     return {box()
                 .inset(0)
-                .fill(Paint::recipe(field::grain(0.0042f, 2, 91, 0.62f, 1.15f)))
+                .fill(field::grain(0.0042f, 2, 91, 0.62f, 1.15f))
                 .blendMode(SkBlendMode::kSoftLight)
                 .opacity(0.5f),
             box()

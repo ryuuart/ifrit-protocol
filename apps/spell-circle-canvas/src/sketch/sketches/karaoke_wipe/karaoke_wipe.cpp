@@ -470,14 +470,14 @@ Text withCountIn(Text line, const choreograph::Output<float>* cycle) {
 Element tube() {
   return box()
       .cover()
-      .fill(material::skia::Paint::recipe(
+      .fill(
           material::field::crtOverlay({.uScanPitch = 3.0f,
                                        .uScanStrength = 0.10f,
                                        .uVigInner = 1.05f,
                                        .uVigOuter = 2.05f,
                                        .uVigStrength = 0.62f,
                                        .uSqueeze = 0.62f,
-                                       .uGrain = 0.05f})))
+                                       .uGrain = 0.05f}))
       .cache(Cache::Texture)
       .key("tube");
 }

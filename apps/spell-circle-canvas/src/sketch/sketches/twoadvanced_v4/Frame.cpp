@@ -121,9 +121,9 @@ auto TwoAdvancedV4::masthead() -> Element {
         by::alpha(stretchFill(logoBugSvg, 62, 62)))});
   } else {
     emblem
-        .fill(material::skia::Paint::recipe(material::sdf::material(
+        .fill(material::sdf::material(
             material::sdf::circle(),
-            {.fill = {0, 0, 0, 0}, .borderWidth = 4, .borderColor = kCyan})))
+            {.fill = {0, 0, 0, 0}, .borderWidth = 4, .borderColor = kCyan}))
         .children(
             {kit::centred()
                  .width(50)
@@ -439,10 +439,10 @@ auto TwoAdvancedV4::footerDock() -> Element {
         {kit::centred()
              .width(80)
              .height(80)
-             .fill(material::skia::Paint::recipe(
+             .fill(
                  material::sdf::material(material::sdf::circle(), {.fill = hexColor(0x0A0202),
                                                  .borderWidth = 3,
-                                                 .borderColor = kD6})))
+                                                 .borderColor = kD6}))
 
              .children({radarSweep(i, hexColor(0xB65050), 0.42f),
                         box()

@@ -161,7 +161,7 @@ inline Element boneFrame(float w, float h, float radius = 3) {
       .children({box()
                      .inset(0)
                      .borderRadius({radius})
-                     .fill(Paint::recipe(field::noise(0.36f, 3, 1.0f)))
+                     .fill(field::noise(0.36f, 3, 1.0f))
                      .opacity(0.38f)
                      .blendMode(SkBlendMode::kMultiply)})
       .foreground(stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f}),
