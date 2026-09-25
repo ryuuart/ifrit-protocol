@@ -31,7 +31,7 @@ const std::vector<Force> forces{gravity({0, 980}), wind(breeze, 40.0f),
                                 repel(cursor, 6000.0f, 120.0f)};
 const Verlet stepper{.timeStep = 1.0f / 120.0f, .damping = 0.4f, .iterations = 8};
 
-ticker.addFixed(120.0, [&] { stepper.step(cloth, forces, weave); return true; });
+engine.timer([&] { stepper.step(cloth, forces, weave); }, {.stepRate = 120.0});
 ```
 
 **`Points` is attributes, not particles.** `position`, `previous`,
@@ -61,8 +61,8 @@ point crosses in without this library including a renderer's header.
 determinism claim: a simulation stepped by a frame's delta is a
 different simulation on every machine and on every frame that stutters,
 while one stepped by a fixed number is the same run everywhere and can
-be replayed and compared. A host with a varying clock drives it from
-`Ticker::addFixed`, which is exactly this shape.
+be replayed and compared. A host with a varying clock drives it from a
+timer with a `TimerOptions::stepRate`, which is exactly this shape.
 
 **One force value with a kind, one constraint value with a kind.** A
 force is `Uniform` (an acceleration, so weight does not enter it),
@@ -181,13 +181,12 @@ const Emitter mouth{
     .rate = 6000.0f};
 
 core::chance::Stream stream = core::chance::Stream::pcg(1982);
-ticker.addFixed(60.0, [&] {
+engine.timer([&] {
   mouth.emit(fire, stream, 1.0f / 60.0f);
   stepper.step(fire.points, forces);
   fire.live(1.0f / 60.0f);
   fire.reap();
-  return true;
-});
+}, {.stepRate = 60.0});
 ```
 
 **Every attribute is a `Roughly`**: a middle, how far either side of it a

@@ -39,6 +39,9 @@ struct Cell {
   uint32_t writer = 0;
   /** A motion is writing the cell. */
   bool moving = false;
+  /** The motion writing it, while one is — what a blended change rides
+   *  on top of. */
+  std::weak_ptr<void> motion;
 };
 }  // namespace detail
 

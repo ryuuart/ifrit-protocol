@@ -1,12 +1,11 @@
 # SigilMotion — the values
 
-The chapter on the values a property is described by: the transition
-and the animatable slot, the held motion a ticker is running for one, the
-two signals that are functions of a time alone, the spring that carries
-its own velocity, the lanes a retained host retargets through, and the
-three words for stillness. `README.md` beside this file is the library;
-`BIND.md` is the shaped binding an animatable can hold and `CLOCK.md` the
-ticker a moving one moves on.
+The chapter on the values a property is described by: the animatable,
+the tween and the transition, the signals that are functions of a time
+alone, the spring that carries its own velocity, and the words for
+stillness. `README.md` beside this file is the library; `BIND.md` is the
+shaped binding an animatable can hold and `CLOCK.md` the engine a moving
+one moves on, with the held motions a reconciler runs.
 
 ## The four forms
 
@@ -38,37 +37,6 @@ lives as long as any copy does. Assigning a number to a live value writes
 the cell; assigning one to any other form makes it that constant. Two
 live values compare by the cell they read (`Animatable::identity()`),
 never by the number behind it.
-
-## The held motion
-
-A moving `Animatable<float>` has a second half: the motion a ticker is
-actually running for it. That is `AnimatedFloat` — a held live value,
-whether it has started, and the endpoint it is flying at — and a consumer
-that retains state keeps one beside each animatable it lets move. Four
-operations are stated over one held motion, so the consumer's storage (a
-fixed array, a vector, one member) stays its own business:
-
-```cpp
-AnimatedFloat*                    held;    // what the consumer retains
-resolveFloatAt(held, v);                   // the value for this frame
-transitionFloatAt(ticker, held, prev, next, fallback);  // a moved target
-mountEntrance(ticker, held, v, extraDelaySeconds);      // the first appearance
-```
-
-`resolveFloatAt` is the reading order and the reason there is one body:
-a live value wins (shaped through its stages when it has any), then a
-running ramp, then the constant. `transitionFloatAt` starts a ramp
-from WHERE THE VALUE IS rather than from the previous description, so a
-target that moves mid-flight bends the motion instead of restarting it;
-a motion already headed at the new target keeps flying, and a next value
-that is constant or live snaps and stops the ramp; a change whose
-transition says `Composition::Blend` rides on top of the running ramp
-instead, so the value's velocity carries through. `mountEntrance` plays
-the `from` a tween names, through its keyframes or to its `to`, after
-whatever extra delay the caller staggers by, as many times as its `loop`
-says. `resolveProperty<T>` is the flattening underneath: an animatable
-read against a fallback transition, giving a target, a live value, or a
-spec.
 
 ## The tween
 
@@ -167,7 +135,7 @@ a stiffness nobody can.
 The target is an argument to the step and not a member of the spring,
 because a target that moves mid-flight is the whole reason to reach for
 one. An `ease::` curve runs between two fixed endpoints and can only
-restart when one of them moves; `transitionFloatAt` bends by starting a
+restart when one of them moves; a retarget bends by starting a
 new ramp from where the value is, which loses the speed it had. A spring
 keeps that speed and turns.
 
@@ -192,34 +160,6 @@ whether that description changed compares it rather than stepping it
 again to see — which also tells a value on its target at speed from one
 at rest there, the distinction the whole pair of numbers exists for.
 
-## Lanes: where a host's motions live
-
-A retained host holds one `AnimatedFloat` per animatable it lets move,
-and a patch has to bend the running motions of the old description onto
-the endpoints the new one asks for. A **lane** is that pairing: an
-animatable the description carries, and the address of the held motion
-that serves it.
-
-```cpp
-enum class Family : uint8_t { Slot, Span };   // the HOST's storages
-using enum Family;                            // named unqualified below
-
-std::vector<Lane<Family>> prev, next;         // filled by the host
-retargetSlots<Family>(ticker, anims, familyLanes(prev, Slot),
-                      familyLanes(next, Slot), nodeTransition);
-retargetFamily<Family>(ticker, spanAnims, familyLanes(prev, Span),
-                       familyLanes(next, Span), nodeTransition);
-```
-
-`Family` is the host's own enumeration and nothing here reads it beyond
-grouping — which is why lanes are motion's rather than a reconciler's.
-A **fixed** family is a slot array whose rows are a property of the host,
-so a row one description lacks ramps from or to the lane's `standing`
-value and a row neither carries is skipped entirely. A **positional**
-family is sized by the description, so a change of SHAPE drops the
-running motions rather than carrying them onto endpoints that now mean
-something else.
-
 ## Stillness, in three words
 
 "Is anything still moving" is three different questions, and answering one
@@ -228,25 +168,23 @@ forever. Each has its own word here:
 
 | word | asks | grain |
 |---|---|---|
-| **declared** — a value holds a binding or a transition | *could* this move? | one value, from the description alone |
-| **running** — `isLive(anim, v)` | is it moving *now*? | one value plus the motion held for it |
+| **declared** — `Animatable::isRunning()`: a value is live | *could* this move? | one value, from the description alone |
+| **running** — `isRunning(held, value)` | is it moving *now*? | one value plus the motion held for it |
 | **settled** — `core::Settle` in SigilCore | has it provably *held still*? | a node's values, observed across frames |
 
-The trap is that the first two can never say "it stopped". A binding
-stays attached for the whole life of the value it drives, so a
-declaration is permanent; and `AnimatedFloat::started` is permanent in
-the same way, which is why `isLive` asks the output's `isConnected()`
-instead
-— Choreograph disconnects an output when its motion finishes, and that is
-the one thing in a running motion that changes when it lands.
+The trap is that the first two can never say "it stopped". A live value
+stays live for the whole life of the value it drives, so a declaration is
+permanent; and `HeldMotion::started` is permanent in the same way, which
+is why a held motion's running asks whether a motion is still WRITING it
+— the one thing in a running motion that changes when it lands.
 
 Even "running" is a declaration about the *machinery*, not about the
-numbers: a wave held at a constant phase is connected and moves nothing.
-Only the third question is a FACT, and answering it means comparing the
-values across frames, which is a caching concern and lives with the cache.
-`Ticker::active()` is the same question asked of a whole animation domain
-rather than one value — is any motion registered at all — and it is the
-signal a host sleeps on.
+numbers: a wave held at a constant phase is live and moves nothing. Only
+the third question is a FACT, and answering it means comparing the values
+across frames, which is a caching concern and lives with the cache.
+`Engine::isRunning()` is the same question asked of a whole animation
+domain rather than one value — is anything declared to move at all — and
+it is the signal a host sleeps on.
 
 ## Gotchas
 

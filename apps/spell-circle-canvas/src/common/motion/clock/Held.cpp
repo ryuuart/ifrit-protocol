@@ -3,10 +3,10 @@
  * retargeting a running ramp from where it is when the target moves (or
  * blending the change onto it), and starting an entrance from the value
  * the description declared — and the ramp itself, the keyed segments a
- * ticker steps into a live value.
+ * engine steps into a live value.
  */
 
-#include "sigilmotion/values/Animated.h"
+#include "sigilmotion/advanced/Held.h"
 
 #include <algorithm>
 #include <chrono>
@@ -33,7 +33,7 @@ float segmentSeconds(std::chrono::duration<float> length) {
  *  segment that owns a time is the first whose length the remaining time
  *  does not exceed — so a boundary belongs to the segment it ends. At or
  *  past the end of the last pass and the last blended change the value is
- *  where they all come to rest, the ramp stops writing, and the ticker
+ *  where they all come to rest, the ramp stops writing, and the engine
  *  drops it on the same frame. */
 class Ramp final : public detail::Stepped {
  public:
@@ -164,30 +164,30 @@ class Ramp final : public detail::Stepped {
 int passesOf(int loop) { return loop < 0 ? 0 : 1 + loop; }
 
 /** Starts a ramp on @p held's value. */
-void start(Ticker& ticker, AnimatedFloat& held, std::shared_ptr<Ramp> ramp) {
+void start(Engine& engine, HeldMotion& held, std::shared_ptr<Ramp> ramp) {
   held.running = ramp;
-  ticker.run(std::move(ramp));
+  engine.run(std::move(ramp));
 }
 
 }  // namespace
 
-void AnimatedFloat::stop() {
-  const std::shared_ptr<detail::Cell<float>>& cell = value.cell();
+void HeldMotion::stop() {
+  const std::shared_ptr<detail::Cell<float>>& cell = live.cell();
   ++cell->writer;
   cell->moving = false;
   running.reset();
 }
 
-float resolveFloatAt(const AnimatedFloat* animated, const Animatable<float>& property) {
+float valueOf(const HeldMotion* animated, const Animatable<float>& property) {
   // A live value — shaped through its stages when it has any — is read
   // here, the one place a bound float is read, so every consumer gets the
   // stages for free.
   if (property.identity()) return property.value();
-  if (animated && animated->started) return animated->current();
+  if (animated && animated->started) return animated->value();
   return property.value();
 }
 
-bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
+bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
                        const Animatable<float>& previousValue,
                        const Animatable<float>& nextValue,
                        const std::optional<Transition>& fallback,
@@ -196,7 +196,7 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
   ResolvedProperty<float> next = resolveProperty(nextValue, fallback, place);
   // Snap semantics must actually LAND: a lingering ramp from an earlier
   // transition would shadow the constant description forever
-  // (resolveFloatAt prefers a started ramp), so the snap paths stop it.
+  // (valueOf prefers a started ramp), so the snap paths stop it.
   auto snapAnim = [&] {
     if (auto& anim = held; anim && anim->started) {
       anim->stop();
@@ -216,14 +216,14 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
   // A running motion already headed at this exact target keeps flying —
   // an unrelated prop patch mid-entrance must not restart it (and must
   // never re-hold its delay).
-  if (anim && anim->started && anim->isMoving() && anim->target == next.target)
+  if (anim && anim->started && anim->isRunning() && anim->target == next.target)
     return true;
-  const float current = anim && anim->started ? anim->current() : prev.target;
+  const float current = anim && anim->started ? anim->value() : prev.target;
   const Transition& how = *next.transition;
   // BLEND: the change rides on top of the motion already running, so its
   // velocity carries through instead of stopping at the retarget.
   if (how.composition == Composition::Blend && anim && anim->started &&
-      anim->isMoving() && anim->running) {
+      anim->isRunning() && anim->running) {
     auto& ramp = static_cast<Ramp&>(*anim->running);
     ramp.blend(next.target - anim->target, segmentSeconds(how.delay),
                segmentSeconds(how.duration), how.easing());
@@ -236,19 +236,19 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
     // left alone it would carry the value to a STALE target (permanent,
     // since identical re-describes prune). Stop it; the description's
     // own value (== next.target) shows through.
-    if (anim && anim->started && anim->isMoving() && anim->target != next.target)
+    if (anim && anim->started && anim->isRunning() && anim->target != next.target)
       snapAnim();
-    return anim && anim->isMoving();
+    return anim && anim->isRunning();
   }
 
-  if (!anim) anim = std::make_unique<AnimatedFloat>();
-  anim->value = current;  // seed the retarget start point
+  if (!anim) anim = std::make_unique<HeldMotion>();
+  anim->live = current;  // seed the retarget start point
   anim->started = true;
   anim->target = next.target;
   const float delay = segmentSeconds(how.delay);  // the stagger primitive
-  start(ticker, *anim,
+  start(engine, *anim,
         std::make_shared<Ramp>(
-            anim->value.cell(), current, delay > 0 ? delay : 0.0,
+            anim->live.cell(), current, delay > 0 ? delay : 0.0,
             std::vector<Ramp::Segment>{{current, next.target,
                                         segmentSeconds(how.duration),
                                         how.easing()}},
@@ -256,7 +256,7 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
   return true;
 }
 
-void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
+void enter(Engine& engine, std::unique_ptr<HeldMotion>& held,
                    const Animatable<float>& property, Place place) {
   const Tween<float>* described = property.described();
   if (!described || !described->from) return;
@@ -284,33 +284,33 @@ void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
                         tween->easing()});
   }
   auto& anim = held;
-  if (!anim) anim = std::make_unique<AnimatedFloat>();
-  anim->value = from;
+  if (!anim) anim = std::make_unique<HeldMotion>();
+  anim->live = from;
   anim->started = true;
   anim->target = tween->rest();
   // The declared delay — a staggered one already resolved for this child —
   // holds the `from` before the motion starts.
   const float lead = segmentSeconds(tween->delay.value());
-  start(ticker, *anim,
-        std::make_shared<Ramp>(anim->value.cell(), from, lead > 0 ? lead : 0.0,
+  start(engine, *anim,
+        std::make_shared<Ramp>(anim->live.cell(), from, lead > 0 ? lead : 0.0,
                                std::move(segments), passesOf(tween->loop),
                                tween->alternate));
 }
 
-bool isLive(const AnimatedFloat* animated, const Animatable<float>& property) {
-  return property.isRunning() || (animated && animated->isMoving());
+bool isRunning(const HeldMotion* animated, const Animatable<float>& property) {
+  return property.isRunning() || (animated && animated->isRunning());
 }
 
-void progressRamp(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
+void progress(Engine& engine, std::unique_ptr<HeldMotion>& held,
                   const Transition& spec) {
-  if (!held) held = std::make_unique<AnimatedFloat>();
-  held->value = 0.0f;
+  if (!held) held = std::make_unique<HeldMotion>();
+  held->live = 0.0f;
   held->started = true;
   held->target = 1.0f;
   const float delay = segmentSeconds(spec.delay);
-  start(ticker, *held,
+  start(engine, *held,
         std::make_shared<Ramp>(
-            held->value.cell(), 0.0f, delay > 0 ? delay : 0.0,
+            held->live.cell(), 0.0f, delay > 0 ? delay : 0.0,
             std::vector<Ramp::Segment>{
                 {0.0f, 1.0f, segmentSeconds(spec.duration), spec.easing()}},
             1, false));

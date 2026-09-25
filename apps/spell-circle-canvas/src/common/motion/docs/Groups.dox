@@ -6,10 +6,9 @@
  *  The one unit every length, delay, step and period is stated in
  *  (time/Duration.h). */
 /** @defgroup motion-clock The clock
- *  Wall-clock time turned into well-behaved per-frame deltas, and the
- *  ticker that steps the motions and callbacks registered on it and
- *  answers whether anything is still moving (clock/FrameClock.h,
- *  clock/Ticker.h). */
+ *  The engine animations, timelines and timers run on, the frame that
+ *  moves it under a policy, and the held motions a reconciler runs
+ *  (clock/Engine.h, advanced/ClockPolicy.h, advanced/Held.h). */
 /** @defgroup motion-values Animatable values
  *  How a property changes over time, as values with no renderer in them:
  *  the transition, the keyed track, the spring, the oscillator, the

@@ -3,11 +3,11 @@
 Animation timing and animation *values*, with no renderer in them. The
 library gives you `Animatable<T>`, the one noun for a value that changes
 over time — a constant, a described motion, a live value you write, or a
-live value followed through a binding — a monotonic frame clock that
-turns wall-clock time into well-behaved per-frame deltas, a ticker that
-steps the motions and callbacks registered on it and tells you whether
-anything is still moving, a schedule saying how a run of units shares
-one progress, and a point set that is stepped rather than read. It links
+live value followed through a binding — `Tween`, the one description of
+a motion, the `Engine` animations, timelines and timers run on and that
+tells a host whether anything is still moving, `stagger()` and the
+schedule saying how a run of units shares one progress, and a point set
+that is stepped rather than read. It links
 two header-only SigilCore leaves and nothing else outside the tree but a
 private Boost table, so anything can use it without dragging in a
 graphics stack.
@@ -21,8 +21,8 @@ what a consumer uses; every public header lives under
 | `SigilMotionEase`   | `ease/Ease.h` | `Easing`, the one type every curve slot holds; the named curves `ease::linear`, then `ease::inQuad`, `ease::outQuad`, `ease::inOutQuad` and the same three for Cubic, Quart, Quint, Sine, Expo and Circ as plain functions, and for Back, Elastic and Bounce as factories over their shape parameter (`ease::outBack(overshoot)`, `ease::outElastic(amplitude, period)`, `ease::inOutBounce(overshoot)`); the families `ease::in(power)`, `ease::out(power)`, `ease::inOut(power)`, `ease::steps(count, jumpAtStart)`, `ease::cubicBezier(x1, y1, x2, y2)` and `ease::smoothstep`; `ease::Curve`, SigilCore's comparable shaped curve; `easeEqual()` |
 | `SigilMotionTime`   | `time/Duration.h` | `Duration`, the one time unit |
 | `SigilMotionBind`   | `bind/Binding.h`, `bind/WiggleNoise.h` | `Binding`, the stages a followed number is shaped through as fields, with `Range`, `Envelope` and its `envelope::` factories, and `Wiggle`; the wiggle noise field |
-| `SigilMotionValues` | `values/Tween.h`, `values/Transition.h`, `values/Animatable.h`, `values/Animated.h`, `values/Lanes.h`, `values/Oscillator.h`, `values/Spring.h`, `values/Time.h` | `Tween`, `Keyframe`, `Composition`, `animate()` and `tweenEqual()`; `Transition`, `clamp01()` and `transitionEqual()`; `Animatable<T>`, `animatable()`, `bind()` and `propertyEqual()`; `AnimatedFloat`, the operations on a held motion, `isLive()` and `progressRamp()`; `Lane`, `LaneSlot` and the retargets; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal |
-| `SigilMotionClock`  | `clock/FrameClock.h`, `clock/ClockPolicy.h`, `clock/Ticker.h` | the clock; `ClockPolicy` and `PolicyClock`, who moves it and the budget set with it; and the ticker |
+| `SigilMotionValues` | `values/Tween.h`, `values/Transition.h`, `values/Animatable.h`, `values/Oscillator.h`, `values/Spring.h`, `values/Time.h` | `Tween`, `Keyframe`, `Composition`, `animate()` and `tweenEqual()`; `Transition`, `clamp01()` and `transitionEqual()`; `Animatable<T>`, `animatable()`, `bind()` and `propertyEqual()`; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `spring()` and `springMoving()`; `Oscillator` and `Wave`, the repeating signal |
+| `SigilMotionClock`  | `clock/Engine.h`, `advanced/ClockPolicy.h`, `advanced/Held.h` | `Engine`, with `Playback`, `Animation`, `Timeline`, `Timer`, `Position` and its `at()`, `afterEnd()`, `afterPrevious()`, `withPrevious()` and `atLabel()`, `TimerOptions` and `EngineOptions`; `ClockPolicy`, who moves it; `HeldMotion`, `valueOf()`, `retarget()`, `enter()`, `progress()`, `Lane`, `LaneSlot`, `familyLanes()`, `retargetFixed()` and `retargetPositional()`, the reconciler's seam |
 | `SigilMotionSchedule` | `schedule/Stagger.h`, `schedule/Schedule.h` | `stagger()`, `cues()` and `Staggered<V>`, a value that differs per child, with `StaggerOptions`, `StaggerFrom`, `StaggerAxis` and `Place`; `staggerSteps()`, the orderings; `Timing`, and `Schedule` and `Beat`, a timing resolved against a frame's counts |
 | `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Neighbourhood.h`, `physics/Constraints.h`, `physics/Verlet.h`, `physics/Particles.h` | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Neighbourhood`, the grid a flock and everything else that reads more than one point at a time asks what is near what; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper; `Particles` and `Attribute`, a point set that is born, ages and dies, with `Emitter`, `EmitFrom`, `Roughly`, `BirthAttribute` and `FixedAttribute`, what puts particles into one |
 
@@ -32,12 +32,12 @@ the standard library, so every feature — physics included — states a
 length of time without linking anything that reads one. Ease is the
 next, because every other feature holds a curve; Bind links it, and
 Values links Bind because `Animatable<T>` can hold a shaped value, and
-Schedule links Ease because a spread's distribution curve compares under
-the same rule every other curve does. Values links Clock in turn, because an animatable that is
-MOVING is moving on a ticker — the values feature ships both the slot and
-the motion the slot runs as. Schedule links NEITHER the clock nor the
-values: see below. Physics links neither, and does not link Choreograph
-either — a step is a number of seconds the caller states.
+Schedule links Ease because a stagger's curve compares under the same
+rule every other curve does; Values links Schedule because a tween's
+fields can be staggered. Clock links Values, because what an engine RUNS
+is an animatable and a tween — the values describe, the clock moves.
+Schedule links NEITHER the clock nor the values: see below. Physics links
+neither — a step is a length of time the caller states.
 
 ## The chapters
 
@@ -46,8 +46,8 @@ feature it names, and everything below is the library as a whole.
 
 | chapter | what it covers |
 |---------|----------------|
-| **[CLOCK.md](CLOCK.md)** | `FrameClock`, `PolicyClock` and `Ticker`: deltas, who moves the clock and its budget, the two phases of a tick, a steppable naming the delta and the clock or neither, derivations, the fixed-rate lane, and the signal a host sleeps on |
-| **[VALUES.md](VALUES.md)** | `Tween` and `Transition`, `Animatable<T>` and its four forms, the held `AnimatedFloat` a ticker runs, `Oscillator`, `Spring`, the lanes a host retargets through, and the three words for stillness |
+| **[CLOCK.md](CLOCK.md)** | `Engine`: animations, timelines and timers and the playback they answer to; the host's frame, who moves the clock and its budget; and the held motions and lanes a reconciler runs |
+| **[VALUES.md](VALUES.md)** | `Animatable<T>` and its four forms, `Tween` and `Transition`, `Oscillator`, `Spring`, and the three words for stillness |
 | **[BIND.md](BIND.md)** | `bind()`, the `Binding` fields and the fixed order `Binding::apply` runs them in, the envelopes that are the waveform vocabulary, and the wiggle field |
 | **[PHYSICS.md](PHYSICS.md)** | `Points`, `Force`, `Neighbourhood`, `Constraint` and `Verlet`: the one feature here that is stepped rather than read, and `Particles` with the `Emitter` that fills it |
 | **[SCHEDULE.md](SCHEDULE.md)** | `stagger()`, a value per child resolved from its place among its siblings; `Timing` and `Schedule`: how N units share one progress, from a master float and nothing else |
@@ -98,7 +98,7 @@ Both carry no kernel, no device and nothing that draws. Boost is
 private, in one place: the scheduler's own table — a Boost unordered map
 on `SigilMotionSchedule` — which no public header names.
 
-`SigilMotionSchedule` links neither the clock nor the values. A cascade
+`SigilMotionSchedule` links neither the clock nor the values. A schedule
 is a pure function of a master float in [0, 1] and two integer counts,
 and keeping it that way is what lets a text engine drive it from a
 track's progress, a set from a lane and a study from a bare `phase()`.
@@ -108,7 +108,7 @@ renderer — link this library without inheriting a drawing library, and
 spell `sigil::motion` at the call site rather than re-exporting it.
 
 The library ships the values, the clock, and the motion a value runs as
-— everything answerable from the animatable and the ticker alone.
+— everything answerable from the animatable and the engine alone.
 Resolving an animatable against a CONTEXT is the consumer's: which of a
 node's properties are animated at all, where their held motions live, and
 what a resolved number then means to a paint, a layout or a render pass.
@@ -136,8 +136,8 @@ the umbrella.
 |---|---|---|---|
 | `ease/test/` | `Ease` | every named curve against the animation runtime's own numbers at 65 positions, exactly; the power families at a whole power against the named curve; the steps; and `easeEqual` over plain, shaped and captured curves | the rest of the library — the curves are its bottom floor, and the animation runtime is linked only to read its numbers against |
 | `bind/test/` | `Binding`, `Stages`, `Envelopes`, `PeriodicEnvelopes`, `BindingEquality`, `Wiggle`, `WiggleNoise` | a `Binding`: every stage against the arithmetic it stands in for, the order the stages run in, the envelopes, `wrap`, the wiggle field, and its equality field by field | anything above the leaf — the record that carries a curve is the lowest thing here |
-| `clock/test/` | `FrameClock`, `PolicyClock`, `Ticker` | one reading after another, pause, time scale and the stall ceiling; which frames each policy lets move the clock and the budget that runs out once; the Ticker stepping motions, steppables and derivations, and the fixed step that keeps its own rate whatever the host draws at | a renderer |
-| `values/test/` | `Values`, `Forms`, `Animated`, `Lanes`, `Oscillator`, `Spring` | `Tween` and `Transition`, a tween read at a time, `quantizeTime`, the four forms an `Animatable<T>` holds, the two signals read from a time alone, springs, the held motion of an animatable, and the lanes a host retargets through | a renderer |
+| `clock/test/` | `Engine`, `Playback`, `Timeline`, `Timer`, `Held`, `Lanes` | the wall and stated frames, the stall ceiling, the hold and the speed; which frames each policy lets move the clock and the budget that runs out once; animations, blends, timelines and their positions, the playback verbs; the step-rate timer that keeps its own rate whatever the host draws at; the held motion of an animatable and the lanes a host retargets through | a renderer |
+| `values/test/` | `Values`, `Forms`, `Oscillator`, `Spring` | `Tween` and `Transition`, a tween read at a time, `quantizeTime`, the four forms an `Animatable<T>` holds, the signals read from a time alone, and springs | the clock and a renderer |
 | `physics/test/` | `Physics`, `Particles` | the lanes a point set is and what `remove` does to their numbering, each force against the arithmetic it stands in for, a distance band read as a stick, a spring and a rope, the velocity a constraint pass gives back, the same run reproduced from the same `timeStep`, and the degenerate settings a caller can hand in; then a rate that produces the count it promises, a mouth that puts its births where its shape says, lifetimes that expire and compact the set, a named attribute that rides through a death, and the same seed twice as the same cloud | **the clock** — a step is a number of seconds the caller states, and a link edge to a timeline would be the first step to something in here reading time for itself |
 | `schedule/test/` | `Stagger`, `Order`, `Schedule`, `ScheduleOrdering` | a stagger resolved per child, the orderings, the ladder, cue tables, the nested and looping schedule, and a stagger's equality | **the clock** — a schedule is a pure function of a master float and two counts, and a link edge to the clock would be the first step to something in here reading time for itself |
 
@@ -148,7 +148,7 @@ the case hands in, so a slow machine changes nothing about what they
 assert. The parameterised rows are a binding's stages against the
 arithmetic they stand in for, the envelopes that stay inside [0,1] and the ones that repeat
 every period, the four forms an `Animatable<float>` holds, and the
-orderings a cascade deals its ranks in.
+orderings a stagger deals its steps in.
 
 One file per subject: in `bind/test/`,
 `BindingTest` (the stages, the envelopes and the wrap),
@@ -173,8 +173,7 @@ opens with it. `Ramps.h` is the transitioned value a test that drives a
 motion starts from: a linear ramp to a target over a stated number of
 milliseconds, linear so the assertions can read the value halfway
 through and name the number without evaluating a curve. Otherwise each
-test links only the library it exercises, plus the clock where a value
-is driven by the ticker, and GoogleTest.
+test links only the library it exercises, and GoogleTest.
 
 `motion_bench`'s arms: `ease/bench/` (one curve per call through the
 `Easing` a slot holds — a plain function, a shaped curve, and the CSS
@@ -183,9 +182,9 @@ each envelope and every stage at once, and the wiggle field by octave),
 `values/bench/` (the consumer's read of an `Animatable` lane per slot
 for each kind it can hold, copying and constructing such a lane, and the
 two time-only signals read one call at a time), `clock/bench/` (the
-frame clock's own step and the ticker stepped with N motions on it), `physics/bench/` (a field of
+engine stepped with N held motions on it, and the step-rate timer), `physics/bench/` (a field of
 free particles, the same field flocking — which is where comparing every
 pair shows — a chain of sticks under its constraint passes, and ten
 thousand particles born, stepped, aged and reaped, each measured on its
-own) and `schedule/bench/` (resolving a cascade for a frame's counts,
+own) and `schedule/bench/` (resolving a schedule for a frame's counts,
 and the per-unit local-time read).
