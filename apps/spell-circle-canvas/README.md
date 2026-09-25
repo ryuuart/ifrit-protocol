@@ -168,7 +168,7 @@ resolution and drawing.
 #include <iostream>
 
 sigil::io::Hub hub;
-sigil::io::registerUdp(hub);          // only UDP: the product speaks nothing else
+sigil::io::registerTransports(hub, {"udp"});  // only UDP: the product speaks nothing else
 
 const std::shared_ptr<sigil::io::Feed> door =
     hub.feed("udp://:27015", {.capacity = 64});

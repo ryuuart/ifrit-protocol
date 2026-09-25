@@ -66,7 +66,7 @@ constexpr uint64_t kInspectionPumpNanoseconds = 30 * NSEC_PER_MSEC;
 
   // Only UDP: this product speaks nothing else, so the hub is taught the
   // one scheme its port is opened on.
-  sigil::io::registerUdp(_hub);
+  sigil::io::registerTransports(_hub, {"udp"});
   _port = Defaults::port;
   _statusText = @"Stopped";
   _targetFramesPerSecond = Defaults::targetFramesPerSecond;
