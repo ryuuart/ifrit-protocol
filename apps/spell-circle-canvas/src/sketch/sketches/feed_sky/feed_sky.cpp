@@ -26,14 +26,12 @@
  * The two JSON doors read every field where it is used, and a field a
  * message left out falls back to what the reading asks for.
  *
- * ONE DOOR, TWO SOURCES. A URI that resolves through the hub's mount
- * table to a file is played back from that recording as the hub's time
- * moves forward, and any other opens through the transport its scheme
- * names. So a capture mounts each door's recording under `data/` onto
- * its whole URI — query and all, the table matching by prefix — and
- * reads exactly what a window hears, arrival for arrival, at the same
- * seconds. The mount stands before the door opens, because a feed is
- * made once per URI and every later ask answers that same one.
+ * ONE DOOR, TWO SOURCES. A URI the hub was told to replay is played back
+ * from that recording as the hub's time moves forward, and any other
+ * opens through the transport its scheme names. So a capture replays each
+ * door's recording under `data/` at its whole URI — query and all, the
+ * same string the door is opened on — and reads exactly what a window
+ * hears, arrival for arrival, at the same seconds.
  *
  * `sender.py` beside this file sends the UDP and shared memory doors and
  * writes all three recordings; the live side of the QUIC door is Seer,
@@ -192,10 +190,11 @@ struct FeedSky {
     for (const data::Json& entry : words["doors"].items()) {
       Door door{.entry = &entry};
       const std::string uri = uriOf(door, ctx);
-      // A CAPTURE READS THE RECORDING, a window opens the door; mounting
-      // the URI onto the file is the whole of the difference.
+      // A CAPTURE READS THE RECORDING, a window opens the door. Replaying
+      // the URI from the file is the whole of the difference: every later
+      // ask for the URI answers the replaying feed.
       if (ctx.deterministic)
-        hub.mount(uri, hub.resolve(ctx.local(entry["recording"].text())));
+        hub.replay(uri, ctx.local(entry["recording"].text()));
       door.connection =
           entry["schema"].boolean()
               ? data::Connection(hub, uri, data::schema<feed_sky::Sky>())

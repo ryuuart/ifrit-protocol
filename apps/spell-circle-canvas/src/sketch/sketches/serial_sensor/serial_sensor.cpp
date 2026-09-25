@@ -20,14 +20,12 @@
  * answers in steps and a sky does not jump: what is drawn is the
  * readings and not the sampling.
  *
- * ONE DOOR, TWO SOURCES. A URI that resolves through the mount table to
- * a file is played back from that recording as the hub's time moves
- * forward, and any other opens through the transport its scheme names.
- * So a capture mounts the recording beside this file onto the port's
- * URI and reads exactly what a window reads from a live board — arrival
- * for arrival, at the same seconds. The mount stands before the door
- * opens, because a feed is made once per URI and every later ask
- * answers that same one.
+ * ONE DOOR, TWO SOURCES. A URI the hub was told to replay is played back
+ * from that recording as the hub's time moves forward, and any other
+ * opens through the transport its scheme names. So a capture replays the
+ * recording beside this file at the port's URI and reads exactly what a
+ * window reads from a live board — arrival for arrival, at the same
+ * seconds.
  *
  * `sensor.py` beside this file is the board, for a desk that has none:
  * it makes a pseudo-terminal pair, prints the path to open this sketch
@@ -192,9 +190,9 @@ struct SerialSensor {
 
     io::Hub& hub = ctx.assets.hub();
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window opens the
-    // port. Mounting the URI onto the file is the whole of the
-    // difference: the line after it opens either one.
-    if (ctx.deterministic) hub.mount(kPort, hub.resolve(ctx.local(kRecording)));
+    // port. Replaying the URI from the file is the whole of the difference:
+    // every later ask for the URI answers the replaying feed.
+    if (ctx.deterministic) hub.replay(kPort, ctx.local(kRecording));
     sensor = data::Connection(hub, kPort);
 
     readLux = 0;

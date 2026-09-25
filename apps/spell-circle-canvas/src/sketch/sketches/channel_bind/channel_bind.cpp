@@ -189,10 +189,9 @@ struct ChannelBind {
 
     io::Hub& hub = ctx.assets.hub();
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window listens on
-    // the port. Mounting the URI onto the file is the whole of the
-    // difference, and the mount stands first because a feed is made once
-    // per URI and every later ask answers that same one.
-    if (ctx.deterministic) hub.mount(kDesk, hub.resolve(ctx.local(kRecording)));
+    // the port. Replaying the URI from the file is the whole of the
+    // difference: every later ask for the URI answers the replaying feed.
+    if (ctx.deterministic) hub.replay(kDesk, ctx.local(kRecording));
 
     desk = data::Connection(hub, kDesk);
     // THE CHANNELS STAND AFTER THE DOOR. Both register on the same

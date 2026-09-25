@@ -235,11 +235,10 @@ struct MidiPads {
     io::Hub& hub = ctx.assets.hub();
     const std::string arriving = std::string(kPadsIn) + kController;
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window opens the
-    // cable. Mounting the URI onto the file is the whole of the
-    // difference, and the mount stands first because a feed is made once
-    // per URI and every later ask answers that same one.
+    // cable. Replaying the URI from the file is the whole of the
+    // difference: every later ask for the URI answers the replaying feed.
     if (ctx.deterministic)
-      hub.mount(arriving, hub.resolve(ctx.local(kRecording)));
+      hub.replay(arriving, ctx.local(kRecording));
 
     for (Cell& cell : cells) {
       cell.glow = 0.0f;

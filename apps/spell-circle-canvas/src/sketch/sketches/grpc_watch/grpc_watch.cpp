@@ -211,13 +211,11 @@ struct GrpcWatch {
 
     const std::string door = doorOf();
     io::Hub& hub = ctx.assets.hub();
-    // A CAPTURE REPLAYS THE RECORDING BESIDE THIS FILE and holds no port
-    // at all; a window holds the port and answers callers. The mount
-    // table matches a URI by its PREFIX, so the key is the whole URI —
-    // the same string the feed is asked for. It stands first because a
-    // feed is made once per URI and every later ask answers that same
-    // one.
-    if (ctx.deterministic) hub.mount(door, hub.resolve(ctx.local(kRecording)));
+    // A CAPTURE REPLAYS THE RECORDING BESIDE THIS FILE and holds no port at
+    // all; a window holds the port and answers callers. Replaying the URI
+    // from the file is the whole of the difference: every later ask for the
+    // URI answers the replaying feed.
+    if (ctx.deterministic) hub.replay(door, ctx.local(kRecording));
 
     palette = kOpeningPalette;
     gust = 0.0f;

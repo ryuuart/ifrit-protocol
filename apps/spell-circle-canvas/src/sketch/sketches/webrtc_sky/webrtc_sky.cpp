@@ -267,14 +267,12 @@ struct WebRtcSky {
     pages = ctx.local(kPages);
     const std::string door = doorOf(ctx);
     io::Hub& hub = ctx.assets.hub();
-    // A CAPTURE REPLAYS THE RECORDING BESIDE THIS FILE and opens no
-    // port and no conversation at all; a window holds the port, serves
-    // the pages and is introduced to whoever loads them. The mount
-    // table matches a URI by its PREFIX, so the key is the whole URI,
-    // query and all — the same string the feed is asked for. It stands
-    // first because a feed is made once per URI and every later ask
-    // answers that same one.
-    if (ctx.deterministic) hub.mount(door, hub.resolve(ctx.local(kRecording)));
+    // A CAPTURE REPLAYS THE RECORDING BESIDE THIS FILE and opens no port
+    // and no conversation at all; a window holds the port, serves the pages
+    // and is introduced to whoever loads them. Replaying the URI from the
+    // file is the whole of the difference: every later ask for the URI
+    // answers the replaying feed.
+    if (ctx.deterministic) hub.replay(door, ctx.local(kRecording));
 
     palette = kOpeningPalette;
     gust = 0.0f;

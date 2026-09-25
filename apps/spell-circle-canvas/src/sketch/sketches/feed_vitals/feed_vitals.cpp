@@ -2,7 +2,7 @@
  * A feed displayed as arrival timing, queue health and raw payload.
  * receive() drains arrivals in order; latest() supplies the newest message
  * independently of queue drops. The strip uses the timestamps carried by
- * those arrivals. A deterministic capture mounts the local pulse recording;
+ * those arrivals. A deterministic capture replays the local pulse recording;
  * a live window listens on the same URI and pulse.py supplies example data.
  */
 
@@ -94,11 +94,10 @@ struct FeedVitals {
 
     io::Hub& hub = ctx.assets.hub();
     // A CAPTURE READS THE RECORDING BESIDE THIS FILE, a window listens.
-    // Mounting the URI onto the file is the whole of the difference: the
-    // line below opens either one, and the mount stands first because a
-    // feed is made once per URI and every later ask answers that one.
+    // Replaying the URI from the file is the whole of the difference: every
+    // later ask for the URI answers the replaying feed.
     if (ctx.deterministic)
-      hub.mount(kAddress, hub.resolve(ctx.local(kRecording)));
+      hub.replay(kAddress, ctx.local(kRecording));
     arrivals = hub.feed(kAddress);
 
     ticks.clear();
