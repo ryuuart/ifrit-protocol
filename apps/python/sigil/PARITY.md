@@ -259,7 +259,7 @@ and texture maps do not reach a World pixel. An image set as
 | Surface | Bound | Not yet bound |
 | --- | --- | --- |
 | Data and assets | `Json`, `Column` and `Table` reshaping, `decodeCsv`, `Instant` and `Flag`, which compare, order and hash as their values do, a `Flag` against the boolean a cell reads as; `Interval` and `Scale`; SQLite and DuckDB `Database` values with owned writes and query views that refuse a writing statement through every method; `Schema` text and binary conversion; OSC, MIDI and Art-Net codecs; `registerDecoders`, which installs the database decoder beside the table and JSON ones; the session asset loaders | `data::Connection`; `FlatBuffer` roots and the generated value types; typed column spans; `maxOscBundleDepth` |
-| IO | An owned or session `Hub` with mounts, resolution, text, bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy; `Hub.dispatch`; `Feed` with `receive`, `newest`, `latest`, status, `send`, `sendTo`, delivery and replay; owned `Arrival`; recordings; the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports | `Hub::onDispatch`; `Hub::registerDecoder` for further types; custom feed and network transports; `probeNetworkCache` and `seedNetworkCache`; hub image views with decode options, channels and probes; archives, byte sources, `writeBytes` and `TextCatalog`; `Feed::receivedAt` |
+| IO | An owned or session `Hub` with mounts, resolution, text, bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy; `Hub.dispatch`; `Feed` with `receive`, `latest`, status, `send`, `sendTo`, delivery and replay; owned `Arrival`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`; the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports | `Hub::onDispatch`; `Hub::registerDecoder` for further types; custom feed and network transports; `probeNetworkCache` and `seedNetworkCache`; hub image views with decode options, channels and probes; archives, byte sources and `writeBytes`; `Feed::receivedAt` |
 | Texture publication | Sketchbook publishes a Python canvas through its own publisher | `io::publish` publishers, subscriptions and publication listing |
 
 <!-- prose: data-io -->
@@ -409,7 +409,7 @@ model, arithmetic and data become Python code and are not listed.
 | `border_weave` | Silhouette-following border modes; double and weighted borders; woven braid brush; crossing rule; shape generators; section headers | `compose::Border` and `compose::decorations::border` rules; `compose::brush::weave` strand composite; `compose::kit::braid` strands; `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::path` crossings and crossing rules |
 | `bullets_dropcap` | Initial letters; nested opening styles; flow around a shaped ornament; hanging list kit; font fallback; wells | `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`); `geometry::shapes` silhouette generators |
 | `cascade` | Inherited type, ink transitions, classes and custom properties; lexical environment values; pen and graphics leaves; readout kit | `sketch::kit::readout`; `core::environment::Provide` / `inheritedOr` values |
-| `channel_bind` | OSC connection on the hub; kit channels writing outputs; binding chains; recording mount; readout kit | `sketch::kit::readout`; `sketch::kit::Channel` address follower; `data::Connection` |
+| `channel_bind` | OSC connection on the hub; kit channels writing outputs; binding chains; recording replay; readout kit | `sketch::kit::readout`; `sketch::kit::Channel` address follower; `data::Connection` |
 | `cjk_rules` | Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume | — |
 | `codec_roundtrip` | PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; mesh painter | `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
 | `compute_variant` | Set-kind hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback | Set sketches (`sketch::SetContext`, `describe`); `geometry::mesh::pop` point-operator chains; `geometry::mesh::curve::Spline3` and frames; `world::kit` rails (`wave`, `winding`, `rail`); `world::computePass` passes and `world::readback` |
@@ -531,17 +531,17 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
-| `artnet_lights` | Art-Net Connection handlers and sends; recording mount; eased ticker ramps; instrument page; themed pen drawing | `sketch::kit::instrument`; `data::Connection` |
+| `artnet_lights` | Art-Net Connection handlers and sends; recording replay; eased ticker ramps; instrument page; themed pen drawing | `sketch::kit::instrument`; `data::Connection` |
 | `data_scales` | Scale transforms; chart plot kit layers; stylesheet classes; stated default face; caption and panel grid | `sketch::kit::plot` chart layers |
 | `data_sources` | Asset table and database; DuckDB memory query; bars and section header kit; comparison well | `sketch::kit::bars` over `data::Table` |
-| `feed_events` | JSON Connection kind handlers; recording mount; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
-| `feed_sky` | One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording mount per door; kit panels and vitals readouts; cached band elements on one bound clock | `data::Connection`; `data::FlatBuffer` roots and `data::schema`; `sketch::kit::connectionReadout` over `data::Connection::Vitals` |
+| `feed_events` | JSON Connection kind handlers; recording replay; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
+| `feed_sky` | One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording replay per door; kit panels and vitals readouts; cached band elements on one bound clock | `data::Connection`; `data::FlatBuffer` roots and `data::schema`; `sketch::kit::connectionReadout` over `data::Connection::Vitals` |
 | `grpc_watch` | gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
 | `midi_pads` | MIDI Connection in and out; eased ticker ramps; instrument page; pen cells and knob | `sketch::kit::instrument`; `data::Connection` |
 | `osc_desk` | OSC Connection address handlers and replies; chained ticker ramps; instrument page; pen faders | `sketch::kit::instrument`; `data::Connection` |
 | `phone_sky` | WebSocket Connection with served pages; broadcast sends; eased ticker ramps; instrument page | `sketch::kit::instrument`; `data::Connection` |
 | `schema_scene` | Generated schema values; FlatBuffer hub decoder; schema-backed Connection; instrument page; document labels | `sketch::kit::instrument`; `data::Connection`; `data::FlatBuffer` roots and `data::schema` |
-| `serial_sensor` | Serial line Connection; recording mount; instrument page; transformed pen ribbons | `sketch::kit::instrument`; `data::Connection` |
+| `serial_sensor` | Serial line Connection; recording replay; instrument page; transformed pen ribbons | `sketch::kit::instrument`; `data::Connection` |
 | `webrtc_sky` | WebRTC Connection over WebSocket signal; broadcast sends; eased ticker ramps; instrument page | `sketch::kit::instrument`; `data::Connection` |
 
 ### Media
