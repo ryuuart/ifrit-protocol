@@ -168,6 +168,6 @@ void SpellCircleRenderer::paint(QCanvasPainter* painter) {
 void SpellCircleRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QCanvasPainterItemRenderer::render(commandBuffer);
   if (m_publisher && !m_canvas.isNull() && m_canvas.texture())
-    ifrit::qt::publishFrame(*m_publisher, m_canvas.texture(), commandBuffer,
+    ifrit::qt::publishFrame(m_publisher, m_canvas.texture(), commandBuffer,
                             {m_allocatedCanvasWidth, m_allocatedCanvasHeight});
 }

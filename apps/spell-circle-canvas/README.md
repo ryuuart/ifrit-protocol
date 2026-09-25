@@ -116,7 +116,7 @@ Python  ──FlatBuffers──▶  UDP :27015  ──▶  drain  ──▶  ver
                             Syphon ◀── draw ◀── resolveScene ◀─────────┘
 ```
 
-The port is a door on a resource hub: `sigil::io::Hub::feed()` on a
+The port is a door on a resource hub: `sigil::io::Hub::listen()` on a
 `udp://:27015` URI binds a dual-stack socket and takes every datagram
 that reaches it on a thread of its own. Each front end drains that door
 on its owner thread. Seer drains each observed wire once and shares arrivals
@@ -129,16 +129,16 @@ decoding or invalidating the scene again.
 
 Nothing is delivered onto the user interface thread from outside it: the
 transport puts arrivals in the door and the frame takes them out, in
-order. `sigil::io::Feed::receivedAt()` converts the arrival's timestamp onto the
+order. `sigil::io::Message::receivedAt()` places the arrival's timestamp on the
 steady clock, so arrival rates retain transport timing independently of
 when the queue is drained. Replayed arrivals preserve their recorded spacing
 relative to the first playback advance.
 
 Binding is synchronous: when the door is asked for,
-`sigil::io::Feed::error()` says whether the port was free and
-`sigil::io::Feed::address()` says which one was bound, so `listening` and
+`sigil::io::Feed::state()` says whether the port was free (`error`)
+and which one was bound (`localAddress`), so `listening` and
 the status line are right the moment `start()` returns. Closing the door
-— dropping the last reference to it — stops its socket and discards what
+— dropping the last handle to it — stops its socket and discards what
 it still holds.
 
 `resolveScene()` then converts that registry into a `ResolvedScene` of
@@ -170,25 +170,24 @@ resolution and drawing.
 sigil::io::Hub hub;
 sigil::io::registerTransports(hub, {"udp"});  // only UDP: the product speaks nothing else
 
-const std::shared_ptr<sigil::io::Feed> door =
-    hub.feed("udp://:27015", {.capacity = 64});
-if (!door->error().empty()) std::cerr << door->error() << '\n';
+const sigil::io::Feed door = hub.listen("udp://:27015", {.capacity = 64});
+if (!door.state().error.empty()) std::cerr << door.state().error << '\n';
 
 spellcircle::SceneSession scene;
 for (;;) {                            // once a frame, on the thread that draws
-  while (const std::optional<sigil::io::Arrival> arrival = door->receive()) {
-    scene.ingest(arrival->bytes->bytes.data(), arrival->bytes->bytes.size(),
-                 door->receivedAt(*arrival));
+  while (const std::optional<sigil::io::Message> message = door.receive()) {
+    scene.ingest(message->payload->data(), message->payload->size(),
+                 message->receivedAt());
   }
 }
 ```
 
 The transport runs the socket on a thread of its own and the host never
 names it. `sigil::io::Feed::receive()` never waits: a frame that finds
-nothing gets on with itself. The door keeps the last `capacity` arrivals,
+nothing gets on with itself. The door keeps the last `capacity` messages,
 so a reader that misses a frame loses nothing and one that falls a whole
 second behind loses the oldest scenes rather than the newest —
-`sigil::io::Feed::dropped()` counts those. `sigil::io::Arrival::from`
+`dropped` in `sigil::io::Feed::state()` counts those. `sigil::io::Message::sender`
 names the sender, spelled `udp://127.0.0.1:52341`; both front ends show
 it with the scheme taken off.
 
