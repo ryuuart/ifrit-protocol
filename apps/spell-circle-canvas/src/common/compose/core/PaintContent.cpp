@@ -203,7 +203,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
 
   // The node's shape: a band's swept region, a custom outline(), or the
   // corner-rounded box.
-  const Across* bandWidth = node.bandWidth();
+  const geometry::path::Profile* bandWidth = node.bandWidth();
   const bool customShape = node.shapeFn || bandWidth;
   SkPath outlinePath;
   if (bandWidth) {
@@ -213,10 +213,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         node.deriveData->bandSpine
             ? node.deriveData->bandSpine({bounds.width(), bounds.height()})
             : SkPath();
-    outlinePath = bandWidth->resolver
-                      ? bandWidth->resolver->bandRegion(
-                            spine, *bandWidth, node.deriveData->bandFormation)
-                      : SkPath();
+    const StrokeResolver& resolver = node.deriveData->bandResolver;
+    outlinePath = resolver ? resolver->bandRegion(
+                                 spine, *bandWidth,
+                                 node.deriveData->bandFormation)
+                           : SkPath();
   } else if (customShape) {
     outlinePath = resolveOutline(inst, {bounds.width(), bounds.height()});
   } else {

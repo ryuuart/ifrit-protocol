@@ -1,7 +1,6 @@
 /** @file
- * band() — the point on a band's spine, the band factory, and `across()`,
- * which installs the engine that sweeps a width profile on the value it
- * returns. The rails of the band itself, and the region between them,
+ * band() — the point on a band's spine, and the band factory, which
+ * installs the engine that sweeps its width profile into a region. The rails of the band itself, and the region between them,
  * are SigilGeometry's (`geometry::path::bandRegion`).
  */
 
@@ -41,22 +40,12 @@ SkPoint bandPointAt(const SkPath& spine, float along, float acrossPx) {
   return {0, 0};
 }
 
-Across across(float px) {
-  Across out{geometry::path::profile::offset(px)};
-  out.resolver = detail::strokeResolver();
-  return out;
-}
-Across across(geometry::path::Profile p) {
-  Across out{std::move(p)};
-  out.resolver = detail::strokeResolver();
-  return out;
-}
-
-Band band(Shape spine, Across width) {
+Band band(Shape spine, geometry::path::Profile width) {
   Band e{std::make_shared<detail::ElementNode>()};
   detail::DeriveData& derive = e.node()->deriveData.ensure();
   derive.bandSpine = std::move(spine);
   derive.bandWidth = std::move(width);
+  derive.bandResolver = detail::strokeResolver();
   return e;
 }
 

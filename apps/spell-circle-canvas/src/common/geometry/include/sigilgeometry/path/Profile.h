@@ -69,6 +69,10 @@ class Profile {
     };
     m_across = [s = std::move(scheme)](float along) { return s.across(along); };
   }
+  /** A constant width of `px` on the whole spine — the parallel, and the
+   *  width a caller means by a bare number (`band(spine, 22)`). Positive
+   *  is left of travel. */
+  Profile(float px);  // NOLINT: implicit by design (band(spine, 22))
   Profile() = default;
 
   /** The law at `along`, IN THE PROFILE'S OWN KEY — a fraction of the
@@ -146,14 +150,14 @@ struct Taper {
   bool operator==(const Taper&) const = default;
 };
 
-/** A STEPPED WIDTH: a run of spans, each holding one width for its
+/** A STEPPED WIDTH: a run of steps, each holding one width for its
  *  share of the spine. `widthsPx` is read against `upTo`, the span
  *  boundaries in the profile's own key, ASCENDING, and carries one more
  *  entry than `upTo` because the last width holds to the end. Empty is
  *  a width of zero everywhere. A STEP IS A STEP — the width does not
  *  interpolate across a boundary, since this describes a measurement
  *  that changes at a place; `Taper` is the interpolating one. */
-struct Spans {
+struct Steps {
   std::vector<float> upTo;
   std::vector<float> widthsPx;
   float across(float along) const {
@@ -167,7 +171,7 @@ struct Spans {
     for (float w : widthsPx) widest = std::max(widest, std::abs(w));
     return widest;
   }
-  bool operator==(const Spans&) const = default;
+  bool operator==(const Steps&) const = default;
 };
 
 /** The spine itself: a band of no width, which is the rail a stroke
@@ -181,11 +185,13 @@ inline Profile offset(float px) { return Profile(Offset{px}); }
 inline Profile taper(float startPx, float endPx) {
   return Profile(Taper{startPx, endPx});
 }
-/** A stepped width: @p widthsPx holds the width in each span, and
- *  @p upTo the fraction of arc length each span ends at. */
-inline Profile spans(std::vector<float> upTo, std::vector<float> widthsPx) {
-  return Profile(Spans{std::move(upTo), std::move(widthsPx)});
+/** A stepped width: @p widthsPx holds the width in each step, and
+ *  @p upTo the fraction of arc length each step ends at. */
+inline Profile steps(std::vector<float> upTo, std::vector<float> widthsPx) {
+  return Profile(Steps{std::move(upTo), std::move(widthsPx)});
 }
 }  // namespace profile
+
+inline Profile::Profile(float px) : Profile(profile::Offset{px}) {}
 
 }  // namespace sigil::geometry::path

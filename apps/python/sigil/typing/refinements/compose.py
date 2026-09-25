@@ -254,7 +254,7 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
     table.declares(
         "_sigil.compose",
         "band",
-        "def band(spine: _t.ShapeLike, width: Across) -> Band: ...\n",
+        "def band(spine: _t.ShapeLike, width: float) -> Band: ...\n",
     )
     table.erased("_sigil.compose", "stroke", "_t.SurfacePaintLike")
     table.erased(

@@ -19,6 +19,10 @@ clockwise path, and clockwise is Skia's own direction for rects and
 circles. Everything in this leaf that takes a signed distance from a
 path means that same side.
 
+A bare number is a profile too: `Profile(float px)` is the constant
+width `sigil::geometry::path::profile::offset` builds, and converts implicitly, so a
+consumer taking a width takes `22` as readily as a taper.
+
 ## What a profile value must carry
 
 `sigil::geometry::path::ProfileScheme` asks for
@@ -78,7 +82,7 @@ px shape under a reveal wants its own px-keyed law.
 
 ## The stepped width
 
-`sigil::geometry::path::profile::Spans` is a run of spans, each holding one
+`sigil::geometry::path::profile::Steps` is a run of steps, each holding one
 width for its share of the spine — the flow that thins at every
 junction it passes, the rule that changes weight at a stated station,
 the bar whose thickness is a measurement rather than a curve.
@@ -100,6 +104,6 @@ between two stated widths.
 ## See also
 
 - `path/Profile.h` — the header: `Profile`, `ProfileScheme`,
-  `PxKeyedProfileScheme`, `Taper`, `Spans`
+  `PxKeyedProfileScheme`, `Taper`, `Steps`
 - [Wave](value:sigil::geometry::shapers::Wave) — the zero-mean
   law that is a centreline rather than a width

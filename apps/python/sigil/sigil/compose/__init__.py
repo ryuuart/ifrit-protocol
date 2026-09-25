@@ -6,7 +6,6 @@
 from collections.abc import Iterable as _Iterable
 
 from _sigil.compose import (
-    Across,
     Align,
     Anchor,
     Annotation,
@@ -64,7 +63,6 @@ from _sigil.compose import (
     TextWrap,
     VarRef,
     VarTable,
-    across,
     autoDimension,
     band,
     bandPointAt,
@@ -142,7 +140,6 @@ def column(*children: _Node | _Iterable[_Node]) -> Element:
 
 
 __all__ = [
-    "Across",
     "Align",
     "Anchor",
     "Annotation",
@@ -200,7 +197,6 @@ __all__ = [
     "TextWrap",
     "VarRef",
     "VarTable",
-    "across",
     "autoDimension",
     "band",
     "bandPointAt",

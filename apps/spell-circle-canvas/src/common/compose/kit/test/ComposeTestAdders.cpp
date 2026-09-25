@@ -57,7 +57,7 @@ TEST(ComposeAdders, AroundAttachesABandAlongTheNodesOutline) {
                          .shape(geometry::shapes::circle())})
           .operators({outline::Around{
               .key = "dial",
-              .across = across(10),
+              .across = 10,
               .formation = geometry::path::Formation::Outer,
               .fill = red()}}));
   host.frame();

@@ -15,6 +15,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/path/Band.h>
+#include <sigilgeometry/path/Profile.h>
 
 #include <limits>
 #include <optional>
@@ -29,13 +30,13 @@ namespace sigil::compose::outline {
  *  `fill` is what it is painted with, or nothing when unset.
  *
  *      box().children({dial}).operators({outline::Around{
- *          .key = "dial", .across = across(14),
+ *          .key = "dial", .across = 14,
  *          .formation = geometry::path::Formation::Outer, .fill = brass}})
  *
  *  A key the scope does not carry draws nothing, silently. */
 struct Around {
   std::string key;
-  Across across = compose::across(8.0f);
+  geometry::path::Profile across = 8.0f;
   geometry::path::Formation formation = geometry::path::Formation::Center;
   std::optional<Fill> fill;
   bool operator==(const Around&) const = default;

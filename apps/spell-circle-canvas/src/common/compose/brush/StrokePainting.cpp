@@ -167,9 +167,9 @@ struct StrokeEngine final : StrokeResolverOperations {
                                         const SkPath& outline) const override {
     return resolveSpans(inst, outline);
   }
-  SkPath bandRegion(const SkPath& spine, const Across& width,
+  SkPath bandRegion(const SkPath& spine, const geometry::path::Profile& width,
                     geometry::path::Formation formation) const override {
-    return geometry::path::bandRegion(spine, width.profile, formation);
+    return geometry::path::bandRegion(spine, width, formation);
   }
 };
 

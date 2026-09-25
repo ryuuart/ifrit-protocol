@@ -96,7 +96,7 @@ Operator ring() {
 Operator dialBand() {
   return outline::Around{
       .key = "dial",
-      .across = across(6),
+      .across = 6,
       .formation = sigil::geometry::path::Formation::Inner,
       .fill = Fill::color(sketch::kit::theme().palette.rule)};
 }

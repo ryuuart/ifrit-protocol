@@ -388,7 +388,7 @@ SkPath routeAlong(const RailRouter& router, std::span<const SkPoint> stops,
 
 /** A BAND: the shape a spine sweeps out at a given width across it.
  *
- *      band(shapes::circle(), across(22))
+ *      band(shapes::circle(), 22)
  *          .bandAlignment(geometry::path::Formation::Inner).fill(brass)
  *
  *  It is an ordinary element in every way that matters — it lays out,
@@ -396,8 +396,8 @@ SkPath routeAlong(const RailRouter& router, std::span<const SkPoint> stops,
  *  shape. What it adds is that its shape is DERIVED: it owns an
  *  (along, across) space over its spine, `along` a fraction of arc length
  *  and `across` px on the normal (see bandPointAt for the sign), and
- *  `across(...)` takes a Profile, so a taper is the same value a strand
- *  or a ribbon width uses.
+ *  the width is SigilGeometry's `Profile` — a number is a constant width,
+ *  and a taper is the same value a strand or a ribbon width uses.
  *
  *  IT DOES NOT HIT-TEST AS ITS SHAPE. Hit testing consults the node's own
  *  shape value, and a band's silhouette is derived rather than set there,
@@ -420,7 +420,7 @@ SkPath routeAlong(const RailRouter& router, std::span<const SkPoint> stops,
  *
  *  The profile's `max()` is what the paint cull grows by, so a band whose
  *  width varies is never silently clipped. */
-Band band(Shape spine, Across width);
+Band band(Shape spine, geometry::path::Profile width);
 
 /** The band's own (along, across) space, addressable: `along` is a
  *  fraction of the spine's total arc length, `across` is px on the normal.

@@ -5,12 +5,11 @@
  *
  * SigilCompose stroke grammar — WHERE a stroke goes and HOW a composite
  * mark is built. Spans claims runs of a boundary by arc length and the
- * `spans::` factories spell the claims; Across names a band's width;
- * StrandPath says where one strand of a composite runs; and the resolver
+ * `spans::` factories spell the claims; StrandPath says where one strand of a composite runs; and the resolver
  * seams are what the kernel answers a span claim through.
  *
  * The path arithmetic under all of it is SigilGeometry's: the width law
- * (`geometry::path::Profile`), the deviation
+ * (`geometry::path::Profile`, which a band takes as its width), the deviation
  * (`geometry::path::Shaper`), the band a width cuts
  * (`geometry::path::bandRegion`, `geometry::path::Formation`) and who
  * passes over whom where two paths meet
@@ -264,37 +263,6 @@ Spans rest();
 Spans rest(std::string_view passName);
 }  // namespace spans
 
-/** The band's width, named at the call site: `band(spine, across(22))`.
- *  Takes a constant or any Profile (a taper, a kit oscillation). */
-struct Across {
-  geometry::path::Profile profile;
-  /** The brush engine that sweeps the profile into a region — installed by
-   *  `across()`, excluded from equality. */
-  core::Erased<StrokeResolverOperations> resolver;
-  bool operator==(const Across& o) const { return profile == o.profile; }
-  /** FIELD PIN: a member added here must be ruled on in operator== above,
-   *  then this count bumped. `resolver` is excluded on purpose. */
-  static void fieldPin(Across& v) {
-    auto& [profile, resolver] = v;
-    static_assert(
-        std::tuple_size_v<decltype(std::tie(profile, resolver))> == 2,
-        "Across gained or lost a member — rule on it in Across::operator== "
-        "(the resolver is excluded), then bump this count.");
-  }
-};
-// the profile copies its scheme into owned storage; nothing on the stack
-// outlives the call
-// NOLINTNEXTLINE(clang-analyzer-core.StackAddressEscape)
-/** Defined by the brush tier, which installs the engine that sweeps the
- *  profile: `across()` is a brush verb, and a band drawn through it links
- *  SigilComposeBrush. */
-Across across(float px);
-/** A band width that VARIES along the spine, given as a profile over
- *  arc length — a taper, a swell, a hand-drawn pressure curve. The
- *  profile's maximum is what the paint cull grows by, so a band whose
- *  width varies is never silently clipped. */
-Across across(geometry::path::Profile p);
-
 // ---------------------------------------------------------------------------
 // THE STROKE RESOLVER — the seam the kernel resolves span claims through
 
@@ -323,7 +291,7 @@ class SpanArithmeticOperations {
 /** WHAT THE KERNEL ASKS OF A BOUNDARY'S STROKE GRAMMAR: which runs each
  *  span-qualified pass claims this frame, and the region a band's spine
  *  sweeps. Installed on the description by `stroke(spans, …)`,
- *  `background(spans, …)` and `across()`; a description built without
+ *  `background(spans, …)` and `band()`; a description built without
  *  those verbs carries none, and the kernel then paints no span pass and
  *  no band region. */
 class StrokeResolverOperations : public SpanArithmeticOperations {
@@ -335,7 +303,8 @@ class StrokeResolverOperations : public SpanArithmeticOperations {
       const detail::Instance& inst, const SkPath& outline) const = 0;
   /** The region @p spine sweeps at @p width across it, on @p formation's
    *  side. Empty when the profile is zero everywhere. */
-  virtual SkPath bandRegion(const SkPath& spine, const Across& width,
+  virtual SkPath bandRegion(const SkPath& spine,
+                            const geometry::path::Profile& width,
                             geometry::path::Formation formation) const = 0;
 };
 

@@ -433,7 +433,8 @@ in no header.
   the same deviation and keeps the recording it has, which `operations::PathOperation`
   cannot answer.
 - **`path/Profile.h`** — `Profile`, the comparable WIDTH LAW, over the
-  `ProfileScheme` concept (`across(along)`, `max()`, equality). `max()`
+  `ProfileScheme` concept (`across(along)`, `max()`, equality); a bare
+  number converts to the constant width, so `band(spine, 22)` reads. `max()`
   is what every cull and bleed is sized from; equality is required
   because a profile is read live. `PxKeyedProfileScheme` declares
   `alongIsPx` for a law keyed in px of arc length rather than in a
@@ -441,7 +442,7 @@ in no header.
   sliding along a mark as a reveal grows — and `acrossAt(along, lengthPx)`
   is the one call that converts. `path::profile::self()`,
   `path::profile::offset(px)`, `path::profile::taper(startPx, endPx)` and
-  `path::profile::spans(upTo, widthsPx)` are the presets that read nothing but
+  `path::profile::steps(upTo, widthsPx)` are the presets that read nothing but
   their own numbers — the boundary, the parallel, the linear run between
   two widths, and the stepped table, which does not interpolate across a
   boundary because what it describes is a measurement that changes at a

@@ -30,12 +30,10 @@ RESULTS = "_sigil_derive_results"
 
 # Every name this package adds to the compose module.
 NAMES = (
-    "Across",
     "Anchor",
     "RailRouter",
     "Router",
     "Tether",
-    "across",
     "band",
     "bandPointAt",
 )
@@ -98,11 +96,11 @@ class Spellings(unittest.TestCase):
         self.assertTrue(isinstance(native.Anchor.OnNode, type))
         self.assertTrue(isinstance(native.Anchor.FreePoint, type))
 
-    def test_the_profile_reading_stands_where_the_width_law_does(self):
-        # The width law is a class of the geometry bindings; the reading
-        # that answers one is offered exactly where it is registered.
-        path = getattr(_sigil.geometry, "path", None)
-        self.assertEqual(hasattr(native.Across, "profile"), hasattr(path, "Profile"))
+    def test_a_band_width_is_the_geometry_width_law_not_a_compose_value(self):
+        # A band takes the geometry library's width law, or a number for
+        # the constant one; compose holds no width value of its own.
+        self.assertFalse(hasattr(native, "Across"))
+        self.assertFalse(hasattr(native, "across"))
 
 
 class Routers(unittest.TestCase):
@@ -416,22 +414,8 @@ class Spines(unittest.TestCase):
         self.assertAlmostEqual(point.x, x, places=3)
         self.assertAlmostEqual(point.y, y, places=3)
 
-    def test_a_width_is_built_by_across_and_compared_by_its_profile(self):
-        width = native.across(22)
-        self.assertIsInstance(width, native.Across)
-        self.assertEqual(width, native.across(pixels=22.0))
-        self.assertNotEqual(width, native.across(14))
-        for duplicate in (width.copy(), copy.copy(width), copy.deepcopy(width)):
-            self.assertIsNot(duplicate, width)
-            self.assertEqual(duplicate, width)
-        # Only `across` installs what sweeps the width into a region.
-        with self.assertRaises(TypeError):
-            native.Across()
-        with self.assertRaises(TypeError):
-            native.across("wide")
-
     def test_a_band_is_its_own_leaf_over_its_spine(self):
-        width = native.across(10)
+        width = 10
         spine = skia.PathBuilder().addRect((20, 20, 100, 100)).detach()
         self.assertIsInstance(native.band(spine=spine, width=width), native.Band)
         for authored in (spine, lambda width, height: spine, compose.shape(spine)):
@@ -446,9 +430,9 @@ class Spines(unittest.TestCase):
         self.assertIsInstance(native.Element(leaf), native.Element)
         native.stack(leaf)
         native.box().children(leaf)
-        # A width is the value `across` builds, never a bare number.
+        # A width is a number or a width law, never anything else.
         with self.assertRaises(TypeError):
-            native.band(spine, 10)
+            native.band(spine, "wide")
 
     def test_positive_across_is_to_the_left_of_travel(self):
         spine = skia.PathBuilder().moveTo(0, 0).lineTo(100, 0).detach()
@@ -570,7 +554,7 @@ class Bands(Session):
             from sigil import geometry
             spine = skia.PathBuilder().addRect((8, 8, 48, 16)).detach()
             show(pen, plate(
-                compose.band(spine, compose.across(8)).absolute().inset(0)
+                compose.band(spine, 8).absolute().inset(0)
                 .bandAlignment(geometry.path.Formation.{formation})
                 .fill('#ff0000')
             ))

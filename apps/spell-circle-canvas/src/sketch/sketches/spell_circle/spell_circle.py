@@ -124,7 +124,7 @@ def swatches() -> Element:
             #     lambda width, height: PathBuilder()
             #     .addCircle(width / 2, height / 2, min(width, height) / 3)
             #     .detach(),
-            #     across(12),
+            #     12,
             # )
             # .bandAlignment(Formation.Outer)
             # .height(120)

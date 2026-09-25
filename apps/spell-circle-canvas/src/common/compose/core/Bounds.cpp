@@ -69,8 +69,8 @@ float declaredBleed(const Instance& inst, SkSize size) {
   // REQUIRED to be able to report that number — which is the whole reason
   // `max()` is part of that interface. A width function that cannot state
   // its own maximum can only be clipped silently.
-  if (const Across* band = node.bandWidth())
-    bleed = std::max(bleed, band->profile.max());
+  if (const geometry::path::Profile* band = node.bandWidth())
+    bleed = std::max(bleed, band->max());
   for (const Echo& e : echoesOf(node))
     bleed =
         std::max(bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
@@ -153,14 +153,14 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   // nothing holds a SPINE inside this node's own box — a held path laid
   // over a node's outline sits where that node is — so the cull has to
   // hold the spine itself.
-  if (const Across* band = node.bandWidth()) {
+  if (const geometry::path::Profile* band = node.bandWidth()) {
     const SkPath spine = node.deriveData->bandSpine
                              ? node.deriveData->bandSpine(
                                    {rect.width(), rect.height()})
                              : SkPath();
     if (!spine.isEmpty()) {
       SkRect swept = spine.getBounds();
-      swept.outset(bleed + band->profile.max(), bleed + band->profile.max());
+      swept.outset(bleed + band->max(), bleed + band->max());
       local.join(swept);
     }
   }

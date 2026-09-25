@@ -120,7 +120,7 @@ TEST(Profile, ATaperRunsLinearlyBetweenTwoSignedEnds) {
 
 TEST(Profile, StepsHoldOneWidthPerSpanAndDoNotInterpolate) {
   // Three widths against two boundaries: the last width holds to the end.
-  const Profile p = profile::spans({0.25f, 0.75f}, {3.0f, 9.0f, 5.0f});
+  const Profile p = profile::steps({0.25f, 0.75f}, {3.0f, 9.0f, 5.0f});
   EXPECT_FLOAT_EQ(p.across(0.0f), 3.0f);
   EXPECT_FLOAT_EQ(p.across(0.2f), 3.0f);
   EXPECT_FLOAT_EQ(p.across(0.25f), 9.0f);  // the boundary opens the next span
@@ -129,11 +129,11 @@ TEST(Profile, StepsHoldOneWidthPerSpanAndDoNotInterpolate) {
   EXPECT_FLOAT_EQ(p.across(1.0f), 5.0f);
   EXPECT_FLOAT_EQ(p.max(), 9.0f);
   // A short table reads the last width there is rather than running off.
-  EXPECT_FLOAT_EQ(profile::spans({0.5f}, {2.0f}).across(0.9f), 2.0f);
-  EXPECT_FLOAT_EQ(profile::spans({}, {}).across(0.5f), 0.0f);
-  EXPECT_TRUE(profile::spans({0.5f}, {1, 2}) == profile::spans({0.5f}, {1, 2}));
-  EXPECT_FALSE(profile::spans({0.5f}, {1, 2}) ==
-               profile::spans({0.6f}, {1, 2}));
+  EXPECT_FLOAT_EQ(profile::steps({0.5f}, {2.0f}).across(0.9f), 2.0f);
+  EXPECT_FLOAT_EQ(profile::steps({}, {}).across(0.5f), 0.0f);
+  EXPECT_TRUE(profile::steps({0.5f}, {1, 2}) == profile::steps({0.5f}, {1, 2}));
+  EXPECT_FALSE(profile::steps({0.5f}, {1, 2}) ==
+               profile::steps({0.6f}, {1, 2}));
 }
 
 TEST(Profile, APxKeyedLawIsConvertedOnceByTheSeam) {

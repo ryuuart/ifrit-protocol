@@ -651,7 +651,7 @@ static void BM_Band_Construct(benchmark::State& state) {
   Host host(1400, 1400);
   for ([[maybe_unused]] auto iteration : state) {
     host.composer.render(stack().children(
-        {band(ring, across(14)).inset(0).fill(Fill::color({1, 0, 0, 1}))}));
+        {band(ring, 14).inset(0).fill(Fill::color({1, 0, 0, 1}))}));
     host.draw();
   }
   state.SetItemsProcessed(state.iterations());

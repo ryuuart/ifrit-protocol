@@ -34,15 +34,16 @@ TEST(ComposeBand, ProfilesAreComparableAndReflexive) {
   EXPECT_TRUE(geometry::path::Profile() == geometry::path::Profile())
       << "two empty profiles are one nothing";
   EXPECT_FALSE(geometry::path::Profile() == geometry::path::profile::self());
-  EXPECT_TRUE(across(6) == across(6));
-  EXPECT_FALSE(across(6) == across(7));
+  EXPECT_TRUE(geometry::path::Profile(6) == geometry::path::profile::offset(6))
+      << "a bare number is the constant width";
+  EXPECT_FALSE(geometry::path::Profile(6) == geometry::path::Profile(7));
 }
 
 TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
   auto draw = [](geometry::path::Formation f) {
     Host host(200, 200);
     Band b =
-        band(rectSpine(), across(10)).rect(SkRect::MakeXYWH(20, 20, 100, 100));
+        band(rectSpine(), 10).rect(SkRect::MakeXYWH(20, 20, 100, 100));
     b.bandAlignment(f);
     host.composer.render(stack().children({b.fill(red())}));
     host.frame();
@@ -73,7 +74,7 @@ TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
              b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 60);
              return b.detach();
            },
-           across(12))
+           12)
            .inset(0)
            .fill(red())}));
   host.frame();
@@ -107,7 +108,7 @@ TEST(ComposeBand, ProfileMaxKeepsTheReachOutOfTheCull) {
   // and an outward band draws entirely OUTSIDE its layout box.
   Host host(200, 200);
   host.composer.render(
-      stack().children({band(rectSpine(), across(20))
+      stack().children({band(rectSpine(), 20)
                             .bandAlignment(geometry::path::Formation::Outer)
                             .rect(SkRect::MakeXYWH(60, 60, 40, 40))
                             .cache(Cache::Picture)
@@ -120,7 +121,7 @@ TEST(ComposeBand, ProfileMaxKeepsTheReachOutOfTheCull) {
 TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
   Host host(200, 200);
   host.composer.render(
-      stack().children({band(rectSpine(), across(16))
+      stack().children({band(rectSpine(), 16)
                             .rect(SkRect::MakeXYWH(30, 30, 80, 80))
                             .stroke(spans::every(1), stroke(4, green()))}));
   host.frame();
@@ -665,7 +666,7 @@ TEST(ComposeShapeValues, ABandWithAComparableSpinePrunes) {
   // rather than refusing any authored spine outright.
   Host host;
   auto tree = [] {
-    return box().children({band(geometry::shapes::circle(), across(8.0f))
+    return box().children({band(geometry::shapes::circle(), 8.0f)
                                .width(100)
                                .height(100)
                                .fill(red())});

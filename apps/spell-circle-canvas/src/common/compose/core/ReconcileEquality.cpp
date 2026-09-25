@@ -151,7 +151,7 @@ bool textEqual(const ElementNode& a, const ElementNode& b) {
   return true;
 }
 
-static_assert(kFieldCount<DeriveData> == 9,
+static_assert(kFieldCount<DeriveData> == 10,
               "DeriveData gained or lost a field — rule on it in "
               "deriveEqual() below, then bump this count.");
 bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
@@ -162,6 +162,8 @@ bool deriveEqual(const Box<DeriveData>& a, const Box<DeriveData>& b) {
   if (!(a->bandSpine == b->bandSpine)) return false;
   if (a->bandWidth.has_value() != b->bandWidth.has_value()) return false;
   if (a->bandWidth && !(*a->bandWidth == *b->bandWidth)) return false;
+  // `bandResolver` is EXCLUDED: band() installs the one stroke engine on
+  // every band, so it never differs between two bands.
   // `reads` is EXCLUDED, and the exclusion is a derivation rather than a
   // judgement call: every entry is pushed by the same statement that
   // writes one of the fields compared above (or `TextData::threadTo`,

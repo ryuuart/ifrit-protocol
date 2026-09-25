@@ -493,45 +493,30 @@ void bindTether(py::module_& composition) {
 }
 
 void bindSpines(py::module_& composition) {
-  // Built by `across` alone, which installs the engine that sweeps the
-  // profile into a region; one made any other way would sweep nothing.
-  py::class_<compose::Across> across(
-      composition, "Across",
-      "A band's width across its spine, compared by its profile.");
-  across.def("copy", [](const compose::Across& self) { return self; })
-      .def(py::self == py::self);
-  copyProtocol(across);
-
-  // The constant overload stands first, so a whole number is read as
-  // pixels before any conversion a profile offers is tried.
-  composition.def("across", py::overload_cast<float>(&compose::across),
-                  py::arg("pixels"), "A constant band width, in pixels.");
-  // The width law is a class of the geometry bindings, so the overload
-  // and the reading that name it are written where it has a name.
-  if (registered<geometry::path::Profile>()) {
-    across.def_property_readonly(
-        "profile", [](const compose::Across& self) { return self.profile; },
-        "The width law, copied on read.");
-    composition.def(
-        "across",
-        [](geometry::path::Profile profile) {
-          return compose::across(std::move(profile));
-        },
-        py::arg("profile"),
-        "A band width that varies along the spine, as a profile over arc "
-        "length.");
-  }
-
+  // A band's width is the geometry library's width law. A number is the
+  // constant width, and stands first so a whole number is read as pixels
+  // before any conversion a profile offers is tried.
   composition.def(
       "band",
-      [](py::object spine, const compose::Across& width) {
+      [](py::object spine, float width) {
         return compose::band(shape(spine), width);
       },
       py::arg("spine"), py::arg("width"),
-      "A band: the ribbon `spine` sweeps out at `width` across it. The "
+      "A band: the ribbon `spine` sweeps out `width` pixels across it. The "
       "spine is any shape a node takes — a generator, a path or a function "
       "of the node's size — and the band lays out, fills, clips and takes "
       "stroke passes like any other node.");
+  // The width law is a class of the geometry bindings, so the overload
+  // that names it is written where it has a name.
+  if (registered<geometry::path::Profile>())
+    composition.def(
+        "band",
+        [](py::object spine, geometry::path::Profile width) {
+          return compose::band(shape(spine), std::move(width));
+        },
+        py::arg("spine"), py::arg("width"),
+        "A band whose width varies along the spine, as a profile over arc "
+        "length.");
 
   composition.def(
       "bandPointAt", &compose::bandPointAt, py::arg("spine"), py::arg("along"),

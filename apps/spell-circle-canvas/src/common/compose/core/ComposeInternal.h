@@ -302,9 +302,12 @@ struct DeriveData {
   float flowAroundMargin = 0;
   // band(): the spine is guide DATA, authored here. The width profile's
   // presence is what makes this node a band. A Shape, so a comparable
-  // spine prunes (same seam as shapeFn).
+  // spine prunes (same seam as shapeFn). The resolver is the brush
+  // engine band() installs to sweep the width into a region, excluded
+  // from equality.
   Shape bandSpine;
-  std::optional<Across> bandWidth;
+  std::optional<geometry::path::Profile> bandWidth;
+  StrokeResolver bandResolver;
   geometry::path::Formation bandFormation = geometry::path::Formation::Center;
   // spans::fit(key): the keyed boxes a stroke pass sizes its gap from,
   // resolved to this node's local space per frame (the contentFlowAround
@@ -700,7 +703,7 @@ struct ElementNode {
   bool hasStrokePasses() const {
     return strokeData && !strokeData->passes.empty();
   }
-  const Across* bandWidth() const {
+  const geometry::path::Profile* bandWidth() const {
     return deriveData && deriveData->bandWidth ? &*deriveData->bandWidth
                                                : nullptr;
   }

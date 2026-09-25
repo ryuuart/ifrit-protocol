@@ -43,7 +43,7 @@ struct ElementNode;
 // of them the compiler's.
 //
 // NO PIN IS NEEDED for a struct whose equality is `= default`
-// (LayoutProps, Corners, MarkLabel, MarkAnchor, Echo, Anchor, Across, Parts,
+// (LayoutProps, Corners, MarkLabel, MarkAnchor, Echo, Anchor, Parts,
 // Span, ContentScalars): the compiler writes the exhaustive comparison
 // and cannot forget a field. A pin exists only for a comparator a human
 // wrote by hand — and the honest way to retire a pin is to give the struct

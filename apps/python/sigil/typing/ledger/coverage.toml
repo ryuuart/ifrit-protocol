@@ -358,8 +358,8 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`band` over a shape at an `across` width, with `bandAlignment`"
-python = ["compose.band", "compose.across", "compose.Band.bandAlignment"]
+bound = "`band` over a shape at a width, a number or a width law, with `bandAlignment`"
+python = ["compose.band", "compose.Band.bandAlignment"]
 
 [[section.surface.item]]
 bound = "`Anchor` and `RailRouter`"

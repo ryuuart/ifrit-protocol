@@ -126,8 +126,8 @@ scheme of your own is C++ only.
   `BleedingDecoration`, `ReachingDecoration`, `BlendingDecoration` and
   `BorrowingDecoration` a scheme declares itself by; `LayerStyle`; and
   `Boundary`.
-- `core/Stroke.h` — `Spans` and the `spans` factories, with `Across` and
-  `StrandPath`.
+- `core/Stroke.h` — `Spans` and the `spans` factories, with
+  `StrandPath`; a band's width is SigilGeometry's `geometry::path::Profile`.
 - `core/Mask.h` — `Gate` and `Parts`, the two halves of a mask.
 - `core/Layout.h` — `Dimension` with `pct`, `pw`, `ph`,
   `autoDimension` and the `parseDimension` that reads one written as

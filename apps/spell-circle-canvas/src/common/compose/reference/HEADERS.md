@@ -58,9 +58,10 @@ sound model; nothing below them changes kernel semantics.
   `ShapeScheme`), `MotionPath`, `Decoration` and its declared-volatility
   concepts, and `LayerStyle`; and `Boundary`, which outline a node hands
   its decorations.
-- `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`, `Across`,
+- `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`,
   `StrandPath` and `strand::`. The path arithmetic under it is
-  SigilGeometry's — the width law `geometry::path::Profile` with
+  SigilGeometry's — the width law `geometry::path::Profile` (a band's
+  width, a bare number being a constant one) with
   `geometry::path::profile::self` / `offset`, the deviation
   `geometry::path::Shaper`, the band `geometry::path::bandRegion` on a
   `geometry::path::Formation`, and `geometry::path::CrossingRule` with

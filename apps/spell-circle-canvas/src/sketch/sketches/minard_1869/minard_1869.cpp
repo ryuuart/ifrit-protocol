@@ -116,7 +116,7 @@ struct Minard1869 {
       widths.push_back(zoneWidth(zone.stations[index].men));
     }
     brush::Ribbon band =
-        brush::ribbon(path::profile::spans(stepsAt, widths), Fill::color(colour));
+        brush::ribbon(path::profile::steps(stepsAt, widths), Fill::color(colour));
     band.step = 1.5f;
     return pathFigure(path::toPath(route)).stroke(band);
   }
