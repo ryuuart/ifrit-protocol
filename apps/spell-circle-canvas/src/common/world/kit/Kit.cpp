@@ -133,7 +133,9 @@ Element turntable(const Turntable& table, float seconds) {
   // One turn per period, as a wrapping phase along the rail. A
   // non-positive period is a still camera, which is what the phase
   // answers 0 for.
-  const float travelled = motion::phase(seconds, table.period) * track.length();
+  const float travelled =
+      motion::phase(motion::Duration(seconds), motion::Duration(table.period)) *
+      track.length();
   return Element().key("camera").along(track, travelled).camera(lens);
 }
 

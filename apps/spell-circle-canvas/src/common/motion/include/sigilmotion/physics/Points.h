@@ -13,6 +13,8 @@
  * those want, and it is the shape an instanced draw takes its lanes in.
  */
 
+#include <sigilmotion/time/Duration.h>
+
 #include <cmath>
 #include <concepts>
 #include <cstddef>

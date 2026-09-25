@@ -15,11 +15,11 @@ constexpr float kTurn = 6.28318530717958647692f;
 
 }  // namespace
 
-size_t Particles::add(Vec2 at, Vec2 startingVelocity, float lifetime,
+size_t Particles::add(Vec2 at, Vec2 startingVelocity, Duration lifetime,
                       float startingMass) {
   const size_t index = points.add(at, startingVelocity, startingMass);
   age.push_back(0.0f);
-  life.push_back(lifetime);
+  life.push_back((float)lifetime.count());
   for (Attribute& attribute : attributes) attribute.values.push_back(0.0f);
   return index;
 }
@@ -59,7 +59,8 @@ const Attribute* Particles::attribute(std::string_view name) const {
   return nullptr;
 }
 
-void Particles::live(float elapsed) {
+void Particles::ageBy(Duration elapsedTime) {
+  const float elapsed = (float)elapsedTime.count();
   const size_t count = size();
   for (size_t i = 0; i < count; ++i) age[i] += elapsed;
   for (Attribute& attribute : attributes) {
@@ -154,7 +155,7 @@ size_t Emitter::burst(Particles& particles, core::chance::Stream& stream,
     // one would put a range nobody uses between a cloud and the seed
     // that replays it.
     const float weight = mass.varies() ? mass.draw(stream) : mass.constant();
-    const size_t index = particles.add(place, thrown, 0.0f, weight);
+    const size_t index = particles.add(place, thrown, Duration{}, weight);
     for (size_t i = 0; i < attributes.size(); ++i)
       (*drawnInto[i])[index] = attributes[i].drawn.draw(stream);
     for (size_t i = 0; i < fixed.size(); ++i)
@@ -164,7 +165,8 @@ size_t Emitter::burst(Particles& particles, core::chance::Stream& stream,
 }
 
 size_t Emitter::emit(Particles& particles, core::chance::Stream& stream,
-                     float elapsed) {
+                     Duration elapsedTime) {
+  const float elapsed = (float)elapsedTime.count();
   if (!(rate > 0.0f) || !(elapsed > 0.0f)) return 0;
   carry += rate * elapsed;
   if (!(carry >= 1.0f)) return 0;

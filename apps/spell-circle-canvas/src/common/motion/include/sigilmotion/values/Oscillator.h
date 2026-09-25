@@ -5,19 +5,21 @@
  *
  * A SIGNAL THAT REPEATS, as a value: which wave, how fast, where in the
  * cycle it starts, how far it swings and what it swings about. It
- * answers a number for a time in seconds and reads the same everywhere —
+ * answers a number for a time and reads the same everywhere —
  * in a describe, in a force's strength, in a sketch's draw.
  *
- * The bind chain already shapes a phase somebody else is stepping
- * (`pingPong`, `cosine`, `square`, `wave`); this is the same set of
- * shapes for the far more common case where there is no Output and no
- * ticker in reach — a clock reading and a number wanted from it. What it
+ * A binding already shapes a phase somebody else is stepping (its
+ * `alternate` and its envelopes); this is the same set of shapes for the
+ * far more common case where there is no live value and no engine in
+ * reach — a clock reading and a number wanted from it. What it
  * removes at the call site is the FOLD: a bare `sin(t * k)` is one
  * expression, but a wave that starts somewhere, swings by something and
  * sits about something is four, and the modulus that keeps a triangle or
  * a pulse in its cycle is the one a hand-written phase gets wrong for
  * negative times.
  */
+
+#include <sigilmotion/time/Duration.h>
 
 #include <cmath>
 #include <cstdint>
@@ -75,22 +77,23 @@ struct Oscillator {
 
   bool operator==(const Oscillator&) const = default;
 
-  /** THE SIGNAL AT @p seconds. */
-  [[nodiscard]] float at(double seconds) const {
-    return centre + amplitude * shape(fold(seconds));
+  /** THE SIGNAL AT @p time. */
+  [[nodiscard]] float at(Duration time) const {
+    return centre + amplitude * shape(fold(time));
   }
 
-  /** The same call, so an oscillator IS an interpolator: anything that
-   *  hands a number to a callable takes one. */
-  float operator()(double seconds) const { return at(seconds); }
+  /** The same signal with a number for its time, so an oscillator IS an
+   *  interpolator: a binding's `ease`, `envelope::shaped` and anything
+   *  else that hands a number to a callable takes one. */
+  float operator()(double input) const { return at(Duration(input)); }
 
-  /** WHERE IN THE CYCLE @p seconds is, in [0, 1). Exposed because
-   *  anything travelling with the signal — a trail, a second wave a
-   *  quarter turn behind, a stamp per cycle — needs the same phase this
-   *  reads, and recovering it from the value cannot be done for a wave
-   *  that visits a number twice. */
-  [[nodiscard]] float fold(double seconds) const {
-    const double turns = seconds * (double)hertz + (double)phase;
+  /** WHERE IN THE CYCLE @p time is, in [0, 1). Exposed because anything
+   *  travelling with the signal — a trail, a second wave a quarter turn
+   *  behind, a stamp per cycle — needs the same phase this reads, and
+   *  recovering it from the value cannot be done for a wave that visits a
+   *  number twice. */
+  [[nodiscard]] float fold(Duration time) const {
+    const double turns = time.count() * (double)hertz + (double)phase;
     const double folded = turns - std::floor(turns);
     return (float)folded;
   }

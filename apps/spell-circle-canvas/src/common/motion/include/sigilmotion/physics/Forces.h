@@ -120,7 +120,7 @@ struct Force {
   /** Add what this force is doing to the point set's force lane. Every
    *  force reads the lanes as they are and writes only `force`, so the
    *  order a list of them is applied in does not change the answer. */
-  void apply(Points& points, float seconds) const;
+  void apply(Points& points, Duration step) const;
 };
 
 /** THE SAME PULL ON EVERYTHING: an acceleration, so weight does not

@@ -7,8 +7,9 @@
 # this is a set of them pushing on each other, with no closed form to
 # have.
 #
-# It links no clock and no timeline. A step is a number of seconds the
-# caller states, so a fixed-rate lane of a ticker, a bake writing frames
+# It links no clock and no timeline. A step is a length of time the
+# caller states — the time unit is the one header it links for it — so a
+# step-rate timer on an engine, a bake writing frames
 # to disk and a test stepping a hundred times in a loop all drive the
 # same body. SigilCoreCompute is the noise field a wind reads and is a
 # header-only leaf over the standard library — the same kind of edge out
@@ -18,7 +19,7 @@ sigil_library(SigilMotionPhysics
           Verlet.cpp
   HEADERS Constraints.h Forces.h Neighbourhood.h Particles.h Points.h
           Verlet.h
-  PUBLIC SigilCoreCompute)
+  PUBLIC SigilMotionTime SigilCoreCompute)
 
 # Links the feature alone: nothing here reads a clock, and a link edge
 # that pulled one in would show up as a build failure here.

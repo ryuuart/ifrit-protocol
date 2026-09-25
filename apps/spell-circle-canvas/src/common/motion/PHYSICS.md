@@ -29,7 +29,7 @@ for (int i = 1; i < 40; ++i) weave.push_back(distance(i - 1, i, 10.0f));
 
 const std::vector<Force> forces{gravity({0, 980}), wind(breeze, 40.0f),
                                 repel(cursor, 6000.0f, 120.0f)};
-const Verlet stepper{.timeStep = 1.0f / 120.0f, .damping = 0.4f, .iterations = 8};
+const Verlet stepper{.timeStep = 1s / 120.0, .damping = 0.4f, .iterations = 8};
 
 engine.timer([&] { stepper.step(cloth, forces, weave); }, {.stepRate = 120.0});
 ```
@@ -182,9 +182,9 @@ const Emitter mouth{
 
 core::chance::Stream stream = core::chance::Stream::pcg(1982);
 engine.timer([&] {
-  mouth.emit(fire, stream, 1.0f / 60.0f);
+  mouth.emit(fire, stream, 1s / 60.0);
   stepper.step(fire.points, forces);
-  fire.live(1.0f / 60.0f);
+  fire.ageBy(1s / 60.0);
   fire.reap();
 }, {.stepRate = 60.0});
 ```
@@ -239,9 +239,9 @@ and in every named attribute at once — so a size, a colour or an index saying
 which emitter threw this one has to travel with the particle or be
 silently renumbered. `Particles::attribute` names one; `Attribute::rate`, bounded
 by `Attribute::least` and `Attribute::most`, is the whole of the model an attribute
-changes under while a particle lives, and `Particles::live` applies it.
+changes under while a particle lives, and `Particles::ageBy` applies it.
 
-**Ageing and death are two calls, not one.** `Particles::live` makes
+**Ageing and death are two calls, not one.** `Particles::ageBy` makes
 everything older and moves every attribute by its own rate; `Particles::reap`
 removes what is dead and compacts. A cloud usually dies of more than age
 — of running out of light, of falling below the ground, of leaving the

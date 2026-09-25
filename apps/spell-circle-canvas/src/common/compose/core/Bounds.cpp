@@ -20,7 +20,6 @@
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilimage/asset/ImageAsset.h>
-#include <sigilmotion/values/Time.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/fonts/Shaper.h>  // makeFont — the ink band's cap-height metrics
@@ -215,7 +214,7 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
   // then walks every contour as one arc-length coordinate.
   const auto walk = [&](float u) {
     const float w =
-        cache.closed ? motion::phase(u, 1.0) : std::clamp(u, 0.0f, 1.0f);
+        cache.closed ? u - std::floor(u) : std::clamp(u, 0.0f, 1.0f);
     return geometry::path::toSk(
         geometry::path::poseAlong(cache.contours, w * cache.total).position);
   };

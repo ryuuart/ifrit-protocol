@@ -151,7 +151,7 @@ struct Particles {
 
   /** A particle at @p at, moving at @p startingVelocity, allowed
    *  @p lifetime, and its index. Every attribute grows with it, at zero. */
-  size_t add(Vec2 at, Vec2 startingVelocity = {}, float lifetime = 0.0f,
+  size_t add(Vec2 at, Vec2 startingVelocity = {}, Duration lifetime = {},
              float startingMass = 1.0f);
 
   /** Drop the particle at @p index by moving the LAST one into its
@@ -189,7 +189,7 @@ struct Particles {
    *  rate over that time and held inside its bounds. It removes nothing:
    *  what is dead afterwards is what `reap` answers, and a consumer with
    *  extinction rules of its own gets to write them between the two. */
-  void live(float elapsed);
+  void ageBy(Duration elapsed);
 
   /** THE EXPIRED ONES REMOVED, and how many went. */
   size_t reap();
@@ -343,7 +343,7 @@ struct Emitter {
   /** THE BIRTHS @p elapsed OF TIME IS WORTH at `rate`, the fraction
    *  carried, and the count. */
   size_t emit(Particles& particles, core::chance::Stream& stream,
-              float elapsed);
+              Duration elapsed);
 };
 
 }  // namespace sigil::motion::physics

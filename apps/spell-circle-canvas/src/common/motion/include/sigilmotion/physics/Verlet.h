@@ -12,6 +12,9 @@
 #include <sigilmotion/physics/Forces.h>
 #include <sigilmotion/physics/Points.h>
 
+#include <sigilmotion/time/Duration.h>
+
+#include <chrono>
 #include <span>
 
 namespace sigil::motion::physics {
@@ -23,7 +26,7 @@ namespace sigil::motion::physics {
  *  simulation on every machine and on every frame it stutters, while one
  *  stepped by a fixed number is the same run everywhere and can be
  *  replayed, seeded and compared. A host with a varying clock runs this
- *  from the fixed-rate lane of its ticker, which is exactly the shape
+ *  from an engine timer with a `stepRate`, which is exactly the shape
  *  this asks for: step as many times as the elapsed time holds, and draw
  *  whatever the last step left.
  *
@@ -32,8 +35,8 @@ namespace sigil::motion::physics {
  *  achieved, which is what makes a constraint take speed away without
  *  anything having to say that it does. */
 struct Verlet {
-  /** How much time one step covers, in seconds. */
-  float timeStep = 1.0f / 60.0f;
+  /** How much time one step covers. */
+  Duration timeStep = std::chrono::duration<double>(1.0 / 60.0);
   /** The fraction of its speed a point loses per second, applied
    *  exponentially so that the loss is the same whatever the step is —
    *  0 keeps everything, 1 leaves about a third of the speed after a

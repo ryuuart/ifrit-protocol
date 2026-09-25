@@ -18,7 +18,7 @@ writes, or a live value followed through a `Binding`:
 Animatable<float> a = 1.0f;                                  // constant
 Animatable<float> b = animate({.from = 0.0f, .to = 1.0f});   // entrance
 Animatable<float> c = animatable(0.0f);                      // live value
-c = std::sin(seconds);                                       // …written
+c = std::sin(engine.elapsed().count());                      // …written
 Animatable<float> d = bind(c, {.from = {0.2f, 0.6f}, .clampFrom = true,
                                .ease = ease::outBack(), .to = {-70, 170}});
 ```
@@ -91,7 +91,7 @@ triangle, sawtooth or square with a `duty` — `hertz`, a starting
 Every wave is stated on the same folded phase and answers on [-1, 1]
 before the amplitude, so swapping one for another keeps the timing and
 the range and changes only the feel; the triangle is on the sine's
-phase for exactly that reason. `fold(seconds)` is where in the cycle a
+phase for exactly that reason. `fold(time)` is where in the cycle a
 time falls, for anything travelling with the signal, and `shape(u)` is
 the waveform on a phase that has already been folded — which is what
 `envelope::shaped(...)` is handed. What it removes at
@@ -118,12 +118,12 @@ target that is allowed to move.
 
 ```cpp
 Spring cursor;                                   // value 0, at rest
-SpringParameters parameters{.periodSeconds = 0.39f, .damping = 0.22f};
-cursor = spring(cursor, selectedX, deltaSeconds, parameters);  // every frame
-if (!springMoving(cursor, selectedX)) sleep();   // done, to within a pixel
+SpringParameters parameters{.period = 390ms, .damping = 0.22f};
+cursor = cursor.step(selectedX, delta, parameters);  // every frame
+if (cursor.isSettled(selectedX)) sleep();         // done, to within a pixel
 ```
 
-`periodSeconds` is the period the spring would ring at with no damping —
+`period` is how long the spring would take to ring once with no damping —
 how fast — and `damping` is the ratio: under 1 it overshoots and rings,
 at 1 it arrives as fast as it can without ever crossing, over 1 it crawls
 in from one side. The two are independent, which is the reason they are
@@ -148,7 +148,7 @@ is also why a caller with no state to keep can have the closed form for
 free, stepping a spring at rest by the age of the thing it animates,
 exactly as `decay` is read.
 
-`springMoving` is the *running* question asked of a spring. An
+`Spring::isSettled` is the *settled* question asked of a spring. An
 exponential approach never exactly arrives, so rest is a tolerance rather
 than a fact, and it is stated once as a distance and a rate together: a
 value sitting on its target at speed is passing through it, not resting

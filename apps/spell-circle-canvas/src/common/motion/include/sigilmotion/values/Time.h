@@ -3,19 +3,23 @@
 /** @file
  * @ingroup motion-values
  *
- * The arithmetic over a clock reading: seconds posterised at a declared
- * rate, the step INDEX that rate is on, seconds folded into a wrapping
+ * The arithmetic over a clock reading: a time posterised at a declared
+ * rate, the step INDEX that rate is on, a time folded into a wrapping
  * [0, 1) loop, the open-ended settle a time constant describes, and the
  * one-shot flash built on it.
  */
+
+#include <sigilmotion/time/Duration.h>
 
 #include <cmath>
 #include <cstdint>
 
 namespace sigil::motion {
 
-/** Posterize TIME at a declared rate: `floor(seconds·rate)/rate`, held still
- *  between steps.
+/** Posterize a NUMBER OF SECONDS at a declared rate:
+ *  `floor(seconds·rate)/rate`, held still between steps — the form a
+ *  shader's time uniform is written in, where the seconds are already a
+ *  number.
  *
  *  Not the same operation as `Bound::quantize`, despite the similar name.
  *  This one snaps unbounded seconds to a RATE; that one snaps a
@@ -35,6 +39,12 @@ inline T quantizeTime(T seconds, T rate) {
   return rate > T(0) ? std::floor(seconds * rate) / rate : seconds;
 }
 
+/** Posterize TIME at a declared rate, in updates per second: the clock
+ *  held still between steps. */
+inline Duration quantizeTime(Duration time, double rate) {
+  return Duration(quantizeTime(time.count(), rate));
+}
+
 /** WHICH STEP a posterised clock is on: `floor(seconds·rate)` as an integer, the
  *  counterpart of `quantizeTime`'s re-emitted seconds.
  *
@@ -48,24 +58,24 @@ inline T quantizeTime(T seconds, T rate) {
  *  A `long long` because a monotonic clock at 60 Hz outruns a 32-bit
  *  count in under a year of running. `rate <= 0` answers 0 — the spelling
  *  of "continuous", which is on no step at all. */
-inline long long stepIndex(double seconds, double rate) {
-  return rate > 0 ? (long long)std::floor(seconds * rate) : 0;
+inline long long stepIndex(Duration time, double rate) {
+  return rate > 0 ? (long long)std::floor(time.count() * rate) : 0;
 }
 
-/** A wrapping phase in [0, 1): `seconds` over a `period`-second loop —
+/** A wrapping phase in [0, 1): @p time over a @p period loop —
  *  the marching-ants offset, the orbiting comet, the scrolling marquee,
  *  the scanline creep.
  *
  *  A non-positive period gives 0 rather than the NaN the bare `fmod` would
- *  produce, and a negative `seconds` wraps forward instead of returning a
+ *  produce, and a negative time wraps forward instead of returning a
  *  negative phase, so the result is always in range whatever the caller
  *  hands in.
  *
  *  Deliberately narrow. The two neighbouring signals, `0.5 + 0.5·sin(t·k)`
  *  and `min(1, t/k)`, are one short expression each and are not here. */
-inline float phase(double seconds, double period) {
-  if (!(period > 0)) return 0.0f;
-  const double wrapped = std::fmod(seconds / period, 1.0);
+inline float phase(Duration time, Duration period) {
+  if (!(period.count() > 0)) return 0.0f;
+  const double wrapped = std::fmod(time.count() / period.count(), 1.0);
   return (float)(wrapped < 0 ? wrapped + 1.0 : wrapped);
 }
 
@@ -75,15 +85,15 @@ inline float phase(double seconds, double period) {
  *
  *  Not an easing curve, and the reason is the shape of the question. An
  *  `ease::` curve maps a NORMALISED progress: it needs a duration, and it
- *  arrives at exactly 0 or 1 at a stated moment. This takes an AGE in
- *  whatever unit `timeConstant` is in, has no end, and never quite reaches 0. A
- *  non-positive `timeConstant` answers 0 — no memory at all — rather than dividing
- *  by zero. */
-inline float decay(float age, float timeConstant) {
-  return timeConstant > 0.0f ? std::exp(-age / timeConstant) : 0.0f;
+ *  arrives at exactly 0 or 1 at a stated moment. This takes an AGE, has
+ *  no end, and never quite reaches 0. A non-positive `timeConstant`
+ *  answers 0 — no memory at all — rather than dividing by zero. */
+inline float decay(Duration age, Duration timeConstant) {
+  const float constant = (float)timeConstant.count();
+  return constant > 0.0f ? std::exp(-(float)age.count() / constant) : 0.0f;
 }
 
-/** A ONE-SHOT FLASH: up over @p attack seconds, then down towards @p rest
+/** A ONE-SHOT FLASH: up over @p attack, then down towards @p rest
  *  on a time constant — the strike, the muzzle flare, the hit that lands
  *  and cools, the lamp that comes on hot and settles to its burn.
  *
@@ -92,7 +102,7 @@ inline float decay(float age, float timeConstant) {
  *  makes a flash read as hot is that it arrives in a frame or two and
  *  leaves over half a second, so an eased rise only softens what should
  *  be the sharpest edge in the envelope. @p timeConstant is the fall's
- *  time constant, in the same unit as @p age. @p rest is where the fall is
+ *  time constant. @p rest is where the fall is
  *  headed — 0 for a flare that goes out, above 0 for a thing that stays
  *  lit at a lower level once it has flared.
  *
@@ -107,12 +117,15 @@ inline float decay(float age, float timeConstant) {
  *  0, timeConstant, 0)` and `decay(age, timeConstant)` are the same number for a
  *  non-negative age. Reach for `decay` when there is no attack to
  *  describe. */
-inline float flash(float age, float attack, float timeConstant,
+inline float flash(Duration age, Duration attack, Duration timeConstant,
                    float rest = 0.0f) {
-  if (age < 0.0f) return 0.0f;
-  if (age < attack) return age / attack;
-  if (!(timeConstant > 0.0f)) return 1.0f;
-  return rest + (1.0f - rest) * std::exp(-(age - attack) / timeConstant);
+  const float seconds = (float)age.count();
+  const float rise = (float)attack.count();
+  const float constant = (float)timeConstant.count();
+  if (seconds < 0.0f) return 0.0f;
+  if (seconds < rise) return seconds / rise;
+  if (!(constant > 0.0f)) return 1.0f;
+  return rest + (1.0f - rest) * std::exp(-(seconds - rise) / constant);
 }
 
 }  // namespace sigil::motion

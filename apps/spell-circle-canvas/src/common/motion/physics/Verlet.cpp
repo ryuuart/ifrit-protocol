@@ -12,7 +12,9 @@ namespace sigil::motion::physics {
 void Verlet::step(Points& points, std::span<const Force> forces,
                   std::span<const Constraint> constraints) const {
   const size_t count = points.size();
-  if (count == 0 || !(timeStep > 0.0f)) return;
+  // The step's length as the float every lane is stepped in.
+  const float seconds = (float)timeStep.count();
+  if (count == 0 || !(seconds > 0.0f)) return;
 
   // THE LANE IS THE CALLER'S TO PRE-LOAD. A push written into it between
   // two steps is what the forces accumulate onto, and it is cleared once
@@ -23,7 +25,7 @@ void Verlet::step(Points& points, std::span<const Force> forces,
   // Exponential rather than a fraction taken per step: a loss stated per
   // second is the same loss whatever the step is, so re-timing a
   // simulation does not re-tune how it settles.
-  const float kept = damping > 0.0f ? std::exp(-damping * timeStep) : 1.0f;
+  const float kept = damping > 0.0f ? std::exp(-damping * seconds) : 1.0f;
 
   for (size_t i = 0; i < count; ++i) {
     points.previous[i] = points.position[i];
@@ -35,8 +37,8 @@ void Verlet::step(Points& points, std::span<const Force> forces,
       continue;
     }
     points.velocity[i] *= kept;
-    points.velocity[i] += points.force[i] * (timeStep / points.mass[i]);
-    points.position[i] += points.velocity[i] * timeStep;
+    points.velocity[i] += points.force[i] * (seconds / points.mass[i]);
+    points.position[i] += points.velocity[i] * seconds;
   }
   for (size_t i = 0; i < count; ++i) points.force[i] = {};
 
@@ -50,7 +52,7 @@ void Verlet::step(Points& points, std::span<const Force> forces,
   // point a stick stopped ends where the stick allows and comes out of
   // the step at the speed that movement was, which is how a constraint
   // takes speed away without any force having said so.
-  const float perSecond = 1.0f / timeStep;
+  const float perSecond = 1.0f / seconds;
   for (size_t i = 0; i < count; ++i) {
     if (!points.movable(i)) continue;
     points.velocity[i] = (points.position[i] - points.previous[i]) * perSecond;

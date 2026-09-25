@@ -114,7 +114,8 @@ void applyFlock(Points& points, const Force& force) {
 
 }  // namespace
 
-void Force::apply(Points& points, float seconds) const {
+void Force::apply(Points& points, Duration step) const {
+  const float seconds = (float)step.count();
   switch (kind) {
     case ForceKind::Uniform:
       applyUniform(points, *this);
