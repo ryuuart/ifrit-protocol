@@ -10,6 +10,12 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
 #include <sigilimage/decode/Decode.h>
+#include <sigilimage/decode/Decoders.h>
+
+#include <functional>
+#include <optional>
+#include <string_view>
+#include <type_traits>
 
 #include <fstream>
 #include <string>
@@ -77,6 +83,53 @@ TEST(ImageDecode, LdrChannelsNormalizeToPremultipliedFloats) {
   EXPECT_FLOAT_EQ(channels->at(1, 1, channels->index("R")), 1.0f);
   EXPECT_FLOAT_EQ(channels->at(1, 1, channels->index("G")), 0.0f);
   EXPECT_FLOAT_EQ(channels->at(1, 1, channels->index("A")), 1.0f);
+}
+
+/** The shape registerDecoders() asks of a hub, and nothing else: the
+ *  decoders it is handed, kept under the type each one is for. */
+struct RecordingHub {
+  struct Bytes {
+    std::vector<std::byte> contents;
+    const std::byte* data() const { return contents.data(); }
+    size_t size() const { return contents.size(); }
+  };
+  std::function<std::optional<sigil::image::ImageAsset>(
+      const Bytes&, std::string_view, const sigil::image::DecodeOptions&)>
+      image;
+  std::function<std::optional<sigil::image::ChannelData>(const Bytes&,
+                                                         std::string_view)>
+      channels;
+
+  template <typename T, typename Decode>
+  void registerDecoder(Decode decode) {
+    if constexpr (std::is_same_v<T, sigil::image::ImageAsset>)
+      image = std::move(decode);
+    else if constexpr (std::is_same_v<T, sigil::image::ChannelData>)
+      channels = std::move(decode);
+  }
+};
+
+// The options a hub's load takes for an image are this library's own,
+// named through the hook a hub finds by argument-dependent lookup.
+static_assert(std::is_same_v<decltype(loadOptions(
+                                 std::type_identity<sigil::image::ImageAsset>{})),
+                             sigil::image::DecodeOptions>);
+
+TEST(ImageDecode, RegisterDecodersPutsTheRoutedDecodesOnAHub) {
+  RecordingHub hub;
+  sigil::image::registerDecoders(hub);
+  ASSERT_TRUE(hub.image);
+  ASSERT_TRUE(hub.channels);
+  const RecordingHub::Bytes bytes{readFile(assetPath("anim.gif"))};
+  ASSERT_FALSE(bytes.contents.empty());
+  const auto asset = hub.image(bytes, assetPath("anim.gif"), {});
+  ASSERT_TRUE(asset.has_value());
+  EXPECT_EQ(asset->frames().size(), 3u);
+  const RecordingHub::Bytes still{readFile(assetPath("still.png"))};
+  const auto channels = hub.channels(still, assetPath("still.png"));
+  ASSERT_TRUE(channels.has_value());
+  EXPECT_EQ(channels->width, 4);
+  EXPECT_FALSE(hub.image(RecordingHub::Bytes{}, "", {}).has_value());
 }
 
 TEST(ImageDecode, RejectsUnsupportedBytes) {

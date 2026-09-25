@@ -39,7 +39,8 @@ are not interchangeable, the routing order, and the gotchas.
 - `asset/Embedded.h` — `embeddedPngs`, `EmbeddedImage`, `EmbeddedScan`
 - `decode/ChannelData.h` — `ChannelData`
 - `decode/Decode.h` — `DecodeOptions`, `decodeImage`, `probeImage`,
-  `decodeChannels`, `probeResource`
+  `decodeChannels`, `probeResource`, `loadOptions`
+- `decode/Decoders.h` — `registerDecoders`
 - `encode/Encode.h` — `Format`, `EncodeOptions`, `encodeImage`,
   `canEncode`, `formatForPath`, `extensionFor`
 - `field/DistanceField.h` — `Mask`, `DistanceField`, `coverageMask`,

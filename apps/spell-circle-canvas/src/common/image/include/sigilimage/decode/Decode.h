@@ -69,6 +69,14 @@ inline std::optional<ImageProbe> probeResource(
   return probeImage(bytes.data(), bytes.size(), pathHint);
 }
 
+/** WHAT AN IMAGE IS LOADED WITH, UNDER THE NAME A RESOURCE LIBRARY ASKS
+ *  BY: found by argument-dependent lookup on the tag, so a hub takes
+ *  `load<ImageAsset>(uri, {.width = 124})` with these options spelled as
+ *  this library spells them, and needs to know no image format to. */
+inline DecodeOptions loadOptions(std::type_identity<ImageAsset>) {
+  return {};
+}
+
 /** Decodes every channel the source carries. */
 std::optional<ChannelData> decodeChannels(
     const std::byte* bytes, size_t size,

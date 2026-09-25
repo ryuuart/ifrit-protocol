@@ -7,7 +7,7 @@ find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilImageDecode
   SOURCES ChannelData.cpp Decode.cpp Ktx.cpp Oiio.cpp SkiaCodec.cpp Svg.cpp
           Backends.h
-  HEADERS ChannelData.h Decode.h
+  HEADERS ChannelData.h Decode.h Decoders.h
   PUBLIC SigilImageAsset)
 
 # OpenImageIO extends decode/probe beyond the Skia codecs: EXR (with

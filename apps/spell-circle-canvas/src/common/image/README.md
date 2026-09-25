@@ -23,7 +23,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilImageAsset`  | `asset/ImageAsset.h`, `asset/Embedded.h` | `ImageProbe`, `Frame` and `ImageAsset` — the decoded document and the Skia codec path; `embeddedPngs()` — the last-resort signature scan that recovers whole images, and the names beside them, from a container with no parser here; Skia only |
-| `SigilImageDecode` | `decode/Decode.h`, `decode/ChannelData.h` | `DecodeOptions`, `decodeImage()`, `probeImage()` and `decodeChannels()` — the routing surface, carrying the optional backends — and `ChannelData`, the raw channel planes |
+| `SigilImageDecode` | `decode/Decode.h`, `decode/ChannelData.h`, `decode/Decoders.h` | `DecodeOptions`, `decodeImage()`, `probeImage()` and `decodeChannels()` — the routing surface, carrying the optional backends — and `ChannelData`, the raw channel planes; `registerDecoders()`, the one call that puts this library's `ImageAsset` and `ChannelData` decoders on a resource hub |
 | `SigilImageEncode` | `encode/Encode.h` | `Format`, `EncodeOptions`, `encodeImage()` — the routing surface the other way, over a pixmap, an image or named channel planes — `canEncode()`, which formats this build writes, and `formatForPath()`/`extensionFor()` |
 | `SigilImageField`  | `field/DistanceField.h` | `Mask` and `coverageMask()` — an alpha thresholded into coverage — and `DistanceField` and `distanceField()`, the exact Euclidean distance from every pixel to the nearest covered one |
 | `SigilImageDifference` | `difference/Difference.h` | `PixelDifference` and `difference()` — how many pixels two pictures disagree on, the widest gap on any one channel and where it stands |
@@ -144,6 +144,33 @@ Where those bytes then go is SigilIO's half:
 `io::writeBytes(path, bytes->data(), bytes->size())` for a plain path,
 `hub.write(uri, …)` for one behind a mount.
 
+## On a resource hub
+
+A resource hub answers a URI with bytes and hands them to whatever
+decoder is registered for the type asked for; it registers none itself.
+This library puts its own two on one, once, wherever the hub is built:
+
+```cpp
+#include <sigilimage/decode/Decoders.h>
+
+sigil::image::registerDecoders(hub);
+
+auto logo   = hub.load<sigil::image::ImageAsset>("res://ui/logo.png");
+auto icon   = hub.load<sigil::image::ImageAsset>("res://ui/mark.svg",
+                                                 {.width = 256});
+auto planes = hub.load<sigil::image::ChannelData>("res://shot.exr");
+```
+
+The `ImageAsset` decoder is `decodeImage()`, handed the options the load
+named; the `ChannelData` decoder is `decodeChannels()`. The options are
+this library's `DecodeOptions` because `decode/Decode.h` declares
+`loadOptions(std::type_identity<ImageAsset>)` answering them, found by
+argument-dependent lookup the way `probeResource()` is: a hub takes the
+options as this library spells them without knowing an image format, and
+`registerDecoders()` is a template over whatever hub it is handed, so
+this library links no resource library either. Registering `ImageAsset`
+again afterwards replaces the decoder later loads run.
+
 ## Mental model
 
 There are two layers, and they are not interchangeable.
@@ -203,9 +230,9 @@ returns `nullopt` no matter which backends are built in. Only the free
 functions in `decode/Decode.h` route.
 
 Nothing here opens a file. `ImageAsset` takes `SkData`, `decode/Decode.h` takes
-a byte range; a caller with a path reads it (SigilIO's `Hub::image`
-is the usual way, `SkData::MakeFromFileName` the bare one) and hands the
-bytes in.
+a byte range; a caller with a path reads it (a SigilIO hub with
+`registerDecoders()` run on it is the usual way, `SkData::MakeFromFileName`
+the bare one) and hands the bytes in.
 
 Decoding is eager and CPU-side. Every frame of an animation is decoded up
 front and stays resident for the asset's lifetime. That fits decode-once,
