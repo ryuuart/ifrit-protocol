@@ -159,12 +159,11 @@ These public modules are registered and export nothing yet:
 `sigil.geometry.mesh.points`, `sigil.geometry.mesh.pop.profile`,
 `sigil.geometry.path.blend`, `sigil.geometry.path.crossing`,
 `sigil.geometry.path.operations`, `sigil.geometry.path.profile`,
-`sigil.geometry.sections`, `sigil.geometry.shapers`, `sigil.geometry.shapes`,
-`sigil.io.publish`, `sigil.material.ocio`, `sigil.material.sdf`,
-`sigil.material.slang`, `sigil.material.stock`, `sigil.material.texture`,
-`sigil.measure`, `sigil.motion.physics`, `sigil.skia.draw`, `sigil.video`,
-`sigil.weave.paint`, `sigil.weave.ports`, `sigil.world.diligent` and
-`sigil.world.graph`.
+`sigil.geometry.sections`, `sigil.geometry.shapers`, `sigil.io.publish`,
+`sigil.material.ocio`, `sigil.material.sdf`, `sigil.material.slang`,
+`sigil.material.stock`, `sigil.material.texture`, `sigil.measure`,
+`sigil.motion.physics`, `sigil.skia.draw`, `sigil.video`, `sigil.weave.paint`,
+`sigil.weave.ports`, `sigil.world.diligent` and `sigil.world.graph`.
 
 ### Hosting and runtime
 
