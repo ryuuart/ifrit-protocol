@@ -61,7 +61,7 @@
 // TAGS: Interfaces/Game
 
 #include <include/core/SkPaint.h>
-#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>

@@ -2,7 +2,7 @@
 // rows it holds, how many feeds fit one plate, and what a row factory
 // declares that the plain kernel column does not.
 
-#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilmotion/ease/Ease.h>

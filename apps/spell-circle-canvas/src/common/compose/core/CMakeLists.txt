@@ -87,7 +87,7 @@ sigil_library(SigilComposeCore
     PaintProfile.h InstanceStamp.h
   HEADERS ../Compose.h Band.h Cascade.h Composer.h Core.h Declarations.h
           Derive.h Element.h
-          Factories.h Feed.h Grid.h Image.h Instances.h Layout.h Mask.h
+          Factories.h Grid.h Image.h Instances.h Layout.h Mask.h
           Measure.h
           Paint.h Pattern.h Property.h Selector.h Shape.h Shelf.h
           FontStyle.h SpanStyle.h Stroke.h
@@ -121,7 +121,7 @@ sigil_test(compose_test
           test/ComposeTestContent.cpp
           test/ComposeTestReconcile.cpp test/ComposeTestCaching.cpp
           test/ComposeTestPromotion.cpp test/ComposeTestMotion.cpp
-          test/ComposeTestBakeReuse.cpp test/ComposeTestFeed.cpp
+          test/ComposeTestBakeReuse.cpp
           test/ComposeTestFlowAroundCore.cpp
           test/ComposeTestPromotionBounds.cpp
           test/ComposeTestPromotionGate.cpp

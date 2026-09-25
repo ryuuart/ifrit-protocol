@@ -2,7 +2,7 @@
 // instance a surviving row keeps, the rows a window never mounts at all,
 // and the stagger that delays only the ones that did mount.
 
-#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/kit/Feed.h>
 
 #include "support/CoreTestSupport.h"
 #include <sigilmotion/ease/Ease.h>

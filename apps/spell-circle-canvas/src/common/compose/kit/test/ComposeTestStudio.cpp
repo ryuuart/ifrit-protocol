@@ -7,7 +7,7 @@
 #include <include/core/SkBBHFactory.h>
 #include <include/core/SkFont.h>
 #include <include/core/SkPictureRecorder.h>
-#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/kit/Feed.h>
 #include <sigilmotion/values/Time.h>
 
 #include <numeric>

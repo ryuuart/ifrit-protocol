@@ -1,6 +1,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
-#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/kit/Feed.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>

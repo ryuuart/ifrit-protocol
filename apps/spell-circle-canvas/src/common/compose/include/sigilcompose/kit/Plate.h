@@ -18,7 +18,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Style.h>

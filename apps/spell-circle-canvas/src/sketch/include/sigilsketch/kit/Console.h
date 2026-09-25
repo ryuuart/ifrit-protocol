@@ -9,7 +9,7 @@
 
 #include <include/core/SkColor.h>
 #include <sigilcompose/core/Element.h>
-#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/kit/Theme.h>

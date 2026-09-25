@@ -280,12 +280,13 @@ sound model; nothing below them changes kernel semantics.
   static paint collapses to a `Fill` and rides the caching and prune path,
   a live or geometry-dependent one is kept whole on the node so the
   painter resolves it against the frame it is drawn at.
-- `core/Feed.h` — the streaming collection: a `feed::Ring` of rows,
+- `kit/Feed.h` — the streaming collection, kit rather than core: a `feed::Ring` of rows,
   windowed to the newest `feed::Options::visible` and keyed by sequence
   id, so an append costs one mount and every surviving row keeps its
   cached picture; rows of text name their style in a
   `sigil::weave::TypeSheet` (`feed::TextRow`, `feed::TextOptions`). Built
-  purely by composing the kernel; the bordered strip several feeds sit on
+  purely by composing the kernel, and fed by whoever holds the arrivals —
+  a SigilData connection over a SigilIO feed appends to the ring; the bordered strip several feeds sit on
   is the kit's `kit::plate` (`kit/Plate.h`), with `kit::tinted` building
   the one-face sheet whose classes differ in colour alone, and
   `kit::console` is that plate

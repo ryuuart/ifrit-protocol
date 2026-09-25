@@ -4,7 +4,7 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
-#include <sigilcompose/core/Feed.h>
+#include <sigilcompose/kit/Feed.h>
 
 #include "DressedTypeProbes.h"
 #include <sigilmotion/ease/Ease.h>

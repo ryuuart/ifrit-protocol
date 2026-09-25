@@ -67,7 +67,7 @@ it is what a connecting operator attaches, from where the nodes settled —
 | Element | Header | What it is |
 |---|---|---|
 | `instances` | `core/Instances.h` | One node drawing a whole pool of sprites from an atlas. |
-| `feed` | `core/Feed.h` | A column of arrivals from a ring, oldest cut as new ones land. |
+| `feed` | `kit/Feed.h` | A column of arrivals from a ring, oldest cut as new ones land. |
 | `pen` | `draw/Draw.h` | A node running a pen program — the door to the immediate-mode pen. |
 | `graphics` | `draw/Draw.h` | The same door with its own coordinate space, sized by the node. |
 | `video` | `video/Video.h` | A video frame sampled from the composer's motion clock. |
@@ -99,7 +99,7 @@ content.
   and the `RailRouter` that routes it.
 - `core/Instances.h` — `instances`, and `pick`, which answers which
   instance a point is over.
-- `core/Feed.h` — `feed` over a `Ring`, with the `Options` it is shaped
+- `kit/Feed.h` — `feed` over a `Ring`, with the `Options` it is shaped
   by.
 - `draw/Draw.h` — `pen` and `graphics`, which run a `PenProgram`.
 - `video/Video.h` — `video`, with the `VideoOptions` it plays under.

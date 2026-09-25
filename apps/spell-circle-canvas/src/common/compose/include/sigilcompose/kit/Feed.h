@@ -1,14 +1,19 @@
 #pragma once
 
 /** @file
- * @ingroup compose-core
+ * @ingroup compose-kit
  *
  * SigilCompose feeds — a streaming collection: rows arrive at the tail,
  * the oldest fall off the head, and a window of the newest is on screen.
  * A log, a chat transcript, a tape of readings, a subtitle track. It is
  * built entirely from kernel composition: a ring of values, windowed to
  * the last N, laid out as a clipped column. There is no new machinery
- * here, only elements.
+ * here, only elements, which is why it is kit and not core.
+ *
+ * Where the rows come FROM is not here. Arrivals over a wire are
+ * SigilIO's and their meaning SigilData's; a caller that holds a
+ * connection appends what it hands over to a `Ring`, and this header
+ * needs nothing of either.
  *
  * The load-bearing rule: rows are keyed by a MONOTONIC SEQUENCE ID, never
  * by array index. An append therefore shifts nothing — every surviving row
