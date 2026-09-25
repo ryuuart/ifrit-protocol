@@ -1057,3 +1057,19 @@ states its own warning whatever ran before it. A test should assert the
 warning lands when the case runs after another case that triggers the same
 warning in the same process — which means the case resets the once-only
 state it reads, or the capture the case reads is the one that issues it.
+
+## `Filter::of(material, colourType)` compiles and reads the colour type as a sample radius
+
+`material::Filter::of(const Material&, float sampleRadius)`
+(`sigilmaterial/filter/Filter.h`) takes any argument that converts to a
+float, and Skia's `SkColorType` is an unscoped enum, so
+`Filter::of(program, kRGBA_8888_SkColorType)` compiles and builds the
+program with a sample radius of 4 instead of lowering it for an
+eight-bit surface. Two Material cases and the OCIO bench were written
+that way and silently tested the program path; they now call
+`skia::lowered(program, surface)`, which is the entrance that lowers.
+Evidently the radius was meant to be a length and nothing else. A test
+should assert that `Filter::of` does not accept a colour type — a
+deleted overload taking an integral or enumeration argument, or a radius
+type of its own — so the mistake fails to compile; the sketches still to
+be swept are where it would otherwise recur.
