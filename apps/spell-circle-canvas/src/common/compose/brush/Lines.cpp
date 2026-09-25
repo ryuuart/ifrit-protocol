@@ -381,7 +381,7 @@ Rails rails(std::vector<Rail> set) {
 
 void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   const float pitchPx = pitch();
-  const float baseDeg = angle();
+  const float radians = angle();
   if (pitchPx <= 0.5f) return;
   SkPaint p;
   p.setAntiAlias(true);
@@ -392,14 +392,33 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
     p.setShader(material::skia::staticShader(hatchFill.paint()));
   c.save();
   c.clipPath(ctx.outline, true);
-  auto pass = [&](float deg) {
-    SkMatrix lattice = SkMatrix::Scale(pitchPx, pitchPx);
-    lattice.postRotate(deg);
-    p.setPathEffect(SkLine2DPathEffect::Make(width, lattice));
-    c.drawPath(ctx.outline, p);
-  };
-  pass(baseDeg);
-  if (cross) pass(baseDeg + 90.0f);
+  if (pattern.taper != 1.0f || pattern.origin || pattern.inset != 0.0f) {
+    // A pattern whose gaps change, whose ladder is anchored or whose
+    // region is narrowed is laid by Geometry's lattice as centrelines and
+    // stroked at the width.
+    geometry::shapes::Hatch laid = pattern;
+    laid.spacing = pitchPx;
+    laid.angle = radians;
+    p.setStyle(SkPaint::kStroke_Style);
+    p.setStrokeWidth(width);
+    c.drawPath(geometry::shapes::hatchOutline(ctx.outline, laid), p);
+  } else {
+    // An even pattern is the same lines as Skia's own line lattice lays
+    // them, which fills the outline in one path effect per pass.
+    const float sine = SkScalarSinSnapToZero(radians);
+    const float cosine = SkScalarCosSnapToZero(radians);
+    auto pass = [&](float sin, float cos) {
+      SkMatrix lattice = SkMatrix::Scale(pitchPx, pitchPx);
+      SkMatrix turn;
+      turn.setSinCos(sin, cos);
+      lattice.postConcat(turn);
+      p.setPathEffect(SkLine2DPathEffect::Make(width, lattice));
+      c.drawPath(ctx.outline, p);
+    };
+    pass(sine, cosine);
+    // A quarter turn exactly: the sine and cosine trade places.
+    if (pattern.cross) pass(cosine, -sine);
+  }
   c.restore();
 }
 

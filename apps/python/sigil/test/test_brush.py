@@ -129,6 +129,7 @@ class Brush(unittest.TestCase):
         self.addCleanup(lambda: builtins.__dict__.pop("_brush_calls", None))
         source = """
             import builtins
+            from sigil import geometry
             from sigil.draw import brush
             from sigil.sketch import sketch
             builtins._brush_calls = 0
@@ -149,7 +150,7 @@ class Brush(unittest.TestCase):
                     brush.wash(pen, wash, polygon)
                     engine = brush.Engine()
                     engine.set("HB", "#20382f", 0.8)
-                    engine.hatch(brush.Hatch(spacing=8, angle=0.4))
+                    engine.hatch(brush.Hatch(pattern=geometry.shapes.Hatch(spacing=8, angle=0.4)))
                     engine.polygon(pen, polygon)
                     engine.beginInput(pen, brush.Input((10, 110), seconds=0))
                     engine.endInput(pen, brush.Input((145, 110), seconds=1))

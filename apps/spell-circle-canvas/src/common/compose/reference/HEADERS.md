@@ -602,7 +602,9 @@ more:
 parallel casings, terminal markers, ties, waves); `brush/Rails.h`, N-rail
 strokes where every rail is its own line; and `brush/Hatches.h`, the
 parallel, radial and concentric hatches — each of the three a MECHANISM
-with every field open. The finished ones over them, whose constants are
+with every field open. The parallel hatch strokes SigilGeometry's
+`geometry::shapes::Hatch`, the one hatch value a brush in Draw lays its
+marks along too; the ink and the width are the decoration's. The finished ones over them, whose constants are
 chosen (`cased`, `triple`, `arrow`, `railway`, `wavy`, `rails(n, …)`,
 `quad`, `hatch`, `crosshatch`, `radialHatch`, `concentric`), stand a
 namespace apart as `lines::presets::` in `kit/Strokes.h`, which — with

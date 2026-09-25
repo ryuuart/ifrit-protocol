@@ -132,16 +132,16 @@ void Engine::fillTexture(float texture, float border, bool scatter) {
 }
 
 void Engine::hatch(const Hatch& style) {
-  if (!(style.spacing > 0.0f)) return;
+  if (!(style.pattern.spacing > 0.0f)) return;
   m_hatch = style;
 }
 
 void Engine::hatch(const Pen& pen, float spacing, float angle, float jitter,
                    float gradient, bool continuous) {
-  hatch(Hatch{.spacing = spacing,
-              .angle = toRadians(pen, angle),
+  hatch(Hatch{.pattern = {.spacing = spacing,
+                          .angle = toRadians(pen, angle),
+                          .taper = gradientTaper(gradient)},
               .jitter = jitter,
-              .gradient = gradient,
               .continuous = continuous});
 }
 

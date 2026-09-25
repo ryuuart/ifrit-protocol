@@ -36,7 +36,7 @@ TEST(Hatch, StaysInsideItsPolygon) {
   tool.scatter = 0.0f;
   tool.pressure = {1, 1, 1};
   const std::vector<SkPoint> polygon = {{25, 20}, {98, 28}, {88, 82}, {18, 72}};
-  brush::hatch(paper.pen, tool, polygon, {.spacing = 7.0f, .angle = 0.35f});
+  brush::hatch(paper.pen, tool, polygon, {.pattern = {.spacing = 7.0f, .angle = 0.35f}});
   paper.end();
 
   const SkBitmap pixels = paper.pixels();
@@ -66,7 +66,7 @@ TEST(Hatch, ArraysUseInnerPolygonsAsEvenOddHoles) {
   tool.scatter = 0.0f;
   tool.pressure = {1, 1, 1};
   brush::hatchArray(paper.pen, tool, polygons,
-                    {.spacing = 5.0f, .angle = 0.0f});
+                    {.pattern = {.spacing = 5.0f, .angle = 0.0f}});
   paper.end();
 
   SkBitmap pixels = paper.pixels();
@@ -91,7 +91,7 @@ TEST(Hatch, ArraysUseInnerPolygonsAsEvenOddHoles) {
   paper.begin();
   paper.pen.randomSeed(22);
   brush::hatchArray(paper.pen, tool, islands,
-                    {.spacing = 3.0f, .angle = HALF_PI});
+                    {.pattern = {.spacing = 3.0f, .angle = HALF_PI}});
   paper.end();
   pixels = paper.pixels();
   bool secondIslandPainted = false;
@@ -125,7 +125,7 @@ TEST(Hatch, TheDefaultAngleIsAQuarterTurnWhateverThePensMode) {
   const float byDefault = firstMarkHeading(engine, paper.pen, recording);
   EXPECT_NEAR(std::abs(std::tan(byDefault)), 1.0f, 0.05f);
 
-  engine.hatch(brush::Hatch{.spacing = 12.0f, .angle = HALF_PI});
+  engine.hatch(brush::Hatch{.pattern = {.spacing = 12.0f, .angle = HALF_PI}});
   const float byValue = firstMarkHeading(engine, paper.pen, recording);
   EXPECT_NEAR(std::abs(std::cos(byValue)), 0.0f, 0.05f);
 

@@ -266,11 +266,12 @@ void bindBrush(py::module_& root) {
   field(sample, "position", &brush::Sample::position);
   field(sample, "pressure", &brush::Sample::pressure);
   auto hatch = record<brush::Hatch>(module, "Hatch");
-  field(hatch, "spacing", &brush::Hatch::spacing);
-  field(hatch, "angle", &brush::Hatch::angle);
+  field(hatch, "pattern", &brush::Hatch::pattern);
   field(hatch, "jitter", &brush::Hatch::jitter);
-  field(hatch, "gradient", &brush::Hatch::gradient);
   field(hatch, "continuous", &brush::Hatch::continuous);
+  module.def("gradientTaper", &brush::gradientTaper, py::arg("gradient"),
+             "The pattern taper p5's gradient dial names: a tenth of one "
+             "step per lane.");
   auto wash = record<brush::Wash>(module, "Wash");
   field(wash, "color", &brush::Wash::color);
   field(wash, "opacity", &brush::Wash::opacity);

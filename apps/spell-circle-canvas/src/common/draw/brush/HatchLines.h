@@ -26,9 +26,8 @@ struct HatchSegment {
   bool connector = false;
 };
 
-/** The marks of one hatch through the rings: the lattice at the style's
- *  angle and spacing, its gaps opened or crowded by the style's gradient,
- *  cut to the even-odd interior. Jitter is applied from the pen's stream
+/** The marks of one hatch through the rings: the style's pattern, cut
+ *  to the even-odd interior. Jitter is applied from the pen's stream
  *  AFTER the cut, so a jittered mark may cross an edge; continuous joins
  *  the marks in serpentine order. */
 [[nodiscard]] std::vector<HatchSegment> hatchLines(

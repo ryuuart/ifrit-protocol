@@ -147,7 +147,10 @@ void BrushHatch(benchmark::State& state) {
     pen.randomSeed(29);
     brush::hatch(
         pen, tool, polygon,
-        {.spacing = 7.0f, .angle = 0.48f, .jitter = 0.12f, .gradient = 0.18f});
+        {.pattern = {.spacing = 7.0f,
+                     .angle = 0.48f,
+                     .taper = brush::gradientTaper(0.18f)},
+         .jitter = 0.12f});
     pen.end();
   }
 }

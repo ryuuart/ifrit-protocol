@@ -5,7 +5,7 @@
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Hatch.h>
-#include <sigilgeometry/path/Lattice.h>
+#include <sigilgeometry/kit/Hatches.h>
 #include <sigilgeometry/path/Skia.h>
 
 #include <algorithm>
@@ -21,34 +21,31 @@ namespace {
 
 /** Every lane's spacing grows or shrinks by this share of the gradient. */
 constexpr float kGradientStep = 0.1f;
-constexpr int kLaneCap = 10000;
 
 /** The pressure envelope of one hatch mark: thin at both ends. */
 const Pressure kMarkPressure{0.16f, 1.0f, 0.16f};
 
 }  // namespace
 
+float gradientTaper(float gradient) {
+  const float dial = std::clamp(gradient, -1.0f, 1.0f);
+  // The dial is a share of one step per lane either way, so its two signs
+  // are each other's inverse rather than one added and one subtracted.
+  return dial >= 0.0f ? 1.0f + dial * kGradientStep
+                      : 1.0f / (1.0f - dial * kGradientStep);
+}
+
 std::vector<HatchSegment> hatchLines(
     Pen& pen, std::span<const geometry::path::Polyline> rings,
     const Hatch& style) {
-  const float gradient = std::clamp(style.gradient, -1.0f, 1.0f);
-  const geometry::path::LatticeOptions options{
-      .spacing = style.spacing,
-      .angle = style.angle,
-      // The dial is a share of one step per lane either way, so its two
-      // signs are each other's inverse rather than one added and one
-      // subtracted.
-      .taper = gradient >= 0.0f ? 1.0f + gradient * kGradientStep
-                                : 1.0f / (1.0f - gradient * kGradientStep),
-      .maxLines = kLaneCap};
-
   std::vector<HatchSegment> segments;
   for (const geometry::path::LatticeMark& mark :
-       geometry::path::lattice(rings, options))
+       geometry::shapes::hatchMarks(rings, style.pattern))
     segments.push_back(
         {geometry::path::toSk(mark.from), geometry::path::toSk(mark.to)});
 
-  const float jitter = std::max(0.0f, style.jitter) * style.spacing * 2.0f;
+  const float jitter =
+      std::max(0.0f, style.jitter) * style.pattern.spacing * 2.0f;
   if (jitter > 0.0f) {
     for (HatchSegment& segment : segments) {
       segment.from.fX += pen.random(-jitter, jitter);
@@ -80,7 +77,7 @@ void hatch(Pen& pen, const Tool& tool, std::span<const SkPoint> polygon,
 void hatch(Pen& pen, const Tool& tool,
            std::span<const std::span<const SkPoint>> contours,
            const Hatch& style) {
-  if (contours.empty() || !(style.spacing > 0.0f)) return;
+  if (contours.empty() || !(style.pattern.spacing > 0.0f)) return;
   const std::vector<HatchSegment> segments =
       hatchLines(pen, rings(contours), style);
   Tool mark = tool;

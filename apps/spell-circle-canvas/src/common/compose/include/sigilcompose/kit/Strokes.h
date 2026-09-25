@@ -144,9 +144,9 @@ inline Hatch hatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
                    float angleDeg = 45.0f) {
   Hatch h;
   h.strokeFill = std::move(fill);
-  h.spacing = spacing;
+  h.pattern.spacing = spacing;
+  h.pattern.angle = geometry::path::radians(angleDeg);
   h.width = width;
-  h.angleDeg = angleDeg;
   return h;
 }
 
@@ -154,7 +154,7 @@ inline Hatch hatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
 inline Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
                         float angleDeg = 45.0f) {
   Hatch h = hatch(std::move(fill), spacing, width, angleDeg);
-  h.cross = true;
+  h.pattern.cross = true;
   return h;
 }
 

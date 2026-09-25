@@ -67,7 +67,7 @@ TEST(Engine, ComposesFillHatchFieldAndClipAsOwnedState) {
   engine.fill(SkColors::kBlue, 0.5f);
   engine.noWash();
   ASSERT_NE(engine.hatchStyle("HB", SkColors::kRed, 1.0f), nullptr);
-  engine.hatch({.spacing = 8.0f, .angle = 0.3f});
+  engine.hatch({.pattern = {.spacing = 8.0f, .angle = 0.3f}});
   EXPECT_TRUE(engine.field("waves"));
   EXPECT_FALSE(engine.field("missing"));
   engine.clip(SkRect::MakeLTRB(20, 10, 80, 70));
@@ -131,7 +131,7 @@ TEST(Engine, TheClipConfinesEveryInteriorAndTheOutline) {
   whole.wash(SkColors::kBlue, 1.0f);
   whole.fill(SkColors::kRed, 1.0f);
   whole.mass("crayon", SkColors::kBlack);
-  whole.hatch({.spacing = 6.0f});
+  whole.hatch({.pattern = {.spacing = 6.0f, .angle = QUARTER_PI}});
   rightHalfIsClean(whole, [&](brush::Engine& engine, Pen& pen) {
     engine.polygon(pen, square);
   });
@@ -171,7 +171,7 @@ TEST(Engine, HatchUsesTheCurrentToolUntilOverridden) {
   auto recording = std::make_shared<Recording>();
   ASSERT_NE(engine.add("recorder", recorder(recording)), nullptr);
   ASSERT_NE(engine.set("recorder", SkColors::kBlue), nullptr);
-  engine.hatch({.spacing = 12.0f, .angle = 0.0f});
+  engine.hatch({.pattern = {.spacing = 12.0f, .angle = 0.0f}});
   const brush::Polygon polygon({{5, 5}, {55, 5}, {55, 55}, {5, 55}});
 
   Paper paper(64, 64);
@@ -188,7 +188,7 @@ TEST(Engine, HatchUsesTheCurrentToolUntilOverridden) {
 
   recording->fills.clear();
   engine.noHatch();
-  engine.hatch({.spacing = 12.0f, .angle = 0.0f});
+  engine.hatch({.pattern = {.spacing = 12.0f, .angle = 0.0f}});
   engine.hatch(paper.pen, polygon);
   ASSERT_FALSE(recording->fills.empty());
   EXPECT_FLOAT_EQ(recording->fills.back().b, 1.0f);
@@ -423,7 +423,7 @@ TEST(Engine, PopRestoresTheFieldTheClipAndTheInteriors) {
   ASSERT_TRUE(engine.field("waves"));
   engine.clip(SkRect::MakeWH(10, 10));
   engine.fill(SkColors::kRed);
-  engine.hatch({.spacing = 3.0f});
+  engine.hatch({.pattern = {.spacing = 3.0f, .angle = QUARTER_PI}});
   engine.pop();
 
   auto recording = std::make_shared<Recording>();

@@ -153,10 +153,10 @@ void mass(Pen& pen, const Tool& tool,
     const float spacingScale = pass == 0 ? 0.9f : (pass == 1 ? 1.0f : 0.8f);
     const float jitter =
         pass == 0 ? 2.0f - 2.0f * precision : 0.6f - 0.6f * precision;
-    const Hatch hatchStyle{.spacing = hatchSpacing * spacingScale,
-                           .angle = angle,
+    const Hatch hatchStyle{.pattern = {.spacing = hatchSpacing * spacingScale,
+                                       .angle = angle,
+                                       .taper = gradientTaper(gradient)},
                            .jitter = jitter,
-                           .gradient = gradient,
                            .continuous = layer.size() == 1};
     const std::vector<HatchSegment> segments =
         hatchLines(pen, layer, hatchStyle);

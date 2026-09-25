@@ -7,22 +7,26 @@
  * the radial and concentric hatches about a centre.
  */
 
+#include <sigilgeometry/kit/Hatches.h>
+#include <sigilgeometry/path/Numeric.h>
+
 #include "sigilcompose/brush/Lines.h"
 
 namespace sigil::compose::lines {
 
-/** Lattice hatching: parallel rules `spacing` px apart at `angleDeg`,
- *  `width` px each, filling the node's OUTLINE — clipped to it, so a
- *  concave shape hatches exactly rather than to its bounds. `cross` adds
- *  the perpendicular pass. A value decoration: compares, prunes and caches
- *  like any other. */
+/** Lattice hatching: the rules of `pattern` stroked `width` px wide,
+ *  filling the node's OUTLINE — clipped to it, so a concave shape hatches
+ *  exactly rather than to its bounds. WHERE the rules lie is
+ *  SigilGeometry's hatch (`geometry::shapes::Hatch`: spacing, angle in
+ *  radians, taper, origin, inset and the `cross` pass); the ink and the
+ *  width are this decoration's. A value decoration: compares, prunes and
+ *  caches like any other. */
 struct Hatch {
   Fill strokeFill = Fill::color({1, 1, 1, 1});
-  float spacing = 6.0f;
+  geometry::shapes::Hatch pattern{.spacing = 6.0f,
+                                  .angle = geometry::path::radians(45.0f)};
   float width = 1.2f;
-  float angleDeg = 45.0f;
-  bool cross = false;
-  /** Live pitch and live angle, on the same terms as
+  /** Live pitch and live angle (radians), on the same terms as
    *  `PathFormat::dashPhaseBinding`: an animatable, so a moiré that
    *  breathes, a tightening engraving or a rotating shade pass is one
    *  `bind()` chain rather than a second live value somebody steps by hand.
@@ -40,18 +44,16 @@ struct Hatch {
            (angleBinding && angleBinding->isRunning());
   }
   float pitch() const {
-    return spacingBinding ? spacingBinding->value()
-                          : spacing;
+    return spacingBinding ? spacingBinding->value() : pattern.spacing;
   }
   float angle() const {
-    return angleBinding ? angleBinding->value()
-                        : angleDeg;
+    return angleBinding ? angleBinding->value() : pattern.angle;
   }
 
   bool operator==(const Hatch& o) const {
-    return strokeFill == o.strokeFill && spacing == o.spacing &&
-           width == o.width && angleDeg == o.angleDeg && cross == o.cross &&
-           spacingBinding == o.spacingBinding && angleBinding == o.angleBinding;
+    return strokeFill == o.strokeFill && pattern == o.pattern &&
+           width == o.width && spacingBinding == o.spacingBinding &&
+           angleBinding == o.angleBinding;
   }
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;

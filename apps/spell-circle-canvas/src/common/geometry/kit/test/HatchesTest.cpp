@@ -8,6 +8,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
 #include <sigilgeometry/kit/Hatches.h>
+#include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Segments.h>
 
 #include <cmath>
@@ -74,6 +75,43 @@ TEST(Hatch, AnInsetKeepsTheMarksInsideTheEdge) {
   const SkRect bounds = hatched.computeTightBounds();
   EXPECT_GE(bounds.left(), 11.0f);
   EXPECT_LE(bounds.right(), 89.0f);
+}
+
+// A cross pass is the same lattice turned a right angle, laid after the
+// first: a square hatched both ways carries twice the marks, the second
+// half running down rather than across.
+TEST(Hatch, ACrossPassLaysTheSameLatticeTurnedARightAngle) {
+  const SkPath square = SkPath::Rect(SkRect::MakeWH(100, 100));
+  const shapes::Hatch crossed{.spacing = 10.0f, .cross = true};
+  EXPECT_EQ(markCount(shapes::hatchOutline(square, crossed)), 20u);
+  const std::vector<path::Polyline> rings = path::flatten(square);
+  const std::vector<path::LatticeMark> marks =
+      shapes::hatchMarks(rings, crossed);
+  ASSERT_EQ(marks.size(), 20u);
+  EXPECT_NEAR(marks.front().from.y, marks.front().to.y, 1e-3f);
+  EXPECT_NEAR(marks.back().from.x, marks.back().to.x, 1e-3f);
+}
+
+// Rings and an outline are one fill: the marks over a shape's rings are
+// the contours of the path the outline door answers with.
+TEST(Hatch, MarksOverRingsAreTheOutlineFillsContours) {
+  SkPathBuilder b;
+  b.addCircle(0, 0, 100);
+  b.addCircle(0, 0, 50);
+  const SkPath ring = b.detach();
+  const shapes::Hatch hatch{.spacing = 8.0f, .angle = 0.3f};
+  EXPECT_EQ(shapes::hatchMarks(path::flatten(ring), hatch).size(),
+            markCount(shapes::hatchOutline(ring, hatch)));
+  // An inset narrows the rings as it narrows an outline: every mark's
+  // ends stand inside the ring by the inset.
+  const std::vector<path::LatticeMark> inset = shapes::hatchMarks(
+      path::flatten(ring), {.spacing = 8.0f, .angle = 0.3f, .inset = 6.0f});
+  ASSERT_FALSE(inset.empty());
+  for (const path::LatticeMark& mark : inset)
+    for (const glm::vec2 end : {mark.from, mark.to}) {
+      EXPECT_LE(glm::length(end), 94.5f);
+      EXPECT_GE(glm::length(end), 55.5f);
+    }
 }
 
 }  // namespace

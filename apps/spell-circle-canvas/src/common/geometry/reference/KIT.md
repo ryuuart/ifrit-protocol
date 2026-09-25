@@ -71,8 +71,12 @@ beneath, in `sigil::geometry::shapes`.
   it into rings itself, and that is why the fill has next to no adoption
   while three drawings fake it by clipping a line field. What comes back
   are CENTRELINES, so every mark can be walked, banded to a width or
-  drawn along with a tool; `path::lattice` is the same fill as marks, for
-  a caller that wants to do any of that itself.
+  drawn along with a tool; `hatchMarks()` is the same fill over rings as
+  marks, for a caller that wants to do any of that itself. `Hatch` is the
+  ONE hatch value above this library — spacing, angle, taper, origin,
+  inset and a `cross` pass at a right angle — which Draw's brush lays
+  marks along and Compose's decoration strokes; what they add (the tool,
+  the jitter, the ink and width) is theirs.
 - **`kit/Sections.h`** — `sections::`, the two unit cross-sections a
   sweep carries: `circle()` (open, its seam point duplicated so the swept
   u reaches 1) and `line()` (a unit-width segment, a flat band once

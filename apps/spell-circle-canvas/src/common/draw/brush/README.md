@@ -94,7 +94,7 @@ so pens drawing through one recorder share its retained texture.
 
 | word | what it is |
 | --- | --- |
-| `Hatch`, `hatch(pen, tool, polygon, style)` | `path::lattice` at `angle` radians and `spacing`, cut to the even-odd interior so holes are skipped; `jitter` moves each mark's ends after the cut, by up to twice that fraction of the spacing, so a jittered mark may cross the edge; `gradient` opens or crowds the lattice's gaps by a tenth per lane; `continuous` joins the marks into one serpentine line. Every mark is thinned at both ends |
+| `Hatch`, `hatch(pen, tool, polygon, style)`, `gradientTaper(gradient)` | a mark laid along every line of `pattern`, the hatch value of SigilGeometry's kit (spacing, angle in radians, taper, origin, inset, cross), cut to the even-odd interior so holes are skipped; `jitter` moves each mark's ends after the cut, by up to twice that fraction of the spacing, so a jittered mark may cross the edge; `continuous` joins the marks into one serpentine line. `gradientTaper` is p5's gradient dial as the pattern's taper — a tenth of a step per lane. Every mark is thinned at both ends |
 | `Wash`, `wash(pen, pigment, polygon)` | a wet interior: `layers` translucent deposits, each the polygon's edge pushed out by a gaussian of the `bleed` and rippled by noise, blooms lifted out and grains settled in by `texture`, pigment gathered at the edge by `border`, the whole composited once with `blend`. It is built in one layer on the pen's canvas, so its pixels are wherever the pen's are |
 | `Mass`, `mass(pen, tool, polygon, style)` | chords across the shape at the tool's scatter, each bent into an arc around a pivot outside it and painted only where the arc stays inside; `strength` sets one to three passes, later passes displaced by up to twice the scatter; `precision` steadies the hand — narrower lane jitter, less wobble on each arc; `outline` finishes the boundary |
 
@@ -126,7 +126,7 @@ other setter and verb answers nothing.
 | `set(name, colour, weight)`, `pick`, `stroke`, `noStroke`, `strokeWeight`, `tool()` | the selection; the weight scales width and scatter |
 | `fill(colour, opacity)`, `fillBleed`, `fillTexture`, `noFill` | the pigment wash (`Wash`) |
 | `wash(colour, opacity)`, `noWash` | the flat wash |
-| `hatch(Hatch)`, `hatch(pen, spacing, angle, …)`, `hatchStyle`, `noHatch` | the hatch; the value's angle is radians, the scalar's is the pen's mode; until `hatchStyle`, the selected tool hatches |
+| `hatch(Hatch)`, `hatch(pen, spacing, angle, …)`, `hatchStyle`, `noHatch` | the hatch; the value's angle is radians, the scalar's is the pen's mode and its `gradient` is `gradientTaper`'s dial; until `hatchStyle`, the selected tool hatches |
 | `mass(name, colour, Mass)`, `noMass` | the mass and its tool |
 | `field(name)`, `addField(name, field, units)`, `listFields`, `noField`, `wiggle(amount)` | the field; `wiggle` selects `hand` and scales its influence |
 | `clip(rect)`, `clip(pen, rect)`, `noClip` | a rectangle every mark, interior and outline is confined to; with a pen, captured in the pen's space at the call and applied there whatever the transform is later — for that canvas |
