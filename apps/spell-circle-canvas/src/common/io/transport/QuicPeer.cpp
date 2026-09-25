@@ -48,7 +48,7 @@ QUIC_STATUS QUIC_API onReceivedStream(HQUIC stream, void* context,
   switch (event->Type) {
     case QUIC_STREAM_EVENT_RECEIVE: {
       if (incoming->abandoned) break;
-      std::vector<std::byte>& gathered = incoming->message.bytes;
+      std::vector<std::byte>& gathered = incoming->message;
       if (gathered.size() + event->RECEIVE.TotalBufferLength >
           kMessageCeiling) {
         // A message is one whole thing, so a stream that will not be one
@@ -72,7 +72,7 @@ QUIC_STATUS QUIC_API onReceivedStream(HQUIC stream, void* context,
       if ((event->RECEIVE.Flags & QUIC_RECEIVE_FLAG_FIN) != 0) {
         incoming->delivered = true;
         deliver(*incoming->session, incoming->named,
-                std::move(incoming->message));
+                Bytes(std::move(incoming->message)));
       }
       break;
     }
@@ -80,7 +80,7 @@ QUIC_STATUS QUIC_API onReceivedStream(HQUIC stream, void* context,
       if (!incoming->abandoned && !incoming->delivered) {
         incoming->delivered = true;
         deliver(*incoming->session, incoming->named,
-                std::move(incoming->message));
+                Bytes(std::move(incoming->message)));
       }
       // Nothing is shut down from here. A stream the other end opened
       // one way has no send side at this end, so the end of theirs is
@@ -161,10 +161,8 @@ void Peer::takeStream(HQUIC stream) {
 }
 
 void Peer::takeDatagram(const QUIC_BUFFER& buffer) {
-  Bytes message;
   const auto* const first = reinterpret_cast<const std::byte*>(buffer.Buffer);
-  message.bytes.assign(first, first + buffer.Length);
-  deliver(*m_session, m_named, std::move(message));
+  deliver(*m_session, m_named, Bytes(std::span(first, buffer.Length)));
 }
 
 void Peer::concluded() {
@@ -211,7 +209,7 @@ bool Peer::sendStream(const Library& lib, const Bytes& message) {
 
 bool Peer::sendDatagram(const Library& lib, const Bytes& message) {
   const uint16_t most = m_datagramCeiling.load(std::memory_order_acquire);
-  if (most == 0 || message.bytes.size() > most) return false;
+  if (most == 0 || message.size() > most) return false;
   auto* const sending = new Sending(message);
   if (QUIC_FAILED(lib.api->DatagramSend(m_connection, &sending->buffer, 1,
                                         QUIC_SEND_FLAG_NONE, sending))) {

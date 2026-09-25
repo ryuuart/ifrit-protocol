@@ -61,9 +61,9 @@ bool waitUntil(const std::function<bool()>& ready) {
 }
 
 Bytes bytesOf(std::initializer_list<int> message) {
-  Bytes out;
-  for (int one : message) out.bytes.push_back(static_cast<std::byte>(one));
-  return out;
+  std::vector<std::byte> played;
+  for (int one : message) played.push_back(static_cast<std::byte>(one));
+  return Bytes(std::move(played));
 }
 
 /** A name no other program on this machine is using: the case's own
@@ -147,10 +147,10 @@ TEST_F(IOMidi, AMessageCrossesFromAPortToTheInputThatOpenedItByName) {
   ASSERT_TRUE(arrival.has_value());
   // The bytes are the wire's own, status byte first: what a message
   // MEANS is read by the library that owns the format.
-  ASSERT_EQ(arrival->bytes->bytes.size(), 3u);
-  EXPECT_EQ(arrival->bytes->bytes[0], static_cast<std::byte>(0x90));
-  EXPECT_EQ(arrival->bytes->bytes[1], static_cast<std::byte>(0x3C));
-  EXPECT_EQ(arrival->bytes->bytes[2], static_cast<std::byte>(0x64));
+  ASSERT_EQ(arrival->bytes->size(), 3u);
+  EXPECT_EQ(arrival->bytes->span()[0], static_cast<std::byte>(0x90));
+  EXPECT_EQ(arrival->bytes->span()[1], static_cast<std::byte>(0x3C));
+  EXPECT_EQ(arrival->bytes->span()[2], static_cast<std::byte>(0x64));
   // Every arrival names the port it came in at, spelled the way the URI
   // that opened it is.
   EXPECT_EQ(arrival->from, pads->address()) << arrival->from;

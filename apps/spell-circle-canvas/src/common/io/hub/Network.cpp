@@ -128,9 +128,8 @@ FetchResult fetchNetwork(const NetworkAccess& access, std::string_view url) {
   // Persistence is best-effort: a fetched resource remains usable when
   // the cache directory cannot accept it.
   (void)persistNetworkResource(cached, *body);
-  auto loaded = std::make_shared<Bytes>();
-  loaded->bytes = std::move(*body);
-  return {std::move(loaded), cached, kNetworkMtime};
+  return {std::make_shared<const Bytes>(std::move(*body)), cached,
+          kNetworkMtime};
 }
 
 std::string networkCacheKey(std::string_view url) {

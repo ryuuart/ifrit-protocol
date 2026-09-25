@@ -84,14 +84,12 @@ ArchiveSource::ArchiveSource(std::span<const std::byte> archive,
       const int32_t claimed =
           mz_zip_reader_entry_save_buffer_length(reader.handle);
       if (claimed >= 0 && (size_t)claimed <= ceiling) {
-        auto bytes = std::make_shared<Bytes>();
-        if (claimed > 0) {
-          bytes->bytes.resize((size_t)claimed);
-          if (mz_zip_reader_entry_save_buffer(
-                  reader.handle, bytes->bytes.data(), claimed) != MZ_OK)
-            bytes->bytes.clear();
-        }
-        m_entries.push_back({info->filename, std::move(bytes)});
+        std::vector<std::byte> contents((size_t)claimed);
+        if (claimed > 0 && mz_zip_reader_entry_save_buffer(
+                               reader.handle, contents.data(), claimed) != MZ_OK)
+          contents.clear();
+        m_entries.push_back({info->filename,
+                             std::make_shared<const Bytes>(std::move(contents))});
       }
     }
     status = mz_zip_reader_goto_next_entry(reader.handle);

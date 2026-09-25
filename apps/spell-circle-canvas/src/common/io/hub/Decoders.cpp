@@ -12,12 +12,12 @@ namespace sigil::io {
 Hub::Hub() : m_caches(std::make_unique<Caches>()) {
   registerDecoder<sigil::image::ImageAsset>(
       [](const Bytes& bytes, std::string_view hint) {
-        return sigil::image::decodeImage(bytes.bytes.data(), bytes.bytes.size(),
+        return sigil::image::decodeImage(bytes.data(), bytes.size(),
                                          {}, std::filesystem::path(hint));
       });
   registerDecoder<sigil::image::ChannelData>([](const Bytes& bytes,
                                                 std::string_view hint) {
-    return sigil::image::decodeChannels(bytes.bytes.data(), bytes.bytes.size(),
+    return sigil::image::decodeChannels(bytes.data(), bytes.size(),
                                         std::filesystem::path(hint));
   });
 }

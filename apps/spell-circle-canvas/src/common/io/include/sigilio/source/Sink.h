@@ -47,7 +47,7 @@ inline bool writeBytes(const std::filesystem::path& path, const void* bytes,
 
 /** The `Bytes` spelling of the same write. */
 inline bool writeBytes(const std::filesystem::path& path, const Bytes& bytes) {
-  return writeBytes(path, bytes.bytes.data(), bytes.bytes.size());
+  return writeBytes(path, bytes.data(), bytes.size());
 }
 
 /** Anything that stores bytes under a URI: false when the URI cannot be

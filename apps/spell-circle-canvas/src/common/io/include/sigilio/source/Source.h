@@ -37,14 +37,44 @@
  *  the format is what turns them into a value. */
 namespace sigil::io {
 
-/** Raw bytes of a resource. */
-struct Bytes {
-  std::vector<std::byte> bytes;
+/** The bytes of a resource: an immutable run, read through `data()` and
+ *  `size()` or as a span. Handed out as `std::shared_ptr<const Bytes>`,
+ *  so one fetch is shared by every reader without a copy; the value
+ *  itself moves cheaply. A `Bytes` converts to
+ *  `std::span<const std::byte>` wherever a span of bytes is taken. */
+class Bytes {
+ public:
+  Bytes() = default;
+
+  /** Takes @p contents without copying them. */
+  explicit Bytes(std::vector<std::byte> contents)
+      : m_contents(std::move(contents)) {}
+
+  /** Copies @p contents. */
+  explicit Bytes(std::span<const std::byte> contents)
+      : m_contents(contents.begin(), contents.end()) {}
+
+  const std::byte* data() const { return m_contents.data(); }
+  size_t size() const { return m_contents.size(); }
+  bool empty() const { return m_contents.empty(); }
+
+  std::span<const std::byte>::iterator begin() const { return span().begin(); }
+  std::span<const std::byte>::iterator end() const { return span().end(); }
+
+  std::span<const std::byte> span() const { return m_contents; }
+  operator std::span<const std::byte>() const { return m_contents; }
 
   /** The same bytes read as text, with no copy and no validation. */
   std::string_view asText() const {
-    return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+    return {reinterpret_cast<const char*>(m_contents.data()),
+            m_contents.size()};
   }
+
+  /** Two runs are equal when they hold the same bytes in the same order. */
+  bool operator==(const Bytes&) const = default;
+
+ private:
+  std::vector<std::byte> m_contents;
 };
 
 
@@ -58,14 +88,13 @@ inline std::optional<Bytes> readBytes(const std::filesystem::path& path) {
   if (!stream) return std::nullopt;
   const std::streamoff size = stream.tellg();
   if (size < 0) return std::nullopt;
-  Bytes out;
-  out.bytes.resize((size_t)size);
+  std::vector<std::byte> contents((size_t)size);
   stream.seekg(0);
   if (size > 0)
-    stream.read(reinterpret_cast<char*>(out.bytes.data()),
+    stream.read(reinterpret_cast<char*>(contents.data()),
                 (std::streamsize)size);
   if (!stream) return std::nullopt;
-  return out;
+  return Bytes(std::move(contents));
 }
 
 /** Anything that answers a URI with bytes: null when the URI cannot be

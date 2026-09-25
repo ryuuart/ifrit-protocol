@@ -137,7 +137,7 @@ TEST(IONetwork, CacheProbeDistinguishesMissingAndEmptyWithoutCreatingFiles) {
   });
   auto bytes = offline.fetch(url);
   ASSERT_NE(bytes, nullptr);
-  EXPECT_TRUE(bytes->bytes.empty());
+  EXPECT_TRUE(bytes->empty());
   EXPECT_EQ(requests, 0u);
 }
 
@@ -228,7 +228,7 @@ TEST(IONetwork, PollSkipsNetworkEntries) {
   EXPECT_FALSE(hub.poll());  // no mtime to watch, nothing erased
   auto again = hub.fetch(url);
   ASSERT_NE(again, nullptr);
-  EXPECT_EQ(again->bytes.size(), 3u);
+  EXPECT_EQ(again->size(), 3u);
 }
 
 TEST(IONetwork, OfflinePolicyServesCacheAndNeverFetches) {
@@ -351,12 +351,12 @@ TEST(IONetwork, LiveFetchThenOfflineRoundTrip) {
   online.setNetworkCacheDirectory(cache.path);
   auto fetched = online.fetch(url);
   if (!fetched) GTEST_SKIP() << "no route to " << url;
-  EXPECT_FALSE(fetched->bytes.empty());
+  EXPECT_FALSE(fetched->empty());
 
   Hub offline;
   offline.setNetworkCacheDirectory(cache.path);
   offline.setNetworkPolicy(NetworkPolicy::Offline);
   auto replay = offline.fetch(url);
   ASSERT_NE(replay, nullptr);
-  EXPECT_EQ(replay->bytes, fetched->bytes);
+  EXPECT_EQ(*replay, *fetched);
 }

@@ -148,7 +148,7 @@ std::optional<Address> parseAddress(std::string_view uri) {
  *  into a slice of gRPC's own, so the caller's Bytes are its own again
  *  as soon as this returns. */
 grpc::ByteBuffer bufferOf(const Bytes& message) {
-  const grpc::Slice slice(message.bytes.data(), message.bytes.size());
+  const grpc::Slice slice(message.data(), message.size());
   return grpc::ByteBuffer(&slice, 1);
 }
 
@@ -158,13 +158,13 @@ grpc::ByteBuffer bufferOf(const Bytes& message) {
 std::optional<Bytes> bytesOf(const grpc::ByteBuffer& buffer) {
   std::vector<grpc::Slice> slices;
   if (!buffer.Dump(&slices).ok()) return std::nullopt;
-  Bytes out;
-  out.bytes.reserve(buffer.Length());
+  std::vector<std::byte> gathered;
+  gathered.reserve(buffer.Length());
   for (const grpc::Slice& slice : slices) {
     const auto* const first = reinterpret_cast<const std::byte*>(slice.begin());
-    out.bytes.insert(out.bytes.end(), first, first + slice.size());
+    gathered.insert(gathered.end(), first, first + slice.size());
   }
-  return out;
+  return Bytes(std::move(gathered));
 }
 
 /** One caller's address with the call it arrived on behind it, spelled

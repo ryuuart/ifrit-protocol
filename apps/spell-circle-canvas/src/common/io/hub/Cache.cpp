@@ -259,8 +259,8 @@ std::shared_ptr<const sigil::image::ImageAsset> Hub::image(
       [options = options](
           const Bytes& bytes,
           const std::filesystem::path& path) -> std::shared_ptr<const void> {
-    auto decoded = sigil::image::decodeImage(bytes.bytes.data(),
-                                             bytes.bytes.size(), options, path);
+    auto decoded = sigil::image::decodeImage(bytes.data(),
+                                             bytes.size(), options, path);
     if (!decoded) return nullptr;
     return std::make_shared<const ImageAsset>(std::move(*decoded));
   };
@@ -277,7 +277,7 @@ std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,
   }
   FetchResult fetched = fetchResource(*this, network, uri);
   if (!fetched.bytes) return nullptr;
-  info.byteSize = fetched.bytes->bytes.size();
+  info.byteSize = fetched.bytes->size();
   info.path = std::move(fetched.path);
   return std::move(fetched.bytes);
 }

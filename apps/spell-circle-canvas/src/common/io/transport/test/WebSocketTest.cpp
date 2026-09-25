@@ -64,9 +64,7 @@ bool waitUntil(const std::function<bool()>& ready) {
 
 Bytes bytesOf(std::string_view text) {
   const auto* const first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes out;
-  out.bytes.assign(first, first + text.size());
-  return out;
+  return Bytes(std::span(first, text.size()));
 }
 
 /** The port out of an address a feed reports. An IPv6 address is
@@ -331,7 +329,7 @@ TEST_F(IOWebSocket, ABinaryMessageArrivesWhole) {
   peer.send(0x2, payload);
 
   ASSERT_TRUE(waitUntil([&] { return listener->latest() != nullptr; }));
-  EXPECT_EQ(listener->latest()->bytes.size(), payload.size());
+  EXPECT_EQ(listener->latest()->size(), payload.size());
   EXPECT_EQ(listener->latest()->asText(), payload);
 }
 

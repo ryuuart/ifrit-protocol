@@ -204,9 +204,7 @@ void Door::receive() {
           self->receive();
           return;
         }
-        Bytes datagram;
-        datagram.bytes.assign(self->buffer.begin(),
-                              self->buffer.begin() + count);
+        Bytes datagram(std::span(self->buffer).first(count));
         // The sender is read here because the next receive writes over
         // it: the endpoint is one member, and it belongs to whichever
         // datagram last landed in the buffer.
@@ -247,7 +245,7 @@ bool Door::send(const Bytes& datagram) {
   // copy of their own and the caller's Bytes are its own again as soon
   // as this returns.
   boost::asio::post(
-      strand, [self = shared_from_this(), payload = datagram.bytes]() mutable {
+      strand, [self = shared_from_this(), payload = std::vector<std::byte>(datagram.begin(), datagram.end())]() mutable {
         if (self->closed.load(std::memory_order_acquire)) return;
         // A datagram the system refuses is one datagram and not the socket:
         // UDP promises no delivery, and the next send is as good as this
@@ -271,7 +269,7 @@ bool Door::sendTo(std::string_view to, const Bytes& datagram) {
   if (reading) return false;
   boost::asio::post(
       strand, [self = shared_from_this(), peer, port = address->port,
-               payload = datagram.bytes]() mutable {
+               payload = std::vector<std::byte>(datagram.begin(), datagram.end())]() mutable {
         if (self->closed.load(std::memory_order_acquire)) return;
         error_code local;
         const udp::endpoint bound = self->socket.local_endpoint(local);

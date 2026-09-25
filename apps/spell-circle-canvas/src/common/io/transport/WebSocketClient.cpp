@@ -236,7 +236,7 @@ void carry(const std::shared_ptr<Session>& session) {
     // of several the server split the message into.
     if (left != 0 || (flags & CURLWS_CONT) != 0) continue;
     Bytes whole;
-    whole.bytes = std::move(message);
+    whole = Bytes(std::move(message));
     message.clear();
     const std::shared_ptr<Feed> feed = session->feed.lock();
     if (!feed) return;
@@ -285,8 +285,8 @@ void Door::close() {
 bool Door::send(const Bytes& message) {
   if (session->closed.load(std::memory_order_acquire)) return false;
   if (!session->connected.load(std::memory_order_acquire)) return false;
-  const std::byte* remaining = message.bytes.data();
-  size_t left = message.bytes.size();
+  const std::byte* remaining = message.data();
+  size_t left = message.size();
   // One whole message in one frame, which is what a feed's message is,
   // and bytes rather than text, which is what a feed carries. libcurl
   // takes as much of it as the connection has room for and says how

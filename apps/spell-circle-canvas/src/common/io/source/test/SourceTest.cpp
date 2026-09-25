@@ -33,9 +33,7 @@ struct TableSource {
   std::shared_ptr<const Bytes> fetch(std::string_view uri) {
     const auto it = table.find(uri);
     if (it == table.end()) return nullptr;
-    auto loaded = std::make_shared<Bytes>();
-    for (const char c : it->second) loaded->bytes.push_back((std::byte)c);
-    return loaded;
+    return std::make_shared<const Bytes>(std::as_bytes(std::span(it->second)));
   }
 };
 static_assert(ByteSource<TableSource>);
@@ -46,7 +44,7 @@ struct Length {
 };
 struct LengthDecoder {
   std::optional<Length> decode(const Bytes& bytes, std::string_view) const {
-    return Length{bytes.bytes.size()};
+    return Length{bytes.size()};
   }
 };
 static_assert(Decoder<LengthDecoder, Length>);
@@ -54,9 +52,7 @@ static_assert(Decoder<LengthDecoder, Length>);
 }  // namespace
 
 TEST(SourceVocabulary, BytesReadBackAsText) {
-  Bytes bytes;
-  for (const char c : std::string("carry the coal"))
-    bytes.bytes.push_back((std::byte)c);
+  const Bytes bytes(std::as_bytes(std::span(std::string_view("carry the coal"))));
   EXPECT_EQ(bytes.asText(), "carry the coal");
   EXPECT_EQ(Bytes{}.asText(), "");
 }
@@ -145,9 +141,7 @@ TEST(SinkVocabulary, AnEmptyWriteStillMakesTheFile) {
 
 TEST(SinkVocabulary, TheBytesSpellingWritesTheSameFile) {
   const ScratchDir root("sigilio_sink");
-  Bytes bytes;
-  for (const char c : std::string_view("abc"))
-    bytes.bytes.push_back((std::byte)c);
+  const Bytes bytes(std::as_bytes(std::span(std::string_view("abc"))));
   const std::filesystem::path file = root.path / "abc.bin";
   EXPECT_TRUE(writeBytes(file, bytes));
   EXPECT_EQ(std::filesystem::file_size(file), 3u);
@@ -156,12 +150,13 @@ TEST(SinkVocabulary, TheBytesSpellingWritesTheSameFile) {
 TEST(SourceVocabulary, ReadBytesAnswersEveryByteWriteBytesPutThere) {
   const ScratchDir root("sigilio_source");
   const std::filesystem::path file = root.path / "round" / "trip.bin";
-  Bytes wrote;
-  for (int i = 0; i < 512; ++i) wrote.bytes.push_back((std::byte)(i & 0xFF));
+  std::vector<std::byte> counted;
+  for (int i = 0; i < 512; ++i) counted.push_back((std::byte)(i & 0xFF));
+  const Bytes wrote(std::move(counted));
   ASSERT_TRUE(writeBytes(file, wrote));
   const std::optional<Bytes> read = readBytes(file);
   ASSERT_TRUE(read);
-  EXPECT_EQ(read->bytes, wrote.bytes);
+  EXPECT_EQ(*read, wrote);
 }
 
 TEST(SourceVocabulary, ReadBytesAnswersNothingForAFileThatIsNotThere) {
@@ -172,7 +167,7 @@ TEST(SourceVocabulary, ReadBytesAnswersNothingForAFileThatIsNotThere) {
   ASSERT_TRUE(writeBytes(empty, nullptr, 0));
   const std::optional<Bytes> read = readBytes(empty);
   ASSERT_TRUE(read);
-  EXPECT_TRUE(read->bytes.empty());
+  EXPECT_TRUE(read->empty());
 }
 
 // ---- the two places the platform names -------------------------------------

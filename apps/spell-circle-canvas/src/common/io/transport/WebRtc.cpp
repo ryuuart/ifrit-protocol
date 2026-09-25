@@ -177,14 +177,11 @@ bool callsOut(std::string_view signal) {
  *  channel carries it in. A feed answers bytes, so text and binary are
  *  one arrival here and what a message MEANS is read off the URI. */
 Bytes bytesOf(const rtc::message_variant& data) {
-  Bytes out;
-  if (const auto* const raw = std::get_if<rtc::binary>(&data)) {
-    out.bytes.assign(raw->begin(), raw->end());
-  } else if (const auto* const text = std::get_if<std::string>(&data)) {
-    const auto* const first = reinterpret_cast<const std::byte*>(text->data());
-    out.bytes.assign(first, first + text->size());
-  }
-  return out;
+  if (const auto* const raw = std::get_if<rtc::binary>(&data))
+    return Bytes(std::span<const std::byte>(*raw));
+  if (const auto* const text = std::get_if<std::string>(&data))
+    return Bytes(std::as_bytes(std::span(*text)));
+  return Bytes();
 }
 
 struct Signal;
@@ -322,9 +319,9 @@ bool peerIsOver(const Peer& peer) {
 bool writeOn(const std::shared_ptr<rtc::DataChannel>& channel,
              const Bytes& message) {
   try {
-    if (!channel->isOpen() || message.bytes.size() > channel->maxMessageSize())
+    if (!channel->isOpen() || message.size() > channel->maxMessageSize())
       return false;
-    channel->send(message.bytes.data(), message.bytes.size());
+    channel->send(message.data(), message.size());
     return true;
   } catch (...) {
     return false;
@@ -568,9 +565,7 @@ void Door::carry() {
   while (!saying.empty()) {
     const auto& [message, to] = saying.front();
     const std::string text = detail::writeIntroduction(message);
-    const auto* const first = reinterpret_cast<const std::byte*>(text.data());
-    Bytes payload;
-    payload.bytes.assign(first, first + text.size());
+    const Bytes payload(std::as_bytes(std::span(text)));
     // TO THE ONE PEER THAT IS BEING INTRODUCED where the door can name
     // one, and out of the door where it holds a single peer of its own
     // — a client's server, which there is nothing to pick out of.

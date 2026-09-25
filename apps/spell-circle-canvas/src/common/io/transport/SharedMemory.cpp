@@ -314,10 +314,9 @@ void Door::read(Feed& into) {
     const std::uint64_t stamp =
         std::atomic_ref<std::uint64_t>(region->writtenAtNanoseconds)
             .load(std::memory_order_relaxed);
-    Bytes message;
-    message.bytes.resize(claimed);
+    std::vector<std::byte> copied(claimed);
     if (claimed != 0)
-      std::memcpy(message.bytes.data(), payloadOf(region), claimed);
+      std::memcpy(copied.data(), payloadOf(region), claimed);
     // The count is read again only once the copy is finished: what makes
     // the copy a whole message is that the count did not move across it,
     // and a copy the writer overtook is dropped rather than delivered in
@@ -326,7 +325,7 @@ void Door::read(Feed& into) {
     if (written.load(std::memory_order_relaxed) != before) continue;
     delivered = before;
     deliveredAt = stamp;
-    into.deliver(std::move(message), address);
+    into.deliver(Bytes(std::move(copied)), address);
     return;
   }
 }

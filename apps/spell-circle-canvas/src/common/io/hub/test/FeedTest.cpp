@@ -34,9 +34,7 @@ namespace {
  *  arrived rather than how many bytes it was. */
 Bytes message(std::string_view text) {
   const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  Bytes bytes;
-  bytes.bytes.assign(first, first + text.size());
-  return bytes;
+  return Bytes(std::span(first, text.size()));
 }
 
 std::shared_ptr<const Bytes> shared(std::string_view text) {

@@ -43,6 +43,11 @@ auto icon   = hub.image("res://ui/mark.svg", {.width = 256});
 auto layer  = hub.image("res://light/probe.exr", {.layer = "diffuse"});
 auto planes = hub.load<sigil::image::ChannelData>("res://light/probe.exr");
 
+// A Bytes is an immutable run read as data() and size(), as a span —
+// it converts to std::span<const std::byte> wherever one is taken — or
+// as text with asText(). Shared, never copied, between every reader.
+std::span<const std::byte> header = table->span().first(8);
+
 if (auto info = hub.probe("res://light/probe.exr"))   // bytes: size, path
   budgetFor(info->byteSize);
 // …and what those bytes MEAN is asked of the library that owns the

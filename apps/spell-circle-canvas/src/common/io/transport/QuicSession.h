@@ -71,7 +71,7 @@ void deliver(const Session& session, const std::string& from, Bytes message);
  *  when the stream it went on has ended, or when the datagram it was has
  *  reached a state it will not leave. */
 struct Sending {
-  explicit Sending(const Bytes& message) : bytes(message.bytes) {
+  explicit Sending(const Bytes& message) : bytes(message.begin(), message.end()) {
     buffer.Length = static_cast<uint32_t>(bytes.size());
     buffer.Buffer = reinterpret_cast<uint8_t*>(bytes.data());
   }
@@ -89,7 +89,7 @@ struct Sending {
 struct Incoming {
   std::shared_ptr<Session> session;
   std::string named;
-  Bytes message;
+  std::vector<std::byte> message;
   bool abandoned = false;
   bool delivered = false;
 };

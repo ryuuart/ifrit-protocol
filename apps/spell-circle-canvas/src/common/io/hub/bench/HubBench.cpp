@@ -75,7 +75,7 @@ void BM_Load_ViewHit(benchmark::State& state) {
   Mounted fixture((int)state.range(0));
   fixture.hub.registerDecoder<Length>(
       [](const Bytes& bytes) -> std::optional<Length> {
-        return Length{bytes.bytes.size()};
+        return Length{bytes.size()};
       });
   for (const std::string& uri : fixture.uris)
     (void)fixture.hub.load<Length>(uri);

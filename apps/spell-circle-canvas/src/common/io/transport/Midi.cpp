@@ -307,7 +307,7 @@ struct Door {
   }
 
   bool send(const Bytes& message) {
-    if (!output || message.bytes.empty()) return false;
+    if (!output || message.empty()) return false;
     if (delivery->closed.load(std::memory_order_acquire)) return false;
     // One message the driver refused is one message and not the port:
     // the cable is still there and the next send is as good as this one
@@ -315,8 +315,8 @@ struct Door {
     // throwing, so what it said is taken here.
     try {
       output->sendMessage(
-          reinterpret_cast<const unsigned char*>(message.bytes.data()),
-          message.bytes.size());
+          reinterpret_cast<const unsigned char*>(message.data()),
+          message.size());
     } catch (const RtMidiError&) {
       return false;
     }
@@ -364,10 +364,8 @@ void arrived(double, std::vector<unsigned char>* message, void* which) {
   if (delivery->closed.load(std::memory_order_acquire)) return;
   const std::shared_ptr<Feed> feed = delivery->feed.lock();
   if (!feed) return;
-  Bytes bytes;
   const auto* const first = reinterpret_cast<const std::byte*>(message->data());
-  bytes.bytes.assign(first, first + message->size());
-  feed->deliver(std::move(bytes), delivery->from);
+  feed->deliver(Bytes(std::span(first, message->size())), delivery->from);
 }
 
 /** A feed whose transport could not open: the reason stands on the

@@ -32,11 +32,10 @@ std::shared_ptr<const Bytes> readFile(const std::filesystem::path& path) {
   const std::streamsize size = stream.tellg();
   if (size < 0) return nullptr;
   stream.seekg(0);
-  auto loaded = std::make_shared<Bytes>();
-  loaded->bytes.resize((size_t)size);
-  if (!stream.read(reinterpret_cast<char*>(loaded->bytes.data()), size))
+  std::vector<std::byte> contents((size_t)size);
+  if (!stream.read(reinterpret_cast<char*>(contents.data()), size))
     return nullptr;
-  return loaded;
+  return std::make_shared<const Bytes>(std::move(contents));
 }
 
 /** The local filesystem path a non-network URI means: file:// strips

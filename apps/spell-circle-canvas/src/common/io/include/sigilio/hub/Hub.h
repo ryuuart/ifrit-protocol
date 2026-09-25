@@ -201,7 +201,7 @@ class Hub {
   bool write(std::string_view uri, const void* bytes, size_t size);
   /** The same, from a bytes value already in hand. */
   bool write(std::string_view uri, const Bytes& bytes) {
-    return write(uri, bytes.bytes.data(), bytes.bytes.size());
+    return write(uri, bytes.data(), bytes.size());
   }
 
   /** Registers how a T is decoded from bytes, so load<T>() can answer.
@@ -320,7 +320,7 @@ class Hub {
     const std::shared_ptr<const Bytes> bytes = probeFetch(uri, info);
     if (!bytes) return std::nullopt;
     return probeResource(std::type_identity<T>{},
-                         std::span<const std::byte>(bytes->bytes), info.path);
+                         bytes->span(), info.path);
   }
 
   /** Re-checks every previously loaded resource; reloads changes and

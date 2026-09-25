@@ -55,7 +55,7 @@ TEST_F(IOHub, FetchAndTextLoadThroughMounts) {
   EXPECT_EQ(*text, "carry the coal");
   auto bytes = hub.fetch("res://notes/hello.txt");
   ASSERT_NE(bytes, nullptr);
-  EXPECT_EQ(bytes->bytes.size(), 14u);
+  EXPECT_EQ(bytes->size(), 14u);
   EXPECT_EQ(hub.fetch("res://missing.bin"), nullptr);
 }
 
@@ -111,7 +111,7 @@ TEST_F(IOHub, FileUrlsLoadAsLocalPaths) {
   EXPECT_EQ(*text, "no mount needed");
   auto bytes = hub.fetch(url);
   ASSERT_NE(bytes, nullptr);
-  EXPECT_EQ(bytes->bytes.size(), 15u);
+  EXPECT_EQ(bytes->size(), 15u);
 }
 
 TEST(IOTextCatalog, MountsOneDirectoryAndAnswersByName) {

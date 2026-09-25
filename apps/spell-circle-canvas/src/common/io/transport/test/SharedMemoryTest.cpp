@@ -31,6 +31,7 @@
 namespace {
 
 using sigil::io::Arrival;
+using sigil::io::Bytes;
 using sigil::io::Feed;
 using sigil::io::Hub;
 using sigil::io::SharedMemoryWriter;
@@ -148,8 +149,8 @@ TEST_F(IOSharedMemory, AFeedNamesItsRegionAndHasNoWayBackToTheWriter) {
   EXPECT_EQ(region->address(), "shm://" + name);
   // A reader maps what a writer left and has nothing to write back
   // through, either to everybody or to the one that wrote.
-  EXPECT_FALSE(region->send({bytesOf("no way back")}));
-  EXPECT_FALSE(region->sendTo(region->address(), {bytesOf("no way back")}));
+  EXPECT_FALSE(region->send(Bytes(bytesOf("no way back"))));
+  EXPECT_FALSE(region->sendTo(region->address(), Bytes(bytesOf("no way back"))));
 }
 
 TEST_F(IOSharedMemory, AMessageLargerThanTheRegionIsRefusedByTheWriter) {
@@ -272,7 +273,7 @@ TEST_F(IOSharedMemory, AMessageIsNeverSeenHalfWritten) {
   const auto until = std::chrono::steady_clock::now() + 500ms;
   while (std::chrono::steady_clock::now() < until) {
     while (const std::optional<Arrival> arrival = region->receive()) {
-      const std::vector<std::byte>& message = arrival->bytes->bytes;
+      const std::span<const std::byte> message = arrival->bytes->span();
       ASSERT_EQ(message.size(), kWide);
       const std::byte one = message.front();
       ASSERT_TRUE(std::all_of(message.begin(), message.end(),

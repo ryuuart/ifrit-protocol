@@ -31,7 +31,7 @@ RecordingWriter::RecordingWriter(const std::filesystem::path& path)
 
 bool RecordingWriter::append(const Arrival& arrival) {
   if (!m_stream) return false;
-  const size_t size = arrival.bytes ? arrival.bytes->bytes.size() : 0;
+  const size_t size = arrival.bytes ? arrival.bytes->size() : 0;
   // A frame states its length in 32 bits. A message that does not fit
   // is not written at all: a length that had been cut down to size
   // would make every frame after it unreadable.
@@ -40,7 +40,7 @@ bool RecordingWriter::append(const Arrival& arrival) {
   m_stream.write(reinterpret_cast<const char*>(&arrival.at), sizeof(double));
   m_stream.write(reinterpret_cast<const char*>(&length), sizeof(length));
   if (length)
-    m_stream.write(reinterpret_cast<const char*>(arrival.bytes->bytes.data()),
+    m_stream.write(reinterpret_cast<const char*>(arrival.bytes->data()),
                    (std::streamsize)length);
   // Every frame is on the disk by the time this answers: a recording is
   // read while it is still being written, and by the run that follows
@@ -55,7 +55,7 @@ std::optional<std::vector<Arrival>> readRecording(
     const std::filesystem::path& path) {
   const std::optional<Bytes> file = readBytes(path);
   if (!file) return std::nullopt;
-  const std::span<const std::byte> bytes(file->bytes);
+  const std::span<const std::byte> bytes = file->span();
   if (bytes.size() < kHeader.size() ||
       std::memcmp(bytes.data(), kHeader.data(), kHeader.size()) != 0)
     return std::nullopt;
@@ -73,9 +73,7 @@ std::optional<std::vector<Arrival>> readRecording(
     std::memcpy(&length, bytes.data() + offset, sizeof(length));
     offset += sizeof(length);
     if (bytes.size() - offset < length) break;
-    auto message = std::make_shared<Bytes>();
-    message->bytes.assign(bytes.begin() + (ptrdiff_t)offset,
-                          bytes.begin() + (ptrdiff_t)(offset + length));
+    auto message = std::make_shared<const Bytes>(bytes.subspan(offset, length));
     offset += length;
     // The generation counts what one FEED has taken, which is not the
     // recording's to know, so the frames are numbered as they are read.

@@ -25,6 +25,25 @@ beside the sink concept is the one place a run of bytes becomes a file.
 
 The whole vocabulary is standard library only, header only.
 
+### The bytes themselves
+
+`sigil::io::Bytes` is an immutable run of bytes, handed out as
+`std::shared_ptr<const Bytes>` so one fetch is shared by every reader
+without a copy. It reads as `data()` and `size()`, as `span()`, as text
+through `asText()` with no copy and no validation, and it converts to
+`std::span<const std::byte>` wherever a span of bytes is taken, so a
+decoder written against a span takes a `Bytes` as it is. It is built
+from a `std::vector<std::byte>`, which it takes without copying, or from
+a span, which it copies; both constructors are explicit, so a run of
+bytes never becomes a resource by accident. Two are equal when they hold
+the same bytes in the same order.
+
+```cpp
+const std::shared_ptr<const sigil::io::Bytes> table = hub.fetch("res://data/table.bin");
+const sigil::io::Bytes line(std::as_bytes(std::span(std::string_view("a line"))));
+decodeRows(*table);                    // any function over std::span<const std::byte>
+```
+
 ### The concepts
 
 `sigil::io::ByteSource` is anything that answers a URI with bytes: null

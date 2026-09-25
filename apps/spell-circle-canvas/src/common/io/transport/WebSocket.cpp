@@ -456,11 +456,8 @@ void hold(const std::shared_ptr<Session>& session, const Address& place,
                                  uWS::OpCode) {
       const std::shared_ptr<Feed> feed = session->feed.lock();
       if (!feed) return;
-      const auto* const first =
-          reinterpret_cast<const std::byte*>(message.data());
-      Bytes payload;
-      payload.bytes.assign(first, first + message.size());
-      feed->deliver(std::move(payload), peer->getUserData()->address);
+      feed->deliver(Bytes(std::as_bytes(std::span(message))),
+                    peer->getUserData()->address);
     };
     behavior.close = [session](auto* peer, int, std::string_view) {
       // A peer that has left is nobody to answer, and the entry that
@@ -569,7 +566,7 @@ bool Door::send(const Bytes& message) {
   // The app belongs to its loop, so the bytes travel there in a copy of
   // their own and the caller's Bytes are its own again as soon as this
   // returns. What goes out is the frame the URI chose.
-  loop->defer([session = session, payload = message.bytes] {
+  loop->defer([session = session, payload = message] {
     if (!session->app) return;
     session->app->publish(
         session->topic,
@@ -589,7 +586,7 @@ bool Door::sendTo(std::string_view to, const Bytes& message) {
   // that left in between is gone by the time the loop reaches this, and
   // its message stops here.
   loop->defer(
-      [session = session, named = std::string(to), payload = message.bytes] {
+      [session = session, named = std::string(to), payload = message] {
         const auto found = session->peers.find(named);
         if (found == session->peers.end()) return;
         found->second->send(

@@ -293,17 +293,14 @@ void Door::hand(Feed& into) {
     // An empty line is a sender's blank rather than a reading, and a
     // reader handed one would read every field of it as missing.
     if (ended != opened) {
-      Bytes line;
-      line.bytes.assign(partial.begin() + (long)opened,
-                        partial.begin() + (long)ended);
-      into.deliver(std::move(line), address);
+      into.deliver(Bytes(std::span(partial).subspan(opened, ended - opened)),
+                   address);
     }
     opened = at + 1;
   }
   partial.erase(partial.begin(), partial.begin() + (long)opened);
   if (partial.size() < kLineCeiling) return;
-  Bytes unframed;
-  unframed.bytes = std::move(partial);
+  Bytes unframed(std::move(partial));
   partial.clear();
   into.deliver(std::move(unframed), address);
 }
@@ -325,7 +322,7 @@ bool Door::send(const Bytes& line) {
   // of their own and the caller's Bytes are its own again as soon as
   // this returns.
   boost::asio::post(
-      strand, [self = shared_from_this(), payload = line.bytes]() mutable {
+      strand, [self = shared_from_this(), payload = std::vector<std::byte>(line.begin(), line.end())]() mutable {
         if (self->closed.load(std::memory_order_acquire)) return;
         payload.push_back(std::byte{'\n'});
         self->outgoing.push_back(std::move(payload));

@@ -85,9 +85,7 @@ constexpr const char* kNotCarried =
  *  the same payload is a whole line on the door that carries lines and
  *  bytes on every other. */
 Bytes payloadOf(size_t size) {
-  Bytes out;
-  out.bytes.assign(size, static_cast<std::byte>('x'));
-  return out;
+  return Bytes(std::vector<std::byte>(size, static_cast<std::byte>('x')));
 }
 
 /** The port out of an address a feed reports. The authority is what
@@ -312,7 +310,7 @@ void BM_SharedMemory(benchmark::State& state) {
   }
 
   const Bytes message = payloadOf(size);
-  const std::span<const std::byte> written(message.bytes);
+  const std::span<const std::byte> written = message.span();
   if (!carriedByRegion(writer, region, written)) {
     state.SkipWithError(kNotCarried);
     return;
@@ -363,9 +361,8 @@ void BM_Midi(benchmark::State& state) {
   }
 
   // A note on the middle C of the first channel, struck hard.
-  Bytes message;
-  for (int one : {0x90, 0x3C, 0x64})
-    message.bytes.push_back(static_cast<std::byte>(one));
+  const Bytes message(std::vector<std::byte>{std::byte{0x90}, std::byte{0x3C},
+                                            std::byte{0x64}});
   const SendOne sendOne = [&](Moment) { return keys->send(message); };
   if (!carried(pads, sendOne)) {
     state.SkipWithError(kNotCarried);
