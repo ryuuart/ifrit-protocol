@@ -4,7 +4,8 @@
 
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/bind/Bound.h>
+#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/clock/Ticker.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilpython/Bindings.h>

@@ -15,6 +15,7 @@
 #include <sigilcompose/typography/Annotation.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextPath.h>
+#include <sigilmotion/schedule/Spread.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
 #include <sigilpython/compose/Nodes.h>
