@@ -61,8 +61,8 @@ a derived cell never reads a source that has not been stepped this frame,
 whatever order things were registered in.
 
 `Ticker::add` offers a steppable the frame's delta and the ticker's total
-elapsed time, and it names the ones it reads: `[] {…}`, `[](double dt) {…}`
-and `[](double dt, double elapsed) {…}` are all steppables. It may answer
+elapsed time, and it names the ones it reads: `[] {…}`, `[](double deltaSeconds) {…}`
+and `[](double deltaSeconds, double elapsed) {…}` are all steppables. It may answer
 whether it still needs frames, and one that answers nothing always does
 (see the gotcha below). `addFixed` reads the same rule with nothing
 offered: `[] {…}` or `[] { … return alive; }`.

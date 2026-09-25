@@ -44,7 +44,7 @@ class Bound {
    *  `animate(from(a).to(b))` words, which mean the endpoints of a single
    *  ramp instead. `source` and `target` name the two ranges; `from` and
    *  `to` stay the ramp's. */
-  Bound& source(float lo, float hi);
+  Bound& source(float low, float high);
   /** `source()` that also CLAMPS the normalised value to [0,1].
    *
    *  Prefer this whenever the range names a beat inside a longer
@@ -53,7 +53,7 @@ class Bound {
    *  value outside [0,1] — and none of the `ease::` curves is defined
    *  there. `window()` says "this beat and nothing else", which is what
    *  a range on a multi-beat timeline nearly always means. */
-  Bound& window(float lo, float hi);
+  Bound& window(float low, float high);
   /** THERE AND BACK: the value runs 0 → 1 → 0 across the source span, so
    *  a sweep, a marquee or a highlight RETURNS instead of jumping back to
    *  the start.
@@ -123,9 +123,9 @@ class Bound {
    *  levels where they are — a pulse has no shoulders to round. */
   Bound& square(float duty = 0.5f);
   /** THE CUSTOM WAVEFORM — the escape hatch when none of the named shapes
-   *  is the one you mean. @p shape is evaluated on the FOLDED phase
-   *  u ∈ [0,1), so whatever it draws across one period the signal repeats:
-   *  `wave([](float u) { return u * u; })` is a sawtooth with a curved
+   *  is the one you mean. @p shape is evaluated on the FOLDED phase,
+   *  in [0,1), so whatever it draws across one period the signal repeats:
+   *  `wave([](float phase) { return phase * phase; })` is a sawtooth with a curved
    *  ramp, and every named envelope could have been written this way.
    *
    *  Same slot as the named shapes: naming this after `pingPong()`,
@@ -142,11 +142,11 @@ class Bound {
   /** Shape the (normalised) value — any curve under `ease::`, the
    *  parameterised families included. */
   Bound& map(Easing curve);
-  Bound& scale(float s);
-  Bound& offset(float o);
-  /** Map [0,1] onto the TARGET range [lo,hi] — exactly
-   *  `scale(hi-lo).offset(lo)`, spelled the way you think about it. */
-  Bound& target(float lo, float hi);
+  Bound& scale(float factor);
+  Bound& offset(float amount);
+  /** Map [0,1] onto the TARGET range [low,high] — exactly
+   *  `scale(high-low).offset(low)`, spelled the way you think about it. */
+  Bound& target(float low, float high);
   /** 1 − v, composed correctly with whatever affine stages came before
    *  rather than applied to the raw input. */
   Bound& invert();
@@ -231,7 +231,7 @@ class Bound {
   Bound& wiggle(float amount = 1.0f, float frequency = 2.0f, uint32_t seed = 0,
                 int octaves = 1, float falloff = 0.5f);
   /** Bound the OUTPUT; always applied last, whenever it is written. */
-  Bound& clamp(float lo, float hi);
+  Bound& clamp(float low, float high);
 
   const BoundFloat& value() const { return m_b; }
   const std::shared_ptr<const choreograph::Output<float>>& owner() const {

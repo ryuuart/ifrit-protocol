@@ -40,7 +40,7 @@ using Easing = std::function<float(float)>;
  *  wave, a Transition's, a Spread's distribution — because a second
  *  spelling of this rule would let two comparators disagree about
  *  whether the value that holds a curve may prune. */
-bool easeEqual(const Easing& a, const Easing& b);
+bool easeEqual(const Easing& left, const Easing& right);
 
 }  // namespace sigil::motion
 

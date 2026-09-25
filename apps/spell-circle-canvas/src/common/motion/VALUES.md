@@ -125,8 +125,8 @@ target that is allowed to move.
 
 ```cpp
 Spring cursor;                                   // value 0, at rest
-SpringParameters p{.periodSeconds = 0.39f, .damping = 0.22f};
-cursor = spring(cursor, selectedX, dt, p);       // every frame
+SpringParameters parameters{.periodSeconds = 0.39f, .damping = 0.22f};
+cursor = spring(cursor, selectedX, deltaSeconds, parameters);  // every frame
 if (!springMoving(cursor, selectedX)) sleep();   // done, to within a pixel
 ```
 

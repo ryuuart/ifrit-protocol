@@ -35,7 +35,7 @@ struct Beat {
    *  and no cycle index rides beside it: the master is a phase mod 1 and
    *  carries no cycle count, so cycle identity lives with whoever steps
    *  the phase. */
-  float localT = 0;
+  float localTime = 0;
   /** The beat is running: it has begun and has not finished — under a
    *  looping cascade, mid-beat in its current cycle. */
   bool active = false;

@@ -68,7 +68,7 @@
 // THE BALL AND THE PLAYHEAD RIDE THE SCHEDULE READ BACK. An attached mark
 // stands on a letter's REST rect; one that must move with the cascade reads
 // `Composer::beatsOf` — one `Beat` per letter, carrying that letter's
-// laid-out `rect`, the `unitIndex` of its word and its own `localT` right
+// laid-out `rect`, the `unitIndex` of its word and its own `localTime` right
 // now — and drives its own transform from it. `update` writes those two
 // transforms every frame and describes nothing: the tree is declared once.
 //
@@ -432,7 +432,7 @@ std::vector<SungWord> sungWords(const std::vector<Beat>& beats) {
   for (const Beat& beat : beats) {
     if (beat.unitIndex >= words.size()) words.resize(beat.unitIndex + 1);
     SungWord& word = words[beat.unitIndex];
-    word.coverage += beat.localT;
+    word.coverage += beat.localTime;
     word.letters += 1.0f;
     word.left = std::min(word.left, beat.rect.left());
     word.right = std::max(word.right, beat.rect.right());
@@ -688,7 +688,7 @@ struct KaraokeWipe {
     for (size_t index = 0; index < beats.size(); ++index) {
       const float next = index + 1 < beats.size() ? beats[index + 1].rect.left()
                                                   : beats[index].rect.right();
-      swept += beats[index].localT * (next - beats[index].rect.left());
+      swept += beats[index].localTime * (next - beats[index].rect.left());
     }
     playhead = swept;
 

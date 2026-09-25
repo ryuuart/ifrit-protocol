@@ -155,11 +155,11 @@ Beat Cascade::beat(float master, uint32_t outerUnit, uint32_t innerUnit) const {
   Beat out;
   out.unitIndex = outerUnit;
   out.startMs = startMs(outerUnit, innerUnit);
-  out.localT = localTime(master, outerUnit, innerUnit);
+  out.localTime = localTime(master, outerUnit, innerUnit);
   // A beat that has begun and not finished. The clamped local time reads 0
   // both before the beat opens and exactly as it does, and 1 for the whole
   // of the rest of the cascade's life.
-  out.active = out.localT > 0.0f && out.localT < 1.0f;
+  out.active = out.localTime > 0.0f && out.localTime < 1.0f;
   return out;
 }
 

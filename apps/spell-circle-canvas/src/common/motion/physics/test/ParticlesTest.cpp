@@ -443,7 +443,7 @@ TEST(Particles, AHeavierParticleMovesLessUnderTheSamePush) {
   // not an acceleration, since an acceleration is what weight is taken
   // out of.
   for (Vec2& push : cloud.points.force) push = {0.0f, 600.0f};
-  const Verlet stepper{.dt = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1.0f / 60.0f};
   stepper.step(cloud.points, {});
 
   size_t lightest = 0, heaviest = 0;
@@ -495,10 +495,10 @@ TEST(Particles, ACloudIsSteppedByWhatStepsAPointSet) {
   mouth.burst(cloud, stream, 64);
 
   const std::vector<Force> forces{gravity({0, 100.0f}), drag(0.5f)};
-  const Verlet stepper{.dt = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1.0f / 60.0f};
   for (int frame = 0; frame < 60; ++frame) {
     stepper.step(cloud.points, forces);
-    cloud.live(stepper.dt);
+    cloud.live(stepper.timeStep);
     cloud.reap();
   }
   EXPECT_EQ(cloud.size(), cloud.age.size());

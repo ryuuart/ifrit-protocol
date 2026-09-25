@@ -252,7 +252,7 @@ class Composer {
    *  nothing pays for it until it is asked for.
    *
    *  This is the read-back that keeps a non-glyph mark honest. Position a
-   *  ball, a playhead or an underline from `rect` and `localT` here and it
+   *  ball, a playhead or an underline from `rect` and `localTime` here and it
    *  agrees with the glyphs by construction, whatever the cascade turns out
    *  to be — flat, nested, cue-driven, numbered over the selection or over
    *  the paragraph.

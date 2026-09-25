@@ -166,7 +166,7 @@ TEST(Cascade, TheBeatReadBackAgreesWithTheTwoAccessors) {
   const Beat beat = cascade.beat(0.5f, 3, 0);
   EXPECT_EQ(beat.unitIndex, 3u);
   EXPECT_FLOAT_EQ(beat.startMs, cascade.startMs(3, 0));
-  EXPECT_FLOAT_EQ(beat.localT, cascade.localTime(0.5f, 3, 0));
+  EXPECT_FLOAT_EQ(beat.localTime, cascade.localTime(0.5f, 3, 0));
   EXPECT_TRUE(beat.active);
   // Begun and not finished is the whole of "running": a clamped local
   // time reads 0 before the beat opens and 1 forever after it closes.

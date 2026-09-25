@@ -13,24 +13,24 @@
 
 namespace sigil::motion {
 
-float resolveFloatAt(const AnimatedFloat* anim, const Animatable<float>& v) {
-  if (const choreograph::Output<float>* binding = v.binding()) {
+float resolveFloatAt(const AnimatedFloat* animated, const Animatable<float>& property) {
+  if (const choreograph::Output<float>* binding = property.binding()) {
     // A shaped binding (bind(&out).map().to()…) runs its map here — the
     // one place a bound float is read, so every consumer gets it for free.
-    if (const BoundFloat* shape = v.boundMap())
+    if (const BoundFloat* shape = property.boundMap())
       return shape->apply(binding->value());
     return binding->value();
   }
-  if (anim && anim->started) return anim->value.value();
-  if (const float* plain = v.plain()) return *plain;
-  return v.transitioned()->value;
+  if (animated && animated->started) return animated->value.value();
+  if (const float* plain = property.plain()) return *plain;
+  return property.transitioned()->value;
 }
 
 bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
-                       const Animatable<float>& prevValue,
+                       const Animatable<float>& previousValue,
                        const Animatable<float>& nextValue,
                        const std::optional<Transition>& fallback) {
-  ResolvedProperty<float> prev = resolveProperty(prevValue, fallback);
+  ResolvedProperty<float> prev = resolveProperty(previousValue, fallback);
   ResolvedProperty<float> next = resolveProperty(nextValue, fallback);
   // Snap semantics must actually LAND: a lingering ramp from an earlier
   // transition would shadow the plain description forever (resolveFloatAt
@@ -88,51 +88,51 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
 }
 
 void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
-                   const Animatable<float>& v, float extraDelaySeconds) {
-  const Transitioned<float>* tr = v.transitioned();
-  if (!tr) return;
+                   const Animatable<float>& property, float extraDelaySeconds) {
+  const Transitioned<float>* transitioned = property.transitioned();
+  if (!transitioned) return;
   // animate(through({…})): the multi-segment entrance — checked BEFORE
   // the from==value guard (a shake 0→−20→0 starts and ends equal).
-  if (tr->waypoints.size() >= 2) {
+  if (transitioned->waypoints.size() >= 2) {
     auto& anim = held;
     if (!anim) anim = std::make_unique<AnimatedFloat>();
-    const float first = tr->waypoints.front().second;
+    const float first = transitioned->waypoints.front().second;
     anim->value = first;
     anim->started = true;
-    anim->target = tr->waypoints.back().second;
+    anim->target = transitioned->waypoints.back().second;
     auto motion = ticker.timeline().apply(&anim->value);
     const float lead =
-        std::chrono::duration<float>(tr->spec.delay).count() +
+        std::chrono::duration<float>(transitioned->spec.delay).count() +
         extraDelaySeconds +
-        std::chrono::duration<float>(tr->waypoints.front().first).count();
+        std::chrono::duration<float>(transitioned->waypoints.front().first).count();
     if (lead > 0) motion.then<choreograph::Hold>(first, lead);
-    for (size_t i = 1; i < tr->waypoints.size(); ++i) {
-      const float seg = std::chrono::duration<float>(tr->waypoints[i].first -
-                                                     tr->waypoints[i - 1].first)
+    for (size_t i = 1; i < transitioned->waypoints.size(); ++i) {
+      const float seg = std::chrono::duration<float>(transitioned->waypoints[i].first -
+                                                     transitioned->waypoints[i - 1].first)
                             .count();
-      motion.then<choreograph::RampTo>(tr->waypoints[i].second,
-                                       std::max(seg, 0.0f), tr->spec.easing());
+      motion.then<choreograph::RampTo>(transitioned->waypoints[i].second,
+                                       std::max(seg, 0.0f), transitioned->spec.easing());
     }
     return;
   }
-  if (!tr->from || *tr->from == tr->value) return;
+  if (!transitioned->from || *transitioned->from == transitioned->value) return;
   auto& anim = held;
   if (!anim) anim = std::make_unique<AnimatedFloat>();
-  anim->value = *tr->from;
+  anim->value = *transitioned->from;
   anim->started = true;
-  anim->target = tr->value;
+  anim->target = transitioned->value;
   auto motion = ticker.timeline().apply(&anim->value);
-  const float delay = std::chrono::duration<float>(tr->spec.delay).count() +
+  const float delay = std::chrono::duration<float>(transitioned->spec.delay).count() +
                       extraDelaySeconds;  // a staggered entrance's carry
   if (delay > 0)  // stagger: hold the `from` before entering
-    motion.then<choreograph::Hold>(*tr->from, delay);
+    motion.then<choreograph::Hold>(*transitioned->from, delay);
   motion.then<choreograph::RampTo>(
-      tr->value, std::chrono::duration<float>(tr->spec.duration).count(),
-      tr->spec.easing());
+      transitioned->value, std::chrono::duration<float>(transitioned->spec.duration).count(),
+      transitioned->spec.easing());
 }
 
-bool isLive(const AnimatedFloat* anim, const Animatable<float>& v) {
-  return v.binding() != nullptr || (anim && anim->value.isConnected());
+bool isLive(const AnimatedFloat* animated, const Animatable<float>& property) {
+  return property.binding() != nullptr || (animated && animated->value.isConnected());
 }
 
 void progressRamp(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,

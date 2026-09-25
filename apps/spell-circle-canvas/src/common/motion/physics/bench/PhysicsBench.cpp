@@ -58,7 +58,7 @@ Points field(int count) {
 void ParticleStep(benchmark::State& state) {
   Points points = cloud((int)state.range(0));
   const std::vector<Force> forces{gravity({0, 900}), drag(0.4f)};
-  const Verlet stepper{.dt = 1.0f / 60.0f, .damping = 0.1f};
+  const Verlet stepper{.timeStep = 1.0f / 60.0f, .damping = 0.1f};
   for ([[maybe_unused]] auto iteration : state) stepper.step(points, forces);
 }
 BENCHMARK(ParticleStep)->Arg(256)->Arg(4096);
@@ -69,7 +69,7 @@ BENCHMARK(ParticleStep)->Arg(256)->Arg(4096);
 void FlockStep(benchmark::State& state) {
   Points points = field((int)state.range(0));
   const std::vector<Force> forces{boids({}, 80.0f), drag(0.4f)};
-  const Verlet stepper{.dt = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1.0f / 60.0f};
   for ([[maybe_unused]] auto iteration : state) stepper.step(points, forces);
 }
 BENCHMARK(FlockStep)->Arg(256)->Arg(1024)->Arg(10000);
@@ -114,7 +114,7 @@ void PairwiseFlockStep(benchmark::State& state) {
                                         .radius = 80.0f,
                                         .body = &flockByWalking},
                                   drag(0.4f)};
-  const Verlet stepper{.dt = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1.0f / 60.0f};
   for ([[maybe_unused]] auto iteration : state) stepper.step(points, forces);
 }
 BENCHMARK(PairwiseFlockStep)->Arg(256)->Arg(1024)->Arg(10000);
@@ -160,7 +160,7 @@ void ChainStep(benchmark::State& state) {
     sticks.push_back(distance((size_t)i - 1, (size_t)i, 8.0f));
   }
   const std::vector<Force> forces{gravity({0, 900})};
-  const Verlet stepper{.dt = 1.0f / 60.0f, .iterations = (int)state.range(0)};
+  const Verlet stepper{.timeStep = 1.0f / 60.0f, .iterations = (int)state.range(0)};
   for ([[maybe_unused]] auto iteration : state)
     stepper.step(points, forces, sticks);
 }

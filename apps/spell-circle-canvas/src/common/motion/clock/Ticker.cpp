@@ -21,13 +21,13 @@ void Ticker::addStep(std::function<bool(double, double)> steppable) {
   m_steppables.push_back(std::move(steppable));
 }
 
-void Ticker::addFixedStep(double hz, std::function<bool()> fn, int maxCatchUp,
+void Ticker::addFixedStep(double rate, std::function<bool()> steppable, int maxCatchUp,
                           choreograph::Output<float>* alphaOut,
                           FixedStatus* statusOut) {
-  if (hz <= 0.0 || !fn) return;
-  add([hz, maxCatchUp, alphaOut, statusOut, fn = std::move(fn), total = 0.0,
-       ran = 0.0](double dt) mutable {
-    total += dt;
+  if (rate <= 0.0 || !steppable) return;
+  add([rate, maxCatchUp, alphaOut, statusOut, steppable = std::move(steppable), total = 0.0,
+       ran = 0.0](double deltaSeconds) mutable {
+    total += deltaSeconds;
     // From TOTAL elapsed time, not a running accumulator: an accumulator
     // compared against a step slips one comparison over a long pre-roll,
     // so the same capture landed on either side of a step boundary
@@ -35,7 +35,7 @@ void Ticker::addFixedStep(double hz, std::function<bool()> fn, int maxCatchUp,
     // The epsilon absorbs accumulated float error — summing 1/144 a
     // hundred and forty-four times lands a hair under 1.0, and without it
     // the last step of a whole second goes missing.
-    const double want = std::floor(total * hz + 1e-9);
+    const double want = std::floor(total * rate + 1e-9);
     double due = want - ran;
     bool clamped = false;
     if (due > (double)maxCatchUp) {
@@ -49,11 +49,11 @@ void Ticker::addFixedStep(double hz, std::function<bool()> fn, int maxCatchUp,
     bool alive = true;
     int steps = 0;
     for (; steps < (int)due; ++steps) {
-      alive = fn();
+      alive = steppable();
       if (!alive) break;
     }
     ran = want;  // discards anything the clamp skipped
-    if (alphaOut) *alphaOut = (float)(total * hz - want);
+    if (alphaOut) *alphaOut = (float)(total * rate - want);
     if (statusOut) {
       statusOut->stepsRun = steps;
       statusOut->clamped = clamped;
@@ -62,17 +62,17 @@ void Ticker::addFixedStep(double hz, std::function<bool()> fn, int maxCatchUp,
   });
 }
 
-bool Ticker::derive(choreograph::Output<float>* dst, const Bound& chain) {
+bool Ticker::derive(choreograph::Output<float>* output, const Bound& chain) {
   const BoundFloat& map = chain.value();
   const auto refuse = [](const char* why) {
     std::fprintf(stderr, "[sigilmotion] Ticker::derive refused: %s\n", why);
     return false;
   };
-  if (!dst || !map.source)
+  if (!output || !map.source)
     return refuse(
         "a derivation needs both a destination Output and a "
         "bind(&source) chain");
-  if (map.source == dst)
+  if (map.source == output)
     return refuse(
         "an Output cannot derive from itself — the chain would "
         "compound its own last answer every tick");
@@ -81,25 +81,25 @@ bool Ticker::derive(choreograph::Output<float>* dst, const Bound& chain) {
     // derivation's destination and a derivation's source, in either
     // registration order — phase two has no topological order, so a
     // chain of two would read one frame stale, silently.
-    if (d.dst == map.source)
+    if (d.output == map.source)
       return refuse(
           "the source is itself a derived Output — derivations "
           "are one level only; derive from the original schedule "
           "instead");
-    if (d.map.source == dst)
+    if (d.map.source == output)
       return refuse(
           "the destination already feeds another derivation — "
           "derivations are one level only; derive both from the "
           "original schedule instead");
-    if (d.dst == dst)
+    if (d.output == output)
       return refuse(
           "the destination is already written by a derivation — "
           "two writers of one cell would silently trade last-one-"
           "wins");
   }
-  m_derivations.push_back({dst, map});
-  // Applied once at registration, so dst is correct before the first tick.
-  *dst = map.apply(map.source->value());
+  m_derivations.push_back({output, map});
+  // Applied once at registration, so output is correct before the first tick.
+  *output = map.apply(map.source->value());
   return true;
 }
 
@@ -120,7 +120,7 @@ bool Ticker::tick(double deltaSeconds) {
   // means no derivation reads another's destination, so order within
   // this phase cannot matter either.
   for (const Derivation& d : m_derivations)
-    *d.dst = d.map.apply(d.map.source->value());
+    *d.output = d.map.apply(d.map.source->value());
   return active();
 }
 

@@ -301,8 +301,8 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
   // the wiggle parameters, `wrapPeriod` and the envelope's corners, which are
   // easy to add to the struct and forget in the comparator.
   static const char* const kNames[] = {"source",
-                                       "inScale",
-                                       "inOffset",
+                                       "inputScale",
+                                       "inputOffset",
                                        "curve",
                                        "clampInput",
                                        "envelope",
@@ -316,8 +316,8 @@ TEST(ComposeReconcile, EveryBoundFloatFieldParticipatesInEquality) {
                                        "scale",
                                        "offset",
                                        "clamped",
-                                       "lo",
-                                       "hi",
+                                       "low",
+                                       "high",
                                        "wiggleAmount",
                                        "wiggleFrequency",
                                        "wiggleSeed",

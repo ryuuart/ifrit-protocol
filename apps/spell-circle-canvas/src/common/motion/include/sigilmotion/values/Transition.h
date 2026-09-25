@@ -57,8 +57,8 @@ struct Transition {
  *  or two distances keeps stepping outside of. One body, because the
  *  three-way `std::clamp` spelled by hand is where a NaN quietly becomes
  *  the low end. */
-inline float clamp01(float v) {
-  return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+inline float clamp01(float value) {
+  return value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value);
 }
 
 /** A delayed ramp, in MILLISECONDS as floats.
@@ -70,21 +70,21 @@ inline float clamp01(float v) {
  *  remains the spelling wherever the numbers are literals. */
 inline Transition ramp(float delayMs, float durationMs,
                        Easing ease = ease::outQuad) {
-  Transition t;
-  t.duration = std::chrono::milliseconds((int)durationMs);
-  t.delay = std::chrono::milliseconds((int)delayMs);
-  t.ease = std::move(ease);
-  return t;
+  Transition transition;
+  transition.duration = std::chrono::milliseconds((int)durationMs);
+  transition.delay = std::chrono::milliseconds((int)delayMs);
+  transition.ease = std::move(ease);
+  return transition;
 }
 
 /** Same duration, same delay, same curve under `easeEqual`'s rule. */
-bool transitionEqual(const Transition& a, const Transition& b);
+bool transitionEqual(const Transition& left, const Transition& right);
 
 namespace detail {
 /** The spec decomposed member by member, for a comparator that wants to
  *  WALK it rather than name each field one at a time. */
-inline auto fields(Transition& v) {
-  auto& [duration, ease, delay] = v;
+inline auto fields(Transition& transition) {
+  auto& [duration, ease, delay] = transition;
   return std::tie(duration, ease, delay);
 }
 }  // namespace detail

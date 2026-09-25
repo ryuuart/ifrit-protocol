@@ -57,7 +57,7 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
   host.frame();
 
   // Every beat's rect carries a cell: bed where the beat has not run, fill
-  // where it has, and the boundary between them at its localT.
+  // where it has, and the boundary between them at its localTime.
   int running = 0, unfinished = 0;
   for (const Beat& beat : beats) {
     const int y = (int)beat.rect.centerY();
@@ -65,12 +65,12 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
     const int right = (int)beat.rect.right() - 1;
     ASSERT_LT(left, right) << "a beat rect with no width to draw in";
     const SkColor at = host.pixel(left, y);
-    if (beat.localT > 0.05f) {
+    if (beat.localTime > 0.05f) {
       ++running;
       EXPECT_GT(SkColorGetR(at), 200u)
           << "a beat that has run shows no fill at its left edge";
     }
-    if (beat.localT < 0.95f) {
+    if (beat.localTime < 0.95f) {
       ++unfinished;
       EXPECT_GT(SkColorGetB(host.pixel(right, y)), 200u)
           << "a beat that has not finished shows no bed at its right edge";

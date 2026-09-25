@@ -121,7 +121,7 @@ track is actually running, after layout:
 
 ```cpp
 for (const Beat& b : composer.beatsOf("lyric", 0))
-  if (b.active) markTheWordAt(b.rect, b.localT);
+  if (b.active) markTheWordAt(b.rect, b.localTime);
 ```
 
 `Beat::rect` is the unit's laid-out rect in the composer's coordinate space
@@ -129,7 +129,7 @@ for (const Beat& b : composer.beatsOf("lyric", 0))
 own size, a path baseline and a vertical column; `Beat::unitIndex` is the
 outer unit the beat belongs to (a nested cascade reports several beats
 sharing one, one per inner unit); `Beat::startMs` is the compounded delay;
-`Beat::localT` and `Beat::active` are that beat's own progress right now.
+`Beat::localTime` and `Beat::active` are that beat's own progress right now.
 This is what anything travelling WITH a cascade and made of something other
 than glyphs — a bouncing ball, a playhead, an underline, a caret, a
 per-unit meter — reads instead of restating `i * eachMs`, which stops
@@ -221,7 +221,7 @@ own entrance. `Composer::cascadeSpanMs` and `Track::spanMs` answer the
 **period** — still the ms the master maps onto, and the number a driver's
 wrap must span for the schedule to run at its authored ms. One loop governs
 the whole cascade, read off the outer spec under `motion::Spread::then` as
-`Track::beatsOver` is; `Beat::localT` reports the wrapped local time (the
+`Track::beatsOver` is; `Beat::localTime` reports the wrapped local time (the
 same number the effect is handed) and no cycle index rides beside it — the
 master is a phase mod 1, so cycle identity lives with whoever steps the
 phase. Driving that phase is also what keeps the element live: a looping

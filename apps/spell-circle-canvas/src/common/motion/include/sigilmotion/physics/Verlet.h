@@ -18,7 +18,7 @@ namespace sigil::motion::physics {
 
 /** THE VERLET STEP, as a value.
  *
- *  `dt` is a PROP and not an argument, and that is the whole determinism
+ *  `timeStep` is a PROP and not an argument, and that is the whole determinism
  *  claim: a simulation stepped by a frame's delta is a different
  *  simulation on every machine and on every frame it stutters, while one
  *  stepped by a fixed number is the same run everywhere and can be
@@ -33,7 +33,7 @@ namespace sigil::motion::physics {
  *  anything having to say that it does. */
 struct Verlet {
   /** How much time one step covers, in seconds. */
-  float dt = 1.0f / 60.0f;
+  float timeStep = 1.0f / 60.0f;
   /** The fraction of its speed a point loses per second, applied
    *  exponentially so that the loss is the same whatever the step is —
    *  0 keeps everything, 1 leaves about a third of the speed after a

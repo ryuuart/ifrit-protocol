@@ -6,20 +6,20 @@
 
 namespace sigil::motion {
 
-bool easeEqual(const Easing& a, const Easing& b) {
-  const bool aSet = (bool)a, bSet = (bool)b;
-  if (aSet != bSet) return false;
-  if (!aSet) return true;
+bool easeEqual(const Easing& left, const Easing& right) {
+  const bool leftSet = (bool)left, rightSet = (bool)right;
+  if (leftSet != rightSet) return false;
+  if (!leftSet) return true;
   using Pointer = float (*)(float);
-  if (const Pointer* pointerA = a.target<Pointer>(); pointerA) {
-    const Pointer* pointerB = b.target<Pointer>();
-    return pointerB && *pointerA == *pointerB;
+  if (const Pointer* leftPointer = left.target<Pointer>(); leftPointer) {
+    const Pointer* rightPointer = right.target<Pointer>();
+    return rightPointer && *leftPointer == *rightPointer;
   }
   // A shaped curve keeps its shape and its numbers where they can be read
   // back; anything else is a lambda and stays unequal.
-  if (const ease::Curve* curveA = a.target<ease::Curve>(); curveA) {
-    const ease::Curve* curveB = b.target<ease::Curve>();
-    return curveB && *curveA == *curveB;
+  if (const ease::Curve* leftCurve = left.target<ease::Curve>(); leftCurve) {
+    const ease::Curve* rightCurve = right.target<ease::Curve>();
+    return rightCurve && *leftCurve == *rightCurve;
   }
   return false;
 }

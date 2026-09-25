@@ -272,7 +272,7 @@ TEST(Neighbourhood, AFlockReachesNoFurtherThanItsRadius) {
 TEST(Neighbourhood, TheSameCloudFlocksTheSameWayTwice) {
   const std::vector<Vec2> places = cloud(500, 2718);
   const std::vector<Force> forces{boids({}, 70.0f), drag(0.3f)};
-  const Verlet stepper{.dt = 1.0f / 60.0f, .damping = 0.2f};
+  const Verlet stepper{.timeStep = 1.0f / 60.0f, .damping = 0.2f};
 
   auto run = [&] {
     Points points = restingAt(places);

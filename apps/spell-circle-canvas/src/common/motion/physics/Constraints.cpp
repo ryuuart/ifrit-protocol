@@ -9,23 +9,23 @@ namespace sigil::motion::physics {
 
 void Constraint::project(Points& points) const {
   if (kind == ConstraintKind::Pin) {
-    if (a >= points.size()) return;
+    if (first >= points.size()) return;
     // A pin overrides the mass and the pinned lane both: it is the
     // caller saying where this point is this frame, and nothing in the
     // solve outranks that.
-    points.position[a] = at;
+    points.position[first] = at;
     return;
   }
 
-  if (a >= points.size() || b >= points.size() || a == b) return;
-  const float weightA = points.inverseMass(a);
-  const float weightB = points.inverseMass(b);
-  const float total = weightA + weightB;
+  if (first >= points.size() || second >= points.size() || first == second) return;
+  const float weightFirst = points.inverseMass(first);
+  const float weightSecond = points.inverseMass(second);
+  const float total = weightFirst + weightSecond;
   // Two immovable points cannot be moved apart, and dividing by their
   // total weight would say so with a NaN instead of by doing nothing.
   if (!(total > 0.0f)) return;
 
-  const Vec2 offset = points.position[b] - points.position[a];
+  const Vec2 offset = points.position[second] - points.position[first];
   const float length = offset.length();
   const float longest = rest + (slack > 0.0f ? slack : 0.0f);
   // Held to [0, 1]: the fraction of the error one pass takes out. Above
@@ -48,8 +48,8 @@ void Constraint::project(Points& points) const {
     const float share =
         restSquared / (offset.lengthSquared() + restSquared) - 0.5f;
     const Vec2 push = offset * (share * taken);
-    points.position[a] -= push * (2.0f * weightA / total);
-    points.position[b] += push * (2.0f * weightB / total);
+    points.position[first] -= push * (2.0f * weightFirst / total);
+    points.position[second] += push * (2.0f * weightSecond / total);
     return;
   }
 
@@ -66,8 +66,8 @@ void Constraint::project(Points& points) const {
 
   const Vec2 direction = offset * (1.0f / length);
   const float correction = (length - target) * taken;
-  points.position[a] += direction * (correction * weightA / total);
-  points.position[b] -= direction * (correction * weightB / total);
+  points.position[first] += direction * (correction * weightFirst / total);
+  points.position[second] -= direction * (correction * weightSecond / total);
 }
 
 }  // namespace sigil::motion::physics

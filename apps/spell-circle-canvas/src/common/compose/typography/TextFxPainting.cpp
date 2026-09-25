@@ -197,7 +197,7 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     sigil::weave::GlyphRSXformBatches batches;
     std::vector<BeatKey> keys;  // one per beat the track runs
     std::vector<SkRect> rects;  // one per beat
-    std::vector<float> locals;  // localT per beat
+    std::vector<float> locals;  // localTime per beat
   };
   std::vector<std::unique_ptr<PassLane>> passes;
   for (const Resolved& r : live)

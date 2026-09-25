@@ -159,7 +159,7 @@ static_assert(core::kFieldCount<Track> == 9,
  *  arithmetic, which stops agreeing with the engine the moment the cascade
  *  nests or takes a cue table. This is the schedule read back instead.
  *
- *  The schedule half — `unitIndex`, `startMs`, `localT`, `active` — is
+ *  The schedule half — `unitIndex`, `startMs`, `localTime`, `active` — is
  *  `motion::Beat`, answered by the same cascade the glyphs are drawn
  *  through. What this library adds is where the beat LANDED. */
 struct Beat : motion::Beat {

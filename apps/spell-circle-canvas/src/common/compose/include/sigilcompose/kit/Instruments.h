@@ -107,7 +107,7 @@ struct MeterPlacement {
                       .key(cell + "-t")
                       .left(0)
                       .top(0)
-                      .width(width * std::clamp(beats[i].localT, 0.0f, 1.0f))
+                      .width(width * std::clamp(beats[i].localTime, 0.0f, 1.0f))
                       .height(height)
                       .fill(Fill::color(fill))})});
   }

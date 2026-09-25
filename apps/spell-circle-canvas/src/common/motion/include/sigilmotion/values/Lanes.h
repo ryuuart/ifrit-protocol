@@ -70,16 +70,16 @@ std::span<const Lane<Family>> familyLanes(std::span<const Lane<Family>> lanes,
  *  ramps from or to the lane's standing value. */
 template <class Family>
 void retargetSlots(Ticker& ticker,
-                   std::span<std::unique_ptr<AnimatedFloat>> anims,
-                   std::span<const Lane<Family>> prev,
+                   std::span<std::unique_ptr<AnimatedFloat>> animated,
+                   std::span<const Lane<Family>> previous,
                    std::span<const Lane<Family>> next,
                    const std::optional<Transition>& nodeDefault) {
   for (size_t i = 0; i < next.size(); ++i) {
-    if (!prev[i].value && !next[i].value)
+    if (!previous[i].value && !next[i].value)
       continue;  // neither description carries it: nothing to ramp
     const Animatable<float> standing = next[i].standing;
-    transitionFloatAt(ticker, anims[next[i].slot.index],
-                      prev[i].value ? *prev[i].value : standing,
+    transitionFloatAt(ticker, animated[next[i].slot.index],
+                      previous[i].value ? *previous[i].value : standing,
                       next[i].value ? *next[i].value : standing, nodeDefault);
   }
 }
@@ -90,20 +90,20 @@ void retargetSlots(Ticker& ticker,
  *  that now mean something else — the same rule keys enforce for whole
  *  nodes. A family of equal shape retargets lane by lane. */
 template <class Family>
-void retargetFamily(Ticker& ticker, AnimatedFloats& anims,
-                    std::span<const Lane<Family>> prev,
+void retargetFamily(Ticker& ticker, AnimatedFloats& animated,
+                    std::span<const Lane<Family>> previous,
                     std::span<const Lane<Family>> next,
                     const std::optional<Transition>& nodeDefault) {
-  if (prev.size() != next.size()) {
-    anims.clear();
-    anims.resize(next.size());
+  if (previous.size() != next.size()) {
+    animated.clear();
+    animated.resize(next.size());
   } else {
     // The mount sizes this vector — and a host that skips mount entrances
     // leaves it empty, so a patch is the first thing to touch it there.
     // Size it here too rather than indexing an empty vector.
-    if (anims.size() != next.size()) anims.resize(next.size());
+    if (animated.size() != next.size()) animated.resize(next.size());
     for (size_t i = 0; i < next.size(); ++i)
-      transitionFloatAt(ticker, anims[i], *prev[i].value, *next[i].value,
+      transitionFloatAt(ticker, animated[i], *previous[i].value, *next[i].value,
                         nodeDefault);
   }
 }

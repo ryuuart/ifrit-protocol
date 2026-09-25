@@ -47,9 +47,9 @@ template <typename T>
 class Animatable {
  public:
   Animatable() = default;
-  Animatable(T v) : m_plain(std::move(v)) {}
-  Animatable(Transitioned<T> t) : m_kind(Kind::kAnim) {
-    extra().anim = std::move(t);
+  Animatable(T value) : m_plain(std::move(value)) {}
+  Animatable(Transitioned<T> transitioned) : m_kind(Kind::kTransitioned) {
+    extra().transitioned = std::move(transitioned);
   }
   /** A NULL Output is not a binding: the slot holds its plain value
    *  instead. A caller passing one has nothing for the slot to read at
@@ -79,10 +79,10 @@ class Animatable {
    *  block is the same one the transitioned form allocates, so this adds
    *  nothing to sizeof(Animatable) and nothing to a slot that never uses
    *  it. */
-  Animatable(const Bound& b) : m_kind(Kind::kBoundMapped) {
-    m_bound = b.value().source;
-    extra().bound = b.value();
-    extra().owner = b.owner();
+  Animatable(const Bound& shapedBinding) : m_kind(Kind::kBoundMapped) {
+    m_bound = shapedBinding.value().source;
+    extra().bound = shapedBinding.value();
+    extra().owner = shapedBinding.owner();
   }
   Animatable(const Animatable& other) { *this = other; }
   Animatable(Animatable&&) noexcept = default;
@@ -107,7 +107,7 @@ class Animatable {
   int index() const { return (int)m_kind; }
   const T* plain() const { return m_kind == Kind::kPlain ? &m_plain : nullptr; }
   const Transitioned<T>* transitioned() const {
-    return m_kind == Kind::kAnim ? &m_extra->anim : nullptr;
+    return m_kind == Kind::kTransitioned ? &m_extra->transitioned : nullptr;
   }
   /** The bound Output, shaped or not, so a consumer asking only "is this
    *  driven live?" reads one accessor and does not have to know which of
@@ -122,12 +122,12 @@ class Animatable {
   }
 
  private:
-  enum class Kind : uint8_t { kPlain, kAnim, kBound, kBoundMapped };
+  enum class Kind : uint8_t { kPlain, kTransitioned, kBound, kBoundMapped };
   /** The out-of-line block for the two FAT forms. They are mutually
    *  exclusive, so one pointer carries both and a slot holding neither
    *  allocates nothing at all. */
   struct Extra {
-    Transitioned<T> anim{};
+    Transitioned<T> transitioned{};
     BoundFloat bound{};
     std::shared_ptr<const choreograph::Output<T>> owner;
   };
@@ -146,8 +146,8 @@ namespace detail {
 /** A transitioned value decomposed member by member, for a comparator
  *  that wants to WALK it rather than name each field one at a time. */
 template <typename T>
-auto fields(Transitioned<T>& v) {
-  auto& [value, spec, from, waypoints] = v;
+auto fields(Transitioned<T>& transitioned) {
+  auto& [value, spec, from, waypoints] = transitioned;
   return std::tie(value, spec, from, waypoints);
 }
 }  // namespace detail
@@ -163,26 +163,26 @@ static_assert(core::kFieldCount<Transitioned<float>> == 4,
  *  compares equal to a different Output, and a slot that is moving is
  *  never pruned into a slot that is moving to something else. */
 template <typename T>
-bool propertyEqual(const Animatable<T>& a, const Animatable<T>& b) {
-  if (a.index() != b.index()) return false;
-  if (const T* plainA = a.plain()) return *plainA == *b.plain();
-  if (const Transitioned<T>* trA = a.transitioned()) {
-    const Transitioned<T>* trB = b.transitioned();
-    return trA->value == trB->value && trA->from == trB->from &&
-           trA->waypoints == trB->waypoints &&
-           transitionEqual(trA->spec, trB->spec);
+bool propertyEqual(const Animatable<T>& left, const Animatable<T>& right) {
+  if (left.index() != right.index()) return false;
+  if (const T* leftPlain = left.plain()) return *leftPlain == *right.plain();
+  if (const Transitioned<T>* leftTransitioned = left.transitioned()) {
+    const Transitioned<T>* rightTransitioned = right.transitioned();
+    return leftTransitioned->value == rightTransitioned->value && leftTransitioned->from == rightTransitioned->from &&
+           leftTransitioned->waypoints == rightTransitioned->waypoints &&
+           transitionEqual(leftTransitioned->spec, rightTransitioned->spec);
   }
-  if (const BoundFloat* mapA = a.boundMap())
-    return boundMapEqual(*mapA, *b.boundMap());
-  return a.binding() == b.binding();
+  if (const BoundFloat* leftMap = left.boundMap())
+    return boundMapEqual(*leftMap, *right.boundMap());
+  return left.binding() == right.binding();
 }
 
 /** `propertyEqual` under the operator, so a description struct holding an
  *  animatable slot keeps its `= default` equality and cannot acquire a
  *  second, weaker rule by accident. ONE body: this IS `propertyEqual`. */
 template <typename T>
-bool operator==(const Animatable<T>& a, const Animatable<T>& b) {
-  return propertyEqual(a, b);
+bool operator==(const Animatable<T>& left, const Animatable<T>& right) {
+  return propertyEqual(left, right);
 }
 
 }  // namespace sigil::motion

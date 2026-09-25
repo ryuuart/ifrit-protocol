@@ -55,17 +55,17 @@ struct ResolvedProperty {
  *  its own spec instead, and a binding takes neither — it is already a
  *  running curve. */
 template <typename T>
-ResolvedProperty<T> resolveProperty(const Animatable<T>& v,
+ResolvedProperty<T> resolveProperty(const Animatable<T>& property,
                                     const std::optional<Transition>& fallback) {
   ResolvedProperty<T> out;
-  if (const T* plain = v.plain()) {
+  if (const T* plain = property.plain()) {
     out.target = *plain;
     if (fallback) out.transition = &*fallback;
-  } else if (const Transitioned<T>* tr = v.transitioned()) {
-    out.target = tr->value;
-    out.transition = &tr->spec;
+  } else if (const Transitioned<T>* held = property.transitioned()) {
+    out.target = held->value;
+    out.transition = &held->spec;
   } else {
-    out.binding = v.binding();
+    out.binding = property.binding();
   }
   return out;
 }
@@ -73,7 +73,7 @@ ResolvedProperty<T> resolveProperty(const Animatable<T>& v,
 /** The value an animatable reads as this frame: a bound Output wins
  *  (shaped through its map when it has one), then a running ramp, then
  *  the plain value. One body, so every reader agrees. */
-float resolveFloatAt(const AnimatedFloat* anim, const Animatable<float>& v);
+float resolveFloatAt(const AnimatedFloat* animated, const Animatable<float>& property);
 
 /** Starts (or retargets) the ramp held in `held` when the plain target
  *  changed. Returns true if a motion is running. The motion is passed
@@ -81,7 +81,7 @@ float resolveFloatAt(const AnimatedFloat* anim, const Animatable<float>& v);
  *  consumer keeps and where is the consumer's business — one body,
  *  every storage. */
 bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
-                       const Animatable<float>& prevValue,
+                       const Animatable<float>& previousValue,
                        const Animatable<float>& nextValue,
                        const std::optional<Transition>& fallback);
 
@@ -92,7 +92,7 @@ bool transitionFloatAt(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
  *  the declared delay (a staggered entrance). A value with no entrance
  *  starts nothing. */
 void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
-                   const Animatable<float>& v, float extraDelaySeconds);
+                   const Animatable<float>& property, float extraDelaySeconds);
 
 /** IS THIS VALUE MOVING RIGHT NOW? A slot with a live binding always is —
  *  the host writes the Output every frame and nothing here can see when
@@ -109,7 +109,7 @@ void mountEntrance(Ticker& ticker, std::unique_ptr<AnimatedFloat>& held,
  *  description can answer on its own. What it cannot answer is whether a
  *  connected motion is actually changing the number — a wave held at one
  *  phase moves nothing — which is what `settled()` is for. */
-bool isLive(const AnimatedFloat* anim, const Animatable<float>& v);
+bool isLive(const AnimatedFloat* animated, const Animatable<float>& property);
 
 /** A SYNTHESIZED 0→1 PROGRESS: hold at 0 for the delay, then ramp to 1
  *  over the transition's duration on its curve.

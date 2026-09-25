@@ -22,7 +22,7 @@ namespace detail {
  *
  *  A 32-bit avalanche: every input bit reaches every output bit, so
  *  adjacent lattice cells and adjacent SEEDS come out uncorrelated. */
-uint32_t wiggleHash(uint32_t x);
+uint32_t wiggleHash(uint32_t value);
 
 /** The lattice value at integer cell @p cell for @p seed, in [-1, 1).
  *  The seed is hashed BEFORE it is mixed with the cell, so seeds 0 and 1
@@ -43,7 +43,7 @@ float wiggleLattice(int32_t cell, uint32_t seed);
  *  Out-of-range phases answer 0 rather than reinterpreting a float too
  *  large for `int32_t` (UB). A phase that big is a bug upstream, and a
  *  frozen wiggle is a debuggable symptom where UB is not. */
-float wiggleOctave(float x, uint32_t seed);
+float wiggleOctave(float phase, uint32_t seed);
 
 /** Fractal sum of @p octaves octaves, each half the wavelength and
  *  @p falloff the amplitude of the one before — and NORMALISED by the
@@ -55,7 +55,7 @@ float wiggleOctave(float x, uint32_t seed);
  *  changes the TEXTURE, never the size. (After Effects does not
  *  normalise, which is why adding octaves there gets louder and has to be
  *  corrected by hand.) */
-float wiggleNoise(float x, uint32_t seed, int octaves, float falloff);
+float wiggleNoise(float phase, uint32_t seed, int octaves, float falloff);
 
 }  // namespace detail
 

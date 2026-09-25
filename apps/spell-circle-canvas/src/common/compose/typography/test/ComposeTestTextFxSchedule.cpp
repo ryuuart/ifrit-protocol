@@ -264,10 +264,10 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
   // opened at all.
   EXPECT_FLOAT_EQ(beats[0].startMs, 0.0f);
   EXPECT_FLOAT_EQ(beats[3].startMs, 300.0f);
-  EXPECT_FLOAT_EQ(beats[0].localT, 1.0f);
-  EXPECT_FLOAT_EQ(beats[1].localT, 0.75f);
-  EXPECT_FLOAT_EQ(beats[2].localT, 0.25f);
-  EXPECT_FLOAT_EQ(beats[3].localT, 0.0f);
+  EXPECT_FLOAT_EQ(beats[0].localTime, 1.0f);
+  EXPECT_FLOAT_EQ(beats[1].localTime, 0.75f);
+  EXPECT_FLOAT_EQ(beats[2].localTime, 0.25f);
+  EXPECT_FLOAT_EQ(beats[3].localTime, 0.0f);
   EXPECT_FALSE(beats[0].active) << "a finished beat is not running";
   EXPECT_TRUE(beats[1].active);
   EXPECT_TRUE(beats[2].active);
@@ -499,9 +499,9 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
   {
     const std::vector<Beat> beats = loopBeatsAt(host, 0.25f);
     ASSERT_EQ(beats.size(), 3u);
-    EXPECT_FLOAT_EQ(beats[0].localT, 0.5f);
-    EXPECT_FLOAT_EQ(beats[1].localT, 0.0f);
-    EXPECT_FLOAT_EQ(beats[2].localT, 1.0f)
+    EXPECT_FLOAT_EQ(beats[0].localTime, 0.5f);
+    EXPECT_FLOAT_EQ(beats[1].localTime, 0.0f);
+    EXPECT_FLOAT_EQ(beats[2].localTime, 1.0f)
         << "a unit short of its start must rest at 1 mid-cycle, not wait "
            "at 0";
     EXPECT_TRUE(beats[0].active);
@@ -512,9 +512,9 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
   {
     const std::vector<Beat> beats = loopBeatsAt(host, 0.75f);
     ASSERT_EQ(beats.size(), 3u);
-    EXPECT_FLOAT_EQ(beats[0].localT, 1.0f);
-    EXPECT_FLOAT_EQ(beats[1].localT, 1.0f);
-    EXPECT_FLOAT_EQ(beats[2].localT, 0.5f);
+    EXPECT_FLOAT_EQ(beats[0].localTime, 1.0f);
+    EXPECT_FLOAT_EQ(beats[1].localTime, 1.0f);
+    EXPECT_FLOAT_EQ(beats[2].localTime, 0.5f);
   }
   // THE SEAM: master 0 and master 1 are the same instant of the cycle, so
   // a wrapping bound phase crosses its own wrap with no jump — every beat
@@ -524,7 +524,7 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
     const std::vector<Beat> high = loopBeatsAt(host, 1.0f);
     ASSERT_EQ(low.size(), high.size());
     for (size_t i = 0; i < low.size(); ++i)
-      EXPECT_FLOAT_EQ(low[i].localT, high[i].localT)
+      EXPECT_FLOAT_EQ(low[i].localTime, high[i].localTime)
           << "beat " << i << " jumps across the master's wrap";
   }
   // The period is what the master maps onto, so the span queries answer it
@@ -552,7 +552,7 @@ TEST(ComposeTextFx, ALoopingCascadeReopensEachUnitOnItsOwnCycle) {
     EXPECT_FLOAT_EQ(beats[2].startMs, 600.0f)
         << "the schedule stays authored; only the clock folds";
     // Elapsed mod 400 of (300 − 600) is 100: halfway through a 200ms beat.
-    EXPECT_FLOAT_EQ(beats[2].localT, 0.5f);
+    EXPECT_FLOAT_EQ(beats[2].localTime, 0.5f);
   }
 }
 
@@ -591,9 +591,9 @@ TEST(ComposeTextFx, LoopMsZeroIsTheOneShotCascade) {
   // One-shot semantics, for contrast with the fold: span 400 covers the
   // ladder, so master 0.25 is virtual 100 here too — but the un-started
   // tail reads 0, where the loop above rests it at 1.
-  EXPECT_FLOAT_EQ(defaulted[2].localT, 0.0f);
+  EXPECT_FLOAT_EQ(defaulted[2].localTime, 0.0f);
   for (size_t i = 0; i < defaulted.size(); ++i) {
-    EXPECT_FLOAT_EQ(defaulted[i].localT, spelled[i].localT);
+    EXPECT_FLOAT_EQ(defaulted[i].localTime, spelled[i].localTime);
     EXPECT_FLOAT_EQ(defaulted[i].startMs, spelled[i].startMs);
   }
 }

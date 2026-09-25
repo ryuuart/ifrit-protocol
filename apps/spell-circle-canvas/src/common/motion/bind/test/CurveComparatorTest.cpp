@@ -66,8 +66,8 @@ TEST(Bind, ABoundMapComparesEveryFieldItHolds) {
     return !boundMapEqual(furnished(&phase), changed);
   };
   EXPECT_TRUE(differs([&](BoundFloat& b) { b.source = &other; })) << "source";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.inScale += 1.0f; })) << "inScale";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.inOffset += 1.0f; })) << "inOffset";
+  EXPECT_TRUE(differs([](BoundFloat& b) { b.inputScale += 1.0f; })) << "inputScale";
+  EXPECT_TRUE(differs([](BoundFloat& b) { b.inputOffset += 1.0f; })) << "inputOffset";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.curve = ease::outQuad; }))
       << "curve";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.clampInput = !b.clampInput; }))
@@ -88,8 +88,8 @@ TEST(Bind, ABoundMapComparesEveryFieldItHolds) {
   EXPECT_TRUE(differs([](BoundFloat& b) { b.offset += 1.0f; })) << "offset";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.clamped = !b.clamped; }))
       << "clamped";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.lo -= 1.0f; })) << "lo";
-  EXPECT_TRUE(differs([](BoundFloat& b) { b.hi += 1.0f; })) << "hi";
+  EXPECT_TRUE(differs([](BoundFloat& b) { b.low -= 1.0f; })) << "low";
+  EXPECT_TRUE(differs([](BoundFloat& b) { b.high += 1.0f; })) << "high";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.wiggleAmount += 1.0f; }))
       << "wiggleAmount";
   EXPECT_TRUE(differs([](BoundFloat& b) { b.wiggleFrequency += 1.0f; }))

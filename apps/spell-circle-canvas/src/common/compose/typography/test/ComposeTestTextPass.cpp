@@ -126,10 +126,10 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
     const SkColor probe =
         host.pixel((int)beat.rect.centerX(), (int)beat.rect.centerY());
     const float painted = (float)SkColorGetR(probe) / 255.0f;
-    EXPECT_NEAR(painted, beat.localT, 0.02f)
+    EXPECT_NEAR(painted, beat.localTime, 0.02f)
         << "unit " << beat.unitIndex << " painted a different local time "
         << "than beatsOf reports";
-    sawDistinct |= std::abs(beat.localT - beats.front().localT) > 0.05f;
+    sawDistinct |= std::abs(beat.localTime - beats.front().localTime) > 0.05f;
   }
   EXPECT_TRUE(sawDistinct) << "every beat read the same time — the cascade "
                               "never reached the uniforms";

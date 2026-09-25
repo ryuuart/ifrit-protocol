@@ -42,8 +42,8 @@ enum class ConstraintKind : uint8_t {
  *  them is walked without touching anything else. */
 struct Constraint {
   ConstraintKind kind = ConstraintKind::Distance;
-  /** `Distance`: the two points. `Pin`: `a` alone. */
-  size_t a = 0, b = 0;
+  /** `Distance`: the two points. `Pin`: `first` alone. */
+  size_t first = 0, second = 0;
   /** `Distance`: the shortest the pair may be. */
   float rest = 0.0f;
   /** `Distance`: how much longer than `rest` is free. Zero is a rigid
@@ -57,7 +57,7 @@ struct Constraint {
    *  the whole error would move the pair past the band and ring, and
    *  taking less than none would widen it. */
   float stiffness = 1.0f;
-  /** `Pin`: where `a` is held. */
+  /** `Pin`: where `first` is held. */
   Vec2 at{};
   /** `Distance`: solve the band by the SQUARE-ROOT-FREE APPROXIMATION
    *  instead of by the exact length.
@@ -86,16 +86,16 @@ struct Constraint {
 };
 
 /** A RIGID LENGTH between two points. */
-[[nodiscard]] inline Constraint distance(size_t a, size_t b, float length) {
-  return {.kind = ConstraintKind::Distance, .a = a, .b = b, .rest = length};
+[[nodiscard]] inline Constraint distance(size_t first, size_t second, float length) {
+  return {.kind = ConstraintKind::Distance, .first = first, .second = second, .rest = length};
 }
 
 /** THE SAME RIGID LENGTH, solved by the square-root-free approximation —
  *  the stick a position-based rig is built out of. See `approximate`. */
-[[nodiscard]] inline Constraint stick(size_t a, size_t b, float length) {
+[[nodiscard]] inline Constraint stick(size_t first, size_t second, float length) {
   return {.kind = ConstraintKind::Distance,
-          .a = a,
-          .b = b,
+          .first = first,
+          .second = second,
           .rest = length,
           .approximate = true};
 }
@@ -105,11 +105,11 @@ struct Constraint {
  *  reason it is not the velocity spring beside it is that this one lives
  *  inside the constraint solve, where a chain of them can be satisfied
  *  together. */
-[[nodiscard]] inline Constraint spring(size_t a, size_t b, float rest,
+[[nodiscard]] inline Constraint spring(size_t first, size_t second, float rest,
                                        float stiffness) {
   return {.kind = ConstraintKind::Distance,
-          .a = a,
-          .b = b,
+          .first = first,
+          .second = second,
           .rest = rest,
           .stiffness = stiffness};
 }
@@ -117,18 +117,18 @@ struct Constraint {
 /** A BAND: no closer than @p minimum, no further than @p maximum, and
  *  free between. The rope, the joint limit, the pair that may not
  *  overlap. */
-[[nodiscard]] inline Constraint range(size_t a, size_t b, float minimum,
+[[nodiscard]] inline Constraint range(size_t first, size_t second, float minimum,
                                       float maximum) {
   return {.kind = ConstraintKind::Distance,
-          .a = a,
-          .b = b,
+          .first = first,
+          .second = second,
           .rest = minimum,
           .slack = maximum > minimum ? maximum - minimum : 0.0f};
 }
 
 /** A POINT HELD AT @p at. */
 [[nodiscard]] inline Constraint pin(size_t index, Vec2 at) {
-  return {.kind = ConstraintKind::Pin, .a = index, .at = at};
+  return {.kind = ConstraintKind::Pin, .first = index, .at = at};
 }
 
 }  // namespace sigil::motion::physics

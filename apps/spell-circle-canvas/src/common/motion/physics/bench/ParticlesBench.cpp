@@ -75,7 +75,7 @@ BENCHMARK(ParticleBirth)->Arg(1000)->Arg((int64_t)kCount);
 void ParticleCloudStep(benchmark::State& state) {
   Particles cloud = crowd();
   const std::vector<Force> forces{gravity({0, 900}), drag(0.4f)};
-  const Verlet stepper{.dt = 1.0f / 60.0f};
+  const Verlet stepper{.timeStep = 1.0f / 60.0f};
   for ([[maybe_unused]] auto iteration : state)
     stepper.step(cloud.points, forces);
 }

@@ -8,15 +8,15 @@
 
 namespace sigil::motion {
 
-Bound& Bound::source(float lo, float hi) {
-  const float span = hi - lo;
-  m_b.inScale = span != 0.0f ? 1.0f / span : 0.0f;
-  m_b.inOffset = span != 0.0f ? -lo / span : 0.0f;
+Bound& Bound::source(float low, float high) {
+  const float span = high - low;
+  m_b.inputScale = span != 0.0f ? 1.0f / span : 0.0f;
+  m_b.inputOffset = span != 0.0f ? -low / span : 0.0f;
   return *this;
 }
 
-Bound& Bound::window(float lo, float hi) {
-  source(lo, hi);
+Bound& Bound::window(float low, float high) {
+  source(low, high);
   m_b.clampInput = true;
   return *this;
 }
@@ -58,18 +58,20 @@ Bound& Bound::map(Easing curve) {
   return *this;
 }
 
-Bound& Bound::scale(float s) {
-  m_b.scale *= s;
-  m_b.offset *= s;
+Bound& Bound::scale(float factor) {
+  m_b.scale *= factor;
+  m_b.offset *= factor;
   return *this;
 }
 
-Bound& Bound::offset(float o) {
-  m_b.offset += o;
+Bound& Bound::offset(float amount) {
+  m_b.offset += amount;
   return *this;
 }
 
-Bound& Bound::target(float lo, float hi) { return scale(hi - lo).offset(lo); }
+Bound& Bound::target(float low, float high) {
+  return scale(high - low).offset(low);
+}
 
 Bound& Bound::invert() {
   m_b.scale = -m_b.scale;
@@ -97,10 +99,10 @@ Bound& Bound::wiggle(float amount, float frequency, uint32_t seed, int octaves,
   return *this;
 }
 
-Bound& Bound::clamp(float lo, float hi) {
+Bound& Bound::clamp(float low, float high) {
   m_b.clamped = true;
-  m_b.lo = lo;
-  m_b.hi = hi;
+  m_b.low = low;
+  m_b.high = high;
   return *this;
 }
 

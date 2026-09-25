@@ -29,7 +29,7 @@ for (int i = 1; i < 40; ++i) weave.push_back(distance(i - 1, i, 10.0f));
 
 const std::vector<Force> forces{gravity({0, 980}), wind(breeze, 40.0f),
                                 repel(cursor, 6000.0f, 120.0f)};
-const Verlet stepper{.dt = 1.0f / 120.0f, .damping = 0.4f, .iterations = 8};
+const Verlet stepper{.timeStep = 1.0f / 120.0f, .damping = 0.4f, .iterations = 8};
 
 ticker.addFixed(120.0, [&] { stepper.step(cloth, forces, weave); return true; });
 ```
@@ -57,7 +57,7 @@ and a simulation that carried it would have to name a renderer. `Vec2`
 converts from any two-float point by SHAPE (`fX`, `fY`), so a renderer's
 point crosses in without this library including a renderer's header.
 
-**`dt` is a prop of the stepper, not an argument.** That is the whole
+**`timeStep` is a prop of the stepper, not an argument.** That is the whole
 determinism claim: a simulation stepped by a frame's delta is a
 different simulation on every machine and on every frame that stutters,
 while one stepped by a fixed number is the same run everywhere and can

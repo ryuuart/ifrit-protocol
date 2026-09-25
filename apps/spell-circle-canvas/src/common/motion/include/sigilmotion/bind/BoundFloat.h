@@ -49,7 +49,7 @@ enum class Envelope : uint8_t {
  *  The stages always run in this order, whatever order they were called
  *  in:
  *
- *    1. `source(lo, hi)` normalises the SOURCE range onto [0,1];
+ *    1. `source(low, high)` normalises the SOURCE range onto [0,1];
  *    2. the ENVELOPE — `pingPong`/`cosine`/`trapezoid`/`square`/`wave` —
  *       turns the one-way phase into a SHAPE across that span: there and
  *       back, a swell, a hold between two ramps, a pulse, or a shape of
@@ -73,7 +73,7 @@ enum class Envelope : uint8_t {
  *  that never shapes anything pays nothing. */
 struct BoundFloat {
   const choreograph::Output<float>* source = nullptr;
-  float inScale = 1.0f, inOffset = 0.0f;  ///< source(): pre-curve normalise
+  float inputScale = 1.0f, inputOffset = 0.0f;  ///< source(): pre-curve normalise
   Easing curve;                           ///< map()
   bool clampInput = false;  ///< window(): clamp before the curve
   /** The envelope stage: the shape, and the trapezoid's four corners in
@@ -89,7 +89,7 @@ struct BoundFloat {
   int steps = 0;                      ///< quantize(): 0 = continuous
   float scale = 1.0f, offset = 0.0f;  ///< the affine chain
   bool clamped = false;
-  float lo = 0.0f, hi = 1.0f;
+  float low = 0.0f, high = 1.0f;
   /** wiggle(): the procedural noise stage. An amount of zero disengages
    *  it entirely, at the cost of one float compare. */
   float wiggleAmount = 0.0f;     ///< peak displacement, in OUTPUT units
@@ -101,7 +101,7 @@ struct BoundFloat {
   float wrapPeriod = 0.0f;
 
   /** Runs the chain on one sample of the bound Output. */
-  float apply(float v) const;
+  float apply(float value) const;
 };
 
 /** Shaped bindings prune like anything else: same Output, same affine,
@@ -109,20 +109,20 @@ struct BoundFloat {
  *  CURVE must NOT prune — the map is read live, so a pruned node would
  *  keep shaping through the old one forever. EVERY FIELD OF BoundFloat
  *  APPEARS in the body, under the pin beside it. */
-bool boundMapEqual(const BoundFloat& a, const BoundFloat& b);
+bool boundMapEqual(const BoundFloat& left, const BoundFloat& right);
 
 namespace detail {
 /** The record decomposed member by member, for a comparator that wants to
  *  WALK it rather than name each field one at a time. Counting the fields
  *  does not need this: `core::kFieldCount<T>` reads any aggregate. */
-inline auto fields(BoundFloat& v) {
-  auto& [source, inScale, inOffset, curve, clampInput, envelope, riseStart,
+inline auto fields(BoundFloat& boundFloat) {
+  auto& [source, inputScale, inputOffset, curve, clampInput, envelope, riseStart,
          holdStart, holdEnd, fallEnd, duty, waveFunction, steps, scale, offset,
-         clamped, lo, hi, wiggleAmount, wiggleFrequency, wiggleSeed,
-         wiggleOctaves, wiggleFalloff, wrapPeriod] = v;
-  return std::tie(source, inScale, inOffset, curve, clampInput, envelope,
+         clamped, low, high, wiggleAmount, wiggleFrequency, wiggleSeed,
+         wiggleOctaves, wiggleFalloff, wrapPeriod] = boundFloat;
+  return std::tie(source, inputScale, inputOffset, curve, clampInput, envelope,
                   riseStart, holdStart, holdEnd, fallEnd, duty, waveFunction,
-                  steps, scale, offset, clamped, lo, hi, wiggleAmount,
+                  steps, scale, offset, clamped, low, high, wiggleAmount,
                   wiggleFrequency, wiggleSeed, wiggleOctaves, wiggleFalloff,
                   wrapPeriod);
 }

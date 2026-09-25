@@ -47,9 +47,9 @@ struct Spring {
   bool operator==(const Spring&) const = default;
 };
 
-/** Advance a spring `dt` seconds towards `target`.
+/** Advance a spring `deltaSeconds` towards `target`.
  *
- *  Value in, value out: `s = spring(s, target, dt)`. The target is a
+ *  Value in, value out: `state = spring(state, target, deltaSeconds)`. The target is a
  *  per-step argument rather than a member, because a spring's whole
  *  point is that the target is allowed to move between steps and the
  *  motion carries.
@@ -63,11 +63,11 @@ struct Spring {
  *  spring at rest by the age of the thing it animates.
  *
  *  A non-positive period answers the target at rest — the spelling of
- *  "instant". A non-positive `dt` answers the spring unchanged. A
+ *  "instant". A non-positive `deltaSeconds` answers the spring unchanged. A
  *  negative damping is read as 0. */
-inline Spring spring(Spring from, float target, float dt,
+inline Spring spring(Spring from, float target, float deltaSeconds,
                      SpringParameters parameters = {}) {
-  if (!(dt > 0.0f)) return from;
+  if (!(deltaSeconds > 0.0f)) return from;
   if (!(parameters.periodSeconds > 0.0f)) return {target, 0.0f};
 
   const float omega = 6.2831853071795864769f / parameters.periodSeconds;
@@ -82,19 +82,19 @@ inline Spring spring(Spring from, float target, float dt,
   if (zeta < 1.0f) {
     // Under-damped: it rings. The overshoot the caller came for.
     const float wd = omega * std::sqrt(1.0f - zeta * zeta);
-    const float e = std::exp(-zeta * omega * dt);
-    const float c = std::cos(wd * dt);
-    const float s = std::sin(wd * dt);
+    const float e = std::exp(-zeta * omega * deltaSeconds);
+    const float c = std::cos(wd * deltaSeconds);
+    const float s = std::sin(wd * deltaSeconds);
     const float a = x;
     const float b = (v + zeta * omega * x) / wd;
     xt = e * (a * c + b * s);
     vt = -zeta * omega * xt + e * wd * (b * c - a * s);
   } else if (zeta == 1.0f) {
     // Critically damped: the fastest arrival that never crosses.
-    const float e = std::exp(-omega * dt);
+    const float e = std::exp(-omega * deltaSeconds);
     const float b = v + omega * x;
-    xt = e * (x + b * dt);
-    vt = e * (v - omega * b * dt);
+    xt = e * (x + b * deltaSeconds);
+    vt = e * (v - omega * b * deltaSeconds);
   } else {
     // Over-damped: two real rates, the slower one deciding the tail.
     const float r = omega * std::sqrt(zeta * zeta - 1.0f);
@@ -102,8 +102,8 @@ inline Spring spring(Spring from, float target, float dt,
     const float r2 = -omega * zeta - r;
     const float c2 = (v - r1 * x) / (r2 - r1);
     const float c1 = x - c2;
-    const float e1 = std::exp(r1 * dt);
-    const float e2 = std::exp(r2 * dt);
+    const float e1 = std::exp(r1 * deltaSeconds);
+    const float e2 = std::exp(r2 * deltaSeconds);
     xt = c1 * e1 + c2 * e2;
     vt = c1 * r1 * e1 + c2 * r2 * e2;
   }

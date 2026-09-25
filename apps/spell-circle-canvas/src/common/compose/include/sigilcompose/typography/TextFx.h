@@ -131,7 +131,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  is sampled at the device's resolution, so a 2x host stays sharp with no
  *  supersampled bake. `uUnitRect` entries are the SAME rects
  *  `Composer::beatsOf` reports (that query lifts them to composer space);
- *  `uUnitPhase[i].x` is the same `Beat::localT`, driven by the track's
+ *  `uUnitPhase[i].x` is the same `Beat::localTime`, driven by the track's
  *  progress through its cascade, so the pass, a mark and the glyphs can
  *  never disagree about the schedule. `uUnitPhase[i].y` is a per-unit seed
  *  in [1, 256), stable across frames and relayouts, which is what lets a

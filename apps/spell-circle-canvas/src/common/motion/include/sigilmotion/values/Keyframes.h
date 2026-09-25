@@ -80,13 +80,13 @@ struct From {
 };
 /** The value a property enters from; `.to(b)` completes it. */
 template <typename T>
-From<T> from(T v) {
-  return {std::move(v)};
+From<T> from(T value) {
+  return {std::move(value)};
 }
 /** The value a property ramps to whenever the argument changes. */
 template <typename T>
-To<T> to(T v) {
-  return {std::move(v)};
+To<T> to(T value) {
+  return {std::move(value)};
 }
 
 template <typename T>
@@ -131,8 +131,8 @@ Waypoints<T> through(
  *  `spec` defaults to the house Transition, so name one only when the
  *  beat matters. */
 template <typename T>
-Transitioned<T> animate(FromTo<T> ft, Transition spec = {}) {
-  return {std::move(ft.to), std::move(spec), std::move(ft.from)};
+Transitioned<T> animate(FromTo<T> fromTo, Transition spec = {}) {
+  return {std::move(fromTo.to), std::move(spec), std::move(fromTo.from)};
 }
 
 /** RAMP ON CHANGE, with a transition of this property's own:
@@ -145,8 +145,8 @@ Transitioned<T> animate(FromTo<T> ft, Transition spec = {}) {
  *  There is one motion per property, so a change mid-ramp bends the ramp
  *  rather than queueing a second one behind it. */
 template <typename T>
-Transitioned<T> animate(To<T> t, Transition spec = {}) {
-  return {std::move(t.value), std::move(spec)};
+Transitioned<T> animate(To<T> target, Transition spec = {}) {
+  return {std::move(target.value), std::move(spec)};
 }
 
 /** The keyframe path: absolute (time, value) waypoints played through on
@@ -161,17 +161,17 @@ Transitioned<T> animate(To<T> t, Transition spec = {}) {
  *  on top of it. Once the path completes the value behaves like
  *  `animate(to(last))`. */
 template <typename T>
-Transitioned<T> animate(Waypoints<T> w,
+Transitioned<T> animate(Waypoints<T> waypoints,
                         Easing ease = ease::outQuad) {
-  Transitioned<T> t;
-  t.spec.ease = std::move(ease);
-  if (!w.frames.empty()) {
-    t.from = w.frames.front().second;
-    t.value = w.frames.back().second;
-    t.spec.duration = w.frames.back().first;
+  Transitioned<T> transitioned;
+  transitioned.spec.ease = std::move(ease);
+  if (!waypoints.frames.empty()) {
+    transitioned.from = waypoints.frames.front().second;
+    transitioned.value = waypoints.frames.back().second;
+    transitioned.spec.duration = waypoints.frames.back().first;
   }
-  t.waypoints = std::move(w.frames);
-  return t;
+  transitioned.waypoints = std::move(waypoints.frames);
+  return transitioned;
 }
 
 }  // namespace sigil::motion
