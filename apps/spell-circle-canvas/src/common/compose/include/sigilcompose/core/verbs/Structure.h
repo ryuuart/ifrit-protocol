@@ -149,8 +149,12 @@ class StructureVerbs {
    *  that already carries its own `animate(...)` keeps that one; this
    *  is the node's default for the ones that do not. A node with no
    *  transition of its own shows an inherited ink as it arrives, so it
-   *  follows an ancestor's ramp. */
-  Derived& transition(motion::Transition t);
+   *  follows an ancestor's ramp. A duration alone is the common case:
+   *  `.transition(320ms)` eases over that long on the house curve. */
+  Derived& transition(motion::Transition transition);
+  Derived& transition(motion::Duration duration) {
+    return transition(motion::Transition{.duration = duration});
+  }
   /** Container stagger: child i's subtree enters with an EXTRA
    *  order-times-each delay on every `animate()` mount transition under
    *  it, compounding through nested staggered containers. @p from picks

@@ -266,9 +266,7 @@ TEST(ComposeMotion, DelayStaggersTheEntrance) {
   Host host;
   auto card = [](float delaySec) {
     return box().width(60).height(30).fill(red()).opacity(
-        animate(motion::from(0.0f).to(1.0f),
-                {200ms, motion::ease::linear,
-                 std::chrono::milliseconds((int)(delaySec * 1000))}));
+        animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .delay = std::chrono::milliseconds((int)(delaySec * 1000)), .ease = motion::ease::linear}));
   };
   host.composer.render(
       box().column().gap(10).children({card(0.0f), card(0.4f)}));
@@ -332,7 +330,7 @@ TEST(ComposeMotion, StaggerChildrenCascadesEntrances) {
   Host host;
   auto card = [] {
     return box().width(60).height(30).fill(red()).opacity(
-        animate(motion::from(0.0f).to(1.0f), {200ms, motion::ease::linear}));
+        animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
   };
   host.composer.render(
       box().column().gap(10).staggerChildren(400ms).children({card(), card()}));

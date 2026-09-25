@@ -100,7 +100,7 @@ void Composer::Impl::lanes(StyledNode styled, std::vector<Lane>& out) {
   // one per Edge fraction, none for Shape or Alpha.
   //
   // SEPARATE PER MASK, which is the point: three masks running at three
-  // rates each own their slots, so `animate(to(x))` on the second retargets
+  // rates each own their slots, so `animate({.to = x})` on the second retargets
   // the second and nothing else.
   if (node.fxData) {
     size_t i = 0;
@@ -119,7 +119,7 @@ void Composer::Impl::lanes(StyledNode styled, std::vector<Lane>& out) {
   // Instance::trackAnims is indexed by.
   //
   // SEPARATE PER TRACK, which is the point: a rise and a loop on one text
-  // node run at their own rates, so `animate(to(1))` on the second retargets
+  // node run at their own rates, so `animate({.to = 1})` on the second retargets
   // the second and leaves the first alone.
   if (node.textData) {
     size_t i = 0;
@@ -134,7 +134,7 @@ std::vector<Lane> Composer::Impl::lanes(StyledNode styled) {
   return out;
 }
 
-/** Mount entrances: an animate(from(a).to(b)) value plays `from → value` when
+/** Mount entrances: an animate({.from = a, .to = b}) value plays `from → value` when
  * the node FIRST appears (there is no prev to diff against — this is the "prev"
  * the author declared). Skipped for snapshot()/measure() (liveOnly: no live
  *  timeline — bakes render the settled value). */
@@ -176,13 +176,14 @@ void Composer::Impl::applyMountTransitions(Instance& inst) {
   // 0→1 progress, because the description holds an Animatable<Fill> and no
   // float for the table to point at.
   if (inst.computed.paint.fill) {
-    const motion::Transitioned<Fill>* tr =
-        inst.computed.paint.fill->described();
-    if (tr && tr->from && tr->from->kind == Fill::Kind::Color &&
-        tr->value.kind == Fill::Kind::Color && !(*tr->from == tr->value)) {
-      inst.fillFrom = *tr->from;
-      inst.fillTo = tr->value;
-      motion::progressRamp(ticker, inst.anims[Instance::kFillLerp], tr->spec,
+    const motion::Tween<Fill>* tween = inst.computed.paint.fill->described();
+    const Fill rest = tween ? tween->rest() : Fill{};
+    if (tween && tween->from && tween->from->kind == Fill::Kind::Color &&
+        rest.kind == Fill::Kind::Color && !(*tween->from == rest)) {
+      inst.fillFrom = *tween->from;
+      inst.fillTo = rest;
+      motion::progressRamp(ticker, inst.anims[Instance::kFillLerp],
+                           motion::transitionOf(*tween),
                            mountDelayCarryMs / 1000.0f);  // stagger carry
     }
   }
@@ -218,7 +219,7 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
     // with a transition must still disconnect the running lerp, or the
     // node keeps painting a color no description contains until the old
     // motion self-expires (then pops).
-    nextFillTransitions = !nf.live && nf.transition != nullptr &&
+    nextFillTransitions = !nf.live && nf.transition.has_value() &&
                           nf.target.kind == Fill::Kind::Color;
   }
   if (!nextFillTransitions) {
@@ -308,13 +309,13 @@ void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {
   //
   // Mask gates: this is what makes the retarget case work. An element that
   // writes ONE mask in both branches of an if/else keeps a stable slot
-  // index, so `animate(to(span))` ramps from wherever the gate is now
+  // index, so `animate({.to = span})` ramps from wherever the gate is now
   // instead of mounting from scratch. Write two masks in one branch and one
   // in the other and the shape changed — the motions drop, deliberately,
   // rather than carrying onto a number that now means something else.
   //
   // textFx() tracks: an element that writes the same NUMBER of tracks in both
-  // branches of an if/else keeps stable slot indices, so `animate(to(1))`
+  // branches of an if/else keeps stable slot indices, so `animate({.to = 1})`
   // on the second track ramps from wherever that track's progress is now.
   // Add or remove a track and the shape changed — the motions drop rather
   // than carrying onto a progress that now drives a different effect.

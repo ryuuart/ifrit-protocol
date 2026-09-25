@@ -37,7 +37,7 @@ namespace sigil::compose::connect {
  *    no mark of its own.
  *  - `where` is WHERE ON THE WIRE that mark paints — the whole of it when
  *    unset, and a CLAIMED RUN when stated, which is how a wire draws
- *    itself on (`spans::upTo(animate(from(0).to(1), {620ms}))`) or carries
+ *    itself on (`spans::upTo(animate({.from = 0, .to = 1, .duration = 620ms}))`) or carries
  *    a travelling pulse (`spans::range(&begin, &end)`). A claim fits the
  *    mark to the run it claims, which is not what a gate over the whole
  *    mark does.

@@ -196,7 +196,7 @@ TEST(ComposeRuleScope, AClassToggleEasesUnderARulesTransition) {
   // The rule states the transition and both ends; the element states
   // neither, and still eases, because the lane watches the value the
   // cascade computed rather than what the element declared.
-  const StyleSheet sheet{rule(".card").transition({.duration = 200ms}),
+  const StyleSheet sheet{rule(".card").transition(200ms),
                          rule(".dim").opacity(0.2f),
                          rule(".lit").opacity(1.0f)};
   Host host;

@@ -350,7 +350,7 @@ TEST(ComposeCascade, AnInkTransitionEasesEverythingUnderTheNodeAndSettles) {
     return box()
         .key("p")
         .ink(ink)
-        .transition({.duration = 200ms})
+        .transition(200ms)
         .children({box().width(60).height(60).fill(Fill::currentInk())});
   };
   host.composer.render(page({1, 0, 0, 1}));
@@ -382,7 +382,7 @@ TEST(ComposeCascade, AnInkChangedThroughAClassEasesAsTheVerbsChangeDoes) {
     return box()
         .applyStyleSheet(sheet)
         .styleClass(name)
-        .transition({.duration = 200ms})
+        .transition(200ms)
         .children({box().width(60).height(60).fill(Fill::currentInk())});
   };
   host.composer.render(page("hot"));
@@ -410,11 +410,11 @@ TEST(ComposeCascade, AnInheritedInkEasesUnderTheNodesOwnTransition) {
   const auto page = [](SkColor4f ink) {
     return box()
         .ink(ink)
-        .transition({.duration = 100ms})
+        .transition(100ms)
         .children({box().row().children({
             box().width(60).height(60).fill(Fill::currentInk()),
             box()
-                .transition({.duration = 400ms})
+                .transition(400ms)
                 .children({box().width(60).height(60).fill(
                     Fill::currentInk())}),
         })});
@@ -462,7 +462,7 @@ TEST(ComposeCascade, AnInkReadFromACustomPropertyEasesWhenThePropertyMoves) {
     return box().var("accent", accent).children(
         {box()
              .ink(var("accent"))
-             .transition({.duration = 200ms})
+             .transition(200ms)
              .children({box().width(60).height(60).fill(
                  Fill::currentInk())})});
   };
@@ -493,7 +493,7 @@ TEST(ComposeCascade, AnInkAndAFillOfOneDurationOnOneNodeRunOnOneClock) {
     return box()
         .width(120)
         .height(60)
-        .transition({.duration = 200ms})
+        .transition(200ms)
         .ink(colour)
         .fill(Fill::color(colour))
         .children({box().width(30).height(30).fill(Fill::currentInk())});

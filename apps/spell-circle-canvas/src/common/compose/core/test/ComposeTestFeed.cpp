@@ -82,8 +82,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   const feed::TextOptions options = feedOptions(6, 16.0f);
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {200ms, motion::ease::linear}));
+        .opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
   };
   Host host(160, 200);
   auto describe = [&] {
@@ -153,8 +152,7 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   options.window.entrance = {.eachMs = 400};
   auto lit = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .opacity(animate(motion::from(0.0f).to(1.0f),
-                         {200ms, motion::ease::linear}));
+        .opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
   };
   Host host(160, 200);
   auto describe = [&] {

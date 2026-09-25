@@ -206,8 +206,7 @@ const sigil::motion::Transition kSecondFlat{1000ms, sigil::motion::ease::linear}
 TEST(ComposeSlotConsumers, EveryLanePlaysItsEntranceThroughACachingAncestor) {
   for (const SlotScene& scene : kSlotScenes) {
     Host host(200, 200);
-    host.composer.render(grouped(scene.build(animate(
-        sigil::motion::from(scene.rest).to(scene.moved), kSecondFlat))));
+    host.composer.render(grouped(scene.build(animate({.from = scene.rest, .to = scene.moved, .duration = kSecondFlat.duration, .delay = kSecondFlat.delay, .ease = kSecondFlat.ease}))));
     host.frame();  // the entrance stands at `rest`
     const std::vector<uint32_t> entering = pixels(host);
     host.frame(1.0);  // …and has arrived at `moved`
@@ -231,7 +230,7 @@ TEST(ComposeSlotConsumers, EveryLaneEasesToARedescribedEndpoint) {
     const std::vector<uint32_t> atRest = pixels(host);
 
     host.composer.render(grouped(
-        scene.build(animate(sigil::motion::to(scene.moved), kSecondFlat))));
+        scene.build(animate({.to = scene.moved, .duration = kSecondFlat.duration, .delay = kSecondFlat.delay, .ease = kSecondFlat.ease}))));
     host.frame(0.02);  // a fiftieth of the way: still beside `rest`
     const std::vector<uint32_t> justAfter = pixels(host);
     host.frame(2.0);  // settled at `moved`

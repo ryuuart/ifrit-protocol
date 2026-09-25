@@ -4,7 +4,7 @@
 
 #include <sigilcompose/core/Feed.h>
 #include <sigilcompose/kit/Plate.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/ease/Ease.h>
 
 #include <algorithm>
@@ -195,8 +195,7 @@ TEST(ComposeFeed, TheRowFactoryDeclaresTheEntranceAndTheColumnIsPlainKernel) {
       Element row = feed::textRow(r.value, st.styles);
       row.key(feed::rowKey(r.sequence));
       if (staggered)
-        row.opacity(animate(motion::from(0.0f).to(1.0f),
-                            {200ms, motion::ease::linear}));
+        row.opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
       column.children({std::move(row)});
     }
     return box().children({std::move(column)});

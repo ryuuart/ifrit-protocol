@@ -204,7 +204,7 @@ TEST(ComposeSpans, AnimatedRevealDrawsOnAndDeclaresVolatility) {
   host.composer.render(stack().children(
       {box()
            .rect(SkRect::MakeXYWH(20, 20, 100, 100))
-           .stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {400ms})),
+           .stroke(spans::upTo(animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
                    stroke(6, red()))}));
   host.frame(0.02);
   auto inked = [&] {

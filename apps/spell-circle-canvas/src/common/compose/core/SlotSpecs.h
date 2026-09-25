@@ -26,7 +26,7 @@ namespace sigil::compose::detail {
 //
 //   - absent from `applyTransitions`  → `animate()` on the property never
 //     ramps; it snaps, and looks like a missing transition spec.
-//   - absent from `applyMountTransitions` → `animate(from().to())` plays no
+//   - absent from `applyMountTransitions` → `animate({.from, .to})` plays no
 //     entrance; the node just appears at its settled value.
 //   - absent from `computeVolatile` → the property is not volatility, so an
 //     ancestor caches across it and the motion FREEZES in a replayed
@@ -127,7 +127,7 @@ inline constexpr SlotSpec kSlotSpecs[] = {
     // `of` to return. Its four call sites are hand-written beside the loop
     // that walks this table, each labelled "the kFillLerp row".
     {Instance::kFillLerp, SlotRole::Bespoke, nullptr, 0.0f,
-     "a progress scalar over paint.fill's Transitioned<Fill> — there is no "
+     "a progress scalar over paint.fill's Tween<Fill> — there is no "
      "Animatable<float> in the description to point at"},
     {Instance::kSkewX, SlotRole::Geometric,
      [](StyledNode s) { return &s.style.paint.skewX; }, 0.0f, nullptr},

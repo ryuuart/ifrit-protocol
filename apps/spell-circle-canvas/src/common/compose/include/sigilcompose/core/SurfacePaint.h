@@ -28,7 +28,7 @@ class Element;
  *
  *      Fill                        a colour or a shader
  *      motion::Animatable<Fill>    a fill that eases or is driven live
- *      motion::Transitioned<Fill>  a fill mid-transition
+ *      motion::Tween<Fill>         a fill that moves as described
  *      material::Paint       a gradient ramp, blend stack, SkSL
  *      material::Material          a recipe, wrapped as that paint
  *
@@ -43,7 +43,7 @@ class SurfacePaint {
   SurfacePaint(Fill fill)
       : m_value(motion::Animatable<Fill>{std::move(fill)}) {}
   SurfacePaint(motion::Animatable<Fill> fill) : m_value(std::move(fill)) {}
-  SurfacePaint(motion::Transitioned<Fill> fill)
+  SurfacePaint(motion::Tween<Fill> fill)
       : m_value(motion::Animatable<Fill>{std::move(fill)}) {}
   SurfacePaint(material::Paint paint) : m_value(std::move(paint)) {}
   SurfacePaint(material::Material recipe)

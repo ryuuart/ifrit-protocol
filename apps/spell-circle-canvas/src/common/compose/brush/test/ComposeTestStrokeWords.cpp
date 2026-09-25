@@ -20,12 +20,12 @@ TEST(ComposeShapeRename, ShapeOverridesTheBox) {
 
 // ---------------------------------------------------------------------------
 // The authoring spellings, each checked against the mechanism it is sugar
-// for. These say what a word MEANS — animate(to()) ramps where a bare value
-// snaps, motion::from().to() is a mount entrance, a bound source/target pair is
+// for. These say what a word MEANS — animate({.to = }) ramps where a bare value
+// snaps, a named .from is a mount entrance, a bound source/target pair is
 // two explicit stages — because the words are close enough that a wrong one
 // produces a plausible picture rather than an error.
 
-// ---- animate(to(v), spec) --------------------------------------------------
+// ---- animate({.to = v, …}) --------------------------------------------------
 // ----------------------------------------------
 TEST(ComposeMotionWords, AnimateToIsTheChangeRamp) {
   // Read the property MID-RAMP, which is the only place a snap and a ramp
@@ -39,7 +39,7 @@ TEST(ComposeMotionWords, AnimateToIsTheChangeRamp) {
       if (plain)
         inner.opacity(opacity);
       else
-        inner.opacity(animate(sigil::motion::to(opacity), {200ms}));
+        inner.opacity(animate({.to = opacity, .duration = 200ms}));
       return stack().children({std::move(inner)});
     };
     host.composer.render(describe(1.0f));
@@ -50,7 +50,7 @@ TEST(ComposeMotionWords, AnimateToIsTheChangeRamp) {
   };
   const SkColor ramped = run(false);
   const SkColor snapped = run(true);
-  EXPECT_NE(ramped, snapped) << "animate(to(v)) must ramp where a bare "
+  EXPECT_NE(ramped, snapped) << "animate({.to = v}) must ramp where a bare "
                                 "value snaps";
   // …and it is genuinely mid-ramp, not "already gone" or "not started".
   EXPECT_GT((int)SkColorGetR(ramped), 20);
@@ -59,23 +59,23 @@ TEST(ComposeMotionWords, AnimateToIsTheChangeRamp) {
 }
 
 TEST(ComposeMotionWords, ToAloneHasNoEntranceAndFromToDoes) {
-  // The whole distinction between the two, as pixels: to() mounts already
-  // holding its value, and motion::from().to() plays a path on first
-  // appearance.
+  // The whole distinction between the two, as pixels: a tween with `.to`
+  // alone mounts already holding its value, and one that names `.from`
+  // plays a path on first appearance.
   auto mountedOpacity = [](bool withEntrance) {
     Host host(200, 200);
     Element inner = box().width(100).height(100).fill(red());
     if (withEntrance)
-      inner.opacity(animate(motion::from(0.0f).to(1.0f), {400ms}));
+      inner.opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 400ms}));
     else
-      inner.opacity(animate(sigil::motion::to(1.0f), {400ms}));
+      inner.opacity(animate({.to = 1.0f, .duration = 400ms}));
     host.composer.render(stack().children({std::move(inner)}));
     host.frame(0.001);
     return (int)SkColorGetR(host.pixel(50, 50));
   };
-  EXPECT_GT(mountedOpacity(false), 240) << "to() alone must not fade in";
+  EXPECT_GT(mountedOpacity(false), 240) << ".to alone must not fade in";
   EXPECT_LT(mountedOpacity(true), 60)
-      << "motion::from().to() is a mount entrance";
+      << "a named .from is a mount entrance";
 }
 
 namespace {

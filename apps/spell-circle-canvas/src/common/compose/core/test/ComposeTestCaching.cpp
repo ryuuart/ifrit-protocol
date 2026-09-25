@@ -282,7 +282,7 @@ TEST(ComposeCache, ADeclaredBakeDensityStillReBakesChangedContent) {
 }
 
 TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
-  // A `from(a).to(b)` on a scale lane NAMES b, so the coarse bake ladder
+  // A `{.from = a, .to = b}` on a scale lane NAMES b, so the coarse bake ladder
   // takes the bake there and the blit minifies through the entrance. The
   // ladder is for a scale nobody declared — a resize, a pinch zoom — where
   // one bake per step is the cheap answer; an entrance is a known scale
@@ -296,8 +296,7 @@ TEST(ComposeCache, ADeclaredScaleEntranceBakesOnceAtItsDestination) {
                         .height(80)
                         .fill(green())
                         .cache(Cache::Texture)
-                        .scale(animate(motion::from(0.2f).to(1.0f),
-                                       {std::chrono::milliseconds(400)}))));
+                        .scale(animate({.from = 0.2f, .to = 1.0f, .duration = std::chrono::milliseconds(400)}))));
   host.frame();
   EXPECT_EQ(host.composer.stats().texturesBaked, 1u)
       << "the bake, taken at the scale the motion names";

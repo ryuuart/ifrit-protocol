@@ -167,10 +167,10 @@ TEST(ComposeStyleSheet, ApplyingASheetAgainAddsItAfterTheOneBefore) {
 
 TEST(ComposeStyleSheet, ARuleComparesTheTransitionItStates) {
   using sigil::compose::rule;
-  EXPECT_TRUE(rule(".a").transition({.duration = 200ms}) ==
-              rule(".a").transition({.duration = 200ms}));
-  EXPECT_FALSE(rule(".a").transition({.duration = 200ms}) == rule(".a"));
-  EXPECT_FALSE(rule(".a").transition({.duration = 200ms}) ==
-               rule(".a").transition({.duration = 300ms}));
+  EXPECT_TRUE(rule(".a").transition(200ms) ==
+              rule(".a").transition(200ms));
+  EXPECT_FALSE(rule(".a").transition(200ms) == rule(".a"));
+  EXPECT_FALSE(rule(".a").transition(200ms) ==
+               rule(".a").transition(300ms));
   EXPECT_FALSE(rule(".a").transition()) << "unstated until a call states it";
 }

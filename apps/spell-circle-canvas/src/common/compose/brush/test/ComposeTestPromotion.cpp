@@ -328,8 +328,7 @@ Element arcTable() {
                       .shape(sigil::geometry::shapes::arc(-r.endDeg))
                       .stroke(ink);
     arc.mask(by::spans(spans::upTo(
-        animate(motion::from(0.0001f).to(r.endDeg / 360.0f),
-                {std::chrono::milliseconds(120u << (unsigned)r.ring),
+        animate({.from = 0.0001f, .to = r.endDeg / 360.0f, .duration = std::chrono::milliseconds(120u << (unsigned)r.ring),
                  motion::ease::linear, std::chrono::milliseconds(150)}))));
     plate.children({std::move(arc).key("ring" + std::to_string(r.ring))});
   }

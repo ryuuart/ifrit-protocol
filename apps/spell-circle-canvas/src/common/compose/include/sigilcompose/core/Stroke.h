@@ -27,7 +27,7 @@
 #include <sigilgeometry/path/Shaper.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animated.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 
 #include <any>
 #include <cmath>
@@ -231,8 +231,8 @@ Spans range(motion::Animatable<float> begin, motion::Animatable<float> end);
  *  seam-crossing claim is stitched into ONE contour so caps and additive
  *  brushes never double-hit there. */
 Spans wrap(motion::Animatable<float> begin, motion::Animatable<float> end);
-/** THE REVEAL: `range(0, end)`. `spans::upTo(animate(from(0.f).to(1.f),
- *  {600ms}))` is a stroke that DRAWS ON, and a live value scrubs it.
+/** THE REVEAL: `range(0, end)`. `spans::upTo(animate({.from = 0.f, .to = 1.f,
+ *  .duration = 600ms}))` is a stroke that DRAWS ON, and a live value scrubs it.
  *  Works the same way under every brush, because it claims a run of the
  *  boundary rather than modifying the mark. */
 Spans upTo(motion::Animatable<float> end);

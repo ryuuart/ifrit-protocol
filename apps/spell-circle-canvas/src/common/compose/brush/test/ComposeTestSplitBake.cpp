@@ -66,8 +66,7 @@ TEST(ComposeCache, SettledOpacityRebakesTheLeaf) {
   host.composer.render(tree(1.0f));
   host.frame();
   host.composer.render(
-      tree(animate(sigil::motion::to(0.4f),
-                   {std::chrono::milliseconds(100), motion::ease::linear})));
+      tree(animate({.to = 0.4f, .duration = std::chrono::milliseconds(100), .ease = motion::ease::linear})));
   host.frame(0.5);  // settled at 0.4
   host.frame();     // draw again from caches
   const SkColor c = host.pixel(40, 40);

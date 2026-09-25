@@ -14,8 +14,7 @@ TEST(ComposeTransitions, RampsAndRetargetsFromCurrent) {
   Host host;
   auto at = [&](float target) {
     return box().children(
-        {box().key("m").width(50).height(50).fill(red()).translateX(animate(
-            sigil::motion::to(target), {400ms, motion::ease::linear}))});
+        {box().key("m").width(50).height(50).fill(red()).translateX(animate({.to = target, .duration = 400ms, .ease = motion::ease::linear}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -44,8 +43,7 @@ TEST(ComposeTransitions, RetargetsFromTheStyleTheNodeStoodInAcrossAPrune) {
   Host host;
   auto at = [&](float target) {
     return box().children(
-        {box().key("m").width(50).height(50).fill(red()).translateX(animate(
-            sigil::motion::to(target), {400ms, motion::ease::linear}))});
+        {box().key("m").width(50).height(50).fill(red()).translateX(animate({.to = target, .duration = 400ms, .ease = motion::ease::linear}))});
   };
   host.composer.render(at(0.0f));
   host.frame();
@@ -68,8 +66,7 @@ TEST(ComposeTransitions, AStaggerLeadsAnEntranceBeforeItsOwnDelay) {
   Host host;
   auto card = [](std::string_view key) {
     return box().width(50).height(20).fill(red()).key(key).opacity(
-        animate(sigil::motion::from(0.0f).to(1.0f),
-                {100ms, motion::ease::linear, 200ms}));
+        animate({.from = 0.0f, .to = 1.0f, .duration = 100ms, .delay = 200ms, .ease = motion::ease::linear}));
   };
   host.composer.render(box().column().gap(10).staggerChildren(400ms).children(
       {card("a"), card("b")}));
@@ -89,11 +86,11 @@ TEST(ComposeTransitions, UnmountCancelsMotions) {
   Host host;
   host.composer.render(
       box().children({box().key("gone").width(10).height(10).translateX(
-          animate(sigil::motion::to(500.0f), {1000ms}))}));
+          animate({.to = 500.0f, .duration = 1000ms}))}));
   host.frame();
   host.composer.render(
       box().children({box().key("gone").width(10).height(10).translateX(
-          animate(sigil::motion::to(0.0f), {1000ms}))}));
+          animate({.to = 0.0f, .duration = 1000ms}))}));
   host.frame(0.1);
   EXPECT_TRUE(host.ticker.active());
   host.composer.render(box());  // unmount mid-flight
@@ -168,7 +165,7 @@ TEST(ComposeTransitions, PlainSnapAfterTransitionLands) {
   host.composer.render(at(0.0f));
   host.frame();
   host.composer.render(
-      at(animate(sigil::motion::to(100.0f), {400ms, motion::ease::linear})));
+      at(animate({.to = 100.0f, .duration = 400ms, .ease = motion::ease::linear})));
   host.frame(0.2);  // mid-ramp, box around x=50..100
   EXPECT_EQ(host.pixel(75, 25), SK_ColorRED);
   host.composer.render(at(0.0f));  // PLAIN: must snap home
@@ -434,107 +431,85 @@ TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
                           .left(0)
                           .top(80)
                           .fill(red())
-                          .translateX(animate(motion::from(0.0f).to(120.0f),
-                                              {200ms, {}, 0ms}))}));
+                          .translateX(animate({.from = 0.0f, .to = 120.0f, .duration = 200ms, .delay = 0ms}))}));
   host.frame();     // would throw here
   host.frame(0.4);  // land the entrance
   EXPECT_TRUE(SkColorGetR(host.pixel(130, 100)) > 180);
 }
 
 // -------------------------------------------------------------------------
-// The authoring grammar: animate(motion::from(a).to(b)) /
-// animate(through({...})). What is pinned is the VALUE each argument
-// shape builds, because that value is the only thing the engine ever
-// sees — the argument spellings are pure sugar over it.
+// The authoring grammar: one Tween. What is pinned is the VALUE each shape
+// of it builds, because that value is the only thing the engine ever sees.
 
-TEST(ComposeMotion, EachArgumentShapeBuildsItsOwnTransitioned) {
-  const sigil::motion::Transition spec{200ms, motion::ease::linear, 40ms};
+TEST(ComposeMotion, EachShapeOfATweenSaysWhatItDoes) {
+  const motion::Animatable<float> change =
+      animate({.to = 1.0f, .duration = 200ms, .delay = 40ms,
+               .ease = motion::ease::linear});
+  ASSERT_NE(change.described(), nullptr);
+  EXPECT_EQ(change.value(), 1.0f);
+  EXPECT_FALSE(change.described()->isEntrance())
+      << ".to alone eases on change and is not an entrance";
+  EXPECT_EQ(change.described()->duration, 200ms);
+  EXPECT_EQ(change.described()->delay, 40ms);
 
-  const sigil::motion::Transitioned<float> ramp =
-      animate(sigil::motion::to(1.0f), spec);
-  EXPECT_EQ(ramp.value, 1.0f);
-  EXPECT_FALSE(ramp.from.has_value()) << "to() alone is not an entrance";
-  EXPECT_TRUE(ramp.waypoints.empty());
-  EXPECT_EQ(ramp.spec.duration, 200ms);
-  EXPECT_EQ(ramp.spec.delay, 40ms);
+  const motion::Animatable<float> entrance =
+      animate({.from = 0.0f, .to = 1.0f, .duration = 200ms,
+               .ease = motion::ease::linear});
+  EXPECT_EQ(entrance.value(), 1.0f) << "a described motion reads where it rests";
+  ASSERT_TRUE(entrance.described()->isEntrance());
+  EXPECT_EQ(*entrance.described()->from, 0.0f);
+  EXPECT_FLOAT_EQ(entrance.described()->easing()(0.25f), 0.25f);
 
-  const sigil::motion::Transitioned<float> entrance =
-      animate(motion::from(0.0f).to(1.0f), spec);
-  EXPECT_EQ(entrance.value, 1.0f);
-  ASSERT_TRUE(entrance.from.has_value());
-  EXPECT_EQ(*entrance.from, 0.0f);
-  EXPECT_TRUE(entrance.waypoints.empty());
-  EXPECT_EQ(entrance.spec.duration, 200ms);
-  EXPECT_EQ(entrance.spec.delay, 40ms);
-  EXPECT_FLOAT_EQ(entrance.spec.easing()(0.25f), 0.25f);
-
-  const std::vector<std::pair<std::chrono::milliseconds, float>> path{
-      {0ms, 40.0f}, {200ms, -20.0f}, {400ms, 0.0f}};
-  const sigil::motion::Transitioned<float> phrasedPath =
-      animate(sigil::motion::through(path), motion::ease::linear);
-  EXPECT_EQ(phrasedPath.value, 0.0f);
-  ASSERT_TRUE(phrasedPath.from.has_value());
-  EXPECT_EQ(*phrasedPath.from, 40.0f);
-  EXPECT_EQ(phrasedPath.waypoints, path);
-  EXPECT_EQ(phrasedPath.spec.duration, 400ms);
-  // The ease is the one field the waypoint overload writes itself —
-  // dropping it would default to easeOutQuad silently.
-  EXPECT_FLOAT_EQ(phrasedPath.spec.easing()(0.25f), 0.25f);
+  const motion::Animatable<float> path = animate(
+      {.from = 40.0f,
+       .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}},
+       .ease = motion::ease::linear});
+  EXPECT_EQ(path.value(), 0.0f) << "the last keyframe is where it rests";
+  EXPECT_EQ(*path.described()->from, 40.0f);
+  EXPECT_FLOAT_EQ(path.described()->at(100ms), 10.0f);
+  EXPECT_FLOAT_EQ(path.described()->at(300ms), -10.0f);
 }
 
 // A guard, not a reproduction: an indeterminate value can happen to hold the
 // number this test wants, so a passing run is weaker evidence than usual.
-// Both spellings are checked, and the pixel arm at the bottom is what makes
-// the claim about behaviour rather than about one struct field.
-TEST(ComposeMotion, AnEmptyKeyframePathIsDETERMINATE) {
-  // An empty waypoint list is a degenerate ask that must still produce a
-  // definite answer. `Transitioned<T>::value` has to be value-initialized:
-  // default-initialized, `animate(through({}))` would leave a float property
-  // reading whatever was on the stack — once, silently, with no failure to
-  // observe anywhere. Zero is the answer.
-  const sigil::motion::Transitioned<float> empty =
-      animate(sigil::motion::through({}));
-  EXPECT_EQ(empty.value, 0.0f);
-  EXPECT_FALSE(empty.from.has_value());
-  EXPECT_TRUE(empty.waypoints.empty());
-
-  const std::vector<std::pair<std::chrono::milliseconds, float>> none;
-  const sigil::motion::Transitioned<float> phrased =
-      animate(sigil::motion::through(none));
-  EXPECT_EQ(phrased.value, 0.0f);
+// The pixel arm at the bottom is what makes the claim about behaviour
+// rather than about one struct field.
+TEST(ComposeMotion, AnEmptyTweenIsDETERMINATE) {
+  // A tween that names nothing is a degenerate ask that must still produce
+  // a definite answer: where it rests is a value-initialized T, so a float
+  // property reads zero rather than whatever was on the stack.
+  const motion::Animatable<float> empty = animate(motion::Tween<float>{});
+  EXPECT_EQ(empty.value(), 0.0f);
+  EXPECT_FALSE(empty.described()->isEntrance());
 
   // And through the property slot: the node paints AT that determinate
   // value rather than at a number nobody chose.
   Host host;
-  host.composer.render(
-      box().children({box().width(80).height(80).fill(red()).opacity(
-          animate(sigil::motion::through({})))}));
+  host.composer.render(box().children({box().width(80).height(80).fill(red()).opacity(
+      animate(motion::Tween<float>{}))}));
   host.frame();
   EXPECT_EQ(host.pixel(20, 20), SK_ColorBLACK);  // opacity 0, not garbage
 }
 
-TEST(ComposeMotion, AnimateThroughDeducesAFloatPath) {
-  // A nested braced list is a non-deduced context, so the generic form
-  // normally has to be told `<float>`. This overload exists so it does not.
-  // Compiling with no explicit template argument IS the test — the
-  // assertions below only confirm it deduced the right thing.
-  const sigil::motion::Transitioned<float> t =
-      animate(sigil::motion::through({{0ms, 0.0f}, {100ms, 1.0f}}));
-  ASSERT_EQ(t.waypoints.size(), 2u);
-  EXPECT_EQ(t.waypoints.front().second, 0.0f);
-  EXPECT_EQ(t.waypoints.back().second, 1.0f);
-  ASSERT_TRUE(t.from.has_value());
-  EXPECT_EQ(*t.from, 0.0f);
-  EXPECT_EQ(t.value, 1.0f);
-  EXPECT_EQ(t.spec.duration, 100ms);
+TEST(ComposeMotion, AKeyframeWithNoDurationTakesItsShareOfTheTween) {
+  // anime.js's rule: a step that names no duration takes the tween's
+  // duration divided by the number of steps.
+  const motion::Tween<float> there = {
+      .from = 0.0f,
+      .keyframes = {{.to = 1.0f}, {.to = 0.0f}},
+      .duration = 200ms,
+      .ease = motion::ease::linear};
+  EXPECT_FLOAT_EQ(there.at(50ms), 0.5f);
+  EXPECT_FLOAT_EQ(there.at(100ms), 1.0f);
+  EXPECT_FLOAT_EQ(there.at(150ms), 0.5f);
+  EXPECT_FLOAT_EQ(there.at(250ms), 0.0f);
 }
 
 TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
   Host host;
   auto tree = [] {
     return box().children(
-        {box().width(80).height(80).fill(red()).opacity(animate(
-            motion::from(0.0f).to(1.0f), {200ms, motion::ease::linear}))});
+        {box().width(80).height(80).fill(red()).opacity(animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}))});
   };
   host.composer.render(tree());
   host.frame();
@@ -556,9 +531,9 @@ TEST(ComposeMotion, AnimatePlaysEntranceOnMount) {
 TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   Host host;
   host.composer.render(
-      box().children({box().width(80).height(80).fill(motion::Animatable<Fill>(
-          animate(motion::from(Fill::color({1, 1, 1, 1})).to(red()),
-                  {200ms, motion::ease::linear})))}));
+      box().children({box().width(80).height(80).fill(motion::animate<Fill>(
+          {.from = Fill::color({1, 1, 1, 1}), .to = red(), .duration = 200ms,
+           .ease = motion::ease::linear}))}));
   host.frame();
   EXPECT_EQ(host.pixel(40, 40), SK_ColorWHITE);  // the declared "from"
   host.frame(0.3);

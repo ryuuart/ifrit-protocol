@@ -674,8 +674,7 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
            .textFx({.effect = textFx::rise(24),
                     .stagger = {.eachMs = 100, .durationMs = 200},
                     .unit = sigil::weave::Unit::Cluster,
-                    .progress = animate(motion::from(0.0f).to(1.0f),
-                                        {200ms, motion::ease::linear})})}));
+                    .progress = animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear})})}));
   for (int i = 0; i < 24; ++i) still.frame(0.016);
   unsigned settledPaints = 0;
   for (int i = 0; i < 4; ++i) {

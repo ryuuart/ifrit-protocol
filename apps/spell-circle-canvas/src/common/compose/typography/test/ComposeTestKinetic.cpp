@@ -117,7 +117,7 @@ TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
          "them: the halo is not beneath the letterform";
 }
 
-TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
+TEST(ComposeKinetic, ADescribedProgressPaintsLive) {
   // The master progress takes the full Animatable treatment: a with()
   // transition animates the reveal and the node paints live while moving.
   Host host;
@@ -132,7 +132,7 @@ TEST(ComposeKinetic, TransitionedProgressPaintsLive) {
   host.composer.render(tree(0.001f));
   host.frame();
   host.composer.render(
-      tree(animate(sigil::motion::to(1.0f), {400ms, sigil::motion::ease::linear})));
+      tree(animate({.to = 1.0f, .duration = 400ms, .ease = sigil::motion::ease::linear})));
   host.frame(0.2);                                    // mid-ramp
   EXPECT_GT(host.composer.stats().nodesPainted, 0u);  // live while animating
   host.frame(0.3);                                    // settle

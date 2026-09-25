@@ -12,7 +12,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilmotion/clock/Ticker.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -183,7 +183,7 @@ TEST_F(WorldScene, ALaneRampsAPlacement) {
   const auto describe = [](float target) {
     return Element().key("root").children(
         {Element().key("body").mesh(card(10)).translateX(
-            motion::animate(motion::to(target), motion::Transition{200ms}))});
+            motion::animate({.to = target, .duration = 200ms}))});
   };
 
   const auto reach = [this] {

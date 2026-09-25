@@ -281,8 +281,8 @@ Element& Element::cache(core::Cache c) {
   return *this;
 }
 
-Element& Element::transition(const motion::Transition& t) {
-  m_node->nodeTransition = t;
+Element& Element::transition(const motion::Transition& transition) {
+  m_node->nodeTransition = transition;
   return *this;
 }
 

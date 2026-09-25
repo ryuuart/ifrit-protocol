@@ -240,8 +240,12 @@ class Element {
    *  @{ */
   /** What the author asked of this node's cache. */
   Element& cache(core::Cache c);
-  /** The node's default transition, for the plain constants on it. */
-  Element& transition(const motion::Transition& t);
+  /** The node's default transition, for the plain constants on it. A
+   *  duration alone is the common case: `.transition(320ms)`. */
+  Element& transition(const motion::Transition& transition);
+  Element& transition(motion::Duration duration) {
+    return transition(motion::Transition{.duration = duration});
+  }
   /** CASCADES THE ENTRANCES of this node's children as they mount, on
    *  the schedule SigilMotion speaks. The delay compounds down the
    *  subtree, so a grandchild enters after its parent did.

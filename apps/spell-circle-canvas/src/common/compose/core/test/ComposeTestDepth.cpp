@@ -601,9 +601,7 @@ TEST(ComposeDepth, ADepthLaneRampsLikeAnyOtherLane) {
            .rect(SkRect::MakeXYWH(50, 50, 100, 100))
            .fill(red())
            .rotateY(
-               animate(motion::to(90.0f),
-                       motion::Transition{.duration = 200ms,
-                                          .ease = motion::ease::linear}))}));
+               animate({.to = 90.0f, .duration = 200ms, .ease = motion::ease::linear}))}));
   host.frame(0.1);  // 45°: cos(45°) · 100 ≈ 71 px about the centre
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(70, 100), SK_ColorRED);

@@ -90,7 +90,7 @@ TEST(ComposeMaskGates, TheGateRetargetsAcrossAnIfElseInsteadOfMounting) {
       e.mask(by::spans(spans::upTo(0.8f)));
     else
       e.mask(by::spans(spans::upTo(
-          animate(sigil::motion::to(0.5f), {400ms, sigil::motion::ease::linear}))));
+          animate({.to = 0.5f, .duration = 400ms, .ease = sigil::motion::ease::linear}))));
     return stack().children({std::move(e)});
   };
   Host host(200, 200);
@@ -325,13 +325,7 @@ TEST(ComposeMaskGates, AGatedNodeKeepsTheScalarMemoAndPrunes) {
                        .key("ring")
                        .shape(geometry::shapes::circle())
                        .stroke(stroke(6.0f, Fill::color({1, 1, 1, 1})))
-                       .mask(by::spans(spans::upTo(animate(
-                           sigil::motion::through(
-                               {{std::chrono::milliseconds(0), 0.0f},
-                                {std::chrono::milliseconds(200), 0.6f},
-                                {std::chrono::milliseconds(600), 0.6f},
-                                {std::chrono::milliseconds(800), 1.0f}}),
-                           sigil::motion::ease::linear))))});
+                       .mask(by::spans(spans::upTo(animate({.from = 0.0f, .keyframes = {{.to = 0.6f, .duration = 200ms}, {.to = 0.6f, .duration = 400ms}, {.to = 1.0f, .duration = 200ms}}, .ease = sigil::motion::ease::linear}))))});
   };
   Host host;
   host.composer.render(ring());

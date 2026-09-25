@@ -210,7 +210,7 @@ bool paintTextureBake(PaintPass& pass) {
   // instead of re-rasterizing per frame. An entrance is the opposite
   // case: it is not an unknown scale drifting, it is a known scale being
   // travelled, and quantizing it bakes the node again at every rung it
-  // passes. A `from(a).to(b)` on a scale lane names b, so the bake is
+  // passes. A `{.from = a, .to = b}` on a scale lane names b, so the bake is
   // taken there and the blit MINIFIES through the entrance, which is the
   // sharp direction. A scale driven by a binding names nothing and keeps
   // the ladder.

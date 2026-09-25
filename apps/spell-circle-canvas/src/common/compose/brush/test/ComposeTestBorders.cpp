@@ -203,7 +203,7 @@ TEST(ComposeMotion, StaggerFromEndRunsBottomUp) {
   Host host;
   auto card = [] {
     return box().width(60).height(30).fill(red()).opacity(
-        animate(motion::from(0.0f).to(1.0f), {200ms, motion::ease::linear}));
+        animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear}));
   };
   host.composer.render(box()
                            .column()
@@ -227,11 +227,7 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
            .absolute()
            .inset(80, 60, 80, 100)
            .fill(red())
-           .translateX(animate(
-               sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
-                                       {std::chrono::milliseconds(200), -20.0f},
-                                       {std::chrono::milliseconds(400), 0.0f}}),
-               motion::ease::linear))}));
+           .translateX(animate({.from = 40.0f, .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}}, .ease = motion::ease::linear}))}));
   host.frame();
   EXPECT_EQ(host.pixel(145, 100), SK_ColorRED);  // starts at +40
   EXPECT_EQ(host.pixel(105, 100), SK_ColorBLACK);
@@ -247,11 +243,7 @@ TEST(ComposeMotion, KeyframesPlayTheMountPath) {
            .absolute()
            .inset(80, 60, 80, 100)
            .fill(red())
-           .translateX(animate(
-               sigil::motion::through({{std::chrono::milliseconds(0), 40.0f},
-                                       {std::chrono::milliseconds(200), -20.0f},
-                                       {std::chrono::milliseconds(400), 0.0f}}),
-               motion::ease::linear))}));
+           .translateX(animate({.from = 40.0f, .keyframes = {{.to = -20.0f, .duration = 200ms}, {.to = 0.0f, .duration = 200ms}}, .ease = motion::ease::linear}))}));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
 }
 
@@ -305,10 +297,7 @@ TEST(ComposeMotion, UnrelatedPatchDoesNotRestartAnEntrance) {
              .width(80)
              .height(80)
              .fill(std::move(f))
-             .opacity(animate(
-                 motion::from(0.0f).to(1.0f),
-                 {std::chrono::milliseconds(400), motion::ease::linear,
-                  std::chrono::milliseconds(300)}))});
+             .opacity(animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds(400), .delay = std::chrono::milliseconds(300), .ease = motion::ease::linear}))});
   };
   host.composer.render(tree(red()));
   host.frame(0.35);  // 50ms into the ramp (after the 300ms hold)
@@ -463,8 +452,7 @@ TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
   Host host;
   auto card = [](std::string_view key) {
     return box().width(60).height(20).fill(red()).key(key).opacity(
-        animate(motion::from(0.0f).to(1.0f),
-                {std::chrono::milliseconds(100), motion::ease::linear}));
+        animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds(100), .ease = motion::ease::linear}));
   };
   host.composer.render(box()
                            .column()

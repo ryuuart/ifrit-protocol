@@ -258,8 +258,7 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
                       .stagger = {.eachMs = 60, .durationMs = 200},
                       .unit = sigil::weave::Unit::Cluster,
                       .progress =
-                          animate(sigil::motion::to(target),
-                                  motion::Transition{.duration = 200ms})})});
+                          animate({.to = target, .duration = 200ms})})});
   };
   host.composer.render(describe(0.0f));
   host.frame();

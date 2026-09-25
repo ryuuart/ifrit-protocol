@@ -498,7 +498,7 @@ TEST(ComposePaint, AnimatingReportsTheTickersState) {
   bool seen = false;
   host.composer.render(
       box().children({box().width(40).height(40).fill(red()).opacity(
-                          animate(motion::from(0.0f).to(1.0f), {400ms})),
+                          animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
                       custom([&seen](SkCanvas&, const PaintContext& ctx) {
                         seen = ctx.animating;
                       })

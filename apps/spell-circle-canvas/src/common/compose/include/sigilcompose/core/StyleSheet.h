@@ -82,8 +82,12 @@ class Rule : public detail::Declaring,
    *  them: the element's `transition`, stated by the rule, so a class
    *  toggle that recolours or resizes an element eases rather than
    *  snapping. The element's own `transition()` stands over it, and
-   *  among matched rules the strongest that states one wins. */
+   *  among matched rules the strongest that states one wins. A duration
+   *  alone is the common case: `.transition(180ms)`. */
   Rule& transition(motion::Transition how);
+  Rule& transition(motion::Duration duration) {
+    return transition(motion::Transition{.duration = duration});
+  }
 
   // What a rule cannot carry, refused where it is written. Each is kept
   // on the element's description rather than in the style the cascade

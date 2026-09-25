@@ -114,7 +114,7 @@ BENCHMARK_F(Scoreboard, Frame_OneTransitionActive)(benchmark::State& state) {
   for ([[maybe_unused]] auto iteration : state) {
     state.PauseTiming();
     rows[10].score = ++flip;  // re-describe row 10 with a transition
-    auto list = box().column().gap(4).padding(16).transition({16000ms});
+    auto list = box().column().gap(4).padding(16).transition(16000ms);
     for (const Row& row : rows)
       list.children({memo(row, scoreRow).key(row.name)});
     host->composer.render(list);

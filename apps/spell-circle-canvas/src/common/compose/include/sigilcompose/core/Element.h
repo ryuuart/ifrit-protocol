@@ -30,7 +30,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animated.h>
-#include <sigilmotion/values/Keyframes.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Transition.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/ParagraphLayout.h>

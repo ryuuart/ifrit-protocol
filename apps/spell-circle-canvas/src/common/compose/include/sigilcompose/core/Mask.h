@@ -208,7 +208,7 @@ namespace by {
  *  stroke slot uses, here answering "how much of this exists yet" rather
  *  than "where does this pass go".
  *
- *      .mask(by::spans(spans::upTo(animate(from(0.f).to(1.f), {600ms}))))
+ *      .mask(by::spans(spans::upTo(animate({.from = 0.f, .to = 1.f, .duration = 600ms}))))
  *
  *  A boundary is a 1-D coordinate, so this gate addresses only the paint
  *  that TRACES the boundary — the surface and the marks. Selecting content

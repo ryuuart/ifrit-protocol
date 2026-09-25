@@ -68,12 +68,12 @@ TEST(ComposeSpanWrap, AnimatedEndpointsMarchAcrossTheSeamAndMatchTrim) {
     if (useLegacyTrim)
       e.mask(by::spans(
                  spans::wrap(0.0f, kWindow)
-                     .offset(animate(motion::from(0.0f).to(1.0f), {1000ms}))))
+                     .offset(animate({.from = 0.0f, .to = 1.0f, .duration = 1000ms}))))
           .stroke(stroke(6, red()));
     else
       e.stroke(spans::wrap(
-                   animate(motion::from(0.0f).to(1.0f), {1000ms}),
-                   animate(motion::from(kWindow).to(1.0f + kWindow), {1000ms})),
+                   animate({.from = 0.0f, .to = 1.0f, .duration = 1000ms}),
+                   animate({.from = kWindow, .to = 1.0f + kWindow, .duration = 1000ms})),
                stroke(6, red()));
     h->composer.render(stack().children({std::move(e)}));
     return h;
@@ -297,10 +297,10 @@ TEST(ComposeSpanTrim, AnimatedEndpointsRampTheSameWindow) {
     Element e = revealBox();
     if (useLegacyTrim)
       e.mask(by::spans(
-                 spans::upTo(animate(motion::from(0.0f).to(1.0f), {800ms}))))
+                 spans::upTo(animate({.from = 0.0f, .to = 1.0f, .duration = 800ms}))))
           .stroke(stroke(6, red()));
     else
-      e.stroke(spans::upTo(animate(motion::from(0.0f).to(1.0f), {800ms})),
+      e.stroke(spans::upTo(animate({.from = 0.0f, .to = 1.0f, .duration = 800ms})),
                stroke(6, red()));
     h->composer.render(stack().children({std::move(e)}));
     return h;
