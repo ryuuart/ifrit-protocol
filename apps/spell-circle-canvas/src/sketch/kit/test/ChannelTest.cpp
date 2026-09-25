@@ -9,7 +9,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
-#include <sigilmotion/bind/Bind.h>
+#include <sigilmotion/bind/Bound.h>
 #include <sigilmotion/values/Animated.h>
 #include <sigilsketch/kit/Channel.h>
 
