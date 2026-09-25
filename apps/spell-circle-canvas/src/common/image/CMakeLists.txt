@@ -48,5 +48,5 @@ sigil_doc_probes(image
   EXCLUDE "unofficial::skia::skia=a CMake target name, not a C++ name"
           "OIIO::ImageOutput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
           "OIIO::ImageInput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
-  FLOORS 14,33,18,22,0
+  FLOORS 14,33,17,24,0
   LIBRARIES SigilImage SigilIOHub)
