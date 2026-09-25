@@ -1743,13 +1743,8 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`skia::fill`, `shader`, `verticalRamp`, `unitRamp` and palette images"
-python = [
-  "material.fill",
-  "material.shader",
-  "material.verticalRamp",
-  "material.unitRamp",
-]
+native = "`skia::fill`, `shader` and palette images"
+python = ["material.fill", "material.shader"]
 
 [[section.surface.item]]
 native = "`PixelBuffer` with `Paint::buffer`"

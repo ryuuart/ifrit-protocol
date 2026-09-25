@@ -247,10 +247,10 @@ inline shapes::OutlineFunction dart() {
 inline Element artSitemap(sigil::weave::FontContext& f) {
   const float W = S(104), H = S(67);
   const SkPoint c{S(36), S(32)};
-  // glowUnit, not radialUnit: on a 2:1 box radialUnit's radius is a
-  // fraction of the HALF-DIAGONAL, so the whole band stack lands inside
-  // t < 0.71 and the outer bands never appear. glowUnit's radius is the
-  // shorter side, so t = 1 IS the ellipse edge and the bands sit where
+  // The closest side, not the farthest corner: on a 2:1 box a radius
+  // against the corner is a fraction of the HALF-DIAGONAL, so the whole
+  // band stack lands inside t < 0.71 and the outer bands never appear.
+  // Against the closest side the radius is the half side, so t = 1 IS the ellipse edge and the bands sit where
   // they were authored.
   Element vortex = rect(c.fX - S(35), c.fY - S(17), S(70), S(34))
                        .shape(shapes::annulus(0.30f))
@@ -361,9 +361,9 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
   const float rx = S(92), ry = S(58);
 
   auto swirlFill = [] {
-    // glowUnit again, for the reason artSitemap() gives: on this 1.4:1 box
-    // radialUnit would put the whole rainbow inside t < 0.71 and the outer
-    // band would never draw.
+    // The closest side again, for the reason artSitemap() gives: on this
+    // 1.4:1 box the farthest corner would put the whole rainbow inside
+    // t < 0.71 and the outer band would never draw.
     return material::skia::Paint::radialGradient(
         {0.5f, 0.5f}, 1.0f,
         {{0.0f, C5(0x101831)},
@@ -390,11 +390,11 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
   // ink() maps the ramp onto the TEXT METRICS (cap top to baseline),
   // so the teal -> yellow-green horizon crosses the capitals at any size
   // with no hand-positioned gradient. That is the whole reason it exists —
-  // but NOT with the Unit ramps. ink already installs a local matrix
-  // mapping [0,1]^2 onto the metric band, and linearUnit's own SkSL then
+  // but NOT in box units. ink already installs a local matrix mapping
+  // [0,1]^2 onto the metric band, and a box-unit gradient's own SkSL then
   // divides by uResolution (the NODE size) on top of it, so t collapses to
-  // ~0 and every glyph comes out the first stop, flat. The pixel-space
-  // linear() with unit-square endpoints is the spelling that works.
+  // ~0 and every glyph comes out the first stop, flat. A pixel-unit
+  // gradient with unit-square endpoints is the spelling that works.
   auto letters = [&](const char* s, float capPx, float targetW, float x,
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;

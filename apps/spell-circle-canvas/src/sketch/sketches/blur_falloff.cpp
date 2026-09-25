@@ -8,9 +8,9 @@
  * decides, so a focal falloff is one line and needs no pixel arithmetic.
  *
  *   1 a constant blur, for contrast: all legible or none of it.
- *   2 DEPTH OF FIELD — a 3-stop linearUnit down the box.
- *   3 A LENS EDGE — glowUnit from the centre: sharp on axis, soft at the
- *     rim.
+ *   2 DEPTH OF FIELD — a 3-stop box-unit linearGradient down the box.
+ *   3 A LENS EDGE — a closest-side radialGradient from the centre: sharp
+ *     on axis, soft at the rim.
  *   4 RACK FOCUS — the same map, maxSigma BOUND inside the declared
  *     range: no re-describe, and the Gaussian passes are held while only
  *     the mix between them moves.
@@ -26,9 +26,9 @@
  *   kFocal     — where the sharp line sits down panel 2's box, 0..1. At 0
  *                the falloff becomes a plain top-to-bottom ramp.
  *   kRackHz    — how fast panel 4 breathes.
- *   the map in dofMap() — swap linearUnit for radialUnit, or add stops,
- *                and only the FALLOFF changes: the effect, the content and
- *                the node are untouched.
+ *   the map in dofMap() — swap the linear gradient for a radial, or add
+ *                stops, and only the FALLOFF changes: the effect, the
+ *                content and the node are untouched.
  *
  * Of the three ways a scene can move, panel 4 is the driven one: nothing
  * re-describes, an Output does the moving. The bound Output IS the
@@ -104,9 +104,9 @@ material::skia::Paint dofMap() {
       {{0.0f, {1, 1, 1, 1}}, {kFocal, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
-/** A LENS EDGE: zero on axis, max at the inscribed circle. glowUnit is
- *  the one that means "fills this box" (radialUnit reaches the
- *  corners). */
+/** A LENS EDGE: zero on axis, max at the inscribed circle. The closest
+ *  side is the extent that means "fills this box" (the farthest corner
+ *  reaches the corners). */
 material::skia::Paint lensMap() {
   return material::skia::Paint::radialGradient(
       {0.5f, 0.5f}, 1.0f, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}},

@@ -2,8 +2,8 @@
  * paint_shelf — the paint leaves a plain gradient cannot spell, and the
  * two dials that decide what a paint's coordinates MEAN.
  *
- * `conical` is the offset-focus radial, and it is what a moved `radial`
- * is not: moving a radial's centre couples the falloff to the
+ * A radial with a `.focus` is the offset-focus radial, and it is what a
+ * moved radial is not: moving a radial's centre couples the falloff to the
  * displacement, so the whole ramp slides including its outer edge. Here
  * the outer circle stays put and only the hot spot moves, which is what
  * a highlight displaced off a sphere actually does.
@@ -26,8 +26,8 @@
  * both read one field that runs across the page.
  *
  * EDIT THESE FIRST
- *   kFocus  — how far the conical's hot spot is displaced, px.
- *   kWindow — the sweep's start and end angles.
+ *   kFocus  — how far the focused radial's hot spot is displaced, px.
+ *   kWindow — the conic's start and end angles.
  */
 
 // TAGS: Materials/Color
@@ -55,7 +55,7 @@ constexpr SkSize kCanvas = {1100, 1220};
 constexpr float kCell = 328;
 constexpr float kPicture = 210;
 
-constexpr float kFocus = 44;       // the conical's hot spot displacement, px
+constexpr float kFocus = 44;       // the focus's hot spot displacement, px
 constexpr float kWindowFrom = 45;  // the sweep window that does not fill a turn
 constexpr float kWindowTo = 315;
 
