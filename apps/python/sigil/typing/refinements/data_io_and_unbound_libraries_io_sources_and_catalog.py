@@ -1,4 +1,4 @@
-"""writeBytes, places, archives, AnyByteSource, TextCatalog and the network cache.
+"""writeBytes, places, archives, AnyByteSource and the network cache.
 
 Input contracts for the erased signatures of the
 data-io-and-unbound-libraries/io-sources-and-catalog package, and nothing else: a fragment is one

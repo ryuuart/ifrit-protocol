@@ -9,7 +9,6 @@ PATH_INPUT = "os.PathLike[str] | os.PathLike[bytes] | str | bytes"
 
 def register(table: Table) -> None:
     table.returns("_sigil.io.Hub", "fetch", "bytes | None")
-    table.returns("_sigil.io.Feed", "latest", "bytes | None")
     table.erased("_sigil.io.Hub", "write", "collections.abc.Buffer")
     table.erased("_sigil.io.ResourceLease", "__exit__", "object", "object", "object")
     table.declares(
@@ -23,6 +22,12 @@ def load(self, type: type[_sigil.data.Json], uri: str) -> _sigil.data.Json | Non
 def load(self, type: type[_sigil.data.Database], uri: str) -> _sigil.data.Database | None: ...
 @typing.overload
 def load(self, type: type[_sigil.image.ImageAsset], uri: str) -> _sigil.image.ImageAsset | None: ...
+""",
+    )
+    table.declares(
+        "_sigil.io.Hub",
+        "probe",
+        """def probe(self, type: type[_sigil.io.ResourceInfo], uri: str) -> _sigil.io.ResourceInfo | None: ...
 """,
     )
     table.erased("_sigil.io.Arrival", "__init__ bytes", "collections.abc.Buffer")

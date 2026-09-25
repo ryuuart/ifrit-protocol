@@ -2076,11 +2076,10 @@ bound = "`Hub.dispatch`"
 python = ["io.Hub.dispatch"]
 
 [[section.surface.item]]
-bound = "`Feed` with `receive`, `newest`, `latest`, status, `send`, `sendTo`, delivery and replay; owned `Arrival`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`"
+bound = "`Feed` with `receive`, `latest`, status, `send`, `sendTo`, delivery and replay; owned `Arrival`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`"
 python = [
   "io.Feed",
   "io.Feed.receive",
-  "io.Feed.newest",
   "io.Feed.latest",
   "io.Feed.send",
   "io.Feed.sendTo",
@@ -2117,8 +2116,8 @@ python = ["io.probeNetworkCache", "io.seedNetworkCache"]
 native = "hub image views with decode options, channels and probes"
 
 [[section.surface.item]]
-native = "archives, byte sources, `writeBytes` and `TextCatalog`"
-python = ["io.Hub.writeBytes", "io.TextCatalog"]
+native = "archives, byte sources and `writeBytes`"
+python = ["io.Hub.writeBytes"]
 
 [[section.surface.item]]
 native = "`Feed::receivedAt`"

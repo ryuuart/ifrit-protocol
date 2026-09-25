@@ -123,9 +123,9 @@ def setup(ctx: sketch.SketchContext) -> None:
     assert_type(hub, io.Hub)
     feed = hub.feed("udp://:27021", io.FeedPolicy(capacity=64))
     assert_type(feed, io.Feed)
-    assert_type(feed.latest(), bytes | None)
+    assert_type(feed.latest(), io.Arrival | None)
     assert_type(feed.receive(), io.Arrival | None)
-    if (arrival := feed.newest()) is not None:
+    if (arrival := feed.latest()) is not None:
         assert_type(arrival.bytes, bytes)
         assert_type(arrival.from_, str)
         assert_type(feed.sendTo(arrival.from_, memoryview(arrival.bytes)), bool)

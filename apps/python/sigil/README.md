@@ -650,8 +650,8 @@ def update(self, elapsed: float, ctx: SketchContext) -> None:
 ```
 
 `receive()` takes the next queued arrival and returns `None` immediately when
-the queue is empty. `newest()` reads the latest arrival without draining the
-queue, and `latest()` reads just its bytes. Arrivals own their bytes and carry
+the queue is empty. `latest()` reads the newest arrival whole without draining
+the queue. Arrivals own their bytes and carry
 `generation`, `at` and `from_`; they remain readable after the feed closes.
 `FeedPolicy(capacity=...)` bounds the queue, and `dropped()` reports overflow.
 Check `opened()`, `closed()` and `error()` when presenting connection status.

@@ -35,7 +35,7 @@ class IO(unittest.TestCase):
             self.assertEqual(before, b"first\x00value")
             self.assertEqual(hub.fetch("out://nested/value.bin"), b"second")
             self.assertEqual(hub.text("out://nested/value.bin"), "second")
-            self.assertEqual(hub.probe("out://nested/value.bin").byteSize, 6)
+            self.assertEqual(hub.probe(io.ResourceInfo, "out://nested/value.bin").byteSize, 6)
             self.assertEqual(
                 hub.resolve("out://nested/value.bin"),
                 Path(directory) / "nested/value.bin",
@@ -56,8 +56,8 @@ class IO(unittest.TestCase):
         arrival = feed.receive()
         self.assertEqual(arrival.bytes, b"third")
         self.assertIsNone(feed.receive())
-        self.assertEqual(feed.newest().bytes, b"third")
-        self.assertEqual(feed.latest(), b"third")
+        self.assertEqual(feed.latest().bytes, b"third")
+        self.assertEqual(feed.latest().generation, 3)
         del feed
         gc.collect()
         self.assertEqual(arrival.bytes, b"third")
@@ -70,7 +70,7 @@ class IO(unittest.TestCase):
     def test_zero_capacity_keeps_only_the_newest_snapshot(self):
         feed = io.Feed("fixture://latest", io.FeedPolicy(capacity=0))
         feed.deliver(b"data")
-        self.assertEqual(feed.latest(), b"data")
+        self.assertEqual(feed.latest().bytes, b"data")
         self.assertIsNone(feed.receive())
         self.assertEqual(feed.dropped(), 1)
         with self.assertRaises((TypeError, OverflowError)):

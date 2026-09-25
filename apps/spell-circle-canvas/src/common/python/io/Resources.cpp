@@ -297,7 +297,7 @@ void bindIO(py::module_& module) {
     auto feed = value.get();                       \
     return unlocked([&] { return feed->name(); }); \
   })
-          SIGIL_FEED_METHOD(receive) SIGIL_FEED_METHOD(newest)
+          SIGIL_FEED_METHOD(receive) SIGIL_FEED_METHOD(latest)
               SIGIL_FEED_METHOD(generation) SIGIL_FEED_METHOD(dropped)
                   SIGIL_FEED_METHOD(closed) SIGIL_FEED_METHOD(opened)
                       SIGIL_FEED_METHOD(error) SIGIL_FEED_METHOD(address)
@@ -310,11 +310,6 @@ void bindIO(py::module_& module) {
             unlocked([&] { feed->fail(std::move(why)); });
           },
           py::arg("why"))
-      .def("latest",
-           [](const FeedHandle& value) {
-             auto feed = value.get();
-             return copiedBytes(unlocked([&] { return feed->latest(); }));
-           })
       .def(
           "send",
           [](const FeedHandle& value, py::handle payload) {
@@ -404,6 +399,20 @@ void bindIO(py::module_& module) {
           },
           py::arg("type"), py::arg("uri"))
       .def(
+          "probe",
+          [](const HubHandle& value, py::handle type,
+             const std::string& uri) -> py::object {
+            if (!type.is(py::type::of<io::ResourceInfo>()))
+              throw py::type_error(
+                  "Hub.probe answers ResourceInfo; what bytes mean is "
+                  "loaded through the library that owns the meaning");
+            auto& hub = value.get();
+            auto info =
+                unlocked([&] { return hub.probe<io::ResourceInfo>(uri); });
+            return info ? py::cast(*info) : py::none();
+          },
+          py::arg("type"), py::arg("uri"))
+      .def(
           "retain",
           [](const HubHandle& value, const std::string& selector) {
             return std::make_unique<ResourceHandle>(
@@ -454,8 +463,7 @@ void bindIO(py::module_& module) {
         return unlocked([&] { return hub.name(uri); });    \
       },                                                   \
       py::arg("uri"))
-          SIGIL_HUB_URI(resolve) SIGIL_HUB_URI(text) SIGIL_HUB_URI(probe)
-              SIGIL_HUB_URI(select)
+          SIGIL_HUB_URI(resolve) SIGIL_HUB_URI(text) SIGIL_HUB_URI(select)
 #undef SIGIL_HUB_URI
       .def(
           "fetch",

@@ -102,6 +102,7 @@ class Queries:
         self.render(
             """import builtins
 from sigil.compose import box
+from sigil.io import ResourceInfo
 from sigil.sketch import sketch
 
 
@@ -112,7 +113,7 @@ class Resources:
         uri = ctx.local("hello.txt")
         text = hub.text(uri)
         stored = hub.fetch(uri)
-        info = hub.probe(uri)
+        info = hub.probe(ResourceInfo, uri)
         names = hub.select(ctx.local("*.txt"))
         missing = ctx.assets.image(ctx.local("missing.png"))
         builtins._sigil_runtime = (ctx.assets, hub, text, stored, info, names, missing)
