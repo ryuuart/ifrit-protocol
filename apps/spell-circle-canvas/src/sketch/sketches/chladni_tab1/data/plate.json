@@ -1,0 +1,69 @@
+{
+  "ink": {
+    "paper": "#e3d7b6",
+    "paper-edge": "#a08757",
+    "plate-tone": "#6b5a3e0d",
+    "ink": "#211c14",
+    "ink-line": "#362e23",
+    "ink-soft": "#3a3125d9",
+    "fur": "#1a150f",
+    "fox": "#9c7f571a",
+    "fox-low": "#94764c17"
+  },
+  "scan": { "width": 1600, "height": 2072, "scale": 0.975, "radius": 179 },
+  "frame": { "left": 48, "top": 153, "right": 1517, "bottom": 1977, "gap": 11 },
+  "platemark": { "left": 22, "top": 36, "right": 1542, "bottom": 2003 },
+  "title": { "words": "Tab. I.", "centre": [1436, 106] },
+  "credit": { "words": "Capieux. sculps. 1786.", "centre": [1359, 1945] },
+  "figures": [
+    { "number": 1, "centre": [289, 394], "kind": "star", "points": 2, "inner": 0.05, "waist": 0.0, "lines": 1, "grains": 240,
+      "letters": [[0, 1.14, "n"], [90, 1.16, "m"], [180, 1.15, "p"], [270, 1.16, "q"]] },
+    { "number": 2, "centre": [776, 392], "kind": "star", "points": 4, "inner": 0.11, "waist": 0.16, "lines": 2, "grains": 300,
+      "letters": [[0, 1.14, "g"], [45, 1.15, "p"], [90, 1.16, "q"], [135, 1.15, "n"],
+                  [180, 1.15, "t"], [225, 1.15, "m"], [270, 1.16, "r"], [315, 1.15, "f"]] },
+    { "number": 3, "centre": [1253, 392], "kind": "valleys", "points": 4, "inner": 0.35, "waist": 0.14, "lines": 2, "grains": 2500,
+      "letters": [[0, 1.14, "g"], [45, 1.15, "p"], [90, 1.16, "q"], [135, 1.15, "n"],
+                  [180, 1.15, "t"], [225, 1.15, "m"], [270, 1.16, "r"], [315, 1.15, "f"]] },
+    { "number": 4, "centre": [293, 845], "kind": "star", "points": 6, "inner": 0.18, "waist": 0.13, "lines": 3, "grains": 360,
+      "letters": [[0, 1.14, "h"], [30, 1.14, "q"], [60, 1.15, "g"], [90, 1.16, "r"],
+                  [120, 1.15, "t"], [150, 1.15, "p"], [180, 1.15, "f"], [210, 1.15, "b"],
+                  [240, 1.15, "o"], [270, 1.16, "ϑ"], [300, 1.15, "n"], [330, 1.14, "m"]] },
+    { "number": 5, "centre": [776, 843], "kind": "valleys", "points": 6, "inner": 0.66, "waist": 0.12, "lines": 3, "grains": 2100,
+      "letters": [[0, 1.14, "h"], [90, 1.16, "r"], [150, 1.15, "p"],
+                  [180, 1.15, "f"], [240, 1.15, "o"], [300, 1.15, "n"]] },
+    { "number": 6, "centre": [1261, 843], "kind": "star", "points": 8, "inner": 0.24, "waist": 0.12, "lines": 4, "semitones": 24.0, "grains": 420,
+      "letters": [] },
+    { "number": 7, "centre": [297, 1304], "kind": "arcs", "lines": 4, "grains": 300,
+      "arcs": [
+        { "diameter": 0 },
+        { "bearing": 297, "compass": 1.10, "radius": 0.58 },
+        { "bearing": 63, "compass": 1.10, "radius": 0.58 },
+        { "bearing": 180, "compass": 1.50, "radius": 1.068 }
+      ],
+      "letters": [[312, 1.15, "n"], [48, 1.15, "f"], [163, 0.34, "p"], [205, 1.12, "s"], [158, 1.12, "r"]] },
+    { "number": 8, "centre": [780, 1292], "kind": "star", "points": 10, "inner": 0.36, "waist": 0.1, "lines": 5, "semitones": 26.7, "grains": 480,
+      "letters": [] },
+    { "number": 9, "centre": [1257, 1296], "kind": "arcs", "lines": 5, "grains": 320,
+      "arcs": [
+        { "diameter": 0 },
+        { "bearing": 306.4, "compass": 1.145, "radius": 0.495 },
+        { "bearing": 53.6, "compass": 1.145, "radius": 0.495 },
+        { "bearing": 180, "compass": 2.07, "radius": 2.00 },
+        { "bearing": 180, "compass": 1.52, "radius": 1.00 }
+      ],
+      "letters": [[308, 1.15, "k"], [52, 1.15, "n"], [235, 0.14, "p"], [193, 0.40, "q"], [202, 1.13, "o"], [165, 1.11, "m"]] },
+    { "number": 10, "centre": [305, 1752], "kind": "arcs", "lines": 5, "grains": 320,
+      "arcs": [
+        { "bearing": 306, "compass": 1.058, "radius": 0.606 },
+        { "bearing": 54, "compass": 1.058, "radius": 0.606 },
+        { "bearing": 0, "compass": 1.933, "radius": 1.613 },
+        { "bearing": 180, "compass": 1.836, "radius": 1.536 },
+        { "bearing": 180, "compass": 1.540, "radius": 0.850 }
+      ],
+      "letters": [[322, 1.16, "t"], [37, 1.15, "n"], [325, 0.44, "r"], [35, 0.44, "s"], [285, 1.12, "k"], [65, 1.13, "l"]] },
+    { "number": 11, "centre": [780, 1744], "kind": "star", "points": 12, "inner": 0.42, "waist": 0.09, "lines": 6, "semitones": 32.7, "grains": 540,
+      "letters": [] },
+    { "number": 12, "centre": [1257, 1748], "kind": "star", "points": 14, "inner": 0.46, "waist": 0.08, "lines": 7, "semitones": 37.7, "grains": 600,
+      "letters": [] }
+  ]
+}
