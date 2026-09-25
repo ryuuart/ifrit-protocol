@@ -333,6 +333,8 @@ at fraction 1 ends within a pixel of where it starts, for two runs of
 different lengths in the same box, and that a spacing fit leaves the
 font size unchanged.
 
+Also wanted by `cosmati`: the onyx roundel's brass ring is sized by eye to come near its seam, and its gap comment states the constraint.
+
 ## A nib brush lays white discs inside a compose pen node
 
 `draw::brush::paint` with a `Tip::Nib` tool (colour cinnabar, opacity 1,
@@ -616,6 +618,10 @@ own `stroke()` appends to, or overrides, the rule's by one stated order.
 Wanted by `elastic_type`; every sketch that frames cells or cards with a
 class (`black_watch` states its keylines inline on each node).
 
+Also wanted by `nightingale_coxcomb`: the key stone's outline round every wedge, the twelve hairline radials, each month's rim flash and the index needle state their stroke widths inline beside the `.key`, `.spoke`, `.flash` and `.needle` classes that already carry their ink.
+
+Also wanted by `cosmati`: every field and every roundel restates its marble fillet inline where one `.fillet` class would carry it.
+
 ## Two skew angles are one shear pair, where CSS's `skewX(a) skewY(a)` composes two shears
 
 A glyph's `skewXDeg` and `skewYDeg` (`TextFxPainting.cpp`, the per-glyph
@@ -834,7 +840,6 @@ The sketch keeps the call, with a comment beside the ground stating
 the constraint, so the grain appears when the kit's grain holds its
 strength on a dark ground.
 
-
 ## `sigillum_aemeth` still marks a workaround for an echo that now follows the path
 
 `src/sketch/sketches/sigillum_aemeth/sigillum_aemeth.cpp` (around line
@@ -853,3 +858,158 @@ What the sketch evidently intends is every lettered run incised alike:
 moves where the seven side runs gain their lit lip below and to the
 right of each letter, and nowhere else; that move, explained in the
 commit, is the check.
+
+## A colour is read from its CSS text only by the pen library, so a sketch whose palette is in a words file borrows SigilDraw or parses hex by hand
+
+`sigil::draw::parseColor(std::string_view)` (`sigildraw/Color.h`) reads
+`#rgb`, `#rgba`, `#rrggbb`, `#rrggbbaa` and the named colours, and it is
+the only door in the tree that turns a colour's text into a
+`material::Color`. SigilMaterial, which owns what a colour means, offers
+`material::rgb(uint32_t)` and SigilCompose `hexColor(uint32_t)`, both
+from an integer. So a compose sketch that keeps its palette in `data/`,
+as a sketch keeps its words, either links the p5 pen library for one
+function (`chladni_tab1` does, in `Figures.h`) or writes
+`std::stoul(hex.substr(1), nullptr, 16)` itself: `black_watch`'s
+`Tartan.h` `colourOf`, `chevreul_circle` (its colour column) and
+`thaumonomicon` each do, and none of the three reads an alpha or a
+three-digit form.
+
+It evidently means one reading of a colour's text in the library that
+owns colour, with `parseColor` moving to SigilMaterial (and SigilDraw
+calling it there), so a palette written as `"#3a3125b8"` in a words file
+means the same colour in every sketch and every runtime, and a JSON
+value a sheet's custom property is set from needs no local helper.
+
+A test should assert that `#e3d7b6`, `#e3d7b6ff`, `#ed7` (as `#eedd77`)
+and `#3a3125b8` read to the colours and alphas their digits say, that a
+named colour reads as SigilDraw reads it today, that text it cannot read
+answers opaque black as today, and that SigilDraw's `parseColor` answers
+the same colour for each.
+
+Wanted by `chladni_tab1`, `black_watch`, `chevreul_circle` and
+`thaumonomicon`.
+Also wanted by `cosmati` (its nine quarries and four inks live in `data/pavement.json` and it links the pen library for one function), `chevreul_circle` and `thaumonomicon` (each parses hex by hand over `std::stoul`, without alpha), beside `black_watch` and `nightingale_coxcomb`.
+
+## A gradient or grained fill compares by its shader's address, so the same fill described again is a new paint and its bake is taken again
+
+`Fill::operator==` (`sigilcompose/core/Paint.h`) compares `shaderValue`,
+an `sk_sp<SkShader>`, by pointer. `linearGradient`, `radialGradient`
+(`core/Paint.h`), `kit::vignette` and `kit::grained`
+(`kit/Ground.h`) each mint a new shader on every call. So a node filled
+with one of them compares unequal to itself on the next describe, even
+with every colour, stop and point the same: it is re-patched, and a
+`Cache::Texture` over it is baked again. `chladni_tab1`'s leaf — a
+1560 x 2020 grained, vignetted, gutter-shaded paper under a
+`Cache::Texture` — was baked again on every describe while the sketch
+described its sand each frame, and its capture took minutes instead of
+seconds until the leaf was built once in `setup()` and held; its fan
+gradients are held for the same reason.
+
+The fills are documented as ordinary values ("Both are ordinary
+`Fill`s"), so they evidently mean to compare as the values they were
+made from: a gradient by its points, colours, stops and tiling, a
+grain by its colour, amount and frequency, the way a
+`geometry::shapes::` generator compares by its fields.
+
+A test should describe a box filled with `radialGradient({50, 50}, 40,
+{a, b}, {0.2f, 1})` under `Cache::Texture`, draw, describe the same box
+with a second identical call, draw again, and assert the second draw
+takes no bake (the stats' cache writes are zero); and the same for
+`linearGradient`, `kit::vignette` and `kit::grained`; and that changing
+one stop does take a bake.
+
+Wanted by `chladni_tab1` (holds its leaf element, its twelve fan fills
+and the two gradients its wavefronts are inked with as members for this
+reason alone); any sketch that describes again from `update()` over a
+gradient or grained ground meets it.
+Also wanted by `kumiko_asanoha`, which holds its washi material as a member so the fill keeps one identity across describes, and `black_watch`, which holds its board and yarn paints for the same reason.
+
+## A node filled with a material recipe takes its bake again on every describe, even when the paint is held
+
+`chladni_tab1` fills its stars with `ink`, a `material::skia::Paint`
+held as a member and built once in `setup()` as
+`Paint::blend({{Paint::solid(ink), kSrc}, {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)), kSoftLight}})`,
+each star under `Cache::Texture`. Describing the unchanged tree again —
+the same members, the same held paint — makes the frame of each describe
+several times the steady frame, and that frame's bakes are the stars':
+with the stars filled by `Fill::var("ink")`, or by a `Paint::blend` of
+two solids, the same describes leave the frame flat, and with
+`Paint::recipe(field::grain(...))` alone as the fill they spike as the
+blend does. So the recipe-backed layer, not the blend, is what keeps the
+node from pruning or keeps its texture from surviving the prune. Where
+it goes wrong was not traced: `.fill(Paint)` stores a geometry-dependent
+paint in the live material slot, and `materialEqual` answers false for
+any slot whose paint reports `isAnimated()`; `field::grain`'s shader
+reads neither time nor content scale, so either the recipe reports a
+frame input it does not read, or the live slot's texture is dropped on
+re-patch whatever the compare answers.
+
+It evidently means what `Paint::operator==` documents — "re-running the
+same describe code yields EQUAL paints" — and what `materialEqual`
+states for geometry-dependent static materials: they "compare by recipe,
+so identical re-describes prune like any other static material". A
+grain whose recipe, bytes and bindings are the same is the same paint,
+and a texture over it stands until something it depends on changes.
+
+A test should fill a 200 x 200 box with
+`Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f))` under
+`Cache::Texture`, draw, describe the identical tree, draw again and
+assert the second draw takes no bake; the same with the recipe as the
+soft-light layer of a `Paint::blend` over a solid; and that changing the
+grain's frequency does take a bake.
+
+Wanted by `chladni_tab1`, which for this reason shows the bowed figure's
+live sand by a stepped value over two stampings of every figure's pool,
+a baked one and a live one, instead of describing the tree again when
+the bow moves to the next figure; any sketch that describes again over a
+grained ink or ground meets it.
+
+## An echo and a shadow take their colour as a value, so neither can follow the sheet's ink
+
+`LayerStyle::echo(SkVector offset, material::Color color)`
+(`sigilcompose/core/Shape.h`) and `shadow(material::Color color, SkVector
+offset, float blur)` (`sigilcompose/brush/Decorations.h`, the `Shadow`
+value) hold a colour, not a `SurfacePaint`, so neither can be written as
+`Fill::currentInk()` or `Fill::var(name)`. A stroke's `PathFormat` already
+takes a `SurfacePaint` whose default is the ink in force, and
+`textStroke` resolves a `Fill::var` against the tree; an echo under a
+title and a glow under a needle are the same kind of mark and cannot.
+
+So a sketch whose colours live in a sheet's custom properties still reads
+them out of its own palette to hand to these two: `nightingale_coxcomb`
+passes its palette's ink to the echo under each display line and its
+palette's brass to the needle's glow, and a theme swapped by a different
+token sheet would leave both behind.
+
+They are evidently meant to paint like every other decoration: a
+`SurfacePaint` defaulting to the ink in force, resolved at paint against
+the node's cascade. A test should set `ink(var("accent"))` on a root with
+`var("accent", red)`, give a child text `layerStyle(LayerStyle::echo({1,
+1}, Fill::currentInk()))`, and assert the echo's pixels are red; and the
+same for a `shadow(Fill::var("accent"), …)` under a box. This is the same
+defect as `textFx::tint` taking its colours as values, in two more places.
+Wanted by `nightingale_coxcomb`.
+
+## A custom property holds a colour or a length, never a paint, so a palette of materials cannot be tokens
+
+`compose::VarValue` is `std::variant<material::Color, Dimension>`
+(`core/Cascade.h`), so `var(name, …)` on a node or a rule takes a colour or a
+length and nothing else. A study whose palette is MATERIALS — `cosmati`'s nine
+quarried stones, each a `material::kit::stone` recipe, and the brass its
+letters are set in — cannot state them once as custom properties at the root
+and read them with `fill(Fill::var("porphyry"))`; the stones are built in code
+by a helper and handed to every piece's `fill()` as values, and a class
+cannot name "the porphyry" without restating the recipe.
+
+It evidently means CSS's custom properties, which hold any value a property
+takes — a gradient or an image as readily as a colour: a `var` holding a
+`SurfacePaint` (colour, gradient, shader or material), resolved by `fill`,
+`ink` and a stroke's paint exactly as a colour var is, so a quarry is a token
+and a class is its whole look.
+
+A test should state `rule(":root").var("stone", material::kit::stone({}))`,
+fill a box with `Fill::var("stone")` under it, and assert the box paints what
+`fill(material::kit::stone({}))` paints; and that reading the same property
+as a length leaves the target standing and says so once, as a colour var read
+as a length does today. Wanted by `cosmati`; `black_watch` holds its board and
+yarn paints as members for the same reason.
