@@ -83,7 +83,7 @@ std::shared_ptr<Feed> Hub::feed(std::string_view uri, FeedPolicy policy) {
         // what tries it again, into the same feed every reader is
         // already holding. One that has a door is handed back as it
         // stands, and so is one that has closed.
-        if (held->opened() || held->closed()) return held;
+        if (held->state().readiness != ReadyState::Connecting) return held;
         made = std::move(held);
         again = true;
         break;

@@ -45,7 +45,7 @@ using Sent = std::vector<std::vector<std::byte>>;
 sigil::io::Transport intoVector(std::shared_ptr<Sent> sent) {
   return [sent](std::string_view uri, sigil::io::Inlet) {
     sigil::io::OpenedFeed opened;
-    opened.address = std::string(uri);
+    opened.localAddress = std::string(uri);
     opened.send = [sent](const Bytes& bytes) {
       sent->emplace_back(bytes.begin(), bytes.end());
       return true;

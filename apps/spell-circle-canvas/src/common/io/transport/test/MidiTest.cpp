@@ -101,8 +101,8 @@ class IOMidi : public ::testing::Test {
    *  that asked, which knows whether it needed one. */
   void SetUp() override {
     const std::shared_ptr<Feed> asking = makePort(uniqueName("asking"));
-    if (!asking->error().empty() && noMidiAtAll(asking->error()))
-      GTEST_SKIP() << "this machine has no midi to give: " << asking->error();
+    if (!asking->state().error.empty() && noMidiAtAll(asking->state().error))
+      GTEST_SKIP() << "this machine has no midi to give: " << asking->state().error;
   }
 
   /** A port of this machine's own, made rather than found, for the
@@ -118,17 +118,17 @@ class IOMidi : public ::testing::Test {
 TEST_F(IOMidi, AMessageCrossesFromAPortToTheInputThatOpenedItByName) {
   const std::string name = uniqueName("keys");
   const std::shared_ptr<Feed> keys = makePort(name);
-  if (!keys->error().empty())
+  if (!keys->state().error.empty())
     GTEST_SKIP() << "this machine will not give this case a port of its own: "
-                 << keys->error();
-  EXPECT_TRUE(keys->address().starts_with("midi://out/")) << keys->address();
+                 << keys->state().error;
+  EXPECT_TRUE(keys->state().localAddress.starts_with("midi://out/")) << keys->state().localAddress;
 
   // A port takes a moment to appear to everything else on the machine,
   // so the input is opened until it opens rather than once.
   std::shared_ptr<Feed> pads;
   ASSERT_TRUE(waitUntil([&] {
     pads = hub.feed("midi://in/" + name);
-    if (pads->error().empty()) return true;
+    if (pads->state().error.empty()) return true;
     pads.reset();
     return false;
   })) << "no input port was made for "
@@ -136,8 +136,8 @@ TEST_F(IOMidi, AMessageCrossesFromAPortToTheInputThatOpenedItByName) {
 
   // The input names the port by the whole of the port's own name, which
   // is the system's spelling of it and not the piece the URI asked for.
-  EXPECT_TRUE(pads->address().starts_with("midi://in/")) << pads->address();
-  EXPECT_NE(pads->address().find(name), std::string::npos) << pads->address();
+  EXPECT_TRUE(pads->state().localAddress.starts_with("midi://in/")) << pads->state().localAddress;
+  EXPECT_NE(pads->state().localAddress.find(name), std::string::npos) << pads->state().localAddress;
 
   // A note on the middle C of the first channel, struck hard.
   EXPECT_TRUE(keys->send(bytesOf({0x90, 0x3C, 0x64})));
@@ -153,20 +153,20 @@ TEST_F(IOMidi, AMessageCrossesFromAPortToTheInputThatOpenedItByName) {
   EXPECT_EQ(arrival->payload->span()[2], static_cast<std::byte>(0x64));
   // Every arrival names the port it came in at, spelled the way the URI
   // that opened it is.
-  EXPECT_EQ(arrival->sender(), pads->address()) << arrival->sender();
+  EXPECT_EQ(arrival->sender(), pads->state().localAddress) << arrival->sender();
 }
 
 TEST_F(IOMidi, AnInputIsOneWay) {
   const std::string name = uniqueName("oneway");
   const std::shared_ptr<Feed> made = makePort(name);
-  if (!made->error().empty())
+  if (!made->state().error.empty())
     GTEST_SKIP() << "this machine will not give this case a port of its own: "
-                 << made->error();
+                 << made->state().error;
 
   std::shared_ptr<Feed> pads;
   ASSERT_TRUE(waitUntil([&] {
     pads = hub.feed("midi://in/" + name);
-    if (pads->error().empty()) return true;
+    if (pads->state().error.empty()) return true;
     pads.reset();
     return false;
   })) << "no input port was made for "
@@ -176,7 +176,7 @@ TEST_F(IOMidi, AnInputIsOneWay) {
   // its own: there is nothing to send through an input and nobody it
   // could name to answer.
   EXPECT_FALSE(pads->send(bytesOf({0x90, 0x3C, 0x64})));
-  EXPECT_FALSE(pads->sendTo(pads->address(), bytesOf({0x90, 0x3C, 0x64})));
+  EXPECT_FALSE(pads->send(bytesOf({0x90, 0x3C, 0x64}), {.to = pads->state().localAddress}));
 }
 
 TEST_F(IOMidi, ANameNoPortAnswersToOpensNothingAndSaysWhichPortsExist) {
@@ -187,11 +187,11 @@ TEST_F(IOMidi, ANameNoPortAnswersToOpensNothingAndSaysWhichPortsExist) {
   const std::string standing = uniqueName("standing");
   const std::shared_ptr<Feed> made = makePort(standing);
   bool listed = false;
-  if (made->error().empty()) {
+  if (made->state().error.empty()) {
     std::shared_ptr<Feed> seen;
     listed = waitUntil([&] {
       seen = hub.feed("midi://in/" + standing);
-      if (seen->error().empty()) return true;
+      if (seen->state().error.empty()) return true;
       seen.reset();
       return false;
     });
@@ -199,43 +199,43 @@ TEST_F(IOMidi, ANameNoPortAnswersToOpensNothingAndSaysWhichPortsExist) {
 
   const std::string missing = uniqueName("nobody-has-this");
   const std::shared_ptr<Feed> nowhere = hub.feed("midi://in/" + missing);
-  EXPECT_FALSE(nowhere->error().empty());
-  EXPECT_TRUE(nowhere->address().empty());
+  EXPECT_FALSE(nowhere->state().error.empty());
+  EXPECT_TRUE(nowhere->state().localAddress.empty());
   EXPECT_FALSE(nowhere->latest().has_value());
   // The sentence carries what was looked for, so a name typed from
   // memory is seen to be the thing that was wrong.
-  EXPECT_NE(nowhere->error().find(missing), std::string::npos)
-      << nowhere->error();
+  EXPECT_NE(nowhere->state().error.find(missing), std::string::npos)
+      << nowhere->state().error;
   // …and the ports that DO exist, so the name it should have been is
   // read off the same sentence. The port this case made is one of them,
   // however many others are plugged in.
   if (listed)
-    EXPECT_NE(nowhere->error().find(standing), std::string::npos)
-        << nowhere->error();
+    EXPECT_NE(nowhere->state().error.find(standing), std::string::npos)
+        << nowhere->state().error;
 }
 
 TEST_F(IOMidi, AUriThatNamesNoPortAtAllOpensNothingAndSaysWhy) {
   const std::shared_ptr<Feed> sideways = hub.feed("midi://sideways/keys");
-  EXPECT_FALSE(sideways->error().empty());
-  EXPECT_TRUE(sideways->address().empty());
+  EXPECT_FALSE(sideways->state().error.empty());
+  EXPECT_TRUE(sideways->state().localAddress.empty());
   // A port to MAKE is a port to call something, so there is no first
   // port for it to fall back on.
   const std::shared_ptr<Feed> unnamed = hub.feed("midi://in/virtual:");
-  EXPECT_FALSE(unnamed->error().empty());
-  EXPECT_TRUE(unnamed->address().empty());
+  EXPECT_FALSE(unnamed->state().error.empty());
+  EXPECT_TRUE(unnamed->state().localAddress.empty());
 }
 
 TEST_F(IOMidi, DroppingTheLastHolderOfAFeedGivesUpItsPort) {
   const std::string name = uniqueName("given-back");
   {
     const std::shared_ptr<Feed> made = makePort(name);
-    if (!made->error().empty())
+    if (!made->state().error.empty())
       GTEST_SKIP() << "this machine will not give this case a port of its own: "
-                   << made->error();
+                   << made->state().error;
     std::shared_ptr<Feed> pads;
     ASSERT_TRUE(waitUntil([&] {
       pads = hub.feed("midi://in/" + name);
-      if (pads->error().empty()) return true;
+      if (pads->state().error.empty()) return true;
       pads.reset();
       return false;
     })) << "no input port was made for "
@@ -248,14 +248,14 @@ TEST_F(IOMidi, DroppingTheLastHolderOfAFeedGivesUpItsPort) {
   // so this is waited for.
   ASSERT_TRUE(waitUntil([&] {
     const std::shared_ptr<Feed> gone = hub.feed("midi://in/" + name);
-    return !gone->error().empty();
+    return !gone->state().error.empty();
   })) << "the port outlived the feed that made it";
 
   // And the name is free to be made again, which is the other half of
   // the same fact.
   const std::shared_ptr<Feed> again = makePort(name);
-  EXPECT_TRUE(again->error().empty()) << again->error();
-  EXPECT_FALSE(again->address().empty());
+  EXPECT_TRUE(again->state().error.empty()) << again->state().error;
+  EXPECT_FALSE(again->state().localAddress.empty());
 }
 
 }  // namespace

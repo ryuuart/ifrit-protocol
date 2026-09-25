@@ -392,7 +392,7 @@ struct WebRtcSky {
                 .undecodable = phone.undecodable(),
                 .turns = turns,
                 .messages = messages,
-                .address = phone.address(),
+                .address = phone.localAddress(),
                 .trouble = phone.error()};
     if (now == shown) return false;
     shown = std::move(now);

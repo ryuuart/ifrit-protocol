@@ -246,7 +246,7 @@ struct SerialSensor {
                 .lux = readLux,
                 .tilt = readTilt,
                 .heard = heard,
-                .address = sensor.address(),
+                .address = sensor.localAddress(),
                 .trouble = sensor.error()};
     if (now == shown) return false;
     shown = std::move(now);

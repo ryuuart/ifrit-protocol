@@ -457,7 +457,7 @@ OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
                          fullName;
 
   OpenedFeed opened;
-  opened.address = door->delivery->sender;
+  opened.localAddress = door->delivery->sender;
   opened.close = [door] { door->close(); };
   if (wanted->direction == Direction::Out) {
     opened.send = [door](const Bytes& message) { return door->send(message); };

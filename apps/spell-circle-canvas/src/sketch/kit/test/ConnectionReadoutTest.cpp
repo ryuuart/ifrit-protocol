@@ -38,7 +38,7 @@ using sigil::sketch::kit::test::sameDrawing;
 sigil::io::Transport binding(std::string address) {
   return [address](std::string_view, sigil::io::Inlet) {
     sigil::io::OpenedFeed opened;
-    opened.address = address;
+    opened.localAddress = address;
     opened.send = [](const Bytes&) { return true; };
     return opened;
   };
@@ -138,8 +138,8 @@ TEST(SketchKitConnectionReadout,
   // says why.
   Hub hub;
   data::Connection sky(hub, "ws://:8851/sky");
-  ASSERT_FALSE(sky.feed()->opened());
-  ASSERT_TRUE(sky.address().empty());
+  ASSERT_FALSE(sky.feed()->state().isOpen());
+  ASSERT_TRUE(sky.localAddress().empty());
   const std::string why = sky.error();
   ASSERT_FALSE(why.empty());
 

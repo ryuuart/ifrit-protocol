@@ -618,7 +618,7 @@ which is what a replayed recording has, holding the messages and not who
 sent them. A message that could not be read leaves the sender standing
 exactly as it leaves `latest()` standing. `Connection::sender()` names
 that sender, so a door holding many peers keys each one's state by it and
-answers one later through the feed's own sendTo.
+answers one later through the feed's own send to one sender.
 
 **The newest of one name is a reading, not a handler.** That reading is
 `Connection::latest(what)`: the newest message named `what`, under the

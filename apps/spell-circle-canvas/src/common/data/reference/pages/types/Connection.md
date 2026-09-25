@@ -200,7 +200,7 @@ transport names an arrival's sender: the sender of the message being
 handled inside a handler, of the newest message outside one, and empty
 where there is nobody to answer. A door that holds many peers keys each
 one's own state by it, and answers one of them later — after frames
-have been drawn — through the feed's own sendTo.
+have been drawn — through the feed's own send to one sender.
 
 ### What a reader can ask about the door
 

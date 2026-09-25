@@ -565,10 +565,10 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
       kindOf<Listening>()->open(fonts(), store, true, "listening");
   ASSERT_NE(session, nullptr);
   ASSERT_NE(Listening::sky, nullptr);
-  EXPECT_TRUE(Listening::sky->error().empty());
+  EXPECT_TRUE(Listening::sky->state().error.empty());
   // A session that has drawn no frame has reached no scene time, so the
   // recording has not started.
-  EXPECT_EQ(Listening::sky->revision(), 0u);
+  EXPECT_EQ(Listening::sky->state().revision, 0u);
 
   const sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 48));
@@ -578,10 +578,10 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   // Thirty-six frames of a sixtieth is six tenths of a scene second: the
   // two arrivals recorded by then have been delivered, and the one at
   // five seconds is still ahead.
-  EXPECT_EQ(Listening::sky->revision(), 2u);
+  EXPECT_EQ(Listening::sky->state().revision, 2u);
   ASSERT_TRUE(Listening::sky->latest().has_value());
   EXPECT_EQ(Listening::sky->latest()->payload->asText(), "noon");
-  EXPECT_FALSE(Listening::sky->closed());
+  EXPECT_NE(Listening::sky->state().readiness, sigil::io::ReadyState::Closed);
   // The store outlives nothing here: the feed is let go before the
   // session that opened it and the hub it was opened on.
   Listening::sky.reset();

@@ -388,7 +388,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
   }
 
   OpenedFeed opened;
-  opened.address = address;
+  opened.localAddress = address;
   opened.close = [door] { door->close(); };
   // A CABLE HOLDS ONE PEER AND IT IS TWO WAYS: what is at the other end
   // is the only thing there, so a send reaches it and there is no

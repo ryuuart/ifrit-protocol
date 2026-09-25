@@ -83,7 +83,7 @@ void Wires::tick(double seconds) {
   m_vitals.reserve(m_watches.size());
   for (Watch& watch : m_watches) {
     io::Feed& feed = *watch.feed;
-    watch.samples.push_back({seconds, feed.revision()});
+    watch.samples.push_back({seconds, feed.state().revision});
     // The oldest sample kept is the newest one that is already a whole
     // second old, so the span a rate is read over covers a second as
     // soon as a second has been ticked and never more than one tick
@@ -98,13 +98,13 @@ void Wires::tick(double seconds) {
 
     Vitals vitals;
     vitals.uri = feed.uri();
-    vitals.address = feed.address();
-    vitals.error = feed.error();
+    vitals.address = feed.state().localAddress;
+    vitals.error = feed.state().error;
     vitals.generation = newest.generation;
-    vitals.dropped = feed.dropped();
+    vitals.dropped = feed.state().dropped;
     vitals.arrivalsPerSecond =
         span > 0 ? double(newest.generation - oldest.generation) / span : 0.0;
-    vitals.closed = feed.closed();
+    vitals.closed = (feed.state().readiness == sigil::io::ReadyState::Closed);
     // The newest arrival whole, in one ask: the bytes and the sender
     // that came in together are read out together, so a wire that takes
     // a message between two asks cannot be shown one message's bytes

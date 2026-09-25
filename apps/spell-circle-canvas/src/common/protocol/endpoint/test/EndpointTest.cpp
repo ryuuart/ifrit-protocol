@@ -158,7 +158,7 @@ class ProtocolEndpoint : public ::testing::Test {
     std::shared_ptr<sigil::io::Feed> client =
         clientHub.feed(endpoint.address());
     EXPECT_TRUE(waitUntil([&] { return client->send(bytesOf(first)); }))
-        << client->error();
+        << client->state().error;
     return client;
   }
 

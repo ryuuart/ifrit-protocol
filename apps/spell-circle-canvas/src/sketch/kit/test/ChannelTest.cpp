@@ -40,7 +40,7 @@ sigil::io::Transport intoNothing() {
     sigil::io::OpenedFeed opened;
     // It binds nothing, so the local end it names is the URI it was asked
     // for.
-    opened.address = std::string(uri);
+    opened.localAddress = std::string(uri);
     opened.send = [](const Bytes&) { return true; };
     return opened;
   };

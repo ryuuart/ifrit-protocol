@@ -760,7 +760,7 @@ OpenedFeed hold(std::string_view uri, const Address& place,
   OpenedFeed opened;
   // It is the address a CALLER reaches, so it carries the method: a
   // port with no method named is a port nothing here answers on.
-  opened.address =
+  opened.localAddress =
       "grpc://[::]:" + std::to_string(bound) + door->session->method;
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };
@@ -800,7 +800,7 @@ OpenedFeed reach(std::string_view uri, const Address& place,
   // The address a client has is the server it called: the port its own
   // socket took is the system's to choose and nothing anybody could
   // reach it at.
-  opened.address = std::string(uri);
+  opened.localAddress = std::string(uri);
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) {
     return door->call->write(message);

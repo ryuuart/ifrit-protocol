@@ -90,6 +90,48 @@ struct Message {
   uint64_t m_revision = 0;
 };
 
+/** WHETHER A FEED'S DOOR STANDS. */
+enum class ReadyState {
+  /** No door yet: nothing is opened, or what was asked for could not be
+   *  and the next ask for the URI tries again; `FeedState::error` says
+   *  why when something stood in the way. */
+  Connecting,
+  /** A door stands — an end its transport opened, or the recording it
+   *  plays back instead of one — and messages arrive through it. */
+  Open,
+  /** The door has been shut; nothing more arrives, and what was received
+   *  stays readable. */
+  Closed,
+};
+
+/** A FEED'S STATE AS ONE COMPARABLE VALUE: what `Feed::state()` answers,
+ *  read out together, so a reader that keeps the value it last showed
+ *  describes again exactly when `state() != shown`. */
+struct FeedState {
+  ReadyState readiness = ReadyState::Connecting;
+  /** How many messages have arrived; 0 before the first. */
+  uint64_t revision = 0;
+  /** Messages that fell off the front because the feed was full. */
+  uint64_t dropped = 0;
+  /** The local end as the transport bound it, `udp://[::]:52341`; empty
+   *  when it has none. */
+  std::string localAddress;
+  /** What went wrong; empty when nothing did. */
+  std::string error;
+
+  /** Whether messages arrive through a door that stands. */
+  bool isOpen() const { return readiness == ReadyState::Open; }
+
+  bool operator==(const FeedState&) const = default;
+};
+
+/** WHERE A SEND GOES. */
+struct SendOptions {
+  /** ONE peer, named the way a message's `sender()` is; empty sends to
+   *  the door's own peer, or to every peer a listening door holds. */
+  std::string to;
+};
+
 /** HOW MUCH A FEED HOLDS FOR ITS READERS. It stands beside the class it
  *  belongs to rather than inside it because a member initializer of a
  *  nested class is not in hand until the class around it closes, and
@@ -156,45 +198,26 @@ class Feed {
    *  queued, so draining through receive() leaves it standing. */
   std::optional<Message> latest() const;
 
-  /** How many messages have arrived; 0 before the first. */
-  uint64_t revision() const;
-
   /** The next message this reader has not taken, in order; nothing when
    *  none is waiting. Never waits for one. */
   std::optional<Message> receive();
 
-  /** Messages that fell off the front because the feed was full. */
-  uint64_t dropped() const;
-
-  /** Whether the door has been shut, after which nothing more
-   *  arrives. */
-  bool closed() const;
-
-  /** Whether a door stands on this feed: an end its transport opened,
-   *  or the recording it plays back instead of one. False before either
-   *  is handed over and on a feed whose transport opened nothing, which
-   *  carries the reason as its error(). */
-  bool opened() const;
-
-  /** What went wrong; empty when nothing did. */
-  std::string error() const;
+  /** WHERE THE DOOR STANDS, in one value read out together: whether it
+   *  is open, how many messages have come and how many fell off the
+   *  front, the local end it bound and what went wrong. Two reads
+   *  compare equal exactly when nothing a reader shows has moved. */
+  FeedState state() const;
 
   /** The URI this feed was opened on, as it was written. */
   const std::string& uri() const { return m_uri; }
 
-  /** The local end as the transport bound it, or empty. */
-  std::string address() const;
-
-  /** Sends back through the opened end. False when the way is one-way,
-   *  when the feed is closed, and when no transport opened it. */
-  bool send(const Bytes& bytes) const;
-
-  /** Sends to ONE sender: @p to is an address spelled the way an
-   *  message's `sender()` is, `udp://127.0.0.1:52341`, which is how a door
-   *  that holds no peer of its own answers the one that wrote to it.
-   *  False when the way is one-way for that purpose, when the feed is
-   *  closed, and when no transport opened it. */
-  bool sendTo(std::string_view to, const Bytes& bytes) const;
+  /** Sends @p payload back through the opened end — to the door's own
+   *  peer, or, with `.to`, to ONE sender named the way a message's
+   *  `sender()` is, `udp://127.0.0.1:52341`, which is how a door that
+   *  holds no peer of its own answers the one that wrote to it. False
+   *  when the way is one-way for that purpose, when the feed is closed,
+   *  and when no transport opened it. */
+  bool send(const Bytes& payload, const SendOptions& options = {}) const;
 
   /** THE PEERS ATTACHED NOW, each named the way a message's `sender()`
    *  spells it, which is how a door that holds many learns that one has
@@ -209,7 +232,7 @@ class Feed {
    *  `Hub::replay()`, until the handle this returns stops it. A feed
    *  writes one recording at a time: a second call stops the first.
    *  @trap A file that cannot be opened hands back a handle that has
-   *  already stopped, and error() says why. */
+   *  already stopped, and `state().error` says why. */
   [[nodiscard]] Recording record(std::filesystem::path path);
 
  private:
@@ -224,7 +247,7 @@ class Feed {
    *  no sender. */
   void deliver(Bytes payload, std::chrono::duration<double> arrivedAt);
 
-  /** Says what went wrong, which error() answers from then on; an empty
+  /** Says what went wrong, which state() answers from then on; an empty
    *  reason takes off what stood there. The feed stays open. */
   void fail(std::string why);
 

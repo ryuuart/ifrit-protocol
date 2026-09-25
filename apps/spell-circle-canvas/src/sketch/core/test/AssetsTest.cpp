@@ -186,26 +186,26 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
   hub.replay("udp://:27020", "sketch://sky/data/sky.feed");
   const std::shared_ptr<sigil::io::Feed> feed = hub.feed("udp://:27020");
   ASSERT_NE(feed, nullptr);
-  EXPECT_TRUE(feed->error().empty());
-  EXPECT_EQ(feed->revision(), 0u);  // nothing arrives until time moves
+  EXPECT_TRUE(feed->state().error.empty());
+  EXPECT_EQ(feed->state().revision, 0u);  // nothing arrives until time moves
 
   assets.dispatch(0.0);
-  EXPECT_EQ(feed->revision(), 1u);
+  EXPECT_EQ(feed->state().revision, 1u);
   ASSERT_TRUE(feed->latest().has_value());
   EXPECT_EQ(feed->latest()->payload->asText(), "dawn");
-  EXPECT_FALSE(feed->closed());
+  EXPECT_NE(feed->state().readiness, sigil::io::ReadyState::Closed);
 
   // One dispatch may cover several arrivals and never covers one that is
   // still ahead: the scene time decides, not the number of calls.
   assets.dispatch(0.6);
-  EXPECT_EQ(feed->revision(), 2u);
+  EXPECT_EQ(feed->state().revision, 2u);
   EXPECT_EQ(feed->latest()->payload->asText(), "noon");
-  EXPECT_FALSE(feed->closed());
+  EXPECT_NE(feed->state().readiness, sigil::io::ReadyState::Closed);
 
   assets.dispatch(2.0);
-  EXPECT_EQ(feed->revision(), 3u);
+  EXPECT_EQ(feed->state().revision, 3u);
   EXPECT_EQ(feed->latest()->payload->asText(), "dusk");
-  EXPECT_TRUE(feed->closed());  // the recording ran out
+  EXPECT_EQ(feed->state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out
 }
 
 }  // namespace

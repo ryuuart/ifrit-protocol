@@ -423,7 +423,7 @@ struct ArtNetLights {
         .answered = answered,
         .universe = newest.null() ? -1 : (int)newest["universe"].number(),
         .dimmers = std::move(dimmers),
-        .address = desk.address(),
+        .address = desk.localAddress(),
         .trouble = desk.error()};
     if (now == shown) return false;
     shown = std::move(now);

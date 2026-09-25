@@ -56,7 +56,7 @@ and not who sent them.
 
 ### Failing without closing
 
-`Inlet::fail` says what went wrong, which `Feed::error` answers from then
+`Inlet::fail` says what went wrong, which `FeedState::error` answers from then
 on; an empty reason is nothing wrong, and takes off what stood there. The
 feed stays open: a transport that lost one message still has a door.
 

@@ -136,14 +136,14 @@ using SendOne = std::function<bool(Moment until)>;
  *  sleep. */
 bool carried(const std::shared_ptr<Feed>& into, const SendOne& sendOne) {
   const Moment until = std::chrono::steady_clock::now() + kDeadline;
-  const uint64_t wanted = into->revision() + kBatch;
+  const uint64_t wanted = into->state().revision + kBatch;
   for (size_t message = 0; message != kBatch; ++message) {
     while (!sendOne(until)) {
       if (std::chrono::steady_clock::now() > until) return false;
       std::this_thread::yield();
     }
   }
-  while (into->revision() < wanted) {
+  while (into->state().revision < wanted) {
     if (std::chrono::steady_clock::now() > until) return false;
     std::this_thread::yield();
   }
@@ -178,14 +178,14 @@ void BM_Udp(benchmark::State& state) {
   Hub hub;
   sigil::io::registerTransports(hub, {"udp"});
   const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
-  if (!listener->error().empty()) {
-    state.SkipWithError(listener->error());
+  if (!listener->state().error.empty()) {
+    state.SkipWithError(listener->state().error);
     return;
   }
   const std::shared_ptr<Feed> sender = hub.feed(
-      "udp://127.0.0.1:" + std::to_string(portOf(listener->address())));
-  if (!sender->error().empty()) {
-    state.SkipWithError(sender->error());
+      "udp://127.0.0.1:" + std::to_string(portOf(listener->state().localAddress)));
+  if (!sender->state().error.empty()) {
+    state.SkipWithError(sender->state().error);
     return;
   }
 
@@ -221,14 +221,14 @@ void BM_WebSocket(benchmark::State& state) {
   // is.
   sigil::io::registerTransports(hub, {"ws"});
   const std::shared_ptr<Feed> server = hub.feed("ws://:0/bench");
-  if (!server->error().empty()) {
-    state.SkipWithError(server->error());
+  if (!server->state().error.empty()) {
+    state.SkipWithError(server->state().error);
     return;
   }
   const std::shared_ptr<Feed> client = hub.feed(
-      "ws://127.0.0.1:" + std::to_string(portOf(server->address())) + "/bench");
-  if (!client->error().empty()) {
-    state.SkipWithError(client->error());
+      "ws://127.0.0.1:" + std::to_string(portOf(server->state().localAddress)) + "/bench");
+  if (!client->state().error.empty()) {
+    state.SkipWithError(client->state().error);
     return;
   }
 
@@ -237,10 +237,10 @@ void BM_WebSocket(benchmark::State& state) {
   // session is up at this end is the first send that goes out over it,
   // and what says the listener has the peer to publish to is that
   // message arriving there.
-  const uint64_t standing = server->revision() + 1;
+  const uint64_t standing = server->state().revision + 1;
   if (!waitUntil([&] { return client->send(message); }) ||
-      !waitUntil([&] { return server->revision() >= standing; })) {
-    state.SkipWithError("the session never stood: " + client->error());
+      !waitUntil([&] { return server->state().revision >= standing; })) {
+    state.SkipWithError("the session never stood: " + client->state().error);
     return;
   }
 
@@ -282,9 +282,9 @@ bool carriedByRegion(SharedMemoryWriter& writer,
                      std::span<const std::byte> message) {
   const Moment until = std::chrono::steady_clock::now() + kDeadline;
   for (size_t written = 0; written != kBatch; ++written) {
-    const uint64_t wanted = into->revision() + 1;
+    const uint64_t wanted = into->state().revision + 1;
     if (!writer.write(message)) return false;
-    while (into->revision() < wanted) {
+    while (into->state().revision < wanted) {
       if (std::chrono::steady_clock::now() > until) return false;
       std::this_thread::yield();
     }
@@ -303,8 +303,8 @@ void BM_SharedMemory(benchmark::State& state) {
   Hub hub;
   sigil::io::registerTransports(hub, {"shm"});
   const std::shared_ptr<Feed> region = hub.feed("shm://" + name + kLookRate);
-  if (!region->error().empty()) {
-    state.SkipWithError(region->error());
+  if (!region->state().error.empty()) {
+    state.SkipWithError(region->state().error);
     return;
   }
 
@@ -340,9 +340,9 @@ void BM_Midi(benchmark::State& state) {
   sigil::io::registerTransports(hub, {"midi"});
   const std::string name = uniqueName("midi");
   const std::shared_ptr<Feed> keys = hub.feed("midi://out/virtual:" + name);
-  if (!keys->error().empty()) {
+  if (!keys->state().error.empty()) {
     state.SkipWithMessage("this machine made no midi port of its own: " +
-                          keys->error());
+                          keys->state().error);
     return;
   }
   // A port takes a moment to appear to everything else on the machine,
@@ -350,7 +350,7 @@ void BM_Midi(benchmark::State& state) {
   std::shared_ptr<Feed> pads;
   const bool opened = waitUntil([&] {
     pads = hub.feed("midi://in/" + name);
-    if (pads->error().empty()) return true;
+    if (pads->state().error.empty()) return true;
     pads.reset();
     return false;
   });
@@ -444,8 +444,8 @@ void BM_Serial(benchmark::State& state) {
   sigil::io::registerTransports(hub, {"serial"});
   const std::shared_ptr<Feed> board =
       hub.feed("serial://" + pair.device + "?baud=115200");
-  if (!board->error().empty()) {
-    state.SkipWithError(board->error());
+  if (!board->state().error.empty()) {
+    state.SkipWithError(board->state().error);
     return;
   }
   if (!pair.raw()) {
@@ -484,15 +484,15 @@ void BM_Grpc(benchmark::State& state) {
   Hub hub;
   sigil::io::registerTransports(hub, {"grpc"});
   const std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
-  if (!server->error().empty()) {
-    state.SkipWithError(server->error());
+  if (!server->state().error.empty()) {
+    state.SkipWithError(server->state().error);
     return;
   }
   const std::shared_ptr<Feed> caller =
-      hub.feed("grpc://127.0.0.1:" + std::to_string(portOf(server->address())) +
+      hub.feed("grpc://127.0.0.1:" + std::to_string(portOf(server->state().localAddress)) +
                "/Sky/Watch");
-  if (!caller->error().empty()) {
-    state.SkipWithError(caller->error());
+  if (!caller->state().error.empty()) {
+    state.SkipWithError(caller->state().error);
     return;
   }
 
@@ -591,18 +591,18 @@ void measureQuic(benchmark::State& state, bool asDatagrams) {
   std::string calling = "quic://127.0.0.1:";
   if (asDatagrams) listening += "&datagrams=1";
   const std::shared_ptr<Feed> listener = hub.feed(listening);
-  if (!listener->error().empty()) {
-    state.SkipWithError(listener->error());
+  if (!listener->state().error.empty()) {
+    state.SkipWithError(listener->state().error);
     return;
   }
   // The self-signed pair is reached the way a machine on a stage is: the
   // certificate is not checked, and everything crossing is encrypted all
   // the same.
-  calling += std::to_string(portOf(listener->address())) + "?insecure=1";
+  calling += std::to_string(portOf(listener->state().localAddress)) + "?insecure=1";
   if (asDatagrams) calling += "&datagrams=1";
   const std::shared_ptr<Feed> caller = hub.feed(calling);
-  if (!caller->error().empty()) {
-    state.SkipWithError(caller->error());
+  if (!caller->state().error.empty()) {
+    state.SkipWithError(caller->state().error);
     return;
   }
 
@@ -612,7 +612,7 @@ void measureQuic(benchmark::State& state, bool asDatagrams) {
   // message nothing could refuse for its size.
   const Bytes smallest = payloadOf(1);
   if (!waitUntil([&] { return caller->send(smallest); })) {
-    state.SkipWithError("the connection never stood: " + caller->error());
+    state.SkipWithError("the connection never stood: " + caller->state().error);
     return;
   }
   const Bytes message = payloadOf(size);
@@ -720,15 +720,15 @@ void BM_WebRtc(benchmark::State& state) {
   sigil::io::registerTransports(hub, {"webrtc"});
   const std::shared_ptr<Feed> waiting = hub.feed(
       "webrtc://bench?signal=ws://:" + std::to_string(port) + "/signal");
-  if (!waiting->error().empty()) {
-    state.SkipWithError(waiting->error());
+  if (!waiting->state().error.empty()) {
+    state.SkipWithError(waiting->state().error);
     return;
   }
   const std::shared_ptr<Feed> calling =
       hub.feed("webrtc://bench?signal=ws://127.0.0.1:" + std::to_string(port) +
                "/signal");
-  if (!calling->error().empty()) {
-    state.SkipWithError(calling->error());
+  if (!calling->state().error.empty()) {
+    state.SkipWithError(calling->state().error);
     return;
   }
 
@@ -737,19 +737,19 @@ void BM_WebRtc(benchmark::State& state) {
   // door takes a send whether or not it has a channel to write it on,
   // so the end that called offers one until the end that waited has
   // taken it.
-  const uint64_t standing = waiting->revision() + 1;
+  const uint64_t standing = waiting->state().revision + 1;
   Moment next = std::chrono::steady_clock::now();
   const bool stood = waitDispatching(hub, [&] {
     if (std::chrono::steady_clock::now() >= next) {
       next = std::chrono::steady_clock::now() + kOffer;
       calling->send(message);
     }
-    return waiting->revision() >= standing;
+    return waiting->state().revision >= standing;
   });
   if (!stood) {
-    const std::string why = !calling->error().empty() ? calling->error()
-                            : !waiting->error().empty()
-                                ? waiting->error()
+    const std::string why = !calling->state().error.empty() ? calling->state().error
+                            : !waiting->state().error.empty()
+                                ? waiting->state().error
                                 : "neither end says why";
     state.SkipWithError("the conversation never stood: " + why);
     return;

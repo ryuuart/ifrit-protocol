@@ -293,7 +293,7 @@ bool SendForm::reachPeer() {
   const std::string uri = m_peerUri.toStdString();
   if (!m_sender.peer() || m_sender.peerUri() != uri) {
     const QString error =
-        QString::fromStdString(m_sender.openPeer(uri)->error());
+        QString::fromStdString(m_sender.openPeer(uri)->state().error);
     if (!error.isEmpty()) {
       setNote(error);
       return false;

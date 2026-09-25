@@ -569,7 +569,7 @@ void Door::carry() {
     // — a client's server, which there is nothing to pick out of.
     const bool went =
         to.empty() ? through->send(payload)
-                   : (through->sendTo(to, payload) || through->send(payload));
+                   : (through->send(payload, {.to = to}) || through->send(payload));
     // A DOOR STILL OPENING TAKES NOTHING YET, so what it would not take
     // waits for the next frame rather than being lost: a caller's offer
     // is written before its socket has finished its handshake.
@@ -693,8 +693,8 @@ std::shared_ptr<Signal> signalFor(Signals& signals, Hub& hub,
   }
   const auto made = std::make_shared<Signal>();
   made->feed = hub.feed(uri);
-  if (!made->feed->error().empty()) {
-    trouble = made->feed->error();
+  if (!made->feed->state().error.empty()) {
+    trouble = made->feed->state().error;
     return nullptr;
   }
   made->lease = hub.onDispatch([held = std::weak_ptr<Signal>(made)](double) {
@@ -758,7 +758,7 @@ OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
   if (door->calling) door->callOut();
 
   OpenedFeed opened;
-  opened.address = door->address;
+  opened.localAddress = door->address;
   // A DOOR THAT WAITS ANSWERS WHAT TO DIAL IT BY: the conversation, and
   // the signalling door as it BOUND rather than as this URI asked for
   // it — so a scene may wait on a port of the kernel's giving and show
@@ -767,8 +767,8 @@ OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
   // A door that TOOK A ROOM UP holds nothing anybody dials, and names
   // the conversation alone.
   if (!door->calling) {
-    const std::string bound = door->signal->feed->address();
-    if (!bound.empty()) opened.address += "?signal=" + bound;
+    const std::string bound = door->signal->feed->state().localAddress;
+    if (!bound.empty()) opened.localAddress += "?signal=" + bound;
   }
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };

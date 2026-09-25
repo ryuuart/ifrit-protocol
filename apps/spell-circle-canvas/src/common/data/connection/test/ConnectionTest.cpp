@@ -56,7 +56,7 @@ sigil::io::Transport intoVector(std::shared_ptr<Sent> sent,
         sigil::io::OpenedFeed opened;
         // It binds nothing, so the local end it names is the URI it was
         // asked for: enough for a case to see that the end reaches through.
-        opened.address = std::string(uri);
+        opened.localAddress = std::string(uri);
         opened.send = [sent](const Bytes& bytes) {
           sent->emplace_back(bytes.begin(), bytes.end());
           return true;
@@ -108,7 +108,7 @@ TEST(DataConnection, AJsonMessageIsTheLatestAndReachesEveryHandlerNamingIt) {
   EXPECT_EQ(scene.revision(), 1u);
   EXPECT_EQ(scene.undecodable(), 0u);
   EXPECT_EQ(scene.uri(), "ws://:8848/scene");
-  EXPECT_EQ(scene.address(), "ws://:8848/scene");
+  EXPECT_EQ(scene.localAddress(), "ws://:8848/scene");
   EXPECT_TRUE(scene.error().empty());
   EXPECT_FALSE(scene.closed());
 }
@@ -576,7 +576,7 @@ TEST(DataConnection, AConnectionOntoNothingAnswersNothing) {
   Connection none;
   EXPECT_TRUE(none.latest().null());
   EXPECT_TRUE(none.uri().empty());
-  EXPECT_TRUE(none.address().empty());
+  EXPECT_TRUE(none.localAddress().empty());
   EXPECT_TRUE(none.error().empty());
   EXPECT_EQ(none.revision(), 0u);
   EXPECT_EQ(none.dropped(), 0u);

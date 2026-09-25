@@ -161,7 +161,7 @@ class Connection {
    *  sender of the message being handled; outside one, the sender of the
    *  newest message. Empty where there is nobody to answer. It is what a
    *  door that holds many peers keys each one's own state by, and what
-   *  it answers one of them through later, on the feed's own sendTo(). */
+   *  it answers one of them through later, on the feed's own send to one sender. */
   const std::string& sender() const;
 
   /** The URI this was opened on; empty for a connection onto nothing. */
@@ -182,7 +182,7 @@ class Connection {
   std::shared_ptr<const io::Bytes> latestBytes() const;
 
   /** The local end as the transport bound it, or empty. */
-  std::string address() const;
+  std::string localAddress() const;
 
   /** What went wrong at the door; empty when nothing did. A door that
    *  was REFUSED as it opened — an `osc://` one handed a schema — says
@@ -220,8 +220,8 @@ class Connection {
     uint64_t undecodable = 0;
     /** closed(): nothing more is coming. */
     bool closed = true;
-    /** address(): the local end as the transport bound it. */
-    std::string address;
+    /** localAddress(): the local end as the transport bound it. */
+    std::string localAddress;
     /** sender(): whom a reply outside a handler answers. */
     std::string sender;
     /** error(): what went wrong at the door. */

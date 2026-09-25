@@ -94,7 +94,7 @@ no host code has to name it.
 Any other URI opens through the transport registered for its scheme — the
 part before "://" — called outside the hub's lock. No scheme, no
 transport, or an unreadable recording: the feed exists and its
-`Feed::error` says why.
+`FeedState::error` says why.
 
 `Hub::onDispatch` runs its callback on every dispatch for as long as the
 lease lives. It is given the seconds that dispatch was given, and runs

@@ -331,7 +331,7 @@ struct GrpcWatch {
                 .undecodable = callers.undecodable(),
                 .spoken = spoken,
                 .turns = turns,
-                .address = callers.address(),
+                .address = callers.localAddress(),
                 .trouble = callers.error()};
     if (now == shown) return false;
     shown = std::move(now);

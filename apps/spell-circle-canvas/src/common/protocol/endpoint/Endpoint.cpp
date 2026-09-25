@@ -163,7 +163,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
     socket.error = "endpoint: " + socket.connection.error();
     return;
   }
-  const std::string port = portOf(socket.connection.address());
+  const std::string port = portOf(socket.connection.localAddress());
   if (port.empty()) {
     socket.error = "endpoint: the listener named no port it holds";
     return;
@@ -196,19 +196,17 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
       attachment.deliver = [feed, peer](const std::string& session,
                                         std::string_view method,
                                         std::string_view parameters) {
-        feed->sendTo(
-            peer,
-            bytesOf("{\"session\":" + data::encodeJson(data::Json(session)) +
+        feed->send(bytesOf("{\"session\":" + data::encodeJson(data::Json(session)) +
                     ",\"method\":" +
                     data::encodeJson(data::Json(std::string(method))) +
-                    ",\"parameters\":" + std::string(parameters) + "}"));
+                    ",\"parameters\":" + std::string(parameters) + "}"), {.to = peer});
       };
       const std::string session = held.dispatcher.attach(std::move(attachment));
       found = held.sessionOfPeer.emplace(peer, session).first;
     }
     held.dispatcher.request(found->second, message,
                             [feed, peer](std::string answer) {
-                              feed->sendTo(peer, bytesOf(answer));
+                              feed->send(bytesOf(answer), {.to = peer});
                             });
   });
   // A PEER THAT LEFT IS DETACHED on the frame after, which clears what

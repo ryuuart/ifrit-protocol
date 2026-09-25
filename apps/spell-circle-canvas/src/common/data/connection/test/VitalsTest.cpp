@@ -33,7 +33,7 @@ void expectReadings(const Connection& door, const Connection::Vitals& vitals) {
   EXPECT_EQ(vitals.dropped, door.dropped());
   EXPECT_EQ(vitals.undecodable, door.undecodable());
   EXPECT_EQ(vitals.closed, door.closed());
-  EXPECT_EQ(vitals.address, door.address());
+  EXPECT_EQ(vitals.localAddress, door.localAddress());
   EXPECT_EQ(vitals.sender, door.sender());
   EXPECT_EQ(vitals.error, door.error());
 }

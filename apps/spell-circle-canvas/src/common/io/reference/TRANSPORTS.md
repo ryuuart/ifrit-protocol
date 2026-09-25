@@ -15,12 +15,12 @@ one socket. What arrives is a byte message, delivered by a transport from
 whichever thread it runs on; the feed latches the newest WHOLE as
 `latest()` — a `sigil::io::Message`: its `Message::revision`, when it
 arrived, its payload and the sender it named, read out together — with a
-`revision()` that counts every arrival, and queues each arrival for `receive()`, which
+`state().revision` that counts every arrival, and queues each arrival for `receive()`, which
 hands them out in order and never waits. The queue is bounded by the feed's
-`FeedPolicy`: when it is full the oldest arrival is dropped and `dropped()`
+`FeedPolicy`: when it is full the oldest arrival is dropped and `state().dropped`
 counts it, because a reader that fell behind a state feed wants the
 newest, not the backlog. `close()` takes nothing more and keeps what was
-received readable. A feed's `error()` says why a door could not be
+received readable. A feed's `state().error` says why a door could not be
 opened — no scheme, no transport for it, a port already taken — and the
 feed still exists, so a program that opened the wrong URI sees the
 sentence rather than a null.
@@ -39,13 +39,13 @@ outside the hub's lock and handed the `Inlet` it delivers every message
 through; the transport hands back an `OpenedFeed`: how the
 feed closes it, how `send()` goes back through it when the way is two-way,
 how `OpenedFeed::sendTo` answers one named sender when it can address one,
-and the local `address()` it bound. Every arrival also names where it came
+and the local `state().localAddress` it bound. Every arrival also names where it came
 from: `sigil::io::Message::sender` is the sender's address spelled the way a
 URI of that scheme is, `udp://127.0.0.1:52341`, and is empty where the
 transport has no way of knowing — and on a replayed recording, which holds
 the messages and not who sent them.
 
-`Feed::sendTo()` is the OTHER way back out, and the one a door that holds
+`Feed::send` with `SendOptions::to` is the OTHER way back out, and the one a door that holds
 no peer of its own has: it takes an address spelled the way a message's
 `sender()` is and writes to that sender alone. It is false where the
 transport cannot address one, where the feed is closed and where no
@@ -62,12 +62,12 @@ all of its schemes, and naming it again replaces it.
 The UDP transport takes the UDP ones: `udp://:PORT` listens on every
 interface, IPv4 and IPv6 alike, and `udp://HOST:PORT` is a peer that
 `send()` reaches and whose replies arrive. A listener has no peer to
-`send()` to and answers ONE sender instead, through `Feed::sendTo()`:
+`send()` to and answers ONE sender instead, through `Feed::send` with `SendOptions::to`:
 the address is read the way a URI of that scheme is written and
 resolved as the literal it is, so answering waits on no name lookup and
 a `sender()` that is not literal is nobody to answer. `osc://` is that same
 socket under another name, for a port whose messages are OSC packets; a
-feed keeps the scheme it was opened with, in its `uri()`, in its `address()`
+feed keeps the scheme it was opened with, in its `uri()`, in its `state().localAddress`
 and in every sender it names, so a reader picks the decoding off the URI
 rather than out of the bytes. `artnet://` is that same socket once more,
 for a port whose datagrams are a lighting desk's universes of dimmers —
@@ -79,13 +79,13 @@ rebound immediately even while the closed feed object remains held.
 The WebSocket listener takes `ws://`. `ws://:PORT/PATH` listens on every
 interface for peers reaching that path — an omitted PATH being the root —
 every text or binary message from any of them arrives naming that peer,
-and one `send()` goes out to all of them at once while `Feed::sendTo()`
+and one `send()` goes out to all of them at once while `Feed::send` with `SendOptions::to`
 reaches the one peer it names and no other. Each listening feed holds a
 loop on a thread of its own, and closing the feed gives the port back and
 ends the peers still attached to it. A peer is named by the address its
 own messages arrive under, and a peer that has left before the loop
 reaches an answer is nobody to answer — the answer having been posted is
-what `sendTo()` says, since the loop that holds the peers is not the
+what `send()` with `.to` says, since the loop that holds the peers is not the
 thread that asked. That registration LISTENS: the library underneath
 carries no client and its sockets are built without TLS, so it opens a
 port to hold and nothing else.
@@ -152,10 +152,10 @@ URI says. A call is made over libcurl, which is where the TLS `wss://`
 needs comes from: each feed holds one session on a thread of its own,
 every message the server sends arrives whole however many frames it was
 split into, `send()` writes one whole message back as bytes, and both
-the `address()` the feed reports and the sender every arrival names are
-the server it dialled — the one peer a client has, so `Feed::sendTo()`
+the `state().localAddress` the feed reports and the sender every arrival names are
+the server it dialled — the one peer a client has, so `Feed::send` with `SendOptions::to`
 is false on it. The handshake runs on that same thread: a feed is
-answered before its server has been reached, `error()` carries the
+answered before its server has been reached, `state().error` carries the
 reason when it cannot be, and a `send()` before then goes nowhere and
 says so. A server that ends the session closes the feed.
 
@@ -189,17 +189,17 @@ no rate, and every message left standing between two looks is one
 arrival — while a message written and written over between them is one
 the reader missed rather than one it queued, a region holding the
 message that stands NOW and no backlog. Every arrival names the region
-as its sender, spelled `shm://NAME` exactly as the `address()` the feed
+as its sender, spelled `shm://NAME` exactly as the `state().localAddress` the feed
 reports is, the rate being the reader's own arrangement and no part of
 what the region is called, as a listener's pages are no part of the path
 its peers reach. The mapping is read-only and there is no way back
-through it, so `send()` and `Feed::sendTo()` are both false on such a
+through it, so `send()` and `Feed::send` with `SendOptions::to` are both false on such a
 feed: a scene that must answer holds another door for that.
 
 WHAT A LOOK LOOKS AT IS THE NAME. A door with nothing mapped looks for
 the name at every look, so THE TWO ENDS MAY START IN EITHER ORDER: a
 feed opened on a name nobody has made a region under waits there,
-carrying that region as its `address()` and nothing as its `error()`,
+carrying that region as its `state().localAddress` and nothing as its `state().error`,
 and delivers the moment a writer makes one. A door that has a mapping
 maps whatever stands under the name afresh about once a second — a
 region unlinked and made again under that name, which is what a writer
@@ -259,10 +259,10 @@ times a second whether or not anybody played anything, so a feed taking
 both would be a feed of heartbeat with the performance somewhere inside
 it. Every arrival names the port as its sender, spelled `midi://in/NAME`
 with the port's WHOLE name and not the piece the URI asked for, exactly
-as the `address()` such a feed reports is; an output reports
+as the `state().localAddress` such a feed reports is; an output reports
 `midi://out/NAME` the same way. An input is ONE WAY — what comes back
 down a cable is the other cable, which is a door of its own — so
-`send()` and `Feed::sendTo()` are both false on one, while an output's
+`send()` and `Feed::send` with `SendOptions::to` are both false on one, while an output's
 `send()` writes the bytes as one message and is false where the driver
 refused it. No thread is started for any of this: the driver runs a
 callback of its own on every arriving message, which is the thread an
@@ -302,10 +302,10 @@ which is where the reader on the board stops.
 
 A CABLE HOLDS ONE PEER. What is at the other end is the only thing
 there, so `send()` reaches it and there is no sender to pick out by
-name: `Feed::sendTo()` is false on such a feed. Every arrival names the
+name: `Feed::send` with `SendOptions::to` is false on such a feed. Every arrival names the
 port as its sender, spelled `serial://DEVICE` with the settings left off
 — what the board IS, and not how this end was told to read it — exactly
-as the `address()` such a feed reports is. The ports every registration
+as the `state().localAddress` such a feed reports is. The ports every registration
 opens share ONE thread, made when the first of them opens, so a hub
 taught the scheme and never asked for a port starts nothing.
 
@@ -330,12 +330,12 @@ A SERVER'S PEER IS A CALL AND NOT A CALLER. Every call that arrives is a
 bidirectional stream of its own and one caller may hold several at once,
 so the address alone would not tell two of them apart: an arrival is
 named `grpc://ADDRESS#NUMBER`, the number counting the calls that feed
-has taken, and `Feed::sendTo()` writes on the call it names. `send()`
+has taken, and `Feed::send` with `SendOptions::to` writes on the call it names. `send()`
 writes on every call standing and is false where none is — a door that
 holds its own callers can say that a broadcast reached nobody, which a
 door that posts to a loop cannot — and a caller that ends its half of
 the stream ends that peer, its name answering nothing from then on. The
-`address()` such a feed reports is
+`state().localAddress` such a feed reports is
 `grpc://[::]:PORT/Service/Method`, every interface of both families
 being one dual-stack listener, and closing the feed gives the port back
 and cancels the calls standing on it rather than waiting for a caller to
@@ -347,8 +347,8 @@ A CLIENT HOLDS THE ONE CALL IT OPENED. `send()` writes one message on
 it — and a message handed over before the server has been reached waits
 on the stream rather than going nowhere, which is where this end differs
 from the websocket client beside it — every message the server writes is
-an arrival naming the URI that was called, which is also the `address()`
-such a feed reports, and `Feed::sendTo()` is false on it, a client
+an arrival naming the URI that was called, which is also the `state().localAddress`
+such a feed reports, and `Feed::send` with `SendOptions::to` is false on it, a client
 having the one peer it called. The server ending the call closes the
 feed, while a server that goes away mid-conversation fails it with the
 sentence saying the call ENDED — which is not the sentence a call that
@@ -418,18 +418,18 @@ streams.
 
 A PORT'S PEER IS A CONNECTION. Every connection that reaches a listening
 feed is a peer named `quic://ADDRESS#NUMBER`, the number counting the
-connections that feed has taken; `Feed::sendTo()` writes on the
+connections that feed has taken; `Feed::send` with `SendOptions::to` writes on the
 connection it names, `send()` writes on every connection standing and is
 false where none is, and a connection that ends ends that peer, its name
-answering nothing from then on. The `address()` such a feed reports is
+answering nothing from then on. The `state().localAddress` such a feed reports is
 `quic://[::]:PORT`, every interface of both families being one dual-stack
 socket, and the query is no part of it: the pair a port answers with is
 the door's own arrangement and nothing anybody reaches.
 
 A CALL HOLDS THE ONE CONNECTION IT OPENED. `send()` writes on it, every
 message the other end writes is an arrival naming `quic://HOST:PORT` —
-which is also the `address()` such a feed reports, the query again being
-the door's own arrangement — and `Feed::sendTo()` is false on it, a call
+which is also the `state().localAddress` such a feed reports, the query again being
+the door's own arrangement — and `Feed::send` with `SendOptions::to` is false on it, a call
 having the one end it reached. The other end ending the connection closes
 the feed; a connection that fails after it was reached fails the feed
 with the sentence saying it ENDED, which is not the sentence a call that
@@ -493,14 +493,14 @@ handshake.
 
 ONE PEER PER CONNECTION, on a channel named `feed`. An arrival is named
 `webrtc://ROOM#NUMBER`, the number counting the peers that feed has
-taken and never handed out twice; `Feed::sendTo()` writes on the one it
+taken and never handed out twice; `Feed::send` with `SendOptions::to` writes on the one it
 names, and `send()` writes on every channel standing open, which is what
 makes an audience of phones see one sky rather than each its own. A
 message larger than what a peer's channel takes is not written to that
 peer, a channel carrying whole messages and cutting none in half.
 
 A feed that WAITS reports `webrtc://ROOM?signal=URI` as its
-`address()`, the signal spelled as that door BOUND it —
+`state().localAddress`, the signal spelled as that door BOUND it —
 `webrtc://sky?signal=ws://[::]:52341/signal`, the room and the path
 standing where the URI had them and the port between them being the one
 taken. So `?signal=ws://:0/PATH` is a first-class way to wait: what a

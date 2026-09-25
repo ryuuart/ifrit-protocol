@@ -44,7 +44,7 @@ struct OpenedFeed {
   std::function<std::vector<std::string>()> peers;
   /** The local end as the transport bound it, "udp://[::]:52341";
    *  empty when it has none. */
-  std::string address;
+  std::string localAddress;
 };
 
 /** THE PRODUCER'S SIDE OF ONE FEED: what a transport delivers through.
@@ -69,8 +69,8 @@ class Inlet {
    *  the messages and not who sent them. */
   void deliver(Bytes payload, double arrivedAt) const;
 
-  /** Says what went wrong, which the feed's error() answers from then
-   *  on; an empty reason takes off what stood there. The feed stays
+  /** Says what went wrong, which the feed's `state().error` answers
+   *  from then on; an empty reason takes off what stood there. The feed stays
    *  open: a transport that lost one message still has a door.
    *  @trap A TRANSPORT THAT OPENED NOTHING SAYS SO HERE, before it hands
    *  back the end it has none of: the feed is then one that was never

@@ -1,3 +1,4 @@
+#include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 #include <sigilimage/decode/Decoders.h>
@@ -242,6 +243,19 @@ void bindIO(py::module_& module) {
       .def(py::init([](size_t capacity) { return io::FeedPolicy{capacity}; }),
            py::arg("capacity") = 256)
       .def_readwrite("capacity", &io::FeedPolicy::capacity);
+  py::enum_<io::ReadyState>(resources, "ReadyState")
+      .value("Connecting", io::ReadyState::Connecting)
+      .value("Open", io::ReadyState::Open)
+      .value("Closed", io::ReadyState::Closed);
+  py::class_<io::FeedState>(resources, "FeedState")
+      .def_readonly("readiness", &io::FeedState::readiness)
+      .def_readonly("revision", &io::FeedState::revision)
+      .def_readonly("dropped", &io::FeedState::dropped)
+      .def_readonly("localAddress", &io::FeedState::localAddress)
+      .def_readonly("error", &io::FeedState::error)
+      .def("isOpen", &io::FeedState::isOpen)
+      .def(py::self == py::self)
+      .def(py::self != py::self);
   py::class_<io::Message>(resources, "Message")
       .def(py::init([](py::handle payload, std::string sender,
                        double arrivedAt, uint64_t revision) {
@@ -292,28 +306,19 @@ void bindIO(py::module_& module) {
     return unlocked([&] { return feed->name(); }); \
   })
           SIGIL_FEED_METHOD(receive) SIGIL_FEED_METHOD(latest)
-              SIGIL_FEED_METHOD(revision) SIGIL_FEED_METHOD(dropped)
-                  SIGIL_FEED_METHOD(closed) SIGIL_FEED_METHOD(opened)
-                      SIGIL_FEED_METHOD(error) SIGIL_FEED_METHOD(address)
-                          SIGIL_FEED_METHOD(uri) SIGIL_FEED_METHOD(close)
+              SIGIL_FEED_METHOD(state) SIGIL_FEED_METHOD(uri)
+                  SIGIL_FEED_METHOD(close)
 #undef SIGIL_FEED_METHOD
       .def(
           "send",
-          [](const FeedHandle& value, py::handle payload) {
+          [](const FeedHandle& value, py::handle payload,
+             const std::string& to) {
             const auto copied = bytes(payload);
             auto feed = value.get();
-            return unlocked([&] { return feed->send(copied); });
+            return unlocked(
+                [&] { return feed->send(copied, {.to = to}); });
           },
-          py::arg("bytes"))
-      .def(
-          "sendTo",
-          [](const FeedHandle& value, const std::string& to,
-             py::handle payload) {
-            const auto copied = bytes(payload);
-            auto feed = value.get();
-            return unlocked([&] { return feed->sendTo(to, copied); });
-          },
-          py::arg("to"), py::arg("bytes"))
+          py::arg("payload"), py::arg("to") = "")
       .def(
           "record",
           [](const FeedHandle& value, const std::filesystem::path& path) {

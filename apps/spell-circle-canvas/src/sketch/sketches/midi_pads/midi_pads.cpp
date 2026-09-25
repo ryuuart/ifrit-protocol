@@ -362,7 +362,7 @@ struct MidiPads {
                 .strikes = strikes,
                 .turns = turns,
                 .lights = sent,
-                .address = pads.address(),
+                .address = pads.localAddress(),
                 .trouble = pads.error(),
                 .lit = std::move(lit)};
     if (now == shown) return false;

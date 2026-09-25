@@ -50,7 +50,7 @@ NSString *addressOf(const std::string &from) {
   // closing a socket in order to bind the same one again.
   _door = _hub.feed(uri, {.capacity = kArrivalCapacity});
 
-  const std::string error = _door->error();
+  const std::string error = _door->state().error;
   if (!error.empty()) {
     [self closeDoor];
     [self setListeningState:NO

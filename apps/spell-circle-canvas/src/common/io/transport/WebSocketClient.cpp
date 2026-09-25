@@ -325,7 +325,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
  *  because a server that answers slowly, or is not there at all, would
  *  otherwise hold whoever asked for the feed for as long as connecting
  *  takes. What it decided reaches the feed either way: as arrivals, or
- *  as the sentence error() answers. Until it is through, a send says it
+ *  as the sentence `state().error` answers. Until it is through, a send says it
  *  went nowhere. */
 OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
   const std::optional<std::string_view> server = namedServer(uri);
@@ -369,7 +369,7 @@ OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
   // The address a client has is the server it called: the port its own
   // socket took is the system's to choose and nothing anybody could
   // reach it at.
-  opened.address = door->session->url;
+  opened.localAddress = door->session->url;
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };
   return opened;

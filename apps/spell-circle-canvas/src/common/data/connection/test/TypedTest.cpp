@@ -37,7 +37,7 @@ namespace {
 sigil::io::Transport intoNowhere() {
   return [](std::string_view uri, sigil::io::Inlet) {
     sigil::io::OpenedFeed opened;
-    opened.address = std::string(uri);
+    opened.localAddress = std::string(uri);
     opened.send = [](const Bytes&) { return true; };
     return opened;
   };

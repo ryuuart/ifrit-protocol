@@ -191,7 +191,7 @@ void SeerSession::open(const QString& uri) {
   const QString named = uri.trimmed();
   if (named.isEmpty()) return;
   const QString error =
-      QString::fromStdString(m_wires.open(named.toStdString())->error());
+      QString::fromStdString(m_wires.open(named.toStdString())->state().error);
   m_wires.tick(elapsed());
   m_wireList.refresh(m_wires.vitals());
   setNote(error);
@@ -253,7 +253,7 @@ void SeerSession::replay(const QString& uri, const QUrl& file) {
     return;
   }
   const QString error = QString::fromStdString(
-      m_recorder.replay(named.toStdString(), pathOf(file))->error());
+      m_recorder.replay(named.toStdString(), pathOf(file))->state().error);
   m_wires.tick(elapsed());
   m_wireList.refresh(m_wires.vitals());
   setNote(error);

@@ -244,7 +244,7 @@ OpenedFeed hold(const Hub& hub, std::string_view uri, const Address& place,
                             ": the port it took could not be read back");
 
   OpenedFeed opened;
-  opened.address = "quic://[::]:" + std::to_string(QuicAddrGetPort(&took));
+  opened.localAddress = "quic://[::]:" + std::to_string(QuicAddrGetPort(&took));
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };
   opened.sendTo = [door](std::string_view to, const Bytes& message) {
@@ -260,7 +260,7 @@ OpenedFeed hold(const Hub& hub, std::string_view uri, const Address& place,
  *  because an end that answers slowly, or is not there at all, would
  *  otherwise hold whoever asked for the feed for as long as reaching it
  *  takes. What it decided reaches the feed either way: as arrivals, or
- *  as the sentence error() answers. */
+ *  as the sentence `state().error` answers. */
 OpenedFeed reach(const Address& place, const Inlet& into) {
   const Library& lib = library();
   QUIC_CREDENTIAL_CONFIG credential{};
@@ -306,7 +306,7 @@ OpenedFeed reach(const Address& place, const Inlet& into) {
   OpenedFeed opened;
   // The address a call has is the end it reached: the port its own socket
   // took is the system's to choose and nothing anybody could reach it at.
-  opened.address = called;
+  opened.localAddress = called;
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };
   return opened;

@@ -352,7 +352,7 @@ const Json& Connection::latest(std::string_view what) const {
 }
 
 uint64_t Connection::revision() const {
-  return m_state && m_state->feed ? m_state->feed->revision() : 0;
+  return m_state && m_state->feed ? m_state->feed->state().revision : 0;
 }
 
 std::optional<Json> Connection::receive() {
@@ -398,13 +398,13 @@ bool Connection::reply(const Json& message) const {
   // door nothing has arrived at, has.
   if (!m_state || !m_state->feed || m_state->sender.empty()) return false;
   const std::optional<io::Bytes> bytes = m_state->write(message);
-  return bytes && m_state->feed->sendTo(m_state->sender, *bytes);
+  return bytes && m_state->feed->send(*bytes, {.to = m_state->sender});
 }
 
 bool Connection::reply(std::string_view address, const Json& arguments) const {
   if (!m_state || !m_state->feed || m_state->sender.empty()) return false;
   const std::optional<io::Bytes> bytes = m_state->write(address, arguments);
-  return bytes && m_state->feed->sendTo(m_state->sender, *bytes);
+  return bytes && m_state->feed->send(*bytes, {.to = m_state->sender});
 }
 
 const std::string& Connection::uri() const {
@@ -425,18 +425,19 @@ std::shared_ptr<const io::Bytes> Connection::latestBytes() const {
   return m_state ? m_state->latestBytes : nullptr;
 }
 
-std::string Connection::address() const {
-  return m_state && m_state->feed ? m_state->feed->address() : std::string();
+std::string Connection::localAddress() const {
+  return m_state && m_state->feed ? m_state->feed->state().localAddress
+                                  : std::string();
 }
 
 std::string Connection::error() const {
   if (!m_state) return {};
   if (!m_state->trouble.empty()) return m_state->trouble;
-  return m_state->feed ? m_state->feed->error() : std::string();
+  return m_state->feed ? m_state->feed->state().error : std::string();
 }
 
 uint64_t Connection::dropped() const {
-  return m_state && m_state->feed ? m_state->feed->dropped() : 0;
+  return m_state && m_state->feed ? m_state->feed->state().dropped : 0;
 }
 
 uint64_t Connection::undecodable() const {
@@ -444,7 +445,9 @@ uint64_t Connection::undecodable() const {
 }
 
 bool Connection::closed() const {
-  return m_state && m_state->feed ? m_state->feed->closed() : true;
+  return m_state && m_state->feed ? m_state->feed->state().readiness ==
+                                        io::ReadyState::Closed
+                                  : true;
 }
 
 Connection::Vitals Connection::vitals() const {
@@ -452,7 +455,7 @@ Connection::Vitals Connection::vitals() const {
           .dropped = dropped(),
           .undecodable = undecodable(),
           .closed = closed(),
-          .address = address(),
+          .localAddress = localAddress(),
           .sender = sender(),
           .error = error()};
 }

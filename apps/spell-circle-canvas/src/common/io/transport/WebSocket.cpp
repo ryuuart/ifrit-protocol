@@ -699,7 +699,7 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
   const std::string interface = address->bind.empty() ? "[::]"
                                 : six ? "[" + address->bind + "]"
                                       : address->bind;
-  opened.address =
+  opened.localAddress =
       "ws://" + interface + ":" + std::to_string(bound.port) + address->path;
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };

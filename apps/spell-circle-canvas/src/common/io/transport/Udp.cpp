@@ -345,7 +345,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
   }
 
   OpenedFeed opened;
-  opened.address = localAddress(name, door->socket);
+  opened.localAddress = localAddress(name, door->socket);
   opened.close = [door] { door->close(); };
   // A listener answers whoever writes to it and has no one peer of its
   // own, so its way is one-way.

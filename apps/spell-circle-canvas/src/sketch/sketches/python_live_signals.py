@@ -19,7 +19,7 @@ from sigil.compose import Element, box, column, graphics, row, text
 from sigil.compose import document as doc
 from sigil.data import decodeJson
 from sigil.draw import CENTER, LEFT, RIGHT, Pen
-from sigil.io import Feed, FeedPolicy
+from sigil.io import Feed, FeedPolicy, ReadyState
 from sigil.io.testing import inletOf
 from sigil.material import Color
 from sigil.sketch import SketchContext, kit, sketch
@@ -176,7 +176,7 @@ class LiveSignals:
             self.samples.append(signal)
             self.received += 1
             self.last_arrival = elapsed
-            self.peer = arrival.from_ or "Synthetic recording"
+            self.peer = arrival.sender or "Synthetic recording"
             self.problem = ""
             changed = True
             if not self.replay:
@@ -192,7 +192,7 @@ class LiveSignals:
                         ),
                     }
                 ).encode()
-                if self.feed.sendTo(arrival.from_, reply):
+                if self.feed.send(reply, to=arrival.sender):
                     self.replies += 1
                 else:
                     self.problem = (
@@ -210,8 +210,9 @@ class LiveSignals:
         self.flow_path = trace([sample.flow for sample in self.samples])
 
     def state(self, elapsed: float) -> tuple[str, str | Color, str]:
-        if self.feed.error():
-            return "UNAVAILABLE", "#d09476", self.feed.error()
+        state = self.feed.state()
+        if state.error:
+            return "UNAVAILABLE", "#d09476", state.error
         if self.problem:
             return "CHECK INPUT", "#d09476", self.problem
         if self.replay:
@@ -220,13 +221,13 @@ class LiveSignals:
                 "#92b4e4",
                 "Synthetic recording. No socket is open; no reply is sent.",
             )
-        if self.feed.closed():
+        if state.readiness == ReadyState.Closed:
             return (
                 "CLOSED",
                 self.look.palette.ash,
                 "The feed is closed. Save the sketch to open a fresh session.",
             )
-        if not self.feed.opened():
+        if not state.isOpen():
             return (
                 "OPENING",
                 self.look.palette.ash,

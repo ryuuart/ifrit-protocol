@@ -292,7 +292,7 @@ struct FeedEvents {
     Reading now{.generation = door.revision(),
                 .undecodable = door.undecodable(),
                 .kinds = kinds,
-                .address = door.address(),
+                .address = door.localAddress(),
                 .trouble = door.error()};
     if (now == shown) return false;
     shown = std::move(now);

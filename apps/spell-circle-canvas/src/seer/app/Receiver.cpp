@@ -116,7 +116,7 @@ void Receiver::start() {
   if (m_deferWireChange && m_deferWireChange([this] { start(); })) return;
   const auto uri = m_uri.toStdString();
   if (const auto previous = m_wires.feed(uri);
-      previous && (previous->closed() || !previous->error().empty()))
+      previous && ((previous->state().readiness == sigil::io::ReadyState::Closed) || !previous->state().error.empty()))
     m_wires.close(uri);
   m_wires.open(uri);
   m_opened = true;
@@ -137,9 +137,9 @@ void Receiver::refresh() {
   QString status;
   {
     const auto feed = m_wires.feed(m_uri.toStdString());
-    listening = feed && !feed->closed() && feed->error().empty();
-    if (feed && !feed->error().empty())
-      status = QString::fromStdString(feed->error());
+    listening = feed && !(feed->state().readiness == sigil::io::ReadyState::Closed) && feed->state().error.empty();
+    if (feed && !feed->state().error.empty())
+      status = QString::fromStdString(feed->state().error);
     else if (recorded())
       status = listening ? "Playing recording · " + m_uri
                          : "Recording stopped · " + m_uri;

@@ -490,7 +490,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
       std::chrono::nanoseconds(std::chrono::seconds(1)) / named->rate, into);
 
   OpenedFeed opened;
-  opened.address = door->address;
+  opened.localAddress = door->address;
   opened.close = [door] { door->close(); };
   // Neither way out is filled: a reader maps what a writer left and has
   // nothing to write back through, so a scene that must answer holds

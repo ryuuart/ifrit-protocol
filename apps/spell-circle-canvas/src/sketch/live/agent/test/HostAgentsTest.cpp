@@ -592,7 +592,7 @@ struct RecordingReader {
     feed = ctx.assets.hub().feed("udp://:27183");
   }
   void update(double, sigil::sketch::SketchContext&) {
-    g_arrivals = feed ? feed->revision() : 0;
+    g_arrivals = feed ? feed->state().revision : 0;
   }
 };
 

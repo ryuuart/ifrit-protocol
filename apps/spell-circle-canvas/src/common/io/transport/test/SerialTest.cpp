@@ -105,7 +105,7 @@ class IOSerial : public ::testing::Test {
    *  back to the writer and turns a newline into a pair. */
   std::shared_ptr<Feed> openSensor(std::string_view settings = "?baud=115200") {
     const std::shared_ptr<Feed> sensor = hub.feed(uri(settings));
-    if (!sensor->error().empty()) return sensor;
+    if (!sensor->state().error.empty()) return sensor;
     termios line{};
     EXPECT_EQ(::tcgetattr(m_master, &line), 0) << std::strerror(errno);
     ::cfmakeraw(&line);
@@ -166,11 +166,11 @@ class IOSerial : public ::testing::Test {
 
 TEST_F(IOSerial, TwoLinesAreTwoArrivalsInOrderWithoutTheirNewlines) {
   const std::shared_ptr<Feed> sensor = openSensor();
-  ASSERT_TRUE(sensor->error().empty()) << sensor->error();
-  EXPECT_EQ(sensor->address(), "serial://" + m_device);
+  ASSERT_TRUE(sensor->state().error.empty()) << sensor->state().error;
+  EXPECT_EQ(sensor->state().localAddress, "serial://" + m_device);
 
   toMaster("{\"lux\":412}\n{\"tilt\":-3.2}\n");
-  ASSERT_TRUE(waitUntil([&] { return sensor->revision() == 2; }));
+  ASSERT_TRUE(waitUntil([&] { return sensor->state().revision == 2; }));
 
   const std::optional<Message> first = sensor->receive();
   ASSERT_TRUE(first.has_value());
@@ -187,7 +187,7 @@ TEST_F(IOSerial, TwoLinesAreTwoArrivalsInOrderWithoutTheirNewlines) {
 
 TEST_F(IOSerial, ACarriageReturnBeforeTheNewlineIsNoPartOfTheLine) {
   const std::shared_ptr<Feed> sensor = openSensor();
-  ASSERT_TRUE(sensor->error().empty()) << sensor->error();
+  ASSERT_TRUE(sensor->state().error.empty()) << sensor->state().error;
 
   // A board that ends its lines the way a terminal does writes both,
   // and what a reader wants is the reading without either.
@@ -198,7 +198,7 @@ TEST_F(IOSerial, ACarriageReturnBeforeTheNewlineIsNoPartOfTheLine) {
 
 TEST_F(IOSerial, ALineThatArrivedInTwoWritesIsOneArrival) {
   const std::shared_ptr<Feed> sensor = openSensor();
-  ASSERT_TRUE(sensor->error().empty()) << sensor->error();
+  ASSERT_TRUE(sensor->state().error.empty()) << sensor->state().error;
 
   // Nothing on a serial port says where a message ends but the newline,
   // so half a line is not half an arrival: it is no arrival at all, and
@@ -210,12 +210,12 @@ TEST_F(IOSerial, ALineThatArrivedInTwoWritesIsOneArrival) {
   toMaster("40,\"tilt\":1.5}\n");
   ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
   EXPECT_EQ(sensor->latest()->payload->asText(), "{\"lux\":640,\"tilt\":1.5}");
-  EXPECT_EQ(sensor->revision(), 1u);
+  EXPECT_EQ(sensor->state().revision, 1u);
 }
 
 TEST_F(IOSerial, ABlankLineIsNoReadingAndDoesNotArrive) {
   const std::shared_ptr<Feed> sensor = openSensor();
-  ASSERT_TRUE(sensor->error().empty()) << sensor->error();
+  ASSERT_TRUE(sensor->state().error.empty()) << sensor->state().error;
 
   // A board that writes a blank line between its readings, or one that
   // ends the last one twice, has said nothing: a reader handed the
@@ -223,17 +223,17 @@ TEST_F(IOSerial, ABlankLineIsNoReadingAndDoesNotArrive) {
   toMaster("\n\n{\"lux\":10}\n\n");
   ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
   EXPECT_EQ(sensor->latest()->payload->asText(), "{\"lux\":10}");
-  EXPECT_EQ(sensor->revision(), 1u);
+  EXPECT_EQ(sensor->state().revision, 1u);
 }
 
 TEST_F(IOSerial, SendWritesALineTheOtherEndReadsBack) {
   const std::shared_ptr<Feed> sensor = openSensor();
-  ASSERT_TRUE(sensor->error().empty()) << sensor->error();
+  ASSERT_TRUE(sensor->state().error.empty()) << sensor->state().error;
 
   // A cable holds the one peer at the other end of it, so a send goes
   // there and there is nobody else to name.
   EXPECT_TRUE(sensor->send(bytesOf("{\"led\":true}")));
-  EXPECT_FALSE(sensor->sendTo(sensor->address(), bytesOf("by name")));
+  EXPECT_FALSE(sensor->send(bytesOf("by name"), {.to = sensor->state().localAddress}));
 
   // A MESSAGE IS A LINE BOTH WAYS: the reader on the board stops at the
   // newline this end wrote after the bytes.
@@ -243,8 +243,8 @@ TEST_F(IOSerial, SendWritesALineTheOtherEndReadsBack) {
 TEST_F(IOSerial, ADeviceThatIsNotThereOpensNothingAndSaysWhy) {
   const std::shared_ptr<Feed> feed =
       hub.feed("serial:///dev/tty.no-board-of-this-name?baud=115200");
-  EXPECT_FALSE(feed->error().empty());
-  EXPECT_TRUE(feed->address().empty());
+  EXPECT_FALSE(feed->state().error.empty());
+  EXPECT_TRUE(feed->state().localAddress.empty());
   EXPECT_FALSE(feed->latest().has_value());
 }
 
@@ -252,15 +252,15 @@ TEST_F(IOSerial, AUriWithNoBaudRateIsRefusedWithTheReason) {
   // Two ends that disagree about the rate read each other as noise, so
   // there is no rate to fall back on and the URI has to carry one.
   const std::shared_ptr<Feed> feed = hub.feed(uri(""));
-  EXPECT_FALSE(feed->error().empty());
-  EXPECT_NE(feed->error().find("baud"), std::string::npos) << feed->error();
-  EXPECT_TRUE(feed->address().empty());
+  EXPECT_FALSE(feed->state().error.empty());
+  EXPECT_NE(feed->state().error.find("baud"), std::string::npos) << feed->state().error;
+  EXPECT_TRUE(feed->state().localAddress.empty());
 }
 
 TEST_F(IOSerial, DroppingTheLastHolderOfAFeedClosesThePort) {
   {
     const std::shared_ptr<Feed> sensor = openSensor();
-    ASSERT_TRUE(sensor->error().empty()) << sensor->error();
+    ASSERT_TRUE(sensor->state().error.empty()) << sensor->state().error;
     toMaster("{\"lux\":1}\n");
     ASSERT_TRUE(waitUntil([&] { return sensor->latest().has_value(); }));
   }
@@ -273,10 +273,10 @@ TEST_F(IOSerial, DroppingTheLastHolderOfAFeedClosesThePort) {
 
 TEST_F(IOSerial, TwoAsksForOneUriAnswerOneFeed) {
   const std::shared_ptr<Feed> first = openSensor();
-  ASSERT_TRUE(first->error().empty()) << first->error();
+  ASSERT_TRUE(first->state().error.empty()) << first->state().error;
   const std::shared_ptr<Feed> second = hub.feed(uri());
   EXPECT_EQ(first, second);
-  EXPECT_EQ(first->address(), second->address());
+  EXPECT_EQ(first->state().localAddress, second->state().localAddress);
 }
 
 }  // namespace

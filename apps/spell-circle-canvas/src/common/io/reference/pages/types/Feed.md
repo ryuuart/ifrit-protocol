@@ -23,7 +23,7 @@ frame.
 
 A feed keeps the last `FeedPolicy::capacity` arrivals for
 `Feed::receive`. When one more reaches a feed nobody has drained, the
-oldest falls off the front and `Feed::dropped` counts it, so a reader
+oldest falls off the front and `FeedState::dropped` counts it, so a reader
 that cannot keep up loses the oldest messages rather than the newest and
 can see that it happened. What `Feed::latest` answers is never dropped.
 
@@ -32,12 +32,24 @@ revision, when it arrived, its payload and the address it came from, read
 out together so they are one message's. It is latched rather than
 queued, so draining through `Feed::receive` leaves it standing.
 
+### Where the door stands
+
+`Feed::state` answers one `sigil::io::FeedState`, read out together:
+`FeedState::readiness` — a `sigil::io::ReadyState`, `Connecting` before a
+door stands or while one that could not be opened waits for the next ask,
+`Open` while messages arrive through it, `Closed` once it is shut — with
+`FeedState::revision`, `FeedState::dropped`, the `FeedState::localAddress`
+the transport bound and the `FeedState::error` that says what went wrong.
+The value compares field by field, so a reader that keeps what it last
+showed describes again exactly when `state() != shown`, and
+`FeedState::isOpen` is the one question most readers ask of it.
+
 ### Sending back
 
 `Feed::send` sends back through the opened end, and is false when the way
 is one-way, when the feed is closed, and when no transport opened it.
 
-`Feed::sendTo` sends to ONE sender: the address is spelled the way an
+`Feed::send` with `SendOptions::to` sends to ONE sender: the address is spelled the way an
 message's `Message::sender` is, `udp://127.0.0.1:52341`, which is how a
 door that holds no peer of its own answers the one that wrote to it. It
 is false when the way is one-way for that purpose, when the feed is
@@ -54,7 +66,7 @@ attached peers, as a datagram socket does.
 
 What puts a message on a feed is not a reader's: the transport holds the
 feed's `sigil::io::Inlet`, delivers through it, says through it what went
-wrong — which `Feed::error` then answers — and hands back the end the
+wrong — which `FeedState::error` then answers — and hands back the end the
 feed closes and sends through. A feed whose transport opened nothing
 carries that reason and is opened again by the next ask for its URI. A
 test puts messages on a feed it holds through

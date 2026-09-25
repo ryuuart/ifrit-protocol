@@ -63,11 +63,12 @@ struct Vitals {
 };
 
 Vitals vitalsOf(const io::Feed& feed) {
-  return {.generation = feed.revision(),
-          .dropped = feed.dropped(),
-          .closed = feed.closed(),
-          .address = feed.address(),
-          .trouble = feed.error()};
+  const io::FeedState state = feed.state();
+  return {.generation = state.revision,
+          .dropped = state.dropped,
+          .closed = state.readiness == io::ReadyState::Closed,
+          .address = state.localAddress,
+          .trouble = state.error};
 }
 
 }  // namespace

@@ -84,7 +84,7 @@ void Feed::deliverLocked(std::shared_ptr<const Bytes> payload,
   // The frame is written under the lock that stamped the message, so a
   // recording lists messages in the order the feed took them however
   // many threads are delivering. A file that stops taking frames ends
-  // the recording and says so through error(): a recording that went
+  // the recording and says so through its state's error: a recording that went
   // quiet without a word would replay as a run that stopped early.
   if (m_recorder) {
     const std::lock_guard recording(m_recorder->mutex);
@@ -159,7 +159,7 @@ void Feed::open(OpenedFeed opened) {
       // next ask for this URI to open it again, and there is nothing
       // to close.
       const bool nothing = !opened.close && !opened.send && !opened.sendTo &&
-                           opened.address.empty();
+                           opened.localAddress.empty();
       if (nothing && !m_error.empty()) return;
       m_wasOpened = true;
       m_openedEnd = std::move(opened);
@@ -182,11 +182,6 @@ std::optional<Message> Feed::latest() const {
   return m_latest;
 }
 
-uint64_t Feed::revision() const {
-  const std::lock_guard lock(m_mutex);
-  return m_revision;
-}
-
 std::optional<Message> Feed::receive() {
   const std::lock_guard lock(m_mutex);
   if (m_messages.empty()) return std::nullopt;
@@ -195,53 +190,34 @@ std::optional<Message> Feed::receive() {
   return message;
 }
 
-uint64_t Feed::dropped() const {
+FeedState Feed::state() const {
   const std::lock_guard lock(m_mutex);
-  return m_dropped;
+  FeedState state;
+  state.readiness = m_closed       ? ReadyState::Closed
+                    : m_wasOpened ? ReadyState::Open
+                                  : ReadyState::Connecting;
+  state.revision = m_revision;
+  state.dropped = m_dropped;
+  state.localAddress = m_openedEnd.localAddress;
+  state.error = m_error;
+  return state;
 }
 
-bool Feed::closed() const {
-  const std::lock_guard lock(m_mutex);
-  return m_closed;
-}
-
-bool Feed::opened() const {
-  const std::lock_guard lock(m_mutex);
-  return m_wasOpened;
-}
-
-std::string Feed::error() const {
-  const std::lock_guard lock(m_mutex);
-  return m_error;
-}
-
-std::string Feed::address() const {
-  const std::lock_guard lock(m_mutex);
-  return m_openedEnd.address;
-}
-
-bool Feed::send(const Bytes& bytes) const {
+bool Feed::send(const Bytes& payload, const SendOptions& options) const {
   std::function<bool(const Bytes&)> outward;
+  std::function<bool(std::string_view, const Bytes&)> addressed;
   {
     const std::lock_guard lock(m_mutex);
     if (m_closed) return false;
-    outward = m_openedEnd.send;
+    if (options.to.empty())
+      outward = m_openedEnd.send;
+    else
+      addressed = m_openedEnd.sendTo;
   }
   // Outside the lock: a transport that waits on a socket must not stop
   // a reader from draining what has already arrived.
-  return outward ? outward(bytes) : false;
-}
-
-bool Feed::sendTo(std::string_view to, const Bytes& bytes) const {
-  std::function<bool(std::string_view, const Bytes&)> outward;
-  {
-    const std::lock_guard lock(m_mutex);
-    if (m_closed) return false;
-    outward = m_openedEnd.sendTo;
-  }
-  // Outside the lock, for the reason the broadcast beside it is: a
-  // reader waits for another reader, and never for a socket.
-  return outward ? outward(to, bytes) : false;
+  if (!options.to.empty()) return addressed ? addressed(options.to, payload) : false;
+  return outward ? outward(payload) : false;
 }
 
 std::vector<std::string> Feed::peers() const {
@@ -312,7 +288,7 @@ void Feed::advance(double seconds) {
                     receivedAtLocked(recorded.arrivedAt()), std::string());
     }
     if (m_replayed != m_recording.size()) return;
-    // Nothing else is coming: a reader that watches closed() learns
+    // Nothing else is coming: a reader that watches its state learns
     // that the recording ran out rather than waiting on a door that
     // will never open again.
     ending = closeLocked();

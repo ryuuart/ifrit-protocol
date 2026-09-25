@@ -290,7 +290,7 @@ struct OscDesk {
                 .palettes = palettes,
                 .replies = replies,
                 .spoken = std::string(desk.latest()["address"].text()),
-                .address = desk.address(),
+                .address = desk.localAddress(),
                 .trouble = desk.error()};
     if (now == shown) return false;
     shown = std::move(now);
