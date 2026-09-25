@@ -103,8 +103,8 @@ NSString *addressOf(const std::string &from) {
     const std::optional<sigil::io::Arrival> arrival = door->receive();
     if (!arrival) return;
     @autoreleasepool {
-      NSData *payload = [NSData dataWithBytes:arrival->bytes->bytes.data()
-                                       length:arrival->bytes->bytes.size()];
+      NSData *payload = [NSData dataWithBytes:arrival->bytes->data()
+                                       length:arrival->bytes->size()];
       const auto receivedAt =
           _doorOpenedAt + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
                               std::chrono::duration<double>(arrival->at));
