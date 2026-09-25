@@ -8,12 +8,11 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace skia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -58,9 +57,9 @@ struct FilterVerb {
   Element describe() const {
     return box().row().gap(16).padding(24).children({
         cell("no filter", box()),
-        cell("filter(blur)", box().filter(Filter::blur(3))),
-        cell("filter(glow)",
-             box().filter(Filter::glow(material::hexColor(0x3fd6b0), 9))),
+        cell("filter(blur)", box().filter(material::Filter::blur(3))),
+        cell("filter(glow)", box().filter(material::Filter::glow(
+                                 material::hexColor(0x3fd6b0), 9))),
     });
   }
 };

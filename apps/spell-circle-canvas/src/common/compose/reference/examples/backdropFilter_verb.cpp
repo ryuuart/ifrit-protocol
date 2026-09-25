@@ -8,12 +8,11 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace skia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -70,7 +69,7 @@ struct BackdropFilterVerb {
                        // The lattice under this panel is blurred before
                        // the panel's own translucent fill goes down.
                        panel("backdropFilter(blur)",
-                             box().backdropFilter(Filter::blur(7)))}),
+                             box().backdropFilter(material::Filter::blur(7)))}),
     });
   }
 };
