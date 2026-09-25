@@ -87,7 +87,7 @@ void readMaterial(const UsdShadeMaterial& material,
     // Resource ACCESS is SigilIO's, here as everywhere: a file on disk
     // becomes bytes through the one door.
     if (std::optional<io::Bytes> bytes = io::readBytes(p))
-      bytesOut = std::move(bytes->bytes);
+      bytesOut.assign(bytes->begin(), bytes->end());
   };
   if (auto tex = image("diffuseColor")) {
     fetch(*tex, part.textureUri, part.textureBytes);
