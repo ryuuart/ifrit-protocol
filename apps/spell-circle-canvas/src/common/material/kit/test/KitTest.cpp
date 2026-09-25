@@ -325,7 +325,7 @@ TEST(Over, StacksTopOverBaseWhereTheMaskSays) {
   EXPECT_EQ(SkColorGetB(shade(1.0f)), 255u);
   // The stack is one material: the operands are its children.
   const Material stack = over(kit::unlit(red), kit::unlit(blue),
-                              maskConstant(1.0f), Blend::Multiply);
+                              maskConstant(1.0f), BlendMode::Multiply);
   EXPECT_EQ(stackDepth(stack), 1);
   EXPECT_EQ(stackDepth(over(stack, kit::unlit(red), maskConstant(1.0f))), 2);
   EXPECT_EQ(*under(stack), kit::unlit(red));
@@ -382,7 +382,7 @@ TEST(Over, AStackAsksForItsOperandsSamplersAndNoMore) {
   EXPECT_EQ(skia::samplerCount(unlit), 2);
 
   const Material stack =
-      over(kit::unlit(), kit::unlit(), maskConstant(0.5f), Blend::Mix);
+      over(kit::unlit(), kit::unlit(), maskConstant(0.5f), BlendMode::Normal);
   // The composed recipe declares a slot per operand's own slot, because
   // the language it was composed for reaches no child material.
   EXPECT_GT(stack.recipe().slots().size(), 3u);

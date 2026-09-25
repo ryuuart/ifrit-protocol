@@ -134,7 +134,7 @@ TEST(SkiaEffect, ABoundUniformMakesItLiveAndItNeverPrunes) {
   choreograph::Output<float> k(1.0f);
   skia::Effect live = skia::Effect::shader(effect);
   EXPECT_FALSE(live.isAnimated());
-  live.uniform("uK", &k);
+  live.bind("uK", &k);
   EXPECT_TRUE(live.isAnimated());
   // Live never prunes — the same rule a live paint follows.
   EXPECT_FALSE(live == live);
@@ -163,7 +163,7 @@ TEST(SkiaEffect, ChainingKeepsTheNodesAContextNeedingChildLivesIn) {
                "half4 main(float2 p) { return content.eval(p) * "
                "tint.eval(p); }"));
   ASSERT_NE(effect, nullptr);
-  skia::Paint anchored = skia::Paint::solid({1, 0, 0, 1});
+  Paint anchored = Paint::solid({1, 0, 0, 1});
   anchored.worldSpace();
   EXPECT_TRUE(anchored.geometryDependent());
 
@@ -187,11 +187,11 @@ TEST(SkiaEffect, SettingOneUniformTwiceReplacesItRatherThanStacking) {
                "half4 main(float2 p) { return content.eval(p) * half(uK); }"));
   ASSERT_NE(effect, nullptr);
   skia::Effect twice = skia::Effect::shader(effect);
-  twice.uniform("uK", 0.25f);
-  twice.uniform("uK", 0.75f);
+  twice.set("uK", 0.25f);
+  twice.set("uK", 0.75f);
   // Last write wins, as slot() does: the same effect described once at
   // the final value is the same recipe, so a re-described node prunes.
   skia::Effect once = skia::Effect::shader(effect);
-  once.uniform("uK", 0.75f);
+  once.set("uK", 0.75f);
   EXPECT_TRUE(twice == once);
 }

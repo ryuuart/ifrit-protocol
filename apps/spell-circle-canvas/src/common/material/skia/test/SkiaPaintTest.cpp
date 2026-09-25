@@ -66,10 +66,10 @@ TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
   std::string said;
   {
     testing::internal::CaptureStderr();
-    const skia::Paint paint = skia::Paint::recipe(Material(pass));
+    const Paint paint = Paint::recipe(Material(pass));
     // Nothing to draw on its own — a pass material used as an ordinary
     // fill has no picture to give, and now it says so by drawing nothing.
-    EXPECT_EQ(paint.staticShader(), nullptr);
+    EXPECT_EQ(skia::staticShader(paint), nullptr);
     said = testing::internal::GetCapturedStderr();
   }
   EXPECT_EQ(said, "") << said;
@@ -77,7 +77,7 @@ TEST(SkiaPaint, APassBodyIsNotCompiledAsAShaderOfItsOwn) {
   // An ordinary recipe is unaffected: it still compiles at the paint.
   auto plain = std::make_shared<const Recipe>(
       Recipe::of<TwoParameters>("pass.notone").body(Target::SkSL, kBody));
-  EXPECT_NE(skia::Paint::recipe(Material(plain)).staticShader(), nullptr);
+  EXPECT_NE(skia::staticShader(Paint::recipe(Material(plain))), nullptr);
 }
 
 // ---------------------------------------------------------------------------
@@ -123,40 +123,40 @@ sk_sp<SkRuntimeEffect> resolutionEffect() {
 }  // namespace
 
 TEST(SkiaPaint, TheThreeTiersAreDeclaredByWhatTheEffectReads) {
-  const skia::Paint flat = skia::Paint::solid({1, 0, 0, 1});
+  const Paint flat = Paint::solid({1, 0, 0, 1});
   EXPECT_FALSE(flat.isAnimated());
   EXPECT_FALSE(flat.geometryDependent());
   EXPECT_TRUE(flat.isSolid());
 
-  skia::Paint constants = skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}});
+  Paint constants = skia::sksl(constantEffect(), {{"uK", 1.0f}});
   EXPECT_FALSE(constants.isAnimated());
   EXPECT_FALSE(constants.geometryDependent());
   // A constants-only sksl paint has resolved already, so it answers a
   // shader with no frame at all.
-  EXPECT_NE(constants.staticShader(), nullptr);
+  EXPECT_NE(skia::staticShader(constants), nullptr);
 
-  EXPECT_TRUE(skia::Paint::sksl(timeEffect()).isAnimated());
-  const skia::Paint sized = skia::Paint::sksl(resolutionEffect());
+  EXPECT_TRUE(skia::sksl(timeEffect()).isAnimated());
+  const Paint sized = skia::sksl(resolutionEffect());
   EXPECT_FALSE(sized.isAnimated());
   EXPECT_TRUE(sized.geometryDependent());
   // Geometry-dependent means the frame decides: the box-less snapshot is
   // not what a consumer paints with, and the framed answer is a different
   // shader.
-  EXPECT_NE(sized.shaderFor(skia::PaintFrame{.size = {100, 40}}),
-            sized.staticShader());
+  EXPECT_NE(skia::shader(sized, FrameData{.resolution = {100, 40}}),
+            skia::staticShader(sized));
 }
 
 TEST(SkiaPaint, ChildAndBlendInheritTheirLayersTier) {
-  skia::Paint parent = skia::Paint::sksl(
+  Paint parent = skia::sksl(
       effectFor("uniform shader uSrc;\n"
                 "half4 main(float2 p) { return uSrc.eval(p); }"));
   EXPECT_FALSE(parent.isAnimated());
-  parent.slot("uSrc", skia::Paint::sksl(timeEffect()));
+  parent.slot("uSrc", skia::sksl(timeEffect()));
   EXPECT_TRUE(parent.isAnimated());
 
-  const skia::Paint stack = skia::Paint::blend(
-      {{skia::Paint::solid({0, 0, 0, 1}), SkBlendMode::kSrc},
-       {skia::Paint::sksl(resolutionEffect()), SkBlendMode::kPlus}});
+  const Paint stack = Paint::blend(
+      {{Paint::solid({0, 0, 0, 1}), BlendMode::Source},
+       {skia::sksl(resolutionEffect()), BlendMode::PlusLighter}});
   EXPECT_FALSE(stack.isAnimated());
   EXPECT_TRUE(stack.geometryDependent());
 }
@@ -168,29 +168,26 @@ TEST(SkiaPaint, TheFirstBlendLayerIsTheAccumulationAndItsLayerPropsAreNot) {
   // — the eager flatten a static blend takes and the per-draw one a
   // geometry-dependent layer defers to — are one body, so they cannot
   // disagree about that.
-  skia::Paint base = skia::Paint::solid({1, 0, 0, 1});
+  Paint base = Paint::solid({1, 0, 0, 1});
   base.amount(0.25f);
-  const skia::Paint top = skia::Paint::solid({0, 0, 1, 1});
+  const Paint top = Paint::solid({0, 0, 1, 1});
   const SkBitmap thinned =
-      render(skia::Paint::blend(
-                 {{base, SkBlendMode::kSrcOver}, {top, SkBlendMode::kPlus}})
-                 .staticShader());
+      render(skia::staticShader(Paint::blend(
+                 {{base, BlendMode::Normal}, {top, BlendMode::PlusLighter}})));
   const SkBitmap whole =
-      render(skia::Paint::blend(
-                 {{skia::Paint::solid({1, 0, 0, 1}), SkBlendMode::kSrcOver},
-                  {top, SkBlendMode::kPlus}})
-                 .staticShader());
+      render(skia::staticShader(Paint::blend(
+                 {{Paint::solid({1, 0, 0, 1}), BlendMode::Normal},
+                  {top, BlendMode::PlusLighter}})));
   EXPECT_TRUE(identical(thinned, whole));
 
   // The SECOND layer's amount is read, and is the whole difference
   // between the two pictures.
-  skia::Paint half = top;
+  Paint half = top;
   half.amount(0.5f);
   const SkBitmap mixed =
-      render(skia::Paint::blend(
-                 {{skia::Paint::solid({1, 0, 0, 1}), SkBlendMode::kSrcOver},
-                  {half, SkBlendMode::kPlus}})
-                 .staticShader());
+      render(skia::staticShader(Paint::blend(
+                 {{Paint::solid({1, 0, 0, 1}), BlendMode::Normal},
+                  {half, BlendMode::PlusLighter}})));
   EXPECT_FALSE(identical(mixed, whole));
   EXPECT_NEAR(SkColorGetB(mixed.getColor(1, 1)),
               SkColorGetB(whole.getColor(1, 1)) / 2, 2);
@@ -205,13 +202,13 @@ TEST(SkiaPaint, AConicWindowPastTheCircleClampsRatherThanWraps) {
   const std::vector<ColorStop> stops{{0.0f, {1, 0, 0, 1}},
                                      {1.0f, {0, 0, 1, 1}}};
   testing::internal::CaptureStderr();
-  const skia::Paint past = skia::Paint::conicGradient(
+  const Paint past = Paint::conicGradient(
       {50, 50}, stops,
       {.units = GradientUnits::Pixels, .startDegrees = 90, .endDegrees = 450});
   const std::string said = testing::internal::GetCapturedStderr();
   EXPECT_NE(said.find("do not wrap"), std::string::npos) << said;
 
-  const SkBitmap bm = render(past.staticShader(), 100, 100);
+  const SkBitmap bm = render(skia::staticShader(past), 100, 100);
   // Down and to the right of the centre is 45 degrees on the canvas —
   // before the window opens at 90 — so it paints the first stop flat
   // rather than the ramp the caller thought they had rotated onto it.
@@ -219,7 +216,7 @@ TEST(SkiaPaint, AConicWindowPastTheCircleClampsRatherThanWraps) {
   EXPECT_EQ(SkColorGetB(bm.getColor(85, 85)), 0u);
   // …and a window inside the circle says nothing at all.
   testing::internal::CaptureStderr();
-  const skia::Paint inside = skia::Paint::conicGradient(
+  const Paint inside = Paint::conicGradient(
       {50, 50}, stops, {.units = GradientUnits::Pixels});
   EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
   EXPECT_FALSE(inside == past);
@@ -235,16 +232,15 @@ TEST(SkiaPaint, AFocusMovesTheHotSpotAndLeavesTheOuterCircle) {
                                      {1.0f, {0, 0, 0, 1}}};
   const GradientOptions pixels{.units = GradientUnits::Pixels};
   const SkBitmap centred = render(
-      skia::Paint::radialGradient({50, 50}, 50, stops, pixels).staticShader(),
+      skia::staticShader(Paint::radialGradient({50, 50}, 50, stops, pixels)),
       100, 100);
   const SkBitmap displaced =
-      render(skia::Paint::radialGradient(
+      render(skia::staticShader(Paint::radialGradient(
                  {50, 50}, 50, stops,
-                 {.units = GradientUnits::Pixels, .focus = glm::vec2{30, 30}})
-                 .staticShader(),
+                 {.units = GradientUnits::Pixels, .focus = glm::vec2{30, 30}})),
              100, 100);
   const SkBitmap slid = render(
-      skia::Paint::radialGradient({30, 30}, 50, stops, pixels).staticShader(),
+      skia::staticShader(Paint::radialGradient({30, 30}, 50, stops, pixels)),
       100, 100);
 
   // The hot spot moved in both.
@@ -267,24 +263,24 @@ TEST(SkiaPaint, ABufferPrunesUntilItIsCommitted) {
   // first describe after a commit is a different one — exactly once.
   auto pixels = std::make_shared<skia::PixelBuffer>(4, 4);
   pixels->bitmap().eraseColor(SK_ColorRED);
-  const skia::Paint described = skia::Paint::buffer(pixels);
-  EXPECT_TRUE(described == skia::Paint::buffer(pixels));
+  const Paint described = skia::buffer(pixels);
+  EXPECT_TRUE(described == skia::buffer(pixels));
 
   // Writing without committing publishes nothing: the snapshot the
   // shader holds is the one taken at the last commit, so a describe over
   // an edited-but-uncommitted buffer still prunes.
   pixels->bitmap().eraseColor(SK_ColorBLUE);
-  EXPECT_TRUE(described == skia::Paint::buffer(pixels));
-  EXPECT_EQ(SkColorGetR(render(described.staticShader()).getColor(1, 1)), 255u);
+  EXPECT_TRUE(described == skia::buffer(pixels));
+  EXPECT_EQ(SkColorGetR(render(skia::staticShader(described)).getColor(1, 1)), 255u);
 
   pixels->commit();
-  const skia::Paint after = skia::Paint::buffer(pixels);
+  const Paint after = skia::buffer(pixels);
   EXPECT_FALSE(described == after);
-  EXPECT_TRUE(after == skia::Paint::buffer(pixels));
-  EXPECT_EQ(SkColorGetB(render(after.staticShader()).getColor(1, 1)), 255u);
+  EXPECT_TRUE(after == skia::buffer(pixels));
+  EXPECT_EQ(SkColorGetB(render(skia::staticShader(after)).getColor(1, 1)), 255u);
 
   // A null buffer is a paint that draws nothing rather than a crash.
-  EXPECT_EQ(skia::Paint::buffer(nullptr).staticShader(), nullptr);
+  EXPECT_EQ(skia::staticShader(skia::buffer(nullptr)), nullptr);
 }
 
 TEST(SkiaPaint, SettingOneUniformTwiceReplacesItRatherThanStacking) {
@@ -293,21 +289,21 @@ TEST(SkiaPaint, SettingOneUniformTwiceReplacesItRatherThanStacking) {
   // bound in a live-coding host that re-describes every frame, and the
   // paint stops comparing equal to the same paint described once, which
   // is what a node prunes on.
-  skia::Paint twice = skia::Paint::sksl(constantEffect());
-  twice.uniform("uK", 0.25f);
-  twice.uniform("uK", 1.0f);
-  EXPECT_TRUE(twice == skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}}));
+  Paint twice = skia::sksl(constantEffect());
+  twice.set("uK", 0.25f);
+  twice.set("uK", 1.0f);
+  EXPECT_TRUE(twice == skia::sksl(constantEffect(), {{"uK", 1.0f}}));
   EXPECT_TRUE(identical(
-      render(twice.staticShader()),
+      render(skia::staticShader(twice)),
       render(
-          skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}}).staticShader())));
+          skia::staticShader(skia::sksl(constantEffect(), {{"uK", 1.0f}})))));
 }
 
 TEST(SkiaPaint, TwoThreadsResolveOneSharedPaintsMemo) {
   // Copies of a Paint share the state its resolve memo hangs off, and a
   // host may paint two composers on two threads: both reach the memo,
   // and the answer has to be a whole shader either way.
-  skia::Paint live = skia::Paint::sksl(resolutionEffect());
+  Paint live = skia::sksl(resolutionEffect());
   EXPECT_TRUE(live.geometryDependent());
   std::vector<std::thread> painters;
   std::atomic<int> built{0};
@@ -315,7 +311,7 @@ TEST(SkiaPaint, TwoThreadsResolveOneSharedPaintsMemo) {
     painters.emplace_back([copy = live, t, &built] {
       for (int i = 0; i < 64; ++i) {
         const float side = (float)(8 + ((t + i) % 16));
-        if (copy.shaderFor(skia::PaintFrame{.size = {side, side}})) ++built;
+        if (skia::shader(copy, FrameData{.resolution = {side, side}})) ++built;
       }
     });
   for (std::thread& painter : painters) painter.join();
@@ -325,34 +321,34 @@ TEST(SkiaPaint, TwoThreadsResolveOneSharedPaintsMemo) {
 TEST(SkiaPaint, EqualityIsTheRecipeSoARebuiltPaintPrunes) {
   const std::vector<ColorStop> stops{{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}};
   const GradientOptions pixels{.units = GradientUnits::Pixels};
-  EXPECT_TRUE(skia::Paint::solid({1, 0, 0, 1}) ==
-              skia::Paint::solid({1, 0, 0, 1}));
-  EXPECT_FALSE(skia::Paint::solid({1, 0, 0, 1}) ==
-               skia::Paint::solid({1, 0, 0.5f, 1}));
+  EXPECT_TRUE(Paint::solid({1, 0, 0, 1}) ==
+              Paint::solid({1, 0, 0, 1}));
+  EXPECT_FALSE(Paint::solid({1, 0, 0, 1}) ==
+               Paint::solid({1, 0, 0.5f, 1}));
   // Two separately built gradients over the same recipe are equal even
   // though each minted its own SkShader — that is what lets a node prune
   // across describes.
-  EXPECT_TRUE(skia::Paint::linearGradient({0, 0}, {10, 0}, stops, pixels) ==
-              skia::Paint::linearGradient({0, 0}, {10, 0}, stops, pixels));
-  EXPECT_FALSE(skia::Paint::linearGradient({0, 0}, {10, 0}, stops, pixels) ==
-               skia::Paint::linearGradient({0, 0}, {20, 0}, stops, pixels));
+  EXPECT_TRUE(Paint::linearGradient({0, 0}, {10, 0}, stops, pixels) ==
+              Paint::linearGradient({0, 0}, {10, 0}, stops, pixels));
+  EXPECT_FALSE(Paint::linearGradient({0, 0}, {10, 0}, stops, pixels) ==
+               Paint::linearGradient({0, 0}, {20, 0}, stops, pixels));
   // The empty paint is reflexive; a holder that compared unequal to itself
   // would patch forever.
-  EXPECT_TRUE(skia::Paint() == skia::Paint{});
-  EXPECT_FALSE(skia::Paint{} == skia::Paint::solid({0, 0, 0, 0}));
+  EXPECT_TRUE(Paint() == Paint{});
+  EXPECT_FALSE(Paint{} == Paint::solid({0, 0, 0, 0}));
   // A child is part of the signature: two paints with different second
   // sources must never prune onto each other.
-  skia::Paint a = skia::Paint::sksl(
+  Paint a = skia::sksl(
       effectFor("uniform shader uSrc;\n"
                 "half4 main(float2 p) { return uSrc.eval(p); }"));
-  skia::Paint b = a;
-  a.slot("uSrc", skia::Paint::solid({1, 0, 0, 1}));
-  b.slot("uSrc", skia::Paint::solid({0, 1, 0, 1}));
+  Paint b = a;
+  a.slot("uSrc", Paint::solid({1, 0, 0, 1}));
+  b.slot("uSrc", Paint::solid({0, 1, 0, 1}));
   EXPECT_FALSE(a == b);
 }
 
 TEST(SkiaPaint, AWorldSpacePaintDegradesToBoxLocalWithoutAMatrix) {
-  skia::Paint anchored = skia::Paint::sksl(resolutionEffect());
+  Paint anchored = skia::sksl(resolutionEffect());
   anchored.worldSpace();
   // The reader is the CONST overload; on a mutable value the same
   // spelling is the setter.
@@ -360,18 +356,18 @@ TEST(SkiaPaint, AWorldSpacePaintDegradesToBoxLocalWithoutAMatrix) {
   EXPECT_TRUE(anchored.usesWorldSpace());
   // An identity toRoot is the honest answer outside a composite: the
   // paint resolves, and it resolves box-locally.
-  EXPECT_NE(anchored.shaderFor(skia::PaintFrame{.size = {64, 64}}), nullptr);
+  EXPECT_NE(skia::shader(anchored, FrameData{.resolution = {64, 64}}), nullptr);
   // The flag is part of the recipe, so it cannot prune onto the unflagged
   // paint it was copied from.
-  EXPECT_FALSE(anchored == skia::Paint::sksl(resolutionEffect()));
+  EXPECT_FALSE(anchored == skia::sksl(resolutionEffect()));
 }
 
 TEST(SkiaPaint, CopyOnWriteKeepsAMutationOffTheValueItWasCopiedFrom) {
-  skia::Paint base = skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}});
-  skia::Paint copy = base;
-  copy.uniform("uK", 0.25f);
+  Paint base = skia::sksl(constantEffect(), {{"uK", 1.0f}});
+  Paint copy = base;
+  copy.set("uK", 0.25f);
   EXPECT_FALSE(base == copy);
-  EXPECT_TRUE(base == skia::Paint::sksl(constantEffect(), {{"uK", 1.0f}}));
+  EXPECT_TRUE(base == skia::sksl(constantEffect(), {{"uK", 1.0f}}));
 }
 
 // ---------------------------------------------------------------------------
@@ -416,20 +412,20 @@ TEST(SkiaPaint, APaletteReachesAnEffectAsOneChildImage) {
   // pixel value, not a literal — and a sampled 256 x 1 strip is the form
   // that takes: nearest, at the texel centre, so entry 200 is entry 200
   // and not a blend of two unrelated ones.
-  skia::Paint lut = skia::Paint::sksl(
+  Paint lut = skia::sksl(
       effectFor("uniform shader uPalette;\n"
                 "uniform float uIndex;\n"
                 "half4 main(float2 p) {\n"
                 "  return uPalette.eval(float2(uIndex + 0.5, 0.5));\n"
                 "}"));
-  lut.uniform("uIndex", 200.0f);
+  lut.set("uIndex", 200.0f);
   lut.slot("uPalette",
-           skia::Paint::image(paletteImage(pal), SkTileMode::kClamp,
-                              SkTileMode::kClamp, SkMatrix::I(),
+           skia::image(paletteImage(pal), Repeat::Pad,
+                              Repeat::Pad, SkMatrix::I(),
                               SkSamplingOptions(SkFilterMode::kNearest)));
   // One child, one uniform: the whole table is in the shader and nothing
   // was baked per entry.
-  sk_sp<SkShader> shader = lut.staticShader();
+  sk_sp<SkShader> shader = skia::staticShader(lut);
   ASSERT_NE(shader, nullptr);
   const SkBitmap bm = render(shader);
   const SkColor got = bm.getColor(1, 1);
@@ -453,11 +449,11 @@ TEST(SkiaPaint, APaletteReachesAnEffectAsOneUniformArray) {
 
   // The array door: 1024 floats fill `float4 uPalette[256]`, because the
   // builder matches the DECLARED TOTAL float count and nothing finer.
-  skia::Paint lut = skia::Paint::sksl(
+  Paint lut = skia::sksl(
       effectFor("uniform float4 uPalette[256];\n"
                 "half4 main(float2 p) { return half4(uPalette[200]); }"));
-  lut.uniform("uPalette", flat);
-  sk_sp<SkShader> shader = lut.staticShader();
+  lut.set("uPalette", flat);
+  sk_sp<SkShader> shader = skia::staticShader(lut);
   ASSERT_NE(shader, nullptr);
   const SkBitmap bm = render(shader);
   const SkColor got = bm.getColor(1, 1);
@@ -466,9 +462,9 @@ TEST(SkiaPaint, APaletteReachesAnEffectAsOneUniformArray) {
 
   // A count that is not the declaration's is refused whole rather than
   // written partly: the paint keeps the table it had.
-  skia::Paint partial = lut;
-  partial.uniform("uPalette", std::vector<float>(8, 1.0f));
-  const SkBitmap same = render(partial.staticShader());
+  Paint partial = lut;
+  partial.set("uPalette", std::vector<float>(8, 1.0f));
+  const SkBitmap same = render(skia::staticShader(partial));
   EXPECT_TRUE(identical(bm, same));
 }
 
@@ -496,9 +492,9 @@ sk_sp<SkImage> theHalves() {
   return image;
 }
 
-skia::Paint fitted(skia::Fit how) {
-  skia::Paint p = skia::Paint::image(theHalves(), SkTileMode::kDecal,
-                                     SkTileMode::kDecal, SkMatrix::I(),
+Paint fitted(Fit how) {
+  Paint p = skia::image(theHalves(), Repeat::None,
+                                     Repeat::None, SkMatrix::I(),
                                      SkSamplingOptions(SkFilterMode::kNearest));
   p.fit(how);
   return p;
@@ -509,17 +505,17 @@ skia::Paint fitted(skia::Fit how) {
 TEST(SkiaPaint, AFittedImageIsMappedOntoTheBoxItIsPainting) {
   // Native is the absence of the question: two source pixels at the
   // origin, and the rest of the box is not the image's business.
-  const skia::Paint native = fitted(skia::Fit::Native);
+  const Paint native = fitted(Fit::Native);
   EXPECT_FALSE(native.geometryDependent());
-  EXPECT_EQ(SkColorGetA(render(native.staticShader(), 40, 10).getColor(20, 5)),
+  EXPECT_EQ(SkColorGetA(render(skia::staticShader(native), 40, 10).getColor(20, 5)),
             0u);
 
   // Stretch fills both axes: the halves land either side of the middle and
   // the whole box is covered.
-  const skia::Paint stretch = fitted(skia::Fit::Stretch);
+  const Paint stretch = fitted(Fit::Stretch);
   EXPECT_TRUE(stretch.geometryDependent());
   const SkBitmap wide =
-      render(stretch.shaderFor(skia::PaintFrame{.size = {40, 10}}), 40, 10);
+      render(skia::shader(stretch, FrameData{.resolution = {40, 10}}), 40, 10);
   EXPECT_EQ(wide.getColor(5, 5), SK_ColorRED);
   EXPECT_EQ(wide.getColor(35, 5), SK_ColorBLUE);
   EXPECT_EQ(wide.getColor(5, 9), SK_ColorRED);
@@ -528,7 +524,7 @@ TEST(SkiaPaint, AFittedImageIsMappedOntoTheBoxItIsPainting) {
   // square box is half the height of it, centred, and the box's own top
   // is not the image.
   const SkBitmap inside = render(
-      fitted(skia::Fit::Contain).shaderFor(skia::PaintFrame{.size = {40, 40}}),
+      skia::shader(fitted(Fit::Contain), FrameData{.resolution = {40, 40}}),
       40, 40);
   EXPECT_EQ(SkColorGetA(inside.getColor(5, 5)), 0u);
   EXPECT_EQ(inside.getColor(5, 20), SK_ColorRED);
@@ -537,7 +533,7 @@ TEST(SkiaPaint, AFittedImageIsMappedOntoTheBoxItIsPainting) {
   // Cover keeps the aspect the other way: nothing of the box is left, and
   // what does not fit is off the edges.
   const SkBitmap over = render(
-      fitted(skia::Fit::Cover).shaderFor(skia::PaintFrame{.size = {40, 40}}),
+      skia::shader(fitted(Fit::Cover), FrameData{.resolution = {40, 40}}),
       40, 40);
   EXPECT_EQ(over.getColor(5, 2), SK_ColorRED);
   EXPECT_EQ(over.getColor(5, 38), SK_ColorRED);
@@ -545,14 +541,14 @@ TEST(SkiaPaint, AFittedImageIsMappedOntoTheBoxItIsPainting) {
 }
 
 TEST(SkiaPaint, AFitIsPartOfTheRecipeAndDegradesWhereThereIsNoBox) {
-  EXPECT_FALSE(fitted(skia::Fit::Cover) == fitted(skia::Fit::Contain));
-  EXPECT_FALSE(fitted(skia::Fit::Cover) == fitted(skia::Fit::Native));
-  EXPECT_TRUE(fitted(skia::Fit::Cover) == fitted(skia::Fit::Cover));
+  EXPECT_FALSE(fitted(Fit::Cover) == fitted(Fit::Contain));
+  EXPECT_FALSE(fitted(Fit::Cover) == fitted(Fit::Native));
+  EXPECT_TRUE(fitted(Fit::Cover) == fitted(Fit::Cover));
 
   // Asked with no box in reach — a standalone decoration, a measurement —
   // it answers the unfitted mapping rather than nothing at all, the same
   // degradation a world-space material makes outside a composer.
-  const SkBitmap loose = render(fitted(skia::Fit::Cover).asShader(), 40, 40);
+  const SkBitmap loose = render(skia::shader(fitted(Fit::Cover)), 40, 40);
   EXPECT_EQ(SkColorGetA(loose.getColor(20, 20)), 0u);
   EXPECT_EQ(loose.getColor(0, 0), SK_ColorRED);
 }

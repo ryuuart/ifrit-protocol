@@ -31,9 +31,9 @@ find_package(boost_pfr CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 sigil_library(SigilMaterialCore
-  SOURCES Combine.cpp Gradient.cpp Material.cpp Parameters.cpp Program.cpp Recipe.cpp Terms.cpp
+  SOURCES BlendMode.cpp Combine.cpp Gradient.cpp Material.cpp Parameters.cpp Program.cpp Recipe.cpp Terms.cpp
           ${SIGIL_MATERIAL_SHADING_PROOF}
-  HEADERS Backface.h Bank.h Combine.h FrameData.h Gradient.h Leaf.h
+  HEADERS Backface.h Bank.h BlendMode.h Combine.h FrameData.h Gradient.h Leaf.h
           Material.h Parameters.h Program.h Recipe.h Target.h Terms.h
           UniformBlock.h
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr

@@ -22,6 +22,9 @@ struct FrameData {
   double seconds = 0.0;
   /** The painted node's size in pixels; the `uResolution` uniform. */
   glm::vec2 resolution{0.0f, 0.0f};
+  /** The root's laid-out size in pixels — what `uResolution` becomes for
+   *  a material anchored to the root. Zero falls back to `resolution`. */
+  glm::vec2 rootResolution{0.0f, 0.0f};
   /** Device pixels per logical pixel; the `uContentScale` uniform. */
   float contentScale = 1.0f;
   /** The node's local space to the root, column-major; the `uWorld`

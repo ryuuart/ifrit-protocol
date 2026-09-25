@@ -2,25 +2,26 @@
 kind: type
 library: SigilMaterial
 name: Paint
-qualified: sigil::material::skia::Paint
-group: The Skia paint
+qualified: sigil::material::Paint
+group: The paint
 status: stable
 ---
 
 # Paint
 
-THIS LIBRARY'S PAINT MODEL AS A SKIA SHADER: a small tree of paint nodes
-that compiles to ONE shader — layers through a blend shader, never a
-stack of saved layers — or to a plain solid colour. It is the value a
-node's fill takes when the fill is more than a colour, and it is the
-general paint value the rest of the tree means by "a paint".
+WHAT A 2D REGION IS PAINTED WITH, as one comparable value: a colour, a
+gradient, a recipe instance, a stack of paints blended over each other,
+or a source a renderer supplied. It is the value a node's fill takes when
+the fill is more than a colour, and it is the general paint value the rest
+of the tree means by "a paint". Its header names no renderer; the Skia
+executor (`skia/Paint.h`) turns it into ONE shader — layers through a
+blend shader, never a stack of saved layers — or a plain solid colour.
 
 It is not the raw Skia paint. A Skia `SkPaint` carries a style, a stroke
 width and a blend mode for one draw; this carries what a surface is
 shaded WITH, and compares by value so a consumer can prune on it. Python
 spells the two with the same last word and a different module:
-`sigil.skia.Paint` is Skia's own, `sigil.material.skia.Paint` is this
-one.
+`sigil.skia.Paint` is Skia's own, `sigil.material.Paint` is this one.
 
 ## Anatomy
 
@@ -39,10 +40,10 @@ asked, and a blend or a slot INHERITS the tier of what it holds.
 `Paint::isSolid` with `Paint::solidColor` is the short-circuit every
 consumer asks first — a solid has no coordinates and nothing to resolve.
 `Paint::isNone` is the empty paint, which draws nothing.
-`Paint::staticShader` is the shader a non-live paint already holds;
-`Paint::shaderFor` is the per-draw one, built against a `PaintFrame`;
-`Paint::asShader` always produces a shader, sampling live values at their
-current value as a snapshot.
+The Skia executor answers the shaders: `skia::staticShader` is the one a
+non-live paint already holds; `skia::shader(paint, frame)` is the per-draw
+one, built against a `FrameData`; `skia::shader(paint)` always produces a
+shader, sampling live values at their current value as a snapshot.
 
 ## Make one
 
@@ -55,17 +56,17 @@ Every leaf is a static factory, and each names what it is made of.
 | `Paint::linearGradient(start, end, stops)` | C++ | an n-stop gradient between two points, in the box's unit square unless `{.units = GradientUnits::Pixels}` |
 | `Paint::radialGradient(centre, radius, stops)` | C++ | a gradient out of a centre; in box units a radius of 1 reaches the box's corners, or its sides with `{.extent = RadialExtent::ClosestSide}`; `.focus` moves the hot spot while the outer circle stays put |
 | `Paint::conicGradient(centre, stops)` | C++ | a gradient swept around a centre; its window CLAMPS outside the circle rather than wrapping |
-| `Paint::image(image)` | C++ | an image or sprite as a fill, tiled or clamped |
-| `Paint::buffer(source)` | C++ | a caller-owned raster the paint samples — a simulation, a decoded frame, a scrollback |
-| `Paint::sksl(effect, constants)` | C++ | a runtime effect as a shader |
-| `Paint::shader(shader)` | C++ | any raw Skia shader — the interop escape |
+| `skia::image(image)` | C++ | an image or sprite as a fill, repeated or padded past its edges (`Repeat`) |
+| `skia::buffer(source)` | C++ | a caller-owned raster the paint samples — a simulation, a decoded frame, a scrollback |
+| `skia::sksl(effect, constants)` | C++ | a runtime effect as a paint |
+| `skia::paint(shader)` | C++ | any raw Skia shader — the interop escape |
 | `Paint::recipe(material)` | C++ | a `Material` instance as the paint |
 | `Paint::blend(layers)` | C++ | layers painted bottom to top, each composited with its own blend mode, flattened into one shader |
-| `material.skia.Paint.solid(...)` and the rest | Python | the same factories under the same names |
+| `material.Paint.solid(...)` and the rest | Python | the same factories under the same names |
 | a `Material` | Python | implicitly, where a paint is taken |
 
-Then the modifiers, each of which copies on write: `Paint::uniform` sets
-or binds a named uniform, `Paint::slot` fills a declared `uniform shader`
+Then the modifiers, each of which copies on write: `Paint::set` sets and
+`Paint::bind` binds a named parameter, `Paint::slot` fills a declared `uniform shader`
 with a SECOND SOURCE, `Paint::amount` is the layer strength inside a
 blend, `Paint::fit` says how an image meets the box, `Paint::offset`
 binds a live pan, `Paint::worldSpace` anchors the coordinates to the
@@ -81,9 +82,12 @@ spaced evenly, or a `Ramp` — and share one `GradientOptions`:
 `GradientOptions::focusRadius`, and `GradientOptions::startDegrees` with
 `GradientOptions::endDegrees`. `Fit` is
 how a source meets the box: `Fit::Native`, `Fit::Stretch`, `Fit::Cover`,
-`Fit::Contain`. `PaintFrame` is what one draw supplies and no author
-sets: `PaintFrame::size`, `PaintFrame::rootSize`, `PaintFrame::toRoot`,
-`PaintFrame::seconds` and `PaintFrame::contentScale`.
+`Fit::Contain`. `BlendMode` is how a layer meets the ones beneath it —
+`BlendMode::Normal`, `BlendMode::Multiply`, `BlendMode::Screen`,
+`BlendMode::SoftLight`, `BlendMode::PlusLighter` and the rest of CSS's
+and Canvas's list. `FrameData` is what one draw supplies and no author
+sets: `FrameData::resolution`, `FrameData::rootResolution`,
+`FrameData::world`, `FrameData::seconds` and `FrameData::contentScale`.
 
 ## Pass it to
 
@@ -91,7 +95,7 @@ sets: `PaintFrame::size`, `PaintFrame::rootSize`, `PaintFrame::toRoot`,
 | --- | --- | --- |
 | `Paint::slot` | member | SigilMaterial — a paint fills another paint's second source |
 | `Paint::blend` | function | SigilMaterial — as one layer |
-| `skia::Effect::slot` | member | SigilMaterial |
+| `Filter::slot` | member | SigilMaterial |
 
 Outside this library a paint is what a node's fill, a stroke's paint, a
 text fill and a coverage gate take. Those slots belong to the libraries
@@ -129,11 +133,11 @@ in the first stop's flat colour, because no canvas angle ever reaches
 past 360. Rotate the STOPS into [0, 360) instead; the factory warns once
 when a window leaves the circle.
 
-**`Paint::image` takes a local matrix that maps source px into the
+**`skia::image` takes a local matrix that maps source px into the
 node's space**, which is where a sprite's atlas sub-rect goes as a
 translate and a scale.
 
-**`Paint::buffer` is content that changes without re-describing** — a
+**`skia::buffer` is content that changes without re-describing** — a
 simulation, a decoded video frame, a paint surface, a scrollback. Own
 the `PixelBuffer`, draw into it, commit. The recipe compares by (source,
 revision), so an identical re-describe between commits PRUNES and the
@@ -141,9 +145,9 @@ first describe after a commit patches exactly once. That is the whole
 point: the node keeps its picture caching and its decorations, where the
 alternative — a custom leaf at no caching — gives up both.
 
-**`Paint::sksl` decides its own tier by what the body reads.**
+**`skia::sksl` decides its own tier by what the body reads.**
 `constants` set named float uniforms once; bind live ones with
-`Paint::uniform` and fill declared `uniform shader` slots with
+`Paint::bind` and fill declared `uniform shader` slots with
 `Paint::slot`. Declaring `uTime` or `uContentScale` takes the LIVE path,
 re-resolved each frame — the clock ticks and the host's zoom changes
 independently of the node, so reading them IS the volatility
@@ -153,7 +157,7 @@ tier, resolved when the node records and cached between layouts.
 **`Paint::recipe` is a `Material` instance as the paint.** The recipe's
 declared frame inputs set the tier exactly as an SkSL effect's uniforms
 do — time or content scale is LIVE, the resolution is GEOMETRY — and
-its bindings make it live. `Paint::uniform` and `Paint::slot` reach the
+its bindings make it live. `Paint::set`, `Paint::bind` and `Paint::slot` reach the
 instance's fields and slots; equality is the instance's, so two paints
 built from equal instances prune. `Paint::recipeMaterial` hands the
 instance back, or null.
@@ -215,18 +219,18 @@ box, and its angles stay true angles.
 
 ### Reading a finished paint
 
-`Paint::asShader` always produces a shader — a solid becomes a colour
+`skia::shader(paint)` always produces a shader — a solid becomes a colour
 shader — which is what `Paint::blend` composes. For a live paint it
 builds a fresh shader sampling bound values at their CURRENT readings, a
 snapshot rather than a binding; a blend with a live LAYER folds its
-layers per call for the same reason. `Paint::shaderFor` is the per-draw
+layers per call for the same reason. `skia::shader(paint, frame)` is the per-draw
 path: for a live paint, rebuilt from the bound values and the frame's
 `uTime` / `uResolution` / `uContentScale`; for a geometry-dependent one,
 built against the frame's box; for a static one, exactly
-`Paint::staticShader`. Both answer null for a solid and for nothing, so
+`skia::staticShader`. Both answer null for a solid and for nothing, so
 ask `Paint::isSolid` and `Paint::isNone` first.
 
-`Paint::resolvePass` is what a text runtime calls for a pass track's
+`skia::resolvePass` is what a text runtime calls for a pass track's
 material, once per draw: the recipe specialized to the pass's unit count
 (one definition per count, compiled once), the instance's values,
 bindings and slots resolved exactly as an ordinary resolve resolves
@@ -262,7 +266,7 @@ compare equal and two with identical ones prune. A slot left out of
 equality would let a node prune while its second source had changed, and
 it would sample the old texture indefinitely.
 
-`Paint::uniform` and `Paint::slot` are meaningful on an effect-backed or
+`Paint::set`, `Paint::bind` and `Paint::slot` are meaningful on an effect-backed or
 recipe-backed paint — the kinds that have named uniforms and declared
 sockets. On a solid, a gradient or an image there is nothing to bind: the
 call warns once and is ignored, never aborts, because one typo in a
@@ -270,17 +274,19 @@ sketch must not take a live-reload host down.
 
 ## See also
 
-- `skia/Paint.h` — the header: `Paint`, `PaintFrame`, `Fit`
+- `paint/Paint.h` — the header: `Paint`, `Fit`; `core/BlendMode.h` —
+  `BlendMode`; `skia/Paint.h` — the Skia executor and the sources only
+  Skia can supply
 - `core/Gradient.h` — what a gradient is told: `ColorStops`,
   `GradientOptions`, `GradientUnits`, `RadialExtent`, `Repeat`
-- The verbs on this value: [`uniform`](../verbs/uniform.md),
+- The verbs on this value: [`bind`](../verbs/bind.md),
   [`slot`](../verbs/slot.md), [`amount`](../verbs/amount.md),
   [`fit`](../verbs/fit.md), [`offset`](../verbs/offset.md),
   [`worldSpace`](../verbs/worldSpace.md), [`bleed`](../verbs/bleed.md)
   and [`quantizeTime`](../verbs/quantizeTime.md)
 - [Material](value:sigil::material::Material) — the recipe instance a
   `Paint::recipe` holds
-- [Effect](value:sigil::material::skia::Effect) — the same idea over an
+- [Filter](value:sigil::material::Filter) — the same idea over an
   already-rendered layer
 - [Ramp](value:sigil::material::Ramp) — the stops as one value, for the
   gradients above

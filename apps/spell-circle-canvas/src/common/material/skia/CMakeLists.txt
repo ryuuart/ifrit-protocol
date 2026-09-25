@@ -18,7 +18,7 @@ sigil_library(SigilMaterialSkia
           Paint.cpp PaintBlend.cpp PaintBuild.cpp
           PaintDetail.cpp PaintResolve.cpp PaintSources.cpp
           PaintUniforms.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp
-  HEADERS Bloom.h Color.h Draw.h Effect.h Paint.h Pass.h PixelBuffer.h
+  HEADERS ../paint/Paint.h Bloom.h Color.h Draw.h Effect.h Paint.h Pass.h PixelBuffer.h
           Palette.h Ramp.h SkiaCompiler.h
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
          unofficial::skia::skia)

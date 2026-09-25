@@ -14,10 +14,16 @@
 #include <include/core/SkImage.h>  // the recipe holds one
 #include <include/core/SkMatrix.h>
 #include <include/core/SkShader.h>
+#include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>  // SkDebugf
+#include <sigilmaterial/core/FrameData.h>
+#include <sigilmotion/values/Animated.h>
+#include <sigilmotion/values/Time.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <array>
+#include <functional>
+#include <span>
 #include <cstddef>
 #include <memory>
 #include <mutex>
@@ -74,6 +80,10 @@ void putByName(std::vector<std::pair<std::string, Value>>& lane,
   lane.emplace_back(std::move(name), std::move(value));
 }
 
+}  // namespace sigil::material::skia
+
+namespace sigil::material {
+
 /** The sksl recipe behind a Paint (opaque in the header). */
 struct Paint::Live {
   sk_sp<SkRuntimeEffect> effect;
@@ -115,7 +125,7 @@ struct Paint::Live {
   // previous shader is returned — quantized time makes consecutive frames
   // identical, and the paint layer turns that stability into replayed
   // pictures instead of re-rasterized shaders.
-  mutable ResolveMemo<std::vector<float>> memo;
+  mutable skia::ResolveMemo<std::vector<float>> memo;
 };
 
 /** The SigilMaterial instance behind a recipe() material, with the memo
@@ -124,8 +134,8 @@ struct Paint::Live {
  *  previous shader comes back, and the paint layer turns that into a
  *  replayed recording. */
 struct Paint::Backed {
-  sigil::material::Material material;
-  mutable ResolveMemo<std::vector<std::byte>> memo;
+  Material material;
+  mutable skia::ResolveMemo<std::vector<std::byte>> memo;
 };
 
 /** The comparable build recipe behind gradient/image/blend materials: the
@@ -158,11 +168,11 @@ struct Paint::Recipe {
   SkSamplingOptions sampling;
   Fit fit = Fit::Native;
   // Blend: layer materials (recursive Paint equality) + modes.
-  std::vector<std::pair<Paint, SkBlendMode>> layers;
+  std::vector<std::pair<Paint, BlendMode>> layers;
   // Buffer: a caller-owned mutable bitmap, so identity alone cannot decide
   // equality — the revision counter is what makes a committed edit visible
   // to the prune.
-  std::shared_ptr<PixelBuffer> source;
+  std::shared_ptr<skia::PixelBuffer> source;
   uint64_t revision = 0;
 
   bool operator==(const Recipe& o) const {
@@ -185,6 +195,86 @@ struct Paint::Recipe {
                fit == o.fit;
     }
     return false;
+  }
+};
+
+/** The static resolution a paint holds (opaque in the header). */
+struct Paint::Snapshot {
+  sk_sp<SkShader> shader;
+};
+
+}  // namespace sigil::material
+
+namespace sigil::material::skia {
+
+
+/** THE EXECUTOR'S VIEW OF A PAINT: the resolve paths that build Skia
+ *  objects from the paint's private state. A friend of the paint, so the
+ *  value's header names no renderer type. */
+struct PaintAccess {
+  /** The snapshot @p paint holds, or null. */
+  static const sk_sp<SkShader>& snapshot(const Paint& paint) {
+    static const sk_sp<SkShader> none;
+    return paint.m_shader ? paint.m_shader->shader : none;
+  }
+  /** @p shader held as a paint's snapshot. */
+  static std::shared_ptr<const Paint::Snapshot> hold(sk_sp<SkShader> shader) {
+    if (!shader) return nullptr;
+    return std::make_shared<const Paint::Snapshot>(
+        Paint::Snapshot{std::move(shader)});
+  }
+  static Paint wrap(sk_sp<SkShader> shader) {
+    Paint m;
+    m.m_shader = hold(std::move(shader));
+    return m;
+  }
+  static Paint image(sk_sp<SkImage> image, SkTileMode horizontal,
+                     SkTileMode vertical, const SkMatrix& local,
+                     SkSamplingOptions sampling);
+  static Paint buffer(std::shared_ptr<PixelBuffer> source, SkTileMode horizontal,
+                      SkTileMode vertical, const SkMatrix& local,
+                      SkSamplingOptions sampling);
+  static Paint sksl(sk_sp<SkRuntimeEffect> effect,
+                    std::vector<std::pair<std::string, float>> constants);
+  static void refresh(Paint& paint) {
+    paint.m_shader = hold(build(*paint.m_live, nullptr));
+  }
+
+  /** @p worldSpace routes root anchoring through this ONE build: the
+   *  digest of varying inputs gains W's six floats, uResolution becomes
+   *  the root canvas size, and the shader is wrapped in W⁻¹ before the
+   *  memo stores it. */
+  static sk_sp<SkShader> build(const Paint::Live& live, const PaintFrame* frame,
+                               bool worldSpace = false);
+  /** Fold a Blend recipe's layers into one shader — `frame` null is the
+   *  frameless form (the snapshot), non-null the per-draw one. One
+   *  function so the two can never disagree. */
+  static sk_sp<SkShader> foldBlend(const Paint& self, const PaintFrame* frame);
+  /** THE FOLD ITSELF, which blend()'s eager flatten and foldBlend's
+   *  deferred one both are: each layer after the first composited over
+   *  the accumulation with its mode, then mixed back toward it by its
+   *  `amount`. @p shaderOf resolves ONE layer, which is the whole of
+   *  what the two callers differ by. */
+  static sk_sp<SkShader> foldLayers(
+      std::span<const std::pair<Paint, BlendMode>> layers,
+      const std::function<sk_sp<SkShader>(const Paint&)>& shaderOf);
+  /** The image shader rebuilt with the bound pan's CURRENT values
+   *  post-translated onto the recipe matrix — one construction shared by
+   *  both resolves, so a bound-offset paint cannot look different
+   *  depending on which asked. */
+  static sk_sp<SkShader> pannedImageShader(const Paint& self);
+  static sk_sp<SkShader> fittedImageShader(const Paint& self,
+                                           const PaintFrame& frame);
+  /** The recipe-backed resolve: @p frame (null is the static snapshot),
+   *  the tree's resolved bytes as the memo key, the world-space wrap
+   *  inside the memo. */
+  static sk_sp<SkShader> buildBacked(const Paint& self, const PaintFrame* frame);
+  static sk_sp<SkShader> asShader(const Paint& self);
+  static sk_sp<SkShader> shaderFor(const Paint& self, const PaintFrame& frame);
+  static sk_sp<SkShader> resolvePass(const Paint& self, const PassInputs& in,
+                                     const PaintFrame& frame);
+  static const Paint::Live* live(const Paint& paint) {
+    return paint.m_live.get();
   }
 };
 

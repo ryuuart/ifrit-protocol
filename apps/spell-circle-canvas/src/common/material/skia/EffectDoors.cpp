@@ -109,7 +109,7 @@ sk_sp<SkShader> Effect::childShaderFor(std::string_view name,
   return nullptr;
 }
 
-Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
+Effect& Effect::bind(std::string name, motion::Animatable<float> value) {
   // Every dropped binding says so — Material's guardrail: warn and ignore,
   // never a debug abort (one sketch typo must not kill the hot-reload
   // host). A silent drop here loses an animation with no diagnostic.
@@ -117,7 +117,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
     // The recipe's named parameters — anything else warns and is ignored.
     if (name != "sigma" && name != "angle" && name != "across") {
       SkDebugf(
-          "[material] skia::Effect::uniform(\"%s\") on a directionalBlur() — "
+          "[material] skia::Effect::bind(\"%s\") on a directionalBlur() — "
           "not one of \"sigma\"/\"angle\"/\"across\"; ignored\n",
           name.c_str());
       return *this;
@@ -128,7 +128,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
   if (m_parametricBlur) {
     if (name != "maxSigma") {
       SkDebugf(
-          "[material] skia::Effect::uniform(\"%s\") on a blur() — its one "
+          "[material] skia::Effect::bind(\"%s\") on a blur() — its one "
           "parameter is \"maxSigma\" (the MAP is slot(\"sigma\", "
           "Paint)); ignored\n",
           name.c_str());
@@ -151,7 +151,7 @@ Effect& Effect::uniform(std::string name, motion::Animatable<float> value) {
     return *this;
   }
   SkDebugf(
-      "[material] skia::Effect::uniform(\"%s\"): ignored — this effect has no "
+      "[material] skia::Effect::bind(\"%s\"): ignored — this effect has no "
       "uniform to receive it (only shader(), directionalBlur() and "
       "blur() do; a filter() wraps an already-built SkImageFilter)\n",
       name.c_str());
@@ -167,7 +167,7 @@ bool effectTakesConstant(const sk_sp<SkRuntimeEffect>& effect,
                          bool otherKind) {
   if (otherKind || !effect) {
     SkDebugf(
-        "[material] skia::Effect::uniform(\"%s\", const): ignored — only a "
+        "[material] skia::Effect::set(\"%s\"): ignored — only a "
         "shader() effect has named declarations to fill (directionalBlur "
         "and blur take their parameters at construction or as bound "
         "Outputs)\n",
@@ -182,7 +182,7 @@ bool effectTakesConstant(const sk_sp<SkRuntimeEffect>& effect,
 }
 }  // namespace
 
-Effect& Effect::uniform(std::string name, float value) {
+Effect& Effect::set(std::string name, float value) {
   if (!effectTakesConstant(m_effect, name, sizeof(float),
                            m_directionalBlur || m_parametricBlur))
     return *this;
@@ -191,7 +191,7 @@ Effect& Effect::uniform(std::string name, float value) {
   return *this;
 }
 
-Effect& Effect::uniform(std::string name, std::array<float, 2> value) {
+Effect& Effect::set(std::string name, std::array<float, 2> value) {
   if (!effectTakesConstant(m_effect, name, 2 * sizeof(float),
                            m_directionalBlur || m_parametricBlur))
     return *this;
@@ -200,7 +200,7 @@ Effect& Effect::uniform(std::string name, std::array<float, 2> value) {
   return *this;
 }
 
-Effect& Effect::uniform(std::string name, std::array<float, 4> value) {
+Effect& Effect::set(std::string name, std::array<float, 4> value) {
   if (!effectTakesConstant(m_effect, name, 4 * sizeof(float),
                            m_directionalBlur || m_parametricBlur))
     return *this;
@@ -209,7 +209,7 @@ Effect& Effect::uniform(std::string name, std::array<float, 4> value) {
   return *this;
 }
 
-Effect& Effect::uniform(std::string name, std::vector<float> values) {
+Effect& Effect::set(std::string name, std::vector<float> values) {
   // An array validates by TOTAL float count — all the builder checks, and
   // the builder refuses a partial write, so the count must be exact.
   if (!effectTakesConstant(m_effect, name, values.size() * sizeof(float),
@@ -220,11 +220,11 @@ Effect& Effect::uniform(std::string name, std::vector<float> values) {
   return *this;
 }
 
-Effect& Effect::uniform(std::string name,
+Effect& Effect::bind(std::string name,
                         std::shared_ptr<const UniformBlock> block) {
   if (!block) {
     SkDebugf(
-        "[material] skia::Effect::uniform(\"%s\", block): null UniformBlock — "
+        "[material] skia::Effect::bind(\"%s\", block): null UniformBlock — "
         "there is nothing to read at paint time; ignored\n",
         name.c_str());
     return *this;

@@ -100,7 +100,7 @@ sigil_doc_probes(material
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/offset.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/quantizeTime.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/slot.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/uniform.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/bind.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/worldSpace.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include

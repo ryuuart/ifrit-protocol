@@ -12,22 +12,49 @@
  * submit pass inputs through the paint without managing specializations.
  */
 
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPoint.h>
+#include <include/core/SkSize.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Recipe.h>
+
+#include <glm/mat3x3.hpp>
 
 #include <cstdint>
 #include <memory>
 #include <string_view>
 #include <vector>
 
+namespace sigil::material {
+class Paint;
+}  // namespace sigil::material
+
 namespace sigil::material::skia {
 
-class Paint;
-struct PaintFrame;
+/** WHAT ONE DRAW SUPPLIES a paint, in Skia's own terms: the frame data
+ *  crossed once at the executor's door, so every resolve path reads the
+ *  box, the root's size and the node→root matrix as Skia values. */
+struct PaintFrame {
+  /** The painted box in px; `uResolution` for a node-local paint. */
+  SkSize size = SkSize::MakeEmpty();
+  /** The root's laid-out size in canvas px — `uResolution` for a
+   *  world-space paint. Empty falls back to `size`. */
+  SkSize rootSize = SkSize::MakeEmpty();
+  /** The box's local space to the root. Identity outside a composite. */
+  SkMatrix toRoot = SkMatrix::I();
+  /** Seconds on the consumer's clock; the `uTime` uniform. */
+  double seconds = 0.0;
+  /** Device pixels per logical pixel; the `uContentScale` uniform. */
+  float contentScale = 1.0f;
+};
+
+/** @p frame in Skia's terms. */
+PaintFrame paintFrameOf(const FrameData& frame);
+
 
 namespace detail {
 

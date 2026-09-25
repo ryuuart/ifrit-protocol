@@ -21,6 +21,44 @@ namespace sigil::material {
 
 namespace {
 
+/** THE THREE STACKING BODIES: which of the three a blend mode stacks
+ *  through. */
+enum class Blend : uint8_t { Mix, Add, Multiply };
+
+/** The body @p mode stacks through; a mode with no stacking body is
+ *  reported once and stacks as a mix. */
+Blend stackingOf(BlendMode mode) {
+  switch (mode) {
+    case BlendMode::Normal:
+      return Blend::Mix;
+    case BlendMode::PlusLighter:
+      return Blend::Add;
+    case BlendMode::Multiply:
+      return Blend::Multiply;
+    default:
+      reportOnce("over:" + std::string(name(mode)),
+                 "over() stacks by normal, plus-lighter or multiply; " +
+                     std::string(name(mode)) + " stacks as normal");
+      return Blend::Mix;
+  }
+}
+
+/** The blend's name as a recipe name spells it. */
+std::string_view stackingName(Blend blend) {
+  switch (blend) {
+    case Blend::Mix:
+      return "mix";
+    case Blend::Add:
+      return "add";
+    case Blend::Multiply:
+      return "multiply";
+  }
+  return "?";
+}
+
+/** The name every recipe of a stack by @p blend carries. */
+std::string nameOfStack(Blend blend);
+
 /** The three operands, in the order a composed body evaluates them: the
  *  slot each fills, the prefix its own names take among the composed
  *  recipe's, and the space its body stands in. */
@@ -61,7 +99,7 @@ std::string_view slangFile(Blend blend) {
 
 std::shared_ptr<const Recipe> make(Blend blend) {
   return std::make_shared<const Recipe>(
-      Recipe::of<OverParameters>(stackName(blend))
+      Recipe::of<OverParameters>(nameOfStack(blend))
           .slot("base")
           .slot("top")
           .slot("mask")
@@ -144,7 +182,7 @@ std::shared_ptr<const Recipe> composeRecipe(Blend blend,
       parameters.fields.push_back(std::move(copy));
     }
 
-  Recipe recipe = Recipe::of(stackName(blend), parameters);
+  Recipe recipe = Recipe::of(nameOfStack(blend), parameters);
   recipe.slot("base").slot("top").slot("mask");
   for (int i = 0; i < 3; ++i) {
     for (const std::string& slot : operands[i]->slots())
@@ -251,23 +289,13 @@ void carry(Material& out, const Material* operands[3]) {
 
 }  // namespace
 
-std::string_view name(Blend blend) {
-  switch (blend) {
-    case Blend::Mix:
-      return "mix";
-    case Blend::Add:
-      return "add";
-    case Blend::Multiply:
-      return "multiply";
-  }
-  return "?";
+namespace {
+
+std::string nameOfStack(Blend blend) {
+  return std::string(kStackPrefix) + std::string(stackingName(blend));
 }
 
-std::string stackName(Blend blend) {
-  return std::string(kStackPrefix) + std::string(name(blend));
-}
-
-const std::shared_ptr<const Recipe>& overRecipe(Blend blend) {
+const std::shared_ptr<const Recipe>& recipeOf(Blend blend) {
   static const std::shared_ptr<const Recipe> mix = make(Blend::Mix);
   static const std::shared_ptr<const Recipe> add = make(Blend::Add);
   static const std::shared_ptr<const Recipe> multiply = make(Blend::Multiply);
@@ -282,8 +310,19 @@ const std::shared_ptr<const Recipe>& overRecipe(Blend blend) {
   return mix;
 }
 
-Material over(Material base, Material top, Material mask, Blend blend,
+}  // namespace
+
+std::string stackName(BlendMode blend) {
+  return nameOfStack(stackingOf(blend));
+}
+
+const std::shared_ptr<const Recipe>& overRecipe(BlendMode blend) {
+  return recipeOf(stackingOf(blend));
+}
+
+Material over(Material base, Material top, Material mask, BlendMode mode,
               float amount) {
+  const Blend blend = stackingOf(mode);
   const std::shared_ptr<const Recipe> recipe = composed(
       blend, base.recipePointer(), top.recipePointer(), mask.recipePointer());
   const auto fill = [&](Material out) {
@@ -292,7 +331,7 @@ Material over(Material base, Material top, Material mask, Blend blend,
     out.slot("mask", std::move(mask));
     return out;
   };
-  if (!recipe) return fill(Material(overRecipe(blend), OverParameters{amount}));
+  if (!recipe) return fill(Material(recipeOf(blend), OverParameters{amount}));
 
   // A composed recipe's ABI is its operands' fields and not one struct's,
   // so its values are written field by field rather than poured from a

@@ -88,9 +88,11 @@ TEST(Stacking, TheOperandsAreTheStacksChildren) {
 TEST(Stacking, ADifferentBlendIsADifferentRecipeAndSoADifferentMaterial) {
   const Operands o;
   EXPECT_FALSE(over(o.base, o.top, o.mask) ==
-               over(o.base, o.top, o.mask, Blend::Add));
-  EXPECT_NE(overRecipe(Blend::Mix), overRecipe(Blend::Multiply));
-  EXPECT_EQ(name(Blend::Multiply), "multiply");
+               over(o.base, o.top, o.mask, BlendMode::PlusLighter));
+  EXPECT_NE(overRecipe(BlendMode::Normal), overRecipe(BlendMode::Multiply));
+  EXPECT_EQ(name(BlendMode::Multiply), "multiply");
+  EXPECT_EQ(stackName(BlendMode::Normal), "over.mix");
+  EXPECT_EQ(overRecipe(BlendMode::Screen), overRecipe(BlendMode::Normal));
 }
 
 TEST(Stacking, UnderWalksOneStepDownSoRepeatingItReachesTheBottom) {
@@ -100,7 +102,7 @@ TEST(Stacking, UnderWalksOneStepDownSoRepeatingItReachesTheBottom) {
   const Material stack = over(o.base, o.top, o.mask);
   EXPECT_EQ(stackDepth(stack), 1);
   EXPECT_EQ(*under(stack), o.base);
-  const Material deeper = over(stack, o.top, o.mask, Blend::Add);
+  const Material deeper = over(stack, o.top, o.mask, BlendMode::PlusLighter);
   EXPECT_EQ(stackDepth(deeper), 2);
   EXPECT_EQ(*under(deeper), stack);
   EXPECT_EQ(*under(*under(deeper)), o.base);
@@ -165,7 +167,7 @@ TEST(Stacking, OneCompositionServesEveryStackOverTheSameThreeDefinitions) {
 
   // The blend and each operand are all in the key.
   EXPECT_NE(
-      over(marked(base), marked(top), marked(mask), Blend::Add).recipePointer(),
+      over(marked(base), marked(top), marked(mask), BlendMode::PlusLighter).recipePointer(),
       first.recipePointer());
   const std::shared_ptr<const Recipe> other = markedRecipe("stack.one.o", "oh");
   EXPECT_NE(over(marked(base), marked(other), marked(mask)).recipePointer(),

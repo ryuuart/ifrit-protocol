@@ -144,12 +144,12 @@ void drawOnGpu(sk_sp<SkShader> shader) {
  *  the shader it compiled — empty when it compiled. */
 std::string shadeOnGpu(const Material& material) {
   sink().drain();
-  skia::Paint paint = skia::Paint::recipe(material);
-  skia::PaintFrame frame;
-  frame.size = SkSize::Make(kField, kField);
+  Paint paint = Paint::recipe(material);
+  FrameData frame;
+  frame.resolution = {kField, kField};
   frame.seconds = 1.25;
   frame.contentScale = 2.0f;
-  sk_sp<SkShader> shader = paint.shaderFor(frame);
+  sk_sp<SkShader> shader = skia::shader(paint, frame);
   if (!shader) return "the material resolved to no shader";
   drawOnGpu(std::move(shader));
   return sink().drain();
@@ -210,7 +210,8 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
   red.baseColor = {1, 0.2f, 0.1f, 1};
   kit::SurfaceParameters blue;
   blue.baseColor = {0.1f, 0.3f, 1, 1};
-  for (const Blend blend : {Blend::Mix, Blend::Add, Blend::Multiply})
+  for (const BlendMode blend :
+       {BlendMode::Normal, BlendMode::PlusLighter, BlendMode::Multiply})
     add({over(kit::unlit(red), kit::unlit(blue), maskConstant(0.5f), blend)});
 
   if (ocio::available()) add({ocio::exponent(2.2f)});

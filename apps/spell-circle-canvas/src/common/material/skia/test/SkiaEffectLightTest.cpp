@@ -324,7 +324,7 @@ TEST(SkiaEffect, OpticalBloomIsTheCompositionOfItsStages) {
   };
   const auto halo =
       rung(2, 1.2f)
-          .emit(rung(6, 0.8f), SkBlendMode::kPlus)
+          .emit(rung(6, 0.8f), BlendMode::PlusLighter)
           .then(skia::Effect::filter(SkColorFilters::TableARGB(
               ceiling.data(), nullptr, nullptr, nullptr)));
   const auto composed = skia::Effect::blur(1)
@@ -364,12 +364,12 @@ TEST(SkiaEffect, EmitStacksLightsOfTheLayerAndKeepsItWhereTheyAreDark) {
   const SkColor4f red{1, 0, 0, 1};
   const auto layer = bloomThrough(nullptr, red);
   const auto withNear =
-      bloomThrough(skia::Effect().emit(near, SkBlendMode::kPlus).imageFilter(), red);
+      bloomThrough(skia::Effect().emit(near, BlendMode::PlusLighter).imageFilter(), red);
   const auto withWide =
-      bloomThrough(skia::Effect().emit(wide, SkBlendMode::kPlus).imageFilter(), red);
+      bloomThrough(skia::Effect().emit(wide, BlendMode::PlusLighter).imageFilter(), red);
   const auto both = bloomThrough(skia::Effect()
-                                     .emit(near, SkBlendMode::kPlus)
-                                     .emit(wide, SkBlendMode::kPlus)
+                                     .emit(near, BlendMode::PlusLighter)
+                                     .emit(wide, BlendMode::PlusLighter)
                                      .imageFilter(),
                                  red);
   // Outside the block the layer is black, so each light adds alone and

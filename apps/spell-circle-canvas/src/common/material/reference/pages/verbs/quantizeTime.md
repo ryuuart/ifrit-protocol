@@ -25,4 +25,4 @@ time.
 ## See also
 
 - [Paint](../types/Paint.md) — the value this sits on
-- [`uniform`](uniform.md) — where the injected clock arrives
+- [`bind`](bind.md) — where the injected clock arrives

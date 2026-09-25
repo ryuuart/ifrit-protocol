@@ -1,23 +1,23 @@
 ---
 kind: verb
 library: SigilMaterial
-name: uniform
-qualified: sigil::material::skia::Paint::uniform
-group: Uniforms and layer properties
+name: bind
+qualified: sigil::material::Paint::bind
+group: Parameters and layer properties
 status: stable
 ---
 
-# uniform
+# bind
 
 ## Description
 
-What is set on a paint after it is built: named uniforms baked in or
-bound to a moving value. It is meaningful ONLY on a `Paint::sksl` or
-`Paint::recipe` paint — the kinds that have named uniforms to hook
-against.
+What is set on a paint after it is built: named parameters baked in or
+bound to a moving value. It is meaningful ONLY on a `skia::sksl` or
+`Paint::recipe` paint — the kinds that have named parameters to hook
+against. `Filter` takes the same two verbs.
 
-- `uniform(name, value)` bakes a constant in; the paint stays static.
-- `uniform(name, animatable)` binds a `motion::Animatable<float>`; the
+- `set(name, value)` bakes a constant in; the paint stays static.
+- `bind(name, animatable)` binds a `motion::Animatable<float>`; the
   paint becomes LIVE, re-resolved every frame from the value's current
   reading, and its node is declared volatile so it paints live. This is
   how a material animates.
@@ -59,7 +59,7 @@ its target.
 warned and IGNORED, never a debug abort: one sketch typo must not kill
 the hot-reload host. On any other kind of paint — a solid, a gradient,
 an image, a blend — there is nothing to bind, so the call is a no-op
-with a warning; reach for `Paint::sksl` when you want animatable
+with a warning; reach for `skia::sksl` when you want animatable
 uniforms. Paints are VALUES: this copies on write, so binding on a copy
 never affects the paint it was copied from.
 

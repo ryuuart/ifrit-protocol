@@ -47,6 +47,6 @@ Copy-on-write, like every other recipe mutation.
 ## See also
 
 - [Paint](../types/Paint.md) — the value this sits on
-- [`uniform`](uniform.md) — the scalar and array doors on the same effect
+- [`bind`](bind.md) — the scalar and array doors on the same effect
 - [Effect](../types/Effect.md) — the same word over an already-rendered
   layer, where the one slot is the layer itself

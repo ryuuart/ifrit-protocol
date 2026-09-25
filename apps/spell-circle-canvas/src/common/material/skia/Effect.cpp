@@ -304,15 +304,21 @@ Effect Effect::then(const Effect& next) const {
   return e;
 }
 
-sk_sp<SkImageFilter> Effect::resolvedImageFilter(
+sk_sp<SkImageFilter> Effect::resolvedImageFilter(const FrameData* frame) const {
+  if (!frame) return resolvedImageFilterAt(nullptr);
+  const PaintFrame paintFrame = paintFrameOf(*frame);
+  return resolvedImageFilterAt(&paintFrame);
+}
+
+sk_sp<SkImageFilter> Effect::resolvedImageFilterAt(
     const PaintFrame* paintFrame) const {
   if (m_chainA) {
     if (m_chainBlend)
-      return SkImageFilters::Blend(*m_chainBlend,
-                                   m_chainA->resolvedImageFilter(paintFrame),
-                                   m_chainB->resolvedImageFilter(paintFrame));
-    return SkImageFilters::Compose(m_chainB->resolvedImageFilter(paintFrame),
-                                   m_chainA->resolvedImageFilter(paintFrame));
+      return SkImageFilters::Blend(toSkBlendMode(*m_chainBlend),
+                                   m_chainA->resolvedImageFilterAt(paintFrame),
+                                   m_chainB->resolvedImageFilterAt(paintFrame));
+    return SkImageFilters::Compose(m_chainB->resolvedImageFilterAt(paintFrame),
+                                   m_chainA->resolvedImageFilterAt(paintFrame));
   }
   // A context-needing source (live or geometry tier) has to be re-resolved
   // per paint; a static one is already in the snapshot. Same question

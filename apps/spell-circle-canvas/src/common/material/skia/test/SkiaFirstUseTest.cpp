@@ -65,7 +65,7 @@ bool firstUse(Entry entry) {
       return pixels.getColor(1, 1) == SK_ColorGREEN;
     }
     case Entry::Paint:
-      return drawsGreen(skia::Paint::recipe(material).asShader());
+      return drawsGreen(skia::shader(Paint::recipe(material)));
     case Entry::Effect: {
       const Material effect(std::make_shared<const Recipe>(
           Recipe::of<EmptyParameters>("first-effect")
@@ -80,11 +80,11 @@ bool firstUse(Entry entry) {
           Recipe::of<EmptyParameters>("first-pass")
               .body(Target::SkSL,
                     "half4 main(float2 p) { return uContent.eval(p); }")));
-      const skia::Paint paint = skia::Paint::recipe(pass);
+      const Paint paint = Paint::recipe(pass);
       skia::PassInputs input;
       input.content = SkShaders::Color(SK_ColorGREEN);
       input.units = 1;
-      return drawsGreen(paint.resolvePass(input, {}));
+      return drawsGreen(skia::resolvePass(paint, input, {}));
     }
     case Entry::Warmup: {
       const std::array materials{material, material};
@@ -195,8 +195,8 @@ bool passProgramsAreReused() {
           .body(Target::SkSL,
                 "half4 main(float2 p) { return half4(0, "
                 "half(uUnitRect[kUnitCount - 1].x * level), 0, 1); }"));
-  const skia::Paint paint =
-      skia::Paint::recipe(Material(authored, Parameters{}));
+  const Paint paint =
+      Paint::recipe(Material(authored, Parameters{}));
   std::array<float, 12> three{};
   std::array<float, 20> five{};
   three[8] = 1;
@@ -205,17 +205,17 @@ bool passProgramsAreReused() {
   input.content = SkShaders::Color(SK_ColorGREEN);
   input.rects = three.data();
   input.units = 3;
-  if (!drawsGreen(paint.resolvePass(input, {})) || compiled.size() != 1)
+  if (!drawsGreen(skia::resolvePass(paint, input, {})) || compiled.size() != 1)
     return false;
-  if (!drawsGreen(paint.resolvePass(input, {})) || compiled.size() != 1)
+  if (!drawsGreen(skia::resolvePass(paint, input, {})) || compiled.size() != 1)
     return false;
   input.rects = five.data();
   input.units = 5;
-  if (!drawsGreen(paint.resolvePass(input, {})) || compiled.size() != 2)
+  if (!drawsGreen(skia::resolvePass(paint, input, {})) || compiled.size() != 2)
     return false;
   input.rects = three.data();
   input.units = 3;
-  if (!drawsGreen(paint.resolvePass(input, {})) || compiled.size() != 2)
+  if (!drawsGreen(skia::resolvePass(paint, input, {})) || compiled.size() != 2)
     return false;
   return compiled[0]->parameters() == authored->parameters() &&
          compiled[1]->parameters() == authored->parameters() &&

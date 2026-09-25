@@ -49,11 +49,11 @@ TEST(SkiaGradient, ABoxUnitGradientFillsWhateverBoxItIsGiven) {
   // but for its first line. Asked over a 100 px box, the gradient is
   // spread over all 100 rows: red at the top, green halfway, blue at the
   // bottom.
-  const skia::Paint ramp =
-      skia::Paint::linearGradient({0, 0}, {0, 1}, threeStops());
+  const Paint ramp =
+      Paint::linearGradient({0, 0}, {0, 1}, threeStops());
   EXPECT_TRUE(ramp.geometryDependent());
   const SkBitmap bm =
-      render(ramp.shaderFor(skia::PaintFrame{.size = {100, 100}}), 100, 100);
+      render(skia::shader(ramp, FrameData{.resolution = {100, 100}}), 100, 100);
   EXPECT_GT(SkColorGetR(bm.getColor(50, 2)), 200u);
   EXPECT_LT(SkColorGetB(bm.getColor(50, 2)), 60u);
   EXPECT_GT(SkColorGetG(bm.getColor(50, 50)), 180u);
@@ -65,10 +65,10 @@ TEST(SkiaGradient, APixelGradientRunsBetweenTheTwoPointsItIsGiven) {
   // Pixel units measure in the coordinates a node is painted in, so a
   // caller who knows its span says it, and both ends pad because the
   // stops carry no answer beyond themselves.
-  const skia::Paint ramp = skia::Paint::linearGradient(
+  const Paint ramp = Paint::linearGradient(
       {0, 20}, {0, 80}, threeStops(), {.units = GradientUnits::Pixels});
   EXPECT_FALSE(ramp.geometryDependent());
-  const SkBitmap bm = render(ramp.staticShader(), 100, 100);
+  const SkBitmap bm = render(skia::staticShader(ramp), 100, 100);
   EXPECT_GT(SkColorGetR(bm.getColor(50, 22)), 180u);
   EXPECT_GT(SkColorGetG(bm.getColor(50, 50)), 180u);
   EXPECT_GT(SkColorGetB(bm.getColor(50, 78)), 180u);
@@ -85,16 +85,15 @@ TEST(SkiaGradient, TheStopsComeFromAListPlainColoursOrARamp) {
   // over its own stops.
   const GradientOptions pixels{.units = GradientUnits::Pixels};
   const SkBitmap wanted =
-      render(skia::Paint::linearGradient({0, 0}, {0, 64}, threeStops(), pixels)
-                 .staticShader(),
+      render(skia::staticShader(Paint::linearGradient({0, 0}, {0, 64}, threeStops(), pixels)),
              8, 64);
   const Ramp straight{.stops = threeStops(), .space = RampSpace::Srgb};
-  for (const skia::Paint& other :
-       {skia::Paint::linearGradient(
+  for (const Paint& other :
+       {Paint::linearGradient(
             {0, 0}, {0, 64},
             {Color{1, 0, 0, 1}, Color{0, 1, 0, 1}, Color{0, 0, 1, 1}}, pixels),
-        skia::Paint::linearGradient({0, 0}, {0, 64}, straight, pixels)}) {
-    const SkBitmap got = render(other.staticShader(), 8, 64);
+        Paint::linearGradient({0, 0}, {0, 64}, straight, pixels)}) {
+    const SkBitmap got = render(skia::staticShader(other), 8, 64);
     for (int y : {4, 20, 32, 44, 60})
       EXPECT_EQ(wanted.getColor(4, y), got.getColor(4, y)) << y;
   }
@@ -110,11 +109,11 @@ TEST(SkiaGradient, TheStopsComeFromAListPlainColoursOrARamp) {
 TEST(SkiaGradient, ARepeatingBoxGradientStartsOverPastItsEnd) {
   // Half the box long, repeated: the lower half paints what the upper
   // half does, where the default pad would paint it flat blue.
-  const skia::Paint repeated = skia::Paint::linearGradient(
+  const Paint repeated = Paint::linearGradient(
       {0, 0}, {0, 0.5f}, threeStops(), {.repeat = Repeat::Repeat});
   EXPECT_TRUE(repeated.geometryDependent());
   const SkBitmap bm = render(
-      repeated.shaderFor(skia::PaintFrame{.size = {100, 100}}), 100, 100);
+      skia::shader(repeated, FrameData{.resolution = {100, 100}}), 100, 100);
   EXPECT_EQ(bm.getColor(50, 10), bm.getColor(50, 60));
   EXPECT_GT(SkColorGetR(bm.getColor(50, 52)), 200u);
 }
@@ -125,15 +124,13 @@ TEST(SkiaGradient, TheExtentSaysWhatARadiusOfOneReaches) {
   // edge's middle the first has not yet run out and the second has.
   const std::vector<ColorStop> whiteToBlack{{0.0f, Color{1, 1, 1, 1}},
                                             {1.0f, Color{0, 0, 0, 1}}};
-  const skia::PaintFrame frame{.size = {100, 100}};
+  const FrameData frame{.resolution = {100, 100}};
   const SkBitmap corner =
-      render(skia::Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack)
-                 .shaderFor(frame),
+      render(skia::shader(Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack), frame),
              100, 100);
   const SkBitmap side =
-      render(skia::Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack,
-                                         {.extent = RadialExtent::ClosestSide})
-                 .shaderFor(frame),
+      render(skia::shader(Paint::radialGradient({0.5f, 0.5f}, 1, whiteToBlack,
+                                         {.extent = RadialExtent::ClosestSide}), frame),
              100, 100);
   EXPECT_GT(SkColorGetR(corner.getColor(99, 50)), 60u);
   EXPECT_LT(SkColorGetR(side.getColor(99, 50)), 8u);
@@ -143,11 +140,11 @@ TEST(SkiaGradient, TheExtentSaysWhatARadiusOfOneReaches) {
 TEST(SkiaGradient, AConicInBoxUnitsTurnsAroundThePointOfTheBoxItNames) {
   // Centred at a quarter across, the sweep's seam runs right from there:
   // just below it is the start of the stops and just above it the end.
-  const skia::Paint conic = skia::Paint::conicGradient(
+  const Paint conic = Paint::conicGradient(
       {0.25f, 0.5f}, {Color{1, 0, 0, 1}, Color{0, 0, 1, 1}});
   EXPECT_TRUE(conic.geometryDependent());
   const SkBitmap bm =
-      render(conic.shaderFor(skia::PaintFrame{.size = {100, 100}}), 100, 100);
+      render(skia::shader(conic, FrameData{.resolution = {100, 100}}), 100, 100);
   EXPECT_GT(SkColorGetR(bm.getColor(60, 52)), 200u);
   EXPECT_GT(SkColorGetB(bm.getColor(60, 48)), 200u);
 }
@@ -163,7 +160,7 @@ TEST(SkiaRamp, APaletteCrossesToAShaderAsATableSampledNearest) {
   // The body reads the table at texel centres, so entry n is entry n. The
   // index runs past the end deliberately: clamped, it is the last entry,
   // which is what Palette::at answers on the CPU for the same index.
-  skia::Paint lut = skia::Paint::sksl(
+  Paint lut = skia::sksl(
       effectFor("uniform shader uPalette;\n"
                 "uniform float uIndex;\n"
                 "half4 main(float2 p) {\n"
@@ -171,8 +168,8 @@ TEST(SkiaRamp, APaletteCrossesToAShaderAsATableSampledNearest) {
                 "}"));
   lut.slot("uPalette", skia::paletteLookup(pal));
   for (int i : {0, 1, 2, 9}) {
-    lut.uniform("uIndex", (float)i);
-    const SkColor got = render(lut.staticShader()).getColor(1, 1);
+    lut.set("uIndex", (float)i);
+    const SkColor got = render(skia::staticShader(lut)).getColor(1, 1);
     const Color want = pal.at(i);
     EXPECT_EQ(SkColorGetR(got), (uint32_t)std::lround(want.r * 255.0f)) << i;
     EXPECT_EQ(SkColorGetG(got), (uint32_t)std::lround(want.g * 255.0f)) << i;

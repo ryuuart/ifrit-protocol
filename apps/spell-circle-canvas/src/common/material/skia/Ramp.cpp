@@ -45,7 +45,7 @@ sk_sp<SkImage> paletteImage(const Palette& palette) {
 Paint paletteLookup(const Palette& palette) {
   sk_sp<SkImage> table = paletteImage(palette);
   if (!table) return {};
-  return Paint::image(std::move(table), SkTileMode::kClamp, SkTileMode::kClamp,
+  return image(std::move(table), Repeat::Pad, Repeat::Pad,
                       SkMatrix::I(), SkSamplingOptions(SkFilterMode::kNearest));
 }
 

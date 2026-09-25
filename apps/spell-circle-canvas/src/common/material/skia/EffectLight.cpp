@@ -52,7 +52,7 @@ Effect Effect::whiten(float amount, float threshold, float knee) {
                        {"uWhitening", std::min(amount, 1.0f)}});
 }
 
-Effect Effect::emit(const Effect& light, SkBlendMode mode) const {
+Effect Effect::emit(const Effect& light, BlendMode mode) const {
   Effect e;
   if (isAnimated() || anyChildNeedsContext() || light.isAnimated() ||
       light.anyChildNeedsContext()) {
@@ -62,7 +62,7 @@ Effect Effect::emit(const Effect& light, SkBlendMode mode) const {
     return e;
   }
   e.m_filter =
-      SkImageFilters::Blend(mode, liftedFilter(), light.liftedFilter());
+      SkImageFilters::Blend(toSkBlendMode(mode), liftedFilter(), light.liftedFilter());
   return e;
 }
 

@@ -48,8 +48,9 @@ void digest(const sigil::material::Material& m,
 // last three only when the effect actually declares them (assigning a uniform
 // the effect lacks aborts in debug builds). `paintFrame` is null for the static
 // build.
-sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* paintFrame,
-                             bool worldSpace) {
+sk_sp<SkShader> PaintAccess::build(const Paint::Live& live,
+                                   const PaintFrame* paintFrame,
+                                   bool worldSpace) {
   const sk_sp<SkRuntimeEffect>& effect = live.effect;
   if (!effect) return nullptr;
   // A user-provided uniform (constant or bound) OWNS its slot, and the
@@ -213,8 +214,8 @@ sk_sp<SkShader> Paint::build(const Live& live, const PaintFrame* paintFrame,
   return built;
 }
 
-sk_sp<SkShader> Paint::buildBacked(const PaintFrame* paintFrame) const {
-  const Backed& backed = *m_backed;
+sk_sp<SkShader> PaintAccess::buildBacked(const Paint& self, const PaintFrame* paintFrame) {
+  const Paint::Backed& backed = *self.m_backed;
   // A PASS BODY HAS NO STANDALONE SHADER. It is written against the
   // declarations the fx() runtime prepends once it knows the track's unit
   // count, so compiling it here would report one error per mention of a
@@ -232,7 +233,7 @@ sk_sp<SkShader> Paint::buildBacked(const PaintFrame* paintFrame) const {
     // A world-space material's uResolution is the ROOT canvas size, as on
     // the sksl path: the shader samples in root coordinates.
     const SkSize resolutionSize =
-        m_worldSpace && !paintFrame->rootSize.isEmpty() ? paintFrame->rootSize
+        self.m_worldSpace && !paintFrame->rootSize.isEmpty() ? paintFrame->rootSize
                                                         : paintFrame->size;
     frame.resolution = {resolutionSize.width(), resolutionSize.height()};
     // An sdf style reserves its glow, shadow and border padding INSIDE the
@@ -263,7 +264,7 @@ sk_sp<SkShader> Paint::buildBacked(const PaintFrame* paintFrame) const {
       }
     }
     digest(backed.material, frame, key);
-    if (m_worldSpace) {
+    if (self.m_worldSpace) {
       std::vector<float> w;
       digestToRoot(w, paintFrame->toRoot);
       const auto* bytes = reinterpret_cast<const std::byte*>(w.data());
@@ -272,7 +273,7 @@ sk_sp<SkShader> Paint::buildBacked(const PaintFrame* paintFrame) const {
     if (sk_sp<SkShader> memoised = backed.memo.hit(key)) return memoised;
   }
   sk_sp<SkShader> built = sigil::material::skia::shader(backed.material, frame);
-  if (m_worldSpace && paintFrame)
+  if (self.m_worldSpace && paintFrame)
     built = anchorToRoot(std::move(built), *paintFrame);
   if (paintFrame) backed.memo.store(std::move(key), built);
   return built;
@@ -286,18 +287,18 @@ sk_sp<SkShader> Paint::buildBacked(const PaintFrame* paintFrame) const {
  *  layer's scalar memo compares the resolved pan values rather than the
  *  shader pointer, so a node whose pan is holding still keeps its recording
  *  even though this hands back a new pointer each time. */
-sk_sp<SkShader> Paint::pannedImageShader() const {
-  if (!m_recipe) return nullptr;
+sk_sp<SkShader> PaintAccess::pannedImageShader(const Paint& self) {
+  if (!self.m_recipe) return nullptr;
   sk_sp<SkImage> img =
-      m_recipe->kind == Recipe::Kind::Buffer
-          ? (m_recipe->source ? m_recipe->source->image() : nullptr)
-          : m_recipe->image;
+      self.m_recipe->kind == Paint::Recipe::Kind::Buffer
+          ? (self.m_recipe->source ? self.m_recipe->source->image() : nullptr)
+          : self.m_recipe->image;
   if (!img) return nullptr;
-  SkMatrix local = m_recipe->local;
-  const SkPoint pan = boundOffsetValue();
-  local.postTranslate(pan.fX, pan.fY);
-  return SkShaders::Image(std::move(img), m_recipe->tx, m_recipe->ty,
-                          m_recipe->sampling, &local);
+  SkMatrix local = self.m_recipe->local;
+  const glm::vec2 pan = self.boundOffsetValue();
+  local.postTranslate(pan.x, pan.y);
+  return SkShaders::Image(std::move(img), self.m_recipe->tx, self.m_recipe->ty,
+                          self.m_recipe->sampling, &local);
 }
 
 /** The FITTED build, the box's answer to the pan's: the source mapped
@@ -306,18 +307,18 @@ sk_sp<SkShader> Paint::pannedImageShader() const {
  *  Null when there is no fit, no source, or no box to fit to — the caller
  *  falls through to the unfitted form, which is the same degradation a
  *  world-space material makes outside a composer. */
-sk_sp<SkShader> Paint::fittedImageShader(const PaintFrame& frame) const {
-  if (!hasFit() || frame.size.isEmpty()) return nullptr;
+sk_sp<SkShader> PaintAccess::fittedImageShader(const Paint& self, const PaintFrame& frame) {
+  if (!self.hasFit() || frame.size.isEmpty()) return nullptr;
   sk_sp<SkImage> img =
-      m_recipe->kind == Recipe::Kind::Buffer
-          ? (m_recipe->source ? m_recipe->source->image() : nullptr)
-          : m_recipe->image;
+      self.m_recipe->kind == Paint::Recipe::Kind::Buffer
+          ? (self.m_recipe->source ? self.m_recipe->source->image() : nullptr)
+          : self.m_recipe->image;
   if (!img || img->width() <= 0 || img->height() <= 0) return nullptr;
   const float iw = (float)img->width(), ih = (float)img->height();
   const float bw = frame.size.width(), bh = frame.size.height();
   const float sx = bw / iw, sy = bh / ih;
   SkMatrix local;
-  switch (m_recipe->fit) {
+  switch (self.m_recipe->fit) {
     case Fit::Stretch:
       local = SkMatrix::Scale(sx, sy);
       break;
@@ -328,7 +329,7 @@ sk_sp<SkShader> Paint::fittedImageShader(const PaintFrame& frame) const {
       // way, so the crop takes the same from both edges and the margin
       // leaves the same at both.
       const float k =
-          m_recipe->fit == Fit::Cover ? std::max(sx, sy) : std::min(sx, sy);
+          self.m_recipe->fit == Fit::Cover ? std::max(sx, sy) : std::min(sx, sy);
       local = SkMatrix::Scale(k, k);
       local.postTranslate((bw - iw * k) * 0.5f, (bh - ih * k) * 0.5f);
       break;
@@ -336,16 +337,16 @@ sk_sp<SkShader> Paint::fittedImageShader(const PaintFrame& frame) const {
     case Fit::Native:
       return nullptr;
   }
-  const SkPoint pan = boundOffsetValue();
-  local.postTranslate(pan.fX, pan.fY);
-  return SkShaders::Image(std::move(img), m_recipe->tx, m_recipe->ty,
-                          m_recipe->sampling, &local);
+  const glm::vec2 pan = self.boundOffsetValue();
+  local.postTranslate(pan.x, pan.y);
+  return SkShaders::Image(std::move(img), self.m_recipe->tx, self.m_recipe->ty,
+                          self.m_recipe->sampling, &local);
 }
 
-sk_sp<SkShader> Paint::resolvePass(const PassInputs& in,
-                                   const PaintFrame& paintFrame) const {
-  if (!m_backed) return nullptr;
-  const Backed& backed = *m_backed;
+sk_sp<SkShader> PaintAccess::resolvePass(const Paint& self, const PassInputs& in,
+                                   const PaintFrame& paintFrame) {
+  if (!self.m_backed) return nullptr;
+  const Paint::Backed& backed = *self.m_backed;
   const uint32_t n = std::max(in.units, 1u);
   std::shared_ptr<const sigil::material::Recipe> spec =
       detail::passRecipeFor(backed.material.recipePointer(), n);
@@ -360,7 +361,7 @@ sk_sp<SkShader> Paint::resolvePass(const PassInputs& in,
   sigil::material::FrameData frame;
   frame.seconds = paintFrame.seconds;
   frame.contentScale = paintFrame.contentScale;
-  const SkSize resolutionSize = m_worldSpace && !paintFrame.rootSize.isEmpty()
+  const SkSize resolutionSize = self.m_worldSpace && !paintFrame.rootSize.isEmpty()
                                     ? paintFrame.rootSize
                                     : paintFrame.size;
   frame.resolution = {resolutionSize.width(), resolutionSize.height()};
@@ -382,7 +383,7 @@ sk_sp<SkShader> Paint::resolvePass(const PassInputs& in,
   // No memo here: the per-unit phases move every frame the pass is live,
   // and a settled pass replays from its node's recording rather than
   // resolving.
-  if (m_worldSpace) built = anchorToRoot(std::move(built), paintFrame);
+  if (self.m_worldSpace) built = anchorToRoot(std::move(built), paintFrame);
   return built;
 }
 

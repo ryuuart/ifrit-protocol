@@ -32,6 +32,8 @@
 
 namespace sigil::material::skia {
 
+struct PaintFrame;
+
 /**
  * Post-processing at stacking-context boundaries, as a comparable
  * value: `filter` wraps any SkImageFilter, `shader` an SkSL runtime
@@ -156,7 +158,7 @@ class Effect {
    *  TRANSITION has nothing to run it and reads as its target.
    *  @silent the name is not one the effect declares, or its kind takes
    *  no uniform (warned once; no volatility is declared either). */
-  Effect& uniform(std::string name, motion::Animatable<float> value);
+  Effect& bind(std::string name, motion::Animatable<float> value);
   /** CONSTANT uniforms after construction, for the sizes the shader()
    *  constructor list cannot carry: the float2 and float4 forms fill
    *  those declarations, and the vector form fills a declared ARRAY
@@ -165,17 +167,17 @@ class Effect {
    *  @silent the paint is not a shader() effect, the name is
    *  undeclared, or its declared size is not the value's (warned
    *  once). */
-  Effect& uniform(std::string name, float value);
-  Effect& uniform(std::string name, std::array<float, 2> value);
-  Effect& uniform(std::string name, std::array<float, 4> value);
-  Effect& uniform(std::string name, std::vector<float> values);
+  Effect& set(std::string name, float value);
+  Effect& set(std::string name, std::array<float, 2> value);
+  Effect& set(std::string name, std::array<float, 4> value);
+  Effect& set(std::string name, std::vector<float> values);
   /** A LIVE ARRAY — a `UniformBlock` the caller owns, writes and
    *  commit()s, read at every paint. It declares volatility as a bound
    *  scalar does, and is size-checked at store against the declared
    *  array's total float count.
    *  @trap The binding compares by block identity; the values belong to
    *  the system and never prune. */
-  Effect& uniform(std::string name, std::shared_ptr<const UniformBlock> block);
+  Effect& bind(std::string name, std::shared_ptr<const UniformBlock> block);
   /** Chain: apply @p next AFTER this effect. Static chains precompose
    *  once; a chain with a live side re-composes at each paint. */
   Effect then(const Effect& next) const;
@@ -186,8 +188,7 @@ class Effect {
    *  @trap Each emit reads that same input, so lights STACK rather than
    *  compound: a second one adds a light of the layer, never a light of
    *  the first light. */
-  Effect emit(const Effect& light,
-              SkBlendMode mode = SkBlendMode::kScreen) const;
+  Effect emit(const Effect& light, BlendMode mode = BlendMode::Screen) const;
 
   const sk_sp<SkImageFilter>& imageFilter() const { return m_filter; }
   /** The colour filter, when the effect is one — the colour-filter
@@ -202,7 +203,7 @@ class Effect {
    *  resolve against; null is the context-free form, where static
    *  children keep their snapshot. */
   sk_sp<SkImageFilter> resolvedImageFilter(
-      const PaintFrame* paintFrame = nullptr) const;
+      const FrameData* frame = nullptr) const;
   /** THE VOLATILITY DECLARATION — one word across the whole library:
    *  does this effect change without a re-describe? True while any
    *  uniform is bound, or while any child material is live. */
@@ -303,13 +304,15 @@ class Effect {
   // frame (static chains precompose into m_filter and carry no nodes).
   std::shared_ptr<const Effect> m_chainA, m_chainB;
   // emit()'s blend of B over A; empty for then(), which composes B after A.
-  std::optional<SkBlendMode> m_chainBlend;
+  std::optional<BlendMode> m_chainBlend;
 
   /** Does any child need a PaintFrame to resolve (live or geometry
    *  tier)? Material::build's memo asks exactly this of its own children,
    *  for the same reason: a static child's snapshot is already correct,
    *  and a context-needing one must be rebuilt per paint or it freezes. */
   bool anyChildNeedsContext() const;
+  /** resolvedImageFilter() at a frame already crossed into Skia's terms. */
+  sk_sp<SkImageFilter> resolvedImageFilterAt(const PaintFrame* paintFrame) const;
   /** The slot @p name as a shader, resolved against @p paintFrame. */
   sk_sp<SkShader> childShaderFor(std::string_view name,
                                  const PaintFrame* paintFrame) const;

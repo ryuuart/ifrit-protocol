@@ -42,8 +42,8 @@ sk_sp<SkShader> mixShaders(sk_sp<SkShader> a, sk_sp<SkShader> b, float t) {
 }
 }  // namespace
 
-sk_sp<SkShader> Paint::foldLayers(
-    std::span<const std::pair<Paint, SkBlendMode>> layers,
+sk_sp<SkShader> PaintAccess::foldLayers(
+    std::span<const std::pair<Paint, BlendMode>> layers,
     const std::function<sk_sp<SkShader>(const Paint&)>& shaderOf) {
   sk_sp<SkShader> acc;
   bool first = true;
@@ -62,17 +62,23 @@ sk_sp<SkShader> Paint::foldLayers(
     // toward the accumulation — Photoshop layer opacity, not src-alpha
     // thinning (the two differ on every non-porter-duff mode).
     const float amt = layer.m_amount;
-    sk_sp<SkShader> blended = SkShaders::Blend(mode, acc, std::move(src));
+    sk_sp<SkShader> blended = SkShaders::Blend(toSkBlendMode(mode), acc, std::move(src));
     acc = amt >= 1.0f ? std::move(blended)
                       : mixShaders(std::move(acc), std::move(blended), amt);
   }
   return acc;
 }
 
-Paint Paint::blend(std::vector<std::pair<Paint, SkBlendMode>> layers) {
+}  // namespace sigil::material::skia
+
+namespace sigil::material {
+
+using skia::PaintAccess;
+
+Paint Paint::blend(std::vector<std::pair<Paint, BlendMode>> layers) {
   if (layers.empty()) return {};
-  Paint m = shader(
-      foldLayers(layers, [](const Paint& layer) { return layer.asShader(); }));
+  Paint m = PaintAccess::wrap(PaintAccess::foldLayers(
+      layers, [](const Paint& layer) { return PaintAccess::asShader(layer); }));
   // Keep the layer materials as the comparable recipe (recursive equality) —
   // a blend containing a live layer compares by that layer's identity, so it
   // stays conservatively un-pruned, as it must (the snapshot sampled Outputs).
@@ -83,13 +89,17 @@ Paint Paint::blend(std::vector<std::pair<Paint, SkBlendMode>> layers) {
   return m;
 }
 
+}  // namespace sigil::material
+
+namespace sigil::material::skia {
+
 /** THE BLEND FOLD, in one place because it has two callers that must agree:
  *  `paintFrame` non-null is resolve()'s per-frame form, null is asShader()'s
  *  context-free one. Either way the LAYERS are re-read here rather than the
  *  flattened snapshot blend() built, which is the whole point — a live layer
  *  contributes its current value per call. */
-sk_sp<SkShader> Paint::foldBlend(const PaintFrame* paintFrame) const {
-  return foldLayers(m_recipe->layers, [paintFrame](const Paint& layer) {
+sk_sp<SkShader> PaintAccess::foldBlend(const Paint& self, const PaintFrame* paintFrame) {
+  return foldLayers(self.m_recipe->layers, [paintFrame](const Paint& layer) {
     return detail::childShader(layer, paintFrame);
   });
 }

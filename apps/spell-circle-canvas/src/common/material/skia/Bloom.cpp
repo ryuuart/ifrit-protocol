@@ -45,7 +45,7 @@ Effect bloom(const BloomParameters& p) {
   const Effect halo =
       rung(sigma, p.strength)
           .emit(rung(sigma * std::max(1.0f, p.spread), p.tail),
-                SkBlendMode::kPlus)
+                BlendMode::PlusLighter)
           .then(coverageCeiling(p.maxOpacity));
   Effect core;
   if (p.softness > 0) core = Effect::blur(p.softness);

@@ -44,7 +44,7 @@ built, each copying on write, has a page of its own.
 
 | Verb | What it says | Header |
 |---|---|---|
-| [`uniform`](pages/verbs/uniform.md) | A named uniform, baked in or bound to a moving value. | `skia/Paint.h` |
+| [`bind`](pages/verbs/bind.md) | A named parameter bound to a moving value; `set` bakes one in. | `paint/Paint.h` |
 | [`slot`](pages/verbs/slot.md) | A SECOND SOURCE for a declared `uniform shader`. | `skia/Paint.h` |
 | [`amount`](pages/verbs/amount.md) | Layer strength inside a blend. | `skia/Paint.h` |
 | [`fit`](pages/verbs/fit.md) | How a source with a size of its own meets the box. | `skia/Paint.h` |

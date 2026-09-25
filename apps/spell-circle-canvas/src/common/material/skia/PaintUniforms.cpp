@@ -1,5 +1,5 @@
 /** @file
- * THE DOORS THAT TAKE A NAME: every uniform() overload and slot(), for
+ * THE DOORS THAT TAKE A NAME: every set() and bind() overload and slot(), for
  * both the sksl recipe and the material instance. Each validates the name
  * against what the effect declares, copies the recipe on write because a
  * paint is a value, and refreshes the static snapshot a constant changed.
@@ -31,7 +31,9 @@ namespace {
 class MaterialLeaf final : public sigil::material::ShaderLeaf {
  public:
   explicit MaterialLeaf(Paint source) : m_source(std::move(source)) {}
-  sk_sp<SkShader> shader() const override { return m_source.asShader(); }
+  sk_sp<SkShader> shader() const override {
+    return skia::PaintAccess::asShader(m_source);
+  }
   bool animated() const override { return m_source.isAnimated(); }
 
  protected:
@@ -45,22 +47,32 @@ class MaterialLeaf final : public sigil::material::ShaderLeaf {
 
 }  // namespace
 
-Paint& Paint::uniform(std::string name, float value) {
+}  // namespace sigil::material::skia
+
+namespace sigil::material {
+
+using skia::PaintAccess;
+using skia::putByName;
+using skia::validUniform;
+using skia::warnUnknownUniform;
+using skia::MaterialLeaf;
+
+Paint& Paint::set(std::string name, float value) {
   if (m_backed) {
     detachBacked();
     m_backed->material.set(name, value);
-    m_shader = buildBacked(nullptr);
+    m_shader = PaintAccess::hold(PaintAccess::buildBacked(*this, nullptr));
     return *this;
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::uniform(\"%s\", const): ignored — this material has no "
+        "Paint::set(\"%s\", const): ignored — this material has no "
         "named uniforms (only sksl() does)\n",
         name.c_str());
     return *this;
   }
   if (!validUniform(m_live->effect, name, sizeof(float))) {
-    warnUnknownUniform("uniform", name);
+    warnUnknownUniform("set", name);
     return *this;
   }
   detachLive();
@@ -72,7 +84,7 @@ Paint& Paint::uniform(std::string name, float value) {
   else if (name == "uContentScale")
     m_live->usesScale = false;
   putByName(m_live->constants, std::move(name), value);
-  m_shader = build(*m_live, nullptr);  // refresh the static snapshot
+  m_shader = PaintAccess::hold(PaintAccess::build(*m_live, nullptr));  // refresh the static snapshot
   return *this;
 }
 
@@ -83,19 +95,19 @@ Paint& Paint::slot(std::string name, Paint source) {
       m_backed->material.slot(name, source.m_backed->material);
     else
       m_backed->material.slot(name, MaterialLeaf(std::move(source)));
-    m_shader = buildBacked(nullptr);
+    m_shader = PaintAccess::hold(PaintAccess::buildBacked(*this, nullptr));
     return *this;
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::slot(\"%s\"): ignored — this material declares no "
+        "Paint::slot(\"%s\"): ignored — this material declares no "
         "slots (only sksl() does)\n",
         name.c_str());
     return *this;
   }
-  if (!detail::declaresShaderChild(m_live->effect, name)) {
+  if (!skia::detail::declaresShaderChild(m_live->effect, name)) {
     SkDebugf(
-        "skia::Paint::slot: \"%s\" is not declared by the effect as "
+        "Paint::slot: \"%s\" is not declared by the effect as "
         "`uniform shader` — ignored\n",
         name.c_str());
     return *this;
@@ -107,15 +119,15 @@ Paint& Paint::slot(std::string name, Paint source) {
   for (auto& slot : m_live->slots)
     if (slot.first == name) {
       slot.second = std::move(source);
-      m_shader = build(*m_live, nullptr);
+      m_shader = PaintAccess::hold(PaintAccess::build(*m_live, nullptr));
       return *this;
     }
   m_live->slots.emplace_back(std::move(name), std::move(source));
-  m_shader = build(*m_live, nullptr);  // refresh the static snapshot
+  m_shader = PaintAccess::hold(PaintAccess::build(*m_live, nullptr));  // refresh the static snapshot
   return *this;
 }
 
-Paint& Paint::uniform(std::string name, motion::Animatable<float> output) {
+Paint& Paint::bind(std::string name, motion::Animatable<float> output) {
   if (m_backed) {
     detachBacked();
     m_backed->material.bind(name, std::move(output));
@@ -123,13 +135,13 @@ Paint& Paint::uniform(std::string name, motion::Animatable<float> output) {
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::uniform(\"%s\", &output): ignored — this material has "
+        "Paint::bind(\"%s\", value): ignored — this material has "
         "no named uniforms (only sksl() does)\n",
         name.c_str());
     return *this;
   }
   if (!validUniform(m_live->effect, name, sizeof(float))) {
-    warnUnknownUniform("uniform", name);
+    warnUnknownUniform("bind", name);
     return *this;
   }
   detachLive();
@@ -137,91 +149,91 @@ Paint& Paint::uniform(std::string name, motion::Animatable<float> output) {
   return *this;  // now LIVE; painting resolves per frame (resolve())
 }
 
-Paint& Paint::uniform(std::string name, std::array<float, 2> value) {
+Paint& Paint::set(std::string name, std::array<float, 2> value) {
   if (m_backed) {
     detachBacked();
     m_backed->material.set(name, glm::vec2(value[0], value[1]));
-    m_shader = buildBacked(nullptr);
+    m_shader = PaintAccess::hold(PaintAccess::buildBacked(*this, nullptr));
     return *this;
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::uniform(\"%s\", float2): ignored — this material has "
+        "Paint::set(\"%s\", float2): ignored — this material has "
         "no named uniforms (only sksl() does)\n",
         name.c_str());
     return *this;
   }
   if (!validUniform(m_live->effect, name, 2 * sizeof(float))) {
-    warnUnknownUniform("uniform", name);
+    warnUnknownUniform("set", name);
     return *this;
   }
   detachLive();
   putByName(m_live->constants2, std::move(name), value);
-  m_shader = build(*m_live, nullptr);  // refresh the static snapshot
+  m_shader = PaintAccess::hold(PaintAccess::build(*m_live, nullptr));  // refresh the static snapshot
   return *this;
 }
 
-Paint& Paint::uniform(std::string name, material::Color value) {
+Paint& Paint::set(std::string name, Color value) {
   if (m_backed) {
     detachBacked();
     m_backed->material.set(
         name, sigil::material::Color{value.r, value.g, value.b, value.a});
-    m_shader = buildBacked(nullptr);
+    m_shader = PaintAccess::hold(PaintAccess::buildBacked(*this, nullptr));
     return *this;
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::uniform(\"%s\", color): ignored — this material has "
+        "Paint::set(\"%s\", color): ignored — this material has "
         "no named uniforms (only sksl() does)\n",
         name.c_str());
     return *this;
   }
   if (!validUniform(m_live->effect, name, 4 * sizeof(float))) {
-    warnUnknownUniform("uniform", name);
+    warnUnknownUniform("set", name);
     return *this;
   }
   detachLive();
   putByName(m_live->constants4, std::move(name),
             std::array<float, 4>{value.r, value.g, value.b, value.a});
-  m_shader = build(*m_live, nullptr);  // refresh the static snapshot
+  m_shader = PaintAccess::hold(PaintAccess::build(*m_live, nullptr));  // refresh the static snapshot
   return *this;
 }
 
-Paint& Paint::uniform(std::string name, std::array<float, 4> value) {
+Paint& Paint::set(std::string name, std::array<float, 4> value) {
   if (m_backed) {
     detachBacked();
     m_backed->material.set(name,
                            glm::vec4(value[0], value[1], value[2], value[3]));
-    m_shader = buildBacked(nullptr);
+    m_shader = PaintAccess::hold(PaintAccess::buildBacked(*this, nullptr));
     return *this;
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::uniform(\"%s\", float4): ignored — this material has "
+        "Paint::set(\"%s\", float4): ignored — this material has "
         "no named uniforms (only sksl() does)\n",
         name.c_str());
     return *this;
   }
   if (!validUniform(m_live->effect, name, 4 * sizeof(float))) {
-    warnUnknownUniform("uniform", name);
+    warnUnknownUniform("set", name);
     return *this;
   }
   detachLive();
   putByName(m_live->constants4, std::move(name), value);
-  m_shader = build(*m_live, nullptr);  // refresh the static snapshot
+  m_shader = PaintAccess::hold(PaintAccess::build(*m_live, nullptr));  // refresh the static snapshot
   return *this;
 }
 
-Paint& Paint::uniform(std::string name, std::vector<float> values) {
+Paint& Paint::set(std::string name, std::vector<float> values) {
   if (m_backed) {
     detachBacked();
     m_backed->material.set(name, std::span<const float>(values));
-    m_shader = buildBacked(nullptr);
+    m_shader = PaintAccess::hold(PaintAccess::buildBacked(*this, nullptr));
     return *this;
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::uniform(\"%s\", array): ignored — this material has "
+        "Paint::set(\"%s\", array): ignored — this material has "
         "no named uniforms (only sksl() does)\n",
         name.c_str());
     return *this;
@@ -230,16 +242,16 @@ Paint& Paint::uniform(std::string name, std::vector<float> values) {
   // and the builder refuses a partial array write, so the count must be
   // the declaration's exactly.
   if (!validUniform(m_live->effect, name, values.size() * sizeof(float))) {
-    warnUnknownUniform("uniform", name);
+    warnUnknownUniform("set", name);
     return *this;
   }
   detachLive();
   putByName(m_live->constantArrays, std::move(name), std::move(values));
-  m_shader = build(*m_live, nullptr);  // refresh the static snapshot
+  m_shader = PaintAccess::hold(PaintAccess::build(*m_live, nullptr));  // refresh the static snapshot
   return *this;
 }
 
-Paint& Paint::uniform(std::string name,
+Paint& Paint::bind(std::string name,
                       std::shared_ptr<const material::UniformBlock> block) {
   if (m_backed) {
     detachBacked();
@@ -248,20 +260,20 @@ Paint& Paint::uniform(std::string name,
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::uniform(\"%s\", block): ignored — this material has "
+        "Paint::bind(\"%s\", block): ignored — this material has "
         "no named uniforms (only sksl() does)\n",
         name.c_str());
     return *this;
   }
   if (!block) {
     SkDebugf(
-        "skia::Paint::uniform(\"%s\", block): null UniformBlock — there is "
+        "Paint::bind(\"%s\", block): null UniformBlock — there is "
         "nothing to read at paint time; ignored\n",
         name.c_str());
     return *this;
   }
   if (!validUniform(m_live->effect, name, block->size() * sizeof(float))) {
-    warnUnknownUniform("uniform", name);
+    warnUnknownUniform("bind", name);
     return *this;
   }
   detachLive();
@@ -269,4 +281,4 @@ Paint& Paint::uniform(std::string name,
   return *this;  // now LIVE; painting resolves per frame (resolve())
 }
 
-}  // namespace sigil::material::skia
+}  // namespace sigil::material

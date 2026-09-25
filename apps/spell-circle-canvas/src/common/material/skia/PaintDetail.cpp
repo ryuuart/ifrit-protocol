@@ -7,6 +7,7 @@
  */
 
 #include "PaintDetail.h"
+#include "PaintInternal.h"
 
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
@@ -107,11 +108,11 @@ std::shared_ptr<const sigil::material::Recipe> passRecipeFor(
 // frameless snapshot when there is not, a solid as a colour shader.
 sk_sp<SkShader> childShader(const Paint& source, const PaintFrame* paintFrame) {
   if (!paintFrame)
-    return source.asShader();  // already turns a solid into SkShaders::Color
+    return PaintAccess::asShader(source);  // turns a solid into a colour shader
   if (source.isNone()) return nullptr;
   if (source.isSolid())
     return SkShaders::Color(toSkColor(source.solidColor()), nullptr);
-  return source.shaderFor(*paintFrame);
+  return PaintAccess::shaderFor(source, *paintFrame);
 }
 
 }  // namespace detail

@@ -51,20 +51,6 @@ RampArrays split(const ColorStops& stops) {
   return r;
 }
 
-SkTileMode tileOf(Repeat repeat) {
-  switch (repeat) {
-    case Repeat::Pad:
-      return SkTileMode::kClamp;
-    case Repeat::Repeat:
-      return SkTileMode::kRepeat;
-    case Repeat::Mirror:
-      return SkTileMode::kMirror;
-    case Repeat::None:
-      return SkTileMode::kDecal;
-  }
-  return SkTileMode::kClamp;
-}
-
 /** What a radius of 1 is in the unit square, for a box-unit radial. */
 float extentOf(RadialExtent extent) {
   return extent == RadialExtent::ClosestSide ? 0.5f : 0.70710678f;
@@ -81,25 +67,29 @@ SkGradient makeGradient(const RampArrays& r, SkTileMode tile) {
 
 }  // namespace
 
-Paint Paint::solid(material::Color color) {
+}  // namespace sigil::material::skia
+
+namespace sigil::material {
+
+using skia::PaintAccess;
+
+Paint Paint::solid(Color color) {
   Paint m;
   m.m_isSolid = true;
   m.m_solid = color;
   return m;
 }
 
-Paint Paint::shader(sk_sp<SkShader> shader) {
+Paint Paint::recipe(Material material) {
   Paint m;
-  m.m_shader = std::move(shader);
+  m.m_backed = std::make_shared<Backed>(Backed{std::move(material), {}});
+  m.m_shader = PaintAccess::hold(PaintAccess::buildBacked(m, nullptr));
   return m;
 }
 
-Paint Paint::recipe(sigil::material::Material material) {
-  Paint m;
-  m.m_backed = std::make_shared<Backed>(Backed{std::move(material), {}});
-  m.m_shader = m.buildBacked(nullptr);  // static snapshot
-  return m;
-}
+}  // namespace sigil::material
+
+namespace sigil::material::skia {
 
 namespace {
 
@@ -125,27 +115,34 @@ Paint boxGradient(Paint unitGradient, SkPoint center, bool conic) {
     return built;
   }();
   if (!effect) return unitGradient;
-  Paint box = Paint::sksl(effect, {{"uConic", conic ? 1.0f : 0.0f}});
-  box.uniform("uCenter", std::array<float, 2>{center.x(), center.y()});
+  Paint box = PaintAccess::sksl(effect, {{"uConic", conic ? 1.0f : 0.0f}});
+  box.set("uCenter", std::array<float, 2>{center.x(), center.y()});
   box.slot("uGradient", std::move(unitGradient));
   return box;
 }
 
 }  // namespace
 
-Paint Paint::linearGradient(SkPoint start, SkPoint end, ColorStops stops,
-                            GradientOptions options) {
+}  // namespace sigil::material::skia
+
+namespace sigil::material {
+
+Paint Paint::linearGradient(glm::vec2 startPoint, glm::vec2 endPoint,
+                            ColorStops stops, GradientOptions options) {
+  using namespace skia;
+  const SkPoint start{startPoint.x, startPoint.y};
+  const SkPoint end{endPoint.x, endPoint.y};
   if (options.units == GradientUnits::Box) {
     if (options.repeat == Repeat::Pad)
-      return detail::unitRamp(start, end, stops.stops(), false);
+      return skia::detail::unitRamp(start, end, stops.stops(), false);
     return boxGradient(
-        linearGradient(start, end, std::move(stops), inPixels(options)), {0, 0},
+        linearGradient(startPoint, endPoint, std::move(stops), inPixels(options)), {0, 0},
         false);
   }
-  const SkTileMode tile = tileOf(options.repeat);
+  const SkTileMode tile = toSkTileMode(options.repeat);
   RampArrays arrays = split(stops);
   const SkPoint pts[2] = {start, end};
-  Paint m = shader(SkShaders::LinearGradient(pts, makeGradient(arrays, tile)));
+  Paint m = PaintAccess::wrap(SkShaders::LinearGradient(pts, makeGradient(arrays, tile)));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Linear;
   rec->p0 = start;
@@ -156,8 +153,10 @@ Paint Paint::linearGradient(SkPoint start, SkPoint end, ColorStops stops,
   return m;
 }
 
-Paint Paint::radialGradient(SkPoint center, float radius, ColorStops stops,
-                            GradientOptions options) {
+Paint Paint::radialGradient(glm::vec2 centerPoint, float radius,
+                            ColorStops stops, GradientOptions options) {
+  using namespace skia;
+  const SkPoint center{centerPoint.x, centerPoint.y};
   if (options.units == GradientUnits::Box) {
     if (!options.focus && options.repeat == Repeat::Pad) {
       // The unit-square ramp reads its radius against the half-diagonal,
@@ -165,22 +164,22 @@ Paint Paint::radialGradient(SkPoint center, float radius, ColorStops stops,
       const float scaled = options.extent == RadialExtent::ClosestSide
                                ? radius * 0.70710678f
                                : radius;
-      return detail::unitRamp(center, {scaled, scaled}, stops.stops(), true);
+      return skia::detail::unitRamp(center, {scaled, scaled}, stops.stops(), true);
     }
     const float unit = extentOf(options.extent);
     GradientOptions unitOptions = inPixels(options);
     unitOptions.focusRadius *= unit;
     return boxGradient(
-        radialGradient(center, radius * unit, std::move(stops), unitOptions),
+        radialGradient(centerPoint, radius * unit, std::move(stops), unitOptions),
         {0, 0}, false);
   }
-  const SkTileMode tile = tileOf(options.repeat);
+  const SkTileMode tile = toSkTileMode(options.repeat);
   RampArrays r = split(stops);
   auto rec = std::make_shared<Recipe>();
   Paint m;
   if (options.focus) {
     const SkPoint focus{options.focus->x, options.focus->y};
-    m = shader(SkShaders::TwoPointConicalGradient(
+    m = PaintAccess::wrap(SkShaders::TwoPointConicalGradient(
         focus, options.focusRadius, center, radius, makeGradient(r, tile)));
     rec->kind = Recipe::Kind::Conical;
     rec->p0 = focus;
@@ -188,7 +187,7 @@ Paint Paint::radialGradient(SkPoint center, float radius, ColorStops stops,
     rec->f0 = options.focusRadius;
     rec->f1 = radius;
   } else {
-    m = shader(
+    m = PaintAccess::wrap(
         SkShaders::RadialGradient(center, radius, makeGradient(r, tile)));
     rec->kind = Recipe::Kind::Radial;
     rec->p0 = center;
@@ -200,8 +199,10 @@ Paint Paint::radialGradient(SkPoint center, float radius, ColorStops stops,
   return m;
 }
 
-Paint Paint::conicGradient(SkPoint center, ColorStops stops,
+Paint Paint::conicGradient(glm::vec2 centerPoint, ColorStops stops,
                            GradientOptions options) {
+  using namespace skia;
+  const SkPoint center{centerPoint.x, centerPoint.y};
   if (options.units == GradientUnits::Box)
     return boxGradient(
         conicGradient({0, 0}, std::move(stops), inPixels(options)), center,
@@ -218,7 +219,7 @@ Paint Paint::conicGradient(SkPoint center, ColorStops stops,
     if (!warnedSweepWindow) {
       warnedSweepWindow = true;
       SkDebugf(
-          "[material] skia::Paint::conicGradient(start %.1f, end %.1f): "
+          "[material] Paint::conicGradient(start %.1f, end %.1f): "
           "angles outside [0, 360] CLAMP, they do not wrap — no canvas angle "
           "ever reaches the part of the window past the circle, so that "
           "run paints in the nearest stop's flat colour. Rotate the "
@@ -226,9 +227,9 @@ Paint Paint::conicGradient(SkPoint center, ColorStops stops,
           startDegrees, endDegrees);
     }
   }
-  const SkTileMode tile = tileOf(options.repeat);
+  const SkTileMode tile = toSkTileMode(options.repeat);
   RampArrays r = split(stops);
-  Paint m = shader(SkShaders::SweepGradient(center, startDegrees, endDegrees,
+  Paint m = PaintAccess::wrap(SkShaders::SweepGradient(center, startDegrees, endDegrees,
                                             makeGradient(r, tile)));
   auto rec = std::make_shared<Recipe>();
   rec->kind = Recipe::Kind::Sweep;
@@ -241,12 +242,17 @@ Paint Paint::conicGradient(SkPoint center, ColorStops stops,
   return m;
 }
 
-Paint Paint::image(sk_sp<SkImage> image, SkTileMode horizontalTile, SkTileMode verticalTile,
-                   const SkMatrix& local, SkSamplingOptions sampling) {
+}  // namespace sigil::material
+
+namespace sigil::material::skia {
+
+Paint PaintAccess::image(sk_sp<SkImage> image, SkTileMode horizontalTile,
+                         SkTileMode verticalTile, const SkMatrix& local,
+                         SkSamplingOptions sampling) {
   if (!image) return {};
-  Paint m = shader(SkShaders::Image(image, horizontalTile, verticalTile, sampling, &local));
-  auto rec = std::make_shared<Recipe>();
-  rec->kind = Recipe::Kind::Image;
+  Paint m = wrap(SkShaders::Image(image, horizontalTile, verticalTile, sampling, &local));
+  auto rec = std::make_shared<Paint::Recipe>();
+  rec->kind = Paint::Recipe::Kind::Image;
   rec->image = std::move(image);
   rec->tx = horizontalTile;
   rec->ty = verticalTile;
@@ -256,15 +262,15 @@ Paint Paint::image(sk_sp<SkImage> image, SkTileMode horizontalTile, SkTileMode v
   return m;
 }
 
-Paint Paint::buffer(std::shared_ptr<PixelBuffer> source, SkTileMode horizontalTile,
-                    SkTileMode verticalTile, const SkMatrix& local,
-                    SkSamplingOptions sampling) {
+Paint PaintAccess::buffer(std::shared_ptr<PixelBuffer> source,
+                          SkTileMode horizontalTile, SkTileMode verticalTile,
+                          const SkMatrix& local, SkSamplingOptions sampling) {
   if (!source) return {};
   sk_sp<SkImage> snapshot = source->image();
   if (!snapshot) return {};
-  Paint m = shader(SkShaders::Image(snapshot, horizontalTile, verticalTile, sampling, &local));
-  auto rec = std::make_shared<Recipe>();
-  rec->kind = Recipe::Kind::Buffer;
+  Paint m = wrap(SkShaders::Image(snapshot, horizontalTile, verticalTile, sampling, &local));
+  auto rec = std::make_shared<Paint::Recipe>();
+  rec->kind = Paint::Recipe::Kind::Buffer;
   rec->revision = source->revision();
   rec->source = std::move(source);
   rec->tx = horizontalTile;
@@ -371,20 +377,20 @@ Paint unitRamp(SkPoint a, SkPoint b, std::vector<ColorStop> stops,
     }
   }
 
-  Paint material = Paint::sksl(fx, {{"uRadial", radial ? 1.0f : 0.0f}});
-  material.uniform("uA", std::array<float, 2>{a.x(), a.y()});
-  material.uniform("uB", std::array<float, 2>{b.x(), b.y()});
+  Paint material = PaintAccess::sksl(fx, {{"uRadial", radial ? 1.0f : 0.0f}});
+  material.set("uA", std::array<float, 2>{a.x(), a.y()});
+  material.set("uB", std::array<float, 2>{b.x(), b.y()});
   for (size_t i = 0; i < n; ++i) {
-    material.uniform("uC" + std::to_string(i), stops[i].color);
-    material.uniform("uS" + std::to_string(i), stops[i].offset);
+    material.set("uC" + std::to_string(i), stops[i].color);
+    material.set("uS" + std::to_string(i), stops[i].offset);
   }
   return material;
 }
 
 }  // namespace detail
 
-Paint Paint::sksl(sk_sp<SkRuntimeEffect> effect,
-                  std::vector<std::pair<std::string, float>> constants) {
+Paint PaintAccess::sksl(sk_sp<SkRuntimeEffect> effect,
+                        std::vector<std::pair<std::string, float>> constants) {
   Paint m;
   if (!effect) {
     // A material that fails to build must be loud. The usual route here is
@@ -396,13 +402,13 @@ Paint Paint::sksl(sk_sp<SkRuntimeEffect> effect,
     if (!warnedNullEffect) {
       warnedNullEffect = true;
       SkDebugf(
-          "[material] skia::Paint::sksl(null effect): the material is NONE "
+          "[material] skia::sksl(null effect): the material is NONE "
           "and its node will paint nothing. Check the error string "
           "MakeForShader returned next to the effect. (warned once)\n");
     }
     return m;
   }
-  m.m_live = std::make_shared<Live>();
+  m.m_live = std::make_shared<Paint::Live>();
   m.m_live->effect = std::move(effect);
   for (auto& [name, value] : constants) {
     if (!validUniform(m.m_live->effect, name, sizeof(float))) {
@@ -416,8 +422,27 @@ Paint Paint::sksl(sk_sp<SkRuntimeEffect> effect,
       validUniform(m.m_live->effect, "uContentScale", sizeof(float));
   m.m_live->usesGeometry =
       validUniform(m.m_live->effect, "uResolution", 2 * sizeof(float));
-  m.m_shader = build(*m.m_live, nullptr);  // static snapshot (constants only)
+  m.m_shader = hold(build(*m.m_live, nullptr));  // static snapshot (constants only)
   return m;
 }
+
+Paint image(sk_sp<SkImage> image, Repeat horizontal, Repeat vertical,
+            const SkMatrix& local, SkSamplingOptions sampling) {
+  return PaintAccess::image(std::move(image), toSkTileMode(horizontal),
+                            toSkTileMode(vertical), local, sampling);
+}
+
+Paint buffer(std::shared_ptr<PixelBuffer> source, Repeat horizontal,
+             Repeat vertical, const SkMatrix& local, SkSamplingOptions sampling) {
+  return PaintAccess::buffer(std::move(source), toSkTileMode(horizontal),
+                             toSkTileMode(vertical), local, sampling);
+}
+
+Paint sksl(sk_sp<SkRuntimeEffect> effect,
+           std::vector<std::pair<std::string, float>> constants) {
+  return PaintAccess::sksl(std::move(effect), std::move(constants));
+}
+
+Paint paint(sk_sp<SkShader> shader) { return PaintAccess::wrap(std::move(shader)); }
 
 }  // namespace sigil::material::skia

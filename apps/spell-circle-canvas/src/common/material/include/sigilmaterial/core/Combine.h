@@ -11,6 +11,7 @@
  * like any other, so every query answers over the whole of it.
  */
 
+#include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 
@@ -21,17 +22,6 @@
 
 namespace sigil::material {
 
-/** How the top material's output combines with the one beneath it where
- *  the mask says. */
-enum class Blend : uint8_t {
-  Mix,       ///< the base moves toward the top by the mask
-  Add,       ///< the top adds, scaled by the mask
-  Multiply,  ///< the base moves toward base * top by the mask
-};
-
-/** The blend's name as messages and a recipe name spell it. */
-std::string_view name(Blend blend);
-
 /** The uniforms `over()`'s recipes read: how strongly the top material
  *  shows where the mask is fully on. */
 struct OverParameters {
@@ -41,21 +31,25 @@ struct OverParameters {
 /** The combinator recipe for @p blend, defined once — the one a stack
  *  takes when its operands are not composed. Each declares the child
  *  slots `base`, `top` and `mask`. */
-const std::shared_ptr<const Recipe>& overRecipe(Blend blend);
+const std::shared_ptr<const Recipe>& overRecipe(BlendMode blend);
 
 /** The name every recipe of a stack by @p blend carries, composed or
  *  not: what says a material is a stack. */
-std::string stackName(Blend blend);
+std::string stackName(BlendMode blend);
 
 /** @p top stacked over @p base where @p mask says, by @p blend, at
  *  @p amount in 0..1 — how strongly the top shows where the mask is
- *  fully on. The three operands become the result's children, so the
- *  result compares, animates and resolves as one material.
+ *  fully on. Three modes stack: `Normal` moves the base toward the top
+ *  by the mask, `PlusLighter` adds the top scaled by the mask, and
+ *  `Multiply` moves the base toward base × top by the mask. The three
+ *  operands become the result's children, so the result compares,
+ *  animates and resolves as one material.
+ *  @silent any other mode stacks as `Normal` (reported once).
  *  @trap Where a target composes the stack, the operands' values and
  *  sampled slots are copied AT THE CALL, so a later edit to one of them
  *  is not seen and a live binding on one does not reach the body. */
 Material over(Material base, Material top, Material mask,
-              Blend blend = Blend::Mix, float amount = 1.0f);
+              BlendMode blend = BlendMode::Normal, float amount = 1.0f);
 
 /** The material @p material stacks on: the `base` child when @p material is an
  *  `over()` result, else @p material itself. Applied until the answer is not a

@@ -53,7 +53,7 @@ TEST(Stack, ComposesIntoABodyThisTargetCanCompile) {
 
   const material::Material stack =
       material::over(red(), blue(), material::maskConstant(0.5f));
-  EXPECT_EQ(stack.recipe().name(), material::stackName(material::Blend::Mix));
+  EXPECT_EQ(stack.recipe().name(), material::stackName(material::BlendMode::Normal));
   ASSERT_TRUE(stack.recipe().has(material::Target::Slang))
       << "a stack whose operands all have a body for the target has one too";
 

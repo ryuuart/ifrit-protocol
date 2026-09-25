@@ -53,12 +53,12 @@ TEST(SkiaEffect, AParameterBlurReachesItsOwnBoxAndNotTheClip) {
   // either clip.
   // A bound sigma is what makes the resolve build against the frame; an
   // unbound blur answers its store-time snapshot, which knows no box.
-  skia::PaintFrame frame;
-  frame.size = SkSize::Make(120, 120);
+  FrameData frame;
+  frame.resolution = {120, 120};
   choreograph::Output<float> sigma(5.0f);
   skia::Effect blur =
-      skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 8.0f);
-  blur.uniform("maxSigma", &sigma);
+      skia::Effect::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
+  blur.bind("maxSigma", &sigma);
   const sk_sp<SkImageFilter> filter = blur.resolvedImageFilter(&frame);
   ASSERT_NE(filter, nullptr);
   const SkIRect small =
@@ -81,8 +81,8 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   // blurred layers between frames while the sigma breathes.
   choreograph::Output<float> sigma(2.0f);
   skia::Effect blur =
-      skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 8.0f);
-  blur.uniform("maxSigma", &sigma);
+      skia::Effect::blur(Paint::solid({1, 1, 1, 1}), 8.0f);
+  blur.bind("maxSigma", &sigma);
   EXPECT_TRUE(blur.isAnimated());
   const sk_sp<SkImageFilter> at2 = blur.resolvedImageFilter(nullptr);
   sigma = 6.0f;
@@ -101,7 +101,7 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   sigma = 4.0f;
   const SkBitmap ridden = squareThrough(blur.resolvedImageFilter(nullptr));
   const SkBitmap declared =
-      squareThrough(skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 4.0f)
+      squareThrough(skia::Effect::blur(Paint::solid({1, 1, 1, 1}), 4.0f)
                         .resolvedImageFilter(nullptr));
   for (int y = 0; y < 32; ++y)
     for (int x = 0; x < 32; ++x)
@@ -117,7 +117,7 @@ TEST(SkiaEffect, ABoundBlurSigmaRidesInsideTheDeclaredPyramid) {
   sigma = 40.0f;
   const SkBitmap clamped = squareThrough(blur.resolvedImageFilter(nullptr));
   const SkBitmap top =
-      squareThrough(skia::Effect::blur(skia::Paint::solid({1, 1, 1, 1}), 8.0f)
+      squareThrough(skia::Effect::blur(Paint::solid({1, 1, 1, 1}), 8.0f)
                         .resolvedImageFilter(nullptr));
   for (int y = 0; y < 32; ++y)
     for (int x = 0; x < 32; ++x)

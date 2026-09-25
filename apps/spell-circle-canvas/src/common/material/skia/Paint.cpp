@@ -14,9 +14,12 @@
 
 #include "PaintInternal.h"
 
-namespace sigil::material::skia {
+namespace sigil::material {
 
-const sigil::material::Material* Paint::recipeMaterial() const {
+using skia::PaintAccess;
+using skia::validUniform;
+
+const Material* Paint::recipeMaterial() const {
   return m_backed ? &m_backed->material : nullptr;
 }
 
@@ -61,7 +64,8 @@ bool Paint::operator==(const Paint& other) const {
   }
   if ((m_recipe != nullptr) != (other.m_recipe != nullptr)) return false;
   if (m_recipe) return *m_recipe == *other.m_recipe;
-  return m_shader == other.m_shader;  // raw shader wrap / none
+  // A raw shader wrap compares by pointer; two paints of nothing are equal.
+  return PaintAccess::snapshot(*this) == PaintAccess::snapshot(other);
 }
 
 // uniform() and slot() mutations copy-on-write the recipe, because Paint
@@ -91,7 +95,7 @@ Paint& Paint::offset(std::optional<motion::Animatable<float>> x,
                                      m_recipe->kind == Recipe::Kind::Buffer);
   if (!pannable) {
     SkDebugf(
-        "skia::Paint::offset(&x, &y): ignored — only image()/buffer() "
+        "Paint::offset(&x, &y): ignored — only image()/buffer() "
         "materials carry a local matrix to pan (Pattern's backend)\n");
     return *this;
   }
@@ -99,7 +103,12 @@ Paint& Paint::offset(std::optional<motion::Animatable<float>> x,
   return *this;
 }
 
-SkPoint Paint::boundOffsetValue() const {
+bool Paint::boundOffsetLive() const {
+  return (m_boundOffset[0] && motion::isLive(nullptr, *m_boundOffset[0])) ||
+         (m_boundOffset[1] && motion::isLive(nullptr, *m_boundOffset[1]));
+}
+
+glm::vec2 Paint::boundOffsetValue() const {
   return {m_boundOffset[0] ? motion::resolveFloatAt(nullptr, *m_boundOffset[0])
                            : 0.0f,
           m_boundOffset[1] ? motion::resolveFloatAt(nullptr, *m_boundOffset[1])
@@ -112,7 +121,7 @@ Paint& Paint::fit(Fit how) {
   if (!m_recipe || (m_recipe->kind != Recipe::Kind::Image &&
                     m_recipe->kind != Recipe::Kind::Buffer)) {
     SkDebugf(
-        "skia::Paint::fit(): ignored — only image()/buffer() materials have "
+        "Paint::fit(): ignored — only image()/buffer() materials have "
         "a source with a size of its own to fit\n");
     return *this;
   }
@@ -156,13 +165,13 @@ Paint& Paint::quantizeTime(float rate) {
   }
   if (!m_live) {
     SkDebugf(
-        "skia::Paint::quantizeTime: ignored — only sksl() materials carry "
+        "Paint::quantizeTime: ignored — only sksl() materials carry "
         "uTime\n");
     return *this;
   }
   if (!validUniform(m_live->effect, "uTime", sizeof(float))) {
     SkDebugf(
-        "skia::Paint::quantizeTime: ignored — the effect does not declare "
+        "Paint::quantizeTime: ignored — the effect does not declare "
         "`uniform float uTime`\n");
     return *this;
   }
@@ -237,4 +246,4 @@ bool Paint::geometryDependent() const {
   return false;
 }
 
-}  // namespace sigil::material::skia
+}  // namespace sigil::material
