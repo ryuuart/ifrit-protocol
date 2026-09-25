@@ -27,7 +27,6 @@
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace material = sigil::material;
-namespace paint = sigil::material::skia;
 using namespace sigil::compose;
 using namespace sigil::weave::literals;
 
@@ -45,28 +44,27 @@ struct Ink {
   std::string title;
   std::string control;
   std::string note;
-  paint::Paint paint;
+  material::skia::Paint paint;
   /** The box the paint is stretched over; the passage's own text box
    *  unless the ink says otherwise. */
   PaintBox box = PaintBox::Element;
 };
 
-paint::Paint field(material::Material recipe) {
-  return paint::Paint::recipe(std::move(recipe));
+material::skia::Paint field(material::Material recipe) {
+  return material::skia::Paint::recipe(std::move(recipe));
 }
 
 std::vector<Ink> inks() {
   // An ink on the default box hands its paint the unit square, so the
   // fields are authored over it rather than over any run's pixels.
   const SkRect unit = SkRect::MakeWH(1, 1);
-  namespace fields = material::kit;
   return {
       {"water", "WATER", "water(unit, t)",
        "Fine highlights in a blue field; at body size they read as grain.",
-       field(fields::water(unit, kMoment))},
+       field(material::kit::water(unit, kMoment))},
       {"mesh", "MESH", "meshGradient(unit, t)",
        "Four colour regions, crossed by the word and by the column alike.",
-       field(fields::meshGradient(unit, kMoment))},
+       field(material::kit::meshGradient(unit, kMoment))},
       // `material::kit::sparkle` sizes its cells in the pixels it is
       // sampled in and never reads the run's extent, so on the unit
       // square of the default box a whole passage falls inside one cell.
@@ -75,21 +73,21 @@ std::vector<Ink> inks() {
       // the 22 px it was drawn at; the bounds place only the origin.
       {"sparkle", "SPARKLE OVER A BASE", "sparkle(px, t) · plus · Subtree",
        "Stated over the passage's pixels, where its cells keep their size.",
-       paint::Paint::blend(
-           {{paint::Paint::solid({0.23f, 0.30f, 0.46f, 1}),
+       material::skia::Paint::blend(
+           {{material::skia::Paint::solid({0.23f, 0.30f, 0.46f, 1}),
              SkBlendMode::kSrcOver},
-            {field(fields::sparkle(SkRect::MakeWH(220, 70), kMoment)),
+            {field(material::kit::sparkle(SkRect::MakeWH(220, 70), kMoment)),
              SkBlendMode::kPlus}}),
        PaintBox::Subtree},
       {"star-nest", "STAR NEST", "starNest(unit, t)",
        "Dense light inside the letterforms; small type keeps its warmth.",
-       field(fields::starNest(unit, kMoment))},
+       field(material::kit::starNest(unit, kMoment))},
       {"clouds", "CLOUDS", "clouds(unit, t)",
        "Broad, soft changes of value that hold an even grey.",
-       field(fields::clouds(unit, kMoment))},
+       field(material::kit::clouds(unit, kMoment))},
       {"tunnel", "TUNNEL", "tunnel(unit, t)",
        "A high-contrast field; its dark rings eat whole words.",
-       field(fields::tunnel(unit, kMoment))},
+       field(material::kit::tunnel(unit, kMoment))},
       {"sunset", "SUNSET CHROME", "sunsetChromeType()",
        "A hard horizon at half cap height; a column takes one band of it.",
        kit::sunsetChromeType()},

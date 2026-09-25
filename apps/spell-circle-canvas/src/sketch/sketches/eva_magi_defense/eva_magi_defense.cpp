@@ -220,8 +220,8 @@ struct EvaMagiDefense {
   // --- the layers ------------------------------------------------------------
   /** The field's strip as a material, panned by the front. Nearest sampling
    *  and a whole-pixel pan: a row of the strip IS a row of the plate. */
-  mskia::Paint field(const sk_sp<SkImage>& strip) const {
-    mskia::Paint m = mskia::Paint::image(
+  material::skia::Paint field(const sk_sp<SkImage>& strip) const {
+    material::skia::Paint m = material::skia::Paint::image(
         strip, SkTileMode::kRepeat, SkTileMode::kClamp, SkMatrix::I(),
         SkSamplingOptions(SkFilterMode::kNearest));
     m.offset(std::nullopt, &front);
@@ -255,8 +255,8 @@ struct EvaMagiDefense {
     return box()
         .width(kW)
         .height(kH)
-        .fill(mskia::Paint::blend(
-            {{mskia::Paint::image(ribbonHalo), SkBlendMode::kSrc},
+        .fill(material::skia::Paint::blend(
+            {{material::skia::Paint::image(ribbonHalo), SkBlendMode::kSrc},
              {field(haloStrip), SkBlendMode::kSrcIn}}))
         .cache(Cache::Texture)
         .cacheScale(0.5f)
@@ -345,7 +345,7 @@ struct EvaMagiDefense {
     };
 
     auto root = stack().inset(0);
-    auto picture = stack().inset(0).fill(mskia::Paint::solid(kGround));
+    auto picture = stack().inset(0).fill(material::skia::Paint::solid(kGround));
 
 
     // The ribbons: flat fills of one continuous field, panned by the front.

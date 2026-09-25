@@ -61,7 +61,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
 namespace weave = sigil::weave;
 
@@ -106,7 +105,7 @@ Element headline(material::Color color) {
  *  glass. */
 Element tube() {
   return box().cover().zIndex(9).fill(
-      mskia::Paint::recipe(field::crtOverlay(kPitch, 0.10f)));
+      material::skia::Paint::recipe(field::crtOverlay(kPitch, 0.10f)));
 }
 
 /** A panel: the ground, the construction, the tube. Both panels are laid
@@ -132,7 +131,7 @@ struct CrtBloom {
 
     // LEFT — one node. The effect owns the whole construction.
     Element primitive =
-        panel(headline(kCore).filter(mskia::Effect::glow(kHalo, kSigma)));
+        panel(headline(kCore).filter(material::skia::Effect::glow(kHalo, kSigma)));
 
     // RIGHT — two nodes in the same place, the second blurred and ADDED.
     // The blur is spelled as an axis-aligned directional blur rather than
@@ -149,7 +148,7 @@ struct CrtBloom {
                   .children({kit::centred(headline(kHalo))
                                  .cover()
                                  .zIndex(1)
-                                 .filter(mskia::Effect::directionalBlur(
+                                 .filter(material::skia::Effect::directionalBlur(
                                      kSigma, 0.0f, kSigma))
                                  .blendMode(SkBlendMode::kPlus)
                                  .cache(Cache::Texture),

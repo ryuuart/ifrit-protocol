@@ -35,7 +35,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;
@@ -134,7 +133,7 @@ inline Element rect(float x, float y, float w, float h) {
 
 /** A shaded sphere: a circle-outlined box of 2r centred on c. Every planet
  *  here is flat-shaded with a hard limb — two stops and a dark edge. */
-inline Element sphere(SkPoint c, float r, mskia::Paint m) {
+inline Element sphere(SkPoint c, float r, material::skia::Paint m) {
   return kit::dot(c, r, std::move(m));
 }
 
@@ -146,11 +145,11 @@ inline Element sphere(SkPoint c, float r, mskia::Paint m) {
 // quantizeTime(10) (fastbreak.gif, live, stepping at the GIF's own 100 ms
 // frame delay).
 
-inline mskia::Paint ballMaterial(const sk_sp<SkRuntimeEffect>& program,
+inline material::skia::Paint ballMaterial(const sk_sp<SkRuntimeEffect>& program,
                                  bool live, material::Color hi,
                                  material::Color lo, material::Color seam,
                                  float seamW) {
-  mskia::Paint m = mskia::Paint::sksl(program, {{"uSeamW", seamW}});
+  material::skia::Paint m = material::skia::Paint::sksl(program, {{"uSeamW", seamW}});
   m.uniform("uHi", hi);
   m.uniform("uLo", lo);
   m.uniform("uSeam", seam);
@@ -289,7 +288,7 @@ inline Element starTile() {
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
     tile.children({kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
-                       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                       .fill(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                                     {{0.0f, {1, 1, 1, 0.0f}},
                                                      {0.74f, {1, 1, 1, 0.0f}},
                                                      {0.89f, {1, 1, 1, 0.030f}},
@@ -309,7 +308,7 @@ inline Element starTile() {
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
     tile.children({kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
-                       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                       .fill(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                                     {{0.0f, {L, L, L, 1.0f}},
                                                      {0.24f, {L, L, L, 0.66f}},
                                                      {0.44f, {L, L, L, 0.26f}},
@@ -378,7 +377,7 @@ inline Element navLabel(sigil::weave::FontContext& fonts, const char* s,
 
 /** A ring seen edge-on: an annulus on a squashed, rotated box. */
 inline Element ring(SkPoint c, float rx, float ry, float rotDeg,
-                    float innerRatio, mskia::Paint m) {
+                    float innerRatio, material::skia::Paint m) {
   return rect(c.fX - rx, c.fY - ry, rx * 2, ry * 2)
       .shape(shapes::annulus(innerRatio))
       .fill(std::move(m))

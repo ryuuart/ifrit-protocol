@@ -59,9 +59,7 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
-namespace mpattern = sigil::material::pattern;
 namespace weave = sigil::weave;
-namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 
 using namespace sigil::compose;
@@ -333,7 +331,7 @@ struct Y2kChrome {
 
     // ---- period page ground: gray + subtle woven checker -----------------
     Paint check =
-        Pattern(mpattern::checker(3, {0, 0, 0, 0.035f}, {1, 1, 1, 0.05f}))
+        Pattern(material::pattern::checker(3, {0, 0, 0, 0.035f}, {1, 1, 1, 0.05f}))
             .material();
 
     // ---- title bar: the y2kChrome() PRESET on the bar box -----------------
@@ -550,7 +548,7 @@ struct Y2kChrome {
             .overflow(Overflow::Clip)
             .children({box()
                            .inset(0)
-                           .fill(Pattern(mpattern::stripes(
+                           .fill(Pattern(material::pattern::stripes(
                                              1, 4, hexColor(0x6E8CD8, 0.16f)))
                                      .rotate(45)
                                      .material())

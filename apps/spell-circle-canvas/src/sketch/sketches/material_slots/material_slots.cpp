@@ -64,10 +64,8 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace mat = sigil::material;
-namespace mskia = sigil::material::skia;
+namespace material = sigil::material;
 namespace field = sigil::material::field;
-namespace mkit = sigil::material::kit;
 
 using namespace sigil::compose;
 
@@ -79,7 +77,7 @@ constexpr int kCells = 4;           // the index chart is kCells x kCells
 
 constexpr float kMaskContrast = 3.2f;  // how hard the grain field's cut is
 
-constexpr mat::Color kFrame{0.20f, 0.24f, 0.32f, 1};
+constexpr material::Color kFrame{0.20f, 0.24f, 0.32f, 1};
 constexpr float kPanel = 188.0f;
 
 /** The specimen sheet, in this one's own look. */
@@ -158,24 +156,24 @@ struct Tables {
   sk_sp<SkRuntimeEffect> effect;
 };
 
-mskia::Paint indexSource(const Tables& tables) {
-  return mskia::Paint::image(tables.index, SkTileMode::kClamp,
+material::skia::Paint indexSource(const Tables& tables) {
+  return material::skia::Paint::image(tables.index, SkTileMode::kClamp,
                              SkTileMode::kClamp,
                              SkMatrix::Scale(kPanel / kCells, kPanel / kCells),
                              SkSamplingOptions(SkFilterMode::kNearest));
 }
 
-mskia::Paint lutSource(const sk_sp<SkImage>& table) {
-  return mskia::Paint::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
+material::skia::Paint lutSource(const sk_sp<SkImage>& table) {
+  return material::skia::Paint::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
                              SkMatrix::I(),
                              SkSamplingOptions(SkFilterMode::kNearest));
 }
 
 /** THE CALL SITE, in one place: one effect, two children, one uniform.
  *  Everything compiles to ONE shader — no saveLayer, no second node. */
-mskia::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
+material::skia::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
                       float shade) {
-  return mskia::Paint::sksl(tables.effect)
+  return material::skia::Paint::sksl(tables.effect)
       .uniform("uShade", shade)
       .slot("uIndex", indexSource(tables))
       .slot("uPalette", lutSource(table));
@@ -184,7 +182,7 @@ mskia::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
 /** The LUT itself, shown as the 16-swatch strip it is. */
 Element lutStrip(const sk_sp<SkImage>& table) {
   return box().width(kPanel).height(14).fill(
-      mskia::Paint::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
+      material::skia::Paint::image(table, SkTileMode::kClamp, SkTileMode::kClamp,
                           SkMatrix::Scale(kPanel / 16.0f, 14.0f),
                           SkSamplingOptions(SkFilterMode::kNearest)));
 }
@@ -211,11 +209,11 @@ sketch::kit::ComparisonCase panel(const char* caseTitle, const Tables& tables,
 // stone, cut by a grain field read as a scalar — no recipe was written for
 // the pair, and the stack answers every query over all three.
 
-mat::Material stackBase() {
-  return mkit::latten({.level = 0.62f, .sheen = 0.55f, .seed = 4});
+material::Material stackBase() {
+  return material::kit::latten({.level = 0.62f, .sheen = 0.55f, .seed = 4});
 }
-mat::Material stackTop() {
-  return mkit::stone({.hi = {0.36f, 0.55f, 0.42f, 1},
+material::Material stackTop() {
+  return material::kit::stone({.hi = {0.36f, 0.55f, 0.42f, 1},
                       .lo = {0.13f, 0.26f, 0.21f, 1},
                       .bedAngle = 62,
                       .bedLength = 70,
@@ -226,12 +224,12 @@ mat::Material stackTop() {
  *  Nothing about it is a mask — it is the grain field, and the contrast
  *  is what pushes its middle out to both ends so the cut is a patch
  *  rather than a haze. */
-mat::Material stackMask() {
+material::Material stackMask() {
   return field::grain(0.018f, 4, 21.0f, kMaskContrast);
 }
 
 sketch::kit::ComparisonCase operand(const char* caseTitle, const char* call,
-                                    const char* note, mat::Material material,
+                                    const char* note, material::Material material,
                                     std::string key) {
   return {.title = caseTitle,
           .control = call,
@@ -239,16 +237,16 @@ sketch::kit::ComparisonCase operand(const char* caseTitle, const char* call,
                         .key(std::move(key))
                         .width(kPanel)
                         .height(kPanel)
-                        .fill(mskia::Paint::recipe(std::move(material)))
+                        .fill(material::skia::Paint::recipe(std::move(material)))
                         .stroke(stroke(1.0f, Fill::color(kFrame))),
           .note = note};
 }
 
 sketch::kit::ComparisonCase stacked(const char* caseTitle, const char* call,
-                                    const char* note, mat::Blend blend,
+                                    const char* note, material::Blend blend,
                                     std::string key) {
   return operand(caseTitle, call, note,
-                 mat::over(stackBase(), stackTop(), stackMask(), blend),
+                 material::over(stackBase(), stackTop(), stackMask(), blend),
                  std::move(key));
 }
 
@@ -322,11 +320,11 @@ struct MaterialChild {
                                  stacked("MIX", "over(base, top, mask)",
                                          "The mask interpolates between "
                                          "base and top.",
-                                         mat::Blend::Mix, "over.mix"),
+                                         material::Blend::Mix, "over.mix"),
                                  stacked("MULTIPLY", "over(…, Blend::Multiply)",
                                          "The mask controls a "
                                          "multiplicative blend.",
-                                         mat::Blend::Multiply, "over.mul")},
+                                         material::Blend::Multiply, "over.mul")},
                        .measure = 1020,
                        .gap = 20})})}));
   }

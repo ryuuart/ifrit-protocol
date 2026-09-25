@@ -390,10 +390,10 @@ void SlitScan2001::setup(sketch::SketchContext& ctx) {
   // never mutated afterwards, so they are plain baked SkImages; a live
   // pixel buffer would only be needed if something wrote into them later.
   const double b0 = (double)std::clock() / CLOCKS_PER_SEC;
-  gridPat = patterns::gridLines(37.0f, 23.0f, 2.0f, kWhite);
-  // patterns::speckle's tile IS the repeat, so it has to be large or the
+  gridPat = material::pattern::gridLines(37.0f, 23.0f, 2.0f, kWhite);
+  // material::pattern::speckle's tile IS the repeat, so it has to be large or the
   // speckle reads as a visibly repeating stamp.
-  spekPat = patterns::speckle(492.0f, 84, 5.0f, 21.0f, {kWhite});
+  spekPat = material::pattern::speckle(492.0f, 84, 5.0f, 21.0f, {kWhite});
   if (ctx.fonts) {
     strips[0] =
         bakeStrip(artOpArt(), *ctx.fonts, (int)kCellW, (int)kCellH, 0.30f, -1);

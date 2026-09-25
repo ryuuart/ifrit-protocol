@@ -16,7 +16,7 @@ Element TwoAdvancedV3::describe() {
     // clamped down (the page is shorter than the strip).
     page.fill(stretchFill(pageTile, 10, 1600, SkTileMode::kRepeat));
   } else {
-    page.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+    page.fill(material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                        {{0.0f, kPageHi}, {0.55f, kPage}}));
   }
   page.children({bevelBar(), headerStrip(), wordmark(), navBar(), hairlines(),
@@ -28,7 +28,7 @@ Element TwoAdvancedV3::describe() {
   if (lowerPanelBg)
     ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
   else
-    ground.fill(mskia::Paint::linearUnit(
+    ground.fill(material::skia::Paint::linearUnit(
         {0, 0}, {1, 1}, {{0.0f, hexColor(0x22304A)}, {1.0f, kPage}}));
   ground.opacity(
       animate(motion::from(0.0f).to(1.0f), {380ms, motion::ease::outQuad, 2250ms}));
@@ -63,11 +63,11 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
   // without a rebuild.
   doc = sketch::kit::Document(ctx, "data/content.json");
 
-  diag = patterns::stripes(2, 9, sigil::material::withAlpha(kSteelHi, 0.5f));
+  diag = material::pattern::stripes(2, 9, sigil::material::withAlpha(kSteelHi, 0.5f));
   diag.rotate(45);
-  dots = patterns::halftone(5, 1.3f, sigil::material::withAlpha(kInk, 0.55f));
+  dots = material::pattern::halftone(5, 1.3f, sigil::material::withAlpha(kInk, 0.55f));
   vticks =
-      patterns::stripes(1.5f, 5.5f, sigil::material::withAlpha(kSteelHi, 0.5f));
+      material::pattern::stripes(1.5f, 5.5f, sigil::material::withAlpha(kSteelHi, 0.5f));
 
   // --- the production assets, from the live site ------------------------
   // https fetches cache on disk (CacheFirst): the first run downloads,

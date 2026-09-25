@@ -27,8 +27,8 @@ struct TwoAdvancedV4 {
   Pattern hazard;          // baked 45° stripe tile — the STATIC reuse path
   Pattern hatchA, hatchB;  // footer-dock crosshatch (two passes = crosshatch)
   Pattern dither;          // teal readout-box dither
-  mskia::Paint grain;      // page-background film grain (luminance, not RGB)
-  mskia::Paint spectrum, stripesLive, waterStreaks;
+  material::skia::Paint grain;      // page-background film grain (luminance, not RGB)
+  material::skia::Paint spectrum, stripesLive, waterStreaks;
 
   // --- the production shell artefacts, fetched from the restoration host.
   // Any of these may be null (no network, cold cache); every use site
@@ -55,7 +55,7 @@ struct TwoAdvancedV4 {
   /** A bitmap stretched to exactly (w, h) — how every shell GIF is
    *  placed: the 2004 page scaled them with IMG width/height attributes,
    *  and this sketch is a ×2 enlargement of those numbers. */
-  static mskia::Paint stretchFill(
+  static material::skia::Paint stretchFill(
       const std::shared_ptr<const sigil::image::ImageAsset>& asset, float w,
       float h, SkTileMode tx = SkTileMode::kClamp);
 

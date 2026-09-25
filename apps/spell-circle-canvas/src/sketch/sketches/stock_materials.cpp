@@ -52,12 +52,9 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace mat = sigil::material;
-namespace mskia = sigil::material::skia;
+namespace material = sigil::material;
 namespace field = sigil::material::field;
-namespace ptn = sigil::material::pattern;
 namespace sdf = sigil::material::sdf;
-namespace mkit = sigil::material::kit;
 
 using namespace sigil::compose;
 
@@ -66,7 +63,7 @@ namespace {
 constexpr float kCell = 170;    // one cell's width, px
 constexpr float kSwatch = 100;  // the painted square in it, px
 
-constexpr mat::Color kEdge{1, 1, 1, 0.22f};
+constexpr material::Color kEdge{1, 1, 1, 0.22f};
 
 /** The house sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -82,7 +79,7 @@ sketch::kit::Theme sheetTheme() {
 
 /** The one voice: the recipe's name under the swatch, the call that made
  *  it under that, both ranged left at the cell's width. */
-Element swatch(Utf8 name, const char* call, mskia::Paint paint) {
+Element swatch(Utf8 name, const char* call, material::skia::Paint paint) {
   return sketch::kit::caption(
       kCell, std::move(name), call,
       box()
@@ -93,15 +90,15 @@ Element swatch(Utf8 name, const char* call, mskia::Paint paint) {
 }
 
 /** A material's own recipe names the cell — nothing here retypes it. */
-Element painted(const char* call, mat::Material material) {
+Element painted(const char* call, material::Material material) {
   const std::string name = material.recipe().name();
-  return swatch(name, call, mskia::Paint::recipe(std::move(material)));
+  return swatch(name, call, material::skia::Paint::recipe(std::move(material)));
 }
 
 /** A tile names itself by its generator, since a baked tile has no recipe
  *  of its own: what repeats is an image, sampled through the mapping. */
-Element tiled(const char* name, const char* call, ptn::Tile tile) {
-  return swatch(name, call, mskia::Paint::shader(tile.texture().shader()));
+Element tiled(const char* name, const char* call, material::pattern::Tile tile) {
+  return swatch(name, call, material::skia::Paint::shader(tile.texture().shader()));
 }
 
 Element row(std::vector<Element> cells) {
@@ -118,104 +115,104 @@ struct StockMaterialsSheet {
     // by the moment their call names.
     sketch::kit::stage(ctx, {.size = {1150, 1000}, .captureAt = 0.05});
 
-    const std::vector<mskia::Stop> ramp = {{0.0f, {0.95f, 0.35f, 0.25f, 1}},
+    const std::vector<material::skia::Stop> ramp = {{0.0f, {0.95f, 0.35f, 0.25f, 1}},
                                            {0.5f, {0.95f, 0.80f, 0.30f, 1}},
                                            {1.0f, {0.20f, 0.55f, 0.95f, 1}}};
     const SkRect swatchBox = SkRect::MakeWH(kCell, kSwatch);
 
     // The tile the two content-reading fields are shown over, so the
     // warp has something to displace and the tube something to darken.
-    const mskia::Paint under = mskia::Paint::shader(
-        ptn::checker(14, mat::rgb(0x2b3a54), mat::rgb(0x8fa6c8))
+    const material::skia::Paint under = material::skia::Paint::shader(
+        material::pattern::checker(14, material::rgb(0x2b3a54), material::rgb(0x8fa6c8))
             .texture()
             .shader());
 
     Element fields = row(
         {painted("field::halftoneRamp(9, 1, 3.6, gold)",
-                 field::halftoneRamp(9, 1.0f, 3.6f, mat::rgb(0xf2cc4d), 18.0f)),
+                 field::halftoneRamp(9, 1.0f, 3.6f, material::rgb(0xf2cc4d), 18.0f)),
          painted("field::noise(0.03, 4)", field::noise(0.03f, 4, 3.0f)),
          painted("field::grain(0.35, 4, stretch 2.4)",
                  field::grain(0.35f, 4, 3.0f, 1.0f, 2.4f)),
          swatch(field::rippleRecipe()->name(),
                 "field::ripple(7 px, 46 px) over a checker child",
-                mskia::Paint::recipe(field::ripple(7.0f, 46.0f, 0.6f))
+                material::skia::Paint::recipe(field::ripple(7.0f, 46.0f, 0.6f))
                     .slot("content", under)),
          swatch(field::crtOverlayRecipe()->name(),
                 "field::crtOverlay(4 px) laid over the same checker",
-                mskia::Paint::blend({{under, SkBlendMode::kSrc},
-                                     {mskia::Paint::recipe(field::crtOverlay()),
+                material::skia::Paint::blend({{under, SkBlendMode::kSrc},
+                                     {material::skia::Paint::recipe(field::crtOverlay()),
                                       SkBlendMode::kSrcOver}})),
          painted("field::noise(0.02, 5, turbulence)",
                  field::noise(0.02f, 5, 9.0f, true))});
 
     Element patterns =
         row({tiled("halftone", "pattern::halftone(11, 3.4, ink)",
-                   ptn::halftone(11, 3.4f, mat::rgb(0xe8e2d2))),
+                   material::pattern::halftone(11, 3.4f, material::rgb(0xe8e2d2))),
              tiled("stripes", "pattern::stripes(6, 10, gold).rotate(30)",
-                   ptn::stripes(6, 10, mat::rgb(0xf2cc4d)).rotate(30)),
+                   material::pattern::stripes(6, 10, material::rgb(0xf2cc4d)).rotate(30)),
              tiled("sequence",
                    "pattern::sequence({{18, navy}, {6, bone}, "
                    "{10, red}})",
-                   ptn::sequence({{18, mat::rgb(0x1d2b45)},
-                                  {6, mat::rgb(0xe8e2d2)},
-                                  {10, mat::rgb(0xa33328)}})),
+                   material::pattern::sequence({{18, material::rgb(0x1d2b45)},
+                                  {6, material::rgb(0xe8e2d2)},
+                                  {10, material::rgb(0xa33328)}})),
              tiled("checker", "pattern::checker(16, slate, bone)",
-                   ptn::checker(16, mat::rgb(0x2b3a54), mat::rgb(0xd8dbe2))),
+                   material::pattern::checker(16, material::rgb(0x2b3a54), material::rgb(0xd8dbe2))),
              tiled("gridLines", "pattern::gridLines(20, 1, ash)",
-                   ptn::gridLines(20, 1.0f, mat::rgb(0x7f88a0))),
+                   material::pattern::gridLines(20, 1.0f, material::rgb(0x7f88a0))),
              tiled("speckle", "pattern::speckle(120, 34, 1.2, 4.2)",
-                   ptn::speckle(120, 34, 1.2f, 4.2f,
-                                {mat::rgb(0xe8e2d2), mat::rgb(0xf2cc4d)}))});
+                   material::pattern::speckle(120, 34, 1.2f, 4.2f,
+                                {material::rgb(0xe8e2d2), material::rgb(0xf2cc4d)}))});
 
     Element grained = row(
         {painted("kit::stone({.bedAngle = 24, .bedLength = 46})",
-                 mkit::stone({.bedAngle = 24, .bedLength = 46, .seed = 3})),
+                 material::kit::stone({.bedAngle = 24, .bedLength = 46, .seed = 3})),
          painted("kit::timber({.span = 90, .figure = 0.5})",
-                 mkit::timber({.span = 90, .figure = 0.5f, .seed = 5})),
+                 material::kit::timber({.span = 90, .figure = 0.5f, .seed = 5})),
          painted("kit::latten({.level = 0.6, .sheen = 0.5})",
-                 mkit::latten({.level = 0.6f, .sheen = 0.5f, .seed = 7})),
+                 material::kit::latten({.level = 0.6f, .sheen = 0.5f, .seed = 7})),
          painted("kit::board({.tooth = 0.4, .wear = 0.3})",
-                 mkit::board({.tooth = 0.4f, .wear = 0.3f, .seed = 11})),
+                 material::kit::board({.tooth = 0.4f, .wear = 0.3f, .seed = 11})),
          tiled("girih8", "kit::girih8(30, fezPalette(), 1.6, 45°)",
-               mkit::girih8(30, mkit::fezPalette(), 1.6f, 45.0f)),
+               material::kit::girih8(30, material::kit::fezPalette(), 1.6f, 45.0f)),
          tiled("girih8 · nasrid", "kit::girih8(30, nasridPalette(), 1.6, 62°)",
-               mkit::girih8(30, mkit::nasridPalette(), 1.6f, 62.0f))});
+               material::kit::girih8(30, material::kit::nasridPalette(), 1.6f, 62.0f))});
 
     Element shapesAndRamps =
         row({painted("sdf::circle, bordered and glowing",
                      sdf::material(sdf::circle(),
-                                   {.fill = mat::rgb(0x3389f2),
+                                   {.fill = material::rgb(0x3389f2),
                                     .borderWidth = 3,
-                                    .borderColor = mat::rgb(0xffffff, 0.9f),
+                                    .borderColor = material::rgb(0xffffff, 0.9f),
                                     .glowRadius = 10,
-                                    .glowColor = mat::rgb(0x66b3ff, 0.6f)})),
+                                    .glowColor = material::rgb(0x66b3ff, 0.6f)})),
              painted("sdf::roundBox(14), with a shadow",
                      sdf::material(sdf::roundBox(14),
-                                   {.fill = mat::rgb(0xf2593f),
+                                   {.fill = material::rgb(0xf2593f),
                                     .borderWidth = 2,
-                                    .borderColor = mat::rgb(0xffe6b3, 0.9f),
+                                    .borderColor = material::rgb(0xffe6b3, 0.9f),
                                     .shadowOffset = {0, 4},
                                     .shadowBlur = 8,
-                                    .shadowColor = mat::rgb(0x000000, 0.55f)})),
+                                    .shadowColor = material::rgb(0x000000, 0.55f)})),
              painted("sdf::star(6, 2.6)",
                      sdf::material(sdf::star(6, 2.6f),
-                                   {.fill = mat::rgb(0xf2cc4d)})),
+                                   {.fill = material::rgb(0xf2cc4d)})),
              swatch(u8"linearUnit", "Paint::linearUnit({0,0}, {1,1}, ramp)",
-                    mskia::Paint::linearUnit({0, 0}, {1, 1}, ramp)),
+                    material::skia::Paint::linearUnit({0, 0}, {1, 1}, ramp)),
              swatch(u8"radialUnit", "Paint::radialUnit({0.5,0.5}, 1, ramp)",
-                    mskia::Paint::radialUnit({0.5f, 0.5f}, 1.0f, ramp)),
+                    material::skia::Paint::radialUnit({0.5f, 0.5f}, 1.0f, ramp)),
              swatch(u8"glowUnit", "Paint::glowUnit({0.5,0.5}, 1, ramp)",
-                    mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f, ramp))});
+                    material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f, ramp))});
 
     Element textPaints = row(
-        {painted("kit::water(bounds, 1.4 s)", mkit::water(swatchBox, 1.4f)),
+        {painted("kit::water(bounds, 1.4 s)", material::kit::water(swatchBox, 1.4f)),
          painted("kit::meshGradient(bounds, 1.4 s)",
-                 mkit::meshGradient(swatchBox, 1.4f)),
-         painted("kit::sparkle(bounds, 1.4 s)", mkit::sparkle(swatchBox, 1.4f)),
+                 material::kit::meshGradient(swatchBox, 1.4f)),
+         painted("kit::sparkle(bounds, 1.4 s)", material::kit::sparkle(swatchBox, 1.4f)),
          painted("kit::starNest(bounds, 1.4 s)",
-                 mkit::starNest(swatchBox, 1.4f)),
-         painted("kit::clouds(bounds, 1.4 s)", mkit::clouds(swatchBox, 1.4f)),
-         painted("kit::tunnel(bounds, 1.4 s)", mkit::tunnel(swatchBox, 1.4f))});
+                 material::kit::starNest(swatchBox, 1.4f)),
+         painted("kit::clouds(bounds, 1.4 s)", material::kit::clouds(swatchBox, 1.4f)),
+         painted("kit::tunnel(bounds, 1.4 s)", material::kit::tunnel(swatchBox, 1.4f))});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "The material shelf",

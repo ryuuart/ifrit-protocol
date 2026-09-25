@@ -71,7 +71,6 @@ namespace sketch = sigil::sketch;
 
 namespace field = sigil::material::field;
 namespace motion = sigil::motion;
-namespace mskia = sigil::material::skia;
 namespace pattern = sigil::material::pattern;
 namespace weave = sigil::weave;
 
@@ -387,7 +386,7 @@ struct GerstnerGrid {
     root.children(
         {box()
              .inset(0)
-             .fill(mskia::Paint::recipe(field::noise(0.9f, 3, 5.0f)))
+             .fill(material::skia::Paint::recipe(field::noise(0.9f, 3, 5.0f)))
              .opacity(0.05f)
              .blendMode(SkBlendMode::kMultiply)
              .cache(Cache::Texture),

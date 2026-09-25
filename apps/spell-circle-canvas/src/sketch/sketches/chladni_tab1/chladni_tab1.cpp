@@ -63,7 +63,6 @@
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
-namespace patterns = sigil::material::pattern;
 namespace field = sigil::material::field;
 using namespace sigil::compose;
 using namespace sigil::motion;
@@ -582,9 +581,9 @@ struct ChladniTab1 {
     // Sparse, and on a tile large enough that its repeat is not the
     // strongest mark on the page.
     foxing =
-        patterns::speckle(640, 22, 1.4f, 5.0f, {colourOf(plate["ink"]["fox"])});
+        material::pattern::speckle(640, 22, 1.4f, 5.0f, {colourOf(plate["ink"]["fox"])});
     foxing.seed(17);
-    foxingLow = patterns::speckle(520, 14, 2.0f, 7.0f,
+    foxingLow = material::pattern::speckle(520, 14, 2.0f, 7.0f,
                                   {colourOf(plate["ink"]["fox-low"])});
     foxingLow.seed(53);
 

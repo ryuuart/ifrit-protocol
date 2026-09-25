@@ -60,9 +60,7 @@
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-namespace mat = sigil::material;
-namespace mskia = sigil::material::skia;
-namespace ptn = sigil::material::pattern;
+namespace material = sigil::material;
 
 using namespace sigil::compose;
 
@@ -73,7 +71,7 @@ constexpr float kSplit = 0.5f;  // matte: greys left of here, alpha right
 
 // (colour, its Rec. 601 grey twin). 0.299 R' + 0.587 G' + 0.114 B'.
 struct Band {
-  mat::Color color;
+  material::Color color;
   const char* label;
 };
 const std::array<Band, 8> kBands{{
@@ -87,8 +85,8 @@ const std::array<Band, 8> kBands{{
     {{0.5f, 0.5f, 0.5f, 1}, "grey .5"},
 }};
 
-constexpr mat::Color kDim{0.55f, 0.60f, 0.70f, 1};
-constexpr mat::Color kFrame{0.24f, 0.28f, 0.36f, 1};
+constexpr material::Color kDim{0.55f, 0.60f, 0.70f, 1};
+constexpr material::Color kFrame{0.24f, 0.28f, 0.36f, 1};
 
 /** The specimen sheet, in this one's own look. */
 sketch::kit::Theme sheetTheme() {
@@ -101,21 +99,21 @@ sketch::kit::Theme sheetTheme() {
 }
 
 /** The "is it there?" backdrop — the stock checker tile, 8 px cells. */
-mskia::Paint checker() {
-  return mskia::Paint::shader(
-      ptn::checker(8, mat::rgb(0x1a1c24), mat::rgb(0x282c38))
+material::skia::Paint checker() {
+  return material::skia::Paint::shader(
+      material::pattern::checker(8, material::rgb(0x1a1c24), material::rgb(0x282c38))
           .texture()
           .shader());
 }
 
 /** The eight bands as one repeating run along +x — the generator the
  *  strip is, rather than eight rectangles drawn into a bitmap. */
-mskia::Paint bandStrip(float width) {
+material::skia::Paint bandStrip(float width) {
   const float bandWidth = width / (float)kBands.size();
-  std::vector<std::pair<float, mat::Color>> runs;
+  std::vector<std::pair<float, material::Color>> runs;
   runs.reserve(kBands.size());
   for (const Band& band : kBands) runs.emplace_back(bandWidth, band.color);
-  return mskia::Paint::shader(ptn::sequence(runs).texture().shader());
+  return material::skia::Paint::shader(material::pattern::sequence(runs).texture().shader());
 }
 
 /** THE MATTE, baked at panel size so its local matrix is the identity.
@@ -130,10 +128,10 @@ sk_sp<SkImage> matte() {
   const float mid = kPanel * kSplit;
   SkPaint pen;
   pen.setShader(
-      mskia::verticalRamp(0, kPanel, {{0, {1, 1, 1, 1}}, {1, {0, 0, 0, 1}}}));
+      material::skia::verticalRamp(0, kPanel, {{0, {1, 1, 1, 1}}, {1, {0, 0, 0, 1}}}));
   canvas->drawRect(SkRect::MakeWH(mid, kPanel), pen);
   pen.setShader(
-      mskia::verticalRamp(0, kPanel, {{0, {1, 1, 1, 1}}, {1, {1, 1, 1, 0}}}));
+      material::skia::verticalRamp(0, kPanel, {{0, {1, 1, 1, 1}}, {1, {1, 1, 1, 0}}}));
   canvas->drawRect(SkRect::MakeXYWH(mid, 0, kPanel - mid, kPanel), pen);
   return surface->makeImageSnapshot();
 }
@@ -145,13 +143,13 @@ Element content(float w, float h) {
   return kit::centred()
       .width(w)
       .height(h)
-      .fill(mskia::Paint::linearUnit({0, 0}, {1, 1},
+      .fill(material::skia::Paint::linearUnit({0, 0}, {1, 1},
                                      {{0.0f, {1.0f, 0.85f, 0.20f, 1}},
                                       {0.5f, {0.95f, 0.32f, 0.42f, 1}},
                                       {1.0f, {0.35f, 0.40f, 0.98f, 1}}}))
       .children({text(u8"MATTE")
                      .font({.size = 30, .track = 0})
-                     .ink(mat::Color{1, 1, 1, 0.92f})});
+                     .ink(material::Color{1, 1, 1, 0.92f})});
 }
 
 /** A panel: the checkerboard as its ground, the content on it, the gate on
@@ -190,7 +188,7 @@ struct MatteLuma {
     ctx.captureAt(0.05);
 
     // ONE coverage paint, handed to all four gates.
-    const mskia::Paint coverage = mskia::Paint::image(matte());
+    const material::skia::Paint coverage = material::skia::Paint::image(matte());
 
     const auto gated = [&](Gate gate) {
       Element inner = content(kPanel, kPanel);
@@ -208,7 +206,7 @@ struct MatteLuma {
 
     // The bottom row: the run as a picture, and the run as a matte.
     const float stripW = 1020;
-    const mskia::Paint bands = bandStrip(stripW);
+    const material::skia::Paint bands = bandStrip(stripW);
     Element bandMatted = content(stripW, 64);
     bandMatted.mask(by::luma(bands));
 

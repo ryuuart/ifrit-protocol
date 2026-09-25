@@ -33,7 +33,7 @@
 //    resolved from the SAME cascade `Composer::beatsOf` reports — the meter
 //    bars under the display line are drawn from that query, so the bars and
 //    the burn read one schedule by construction;
-//  - the material is `mskia::Paint::recipe(...)` over a SigilMaterial recipe,
+//  - the material is `material::skia::Paint::recipe(...)` over a SigilMaterial recipe,
 //    and the runtime owns the per-count specialization and its cache;
 //  - the layer is sampled at the device's resolution, so a 2x host stays
 //    sharp with no supersampled bake;
@@ -88,7 +88,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mskia = sigil::material::skia;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
@@ -142,9 +141,9 @@ std::shared_ptr<const sigil::material::Recipe> burnRecipe(std::string body) {
           .body(sigil::material::Target::SkSL, std::move(body)));
 }
 
-mskia::Paint burnMaterial(
+material::skia::Paint burnMaterial(
     const std::shared_ptr<const sigil::material::Recipe>& recipe) {
-  return mskia::Paint::recipe(sigil::material::Material(recipe))
+  return material::skia::Paint::recipe(sigil::material::Material(recipe))
       .uniform("uInk", kInk)
       .uniform("uEmber", kEmber)
       .uniform("uWeights", std::vector<float>{kSweep, kSpeckle, kPatch});
@@ -184,7 +183,7 @@ struct EmberDecode {
                          .color = material::Color{1, 1, 1, 1},
                          .track = track};
     };
-    const mskia::Paint burn = burnMaterial(recipe);
+    const material::skia::Paint burn = burnMaterial(recipe);
 
     // THE SCHEDULE, DRAWN, from the same query the pass agrees with: one
     // meter per beat of the display track, at that beat's laid-out rect,
@@ -193,7 +192,7 @@ struct EmberDecode {
     // from its origin, so the two frames line up.
     const std::vector<Beat> beats = ctx.composer.beatsOf("burn-display", 0);
     const auto readBack = [](const Beat& beat, std::size_t i) {
-      return sketch::kit::meter({.fraction = beat.localT,
+      return sketch::kit::meter({.fraction = beat.localTime,
                                  .width = Dimension(beat.rect.width()),
                                  .height = Dimension(3),
                                  .track = Fill::color(kFaint),

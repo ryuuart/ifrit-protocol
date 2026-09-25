@@ -25,7 +25,7 @@
 
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
-namespace mskia = sigil::material::skia;
+namespace material = sigil::material;
 using namespace sigil::draw;
 
 namespace {
@@ -38,12 +38,12 @@ struct Lobe {
   float radius;
 };
 
-mskia::Paint lineField(sk_sp<SkRuntimeEffect> program) {
-  return mskia::Paint::sksl(std::move(program)).quantizeTime(30.0f);
+material::skia::Paint lineField(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::Paint::sksl(std::move(program)).quantizeTime(30.0f);
 }
 
-mskia::Paint tendrilInk(sk_sp<SkRuntimeEffect> program) {
-  return mskia::Paint::sksl(std::move(program)).quantizeTime(30.0f);
+material::skia::Paint tendrilInk(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::Paint::sksl(std::move(program)).quantizeTime(30.0f);
 }
 
 std::array<float, 4> uniform(const Lobe& lobe) {
@@ -52,10 +52,10 @@ std::array<float, 4> uniform(const Lobe& lobe) {
 
 /** THE REFRACTION, over @p source. The effect is handed in rather than
  *  read here, because this is asked for on every frame. */
-mskia::Paint glass(const sk_sp<SkRuntimeEffect>& effect,
-                   const mskia::Paint& source,
+material::skia::Paint glass(const sk_sp<SkRuntimeEffect>& effect,
+                   const material::skia::Paint& source,
                    const std::array<Lobe, kLobeCount>& lobes) {
-  mskia::Paint paint = mskia::Paint::sksl(effect, {{"uThreshold", kThreshold},
+  material::skia::Paint paint = material::skia::Paint::sksl(effect, {{"uThreshold", kThreshold},
                                                    {"uStrength", 42.0f}})
                            .slot("uSource", source)
                            .quantizeTime(30.0f);
@@ -84,8 +84,8 @@ void drawTendril(Pen& pen, SkPoint from, SkPoint to, int index, float clock,
 }
 
 struct P5RefractiveMetaballs {
-  mskia::Paint source;
-  mskia::Paint filament;
+  material::skia::Paint source;
+  material::skia::Paint filament;
   /** Held on the sketch: the frame asks for it. */
   sk_sp<SkRuntimeEffect> refraction;
 

@@ -40,7 +40,6 @@ namespace arrange = sigil::geometry::arrange;
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace io = sigil::io;
-namespace mskia = sigil::material::skia;
 namespace vid = sigil::video;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
@@ -93,7 +92,7 @@ VideoOptions optionsFor(int source, int cell, bool overlay) {
   options.startSeconds = source * 0.41;
   options.playbackRate = 0.72 + source * 0.13;
   options.loop = true;
-  options.fit = source == 4 ? mskia::Fit::Contain : mskia::Fit::Cover;
+  options.fit = source == 4 ? material::skia::Fit::Contain : material::skia::Fit::Cover;
   options.opacity = overlay && source == 2 ? 0.90f : 1.0f;
   if (source == 2 || source == 3 || (source == 4 && (cell & 1)))
     options.blend = SkBlendMode::kPlus;

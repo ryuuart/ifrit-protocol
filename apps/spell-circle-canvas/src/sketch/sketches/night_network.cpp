@@ -69,7 +69,6 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace path = sigil::geometry::path;
-namespace mskia = sigil::material::skia;
 namespace shapes = sigil::geometry::shapes;
 namespace shapers = sigil::geometry::shapers;
 namespace sdf = sigil::material::sdf;

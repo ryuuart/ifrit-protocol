@@ -23,7 +23,7 @@
 //    heartbeat: wedge 1 -> 1.05 (100ms) -> 1 (50ms) every 600ms.
 //  - backdrop: sea-of-souls layer order -- deep blue ground -> 5-stop
 //    posterized bands with HARD stops at the LUT positions
-//    0/.31/.48/.77/.81 -> mpattern::noise organic variation -> #007FD2
+//    0/.31/.48/.77/.81 -> material::pattern::noise organic variation -> #007FD2
 //    tint veil -> two SkSL caustic layers (alpha = step(cut,|p1-p2|)),
 //    TIME QUANTIZED at 6 Hz host-side (floor(t*6)/6) under a sigma-1.4
 //    blur -> dark bottom + cyan top gradients.
@@ -76,7 +76,6 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
-namespace mpattern = sigil::material::pattern;
 namespace field = sigil::material::field;
 namespace weave = sigil::weave;
 namespace motion = sigil::motion;

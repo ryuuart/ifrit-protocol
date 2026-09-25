@@ -24,7 +24,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   if (bg)
     art.fill(stretchFill(bg, kStageW, kArtH));
   else
-    art.fill(mskia::Paint::linearUnit(
+    art.fill(material::skia::Paint::linearUnit(
         {0, 0}, {0, 1}, {{0.0f, hexColor(0x2A3A58)}, {1.0f, kDeep}}));
 
   if (sec < 0) {
@@ -40,11 +40,11 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                .children({at(
                    box().overflow(Overflow::Clip).children({slot("clouds")}),
                    415, 35, 310, 255)})
-               .mask(by::alpha(mskia::Paint::image(
+               .mask(by::alpha(material::skia::Paint::image(
                    gapMask, SkTileMode::kClamp, SkTileMode::kClamp,
                    SkMatrix::Scale(kStageW / (float)gapMask->width(),
                                    kArtH / (float)gapMask->height()))))
-               .filter(mskia::Effect::filter(cloudLook))
+               .filter(material::skia::Effect::filter(cloudLook))
                .opacity(0.95f)});
     }
     // Idle beacon on the art's readout cluster: the one light that

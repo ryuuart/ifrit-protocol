@@ -36,7 +36,7 @@ auto TwoAdvancedV4::cta(const char* lbl, float w, float h,
       .width(w)
       .height(h)
       .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
-      .fill(mskia::Paint::linearUnit(
+      .fill(material::skia::Paint::linearUnit(
           {0, 0}, {0, 1},
           {{0.0f, kCtaHi}, {0.42f, kCta}, {1.0f, hexColor(0x3A0000)}}))
       .stroke(stroke(1, Fill::color(kChrome), PathFormat::Align::Outer))
@@ -121,8 +121,8 @@ auto TwoAdvancedV4::masthead() -> Element {
         by::alpha(stretchFill(logoBugSvg, 62, 62)))});
   } else {
     emblem
-        .fill(mskia::Paint::recipe(msdf::material(
-            msdf::circle(),
+        .fill(material::skia::Paint::recipe(material::sdf::material(
+            material::sdf::circle(),
             {.fill = {0, 0, 0, 0}, .borderWidth = 4, .borderColor = kCyan})))
         .children(
             {kit::centred()
@@ -190,10 +190,10 @@ auto TwoAdvancedV4::toggle(const char* lbl, bool on) -> Element {
       .height(18)
       .padding(0, 7)
       .shape(shapes::chamfered(5, shapes::Corner::Diagonal))
-      .fill(on ? mskia::Paint::linearUnit(
+      .fill(on ? material::skia::Paint::linearUnit(
                      {0, 0}, {0, 1},
                      {{0.0f, hexColor(0x0A4148)}, {1.0f, hexColor(0x02181C)}})
-               : mskia::Paint::solid(hexColor(0x220608)))
+               : material::skia::Paint::solid(hexColor(0x220608)))
       .stroke(stroke(1,
                      Fill::color(on ? sigil::material::withAlpha(kCyan, 0.7f)
                                     : sigil::material::withAlpha(kDust, 0.35f)),
@@ -298,7 +298,7 @@ auto TwoAdvancedV4::dockBars() -> std::vector<Element> {
     const float v = 0.14f + 0.82f * std::abs(std::sin(i * 0.51f) *
                                              std::cos(i * 0.19f + 0.7f));
     bars.push_back(box().flexGrow(1).flexShrink(0).height(72 * v).fill(
-        mskia::Paint::linearUnit(
+        material::skia::Paint::linearUnit(
             {0, 0}, {0, 1},
             {{0.0f, sigil::material::withAlpha(kD7, 1.0f)},
              {1.0f, sigil::material::withAlpha(kD4, 0.9f)}})));
@@ -323,8 +323,8 @@ auto TwoAdvancedV4::footerDock() -> Element {
   }
   Element strip =
       box()
-          .fill(mskia::Paint::blend(
-              {{mskia::Paint::linearUnit(
+          .fill(material::skia::Paint::blend(
+              {{material::skia::Paint::linearUnit(
                     {0, 0}, {0, 1}, {{0.0f, kD5}, {0.45f, kD2}, {1.0f, kD1}}),
                 SkBlendMode::kSrcOver},
                {hatchA.material(), SkBlendMode::kSrcOver},
@@ -427,7 +427,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
           .width(310)
           .height(150)
           .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
-          .fill(mskia::Paint::linearUnit(
+          .fill(material::skia::Paint::linearUnit(
               {0, 0}, {0, 1}, {{0.0f, kD3}, {1.0f, hexColor(0x0C0202)}}))
           .foreground(inset(5, styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 2, 1}))
           .foreground(styles::Brackets{kD6, 12, 2, 5, shapes::Corner::All})
@@ -439,8 +439,8 @@ auto TwoAdvancedV4::footerDock() -> Element {
         {kit::centred()
              .width(80)
              .height(80)
-             .fill(mskia::Paint::recipe(
-                 msdf::material(msdf::circle(), {.fill = hexColor(0x0A0202),
+             .fill(material::skia::Paint::recipe(
+                 material::sdf::material(material::sdf::circle(), {.fill = hexColor(0x0A0202),
                                                  .borderWidth = 3,
                                                  .borderColor = kD6})))
 
@@ -477,7 +477,7 @@ auto TwoAdvancedV4::rail(bool right) -> Element {
     return r;
   }
   return r
-      .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+      .fill(material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                      {{0.00f, hexColor(0x6A1B21)},
                                       {0.22f, kChrome},
                                       {0.70f, hexColor(0x2A0708)},

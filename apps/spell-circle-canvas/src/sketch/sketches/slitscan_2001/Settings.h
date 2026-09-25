@@ -61,7 +61,6 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace measure = sigil::measure;
-namespace patterns = sigil::material::pattern;
 namespace arrange = sigil::geometry::arrange;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;

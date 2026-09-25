@@ -8,7 +8,7 @@ inline Element artSouvenirs(sigil::weave::FontContext& f) {
   const float W = S(83), H = S(83);
   return artBox(W, H).children(
       {sphere({S(41.5f), S(47.5f)}, S(35),
-              mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+              material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                      {{0.0f, C5(0xEFEFEF)},
                                       {0.16f, C5(0xDEEFEF)},
                                       {0.52f, C5(0x29EFEF)},
@@ -24,7 +24,7 @@ inline Element artJump(sigil::weave::FontContext& f) {
   const float W = S(58), H = S(52);
   return artBox(W, H).children(
       {sphere({S(28.5f), S(30.0f)}, S(21),
-              mskia::Paint::glowUnit({0.46f, 0.60f}, 1.0f,
+              material::skia::Paint::glowUnit({0.46f, 0.60f}, 1.0f,
                                      {{0.0f, C5(0xFFFFFF)},
                                       {0.22f, C5(0xADF7A5)},
                                       {0.52f, C5(0x39D631)},
@@ -54,7 +54,7 @@ inline Element artJamCentral(sigil::weave::FontContext& f) {
   const SkPoint c{S(27.5f), S(40)};
   const float r = S(26);
   Element globe = sphere(c, r,
-                         mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
+                         material::skia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
                                                 {{0.0f, C5(0xA542DE)},
                                                  {0.30f, C5(0x8418CE)},
                                                  {0.62f, C5(0x7B10C6)},
@@ -90,12 +90,12 @@ inline Element gasGiant(SkPoint c, float r, sigil::material::Color body,
                         sigil::material::Color limb, sigil::material::Color hi,
                         Bands bands) {
   Element d =
-      sphere(c, r, mskia::Paint::solid(body))
+      sphere(c, r, material::skia::Paint::solid(body))
           .overflow(Overflow::Clip)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
   d.children({box().inset(0).fill(
-      mskia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
+      material::skia::Paint::glowUnit({0.34f, 0.28f}, 1.35f,
                              {{0.0f, sigil::material::withAlpha(hi, 0.42f)},
                               {0.34f, sigil::material::withAlpha(hi, 0.10f)},
                               {0.62f, {0, 0, 0, 0}},
@@ -163,7 +163,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
   const float W = S(95), H = S(77);
   const SkPoint c{S(48), S(46)};
   auto ringMat = [] {
-    return mskia::Paint::linearUnit({0, 0}, {0, 1},
+    return material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                     {{0.0f, C5(0xF71018)},
                                      {0.38f, C5(0xF773A5)},
                                      {0.62f, C5(0xF71818)},
@@ -172,7 +172,7 @@ inline Element artLunarTunes(sigil::weave::FontContext& f) {
   return artBox(W, H).children(
       {ring(c, S(47), S(16), -20, 0.62f, ringMat()).zIndex(0),
        sphere(c, S(30),
-              mskia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
+              material::skia::Paint::glowUnit({0.34f, 0.28f}, 1.32f,
                                      {{0.0f, C5(0x0073E7)},
                                       {0.30f, C5(0x006BD6)},
                                       {0.66f, C5(0x0052AD)},
@@ -194,7 +194,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
   const float W = S(63), H = S(52);
   const SkPoint c{S(33), S(31)};
   auto ringMat = [] {
-    return mskia::Paint::linearUnit({0, 0}, {0, 1},
+    return material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                     {{0.0f, C5(0x21FFFF)},
                                      {0.45f, C5(0x9CFFFF)},
                                      {0.75f, C5(0x21FFFF)},
@@ -203,7 +203,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
   return artBox(W, H).children(
       {ring(c, S(29), S(15), -22, 0.60f, ringMat()).zIndex(0),
        sphere({S(38), S(32)}, S(17),
-              mskia::Paint::glowUnit({0.34f, 0.30f}, 1.30f,
+              material::skia::Paint::glowUnit({0.34f, 0.30f}, 1.30f,
                                      {{0.0f, C5(0xFF4A6B)},
                                       {0.28f, C5(0xFF425A)},
                                       {0.62f, C5(0xF71818)},
@@ -243,7 +243,7 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
   // they were authored.
   Element vortex = rect(c.fX - S(35), c.fY - S(17), S(70), S(34))
                        .shape(shapes::annulus(0.30f))
-                       .fill(mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+                       .fill(material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                                     {{0.0f, C5(0xFFFF00)},
                                                      {0.34f, C5(0xFFEF00)},
                                                      {0.52f, C5(0xFFAD42)},
@@ -299,7 +299,7 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   ship.children(
       {rect(S(38), S(6), S(52), S(20))
            .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
-           .fill(mskia::Paint::linearUnit(
+           .fill(material::skia::Paint::linearUnit(
                {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}})),
        // ventral fin
        rect(S(58), S(36), S(40), S(15))
@@ -308,13 +308,13 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
        // rear nacelle
        rect(S(4), S(25), S(36), S(14))
            .shape(shapes::squircle(2.6f))
-           .fill(mskia::Paint::linearUnit(
+           .fill(material::skia::Paint::linearUnit(
                {0, 0}, {0, 1},
                {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}})),
        // fuselage
        rect(S(16), S(23), S(100), S(17))
            .shape(shapes::squircle(2.2f))
-           .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+           .fill(material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                           {{0.0f, hullHi},
                                            {0.26f, hull},
                                            {0.68f, hullLo},
@@ -351,7 +351,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
     // glowUnit again, for the reason artSitemap() gives: on this 1.4:1 box
     // radialUnit would put the whole rainbow inside t < 0.71 and the outer
     // band would never draw.
-    return mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+    return material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                   {{0.0f, C5(0x101831)},
                                    {0.44f, C5(0x21103A)},
                                    {0.56f, C5(0xFFEF00)},
@@ -384,7 +384,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
     Text t = text(s).font(ty(display(), size, C5(0x2FA9A0), 0));
-    t.ink(mskia::Paint::linear({0, 0}, {0, 1},
+    t.ink(material::skia::Paint::linear({0, 0}, {0, 1},
                                     {{0.0f, C5(0x006BA5)},
                                      {0.22f, C5(0x007BAD)},
                                      {0.52f, C5(0x00A584)},

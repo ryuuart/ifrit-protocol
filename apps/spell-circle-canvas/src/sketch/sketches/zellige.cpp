@@ -47,9 +47,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mkit = sigil::material::kit;
-namespace mpattern = sigil::material::pattern;
-namespace mskia = sigil::material::skia;
 using sigil::material::skia::Paint;
 
 using namespace sigil::compose;
@@ -72,19 +69,19 @@ constexpr material::Color kPlaster{0.885f, 0.850f, 0.775f, 1};
 // bone on the strap, which is the reading turned inside out. These three
 // are the wall's own: one white ground, one hue in the star and one in
 // the strap, black in the joint.
-inline mkit::GirihPalette fesCobalt() {
+inline material::kit::GirihPalette fesCobalt() {
   return {{0.949f, 0.937f, 0.906f, 1},   // the white ground
           {0.118f, 0.310f, 0.627f, 1},   // cobalt star
           {0.118f, 0.557f, 0.525f, 1},   // turquoise strap
           {0.102f, 0.090f, 0.078f, 1}};  // the black joint
 }
-inline mkit::GirihPalette fesTurquoise() {
+inline material::kit::GirihPalette fesTurquoise() {
   return {{0.949f, 0.937f, 0.906f, 1},
           {0.118f, 0.557f, 0.525f, 1},
           {0.647f, 0.251f, 0.169f, 1},  // brick red
           {0.102f, 0.090f, 0.078f, 1}};
 }
-inline mkit::GirihPalette fesOchre() {
+inline material::kit::GirihPalette fesOchre() {
   return {{0.949f, 0.937f, 0.906f, 1},
           {0.788f, 0.541f, 0.180f, 1},  // ochre
           {0.180f, 0.431f, 0.290f, 1},  // green
@@ -102,9 +99,9 @@ constexpr float kContact[3] = {30.0f, 45.0f, 60.0f};
 
 /** One panel's tile: the kit's generator at this panel's contact angle,
  *  with the strap left at the generator's own width. */
-inline Pattern girih(float edge, const mkit::GirihPalette& palette,
+inline Pattern girih(float edge, const material::kit::GirihPalette& palette,
                      float contactDeg) {
-  return mkit::girih8(edge, palette, 0.0f, contactDeg);
+  return material::kit::girih8(edge, palette, 0.0f, contactDeg);
 }
 
 inline std::string caption(const char* palette, float edge, float contactDeg,
@@ -129,7 +126,7 @@ struct Zellige {
   // fresh one each render would re-bake every frame.
   std::array<zellige_wall::Panel, 3> panels;
   Pattern grain =
-      mpattern::speckle(96, 60, 0.4f, 1.1f, {{0.35f, 0.30f, 0.24f, 0.25f}});
+      material::pattern::speckle(96, 60, 0.4f, 1.1f, {{0.35f, 0.30f, 0.24f, 0.25f}});
   double nextSwap = 0.0;
   int phase = 0;
 
@@ -150,7 +147,7 @@ struct Zellige {
     const bool swapped = (phase % 2) != 0;
     const char* names[3] = {swapped ? "turquoise" : "cobalt",
                             swapped ? "cobalt" : "turquoise", "ochre"};
-    const mkit::GirihPalette palettes[3] = {
+    const material::kit::GirihPalette palettes[3] = {
         swapped ? zw::fesTurquoise() : zw::fesCobalt(),
         swapped ? zw::fesCobalt() : zw::fesTurquoise(), zw::fesOchre()};
     const bool rotated = (phase % 8) != 0;

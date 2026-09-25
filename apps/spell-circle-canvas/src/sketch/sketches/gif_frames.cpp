@@ -32,7 +32,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace image = sigil::image;
 namespace io = sigil::io;
-namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -63,7 +62,7 @@ Element frameFigure(const sk_sp<SkImage>& frame, float w, float h,
        .height = h + 16,
        .ground = Fill::color(kCellGround),
        .content = sketch::kit::Well::Content{}},
-      sigil::compose::image(frame, mskia::Fit::Contain)
+      sigil::compose::image(frame, material::skia::Fit::Contain)
           .width(w)
           .height(h)
           .imageRendering(SkSamplingOptions(SkFilterMode::kNearest)));

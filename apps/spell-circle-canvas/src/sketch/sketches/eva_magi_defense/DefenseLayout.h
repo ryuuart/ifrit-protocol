@@ -44,7 +44,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
 namespace shapes = sigil::geometry::shapes;
@@ -635,13 +634,13 @@ inline sk_sp<SkImage> fieldStrip(float hueTurn) {
   if (!surface) return nullptr;
   // The same gradient the ribbons were once filled with directly, so a
   // row of the strip is the row that gradient painted.
-  std::vector<mskia::Stop> stops;
+  std::vector<material::skia::Stop> stops;
   stops.reserve((size_t)kRampN);
   for (const auto& stop : kRamp)
     stops.push_back({stop.t, hexColor(turnHue(stop.rgb, hueTurn))});
   SkPaint paint;
   paint.setShader(
-      mskia::Paint::linear({0, 0}, {0, kH}, std::move(stops)).asShader());
+      material::skia::Paint::linear({0, 0}, {0, kH}, std::move(stops)).asShader());
   surface->getCanvas()->drawPaint(paint);
   return surface->makeImageSnapshot();
 }

@@ -28,7 +28,6 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace field = sigil::material::field;
-namespace mskia = sigil::material::skia;
 using namespace sigil::draw;
 
 namespace {
@@ -37,24 +36,24 @@ constexpr int kThreads = 9;
 constexpr int kSettlingSteps = 90;
 constexpr int kTraceSteps = 720;
 
-mskia::Paint threadInk(sk_sp<SkRuntimeEffect> program) {
-  return mskia::Paint::sksl(std::move(program))
-      .slot("uGrain", mskia::Paint::recipe(field::grain(0.07f, 3, 41.0f)))
+material::skia::Paint threadInk(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::Paint::sksl(std::move(program))
+      .slot("uGrain", material::skia::Paint::recipe(field::grain(0.07f, 3, 41.0f)))
       .quantizeTime(30.0f);
 }
 
-mskia::Paint ground() {
-  return mskia::Paint::blend(
-      {{mskia::Paint::solid({0.018f, 0.025f, 0.052f, 1.0f}),
+material::skia::Paint ground() {
+  return material::skia::Paint::blend(
+      {{material::skia::Paint::solid({0.018f, 0.025f, 0.052f, 1.0f}),
         SkBlendMode::kSrcOver},
-       {mskia::Paint::recipe(field::grain(0.018f, 4, 29.0f, 0.8f, 1.7f))
+       {material::skia::Paint::recipe(field::grain(0.018f, 4, 29.0f, 0.8f, 1.7f))
             .amount(0.18f),
         SkBlendMode::kSoftLight}});
 }
 
 struct P5AttractorLoom {
-  mskia::Paint threads;
-  const mskia::Paint background = ground();
+  material::skia::Paint threads;
+  const material::skia::Paint background = ground();
 
   void setup(sketch::SketchContext& context) {
     threads = threadInk(context.assets.shader(context.local("thread.sksl")));

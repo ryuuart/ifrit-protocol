@@ -46,7 +46,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace paint = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -64,7 +63,7 @@ SkPoint middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
 
 /** The one ramp every radial cell runs, so what differs between them is
  *  the geometry of the falloff and never the colours. */
-std::vector<paint::Stop> ember() {
+std::vector<material::skia::Stop> ember() {
   return {{0.0f, {1.00f, 0.96f, 0.82f, 1}},
           {0.35f, {0.98f, 0.62f, 0.24f, 1}},
           {1.0f, {0.12f, 0.10f, 0.16f, 1}}};
@@ -72,7 +71,7 @@ std::vector<paint::Stop> ember() {
 
 /** A wheel of hues for the two sweeps, ending where it began so the seam
  *  at the start angle is the only edge in it. */
-std::vector<paint::Stop> wheel() {
+std::vector<material::skia::Stop> wheel() {
   return {{0.00f, {0.94f, 0.34f, 0.32f, 1}},
           {0.25f, {0.94f, 0.82f, 0.32f, 1}},
           {0.50f, {0.36f, 0.86f, 0.56f, 1}},
@@ -91,7 +90,7 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 
 /** One paint across the whole cell. */
 sketch::kit::ComparisonCase swatch(const char* caseTitle, const char* call,
-                                   const char* note, paint::Paint fill) {
+                                   const char* note, material::skia::Paint fill) {
   return cell(caseTitle, call, note,
               box().children({box().cover().fill(std::move(fill))}));
 }
@@ -108,7 +107,7 @@ struct PaintShelf {
     // The caller-owned raster: drawn once here and published. A running
     // sketch would draw into it and commit() again; the node's picture
     // caching survives either way.
-    auto pixels = std::make_shared<paint::PixelBuffer>(120, 90);
+    auto pixels = std::make_shared<material::skia::PixelBuffer>(120, 90);
     {
       SkCanvas& into = pixels->canvas();
       into.clear(SkColor4f{0.09f, 0.12f, 0.18f, 1}.toSkColor());
@@ -128,8 +127,8 @@ struct PaintShelf {
     // "the node's own box" and "the root's box" are two visibly
     // different readings of the same description.
     const auto field = [](bool world) {
-      paint::Paint p =
-          paint::Paint::linearUnit({0, 0}, {1, 1},
+      material::skia::Paint p =
+          material::skia::Paint::linearUnit({0, 0}, {1, 1},
                                    {{0.0f, {0.16f, 0.20f, 0.34f, 1}},
                                     {0.5f, {0.44f, 0.78f, 0.86f, 1}},
                                     {1.0f, {0.96f, 0.72f, 0.34f, 1}}});
@@ -160,13 +159,13 @@ struct PaintShelf {
                                   "Paint::radial(centre, 92, ember)",
                                   "The hot spot and the outer circle share a "
                                   "centre.",
-                                  paint::Paint::radial(middle(), 92, ember())),
+                                  material::skia::Paint::radial(middle(), 92, ember())),
                            swatch(
                                "CONICAL · LEFT",
                                "conical(focus, 0, centre, 92, ember)",
                                "Move the focus while keeping the outer circle "
                                "fixed.",
-                               paint::Paint::conical(
+                               material::skia::Paint::conical(
                                    {middle().fX - kFocus,
                                     middle().fY - kFocus * 0.6f},
                                    0, middle(), 92, ember())),
@@ -176,7 +175,7 @@ struct PaintShelf {
                                "with the focus moved "
                                "across",
                                "Move the focus across the same fixed circle.",
-                               paint::Paint::conical(
+                               material::skia::Paint::conical(
                                    {middle().fX + 1.3f * kFocus,
                                     middle().fY + 0.8f * kFocus},
                                    0, middle(), 92, ember()))},
@@ -194,13 +193,13 @@ struct PaintShelf {
                                                 "Paint::sweep(centre, wheel)",
                                                 "The colour ramp completes a "
                                                 "full turn.",
-                                                paint::Paint::sweep(middle(),
+                                                material::skia::Paint::sweep(middle(),
                                                                     wheel())),
                                          swatch("CLAMPED WINDOW",
                                                 "sweep(centre, wheel, 45, 315)",
                                                 "Angles outside 45°–315° clamp "
                                                 "to the nearest stop.",
-                                                paint::Paint::sweep(
+                                                material::skia::Paint::sweep(
                                                     middle(), wheel(),
                                                     kWindowFrom, kWindowTo))},
                                .measure = 674,
@@ -212,7 +211,7 @@ struct PaintShelf {
                                    "RASTER BUFFER", "Paint::buffer(pixels)",
                                    "Caller-owned pixels, published by "
                                    "commit().",
-                                   paint::Paint::buffer(pixels,
+                                   material::skia::Paint::buffer(pixels,
                                                         SkTileMode::kRepeat,
                                                         SkTileMode::kRepeat))},
                                .measure = 328,

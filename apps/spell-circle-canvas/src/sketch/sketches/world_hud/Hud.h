@@ -39,13 +39,11 @@ namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace skit = sigil::sketch::kit;
 namespace shapes = sigil::geometry::shapes;
-namespace mpattern = sigil::material::pattern;
 namespace field = sigil::material::field;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace compose = sigil::compose;
 namespace weave = sigil::weave;
-namespace mskia = sigil::material::skia;
 namespace path = sigil::geometry::path;
 namespace motion = sigil::motion;
 

@@ -76,7 +76,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 namespace path = sigil::geometry::path;
 namespace weave = sigil::weave;

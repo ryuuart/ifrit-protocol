@@ -13,9 +13,9 @@ auto TwoAdvancedV4::available(std::string* why) -> bool {
 
 auto TwoAdvancedV4::stretchFill(
     const std::shared_ptr<const sigil::image::ImageAsset>& asset, float w,
-    float h, SkTileMode tx) -> mskia::Paint {
+    float h, SkTileMode tx) -> material::skia::Paint {
   const sk_sp<SkImage>& img = asset->frames()[0].image;
-  return mskia::Paint::image(
+  return material::skia::Paint::image(
       img, tx, SkTileMode::kClamp,
       SkMatrix::Scale(w / (float)img->width(), h / (float)img->height()),
       SkSamplingOptions(SkFilterMode::kLinear));
@@ -38,7 +38,7 @@ auto TwoAdvancedV4::radarSweep(int i, sigil::material::Color tint, float inner)
   return box()
       .inset(0)
       .shape(shapes::sector(-100, 78, inner))
-      .fill(mskia::Paint::linearUnit(
+      .fill(material::skia::Paint::linearUnit(
           {0, 0}, {1, 1},
           {{0.0f, sigil::material::withAlpha(tint, 0.85f)},
            {1.0f, sigil::material::withAlpha(tint, 0.05f)}}))
@@ -69,7 +69,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                    .width(22)
                    .height(22)
                    .borderRadius({5})
-                   .fill(mskia::Paint::radialUnit({0.5f, 0.42f}, 1.15f,
+                   .fill(material::skia::Paint::radialUnit({0.5f, 0.42f}, 1.15f,
                                                   {{0.0f, kCyanRing},
                                                    {0.55f, kTealBar},
                                                    {1.0f, hexColor(0x0C2A2C)}}))
@@ -175,7 +175,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
         .height(22)
         .shape(shapes::chamfered(6, shapes::Corner::Diagonal))
         .fill(
-            mskia::Paint::linearUnit({0, 0}, {0, 1},
+            material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                      {{0.0f, hot ? kCtaHi : hexColor(0x5A2226)},
                                       {0.5f, hot ? kCta : hexColor(0x3A0F12)},
                                       {1.0f, hexColor(0x240607)}}))

@@ -24,7 +24,7 @@
 
 namespace {
 
-namespace patterns = sigil::material::pattern;
+namespace material = sigil::material;
 
 // ---------------------------------------------------------------------------
 // The shades. Codes are the register's: K black, B blue, G green, Y yellow,
@@ -77,7 +77,7 @@ inline std::vector<ShadeCard> readShadeCards(const sigil::data::Json& file) {
 // or half the right size and still looks right, which is what the first
 // invariant is for.
 
-using Run = patterns::ThreadRun;
+using Run = material::pattern::ThreadRun;
 
 inline std::vector<Run> readRuns(std::string_view notation) {
   std::vector<Run> runs;
@@ -107,7 +107,7 @@ struct Sett {
     return all;
   }
   std::vector<uint8_t> threads() const {
-    return patterns::threadcount(runs());
+    return material::pattern::threadcount(runs());
   }
   std::vector<int> unitEnds() const {
     std::vector<int> ends;
@@ -139,14 +139,14 @@ inline Sett readSett(const sigil::data::Json& entry) {
 // two over, two under, stepping one end per pick — the 2/2 twill, with the
 // rib on the "\" diagonal the register's swatch shows.
 
-constexpr patterns::Weave kTwill = patterns::Weave::twill(2, 2);
+constexpr material::pattern::Weave kTwill = material::pattern::Weave::twill(2, 2);
 
 /** The whole artefact as the weave generator reads it: ONE threadcount for
  *  both directions, because the register says the weft sequence is the
  *  warp sequence, over @p shades, with @p rib darkening the crossings
  *  where the weft is on top so the twill reads inside a block of one
  *  colour. */
-inline patterns::Cloth cloth(const std::vector<uint8_t>& threads,
+inline material::pattern::Cloth cloth(const std::vector<uint8_t>& threads,
                              const Shades& shades, float rib) {
   return {.warp = threads,
           .weft = threads,
@@ -200,7 +200,7 @@ inline Verdict verify(const Sett& watch, const Sett& argyll) {
   verdict.total = ends;
 
   // Reflective: exactly two mirror boundaries, exactly half apart.
-  verdict.mirrors = patterns::pivots(threads);
+  verdict.mirrors = material::pattern::pivots(threads);
   if (verdict.mirrors.size() == 2)
     verdict.mirrorGap = verdict.mirrors[1] - verdict.mirrors[0];
 
@@ -209,8 +209,8 @@ inline Verdict verify(const Sett& watch, const Sett& argyll) {
   for (int line = 0; line < ends; ++line) {
     int warpRun = 0, weftRun = 0;
     for (int along = 0; along < 2 * ends; ++along) {
-      warpRun = patterns::warpUp(kTwill, line, along) ? warpRun + 1 : 0;
-      weftRun = patterns::warpUp(kTwill, along, line) ? 0 : weftRun + 1;
+      warpRun = material::pattern::warpUp(kTwill, line, along) ? warpRun + 1 : 0;
+      weftRun = material::pattern::warpUp(kTwill, along, line) ? 0 : weftRun + 1;
       verdict.maxWarpFloat = std::max(verdict.maxWarpFloat, warpRun);
       verdict.maxWeftFloat = std::max(verdict.maxWeftFloat, weftRun);
     }

@@ -88,7 +88,6 @@ namespace draw = sigil::draw;
 namespace field = sigil::material::field;
 namespace material = sigil::material;
 namespace path = sigil::geometry::path;
-namespace patterns = sigil::material::pattern;
 namespace shapes = sigil::geometry::shapes;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -220,9 +219,9 @@ const shapes::Circle kRimBaseline{.startIndex = 0};
  *  reads as a motif. */
 Paint tintStone(material::Color wash, material::Color ink, int fine,
                 int coarse, uint32_t seed, Pattern& stipple, Pattern& blot) {
-  stipple = patterns::speckle(128, fine * 10, 0.25f, 0.66f, {ink});
+  stipple = material::pattern::speckle(128, fine * 10, 0.25f, 0.66f, {ink});
   stipple.seed(seed);
-  blot = patterns::speckle(320, coarse * 8, 1.8f, 5.0f,
+  blot = material::pattern::speckle(320, coarse * 8, 1.8f, 5.0f,
                            {material::withAlpha(ink, 0.12f)});
   blot.seed(seed * 7 + 3);
   return Paint::blend(
@@ -751,7 +750,7 @@ struct NightingaleCoxcomb {
                        stipples[2], stipples[3]);
     other = tintStone(colour("other-wash"), colour("other-ink"), 900, 18, 37,
                       stipples[4], stipples[5]);
-    foxing = patterns::speckle(190, 4, 1.5f, 6.5f, {colour("fox")});
+    foxing = material::pattern::speckle(190, 4, 1.5f, 6.5f, {colour("fox")});
     foxing.seed(91);
 
     // The still is the first clean instant after the second needle has

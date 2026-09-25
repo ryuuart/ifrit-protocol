@@ -32,7 +32,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mskia = sigil::material::skia;
 namespace field = sigil::material::field;
 namespace shapes = sigil::geometry::shapes;
 namespace weave = sigil::weave;

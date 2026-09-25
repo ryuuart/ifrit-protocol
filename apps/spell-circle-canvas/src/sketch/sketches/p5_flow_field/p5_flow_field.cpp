@@ -25,7 +25,7 @@ namespace arrange = sigil::geometry::arrange;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace field = sigil::material::field;
-namespace mskia = sigil::material::skia;
+namespace material = sigil::material;
 using namespace sigil::draw;
 
 namespace {
@@ -40,22 +40,22 @@ float hash01(int value) {
   return wave - std::floor(wave);
 }
 
-mskia::Paint currentInk(sk_sp<SkRuntimeEffect> program) {
-  return mskia::Paint::sksl(std::move(program))
-      .slot("uField", mskia::Paint::recipe(field::noise(0.025f, 4, 23.0f)))
+material::skia::Paint currentInk(sk_sp<SkRuntimeEffect> program) {
+  return material::skia::Paint::sksl(std::move(program))
+      .slot("uField", material::skia::Paint::recipe(field::noise(0.025f, 4, 23.0f)))
       .quantizeTime(30.0f);
 }
 
-mskia::Paint particleLight() {
-  return mskia::Paint::glowUnit({0.34f, 0.30f}, 0.92f,
+material::skia::Paint particleLight() {
+  return material::skia::Paint::glowUnit({0.34f, 0.30f}, 0.92f,
                                 {{0.0f, {1.0f, 1.0f, 0.88f, 1.0f}},
                                  {0.32f, {0.30f, 0.94f, 1.0f, 0.96f}},
                                  {1.0f, {0.18f, 0.08f, 0.42f, 0.0f}}});
 }
 
 struct P5FlowField {
-  mskia::Paint ink;
-  const mskia::Paint sparks = particleLight();
+  material::skia::Paint ink;
+  const material::skia::Paint sparks = particleLight();
 
   void setup(sketch::SketchContext& context) {
     ink = currentInk(context.assets.shader(context.local("flow.sksl")));

@@ -182,7 +182,7 @@ auto WinampBase::mainWindow() -> Element {
                               .transformOrigin(pct(0), pct(50))
                               .scaleX(&playPos),
                           raised(at(box(), 1, 0, 29, 10)
-                                     .fill(mskia::Paint::linearUnit(
+                                     .fill(material::skia::Paint::linearUnit(
                                          {0, 0}, {0, 1},
                                          {{0.0f, sigil::material::lighten(
                                                      kBtnFace, 0.12f)},
@@ -202,7 +202,7 @@ auto WinampBase::mainWindow() -> Element {
            // wants to be
            at(box(), 253, 91, 13, 15)
                .shape(bolt())
-               .fill(mskia::Paint::linearUnit(
+               .fill(material::skia::Paint::linearUnit(
                    {0, 0}, {0, 1},
                    {{0.0f, hexColor(0xC98A32)}, {1.0f, hexColor(0x7A4208)}}))});
 }
@@ -287,7 +287,7 @@ auto WinampBase::sliders(int vol, int bal) -> Element {
   // with one scored line down it.
   const auto thumb = [](float travel, int frame) {
     return raised(at(box(), 0, 1, 14, 11)
-                      .fill(mskia::Paint::linearUnit(
+                      .fill(material::skia::Paint::linearUnit(
                           {0, 0}, {0, 1},
                           {{0.0f, sigil::material::lighten(kBtnFace, 0.12f)},
                            {1.0f, dark(kBtnFace, 0.30f)}}))

@@ -147,7 +147,7 @@ Element GenesisFire::regolith() {
         SkBlendMode::kSrc},
        {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
         SkBlendMode::kSoftLight},
-       {Pattern(patterns::speckle(170, 17, 0.9f, 3.4f,
+       {Pattern(material::pattern::speckle(170, 17, 0.9f, 3.4f,
                                   {hexColor(0x6A655B), hexColor(0x171512)}))
             .material(),
         SkBlendMode::kOverlay}});

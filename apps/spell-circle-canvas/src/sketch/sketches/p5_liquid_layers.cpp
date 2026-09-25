@@ -28,7 +28,6 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace compose = sigil::compose;
 namespace brush = sigil::draw::brush;
-namespace mskia = sigil::material::skia;
 namespace pattern = sigil::material::pattern;
 using namespace sigil::draw;
 
@@ -42,16 +41,16 @@ constexpr std::array<material::Color, 4> kPigment{{
     {0.96f, 0.72f, 0.14f, 1.0f},
 }};
 
-mskia::Paint graphPaper() {
+material::skia::Paint graphPaper() {
   pattern::Tile fine =
       pattern::gridLines(34.0f, 1.15f, {0.18f, 0.46f, 0.58f, 0.34f});
   pattern::Tile coarse =
       pattern::gridLines(136.0f, 2.2f, {0.70f, 0.82f, 0.88f, 0.22f});
-  return mskia::Paint::blend(
-      {{mskia::Paint::solid({0.018f, 0.035f, 0.070f, 1.0f}),
+  return material::skia::Paint::blend(
+      {{material::skia::Paint::solid({0.018f, 0.035f, 0.070f, 1.0f}),
         SkBlendMode::kSrcOver},
-       {mskia::Paint::shader(fine.texture().shader()), SkBlendMode::kSrcOver},
-       {mskia::Paint::shader(coarse.texture().shader()),
+       {material::skia::Paint::shader(fine.texture().shader()), SkBlendMode::kSrcOver},
+       {material::skia::Paint::shader(coarse.texture().shader()),
         SkBlendMode::kSrcOver}});
 }
 
@@ -71,7 +70,7 @@ brush::Tool liquidNib(material::Color colour, float width) {
 }
 
 struct P5LiquidLayers {
-  const mskia::Paint ground = graphPaper();
+  const material::skia::Paint ground = graphPaper();
 
   void setup(sketch::SketchContext& context) {
     context.canvas(720, 560);

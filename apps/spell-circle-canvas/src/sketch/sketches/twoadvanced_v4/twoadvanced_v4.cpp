@@ -64,7 +64,7 @@ auto TwoAdvancedV4::describe() -> Element {
     // under the footer. A two-stop ramp reads as flat maroon and gets
     // figure and ground backwards, because the PANELS are the light
     // thing on this page.
-    page.fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+    page.fill(material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                        {{0.00f, kChrome},
                                         {0.40f, hexColor(0x520F17)},
                                         {0.55f, hexColor(0x470A12)},
@@ -109,22 +109,22 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   }
 
   // --- generated materials, built ONCE and HELD (identity = pruning) ---
-  hazard = patterns::stripes(6, 10, kChromeHi);
+  hazard = material::pattern::stripes(6, 10, kChromeHi);
   hazard.rotate(45);
-  hatchA = patterns::stripes(1, 7, sigil::material::withAlpha(kD4, 0.5f));
+  hatchA = material::pattern::stripes(1, 7, sigil::material::withAlpha(kD4, 0.5f));
   hatchA.rotate(45);
-  hatchB = patterns::stripes(1, 7, sigil::material::withAlpha(kD1, 0.55f));
+  hatchB = material::pattern::stripes(1, 7, sigil::material::withAlpha(kD1, 0.55f));
   hatchB.rotate(-45);
-  dither = patterns::checker(1.5f, sigil::material::withAlpha(kPanelSh, 0.28f),
+  dither = material::pattern::checker(1.5f, sigil::material::withAlpha(kPanelSh, 0.28f),
                              sigil::material::withAlpha(kPanelHi, 0.15f));
   // LUMINANCE grain (one channel, not three), so the kOverlay pass
   // reads as LIGHT on the oxblood ramp instead of hue-shifting it —
   // `field::noise()` is fractal RGB and turns the page into rainbow
   // terrazzo. `stretch` gives the grain a slight vertical tooth, which
   // is what the real 1x1600 sitebackground.gif strip has.
-  grain = mskia::Paint::recipe(field::grain(0.9f, 3, 4.0f, 1.25f, 1.6f));
+  grain = material::skia::Paint::recipe(field::grain(0.9f, 3, 4.0f, 1.25f, 1.6f));
 
-  spectrum = mskia::Paint::sksl(ctx.assets.shader(ctx.local("spectrum.sksl")),
+  spectrum = material::skia::Paint::sksl(ctx.assets.shader(ctx.local("spectrum.sksl")),
                                 {{"uBars", 32.0f}})
                  .uniform("uHot", kGlow)
                  .uniform("uCool", kTealBar)
@@ -132,13 +132,13 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
 
   // ONE stripe material value, reused by the nav bar and four panel
   // headers; the pan is a bound uniform, not five redraw loops.
-  stripesLive = mskia::Paint::sksl(ctx.assets.shader(ctx.local("stripe.sksl")),
+  stripesLive = material::skia::Paint::sksl(ctx.assets.shader(ctx.local("stripe.sksl")),
                                    {{"uOn", 6.0f}, {"uPeriod", 16.0f}})
                     .uniform("uColor", kChromeHi)
                     .uniform("uBase", kChrome)
                     .uniform("uPan", &stripePan);
 
-  waterStreaks = mskia::Paint::sksl(ctx.assets.shader(ctx.local("water.sksl")));
+  waterStreaks = material::skia::Paint::sksl(ctx.assets.shader(ctx.local("water.sksl")));
 
   // measure the press entries at the well's own wrap width, so the
   // auto-scroll walks the REAL overflow rather than a guessed one

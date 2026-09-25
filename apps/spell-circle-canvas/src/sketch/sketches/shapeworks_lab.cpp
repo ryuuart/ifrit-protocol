@@ -80,7 +80,6 @@ namespace mesh = sigil::geometry::mesh;
 namespace curve = sigil::geometry::mesh::curve;
 namespace operations = sigil::geometry::path::operations;
 namespace shapes = sigil::geometry::shapes;
-namespace mpattern = sigil::material::pattern;
 
 namespace {
 
@@ -105,7 +104,7 @@ sk_sp<SkImage> bakeChecker(int w, int h) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
   SkCanvas* c = surface->getCanvas();
   SkPaint paint;
-  paint.setShader(mpattern::checker(28.0f, {0.169f, 0.169f, 0.227f, 1},
+  paint.setShader(material::pattern::checker(28.0f, {0.169f, 0.169f, 0.227f, 1},
                                     {0.725f, 0.745f, 0.808f, 1})
                       .texture()
                       .shader());
@@ -168,7 +167,7 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
   // The shelf lays its runs along +x and the band reads its texture down
   // v, so the strip is that row turned a quarter turn into the size the
   // sweep asks for.
-  const sk_sp<SkImage> row = mpattern::sequence(runs).image();
+  const sk_sp<SkImage> row = material::pattern::sequence(runs).image();
   if (!row) return nullptr;
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));

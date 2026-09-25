@@ -602,12 +602,12 @@ struct LootGrid {
                       .opacity(0.34f)
                       .blendMode(SkBlendMode::kOverlay),
                   box().inset(0).fill(
-                      Pattern(mpattern::gridLines(96.0f, 1.0f,
+                      Pattern(material::pattern::gridLines(96.0f, 1.0f,
                                                   {0.62f, 0.50f, 0.26f, 0.10f}))
                           .material()),
                   box()
                       .inset(0)
-                      .fill(Pattern(mpattern::gridLines(
+                      .fill(Pattern(material::pattern::gridLines(
                                         96.0f, 1.0f, {0.0f, 0.0f, 0.0f, 0.22f}))
                                 .material())
                       .translateX(1.0f)

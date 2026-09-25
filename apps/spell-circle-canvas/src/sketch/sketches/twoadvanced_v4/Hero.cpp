@@ -155,13 +155,13 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // this page keeps.
   if (heroPlate)
     scene.children({box().inset(0).fill(
-        mskia::Paint::image(heroPlate, SkTileMode::kClamp, SkTileMode::kClamp,
+        material::skia::Paint::image(heroPlate, SkTileMode::kClamp, SkTileMode::kClamp,
                             SkMatrix::Scale(w / (float)heroPlate->width(),
                                             h / (float)heroPlate->height()),
                             SkSamplingOptions(SkFilterMode::kLinear)))});
   else
     scene.children({box().inset(0).fill(
-        mskia::Paint::linearUnit({0, 0}, {0, 0.66f},
+        material::skia::Paint::linearUnit({0, 0}, {0, 0.66f},
                                  {{0.0f, hexColor(0x02070A)},
                                   {0.62f, hexColor(0x03181D)},
                                   {1.0f, hexColor(0x073038)}}))});
@@ -170,7 +170,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // black-on-black and the silhouettes have nothing to read against;
   // one kPlus ramp is the whole of the fix.
   scene.children(
-      {at(box().fill(mskia::Paint::linearUnit(
+      {at(box().fill(material::skia::Paint::linearUnit(
               {0, 0}, {0, 1},
               {{0.00f, sigil::material::withAlpha(kTealBar, 0.0f)},
                {0.62f, sigil::material::withAlpha(kTealBar, 0.10f)},
@@ -186,14 +186,14 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // this adds is the atmosphere around it: a low-alpha core under a
   // reaching glow, screened over the render rather than pasted in front
   // of it.
-  msdf::Style ps{.fill = sigil::material::withAlpha(kGlow, 0.07f),
+  material::sdf::Style ps{.fill = sigil::material::withAlpha(kGlow, 0.07f),
                  .borderWidth = 2,
                  .borderColor = sigil::material::withAlpha(
                      {0.90f, 1.0f, 1.0f, 1.0f}, 0.35f),
                  .glowRadius = 54,
                  .glowColor = sigil::material::withAlpha(kGlow, 0.42f)};
-  const float pbox = msdf::minBoxFor(ps, 132);
-  mskia::Paint pm = mskia::Paint::recipe(msdf::material(msdf::circle(), ps));
+  const float pbox = material::sdf::minBoxFor(ps, 132);
+  material::skia::Paint pm = material::skia::Paint::recipe(material::sdf::material(material::sdf::circle(), ps));
   if (!still) pm.uniform("uGlowR", &portalGlow);  // ±8 % sine, period 4 s
   Element portal = at(box().fill(pm), cx - pbox * 0.5f,
                       horizon - 108 - pbox * 0.5f, pbox, pbox)
@@ -237,14 +237,14 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .top(-72)
            .width(380)
            .height(300)
-           .fill(mskia::Paint::radialUnit(
+           .fill(material::skia::Paint::radialUnit(
                {0.5f, 0.14f}, 1.05f,
                {{0.0f, sigil::material::withAlpha(kGlow, 0.75f)},
                 {0.45f, sigil::material::withAlpha(kTealBar, 0.32f)},
                 {1.0f, sigil::material::withAlpha(kTealBar, 0.0f)}}))
            // smear the reflection down into the water: sigma 26
            // along the 90° axis (straight down), 14 across it
-           .filter(mskia::Effect::directionalBlur(26, 90, 14))
+           .filter(material::skia::Effect::directionalBlur(26, 90, 14))
            .opacity(0.78f)
            .blendMode(SkBlendMode::kPlus),
        // the specular COLUMN — the vertical smear of a light in water, and
@@ -254,14 +254,14 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .top(0)
            .width(80)
            .height(h - horizon)
-           .fill(mskia::Paint::linearUnit(
+           .fill(material::skia::Paint::linearUnit(
                {0, 0}, {0, 1},
                {{0.00f, sigil::material::withAlpha(kGlow, 0.55f)},
                 {0.35f, sigil::material::withAlpha(kGlow, 0.20f)},
                 {1.00f, sigil::material::withAlpha(kGlow, 0.0f)}}))
            // soften the column's sides: sigma 10 along the 0° axis
            // (horizontal), only 3 down its length
-           .filter(mskia::Effect::directionalBlur(10, 0, 3))
+           .filter(material::skia::Effect::directionalBlur(10, 0, 3))
            .blendMode(SkBlendMode::kPlus)});
   scene.children(
       {water,
@@ -283,13 +283,13 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
        // back over itself. Built `still` so it is provably static and the
        // Texture bake is paid once, not per frame.
        heroScene(w, h, true)
-           .filter(mskia::Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
+           .filter(material::skia::Effect::filter(SkImageFilters::Blur(22, 22, nullptr)))
            .opacity(0.34f)
            .blendMode(SkBlendMode::kPlus)
            .cache(Cache::Texture)
            .cacheScale(0.5f),
        box().inset(0).fill(
-           mskia::Paint::radialUnit({0.5f, 0.5f}, 1.0f,
+           material::skia::Paint::radialUnit({0.5f, 0.5f}, 1.0f,
                                     {{0.00f, {0, 0, 0, 0}},
                                      {0.58f, {0, 0, 0, 0.10f}},
                                      {1.00f, {0, 0, 0, 0.66f}}})),
@@ -342,7 +342,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
         .top(0)
         .width(pct(share))
         .height(100_pct)
-        .fill(mskia::Paint::linearUnit(
+        .fill(material::skia::Paint::linearUnit(
             {0, 0}, {1, 0},
             {{0.0f, hexColor(0x2A0708)}, {1.0f, hexColor(0x1A0405)}}))
         .foreground(onEdges(
@@ -412,7 +412,7 @@ auto TwoAdvancedV4::monitorBody(float h) -> Element {
   using namespace tav;
   return box()
       .height(h)
-      .fill(mskia::Paint::linearUnit({0, 0}, {0, 1},
+      .fill(material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                      {{0.00f, kPanelHi},
                                       {0.15f, kPanel},
                                       {0.88f, kPanel},
@@ -437,14 +437,14 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
         {box()
              .flexGrow(1)
              .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
-             .fill(mskia::Paint::linearUnit(
+             .fill(material::skia::Paint::linearUnit(
                  {0, 0}, {0, 1},
                  {{0.0f, hexColor(0x0A2C33)}, {1.0f, hexColor(0x02171B)}}))
              .stroke(stroke(1,
                             Fill::color(sigil::material::withAlpha(
                                 hexColor(0x0B3B40), 0.9f)),
                             PathFormat::Align::Inner))
-             .children({box().inset(0).fill(mskia::Paint::radialUnit(
+             .children({box().inset(0).fill(material::skia::Paint::radialUnit(
                             {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
                             {{0.0f, sigil::material::withAlpha(kGlow, g)},
                              {1.0f, sigil::material::withAlpha(kGlow, 0.0f)}})),

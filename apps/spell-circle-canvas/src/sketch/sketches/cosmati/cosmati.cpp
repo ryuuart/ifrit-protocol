@@ -70,7 +70,6 @@ namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 namespace shapes = sigil::geometry::shapes;
 namespace path = sigil::geometry::path;
-namespace stones = sigil::material::kit;
 namespace ch = choreograph;
 using namespace sigil::compose;
 using namespace sigil::motion;
@@ -169,7 +168,7 @@ struct Quarries {
  *  on longer beds than the tesserae so the Purbeck reads as one slab. */
 material::Material cut(const Quarry& quarry, float bedAngle, float seed = 0,
                        float veining = 0.35f, float bedLength = 52) {
-  return stones::stone({.hi = quarry.hi,
+  return material::kit::stone({.hi = quarry.hi,
                         .lo = quarry.lo,
                         .bedAngle = bedAngle,
                         .bedLength = bedLength,
@@ -341,7 +340,7 @@ struct Cosmati {
   /** Brass under the nave's one light, laid across the whole canvas so the
    *  sheen runs through every letter as one sheet. */
   static material::Material brass() {
-    return stones::latten({.from = {0, 0},
+    return material::kit::latten({.from = {0, 0},
                            .to = {kCanvas.fWidth, kCanvas.fHeight},
                            .level = 0.55f,
                            .sheen = 0.16f,

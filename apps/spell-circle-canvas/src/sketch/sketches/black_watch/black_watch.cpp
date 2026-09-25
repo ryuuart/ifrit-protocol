@@ -179,27 +179,27 @@ struct BlackWatch {
     const Shades& modern = cards.front().shades;
     for (const ShadeCard& card : cards)
       cloths.push_back(
-          patterns::clothTile(cloth(threads, card.shades, 0.17f), kThread));
+          material::pattern::clothTile(cloth(threads, card.shades, 0.17f), kThread));
     // The warp on the beam is the cloth before a single pick is woven: an
     // interlacing that never lifts the weft shows the ends alone.
-    warpOnBeam = patterns::clothTile(
+    warpOnBeam = material::pattern::clothTile(
         {.warp = threads,
          .weft = {0},
          .shades = {modern.begin(), modern.end()},
-         .weave = patterns::Weave{.over = 1, .under = 0, .advance = 0}},
+         .weave = material::pattern::Weave{.over = 1, .under = 0, .advance = 0}},
         kThread);
     argyllCloth =
-        patterns::clothTile(cloth(argyll.threads(), modern, 0.17f), kThread);
+        material::pattern::clothTile(cloth(argyll.threads(), modern, 0.17f), kThread);
     const std::vector<uint8_t> window(
         threads.begin() + kDraftFirst,
         threads.begin() + kDraftFirst + kDraftEnds);
-    drawdown = patterns::clothTile(cloth(window, modern, 0.22f), kDraftCell);
+    drawdown = material::pattern::clothTile(cloth(window, modern, 0.22f), kDraftCell);
     // The blend table is the same generator at a one-thread sett each way,
     // so if a cell disagrees with the cloth then one of the two is wrong.
     for (int weftShade = 0; weftShade < 3; ++weftShade)
       for (int warpShade = 0; warpShade < 3; ++warpShade)
         blends[(size_t)(weftShade * 3 + warpShade)] =
-            patterns::clothTile({.warp = {0},
+            material::pattern::clothTile({.warp = {0},
                                  .weft = {1},
                                  .shades = {modern[(size_t)warpShade],
                                             modern[(size_t)weftShade]},
@@ -207,10 +207,10 @@ struct BlackWatch {
                                 8);
     // The grooves between yarns: a hairline at every end and pick, which
     // the rib alone does not draw, kept on the threads' pixel grid.
-    grooves = patterns::gridLines(kThread, 1, {0, 0, 0, 0.12f})
+    grooves = material::pattern::gridLines(kThread, 1, {0, 0, 0, 0.12f})
                   .filter(SkFilterMode::kNearest);
     draftGrid =
-        patterns::gridLines(kDraftCell, 0.7f, faded(colours.rule, 0.6f))
+        material::pattern::gridLines(kDraftCell, 0.7f, faded(colours.rule, 0.6f))
             .filter(SkFilterMode::kNearest);
     // The board is one recipe, paint and tooth together; the yarn's tooth
     // keeps frequency · stretch · 2^(octaves−1) under 0.4, past which its
@@ -234,11 +234,11 @@ struct BlackWatch {
       for (int shade : {K, B, G}) {
         const material::Color dyed = card.shades[(size_t)shade];
         wound[(size_t)shade] =
-            patterns::sequence(
+            material::pattern::sequence(
                 {{1, material::mixToward(dyed, {1, 1, 1, 1}, 0.14f, 1)},
                  {1.5f, dyed},
                  {0.5f, material::mixToward(dyed, {0, 0, 0, 1}, 0.45f, 1)}},
-                0, patterns::Axis::V)
+                0, material::pattern::Axis::V)
                 .filter(SkFilterMode::kNearest);
       }
       wraps.push_back(std::move(wound));

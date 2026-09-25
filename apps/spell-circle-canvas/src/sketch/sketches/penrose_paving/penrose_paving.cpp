@@ -35,7 +35,6 @@
 
 namespace field = sigil::material::field;
 namespace material = sigil::material;
-namespace materialkit = sigil::material::kit;
 namespace shapes = sigil::geometry::shapes;
 namespace sketch = sigil::sketch;
 using material::skia::Paint;
@@ -199,7 +198,7 @@ Element rhombOf(const Rhomb& sett, float side) {
 /** Granite cut from one slab per sett: the stone's two tones, grain and
  *  speckle, seeded by the sett's place so no two neighbours match. */
 Paint granite(bool fat, int place) {
-  return Paint::recipe(materialkit::stone({
+  return Paint::recipe(material::kit::stone({
       .hi = fat ? kWhiteLit : kGreyLit,
       .lo = fat ? kWhiteShade : kGreyShade,
       .bedLength = 260,

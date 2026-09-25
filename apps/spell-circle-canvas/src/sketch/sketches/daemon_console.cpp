@@ -86,7 +86,6 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace mskia = sigil::material::skia;
 namespace ocio = sigil::material::ocio;
 namespace sdf = sigil::material::sdf;
 namespace weave = sigil::weave;

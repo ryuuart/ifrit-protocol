@@ -13,27 +13,27 @@ auto WinampBase::buildMaterials() -> void {
   // window, which is then the loudest texture in the picture and is not
   // in the skin. One recipe, three windows, two sizes — the unit square
   // is what makes 275x116 and 400x377 share it.
-  steel = mskia::Paint::blend(
-      {{mskia::Paint::linearUnit({0, 0}, {0, 1},
+  steel = material::skia::Paint::blend(
+      {{material::skia::Paint::linearUnit({0, 0}, {0, 1},
                                  {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
         SkBlendMode::kSrcOver},
-       {mskia::Paint::radialUnit(
+       {material::skia::Paint::radialUnit(
             {0.34f, 0.42f}, 1.15f,
             {{0.0f, {1, 1, 1, 0.055f}}, {1.0f, {1, 1, 1, 0.0f}}}),
         SkBlendMode::kSrcOver},
-       {mskia::Paint::recipe(field::grain(0.34f, 2, 3.0f, 0.20f, 1.0f)),
+       {material::skia::Paint::recipe(field::grain(0.34f, 2, 3.0f, 0.20f, 1.0f)),
         SkBlendMode::kOverlay}});
 
   // The desktop: flat teal plus ONE low-octave dither, baked once.
-  deskMat = mskia::Paint::blend(
-      {{mskia::Paint::solid(kDesk), SkBlendMode::kSrcOver},
-       {mskia::Paint::recipe(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f)),
+  deskMat = material::skia::Paint::blend(
+      {{material::skia::Paint::solid(kDesk), SkBlendMode::kSrcOver},
+       {material::skia::Paint::recipe(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f)),
         SkBlendMode::kOverlay}});
 
   // CRT glass: the flat screen colour plus a soft off-centre catch-light.
-  lcdMat = mskia::Paint::blend(
-      {{mskia::Paint::solid(kLcd), SkBlendMode::kSrcOver},
-       {mskia::Paint::radialUnit({0.28f, 0.22f}, 1.25f,
+  lcdMat = material::skia::Paint::blend(
+      {{material::skia::Paint::solid(kLcd), SkBlendMode::kSrcOver},
+       {material::skia::Paint::radialUnit({0.28f, 0.22f}, 1.25f,
                                  {{0.0f, hexColor(0x2A2A46, 0.75f)},
                                   {1.0f, hexColor(0x2A2A46, 0.0f)}}),
         SkBlendMode::kSrcOver}});
@@ -47,7 +47,7 @@ auto WinampBase::buildMaterials() -> void {
   // reason. Hard stops at each twenty-eighth make the same picture the
   // sheet does.
   {
-    std::vector<mskia::Stop> steps;
+    std::vector<material::skia::Stop> steps;
     constexpr int kFrames = 28;
     const auto ramp = [](float u) {
       return u < 0.46f ? sigil::material::mixLinear(kEqTop, kEqMid, u / 0.46f)
@@ -61,22 +61,22 @@ auto WinampBase::buildMaterials() -> void {
       steps.push_back({lo, c});
       steps.push_back({hi, c});
     }
-    faderTrack = mskia::Paint::linearUnit({0, 0}, {0, 1}, steps);
+    faderTrack = material::skia::Paint::linearUnit({0, 0}, {0, 1}, steps);
   }
 
-  graphMat = mskia::Paint::solid(kGraph);
+  graphMat = material::skia::Paint::solid(kGraph);
 
   // The title-bar grip: horizontal hairlines, as a rotated stripe tile.
   // TITLEBAR.BMP's grip rails are CREAM, not the body's blue-grey — the
   // one warm thing on an otherwise cold window.
-  gripTile = patterns::stripes(n(1), n(1), hexColor(0xC8BC98));
+  gripTile = material::pattern::stripes(n(1), n(1), hexColor(0xC8BC98));
   gripTile.rotate(90.0f);
   // The preview-visualiser swatch's default checkerboard art.
   previewCheck =
-      patterns::checker(n(2), hexColor(0x2B2B44), hexColor(0x14141F));
+      material::pattern::checker(n(2), hexColor(0x2B2B44), hexColor(0x14141F));
   // The visualiser well's baked dot grid (MAIN.BMP paints these under the
   // bars, in VISCOLOR's own "grey for dots").
-  visDots = patterns::halftone(n(2), n(0.5f), kUnlit, false);
+  visDots = material::pattern::halftone(n(2), n(0.5f), kUnlit, false);
   // The EQ graph's dashed rules.
   graphGrid = Pattern::tile({n(4), n(4)}, [](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;
@@ -89,7 +89,7 @@ auto WinampBase::key(float x, float y, float w, float h, Element glyph)
     -> Element {
   using namespace wa;
   Element e = at(box(), x, y, w, h);
-  e.fill(mskia::Paint::linearUnit(
+  e.fill(material::skia::Paint::linearUnit(
       {0, 0}, {0, 1},
       {{0.0f, sigil::material::lighten(kBtnFace, 0.10f)},
        {0.55f, kBtnFace},
@@ -161,7 +161,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   };
   // the wordmark, the egg and the window buttons' glyphs: one gold
   return raised(at(box(), 0, 0, wN, hN)
-                    .fill(mskia::Paint::linearUnit(
+                    .fill(material::skia::Paint::linearUnit(
                         {0, 0}, {0, 1},
                         {{0.0f, sigil::material::lighten(kTitle, 0.06f)},
                          {1.0f, dark(kTitle, 0.25f)}}))

@@ -55,9 +55,7 @@
 #include <utility>
 
 namespace sketch = sigil::sketch;
-namespace mat = sigil::material;
-namespace mskia = sigil::material::skia;
-namespace ptn = sigil::material::pattern;
+namespace material = sigil::material;
 
 using namespace sigil::compose;
 
@@ -82,9 +80,9 @@ sketch::kit::Theme sheetTheme() {
  *  rules 7 px apart (detail a blur destroys visibly) under three discs.
  *  The tile is baked once and repeated; the rotation only remaps the
  *  sampling, so the run stays seamless. */
-mskia::Paint rules() {
-  return mskia::Paint::shader(
-      ptn::sequence({{3.5f, mat::rgb(0x293147)}, {3.5f, mat::rgb(0x9eb3db)}})
+material::skia::Paint rules() {
+  return material::skia::Paint::shader(
+      material::pattern::sequence({{3.5f, material::rgb(0x293147)}, {3.5f, material::rgb(0x9eb3db)}})
           .rotate(90)
           .texture()
           .shader());
@@ -92,16 +90,16 @@ mskia::Paint rules() {
 
 Element subject() {
   return stack().width(kPanel).height(kPanel).fill(rules()).children(
-      {kit::dot({64, 68}, 38, mskia::Paint::solid({0.98f, 0.44f, 0.34f, 1})),
-       kit::dot({122, 122}, 26, mskia::Paint::solid({0.42f, 0.86f, 0.72f, 1})),
+      {kit::dot({64, 68}, 38, material::skia::Paint::solid({0.98f, 0.44f, 0.34f, 1})),
+       kit::dot({122, 122}, 26, material::skia::Paint::solid({0.42f, 0.86f, 0.72f, 1})),
        kit::dot({166, 180}, 48,
-                mskia::Paint::solid({0.96f, 0.82f, 0.36f, 1}))});
+                material::skia::Paint::solid({0.96f, 0.82f, 0.36f, 1}))});
 }
 
 /** DEPTH OF FIELD: three stops down the unit square — max sigma at the
  *  top edge, zero at the focal line, max again at the bottom. */
-mskia::Paint dofMap() {
-  return mskia::Paint::linearUnit(
+material::skia::Paint dofMap() {
+  return material::skia::Paint::linearUnit(
       {0, 0}, {0, 1},
       {{0.0f, {1, 1, 1, 1}}, {kFocal, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
@@ -109,14 +107,14 @@ mskia::Paint dofMap() {
 /** A LENS EDGE: zero on axis, max at the inscribed circle. glowUnit is
  *  the one that means "fills this box" (radialUnit reaches the
  *  corners). */
-mskia::Paint lensMap() {
-  return mskia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
+material::skia::Paint lensMap() {
+  return material::skia::Paint::glowUnit({0.5f, 0.5f}, 1.0f,
                                 {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
 
 sketch::kit::ComparisonCase panel(const char* caseTitle, const char* call,
-                                  const char* note, mskia::Paint map,
-                                  mskia::Effect e, std::string key) {
+                                  const char* note, material::skia::Paint map,
+                                  material::skia::Effect e, std::string key) {
   return {.title = caseTitle,
           .control = call,
           .figure = box().column().gap(12).children(
@@ -163,7 +161,7 @@ struct BlurFalloff {
                                "shows where that blur is applied.")
                                .width(660),
                            box().width(660).height(42).fill(
-                               mskia::Paint::linearUnit(
+                               material::skia::Paint::linearUnit(
                                    {0, 0}, {1, 0},
                                    {{0, {0, 0, 0, 1}}, {1, {1, 1, 1, 1}}})),
                            box()
@@ -182,24 +180,24 @@ struct BlurFalloff {
                  {.cases =
                       {panel("UNIFORM", "filter(Blur(14, 14))",
                              "Every position receives the same blur.",
-                             mskia::Paint::solid({1, 1, 1, 1}),
-                             mskia::Effect::filter(SkImageFilters::Blur(
+                             material::skia::Paint::solid({1, 1, 1, 1}),
+                             material::skia::Effect::filter(SkImageFilters::Blur(
                                  kMaxSigma, kMaxSigma, nullptr)),
                              "flat"),
                        panel("DEPTH OF FIELD", "blur(linearUnit 3 stops, 14)",
                              "The dark horizon stays sharp; distance from it "
                              "increases blur.",
-                             dofMap(), mskia::Effect::blur(dofMap(), kMaxSigma),
+                             dofMap(), material::skia::Effect::blur(dofMap(), kMaxSigma),
                              "dof"),
                        panel("LENS EDGE", "blur(glowUnit, 14)",
                              "The centre stays sharp while the edge softens.",
                              lensMap(),
-                             mskia::Effect::blur(lensMap(), kMaxSigma), "lens"),
+                             material::skia::Effect::blur(lensMap(), kMaxSigma), "lens"),
                        panel("RACK FOCUS", "blur(dofMap, 14) · live",
                              "The depth map stays fixed. Its maximum blur "
                              "breathes with time.",
                              dofMap(),
-                             mskia::Effect::blur(dofMap(), kMaxSigma)
+                             material::skia::Effect::blur(dofMap(), kMaxSigma)
                                  .uniform("maxSigma", &rack),
                              "rack")},
                   .measure = 1020,

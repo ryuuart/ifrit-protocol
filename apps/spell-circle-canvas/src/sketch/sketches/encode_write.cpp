@@ -31,7 +31,6 @@ namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace img = sigil::image;
 namespace io = sigil::io;
-namespace mskia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -53,7 +52,7 @@ sk_sp<SkImage> source() {
   sigil::draw::on(
       *surface->getCanvas(), {kSide, kSide}, [](sigil::draw::Pen& pen) {
         pen.background(
-            mskia::Paint::linearUnit({0, 0}, {1, 1},
+            material::skia::Paint::linearUnit({0, 0}, {1, 1},
                                      {{0.0f, {0.10f, 0.16f, 0.30f, 1}},
                                       {1.0f, {0.92f, 0.62f, 0.30f, 1}}}));
         pen.noStroke();

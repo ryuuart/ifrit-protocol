@@ -48,11 +48,9 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace field = sigil::material::field;
-namespace mskia = sigil::material::skia;
 namespace motion = sigil::motion;
 namespace draw = sigil::draw;
 namespace path = sigil::geometry::path;
-namespace patterns = sigil::material::pattern;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;

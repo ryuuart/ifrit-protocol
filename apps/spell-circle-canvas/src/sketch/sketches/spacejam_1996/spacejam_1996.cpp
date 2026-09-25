@@ -32,11 +32,11 @@ struct SpaceJam1996 {
   float artH[sj::kAssetCount] = {};
 
   Pattern stars;
-  mskia::Paint starsMat;
+  material::skia::Paint starsMat;
   /** THE LIVE BALL'S MATERIAL, built once and held. Its shader steps its
    *  own uTime at the GIF's frame rate, so the value is the same one every
    *  describe — and describe runs again on every arrival. */
-  mskia::Paint fastballMat;
+  material::skia::Paint fastballMat;
   // <TABLE WIDTH=500 CELLSPACING=2 CELLPADDING=1>, at this sketch's scale.
   // The columns and rows are the ones the children claim.
   layouts::Table table{.columns = 5,
@@ -370,7 +370,7 @@ struct SpaceJam1996 {
     // the SCREEN, not of the artwork — which is exactly why it lives here
     // and the RGB555 snap lives in the materials.
     ctx.composer.setView(
-        mskia::Effect::shader(ctx.assets.shader(ctx.local("view.sksl"))));
+        material::skia::Effect::shader(ctx.assets.shader(ctx.local("view.sksl"))));
 
     for (int i = 0; i < kAssetCount; ++i) {
       gotBytes[i] = 0;

@@ -337,7 +337,7 @@ struct WorldHud {
                             box()
                                 .inset(0)
                                 .fill(Pattern(
-                                          mpattern::stripes(
+                                          material::pattern::stripes(
                                               2, 47, hexColor(0x2F6FA8, 0.30f)))
                                           .material())
                                 .rotate(24.0f)
