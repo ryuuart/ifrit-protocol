@@ -7,6 +7,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigildata/decode/Decoders.h>
 #include <sigildata/query/Database.h>
+#include <sigilimage/decode/Decoders.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/transport/Transport.h>
 
@@ -87,6 +88,12 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // a directory sketch is its own and for a bare file is the folder the
   // sketches share. A sketch that carries data of its own is a directory.
   if (!m_sketches.empty()) m_hub.mount("sketch://", m_sketches);
+  // An image is a resource SigilImage says the meaning of: with its
+  // decoders on, hub().load<image::ImageAsset>(uri) answers — stills,
+  // animations and vector sources, with the library's own DecodeOptions
+  // when a sketch names a size or a layer — and load<ChannelData>() the
+  // float planes of the same file.
+  sigil::image::registerDecoders(m_hub);
   // A data file is a resource like an image is: with the decoders on,
   // hub().load<Table>("sketch://<key>/data/x.csv") answers, cached and reloaded
   // by the same machinery, and a sketch carries no literal table. A
@@ -124,7 +131,7 @@ std::shared_ptr<const sigil::data::Database> Assets::database(
 
 std::shared_ptr<const sigil::image::ImageAsset> Assets::image(
     std::string_view name) {
-  if (auto asset = m_hub.image(uriFor(name))) {
+  if (auto asset = m_hub.load<sigil::image::ImageAsset>(uriFor(name))) {
     std::erase(m_placeholders, name);
     return asset;
   }
@@ -203,7 +210,7 @@ bool Assets::poll() {
   if (changed) m_videos.clear();
   // Placeholders heal the moment their file becomes loadable.
   for (auto it = m_placeholders.begin(); it != m_placeholders.end();) {
-    if (m_hub.image(uriFor(*it))) {
+    if (m_hub.load<sigil::image::ImageAsset>(uriFor(*it))) {
       it = m_placeholders.erase(it);
       changed = true;
     } else {
