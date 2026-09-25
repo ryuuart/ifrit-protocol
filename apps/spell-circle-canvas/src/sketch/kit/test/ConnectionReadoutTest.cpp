@@ -1,8 +1,9 @@
 /** @file
  * A door's own words: the readout of a connection's vitals is the compose
  * kit's readout of the rows those vitals answer — for a door that is open
- * and has heard a sender, one that has shut and bound no address, and one
- * whose transport failed.
+ * and has heard a sender, one that has shut and bound no address, one
+ * whose transport failed after it opened, and one whose URI never opened
+ * at all.
  */
 
 #include <gtest/gtest.h>
@@ -114,11 +115,12 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   const Element readout =
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}}));
   EXPECT_TRUE(sameDrawing(
-      readout, byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8850"},
-                       {.name = u8"generation", .value = u8"0"},
-                       {.name = u8"dropped", .value = u8"0"},
-                       {.name = u8"undecodable", .value = u8"0"},
-                       {.name = u8"error", .value = u8"port 8850 is in use"}})));
+      readout,
+      byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8850"},
+              {.name = u8"generation", .value = u8"0"},
+              {.name = u8"dropped", .value = u8"0"},
+              {.name = u8"undecodable", .value = u8"0"},
+              {.name = u8"error", .value = u8"port 8850 is in use"}})));
   // What gives the case its power: the sender's row is another picture.
   EXPECT_FALSE(sameDrawing(
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),
@@ -127,6 +129,34 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"0"},
               {.name = u8"sender", .value = u8"-"}})));
+}
+
+TEST(SketchKitConnectionReadout,
+     ADoorThatNeverOpenedReadsWhyWhereTheSenderStood) {
+  // No transport is registered for the scheme, so the URI opens nothing:
+  // no door stands, no address is bound, nothing arrives, and the feed
+  // says why.
+  Hub hub;
+  data::Connection sky(hub, "ws://:8851/sky");
+  ASSERT_FALSE(sky.feed()->opened());
+  ASSERT_TRUE(sky.address().empty());
+  const std::string why = sky.error();
+  ASSERT_FALSE(why.empty());
+
+  const auto rows = [&why](std::u8string_view door) {
+    return byHand({{.name = u8"door", .value = door},
+                   {.name = u8"generation", .value = u8"0"},
+                   {.name = u8"dropped", .value = u8"0"},
+                   {.name = u8"undecodable", .value = u8"0"},
+                   {.name = u8"error", .value = compose::Utf8(why)}});
+  };
+  EXPECT_TRUE(sameDrawing(
+      onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),
+      rows(u8"ws://:8851/sky")));
+  EXPECT_TRUE(sameDrawing(
+      onTheSheet(kit::connectionReadout(
+          sky, {.door = u8"the sky's door", .rows = {.measure = 300}})),
+      rows(u8"the sky's door")));
 }
 
 }  // namespace

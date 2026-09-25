@@ -411,7 +411,7 @@ python = ["sketch.kit.bars"]
 [requirement.kit-connection-readout]
 native = "`sketch::kit::connectionReadout` over `data::Connection::Vitals`"
 library = "Sketch kit"
-python = ["sketch.kit.connectionReadout"]
+python = ["sketch.kit.connection_readout"]
 
 [requirement.kit-channel]
 native = "`sketch::kit::Channel` address follower"

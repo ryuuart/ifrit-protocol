@@ -405,6 +405,26 @@ by `text_paints`, whose SPARKLE OVER A BASE cell states its ink over
 `PaintBox::Subtree` to sample the field in pixels; `stock_materials` shows
 it only as a fill.
 
+## Ten Data sketches still snapshot and print a connection's vitals by hand
+
+`data::Connection::vitals()` answers one comparable
+`data::Connection::Vitals`, and `sketch::kit::connectionReadout(connection,
+{.door, .rows})` is the one readout over it; `feed_sky` reads both. Ten
+registered sketches still declare their own `Reading` (or `Vitals`)
+struct of those fields, fill it by hand, test it for a change and set
+their own rows in an order of their own: `phone_sky`, `webrtc_sky`,
+`osc_desk`, `feed_events`, `grpc_watch`, `midi_pads`, `serial_sensor`,
+`artnet_lights` and `channel_bind` over a `data::Connection`, and
+`feed_vitals` (`Vitals`, `vitalsOf`) over the `io::Feed` beneath one.
+
+What the sketches should say: a door keeps the `Vitals` it last showed
+and describes again when `vitals() != shown`, and its readout is
+`connectionReadout`. `feed_vitals` reads the feed with no connection
+over it, so it either opens one or keeps its own rows and says why. Each
+plate moves only where the kit's rows differ from the sketch's own (a
+row's name, its order, `-` for no sender, the error in the sender's
+row), and each commit names those rows.
+
 ## Python binds no path construction outside `sigil.skia`
 
 `src/common/python/geometry/Shapes.cpp`, `Polylines.cpp` and the path
