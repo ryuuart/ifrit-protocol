@@ -141,9 +141,8 @@ TEST(BrushFormat, ADirectoryLoadsThroughAHubAndItsRegisteredDecoder) {
   const std::string description = format::encodeBrush(written);
   const std::vector<std::byte> shape = tipPng(12);
   ASSERT_TRUE(hub.write("res://brushes/ink.sigilbrush/brush.json",
-                        description.data(), description.size()));
-  ASSERT_TRUE(hub.write("res://brushes/ink.sigilbrush/shape.png", shape.data(),
-                        shape.size()));
+                        std::as_bytes(std::span(description))));
+  ASSERT_TRUE(hub.write("res://brushes/ink.sigilbrush/shape.png", shape));
 
   const std::optional<brush::Tool> read =
       format::loadBrush(hub, "res://brushes/ink.sigilbrush");
@@ -154,8 +153,8 @@ TEST(BrushFormat, ADirectoryLoadsThroughAHubAndItsRegisteredDecoder) {
   EXPECT_FLOAT_EQ(brush::spacingOf(*read), 18.0f * 0.2f);
 
   // The same brush, this time as one file the hub's own load<T> answers.
-  ASSERT_TRUE(hub.write("res://brushes/bare.sigilbrush", description.data(),
-                        description.size()));
+  ASSERT_TRUE(hub.write("res://brushes/bare.sigilbrush",
+                        std::as_bytes(std::span(description))));
   const std::shared_ptr<const brush::Tool> bare =
       hub.load<brush::Tool>("res://brushes/bare.sigilbrush");
   ASSERT_TRUE(bare);

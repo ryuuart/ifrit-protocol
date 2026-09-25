@@ -431,7 +431,7 @@ TEST(DataDecode, AWriteThroughTheHubDropsTheTableItDecoded) {
   EXPECT_DOUBLE_EQ(1.0, hub.load<Table>("res://t.csv")->column<double>("v")[0]);
 
   const std::string edited = "v\n2\n3\n";
-  hub.write("res://t.csv", edited.data(), edited.size());
+  hub.write("res://t.csv", std::as_bytes(std::span(edited)));
   const std::shared_ptr<const Table> again = hub.load<Table>("res://t.csv");
   ASSERT_TRUE(again);
   EXPECT_EQ(2u, again->size());
