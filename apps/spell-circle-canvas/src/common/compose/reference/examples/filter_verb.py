@@ -51,11 +51,11 @@ class FilterVerb:
             compose.box(
                 cell("no filter", compose.box()),
                 cell(
-                    "filter(blur)", compose.box().filter(material.Effect.blur(3))
+                    "filter(blur)", compose.box().filter(material.Filter.blur(3))
                 ),
                 cell(
                     "filter(glow)",
-                    compose.box().filter(material.Effect.glow("#3fd6b0", 9)),
+                    compose.box().filter(material.Filter.glow("#3fd6b0", 9)),
                 ),
             )
             .row()

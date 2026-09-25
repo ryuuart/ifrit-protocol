@@ -4,7 +4,7 @@ The Python twin of blendMode_verb.cpp. A reference example: it is rendered
 with ``sigil render`` and belongs to no sketch registry.
 """
 
-from sigil import compose, skia
+from sigil import compose, material, skia
 from sigil.sketch import SketchContext, sketch
 
 GROUND = "#14181d"
@@ -13,7 +13,7 @@ DISC = "#4f8fd8"
 ASH = "#8ea0ad"
 
 
-def cell(caption: str, mode: skia.BlendMode) -> compose.Element:
+def cell(caption: str, mode: material.BlendMode) -> compose.Element:
     """One bed with one disc over it, the disc blended as named."""
     return (
         compose.box(
@@ -50,10 +50,10 @@ class BlendModeVerb:
     def describe(self) -> compose.Element:
         return (
             compose.box(
-                cell("SrcOver", skia.BlendMode.SrcOver),
-                cell("Multiply", skia.BlendMode.Multiply),
-                cell("Screen", skia.BlendMode.Screen),
-                cell("Difference", skia.BlendMode.Difference),
+                cell("Normal", material.BlendMode.Normal),
+                cell("Multiply", material.BlendMode.Multiply),
+                cell("Screen", material.BlendMode.Screen),
+                cell("Difference", material.BlendMode.Difference),
             )
             .row()
             .gap(16)

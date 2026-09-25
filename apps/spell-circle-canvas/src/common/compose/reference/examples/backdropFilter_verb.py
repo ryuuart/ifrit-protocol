@@ -59,7 +59,7 @@ class BackdropFilterVerb:
                 # panel's own translucent fill goes down.
                 panel(
                     "backdropFilter(blur)",
-                    compose.box().backdropFilter(material.Effect.blur(7)),
+                    compose.box().backdropFilter(material.Filter.blur(7)),
                 ),
             )
             .cover()
