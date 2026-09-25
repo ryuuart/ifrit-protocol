@@ -8,16 +8,16 @@ gRPC, QUIC and WebRTC — and the recording a feed is written down as.
 `README.md` beside the library is the front page; `SOURCES.md` is the
 other half, the resource that is fetched once.
 
-A **feed** is a resource that keeps arriving. `feed()` answers one `Feed`
-per URI for as long as anyone holds it, and a later ask for the same URI
-while it is held is the same object, so two readers of one port share
+A **feed** is a resource that keeps arriving. `listen()` answers one `Feed`
+per URI — a copyable handle — for as long as anyone holds it, and a later ask
+for the same URI while it is held is a handle onto the same door, so two readers of one port share
 one socket. What arrives is a byte message, delivered by a transport from
 whichever thread it runs on; the feed latches the newest WHOLE as
 `latest()` — a `sigil::io::Message`: its `Message::revision`, when it
 arrived, its payload and the sender it named, read out together — with a
 `state().revision` that counts every arrival, and queues each arrival for `receive()`, which
 hands them out in order and never waits. The queue is bounded by the feed's
-`FeedPolicy`: when it is full the oldest arrival is dropped and `state().dropped`
+`ListenOptions`: when it is full the oldest arrival is dropped and `state().dropped`
 counts it, because a reader that fell behind a state feed wants the
 newest, not the backlog. `close()` takes nothing more and keeps what was
 received readable. A feed's `state().error` says why a door could not be

@@ -8,9 +8,9 @@
 
 namespace ifrit::qt {
 
-std::unique_ptr<sigil::io::frames::Publisher> createPublisher(
+sigil::io::frames::Publisher createPublisher(
     QRhi* rhi, std::string name) {
-  if (!rhi) return nullptr;
+  if (!rhi) return {};
 #if defined(Q_OS_MACOS)
   if (rhi->backend() == QRhi::Metal) {
     const auto* handles =
@@ -28,7 +28,7 @@ std::unique_ptr<sigil::io::frames::Publisher> createPublisher(
         handles ? handles->dev : nullptr);
   }
 #endif
-  return nullptr;
+  return {};
 }
 
 void publishFrame(sigil::io::frames::Publisher& publisher,

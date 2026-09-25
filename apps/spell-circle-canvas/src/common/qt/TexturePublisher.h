@@ -20,7 +20,7 @@ namespace ifrit::qt {
 
 /** Opens the native publisher supported by this QRhi backend, or returns
  * null. The publisher must be destroyed before QRhi's device. */
-std::unique_ptr<sigil::io::frames::Publisher> createPublisher(
+sigil::io::frames::Publisher createPublisher(
     QRhi* rhi, std::string name);
 
 /** Publishes a texture from the QRhi that created the publisher. Drawing

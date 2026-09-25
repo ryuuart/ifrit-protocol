@@ -569,8 +569,8 @@ void bindRuntime(py::module_& module) {
              v.state();
              return sigil::python::HubHandle(
                  [v]() -> io::Hub& { return v.state()->assets->hub(); },
-                 [v](std::shared_ptr<io::Feed> feed) {
-                   v.state()->retainFeed(std::move(feed));
+                 [v](io::Feed feed) {
+                   return v.state()->retainFeed(std::move(feed));
                  });
            })
       .def("root",

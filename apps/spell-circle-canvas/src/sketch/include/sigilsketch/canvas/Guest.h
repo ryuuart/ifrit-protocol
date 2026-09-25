@@ -156,7 +156,7 @@ class Guest {
   Guest(bool deterministic, std::string name, std::string application);
 
   std::string m_name;
-  std::unique_ptr<io::frames::Subscription> m_subscription;
+  io::frames::Subscription m_subscription;
   /** The last picture, and what it was made OF: which frame had arrived
    *  and which recorder it was turned over on. */
   sk_sp<SkImage> m_picture;

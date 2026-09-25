@@ -380,26 +380,30 @@ class Hub {
    *  changed. */
   bool poll();
 
-  /** The feed at @p uri: the same object for the same URI while anyone
-   *  holds it. A URI replay() named plays that recording back; any other
-   *  opens through the transport registered for its scheme — the part
-   *  before "://" — called outside the hub's lock.
+  /** THE FEED AT @p uri: a handle onto the same door for the same URI
+   *  while anyone holds one. A URI replay() named plays that recording
+   *  back; any other opens through the transport registered for its
+   *  scheme — the part before "://" — called outside the hub's lock.
+   *  Every transport linked into the program is registered on the first
+   *  ask for a scheme nothing answers yet; `registerTransports()` is the
+   *  explicit form. @p options are the first ask's: a later ask for a
+   *  door that stands is handed that door as it was opened.
    *  @trap No scheme, no transport, or an unreadable recording is not a
-   *  failure to answer: the feed exists and its error() says why. */
-  std::shared_ptr<Feed> feed(std::string_view uri, FeedPolicy policy = {});
+   *  failure to answer: the feed exists and `state().error` says why. */
+  Feed listen(std::string_view uri, ListenOptions options = {});
 
   /** THE FEED AT @p uri, PLAYED FROM A RECORDING instead of a door:
    *  @p recording is a file, or a URI the mount table resolves to one,
    *  written by `Feed::record()`. A feed already standing at @p uri is
-   *  closed first, and every later feed() on @p uri — for as long as
+   *  closed first, and every later listen() on @p uri — for as long as
    *  this hub lives — plays the same file, so a reader written against
    *  the live wire reads the recording without knowing it. The recording
    *  starts on the first advance after the feed is made and closes the
    *  feed after its last message.
    *  @trap Naming @p uri again replaces the recording it plays; a feed
    *  still held from the earlier call is closed, not redirected. */
-  std::shared_ptr<Feed> replay(std::string_view uri, std::string_view recording,
-                               FeedPolicy policy = {});
+  Feed replay(std::string_view uri, std::string_view recording,
+              ListenOptions options = {});
 
   /** Installs the transport a scheme opens through; registering a
    *  scheme again replaces it. */
@@ -411,7 +415,7 @@ class Hub {
   Transport feedTransport(std::string_view scheme) const;
 
   /** Every feed currently held by someone, in opening order. */
-  std::vector<std::shared_ptr<Feed>> feeds() const;
+  std::vector<Feed> feeds() const;
 
   /** Advances every replayed recording to the steady time since this
    *  hub was made. A live feed is unaffected. */
@@ -527,7 +531,11 @@ class Hub {
    *  the list erases the entries whose feed is gone, which is why the
    *  list is mutable: dropping the name of something that no longer
    *  exists changes no answer this hub can give. */
-  mutable std::vector<std::pair<std::string, std::weak_ptr<Feed>>> m_feeds;
+  mutable std::vector<std::pair<std::string, std::weak_ptr<detail::FeedDoor>>>
+      m_feeds;
+  /** Whether the transports linked into the program were registered on
+   *  this hub, which happens once, on the first ask nothing answered. */
+  bool m_linkedTransports = false;
   /** The callbacks registered through onAdvance(), held weakly so one
    *  lives exactly as long as the lease that owns it. An advance copies
    *  the live ones out from under the lock — a callback reads feeds and

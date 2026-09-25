@@ -34,7 +34,7 @@ class Recorder {
    *  file a reader is told about is the file being written. False when
    *  there is no feed to record, and when the file cannot be written —
    *  the feed's `error()` then says why. */
-  bool record(const std::shared_ptr<io::Feed>& feed,
+  bool record(const io::Feed& feed,
               std::filesystem::path path);
 
   /** Takes no more. What reached the file stays whole. */
@@ -51,7 +51,7 @@ class Recorder {
    *  is closed, and the feed that comes back delivers what the file
    *  holds as the wires are dispatched. The answer carries a sentence in
    *  its `error()` when the file is not a recording. */
-  std::shared_ptr<io::Feed> replay(std::string_view uri,
+  io::Feed replay(std::string_view uri,
                                    const std::filesystem::path& path);
 
  private:

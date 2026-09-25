@@ -99,8 +99,8 @@ double SeerSession::elapsed() const {
       .count();
 }
 
-std::shared_ptr<sigil::io::Feed> SeerSession::selectedFeed() const {
-  if (m_selectedUri.isEmpty()) return nullptr;
+sigil::io::Feed SeerSession::selectedFeed() const {
+  if (m_selectedUri.isEmpty()) return {};
   return m_wires.feed(m_selectedUri.toStdString());
 }
 
@@ -131,22 +131,22 @@ void SeerSession::tick() {
   m_draining = true;
   {
     const auto inspected = selectedFeed();
-    if (inspected != m_loggedFeed.lock()) {
+    if (!(inspected == m_loggedFeed)) {
       m_log.clear();
       m_messages.clear();
       m_loggedFeed = inspected;
     }
     const auto received = m_receiver.opened()
                               ? m_wires.feed(m_receiver.uri().toStdString())
-                              : nullptr;
-    const auto drain = [&](const std::shared_ptr<sigil::io::Feed>& feed) {
+                              : sigil::io::Feed();
+    const auto drain = [&](const sigil::io::Feed& feed) {
       if (!feed) return;
-      while (m_afterDrain.empty() && m_wires.feed(feed->uri()) == feed) {
-        const auto arrival = feed->receive();
+      while (m_afterDrain.empty() && m_wires.feed(feed.uri()) == feed) {
+        const auto arrival = feed.receive();
         if (!arrival) break;
-        if (feed == received && m_receiver.uri().toStdString() == feed->uri())
-          m_receiver.accept(*feed, *arrival);
-        if (feed == inspected && m_selectedUri.toStdString() == feed->uri()) {
+        if (feed == received && m_receiver.uri().toStdString() == feed.uri())
+          m_receiver.accept(feed, *arrival);
+        if (feed == inspected && m_selectedUri.toStdString() == feed.uri()) {
           m_log.append(*arrival);
           if (arrival->payload) echoes.push_back(arrival->payload);
         }
@@ -191,7 +191,7 @@ void SeerSession::open(const QString& uri) {
   const QString named = uri.trimmed();
   if (named.isEmpty()) return;
   const QString error =
-      QString::fromStdString(m_wires.open(named.toStdString())->state().error);
+      QString::fromStdString(m_wires.open(named.toStdString()).state().error);
   m_wires.tick(elapsed());
   m_wireList.refresh(m_wires.vitals());
   setNote(error);
@@ -253,7 +253,7 @@ void SeerSession::replay(const QString& uri, const QUrl& file) {
     return;
   }
   const QString error = QString::fromStdString(
-      m_recorder.replay(named.toStdString(), pathOf(file))->state().error);
+      m_recorder.replay(named.toStdString(), pathOf(file)).state().error);
   m_wires.tick(elapsed());
   m_wireList.refresh(m_wires.vitals());
   setNote(error);

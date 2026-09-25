@@ -5,7 +5,7 @@
  * back instead of listening.
  */
 
-#include "sigilio/hub/Feed.h"
+#include "FeedDoor.h"
 
 #include <cmath>
 #include <limits>
@@ -34,6 +34,8 @@ struct RecordingSlot {
 };
 }  // namespace detail
 
+using detail::FeedDoor;
+
 Recording::Recording(std::shared_ptr<detail::RecordingSlot> slot)
     : m_slot(std::move(slot)) {}
 
@@ -61,12 +63,12 @@ bool Recording::stopped() const {
   return m_slot->writer == nullptr;
 }
 
-Feed::Feed(std::string uri, FeedPolicy policy)
-    : m_uri(std::move(uri)), m_policy(policy) {}
+FeedDoor::FeedDoor(std::string uri, ListenOptions options)
+    : m_uri(std::move(uri)), m_options(std::move(options)) {}
 
-Feed::~Feed() { close(); }
+FeedDoor::~FeedDoor() { close(); }
 
-void Feed::deliverLocked(std::shared_ptr<const Bytes> payload,
+void FeedDoor::deliverLocked(std::shared_ptr<const Bytes> payload,
                          std::chrono::duration<double> arrivedAt,
                          std::chrono::steady_clock::time_point receivedAt,
                          std::string sender) {
@@ -98,13 +100,13 @@ void Feed::deliverLocked(std::shared_ptr<const Bytes> payload,
   m_messages.push_back(std::move(message));
   // A reader that cannot keep up loses the OLDEST messages: the newest
   // is what a frame draws, and latest() has it whatever the queue does.
-  while (m_messages.size() > m_policy.capacity) {
+  while (m_messages.size() > m_options.capacity) {
     m_messages.pop_front();
     ++m_dropped;
   }
 }
 
-void Feed::deliver(Bytes payload, std::string sender) {
+void FeedDoor::deliver(Bytes payload, std::string sender) {
   const auto now = std::chrono::steady_clock::now();
   // Shared before the lock: copying a message is the delivering
   // thread's own work, not something the next reader waits behind.
@@ -113,7 +115,7 @@ void Feed::deliver(Bytes payload, std::string sender) {
   deliverLocked(std::move(shared), now - m_made, now, std::move(sender));
 }
 
-void Feed::deliver(Bytes payload, std::chrono::duration<double> arrivedAt) {
+void FeedDoor::deliver(Bytes payload, std::chrono::duration<double> arrivedAt) {
   auto shared = std::make_shared<const Bytes>(std::move(payload));
   const std::lock_guard lock(m_mutex);
   // A message carrying its own time carries no sender: it is a
@@ -123,12 +125,12 @@ void Feed::deliver(Bytes payload, std::chrono::duration<double> arrivedAt) {
                 std::string());
 }
 
-void Feed::fail(std::string why) {
+void FeedDoor::fail(std::string why) {
   const std::lock_guard lock(m_mutex);
   m_error = std::move(why);
 }
 
-std::function<void()> Feed::closeLocked() {
+std::function<void()> FeedDoor::closeLocked() {
   m_closed = true;
   if (m_recorder) m_recorder->stop();
   m_recorder.reset();
@@ -137,7 +139,7 @@ std::function<void()> Feed::closeLocked() {
   return ending;
 }
 
-void Feed::close() {
+void FeedDoor::close() {
   std::function<void()> ending;
   {
     const std::lock_guard lock(m_mutex);
@@ -147,7 +149,7 @@ void Feed::close() {
   if (ending) ending();
 }
 
-void Feed::open(TransportEnd opened) {
+void FeedDoor::open(TransportEnd opened) {
   std::function<void()> unwanted;
   {
     const std::lock_guard lock(m_mutex);
@@ -177,12 +179,12 @@ void Feed::open(TransportEnd opened) {
   if (unwanted) unwanted();
 }
 
-std::optional<Message> Feed::latest() const {
+std::optional<Message> FeedDoor::latest() const {
   const std::lock_guard lock(m_mutex);
   return m_latest;
 }
 
-std::optional<Message> Feed::receive() {
+std::optional<Message> FeedDoor::receive() {
   const std::lock_guard lock(m_mutex);
   if (m_messages.empty()) return std::nullopt;
   Message message = std::move(m_messages.front());
@@ -190,7 +192,7 @@ std::optional<Message> Feed::receive() {
   return message;
 }
 
-FeedState Feed::state() const {
+FeedState FeedDoor::state() const {
   const std::lock_guard lock(m_mutex);
   FeedState state;
   state.readiness = m_closed       ? ReadyState::Closed
@@ -203,24 +205,28 @@ FeedState Feed::state() const {
   return state;
 }
 
-bool Feed::send(const Bytes& payload, const SendOptions& options) const {
+bool FeedDoor::send(const Bytes& payload, const SendOptions& options) const {
   std::function<bool(const Bytes&)> outward;
   std::function<bool(std::string_view, const Bytes&)> addressed;
+  std::string to = options.to;
   {
     const std::lock_guard lock(m_mutex);
     if (m_closed) return false;
-    if (options.to.empty())
+    // A send that names nobody goes to the door's own peer, and where the
+    // door holds none, to the peer it was opened with.
+    if (to.empty() && !m_openedEnd.send) to = m_options.peer;
+    if (to.empty())
       outward = m_openedEnd.send;
     else
       addressed = m_openedEnd.sendTo;
   }
   // Outside the lock: a transport that waits on a socket must not stop
   // a reader from draining what has already arrived.
-  if (!options.to.empty()) return addressed ? addressed(options.to, payload) : false;
+  if (!to.empty()) return addressed ? addressed(to, payload) : false;
   return outward ? outward(payload) : false;
 }
 
-std::vector<std::string> Feed::peers() const {
+std::vector<std::string> FeedDoor::peers() const {
   std::function<std::vector<std::string>()> attached;
   {
     const std::lock_guard lock(m_mutex);
@@ -232,7 +238,7 @@ std::vector<std::string> Feed::peers() const {
   return attached ? attached() : std::vector<std::string>{};
 }
 
-Recording Feed::record(std::filesystem::path path) {
+Recording FeedDoor::record(std::filesystem::path path) {
   // The file is opened, and emptied, before the lock is taken: a reader
   // never waits on a disk.
   auto slot = std::make_shared<detail::RecordingSlot>();
@@ -253,7 +259,7 @@ Recording Feed::record(std::filesystem::path path) {
   return Recording(std::move(slot));
 }
 
-void Feed::replay(std::vector<Message> recording) {
+void FeedDoor::replay(std::vector<Message> recording) {
   const std::lock_guard lock(m_mutex);
   m_recording = std::move(recording);
   m_replayed = 0;
@@ -266,7 +272,7 @@ void Feed::replay(std::vector<Message> recording) {
   m_wasOpened = true;
 }
 
-void Feed::advance(std::chrono::duration<double> time) {
+void FeedDoor::advance(std::chrono::duration<double> time) {
   std::function<void()> ending;
   {
     const std::lock_guard lock(m_mutex);
@@ -296,7 +302,7 @@ void Feed::advance(std::chrono::duration<double> time) {
   if (ending) ending();
 }
 
-std::chrono::steady_clock::time_point Feed::receivedAtLocked(
+std::chrono::steady_clock::time_point FeedDoor::receivedAtLocked(
     std::chrono::duration<double> arrivedAt) const {
   using Clock = std::chrono::steady_clock;
   using Duration = Clock::duration;
@@ -309,6 +315,48 @@ std::chrono::steady_clock::time_point Feed::receivedAtLocked(
   const Duration offset(static_cast<Duration::rep>(ticks));
   if (origin > Clock::time_point::max() - offset) return origin;
   return origin + offset;
+}
+
+// ── the handle ─────────────────────────────────────────────────────────
+
+Feed::Feed(std::string uri, ListenOptions options)
+    : m_door(std::make_shared<FeedDoor>(std::move(uri), std::move(options))) {}
+
+void Feed::close() const {
+  if (m_door) m_door->close();
+}
+
+std::optional<Message> Feed::latest() const {
+  return m_door ? m_door->latest() : std::nullopt;
+}
+
+std::optional<Message> Feed::receive() const {
+  return m_door ? m_door->receive() : std::nullopt;
+}
+
+FeedState Feed::state() const {
+  if (m_door) return m_door->state();
+  // A handle onto nothing is a door that is shut: nothing arrives at it.
+  FeedState nothing;
+  nothing.readiness = ReadyState::Closed;
+  return nothing;
+}
+
+const std::string& Feed::uri() const {
+  static const std::string nothing;
+  return m_door ? m_door->uri() : nothing;
+}
+
+bool Feed::send(const Bytes& payload, const SendOptions& options) const {
+  return m_door && m_door->send(payload, options);
+}
+
+std::vector<std::string> Feed::peers() const {
+  return m_door ? m_door->peers() : std::vector<std::string>{};
+}
+
+Recording Feed::record(std::filesystem::path path) const {
+  return m_door ? m_door->record(std::move(path)) : Recording();
 }
 
 }  // namespace sigil::io

@@ -70,8 +70,8 @@ class IOWebSocketClient : public ::testing::Test {
 
   /** The URL a client reaches @p listener at: the loopback, the port it
    *  bound, and the path it answers. */
-  static std::string urlOf(const std::shared_ptr<Feed>& listener) {
-    const std::string address = listener->state().localAddress;
+  static std::string urlOf(const Feed& listener) {
+    const std::string address = listener.state().localAddress;
     const size_t path = address.find('/', address.find("://") + 3);
     return "ws://127.0.0.1:" + std::to_string(portOf(address)) +
            (path == std::string::npos ? std::string() : address.substr(path));
@@ -85,41 +85,41 @@ TEST_F(IOWebSocketClient, AUriThatNamesNoHostStillOpensTheListenerBehindIt) {
   // One scheme, two shapes: the client stands in front of the listener
   // and hands it every URI that names a port to hold rather than a
   // server to call.
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  EXPECT_TRUE(listener->state().localAddress.starts_with("ws://[::]:"))
-      << listener->state().localAddress;
-  EXPECT_NE(portOf(listener->state().localAddress), 0);
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  EXPECT_TRUE(listener.state().localAddress.starts_with("ws://[::]:"))
+      << listener.state().localAddress;
+  EXPECT_NE(portOf(listener.state().localAddress), 0);
 }
 
 TEST_F(IOWebSocketClient, AClientSaysTheServerItCalledIsItsAddress) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
 
   const std::string url = urlOf(listener);
-  const std::shared_ptr<Feed> client = hub.feed(url);
-  ASSERT_TRUE(client->state().error.empty()) << client->state().error;
+  const Feed client = hub.listen(url);
+  ASSERT_TRUE(client.state().error.empty()) << client.state().error;
   // A client has the one address it dialled: the port its own socket
   // took is the system's to choose and nothing anybody could reach it
   // at.
-  EXPECT_EQ(client->state().localAddress, url);
+  EXPECT_EQ(client.state().localAddress, url);
 }
 
 TEST_F(IOWebSocketClient, AClientsMessageArrivesOnTheListenerNamingTheClient) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const std::shared_ptr<Feed> client = hub.feed(urlOf(listener));
-  ASSERT_TRUE(client->state().error.empty()) << client->state().error;
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const Feed client = hub.listen(urlOf(listener));
+  ASSERT_TRUE(client.state().error.empty()) << client.state().error;
 
   // The handshake runs on the client's own thread, so what says the
   // session is up is the first send that goes out over it.
   ASSERT_TRUE(waitUntil([&] {
-    return client->send(bytesOf("a scene arrives"));
-  })) << client->state().error;
+    return client.send(bytesOf("a scene arrives"));
+  })) << client.state().error;
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "a scene arrives");
-  const std::optional<Message> heard = listener->receive();
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "a scene arrives");
+  const std::optional<Message> heard = listener.receive();
   ASSERT_TRUE(heard.has_value());
   // The client reached the listener over loopback, and the arrival names
   // that address with the port the client's own socket took, which is
@@ -129,23 +129,23 @@ TEST_F(IOWebSocketClient, AClientsMessageArrivesOnTheListenerNamingTheClient) {
 }
 
 TEST_F(IOWebSocketClient, AListenersSendArrivesOnTheClientNamingTheServer) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
   const std::string url = urlOf(listener);
-  const std::shared_ptr<Feed> client = hub.feed(url);
-  ASSERT_TRUE(client->state().error.empty()) << client->state().error;
+  const Feed client = hub.listen(url);
+  ASSERT_TRUE(client.state().error.empty()) << client.state().error;
 
   // The listener's send goes out to every peer on the path, so the
   // client has to be attached before it: a message of the client's the
   // listener has taken is what says it is.
-  ASSERT_TRUE(waitUntil([&] { return client->send(bytesOf("here")); }))
-      << client->state().error;
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision == 1u; }));
+  ASSERT_TRUE(waitUntil([&] { return client.send(bytesOf("here")); }))
+      << client.state().error;
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision == 1u; }));
 
-  EXPECT_TRUE(listener->send(bytesOf("out to everyone")));
-  ASSERT_TRUE(waitUntil([&] { return client->latest().has_value(); }));
-  EXPECT_EQ(client->latest()->payload->asText(), "out to everyone");
-  const std::optional<Message> back = client->receive();
+  EXPECT_TRUE(listener.send(bytesOf("out to everyone")));
+  ASSERT_TRUE(waitUntil([&] { return client.latest().has_value(); }));
+  EXPECT_EQ(client.latest()->payload->asText(), "out to everyone");
+  const std::optional<Message> back = client.receive();
   ASSERT_TRUE(back.has_value());
   // A client has one peer, the server it called, and every message it
   // takes is named for it.
@@ -162,42 +162,42 @@ TEST_F(IOWebSocketClient, AServerNobodyIsHoldingLeavesTheReasonOnTheFeed) {
   }
   ASSERT_NE(port, 0);
 
-  const std::shared_ptr<Feed> feed =
-      hub.feed("ws://127.0.0.1:" + std::to_string(port) + "/sky");
+  const Feed feed =
+      hub.listen("ws://127.0.0.1:" + std::to_string(port) + "/sky");
   // The handshake runs on the feed's own thread, so the sentence it
   // could not connect stands on the feed a moment after it is asked for
   // rather than within the ask.
-  EXPECT_TRUE(waitUntil([&] { return !feed->state().error.empty(); }));
-  EXPECT_FALSE(feed->latest().has_value());
+  EXPECT_TRUE(waitUntil([&] { return !feed.state().error.empty(); }));
+  EXPECT_FALSE(feed.latest().has_value());
 }
 
 TEST_F(IOWebSocketClient, AUriThatNamesNoPortIsNotAServerToCallAndSaysWhy) {
   // The port a scheme would stand in for is left to be spelled, so what
   // a feed reaches is what its URI says and not a default it is not
   // holding.
-  const std::shared_ptr<Feed> feed = hub.feed("ws://desk.local/scene");
-  EXPECT_FALSE(feed->state().error.empty());
-  EXPECT_TRUE(feed->state().localAddress.empty());
-  EXPECT_FALSE(feed->latest().has_value());
+  const Feed feed = hub.listen("ws://desk.local/scene");
+  EXPECT_FALSE(feed.state().error.empty());
+  EXPECT_TRUE(feed.state().localAddress.empty());
+  EXPECT_FALSE(feed.latest().has_value());
 }
 
 TEST_F(IOWebSocketClient,
        DroppingTheLastHolderEndsTheSessionRatherThanWaiting) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
 
-  std::shared_ptr<Feed> client = hub.feed(urlOf(listener));
-  ASSERT_TRUE(client->state().error.empty()) << client->state().error;
-  ASSERT_TRUE(waitUntil([&] { return client->send(bytesOf("here")); }))
-      << client->state().error;
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision == 1u; }));
+  Feed client = hub.listen(urlOf(listener));
+  ASSERT_TRUE(client.state().error.empty()) << client.state().error;
+  ASSERT_TRUE(waitUntil([&] { return client.send(bytesOf("here")); }))
+      << client.state().error;
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision == 1u; }));
 
   // Letting the last holder go closes the session from this thread: the
   // close frame goes out and the thread that was reading is joined
   // before the call returns. What this pins is that it returns at all —
   // a thread waiting for itself would never come back.
   const auto before = std::chrono::steady_clock::now();
-  client.reset();
+  client = {};
   EXPECT_LT(std::chrono::steady_clock::now() - before, 2s);
 }
 

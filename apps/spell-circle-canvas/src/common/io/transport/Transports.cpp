@@ -48,4 +48,14 @@ void registerTransports(Hub& hub, const std::vector<std::string>& schemes) {
   if (webRtc) detail::registerWebRtc(hub);
 }
 
+void detail::installLinkedTransports(Hub& hub) {
+  // Only the schemes nothing answers yet: a transport a host set by hand
+  // stands.
+  std::vector<std::string> missing;
+  for (const char* scheme : {"udp", "osc", "artnet", "ws", "wss", "shm", "midi",
+                             "serial", "grpc", "quic", "webrtc"})
+    if (!hub.feedTransport(scheme)) missing.emplace_back(scheme);
+  if (!missing.empty()) registerTransports(hub, missing);
+}
+
 }  // namespace sigil::io

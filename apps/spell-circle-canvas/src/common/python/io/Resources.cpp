@@ -96,63 +96,63 @@ class ResourceHandle {
 
 class FeedHandle {
  public:
-  FeedHandle(std::string uri, io::FeedPolicy policy)
-      : m_owner(std::make_shared<io::Feed>(std::move(uri), policy)),
-        m_feed(m_owner) {}
-  FeedHandle(std::shared_ptr<io::Feed> feed, const HubHandle& hub)
-      : m_hub(hub.owner()), m_check(hub.access()), m_feed(feed) {
-    if (m_check)
-      hub.retain(feed);
-    else
-      m_owner = std::move(feed);
+  FeedHandle(std::string uri, io::ListenOptions options)
+      : m_feed(std::move(uri), std::move(options)) {}
+  FeedHandle(io::Feed feed, const HubHandle& hub)
+      : m_hub(hub.owner()), m_check(hub.access()), m_feed(std::move(feed)) {
+    if (m_check) m_lease = hub.retain(m_feed);
   }
   ~FeedHandle() {
+    // Letting go of the last handle closes the door, which may join a
+    // transport's thread: never with the interpreter held.
     unlocked([&] {
-      m_owner.reset();
+      m_feed = {};
       m_hub.reset();
     });
   }
-  std::shared_ptr<io::Feed> get() const {
-    if (m_check) (void)m_check();
-    auto result = m_feed.lock();
-    if (!result)
-      throw std::runtime_error("This feed belongs to a closed session");
-    return result;
+  io::Feed get() const {
+    if (m_check) {
+      (void)m_check();
+      if (m_lease.expired())
+        throw std::runtime_error("This feed belongs to a closed session");
+    }
+    return m_feed;
   }
 
  private:
   std::shared_ptr<io::Hub> m_hub;
   std::function<io::Hub&()> m_check;
-  std::shared_ptr<io::Feed> m_owner;
-  std::weak_ptr<io::Feed> m_feed;
+  io::Feed m_feed;
+  /** The session's lease on a borrowed feed; it expires with the session. */
+  std::weak_ptr<void> m_lease;
 };
 
 struct FeedLease;
 struct FeedLeases {
   std::mutex mutex;
-  std::unordered_map<io::Feed*, std::weak_ptr<FeedLease>> entries;
+  std::unordered_map<io::Feed, std::weak_ptr<FeedLease>> entries;
 };
 FeedLeases& feedLeases() {
   static FeedLeases leases;
   return leases;
 }
 struct FeedLease {
-  explicit FeedLease(std::shared_ptr<io::Feed> value)
+  explicit FeedLease(io::Feed value)
       : feed(std::move(value)) {}
   ~FeedLease() {
     unlocked([&] {
       auto& leases = feedLeases();
       const std::lock_guard lock(leases.mutex);
-      const auto found = leases.entries.find(feed.get());
+      const auto found = leases.entries.find(feed);
       // A new lease may have taken ownership while this last shared owner
       // entered destruction. Its live lease owns the transport from here.
       if (found != leases.entries.end() && !found->second.expired()) return;
       if (found != leases.entries.end()) leases.entries.erase(found);
-      feed->close();
-      feed.reset();
+      feed.close();
+      feed = {};
     });
   }
-  std::shared_ptr<io::Feed> feed;
+  io::Feed feed;
 };
 
 template <class Native>
@@ -173,20 +173,20 @@ using SharedMemoryHandle = Serialized<io::SharedMemoryWriter>;
 
 HubHandle::HubHandle() : m_owner(std::make_shared<io::Hub>()) {}
 HubHandle::HubHandle(std::function<io::Hub&()> access,
-                     std::function<void(std::shared_ptr<io::Feed>)> retainFeed)
+                     std::function<std::shared_ptr<void>(io::Feed)> retainFeed)
     : m_access(std::move(access)), m_retainFeed(std::move(retainFeed)) {}
 HubHandle::~HubHandle() {
   unlocked([&] { m_owner.reset(); });
 }
 io::Hub& HubHandle::get() const { return m_access ? m_access() : *m_owner; }
-void HubHandle::retain(const std::shared_ptr<io::Feed>& feed) const {
-  if (m_retainFeed) m_retainFeed(feed);
+std::shared_ptr<void> HubHandle::retain(const io::Feed& feed) const {
+  return m_retainFeed ? m_retainFeed(feed) : nullptr;
 }
 
-std::shared_ptr<void> retainSessionFeed(std::shared_ptr<io::Feed> feed) {
+std::shared_ptr<void> retainSessionFeed(io::Feed feed) {
   auto& leases = feedLeases();
   const std::lock_guard lock(leases.mutex);
-  auto& entry = leases.entries[feed.get()];
+  auto& entry = leases.entries[feed];
   if (auto lease = entry.lock()) return lease;
   auto lease = std::make_shared<FeedLease>(std::move(feed));
   entry = lease;
@@ -239,10 +239,13 @@ void bindIO(py::module_& module) {
       .value("CacheFirst", io::NetworkPolicy::CacheFirst)
       .value("Refresh", io::NetworkPolicy::Refresh)
       .value("Offline", io::NetworkPolicy::Offline);
-  py::class_<io::FeedPolicy>(resources, "FeedPolicy")
-      .def(py::init([](size_t capacity) { return io::FeedPolicy{capacity}; }),
-           py::arg("capacity") = 256)
-      .def_readwrite("capacity", &io::FeedPolicy::capacity);
+  py::class_<io::ListenOptions>(resources, "ListenOptions")
+      .def(py::init([](size_t capacity, std::string peer) {
+             return io::ListenOptions{capacity, std::move(peer)};
+           }),
+           py::arg("capacity") = 256, py::arg("peer") = "")
+      .def_readwrite("capacity", &io::ListenOptions::capacity)
+      .def_readwrite("peer", &io::ListenOptions::peer);
   py::enum_<io::ReadyState>(resources, "ReadyState")
       .value("Connecting", io::ReadyState::Connecting)
       .value("Open", io::ReadyState::Open)
@@ -298,12 +301,12 @@ void bindIO(py::module_& module) {
           },
           py::arg("exc_type"), py::arg("exc_value"), py::arg("traceback"));
   py::class_<FeedHandle>(resources, "Feed")
-      .def(py::init<std::string, io::FeedPolicy>(), py::arg("uri"),
-           py::arg("policy") = io::FeedPolicy{})
+      .def(py::init<std::string, io::ListenOptions>(), py::arg("uri"),
+           py::arg("options") = io::ListenOptions{})
 #define SIGIL_FEED_METHOD(name)                    \
   .def(#name, [](const FeedHandle& value) {        \
     auto feed = value.get();                       \
-    return unlocked([&] { return feed->name(); }); \
+    return unlocked([&] { return feed.name(); }); \
   })
           SIGIL_FEED_METHOD(receive) SIGIL_FEED_METHOD(latest)
               SIGIL_FEED_METHOD(state) SIGIL_FEED_METHOD(uri)
@@ -316,14 +319,14 @@ void bindIO(py::module_& module) {
             const auto copied = bytes(payload);
             auto feed = value.get();
             return unlocked(
-                [&] { return feed->send(copied, {.to = to}); });
+                [&] { return feed.send(copied, {.to = to}); });
           },
           py::arg("payload"), py::arg("to") = "")
       .def(
           "record",
           [](const FeedHandle& value, const std::filesystem::path& path) {
             auto feed = value.get();
-            return unlocked([&] { return feed->record(path); });
+            return unlocked([&] { return feed.record(path); });
           },
           py::arg("path"))
       .def(
@@ -465,27 +468,27 @@ void bindIO(py::module_& module) {
           },
           py::arg("uri"), py::arg("bytes"))
       .def(
-          "feed",
+          "listen",
           [](const HubHandle& value, const std::string& uri,
-             io::FeedPolicy policy) {
+             io::ListenOptions options) {
             auto& hub = value.get();
-            return FeedHandle(unlocked([&] { return hub.feed(uri, policy); }),
+            return FeedHandle(unlocked([&] { return hub.listen(uri, options); }),
                               value);
           },
-          py::arg("uri"), py::arg("policy") = io::FeedPolicy{})
+          py::arg("uri"), py::arg("options") = io::ListenOptions{})
       .def(
           "replay",
           [](const HubHandle& value, const std::string& uri,
-             const std::filesystem::path& recording, io::FeedPolicy policy) {
+             const std::filesystem::path& recording, io::ListenOptions options) {
             auto& hub = value.get();
             return FeedHandle(unlocked([&] {
                                 return hub.replay(uri, recording.string(),
-                                                  policy);
+                                                  options);
                               }),
                               value);
           },
           py::arg("uri"), py::arg("recording"),
-          py::arg("policy") = io::FeedPolicy{})
+          py::arg("options") = io::ListenOptions{})
       .def("feeds",
            [](const HubHandle& value) {
              auto& hub = value.get();

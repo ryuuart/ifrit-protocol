@@ -12,7 +12,7 @@ namespace {
 using namespace sigil::io::frames;
 
 TEST(PublishFactory, WithNoDeviceThereIsNothingToPublishFrom) {
-  EXPECT_EQ(createPublisher("a name", Backend::Metal, nullptr), nullptr);
+  EXPECT_FALSE(createPublisher("a name", Backend::Metal, nullptr));
 }
 
 TEST(PublishFactory, AnUnnamedPublicationIsRefused) {
@@ -20,16 +20,15 @@ TEST(PublishFactory, AnUnnamedPublicationIsRefused) {
   // publication nobody could subscribe to is refused before the device
   // is looked at, which is what this asserts.
   int marker = 0;
-  EXPECT_EQ(createPublisher("", Backend::Metal, &marker), nullptr);
+  EXPECT_FALSE(createPublisher("", Backend::Metal, &marker));
 }
 
 TEST(PublishFactory, UnsupportedBackendsAreRefusedBeforeReadingTheDevice) {
   int marker = 0;
 #if defined(__APPLE__)
-  EXPECT_EQ(createPublisher("unsupported", Backend::Direct3D11, &marker),
-            nullptr);
+  EXPECT_FALSE(createPublisher("unsupported", Backend::Direct3D11, &marker));
 #else
-  EXPECT_EQ(createPublisher("unsupported", Backend::Metal, &marker), nullptr);
+  EXPECT_FALSE(createPublisher("unsupported", Backend::Metal, &marker));
 #endif
 }
 

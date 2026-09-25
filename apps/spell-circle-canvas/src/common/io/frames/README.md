@@ -27,12 +27,12 @@ auto publisher = sigil::io::frames::createPublisher(
 // Drawing is already submitted on the same queue. This command buffer
 // is still open, and the host commits it after publication.
 if (publisher)
-  publisher->publishFrame(nativeTexture, nativeCommandBuffer, 1600, 1000);
+  publisher.publishFrame(nativeTexture, nativeCommandBuffer, 1600, 1000);
 ```
 
-`sigil::io::frames::createPublisher` returns null for an empty name, a missing
+`sigil::io::frames::createPublisher` returns an empty handle for an empty name, a missing
 device, an unsupported backend, or a platform implementation that could not
-start. Null is an ordinary answer: callers report that publication is
+start. An empty handle is an ordinary answer: callers report that publication is
 unavailable, and treat it as a run that does not publish, never as a reason
 to publish another way. The backend tag is checked before the device pointer
 is interpreted.
@@ -116,13 +116,13 @@ reach the same protocol implementation.
 auto incoming = sigil::io::frames::subscribe(
     "Live Canvas", "", sigil::io::frames::defaultMetalDevice());
 if (incoming)
-  if (void* texture = incoming->latest()) {
+  if (void* texture = incoming.latest()) {
     // Use the id<MTLTexture> on this device.
   }
 ```
 
 `sigil::io::frames::subscribe` currently receives Syphon on Metal. It returns
-null off macOS, without a device, or for an empty name. A nonempty application
+an empty handle off macOS, without a device, or for an empty name. A nonempty application
 name restricts the match to that application; an empty one accepts any
 publisher of the requested name. Spout subscription is not implemented.
 
@@ -133,7 +133,7 @@ appears or restarts, so a host subscribes once, asks every frame, and the order
 the two applications were started in stops mattering. The returned texture is
 borrowed until the next call: the subscription lets the previous frame go
 whenever it is asked for another, so a caller retaining one longer takes its
-own native reference, which is what wrapping it as an image does. A null
+own native reference, which is what wrapping it as an image does. An empty
 subscription is a run that receives nothing, never a reason to receive another
 way.
 

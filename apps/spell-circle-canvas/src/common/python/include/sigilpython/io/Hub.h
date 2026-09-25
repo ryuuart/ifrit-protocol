@@ -28,7 +28,7 @@ class HubHandle {
    *  when the session is gone, and @p retainFeed gives the session a
    *  lease on a feed opened through it. */
   HubHandle(std::function<io::Hub&()> access,
-            std::function<void(std::shared_ptr<io::Feed>)> retainFeed);
+            std::function<std::shared_ptr<void>(io::Feed)> retainFeed);
   ~HubHandle();
   /** The hub itself: the one this handle owns, or the host's through
    *  the access it was given, which refuses once the session is gone. */
@@ -38,18 +38,19 @@ class HubHandle {
   /** How the host's hub is reached; empty on an owning handle. */
   const std::function<io::Hub&()>& access() const { return m_access; }
   /** Hands @p feed to the session to hold, so its lifetime is the
-   *  session's rather than a Python wrapper's. An owning handle has no
-   *  session to hand it to and does nothing. */
-  void retain(const std::shared_ptr<io::Feed>& feed) const;
+   *  session's rather than a Python wrapper's, and answers the session's
+   *  lease on it — which a wrapper watches to learn that the session is
+   *  gone. An owning handle has no session and answers nothing. */
+  std::shared_ptr<void> retain(const io::Feed& feed) const;
 
  private:
   std::shared_ptr<io::Hub> m_owner;
   std::function<io::Hub&()> m_access;
-  std::function<void(std::shared_ptr<io::Feed>)> m_retainFeed;
+  std::function<std::shared_ptr<void>(io::Feed)> m_retainFeed;
 };
 
 /** Overlapping sessions share one lease for each native feed. Releasing the
  * last session lease closes it even when Python retains an obsolete wrapper. */
-std::shared_ptr<void> retainSessionFeed(std::shared_ptr<io::Feed> feed);
+std::shared_ptr<void> retainSessionFeed(io::Feed feed);
 
 }  // namespace sigil::python

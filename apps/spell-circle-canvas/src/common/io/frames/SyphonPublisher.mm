@@ -15,7 +15,7 @@ namespace sigil::io::frames {
 
 namespace {
 
-class SyphonPublisher final : public Publisher {
+class SyphonPublisher final : public detail::PublisherEnd {
  public:
   // Takes the reference alloc/init returned; nothing else holds one.
   SyphonPublisher(std::string name, SyphonMetalServer *server)
@@ -71,7 +71,7 @@ class SyphonPublisher final : public Publisher {
 
 }  // namespace
 
-std::unique_ptr<Publisher> makeSyphonPublisher(std::string name, void *metalDevice) {
+std::unique_ptr<detail::PublisherEnd> makeSyphonPublisher(std::string name, void *metalDevice) {
   id<MTLDevice> device = (__bridge id<MTLDevice>)metalDevice;
   SyphonMetalServer *server = [[SyphonMetalServer alloc] initWithName:@(name.c_str())
                                                                device:device

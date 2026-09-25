@@ -225,7 +225,7 @@ TEST(DataSchema, AnOscDoorTakesNoSchema) {
   EXPECT_FALSE(desk.error().empty());
   // Refused is not opened: nothing was bound, so nothing arrives and
   // nothing goes out.
-  EXPECT_EQ(desk.feed(), nullptr);
+  EXPECT_FALSE(desk.feed());
   EXPECT_TRUE(desk.closed());
   EXPECT_TRUE(desk.latest().null());
   EXPECT_EQ(desk.revision(), 0u);
@@ -235,7 +235,7 @@ TEST(DataSchema, AnOscDoorTakesNoSchema) {
   // The same door with no schema is the door it always was.
   const Connection open(hub, "osc://:9000");
   EXPECT_TRUE(open.error().empty());
-  EXPECT_NE(open.feed(), nullptr);
+  EXPECT_TRUE(open.feed());
 }
 
 }  // namespace

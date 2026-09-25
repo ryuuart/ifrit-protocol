@@ -58,6 +58,11 @@ sigil_library(SigilIOTransport
   PUBLIC SigilIOHub
   PRIVATE Boost::asio unofficial::uwebsockets::uwebsockets CURL::libcurl
           RtMidi::rtmidi gRPC::grpc++ LibDataChannel::LibDataChannel msquic)
+# The installer is handed to the hub from a source compiled into each
+# consumer, because a static initializer inside the archive is dropped
+# with the archive member nothing references.
+target_sources(SigilIOTransport INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/Linked.cpp>)
 
 # What the transports promise: the port a URI binds, the server a URI
 # calls, the region a URI maps, the bytes that arrive through any of

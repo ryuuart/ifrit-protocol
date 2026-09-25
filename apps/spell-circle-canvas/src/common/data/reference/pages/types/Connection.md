@@ -139,7 +139,7 @@ whatever is asked of it. The name is the one `Connection::on` registers
 under, so a reader takes one fader off the wire with no handler at all:
 `sky.latest("/sky/wind")["arguments"][0].number()`.
 
-One latch per name, and the names are bounded by the policy's capacity:
+One latch per name, and the names are bounded by the options' capacity:
 when a message arrives under one name too many, the name written longest
 ago is dropped and reading it answers null again, as if nothing had ever
 arrived under it. A message carrying no name of its own latches under
@@ -158,7 +158,7 @@ taken, in order. What the handlers see is not taken from here — one
 message reaches both. THE FIRST CALL OPENS THE QUEUE: messages read
 before it are not held, so a reader that registers handlers and never
 calls it keeps no queue and loses nothing to one. From then on the queue
-holds what the policy's capacity says and its oldest falls off the front
+holds what the options' capacity says and its oldest falls off the front
 when it is full, which is what a reader that has fallen behind the
 newest wants; what falls off there is counted nowhere.
 

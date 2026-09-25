@@ -85,7 +85,7 @@ TEST(SketchKitConnectionReadout, AShutDoorWithNoAddressReadsWhatItIsCalled) {
   Hub hub;
   hub.setFeedTransport("ws", binding(""));
   data::Connection sky(hub, "ws://:8849/sky");
-  sky.feed()->close();
+  sky.feed().close();
   ASSERT_TRUE(sky.closed());
 
   // Named by the sketch where it names the door, and by its URI where not.
@@ -138,7 +138,7 @@ TEST(SketchKitConnectionReadout,
   // says why.
   Hub hub;
   data::Connection sky(hub, "ws://:8851/sky");
-  ASSERT_FALSE(sky.feed()->state().isOpen());
+  ASSERT_FALSE(sky.feed().state().isOpen());
   ASSERT_TRUE(sky.localAddress().empty());
   const std::string why = sky.error();
   ASSERT_FALSE(why.empty());

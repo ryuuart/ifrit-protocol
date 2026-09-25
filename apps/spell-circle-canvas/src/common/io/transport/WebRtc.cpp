@@ -288,7 +288,7 @@ struct Door : std::enable_shared_from_this<Door> {
  *  to the room it names. The doors are held weakly and hold this, so
  *  the last of them to go is what lets the socket go. */
 struct Signal {
-  std::shared_ptr<Feed> feed;
+  Feed feed;
   std::mutex gate;
   std::vector<std::weak_ptr<Door>> doors;
   Lease lease;
@@ -557,7 +557,7 @@ void Door::carry() {
     if (again) callOut();
   }
 
-  const std::shared_ptr<Feed> through = signal ? signal->feed : nullptr;
+  const Feed through = signal ? signal->feed : Feed();
   if (!through) return;
   const std::lock_guard<std::mutex> lock(sayingGate);
   while (!saying.empty()) {
@@ -568,8 +568,8 @@ void Door::carry() {
     // one, and out of the door where it holds a single peer of its own
     // — a client's server, which there is nothing to pick out of.
     const bool went =
-        to.empty() ? through->send(payload)
-                   : (through->send(payload, {.to = to}) || through->send(payload));
+        to.empty() ? through.send(payload)
+                   : (through.send(payload, {.to = to}) || through.send(payload));
     // A DOOR STILL OPENING TAKES NOTHING YET, so what it would not take
     // waits for the next frame rather than being lost: a caller's offer
     // is written before its socket has finished its handshake.
@@ -650,7 +650,7 @@ void readSignal(const std::shared_ptr<Signal>& signal) {
       ++entry;
     }
   }
-  while (const std::optional<Message> arrival = signal->feed->receive()) {
+  while (const std::optional<Message> arrival = signal->feed.receive()) {
     if (!arrival->payload) continue;
     const std::optional<detail::Introduction> message =
         detail::readIntroduction(arrival->payload->asText());
@@ -692,9 +692,9 @@ std::shared_ptr<Signal> signalFor(Signals& signals, Hub& hub,
     }
   }
   const auto made = std::make_shared<Signal>();
-  made->feed = hub.feed(uri);
-  if (!made->feed->state().error.empty()) {
-    trouble = made->feed->state().error;
+  made->feed = hub.listen(uri);
+  if (!made->feed.state().error.empty()) {
+    trouble = made->feed.state().error;
     return nullptr;
   }
   made->lease = hub.onAdvance([held = std::weak_ptr<Signal>(made)](std::chrono::duration<double>) {
@@ -767,7 +767,7 @@ TransportEnd openFeed(Hub& hub, Signals& signals, std::string_view uri,
   // A door that TOOK A ROOM UP holds nothing anybody dials, and names
   // the conversation alone.
   if (!door->calling) {
-    const std::string bound = door->signal->feed->state().localAddress;
+    const std::string bound = door->signal->feed.state().localAddress;
     if (!bound.empty()) opened.localAddress += "?signal=" + bound;
   }
   opened.close = [door] { door->close(); };

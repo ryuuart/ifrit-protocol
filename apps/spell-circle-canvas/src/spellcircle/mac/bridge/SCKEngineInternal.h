@@ -62,14 +62,14 @@ struct BlitPalette {
   // published over Syphon and blitted into on-screen layers.
   id<MTLTexture> _sceneTexture;
 
-  std::unique_ptr<sigil::io::frames::Publisher> _publisher;
+  sigil::io::frames::Publisher _publisher;
 
   // The port, as a door on a resource hub: the transport takes datagrams
   // on a thread of its own and the door holds them until the drain timer
   // reads them here, on the main queue. A message carries the moment it
   // was received on the steady clock.
   sigil::io::Hub _hub;
-  std::shared_ptr<sigil::io::Feed> _door;
+  sigil::io::Feed _door;
   dispatch_source_t _drain;
   NSDateFormatter *_timestampFormatter;
 

@@ -128,7 +128,7 @@ TEST(Assets, VideoUsesTheClipCacheAndInvalidatesAfterSourceChange) {
   sigil::test::ScratchDir root("sketch_video_asset");
   const std::filesystem::path path = root.path / "clip.mp4";
   const sk_sp<SkData> firstBytes = solidVideo(SK_ColorRED);
-  ASSERT_NE(firstBytes, nullptr);
+  ASSERT_TRUE(firstBytes);
   ASSERT_TRUE(
       sigil::io::writeBytes(path, firstBytes->data(), firstBytes->size()));
 
@@ -138,11 +138,11 @@ TEST(Assets, VideoUsesTheClipCacheAndInvalidatesAfterSourceChange) {
       .cachedFrames = 2};
   const std::shared_ptr<sigil::video::Video> first =
       assets.video("clip.mp4", options);
-  ASSERT_NE(first, nullptr);
+  ASSERT_TRUE(first);
   EXPECT_EQ(assets.video("clip.mp4", options), first);
 
   const sk_sp<SkData> secondBytes = solidVideo(SK_ColorBLUE);
-  ASSERT_NE(secondBytes, nullptr);
+  ASSERT_TRUE(secondBytes);
   ASSERT_TRUE(
       sigil::io::writeBytes(path, secondBytes->data(), secondBytes->size()));
   std::error_code ec;
@@ -156,7 +156,7 @@ TEST(Assets, VideoUsesTheClipCacheAndInvalidatesAfterSourceChange) {
 
   const std::shared_ptr<sigil::video::Video> second =
       assets.video("clip.mp4", options);
-  ASSERT_NE(second, nullptr);
+  ASSERT_TRUE(second);
   EXPECT_NE(second, first);
 }
 
@@ -184,28 +184,28 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
   // port is replayed from the file, and the ask for the port opens the
   // recording rather than a socket.
   hub.replay("udp://:27020", "sketch://sky/data/sky.feed");
-  const std::shared_ptr<sigil::io::Feed> feed = hub.feed("udp://:27020");
-  ASSERT_NE(feed, nullptr);
-  EXPECT_TRUE(feed->state().error.empty());
-  EXPECT_EQ(feed->state().revision, 0u);  // nothing arrives until time moves
+  const sigil::io::Feed feed = hub.listen("udp://:27020");
+  ASSERT_TRUE(feed);
+  EXPECT_TRUE(feed.state().error.empty());
+  EXPECT_EQ(feed.state().revision, 0u);  // nothing arrives until time moves
 
   assets.hub().advance(std::chrono::duration<double>(0.0));
-  EXPECT_EQ(feed->state().revision, 1u);
-  ASSERT_TRUE(feed->latest().has_value());
-  EXPECT_EQ(feed->latest()->payload->asText(), "dawn");
-  EXPECT_NE(feed->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_EQ(feed.state().revision, 1u);
+  ASSERT_TRUE(feed.latest().has_value());
+  EXPECT_EQ(feed.latest()->payload->asText(), "dawn");
+  EXPECT_NE(feed.state().readiness, sigil::io::ReadyState::Closed);
 
   // One dispatch may cover several arrivals and never covers one that is
   // still ahead: the scene time decides, not the number of calls.
   assets.hub().advance(std::chrono::duration<double>(0.6));
-  EXPECT_EQ(feed->state().revision, 2u);
-  EXPECT_EQ(feed->latest()->payload->asText(), "noon");
-  EXPECT_NE(feed->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_EQ(feed.state().revision, 2u);
+  EXPECT_EQ(feed.latest()->payload->asText(), "noon");
+  EXPECT_NE(feed.state().readiness, sigil::io::ReadyState::Closed);
 
   assets.hub().advance(std::chrono::duration<double>(2.0));
-  EXPECT_EQ(feed->state().revision, 3u);
-  EXPECT_EQ(feed->latest()->payload->asText(), "dusk");
-  EXPECT_EQ(feed->state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out
+  EXPECT_EQ(feed.state().revision, 3u);
+  EXPECT_EQ(feed.latest()->payload->asText(), "dusk");
+  EXPECT_EQ(feed.state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out
 }
 
 }  // namespace
@@ -224,7 +224,7 @@ TEST(Assets, ADocumentIsReadWholeAndReloadedWhenItsFileChanges) {
   Assets assets("");
   assets.mountSketch("study", dir.path);
   const auto document = assets.json("sketch://study/data/content.json");
-  ASSERT_NE(document, nullptr);
+  ASSERT_TRUE(document);
   EXPECT_EQ((*document)["title"].text(), "A2");
   EXPECT_TRUE((*document)["lines"][0]["marked"].boolean());
   EXPECT_TRUE((*document)["absent"]["deeper"].null());

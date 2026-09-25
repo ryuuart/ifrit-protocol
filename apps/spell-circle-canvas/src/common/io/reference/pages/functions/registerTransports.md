@@ -158,7 +158,7 @@ leaves standing between two looks is one arrival. Every arrival names the
 region as its sender, spelled shm://NAME as the `FeedState::localAddress` the feed
 reports is — the rate being the reader's own arrangement and no part of
 what the region is called. A reader has no way back to a writer through
-the region, so `Feed::send` and `Feed::send` with `SendOptions::to` are false on such a feed: a
+the region, so `Feed::send` is false on such a feed with or without `SendOptions::to`: a
 scene that must answer holds another door for that. The looks of every
 feed opened through one registration run on one thread, made when the
 first of them opens.
@@ -213,7 +213,7 @@ with the port's whole name, exactly as the `FeedState::localAddress` such a feed
 reports is; an output reports midi://out/NAME the same way.
 
 An input is ONE WAY — what comes back down a cable is the other cable,
-which is a door of its own — so `Feed::send` and `Feed::send` with `SendOptions::to` are both
+which is a door of its own — so `Feed::send` with and without `SendOptions::to` are both
 false on one, while an output's send writes the bytes as one message and
 is false where the driver refused it.
 

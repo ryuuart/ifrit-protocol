@@ -4,7 +4,7 @@
 
 namespace sigil::io::frames {
 
-std::unique_ptr<Publisher> makeSpoutPublisher(std::string name,
+std::unique_ptr<detail::PublisherEnd> makeSpoutPublisher(std::string name,
                                               void* nativeDevice);
 
 }  // namespace sigil::io::frames

@@ -77,7 +77,7 @@ namespace {
 
 struct FeedVitals {
   /** The door. The same object for the same URI while anybody holds it. */
-  std::shared_ptr<io::Feed> arrivals;
+  io::Feed arrivals;
   /** When each message still on the strip arrived, on the clock it was
    *  stamped with: one tick each, drained in order and never revisited. */
   std::deque<double> ticks;
@@ -99,7 +99,7 @@ struct FeedVitals {
     // later ask for the URI answers the replaying feed.
     if (ctx.deterministic)
       hub.replay(kAddress, ctx.local(kRecording));
-    arrivals = hub.feed(kAddress);
+    arrivals = hub.listen(kAddress);
 
     ticks.clear();
     shown = {};
@@ -118,11 +118,11 @@ struct FeedVitals {
    *  to be written again. */
   bool drain() {
     if (!arrivals) return false;
-    while (const std::optional<io::Message> arrival = arrivals->receive())
+    while (const std::optional<io::Message> arrival = arrivals.receive())
       ticks.push_back(arrival->arrivedAt().count());
     while (!ticks.empty() && ticks.front() < now - (double)kWindow)
       ticks.pop_front();
-    const Vitals reading = vitalsOf(*arrivals);
+    const Vitals reading = vitalsOf(arrivals);
     if (reading == shown) return false;
     shown = reading;
     return true;
@@ -242,7 +242,7 @@ struct FeedVitals {
   Element bytes() {
     const sketch::kit::Theme& look = sketch::kit::theme();
     const std::optional<io::Message> latest =
-        arrivals ? arrivals->latest() : std::nullopt;
+        arrivals.latest();
     const std::shared_ptr<const io::Bytes> message =
         latest ? latest->payload : nullptr;
     std::string headline = "nothing has arrived";

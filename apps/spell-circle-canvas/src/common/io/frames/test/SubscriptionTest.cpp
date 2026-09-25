@@ -12,7 +12,7 @@ namespace {
 using namespace sigil::io::frames;
 
 TEST(PublishSubscription, WithNoDeviceThereIsNothingToReceiveOn) {
-  EXPECT_EQ(subscribe("a name", "", nullptr), nullptr);
+  EXPECT_FALSE(subscribe("a name", "", nullptr));
 }
 
 TEST(PublishSubscription, AnUnnamedPublicationIsRefused) {
@@ -20,7 +20,7 @@ TEST(PublishSubscription, AnUnnamedPublicationIsRefused) {
   // publication nobody could have announced is refused before the device
   // is looked at, which is what this asserts.
   int marker = 0;
-  EXPECT_EQ(subscribe("", "an application", &marker), nullptr);
+  EXPECT_FALSE(subscribe("", "an application", &marker));
 }
 
 TEST(PublishSubscription, TheMachinesDeviceIsTheSameOneEveryTime) {

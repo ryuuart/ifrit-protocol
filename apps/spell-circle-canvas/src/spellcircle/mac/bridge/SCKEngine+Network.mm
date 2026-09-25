@@ -48,9 +48,9 @@ NSString *addressOf(const std::string &from) {
   // The hub answers one feed per URI for as long as anyone holds it, so
   // asking for the port already open keeps the door standing rather than
   // closing a socket in order to bind the same one again.
-  _door = _hub.feed(uri, {.capacity = kArrivalCapacity});
+  _door = _hub.listen(uri, {.capacity = kArrivalCapacity});
 
-  const std::string error = _door->state().error;
+  const std::string error = _door.state().error;
   if (!error.empty()) {
     [self closeDoor];
     [self setListeningState:NO
@@ -86,15 +86,15 @@ NSString *addressOf(const std::string &from) {
     dispatch_source_cancel(_drain);
     _drain = nil;
   }
-  _door.reset();
+  _door = {};
 }
 
 - (void)readArrivals {
   // The door is re-read each turn: a scene reaching the session may take
   // the receiver down, and what a closed door still holds is nobody's to
   // ingest.
-  while (const std::shared_ptr<sigil::io::Feed> door = _door) {
-    const std::optional<sigil::io::Message> arrival = door->receive();
+  while (const sigil::io::Feed door = _door) {
+    const std::optional<sigil::io::Message> arrival = door.receive();
     if (!arrival) return;
     @autoreleasepool {
       NSData *payload = [NSData dataWithBytes:arrival->payload->data()

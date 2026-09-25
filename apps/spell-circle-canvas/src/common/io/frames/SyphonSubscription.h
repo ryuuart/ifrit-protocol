@@ -19,7 +19,7 @@ std::vector<Publication> syphonPublications();
  *  @p application is not empty, that application's — receiving on
  *  @p metalDevice. It stands whether or not anything is publishing yet,
  *  and is null only when a client could not be stood up at all. */
-std::unique_ptr<Subscription> makeSyphonSubscription(std::string name,
+std::unique_ptr<detail::SubscriptionEnd> makeSyphonSubscription(std::string name,
                                                      std::string application,
                                                      void* metalDevice);
 

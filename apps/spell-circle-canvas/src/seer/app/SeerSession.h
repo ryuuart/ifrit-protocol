@@ -165,7 +165,7 @@ class SeerSession : public QObject {
   [[nodiscard]] double elapsed() const;
 
   /** The feed being read, or null. */
-  [[nodiscard]] std::shared_ptr<sigil::io::Feed> selectedFeed() const;
+  [[nodiscard]] sigil::io::Feed selectedFeed() const;
 
   /** Hands every pane what the last tick read. */
   void publish();
@@ -180,7 +180,7 @@ class SeerSession : public QObject {
   sigil::seer::Wires m_wires;
   Receiver m_receiver;
   sigil::seer::Log m_log;
-  std::weak_ptr<sigil::io::Feed> m_loggedFeed;
+  sigil::io::Feed m_loggedFeed;
   sigil::seer::Sender m_sender{m_wires};
   sigil::seer::Recorder m_recorder{m_wires};
 

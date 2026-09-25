@@ -105,8 +105,8 @@ TEST(IOTransports, NamedSchemesInstallTheTransportsThatAnswerThemAndNoOther) {
   // Registering again replaces rather than stacking a caller in front of
   // a caller: a hostless wss:// URI still has nothing to listen with.
   sigil::io::registerTransports(named, {"ws"});
-  const std::shared_ptr<Feed> secure = named.feed("wss://:0/scene");
-  EXPECT_FALSE(secure->state().error.empty());
+  const Feed secure = named.listen("wss://:0/scene");
+  EXPECT_FALSE(secure.state().error.empty());
 
   Hub everything;
   sigil::io::registerTransports(everything);
@@ -115,32 +115,39 @@ TEST(IOTransports, NamedSchemesInstallTheTransportsThatAnswerThemAndNoOther) {
     EXPECT_TRUE(everything.feedTransport(scheme)) << scheme;
 }
 
+TEST_F(IOUdp, ListeningOpensThroughTheLinkedTransportsWithNoRegistration) {
+  Hub fresh;
+  const Feed listener = fresh.listen("udp://:0");
+  EXPECT_TRUE(listener.state().isOpen()) << listener.state().error;
+  EXPECT_TRUE(fresh.feedTransport("osc"));
+}
+
 TEST_F(IOUdp, AListeningFeedSaysWhichPortItBoundAndTakesWhatArrivesThere) {
-  const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("udp://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
   // Every interface of both families is one dual-stack socket, which is
   // a v6 address with nothing in it.
-  EXPECT_TRUE(listener->state().localAddress.starts_with("udp://["))
-      << listener->state().localAddress;
-  const uint16_t port = portOf(listener->state().localAddress);
+  EXPECT_TRUE(listener.state().localAddress.starts_with("udp://["))
+      << listener.state().localAddress;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   sendTo(port, "a scene arrives");
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "a scene arrives");
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "a scene arrives");
 }
 
 TEST_F(IOUdp, AnArrivalNamesTheSenderTheDatagramCameFrom) {
-  const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("udp://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   const uint16_t sender = sendTo(port, "from somewhere");
   ASSERT_NE(sender, 0);
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
 
-  const std::optional<Message> arrival = listener->receive();
+  const std::optional<Message> arrival = listener.receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_EQ(arrival->payload->asText(), "from somewhere");
   // The sender is the loopback socket the datagram left, named with the
@@ -151,70 +158,70 @@ TEST_F(IOUdp, AnArrivalNamesTheSenderTheDatagramCameFrom) {
 }
 
 TEST_F(IOUdp, AnOscFeedIsTheSameSocketUnderItsOwnName) {
-  const std::shared_ptr<Feed> listener = hub.feed("osc://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("osc://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
   // What arrives is bytes either way. The scheme a feed was opened with
   // is the scheme every address it reports is spelled with, so a reader
   // takes the decoding off the URI rather than out of the message.
-  EXPECT_TRUE(listener->state().localAddress.starts_with("osc://")) << listener->state().localAddress;
-  const uint16_t port = portOf(listener->state().localAddress);
+  EXPECT_TRUE(listener.state().localAddress.starts_with("osc://")) << listener.state().localAddress;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   ASSERT_NE(sendTo(port, "#bundle"), 0);
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "#bundle");
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "#bundle");
 
-  const std::optional<Message> arrival = listener->receive();
+  const std::optional<Message> arrival = listener.receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_TRUE(arrival->sender().starts_with("osc://")) << arrival->sender();
 }
 
 TEST_F(IOUdp, AnArtNetFeedIsTheSameSocketUnderTheLightingDesksName) {
-  const std::shared_ptr<Feed> listener = hub.feed("artnet://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("artnet://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
   // The lighting desks' datagrams are datagrams, and the decoding is
   // taken off the URI: a feed keeps the scheme it was opened with, in
   // the local end it reports and in the sender every arrival names.
-  EXPECT_TRUE(listener->state().localAddress.starts_with("artnet://"))
-      << listener->state().localAddress;
-  const uint16_t port = portOf(listener->state().localAddress);
+  EXPECT_TRUE(listener.state().localAddress.starts_with("artnet://"))
+      << listener.state().localAddress;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   ASSERT_NE(sendTo(port, "Art-Net"), 0);
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "Art-Net");
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "Art-Net");
 
-  const std::optional<Message> arrival = listener->receive();
+  const std::optional<Message> arrival = listener.receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_TRUE(arrival->sender().starts_with("artnet://")) << arrival->sender();
 }
 
 TEST_F(IOUdp, ASendingFeedReachesTheListenerItNames) {
-  const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("udp://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
-  const std::shared_ptr<Feed> sender =
-      hub.feed("udp://127.0.0.1:" + std::to_string(port));
-  ASSERT_TRUE(sender->state().error.empty()) << sender->state().error;
-  EXPECT_FALSE(sender->state().localAddress.empty());
-  EXPECT_TRUE(sender->send(bytesOf("through the door")));
+  const Feed sender =
+      hub.listen("udp://127.0.0.1:" + std::to_string(port));
+  ASSERT_TRUE(sender.state().error.empty()) << sender.state().error;
+  EXPECT_FALSE(sender.state().localAddress.empty());
+  EXPECT_TRUE(sender.send(bytesOf("through the door")));
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "through the door");
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "through the door");
   // A listener answers whoever writes to it and holds no peer of its
   // own, so there is no way back out through it.
-  EXPECT_FALSE(listener->send(bytesOf("no way back")));
+  EXPECT_FALSE(listener.send(bytesOf("no way back")));
   // The other way round: a feed that holds one peer reaches that peer
   // and nobody else, so naming a sender to answer is not its way out.
-  EXPECT_FALSE(sender->send(bytesOf("by name"), {.to = listener->state().localAddress}));
+  EXPECT_FALSE(sender.send(bytesOf("by name"), {.to = listener.state().localAddress}));
 }
 
 TEST_F(IOUdp, AListenerAnswersTheSenderOfADatagram) {
-  const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("udp://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   // The desk's own socket, held for as long as the case runs: what it
@@ -225,14 +232,14 @@ TEST_F(IOUdp, AListenerAnswersTheSenderOfADatagram) {
   desk.send_to(boost::asio::buffer(moved.data(), moved.size()),
                udp::endpoint(boost::asio::ip::address_v4::loopback(), port));
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  const std::optional<Message> arrival = listener->receive();
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  const std::optional<Message> arrival = listener.receive();
   ASSERT_TRUE(arrival.has_value());
   // A listener holds no peer, so there is no broadcast out of it — and
   // the sender an arrival names is an address it can write back to, so
   // the one it is answering it can answer.
-  EXPECT_FALSE(listener->send(bytesOf("no way back")));
-  EXPECT_TRUE(listener->send(bytesOf("the sky answers"), {.to = arrival->sender()}));
+  EXPECT_FALSE(listener.send(bytesOf("no way back")));
+  EXPECT_TRUE(listener.send(bytesOf("the sky answers"), {.to = arrival->sender()}));
 
   ASSERT_TRUE(waitUntil([&] { return desk.available() != 0; }));
   std::array<char, 64> answer{};
@@ -243,23 +250,23 @@ TEST_F(IOUdp, AListenerAnswersTheSenderOfADatagram) {
 }
 
 TEST_F(IOUdp, ASenderThatIsNoLiteralAddressIsNobodyToAnswer) {
-  const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("udp://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
 
   // Answering a sender waits on nothing, so a name that would have to
   // be looked up is nobody to answer rather than a pause on a resolver,
   // and neither is an address of another scheme or of no scheme at all.
-  EXPECT_FALSE(listener->send(bytesOf("nowhere"), {.to = "udp://desk.local:9001"}));
-  EXPECT_FALSE(listener->send(bytesOf("nowhere"), {.to = "osc://127.0.0.1:9001"}));
-  EXPECT_FALSE(listener->send(bytesOf("nowhere"), {.to = "127.0.0.1:9001"}));
-  EXPECT_FALSE(listener->send(bytesOf("nowhere"), {.to = ""}));
+  EXPECT_FALSE(listener.send(bytesOf("nowhere"), {.to = "udp://desk.local:9001"}));
+  EXPECT_FALSE(listener.send(bytesOf("nowhere"), {.to = "osc://127.0.0.1:9001"}));
+  EXPECT_FALSE(listener.send(bytesOf("nowhere"), {.to = "127.0.0.1:9001"}));
+  EXPECT_FALSE(listener.send(bytesOf("nowhere"), {.to = ""}));
 }
 
 TEST_F(IOUdp, AUriThatNamesNoAddressOpensNothingAndSaysWhy) {
-  const std::shared_ptr<Feed> feed = hub.feed("udp://localhost");
-  EXPECT_FALSE(feed->state().error.empty());
-  EXPECT_TRUE(feed->state().localAddress.empty());
-  EXPECT_FALSE(feed->latest().has_value());
+  const Feed feed = hub.listen("udp://localhost");
+  EXPECT_FALSE(feed.state().error.empty());
+  EXPECT_TRUE(feed.state().localAddress.empty());
+  EXPECT_FALSE(feed.latest().has_value());
 }
 
 TEST_F(IOUdp, APortSomebodyElseHoldsOpensNothingAndSaysWhy) {
@@ -268,33 +275,33 @@ TEST_F(IOUdp, APortSomebodyElseHoldsOpensNothingAndSaysWhy) {
   holder.bind(udp::endpoint(udp::v6(), 0));
   const uint16_t port = holder.local_endpoint().port();
 
-  const std::shared_ptr<Feed> feed = hub.feed("udp://:" + std::to_string(port));
-  EXPECT_FALSE(feed->state().error.empty());
-  EXPECT_TRUE(feed->state().localAddress.empty());
+  const Feed feed = hub.listen("udp://:" + std::to_string(port));
+  EXPECT_FALSE(feed.state().error.empty());
+  EXPECT_TRUE(feed.state().localAddress.empty());
 }
 
 TEST_F(IOUdp, DroppingTheLastHolderOfAFeedGivesUpItsPort) {
   uint16_t port = 0;
   {
-    const std::shared_ptr<Feed> listener = hub.feed("udp://:0");
-    ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-    port = portOf(listener->state().localAddress);
+    const Feed listener = hub.listen("udp://:0");
+    ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+    port = portOf(listener.state().localAddress);
     ASSERT_NE(port, 0);
   }
 
   const std::string uri = "udp://:" + std::to_string(port);
-  const auto again = hub.feed(uri);
-  ASSERT_TRUE(again->state().error.empty()) << again->state().error;
-  EXPECT_EQ(portOf(again->state().localAddress), port);
+  const auto again = hub.listen(uri);
+  ASSERT_TRUE(again.state().error.empty()) << again.state().error;
+  EXPECT_EQ(portOf(again.state().localAddress), port);
 }
 
 TEST_F(IOUdp, CloseReturnsThePortBeforeTheFeedObjectIsReleased) {
-  const auto listener = hub.feed("udp://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const auto listener = hub.listen("udp://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
-  listener->close();
-  EXPECT_EQ(listener->state().readiness, sigil::io::ReadyState::Closed);
+  listener.close();
+  EXPECT_EQ(listener.state().readiness, sigil::io::ReadyState::Closed);
   udp::socket holder(context, udp::v6());
   holder.set_option(boost::asio::ip::v6_only(false));
   boost::system::error_code error;
@@ -303,11 +310,11 @@ TEST_F(IOUdp, CloseReturnsThePortBeforeTheFeedObjectIsReleased) {
 }
 
 TEST_F(IOUdp, TwoAsksForOneUriAnswerOneFeed) {
-  const std::shared_ptr<Feed> first = hub.feed("udp://:0");
-  ASSERT_TRUE(first->state().error.empty()) << first->state().error;
-  const std::shared_ptr<Feed> second = hub.feed("udp://:0");
+  const Feed first = hub.listen("udp://:0");
+  ASSERT_TRUE(first.state().error.empty()) << first.state().error;
+  const Feed second = hub.listen("udp://:0");
   EXPECT_EQ(first, second);
-  EXPECT_EQ(first->state().localAddress, second->state().localAddress);
+  EXPECT_EQ(first.state().localAddress, second.state().localAddress);
 }
 
 }  // namespace

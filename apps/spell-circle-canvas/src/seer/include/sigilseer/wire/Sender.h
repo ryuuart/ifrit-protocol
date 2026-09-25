@@ -77,10 +77,10 @@ class Sender {
   /** Opens @p uri as the peer every send reaches from now on, through
    *  the wires this was made over. A peer that cannot be opened is
    *  answered all the same, carrying the sentence that says why. */
-  std::shared_ptr<io::Feed> openPeer(std::string_view uri);
+  io::Feed openPeer(std::string_view uri);
 
   /** The peer, or null before one is opened. */
-  std::shared_ptr<io::Feed> peer() const;
+  io::Feed peer() const;
 
   /** The URI the peer was opened on; empty before one is opened. */
   const std::string& peerUri() const { return m_peerUri; }

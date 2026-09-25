@@ -19,7 +19,7 @@ from sigil.compose import Element, box, column, graphics, row, text
 from sigil.compose import document as doc
 from sigil.data import decodeJson
 from sigil.draw import CENTER, LEFT, RIGHT, Pen
-from sigil.io import Feed, FeedPolicy, ReadyState
+from sigil.io import Feed, ListenOptions, ReadyState
 from sigil.io.testing import inletOf
 from sigil.material import Color
 from sigil.sketch import SketchContext, kit, sketch
@@ -136,18 +136,18 @@ class LiveSignals:
         self.last_description = -1.0
         self.problem = ""
         self.peer = "No sender yet"
-        policy = FeedPolicy(capacity=256)
+        options = ListenOptions(capacity=256)
         if self.replay:
             # A capture plays a scripted signal: the frames are delivered
             # through the feed's inlet as their moments pass, the way a
             # transport would deliver them.
-            self.feed = Feed("replay://live-signals", policy)
+            self.feed = Feed("replay://live-signals", options)
             self.inlet = inletOf(self.feed)
             self.pending: deque[tuple[float, bytes]] = deque(
                 (index / 30, encoded(reference(index))) for index in range(241)
             )
         else:
-            self.feed = ctx.assets.hub().feed(f"udp://:{PORT}", policy)
+            self.feed = ctx.assets.hub().listen(f"udp://:{PORT}", options)
         self.rebuild_traces()
         with kit.provide(self.look):
             ctx.render(self.describe(0))

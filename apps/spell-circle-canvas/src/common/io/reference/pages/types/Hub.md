@@ -76,13 +76,13 @@ is the door on it too:
 
 ```cpp
 hub.setFeedTransport("udp", openUdpFeed);     // one per scheme
-auto scene = hub.feed("udp://:27020");        // the same feed per URI
+auto scene = hub.listen("udp://:27020");        // the same feed per URI
 auto lease = hub.onAdvance(readTheScene);    // driven by that same call
 hub.advance();                               // once per frame
-if (auto newest = scene->latest()) draw(*newest->payload);
+if (auto newest = scene.latest()) draw(*newest->payload);
 ```
 
-`Hub::feed` hands back the one feed a URI names for as long as anybody
+`Hub::listen` hands back the one feed a URI names for as long as anybody
 holds it. A URI named to `Hub::replay` is played back from its recording
 as `Hub::advance` moves time forward, so the same code reads a live
 sender and a recorded session; anything else opens

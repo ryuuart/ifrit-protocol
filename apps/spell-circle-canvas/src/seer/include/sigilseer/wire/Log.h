@@ -51,7 +51,7 @@ class Log {
 
   /** Takes every message @p feed has not handed out yet, in order, and
    *  answers how many were taken. */
-  size_t drain(io::Feed& feed);
+  size_t drain(const io::Feed& feed);
 
   /** Retains one message already drained by the host, sharing its bytes. */
   void append(const io::Message& message);

@@ -47,7 +47,7 @@ TEST(SeerTexturePreview, OwnsFramesAcrossPauseResizeReconnectAndWindowTeardown) 
                    withBytes:pixels.data()
                  bytesPerRow:width * 4];
       id<MTLCommandBuffer> commands = [queue commandBuffer];
-      publisher->publishFrame((__bridge void*)texture, (__bridge void*)commands, width, height);
+      publisher.publishFrame((__bridge void*)texture, (__bridge void*)commands, width, height);
       [commands commit];
       [commands waitUntilCompleted];
       EXPECT_EQ(commands.status, MTLCommandBufferStatusCompleted);
@@ -101,7 +101,7 @@ TEST(SeerTexturePreview, OwnsFramesAcrossPauseResizeReconnectAndWindowTeardown) 
       ASSERT_EQ(captured.size(), QSize(48, 20));
       EXPECT_EQ(captured.pixelColor(0, 0), QColor(0xcc, 0x66, 0x33));
 
-      publisher.reset();
+      publisher = {};
       ASSERT_TRUE(pump([&] { return !preview->connected(); }));
       EXPECT_EQ(preview->frameSize(), QSize(48, 20));
       publisher = makePublisher();

@@ -100,7 +100,7 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
     auto publisher = sigil::io::frames::createPublisher(name, sigil::io::frames::Backend::Metal,
                                                          (__bridge void*)device);
     ASSERT_TRUE(publisher);
-    EXPECT_EQ(publisher->name(), name);
+    EXPECT_EQ(publisher.name(), name);
 
     MTLTextureDescriptor* description =
         [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
@@ -115,7 +115,7 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
                  withBytes:kQuadrants
                bytesPerRow:8];
     id<MTLCommandBuffer> commands = [queue commandBuffer];
-    publisher->publishFrame((__bridge void*)texture, (__bridge void*)commands, 2, 2);
+    publisher.publishFrame((__bridge void*)texture, (__bridge void*)commands, 2, 2);
     [commands commit];
     [commands waitUntilCompleted];
     ASSERT_EQ(commands.status, MTLCommandBufferStatusCompleted);
@@ -140,10 +140,10 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
       const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
       while (!received && std::chrono::steady_clock::now() < deadline) {
         [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
-        received = (__bridge id<MTLTexture>)incoming->latest();
+        received = (__bridge id<MTLTexture>)incoming.latest();
       }
       ASSERT_TRUE(received) << "late client " << client;
-      EXPECT_TRUE(incoming->state().isOpen());
+      EXPECT_TRUE(incoming.state().isOpen());
       /** The four quadrants of the PNG written from @p received, read as
        *  though the frame held its rows @p held. */
       const auto quadrantsWritten = [&](seer::texture::Rows held,

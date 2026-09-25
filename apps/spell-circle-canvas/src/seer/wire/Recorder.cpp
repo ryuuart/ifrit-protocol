@@ -14,11 +14,11 @@ Recorder::Recorder(Wires& wires) : m_wires(wires) {}
 
 Recorder::~Recorder() { stop(); }
 
-bool Recorder::record(const std::shared_ptr<io::Feed>& feed,
+bool Recorder::record(const io::Feed& feed,
                       std::filesystem::path path) {
   if (!feed) return false;
   stop();
-  m_recording = feed->record(path);
+  m_recording = feed.record(path);
   if (m_recording.stopped()) return false;
   m_path = std::move(path);
   return true;
@@ -31,7 +31,7 @@ void Recorder::stop() {
 
 bool Recorder::recording() const { return !m_recording.stopped(); }
 
-std::shared_ptr<io::Feed> Recorder::replay(std::string_view uri,
+io::Feed Recorder::replay(std::string_view uri,
                                            const std::filesystem::path& path) {
   return m_wires.replay(uri, path);
 }

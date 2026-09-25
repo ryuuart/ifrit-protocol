@@ -20,7 +20,7 @@ what a consumer uses; every public header lives under
 | target | headers | holds |
 |--------|---------|-------|
 | `SigilIOSource` | `source/Source.h`, `source/Archive.h`, `source/Sink.h`, `source/Places.h`, `source/State.h` | `FeedState` and `ReadyState`, the one value a feed and a frame subscription answer for where their door stands; the byte vocabulary in both directions: `Bytes`, the `ByteSource`, `ResolvingByteSource`, `Decoder`, `Probable` and `Configurable` concepts with `LoadOptions`, `AnyByteSource` (the type-erased source value), the `ByteSink` concept and `writeBytes()`, the one place a path and a run of bytes become a file; `ArchiveSource` and `ArchiveEntry`, one zip held in memory answering its files by name — and the two places only the platform can name, `executablePath()` and `scratchDirectory(label)` |
-| `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `advanced/Transport.h`, `testing/Testing.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed` and `Arrival` — the reader's side of a resource that keeps arriving, opened through the hub's `feed()`, played from a file through its `replay()` and moved forward by its `advance()`, whose `Feed::peers()` names the peers a door holds attached now; `Lease` and `Hub::onAdvance()` — a callback the same `advance()` drives, for as long as the lease lives; `Recording`, the handle a feed's `record()` hands back, which records until it goes; and `RecordingWriter` and `readRecording()`, the format a feed records itself in; and, for whoever writes a transport rather than reads one, `Inlet`, `TransportEnd` and `Transport` — the producer's side a scheme is opened through and delivers into — with `testing::inletOf()`, the one way a test puts a message on a feed without a socket |
+| `SigilIOHub`    | `hub/Hub.h`, `hub/Feed.h`, `hub/Recording.h`, `hub/Network.h`, `advanced/Transport.h`, `testing/Testing.h` | the `Hub`, `ResourceInfo` (a resource's byte size and the file it came from), and `ResourceLease`; `NetworkPolicy`, `NetworkTransport`, `probeNetworkCache()` and `seedNetworkCache()` — inspect or populate the persistent cache by URL without constructing its filenames or contacting a server; `Feed`, `Message`, `ListenOptions` and `SendOptions` — the reader's side of a resource that keeps arriving, a copyable handle opened through the hub's `listen()`, which registers every linked transport on its first ask nothing answers, played from a file through its `replay()` and moved forward by its `advance()`, whose `Feed::peers()` names the peers a door holds attached now; `Lease` and `Hub::onAdvance()` — a callback the same `advance()` drives, for as long as the lease lives; `Recording`, the handle a feed's `record()` hands back, which records until it goes; and `RecordingWriter` and `readRecording()`, the format a feed records itself in; and, for whoever writes a transport rather than reads one, `Inlet`, `TransportEnd` and `Transport` — the producer's side a scheme is opened through and delivers into — with `testing::inletOf()`, the one way a test puts a message on a feed without a socket |
 | `SigilIOTransport` | `transport/Transport.h` | `registerTransports()`, which installs on a hub the transports that answer the schemes it is handed and every one of them when it is handed none, with `SharedMemoryWriter` beside it — the UDP transport, one socket per feed on a thread of its own, answering to udp://, to osc:// for messages that are OSC packets and to artnet:// for the universes a lighting desk sends; the WebSocket listener, one of them per feed on a loop of its own, answering to ws:// and, where that URI's query names a directory of pages, answering HTTP GET out of it on the same port, where it names an interface, holding that one alone, and where it names the peers to admit, refusing every other before it becomes a peer, and where it says `frames=text`, sending every message as a text frame; the WebSocket client over libcurl, one session per feed on a thread of its own, which is what ws:// and wss:// open when the URI names a server to call rather than a port to hold; and the shared memory reader, answering to shm://, which is a region another process on this machine wrote and no socket at all, with the writer's end of such a region standing beside it; and the MIDI transport, answering to midi://, which is the controller standing beside the screen — its pads and knobs in at midi://in/NAME, its lights out at midi://out/NAME, and a port made rather than found under virtual:NAME — on the thread the driver itself runs its callbacks on and none of this feature's own; and the serial transport, answering to serial://, which is the board on a cable printing one line per reading — a device file and a baud rate, one arrival per line and a line out of every send — one port per feed on a thread every port of a registration shares; and the gRPC transport, answering to grpc:// at both ends of one generic method — a server holding grpc://:PORT/Service/Method and a call reaching grpc://HOST:PORT/Service/Method — which carries bytes and parses nothing, so a feed's buffers cross it with no generated stub in the transport, and which starts no thread of this feature's at all; and the QUIC transport, answering to quic:// at both ends of one encrypted connection — a port held at quic://:PORT?cert=FILE&key=FILE and a call reaching quic://HOST:PORT, ?insecure=1 on the call being what reaches the self-signed pair a machine on a stage carries — where a message is one unidirectional stream and ?datagrams=1 makes it one unreliable datagram instead, on threads of the library underneath and none of this feature's; and the WebRTC transport, answering to webrtc://, which is the door with nothing in the middle of it — `webrtc://ROOM?signal=URI` is introduced over the websocket door that signal names, a port to hold or a server to call, and every message afterwards crosses straight between the two ends, one connection per peer and one channel on each, on threads of the library underneath and none of this feature's; either listener fills `TransportEnd::sendTo`, so a listening feed answers the one sender an arrival names through `Feed::send` with `SendOptions::to`; linked by a consumer that opens a feed over a wire or over a region, and by no other |
 
 `SigilIO` is the umbrella target over the source and the hub; the
@@ -141,45 +141,45 @@ reader's side, which is everything a consumer of a feed calls.
 #include <sigilio/hub/Feed.h>
 #include <sigilio/transport/Transport.h>
 
-sigil::io::registerTransports(hub);                  // udp://, osc://, artnet://, ws://, wss://, shm://, midi://, serial://, grpc://, quic://, webrtc://
-sigil::io::registerTransports(hub, {"udp"});         // …or only the ones named: this socket's three schemes
-auto scene = hub.feed("udp://:27020");               // std::shared_ptr<sigil::io::Feed>
-if (auto newest = scene->latest())                   // the newest message whole; revision() counts them
+auto scene = hub.listen("udp://:27020");             // a sigil::io::Feed: every copy reads one door; every linked transport is ready
+auto small = hub.listen("udp://:27021", {.capacity = 16});  // ListenOptions: what receive() holds, and the peer send() reaches
+sigil::io::registerTransports(hub, {"udp"});         // the explicit form: only the ones named, this socket's three schemes
+if (auto newest = scene.latest())                   // the newest message whole; revision() counts them
   draw(*newest->payload);
-while (auto message = scene->receive())              // every message since the last receive, in order
+while (auto message = scene.receive())              // every message since the last receive, in order
   fold(*message->payload, message->sender());        // …and the address that one came from
-auto desk = hub.feed("udp://desk.local:9001");       // a peer: send() reaches it, its replies arrive
-desk->send(reply);
-auto control = hub.feed("osc://:9000");              // the same socket, for messages that are OSC
-if (auto message = scene->latest())                  // a listener holds no peer of its own…
-  scene->send(reply, {.to = message->sender()});       // …so it answers the one sender that wrote to it
-auto browsers = hub.feed("ws://:8848/scene");        // every peer that reaches that path
-browsers->send(frame);                               // …and one send goes out to all of them
-auto staged = hub.feed("ws://:8848/sky?pages=res://sky");  // …and GET serves that directory
-auto studio = hub.feed("wss://sky.example:443/scene");  // the same scheme calling out: a server to reach
-studio->send(frame);                                 // …the one peer it dialled, whose messages arrive
-auto handed = hub.feed("shm://scene");               // a region another process on this machine wrote
-auto watched = hub.feed("shm://scene?rate=240");     // …read that many times a second, 120 by default
-auto pads = hub.feed("midi://in/Launchpad");         // the controller beside the screen: every message it sends
-auto lights = hub.feed("midi://out/Launchpad");      // …and its lights, which send() writes to
-lights->send(noteOn);
-auto made = hub.feed("midi://in/virtual:sigil");     // a port other software reaches instead of a controller
-auto board = hub.feed("serial:///dev/tty.usbmodem1101?baud=115200");  // a board on a cable: one arrival per line
-board->send(command);                                // …and a line back down the same cable
-auto watchers = hub.feed("grpc://:27090/Sky/Watch"); // one generic method: every call on it is a caller
-watchers->send(frame);                               // …and one send writes on every call standing
-auto watching = hub.feed("grpc://sky.local:27090/Sky/Watch");  // the other end: the one call it opened
-auto stage = hub.feed("quic://:27100?cert=res://sky/cert.pem&key=res://sky/key.pem");  // one encrypted port
-stage->send(frame);                                  // …one stream per message, on every connection standing
-auto dialling = hub.feed("quic://sky.local:27100?insecure=1");  // the other end: a self-signed pair, reached anyway
-auto loose = hub.feed("quic://sky.local:27100?insecure=1&datagrams=1");  // …unreliable, one packet each
-auto room = hub.feed("webrtc://sky?signal=ws://:8849/signal");  // a conversation, introduced over that door
-room->send(frame);                                   // …straight to every phone that took it up
-auto waiting = hub.feed("webrtc://sky?signal=ws://:0/signal");  // …on a port of the kernel's giving
-waiting->state().localAddress;  // webrtc://sky?signal=ws://[::]:52341/signal — the port it got, and what a phone dials
-auto joining = hub.feed("webrtc://sky?signal=ws://sky.local:8849/signal");  // the other end: taking a room up
-auto take = scene->record(outDir / "scene.feed");    // every arrival to a file, until take goes or take.stop()
-hub.replay("udp://:27020", (outDir / "scene.feed").string());  // that URI, and every later feed() on it, plays the file
+auto desk = hub.listen("udp://desk.local:9001");       // a peer: send() reaches it, its replies arrive
+desk.send(reply);
+auto control = hub.listen("osc://:9000");              // the same socket, for messages that are OSC
+if (auto message = scene.latest())                  // a listener holds no peer of its own…
+  scene.send(reply, {.to = message->sender()});       // …so it answers the one sender that wrote to it
+auto browsers = hub.listen("ws://:8848/scene");        // every peer that reaches that path
+browsers.send(frame);                               // …and one send goes out to all of them
+auto staged = hub.listen("ws://:8848/sky?pages=res://sky");  // …and GET serves that directory
+auto studio = hub.listen("wss://sky.example:443/scene");  // the same scheme calling out: a server to reach
+studio.send(frame);                                 // …the one peer it dialled, whose messages arrive
+auto handed = hub.listen("shm://scene");               // a region another process on this machine wrote
+auto watched = hub.listen("shm://scene?rate=240");     // …read that many times a second, 120 by default
+auto pads = hub.listen("midi://in/Launchpad");         // the controller beside the screen: every message it sends
+auto lights = hub.listen("midi://out/Launchpad");      // …and its lights, which send() writes to
+lights.send(noteOn);
+auto made = hub.listen("midi://in/virtual:sigil");     // a port other software reaches instead of a controller
+auto board = hub.listen("serial:///dev/tty.usbmodem1101?baud=115200");  // a board on a cable: one arrival per line
+board.send(command);                                // …and a line back down the same cable
+auto watchers = hub.listen("grpc://:27090/Sky/Watch"); // one generic method: every call on it is a caller
+watchers.send(frame);                               // …and one send writes on every call standing
+auto watching = hub.listen("grpc://sky.local:27090/Sky/Watch");  // the other end: the one call it opened
+auto stage = hub.listen("quic://:27100?cert=res://sky/cert.pem&key=res://sky/key.pem");  // one encrypted port
+stage.send(frame);                                  // …one stream per message, on every connection standing
+auto dialling = hub.listen("quic://sky.local:27100?insecure=1");  // the other end: a self-signed pair, reached anyway
+auto loose = hub.listen("quic://sky.local:27100?insecure=1&datagrams=1");  // …unreliable, one packet each
+auto room = hub.listen("webrtc://sky?signal=ws://:8849/signal");  // a conversation, introduced over that door
+room.send(frame);                                   // …straight to every phone that took it up
+auto waiting = hub.listen("webrtc://sky?signal=ws://:0/signal");  // …on a port of the kernel's giving
+waiting.state().localAddress;  // webrtc://sky?signal=ws://[::]:52341/signal — the port it got, and what a phone dials
+auto joining = hub.listen("webrtc://sky?signal=ws://sky.local:8849/signal");  // the other end: taking a room up
+auto take = scene.record(outDir / "scene.feed");    // every arrival to a file, until take goes or take.stop()
+hub.replay("udp://:27020", (outDir / "scene.feed").string());  // that URI, and every later listen() on it, plays the file
 hub.advance(time);                               // once per frame: recordings advance to this time
 ```
 
@@ -196,7 +196,7 @@ socket through `<sigilio/testing/Testing.h>`.
 
 hub.setFeedTransport("pigeon", [](std::string_view uri, sigil::io::Inlet inlet) {
   inlet.deliver(bytesOf("hello"), "pigeon://the.roof");  // any thread; nothing once the feed is gone
-  return sigil::io::TransportEnd{.address = std::string(uri)};
+  return sigil::io::TransportEnd{.localAddress = std::string(uri)};
 });
 sigil::io::testing::inletOf(scene).deliver(bytesOf("injected"));  // a test's one way in
 ```

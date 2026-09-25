@@ -15,17 +15,17 @@
 
 namespace sigil::io::frames {
 
-std::unique_ptr<Publisher> createPublisher(std::string name, Backend backend,
+Publisher createPublisher(std::string name, Backend backend,
                                            void* nativeDevice) {
-  if (name.empty() || !nativeDevice) return nullptr;
+  if (name.empty() || !nativeDevice) return {};
 #if defined(__APPLE__)
   if (backend == Backend::Metal)
-    return makeSyphonPublisher(std::move(name), nativeDevice);
+    return Publisher(makeSyphonPublisher(std::move(name), nativeDevice));
 #elif defined(SIGIL_FRAMES_SPOUT)
   if (backend == Backend::Direct3D11)
-    return makeSpoutPublisher(std::move(name), nativeDevice);
+    return Publisher(makeSpoutPublisher(std::move(name), nativeDevice));
 #endif
-  return nullptr;
+  return {};
 }
 
 }  // namespace sigil::io::frames

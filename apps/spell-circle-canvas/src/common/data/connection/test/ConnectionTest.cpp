@@ -582,7 +582,7 @@ TEST(DataConnection, AConnectionOntoNothingAnswersNothing) {
   EXPECT_EQ(none.dropped(), 0u);
   EXPECT_EQ(none.undecodable(), 0u);
   EXPECT_TRUE(none.closed());
-  EXPECT_EQ(none.feed(), nullptr);
+  EXPECT_FALSE(none.feed());
   EXPECT_FALSE(none.receive().has_value());
   EXPECT_FALSE(none.send(Json(Json::Object{{"kind", Json("gust")}})));
   EXPECT_FALSE(none.send("/sky/gust", Json(Json::Array{})));

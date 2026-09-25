@@ -83,8 +83,8 @@ class IOGrpc : public ::testing::Test {
 
   /** The URL a caller reaches @p server at: the loopback, the port it
    *  bound, and the method it answers to. */
-  static std::string urlOf(const std::shared_ptr<Feed>& server) {
-    const std::string address = server->state().localAddress;
+  static std::string urlOf(const Feed& server) {
+    const std::string address = server.state().localAddress;
     const size_t method = address.find('/', kScheme.size());
     return "grpc://127.0.0.1:" + std::to_string(portOf(address)) +
            (method == std::string::npos ? std::string()
@@ -96,32 +96,32 @@ class IOGrpc : public ::testing::Test {
 };
 
 TEST_F(IOGrpc, AServerFeedSaysWhichPortAndMethodItBound) {
-  const std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
-  ASSERT_TRUE(server->state().error.empty()) << server->state().error;
+  const Feed server = hub.listen("grpc://:0/Sky/Watch");
+  ASSERT_TRUE(server.state().error.empty()) << server.state().error;
   // Every interface of both families is one dual-stack listener, and the
   // method stands behind the port because it is part of what a caller
   // reaches.
-  EXPECT_TRUE(server->state().localAddress.starts_with("grpc://[::]:"))
-      << server->state().localAddress;
-  EXPECT_TRUE(server->state().localAddress.ends_with("/Sky/Watch")) << server->state().localAddress;
-  EXPECT_NE(portOf(server->state().localAddress), 0);
+  EXPECT_TRUE(server.state().localAddress.starts_with("grpc://[::]:"))
+      << server.state().localAddress;
+  EXPECT_TRUE(server.state().localAddress.ends_with("/Sky/Watch")) << server.state().localAddress;
+  EXPECT_NE(portOf(server.state().localAddress), 0);
 }
 
 TEST_F(IOGrpc, ACallersMessageArrivesOnTheServerNamingTheCallItCameIn) {
-  const std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
-  ASSERT_TRUE(server->state().error.empty()) << server->state().error;
-  const std::shared_ptr<Feed> caller = hub.feed(urlOf(server));
-  ASSERT_TRUE(caller->state().error.empty()) << caller->state().error;
+  const Feed server = hub.listen("grpc://:0/Sky/Watch");
+  ASSERT_TRUE(server.state().error.empty()) << server.state().error;
+  const Feed caller = hub.listen(urlOf(server));
+  ASSERT_TRUE(caller.state().error.empty()) << caller.state().error;
 
   // A message handed over before the stream is up waits on it rather
   // than going nowhere, so one send is one message however early it was
   // made.
-  EXPECT_TRUE(caller->send(bytesOf("a scene arrives")));
-  ASSERT_TRUE(waitUntil([&] { return server->latest().has_value(); }))
-      << server->state().error;
-  EXPECT_EQ(server->latest()->payload->asText(), "a scene arrives");
+  EXPECT_TRUE(caller.send(bytesOf("a scene arrives")));
+  ASSERT_TRUE(waitUntil([&] { return server.latest().has_value(); }))
+      << server.state().error;
+  EXPECT_EQ(server.latest()->payload->asText(), "a scene arrives");
 
-  const std::optional<Message> heard = server->receive();
+  const std::optional<Message> heard = server.receive();
   ASSERT_TRUE(heard.has_value());
   const size_t number = heard->sender().rfind('#');
   ASSERT_NE(number, std::string::npos) << heard->sender();
@@ -135,24 +135,24 @@ TEST_F(IOGrpc, ACallersMessageArrivesOnTheServerNamingTheCallItCameIn) {
 }
 
 TEST_F(IOGrpc, TheServersSendReachesTheCallerThatOpenedTheStream) {
-  const std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
-  ASSERT_TRUE(server->state().error.empty()) << server->state().error;
+  const Feed server = hub.listen("grpc://:0/Sky/Watch");
+  ASSERT_TRUE(server.state().error.empty()) << server.state().error;
   const std::string url = urlOf(server);
-  const std::shared_ptr<Feed> caller = hub.feed(url);
-  ASSERT_TRUE(caller->state().error.empty()) << caller->state().error;
+  const Feed caller = hub.listen(url);
+  ASSERT_TRUE(caller.state().error.empty()) << caller.state().error;
 
   // A send goes out to every call standing, so the call has to have
   // reached the server before it: a message of the caller's the server
   // has taken is what says it has.
-  EXPECT_TRUE(caller->send(bytesOf("here")));
-  ASSERT_TRUE(waitUntil([&] { return server->state().revision == 1u; }))
-      << server->state().error;
+  EXPECT_TRUE(caller.send(bytesOf("here")));
+  ASSERT_TRUE(waitUntil([&] { return server.state().revision == 1u; }))
+      << server.state().error;
 
-  EXPECT_TRUE(server->send(bytesOf("out to every caller")));
-  ASSERT_TRUE(waitUntil([&] { return caller->latest().has_value(); }));
-  EXPECT_EQ(caller->latest()->payload->asText(), "out to every caller");
+  EXPECT_TRUE(server.send(bytesOf("out to every caller")));
+  ASSERT_TRUE(waitUntil([&] { return caller.latest().has_value(); }));
+  EXPECT_EQ(caller.latest()->payload->asText(), "out to every caller");
 
-  const std::optional<Message> back = caller->receive();
+  const std::optional<Message> back = caller.receive();
   ASSERT_TRUE(back.has_value());
   // A client has the one peer it called, and every message it takes is
   // named for it.
@@ -160,8 +160,8 @@ TEST_F(IOGrpc, TheServersSendReachesTheCallerThatOpenedTheStream) {
 }
 
 TEST_F(IOGrpc, SendToReachesTheOneCallerItNamesAndNoOther) {
-  const std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
-  ASSERT_TRUE(server->state().error.empty()) << server->state().error;
+  const Feed server = hub.listen("grpc://:0/Sky/Watch");
+  ASSERT_TRUE(server.state().error.empty()) << server.state().error;
   const std::string url = urlOf(server);
 
   // A hub answers one feed per URI, so the second caller is opened on a
@@ -169,110 +169,110 @@ TEST_F(IOGrpc, SendToReachesTheOneCallerItNamesAndNoOther) {
   // two readers, which is not two callers.
   Hub elsewhere;
   sigil::io::registerTransports(elsewhere, {"grpc"});
-  const std::shared_ptr<Feed> first = hub.feed(url);
-  ASSERT_TRUE(first->state().error.empty()) << first->state().error;
-  const std::shared_ptr<Feed> second = elsewhere.feed(url);
-  ASSERT_TRUE(second->state().error.empty()) << second->state().error;
+  const Feed first = hub.listen(url);
+  ASSERT_TRUE(first.state().error.empty()) << first.state().error;
+  const Feed second = elsewhere.listen(url);
+  ASSERT_TRUE(second.state().error.empty()) << second.state().error;
 
   // Each caller says which one it is, and the arrival it says it in
   // names the call that caller is answered on.
-  EXPECT_TRUE(first->send(bytesOf("first")));
-  EXPECT_TRUE(second->send(bytesOf("second")));
-  ASSERT_TRUE(waitUntil([&] { return server->state().revision == 2u; }))
-      << server->state().error;
+  EXPECT_TRUE(first.send(bytesOf("first")));
+  EXPECT_TRUE(second.send(bytesOf("second")));
+  ASSERT_TRUE(waitUntil([&] { return server.state().revision == 2u; }))
+      << server.state().error;
 
   std::string answering;
-  while (const std::optional<Message> arrival = server->receive())
+  while (const std::optional<Message> arrival = server.receive())
     if (arrival->payload->asText() == "first") answering = arrival->sender();
   ASSERT_FALSE(answering.empty());
 
-  EXPECT_TRUE(server->send(bytesOf("to you alone"), {.to = answering}));
-  ASSERT_TRUE(waitUntil([&] { return first->state().revision == 1u; }));
-  EXPECT_EQ(first->latest()->payload->asText(), "to you alone");
+  EXPECT_TRUE(server.send(bytesOf("to you alone"), {.to = answering}));
+  ASSERT_TRUE(waitUntil([&] { return first.state().revision == 1u; }));
+  EXPECT_EQ(first.latest()->payload->asText(), "to you alone");
 
   // What the OTHER caller reads first is the broadcast that came after,
   // which is what says the message before it went to one call and not to
   // every call standing.
-  EXPECT_TRUE(server->send(bytesOf("out to every caller")));
-  ASSERT_TRUE(waitUntil([&] { return second->state().revision == 1u; }));
-  const std::optional<Message> opening = second->receive();
+  EXPECT_TRUE(server.send(bytesOf("out to every caller")));
+  ASSERT_TRUE(waitUntil([&] { return second.state().revision == 1u; }));
+  const std::optional<Message> opening = second.receive();
   ASSERT_TRUE(opening.has_value());
   EXPECT_EQ(opening->payload->asText(), "out to every caller");
 }
 
 TEST_F(IOGrpc, ACallNobodyIsHoldingIsNobodyToAnswer) {
-  const std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
-  ASSERT_TRUE(server->state().error.empty()) << server->state().error;
+  const Feed server = hub.listen("grpc://:0/Sky/Watch");
+  ASSERT_TRUE(server.state().error.empty()) << server.state().error;
 
   // A door that holds its own calls can say a name reaches none of
   // them, which is what a caller that never arrived looks like from
   // here.
-  EXPECT_FALSE(server->send(bytesOf("nobody"), {.to = "grpc://127.0.0.1:1#9"}));
-  EXPECT_NE(server->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_FALSE(server.send(bytesOf("nobody"), {.to = "grpc://127.0.0.1:1#9"}));
+  EXPECT_NE(server.state().readiness, sigil::io::ReadyState::Closed);
 }
 
 TEST_F(IOGrpc, AServerNobodyIsHoldingLeavesTheReasonOnTheFeed) {
   const uint16_t port = portNobodyHolds(context);
   ASSERT_NE(port, 0);
 
-  const std::shared_ptr<Feed> feed =
-      hub.feed("grpc://127.0.0.1:" + std::to_string(port) + "/Sky/Watch");
+  const Feed feed =
+      hub.listen("grpc://127.0.0.1:" + std::to_string(port) + "/Sky/Watch");
   // The connecting is gRPC's own, so the sentence saying the server was
   // not reached stands on the feed a moment after it is asked for rather
   // than within the ask. A connection nobody takes is refused at once
   // and never waits the bound out.
-  EXPECT_TRUE(waitUntil([&] { return !feed->state().error.empty(); }));
-  EXPECT_FALSE(feed->latest().has_value());
+  EXPECT_TRUE(waitUntil([&] { return !feed.state().error.empty(); }));
+  EXPECT_FALSE(feed.latest().has_value());
 }
 
 TEST_F(IOGrpc, AServerThatGoesAwayEndedRatherThanNeverHavingBeenReached) {
-  std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
-  ASSERT_TRUE(server->state().error.empty()) << server->state().error;
+  Feed server = hub.listen("grpc://:0/Sky/Watch");
+  ASSERT_TRUE(server.state().error.empty()) << server.state().error;
   const std::string url = urlOf(server);
 
   Hub elsewhere;
   sigil::io::registerTransports(elsewhere, {"grpc"});
-  const std::shared_ptr<Feed> caller = elsewhere.feed(url);
-  ASSERT_TRUE(caller->state().error.empty()) << caller->state().error;
-  EXPECT_TRUE(caller->send(bytesOf("here")));
-  ASSERT_TRUE(waitUntil([&] { return server->state().revision == 1u; }))
-      << server->state().error;
+  const Feed caller = elsewhere.listen(url);
+  ASSERT_TRUE(caller.state().error.empty()) << caller.state().error;
+  EXPECT_TRUE(caller.send(bytesOf("here")));
+  ASSERT_TRUE(waitUntil([&] { return server.state().revision == 1u; }))
+      << server.state().error;
 
   // Letting the server go cancels the call standing on it, which is what
   // the caller is left to read.
-  server.reset();
+  server = {};
   ASSERT_TRUE(
-      waitUntil([&] { return !caller->state().error.empty() || (caller->state().readiness == sigil::io::ReadyState::Closed); }));
+      waitUntil([&] { return !caller.state().error.empty() || (caller.state().readiness == sigil::io::ReadyState::Closed); }));
   // WHICHEVER WAY THE ENDING LANDED — the status the server sent as it
   // was cancelled, or the transport going out from under it — a server
   // that answered and then went away is never worded as one that was
   // not there.
-  EXPECT_FALSE(caller->state().error.starts_with("could not reach"))
-      << caller->state().error;
-  if (!caller->state().error.empty())
-    EXPECT_TRUE(caller->state().error.starts_with(url + " ended:"))
-        << caller->state().error;
+  EXPECT_FALSE(caller.state().error.starts_with("could not reach"))
+      << caller.state().error;
+  if (!caller.state().error.empty())
+    EXPECT_TRUE(caller.state().error.starts_with(url + " ended:"))
+        << caller.state().error;
 }
 
 TEST_F(IOGrpc, AUriThatNamesNoMethodOpensNothingAndSaysWhy) {
   // Both ends name the method, so a URI carrying a service and nothing
   // after it is half an address and opens neither end.
-  const std::shared_ptr<Feed> holding = hub.feed("grpc://:0/Sky");
-  EXPECT_FALSE(holding->state().error.empty());
-  EXPECT_TRUE(holding->state().localAddress.empty());
-  EXPECT_FALSE(holding->latest().has_value());
+  const Feed holding = hub.listen("grpc://:0/Sky");
+  EXPECT_FALSE(holding.state().error.empty());
+  EXPECT_TRUE(holding.state().localAddress.empty());
+  EXPECT_FALSE(holding.latest().has_value());
 
-  const std::shared_ptr<Feed> calling = hub.feed("grpc://127.0.0.1:50051");
-  EXPECT_FALSE(calling->state().error.empty());
-  EXPECT_TRUE(calling->state().localAddress.empty());
+  const Feed calling = hub.listen("grpc://127.0.0.1:50051");
+  EXPECT_FALSE(calling.state().error.empty());
+  EXPECT_TRUE(calling.state().localAddress.empty());
 }
 
 TEST_F(IOGrpc, DroppingTheLastHolderOfAServerFeedGivesUpItsPort) {
   uint16_t port = 0;
   {
-    const std::shared_ptr<Feed> server = hub.feed("grpc://:0/Sky/Watch");
-    ASSERT_TRUE(server->state().error.empty()) << server->state().error;
-    port = portOf(server->state().localAddress);
+    const Feed server = hub.listen("grpc://:0/Sky/Watch");
+    ASSERT_TRUE(server.state().error.empty()) << server.state().error;
+    port = portOf(server.state().localAddress);
     ASSERT_NE(port, 0);
   }
 
@@ -280,14 +280,14 @@ TEST_F(IOGrpc, DroppingTheLastHolderOfAServerFeedGivesUpItsPort) {
   // back by the time that returns — but a moment is given for it either
   // way, a port being the system's to hand out again.
   const std::string uri = "grpc://:" + std::to_string(port) + "/Sky/Watch";
-  std::shared_ptr<Feed> again;
+  Feed again;
   ASSERT_TRUE(waitUntil([&] {
-    again = hub.feed(uri);
-    if (again->state().error.empty()) return true;
-    again.reset();
+    again = hub.listen(uri);
+    if (again.state().error.empty()) return true;
+    again = {};
     return false;
   }));
-  EXPECT_EQ(portOf(again->state().localAddress), port);
+  EXPECT_EQ(portOf(again.state().localAddress), port);
 }
 
 }  // namespace

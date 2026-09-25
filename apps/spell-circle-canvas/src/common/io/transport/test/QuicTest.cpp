@@ -78,8 +78,8 @@ Bytes bytesOf(std::string_view text) {
  *  stream on, and one made before that answers false, so it is offered
  *  until it is taken — and once, a message being one message however
  *  early it was first offered. */
-bool sendOnce(const std::shared_ptr<Feed>& feed, std::string_view message) {
-  return waitUntil([&] { return feed->send(bytesOf(message)); });
+bool sendOnce(const Feed& feed, std::string_view message) {
+  return waitUntil([&] { return feed.send(bytesOf(message)); });
 }
 
 /** A SELF-SIGNED PAIR FOR ONE CASE TO ANSWER WITH, written into @p
@@ -194,30 +194,30 @@ class IOQuic : public ::testing::Test {
 
 TEST_F(IOQuic, AListeningFeedSaysWhichPortItTook) {
   ASSERT_TRUE(standing) << "no certificate could be made on this machine";
-  const std::shared_ptr<Feed> listener = hub.feed(listening());
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen(listening());
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
   // Every interface of both families is one dual-stack socket, and the
   // query is the door's own arrangement rather than an address anybody
   // reaches, so it is not in what the feed reports.
-  EXPECT_TRUE(listener->state().localAddress.starts_with("quic://[::]:"))
-      << listener->state().localAddress;
-  EXPECT_NE(portOf(listener->state().localAddress), 0);
+  EXPECT_TRUE(listener.state().localAddress.starts_with("quic://[::]:"))
+      << listener.state().localAddress;
+  EXPECT_NE(portOf(listener.state().localAddress), 0);
 }
 
 TEST_F(IOQuic, ACallsMessageArrivesNamingTheConnectionItCameInOn) {
   ASSERT_TRUE(standing) << "no certificate could be made on this machine";
-  const std::shared_ptr<Feed> listener = hub.feed(listening());
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const std::string url = calling(portOf(listener->state().localAddress));
-  const std::shared_ptr<Feed> caller = hub.feed(url);
-  ASSERT_TRUE(caller->state().error.empty()) << caller->state().error;
+  const Feed listener = hub.listen(listening());
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const std::string url = calling(portOf(listener.state().localAddress));
+  const Feed caller = hub.listen(url);
+  ASSERT_TRUE(caller.state().error.empty()) << caller.state().error;
 
-  ASSERT_TRUE(sendOnce(caller, "a scene arrives")) << caller->state().error;
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision == 1u; }))
-      << caller->state().error;
-  EXPECT_EQ(listener->latest()->payload->asText(), "a scene arrives");
+  ASSERT_TRUE(sendOnce(caller, "a scene arrives")) << caller.state().error;
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision == 1u; }))
+      << caller.state().error;
+  EXPECT_EQ(listener.latest()->payload->asText(), "a scene arrives");
 
-  const std::optional<Message> heard = listener->receive();
+  const std::optional<Message> heard = listener.receive();
   ASSERT_TRUE(heard.has_value());
   const size_t number = heard->sender().rfind('#');
   ASSERT_NE(number, std::string::npos) << heard->sender();
@@ -232,71 +232,71 @@ TEST_F(IOQuic, ACallsMessageArrivesNamingTheConnectionItCameInOn) {
 
 TEST_F(IOQuic, TheListenersSendReachesTheCallThatOpenedTheConnection) {
   ASSERT_TRUE(standing) << "no certificate could be made on this machine";
-  const std::shared_ptr<Feed> listener = hub.feed(listening());
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const std::string url = calling(portOf(listener->state().localAddress));
-  const std::shared_ptr<Feed> caller = hub.feed(url);
-  ASSERT_TRUE(caller->state().error.empty()) << caller->state().error;
+  const Feed listener = hub.listen(listening());
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const std::string url = calling(portOf(listener.state().localAddress));
+  const Feed caller = hub.listen(url);
+  ASSERT_TRUE(caller.state().error.empty()) << caller.state().error;
 
   // A send goes out to every connection standing, so one has to have
   // reached the listener before it: a message of the caller's the
   // listener has taken is what says one has.
-  ASSERT_TRUE(sendOnce(caller, "here")) << caller->state().error;
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision == 1u; }))
-      << caller->state().error;
+  ASSERT_TRUE(sendOnce(caller, "here")) << caller.state().error;
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision == 1u; }))
+      << caller.state().error;
 
-  EXPECT_TRUE(listener->send(bytesOf("out to every caller")));
-  ASSERT_TRUE(waitUntil([&] { return caller->latest().has_value(); }))
-      << caller->state().error;
-  EXPECT_EQ(caller->latest()->payload->asText(), "out to every caller");
+  EXPECT_TRUE(listener.send(bytesOf("out to every caller")));
+  ASSERT_TRUE(waitUntil([&] { return caller.latest().has_value(); }))
+      << caller.state().error;
+  EXPECT_EQ(caller.latest()->payload->asText(), "out to every caller");
 
-  const std::optional<Message> back = caller->receive();
+  const std::optional<Message> back = caller.receive();
   ASSERT_TRUE(back.has_value());
   // A call holds the one connection it opened, and every message it
   // takes is named for the end it reached — the authority alone, the
   // query being the call's own arrangement.
   EXPECT_EQ(back->sender(),
-            "quic://127.0.0.1:" + std::to_string(portOf(listener->state().localAddress)));
+            "quic://127.0.0.1:" + std::to_string(portOf(listener.state().localAddress)));
 }
 
 TEST_F(IOQuic, SendToReachesTheOneConnectionItNamesAndNoOther) {
   ASSERT_TRUE(standing) << "no certificate could be made on this machine";
-  const std::shared_ptr<Feed> listener = hub.feed(listening());
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const std::string url = calling(portOf(listener->state().localAddress));
+  const Feed listener = hub.listen(listening());
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const std::string url = calling(portOf(listener.state().localAddress));
 
   // A hub answers one feed per URI, so the second caller is opened on a
   // hub of its own: two feeds on one URI would be one connection drained
   // by two readers, which is not two callers.
   Hub elsewhere;
   sigil::io::registerTransports(elsewhere, {"quic"});
-  const std::shared_ptr<Feed> first = hub.feed(url);
-  ASSERT_TRUE(first->state().error.empty()) << first->state().error;
-  const std::shared_ptr<Feed> second = elsewhere.feed(url);
-  ASSERT_TRUE(second->state().error.empty()) << second->state().error;
+  const Feed first = hub.listen(url);
+  ASSERT_TRUE(first.state().error.empty()) << first.state().error;
+  const Feed second = elsewhere.listen(url);
+  ASSERT_TRUE(second.state().error.empty()) << second.state().error;
 
   // Each caller says which one it is, and the arrival it says it in
   // names the connection that caller is answered on.
-  ASSERT_TRUE(sendOnce(first, "first")) << first->state().error;
-  ASSERT_TRUE(sendOnce(second, "second")) << second->state().error;
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision == 2u; }))
-      << listener->state().error;
+  ASSERT_TRUE(sendOnce(first, "first")) << first.state().error;
+  ASSERT_TRUE(sendOnce(second, "second")) << second.state().error;
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision == 2u; }))
+      << listener.state().error;
 
   std::string answering;
-  while (const std::optional<Message> arrival = listener->receive())
+  while (const std::optional<Message> arrival = listener.receive())
     if (arrival->payload->asText() == "first") answering = arrival->sender();
   ASSERT_FALSE(answering.empty());
 
-  EXPECT_TRUE(listener->send(bytesOf("to you alone"), {.to = answering}));
-  ASSERT_TRUE(waitUntil([&] { return first->state().revision >= 1u; }));
-  EXPECT_EQ(first->latest()->payload->asText(), "to you alone");
+  EXPECT_TRUE(listener.send(bytesOf("to you alone"), {.to = answering}));
+  ASSERT_TRUE(waitUntil([&] { return first.state().revision >= 1u; }));
+  EXPECT_EQ(first.latest()->payload->asText(), "to you alone");
 
   // What the OTHER caller reads first is the broadcast that came after,
   // which is what says the message before it went to one connection and
   // not to every connection standing.
-  EXPECT_TRUE(listener->send(bytesOf("out to every caller")));
-  ASSERT_TRUE(waitUntil([&] { return second->state().revision >= 1u; }));
-  const std::optional<Message> opening = second->receive();
+  EXPECT_TRUE(listener.send(bytesOf("out to every caller")));
+  ASSERT_TRUE(waitUntil([&] { return second.state().revision >= 1u; }));
+  const std::optional<Message> opening = second.receive();
   ASSERT_TRUE(opening.has_value());
   EXPECT_EQ(opening->payload->asText(), "out to every caller");
 }
@@ -306,22 +306,22 @@ TEST_F(IOQuic, ADatagramCrossesTheSameConnection) {
   // THE LISTENER'S URI ASKS FOR NOTHING: a datagram is always taken,
   // whatever a door sends, so one end may send them while the other end
   // sends streams.
-  const std::shared_ptr<Feed> listener = hub.feed(listening());
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const std::shared_ptr<Feed> caller =
-      hub.feed(calling(portOf(listener->state().localAddress), /*datagrams=*/true));
-  ASSERT_TRUE(caller->state().error.empty()) << caller->state().error;
+  const Feed listener = hub.listen(listening());
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const Feed caller =
+      hub.listen(calling(portOf(listener.state().localAddress), /*datagrams=*/true));
+  ASSERT_TRUE(caller.state().error.empty()) << caller.state().error;
 
   // A datagram is unreliable and the path says how large one may be only
   // once it is up, so the send is made until one lands: a send before
   // then is false, and one that went may still be dropped.
   ASSERT_TRUE(waitUntil([&] {
-    caller->send(bytesOf("one packet, no promises"));
-    return listener->state().revision >= 1u;
-  })) << caller->state().error;
-  EXPECT_EQ(listener->latest()->payload->asText(), "one packet, no promises");
+    caller.send(bytesOf("one packet, no promises"));
+    return listener.state().revision >= 1u;
+  })) << caller.state().error;
+  EXPECT_EQ(listener.latest()->payload->asText(), "one packet, no promises");
 
-  const std::optional<Message> heard = listener->receive();
+  const std::optional<Message> heard = listener.receive();
   ASSERT_TRUE(heard.has_value());
   // A datagram arrives naming the connection it crossed, exactly as a
   // stream does.
@@ -330,58 +330,58 @@ TEST_F(IOQuic, ADatagramCrossesTheSameConnection) {
   // A message larger than one packet on this path carries is not a
   // datagram at all, and the door says so rather than cutting it in
   // half.
-  EXPECT_FALSE(caller->send(bytesOf(std::string(70000, 'x'))));
+  EXPECT_FALSE(caller.send(bytesOf(std::string(70000, 'x'))));
 }
 
 TEST_F(IOQuic, ACallToAPortNobodyHoldsSaysItReachedNothing) {
   const uint16_t port = portNobodyHolds(context);
   ASSERT_NE(port, 0);
 
-  const std::shared_ptr<Feed> feed = hub.feed(calling(port));
+  const Feed feed = hub.listen(calling(port));
   // A machine that answers at once that nothing is listening on that
   // port ends the call there and then; one that swallows the connection
   // instead is what the bound on reaching an end answers for. The
   // deadline here covers the slower of the two.
   EXPECT_TRUE(
-      waitUntil([&] { return !feed->state().error.empty(); }, kBeyondTheBound));
+      waitUntil([&] { return !feed.state().error.empty(); }, kBeyondTheBound));
   // The sentence names the end that was never reached, and names it
   // WITHOUT the query: what a call reaches is an authority, and whether
   // this end checks a certificate is its own arrangement.
   const std::string called = "quic://127.0.0.1:" + std::to_string(port);
-  EXPECT_TRUE(feed->state().error.starts_with("could not reach " + called + ":"))
-      << feed->state().error;
-  EXPECT_FALSE(feed->latest().has_value());
+  EXPECT_TRUE(feed.state().error.starts_with("could not reach " + called + ":"))
+      << feed.state().error;
+  EXPECT_FALSE(feed.latest().has_value());
 }
 
 TEST_F(IOQuic, AListeningUriThatNamesNoCertificateOpensNothingAndSaysWhy) {
   // A quic connection is encrypted or it is nothing, so a port that
   // cannot answer for itself is a port nobody may hold.
-  const std::shared_ptr<Feed> bare = hub.feed("quic://:0");
-  EXPECT_FALSE(bare->state().error.empty());
-  EXPECT_TRUE(bare->state().localAddress.empty());
-  EXPECT_FALSE(bare->latest().has_value());
+  const Feed bare = hub.listen("quic://:0");
+  EXPECT_FALSE(bare.state().error.empty());
+  EXPECT_TRUE(bare.state().localAddress.empty());
+  EXPECT_FALSE(bare.latest().has_value());
 
   // Half a pair is no pair.
-  const std::shared_ptr<Feed> half =
-      hub.feed("quic://:0?cert=" + (scratch.path / "cert.pem").string());
-  EXPECT_FALSE(half->state().error.empty());
-  EXPECT_TRUE(half->state().localAddress.empty());
+  const Feed half =
+      hub.listen("quic://:0?cert=" + (scratch.path / "cert.pem").string());
+  EXPECT_FALSE(half.state().error.empty());
+  EXPECT_TRUE(half.state().localAddress.empty());
 
   // A pair that names files nobody wrote is no pair either.
-  const std::shared_ptr<Feed> missing =
-      hub.feed("quic://:0?cert=" + (scratch.path / "nobody.pem").string() +
+  const Feed missing =
+      hub.listen("quic://:0?cert=" + (scratch.path / "nobody.pem").string() +
                "&key=" + (scratch.path / "nothing.pem").string());
-  EXPECT_FALSE(missing->state().error.empty());
-  EXPECT_TRUE(missing->state().localAddress.empty());
+  EXPECT_FALSE(missing.state().error.empty());
+  EXPECT_TRUE(missing.state().localAddress.empty());
 }
 
 TEST_F(IOQuic, DroppingTheLastHolderOfAListeningFeedGivesUpItsPort) {
   ASSERT_TRUE(standing) << "no certificate could be made on this machine";
   uint16_t port = 0;
   {
-    const std::shared_ptr<Feed> listener = hub.feed(listening());
-    ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-    port = portOf(listener->state().localAddress);
+    const Feed listener = hub.listen(listening());
+    ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+    port = portOf(listener.state().localAddress);
     ASSERT_NE(port, 0);
   }
 
@@ -391,14 +391,14 @@ TEST_F(IOQuic, DroppingTheLastHolderOfAListeningFeedGivesUpItsPort) {
   const std::string uri = "quic://:" + std::to_string(port) +
                           "?cert=" + (scratch.path / "cert.pem").string() +
                           "&key=" + (scratch.path / "key.pem").string();
-  std::shared_ptr<Feed> again;
+  Feed again;
   ASSERT_TRUE(waitUntil([&] {
-    again = hub.feed(uri);
-    if (again->state().error.empty()) return true;
-    again.reset();
+    again = hub.listen(uri);
+    if (again.state().error.empty()) return true;
+    again = {};
     return false;
   }));
-  EXPECT_EQ(portOf(again->state().localAddress), port);
+  EXPECT_EQ(portOf(again.state().localAddress), port);
 }
 
 }  // namespace

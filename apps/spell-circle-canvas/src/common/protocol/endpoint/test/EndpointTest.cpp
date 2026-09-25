@@ -153,22 +153,22 @@ class ProtocolEndpoint : public ::testing::Test {
   }
 
   /** A client on @p endpoint, once its first send has gone out. */
-  std::shared_ptr<sigil::io::Feed> dial(const protocol::Endpoint& endpoint,
+  sigil::io::Feed dial(const protocol::Endpoint& endpoint,
                                         std::string_view first) {
-    std::shared_ptr<sigil::io::Feed> client =
-        clientHub.feed(endpoint.address());
-    EXPECT_TRUE(waitUntil([&] { return client->send(bytesOf(first)); }))
-        << client->state().error;
+    sigil::io::Feed client =
+        clientHub.listen(endpoint.address());
+    EXPECT_TRUE(waitUntil([&] { return client.send(bytesOf(first)); }))
+        << client.state().error;
     return client;
   }
 
   /** The next message @p client hears, the host's hub dispatched until
    *  it comes; nothing where none does. */
-  std::optional<Json> hear(const std::shared_ptr<sigil::io::Feed>& client) {
+  std::optional<Json> hear(const sigil::io::Feed& client) {
     std::optional<Json> heard;
     waitUntil([&] {
       hostHub.advance();
-      if (const std::optional<sigil::io::Message> arrival = client->receive())
+      if (const std::optional<sigil::io::Message> arrival = client.receive())
         heard = sigil::data::decodeJson(arrival->payload->asText());
       return heard.has_value();
     });
@@ -216,7 +216,7 @@ TEST_F(ProtocolEndpoint, AnswersACommandOverTheWireInsideTheDispatch) {
   const auto client = dial(endpoint, R"({"id": 1, "method": "host.describe"})");
   // Nothing is answered until the host's hub dispatches.
   std::this_thread::sleep_for(50ms);
-  EXPECT_FALSE(client->receive());
+  EXPECT_FALSE(client.receive());
   const std::optional<Json> answer = hear(client);
   ASSERT_TRUE(answer);
   EXPECT_EQ((*answer)["id"].number(), 1);
@@ -227,7 +227,7 @@ TEST_F(ProtocolEndpoint, AnswersACommandOverTheWireInsideTheDispatch) {
             (*answer)["session"].text());
 
   // A method nobody declared is refused over the wire in the same words.
-  ASSERT_TRUE(client->send(bytesOf(R"({"id": 2, "method": "clock.warp"})")));
+  ASSERT_TRUE(client.send(bytesOf(R"({"id": 2, "method": "clock.warp"})")));
   const std::optional<Json> refused = hear(client);
   ASSERT_TRUE(refused);
   EXPECT_EQ((*refused)["error"]["code"].text(), "methodNotFound");
@@ -274,7 +274,7 @@ TEST_F(ProtocolEndpoint, AClientInProcessStandsOnTheSameDispatcher) {
 
   const auto client = dial(endpoint, R"({"id": 1, "method": "clock.enable"})");
   ASSERT_TRUE(hear(client));
-  ASSERT_TRUE(client->send(bytesOf(R"({"id": 2, "method": "host.describe"})")));
+  ASSERT_TRUE(client.send(bytesOf(R"({"id": 2, "method": "host.describe"})")));
   const std::optional<Json> described = hear(client);
   ASSERT_TRUE(described);
   ASSERT_EQ((*described)["result"]["attached"].size(), 2u)
@@ -301,7 +301,7 @@ TEST_F(ProtocolEndpoint, LettingItGoTellsAClientThatEnabledHostWhy) {
   ASSERT_TRUE(enabled);
   ASSERT_TRUE((*enabled)["error"].null()) << sigil::data::encodeJson(*enabled);
 
-  endpoint.reset();
+  endpoint = {};
   const std::optional<Json> told = hear(client);
   ASSERT_TRUE(told);
   EXPECT_EQ((*told)["method"].text(), "host.detached");
@@ -317,8 +317,8 @@ TEST_F(ProtocolEndpoint, APeerThatLeavesIsDetached) {
   auto client = dial(endpoint, R"({"id": 1, "method": "host.version"})");
   ASSERT_TRUE(hear(client));
   EXPECT_EQ(dispatcher.sessions().size(), 1u);
-  client->close();
-  client.reset();
+  client.close();
+  client = {};
   EXPECT_TRUE(waitUntil([&] {
     hostHub.advance();
     return dispatcher.sessions().empty();

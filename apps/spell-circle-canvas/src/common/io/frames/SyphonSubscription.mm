@@ -79,7 +79,7 @@ bool publicationIsListed(NSString *identity) {
   return false;
 }
 
-class SyphonSubscription final : public Subscription {
+class SyphonSubscription final : public detail::SubscriptionEnd {
  public:
   SyphonSubscription(std::string name, std::string application, id<MTLDevice> device)
       : m_name(std::move(name)),
@@ -185,7 +185,7 @@ class SyphonSubscription final : public Subscription {
 
 }  // namespace
 
-std::unique_ptr<Subscription> makeSyphonSubscription(std::string name, std::string application,
+std::unique_ptr<detail::SubscriptionEnd> makeSyphonSubscription(std::string name, std::string application,
                                                      void *metalDevice) {
   @autoreleasepool {
     // KEEPS HEARING WHILE THIS APPLICATION IS NOT THE ACTIVE ONE. What

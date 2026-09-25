@@ -96,11 +96,11 @@ class SeerRecorder : public SeerScratch {};
 
 TEST(SeerWires, AUriNoTransportOpensAnswersAWireThatSaysSo) {
   Wires wires;
-  const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
-  ASSERT_NE(feed, nullptr);
-  EXPECT_FALSE(feed->state().error.empty());
-  EXPECT_TRUE(feed->state().localAddress.empty());
-  EXPECT_FALSE(feed->latest().has_value());
+  const Feed feed = wires.open("pigeon://the.desk");
+  ASSERT_TRUE(feed);
+  EXPECT_FALSE(feed.state().error.empty());
+  EXPECT_TRUE(feed.state().localAddress.empty());
+  EXPECT_FALSE(feed.latest().has_value());
   // It is a wire all the same: a reader has to see the sentence beside
   // the URI they mistyped, which means the row has to be there.
   ASSERT_EQ(wires.feeds().size(), 1u);
@@ -112,8 +112,8 @@ TEST(SeerWires, AUriNoTransportOpensAnswersAWireThatSaysSo) {
 
 TEST(SeerWires, OpeningAUriThatIsAlreadyOpenAnswersTheWireThatIsThere) {
   Wires wires;
-  const std::shared_ptr<Feed> first = wires.open("pigeon://the.desk");
-  const std::shared_ptr<Feed> again = wires.open("pigeon://the.desk");
+  const Feed first = wires.open("pigeon://the.desk");
+  const Feed again = wires.open("pigeon://the.desk");
   EXPECT_EQ(first, again);
   EXPECT_EQ(wires.feeds().size(), 1u);
 
@@ -124,15 +124,15 @@ TEST(SeerWires, OpeningAUriThatIsAlreadyOpenAnswersTheWireThatIsThere) {
 
 TEST(SeerWires, TwoWiresOnTheLoopbackCarryBytesAndTheLogDrainsThemInOrder) {
   Wires wires;
-  const std::shared_ptr<Feed> listener = wires.open("udp://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = wires.open("udp://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   Sender sender(wires);
-  const std::shared_ptr<Feed> peer =
+  const Feed peer =
       sender.openPeer("udp://127.0.0.1:" + std::to_string(port));
-  ASSERT_TRUE(peer->state().error.empty()) << peer->state().error;
+  ASSERT_TRUE(peer.state().error.empty()) << peer.state().error;
   // The peer is a wire like any other, so both stand in the list in the
   // order they were opened.
   ASSERT_EQ(wires.feeds().size(), 2u);
@@ -140,13 +140,13 @@ TEST(SeerWires, TwoWiresOnTheLoopbackCarryBytesAndTheLogDrainsThemInOrder) {
   EXPECT_EQ(wires.feeds()[1], peer);
 
   EXPECT_TRUE(sender.send(bytesOf("first")));
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision >= 1; }));
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision >= 1; }));
   EXPECT_TRUE(sender.send(bytesOf("second")));
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision >= 2; }));
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision >= 2; }));
   EXPECT_EQ(sender.sent(), 2u);
 
   Log log;
-  EXPECT_EQ(log.drain(*listener), 2u);
+  EXPECT_EQ(log.drain(listener), 2u);
   ASSERT_EQ(log.entries().size(), 2u);
   EXPECT_EQ(log.entries()[0].bytes->asText(), "first");
   EXPECT_EQ(log.entries()[0].generation, 1u);
@@ -155,19 +155,19 @@ TEST(SeerWires, TwoWiresOnTheLoopbackCarryBytesAndTheLogDrainsThemInOrder) {
   EXPECT_EQ(log.entries()[1].generation, 2u);
   // Drained is handed out: a second drain of the same wire takes
   // nothing, and the log keeps what it already took.
-  EXPECT_EQ(log.drain(*listener), 0u);
+  EXPECT_EQ(log.drain(listener), 0u);
   EXPECT_EQ(log.entries().size(), 2u);
 }
 
 TEST(SeerLog, AnEntryCarriesTheSenderItWasDeliveredWith) {
   Wires wires;
-  const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
+  const Feed feed = wires.open("pigeon://the.desk");
   inletOf(feed).deliver(bytesOf("from the field"),
                         std::string("udp://127.0.0.1:52341"));
   inletOf(feed).deliver(bytesOf("from nobody"));
 
   Log log;
-  EXPECT_EQ(log.drain(*feed), 2u);
+  EXPECT_EQ(log.drain(feed), 2u);
   ASSERT_EQ(log.entries().size(), 2u);
   // One wire carries messages from many senders, so the sender belongs
   // to the message: a reader looking down the log sees which of them
@@ -179,8 +179,8 @@ TEST(SeerLog, AnEntryCarriesTheSenderItWasDeliveredWith) {
 
 TEST(SeerWires, EveryWireNamesTheSenderOfItsNewestMessage) {
   Wires wires;
-  const std::shared_ptr<Feed> desk = wires.open("pigeon://the.desk");
-  const std::shared_ptr<Feed> window = wires.open("pigeon://the.window");
+  const Feed desk = wires.open("pigeon://the.desk");
+  const Feed window = wires.open("pigeon://the.window");
   wires.tick(0.0);
   // A wire nothing has arrived on names nobody.
   ASSERT_NE(wires.vitalsOf("pigeon://the.desk"), nullptr);
@@ -214,13 +214,13 @@ TEST(SeerWires, EveryWireNamesTheSenderOfItsNewestMessage) {
 
 TEST(SeerLog, AFullLogLetsGoOfTheOldestAndCountsIt) {
   Wires wires;
-  const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
+  const Feed feed = wires.open("pigeon://the.desk");
   inletOf(feed).deliver(bytesOf("one"));
   inletOf(feed).deliver(bytesOf("two"));
   inletOf(feed).deliver(bytesOf("three"));
 
   Log log(2);
-  EXPECT_EQ(log.drain(*feed), 3u);
+  EXPECT_EQ(log.drain(feed), 3u);
   ASSERT_EQ(log.entries().size(), 2u);
   EXPECT_EQ(log.entries()[0].bytes->asText(), "two");
   EXPECT_EQ(log.entries()[1].bytes->asText(), "three");
@@ -233,7 +233,7 @@ TEST(SeerLog, AFullLogLetsGoOfTheOldestAndCountsIt) {
 
 TEST(SeerWires, VitalsCountARateOverTheLastSecondOfTicks) {
   Wires wires;
-  const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
+  const Feed feed = wires.open("pigeon://the.desk");
 
   // Four messages over the second between these two ticks, which is
   // four a second whatever the wall clock did meanwhile.
@@ -243,10 +243,10 @@ TEST(SeerWires, VitalsCountARateOverTheLastSecondOfTicks) {
   wires.tick(1.0);
 
   const Vitals* vitals = wires.vitalsOf("pigeon://the.desk");
-  ASSERT_NE(vitals, nullptr);
+  ASSERT_TRUE(vitals);
   EXPECT_EQ(vitals->generation, 4u);
   EXPECT_DOUBLE_EQ(vitals->arrivalsPerSecond, 4.0);
-  ASSERT_NE(vitals->newest, nullptr);
+  ASSERT_TRUE(vitals->newest);
   EXPECT_EQ(vitals->newest->asText(), "3");
   EXPECT_FALSE(vitals->closed);
 
@@ -259,20 +259,20 @@ TEST(SeerWires, VitalsCountARateOverTheLastSecondOfTicks) {
 
 TEST(SeerWires, ATickReadsAClosedWireAsClosed) {
   Wires wires;
-  const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
+  const Feed feed = wires.open("pigeon://the.desk");
   inletOf(feed).deliver(bytesOf("last words"));
-  feed->close();
+  feed.close();
 
   wires.tick(0.0);
   const Vitals* vitals = wires.vitalsOf("pigeon://the.desk");
-  ASSERT_NE(vitals, nullptr);
+  ASSERT_TRUE(vitals);
   EXPECT_TRUE(vitals->closed);
   EXPECT_EQ(vitals->generation, 1u);
 }
 
 TEST_F(SeerRecorder, ARecordedWireIsAFileReadRecordingReadsBack) {
   Wires wires;
-  const std::shared_ptr<Feed> feed = wires.open("pigeon://the.desk");
+  const Feed feed = wires.open("pigeon://the.desk");
   Recorder recorder(wires);
 
   const fs::path file = directory / "desk.feed";
@@ -299,7 +299,7 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
   Wires wires;
   const fs::path file = directory / "desk.feed";
   {
-    const std::shared_ptr<Feed> live = wires.open("pigeon://the.desk");
+    const Feed live = wires.open("pigeon://the.desk");
     Recorder recorder(wires);
     ASSERT_TRUE(recorder.record(live, file));
     inletOf(live).deliver(bytesOf("first"), std::chrono::duration<double>(0.25));
@@ -307,9 +307,9 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
   }
 
   Recorder recorder(wires);
-  const std::shared_ptr<Feed> replayed =
+  const Feed replayed =
       recorder.replay("pigeon://the.desk", file);
-  ASSERT_TRUE(replayed->state().error.empty()) << replayed->state().error;
+  ASSERT_TRUE(replayed.state().error.empty()) << replayed.state().error;
   // The wire that was there is gone, and the one that took its place is
   // the file: one row, not two.
   ASSERT_EQ(wires.feeds().size(), 1u);
@@ -318,17 +318,17 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
   // The first dispatch is where the recording starts, whatever the
   // caller's clock reads then: nothing is due at its own origin.
   wires.hub().advance(std::chrono::duration<double>(10.0));
-  EXPECT_EQ(replayed->state().revision, 0u);
+  EXPECT_EQ(replayed.state().revision, 0u);
   wires.hub().advance(std::chrono::duration<double>(10.3));
-  EXPECT_EQ(replayed->state().revision, 1u);
-  EXPECT_EQ(replayed->latest()->payload->asText(), "first");
-  EXPECT_NE(replayed->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_EQ(replayed.state().revision, 1u);
+  EXPECT_EQ(replayed.latest()->payload->asText(), "first");
+  EXPECT_NE(replayed.state().readiness, sigil::io::ReadyState::Closed);
   wires.hub().advance(std::chrono::duration<double>(11.0));
-  EXPECT_EQ(replayed->state().revision, 2u);
-  EXPECT_EQ(replayed->latest()->payload->asText(), "second");
+  EXPECT_EQ(replayed.state().revision, 2u);
+  EXPECT_EQ(replayed.latest()->payload->asText(), "second");
   // Nothing else is coming, and the wire says so rather than waiting on
   // a door that will not open again.
-  EXPECT_EQ(replayed->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_EQ(replayed.state().readiness, sigil::io::ReadyState::Closed);
 }
 
 TEST_F(SeerRecorder, ReplayingAFileThatIsNoRecordingSaysSoOnTheWire) {
@@ -339,23 +339,23 @@ TEST_F(SeerRecorder, ReplayingAFileThatIsNoRecordingSaysSoOnTheWire) {
   }
 
   Recorder recorder(wires);
-  const std::shared_ptr<Feed> replayed =
+  const Feed replayed =
       recorder.replay("pigeon://the.desk", file);
-  EXPECT_FALSE(replayed->state().error.empty());
+  EXPECT_FALSE(replayed.state().error.empty());
   wires.hub().advance(std::chrono::duration<double>(0.0));
-  EXPECT_EQ(replayed->state().revision, 0u);
+  EXPECT_EQ(replayed.state().revision, 0u);
 }
 
 TEST(SeerSender, ARepeatSendsOnceEveryPeriodTheTicksPassThrough) {
   Wires wires;
-  const std::shared_ptr<Feed> listener = wires.open("udp://:0");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = wires.open("udp://:0");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   Sender sender(wires);
   ASSERT_TRUE(sender.openPeer("udp://127.0.0.1:" + std::to_string(port))
-                  ->state()
+                  .state()
                   .error.empty());
   sender.repeat(bytesOf("again"), 0.1);
   EXPECT_TRUE(sender.repeating());
@@ -374,8 +374,8 @@ TEST(SeerSender, ARepeatSendsOnceEveryPeriodTheTicksPassThrough) {
   EXPECT_EQ(sender.sent(), 2u);
   EXPECT_FALSE(sender.repeating());
 
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision >= 2; }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "again");
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision >= 2; }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "again");
 }
 
 TEST(SeerSender, AWireWithNoWayBackRefusesToSendAndCountsNothing) {
@@ -383,7 +383,7 @@ TEST(SeerSender, AWireWithNoWayBackRefusesToSendAndCountsNothing) {
   Sender sender(wires);
   // A listener answers whoever writes to it and holds no peer of its
   // own, so there is no way out through it.
-  ASSERT_TRUE(sender.openPeer("udp://:0")->state().error.empty());
+  ASSERT_TRUE(sender.openPeer("udp://:0").state().error.empty());
   EXPECT_FALSE(sender.send(bytesOf("no way back")));
   EXPECT_EQ(sender.sent(), 0u);
 }
@@ -437,12 +437,12 @@ TEST(SeerRendering, AJsonMessageIsShownIndentedAndAnythingElseIsNot) {
 TEST(SeerSender, ClosingThePeerReleasesItAndReopeningResolvesTheNewFeed) {
   sigil::seer::Wires wires;
   sigil::seer::Sender sender(wires);
-  std::weak_ptr<sigil::io::Feed> previous = sender.openPeer("udp://:0");
-  ASSERT_FALSE(previous.expired());
+  const sigil::io::Feed previous = sender.openPeer("udp://:0");
+  ASSERT_TRUE(previous.state().isOpen());
   ASSERT_TRUE(wires.close("udp://:0"));
-  EXPECT_TRUE(previous.expired());
+  EXPECT_EQ(previous.state().readiness, sigil::io::ReadyState::Closed);
   EXPECT_FALSE(sender.peer());
   const auto reopened = wires.open("udp://:0");
   EXPECT_EQ(sender.peer(), reopened);
-  EXPECT_NE(reopened->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_NE(reopened.state().readiness, sigil::io::ReadyState::Closed);
 }

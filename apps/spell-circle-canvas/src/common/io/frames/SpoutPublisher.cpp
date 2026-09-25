@@ -8,7 +8,7 @@
 namespace sigil::io::frames {
 namespace {
 
-class SpoutPublisher final : public Publisher {
+class SpoutPublisher final : public detail::PublisherEnd {
  public:
   explicit SpoutPublisher(std::string name) : m_name(std::move(name)) {}
   ~SpoutPublisher() override {
@@ -40,7 +40,7 @@ class SpoutPublisher final : public Publisher {
 
 }  // namespace
 
-std::unique_ptr<Publisher> makeSpoutPublisher(std::string name,
+std::unique_ptr<detail::PublisherEnd> makeSpoutPublisher(std::string name,
                                               void* nativeDevice) {
   auto publisher = std::make_unique<SpoutPublisher>(std::move(name));
   if (!publisher->open(static_cast<ID3D11Device*>(nativeDevice))) return {};

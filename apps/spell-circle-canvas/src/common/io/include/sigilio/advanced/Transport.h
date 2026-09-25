@@ -25,8 +25,19 @@ class Feed;
 class Hub;
 class Inlet;
 
+namespace detail {
+class FeedDoor;
+
+/** HOW A HUB FINDS THE TRANSPORTS LINKED INTO THIS PROGRAM: the transport
+ *  feature hands its installer over here as the program starts, and a
+ *  hub asked to listen on a scheme nothing is registered for runs it
+ *  once — so linking the transports is what makes `Hub::listen()` open
+ *  them. */
+void setLinkedTransports(void (*install)(Hub& hub));
+}  // namespace detail
+
 namespace testing {
-Inlet inletOf(const std::shared_ptr<Feed>& feed);
+Inlet inletOf(const Feed& feed);
 }  // namespace testing
 
 /** WHAT A TRANSPORT HANDS BACK once it has opened a URI. */
@@ -95,10 +106,10 @@ class Inlet {
 
  private:
   friend class Hub;
-  friend Inlet testing::inletOf(const std::shared_ptr<Feed>& feed);
-  explicit Inlet(std::weak_ptr<Feed> feed);
+  friend Inlet testing::inletOf(const Feed& feed);
+  explicit Inlet(std::weak_ptr<detail::FeedDoor> door);
 
-  std::weak_ptr<Feed> m_feed;
+  std::weak_ptr<detail::FeedDoor> m_feed;
 };
 
 /** HOW A SCHEME OPENS A DOOR: given the URI and the inlet into the feed

@@ -85,8 +85,8 @@ class Wires {
    *  A URI already open answers the feed that is already there, and its
    *  policy is the one it was opened with. A URI nothing can open
    *  answers a feed whose `error()` says so. */
-  std::shared_ptr<io::Feed> open(std::string_view uri,
-                                 io::FeedPolicy policy = {});
+  io::Feed open(std::string_view uri,
+                                 io::ListenOptions policy = {});
 
   /** Closes the wire at @p uri and drops it from the list; false when no
    *  wire is open on it. A feed that closes itself — a recording played
@@ -95,17 +95,17 @@ class Wires {
   bool close(std::string_view uri);
 
   /** Every feed that is open, in the order the wires were opened. */
-  std::vector<std::shared_ptr<io::Feed>> feeds() const;
+  std::vector<io::Feed> feeds() const;
 
   /** The feed open on @p uri, or null. */
-  std::shared_ptr<io::Feed> feed(std::string_view uri) const;
+  io::Feed feed(std::string_view uri) const;
 
   /** Opens @p uri onto the recording at @p path and keeps the feed: the
    *  wire open on that URI is closed and dropped, and every later open()
    *  on it plays the same file back instead of opening a socket. The
    *  answer carries a sentence in its `error()` when the file is not a
    *  recording. */
-  std::shared_ptr<io::Feed> replay(std::string_view uri,
+  io::Feed replay(std::string_view uri,
                                    const std::filesystem::path& path);
 
   /** Whether opens on this URI play a recording replay() named. */
@@ -148,7 +148,7 @@ class Wires {
   /** One wire: the feed, and the recent generations its rate is read
    *  off. */
   struct Watch {
-    std::shared_ptr<io::Feed> feed;
+    io::Feed feed;
     std::deque<Sample> samples;
   };
 

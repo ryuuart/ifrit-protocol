@@ -871,7 +871,7 @@ store does not expand the whole timeline into images.
 A sketch that listens rather than loads reads a FEED through the same
 hub. The store registers the UDP transport on the hub it builds —
 `sigil::io::registerTransports()` — so `ctx.assets.hub().feed(uri)` binds
-a real port in a window, and `Hub::feed()` answers the one feed a URI
+a real port in a window, and `Hub::listen()` answers the one feed a URI
 names for as long as the sketch holds it. `Feed::latest()` is the newest
 message that reached it, for a scene that draws the state it was last
 told; `Feed::receive()` drains in order the ones this frame has not seen,
@@ -895,7 +895,7 @@ void setup(SketchContext& ctx) {
   sigil::io::Hub& hub = ctx.assets.hub();
   if (ctx.deterministic)  // a plate reads the file the window heard
     hub.replay("udp://:27020", ctx.local("data/sky.feed"));
-  m_sky = hub.feed("udp://:27020");
+  m_sky = hub.listen("udp://:27020");
 }
 ```
 

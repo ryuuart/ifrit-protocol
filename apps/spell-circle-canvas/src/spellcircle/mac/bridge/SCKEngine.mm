@@ -137,9 +137,9 @@ constexpr uint64_t kInspectionPumpNanoseconds = 30 * NSEC_PER_MSEC;
 
 - (void)dealloc {
   if (_inspectionPump) dispatch_source_cancel(_inspectionPump);
-  _inspection.reset();
+  _inspection = {};
   [self closeDoor];
-  _publisher.reset();
+  _publisher = {};
 }
 
 - (void)setPort:(int)port {

@@ -99,7 +99,7 @@ struct Connection::State {
   std::string trouble;
   /** What the undelivered queue holds before its oldest falls off. */
   size_t capacity = 0;
-  std::shared_ptr<io::Feed> feed;
+  io::Feed feed;
   Json latest;
   /** THE NEWEST ARRIVAL'S BYTES AS OF THE LAST DISPATCH, whole and
    *  unread, which is what a reading asked for a value decodes. They
@@ -254,7 +254,7 @@ struct Connection::State {
    *  replying answers the sender of it. */
   void advance() {
     if (!feed) return;
-    while (const std::optional<io::Message> arrival = feed->receive()) {
+    while (const std::optional<io::Message> arrival = feed.receive()) {
       // The bytes are latched whether or not they are a message in this
       // door's scheme, because a reading asked for a VALUE decodes them
       // itself: a buffer arriving at a door read as JSON text is no Json
@@ -307,17 +307,17 @@ struct Connection::State {
 };
 
 Connection::Connection(io::Hub& hub, std::string_view uri,
-                       io::FeedPolicy policy)
-    : Connection(hub, uri, Schema{}, policy) {}
+                       io::ListenOptions options)
+    : Connection(hub, uri, Schema{}, std::move(options)) {}
 
 Connection::Connection(io::Hub& hub, std::string_view uri, Schema schema,
-                       io::FeedPolicy policy) {
+                       io::ListenOptions options) {
   auto state = std::make_shared<State>();
   state->uri = std::string(uri);
   state->osc = schemeOf(state->uri) == "osc";
   state->midi = schemeOf(state->uri) == "midi";
   state->artnet = schemeOf(state->uri) == "artnet";
-  state->capacity = policy.capacity;
+  state->capacity = options.capacity;
   state->schema = std::move(schema);
   if ((state->osc || state->midi || state->artnet) && state->schema) {
     // OSC, MIDI and Art-Net each spell every value themselves, down to
@@ -331,7 +331,7 @@ Connection::Connection(io::Hub& hub, std::string_view uri, Schema schema,
     m_state = std::move(state);
     return;
   }
-  state->feed = hub.feed(state->uri, policy);
+  state->feed = hub.listen(state->uri, std::move(options));
   // The advance knows the state weakly: the state owns the lease, and
   // a lease owning the state back would keep both standing after the
   // last connection onto them was gone.
@@ -352,7 +352,7 @@ const Json& Connection::latest(std::string_view what) const {
 }
 
 uint64_t Connection::revision() const {
-  return m_state && m_state->feed ? m_state->feed->state().revision : 0;
+  return m_state && m_state->feed ? m_state->feed.state().revision : 0;
 }
 
 std::optional<Json> Connection::receive() {
@@ -382,13 +382,13 @@ void Connection::otherwise(Handler handler) {
 bool Connection::send(const Json& message) const {
   if (!m_state || !m_state->feed) return false;
   const std::optional<io::Bytes> bytes = m_state->write(message);
-  return bytes && m_state->feed->send(*bytes);
+  return bytes && m_state->feed.send(*bytes);
 }
 
 bool Connection::send(std::string_view address, const Json& arguments) const {
   if (!m_state || !m_state->feed) return false;
   const std::optional<io::Bytes> bytes = m_state->write(address, arguments);
-  return bytes && m_state->feed->send(*bytes);
+  return bytes && m_state->feed.send(*bytes);
 }
 
 bool Connection::reply(const Json& message) const {
@@ -398,13 +398,13 @@ bool Connection::reply(const Json& message) const {
   // door nothing has arrived at, has.
   if (!m_state || !m_state->feed || m_state->sender.empty()) return false;
   const std::optional<io::Bytes> bytes = m_state->write(message);
-  return bytes && m_state->feed->send(*bytes, {.to = m_state->sender});
+  return bytes && m_state->feed.send(*bytes, {.to = m_state->sender});
 }
 
 bool Connection::reply(std::string_view address, const Json& arguments) const {
   if (!m_state || !m_state->feed || m_state->sender.empty()) return false;
   const std::optional<io::Bytes> bytes = m_state->write(address, arguments);
-  return bytes && m_state->feed->send(*bytes, {.to = m_state->sender});
+  return bytes && m_state->feed.send(*bytes, {.to = m_state->sender});
 }
 
 const std::string& Connection::uri() const {
@@ -426,18 +426,18 @@ std::shared_ptr<const io::Bytes> Connection::latestBytes() const {
 }
 
 std::string Connection::localAddress() const {
-  return m_state && m_state->feed ? m_state->feed->state().localAddress
+  return m_state && m_state->feed ? m_state->feed.state().localAddress
                                   : std::string();
 }
 
 std::string Connection::error() const {
   if (!m_state) return {};
   if (!m_state->trouble.empty()) return m_state->trouble;
-  return m_state->feed ? m_state->feed->state().error : std::string();
+  return m_state->feed ? m_state->feed.state().error : std::string();
 }
 
 uint64_t Connection::dropped() const {
-  return m_state && m_state->feed ? m_state->feed->state().dropped : 0;
+  return m_state && m_state->feed ? m_state->feed.state().dropped : 0;
 }
 
 uint64_t Connection::undecodable() const {
@@ -445,7 +445,7 @@ uint64_t Connection::undecodable() const {
 }
 
 bool Connection::closed() const {
-  return m_state && m_state->feed ? m_state->feed->state().readiness ==
+  return m_state && m_state->feed ? m_state->feed.state().readiness ==
                                         io::ReadyState::Closed
                                   : true;
 }
@@ -460,8 +460,8 @@ Connection::Vitals Connection::vitals() const {
           .error = error()};
 }
 
-std::shared_ptr<io::Feed> Connection::feed() const {
-  return m_state ? m_state->feed : nullptr;
+io::Feed Connection::feed() const {
+  return m_state ? m_state->feed : io::Feed();
 }
 
 }  // namespace sigil::data

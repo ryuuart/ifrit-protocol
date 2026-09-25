@@ -74,7 +74,7 @@ application in the process. The application owns the Qt scene consumer, settings
 #include <sigilseer/wire/Wires.h>
 
 sigil::seer::Wires wires;                       // a hub, with the transports on it
-auto scene = wires.open("udp://:27020");        // std::shared_ptr<sigil::io::Feed>
+auto scene = wires.open("udp://:27020");        // a sigil::io::Feed handle
 
 sigil::seer::Log log;
 sigil::seer::Sender sender(wires);
@@ -84,7 +84,7 @@ sender.openPeer("udp://127.0.0.1:9001");        // the way back out
 wires.dispatch(seconds);                        // recordings move forward
 wires.tick(seconds);                            // every wire is read
 sender.tick(seconds);                           // a repeating message goes out
-log.drain(*scene);                              // and the messages are taken
+log.drain(scene);                               // and the messages are taken
 
 for (const sigil::seer::Vitals& wire : wires.vitals())
   show(wire.uri, wire.arrivalsPerSecond, wire.error);

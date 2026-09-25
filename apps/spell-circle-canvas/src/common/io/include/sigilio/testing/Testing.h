@@ -6,9 +6,7 @@
  * way to put a message on a feed without opening a socket.
  */
 
-#include <memory>
-
-#include "sigilio/advanced/Transport.h"
+#include "sigilio/hub/Feed.h"
 
 namespace sigil::io::testing {
 
@@ -16,6 +14,6 @@ namespace sigil::io::testing {
  *  through it arrives on @p feed as a transport's would, with the sender
  *  and the time it names. A feed a hub opened keeps its transport's end;
  *  the inlet is a second way in beside it. */
-Inlet inletOf(const std::shared_ptr<Feed>& feed);
+Inlet inletOf(const Feed& feed);
 
 }  // namespace sigil::io::testing

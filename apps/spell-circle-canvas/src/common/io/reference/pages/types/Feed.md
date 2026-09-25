@@ -21,7 +21,7 @@ drains in order the ones it has not seen yet through `Feed::receive`. Neither ev
 a message: a reader that finds nothing is told so and gets on with its
 frame.
 
-A feed keeps the last `FeedPolicy::capacity` arrivals for
+A feed keeps the last `ListenOptions::capacity` arrivals for
 `Feed::receive`. When one more reaches a feed nobody has drained, the
 oldest falls off the front and `FeedState::dropped` counts it, so a reader
 that cannot keep up loses the oldest messages rather than the newest and

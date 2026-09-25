@@ -102,7 +102,7 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   m_hub.registerDecoder<sigil::data::Database>(sigil::data::DatabaseDecoder{});
   // A resource that keeps ARRIVING is a feed, and a sketch opens one
   // through this same hub: with the transports registered,
-  // hub().feed("udp://:27020") binds the port and every datagram that
+  // hub().listen("udp://:27020") binds the port and every datagram that
   // reaches it arrives in that feed. A URI replay() names is played
   // back from its file instead, through no transport at all.
   sigil::io::registerTransports(m_hub);

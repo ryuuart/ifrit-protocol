@@ -281,30 +281,30 @@ class IOWebSocket : public ::testing::Test {
 };
 
 TEST_F(IOWebSocket, AListeningFeedSaysWhichPortAndPathItBound) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
   // Every interface of both families is one dual-stack socket, which is
   // a v6 address with nothing in it, and the path it answers stands
   // behind the port.
-  EXPECT_TRUE(listener->state().localAddress.starts_with("ws://[::]:"))
-      << listener->state().localAddress;
-  EXPECT_TRUE(listener->state().localAddress.ends_with("/sky")) << listener->state().localAddress;
-  EXPECT_NE(portOf(listener->state().localAddress), 0);
+  EXPECT_TRUE(listener.state().localAddress.starts_with("ws://[::]:"))
+      << listener.state().localAddress;
+  EXPECT_TRUE(listener.state().localAddress.ends_with("/sky")) << listener.state().localAddress;
+  EXPECT_NE(portOf(listener.state().localAddress), 0);
 }
 
 TEST_F(IOWebSocket, APeersTextMessageArrivesNamingWhereItCameFrom) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   Peer peer(context, port, "/sky");
   ASSERT_TRUE(peer.upgraded());
   peer.send(0x1, "a scene arrives");
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "a scene arrives");
-  const std::optional<Message> arrival = listener->receive();
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "a scene arrives");
+  const std::optional<Message> arrival = listener.receive();
   ASSERT_TRUE(arrival.has_value());
   // The peer reached the listener over loopback, and the arrival names
   // that address — not the mapping a dual-stack socket holds it as —
@@ -314,9 +314,9 @@ TEST_F(IOWebSocket, APeersTextMessageArrivesNamingWhereItCameFrom) {
 }
 
 TEST_F(IOWebSocket, ABinaryMessageArrivesWhole) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/scene");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/scene");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   // Long enough to need the extended length, and holding the bytes a
@@ -329,15 +329,15 @@ TEST_F(IOWebSocket, ABinaryMessageArrivesWhole) {
   ASSERT_TRUE(peer.upgraded());
   peer.send(0x2, payload);
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->size(), payload.size());
-  EXPECT_EQ(listener->latest()->payload->asText(), payload);
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->size(), payload.size());
+  EXPECT_EQ(listener.latest()->payload->asText(), payload);
 }
 
 TEST_F(IOWebSocket, SendReachesEveryPeerOnThePath) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   Peer first(context, port, "/sky");
@@ -348,17 +348,17 @@ TEST_F(IOWebSocket, SendReachesEveryPeerOnThePath) {
   // they have is a message of theirs the feed has taken.
   first.send(0x1, "here");
   second.send(0x1, "here");
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision == 2u; }));
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision == 2u; }));
 
-  EXPECT_TRUE(listener->send(bytesOf("out to everyone")));
+  EXPECT_TRUE(listener.send(bytesOf("out to everyone")));
   EXPECT_EQ(first.receive(), "out to everyone");
   EXPECT_EQ(second.receive(), "out to everyone");
 }
 
 TEST_F(IOWebSocket, SendToReachesTheOnePeerItNamesAndNoOther) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   Peer first(context, port, "/sky");
@@ -369,80 +369,80 @@ TEST_F(IOWebSocket, SendToReachesTheOnePeerItNamesAndNoOther) {
   // the address that peer is answered by.
   first.send(0x1, "first");
   second.send(0x1, "second");
-  ASSERT_TRUE(waitUntil([&] { return listener->state().revision == 2u; }));
+  ASSERT_TRUE(waitUntil([&] { return listener.state().revision == 2u; }));
 
   std::string answering;
-  while (const std::optional<Message> arrival = listener->receive())
+  while (const std::optional<Message> arrival = listener.receive())
     if (arrival->payload->asText() == "first") answering = arrival->sender();
   ASSERT_FALSE(answering.empty());
 
-  EXPECT_TRUE(listener->send(bytesOf("to you alone"), {.to = answering}));
+  EXPECT_TRUE(listener.send(bytesOf("to you alone"), {.to = answering}));
   EXPECT_EQ(first.receive(), "to you alone");
   // What the other peer reads first is the broadcast that came after,
   // which is what says the message before it went to one peer and not
   // to the path.
-  EXPECT_TRUE(listener->send(bytesOf("out to everyone")));
+  EXPECT_TRUE(listener.send(bytesOf("out to everyone")));
   EXPECT_EQ(second.receive(), "out to everyone");
   EXPECT_EQ(first.receive(), "out to everyone");
 }
 
 TEST_F(IOWebSocket, AListenerWhoseUriSaysTextSendsTextFrames) {
-  const std::shared_ptr<Feed> binary = hub.feed("ws://:0/sky");
-  const std::shared_ptr<Feed> text = hub.feed("ws://:0/sky?frames=text");
-  ASSERT_TRUE(binary->state().error.empty()) << binary->state().error;
-  ASSERT_TRUE(text->state().error.empty()) << text->state().error;
+  const Feed binary = hub.listen("ws://:0/sky");
+  const Feed text = hub.listen("ws://:0/sky?frames=text");
+  ASSERT_TRUE(binary.state().error.empty()) << binary.state().error;
+  ASSERT_TRUE(text.state().error.empty()) << text.state().error;
 
-  Peer bytesPeer(context, portOf(binary->state().localAddress), "/sky");
-  Peer textPeer(context, portOf(text->state().localAddress), "/sky");
+  Peer bytesPeer(context, portOf(binary.state().localAddress), "/sky");
+  Peer textPeer(context, portOf(text.state().localAddress), "/sky");
   ASSERT_TRUE(bytesPeer.upgraded());
   ASSERT_TRUE(textPeer.upgraded());
   bytesPeer.send(0x1, "here");
   textPeer.send(0x1, "here");
   ASSERT_TRUE(waitUntil([&] {
-    return binary->state().revision == 1u && text->state().revision == 1u;
+    return binary.state().revision == 1u && text.state().revision == 1u;
   }));
 
   // A feed carries bytes, so what it sends is binary unless its URI
   // said the peers read text; the payload is the same either way, sent
   // to all or to one.
-  EXPECT_TRUE(binary->send(bytesOf("out")));
+  EXPECT_TRUE(binary.send(bytesOf("out")));
   EXPECT_EQ(bytesPeer.receive(), "out");
   EXPECT_EQ(bytesPeer.lastOpCode(), 0x2);
-  EXPECT_TRUE(text->send(bytesOf("out")));
+  EXPECT_TRUE(text.send(bytesOf("out")));
   EXPECT_EQ(textPeer.receive(), "out");
   EXPECT_EQ(textPeer.lastOpCode(), 0x1);
-  const std::optional<Message> arrival = text->receive();
+  const std::optional<Message> arrival = text.receive();
   ASSERT_TRUE(arrival.has_value());
-  EXPECT_TRUE(text->send(bytesOf("to you"), {.to = arrival->sender()}));
+  EXPECT_TRUE(text.send(bytesOf("to you"), {.to = arrival->sender()}));
   EXPECT_EQ(textPeer.receive(), "to you");
   EXPECT_EQ(textPeer.lastOpCode(), 0x1);
 }
 
 TEST_F(IOWebSocket, AFrameThatIsNeitherTextNorBinaryOpensNothing) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?frames=rhyme");
-  EXPECT_NE(listener->state().error.find("rhyme"), std::string::npos)
-      << listener->state().error;
-  EXPECT_TRUE(listener->state().localAddress.empty());
+  const Feed listener = hub.listen("ws://:0/sky?frames=rhyme");
+  EXPECT_NE(listener.state().error.find("rhyme"), std::string::npos)
+      << listener.state().error;
+  EXPECT_TRUE(listener.state().localAddress.empty());
 }
 
 TEST_F(IOWebSocket, APeerNobodyIsAttachedUnderIsNobodyToAnswer) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
 
   // The loop is what holds the peers, so a name it has nobody under is
   // answered by nothing being written — and the send says it was posted,
   // which is all a caller on another thread can be told.
-  EXPECT_TRUE(listener->send(bytesOf("nobody"), {.to = "ws://127.0.0.1:1"}));
-  EXPECT_NE(listener->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_TRUE(listener.send(bytesOf("nobody"), {.to = "ws://127.0.0.1:1"}));
+  EXPECT_NE(listener.state().readiness, sigil::io::ReadyState::Closed);
 }
 
 TEST_F(IOWebSocket, AListenerServesThePagesItsUriNames) {
   const sigil::test::ScratchDir scratch("sigilio_ws_pages");
   standPages(hub, scratch);
 
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?pages=pages://");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/sky?pages=pages://");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   const Answer named = fetch(context, port, "/index.html");
@@ -460,9 +460,9 @@ TEST_F(IOWebSocket, APathClimbingOutOfThePagesReachesNothing) {
   const sigil::test::ScratchDir scratch("sigilio_ws_pages");
   standPages(hub, scratch);
 
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?pages=pages://");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/sky?pages=pages://");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   // The file is really there, one directory above the pages, and the
@@ -479,69 +479,69 @@ TEST_F(IOWebSocket, TheSocketStandsBesideThePagesOnTheSamePort) {
   const sigil::test::ScratchDir scratch("sigilio_ws_pages");
   standPages(hub, scratch);
 
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?pages=pages://");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/sky?pages=pages://");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
   // The path peers reach is the path alone: the query the pages were
   // named in is no part of the address the feed reports.
-  EXPECT_TRUE(listener->state().localAddress.ends_with("/sky")) << listener->state().localAddress;
+  EXPECT_TRUE(listener.state().localAddress.ends_with("/sky")) << listener.state().localAddress;
 
   Peer peer(context, port, "/sky");
   ASSERT_TRUE(peer.upgraded());
   peer.send(0x1, "a phone is looking");
 
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "a phone is looking");
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "a phone is looking");
 }
 
 TEST_F(IOWebSocket, AListenerWhoseUriNamedNoPagesServesNone) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   EXPECT_EQ(fetch(context, port, "/index.html").status, 404);
 }
 
 TEST_F(IOWebSocket, PagesMountedNowhereOpenNothingAndSayWhy) {
-  const std::shared_ptr<Feed> feed = hub.feed("ws://:0/sky?pages=pages://");
-  EXPECT_FALSE(feed->state().error.empty());
-  EXPECT_TRUE(feed->state().localAddress.empty());
+  const Feed feed = hub.listen("ws://:0/sky?pages=pages://");
+  EXPECT_FALSE(feed.state().error.empty());
+  EXPECT_TRUE(feed.state().localAddress.empty());
 }
 
 TEST_F(IOWebSocket, TheFeedNamesEveryPeerAttachedUntilItLeaves) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener = hub.listen("ws://:0/sky");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
-  EXPECT_TRUE(listener->peers().empty());
+  EXPECT_TRUE(listener.peers().empty());
 
   {
     Peer peer(context, port, "/sky");
     ASSERT_TRUE(peer.upgraded());
     peer.send(0x1, "here");
-    ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
+    ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
     // The peer is named the way its own message is, so a reader matches
     // one against the other.
-    const std::vector<std::string> attached = listener->peers();
+    const std::vector<std::string> attached = listener.peers();
     ASSERT_EQ(attached.size(), 1u);
-    EXPECT_EQ(attached[0], listener->receive()->sender());
+    EXPECT_EQ(attached[0], listener.receive()->sender());
   }
   // The socket closed with the peer, and the name goes with it: that is
   // how a door holding many learns that one has left.
-  EXPECT_TRUE(waitUntil([&] { return listener->peers().empty(); }));
+  EXPECT_TRUE(waitUntil([&] { return listener.peers().empty(); }));
 }
 
 TEST_F(IOWebSocket, ABoundListenerHoldsTheOneInterfaceItNames) {
-  const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky?bind=127.0.0.1");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
+  const Feed listener = hub.listen("ws://:0/sky?bind=127.0.0.1");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
   // The interface named is the one address a peer can reach it at, and
   // the query is no part of that address.
-  EXPECT_TRUE(listener->state().localAddress.starts_with("ws://127.0.0.1:"))
-      << listener->state().localAddress;
-  EXPECT_TRUE(listener->state().localAddress.ends_with("/sky")) << listener->state().localAddress;
-  const uint16_t port = portOf(listener->state().localAddress);
+  EXPECT_TRUE(listener.state().localAddress.starts_with("ws://127.0.0.1:"))
+      << listener.state().localAddress;
+  EXPECT_TRUE(listener.state().localAddress.ends_with("/sky")) << listener.state().localAddress;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   Peer peer(context, port, "/sky");
@@ -553,17 +553,17 @@ TEST_F(IOWebSocket, APeerTheListenerDoesNotAdmitNeverBecomesOne) {
   standPages(hub, scratch);
   // Only a documentation address is admitted, so the loopback peer this
   // case speaks from is refused, at the socket and at the pages alike.
-  const std::shared_ptr<Feed> listener =
-      hub.feed("ws://:0/sky?pages=pages://&admit=192.0.2.10");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener =
+      hub.listen("ws://:0/sky?pages=pages://&admit=192.0.2.10");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   Peer refused(context, port, "/sky");
   EXPECT_FALSE(refused.upgraded());
   EXPECT_NE(refused.greeting().find("403"), std::string::npos)
       << refused.greeting();
-  EXPECT_TRUE(listener->peers().empty());
+  EXPECT_TRUE(listener.peers().empty());
   const Answer page = fetch(context, port, "/index.html");
   EXPECT_EQ(page.status, 403);
   EXPECT_NE(page.body.find("is not a peer this listener admits"),
@@ -572,29 +572,29 @@ TEST_F(IOWebSocket, APeerTheListenerDoesNotAdmitNeverBecomesOne) {
 }
 
 TEST_F(IOWebSocket, LoopbackAdmitsEveryPeerOnThisMachine) {
-  const std::shared_ptr<Feed> listener =
-      hub.feed("ws://:0/sky?admit=loopback&admit=192.0.2.10");
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener =
+      hub.listen("ws://:0/sky?admit=loopback&admit=192.0.2.10");
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   Peer peer(context, port, "/sky");
   ASSERT_TRUE(peer.upgraded()) << peer.greeting();
   peer.send(0x1, "admitted");
-  ASSERT_TRUE(waitUntil([&] { return listener->latest().has_value(); }));
-  EXPECT_EQ(listener->latest()->payload->asText(), "admitted");
+  ASSERT_TRUE(waitUntil([&] { return listener.latest().has_value(); }));
+  EXPECT_EQ(listener.latest()->payload->asText(), "admitted");
 }
 
 TEST_F(IOWebSocket, AnAdmissionOrABindThatIsNoAddressOpensNothing) {
-  const std::shared_ptr<Feed> admitted =
-      hub.feed("ws://:0/sky?admit=somewhere");
-  EXPECT_NE(admitted->state().error.find("somewhere"), std::string::npos)
-      << admitted->state().error;
-  EXPECT_TRUE(admitted->state().localAddress.empty());
-  const std::shared_ptr<Feed> bound = hub.feed("ws://:0/sky?bind=anywhere");
-  EXPECT_NE(bound->state().error.find("anywhere"), std::string::npos)
-      << bound->state().error;
-  EXPECT_TRUE(bound->state().localAddress.empty());
+  const Feed admitted =
+      hub.listen("ws://:0/sky?admit=somewhere");
+  EXPECT_NE(admitted.state().error.find("somewhere"), std::string::npos)
+      << admitted.state().error;
+  EXPECT_TRUE(admitted.state().localAddress.empty());
+  const Feed bound = hub.listen("ws://:0/sky?bind=anywhere");
+  EXPECT_NE(bound.state().error.find("anywhere"), std::string::npos)
+      << bound.state().error;
+  EXPECT_TRUE(bound.state().localAddress.empty());
 }
 
 TEST_F(IOWebSocket, AnAbsolutePathIsTheDirectoryOfPagesItself) {
@@ -602,10 +602,10 @@ TEST_F(IOWebSocket, AnAbsolutePathIsTheDirectoryOfPagesItself) {
   scratch.write("pages/index.html", kIndex);
   const std::string directory = (scratch.path / "pages").string();
 
-  const std::shared_ptr<Feed> listener =
-      hub.feed("ws://:0/sky?pages=" + directory);
-  ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-  const uint16_t port = portOf(listener->state().localAddress);
+  const Feed listener =
+      hub.listen("ws://:0/sky?pages=" + directory);
+  ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+  const uint16_t port = portOf(listener.state().localAddress);
   ASSERT_NE(port, 0);
 
   const Answer page = fetch(context, port, "/index.html");
@@ -614,10 +614,10 @@ TEST_F(IOWebSocket, AnAbsolutePathIsTheDirectoryOfPagesItself) {
 }
 
 TEST_F(IOWebSocket, AUriThatNamesNoPortOpensNothingAndSaysWhy) {
-  const std::shared_ptr<Feed> feed = hub.feed("ws://localhost");
-  EXPECT_FALSE(feed->state().error.empty());
-  EXPECT_TRUE(feed->state().localAddress.empty());
-  EXPECT_FALSE(feed->latest().has_value());
+  const Feed feed = hub.listen("ws://localhost");
+  EXPECT_FALSE(feed.state().error.empty());
+  EXPECT_TRUE(feed.state().localAddress.empty());
+  EXPECT_FALSE(feed.latest().has_value());
 }
 
 TEST_F(IOWebSocket, AUriThatNamesAHostToReachOpensNothingOnTheListenerAlone) {
@@ -628,42 +628,42 @@ TEST_F(IOWebSocket, AUriThatNamesAHostToReachOpensNothingOnTheListenerAlone) {
   // caller in front of it, which takes such a URI.
   Hub listening;
   sigil::io::detail::registerWebSocket(listening);
-  const std::shared_ptr<Feed> feed =
-      listening.feed("ws://desk.local:9001/scene");
-  EXPECT_FALSE(feed->state().error.empty());
-  EXPECT_TRUE(feed->state().localAddress.empty());
+  const Feed feed =
+      listening.listen("ws://desk.local:9001/scene");
+  EXPECT_FALSE(feed.state().error.empty());
+  EXPECT_TRUE(feed.state().localAddress.empty());
 }
 
 TEST_F(IOWebSocket, APortSomebodyElseHoldsOpensNothingAndSaysWhy) {
   tcp::acceptor holder(context, tcp::endpoint(tcp::v6(), 0));
   const uint16_t port = holder.local_endpoint().port();
 
-  const std::shared_ptr<Feed> feed =
-      hub.feed("ws://:" + std::to_string(port) + "/sky");
-  EXPECT_FALSE(feed->state().error.empty());
-  EXPECT_TRUE(feed->state().localAddress.empty());
+  const Feed feed =
+      hub.listen("ws://:" + std::to_string(port) + "/sky");
+  EXPECT_FALSE(feed.state().error.empty());
+  EXPECT_TRUE(feed.state().localAddress.empty());
 }
 
 TEST_F(IOWebSocket, DroppingTheLastHolderOfAFeedGivesUpItsPort) {
   uint16_t port = 0;
   {
-    const std::shared_ptr<Feed> listener = hub.feed("ws://:0/sky");
-    ASSERT_TRUE(listener->state().error.empty()) << listener->state().error;
-    port = portOf(listener->state().localAddress);
+    const Feed listener = hub.listen("ws://:0/sky");
+    ASSERT_TRUE(listener.state().error.empty()) << listener.state().error;
+    port = portOf(listener.state().localAddress);
     ASSERT_NE(port, 0);
   }
 
   // The close travels to the listener's own loop, so the port comes back
   // a moment after the last holder lets go rather than within it.
   const std::string uri = "ws://:" + std::to_string(port) + "/sky";
-  std::shared_ptr<Feed> again;
+  Feed again;
   ASSERT_TRUE(waitUntil([&] {
-    again = hub.feed(uri);
-    if (again->state().error.empty()) return true;
-    again.reset();
+    again = hub.listen(uri);
+    if (again.state().error.empty()) return true;
+    again = {};
     return false;
   }));
-  EXPECT_EQ(portOf(again->state().localAddress), port);
+  EXPECT_EQ(portOf(again.state().localAddress), port);
 }
 
 }  // namespace

@@ -34,7 +34,7 @@ hub.setFeedTransport("pigeon", [](std::string_view uri, sigil::io::Inlet inlet) 
   sigil::io::TransportEnd opened;
   opened.close = [door] { door->close(); };
   opened.send = [door](const sigil::io::Bytes& message) { return door->send(message); };
-  opened.address = door->boundAddress();
+  opened.localAddress = door->boundAddress();
   return opened;
 });
 ```

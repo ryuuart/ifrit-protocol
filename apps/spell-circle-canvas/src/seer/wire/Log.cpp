@@ -11,7 +11,7 @@ namespace sigil::seer {
 
 Log::Log(size_t capacity) : m_capacity(capacity) {}
 
-size_t Log::drain(io::Feed& feed) {
+size_t Log::drain(const io::Feed& feed) {
   size_t taken = 0;
   while (std::optional<io::Message> message = feed.receive()) {
     ++taken;

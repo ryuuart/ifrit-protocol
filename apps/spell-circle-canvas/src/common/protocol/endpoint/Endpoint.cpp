@@ -188,7 +188,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
     Socket& held = *m_socket;
     const std::string peer = held.connection.sender();
     if (peer.empty()) return;
-    const std::shared_ptr<io::Feed> feed = held.connection.feed();
+    const io::Feed feed = held.connection.feed();
     auto found = held.sessionOfPeer.find(peer);
     if (found == held.sessionOfPeer.end()) {
       // An event reaches this peer as its envelope, written to it alone.
@@ -196,7 +196,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
       attachment.deliver = [feed, peer](const std::string& session,
                                         std::string_view method,
                                         std::string_view parameters) {
-        feed->send(bytesOf("{\"session\":" + data::encodeJson(data::Json(session)) +
+        feed.send(bytesOf("{\"session\":" + data::encodeJson(data::Json(session)) +
                     ",\"method\":" +
                     data::encodeJson(data::Json(std::string(method))) +
                     ",\"parameters\":" + std::string(parameters) + "}"), {.to = peer});
@@ -206,7 +206,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
     }
     held.dispatcher.request(found->second, message,
                             [feed, peer](std::string answer) {
-                              feed->send(bytesOf(answer), {.to = peer});
+                              feed.send(bytesOf(answer), {.to = peer});
                             });
   });
   // A PEER THAT LEFT IS DETACHED on the frame after, which clears what
@@ -214,7 +214,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
   socket.departures = hub.onAdvance([this](std::chrono::duration<double>) {
     Socket& held = *m_socket;
     if (held.sessionOfPeer.empty()) return;
-    const std::vector<std::string> attached = held.connection.feed()->peers();
+    const std::vector<std::string> attached = held.connection.feed().peers();
     std::vector<std::pair<std::string, std::string>> gone;
     for (const auto& [peer, session] : held.sessionOfPeer)
       if (std::find(attached.begin(), attached.end(), peer) == attached.end())

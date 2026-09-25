@@ -24,7 +24,7 @@ class TextureNode final : public QSGNode {
   QSGSimpleTextureNode* image = nullptr;
   QString source;
   QString application;
-  std::unique_ptr<sigil::io::frames::Subscription> subscription;
+  sigil::io::frames::Subscription subscription;
   id<MTLTexture> frame = nil;
   id<MTLCommandQueue> queue = nil;
   uint64_t generation = 0;
@@ -79,8 +79,8 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
       return nullptr;
     }
     if (!paused() || !node->frame) {
-      id<MTLTexture> next = (__bridge id<MTLTexture>)node->subscription->latest();
-      const auto generation = node->subscription->state().revision;
+      id<MTLTexture> next = (__bridge id<MTLTexture>)node->subscription.latest();
+      const auto generation = node->subscription.state().revision;
       if (next && (generation != node->generation || !node->frame)) {
         auto* texture = QNativeInterface::QSGMetalTexture::fromNative(
             next, window(), QSize(static_cast<int>(next.width), static_cast<int>(next.height)),
@@ -92,7 +92,7 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
         }
       }
     }
-    const bool connected = node->subscription->state().isOpen();
+    const bool connected = node->subscription.state().isOpen();
     const QSize size = node->frame ? QSize(static_cast<int>(node->frame.width),
                                            static_cast<int>(node->frame.height))
                                    : QSize{};

@@ -50,9 +50,9 @@ class Connection {
   /** Opens @p uri on @p hub — the one feed that URI names — and
    *  registers on the hub's advance. The URI's SCHEME says how a
    *  message is read: `osc` is an OSC packet and anything else is JSON
-   *  text. @p policy is the feed's, and bounds what receive() holds as
+   *  text. @p options are the feed's, and bound what receive() holds as
    *  well. */
-  Connection(io::Hub& hub, std::string_view uri, io::FeedPolicy policy = {});
+  Connection(io::Hub& hub, std::string_view uri, io::ListenOptions options = {});
 
   /** Opens @p uri on @p hub as the constructor above does, and reads
    *  and writes every message THROUGH @p schema — the one a sketch's
@@ -63,7 +63,7 @@ class Connection {
    *  SCHEMA and is refused as it is opened: no feed is bound, nothing
    *  arrives, and error() says so. */
   Connection(io::Hub& hub, std::string_view uri, Schema schema,
-             io::FeedPolicy policy = {});
+             io::ListenOptions options = {});
 
   /** Takes over the moved-from door, leaving it closed. */
   Connection(Connection&&) noexcept = default;
@@ -94,7 +94,7 @@ class Connection {
    *  is asked of it. The name is the one on() registers under, so a
    *  reader takes one fader off the wire with no handler at all:
    *  `sky.latest("/sky/wind")["arguments"][0].number()`.
-   *  @trap One latch per name, bounded by the policy's capacity: a
+   *  @trap One latch per name, bounded by the options' capacity: a
    *  message under one name too many drops the name written longest
    *  ago, which reads null again as if nothing had arrived under it. */
   const Json& latest(std::string_view what) const;
@@ -106,7 +106,7 @@ class Connection {
   /** The next message this reader has not taken, in order; nothing when
    *  none is waiting, and never a wait. What the handlers see is not
    *  taken from here — one message reaches both. The queue holds what
-   *  the policy's capacity says and its oldest falls off the front.
+   *  the options' capacity says and its oldest falls off the front.
    *  @trap THE FIRST CALL OPENS THE QUEUE: messages read before it are
    *  not held, and what the queue then loses to its own capacity is
    *  counted nowhere. */
@@ -235,8 +235,8 @@ class Connection {
 
   /** THE FLOOR BELOW, for whoever wants the bytes: the feed itself,
    *  which is what a recording is written from and what a reader that
-   *  wants no value reads. Null for a connection onto nothing. */
-  std::shared_ptr<io::Feed> feed() const;
+   *  wants no value reads. Empty for a connection onto nothing. */
+  io::Feed feed() const;
 
  private:
   /** Everything a connection is, behind one pointer. What the hub

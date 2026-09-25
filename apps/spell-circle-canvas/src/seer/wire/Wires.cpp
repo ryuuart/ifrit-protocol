@@ -25,10 +25,10 @@ Wires::Wires() { io::registerTransports(m_hub); }
 
 Wires::~Wires() = default;
 
-std::shared_ptr<io::Feed> Wires::open(std::string_view uri,
-                                      io::FeedPolicy policy) {
+io::Feed Wires::open(std::string_view uri,
+                                      io::ListenOptions policy) {
   if (const Watch* watch = watchOf(uri)) return watch->feed;
-  std::shared_ptr<io::Feed> feed = m_hub.feed(uri, policy);
+  io::Feed feed = m_hub.listen(uri, policy);
   m_watches.push_back({feed, {}});
   return feed;
 }
@@ -36,11 +36,11 @@ std::shared_ptr<io::Feed> Wires::open(std::string_view uri,
 bool Wires::close(std::string_view uri) {
   const auto found = std::find_if(
       m_watches.begin(), m_watches.end(),
-      [uri](const Watch& watch) { return watch.feed->uri() == uri; });
+      [uri](const Watch& watch) { return watch.feed.uri() == uri; });
   if (found == m_watches.end()) return false;
   // Closed before it is let go: the transport's end goes now rather than
   // whenever the last reader of an old answer happens to drop it.
-  found->feed->close();
+  found->feed.close();
   m_watches.erase(found);
   const auto stale =
       std::find_if(m_vitals.begin(), m_vitals.end(),
@@ -49,22 +49,22 @@ bool Wires::close(std::string_view uri) {
   return true;
 }
 
-std::vector<std::shared_ptr<io::Feed>> Wires::feeds() const {
-  std::vector<std::shared_ptr<io::Feed>> open;
+std::vector<io::Feed> Wires::feeds() const {
+  std::vector<io::Feed> open;
   open.reserve(m_watches.size());
   for (const Watch& watch : m_watches) open.push_back(watch.feed);
   return open;
 }
 
-std::shared_ptr<io::Feed> Wires::feed(std::string_view uri) const {
+io::Feed Wires::feed(std::string_view uri) const {
   const Watch* watch = watchOf(uri);
-  return watch ? watch->feed : nullptr;
+  return watch ? watch->feed : io::Feed();
 }
 
-std::shared_ptr<io::Feed> Wires::replay(std::string_view uri,
+io::Feed Wires::replay(std::string_view uri,
                                         const std::filesystem::path& path) {
   close(uri);
-  std::shared_ptr<io::Feed> feed = m_hub.replay(uri, path.string());
+  io::Feed feed = m_hub.replay(uri, path.string());
   m_recorded.emplace(uri);
   m_watches.push_back({feed, {}});
   return feed;
@@ -81,7 +81,7 @@ void Wires::tick(double seconds) {
   m_vitals.clear();
   m_vitals.reserve(m_watches.size());
   for (Watch& watch : m_watches) {
-    io::Feed& feed = *watch.feed;
+    io::Feed& feed = watch.feed;
     watch.samples.push_back({seconds, feed.state().revision});
     // The oldest sample kept is the newest one that is already a whole
     // second old, so the span a rate is read over covers a second as
@@ -125,7 +125,7 @@ const Vitals* Wires::vitalsOf(std::string_view uri) const {
 
 const Wires::Watch* Wires::watchOf(std::string_view uri) const {
   for (const Watch& watch : m_watches)
-    if (watch.feed->uri() == uri) return &watch;
+    if (watch.feed.uri() == uri) return &watch;
   return nullptr;
 }
 

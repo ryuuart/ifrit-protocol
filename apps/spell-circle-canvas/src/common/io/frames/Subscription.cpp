@@ -22,15 +22,15 @@ std::vector<Publication> publications() {
 #endif
 }
 
-std::unique_ptr<Subscription> subscribe(std::string name,
+Subscription subscribe(std::string name,
                                         std::string application,
                                         void* metalDevice) {
-  if (name.empty() || !metalDevice) return nullptr;
+  if (name.empty() || !metalDevice) return {};
 #if defined(__APPLE__)
-  return makeSyphonSubscription(std::move(name), std::move(application),
-                                metalDevice);
+  return Subscription(makeSyphonSubscription(
+      std::move(name), std::move(application), metalDevice));
 #else
-  return nullptr;
+  return {};
 #endif
 }
 
@@ -38,7 +38,7 @@ void* defaultMetalDevice() {
 #if defined(__APPLE__)
   return metalDeviceOfThisMachine();
 #else
-  return nullptr;
+  return {};
 #endif
 }
 

@@ -153,13 +153,13 @@ std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
  *  the case can read it, which is what stands for the drawing a real
  *  body would do from what arrived. */
 struct Listening {
-  static inline std::shared_ptr<sigil::io::Feed> sky;
+  static inline sigil::io::Feed sky;
   void setup(SketchContext& ctx) {
     ctx.canvas(64, 48);
     sigil::io::Hub& hub = ctx.assets.hub();
     if (ctx.deterministic)
       hub.replay(kSkyPort, ctx.local("data/sky.feed"));
-    sky = hub.feed(kSkyPort);
+    sky = hub.listen(kSkyPort);
   }
 };
 
@@ -407,7 +407,7 @@ TEST(CanvasDoors, KeepsTheTextureScenesItHandsOutUntilTheBodyDeclaresAgain) {
   EXPECT_FALSE(Screening::scene.expired());
 
   // …and the session going lets go of the last of them.
-  session.reset();
+  session = {};
   EXPECT_TRUE(Screening::scene.expired());
 }
 
@@ -510,7 +510,7 @@ TEST(CanvasBodies, ASketchIsAnyTypeThatNamesSetup) {
   Whole::setups = 0;
   const std::unique_ptr<Session> session =
       kindOf<Whole>()->open(fonts(), assets());
-  ASSERT_NE(session, nullptr);
+  ASSERT_TRUE(session);
   EXPECT_EQ(Whole::setups, 1);
   EXPECT_EQ(session->canvas().size, SkSize::Make(64, 48));
 }
@@ -519,7 +519,7 @@ TEST(CanvasBodies, OpensABodyThatNamedNothingItWasOffered) {
   Bare::setups = 0;
   const std::unique_ptr<Session> session =
       kindOf<Bare>()->open(fonts(), assets());
-  ASSERT_NE(session, nullptr);
+  ASSERT_TRUE(session);
   EXPECT_EQ(Bare::setups, 1);
   // A body that declared no canvas is opened onto the one every session
   // starts with, and one that spells no `update` is stepped by doing
@@ -560,15 +560,15 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   Assets store("");
   store.mountSketch("listening", dir.path);
 
-  Listening::sky.reset();
+  Listening::sky = {};
   const std::unique_ptr<Session> session =
       kindOf<Listening>()->open(fonts(), store, true, "listening");
-  ASSERT_NE(session, nullptr);
-  ASSERT_NE(Listening::sky, nullptr);
-  EXPECT_TRUE(Listening::sky->state().error.empty());
+  ASSERT_TRUE(session);
+  ASSERT_TRUE(Listening::sky);
+  EXPECT_TRUE(Listening::sky.state().error.empty());
   // A session that has drawn no frame has reached no scene time, so the
   // recording has not started.
-  EXPECT_EQ(Listening::sky->state().revision, 0u);
+  EXPECT_EQ(Listening::sky.state().revision, 0u);
 
   const sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 48));
@@ -578,13 +578,13 @@ TEST(CanvasDoors, CarriesAMountedRecordingToTheSceneTimeTheFramesReach) {
   // Thirty-six frames of a sixtieth is six tenths of a scene second: the
   // two arrivals recorded by then have been delivered, and the one at
   // five seconds is still ahead.
-  EXPECT_EQ(Listening::sky->state().revision, 2u);
-  ASSERT_TRUE(Listening::sky->latest().has_value());
-  EXPECT_EQ(Listening::sky->latest()->payload->asText(), "noon");
-  EXPECT_NE(Listening::sky->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_EQ(Listening::sky.state().revision, 2u);
+  ASSERT_TRUE(Listening::sky.latest().has_value());
+  EXPECT_EQ(Listening::sky.latest()->payload->asText(), "noon");
+  EXPECT_NE(Listening::sky.state().readiness, sigil::io::ReadyState::Closed);
   // The store outlives nothing here: the feed is let go before the
   // session that opened it and the hub it was opened on.
-  Listening::sky.reset();
+  Listening::sky = {};
 }
 
 // ── The material a text pass carries ─────────────────────────────────────
@@ -695,7 +695,7 @@ TEST(CanvasDoors, AMaterialPassNeedsNoHostToShade) {
   // The seam's own claim: opening a canvas session is what closes it.
   const std::unique_ptr<Session> session =
       kindOf<Bare>()->open(fonts(), assets());
-  ASSERT_NE(session, nullptr);
+  ASSERT_TRUE(session);
   EXPECT_TRUE(sigil::weave::paint::hasMaterialResolver());
 }
 

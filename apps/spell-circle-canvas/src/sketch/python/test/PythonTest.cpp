@@ -97,9 +97,9 @@ import builtins
 class Study:
     def setup(self, ctx):
         hub = ctx.assets.hub()
-        builtins._sigil_escaped_feed = hub.feed('fixture://input')
+        builtins._sigil_escaped_feed = hub.listen('fixture://input')
         builtins._sigil_escaped_hub = hub
-        hub.feed('fixture://unreferenced')
+        hub.listen('fixture://unreferenced')
 )PY");
   auto kind = sketch::python::load(source.entry());
   auto session = kind->open(fonts(), fixture.services, true, "first");
@@ -124,7 +124,7 @@ class Study:
                     raise AssertionError('An expired session service remained usable')
         finally:
             del builtins._sigil_escaped_feed, builtins._sigil_escaped_hub
-        self.feed = ctx.assets.hub().feed('fixture://input')
+        self.feed = ctx.assets.hub().listen('fixture://input')
         assert self.feed.send(b'reopened')
 )PY");
   kind = sketch::python::load(source.entry());
@@ -140,7 +140,7 @@ TEST(SketchPython, OverlappingAndFailedGenerationsShareTheWorkingFeed) {
   source.write("entry.py", R"PY(
 class Study:
     def setup(self, ctx):
-        self.feed = ctx.assets.hub().feed('fixture://shared')
+        self.feed = ctx.assets.hub().listen('fixture://shared')
     def update(self, elapsed, ctx):
         assert self.feed.send(b'working')
 )PY");
@@ -149,8 +149,8 @@ class Study:
   source.write("entry.py", R"PY(
 class Study:
     def setup(self, ctx):
-        ctx.assets.hub().feed('fixture://shared')
-        ctx.assets.hub().feed('fixture://candidate')
+        ctx.assets.hub().listen('fixture://shared')
+        ctx.assets.hub().listen('fixture://candidate')
         raise RuntimeError('candidate rejected')
 )PY");
   const auto broken = sketch::python::load(source.entry());
@@ -175,9 +175,9 @@ TEST(SketchPython, RedeclaringReleasesOmittedFeedsAndKeepsMatchingOnesOpen) {
 class Study:
     def setup(self, ctx):
         first = not hasattr(self, 'feed')
-        self.feed = ctx.assets.hub().feed('fixture://retained')
+        self.feed = ctx.assets.hub().listen('fixture://retained')
         if first:
-            ctx.assets.hub().feed('fixture://removed')
+            ctx.assets.hub().listen('fixture://removed')
         assert self.feed.send(b'working')
 )PY");
   const auto kind = sketch::python::load(source.entry());
@@ -197,7 +197,7 @@ TEST(SketchPython, AFailedFrameReleasesTheSessionsLiveInputs) {
   source.write("entry.py", R"PY(
 class Study:
     def setup(self, ctx):
-        self.feed = ctx.assets.hub().feed('fixture://input')
+        self.feed = ctx.assets.hub().listen('fixture://input')
     def update(self):
         raise RuntimeError('frame rejected')
 )PY");

@@ -50,56 +50,56 @@ std::shared_ptr<const Bytes> shared(std::string_view text) {
 class IOFeed : public MountedHub {};
 
 TEST_F(IOFeed, TheLatestIsTheNewestArrivalAndGenerationsCountFromOne) {
-  const auto feed = std::make_shared<Feed>("udp://:27020");
+  const Feed feed("udp://:27020");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
-  EXPECT_FALSE(feed->latest().has_value());
-  EXPECT_EQ(feed->state().revision, 0u);
+  EXPECT_FALSE(feed.latest().has_value());
+  EXPECT_EQ(feed.state().revision, 0u);
 
   inlet.deliver(message("first"));
-  EXPECT_EQ(feed->state().revision, 1u);
+  EXPECT_EQ(feed.state().revision, 1u);
   inlet.deliver(message("second"));
-  ASSERT_TRUE(feed->latest().has_value());
-  EXPECT_EQ(feed->latest()->payload->asText(), "second");
-  EXPECT_EQ(feed->state().revision, 2u);
-  EXPECT_EQ(feed->uri(), "udp://:27020");
-  EXPECT_TRUE(feed->state().error.empty());
+  ASSERT_TRUE(feed.latest().has_value());
+  EXPECT_EQ(feed.latest()->payload->asText(), "second");
+  EXPECT_EQ(feed.state().revision, 2u);
+  EXPECT_EQ(feed.uri(), "udp://:27020");
+  EXPECT_TRUE(feed.state().error.empty());
 }
 
 TEST_F(IOFeed, TheLatestIsTheWholeArrivalAndOutlastsDraining) {
-  const auto feed = std::make_shared<Feed>("udp://:27020");
+  const Feed feed("udp://:27020");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
-  EXPECT_FALSE(feed->latest().has_value());
+  EXPECT_FALSE(feed.latest().has_value());
 
   inlet.deliver(message("first"), "udp://127.0.0.1:52341");
   inlet.deliver(message("second"), "udp://127.0.0.1:52342");
 
-  std::optional<Message> newest = feed->latest();
+  std::optional<Message> newest = feed.latest();
   ASSERT_TRUE(newest.has_value());
   EXPECT_EQ(newest->payload->asText(), "second");
   EXPECT_EQ(newest->sender(), "udp://127.0.0.1:52342");
   EXPECT_EQ(newest->revision(), 2u);
   EXPECT_GE(newest->arrivedAt().count(), 0.0);
 
-  while (feed->receive().has_value()) {
+  while (feed.receive().has_value()) {
   }
   // Draining is not taking it: the newest message stands whole after
   // the queue it was also put on is empty.
-  newest = feed->latest();
+  newest = feed.latest();
   ASSERT_TRUE(newest.has_value());
   EXPECT_EQ(newest->revision(), 2u);
   EXPECT_EQ(newest->sender(), "udp://127.0.0.1:52342");
 }
 
 TEST_F(IOFeed, AnArrivalCarriesTheSenderItWasDeliveredWithAndNoOther) {
-  const auto feed = std::make_shared<Feed>("udp://:27020");
+  const Feed feed("udp://:27020");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   inlet.deliver(message("from a peer"), "udp://127.0.0.1:52341");
   inlet.deliver(message("from nowhere named"));
 
-  std::optional<Message> arrival = feed->receive();
+  std::optional<Message> arrival = feed.receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_EQ(arrival->sender(), "udp://127.0.0.1:52341");
-  arrival = feed->receive();
+  arrival = feed.receive();
   ASSERT_TRUE(arrival.has_value());
   // A transport with no way of knowing who sent a message names
   // nobody, and the arrival is one all the same.
@@ -108,58 +108,58 @@ TEST_F(IOFeed, AnArrivalCarriesTheSenderItWasDeliveredWithAndNoOther) {
 }
 
 TEST_F(IOFeed, ReceiveHandsOutEveryArrivalInOrderAndThenNothing) {
-  const auto feed = std::make_shared<Feed>("udp://:27020");
+  const Feed feed("udp://:27020");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   for (int number = 0; number != 3; ++number)
     inlet.deliver(message(std::to_string(number)));
 
   for (int number = 0; number != 3; ++number) {
-    const std::optional<Message> arrival = feed->receive();
+    const std::optional<Message> arrival = feed.receive();
     ASSERT_TRUE(arrival.has_value());
     EXPECT_EQ(arrival->revision(), (uint64_t)number + 1);
     EXPECT_EQ(arrival->payload->asText(), std::to_string(number));
     EXPECT_GE(arrival->arrivedAt().count(), 0.0);
   }
-  EXPECT_FALSE(feed->receive().has_value());
+  EXPECT_FALSE(feed.receive().has_value());
   // Draining is not forgetting: the newest is still the newest.
-  EXPECT_EQ(feed->latest()->payload->asText(), "2");
+  EXPECT_EQ(feed.latest()->payload->asText(), "2");
 }
 
 TEST_F(IOFeed, AFullFeedDropsTheOldestAndCountsIt) {
-  const auto feed = std::make_shared<Feed>("udp://:27020", FeedPolicy{.capacity = 2});
+  const Feed feed("udp://:27020", ListenOptions{.capacity = 2});
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   inlet.deliver(message("one"));
   inlet.deliver(message("two"));
   inlet.deliver(message("three"));
 
-  EXPECT_EQ(feed->state().dropped, 1u);
-  std::optional<Message> arrival = feed->receive();
+  EXPECT_EQ(feed.state().dropped, 1u);
+  std::optional<Message> arrival = feed.receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_EQ(arrival->payload->asText(), "two");
-  arrival = feed->receive();
+  arrival = feed.receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_EQ(arrival->payload->asText(), "three");
-  EXPECT_FALSE(feed->receive().has_value());
+  EXPECT_FALSE(feed.receive().has_value());
   // What fell off the front is what a reader could not keep up with.
   // The newest message and the count of them are untouched.
-  EXPECT_EQ(feed->latest()->payload->asText(), "three");
-  EXPECT_EQ(feed->state().revision, 3u);
+  EXPECT_EQ(feed.latest()->payload->asText(), "three");
+  EXPECT_EQ(feed.state().revision, 3u);
 }
 
 TEST_F(IOFeed, AClosedFeedKeepsWhatItHoldsAndTakesNothingNew) {
-  const auto feed = std::make_shared<Feed>("udp://:27020");
+  const Feed feed("udp://:27020");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   inlet.deliver(message("before"));
-  feed->close();
-  EXPECT_EQ(feed->state().readiness, sigil::io::ReadyState::Closed);
+  feed.close();
+  EXPECT_EQ(feed.state().readiness, sigil::io::ReadyState::Closed);
 
   inlet.deliver(message("after"));
-  EXPECT_EQ(feed->state().revision, 1u);
-  EXPECT_EQ(feed->latest()->payload->asText(), "before");
-  const std::optional<Message> arrival = feed->receive();
+  EXPECT_EQ(feed.state().revision, 1u);
+  EXPECT_EQ(feed.latest()->payload->asText(), "before");
+  const std::optional<Message> arrival = feed.receive();
   ASSERT_TRUE(arrival.has_value());
   EXPECT_EQ(arrival->payload->asText(), "before");
-  EXPECT_FALSE(feed->receive().has_value());
+  EXPECT_FALSE(feed.receive().has_value());
 }
 
 TEST_F(IOFeed, AHubHoldsOneFeedPerUriWhileSomebodyHoldsItAndOpensAgainAfter) {
@@ -170,22 +170,22 @@ TEST_F(IOFeed, AHubHoldsOneFeedPerUriWhileSomebodyHoldsItAndOpensAgainAfter) {
                          return TransportEnd{};
                        });
 
-  std::shared_ptr<Feed> scene = hub.feed("udp://:27020");
-  std::shared_ptr<Feed> again = hub.feed("udp://:27020");
-  ASSERT_NE(scene, nullptr);
+  Feed scene = hub.listen("udp://:27020");
+  Feed again = hub.listen("udp://:27020");
+  ASSERT_TRUE(scene);
   EXPECT_EQ(scene, again);  // one door, however many asks
-  const std::shared_ptr<Feed> other = hub.feed("udp://:27021");
+  const Feed other = hub.listen("udp://:27021");
   EXPECT_NE(other, scene);
   const std::vector<std::string> both = {"udp://:27020", "udp://:27021"};
   EXPECT_EQ(opened, both);
   ASSERT_EQ(hub.feeds().size(), 2u);
   EXPECT_EQ(hub.feeds().front(), scene);  // opening order
 
-  scene.reset();
-  again.reset();
+  scene = {};
+  again = {};
   EXPECT_EQ(hub.feeds().size(), 1u);
-  const std::shared_ptr<Feed> reopened = hub.feed("udp://:27020");
-  ASSERT_NE(reopened, nullptr);
+  const Feed reopened = hub.listen("udp://:27020");
+  ASSERT_TRUE(reopened);
   // Nobody was holding that URI any more, so it is a new door.
   ASSERT_EQ(opened.size(), 3u);
   EXPECT_EQ(opened.back(), "udp://:27020");
@@ -207,41 +207,41 @@ TEST_F(IOFeed, ADoorThatCouldNotBeOpenedIsOpenedAgainByTheNextAskForItsUri) {
                          return opened;
                        });
 
-  const std::shared_ptr<Feed> refused = hub.feed("udp://:27020");
-  ASSERT_NE(refused, nullptr);
-  EXPECT_EQ(refused->state().error, "the port is taken");
-  EXPECT_FALSE(refused->state().isOpen());
-  EXPECT_TRUE(refused->state().localAddress.empty());
+  const Feed refused = hub.listen("udp://:27020");
+  ASSERT_TRUE(refused);
+  EXPECT_EQ(refused.state().error, "the port is taken");
+  EXPECT_FALSE(refused.state().isOpen());
+  EXPECT_TRUE(refused.state().localAddress.empty());
 
-  const std::shared_ptr<Feed> again = hub.feed("udp://:27020");
+  const Feed again = hub.listen("udp://:27020");
   // The same feed, opened this time: a reader that held it through the
   // failure is reading the door that opened, with the reason gone.
   EXPECT_EQ(again, refused);
   EXPECT_EQ(opens, 2);
-  EXPECT_TRUE(again->state().isOpen());
-  EXPECT_TRUE(again->state().error.empty()) << again->state().error;
-  EXPECT_EQ(again->state().localAddress, "udp://[::]:27020");
+  EXPECT_TRUE(again.state().isOpen());
+  EXPECT_TRUE(again.state().error.empty()) << again.state().error;
+  EXPECT_EQ(again.state().localAddress, "udp://[::]:27020");
 
   // A feed that has a door is handed back as it stands: asking twice
   // for a URI that opened is one socket and not two.
-  EXPECT_EQ(hub.feed("udp://:27020"), refused);
+  EXPECT_EQ(hub.listen("udp://:27020"), refused);
   EXPECT_EQ(opens, 2);
 }
 
 TEST_F(IOFeed, AUriWithNoSchemeIsAFeedWhoseErrorSaysSo) {
-  const std::shared_ptr<Feed> feed = hub.feed("no-door-here");
-  ASSERT_NE(feed, nullptr);
-  EXPECT_NE(feed->state().error.find("scheme"), std::string::npos);
-  EXPECT_EQ(feed->state().revision, 0u);
+  const Feed feed = hub.listen("no-door-here");
+  ASSERT_TRUE(feed);
+  EXPECT_NE(feed.state().error.find("scheme"), std::string::npos);
+  EXPECT_EQ(feed.state().revision, 0u);
 }
 
 TEST_F(IOFeed, AUriWithNoTransportIsAFeedWhoseErrorSaysSo) {
-  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
-  ASSERT_NE(feed, nullptr);
-  EXPECT_NE(feed->state().error.find("udp"), std::string::npos);
-  EXPECT_FALSE(feed->send(message("nowhere to go")));
-  EXPECT_FALSE(feed->send(message("nobody"), {.to = "udp://127.0.0.1:52341"}));
-  EXPECT_TRUE(feed->state().localAddress.empty());
+  const Feed feed = hub.listen("udp://:27020");
+  ASSERT_TRUE(feed);
+  EXPECT_NE(feed.state().error.find("udp"), std::string::npos);
+  EXPECT_FALSE(feed.send(message("nowhere to go")));
+  EXPECT_FALSE(feed.send(message("nobody"), {.to = "udp://127.0.0.1:52341"}));
+  EXPECT_TRUE(feed.state().localAddress.empty());
 }
 
 TEST_F(IOFeed, ATransportsOpenedEndIsClosedExactlyOnceWhenTheFeedGoes) {
@@ -253,13 +253,13 @@ TEST_F(IOFeed, ATransportsOpenedEndIsClosedExactlyOnceWhenTheFeedGoes) {
     return opened;
   });
 
-  std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
-  EXPECT_EQ(feed->state().localAddress, "udp://[::]:52341");
-  feed->close();
+  Feed feed = hub.listen("udp://:27020");
+  EXPECT_EQ(feed.state().localAddress, "udp://[::]:52341");
+  feed.close();
   EXPECT_EQ(*closes, 1);
-  feed->close();
+  feed.close();
   EXPECT_EQ(*closes, 1);
-  feed.reset();  // the destructor closes what is already closed
+  feed = {};  // the destructor closes what is already closed
   EXPECT_EQ(*closes, 1);
 }
 
@@ -274,12 +274,49 @@ TEST_F(IOFeed, SendGoesThroughTheOpenedEnd) {
     return opened;
   });
 
-  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
-  EXPECT_TRUE(feed->send(message("outward")));
+  const Feed feed = hub.listen("udp://:27020");
+  EXPECT_TRUE(feed.send(message("outward")));
   EXPECT_EQ(*sent, "outward");
   // There is no end to send through once it has been closed.
-  feed->close();
-  EXPECT_FALSE(feed->send(message("too late")));
+  feed.close();
+  EXPECT_FALSE(feed.send(message("too late")));
+}
+
+TEST_F(IOFeed, ASendNamingNobodyGoesToThePeerTheFeedWasOpenedWith) {
+  const auto answered = std::make_shared<std::string>();
+  hub.setFeedTransport("udp", [answered](std::string_view, Inlet) {
+    TransportEnd opened;  // a listener: no peer of its own
+    opened.sendTo = [answered](std::string_view to, const Bytes& bytes) {
+      *answered = std::string(to) + " " + std::string(bytes.asText());
+      return true;
+    };
+    return opened;
+  });
+
+  const Feed feed =
+      hub.listen("udp://:27020", {.peer = "udp://127.0.0.1:9001"});
+  EXPECT_TRUE(feed.send(message("hello")));
+  EXPECT_EQ(*answered, "udp://127.0.0.1:9001 hello");
+  // A send that names its peer goes there instead.
+  EXPECT_TRUE(feed.send(message("again"), {.to = "udp://127.0.0.1:9002"}));
+  EXPECT_EQ(*answered, "udp://127.0.0.1:9002 again");
+}
+
+TEST_F(IOFeed, EveryHandleOntoOneUriReadsOneDoorAndTheLastOneClosesIt) {
+  const auto closes = std::make_shared<int>(0);
+  hub.setFeedTransport("udp", [closes](std::string_view, Inlet) {
+    TransportEnd opened;
+    opened.close = [closes] { ++*closes; };
+    return opened;
+  });
+
+  Feed first = hub.listen("udp://:27020");
+  const Feed copy = first;
+  EXPECT_EQ(first, copy);
+  EXPECT_EQ(hub.listen("udp://:27020"), first);
+  first = {};
+  EXPECT_EQ(*closes, 0);  // a copy still holds the door
+  EXPECT_TRUE(copy.state().isOpen());
 }
 
 TEST_F(IOFeed, AOneWayFeedAnswersFalseToSend) {
@@ -289,10 +326,10 @@ TEST_F(IOFeed, AOneWayFeedAnswersFalseToSend) {
     return opened;
   });
 
-  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
-  EXPECT_FALSE(feed->send(message("outward")));
-  EXPECT_FALSE(feed->send(message("outward"), {.to = "udp://127.0.0.1:52341"}));
-  EXPECT_NE(feed->state().readiness, sigil::io::ReadyState::Closed);
+  const Feed feed = hub.listen("udp://:27020");
+  EXPECT_FALSE(feed.send(message("outward")));
+  EXPECT_FALSE(feed.send(message("outward"), {.to = "udp://127.0.0.1:52341"}));
+  EXPECT_NE(feed.state().readiness, sigil::io::ReadyState::Closed);
 }
 
 TEST_F(IOFeed, SendToGoesThroughTheOpenedEndNamingTheSenderToAnswer) {
@@ -309,13 +346,13 @@ TEST_F(IOFeed, SendToGoesThroughTheOpenedEndNamingTheSenderToAnswer) {
         return opened;
       });
 
-  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
-  EXPECT_FALSE(feed->send(message("to nobody in particular")));
-  EXPECT_TRUE(feed->send(message("answered"), {.to = "udp://127.0.0.1:52341"}));
+  const Feed feed = hub.listen("udp://:27020");
+  EXPECT_FALSE(feed.send(message("to nobody in particular")));
+  EXPECT_TRUE(feed.send(message("answered"), {.to = "udp://127.0.0.1:52341"}));
   EXPECT_EQ(*answered, "udp://127.0.0.1:52341 answered");
   // There is no end to answer through once it has been closed.
-  feed->close();
-  EXPECT_FALSE(feed->send(message("too late"), {.to = "udp://127.0.0.1:52341"}));
+  feed.close();
+  EXPECT_FALSE(feed.send(message("too late"), {.to = "udp://127.0.0.1:52341"}));
 }
 
 TEST_F(IOFeed, ARecordingReadsBackTheBytesAndTimesItWasWrittenWith) {
@@ -364,51 +401,51 @@ TEST_F(IOFeed, AReplayedUriPlaysItsRecordingByTheTimeDispatched) {
     writer.append(Message(shared("at one"), {}, seconds(1.0), 2));
   }
   // Named through the mount table, as a sketch names its own files.
-  const std::shared_ptr<Feed> replaying =
+  const Feed replaying =
       hub.replay("udp://:27020", "res://scene.feed");
-  const std::shared_ptr<Feed> feed = hub.feed("udp://:27020");
+  const Feed feed = hub.listen("udp://:27020");
   // Every later ask for the URI is handed the replaying feed.
   EXPECT_EQ(feed, replaying);
-  ASSERT_NE(feed, nullptr);
-  EXPECT_TRUE(feed->state().error.empty());
-  EXPECT_EQ(feed->state().revision, 0u);  // nothing arrives until time moves
+  ASSERT_TRUE(feed);
+  EXPECT_TRUE(feed.state().error.empty());
+  EXPECT_EQ(feed.state().revision, 0u);  // nothing arrives until time moves
 
   hub.advance(seconds(0.0));
-  EXPECT_EQ(feed->state().revision, 1u);
-  EXPECT_EQ(feed->latest()->payload->asText(), "at zero");
-  EXPECT_NE(feed->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_EQ(feed.state().revision, 1u);
+  EXPECT_EQ(feed.latest()->payload->asText(), "at zero");
+  EXPECT_NE(feed.state().readiness, sigil::io::ReadyState::Closed);
 
   hub.advance(seconds(1.0));
-  EXPECT_EQ(feed->state().revision, 2u);
-  EXPECT_EQ(feed->latest()->payload->asText(), "at one");
-  EXPECT_EQ(feed->state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out
+  EXPECT_EQ(feed.state().revision, 2u);
+  EXPECT_EQ(feed.latest()->payload->asText(), "at one");
+  EXPECT_EQ(feed.state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out
 
-  const std::optional<Message> first = feed->receive();
+  const std::optional<Message> first = feed.receive();
   ASSERT_TRUE(first.has_value());
   EXPECT_EQ(first->arrivedAt().count(), 0.0);  // the recorded time, not a clock's
   // A recording is the messages and not who sent them.
   EXPECT_TRUE(first->sender().empty());
-  const std::optional<Message> second = feed->receive();
+  const std::optional<Message> second = feed.receive();
   ASSERT_TRUE(second.has_value());
   EXPECT_EQ(second->arrivedAt().count(), 1.0);
 }
 
 TEST_F(IOFeed, AFileThatIsNoRecordingIsAFeedWhoseErrorSaysSo) {
   dir.write("scene.bin", "these are not frames");
-  const std::shared_ptr<Feed> feed =
+  const Feed feed =
       hub.replay("udp://:27020", (dir.path / "scene.bin").string());
-  ASSERT_NE(feed, nullptr);
-  EXPECT_FALSE(feed->state().error.empty());
+  ASSERT_TRUE(feed);
+  EXPECT_FALSE(feed.state().error.empty());
   hub.advance(seconds(1.0));
-  EXPECT_EQ(feed->state().revision, 0u);
+  EXPECT_EQ(feed.state().revision, 0u);
 }
 
 TEST_F(IOFeed, RecordingALiveFeedWritesWhatArrives) {
   const fs::path path = dir.path / "live.feed";
-  const auto feed = std::make_shared<Feed>("udp://:27020");
+  const Feed feed("udp://:27020");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   {
-    const Recording recording = feed->record(path);
+    const Recording recording = feed.record(path);
     EXPECT_FALSE(recording.stopped());
     inlet.deliver(message("one"));
     inlet.deliver(message("two"));
@@ -427,11 +464,11 @@ TEST_F(IOFeed, RecordingALiveFeedWritesWhatArrives) {
 }
 
 TEST_F(IOFeed, ARecordingStopsWhenToldAndWhenAnotherTakesItsPlace) {
-  const auto feed = std::make_shared<Feed>("udp://:27020");
+  const Feed feed("udp://:27020");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
-  Recording first = feed->record(dir.path / "first.feed");
+  Recording first = feed.record(dir.path / "first.feed");
   inlet.deliver(message("one"));
-  Recording second = feed->record(dir.path / "second.feed");
+  Recording second = feed.record(dir.path / "second.feed");
   // One recording at a time: the second ended the first.
   EXPECT_TRUE(first.stopped());
   inlet.deliver(message("two"));
@@ -451,9 +488,9 @@ TEST_F(IOFeed, ARecordingStopsWhenToldAndWhenAnotherTakesItsPlace) {
   EXPECT_EQ((*two)[0].payload->asText(), "two");
 
   // A file that cannot be opened is a handle that has already stopped.
-  const Recording nowhere = feed->record(dir.path / "absent" / "x.feed");
+  const Recording nowhere = feed.record(dir.path / "absent" / "x.feed");
   EXPECT_TRUE(nowhere.stopped());
-  EXPECT_FALSE(feed->state().error.empty());
+  EXPECT_FALSE(feed.state().error.empty());
 }
 
 TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
@@ -465,18 +502,18 @@ TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
   hub.setFeedTransport("udp", [](std::string_view, Inlet) {
     return TransportEnd{};
   });
-  const std::shared_ptr<Feed> live = hub.feed("udp://:27020");
-  const std::shared_ptr<Feed> replaying =
+  const Feed live = hub.listen("udp://:27020");
+  const Feed replaying =
       hub.replay("udp://:27020", path.string());
-  EXPECT_EQ(live->state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_EQ(live.state().readiness, sigil::io::ReadyState::Closed);
   EXPECT_NE(live, replaying);
   hub.advance(seconds(0.0));
-  ASSERT_TRUE(replaying->latest().has_value());
+  ASSERT_TRUE(replaying.latest().has_value());
 }
 
 TEST_F(IOFeed, ArrivalsFromAnotherThreadAreAllReceivedInOrder) {
   const int count = 1000;
-  const auto feed = std::make_shared<Feed>("udp://:27020", FeedPolicy{.capacity = 2048});
+  const Feed feed("udp://:27020", ListenOptions{.capacity = 2048});
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   std::thread sender([&inlet, count] {
     for (int number = 0; number != count; ++number)
@@ -485,14 +522,14 @@ TEST_F(IOFeed, ArrivalsFromAnotherThreadAreAllReceivedInOrder) {
 
   std::vector<std::string> received;
   while ((int)received.size() != count)
-    if (const std::optional<Message> arrival = feed->receive())
+    if (const std::optional<Message> arrival = feed.receive())
       received.push_back(std::string(arrival->payload->asText()));
   sender.join();
 
   ASSERT_EQ((int)received.size(), count);
   for (int number = 0; number != count; ++number)
     ASSERT_EQ(received[(size_t)number], std::to_string(number));
-  EXPECT_EQ(feed->state().dropped, 0u);
+  EXPECT_EQ(feed.state().dropped, 0u);
 }
 
 TEST_F(IOFeed, DispatchRunsEveryRegisteredCallbackInOrderUntilItsLeaseGoes) {
@@ -534,12 +571,12 @@ TEST_F(IOFeed, ACallbackSeesWhatTheSameDispatchDelivered) {
     RecordingWriter writer(path);
     writer.append(Message(shared("at zero"), {}, seconds(0.0), 1));
   }
-  const std::shared_ptr<Feed> feed =
+  const Feed feed =
       hub.replay("udp://:27020", path.string());
 
   std::vector<std::string> seen;
   const Lease lease = hub.onAdvance([&seen, feed](std::chrono::duration<double>) {
-    if (const std::optional<Message> arrival = feed->receive())
+    if (const std::optional<Message> arrival = feed.receive())
       seen.emplace_back(arrival->payload->asText());
   });
 
@@ -552,12 +589,12 @@ TEST_F(IOFeed, ACallbackSeesWhatTheSameDispatchDelivered) {
 
 TEST_F(IOFeed, LiveArrivalTimeIsIndependentOfQueueDrainTime) {
   using Clock = std::chrono::steady_clock;
-  const auto feed = std::make_shared<Feed>("test://clock");
+  const Feed feed("test://clock");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   const auto before = Clock::now();
   inlet.deliver(message("one"));
   const auto after = Clock::now();
-  const auto arrival = feed->receive();
+  const auto arrival = feed.receive();
   ASSERT_TRUE(arrival);
   const auto received = arrival->receivedAt();
   EXPECT_GE(received, before);
@@ -574,27 +611,27 @@ TEST_F(IOFeed, ReplayArrivalTimeUsesFirstDispatchAndRecordedSpacing) {
     writer.append(Message(shared("one"), {}, seconds(0.0), 1));
     writer.append(Message(shared("two"), {}, seconds(0.25), 2));
   }
-  const std::shared_ptr<Feed> feed = hub.replay("test://clock", path.string());
+  const Feed feed = hub.replay("test://clock", path.string());
   const auto before = Clock::now();
   hub.advance(seconds(900.0));
   const auto after = Clock::now();
-  const auto first = feed->receive();
+  const auto first = feed.receive();
   ASSERT_TRUE(first);
   const auto origin = first->receivedAt();
   EXPECT_GE(origin, before);
   EXPECT_LE(origin, after);
   hub.advance(seconds(900.25));
-  const auto second = feed->receive();
+  const auto second = feed.receive();
   ASSERT_TRUE(second);
   EXPECT_EQ(second->receivedAt() - origin, 250ms);
 }
 
 TEST_F(IOFeed, InvalidOrUnrepresentableArrivalTimesMapToTheClockOrigin) {
   using Clock = std::chrono::steady_clock;
-  const auto feed = std::make_shared<Feed>("test://clock");
+  const Feed feed("test://clock");
   const Inlet inlet = sigil::io::testing::inletOf(feed);
   inlet.deliver(message("at the origin"), seconds(0.0));
-  const auto origin = feed->receive()->receivedAt();
+  const auto origin = feed.receive()->receivedAt();
   for (const double invalid :
        {-1.0, -std::numeric_limits<double>::infinity(),
         std::numeric_limits<double>::infinity(),
@@ -602,6 +639,6 @@ TEST_F(IOFeed, InvalidOrUnrepresentableArrivalTimesMapToTheClockOrigin) {
         std::numeric_limits<double>::max(),
         std::chrono::duration<double>(Clock::duration::max()).count()}) {
     inlet.deliver(message("out of range"), seconds(invalid));
-    EXPECT_EQ(feed->receive()->receivedAt(), origin);
+    EXPECT_EQ(feed.receive()->receivedAt(), origin);
   }
 }
