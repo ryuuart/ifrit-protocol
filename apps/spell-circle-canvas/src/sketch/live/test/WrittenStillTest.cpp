@@ -4,7 +4,9 @@
  * the still is taken at, as the sweep pins its plate's, so a pen's canvas
  * formed on the way is drawn on the still's grid rather than magnified
  * into it; and it photographs through the runtime's own still, as the
- * sweep does, so a scene that moves is the plate of the same moment.
+ * sweep does, so a scene that moves is the plate of the same moment —
+ * and so is the still a protocol session takes of it in process, and a
+ * still at a fractional density is the plate's own pixels.
  */
 
 #include <gtest/gtest.h>
@@ -16,7 +18,9 @@
 #include <sigilsketch/live/Host.h>
 #include <sigilsketch/plate/Sweep.h>
 #include <sigilsketch/testing/Comparison.h>
+#include <sigilsketch/testing/InProcessHost.h>
 
+#include <cmath>
 #include <filesystem>
 #include <limits>
 #include <stdexcept>
@@ -27,6 +31,7 @@
 namespace {
 
 namespace sketch = sigil::sketch;
+namespace protocol = sigil::protocol;
 
 /** A PEN THAT DRAWS ONCE and keeps it: a disc and a thin diagonal on its
  *  first run, nothing after, on the canvas the node holds. Every pixel of
@@ -133,10 +138,9 @@ struct MarchingBox {
 
 sketch::Kind marchingBoxKind() { return sketch::kindOf<MarchingBox>(); }
 
-[[maybe_unused]] const bool kMarchingRegistered =
-    sketch::add("written_still_marching_box", nullptr, "Test",
-                "a box that moves every frame, photographed as a plate",
-                &marchingBoxKind);
+[[maybe_unused]] const bool kMarchingRegistered = sketch::add(
+    "written_still_marching_box", nullptr, "Test",
+    "a box that moves every frame, photographed as a plate", &marchingBoxKind);
 
 const sketch::Entry kMarchingBox{"written_still_marching_box",
                                  "written_still_marching_box", "Test", "",
@@ -169,6 +173,29 @@ TEST(SketchWrittenStill, OfAMovingSceneIsThePlateOfThatMoment) {
       << same.problem << " differing pixels " << same.pixels.differingPixels
       << ", worst " << same.pixels.worst;
 
+  // The protocol's still of the same moment, in process: the density
+  // pinned from the first frame, the clock set to Advance, one second
+  // stepped and a still taken at two pixels a unit under that moving
+  // clock. It is the plate and the written still both.
+  std::filesystem::create_directories(file.dir.path / "protocol");
+  sketch::testing::InProcessHost session(
+      {.stateDirectory = file.dir.path / "protocol"});
+  ASSERT_TRUE(session.pinDensity(2.0));
+  const auto opened = session.open("written_still_marching_box");
+  ASSERT_TRUE(opened) << opened.error().message;
+  ASSERT_TRUE(session.clock(protocol::clock::Policy_Advance));
+  const auto stepped = session.step(1.0);
+  ASSERT_TRUE(stepped) << stepped.error().message;
+  const auto taken = session.still(2.0);
+  ASSERT_TRUE(taken) << taken.error().message;
+  const sketch::testing::Comparison protocolPlate =
+      sketch::testing::compare(taken.result().path, plate);
+  EXPECT_TRUE(protocolPlate.identical())
+      << protocolPlate.problem << " differing pixels "
+      << protocolPlate.pixels.differingPixels;
+  EXPECT_TRUE(
+      sketch::testing::compare(taken.result().path, written).identical());
+
   // What gives the case its power: the state the last step left, drawn
   // without the runtime's own still, is the scene one frame earlier and
   // another picture.
@@ -177,6 +204,80 @@ TEST(SketchWrittenStill, OfAMovingSceneIsThePlateOfThatMoment) {
   const std::filesystem::path held = file.dir.path / "held.png";
   ASSERT_TRUE(host.capture(held, density));
   EXPECT_FALSE(sketch::testing::compare(held, plate).identical());
+}
+
+/** A STRIP WIDER THAN HALF THE PLATE CEILING, so the density its plate
+ *  is photographed at is the ceiling over its width rather than a whole
+ *  number, and its height times that density falls between two pixels. */
+struct WideStrip {
+  void setup(sketch::SketchContext& ctx) {
+    ctx.canvas(1250, 333);
+    ctx.background({0.1f, 0.1f, 0.2f, 1});
+    ctx.captureAt(0.5);
+  }
+  void update(double elapsed, sketch::SketchContext& ctx) {
+    using namespace sigil::compose;
+    ctx.composer.render(box()
+                            .width(40)
+                            .height(333)
+                            .inset(0, 0, 0, (float)elapsed * 300.0f)
+                            .fill(Fill::color({1, 0.5f, 0, 1})));
+  }
+};
+
+sketch::Kind wideStripKind() { return sketch::kindOf<WideStrip>(); }
+
+[[maybe_unused]] const bool kWideRegistered =
+    sketch::add("written_still_wide_strip", nullptr, "Test",
+                "a strip whose plate density is fractional", &wideStripKind);
+
+const sketch::Entry kWideStrip{"written_still_wide_strip",
+                               "written_still_wide_strip", "Test", "",
+                               &wideStripKind};
+
+TEST(SketchWrittenStill, AtAFractionalDensityIsThePlatesOwnPixels) {
+  const sketch::test::Watched file("sigil_sketch_written_still_fractional");
+  sketch::SweepOptions sweep;
+  sweep.outputDirectory = (file.dir.path / "sweep").string();
+  sweep.only = sketch::find("written_still_wide_strip");
+  sweep.ledger = true;
+  ASSERT_GE(sweep.only, 0);
+  ASSERT_EQ(sketch::sweep(sweep, sketch::test::fonts(), sketch::test::assets()),
+            0);
+  const std::filesystem::path plate =
+      file.dir.path / "sweep" / "plate_written_still_wide_strip.png";
+
+  sketch::Host::Options options = optionsFor(file.path);
+  options.compiledIn = &kWideStrip;
+  sketch::Host host(options, sketch::test::fonts());
+  ASSERT_TRUE(host.live());
+  const float density = sketch::plateDensity(*host.session());
+  // What gives the case its power: the density is not whole, and the
+  // canvas's height at it is not a whole number of pixels.
+  ASSERT_NE(density, std::floor(density));
+  ASSERT_NE(333.0f * density, std::floor(333.0f * density));
+  const sketch::PlateExtent extent = sketch::plateExtent(1250, 333, density);
+  EXPECT_EQ(extent.height, (int)std::floor(333.0f * density));
+
+  EXPECT_EQ(host.prepareCapture(0.5, 60.0, density), 0.5);
+  const std::filesystem::path written = file.dir.path / "written.png";
+  ASSERT_TRUE(host.writePhotograph(written, density));
+  const sketch::testing::Comparison same =
+      sketch::testing::compare(written, plate);
+  EXPECT_TRUE(same.identical())
+      << same.problem << " differing pixels " << same.pixels.differingPixels;
+
+  std::filesystem::create_directories(file.dir.path / "protocol");
+  sketch::testing::InProcessHost session(
+      {.stateDirectory = file.dir.path / "protocol"});
+  ASSERT_TRUE(session.pinDensity());
+  ASSERT_TRUE(session.open("written_still_wide_strip"));
+  ASSERT_TRUE(session.clock(protocol::clock::Policy_Advance));
+  ASSERT_TRUE(session.step(0.5));
+  const auto taken = session.still(density);
+  ASSERT_TRUE(taken) << taken.error().message;
+  EXPECT_EQ(taken.result().height, (unsigned)extent.height);
+  EXPECT_TRUE(sketch::testing::compare(taken.result().path, plate).identical());
 }
 
 TEST(SketchWrittenStill, RefusesADensityWithNoPixels) {

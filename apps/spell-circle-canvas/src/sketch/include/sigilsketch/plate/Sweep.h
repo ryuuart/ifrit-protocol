@@ -48,6 +48,20 @@ class Session;
  *  the way to the plate is baked at it from its first frame. */
 [[nodiscard]] float plateDensity(const Session& session);
 
+/** THE PIXELS A PLATE IS: a canvas of @p width by @p height canvas units
+ *  photographed at @p density, each side times the density with any
+ *  fraction of a pixel dropped. The sweep sizes its plate by it and
+ *  `Host::photograph` sizes the still a written `--frame` and a protocol
+ *  session take by it, so the two are one picture at every density,
+ *  including the fractional one the width ceiling leaves a wide canvas.
+ *  Zero by zero where a side is negative, not a number, or more pixels
+ *  than an int counts. */
+struct PlateExtent {
+  int width = 0;
+  int height = 0;
+};
+[[nodiscard]] PlateExtent plateExtent(float width, float height, float density);
+
 /** WHAT ONE HEADLESS RUN DOES.
  *
  *  The sweep answers two questions that want opposite conditions, which

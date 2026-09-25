@@ -17,6 +17,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/core/Sources.h>
+#include <sigilsketch/plate/Sweep.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -820,15 +821,10 @@ void Host::markPresented() {
   m_presentSince->reset();
 }
 
-SkBitmap Host::drawStill(float scale, const SkColor4f& ground,
+SkBitmap Host::drawStill(SkISize extent, float scale, const SkColor4f& ground,
                          const std::function<void(SkCanvas&)>& draw) {
-  const auto extent = captureExtent(m_session->canvas().size, scale);
-  if (!extent) {
-    m_errorLog = "Capture dimensions or scale are invalid";
-    return {};
-  }
   const SkImageInfo info =
-      SkImageInfo::MakeN32Premul(extent->width(), extent->height());
+      SkImageInfo::MakeN32Premul(extent.width(), extent.height());
   sk_sp<SkSurface> surface = m_captureBackend.makeSurface
                                  ? m_captureBackend.makeSurface(info)
                                  : SkSurfaces::Raster(info);
@@ -859,22 +855,37 @@ SkBitmap Host::drawStill(float scale, const SkColor4f& ground,
 
 SkBitmap Host::still(float scale) {
   if (!m_session || m_runtimeFailed) return {};
+  const auto extent = captureExtent(m_session->canvas().size, scale);
+  if (!extent) {
+    m_errorLog = "Capture dimensions or scale are invalid";
+    return {};
+  }
   const SkColor4f ground = SkColor4f::FromColor(
       material::skia::toSkColor(m_session->canvas().background).toSkColor());
-  return drawStill(scale, ground,
+  return drawStill(*extent, scale, ground,
                    [this](SkCanvas& canvas) { m_session->repaint(canvas); });
 }
 
 SkBitmap Host::photograph(float density) {
   if (!m_session || m_runtimeFailed) return {};
+  // The plate's own pixels, a fraction dropped as the sweep drops it, so
+  // a fractional density is the same picture here as on a plate.
+  const SkSize size = m_session->canvas().size;
+  const PlateExtent plate = plateExtent(size.width(), size.height(), density);
+  if (!std::isfinite(density) || density <= 0 || plate.width < 1 ||
+      plate.height < 1 || plate.width > 16384 || plate.height > 16384) {
+    m_errorLog = "Capture dimensions or scale are invalid";
+    return {};
+  }
   // The ground is laid as the sweep lays a plate's, at full precision,
   // since this is the sweep's photograph.
   const SkColor4f ground =
       material::skia::toSkColor(m_session->canvas().background);
-  SkBitmap bitmap = drawStill(density, ground, [this](SkCanvas& canvas) {
-    PhaseMark mark(Phase::Capture);
-    m_session->still(canvas);
-  });
+  SkBitmap bitmap = drawStill(SkISize::Make(plate.width, plate.height), density,
+                              ground, [this](SkCanvas& canvas) {
+                                PhaseMark mark(Phase::Capture);
+                                m_session->still(canvas);
+                              });
   if (!bitmap.isNull() && m_session) {
     // The frame the runtime drew to take its still is a frame of the
     // scene, and the clock here says so.

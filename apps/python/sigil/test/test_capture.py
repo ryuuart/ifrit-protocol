@@ -84,6 +84,8 @@ class CaptureParity(unittest.TestCase):
                     self.assertAlmostEqual(api_times[-1], (at or 0) + 1 / 60)
                     self.assertEqual(len(api_times), 3 if at == 0.025 else 2)
                     self.assertEqual(api.read_bytes(), native.read_bytes())
+                    # The canvas's quarter pixel is dropped, as a plate
+                    # drops it.
                     self.assertEqual(
-                        struct.unpack(">II", api.read_bytes()[16:24]), (81, 61)
+                        struct.unpack(">II", api.read_bytes()[16:24]), (80, 60)
                     )

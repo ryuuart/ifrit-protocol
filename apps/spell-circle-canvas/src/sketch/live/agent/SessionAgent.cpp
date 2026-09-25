@@ -449,11 +449,11 @@ std::optional<values::StillResult> SessionAgent::takeStill(
     // runtime's still at the density, every raster the session bakes
     // taken at that density, and one frame more where the runtime
     // re-renders its still at this size, which the clock counts.
-    const CanvasSpecification& specification = session->canvas();
-    const double width = std::ceil(specification.size.width() * density);
-    const double height = std::ceil(specification.size.height() * density);
-    if (!(width >= 1) || !(height >= 1) || width > kLargestStill ||
-        height > kLargestStill) {
+    const SkSize size = session->canvas().size;
+    const PlateExtent plate =
+        plateExtent(size.width(), size.height(), (float)density);
+    if (plate.width < 1 || plate.height < 1 || plate.width > kLargestStill ||
+        plate.height > kLargestStill) {
       *why = "a still of this canvas at that density has no pixels to hold";
       return std::nullopt;
     }

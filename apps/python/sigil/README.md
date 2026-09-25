@@ -197,10 +197,14 @@ render_file("sketch.py", "preview.png", at=2.0)
 The renderer accepts strings and `pathlib.Path` objects. Omitting `at`
 uses the capture moment declared by the sketch, or 1.5 seconds if none is
 declared. Sketchbook and standalone Python step alike: whole steps at 60
-FPS followed by the fractional remainder, with the clock then held and the
-frame it holds photographed. Zero runs one update without advancing time. The headless host steps the
+FPS followed by the fractional remainder, then the picture is taken as a
+plate is, under the moving clock: a canvas draws one more frame to take
+it, so the picture is the scene one sixtieth of a second past the moment
+named, after one more update. Zero runs one update without advancing
+time, so a picture asked for at zero shows the scene a sixtieth of a
+second in. The headless host steps the
 scene clock from zero, so native entrances and pen history are present
-in a capture. Fractional canvas dimensions round up to whole pixels.
+in a capture. A fraction of a pixel is dropped, as a plate drops it.
 The CLI creates output directories as needed and
 returns a nonzero status when import, setup or rendering fails.
 

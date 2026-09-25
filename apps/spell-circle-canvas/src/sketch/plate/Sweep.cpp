@@ -88,6 +88,15 @@ bool writeCountPlane(const Session::CompositeCounts& plane,
 
 }  // namespace
 
+PlateExtent plateExtent(float width, float height, float density) {
+  const float wide = width * density;
+  const float tall = height * density;
+  // A product no int holds — or no number at all — is no plate.
+  constexpr float kBeyond = 2147483520.0f;
+  if (!(wide >= 0 && wide < kBeyond && tall >= 0 && tall < kBeyond)) return {};
+  return {.width = (int)wide, .height = (int)tall};
+}
+
 float plateDensity(const Session& session) {
   const int declaredOversample = session.canvas().oversample;
   if (declaredOversample > 0) return (float)declaredOversample;
@@ -417,8 +426,9 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       std::printf("\n");
     }
 
-    const SkImageInfo plateInfo = SkImageInfo::MakeN32Premul(
-        (int)(size.width() * scale), (int)(size.height() * scale));
+    const PlateExtent extent = plateExtent(size.width(), size.height(), scale);
+    const SkImageInfo plateInfo =
+        SkImageInfo::MakeN32Premul(extent.width, extent.height);
     const std::string path = options.outputDirectory + "/" +
                              std::string(kPlatePrefix) + entry.name + ".png";
     SkBitmap bitmap;

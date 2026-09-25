@@ -54,9 +54,13 @@ which runs the sketch where it stands. Only the Advance policy steps.
 
 **A still** under a moving clock is taken as a plate is, through
 `Host::photograph`, the path a written `--frame` takes too: the runtime's
-own still on a surface of the canvas times the density, cleared to the
-declared ground, and declares its density for what the session bakes
-from then on. A bake formed earlier is formed again only when its node
+own still on a surface of the canvas times the density, a fraction of a
+pixel dropped as a plate's is, cleared to the declared ground, and
+declares its density for what the session bakes from then on. The
+surface is the host's capture surface: raster in a headless host, which
+is where it equals the raster sweep's plate, and the device's in a
+window drawing on it. A still the sketch throws in fails the session, as
+a frame that throws does, and the answer carries what it threw. A bake formed earlier is formed again only when its node
 describes again, so a client that means to hold a session to a plate
 pins its density before opening it — `session.pinDensity`, zero for
 `sigil::sketch::plateDensity`, the density the sweep photographs at —

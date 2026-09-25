@@ -304,8 +304,12 @@ class Host {
    *  scene stepped to a moment by `prepareCapture()` and photographed
    *  here is the sweep's plate of that moment, byte for byte, and a
    *  protocol session under a moving clock takes its still through this
-   *  same call. Null, with the reason in errorLog(), exactly where
-   *  `still()` is. */
+   *  same call. It is `plateExtent()` pixels, a fraction of a pixel
+   *  dropped as the sweep drops it, and is drawn on the surface the
+   *  capture backend makes — the raster the sweep draws on in a headless
+   *  host, the device's in a window drawing on it. Null, with the reason
+   *  in errorLog(), exactly where `still()` is; a still the sketch throws
+   *  in fails the session as a frame that throws does. */
   [[nodiscard]] SkBitmap photograph(float density = 1.0f);
 
   /** `still()` encoded as a PNG and written to @p out: the window's save
@@ -316,8 +320,7 @@ class Host {
 
   /** `photograph()` encoded as a PNG and written to @p out: the still a
    *  headless `--frame` writes. Synchronous, as `capture()` is. */
-  bool writePhotograph(const std::filesystem::path& out,
-                       float density = 1.0f);
+  bool writePhotograph(const std::filesystem::path& out, float density = 1.0f);
 
   /** A host on the device must route capture through its own backend:
    *  once live frames render on the GPU, the runtime's caches hold
@@ -389,10 +392,10 @@ class Host {
   void loadPython();
   bool pythonChanged();
   void sessionFailed(const std::exception& error);
-  /** The one body of `still()` and `photograph()`: a surface of the
-   *  canvas at @p scale from the capture backend, @p draw run onto it,
-   *  and the pixels read back. */
-  SkBitmap drawStill(float scale, const SkColor4f& ground,
+  /** The one body of `still()` and `photograph()`: a surface of
+   *  @p extent pixels from the capture backend, @p draw run onto it at
+   *  @p scale, and the pixels read back. */
+  SkBitmap drawStill(SkISize extent, float scale, const SkColor4f& ground,
                      const std::function<void(SkCanvas&)>& draw);
   /** Says what the assets' last declaration found wrong the way a failed
    *  build is said, after any build output the log already holds, and

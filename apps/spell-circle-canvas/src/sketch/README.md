@@ -1127,8 +1127,8 @@ it, and a sketch that declared none falls back to 1.5 s; otherwise a
 still uses the same declared moment as the plate sweep. The line it prints
 says which of the three it used. A declared zero runs one update without
 advancing time; a moment between fixed steps uses a final fractional step.
-Fractional canvas dimensions round up to whole pixels at the requested
-scale.
+A fraction of a pixel at the requested scale is dropped, as the sweep
+drops it (`sigil::sketch::plateExtent`).
 
 **A written still IS the sweep's plate of its moment.** Every still is
 taken through the runtime's own `Session::still` — `Host::photograph` —
