@@ -47,14 +47,14 @@ class Ramp final : public detail::Stepped {
   /** @p passes: how many times the segments play; 0 plays them for ever. */
   Ramp(std::shared_ptr<detail::Cell<float>> cell, float start, double lead,
        std::vector<Segment> segments, int passes, bool alternate)
-      : m_cell(std::move(cell)),
+      : m_cell(cell),
         m_start(start),
         m_lead(lead),
         m_segments(std::move(segments)),
         m_passes(passes),
         m_alternate(alternate) {
-    m_writer = ++m_cell->writer;
-    m_cell->moving = true;
+    m_writer = ++cell->writer;
+    cell->moving = true;
     // One pass summed on its own for the passes; the single pass's end
     // summed from the lead segment by segment, which is the rounding its
     // last frame is decided at.
@@ -83,12 +83,15 @@ class Ramp final : public detail::Stepped {
   }
 
   bool advance(double deltaSeconds) override {
-    // A motion started on the same value since has taken it over.
-    if (m_cell->writer != m_writer) return false;
+    // Nothing reads a value whose every holder is gone, so its motion ends
+    // with it; and a motion started on the same value since has taken it
+    // over.
+    const std::shared_ptr<detail::Cell<float>> cell = m_cell.lock();
+    if (!cell || cell->writer != m_writer) return false;
     m_time += deltaSeconds;
     if (m_end >= 0.0 && m_time >= m_end) {
-      m_cell->value = rest();
-      m_cell->moving = false;
+      cell->value = rest();
+      cell->moving = false;
       return false;
     }
     float value = base(m_time);
@@ -99,7 +102,7 @@ class Ramp final : public detail::Stepped {
           layer.seconds > 0.0 ? (float)std::min(into / layer.seconds, 1.0) : 1.0f;
       value += layer.delta * (layer.ease ? layer.ease(unit) : unit);
     }
-    m_cell->value = value;
+    cell->value = value;
     return true;
   }
 
@@ -146,7 +149,8 @@ class Ramp final : public detail::Stepped {
     return within(backwards ? m_pass - into : into);
   }
 
-  std::shared_ptr<detail::Cell<float>> m_cell;
+  /** Held weakly: the value's holders own it, not the motion writing it. */
+  std::weak_ptr<detail::Cell<float>> m_cell;
   float m_start = 0.0f;
   double m_lead = 0.0;
   std::vector<Segment> m_segments;

@@ -126,10 +126,11 @@ class AnimationState final : public PlaybackState {
     Easing ease;
   };
 
-  AnimationState(std::shared_ptr<Cell<float>> cell, const Tween<float>& tween)
-      : m_cell(std::move(cell)) {
+  AnimationState(const std::shared_ptr<Cell<float>>& cell,
+                 const Tween<float>& tween)
+      : m_cell(cell) {
     const Tween<float> resolved = tween.resolved({});
-    m_origin = m_cell->value;
+    m_origin = cell->value;
     if (resolved.from) m_from = resolved.from->value();
     const Duration length = resolved.duration.value();
     if (resolved.keyframes.empty()) {
@@ -150,12 +151,13 @@ class AnimationState final : public PlaybackState {
    *  motion started on it before stops. The value holds where it stands,
    *  or at the tween's `from`. */
   void claim() {
-    if (m_claimed) return;
+    const std::shared_ptr<Cell<float>> cell = m_cell.lock();
+    if (m_claimed || !cell) return;
     m_claimed = true;
-    m_origin = m_cell->value;
-    m_writer = ++m_cell->writer;
-    m_cell->moving = true;
-    if (m_from) m_cell->value = *m_from;
+    m_origin = cell->value;
+    m_writer = ++cell->writer;
+    cell->moving = true;
+    if (m_from) cell->value = *m_from;
   }
 
   /** Rides @p delta on top of the running path, over @p duration after
@@ -170,8 +172,10 @@ class AnimationState final : public PlaybackState {
 
   void showAt(Duration into, bool waiting) override {
     claim();
-    if (m_cell->writer != m_writer) {
-      // A motion started on the same value since has taken it over.
+    const std::shared_ptr<Cell<float>> cell = m_cell.lock();
+    if (!cell || cell->writer != m_writer) {
+      // Every holder of the value is gone, or a motion started on the same
+      // value since has taken it over.
       cancelled = true;
       return;
     }
@@ -200,21 +204,20 @@ class AnimationState final : public PlaybackState {
               : 1.0f;
       value += layer.delta * (layer.ease ? layer.ease(unit) : unit);
     }
-    m_cell->value = value;
+    cell->value = value;
   }
 
   void finished() override {
-    if (m_cell->writer == m_writer) m_cell->moving = false;
+    if (const auto cell = m_cell.lock(); cell && cell->writer == m_writer)
+      cell->moving = false;
   }
 
   void revertTargets() override {
-    if (m_cell->writer == m_writer) {
-      m_cell->value = m_origin;
-      m_cell->moving = false;
+    if (const auto cell = m_cell.lock(); cell && cell->writer == m_writer) {
+      cell->value = m_origin;
+      cell->moving = false;
     }
   }
-
-  [[nodiscard]] const std::shared_ptr<Cell<float>>& cell() const { return m_cell; }
   [[nodiscard]] float target() const {
     float value = m_steps.empty() ? m_origin : m_steps.back().to;
     for (const Layer& layer : m_layers) value += layer.delta;
@@ -222,7 +225,8 @@ class AnimationState final : public PlaybackState {
   }
 
  private:
-  std::shared_ptr<Cell<float>> m_cell;
+  /** Held weakly: the value's holders own it, not the animation. */
+  std::weak_ptr<Cell<float>> m_cell;
   std::optional<float> m_from;
   float m_origin = 0.0f;
   std::vector<Step> m_steps;
