@@ -39,6 +39,8 @@
 #include <include/core/SkSurface.h>
 #include <include/pathops/SkPathOps.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilcompose/core/Factories.h>
+#include <sigilcompose/kit/Feed.h>
 #include <sigilcompose/testing/Index.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Profile.h>

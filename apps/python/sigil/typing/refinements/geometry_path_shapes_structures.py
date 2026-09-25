@@ -12,3 +12,5 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    table.attribute("_sigil.geometry.shapes.Hatch.origin", "_t.PointLike | None")
+    table.parameters("_sigil.geometry.shapes.Hatch.__init__", origin="_t.PointLike | None")
