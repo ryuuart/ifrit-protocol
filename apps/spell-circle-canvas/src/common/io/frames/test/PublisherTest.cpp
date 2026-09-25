@@ -5,11 +5,11 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilio/publish/Publisher.h>
+#include <sigilio/frames/Publisher.h>
 
 namespace {
 
-using namespace sigil::io::publish;
+using namespace sigil::io::frames;
 
 TEST(PublishFactory, WithNoDeviceThereIsNothingToPublishFrom) {
   EXPECT_EQ(createPublisher("a name", Backend::Metal, nullptr), nullptr);

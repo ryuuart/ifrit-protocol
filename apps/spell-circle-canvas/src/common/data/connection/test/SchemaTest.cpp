@@ -44,7 +44,7 @@ using Sent = std::vector<std::vector<std::byte>>;
  *  first line to its last and no port has to be free for it to pass. */
 sigil::io::Transport intoVector(std::shared_ptr<Sent> sent) {
   return [sent](std::string_view uri, sigil::io::Inlet) {
-    sigil::io::OpenedFeed opened;
+    sigil::io::TransportEnd opened;
     opened.localAddress = std::string(uri);
     opened.send = [sent](const Bytes& bytes) {
       sent->emplace_back(bytes.begin(), bytes.end());

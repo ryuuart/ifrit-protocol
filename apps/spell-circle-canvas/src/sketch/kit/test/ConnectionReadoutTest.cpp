@@ -37,7 +37,7 @@ using sigil::sketch::kit::test::sameDrawing;
  *  end; what arrives a case puts on the feed through its inlet. */
 sigil::io::Transport binding(std::string address) {
   return [address](std::string_view, sigil::io::Inlet) {
-    sigil::io::OpenedFeed opened;
+    sigil::io::TransportEnd opened;
     opened.localAddress = address;
     opened.send = [](const Bytes&) { return true; };
     return opened;

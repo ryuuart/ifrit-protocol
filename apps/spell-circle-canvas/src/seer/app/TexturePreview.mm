@@ -3,7 +3,7 @@
 
 #import <Metal/Metal.h>
 #include <QtQuick/qsgtexture_platform.h>
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Subscription.h>
 #include <QtQuick/QQuickWindow>
 #include <QtQuick/QSGRendererInterface>
 #include <QtQuick/QSGSimpleTextureNode>
@@ -24,7 +24,7 @@ class TextureNode final : public QSGNode {
   QSGSimpleTextureNode* image = nullptr;
   QString source;
   QString application;
-  std::unique_ptr<sigil::io::publish::Subscription> subscription;
+  std::unique_ptr<sigil::io::frames::Subscription> subscription;
   id<MTLTexture> frame = nil;
   id<MTLCommandQueue> queue = nil;
   uint64_t generation = 0;
@@ -69,7 +69,7 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
       node->source = source();
       node->application = application();
       void* device = renderer->getResource(window(), QSGRendererInterface::DeviceResource);
-      node->subscription = sigil::io::publish::subscribe(source().toStdString(),
+      node->subscription = sigil::io::frames::subscribe(source().toStdString(),
                                                          application().toStdString(), device);
       node->queue = [(__bridge id<MTLDevice>)device newCommandQueue];
     }
@@ -79,8 +79,8 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
       return nullptr;
     }
     if (!paused() || !node->frame) {
-      id<MTLTexture> next = (__bridge id<MTLTexture>)node->subscription->newestFrame();
-      const auto generation = node->subscription->generation();
+      id<MTLTexture> next = (__bridge id<MTLTexture>)node->subscription->latest();
+      const auto generation = node->subscription->state().revision;
       if (next && (generation != node->generation || !node->frame)) {
         auto* texture = QNativeInterface::QSGMetalTexture::fromNative(
             next, window(), QSize(static_cast<int>(next.width), static_cast<int>(next.height)),
@@ -92,7 +92,7 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
         }
       }
     }
-    const bool connected = node->subscription->standing();
+    const bool connected = node->subscription->state().isOpen();
     const QSize size = node->frame ? QSize(static_cast<int>(node->frame.width),
                                            static_cast<int>(node->frame.height))
                                    : QSize{};

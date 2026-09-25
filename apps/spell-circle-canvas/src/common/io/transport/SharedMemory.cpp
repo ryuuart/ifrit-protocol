@@ -463,7 +463,7 @@ void Door::close() {
 
 /** A feed whose transport could not open: the reason stands on the
  *  feed, and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
@@ -475,7 +475,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
  *  writer makes afterwards is one it reads. Only a URI that names no
  *  region at all — which no writer could ever make one under — opens
  *  nothing. */
-OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
+TransportEnd openFeed(const std::shared_ptr<detail::IoThread>& io,
                     std::string_view uri, const Inlet& into) {
   const std::optional<Region> named = parseRegion(uri);
   if (!named)
@@ -489,7 +489,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
       io, named->name,
       std::chrono::nanoseconds(std::chrono::seconds(1)) / named->rate, into);
 
-  OpenedFeed opened;
+  TransportEnd opened;
   opened.localAddress = door->address;
   opened.close = [door] { door->close(); };
   // Neither way out is filled: a reader maps what a writer left and has

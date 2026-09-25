@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup io-publish
+ * @ingroup io-frames
  * The door another application's frames arrive by: the seam a host holds
  * a publication over, and the one factory that answers with whatever
  * this build can subscribe through.
@@ -13,7 +13,9 @@
 #include <string_view>
 #include <vector>
 
-namespace sigil::io::publish {
+#include "sigilio/source/State.h"
+
+namespace sigil::io::frames {
 
 /** One discoverable native frame source. Names are scoped by application. */
 struct Publication {
@@ -36,7 +38,7 @@ std::vector<Publication> publications();
  * draws. THE NAME IS
  * WHAT IS HELD, not the process behind it: a publisher that stops and
  * starts is followed, and a name nothing publishes yet is waited for.
- * @trap Asking for the newest frame is also what OPENS onto a
+ * @trap Asking for the latest frame is also what OPENS onto a
  * publication that has appeared, so a host asks every frame. */
 class Subscription {
  public:
@@ -47,20 +49,18 @@ class Subscription {
    *  @trap BORROWED UNTIL THE NEXT CALL: the previous frame is let go
    *  whenever another is asked for, so a caller keeping one past that
    *  takes its own reference, which wrapping it as an image does. */
-  virtual void* newestFrame() = 0;
+  virtual void* latest() = 0;
 
-  /** How many frames have arrived, counted across a publisher that
-   *  stopped and came back, because a publication that came back is the
-   *  same publication. It is what a frame rate is read from and what
-   *  says a frame is NEW rather than whatever was already there. */
-  [[nodiscard]] virtual uint64_t generation() const = 0;
-
-  /** True while frames can still arrive: the publication answered AND
-   *  the directory still knows of it. Both, because a publisher that
-   *  retires tells its subscribers and a publisher that was killed tells
-   *  nobody — the second is noticed by the publication going off the
-   *  list rather than by the subscription being closed. */
-  [[nodiscard]] virtual bool standing() const = 0;
+  /** Where the publication stands, in the value a feed answers:
+   *  `ReadyState::Open` while frames can still arrive — the publication
+   *  answered AND the directory still knows of it, because a publisher
+   *  that retires tells its subscribers and one that was killed tells
+   *  nobody — and `ReadyState::Connecting` while the name is waited for.
+   *  `FeedState::revision` counts the frames that have arrived, across a
+   *  publisher that stopped and came back, because a publication that
+   *  came back is the same publication: it is what a frame rate is read
+   *  from and what says a frame is NEW. */
+  [[nodiscard]] virtual FeedState state() const = 0;
 
   /** The name this subscription follows, as it was asked for. */
   [[nodiscard]] virtual std::string_view name() const = 0;
@@ -87,4 +87,4 @@ std::unique_ptr<Subscription> subscribe(std::string name,
  * Null off macOS and on a machine with no Metal device. */
 void* defaultMetalDevice();
 
-}  // namespace sigil::io::publish
+}  // namespace sigil::io::frames

@@ -67,7 +67,7 @@ target_link_libraries(IfritQt
     Qt6::Quick
     Qt6::QuickControls2
     Qt6::QuickLayouts
-    SigilIOPublish
+    SigilIOFrames
   PRIVATE Qt::GuiPrivate
 )
 

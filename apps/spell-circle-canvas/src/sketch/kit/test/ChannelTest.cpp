@@ -37,7 +37,7 @@ using sigil::io::testing::inletOf;
  *  to its last and no port has to be free for it to pass. */
 sigil::io::Transport intoNothing() {
   return [](std::string_view uri, sigil::io::Inlet) {
-    sigil::io::OpenedFeed opened;
+    sigil::io::TransportEnd opened;
     // It binds nothing, so the local end it names is the URI it was asked
     // for.
     opened.localAddress = std::string(uri);

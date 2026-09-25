@@ -1,7 +1,7 @@
 #include "Servers.h"
 
 #import <Foundation/Foundation.h>
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Subscription.h>
 #include <cstdio>
 
 namespace seer::texture {
@@ -18,9 +18,9 @@ void turnRunLoop(double seconds) {
 
 int listPublications() {
   @autoreleasepool {
-    sigil::io::publish::publications();
+    sigil::io::frames::publications();
     turnRunLoop(0.5);
-    const auto offered = sigil::io::publish::publications();
+    const auto offered = sigil::io::frames::publications();
     for (const auto& publication : offered)
       std::printf("%s\t%s\n", publication.name.c_str(), publication.application.c_str());
     if (offered.empty()) std::fprintf(stderr, "No textures are being published on this machine.\n");

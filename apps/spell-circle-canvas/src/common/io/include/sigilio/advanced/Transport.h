@@ -5,7 +5,7 @@
  * WRITING A TRANSPORT: the producer's side of a feed. A transport is
  * handed the URI it is to open and an `Inlet` into the feed that URI
  * names; it delivers every message it receives through the inlet, says
- * through it what went wrong, and hands back the `OpenedFeed` the feed
+ * through it what went wrong, and hands back the `TransportEnd` the feed
  * closes and sends through. A reader holds the `Feed` and none of this:
  * the verbs that put a message on a feed are the transport's alone.
  */
@@ -30,7 +30,7 @@ Inlet inletOf(const std::shared_ptr<Feed>& feed);
 }  // namespace testing
 
 /** WHAT A TRANSPORT HANDS BACK once it has opened a URI. */
-struct OpenedFeed {
+struct TransportEnd {
   /** Closes the transport's end. The feed calls it once, from close()
    *  or from its destructor. */
   std::function<void()> close;
@@ -82,7 +82,7 @@ class Inlet {
    *  conversation that stands only once its handshake is done. Once: a
    *  second end, and one handed to a feed that is already closed, is
    *  closed rather than kept. */
-  void open(OpenedFeed end) const;
+  void open(TransportEnd end) const;
 
   /** Shuts the door from the transport's side — the far end ended it —
    *  after which nothing more arrives; what was received stays
@@ -105,6 +105,6 @@ class Inlet {
  *  it names, hands back the opened end. The transport keeps the inlet
  *  and delivers through it from whatever thread it runs on. */
 using Transport =
-    std::function<OpenedFeed(std::string_view uri, Inlet inlet)>;
+    std::function<TransportEnd(std::string_view uri, Inlet inlet)>;
 
 }  // namespace sigil::io

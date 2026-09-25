@@ -33,7 +33,7 @@ class Session;
 class ThumbnailWriter;
 }  // namespace sigil::sketch
 
-namespace sigil::io::publish {
+namespace sigil::io::frames {
 class Publisher;
 }
 
@@ -143,7 +143,7 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
    *  offering them. The flag is the view's, read on every synchronize;
    *  the publisher stands only while it is true, because a publication
    *  that exists is one other applications can already see. */
-  std::unique_ptr<sigil::io::publish::Publisher> m_publisher;
+  std::unique_ptr<sigil::io::frames::Publisher> m_publisher;
   /** THE SKETCH'S OWN CANVAS, IN A TEXTURE OF ITS OWN. What leaves by
    *  the publication door is this and not the window's: the declared
    *  canvas at one texture pixel per canvas unit, cleared to the

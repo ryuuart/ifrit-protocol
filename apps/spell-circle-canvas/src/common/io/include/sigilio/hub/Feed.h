@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "sigilio/advanced/Transport.h"
+#include "sigilio/source/State.h"
 #include "sigilio/source/Source.h"
 
 namespace sigil::io {
@@ -88,41 +89,6 @@ struct Message {
   std::chrono::duration<double> m_arrivedAt{};
   std::chrono::steady_clock::time_point m_receivedAt{};
   uint64_t m_revision = 0;
-};
-
-/** WHETHER A FEED'S DOOR STANDS. */
-enum class ReadyState {
-  /** No door yet: nothing is opened, or what was asked for could not be
-   *  and the next ask for the URI tries again; `FeedState::error` says
-   *  why when something stood in the way. */
-  Connecting,
-  /** A door stands — an end its transport opened, or the recording it
-   *  plays back instead of one — and messages arrive through it. */
-  Open,
-  /** The door has been shut; nothing more arrives, and what was received
-   *  stays readable. */
-  Closed,
-};
-
-/** A FEED'S STATE AS ONE COMPARABLE VALUE: what `Feed::state()` answers,
- *  read out together, so a reader that keeps the value it last showed
- *  describes again exactly when `state() != shown`. */
-struct FeedState {
-  ReadyState readiness = ReadyState::Connecting;
-  /** How many messages have arrived; 0 before the first. */
-  uint64_t revision = 0;
-  /** Messages that fell off the front because the feed was full. */
-  uint64_t dropped = 0;
-  /** The local end as the transport bound it, `udp://[::]:52341`; empty
-   *  when it has none. */
-  std::string localAddress;
-  /** What went wrong; empty when nothing did. */
-  std::string error;
-
-  /** Whether messages arrive through a door that stands. */
-  bool isOpen() const { return readiness == ReadyState::Open; }
-
-  bool operator==(const FeedState&) const = default;
 };
 
 /** WHERE A SEND GOES. */
@@ -259,7 +225,7 @@ class Feed {
    *  REASON, IS NO END: the feed stays unopened with that reason
    *  standing, so the next ask for its URI opens it again into this
    *  same feed. */
-  void open(OpenedFeed end);
+  void open(TransportEnd end);
 
   /** Reads @p recording instead of a transport: advance() is then what
    *  delivers, and the recording is the door this feed opened. */
@@ -312,7 +278,7 @@ class Feed {
   uint64_t m_dropped = 0;
   bool m_closed = false;
   std::string m_error;
-  OpenedFeed m_openedEnd;
+  TransportEnd m_openedEnd;
   bool m_wasOpened = false;
   /** The recording being written, shared with the Recording handle
    *  that stops it; null when nothing is being written. */

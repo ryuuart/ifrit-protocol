@@ -36,9 +36,9 @@ socket and not two.
 
 A scheme opens through the `Transport` registered for it, called
 outside the hub's lock and handed the `Inlet` it delivers every message
-through; the transport hands back an `OpenedFeed`: how the
+through; the transport hands back an `TransportEnd`: how the
 feed closes it, how `send()` goes back through it when the way is two-way,
-how `OpenedFeed::sendTo` answers one named sender when it can address one,
+how `TransportEnd::sendTo` answers one named sender when it can address one,
 and the local `state().localAddress` it bound. Every arrival also names where it came
 from: `sigil::io::Message::sender` is the sender's address spelled the way a
 URI of that scheme is, `udp://127.0.0.1:52341`, and is empty where the

@@ -32,7 +32,7 @@ void Inlet::fail(std::string why) const {
     feed->fail(std::move(why));
 }
 
-void Inlet::open(OpenedFeed end) const {
+void Inlet::open(TransportEnd end) const {
   if (const std::shared_ptr<Feed> feed = m_feed.lock()) {
     feed->open(std::move(end));
     return;

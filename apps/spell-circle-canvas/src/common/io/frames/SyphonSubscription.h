@@ -6,12 +6,12 @@
  * the framework.
  */
 
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Subscription.h>
 
 #include <memory>
 #include <string>
 
-namespace sigil::io::publish {
+namespace sigil::io::frames {
 
 std::vector<Publication> syphonPublications();
 
@@ -27,4 +27,4 @@ std::unique_ptr<Subscription> makeSyphonSubscription(std::string name,
  *  `void*`; null where there is none. */
 void* metalDeviceOfThisMachine();
 
-}  // namespace sigil::io::publish
+}  // namespace sigil::io::frames

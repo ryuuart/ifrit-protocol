@@ -147,7 +147,7 @@ void Feed::close() {
   if (ending) ending();
 }
 
-void Feed::open(OpenedFeed opened) {
+void Feed::open(TransportEnd opened) {
   std::function<void()> unwanted;
   {
     const std::lock_guard lock(m_mutex);

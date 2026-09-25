@@ -12,7 +12,7 @@
 find_package(minizip-ng CONFIG REQUIRED)
 sigil_library(SigilIOSource
   SOURCES Archive.cpp Places.cpp
-  HEADERS Archive.h Places.h Sink.h Source.h
+  HEADERS Archive.h Places.h Sink.h Source.h State.h
   PRIVATE MINIZIP::minizip-ng)
 
 # The concepts checked against a fixture source and a fixture decoder,

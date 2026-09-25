@@ -81,7 +81,7 @@ struct FeedFixture {
           const std::string key(uri);
           ++counts->opened[key];
           counts->feeds[key] = std::move(inlet);
-          sigil::io::OpenedFeed result;
+          sigil::io::TransportEnd result;
           result.close = [counts, key] { ++counts->closed[key]; };
           result.send = [](const sigil::io::Bytes&) { return true; };
           return result;

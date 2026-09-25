@@ -56,7 +56,7 @@ is false when the way is one-way for that purpose, when the feed is
 closed, and when no transport opened it.
 
 `Feed::peers` names the peers attached NOW, spelled the way their
-messages' `Message::sender` is, through the transport's `OpenedFeed::peers`.
+messages' `Message::sender` is, through the transport's `TransportEnd::peers`.
 A door that holds many — a websocket listener — learns that one has left
 when its name is gone from here. It is empty on a closed feed, on one no
 transport opened, and on a transport that holds senders rather than

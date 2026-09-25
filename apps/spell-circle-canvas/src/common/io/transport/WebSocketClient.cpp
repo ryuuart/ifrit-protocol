@@ -313,7 +313,7 @@ bool Door::send(const Bytes& message) {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
@@ -327,7 +327,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
  *  takes. What it decided reaches the feed either way: as arrivals, or
  *  as the sentence `state().error` answers. Until it is through, a send says it
  *  went nowhere. */
-OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
+TransportEnd openFeed(std::string_view uri, const Inlet& into) {
   const std::optional<std::string_view> server = namedServer(uri);
   if (!server || !namesPort(*server))
     return refuse(into, std::string(uri) +
@@ -365,7 +365,7 @@ OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
   curl_easy_setopt(handle, CURLOPT_XFERINFODATA, door->session.get());
   door->thread = std::thread([session = door->session] { carry(session); });
 
-  OpenedFeed opened;
+  TransportEnd opened;
   // The address a client has is the server it called: the port its own
   // socket took is the system's to choose and nothing anybody could
   // reach it at.
@@ -383,7 +383,7 @@ OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
  *  for a door that is not there opening a call to nowhere. */
 Transport openWebSocket(Transport listening, Transport calling) {
   return [listening = std::move(listening), calling = std::move(calling)](
-             std::string_view uri, Inlet into) -> OpenedFeed {
+             std::string_view uri, Inlet into) -> TransportEnd {
     if (namedServer(uri)) return calling(uri, std::move(into));
     if (listening) return listening(uri, std::move(into));
     return refuse(into, std::string(uri) +

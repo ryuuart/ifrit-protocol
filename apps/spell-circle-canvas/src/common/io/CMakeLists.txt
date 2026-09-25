@@ -30,7 +30,7 @@ set(SIGIL_IO_REFERENCE
 
 sigil_library_root(SigilIO
   BRIEF "Runtime resource access, byte transports and native frame sharing"
-  DOCS docs/Groups.dox publish/README.md
+  DOCS docs/Groups.dox frames/README.md
        reference/SOURCES.md reference/TRANSPORTS.md reference/TRAPS.md
        ${SIGIL_IO_REFERENCE})
 
@@ -41,13 +41,13 @@ add_subdirectory(hub)
 # consumer that opens network feeds and by no other.
 add_subdirectory(transport)
 # Native frame sharing is optional and carries no hub or byte transport.
-add_subdirectory(publish)
+add_subdirectory(frames)
 
 sigil_library(SigilIO
   INTERFACE SigilIOSource SigilIOHub)
 
 # Every API name the prose spells, compiled against the headers that own
-# it — the README, the publish feature's page and every chapter under
+# it — the README, the frames feature's page and every chapter under
 # reference/, because a chapter is the same canon as the page that links
 # it, and the wires' whole vocabulary lives in one of them.
 # SigilImage's decode leaf is scanned and linked because the
@@ -62,7 +62,7 @@ sigil_library(SigilIO
 # spells its registration, which the umbrella does not carry.
 sigil_doc_probes(io
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/publish/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/frames/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/SOURCES.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRANSPORTS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
@@ -77,4 +77,4 @@ sigil_doc_probes(io
           "CURL::libcurl=a CMake target name, not a C++ name"
           "std::filesystem::path=a nested standard namespace, which the scanner reads as a class and its member"
   FLOORS 30,8,35,6,0
-  LIBRARIES SigilIO SigilIOTransport SigilIOPublish SigilImageDecode)
+  LIBRARIES SigilIO SigilIOTransport SigilIOFrames SigilImageDecode)

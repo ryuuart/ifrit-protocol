@@ -5,7 +5,7 @@
 
 #import <Metal/Metal.h>
 
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Subscription.h>
 
 #include "Capture.h"
 #include "Servers.h"
@@ -47,7 +47,7 @@ int runGrab(const Arguments &arguments) {
     return 4;
   }
 
-  std::unique_ptr<sigil::io::publish::Subscription> subscription = sigil::io::publish::subscribe(
+  std::unique_ptr<sigil::io::frames::Subscription> subscription = sigil::io::frames::subscribe(
       arguments.texture, arguments.application, (__bridge void *)device);
   if (!subscription) {
     std::fprintf(stderr, "this build subscribes to nothing\n");
@@ -57,8 +57,8 @@ int runGrab(const Arguments &arguments) {
   // ASKING FOR A FRAME IS WHAT OPENS onto the publication, so waiting for
   // one to answer is a wait spent asking.
   for (;;) {
-    subscription->newestFrame();
-    if (subscription->standing()) break;
+    subscription->latest();
+    if (subscription->state().isOpen()) break;
     if ([NSDate timeIntervalSinceReferenceDate] >= deadline) {
       // The application is named back when one was asked for: a
       // publication of that name from somebody else is not the one that
@@ -75,14 +75,14 @@ int runGrab(const Arguments &arguments) {
     turnRunLoop(kSlice);
   }
 
-  while (subscription->generation() < (uint64_t)wanted) {
+  while (subscription->state().revision < (uint64_t)wanted) {
     if ([NSDate timeIntervalSinceReferenceDate] >= deadline) {
       std::fprintf(stderr, "%llu of %d frames arrived from \"%s\" in %.3g seconds\n",
-                   (unsigned long long)subscription->generation(), wanted,
+                   (unsigned long long)subscription->state().revision, wanted,
                    arguments.texture.c_str(), budget);
       return 3;
     }
-    if (!subscription->standing()) {
+    if (!subscription->state().isOpen()) {
       std::fprintf(stderr, "\"%s\" stopped publishing before a frame arrived\n",
                    arguments.texture.c_str());
       return 3;
@@ -90,7 +90,7 @@ int runGrab(const Arguments &arguments) {
     turnRunLoop(kSlice);
   }
 
-  id<MTLTexture> frame = (__bridge id<MTLTexture>)subscription->newestFrame();
+  id<MTLTexture> frame = (__bridge id<MTLTexture>)subscription->latest();
   if (!frame) {
     std::fprintf(stderr, "\"%s\" announced a frame it then had none of\n",
                  arguments.texture.c_str());

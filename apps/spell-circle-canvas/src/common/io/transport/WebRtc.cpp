@@ -714,7 +714,7 @@ std::shared_ptr<Signal> signalFor(Signals& signals, Hub& hub,
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
@@ -722,7 +722,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
 /** Opens one feed's conversation: the room it names, the signalling
  *  door its introductions cross, and — where this end takes a room up
  *  rather than waiting to be taken up — the offer that starts one. */
-OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
+TransportEnd openFeed(Hub& hub, Signals& signals, std::string_view uri,
                     const Inlet& into) {
   ReadConversation read = readConversation(uri);
   if (!read.trouble.empty()) return refuse(into, std::move(read.trouble));
@@ -757,7 +757,7 @@ OpenedFeed openFeed(Hub& hub, Signals& signals, std::string_view uri,
   }
   if (door->calling) door->callOut();
 
-  OpenedFeed opened;
+  TransportEnd opened;
   opened.localAddress = door->address;
   // A DOOR THAT WAITS ANSWERS WHAT TO DIAL IT BY: the conversation, and
   // the signalling door as it BOUND rather than as this URI asked for

@@ -599,7 +599,7 @@ bool Door::sendTo(std::string_view to, const Bytes& message) {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
@@ -610,7 +610,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
  *  The bind is waited for here rather than left to the background, so a
  *  feed that could not take its port says so by the time it is
  *  answered. */
-OpenedFeed openFeed(const Hub& hub, std::string_view uri,
+TransportEnd openFeed(const Hub& hub, std::string_view uri,
                     const Inlet& into) {
   const std::optional<Address> address = parseAddress(uri);
   if (!address)
@@ -688,7 +688,7 @@ OpenedFeed openFeed(const Hub& hub, std::string_view uri,
     return refuse(
         into, "could not listen on " + std::string(uri) + ": " + bound.failure);
 
-  OpenedFeed opened;
+  TransportEnd opened;
   // Every interface of both families is one dual-stack socket, which is
   // a v6 address with nothing in it, while a named interface is the one
   // address a peer can reach, bracketed where it is IPv6. The path

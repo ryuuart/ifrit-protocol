@@ -383,7 +383,7 @@ string. What every reading ANSWERS is still a string and what a spelled
 message answers is still bytes, so nobody who links this is made to
 speak in document types, even where the schema puts them within reach.
 The wire archive has no drawing or Qt dependencies. The Seer executable links
-SpellCircle's Qt models and canvas for its scene receiver, and SigilIOPublish
+SpellCircle's Qt models and canvas for its scene receiver, and SigilIOFrames
 for texture discovery and subscription; neither consumes
 SigilSketch. The models are a plain C++ archive with observable values and scene
 state. The canvas module owns their anonymous QML registration and its renderer's

@@ -53,7 +53,7 @@ sigil::io::Transport intoVector(std::shared_ptr<Sent> sent,
                                     std::shared_ptr<Answered> answered = {}) {
   return
       [sent, answered](std::string_view uri, sigil::io::Inlet) {
-        sigil::io::OpenedFeed opened;
+        sigil::io::TransportEnd opened;
         // It binds nothing, so the local end it names is the URI it was
         // asked for: enough for a case to see that the end reaches through.
         opened.localAddress = std::string(uri);

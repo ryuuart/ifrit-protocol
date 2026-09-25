@@ -1,7 +1,7 @@
 #import <Metal/Metal.h>
 
 #include <gtest/gtest.h>
-#include <sigilio/publish/Publisher.h>
+#include <sigilio/frames/Publisher.h>
 #include <QtCore/QElapsedTimer>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QThread>
@@ -28,7 +28,7 @@ TEST(SeerTexturePreview, OwnsFramesAcrossPauseResizeReconnectAndWindowTeardown) 
     ASSERT_TRUE(queue);
     const std::string name = NSUUID.UUID.UUIDString.UTF8String;
     auto makePublisher = [&] {
-      return sigil::io::publish::createPublisher(name, sigil::io::publish::Backend::Metal,
+      return sigil::io::frames::createPublisher(name, sigil::io::frames::Backend::Metal,
                                                  (__bridge void*)device);
     };
     auto publisher = makePublisher();

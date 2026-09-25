@@ -291,7 +291,7 @@ bool Door::sendTo(std::string_view to, const Bytes& datagram) {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
@@ -301,7 +301,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
  *
  *  A named host is resolved here rather than in the background, so a
  *  feed that cannot reach its peer says so by the time it is answered. */
-OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
+TransportEnd openFeed(const std::shared_ptr<detail::IoThread>& io,
                     std::string_view scheme, std::string_view uri,
                     const Inlet& into) {
   const std::string name(scheme);
@@ -344,7 +344,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
     sends = true;
   }
 
-  OpenedFeed opened;
+  TransportEnd opened;
   opened.localAddress = localAddress(name, door->socket);
   opened.close = [door] { door->close(); };
   // A listener answers whoever writes to it and has no one peer of its

@@ -9,22 +9,23 @@
 # headers compile wherever this repository compiles. Syphon is the macOS
 # protocol at both ends; Spout supplies Direct3D11 publication where its
 # SDK is configured. Unsupported combinations return null.
-set(SIGIL_PUBLISH_SOURCES Publisher.cpp Subscription.cpp)
+set(SIGIL_FRAMES_SOURCES Publisher.cpp Subscription.cpp)
 if(APPLE)
   find_package(unofficial-syphon CONFIG REQUIRED)
-  list(APPEND SIGIL_PUBLISH_SOURCES
+  list(APPEND SIGIL_FRAMES_SOURCES
        SyphonPublisher.mm SyphonPublisher.h
        SyphonSubscription.mm SyphonSubscription.h)
 elseif(WIN32)
   find_package(Spout2 CONFIG QUIET)
   if(TARGET Spout2::SpoutDX)
-    list(APPEND SIGIL_PUBLISH_SOURCES SpoutPublisher.cpp SpoutPublisher.h)
+    list(APPEND SIGIL_FRAMES_SOURCES SpoutPublisher.cpp SpoutPublisher.h)
   endif()
 endif()
 
-sigil_library(SigilIOPublish
-  SOURCES ${SIGIL_PUBLISH_SOURCES}
+sigil_library(SigilIOFrames
+  SOURCES ${SIGIL_FRAMES_SOURCES}
   HEADERS Publisher.h Subscription.h
+  PUBLIC SigilIOSource
   FRAMEWORKS Foundation Metal)
 
 # The server owns the reference alloc/init handed it and releases it
@@ -32,13 +33,13 @@ sigil_library(SigilIOPublish
 # every frame it hands out until the next one is asked for — so this
 # target is deliberately not compiled with automatic reference counting.
 if(APPLE)
-  target_link_libraries(SigilIOPublish PRIVATE unofficial::syphon::syphon)
+  target_link_libraries(SigilIOFrames PRIVATE unofficial::syphon::syphon)
 elseif(TARGET Spout2::SpoutDX)
-  target_link_libraries(SigilIOPublish PRIVATE Spout2::SpoutDX d3d11)
-  target_compile_definitions(SigilIOPublish PRIVATE SIGIL_PUBLISH_SPOUT)
+  target_link_libraries(SigilIOFrames PRIVATE Spout2::SpoutDX d3d11)
+  target_compile_definitions(SigilIOFrames PRIVATE SIGIL_FRAMES_SPOUT)
 endif()
 
 # Factory refusals join the resource library's test binary.
 sigil_test(io_test
   SOURCES test/PublisherTest.cpp test/SubscriptionTest.cpp
-  LIBRARIES SigilIOPublish)
+  LIBRARIES SigilIOFrames)

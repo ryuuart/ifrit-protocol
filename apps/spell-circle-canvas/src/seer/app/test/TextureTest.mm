@@ -12,8 +12,8 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilimage/decode/Decode.h>
-#include <sigilio/publish/Publisher.h>
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Publisher.h>
+#include <sigilio/frames/Subscription.h>
 
 #include <algorithm>
 #include <chrono>
@@ -97,7 +97,7 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
     id<MTLCommandQueue> queue = [device newCommandQueue];
     ASSERT_TRUE(queue);
     const std::string name = NSUUID.UUID.UUIDString.UTF8String;
-    auto publisher = sigil::io::publish::createPublisher(name, sigil::io::publish::Backend::Metal,
+    auto publisher = sigil::io::frames::createPublisher(name, sigil::io::frames::Backend::Metal,
                                                          (__bridge void*)device);
     ASSERT_TRUE(publisher);
     EXPECT_EQ(publisher->name(), name);
@@ -126,7 +126,7 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
     const auto discoveryDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
     bool listed = false;
     do {
-      const auto offered = sigil::io::publish::publications();
+      const auto offered = sigil::io::frames::publications();
       listed = std::any_of(offered.begin(), offered.end(),
                            [&](const auto& source) { return source.name == name; });
       if (listed) break;
@@ -134,16 +134,16 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
     } while (std::chrono::steady_clock::now() < discoveryDeadline);
     ASSERT_TRUE(listed);
     for (int client = 0; client < 2; ++client) {
-      auto incoming = sigil::io::publish::subscribe(name, "", (__bridge void*)device);
+      auto incoming = sigil::io::frames::subscribe(name, "", (__bridge void*)device);
       ASSERT_TRUE(incoming);
       id<MTLTexture> received = nil;
       const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
       while (!received && std::chrono::steady_clock::now() < deadline) {
         [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
-        received = (__bridge id<MTLTexture>)incoming->newestFrame();
+        received = (__bridge id<MTLTexture>)incoming->latest();
       }
       ASSERT_TRUE(received) << "late client " << client;
-      EXPECT_TRUE(incoming->standing());
+      EXPECT_TRUE(incoming->state().isOpen());
       /** The four quadrants of the PNG written from @p received, read as
        *  though the frame held its rows @p held. */
       const auto quadrantsWritten = [&](seer::texture::Rows held,

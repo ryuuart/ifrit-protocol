@@ -8,30 +8,30 @@
 
 namespace ifrit::qt {
 
-std::unique_ptr<sigil::io::publish::Publisher> createPublisher(
+std::unique_ptr<sigil::io::frames::Publisher> createPublisher(
     QRhi* rhi, std::string name) {
   if (!rhi) return nullptr;
 #if defined(Q_OS_MACOS)
   if (rhi->backend() == QRhi::Metal) {
     const auto* handles =
         static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles());
-    return sigil::io::publish::createPublisher(
-        std::move(name), sigil::io::publish::Backend::Metal,
+    return sigil::io::frames::createPublisher(
+        std::move(name), sigil::io::frames::Backend::Metal,
         handles ? handles->dev : nullptr);
   }
 #elif defined(Q_OS_WIN)
   if (rhi->backend() == QRhi::D3D11) {
     const auto* handles =
         static_cast<const QRhiD3D11NativeHandles*>(rhi->nativeHandles());
-    return sigil::io::publish::createPublisher(
-        std::move(name), sigil::io::publish::Backend::Direct3D11,
+    return sigil::io::frames::createPublisher(
+        std::move(name), sigil::io::frames::Backend::Direct3D11,
         handles ? handles->dev : nullptr);
   }
 #endif
   return nullptr;
 }
 
-void publishFrame(sigil::io::publish::Publisher& publisher,
+void publishFrame(sigil::io::frames::Publisher& publisher,
                   QRhiTexture* texture, QRhiCommandBuffer* commandBuffer,
                   QSize size) {
   if (!texture || size.isEmpty()) return;

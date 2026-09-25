@@ -164,7 +164,7 @@ bool Door::sendTo(std::string_view to, const Bytes& message) {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
@@ -174,7 +174,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
  *
  *  The bind is done here rather than left to the background, so a feed
  *  that could not take its port says so by the time it is answered. */
-OpenedFeed hold(const Hub& hub, std::string_view uri, const Address& place,
+TransportEnd hold(const Hub& hub, std::string_view uri, const Address& place,
                 const Inlet& into) {
   // A QUIC PORT ANSWERS FOR ITSELF OR IT ANSWERS NOBODY: there is no
   // unencrypted form of this door to fall back to.
@@ -243,7 +243,7 @@ OpenedFeed hold(const Hub& hub, std::string_view uri, const Address& place,
     return refuse(into, "could not listen on " + std::string(uri) +
                             ": the port it took could not be read back");
 
-  OpenedFeed opened;
+  TransportEnd opened;
   opened.localAddress = "quic://[::]:" + std::to_string(QuicAddrGetPort(&took));
   opened.close = [door] { door->close(); };
   opened.send = [door](const Bytes& message) { return door->send(message); };
@@ -261,7 +261,7 @@ OpenedFeed hold(const Hub& hub, std::string_view uri, const Address& place,
  *  otherwise hold whoever asked for the feed for as long as reaching it
  *  takes. What it decided reaches the feed either way: as arrivals, or
  *  as the sentence `state().error` answers. */
-OpenedFeed reach(const Address& place, const Inlet& into) {
+TransportEnd reach(const Address& place, const Inlet& into) {
   const Library& lib = library();
   QUIC_CREDENTIAL_CONFIG credential{};
   credential.Type = QUIC_CREDENTIAL_TYPE_NONE;
@@ -303,7 +303,7 @@ OpenedFeed reach(const Address& place, const Inlet& into) {
   }
   door->dialled = peer;
 
-  OpenedFeed opened;
+  TransportEnd opened;
   // The address a call has is the end it reached: the port its own socket
   // took is the system's to choose and nothing anybody could reach it at.
   opened.localAddress = called;
@@ -314,7 +314,7 @@ OpenedFeed reach(const Address& place, const Inlet& into) {
 
 /** ONE SCHEME, TWO SHAPES, split by the shape of the URI: a URI naming a
  *  host is an end to call, and a URI naming none is a port to hold. */
-OpenedFeed openFeed(const Hub& hub, std::string_view uri,
+TransportEnd openFeed(const Hub& hub, std::string_view uri,
                     const Inlet& into) {
   const std::optional<Address> address = parseAddress(uri);
   if (!address)

@@ -26,12 +26,12 @@ hub.setFeedTransport("pigeon", [](std::string_view uri, sigil::io::Inlet inlet) 
   auto door = openPigeonDoor(uri);                 // whatever the scheme is made of
   if (!door) {
     inlet.fail("no pigeon answers " + std::string(uri));
-    return sigil::io::OpenedFeed{};               // nothing opened: asked again later
+    return sigil::io::TransportEnd{};               // nothing opened: asked again later
   }
   door->onMessage([inlet](sigil::io::Bytes message, std::string from) {
     if (!inlet.expired()) inlet.deliver(std::move(message), std::move(from));
   });
-  sigil::io::OpenedFeed opened;
+  sigil::io::TransportEnd opened;
   opened.close = [door] { door->close(); };
   opened.send = [door](const sigil::io::Bytes& message) { return door->send(message); };
   opened.address = door->boundAddress();
@@ -73,7 +73,7 @@ earlier ask left is taken off before the open that follows it, not after.
 ### Opening late, and closing from the far side
 
 What the transport hands back is the end the feed closes and sends
-through, `sigil::io::OpenedFeed`. A conversation that stands only once a
+through, `sigil::io::TransportEnd`. A conversation that stands only once a
 handshake is done hands its end over later through `Inlet::open`
 instead. Either way a feed takes one end: a second one, and one handed
 to a feed that is already closed, is closed rather than kept.
@@ -97,5 +97,5 @@ sigil::io::testing::inletOf(feed).deliver(bytesOf("first"), "udp://127.0.0.1:523
 
 ## See also
 
-`sigil::io::Feed`, `sigil::io::OpenedFeed`, `sigil::io::Transport`,
+`sigil::io::Feed`, `sigil::io::TransportEnd`, `sigil::io::Transport`,
 `sigil::io::registerTransports`.

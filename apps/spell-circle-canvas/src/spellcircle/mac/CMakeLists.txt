@@ -57,7 +57,7 @@ target_link_libraries(SpellCircleMacBridge
     SigilSkia
     SigilIOHub          # the hub, and the feed the port is opened as
     SigilIOTransport    # registerTransports: the one scheme that port speaks
-    SigilIOPublish
+    SigilIOFrames
     SigilProtocolEndpoint  # the endpoint --inspect mounts
 )
 target_compile_definitions(SpellCircleMacBridge PRIVATE

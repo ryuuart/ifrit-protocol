@@ -240,7 +240,7 @@ the adapter does not create another device or perform a CPU readback.
 ## Boundary
 
 Public dependencies: `Qt6::Quick`, `Qt6::QuickControls2`,
-`Qt6::QuickLayouts` and `SigilIOPublish`. Qt's private graphics API is used only
+`Qt6::QuickLayouts` and `SigilIOFrames`. Qt's private graphics API is used only
 inside the publication adapter. On Apple, AppKit privately — elsewhere a stub
 implementation stands in. This module knows nothing about Skia, scene content,
 or the products that use it.

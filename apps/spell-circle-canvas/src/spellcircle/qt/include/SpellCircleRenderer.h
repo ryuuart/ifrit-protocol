@@ -6,7 +6,7 @@
  * is subscribed to it.
  */
 
-#include <sigilio/publish/Publisher.h>
+#include <sigilio/frames/Publisher.h>
 
 #include <QColor>
 #include <QFont>
@@ -71,7 +71,7 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
   int m_knownConfigGeneration = -1;
   bool m_geometryDirty = true;
   // Null when the active QRhi backend has no publisher implementation.
-  std::unique_ptr<sigil::io::publish::Publisher> m_publisher;
+  std::unique_ptr<sigil::io::frames::Publisher> m_publisher;
 
   // Graphite context, scene drawer and frame timing, owned by this render
   // thread. Null when the active QRhi backend has no Graphite context.

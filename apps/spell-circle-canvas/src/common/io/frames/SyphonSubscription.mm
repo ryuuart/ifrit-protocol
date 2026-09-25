@@ -16,7 +16,7 @@
 #include <string_view>
 #include <utility>
 
-namespace sigil::io::publish {
+namespace sigil::io::frames {
 
 std::vector<Publication> syphonPublications() {
   std::vector<Publication> result;
@@ -90,7 +90,7 @@ class SyphonSubscription final : public Subscription {
   SyphonSubscription(const SyphonSubscription &) = delete;
   SyphonSubscription &operator=(const SyphonSubscription &) = delete;
 
-  void *newestFrame() override {
+  void *latest() override {
     @autoreleasepool {
       // ASKING IS ALSO WHAT OPENS: a publication that was not there when
       // this subscription was made, and one that stopped and came back,
@@ -108,12 +108,11 @@ class SyphonSubscription final : public Subscription {
     }
   }
 
-  uint64_t generation() const override { return m_generation->load(); }
-
-  bool standing() const override {
-    @autoreleasepool {
-      return m_client != nil && m_client.isValid && publicationIsListed(m_identity);
-    }
+  FeedState state() const override {
+    FeedState state;
+    state.readiness = standing() ? ReadyState::Open : ReadyState::Connecting;
+    state.revision = m_generation->load();
+    return state;
   }
 
   std::string_view name() const override { return m_name; }
@@ -121,6 +120,14 @@ class SyphonSubscription final : public Subscription {
   std::string_view publishingApplication() const override { return m_publishingApplication; }
 
  private:
+  /** Whether frames can still arrive: the publication answered and the
+   *  directory still lists it. */
+  bool standing() const {
+    @autoreleasepool {
+      return m_client != nil && m_client.isValid && publicationIsListed(m_identity);
+    }
+  }
+
   void open() {
     close();
     NSDictionary<NSString *, id> *publication =
@@ -201,4 +208,4 @@ void *metalDeviceOfThisMachine() {
   return (__bridge void *)device;
 }
 
-}  // namespace sigil::io::publish
+}  // namespace sigil::io::frames

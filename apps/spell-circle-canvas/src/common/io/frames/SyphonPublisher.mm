@@ -11,7 +11,7 @@
 #include <string_view>
 #include <utility>
 
-namespace sigil::io::publish {
+namespace sigil::io::frames {
 
 namespace {
 
@@ -80,4 +80,4 @@ std::unique_ptr<Publisher> makeSyphonPublisher(std::string name, void *metalDevi
   return std::make_unique<SyphonPublisher>(std::move(name), server);
 }
 
-}  // namespace sigil::io::publish
+}  // namespace sigil::io::frames

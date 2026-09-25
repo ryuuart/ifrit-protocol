@@ -1,10 +1,10 @@
 #pragma once
 
-#include <sigilio/publish/Publisher.h>
+#include <sigilio/frames/Publisher.h>
 
-namespace sigil::io::publish {
+namespace sigil::io::frames {
 
 std::unique_ptr<Publisher> makeSpoutPublisher(std::string name,
                                               void* nativeDevice);
 
-}  // namespace sigil::io::publish
+}  // namespace sigil::io::frames

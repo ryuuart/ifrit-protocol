@@ -353,14 +353,14 @@ void Door::write() {
 
 /** A feed whose transport could not open: the reason stands on the feed,
  *  and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
 
 /** Opens one feed's port: the device the URI names, at the settings it
  *  names, read from the first line on. */
-OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
+TransportEnd openFeed(const std::shared_ptr<detail::IoThread>& io,
                     std::string_view uri, const Inlet& into) {
   ReadWire read = readWire(uri);
   if (!read.trouble.empty()) return refuse(into, std::move(read.trouble));
@@ -387,7 +387,7 @@ OpenedFeed openFeed(const std::shared_ptr<detail::IoThread>& io,
                             std::string(uri) + ": " + error.message());
   }
 
-  OpenedFeed opened;
+  TransportEnd opened;
   opened.localAddress = address;
   opened.close = [door] { door->close(); };
   // A CABLE HOLDS ONE PEER AND IT IS TWO WAYS: what is at the other end

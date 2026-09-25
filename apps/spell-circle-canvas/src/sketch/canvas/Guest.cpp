@@ -10,7 +10,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Subscription.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/set/Set.h>
@@ -80,26 +80,26 @@ Guest::Guest(bool deterministic, std::string name, std::string application)
   // another application happens to be publishing while it is taken is
   // not one.
   if (deterministic) return;
-  m_subscription = io::publish::subscribe(m_name, std::move(application),
-                                          io::publish::defaultMetalDevice());
+  m_subscription = io::frames::subscribe(m_name, std::move(application),
+                                          io::frames::defaultMetalDevice());
 }
 
 Guest::~Guest() = default;
 
 sk_sp<SkImage> Guest::frame(skgpu::graphite::Recorder* recorder) {
   if (!m_subscription) return nullptr;
-  const uint64_t arrived = m_subscription->generation();
+  const uint64_t arrived = m_subscription->state().revision;
   // THE SAME IMAGE WHILE THE SAME FRAME STANDS. A wrap holds the texture
   // it names for the image's whole life, so wrapping a frame nothing has
   // replaced would be a second handle on one set of pixels — and the
   // draw that samples it would be no different for it.
   if (m_picture && recorder == m_recorder && arrived == m_arrived &&
-      m_subscription->standing())
+      m_subscription->state().isOpen())
     return m_picture;
   // ASKING IS ALSO THE RECONNECTION, so it is asked whatever can be done
   // with the answer: a publication that appeared after this guest was
   // made, or came back after its publisher stopped, is opened onto here.
-  void* texture = m_subscription->newestFrame();
+  void* texture = m_subscription->latest();
   m_picture.reset();
   m_turned.reset();
   m_recorder = recorder;
@@ -121,16 +121,16 @@ sk_sp<SkImage> Guest::frame(SkCanvas& canvas) {
 
 material::Texture Guest::texture() {
   if (!m_subscription) return {};
-  const uint64_t arrived = m_subscription->generation();
+  const uint64_t arrived = m_subscription->state().revision;
   // THE SAME TEXTURE WHILE THE SAME FRAME STANDS, for the reason the
   // wrap has and one more: a read that ran again on a frame nothing had
   // replaced would be the same pixels copied a second time, and the
   // material holding it would compare unequal and patch for nothing.
-  if (m_dress.valid() && arrived == m_read && m_subscription->standing())
+  if (m_dress.valid() && arrived == m_read && m_subscription->state().isOpen())
     return m_dress;
   // ASKING IS ALSO THE RECONNECTION, so it is asked whatever can be done
   // with the answer.
-  void* texture = m_subscription->newestFrame();
+  void* texture = m_subscription->latest();
   m_dress = {};
   m_read = arrived;
   if (!texture) return m_dress;
@@ -143,7 +143,7 @@ material::Texture Guest::texture() {
 }
 
 bool Guest::publishing() const {
-  return m_subscription && m_subscription->standing();
+  return m_subscription && m_subscription->state().isOpen();
 }
 
 std::string_view Guest::name() const { return m_name; }

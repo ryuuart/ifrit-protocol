@@ -1,6 +1,6 @@
 #include "TextureSources.h"
 
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Subscription.h>
 
 #include <algorithm>
 #include <tuple>
@@ -20,7 +20,7 @@ bool TextureSources::supported() const {
 }
 
 void TextureSources::refresh() {
-  auto sources = sigil::io::publish::publications();
+  auto sources = sigil::io::frames::publications();
   std::sort(sources.begin(), sources.end(), [](const auto& a, const auto& b) {
     return std::tie(a.application, a.name) < std::tie(b.application, b.name);
   });

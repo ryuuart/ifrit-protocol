@@ -5,11 +5,11 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Subscription.h>
 
 namespace {
 
-using namespace sigil::io::publish;
+using namespace sigil::io::frames;
 
 TEST(PublishSubscription, WithNoDeviceThereIsNothingToReceiveOn) {
   EXPECT_EQ(subscribe("a name", "", nullptr), nullptr);

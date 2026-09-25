@@ -36,7 +36,7 @@ namespace {
  *  to its last and no port has to be free for it to pass. */
 sigil::io::Transport intoNowhere() {
   return [](std::string_view uri, sigil::io::Inlet) {
-    sigil::io::OpenedFeed opened;
+    sigil::io::TransportEnd opened;
     opened.localAddress = std::string(uri);
     opened.send = [](const Bytes&) { return true; };
     return opened;

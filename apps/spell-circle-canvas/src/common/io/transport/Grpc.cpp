@@ -723,7 +723,7 @@ struct ClientDoor {
 
 /** A feed whose transport could not open: the reason stands on the
  *  feed, and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
@@ -733,7 +733,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
  *
  *  The bind is done here rather than left to the background, so a feed
  *  that could not take its port says so by the time it is answered. */
-OpenedFeed hold(std::string_view uri, const Address& place,
+TransportEnd hold(std::string_view uri, const Address& place,
                 const Inlet& into) {
   const auto door = std::make_shared<ServerDoor>();
   door->session->inlet = into;
@@ -757,7 +757,7 @@ OpenedFeed hold(std::string_view uri, const Address& place,
     return refuse(into, "could not listen on " + std::string(uri) +
                             ": the port could not be taken");
 
-  OpenedFeed opened;
+  TransportEnd opened;
   // It is the address a CALLER reaches, so it carries the method: a
   // port with no method named is a port nothing here answers on.
   opened.localAddress =
@@ -778,7 +778,7 @@ OpenedFeed hold(std::string_view uri, const Address& place,
  *  hold whoever asked for the feed for as long as connecting takes.
  *  What it decided reaches the feed either way: as arrivals, or as the
  *  sentence error() answers. */
-OpenedFeed reach(std::string_view uri, const Address& place,
+TransportEnd reach(std::string_view uri, const Address& place,
                  const Inlet& into) {
   // The authority as the URI wrote it is what gRPC takes as its target,
   // a bracketed IPv6 literal included.
@@ -796,7 +796,7 @@ OpenedFeed reach(std::string_view uri, const Address& place,
                                             place.method, into);
   door->call->begin(door->call);
 
-  OpenedFeed opened;
+  TransportEnd opened;
   // The address a client has is the server it called: the port its own
   // socket took is the system's to choose and nothing anybody could
   // reach it at.
@@ -811,7 +811,7 @@ OpenedFeed reach(std::string_view uri, const Address& place,
 /** ONE SCHEME, TWO SHAPES, split by the shape of the URI: a URI naming
  *  a host is a server to call, and a URI naming none is a port to
  *  hold. */
-OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
+TransportEnd openFeed(std::string_view uri, const Inlet& into) {
   const std::optional<Address> address = parseAddress(uri);
   if (!address)
     return refuse(into, std::string(uri) +

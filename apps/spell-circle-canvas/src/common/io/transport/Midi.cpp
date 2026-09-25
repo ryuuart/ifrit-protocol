@@ -371,7 +371,7 @@ void arrived(double, std::vector<unsigned char>* message, void* which) {
 
 /** A feed whose transport could not open: the reason stands on the
  *  feed, and there is no door to close or to send through. */
-OpenedFeed refuse(const Inlet& into, std::string why) {
+TransportEnd refuse(const Inlet& into, std::string why) {
   into.fail(std::move(why));
   return {};
 }
@@ -385,7 +385,7 @@ OpenedFeed refuse(const Inlet& into, std::string why) {
  *  feed: a door that did not open, with the driver's own words for why.
  *  A construction says so by throwing and every call after it by
  *  leaving a sentence on the door, so both are read. */
-OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
+TransportEnd openFeed(std::string_view uri, const Inlet& into) {
   const std::optional<PortWanted> wanted = parsePort(uri);
   if (!wanted)
     return refuse(into, std::string(uri) +
@@ -456,7 +456,7 @@ OpenedFeed openFeed(std::string_view uri, const Inlet& into) {
                          std::string(wordFor(wanted->direction)) + "/" +
                          fullName;
 
-  OpenedFeed opened;
+  TransportEnd opened;
   opened.localAddress = door->delivery->sender;
   opened.close = [door] { door->close(); };
   if (wanted->direction == Direction::Out) {

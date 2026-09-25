@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup io-publish
+ * @ingroup io-frames
  * The door a drawn frame leaves by: the seam a host offers its texture
  * over, and the one factory that answers with whatever this build can
  * publish through.
@@ -17,7 +17,7 @@
  *  own. Reach for it to send a drawing into a video mixer, a projection
  *  tool or a compositor, or to bring one of theirs in. The handles are
  *  the graphics API's own and nothing here is anybody's toolkit. */
-namespace sigil::io::publish {
+namespace sigil::io::frames {
 
 /** The graphics API whose native handles a publisher consumes. */
 enum class Backend { Metal, Direct3D11 };
@@ -58,4 +58,4 @@ class Publisher {
 std::unique_ptr<Publisher> createPublisher(std::string name, Backend backend,
                                            void* nativeDevice);
 
-}  // namespace sigil::io::publish
+}  // namespace sigil::io::frames

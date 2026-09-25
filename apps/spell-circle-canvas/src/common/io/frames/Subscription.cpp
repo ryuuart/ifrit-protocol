@@ -4,7 +4,7 @@
  * nothing.
  */
 
-#include <sigilio/publish/Subscription.h>
+#include <sigilio/frames/Subscription.h>
 
 #include <utility>
 
@@ -12,7 +12,7 @@
 #include "SyphonSubscription.h"
 #endif
 
-namespace sigil::io::publish {
+namespace sigil::io::frames {
 
 std::vector<Publication> publications() {
 #if defined(__APPLE__)
@@ -42,4 +42,4 @@ void* defaultMetalDevice() {
 #endif
 }
 
-}  // namespace sigil::io::publish
+}  // namespace sigil::io::frames

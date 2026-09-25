@@ -61,7 +61,7 @@ qt_add_qml_module(Seer
 # this target spells that vocabulary itself.
 target_include_directories(Seer PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(Seer PRIVATE
-  SigilSeerWire SigilDataDecode SigilIOPublish SigilProtocolEndpoint SigilIOHub
+  SigilSeerWire SigilDataDecode SigilIOFrames SigilProtocolEndpoint SigilIOHub
   SpellCircleModels SpellCircleCanvas
   SpellCircleCanvasplugin
   IfritQt IfritQtplugin Qt6::Gui Qt6::Quick Qt6::QuickControls2 Qt6::QuickLayouts
@@ -95,7 +95,7 @@ if(APPLE)
     ARC
     SOURCES test/TextureTest.mm test/TexturePreviewTest.mm texture/Capture.mm
             TexturePreview.cpp TexturePreview.mm TexturePreview.h
-    LIBRARIES SigilIOPublish SigilImageEncode SigilImageDecode SigilIOSource Qt6::Quick
+    LIBRARIES SigilIOFrames SigilImageEncode SigilImageDecode SigilIOSource Qt6::Quick
               ${SEER_TEXTURE_FRAMEWORKS}
     SUITES SeerTextureCapture SeerTextureDelivery SeerTexturePreview LABELS gpu)
 else()

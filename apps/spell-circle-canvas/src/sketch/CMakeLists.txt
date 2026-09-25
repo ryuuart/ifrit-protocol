@@ -92,7 +92,7 @@ set(SIGIL_SKETCH_PRIVATE
   # picture, so the archive that draws reaches the subscription — the
   # publisher beside it is still nobody's but the host's, and neither
   # protocol reaches a header.
-  SigilIOPublish
+  SigilIOFrames
   SigilDataDecode
   SigilDataQuery
   SigilIOSource SigilCoreSchedule SigilImage SigilImageDecode
@@ -239,5 +239,5 @@ sigil_doc_probes(sketch
   SKIP_HEADERS ${SIGIL_SKETCH_DOC_SKIP_HEADERS}
   EXCLUDE ${SIGIL_SKETCH_DOC_EXCLUDE}
   FLOORS 50,10,10,0,0
-  LIBRARIES SigilSketch SigilIOPublish SigilDataDecode SigilDataScale
+  LIBRARIES SigilSketch SigilIOFrames SigilDataDecode SigilDataScale
             SigilSketchSessionAgent SigilSketchTestingHarness)

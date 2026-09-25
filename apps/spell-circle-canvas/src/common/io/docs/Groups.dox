@@ -22,7 +22,7 @@
  *  @{ */
 /** @} */
 
-/** @defgroup io-publish Native frame sharing
+/** @defgroup io-frames Native frame sharing
  *  A texture handed to another application on the same machine, and one
  *  taken from it.
  *  @{ */

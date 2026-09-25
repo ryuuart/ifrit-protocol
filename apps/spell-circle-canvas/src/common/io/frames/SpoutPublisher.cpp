@@ -5,7 +5,7 @@
 
 #include <utility>
 
-namespace sigil::io::publish {
+namespace sigil::io::frames {
 namespace {
 
 class SpoutPublisher final : public Publisher {
@@ -47,4 +47,4 @@ std::unique_ptr<Publisher> makeSpoutPublisher(std::string name,
   return publisher;
 }
 
-}  // namespace sigil::io::publish
+}  // namespace sigil::io::frames

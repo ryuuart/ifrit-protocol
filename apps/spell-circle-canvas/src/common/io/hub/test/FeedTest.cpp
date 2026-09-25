@@ -167,7 +167,7 @@ TEST_F(IOFeed, AHubHoldsOneFeedPerUriWhileSomebodyHoldsItAndOpensAgainAfter) {
   hub.setFeedTransport("udp",
                        [&opened](std::string_view uri, Inlet) {
                          opened.emplace_back(uri);
-                         return OpenedFeed{};
+                         return TransportEnd{};
                        });
 
   std::shared_ptr<Feed> scene = hub.feed("udp://:27020");
@@ -195,7 +195,7 @@ TEST_F(IOFeed, ADoorThatCouldNotBeOpenedIsOpenedAgainByTheNextAskForItsUri) {
   int opens = 0;
   hub.setFeedTransport("udp",
                        [&opens](std::string_view, Inlet into) {
-                         OpenedFeed opened;
+                         TransportEnd opened;
                          // The first ask finds the outside world in the way and
                          // says so with nothing to hand back; by the second it
                          // is clear.
@@ -247,7 +247,7 @@ TEST_F(IOFeed, AUriWithNoTransportIsAFeedWhoseErrorSaysSo) {
 TEST_F(IOFeed, ATransportsOpenedEndIsClosedExactlyOnceWhenTheFeedGoes) {
   const auto closes = std::make_shared<int>(0);
   hub.setFeedTransport("udp", [closes](std::string_view, Inlet) {
-    OpenedFeed opened;
+    TransportEnd opened;
     opened.close = [closes] { ++*closes; };
     opened.localAddress = "udp://[::]:52341";
     return opened;
@@ -266,7 +266,7 @@ TEST_F(IOFeed, ATransportsOpenedEndIsClosedExactlyOnceWhenTheFeedGoes) {
 TEST_F(IOFeed, SendGoesThroughTheOpenedEnd) {
   const auto sent = std::make_shared<std::string>();
   hub.setFeedTransport("udp", [sent](std::string_view, Inlet) {
-    OpenedFeed opened;
+    TransportEnd opened;
     opened.send = [sent](const Bytes& bytes) {
       *sent = bytes.asText();
       return true;
@@ -284,7 +284,7 @@ TEST_F(IOFeed, SendGoesThroughTheOpenedEnd) {
 
 TEST_F(IOFeed, AOneWayFeedAnswersFalseToSend) {
   hub.setFeedTransport("udp", [](std::string_view, Inlet) {
-    OpenedFeed opened;  // listening only: no way back out
+    TransportEnd opened;  // listening only: no way back out
     opened.localAddress = "udp://[::]:52341";
     return opened;
   });
@@ -301,7 +301,7 @@ TEST_F(IOFeed, SendToGoesThroughTheOpenedEndNamingTheSenderToAnswer) {
       "udp", [answered](std::string_view, Inlet) {
         // A door that answers one sender and broadcasts to none, which
         // is what a listening socket is.
-        OpenedFeed opened;
+        TransportEnd opened;
         opened.sendTo = [answered](std::string_view to, const Bytes& bytes) {
           *answered = std::string(to) + " " + std::string(bytes.asText());
           return true;
@@ -463,7 +463,7 @@ TEST_F(IOFeed, ReplayClosesTheLiveFeedStandingAtItsUri) {
     writer.append(Message(shared("recorded"), {}, seconds(0.0), 1));
   }
   hub.setFeedTransport("udp", [](std::string_view, Inlet) {
-    return OpenedFeed{};
+    return TransportEnd{};
   });
   const std::shared_ptr<Feed> live = hub.feed("udp://:27020");
   const std::shared_ptr<Feed> replaying =
