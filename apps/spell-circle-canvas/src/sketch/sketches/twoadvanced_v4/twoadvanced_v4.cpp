@@ -3,6 +3,7 @@
 // TAGS: Interfaces/Web
 
 #include "TwoAdvancedV4.h"
+#include <sigilimage/decode/Decode.h>
 
 auto TwoAdvancedV4::describe() -> Element {
   using namespace tav;
@@ -101,11 +102,11 @@ auto TwoAdvancedV4::setup(sketch::SketchContext& ctx) -> void {
   {
     sigil::io::Hub& hub = ctx.assets.hub();
     const std::string base = "https://v4prophecy.2advanced.com/images/";
-    railLeftGif = hub.image(base + "leftsidepanel.gif");
-    railRightGif = hub.image(base + "rightsidepanel.gif");
-    siteBgGif = hub.image(base + "sitebackground.gif");
-    footerGif = hub.image(base + "sitefooter.gif");
-    logoBugSvg = hub.image(base + "2alogobug.svg", {.width = 124});
+    railLeftGif = hub.load<sigil::image::ImageAsset>(base + "leftsidepanel.gif");
+    railRightGif = hub.load<sigil::image::ImageAsset>(base + "rightsidepanel.gif");
+    siteBgGif = hub.load<sigil::image::ImageAsset>(base + "sitebackground.gif");
+    footerGif = hub.load<sigil::image::ImageAsset>(base + "sitefooter.gif");
+    logoBugSvg = hub.load<sigil::image::ImageAsset>(base + "2alogobug.svg", {.width = 124});
   }
 
   // --- generated materials, built ONCE and HELD (identity = pruning) ---

@@ -15,6 +15,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilimage/decode/Decode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -86,7 +87,7 @@ struct GifFrames {
     const std::optional<io::ResourceInfo> bytes = hub.probe(kSource);
     const std::optional<image::ImageProbe> meaning =
         hub.probe<image::ImageProbe>(kSource);
-    const std::shared_ptr<const image::ImageAsset> gif = hub.image(kSource);
+    const std::shared_ptr<const image::ImageAsset> gif = hub.load<image::ImageAsset>(kSource);
 
     ctx.composer.render(gif ? sheet(*gif, bytes, meaning) : missing());
   }

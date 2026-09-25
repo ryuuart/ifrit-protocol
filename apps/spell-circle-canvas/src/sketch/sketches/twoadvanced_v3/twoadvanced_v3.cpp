@@ -4,6 +4,7 @@
 // TAGS: Interfaces/Web
 
 #include "TwoAdvancedV3.h"
+#include <sigilimage/decode/Decode.h>
 #include <sigilmotion/ease/Ease.h>
 
 Element TwoAdvancedV3::describe() {
@@ -76,15 +77,15 @@ void TwoAdvancedV3::setup(sketch::SketchContext& ctx) {
   {
     sigil::io::Hub& hub = ctx.assets.hub();
     const std::string site = "https://v3.2advanced.com/";
-    pageTile = hub.image(site + "V3ExpansionsReboot/assets/background.gif");
-    socialSprite = hub.image(site +
+    pageTile = hub.load<sigil::image::ImageAsset>(site + "V3ExpansionsReboot/assets/background.gif");
+    socialSprite = hub.load<sigil::image::ImageAsset>(site +
                              "V3ExpansionsReboot/assets/images/social-icons"
                              "@2x.png");
     logoMark =
-        hub.image(site + "v3expansionsreboot/assets/2advancedLogo_Preload.svg",
+        hub.load<sigil::image::ImageAsset>(site + "v3expansionsreboot/assets/2advancedLogo_Preload.svg",
                   {.width = 120});
     pageLogo =
-        hub.image(site + "V3ExpansionsReboot/assets/images/2a-logo@2x.png");
+        hub.load<sigil::image::ImageAsset>(site + "V3ExpansionsReboot/assets/images/2a-logo@2x.png");
     if (auto blob = hub.fetch(site + "v3expansionsreboot/mainstage.riv"))
       extractRivImages(*blob);
     buildGapMask();

@@ -159,8 +159,8 @@ struct StickerCollection {
 
     io::Hub& hub = ctx.assets.hub();
     const Shelf shelf{
-        .images = {hub.image(kGif), hub.image(kAvif), hub.image(kSparkle),
-                   hub.image(kDiamond), hub.image(kHeart)},
+        .images = {hub.load<image::ImageAsset>(kGif), hub.load<image::ImageAsset>(kAvif), hub.load<image::ImageAsset>(kSparkle),
+                   hub.load<image::ImageAsset>(kDiamond), hub.load<image::ImageAsset>(kHeart)},
         .webm = loadVideo(hub, kWebm)};
 
     Element stage = pen("stickers.live", [shelf](draw::Pen& pen) {

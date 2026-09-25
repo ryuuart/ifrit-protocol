@@ -16,6 +16,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilimage/decode/Decoders.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
@@ -108,9 +109,10 @@ struct NetPolicy {
      *  loaded stays as it is. */
     const auto ask = [&](io::NetworkPolicy policy, const char* url) {
       io::Hub hub;
+      img::registerDecoders(hub);
       hub.setNetworkCacheDirectory(cacheDir);
       hub.setNetworkPolicy(policy);
-      return hub.image(url);
+      return hub.load<img::ImageAsset>(url);
     };
 
     const auto cacheFirst = ask(io::NetworkPolicy::CacheFirst, kSeeded);

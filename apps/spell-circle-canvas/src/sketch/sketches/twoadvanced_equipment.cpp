@@ -421,7 +421,7 @@ struct TwoAdvancedEquipment {
       const std::string base =
           "https://v4prophecy.2advanced.com/equipment/index_files/";
       auto fetch = [&](const char* dir, const char* name) {
-        art[name] = hub.image(base + dir + "/" + name);
+        art[name] = hub.load<sigil::image::ImageAsset>(base + dir + "/" + name);
       };
       for (const char* n :
            {"ecom-topbar.gif", "ecom-logo.gif", "ecom-titleheader.gif",

@@ -18,6 +18,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilimage/decode/Decoders.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
@@ -113,6 +114,7 @@ struct HubReload {
 
     io::Hub hub;
     hub.mount(kMount, dir);
+    img::registerDecoders(hub);
     hub.registerDecoder<Cloud>(parseCloud);
 
     const std::string notesUri = std::string(kMount) + "notes.txt";
@@ -122,7 +124,7 @@ struct HubReload {
     const std::optional<std::string> firstText = hub.text(notesUri);
     const std::shared_ptr<const Cloud> firstCloud = hub.load<Cloud>(cloudUri);
     const std::shared_ptr<const img::ImageAsset> firstChart =
-        hub.image(chartUri);
+        hub.load<img::ImageAsset>(chartUri);
 
     // …and the SECOND, written under the hub's feet.
     put("notes.txt", kSecond);
@@ -134,7 +136,7 @@ struct HubReload {
     const std::optional<std::string> secondText = hub.text(notesUri);
     const std::shared_ptr<const Cloud> secondCloud = hub.load<Cloud>(cloudUri);
     const std::shared_ptr<const img::ImageAsset> secondChart =
-        hub.image(chartUri);
+        hub.load<img::ImageAsset>(chartUri);
 
     const auto snapshot =
         [&](const std::optional<std::string>& words,
@@ -165,7 +167,7 @@ struct HubReload {
               document::caption("registerDecoder<Cloud>\nload<Cloud>(uri)")}),
          box().height(130).column().gap(10).padding(16, 0).children(
              {document::label("IMAGE"), text("chart.png").styleClass("readout"),
-              document::caption("hub.image(uri)")})});
+              document::caption("hub.load<ImageAsset>(uri)")})});
     ctx.composer.render(sketch::kit::page(
         {.title = "A file changes. A held value does not.",
          .subtitle = "Mounted files are replaced, poll() invalidates their "

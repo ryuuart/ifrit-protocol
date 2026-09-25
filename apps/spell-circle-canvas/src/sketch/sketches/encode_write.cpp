@@ -15,6 +15,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
 #include <sigilimage/asset/ImageAsset.h>
+#include <sigilimage/decode/Decoders.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
@@ -118,11 +119,12 @@ struct EncodeWrite {
         std::filesystem::temp_directory_path() / "sigil-encode-write";
     io::Hub hub;
     hub.mount(kMount, dir);
+    img::registerDecoders(hub);
     sk_sp<SkData> bytes = img::encodeImage(*art, img::Format::Png);
     const std::string uri = std::string(kMount) + "plate.png";
     const bool wrote = bytes && hub.write(uri, bytes->data(), bytes->size());
     const std::shared_ptr<const img::ImageAsset> read =
-        wrote ? hub.image(uri) : nullptr;
+        wrote ? hub.load<img::ImageAsset>(uri) : nullptr;
     const std::string written =
         kit::formatted("write %s\nread back %s · %d×%d",
                        wrote ? "true" : "false", read ? "true" : "false",
@@ -157,7 +159,7 @@ struct EncodeWrite {
                                .height(132)),
          box().column().gap(12).width(390).children(
              {document::label("WRITE THE ENCODED BYTES"),
-              text("encodeImage → Hub::write → Hub::image")
+              text("encodeImage → Hub::write → Hub::load<ImageAsset>")
                   .styleClass("readout"),
               document::caption(uri),
               text("The file is read back through the same mount. Encoding "
