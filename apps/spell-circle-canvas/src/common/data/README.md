@@ -670,7 +670,12 @@ SigilData owns **tabular data and the mappings read off it**: what a row
 is, what a column holds, where a value lands. It does not own where the
 bytes came from — that is SigilIO, which resolves a URI, caches it and
 reloads it — and it does not own what a set of numbers says about a
-population, which is SigilMeasure's quantiles, line fits and counters.
+population: a run's extent, mean, spread, quantiles and bins, and the
+window, smoothed reading and rate of a live stream, are SigilMeasure's.
+Every scale here is AUTHORED — a domain someone chose. A scale whose
+domain comes from the data takes the two ends of SigilMeasure's summary
+of that data at the call site, as two numbers, so neither library links
+the other and an axis moves only when its author says it should.
 
 Nothing here draws and nothing here knows what a colour is. A colour
 scale is this library's `position()` handed to somebody else's
