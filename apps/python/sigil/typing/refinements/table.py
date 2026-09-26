@@ -32,6 +32,7 @@ class Table:
         self.declarations: dict[str, str] = {}
         self.parameter_types: dict[str, dict[str, str]] = {}
         self.attribute_types: dict[str, str] = {}
+        self.type_parameters: dict[str, list[str]] = {}
 
     def erased(self, prefix: str, names: str, *types: str) -> None:
         """Give the erased arguments of each named member their input types."""
@@ -69,6 +70,15 @@ class Table:
         """
         self.parameter_types.setdefault(member, {}).update(types)
 
+    def generic(self, member: str, /, *names: str) -> None:
+        """Declare the type parameters one member's signature is written over.
+
+        A function that reads a run of any element and a key over that
+        element ties the two together through a parameter, never through
+        an erased element type.
+        """
+        self.type_parameters[member] = list(names)
+
     def attribute(self, path: str, text: str) -> None:
         """State the type of one attribute the bindings expose as a field."""
         self.attribute_types[path] = text
@@ -81,4 +91,5 @@ class Table:
             | self.declarations.keys()
             | self.parameter_types.keys()
             | self.attribute_types.keys()
+            | self.type_parameters.keys()
         )

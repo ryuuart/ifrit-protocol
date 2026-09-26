@@ -10,12 +10,17 @@ from __future__ import annotations
 
 from .table import DURATION, Table
 
-RUN = "collections.abc.Iterable[typing.Any]"
-KEY = "collections.abc.Callable[[typing.Any], typing.SupportsFloat] | None"
+# A run is any iterable; without a key its elements are the numbers, with
+# one the key picks the number out of each element.
+RUN = "collections.abc.Iterable[Item]"
+KEY = "collections.abc.Callable[[Item], typing.SupportsFloat] | None"
+OVER_RUN = ("_sigil.measure.summary", "_sigil.measure.quantile", "_sigil.measure.Histogram.over")
 
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    for member in OVER_RUN:
+        table.generic(member, "Item")
     table.parameters("_sigil.measure.timed", block="collections.abc.Callable[[], object]")
     table.parameters("_sigil.measure.summary", values=RUN, key=KEY)
     table.parameters("_sigil.measure.quantile", values=RUN, key=KEY)

@@ -228,6 +228,10 @@ def refine(table: Table, seen: set[str], module: str, tree: ast.Module) -> None:
                     getter = getters[node.name]
                     if getter.returns is not None:
                         unknown[-1].annotation = setter_type(getter.returns, module)
+                if full in table.type_parameters:
+                    node.type_params = [
+                        ast.TypeVar(name=name) for name in table.type_parameters[full]
+                    ]
                 if full in parameters:
                     for arg in all_args:
                         if arg.arg in parameters[full] and erased_annotation(
