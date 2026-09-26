@@ -32,7 +32,7 @@ Duration baked = timed([&] { bake(); });              // one block, one call
 double shown = Milliseconds(baked).count();           // a number for a printout
 
 // ── A RUN IN HAND ────────────────────────────────────────────────────────
-Summary heights = summary(points, &Point::y);         // count, sum, mean, min, max, deviation
+Summary heights = summary(points, heightOf);          // count, sum, mean, min, max, deviation
 double tail = quantile(frameTimes, 0.99);             // the one quantile
 Histogram shape = Histogram::over(values, {.bins = 20});   // bins, counts, below/above, peak
 
