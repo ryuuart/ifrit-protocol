@@ -317,7 +317,8 @@ struct Trace {
  *  The run is copied into the layer, and the curve prunes on the run's
  *  own values, so a series that did not change this frame is not
  *  re-walked. `Trace::samples` is not read: a recording is walked at the
- *  sampling it was taken at. */
+ *  sampling it was taken at. A `measure::Window`'s `values()` is such a
+ *  run as it stands — `trace(window.values())` is a sparkline. */
 [[nodiscard]] Layer trace(std::span<const double> series,
                           const Trace& how = {});
 
