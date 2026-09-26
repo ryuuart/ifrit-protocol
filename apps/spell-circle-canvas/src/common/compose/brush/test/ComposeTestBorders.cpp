@@ -26,7 +26,7 @@ Element spanPanel(Spans where, Decoration dec) {
       std::move(where), std::move(dec))});
 }
 
-Element shapedSpanPanel(std::function<SkPath(SkSize)> outline, Spans where,
+Element shapedSpanPanel(Shape outline, Spans where,
                         Decoration dec) {
   return box().children({box()
                              .width(100)

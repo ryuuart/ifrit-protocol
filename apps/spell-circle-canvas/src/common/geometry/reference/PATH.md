@@ -6,7 +6,7 @@ header. `README.md` beside the library is the front page;
 `MESH.md` is the 3D tier, `POP.md` the point operators and `KIT.md` the
 shelf over both.
 
-**`path`** — `SigilGeometryPath`, the leaf. Thirty-one headers that
+**`path`** — `SigilGeometryPath`, the leaf. Thirty-six headers that
 depend on nothing else in the library: Skia, glm, SigilCoreCompute, whose
 seeded mixers the value-noise field and the scatter's stream are built
 on, and CDT, the Delaunay triangulator, read in one source file and named
@@ -204,12 +204,23 @@ in no header.
   minimum separation), a `Rate` saying whether `amount` is a count, a
   density or a spacing, a seed and a `core::chance::Source`,
   `relaxIterations`, and `maxPoints` as a bound rather than a preference.
-  `sample(region, distribution)` answers the points. `uniform()`,
-  `poisson()`, `blueNoise()`, `grid()` and `jittered()` are stock values
-  over that one type, not five functions: blue noise is any spread with
-  the relaxation switched on, and an exact grid is a lattice with no
-  jitter. A count is exact for `Random` and a CAP for the other two,
-  which answer what their pitch fits.
+  `sample(region, distribution)` answers the points. The namespace
+  `distribution` holds `uniform()`, `poisson()`, `blueNoise()`, `grid()`
+  and `jittered()`, stock values over that one type, not five functions:
+  blue noise is any spread with the relaxation switched on, and an exact
+  grid is a lattice with no jitter. A count is exact for `Random` and a
+  CAP for the other two, which answer what their pitch fits. This is the
+  executor under `path/Points.h`, which a sketch reaches for first.
+- **`path/Points.h`** — POINTS WHERE A SHAPE SAYS, one verb:
+  `points(where, pattern)` over an `Outline` or a `Rect`, with the
+  `Pattern` made by `random(count)`, `poisson(radius)`, `grid(spacing,
+  GridOptions)` (with a jitter), `radial(count, RadialOptions)` — the
+  vertices `shapes::radial` deals, on a circle of half the bounds'
+  shorter side, so a golden-angle step with square-root growth is
+  phyllotaxis in one line — and `along(spacing, AlongOptions)`, a point
+  every so many px along the outline's contours walked as one run.
+  `heading(vector)` is the direction a vector points in, degrees
+  clockwise from +x on screen: the turn a mark laid along it takes.
 - **`path/Triangulate.h`** — the Delaunay triangulation and its dual.
   `delaunay()` answers a `Triangulation`: the points actually triangulated
   (duplicates are one point), the triangles over them, what lies across
@@ -462,8 +473,19 @@ in no header.
   their own numbers — the boundary, the parallel, the linear run between
   two widths, and the stepped table, which does not interpolate across a
   boundary because what it describes is a measurement that changes at a
-  place. Richer families (an oscillating width, a braid built on it) are
-  the kit's.
+  place. A law through STOPS is `Profile{{0, 14}, {1, 4}}`: a `Stop` is
+  `{along, width}`, and `ProfileOptions` says what happens `between` two
+  (`Between::Linear`, `Step`, `Smooth`) and whether `along` is
+  `inPixels`, `path::profile::Stops` and `path::profile::StopsInPixels` being the
+  values behind it. Richer families (an oscillating width, a braid built
+  on it) are the kit's.
+- **`path/Offset.h`** — AN OUTLINE AT A WIDTH, the general forms over the
+  band tier: `offset(outline, width, OffsetOptions)` is the rail a
+  `Profile` away — a number is a parallel, stops narrow and widen it —
+  or, with `region`, the figure grown or shrunk by the law's starting
+  width, joined as `join` says; `band(spine, width, BandOptions)` is the
+  closed region between the spine and its rail, on the `Formation` side
+  (`Center`, `Inner`, `Outer`).
 - **`path/Band.h`** — `profileOffset()` walks one rail of a width law;
   `bandRegion()` walks both and closes them per contour, on
   `Formation::Center`, `Inner` or `Outer`. Every rail takes the
@@ -493,9 +515,36 @@ in no header.
   declared in the artefact's units. `yScale` is the y axis as a multiple
   of that scale — −1 is the MATH FRAME, y counting up the page, which is
   what a plotted function or a surveyed elevation is measured in, and
-  anything else is an anisotropic map; a rect comes back sorted either
-  way. `centred` is the rect both are read
-  through.
+  anything else is an anisotropic map; a rectangle comes back sorted
+  either way, and `transform()` is the same map as a `Transform`. Both
+  frames speak glm and `Rect`: `at()`, `atPixels()` and `direction()`
+  answer vectors, `box()` a rectangle, `screenDegrees()` and
+  `screenSweep()` the screen angle a renderer's arc takes, and
+  `fraction()`/`degreesOf()` read a baseline's `Winding`.
+- **`path/Radial.h`** — THE RADIAL ARRANGEMENT, N things dealt round a
+  centre: `RadialOptions` says where the vertices stand — `radii` cycled
+  per vertex, `fromDegrees`, `sweepDegrees` or `stepDegrees`, `closed`,
+  `growth` (`Growth::None`, `Linear`, `SquareRoot`) — and how they are
+  joined: `Connect::Loop` (with a `skip` for a star polygon, a `waist`
+  bowing each edge), `Connect::Each` (every chord its own contour, trimmed
+  by `inset`), or `Connect::None` with a `Mark` at each vertex — `line`,
+  `segment`, `bar` or any figure `shape` — cycled through `marks` and
+  overridden per vertex by `each`. `uniform` measures the radius as half
+  the shorter side; `frame` carries the zero and the sense.
+  `radialPoints()` answers the vertices on a frame and `radialOutline()`
+  draws them on a frame or in a box; `shapes::radial` and the `radial`
+  point pattern stand on these.
+- **`path/Through.h`** — THE PATH THROUGH POINTS: `through(points,
+  ThroughOptions)` with a `Smooth` — `None` straight, `CatmullRom`
+  passing through every point, `Midpoint` steered by them without
+  touching the interior ones, `Fit` as few cubics as follow them within
+  `tolerance` — open or `closed`. `curveThrough(points)` is the smooth
+  one in a word.
+- **`path/Transform.h`** — a 2D affine map AS A VALUE:
+  `Transform::translate`, `rotate` (degrees clockwise on screen, about a
+  point), `scale`, `skew` and `fit` (one rectangle onto another,
+  stretched or fitted), composed with `*` right to left the way matrices
+  are, applied to a point with the call operator, and `inverse()`.
 - **`path/Projection.h`** — the SPHERE laid onto a plane, and the rotation
   that turns the sphere before it is laid. `Spherical` is a direction in
   degrees (`lonDeg`, `latDeg` — right ascension and declination under the
@@ -504,17 +553,18 @@ in no header.
   for the great-circle step a spherical construction is made of — the
   horizon point at an azimuth, the pole of the circle a chart's own line
   is. `Projection` is the map: a `Scheme` (`Stereographic`,
-  `Orthographic`, `AzimuthalEquidistant`, `Equirectangular`, `Mercator`),
+  `Orthographic`, `AzimuthalEquidistant`, `Gnomonic`, `Equirectangular`,
+  `Mercator`),
   a `centre`, a `scale`, a `rollDeg` and a `Vantage`, with `at()` out,
   `from()` home, `angleFrom()` to cull by, and `radiusAt()`/`arcAtRadius()`
   for the law itself — the RADIUS on an azimuthal map, where the map is
   round and the law holds at every bearing, and the ORDINATE on a
-  cylindrical one, where it does not. **The scheme is a field and not five
-  functions** because the five differ in one line of arithmetic each and
+  cylindrical one, where it does not. **The scheme is a field and not six
+  functions** because the six differ in one line of arithmetic each and
   agree about the centring, the handedness, the turn and the way back, and
   a caller asking which of them a measured chart was drawn on has to hold
   two of them in variables and swap. `scale` is plane units per radian AT
-  THE CENTRE, the one derivative all five share there, so changing the
+  THE CENTRE, the one derivative all six share there, so changing the
   scheme leaves the middle of the map the size it was. The plane is y UP
   and isotropic: a chart measured at one number of degrees per centimetre
   across and another down is this under a `Grid`, since a per-axis scale
@@ -525,6 +575,12 @@ in no header.
   infinity for a circle passing through the point the projection is taken
   FROM, whose image is a straight line; `circleThrough()` beside it is the
   same circle reached the maker's way, through three of its points.
+  `ProjectionScheme` is the seam — anything with `at()` out and `from()`
+  home — so the catalogue is open: `projection::stereographic()`,
+  `gnomonic()`, `orthographic()`, `azimuthalEquidistant()`,
+  `equirectangular()` and `mercator()` make the stock ones over
+  `ProjectionOptions`, and `projection::custom(key, forward, inverse)` is
+  a `CustomProjection` for any other.
   `Rotation` is the sphere turned: `aboutX/Y/Z`, `zyz` (the three-angle
   form an epoch-to-epoch precession is published in), `then()`,
   `inverse()`, applied to a vector or to a `Spherical`. WHICH angles is

@@ -17,6 +17,7 @@
 
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
+#include <sigilgeometry/path/Offset.h>
 #include <sigilgeometry/path/Profile.h>
 
 #include <cstdint>
@@ -24,9 +25,6 @@
 
 namespace sigil::geometry::path {
 
-/** Which side of the spine a band occupies. Explicit because the
- *  offset-path lineage has no defensible default beyond "both". */
-enum class Formation : uint8_t { Center, Inner, Outer };
 
 /** Displace a path in its own (along, across) frame — the primitive
  *  behind a relative strand, and exactly the band's frame. Whatever the

@@ -462,6 +462,8 @@ std::vector<glm::vec2> sample(const Region& region,
   return points;
 }
 
+namespace distribution {
+
 Distribution uniform(int count, uint64_t seed) {
   return Distribution{.spread = Spread::Random,
                       .rate = Rate::Count,
@@ -498,5 +500,7 @@ Distribution jittered(float spacing, uint64_t seed, float jitter) {
                       .seed = seed,
                       .jitter = jitter};
 }
+
+}  // namespace distribution
 
 }  // namespace sigil::geometry::path

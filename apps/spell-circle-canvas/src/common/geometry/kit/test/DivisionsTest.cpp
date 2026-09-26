@@ -29,7 +29,21 @@ SkPath drawnAt(const S& source, SkSize box) {
   return path::toSk(shapes::outlineOf(source, path::fromSk(box)));
 }
 
-::testing::AssertionResult near(SkPoint a, SkPoint b, float tol) {
+::testing::AssertionResult near(glm::vec2 a, glm::vec2 b, float tol) {
+  const float d = std::hypot(a.x - b.x, a.y - b.y);
+  if (d <= tol) return ::testing::AssertionSuccess();
+  return ::testing::AssertionFailure()
+         << "(" << a.x << ", " << a.y << ") vs (" << b.x << ", " << b.y
+         << ") — " << d << " px apart, tolerance " << tol;
+}
+
+[[maybe_unused]] ::testing::AssertionResult near(SkPoint a, glm::vec2 b,
+                                                 float tol) {
+  return near(path::fromSk(a), b, tol);
+}
+
+[[maybe_unused]] ::testing::AssertionResult near(SkPoint a, SkPoint b,
+                                                 float tol) {
   const float d = std::hypot(a.fX - b.fX, a.fY - b.fY);
   if (d <= tol) return ::testing::AssertionSuccess();
   return ::testing::AssertionFailure()
@@ -113,17 +127,17 @@ TEST(FrameOnAShape, TheBaselinesDirectionIsNotTheFramesSense) {
                              .radius = 100,
                              .zero = path::Zero::North,
                              .sense = sense};
-    for (auto dir : {SkPathDirection::kCW, SkPathDirection::kCCW}) {
-      const SkPath& path = dir == SkPathDirection::kCW ? cw : ccw;
+    for (auto dir : {path::Winding::OutersClockwise, path::Winding::OutersCounterClockwise}) {
+      const SkPath& path = dir == path::Winding::OutersClockwise ? cw : ccw;
       for (float th : {0.0f, 60.0f, 210.0f})
         EXPECT_TRUE(
             near(atFraction(path, f.fraction(th, dir)), f.at(th, 1.0f), 0.25f))
             << "sense=" << (sense == path::Sense::CW ? "CW" : "CCW")
-            << " baseline=" << (dir == SkPathDirection::kCW ? "CW" : "CCW")
+            << " baseline=" << (dir == path::Winding::OutersClockwise ? "CW" : "CCW")
             << " th=" << th;
       for (float frac : {0.1f, 0.6f})
         EXPECT_NEAR(
-            std::fmod(f.fraction(f.degOf(frac, dir), dir) - frac + 2.0f, 1.0f),
+            std::fmod(f.fraction(f.degreesOf(frac, dir), dir) - frac + 2.0f, 1.0f),
             0.0f, 1e-3f);
     }
   }
@@ -134,7 +148,7 @@ TEST(FrameOnAShape, TheBoxIsWhereACircleInscribesItselfOnTheFrame) {
   // what makes a rect from the frame and a silhouette in that rect name
   // the same geometry.
   const path::PolarFrame f{.centre = {50, 60}, .radius = 20};
-  const SkRect b = f.box(0.5f);
+  const SkRect b = toSk(f.box(0.5f));
   const SkPath c = drawnAt(shapes::circle(), SkSize{b.width(), b.height()});
   SkPoint p = atFraction(c, f.fraction(0.0f));
   p.offset(b.fLeft, b.fTop);
@@ -158,7 +172,7 @@ TEST(Divisions, ATickLadderEmitsOneContourPerDivisionOnTheFrame) {
   // less path.
   const path::PolarFrame boxed{.centre = {100, 100}, .radius = 100};
   const SkPath twelve = path::toSk(shapes::ticks(boxed, {.divisions = 12}));
-  EXPECT_TRUE(boxed.box().contains(twelve.getBounds()));
+  EXPECT_TRUE(toSk(boxed.box()).contains(twelve.getBounds()));
   EXPECT_LT(path::toSk(shapes::ticks(boxed, {.divisions = 6})).countPoints(),
             twelve.countPoints());
 }
@@ -256,8 +270,8 @@ TEST(Divisions, SideKsMidpointIsAtExactlyKPlusHalfOverN) {
     ASSERT_EQ((int)c.pieces.size(), n) << "n=" << n;
     for (int k = 0; k < n; ++k) {
       const float pitch = 360.0f / (float)n;
-      const SkPoint a = f.at(pitch * (float)k, 1.0f);
-      const SkPoint b = f.at(pitch * (float)(k + 1), 1.0f);
+      const SkPoint a = path::toSk(f.at(pitch * (float)k, 1.0f));
+      const SkPoint b = path::toSk(f.at(pitch * (float)(k + 1), 1.0f));
       const SkPoint mid{(a.fX + b.fX) * 0.5f, (a.fY + b.fY) * 0.5f};
       const float frac = ((float)k + 0.5f) / (float)n;
       EXPECT_TRUE(near(atFraction(p, frac), mid, 0.05f))
@@ -324,8 +338,8 @@ TEST(Divisions, AMarkWidthTurnsTheLadderIntoClosedNodes) {
   // A closed mark is geometry rather than a paint decision, so it fills;
   // the open ladder encloses nothing at all.
   const SkPath line = path::toSk(shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}}));
-  EXPECT_FALSE(line.contains(f.at(0, 0.95f).fX, f.at(0, 0.95f).fY));
-  EXPECT_TRUE(p.contains(f.at(0, 0.95f).fX, f.at(0, 0.95f).fY));
+  EXPECT_FALSE(line.contains(f.at(0, 0.95f).x, f.at(0, 0.95f).y));
+  EXPECT_TRUE(p.contains(f.at(0, 0.95f).x, f.at(0, 0.95f).y));
   // …and it stands square to its own radius: the mark on the frame's zero
   // reaches its full 4 px ACROSS that radius and no further along it.
   // The default frame counts from twelve o'clock, so mark 0 stands
@@ -353,13 +367,13 @@ TEST(Divisions, ArcSegmentsFollowTheRingWhereANodeStandsAcrossIt) {
   const float innerArc = 80.0f * 30.0f * 3.14159265f / 180.0f;
   EXPECT_NEAR(c.lengths[0], outerArc + innerArc + 2.0f * 20.0f, 0.5f);
   EXPECT_TRUE(
-      f.box().makeOutset(0.05f, 0.05f).contains(p.computeTightBounds()));
+      toSk(f.box()).makeOutset(0.05f, 0.05f).contains(p.computeTightBounds()));
 
   // It is dealt round the frame the way ticks() deals marks: the first
   // segment is CENTRED on `from`, so its middle sits where a tick would.
-  const SkPoint mid = f.at(0.0f, 0.9f);
+  const SkPoint mid = path::toSk(f.at(0.0f, 0.9f));
   EXPECT_TRUE(p.contains(mid.fX, mid.fY));
-  const SkPoint between = f.at(180.0f / 8.0f, 0.9f);  // half a pitch on
+  const SkPoint between = path::toSk(f.at(180.0f / 8.0f, 0.9f));  // half a pitch on
   EXPECT_FALSE(p.contains(between.fX, between.fY));
 
   // Nothing to enclose is nothing drawn, rather than a degenerate contour
@@ -369,7 +383,7 @@ TEST(Divisions, ArcSegmentsFollowTheRingWhereANodeStandsAcrossIt) {
   EXPECT_TRUE(path::toSk(shapes::arcs(f, {.divisions = 0})).isEmpty());
 
   // The shape form takes half the shorter side, like its two neighbours.
-  const shapes::ArcsShape shape = shapes::arcs(ring);
+  const shapes::Radial shape = shapes::arcs(ring);
   EXPECT_EQ(shape, shapes::arcs(ring));
   const SkRect bounds = drawnAt(shape, SkSize{240, 120}).computeTightBounds();
   EXPECT_LE(bounds.width(), 120.5f);

@@ -90,8 +90,9 @@ wedges that fatten with radius — the wedge is
 
 ## The shape value
 
-`sigil::geometry::shapes::TicksShape` takes the frame from the node's
-own laid-out box: centre at the box centre, radius = half the SHORTER
+`ticks(t, conventions)` is a `shapes::Radial` — no joining, a mark at
+every division, the long mark every `longEvery`-th in the cycle — that
+takes the frame from the node's own laid-out box: centre at the box centre, radius = half the SHORTER
 side. Its `conventions` therefore supplies ONLY `zero`, `sense` and
 `originDeg`; the frame's own `centre` and `radius` are overwritten, so a
 frame passed there does not place the ladder — the node's box does.
@@ -110,7 +111,7 @@ in normalised radius.
 
 ## See also
 
-- `kit/Divisions.h` — the header: `Ticks`, `TicksShape`, `Arcs`,
-  `ArcsShape`, `Chords`, `ChordsShape`, `Span`
+- `kit/Divisions.h` — the header: `Ticks`, `Arcs`, `Chords`, `Span`,
+  `radialOf`
 - [Arcs](value:sigil::geometry::shapes::Arcs) — the curved sibling
 - [Chords](value:sigil::geometry::shapes::Chords) — the polygonal one

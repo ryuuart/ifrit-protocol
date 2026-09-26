@@ -7,40 +7,25 @@
  * the unit-map `Grid`, and the centred rect both are read through.
  *
  * A `PolarFrame` converts `(angle, radius)` — numbers measured off a
- * reference drawing — into a point, an SkRect or an arc-length fraction,
- * in that drawing's angle convention. A `Grid` carries an artefact's own
+ * reference drawing — into a point, a rectangle or an arc-length
+ * fraction, in that drawing's angle convention. A `Grid` carries an artefact's own
  * units onto the canvas: a scale, an origin, a y axis and a snap.
  */
 
-#include <include/core/SkMatrix.h>
-#include <include/core/SkPathTypes.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
-
+#include <algorithm>
 #include <cmath>
+#include <glm/vec2.hpp>
 #include <vector>
 
 #include "sigilgeometry/path/Numeric.h"
+#include "sigilgeometry/path/Outline.h"
+#include "sigilgeometry/path/Transform.h"
 
 namespace sigil::geometry::path {
 
-/** THE RECT OF SIZE @p w × @p h CENTRED ON @p c — the `x - w * 0.5f`
- *  arithmetic as a VALUE you can then inset, union, or hand to whatever
- *  draws the figure. Reach for it when you know the box and want the
- *  rect for something else too; a node that sizes ITSELF is centred
- *  after layout by `centerAt()` instead. */
-inline SkRect centred(SkPoint c, float w, float h) {
-  return SkRect::MakeXYWH(c.fX - w * 0.5f, c.fY - h * 0.5f, w, h);
-}
-/** The same box from a size value. */
-inline SkRect centred(SkPoint c, SkSize s) {
-  return centred(c, s.width(), s.height());
-}
-
 /** Where a frame's 0° points. */
 enum class Zero {
-  East,   ///< 3 o'clock — Skia's own convention, and `shapes::arc`'s.
+  East,   ///< 3 o'clock — the screen's own convention, and `shapes::arc`'s.
   North,  ///< 12 o'clock — the engraver's and the statistical plate's.
 };
 
@@ -56,7 +41,7 @@ enum class Sense { CW, CCW };
  *  positional constructor could not gain a field later without breaking
  *  every call site. Trivially copyable; it holds no node state. */
 struct PolarFrame {
-  SkPoint centre{0, 0};
+  glm::vec2 centre{0, 0};
   /** The px radius that `normalizedRadius = 1` maps to. Authoring the rest of a
    *  figure in normalised radius is what lets the whole plate be rescaled
    *  by editing this one number. */
@@ -73,30 +58,32 @@ struct PolarFrame {
   bool operator==(const PolarFrame&) const = default;
 
   /** @name Angles
-   *  This frame's degrees converted to and from the screen angle Skia
-   *  and the shape generators take, and back from a fraction of a turn.
+   *  This frame's degrees converted to and from the screen angle a
+   *  renderer's arc and the shape generators take, and back from a
+   *  fraction of a turn.
    *  @{ */
 
   /** This frame's @p deg as a SCREEN angle: degrees from +x, increasing
-   *  in the direction that looks clockwise, which is exactly what Skia's
-   *  `addArc`, `shapes::arc()` and `shapes::sector()` take — so a sector
-   *  spelled through this reads in the plate's units and draws in
-   *  Skia's. */
-  constexpr float skiaDeg(float deg) const {
+   *  in the direction that looks clockwise, which is exactly what a
+   *  renderer's arc, `shapes::arc()` and `shapes::sector()` take — so a
+   *  sector spelled through this reads in the plate's units and draws in
+   *  the screen's. */
+  constexpr float screenDegrees(float deg) const {
     const float base = zero == Zero::North ? -90.0f : 0.0f;
     return base + originDeg + (sense == Sense::CW ? deg : -deg);
   }
-  /** A SWEEP in this frame's units as a Skia sweep — sign only, no origin.
-   *  Kept separate from skiaDeg() because adding the origin twice is the
-   *  classic bug when an arc is spelled as two absolute angles. */
-  constexpr float skiaSweep(float sweepDeg) const {
+  /** A SWEEP in this frame's units as a screen sweep — sign only, no
+   *  origin. Kept separate from screenDegrees() because adding the origin
+   *  twice is the classic bug when an arc is spelled as two absolute
+   *  angles. */
+  constexpr float screenSweep(float sweepDeg) const {
     return sense == Sense::CW ? sweepDeg : -sweepDeg;
   }
   /** This frame's @p deg AS A SCREEN ANGLE in radians about +x, ready
    *  for `std::cos`/`sin` against a screen-space point. Named apart from
    *  the free `radians()`, which is the unit conversion alone: this one
    *  carries the frame's zero and sense as well. */
-  float screenRadians(float deg) const { return radians(skiaDeg(deg)); }
+  float screenRadians(float deg) const { return radians(screenDegrees(deg)); }
 
   /** @p deg AS THE ARC-LENGTH FRACTION of a circular baseline, in
    *  [0, 1) — the value a text path is addressed by. @p baseline is the
@@ -106,20 +93,22 @@ struct PolarFrame {
    *  @trap Only exact on a CIRCLE — an ellipse's arc length is not
    *  proportional to its angle, so an oblong box drifts. */
   float fraction(float deg,
-                 SkPathDirection baseline = SkPathDirection::kCW) const {
-    const float screen =
-        baseline == SkPathDirection::kCW ? skiaDeg(deg) : -skiaDeg(deg);
+                 Winding baseline = Winding::OutersClockwise) const {
+    const float screen = baseline == Winding::OutersClockwise
+                             ? screenDegrees(deg)
+                             : -screenDegrees(deg);
     const float f = std::fmod(screen / 360.0f, 1.0f);
     return f < 0 ? f + 1.0f : f;
   }
   /** The inverse of fraction(): an arc-length fraction back into this
    *  frame's degrees — for labelling a ring that was already placed by
    *  fraction, or for reading a hit test back out in plate units. */
-  constexpr float degOf(float frac,
-                        SkPathDirection baseline = SkPathDirection::kCW) const {
+  constexpr float degreesOf(float frac,
+                            Winding baseline = Winding::OutersClockwise) const {
     const float base = zero == Zero::North ? -90.0f : 0.0f;
-    const float screen =
-        baseline == SkPathDirection::kCW ? frac * 360.0f : -frac * 360.0f;
+    const float screen = baseline == Winding::OutersClockwise
+                             ? frac * 360.0f
+                             : -frac * 360.0f;
     const float rel = screen - base - originDeg;
     return sense == Sense::CW ? rel : -rel;
   }
@@ -133,18 +122,18 @@ struct PolarFrame {
 
   /** `(angle, NORMALISED radius)` → a point in the frame's parent space.
    *  `normalizedRadius = 1` is `radius`. */
-  SkPoint at(float deg, float normalizedRadius = 1.0f) const {
-    return px(deg, normalizedRadius * radius);
+  glm::vec2 at(float deg, float normalizedRadius = 1.0f) const {
+    return atPixels(deg, normalizedRadius * radius);
   }
   /** `(angle, PX radius)` → a point, for a figure whose radii were
    *  measured in pixels rather than as fractions of one figure radius. */
-  SkPoint px(float deg, float rPx) const {
+  glm::vec2 atPixels(float deg, float pixels) const {
     const float a = screenRadians(deg);
-    return {centre.fX + rPx * std::cos(a), centre.fY + rPx * std::sin(a)};
+    return {centre.x + pixels * std::cos(a), centre.y + pixels * std::sin(a)};
   }
   /** The unit vector pointing out along @p deg — the direction a tick, a
    *  leader or a radial label runs. */
-  SkVector dir(float deg) const {
+  glm::vec2 direction(float deg) const {
     const float a = screenRadians(deg);
     return {std::cos(a), std::sin(a)};
   }
@@ -158,9 +147,8 @@ struct PolarFrame {
   /** The square box of radius `normalizedRadius` about the centre — the frame
    * every silhouette generator inscribes itself in: inset it, union it, or hand
    * it to whatever draws the figure. */
-  SkRect box(float normalizedRadius = 1.0f) const {
-    return centred(centre, 2 * normalizedRadius * radius,
-                   2 * normalizedRadius * radius);
+  Rect box(float normalizedRadius = 1.0f) const {
+    return Rect::centredOn(centre, glm::vec2(2 * normalizedRadius * radius));
   }
   /** @} */
 
@@ -179,7 +167,7 @@ struct PolarFrame {
   }
   /** The same frame about a different centre — a satellite figure that
    *  inherits the plate's angle convention. */
-  constexpr PolarFrame about(SkPoint c) const {
+  constexpr PolarFrame about(glm::vec2 c) const {
     return {c, radius, zero, sense, originDeg};
   }
   /** The same frame with its zero turned by @p deg IN THIS FRAME'S SENSE.
@@ -213,7 +201,7 @@ struct Grid {
    *  map, for a chart whose two axes are different quantities. */
   float yScale = 1.0f;
   /** Where artefact (0, 0) lands on the canvas. */
-  SkPoint origin{0, 0};
+  glm::vec2 origin{0, 0};
   /** Snap the RESULT to a multiple of this many canvas px (0 = off). This
    *  is a canvas-px pitch, not a unit count: snapping to the grid's own
    *  pitch and snapping to the device pixel are different values. */
@@ -241,50 +229,55 @@ struct Grid {
   }
   /** A POSITION on x: the length from the origin. */
   constexpr float positionX(float units) const {
-    return snapped(origin.fX + units * scale);
+    return snapped(origin.x + units * scale);
   }
   /** A POSITION on y, down the canvas even where the axis runs up. */
   constexpr float positionY(float units) const {
-    return snapped(origin.fY + units * scale * yScale);
+    return snapped(origin.y + units * scale * yScale);
   }
-  constexpr SkPoint at(SkPoint units) const {
-    return {positionX(units.fX), positionY(units.fY)};
+  constexpr glm::vec2 at(glm::vec2 units) const {
+    return {positionX(units.x), positionY(units.y)};
   }
-  /** SORTED, so a flipped frame answers a rect and not an inside-out one:
-   *  under `yScale` < 0 the unit-space top is the canvas-space bottom, and
-   *  every consumer of an SkRect reads left ≤ right and top ≤ bottom. */
-  SkRect rect(float ux, float uy, float uw, float uh) const {
-    return SkRect::MakeLTRB(positionX(ux), positionY(uy), positionX(ux + uw),
-                            positionY(uy + uh))
-        .makeSorted();
+  /** SORTED, so a flipped frame answers a rectangle and not an inside-out
+   *  one: under `yScale` < 0 the unit-space top is the canvas-space
+   *  bottom, and every consumer of a rectangle reads its `min` as the top
+   *  left. */
+  Rect rect(float ux, float uy, float uw, float uh) const {
+    return sorted(positionX(ux), positionY(uy), positionX(ux + uw),
+                  positionY(uy + uh));
   }
-  /** The artefact-unit rect as canvas px, corner-by-corner — so a snapped
-   *  grid keeps both edges on the grid rather than only the near one, and
-   *  sorted for the same reason the other overload is. */
-  SkRect rect(const SkRect& units) const {
-    return SkRect::MakeLTRB(positionX(units.fLeft), positionY(units.fTop),
-                            positionX(units.fRight), positionY(units.fBottom))
-        .makeSorted();
+  /** The artefact-unit rectangle as canvas px, corner-by-corner — so a
+   *  snapped grid keeps both edges on the grid rather than only the near
+   *  one, and sorted for the same reason the other overload is. */
+  Rect rect(const Rect& units) const {
+    return sorted(positionX(units.min.x), positionY(units.min.y),
+                  positionX(units.max.x), positionY(units.max.y));
   }
   /** A polyline in artefact units → canvas px. */
-  std::vector<SkPoint> map(const std::vector<SkPoint>& units) const {
-    std::vector<SkPoint> out;
+  std::vector<glm::vec2> map(const std::vector<glm::vec2>& units) const {
+    std::vector<glm::vec2> out;
     out.reserve(units.size());
-    for (const SkPoint& p : units) out.push_back(at(p));
+    for (const glm::vec2& p : units) out.push_back(at(p));
     return out;
   }
-  /** The affine matrix, for handing a whole SkPath through in one go. NOT
+  /** The affine map, for carrying a whole outline through in one go. NOT
    *  snapped — a matrix cannot round per-point, and pretending otherwise
    *  is how a "snapped" plate ends up half on the grid. */
-  SkMatrix matrix() const {
-    return SkMatrix::Translate(origin.fX, origin.fY)
-        .preScale(scale, scale * yScale);
+  Transform transform() const {
+    return Transform::translate(origin) *
+           Transform::scale({scale, scale * yScale});
   }
   /** A grid at @p k of this one's scale, same origin, y axis and snap —
    *  the nested unit system (a plate at 4 px/unit carrying a readout at
    *  2.5). */
   constexpr Grid scaled(float k) const {
     return {scale * k, yScale, origin, snap};
+  }
+
+ private:
+  static Rect sorted(float left, float top, float right, float bottom) {
+    return {{std::min(left, right), std::min(top, bottom)},
+            {std::max(left, right), std::max(top, bottom)}};
   }
 };
 

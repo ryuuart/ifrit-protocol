@@ -389,11 +389,11 @@ inline sk_sp<SkImage> makeCarvedFrame(const Palette& pal, int size = 96) {
  *  on a 2x device passes 2 and its band stays the width the padding around it
  *  was measured against. */
 inline Slice carvedFrameSlice(
-    const std::shared_ptr<const sigil::image::ImageAsset>& asset,
+    const std::shared_ptr<const sigil::media::Image>& asset,
     float density = 1.0f) {
   Slice nine;
   nine.asset = asset;
-  const int size = asset ? asset->width() : 96;
+  const int size = asset ? asset->size().width() : 96;
   nine.xDivs = {size / 3, size * 2 / 3};
   nine.yDivs = {size / 3, size * 2 / 3};
   nine.density = density;
@@ -421,9 +421,9 @@ inline Element illuminatedPanel(const Palette& pal) {
  *  0..1 how deep the valleys cut.
  *
  *  The star inscribed in the box, with the valleys at `1 - depth` of the
- *  outer radius — `geometry::shapes::Star` says exactly that, and says it
+ *  outer radius — `geometry::shapes::star()` says exactly that, and says it
  *  once for every consumer. */
-inline std::function<SkPath(SkSize)> starburstOutline(int spikes, float depth) {
+inline geometry::shapes::Radial starburstOutline(int spikes, float depth) {
   return geometry::shapes::star(spikes, 1.0f - depth);
 }
 

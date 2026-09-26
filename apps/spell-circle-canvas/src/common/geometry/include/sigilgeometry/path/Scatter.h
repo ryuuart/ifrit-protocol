@@ -152,12 +152,13 @@ struct Distribution {
 [[nodiscard]] std::vector<glm::vec2> sample(const Region& region,
                                             const Distribution& distribution);
 
-/** @name The stock spellings
- *  Each is one `Distribution` with its props set, named for what a
- *  caller asks for. They add no behaviour: anything one of them spells
- *  can be spelled by setting the same fields, and a caller that wants to
- *  vary a scatter takes the value one of these answers and edits it.
- *  @{ */
+/** THE STOCK SPELLINGS of a distribution. Each is one `Distribution`
+ *  with its props set, named for what a caller asks for. They add no
+ *  behaviour: anything one of them spells can be spelled by setting the
+ *  same fields, and a caller that wants to vary a scatter takes the value
+ *  one of these answers and edits it. `path::points` with a `Pattern` is
+ *  the front door over them. */
+namespace distribution {
 
 /** `count` independent draws over the region. */
 [[nodiscard]] Distribution uniform(int count, uint64_t seed = 1);
@@ -172,6 +173,6 @@ struct Distribution {
 /** The same lattice with each point moved inside its own cell. */
 [[nodiscard]] Distribution jittered(float spacing, uint64_t seed = 1,
                                     float jitter = 1.0f);
-/** @} */
+}  // namespace distribution
 
 }  // namespace sigil::geometry::path

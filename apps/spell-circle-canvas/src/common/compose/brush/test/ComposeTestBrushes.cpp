@@ -10,7 +10,7 @@
 
 namespace {
 
-Element shapedPanel(std::function<SkPath(SkSize)> outline, Decoration dec) {
+Element shapedPanel(Shape outline, Decoration dec) {
   return box().children({box()
                              .width(100)
                              .height(100)

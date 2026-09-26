@@ -45,15 +45,16 @@ arc.
 
 ## The shape value
 
-`sigil::geometry::shapes::ArcsShape` takes its frame from the laid-out
-box — the same rule as `ticks` and `chords`: centre at the box centre,
-radius half the shorter side, and the `conventions` frame's own centre
-and radius ignored. Fully comparable, since `Arcs` has no callable
-member.
+`arcs(a, conventions)` is a `shapes::Radial` that takes its frame from
+the laid-out box — the same rule as `ticks` and `chords`: centre at the
+box centre, radius half the shorter side, and the `conventions` frame's
+own centre and radius ignored. Fully comparable, since `Arcs` has no
+callable member. `sigil::geometry::shapes::radialOf` is the conversion
+to the general options, a segment mark at every division.
 
 ## See also
 
-- `kit/Divisions.h` — the header: `Arcs`, `ArcsShape`, `Ticks`,
-  `Chords`, `Span`
+- `kit/Divisions.h` — the header: `Arcs`, `Ticks`, `Chords`, `Span`,
+  `radialOf`
 - [Ticks](value:sigil::geometry::shapes::Ticks) — the straight sibling,
   and where the one-path rule is stated

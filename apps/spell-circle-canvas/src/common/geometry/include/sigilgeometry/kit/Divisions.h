@@ -5,14 +5,17 @@
  *
  * A figure's divisions as ONE path with N contours.
  *
- * Three generators, one idea: emit N marks into a single outline rather
- * than N drawn things. `ticks()` walks a division count around a
- * `PolarFrame`; `arcs()` walks the same count as CLOSED segments of the
- * ring itself; `chords()` walks a polygon's sides.
+ * Three stock values over `radial`, one idea: emit N marks into a single
+ * outline rather than N drawn things. `ticks()` walks a division count
+ * around a `PolarFrame`; `arcs()` walks the same count as CLOSED segments
+ * of the ring itself; `chords()` walks a polygon's sides. Each has a box
+ * form — a `Radial` whose frame comes from the box it is asked for — and
+ * a frame form, the outline drawn on a frame the caller places.
  */
 
-#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Radial.h>
 #include <sigilgeometry/path/Frame.h>
+#include <sigilgeometry/path/Radial.h>
 
 #include <algorithm>
 #include <functional>
@@ -82,35 +85,23 @@ struct Ticks {
   }
 };
 
-/** The ladder as a path in the FRAME's parent space (absolute coordinates:
- *  `frame.centre` is where it says it is). */
+/** The ladder as an outline in the FRAME's parent space (absolute
+ *  coordinates: `frame.centre` is where it says it is). */
 path::Outline ticks(const path::PolarFrame& frame, const Ticks& t);
 
-/** THE LADDER AS A SHAPE VALUE, with the frame taken from the node's own
- *  laid-out box: centre at the box centre, radius half the SHORTER side.
- *  `conventions` therefore supplies ONLY `zero`, `sense` and `originDeg`
- *  — its `centre` and `radius` are overwritten, so a frame passed here
- *  does not place the ladder. Comparable, so the node prunes, unless the
- *  Ticks carries a `classify` callable.
+/** The ladder as general options: a `radial` with no joining and a mark
+ *  at every division, cycled so every `longEvery`-th is the long one. */
+path::RadialOptions radialOf(const Ticks& t, path::PolarFrame conventions = {});
+
+/** THE LADDER AS A SHAPE VALUE, with the frame taken from the box it is
+ *  asked for: centre at the box centre, radius half the SHORTER side.
+ *  @p conventions therefore supplies ONLY `zero`, `sense` and
+ *  `originDeg`. Comparable, so the node prunes, unless @p t carries a
+ *  `classify` callable.
  *  @trap Half the shorter side keeps a ladder on an oblong box a circle
  *  rather than an ellipse `PolarFrame::fraction()` no longer matches. */
-struct TicksShape {
-  Ticks t;
-  path::PolarFrame conventions;
-  bool operator==(const TicksShape&) const = default;
-  path::Outline outline(glm::vec2 size) const {
-    path::PolarFrame f = conventions;
-    f.centre = {size.x * 0.5f, size.y * 0.5f};
-    f.radius = std::min(size.x, size.y) * 0.5f;
-    return ticks(f, t);
-  }
-};
-
-/** The tick marks @p t describes, as a shape value that takes its
- *  centre and radius from the box it is asked for; @p conventions
- *  supplies only the angle zero and sense. */
-inline TicksShape ticks(const Ticks& t, path::PolarFrame conventions = {}) {
-  return TicksShape{t, conventions};
+inline Radial ticks(const Ticks& t, path::PolarFrame conventions = {}) {
+  return shapes::radial(t.divisions, radialOf(t, conventions));
 }
 
 // ---------------------------------------------------------------------------
@@ -147,30 +138,18 @@ struct Arcs {
   bool operator==(const Arcs&) const = default;
 };
 
-/** The segments as a path in the FRAME's parent space. */
+/** The segments as an outline in the FRAME's parent space. */
 path::Outline arcs(const path::PolarFrame& frame, const Arcs& a);
 
-/** `arcs` as a SHAPE VALUE, frame from the laid-out box — the same rule
- *  as `ticks` and `chords`: centre at the box centre, radius half the
- *  shorter side, and the `conventions` frame's own centre and radius
- *  ignored. Fully comparable, since `Arcs` has no callable member. */
-struct ArcsShape {
-  Arcs a;
-  path::PolarFrame conventions;
-  bool operator==(const ArcsShape&) const = default;
-  path::Outline outline(glm::vec2 size) const {
-    path::PolarFrame f = conventions;
-    f.centre = {size.x * 0.5f, size.y * 0.5f};
-    f.radius = std::min(size.x, size.y) * 0.5f;
-    return arcs(f, a);
-  }
-};
+/** The segments as general options: a `radial` with no joining and a
+ *  segment mark at every division. */
+path::RadialOptions radialOf(const Arcs& a, path::PolarFrame conventions = {});
 
 /** The ring segments @p a describes, as a shape value that takes its
- *  centre and radius from the box it is asked for; @p conventions
- *  supplies only the angle zero and sense. */
-inline ArcsShape arcs(const Arcs& a, path::PolarFrame conventions = {}) {
-  return ArcsShape{a, conventions};
+ *  centre and radius from the box it is asked for — the same rule as
+ *  `ticks`; @p conventions supplies only the angle zero and sense. */
+inline Radial arcs(const Arcs& a, path::PolarFrame conventions = {}) {
+  return shapes::radial(a.divisions, radialOf(a, conventions));
 }
 
 // ---------------------------------------------------------------------------
@@ -210,28 +189,15 @@ struct Chords {
  *  side, or joined into closed contours when @p c asks. */
 path::Outline chords(const path::PolarFrame& frame, const Chords& c);
 
-/** `chords` as a SHAPE VALUE, frame from the laid-out box — same rule as
- *  `ticks`: centre at the box centre, radius half the shorter side, and
- *  the `conventions` frame's own centre and radius ignored. Fully
- *  comparable, since Chords has no callable member, so it always
- *  prunes. */
-struct ChordsShape {
-  Chords c;
-  path::PolarFrame conventions;
-  bool operator==(const ChordsShape&) const = default;
-  path::Outline outline(glm::vec2 size) const {
-    path::PolarFrame f = conventions;
-    f.centre = {size.x * 0.5f, size.y * 0.5f};
-    f.radius = std::min(size.x, size.y) * 0.5f;
-    return chords(f, c);
-  }
-};
+/** The chords as general options: a `radial` joined chord by chord, or
+ *  into loops when `closed`. */
+path::RadialOptions radialOf(const Chords& c, path::PolarFrame conventions = {});
 
 /** The same chords as a shape value that takes its centre and radius
  *  from the box it is asked for; @p conventions supplies only the angle
  *  zero and sense. */
-inline ChordsShape chords(const Chords& c, path::PolarFrame conventions = {}) {
-  return ChordsShape{c, conventions};
+inline Radial chords(const Chords& c, path::PolarFrame conventions = {}) {
+  return shapes::radial(std::max(2, c.sides), radialOf(c, conventions));
 }
 
 }  // namespace sigil::geometry::shapes

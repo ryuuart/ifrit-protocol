@@ -13,6 +13,7 @@
 #include "Figures.h"
 
 using namespace sigil::geometry::path;
+using namespace sigil::geometry::path::distribution;
 using sigil::geometry::path::figures::rippledRing;
 
 namespace {

@@ -3,18 +3,22 @@
 /** @file
  * @ingroup geometry-kit
  *
- * The closed silhouettes: an SVG path, the polygon, star, circle,
- * annulus, squircle, blob, arc, sector, parallelogram and arrow, every
- * one a comparable value with an `outline(size)`.
+ * The closed silhouettes: the stock values over `radial` and `ellipse`
+ * (polygon, star, circle, annulus, ring, squircle, arc, sector), an SVG
+ * outline fitted to the box, and the one-offs that are no setting of
+ * either — blob, parallelogram, arrow and chevron — every one a
+ * comparable value with an `outline(size)`.
  */
 
 #include <sigilcore/callable/Callable.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <glm/vec2.hpp>
 #include <string_view>
 
+#include "sigilgeometry/kit/Radial.h"
 #include "sigilgeometry/path/Outline.h"
 
 /** THE SHAPE VOCABULARY: closed silhouettes, curve families, corner
@@ -34,34 +38,21 @@ namespace sigil::geometry::shapes {
  *  curve has to start somewhere; promote it to a value once it settles. */
 using OutlineFunction = sigil::core::Callable<path::Outline(glm::vec2)>;
 
-/** An outline from an SVG path-d string — trace a reference silhouette
- *  in any vector tool, paste the @p d, done. The path's bounds map onto
- *  the node's box (stretch by default; @p preserveAspect fits and
- *  centres instead). Parsed ONCE at call time; the parsed outline is a
- *  comparable value, so an svg() shape prunes like any generator. */
-struct Svg {
-  path::Outline parsed;
-  bool preserveAspect = false;
-  bool operator==(const Svg&) const = default;
-  path::Outline outline(glm::vec2 size) const;
-};
-
-Svg svg(std::string_view data, bool preserveAspect = false);
+/** An outline from SVG path data — trace a reference silhouette in any
+ *  vector tool, paste the @p data, done — fitted to the box: stretched,
+ *  or with @p preserveAspect fitted and centred. Parsed ONCE at call
+ *  time, so an svg() shape prunes like any generator. */
+inline Fitted svg(std::string_view data, bool preserveAspect = false) {
+  return fitted(path::Outline::svg(data), {.preserveAspect = preserveAspect});
+}
 
 // ---------------------------------------------------------------------------
-// Generators
+// Stock values over `radial` and `ellipse`
 
-/** Regular @p sides -gon inscribed in the box, first vertex up unless
- *  rotated; @p rotationDeg spins the whole figure clockwise. */
-struct Polygon {
-  int sides = 3;
-  float rotationDeg = 0.0f;
-  bool operator==(const Polygon&) const = default;
-  path::Outline outline(glm::vec2 size) const;
-};
-
-inline Polygon polygon(int sides, float rotationDeg = 0.0f) {
-  return Polygon{sides, rotationDeg};
+/** Regular @p sides -gon inscribed in the box, first vertex up;
+ *  @p rotationDegrees spins the whole figure clockwise. */
+inline Radial polygon(int sides, float rotationDegrees = 0.0f) {
+  return radial(std::max(sides, 3), {.fromDegrees = rotationDegrees});
 }
 
 /** A @p points -pointed star inscribed in the box (first point up); inner
@@ -72,74 +63,70 @@ inline Polygon polygon(int sides, float rotationDeg = 0.0f) {
  *  stars almost never are: they narrow fast off the hub and then run out
  *  as needles. Roughly 0.10–0.25 reads as engraved; a negative value
  *  bulges the arms instead, which is the compass-rose look. */
-struct Star {
-  int points = 5;
-  float innerRatio = 0.5f;
-  float waist = 0.0f;
-  bool operator==(const Star&) const = default;
-  path::Outline outline(glm::vec2 size) const;
-};
-
-inline Star star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
-  return Star{points, innerRatio, waist};
+inline Radial star(int points, float innerRatio = 0.5f, float waist = 0.0f) {
+  return radial(std::max(points, 2) * 2,
+                {.radii = {1.0f, innerRatio}, .waist = waist});
 }
 
 /** THE CIRCLE INSCRIBED IN THE BOX — an ellipse on a box that is not
- *  square, unless `uniform` asks for the largest true circle that fits
- *  — with a chosen WINDING and start point, as exact conics. `inset`
- *  pulls it concentrically inside the box in px, for a ring that must
- *  stand clear of the edge.
- *  @trap The winding decides which way glyphs on this baseline face,
- *  and `startIndex` is where an arc-length fraction is measured from:
- *  both move every label placed by fraction. */
-struct Circle {
-  path::Winding winding = path::Winding::OutersClockwise;
-  unsigned startIndex = 1;
-  float inset = 0.0f;
-  bool uniform = false;
-  bool operator==(const Circle&) const = default;
-  path::Outline outline(glm::vec2 size) const;
-};
-
-inline Circle circle() { return Circle{}; }
-inline Circle circle(float inset) { return Circle{.inset = inset}; }
-inline Circle circle(path::Winding winding, unsigned startIndex = 1,
-                     float inset = 0.0f) {
-  return Circle{winding, startIndex, inset};
+ *  square, unless `uniform` asks for the largest true circle that fits. */
+inline Ellipse circle() { return ellipse(); }
+/** The circle pulled @p inset px concentrically inside the box, for a
+ *  ring that must stand clear of the edge. */
+inline Ellipse circle(float inset) { return ellipse({.inset = inset}); }
+/** The circle drawn with a chosen WINDING and start point.
+ *  @trap The winding decides which way glyphs on this baseline face, and
+ *  @p start is where an arc-length fraction is measured from: both move
+ *  every label placed by fraction. */
+inline Ellipse circle(path::Winding winding, unsigned start = 1,
+                      float inset = 0.0f) {
+  return ellipse({.inset = inset, .winding = winding, .start = start});
 }
 
 /** A RING: the inscribed circle with a concentric hole at @p innerRatio
- *  of the radius, even-odd so it fills as an annulus. @p thickness is
- *  the same ring said the other way about, its own width in PIXELS,
- *  which is what a ring keeps when its box does not. @p dot puts a
- *  concentric disc of that pixel radius at the centre, as ONE outline
- *  with the ring so the pair fills and animates together.
- *  @silent @p innerRatio is read when @p thickness is nonzero: the
- *  thickness decides the hole instead. */
-struct Annulus {
-  float innerRatio = 0.6f;
-  float thickness = 0.0f;
-  float dot = 0.0f;
-  bool operator==(const Annulus&) const = default;
-  path::Outline outline(glm::vec2 size) const;
-};
+ *  of the radius, even-odd so it fills as an annulus. */
+inline Ellipse annulus(float innerRatio = 0.6f) {
+  return ellipse({.inner = innerRatio});
+}
 
-inline Annulus annulus(float innerRatio = 0.6f) { return Annulus{innerRatio}; }
-
-inline Annulus ring(float thickness, float dot = 0.0f) {
-  return Annulus{.thickness = thickness, .dot = dot};
+/** The same ring said the other way about: its own width in PIXELS,
+ *  which is what a ring keeps when its box does not, with a concentric
+ *  disc of @p dot px radius at the centre as ONE outline with it. */
+inline Ellipse ring(float thickness, float dot = 0.0f) {
+  return ellipse({.thickness = thickness, .dot = dot});
 }
 
 /** Superellipse |x|^e + |y|^e = 1 — the squircle. @p exponent 2 is an
- *  ellipse; 4–5 is the familiar app-icon softness; large values
- *  approach the rect. */
-struct Squircle {
-  float exponent = 4.0f;
-  bool operator==(const Squircle&) const = default;
-  path::Outline outline(glm::vec2 size) const;
-};
+ *  ellipse; 4–5 is the familiar app-icon softness; large values approach
+ *  the rect. */
+inline Ellipse squircle(float exponent = 4.0f) {
+  return ellipse({.exponent = exponent});
+}
 
-inline Squircle squircle(float exponent = 4.0f) { return Squircle{exponent}; }
+/** A circular arc inscribed in the box, starting at @p startDegrees
+ *  (0° = +x, clockwise) and sweeping @p sweepDegrees. The outline begins
+ *  at the arc's own start, so an arc-length reveal needs no wrap
+ *  arithmetic. Stroke it: an open arc has no fillable area. */
+inline Ellipse arc(float startDegrees, float sweepDegrees = 359.9f) {
+  return ellipse({.fromDegrees = startDegrees,
+                  .sweepDegrees = sweepDegrees,
+                  .close = Close::Open});
+}
+
+/** A CLOSED, fillable circular sector inscribed in the box — the arc plus
+ *  its two radii, or with @p innerRatio > 0 the annular segment between
+ *  two radii (a donut slice): pie and polar-area charts, cooldown sweeps,
+ *  radial menus, gauge fills. Angles as `arc()`'s. */
+inline Ellipse sector(float startDegrees, float sweepDegrees,
+                      float innerRatio = 0.0f) {
+  return ellipse({.fromDegrees = startDegrees,
+                  .sweepDegrees = sweepDegrees,
+                  .close = Close::Pie,
+                  .inner = innerRatio});
+}
+
+// ---------------------------------------------------------------------------
+// The one-offs
 
 namespace detail {
 /** The one polyline sampler behind every parametric curve: evaluates
@@ -166,42 +153,6 @@ struct Blob {
 
 inline Blob blob(uint32_t seed, float amplitude = 0.18f, int lobes = 8) {
   return Blob{seed, amplitude, lobes};
-}
-
-/** A circular arc inscribed in the box, STARTING at @p startDeg (screen
- *  convention: 0° = +x, clockwise) and sweeping @p sweepDeg. The
- *  path begins at the arc's own start, so an arc-length reveal such as
- *  `spans::upTo(sweep/360)` needs no wrap arithmetic. Stroke it: an open
- *  arc has no fillable area. */
-struct Arc {
-  float startDeg = 0.0f;
-  float sweepDeg = 359.9f;
-  bool operator==(const Arc&) const = default;
-  path::Outline outline(glm::vec2 size) const;
-};
-
-inline Arc arc(float startDeg, float sweepDeg = 359.9f) {
-  return Arc{startDeg, sweepDeg};
-}
-
-/** A CLOSED, fillable circular sector inscribed in the box — the arc plus
- *  its two radii, or with @p innerRatio > 0 the annular segment between
- *  two radii (a donut slice). `arc()` above is deliberately open and
- *  cannot be filled; this is the one to reach for when the wedge itself
- *  is the mark: pie and polar-area charts (Nightingale's coxcomb),
- *  cooldown sweeps, radial menus, gauge fills, compass roses.
- *
- *  Angles follow the screen convention: 0° = +x, sweeping clockwise. */
-struct Sector {
-  float startDeg = 0.0f;
-  float sweepDeg = 90.0f;
-  float innerRatio = 0.0f;
-  bool operator==(const Sector&) const = default;
-  path::Outline outline(glm::vec2 size) const;
-};
-
-inline Sector sector(float startDeg, float sweepDeg, float innerRatio = 0.0f) {
-  return Sector{startDeg, sweepDeg, innerRatio};
 }
 
 /** A parallelogram leaning by @p skewDeg: the top edge shifts by

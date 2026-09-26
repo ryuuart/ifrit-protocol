@@ -41,9 +41,16 @@ path::Outline samplePolyline(const std::function<glm::vec2(float)>& f,
   return path::fromSk(b.detach());
 }
 
-path::Outline roundCorners(const path::Outline& outline, float radius) {
-  return path::fromSk(
-      path::operations::roundCorners(path::toSk(outline), radius));
+path::Outline cornerOutline(const path::Outline& outline, float radius,
+                            const CornerOptions& options) {
+  const SkPath source = path::toSk(outline);
+  if (options.shape == CornerShape::Bevel)
+    return path::fromSk(path::operations::chamferCorners(source, radius));
+  return path::fromSk(path::operations::roundCorners(source, radius));
+}
+
+path::Outline translated(const path::Outline& outline, glm::vec2 offset) {
+  return path::fromSk(path::toSk(outline).makeOffset(offset.x, offset.y));
 }
 
 path::Outline shape(const path::Outline& outline, const path::Shaper& shaper) {
@@ -51,123 +58,6 @@ path::Outline shape(const path::Outline& outline, const path::Shaper& shaper) {
 }
 
 }  // namespace detail
-
-Svg svg(std::string_view data, bool preserveAspect) {
-  return Svg{path::Outline::svg(data), preserveAspect};
-}
-
-path::Outline Svg::outline(glm::vec2 size) const {
-  const SkPath source = path::toSk(parsed);
-  const SkRect b = source.getBounds();
-  if (b.isEmpty() || size.x <= 0 || size.y <= 0) return parsed;
-  const SkRect box = SkRect::MakeWH(size.x, size.y);
-  const SkMatrix m =
-      preserveAspect
-          ? SkMatrix::RectToRect(b, box, SkMatrix::kCenter_ScaleToFit)
-          : SkMatrix::RectToRect(b, box);
-  return path::fromSk(source.makeTransform(m));
-}
-
-path::Outline Polygon::outline(glm::vec2 size) const {
-  const SkSize s = path::toSkSize(size);
-  const int n = std::max(sides, 3);
-  const float cx = s.width() / 2, cy = s.height() / 2;
-  const float base = rotationDeg * SK_FloatPI / 180 - SK_FloatPI / 2;
-  SkPathBuilder b;
-  for (int i = 0; i < n; ++i) {
-    const float a = base + i * (2 * SK_FloatPI / n);
-    const SkPoint p{cx + cx * std::cos(a), cy + cy * std::sin(a)};
-    if (i == 0)
-      b.moveTo(p);
-    else
-      b.lineTo(p);
-  }
-  b.close();
-  return path::fromSk(b.detach());
-}
-
-path::Outline Star::outline(glm::vec2 size) const {
-  const SkSize s = path::toSkSize(size);
-  const int n = std::max(points, 2) * 2;
-  const float cx = s.width() / 2, cy = s.height() / 2;
-  auto vertex = [&](int i) {
-    const float r = (i % 2 == 0) ? 1.0f : innerRatio;
-    const float a = -SK_FloatPI / 2 + i * (2 * SK_FloatPI / n);
-    return SkPoint{cx + cx * r * std::cos(a), cy + cy * r * std::sin(a)};
-  };
-  SkPathBuilder b;
-  b.moveTo(vertex(0));
-  for (int i = 0; i < n; ++i) {
-    const SkPoint from = vertex(i), to = vertex((i + 1) % n);
-    if (waist == 0.0f) {
-      b.lineTo(to);
-      continue;
-    }
-    // Pull the edge's midpoint toward the centre along its own radius,
-    // so both edges of an arm pinch symmetrically and the tip stays put.
-    const SkPoint mid{(from.fX + to.fX) * 0.5f, (from.fY + to.fY) * 0.5f};
-    const float dx = mid.fX - cx, dy = mid.fY - cy;
-    b.quadTo({mid.fX - dx * waist, mid.fY - dy * waist}, to);
-  }
-  b.close();
-  return path::fromSk(b.detach());
-}
-
-path::Outline Circle::outline(glm::vec2 size) const {
-  const SkSize s = path::toSkSize(size);
-  SkRect r = SkRect::MakeWH(s.width(), s.height());
-  if (uniform) {
-    const float side = std::min(s.width(), s.height());
-    r = SkRect::MakeXYWH((s.width() - side) * 0.5f, (s.height() - side) * 0.5f,
-                         side, side);
-  }
-  r.inset(inset, inset);
-  SkPathBuilder b;
-  b.addOval(r, path::toSk(winding), startIndex);
-  return path::fromSk(b.detach());
-}
-
-path::Outline Annulus::outline(glm::vec2 size) const {
-  const SkSize s = path::toSkSize(size);
-  const SkRect outer = SkRect::MakeWH(s.width(), s.height());
-  SkRect inner = outer;
-  if (thickness > 0) {
-    inner.inset(thickness, thickness);
-  } else {
-    const float r = std::clamp(innerRatio, 0.0f, 0.999f);
-    inner.inset(outer.width() * 0.5f * (1 - r),
-                outer.height() * 0.5f * (1 - r));
-  }
-  SkPathBuilder b;
-  b.setFillType(SkPathFillType::kEvenOdd);
-  b.addOval(outer);
-  // A hole with nothing left of it is no hole: an empty oval adds no
-  // contour, and what stands is the disc.
-  if (!inner.isEmpty()) b.addOval(inner);
-  if (dot > 0) b.addCircle(outer.centerX(), outer.centerY(), dot);
-  return path::fromSk(b.detach());
-}
-
-path::Outline Squircle::outline(glm::vec2 size) const {
-  const SkSize s = path::toSkSize(size);
-  const float e = std::max(exponent, 0.5f);
-  const float cx = s.width() / 2, cy = s.height() / 2;
-  constexpr int kSegments = 96;
-  SkPathBuilder b;
-  for (int i = 0; i < kSegments; ++i) {
-    const float t = i * (2 * SK_FloatPI / kSegments);
-    const float c = std::cos(t), si = std::sin(t);
-    const float x = std::copysign(std::pow(std::abs(c), 2.0f / e), c);
-    const float y = std::copysign(std::pow(std::abs(si), 2.0f / e), si);
-    const SkPoint p{cx + cx * x, cy + cy * y};
-    if (i == 0)
-      b.moveTo(p);
-    else
-      b.lineTo(p);
-  }
-  b.close();
-  return path::fromSk(b.detach());
-}
 
 path::Outline Blob::outline(glm::vec2 size) const {
   const SkSize s = path::toSkSize(size);
@@ -194,38 +84,6 @@ path::Outline Blob::outline(glm::vec2 size) const {
                      p2.y() - (p3.y() - p1.y()) / 6.0f};
     b.cubicTo(c1, c2, p2);
   }
-  b.close();
-  return path::fromSk(b.detach());
-}
-
-path::Outline Arc::outline(glm::vec2 size) const {
-  const SkSize s = path::toSkSize(size);
-  SkPathBuilder b;
-  b.addArc(SkRect::MakeWH(s.width(), s.height()), startDeg,
-           std::min(sweepDeg, 359.9f));
-  return path::fromSk(b.detach());
-}
-
-path::Outline Sector::outline(glm::vec2 size) const {
-  const SkSize s = path::toSkSize(size);
-  const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-  // arcTo swallows a full turn, so an unclamped sector(start, 360,
-  // inner) — a gauge's annular TRACK, the most obvious call there is —
-  // draws nothing at all. Clamped here rather than at every call site.
-  const float sweep = std::clamp(sweepDeg, -359.99f, 359.99f);
-  const float inner = std::clamp(innerRatio, 0.0f, 0.999f);
-  const SkRect outerBox = SkRect::MakeWH(s.width(), s.height());
-  SkPathBuilder b;
-  if (inner <= 0.0f) {
-    b.moveTo(cx, cy);
-    b.arcTo(outerBox, startDeg, sweep, false);
-    b.close();
-    return path::fromSk(b.detach());
-  }
-  const SkRect innerBox = SkRect::MakeXYWH(
-      cx - cx * inner, cy - cy * inner, s.width() * inner, s.height() * inner);
-  b.arcTo(outerBox, startDeg, sweep, true);
-  b.arcTo(innerBox, startDeg + sweep, -sweep, false);
   b.close();
   return path::fromSk(b.detach());
 }

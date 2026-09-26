@@ -113,7 +113,7 @@ Rotation Rotation::zyz(float aDeg, float bDeg, float cDeg) {
 
 bool Projection::azimuthal() const {
   return scheme == Scheme::Stereographic || scheme == Scheme::Orthographic ||
-         scheme == Scheme::AzimuthalEquidistant;
+         scheme == Scheme::AzimuthalEquidistant || scheme == Scheme::Gnomonic;
 }
 
 float Projection::radiusAt(float arcDeg) const {
@@ -127,6 +127,10 @@ float Projection::radiusAt(float arcDeg) const {
     }
     case Scheme::Orthographic:
       return scale * std::sin(radians(arcDeg));
+    case Scheme::Gnomonic:
+      // The horizon is infinitely far out, so the arc is held just short
+      // of the quarter turn that puts it there.
+      return scale * std::tan(std::clamp(radians(arcDeg), -1.5607f, 1.5607f));
     case Scheme::AzimuthalEquidistant:
     case Scheme::Equirectangular:
       return scale * radians(arcDeg);
@@ -143,6 +147,8 @@ float Projection::arcAtRadius(float radius) const {
       return degrees(2.0f * std::atan(radius / (2.0f * scale)));
     case Scheme::Orthographic:
       return degrees(std::asin(std::clamp(radius / scale, -1.0f, 1.0f)));
+    case Scheme::Gnomonic:
+      return degrees(std::atan(radius / scale));
     case Scheme::AzimuthalEquidistant:
     case Scheme::Equirectangular:
       return degrees(radius / scale);
@@ -232,6 +238,45 @@ Projection Projection::centredOn(Spherical newCentre) const {
   out.centre = newCentre;
   return out;
 }
+
+namespace projection {
+
+namespace {
+Projection stock(Scheme scheme, const ProjectionOptions& options) {
+  return {.scheme = scheme,
+          .centre = options.centre,
+          .scale = options.scale,
+          .rollDeg = options.rollDegrees,
+          .vantage = options.vantage};
+}
+}  // namespace
+
+Projection stereographic(ProjectionOptions options) {
+  return stock(Scheme::Stereographic, options);
+}
+Projection gnomonic(ProjectionOptions options) {
+  return stock(Scheme::Gnomonic, options);
+}
+Projection orthographic(ProjectionOptions options) {
+  return stock(Scheme::Orthographic, options);
+}
+Projection azimuthalEquidistant(ProjectionOptions options) {
+  return stock(Scheme::AzimuthalEquidistant, options);
+}
+Projection equirectangular(ProjectionOptions options) {
+  return stock(Scheme::Equirectangular, options);
+}
+Projection mercator(ProjectionOptions options) {
+  return stock(Scheme::Mercator, options);
+}
+
+CustomProjection custom(std::string key,
+                        std::function<glm::vec2(Spherical)> forward,
+                        std::function<Spherical(glm::vec2)> inverse) {
+  return {std::move(key), std::move(forward), std::move(inverse)};
+}
+
+}  // namespace projection
 
 std::optional<PlaneCircle> circleThrough(glm::vec2 a, glm::vec2 b,
                                          glm::vec2 c) {

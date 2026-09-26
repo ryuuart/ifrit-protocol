@@ -4,6 +4,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilgeometry/kit/Generators.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilsketch/kit/Chart.h>
 
 #include <algorithm>
@@ -120,7 +121,7 @@ SkRect sectorBounds(double startDeg, double sweepDeg, double innerRatio) {
  *  node prunes only while the reconciler can prove the shape is the same
  *  one. */
 struct Wedge {
-  geometry::shapes::Sector sector;
+  geometry::shapes::Ellipse sector;
   /** The sector's own bounds in units of the outer radius, about the hub —
    *  which is what says where the hub stands in the box below. */
   SkRect unit{0, 0, 0, 0};
@@ -135,7 +136,7 @@ struct Wedge {
             : (unit.height() > 0 ? box.height() / unit.height() : 0.0f);
     // The generator strikes the sector from the middle of the box it is
     // given; this box's own middle is not the hub.
-    return sector.path(SkSize{2 * outer, 2 * outer})
+    return geometry::path::toSk(sector.outline({2 * outer, 2 * outer}))
         .makeTransform(SkMatrix::Translate(-unit.fLeft * outer - outer,
                                            -unit.fTop * outer - outer));
   }

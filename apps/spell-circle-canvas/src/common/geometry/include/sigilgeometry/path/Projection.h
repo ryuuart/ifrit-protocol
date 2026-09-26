@@ -19,7 +19,10 @@
 #include <glm/mat3x3.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <concepts>
+#include <functional>
 #include <optional>
+#include <string>
 
 namespace sigil::geometry::path {
 
@@ -117,6 +120,11 @@ enum class Scheme {
   /** Azimuthal, EQUIDISTANT: `r = k p`. Distance from the centre is read
    *  straight off the paper with a ruler, at every bearing. */
   AzimuthalEquidistant,
+  /** Azimuthal, from the sphere's CENTRE: `r = k tan p`. Every great
+   *  circle is a straight line on the paper — the sundial's hour lines and
+   *  the great-circle route drawn with a ruler. Only the near hemisphere
+   *  lands; the horizon runs away to infinity. */
+  Gnomonic,
   /** Cylindrical, EQUIDISTANT — the plate carrée: `x = k dlon`,
    *  `y = k dlat`. Both axes are rulers and nothing else is true. */
   Equirectangular,
@@ -237,5 +245,61 @@ struct Projection {
    *  which is where a scale or a handedness gets silently dropped. */
   Projection centredOn(Spherical newCentre) const;
 };
+
+/** A PROJECTION, as a seam: anything that lays a direction on the sphere
+ *  onto the plane with `at()` and reads a point back with `from()`. The
+ *  stock `Projection` value is one; `projection::custom` carries any pair
+ *  of functions through the same door, so a figure written against the
+ *  seam takes a projection nobody here has named. */
+template <typename P>
+concept ProjectionScheme = requires(const P& projection, Spherical direction,
+                                    glm::vec2 point) {
+  { projection.at(direction) } -> std::convertible_to<glm::vec2>;
+  { projection.from(point) } -> std::convertible_to<Spherical>;
+};
+
+/** The dials every stock projection shares. */
+struct ProjectionOptions {
+  /** The direction that lands at the origin of the plane. */
+  Spherical centre{};
+  /** Px per radian at the centre. */
+  float scale = 1;
+  /** A turn of the finished map, degrees counter-clockwise. */
+  float rollDegrees = 0;
+  Vantage vantage = Vantage::Inside;
+  bool operator==(const ProjectionOptions&) const = default;
+};
+
+/** A projection given as its two functions, comparable by @p key — the
+ *  author's contract is that one key always names one projection. */
+struct CustomProjection {
+  std::string key;
+  std::function<glm::vec2(Spherical)> forward;
+  std::function<Spherical(glm::vec2)> inverse;
+  glm::vec2 at(Spherical direction) const {
+    return forward ? forward(direction) : glm::vec2{0, 0};
+  }
+  Spherical from(glm::vec2 point) const {
+    return inverse ? inverse(point) : Spherical{};
+  }
+  bool operator==(const CustomProjection& other) const {
+    return key == other.key;
+  }
+};
+
+/** The stock projections, one per scheme, and the door for any other. */
+namespace projection {
+Projection stereographic(ProjectionOptions options = {});
+Projection gnomonic(ProjectionOptions options = {});
+Projection orthographic(ProjectionOptions options = {});
+Projection azimuthalEquidistant(ProjectionOptions options = {});
+Projection equirectangular(ProjectionOptions options = {});
+Projection mercator(ProjectionOptions options = {});
+/** Any projection: @p forward lays a direction on the plane and
+ *  @p inverse reads it back; @p key is its identity. */
+CustomProjection custom(std::string key,
+                        std::function<glm::vec2(Spherical)> forward,
+                        std::function<Spherical(glm::vec2)> inverse);
+}  // namespace projection
 
 }  // namespace sigil::geometry::path

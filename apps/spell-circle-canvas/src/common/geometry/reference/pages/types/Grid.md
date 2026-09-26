@@ -64,19 +64,20 @@ That is why it is hand-rolled: a unit map typically feeds `constexpr`
 canvas constants (a canvas width declared as so many artefact units),
 and a helper that cannot run at compile time cannot be used for those.
 
-`sigil::geometry::path::Grid::matrix` is the affine matrix, for handing
-a whole SkPath through in one go. It is NOT snapped — a matrix cannot
-round per-point, and pretending otherwise is how a "snapped" plate ends
-up half on the grid.
+`sigil::geometry::path::Grid::transform` is the affine map as a
+`path::Transform`, for carrying a whole outline through in one go. It is
+NOT snapped — a matrix cannot round per-point, and pretending otherwise
+is how a "snapped" plate ends up half on the grid.
 
 ## Rects and runs
 
-Both `sigil::geometry::path::Grid::rect` overloads answer a SORTED rect,
-so a flipped frame answers a rect and not an inside-out one: under a
-negative `yScale` the unit-space top is the canvas-space bottom, and
-every consumer of an SkRect reads left ≤ right and top ≤ bottom. The
-overload taking an SkRect maps it corner by corner, so a snapped grid
-keeps both edges on the grid rather than only the near one.
+Both `sigil::geometry::path::Grid::rect` overloads answer a SORTED
+rectangle, so a flipped frame answers a rectangle and not an inside-out
+one: under a negative `yScale` the unit-space top is the canvas-space
+bottom, and every consumer of a `path::Rect` reads its `min` as the top
+left. The overload taking a rectangle maps it corner by corner, so a
+snapped grid keeps both edges on the grid rather than only the near
+one.
 
 `sigil::geometry::path::Grid::map` carries a polyline from artefact
 units into canvas px, and `sigil::geometry::path::Grid::scaled` answers
@@ -85,6 +86,6 @@ the nested unit system.
 
 ## See also
 
-- `path/Frame.h` — the header: `Grid`, `PolarFrame`, `centred`
+- `path/Frame.h` — the header: `Grid`, `PolarFrame`
 - [PolarFrame](value:sigil::geometry::path::PolarFrame) — the polar
   frame beside this cartesian one

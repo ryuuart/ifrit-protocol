@@ -55,33 +55,63 @@ path::Outline outlineOf(const S& source, glm::vec2 size) {
 }
 
 namespace detail {
-path::Outline roundCorners(const path::Outline& outline, float radius);
 path::Outline shape(const path::Outline& outline, const path::Shaper& shaper);
+path::Outline translated(const path::Outline& outline, glm::vec2 offset);
 }  // namespace detail
 
-/** Wraps any silhouette so every sharp corner rounds to a consistent
- *  @p radius — the corner treatment for shapes that have no box corners:
- *  `rounded(star(5), 8)`. It holds the wrapped value rather than erasing
- *  it, so wrapping a generator gives a generator that compares by its
- *  parameters, and wrapping a bare callable gives something that compares
- *  to nothing — the same escape hatch the callable itself was. */
+/** How a corner treatment cuts a corner — CSS `corner-shape`'s words. */
+enum class CornerShape : uint8_t {
+  /** An arc of the radius. */
+  Round,
+  /** A straight cut of the radius along each leg. */
+  Bevel,
+};
+
+/** The dials of `cornered()` beyond the radius. */
+struct CornerOptions {
+  CornerShape shape = CornerShape::Round;
+  bool operator==(const CornerOptions&) const = default;
+};
+
+namespace detail {
+path::Outline cornerOutline(const path::Outline& outline, float radius,
+                            const CornerOptions& options);
+}  // namespace detail
+
+/** Wraps any silhouette so every sharp corner is treated by @p radius —
+ *  rounded, or cut straight — the corner treatment for shapes that have
+ *  no box corners: `cornered(star(5), 8)`, or `star(5).cornered(8)` on a
+ *  general shape. It holds the wrapped value rather than erasing it, so
+ *  wrapping a generator gives a generator that compares by its
+ *  parameters, and wrapping a bare callable gives something that
+ *  compares to nothing — the same escape hatch the callable itself
+ *  was. */
 template <OutlineSource Inner>
-struct Rounded {
+struct Cornered {
   Inner inner;
   float radius = 0.0f;
-  bool operator==(const Rounded& o) const
+  CornerOptions options{};
+  bool operator==(const Cornered& o) const
     requires Silhouette<Inner>
   {
-    return inner == o.inner && radius == o.radius;
+    return inner == o.inner && radius == o.radius && options == o.options;
   }
   path::Outline outline(glm::vec2 size) const {
-    return detail::roundCorners(outlineOf(inner, size), radius);
+    return detail::cornerOutline(outlineOf(inner, size), radius, options);
   }
 };
 
-template <typename Inner>
-Rounded<Inner> rounded(Inner shape, float radius) {
-  return Rounded<Inner>{std::move(shape), radius};
+/** @p shape with every corner treated by @p radius. */
+template <OutlineSource Inner>
+Cornered<Inner> cornered(Inner shape, float radius, CornerOptions options = {}) {
+  return Cornered<Inner>{std::move(shape), radius, options};
+}
+
+/** @p shape with every sharp corner rounded to @p radius — `cornered` at
+ *  its default. */
+template <OutlineSource Inner>
+Cornered<Inner> rounded(Inner shape, float radius) {
+  return Cornered<Inner>{std::move(shape), radius};
 }
 
 /** Wraps any silhouette so a @p shaper bends the outline it answers — a
@@ -118,6 +148,15 @@ struct Shaped {
 template <typename Inner, typename S>
 Shaped<Inner, S> shaped(Inner shape, S shaper) {
   return Shaped<Inner, S>{std::move(shape), std::move(shaper)};
+}
+
+/** @p shape drawn in the square of side `2 · radius` centred on
+ *  @p centre — a shape placed where a figure wants it rather than in a
+ *  box at the origin. */
+template <OutlineSource S>
+path::Outline at(const S& shape, glm::vec2 centre, float radius) {
+  const path::Outline drawn = outlineOf(shape, glm::vec2(2 * radius));
+  return detail::translated(drawn, centre - glm::vec2(radius));
 }
 
 // ---------------------------------------------------------------------------

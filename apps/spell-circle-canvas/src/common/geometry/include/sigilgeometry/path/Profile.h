@@ -18,11 +18,41 @@
 #include <any>
 #include <cmath>
 #include <concepts>
+#include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <utility>
 #include <vector>
 
 namespace sigil::geometry::path {
+
+/** One stop of a width law: the width across the spine at a place along
+ *  it. */
+struct Stop {
+  float along = 0;
+  float width = 0;
+  bool operator==(const Stop&) const = default;
+};
+
+/** What a width law does between two stops. */
+enum class Between : uint8_t {
+  /** Runs evenly from one width to the next. */
+  Linear,
+  /** Holds each width until the next stop — a measurement that changes
+   *  at a place. */
+  Step,
+  /** Eases from one to the next, level at both. */
+  Smooth,
+};
+
+/** How a law given as stops reads them. */
+struct ProfileOptions {
+  Between between = Between::Linear;
+  /** `along` is px of arc length from the spine's start rather than a
+   *  fraction of it — a law that must stay put under a reveal. */
+  bool inPixels = false;
+  bool operator==(const ProfileOptions&) const = default;
+};
 
 /** A PROFILE VALUE: `float across(float along) const`, `float max()
  *  const`, and EQUALITY, all three load-bearing. `along` is a fraction
@@ -73,6 +103,12 @@ class Profile {
    *  width a caller means by a bare number (`band(spine, 22)`). Positive
    *  is left of travel. */
   Profile(float px);  // NOLINT: implicit by design (band(spine, 22))
+  /** A law through @p stops, `{along, width}` in order along the spine:
+   *  `Profile{{0, 14}, {1, 4}}` narrows from 14 px to 4. Before the first
+   *  stop and after the last the width holds. */
+  Profile(std::initializer_list<Stop> stops, ProfileOptions options = {});
+  /** The same law from a run of stops held elsewhere. */
+  Profile(std::vector<Stop> stops, ProfileOptions options = {});
   Profile() = default;
 
   /** The law at `along`, IN THE PROFILE'S OWN KEY — a fraction of the
@@ -174,6 +210,40 @@ struct Steps {
   bool operator==(const Steps&) const = default;
 };
 
+/** A LAW THROUGH STOPS, keyed in the fraction of arc length: the width
+ *  at each stop, and between two stops what `between` says. */
+struct Stops {
+  std::vector<Stop> stops;
+  Between between = Between::Linear;
+  float across(float along) const {
+    if (stops.empty()) return 0.0f;
+    if (along <= stops.front().along) return stops.front().width;
+    for (size_t index = 1; index < stops.size(); ++index) {
+      const Stop& from = stops[index - 1];
+      const Stop& to = stops[index];
+      if (along > to.along) continue;
+      if (between == Between::Step) return from.width;
+      const float span = to.along - from.along;
+      float t = span > 0.0f ? (along - from.along) / span : 1.0f;
+      if (between == Between::Smooth) t = t * t * (3.0f - 2.0f * t);
+      return from.width + (to.width - from.width) * t;
+    }
+    return stops.back().width;
+  }
+  float max() const {
+    float widest = 0.0f;
+    for (const Stop& stop : stops) widest = std::max(widest, std::abs(stop.width));
+    return widest;
+  }
+  bool operator==(const Stops&) const = default;
+};
+
+/** The same law keyed in PX of arc length from the spine's start. */
+struct StopsInPixels : Stops {
+  static constexpr bool alongIsPx = true;
+  bool operator==(const StopsInPixels&) const = default;
+};
+
 /** The spine itself: a band of no width, which is the rail a stroke
  *  already draws. */
 inline Profile self() { return Profile(Self{}); }
@@ -193,5 +263,15 @@ inline Profile steps(std::vector<float> upTo, std::vector<float> widthsPx) {
 }  // namespace profile
 
 inline Profile::Profile(float px) : Profile(profile::Offset{px}) {}
+
+inline Profile::Profile(std::vector<Stop> stops, ProfileOptions options)
+    : Profile(options.inPixels
+                  ? Profile(profile::StopsInPixels{
+                        {std::move(stops), options.between}})
+                  : Profile(profile::Stops{std::move(stops), options.between})) {}
+
+inline Profile::Profile(std::initializer_list<Stop> stops,
+                        ProfileOptions options)
+    : Profile(std::vector<Stop>(stops), options) {}
 
 }  // namespace sigil::geometry::path

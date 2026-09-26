@@ -742,7 +742,7 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
   // kCCW is observably different. Anything that names a specific expected
   // position is asserting an inference about Skia rather than a property of
   // this library.
-  auto render = [](std::function<SkPath(SkSize)> path) {
+  auto render = [](Shape path) {
     auto host = std::make_unique<Host>(300, 300);
     host->composer.render(
         box().children({text(u8"RING INSCRIPTION", whiteStyle(30))

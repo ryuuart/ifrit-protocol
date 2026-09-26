@@ -244,7 +244,11 @@ void bindGeometryMesh(py::module_& module) {
                              {.depth = depth, .tolerance = tolerance});
       },
       py::arg("path"), py::arg("depth") = 24, py::arg("tolerance") = 0.25f);
-  meshes.def("revolve", &mesh::revolve, py::arg("profile"),
+  meshes.def("revolve",
+             static_cast<mesh::Mesh (*)(const std::vector<glm::vec2>&,
+                                        const mesh::RevolveOptions&)>(
+                 &mesh::revolve),
+             py::arg("profile"),
              py::arg("options") = mesh::RevolveOptions{});
   meshes.def(
       "revolve",

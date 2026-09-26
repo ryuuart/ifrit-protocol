@@ -65,17 +65,17 @@ sigil_doc_probes(geometry
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/KIT.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/DEVICE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Annulus.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Arcs.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/BillboardStyle.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Chords.md
-          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Circle.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Ellipse.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Cloud.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/CrossingRule.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Grid.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/PolarFrame.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Profile.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Projection.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Radial.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Rotation.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Roughen.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Strip.md

@@ -1,6 +1,7 @@
 /** @file
  * The two coordinate systems a figure is measured in — the polar frame
- * and the unit-map Grid — and the centred rect both are read through.
+ * and the unit-map Grid — and the centred rectangle both are read
+ * through.
  */
 
 #include <gtest/gtest.h>
@@ -13,12 +14,22 @@
 #include <vector>
 
 #include "sigilgeometry/path/Frame.h"
+#include "sigilgeometry/path/Skia.h"
 
 using namespace sigil::geometry::path;
 
 namespace {
 
-::testing::AssertionResult near(SkPoint a, SkPoint b, float tol) {
+::testing::AssertionResult near(glm::vec2 a, glm::vec2 b, float tol) {
+  const float d = std::hypot(a.x - b.x, a.y - b.y);
+  if (d <= tol) return ::testing::AssertionSuccess();
+  return ::testing::AssertionFailure()
+         << "(" << a.x << ", " << a.y << ") vs (" << b.x << ", " << b.y
+         << ") — " << d << " px apart, tolerance " << tol;
+}
+
+[[maybe_unused]] ::testing::AssertionResult near(SkPoint a, SkPoint b,
+                                                 float tol) {
   const float d = std::hypot(a.fX - b.fX, a.fY - b.fY);
   if (d <= tol) return ::testing::AssertionSuccess();
   return ::testing::AssertionFailure()
@@ -36,8 +47,8 @@ TEST(Frame, TheDefaultConventionIsTwelveOClockAndClockwise) {
   const PolarFrame f{.centre = {100, 100}, .radius = 50};
   const auto P = [](float thDeg, float rNorm) {
     const float a = thDeg * 0.01745329252f;
-    return SkPoint{100 + rNorm * 50 * std::sin(a),
-                   100 - rNorm * 50 * std::cos(a)};
+    return glm::vec2{100 + rNorm * 50 * std::sin(a),
+                     100 - rNorm * 50 * std::cos(a)};
   };
   for (float th : {0.0f, 37.5f, 90.0f, 180.0f, 271.25f, 359.0f})
     for (float r : {0.25f, 1.0f})
@@ -72,15 +83,15 @@ TEST(Frame, TheConventionIsCarriedByTheValueAndNotByTheCallSite) {
                          .sense = Sense::CW};
   // 0 degrees is due east in one and twelve o'clock in the other, and
   // that is the whole reason this is a value.
-  EXPECT_FLOAT_EQ(skiaLike.skiaDeg(0), 0.0f);
-  EXPECT_FLOAT_EQ(plate.skiaDeg(0), -90.0f);
+  EXPECT_FLOAT_EQ(skiaLike.screenDegrees(0), 0.0f);
+  EXPECT_FLOAT_EQ(plate.screenDegrees(0), -90.0f);
   // A counter-clockwise plate turns the other way from the same zero.
   const PolarFrame widdershins{.centre = {100, 100},
                                .radius = 50,
                                .zero = Zero::North,
                                .sense = Sense::CCW};
-  EXPECT_FLOAT_EQ(widdershins.skiaDeg(90), -180.0f);
-  EXPECT_FLOAT_EQ(plate.skiaDeg(90), 0.0f);
+  EXPECT_FLOAT_EQ(widdershins.screenDegrees(90), -180.0f);
+  EXPECT_FLOAT_EQ(plate.screenDegrees(90), 0.0f);
 }
 
 TEST(Frame, DegOfInvertsFractionThroughAnyOrigin) {
@@ -91,7 +102,7 @@ TEST(Frame, DegOfInvertsFractionThroughAnyOrigin) {
   for (float originDeg : {0.0f, -3.2f, 41.0f}) {
     const PolarFrame f{.centre = {0, 0}, .radius = 1, .originDeg = originDeg};
     for (float th : {5.0f, 37.5f, 120.0f, 180.0f, 359.0f}) {
-      const float back = f.degOf(f.fraction(th));
+      const float back = f.degreesOf(f.fraction(th));
       EXPECT_NEAR(std::fmod(back - th + 720.0f, 360.0f), 0.0f, 1e-2f)
           << "originDeg=" << originDeg << " th=" << th;
     }
@@ -121,9 +132,9 @@ TEST(Frame, DerivedFramesKeepEveryConventionTheyCameFrom) {
 
 TEST(Frame, BoxIsTheSquareASilhouetteInscribesItselfIn) {
   const PolarFrame f{.centre = {10, 20}, .radius = 80};
-  EXPECT_EQ(f.box(0.5f), SkRect::MakeXYWH(10 - 40, 20 - 40, 80, 80));
+  EXPECT_EQ(toSk(f.box(0.5f)), SkRect::MakeXYWH(10 - 40, 20 - 40, 80, 80));
   const PolarFrame off{.centre = {50, 60}, .radius = 20};
-  const SkRect b = off.box(0.5f);
+  const SkRect b = toSk(off.box(0.5f));
   EXPECT_FLOAT_EQ(b.width(), 20);
   EXPECT_FLOAT_EQ(b.height(), 20);
   EXPECT_FLOAT_EQ(b.centerX(), 50);
@@ -133,12 +144,12 @@ TEST(Frame, BoxIsTheSquareASilhouetteInscribesItselfIn) {
 TEST(Frame, PolarPointsLandWhereTheirDegreesSay) {
   const PolarFrame f{
       .centre = {0, 0}, .radius = 100, .zero = Zero::North, .sense = Sense::CW};
-  const SkPoint north = f.at(0, 1.0f);
-  EXPECT_NEAR(north.fX, 0.0f, 1e-3f);
-  EXPECT_NEAR(north.fY, -100.0f, 1e-3f);
-  const SkPoint east = f.at(90, 1.0f);
-  EXPECT_NEAR(east.fX, 100.0f, 1e-3f);
-  EXPECT_NEAR(east.fY, 0.0f, 1e-3f);
+  const glm::vec2 north = f.at(0, 1.0f);
+  EXPECT_NEAR(north.x, 0.0f, 1e-3f);
+  EXPECT_NEAR(north.y, -100.0f, 1e-3f);
+  const glm::vec2 east = f.at(90, 1.0f);
+  EXPECT_NEAR(east.x, 100.0f, 1e-3f);
+  EXPECT_NEAR(east.y, 0.0f, 1e-3f);
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +160,7 @@ TEST(Grid, ALengthTakesNoOriginAndAPositionDoes) {
   EXPECT_FLOAT_EQ(g.lengthX(10), 40);     // a WIDTH
   EXPECT_FLOAT_EQ(g.positionX(10), 140);  // a POSITION
   EXPECT_FLOAT_EQ(g.positionY(10), 90);
-  const SkRect r = g.rect(10, 10, 5, 5);
+  const SkRect r = toSk(g.rect(10, 10, 5, 5));
   EXPECT_FLOAT_EQ(r.fLeft, 140);
   EXPECT_FLOAT_EQ(r.width(), 20);
 }
@@ -177,7 +188,7 @@ TEST(Grid, SnapRoundsTheResultAndTwoGridsCoexist) {
 
 TEST(Grid, ARectIsSnappedAtBothEdges) {
   const Grid g{.scale = 1.0f, .snap = 4.0f};
-  const SkRect r = g.rect(SkRect::MakeLTRB(1, 1, 11, 11));
+  const SkRect r = toSk(g.rect(Rect{{1, 1}, {11, 11}}));
   EXPECT_FLOAT_EQ(r.fLeft, 0);
   EXPECT_FLOAT_EQ(r.fRight, 12);
 }
@@ -193,14 +204,12 @@ TEST(Grid, TheMathFrameCountsYUpward) {
   EXPECT_FLOAT_EQ(math.lengthX(10), 40);   // an x length is unsigned
   EXPECT_FLOAT_EQ(math.lengthY(10), -40);  // a y length up the page is negative
   // A rect comes back SORTED, so every consumer still reads top ≤ bottom.
-  const SkRect r = math.rect(0, 0, 5, 5);
+  const SkRect r = toSk(math.rect(0, 0, 5, 5));
   EXPECT_FLOAT_EQ(r.fTop, 180);
   EXPECT_FLOAT_EQ(r.fBottom, 200);
   EXPECT_FLOAT_EQ(r.height(), 20);
-  // The matrix carries the same map the per-point calls do.
-  SkPoint p = {10, 10};
-  math.matrix().mapPoints({&p, 1});
-  EXPECT_TRUE(near(p, {140, 160}, 1e-5f));
+  // The transform carries the same map the per-point calls do.
+  EXPECT_TRUE(near(math.transform()({10, 10}), {140, 160}, 1e-5f));
   // A nested unit system keeps the axis it was derived from.
   EXPECT_FLOAT_EQ(math.scaled(0.5f).yScale, -1.0f);
   EXPECT_FLOAT_EQ(math.scaled(0.5f).scale, 2.0f);
@@ -218,25 +227,22 @@ TEST(Grid, AnAnisotropicMapMeasuresItsTwoAxesDifferently) {
   EXPECT_FLOAT_EQ(plain.lengthY(3), 30);
 }
 
-TEST(Grid, APolylineAndAMatrixCarryTheSameMap) {
+TEST(Grid, APolylineAndATransformCarryTheSameMap) {
   const Grid g{.scale = 2.0f, .origin = {5, 5}};
-  const std::vector<SkPoint> units{{0, 0}, {1, 2}};
-  const std::vector<SkPoint> px = g.map(units);
+  const std::vector<glm::vec2> units{{0, 0}, {1, 2}};
+  const std::vector<glm::vec2> px = g.map(units);
   ASSERT_EQ(px.size(), 2u);
   EXPECT_TRUE(near(px[1], {7, 9}, 1e-5f));
-  SkPoint m = {1, 2};
-  g.matrix().mapPoints({&m, 1});
-  EXPECT_TRUE(near(m, {7, 9}, 1e-5f));
+  EXPECT_TRUE(near(g.transform()({1, 2}), {7, 9}, 1e-5f));
 }
 
 // ---------------------------------------------------------------------------
-// The centred rect — the peer of both, and the one place `x - w * 0.5f` is
-// written.
+// The centred rectangle — the peer of both, and the one place
+// `x - w * 0.5f` is written.
 
 TEST(Arrange, CentredBuildsTheRectAroundAPoint) {
-  const SkRect r = centred({100, 50}, 40, 20);
-  EXPECT_EQ(r, SkRect::MakeXYWH(80, 40, 40, 20));
-  EXPECT_EQ(centred({100, 50}, SkSize{40, 20}), r);
+  const Rect r = Rect::centredOn({100, 50}, {40, 20});
+  EXPECT_EQ(toSk(r), SkRect::MakeXYWH(80, 40, 40, 20));
 }
 
 }  // namespace

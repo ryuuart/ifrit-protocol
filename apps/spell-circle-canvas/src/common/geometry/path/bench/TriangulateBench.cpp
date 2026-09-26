@@ -14,6 +14,7 @@
 #include <vector>
 
 using namespace sigil::geometry::path;
+using namespace sigil::geometry::path::distribution;
 
 namespace {
 

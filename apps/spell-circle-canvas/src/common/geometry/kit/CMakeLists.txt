@@ -19,8 +19,10 @@
 # key.
 find_package(earcut_hpp CONFIG REQUIRED)
 sigil_library(SigilGeometryKit
-  SOURCES Divisions.cpp Hatches.cpp Sections.cpp Silhouettes.cpp Solids.cpp
-  HEADERS Corners.h Curves.h Divisions.h Generators.h Hatches.h Sections.h
+  SOURCES Divisions.cpp Hatches.cpp Radial.cpp Sections.cpp Silhouettes.cpp
+          Solids.cpp
+  HEADERS Corners.h Curves.h Divisions.h Generators.h Hatches.h Radial.h
+          Sections.h
           Shapers.h Silhouettes.h Solids.h
   PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCallable SigilCoreCompute
   PRIVATE earcut_hpp::earcut_hpp)

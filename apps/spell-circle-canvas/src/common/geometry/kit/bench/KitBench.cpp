@@ -13,7 +13,7 @@ namespace {
 constexpr glm::vec2 kBox{240, 180};
 
 void BM_GenerateAnalytic(benchmark::State& state) {
-  const Star value = star(7, 0.42f, 0.14f);
+  const Radial value = star(7, 0.42f, 0.14f);
   for (auto _ : state) benchmark::DoNotOptimize(value.outline(kBox));
 }
 BENCHMARK(BM_GenerateAnalytic);
@@ -55,7 +55,7 @@ BENCHMARK(BM_HatchOutline)
 // values, are they the same silhouette? It has to stay far cheaper than
 // generating one, or comparing to avoid generating is a loss.
 void BM_Compare(benchmark::State& state) {
-  const Star a = star(7, 0.42f, 0.14f), b = star(7, 0.42f, 0.14f);
+  const Radial a = star(7, 0.42f, 0.14f), b = star(7, 0.42f, 0.14f);
   for (auto _ : state) benchmark::DoNotOptimize(a == b);
 }
 BENCHMARK(BM_Compare);

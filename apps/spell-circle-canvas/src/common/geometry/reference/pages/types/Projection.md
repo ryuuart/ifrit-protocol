@@ -48,12 +48,27 @@ unit map.
 
 ## Why one value and not one function per map
 
-The five schemes differ in one line of arithmetic each and agree about
+The six schemes differ in one line of arithmetic each and agree about
 everything else — the centring, the handedness, the turn, the way back.
 A caller comparing two projections of the same sky (which is what asking
 "was this chart drawn on a cylinder or from a pole?" IS) needs them to
 be the same kind of thing, held in a variable and swapped.
 `sigil::geometry::path::Scheme` is therefore a field, not a name.
+
+## The seam, and a projection nobody here has named
+
+`sigil::geometry::path::ProjectionScheme` is the seam: anything with
+`at(direction)` laying a direction on the plane and `from(point)`
+reading it back. The stock `Projection` is one, and
+`sigil::geometry::path::projection::stereographic`, `gnomonic`,
+`orthographic`, `azimuthalEquidistant`, `equirectangular` and `mercator`
+make each over the shared `ProjectionOptions`. A figure written against
+the concept takes any other through
+`sigil::geometry::path::projection::custom`, which carries a forward
+and an inverse function and compares by the key it is given.
+`Scheme::Gnomonic` is the projection from the sphere's centre: every
+great circle is a straight line on the paper, which is what a sundial's
+hour lines and a great-circle route drawn with a ruler are.
 
 ## What the projection does not know
 
@@ -139,6 +154,7 @@ globe read the opposite ways round.
 ## See also
 
 - `path/Projection.h` — the header: `Projection`, `Scheme`, `Vantage`,
+  `ProjectionScheme`, `ProjectionOptions`, `CustomProjection`,
   `Spherical`, `Rotation`, `PlaneCircle`, `circleThrough`,
   `angleBetween`, `offsetFrom`
 - [Rotation](value:sigil::geometry::path::Rotation) — the sphere turned

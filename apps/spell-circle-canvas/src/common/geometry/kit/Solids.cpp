@@ -154,6 +154,18 @@ Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options) {
   return out;
 }
 
+Mesh extrude(const path::Outline& outline, float depth,
+             ExtrudeOptions options) {
+  options.depth = depth;
+  return extrude(outline, options);
+}
+
+Mesh revolve(const path::Outline& profile, const RevolveOptions& options) {
+  const std::vector<Polyline> contours = flatten(path::toSk(profile));
+  if (contours.empty()) return {};
+  return revolve(contours.front().points, options);
+}
+
 Mesh revolve(const std::vector<glm::vec2>& profile,
              const RevolveOptions& options) {
   Mesh out;

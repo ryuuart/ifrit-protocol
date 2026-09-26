@@ -48,15 +48,16 @@ which is the addressable-per-side form TextPath wants.
 
 ## The shape value
 
-`sigil::geometry::shapes::ChordsShape` takes its frame from the laid-out
-box — same rule as `ticks`: centre at the box centre, radius half the
-shorter side, and the `conventions` frame's own centre and radius
-ignored. Fully comparable, since `Chords` has no callable member, so it
-always prunes.
+`chords(c, conventions)` is a `shapes::Radial` that takes its frame
+from the laid-out box — same rule as `ticks`: centre at the box centre,
+radius half the shorter side, and the `conventions` frame's own centre
+and radius ignored. Fully comparable, since `Chords` has no callable
+member, so it always prunes: open chords are `Connect::Each`, closed ones
+`Connect::Loop`, and the step is the radial `skip`.
 
 ## See also
 
-- `kit/Divisions.h` — the header: `Chords`, `ChordsShape`, `Ticks`,
-  `Arcs`, `Span`
+- `kit/Divisions.h` — the header: `Chords`, `Ticks`, `Arcs`, `Span`,
+  `radialOf`
 - [Ticks](value:sigil::geometry::shapes::Ticks) — the radial ladder, and
   where the one-path rule is stated

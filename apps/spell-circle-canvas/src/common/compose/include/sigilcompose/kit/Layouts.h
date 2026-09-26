@@ -123,11 +123,11 @@ struct Radial {
  *  its x axis on the tangent, so a word set along a curve reads along
  *  it — as a paint-only turn over the child's own rotation.
  *
- *  The path is a callable and carries no equality, so an `AlongPath` is
- *  the escape hatch that never prunes; a container whose children hold
- *  still is memoised above it. */
+ *  The path is a `Shape` over the container's box — any `shapes::`
+ *  generator, or a callable — and a container whose children hold still
+ *  is memoised above it. */
 struct AlongPath {
-  core::Callable<SkPath(SkSize)> path;
+  Shape path;
   float startFraction = 0.0f;
   float endFraction = 1.0f;
   bool facing = false;
@@ -293,8 +293,9 @@ struct Jittered {
       const SkPoint cell = geometry::arrange::cellRect(
                                geometry::arrange::cellAt(i, cols), module)
                                .center();
-      SkRect r = geometry::path::centred({cell.fX + jx, cell.fY + jy},
-                                         in.childSizes[i]);
+      SkRect r = geometry::path::toSk(geometry::path::Rect::centredOn(
+          {cell.fX + jx, cell.fY + jy},
+          geometry::path::fromSk(in.childSizes[i])));
       // Clamp into the container so jitter never clips children away.
       r.offset(std::max(0.0f, -r.left()) -
                    std::max(0.0f, r.right() - in.container.width()),

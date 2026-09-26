@@ -46,6 +46,11 @@ struct ExtrudeOptions {
  *  UVs run u = contour arc length, v = depth. */
 Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options = {});
 
+/** The same solid @p depth thick — the call a figure lifted into a body
+ *  writes. */
+Mesh extrude(const path::Outline& outline, float depth,
+             ExtrudeOptions options = {});
+
 /** How `revolve()` lathes a profile: the number of steps around the
  *  axis and how far around to go. A partial sweep leaves the surface
  *  open at the seam; a full one duplicates the seam ring so the u
@@ -60,6 +65,11 @@ struct RevolveOptions {
  *  (radius, height). UVs: u around the sweep, v along the profile. */
 Mesh revolve(const std::vector<glm::vec2>& profile,
              const RevolveOptions& options = {});
+
+/** Lathe an outline's first contour, flattened, the same way: x is the
+ *  radius and y the height — `revolve(path::curveThrough(points))` is a
+ *  smooth vase where the points alone would be a faceted one. */
+Mesh revolve(const path::Outline& profile, const RevolveOptions& options = {});
 
 /** Which of a box's six faces to emit, and the colour the emitted ones
  *  carry.

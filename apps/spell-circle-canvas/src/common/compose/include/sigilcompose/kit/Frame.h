@@ -107,7 +107,7 @@ template <class FrameLike>
   requires std::same_as<std::remove_cvref_t<FrameLike>,
                         geometry::path::PolarFrame>
 inline Element disc(const FrameLike& frame, float rNorm = 1.0f) {
-  return disc(frame.centre, rNorm * frame.radius);
+  return disc(geometry::path::toSk(frame.centre), rNorm * frame.radius);
 }
 
 /** ONE CIRCLE STROKED AND NOT FILLED, of @p radius about @p centre: a

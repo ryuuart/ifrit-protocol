@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(
         Generator{"Paddle", arrow(0.2f, 0.3f, 0.5f)},
         Generator{"Chevron", chevron()},
         Generator{"ChevronWithBars", chevron(0.2f, 0.34f, 0.16f, 0.2f)},
-        Generator{"UniformCircle", Circle{.uniform = true}},
+        Generator{"UniformCircle", ellipse({.uniform = true})},
         Generator{"Ring", ring(6, 3)}, Generator{"Chamfered", chamfered(8)},
         Generator{"Notched", notched(10, 6)}),
     [](const ::testing::TestParamInfo<Generator>& info) {
@@ -430,7 +430,7 @@ TEST(Silhouettes, ACircleInABoxThatIsNotSquareIsAnOvalUnlessItIsAskedNotToBe) {
   EXPECT_NEAR(oval.width(), 200.0f, 1e-3f);
   EXPECT_NEAR(oval.height(), 120.0f, 1e-3f);
 
-  const SkRect round = drawnAt(Circle{.uniform = true}, kBox).getBounds();
+  const SkRect round = drawnAt(ellipse({.uniform = true}), kBox).getBounds();
   EXPECT_NEAR(round.width(), 120.0f, 1e-3f);
   EXPECT_NEAR(round.height(), 120.0f, 1e-3f);
   EXPECT_NEAR(round.centerX(), 100.0f, 1e-3f);
@@ -439,7 +439,7 @@ TEST(Silhouettes, ACircleInABoxThatIsNotSquareIsAnOvalUnlessItIsAskedNotToBe) {
   // On a square box the two are the same figure, which is why a caller
   // that never leaves square boxes never has to say which it wants.
   constexpr SkSize kSquare{120, 120};
-  EXPECT_EQ(drawnAt(circle(), kSquare), (drawnAt(Circle{.uniform = true}, kSquare)));
+  EXPECT_EQ(drawnAt(circle(), kSquare), (drawnAt(ellipse({.uniform = true}), kSquare)));
 }
 
 TEST(Silhouettes, ARingIsAsThickAsItIsToldAndCarriesItsOwnDot) {

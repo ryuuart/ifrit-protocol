@@ -19,6 +19,7 @@
 #include "sigilgeometry/path/Scatter.h"
 
 using namespace sigil::geometry::path;
+using namespace sigil::geometry::path::distribution;
 
 namespace {
 
