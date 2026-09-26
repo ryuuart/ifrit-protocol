@@ -21,8 +21,20 @@ in no header.
   `Outline::rectangle()` is the closed rectangle, and `bounds()` answers a
   `Rect` — the rectangle by its two corners, with `of()` and `centredOn()`.
   `Winding` (`OutersClockwise`, `OutersCounterClockwise`) is which way the
-  outer rings of an outline are drawn. Nothing in the header names the
-  renderer that executes the outline; `path/Skia.h` is the crossing.
+  outer rings of an outline are drawn. THE ALGEBRA is members, so
+  completion finds it: measured by distance along every contour as one
+  run — `length()`, `pointAt()`, `tangentAt()`, `normalAt()`, `poseAt()`
+  (a `Pose`, past the ends as `Wrap` says), `segment()`, `split()`,
+  `nearest()` (a `Nearest`: the distance along, the point, the gap) and
+  `resampled()` (a polyline per contour, by `ResampleOptions` count,
+  spacing or tolerance); the area — `contains()`, `area()`, `winding()`;
+  the booleans by the web's and paper.js's names — `united()`,
+  `subtracted()`, `intersected()`, `excluded()`; and the rewrites —
+  `simplified()`, `reversed()`, `joined()` and `transformed()` through a
+  `Transform`. The measurement is taken once, the first time a query asks,
+  and every copy shares it. Nothing in the header names the renderer
+  that executes the outline — Skia's path, its path operations and its
+  contour measure; `path/Skia.h` is the crossing.
 - **`path/Polyline.h`** — the resampling core. `Polyline` (its points, its
   closure and its `lane`, one scalar riding each vertex) with `length()`,
   `centroid()` (length-weighted over the edges), `signedArea()` and
@@ -229,7 +241,11 @@ in no header.
   bounds cut once per neighbour by their perpendicular bisector, which is
   why the bounds is an argument and not an option: the cells on the
   outside are unbounded until something closes them. A set too degenerate
-  to triangulate still has a diagram and gets it.
+  to triangulate still has a diagram and gets it. `triangulate()` is the
+  CONSTRAINED one — a set of rings, or an `Outline` flattened, with every
+  ring an edge the triangles may not cross and the even-odd inside kept,
+  so a hole stays a hole — the one triangulator behind `mesh::fill()` and
+  an extrusion's caps.
 - **`path/Hull.h`** — `hull(points, alpha)`, one function with one dial.
   At `alpha` of infinity — the default — it is the convex hull, by the
   monotone chain and no triangulation at all. Below that it is the alpha

@@ -21,7 +21,6 @@
  * NO DRAWING HAPPENS HERE. Cells come back as rings; what is painted
  * inside them is the caller's.
  */
-#include <include/core/SkRect.h>
 
 #include <cstdint>
 #include <glm/vec2.hpp>
@@ -29,6 +28,7 @@
 #include <span>
 #include <vector>
 
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Polyline.h"
 
 namespace sigil::geometry::path {
@@ -93,10 +93,22 @@ struct Triangulation {
  *  quadratic, so it is bounded: a degenerate set of more than 256 points
  *  answers no cells at all rather than spending the frame on a picture
  *  of a line. */
+/** THE INSIDE OF A SET OF RINGS, TRIANGULATED: every ring an edge the
+ *  triangles may not cross, and the triangles kept where the rings say
+ *  inside under the even-odd rule — so a hole stays a hole. The one
+ *  triangulator behind a flat fill and an extrusion's caps. Points that
+ *  stand on each other are one point; `neighbours` is left empty. */
+[[nodiscard]] Triangulation triangulate(std::span<const Polyline> rings);
+
+/** The inside of @p outline, flattened at @p tolerance and triangulated
+ *  the same way. */
+[[nodiscard]] Triangulation triangulate(const Outline& outline,
+                                        float tolerance = 0.25f);
+
 [[nodiscard]] std::vector<Polyline> voronoi(const Triangulation& triangulation,
-                                            SkRect bounds);
+                                            const Rect& bounds);
 /** The same, triangulating first. */
 [[nodiscard]] std::vector<Polyline> voronoi(std::span<const glm::vec2> points,
-                                            SkRect bounds);
+                                            const Rect& bounds);
 
 }  // namespace sigil::geometry::path

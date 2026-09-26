@@ -7,6 +7,7 @@
 #include <include/core/SkRect.h>
 #include <sigilgeometry/path/Hull.h>
 #include <sigilgeometry/path/Scatter.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/path/Triangulate.h>
 
 #include <cmath>
@@ -53,7 +54,7 @@ void BM_Voronoi(benchmark::State& state) {
   const SkRect box = SkRect::MakeWH(20.0f * std::sqrt((float)count),
                                     20.0f * std::sqrt((float)count));
   for ([[maybe_unused]] auto iteration : state) {
-    std::vector<Polyline> cells = voronoi(mesh, box);
+    std::vector<Polyline> cells = voronoi(mesh, fromSk(box));
     benchmark::DoNotOptimize(cells.data());
   }
   state.counters["cells/s"] =

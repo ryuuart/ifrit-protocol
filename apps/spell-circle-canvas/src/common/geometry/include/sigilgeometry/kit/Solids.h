@@ -51,6 +51,29 @@ Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options = {});
 Mesh extrude(const path::Outline& outline, float depth,
              ExtrudeOptions options = {});
 
+/** A FILLED OUTLINE, FLAT: the outline's inside triangulated with its
+ *  holes kept, centred on its bounds with y turned up so the artwork
+ *  stands upright, at z = 0 facing +z, UVs the outline's unit bounds —
+ *  one of `extrude()`'s caps on its own. */
+Mesh fill(const path::Outline& outline, float tolerance = 0.25f);
+
+/** How `loft()` skins its sections. */
+struct LoftOptions {
+  /** Rings of vertices laid between two sections, evenly. */
+  int segmentsBetween = 0;
+  /** Skin the last section back to the first — a ring of sections. */
+  bool closed = false;
+  /** Close the first and last sections with a fan from their centres. */
+  bool capEnds = true;
+};
+
+/** A SKIN THROUGH SECTIONS: each section a closed ring of points in 3D,
+ *  the rings joined in order by quads. Sections of different counts are
+ *  resampled by arc length to the largest count, so a square can be
+ *  lofted into a circle. UVs: u around a ring, v along the sections. */
+Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
+          const LoftOptions& options = {});
+
 /** How `revolve()` lathes a profile: the number of steps around the
  *  axis and how far around to go. A partial sweep leaves the surface
  *  open at the seam; a full one duplicates the seam ring so the u

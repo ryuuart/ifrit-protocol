@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "sigilgeometry/path/Hull.h"
+#include "sigilgeometry/path/Skia.h"
 #include "sigilgeometry/path/Triangulate.h"
 
 using namespace sigil::geometry::path;
@@ -120,7 +121,7 @@ TEST(Delaunay, AdjacencyIsSharedEdges) {
 TEST(Voronoi, TwoPointsSplitTheBoundsDownTheBisector) {
   const std::vector<Polyline> cells =
       voronoi(std::vector<glm::vec2>{{-50, 0}, {50, 0}},
-              SkRect::MakeLTRB(-100, -100, 100, 100));
+              fromSk(SkRect::MakeLTRB(-100, -100, 100, 100)));
   ASSERT_EQ(cells.size(), 2u);
   EXPECT_NEAR(cells[0].signedArea(), 20000.0f, 1.0f);
   EXPECT_NEAR(cells[1].signedArea(), 20000.0f, 1.0f);
@@ -135,7 +136,7 @@ TEST(Voronoi, EveryCellHoldsItsOwnPointAndTheCellsCoverTheBounds) {
   for (int i = 0; i < 40; ++i)
     points.push_back({(float)((i * 37) % 200), (float)((i * 91) % 200)});
   const SkRect box = SkRect::MakeLTRB(-20, -20, 220, 220);
-  const std::vector<Polyline> cells = voronoi(points, box);
+  const std::vector<Polyline> cells = voronoi(points, fromSk(box));
   ASSERT_EQ(cells.size(), points.size());
 
   float total = 0;
@@ -151,14 +152,14 @@ TEST(Voronoi, EveryCellHoldsItsOwnPointAndTheCellsCoverTheBounds) {
 
 TEST(Voronoi, ASinglePointOwnsEverything) {
   const std::vector<Polyline> cells =
-      voronoi(std::vector<glm::vec2>{{5, 5}}, SkRect::MakeLTRB(0, 0, 10, 20));
+      voronoi(std::vector<glm::vec2>{{5, 5}}, fromSk(SkRect::MakeLTRB(0, 0, 10, 20)));
   ASSERT_EQ(cells.size(), 1u);
   EXPECT_NEAR(std::abs(cells[0].signedArea()), 200.0f, 1e-3f);
 }
 
 TEST(Voronoi, EmptyBoundsAnswerEmptyCells) {
   const std::vector<Polyline> cells =
-      voronoi(kSquare, SkRect::MakeLTRB(0, 0, 0, 0));
+      voronoi(kSquare, fromSk(SkRect::MakeLTRB(0, 0, 0, 0)));
   ASSERT_EQ(cells.size(), 4u);
   for (const Polyline& cell : cells) EXPECT_TRUE(cell.points.empty());
 }

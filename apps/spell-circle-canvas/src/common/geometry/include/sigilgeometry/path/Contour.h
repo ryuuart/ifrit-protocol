@@ -15,6 +15,8 @@
 #include <include/core/SkPath.h>
 
 #include <glm/vec2.hpp>
+
+#include "sigilgeometry/path/Outline.h"
 #include <memory>
 #include <optional>
 #include <utility>
@@ -65,17 +67,8 @@ class Contour {
     bool operator==(const Corner&) const = default;
   };
 
-  /** The point on a contour nearest to a query point: the distance
-   *  along the contour it sits at, where it is, and how far the query
-   *  point is from it. */
-  struct Nearest {
-    float distance = 0;
-    glm::vec2 position{0, 0};
-    float gap = 0;
-
-    /** Value equality: the same place at the same remove. */
-    bool operator==(const Nearest&) const = default;
-  };
+  /** The point on a contour nearest to a query point. */
+  using Nearest = path::Nearest;
 
   /** Every contour of `path`, in path order. Degenerate (zero-length)
    *  contours are skipped. `forceClosed` treats each as closed. */

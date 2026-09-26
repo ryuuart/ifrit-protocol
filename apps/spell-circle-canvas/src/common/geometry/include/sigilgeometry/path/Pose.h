@@ -17,40 +17,9 @@
 #include <span>
 
 #include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::path {
-
-/** What a distance outside [0, length] means. */
-enum class Wrap : uint8_t {
-  /** Park at the nearer end. */
-  Clamp,
-  /** Come round — on CLOSED geometry only; an open curve still parks,
-   *  because an open curve has two ends and no seam to come round
-   *  through. */
-  Around,
-};
-
-/** Where a curve is at an arc length, and how it is oriented there.
- *
- *  `normal` is the tangent turned a quarter turn toward +y, which in
- *  Skia's y-down space is to the RIGHT of the direction of travel — the
- *  side a positive offset lies on. It carries no information the tangent
- *  does not; it carries the CONVENTION, so a caller offsetting sideways
- *  never picks a sign.
- *
- *  `distance` is where the pose was actually taken, after @ref Wrap
- *  resolved it — so a caller can tell a clamped read from an interior
- *  one without repeating the policy. */
-struct Pose {
-  glm::vec2 position{0, 0};
-  glm::vec2 tangent{1, 0};
-  glm::vec2 normal{0, 1};
-  float distance = 0;
-
-  /** Value equality: the same place, the same orientation and the same
-   *  distance it was taken at. */
-  bool operator==(const Pose&) const = default;
-};
 
 /** The pose at @p distance along @p contour. A contour that cannot be
  *  evaluated there answers the default pose (the origin, heading +x). */

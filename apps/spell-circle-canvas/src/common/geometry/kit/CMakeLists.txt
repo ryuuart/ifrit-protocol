@@ -17,22 +17,20 @@
 # blob's lobes are placed by the seeded mixer one library
 # down, so a blob is the same blob in a stored render and in a resource
 # key.
-find_package(earcut_hpp CONFIG REQUIRED)
 sigil_library(SigilGeometryKit
   SOURCES Divisions.cpp Hatches.cpp Radial.cpp Sections.cpp Silhouettes.cpp
           Solids.cpp
   HEADERS Corners.h Curves.h Divisions.h Generators.h Hatches.h Radial.h
           Sections.h
           Shapers.h Silhouettes.h Solids.h
-  PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCallable SigilCoreCompute
-  PRIVATE earcut_hpp::earcut_hpp)
+  PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCallable SigilCoreCompute)
 
 # Links only the shelves, over Skia — a link edge that pulled a component
 # or scene library in would show up as a build failure here.
 sigil_test(geometry_test
   SOURCES test/SilhouettesTest.cpp test/ShapersTest.cpp
           test/HatchesTest.cpp
-          test/DivisionsTest.cpp test/SolidsTest.cpp
+          test/DivisionsTest.cpp test/SolidsTest.cpp test/GeneralShapesTest.cpp
   LIBRARIES SigilGeometryKit)
 
 sigil_bench(geometry_bench

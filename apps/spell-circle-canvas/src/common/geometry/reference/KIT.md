@@ -119,9 +119,11 @@ beneath, in `sigil::geometry::shapes`.
 - **`kit/Solids.h`** — the 3D shelf, in `sigil::geometry::mesh` because
   what it makes is a `Mesh`. Two of them LIFT another currency:
   `extrude()` raises a filled outline into a solid `depth` thick (caps
-  earcut-triangulated with holes intact, walls swept from the flattened
-  contours) and `revolve()` lathes a profile — points, or an outline's
-  first contour — around +y. Most of the rest are the named surfaces — `torus()`, `superellipsoid()`, `cylinderPanel()` —
+  triangulated by `path::triangulate` with holes intact, walls swept from
+  the flattened contours), `fill()` is one of those caps on its own — the
+  outline flat at z = 0 — `loft()` skins a run of section rings, resampled
+  to one count so a square can loft into a circle, and `revolve()` lathes
+  a profile — points, or an outline's first contour — around +y. Most of the rest are the named surfaces — `torus()`, `superellipsoid()`, `cylinderPanel()` —
   each one `mesh::grid()` evaluated through a formula anyone could have
   written, which is why they are a shelf and not the currency. `box()` is
   the one that is not a sheet: flat normals and hard corners, so every

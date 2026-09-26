@@ -395,8 +395,9 @@ leaves acquires no kernel, no device and nothing that draws.
 Privately `path/blend` links `SigilMaterialColor`, the colour value and
 the OKLab round trip its colour interpolation runs in — the one edge
 from this library into SigilMaterial, and no header spells it. Privately
-`mesh` uses the header-only earcut for cap triangulation, and
-`mesh/codec` uses
+`path` uses CDT, the one triangulator — a point set's Delaunay, and the
+constrained triangulation a flat fill and an extrusion's caps stand
+on — and `mesh/codec` uses
 tinyobjloader for OBJ, Alembic for `.abc` and the header-only cgltf for
 glTF, and simdjson for the JSON a `.geo` is; STL and PLY are parsed by
 hand. None of those reaches

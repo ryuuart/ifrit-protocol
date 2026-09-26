@@ -9,6 +9,7 @@
  * a caller that draws a geometry result with Skia, or hands a Skia path
  * to the geometry library, spells the crossing.
  */
+#include <include/core/SkMatrix.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
@@ -17,6 +18,7 @@
 #include <glm/vec2.hpp>
 
 #include "sigilgeometry/path/Outline.h"
+#include "sigilgeometry/path/Transform.h"
 
 namespace sigil::geometry::path {
 
@@ -49,6 +51,13 @@ SkPath toSk(const Outline& outline);
 /** A Skia path as an outline, with its fill rule: even-odd and
  *  inverse-even-odd read as even-odd, the others as non-zero. */
 Outline fromSk(SkPath path);
+
+/** The affine map as a Skia matrix. */
+inline SkMatrix toSk(const Transform& transform) {
+  const glm::mat3& m = transform.matrix;
+  return SkMatrix::MakeAll(m[0][0], m[1][0], m[2][0], m[0][1], m[1][1],
+                           m[2][1], 0, 0, 1);
+}
 
 /** The winding as the direction Skia draws a closed figure in. */
 inline SkPathDirection toSk(Winding winding) {

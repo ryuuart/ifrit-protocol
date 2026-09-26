@@ -63,7 +63,7 @@ sigil_test(geometry_test
           test/TriangulateTest.cpp test/FieldsTest.cpp
           test/OperationsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/ProjectionsTest.cpp test/BlendTest.cpp
-          test/TilingsTest.cpp test/StripsTest.cpp
+          test/TilingsTest.cpp test/StripsTest.cpp test/OutlinesTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
 # One file per subject, over the one figure in bench/Figures.h.

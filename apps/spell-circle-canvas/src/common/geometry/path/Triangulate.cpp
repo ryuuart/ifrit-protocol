@@ -3,6 +3,10 @@
  */
 #include "sigilgeometry/path/Triangulate.h"
 
+#include <include/core/SkRect.h>
+
+#include "sigilgeometry/path/Skia.h"
+
 #include <CDT.h>
 
 #include <algorithm>
@@ -119,8 +123,51 @@ Triangulation delaunay(std::span<const glm::vec2> points) {
   return out;
 }
 
+Triangulation triangulate(std::span<const Polyline> rings) {
+  Triangulation out;
+  std::vector<CDT::V2d<float>> vertices;
+  std::vector<CDT::Edge> edges;
+  for (const Polyline& ring : rings) {
+    if (ring.points.size() < 3) continue;
+    const CDT::VertInd first = (CDT::VertInd)vertices.size();
+    for (const glm::vec2 point : ring.points)
+      vertices.push_back({point.x, point.y});
+    const CDT::VertInd count = (CDT::VertInd)ring.points.size();
+    for (CDT::VertInd index = 0; index < count; ++index)
+      edges.emplace_back(first + index, first + (index + 1) % count);
+  }
+  if (vertices.size() < 3) return out;
+  // A ring that closes on its own first point, or two rings that touch,
+  // put two vertices in one place; the triangulation wants one, and the
+  // edges are carried onto the survivor.
+  CDT::RemoveDuplicatesAndRemapEdges(vertices, edges);
+  std::erase_if(edges, [](const CDT::Edge& edge) { return edge.v1() == edge.v2(); });
+
+  CDT::Triangulation<float> mesh(CDT::VertexInsertionOrder::AsProvided,
+                                 CDT::IntersectingConstraintEdges::TryResolve,
+                                 0.0f);
+  mesh.insertVertices(vertices);
+  mesh.insertEdges(edges);
+  mesh.eraseOuterTrianglesAndHoles();
+
+  out.points.reserve(mesh.vertices.size());
+  for (const CDT::V2d<float>& vertex : mesh.vertices)
+    out.points.push_back({vertex.x, vertex.y});
+  out.triangles.reserve(mesh.triangles.size());
+  for (const CDT::Triangle& triangle : mesh.triangles)
+    out.triangles.push_back({(uint32_t)triangle.vertices[0],
+                             (uint32_t)triangle.vertices[1],
+                             (uint32_t)triangle.vertices[2]});
+  return out;
+}
+
+Triangulation triangulate(const Outline& outline, float tolerance) {
+  return triangulate(flatten(toSk(outline), tolerance));
+}
+
 std::vector<Polyline> voronoi(const Triangulation& triangulation,
-                              SkRect bounds) {
+                              const Rect& area) {
+  const SkRect bounds = toSk(area);
   std::vector<Polyline> cells(triangulation.points.size());
   if (triangulation.points.empty() || bounds.isEmpty()) return cells;
 
@@ -175,7 +222,7 @@ std::vector<Polyline> voronoi(const Triangulation& triangulation,
 }
 
 std::vector<Polyline> voronoi(std::span<const glm::vec2> points,
-                              SkRect bounds) {
+                              const Rect& bounds) {
   return voronoi(delaunay(points), bounds);
 }
 

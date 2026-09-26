@@ -1,6 +1,7 @@
 /** @file
- * The stock solids: a path extruded into one with earcut caps, a profile
- * lathed, and the named surfaces evaluated through the parametric sheet.
+ * The stock solids: an outline extruded into one with triangulated caps,
+ * an outline filled flat, sections lofted, a profile lathed, and the
+ * named surfaces evaluated through the parametric sheet.
  */
 
 #include "sigilgeometry/kit/Solids.h"
@@ -9,13 +10,13 @@
 #include <array>
 #include <cmath>
 #include <limits>
-#include <mapbox/earcut.hpp>
 
 #include "sigilgeometry/mesh/Vec.h"
 #include "sigilgeometry/path/Direction.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/path/Triangulate.h"
 
 namespace sigil::geometry::mesh {
 
@@ -72,43 +73,23 @@ Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options) {
   const float uvH = std::max(pathBounds.height(), 1.0f);
   const float half = options.depth * 0.5f;
 
-  // Caps: one earcut polygon per outer ring with its direct holes.
+  // Caps: the rings triangulated once, holes kept by the even-odd rule,
+  // and the same triangles laid at either end.
+  const path::Triangulation cap = path::triangulate(rings);
   auto addCap = [&](float z, bool front) {
-    for (size_t i = 0; i < ringCount; ++i) {
-      if (where[i].depth % 2 != 0) continue;
-      using EarPoint = std::array<double, 2>;
-      std::vector<std::vector<EarPoint>> polygon;
-      std::vector<const Polyline*> ringsUsed;
-      auto pushRing = [&](const Polyline& ring) {
-        std::vector<EarPoint> ear;
-        ear.reserve(ring.points.size());
-        for (const glm::vec2& p : ring.points)
-          ear.push_back({(double)p.x, (double)p.y});
-        polygon.push_back(std::move(ear));
-        ringsUsed.push_back(&ring);
-      };
-      pushRing(rings[i]);
-      for (size_t h = 0; h < ringCount; ++h)
-        if (where[h].depth % 2 == 1 && where[h].parent == (int)i)
-          pushRing(rings[h]);
-
-      const std::vector<uint32_t> tris = mapbox::earcut<uint32_t>(polygon);
-      const uint32_t base = (uint32_t)out.positions.size();
-      const glm::vec3 normal = {0, 0, front ? 1.0f : -1.0f};
-      for (const Polyline* ring : ringsUsed) {
-        for (const glm::vec2& p : ring->points) {
-          out.positions.emplace_back(p.x, p.y, z);
-          out.normals.push_back(normal);
-          out.uvs.emplace_back((p.x + uvW * 0.5f) / uvW,
-                               1.0f - (p.y + uvH * 0.5f) / uvH);
-        }
-      }
-      for (size_t t = 0; t + 2 < tris.size(); t += 3) {
-        uint32_t tri[3] = {base + tris[t], base + tris[t + 1],
-                           base + tris[t + 2]};
-        orientTriangle(out.positions, tri, normal);
-        out.indices.insert(out.indices.end(), {tri[0], tri[1], tri[2]});
-      }
+    const uint32_t base = (uint32_t)out.positions.size();
+    const glm::vec3 normal = {0, 0, front ? 1.0f : -1.0f};
+    for (const glm::vec2& p : cap.points) {
+      out.positions.emplace_back(p.x, p.y, z);
+      out.normals.push_back(normal);
+      out.uvs.emplace_back((p.x + uvW * 0.5f) / uvW,
+                           1.0f - (p.y + uvH * 0.5f) / uvH);
+    }
+    for (const glm::uvec3& triangle : cap.triangles) {
+      uint32_t tri[3] = {base + triangle.x, base + triangle.y,
+                         base + triangle.z};
+      orientTriangle(out.positions, tri, normal);
+      out.indices.insert(out.indices.end(), {tri[0], tri[1], tri[2]});
     }
   };
   if (options.frontCap) addCap(half, true);
@@ -151,6 +132,117 @@ Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options) {
       }
     }
   }
+  return out;
+}
+
+Mesh fill(const path::Outline& outline, float tolerance) {
+  Mesh out;
+  std::vector<Polyline> rings = flatten(path::toSk(outline), tolerance);
+  std::erase_if(rings, [](const Polyline& r) { return r.points.size() < 3; });
+  if (rings.empty()) return out;
+  const path::Rect bounds = outline.bounds();
+  const glm::vec2 center = bounds.centre();
+  for (Polyline& ring : rings)
+    for (glm::vec2& p : ring.points) p = {p.x - center.x, -(p.y - center.y)};
+  const float uvW = std::max(bounds.width(), 1.0f);
+  const float uvH = std::max(bounds.height(), 1.0f);
+  const path::Triangulation inside = path::triangulate(rings);
+  const glm::vec3 normal{0, 0, 1};
+  for (const glm::vec2& p : inside.points) {
+    out.positions.emplace_back(p.x, p.y, 0.0f);
+    out.normals.push_back(normal);
+    out.uvs.emplace_back((p.x + uvW * 0.5f) / uvW,
+                         1.0f - (p.y + uvH * 0.5f) / uvH);
+  }
+  for (const glm::uvec3& triangle : inside.triangles) {
+    uint32_t tri[3] = {triangle.x, triangle.y, triangle.z};
+    orientTriangle(out.positions, tri, normal);
+    out.indices.insert(out.indices.end(), {tri[0], tri[1], tri[2]});
+  }
+  return out;
+}
+
+namespace {
+
+/** @p ring resampled evenly by arc length to @p count points, closed. */
+std::vector<glm::vec3> evenRing(const std::vector<glm::vec3>& ring,
+                                size_t count) {
+  if (ring.size() == count || ring.size() < 2) return ring;
+  std::vector<float> at(ring.size() + 1, 0.0f);
+  for (size_t i = 0; i < ring.size(); ++i)
+    at[i + 1] = at[i] + glm::length(ring[(i + 1) % ring.size()] - ring[i]);
+  const float total = at.back();
+  std::vector<glm::vec3> out;
+  out.reserve(count);
+  size_t edge = 0;
+  for (size_t k = 0; k < count; ++k) {
+    const float want = total * (float)k / (float)count;
+    while (edge + 1 < ring.size() && at[edge + 1] < want) ++edge;
+    const float span = at[edge + 1] - at[edge];
+    const float t = span > 0 ? (want - at[edge]) / span : 0.0f;
+    out.push_back(glm::mix(ring[edge], ring[(edge + 1) % ring.size()], t));
+  }
+  return out;
+}
+
+}  // namespace
+
+Mesh loft(const std::vector<std::vector<glm::vec3>>& sections,
+          const LoftOptions& options) {
+  Mesh out;
+  if (sections.size() < 2) return out;
+  size_t count = 0;
+  for (const auto& section : sections) count = std::max(count, section.size());
+  if (count < 3) return out;
+  std::vector<std::vector<glm::vec3>> even;
+  for (const auto& section : sections) even.push_back(evenRing(section, count));
+  // The rings between two sections, in order, the last section included
+  // once: a closed loft comes back to the first ring instead.
+  std::vector<std::vector<glm::vec3>> rings;
+  const size_t spans = options.closed ? even.size() : even.size() - 1;
+  const int between = std::max(options.segmentsBetween, 0) + 1;
+  for (size_t s = 0; s < spans; ++s) {
+    const auto& a = even[s];
+    const auto& b = even[(s + 1) % even.size()];
+    for (int step = 0; step < between; ++step) {
+      const float t = (float)step / (float)between;
+      std::vector<glm::vec3> ring(count);
+      for (size_t k = 0; k < count; ++k) ring[k] = glm::mix(a[k], b[k], t);
+      rings.push_back(std::move(ring));
+    }
+  }
+  rings.push_back(options.closed ? even.front() : even.back());
+  const size_t rows = rings.size();
+  for (size_t r = 0; r < rows; ++r)
+    for (size_t k = 0; k <= count; ++k) {
+      out.positions.push_back(rings[r][k % count]);
+      out.uvs.emplace_back((float)k / (float)count,
+                           (float)r / (float)(rows - 1));
+    }
+  const uint32_t stride = (uint32_t)count + 1;
+  for (uint32_t r = 0; r + 1 < (uint32_t)rows; ++r)
+    for (uint32_t k = 0; k < (uint32_t)count; ++k) {
+      const uint32_t a = r * stride + k, b = a + 1, c = a + stride,
+                     d = c + 1;
+      out.indices.insert(out.indices.end(), {a, c, b, b, c, d});
+    }
+  if (options.capEnds && !options.closed) {
+    for (const bool first : {true, false}) {
+      const auto& ring = first ? rings.front() : rings.back();
+      glm::vec3 centre{0};
+      for (const glm::vec3& p : ring) centre += p;
+      centre /= (float)count;
+      const uint32_t hub = (uint32_t)out.positions.size();
+      out.positions.push_back(centre);
+      out.uvs.emplace_back(0.5f, first ? 0.0f : 1.0f);
+      const uint32_t row = first ? 0 : (uint32_t)(rows - 1) * stride;
+      for (uint32_t k = 0; k < (uint32_t)count; ++k)
+        first ? out.indices.insert(out.indices.end(), {hub, row + k + 1, row + k})
+              : out.indices.insert(out.indices.end(),
+                                   {hub, row + k, row + k + 1});
+    }
+  }
+  out.computeNormals();
   return out;
 }
 

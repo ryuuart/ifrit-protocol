@@ -11,6 +11,8 @@
 #include <glm/vec2.hpp>
 #include <memory>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 namespace sigil::geometry::path {
 
@@ -58,6 +60,66 @@ enum class Winding : uint8_t {
   OutersCounterClockwise,
 };
 
+/** What a distance outside [0, length] means. */
+enum class Wrap : uint8_t {
+  /** Park at the nearer end. */
+  Clamp,
+  /** Come round — on CLOSED geometry only; an open curve still parks,
+   *  because an open curve has two ends and no seam to come round
+   *  through. */
+  Around,
+};
+
+/** Where a curve is at an arc length, and how it is oriented there.
+ *
+ *  `normal` is the tangent turned a quarter turn toward +y, which in
+ *  y-down space is to the RIGHT of the direction of travel — the
+ *  side a positive offset lies on. It carries no information the tangent
+ *  does not; it carries the CONVENTION, so a caller offsetting sideways
+ *  never picks a sign.
+ *
+ *  `distance` is where the pose was actually taken, after @ref Wrap
+ *  resolved it — so a caller can tell a clamped read from an interior
+ *  one without repeating the policy. */
+struct Pose {
+  glm::vec2 position{0, 0};
+  glm::vec2 tangent{1, 0};
+  glm::vec2 normal{0, 1};
+  float distance = 0;
+
+  /** Value equality: the same place, the same orientation and the same
+   *  distance it was taken at. */
+  bool operator==(const Pose&) const = default;
+};
+
+/** The point on an outline nearest to a query point: the distance along
+ *  the outline it sits at, where it is, and how far the query point is
+ *  from it. */
+struct Nearest {
+  float distance = 0;
+  glm::vec2 position{0, 0};
+  float gap = 0;
+
+  /** Value equality: the same place at the same remove. */
+  bool operator==(const Nearest&) const = default;
+};
+
+/** How `Outline::resampled()` spaces its points: by a COUNT per contour,
+ *  by a SPACING, or as flat as a TOLERANCE allows — the first that is set
+ *  wins, in that order. */
+struct ResampleOptions {
+  /** Exactly this many points per contour, evenly by arc length. */
+  int count = 0;
+  /** A point at least every this many px, every source vertex kept. */
+  float spacing = 0;
+  /** Curves flattened until no chord strays further than this, in px. */
+  float tolerance = 0.25f;
+  bool operator==(const ResampleOptions&) const = default;
+};
+
+struct Polyline;
+struct Transform;
+
 namespace detail {
 struct OutlineBody;
 }
@@ -91,6 +153,69 @@ class Outline {
   /** The tightest rectangle round every point the outline passes
    *  through, curves included; empty for an empty outline. */
   Rect bounds() const;
+
+  /** @name Measure
+   *  The outline read by DISTANCE along it: every contour in order, each
+   *  starting where the one before ended, so a run a frame cut into
+   *  several pieces still carries one continuous measure. Measured once,
+   *  the first time a query asks, and shared by every copy.
+   *  @{ */
+  /** The length of every contour together, seams not counted. */
+  float length() const;
+  /** Where the outline is @p distance along it. */
+  glm::vec2 pointAt(float distance, Wrap wrap = Wrap::Clamp) const;
+  /** The unit direction of travel there. */
+  glm::vec2 tangentAt(float distance, Wrap wrap = Wrap::Clamp) const;
+  /** The unit normal there — the tangent turned toward +y, to the right
+   *  of travel in y-down space. */
+  glm::vec2 normalAt(float distance, Wrap wrap = Wrap::Clamp) const;
+  /** All three at once, with the distance the pose was taken at. */
+  Pose poseAt(float distance, Wrap wrap = Wrap::Clamp) const;
+  /** The piece between two distances, as its own outline. */
+  Outline segment(float from, float to) const;
+  /** The outline cut in two at @p distance: before it and after it. */
+  std::pair<Outline, Outline> split(float distance) const;
+  /** The point on the outline nearest @p point, and how far along the
+   *  outline it is. */
+  Nearest nearest(glm::vec2 point) const;
+  /** The outline as points: a polyline per contour, spaced as @p options
+   *  says. */
+  std::vector<Polyline> resampled(ResampleOptions options = {}) const;
+  /** @} */
+
+  /** @name Area
+   *  @{ */
+  /** Whether @p point is inside, under the outline's own fill rule. */
+  bool contains(glm::vec2 point) const;
+  /** The area inside, under the fill rule. */
+  float area() const;
+  /** Which way the first closed contour is drawn. */
+  Winding winding() const;
+  /** @} */
+
+  /** @name Combine
+   *  Booleans, as the web and paper.js name them: each answers the
+   *  region, simplified, under the non-zero rule.
+   *  @{ */
+  Outline united(const Outline& other) const;
+  Outline subtracted(const Outline& other) const;
+  Outline intersected(const Outline& other) const;
+  /** Inside exactly one of the two. */
+  Outline excluded(const Outline& other) const;
+  /** @} */
+
+  /** @name Rewrite
+   *  @{ */
+  /** The same region with overlaps and self-crossings resolved into
+   *  plain contours. */
+  Outline simplified() const;
+  /** Every contour run the other way. */
+  Outline reversed() const;
+  /** @p other's contours after these, as one outline. */
+  Outline joined(const Outline& other) const;
+  /** The outline carried through @p transform. */
+  Outline transformed(const Transform& transform) const;
+  /** @} */
 
   bool operator==(const Outline& other) const;
 
