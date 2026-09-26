@@ -43,6 +43,10 @@ void bindGeometryMeshRender(pybind11::module_& module);
 /** Registers segments, extremes, tidy, fit, direction, edges, exact
  *  interpolation and the blend tool on @p module. */
 void bindGeometryPathEditing(pybind11::module_& module);
+/** Registers the outline value and its algebra, the transform, the
+ *  path through points, the rail and the band at a width, the radial
+ *  options and the point patterns on @p module. */
+void bindGeometryOutlines(pybind11::module_& module);
 /** Registers the two words a widened mark states — path.Cap and
  *  path.Join — and path.operations booleans, offset, corner treatments,
  *  distorts, chains and strip joinery on @p module. */
@@ -68,8 +72,9 @@ void bindGeometryRegions(pybind11::module_& module);
 /** Registers the edge, corner, profile, shaper and crossing-rule
  *  readings a decoration is written in terms of on @p module. */
 void bindGeometrySeams(pybind11::module_& module);
-/** Registers geometry.shapes generators, curves, corner operators and
- *  the Silhouette erasure seam on @p module. */
+/** Registers the hatch value, the two general shapes over a box — radial
+ *  and ellipse — an outline fitted to a box, and the stock values over
+ *  them on @p module. */
 void bindGeometryShapes(pybind11::module_& module);
 /** Registers triangulations, hulls, streamlines, symmetry, value noise
  *  and the cellular sheet on @p module. */

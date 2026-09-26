@@ -25,7 +25,7 @@ sigil_library(SigilPython
     geometry/Charts.cpp geometry/DeviceHandle.cpp geometry/Frames.cpp
     geometry/Mesh.cpp geometry/MeshCamera.cpp geometry/MeshCodec.cpp
     geometry/MeshCurve.cpp geometry/MeshPoints.cpp geometry/MeshRender.cpp
-    geometry/PathEditing.cpp geometry/PathOperations.cpp
+    geometry/Outlines.cpp geometry/PathEditing.cpp geometry/PathOperations.cpp
     geometry/PointBuilder.cpp geometry/PointKernels.cpp
     geometry/PointOperations.cpp geometry/Polylines.cpp geometry/Profiles.cpp
     geometry/Regions.cpp geometry/Seams.cpp geometry/Shapes.cpp

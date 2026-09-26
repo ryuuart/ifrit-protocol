@@ -80,12 +80,13 @@ void bindLibraries(pybind11::module_& module) {
   bindGeometryMeshCodec(module);
   bindGeometryPointKernels(module);
   bindGeometryDeviceHandle(module);
-  bindGeometryShapes(module);
   bindGeometryPolylines(module);
   bindGeometryPathOperations(module);
   bindGeometryPathEditing(module);
   bindGeometryFrames(module);
   bindGeometryProfiles(module);
+  bindGeometryOutlines(module);
+  bindGeometryShapes(module);
   bindGeometryRegions(module);
   bindGeometryStructures(module);
   bindGeometryCharts(module);

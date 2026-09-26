@@ -6,6 +6,8 @@
  */
 
 #include <pybind11/stl.h>
+#include <sigilgeometry/kit/Radial.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilpython/Bindings.h>
@@ -82,6 +84,16 @@ compose::Justify justification(py::handle value) {
 compose::Shape shape(py::handle value) {
   if (py::isinstance<compose::Shape>(value))
     return value.cast<compose::Shape>();
+  // Geometry's shape values compare, so a node shaped by one prunes.
+  if (py::isinstance<geometry::shapes::Radial>(value))
+    return value.cast<geometry::shapes::Radial>();
+  if (py::isinstance<geometry::shapes::Ellipse>(value))
+    return value.cast<geometry::shapes::Ellipse>();
+  if (py::isinstance<geometry::shapes::Fitted>(value))
+    return value.cast<geometry::shapes::Fitted>();
+  if (py::isinstance<geometry::path::Outline>(value))
+    return compose::heldPath(
+        geometry::path::toSk(value.cast<geometry::path::Outline>()));
   if (PyCallable_Check(value.ptr())) {
     auto callback = retainCallback(py::reinterpret_borrow<py::function>(value));
     return compose::Shape{[callback](SkSize size) {

@@ -1,8 +1,9 @@
 # SigilGeometry
 
-A C++ library for 2D and 3D drawing on top of [Skia](https://skia.org).
-It gives you path resampling, boolean and distortion operators over
-`SkPath`, shape interpolation, a renderer-neutral triangle mesh with
+A C++ library for 2D and 3D geometry, executed by [Skia](https://skia.org).
+It gives you the 2D OUTLINE as a value — a handful of general shapes that
+answer one, the algebra that measures, cuts and combines it, points placed
+where it says — shape interpolation, a renderer-neutral triangle mesh with
 procedural generators plus model import and export, splines with swept
 geometry, point clouds carrying named attribute lanes and a point-operator
 chain language, and a runtime that draws meshes and perspective panels
@@ -83,79 +84,108 @@ it is the SHELF over the tiers, holding the stock values anybody could
 have written, and nothing beneath it may reach back up into it. A
 consumer that brings its own generators links a tier and not the kit.
 
-Every signature in the library speaks glm — `glm::vec2` for a point on a
-path as much as `glm::vec3` for a vertex — and Skia types appear only
-where the object *is* a Skia path, image, canvas or paint. `path/Skia.h`
-holds the two conversions, `toSk()` and `fromSk()`, so a caller drawing
-a result never spells the swizzle itself. A DECISION a drawing makes is
+Every signature on the first screen speaks glm and the library's own
+values — `glm::vec2` for a point on an outline as much as `glm::vec3` for
+a vertex, `path::Outline` for a figure — and Skia types appear only where
+the object *is* a Skia path, image, canvas or paint: the tier below the
+first screen, where an operator is written over the executor's own path.
+`path/Skia.h` holds the conversions, `toSk()` and `fromSk()`, so a caller
+drawing a result never spells the swizzle itself. A DECISION a drawing makes is
 not a Skia type either: `path/Stroke.h` owns `Join` and `Cap`, the words
 an offset, a set of mitred strips and a stroke over an outline all
 state, and `path/StrokeSkia.h` carries them onto a paint.
 
 ## Using it
 
+The first screen: every common geometric question is one of these calls,
+each taking one options struct as its last argument, defaults for every
+field.
+
 ```cpp
-#include <sigilgeometry/path/Operations.h>
-#include <sigilgeometry/kit/Sections.h>
-#include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilgeometry/mesh/camera/Camera.h>
-#include <sigilgeometry/mesh/render/Painter.h>
+// Shapes over a box — each a comparable value answering outline(size)
+shapes::radial(count, path::RadialOptions)     // polygon, star, chords, ticks, dial segments, studs, seeds
+shapes::ellipse(shapes::EllipseOptions)        // circle, arc, sector, annulus, ring, squircle
+shapes::fitted(outline, shapes::FitOptions)    // any outline scaled into the box
+shape.cornered(radius)  shape.distorted(shaper)  shape.at(centre, radius)
 
-using namespace sigil::geometry::path;
-using namespace sigil::geometry::mesh;
+// Outlines — path::Outline, a value; its algebra is members
+path::through(points, path::ThroughOptions)    // straight, Catmull-Rom, midpoint, fitted
+outline.length()  .pointAt(distance)  .tangentAt(distance)  .poseAt(distance)
+outline.segment(from, to)  .split(distance)  .nearest(point)  .resampled(options)
+outline.contains(point)  .area()  .united(other)  .subtracted(other)  .intersected(other)
+outline.simplified()  .reversed()  .joined(other)  .transformed(transform)
+path::offset(outline, width, path::OffsetOptions)   // a rail at a width law, or the region grown
+path::band(spine, width, path::BandOptions)         // the region between a spine and its rail
+path::Transform::rotate(degrees, about)  * path::Transform::translate(offset)
 
-void paint(SkCanvas &canvas, SkSize viewport, const SkPath &star) {
-  // 2D: an outline bloated, roughened and offset. A recipe is a chain of
-  // operators, a value: hold it, apply it to any path, apply it again.
-  const operations::PathOperation recipe = operations::chain({
-      operations::PuckerBloat{0.3f},
-      operations::Roughen{3},
-      operations::offsetBy(4),
-  });
-  SkPaint fill;
-  fill.setAntiAlias(true);
-  fill.setColor4f({1.0f, 0.6f, 0.2f, 1.0f});
-  canvas.drawPath(recipe(star), fill);
+// Points and projection
+path::points(where, pattern)                   // random, poisson, grid, radial, along
+path::heading(vector)
+path::projection::stereographic(options)  .at(direction)  .from(point)   // any ProjectionScheme
 
-  // 3D: scatter points along a window of a closed loop, drift them with
-  // noise, smooth the kinks out, colour them along the loop, then sweep
-  // a round profile through the result.
-  const Mesh comet =
-      pop::on(std::vector<glm::vec3>{{-300, 0, -100},
-                                     {0, 140, 120},
-                                     {300, 0, -100}})
-          .count(4000)
-          .window(0.9f, 0.3f)
-          .noise(18)
-          .smooth()
-          .fade({1.0f, 0.3f, 0.6f, 1.0f}, {0.2f, 0.9f, 1.0f, 1.0f})
-          .sweep(sections::circle(), false,
-                 {.segments = 160, .scale = 9});
+// Bodies
+mesh::extrude(outline, depth, mesh::ExtrudeOptions)
+mesh::revolve(profile, mesh::RevolveOptions)
+mesh::pop::sweep(rail, section, mesh::pop::SweepOptions)
+mesh::loft(sections, mesh::LoftOptions)
+mesh::fill(outline)
+mesh::render::drawMesh(canvas, mesh, placement, camera, viewport, style)
+```
 
-  camera::Camera cam;
-  cam.eye = {0, 180, 640};
+The short names stay as stock values, one line each, wherever the general
+call would make the line longer: `shapes::polygon(6, 15)`,
+`shapes::star(5, 0.42f)`, `shapes::circle()`, `shapes::annulus(0.55f)`,
+`shapes::ring(thickness)`, `shapes::squircle(4)`, `shapes::arc(200, 250)`,
+`shapes::sector(200, 250, 0.45f)`, `shapes::svg(data)`,
+`shapes::ticks(ladder)`, `shapes::arcs(segments)`, `shapes::chords(fan)`
+and `path::curveThrough(points)`.
 
-  render::MeshStyle style;
-  style.backfaceCull = true;
+```cpp
+#include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/path/Points.h>
+#include <sigilgeometry/path/Skia.h>
 
-  render::drawMesh(canvas, comet, camera::place({0, 0, 0}), cam, viewport,
-                   style);
+using namespace sigil::geometry;
+
+void paint(SkCanvas& canvas) {
+  // A bezel: a dodecagon with softened corners, drawn about a centre.
+  const path::Outline bezel = shapes::polygon(12).cornered(6).at({160, 160}, 150);
+  // Sunflower seeds inside it, one line: the golden angle with square-root
+  // growth.
+  for (const glm::vec2 seed :
+       path::points(bezel, path::radial(400, {.stepDegrees = 137.508f,
+                                              .growth = path::Growth::SquareRoot})))
+    canvas.drawCircle(seed.x, seed.y, 2, SkPaint());
+  // The outline measured: a mark every 40 px along the rim.
+  for (float at = 0; at < bezel.length(); at += 40)
+    canvas.drawCircle(bezel.pointAt(at).x, bezel.pointAt(at).y, 3, SkPaint());
+  // Skia draws it; the one crossing is path/Skia.h.
+  canvas.drawPath(path::toSk(bezel.subtracted(shapes::circle().at({160, 160}, 40))),
+                  SkPaint());
+  // And the same outline lifted into a body.
+  const mesh::Mesh body = mesh::extrude(bezel, 18);
+  (void)body;
 }
 ```
 
-Nothing above holds a device, a context or a frame. `Mesh` is a plain
-struct of vectors; `pop::Chain` is a `std::vector` of variants; a
-`PathOperation` is a callable you can copy, compose and re-apply.
+Nothing above holds a device, a context or a frame. An `Outline` is a
+shared immutable value; `Mesh` is a plain struct of vectors; `pop::Chain`
+is a `std::vector` of variants.
 
 ## The mental model
 
-**One numeric currency, one drawing currency.** Every vector, point and
-matrix — mesh vertices, spline knots, camera vectors, cloud positions,
-flattened path points, transforms — is glm (`vec2`, `vec3`, `vec4`,
-`mat4`). What is drawn or drawn from speaks Skia: `SkPath` outlines,
-`SkColor4f` paint, `SkImage` textures, `SkCanvas`. `path/Skia.h` converts a
-point (`toSk()`, `fromSk()`); `mesh/camera/Camera.h` is the declared
-bridge for matrices, and `camera::toSkM44()` is the seam. Because glm's `mat4` and
+**One numeric currency, one 2D answer, one drawing currency.** Every
+vector, point and matrix — mesh vertices, spline knots, camera vectors,
+cloud positions, flattened path points — is glm (`vec2`, `vec3`, `vec4`,
+`mat4`), a 2D affine map is a `path::Transform`, and every 2D figure is a
+`path::Outline`, whose header names no renderer. Skia EXECUTES an outline
+— its path, its path operations and its contour measure stand behind the
+value — and what is drawn still speaks Skia: `SkColor4f` paint, `SkImage`
+textures, `SkCanvas`. `path/Skia.h` is the crossing for an outline, a
+rectangle, a transform and a point (`toSk()`, `fromSk()`);
+`mesh/camera/Camera.h` is the declared bridge for matrices, and
+`camera::toSkM44()` is the seam. Because glm's `mat4` and
 Skia's `SkM44` are both column-major, that conversion is a straight memory
 pour with no transpose.
 

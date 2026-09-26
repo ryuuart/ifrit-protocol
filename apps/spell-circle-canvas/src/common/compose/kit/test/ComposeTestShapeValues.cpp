@@ -6,20 +6,18 @@
 
 #include <include/core/SkPathBuilder.h>
 
+#include <sigilgeometry/path/Through.h>
 #include "support/ShapeTestSupport.h"
 
 TEST(ComposeShapeValues, CustomOutlineShapesFillAndClip) {
   Host host;
   // A diamond outline over a 100x100 box: the box's corner pixels sit
   // outside the shape, so fill and clipped children must not reach them.
-  auto diamond = [](SkSize s) {
-    SkPathBuilder b;
-    b.moveTo(s.width() / 2, 0);
-    b.lineTo(s.width(), s.height() / 2);
-    b.lineTo(s.width() / 2, s.height());
-    b.lineTo(0, s.height() / 2);
-    b.close();
-    return b.detach();
+  auto diamond = [](glm::vec2 s) {
+    return geometry::path::through(
+        std::vector<glm::vec2>{
+            {s.x / 2, 0}, {s.x, s.y / 2}, {s.x / 2, s.y}, {0, s.y / 2}},
+        {.closed = true});
   };
   host.composer.render(
       box()
@@ -36,14 +34,11 @@ TEST(ComposeShapeValues, CustomOutlineShapesFillAndClip) {
 
 TEST(ComposeShapeValues, RoundedOutlineCutsSharpCorners) {
   Host host;
-  auto diamond = [](SkSize s) {
-    SkPathBuilder b;
-    b.moveTo(s.width() / 2, 0);
-    b.lineTo(s.width(), s.height() / 2);
-    b.lineTo(s.width() / 2, s.height());
-    b.lineTo(0, s.height() / 2);
-    b.close();
-    return b.detach();
+  auto diamond = [](glm::vec2 s) {
+    return geometry::path::through(
+        std::vector<glm::vec2>{
+            {s.x / 2, 0}, {s.x, s.y / 2}, {s.x / 2, s.y}, {0, s.y / 2}},
+        {.closed = true});
   };
   // Nested (the root always fills the viewport); radius 20 pulls the
   // 100x100 diamond's top vertex from y=0 down to y≈7.
@@ -210,10 +205,9 @@ TEST(ComposeShapeValues, WrappersAreComparableWhenTheirInnerIs) {
                Shape(geometry::shapes::rounded(geometry::shapes::star(5), 9)));
   EXPECT_FALSE(Shape(geometry::shapes::rounded(geometry::shapes::star(5), 8)) ==
                Shape(geometry::shapes::rounded(geometry::shapes::star(6), 8)));
-  auto lambda = [](SkSize s) {
-    SkPathBuilder b;
-    b.addRect(SkRect::MakeWH(s.width(), s.height()));
-    return b.detach();
+  auto lambda = [](glm::vec2 s) {
+    return geometry::path::Outline::rectangle(
+        geometry::path::Rect::of({0, 0}, s));
   };
   EXPECT_FALSE(Shape(geometry::shapes::rounded(lambda, 8)) ==
                Shape(geometry::shapes::rounded(lambda, 8)));

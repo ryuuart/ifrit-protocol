@@ -244,6 +244,34 @@ void bindGeometryMesh(py::module_& module) {
                              {.depth = depth, .tolerance = tolerance});
       },
       py::arg("path"), py::arg("depth") = 24, py::arg("tolerance") = 0.25f);
+  meshes.def(
+      "extrude",
+      [](const geometry::path::Outline& outline, float depth, float tolerance) {
+        return mesh::extrude(outline, {.depth = depth, .tolerance = tolerance});
+      },
+      py::arg("outline"), py::arg("depth") = 24, py::arg("tolerance") = 0.25f);
+  meshes.def("fill", &mesh::fill, py::arg("outline"),
+             py::arg("tolerance") = 0.25f);
+  meshes.def(
+      "loft",
+      [](const std::vector<std::vector<glm::vec3>>& sections,
+         int segmentsBetween, bool closed, bool capEnds) {
+        return mesh::loft(sections, {.segmentsBetween = segmentsBetween,
+                                     .closed = closed,
+                                     .capEnds = capEnds});
+      },
+      py::arg("sections"), py::arg("segmentsBetween") = 0,
+      py::arg("closed") = false, py::arg("capEnds") = true);
+  meshes.def(
+      "revolve",
+      [](const geometry::path::Outline& profile, int segments, float sweepDeg,
+         bool close) {
+        return mesh::revolve(
+            profile,
+            {.segments = segments, .sweepDeg = sweepDeg, .close = close});
+      },
+      py::arg("profile"), py::arg("segments") = 48, py::arg("sweepDeg") = 360,
+      py::arg("close") = true);
   meshes.def("revolve",
              static_cast<mesh::Mesh (*)(const std::vector<glm::vec2>&,
                                         const mesh::RevolveOptions&)>(

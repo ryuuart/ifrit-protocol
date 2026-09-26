@@ -37,7 +37,7 @@ g.children({text(u8"…", st).at({panelBox.fLeft + 16, panelBox.fTop})});
 
 **No right or bottom pin.** `autoDimension()` sides and right/bottom
 pinning are different intents and keep the longhand.
-`geometry::path::centred()` builds the rect for the centre-and-size
+`geometry::path::Rect::centredOn()` builds the rectangle for the centre-and-size
 case.
 
 ## See also
