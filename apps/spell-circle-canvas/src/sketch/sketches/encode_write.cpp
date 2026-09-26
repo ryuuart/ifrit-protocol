@@ -18,6 +18,7 @@
 #include <sigilimage/decode/Decoders.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Places.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -118,7 +119,7 @@ struct EncodeWrite {
     const std::filesystem::path dir =
         std::filesystem::temp_directory_path() / "sigil-encode-write";
     io::Hub hub;
-    hub.mount(kMount, dir);
+    io::mount(hub, kMount, dir);
     img::registerDecoders(hub);
     sk_sp<SkData> bytes = img::encodeImage(*art, img::Format::Png);
     const std::string uri = std::string(kMount) + "plate.png";

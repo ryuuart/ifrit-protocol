@@ -22,6 +22,8 @@
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
+#include <sigilio/advanced/Decoding.h>
+#include <sigilio/advanced/Places.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -113,9 +115,9 @@ struct HubReload {
       io::writeBytes(dir / "chart.png", png->data(), png->size());
 
     io::Hub hub;
-    hub.mount(kMount, dir);
+    io::mount(hub, kMount, dir);
     img::registerDecoders(hub);
-    hub.registerDecoder<Cloud>(parseCloud);
+    io::registerDecoder<Cloud>(hub, parseCloud);
 
     const std::string notesUri = std::string(kMount) + "notes.txt";
     const std::string cloudUri = std::string(kMount) + "cloud.pts";
@@ -131,7 +133,7 @@ struct HubReload {
     put("cloud.pts", "16 70\n52 26\n96 62\n128 22\n158 68\n");
     if (sk_sp<SkData> png = chart(6, {0.46f, 0.74f, 0.94f, 1}))
       io::writeBytes(dir / "chart.png", png->data(), png->size());
-    const bool moved = hub.poll();
+    const bool moved = io::poll(hub);
 
     const std::optional<std::string> secondText = hub.text(notesUri);
     const std::shared_ptr<const Cloud> secondCloud = hub.load<Cloud>(cloudUri);
@@ -201,7 +203,7 @@ struct HubReload {
                    kit::formatted("%d × %d",
                                   firstChart ? firstChart->width() : 0,
                                   firstChart ? firstChart->height() : 0)},
-                  {"Resolved file", hub.resolve(notesUri).filename().string()}},
+                  {"Resolved file", io::resolve(hub, notesUri).filename().string()}},
                  {.measure = 480, .ruled = true})})));
   }
 

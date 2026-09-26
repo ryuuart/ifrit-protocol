@@ -20,6 +20,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <sigilio/advanced/Places.h>
 
 namespace data = sigil::data;
 namespace material = sigil::material;
@@ -76,7 +77,7 @@ struct DataSources {
     // DuckDB over the CSV file itself, from a store that lives in memory
     // for as long as this frame is described.
     const std::filesystem::path path =
-        ctx.assets.hub().resolve(ctx.local("data/cities.csv"));
+        sigil::io::resolve(ctx.assets.hub(), ctx.local("data/cities.csv"));
     if (std::optional<data::Database> scratch =
             data::Database::memory(data::Engine::Duck, &duckNote)) {
       fromDuck = scratch->query(

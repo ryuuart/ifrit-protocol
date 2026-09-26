@@ -18,6 +18,7 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/decode/Decoders.h>
 #include <sigilimage/encode/Encode.h>
+#include <sigilio/advanced/Network.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
 #include <sigilmaterial/color/Color.h>
@@ -99,19 +100,16 @@ struct NetPolicy {
     const std::filesystem::path cacheDir =
         std::filesystem::temp_directory_path() / "sigil-net-policy";
     if (sk_sp<SkData> bytes = seedBytes())
-      io::seedNetworkCache(
+      io::NetworkCache(cacheDir).put(
           kSeeded,
-          {static_cast<const std::byte*>(bytes->data()), bytes->size()},
-          cacheDir);
+          {static_cast<const std::byte*>(bytes->data()), bytes->size()});
 
     /** One hub, one policy, one ask — a hub of its own each time,
      *  because the policy governs the FIRST ask and an entry already
      *  loaded stays as it is. */
     const auto ask = [&](io::NetworkPolicy policy, const char* url) {
-      io::Hub hub;
+      io::Hub hub({.network = {.policy = policy, .cacheDirectory = cacheDir}});
       img::registerDecoders(hub);
-      hub.setNetworkCacheDirectory(cacheDir);
-      hub.setNetworkPolicy(policy);
       return hub.load<img::ImageAsset>(url);
     };
 

@@ -17,6 +17,7 @@
 #include <sigilimage/asset/ImageAsset.h>
 #include <sigilimage/decode/Decode.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Decoding.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -84,9 +85,9 @@ struct GifFrames {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     io::Hub& hub = ctx.assets.hub();
-    const std::optional<io::ResourceInfo> bytes = hub.probe<io::ResourceInfo>(kSource);
+    const std::optional<io::ResourceInfo> bytes = io::probe<io::ResourceInfo>(hub, kSource);
     const std::optional<image::ImageProbe> meaning =
-        hub.probe<image::ImageProbe>(kSource);
+        io::probe<image::ImageProbe>(hub, kSource);
     const std::shared_ptr<const image::ImageAsset> gif = hub.load<image::ImageAsset>(kSource);
 
     ctx.composer.render(gif ? sheet(*gif, bytes, meaning) : missing());
