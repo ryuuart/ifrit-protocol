@@ -114,7 +114,7 @@ class Study:
     def setup(self, ctx):
         try:
             for action in (builtins._sigil_escaped_feed.latest,
-                           lambda: builtins._sigil_escaped_hub.feed('fixture://input')):
+                           lambda: builtins._sigil_escaped_hub.listen('fixture://input')):
                 try:
                     action()
                 except RuntimeError as error:
