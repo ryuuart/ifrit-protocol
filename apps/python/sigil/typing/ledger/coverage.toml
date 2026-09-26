@@ -2173,6 +2173,37 @@ bound = "Sketchbook publishes a Python canvas through its own publisher"
 [[section.surface.item]]
 native = "publication listing and a `Device` of a named graphics API"
 
+[[section.surface]]
+name = "Measurement"
+
+[[section.surface.item]]
+bound = "`Stopwatch` and `timed`, every span in seconds"
+python = ["measure.Stopwatch", "measure.timed"]
+
+[[section.surface.item]]
+bound = "a run in hand: `summary` and `Summary`, `quantile`, and `Histogram` with `Histogram.over`, each reading any iterable through an optional `key`"
+python = ["measure.summary", "measure.Summary", "measure.quantile", "measure.Histogram"]
+
+[[section.surface.item]]
+bound = "a live stream: `Window` by count or span with its values for a sparkline, `Smoothed` with a weight, time constant or peak, and `Rate`"
+python = ["measure.Window", "measure.Smoothed", "measure.Rate"]
+
+[[section.surface.item]]
+bound = "the check table: `check`, `finding`, `reading`, `heading`, `Check`, `Standing` and `CheckTable` with its printed lines"
+python = [
+  "measure.check",
+  "measure.finding",
+  "measure.reading",
+  "measure.heading",
+  "measure.Check",
+  "measure.Standing",
+  "measure.CheckTable",
+]
+
+[[section.surface.item]]
+native = "the advanced instruments: `FrameTimer` lanes, `Moments`, `quantiles`, `Rescale`, `lineFit`, `Laps`, `Counters` and the check formatter"
+python = ["measure.lineFit"]
+
 [library.Video]
 native = "SigilVideo"
 modules = ["video"]

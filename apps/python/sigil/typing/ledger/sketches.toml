@@ -246,7 +246,6 @@ requires = [
   "grained",
   "recipes",
   "bank",
-  "check-table",
 ]
 
 [sketch.chevreul_circle]
@@ -263,7 +262,6 @@ requires = [
   "compose-test",
   "silhouettes",
   "ocio",
-  "check-table",
 ]
 
 [sketch.chladni_tab1]
@@ -428,7 +426,6 @@ requires = [
   "profiles",
   "projections",
   "stock-tiles",
-  "line-fit",
 ]
 
 [sketch.elastic_type]
@@ -541,7 +538,6 @@ requires = [
   "face-width",
   "corners",
   "frames-grids",
-  "check-table",
 ]
 
 [sketch.feed_events]
@@ -873,7 +869,6 @@ requires = [
   "contours",
   "polylines",
   "stock-tiles",
-  "check-table",
 ]
 
 [sketch.net_policy]
@@ -1091,7 +1086,6 @@ requires = [
   "grained",
   "recipes",
   "bank",
-  "check-table",
 ]
 
 [sketch."persona menu"]
@@ -1280,7 +1274,6 @@ requires = [
   "shapers",
   "crossings",
   "stock-tiles",
-  "check-table",
 ]
 
 [sketch.slang_portable]
@@ -1427,7 +1420,6 @@ requires = [
   "contours",
   "polylines",
   "stock-tiles",
-  "check-table",
 ]
 
 [sketch.ticker_lanes]
@@ -1617,7 +1609,6 @@ requires = [
   "frames-grids",
   "stock-tiles",
   "ramp-shaders",
-  "check-table",
 ]
 
 [sketch."y2k chrome"]
