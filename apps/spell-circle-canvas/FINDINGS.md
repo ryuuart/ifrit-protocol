@@ -1073,3 +1073,22 @@ should assert that `Filter::of` does not accept a colour type — a
 deleted overload taking an integral or enumeration argument, or a radius
 type of its own — so the mistake fails to compile; the sketches still to
 be swept are where it would otherwise recur.
+
+## Seer's receiver does not listen again after a restart or a replay
+
+`SeerReceiver.RestartingFromASceneSignalOpensAFreshLiveFeed` stops and
+starts the pinned receiver from inside the model's `rowsInserted` and
+finds `Receiver::listening()` false afterwards
+(`src/seer/app/test/ReceiverTest.cpp:291`), and
+`SeerReceiver.ReplayReplacesThePinnedFeedAndCanRestart` starts the
+receiver again after a replay and counts one scene where it expects two
+(`:374`). `Receiver::start()` closes the standing wire only when its
+state is closed or carries an error, then asks `Wires::open(uri)`, which
+asks the hub to listen; with feeds handed out by value, a wire that was
+closed by `stop()` but is still held elsewhere is evidently answered
+again as the same closed door rather than as a fresh one.
+
+Intended: a restart opens a live feed on the same port, and a restart
+after a replay plays the recording again. A test should assert
+`listening()` after stop/start inside the signal, and two rows after the
+restart that follows a replay — as these two cases already do.
