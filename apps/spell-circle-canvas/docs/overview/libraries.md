@@ -123,8 +123,10 @@ root. A test, a script and an inspector panel are three clients of the
 same commands.
 
 **[SigilMeasure](doxygen:SigilMeasure)** — timing, statistics and check
-reporting: stopwatches, lap timers, the frame timer whose marks feed a
-render loop's lanes, and the report a check writes.
+reporting: a stopwatch and a timed block; the summary, quantile and
+histogram of a run; the window, smoothed reading and rate of a live
+stream; the check table; and, under its advanced headers, the frame
+timer whose lanes every host reads.
 
 **[SigilPython](doxygen:SigilPython)** — the reusable native bindings
 and the callback ownership rules behind them, with no sketch runtime,
