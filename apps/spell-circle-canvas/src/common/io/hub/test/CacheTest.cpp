@@ -9,9 +9,9 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
-#include <sigilimage/decode/ChannelData.h>
-#include <sigilimage/decode/Decode.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Channels.h>
+#include <sigilmedia/image/Decode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
 #include <sigilio/advanced/Decoding.h>
@@ -110,17 +110,17 @@ TEST_F(IOHub, ConcurrentColdLoadsPublishOneCachedView) {
   for (const auto& view : views) EXPECT_EQ(view, views.front());
 }
 
-TEST_F(IOHub, ImagesLoadOnlyOnceSigilImageRegistersItsDecoders) {
+TEST_F(IOHub, ImagesLoadOnlyOnceSigilMediaRegistersItsDecoders) {
   writePng(dir.path / "logo.png", 3, SK_ColorRED);
   Hub bare;
   mount(bare, "res://", dir.path);
-  EXPECT_EQ(bare.load<sigil::image::ImageAsset>("res://logo.png"), nullptr);
+  EXPECT_EQ(bare.load<sigil::media::Image>("res://logo.png"), nullptr);
   EXPECT_NE(bare.read("res://logo.png"), nullptr);
-  auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
+  auto image = hub.load<sigil::media::Image>("res://logo.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->width(), 3);
+  EXPECT_EQ(image->size().width(), 3);
   // Options at their defaults are the plain ask, and share its view.
-  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://logo.png", {}), image);
+  EXPECT_EQ(hub.load<sigil::media::Image>("res://logo.png", {}), image);
 }
 
 // Options are the decoder's own, bound into the decode a load runs:
@@ -159,13 +159,13 @@ TEST_F(IOHub, LoadWithOptionsDecodesOncePerDistinctOptions) {
 TEST_F(IOHub, FetchThenImageThenChannelsAllAnswer) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
   ASSERT_NE(hub.read("res://logo.png"), nullptr);
-  auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
+  auto image = hub.load<sigil::media::Image>("res://logo.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->width(), 1);
-  ASSERT_NE(hub.load<sigil::image::ChannelData>("res://logo.png"), nullptr);
+  EXPECT_EQ(image->size().width(), 1);
+  ASSERT_NE(hub.load<sigil::media::Channels>("res://logo.png"), nullptr);
   // The earlier views are still served, not evicted by the later asks.
   EXPECT_NE(hub.read("res://logo.png"), nullptr);
-  EXPECT_NE(hub.load<sigil::image::ImageAsset>("res://logo.png"), nullptr);
+  EXPECT_NE(hub.load<sigil::media::Image>("res://logo.png"), nullptr);
 }
 
 // fetch() never decodes: bytes no image codec accepts still load, and
@@ -176,7 +176,7 @@ TEST_F(IOHub, FetchAloneDoesNotDecode) {
   dir.write("fake.png", "not an image at all");
   auto bytes = hub.read("res://fake.png");
   ASSERT_NE(bytes, nullptr);
-  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://fake.png"), nullptr);
+  EXPECT_EQ(hub.load<sigil::media::Image>("res://fake.png"), nullptr);
   EXPECT_NE(hub.read("res://fake.png"), nullptr);
 }
 
@@ -187,9 +187,9 @@ TEST_F(IOHub, ImageDecodesOnDemandFromCachedBytes) {
   writePng(dir.path / "logo.png", 1, SK_ColorRED);
   ASSERT_NE(hub.read("res://logo.png"), nullptr);
   fs::remove(dir.path / "logo.png");
-  auto image = hub.load<sigil::image::ImageAsset>("res://logo.png");
+  auto image = hub.load<sigil::media::Image>("res://logo.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->width(), 1);
+  EXPECT_EQ(image->size().width(), 1);
 }
 
 // A '#' in a filename is URI content, not cache-key syntax. The decoy
@@ -198,20 +198,20 @@ TEST_F(IOHub, ImageDecodesOnDemandFromCachedBytes) {
 TEST_F(IOHub, PollReloadsFilesWhoseNamesContainHash) {
   writePng(dir.path / "tile", 2, SK_ColorGREEN);      // decoy
   writePng(dir.path / "tile#3.png", 1, SK_ColorRED);  // the resource
-  auto image = hub.load<sigil::image::ImageAsset>("res://tile#3.png");
+  auto image = hub.load<sigil::media::Image>("res://tile#3.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->width(), 1);
+  EXPECT_EQ(image->size().width(), 1);
   // Nothing changed: no spurious erase, no reload against the decoy.
   EXPECT_FALSE(poll(hub));
-  ASSERT_NE(hub.load<sigil::image::ImageAsset>("res://tile#3.png"), nullptr);
-  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://tile#3.png")->width(), 1);
+  ASSERT_NE(hub.load<sigil::media::Image>("res://tile#3.png"), nullptr);
+  EXPECT_EQ(hub.load<sigil::media::Image>("res://tile#3.png")->size().width(), 1);
   // Touch the real file: poll() reloads that same file.
   writePng(dir.path / "tile#3.png", 2, SK_ColorBLUE);
   touchForward(dir.path / "tile#3.png");
   EXPECT_TRUE(poll(hub));
-  auto reloaded = hub.load<sigil::image::ImageAsset>("res://tile#3.png");
+  auto reloaded = hub.load<sigil::media::Image>("res://tile#3.png");
   ASSERT_NE(reloaded, nullptr);
-  EXPECT_EQ(reloaded->width(), 2);
+  EXPECT_EQ(reloaded->size().width(), 2);
 }
 
 /** A decoder that asks the same hub for a second resource while it
@@ -295,7 +295,7 @@ TEST_F(IOHub, ProbeReportsHowManyBytesAndWhereTheyAre) {
   EXPECT_EQ(info->path, dir.path / "table.bin");
   // Bytes are all the hub answers for. What they mean is asked of the
   // library that owns the meaning, and these bytes are not an image.
-  EXPECT_FALSE(probe<sigil::image::ImageProbe>(hub, "res://table.bin"));
+  EXPECT_FALSE(probe<sigil::media::Metadata>(hub, "res://table.bin"));
   EXPECT_FALSE(probe<ResourceInfo>(hub, "res://nothing.bin"));
 }
 
@@ -321,16 +321,16 @@ TEST_F(IOHub, WrittenImageBytesDecodeBackThroughTheHub) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(7, 7));
   bitmap.eraseColor(SK_ColorMAGENTA);
-  const sk_sp<SkData> encoded =
-      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
-  ASSERT_TRUE(encoded);
+  const std::vector<std::byte> encoded =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(encoded.empty());
   ASSERT_TRUE(
       hub.write("res://made/tile.png",
-                std::span(static_cast<const std::byte*>(encoded->data()),
-                          encoded->size())));
-  auto image = hub.load<sigil::image::ImageAsset>("res://made/tile.png");
+                std::span(encoded.data(),
+                          encoded.size())));
+  auto image = hub.load<sigil::media::Image>("res://made/tile.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->width(), 7);
+  EXPECT_EQ(image->size().width(), 7);
 }
 
 TEST_F(IOHub, NetworkUrisCannotBeWritten) {
@@ -377,11 +377,11 @@ TEST_F(IOChannels, LdrFormatsNormalizeToFloats) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   bitmap.eraseColor(SK_ColorRED);
-  const sk_sp<SkData> png =
-      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
-  ASSERT_TRUE(png);
-  ASSERT_TRUE(writeBytes(dir.path / "red.png", png->data(), png->size()));
-  auto channels = hub.load<sigil::image::ChannelData>("res://red.png");
+  const std::vector<std::byte> png =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(png.empty());
+  ASSERT_TRUE(writeBytes(dir.path / "red.png", png.data(), png.size()));
+  auto channels = hub.load<sigil::media::Channels>("res://red.png");
   ASSERT_NE(channels, nullptr);
   ASSERT_EQ(channels->names.size(), 4u);
   EXPECT_FALSE(channels->floatingPoint);

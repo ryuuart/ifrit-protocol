@@ -3,7 +3,7 @@
 #   common/      libraries shared across products, in the order they are
 #                added below: core/ (SigilCore), skia/ (SigilSkia,
 #                Graphite bring-up), qt/ (Ifrit.Qt desktop components and services),
-#                image/ (SigilImage), video/ (SigilVideo), io/ (SigilIO),
+#                media/ (SigilMedia), io/ (SigilIO),
 #                data/ (SigilData), protocol/ (SigilProtocol), scry/
 #                (SigilScry), measure/
 #                (SigilMeasure), motion/ (SigilMotion), geometry/
@@ -41,8 +41,7 @@ set(SIGIL_TEST_SUPPORT_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 add_subdirectory(common/core)
 add_subdirectory(common/skia)
 add_subdirectory(common/qt)
-add_subdirectory(common/image)
-add_subdirectory(common/video)
+add_subdirectory(common/media)
 add_subdirectory(common/io)
 # Tabular data and the mappings read off it. Over io's byte seam only:
 # a decoder speaks that vocabulary, and registers itself on whatever

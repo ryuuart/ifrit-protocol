@@ -4,8 +4,8 @@
 #include <sigilpython/data/Registration.h>
 #include <sigilpython/draw/Registration.h>
 #include <sigilpython/geometry/Registration.h>
-#include <sigilpython/image/Registration.h>
 #include <sigilpython/io/Registration.h>
+#include <sigilpython/media/Registration.h>
 #include <sigilpython/material/Registration.h>
 #include <sigilpython/measure/Registration.h>
 #include <sigilpython/motion/Registration.h>
@@ -13,7 +13,6 @@
 #include <sigilpython/skia/Registration.h>
 #include <sigilpython/substance/Registration.h>
 #include <sigilpython/usd/Registration.h>
-#include <sigilpython/video/Registration.h>
 #include <sigilpython/weave/Registration.h>
 #include <sigilpython/world/Registration.h>
 
@@ -39,8 +38,7 @@ void bindLibraries(pybind11::module_& module) {
   bindDrawCanvasSeam(module);
   bindSkiaSurfaces(module);
   bindSkiaFonts(module);
-  bindImageValues(module);
-  bindImageMeaning(module);
+  bindMediaImages(module);
   // A tween's fields take a staggered value and resolve at a place, so
   // the schedule vocabulary stands ahead of the values that read it.
   bindMotionSchedule(module);
@@ -135,7 +133,7 @@ void bindLibraries(pybind11::module_& module) {
   bindData(module);
   bindDataConnection(module);
   bindMeasure(module);
-  bindVideo(module);
+  bindMediaVideo(module);
   bindOptionalLibraries(module);
 #ifdef SIGIL_PYTHON_HAS_SCRY
   bindScry(module);

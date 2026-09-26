@@ -75,8 +75,8 @@ void TwoAdvancedV3::extractRivImages(std::span<const std::byte> bytes) {
   clouds.assign(62, nullptr);
   discordSeq.assign(102, nullptr);
 
-  for (const sigil::image::EmbeddedImage& found :
-       sigil::image::embeddedPngs(bytes)) {
+  for (const sigil::media::EmbeddedImage& found :
+       sigil::media::embeddedImages(bytes)) {
     const std::string& name = found.name;
     auto want = [&](const char* w) { return name == w; };
     ImagePtr* dest = nullptr;
@@ -105,9 +105,9 @@ void TwoAdvancedV3::extractRivImages(std::span<const std::byte> bytes) {
       if (idx >= 0 && idx < 62) dest = &clouds[(size_t)idx];
     }
     if (dest && !*dest) {
-      if (auto img = sigil::image::ImageAsset::decode(
+      if (auto img = sigil::media::Image::decode(
               SkData::MakeWithCopy(bytes.data() + found.offset, found.length)))
-        *dest = std::make_shared<sigil::image::ImageAsset>(std::move(*img));
+        *dest = std::make_shared<sigil::media::Image>(std::move(*img));
     }
   }
   // Sequences are used dense-or-not-at-all: one absent frame would

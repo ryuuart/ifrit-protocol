@@ -1,7 +1,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
-#include <sigilimage/decode/Decoders.h>
 #include <sigilio/advanced/Decoding.h>
 #include <sigilio/advanced/Feeds.h>
 #include <sigilio/advanced/Network.h>
@@ -13,6 +12,7 @@
 #include <sigilio/hub/Recording.h>
 #include <sigilio/testing/Testing.h>
 #include <sigilio/transport/Transport.h>
+#include <sigilmedia/advanced/Resource.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/data/Convert.h>
 #include <sigilpython/io/Hub.h>
@@ -421,10 +421,17 @@ void bindIO(py::module_& module) {
           [](const HubHandle& value, py::handle type,
              const std::string& uri) -> py::object {
             auto& hub = value.get();
-            if (type.is(py::type::of<image::ImageAsset>())) {
-              auto asset = unlocked(
-                  [&] { return hub.load<image::ImageAsset>(uri); });
-              return asset ? py::cast(*asset) : py::none();
+            if (type.is(py::type::of<media::Image>())) {
+              auto image = unlocked(
+                  [&] { return hub.load<media::Image>(uri); });
+              return image ? py::cast(std::const_pointer_cast<media::Image>(image))
+                           : py::none();
+            }
+            if (type.is(py::type::of<media::Video>())) {
+              auto video = unlocked(
+                  [&] { return hub.load<media::Video>(uri); });
+              return video ? py::cast(std::const_pointer_cast<media::Video>(video))
+                           : py::none();
             }
             return loadData(hub, type, uri);
           },
@@ -640,15 +647,15 @@ void bindIO(py::module_& module) {
           },
           py::arg("bytes"));
 
-  // SigilImage puts its own decoders on a hub, as SigilData does: an
-  // owned hub loads an ImageAsset once this has run, and a session's hub
-  // already has.
-  submodule(module, "image")
+  // SigilMedia puts its own decoders on a hub, as SigilData does: an
+  // owned hub loads an Image or a Video once this has run, and a
+  // session's hub already has.
+  submodule(module, "media")
       .def(
           "registerDecoders",
           [](const HubHandle& value) {
             auto& hub = value.get();
-            unlocked([&] { image::registerDecoders(hub); });
+            unlocked([&] { media::registerDecoders(hub); });
           },
           py::arg("hub"));
 }

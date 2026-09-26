@@ -64,7 +64,7 @@ directory, each a static archive that links only what sits beneath it:
 |--------|-------|-------|
 | `SigilMaterialColor` | `Color`, `hexColor()`, `hsv()`, the three mixes and `luminance()`, `ColorStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Parameters.h` includes | SigilCoreCompute |
 | `SigilMaterialCore` | the value model: `Target`, `Parameters`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `ColorStops` and `GradientOptions`, what a gradient is told in box units or pixels; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
-| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilImageAsset, Skia, Boost.Container; simdjson privately |
+| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilMediaCore, Skia, Boost.Container; simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, applied through a private 3D-LUT recipe or a per-channel response recipe | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
@@ -339,7 +339,7 @@ answer null for the other kind.
 **A texture is a source plus sampling, and both enter equality.** The
 source is type-erased behind `TextureSource`: `ImageSource` (a decoded
 still, equal when it is the same image object), `AssetSource` (a frame of
-an `image::ImageAsset` at a playback time; animated when the asset is),
+a `media::Image` at a playback time; animated when the asset is),
 and `ProducerSource` (a function that bakes an image on first use, keyed
 by a string — the key IS the identity, so it must name the picture and
 every parameter that shaped it). Any type with `image()`, `animated()`
@@ -384,9 +384,9 @@ radiance function over the panorama (the kit's `studioEnvironment()` and
 lat-long panorama, `fromFaces()` resamples six cube faces and
 `fromCubeMap()` unpacks one sheet — a 4:3 or 3:4 cross, a 6:1 row or a
 1:6 column — into the same. A cube map arrives as an ordinary image
-because that is what SigilImage decodes, and the two containers that
+because that is what SigilMedia decodes, and the two containers that
 hold six faces in one file arrive as the 1:6 column: a KTX 1 or 2
-through SigilImage's own reader (uncompressed texels), a DDS through
+through SigilMedia's own reader (uncompressed texels), a DDS through
 its OpenImageIO backend.
 
 Two readings hang off the panorama, cached with it and shared by every
@@ -1028,12 +1028,12 @@ from wherever that consumer keeps it.
 ## Boundaries
 
 The core links no renderer; the texture feature links Skia because a
-texture IS a Skia image with its sampling, and SigilImage because an
+texture IS a Skia image with its sampling, and SigilMedia because an
 asset is a source. The Skia seam is therefore wider than
 `sigilmaterial/skia/*`: every `texture/*.h`, `pattern/Tile.h` and
 `kit/TextPaint.h` names a Skia type in its own signatures, because an
 image, a baked tile and a text paint ARE Skia values. A header outside
-those places that needed one would be the boundary moving. SigilIO owns resource access and SigilImage owns
+those places that needed one would be the boundary moving. SigilIO owns resource access and SigilMedia owns
 image meaning, so this library decodes no pixels and opens no consumer asset
 file — every door that needs pixels takes them or takes a decoder. Its own
 shader files are compiled into its archives rather than read through SigilIO,

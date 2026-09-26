@@ -12,7 +12,7 @@
 #include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcore/schedule/ConcurrentIo.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmaterial/color/Color.h>
@@ -884,9 +884,9 @@ bool writePng(const SkBitmap& bitmap, const std::filesystem::path& out) {
   if (bitmap.isNull()) return false;
   // The format the capture path is named for; the directories above the
   // file are the sink's business, not this one's.
-  const sk_sp<SkData> png =
-      image::encodeImage(bitmap.pixmap(), image::Format::Png);
-  return png && io::writeBytes(out, png->data(), png->size());
+  const std::vector<std::byte> png =
+      media::encode(bitmap.pixmap(), media::Format::Png);
+  return !png.empty() && io::writeBytes(out, png.data(), png.size());
 }
 
 }  // namespace

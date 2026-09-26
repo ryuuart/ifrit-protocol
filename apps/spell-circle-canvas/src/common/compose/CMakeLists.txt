@@ -19,7 +19,7 @@
 #   SigilComposeTesting     testing/     the read-back checks (headers)
 #   SigilComposeTexture     texture/     a scene painted into a surface and
 #                                        handed over as a material texture
-#   SigilComposeVideo       video/       a streaming SigilVideo leaf sampled
+#   SigilComposeVideo       video/       a streaming SigilMediaVideo leaf sampled
 #                                        by the composer's motion clock
 #   SigilComposeWeb         web/         the Ultralight leaf (headers; only
 #                                        with SigilScry)
@@ -236,7 +236,7 @@ sigil_doc_probes(compose
           "kit::englishHyphenationPatterns=${weave_owned}"
           "selectors::regex=${weave_owned}"
           "selectors::line=${weave_owned}"
-          "image::distanceField=${weave_owned}"
+          "media::distanceField=${weave_owned}"
   FLOORS 280,190,150,220,5
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
             SigilComposeTypography SigilComposeVideo SigilComposeDraw

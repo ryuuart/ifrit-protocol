@@ -4,7 +4,7 @@
 // outer and centred strokes that paint their band against the shape —
 // whole, and narrowed to the run a span has revealed so far.
 
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <memory>
@@ -15,13 +15,12 @@
 /** A nine-slice source with a marked top-left corner cell: 24x24, blue, with
  *  the first 8x8 in red, so the corner band's drawn WIDTH is readable off the
  *  red run. */
-std::shared_ptr<sigil::image::ImageAsset> cornerMarkedFrame() {
+std::shared_ptr<const sigil::media::Image> cornerMarkedFrame() {
   SkBitmap src;
   src.allocN32Pixels(24, 24);
   src.eraseColor(SK_ColorBLUE);
   src.erase(SK_ColorRED, SkIRect::MakeXYWH(0, 0, 8, 8));
-  return std::make_shared<sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(src.asImage()));
+  return sigil::media::Image::of(src.asImage());
 }
 
 Slice cornerSlice(float density) {

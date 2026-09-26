@@ -175,7 +175,7 @@ sound model; nothing below them changes kernel semantics.
   every verb family and every kind of node with it, and a family's own
   header is for a value that inherits the family.
 - `core/Factories.h` — the functions that start one: `box`, `stack`,
-  `positioned`, `text`, `frame`, `image` (an `image::ImageAsset`, or a
+  `positioned`, `text`, `frame`, `image` (an `media::Image`, or a
   raw `SkImage` with a `material::Fit` — `Stretch`, `Contain`,
   `Cover` or `Native` — which is
   the wrap written once and the fit said as LAYOUT rather than as a
@@ -710,7 +710,7 @@ first installed family of a fallback chain
 this tier.
 
 **Leaves with their own targets.** `video/Video.h` makes a streaming
-`SigilVideo` clip a live leaf. `video(clip)` takes its intrinsic dimensions
+`SigilMediaVideo` clip a live leaf. `video(clip)` takes its intrinsic dimensions
 from the encoded frame, samples presentation time from the composer's motion
 clock, and disables picture caching while the clip's own decoded-frame cache
 stays active. On a Graphite canvas the leaf passes its recorder to the video

@@ -11,8 +11,8 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
-#include <sigilimage/decode/Decoders.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/source/Sink.h>
@@ -203,20 +203,20 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
   bitmap.eraseColor(SK_ColorRED);
-  const sk_sp<SkData> png =
-      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
-  ASSERT_TRUE(png);
-  ASSERT_TRUE(NetworkCache(cache.path).put(url, {static_cast<const std::byte*>(png->data()), png->size()}));
+  const std::vector<std::byte> png =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(png.empty());
+  ASSERT_TRUE(NetworkCache(cache.path).put(url, {png.data(), png.size()}));
   Hub hub;
-  sigil::image::registerDecoders(hub);
+  sigil::media::registerDecoders(hub);
   setNetworkCacheDirectory(hub, cache.path);
-  auto image = hub.load<sigil::image::ImageAsset>(url);
+  auto image = hub.load<sigil::media::Image>(url);
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->width(), 1);
+  EXPECT_EQ(image->size().width(), 1);
   auto info = probe<ResourceInfo>(hub, url);
   ASSERT_TRUE(info.has_value());
   EXPECT_GT(info->byteSize, 0u);
-  auto probed = probe<sigil::image::ImageProbe>(hub, url);
+  auto probed = probe<sigil::media::Metadata>(hub, url);
   ASSERT_TRUE(probed.has_value());
   EXPECT_EQ(probed->format, "png");
 }

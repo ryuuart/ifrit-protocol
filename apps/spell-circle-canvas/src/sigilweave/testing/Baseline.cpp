@@ -1,11 +1,10 @@
 #include "sigilweave/testing/Baseline.h"
 
 #include <include/core/SkBitmap.h>
-#include <include/core/SkData.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilimage/asset/ImageAsset.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Decode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilio/source/Source.h>
 
@@ -21,12 +20,12 @@ namespace {
 
 /// Writes @p pixels to @p path as a PNG, making its directory first.
 bool writePng(const SkPixmap& pixels, const std::filesystem::path& path) {
-  const sk_sp<SkData> png = image::encodeImage(pixels, image::Format::Png);
-  if (!png) return false;
+  const std::vector<std::byte> png = media::encode(pixels, media::Format::Png);
+  if (png.empty()) return false;
   std::error_code ignored;
   if (path.has_parent_path())
     std::filesystem::create_directories(path.parent_path(), ignored);
-  return io::writeBytes(path, png->data(), png->size());
+  return io::writeBytes(path, png.data(), png.size());
 }
 
 /// The baseline's first frame read back as premultiplied N32, the format
@@ -34,8 +33,8 @@ bool writePng(const SkPixmap& pixels, const std::filesystem::path& path) {
 std::optional<SkBitmap> readPng(const std::filesystem::path& path) {
   const std::optional<io::Bytes> bytes = io::readBytes(path);
   if (!bytes) return std::nullopt;
-  std::optional<image::ImageAsset> asset = image::ImageAsset::decode(
-      SkData::MakeWithCopy(bytes->data(), bytes->size()));
+  const std::shared_ptr<const media::Image> asset =
+      media::decode<media::Image>(bytes->span(), {}, path);
   if (!asset || asset->frames().empty() || !asset->frames().front().image)
     return std::nullopt;
   const sk_sp<SkImage>& frame = asset->frames().front().image;
@@ -144,7 +143,7 @@ BaselineComparison compareToBaseline(const SkPixmap& render,
     if (comparison.baselineSize != comparison.renderSize) {
       comparison.outcome = BaselineOutcome::kResized;
     } else {
-      comparison.difference = image::difference(render, expected->pixmap());
+      comparison.difference = media::difference(render, expected->pixmap());
       comparison.outcome = comparison.difference.identical()
                                ? BaselineOutcome::kMatched
                                : BaselineOutcome::kDiffered;

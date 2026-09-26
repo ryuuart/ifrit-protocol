@@ -7,7 +7,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigildata/read/Read.h>
 #include <sigildata/query/Database.h>
-#include <sigilimage/decode/Decoders.h>
+#include <sigilmedia/advanced/Resource.h>
 #include <sigilio/advanced/Network.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/transport/Transport.h>
@@ -25,7 +25,7 @@ namespace sigil::sketch {
 namespace {
 
 /** The classic missing-texture checker: magenta/black, unmistakable. */
-std::shared_ptr<const sigil::image::ImageAsset> makePlaceholder() {
+std::shared_ptr<const sigil::media::Image> makePlaceholder() {
   constexpr int kSize = 64, kCell = 16;
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSize, kSize));
@@ -39,8 +39,7 @@ std::shared_ptr<const sigil::image::ImageAsset> makePlaceholder() {
                                        kCell, kCell),
                       paint);
     }
-  return std::make_shared<sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(surface->makeImageSnapshot()));
+  return sigil::media::Image::of(surface->makeImageSnapshot());
 }
 
 /** THE MISSING-TEXTURE CHECKER AS A PROGRAM, sixteen canvas units a cell:
@@ -100,12 +99,12 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
     : m_root(std::move(root)),
       m_sketches(std::move(sketches)),
       m_hub(hubOptions(m_root, m_sketches)) {
-  // An image is a resource SigilImage says the meaning of: with its
-  // decoders on, hub().load<image::ImageAsset>(uri) answers — stills,
+  // An image is a resource SigilMedia says the meaning of: with its
+  // decoders on, hub().load<media::Image>(uri) answers — stills,
   // animations and vector sources, with the library's own DecodeOptions
   // when a sketch names a size or a layer — and load<ChannelData>() the
   // float planes of the same file.
-  sigil::image::registerDecoders(m_hub);
+  sigil::media::registerDecoders(m_hub);
   // A data file is a resource like an image is: with the decoders on,
   // hub().load<Table>("sketch://<key>/data/x.csv") answers, cached and reloaded
   // by the same machinery, and a sketch carries no literal table. A
@@ -139,9 +138,9 @@ std::shared_ptr<const sigil::data::Database> Assets::database(
   return m_hub.load<sigil::data::Database>(uriFor(name));
 }
 
-std::shared_ptr<const sigil::image::ImageAsset> Assets::image(
+std::shared_ptr<const sigil::media::Image> Assets::image(
     std::string_view name) {
-  if (auto asset = m_hub.load<sigil::image::ImageAsset>(uriFor(name))) {
+  if (auto asset = m_hub.load<sigil::media::Image>(uriFor(name))) {
     std::erase(m_placeholders, name);
     return asset;
   }
@@ -159,21 +158,9 @@ std::shared_ptr<const sigil::data::Json> Assets::json(std::string_view name) {
   return m_hub.load<sigil::data::Json>(uriFor(name));
 }
 
-std::shared_ptr<sigil::video::Video> Assets::video(
-    std::string_view name, const sigil::video::DecodeOptions& options) {
-  for (const CachedVideo& cached : m_videos)
-    if (cached.name == name && cached.options == options) return cached.clip;
-
-  const std::string uri = uriFor(name);
-  const std::shared_ptr<const sigil::io::Bytes> encoded = m_hub.read(uri);
-  if (!encoded) return nullptr;
-  std::shared_ptr<sigil::video::Video> clip =
-      sigil::video::decodeVideo(encoded->data(), encoded->size(),
-                                options, io::resolve(m_hub, uri));
-  if (clip)
-    m_videos.push_back(
-        {.name = std::string(name), .options = options, .clip = clip});
-  return clip;
+std::shared_ptr<const sigil::media::Video> Assets::video(
+    std::string_view name, const sigil::media::VideoOptions& options) {
+  return m_hub.load<sigil::media::Video>(uriFor(name), options);
 }
 
 sk_sp<SkRuntimeEffect> Assets::shader(std::string_view name) {
@@ -215,10 +202,9 @@ void Assets::beginDeclaration() {
 
 bool Assets::poll() {
   bool changed = io::poll(m_hub);
-  if (changed) m_videos.clear();
   // Placeholders heal the moment their file becomes loadable.
   for (auto it = m_placeholders.begin(); it != m_placeholders.end();) {
-    if (m_hub.load<sigil::image::ImageAsset>(uriFor(*it))) {
+    if (m_hub.load<sigil::media::Image>(uriFor(*it))) {
       it = m_placeholders.erase(it);
       changed = true;
     } else {

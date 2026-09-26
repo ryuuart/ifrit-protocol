@@ -87,7 +87,7 @@ std::shared_ptr<const Bytes> probeRead(const Hub& hub, std::string_view uri,
  *  `[](const Bytes& bytes) {…}`. For a Configurable T the options a load
  *  asked for are offered third, T's defaults when it named none. A hub
  *  registers nothing itself: the library that owns T calls this, as
- *  SigilImage's and SigilData's `registerDecoders(hub)` do.
+ *  SigilMedia's and SigilData's `registerDecoders(hub)` do.
  *  @trap Replacing a decoder leaves a view already decoded holding its
  *  value and the decoder that made it, which poll() re-runs. */
 template <typename T>

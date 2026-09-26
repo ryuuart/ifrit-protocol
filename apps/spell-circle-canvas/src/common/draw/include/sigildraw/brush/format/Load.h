@@ -8,7 +8,7 @@
  *
  * The brush library never opens a file. Everything here takes bytes,
  * from a hub, a fixture or a caller's own array, and the images inside
- * them are decoded by SigilImage.
+ * them are decoded by SigilMedia.
  */
 
 #include <sigildraw/brush/Tool.h>

@@ -30,7 +30,7 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/usdLux/domeLight.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 
 #include <algorithm>
@@ -73,8 +73,8 @@ float writePanorama(const sk_sp<SkImage>& image,
   // The pixmap door, not the image one: the sixteen bits a channel this
   // function exists to keep are the caller's choice, and a readback
   // would pick eight.
-  const sk_sp<SkData> png = image::encodeImage(bm.pixmap(), image::Format::Png);
-  if (!png || !io::writeBytes(path, png->data(), png->size())) return 0;
+  const std::vector<std::byte> png = media::encode(bm.pixmap(), media::Format::Png);
+  if (png.empty() || !io::writeBytes(path, png.data(), png.size())) return 0;
   return peak;
 }
 

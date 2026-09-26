@@ -1,9 +1,9 @@
 /** @file
  * sticker_collection — one small animated-media catalog over a shared stage.
  *
- * SigilIO fetches and caches the documents. SigilImage eagerly decodes GIF,
+ * SigilIO fetches and caches the documents. SigilMedia eagerly decodes GIF,
  * WebP and AVIF sequences into fully composited frames; the live leaf asks
- * each document for frameAt(elapsed) on every paint. SigilVideo streams the
+ * each document for frameAt(elapsed) on every paint. SigilMediaVideo streams the
  * WebM entry and keeps its native alpha plane. The fixed checker-and-wave
  * ground makes partial transparency visible without moving any sticker box.
  *
@@ -21,14 +21,14 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigildraw/Pen.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilvideo/decode/Decode.h>
+#include <sigilmedia/video/Video.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -42,9 +42,9 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace draw = sigil::draw;
-namespace image = sigil::image;
+namespace media = sigil::media;
 namespace io = sigil::io;
-namespace video = sigil::video;
+namespace media = sigil::media;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
@@ -77,16 +77,16 @@ const std::string kWebm = "https://raw.githubusercontent.com/samdutton/simpl/" +
                           std::string(kSimplCommit) +
                           "/videoalpha/video/dancer1.webm";
 
-std::shared_ptr<video::Video> loadVideo(io::Hub& hub, std::string_view uri) {
+std::shared_ptr<media::Video> loadVideo(io::Hub& hub, std::string_view uri) {
   const std::shared_ptr<const io::Bytes> encoded = hub.read(uri);
   if (!encoded || encoded->empty()) return nullptr;
-  video::DecodeOptions options;
+  media::VideoOptions options;
   options.cachedFrames = 8;
   return video::decodeVideo(encoded->data(), encoded->size(),
                             options, std::filesystem::path(uri));
 }
 
-double loopTime(const video::Video& clip, double seconds) {
+double loopTime(const media::Video& clip, double seconds) {
   const double duration = clip.probe().durationSeconds;
   if (duration <= 0.0) return std::max(0.0, seconds);
   double result = std::fmod(seconds, duration);
@@ -137,8 +137,8 @@ void drawGround(draw::Pen& pen) {
 }
 
 struct Shelf {
-  std::array<std::shared_ptr<const image::ImageAsset>, 5> images;
-  std::shared_ptr<video::Video> webm;
+  std::array<std::shared_ptr<const media::Image>, 5> images;
+  std::shared_ptr<media::Video> webm;
 };
 
 }  // namespace
@@ -159,8 +159,8 @@ struct StickerCollection {
 
     io::Hub& hub = ctx.assets.hub();
     const Shelf shelf{
-        .images = {hub.load<image::ImageAsset>(kGif), hub.load<image::ImageAsset>(kAvif), hub.load<image::ImageAsset>(kSparkle),
-                   hub.load<image::ImageAsset>(kDiamond), hub.load<image::ImageAsset>(kHeart)},
+        .images = {hub.load<media::Image>(kGif), hub.load<media::Image>(kAvif), hub.load<media::Image>(kSparkle),
+                   hub.load<media::Image>(kDiamond), hub.load<media::Image>(kHeart)},
         .webm = loadVideo(hub, kWebm)};
 
     Element stage = pen("stickers.live", [shelf](draw::Pen& pen) {
@@ -180,12 +180,12 @@ struct StickerCollection {
       for (size_t i = 0; i < shelf.images.size(); ++i) {
         const auto& asset = shelf.images[i];
         if (!asset) continue;
-        const image::Frame& frame = asset->frameAt(pen.millis() + offsets[i]);
+        const media::Frame& frame = asset->frameAt(pen.millis() + offsets[i]);
         drawContained(pen, frame.image, boxes[i], turns[i]);
       }
 
       if (shelf.webm) {
-        const video::VideoFrame frame = shelf.webm->frameAt(
+        const media::Frame frame = shelf.webm->frameAt(
             loopTime(*shelf.webm, pen.millis() * 0.001 + 0.42),
             pen.canvas()->recorder());
         drawContained(pen, frame.image, boxes.back(), 5.0f);

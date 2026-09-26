@@ -184,7 +184,7 @@ TEST_F(IOHub, ConcurrentLoadsRunBesideLeasesAndDiscards) {
   ResourceLease retained = retain(hub, "res://kept/**");
   ASSERT_EQ(retained.uris().size(), kFiles + 1);
   ASSERT_EQ(retained.preload(), kFiles + 1);
-  ASSERT_NE(hub.load<sigil::image::ImageAsset>("res://kept/tile.png"), nullptr);
+  ASSERT_NE(hub.load<sigil::media::Image>("res://kept/tile.png"), nullptr);
 
   std::atomic<bool> running{true};
   std::vector<std::thread> workers;
@@ -195,9 +195,9 @@ TEST_F(IOHub, ConcurrentLoadsRunBesideLeasesAndDiscards) {
           EXPECT_EQ(hub.text(kept[i]), "kept " + std::to_string(i));
           EXPECT_EQ(hub.text(loose[i]), "loose " + std::to_string(i));
         }
-        auto tile = hub.load<sigil::image::ImageAsset>("res://kept/tile.png");
+        auto tile = hub.load<sigil::media::Image>("res://kept/tile.png");
         ASSERT_NE(tile, nullptr);
-        EXPECT_EQ(tile->width(), 3);
+        EXPECT_EQ(tile->size().width(), 3);
       }
     });
   std::thread churn([&] {
@@ -222,9 +222,9 @@ TEST_F(IOHub, ConcurrentLoadsRunBesideLeasesAndDiscards) {
     dir.write("kept/" + std::to_string(i) + ".txt", "changed on disk");
   for (size_t i = 0; i != kFiles; ++i)
     EXPECT_EQ(hub.text(kept[i]), "kept " + std::to_string(i));
-  auto tile = hub.load<sigil::image::ImageAsset>("res://kept/tile.png");
+  auto tile = hub.load<sigil::media::Image>("res://kept/tile.png");
   ASSERT_NE(tile, nullptr);
-  EXPECT_EQ(tile->width(), 3);
+  EXPECT_EQ(tile->size().width(), 3);
 }
 
 TEST(IOResourceLease, MayBeDestroyedAfterItsHub) {

@@ -5,9 +5,9 @@
 # transport and native publication are separately linked features.
 #
 # Access only: the hub is a ByteSource (the source leaf) and every typed
-# view is a registered decoder run over the bytes it fetched. All image
-# format knowledge lives in SigilImageDecode, which registers its own
-# decoders on a hub it is handed; this library links no image library.
+# view is a registered decoder run over the bytes it fetched. All picture
+# format knowledge lives in SigilMedia, which registers its own decoders
+# on a hub it is handed; this library links no media library.
 #
 # Every public header lives under one include root, include/sigilio/
 # <feature>/, so a feature adds the root and spells its own directory.
@@ -50,7 +50,7 @@ sigil_library(SigilIO
 # it — the README, the frames feature's page and every chapter under
 # reference/, because a chapter is the same canon as the page that links
 # it, and the wires' whole vocabulary lives in one of them.
-# SigilImage's decode leaf is scanned and linked because the
+# SigilMedia is scanned and linked because the
 # walkthrough registers its decoders, probes with its probe and encodes
 # with its encoder: those names are that library's, which a consumer of
 # this one links beside it.
@@ -67,14 +67,14 @@ sigil_doc_probes(io
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRANSPORTS.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/TRAPS.md
           ${SIGIL_IO_REFERENCE}
-  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../image/include/sigilimage
-  PRELUDES "<sigilimage/asset/ImageAsset.h>"
-           "<sigilimage/decode/Decoders.h>"
-           "<sigilimage/encode/Encode.h>"
+  INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../media/include/sigilmedia
+  PRELUDES "<sigilmedia/core/Image.h>"
+           "<sigilmedia/advanced/Resource.h>"
+           "<sigilmedia/image/Encode.h>"
   EXCLUDE "sigil::data::registerDecoders=SigilData stands on this library, so its registration is named and not probed"
           "format::BrushDecoder=SigilDrawBrush stands on this library, so its decoder is named and not probed"
           "brush::Tool=SigilDrawBrush stands on this library, so its brush value is named and not probed"
           "CURL::libcurl=a CMake target name, not a C++ name"
           "std::filesystem::path=a nested standard namespace, which the scanner reads as a class and its member"
   FLOORS 30,8,35,6,0
-  LIBRARIES SigilIO SigilIOTransport SigilIOFrames SigilImageDecode)
+  LIBRARIES SigilIO SigilIOTransport SigilIOFrames SigilMediaResource SigilMediaImageEncode)

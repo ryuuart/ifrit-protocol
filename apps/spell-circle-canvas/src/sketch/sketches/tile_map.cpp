@@ -16,7 +16,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Arrange.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -104,7 +104,7 @@ const std::array<Tile, 4> kTileset{{
  *  of the forty unequal to itself on the next describe and defeat the memo
  *  this sketch is about. Held there and not in a static, since this file is
  *  a dylib a reload unloads. */
-std::shared_ptr<sigil::image::ImageAsset> atlas() {
+std::shared_ptr<const sigil::media::Image> atlas() {
   sk_sp<SkSurface> sheet =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
   SkCanvas& canvas = *sheet->getCanvas();
@@ -120,8 +120,7 @@ std::shared_ptr<sigil::image::ImageAsset> atlas() {
     }
     canvas.restore();
   }
-  return std::make_shared<sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(sheet->makeImageSnapshot()));
+  return sigil::media::Image::of(sheet->makeImageSnapshot());
 }
 
 /** ONE EDIT: which cell of a chunk carries a region other than the one
@@ -154,7 +153,7 @@ int tileAt(int chunk, int x, int y) {
   return 0;                                   // floor
 }
 
-Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
+Element chunkElement(const std::shared_ptr<const sigil::media::Image>& tileset,
                      const Chunk& chunk) {
   return box()
       .width(kChunkCols * kTile)
@@ -175,7 +174,7 @@ Element chunkElement(const std::shared_ptr<sigil::image::ImageAsset>& tileset,
 namespace {
 
 struct TileMap {
-  std::shared_ptr<sigil::image::ImageAsset> tileset = atlas();
+  std::shared_ptr<const sigil::media::Image> tileset = atlas();
   std::array<int, kChunks> revisions{};
   std::array<Edit, kChunks> edits{};
   /** The wash on each chunk, one live value per chunk: set to 1 when the

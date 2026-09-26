@@ -9,7 +9,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 
 #include <any>
 #include <functional>
@@ -106,7 +106,7 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
   return e;
 }
 
-Image image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
+Image image(std::shared_ptr<const sigil::media::Image> asset) {
   Image e{std::make_shared<detail::ElementNode>()};
   e.node()->kind = Kind::Image;
   e.node()->imageData.ensure().asset = std::move(asset);
@@ -114,11 +114,10 @@ Image image(std::shared_ptr<const sigil::image::ImageAsset> asset) {
 }
 
 Image image(sk_sp<SkImage> picture, material::Fit fit) {
-  if (!picture) return image(std::shared_ptr<const sigil::image::ImageAsset>());
+  if (!picture) return image(std::shared_ptr<const sigil::media::Image>());
   const float w = (float)picture->width();
   const float h = (float)picture->height();
-  Image leaf = image(std::make_shared<const sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(std::move(picture))));
+  Image leaf = image(sigil::media::Image::of(std::move(picture)));
   // Native asks nothing of the box, and the leaf already measures the
   // picture's own pixels.
   if (fit == material::Fit::Native) return leaf;

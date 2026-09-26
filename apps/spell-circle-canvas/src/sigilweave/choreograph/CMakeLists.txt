@@ -16,4 +16,4 @@ sigil_library(SigilWeaveChoreograph
 sigil_test(weave_test
   SOURCES test/ChoreographTest.cpp test/GlyphBatchesTest.cpp
   LIBRARIES SigilWeaveChoreograph SigilWeavePorts SigilWeaveKit
-            SigilImageDifference)
+            SigilMediaDifference)

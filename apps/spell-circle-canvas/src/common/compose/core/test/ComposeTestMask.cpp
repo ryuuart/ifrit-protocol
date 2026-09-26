@@ -294,13 +294,12 @@ Decoration flooding(SkColor color) {
 
 /** A 32×32 image whose only opaque pixels are its top-left quarter: a
  *  silhouette that is neither the node's shape nor a glyph run. */
-std::shared_ptr<sigil::image::ImageAsset> cutOutQuarter() {
+std::shared_ptr<const sigil::media::Image> cutOutQuarter() {
   SkBitmap src;
   src.allocN32Pixels(32, 32);
   src.eraseColor(SK_ColorTRANSPARENT);
   src.erase(SK_ColorBLUE, SkIRect::MakeXYWH(0, 0, 16, 16));
-  return std::make_shared<sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(src.asImage()));
+  return sigil::media::Image::of(src.asImage());
 }
 
 }  // namespace

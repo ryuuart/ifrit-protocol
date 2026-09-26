@@ -31,10 +31,10 @@
 #include <type_traits>
 #include <vector>
 
-namespace sigil::image {
-// What the image factory draws, defined in <sigilimage/asset/ImageAsset.h>.
-class ImageAsset;
-}  // namespace sigil::image
+namespace sigil::media {
+// What the image factory draws, defined in <sigilmedia/core/Image.h>.
+class Image;
+}  // namespace sigil::media
 
 namespace sigil::weave {
 // The two composed text values the text factories take, defined in
@@ -196,7 +196,7 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *  shape, `imageRegion()` draws one sub-rect of an atlas, and
  *  `imageRendering()` — inherited from any ancestor — says how the
  *  pixels are filtered. A null asset draws nothing. */
-Image image(std::shared_ptr<const sigil::image::ImageAsset> asset);
+Image image(std::shared_ptr<const sigil::media::Image> asset);
 
 /** A PLATE WEARING A PICTURE THAT IS ALREADY RENDERED: a bake taken on an
  *  intermediate surface, a frame decoded out of a file, a texture a

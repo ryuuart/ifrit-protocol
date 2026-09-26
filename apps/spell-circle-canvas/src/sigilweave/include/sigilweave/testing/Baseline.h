@@ -13,7 +13,7 @@
 
 #include <include/core/SkPixmap.h>
 #include <include/core/SkSize.h>
-#include <sigilimage/difference/Difference.h>
+#include <sigilmedia/difference/Difference.h>
 
 #include <cstdint>
 #include <filesystem>
@@ -52,7 +52,7 @@ struct BaselineComparison {
   std::filesystem::path rejected;
   SkISize renderSize = {0, 0};
   SkISize baselineSize = {0, 0};
-  image::PixelDifference difference;
+  media::PixelDifference difference;
   /// The faces the baseline was adopted on that the plate was not drawn
   /// in, and the ones it was drawn in that the baseline was not adopted
   /// on. Both empty when they agree, and when no faces were listed

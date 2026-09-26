@@ -530,7 +530,10 @@ void bindRuntime(py::module_& module) {
       .def(
           "image",
           [](const AssetsView& v, const std::string& uri) {
-            return *v.state()->assets->image(uri);
+            // Held shared, as every image Python holds is: the one the
+            // store keeps is the one handed on, so a leaf over it prunes.
+            return std::const_pointer_cast<sigil::media::Image>(
+                v.state()->assets->image(uri));
           },
           py::arg("uri"))
       .def(

@@ -73,8 +73,8 @@ for a host that clears a hub between scenes.
 
 Every decode is a registered decoder, and a hub is built with none: the
 library that owns a meaning registers its own, as
-`sigil::image::registerDecoders(hub)` does for `ImageAsset` and
-`ChannelData` and `sigil::data::registerDecoders(hub)` for `Table` and
+`sigil::media::registerDecoders(hub)` does for `Image` and
+`Channels` and `sigil::data::registerDecoders(hub)` for `Table` and
 `Json`. `registerDecoder<T>()` is what each of them calls — an object whose `decode()`
 satisfies the `Decoder` concept, or a callable, either of them reading the
 bytes and the name hint or the bytes alone: SigilDrawBrush's
@@ -89,8 +89,8 @@ fetching. The hub never inspects bytes.
 A type is loaded with options when its own namespace declares
 `loadOptions(std::type_identity<T>)`, answering the options at their
 defaults — the `Configurable` concept, found by argument-dependent lookup
-so the hub names no such type: SigilImage declares one for `ImageAsset`
+so the hub names no such type: SigilMedia declares one for `Image`
 answering its `DecodeOptions`, which is what makes
-`load<ImageAsset>(uri, {.width = 256})` spell the options as SigilImage
+`load<Image>(uri, {.width = 256})` spell the options as SigilMedia
 spells them. `LoadOptions<T>` is that type. A decoder registered for a
 Configurable type is offered the load's options after the name hint.

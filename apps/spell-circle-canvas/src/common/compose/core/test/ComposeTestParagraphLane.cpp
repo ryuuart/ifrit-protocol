@@ -8,7 +8,7 @@
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 
 #include <array>
@@ -186,8 +186,7 @@ TEST(ComposeParagraphLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
   SkPaint green;
   green.setColor(SK_ColorGREEN);
   source->getCanvas()->drawRect(SkRect::MakeXYWH(1, 0, 1, 2), green);
-  const auto asset = std::make_shared<const sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(source->makeImageSnapshot()));
+  const auto asset = sigil::media::Image::of(source->makeImageSnapshot());
   const auto mixed = [&](Element tree) {
     Host host(200, 200);
     host.composer.render(std::move(tree));

@@ -294,7 +294,7 @@ add_test(NAME sketch_reload_surface
 
 # The video leaf reaches both an adapter header and codec archives that no
 # geometry-heavy sketch names. Its dynamic run proves the generated compile
-# surface carries SigilVideo's include root and the host exports decode and
+# surface carries SigilMediaVideo's include root and the host exports decode and
 # encode for the guest after a Release configure as well as a Debug one.
 add_test(NAME sketch_reload_surface_video
   COMMAND Sketchbook

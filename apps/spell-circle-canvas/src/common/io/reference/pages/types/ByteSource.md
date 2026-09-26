@@ -70,9 +70,9 @@ function found by argument-dependent lookup in T's own namespace,
 answering what the bytes are without decoding them.
 
 ```cpp
-// declared in the namespace of the type it answers for, sigil::image
-std::optional<sigil::image::ImageProbe> probeResource(
-    std::type_identity<sigil::image::ImageProbe>,
+// declared in the namespace of the type it answers for, sigil::media
+std::optional<sigil::media::Metadata> probeResource(
+    std::type_identity<sigil::media::Metadata>,
     std::span<const std::byte>, const std::filesystem::path& hint);
 ```
 

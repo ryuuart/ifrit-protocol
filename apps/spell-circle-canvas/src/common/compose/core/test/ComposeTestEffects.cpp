@@ -7,7 +7,7 @@
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkStream.h>
 #include <include/effects/SkImageFilters.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include "support/CoreTestSupport.h"

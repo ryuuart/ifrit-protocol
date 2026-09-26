@@ -91,7 +91,7 @@ holds `sigil::sketch::testing::InProcessHost` — a dispatcher, the three
 agents and one client attached with no socket, each verb one command
 answered before it returns by turning the host's loop — and
 `sigil::sketch::testing::compare`, which holds a still against a picture
-on disk through SigilImage's pixel difference. It carries no test
+on disk through SigilMedia's pixel difference. It carries no test
 framework, so Python binds it as it stands. `SigilSketchTestingHarness`
 holds `sigil::sketch::testing::Harness`, the GoogleTest fixture:
 

@@ -1,8 +1,8 @@
 /** @file
- * video_compositing — the direct SigilVideo compositing feature plate: five
+ * video_compositing — the direct SigilMediaVideo compositing feature plate: five
  * independently clocked network videos reused as six overlapping surfaces.
  *
- * SigilIO fetches and caches every encoded document. SigilVideo keeps the
+ * SigilIO fetches and caches every encoded document. SigilMediaVideo keeps the
  * long clips streaming, lets device-decodable sky frames stay native until
  * the destination recorder is known, and preserves the WebM alpha plane in
  * the foreground clip. The black-backed dust and colour burst use
@@ -30,8 +30,8 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilvideo/decode/Decode.h>
-#include <sigilvideo/decode/Playback.h>
+#include <sigilmedia/video/Video.h>
+#include <sigilmedia/video/Video.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -44,9 +44,9 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace image = sigil::image;
+namespace media = sigil::media;
 namespace io = sigil::io;
-namespace video = sigil::video;
+namespace media = sigil::media;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
@@ -75,14 +75,14 @@ constexpr std::string_view kAlphaVideo =
     "2c9682d109541f6d8407fa8cdcc4d18735d0b9c5/videoalpha/video/"
     "dancer1.webm";
 
-std::shared_ptr<video::Video> loadVideo(io::Hub& hub, std::string_view uri) {
+std::shared_ptr<media::Video> loadVideo(io::Hub& hub, std::string_view uri) {
   const std::shared_ptr<const io::Bytes> encoded = hub.read(uri);
   if (!encoded || encoded->empty()) return nullptr;
   return video::decodeVideo(encoded->data(), encoded->size(),
                             {.cachedFrames = 8}, std::filesystem::path(uri));
 }
 
-double loopTime(const video::Video& clip, double seconds) {
+double loopTime(const media::Video& clip, double seconds) {
   const double duration = clip.probe().durationSeconds;
   if (duration <= 0.0) return std::max(0.0, seconds);
   double result = std::fmod(seconds, duration);
@@ -104,11 +104,11 @@ SkRect coverSource(const SkImage& source, const SkRect& destination) {
 }
 
 struct Source {
-  std::shared_ptr<video::Video> clip;
-  video::Playback::Handle handle = 0;
+  std::shared_ptr<media::Video> clip;
+  media::Playback::Handle handle = 0;
 };
 
-video::VideoFrame sampleVideo(const Source& source, video::Playback* playback,
+media::Frame sampleVideo(const Source& source, media::Playback* playback,
                               double seconds,
                               skgpu::graphite::Recorder* recorder) {
   if (!source.clip) return {};
@@ -118,7 +118,7 @@ video::VideoFrame sampleVideo(const Source& source, video::Playback* playback,
   return playback->frame(source.handle, recorder);
 }
 
-void drawFrame(SkCanvas& canvas, const video::VideoFrame& frame,
+void drawFrame(SkCanvas& canvas, const media::Frame& frame,
                const SkRect& destination, float opacity, SkBlendMode blend,
                bool cover = true) {
   if (!frame.image) return;
@@ -134,7 +134,7 @@ void drawFrame(SkCanvas& canvas, const video::VideoFrame& frame,
 }
 
 struct Clips {
-  std::shared_ptr<video::Playback> playback;
+  std::shared_ptr<media::Playback> playback;
   Source day;
   Source night;
   Source dust;
@@ -158,8 +158,8 @@ struct VideoCompositing {
                              .background = material::Color{0, 0, 0, 1}});
 
     io::Hub& hub = ctx.assets.hub();
-    std::shared_ptr<video::Playback> playback =
-        ctx.deterministic ? nullptr : std::make_shared<video::Playback>();
+    std::shared_ptr<media::Playback> playback =
+        ctx.deterministic ? nullptr : std::make_shared<media::Playback>();
     const auto source = [&hub, &playback](std::string_view uri) {
       Source result{.clip = loadVideo(hub, uri)};
       if (playback) result.handle = playback->add(result.clip);
@@ -182,16 +182,16 @@ struct VideoCompositing {
               const float night =
                   0.5f - 0.5f * std::cos(static_cast<float>(seconds * 0.24));
               skgpu::graphite::Recorder* recorder = canvas.recorder();
-              video::Playback* playback = clips.playback.get();
-              const video::VideoFrame day =
+              media::Playback* playback = clips.playback.get();
+              const media::Frame day =
                   sampleVideo(clips.day, playback, seconds, recorder);
-              const video::VideoFrame nightSky = sampleVideo(
+              const media::Frame nightSky = sampleVideo(
                   clips.night, playback, seconds * 0.72 + 1.4, recorder);
-              const video::VideoFrame dust = sampleVideo(
+              const media::Frame dust = sampleVideo(
                   clips.dust, playback, seconds * 0.91 + 0.7, recorder);
-              const video::VideoFrame colorBurst = sampleVideo(
+              const media::Frame colorBurst = sampleVideo(
                   clips.colorBurst, playback, seconds * 0.78 + 2.1, recorder);
-              const video::VideoFrame dancer =
+              const media::Frame dancer =
                   sampleVideo(clips.alpha, playback, seconds + 0.35, recorder);
 
               drawFrame(canvas, day, page, 1.0f, SkBlendMode::kSrc);

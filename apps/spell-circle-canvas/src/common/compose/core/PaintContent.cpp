@@ -16,7 +16,7 @@
 #include <include/core/SkTypes.h>  // SkASSERT
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/ComposeCore.h>
@@ -24,6 +24,7 @@
 #include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -919,7 +920,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         break;
       case Kind::Image:
         if (imageAssetOf(node) && !imageAssetOf(node)->frames().empty()) {
-          const auto& frame = imageAssetOf(node)->frameAt(elapsed() * 1000.0);
+          const sigil::media::Frame frame = imageAssetOf(node)->frameAt(
+              std::chrono::duration<double>(elapsed()));
           if (frame.image) {
             const SkSamplingOptions sampling = inst.sampling.value_or(
                 SkSamplingOptions{SkFilterMode::kLinear});

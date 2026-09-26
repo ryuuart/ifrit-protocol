@@ -3,16 +3,16 @@
 # glyph placements, hyphenation points — rendered to a raster plate on the
 # CPU, and held against a committed baseline. Its own target, so a test
 # binary links it and nothing that ships does. The pixel difference a
-# comparison answers is SigilImage's, public because the comparison names
+# comparison answers is SigilMedia's, public because the comparison names
 # it; the walk over placed glyphs is the choreograph feature's, decoding
-# and encoding a baseline SigilImage's and reading and writing its file
+# and encoding a baseline SigilMedia's and reading and writing its file
 # SigilIO's, all private.
 sigil_library(SigilWeaveTesting
   SOURCES Passage.cpp Reading.cpp Plate.cpp Baseline.cpp
   HEADERS Passage.h Reading.h Plate.h Baseline.h
-  PUBLIC SigilWeaveLayout SigilImageDifference
-  PRIVATE SigilWeavePaint SigilWeaveChoreograph SigilImageAsset
-          SigilImageEncode SigilIOSource)
+  PUBLIC SigilWeaveLayout SigilMediaDifference
+  PRIVATE SigilWeavePaint SigilWeaveChoreograph SigilMediaImageDecode
+          SigilMediaImageEncode SigilIOSource)
 
 # The harness's own readings, over the instrument faces, and the four
 # things a baseline comparison can find, over a scratch directory.

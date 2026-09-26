@@ -10,7 +10,7 @@ keep it. `write()` stores bytes back through the same mounts. `http://`
 and `https://` URIs fetch over libcurl behind an on-disk cache with a
 selectable policy; `file://` strips to a plain local path. What a byte
 MEANS is not its job in either direction: it hands bytes to the decoders
-the libraries that own a meaning register on it — SigilImage's, SigilData's
+the libraries that own a meaning register on it — SigilMedia's, SigilData's
 — and takes already-encoded bytes back.
 
 Namespace `sigil::io`. One feature library per directory, linked by
@@ -37,23 +37,23 @@ call names it: read a resource, listen on one that keeps arriving, share
 frames with another application.
 
 ```cpp
-#include <sigilimage/decode/Decoders.h>
+#include <sigilmedia/advanced/Resource.h>
 #include <sigilio/frames/Publisher.h>
 #include <sigilio/frames/Subscription.h>
 #include <sigilio/hub/Hub.h>
 
-using sigil::image::ImageAsset;
+using sigil::media::Image;
 
 sigil::io::Hub hub({.mounts = {{"res://", "/opt/myapp/assets"}}});
-// What an image MEANS is SigilImage's: it puts its own decoders on the
+// What an image MEANS is SigilMedia's: it puts its own decoders on the
 // hub, once, wherever the hub is built.
-sigil::image::registerDecoders(hub);
+sigil::media::registerDecoders(hub);
 
 // ── READ A RESOURCE ──────────────────────────────────────────────────────
 auto table  = hub.read("res://data/table.bin");      // shared_ptr<const Bytes>, cached per URI
 auto shader = hub.text("res://shaders/glow.sksl");   // std::optional<std::string>
-auto logo   = hub.load<ImageAsset>("res://ui/logo.png");         // what the bytes mean
-auto remote = hub.load<ImageAsset>("https://example.com/tex.png"); // behind the disk cache
+auto logo   = hub.load<Image>("res://ui/logo.png");         // what the bytes mean
+auto remote = hub.load<Image>("https://example.com/tex.png"); // behind the disk cache
 hub.write("res://out/plate.png", encodedPng);        // bytes back out, through the same mounts
 
 // ── LISTEN, REPLAY, ANSWER ───────────────────────────────────────────────
@@ -96,8 +96,8 @@ sigil::io::Hub hub({
                 .cacheDirectory = "/opt/myapp/assets/.netcache",
                 .transport = myHttpClient},           // a host's own HTTP stack instead of libcurl
 });
-auto icon  = hub.load<ImageAsset>("res://ui/mark.svg", {.width = 256});      // the decoder's own options
-auto layer = hub.load<ImageAsset>("res://light/probe.exr", {.layer = "diffuse"});
+auto icon  = hub.load<Image>("res://ui/mark.svg", {.width = 256});      // the decoder's own options
+auto layer = hub.load<Image>("res://light/probe.exr", {.layer = "diffuse"});
 auto small = hub.listen("udp://:27021", {.capacity = 16});                   // sigil::io::ListenOptions
 auto desk  = hub.listen("osc://:9000", {.peer = "udp://desk.local:9001"});   // where send() goes
 auto out   = hub.publish("syphon://SpellCircle", {.device = {.handle = metalDevice}});
@@ -169,7 +169,7 @@ sigil::io::registerDecoder<Mesh>(hub, ObjParser{});   // any type: a Decoder<T> 
 auto crate = hub.load<Mesh>("res://props/crate.obj");
 if (auto info = sigil::io::probe<sigil::io::ResourceInfo>(hub, "res://light/probe.exr"))
   budgetFor(info->byteSize);
-if (auto probed = sigil::io::probe<sigil::image::ImageProbe>(hub, "res://light/probe.exr"))
+if (auto probed = sigil::io::probe<sigil::media::Metadata>(hub, "res://light/probe.exr"))
   useDimensions(probed->width, probed->height);
 auto retainedBytes = sigil::io::NetworkCache("/opt/myapp/assets/.netcache")
                          .byteSize("https://example.com/tex.png");
@@ -249,19 +249,19 @@ can speak the byte vocabulary without inheriting the hub, libcurl or any
 codec.
 
 SigilIO owns **access**: URIs, mounts, caching, hot reload, network
-fetch, the disk cache, and the file write. SigilImage owns **meaning**:
+fetch, the disk cache, and the file write. SigilMedia owns **meaning**:
 format sniffing, decode and encode backends, probing, layer and channel
 semantics. The hub adds zero format knowledge of its own and names no
-image type: a hub starts with no decoder at all, `sigil::image::registerDecoders(hub)`
-is SigilImage putting its own on it, `load<T>(uri, options)` takes the
-options T's library declares through `loadOptions()` — SigilImage's
+image type: a hub starts with no decoder at all, `sigil::media::registerDecoders(hub)`
+is SigilMedia putting its own on it, `load<T>(uri, options)` takes the
+options T's library declares through `loadOptions()` — SigilMedia's
 `DecodeOptions` for an image — every decode is a delegation,
 `ResourceInfo` says only how many bytes there are and where they came
 from, `sigil::io::probe<T>()` asks T's own library what they mean, and `write()`
 takes bytes somebody else encoded. Neither library links the other:
-SigilImage's registration is a template over whatever hub it is handed,
+SigilMedia's registration is a template over whatever hub it is handed,
 and its prober and its options are declared against the standard
-library alone, which is why it costs SigilImage nothing to be askable and
+library alone, which is why it costs SigilMedia nothing to be askable and
 this library nothing to ask.
 
 ## One file with files inside it

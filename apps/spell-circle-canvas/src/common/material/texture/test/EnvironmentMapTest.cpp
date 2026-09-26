@@ -11,7 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkSurface.h>
-#include <sigilimage/decode/Decode.h>
+#include <sigilmedia/image/Decode.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -198,7 +198,7 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
   // each decode to the six faces as one 1:6 column, which is a sheet
   // fromCubeMap already reads — so the panorama is the same texel the
   // sheet of the same faces gives at each face's centre direction.
-  const sigil::image::test::CubeFaces kFace = {SK_ColorRED,  SK_ColorGREEN,
+  const sigil::media::test::CubeFaces kFace = {SK_ColorRED,  SK_ColorGREEN,
                                                SK_ColorBLUE, SK_ColorYELLOW,
                                                SK_ColorCYAN, SK_ColorMAGENTA};
   constexpr int kEdge = 16;
@@ -219,9 +219,9 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
                         {0, -1, 0}, {0, 0, 1},  {0, 0, -1}};
   const auto expectSameAsSheet = [&](const std::vector<std::byte>& bytes,
                                      const char* name) {
-    auto asset =
-        sigil::image::decodeImage(bytes.data(), bytes.size(), {}, name);
-    ASSERT_TRUE(asset.has_value()) << name;
+    const auto asset =
+        sigil::media::decode<sigil::media::Image>(bytes, {}, name);
+    ASSERT_TRUE(asset) << name;
     const EnvironmentMap env =
         EnvironmentMap::fromCubeMap(asset->frames()[0].image);
     ASSERT_TRUE(env.valid()) << name;
@@ -247,12 +247,12 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
       EXPECT_NEAR(got.fB, face.fB, 0.02f) << name << " face " << i;
     }
   };
-  expectSameAsSheet(sigil::image::test::cubeKtx1(kFace, kEdge), "cube.ktx");
-  expectSameAsSheet(sigil::image::test::cubeKtx2(kFace, kEdge), "cube.ktx2");
+  expectSameAsSheet(sigil::media::test::cubeKtx1(kFace, kEdge), "cube.ktx");
+  expectSameAsSheet(sigil::media::test::cubeKtx2(kFace, kEdge), "cube.ktx2");
   // The DDS reader is OpenImageIO's; without that backend the bytes
   // decode to nothing, which is the one outcome the case cannot judge.
-  const auto dds = sigil::image::test::cubeDds(kFace, kEdge);
-  if (sigil::image::probeImage(dds.data(), dds.size(), "cube.dds"))
+  const auto dds = sigil::media::test::cubeDds(kFace, kEdge);
+  if (sigil::media::decode<sigil::media::Image>(dds, {}, "cube.dds"))
     expectSameAsSheet(dds, "cube.dds");
 }
 

@@ -114,7 +114,7 @@ class Hub {
   }
 
   /** The same, decoded with @p options — T's own, as the library that
-   *  owns T names them: `load<image::ImageAsset>(uri, {.width = 124})`.
+   *  owns T names them: `load<media::Image>(uri, {.width = 124})`.
    *  Options equal to T's defaults are the ask above and share its view;
    *  any others are a decode of their own in an entry of their own, which
    *  every later ask with equal options shares and a reload re-runs with

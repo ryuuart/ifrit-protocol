@@ -36,7 +36,7 @@
 #include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
 #include <sigilcore/callable/Callable.h>
 #include <sigilgeometry/path/Stroke.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
 
@@ -243,7 +243,7 @@ inline Shadow shadow(material::Color color, SkVector offset, float blur) {
 /** Image-onto-box through a lattice (per-cell stretch); nine-slice is
  *  xDivs/yDivs of size 2. Empty divs stretch the whole image. */
 struct Slice {
-  std::shared_ptr<const sigil::image::ImageAsset> asset;
+  std::shared_ptr<const sigil::media::Image> asset;
   std::vector<int> xDivs;
   std::vector<int> yDivs;
   /** How the slices sample. Linear is right for a soft frame and wrong

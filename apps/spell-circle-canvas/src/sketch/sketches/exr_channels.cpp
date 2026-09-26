@@ -16,9 +16,9 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilimage/decode/ChannelData.h>
-#include <sigilimage/decode/Decode.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Channels.h>
+#include <sigilmedia/image/Decode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/kit/Pbr.h>
@@ -33,7 +33,7 @@
 #include <vector>
 
 namespace sketch = sigil::sketch;
-namespace image = sigil::image;
+namespace media = sigil::media;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
@@ -95,7 +95,7 @@ sk_sp<SkData> writeExr() {
   const SkImageInfo info = SkImageInfo::Make(
       kSize, kSize, kRGBA_F32_SkColorType, kUnpremul_SkAlphaType);
   const SkPixmap map(info, pixels.data(), (size_t)kSize * 4 * sizeof(float));
-  return image::encodeImage(map, image::Format::Exr);
+  return media::encode(map, media::Format::Exr);
 }
 
 /** One plane, drawn at the cell's own size. The picture is the plate's
@@ -137,9 +137,9 @@ struct ExrChannels {
       return;
     }
     const auto* raw = static_cast<const std::byte*>(bytes->data());
-    const std::optional<image::ImageProbe> probed =
+    const std::optional<media::Metadata> probed =
         image::probeImage(raw, bytes->size(), "fixture.exr");
-    const std::optional<image::ChannelData> planes =
+    const std::optional<media::Channels> planes =
         image::decodeChannels(raw, bytes->size(), "fixture.exr");
     if (!planes) {
       ctx.composer.render(missing("decodeChannels read no planes back"));
@@ -150,7 +150,7 @@ struct ExrChannels {
 
   /** The green plane in the slot a surface reads its roughness from, and
    *  the same texture read back out of it. */
-  static sk_sp<SkImage> throughRoughnessSlot(const image::ChannelData& planes) {
+  static sk_sp<SkImage> throughRoughnessSlot(const media::Channels& planes) {
     const int g = planes.index("G");
     if (g < 0) return nullptr;
     material::Material stone = material::kit::surface(
@@ -162,8 +162,8 @@ struct ExrChannels {
     return placed ? placed->image() : nullptr;
   }
 
-  Element sheet(const image::ChannelData& planes,
-                const std::optional<image::ImageProbe>& probed,
+  Element sheet(const media::Channels& planes,
+                const std::optional<media::Metadata>& probed,
                 size_t byteSize) const {
     std::vector<sketch::kit::ComparisonCase> channels;
     for (size_t i = 0; i < planes.names.size(); ++i) {

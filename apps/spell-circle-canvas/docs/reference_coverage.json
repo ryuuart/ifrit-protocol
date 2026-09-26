@@ -42,12 +42,6 @@
    "bound": 9,
    "values": 24
   },
-  "SigilImage": {
-   "entities": 25,
-   "pages": 0,
-   "bound": 6,
-   "values": 11
-  },
   "SigilMaterial": {
    "entities": 305,
    "pages": 6,
@@ -59,6 +53,12 @@
    "pages": 0,
    "bound": 0,
    "values": 14
+  },
+  "SigilMedia": {
+   "entities": 42,
+   "pages": 0,
+   "bound": 6,
+   "values": 24
   },
   "SigilMotion": {
    "entities": 118,
@@ -107,12 +107,6 @@
    "pages": 0,
    "bound": 0,
    "values": 6
-  },
-  "SigilVideo": {
-   "entities": 17,
-   "pages": 0,
-   "bound": 0,
-   "values": 13
   },
   "SigilWeave": {
    "entities": 228,

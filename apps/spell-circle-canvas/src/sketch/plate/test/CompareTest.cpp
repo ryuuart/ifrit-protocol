@@ -12,7 +12,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkPathBuilder.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Sweep.h>
 
@@ -50,14 +50,14 @@ void writePlate(const std::filesystem::path& dir, const std::string& name,
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(size, size));
   bitmap.eraseColor(color);
-  const sk_sp<SkData> png =
-      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
-  ASSERT_TRUE(png);
+  const std::vector<std::byte> png =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(png.empty());
   std::filesystem::create_directories(dir);
   std::ofstream out(dir / (std::string(kPlatePrefix) + name + ".png"),
                     std::ios::binary);
-  out.write(reinterpret_cast<const char*>(png->data()),
-            (std::streamsize)png->size());
+  out.write(reinterpret_cast<const char*>(png.data()),
+            (std::streamsize)png.size());
 }
 
 TEST(SketchCompare, IdenticalPlatesStandNoDistanceApart) {
@@ -144,14 +144,14 @@ void writeSplitPlate(const std::filesystem::path& dir, const std::string& name,
   bitmap.eraseColor(SK_ColorTRANSPARENT);
   bitmap.erase(overClear, SkIRect::MakeLTRB(0, 0, 8, 4));
   bitmap.erase(overContent, SkIRect::MakeLTRB(0, 4, 8, 8));
-  const sk_sp<SkData> png =
-      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
-  ASSERT_TRUE(png);
+  const std::vector<std::byte> png =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(png.empty());
   std::filesystem::create_directories(dir);
   std::ofstream out(dir / (std::string(kPlatePrefix) + name + ".png"),
                     std::ios::binary);
-  out.write(reinterpret_cast<const char*>(png->data()),
-            (std::streamsize)png->size());
+  out.write(reinterpret_cast<const char*>(png.data()),
+            (std::streamsize)png.size());
 }
 
 /** THE WORST DIFFERENCE, SPLIT BY WHAT IS UNDER IT. A caller whose
@@ -205,14 +205,14 @@ void writeCurvePlate(const std::filesystem::path& dir, const std::string& name,
     solid.setColor(SkColorSetARGB(255, 20, 18, 16));
     canvas.drawRect(SkRect::MakeXYWH(8, 8, 7, 7), solid);
   }
-  const sk_sp<SkData> png =
-      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
-  ASSERT_TRUE(png);
+  const std::vector<std::byte> png =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(png.empty());
   std::filesystem::create_directories(dir);
   std::ofstream out(dir / (std::string(kPlatePrefix) + name + ".png"),
                     std::ios::binary);
-  out.write(reinterpret_cast<const char*>(png->data()),
-            (std::streamsize)png->size());
+  out.write(reinterpret_cast<const char*>(png.data()),
+            (std::streamsize)png.size());
 }
 
 /** A COMPOSITE-COUNT PLANE beside a plate: one grey level per pixel,
@@ -224,15 +224,15 @@ void writeCountPlane(const std::filesystem::path& dir, const std::string& name,
   bitmap.allocPixels(
       SkImageInfo::Make(size, size, kGray_8_SkColorType, kOpaque_SkAlphaType));
   std::memset(bitmap.getPixels(), composites, bitmap.computeByteSize());
-  const sk_sp<SkData> png =
-      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
-  ASSERT_TRUE(png);
+  const std::vector<std::byte> png =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(png.empty());
   std::filesystem::create_directories(dir);
   std::ofstream out(
       dir / (std::string(sigil::sketch::kCountPrefix) + name + ".png"),
       std::ios::binary);
-  out.write(reinterpret_cast<const char*>(png->data()),
-            (std::streamsize)png->size());
+  out.write(reinterpret_cast<const char*>(png.data()),
+            (std::streamsize)png.size());
 }
 
 }  // namespace

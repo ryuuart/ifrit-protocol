@@ -15,7 +15,7 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -31,7 +31,7 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace img = sigil::image;
+namespace media = sigil::media;
 namespace skia = sigil::skia;
 
 using namespace sigil::compose;

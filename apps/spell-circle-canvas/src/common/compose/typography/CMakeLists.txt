@@ -49,7 +49,7 @@ sigil_library(SigilComposeTypography
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilCoreComparable SigilCoreCompute SigilMaterial
          SigilMotion SigilWeave
-  PRIVATE SigilCoreReconcile SigilGeometryPath SigilImage Boost::container
+  PRIVATE SigilCoreReconcile SigilGeometryPath SigilMediaCore Boost::container
           Boost::unordered yoga::yogacore)
 
 # Text data, the text pass, vertical writing, motion along paths, the

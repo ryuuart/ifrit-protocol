@@ -1,7 +1,7 @@
 # The texture feature: an image and its sampling as a comparable leaf a
 # material tree holds, the tools' texture-set vocabulary, the environment
 # map and the bevel producer a reflective surface is shaded from, and the atlas
-# over a sheet. Links the core and SigilImage (an asset is a source);
+# over a sheet. Links the core and SigilMedia (an asset is a source);
 # simdjson reads the sprite tools' JSON and stb packs the sheet, both
 # private: no consumer sees either.
 # stb is a set of single-file headers, and its port publishes a find
@@ -16,17 +16,17 @@ sigil_library(SigilMaterialTexture
   HEADERS Atlas.h EnvironmentMap.h ShaderLeaf.h Surface.h Texture.h
           TextureSet.h
   INCLUDE_PRIVATE ${Stb_INCLUDE_DIR}
-  PUBLIC SigilMaterialCore SigilImageAsset unofficial::skia::skia
+  PUBLIC SigilMaterialCore SigilMediaCore unofficial::skia::skia
          Boost::container
   PRIVATE simdjson::simdjson)
 
 # The cube-container cases decode a DDS and a KTX the test writes itself,
-# through SigilImage's routing surface and its fixture builders.
+# through SigilMedia's routing surface and its fixture builders.
 sigil_test(material_test
   SOURCES test/TextureTest.cpp test/EnvironmentMapTest.cpp
           test/AtlasTest.cpp
-  LIBRARIES SigilMaterialTexture SigilImageDecode
-  SUPPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../image/test)
+  LIBRARIES SigilMaterialTexture SigilMediaImageDecode
+  SUPPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../media/test)
 
 sigil_bench(material_bench
   SOURCES bench/TextureBench.cpp

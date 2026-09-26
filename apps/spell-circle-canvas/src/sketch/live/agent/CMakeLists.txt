@@ -8,7 +8,7 @@ sigil_library(SigilSketchSessionAgent
   HEADERS SessionAgent.h ClockAgent.h HostAgents.h
   PUBLIC SigilSketch SigilSketchRegistryAgent SigilProtocolDispatch
          SigilMotionClock
-  PRIVATE SigilImageEncode SigilIOSource)
+  PRIVATE SigilMediaImageEncode SigilIOSource)
 
 # Their self-checks, under the protocol's one label: every command each
 # answers, asked in process, and the clock's claims as cases — among

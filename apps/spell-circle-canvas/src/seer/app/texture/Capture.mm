@@ -6,7 +6,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 
 #include <cstddef>
@@ -102,12 +102,12 @@ bool writeTexturePng(id<MTLTexture> texture, id<MTLCommandQueue> queue,
   // takes it from here.
   const SkImageInfo info = SkImageInfo::Make((int)width, (int)height, *type, kPremul_SkAlphaType);
   const SkPixmap pixels(info, rows, rowBytes);
-  const sk_sp<SkData> png = sigil::image::encodeImage(pixels, sigil::image::Format::Png);
-  if (!png) {
+  const std::vector<std::byte> png = sigil::media::encode(pixels, sigil::media::Format::Png);
+  if (png.empty()) {
     std::fprintf(stderr, "the frame could not be encoded as a PNG\n");
     return false;
   }
-  if (!sigil::io::writeBytes(path, png->data(), png->size())) {
+  if (!sigil::io::writeBytes(path, png.data(), png.size())) {
     std::fprintf(stderr, "%s could not be written\n", path.c_str());
     return false;
   }

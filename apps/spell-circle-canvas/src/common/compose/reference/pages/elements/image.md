@@ -21,7 +21,7 @@ of a file, a texture a device handed back.
 ## Syntax
 
 ```cpp
-Element image(std::shared_ptr<const sigil::image::ImageAsset> asset);
+Element image(std::shared_ptr<const sigil::media::Image> asset);
 Element image(sk_sp<SkImage> picture,
               material::Fit fit = material::Fit::Contain);
 ```
@@ -35,7 +35,7 @@ def image(image: skia.Image,
 
 | Parameter | What it is | Where one comes from |
 |---|---|---|
-| `asset` | A decoded image with its own identity. | SigilImage's asset vocabulary, through the sketch's assets |
+| `asset` | A decoded image with its own identity. | SigilMedia's asset vocabulary, through the sketch's assets |
 | `picture` | A picture already rendered. | A snapshot, a decode, a device texture |
 | `fit` | How the picture meets the box it is given. | [`material::Fit`](../../ELEMENTS.md#the-kernel): `Stretch`, `Contain`, `Cover`, `Native` |
 

@@ -9,7 +9,7 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/PaintPrograms.h>
@@ -488,7 +488,7 @@ void bindComposePaintPrograms(py::module_& module) {
 
   composition.def(
       "image",
-      [](std::shared_ptr<image::ImageAsset> asset) {
+      [](std::shared_ptr<media::Image> asset) {
         return compose::image(std::move(asset));
       },
       py::arg("asset"));

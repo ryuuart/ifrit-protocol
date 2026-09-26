@@ -25,7 +25,7 @@ sigil_library(SigilIOHub
 
 # The test builds its own PNG fixtures through the image encoder,
 # writes its own EXR ones through OIIO directly and reads them back
-# through SigilImage's decoders, registered on each hub the way a host
+# through SigilMedia's decoders, registered on each hub the way a host
 # registers them — the library itself decodes and encodes nothing.
 find_package(OpenImageIO CONFIG QUIET)
 # SigilCoreSchedule is named here as well as in the library: one case
@@ -36,7 +36,7 @@ sigil_test(io_test
           test/NetworkTest.cpp test/OiioTest.cpp test/RetentionTest.cpp
           test/SelectionTest.cpp test/StandardExceptionsTest.cpp
           test/MountedHub.h
-  LIBRARIES SigilIOHub SigilImageDecode SigilImageEncode SigilCoreSchedule)
+  LIBRARIES SigilIOHub SigilMediaResource SigilMediaImageEncode SigilCoreSchedule)
 # The four EXR cases write their own fixtures through OpenImageIO, so
 # they exist only in a build that has it; the label says so.
 if(OpenImageIO_FOUND)

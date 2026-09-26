@@ -33,10 +33,10 @@ struct TwoAdvancedV4 {
   // --- the production shell artefacts, fetched from the restoration host.
   // Any of these may be null (no network, cold cache); every use site
   // keeps its procedural stand-in for exactly that case.
-  std::shared_ptr<const sigil::image::ImageAsset> railLeftGif, railRightGif;
-  std::shared_ptr<const sigil::image::ImageAsset> siteBgGif;   // 1×1600 ramp
-  std::shared_ptr<const sigil::image::ImageAsset> footerGif;   // 970×110
-  std::shared_ptr<const sigil::image::ImageAsset> logoBugSvg;  // circular 2A
+  std::shared_ptr<const sigil::media::Image> railLeftGif, railRightGif;
+  std::shared_ptr<const sigil::media::Image> siteBgGif;   // 1×1600 ramp
+  std::shared_ptr<const sigil::media::Image> footerGif;   // 970×110
+  std::shared_ptr<const sigil::media::Image> logoBugSvg;  // circular 2A
 
   /** EVERY WORD THE PAGE SETS THAT IS NOT ITS OWN CHROME — the taxonomy,
    *  the playlist, the press wire, the auxiliary modules' copy, the
@@ -56,7 +56,7 @@ struct TwoAdvancedV4 {
    *  placed: the 2004 page scaled them with IMG width/height attributes,
    *  and this sketch is a ×2 enlargement of those numbers. */
   static material::Paint stretchFill(
-      const std::shared_ptr<const sigil::image::ImageAsset>& asset, float w,
+      const std::shared_ptr<const sigil::media::Image>& asset, float w,
       float h, SkTileMode tx = SkTileMode::kClamp);
 
   // --- instancing: the footer dock's chevron tick array ---

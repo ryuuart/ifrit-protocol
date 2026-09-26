@@ -237,8 +237,7 @@ The app is thin. Most of the code is in libraries under `src/common/`,
 | [SigilCore](src/common/core/README.md) | The kernels a retained runtime hosts: the reconciler, the caching proof, the hardware device seam, and the compute values a drawing is drawn from |
 | [SigilSkia](src/common/skia/README.md) | Skia Graphite on a device someone else owns |
 | [Ifrit.Qt](src/common/qt/README.md) | Reusable Qt Quick controls |
-| [SigilImage](src/common/image/README.md) | Still-image and animated-image decoding and encoding, and signed distance fields over a coverage mask |
-| [SigilVideo](src/common/video/README.md) | Streaming video decoding, GPU composition, and MP4 encoding |
+| [SigilMedia](src/common/media/README.md) | Pictures, still and moving: image and animation decoding and encoding, streaming video decoding with GPU composition and MP4 encoding, distance fields and pixel differences |
 | [SigilIOPublish](src/common/io/publish/README.md) | Optional SigilIO native texture publication and subscription; Seer owns inspection and capture |
 | [SigilIO](src/common/io/README.md) | Resource access and export: URIs, mounts, caching, hot reload, byte sinks |
 | [SigilData](src/common/data/README.md) | Tabular data and scales: typed columns, and the one value that maps a domain onto a range |

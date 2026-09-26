@@ -26,7 +26,7 @@
 
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -91,7 +91,7 @@ struct Swatch {
   std::string usage;
   int width = 0;
   int height = 0;
-  std::shared_ptr<const sigil::image::ImageAsset> asset;
+  std::shared_ptr<const sigil::media::Image> asset;
 };
 
 Element card(const Swatch& swatch) {
@@ -175,8 +175,7 @@ struct SubstanceSwatchesSketch {
     for (const auto& [usage, cooked] : graph.outputsByUsage()) {
       if (!cooked) continue;
       swatches.push_back({usage, cooked->width(), cooked->height(),
-                          std::make_shared<const sigil::image::ImageAsset>(
-                              sigil::image::ImageAsset::wrap(cooked))});
+                          (sigil::media::Image::of(cooked))});
     }
 
     // The canvas follows the archive: a piece whose content is a cooked

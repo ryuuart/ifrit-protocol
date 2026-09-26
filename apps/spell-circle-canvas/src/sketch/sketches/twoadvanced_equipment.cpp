@@ -179,7 +179,7 @@ struct TwoAdvancedEquipment {
         why);
   }
 
-  using ImagePtr = std::shared_ptr<const sigil::image::ImageAsset>;
+  using ImagePtr = std::shared_ptr<const sigil::media::Image>;
 
   // Keyed by file name under equipment/index_files/.
   boost::container::flat_map<std::string, ImagePtr, std::less<>> art;
@@ -415,7 +415,7 @@ struct TwoAdvancedEquipment {
       const std::string base =
           "https://v4prophecy.2advanced.com/equipment/index_files/";
       auto fetch = [&](const char* dir, const char* name) {
-        art[name] = hub.load<sigil::image::ImageAsset>(base + dir + "/" + name);
+        art[name] = hub.load<sigil::media::Image>(base + dir + "/" + name);
       };
       for (const char* n :
            {"ecom-topbar.gif", "ecom-logo.gif", "ecom-titleheader.gif",

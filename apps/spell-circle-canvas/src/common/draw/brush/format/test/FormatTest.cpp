@@ -10,7 +10,7 @@
 #include <sigildraw/brush/format/Load.h>
 #include <sigildraw/brush/format/Photoshop.h>
 #include <sigildraw/brush/format/Procreate.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Decoding.h>
 #include <sigilio/advanced/Places.h>
@@ -48,11 +48,10 @@ std::vector<std::byte> tipPng(int side) {
       *bitmap.getAddr32(x, y) = SkPreMultiplyARGB(255, level, level, level);
     }
   bitmap.setImmutable();
-  sk_sp<SkData> png = sigil::image::encodeImage(
-      *SkImages::RasterFromBitmap(bitmap), sigil::image::Format::Png);
-  EXPECT_TRUE(png);
-  const std::byte* first = (const std::byte*)png->data();
-  return {first, first + png->size()};
+  std::vector<std::byte> png = sigil::media::encode(
+      *SkImages::RasterFromBitmap(bitmap), sigil::media::Format::Png);
+  EXPECT_FALSE(png.empty());
+  return png;
 }
 
 std::vector<std::byte> textBytes(std::string_view text) {

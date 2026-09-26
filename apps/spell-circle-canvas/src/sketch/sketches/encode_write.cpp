@@ -14,9 +14,9 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
-#include <sigilimage/asset/ImageAsset.h>
-#include <sigilimage/decode/Decoders.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/core/Image.h>
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Places.h>
 #include <sigilmaterial/color/Color.h>
@@ -31,7 +31,7 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace img = sigil::image;
+namespace media = sigil::media;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
@@ -96,23 +96,23 @@ struct EncodeWrite {
 
     /** One encode, decoded straight back so the cell shows what the
      *  bytes hold rather than what went in. */
-    const auto roundTrip = [&](img::Format format, int quality) {
-      sk_sp<SkData> bytes = img::encodeImage(*art, format, {quality});
+    const auto roundTrip = [&](media::Format format, int quality) {
+      std::vector<std::byte> bytes = media::encode(*art, format, {quality});
       sk_sp<SkImage> back;
       if (bytes)
-        if (std::optional<img::ImageAsset> decoded =
-                img::ImageAsset::decode(bytes))
+        if (std::optional<media::Image> decoded =
+                media::Image::decode(bytes))
           back = decoded->frames().empty() ? nullptr
                                            : decoded->frames().front().image;
       return std::pair<sk_sp<SkImage>, size_t>{std::move(back),
-                                               bytes ? bytes->size() : 0};
+                                               bytes ? bytes.size() : 0};
     };
 
-    const auto [png, pngBytes] = roundTrip(img::Format::Png, 100);
+    const auto [png, pngBytes] = roundTrip(media::Format::Png, 100);
     const auto [webpLossless, losslessBytes] =
-        roundTrip(img::Format::Webp, 100);
-    const auto [webpLossy, lossyBytes] = roundTrip(img::Format::Webp, kLossy);
-    const auto [jpeg, jpegBytes] = roundTrip(img::Format::Jpeg, kLossy);
+        roundTrip(media::Format::Webp, 100);
+    const auto [webpLossy, lossyBytes] = roundTrip(media::Format::Webp, kLossy);
+    const auto [jpeg, jpegBytes] = roundTrip(media::Format::Jpeg, kLossy);
 
     // …and out through the hub, which is the half that knows about
     // names, mounts and directories.
@@ -120,15 +120,15 @@ struct EncodeWrite {
         std::filesystem::temp_directory_path() / "sigil-encode-write";
     io::Hub hub;
     io::mount(hub, kMount, dir);
-    img::registerDecoders(hub);
-    sk_sp<SkData> bytes = img::encodeImage(*art, img::Format::Png);
+    media::registerDecoders(hub);
+    std::vector<std::byte> bytes = media::encode(*art, media::Format::Png);
     const std::string uri = std::string(kMount) + "plate.png";
     const bool wrote =
         bytes && hub.write(uri, std::span(static_cast<const std::byte*>(
-                                              bytes->data()),
-                                          bytes->size()));
-    const std::shared_ptr<const img::ImageAsset> read =
-        wrote ? hub.load<img::ImageAsset>(uri) : nullptr;
+                                              bytes.data()),
+                                          bytes.size()));
+    const std::shared_ptr<const media::Image> read =
+        wrote ? hub.load<media::Image>(uri) : nullptr;
     const std::string written =
         kit::formatted("write %s\nread back %s · %d×%d",
                        wrote ? "true" : "false", read ? "true" : "false",

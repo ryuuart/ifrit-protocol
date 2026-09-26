@@ -4,7 +4,7 @@
 # metrics derived from the placed runs, with Story — a text and the block
 # styles it is set under — the value a chain of frames is filled from.
 # SigilGeometryPath is public — a contour interval carries a
-# geometry::path::Contour. SigilImageField is private: a flow shape asked
+# geometry::path::Contour. SigilMediaField is private: a flow shape asked
 # for a standoff measures an exact distance field over its own coverage,
 # and that primitive belongs where image meaning lives. The Unicode leaf is
 # private: a reading set beside its base is split at grapheme boundaries
@@ -26,7 +26,7 @@ sigil_library(SigilWeaveLayout
           LayoutOptions.h Mojikumi.h Overflow.h ParagraphBlock.h ParagraphLayout.h
           ParagraphStyle.h PositionedRun.h Story.h TabStops.h TextContext.h
   PUBLIC SigilWeaveParagraph SigilGeometryPath
-  PRIVATE SigilWeaveUnicode SigilImageField SigilCoreCompute
+  PRIVATE SigilWeaveUnicode SigilMediaField SigilCoreCompute
           harfbuzz::harfbuzz ICU::uc Boost::unordered Boost::container_hash)
 
 # Everything that places runs and reads where they landed, one subject to a

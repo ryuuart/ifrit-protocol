@@ -1,7 +1,7 @@
 # SigilPython
 
 Reusable Python bindings for the native drawing, composition, typography,
-motion, material, geometry, World, image, data and resource libraries. The static
+motion, material, geometry, World, media, data and resource libraries. The static
 `SigilPython` target has no sketch runtime, application, window or interpreter
 startup dependency. Namespace `sigil::python`.
 
@@ -22,8 +22,8 @@ takes its scheme before its children.
 
 ONE DIRECTORY PER NATIVE LIBRARY, ONE FILE PER SUBJECT. Every binding
 source sits under the directory of the library it binds — `core/`,
-`skia/`, `image/`, `material/`, `geometry/`, `motion/`, `weave/`,
-`compose/`, `draw/`, `world/`, `data/`, `io/`, `measure/`, `video/`,
+`skia/`, `media/`, `material/`, `geometry/`, `motion/`, `weave/`,
+`compose/`, `draw/`, `world/`, `data/`, `io/`, `measure/`,
 `scry/`, `substance/`, `usd/` — and the four files at the root are the
 kernel every one of them is written out of: the module assembly, the
 conversions and callback ownership, the reach into another file's
@@ -125,7 +125,7 @@ the second template argument wherever it is not pybind11's own
 `std::unique_ptr`:
 
 ```cpp
-extend<ImageAsset, std::shared_ptr<ImageAsset>>(module, "image.ImageAsset");
+extend<media::Image, std::shared_ptr<media::Image>>(module, "media.Image");
 ```
 
 Adding methods and properties through the wrong one still works; adding
@@ -294,7 +294,7 @@ assembly guards their calls the same way.
   `bindOptionalLibraries`, `bindRecordProtocol`
 * `skia/Registration.h` — `bindValues`, `bindSkiaEffects`, `bindSkiaFonts`,
   `bindSkiaPaths`, `bindSkiaSurfaces`
-* `image/Registration.h` — `bindImageValues`, `bindImageMeaning`
+* `media/Registration.h` — `bindMediaImages`, `bindMediaVideo`
 * `material/Registration.h` — `bindColor`, `bindMaterial`,
   `bindMaterialCore`, `bindMaterialEnvironment`, `bindMaterialField`,
   `bindMaterialKitGrained`, `bindMaterialKitText`,
@@ -338,7 +338,6 @@ assembly guards their calls the same way.
 * `io/Registration.h` — `bindIO`, `bindIOFrames`
 * `data/Registration.h` — `bindData`, `bindDataConnection`
 * `measure/Registration.h` — `bindMeasure`
-* `video/Registration.h` — `bindVideo`
 * `scry/Registration.h` — `bindScry`
 * `substance/Registration.h` — `bindSubstance`
 * `usd/Registration.h` — `bindUsd`

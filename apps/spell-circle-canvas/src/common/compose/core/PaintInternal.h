@@ -70,7 +70,7 @@ inline bool hasTextFx(const Instance& inst) {
   return hasTextFx(*inst.description) ||
          (inst.textState && !inst.textState->spanAxisTracks.empty());
 }
-inline const sigil::image::ImageAsset* imageAssetOf(const ElementNode& n) {
+inline const sigil::media::Image* imageAssetOf(const ElementNode& n) {
   return n.imageData ? n.imageData->asset.get() : nullptr;
 }
 inline const material::Filter* layerEffectOf(const ElementNode& n) {

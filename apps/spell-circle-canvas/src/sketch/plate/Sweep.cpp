@@ -15,7 +15,7 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <include/utils/SkNoDrawCanvas.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
@@ -63,8 +63,8 @@ constexpr int kCaptureFrame = kProbeFrames + kMaxWarmFrames + kMaxSampleFrames;
  *  what lands here, so the encode is the picture's identity and a
  *  half-written file must read as a failure rather than as a plate. */
 bool writePlate(const SkPixmap& pixels, const std::filesystem::path& path) {
-  const sk_sp<SkData> png = image::encodeImage(pixels, image::Format::Png);
-  return png && io::writeBytes(path, png->data(), png->size());
+  const std::vector<std::byte> png = media::encode(pixels, media::Format::Png);
+  return !png.empty() && io::writeBytes(path, png.data(), png.size());
 }
 
 /** The composite-count plane on disk, beside the plate it describes: one

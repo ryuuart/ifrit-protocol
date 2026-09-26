@@ -7,7 +7,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
@@ -33,7 +33,7 @@
 #include <vector>
 
 namespace fs = std::filesystem;
-namespace image = sigil::image;
+namespace media = sigil::media;
 namespace io = sigil::io;
 namespace material = sigil::material;
 
@@ -266,9 +266,9 @@ ThumbnailOutcome renderThumbnail(const Entry& entry, weave::FontContext& fonts,
   if (!bitmap.tryAllocPixels(thumbInfo)) return ThumbnailOutcome::Failed;
   if (!thumb->readPixels(bitmap.pixmap(), 0, 0))
     return ThumbnailOutcome::Failed;
-  const sk_sp<SkData> png =
-      image::encodeImage(bitmap.pixmap(), image::Format::Png);
-  if (!png || !io::writeBytes(run.outputPath, png->data(), png->size()))
+  const std::vector<std::byte> png =
+      media::encode(bitmap.pixmap(), media::Format::Png);
+  if (png.empty() || !io::writeBytes(run.outputPath, png.data(), png.size()))
     return ThumbnailOutcome::Failed;
   pruneThumbnails(run.outputPath.parent_path(), run.stem, run.outputPath);
   return ThumbnailOutcome::Wrote;

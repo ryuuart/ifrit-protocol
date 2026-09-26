@@ -6,7 +6,7 @@
  * A vertical MP4 montage over the sketch registry.
  */
 
-#include <sigilvideo/Types.h>
+#include <sigilmedia/core/Frame.h>
 
 #include <cstdint>
 #include <string>
@@ -43,7 +43,7 @@ struct StoryOptions {
   int outroFrames = 18;          ///< the hold after the last
   int64_t bitRate = 12'000'000;  ///< the encoder's target, in bits per second
   /// Whether the encoder may use the machine's video hardware.
-  video::HardwarePreference hardware = video::HardwarePreference::Preferred;
+  media::HardwarePreference hardware = media::HardwarePreference::Preferred;
 };
 
 /** Encodes every selected, available sketch into one MP4. */

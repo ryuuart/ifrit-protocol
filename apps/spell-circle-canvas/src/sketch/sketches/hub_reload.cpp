@@ -17,9 +17,9 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Pen.h>
-#include <sigilimage/asset/ImageAsset.h>
-#include <sigilimage/decode/Decoders.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/core/Image.h>
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
 #include <sigilio/advanced/Decoding.h>
@@ -38,7 +38,7 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace img = sigil::image;
+namespace media = sigil::media;
 namespace io = sigil::io;
 namespace draw = sigil::draw;
 
@@ -88,7 +88,7 @@ sk_sp<SkData> chart(int bars, material::Color ink) {
       pen.rect(8.0f + (float)i * 14.0f, 70.0f - (float)(i + 1) * 7.0f, 10.0f,
                (float)(i + 1) * 7.0f + 2.0f);
   });
-  return img::encodeImage(*surface->makeImageSnapshot(), img::Format::Png);
+  return media::encode(*surface->makeImageSnapshot(), media::Format::Png);
 }
 
 }  // namespace
@@ -116,7 +116,7 @@ struct HubReload {
 
     io::Hub hub;
     io::mount(hub, kMount, dir);
-    img::registerDecoders(hub);
+    media::registerDecoders(hub);
     io::registerDecoder<Cloud>(hub, parseCloud);
 
     const std::string notesUri = std::string(kMount) + "notes.txt";
@@ -125,8 +125,8 @@ struct HubReload {
 
     const std::optional<std::string> firstText = hub.text(notesUri);
     const std::shared_ptr<const Cloud> firstCloud = hub.load<Cloud>(cloudUri);
-    const std::shared_ptr<const img::ImageAsset> firstChart =
-        hub.load<img::ImageAsset>(chartUri);
+    const std::shared_ptr<const media::Image> firstChart =
+        hub.load<media::Image>(chartUri);
 
     // …and the SECOND, written under the hub's feet.
     put("notes.txt", kSecond);
@@ -137,13 +137,13 @@ struct HubReload {
 
     const std::optional<std::string> secondText = hub.text(notesUri);
     const std::shared_ptr<const Cloud> secondCloud = hub.load<Cloud>(cloudUri);
-    const std::shared_ptr<const img::ImageAsset> secondChart =
-        hub.load<img::ImageAsset>(chartUri);
+    const std::shared_ptr<const media::Image> secondChart =
+        hub.load<media::Image>(chartUri);
 
     const auto snapshot =
         [&](const std::optional<std::string>& words,
             const std::shared_ptr<const Cloud>& cloud,
-            const std::shared_ptr<const img::ImageAsset>& picture) {
+            const std::shared_ptr<const media::Image>& picture) {
           return box().column().gap(18).width(330).children(
               {sketch::kit::well({.width = 330, .height = 96, .padding = 20})
                    .children({text(words.value_or("No text"))

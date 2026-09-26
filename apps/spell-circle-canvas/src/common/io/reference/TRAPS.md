@@ -31,9 +31,9 @@ file they were read from — nothing about what they are. `probe<T>()` for
 any other T answers meaning, and the answer comes from T's own library: a type is probeable when its
 namespace declares `probeResource(std::type_identity<T>,
 std::span<const std::byte>, const std::filesystem::path&)`, which is the
-`Probable` concept in `source/Source.h`. SigilImage declares it for
-`ImageProbe`, so `sigil::io::probe<sigil::image::ImageProbe>(hub, uri)` reads
-SigilImage's prober and the hub carries no opinion about any format. A
+`Probable` concept in `source/Source.h`. SigilMedia declares it for
+`Metadata`, so `sigil::io::probe<sigil::media::Metadata>(hub, uri)` reads
+SigilMedia's prober and the hub carries no opinion about any format. A
 kind of meaning added tomorrow is one free function in the library that
 owns it, with nothing to change here.
 

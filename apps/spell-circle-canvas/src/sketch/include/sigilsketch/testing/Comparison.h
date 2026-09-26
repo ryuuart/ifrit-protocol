@@ -4,12 +4,12 @@
  * @ingroup sketch-testing
  *
  * A still held against another picture on disk, as a value: whether both
- * could be read, their sizes, and SigilImage's pixel difference between
+ * could be read, their sizes, and SigilMedia's pixel difference between
  * them.
  */
 
 #include <include/core/SkSize.h>
-#include <sigilimage/difference/Difference.h>
+#include <sigilmedia/difference/Difference.h>
 
 #include <filesystem>
 #include <string>
@@ -25,7 +25,7 @@ struct Comparison {
   std::string problem;
   SkISize actual = SkISize::MakeEmpty();
   SkISize expected = SkISize::MakeEmpty();
-  image::PixelDifference pixels;
+  media::PixelDifference pixels;
 
   /** Whether the two are one picture: both read, one size, no pixel
    *  apart. */

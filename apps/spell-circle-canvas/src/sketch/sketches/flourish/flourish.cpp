@@ -94,13 +94,13 @@ struct Flourish {
   motion::Animatable<float> flare = motion::animatable(0.0f);
 
   sk_sp<SkRuntimeEffect> hatch, engraved;
-  std::shared_ptr<sigil::image::ImageAsset> carvedFrame, gemAtlas;
+  std::shared_ptr<const sigil::media::Image> carvedFrame, gemAtlas;
   bool accent = false;
   double nextAccent = 4.0;
 
   // ---- helpers ------------------------------------------------------------
 
-  std::shared_ptr<sigil::image::ImageAsset> makeGemAtlas() const {
+  std::shared_ptr<const sigil::media::Image> makeGemAtlas() const {
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 16));
     SkCanvas& c = *s->getCanvas();
     c.clear(SK_ColorTRANSPARENT);
@@ -115,8 +115,7 @@ struct Flourish {
       hi.b = std::min(1.f, hi.b + 0.3f);
       drawDiamond(c, {ox + 7, 6}, 2.2f, hi);
     }
-    return std::make_shared<sigil::image::ImageAsset>(
-        sigil::image::ImageAsset::wrap(s->makeImageSnapshot()));
+    return sigil::media::Image::of(s->makeImageSnapshot());
   }
 
   // ---- the static baked frame band ---------------------------------------
@@ -561,8 +560,7 @@ struct Flourish {
     sceneTicker = &ticker;
     hatch = ctx.assets.shader(ctx.local("hatch.sksl"));
     engraved = ctx.assets.shader(ctx.local("engraved.sksl"));
-    carvedFrame = std::make_shared<sigil::image::ImageAsset>(
-        sigil::image::ImageAsset::wrap(
+    carvedFrame = (sigil::media::Image::of(
             makeCarvedFrame(toOrnamentPalette(st), 192)));
     gemAtlas = makeGemAtlas();
 

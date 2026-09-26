@@ -15,7 +15,7 @@
 #include <sigilio/source/Sink.h>
 #include <sigilio/advanced/Time.h>
 #include <sigilsketch/core/Assets.h>
-#include <sigilvideo/encode/Encode.h>
+#include <sigilmedia/video/Encoder.h>
 
 #include <chrono>
 #include <cstddef>
@@ -42,22 +42,21 @@ std::shared_ptr<const sigil::io::Bytes> recorded(std::string_view text) {
       std::as_bytes(std::span(text)));
 }
 
-sk_sp<SkData> solidVideo(SkColor color) {
+std::vector<std::byte> solidVideo(SkColor color) {
   constexpr int kWidth = 64;
   constexpr int kHeight = 48;
-  auto encoder = sigil::video::Encoder::make(
-      sigil::video::Format::Mp4,
+  sigil::media::Encoder encoder(
       {.width = kWidth,
        .height = kHeight,
        .framesPerSecond = 10,
        .bitRate = 300'000,
-       .hardware = sigil::video::HardwarePreference::Disabled});
-  if (!encoder) return nullptr;
+       .hardware = sigil::media::HardwarePreference::Disabled});
+  if (!encoder) return {};
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   bitmap.eraseColor(color);
-  if (!encoder->append(bitmap.pixmap())) return nullptr;
-  return encoder->finish();
+  if (!encoder.append(bitmap.pixmap())) return {};
+  return encoder.finish();
 }
 
 TEST(RequireCached, AnswersFromTheCacheAndNamesTheFirstMissingUrl) {
@@ -123,27 +122,27 @@ TEST(RequireCached, AConfiguredCacheIsNotTheDefaultCache) {
   EXPECT_NE(why.find(url), std::string::npos);
 }
 
-TEST(Assets, VideoUsesTheClipCacheAndInvalidatesAfterSourceChange) {
+TEST(Assets, AVideoIsCachedByTheHubAndReopenedAfterItsFileChanges) {
   sigil::test::ScratchDir root("sketch_video_asset");
   const std::filesystem::path path = root.path / "clip.mp4";
-  const sk_sp<SkData> firstBytes = solidVideo(SK_ColorRED);
-  ASSERT_TRUE(firstBytes);
+  const std::vector<std::byte> firstBytes = solidVideo(SK_ColorRED);
+  ASSERT_FALSE(firstBytes.empty());
   ASSERT_TRUE(
-      sigil::io::writeBytes(path, firstBytes->data(), firstBytes->size()));
+      sigil::io::writeBytes(path, firstBytes.data(), firstBytes.size()));
 
   Assets assets(root.path);
-  const sigil::video::DecodeOptions options{
-      .hardware = sigil::video::HardwarePreference::Disabled,
-      .cachedFrames = 2};
-  const std::shared_ptr<sigil::video::Video> first =
+  const sigil::media::VideoOptions options{
+      .cachedFrames = 2,
+      .hardware = sigil::media::HardwarePreference::Disabled};
+  const std::shared_ptr<const sigil::media::Video> first =
       assets.video("clip.mp4", options);
   ASSERT_TRUE(first);
   EXPECT_EQ(assets.video("clip.mp4", options), first);
 
-  const sk_sp<SkData> secondBytes = solidVideo(SK_ColorBLUE);
-  ASSERT_TRUE(secondBytes);
+  const std::vector<std::byte> secondBytes = solidVideo(SK_ColorBLUE);
+  ASSERT_FALSE(secondBytes.empty());
   ASSERT_TRUE(
-      sigil::io::writeBytes(path, secondBytes->data(), secondBytes->size()));
+      sigil::io::writeBytes(path, secondBytes.data(), secondBytes.size()));
   std::error_code ec;
   std::filesystem::last_write_time(
       path,
@@ -153,7 +152,7 @@ TEST(Assets, VideoUsesTheClipCacheAndInvalidatesAfterSourceChange) {
   ASSERT_FALSE(ec);
   ASSERT_TRUE(assets.poll());
 
-  const std::shared_ptr<sigil::video::Video> second =
+  const std::shared_ptr<const sigil::media::Video> second =
       assets.video("clip.mp4", options);
   ASSERT_TRUE(second);
   EXPECT_NE(second, first);

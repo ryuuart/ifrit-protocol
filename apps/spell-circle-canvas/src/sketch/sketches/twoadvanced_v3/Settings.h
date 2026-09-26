@@ -24,8 +24,8 @@
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Edges.h>
-#include <sigilimage/asset/Embedded.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/advanced/Embedded.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Filter.h>

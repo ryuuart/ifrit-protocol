@@ -10,7 +10,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilimage/decode/Decode.h>
+#include <sigilmedia/image/Decode.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/texture/Surface.h>

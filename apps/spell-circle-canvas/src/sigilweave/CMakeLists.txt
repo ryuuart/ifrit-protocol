@@ -76,12 +76,12 @@ sigil_doc_probes(weave
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Paragraph.md
           ${CMAKE_CURRENT_SOURCE_DIR}/PARITY.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/geometry/include/sigilgeometry/path
-           ${CMAKE_CURRENT_SOURCE_DIR}/../common/image/include/sigilimage
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/media/include/sigilmedia
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/core/include
            ${SIGIL_TEST_SUPPORT_DIR}
   PRELUDES "<sigilgeometry/path/Contour.h>"
-           "<sigilimage/field/DistanceField.h>"
-           "<sigilimage/difference/Difference.h>"
+           "<sigilmedia/field/DistanceField.h>"
+           "<sigilmedia/difference/Difference.h>"
            "<sigilcore/cache/Rebuild.h>"
            "\"Fonts.h\""
   SKIP_HEADERS SigilWeaveQt.h
@@ -117,8 +117,8 @@ sigil_doc_probes(weave
           "selectors::style=${compose_owned}"
           "selectors::inFrame=${compose_owned}"
   FLOORS 80,150,75,0,1
-  LIBRARIES SigilWeave SigilWeaveTesting SigilGeometryPath SigilImageField
-            SigilImageDifference SigilCoreCache)
+  LIBRARIES SigilWeave SigilWeaveTesting SigilGeometryPath SigilMediaField
+            SigilMediaDifference SigilCoreCache)
 
 # The interactive Qt gallery. The headless panels are the testing
 # feature's plate cases.

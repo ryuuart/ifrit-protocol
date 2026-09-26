@@ -15,7 +15,7 @@
 
 namespace sigil::draw::brush::format {
 
-/** The image @p bytes encode, through SigilImage's own routing; null
+/** The image @p bytes encode, through SigilMedia's own routing; null
  *  when they are empty or are not an image it reads. */
 [[nodiscard]] sk_sp<SkImage> decodeArtwork(std::span<const std::byte> bytes);
 

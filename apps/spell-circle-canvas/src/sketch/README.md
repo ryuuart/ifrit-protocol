@@ -861,10 +861,10 @@ with a shader is a directory sketch, the `.sksl` beside `<stem>.cpp`. A
 material recipe's body is not a whole program — it reads the declarations
 the recipe adds — so it stands in a file the same way and is read as text,
 `ctx.assets.hub().text(ctx.local("burn.sksl"))`, for `Recipe::body`.
-`video()` opens encoded bytes as a streaming SigilVideo clip, caches one clip
-per URI and decode policy, and drops those clips when the hub observes the
-source changing. A video keeps only its small decoded-frame cache; the asset
-store does not expand the whole timeline into images.
+`video()` is `hub.load<sigil::media::Video>` with the options given: one
+clip per URI and options, cached and reopened by the hub when the source
+changes. A video keeps only its small decoded-frame cache; the asset store
+does not expand the whole timeline into images.
 
 ### A resource that keeps arriving
 

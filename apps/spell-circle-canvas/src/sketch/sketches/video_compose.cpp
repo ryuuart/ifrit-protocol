@@ -24,8 +24,8 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilsketch/kit/Page.h>
-#include <sigilvideo/decode/Decode.h>
-#include <sigilvideo/decode/Playback.h>
+#include <sigilmedia/video/Video.h>
+#include <sigilmedia/video/Video.h>
 #include <sigilweave/style/Type.h>
 
 #include <array>
@@ -40,7 +40,7 @@ namespace arrange = sigil::geometry::arrange;
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace io = sigil::io;
-namespace vid = sigil::video;
+namespace media = sigil::media;
 namespace weave = sigil::weave;
 using namespace sigil::compose;
 
@@ -76,12 +76,12 @@ constexpr std::array<std::string_view, 5> kSources = {kDaySky, kNightSky, kDust,
                                                       kColorBurst, kAlphaVideo};
 
 using Documents = std::array<std::shared_ptr<const io::Bytes>, kSources.size()>;
-using Clips = std::array<std::shared_ptr<vid::Video>, kSources.size()>;
+using Clips = std::array<std::shared_ptr<media::Video>, kSources.size()>;
 
-std::shared_ptr<vid::Video> openVideo(
+std::shared_ptr<media::Video> openVideo(
     const std::shared_ptr<const io::Bytes>& encoded, std::string_view uri) {
   if (!encoded || encoded->empty()) return nullptr;
-  vid::DecodeOptions options;
+  media::VideoOptions options;
   options.cachedFrames = 12;
   return vid::decodeVideo(encoded->data(), encoded->size(), options,
                           std::filesystem::path(uri));
@@ -125,12 +125,12 @@ struct VideoCompose {
     for (size_t i = 0; i < kSources.size(); ++i)
       clips[i] = openVideo(documents[i], kSources[i]);
 
-    std::shared_ptr<vid::Playback> playback;
-    std::array<vid::Playback::Handle, kSources.size()> handles{};
+    std::shared_ptr<media::Playback> playback;
+    std::array<media::Playback::Handle, kSources.size()> handles{};
     loading = 0.0f;
     if (!ctx.deterministic) {
-      playback = std::make_shared<vid::Playback>(
-          vid::Playback::Options{.workerThreads = 8});
+      playback = std::make_shared<media::Playback>(
+          media::Playback::Options{.workerThreads = 8});
       for (size_t i = 0; i < clips.size(); ++i) {
         handles[i] = playback->add(clips[i]);
         playback->request(handles[i],
@@ -138,7 +138,7 @@ struct VideoCompose {
       }
       loading = 1.0f;
       ctx.engine.add([this, playback, handles] {
-        for (const vid::Playback::Handle handle : handles)
+        for (const media::Playback::Handle handle : handles)
           if (!playback->ready(handle)) return true;
         loading = 0.0f;
         return false;

@@ -114,7 +114,7 @@ ASSETS = [
         "72082f6cb4d04be2ecf7cc7d9e1e7d73787f0af8a5a278a47cade70c16b78341",
     ),
     # The Ghostscript tiger — the classic vector torture test, exercised
-    # by SigilImage's SVG decode backend.
+    # by SigilMedia's SVG decode backend.
     # AGPL-3.0 (per its Wikimedia Commons file page).
     Asset(
         "https://upload.wikimedia.org/wikipedia/commons/f/fd/Ghostscript_Tiger.svg",

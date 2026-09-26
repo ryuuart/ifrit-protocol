@@ -14,8 +14,8 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilimage/asset/ImageAsset.h>
-#include <sigilimage/decode/Decode.h>
+#include <sigilmedia/core/Image.h>
+#include <sigilmedia/image/Decode.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Decoding.h>
 #include <sigilmaterial/color/Color.h>
@@ -32,7 +32,7 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-namespace image = sigil::image;
+namespace media = sigil::media;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
@@ -86,16 +86,16 @@ struct GifFrames {
 
     io::Hub& hub = ctx.assets.hub();
     const std::optional<io::ResourceInfo> bytes = io::probe<io::ResourceInfo>(hub, kSource);
-    const std::optional<image::ImageProbe> meaning =
-        io::probe<image::ImageProbe>(hub, kSource);
-    const std::shared_ptr<const image::ImageAsset> gif = hub.load<image::ImageAsset>(kSource);
+    const std::optional<media::Metadata> meaning =
+        io::probe<media::Metadata>(hub, kSource);
+    const std::shared_ptr<const media::Image> gif = hub.load<media::Image>(kSource);
 
     ctx.composer.render(gif ? sheet(*gif, bytes, meaning) : missing());
   }
 
   /** The shelf of decoded frames, in file order, each with its own
    *  duration. */
-  Element decoded(const image::ImageAsset& gif) const {
+  Element decoded(const media::Image& gif) const {
     const float w = (float)gif.width() * kScale;
     const float h = (float)gif.height() * kScale;
     std::vector<sketch::kit::ComparisonCase> frames;
@@ -115,7 +115,7 @@ struct GifFrames {
 
   /** The shelf of PLAYBACK: one moment per cell, read back through the
    *  loop. */
-  Element sampled(const image::ImageAsset& gif) const {
+  Element sampled(const media::Image& gif) const {
     const float w = (float)gif.width() * kScale;
     const float h = (float)gif.height() * kScale;
     std::vector<sketch::kit::ComparisonCase> moments;
@@ -130,9 +130,9 @@ struct GifFrames {
         {.cases = std::move(moments), .measure = 1040, .gap = 16});
   }
 
-  Element sheet(const image::ImageAsset& gif,
+  Element sheet(const media::Image& gif,
                 const std::optional<io::ResourceInfo>& bytes,
-                const std::optional<image::ImageProbe>& meaning) const {
+                const std::optional<media::Metadata>& meaning) const {
     std::string foot = "Hub::probe() — ";
     if (meaning && bytes)
       foot += meaning->format + ", " + std::to_string(bytes->byteSize) +
@@ -147,7 +147,7 @@ struct GifFrames {
             " frames, " +
             kit::formatted("%.0f ms", (double)gif.totalDurationMs()) +
             " a loop, " +
-            (gif.repetitionCount() == image::ImageAsset::kInfinite
+            (gif.repetitionCount() == -1
                  ? std::string("repeating forever")
                  : std::to_string(gif.repetitionCount()) + " repetitions");
 

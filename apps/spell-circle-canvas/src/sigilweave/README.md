@@ -213,7 +213,7 @@ the margin, round join and round cap — which is what a disc rolled around
 the shape sweeps — and the band scan then reads that outline as it reads
 any other. Coverage is the one flow shape with no outline to grow, so it
 measures an exact Euclidean distance field over its pixels and reads the
-answer off that — `image::distanceField`, in SigilImage, because a
+answer off that — `media::distanceField`, in SigilMedia, because a
 distance transform is a question about pixels and belongs where image
 meaning lives.
 
@@ -411,7 +411,7 @@ own.
 | `SigilWeaveStyle` | the style vocabulary, with `Type` — the partial a call site names a style's numbers in, every field optional — the merges that resolve one, and the `TypeSheet` of named partials | SigilMaterialColor (public: `Type::color` is a `material::Color`) |
 | `SigilWeaveFonts` | the font service and the shaper | HarfBuzz, Boost.Unordered and Boost.ContainerHash — private |
 | `SigilWeaveParagraph` | the document model | SigilWeaveUnicode, Boost.Container — private |
-| `SigilWeaveLayout` | flows and flow shapes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilImageField (the distance field a flow shape measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
+| `SigilWeaveLayout` | flows and flow shapes, the initial letter, breakers, placement, metrics | SigilGeometryPath (public: `LineInterval::contour` is a `geometry::path::Contour`); SigilMediaField (the distance field a flow shape measures its standoff off), the Unicode leaf, HarfBuzz, ICU and Boost.Unordered — private |
 | `SigilWeaveDecoration` | decoration bands | Boost.Unordered (the stir the skip-ink cache keys with) — private |
 | `SigilWeavePaint` | `draw()` and `drawBatched()`, `paint/Paint.h` | — |
 | `SigilWeaveChoreograph` | per-glyph choreography | — |
@@ -419,7 +419,7 @@ own.
 | `SigilWeave` | interface over every target above | — |
 | `SigilWeavePorts` | `ports::systemFontManager()` — CoreText on Apple; DirectWrite and Fontconfig slot into the same call — which answers CSS's generic names `serif`, `sans-serif`, `monospace` and `system-ui` with the first installed of the families `ports::genericFamilies()` names for each on the platform; `ports::pickTypeface()`, the first installed family of a fallback chain, and `ports::face()`, that resolution kept once per chain and style so every face compared by pointer compares equal. Both take the chain either spelled out where the call is written or as a span of names assembled at run time, and both spellings reach the one holder | Skia platform ports |
 | `SigilWeaveKit` | consumer-side discipline: rebuild/layout guards, glyph bucketing, label shorthand, sample content, the named OpenType feature presets, the three arrangements of a paint layer everyone writes, and the line-edge and hyphenation tables | SigilWeaveUnicode — private |
-| `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilImageDifference (public: a comparison carries the `image::PixelDifference` it found); SigilImageAsset, SigilImageEncode and SigilIOSource for the baseline file — private |
+| `SigilWeaveTesting` | the library's own harness, linked by test binaries alone: a passage laid under a stated font context (`testing::lay`), read back as values (`testing::read`), rendered on the CPU (`testing::Plate`) and held against a committed baseline (`testing::compareToBaseline`) | SigilMediaDifference (public: a comparison carries the `media::PixelDifference` it found); SigilMediaImageDecode, SigilMediaImageEncode and SigilIOSource for the baseline file — private |
 | `SigilWeaveQt` | interface target: `QFont` → `SkTypeface`, `QString` ↔ `Paragraph` with no transcoding | Qt6::Gui |
 
 Each feature links only the features beneath it — style, then fonts, then
@@ -429,7 +429,7 @@ that tier alone; `SigilWeave` is for a consumer of the whole engine. Skia,
 SigilMaterialColor and SigilGeometryPath are PUBLIC dependencies — a
 partial's ink and a glyph's dressing are SigilMaterial's colour value, the
 path a line of text follows is a geometry contour, and a path flow shape
-flattens through the same library; the Unicode leaf, SigilImageField, HarfBuzz, ICU and Boost
+flattens through the same library; the Unicode leaf, SigilMediaField, HarfBuzz, ICU and Boost
 are PRIVATE and appear in no public header. Pimpls hide the hash maps, and
 `Word::segments()` hands out a `std::span` over storage whose container
 type only the paragraph feature sees, so the one Boost container inside
@@ -543,8 +543,8 @@ const sigil::weave::testing::BaselineComparison comparison =
   render against a committed PNG or adopts it (`BaselineAction`) — a
   plate's faces against the list `facesBeside` names too — the
   `BaselineComparison` it answers, and `describe`, the line a failing
-  case prints. How far two renders stand apart is SigilImage's
-  `sigil::image::difference`, which the comparison carries as it
+  case prints. How far two renders stand apart is SigilMedia's
+  `sigil::media::difference`, which the comparison carries as it
   answered.
 
 The namespace is spelled `weave::testing` in a file that brings

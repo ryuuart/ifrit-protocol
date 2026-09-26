@@ -11,7 +11,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilimage/decode/Decode.h>
+#include <sigilmedia/image/Decode.h>
 #include <sigilio/frames/Publisher.h>
 #include <sigilio/frames/Subscription.h>
 #include <sigilio/hub/Hub.h>
@@ -74,8 +74,7 @@ TEST(SeerTextureCapture, AFrameKeepsItsRowsAndItsChannels) {
 
   const std::vector<std::byte> written = contentsOf(out);
   ASSERT_FALSE(written.empty());
-  const std::optional<sigil::image::ImageAsset> read =
-      sigil::image::decodeImage(written.data(), written.size());
+  const auto read = sigil::media::decode<sigil::media::Image>(written);
   ASSERT_TRUE(read);
   ASSERT_FALSE(read->frames().empty());
   const sk_sp<SkImage>& image = read->frames().front().image;
@@ -153,7 +152,7 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
         const auto out = scratch.path / (stem + ".png");
         if (!seer::texture::writeTexturePng(received, queue, out, held)) return {};
         const auto written = contentsOf(out);
-        const auto decoded = sigil::image::decodeImage(written.data(), written.size());
+        const auto decoded = sigil::media::decode<sigil::media::Image>(written);
         if (!decoded || decoded->frames().empty()) return {};
         const auto& image = decoded->frames().front().image;
         if (image->width() != 2 || image->height() != 2) return {};

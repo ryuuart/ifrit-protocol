@@ -4,7 +4,7 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 
 #include <chrono>
 #include <utility>
@@ -252,7 +252,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     return false;
   }();
   const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
-                         imageAssetOf(node)->animated();
+                         imageAssetOf(node)->isRunning();
   // A LIVE effect: the filter is captured by the recording, so bound
   // uniforms on it are content volatility, exactly as they are on a fill
   // material. Split by WHICH effect, because the two answer differently to

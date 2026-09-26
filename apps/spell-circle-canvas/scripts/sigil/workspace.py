@@ -52,7 +52,7 @@ struct @NAME@ {
    *  asset store. A file that is not there yet answers with the
    *  placeholder and heals the moment one appears, so this draws before
    *  assets/ holds anything at all. */
-  std::shared_ptr<const sigil::image::ImageAsset> reference;
+  std::shared_ptr<const sigil::media::Image> reference;
 
   Element describe(sketch::SketchContext& ctx) {
     // THE LOOK IS THE THEME'S, carried down the tree: the root states

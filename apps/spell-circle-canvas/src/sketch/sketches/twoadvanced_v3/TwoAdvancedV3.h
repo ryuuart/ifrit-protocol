@@ -22,7 +22,7 @@ struct TwoAdvancedV3 {
    *  than hashing a different page. */
   static bool available(std::string* why);
 
-  using ImagePtr = std::shared_ptr<const sigil::image::ImageAsset>;
+  using ImagePtr = std::shared_ptr<const sigil::media::Image>;
 
   // --- the production art, out of mainstage.riv --------------------------
   ImagePtr homeBg;                   // "home-background"      1277×385
@@ -110,7 +110,7 @@ struct TwoAdvancedV3 {
 
   // =========================================================================
   // Lifting the art out of the Rive file. A .riv stores each embedded
-  // image asset as its name followed by the raw PNG, and SigilImage's
+  // image asset as its name followed by the raw PNG, and SigilMedia's
   // signature scan recovers both, so all this study states is which asset
   // name fills which slot.
 

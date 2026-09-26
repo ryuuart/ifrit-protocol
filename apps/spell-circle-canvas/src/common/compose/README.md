@@ -601,7 +601,7 @@ contracts are in [reference/TRAPS.md](reference/TRAPS.md).
 
 The kernel links `SigilCoreReconcile`, `SigilCoreCache`,
 `SigilCoreComparable`, `SigilCoreCompute`, `SigilGeometryPath`,
-`SigilImage`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
+`SigilMedia`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
 `SigilSkiaDraw` (the direct draws the instanced leaf stamps through),
 `SigilWeave` and Skia publicly, and Yoga and Boost's container and
 unordered targets privately. The brush tier adds `SigilGeometryKit`, the
@@ -691,7 +691,7 @@ when layout settled, so a program draws from the same table
 `connect::ByLane` reads; its output is pixels nothing downstream reads,
 and the keyed spelling is what lets the pen it attaches prune.
 
-Deliberately *not* linked: SigilVideo and SigilScry (their live leaves are
+Deliberately *not* linked: SigilMediaVideo and SigilScry (their live leaves are
 header-only adapters with their own targets), EnTT (the instancing header
 keeps the registry on your side), SigilGeometry beyond the path leaf and
 the mesh its silhouette shelf rests on (no camera, curve, point operator,
@@ -753,7 +753,7 @@ stroke grammar's engine and the mask gates, with `kit/Flourish.h`,
 `kit/Ornament.h`, `kit/Plate.h` and `kit/Strokes.h`),
 `SigilComposeTexture` (`texture/` — a scene painted into a surface and
 handed out as a texture value), `SigilComposeVideo` (`video/` — a
-streaming SigilVideo clip sampled from the motion engine),
+streaming SigilMediaVideo clip sampled from the motion engine),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the

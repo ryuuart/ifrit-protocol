@@ -15,16 +15,18 @@
 #include <include/core/SkBitmap.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
-#include <sigilimage/decode/Decode.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmedia/image/Decode.h>
+#include <sigilmedia/video/Video.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/plate/Story.h>
 #include <sigilsketch/plate/Sweep.h>
-#include <sigilvideo/decode/Decode.h>
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -168,11 +170,10 @@ std::vector<char> bytesOf(const std::filesystem::path& path) {
 sk_sp<SkImage> plateImage(const std::filesystem::path& path) {
   const std::vector<char> encoded = bytesOf(path);
   if (encoded.empty()) return nullptr;
-  const std::optional<sigil::image::ImageAsset> asset =
-      sigil::image::decodeImage(
-          reinterpret_cast<const std::byte*>(encoded.data()), encoded.size(),
-          {}, path);
-  return asset ? asset->frameAt(0).image : nullptr;
+  const auto asset = sigil::media::decode<sigil::media::Image>(
+      std::as_bytes(std::span(encoded)), {}, path);
+  return asset && !asset->frames().empty() ? asset->frames().front().image
+                                           : nullptr;
 }
 
 /** The worst per-channel disagreement between two plates of one size. */
@@ -388,28 +389,27 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
   options.introFrames = 0;
   options.outroFrames = 0;
   options.bitRate = 500'000;
-  options.hardware = sigil::video::HardwarePreference::Disabled;
+  options.hardware = sigil::media::HardwarePreference::Disabled;
   ASSERT_GE(options.only, 0);
   ASSERT_EQ(0, story(options, fonts(), assets()));
 
   const std::vector<char> encoded = bytesOf(options.outputPath);
   ASSERT_FALSE(encoded.empty());
-  const auto* bytes = reinterpret_cast<const std::byte*>(encoded.data());
-  const std::optional<sigil::video::VideoProbe> probe =
-      sigil::video::probeVideo(bytes, encoded.size(), options.outputPath);
+  const std::span<const std::byte> bytes = std::as_bytes(std::span(encoded));
+  const std::optional<sigil::media::Metadata> probe = probeDocument(
+      std::type_identity<sigil::media::Video>{}, bytes, options.outputPath);
   ASSERT_TRUE(probe);
   EXPECT_EQ(probe->width, 360);
   EXPECT_EQ(probe->height, 640);
   EXPECT_NEAR(probe->frameRate, 10.0, 0.1);
-  EXPECT_GE(probe->durationSeconds, 0.29);
+  EXPECT_GE(probe->duration.count(), 0.29);
 
-  const std::shared_ptr<sigil::video::Video> clip = sigil::video::decodeVideo(
-      bytes, encoded.size(),
-      {.hardware = sigil::video::HardwarePreference::Disabled},
+  const auto clip = sigil::media::decode<sigil::media::Video>(
+      bytes, {.hardware = sigil::media::HardwarePreference::Disabled},
       options.outputPath);
   ASSERT_TRUE(clip);
-  const sigil::video::VideoFrame first = clip->frameAt(0.0);
-  const sigil::video::VideoFrame last = clip->frameAt(0.2);
+  const sigil::media::Frame first = clip->decodeAt({});
+  const sigil::media::Frame last = clip->decodeAt(std::chrono::duration<double>(0.2));
   ASSERT_TRUE(first.image);
   ASSERT_TRUE(last.image);
   const PixelBounds firstBounds = greenBounds(*first.image);
@@ -436,19 +436,18 @@ TEST(Story, AKeptCanvasSurvivesThePreRoll) {
   options.introFrames = 0;
   options.outroFrames = 0;
   options.bitRate = 500'000;
-  options.hardware = sigil::video::HardwarePreference::Disabled;
+  options.hardware = sigil::media::HardwarePreference::Disabled;
   ASSERT_GE(options.only, 0);
   ASSERT_EQ(0, story(options, fonts(), assets()));
 
   const std::vector<char> encoded = bytesOf(options.outputPath);
   ASSERT_FALSE(encoded.empty());
-  const auto* bytes = reinterpret_cast<const std::byte*>(encoded.data());
-  const std::shared_ptr<sigil::video::Video> clip = sigil::video::decodeVideo(
-      bytes, encoded.size(),
-      {.hardware = sigil::video::HardwarePreference::Disabled},
+  const std::span<const std::byte> bytes = std::as_bytes(std::span(encoded));
+  const auto clip = sigil::media::decode<sigil::media::Video>(
+      bytes, {.hardware = sigil::media::HardwarePreference::Disabled},
       options.outputPath);
   ASSERT_TRUE(clip);
-  const sigil::video::VideoFrame first = clip->frameAt(0.0);
+  const sigil::media::Frame first = clip->decodeAt({});
   ASSERT_TRUE(first.image);
   const PixelBounds trail = greenBounds(*first.image);
   ASSERT_GE(trail.right, trail.left);

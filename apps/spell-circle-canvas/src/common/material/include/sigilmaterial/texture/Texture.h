@@ -18,10 +18,11 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkTileMode.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/core/Leaf.h>
 #include <sigilmaterial/texture/ShaderLeaf.h>
 
+#include <chrono>
 #include <concepts>
 #include <functional>
 #include <memory>
@@ -145,13 +146,16 @@ struct ImageSource {
 /** One frame of an image asset, chosen by playback time. Equal when it
  *  is the same asset at the same time; animated when the asset is. */
 struct AssetSource {
-  std::shared_ptr<const image::ImageAsset> asset;
+  std::shared_ptr<const media::Image> asset;
   double milliseconds = 0.0;
 
   sk_sp<SkImage> image() const {
-    return asset ? asset->frameAt(milliseconds).image : nullptr;
+    return asset ? asset->frameAt(std::chrono::duration<double>(
+                                       milliseconds / 1000.0))
+                       .image
+                 : nullptr;
   }
-  bool animated() const { return asset && asset->animated(); }
+  bool animated() const { return asset && asset->isRunning(); }
   bool operator==(const AssetSource& other) const {
     return asset.get() == other.asset.get() &&
            milliseconds == other.milliseconds;
@@ -191,7 +195,7 @@ class Texture : public ShaderLeaf {
     return Texture(ImageSource{std::move(image)});
   }
   /** A texture over an asset's frame at @p milliseconds of playback. */
-  static Texture of(std::shared_ptr<const image::ImageAsset> asset,
+  static Texture of(std::shared_ptr<const media::Image> asset,
                     double milliseconds = 0.0) {
     return Texture(AssetSource{std::move(asset), milliseconds});
   }

@@ -10,15 +10,14 @@
 namespace {
 
 /** 4-tile atlas, 8px cells: [red | green] / [blue | yellow]. */
-std::shared_ptr<sigil::image::ImageAsset> fourTileAtlas() {
+std::shared_ptr<const sigil::media::Image> fourTileAtlas() {
   SkBitmap src;
   src.allocN32Pixels(16, 16);
   src.erase(SK_ColorRED, SkIRect::MakeXYWH(0, 0, 8, 8));
   src.erase(SK_ColorGREEN, SkIRect::MakeXYWH(8, 0, 8, 8));
   src.erase(SK_ColorBLUE, SkIRect::MakeXYWH(0, 8, 8, 8));
   src.erase(SK_ColorYELLOW, SkIRect::MakeXYWH(8, 8, 8, 8));
-  return std::make_shared<sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(src.asImage()));
+  return sigil::media::Image::of(src.asImage());
 }
 
 struct ChunkProps {

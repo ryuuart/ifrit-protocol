@@ -143,11 +143,10 @@ SkBitmap readbackGpu(sigil::skia::GraphiteContext *ctx, SkSurface *surface,
   return bm;
 }
 
-std::shared_ptr<const sigil::image::ImageAsset> whiteTile(int size) {
+std::shared_ptr<const sigil::media::Image> whiteTile(int size) {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(size, size));
   s->getCanvas()->clear(SK_ColorWHITE);
-  return std::make_shared<sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(s->makeImageSnapshot()));
+  return sigil::media::Image::of(s->makeImageSnapshot());
 }
 
 }  // namespace

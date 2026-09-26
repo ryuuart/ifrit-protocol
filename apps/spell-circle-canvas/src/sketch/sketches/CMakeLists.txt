@@ -168,7 +168,7 @@ target_link_libraries(SigilSketches PUBLIC
   SigilGeometry SigilMaterial
   SigilWeave SigilWeaveKit SigilWeavePorts
   SigilWorldElement SigilWorldFrame SigilWorldScene SigilWorldKit
-  SigilCoreCompute SigilData SigilImage SigilVideo SigilMotion SigilIO
+  SigilCoreCompute SigilData SigilMedia SigilMediaVideo SigilMotion SigilIO
   SigilMeasure
   Boost::container Boost::unordered
   ${SIGIL_SKETCH_OPTIONAL_LIBRARIES})

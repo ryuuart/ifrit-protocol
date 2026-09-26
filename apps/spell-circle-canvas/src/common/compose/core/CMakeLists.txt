@@ -12,7 +12,7 @@
 # settled-subtree proof its caches turn on is SigilCoreCache's, with this
 # target as the host of both. Links SigilCoreCache, SigilCoreCallable,
 # SigilCoreComparable, SigilCoreCompute, SigilCoreReconcile,
-# SigilGeometryPath, SigilImage, SigilMotion, SigilSkiaDraw, SigilWeave and
+# SigilGeometryPath, SigilMediaCore, SigilMotion, SigilSkiaDraw, SigilWeave and
 # Skia publicly, because those
 # types appear in its headers — the seam value's erasure, the paint value
 # a fill carries, the prefix call a paint program is taken through, the
@@ -99,7 +99,7 @@ sigil_library(SigilComposeCore
           verbs/Transform.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreCallable SigilCoreComparable SigilCoreCompute
-         SigilCoreReconcile SigilGeometryPath SigilImage SigilMaterial
+         SigilCoreReconcile SigilGeometryPath SigilMediaCore SigilMaterial
          SigilMeasure SigilMotion SigilSkiaDraw SigilWeave
          unofficial::skia::skia
   PRIVATE Boost::container Boost::unordered yoga::yogacore)

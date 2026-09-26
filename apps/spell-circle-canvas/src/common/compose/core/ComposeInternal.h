@@ -245,7 +245,7 @@ struct RuleTextLayer {
 };
 
 struct ImageData {
-  std::shared_ptr<const sigil::image::ImageAsset> asset;
+  std::shared_ptr<const sigil::media::Image> asset;
   std::optional<SkRect> region;  // atlas sub-rect, source px
 };
 

@@ -4,8 +4,8 @@
  * Reading a rendered surface back: whether any pixel answers a question,
  * and how many do. A pixel scan written out by hand is a loop nobody
  * reads; written once it is the question the case is actually asking.
- * How far two renders stand apart is SigilImage's reading,
- * `sigil::image::difference`.
+ * How far two renders stand apart is SigilMedia's reading,
+ * `sigil::media::difference`.
  */
 
 #include <include/core/SkColor.h>

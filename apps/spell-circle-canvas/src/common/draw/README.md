@@ -505,7 +505,7 @@ src/common/draw/
   consumer that paints links `SigilDrawBrush` alone. It speaks
   SigilIOSource's byte vocabulary, which is what lets a loader run
   against a fixture and behind a hub unchanged, and it hands the
-  artwork inside a brush to SigilImage. Where the bytes came from —
+  artwork inside a brush to SigilMedia. Where the bytes came from —
   URIs, mounts, caching, reload — is SigilIO's, and no file is opened
   here in either direction.
 ## Build and test

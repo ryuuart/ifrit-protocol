@@ -11,12 +11,13 @@
 #include <include/core/SkSurface.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmedia/advanced/Formats.h>
+#include <sigilmedia/video/Encoder.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Placement.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
-#include <sigilvideo/encode/Encode.h>
 #include <sigilweave/fonts/FontContext.h>
 
 #include <algorithm>
@@ -57,7 +58,7 @@ sk_sp<SkImage> makeLabelLayer(const Entry& entry, const sk_sp<SkTypeface>& face,
   return surface->makeImageSnapshot();
 }
 
-bool appendTitle(video::Encoder& encoder, SkSurface& surface,
+bool appendTitle(media::Encoder& encoder, SkSurface& surface,
                  const sk_sp<SkTypeface>& face, int frames, bool outro) {
   for (int frame = 0; frame < frames; ++frame) {
     SkCanvas& canvas = *surface.getCanvas();
@@ -106,19 +107,19 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
                  "frames and bit rate must be positive\n");
     return 2;
   }
-  if (!video::formatForPath(options.outputPath)) {
+  if (media::formatForPath(options.outputPath) != media::Format::Mp4) {
     std::fprintf(stderr, "story output must end in .mp4\n");
     return 2;
   }
 
-  std::unique_ptr<video::Encoder> encoder = video::Encoder::make(
-      video::Format::Mp4, {.width = options.width,
-                           .height = options.height,
-                           .framesPerSecond = options.framesPerSecond,
-                           .bitRate = options.bitRate,
-                           .hardware = options.hardware});
+  media::Encoder encoder({.width = options.width,
+                          .height = options.height,
+                          .framesPerSecond = options.framesPerSecond,
+                          .bitRate = options.bitRate,
+                          .hardware = options.hardware});
   if (!encoder) {
-    std::fprintf(stderr, "no H.264 encoder accepted the story options\n");
+    std::fprintf(stderr, "no H.264 encoder accepted the story options: %s\n",
+                 encoder.error().c_str());
     return 1;
   }
   sk_sp<SkSurface> output = SkSurfaces::Raster(
@@ -132,9 +133,9 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
     std::fprintf(stderr, "story could not resolve a display typeface\n");
     return 1;
   }
-  if (!appendTitle(*encoder, *output, face, options.introFrames, false)) {
+  if (!appendTitle(encoder, *output, face, options.introFrames, false)) {
     std::fprintf(stderr, "story intro encode failed: %s\n",
-                 encoder->error().c_str());
+                 encoder.error().c_str());
     return 1;
   }
 
@@ -244,9 +245,9 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
         drawClip(*output->getCanvas(), image, labels, options.width,
                  options.height);
         const sk_sp<SkImage> encodedFrame = output->makeImageSnapshot();
-        if (!encodedFrame || !encoder->append(*encodedFrame)) {
+        if (!encodedFrame || !encoder.append(*encodedFrame)) {
           std::fprintf(stderr, "story frame encode failed at %s: %s\n",
-                       entry.name, encoder->error().c_str());
+                       entry.name, encoder.error().c_str());
           return 1;
         }
       }
@@ -264,25 +265,25 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
     std::fprintf(stderr, "story selection contained no renderable sketches\n");
     return 1;
   }
-  if (!appendTitle(*encoder, *output, face, options.outroFrames, true)) {
+  if (!appendTitle(encoder, *output, face, options.outroFrames, true)) {
     std::fprintf(stderr, "story outro encode failed: %s\n",
-                 encoder->error().c_str());
+                 encoder.error().c_str());
     return 1;
   }
-  const sk_sp<SkData> mp4 = encoder->finish();
-  if (!mp4) {
+  const std::vector<std::byte> mp4 = encoder.finish();
+  if (mp4.empty()) {
     std::fprintf(stderr, "story finalization failed: %s\n",
-                 encoder->error().c_str());
+                 encoder.error().c_str());
     return 1;
   }
-  if (!io::writeBytes(options.outputPath, mp4->data(), mp4->size())) {
+  if (!io::writeBytes(options.outputPath, mp4.data(), mp4.size())) {
     std::fprintf(stderr, "could not write story to %s\n",
                  options.outputPath.c_str());
     return 1;
   }
   std::printf("wrote %s: %d sketches, %d skipped, %lld frames, %s\n",
               options.outputPath.c_str(), rendered, skipped,
-              (long long)encoder->frameCount(), encoder->codec().c_str());
+              (long long)encoder.frameCount(), encoder.codec().c_str());
   return 0;
 }
 

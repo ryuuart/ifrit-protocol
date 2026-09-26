@@ -15,9 +15,9 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilimage/asset/ImageAsset.h>
-#include <sigilimage/decode/Decoders.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/core/Image.h>
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/advanced/Network.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
@@ -33,7 +33,7 @@
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace img = sigil::image;
+namespace media = sigil::media;
 namespace io = sigil::io;
 
 using namespace sigil::compose;
@@ -61,11 +61,11 @@ sk_sp<SkData> seedBytes() {
   for (int i = 0; i < 5; ++i)
     canvas->drawCircle(24.0f + (float)i * 26.0f,
                        50.0f + (i % 2 ? 18.0f : -18.0f), 11.0f, paint);
-  return img::encodeImage(*surface->makeImageSnapshot(), img::Format::Png);
+  return media::encode(*surface->makeImageSnapshot(), media::Format::Png);
 }
 
 Element decision(const char* policy, const char* state, const char* route,
-                 const std::shared_ptr<const img::ImageAsset>& result) {
+                 const std::shared_ptr<const media::Image>& result) {
   return sketch::kit::well({.width = 728, .height = 94, .padding = 16})
       .row()
       .gap(20)
@@ -109,8 +109,8 @@ struct NetPolicy {
      *  loaded stays as it is. */
     const auto ask = [&](io::NetworkPolicy policy, const char* url) {
       io::Hub hub({.network = {.policy = policy, .cacheDirectory = cacheDir}});
-      img::registerDecoders(hub);
-      return hub.load<img::ImageAsset>(url);
+      media::registerDecoders(hub);
+      return hub.load<media::Image>(url);
     };
 
     const auto cacheFirst = ask(io::NetworkPolicy::CacheFirst, kSeeded);

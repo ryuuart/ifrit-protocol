@@ -80,7 +80,7 @@ Element panel(Slice frame, Utf8 caption, material::Color ink) {
  *  against the same divs the `Slice` beside it declares. Nothing here
  *  goes through a decoration, which is the point — the call is what a
  *  program of one's own reaches for, and it paints the same rects. */
-Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
+Element directLattice(std::shared_ptr<const sigil::media::Image> asset) {
   return kit::centred()
       .width(kPanelW)
       .height(kPanelH)
@@ -106,20 +106,19 @@ Element directLattice(std::shared_ptr<sigil::image::ImageAsset> asset) {
 }
 
 struct NineSlice {
-  std::shared_ptr<sigil::image::ImageAsset> oak, crimson;
+  std::shared_ptr<const sigil::media::Image> oak, crimson;
   /** The trap's row compares two DRAW PATHS, so both of its cells wear a
    *  texture drawn at the size it is used at: the native call has no
    *  density of its own, and a pair that also differed in weight would
    *  be comparing two things at once. */
-  std::shared_ptr<sigil::image::ImageAsset> azurePlain;
+  std::shared_ptr<const sigil::media::Image> azurePlain;
   float stretch = 0.0f;
 
-  static std::shared_ptr<sigil::image::ImageAsset> generate(
+  static std::shared_ptr<const sigil::media::Image> generate(
       const Palette& pal, float density = kFrameDensity) {
     // The intermediate canvas: draw the carved frame once, wrap the
     // snapshot, stretch it everywhere below.
-    return std::make_shared<sigil::image::ImageAsset>(
-        sigil::image::ImageAsset::wrap(
+    return (sigil::media::Image::of(
             makeCarvedFrame(pal, (int)(96 * density))));
   }
 

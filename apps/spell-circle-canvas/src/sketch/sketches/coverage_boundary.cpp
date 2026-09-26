@@ -39,7 +39,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -70,7 +70,7 @@ constexpr material::Color kHalo{0.36f, 0.72f, 1.00f, 0.95f};
  *  on nothing at all. Its box is a rectangle, its silhouette is neither a
  *  rectangle nor simply connected, and `alpha` is how much of a pixel its
  *  paint covers — the one number a coverage trace asks about. */
-std::shared_ptr<const sigil::image::ImageAsset> cutOut(float alpha) {
+std::shared_ptr<const sigil::media::Image> cutOut(float alpha) {
   constexpr int kSide = 176;
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
@@ -88,8 +88,7 @@ std::shared_ptr<const sigil::image::ImageAsset> cutOut(float alpha) {
           .path({kSide * 0.30f, kSide * 0.30f})
           .makeTransform(SkMatrix::Translate(kSide * 0.35f, kSide * 0.35f)),
       punch);
-  return std::make_shared<const sigil::image::ImageAsset>(
-      sigil::image::ImageAsset::wrap(surface->makeImageSnapshot()));
+  return sigil::media::Image::of(surface->makeImageSnapshot());
 }
 
 /** One style value, worn by every cell that wears one: a halo under the
@@ -106,8 +105,8 @@ LayerStyle halo() {
  *  sketch and not in a static, since this file is a dylib a reload
  *  unloads. */
 struct CutOuts {
-  std::shared_ptr<const sigil::image::ImageAsset> solid = cutOut(1.0f);
-  std::shared_ptr<const sigil::image::ImageAsset> faint = cutOut(kWash);
+  std::shared_ptr<const sigil::media::Image> solid = cutOut(1.0f);
+  std::shared_ptr<const sigil::media::Image> faint = cutOut(kWash);
 };
 
 Element art(const CutOuts& cut, float alpha = 1.0f) {

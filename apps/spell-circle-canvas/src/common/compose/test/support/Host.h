@@ -33,9 +33,9 @@ using namespace std::chrono_literals;
 // origin: a schedule and an animatable are SigilMotion's, a silhouette
 // SigilGeometry's, a colour or a pattern SigilMaterial's, a style
 // SigilWeave's, an erased value or an environment binding SigilCore's. Aliases
-// rather than using-directives, because `sigil::image` and
-// `sigil::measure` are namespaces that collide with compose's own
-// `image()` and `measure()` verbs.
+// rather than using-directives, because `sigil::media::Image` collides
+// with compose's own `Image` leaf and `sigil::measure` with its
+// `measure()` verb.
 namespace core = sigil::core;
 namespace geometry = sigil::geometry;
 namespace material = sigil::material;

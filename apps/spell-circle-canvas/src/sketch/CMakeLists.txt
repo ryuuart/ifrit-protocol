@@ -77,8 +77,8 @@ set(SIGIL_SKETCH_HEADERS
   plate/ThumbnailWriter.h)
 set(SIGIL_SKETCH_PUBLIC
   SigilCoreCallable SigilCoreComparable
-  SigilGeometryMeshCamera SigilImageAsset SigilIO
-  SigilVideoDecode SigilVideoCore SigilImageEncode SigilMeasure
+  SigilGeometryMeshCamera SigilMediaCore SigilIO
+  SigilMediaVideoDecode SigilMediaCore SigilMediaImageEncode SigilMeasure
   SigilMotionClock
   SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
   SigilComposeTexture SigilComposeTesting SigilComposeDraw
@@ -96,11 +96,11 @@ set(SIGIL_SKETCH_PRIVATE
   SigilDataDecode
   SigilDataQuery
   SigilDataRead
-  SigilIOSource SigilCoreSchedule SigilImage SigilImageDecode
+  SigilIOSource SigilCoreSchedule SigilMedia SigilMediaImageDecode
   # A sketch opens network feeds through its assets, so the host is the
   # consumer that links the transports.
   SigilIOTransport
-  SigilGeometryDevice SigilSkiaGraphite SigilVideoEncode SigilWeaveFonts)
+  SigilGeometryDevice SigilSkiaGraphite SigilMediaVideoEncode SigilWeaveFonts)
 # The one WebEngine Ultralight permits in a process, lent to every sketch
 # that asks for it. SigilScry itself keeps explicit caller ownership as
 # its ordinary path; a host that configures the shared engine opts in.

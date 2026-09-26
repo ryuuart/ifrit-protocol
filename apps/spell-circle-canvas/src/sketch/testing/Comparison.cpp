@@ -4,33 +4,24 @@
 
 #include "sigilsketch/testing/Comparison.h"
 
-#include <include/core/SkBitmap.h>
-#include <include/core/SkData.h>
-#include <include/core/SkImage.h>
-#include <sigilimage/asset/ImageAsset.h>
 #include <sigilio/source/Source.h>
+#include <sigilmedia/image/Decode.h>
 
-#include <optional>
+#include <memory>
 
 namespace sigil::sketch::testing {
 
 namespace {
 
-/** The first frame of the picture at @p path, as premultiplied N32. */
-std::optional<SkBitmap> readPicture(const std::filesystem::path& path) {
+/** The picture at @p path, decoded; null when it cannot be read or is
+ *  not a picture. */
+std::shared_ptr<const media::Image> readPicture(
+    const std::filesystem::path& path) {
   const std::optional<io::Bytes> bytes = io::readBytes(path);
-  if (!bytes) return std::nullopt;
-  std::optional<image::ImageAsset> asset = image::ImageAsset::decode(
-      SkData::MakeWithCopy(bytes->data(), bytes->size()));
-  if (!asset || asset->frames().empty() || !asset->frames().front().image)
-    return std::nullopt;
-  const sk_sp<SkImage>& frame = asset->frames().front().image;
-  SkBitmap bitmap;
-  if (!bitmap.tryAllocPixels(
-          SkImageInfo::MakeN32Premul(frame->width(), frame->height())) ||
-      !frame->readPixels(nullptr, bitmap.pixmap(), 0, 0))
-    return std::nullopt;
-  return bitmap;
+  if (!bytes) return nullptr;
+  auto picture = media::decode<media::Image>(bytes->span(), {}, path);
+  if (!picture || picture->frames().empty()) return nullptr;
+  return picture;
 }
 
 }  // namespace
@@ -38,19 +29,19 @@ std::optional<SkBitmap> readPicture(const std::filesystem::path& path) {
 Comparison compare(const std::filesystem::path& actual,
                    const std::filesystem::path& expected) {
   Comparison comparison;
-  const std::optional<SkBitmap> left = readPicture(actual);
+  const auto left = readPicture(actual);
   if (!left) {
     comparison.problem = "cannot read " + actual.string();
     return comparison;
   }
-  const std::optional<SkBitmap> right = readPicture(expected);
+  const auto right = readPicture(expected);
   if (!right) {
     comparison.problem = "cannot read " + expected.string();
     return comparison;
   }
-  comparison.actual = left->dimensions();
-  comparison.expected = right->dimensions();
-  comparison.pixels = image::difference(left->pixmap(), right->pixmap());
+  comparison.actual = left->size();
+  comparison.expected = right->size();
+  comparison.pixels = media::difference(*left, *right);
   return comparison;
 }
 

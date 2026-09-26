@@ -13,7 +13,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 
 #include <memory>
 #include <string>
@@ -29,15 +29,14 @@ using sigil::compose::bench::Host;
 
 namespace {
 
-std::shared_ptr<sigil::image::ImageAsset> benchAtlas() {
-  static std::shared_ptr<sigil::image::ImageAsset> asset = [] {
+std::shared_ptr<const sigil::media::Image> benchAtlas() {
+  static std::shared_ptr<const sigil::media::Image> asset = [] {
     SkBitmap src;
     src.allocN32Pixels(64, 16);
     for (int i = 0; i < 4; ++i)
       src.erase(SkColorSetRGB((U8CPU)(60 + i * 40), 40, 90),
                 SkIRect::MakeXYWH(i * 16, 0, 16, 16));
-    return std::make_shared<sigil::image::ImageAsset>(
-        sigil::image::ImageAsset::wrap(src.asImage()));
+    return sigil::media::Image::of(src.asImage());
   }();
   return asset;
 }

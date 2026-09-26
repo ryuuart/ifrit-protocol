@@ -5,7 +5,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
-#include <sigilimage/decode/Decode.h>
+#include <sigilmedia/image/Decode.h>
 
 #include <algorithm>
 #include <array>
@@ -16,6 +16,7 @@
 #include <fstream>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -40,11 +41,10 @@ std::optional<Plate> readPlate(const std::filesystem::path& path) {
   const std::vector<char> encoded((std::istreambuf_iterator<char>(file)),
                                   std::istreambuf_iterator<char>());
   if (encoded.empty()) return std::nullopt;
-  const auto decoded =
-      image::decodeImage(reinterpret_cast<const std::byte*>(encoded.data()),
-                         encoded.size(), {}, path);
-  if (!decoded) return std::nullopt;
-  const sk_sp<SkImage> image = decoded->frameAt(0).image;
+  const auto decoded = media::decode<media::Image>(
+      std::as_bytes(std::span(encoded)), {}, path);
+  if (!decoded || decoded->frames().empty()) return std::nullopt;
+  const sk_sp<SkImage> image = decoded->frames().front().image;
   if (!image) return std::nullopt;
 
   Plate plate;

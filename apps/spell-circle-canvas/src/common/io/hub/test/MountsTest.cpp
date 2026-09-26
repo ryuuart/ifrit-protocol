@@ -96,7 +96,7 @@ TEST_F(IOHub, ADirectoryAnswersNoBytes) {
   EXPECT_EQ(hub.read("res://shaders"), nullptr);
   EXPECT_EQ(hub.read("res://shaders/"), nullptr);
   EXPECT_EQ(hub.text("res://shaders"), std::nullopt);
-  EXPECT_EQ(hub.load<sigil::image::ImageAsset>("res://shaders"), nullptr);
+  EXPECT_EQ(hub.load<sigil::media::Image>("res://shaders"), nullptr);
   EXPECT_FALSE(probe<ResourceInfo>(hub, "res://shaders").has_value());
   // The file beneath it still answers, so nothing was refused wholesale.
   EXPECT_EQ(hub.text("res://shaders/a.sksl"), "a");

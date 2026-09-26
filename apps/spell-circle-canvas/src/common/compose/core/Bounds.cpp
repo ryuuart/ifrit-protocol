@@ -19,7 +19,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <include/effects/SkTrimPathEffect.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilweave/choreograph/Choreograph.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/fonts/Shaper.h>  // makeFont — the ink band's cap-height metrics

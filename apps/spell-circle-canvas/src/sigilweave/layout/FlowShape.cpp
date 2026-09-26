@@ -29,7 +29,7 @@
 #include "BandScan.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Skia.h"
-#include "sigilimage/field/DistanceField.h"
+#include "sigilmedia/field/DistanceField.h"
 #include "sigilweave/layout/Flow.h"
 
 namespace sigil::weave {
@@ -153,7 +153,7 @@ class DilatedCoverage {
     paint(canvas);
     SkPixmap alpha;
     if (!surface->peekPixels(&alpha)) return;
-    m_field = image::distanceField(image::coverageMask(alpha, m_threshold));
+    m_field = media::distanceField(media::coverageMask(alpha, {.threshold = m_threshold}));
   }
 
   void setThreshold(float threshold) {
@@ -200,7 +200,7 @@ class DilatedCoverage {
 
  private:
   static constexpr float kMaxRaster = 2048.0f;
-  image::DistanceField m_field;
+  media::DistanceField m_field;
   SkRect m_area = SkRect::MakeEmpty();
   float m_scale = 1.0f;
   float m_builtMargin = -1;

@@ -40,7 +40,7 @@ sigil_library(SigilComposeBrush
           LayerStyles.h Layered.h Lines.h PixelStyles.h Rails.h
           ../kit/Flourish.h ../kit/Ornament.h ../kit/Plate.h ../kit/Strokes.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
-  PUBLIC SigilComposeCore SigilComposeTypography SigilGeometryKit SigilImage
+  PUBLIC SigilComposeCore SigilComposeTypography SigilGeometryKit SigilMediaCore
          SigilMaterial SigilSkiaDraw SigilWeave
   PRIVATE SigilCoreCompute yoga::yogacore)
 

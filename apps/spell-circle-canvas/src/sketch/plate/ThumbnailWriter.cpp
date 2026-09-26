@@ -4,7 +4,7 @@
  */
 
 #include <include/core/SkData.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/plate/ThumbnailWriter.h>
 #include <sigilsketch/plate/Thumbnails.h>
@@ -70,10 +70,10 @@ void ThumbnailWriter::loop() {
 
     std::error_code code;
     std::filesystem::create_directories(ask.outputPath.parent_path(), code);
-    const sk_sp<SkData> png =
-        image::encodeImage(ask.still.pixmap(), image::Format::Png);
+    const std::vector<std::byte> png =
+        media::encode(ask.still.pixmap(), media::Format::Png);
     const bool wrote =
-        png && io::writeBytes(ask.outputPath, png->data(), png->size());
+        !png.empty() && io::writeBytes(ask.outputPath, png.data(), png.size());
     if (wrote) pruneThumbnails(ask.storeDirectory, ask.stem, ask.outputPath);
 
     {

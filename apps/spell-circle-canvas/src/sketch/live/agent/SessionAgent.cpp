@@ -7,7 +7,7 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Session.h>
@@ -77,8 +77,8 @@ bool within(const std::filesystem::path& path,
 bool writePng(const SkPixmap& pixels, const std::filesystem::path& path) {
   std::error_code error;
   std::filesystem::create_directories(path.parent_path(), error);
-  const sk_sp<SkData> png = image::encodeImage(pixels, image::Format::Png);
-  return png && io::writeBytes(path, png->data(), png->size());
+  const std::vector<std::byte> png = media::encode(pixels, media::Format::Png);
+  return !png.empty() && io::writeBytes(path, png.data(), png.size());
 }
 
 /** `<stem>-0007<extension>`: the name of the seventh of its kind. */

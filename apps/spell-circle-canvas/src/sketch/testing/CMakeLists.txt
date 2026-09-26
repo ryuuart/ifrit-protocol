@@ -9,8 +9,8 @@ find_package(GTest CONFIG REQUIRED)
 sigil_library(SigilSketchTesting
   SOURCES InProcessHost.cpp Comparison.cpp
   HEADERS InProcessHost.h Comparison.h
-  PUBLIC SigilSketchSessionAgent SigilImageDifference
-  PRIVATE SigilImageAsset SigilIOSource SigilWeavePorts)
+  PUBLIC SigilSketchSessionAgent SigilMediaDifference
+  PRIVATE SigilMediaImageDecode SigilIOSource SigilWeavePorts)
 
 sigil_library(SigilSketchTestingHarness
   SOURCES Harness.cpp

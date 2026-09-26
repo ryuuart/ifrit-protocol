@@ -29,7 +29,7 @@ sigil_library(SigilPython
     geometry/PointBuilder.cpp geometry/PointKernels.cpp
     geometry/PointOperations.cpp geometry/Polylines.cpp geometry/Profiles.cpp
     geometry/Regions.cpp geometry/Seams.cpp geometry/Shapes.cpp
-    geometry/Structures.cpp image/Meaning.cpp image/Values.cpp
+    geometry/Structures.cpp media/Images.cpp media/Video.cpp
     io/Frames.cpp material/Core.cpp
     material/Environment.cpp material/Field.cpp material/KitGrained.cpp
     material/KitText.cpp material/PaintEffect.cpp material/Pattern.cpp
@@ -37,7 +37,7 @@ sigil_library(SigilPython
     material/TextureSets.cpp measure/Measure.cpp motion/AnimatableForms.cpp
     motion/Clock.cpp motion/Lanes.cpp motion/Particles.cpp motion/Physics.cpp
     motion/Schedule.cpp motion/Signals.cpp skia/Effects.cpp skia/Fonts.cpp
-    skia/Paths.cpp skia/Surfaces.cpp video/Video.cpp weave/Cascade.cpp
+    skia/Paths.cpp skia/Surfaces.cpp weave/Cascade.cpp
     weave/Choreography.cpp weave/Flows.cpp weave/Fonts.cpp
     weave/PaintLayers.cpp weave/Ports.cpp
     weave/Shaping.cpp weave/Tables.cpp weave/Unicode.cpp
@@ -53,11 +53,11 @@ sigil_library(SigilPython
     compose/Kit.h compose/Nodes.h compose/Operators.h compose/Registration.h
     core/Registration.h data/Convert.h
     data/Registration.h draw/Canvas.h draw/Registration.h geometry/Casters.h
-    geometry/Registration.h image/Registration.h io/Hub.h io/Registration.h
+    geometry/Registration.h io/Hub.h io/Registration.h media/Registration.h
     material/Convert.h material/Registration.h measure/Registration.h
     motion/Convert.h motion/Registration.h scry/Registration.h
     skia/Registration.h skia/Values.h substance/Registration.h
-    usd/Registration.h video/Registration.h weave/Registration.h
+    usd/Registration.h weave/Registration.h
     world/Registration.h
   PUBLIC
     pybind11::headers unofficial::skia::skia SigilComposeCore SigilComposeKit
@@ -70,14 +70,13 @@ sigil_library(SigilPython
     SigilDrawBrushFormat SigilGeometryDevice SigilGeometryMesh
     SigilGeometryMeshCamera SigilGeometryMeshCodec SigilGeometryMeshCurve
     SigilGeometryMeshPop SigilGeometryMeshRender SigilGeometryPathBlend
-    SigilImageAsset SigilImageDecode SigilImageEncode SigilImageField
     SigilIOHub SigilIOFrames SigilIOSource SigilIOTransport
     SigilMaterialCore SigilMaterialField SigilMaterialKit SigilMaterialMask
     SigilMaterialOcio SigilMaterialPattern SigilMaterialSdf SigilMaterialSkia
     SigilMaterialSlang SigilMaterialStock SigilMaterialTexture SigilMeasure
-    SigilMotionBind SigilMotionClock SigilMotionPhysics SigilMotionSchedule
-    SigilSkiaDraw SigilSkiaGraphite SigilVideoCore SigilVideoDecode
-    SigilVideoEncode SigilWeaveChoreograph SigilWeaveFonts SigilWeaveKit
+    SigilMedia SigilMotionBind SigilMotionClock SigilMotionPhysics
+    SigilMotionSchedule SigilSkiaDraw SigilSkiaGraphite
+    SigilWeaveChoreograph SigilWeaveFonts SigilWeaveKit
     SigilWeaveLayout SigilWeavePaint SigilWeaveParagraph SigilWeavePorts
     SigilWeaveQuery SigilWeaveStyle SigilWeaveUnicode SigilWorldElement
     SigilWorldFrame SigilWorldGraph SigilWorldKit SigilWorldLight

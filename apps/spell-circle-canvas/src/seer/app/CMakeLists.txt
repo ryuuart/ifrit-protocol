@@ -90,12 +90,12 @@ if(APPLE)
   set_source_files_properties(${SEER_TEXTURE_SOURCES}
     TARGET_DIRECTORY Seer PROPERTIES COMPILE_OPTIONS -fobjc-arc)
   sigil_frameworks(SEER_TEXTURE_FRAMEWORKS Foundation Metal)
-  target_link_libraries(Seer PRIVATE SigilImageEncode SigilIOSource ${SEER_TEXTURE_FRAMEWORKS})
+  target_link_libraries(Seer PRIVATE SigilMediaImageEncode SigilIOSource ${SEER_TEXTURE_FRAMEWORKS})
   sigil_test(seer_qt_test
     ARC
     SOURCES test/TextureTest.mm test/TexturePreviewTest.mm texture/Capture.mm
             TexturePreview.cpp TexturePreview.mm TexturePreview.h
-    LIBRARIES SigilIOFrames SigilImageEncode SigilImageDecode SigilIOSource Qt6::Quick
+    LIBRARIES SigilIOFrames SigilMediaImageEncode SigilMediaImageDecode SigilIOSource Qt6::Quick
               ${SEER_TEXTURE_FRAMEWORKS}
     SUITES SeerTextureCapture SeerTextureDelivery SeerTexturePreview LABELS gpu)
 else()

@@ -21,16 +21,16 @@ loaded), and typed:
 
 ```cpp
 sigil::io::Hub hub({.mounts = {{"res://", assetsDir}}});
-sigil::image::registerDecoders(hub);                    // image meaning
+sigil::media::registerDecoders(hub);                    // image meaning
 auto bytes = hub.read("res://data/table.bin");
 auto text  = hub.text("res://shaders/glow.sksl");
-auto img   = hub.load<sigil::image::ImageAsset>(        // stills+anim
+auto img   = hub.load<sigil::media::Image>(        // stills+anim
     "res://ui/logo.png");
-auto hdr   = hub.load<sigil::image::ImageAsset>(        // OIIO: EXR,
+auto hdr   = hub.load<sigil::media::Image>(        // OIIO: EXR,
     "res://light/probe.exr", {.layer = "diffuse"});     //  PSD, TIFF…
 auto info  = sigil::io::probe<sigil::io::ResourceInfo>(hub,        // size, path
     "res://light/probe.exr");
-auto meta  = sigil::io::probe<sigil::image::ImageProbe>(hub,        // meaning,
+auto meta  = sigil::io::probe<sigil::media::Metadata>(hub,        // meaning,
     "res://light/probe.exr");                           //  from image
 sigil::io::registerDecoder<Mesh>(hub, parseMesh);                   // any T
 auto mesh  = hub.load<Mesh>("res://props/crate.obj");
@@ -126,10 +126,10 @@ runs from the next one.
 SigilIO owns ACCESS: where bytes come from, caching, reload. A `Hub` is a
 `sigil::io::ByteSource`: `Hub::read` answers a URI with bytes, and every
 typed view is a registered `sigil::io::Decoder` run over those bytes.
-What pixels mean is SigilImage's concern — the Skia codecs plus, when
+What pixels mean is SigilMedia's concern — the Skia codecs plus, when
 built in, the OpenImageIO backend (EXR with layer selection, PSD, TIFF,
-HDR; float sources land as RGBA_F32) — and SigilImage registers those
-decoders on a hub itself, through `sigil::image::registerDecoders`; a hub
+HDR; float sources land as RGBA_F32) — and SigilMedia registers those
+decoders on a hub itself, through `sigil::media::registerDecoders`; a hub
 registers none of its own.
 
 `Hub::write` stores bytes under a URI through the same mount table a read
@@ -164,7 +164,7 @@ declares probeable. Asked for another T it answers what the bytes mean —
 dimensions and layers for an image, and whatever the next kind of meaning
 turns out to need. That answer comes from T's own library through the
 `sigil::io::Probable` seam, so this hub carries no opinion about any
-format — `sigil::io::probe<sigil::image::ImageProbe>(hub, uri)` reads SigilImage's
+format — `sigil::io::probe<sigil::media::Metadata>(hub, uri)` reads SigilMedia's
 prober, and a kind of meaning added tomorrow is one free function in the
 library that owns it, with nothing to change here.
 

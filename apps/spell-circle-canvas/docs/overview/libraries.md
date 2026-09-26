@@ -60,15 +60,14 @@ up on a device someone else already owns: given a native device and
 queue, it builds a `Context` and `Recorder` and wraps the caller's
 textures.
 
-**[SigilImage](doxygen:SigilImage)** — image *meaning*, both directions:
-encoded bytes in and Skia images out, pixels in and encoded bytes out,
-plus distance fields. (Resource *access* is SigilIO's; the split between
-the two is deliberate.)
-
-**[SigilVideo](doxygen:SigilVideo)** — video meaning: container bytes
-open as a seekable streaming video, frames decode around the playhead
-into a small presentation cache, and pixels flow the other way through
-an incremental encoder.
+**[SigilMedia](doxygen:SigilMedia)** — picture *meaning*, still and
+moving, both directions: encoded bytes in and images out, a clip opened
+as a seekable video whose frames decode around a playhead, one
+`frameAt()` reading either, pixels and frames back out as a still or a
+movie, plus distance fields and pixel differences. Two sub-libraries —
+images and video — over one core, in one `sigil::media` vocabulary.
+(Resource *access* is SigilIO's; the split between the two is
+deliberate.)
 
 **[SigilScry](doxygen:SigilScry)** — a headless web browser embedded in
 a C++ application, handing back its output as Skia images. Optional: it
@@ -153,9 +152,9 @@ desktop tools share.
 Two boundaries are easy to get backwards, and both are stated in the
 READMEs they divide:
 
-- **SigilIO owns resource *access*; SigilImage owns image *meaning*.** A
-  URI, a mount, a cache and a reload are IO's. A decode, an encode and a
-  distance field are Image's.
+- **SigilIO owns resource *access*; SigilMedia owns picture *meaning*.**
+  A URI, a mount, a cache and a reload are IO's. A decode, an encode and
+  a distance field are Media's.
 - **SigilWorld consumes SigilGeometry's types, never the reverse.**
 
 And one rule decides where new work goes: a primitive is irreducible and

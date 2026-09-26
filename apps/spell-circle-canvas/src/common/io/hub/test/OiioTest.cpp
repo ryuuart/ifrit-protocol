@@ -14,7 +14,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
-#include <sigilimage/decode/ChannelData.h>
+#include <sigilmedia/image/Channels.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Decoding.h>
 
@@ -57,7 +57,7 @@ void writeLayeredExr(const fs::path& path) {
 
 TEST_F(IOOiio, ExrDecodesToFloatImage) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto image = hub.load<sigil::image::ImageAsset>("res://probe.exr");
+  auto image = hub.load<sigil::media::Image>("res://probe.exr");
   ASSERT_NE(image, nullptr);
   ASSERT_FALSE(image->frames().empty());
   const sk_sp<SkImage>& sk = image->frames().front().image;
@@ -67,7 +67,7 @@ TEST_F(IOOiio, ExrDecodesToFloatImage) {
 
 TEST_F(IOOiio, ExrLayerSelectionReadsHdrChannels) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto glow = hub.load<sigil::image::ImageAsset>("res://probe.exr", {.layer = "glow"});
+  auto glow = hub.load<sigil::media::Image>("res://probe.exr", {.layer = "glow"});
   ASSERT_NE(glow, nullptr);
   const sk_sp<SkImage>& sk = glow->frames().front().image;
   SkPixmap pixmap;
@@ -79,7 +79,7 @@ TEST_F(IOOiio, ExrLayerSelectionReadsHdrChannels) {
 
 TEST_F(IOOiio, ProbeListsLayersAndChannels) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto info = probe<sigil::image::ImageProbe>(hub, "res://probe.exr");
+  auto info = probe<sigil::media::Metadata>(hub, "res://probe.exr");
   ASSERT_TRUE(info.has_value());
   EXPECT_EQ(info->format, "openexr");
   EXPECT_EQ(info->width, 4);
@@ -91,7 +91,7 @@ TEST_F(IOOiio, ProbeListsLayersAndChannels) {
 
 TEST_F(IOOiio, ChannelsExposeRawFloatData) {
   writeLayeredExr(dir.path / "probe.exr");
-  auto channels = hub.load<sigil::image::ChannelData>("res://probe.exr");
+  auto channels = hub.load<sigil::media::Channels>("res://probe.exr");
   ASSERT_NE(channels, nullptr);
   EXPECT_EQ(channels->width, 4);
   EXPECT_TRUE(channels->floatingPoint);
@@ -100,9 +100,10 @@ TEST_F(IOOiio, ChannelsExposeRawFloatData) {
   ASSERT_GE(glowR, 0);
   EXPECT_FLOAT_EQ(channels->at(0, 0, glowR), 2.5f);
   // And the Skia composition helper agrees.
-  sk_sp<SkImage> composed = channels->makeImage("glow");
+  const auto composed = channels->image("glow");
   ASSERT_NE(composed, nullptr);
-  EXPECT_EQ(composed->colorType(), kRGBA_F32_SkColorType);
+  EXPECT_EQ(composed->frames().front().image->colorType(),
+            kRGBA_F32_SkColorType);
 }
 
 #endif  // SIGILIO_HAS_OIIO

@@ -12,7 +12,7 @@ auto TwoAdvancedV4::available(std::string* why) -> bool {
 }
 
 auto TwoAdvancedV4::stretchFill(
-    const std::shared_ptr<const sigil::image::ImageAsset>& asset, float w,
+    const std::shared_ptr<const sigil::media::Image>& asset, float w,
     float h, SkTileMode tx) -> material::Paint {
   const sk_sp<SkImage>& img = asset->frames()[0].image;
   return material::skia::image(

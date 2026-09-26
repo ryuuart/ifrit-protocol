@@ -14,8 +14,8 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
-#include <sigilimage/decode/Decoders.h>
-#include <sigilimage/encode/Encode.h>
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilio/advanced/Residency.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Sink.h>
@@ -38,10 +38,10 @@ inline void writePng(const std::filesystem::path& path, int size,
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(size, size));
   bitmap.eraseColor(color);
-  const sk_sp<SkData> png =
-      sigil::image::encodeImage(bitmap.pixmap(), sigil::image::Format::Png);
-  ASSERT_TRUE(png);
-  ASSERT_TRUE(writeBytes(path, png->data(), png->size()));
+  const std::vector<std::byte> png =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(png.empty());
+  ASSERT_TRUE(writeBytes(path, png.data(), png.size()));
 }
 
 /** Stamps @p path in the near future, so a reload that watches mtimes
@@ -63,13 +63,13 @@ inline std::vector<std::string> leaseUris(const ResourceLease& lease) {
 }  // namespace sigil::io::test
 
 /** WHAT A HUB NEEDS BEFORE IT CAN BE ASKED ANYTHING: one scratch
- *  directory of its own, mounted at res://, and SigilImage's decoders,
+ *  directory of its own, mounted at res://, and SigilMedia's decoders,
  *  registered the way a host registers them. */
 class MountedHub : public ::testing::Test {
  protected:
   MountedHub() {
     sigil::io::mount(hub, "res://", dir.path);
-    sigil::image::registerDecoders(hub);
+    sigil::media::registerDecoders(hub);
   }
 
   sigil::test::ScratchDir dir{"sigilio_hub"};

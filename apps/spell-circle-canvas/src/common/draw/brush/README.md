@@ -239,7 +239,7 @@ and a tool through it and back is the tool that went in.
 
 **Loading is `SigilDrawBrushFormat`, and it never opens a file.**
 Everything there takes bytes — from a hub, a fixture or a caller's own
-array — and the pictures inside them are decoded by SigilImage:
+array — and the pictures inside them are decoded by SigilMedia:
 
 ```cpp
 #include <sigildraw/brush/format/Load.h>

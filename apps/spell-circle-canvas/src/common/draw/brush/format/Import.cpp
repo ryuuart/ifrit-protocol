@@ -6,18 +6,19 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
-#include <sigilimage/decode/Decode.h>
+#include <sigilmedia/image/Decode.h>
 
 #include <cstdint>
+#include <memory>
 
 namespace sigil::draw::brush::format {
 
 sk_sp<SkImage> decodeArtwork(std::span<const std::byte> bytes) {
   if (bytes.empty()) return nullptr;
-  std::optional<sigil::image::ImageAsset> asset =
-      sigil::image::decodeImage(bytes.data(), bytes.size());
-  if (!asset || asset->frames().empty()) return nullptr;
-  return asset->frames().front().image;
+  const std::shared_ptr<const sigil::media::Image> artwork =
+      sigil::media::decode<sigil::media::Image>(bytes);
+  if (!artwork || artwork->frames().empty()) return nullptr;
+  return artwork->frames().front().image;
 }
 
 sk_sp<SkImage> coverageImage(std::span<const uint8_t> coverage, int width,

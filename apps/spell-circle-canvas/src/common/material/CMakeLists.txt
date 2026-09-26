@@ -105,7 +105,7 @@ sigil_doc_probes(material
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../io/include
-           ${CMAKE_CURRENT_SOURCE_DIR}/../image/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../media/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include
            ${SIGIL_TEST_SUPPORT_DIR}
   PRELUDES "<sigilcore/cache/Policy.h>"

@@ -9,9 +9,9 @@
  */
 
 #include <include/core/SkRefCnt.h>
-#include <sigilimage/asset/ImageAsset.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilio/hub/Hub.h>
-#include <sigilvideo/decode/Decode.h>
+#include <sigilmedia/video/Video.h>
 
 #include <filesystem>
 #include <initializer_list>
@@ -57,13 +57,14 @@ class Assets {
   /** The image at "res://<name>", cached by the hub. Never null: a
    *  missing or undecodable file yields the placeholder until it
    *  becomes loadable. */
-  std::shared_ptr<const sigil::image::ImageAsset> image(std::string_view name);
+  std::shared_ptr<const sigil::media::Image> image(std::string_view name);
 
-  /** The video at "res://<name>", decoded on demand and cached with the
-   *  requested device policy. Null when the resource is missing or cannot be
-   *  decoded. The clip keeps only a small presentation-frame cache. */
-  std::shared_ptr<sigil::video::Video> video(
-      std::string_view name, const sigil::video::DecodeOptions& options = {});
+  /** The video at "res://<name>", opened with @p options and cached by the
+   *  hub, a clip asked with other options being a clip of its own. Null
+   *  when the resource is missing or cannot be opened. The clip keeps only
+   *  a small cache of frames around its playhead. */
+  std::shared_ptr<const sigil::media::Video> video(
+      std::string_view name, const sigil::media::VideoOptions& options = {});
 
   /** The table at "res://<name>", decoded from whichever rectangular
    *  format the file is in, cached and reloaded by the hub. Null where
@@ -131,11 +132,6 @@ class Assets {
   const std::filesystem::path& root() const { return m_root; }
 
  private:
-  struct CachedVideo {
-    std::string name;
-    sigil::video::DecodeOptions options;
-    std::shared_ptr<sigil::video::Video> clip;
-  };
   /** One shader a sketch asked for: the program that last compiled under
    *  its name, what stands wrong with its file now, and whether the
    *  declaration running now asked for it. */
@@ -154,9 +150,8 @@ class Assets {
    *  asks for a handful of pictures, so the list is walked rather than
    *  looked up. */
   std::vector<std::string> m_placeholders;
-  std::vector<CachedVideo> m_videos;
   std::vector<HeldShader> m_shaders;
-  std::shared_ptr<const sigil::image::ImageAsset> m_placeholder;
+  std::shared_ptr<const sigil::media::Image> m_placeholder;
   sk_sp<SkRuntimeEffect> m_placeholderShader;
 };
 
