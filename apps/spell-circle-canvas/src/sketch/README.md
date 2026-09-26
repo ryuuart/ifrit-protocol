@@ -768,8 +768,8 @@ keeps its headers under `include/sigilsketch/canvas/` and its own
 Beside them stand `sketch_test`, `sketch_bench`, and the build step that
 writes the response file a hot-reloaded sketch compiles with. Native frame
 publication and subscription come from `SigilIOFrames` in `common/io/publish/`.
-Sketchbook uses the shared Qt publication adapter; `Guest` wraps a native
-subscription for canvas and material use. Seer owns the texture
+Sketchbook uses the shared Qt publication adapter; a subscription is a
+`media::PixelSource`, and `Guest` is one read for canvas and material use. Seer owns the texture
 monitor and PNG capture workflow.
 
 ## Boundaries
@@ -838,7 +838,9 @@ and settings stand in such a file reads them in `setup()`, and an edit to
 the file re-runs setup without a rebuild, which is the live-editing door
 for content. A key that is not there reads as a null value, so the sketch
 states its fallback where it reads.
-`image()` keeps the
+`image()` answers a `media::Image` — still or animated, read with
+`frameAt(elapsed)` and shown by `compose::image()`, a pen's `image()` or
+a `material::Texture` — and keeps the
 forgiving contract a live-edited file wants — a magenta placeholder
 stands in for a missing or undecodable file and heals the moment one
 appears, re-running the sketch's declaration — and `hub()` opens the

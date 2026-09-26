@@ -109,7 +109,9 @@ nothing is publishing; `guest_picture` is the page that wears one. The
 frame arrives with its first row at the image's BOTTOM — the order the
 surface a publication is carried on is written and read — so it is drawn
 once into a target of its own on that recorder and what comes back is
-upright, which is the one thing done to it on the way in. It takes the
+upright, which is the one thing done to it on the way in — the
+subscription's own doing, since a subscription is a `media::PixelSource`
+whose frames are turned as they are bound. It takes the
 `SkCanvas` as well as the recorder, so a caller inside a paint program
 asks with what it is already holding and names Graphite nowhere.
 `sigil::sketch::Guest::texture` is the same frame as a

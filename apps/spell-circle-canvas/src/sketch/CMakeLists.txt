@@ -219,6 +219,7 @@ sigil_doc_probes(sketch
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/geometry/include/sigilgeometry
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/world/include/sigilworld
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/material/include/sigilmaterial
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/media/include/sigilmedia
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/scry/include/sigilscry
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/draw/include/sigildraw
            ${CMAKE_CURRENT_SOURCE_DIR}/../sigilweave/include/sigilweave
@@ -237,6 +238,7 @@ sigil_doc_probes(sketch
            "<sigilgeometry/kit/Generators.h>"
            "<sigilworld/diligent/Import.h>"
            "<sigilweave/ports/SystemFontManager.h>"
+           "<sigilmedia/video/Video.h>"
   ALIASES ${SIGIL_SKETCH_DOC_SCRY_ALIASES}
   SKIP_HEADERS ${SIGIL_SKETCH_DOC_SKIP_HEADERS}
   EXCLUDE ${SIGIL_SKETCH_DOC_EXCLUDE}
