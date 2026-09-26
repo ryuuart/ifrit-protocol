@@ -2073,13 +2073,15 @@ python = ["data.maxOscBundleDepth"]
 name = "IO"
 
 [[section.surface.item]]
-bound = "An owned or session `Hub` with mounts, resolution, text, bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy"
+bound = "An owned or session `Hub`, made with `HubOptions` and `NetworkOptions`, with mounts, resolution, text, `read` for bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy"
 python = [
   "io.Hub",
   "io.Hub.mount",
   "io.Hub.resolve",
   "io.Hub.text",
-  "io.Hub.fetch",
+  "io.Hub.read",
+  "io.HubOptions",
+  "io.NetworkOptions",
   "io.Hub.probe",
   "io.Hub.select",
   "io.Hub.write",
@@ -2121,19 +2123,19 @@ bound = "the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC 
 python = ["io.registerTransports"]
 
 [[section.surface.item]]
-native = "`Hub::onAdvance`"
+native = "`io::onAdvance`"
 python = ["io.Hub.onAdvance"]
 
 [[section.surface.item]]
-native = "`Hub::registerDecoder` for further types"
+native = "`io::registerDecoder` for further types"
 python = ["io.Hub.registerDecoder"]
 
 [[section.surface.item]]
 native = "custom feed and network transports"
 
 [[section.surface.item]]
-native = "`probeNetworkCache` and `seedNetworkCache`"
-python = ["io.probeNetworkCache", "io.seedNetworkCache"]
+native = "`io::NetworkCache`"
+python = ["io.NetworkCache"]
 
 [[section.surface.item]]
 native = "hub image views with decode options, channels and probes"
@@ -2143,18 +2145,27 @@ native = "archives, byte sources and `writeBytes`"
 python = ["io.Hub.writeBytes"]
 
 [[section.surface.item]]
-native = "`Message::receivedAt`"
+bound = "`Message.receivedAt`"
 python = ["io.Message.receivedAt"]
 
 [[section.surface]]
 name = "Texture publication"
 
 [[section.surface.item]]
+bound = "`Hub.publish` and `Hub.subscribe` over `syphon://` and `spout://` URIs, with `io.frames.Frame` (native handles as integers), `Publisher.send` and `Subscription.latest`"
+python = [
+  "io.Hub.publish",
+  "io.Hub.subscribe",
+  "io.frames.Frame",
+  "io.frames.Publisher",
+  "io.frames.Subscription",
+]
+
+[[section.surface.item]]
 bound = "Sketchbook publishes a Python canvas through its own publisher"
 
 [[section.surface.item]]
-native = "`io::frames` publishers, subscriptions and publication listing"
-python = ["io.frames.Publisher"]
+native = "publication listing and a `Device` of a named graphics API"
 
 [library.Video]
 native = "SigilVideo"

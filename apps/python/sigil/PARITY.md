@@ -159,11 +159,11 @@ These public modules are registered and export nothing yet:
 `sigil.geometry.mesh.points`, `sigil.geometry.mesh.pop.profile`,
 `sigil.geometry.path.blend`, `sigil.geometry.path.crossing`,
 `sigil.geometry.path.operations`, `sigil.geometry.path.profile`,
-`sigil.geometry.sections`, `sigil.geometry.shapers`, `sigil.io.frames`,
-`sigil.material.ocio`, `sigil.material.sdf`, `sigil.material.slang`,
-`sigil.material.stock`, `sigil.material.texture`, `sigil.measure`,
-`sigil.motion.physics`, `sigil.skia.draw`, `sigil.video`, `sigil.weave.paint`,
-`sigil.weave.ports`, `sigil.world.diligent` and `sigil.world.graph`.
+`sigil.geometry.sections`, `sigil.geometry.shapers`, `sigil.material.ocio`,
+`sigil.material.sdf`, `sigil.material.slang`, `sigil.material.stock`,
+`sigil.material.texture`, `sigil.measure`, `sigil.motion.physics`,
+`sigil.skia.draw`, `sigil.video`, `sigil.weave.paint`, `sigil.weave.ports`,
+`sigil.world.diligent` and `sigil.world.graph`.
 
 ### Hosting and runtime
 
@@ -258,8 +258,8 @@ and texture maps do not reach a World pixel. An image set as
 | Surface | Bound | Not yet bound |
 | --- | --- | --- |
 | Data and assets | `Json`, `Column` and `Table` reshaping, `decodeCsv`, `Instant` and `Flag`, which compare, order and hash as their values do, a `Flag` against the boolean a cell reads as; `Interval` and `Scale`; SQLite and DuckDB `Database` values with owned writes and query views that refuse a writing statement through every method; `Schema` text and binary conversion; OSC, MIDI and Art-Net codecs; `registerDecoders`, which installs the database decoder beside the table and JSON ones; the session asset loaders | `data::Connection`; `FlatBuffer` roots and the generated value types; typed column spans; `maxOscBundleDepth` |
-| IO | An owned or session `Hub`, made with `HubOptions` (mounts, transports and `NetworkOptions`), with mounts, resolution, text, `read` for bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy; `Hub.advance`; `Feed` from `Hub.listen` with `ListenOptions`, with `receive`, `latest`, `state` as a `FeedState` and `ReadyState`, and `send` to a peer or `to` one sender; `Message.receivedAt`; the `Inlet` a test delivers onto one through, from `io.testing.inletOf`; owned `Message`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`; the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports | `io::onAdvance`; `io::registerDecoder` for further types; custom feed and network transports; `io::NetworkCache`; hub image views with decode options, channels and probes; archives, byte sources and `writeBytes` |
-| Texture publication | `Hub.publish` and `Hub.subscribe` over `syphon://` and `spout://` URIs, with `io.frames.Frame` (native handles as integers), `Publisher.send` and `Subscription.latest`; Sketchbook publishes a Python canvas through its own publisher | publication listing; a `Device` of a named graphics API |
+| IO | An owned or session `Hub`, made with `HubOptions` and `NetworkOptions`, with mounts, resolution, text, `read` for bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy; `Hub.advance`; `Feed` from `Hub.listen` with `ListenOptions`, with `receive`, `latest`, `state` as a `FeedState` and `ReadyState`, and `send` to a peer or `to` one sender; the `Inlet` a test delivers onto one through, from `io.testing.inletOf`; owned `Message`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`; the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports; `Message.receivedAt` | `io::onAdvance`; `io::registerDecoder` for further types; custom feed and network transports; `io::NetworkCache`; hub image views with decode options, channels and probes; archives, byte sources and `writeBytes` |
+| Texture publication | `Hub.publish` and `Hub.subscribe` over `syphon://` and `spout://` URIs, with `io.frames.Frame` (native handles as integers), `Publisher.send` and `Subscription.latest`; Sketchbook publishes a Python canvas through its own publisher | publication listing and a `Device` of a named graphics API |
 
 <!-- prose: data-io -->
 A sketch drains its feeds in `update`; transports never call into Python.

@@ -737,9 +737,9 @@ python = [
 ]
 
 [requirement.seed-network-cache]
-native = "`io::seedNetworkCache` network cache seeding"
+native = "`io::NetworkCache` network cache seeding"
 library = "IO"
-python = ["io.seedNetworkCache"]
+python = ["io.NetworkCache"]
 
 [requirement.set-sketches]
 native = "Set sketches (`sketch::SetContext`, `describe`)"

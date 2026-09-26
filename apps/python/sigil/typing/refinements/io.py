@@ -44,3 +44,8 @@ def load(self, type: type[_sigil.image.ImageAsset], uri: str) -> _sigil.image.Im
     ):
         table.parameters(path, path=PATH_INPUT)
     table.parameters("_sigil.io.Hub.replay", recording=PATH_INPUT)
+    mounts = f"collections.abc.Mapping[str, {PATH_INPUT}]"
+    table.parameters("_sigil.io.HubOptions.__init__", mounts=mounts)
+    table.accessor("_sigil.io.HubOptions", "mounts", "dict[str, pathlib.Path]", mounts)
+    table.parameters("_sigil.io.NetworkOptions.__init__", cacheDirectory=PATH_INPUT)
+    table.accessor("_sigil.io.NetworkOptions", "cacheDirectory", "pathlib.Path", PATH_INPUT)
