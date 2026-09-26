@@ -144,7 +144,7 @@ struct Ds2Bench {
         .cache(Cache::Texture)
         .key("room")
         .children({
-            each(bench["room"].items(), strut),
+            each(bench["room"].array(), strut),
             kit::at(250, 118, 176, 470)
                 .fill(
                     Paint::linearGradient({0, 0}, {0, 1},
@@ -194,10 +194,10 @@ struct Ds2Bench {
         kit::at(kPanelX, kPanelY + 20, kPanelW, 62)
             .alignItems(Align::Center)
             .justifyContent(Justify::Center)
-            .children({text(bench["weapon"].text())
+            .children({text(bench["weapon"].string())
                            .styleClass("weapon")
                            .filter(styles::textGlow(cyan(0.5f), 5))}),
-        text(bench["repair"].text()).styleClass("caption").left(142).top(117),
+        text(bench["repair"].string()).styleClass("caption").left(142).top(117),
         kit::disc({799, 123}, 13)
             .shape(shapes::annulus(0.58f))
             .fill(Fill::color(cyan(0.18f))),
@@ -278,9 +278,9 @@ struct Ds2Bench {
     };
 
     std::vector<Element> traces, cells;
-    for (const data::Json& run : spec["runs"].items()) {
+    for (const data::Json& run : spec["runs"].array()) {
       path::Polyline line;
-      for (const data::Json& cell : run.items()) line.points.push_back(cellAt(cell));
+      for (const data::Json& cell : run.array()) line.points.push_back(cellAt(cell));
       traces.push_back(pathFigure(path::toPath(line), 4)
                            .stroke(stroke(large ? 5.4f : 4.6f, Fill::color(cyan(0.62f))))
                            .foreground(stroke(large ? 3.0f : 2.4f,
@@ -288,8 +288,8 @@ struct Ds2Bench {
     }
     int bought = 0, sockets = 0;
     size_t row = 0;
-    for (const data::Json& line : spec["grid"].items()) {
-      const std::vector<std::string> tokens = words(line.text());
+    for (const data::Json& line : spec["grid"].array()) {
+      const std::vector<std::string> tokens = words(line.string());
       for (size_t column = 0; column < tokens.size(); ++column) {
         if (tokens[column] == ".") continue;
         ++sockets;
@@ -300,7 +300,7 @@ struct Ds2Bench {
       ++row;
     }
 
-    const std::string_view caption = spec["caption"].text();
+    const std::string_view caption = spec["caption"].string();
     return box().inset(0).filter(styles::textGlow(cyan(0.3f), 3)).children({
         box().inset(0).children(std::move(traces)),
         socket({origin.x, origin.y + pitch.y}, large),
@@ -338,7 +338,7 @@ struct Ds2Bench {
   /** One statistic: its name, a marker in its kind's colours, the load bar
    *  of pips it has filled out of its total, and its value past a rule. */
   static Element statistic(const data::Json& stat) {
-    const Kind kind = kindOf(stat["kind"].text());
+    const Kind kind = kindOf(stat["kind"].string());
     const int filled = (int)stat["filled"].number();
     const material::Color metal =
         material::mixToward(hexColor(0xC8DADA), kind.rim, 0.35f, 1);
@@ -362,7 +362,7 @@ struct Ds2Bench {
             box()
                 .width(160)
                 .alignItems(Align::End)
-                .children({text(stat["label"].text()).styleClass("spec")}),
+                .children({text(stat["label"].string()).styleClass("spec")}),
             box()
                 .width(9)
                 .height(9)
@@ -374,7 +374,7 @@ struct Ds2Bench {
                 {each((size_t)stat["total"].number(), pip)}),
             box().flexGrow(1),
             box().width(98).paddingLeft(12).children(
-                {text(stat["value"].text()).styleClass("value")}),
+                {text(stat["value"].string()).styleClass("value")}),
         });
   }
 
@@ -394,7 +394,7 @@ struct Ds2Bench {
                     {text("VALUE").styleClass("head")}),
             }),
             kit::line({.fill = Fill::color(cyan(0.26f))}).marginBottom(4),
-            each(bench["stats"].items(), statistic),
+            each(bench["stats"].array(), statistic),
             kit::at(680 - 118, 14, 1, kBandH - 28)
                 .fill(Fill::color(cyan(0.26f))),
         }));
@@ -449,7 +449,7 @@ struct Ds2Bench {
    *  the two empty sockets the bezel carries in its bottom corners. */
   Element hints() const {
     const auto hint = [](const data::Json& words) {
-      return text(words.text()).styleClass("hint");
+      return text(words.string()).styleClass("hint");
     };
     const auto navigate =
         box().width(15).height(15).shape(shapes::circle()).fill(Fill::none())
@@ -492,7 +492,7 @@ struct Ds2Bench {
             room(),
             panel(),
             header(),
-            each(bench["circuits"].items(), board),
+            each(bench["circuits"].array(), board),
             specification(),
             counter(),
             hints(),

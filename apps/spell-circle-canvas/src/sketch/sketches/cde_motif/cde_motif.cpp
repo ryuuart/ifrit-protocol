@@ -176,7 +176,7 @@ struct CdeMotifSketch {
               .gap(4)
               .padding(8)
               .children(
-                  {each(page["folders"].items(), [](const data::Json& name) {
+                  {each(page["folders"].array(), [](const data::Json& name) {
                     return box()
                         .width(70)
                         .alignItems(Align::Center)
@@ -303,7 +303,7 @@ struct CdeMotifSketch {
         if (current) rowBox.fill(c6.sel);
         list.children({std::move(rowBox)});
       }
-      list.children({each(page["shipped"].items(), [](const data::Json& n) {
+      list.children({each(page["shipped"].array(), [](const data::Json& n) {
         return box()
             .row()
             .alignItems(Align::Center)
@@ -352,10 +352,10 @@ struct CdeMotifSketch {
             .gap(10)
             .justifyContent(Justify::SpaceBetween)
             .children(
-                {cde::pushButton(page["buttons"][0].text(), false, true),
-                 cde::pushButton(page["buttons"][1].text()),
-                 cde::pushButton(page["buttons"][2].text(), false, false, true),
-                 cde::pushButton(page["buttons"][3].text())});
+                {cde::pushButton(page["buttons"][0].string(), false, true),
+                 cde::pushButton(page["buttons"][1].string()),
+                 cde::pushButton(page["buttons"][2].string(), false, false, true),
+                 cde::pushButton(page["buttons"][3].string())});
 
     Element body =
         cde::surface(c2).flexGrow(1).column().padding(10).gap(10).children(
@@ -410,10 +410,10 @@ struct CdeMotifSketch {
         .padding(2)
         .width(214)
         .children({std::move(tearOff),
-                   each(doc["postedMenu"].items(), [&](const data::Json& line) {
+                   each(doc["postedMenu"].array(), [&](const data::Json& line) {
                      return line["separator"].boolean()
                                 ? separator()
-                                : item(line["words"].text(),
+                                : item(line["words"].string(),
                                        line["cascade"].boolean(),
                                        line["insensitive"].boolean());
                    })});
@@ -463,7 +463,7 @@ struct CdeMotifSketch {
         .column()
         .children({box()
                        .padding(6, 8)
-                       .children({cde::mnemonicLabel(doc["derivation"].text(),
+                       .children({cde::mnemonicLabel(doc["derivation"].string(),
                                                      s.fg, 0)}),
                    box()
                        .row()
@@ -791,9 +791,9 @@ struct CdeMotifSketch {
          helpSubpanel().left(865).top(700).width(150).height(106),
          // 6b. Iconified windows on the root, where dtwm parks them.
          box().left(48).top(690).row().gap(34).children(
-             {iconifiedWindow(doc["iconified"][0].text(), cde::icoEditor()),
-              iconifiedWindow(doc["iconified"][1].text(), cde::icoMail()),
-              iconifiedWindow(doc["iconified"][2].text(), cde::icoPrinter())}),
+             {iconifiedWindow(doc["iconified"][0].string(), cde::icoEditor()),
+              iconifiedWindow(doc["iconified"][1].string(), cde::icoMail()),
+              iconifiedWindow(doc["iconified"][2].string(), cde::icoPrinter())}),
          // 7. The Front Panel, bottom-centred. 960 wide => 948 of content,
          //    which is exactly the measured control list.
          frontPanel().left(96).top(806).width(960).height(86)});

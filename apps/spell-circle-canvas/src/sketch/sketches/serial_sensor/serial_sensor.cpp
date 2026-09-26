@@ -193,7 +193,7 @@ struct SerialSensor {
     // port. Replaying the URI from the file is the whole of the difference:
     // every later ask for the URI answers the replaying feed.
     if (ctx.deterministic) hub.replay(kPort, ctx.local(kRecording));
-    sensor = data::Connection(hub, kPort);
+    sensor = data::connect(hub, kPort);
 
     readLux = 0;
     readTilt = 0;
@@ -230,7 +230,7 @@ struct SerialSensor {
    *  carries only one of the two leaves the other where it was, which
    *  is what a board reporting one sensor at a time writes. */
   void listen() {
-    const data::Json& newest = sensor.latest();
+    const data::Json& newest = sensor.latest().payload;
     if (newest.null()) return;
     readLux = newest["lux"].number(readLux);
     readTilt = newest["tilt"].number(readTilt);
@@ -240,14 +240,14 @@ struct SerialSensor {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = sensor.revision(),
-                .undecodable = sensor.undecodable(),
-                .closed = sensor.closed(),
+    Reading now{.generation = sensor.state().revision,
+                .undecodable = sensor.state().undecodable,
+                .closed = sensor.state().readiness == sigil::io::ReadyState::Closed,
                 .lux = readLux,
                 .tilt = readTilt,
                 .heard = heard,
-                .address = sensor.localAddress(),
-                .trouble = sensor.error()};
+                .address = sensor.state().localAddress,
+                .trouble = sensor.state().error};
     if (now == shown) return false;
     shown = std::move(now);
     return true;

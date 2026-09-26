@@ -399,7 +399,7 @@ struct SigillumAemeth {
              .stroke(cutRule(2.2f)),
          box().inset(0).font({.size = 18.5f}).children(
              each(7, [&zabathiel](int side) {
-               return onSide(std::string(zabathiel[(size_t)side].text()), side,
+               return onSide(std::string(zabathiel[(size_t)side].string()), side,
                              kInnerHeptagon - 0.028f);
              }))});
   }
@@ -439,7 +439,7 @@ struct SigillumAemeth {
              .stroke(stroke(2.4f, Fill::color(kEngraving))),
          box().inset(0).font({.size = 15}).children(
              each(4, [&](int arm) {
-               return incised(std::string(levanael[(size_t)arm].text()))
+               return incised(std::string(levanael[(size_t)arm].string()))
                    .centerAt(kSeal.at(armDegrees[arm], armRadius[arm]));
              }))});
   }

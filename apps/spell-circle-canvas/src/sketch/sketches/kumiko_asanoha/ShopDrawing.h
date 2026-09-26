@@ -206,7 +206,7 @@ inline Element jigs(const data::Json& angles, float radius, float height) {
       .row()
       .height(height)
       .justifyContent(Justify::SpaceBetween)
-      .children({each(angles.items(), [radius](const data::Json& angle) {
+      .children({each(angles.array(), [radius](const data::Json& angle) {
         const float degrees = (float)angle.number();
         const float reach = radius * std::sin(degrees * std::numbers::pi_v<float> / 180);
         return box()
@@ -233,14 +233,14 @@ inline Element jigs(const data::Json& angles, float radius, float height) {
  *  with its reading beside it. */
 inline Element title(const data::Json& words) {
   std::u8string base;
-  for (const data::Json& word : words.items())
-    base += Utf8(word["base"].text()).bytes();
+  for (const data::Json& word : words.array())
+    base += Utf8(word["base"].string()).bytes();
   Text column =
       text(base).styleClass("title").height(230).width(90).flexShrink(0);
-  for (const data::Json& word : words.items())
+  for (const data::Json& word : words.array())
     column.textAnnotation(kit::ruby(
-        weave::selectors::text(Utf8(word["base"].text()).bytes()),
-        weave::Unit::Selection, {Utf8(word["reading"].text()).bytes()},
+        weave::selectors::text(Utf8(word["base"].string()).bytes()),
+        weave::Unit::Selection, {Utf8(word["reading"].string()).bytes()},
         weave::Type{.size = 0.34_em}));
   return column;
 }
@@ -277,19 +277,19 @@ inline Element shopDrawing(const sketch::kit::Document& doc, TimberBank& bank,
               .row()
               .gap(40)
               .children({
-                  column(doc["cell"]["heading"].text(), 230,
+                  column(doc["cell"]["heading"].string(), 230,
                          document::figure(explodedCell(kFigure, bank, seconds),
-                                          doc["cell"]["note"].text())
+                                          doc["cell"]["note"].string())
                              .height(kBody)
                              .justifyContent(Justify::SpaceBetween)),
-                  column(doc["jigs"]["heading"].text(), 270,
+                  column(doc["jigs"]["heading"].string(), 270,
                          document::figure(
                              jigs(doc["jigs"]["angles"], 114, kFigure),
-                             doc["jigs"]["note"].text())
+                             doc["jigs"]["note"].string())
                              .height(kBody)
                              .justifyContent(Justify::SpaceBetween)),
                   kit::panel(
-                      {.eyebrow = doc["reading"]["title"].text(), .gap = 18},
+                      {.eyebrow = doc["reading"]["title"].string(), .gap = 18},
                       box().column().height(kBody).justifyContent(
                           Justify::SpaceBetween).children(
                           {document::paragraph(
@@ -310,8 +310,8 @@ inline Element shopDrawing(const sketch::kit::Document& doc, TimberBank& bank,
               .children({
                   box().height(1).fill(Fill::var("rule")),
                   box().row().justifyContent(Justify::SpaceBetween).children(
-                      {document::footer(doc["sheet"].text()),
-                       document::footer(doc["caption"].text())}),
+                      {document::footer(doc["sheet"].string()),
+                       document::footer(doc["caption"].string())}),
               }),
       });
 }

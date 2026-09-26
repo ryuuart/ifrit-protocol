@@ -128,7 +128,7 @@ struct Written {
  *  times @p weight along its own length. */
 draw::brush::Stroke pressed(const data::Json& points, float weight) {
   std::vector<draw::brush::Sample> controls;
-  const auto numbers = points.items();
+  const auto numbers = points.array();
   for (size_t index = 0; index + 1 < numbers.size(); index += 2)
     controls.push_back({{(float)numbers[index].number(),
                          (float)numbers[index + 1].number()}});
@@ -181,8 +181,8 @@ struct ThunderFulu {
   void write(const data::Json& strokes) {
     constexpr float kFootWidth = 5.9f;
     Written foot{.tool = brush(kFootWidth, kCinnabarDry, 0.55f)};
-    for (const data::Json& stroke : strokes.items()) {
-      const std::string part(stroke["part"].text());
+    for (const data::Json& stroke : strokes.array()) {
+      const std::string part(stroke["part"].string());
       const float width = (float)stroke["width"].number();
       const float start = (float)stroke["start"].number();
       const float end = (float)stroke["end"].number();
@@ -278,7 +278,7 @@ struct ThunderFulu {
                             .column = true,
                             .fill = Fill::color(scored)}),
                  kSpine, 28, 0.8f, kPlateHeight - 52),
-         each(words["registers"].items(), [&](const data::Json& line) {
+         each(words["registers"].array(), [&](const data::Json& line) {
            return kit::at(18, (float)line["y"].number(), kPlateWidth - 36, 14)
                .children({kit::line({.thickness = 0.7f,
                                      .fill = Fill::color(scored)}),
@@ -346,11 +346,11 @@ struct ThunderFulu {
    *  a phrase and the stroke it belongs to cannot drift apart. */
   std::vector<Element> sung(const data::Json& lines, float start, float each,
                             float hold) const {
-    return ::each(lines.items(), [&](const data::Json& line, size_t index) {
+    return ::each(lines.array(), [&](const data::Json& line, size_t index) {
       const float at = start + (float)index * each;
-      const bool record = line.kind() == data::Json::Kind::Record;
+      const bool record = line.kind() == data::Json::Kind::Object;
       return text(record ? line["words"] : line)
-          .styleClass(std::string(record ? line["style"].text("chant")
+          .styleClass(std::string(record ? line["style"].string("chant")
                                          : "chant"))
           .opacity(sigil::motion::bind(score, {.from = {at, at + hold}, .clampFrom = true, .to = {0.14f, 0.98f}}));
     });
@@ -374,7 +374,7 @@ struct ThunderFulu {
                     pen.randomSeed(46);
                     draw::brush::paint(pen, brush(21, kCinnabar, 1), line);
                   }),
-              each(said["marks"].items(),
+              each(said["marks"].array(),
                    [](const data::Json& mark) {
                      const float along = (float)mark["s"].number();
                      return text(mark["words"])
@@ -391,11 +391,11 @@ struct ThunderFulu {
   Element tempo() const {
     const data::Json& said = words["tempo"];
     std::vector<sketch::kit::Row> rows;
-    const auto read = said["rows"].items();
+    const auto read = said["rows"].array();
     for (size_t index = 0; index < read.size(); ++index) {
       sketch::kit::Row row;
-      for (const data::Json& cell : read[index].items())
-        row.cells.emplace_back(std::string(cell.text()));
+      for (const data::Json& cell : read[index].array())
+        row.cells.emplace_back(std::string(cell.string()));
       if (index + 1 == read.size()) row.ink = kCinnabar;
       rows.push_back(std::move(row));
     }
@@ -417,7 +417,7 @@ struct ThunderFulu {
   Element tread() const {
     const data::Json& said = words["tread"];
     constexpr float kSpan = 530, kLeft = 0, kTop = 44;
-    const auto stations = said["stations"].items();
+    const auto stations = said["stations"].array();
     const auto station = [&](size_t index) {
       return SkPoint{kLeft + (float)stations[index]["x"].number() * kSpan,
                      kTop + (float)stations[index]["y"].number() * kSpan};
@@ -463,7 +463,7 @@ struct ThunderFulu {
                                                  : std::vector<float>{}}),
                               text(kit::formatted(
                                        "%d %s", (int)index + 1,
-                                       std::string(star["name"].text())
+                                       std::string(star["name"].string())
                                            .c_str()))
                                   .styleClass("station")
                                   .at({at.fX - 40 +
@@ -475,7 +475,7 @@ struct ThunderFulu {
                                            (float)star["starShift"].number(),
                                        at.fY + 12})});
                    })}),
-         each(said["lines"].items(),
+         each(said["lines"].array(),
               [](const data::Json& line) {
                 return text(line).styleClass("colophon");
               })});
@@ -534,9 +534,9 @@ struct ThunderFulu {
     if (const auto strokes =
             context.assets.json(context.local("data/strokes.json"))) {
       write((*strokes)["strokes"]);
-      for (const data::Json& graph : (*strokes)["seal"].items()) {
+      for (const data::Json& graph : (*strokes)["seal"].array()) {
         path::Polyline line;
-        const auto numbers = graph.items();
+        const auto numbers = graph.array();
         for (size_t index = 0; index + 1 < numbers.size(); index += 2)
           line.points.push_back({(float)numbers[index].number(),
                                  (float)numbers[index + 1].number()});

@@ -15,11 +15,11 @@ auto HitmanVerlet::codeLine(const sigil::data::Json& listed,
 
 auto HitmanVerlet::panelA1() -> Element {
   const sigil::data::Json& a1 = doc()["a1"];
-  return panel(kPanelAH[0], a1["heading"].text(), 1)
+  return panel(kPanelAH[0], a1["heading"].string(), 1)
       .gap(4)
       .children(
           {t(a1["law"], monoB(12.0f, kBone, 0.2f)).height(16).flexShrink(0),
-           each(a1["code"].items(),
+           each(a1["code"].array(),
                 [this](const sigil::data::Json& line) {
                   return codeLine(line, kBlue);
                 }),
@@ -30,8 +30,8 @@ auto HitmanVerlet::panelA1() -> Element {
 
 auto HitmanVerlet::panelA2() -> Element {
   const sigil::data::Json& a2 = doc()["a2"];
-  return panel(kPanelAH[1], a2["heading"].text(), 2)
-      .children({each(a2["code"].items(),
+  return panel(kPanelAH[1], a2["heading"].string(), 2)
+      .children({each(a2["code"].array(),
                       [this](const sigil::data::Json& line) {
                         return codeLine(line, kBlue);
                       }),
@@ -67,10 +67,10 @@ auto HitmanVerlet::panelA3() -> Element {
         .scaleY(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 220ms, .delay = 1600ms, .ease = ease::outBack()}))
         .transformOrigin(pct(50), pct(100));
   };
-  return panel(kPanelAH[2], a3["heading"].text(), 3)
+  return panel(kPanelAH[2], a3["heading"].string(), 3)
       .applyStyleSheet(plotClasses())
       .children(
-          {each(a3["code"].items(),
+          {each(a3["code"].array(),
                 [this](const sigil::data::Json& line) {
                   return codeLine(line, kBlue);
                 }),
@@ -139,7 +139,7 @@ auto HitmanVerlet::panelB1() -> Element {
   const sigil::data::Json& b1 = doc()["b1"];
   // The hole: the anatomy is drawn into this panel by the pen, so the
   // panel keeps the room for it and says nothing about what stands there.
-  return panel(kPanelBH[0], b1["heading"].text(), 4)
+  return panel(kPanelBH[0], b1["heading"].string(), 4)
       .gap(4)
       .children({box().height(118).flexShrink(0),
                  t(b1["count"], monoB(8.5f, kBone, 0.1f)),
@@ -187,7 +187,7 @@ auto HitmanVerlet::paintAnatomy(Pen& pen, float x0, float y0, float w) -> void {
 
 auto HitmanVerlet::panelB2() -> Element {
   const sigil::data::Json& b2 = doc()["b2"];
-  return panel(kPanelBH[1], b2["heading"].text(), 5)
+  return panel(kPanelBH[1], b2["heading"].string(), 5)
       .gap(4)
       .children({box().height(156).flexShrink(0),
                  box().height(34).flexShrink(0),
@@ -258,12 +258,12 @@ auto HitmanVerlet::panelB3() -> Element {
            anchor ? monoB(8.0f, kBlue, 0.1f) : mono(8.0f, kBone, 0.1f))});
   };
   const sigil::data::Json& b3 = doc()["b3"];
-  return panel(kPanelBH[2], b3["heading"].text(), 6)
+  return panel(kPanelBH[2], b3["heading"].string(), 6)
       .gap(3)
       .children(
-          {each(b3["rests"].items(), restRow),
+          {each(b3["rests"].array(), restRow),
            t(b3["note"], ui(7.0f, kTick, 0.4f)), box().height(4).flexShrink(0),
-           each(b3["production"].items(), [](const sigil::data::Json& line) {
+           each(b3["production"].array(), [](const sigil::data::Json& line) {
              return t(line, ui(7.0f, kSteel, 0.3f));
            })});
 }

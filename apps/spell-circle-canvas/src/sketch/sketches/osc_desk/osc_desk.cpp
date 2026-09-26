@@ -216,11 +216,11 @@ struct OscDesk {
     replies = 0;
     shown = {};
 
-    desk = data::Connection(hub, kDesk);
-    desk.on("/sky/wind", [this](const data::Json& message) { fader(message); });
-    desk.on("/sky/gust", [this](const data::Json& message) { burst(message); });
+    desk = data::connect(hub, kDesk);
+    desk.on("/sky/wind", [this](const data::Message& message) { fader(message.payload); });
+    desk.on("/sky/gust", [this](const data::Message& message) { burst(message.payload); });
     desk.on("/sky/palette",
-            [this](const data::Json& message) { colours(message); });
+            [this](const data::Message& message) { colours(message.payload); });
 
     read();
     describe(ctx);
@@ -244,7 +244,7 @@ struct OscDesk {
    *  recording has no sender, so under a capture the answer is refused
    *  and nothing goes out. */
   void fader(const data::Json& message) {
-    if (desk.reply("/sky/state", data::Json::Array{(double)wind.value()})) ++replies;
+    if (desk.reply(data::oscMessage("/sky/state", data::Json::Array{(double)wind.value()}))) ++replies;
     if (!ticker) return;
     ticker->timeline().apply(wind).then<ch::RampTo>(
         (float)message["arguments"][0].number(), kWindEase, motion::ease::outQuad);
@@ -284,14 +284,14 @@ struct OscDesk {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = desk.revision(),
-                .undecodable = desk.undecodable(),
+    Reading now{.generation = desk.state().revision,
+                .undecodable = desk.state().undecodable,
                 .gusts = gusts,
                 .palettes = palettes,
                 .replies = replies,
-                .spoken = std::string(desk.latest()["address"].text()),
-                .address = desk.localAddress(),
-                .trouble = desk.error()};
+                .spoken = std::string(desk.latest()["address"].string()),
+                .address = desk.state().localAddress,
+                .trouble = desk.state().error};
     if (now == shown) return false;
     shown = std::move(now);
     return true;

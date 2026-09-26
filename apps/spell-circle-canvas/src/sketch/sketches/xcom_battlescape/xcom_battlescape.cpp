@@ -114,38 +114,38 @@ struct Artefact {
       for (size_t ramp = 0; ramp < ramps->size(); ++ramp)
         for (size_t step = 0; step < (*ramps)[ramp].size(); ++step) {
           uint32_t hex = 0;
-          const std::string_view text = (*ramps)[ramp][step].text();
+          const std::string_view text = (*ramps)[ramp][step].string();
           std::from_chars(text.data() + 1, text.data() + text.size(), hex, 16);
           palette[ramp * 16 + step] = hexColor(hex);
         }
     if (const auto sprites = file("sprites.json"))
-      for (const auto& [name, drawing] : sprites->fields()) {
+      for (const auto& [name, drawing] : sprites->object()) {
         Drawing& into = drawings[name];
         into.left = (float)drawing["origin"][0].number();
         into.top = (float)drawing["origin"][1].number();
-        for (const auto& [character, blockStep] : drawing["key"].fields())
-          into.key[character[0]] = entry(blockStep.text());
-        for (const Json& row : drawing["rows"].items())
-          into.rows.emplace_back(row.text());
+        for (const auto& [character, blockStep] : drawing["key"].object())
+          into.key[character[0]] = entry(blockStep.string());
+        for (const Json& row : drawing["rows"].array())
+          into.rows.emplace_back(row.string());
       }
     if (const auto faces = file("font.json"))
-      for (const auto& [face, glyphs] : faces->fields())
-        for (const auto& [character, rows] : glyphs.fields())
-          for (const Json& row : rows.items())
-            fonts[face][character[0]].emplace_back(row.text());
+      for (const auto& [face, glyphs] : faces->object())
+        for (const auto& [character, rows] : glyphs.object())
+          for (const Json& row : rows.array())
+            fonts[face][character[0]].emplace_back(row.string());
     if (const auto scene = file("scene.json")) {
       const auto tile = [](const Json& pair) {
         return Tile{(int)pair[0].number(), (int)pair[1].number()};
       };
       globalShade = (int)(*scene)["globalShade"].number();
-      for (const Json& row : (*scene)["floor"].items())
-        floors.emplace_back(row.text());
-      for (const Json& row : (*scene)["objects"].items())
-        objects.emplace_back(row.text());
-      for (const Json& soldier : (*scene)["soldiers"].items())
+      for (const Json& row : (*scene)["floor"].array())
+        floors.emplace_back(row.string());
+      for (const Json& row : (*scene)["objects"].array())
+        objects.emplace_back(row.string());
+      for (const Json& soldier : (*scene)["soldiers"].array())
         soldiers.push_back(tile(soldier));
       alien = tile((*scene)["alien"]);
-      for (const Json& step : (*scene)["path"].items()) {
+      for (const Json& step : (*scene)["path"].array()) {
         path.push_back(tile(step));
         pathTimeUnits.push_back((int)step[2].number());
       }

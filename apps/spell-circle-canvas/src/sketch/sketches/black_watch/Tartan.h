@@ -56,13 +56,13 @@ struct ShadeCard {
 
 inline std::vector<ShadeCard> readShadeCards(const sigil::data::Json& file) {
   std::vector<ShadeCard> cards;
-  for (const sigil::data::Json& card : file["cards"].items()) {
-    ShadeCard read{.name = std::string(card["name"].text())};
+  for (const sigil::data::Json& card : file["cards"].array()) {
+    ShadeCard read{.name = std::string(card["name"].string())};
     for (int shade = 0; shade < kShadeCount; ++shade) {
       const std::string code(1, kShadeCodes[(size_t)shade]);
       const sigil::data::Json& own = card[code];
       read.shades[(size_t)shade] =
-          colourOf(own.null() ? file["overchecks"][code].text() : own.text());
+          colourOf(own.null() ? file["overchecks"][code].string() : own.string());
     }
     cards.push_back(std::move(read));
   }
@@ -121,9 +121,9 @@ struct Sett {
 
 inline Sett readSett(const sigil::data::Json& entry) {
   Sett sett{.publishedEnds = (int)entry["published ends"].number()};
-  for (const sigil::data::Json& name : entry["order"].items()) {
-    sett.order.emplace_back(name.text());
-    sett.units.push_back(readRuns(entry["units"][name.text()].text()));
+  for (const sigil::data::Json& name : entry["order"].array()) {
+    sett.order.emplace_back(name.string());
+    sett.units.push_back(readRuns(entry["units"][name.string()].string()));
   }
   return sett;
 }

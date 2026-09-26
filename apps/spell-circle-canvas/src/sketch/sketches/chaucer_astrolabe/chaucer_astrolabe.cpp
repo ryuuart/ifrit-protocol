@@ -331,7 +331,7 @@ struct ChaucerAstrolabe {
             .stroke(stroke(1.2f, Fill::color(material::withAlpha(kCut, 0.8f)))),
         // A stands on the first hour after noon and they run clockwise, so X,
         // the twenty-first, stands at 9 in the morning
-        each(tables["letters"].items(),
+        each(tables["letters"].array(),
              [](const data::Json& letter, std::size_t index) {
                return around(Utf8(letter), kCentre, 1.044f * kR,
                              alongCircle(90.0f - 15.0f * (float)(index + 1)),
@@ -492,7 +492,7 @@ struct ChaucerAstrolabe {
             .transformOrigin(pct(50), pct(50))
             .rotate(sigil::motion::bind(hourAngle, {.to = {sunRightAscension(kSunLongitude) - 90.0f, sunRightAscension(kSunLongitude) - 90.0f + 1.0f}}))
             .children({
-                each(stars.items(),
+                each(stars.array(),
                      [&](const data::Json& star, std::size_t index) {
                        return pointer(starAt(star), index);
                      }),
@@ -528,7 +528,7 @@ struct ChaucerAstrolabe {
                                     sign ? 1.4f : 0.8f,
                                     Fill::color(material::withAlpha(kCut, 0.7f)));
                      }),
-                each(tables["signs"].items(),
+                each(tables["signs"].array(),
                      [&](const data::Json& name, std::size_t index) {
                        float from = eclipticAngle(30.0f * (float)index);
                        float to = eclipticAngle(30.0f * (float)(index + 1));
@@ -538,7 +538,7 @@ struct ChaucerAstrolabe {
                            .styleClass("sign");
                      }),
                 // the stars' names, engraved along the outer ring
-                each(stars.items(),
+                each(stars.array(),
                      [&](const data::Json& star) {
                        const glm::vec2 at = starAt(star);
                        const float angle = std::atan2(at.y, at.x) / kDegree;
@@ -546,7 +546,7 @@ struct ChaucerAstrolabe {
                                      alongCircle(angle))
                            .styleClass("starName");
                      }),
-                each(stars.items(),
+                each(stars.array(),
                      [&](const data::Json& star) {
                        return kit::dot(onPlate(starAt(star)), (float)star["tip"].number(5.5), Fill::color(kGilt))
                            .stroke(stroke(1.5f, Fill::color(material::withAlpha(kEdge, 0.85f))));
@@ -630,7 +630,7 @@ struct ChaucerAstrolabe {
                return spoke(centre, calendarAngle(monthStarts[month]), 0.78f * radius,
                             0.855f * radius, 1.0f, cut);
              }),
-        each(tables["months"].items(),
+        each(tables["months"].array(),
              [&](const data::Json& month, std::size_t index) {
                const float middle =
                    calendarAngle((monthStarts[index] + monthStarts[index + 1]) * 0.5f);
@@ -644,11 +644,11 @@ struct ChaucerAstrolabe {
                return spoke(centre, calendarAngle(kAries + 365.0f / 12.0f * (float)sign),
                             0.70f * radius, 0.78f * radius, 1.0f, cut);
              }),
-        each(tables["signs"].items(),
+        each(tables["signs"].array(),
              [&](const data::Json& name, std::size_t index) {
                const float middle =
                    calendarAngle(kAries + 365.0f / 12.0f * ((float)index + 0.5f));
-               return text(Utf8(std::string(name.text().substr(0, 3))))
+               return text(Utf8(std::string(name.string().substr(0, 3))))
                    .centerAt({centre.fX + 0.74f * radius * std::cos(middle * kDegree),
                               centre.fY - 0.74f * radius * std::sin(middle * kDegree)});
              }),
@@ -699,7 +699,7 @@ struct ChaucerAstrolabe {
 
   Element provenance() const {
     const data::Json& page = words["provenance"];
-    return card(page, box().gap(3).children({each(page["rows"].items(), [](const data::Json& row) {
+    return card(page, box().gap(3).children({each(page["rows"].array(), [](const data::Json& row) {
                     return box().row().children({text(row["key"]).width(96).styleClass("head"),
                                                  text(row["value"]).flexGrow(1).flexShrink(1).width(0)});
                   })}));
@@ -721,7 +721,7 @@ struct ChaucerAstrolabe {
                     cells({Utf8(heads[0]), Utf8(heads[1]), Utf8(heads[2]), Utf8(heads[3]),
                            Utf8(heads[4])},
                           "head"),
-                    each(tables["stars"].items(),
+                    each(tables["stars"].array(),
                          [&](const data::Json& star) {
                            const float declination = (float)star["dec"].number();
                            return cells({Utf8(star["name"]), Utf8(star["modern"]),
@@ -736,7 +736,7 @@ struct ChaucerAstrolabe {
   Element chaucer() const {
     const data::Json& page = words["chaucer"];
     return card(page, box().gap(5).children({
-                          document::paragraph(page["quote"].text()).styleClass("quote"),
+                          document::paragraph(page["quote"].string()).styleClass("quote"),
                           each(words.run(page["reading"]), sketch::kit::lineOf),
                       }));
   }

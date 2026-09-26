@@ -319,7 +319,7 @@ struct MatrixRain {
    *  vertical advance whichever class it draws from, so the mixed text
    *  keeps the grid. */
   Plane readPlane(sketch::SketchContext& ctx, const data::Json& entry) const {
-    Plane plane{.name = std::string(entry["plane"].text()),
+    Plane plane{.name = std::string(entry["plane"].string()),
                 .seed = (uint32_t)entry["seed"].number(),
                 .churnSeconds = (float)entry["churnSeconds"].number(),
                 .churnOffsetSeconds =
@@ -526,17 +526,17 @@ struct MatrixRain {
 
     const sketch::kit::Document words{ctx, "data/rain.json"};
     const data::Json& charsets = words["charsets"];
-    charset = {.kana = glyphsOf(charsets["kana"].text()),
-               .digits = glyphsOf(charsets["digits"].text()),
+    charset = {.kana = glyphsOf(charsets["kana"].string()),
+               .digits = glyphsOf(charsets["digits"].string()),
                .digitsOneIn = std::max<uint32_t>(
                    1, (uint32_t)charsets["digitsOneIn"].number())};
     kanaCodepoints = codepointsOf(charsets["kana"]);
     digitCodepoints = codepointsOf(charsets["digits"]);
-    credit = std::string(words["credit"].text());
-    statement = std::string(words["statement"].text());
-    motto = std::string(words["motto"].text());
+    credit = std::string(words["credit"].string());
+    statement = std::string(words["statement"].string());
+    motto = std::string(words["motto"].string());
     const data::Json& trace = words["trace"];
-    traceLine = {.words = std::string(trace["words"].text()),
+    traceLine = {.words = std::string(trace["words"].string()),
                  .eachMs = (float)trace["eachMs"].number(),
                  .durationMs = (float)trace["durationMs"].number(),
                  .loopMs = (float)trace["loopMs"].number(),
@@ -546,7 +546,7 @@ struct MatrixRain {
              .phaseSeconds = (float)words["sweep"]["phaseSeconds"].number()};
     if (charset.kana.empty() || charset.digits.empty()) return;
     bed = readPlane(ctx, words["bed"]);
-    for (const data::Json& entry : words["curtains"].items())
+    for (const data::Json& entry : words["curtains"].array())
       curtains.push_back(readPlane(ctx, entry));
     ctx.composer.render(describe());
   }

@@ -153,7 +153,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
                                0.92f))});
   };
   Element list = box().column().width(268).gap(2).children(
-      {each(doc()["tracks"].items(), track)});
+      {each(doc()["tracks"].array(), track)});
 
   Element scope =
       box()

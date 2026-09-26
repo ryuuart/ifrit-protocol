@@ -410,16 +410,16 @@ struct Bg3DiceRoll {
     context.captureAt(6.0);
 
     const sketch::kit::Document data(context, "data/check.json");
-    check.skill = data["skill"].text();
-    check.ability = data["ability"].text();
+    check.skill = data["skill"].string();
+    check.ability = data["ability"].string();
     check.difficulty = (int)data["difficulty"].number();
     check.roll = (int)data["roll"].number();
     check.discarded = (int)data["advantage"]["discarded"].number();
-    for (const auto& bonus : data["bonuses"].items())
-      check.bonuses.push_back({std::string(bonus["name"].text()),
-                               std::string(bonus["note"].text()),
-                               std::string(bonus["chip"].text()),
-                               std::string(bonus["amount"].text()),
+    for (const auto& bonus : data["bonuses"].array())
+      check.bonuses.push_back({std::string(bonus["name"].string()),
+                               std::string(bonus["note"].string()),
+                               std::string(bonus["chip"].string()),
+                               std::string(bonus["amount"].string()),
                                (int)bonus["adds"].number()});
     // The face that lands square to the viewer carries the roll.
     die = d20::Die(0, check.roll);

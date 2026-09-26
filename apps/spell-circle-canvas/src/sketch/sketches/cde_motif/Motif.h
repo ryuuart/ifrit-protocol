@@ -466,7 +466,7 @@ inline sigil::weave::Type uiType() {
 /** The words of @p node's list, in order. */
 inline std::vector<std::string> wordList(const data::Json& node) {
   std::vector<std::string> out;
-  for (const data::Json& one : node.items()) out.emplace_back(one.text());
+  for (const data::Json& one : node.array()) out.emplace_back(one.string());
   return out;
 }
 

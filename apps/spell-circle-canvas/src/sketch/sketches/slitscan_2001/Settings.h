@@ -208,8 +208,8 @@ inline Element rule(float w, material::Color c, float h = 1.0f) {
 /** THE WORDS OF A LIST, one per entry. */
 inline std::vector<Utf8> wordsOf(const data::Json& node) {
   std::vector<Utf8> out;
-  for (const data::Json& n : node.items())
-    out.emplace_back(std::string(n.text()));
+  for (const data::Json& n : node.array())
+    out.emplace_back(std::string(n.string()));
   return out;
 }
 

@@ -426,7 +426,7 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
   using namespace tav;
   std::vector<Element> out;
   int i = -1;
-  for (const sigil::data::Json& caption : doc()["stills"].items()) {
+  for (const sigil::data::Json& caption : doc()["stills"].array()) {
     ++i;
     const float g = 0.30f + 0.18f * (float)i;
     Element cell = box().flexGrow(1).column().gap(3).children(

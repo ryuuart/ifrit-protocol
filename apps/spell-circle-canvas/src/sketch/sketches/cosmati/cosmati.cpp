@@ -149,9 +149,9 @@ struct Quarry {
  *  reads a colour's text, so they are read through it. */
 Quarry quarryOf(const sketch::kit::Document& words, std::string_view key) {
   const auto& stone = words["quarries"][key];
-  return {std::string(stone["name"].text()), std::string(stone["source"].text()),
-          draw::parseColor(stone["hi"].text("#808080")),
-          draw::parseColor(stone["lo"].text("#606060"))};
+  return {std::string(stone["name"].string()), std::string(stone["source"].string()),
+          draw::parseColor(stone["hi"].string("#808080")),
+          draw::parseColor(stone["lo"].string("#606060"))};
 }
 
 struct Quarries {
@@ -276,7 +276,7 @@ struct Cosmati {
                                       kSatelliteLoop, kOrbit, -kTurn * 0.25f);
     sketch::kit::stage(ctx, {.size = kCanvas,
                              .captureAt = 6.0,
-                             .background = draw::parseColor(words["ink"]["ground"].text())});
+                             .background = draw::parseColor(words["ink"]["ground"].string())});
     sigil::motion::Engine& ticker = ctx.engine;
     ticker.add([this, &ticker] { seconds = (float)ticker.elapsed(); });
     ctx.composer.render(describe());
@@ -291,10 +291,10 @@ struct Cosmati {
     const std::string book = "Palatino, Book Antiqua, Baskerville, serif";
     return StyleSheet{
         rule(":root")
-            .var("ink", draw::parseColor(ink["ink"].text()))
-            .var("ash", draw::parseColor(ink["ash"].text()))
-            .var("rule", draw::parseColor(ink["rule"].text()))
-            .var("mortar", draw::parseColor(ink["mortar"].text()))
+            .var("ink", draw::parseColor(ink["ink"].string()))
+            .var("ash", draw::parseColor(ink["ash"].string()))
+            .var("rule", draw::parseColor(ink["rule"].string()))
+            .var("mortar", draw::parseColor(ink["mortar"].string()))
             .fontFamily(inscriptional)
             .fontSize(11)
             .ink(var("ash")),
@@ -604,7 +604,7 @@ struct Cosmati {
     };
     const float beat = (kLettersTo - kLettersFrom) / 5;
     Element brassWork = stack().cover().key("brass").ink(brass(), PaintBox::Canvas);
-    const auto sides = words["inscription"]["sides"].items();
+    const auto sides = words["inscription"]["sides"].array();
     for (size_t index = 0; index < sides.size() && index < 4; ++index) {
       const float from = kLettersFrom + beat * (float)index;
       brassWork.children({box().cover().rotate(90.0f * (float)index).children(
@@ -751,9 +751,9 @@ struct Cosmati {
                  {.length = Dimension(kColumnWidth),
                   .fill = material::Paint::linearGradient(
                       {0, 0}, {kColumnWidth, 0},
-                      {draw::parseColor(words["ink"]["rule"].text()),
+                      {draw::parseColor(words["ink"]["rule"].string()),
                        material::withAlpha(
-                           draw::parseColor(words["ink"]["rule"].text()), 0)},
+                           draw::parseColor(words["ink"]["rule"].string()), 0)},
                       {.units = material::GradientUnits::Pixels})}),
              document::paragraph(words.phrase(apparatus["reading"])),
              // The quotation and what it is, one indented block.
@@ -787,7 +787,7 @@ struct Cosmati {
         .fill(material::Paint::radialGradient(
             {kMargin + kCentre, kMargin + kCentre}, kCanvas.fWidth * 0.8f,
             {hexColor(0x1C1814),
-             draw::parseColor(words["ink"]["ground"].text())},
+             draw::parseColor(words["ink"]["ground"].string())},
             {.units = material::GradientUnits::Pixels}))
         .children({pavement(), apparatus()});
   }

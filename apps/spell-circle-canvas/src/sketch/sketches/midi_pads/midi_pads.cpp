@@ -253,18 +253,18 @@ struct MidiPads {
     sent = 0;
     shown = {};
 
-    pads = data::Connection(hub, arriving);
-    pads.on("NoteOn", [this](const data::Json& message) { strike(message); });
-    pads.on("NoteOff", [this](const data::Json& message) { release(message); });
+    pads = data::connect(hub, arriving);
+    pads.on("NoteOn", [this](const data::Message& message) { strike(message.payload); });
+    pads.on("NoteOff", [this](const data::Message& message) { release(message.payload); });
     pads.on("ControlChange",
-            [this](const data::Json& message) { turn(message); });
+            [this](const data::Message& message) { turn(message.payload); });
 
     // THE LIGHTS ARE A WINDOW'S ALONE. A capture has no controller in
     // front of it, and a plate that opened a port would depend on what
     // happened to be plugged in.
     lights = ctx.deterministic
                  ? data::Connection()
-                 : data::Connection(hub, std::string(kLightsOut) + kController);
+                 : data::connect(hub, std::string(kLightsOut) + kController);
 
     read();
     describe(ctx);
@@ -357,13 +357,13 @@ struct MidiPads {
     std::string lit;
     for (size_t index = 0; index != kCells; ++index)
       lit += cells[index].shown ? '#' : '.';
-    Reading now{.generation = pads.revision(),
-                .undecodable = pads.undecodable(),
+    Reading now{.generation = pads.state().revision,
+                .undecodable = pads.state().undecodable,
                 .strikes = strikes,
                 .turns = turns,
                 .lights = sent,
-                .address = pads.localAddress(),
-                .trouble = pads.error(),
+                .address = pads.state().localAddress,
+                .trouble = pads.state().error,
                 .lit = std::move(lit)};
     if (now == shown) return false;
     shown = std::move(now);

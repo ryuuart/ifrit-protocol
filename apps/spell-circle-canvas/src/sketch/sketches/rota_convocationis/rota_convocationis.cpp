@@ -245,7 +245,7 @@ struct RotaConvocationis {
   }
 
   Text bandRun(const Band& band) const {
-    return text(content[band.words].text())
+    return text(content[band.words].string())
         .styleClass(band.voice)
         .font({.track = band.track});
   }
@@ -329,9 +329,9 @@ struct RotaConvocationis {
    *  caption is read, and the mechanism is what moves. */
   Element thresholds() {
     const float px = rStar * kRadius;
-    return sheet().children(each(content["thresholds"].items(),
+    return sheet().children(each(content["thresholds"].array(),
                 [&](const sigil::data::Json& name, size_t index) {
-                  return kit::at(text(name.text())
+                  return kit::at(text(name.string())
                                      .styleClass("label")
                                      .font({.size = 11, .track = 2})
                                      .ink(kAsh),
@@ -368,7 +368,7 @@ struct RotaConvocationis {
                             .stroke(stroke(1.1f, Fill::color(kLine))),
                         beads(6, rKern, 4, kPitch, 1.0f, kLine),
                         beads(6, rMote, 2.2f, kPitch * 0.5f, 0.9f, kHair)}),
-         text(content["monogram"].text())
+         text(content["monogram"].string())
              .font({.size = 52, .track = 6})
              .ink(kBone)
              .filter(styles::textGlow(kHalo, 7.0f))
@@ -393,7 +393,7 @@ struct RotaConvocationis {
                  .shape(shapes::polygon((int)seal["sides"].number()))
                  .fill(Fill::none())
                  .stroke(stroke(0.9f, Fill::color(kHair))),
-             kit::at(text(seal["words"].text())
+             kit::at(text(seal["words"].string())
                          .styleClass("band")
                          .font({.size = sealSize[index], .track = 1.4f})
                          .ink(kBone),
@@ -402,7 +402,7 @@ struct RotaConvocationis {
                  .textOnPath({.path = shapes::circle(),
                               .at = float(index) / kStations,
                               .offset = -sealSize[index] * 0.34f}),
-             text(seal["ordinal"].text())
+             text(seal["ordinal"].string())
                  .styleClass("mono")
                  .font({.size = 12, .track = 1})
                  .ink(kGold)
@@ -421,7 +421,7 @@ struct RotaConvocationis {
         {kit::dot(centre, size, Fill::color(kSealGround)),
          kit::ring(centre, size, stroke(1.2f, Fill::color(kLine))),
          kit::ring(centre, size * 0.6f, stroke(1.2f, Fill::color(kLine))),
-         text(content["spur"].text()).font({.size = 19}).ink(kBone)
+         text(content["spur"].string()).font({.size = 19}).ink(kBone)
              .centerAt(centre)});
   }
 
@@ -432,9 +432,9 @@ struct RotaConvocationis {
         .gap(7)
         .styleClass("label")
         .ink(kAsh)
-        .children({text(content["title"].text()).font({.size = 12,
+        .children({text(content["title"].string()).font({.size = 12,
                                                        .track = 5.2f}),
-                   text(content["colophon"].text()).font({.size = 11,
+                   text(content["colophon"].string()).font({.size = 11,
                                                           .track = 0.3f})});
   }
 
@@ -470,7 +470,7 @@ struct RotaConvocationis {
                     return script(band, bandSize[index]);
                   }),
              thresholds(), emblem(),
-             each(content["seals"].items(),
+             each(content["seals"].array(),
                   [&](const sigil::data::Json& row, size_t index) {
                     return seal(row, index);
                   }),
@@ -501,10 +501,10 @@ struct RotaConvocationis {
       bandSize[index] = fit(context, bandRun(kBands[index]),
                             kBands[index].radius * kRadius,
                             kBands[index].fill);
-    const auto seals = content["seals"].items();
+    const auto seals = content["seals"].array();
     for (size_t index = 0; index < seals.size() && index < kStations; ++index)
       sealSize[index] = fit(context,
-                            text(seals[index]["words"].text())
+                            text(seals[index]["words"].string())
                                 .styleClass("band")
                                 .font({.track = 1.4f}),
                             kSealBaseline, 0.97f);

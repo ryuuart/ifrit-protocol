@@ -153,7 +153,7 @@ const std::array<Front, 2> kFronts{
  *  letter's size. */
 StyleSheet plateSheet(const data::Json& inks) {
   Rule root = rule(":root");
-  for (const auto& [name, colour] : inks.fields())
+  for (const auto& [name, colour] : inks.object())
     root.var(name, colourOf(colour));
   return StyleSheet{
       root.fontFamily("Didot, Bodoni 72, serif")
@@ -467,7 +467,7 @@ struct ChladniTab1 {
         .children({
             paper,
             frame(),
-            document::h1(Utf8(title["words"].text()))
+            document::h1(Utf8(title["words"].string()))
                 .key("title")
                 .textFx(Track{
                     .effect = textFx::typeOn(),
@@ -482,7 +482,7 @@ struct ChladniTab1 {
             // The signature is small, as an engraver's is, and stands in the
             // frame's lower right corner, in from the inner rule and clear
             // of the curve of the last disc above it.
-            document::footer(Utf8(credit["words"].text()))
+            document::footer(Utf8(credit["words"].string()))
                 .key("credit")
                 .right(canvas.width() - innerFrame.right() + kCreditClear)
                 .bottom(canvas.height() - innerFrame.bottom() + kCreditClear)

@@ -116,7 +116,7 @@ constexpr float kBreath = 0.7f;
 struct Door {
   const data::Json* entry = nullptr;
   data::Connection connection;
-  data::Connection::Vitals shown;
+  data::ConnectionState shown;
 
   const data::Json& operator[](std::string_view key) const {
     return (*entry)[key];
@@ -127,7 +127,7 @@ struct Door {
    *  backlog: a sky is a state, so a reader that fell behind draws what
    *  is true now rather than every step that led to it. */
   bool read() {
-    const data::Connection::Vitals now = connection.vitals();
+    const data::ConnectionState now = connection.state();
     if (now == shown) return false;
     shown = now;
     return true;
@@ -137,10 +137,10 @@ struct Door {
 /** The URI a door opens: its address, and for a door that answers with a
  *  certificate, the pair beside this sketch that it answers with. */
 std::string uriOf(const Door& door, const sketch::SketchContext& ctx) {
-  std::string uri(door["address"].text());
+  std::string uri(door["address"].string());
   if (!door["certificate"].null())
-    uri += "?cert=" + ctx.local(door["certificate"].text()) +
-           "&key=" + ctx.local(door["key"].text());
+    uri += "?cert=" + ctx.local(door["certificate"].string()) +
+           "&key=" + ctx.local(door["key"].string());
   return uri;
 }
 
@@ -155,13 +155,13 @@ material::Color tintOf(std::span<const data::Json> palette, size_t index) {
 
 /** The door's state in one line, for the panel that has no sky yet. */
 std::string waitingLine(const Door& door) {
-  const data::Connection::Vitals& vitals = door.shown;
+  const data::ConnectionState& vitals = door.shown;
   if (!vitals.error.empty()) return vitals.error;
   if (vitals.undecodable != 0)
     return std::to_string(vitals.undecodable) + " arrivals were no sky";
-  if (vitals.closed) return "the door is closed: nothing else is coming";
+  if (vitals.readiness == sigil::io::ReadyState::Closed) return "the door is closed: nothing else is coming";
   return "waiting at " +
-         (vitals.localAddress.empty() ? std::string(door["address"].text())
+         (vitals.localAddress.empty() ? std::string(door["address"].string())
                                  : vitals.localAddress) +
          " · nothing has arrived";
 }
@@ -187,18 +187,18 @@ struct FeedSky {
     words = sketch::kit::Document(ctx, "data/content.json");
     sigil::io::Hub& hub = ctx.assets.hub();
     doors.clear();
-    for (const data::Json& entry : words["doors"].items()) {
+    for (const data::Json& entry : words["doors"].array()) {
       Door door{.entry = &entry};
       const std::string uri = uriOf(door, ctx);
       // A CAPTURE READS THE RECORDING, a window opens the door. Replaying
       // the URI from the file is the whole of the difference: every later
       // ask for the URI answers the replaying feed.
       if (ctx.deterministic)
-        hub.replay(uri, ctx.local(entry["recording"].text()));
+        hub.replay(uri, ctx.local(entry["recording"].string()));
       door.connection =
           entry["schema"].boolean()
-              ? data::Connection(hub, uri, data::schema<feed_sky::Sky>())
-              : data::Connection(hub, uri);
+              ? data::connect(hub, uri, {.schema = data::schema<feed_sky::Sky>()})
+              : data::connect(hub, uri);
       door.read();
       doors.push_back(std::move(door));
     }
@@ -230,16 +230,16 @@ struct FeedSky {
    *  it says about itself. */
   Element panel(const Door& door) const {
     return sketch::kit::panel(
-        {.eyebrow = door["label"].text(), .ruled = true},
+        {.eyebrow = door["label"].string(), .ruled = true},
         box().column().gap(14).children(
             {sketch::kit::well({.width = Dimension(kShownWidth),
                                 .height = Dimension(kSkyHeight * kSkyScale),
                                 .ground = skyGround(),
                                 .placed = true},
                                stack().children({sky(door), waiting(door)})),
-             document::caption(door["note"].text()),
+             document::caption(door["note"].string()),
              sketch::kit::connectionReadout(
-                 door.connection, {.door = door["address"].text(),
+                 door.connection, {.door = door["address"].string(),
                                    .rows = {.measure = kShownWidth}})}));
   }
 
@@ -255,8 +255,8 @@ struct FeedSky {
   /** The door's sky in its own coordinates, scaled into the panel: one
    *  ribbon per band of the newest message. */
   Element sky(const Door& door) const {
-    const data::Json& state = door.connection.latest();
-    const std::span<const data::Json> palette = state["palette"].items();
+    const data::Json& state = door.connection.latest().payload;
+    const std::span<const data::Json> palette = state["palette"].array();
     const float wind = (float)state["wind"]["x"].number();
     return stack()
         .width(kSkyWidth)
@@ -265,7 +265,7 @@ struct FeedSky {
         .top(0)
         .transformOrigin(pct(0), pct(0))
         .scale(kSkyScale)
-        .children(each(state["bands"].items(),
+        .children(each(state["bands"].array(),
                        [&](const data::Json& band, size_t index) {
                          return ribbon(band, index, tintOf(palette, index),
                                        wind);
@@ -306,7 +306,7 @@ struct FeedSky {
   /** THE QUIET PLACEHOLDER, until a sky has arrived: one line where the
    *  bands would cross, and the door's own words about itself under it. */
   Element waiting(const Door& door) const {
-    if (!door.connection.latest().null()) return box().display(Display::None);
+    if (!door.connection.latest().empty()) return box().display(Display::None);
     return box()
         .cover()
         .column()

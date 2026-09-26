@@ -45,7 +45,7 @@ struct CardColours {
 
 CardColours readCard(const data::Json& card) {
   const auto colour = [&](std::string_view name) {
-    return colourOf(card[name].text("#000000"));
+    return colourOf(card[name].string("#000000"));
   };
   return {colour("ground"), colour("well"),  colour("rule"),  colour("ink"),
           colour("ash"),    colour("proof"), colour("shadow")};

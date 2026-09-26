@@ -38,7 +38,7 @@ auto SlitScan2001::panelShell(const data::Json& said, int order) -> Element {
       .key(kit::formatted("panel%d", order))
       .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = sigil::motion::ease::outQuad}))
       .translateX(sigil::motion::animate({.from = 14.0f, .to = 0.0f, .duration = 300ms, .ease = sigil::motion::ease::outQuad}))
-      .children({document::h2(std::string(said["heading"].text()))
+      .children({document::h2(std::string(said["heading"].string()))
                      .font({.face = uiFace(), .size = 9.5f, .track = 2.2f}),
                  rule(390, kRule)});
 }
@@ -50,15 +50,15 @@ auto SlitScan2001::prose(const data::Json& said) -> std::vector<Element> {
   // record with no words is the furniture between them — a rule, or the
   // slot a live reading is rendered into. A MARKED line carries a red
   // pointer in the margin, which is how this sheet says "read this one".
-  return each(said.items(), [](const data::Json& n) -> Element {
+  return each(said.array(), [](const data::Json& n) -> Element {
     if (n["rule"].boolean()) return rule(390, kRule);
-    if (!n["slot"].text().empty())
-      return slot(std::string(n["slot"].text()))
+    if (!n["slot"].string().empty())
+      return slot(std::string(n["slot"].string()))
           .height((float)n["height"].number(19.0))
           .flexShrink(0);
     Element line = document::paragraph(n["words"])
                        .font({.size = (float)n["size"].number(6.5)})
-                       .styleClass(std::string(n["style"].text()))
+                       .styleClass(std::string(n["style"].string()))
                        .flexShrink(0);
     if (!n["marked"].boolean()) return line;
     return box().row().gap(5).flexShrink(0).children(

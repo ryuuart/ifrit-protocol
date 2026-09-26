@@ -345,7 +345,7 @@ struct BlackWatch {
              {kit::line({.thickness = 1, .column = true,
                          .fill = Fill::var("rule")}),
               box().column().gap(4.5f).children(
-                  {each(words["ticket"].items(),
+                  {each(words["ticket"].array(),
                         [this](const data::Json& line) {
                           return document::caption(doc.phrase(line));
                         })})})});
@@ -662,7 +662,7 @@ struct BlackWatch {
         {box().row().gap(20).children(
             {std::move(table),
              box().column().gap(3).width(220).marginTop(14).children(
-                 {each(words["notes"].items(),
+                 {each(words["notes"].array(),
                        [this](const data::Json& note) {
                          return document::caption(doc.phrase(note));
                        }),
@@ -755,7 +755,7 @@ struct BlackWatch {
     return titled(
         doc.phrase(words["heading"]),
         {box().row().gap(16).children(
-             {each(words["labels"].items(),
+             {each(words["labels"].array(),
                    [&](const data::Json& label, size_t index) {
                      return labelled(
                          swatch(cloths.front(), kGovernmentCrop,
@@ -790,7 +790,7 @@ struct BlackWatch {
       const float total = (float)sett.threads().size();
       return box().row().alignItems(Align::Center).children(
           {box().row().width(kName).styleClass("bar-name").children(
-               {document::caption(std::string(name.text())).width(100),
+               {document::caption(std::string(name.string())).width(100),
                 document::caption(kit::formatted("%d", (int)total))}),
            box().row().width(kBar).height(kHeight).stroke(
                stroke(1, Fill::var("rule"), PathFormat::Align::Outer))

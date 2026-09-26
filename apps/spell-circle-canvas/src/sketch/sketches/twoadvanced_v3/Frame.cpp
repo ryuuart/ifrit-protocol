@@ -271,7 +271,7 @@ Element TwoAdvancedV3::footerRail() {
                 // them, so the run is one each() over what the document
                 // names and the last link carries none
                 .children(
-                    {each(foot["links"].items(),
+                    {each(foot["links"].array(),
                           [&foot](const data::Json& link, std::size_t i) {
                             Element one = box().row().gap(8).children(
                                 {t(link, micro(9, kInk, 140))});

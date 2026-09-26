@@ -75,7 +75,7 @@ auto sans(int weight = 400) {
 
 material::Color colour(const Json& hex, float alpha = 1.0f) {
   uint32_t value = 0;
-  const std::string_view digits = hex.text();
+  const std::string_view digits = hex.string();
   std::from_chars(digits.data(), digits.data() + digits.size(), value, 16);
   return hexColor(value, alpha);
 }
@@ -131,7 +131,7 @@ struct KspMapView {
   }
   SkPoint on(const Json& place) const {
     const glm::vec2 point =
-        orbit(place["orbit"].text()).at(number(place["anomaly"]));
+        orbit(place["orbit"].string()).at(number(place["anomaly"]));
     return {point.x, point.y};
   }
   /** A stretch of a conic as a shape, keyed on the numbers it is drawn from
@@ -222,7 +222,7 @@ struct KspMapView {
                                          {0.66f, hexColor(0x1B4260)},
                                          {1.0f, hexColor(0x12283A)}}))
              .overflow(Overflow::Clip)
-             .children({each(map["continents"].items(), continent),
+             .children({each(map["continents"].array(), continent),
                         box().inset(0).fill(Paint::radialGradient(
                             {0.34f, 0.28f}, 1.02f,
                             {{0.38f, hexColor(0x081420, 0.06f)},
@@ -238,7 +238,7 @@ struct KspMapView {
   Element trajectories() const {
     auto crossing = [this](const Json& part) {
       const Shape path =
-          trajectory(orbit(part["orbit"].text()),
+          trajectory(orbit(part["orbit"].string()),
                      {number(part["from"]), number(part["to"]), 260});
       const material::Color ink = colour(part["colour"], number(part["alpha"]));
       PathFormat pen = stroke(number(part["width"]), Fill::color(ink));
@@ -256,7 +256,7 @@ struct KspMapView {
     };
     const Shape vessel = trajectory(orbit("vessel"), {0, 360, 360});
     return box().inset(0).font({.size = 8.5f, .track = 1.3f}).children(
-        {each(map["trajectories"].items(), crossing),
+        {each(map["trajectories"].array(), crossing),
          box().inset(0).shape(vessel).stroke(
              spans::upTo(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 900ms, .ease = sigil::motion::ease::outQuad})),
              brush::presets::filament(withAlpha(kOrbit, 0.30f),
@@ -304,12 +304,12 @@ struct KspMapView {
     return box()
         .inset(0)
         .font({.face = sans(700), .size = 9, .track = 0.6f})
-        .children({each(map["markers"].items(), marker),
-                   each(map["bodies"].items(), body),
+        .children({each(map["markers"].array(), marker),
+                   each(map["bodies"].array(), body),
                    kit::disc(on(craft), 6.5f)
                        .shape(shapes::polygon(3, 90))
                        .fill(hexColor(0xE8F2F4))
-                       .rotate(bearing(orbit(craft["orbit"].text())
+                       .rotate(bearing(orbit(craft["orbit"].string())
                                            .alongAt(number(craft["anomaly"]))))});
   }
 
@@ -319,7 +319,7 @@ struct KspMapView {
   // the map, so it takes the bisector of the wide side between them.
   Element manoeuvre() const {
     const Json& node = map["node"];
-    const Conic path = orbit(node["orbit"].text());
+    const Conic path = orbit(node["orbit"].string());
     const float anomaly = number(node["anomaly"]);
     const SkPoint hub = on(node);
     const float prograde = bearing(path.alongAt(anomaly));
@@ -390,7 +390,7 @@ struct KspMapView {
     // them is drawn at.
     const float middle = kBallRadius;
     std::vector<Element> ladder;
-    for (const Json& rung : ball["ladder"].items())
+    for (const Json& rung : ball["ladder"].array())
       for (float side : {1.0f, -1.0f}) {
         const float degrees = number(rung);
         const float y =
@@ -480,16 +480,16 @@ struct KspMapView {
                             .font({.face = sans(700), .size = 7})
                             .ink(hexColor(0xEAF4F8, 0.9f))
                             .children(ladder)}),
-         each(ball["bands"].items(), band), each(22, tick),
+         each(ball["bands"].array(), band), each(22, tick),
          needle(207.0f - 59.0f * number(ball["throttle"])),
          needle(28.0f - 61.0f * number(ball["gforce"])),
-         each(ball["scale"].items(), scale),
+         each(ball["scale"].array(), scale),
          // the heading letters inside the bezel turn with the ball
          kit::disc(kBall, kBallRadius * 0.83f)
              .rotate(-yaw * 14.3239449f)
              .font({.face = sans(700), .size = 9, .track = 0.6f})
              .ink(hexColor(0xEAF4F8, 0.85f))
-             .children({each(ball["compass"].items(),
+             .children({each(ball["compass"].array(),
                              [](const Json& letter, std::size_t index) {
                                return along(letter, shapes::circle(),
                                             0.75f + 0.25f * index, 2);
@@ -583,7 +583,7 @@ struct KspMapView {
                .foreground(lines::presets::hatch(
                    Fill::color(hexColor(0x101010, 0.45f)), 8.0f, 3.4f, -45.0f)),
            box().column().gap(4).paddingLeft(4).children(
-               {each(stage["parts"].items(), part)})});
+               {each(stage["parts"].array(), part)})});
     };
     auto digit = [](const Json& figure) {
       return kit::centred(text(figure).styleClass("lcd").ink(hexColor(0x16181A)))
@@ -625,7 +625,7 @@ struct KspMapView {
              kit::at(14, 528, 150, 220)
                  .column()
                  .gap(8)
-                 .children({each(words["stages"].items(), stage)}),
+                 .children({each(words["stages"].array(), stage)}),
              kit::at(8, 756, 152, 38)
                  .column()
                  .borderRadius({3})
@@ -651,7 +651,7 @@ struct KspMapView {
                                          {.face = sans(700), .size = 9}),
                                      box().flexGrow(1),
                                      box().row().gap(2).children({each(
-                                         panel["digits"].items(), digit)})})}),
+                                         panel["digits"].array(), digit)})})}),
              box()
                  .inset(0)
                  .font({.face = sans(700), .size = 8})
@@ -683,7 +683,7 @@ struct KspMapView {
             .overflow(Overflow::Clip)
             .children(
                 {kit::at(hazard(), 0, 0, 11, 82),
-                 each(gauge["digits"].items(),
+                 each(gauge["digits"].array(),
                       [&wheel](const Json& figure, std::size_t index) {
                         return wheel(figure, 18.0f + 28.0f * index, false);
                       }),
@@ -730,7 +730,7 @@ struct KspMapView {
                      .inset(0)
                      .ink(hexColor(0x4A5157))
                      .children({each(
-                         gauge["dial"].items(),
+                         gauge["dial"].array(),
                          [&dialWords](const Json& word, std::size_t index) {
                            return text(word)
                                .font({.face = sans(index < 2 ? 700 : 400),
@@ -751,7 +751,7 @@ struct KspMapView {
     const Json& card = words["info"];
     auto readings = [](const Json& rows) {
       std::vector<kit::Reading> out;
-      for (const Json& row : rows.items())
+      for (const Json& row : rows.array())
         out.push_back({.name = row["name"], .value = row["value"]});
       return out;
     };
@@ -765,7 +765,7 @@ struct KspMapView {
           .fill(ground);
     };
     auto head = [&strip](const Json& label) {
-      if (label.text().empty()) return box();
+      if (label.string().empty()) return box();
       return strip(hexColor(0xF4F4F5), 19).children({kit::section(label)});
     };
     auto title = [&strip](const Json& label, material::Color ground,
@@ -801,7 +801,7 @@ struct KspMapView {
                             kit::readout(readings(card["ship"]),
                                          {.measure = 182, .gap = 5})
                                 .flexGrow(1)}),
-             each(card["sections"].items(),
+             each(card["sections"].array(),
                   [&head, &readings](const Json& section) {
                     return box().children(
                         {head(section["head"]),
@@ -840,8 +840,8 @@ struct KspMapView {
              .borderRadius({4})
              .fill(ramp(hexColor(0x707E89), hexColor(0x3E4750))),
          box().inset(0).ink(hexColor(0x8CE07A)).children(
-             {each(words["clockIcons"].items(), clockIcon)}),
-         each(words["toolbar"].items(), button),
+             {each(words["clockIcons"].array(), clockIcon)}),
+         each(words["toolbar"].array(), button),
          kit::at(646, 566, 190, 88)
              .column()
              .padding(8, 9)

@@ -133,8 +133,8 @@ struct SchemaScene {
     arrived.reset();
     taken.reset();
     if (!ctx.deterministic)
-      live = data::Connection(ctx.assets.hub(), kLive,
-                              data::schema<schema_scene::Envelope>());
+      live = data::connect(ctx.assets.hub(), kLive,
+                              {.schema = data::schema<schema_scene::Envelope>()});
     ctx.composer.render(sketch::kit::instrument(
         {.page = {.title = "A scene, described as data.",
                   .subtitle = "FLATBUFFERS / SCHEMA  /  A file and a live "
@@ -168,10 +168,10 @@ struct SchemaScene {
    *  described again, because the pen reads the sky it draws on every
    *  frame. */
   void update() {
-    std::shared_ptr<const io::Bytes> newest = live.latestBytes();
+    std::shared_ptr<const io::Bytes> newest = live.latest().bytes();
     if (!newest || newest == taken) return;
     taken = std::move(newest);
-    std::optional<scene::Envelope> read = live.latest<scene::Envelope>();
+    std::optional<scene::Envelope> read = live.latest().as<scene::Envelope>();
     if (read && std::holds_alternative<scene::Sky>(read->message))
       arrived = std::move(read);
   }

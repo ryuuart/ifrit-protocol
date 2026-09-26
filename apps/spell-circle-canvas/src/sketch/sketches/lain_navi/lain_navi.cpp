@@ -186,7 +186,7 @@ struct LainNavi {
    *  edge left: a few lit slabs, the bright massing in the right third. */
   Element city() const {
     return box().inset(0).filter(Filter::blur(34)).children(
-        {each(content["city"].items(), [](const sigil::data::Json& slab) {
+        {each(content["city"].array(), [](const sigil::data::Json& slab) {
           return kit::at(slab["x"].number(), slab["y"].number(),
                          slab["width"].number(), slab["height"].number())
               .fill(Fill::color(material::scale(
@@ -199,9 +199,9 @@ struct LainNavi {
    *  horizontally by a compositor who did not align it. */
   Element prose() const {
     return box().inset(0).styleClass("light").filter(Filter::blur(0.9f)).children(
-        {each(content["prose"].items(),
+        {each(content["prose"].array(),
               [](const sigil::data::Json& line, size_t index) {
-                return text(line.text())
+                return text(line.string())
                     .styleClass("prose")
                     .left(-34 + 14 * std::sin(index * 1.7f))
                     .top(-52 + 48.5f * index);
@@ -271,12 +271,12 @@ struct LainNavi {
    *  linearly with distance from y 402 and the ink never dims, which is
    *  what a lens does and a fade does not. */
   Element listing() const {
-    const auto lines = content["listing"].items();
+    const auto lines = content["listing"].array();
     const long long scroll = static_cast<long long>(seconds / 0.220);
     std::string passage;
     for (int line = 0; line < kConsoleLines && !lines.empty(); ++line) {
       const size_t source = (scroll + line + kScrollPhase) % lines.size();
-      passage += std::string(lines[source].text()) + "\n";
+      passage += std::string(lines[source].string()) + "\n";
     }
     const float blockHeight = kConsoleLines * kPitch;
     const float focus = (kFocusPlane - kListingTop) / blockHeight;
@@ -340,13 +340,13 @@ struct LainNavi {
   Element titles() const {
     const double clock = std::fmod(seconds, 13.6);
     return box().inset(0).styleClass("light").children(
-        {each(content["phrases"].items(), [&](const sigil::data::Json& title) {
+        {each(content["phrases"].array(), [&](const sigil::data::Json& title) {
           const double since = clock - title["at"].number();
           const double hold = title["hold"].number();
           float level = since < 0.8 ? since / 0.8 : 1 - (since - hold) / 0.9;
           level = std::clamp(level, 0.0f, 1.0f);
           level = level * level * (3 - 2 * level);
-          return text(title["words"].text())
+          return text(title["words"].string())
               .styleClass("minds")
               .font({.size = static_cast<float>(title["size"].number())})
               .opacity(level)
@@ -362,7 +362,7 @@ struct LainNavi {
         .inset(0)
         .styleClass("light")
         .filter(Filter::directionalBlur(36, 0))
-        .children({each(content["streaks"].items(),
+        .children({each(content["streaks"].array(),
                         [](const sigil::data::Json& band) {
                           return kit::at(band["x"].number(), band["y"].number(),
                                          band["width"].number(), 15)

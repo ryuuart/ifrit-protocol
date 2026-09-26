@@ -77,7 +77,7 @@ auto TwoAdvancedV4::navBar() -> Element {
   // ONE ITEM PER NAME IN THE DOCUMENT'S TAXONOMY, with the hairline that
   // stands each off the one before it interleaved by the run itself.
   bar.children({each(
-      doc()["nav"].items(),
+      doc()["nav"].array(),
       [](const sigil::data::Json& name) {
         return kit::centred()
             .column()
@@ -202,7 +202,7 @@ auto TwoAdvancedV4::linkRun(const sigil::data::Json& names, float size,
                             float rule) -> std::vector<Element> {
   using namespace tav;
   return each(
-      names.items(),
+      names.array(),
       [size](const sigil::data::Json& name) {
         return t(name, micro(size, kDustDim, 200));
       },
@@ -364,7 +364,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
   };
 
   strip.children(
-      {each(doc()["dock"].items(), window),
+      {each(doc()["dock"].array(), window),
        // the instanced chevron array — one atlas cell, one stamp
        box()
            .width(260)

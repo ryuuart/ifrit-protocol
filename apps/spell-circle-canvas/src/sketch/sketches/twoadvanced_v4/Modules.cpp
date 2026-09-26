@@ -77,7 +77,7 @@ auto TwoAdvancedV4::featureSystem() -> Element {
            .alignItems(Align::Stretch)
            .children(relatedStills()),
        // the spec readout: dense, tabular, and never actually read
-       box().row().gap(14).children({each(feature["specs"].items(), specPair)}),
+       box().row().gap(14).children({each(feature["specs"].array(), specPair)}),
        box()
            .row()
            .gap(8)
@@ -179,7 +179,7 @@ auto TwoAdvancedV4::pressList() -> Element {
          t(e["headline"], cut(blackFace(), 13, hexColor(0x0E3234), 50, 0.92f)),
          t(e["body"], prose(12.5f, hexColor(0x0C2E30)))});
   };
-  return box().column().gap(9).children({each(doc()["press"].items(), entry)});
+  return box().column().gap(9).children({each(doc()["press"].array(), entry)});
 }
 
 auto TwoAdvancedV4::pressUpdates() -> Element {
@@ -317,13 +317,13 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   Element supplementals =
       box().flexGrow(1).flexBasis(0).column().gap(3).children(
           {auxBar("SUPPLEMENTALS & ESSENTIALS"),
-           each(aux["items"].items(), module)});
+           each(aux["items"].array(), module)});
 
   // Column 2: the book plate is white — the one white rectangle on the
   // whole page — with the title set dark on it.
   const sigil::data::Json& book = aux["book"];
   Element photoshop = box().flexGrow(1).flexBasis(0).column().gap(4).children(
-      {auxBar(book["bar"].text()),
+      {auxBar(book["bar"].string()),
        box().row().gap(8).flexGrow(1).children(
            {box()
                 .width(118)
@@ -343,7 +343,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
   // amber on the interface.
   const sigil::data::Json& wire = aux["wire"];
   Element press = box().flexGrow(1).flexBasis(0).column().gap(4).children(
-      {auxBar(wire["bar"].text()),
+      {auxBar(wire["bar"].string()),
        box()
            .height(40)
            .row()
@@ -427,7 +427,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
                  .stroke(stroke(
                      1, Fill::color(sigil::material::withAlpha(kCyan, 0.5f)),
                      PathFormat::Align::Inner)),
-             bank(one["name"].text(),
+             bank(one["name"].string(),
                   box()
                       .row()
                       .gap(5)
@@ -449,7 +449,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
                          .alignItems(Align::Center)
                          .children({t("PARTNERS:", micro(11, kDust, 240)),
                                     chip("A"), chip("M")}));
-  for (const sigil::data::Json& one : sub["selectors"].items())
+  for (const sigil::data::Json& one : sub["selectors"].array())
     stations.push_back(selector(one));
   stations.push_back(
       bank("SOUND", keys({toggle("ON", true), toggle("OFF", false)})));

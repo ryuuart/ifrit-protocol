@@ -9,7 +9,7 @@ Element GenesisFire::generationPanel() {
       .gap(3)
       .children(
           {panelHead(law["head"]),
-           each(law["equations"].items(),
+           each(law["equations"].array(),
                 [this](const sigil::data::Json& line) { return eqn(line); }),
            box().flexGrow(1), note(law["note"]).ink(kSteelDim)});
 }
@@ -70,12 +70,12 @@ Element GenesisFire::censusPanel() {
       .children(
           {panelHead(census["head"]),
            box().row().height(11).flexShrink(0).styleClass("colhead").children(
-               {each(census["columns"].items(),
+               {each(census["columns"].array(),
                      [this](const sigil::data::Json& name, size_t i) {
                        return censusCell(name, i, kSteelDim);
                      })}),
            box().column().gap(3).flexShrink(0).staggerChildren(70ms).children(
-               {each(census["rows"].items(),
+               {each(census["rows"].array(),
                      [this](const sigil::data::Json& row) {
                        return censusRow(row);
                      }),
@@ -156,7 +156,7 @@ Element GenesisFire::productionPanel() {
   return panel(kPanelH[4], 5)
       .gap(1)
       .children({panelHead(made["head"]),
-                 each(made["lines"].items(),
+                 each(made["lines"].array(),
                       [this](const sigil::data::Json& line) {
                         return prodLine(line["words"], line["loud"].boolean()
                                                            ? kBone

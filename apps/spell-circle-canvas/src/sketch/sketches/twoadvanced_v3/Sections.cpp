@@ -319,7 +319,7 @@ Element TwoAdvancedV3::support2a() {
                      .row()
                      .padding(4, 12)
                      .gap(14)
-                     .children({each(page["halves"].items(), half)});
+                     .children({each(page["halves"].array(), half)});
   return module(page["glyph"], page["bar"], std::move(body), 4);
 }
 

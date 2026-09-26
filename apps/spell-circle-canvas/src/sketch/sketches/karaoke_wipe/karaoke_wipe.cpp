@@ -337,15 +337,15 @@ struct Song {
 
 Song songFrom(const sketch::kit::Document& document) {
   Song song;
-  for (const sigil::data::Json& word : document["sung"].items()) {
+  for (const sigil::data::Json& word : document["sung"].array()) {
     if (!song.sung.empty()) song.sung += ' ';
-    song.sung += word[0].text();
+    song.sung += word[0].string();
     song.cues.push_back((float)word[1].number());
-    song.widest = std::max(song.widest, (uint32_t)word[0].text().size());
+    song.widest = std::max(song.widest, (uint32_t)word[0].string().size());
   }
-  song.title = std::string(document["song"].text());
-  song.writers = std::string(document["writers"].text());
-  song.next = std::string(document["next"].text());
+  song.title = std::string(document["song"].string());
+  song.writers = std::string(document["writers"].string());
+  song.next = std::string(document["next"].string());
   return song;
 }
 

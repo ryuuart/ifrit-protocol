@@ -99,13 +99,13 @@ struct Figure {
 
 /** "#e3d7b6" or "#3a3125b8" as a colour. */
 sigil::material::Color colourOf(const data::Json& word) {
-  return sigil::draw::parseColor(word.text("#000000"));
+  return sigil::draw::parseColor(word.string("#000000"));
 }
 
 std::vector<Figure> readFigures(const data::Json& entries, float scale) {
   std::vector<Figure> figures;
-  for (const data::Json& entry : entries.items()) {
-    const std::string_view kind = entry["kind"].text();
+  for (const data::Json& entry : entries.array()) {
+    const std::string_view kind = entry["kind"].string();
     Figure figure{.number = (int)entry["number"].number(),
                   .centre = {(float)entry["centre"][0].number() * scale,
                              (float)entry["centre"][1].number() * scale},
@@ -118,15 +118,15 @@ std::vector<Figure> readFigures(const data::Json& entries, float scale) {
                   .lines = (int)entry["lines"].number(),
                   .semitones = (float)entry["semitones"].number(),
                   .grains = (int)entry["grains"].number()};
-    for (const data::Json& arc : entry["arcs"].items())
+    for (const data::Json& arc : entry["arcs"].array())
       figure.linien.push_back({.diameter = !arc["diameter"].null(),
                                .bearing = (float)arc["bearing"].number(),
                                .compass = (float)arc["compass"].number(),
                                .radius = (float)arc["radius"].number()});
-    for (const data::Json& letter : entry["letters"].items())
+    for (const data::Json& letter : entry["letters"].array())
       figure.letters.push_back({(float)letter[0].number(),
                                 (float)letter[1].number(),
-                                std::string(letter[2].text())});
+                                std::string(letter[2].string())});
     figures.push_back(std::move(figure));
   }
   return figures;

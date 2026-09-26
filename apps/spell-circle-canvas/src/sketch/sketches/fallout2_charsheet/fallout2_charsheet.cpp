@@ -211,18 +211,18 @@ struct Sheet {
     if (!art) return;
     static const std::array<material::Color, 2> kKey{
         material::Color{0, 0, 0, 0}, kNumeral};
-    for (const auto& [digit, grid] : (*art)["digits"].fields()) {
+    for (const auto& [digit, grid] : (*art)["digits"].object()) {
       std::vector<std::string> lines;
-      for (const Json& line : grid.items()) lines.emplace_back(line.text());
+      for (const Json& line : grid.array()) lines.emplace_back(line.string());
       if (auto sprite = kit::pixelMap(lines, {".#", kKey}))
         numerals[digit[0]] = *sprite;
     }
     // Each figure is the one body with the skill's prop in its hand.
     const Json& figure = (*art)["figure"];
-    const std::string body(figure["body"].text());
-    for (const auto& [prop, path] : figure.fields())
+    const std::string body(figure["body"].string());
+    for (const auto& [prop, path] : figure.object())
       if (prop != "body")
-        figures[prop] = shapes::svg((body + " " + std::string(path.text())).c_str(), true);
+        figures[prop] = shapes::svg((body + " " + std::string(path.string())).c_str(), true);
   }
 };
 
@@ -284,15 +284,15 @@ struct Fallout2CharSheet {
     for (float cornerX : {x + 6, x + width - 6})
       for (float cornerY : {y + 6, y + height - 6})
         panel.push_back(kit::disc({px(cornerX), px(cornerY)}, px(2.6f)).fill(kRivet));
-    const auto& stats = sheet.character["special"].items();
+    const auto& stats = sheet.character["special"].array();
     for (size_t row = 0; row < stats.size(); ++row) {
       const Json& stat = stats[row];
       const float top = 37 + 33 * (float)row;
-      panel.push_back(screen(engraved(std::string(stat["stat"].text()) + "-", 29),
+      panel.push_back(screen(engraved(std::string(stat["stat"].string()) + "-", 29),
                              19, top - 5, 40, 30));
       panel.push_back(counter(58, top, (int)stat["value"].number()));
       panel.push_back(
-          screen(text(std::string(stat["grade"].text())), 100, top + 4, 58, 17)
+          screen(text(std::string(stat["grade"].string())), 100, top + 4, 58, 17)
               .fill(kWell)
               .borderRadius(Corners{px(1.5f)})
               .paddingLeft(px(3))
@@ -307,15 +307,15 @@ struct Fallout2CharSheet {
   /** Hit points and the seven conditions, dead grey-green until they
    *  apply; the ten derived statistics; level and experience. */
   Element statistics() const {
-    std::vector<Line> status{{"Hit Points", std::string(sheet.character["hitPoints"].text()), ""}};
-    for (const Json& condition : sheet.character["conditions"].items())
-      status.push_back({std::string(condition.text()), "", "inactive"});
+    std::vector<Line> status{{"Hit Points", std::string(sheet.character["hitPoints"].string()), ""}};
+    for (const Json& condition : sheet.character["conditions"].array())
+      status.push_back({std::string(condition.string()), "", "inactive"});
     std::vector<Line> derived;
-    for (const Json& pair : sheet.character["derived"].items())
-      derived.push_back({std::string(pair[0].text()), std::string(pair[1].text()), ""});
+    for (const Json& pair : sheet.character["derived"].array())
+      derived.push_back({std::string(pair[0].string()), std::string(pair[1].string()), ""});
     std::vector<Line> level;
-    for (const Json& line : sheet.character["level"].items())
-      level.push_back({std::string(line.text()), "", ""});
+    for (const Json& line : sheet.character["level"].array())
+      level.push_back({std::string(line.string()), "", ""});
     return box().inset(0).children(
         {well(188, 37, 130, 118), rows(194, 46, 120, 13, 69, status),
          well(188, 171, 130, 143), rows(194, 179, 120, 13, 94, derived),
@@ -331,8 +331,8 @@ struct Fallout2CharSheet {
            box().height(px(1)).flexGrow(1).fill(Fill::currentInk())});
     };
     const auto entries = [](const Json& list) {
-      return each(list.items(), [](const Json& entry) {
-        return text(std::string(entry.text())).height(px(11)).flexShrink(0);
+      return each(list.array(), [](const Json& entry) {
+        return text(std::string(entry.string())).height(px(11)).flexShrink(0);
       });
     };
     static constexpr std::array<const char*, 3> kTabs{"PERKS", "KARMA", "KILLS"};
@@ -366,12 +366,12 @@ struct Fallout2CharSheet {
    *  the selected row. */
   Element skills() const {
     std::vector<Line> lines;
-    const auto& list = sheet.character["skills"].items();
+    const auto& list = sheet.character["skills"].array();
     for (size_t index = 0; index < list.size(); ++index) {
       const Json& skill = list[index];
       const bool selected = (int)index == state.selected;
       const int value = (int)skill["value"].number() + (selected ? 2 * state.presses : 0);
-      lines.push_back({std::string(skill["name"].text()), std::to_string(value) + "%",
+      lines.push_back({std::string(skill["name"].string()), std::to_string(value) + "%",
                        selected ? "selected" : (skill["tagged"].boolean() ? "tagged" : "")});
     }
     const auto button = [](const char* sign) {
@@ -408,7 +408,7 @@ struct Fallout2CharSheet {
    *  pitch of 11. */
   Element card() const {
     const Json& skill = sheet.character["skills"][(size_t)state.selected];
-    const auto figure = sheet.figures.find(skill["figure"].text("club"));
+    const auto figure = sheet.figures.find(skill["figure"].string("club"));
     Element drawing = screen(180, 42, 64, 124);
     if (figure != sheet.figures.end())
       drawing.shape(figure->second).fill(Fill::none()).stroke(stroke(px(1.1f)));
@@ -425,13 +425,13 @@ struct Fallout2CharSheet {
                        .row()
                        .gap(px(8))
                        .alignItems(Align::Baseline)
-                       .children({engraved(std::string(skill["name"].text()), 26)
+                       .children({engraved(std::string(skill["name"].string()), 26)
                                       .ink(hexColor(0x000000))
                                       .layerStyle(LayerStyle{}),
-                                  text(std::string(skill["formula"].text()))}),
+                                  text(std::string(skill["formula"].string()))}),
                    kit::line({.length = Dimension(px(265)), .thickness = px(2)})
                        .marginTop(px(2)),
-                   text(std::string(skill["blurb"].text()))
+                   text(std::string(skill["blurb"].string()))
                        .width(px(160))
                        .marginTop(px(12))
                        .paragraph({.leading = weave::Leading::absolute(px(11))}),
@@ -464,7 +464,7 @@ struct Fallout2CharSheet {
         {seam(328, 0, 4, 480, false), seam(165, 30, 3, 240, false),
          seam(5, 318, 320, 3, true), each(kPlaques, [&](const auto& plaque) {
            return raised(plaque.second[0], 0, plaque.second[1], 26)
-               .children({engraved(std::string(sheet.character[plaque.first].text()), 26)});
+               .children({engraved(std::string(sheet.character[plaque.first].string()), 26)});
          })});
   }
 

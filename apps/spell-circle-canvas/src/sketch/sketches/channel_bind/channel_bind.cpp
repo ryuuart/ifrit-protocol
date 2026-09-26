@@ -193,7 +193,7 @@ struct ChannelBind {
     // difference: every later ask for the URI answers the replaying feed.
     if (ctx.deterministic) hub.replay(kDesk, ctx.local(kRecording));
 
-    desk = data::Connection(hub, kDesk);
+    desk = data::connect(hub, kDesk);
     // THE CHANNELS STAND AFTER THE DOOR. Both register on the same
     // dispatch and callbacks run in the order they were registered, so
     // each channel reads what the dispatch that opened this frame
@@ -233,9 +233,9 @@ struct ChannelBind {
     Shown now;
     for (size_t index = 0; index != kFaders; ++index)
       now.read[index] = faders[index].lastRead();
-    now.generation = desk.revision();
-    now.undecodable = desk.undecodable();
-    now.trouble = desk.error();
+    now.generation = desk.state().revision;
+    now.undecodable = desk.state().undecodable;
+    now.trouble = desk.state().error;
     if (now == shown) return false;
     shown = std::move(now);
     return true;

@@ -89,18 +89,18 @@ struct Research {
 
 std::vector<std::string> strings(const data::Json& list) {
   std::vector<std::string> out;
-  for (const data::Json& item : list.items()) out.emplace_back(item.text());
+  for (const data::Json& item : list.array()) out.emplace_back(item.string());
   return out;
 }
 
 std::vector<Research> readResearch(const data::Json& document) {
   std::vector<Research> web;
-  for (const data::Json& entry : document["research"].items())
-    web.push_back({.key = std::string(entry["key"].text()),
-                   .title = std::string(entry["title"].text()),
-                   .plate = std::string(entry["plate"].text("square")),
-                   .icon = std::string(entry["icon"].text()),
-                   .state = std::string(entry["state"].text()),
+  for (const data::Json& entry : document["research"].array())
+    web.push_back({.key = std::string(entry["key"].string()),
+                   .title = std::string(entry["title"].string()),
+                   .plate = std::string(entry["plate"].string("square")),
+                   .icon = std::string(entry["icon"].string()),
+                   .state = std::string(entry["state"].string()),
                    .column = (int)entry["column"].number(),
                    .row = (int)entry["row"].number(),
                    .warp = (int)entry["warp"].number(),
@@ -125,8 +125,8 @@ material::Color parseHex(std::string_view hex) {
 kit::Sprite readIcon(const data::Json& icon, bool greyed) {
   std::string characters = ".";
   std::vector<material::Color> colours = {{0, 0, 0, 0}};
-  for (const auto& [character, hex] : icon["palette"].fields()) {
-    const material::Color colour = parseHex(hex.text());
+  for (const auto& [character, hex] : icon["palette"].object()) {
+    const material::Color colour = parseHex(hex.string());
     characters += character;
     colours.push_back(greyed ? material::Color{0.18f, 0.18f, 0.18f, colour.a}
                              : colour);
@@ -421,13 +421,13 @@ struct Thaumonomicon {
                              .oversample = 2});
 
     const auto icon_document = ctx.assets.json(ctx.local("data/icons.json"));
-    for (const auto& [name, icon] : icon_document->fields()) {
+    for (const auto& [name, icon] : icon_document->object()) {
       icons[name] = readIcon(icon, false);
       greyedIcons[name] = readIcon(icon, true);
     }
     const auto document = ctx.assets.json(ctx.local("data/research.json"));
     const std::vector<Research> web = readResearch(*document);
-    const std::string hovered((*document)["hovered"].text());
+    const std::string hovered((*document)["hovered"].string());
 
     // The view is centred on the middle of the web's own bounds.
     int left = 0, right = 0, top = 0, bottom = 0;

@@ -215,14 +215,14 @@ struct FeedEvents {
     kinds.clear();
     shown = {};
 
-    door = data::Connection(hub, kDoor);
-    door.on("Wind", [this](const data::Json& message) { blow(message); });
-    door.on("Gust", [this](const data::Json& message) { gust(message); });
-    door.on("Palette", [this](const data::Json& message) { colours(message); });
+    door = data::connect(hub, kDoor);
+    door.on("Wind", [this](const data::Message& message) { blow(message.payload); });
+    door.on("Gust", [this](const data::Message& message) { gust(message.payload); });
+    door.on("Palette", [this](const data::Message& message) { colours(message.payload); });
     // LAST, AND OVER EVERYTHING: several handlers may name one message
     // and each runs once, in the order they were registered, so this
     // one tallies every kind after the three above have acted on theirs.
-    door.on("*", [this](const data::Json& message) { tally(message); });
+    door.on("*", [this](const data::Message& message) { tally(message.payload); });
 
     read();
     describe(ctx);
@@ -264,7 +264,7 @@ struct FeedEvents {
   /** STATE: the colours the bands are tinted from. A message carrying
    *  fewer leaves the ones it did not reach where they were. */
   void colours(const data::Json& message) {
-    const std::span<const data::Json> written = message["colors"].items();
+    const std::span<const data::Json> written = message["colors"].array();
     for (size_t index = 0; index != kTints && index != written.size(); ++index)
       palette[index] = {(float)written[index][0].number(),
                         (float)written[index][1].number(),
@@ -277,7 +277,7 @@ struct FeedEvents {
    *  name this readout gives it, because a message that named nothing
    *  is still a message that arrived. */
   void tally(const data::Json& message) {
-    const std::string_view named = message["kind"].text("(unnamed)");
+    const std::string_view named = message["kind"].string("(unnamed)");
     for (std::pair<std::string, uint64_t>& counted : kinds)
       if (counted.first == named) {
         ++counted.second;
@@ -289,11 +289,11 @@ struct FeedEvents {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = door.revision(),
-                .undecodable = door.undecodable(),
+    Reading now{.generation = door.state().revision,
+                .undecodable = door.state().undecodable,
                 .kinds = kinds,
-                .address = door.localAddress(),
-                .trouble = door.error()};
+                .address = door.state().localAddress,
+                .trouble = door.state().error};
     if (now == shown) return false;
     shown = std::move(now);
     return true;

@@ -234,14 +234,14 @@ struct PhoneSky {
     messages = 0;
     shown = {};
 
-    phone = data::Connection(hub, door);
-    phone.on("Palette", [this](const data::Json& message) { turn(message); });
-    phone.on("Gust", [this](const data::Json& message) { blow(message); });
+    phone = data::connect(hub, door);
+    phone.on("Palette", [this](const data::Message& message) { turn(message.payload); });
+    phone.on("Gust", [this](const data::Message& message) { blow(message.payload); });
     // LAST, AND OVER EVERYTHING: several handlers may name one message
     // and each runs once, in the order they were registered, so this
     // one counts every message after the two above have acted on
     // theirs — including the kinds nothing here reads.
-    phone.on("*", [this](const data::Json&) { ++messages; });
+    phone.on("*", [this](const data::Message&) { ++messages; });
 
     read();
     describe(ctx);
@@ -291,7 +291,7 @@ struct PhoneSky {
    *  message carrying fewer than there are bands to tint is cycled, so
    *  a page's button may send one colour or three. */
   void turn(const data::Json& message) {
-    const std::span<const data::Json> written = message["colors"].items();
+    const std::span<const data::Json> written = message["colors"].array();
     if (written.empty()) return;
     for (size_t index = 0; index != kTints; ++index) {
       const data::Json& tint = written[index % written.size()];
@@ -338,12 +338,12 @@ struct PhoneSky {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = phone.revision(),
-                .undecodable = phone.undecodable(),
+    Reading now{.generation = phone.state().revision,
+                .undecodable = phone.state().undecodable,
                 .turns = turns,
                 .messages = messages,
-                .address = phone.localAddress(),
-                .trouble = phone.error()};
+                .address = phone.state().localAddress,
+                .trouble = phone.state().error};
     if (now == shown) return false;
     shown = std::move(now);
     return true;

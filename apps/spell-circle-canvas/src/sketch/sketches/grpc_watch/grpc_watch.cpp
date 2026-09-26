@@ -226,9 +226,9 @@ struct GrpcWatch {
     turns = 0;
     shown = {};
 
-    callers = data::Connection(hub, door);
-    callers.on("Palette", [this](const data::Json& message) { turn(message); });
-    callers.on("Gust", [this](const data::Json& message) { blow(message); });
+    callers = data::connect(hub, door);
+    callers.on("Palette", [this](const data::Message& message) { turn(message.payload); });
+    callers.on("Gust", [this](const data::Message& message) { blow(message.payload); });
 
     read();
     describe(ctx);
@@ -279,7 +279,7 @@ struct GrpcWatch {
    *  message carrying fewer than there are bands to tint is cycled, so a
    *  caller may send one colour or three. */
   void turn(const data::Json& message) {
-    const std::span<const data::Json> written = message["colors"].items();
+    const std::span<const data::Json> written = message["colors"].array();
     if (written.empty()) return;
     for (size_t index = 0; index != kTints; ++index) {
       const data::Json& tint = written[index % written.size()];
@@ -327,12 +327,12 @@ struct GrpcWatch {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    Reading now{.generation = callers.revision(),
-                .undecodable = callers.undecodable(),
+    Reading now{.generation = callers.state().revision,
+                .undecodable = callers.state().undecodable,
                 .spoken = spoken,
                 .turns = turns,
-                .address = callers.localAddress(),
-                .trouble = callers.error()};
+                .address = callers.state().localAddress,
+                .trouble = callers.state().error};
     if (now == shown) return false;
     shown = std::move(now);
     return true;

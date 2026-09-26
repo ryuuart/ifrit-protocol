@@ -384,7 +384,7 @@ struct ShippingForecast {
                    .fill(Fill::var(read ? "amber" : "slate-dim"))
                    .opacity(beat(at - 0.08f, at + 0.30f));
              }),
-        each(bulletin["cardinals"].items(),
+        each(bulletin["cardinals"].array(),
              [&](const data::Json& letter, size_t quarter) {
                return text(letter)
                    .styleClass("cardinal")
@@ -739,7 +739,7 @@ struct ShippingForecast {
     const data::Json& page = bulletin["stations"];
     static const char* const kColumnClasses[] = {"place", "wind", "station"};
     std::vector<std::vector<Utf8>> cells;
-    for (const data::Json& row : page["rows"].items())
+    for (const data::Json& row : page["rows"].array())
       cells.push_back({row["place"], row["wind"], row["baro"]});
     const std::vector<std::span<const Utf8>> rows(cells.begin(), cells.end());
     return kit::table(
@@ -779,7 +779,7 @@ struct ShippingForecast {
   [[nodiscard]] Element masthead() {
     const data::Json& page = bulletin["header"];
     std::vector<sketch::kit::Line> slugs;
-    for (const data::Json& slug : page["slugs"].items()) {
+    for (const data::Json& slug : page["slugs"].array()) {
       const float from = 0.55f + slugs.size() * 0.16f;
       slugs.push_back({.words = slug, .opacity = beat(from, from + 0.60f)});
     }
@@ -841,11 +841,11 @@ struct ShippingForecast {
                              .background = kSea});
 
     bulletin = sketch::kit::Document(ctx, "data/content.json");
-    for (const data::Json& area : bulletin["areas"].items())
-      areas.push_back({std::string(area["name"].text()),
+    for (const data::Json& area : bulletin["areas"].array())
+      areas.push_back({std::string(area["name"].string()),
                        (float)area["bearing"].number()});
     const data::Json& hero = bulletin["ring"]["hero"];
-    reading = std::string(hero[0].text()) + " " + std::string(hero[1].text());
+    reading = std::string(hero[0].string()) + " " + std::string(hero[1].string());
     for (const Area& area : areas)
       if (area.name == reading) readingBearing = area.bearing;
 

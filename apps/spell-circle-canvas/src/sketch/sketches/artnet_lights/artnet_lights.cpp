@@ -290,14 +290,14 @@ struct ArtNetLights {
     answered = 0;
     shown = {};
 
-    desk = data::Connection(hub, kDesk);
-    desk.on("Dmx", [this](const data::Json& message) { levels(message); });
+    desk = data::connect(hub, kDesk);
+    desk.on("Dmx", [this](const data::Message& message) { levels(message.payload); });
 
     // THE WAY BACK IS A WINDOW'S ALONE. A capture has no desk in front
     // of it, and a plate that opened a socket would depend on what
     // happened to answer at that address.
     console = ctx.deterministic ? data::Connection()
-                                : data::Connection(hub, kConsole);
+                                : data::connect(hub, kConsole);
 
     read();
     describe(ctx);
@@ -410,7 +410,7 @@ struct ArtNetLights {
   /** Takes what the connection answers, and says whether the readout
    *  standing now was written from something else. */
   bool read() {
-    const data::Json& newest = desk.latest("Dmx");
+    const data::Json& newest = desk.latest("Dmx").payload;
     const data::Json& channels = newest["channels"];
     std::string dimmers;
     for (size_t at = 0; at != kShownChannels; ++at)
@@ -418,13 +418,13 @@ struct ArtNetLights {
                                             "%4d", (int)channels[at].number())
                                       : std::string("   -");
     Reading now{
-        .generation = desk.revision(),
-        .undecodable = desk.undecodable(),
+        .generation = desk.state().revision,
+        .undecodable = desk.state().undecodable,
         .answered = answered,
         .universe = newest.null() ? -1 : (int)newest["universe"].number(),
         .dimmers = std::move(dimmers),
-        .address = desk.localAddress(),
-        .trouble = desk.error()};
+        .address = desk.state().localAddress,
+        .trouble = desk.state().error};
     if (now == shown) return false;
     shown = std::move(now);
     return true;
