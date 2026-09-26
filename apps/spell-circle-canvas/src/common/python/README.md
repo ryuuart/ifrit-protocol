@@ -125,7 +125,7 @@ the second template argument wherever it is not pybind11's own
 `std::unique_ptr`:
 
 ```cpp
-extend<media::Image, std::shared_ptr<media::Image>>(module, "media.Image");
+extend<Image, std::shared_ptr<Image>>(module, "media.Image");
 ```
 
 Adding methods and properties through the wrong one still works; adding
