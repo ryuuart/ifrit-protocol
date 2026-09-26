@@ -33,6 +33,9 @@ def show(node: ast.AST | None) -> str:
 
 def erased_annotation(node: ast.AST | None) -> bool:
     text = show(node)
+    # An optional parameter keeps the erasure of the type it makes optional.
+    if text.endswith(" | None"):
+        return erased_annotation(expression(text.removesuffix(" | None")))
     return any(
         token in text for token in ("typing.Any", "...", "os.PathLike |")
     ) or text in {
