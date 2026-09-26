@@ -19,8 +19,6 @@
 #   SigilComposeTesting     testing/     the read-back checks (headers)
 #   SigilComposeTexture     texture/     a scene painted into a surface and
 #                                        handed over as a material texture
-#   SigilComposeVideo       video/       a streaming SigilMediaVideo leaf sampled
-#                                        by the composer's motion clock
 #   SigilComposeWeb         web/         the Ultralight leaf (headers; only
 #                                        with SigilScry)
 #   SigilComposeDraw        draw/        the door to SigilDraw's pen, both
@@ -94,7 +92,6 @@ add_subdirectory(testing)
 add_subdirectory(typography)
 add_subdirectory(brush)
 add_subdirectory(texture)
-add_subdirectory(video)
 add_subdirectory(web)
 add_subdirectory(draw)
 add_subdirectory(kit)
@@ -224,12 +221,14 @@ sigil_doc_probes(compose
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/paint
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/filter
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
+           ${CMAKE_CURRENT_SOURCE_DIR}/../media/include/sigilmedia/core
            ${CMAKE_CURRENT_SOURCE_DIR}/../skia/include/sigilskia/draw
            ${CMAKE_CURRENT_SOURCE_DIR}/../draw/include/sigildraw
            ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../../test
   PRELUDES "\"support/DocsTestSupport.h\""
            "<sigilskia/draw/Direct.h>"
+           "<sigilmedia/video/Video.h>"
   SKIP_HEADERS Web.h
   EXCLUDE "kit::PatternHyphenator=${weave_owned}"
           "kit::englishHyphenator=${weave_owned}"
@@ -239,13 +238,14 @@ sigil_doc_probes(compose
           "media::distanceField=${weave_owned}"
   FLOORS 280,190,150,220,5
   LIBRARIES SigilComposeCore SigilComposeKit SigilComposeBrush
-            SigilComposeTypography SigilComposeVideo SigilComposeDraw
-            SigilComposeTesting SigilWeavePorts SigilSkiaDraw)
+            SigilComposeTypography SigilComposeDraw
+            SigilComposeTesting SigilWeavePorts SigilSkiaDraw
+            SigilMediaVideoDecode)
 
 sigil_test(compose_test
   SOURCES test/ComposeTestDocs.cpp
   LIBRARIES compose_api_doc_probes SigilComposeCore SigilComposeKit
-            SigilComposeBrush SigilComposeTypography SigilComposeVideo
+            SigilComposeBrush SigilComposeTypography
             SigilComposeDraw SigilComposeTesting SigilWeavePorts)
 
 # Every public header compiles first and alone. Compose.h says each
@@ -260,7 +260,7 @@ file(GLOB_RECURSE COMPOSE_SELF_TEST_HEADERS
      CONFIGURE_DEPENDS include/sigilcompose/*.h)
 set(COMPOSE_SELF_TEST_LIBRARIES
     SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
-    SigilComposeVideo SigilComposeDraw SigilComposeTexture)
+    SigilComposeDraw SigilComposeTexture)
 if(TARGET SigilComposeWeb)
   list(APPEND COMPOSE_SELF_TEST_LIBRARIES SigilComposeWeb)
 else()

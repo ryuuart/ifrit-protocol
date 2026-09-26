@@ -552,7 +552,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   // Content.
   if (!textEqual(a, b)) return false;
   if ((bool)a.imageData != (bool)b.imageData) return false;
-  if (a.imageData && (a.imageData->asset != b.imageData->asset ||
+  if (a.imageData && (!(a.imageData->source == b.imageData->source) ||
                       a.imageData->region != b.imageData->region))
     return false;
   return true;

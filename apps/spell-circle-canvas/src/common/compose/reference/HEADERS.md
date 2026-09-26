@@ -709,22 +709,18 @@ first installed family of a fallback chain
 (`<sigilweave/ports/SystemFontManager.h>`). `kit/Legibility.h` ships with
 this tier.
 
-**Leaves with their own targets.** `video/Video.h` makes a streaming
-`SigilMediaVideo` clip a live leaf. `video(clip)` takes its intrinsic dimensions
-from the encoded frame, samples presentation time from the composer's motion
-clock, and disables picture caching while the clip's own decoded-frame cache
-stays active. On a Graphite canvas the leaf passes its recorder to the video
-device executor, so a native YUV frame remains on the GPU through composition;
-the compose kernel links no codec. `material::Fit` states how the decoded frame meets its box, under
-the same four names every other source meets one by. The leaf's
-`VideoOptions` also carries opacity and blend mode into its single image draw,
-so an additive black-backed effect does not need a grouping layer.
-`video(clip, playback)` is the many-video form: share one playback scheduler
-across the scene so decode work is coalesced on a bounded worker pool and no
-leaf waits for its decoder during paint; the clip registers with the
-scheduler once, so describing the scene again reuses its handle. Passing that
-handle explicitly to several video leaves fans one decoded frame out to
-several compositions. `web/Web.h` makes a live
+**One leaf for every picture.** `image()` takes a
+`sigil::media::PixelSource` — a decoded image or animation, a video, a
+picture in hand, frames another application publishes, a rendered scene —
+and draws the frame it answers at the composer's elapsed time, so a moving
+source is a live leaf and a still one caches. A frame standing on a device
+— a hardware-decoded video frame, a publication — is bound for the
+recorder the canvas records on and stays on the GPU through composition;
+the compose kernel links no codec. `material::Fit` states how the source
+meets its box, and the node's own `opacity()` and `blendMode()` apply to
+the one draw it makes. A video opened on a decode pool is painted from the
+newest frame the pool finished, so no leaf waits for its decoder and
+several leaves over one clip share its decode. `web/Web.h` makes a live
 Ultralight page a leaf; it is a header-only adapter and the library does
 not link SigilScry, so include it only in targets that do.
 `texture/Texture.h` is the door OUT of this library: a scene painted into

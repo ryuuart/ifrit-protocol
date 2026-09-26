@@ -752,8 +752,7 @@ type), `SigilComposeBrush` (`brush/` — decorations, lines, brushes, the
 stroke grammar's engine and the mask gates, with `kit/Flourish.h`,
 `kit/Ornament.h`, `kit/Plate.h` and `kit/Strokes.h`),
 `SigilComposeTexture` (`texture/` — a scene painted into a surface and
-handed out as a texture value), `SigilComposeVideo` (`video/` — a
-streaming SigilMediaVideo clip sampled from the motion engine),
+handed out as a texture value, a `media::PixelSource` built from a scene),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
 `SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the

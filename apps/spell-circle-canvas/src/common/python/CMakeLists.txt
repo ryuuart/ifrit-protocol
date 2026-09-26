@@ -64,7 +64,7 @@ sigil_library(SigilPython
     SigilMotionValues SigilComposeBrush SigilGeometryPath SigilGeometryKit
   PRIVATE
     SigilCoreCompute SigilCoreHardware SigilCoreReconcile SigilComposeDraw
-    SigilComposeTexture SigilComposeTypography SigilComposeVideo
+    SigilComposeTexture SigilComposeTypography
     SigilDataConnection SigilDataDecode SigilDataQuery SigilDataRead SigilDataScale
     SigilDataTable SigilDataValues SigilDraw SigilDrawBrush
     SigilDrawBrushFormat SigilGeometryDevice SigilGeometryMesh

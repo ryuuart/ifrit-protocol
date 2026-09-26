@@ -1,10 +1,16 @@
+/** @file
+ * The image leaf over a moving source: a clip read on the composer's
+ * motion clock, fitted to its box, shared by two leaves through one
+ * decode pool, and painted with the node's own opacity and blend.
+ */
+
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
-#include <sigilcompose/video/Video.h>
 #include <sigilmedia/video/Encoder.h>
+#include <sigilmedia/video/Video.h>
 
 #include <cstddef>
 #include <memory>
@@ -57,7 +63,7 @@ bool redAt(SkSurface& surface, int x, int y) {
 
 }  // namespace
 
-TEST(ComposeVideo, ClipIsALiveSizedLeaf) {
+TEST(ComposeMovingImage, AClipIsALiveLeafAtItsOwnSize) {
   const auto clip = redClip();
   ASSERT_NE(clip, nullptr);
   sigil::motion::Engine engine;
@@ -67,7 +73,7 @@ TEST(ComposeVideo, ClipIsALiveSizedLeaf) {
                       .fill(Fill::color({0, 0, 1, 1}))
                       .alignItems(Align::Center)
                       .justifyContent(Justify::Center)
-                      .children({video(clip)}));
+                      .children({image(clip)}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 128));
@@ -83,7 +89,7 @@ TEST(ComposeVideo, ClipIsALiveSizedLeaf) {
   EXPECT_EQ(sample.getColor(0, 0), SK_ColorBLUE);
 }
 
-TEST(ComposeVideo, AClipOnAPoolPaintsEveryLeafThatShowsIt) {
+TEST(ComposeMovingImage, AClipOnAPoolPaintsEveryLeafThatShowsIt) {
   // No worker: the leaf's ask decodes inside paint, so the frame it reads
   // back is the one it asked for. The production pool differs only in
   // where the decode runs.
@@ -95,8 +101,8 @@ TEST(ComposeVideo, AClipOnAPoolPaintsEveryLeafThatShowsIt) {
   Composer composer(engine, fonts());
   composer.setSize({128, 64});
   composer.render(stack().children(
-      {video(clip).rect(SkRect::MakeXYWH(0, 0, 64, 64)),
-       video(clip).rect(SkRect::MakeXYWH(64, 0, 64, 64))}));
+      {image(clip, material::Fit::Stretch).rect(SkRect::MakeXYWH(0, 0, 64, 64)),
+       image(clip, material::Fit::Stretch).rect(SkRect::MakeXYWH(64, 0, 64, 64))}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 64));
@@ -107,7 +113,7 @@ TEST(ComposeVideo, AClipOnAPoolPaintsEveryLeafThatShowsIt) {
   EXPECT_TRUE(redAt(*surface, 96, 32));
 }
 
-TEST(ComposeVideo, LeafCompositesItsSingleDrawWithoutAGroupingNode) {
+TEST(ComposeMovingImage, TheLeafTakesTheNodesOpacityAndBlend) {
   const auto clip = redClip();
   ASSERT_NE(clip, nullptr);
   sigil::motion::Engine engine;
@@ -115,9 +121,9 @@ TEST(ComposeVideo, LeafCompositesItsSingleDrawWithoutAGroupingNode) {
   composer.setSize({64, 64});
   composer.render(box()
                       .fill(Fill::color({0, 0, 1, 1}))
-                      .children({video(clip, {.fit = material::Fit::Cover,
-                                              .opacity = 0.5f,
-                                              .blend = SkBlendMode::kPlus})}));
+                      .children({image(clip, material::Fit::Cover)
+                                     .opacity(0.5f)
+                                     .blendMode(material::BlendMode::PlusLighter)}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(64, 64));

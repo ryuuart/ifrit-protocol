@@ -16,7 +16,8 @@
 #include <include/core/SkTypes.h>  // SkASSERT
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilmedia/core/Image.h>
+#include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/ComposeCore.h>
@@ -919,18 +920,21 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         }
         break;
       case Kind::Image:
-        if (imageAssetOf(node) && !imageAssetOf(node)->frames().empty()) {
-          const sigil::media::Frame frame = imageAssetOf(node)->frameAt(
-              std::chrono::duration<double>(elapsed()));
-          if (frame.image) {
+        if (const sigil::media::PixelSource* source = imageSourceOf(node)) {
+          // A frame standing on a device is bound for the recorder this
+          // canvas records on, and read back where the canvas has none.
+          const sk_sp<SkImage> picture = sigil::media::deviceImage(
+              source->frameAt(std::chrono::duration<double>(elapsed())),
+              canvas.recorder());
+          if (picture) {
             const SkSamplingOptions sampling = inst.sampling.value_or(
                 SkSamplingOptions{SkFilterMode::kLinear});
             if (node.imageData->region)
-              canvas.drawImageRect(frame.image, *node.imageData->region, bounds,
+              canvas.drawImageRect(picture, *node.imageData->region, bounds,
                                    sampling, nullptr,
                                    SkCanvas::kStrict_SrcRectConstraint);
             else
-              canvas.drawImageRect(frame.image, bounds, sampling);
+              canvas.drawImageRect(picture, bounds, sampling);
           }
         }
         break;

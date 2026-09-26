@@ -13,6 +13,7 @@
 #include <sigilcore/reconcile/Reads.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilmotion/advanced/Held.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/Story.h>
@@ -245,7 +246,7 @@ struct RuleTextLayer {
 };
 
 struct ImageData {
-  std::shared_ptr<const sigil::media::Image> asset;
+  sigil::media::PixelSource source;
   std::optional<SkRect> region;  // atlas sub-rect, source px
 };
 

@@ -12,18 +12,21 @@ common_verbs: [imageRendering, imageRegion, width, height, borderRadius, overflo
 
 # image
 
-A picture as a leaf: an asset the resource layer decoded, or a picture
-already rendered — a bake taken on an intermediate surface, a frame out
-of a file, a texture a device handed back.
+A picture as a leaf, still or moving: anything that is a
+`sigil::media::PixelSource` — an image or animation the resource layer
+decoded, a video read on the motion clock, a picture already rendered (a
+bake taken on an intermediate surface, a texture a device handed back),
+frames another application publishes, a rendered scene.
 
 <!-- example: image_element -->
 
 ## Syntax
 
 ```cpp
-Element image(std::shared_ptr<const sigil::media::Image> asset);
-Element image(sk_sp<SkImage> picture,
-              material::Fit fit = material::Fit::Contain);
+Image image(sigil::media::PixelSource source,
+            material::Fit fit = material::Fit::Native);
+Image image(sk_sp<SkImage> picture,
+            material::Fit fit = material::Fit::Contain);
 ```
 
 ```python
@@ -35,14 +38,18 @@ def image(image: skia.Image,
 
 | Parameter | What it is | Where one comes from |
 |---|---|---|
-| `asset` | A decoded image with its own identity. | SigilMedia's asset vocabulary, through the sketch's assets |
+| `source` | Where the pixels come from: an `Image`, a `Video`, a publication, a scene, a picture. | `hub.load<media::Image>(uri)`, `hub.load<media::Video>(uri)`, the sketch's assets |
 | `picture` | A picture already rendered. | A snapshot, a decode, a device texture |
 | `fit` | How the picture meets the box it is given. | [`material::Fit`](../../ELEMENTS.md#the-kernel): `Stretch`, `Contain`, `Cover`, `Native` |
 
 ## Description
 
-**The asset leaf takes its intrinsic size from the asset** and is sized
-like any other node from there.
+**The source leaf draws the frame its source answers at the composer's
+elapsed time**, so an animation or a video plays on the motion clock —
+placed by the `media::Timing` the source was made with — and a moving
+source keeps the node live while a still one caches. Under `Native` it
+asks nothing of the box; under the other fits it meets the box as a
+picture does, below.
 
 **The picture leaf takes the box it stands in** under every fit, and
 under `Contain` and `Cover` the node itself carries the picture's

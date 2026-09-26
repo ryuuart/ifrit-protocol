@@ -17,6 +17,7 @@
 #include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/Utf8.h>
 #include <sigilmaterial/skia/Paint.h>  // material::Fit — how a picture meets its box
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/style/Style.h>
@@ -30,11 +31,6 @@
 #include <string_view>
 #include <type_traits>
 #include <vector>
-
-namespace sigil::media {
-// What the image factory draws, defined in <sigilmedia/core/Image.h>.
-class Image;
-}  // namespace sigil::media
 
 namespace sigil::weave {
 // The two composed text values the text factories take, defined in
@@ -190,13 +186,25 @@ Text frame(sigil::weave::Story story);
  *  pointer means "content changed" and re-shapes. */
 Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
           sigil::weave::ParagraphLayoutOptions options = {});
-/** AN IMAGE LEAF over a decoded asset. Its intrinsic size is the
- *  asset's own pixels, so a leaf given no size takes them; the `Fit`
- *  overload below says what happens when it is given a box of another
- *  shape, `imageRegion()` draws one sub-rect of an atlas, and
- *  `imageRendering()` — inherited from any ancestor — says how the
- *  pixels are filtered. A null asset draws nothing. */
-Image image(std::shared_ptr<const sigil::media::Image> asset);
+/** AN IMAGE LEAF over any source of pixels: a decoded image or
+ *  animation, a video, a picture in hand, frames another application
+ *  publishes, a rendered scene — `sigil::media::PixelSource`. The frame
+ *  drawn is the one the source answers at the composer's elapsed time, so
+ *  an animation and a video play on the motion clock, placed by the
+ *  `sigil::media::Timing` the source was made with.
+ *
+ *      image(poster)                                   // its own pixels
+ *      image(clip, material::Fit::Cover)               // a video filling its box
+ *      image(media::PixelSource(clip, {.start = 410ms, .rate = 0.72}))
+ *
+ *  @p fit is how the source meets a box of another shape, as it is for a
+ *  picture below; `Native`, the default, asks nothing of the box, so a
+ *  leaf given no size stands at the source's own pixels.
+ *  `imageRegion()` draws one sub-rect of an atlas and `imageRendering()` —
+ *  inherited from any ancestor — says how the pixels are filtered. An
+ *  empty source draws nothing. */
+[[nodiscard]] Image image(sigil::media::PixelSource source,
+                          material::Fit fit = material::Fit::Native);
 
 /** A PLATE WEARING A PICTURE THAT IS ALREADY RENDERED: a bake taken on an
  *  intermediate surface, a frame decoded out of a file, a texture a
@@ -205,8 +213,8 @@ Image image(std::shared_ptr<const sigil::media::Image> asset);
  *      well({.width = kCell, .height = kCell},
  *           image(frame, material::Fit::Cover))
  *
- *  It is the `ImageAsset` leaf with the wrap written once and the FIT
- *  said where the picture is, so a cell showing a bake states no matrix
+ *  It is the source leaf above over a picture in hand, the fit defaulting
+ *  to `Contain` where the picture is, so a cell showing a bake states no matrix
  *  of its own. The fit is the one SigilMaterial states for a source
  *  meeting a box: `Stretch` takes both axes independently, `Contain`
  *  keeps the proportions and leaves the slack, `Cover` keeps them and
@@ -248,8 +256,8 @@ Element custom(std::string_view key, PaintProgram program);
 
 /** A RECORDED PICTURE AS A LEAF — the door out of a bake.
  *
- *  `snapshot()` hands back an `SkPicture` and `image()` takes an
- *  `ImageAsset`, so a caller who has baked a subtree has, until now, had
+ *  `snapshot()` hands back an `SkPicture` and `image()` takes a pixel
+ *  source, so a caller who has baked a subtree has, until now, had
  *  to draw it back through `custom()`. That forfeits exactly what the
  *  bake was taken for: an unkeyed program is incomparable, so its node
  *  re-records every describe, and a caller who reaches for

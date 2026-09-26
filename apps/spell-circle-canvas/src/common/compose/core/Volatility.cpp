@@ -251,8 +251,8 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
     }
     return false;
   }();
-  const bool imageLive = node.kind == Kind::Image && imageAssetOf(node) &&
-                         imageAssetOf(node)->isRunning();
+  const bool imageLive = node.kind == Kind::Image && imageSourceOf(node) &&
+                         imageSourceOf(node)->isRunning();
   // A LIVE effect: the filter is captured by the recording, so bound
   // uniforms on it are content volatility, exactly as they are on a fill
   // material. Split by WHICH effect, because the two answer differently to

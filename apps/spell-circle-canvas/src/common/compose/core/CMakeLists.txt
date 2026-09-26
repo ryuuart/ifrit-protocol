@@ -162,3 +162,10 @@ sigil_bench(compose_bench
           bench/ComposeCoreSceneBench.cpp
   LIBRARIES SigilComposeCore EnTT::EnTT SigilWeavePorts
   GPU_LIBRARIES SigilSkia)
+
+# The image leaf over a moving source: a clip the test encodes in memory
+# and opens, with a decode pool and without one.
+sigil_test(compose_test
+  SOURCES test/ComposeTestMovingImage.cpp
+  LIBRARIES SigilComposeCore SigilMediaVideoDecode SigilMediaVideoEncode
+            SigilWeavePorts)

@@ -70,7 +70,6 @@ it is what a connecting operator attaches, from where the nodes settled —
 | `feed` | `kit/Feed.h` | A column of arrivals from a ring, oldest cut as new ones land. |
 | `pen` | `draw/Draw.h` | A node running a pen program — the door to the immediate-mode pen. |
 | `graphics` | `draw/Draw.h` | The same door with its own coordinate space, sized by the node. |
-| `video` | `video/Video.h` | A video frame sampled from the composer's motion clock. |
 | `web` | `web/Web.h` | A live web page as a leaf. |
 
 ## What Python spells differently
@@ -86,15 +85,16 @@ numbers where C++ takes one size value. `compose.pen` and
 beside it.
 
 Not bound: `each` — a Python comprehension is the same list — and
-`custom`, `band`, `feed`, `instances`, `video` and `web`. `compose.pen` is the Python door for a node that draws its own
+`custom`, `band`, `feed`, `instances` and `web`. `compose.pen` is the Python door for a node that draws its own
 content.
 
 ## Where they live
 
 - `core/Factories.h` — `box`, `stack`, `positioned`, `point`, `text`,
   `frame`, `image`, `picture`, `pathFigure`, `custom`, `layout`, `slot`, `memo`
-  and `each`; the fit a picture meets its box under is
-  `material::Fit`.
+  and `each`; `image` takes any `media::PixelSource` — a still, an
+  animation, a video on the motion clock, a publication, a scene — and the
+  fit a picture meets its box under is `material::Fit`.
 - `core/Derive.h` — `band`, with the `Anchor` a wire is strung through
   and the `RailRouter` that routes it.
 - `core/Instances.h` — `instances`, and `pick`, which answers which
@@ -102,5 +102,4 @@ content.
 - `kit/Feed.h` — `feed` over a `Ring`, with the `Options` it is shaped
   by.
 - `draw/Draw.h` — `pen` and `graphics`, which run a `PenProgram`.
-- `video/Video.h` — `video`, with the `VideoOptions` it plays under.
 - `web/Web.h` — `web`.

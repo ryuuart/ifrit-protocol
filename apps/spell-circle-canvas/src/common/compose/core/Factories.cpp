@@ -106,33 +106,32 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
   return e;
 }
 
-Image image(std::shared_ptr<const sigil::media::Image> asset) {
-  Image e{std::make_shared<detail::ElementNode>()};
-  e.node()->kind = Kind::Image;
-  e.node()->imageData.ensure().asset = std::move(asset);
-  return e;
-}
-
-Image image(sk_sp<SkImage> picture, material::Fit fit) {
-  if (!picture) return image(std::shared_ptr<const sigil::media::Image>());
-  const float w = (float)picture->width();
-  const float h = (float)picture->height();
-  Image leaf = image(sigil::media::Image::of(std::move(picture)));
-  // Native asks nothing of the box, and the leaf already measures the
-  // picture's own pixels.
+Image image(sigil::media::PixelSource source, material::Fit fit) {
+  const SkISize size = source.size();
+  Image leaf{std::make_shared<detail::ElementNode>()};
+  leaf.node()->kind = Kind::Image;
+  leaf.node()->imageData.ensure().source = std::move(source);
+  // Native asks nothing of the box.
   if (fit == material::Fit::Native) return leaf;
   // THE FIT IS LAYOUT AND NOT A MATRIX: the leaf takes the box it stands
   // in, and where its proportions are kept the node itself is the right
   // shape — so what is painted is the whole of the node and a caller
   // computes nothing.
-  if (fit == material::Fit::Stretch || w <= 0.0f || h <= 0.0f)
+  const float width = (float)size.width();
+  const float height = (float)size.height();
+  if (fit == material::Fit::Stretch || width <= 0.0f || height <= 0.0f)
     return leaf.width(pct(100)).height(pct(100));
-  leaf.aspectRatio(w / h);
+  leaf.aspectRatio(width / height);
   if (fit == material::Fit::Contain)
     leaf.width(pct(100)).maxWidth(pct(100)).maxHeight(pct(100));
   else
     leaf.height(pct(100)).minWidth(pct(100));
   return leaf;
+}
+
+Image image(sk_sp<SkImage> picture, material::Fit fit) {
+  if (!picture) return image(sigil::media::PixelSource());
+  return image(sigil::media::PixelSource(std::move(picture)), fit);
 }
 
 Element custom(PaintProgram program) {
