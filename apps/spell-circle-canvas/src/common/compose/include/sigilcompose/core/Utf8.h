@@ -61,6 +61,13 @@ class Utf8 {
       { value.text() } -> std::convertible_to<std::string_view>;
     }
   Utf8(const Read& value) : m_bytes(widen(std::string_view(value.text()))) {}
+  /** A value that reads itself out as a string — a JSON document's node,
+   *  whose `string()` is its text. */
+  template <class Read>
+    requires requires(const Read& value) {
+      { value.string() } -> std::convertible_to<std::string_view>;
+    }
+  Utf8(const Read& value) : m_bytes(widen(std::string_view(value.string()))) {}
 
   /** The bytes, as the text vocabulary takes them. */
   [[nodiscard]] const std::u8string& bytes() const { return m_bytes; }

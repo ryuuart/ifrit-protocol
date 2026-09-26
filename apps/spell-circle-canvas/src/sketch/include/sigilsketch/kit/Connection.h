@@ -4,7 +4,7 @@
  * @ingroup sketch-kit
  *
  * A DOOR'S OWN WORDS: the readout of what a data connection says about
- * itself — where it is, how many messages have arrived, how many fell
+ * itself — where it is, whether it stands, how many messages have arrived, how many fell
  * off behind a reader, how many were no message, and who sent the newest
  * or what went wrong — as rows of a name and the figure that answers it.
  */
@@ -29,11 +29,11 @@ struct ConnectionReadout {
   compose::kit::Rows rows;
 };
 
-/** THE READOUT OF @p connection's vitals, taken as it is called: the
- *  door, its generation, how many arrivals it dropped, how many were
- *  undecodable, and the sender of the newest message — `-` where nobody
- *  sent one — or, where the door reports an error, that error standing
- *  in the sender's row. Every figure is what the connection answers;
+/** THE READOUT OF @p connection's state, taken as it is called: the
+ *  door, whether it is connecting, open or closed, its revision, how many
+ *  arrivals it dropped, how many were undecodable, and the sender of the
+ *  newest message — `-` where nobody sent one — or, where the door
+ *  reports an error, that error standing in the sender's row. Every figure is what the connection answers;
  *  nothing is computed about the messages.
  *
  *      sketch::kit::connectionReadout(sky, {.rows = {.measure = 360}})

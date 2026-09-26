@@ -799,7 +799,7 @@ state stands behind a pointer, as a connection's does.
 
 | | |
 | --- | --- |
-| `sketch::kit::connectionReadout` | a `data::Connection`'s vitals as the compose kit's readout rows: the door, its generation, what it dropped, what was undecodable, and the newest sender — or its error in that row |
+| `sketch::kit::connectionReadout` | a `data::Connection`'s state as the compose kit's readout rows: the door, whether it is connecting, open or closed, its revision, what it dropped, what was undecodable, and the newest sender — or its error in that row |
 | `sketch::kit::ConnectionReadout` | what the door row calls the door where the transport bound no address, and how the rows range |
 
 ```cpp
@@ -808,9 +808,9 @@ sketch::kit::connectionReadout(sky, {.door = "the sky's recording",
 ```
 
 **EVERY FIGURE IS WHAT THE DOOR ANSWERS.** The rows are read off one
-`data::Connection::Vitals` taken as the readout is described, so a sketch
-that shows a door's state keeps the vitals it last showed and describes
-again exactly when `connection.vitals() != shown`, and the readout it
+`data::ConnectionState` taken as the readout is described, so a sketch
+that shows a door's state keeps the state it last showed and describes
+again exactly when `connection.state() != shown`, and the readout it
 describes says what that value says, in one order for every door. The
 door row is the address the transport bound; a recording binds none, so
 there it is `ConnectionReadout::door`, what the sketch calls the door,
@@ -849,7 +849,7 @@ A leaf may not invent what an ancestor should own.
   over it — `data::Connection`, opened by the sketch on the hub its assets
   carry. `Channel` follows ONE number of what a connection already answers:
   it opens nothing, decodes nothing, and registers no handler of its own.
-  What a door says about itself is `data::Connection::vitals()`, a value of
+  What a door says about itself is `data::Connection::state()`, a value of
   SigilData's; `connectionReadout` only sets its rows.
 * Numbers a sketch measured about its own execution — `ctx.measured`,
   before they reach any component here. A sketch that draws its own

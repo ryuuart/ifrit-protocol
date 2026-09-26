@@ -224,10 +224,10 @@ TEST(Assets, ADocumentIsReadWholeAndReloadedWhenItsFileChanges) {
   assets.mountSketch("study", dir.path);
   const auto document = assets.json("sketch://study/data/content.json");
   ASSERT_TRUE(document);
-  EXPECT_EQ((*document)["title"].text(), "A2");
+  EXPECT_EQ((*document)["title"].string(), "A2");
   EXPECT_TRUE((*document)["lines"][0]["marked"].boolean());
   EXPECT_TRUE((*document)["absent"]["deeper"].null());
-  EXPECT_EQ((*document)["absent"].text("fallback"), "fallback");
+  EXPECT_EQ((*document)["absent"].string("fallback"), "fallback");
   EXPECT_EQ(assets.json("sketch://study/data/missing.json"), nullptr);
 
   write(R"({"title": "A3"})");
@@ -235,6 +235,6 @@ TEST(Assets, ADocumentIsReadWholeAndReloadedWhenItsFileChanges) {
       dir.path / "data" / "content.json",
       std::filesystem::file_time_type::clock::now() + std::chrono::seconds(2));
   EXPECT_TRUE(assets.poll());
-  EXPECT_EQ((*assets.json("sketch://study/data/content.json"))["title"].text(),
+  EXPECT_EQ((*assets.json("sketch://study/data/content.json"))["title"].string(),
             "A3");
 }

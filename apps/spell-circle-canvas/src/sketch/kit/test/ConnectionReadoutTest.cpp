@@ -1,6 +1,6 @@
 /** @file
- * A door's own words: the readout of a connection's vitals is the compose
- * kit's readout of the rows those vitals answer — for a door that is open
+ * A door's own words: the readout of a connection's state is the compose
+ * kit's readout of the rows that state answers — for a door that is open
  * and has heard a sender, one that has shut and bound no address, one
  * whose transport failed after it opened, and one whose URI never opened
  * at all.
@@ -57,7 +57,7 @@ Element onTheSheet(Element tree) {
       .children({std::move(tree)});
 }
 
-/** The readout spelled by hand from the five rows a door's readout
+/** The readout spelled by hand from the six rows a door's readout
  *  holds, in its order. */
 Element byHand(std::vector<compose::kit::Reading> rows) {
   return onTheSheet(compose::kit::readout(rows, {.measure = 300}));
@@ -66,16 +66,17 @@ Element byHand(std::vector<compose::kit::Reading> rows) {
 TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", binding("ws://127.0.0.1:8848"));
-  data::Connection sky(hub, "ws://:8848/sky");
+  data::Connection sky = data::connect(hub, "ws://:8848/sky");
   inletOf(sky.feed()).deliver(bytesOf(R"({"kind":"gust"})"), "ws://127.0.0.1:52341");
   inletOf(sky.feed()).deliver(bytesOf("this is no document at all"),
                               "ws://127.0.0.1:52341");
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
-  ASSERT_EQ(sky.revision(), 2u);
+  ASSERT_EQ(sky.state().revision, 2u);
 
   EXPECT_TRUE(sameDrawing(
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),
       byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8848"},
+              {.name = u8"state", .value = u8"open"},
               {.name = u8"revision", .value = u8"2"},
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"1"},
@@ -85,13 +86,14 @@ TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
 TEST(SketchKitConnectionReadout, AShutDoorWithNoAddressReadsWhatItIsCalled) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", binding(""));
-  data::Connection sky(hub, "ws://:8849/sky");
+  data::Connection sky = data::connect(hub, "ws://:8849/sky");
   sky.feed().close();
-  ASSERT_TRUE(sky.closed());
+  ASSERT_EQ(sky.state().readiness, sigil::io::ReadyState::Closed);
 
   // Named by the sketch where it names the door, and by its URI where not.
   const auto rows = [](std::u8string_view door) {
     return byHand({{.name = u8"door", .value = door},
+                   {.name = u8"state", .value = u8"closed"},
                    {.name = u8"revision", .value = u8"0"},
                    {.name = u8"dropped", .value = u8"0"},
                    {.name = u8"undecodable", .value = u8"0"},
@@ -109,15 +111,16 @@ TEST(SketchKitConnectionReadout, AShutDoorWithNoAddressReadsWhatItIsCalled) {
 TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", binding("ws://127.0.0.1:8850"));
-  data::Connection sky(hub, "ws://:8850/sky");
+  data::Connection sky = data::connect(hub, "ws://:8850/sky");
   inletOf(sky.feed()).fail("port 8850 is in use");
-  ASSERT_EQ(sky.error(), "port 8850 is in use");
+  ASSERT_EQ(sky.state().error, "port 8850 is in use");
 
   const Element readout =
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}}));
   EXPECT_TRUE(sameDrawing(
       readout,
       byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8850"},
+              {.name = u8"state", .value = u8"closed"},
               {.name = u8"revision", .value = u8"0"},
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"0"},
@@ -126,6 +129,7 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   EXPECT_FALSE(sameDrawing(
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),
       byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8850"},
+              {.name = u8"state", .value = u8"closed"},
               {.name = u8"revision", .value = u8"0"},
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"0"},
@@ -138,14 +142,15 @@ TEST(SketchKitConnectionReadout,
   // no door stands, no address is bound, nothing arrives, and the feed
   // says why.
   Hub hub;
-  data::Connection sky(hub, "ws://:8851/sky");
+  data::Connection sky = data::connect(hub, "ws://:8851/sky");
   ASSERT_FALSE(sky.feed().state().isOpen());
-  ASSERT_TRUE(sky.localAddress().empty());
-  const std::string why = sky.error();
+  ASSERT_TRUE(sky.state().localAddress.empty());
+  const std::string why = sky.state().error;
   ASSERT_FALSE(why.empty());
 
   const auto rows = [&why](std::u8string_view door) {
     return byHand({{.name = u8"door", .value = door},
+                   {.name = u8"state", .value = u8"connecting"},
                    {.name = u8"revision", .value = u8"0"},
                    {.name = u8"dropped", .value = u8"0"},
                    {.name = u8"undecodable", .value = u8"0"},

@@ -49,7 +49,7 @@ namespace sigil::sketch::kit {
  *  TWO READINGS, because a number stands in one of two places. An
  *  argument INDEX takes it out of a message whose arguments are a list,
  *  which is what an OSC message is — `Channel(hub, desk, "/sky/wind", 0)`
- *  is `latest("/sky/wind")["arguments"][0]`. A field NAME takes it out of
+ *  is `latest("/sky/wind")[0]`. A field NAME takes it out of
  *  a message that is a record — `Channel(hub, phone, "Wind", "value")` is
  *  `latest("Wind")["value"]`. The name is the one a handler would have
  *  been registered under: an address on an OSC wire, a kind on a JSON

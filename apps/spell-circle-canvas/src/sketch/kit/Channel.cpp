@@ -65,7 +65,7 @@ struct Channel::State {
    *  zero, because a fader that reported text would then read as a fader
    *  at rest. */
   std::optional<double> take() const {
-    const data::Json& message = connection->latest(name);
+    const data::Json& message = connection->latest(name).payload;
     const data::Json& at = std::holds_alternative<size_t>(reading)
                                ? message["arguments"][std::get<size_t>(reading)]
                                : message[std::get<std::string>(reading)];
@@ -77,7 +77,7 @@ struct Channel::State {
    *  only when what arrived moved this reading. */
   void follow() {
     if (!connection) return;
-    const uint64_t arrived = connection->revision();
+    const uint64_t arrived = connection->state().revision;
     if (arrived == seen) return;
     seen = arrived;
     const std::optional<double> number = take();

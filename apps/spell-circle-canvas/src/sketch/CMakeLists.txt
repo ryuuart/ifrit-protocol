@@ -95,6 +95,7 @@ set(SIGIL_SKETCH_PRIVATE
   SigilIOFrames
   SigilDataDecode
   SigilDataQuery
+  SigilDataRead
   SigilIOSource SigilCoreSchedule SigilImage SigilImageDecode
   # A sketch opens network feeds through its assets, so the host is the
   # consumer that links the transports.

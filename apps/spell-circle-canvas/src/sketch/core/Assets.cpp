@@ -5,7 +5,7 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigildata/decode/Decoders.h>
+#include <sigildata/read/Read.h>
 #include <sigildata/query/Database.h>
 #include <sigilimage/decode/Decoders.h>
 #include <sigilio/advanced/Network.h>
@@ -111,7 +111,6 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // by the same machinery, and a sketch carries no literal table. A
   // database file answers the same way, opened in place.
   sigil::data::registerDecoders(m_hub);
-  io::registerDecoder<sigil::data::Database>(m_hub, sigil::data::DatabaseDecoder{});
   // A resource that keeps ARRIVING is a feed, and a sketch opens one
   // through this same hub: with the transports registered,
   // hub().listen("udp://:27020") binds the port and every datagram that

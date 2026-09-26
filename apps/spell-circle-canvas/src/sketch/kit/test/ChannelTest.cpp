@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <sigildata/connection/Connection.h>
 #include <sigildata/decode/Json.h>
-#include <sigildata/decode/Osc.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/testing/Testing.h>
 #include <sigilio/advanced/Time.h>
@@ -59,13 +59,13 @@ Bytes bytesOf(std::vector<std::byte> packet) {
 /** One OSC message to @p address carrying @p arguments, as a case
  *  delivers it. */
 Bytes packet(std::string_view address, data::Json::Array arguments) {
-  return bytesOf(data::encodeOsc(address, data::Json(std::move(arguments))));
+  return bytesOf(data::encode(data::oscMessage(address, data::Json(std::move(arguments))), data::Dialect::Osc));
 }
 
 TEST(SketchKitChannel, AnOscArgumentOfTheNamedAddressMovesTheValueOnDispatch) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoNothing());
-  data::Connection desk(hub, "osc://:27080");
+  data::Connection desk = data::connect(hub, "osc://:27080");
   kit::Channel fader(hub, desk, "/fader/1", 0);
 
   EXPECT_FALSE(fader.lastRead().has_value());
@@ -85,7 +85,7 @@ TEST(SketchKitChannel, AnOscArgumentOfTheNamedAddressMovesTheValueOnDispatch) {
 TEST(SketchKitChannel, AMessageOnAnotherAddressLeavesTheValueWhereItWas) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoNothing());
-  data::Connection desk(hub, "osc://:27080");
+  data::Connection desk = data::connect(hub, "osc://:27080");
   kit::Channel fader(hub, desk, "/fader/1", 0);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
@@ -100,7 +100,7 @@ TEST(SketchKitChannel, AMessageOnAnotherAddressLeavesTheValueWhereItWas) {
 TEST(SketchKitChannel, AJsonFieldOfTheNamedKindMovesTheValue) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoNothing());
-  data::Connection phone(hub, "ws://:8849/desk");
+  data::Connection phone = data::connect(hub, "ws://:8849/desk");
   kit::Channel wind(hub, phone, "Wind", "value");
 
   inletOf(phone.feed()).deliver(bytesOf(R"({"kind":"Wind","value":12.25})"));
@@ -118,7 +118,7 @@ TEST(SketchKitChannel, AJsonFieldOfTheNamedKindMovesTheValue) {
 TEST(SketchKitChannel, AReadingThatNamesNoNumberLeavesTheValueWhereItWas) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoNothing());
-  data::Connection desk(hub, "osc://:27080");
+  data::Connection desk = data::connect(hub, "osc://:27080");
   kit::Channel fader(hub, desk, "/fader/1", 0);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
@@ -143,7 +143,7 @@ TEST(SketchKitChannel, AReadingThatNamesNoNumberLeavesTheValueWhereItWas) {
 TEST(SketchKitChannel, ABindingOverTheLiveValueReadsTheMappedValue) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoNothing());
-  data::Connection desk(hub, "osc://:27080");
+  data::Connection desk = data::connect(hub, "osc://:27080");
   kit::Channel fader(hub, desk, "/fader/1", 0);
 
   // The property a description would carry: the fader's own range mapped
@@ -165,7 +165,7 @@ TEST(SketchKitChannel, ABindingOverTheLiveValueReadsTheMappedValue) {
 TEST(SketchKitChannel, AMovedChannelGoesOnFollowingTheSameWire) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoNothing());
-  data::Connection desk(hub, "osc://:27080");
+  data::Connection desk = data::connect(hub, "osc://:27080");
   kit::Channel first(hub, desk, "/fader/1", 0);
 
   // The cell a description binds. It is the whole reason the state stands

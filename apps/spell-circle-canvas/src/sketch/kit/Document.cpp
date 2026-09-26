@@ -50,8 +50,8 @@ std::string written(
 /** One member of a run: a bare string is the sentence in no class of its
  *  own, a record names its own under `words` and `class`. */
 std::string_view sentence(const data::Json& item) {
-  return item.kind() == data::Json::Kind::Text ? item.text()
-                                               : item["words"].text();
+  return item.kind() == data::Json::Kind::String ? item.string()
+                                               : item["words"].string();
 }
 
 }  // namespace
@@ -81,15 +81,15 @@ const data::Json& Document::operator[](std::string_view key) const {
 }
 
 compose::Utf8 Document::phrase(const data::Json& node) const {
-  return compose::Utf8(written(node.text(), m_figures));
+  return compose::Utf8(written(node.string(), m_figures));
 }
 
 std::vector<Document::Line> Document::run(const data::Json& node) const {
   std::vector<Line> out;
   out.reserve(node.size());
-  for (const data::Json& item : node.items())
+  for (const data::Json& item : node.array())
     out.push_back({compose::Utf8(written(sentence(item), m_figures)),
-                   std::string(item["class"].text())});
+                   std::string(item["class"].string())});
   return out;
 }
 
