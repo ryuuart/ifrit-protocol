@@ -100,6 +100,14 @@ class Wires {
   /** The feed open on @p uri, or null. */
   io::Feed feed(std::string_view uri) const;
 
+  /** WHICH OPENING OF @p uri STANDS: a number no earlier open() or
+   *  replay() on this list was given, and 0 when no wire is open on it.
+   *  A reader that has to notice a wire reopened under the same URI
+   *  keeps this rather than a feed, because a held feed keeps its door
+   *  answering the URI and a later open() would be handed that closed
+   *  door instead of a fresh one. */
+  uint64_t openingOf(std::string_view uri) const;
+
   /** Opens @p uri onto the recording at @p path and keeps the feed: the
    *  wire open on that URI is closed and dropped, and every later open()
    *  on it plays the same file back instead of opening a socket. The
@@ -150,6 +158,7 @@ class Wires {
   struct Watch {
     io::Feed feed;
     std::deque<Sample> samples;
+    uint64_t opening = 0;
   };
 
   /** The wire open on @p uri, or nothing. */
@@ -157,6 +166,8 @@ class Wires {
 
   io::Hub m_hub;
   std::vector<Watch> m_watches;
+  /** The number the last open() or replay() gave its wire. */
+  uint64_t m_openings = 0;
   std::vector<Vitals> m_vitals;
   data::Schema m_schema;
   std::unordered_set<std::string> m_recorded;

@@ -180,7 +180,10 @@ class SeerSession : public QObject {
   sigil::seer::Wires m_wires;
   Receiver m_receiver;
   sigil::seer::Log m_log;
-  sigil::io::Feed m_loggedFeed;
+  /** The opening of the wire the log was read from, kept as a number
+   *  rather than a feed so the session never holds a closed door open
+   *  under a URI the receiver is about to listen on again. */
+  uint64_t m_loggedOpening = 0;
   sigil::seer::Sender m_sender{m_wires};
   sigil::seer::Recorder m_recorder{m_wires};
 

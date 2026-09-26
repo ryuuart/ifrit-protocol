@@ -132,10 +132,14 @@ void SeerSession::tick() {
   m_draining = true;
   {
     const auto inspected = selectedFeed();
-    if (!(inspected == m_loggedFeed)) {
+    const uint64_t opening =
+        m_selectedUri.isEmpty()
+            ? 0
+            : m_wires.openingOf(m_selectedUri.toStdString());
+    if (opening != m_loggedOpening) {
       m_log.clear();
       m_messages.clear();
-      m_loggedFeed = inspected;
+      m_loggedOpening = opening;
     }
     const auto received = m_receiver.opened()
                               ? m_wires.feed(m_receiver.uri().toStdString())

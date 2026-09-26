@@ -29,7 +29,7 @@ io::Feed Wires::open(std::string_view uri,
                                       io::ListenOptions policy) {
   if (const Watch* watch = watchOf(uri)) return watch->feed;
   io::Feed feed = m_hub.listen(uri, policy);
-  m_watches.push_back({feed, {}});
+  m_watches.push_back({feed, {}, ++m_openings});
   return feed;
 }
 
@@ -61,12 +61,17 @@ io::Feed Wires::feed(std::string_view uri) const {
   return watch ? watch->feed : io::Feed();
 }
 
+uint64_t Wires::openingOf(std::string_view uri) const {
+  const Watch* watch = watchOf(uri);
+  return watch ? watch->opening : 0;
+}
+
 io::Feed Wires::replay(std::string_view uri,
                                         const std::filesystem::path& path) {
   close(uri);
   io::Feed feed = m_hub.replay(uri, path.string());
   m_recorded.emplace(uri);
-  m_watches.push_back({feed, {}});
+  m_watches.push_back({feed, {}, ++m_openings});
   return feed;
 }
 
