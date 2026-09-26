@@ -125,7 +125,7 @@ class LayerShowcasePart final : public Scene {
           m_paragraphBlockLayout = layoutParagraph(
               fontContext, m_paragraphBlock, paragraphFlow, paragraphOptions);
 
-          layoutMicroseconds = layoutTime.elapsedUs();
+          layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
         });
 
     // Each preset's program compiles once per process. These calls only

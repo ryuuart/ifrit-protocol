@@ -7,7 +7,7 @@
  * whose description changed, nodes mounted and nodes retired.
  */
 
-#include <sigilmeasure/stats/Counters.h>
+#include <sigilmeasure/advanced/Counters.h>
 
 #include <cstdint>
 

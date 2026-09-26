@@ -70,7 +70,7 @@ class KnuthPlassScene final : public Scene {
             m_layouts[pass] =
                 layoutParagraph(fontContext, m_body.paragraph, flow, options);
           }
-          layoutMicroseconds = layoutTime.elapsedUs();
+          layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
         });
 
     canvas->clear(kPaper);

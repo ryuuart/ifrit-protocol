@@ -100,7 +100,7 @@ class RippleScene final : public Scene {
 
     canvas->clear(kPaper);
     const int drawnGlyphCount = m_batches.draw(canvas);
-    return {toMicroseconds(layoutEndTime - layoutStartTime),
+    return {Microseconds(layoutEndTime - layoutStartTime).count(),
             static_cast<int>(layout.runs.size()), drawnGlyphCount};
   }
 

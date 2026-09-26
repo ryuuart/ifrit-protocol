@@ -114,7 +114,7 @@ class SlotsScene final : public Scene {
                 u8"appendPlaceholder() weaves fixed-size slots into the flow; "
                 "placeholderRects() reports where they landed",
                 {canvasWidth * 0.1f, canvasHeight - 30}, canvasWidth * 0.8f);
-    return {toMicroseconds(layoutEndTime - layoutStartTime),
+    return {Microseconds(layoutEndTime - layoutStartTime).count(),
             static_cast<int>(layout.runs.size()), 0};
   }
 

@@ -183,7 +183,7 @@ bool paintSplitBake(PaintPass& pass) {
         impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity,
                           Phase::OwnOnly);
       });
-      const double ownMs = ownWatch.elapsedMs();
+      const double ownMs = measure::Milliseconds(ownWatch.elapsed()).count();
       inst.ownPaintMs = inst.ownPaintMs * 0.6f + (float)ownMs * 0.4f;
       if (inst.ownPaintMs > kPromoteMs) {
         if (inst.ownHotFrames < 255) ++inst.ownHotFrames;

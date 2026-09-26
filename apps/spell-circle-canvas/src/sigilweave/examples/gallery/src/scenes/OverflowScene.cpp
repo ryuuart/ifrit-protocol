@@ -73,7 +73,7 @@ class OverflowScene final : public Scene {
       const auto layoutStartTime = Clock::now();
       ParagraphLayout layout =
           layoutParagraph(fontContext, m_body.paragraph, flow, options);
-      layoutMicroseconds += toMicroseconds(Clock::now() - layoutStartTime);
+      layoutMicroseconds += Microseconds(Clock::now() - layoutStartTime).count();
       runCount += static_cast<int>(layout.runs.size());
 
       SkPaint border;

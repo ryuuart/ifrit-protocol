@@ -135,7 +135,7 @@ class HyperScriptsScene final : public Scene {
       const auto layoutStart = Clock::now();
       ParagraphLayout layout =
           layoutParagraph(fontContext, m_paragraphs[panelIndex], flow, options);
-      layoutMicroseconds += toMicroseconds(Clock::now() - layoutStart);
+      layoutMicroseconds += Microseconds(Clock::now() - layoutStart).count();
       runCount += static_cast<int>(layout.runs.size());
       includeCoverage(layout, coverage);
       layout.draw(canvas, m_paragraphs[panelIndex]);

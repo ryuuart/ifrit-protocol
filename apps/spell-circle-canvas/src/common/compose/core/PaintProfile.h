@@ -66,7 +66,7 @@ struct ProfileScope {
   }
   ~ProfileScope() {
     if (row == SIZE_MAX) return;
-    const double total = watch->elapsedMs();
+    const double total = measure::Milliseconds(watch->elapsed()).count();
     impl->profileRows[row].totalMs = total;
     impl->profileRows[row].selfMs = total - impl->profChildMs;
     // Hand our whole cost up to the parent's child accumulator.

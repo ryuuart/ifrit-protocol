@@ -7,7 +7,7 @@
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
-#include <sigilmeasure/time/Laps.h>
+#include <sigilmeasure/advanced/Laps.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Crash.h>
@@ -178,7 +178,7 @@ class CanvasSession final : public Session {
       m_sketch->update(seconds, ctx);
     }
     applySize();  // a sketch may resize itself mid-run, p5 style
-    m_timing.updateMs = m_laps.mark("update");
+    m_timing.updateMs = measure::Milliseconds(m_laps.mark("update")).count();
     // The phase turns over where the sketch's own body ends and its
     // runtime's painting begins, so a fault reads the same whichever
     // host drove the frame: one call in, two phases.
@@ -186,8 +186,8 @@ class CanvasSession final : public Session {
       PhaseMark mark(Phase::Draw);
       m_composer->draw(canvas);
     }
-    m_timing.drawMs = m_laps.mark("draw");
-    m_timing.totalMs = m_laps.totalMs();
+    m_timing.drawMs = measure::Milliseconds(m_laps.mark("draw")).count();
+    m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
     const compose::Composer::Stats& stats = m_composer->stats();
     m_lanes = {LaneCost{"recon", stats.reconcileMs},
                LaneCost{"layout", stats.layoutMs},

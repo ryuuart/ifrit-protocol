@@ -81,7 +81,7 @@ void BM_ProgramFromRecipeBody(benchmark::State& state) {
     std::shared_ptr<material::Program> program =
         material::program(freshRecipe(), material::Target::Slang,
                           material::Variant{diligent::kVariantLit});
-    const double ms = watch.elapsedMs();
+    const double ms = measure::Milliseconds(watch.elapsed()).count();
     benchmark::DoNotOptimize(program);
     return ms;
   }();
@@ -201,7 +201,7 @@ void BM_ChainOnDevice(benchmark::State& state) {
     const measure::Stopwatch watch;
     gm::Cloud cooked = gm::pop::cook(chain, runtime);
     benchmark::DoNotOptimize(cooked);
-    const double ms = watch.elapsedMs();
+    const double ms = measure::Milliseconds(watch.elapsed()).count();
     fastest = std::min(fastest, ms);
     slowest = std::max(slowest, ms);
   }

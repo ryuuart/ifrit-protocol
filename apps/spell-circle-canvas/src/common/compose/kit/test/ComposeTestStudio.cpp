@@ -343,29 +343,29 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   const sigil::measure::Check ok =
       sigil::measure::check("northern column", 422000 - 22000, 400000);
   EXPECT_TRUE(ok.pass);
-  EXPECT_NE(ok.line().find("400000"), std::string::npos);
-  EXPECT_NE(ok.line().find("PASS"), std::string::npos);
-  EXPECT_EQ(ok.line().find("FAIL"), std::string::npos);
+  EXPECT_NE(sigil::measure::line(ok).find("400000"), std::string::npos);
+  EXPECT_NE(sigil::measure::line(ok).find("PASS"), std::string::npos);
+  EXPECT_EQ(sigil::measure::line(ok).find("FAIL"), std::string::npos);
 
   const sigil::measure::Check bad =
       sigil::measure::check("Berezina", 20000 + 30000, 49000);
   EXPECT_FALSE(bad.pass);
-  EXPECT_NE(bad.line().find("FAIL want 50000"), std::string::npos)
+  EXPECT_NE(sigil::measure::line(bad).find("FAIL want 50000"), std::string::npos)
       << "a failing check must print what it wanted, or the plate says "
          "nothing an author can act on: "
-      << bad.line();
+      << sigil::measure::line(bad);
 
   // A long label is not truncated — sigillum_aemeth.cpp:1719 documents four
   // checks silently losing their units to a feed column that clipped.
   const std::string wide =
-      sigil::measure::check(std::string(80, 'L'), 1, 1).line(44);
+      sigil::measure::line(sigil::measure::check(std::string(80, 'L'), 1, 1), {.labelWidth = 44});
   EXPECT_NE(wide.find(std::string(80, 'L')), std::string::npos);
 
   // Floats need a tolerance the STUDY chooses; there is no default.
   EXPECT_TRUE(sigil::measure::check("R", 257.972, 257.9715, 0.001).pass);
   EXPECT_FALSE(sigil::measure::check("R", 257.972, 257.9, 0.001).pass);
   EXPECT_NE(
-      sigil::measure::check("R", 257.972, 257.9, 0.001).line().find("\xc2\xb1"),
+      sigil::measure::line(sigil::measure::check("R", 257.972, 257.9, 0.001)).find("\xc2\xb1"),
       std::string::npos);
 
   EXPECT_TRUE(sigil::measure::check("winding", std::string_view("kCW"),

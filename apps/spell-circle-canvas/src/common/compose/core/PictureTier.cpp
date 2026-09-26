@@ -186,7 +186,7 @@ void paintThroughPicture(PaintPass& pass) {
   // node's recording cost, which is what the tier is choosing against.
   const measure::Stopwatch replayWatch;
   pass.profDraw("replay", [&] { impl.pictureBake->replay(target); });
-  pass.accrue(replayWatch.elapsedMs());
+  pass.accrue(measure::Milliseconds(replayWatch.elapsed()).count());
 }
 
 void paintLive(PaintPass& pass) {
@@ -213,7 +213,7 @@ void paintLive(PaintPass& pass) {
     pass.profDraw("live", [&] {
       impl.paintContent(inst, canvas, impl.hostScale, leafBlend, leafOpacity);
     });
-    pass.accrue(liveWatch.elapsedMs());
+    pass.accrue(measure::Milliseconds(liveWatch.elapsed()).count());
   }
   inst.paintDirty = false;
 }

@@ -7,7 +7,7 @@
 #include <sigilcompose/texture/Texture.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmeasure/time/Laps.h>
+#include <sigilmeasure/advanced/Laps.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/set/Set.h>
@@ -135,7 +135,7 @@ class SetSession final : public Session {
           m_scene.camera();
       m_declared = declared ? *declared : m_camera;
     }
-    m_timing.updateMs = m_laps.mark("update");
+    m_timing.updateMs = measure::Milliseconds(m_laps.mark("update")).count();
     // The phase turns over where the sketch's own body ends and its
     // runtime's painting begins, so a fault reads the same whichever
     // host drove the frame: one call in, two phases.
@@ -143,8 +143,8 @@ class SetSession final : public Session {
       PhaseMark mark(Phase::Draw);
       paint(canvas);
     }
-    m_timing.drawMs = m_laps.mark("draw");
-    m_timing.totalMs = m_laps.totalMs();
+    m_timing.drawMs = measure::Milliseconds(m_laps.mark("draw")).count();
+    m_timing.totalMs = measure::Milliseconds(m_laps.total()).count();
     const world::SceneStats& stats = m_scene.stats();
     m_lanes = {LaneCost{"nodes", (double)stats.nodes},
                LaneCost{"drawn", (double)stats.drawn},

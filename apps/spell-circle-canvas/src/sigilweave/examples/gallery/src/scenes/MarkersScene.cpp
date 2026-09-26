@@ -118,7 +118,7 @@ class MarkersScene final : public Scene {
           const sigil::measure::Stopwatch layoutTime;
           m_layout =
               layoutParagraph(fontContext, m_body.paragraph, flow, options);
-          layoutMicroseconds = layoutTime.elapsedUs();
+          layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
 
           // Remember how much text actually landed: the next re-query (text
           // edit) scopes itself to this window.

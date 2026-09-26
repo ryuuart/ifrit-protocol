@@ -31,7 +31,7 @@ namespace gallery {
 namespace kit = sigil::weave::kit;
 
 using Clock = std::chrono::steady_clock;
-using sigil::measure::toMicroseconds;
+using sigil::measure::Microseconds;
 
 inline constexpr SkColor kInk = sigil::weave::examples::palette::kInk;
 inline constexpr SkColor kAccent = sigil::weave::examples::palette::kAccent;

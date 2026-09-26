@@ -74,7 +74,7 @@ class VerticalScene final : public Scene {
                 "tate-chu-yoko digits, ruby + kenten on top",
                 {30, canvasHeight - 28}, canvasWidth - 60);
 
-    return {toMicroseconds(layoutEndTime - layoutStartTime),
+    return {Microseconds(layoutEndTime - layoutStartTime).count(),
             static_cast<int>(verticalLayout.runs.size() +
                              horizontalLayout.runs.size()),
             0};

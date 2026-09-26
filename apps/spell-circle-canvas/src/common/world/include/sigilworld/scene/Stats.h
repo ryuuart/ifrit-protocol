@@ -7,7 +7,7 @@
  */
 
 #include <sigilcore/reconcile/Stats.h>
-#include <sigilmeasure/stats/Counters.h>
+#include <sigilmeasure/advanced/Counters.h>
 
 #include <cstdint>
 

@@ -83,7 +83,7 @@ class StressPart final : public Scene {
       BlockFlow flow(textBounds);
       const sigil::measure::Stopwatch layoutTime;
       m_layout = layoutParagraph(fontContext, m_paragraph, flow, options);
-      layoutMicroseconds = layoutTime.elapsedUs();
+      layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
       m_glyphCount = 0;
       for (const PositionedRun& run : m_layout.runs)
         if (run.shaped)

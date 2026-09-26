@@ -3,6 +3,7 @@
 // TAGS: Interfaces/Desktop
 
 #include "Motif.h"
+#include <sigilmeasure/advanced/CheckFormat.h>
 #include <sigilmotion/values/Animatable.h>
 
 struct CdeMotifSketch {
@@ -455,7 +456,9 @@ struct CdeMotifSketch {
 
     Element proof = box().column().gap(1).justifyContent(Justify::Center);
     for (const measure::Check& c : derivation().rows)
-      proof.children({cde::label(c.line(22, 9), 10.0f, c.pass ? s.fg : s.bs)});
+      proof.children({cde::label(
+          measure::line(c, {.labelWidth = 22, .valueWidth = 9}), 10.0f,
+          c.pass ? s.fg : s.bs)});
 
     return cde::surface(s)
         .overlay(cde::bevel(2, false, false))

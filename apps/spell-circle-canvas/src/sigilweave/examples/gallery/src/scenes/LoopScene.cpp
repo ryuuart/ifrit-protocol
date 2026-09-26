@@ -82,7 +82,7 @@ class LoopScene final : public Scene {
     railPaint.setColor(0x2A23252B);
     canvas->drawPath(rail.eight, railPaint);
     layout.draw(canvas, m_body.paragraph);
-    return {toMicroseconds(layoutEndTime - layoutStartTime),
+    return {Microseconds(layoutEndTime - layoutStartTime).count(),
             static_cast<int>(layout.runs.size()), 0};
   }
 

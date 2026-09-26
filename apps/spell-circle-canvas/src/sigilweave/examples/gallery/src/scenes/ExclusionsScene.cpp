@@ -130,7 +130,7 @@ class ExclusionsScene final : public Scene {
     canvas->restore();
     layout.drawBatched(canvas, m_body.paragraph);
 
-    return {toMicroseconds(layoutEndTime - layoutStartTime),
+    return {Microseconds(layoutEndTime - layoutStartTime).count(),
             static_cast<int>(layout.runs.size()), 0};
   }
 

@@ -53,7 +53,7 @@ class RainScene final : public Scene {
     // surviving particles' state instead of resetting the whole sky.
     if (m_particles.size() != glyphCount) m_particles.resize(glyphCount);
     if (m_particles.empty())
-      return {toMicroseconds(layoutEndTime - layoutStartTime),
+      return {Microseconds(layoutEndTime - layoutStartTime).count(),
               static_cast<int>(layout.runs.size()), 0};
 
     if (frameNumber > 30)
@@ -140,7 +140,7 @@ class RainScene final : public Scene {
     canvas->drawLine(domeCenter.fX, domeCenter.fY - 6, domeCenter.fX,
                      canvasHeight - 10, pole);
     const int drawnGlyphCount = m_batches.draw(canvas);
-    return {toMicroseconds(layoutEndTime - layoutStartTime),
+    return {Microseconds(layoutEndTime - layoutStartTime).count(),
             static_cast<int>(layout.runs.size()), drawnGlyphCount};
   }
 

@@ -307,7 +307,7 @@ struct PaintPass {
     }
     const measure::Stopwatch watch;
     draw();
-    const double ms = watch.elapsedMs();
+    const double ms = measure::Milliseconds(watch.elapsed()).count();
     if (ms > threshold)
       SkDebugf("[prof] %s %s kind=%d rect=%.0fx%.0f %.1fms\n", what,
                node.key.empty() ? "(anon)" : node.key.c_str(), (int)node.kind,

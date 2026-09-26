@@ -154,7 +154,7 @@ auto SlitScan2001::fitAtK(sigil::weave::FontContext& fonts, int K) -> Fit {
           out.cnt[(size_t)i] += 1;
         }
       sp += -fit.slope;
-      sr2 += fit.r2;
+      sr2 += fit.explained;
       ++out.rays;
       out.pts += (int)n;
     }

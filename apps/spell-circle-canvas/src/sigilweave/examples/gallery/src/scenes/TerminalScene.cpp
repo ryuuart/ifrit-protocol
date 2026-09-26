@@ -117,7 +117,7 @@ class TerminalScene final : public Scene {
 
           const sigil::measure::Stopwatch layoutTime;
           m_layout = layoutParagraph(fontContext, paragraph, flow, options);
-          layoutMicroseconds = layoutTime.elapsedUs();
+          layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
           rebuildGlyphPools(paragraph);
         });
 

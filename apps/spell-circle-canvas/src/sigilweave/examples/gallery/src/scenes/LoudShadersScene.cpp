@@ -67,7 +67,7 @@ class LoudShadersPart final : public Scene {
             {std::max(220.0f, static_cast<float>(size.width()) * 0.32f),
              top + rowHeight * (static_cast<float>(row) + 0.68f)});
       }
-      layoutMicroseconds = layoutTime.elapsedUs();
+      layoutMicroseconds = sigil::measure::Microseconds(layoutTime.elapsed()).count();
     });
 
     // Bound to the whole canvas so every row's shader shares one coordinate

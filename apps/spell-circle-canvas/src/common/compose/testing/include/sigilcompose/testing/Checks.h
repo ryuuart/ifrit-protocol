@@ -45,6 +45,7 @@
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Profile.h>
 #include <sigilgeometry/path/Skia.h>
+#include <sigilmeasure/advanced/CheckFormat.h>
 #include <sigilmeasure/check/Check.h>
 
 #include <algorithm>
@@ -611,7 +612,7 @@ inline Raster rasterize(Element root, sigil::weave::FontContext& fonts,
 // Saying whether it was right
 
 /** A claim and its verdict are `sigil::measure`'s — `measure::Check`, the
- *  `measure::check()` overloads and `measure::failures()`, from
+ *  `measure::check()` overloads and `measure::CheckTable`, from
  *  `<sigilmeasure/check/Check.h>`, spelled under that name. What this
  *  header adds is the one thing the measure library cannot know — how a
  *  check is written into a feed. */
@@ -654,12 +655,13 @@ inline const std::string& styleOf(const measure::Check& c,
 }
 
 /** Append a check to a feed of text rows, the row's style name chosen by
- *  its standing and its verdict. The text is `Check::line()` at the
+ *  its standing and its verdict. The text is `measure::line()` at the
  *  styles' widths, so what the plate shows is what the table would
  *  print. */
 inline void report(feed::TextRing& ring, const measure::Check& c,
                    const ReportStyles& styles) {
-  const std::string text = c.line(styles.labelWidth, styles.valueWidth);
+  const std::string text = measure::line(
+      c, {.labelWidth = styles.labelWidth, .valueWidth = styles.valueWidth});
   ring.append({std::u8string(text.begin(), text.end()), styleOf(c, styles)});
 }
 

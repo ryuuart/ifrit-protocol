@@ -13,7 +13,7 @@
 #include <include/core/SkPicture.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the renderSlot diagnostic
 #include <sigilmaterial/color/Color.h>
-#include <sigilmeasure/time/Laps.h>
+#include <sigilmeasure/advanced/Laps.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/Flow.h>
@@ -149,7 +149,7 @@ void Composer::render(const Element& root) {
   // running ink transition leaves the flag up so the next frame resolves
   // again.
   if (impl.cascadeDirty) impl.runCascade();
-  impl.reconcileAccumMs += reconcile.elapsedMs();
+  impl.reconcileAccumMs += sigil::measure::Milliseconds(reconcile.elapsed()).count();
 }
 
 void Composer::renderSlot(std::string_view name, const Element& content) {
@@ -191,7 +191,7 @@ void Composer::renderSlot(std::string_view name, const Element& content) {
   // described, so the pass resolves it under the slot's ancestors.
   impl.cascadeDirty = true;
   impl.rebuildKeyIndex();
-  impl.reconcileAccumMs += reconcile.elapsedMs();
+  impl.reconcileAccumMs += sigil::measure::Milliseconds(reconcile.elapsed()).count();
 }
 
 void Composer::setInherited(const sigil::weave::Type& font,
@@ -298,7 +298,7 @@ void Composer::draw(SkCanvas& canvas) {
   sigil::measure::Laps laps;
 
   impl.ensureLayout();
-  impl.stats.layoutMs = laps.mark("layout");
+  impl.stats.layoutMs = sigil::measure::Milliseconds(laps.mark("layout")).count();
 
   // Volatility changes only on reconcile or while animations run (and once
   // more on the frame they settle) — skip the walk otherwise. Bindings the
@@ -313,7 +313,7 @@ void Composer::draw(SkCanvas& canvas) {
     impl.volatileDirty = false;
   }
   impl.engineWasRunning = active;
-  impl.stats.volatileMs = laps.mark("volatile");
+  impl.stats.volatileMs = sigil::measure::Milliseconds(laps.mark("volatile")).count();
 
   // Output view transform: the composer's whole output renders into one
   // layer and composites through the view filter (an OCIO display/view baked
@@ -342,7 +342,7 @@ void Composer::draw(SkCanvas& canvas) {
   }
   impl.paint(*impl.root, canvas);
   if (hasView) canvas.restore();
-  impl.stats.paintMs = laps.mark("paint");
+  impl.stats.paintMs = sigil::measure::Milliseconds(laps.mark("paint")).count();
   impl.contentDirty = false;
   // Costliest first, AND THE LABEL BREAKS EVERY TIE. Two nodes that cost
   // the same — which most of a tree does, at or near zero — would
