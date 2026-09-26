@@ -84,7 +84,7 @@ class Scene:
         mesh.render.drawMesh(pen, self.body, mesh.camera.place(), self.camera, self.style)
 """)
             render_file(source, output)
-            raster = media.load(output)
+            raster = media.load(output).frameAt(0).image
             pixels = raster.rgba()
             self.assertEqual(pixels[:4], bytes([34, 204, 136, 255]))
             center = (48 * 96 + 48) * 4

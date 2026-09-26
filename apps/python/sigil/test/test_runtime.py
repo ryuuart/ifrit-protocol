@@ -127,7 +127,7 @@ class Resources:
         self.assertEqual(stored, b"resource value")
         self.assertEqual(info.byteSize, len(stored))
         self.assertEqual(len(names), 1)
-        self.assertGreater(image.width(), 0)
+        self.assertGreater(image.size()[0], 0)
         with self.assertRaisesRegex(RuntimeError, "closed session"):
             assets.hub()
         with self.assertRaisesRegex(RuntimeError, "closed session"):
