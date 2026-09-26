@@ -1829,7 +1829,7 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`mesh.fill` over an outline and `mesh.loft` through section rings; `extrude` and `revolve` over an outline"
+bound = "`mesh.fill` over an outline, `mesh.loft` through section rings, and `extrude` over an outline"
 python = ["geometry.mesh.fill", "geometry.mesh.loft"]
 
 [[section.surface.item]]

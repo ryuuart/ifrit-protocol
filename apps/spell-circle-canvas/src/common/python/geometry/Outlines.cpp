@@ -2,6 +2,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/path/Offset.h>
 #include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/path/Points.h>
@@ -268,6 +269,21 @@ void bindGeometryOutlines(pybind11::module_& module) {
           },
           py::arg("where"), py::arg("pattern"))
       .def("heading", &path::heading, py::arg("vector"));
+
+  // The bodies an outline is lifted into, registered here so their
+  // declarations name the outline class.
+  py::module_ meshes = submodule(module, "geometry.mesh");
+  meshes
+      .def(
+          "extrude",
+          [](const path::Outline& outline, float depth, float tolerance) {
+            return geometry::mesh::extrude(
+                outline, {.depth = depth, .tolerance = tolerance});
+          },
+          py::arg("outline"), py::arg("depth") = 24,
+          py::arg("tolerance") = 0.25f)
+      .def("fill", &geometry::mesh::fill, py::arg("outline"),
+           py::arg("tolerance") = 0.25f);
 }
 
 }  // namespace sigil::python
