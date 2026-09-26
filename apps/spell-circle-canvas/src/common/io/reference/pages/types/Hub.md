@@ -139,6 +139,14 @@ hands the result over. Every cached view of that URI is dropped, so the
 next ask reads the file back rather than serving what was there before
 the write.
 
+`Hub::save` is the same write with the encode in front of it: the library
+that owns the value's type declares `encodeResource` beside it — the
+`sigil::io::Savable` seam, as `probeResource` is the `Probable` one — and
+answers the value encoded in the format the name's extension says, so
+`hub.save("res://out/plate.png", image)` writes a PNG and the hub carries
+no opinion about any format. A name that names nothing that library
+writes answers false and writes nothing.
+
 `sigil::io::registerDecoder` replaces the decoder later asks use; a view
 already decoded keeps its value and the decoder that made it, which is
 what `sigil::io::poll` re-runs for it. The hint is OFFERED: a decoder that

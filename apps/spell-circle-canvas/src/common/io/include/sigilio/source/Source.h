@@ -163,6 +163,19 @@ concept Configurable = requires {
 template <Configurable T>
 using LoadOptions = decltype(loadOptions(std::type_identity<T>{}));
 
+/** WHAT A KIND OF MEANING IS SAVED WITH: a free function found by
+ *  argument-dependent lookup in T's own namespace,
+ *  `std::vector<std::byte> encodeResource(const T&, path)`, answering the
+ *  value encoded in the format the name's extension says, or no bytes
+ *  when that name names nothing T's library writes. Declaring it is what
+ *  lets a hub take `save(uri, value)` for a T it has never heard of. */
+template <typename T>
+concept Savable = requires(const T& value, const std::filesystem::path& name) {
+  {
+    encodeResource(value, name)
+  } -> std::convertible_to<std::vector<std::byte>>;
+};
+
 namespace detail {
 /** The file a resolving source says @p uri stands for, asked by the free
  *  `resolve(source, uri)` its own namespace declares. */

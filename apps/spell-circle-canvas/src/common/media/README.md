@@ -55,6 +55,7 @@ compose::image(poster);                                     // Compose's leaf
 
 // WRITE
 std::vector<std::byte> png = sigil::media::encode(*baked, sigil::media::Format::Png);
+hub.save("res://out/plate.png", baked);                     // the name's extension picks the format
 sigil::media::Encoder movie({.width = 1080, .height = 1920}); // MP4, 30 frames a second
 movie.append(frame);
 std::vector<std::byte> mp4 = movie.finish();

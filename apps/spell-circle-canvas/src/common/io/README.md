@@ -6,7 +6,8 @@ onto directories, results are cached per resource, and a poll re-stats
 what has been loaded so edited files reload without a restart. A whole
 DIRECTORY or a glob is a resource set: one selector names it, a preload
 reads it concurrently, and a lease says how long the hub promises to
-keep it. `write()` stores bytes back through the same mounts. `http://`
+keep it. `write()` stores bytes back through the same mounts, and `save()`
+a value encoded by the library that owns it. `http://`
 and `https://` URIs fetch over libcurl behind an on-disk cache with a
 selectable policy; `file://` strips to a plain local path. What a byte
 MEANS is not its job in either direction: it hands bytes to the decoders
@@ -37,10 +38,11 @@ call names it: read a resource, listen on one that keeps arriving, share
 frames with another application.
 
 ```cpp
-#include <sigilmedia/advanced/Resource.h>
 #include <sigilio/frames/Publisher.h>
 #include <sigilio/frames/Subscription.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmedia/advanced/Resource.h>
+#include <sigilmedia/image/Encode.h>
 
 using sigil::media::Image;
 
@@ -55,6 +57,7 @@ auto shader = hub.text("res://shaders/glow.sksl");   // std::optional<std::strin
 auto logo   = hub.load<Image>("res://ui/logo.png");         // what the bytes mean
 auto remote = hub.load<Image>("https://example.com/tex.png"); // behind the disk cache
 hub.write("res://out/plate.png", encodedPng);        // bytes back out, through the same mounts
+hub.save("res://out/still.png", *logo);              // a value back out, encoded by its own library
 
 // ── LISTEN, REPLAY, ANSWER ───────────────────────────────────────────────
 auto scene = hub.listen("udp://:27020");             // a sigil::io::Feed; every linked transport is ready

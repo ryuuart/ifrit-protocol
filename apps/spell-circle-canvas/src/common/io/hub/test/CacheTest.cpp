@@ -324,13 +324,28 @@ TEST_F(IOHub, WrittenImageBytesDecodeBackThroughTheHub) {
   const std::vector<std::byte> encoded =
       sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
   ASSERT_FALSE(encoded.empty());
-  ASSERT_TRUE(
-      hub.write("res://made/tile.png",
-                std::span(encoded.data(),
-                          encoded.size())));
+  ASSERT_TRUE(hub.write("res://made/tile.png", encoded));
   auto image = hub.load<sigil::media::Image>("res://made/tile.png");
   ASSERT_NE(image, nullptr);
   EXPECT_EQ(image->size().width(), 7);
+}
+
+TEST_F(IOHub, ASavedImageIsEncodedByItsNameAndDecodesBack) {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(5, 3));
+  bitmap.eraseColor(SK_ColorCYAN);
+  const auto picture = sigil::media::Image::of(bitmap.asImage());
+  // The name's extension picks the format; the library that owns the
+  // value encodes it, and the hub writes where it mounts.
+  ASSERT_TRUE(hub.save("res://made/saved.png", picture));
+  auto image = hub.load<sigil::media::Image>("res://made/saved.png");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->size(), SkISize::Make(5, 3));
+  // A name that names nothing the library writes is refused, and so is
+  // nothing at all.
+  EXPECT_FALSE(hub.save("res://made/saved.txt", picture));
+  EXPECT_FALSE(
+      hub.save("res://made/none.png", std::shared_ptr<const sigil::media::Image>()));
 }
 
 TEST_F(IOHub, NetworkUrisCannotBeWritten) {

@@ -140,6 +140,25 @@ class Hub {
    *  writes where it mounts. */
   bool write(std::string_view uri, std::span<const std::byte> bytes);
 
+  /** @p value ENCODED AND STORED under @p uri: the library that owns T
+   *  encodes it in the format the name's extension says — a
+   *  `media::Image` to "res://out/plate.png" is a PNG — and the bytes are
+   *  written as write() writes them. False when the name names nothing
+   *  T's library writes, or the write fails. */
+  template <Savable T>
+  bool save(std::string_view uri, const T& value) {
+    const std::vector<std::byte> bytes =
+        encodeResource(value, std::filesystem::path(uri));
+    return !bytes.empty() && write(uri, bytes);
+  }
+
+  /** The same for a value held shared, as a load answers one; false for
+   *  none. */
+  template <Savable T>
+  bool save(std::string_view uri, const std::shared_ptr<T>& value) {
+    return value && save(uri, *value);
+  }
+
   /** THE FEED AT @p uri: a handle onto the same door for the same URI
    *  while anyone holds one. A URI replay() named plays that recording
    *  back; any other opens through the transport registered for its

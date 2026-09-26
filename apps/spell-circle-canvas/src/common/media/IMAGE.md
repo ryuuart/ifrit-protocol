@@ -99,8 +99,10 @@ and only EXR holds it: every other still format is three or four
 channels with fixed meanings, so it declines rather than dropping the
 names.
 
-Where the bytes then go is a hub's: `hub.write(uri, bytes)`, or
-`sigil::io::writeBytes(path, bytes)` for a plain path.
+Where the bytes then go is a hub's: `hub.save(uri, image)` encodes and
+writes in one call, the name's extension choosing the format through
+`sigil::media::encodeResource`; `hub.write(uri, bytes)` stores bytes
+already encoded.
 
 ## Gotchas
 
