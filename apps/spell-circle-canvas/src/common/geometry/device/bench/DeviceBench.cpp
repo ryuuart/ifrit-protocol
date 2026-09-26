@@ -16,7 +16,7 @@
 #include <benchmark/benchmark.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/device/Device.h>
-#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmeasure/Measure.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
 
@@ -85,7 +85,7 @@ void BM_DeviceAdopt(benchmark::State& state) {
   std::string error;
   const measure::Stopwatch bringUp;
   Device* device = sharedDevice(&error);
-  const double bringUpMs = bringUp.elapsedMs();
+  const double bringUpMs = measure::Milliseconds(bringUp.elapsed()).count();
   if (!device) {
     state.SkipWithError(error);
     return;

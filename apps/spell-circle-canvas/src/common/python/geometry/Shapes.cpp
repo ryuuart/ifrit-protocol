@@ -105,6 +105,44 @@ void bindGeometryShapes(pybind11::module_& module) {
            py::arg("sweepDegrees"), py::arg("innerRatio") = 0.0f)
       .def("svg", &kit::svg, py::arg("data"),
            py::arg("preserveAspect") = false);
+
+  // The one-offs that are no setting of either general shape.
+  py::class_<kit::Blob> blob(shapes, "Blob");
+  blob.def_readwrite("seed", &kit::Blob::seed)
+      .def_readwrite("amplitude", &kit::Blob::amplitude)
+      .def_readwrite("lobes", &kit::Blob::lobes)
+      .def("outline", &kit::Blob::outline, py::arg("size"))
+      .def(py::self == py::self);
+  copyProtocol(blob);
+  py::class_<kit::Parallelogram> parallelogram(shapes, "Parallelogram");
+  parallelogram.def_readwrite("skewDeg", &kit::Parallelogram::skewDeg)
+      .def("outline", &kit::Parallelogram::outline, py::arg("size"))
+      .def(py::self == py::self);
+  copyProtocol(parallelogram);
+  py::class_<kit::Arrow> arrow(shapes, "Arrow");
+  arrow.def_readwrite("shaftFrac", &kit::Arrow::shaftFrac)
+      .def_readwrite("headFrac", &kit::Arrow::headFrac)
+      .def_readwrite("headSpan", &kit::Arrow::headSpan)
+      .def("outline", &kit::Arrow::outline, py::arg("size"))
+      .def(py::self == py::self);
+  copyProtocol(arrow);
+  py::class_<kit::Chevron> chevron(shapes, "Chevron");
+  chevron.def_readwrite("spread", &kit::Chevron::spread)
+      .def_readwrite("drop", &kit::Chevron::drop)
+      .def_readwrite("thickness", &kit::Chevron::thickness)
+      .def_readwrite("bars", &kit::Chevron::bars)
+      .def("outline", &kit::Chevron::outline, py::arg("size"))
+      .def(py::self == py::self);
+  copyProtocol(chevron);
+  shapes
+      .def("blob", &kit::blob, py::arg("seed"), py::arg("amplitude") = 0.18f,
+           py::arg("lobes") = 8)
+      .def("parallelogram", &kit::parallelogram, py::arg("skewDegrees"))
+      .def("arrow", &kit::arrow, py::arg("shaftFraction") = 0.34f,
+           py::arg("headFraction") = 0.42f, py::arg("headSpan") = 1.0f)
+      .def("chevron", &kit::chevron, py::arg("spread") = 0.20f,
+           py::arg("drop") = 0.34f, py::arg("thickness") = 0.16f,
+           py::arg("bars") = 0.0f);
 }
 
 }  // namespace sigil::python

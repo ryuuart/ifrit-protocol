@@ -6,6 +6,7 @@
  */
 
 #include <pybind11/stl.h>
+#include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/kit/Radial.h>
 #include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
@@ -91,6 +92,14 @@ compose::Shape shape(py::handle value) {
     return value.cast<geometry::shapes::Ellipse>();
   if (py::isinstance<geometry::shapes::Fitted>(value))
     return value.cast<geometry::shapes::Fitted>();
+  if (py::isinstance<geometry::shapes::Blob>(value))
+    return value.cast<geometry::shapes::Blob>();
+  if (py::isinstance<geometry::shapes::Parallelogram>(value))
+    return value.cast<geometry::shapes::Parallelogram>();
+  if (py::isinstance<geometry::shapes::Arrow>(value))
+    return value.cast<geometry::shapes::Arrow>();
+  if (py::isinstance<geometry::shapes::Chevron>(value))
+    return value.cast<geometry::shapes::Chevron>();
   if (py::isinstance<geometry::path::Outline>(value))
     return compose::heldPath(
         geometry::path::toSk(value.cast<geometry::path::Outline>()));

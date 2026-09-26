@@ -1825,6 +1825,31 @@ python = [
 ]
 
 [[section.surface.item]]
+bound = "`mesh.fill` over an outline and `mesh.loft` through section rings; `extrude` and `revolve` over an outline"
+python = ["geometry.mesh.fill", "geometry.mesh.loft"]
+
+[[section.surface.item]]
+bound = "the outline: `path.Outline` with its measure, area, booleans and rewrites, `Rect`, `Transform`, `through` and `curveThrough`, `offset` and `band` at a width, `points` over `random`, `poisson`, `grid`, `radial` and `along`, and `heading`"
+python = [
+  "geometry.path.Outline",
+  "geometry.path.Transform",
+  "geometry.path.through",
+  "geometry.path.offset",
+  "geometry.path.points",
+  "geometry.path.radial",
+]
+
+[[section.surface.item]]
+bound = "the general shapes `shapes.radial`, `ellipse` and `fitted`, with the stock `polygon`, `star`, `circle`, `annulus`, `ring`, `squircle`, `arc`, `sector` and `svg`, and the one-offs `blob`, `parallelogram`, `arrow` and `chevron`"
+python = [
+  "geometry.shapes.radial",
+  "geometry.shapes.ellipse",
+  "geometry.shapes.fitted",
+  "geometry.shapes.polygon",
+  "geometry.shapes.blob",
+]
+
+[[section.surface.item]]
 bound = "mesh primitive lanes, face queries and extrusion caps"
 python = [
   "geometry.mesh.Mesh.primitive",
@@ -1863,7 +1888,7 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`geometry::path`: polylines, contours and poses, operations and distortions, lattices, regions and sampling, triangulations and hulls, streamlines, symmetry, frames and grids, profiles and bands, crossings, blends, conic sections and spherical projections"
+native = "`geometry::path`: polylines, contours and poses, operations and distortions, lattices, regions and sampling, triangulations and hulls, streamlines, symmetry, frames and grids, the `Profile` value, crossings, blends, conic sections and spherical projections"
 python = [
   "geometry.path.Polyline",
   "geometry.path.Contour",
@@ -1875,11 +1900,11 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "the `shapes`, `shapers` and `sections` kit"
+native = "the `shapers` and `sections` kit, and the shape modifiers `cornered` and `distorted`"
 python = [
-  "geometry.shapes.star",
   "geometry.shapers.wave",
   "geometry.sections.circle",
+  "geometry.shapes.cornered",
 ]
 
 [[section.surface.item]]
