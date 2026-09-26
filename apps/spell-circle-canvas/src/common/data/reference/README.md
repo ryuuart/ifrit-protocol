@@ -14,11 +14,12 @@ page here.
 | `pages/types/Json.md` | the document as a value, the two constructors a caller would not guess, and the three shapes a rectangle is published in |
 | `pages/types/Schema.md` | a schema as one copyable token, and what both conversions refuse |
 | `pages/types/FlatBuffer.md` | a buffer read in place, and the two forms its decoder takes |
+| `pages/types/ReadFile.md` | a file read whole in one line: a document, a table, a store's answer, and the decoders a host registers |
 | `pages/types/Read.md` | what a generated value header stands on: the readings, the writings, and the one seam a value's reading is named at |
 | `pages/types/Database.md` | the two engines behind one seam, and what a query's columns come back as |
-| `pages/functions/decodeOsc.md` | an OSC packet as the one dynamic value: what an argument reads as, what a value writes as, and what does not survive the round trip |
-| `pages/functions/decodeMidi.md` | a MIDI message as the one dynamic value: the kinds, the fields each carries, and the note on that is a note off |
-| `pages/functions/decodeArtNet.md` | an Art-Net packet as the one dynamic value: a universe of dimmers, the other three forms, and the pairs the wire counts in |
+| `pages/dialects/Osc.md` | an OSC packet as the one dynamic value: what an argument reads as, what a value writes as, and what does not survive the round trip |
+| `pages/dialects/Midi.md` | a MIDI message as the one dynamic value: the kinds, the fields each carries, and the note on that is a note off |
+| `pages/dialects/ArtNet.md` | an Art-Net packet as the one dynamic value: a universe of dimmers, the other three forms, and the pairs the wire counts in |
 | `pages/functions/decodeCsv.md` | delimiter-separated text into a table: the quoting rule, how a column's type is decided, and what a ragged file becomes |
 
 ## What this library is for
@@ -31,19 +32,22 @@ draws, and nothing here knows what a colour is.
 ## The decoders on a hub
 
 A hub answers a URI with bytes and hands those bytes to whatever decoder
-is registered for the type asked for. `sigil::data::TableDecoder` and
-`sigil::data::JsonDecoder` are the two this library carries; after
-`sigil::data::registerDecoders`, a data file is
+is registered for the type asked for. `sigil::data::TableDecoder`,
+`sigil::data::JsonDecoder` and `sigil::data::DatabaseDecoder` are the
+three this library carries; after `sigil::data::registerDecoders`, a
+data file is
 `hub.load<Table>("res://data/deaths.csv")`, a nested record is
 `hub.load<Json>("res://data/tree.json")`, and an OSC desk is
-`hub.load<Json>("osc://desk:9000")`, cached and reloaded like anything
-else the hub holds. A host calls that once, wherever it builds its hub;
+`hub.load<Json>("osc://desk:9000")` and a store is
+`hub.load<Database>("res://data/cities.sqlite")`, cached and reloaded
+like anything else the hub holds. A host calls that once, wherever it builds its hub;
 registering a type again replaces the decoder later asks run, so a host
 that wants a pinned delimiter registers its own table decoder
 afterwards.
 
-`registerDecoders` is a template over the hub so this library depends on
-the byte vocabulary alone and never on the hub, its cache or its codecs.
+`registerDecoders` stands in the read feature beside the one-line
+readers, which is the one feature besides the connection that links the
+hub; the decoders themselves speak the byte vocabulary alone.
 
 `TableDecoder` decides a rectangular format by the resource's name where
 it has one — `.csv`, `.tsv` and `.json` — and otherwise by the first

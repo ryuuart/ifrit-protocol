@@ -8,9 +8,8 @@
 
 #include <gtest/gtest.h>
 #include <sigildata/connection/Connection.h>
-#include <sigildata/decode/ArtNet.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
-#include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
 #include <sigilio/testing/Testing.h>
@@ -29,6 +28,15 @@
 #include "ScratchDir.h"
 
 using namespace sigil::data;
+
+namespace {
+/** A value as JSON text, for a comparison or a failure message. */
+std::string jsonText(const sigil::data::Json& value) {
+  const std::vector<std::byte> bytes =
+      sigil::data::encode(value, sigil::data::Dialect::Json);
+  return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+}
+}  // namespace
 using sigil::io::Bytes;
 using sigil::io::Hub;
 using sigil::io::testing::inletOf;
@@ -88,50 +96,50 @@ TEST(DataConnection, AJsonMessageIsTheLatestAndReachesEveryHandlerNamingIt) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
-  Connection scene(hub, "ws://:8848/scene");
+  Connection scene = connect(hub, "ws://:8848/scene");
   int every = 0;
   std::vector<double> gusts;
-  scene.on("*", [&every](const Json&) { ++every; });
-  scene.on("gust", [&gusts](const Json& message) {
+  scene.on("*", [&every](const Message&) { ++every; });
+  scene.on("gust", [&gusts](const Message& message) {
     gusts.push_back(message["strength"].number());
   });
-  scene.on("calm", [&gusts](const Json&) { gusts.push_back(-1); });
+  scene.on("calm", [&gusts](const Message&) { gusts.push_back(-1); });
 
   inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"gust","strength":0.5})"));
   // Nothing has been read yet: the frame is what reads it.
-  EXPECT_TRUE(scene.latest().null());
+  EXPECT_TRUE(scene.latest().empty());
 
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   EXPECT_EQ(every, 1);
   ASSERT_EQ(gusts.size(), 1u);
   EXPECT_DOUBLE_EQ(gusts.front(), 0.5);
-  EXPECT_EQ(scene.latest()["kind"].text(), "gust");
-  EXPECT_EQ(scene.revision(), 1u);
-  EXPECT_EQ(scene.undecodable(), 0u);
+  EXPECT_EQ(scene.latest()["kind"].string(), "gust");
+  EXPECT_EQ(scene.state().revision, 1u);
+  EXPECT_EQ(scene.state().undecodable, 0u);
   EXPECT_EQ(scene.uri(), "ws://:8848/scene");
-  EXPECT_EQ(scene.localAddress(), "ws://:8848/scene");
-  EXPECT_TRUE(scene.error().empty());
-  EXPECT_FALSE(scene.closed());
+  EXPECT_EQ(scene.state().localAddress, "ws://:8848/scene");
+  EXPECT_TRUE(scene.state().error.empty());
+  EXPECT_NE(scene.state().readiness, sigil::io::ReadyState::Closed);
 }
 
 TEST(DataConnection, AnOscPacketIsItsAddressAndReachesTheHandlerOnThatAddress) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>()));
 
-  Connection desk(hub, "osc://:9000");
+  Connection desk = connect(hub, "osc://:9000");
   std::vector<double> faders;
-  desk.on("/sky/gust", [&faders](const Json& message) {
+  desk.on("/sky/gust", [&faders](const Message& message) {
     faders.push_back(message["arguments"][0].number());
   });
-  desk.on("/sky/calm", [&faders](const Json&) { faders.push_back(-1); });
+  desk.on("/sky/calm", [&faders](const Message&) { faders.push_back(-1); });
 
   inletOf(desk.feed()).deliver(
-              bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
+              bytesOf(encode(oscMessage("/sky/gust", Json(Json::Array{Json(0.5)})), Dialect::Osc)));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   ASSERT_EQ(faders.size(), 1u);
   EXPECT_DOUBLE_EQ(faders.front(), 0.5);
-  EXPECT_EQ(desk.latest()["address"].text(), "/sky/gust");
+  EXPECT_EQ(desk.latest()["address"].string(), "/sky/gust");
   ASSERT_EQ(desk.latest()["arguments"].size(), 1u);
   EXPECT_DOUBLE_EQ(desk.latest()["arguments"][0].number(), 0.5);
 }
@@ -153,12 +161,12 @@ TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
     return message;
   };
 
-  Connection pads(hub, "midi://in/Launchpad");
+  Connection pads = connect(hub, "midi://in/Launchpad");
   std::vector<double> struck;
-  pads.on("NoteOn", [&struck](const Json& message) {
+  pads.on("NoteOn", [&struck](const Message& message) {
     struck.push_back(message["note"].number());
   });
-  pads.on("NoteOff", [&struck](const Json&) { struck.push_back(-1); });
+  pads.on("NoteOff", [&struck](const Message&) { struck.push_back(-1); });
 
   // A pad struck, and the same pad coming back up — which a keyboard
   // says with a note on at no velocity, and which the codec reads as
@@ -172,9 +180,9 @@ TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
   EXPECT_DOUBLE_EQ(struck.back(), -1.0);
   // A message's KIND is the name a handler is registered under and the
   // name it latches under, there being no address on this wire.
-  EXPECT_EQ(pads.latest()["kind"].text(), "NoteOff");
+  EXPECT_EQ(pads.latest()["kind"].string(), "NoteOff");
   EXPECT_DOUBLE_EQ(pads.latest("NoteOn")["velocity"].number(), 100.0);
-  EXPECT_EQ(pads.undecodable(), 0u);
+  EXPECT_EQ(pads.state().undecodable, 0u);
 
   // And back out the same door as the bytes a cable carries: the light
   // under the pad that was struck.
@@ -189,13 +197,13 @@ TEST(DataMidi, AMidiDoorReadsAMessageAsItsKindAndWritesOneBack) {
   // and an address with arguments under it is one of those: naming a
   // message is OSC's way and not a cable's.
   EXPECT_FALSE(pads.send(Json(Json::Object{{"kind", Json("Thunder")}})));
-  EXPECT_FALSE(pads.send("/sky/gust", Json(Json::Array{Json(0.5)})));
+  EXPECT_FALSE(pads.send(oscMessage("/sky/gust", Json(Json::Array{Json(0.5)}))));
   EXPECT_EQ(sent->size(), 1u);
 
   // Bytes that are no message at all reach no reader and are counted.
   inletOf(pads.feed()).deliver(bytesOf(wire({0x3C, 0x64})));
   sigil::io::advance(hub, std::chrono::duration<double>(1.0));
-  EXPECT_EQ(pads.undecodable(), 1u);
+  EXPECT_EQ(pads.state().undecodable, 1u);
   EXPECT_EQ(struck.size(), 2u);
 }
 
@@ -220,9 +228,9 @@ TEST(DataArtNet, AnArtNetDoorReadsAUniverseAndWritesOneBack) {
     return packet;
   };
 
-  Connection desk(hub, "artnet://:6454");
+  Connection desk = connect(hub, "artnet://:6454");
   std::vector<double> washes;
-  desk.on("Dmx", [&washes](const Json& message) {
+  desk.on("Dmx", [&washes](const Message& message) {
     washes.push_back(message["channels"][0].number());
   });
 
@@ -235,11 +243,11 @@ TEST(DataArtNet, AnArtNetDoorReadsAUniverseAndWritesOneBack) {
   EXPECT_DOUBLE_EQ(washes.front(), 255.0);
   // A packet's KIND is the name a handler is registered under and the
   // name it latches under, there being no address on this wire.
-  EXPECT_EQ(desk.latest()["kind"].text(), "Dmx");
+  EXPECT_EQ(desk.latest()["kind"].string(), "Dmx");
   EXPECT_EQ(desk.latest()["universe"], Json(2));
   EXPECT_EQ(desk.latest("Dmx")["sequence"], Json(7));
   EXPECT_EQ(desk.latest()["channels"].size(), 4u);
-  EXPECT_EQ(desk.undecodable(), 0u);
+  EXPECT_EQ(desk.state().undecodable, 0u);
 
   // And back out the same door as the datagram a desk sends: a universe
   // of this scene's own, which is the bytes the codec writes for it.
@@ -250,19 +258,19 @@ TEST(DataArtNet, AnArtNetDoorReadsAUniverseAndWritesOneBack) {
       {"channels", Json(Json::Array{Json(255), Json(128), Json(64)})}});
   EXPECT_TRUE(desk.send(lit));
   ASSERT_EQ(sent->size(), 1u);
-  EXPECT_EQ(sent->front(), encodeArtNet(lit));
+  EXPECT_EQ(sent->front(), encode(lit, Dialect::ArtNet));
 
   // A value this wire cannot spell does not go out as an empty
   // datagram, and an address with arguments under it is one of those:
   // naming a message is OSC's way and not a lighting wire's.
   EXPECT_FALSE(desk.send(Json(Json::Object{{"kind", Json("Blackout")}})));
-  EXPECT_FALSE(desk.send("/sky/gust", Json(Json::Array{Json(0.5)})));
+  EXPECT_FALSE(desk.send(oscMessage("/sky/gust", Json(Json::Array{Json(0.5)}))));
   EXPECT_EQ(sent->size(), 1u);
 
   // Bytes that are no packet at all reach no reader and are counted.
   inletOf(desk.feed()).deliver(bytesOf(wire({'A', 'r', 't', 0})));
   sigil::io::advance(hub, std::chrono::duration<double>(1.0));
-  EXPECT_EQ(desk.undecodable(), 1u);
+  EXPECT_EQ(desk.state().undecodable, 1u);
   EXPECT_EQ(washes.size(), 1u);
 }
 
@@ -270,13 +278,13 @@ TEST(DataConnection, EachNameLatchesItsOwnNewestBesideTheNewestOfAll) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>()));
 
-  Connection desk(hub, "osc://:9000");
+  Connection desk = connect(hub, "osc://:9000");
   inletOf(desk.feed()).deliver(
-              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))));
+              bytesOf(encode(oscMessage("/sky/wind", Json(Json::Array{Json(0.25)})), Dialect::Osc)));
   inletOf(desk.feed()).deliver(
-              bytesOf(encodeOsc("/sky/gust", Json(Json::Array{Json(0.5)}))));
+              bytesOf(encode(oscMessage("/sky/gust", Json(Json::Array{Json(0.5)})), Dialect::Osc)));
   inletOf(desk.feed()).deliver(
-              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))));
+              bytesOf(encode(oscMessage("/sky/wind", Json(Json::Array{Json(0.75)})), Dialect::Osc)));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   // One fader read off the wire with no handler at all, and the one
@@ -284,7 +292,7 @@ TEST(DataConnection, EachNameLatchesItsOwnNewestBesideTheNewestOfAll) {
   EXPECT_DOUBLE_EQ(desk.latest("/sky/wind")["arguments"][0].number(), 0.75);
   EXPECT_DOUBLE_EQ(desk.latest("/sky/gust")["arguments"][0].number(), 0.5);
   // The reading that names nothing is the newest of every name.
-  EXPECT_EQ(desk.latest()["address"].text(), "/sky/wind");
+  EXPECT_EQ(desk.latest()["address"].string(), "/sky/wind");
   EXPECT_DOUBLE_EQ(desk.latest()["arguments"][0].number(), 0.75);
 }
 
@@ -295,7 +303,7 @@ TEST(DataConnection, ANameNothingIsLatchedUnderAnswersNothing) {
   // Two of anything is all this door holds, latches and queue alike, so
   // each message arrives on a frame of its own: one left on the feed
   // would fall off the front before the connection read it.
-  Connection scene(hub, "ws://:8848/scene", {.capacity = 2});
+  Connection scene = connect(hub, "ws://:8848/scene", {.capacity = 2});
   const auto arrives = [&scene, &hub](std::string_view text) {
     inletOf(scene.feed()).deliver(bytesOf(text));
     sigil::io::advance(hub, std::chrono::duration<double>(0.0));
@@ -305,25 +313,26 @@ TEST(DataConnection, ANameNothingIsLatchedUnderAnswersNothing) {
   arrives(R"({"kind":"hail","strength":3})");
   arrives(R"({"strength":4})");
 
-  EXPECT_TRUE(scene.latest("squall").null());  // no such message ever came
+  EXPECT_TRUE(scene.latest("squall").empty());  // no such message ever came
   // The third name was one too many, so the name written longest ago
   // reads as if nothing had ever arrived under it.
-  EXPECT_TRUE(scene.latest("gust").null());
+  EXPECT_TRUE(scene.latest("gust").empty());
   EXPECT_DOUBLE_EQ(scene.latest("calm")["strength"].number(), 2);
   EXPECT_DOUBLE_EQ(scene.latest("hail")["strength"].number(), 3);
-  EXPECT_TRUE(scene.latest("*").null());  // a handler's word, not a name
-  EXPECT_TRUE(scene.latest("").null());
+  // A pattern reads the newest under every name it matches.
+  EXPECT_DOUBLE_EQ(scene.latest("*")["strength"].number(), 3);
+  EXPECT_TRUE(scene.latest("").empty());
   // The last message named nothing, so it latched under nothing and is
   // the newest all the same.
   EXPECT_DOUBLE_EQ(scene.latest()["strength"].number(), 4);
-  EXPECT_TRUE(Connection().latest("gust").null());
+  EXPECT_TRUE(Connection().latest("gust").empty());
 }
 
 TEST(DataConnection, ReceiveHandsOutEveryMessageInOrderAndThenNothing) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
-  Connection scene(hub, "ws://:8848/scene");
+  Connection scene = connect(hub, "ws://:8848/scene");
   // The queue opens on the first ask, so that ask comes before the
   // messages it expects to be held.
   EXPECT_FALSE(scene.receive().has_value());
@@ -333,7 +342,7 @@ TEST(DataConnection, ReceiveHandsOutEveryMessageInOrderAndThenNothing) {
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   for (int number = 0; number != 3; ++number) {
-    const std::optional<Json> message = scene.receive();
+    const std::optional<Message> message = scene.receive();
     ASSERT_TRUE(message.has_value());
     EXPECT_DOUBLE_EQ((*message)["n"].number(), number);
   }
@@ -346,9 +355,9 @@ TEST(DataConnection, TheUnreadQueueFillsFromTheFirstReceiveOn) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
-  Connection scene(hub, "ws://:8848/scene");
+  Connection scene = connect(hub, "ws://:8848/scene");
   int handled = 0;
-  scene.on("*", [&handled](const Json&) { ++handled; });
+  scene.on("*", [&handled](const Message&) { ++handled; });
   const auto arrives = [&scene, &hub](std::string_view text) {
     inletOf(scene.feed()).deliver(bytesOf(text));
     sigil::io::advance(hub, std::chrono::duration<double>(0.0));
@@ -359,36 +368,36 @@ TEST(DataConnection, TheUnreadQueueFillsFromTheFirstReceiveOn) {
   arrives(R"({"kind":"step","n":1})");
   arrives(R"({"kind":"step","n":2})");
   EXPECT_EQ(handled, 2);
-  EXPECT_EQ(scene.revision(), 2u);
+  EXPECT_EQ(scene.state().revision, 2u);
   EXPECT_DOUBLE_EQ(scene.latest()["n"].number(), 2);
 
   // This ask is the one that opens it, and it comes back empty because
   // what came before it was never held.
   EXPECT_FALSE(scene.receive().has_value());
   arrives(R"({"kind":"step","n":3})");
-  const std::optional<Json> message = scene.receive();
+  const std::optional<Message> message = scene.receive();
   ASSERT_TRUE(message.has_value());
   EXPECT_DOUBLE_EQ((*message)["n"].number(), 3);
   EXPECT_FALSE(scene.receive().has_value());
-  EXPECT_EQ(scene.dropped(), 0u);  // the feed dropped nothing either
+  EXPECT_EQ(scene.state().dropped, 0u);  // the feed dropped nothing either
 }
 
 TEST(DataConnection, OtherwiseRunsForEveryMessageNoNameMatched) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>()));
 
-  Connection desk(hub, "osc://:9000");
+  Connection desk = connect(hub, "osc://:9000");
   std::vector<std::string> ran;
-  desk.on("/sky/wind", [&ran](const Json&) { ran.push_back("wind"); });
-  desk.on("*", [&ran](const Json&) { ran.push_back("every"); });
-  desk.otherwise([&ran](const Json& message) {
-    ran.push_back("otherwise " + std::string(message["address"].text()));
+  desk.on("/sky/wind", [&ran](const Message&) { ran.push_back("wind"); });
+  desk.on("*", [&ran](const Message&) { ran.push_back("every"); });
+  desk.otherwise([&ran](const Message& message) {
+    ran.push_back("otherwise " + std::string(message["address"].string()));
   });
-  desk.otherwise([&ran](const Json&) { ran.push_back("otherwise again"); });
+  desk.otherwise([&ran](const Message&) { ran.push_back("otherwise again"); });
 
-  inletOf(desk.feed()).deliver(bytesOf(encodeOsc("/sky/thunder", Json(Json::Array{}))));
+  inletOf(desk.feed()).deliver(bytesOf(encode(oscMessage("/sky/thunder", Json(Json::Array{})), Dialect::Osc)));
   inletOf(desk.feed()).deliver(
-              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))));
+              bytesOf(encode(oscMessage("/sky/wind", Json(Json::Array{Json(0.5)})), Dialect::Osc)));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   // A name nothing was registered under reaches "*" and then, after it,
@@ -405,19 +414,19 @@ TEST(DataConnection, AMessageThatCannotBeReadLeavesTheLatestStanding) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
-  Connection scene(hub, "ws://:8848/scene");
+  Connection scene = connect(hub, "ws://:8848/scene");
   int handled = 0;
-  scene.on("*", [&handled](const Json&) { ++handled; });
+  scene.on("*", [&handled](const Message&) { ++handled; });
   EXPECT_FALSE(scene.receive().has_value());  // the queue opens here
 
   inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"gust","strength":0.5})"));
   inletOf(scene.feed()).deliver(bytesOf("this is no document at all"));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
-  EXPECT_EQ(scene.undecodable(), 1u);
+  EXPECT_EQ(scene.state().undecodable, 1u);
   EXPECT_EQ(handled, 1);
-  EXPECT_EQ(scene.revision(), 2u);  // the feed took it; no reader saw it
-  EXPECT_EQ(scene.latest()["kind"].text(), "gust");
+  EXPECT_EQ(scene.state().revision, 2u);  // the feed took it; no reader saw it
+  EXPECT_EQ(scene.latest()["kind"].string(), "gust");
   ASSERT_TRUE(scene.receive().has_value());
   EXPECT_FALSE(scene.receive().has_value());
 }
@@ -429,20 +438,20 @@ TEST(DataConnection, SendWritesThePacketOnOscAndTheTextOnEveryOtherDoor) {
   sigil::io::registerTransport(hub, "osc", intoVector(desked));
   sigil::io::registerTransport(hub, "ws", intoVector(browsed));
 
-  const Connection desk(hub, "osc://:9000");
-  const Connection browser(hub, "ws://:8848/scene");
+  const Connection desk = connect(hub, "osc://:9000");
+  const Connection browser = connect(hub, "ws://:8848/scene");
   const Json arguments = Json(Json::Array{Json(0.5), Json("gust")});
 
-  EXPECT_TRUE(desk.send("/sky/gust", arguments));
+  EXPECT_TRUE(desk.send(oscMessage("/sky/gust", arguments)));
   ASSERT_EQ(desked->size(), 1u);
-  EXPECT_EQ(desked->front(), encodeOsc("/sky/gust", arguments));
+  EXPECT_EQ(desked->front(), encode(oscMessage("/sky/gust", arguments), Dialect::Osc));
 
-  EXPECT_TRUE(browser.send("/sky/gust", arguments));
+  EXPECT_TRUE(browser.send(oscMessage("/sky/gust", arguments)));
   ASSERT_EQ(browsed->size(), 1u);
-  const std::optional<Json> readBack = decodeJson(textOf(browsed->front()));
+  const std::optional<Json> readBack = decode(textOf(browsed->front()), Dialect::Json);
   ASSERT_TRUE(readBack.has_value());
-  EXPECT_EQ(textOf(browsed->front()), encodeJson(*readBack));
-  EXPECT_EQ((*readBack)["address"].text(), "/sky/gust");
+  EXPECT_EQ(textOf(browsed->front()), jsonText(*readBack));
+  EXPECT_EQ((*readBack)["address"].string(), "/sky/gust");
   EXPECT_TRUE((*readBack)["arguments"] == arguments);
 
   // The message form goes out the same way on either door: the record a
@@ -457,15 +466,15 @@ TEST(DataConnection, AReplyInAHandlerAnswersTheSenderOfTheMessage) {
   const auto answered = std::make_shared<Answered>();
   sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>(), answered));
 
-  Connection desk(hub, "osc://:9000");
+  Connection desk = connect(hub, "osc://:9000");
   std::string handled;
-  desk.on("/sky/wind", [&desk, &handled](const Json& message) {
-    handled = desk.sender();
-    desk.reply("/sky/state", Json(Json::Array{message["arguments"][0]}));
+  desk.on("/sky/wind", [&desk, &handled](const Message& message) {
+    handled = message.sender();
+    desk.reply(oscMessage("/sky/state", Json(Json::Array{message["arguments"][0]})));
   });
 
   inletOf(desk.feed()).deliver(
-              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.5)}))),
+              bytesOf(encode(oscMessage("/sky/wind", Json(Json::Array{Json(0.5)})), Dialect::Osc)),
               "osc://127.0.0.1:52341");
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
@@ -476,7 +485,7 @@ TEST(DataConnection, AReplyInAHandlerAnswersTheSenderOfTheMessage) {
   EXPECT_EQ(handled, "osc://127.0.0.1:52341");
   EXPECT_EQ(answered->front().first, "osc://127.0.0.1:52341");
   EXPECT_EQ(answered->front().second,
-            encodeOsc("/sky/state", Json(Json::Array{Json(0.5)})));
+            encode(oscMessage("/sky/state", Json(Json::Array{Json(0.5)})), Dialect::Osc));
 }
 
 TEST(DataConnection, AReplyOutsideAHandlerAnswersTheNewestSender) {
@@ -484,31 +493,31 @@ TEST(DataConnection, AReplyOutsideAHandlerAnswersTheNewestSender) {
   const auto answered = std::make_shared<Answered>();
   sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>(), answered));
 
-  Connection desk(hub, "osc://:9000");
+  Connection desk = connect(hub, "osc://:9000");
   // Nothing has arrived, so there is nobody to answer.
-  EXPECT_FALSE(desk.reply("/sky/state", Json(Json::Array{})));
-  EXPECT_TRUE(desk.sender().empty());
+  EXPECT_FALSE(desk.reply(oscMessage("/sky/state", Json(Json::Array{}))));
+  EXPECT_TRUE(desk.latest().sender().empty());
 
   inletOf(desk.feed()).deliver(
-              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.25)}))),
+              bytesOf(encode(oscMessage("/sky/wind", Json(Json::Array{Json(0.25)})), Dialect::Osc)),
               "osc://127.0.0.1:52341");
   inletOf(desk.feed()).deliver(
-              bytesOf(encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)}))),
+              bytesOf(encode(oscMessage("/sky/wind", Json(Json::Array{Json(0.75)})), Dialect::Osc)),
               "osc://127.0.0.1:52342");
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
-  EXPECT_EQ(desk.sender(), "osc://127.0.0.1:52342");
-  EXPECT_TRUE(desk.reply("/sky/state", Json(Json::Array{Json(0.75)})));
+  EXPECT_EQ(desk.latest().sender(), "osc://127.0.0.1:52342");
+  EXPECT_TRUE(desk.reply(oscMessage("/sky/state", Json(Json::Array{Json(0.75)}))));
   ASSERT_EQ(answered->size(), 1u);
   // The newest message is the one an answer outside a handler answers,
   // as the newest message is what latest() reads.
   EXPECT_EQ(answered->front().first, "osc://127.0.0.1:52342");
   // The message form goes back the same way the address form does.
-  EXPECT_TRUE(desk.reply(desk.latest()));
+  EXPECT_TRUE(desk.reply(desk.latest().payload));
   ASSERT_EQ(answered->size(), 2u);
   EXPECT_EQ(answered->back().first, "osc://127.0.0.1:52342");
   EXPECT_EQ(answered->back().second,
-            encodeOsc("/sky/wind", Json(Json::Array{Json(0.75)})));
+            encode(oscMessage("/sky/wind", Json(Json::Array{Json(0.75)})), Dialect::Osc));
 }
 
 TEST(DataConnection, AMessageThatNamedNoSenderIsNobodyToAnswer) {
@@ -517,19 +526,19 @@ TEST(DataConnection, AMessageThatNamedNoSenderIsNobodyToAnswer) {
   const auto answered = std::make_shared<Answered>();
   sigil::io::registerTransport(hub, "ws", intoVector(sent, answered));
 
-  Connection scene(hub, "ws://:8848/scene");
+  Connection scene = connect(hub, "ws://:8848/scene");
   // The door answers one sender, and a message arrived; what is missing
   // is who sent it, which a transport that cannot say leaves empty.
   inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"gust"})"));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
-  EXPECT_EQ(scene.latest()["kind"].text(), "gust");
-  EXPECT_FALSE(scene.reply(scene.latest()));
-  EXPECT_FALSE(scene.reply("/sky/state", Json(Json::Array{})));
-  EXPECT_TRUE(scene.sender().empty());
+  EXPECT_EQ(scene.latest()["kind"].string(), "gust");
+  EXPECT_FALSE(scene.reply(scene.latest().payload));
+  EXPECT_FALSE(scene.reply(oscMessage("/sky/state", Json(Json::Array{}))));
+  EXPECT_TRUE(scene.latest().sender().empty());
   EXPECT_TRUE(answered->empty());
   // The door itself is no less open for it: what goes out to everybody
   // still goes.
-  EXPECT_TRUE(scene.send(scene.latest()));
+  EXPECT_TRUE(scene.send(scene.latest().payload));
   EXPECT_EQ(sent->size(), 1u);
 }
 
@@ -546,14 +555,14 @@ TEST(DataConnection, ARecordingHasNobodyToReplyTo) {
 
   Hub hub;
   hub.replay("ws://:8848/scene", path.string());
-  Connection scene(hub, "ws://:8848/scene");
+  Connection scene = connect(hub, "ws://:8848/scene");
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   EXPECT_DOUBLE_EQ(scene.latest()["strength"].number(), 1.0);
   // A recording holds the messages and not who sent them, so what runs
   // again against a file answers nobody rather than answering wrongly.
-  EXPECT_FALSE(scene.reply(scene.latest()));
-  EXPECT_FALSE(scene.reply("/sky/state", Json(Json::Array{})));
+  EXPECT_FALSE(scene.reply(scene.latest().payload));
+  EXPECT_FALSE(scene.reply(oscMessage("/sky/state", Json(Json::Array{}))));
 }
 
 TEST(DataConnection, AMovedConnectionGoesOnDispatchingToItsHandlers) {
@@ -561,8 +570,8 @@ TEST(DataConnection, AMovedConnectionGoesOnDispatchingToItsHandlers) {
   sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
   int seen = 0;
-  Connection opened(hub, "ws://:8848/scene");
-  opened.on("*", [&seen](const Json&) { ++seen; });
+  Connection opened = connect(hub, "ws://:8848/scene");
+  opened.on("*", [&seen](const Message&) { ++seen; });
   Connection moved = std::move(opened);
 
   inletOf(moved.feed()).deliver(bytesOf(R"({"kind":"gust"})"));
@@ -570,28 +579,28 @@ TEST(DataConnection, AMovedConnectionGoesOnDispatchingToItsHandlers) {
 
   EXPECT_EQ(seen, 1);
   EXPECT_EQ(moved.uri(), "ws://:8848/scene");
-  EXPECT_EQ(moved.latest()["kind"].text(), "gust");
+  EXPECT_EQ(moved.latest()["kind"].string(), "gust");
 }
 
 TEST(DataConnection, AConnectionOntoNothingAnswersNothing) {
   Connection none;
-  EXPECT_TRUE(none.latest().null());
+  EXPECT_TRUE(none.latest().empty());
   EXPECT_TRUE(none.uri().empty());
-  EXPECT_TRUE(none.localAddress().empty());
-  EXPECT_TRUE(none.error().empty());
-  EXPECT_EQ(none.revision(), 0u);
-  EXPECT_EQ(none.dropped(), 0u);
-  EXPECT_EQ(none.undecodable(), 0u);
-  EXPECT_TRUE(none.closed());
+  EXPECT_TRUE(none.state().localAddress.empty());
+  EXPECT_TRUE(none.state().error.empty());
+  EXPECT_EQ(none.state().revision, 0u);
+  EXPECT_EQ(none.state().dropped, 0u);
+  EXPECT_EQ(none.state().undecodable, 0u);
+  EXPECT_EQ(none.state().readiness, sigil::io::ReadyState::Closed);
   EXPECT_FALSE(none.feed());
   EXPECT_FALSE(none.receive().has_value());
   EXPECT_FALSE(none.send(Json(Json::Object{{"kind", Json("gust")}})));
-  EXPECT_FALSE(none.send("/sky/gust", Json(Json::Array{})));
+  EXPECT_FALSE(none.send(oscMessage("/sky/gust", Json(Json::Array{}))));
   EXPECT_FALSE(none.reply(Json(Json::Object{{"kind", Json("gust")}})));
-  EXPECT_FALSE(none.reply("/sky/gust", Json(Json::Array{})));
-  none.on("*", [](const Json&) { FAIL() << "no message arrives at no door"; });
+  EXPECT_FALSE(none.reply(oscMessage("/sky/gust", Json(Json::Array{}))));
+  none.on("*", [](const Message&) { FAIL() << "no message arrives at no door"; });
   none.otherwise(
-      [](const Json&) { FAIL() << "no message arrives at no door"; });
+      [](const Message&) { FAIL() << "no message arrives at no door"; });
 }
 
 TEST(DataConnection, ARecordingReplaysThroughAConnectionByTheTimeDispatched) {
@@ -612,26 +621,85 @@ TEST(DataConnection, ARecordingReplaysThroughAConnectionByTheTimeDispatched) {
   // No transport is needed for a door that reads a recording.
   hub.replay("ws://:8848/scene", path.string());
 
-  Connection scene(hub, "ws://:8848/scene");
+  Connection scene = connect(hub, "ws://:8848/scene");
   std::vector<double> strengths;
-  scene.on("gust", [&strengths](const Json& message) {
+  scene.on("gust", [&strengths](const Message& message) {
     strengths.push_back(message["strength"].number());
   });
-  EXPECT_TRUE(scene.error().empty());
-  EXPECT_EQ(scene.revision(), 0u);  // nothing arrives until time moves
+  EXPECT_TRUE(scene.state().error.empty());
+  EXPECT_EQ(scene.state().revision, 0u);  // nothing arrives until time moves
 
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   ASSERT_EQ(strengths.size(), 1u);
   EXPECT_DOUBLE_EQ(strengths.front(), 1.0);
-  EXPECT_FALSE(scene.closed());
+  EXPECT_NE(scene.state().readiness, sigil::io::ReadyState::Closed);
 
   sigil::io::advance(hub, std::chrono::duration<double>(1.0));
   ASSERT_EQ(strengths.size(), 2u);
   EXPECT_DOUBLE_EQ(strengths.back(), 2.0);
   // The recording ran out: the door is shut and what it delivered
   // stands.
-  EXPECT_TRUE(scene.closed());
+  EXPECT_EQ(scene.state().readiness, sigil::io::ReadyState::Closed);
   EXPECT_DOUBLE_EQ(scene.latest()["strength"].number(), 2.0);
+}
+
+}  // namespace
+
+namespace {
+
+TEST(DataConnection, AnAddressPatternNamesEveryAddressItMatches) {
+  EXPECT_TRUE(matchesAddress("/sky/*", "/sky/wind"));
+  EXPECT_FALSE(matchesAddress("/sky/*", "/sky/wind/gust"));
+  EXPECT_TRUE(matchesAddress("/sky/?ind", "/sky/wind"));
+  EXPECT_TRUE(matchesAddress("/fader/[1-3]", "/fader/2"));
+  EXPECT_FALSE(matchesAddress("/fader/[1-3]", "/fader/4"));
+  EXPECT_TRUE(matchesAddress("/fader/[!1-3]", "/fader/4"));
+  EXPECT_TRUE(matchesAddress("/sky/{wind,gust}", "/sky/gust"));
+  EXPECT_FALSE(matchesAddress("/sky/{wind,gust}", "/sky/calm"));
+  EXPECT_TRUE(matchesAddress("weather", "weather"));
+  EXPECT_FALSE(matchesAddress("weather", "weathers"));
+
+  Hub hub;
+  sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>()));
+  Connection desk = connect(hub, "osc://:9000");
+  std::vector<std::string> heard;
+  desk.on("/sky/*", [&heard](const Message& message) {
+    heard.emplace_back(message.address());
+    EXPECT_EQ(message.name(), message.address());
+  });
+  int strangers = 0;
+  desk.otherwise([&strangers](const Message&) { ++strangers; });
+  for (const char* address : {"/sky/wind", "/sky/gust", "/sea/tide"})
+    inletOf(desk.feed()).deliver(
+        bytesOf(encode(oscMessage(address, 0.25), Dialect::Osc)));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
+
+  EXPECT_EQ(heard, (std::vector<std::string>{"/sky/wind", "/sky/gust"}));
+  EXPECT_EQ(strangers, 1);
+  // The newest under a pattern is the newest of every name it matches,
+  // and an OSC message reads its first argument as its value.
+  EXPECT_EQ(desk.latest("/sky/*").address(), "/sky/gust");
+  EXPECT_FLOAT_EQ(desk.latest("/sky/wind").number(), 0.25f);
+  EXPECT_FLOAT_EQ(desk.latest("/sky/wind")[0].number(), 0.25f);
+  EXPECT_TRUE(desk.latest("/sky/calm").empty());
+}
+
+TEST(DataConnection, AQueueAskedForAsItOpensHoldsFromTheFirstArrival) {
+  Hub hub;
+  sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
+  Connection scene = connect(hub, "ws://:8848/scene", {.queue = true});
+  inletOf(scene.feed()).deliver(bytesOf(R"({"kind":"step","n":1})"), "ws://127.0.0.1:5");
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
+  const std::optional<Message> message = scene.receive();
+  ASSERT_TRUE(message);
+  EXPECT_DOUBLE_EQ((*message)["n"].number(), 1.0);
+  EXPECT_EQ(message->sender(), "ws://127.0.0.1:5");
+  EXPECT_EQ(message->revision(), 1u);
+
+  // Closing is IO's: nothing more is taken, and what was read stays.
+  scene.close();
+  EXPECT_EQ(scene.state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_DOUBLE_EQ(scene.latest()["n"].number(), 1.0);
 }
 
 }  // namespace

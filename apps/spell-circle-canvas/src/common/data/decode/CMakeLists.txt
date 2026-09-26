@@ -18,10 +18,9 @@
 find_package(simdjson CONFIG REQUIRED)
 find_package(flatbuffers CONFIG REQUIRED)
 sigil_library(SigilDataDecode
-  SOURCES Csv.cpp Json.cpp Decoders.cpp Osc.cpp Midi.cpp ArtNet.cpp
-          Schema.cpp
-  HEADERS Csv.h Json.h Decoders.h FlatBuffer.h Schema.h Osc.h Midi.h
-          ArtNet.h
+  SOURCES Csv.cpp Json.cpp Dialect.cpp Decoders.cpp Osc.cpp Midi.cpp ArtNet.cpp
+          Schema.cpp Wire.h
+  HEADERS Csv.h Json.h Dialect.h Decoders.h FlatBuffer.h Schema.h
   PUBLIC SigilDataTable SigilIOSource flatbuffers::flatbuffers
   PRIVATE simdjson::simdjson)
 

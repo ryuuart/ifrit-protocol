@@ -1,13 +1,13 @@
 ---
-kind: function
+kind: type
 library: SigilData
-name: decodeMidi
-qualified: sigil::data::decodeMidi
+name: Dialect::Midi
+qualified: sigil::data::Dialect::Midi
 group: Wires
 status: stable
 ---
 
-# decodeMidi
+# Dialect::Midi
 
 ## Description
 
@@ -66,7 +66,7 @@ out as the bytes it came in as — the reading names a `NoteOff`, and a
 
 ### What goes back out
 
-`sigil::data::encodeMidi` writes the same forms: the kind and the
+`sigil::data::encode` with `Dialect::Midi` writes the same forms: the kind and the
 channel say which status byte, the named fields say the data bytes, a
 channel left out is channel 1, and a value outside what its place on the
 wire holds is written at the nearer end of it, since wrapping it would
@@ -77,7 +77,7 @@ arrived. A value with neither a kind this knows nor bytes of its own has
 no spelling on the wire and writes as nothing at all, an empty message
 being no shorter message.
 
-`sigil::data::decodeMidi` answers nothing when the bytes are no MIDI
+`sigil::data::decode` with `Dialect::Midi` answers nothing when the bytes are no MIDI
 message: one that opens with a byte the wire cannot open a message with,
 one that carries fewer data bytes than its kind takes or more, and one
 whose data bytes are not data bytes. A message is read whole or not at

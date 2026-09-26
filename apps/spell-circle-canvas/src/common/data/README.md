@@ -27,26 +27,32 @@ what a consumer uses; every public header lives under
 |--------|---------|-------|
 | `SigilDataScale` | `scale/Scale.h` | `Interval`, `Transform`, `Overflow` and `Scale` — the mapping, its inverse, its tick ladder and `nice()` |
 | `SigilDataTable` | `table/Table.h` | `Instant`, `Flag`, `Value`, `ColumnType`, `Order`, `Column` and `Table` — named typed columns, the cells as spans, and the reshapings |
-| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h`, `decode/Osc.h`, `decode/Midi.h`, `decode/ArtNet.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json`, `decodeJson()`, `encodeJson()`, `tableFromJson()`; `TableDecoder`, `JsonDecoder` and `registerDecoders(hub)` — the two decoders and the one call that puts them on a hub; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `SchemaBuffer`, `SchemaBufferDecoder`, `schemaBufferFromBytes()`, `schemaBufferFromJson()` and `registerSchemaBuffer(hub, schema)` — the same bytes where a schema names the root and no generated header does, read back as the schema's own JSON form; `Schema`, `Schema::fromBinarySchema()`, `Schema::verifies()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once, says whether bytes are that root at all, and names nothing of the reader under it; `decodeOsc()`, `encodeOsc()` and `maxOscPacketBytes` — an OSC packet read into a `Json` and written back out of one; `decodeMidi()` and `encodeMidi()` — one MIDI message read into that same value, its kind, its channel and the fields that kind carries, and written back out of one; and `decodeArtNet()` and `encodeArtNet()` — one Art-Net packet read into that same value, the universe of dimmers a lighting desk sends and the three other forms its wire carries, and written back out of one |
+| `SigilDataDecode` | `decode/Csv.h`, `decode/Json.h`, `decode/Dialect.h`, `decode/Decoders.h`, `decode/FlatBuffer.h`, `decode/Schema.h` | `CsvOptions`, `decodeCsv()`, `decodeInstant()`; `Json` and `tableFromJson()`; `Dialect`, `decode()`, `encode()`, `oscMessage()`, `maxOscPacketBytes` and `maxOscBundleDepth` — every wire this library reads, JSON text, an OSC packet, a MIDI message, an Art-Net packet, a FlatBuffer through its schema and CSV, as one value and one pair of functions over it; `TableDecoder` and `JsonDecoder` — what a hub reads a resource through; `FlatBuffer`, `FlatBufferDecoder`, `flatBufferFromBytes()`, `flatBufferFromJson()` and `registerFlatBuffer(hub)` — a FlatBuffer as a value, read in place through the schema its generated root carries; `Schema`, `Schema::fromBinarySchema()`, `Schema::verifies()` and `schema<Root>()` — that schema as one copyable value, which converts a buffer to its JSON form and a JSON form back to a buffer with the root named once, says whether bytes are that root at all, and names nothing of the reader under it |
 | `SigilDataValues` | `values/Values.h` | `rootOf()`, `bytesOf()`, `readString()`, `readStrings()`, `readScalars()`, `readBools()`, `readEach()`, `readEachOrNone()`, `writeString()`, `writeStrings()`, `writeScalars()`, `writeBools()`, `writeStructs()` and `writeEach()` — what a generated value header stands on: a string, a vector and a struct read out of a buffer into standard types and written back through a builder, with the one place a whole buffer is verified |
-| `SigilDataConnection` | `connection/Connection.h` | `Connection` — a feed read as values: the newest message, the ones a reader has not taken once it has asked for them, the handlers a message's name reaches and the `Connection::otherwise()` one that runs when no name did, the two ways a message goes back out the same door, the schema a door may read and write every message through, `Connection::reply()`, which answers the sender of one that `Connection::sender()` names, and `Connection::vitals()`, what the door says about itself as one comparable `Connection::Vitals` |
+| `SigilDataConnection` | `connection/Connection.h`, `connection/Message.h` | `connect()` and `replay()`, `ConnectOptions`, `Connection`, `ConnectionState`, `Message` and `matchesAddress()` — a feed read as values, IO's `hub.listen` one level up: the newest message and the newest under one name, the ones a reader has not taken, the handlers an OSC address pattern reaches and the `Connection::otherwise()` one that runs when none did, a message back out the same door to its peer or to one sender, a recording, and `Connection::state()`, IO's feed state with the count of arrivals no reader saw |
 | `SigilDataQuery` | `query/Database.h` | `Engine`, `Access`, `Database` and `DatabaseDecoder`, with `engineOf()` — a SQL store behind one seam, SQLite or DuckDB, whose `query()` answers a `Table`, whose `insert()` writes one in, whose `writes()` says whether a statement would change the store before it runs, and whose decoder puts a `.sqlite` or `.duckdb` file on a hub for reading only |
+| `SigilDataRead` | `read/Read.h` | `json()`, `csv()`, `table()`, `ReadOptions`, `TableOptions` and `registerDecoders(hub)` — a file read whole in one line over a hub: a document, a table, a store's or a CSV's answer to a query, and the one call that puts the `Table`, `Json` and `Database` decoders on a hub |
 
 `SigilData` is the umbrella target over them. Every one of them reads
-bytes somebody else resolved, except the connection: it stands on SigilIO's hub, so what
-links the umbrella links the hub with it.
+bytes somebody else resolved, except the readers and the connection:
+they stand on SigilIO's hub, so what links the umbrella links the hub
+with it.
 
 ## Using it
 
 ```cpp
-#include <sigildata/decode/Decoders.h>
+#include <sigildata/read/Read.h>
 #include <sigildata/scale/Scale.h>
 #include <sigildata/table/Table.h>
 
 using namespace sigil::data;
 
+// One line, over any hub: the file read whole.
+const Json words = json(hub, "res://data/content.json");
+const Table sheet = csv(hub, "res://data/nightingale.csv");
+
 // Once, wherever the host builds its hub. After it, a data file is a
-// resource like an image is.
+// resource like an image is, cached and reloaded.
 registerDecoders(hub);
 
 const std::shared_ptr<const Table> deaths =
@@ -234,10 +240,13 @@ the caller feeds back to `take()` rather than a second kind of table.
 **A file is a resource, and its meaning is this library's.** A hub
 answers a URI with bytes and hands them to whichever decoder is
 registered for the type asked for; `registerDecoders(hub)` registers
-`TableDecoder` for `Table` and `JsonDecoder` for `Json`, and everything
-after that — the cache, the hot reload, the mount table — is the hub's
-as it is for an image. `registerDecoders` is a template over the hub, so
-this library speaks the byte vocabulary and never links the hub itself.
+`TableDecoder` for `Table`, `JsonDecoder` for `Json` and
+`DatabaseDecoder` for `Database`, and everything after that — the cache,
+the hot reload, the mount table — is the hub's as it is for an image.
+Without a host, `json(hub, uri)`, `csv(hub, uri)` and `table(hub, uri,
+{.query})` read a file whole in one line, the last running its query in
+the store a `.sqlite` or `.duckdb` file is, or in DuckDB over a CSV's
+rows written in as the table `source`.
 
 One decoder answers `Table`, not one per format, because a hub keeps one
 decoder per type. Which format a resource is in is read from its name
@@ -257,19 +266,13 @@ otherwise from its first byte that is not a space. `flatBufferFromBytes()` and
 `flatBufferFromJson()` are the same two readings for a caller holding bytes of
 its own, with the parser's own message where they refuse.
 
-**A buffer whose root only a schema names is a value too.** Where the
-generated header is out of reach — a tool handed a `.bfbs`, a process
-that compiles no header at all — `SchemaBuffer` is the same bytes
-carrying the schema they were verified against, and `SchemaBuffer::text()`
-answers the schema's own JSON form, which is how a holder with no
-generated accessor reads a field. `schemaBufferFromBytes()` and
-`schemaBufferFromJson()` are its two readings, refusing with the same
-messages, and `registerSchemaBuffer(hub, schema)` makes
-`hub.load<SchemaBuffer>(uri)` answer for a file in either form. Two of
-them are the same value when their bytes are and their schemas name one
-root. A hub keeps one decoder per type and a `SchemaBuffer` is one type
-however many schemas there are, so registering a second schema replaces
-the one later asks are read through.
+**A buffer whose root only a schema names reads as its JSON form.**
+Where the generated header is out of reach — a tool handed a `.bfbs`, a
+process that compiles no header at all — `decode(bytes,
+Dialect::FlatBuffer, schema)` reads the buffer, or the schema's own JSON
+form, through the schema token and answers that JSON form as a `Json`,
+which is how a holder with no generated accessor reads a field; `encode`
+writes a value back as the buffer the schema makes of it.
 
 **A schema is one token.** `schema<Root>()` is the schema itself as a
 value: the binary schema the generated header carries, read once and
@@ -368,10 +371,10 @@ hand-edited.
 **OSC is a dialect of the same value.** Open Sound Control is what the
 performance tools speak to one another — a lighting desk, a control
 surface, a patcher — and here it is one more way to spell the one
-dynamic value rather than a value of its own. `decodeOsc()` reads a
+dynamic value rather than a value of its own. `decode(bytes, Dialect::Osc)` reads a
 packet into a `Json`: a message is its address and its arguments,
 `{"address": "/sky/wind", "arguments": [0.5]}`, and a bundle is its
-elements and the time they are for. `encodeOsc()` writes that same form
+elements and the time they are for. `encode(value, Dialect::Osc)` writes that same form, which `oscMessage(address, arguments)` builds,
 back out. So a sketch that reads an OSC desk reads a `Json` carrying an
 address and its arguments, and answers down the same wire with one.
 Which reading a hub's bytes get is taken from the resource's NAME, as a
@@ -406,7 +409,7 @@ it cannot make sense of be no packet rather than a diagnostic.
 software in the room says; MIDI is what the hardware says — the pads,
 the knobs and the wheels on the controller standing beside the screen —
 and here it is one more way to spell the one dynamic value rather than a
-value of its own. `decodeMidi()` reads one message into a `Json`: its
+value of its own. `decode(bytes, Dialect::Midi)` reads one message into a `Json`: its
 KIND, the channel it was played on, and the fields that kind carries —
 `{"kind": "NoteOn", "channel": 1, "note": 60, "velocity": 100}`, and
 `ControlChange` with a `controller` and a `value`, `PitchBend` with a
@@ -415,7 +418,7 @@ KIND, the channel it was played on, and the fields that kind carries —
 `bytes` it arrived as. Every message also carries the `status` byte it
 opened with and the `data` bytes after it, so a reader that knows the
 wire reads the wire and a reader that does not reads the names.
-`encodeMidi()` writes those same forms back, and a record carrying
+`encode(value, Dialect::Midi)` writes those same forms back, and a record carrying
 `bytes` goes out as exactly those bytes — which is how a message this
 codec has no name for is answered the way it arrived.
 
@@ -432,7 +435,7 @@ nobody played on the cable.
 software in the room says and MIDI what the hardware on the desk says;
 Art-Net is what a lighting desk says to the fixtures hanging over the
 room, and here it is one more way to spell the one dynamic value rather
-than a value of its own. `decodeArtNet()` reads one packet into a
+than a value of its own. `decode(bytes, Dialect::ArtNet)` reads one packet into a
 `Json`. Nearly every packet is a universe of dimmers —
 `{"kind": "Dmx", "universe": 0, "sequence": 7, "physical": 0,
 "channels": [255, 128, 0, 64]}` — where `universe` is the fifteen-bit
@@ -444,7 +447,7 @@ order the desk numbers them, so the channel a desk calls 1 is the first
 of that list. The three other forms are a desk asking who is out there,
 `{"kind": "Poll"}`, its answer and every other operation, each carried
 whole as the `bytes` it arrived as under a `PollReply` or an `ArtNet`
-kind and the latter naming its own `opcode`. `encodeArtNet()` writes
+kind and the latter naming its own `opcode`. `encode(value, Dialect::ArtNet)` writes
 those same forms back, and a record carrying `bytes` goes out as exactly
 those bytes — which is how a packet this codec has no reading for is
 answered the way it arrived.
@@ -465,191 +468,99 @@ reason the OSC codec above is written here rather than taken from a
 package.
 
 **A connection is a feed read as values.** A feed is bytes that keep
-arriving; a `Connection` is that same door one floor up, where what a
-reader sees is the `Json` those bytes read as and never the bytes. The
-URI's scheme decides the reading — `osc://` is a packet, `midi://` is a
-message off a cable, `artnet://` is a universe of dimmers and everything
-else is JSON text — so a sketch listening to a desk, a sketch listening
-to a controller, a sketch lit by a lighting desk and a sketch listening
-to a browser are one piece of code over one value.
+arriving; `connect(hub, uri)` is IO's `hub.listen` one floor up, and its
+verbs are the feed's own — `latest`, `receive`, `send`, `record`,
+`state`, `close` — answering a `Message` whose `payload` is the `Json`
+the bytes read as. The URI's scheme decides the dialect — `osc://` is a
+packet, `midi://` a message off a cable, `artnet://` a universe of
+dimmers and everything else JSON text — so a sketch listening to a desk,
+to a controller, to a lighting desk and to a browser is one piece of
+code over one value. `replay(hub, uri, recording)` is the same door
+played from a file, IO's `hub.replay` read as values.
 
 ```cpp
 #include <sigildata/connection/Connection.h>
 
-Connection sky(hub, "osc://:9000");           // one door, opened on the hub
-sky.on("/sky/gust", [&](const Json& message) {        // named by its address
-  gust = message["arguments"][0].number();
+auto sky = connect(hub, "osc://:9000");                 // one door, opened on the hub
+sky.on("/sky/{gust,wind}", [&](const Message& message) {  // an OSC address pattern
+  gust = message[0].number();                           // the first argument
 });
-sky.on("weather", [&](const Json& message) {          // named by its "kind"
+sky.on("weather", [&](const Message& message) {        // named by its "kind"
   cloud = message["cloud"].number();
 });
-sky.on("*", [&](const Json&) { ++messages; });        // every message
-sky.otherwise([&](const Json&) { ++strangers; });     // every message no name took
-sky.on("/sky/ping", [&](const Json&) {
-  sky.reply("/sky/pong", Json::Array{1});             // back to that sender
+sky.on("*", [&](const Message&) { ++messages; });      // every message
+sky.otherwise([&](const Message&) { ++strangers; });   // every message no pattern took
+sky.on("/sky/ping", [&](const Message&) {
+  sky.reply(oscMessage("/sky/pong", 1));               // back to that sender
 });
 
-sigil::io::advance(hub, time);                        // the frame: handlers run here
-wind = sky.latest()["arguments"][0].number(); // the newest, already read
-while (const std::optional<Json> message = sky.receive()) log(*message);
-sky.send("/sky/ack", Json::Array{1});         // back out the same door
-if (sky.undecodable()) warn("something is speaking another language");
+sigil::io::advance(hub, time);                         // the frame: handlers run here
+wind = sky.latest("/sky/wind").number();               // the newest under one name
+while (const std::optional<Message> message = sky.receive()) log(message->payload);
+sky.send(oscMessage("/sky/ack", 1));                   // back out the same door
+if (sky.state().undecodable) warn("something is speaking another language");
 
-Connection pads(hub, "midi://in/");           // the controller on the desk
-pads.on("NoteOn", [&](const Json& message) {          // named by its kind
+auto pads = connect(hub, "midi://in/");                // the controller on the desk
+pads.on("NoteOn", [&](const Message& message) {        // named by its kind
   strike(message["note"].number(), message["velocity"].number());
 });
-Connection lights(hub, "midi://out/");        // …and the lights under its pads
-lights.send(Json(Json::Object{{"kind", Json("NoteOn")},
-                              {"note", Json(60)},
-                              {"velocity", Json(127)}}));
+auto lights = connect(hub, "midi://out/");             // …and the lights under its pads
+lights.send(Json(Json::Object{{"kind", "NoteOn"}, {"note", 60}, {"velocity", 127}}));
 ```
 
-**A door may be read through a schema.** A connection opened with one
-— the sketch's own, `schema<Sky>()`, handed to it as it opens — puts
-every message through that schema: an arrival in the schema's JSON form
-is parsed to a buffer and rendered back out of it, an arrival that is a
-buffer is verified against the schema's root and rendered out the same
-way, and what `latest()`, `receive()` and a handler see is the schema's
-own JSON form whichever form the sender wrote. So a message that does
-not FIT the schema — a field it does not declare, a value of the wrong
-type, a buffer of another schema — is `undecodable()` rather than a
-`Json` carrying whichever fields it happened to have, and a scene
-drawing from a field it named knows that field means what the schema
-says. Which form an arrival is in is read the way a resource's is: from
-the door's NAME where it ends `.json`, and otherwise from the first byte
-that is not a space.
+**A message reads as its payload.** `message["key"]` is a member of the
+payload; on an OSC message `message[0]` is the first argument and
+`Message::number()` reads it as the message's value. `Message::address()`
+is the OSC path, `Message::sender()` who sent it, `Message::arrivedAt()`
+and `Message::revision()` IO's time and count, and `Message::as<Value>()`
+reads the message as the value type a schema's generated value header
+declares. The empty message, before anything arrived, reads null
+through every lookup.
 
-Going back out, `Connection::send()` and `Connection::reply()` write the
-buffer the schema makes of the message and are false where it does not
-fit — which the address-and-arguments spelling does not, unless the
-schema declares those two fields. An `osc://`, a `midi://` or an
-`artnet://` door takes no schema and is refused as it is opened: no feed
-is bound, nothing arrives, and `Connection::error()` says so, each of
-those being a wire
-with its own spelling of every value, down to the width a number goes
-out at, and a buffer not being one of those spellings.
-
-**And a door may hand out the value itself.** `Connection::latest<Sky>()`
-is the newest message as the value type the schema's generated value
-header declares, read through the reading that header wrote for it — so
-a scene draws from a field of a value and not from a lookup by name, and
-a message that is not that value is nothing rather than a `Json`
-carrying whichever fields it happened to have.
-
-```cpp
-Connection door(hub, "udp://:27022", schema<Sky>());   // the generated root
-
-sigil::io::advance(hub, time);                         // the frame: the door fills
-if (const std::optional<Sky> state = door.latest<Sky>())   // the value type
-  for (const Band& band : state->bands) draw(band);        // a field, held
-```
-
-The type it is asked for is the VALUE the generated value header
-declares and not the accessor over the buffer, the two carrying one name
-in namespaces of their own — which is also why the schema the door was
-opened with names the accessor and the reading names the value.
-
-It answers nothing before the first arrival, where the bytes are not
-that value, and on a connection onto nothing. Where the door was opened
-with a schema — `Connection::schema()` is the one it holds — the
-schema's own JSON form is parsed through that schema first, so a sender
-speaking JSON hands out the same value as one sending the buffer, and
-text the schema cannot hold is no value.
-
-The frame is what reads it, as it is for every other reading here. What
-gets decoded is the newest bytes the last advance took off the feed —
-`Connection::latestBytes()`, the arrival whole and unread — so a
-delivery the advance has not taken yet is nothing here exactly as it is
-nothing to `Connection::latest()`, and a frame never sees a typed value
-newer than the message it is drawing from. Those bytes are latched
-whether or not they were a message in the door's own scheme, because a
-reading asked for a value decodes them itself: a buffer arriving at a
-door read as JSON text reaches no handler, counts as `undecodable()`,
-and is still the value its sender wrote. It is a READING and not a
-cache: those bytes are decoded every time it is asked and no value is
-held between two asks, so a scene that asks once a frame pays that
-reading once a frame, which is the value it draws from anyway. There is
-no typed reading of one NAME — a name is read off the value a message
-decoded to and the latch under it holds that `Json`, while a buffer
-carries no name of that kind — so a door whose messages are values is
-read whole.
+**A door may be read through a schema.** `connect(hub, uri, {.schema =
+schema<Sky>()})` puts every message through it: an arrival in the
+schema's JSON form or as a buffer is rendered as the schema's JSON form,
+and one that does not fit counts in `state().undecodable` rather than
+being a `Json` carrying whichever fields it happened to have. `send()`
+writes the buffer the schema makes and is false where the value does not
+fit. An `osc://`, a `midi://` or an `artnet://` door takes no schema and
+is refused as it opens: nothing is bound, and `state().error` says so.
 
 **Nothing drives it but the frame.** Opening a connection registers it
 on the hub's advance, so the one call a host already makes,
-`sigil::io::advance(hub, time)`, drains the feed, reads what arrived and runs
-the handlers — after it has moved every replayed recording forward, so a
-recording replays through a connection exactly as a live sender arrives
-through it. Between two advances every reading answers what the last
-one left, and a frame's readings therefore agree with one another. The
-value, the queue and the handlers are written and read on that one
-thread, so a connection holds no lock of its own; the feed underneath is
-the thread-safe part, and a transport delivers into it from whatever
-thread it runs on.
+`sigil::io::advance(hub, time)`, drains the feed, reads what arrived and
+runs the handlers — after it has moved every replayed recording forward,
+so a recording replays through a connection exactly as a live sender
+arrives through it. Between two advances every reading answers what the
+last one left, on that one thread, so a connection holds no lock of its
+own.
 
-**A message's name is what a handler is registered under.** It is the
-message's `address` where it carries one as text — which is what an OSC
-message reads as, and what `send(address, arguments)` writes on any
-wire — and otherwise the first of `type`, `message_type` and `kind` it
-carries as text, in that order. `"*"` names every message, one with no
-name of its own included. Several handlers may share a name and each
-runs once per message, in the order they were registered; one registered
-after a message arrived does not see it, `latest()` being how a late
-reader catches up. A message NO name took reaches
-`Connection::otherwise()` instead, after the named handlers of that
-message would have run and in the order those were registered — `"*"`
-being every message rather than a name, so one standing leaves a message
-no name matched still unmatched. Going back out, a message is written the
-way its door is read: an OSC packet on an `osc://` door, the bytes of
-one message on a `midi://` door and JSON text on every other, and off
-the OSC wire `send(address, arguments)` writes the same
-`{"address": …, "arguments": …}` record a packet reads as, which is the
-form the far end reads a name out of — and which a cable cannot spell at
-all, a MIDI message being named by its kind and never by an address.
+**A pattern names the messages a handler runs for.** A message's name is
+its `address` where it carries one as a string, and otherwise the first
+of `type`, `message_type` and `kind` it carries as one. `on()` takes an
+OSC 1.0 address pattern — `?`, `*`, `[a-c]`, `[!a-c]`, `{a,b}`, none
+crossing a `/` — so a plain name matches itself alone, and `"*"` names
+every message, one with no name included. A message no pattern other
+than `"*"` matched reaches `Connection::otherwise()`. `latest(address)`
+is the newest message under a name or a pattern, one latch per name
+bounded by the capacity, the name written longest ago dropped first.
 
-**A reply answers the sender of one message.** `Connection::reply()`
-writes exactly what `send()` writes and puts it in front of ONE sender
-rather than the door: inside a handler, the sender of the message being
-handled, so a port that listens answers the desk that just spoke without
-a second connection opened back at it; outside one, the sender of the
-newest message. It is false where there is nobody to answer — nothing has
-arrived, the door cannot address one sender, or the arrival named none,
-which is what a replayed recording has, holding the messages and not who
-sent them. A message that could not be read leaves the sender standing
-exactly as it leaves `latest()` standing. `Connection::sender()` names
-that sender, so a door holding many peers keys each one's state by it and
-answers one later through the feed's own send to one sender.
+**Going back out.** `send(value)` writes in the door's dialect to its
+peer, and `send(value, {.to = message.sender()})` to one sender, which is
+how a door holding many peers answers one later. `reply(value)` answers
+the sender of the message being handled, or of the newest outside a
+handler, and is false where there is nobody to answer — a recording
+holds the messages and not who sent them.
 
-**The newest of one name is a reading, not a handler.** That reading is
-`Connection::latest(what)`: the newest message named `what`, under the
-same naming rule `on()` registers by, so a scene takes one fader straight
-off the wire — `sky.latest("/sky/wind")["arguments"][0].number()` — and
-gets the last value that arrived under that address whenever it arrived,
-rather than the last message of any name. A name nothing has arrived
-under answers a null value, which reads through as the default of
-whatever is asked of it, so a scene draws before a desk has said
-anything. There is one latch per name, and the names are bounded by the
-same capacity the queue is: when a message arrives under one name too
-many, the name written longest ago is dropped and reading it answers null
-again, as if nothing had ever arrived under it. A message carrying no
-name of its own latches under none, and `"*"` is a handler's word for
-every message rather than a name a message can carry.
-
-**A message that cannot be read is no message.** It reaches neither
-`latest()` nor `receive()` nor a handler, and `undecodable()` counts it:
-a sender speaking another language cannot blank a scene, and a reader
-can see that it happened. **The unread queue is opt-in.** THE FIRST
-`receive()` OPENS IT: before that a connection queues nothing, so a
-reader that registers handlers and never calls `receive()` holds no
-backlog it will never look at and drops nothing into one. From that call
-on the queue is bounded by the same capacity the latches are and loses
-its oldest first, and what it loses there is counted nowhere —
-`dropped()` is the FEED's count, of arrivals that never reached this
-connection at all. Draining is taking, so two connections on one URI
-split its messages between them rather than each seeing all of them,
-and `feed()` is the floor below for whoever
-wants the bytes — to record them, or to read a wire this library has no
-reading for.
+**The door's state is one value.** `state()` is IO's `FeedState` —
+readiness, revision, dropped, the local end, the error — and
+`undecodable`, the arrivals no reader saw. A readout keeps the one it
+last showed and describes again when `state() != shown`. The unread
+queue behind `receive()` opens on the first `receive()`, or from the
+first arrival with `{.queue = true}`; what it loses to its capacity is
+counted nowhere, `dropped` being the FEED's count. Draining is taking,
+so two connections on one URI split its messages between them, and
+`feed()` is the floor below for whoever wants the bytes.
 
 **A column's type is what every cell in it turns out to be.** Numbers
 make a number column, the words true, false, yes and no in any case a
@@ -782,8 +693,8 @@ accessor that reads a root out of them — because a `FlatBuffer` IS its
 bytes; that, and the generated roots a consumer spells over it, are why
 flatbuffers is linked publicly. The OSC, MIDI and Art-Net codecs take
 nothing at all: each reads and writes its own wire. It does NOT link
-the hub: `registerDecoders` and `registerFlatBuffer` are templates over
-it, so the dependency runs one way and SigilIO gains nothing, which is
+the hub: `registerFlatBuffer` is a template over it, and
+`registerDecoders` stands in the read feature, so the dependency runs one way and SigilIO gains nothing, which is
 what its own boundary asks for.
 
 `SigilDataValues` is headers and nothing else: the readings and the
@@ -795,8 +706,9 @@ opens the FlatBuffers parser from outside the decode feature, and it
 opens nothing of this library at all — so what a consumer links carries
 none of it.
 
-`SigilDataConnection` is the one feature that does link `SigilIOHub`,
-because a connection IS a door that hub opened and a reading the
+`SigilDataRead` and `SigilDataConnection` are the features that do link
+`SigilIOHub` — the first because reading a URI is asking a hub, and the
+second because a connection IS a door that hub opened and a reading the
 advance that hub runs drives. What it adds is the READING — which
 scheme a message is read by, the value it becomes, the queue, the
 handlers — and nothing of the door itself: the bytes, the transport, the
@@ -857,7 +769,8 @@ behind a transport with no socket under it: what a case sends lands in a
 vector it owns, and what arrives it delivers into the feed itself, so
 which handler a message reaches, what `receive()` hands out, what an
 unreadable message costs, what goes out on either kind of door, how a
-recording replays and when a door's vitals move are all judged on one
+recording replays, which addresses a pattern matches and when a door's
+state moves are all judged on one
 thread with no port to be free.
 Its schema cases put the decode feature's own test schema behind a door
 — the two conversions and what they refuse, an arrival in either form,

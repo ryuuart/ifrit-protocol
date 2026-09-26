@@ -19,16 +19,17 @@ set(SIGIL_DATA_REFERENCE
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/FlatBuffer.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Json.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Read.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/ReadFile.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Scale.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Schema.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Table.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/decodeArtNet.md
   ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/decodeCsv.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/decodeMidi.md
-  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/decodeOsc.md)
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/dialects/ArtNet.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/dialects/Midi.md
+  ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/dialects/Osc.md)
 
 sigil_library_root(SigilData
-  BRIEF "Tabular data and scales: typed columns, and the one value that maps a domain onto a range"
+  BRIEF "Tabular data, scales and live values: typed columns, the one value that maps a domain onto a range, files read whole and doors read as values"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox ${SIGIL_DATA_REFERENCE})
 
 # Dependencies point down this list.
@@ -37,6 +38,7 @@ add_subdirectory(table)
 add_subdirectory(decode)
 add_subdirectory(values)
 add_subdirectory(query)
+add_subdirectory(read)
 add_subdirectory(connection)
 
 # SigilDataConnection stands on SigilIOHub, so a consumer of the
@@ -44,7 +46,7 @@ add_subdirectory(connection)
 # and there is no feed without the hub that opens it.
 sigil_library(SigilData
   INTERFACE SigilDataScale SigilDataTable SigilDataDecode SigilDataValues
-            SigilDataQuery SigilDataConnection)
+            SigilDataQuery SigilDataRead SigilDataConnection)
 
 # Every API name the prose spells, compiled against the headers that own
 # it. What it cannot reach is named with the reason: the value names a

@@ -8,6 +8,7 @@
 #include <system_error>
 
 #include "UniqueName.h"
+#include "Wire.h"
 
 namespace sigil::data {
 
@@ -63,15 +64,15 @@ Column columnOf(std::string name, const std::vector<const Json*>& cells) {
 
   for (size_t row = 0; row < count; ++row) {
     const Json* cell = cells[row];
-    if (!cell || cell->null() || cell->kind() == Json::Kind::List ||
-        cell->kind() == Json::Kind::Record) {
+    if (!cell || cell->null() || cell->kind() == Json::Kind::Array ||
+        cell->kind() == Json::Kind::Object) {
       absent[row] = true;
       continue;
     }
     anyValue = true;
     if (cell->kind() != Json::Kind::Number) everyNumber = false;
     if (cell->kind() != Json::Kind::Boolean) everyFlag = false;
-    if (cell->kind() != Json::Kind::Text || !decodeInstant(cell->text()))
+    if (cell->kind() != Json::Kind::String || !decodeInstant(cell->string()))
       everyInstant = false;
   }
 
@@ -84,7 +85,7 @@ Column columnOf(std::string name, const std::vector<const Json*>& cells) {
   } else if (anyValue && everyInstant) {
     std::vector<Instant> values(count);
     for (size_t row = 0; row < count; ++row)
-      if (!absent[row]) values[row] = *decodeInstant(cells[row]->text());
+      if (!absent[row]) values[row] = *decodeInstant(cells[row]->string());
     column = Column(std::move(name), std::move(values));
   } else if (anyValue && everyNumber) {
     std::vector<double> values(count, std::nan(""));
@@ -96,8 +97,8 @@ Column columnOf(std::string name, const std::vector<const Json*>& cells) {
     for (size_t row = 0; row < count; ++row) {
       if (absent[row]) continue;
       const Json& cell = *cells[row];
-      if (cell.kind() == Json::Kind::Text) {
-        values[row] = std::string(cell.text());
+      if (cell.kind() == Json::Kind::String) {
+        values[row] = std::string(cell.string());
       } else if (cell.kind() == Json::Kind::Boolean) {
         values[row] = cell.boolean() ? "true" : "false";
       } else {
@@ -119,7 +120,7 @@ Column columnOf(std::string name, const std::vector<const Json*>& cells) {
 std::optional<Table> fromRecords(std::span<const Json> rows) {
   std::vector<std::string> names;
   for (const Json& row : rows)
-    for (const auto& [key, value] : row.fields())
+    for (const auto& [key, value] : row.object())
       if (std::ranges::find(names, key) == names.end()) names.push_back(key);
   if (names.empty()) return std::nullopt;
 
@@ -158,10 +159,10 @@ std::optional<Table> fromColumns(
     std::span<const std::pair<std::string, Json>> fields) {
   Table table;
   for (const auto& [name, values] : fields) {
-    if (values.kind() != Json::Kind::List) continue;
+    if (values.kind() != Json::Kind::Array) continue;
     std::vector<const Json*> cells;
     cells.reserve(values.size());
-    for (const Json& cell : values.items())
+    for (const Json& cell : values.array())
       cells.push_back(cell.null() ? nullptr : &cell);
     table.add(columnOf(unusedName(table, name), cells));
   }
@@ -241,13 +242,13 @@ void write(const Json& value, std::string& out) {
     case Json::Kind::Number:
       writeNumber(value.number(), out);
       break;
-    case Json::Kind::Text:
-      writeText(value.text(), out);
+    case Json::Kind::String:
+      writeText(value.string(), out);
       break;
-    case Json::Kind::List: {
+    case Json::Kind::Array: {
       out.push_back('[');
       bool first = true;
-      for (const Json& item : value.items()) {
+      for (const Json& item : value.array()) {
         if (!first) out.push_back(',');
         first = false;
         write(item, out);
@@ -255,10 +256,10 @@ void write(const Json& value, std::string& out) {
       out.push_back(']');
       break;
     }
-    case Json::Kind::Record: {
+    case Json::Kind::Object: {
       out.push_back('{');
       bool first = true;
-      for (const auto& [name, member] : value.fields()) {
+      for (const auto& [name, member] : value.object()) {
         if (!first) out.push_back(',');
         first = false;
         writeText(name, out);
@@ -283,17 +284,17 @@ double Json::number(double fallback) const {
   return held ? *held : fallback;
 }
 
-std::string_view Json::text(std::string_view fallback) const {
+std::string_view Json::string(std::string_view fallback) const {
   const std::string* held = std::get_if<std::string>(&m_held);
   return held ? std::string_view(*held) : fallback;
 }
 
-std::span<const Json> Json::items() const {
+std::span<const Json> Json::array() const {
   const Array* held = std::get_if<Array>(&m_held);
   return held ? std::span<const Json>(*held) : std::span<const Json>{};
 }
 
-std::span<const std::pair<std::string, Json>> Json::fields() const {
+std::span<const std::pair<std::string, Json>> Json::object() const {
   const Object* held = std::get_if<Object>(&m_held);
   return held ? std::span<const std::pair<std::string, Json>>(*held)
               : std::span<const std::pair<std::string, Json>>{};
@@ -307,17 +308,17 @@ size_t Json::size() const {
 }
 
 const Json& Json::operator[](std::string_view key) const {
-  for (const auto& [name, value] : fields())
+  for (const auto& [name, value] : object())
     if (name == key) return value;
   return nothing();
 }
 
 const Json& Json::operator[](size_t index) const {
-  const std::span<const Json> list = items();
+  const std::span<const Json> list = array();
   return index < list.size() ? list[index] : nothing();
 }
 
-std::optional<Json> decodeJson(std::string_view text) {
+std::optional<Json> wire::readJson(std::string_view text) {
   simdjson::dom::parser parser;
   simdjson::dom::element document;
   if (parser.parse(simdjson::padded_string(text)).get(document))
@@ -325,20 +326,20 @@ std::optional<Json> decodeJson(std::string_view text) {
   return converted(document);
 }
 
-std::string encodeJson(const Json& value) {
+std::string wire::writeJson(const Json& value) {
   std::string text;
   write(value, text);
   return text;
 }
 
 std::optional<Table> tableFromJson(const Json& document) {
-  if (document.kind() == Json::Kind::Record)
-    return fromColumns(document.fields());
-  if (document.kind() != Json::Kind::List) return std::nullopt;
-  const std::span<const Json> rows = document.items();
+  if (document.kind() == Json::Kind::Object)
+    return fromColumns(document.object());
+  if (document.kind() != Json::Kind::Array) return std::nullopt;
+  const std::span<const Json> rows = document.array();
   if (rows.empty()) return std::nullopt;
-  if (rows.front().kind() == Json::Kind::Record) return fromRecords(rows);
-  if (rows.front().kind() == Json::Kind::List) return fromLists(rows);
+  if (rows.front().kind() == Json::Kind::Object) return fromRecords(rows);
+  if (rows.front().kind() == Json::Kind::Array) return fromLists(rows);
   return std::nullopt;
 }
 

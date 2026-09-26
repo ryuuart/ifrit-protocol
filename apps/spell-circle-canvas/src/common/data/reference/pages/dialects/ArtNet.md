@@ -1,13 +1,13 @@
 ---
-kind: function
+kind: type
 library: SigilData
-name: decodeArtNet
-qualified: sigil::data::decodeArtNet
+name: Dialect::ArtNet
+qualified: sigil::data::Dialect::ArtNet
 group: Wires
 status: stable
 ---
 
-# decodeArtNet
+# Dialect::ArtNet
 
 ## Description
 
@@ -58,7 +58,7 @@ other operation, which says which one it was:
 
 ### What goes back out
 
-`sigil::data::encodeArtNet` writes the same forms: a `Dmx` record is a
+`sigil::data::encode` with `Dialect::ArtNet` writes the same forms: a `Dmx` record is a
 universe of dimmers, a `Poll` is the question, and a record carrying
 `bytes` goes out as exactly those bytes, which is how a packet this has
 no reading for is answered the way it arrived. A level outside what a
@@ -76,7 +76,7 @@ universe of 512. So a list written odd is padded with one dimmer at
 nothing, a list past the end of a universe stops there, and a packet
 that arrived claiming any other count is no packet this reads.
 
-`sigil::data::decodeArtNet` answers nothing when the bytes are not an
+`sigil::data::decode` with `Dialect::ArtNet` answers nothing when the bytes are not an
 Art-Net packet: bytes that do not open with the name every one of them
 opens with, bytes too few to say what they are, a sender writing an
 older version of the protocol, and a dimmer count the packet does not

@@ -11,238 +11,194 @@ status: stable
 
 ## Description
 
-A CONNECTION: a feed read as values.
+A CONNECTION: a feed read as values — IO's `hub.listen`, one level up.
 
-A feed is bytes that keep arriving. A connection is that same door one
-floor up: the bytes are read by the scheme the URI names — an OSC packet
-through an `osc://` door, JSON text through every other — and what a
-reader sees is the `sigil::data::Json` value, never the bytes. The
-newest message is `Connection::latest` and the newest of one name
-`latest(name)`, the ones not taken yet come out of `Connection::receive`
-in order once a first call has opened that queue, a handler registered
-with `Connection::on` runs for the messages it names and one registered
-with `Connection::otherwise` for the messages no name did.
+IO hands bytes; a connection hands values. `sigil::data::connect` opens
+the door and answers a value handle whose verbs are the feed's own —
+`Connection::latest`, `Connection::receive`, `Connection::send`,
+`Connection::record`, `Connection::state`, `Connection::close` — and
+what they answer is a `sigil::data::Message` whose `payload` is the
+`sigil::data::Json` the bytes read as. The dialect is read off the
+URI's scheme — an OSC packet through an `osc://` door, a MIDI message
+through `midi://`, an Art-Net packet through `artnet://`, JSON text
+through every other — or named in `ConnectOptions::dialect`. A handler
+registered with `Connection::on` runs for the messages its OSC address
+pattern names, and one registered with `Connection::otherwise` for the
+messages no pattern did.
 
 ```cpp
-Connection sky(hub, "osc://:9000");
-sky.on("/sky/gust", [&](const Json& message) {
-  gust = message["arguments"][0].number();
-  sky.reply("/sky/ack", Json::Array{gust});   // back to that sender
+auto sky = sigil::data::connect(hub, "osc://:9000");
+sky.on("/sky/{gust,wind}", [&](const Message& message) {
+  gust = message[0].number();                            // the first argument
+  sky.reply(oscMessage("/sky/ack", gust));               // back to that sender
 });
-sky.on("*", [&](const Json&) { ++messages; });
-sky.otherwise([&](const Json&) { ++strangers; });
+sky.on("*", [&](const Message&) { ++messages; });
+sky.otherwise([&](const Message&) { ++strangers; });
 ...
-sigil::io::advance(hub, time);                   // the frame: handlers run here
-wind = sky.latest()["arguments"][0].number();
-calm = sky.latest("/sky/calm")["arguments"][0].number();
-sky.send("/sky/ack", Json::Array{1});
+sigil::io::advance(hub, time);                           // the frame: handlers run here
+wind = sky.latest("/sky/wind").number();
+if (sky.state().undecodable) warn("something speaks another language");
+sky.send(oscMessage("/sky/ack", 1), {.to = sky.latest().sender()});
 ```
+
+`sigil::data::replay` is the same door played from a recording — IO's
+`hub.replay` read as values — so a capture reads a desk it recorded
+without knowing it: `ctx.deterministic ? replay(hub, uri, file) :
+connect(hub, uri)`.
+
+A `Connection` is a copyable handle: every copy reads the same door, and
+the door closes when `Connection::close` is called or the last handle
+goes. A handle made empty is a connection onto nothing — no door, the
+empty message, a closed state.
 
 ### Nothing drives it but the frame
 
 A connection registers on the hub's advance as it opens, so the call a
 host already makes once a frame is what drains the feed, reads what
-arrived and runs the handlers. Between two advances a connection
-answers exactly what the last one left it, so every reading a frame
-takes agrees with every other.
+arrived and runs the handlers. Between two advances a connection answers
+exactly what the last one left it, so every reading a frame takes agrees
+with every other.
+
+### A message reads as its payload
+
+`Message::payload` is the decoded value whole. `message["colors"]` is a
+member of it, and on an OSC message — one carrying an `address` and an
+`arguments` array — `message[0]` is the first ARGUMENT, and
+`Message::number`, `Message::string` and `Message::boolean` read that
+first argument as the message's value; on any other message they read
+the payload itself. `Message::address` is the OSC path, `Message::name`
+what a pattern matched, `Message::sender` who sent it, spelled as the
+transport names a peer, `Message::arrivedAt` and `Message::receivedAt`
+IO's two times, `Message::revision` its place in the feed's count and
+`Message::bytes` the arrival unread. The empty message — before anything
+arrived, or under a name nothing arrived under — has a null payload,
+which reads through as the default of whatever is asked of it.
 
 ### A schema is the other way a message is read
 
-A connection opened with one — `Connection(hub, uri, schema<Sky>())` —
-reads and writes every message through it, so what a reader sees is the
-schema's own JSON form whichever form the sender wrote and a message
-that does not FIT the schema is no message at all.
+A connection opened with one — `connect(hub, uri, {.schema =
+schema<Sky>()})` — reads and writes every message through it, so what a
+reader sees is the schema's own JSON form whichever form the sender
+wrote, and a message that does not FIT the schema is no message at all.
 
-BOTH FORMS ARRIVE THROUGH IT. An arrival whose bytes are the schema's
-JSON form — read from the door's name where it ends `.json`, and
-otherwise from the arrival's first byte that is not a space, since the
-JSON form opens with a brace or a bracket — is parsed through the schema
-and rendered back out of it; an arrival that is a buffer is verified
-against the schema's root and rendered out of it the same way. So
-`Connection::latest`, `Connection::receive` and every handler see the
-schema's own JSON form whichever form the sender wrote, and a message
-that does not fit the schema — a field it does not declare, a value of
-the wrong type, a buffer of another schema — is
-`Connection::undecodable` rather than a value carrying whichever fields
-it happened to have.
+BOTH FORMS ARRIVE THROUGH IT. An arrival whose first byte that is not a
+space opens a brace or a bracket is the schema's JSON form, parsed
+through the schema and rendered back out of it; an arrival that is a
+buffer is verified against the schema's root and rendered out the same
+way. A message that does not fit — a field it does not declare, a value
+of the wrong type, a buffer of another schema — counts in
+`ConnectionState::undecodable` rather than being a value carrying
+whichever fields it happened to have.
 
-GOING BACK OUT, `Connection::send` and `Connection::reply` write the
-buffer the schema makes of the message and are false where it does not
-fit — which the address-and-arguments spelling does not, unless the
-schema declares those two fields.
+GOING BACK OUT, `Connection::send` writes the buffer the schema makes of
+the message and is false where it does not fit.
 
 AN `osc://`, A `midi://` OR AN `artnet://` DOOR TAKES NO SCHEMA and is
 refused as it is opened: no feed is bound, nothing arrives, and
-`Connection::error` says so. Each of those is a wire with its own
-spelling of every value, down to the width a number goes out at, and a
-buffer is not one of those spellings.
+`state().error` says so. Each of those is a wire with its own spelling
+of every value, and a buffer is not one of those spellings.
 
-### And a typed door over both
+### A typed reading over both
 
-`latest<Sky>()` hands out the newest message as the value type the
-schema's generated VALUE header declares, read through that header's own
-reading:
+`Message::as` hands out a message as the value type the schema's
+generated VALUE header declares, read through that header's own reading:
 
 ```cpp
 namespace sky = feed_sky::values;    // what that schema generated
-Connection door(hub, "udp://:27022", schema<feed_sky::Sky>());
+auto door = connect(hub, "udp://:27022", {.schema = schema<feed_sky::Sky>()});
 ...
 sigil::io::advance(hub, time);               // the frame: the door fills
-if (const std::optional<sky::Sky> state = door.latest<sky::Sky>())
+if (const std::optional<sky::Sky> state = door.latest().as<sky::Sky>())
   for (const sky::Band& band : state->bands) draw(band);
 ```
 
 so a scene draws from a field of a value rather than from a lookup by
-name, and a message that is not that value is nothing rather than a
-reading of whatever it was. It reads the bytes the same advance left,
-so the typed reading and the Json one are readings of ONE frame.
-
-Nothing before the first arrival, where the bytes are not that value,
-and on a connection onto nothing.
-
-BOTH FORMS STILL READ. Where the door was opened with a schema and the
-newest bytes are that schema's JSON form — read from the door's name
-where it ends `.json`, and otherwise from the first byte that is not a
-space — they go through the schema first, so a sender speaking JSON
-hands out the same value as one speaking the buffer.
-
-THE FRAME IS WHAT READS. What is decoded is the newest bytes the last
-advance took off the feed — `Connection::latestBytes` — held there
-whether or not they were a message in this door's scheme, since a buffer
-arriving at a door read as JSON text is no Json message and is still the
-value its sender wrote. So a delivery the advance has not taken yet is
-nothing here exactly as it is nothing to `Connection::latest`, and every
-reading a frame takes agrees with every other.
-
-IT IS A READING AND NOT A CACHE. Those bytes are decoded every time this
-is asked and no value is held between two asks, so a scene that asks
-once a frame pays that reading once a frame — which is the value it
-draws from anyway.
-
-THERE IS NO TYPED READING OF ONE NAME. A name is read off the value a
-message decoded to and the latch under it holds that Json; a buffer
-carries no name of that kind, so a door whose messages are values is
-read whole.
-
-The template reading stands in the header rather than in the
-connection's one translation unit because a template is instantiated
-where the value type is known, which is the consumer's own: everything
-it reaches — the bytes the last advance left, the schema the door was
-opened with, and the reading the generated header wrote — is named in a
-header already.
+name. It reads the message's own bytes, the schema's JSON form converted
+through the door's schema first, so the typed reading and the `Json` one
+are readings of ONE message. IT IS A READING AND NOT A CACHE: the bytes
+are decoded every time it is asked. The template stands in the header
+because it is instantiated where the value type is known, which is the
+consumer's own.
 
 ### Reading one name
 
-`latest(what)` is the newest message of that name; a null value until
-one of that name has arrived, which reads through as the default of
-whatever is asked of it. The name is the one `Connection::on` registers
-under, so a reader takes one fader off the wire with no handler at all:
-`sky.latest("/sky/wind")["arguments"][0].number()`.
+`latest(address)` is the newest message of that name, the empty message
+until one has arrived: a reader takes one fader off the wire with no
+handler at all, `sky.latest("/sky/wind").number()`. A pattern reads the
+newest of every name it matches. One latch per name, bounded by the
+options' capacity: when a message arrives under one name too many, the
+name written longest ago is dropped and reads empty again.
 
-One latch per name, and the names are bounded by the options' capacity:
-when a message arrives under one name too many, the name written longest
-ago is dropped and reading it answers null again, as if nothing had ever
-arrived under it. A message carrying no name of its own latches under
-none, and `"*"` is a handler's word for every message rather than a name
-a message can carry.
+A MESSAGE'S NAME is its `address` where it carries one as a string, and
+otherwise the first of `type`, `message_type` and `kind` it carries as
+one. A message carrying no name latches under none.
 
-A MESSAGE'S NAME is its `address` where it carries one as text — which
-is what an OSC message reads as, and what `Connection::send` writes for
-one — and otherwise the first of `type`, `message_type` and `kind` it
-carries as text.
+### Address patterns
+
+`Connection::on` takes an OSC 1.0 address pattern, matched by
+`sigil::data::matchesAddress`: `?` is one character, `*` any run of
+them, `[a-c]` one of a set with `!` first negating it, `{wind,gust}` one
+of a list — none of them crossing a `/`, so `/sky/*` names `/sky/wind`
+and not `/sky/wind/gust`. A name with none of those characters matches
+itself alone, which is how a JSON message's `kind` is named. `"*"` alone
+names every message, one with no name included; it is a handler's word
+and not a pattern a name must match, so a message only `"*"` reached
+still reaches `Connection::otherwise`.
 
 ### The queue and the handlers
 
 `Connection::receive` answers the next message this reader has not
-taken, in order. What the handlers see is not taken from here — one
-message reaches both. THE FIRST CALL OPENS THE QUEUE: messages read
-before it are not held, so a reader that registers handlers and never
-calls it keeps no queue and loses nothing to one. From then on the queue
-holds what the options' capacity says and its oldest falls off the front
-when it is full, which is what a reader that has fallen behind the
-newest wants; what falls off there is counted nowhere.
+taken, in order; the handlers see every message whether or not it is
+taken there. THE FIRST CALL OPENS THE QUEUE unless the door was opened
+with `ConnectOptions::queue`: messages read before it are not held, so a
+reader that registers handlers and never calls it keeps no backlog. The
+queue holds what the options' capacity says and loses its oldest first.
 
-`Connection::on` runs its handler for every message of that name, from
-now on. `"*"` names every message, one with no name of its own included.
-Several handlers may share a name, and each runs once per message in the
-order they were registered. Handlers run on advance, on the advancing
-thread, in the order the messages arrived; one registered after a
-message arrived does not see it, `Connection::latest` being how a late
-reader catches up.
-
-`Connection::otherwise` runs its handler for every message NO
-`Connection::on` name matched. `"*"` is a handler's word for every
-message and not a name, so one standing does not make a message matched:
-a message no name reached arrives here whatever else ran for it. Several
-may be registered and each runs once per such message, in the order they
-were registered, after the handlers a name would have reached on that
-same message.
+Handlers run on advance, on the advancing thread, in the order the
+messages arrived and then in the order they were registered; one
+registered after a message arrived does not see it, `Connection::latest`
+being how a late reader catches up. `Connection::otherwise` handlers run
+after the named ones, for a message no pattern other than `"*"` matched.
 
 ### Sending and answering
 
-`Connection::send` writes the message back through the same door, the
-way that door is read: an `osc://` door takes the packet an `address`
-and its `arguments` are written as, every other door the JSON text. On a
-door that is not `osc://` the address-and-arguments spelling is the same
-message as JSON, `{"address": …, "arguments": …}`, which is the form a
-connection at the other end reads a name out of.
+`Connection::send` writes a value back through the same door in its
+dialect: an `osc://` door the packet `oscMessage(address, arguments)`
+reads as, a `midi://` door the message its `kind` names, and JSON text on
+every other. With `{.to = message.sender()}` it goes to ONE peer, which is
+how a door that holds many answers one of them later. It is false when
+the door is one-way, closed or never opened, and when the value has no
+spelling in the dialect.
 
-`Connection::reply` sends back TO THE SENDER OF ONE. Inside a handler
-that sender is the one that sent the message being handled, so a door
-that listens answers the desk that just spoke; outside one it is the
-sender of the newest message. It is false when there is nobody to answer
-— nothing has arrived, a recording holds the messages and not who sent
-them, or the connection is onto nothing — and when the door cannot
-address one sender or the value has no spelling on that wire.
+`Connection::reply` sends TO THE SENDER OF ONE: inside a handler, the
+sender of the message being handled; outside one, of the newest. It is
+false where there is nobody to answer — nothing has arrived, or a
+recording, which holds the messages and not who sent them.
 
-`Connection::sender` names whom a reply answers, spelled as the
-transport names an arrival's sender: the sender of the message being
-handled inside a handler, of the newest message outside one, and empty
-where there is nobody to answer. A door that holds many peers keys each
-one's own state by it, and answers one of them later — after frames
-have been drawn — through the feed's own send to one sender.
+### Where the door stands
 
-### What a reader can ask about the door
+`Connection::state` is IO's `FeedState` — readiness, revision, dropped,
+the local end, the error — and `ConnectionState::undecodable`, the
+arrivals that were no message in the door's dialect or did not fit its
+schema. It is one comparable value: a readout keeps the one it last
+showed and describes again exactly when `state() != shown`, and
+"anything new?" is `state().revision != seen`. `dropped` is the FEED's
+count; what the queue loses to its own capacity is counted nowhere.
 
-`Connection::latestBytes` is THE NEWEST ARRIVAL'S BYTES AS OF THE LAST
-DISPATCH, whole and unread: what the typed reading decodes, and what a
-reader that wants a wire this library has no reading for reads itself.
-They are latched whether or not they were a message in this door's
-scheme, so a buffer at a door read as JSON text is here even though it
-reached no handler.
-
-`Connection::dropped` counts arrivals the feed dropped before this
-connection drained them: a sender faster than the frame. It is the
-FEED's count and nothing else: what the queue loses to its own capacity,
-once a first `Connection::receive` has opened it, is counted neither
-there nor anywhere.
-
-`Connection::undecodable` counts arrivals that were no message in this
-connection's scheme, and, where it has a schema, arrivals that did not
-fit it. They reach no reader, so a sender speaking the wrong language is
-seen there rather than in the drawing.
-
-`Connection::vitals` gathers those readings — the revision, the two
-counts, whether the door is closed, the address it bound, the newest
-sender and the error — into one `Connection::Vitals`, a value compared
-field by field. A reader that shows a door's state keeps the value it
-last showed and describes again exactly when `vitals() != shown`, and a
-readout of the door reads its rows off the one value rather than off
-seven calls in an order of its own.
-
-`Connection::feed` is THE FLOOR BELOW, for whoever wants the bytes: the
-feed itself, which is what a recording is written from and what a reader
-that wants no value reads.
+`Connection::record` writes every message from now on to a file in IO's
+recording format until the handle it answers stops or goes, and
+`Connection::feed` is THE FLOOR BELOW: the feed itself, for a reader
+that wants the bytes.
 
 ### One thread
 
-The value, the queue and the handlers are written and read on the
-advancing thread — the frame's — so a connection holds no lock of its
-own; the feed underneath is the thread-safe part, and a transport
-delivers into it from whatever thread it runs on. A connection DRAINS
-the feed it is on, and draining is taking, so two connections on one URI
-split the messages between them rather than each seeing all of them.
+The messages, the queue and the handlers are written and read on the
+advancing thread, so a connection holds no lock of its own; the feed
+underneath is the thread-safe part. A connection DRAINS the feed it is
+on, and draining is taking, so two connections on one URI split the
+messages between them rather than each seeing all of them.
 
 ## See also
 
-`sigil::data::Schema`, `sigil::data::Json`, `sigil::data::values::Read`.
+`sigil::data::Message`, `sigil::data::Schema`, `sigil::data::Json`,
+`sigil::data::values::Read`.

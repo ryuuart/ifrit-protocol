@@ -1,23 +1,18 @@
 /** @file
- * The connection: the door it opened, the scheme or the schema its
- * messages are read by, the value and the latch per name and the queue
+ * The connection: the door it opened, the dialect or the schema its
+ * messages are read by, the message and the latch per name and the queue
  * and the handlers one advance fills, and the ways a message goes back
- * out — to the door, or to the sender of the message being answered.
+ * out — to the door, to one sender, or to the sender of the message
+ * being answered.
  */
 
 #include "sigildata/connection/Connection.h"
 
-#include <sigildata/decode/ArtNet.h>
-#include <sigildata/decode/FlatBuffer.h>
-#include <sigildata/decode/Midi.h>
-#include <sigildata/decode/Osc.h>
-#include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Time.h>
+#include <sigilio/hub/Hub.h>
 
-#include <cstddef>
 #include <deque>
 #include <map>
-#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -26,11 +21,9 @@ namespace sigil::data {
 
 namespace {
 
-/** The value a reader gets where there is no message: one, shared, so
- *  answering it costs nothing and a chain of lookups through it stays
- *  standing. */
-const Json& nothing() {
-  static const Json empty;
+/** The message a reader gets where there is none: one, shared. */
+const Message& nothing() {
+  static const Message empty;
   return empty;
 }
 
@@ -39,153 +32,139 @@ const std::string& noUri() {
   return empty;
 }
 
-/** The schema a door that was opened without one reads through: one,
- *  shared, so answering it costs nothing. */
 const Schema& noSchema() {
   static const Schema none;
   return none;
 }
 
-/** The part of @p uri before "://", which is what says how a message is
- *  read. Empty when the URI names no scheme. */
+/** The part of @p uri before "://"; empty when it names no scheme. */
 std::string_view schemeOf(std::string_view uri) {
   const size_t mark = uri.find("://");
   return mark == 0 || mark == std::string_view::npos ? std::string_view{}
                                                      : uri.substr(0, mark);
 }
 
+/** The dialect a scheme names: each wire of the performance room its
+ *  own, JSON text for every other. */
+Dialect dialectOf(std::string_view uri) {
+  const std::string_view scheme = schemeOf(uri);
+  if (scheme == "osc") return Dialect::Osc;
+  if (scheme == "midi") return Dialect::Midi;
+  if (scheme == "artnet") return Dialect::ArtNet;
+  return Dialect::Json;
+}
+
 /** THE NAME OF A MESSAGE: the address it carries, and otherwise the
  *  first of the three keys a sender says its kind with. Empty when it
- *  says neither, which only a "*" handler matches. A key whose value is
- *  not text names nothing and the lookup goes on: a name is what a
- *  handler was registered under, and that is a string. */
+ *  says neither, which only "*" names. */
 std::string_view nameOf(const Json& message) {
   static constexpr std::string_view keys[] = {"address", "type", "message_type",
                                               "kind"};
   for (std::string_view key : keys) {
     const Json& named = message[key];
-    if (named.kind() == Json::Kind::Text) return named.text();
+    if (named.kind() == Json::Kind::String) return named.string();
   }
   return {};
 }
 
-io::Bytes textBytes(std::string_view text) {
-  const auto* first = reinterpret_cast<const std::byte*>(text.data());
-  return io::Bytes(std::span(first, text.size()));
+bool isPattern(std::string_view text) {
+  return text.find_first_of("*?[{") != std::string_view::npos;
+}
+
+/** One character against a bracketed set, @p set without its brackets:
+ *  `!` first negates, `a-c` is a range. */
+bool inSet(std::string_view set, char character) {
+  bool negated = false;
+  if (!set.empty() && set.front() == '!') {
+    negated = true;
+    set.remove_prefix(1);
+  }
+  bool found = false;
+  for (size_t index = 0; index < set.size(); ++index) {
+    if (index + 2 < set.size() && set[index + 1] == '-') {
+      if (set[index] <= character && character <= set[index + 2]) found = true;
+      index += 2;
+    } else if (set[index] == character) {
+      found = true;
+    }
+  }
+  return found != negated;
 }
 
 }  // namespace
 
-/** What a connection IS. The advance reaches it weakly and every
- *  reading below reaches it through the connection's pointer, so the
- *  two agree however the connection is moved about. */
+bool matchesAddress(std::string_view pattern, std::string_view name) {
+  if (pattern.empty()) return name.empty();
+  const char head = pattern.front();
+  if (head == '*') {
+    // Any run of characters within one part of the address.
+    for (size_t taken = 0;; ++taken) {
+      if (matchesAddress(pattern.substr(1), name.substr(taken))) return true;
+      if (taken == name.size() || name[taken] == '/') return false;
+    }
+  }
+  if (name.empty()) return false;
+  if (head == '?')
+    return name.front() != '/' && matchesAddress(pattern.substr(1), name.substr(1));
+  if (head == '[') {
+    const size_t close = pattern.find(']');
+    if (close == std::string_view::npos) return false;
+    return name.front() != '/' && inSet(pattern.substr(1, close - 1), name.front()) &&
+           matchesAddress(pattern.substr(close + 1), name.substr(1));
+  }
+  if (head == '{') {
+    const size_t close = pattern.find('}');
+    if (close == std::string_view::npos) return false;
+    const std::string_view choices = pattern.substr(1, close - 1);
+    const std::string_view rest = pattern.substr(close + 1);
+    size_t start = 0;
+    while (start <= choices.size()) {
+      size_t comma = choices.find(',', start);
+      if (comma == std::string_view::npos) comma = choices.size();
+      const std::string_view choice = choices.substr(start, comma - start);
+      if (name.substr(0, choice.size()) == choice &&
+          matchesAddress(rest, name.substr(choice.size())))
+        return true;
+      start = comma + 1;
+    }
+    return false;
+  }
+  return head == name.front() && matchesAddress(pattern.substr(1), name.substr(1));
+}
+
+/** What a connection IS. The advance reaches it weakly and every handle
+ *  reaches it through its pointer, so they agree however the handles are
+ *  copied and moved. */
 struct Connection::State {
   std::string uri;
-  /** Whether a message is an OSC packet rather than JSON text, read off
-   *  the scheme once, when the door is opened. */
-  bool osc = false;
-  /** Whether a message is a MIDI message, read off the scheme the same
-   *  way and at the same moment. */
-  bool midi = false;
-  /** Whether a message is an Art-Net packet, read off the scheme the
-   *  same way and at the same moment. */
-  bool artnet = false;
-  /** THE ONE DYNAMIC VALUE ON THIS WIRE, where the door was opened with
-   *  one: every message in and out goes through it, and the form a
-   *  reader sees is the schema's own. None for a door read as the
-   *  scheme alone says. */
+  Dialect dialect = Dialect::Json;
   Schema schema;
-  /** Why this door was never opened, where it was refused. It stands in
-   *  front of whatever the feed would say, there being no feed. */
+  /** Why this door was never opened, where it was refused. */
   std::string trouble;
-  /** What the undelivered queue holds before its oldest falls off. */
   size_t capacity = 0;
   io::Feed feed;
-  Json latest;
-  /** THE NEWEST ARRIVAL'S BYTES AS OF THE LAST DISPATCH, whole and
-   *  unread, which is what a reading asked for a value decodes. They
-   *  stand beside the Json above and move on the same advance, so a
-   *  frame never reads a value newer than the message it is drawing
-   *  from. Null before the first arrival. */
-  std::shared_ptr<const io::Bytes> latestBytes;
-  /** WHO SENT THE MESSAGE A REPLY ANSWERS: the address the newest
-   *  message that could be read arrived from, which inside a handler is
-   *  the address of the message that handler was given. Empty where
-   *  there is nobody to answer — nothing has arrived, or the arrival
-   *  named no sender, as a recording's frames do not. */
-  std::string sender;
-  std::deque<Json> unread;
-  /** Whether the queue behind receive() is being filled. The first
-   *  receive() raises it and nothing lowers it: a reader that only
-   *  registers handlers holds no backlog it never looks at, and one
-   *  that asks for a message is asking for the ones after it too. */
+  Message latest;
+  /** The message a handler is running for, which a reply answers the
+   *  sender of; null between handlers. */
+  const Message* handling = nullptr;
+  std::deque<Message> unread;
+  /** Whether the queue behind receive() is being filled. */
   bool queuing = false;
 
-  /** ONE MESSAGE UNDER EACH NAME, and the write that put it there: the
-   *  name written longest ago is the one carrying the smallest count,
-   *  which is the one that goes when there is no room for another. The
-   *  comparator is transparent so a reader's name is looked up as the
-   *  view it already is, without a string being built for it. */
+  /** ONE MESSAGE UNDER EACH NAME, and the write that put it there, so
+   *  the name written longest ago goes when there is no room. */
   struct Named {
-    Json message;
+    Message message;
     uint64_t written = 0;
   };
   std::map<std::string, Named, std::less<>> named;
-  /** How many latches have been written, which is where a name's own
-   *  count comes from. */
   uint64_t writes = 0;
   std::vector<std::pair<std::string, Handler>> handlers;
-  /** What runs for a message no name above matched, in the order these
-   *  were registered. */
   std::vector<Handler> otherwise;
   uint64_t undecodable = 0;
-  /** What the hub's advance runs. It is released with this state, so a
-   *  connection that is gone leaves nothing to run. */
   io::Lease lease;
 
-  /** One arrival as a value, or nothing when the bytes are no message
-   *  in this connection's scheme, or no message its schema holds. */
-  std::optional<Json> read(const io::Bytes& bytes) const {
-    if (osc) return decodeOsc(bytes);
-    if (midi) return decodeMidi(bytes);
-    if (artnet) return decodeArtNet(bytes);
-    if (!schema) return decodeJson(bytes.asText());
-    return readThroughSchema(bytes);
-  }
-
-  /** ONE ARRIVAL THROUGH THE SCHEMA, in whichever form it came: the
-   *  schema's JSON form is parsed to a buffer first, a buffer is taken
-   *  as it stands, and either is rendered back out of the schema. So
-   *  what a reader sees is the schema's own form both ways, and an
-   *  arrival that does not fit the schema is no message rather than a
-   *  value carrying whichever fields it happened to have.
-   *
-   *  Which form an arrival is in is read the way a resource's is: from
-   *  the door's NAME where it ends `.json`, and otherwise from the
-   *  first byte that is not a space, the JSON form opening with a brace
-   *  or a bracket. */
-  std::optional<Json> readThroughSchema(const io::Bytes& bytes) const {
-    std::optional<std::string> form;
-    if (flatBufferLooksLikeJson(bytes.asText(), uri)) {
-      const std::optional<std::vector<std::byte>> buffer =
-          schema.binary(bytes.asText());
-      if (!buffer) return std::nullopt;
-      form = schema.text(*buffer);
-    } else {
-      form = schema.text(bytes);
-    }
-    if (!form) return std::nullopt;
-    return decodeJson(*form);
-  }
-
-  /** Puts @p message under @p name, as the newest message of that name.
-   *
-   *  The names are bounded as the queue is, by the one capacity: a
-   *  sender that writes an address it never writes again would
-   *  otherwise grow this for as long as the door is open. When there is
-   *  no room for one more, the name written longest ago goes, so the
-   *  names a scene keeps hearing are the names it keeps. */
-  void latch(std::string_view name, const Json& message) {
+  void latch(std::string_view name, const Message& message) {
     const auto found = named.find(name);
     if (found != named.end()) {
       found->second = Named{message, ++writes};
@@ -200,179 +179,141 @@ struct Connection::State {
     named.emplace(std::string(name), Named{message, ++writes});
   }
 
-  /** ONE MESSAGE ON THIS DOOR'S WIRE: the message a MIDI door carries,
-   *  the universe an Art-Net door does, the packet an OSC door is read
-   *  by, the buffer a door with a schema is, the JSON text every other
-   *  door is. Nothing where the value has no spelling there — no bytes
-   *  is no message, and a value the wire cannot hold does not go out as
-   *  an empty datagram. */
+  /** ONE MESSAGE ON THIS DOOR'S WIRE; nothing where the value has no
+   *  spelling there, a value the wire cannot hold not going out as an
+   *  empty datagram. */
   std::optional<io::Bytes> write(const Json& message) const {
-    if (midi) {
-      std::vector<std::byte> played = encodeMidi(message);
-      if (played.empty()) return std::nullopt;
-      return io::Bytes(std::move(played));
-    }
-    if (artnet) {
-      std::vector<std::byte> universe = encodeArtNet(message);
-      if (universe.empty()) return std::nullopt;
-      return io::Bytes(std::move(universe));
-    }
-    if (!osc) {
-      if (!schema) return textBytes(encodeJson(message));
-      // Through the schema where the door has one: what goes out is the
-      // buffer the message makes, and a message the schema cannot hold
-      // is no message rather than text nobody at the far end reads.
-      std::optional<std::vector<std::byte>> buffer =
-          schema.binary(encodeJson(message));
-      if (!buffer) return std::nullopt;
-      return io::Bytes(std::move(*buffer));
-    }
-    std::vector<std::byte> packet = encodeOsc(message);
-    if (packet.empty()) return std::nullopt;
-    return io::Bytes(std::move(packet));
+    std::vector<std::byte> bytes = encode(message, dialect, schema);
+    if (bytes.empty()) return std::nullopt;
+    return io::Bytes(std::move(bytes));
   }
 
-  /** THE SAME, spelled as @p arguments under @p address. */
-  std::optional<io::Bytes> write(std::string_view address,
-                                 const Json& arguments) const {
-    // Off the OSC wire the same message is the record a packet reads
-    // as, which is the form a name is read out of at the other end — and
-    // a door with a schema writes that record through it, so it goes out
-    // only where the schema declares those two fields.
-    if (!osc)
-      return write(Json(Json::Object{{"address", Json(std::string(address))},
-                                     {"arguments", arguments}}));
-    std::vector<std::byte> packet = encodeOsc(address, arguments);
-    if (packet.empty()) return std::nullopt;
-    return io::Bytes(std::move(packet));
-  }
-
-  /** ONE FRAME'S MESSAGES. The feed is drained in order, and each
-   *  message that reads is latched — under nothing and under its own
-   *  name — queued where a queue was asked for, and handed to every
-   *  handler that names it before the next one is taken, so a handler
-   *  asking for the latest reads the message it was given and a handler
-   *  replying answers the sender of it. */
+  /** ONE FRAME'S MESSAGES, drained in order: each that reads is latched
+   *  under nothing and under its own name, queued where a queue is
+   *  open, and handed to every handler whose pattern names it before
+   *  the next is taken. */
   void advance() {
     if (!feed) return;
-    while (const std::optional<io::Message> arrival = feed.receive()) {
-      // The bytes are latched whether or not they are a message in this
-      // door's scheme, because a reading asked for a VALUE decodes them
-      // itself: a buffer arriving at a door read as JSON text is no Json
-      // message and is still the value its sender wrote.
-      latestBytes = arrival->payload;
-      std::optional<Json> message = read(*arrival->payload);
-      if (!message) {
+    while (std::optional<io::Message> arrival = feed.receive()) {
+      std::optional<Json> payload = decode(*arrival->payload, dialect, schema);
+      if (!payload) {
         ++undecodable;
         continue;
       }
-      latest = *message;
-      // Who sent it moves with what it says: a message that cannot be
-      // read is no message, so it leaves the sender standing exactly as
-      // it leaves the latest standing.
-      sender = arrival->sender();
-      const std::string_view name = nameOf(latest);
-      // A message that says what it is is latched under that name as
-      // well as under none, so a reader asks for the newest of one name
-      // without registering a handler for it. A message that says
-      // nothing latches under nothing: no name is not a name.
+      const std::string name(nameOf(*payload));
+      latest = Message(std::move(*payload), std::move(*arrival), name, schema);
       if (!name.empty()) latch(name, latest);
       if (queuing) {
-        unread.push_back(std::move(*message));
+        unread.push_back(latest);
         while (capacity != 0 && unread.size() > capacity) unread.pop_front();
       }
 
-      // The count is taken first and the handler is held rather than
-      // referred to: a handler may register another, which moves the
-      // list it is standing in, and one registered from inside a
-      // handler runs from the next message.
+      // The message is held, not referred to, so a handler that asks for
+      // the latest or replies reads the one it was given even when it
+      // registers another handler; one registered from inside a handler
+      // runs from the next message.
+      const Message handled = latest;
+      handling = &handled;
       const size_t registered = handlers.size();
       bool matched = false;
       for (size_t index = 0; index != registered; ++index) {
-        const std::string_view what = handlers[index].first;
-        if (what != "*" && what != name) continue;
-        // "*" is every message rather than a name a message carries, so
-        // one standing leaves a message no NAME reached still unnamed.
-        if (what != "*") matched = true;
+        const std::string_view pattern = handlers[index].first;
+        const bool every = pattern == "*";
+        if (!every && !matchesAddress(pattern, name)) continue;
+        if (!every) matched = true;
         const Handler handler = handlers[index].second;
-        handler(latest);
+        handler(handled);
       }
-      if (matched) continue;
-      const size_t unmatched = otherwise.size();
-      for (size_t index = 0; index != unmatched; ++index) {
-        const Handler handler = otherwise[index];
-        handler(latest);
+      if (!matched) {
+        const size_t unmatched = otherwise.size();
+        for (size_t index = 0; index != unmatched; ++index) {
+          const Handler handler = otherwise[index];
+          handler(handled);
+        }
       }
+      handling = nullptr;
     }
   }
 };
 
-Connection::Connection(io::Hub& hub, std::string_view uri,
-                       io::ListenOptions options)
-    : Connection(hub, uri, Schema{}, std::move(options)) {}
-
-Connection::Connection(io::Hub& hub, std::string_view uri, Schema schema,
-                       io::ListenOptions options) {
+Connection Connection::opened(io::Hub& hub, std::string_view uri,
+                              const std::string_view* recording,
+                              ConnectOptions options) {
+  Connection connection;
   auto state = std::make_shared<State>();
   state->uri = std::string(uri);
-  state->osc = schemeOf(state->uri) == "osc";
-  state->midi = schemeOf(state->uri) == "midi";
-  state->artnet = schemeOf(state->uri) == "artnet";
+  state->dialect = options.dialect.value_or(dialectOf(uri));
   state->capacity = options.capacity;
-  state->schema = std::move(schema);
-  if ((state->osc || state->midi || state->artnet) && state->schema) {
+  state->schema = std::move(options.schema);
+  state->queuing = options.queue;
+  connection.m_state = state;
+  const bool ownWire = state->dialect == Dialect::Osc ||
+                       state->dialect == Dialect::Midi ||
+                       state->dialect == Dialect::ArtNet;
+  if (state->schema && ownWire) {
     // OSC, MIDI and Art-Net each spell every value themselves, down to
     // the width a number goes out at, and a buffer is not one of those
-    // spellings. The door is not opened at all, so nothing is bound and
-    // nothing arrives.
+    // spellings: nothing is bound, and nothing arrives.
     state->trouble = std::string("a schema reads a FlatBuffer wire, not ") +
-                     (state->osc    ? "OSC"
-                      : state->midi ? "MIDI"
-                                    : "Art-Net");
-    m_state = std::move(state);
-    return;
+                     (state->dialect == Dialect::Osc    ? "OSC"
+                      : state->dialect == Dialect::Midi ? "MIDI"
+                                                        : "Art-Net");
+    return connection;
   }
-  state->feed = hub.listen(state->uri, std::move(options));
-  // The advance knows the state weakly: the state owns the lease, and
-  // a lease owning the state back would keep both standing after the
-  // last connection onto them was gone.
-  state->lease = io::onAdvance(hub, [held = std::weak_ptr<State>(state)](std::chrono::duration<double>) {
-    if (const std::shared_ptr<State> living = held.lock()) living->advance();
-  });
-  m_state = std::move(state);
+  if (state->schema) state->dialect = Dialect::FlatBuffer;
+  const io::ListenOptions listening{.capacity = options.capacity,
+                                    .peer = std::move(options.peer)};
+  state->feed = recording ? hub.replay(uri, *recording, listening)
+                          : hub.listen(uri, listening);
+  // The advance knows the state weakly: the state owns the lease, and a
+  // lease owning the state back would keep both standing after the last
+  // handle onto them was gone.
+  state->lease = io::onAdvance(
+      hub, [held = std::weak_ptr<State>(state)](std::chrono::duration<double>) {
+        if (const std::shared_ptr<State> living = held.lock()) living->advance();
+      });
+  return connection;
 }
 
-const Json& Connection::latest() const {
+Connection connect(io::Hub& hub, std::string_view uri, ConnectOptions options) {
+  return Connection::opened(hub, uri, nullptr, std::move(options));
+}
+
+Connection replay(io::Hub& hub, std::string_view uri, std::string_view recording,
+                  ConnectOptions options) {
+  return Connection::opened(hub, uri, &recording, std::move(options));
+}
+
+const Message& Connection::latest() const {
   return m_state ? m_state->latest : nothing();
 }
 
-const Json& Connection::latest(std::string_view what) const {
+const Message& Connection::latest(std::string_view address) const {
   if (!m_state) return nothing();
-  const auto found = m_state->named.find(what);
-  return found == m_state->named.end() ? nothing() : found->second.message;
+  if (!isPattern(address)) {
+    const auto found = m_state->named.find(address);
+    return found == m_state->named.end() ? nothing() : found->second.message;
+  }
+  const State::Named* newest = nullptr;
+  for (const auto& [name, latched] : m_state->named)
+    if (matchesAddress(address, name) &&
+        (!newest || latched.written > newest->written))
+      newest = &latched;
+  return newest ? newest->message : nothing();
 }
 
-uint64_t Connection::revision() const {
-  return m_state && m_state->feed ? m_state->feed.state().revision : 0;
-}
-
-std::optional<Json> Connection::receive() {
+std::optional<Message> Connection::receive() {
   if (!m_state) return std::nullopt;
-  // Asking for a message is what says this reader wants them held: what
-  // arrived before the first ask was never queued, and everything after
-  // it is.
   m_state->queuing = true;
   if (m_state->unread.empty()) return std::nullopt;
-  Json message = std::move(m_state->unread.front());
+  Message message = std::move(m_state->unread.front());
   m_state->unread.pop_front();
   return message;
 }
 
-void Connection::on(std::string_view what, Handler handler) {
-  // A connection onto nothing takes no handler: no message can arrive
-  // for one to run on.
+void Connection::on(std::string_view pattern, Handler handler) {
   if (!m_state || !handler) return;
-  m_state->handlers.emplace_back(std::string(what), std::move(handler));
+  m_state->handlers.emplace_back(std::string(pattern), std::move(handler));
 }
 
 void Connection::otherwise(Handler handler) {
@@ -380,85 +321,49 @@ void Connection::otherwise(Handler handler) {
   m_state->otherwise.push_back(std::move(handler));
 }
 
-bool Connection::send(const Json& message) const {
+bool Connection::send(const Json& message, const io::SendOptions& options) const {
   if (!m_state || !m_state->feed) return false;
   const std::optional<io::Bytes> bytes = m_state->write(message);
-  return bytes && m_state->feed.send(*bytes);
-}
-
-bool Connection::send(std::string_view address, const Json& arguments) const {
-  if (!m_state || !m_state->feed) return false;
-  const std::optional<io::Bytes> bytes = m_state->write(address, arguments);
-  return bytes && m_state->feed.send(*bytes);
+  return bytes && m_state->feed.send(*bytes, options);
 }
 
 bool Connection::reply(const Json& message) const {
-  // The same bytes as a send, out of a door that names whom they go to
-  // instead of writing to whoever is on the other side. Nobody to
-  // answer is not an error to report: it is what a recording, and a
+  if (!m_state) return false;
+  const Message& answered =
+      m_state->handling ? *m_state->handling : m_state->latest;
+  // Nobody to answer is not an error: it is what a recording, and a
   // door nothing has arrived at, has.
-  if (!m_state || !m_state->feed || m_state->sender.empty()) return false;
-  const std::optional<io::Bytes> bytes = m_state->write(message);
-  return bytes && m_state->feed.send(*bytes, {.to = m_state->sender});
+  if (answered.sender().empty()) return false;
+  return send(message, {.to = answered.sender()});
 }
 
-bool Connection::reply(std::string_view address, const Json& arguments) const {
-  if (!m_state || !m_state->feed || m_state->sender.empty()) return false;
-  const std::optional<io::Bytes> bytes = m_state->write(address, arguments);
-  return bytes && m_state->feed.send(*bytes, {.to = m_state->sender});
+io::Recording Connection::record(std::filesystem::path path) const {
+  return m_state ? m_state->feed.record(std::move(path)) : io::Recording();
+}
+
+ConnectionState Connection::state() const {
+  ConnectionState now;
+  if (!m_state) {
+    now.readiness = io::ReadyState::Closed;
+    return now;
+  }
+  if (m_state->feed) static_cast<io::FeedState&>(now) = m_state->feed.state();
+  else now.readiness = io::ReadyState::Closed;
+  if (!m_state->trouble.empty()) now.error = m_state->trouble;
+  now.undecodable = m_state->undecodable;
+  return now;
+}
+
+void Connection::close() const {
+  if (m_state && m_state->feed) m_state->feed.close();
 }
 
 const std::string& Connection::uri() const {
   return m_state ? m_state->uri : noUri();
 }
 
-const std::string& Connection::sender() const {
-  // A connection onto nothing has had nothing arrive, so there is
-  // nobody to name — the same empty spelling a URI it never had takes.
-  return m_state ? m_state->sender : noUri();
-}
-
 const Schema& Connection::schema() const {
   return m_state ? m_state->schema : noSchema();
-}
-
-std::shared_ptr<const io::Bytes> Connection::latestBytes() const {
-  return m_state ? m_state->latestBytes : nullptr;
-}
-
-std::string Connection::localAddress() const {
-  return m_state && m_state->feed ? m_state->feed.state().localAddress
-                                  : std::string();
-}
-
-std::string Connection::error() const {
-  if (!m_state) return {};
-  if (!m_state->trouble.empty()) return m_state->trouble;
-  return m_state->feed ? m_state->feed.state().error : std::string();
-}
-
-uint64_t Connection::dropped() const {
-  return m_state && m_state->feed ? m_state->feed.state().dropped : 0;
-}
-
-uint64_t Connection::undecodable() const {
-  return m_state ? m_state->undecodable : 0;
-}
-
-bool Connection::closed() const {
-  return m_state && m_state->feed ? m_state->feed.state().readiness ==
-                                        io::ReadyState::Closed
-                                  : true;
-}
-
-Connection::Vitals Connection::vitals() const {
-  return {.revision = revision(),
-          .dropped = dropped(),
-          .undecodable = undecodable(),
-          .closed = closed(),
-          .localAddress = localAddress(),
-          .sender = sender(),
-          .error = error()};
 }
 
 io::Feed Connection::feed() const {

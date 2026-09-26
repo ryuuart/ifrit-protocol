@@ -33,6 +33,13 @@
  *  @{ */
 /** @} */
 
+/** @defgroup data-read Reading a file whole
+ *  The one-line readers over a hub: a document, a table, a store's
+ *  answer to a query, and the call that registers this library's
+ *  decoders.
+ *  @{ */
+/** @} */
+
 /** @defgroup data-connection Connections
  *  A named door onto a live source, with what arrived on it and what is
  *  sent back down it.

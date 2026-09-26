@@ -65,56 +65,59 @@ TEST(DataTyped, ABufferOnTheDoorIsTheNewestValue) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoNowhere());
 
-  Connection door(hub, "ws://:8850/sheet");
+  Connection door = connect(hub, "ws://:8850/sheet",
+                            {.schema = schema<flatbuffer_test::Sheet>()});
   // Nothing has arrived, so there is no value to hand out.
-  EXPECT_FALSE(door.latest<sheet::Sheet>());
-  EXPECT_FALSE(door.latestBytes());
+  EXPECT_FALSE(door.latest().as<sheet::Sheet>());
+  EXPECT_FALSE(door.latest().bytes());
 
   inletOf(door.feed()).deliver(bytesOf(sheet::writeSheet(aSheet())));
-  // THE FRAME IS WHAT READS IT. A delivery the dispatch has not taken
-  // off the feed yet is no message here, exactly as it is none to the
-  // reading beside this one.
-  EXPECT_FALSE(door.latest<sheet::Sheet>());
-  EXPECT_TRUE(door.latest().null());
+  // THE FRAME IS WHAT READS IT. A delivery the advance has not taken off
+  // the feed yet is no message here.
+  EXPECT_FALSE(door.latest().as<sheet::Sheet>());
+  EXPECT_TRUE(door.latest().empty());
 
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
-  const std::optional<sheet::Sheet> read = door.latest<sheet::Sheet>();
+  const std::optional<sheet::Sheet> read = door.latest().as<sheet::Sheet>();
   ASSERT_TRUE(read);
   ASSERT_EQ(read->readings.size(), 2u);
   EXPECT_EQ(read->readings[0].name, "a");
   EXPECT_FLOAT_EQ(read->readings[0].value, 2.5f);
   EXPECT_EQ(read->readings[1].name, "c");
   EXPECT_FLOAT_EQ(read->readings[1].value, -1.0f);
-
-  // The typed reading is a reading of the BYTES the dispatch latched.
-  // This door was opened with no schema, so its messages are read as
-  // JSON text, which a buffer is not: it has no Json message at all and
-  // counts the arrival against itself, and the bytes are there and the
-  // value is handed out all the same.
-  EXPECT_TRUE(door.latest().null());
-  EXPECT_EQ(door.undecodable(), 1u);
-  ASSERT_TRUE(door.latestBytes());
-  EXPECT_EQ(*door.latestBytes(), Bytes(sheet::writeSheet(aSheet())));
+  // The same message reads as the schema's JSON form, and its bytes are
+  // the buffer as it arrived.
+  EXPECT_EQ(door.latest()["readings"][1]["name"].string(), "c");
+  ASSERT_TRUE(door.latest().bytes());
+  EXPECT_EQ(*door.latest().bytes(), Bytes(sheet::writeSheet(aSheet())));
 
   // And it is a reading rather than a latch: asking again reads the
   // same bytes again and answers the same value.
-  const std::optional<sheet::Sheet> twice = door.latest<sheet::Sheet>();
+  const std::optional<sheet::Sheet> twice = door.latest().as<sheet::Sheet>();
   ASSERT_TRUE(twice);
   EXPECT_EQ(twice->readings.size(), 2u);
+
+  // A buffer at a door read as JSON text is no message there: it is
+  // counted against the door and leaves nothing to read.
+  Connection plain = connect(hub, "ws://:8854/sheet");
+  inletOf(plain.feed()).deliver(bytesOf(sheet::writeSheet(aSheet())));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
+  EXPECT_TRUE(plain.latest().empty());
+  EXPECT_EQ(plain.state().undecodable, 1u);
 }
 
 TEST(DataTyped, TheSchemasJsonFormReadsAsTheSameValue) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoNowhere());
 
-  Connection door(hub, "ws://:8851/sheet", schema<flatbuffer_test::Sheet>());
+  Connection door = connect(hub, "ws://:8851/sheet", {.schema = schema<flatbuffer_test::Sheet>()});
   ASSERT_TRUE(door.schema());
   inletOf(door.feed()).deliver(bytesOf(R"({"readings": [{"name": "a", "value": 2.5},)"
                                        R"( {"name": "c", "value": -1.0}]})"));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
-  const std::optional<sheet::Sheet> read = door.latest<sheet::Sheet>();
+  const std::optional<sheet::Sheet> read = door.latest().as<sheet::Sheet>();
   ASSERT_TRUE(read);
   ASSERT_EQ(read->readings.size(), 2u);
   EXPECT_EQ(read->readings[0].name, "a");
@@ -122,7 +125,7 @@ TEST(DataTyped, TheSchemasJsonFormReadsAsTheSameValue) {
   EXPECT_FLOAT_EQ(read->readings[1].value, -1.0f);
   // Both readings of one door say the same thing: a sender speaking the
   // schema's JSON form is a sender speaking the schema.
-  EXPECT_EQ(door.latest()["readings"][0]["name"].text(), "a");
+  EXPECT_EQ(door.latest()["readings"][0]["name"].string(), "a");
 
   // A buffer on that same door reads as a value too, which form an
   // arrival is in being read off the bytes and not off the door. A
@@ -131,46 +134,46 @@ TEST(DataTyped, TheSchemasJsonFormReadsAsTheSameValue) {
   later.readings = {sheet::Reading{.name = "z", .value = 9.0f}};
   inletOf(door.feed()).deliver(bytesOf(sheet::writeSheet(later)));
 
-  const std::optional<sheet::Sheet> before = door.latest<sheet::Sheet>();
+  const std::optional<sheet::Sheet> before = door.latest().as<sheet::Sheet>();
   ASSERT_TRUE(before);
   EXPECT_EQ(before->readings.size(), 2u);  // still the frame's own message
 
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
-  const std::optional<sheet::Sheet> again = door.latest<sheet::Sheet>();
+  const std::optional<sheet::Sheet> again = door.latest().as<sheet::Sheet>();
   ASSERT_TRUE(again);
   ASSERT_EQ(again->readings.size(), 1u);
   EXPECT_EQ(again->readings[0].name, "z");
   EXPECT_FLOAT_EQ(again->readings[0].value, 9.0f);
-  EXPECT_EQ(door.undecodable(), 0u);
+  EXPECT_EQ(door.state().undecodable, 0u);
 }
 
 TEST(DataTyped, BytesThatAreNoSheetReadAsNothing) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoNowhere());
 
-  Connection plain(hub, "ws://:8852/sheet");
+  Connection plain = connect(hub, "ws://:8852/sheet");
   inletOf(plain.feed()).deliver(bytesOf("not a sheet at all"));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   // The bytes do not verify as the root the value is read from, so
   // there is no value rather than a reading of whatever they were.
-  EXPECT_FALSE(plain.latest<sheet::Sheet>());
+  EXPECT_FALSE(plain.latest().as<sheet::Sheet>());
 
   // Through a schema the refusal is the schema's: text it cannot hold
   // makes no buffer, and there is nothing to read a value out of.
-  Connection through(hub, "ws://:8853/sheet", schema<flatbuffer_test::Sheet>());
+  Connection through = connect(hub, "ws://:8853/sheet", {.schema = schema<flatbuffer_test::Sheet>()});
   inletOf(through.feed()).deliver(
               bytesOf(R"({"readings": [{"name": "a", "value": "tall"}]})"));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
-  EXPECT_FALSE(through.latest<sheet::Sheet>());
-  EXPECT_EQ(through.undecodable(), 1u);
+  EXPECT_FALSE(through.latest().as<sheet::Sheet>());
+  EXPECT_EQ(through.state().undecodable, 1u);
 }
 
 TEST(DataTyped, AConnectionOntoNothingReadsAsNothing) {
   const Connection none;
-  EXPECT_FALSE(none.latest<sheet::Sheet>());
-  EXPECT_FALSE(none.latestBytes());
+  EXPECT_FALSE(none.latest().as<sheet::Sheet>());
+  EXPECT_FALSE(none.latest().bytes());
   EXPECT_FALSE(none.schema());
-  EXPECT_EQ(none.revision(), 0u);
+  EXPECT_EQ(none.state().revision, 0u);
 }
 
 }  // namespace

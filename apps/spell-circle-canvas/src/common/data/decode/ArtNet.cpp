@@ -12,7 +12,7 @@
  * taken from a package.
  */
 
-#include <sigildata/decode/ArtNet.h>
+#include "Wire.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -142,7 +142,7 @@ size_t countOf(const Json& channels) {
 
 }  // namespace
 
-std::optional<Json> decodeArtNet(std::span<const std::byte> packet) {
+std::optional<Json> wire::readArtNet(std::span<const std::byte> packet) {
   // A packet is its name and the code that says what it is; bytes too
   // few for those two cannot say either.
   if (packet.size() < kOpCodeAt + 2 || !namesArtNet(packet))
@@ -200,8 +200,8 @@ std::optional<Json> decodeArtNet(std::span<const std::byte> packet) {
   return Json(std::move(fields));
 }
 
-std::vector<std::byte> encodeArtNet(const Json& message) {
-  const std::string_view kind = message["kind"].text();
+std::vector<std::byte> wire::writeArtNet(const Json& message) {
+  const std::string_view kind = message["kind"].string();
 
   if (kind == "Dmx") {
     const Json& channels = message["channels"];
@@ -242,10 +242,10 @@ std::vector<std::byte> encodeArtNet(const Json& message) {
   // whatever else it says: a packet this codec has no reading for is
   // written back the way it arrived.
   const Json& verbatim = message["bytes"];
-  if (verbatim.kind() == Json::Kind::List) {
+  if (verbatim.kind() == Json::Kind::Array) {
     std::vector<std::byte> packet;
     packet.reserve(verbatim.size());
-    for (const Json& one : verbatim.items())
+    for (const Json& one : verbatim.array())
       packet.push_back(levelByte(one.number()));
     return packet;
   }

@@ -2,19 +2,16 @@
 
 /** @file
  * @ingroup data-decode
- * THIS LIBRARY'S DECODERS, and the one call that puts them on a hub. A
- * hub answers a URI with bytes and hands those bytes to whatever
- * decoder is registered for the type asked for; these two are the
- * `Table` decoder and the `Json` decoder, so after
- * `registerDecoders(hub)` a data file, a nested record and an OSC desk
- * are all `load<T>` on that hub, cached and reloaded like anything else
- * it holds. `registerDecoders` is a template over the hub, so this
- * library depends on the byte vocabulary alone.
+ * THE TABLE AND JSON DECODERS a hub reads a resource through. A hub
+ * answers a URI with bytes and hands those bytes to whatever decoder is
+ * registered for the type asked for; `registerDecoders(hub)` puts these
+ * two and the store's on a hub, so a data file, a nested record and an
+ * OSC desk are all `load<T>` on that hub, cached and reloaded like
+ * anything else it holds.
  */
 
 #include <sigildata/decode/Csv.h>
 #include <sigildata/decode/Json.h>
-#include <sigildata/decode/Osc.h>
 #include <sigildata/table/Table.h>
 #include <sigilio/source/Source.h>
 
@@ -49,16 +46,5 @@ struct JsonDecoder {
   std::optional<Json> decode(const io::Bytes& bytes,
                              std::string_view hint) const;
 };
-
-/** Puts both on @p hub, so `load<Table>` and `load<Json>` answer. A
- *  host calls this once, wherever it builds its hub.
- *  @trap Registering a type again replaces the decoder later asks run,
- *  so a host wanting a pinned delimiter registers its own
- *  `TableDecoder` AFTERWARDS. */
-template <typename Hub>
-void registerDecoders(Hub& hub) {
-  registerDecoder<Table>(hub, TableDecoder{});
-  registerDecoder<Json>(hub, JsonDecoder{});
-}
 
 }  // namespace sigil::data

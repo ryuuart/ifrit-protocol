@@ -1,5 +1,7 @@
 #include <sigildata/decode/Decoders.h>
 
+#include "Wire.h"
+
 namespace sigil::data {
 
 namespace {
@@ -42,7 +44,7 @@ std::optional<Table> TableDecoder::decode(const io::Bytes& bytes,
                                           std::string_view hint) const {
   const std::string_view text = withoutMark(bytes.asText());
   if (looksLikeJson(text, hint)) {
-    const std::optional<Json> document = decodeJson(text);
+    const std::optional<Json> document = wire::readJson(text);
     if (!document) return std::nullopt;
     return tableFromJson(*document);
   }
@@ -54,8 +56,8 @@ std::optional<Json> JsonDecoder::decode(const io::Bytes& bytes,
   // A packet is bytes and a document is text, and no reading of the
   // first byte tells the two apart, so the name is the whole of what
   // there is to go on.
-  if (looksLikeOsc(hint)) return decodeOsc(bytes);
-  return decodeJson(withoutMark(bytes.asText()));
+  if (looksLikeOsc(hint)) return wire::readOsc(bytes);
+  return wire::readJson(withoutMark(bytes.asText()));
 }
 
 }  // namespace sigil::data

@@ -12,7 +12,7 @@
  * than taken from a package.
  */
 
-#include <sigildata/decode/Midi.h>
+#include "Wire.h"
 
 #include <cstdint>
 #include <string_view>
@@ -169,7 +169,7 @@ std::vector<std::byte> messageOf(int status, double first, double second) {
 
 }  // namespace
 
-std::optional<Json> decodeMidi(std::span<const std::byte> message) {
+std::optional<Json> wire::readMidi(std::span<const std::byte> message) {
   if (message.empty()) return std::nullopt;
   const uint8_t status = byteAt(message, 0);
   // A message opens with a status byte. Bytes that arrived without one
@@ -265,21 +265,21 @@ std::optional<Json> decodeMidi(std::span<const std::byte> message) {
   return Json(std::move(fields));
 }
 
-std::vector<std::byte> encodeMidi(const Json& message) {
+std::vector<std::byte> wire::writeMidi(const Json& message) {
   // A record carrying its own bytes goes out as exactly those bytes,
   // whatever else it says: a message this codec has no name for is
   // written back the way it arrived.
   const Json& verbatim = message["bytes"];
-  if (verbatim.kind() == Json::Kind::List) {
+  if (verbatim.kind() == Json::Kind::Array) {
     std::vector<std::byte> bytes;
     bytes.reserve(verbatim.size());
-    for (const Json& one : verbatim.items())
+    for (const Json& one : verbatim.array())
       bytes.push_back(static_cast<std::byte>(
           static_cast<int>(clamped(one.number(), 0, 255))));
     return bytes;
   }
 
-  const std::string_view kind = message["kind"].text();
+  const std::string_view kind = message["kind"].string();
   // A message that names no channel is on the first one, which is where
   // a controller with no channel of its own speaks.
   const int channel =

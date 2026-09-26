@@ -95,9 +95,9 @@ TEST(DataSchema, TheJsonFormGoesToABufferAndBackToTheSameText) {
   ASSERT_TRUE(buffer.has_value());
   const std::optional<std::string> form = sheet.text(*buffer);
   ASSERT_TRUE(form.has_value());
-  const std::optional<Json> read = decodeJson(*form);
+  const std::optional<Json> read = decode(*form, Dialect::Json);
   ASSERT_TRUE(read.has_value());
-  EXPECT_EQ((*read)["readings"][0]["name"].text(), "a");
+  EXPECT_EQ((*read)["readings"][0]["name"].string(), "a");
   EXPECT_DOUBLE_EQ((*read)["readings"][0]["value"].number(), 2.5);
 
   // The schema's form is where both conversions come to rest: what one
@@ -139,17 +139,17 @@ TEST(DataSchema, AJsonArrivalThatFitsIsTheLatestInTheSchemasForm) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
-  Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
+  Connection sheet = connect(hub, "ws://:8848/sheet", {.schema = sheetSchema()});
   int handled = 0;
-  sheet.on("*", [&handled](const Json&) { ++handled; });
+  sheet.on("*", [&handled](const Message&) { ++handled; });
 
   inletOf(sheet.feed()).deliver(bytesOf(R"({"readings":[{"name":"a","value":2.5}]})"));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(handled, 1);
-  EXPECT_EQ(sheet.undecodable(), 0u);
-  EXPECT_EQ(sheet.revision(), 1u);
-  EXPECT_EQ(sheet.latest()["readings"][0]["name"].text(), "a");
+  EXPECT_EQ(sheet.state().undecodable, 0u);
+  EXPECT_EQ(sheet.state().revision, 1u);
+  EXPECT_EQ(sheet.latest()["readings"][0]["name"].string(), "a");
   EXPECT_DOUBLE_EQ(sheet.latest()["readings"][0]["value"].number(), 2.5);
 }
 
@@ -157,9 +157,9 @@ TEST(DataSchema, AJsonArrivalThatDoesNotFitLeavesTheLatestStanding) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
-  Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
+  Connection sheet = connect(hub, "ws://:8848/sheet", {.schema = sheetSchema()});
   int handled = 0;
-  sheet.on("*", [&handled](const Json&) { ++handled; });
+  sheet.on("*", [&handled](const Message&) { ++handled; });
 
   inletOf(sheet.feed()).deliver(bytesOf(R"({"readings":[{"name":"a","value":2.5}]})"));
   // A document the schema does not declare a field of. It is a document
@@ -169,8 +169,8 @@ TEST(DataSchema, AJsonArrivalThatDoesNotFitLeavesTheLatestStanding) {
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(handled, 1);
-  EXPECT_EQ(sheet.undecodable(), 1u);
-  EXPECT_EQ(sheet.revision(), 2u);  // the feed took it; no reader saw it
+  EXPECT_EQ(sheet.state().undecodable, 1u);
+  EXPECT_EQ(sheet.state().revision, 2u);  // the feed took it; no reader saw it
   EXPECT_DOUBLE_EQ(sheet.latest()["readings"][0]["value"].number(), 2.5);
 }
 
@@ -178,16 +178,16 @@ TEST(DataSchema, ABufferArrivesAsItsOwnJsonForm) {
   Hub hub;
   sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
-  Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
+  Connection sheet = connect(hub, "ws://:8848/sheet", {.schema = sheetSchema()});
   inletOf(sheet.feed()).deliver(bytesOf(builtSheet()));
   sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   // The same reading as the JSON form: which form the sender wrote is
   // not something a reader has to know.
-  EXPECT_EQ(sheet.undecodable(), 0u);
-  EXPECT_EQ(sheet.latest()["readings"][0]["name"].text(), "a");
+  EXPECT_EQ(sheet.state().undecodable, 0u);
+  EXPECT_EQ(sheet.latest()["readings"][0]["name"].string(), "a");
   EXPECT_DOUBLE_EQ(sheet.latest()["readings"][0]["value"].number(), 2.5);
-  EXPECT_EQ(sheet.latest()["readings"][1]["name"].text(), "c");
+  EXPECT_EQ(sheet.latest()["readings"][1]["name"].string(), "c");
   EXPECT_DOUBLE_EQ(sheet.latest()["readings"][1]["value"].number(), -1.0);
 }
 
@@ -195,7 +195,7 @@ TEST(DataSchema, SendWritesTheBufferTheSchemaMakesOfTheMessage) {
   Hub hub;
   const auto sent = std::make_shared<Sent>();
   sigil::io::registerTransport(hub, "ws", intoVector(sent));
-  const Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
+  const Connection sheet = connect(hub, "ws://:8848/sheet", {.schema = sheetSchema()});
 
   ASSERT_TRUE(sheet.send(oneReading(2.5)));
   ASSERT_EQ(sent->size(), 1u);
@@ -214,7 +214,7 @@ TEST(DataSchema, SendWritesTheBufferTheSchemaMakesOfTheMessage) {
   // address-and-arguments spelling among them: the schema declares
   // neither of those fields.
   EXPECT_FALSE(sheet.send(Json(Json::Object{{"gust", Json(0.5)}})));
-  EXPECT_FALSE(sheet.send("/sheet/ping", Json(Json::Array{})));
+  EXPECT_FALSE(sheet.send(oscMessage("/sheet/ping", Json(Json::Array{}))));
   EXPECT_EQ(sent->size(), 1u);
 }
 
@@ -222,20 +222,20 @@ TEST(DataSchema, AnOscDoorTakesNoSchema) {
   Hub hub;
   sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>()));
 
-  const Connection desk(hub, "osc://:9000", sheetSchema());
-  EXPECT_FALSE(desk.error().empty());
+  const Connection desk = connect(hub, "osc://:9000", {.schema = sheetSchema()});
+  EXPECT_FALSE(desk.state().error.empty());
   // Refused is not opened: nothing was bound, so nothing arrives and
   // nothing goes out.
   EXPECT_FALSE(desk.feed());
-  EXPECT_TRUE(desk.closed());
-  EXPECT_TRUE(desk.latest().null());
-  EXPECT_EQ(desk.revision(), 0u);
+  EXPECT_EQ(desk.state().readiness, sigil::io::ReadyState::Closed);
+  EXPECT_TRUE(desk.latest().empty());
+  EXPECT_EQ(desk.state().revision, 0u);
   EXPECT_FALSE(desk.send(oneReading(2.5)));
   EXPECT_EQ(desk.uri(), "osc://:9000");
 
   // The same door with no schema is the door it always was.
-  const Connection open(hub, "osc://:9000");
-  EXPECT_TRUE(open.error().empty());
+  const Connection open = connect(hub, "osc://:9000");
+  EXPECT_TRUE(open.state().error.empty());
   EXPECT_TRUE(open.feed());
 }
 

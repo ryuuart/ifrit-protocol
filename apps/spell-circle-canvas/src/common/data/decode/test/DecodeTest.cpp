@@ -3,7 +3,9 @@
  *  it takes for `load<Table>` to answer. */
 
 #include <gtest/gtest.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Decoders.h>
+#include <sigildata/read/Read.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Places.h>
 
@@ -14,6 +16,15 @@
 #include "ScratchDir.h"
 
 using namespace sigil::data;
+
+namespace {
+/** A value as JSON text, for a comparison or a failure message. */
+std::string jsonText(const sigil::data::Json& value) {
+  const std::vector<std::byte> bytes =
+      sigil::data::encode(value, sigil::data::Dialect::Json);
+  return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+}
+}  // namespace
 using sigil::test::ScratchDir;
 
 namespace {
@@ -254,9 +265,9 @@ TEST(DataDecode, AnInstantIsADateAndOptionallyATimeOnIt) {
 }
 
 TEST(DataDecode, AListOfRecordsIsOneRowEach) {
-  const std::optional<Json> document = decodeJson(
+  const std::optional<Json> document = decode(
       R"([{"id": 1, "name": "root", "open": true},
-          {"id": 2, "name": "leaf", "open": false, "note": "late"}])");
+          {"id": 2, "name": "leaf", "open": false, "note": "late"}])", Dialect::Json);
   ASSERT_TRUE(document);
   const std::optional<Table> table = tableFromJson(*document);
   ASSERT_TRUE(table);
@@ -272,7 +283,7 @@ TEST(DataDecode, AListOfRecordsIsOneRowEach) {
 
 TEST(DataDecode, ARecordOfListsIsOneColumnEach) {
   const std::optional<Json> document =
-      decodeJson(R"({"x": [1, 2, 3], "label": ["a", "b", "c"]})");
+      decode(R"({"x": [1, 2, 3], "label": ["a", "b", "c"]})", Dialect::Json);
   ASSERT_TRUE(document);
   const std::optional<Table> table = tableFromJson(*document);
   ASSERT_TRUE(table);
@@ -282,7 +293,7 @@ TEST(DataDecode, ARecordOfListsIsOneColumnEach) {
 }
 
 TEST(DataDecode, AListOfListsIsNamedByPosition) {
-  const std::optional<Json> document = decodeJson(R"([[1, "a"], [2, "b"]])");
+  const std::optional<Json> document = decode(R"([[1, "a"], [2, "b"]])", Dialect::Json);
   ASSERT_TRUE(document);
   const std::optional<Table> table = tableFromJson(*document);
   ASSERT_TRUE(table);
@@ -293,7 +304,7 @@ TEST(DataDecode, AListOfListsIsNamedByPosition) {
 
 TEST(DataDecode, ACellHoldingAListOfItsOwnHasNoPlaceInARectangle) {
   const std::optional<Json> document =
-      decodeJson(R"([{"id": 1, "links": [2, 3]}, {"id": 2, "links": []}])");
+      decode(R"([{"id": 1, "links": [2, 3]}, {"id": 2, "links": []}])", Dialect::Json);
   ASSERT_TRUE(document);
   const std::optional<Table> table = tableFromJson(*document);
   ASSERT_TRUE(table);
@@ -302,15 +313,15 @@ TEST(DataDecode, ACellHoldingAListOfItsOwnHasNoPlaceInARectangle) {
 }
 
 TEST(DataDecode, ANestedDocumentIsReadAsAValueAndKeepsItsOrder) {
-  const std::optional<Json> document = decodeJson(
-      R"({"groups": [{"orbit": 3, "nodes": ["a", "b"]}], "version": 7})");
+  const std::optional<Json> document = decode(
+      R"({"groups": [{"orbit": 3, "nodes": ["a", "b"]}], "version": 7})", Dialect::Json);
   ASSERT_TRUE(document);
-  EXPECT_EQ(Json::Kind::Record, document->kind());
-  ASSERT_EQ(2u, document->fields().size());
-  EXPECT_EQ("groups", document->fields()[0].first);
+  EXPECT_EQ(Json::Kind::Object, document->kind());
+  ASSERT_EQ(2u, document->object().size());
+  EXPECT_EQ("groups", document->object()[0].first);
   EXPECT_DOUBLE_EQ(7.0, (*document)["version"].number());
   EXPECT_DOUBLE_EQ(3.0, (*document)["groups"][size_t{0}]["orbit"].number());
-  EXPECT_EQ("b", (*document)["groups"][size_t{0}]["nodes"][size_t{1}].text());
+  EXPECT_EQ("b", (*document)["groups"][size_t{0}]["nodes"][size_t{1}].string());
 
   // A chain through members that are not there answers null, not a crash.
   EXPECT_TRUE((*document)["absent"]["deeper"][size_t{4}].null());
@@ -318,26 +329,26 @@ TEST(DataDecode, ANestedDocumentIsReadAsAValueAndKeepsItsOrder) {
 }
 
 TEST(DataDecode, TextThatIsNotJsonIsNotADocument) {
-  EXPECT_FALSE(decodeJson("month,deaths\nJan,2761\n"));
-  EXPECT_FALSE(decodeJson(""));
+  EXPECT_FALSE(decode("month,deaths\nJan,2761\n", Dialect::Json));
+  EXPECT_FALSE(decode("", Dialect::Json));
   // Not valid UTF-8, so not a document — not a document with one bad
   // string in it.
-  EXPECT_FALSE(decodeJson("{\"name\": \"\xFF\xFE\"}"));
+  EXPECT_FALSE(decode("{\"name\": \"\xFF\xFE\"}", Dialect::Json));
 }
 
 TEST(DataDecode, ALoneValueIsADocumentAndHoldsNoRectangle) {
-  const std::optional<Json> number = decodeJson("42");
+  const std::optional<Json> number = decode("42", Dialect::Json);
   ASSERT_TRUE(number);
   EXPECT_EQ(Json::Kind::Number, number->kind());
   EXPECT_DOUBLE_EQ(42.0, number->number());
   EXPECT_FALSE(tableFromJson(*number));
 
-  const std::optional<Json> text = decodeJson("\"Wilna\"");
+  const std::optional<Json> text = decode("\"Wilna\"", Dialect::Json);
   ASSERT_TRUE(text);
-  EXPECT_EQ("Wilna", text->text());
+  EXPECT_EQ("Wilna", text->string());
   EXPECT_FALSE(tableFromJson(*text));
 
-  const std::optional<Json> nothing = decodeJson("null");
+  const std::optional<Json> nothing = decode("null", Dialect::Json);
   ASSERT_TRUE(nothing);
   EXPECT_TRUE(nothing->null());
   EXPECT_FALSE(tableFromJson(*nothing));
@@ -346,16 +357,16 @@ TEST(DataDecode, ALoneValueIsADocumentAndHoldsNoRectangle) {
 TEST(DataDecode, ARecordThatWritesAKeyTwiceKeepsBothMembers) {
   // Dropping one would be an edit to somebody else's document, so both
   // stand and a lookup answers the first.
-  const std::optional<Json> document = decodeJson(R"({"id": 1, "id": 2})");
+  const std::optional<Json> document = decode(R"({"id": 1, "id": 2})", Dialect::Json);
   ASSERT_TRUE(document);
-  ASSERT_EQ(2u, document->fields().size());
+  ASSERT_EQ(2u, document->object().size());
   EXPECT_DOUBLE_EQ(1.0, (*document)["id"].number());
-  EXPECT_DOUBLE_EQ(2.0, document->fields()[1].second.number());
+  EXPECT_DOUBLE_EQ(2.0, document->object()[1].second.number());
 
   // As a rectangle it is two columns, the later one numbered, so no
   // column of the document is lost.
   const std::optional<Json> columns =
-      decodeJson(R"({"v": [1, 2], "v": [3, 4]})");
+      decode(R"({"v": [1, 2], "v": [3, 4]})", Dialect::Json);
   ASSERT_TRUE(columns);
   const std::optional<Table> table = tableFromJson(*columns);
   ASSERT_TRUE(table);
@@ -367,7 +378,7 @@ TEST(DataDecode, ARecordThatWritesAKeyTwiceKeepsBothMembers) {
 TEST(DataDecode, ANestingIsReadToItsBottomAndAnAbsurdOneIsNotADocument) {
   std::string deep = "1";
   for (int level = 0; level < 200; ++level) deep = "{\"a\":" + deep + "}";
-  const std::optional<Json> document = decodeJson(deep);
+  const std::optional<Json> document = decode(deep, Dialect::Json);
   ASSERT_TRUE(document);
   const Json* at = &*document;
   for (int level = 0; level < 200; ++level) at = &(*at)["a"];
@@ -377,7 +388,7 @@ TEST(DataDecode, ANestingIsReadToItsBottomAndAnAbsurdOneIsNotADocument) {
   // part that parsed.
   std::string absurd = "1";
   for (int level = 0; level < 5000; ++level) absurd = "[" + absurd + "]";
-  EXPECT_FALSE(decodeJson(absurd));
+  EXPECT_FALSE(decode(absurd, Dialect::Json));
 }
 
 TEST(DataDecode, OneRegisterCallIsAllAHubNeeds) {
@@ -440,13 +451,13 @@ TEST(DataDecode, AWriteThroughTheHubDropsTheTableItDecoded) {
 }
 
 TEST(DataDecode, ADocumentWrittenBackReadsAsTheSameValue) {
-  const std::optional<Json> document = decodeJson(
+  const std::optional<Json> document = decode(
       R"({"name":"sky","nodes":[{"x":1,"y":-2.5},{"x":3,"y":4}],)"
-      R"("open":true,"tags":[],"none":null,"nested":{"deep":[[1,2],[3]]}})");
+      R"("open":true,"tags":[],"none":null,"nested":{"deep":[[1,2],[3]]}})", Dialect::Json);
   ASSERT_TRUE(document);
 
-  const std::string written = encodeJson(*document);
-  const std::optional<Json> again = decodeJson(written);
+  const std::string written = jsonText(*document);
+  const std::optional<Json> again = decode(written, Dialect::Json);
   ASSERT_TRUE(again);
   EXPECT_TRUE(*again == *document);
   // Compact: what this writes goes on a wire, not in front of an eye.
@@ -461,26 +472,26 @@ TEST(DataDecode, WritingEscapesWhatJsonCannotHoldAsItStands) {
   // escape the character it names instead of the six characters JSON
   // writes it as.
   EXPECT_EQ("\"he said \\\"go\\\"\\n\\ttab\\\\slash\\u0001\"",
-            encodeJson(text));
-  const std::optional<Json> back = decodeJson(encodeJson(text));
+            jsonText(text));
+  const std::optional<Json> back = decode(jsonText(text), Dialect::Json);
   ASSERT_TRUE(back);
   EXPECT_TRUE(*back == text);
   // Text that arrived as UTF-8 leaves as the same UTF-8.
-  EXPECT_EQ("\"\u00c5ngstr\u00f6m\"", encodeJson(Json("\u00c5ngstr\u00f6m")));
+  EXPECT_EQ("\"\u00c5ngstr\u00f6m\"", jsonText(Json("\u00c5ngstr\u00f6m")));
 }
 
 TEST(DataDecode, AWholeNumberIsWrittenWholeAndWithTheFewestDigits) {
-  EXPECT_EQ("7", encodeJson(Json(7)));
-  EXPECT_EQ("-0.125", encodeJson(Json(-0.125)));
-  EXPECT_EQ("0.1", encodeJson(Json(0.1)));
+  EXPECT_EQ("7", jsonText(Json(7)));
+  EXPECT_EQ("-0.125", jsonText(Json(-0.125)));
+  EXPECT_EQ("0.1", jsonText(Json(0.1)));
   EXPECT_EQ(
       R"({"count":7,"ratio":0.5})",
-      encodeJson(Json(Json::Object{{"count", Json(7)}, {"ratio", Json(0.5)}})));
+      jsonText(Json(Json::Object{{"count", Json(7)}, {"ratio", Json(0.5)}})));
   // A number JSON has no spelling for is written as the value a reader
   // would get back for it.
-  EXPECT_EQ("null", encodeJson(Json(std::nan(""))));
+  EXPECT_EQ("null", jsonText(Json(std::nan(""))));
   EXPECT_EQ("[null,null]",
-            encodeJson(Json(Json::Array{Json(INFINITY), Json(-INFINITY)})));
+            jsonText(Json(Json::Array{Json(INFINITY), Json(-INFINITY)})));
 }
 
 }  // namespace

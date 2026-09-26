@@ -2,31 +2,35 @@
 
 /** @file
  * @ingroup data-connection
- * A CONNECTION: a feed read as values. The bytes are read by the scheme
- * the URI names — an OSC packet through an `osc://` door, JSON text
- * through every other, and the schema's own form on a door opened with
- * one — so what a reader sees is a `Json`, or the value type a
- * generated header declares, and never the bytes. NOTHING DRIVES IT BUT
- * THE FRAME: a connection registers on the hub's advance as it opens,
- * and between two advances it answers exactly what the last one left
- * it. ONE THREAD, the advancing one, so a connection holds no lock of
- * its own.
+ * A CONNECTION: a feed read as values — IO's `hub.listen`, one level
+ * up. `data::connect(hub, uri)` opens the door and hands back a value
+ * handle whose verbs are the feed's own — `latest`, `receive`, `send`,
+ * `record`, `state`, `close` — answering a `data::Message` whose payload
+ * is a `Json` where the feed answers bytes. The dialect is read off the
+ * URI's scheme — `osc://` an OSC packet, `midi://` a MIDI message,
+ * `artnet://` an Art-Net packet, and JSON text on every other — or
+ * named in the options, and a door opened with a schema reads every
+ * message through it. NOTHING DRIVES IT BUT THE FRAME: a connection
+ * registers on the hub's advance as it opens, and between two advances
+ * it answers exactly what the last one left it. ONE THREAD, the
+ * advancing one, so a connection holds no lock of its own.
  */
 
-#include <sigildata/decode/FlatBuffer.h>
+#include <sigildata/connection/Message.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
-#include <sigildata/values/Values.h>
+#include <sigildata/decode/Schema.h>
 #include <sigilio/hub/Feed.h>
-#include <sigilio/source/Source.h>
+#include <sigilio/source/State.h>
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace sigil::io {
 // The door is opened on a hub, which a consumer of this header names
@@ -36,235 +40,162 @@ class Hub;
 
 namespace sigil::data {
 
-/** ONE DOOR, ITS MESSAGES, AND THE HANDLERS OVER THEM. */
+/** HOW A DOOR IS OPENED: `connect(hub, uri, {.capacity = 64})`. */
+struct ConnectOptions {
+  /** IO's: messages the door holds between two advances, and what
+   *  receive()'s queue and the latches per name hold. */
+  size_t capacity = 256;
+  /** IO's: where send() goes from a door that did not open to one,
+   *  `10.0.0.4:9001`. */
+  std::string peer;
+  /** How bytes read; empty reads it off the scheme. */
+  std::optional<Dialect> dialect;
+  /** Read and write every message through this FlatBuffers schema,
+   *  `schema<Root>()`: the buffer and the schema's JSON form both
+   *  arrive, and a message that does not fit is undecodable.
+   *  @trap AN `osc://`, A `midi://` OR AN `artnet://` DOOR TAKES NO
+   *  SCHEMA and is refused as it opens: nothing is bound, nothing
+   *  arrives, and `state().error` says so. */
+  Schema schema;
+  /** Hold messages for receive() from the first arrival, rather than
+   *  from the first receive(). */
+  bool queue = false;
+};
+
+/** WHERE A CONNECTION STANDS, as one comparable value: IO's `FeedState`
+ *  — readiness, revision, dropped, the local end, the error — and the
+ *  arrivals that were no message in the door's dialect. A reader that
+ *  keeps the one it last showed asks `now != shown`. */
+struct ConnectionState : io::FeedState {
+  /** Arrivals that were no message in this door's dialect, or did not
+   *  fit its schema. They reach no reader, so a sender speaking the
+   *  wrong language is seen here rather than in the drawing. */
+  uint64_t undecodable = 0;
+
+  bool operator==(const ConnectionState&) const = default;
+};
+
+/** ONE DOOR, ITS MESSAGES, AND THE HANDLERS OVER THEM. A copyable handle:
+ *  every copy reads the same door, and the door closes when close() is
+ *  called or the last handle goes. */
 class Connection {
  public:
   /** What runs for one message. */
-  using Handler = std::function<void(const Json& message)>;
+  using Handler = std::function<void(const Message& message)>;
 
-  /** A connection onto nothing: no door, no message, and every reading
-   *  below the answer that says so. It is what a scene's member stands
-   *  at before there is a hub to open it on. */
+  /** A connection onto nothing: no door, no message, a closed state. It
+   *  is what a member stands at before there is a hub to open it on. */
   Connection() = default;
 
-  /** Opens @p uri on @p hub — the one feed that URI names — and
-   *  registers on the hub's advance. The URI's SCHEME says how a
-   *  message is read: `osc` is an OSC packet and anything else is JSON
-   *  text. @p options are the feed's, and bound what receive() holds as
-   *  well. */
-  Connection(io::Hub& hub, std::string_view uri, io::ListenOptions options = {});
+  /** THE NEWEST MESSAGE; the empty message until one has arrived and
+   *  been read. A message that cannot be read leaves it standing, so a
+   *  sender speaking the wrong language cannot blank a scene. Inside a
+   *  handler it is the message that handler was given. */
+  const Message& latest() const;
 
-  /** Opens @p uri on @p hub as the constructor above does, and reads
-   *  and writes every message THROUGH @p schema — the one a sketch's
-   *  own `.fbs` generates, `schema<Sky>()`. Both the buffer and the
-   *  schema's JSON form arrive through it, and a message that does not
-   *  FIT the schema is undecodable() rather than a value.
-   *  @trap AN `osc://`, A `midi://` OR AN `artnet://` DOOR TAKES NO
-   *  SCHEMA and is refused as it is opened: no feed is bound, nothing
-   *  arrives, and error() says so. */
-  Connection(io::Hub& hub, std::string_view uri, Schema schema,
-             io::ListenOptions options = {});
-
-  /** Takes over the moved-from door, leaving it closed. */
-  Connection(Connection&&) noexcept = default;
-  /** Takes over the moved-from door, closing this one. */
-  Connection& operator=(Connection&&) noexcept = default;
-  Connection(const Connection&) = delete;
-  Connection& operator=(const Connection&) = delete;
-
-  /** THE NEWEST MESSAGE; null until one has arrived and been read. A
-   *  message that cannot be read leaves it standing, so a sender
-   *  speaking the wrong language cannot blank a scene. Inside a handler
-   *  it is the message that handler was given. */
-  const Json& latest() const;
-
-  /** THE NEWEST MESSAGE AS A VALUE OF ITS OWN: the bytes the last
-   *  advance left, read through the reading the schema's generated
-   *  value header wrote for Value. Nothing before the first arrival,
-   *  where the bytes are not that value, and on a connection onto
-   *  nothing. Where the door was opened with a schema and the bytes are
-   *  that schema's JSON form, they go through the schema first.
-   *  @trap IT IS A READING AND NOT A CACHE: those bytes are decoded
-   *  every time this is asked and no value is held between two asks. */
-  template <values::Readable Value>
-  std::optional<Value> latest() const;
-
-  /** THE NEWEST MESSAGE NAMED @p what; a null value until one of that
-   *  name has arrived, which reads through as the default of whatever
-   *  is asked of it. The name is the one on() registers under, so a
-   *  reader takes one fader off the wire with no handler at all:
-   *  `sky.latest("/sky/wind")["arguments"][0].number()`.
-   *  @trap One latch per name, bounded by the options' capacity: a
-   *  message under one name too many drops the name written longest
-   *  ago, which reads null again as if nothing had arrived under it. */
-  const Json& latest(std::string_view what) const;
-
-  /** How many messages have arrived on the feed, whether or not they
-   *  could be read; 0 before the first. */
-  uint64_t revision() const;
+  /** THE NEWEST MESSAGE NAMED @p address — by the rule on() names by, an
+   *  OSC address pattern included — so a reader takes one fader off the
+   *  wire with no handler at all: `sky.latest("/sky/wind").number()`.
+   *  The empty message until one of that name has arrived.
+   *  @trap One latch per name, bounded by the options' capacity: a name
+   *  one too many drops the name written longest ago. */
+  const Message& latest(std::string_view address) const;
 
   /** The next message this reader has not taken, in order; nothing when
-   *  none is waiting, and never a wait. What the handlers see is not
-   *  taken from here — one message reaches both. The queue holds what
-   *  the options' capacity says and its oldest falls off the front.
-   *  @trap THE FIRST CALL OPENS THE QUEUE: messages read before it are
-   *  not held, and what the queue then loses to its own capacity is
-   *  counted nowhere. */
-  std::optional<Json> receive();
+   *  none is waiting, and never a wait. The handlers see every message
+   *  whether or not it is taken here.
+   *  @trap THE FIRST CALL OPENS THE QUEUE unless the door was opened
+   *  with `.queue`: messages read before it are not held. */
+  std::optional<Message> receive();
 
-  /** Runs @p handler for every message named @p what, from now on. A
-   *  MESSAGE'S NAME is its `address` where it carries one as text, and
-   *  otherwise the first of `type`, `message_type` and `kind` it
-   *  carries as text; `"*"` names every message. Handlers run on
-   *  advance, on the advancing thread, in the order the messages
-   *  arrived and then in the order they were registered.
-   *  @trap A handler registered after a message arrived does not see
-   *  it, latest() being how a late reader catches up. */
-  void on(std::string_view what, Handler handler);
+  /** Runs @p handler for every message @p pattern names, from now on. A
+   *  MESSAGE'S NAME is its `address` where it carries one as a string,
+   *  and otherwise the first of `type`, `message_type` and `kind` it
+   *  carries as one. @p pattern is an OSC 1.0 address pattern — `?` one
+   *  character, `*` any run of them, `[a-c]` and `[!a-c]` one of or none
+   *  of a set, `{wind,gust}` one of a list, none of them crossing a `/` —
+   *  so a plain name matches itself alone; `"*"` names every message, one
+   *  with no name included. Handlers run on advance, in the order the
+   *  messages arrived and then in the order they were registered.
+   *  @trap A handler registered after a message arrived does not see it;
+   *  latest() is how a late reader catches up. */
+  void on(std::string_view pattern, Handler handler);
 
-  /** Runs @p handler for every message NO on() name matched, from now
-   *  on, in registration order and after the handlers a name reached on
-   *  that same message.
-   *  @trap `"*"` is a handler's word for every message and not a name,
-   *  so one standing does not make a message matched: a message no
-   *  on() name reached arrives here whatever else ran for it. */
+  /** Runs @p handler for every message NO on() pattern other than `"*"`
+   *  matched, after the handlers that did run for it. */
   void otherwise(Handler handler);
 
-  /** Sends @p message back through the same door, written the way that
-   *  door is read: an `osc://` door takes the packet an `address` and
-   *  its `arguments` are written as, every other door the JSON text.
-   *  False when the door is one-way, closed or never opened, and when
-   *  the value has no spelling on that wire. */
-  bool send(const Json& message) const;
+  /** Sends @p message back through the same door, written in its
+   *  dialect — `oscMessage(address, arguments)` on an `osc://` door —
+   *  to the door's peer, or with `.to` to ONE sender as
+   *  `Message::sender()` names it. False when the door is one-way,
+   *  closed or never opened, and when the value has no spelling in the
+   *  dialect. */
+  bool send(const Json& message, const io::SendOptions& options = {}) const;
 
-  /** THE OSC SPELLING: @p arguments under @p address. On a door that is
-   *  not `osc://` this is the same message as JSON,
-   *  `{"address": …, "arguments": …}`, which is the form a connection
-   *  at the other end reads a name out of. */
-  bool send(std::string_view address, const Json& arguments) const;
-
-  /** Sends @p message back TO THE SENDER OF ONE, written exactly as
-   *  send() writes it. Inside a handler that sender is the one that
-   *  sent the message being handled, so a door that listens answers the
-   *  desk that just spoke; outside one it is the sender of the newest
-   *  message. False where there is nobody to answer, where the door
-   *  cannot address one sender, and where the value has no spelling on
-   *  that wire. */
+  /** Sends @p message TO THE SENDER OF ONE: inside a handler, the sender
+   *  of the message being handled; outside one, of the newest. False
+   *  where there is nobody to answer — a recording names no sender. */
   bool reply(const Json& message) const;
 
-  /** THE OSC SPELLING of a reply: @p arguments under @p address, back
-   *  to that same sender. */
-  bool reply(std::string_view address, const Json& arguments) const;
+  /** Writes every message from now on to the file at @p path, IO's
+   *  recording, until the handle this returns stops or goes. */
+  [[nodiscard]] io::Recording record(std::filesystem::path path) const;
 
-  /** WHOM A REPLY ANSWERS, spelled the way the transport names an
-   *  arrival's sender, `ws://127.0.0.1:52341`: inside a handler, the
-   *  sender of the message being handled; outside one, the sender of the
-   *  newest message. Empty where there is nobody to answer. It is what a
-   *  door that holds many peers keys each one's own state by, and what
-   *  it answers one of them through later, on the feed's own send to one sender. */
-  const std::string& sender() const;
+  /** Where the door stands, as of the last advance. A connection onto
+   *  nothing answers a closed state. */
+  ConnectionState state() const;
+
+  /** No more messages are taken, for every handle; what was read stays
+   *  readable. */
+  void close() const;
 
   /** The URI this was opened on; empty for a connection onto nothing. */
   const std::string& uri() const;
 
-  /** THE SCHEMA THIS DOOR READS AND WRITES THROUGH, as it was handed
-   *  one; a schema that is none where it was opened without one, and on
-   *  a connection onto nothing. */
+  /** The schema every message is read and written through; none where
+   *  the door was opened without one. */
   const Schema& schema() const;
 
-  /** THE NEWEST ARRIVAL'S BYTES AS OF THE LAST DISPATCH, whole and
-   *  unread: what latest<Value>() decodes, and what a reader that wants
-   *  a wire this library has no reading for reads itself. Null before
-   *  the first arrival, and on a connection onto nothing.
-   *  @trap They are latched whether or not they were a message in this
-   *  door's scheme, so a buffer at a door read as JSON text is here
-   *  even though it reached no handler. */
-  std::shared_ptr<const io::Bytes> latestBytes() const;
-
-  /** The local end as the transport bound it, or empty. */
-  std::string localAddress() const;
-
-  /** What went wrong at the door; empty when nothing did. A door that
-   *  was REFUSED as it opened — an `osc://` one handed a schema — says
-   *  so here and stays shut, nothing being bound for it. */
-  std::string error() const;
-
-  /** Arrivals the feed dropped before this connection drained them: a
-   *  sender faster than the frame.
-   *  @trap It is the FEED's count and nothing else: what receive()'s
-   *  own queue loses to its own capacity is counted nowhere. */
-  uint64_t dropped() const;
-
-  /** Arrivals that were no message in this connection's scheme, and,
-   *  where it has a schema, arrivals that did not fit it. They reach no
-   *  reader, so a sender speaking the wrong language is seen here
-   *  rather than in the drawing. */
-  uint64_t undecodable() const;
-
-  /** Whether nothing more is coming. A connection onto nothing is
-   *  closed: there is no door for a message to arrive at. */
-  bool closed() const;
-
-  /** WHAT A DOOR SAYS ABOUT ITSELF, as one value: every reading above
-   *  that moves as messages arrive and the door opens or shuts, taken
-   *  together. Two compare equal exactly when every field does, so a
-   *  reader that keeps the one it last showed asks `now != shown` to know
-   *  whether there is anything new to show. */
-  struct Vitals {
-    /** revision(): messages on the feed, read or not. */
-    uint64_t revision = 0;
-    /** dropped(): arrivals the feed dropped before they were drained. */
-    uint64_t dropped = 0;
-    /** undecodable(): arrivals that were no message in this door's
-     *  scheme or did not fit its schema. */
-    uint64_t undecodable = 0;
-    /** closed(): nothing more is coming. */
-    bool closed = true;
-    /** localAddress(): the local end as the transport bound it. */
-    std::string localAddress;
-    /** sender(): whom a reply outside a handler answers. */
-    std::string sender;
-    /** error(): what went wrong at the door. */
-    std::string error;
-    bool operator==(const Vitals&) const = default;
-  };
-
-  /** The door's vitals as of the last advance; a connection onto nothing
-   *  answers the value that says so — nothing arrived, and closed. */
-  Vitals vitals() const;
-
-  /** THE FLOOR BELOW, for whoever wants the bytes: the feed itself,
-   *  which is what a recording is written from and what a reader that
-   *  wants no value reads. Empty for a connection onto nothing. */
+  /** THE FLOOR BELOW: the feed itself, bytes and all. Empty for a
+   *  connection onto nothing. */
   io::Feed feed() const;
 
+  /** Whether this handle holds a door. */
+  explicit operator bool() const { return m_state != nullptr; }
+
  private:
+  friend Connection connect(io::Hub& hub, std::string_view uri,
+                            ConnectOptions options);
+  friend Connection replay(io::Hub& hub, std::string_view uri,
+                           std::string_view recording, ConnectOptions options);
+
+  /** Opens @p uri, played from @p recording where one is named. */
+  static Connection opened(io::Hub& hub, std::string_view uri,
+                           const std::string_view* recording,
+                           ConnectOptions options);
+
   /** Everything a connection is, behind one pointer. What the hub
-   *  advances reaches this rather than the connection, so moving a
-   *  connection carries the handlers, the queue and the lease with it
-   *  and what is registered goes on reading the same state. */
+   *  advances reaches this rather than the handle, so a copy or a move
+   *  goes on reading the same state. */
   struct State;
   std::shared_ptr<State> m_state;
 };
 
-/** The frame's newest bytes read as one value. It stands in the header
- *  because a template is instantiated where the value type is known,
- *  which is the consumer's own. */
-template <values::Readable Value>
-std::optional<Value> Connection::latest() const {
-  const std::shared_ptr<const io::Bytes> newest = latestBytes();
-  if (!newest) return std::nullopt;
-  const Schema& through = schema();
-  // The schema's JSON form is parsed to a buffer first, so a sender
-  // that speaks it hands out the same value as one that sends the
-  // buffer; text the schema cannot hold is no value at all.
-  if (through && flatBufferLooksLikeJson(newest->asText(), uri())) {
-    const std::optional<std::vector<std::byte>> buffer =
-        through.binary(newest->asText());
-    if (!buffer) return std::nullopt;
-    return values::Read<Value>::from(*buffer);
-  }
-  return values::Read<Value>::from(newest->span());
-}
+/** OPENS @p uri ON @p hub — IO's `hub.listen`, read as values — and
+ *  registers the connection on the hub's advance. */
+Connection connect(io::Hub& hub, std::string_view uri,
+                   ConnectOptions options = {});
+
+/** THE SAME DOOR, PLAYED FROM @p recording — IO's `hub.replay`, read as
+ *  values: every later listen on @p uri plays that file, so a reader
+ *  written against the live wire reads the recording without knowing
+ *  it. The recording names no sender, so reply() answers false. */
+Connection replay(io::Hub& hub, std::string_view uri,
+                  std::string_view recording, ConnectOptions options = {});
+
+/** Whether @p name matches the OSC 1.0 address @p pattern, the rule
+ *  `Connection::on()` registers by. */
+bool matchesAddress(std::string_view pattern, std::string_view name);
 
 }  // namespace sigil::data

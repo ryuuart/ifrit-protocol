@@ -1,4 +1,6 @@
-#include <sigildata/decode/Osc.h>
+#include <sigildata/decode/Dialect.h>
+
+#include "Wire.h"
 
 #include <bit>
 #include <cstdint>
@@ -324,7 +326,7 @@ void appendString(std::vector<std::byte>& bytes, std::string_view text) {
  *  its bytes, and nulls up to the next multiple of four. */
 void appendBlob(std::vector<std::byte>& bytes, const Json& blob) {
   appendWord(bytes, static_cast<uint32_t>(blob.size()));
-  for (const Json& value : blob.items())
+  for (const Json& value : blob.array())
     bytes.push_back(static_cast<std::byte>(
         static_cast<unsigned char>(clamped(value.number(), 0.0, 255.0))));
   for (size_t pad = roundedUp(blob.size()) - blob.size(); pad > 0; --pad)
@@ -336,17 +338,17 @@ void appendBlob(std::vector<std::byte>& bytes, const Json& blob) {
  *  arguments keep their count and a reader's positions do not shift. */
 void writeRecord(const Json& record, std::string& tags,
                  std::vector<std::byte>& content) {
-  if (const Json& blob = record["blob"]; blob.kind() == Json::Kind::List) {
+  if (const Json& blob = record["blob"]; blob.kind() == Json::Kind::Array) {
     tags.push_back('b');
     appendBlob(content, blob);
     return;
   }
-  if (const Json& colour = record["rgba"]; colour.kind() == Json::Kind::List) {
+  if (const Json& colour = record["rgba"]; colour.kind() == Json::Kind::Array) {
     tags.push_back('r');
     appendWord(content, packedBytes(colour));
     return;
   }
-  if (const Json& midi = record["midi"]; midi.kind() == Json::Kind::List) {
+  if (const Json& midi = record["midi"]; midi.kind() == Json::Kind::Array) {
     tags.push_back('m');
     appendWord(content, packedBytes(midi));
     return;
@@ -389,17 +391,17 @@ bool writeArguments(std::span<const Json> arguments, int depth,
         appendWord(content, std::bit_cast<uint32_t>(
                                 static_cast<float>(argument.number())));
         break;
-      case Json::Kind::Text:
+      case Json::Kind::String:
         tags.push_back('s');
-        appendString(content, argument.text());
+        appendString(content, argument.string());
         break;
-      case Json::Kind::List:
+      case Json::Kind::Array:
         tags.push_back('[');
-        if (!writeArguments(argument.items(), depth + 1, tags, content))
+        if (!writeArguments(argument.array(), depth + 1, tags, content))
           return false;
         tags.push_back(']');
         break;
-      case Json::Kind::Record:
+      case Json::Kind::Object:
         writeRecord(argument, tags, content);
         break;
     }
@@ -409,7 +411,7 @@ bool writeArguments(std::span<const Json> arguments, int depth,
 
 }  // namespace
 
-std::optional<Json> decodeOsc(std::span<const std::byte> packet) {
+std::optional<Json> wire::readOsc(std::span<const std::byte> packet) {
   // Every element on the wire is aligned to four, the packet itself
   // included, so a length that is not is not a packet.
   if (packet.empty() || packet.size() % 4 != 0) return std::nullopt;
@@ -417,14 +419,14 @@ std::optional<Json> decodeOsc(std::span<const std::byte> packet) {
   return messageFrom(packet);
 }
 
-std::vector<std::byte> encodeOsc(std::string_view address,
+std::vector<std::byte> wire::writeOsc(std::string_view address,
                                  const Json& arguments) {
   // An address pattern opens with a slash, and a message without one is
   // addressed to nothing.
   if (!address.starts_with('/')) return {};
   // A value that is not a list is the one argument it is.
-  const std::span<const Json> list = arguments.kind() == Json::Kind::List
-                                         ? arguments.items()
+  const std::span<const Json> list = arguments.kind() == Json::Kind::Array
+                                         ? arguments.array()
                                          : std::span<const Json>(&arguments, 1);
   std::string tags(1, ',');
   std::vector<std::byte> content;
@@ -441,13 +443,13 @@ std::vector<std::byte> encodeOsc(std::string_view address,
   return packet;
 }
 
-std::vector<std::byte> encodeOsc(const Json& message) {
-  const std::string_view address = message["address"].text();
+std::vector<std::byte> wire::writeOsc(const Json& message) {
+  const std::string_view address = message["address"].string();
   const Json& arguments = message["arguments"];
   // A message with no arguments member is a message with no arguments,
   // where a lone value that is not a list would be one argument.
-  if (arguments.null()) return encodeOsc(address, Json(Json::Array{}));
-  return encodeOsc(address, arguments);
+  if (arguments.null()) return writeOsc(address, Json(Json::Array{}));
+  return writeOsc(address, arguments);
 }
 
 }  // namespace sigil::data

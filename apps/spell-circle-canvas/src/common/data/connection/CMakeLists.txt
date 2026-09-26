@@ -1,16 +1,16 @@
 # The connection: a feed read as values. It is the one feature here that
 # stands on the hub rather than on bytes alone — a connection IS a door
-# the hub opened, drained and read on the dispatch the hub runs — so it
+# the hub opened, drained and read on the advance the hub runs — so it
 # links SigilIOHub where every other feature of this library links the
 # byte vocabulary and nothing else of io.
 #
-# SigilDataValues is the typed door's: latest<Value>() reads the newest
+# SigilDataValues is the typed door's: Message::as<Value>() reads the
 # bytes through the trait a generated value header specializes, which is
 # declared there. It is a header and the trait is a template, so nothing
 # of it reaches this library's translation unit.
 sigil_library(SigilDataConnection
   SOURCES Connection.cpp
-  HEADERS Connection.h
+  HEADERS Connection.h Message.h
   PUBLIC SigilDataDecode SigilDataValues SigilIOHub)
 
 # The cases put a connection on a real hub with a transport that has no
@@ -23,5 +23,5 @@ sigil_library(SigilDataConnection
 # door over it and the value it hands out.
 sigil_test(data_test
   SOURCES test/ConnectionTest.cpp test/SchemaTest.cpp test/TypedTest.cpp
-          test/VitalsTest.cpp
+          test/StateTest.cpp
   LIBRARIES SigilDataConnection)

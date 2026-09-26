@@ -43,8 +43,9 @@ class Json {
   using Held =
       std::variant<std::nullptr_t, bool, double, std::string, Array, Object>;
 
-  /** What a value is. The order is the order of `Held`. */
-  enum class Kind { Null, Boolean, Number, Text, List, Record };
+  /** What a value is, in JSON's own words. The order is the order of
+   *  `Held`. */
+  enum class Kind { Null, Boolean, Number, String, Array, Object };
 
   Json() = default;
   /** The null value, written out. */
@@ -85,43 +86,28 @@ class Json {
   bool boolean(bool fallback = false) const;
   /** The number, or @p fallback when this is something else. */
   double number(double fallback = 0.0) const;
-  /** The text, or @p fallback when this is something else. */
-  std::string_view text(std::string_view fallback = {}) const;
+  /** The string, or @p fallback when this is something else. */
+  std::string_view string(std::string_view fallback = {}) const;
 
-  /** The members of a list, or nothing when this is not one. */
-  std::span<const Json> items() const;
-  /** The members of a record, or nothing when this is not one. */
-  std::span<const std::pair<std::string, Json>> fields() const;
+  /** The members of an array, or nothing when this is not one. */
+  std::span<const Json> array() const;
+  /** The members of an object, keyed and in document order, or nothing
+   *  when this is not one. */
+  std::span<const std::pair<std::string, Json>> object() const;
 
-  /** How many members a list or a record has; 0 for everything else. */
+  /** How many members an array or an object has; 0 for everything else. */
   size_t size() const;
 
   /** The member called @p key, or a null value when there is none. The
    *  reference is to a shared null, so a chain of lookups through
    *  members that are not there answers null instead of crashing. */
   const Json& operator[](std::string_view key) const;
-  /** The @p index-th member of a list, or null when it is not there. */
+  /** The @p index-th member of an array, or null when it is not there. */
   const Json& operator[](size_t index) const;
 
  private:
   Held m_held;
 };
-
-/** THE DOCUMENT IN @p text, or nothing when it is not JSON. A lone
- *  number, string, boolean or null IS a document, and so answers a
- *  value that is not a list or a record.
- *  @trap Text that is not valid UTF-8, and text nested deeper than the
- *  parser reads, answer nothing rather than the part that parsed. */
-std::optional<Json> decodeJson(std::string_view text);
-
-/** @p value AS JSON TEXT, which decodeJson reads back as the same
- *  value. Compact, because what this writes goes on a wire or into a
- *  file rather than in front of an eye; a record keeps the order its
- *  members are in, and a number is written with the fewest digits that
- *  read back as itself.
- *  @trap A number that is not finite has no JSON spelling and is
- *  written null, which is the value a reader gets back for it. */
-std::string encodeJson(const Json& value);
 
 /** THE RECTANGLE INSIDE @p document — a list of records, a record of
  *  lists, or a list of lists — or nothing when it holds no rectangle. A

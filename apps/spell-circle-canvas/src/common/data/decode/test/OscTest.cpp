@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 #include <sigildata/decode/Decoders.h>
-#include <sigildata/decode/Osc.h>
+#include <sigildata/decode/Dialect.h>
 
 #include <bit>
 #include <cstddef>
@@ -110,9 +110,9 @@ TEST(DataOsc, AMessageIsItsAddressAndAnArgumentOfEveryTypeTheWireCarries) {
   wire.word(0x01903C40);  // a MIDI message
   wire.word(1).word(2);   // the two members of the array
 
-  const std::optional<Json> value = decodeOsc(wire.bytes);
+  const std::optional<Json> value = decode(wire.bytes, Dialect::Osc);
   ASSERT_TRUE(value);
-  EXPECT_EQ("/sky/every", (*value)["address"].text());
+  EXPECT_EQ("/sky/every", (*value)["address"].string());
   const Json& arguments = (*value)["arguments"];
   ASSERT_EQ(16u, arguments.size());
 
@@ -123,8 +123,8 @@ TEST(DataOsc, AMessageIsItsAddressAndAnArgumentOfEveryTypeTheWireCarries) {
   EXPECT_DOUBLE_EQ(0.5, arguments[size_t{2}].number());
   EXPECT_DOUBLE_EQ(2.5, arguments[size_t{3}].number());
   // A string and a symbol are both text.
-  EXPECT_EQ("gust", arguments[size_t{4}].text());
-  EXPECT_EQ("sym", arguments[size_t{5}].text());
+  EXPECT_EQ("gust", arguments[size_t{4}].string());
+  EXPECT_EQ("sym", arguments[size_t{5}].string());
   EXPECT_EQ(Json(true), arguments[size_t{6}]);
   EXPECT_EQ(Json(false), arguments[size_t{7}]);
   EXPECT_TRUE(arguments[size_t{8}].null());
@@ -155,20 +155,20 @@ TEST(DataOsc, ABundleIsItsElementsAndTheTimeTheyAreFor) {
       Wire().text("/sky/rain").text(",i").word(3).bytes;
 
   const std::optional<Json> value =
-      decodeOsc(bundleOf(uint64_t{3600} << 32, {wind, rain}));
+      decode(bundleOf(uint64_t{3600} << 32, {wind, rain}), Dialect::Osc);
   ASSERT_TRUE(value);
   const Json& elements = (*value)["bundle"];
   ASSERT_EQ(2u, elements.size());
-  EXPECT_EQ("/sky/wind", elements[size_t{0}]["address"].text());
+  EXPECT_EQ("/sky/wind", elements[size_t{0}]["address"].string());
   EXPECT_DOUBLE_EQ(0.5, elements[size_t{0}]["arguments"][size_t{0}].number());
-  EXPECT_EQ("/sky/rain", elements[size_t{1}]["address"].text());
+  EXPECT_EQ("/sky/rain", elements[size_t{1}]["address"].string());
   EXPECT_DOUBLE_EQ(3.0, elements[size_t{1}]["arguments"][size_t{0}].number());
   EXPECT_DOUBLE_EQ(3600.0, (*value)["at"].number());
 
   // A bundle for now carries the one timetag that is a word rather than
   // a time, and reads as no time at all.
   const std::vector<std::byte> bare = Wire().text("/sky/wind").text(",").bytes;
-  const std::optional<Json> immediate = decodeOsc(bundleOf(1, {bare}));
+  const std::optional<Json> immediate = decode(bundleOf(1, {bare}), Dialect::Osc);
   ASSERT_TRUE(immediate);
   EXPECT_TRUE((*immediate)["at"].null());
   ASSERT_EQ(1u, (*immediate)["bundle"].size());
@@ -177,59 +177,59 @@ TEST(DataOsc, ABundleIsItsElementsAndTheTimeTheyAreFor) {
   // A bundle inside a bundle is nested where it stood, with a time of
   // its own.
   const std::optional<Json> inside =
-      decodeOsc(bundleOf(1, {bundleOf(uint64_t{7200} << 32, {bare})}));
+      decode(bundleOf(1, {bundleOf(uint64_t{7200} << 32, {bare})}), Dialect::Osc);
   ASSERT_TRUE(inside);
   ASSERT_EQ(1u, (*inside)["bundle"].size());
   const Json& within = (*inside)["bundle"][size_t{0}];
   EXPECT_DOUBLE_EQ(7200.0, within["at"].number());
-  EXPECT_EQ("/sky/wind", within["bundle"][size_t{0}]["address"].text());
+  EXPECT_EQ("/sky/wind", within["bundle"][size_t{0}]["address"].string());
 }
 
 TEST(DataOsc, BytesThatAreNotAPacketAreReadAsNothing) {
-  EXPECT_FALSE(decodeOsc(std::span<const std::byte>{}));
+  EXPECT_FALSE(decode(std::span<const std::byte>{}, Dialect::Osc));
 
   // A document is not a packet however long it is: its address pattern
   // never ends.
   const unsigned char document[] = {'{', '"', 'a', '"', ':', ' ',
                                     '1', '}', ' ', ' ', ' ', ' '};
-  EXPECT_FALSE(decodeOsc(bytesOf(document)));
+  EXPECT_FALSE(decode(bytesOf(document), Dialect::Osc));
 
   // A packet's length is a multiple of four, and a row of fields is
   // not.
   const unsigned char row[] = {'m', 'o', 'n', 't', 'h', ',', 'v'};
-  EXPECT_FALSE(decodeOsc(bytesOf(row)));
+  EXPECT_FALSE(decode(bytesOf(row), Dialect::Osc));
 
   // A packet cut short has a type tag with no argument under it.
   const std::vector<std::byte> whole = bytesOf(deskWire);
-  EXPECT_FALSE(decodeOsc(std::span<const std::byte>(whole).first(16)));
+  EXPECT_FALSE(decode(std::span<const std::byte>(whole).first(16), Dialect::Osc));
 
   // An address pattern opens with a slash, which is what tells a
   // message from a run of bytes that happens to hold a null.
-  EXPECT_FALSE(decodeOsc(Wire().text("sky").text(",").bytes));
+  EXPECT_FALSE(decode(Wire().text("sky").text(",").bytes, Dialect::Osc));
 
   // And a type tag string opens with a comma.
-  EXPECT_FALSE(decodeOsc(Wire().text("/sky").text("f").real(0.5f).bytes));
+  EXPECT_FALSE(decode(Wire().text("/sky").text("f").real(0.5f).bytes, Dialect::Osc));
 
   // A tag this cannot measure leaves every argument after it standing
   // somewhere unknown, so the message is not read at all.
-  EXPECT_FALSE(decodeOsc(Wire().text("/sky").text(",zf").real(0.5f).bytes));
+  EXPECT_FALSE(decode(Wire().text("/sky").text(",zf").real(0.5f).bytes, Dialect::Osc));
 }
 
 TEST(DataOsc, APacketClaimingMoreThanItHoldsIsReadAsNothing) {
   // A blob's length is the packet's own claim about itself.
-  EXPECT_FALSE(decodeOsc(Wire().text("/b").text(",b").word(64).word(0).bytes));
+  EXPECT_FALSE(decode(Wire().text("/b").text(",b").word(64).word(0).bytes, Dialect::Osc));
 
   // So is a bundle element's, which the protocol also aligns to four.
   EXPECT_FALSE(
-      decodeOsc(Wire().text("#bundle").giant(1).word(64).word(0).bytes));
+      decode(Wire().text("#bundle").giant(1).word(64).word(0).bytes, Dialect::Osc));
   EXPECT_FALSE(
-      decodeOsc(Wire().text("#bundle").giant(1).word(3).word(0).bytes));
+      decode(Wire().text("#bundle").giant(1).word(3).word(0).bytes, Dialect::Osc));
 
   // And so is the null a string argument ends at.
-  EXPECT_FALSE(decodeOsc(Wire().text("/s").text(",s").word(0x61626364).bytes));
+  EXPECT_FALSE(decode(Wire().text("/s").text(",s").word(0x61626364).bytes, Dialect::Osc));
 
   // A bundle with no room for its own timetag is no bundle.
-  EXPECT_FALSE(decodeOsc(Wire().text("#bundle").word(0).bytes));
+  EXPECT_FALSE(decode(Wire().text("#bundle").word(0).bytes, Dialect::Osc));
 }
 
 TEST(DataOsc, WritingTheFormAPacketReadsAsAnswersThatPacketBack) {
@@ -243,31 +243,31 @@ TEST(DataOsc, WritingTheFormAPacketReadsAsAnswersThatPacketBack) {
   wire.word(0x10203040).word(0x01903C40);
   wire.real(1.0f).real(-2.25f);
 
-  const std::optional<Json> value = decodeOsc(wire.bytes);
+  const std::optional<Json> value = decode(wire.bytes, Dialect::Osc);
   ASSERT_TRUE(value);
-  EXPECT_EQ(wire.bytes, encodeOsc(*value));
-  EXPECT_EQ(wire.bytes, encodeOsc("/sky/wind", (*value)["arguments"]));
+  EXPECT_EQ(wire.bytes, encode(*value, Dialect::Osc));
+  EXPECT_EQ(wire.bytes, encode(oscMessage("/sky/wind", (*value)["arguments"]), Dialect::Osc));
 
   // And the other way round, which is what a reply down the same wire
   // is: the value goes out and the same value comes back.
-  const std::optional<Json> again = decodeOsc(encodeOsc(*value));
+  const std::optional<Json> again = decode(encode(*value, Dialect::Osc), Dialect::Osc);
   ASSERT_TRUE(again);
   EXPECT_EQ(*value, *again);
 
   // A message with no arguments member is a message with no arguments.
   EXPECT_EQ(Wire().text("/sky/wind").text(",").bytes,
-            encodeOsc(Json(Json::Object{{"address", Json("/sky/wind")}})));
+            encode(Json(Json::Object{{"address", Json("/sky/wind")}}), Dialect::Osc));
 
   // A record with none of the five keys has no type on the wire and
   // keeps its place as nil, so a reader's positions do not shift.
   EXPECT_EQ(Wire().text("/n").text(",N").bytes,
-            encodeOsc("/n", Json(Json::Object{{"shape", Json("round")}})));
+            encode(oscMessage("/n", Json(Json::Object{{"shape", Json("round")}})), Dialect::Osc));
 
   // A value with no address is addressed to nothing and goes nowhere.
   EXPECT_TRUE(
-      encodeOsc(Json(Json::Object{{"arguments", Json(Json::Array{Json(1)})}}))
+      encode(Json(Json::Object{{"arguments", Json(Json::Array{Json(1)})}}), Dialect::Osc)
           .empty());
-  EXPECT_TRUE(encodeOsc("sky", Json(1)).empty());
+  EXPECT_TRUE(encode(oscMessage("sky", Json(1)), Dialect::Osc).empty());
 }
 
 TEST(DataOsc, ANumberIsAFloatUnlessARecordAsksForAnotherWidth) {
@@ -275,38 +275,38 @@ TEST(DataOsc, ANumberIsAFloatUnlessARecordAsksForAnotherWidth) {
   // performance tool expects under a continuous control is a float, so
   // seven goes out as one.
   EXPECT_EQ(Wire().text("/n").text(",f").word(0x40E00000).bytes,
-            encodeOsc("/n", Json(7)));
+            encode(oscMessage("/n", Json(7)), Dialect::Osc));
 
   // The two records that ask for another width by name.
   EXPECT_EQ(Wire().text("/n").text(",i").word(7).bytes,
-            encodeOsc("/n", Json(Json::Object{{"int", Json(7)}})));
+            encode(oscMessage("/n", Json(Json::Object{{"int", Json(7)}})), Dialect::Osc));
   EXPECT_EQ(Wire().text("/n").text(",d").real(1e10).bytes,
-            encodeOsc("/n", Json(Json::Object{{"double", Json(1e10)}})));
+            encode(oscMessage("/n", Json(Json::Object{{"double", Json(1e10)}})), Dialect::Osc));
 
   // A number outside what its place on the wire holds is written at the
   // nearer end of it rather than wrapped around to the other.
   EXPECT_EQ(Wire().text("/n").text(",i").word(0x7FFFFFFF).bytes,
-            encodeOsc("/n", Json(Json::Object{{"int", Json(1e18)}})));
+            encode(oscMessage("/n", Json(Json::Object{{"int", Json(1e18)}})), Dialect::Osc));
 
   // And this is the round trip the rule gives up: a whole number that
   // arrived as one reads as a plain number and goes back out a float.
   const std::optional<Json> read =
-      decodeOsc(Wire().text("/n").text(",i").word(7).bytes);
+      decode(Wire().text("/n").text(",i").word(7).bytes, Dialect::Osc);
   ASSERT_TRUE(read);
   EXPECT_DOUBLE_EQ(7.0, (*read)["arguments"][size_t{0}].number());
   EXPECT_EQ(Wire().text("/n").text(",f").word(0x40E00000).bytes,
-            encodeOsc(*read));
+            encode(*read, Dialect::Osc));
 }
 
 TEST(DataOsc, APacketSpelledTheWayADeskSendsOneIsItsAddressAndItsFloat) {
   const std::vector<std::byte> packet = bytesOf(deskWire);
-  const std::optional<Json> value = decodeOsc(packet);
+  const std::optional<Json> value = decode(packet, Dialect::Osc);
   ASSERT_TRUE(value);
-  EXPECT_EQ("/sky/wind", (*value)["address"].text());
+  EXPECT_EQ("/sky/wind", (*value)["address"].string());
   ASSERT_EQ(1u, (*value)["arguments"].size());
   EXPECT_DOUBLE_EQ(0.5, (*value)["arguments"][size_t{0}].number());
   // And the same bytes go back out, which is what a reply is.
-  EXPECT_EQ(packet, encodeOsc(*value));
+  EXPECT_EQ(packet, encode(*value, Dialect::Osc));
 }
 
 TEST(DataOsc, TheNameAResourceCarriesSaysWhetherItsBytesAreOscOrJson) {
@@ -317,7 +317,7 @@ TEST(DataOsc, TheNameAResourceCarriesSaysWhetherItsBytesAreOscOrJson) {
   const std::optional<Json> fromDesk =
       decoder.decode(packet, "osc://desk:9000");
   ASSERT_TRUE(fromDesk);
-  EXPECT_EQ("/sky/wind", (*fromDesk)["address"].text());
+  EXPECT_EQ("/sky/wind", (*fromDesk)["address"].string());
 
   // The same decoder and the same type: a name that is a file still
   // reads text, exactly as it did before a desk had a name of its own.

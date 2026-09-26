@@ -29,12 +29,17 @@ twice keeps both members, and a lookup answers the first, since dropping
 one would be an edit to somebody else's document.
 
 ```cpp
-const Json doc = *decodeJson(text);
-for (const Json& node : doc["nodes"].items())
-  place(node["x"].number(), node["y"].number(), node["name"].text());
+const Json doc = sigil::data::json(hub, "res://graph.json");
+for (const Json& node : doc["nodes"].array())
+  place(node["x"].number(), node["y"].number(), node["name"].string());
 ```
 
-`Json::boolean`, `Json::number` and `Json::text` answer the value, or
+Each kind is said once, in JSON's own words: `Json::kind` answers
+`Null`, `Boolean`, `Number`, `String`, `Array` or `Object`;
+`Json::array` and `Json::object` are the members of an array and of an
+object as spans, empty for any other kind.
+
+`Json::boolean`, `Json::number` and `Json::string` answer the value, or
 the fallback when this is something else. Reading the wrong kind is not
 an error: a document is somebody else's and a reader that asked for a
 number where a string stands wants its own default, not a throw. The
@@ -50,16 +55,16 @@ constructor and a name would become `true`.
 
 ### Reading and writing the document
 
-`sigil::data::decodeJson` answers the document in text, or nothing when
-it is not JSON. A lone number, string, boolean or null is a document,
-and so answers a value that is not a list or a record; it holds no
+`sigil::data::decode` with `Dialect::Json` answers the document in text,
+or nothing when it is not JSON. A lone number, string, boolean or null
+is a document, and so answers a value that is not an array or an object; it holds no
 rectangle, so `sigil::data::tableFromJson` answers nothing for it. Text
 that is not valid UTF-8, and text nested deeper than the parser reads,
 are not documents at all: nothing comes back rather than the part that
 parsed.
 
-`sigil::data::encodeJson` writes the value as JSON text, which
-`sigil::data::decodeJson` reads back as the same value. Compact: nothing
+`sigil::data::encode` with `Dialect::Json` writes the value as JSON
+text, which `decode` reads back as the same value. Compact: nothing
 stands between a member and the next, because what it writes goes on a
 wire or into a file rather than in front of an eye. A record keeps the
 order its members are in. Text is written as it stands, escaping only

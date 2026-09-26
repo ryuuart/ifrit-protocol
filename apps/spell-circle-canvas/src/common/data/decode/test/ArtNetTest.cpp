@@ -7,7 +7,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigildata/decode/ArtNet.h>
+#include <sigildata/decode/Dialect.h>
 
 #include <cstddef>
 #include <initializer_list>
@@ -67,7 +67,7 @@ Json listOf(std::initializer_list<int> numbers) {
 }
 
 TEST(DataArtNet, AUniverseIsItsAddressItsSequenceAndItsDimmers) {
-  const std::optional<Json> value = decodeArtNet(bytesOf(deskWire));
+  const std::optional<Json> value = decode(bytesOf(deskWire), Dialect::ArtNet);
   ASSERT_TRUE(value.has_value());
   // The whole record is compared, because what the fields are CALLED is
   // what a scene reads and is as much the codec's promise as the levels
@@ -80,21 +80,21 @@ TEST(DataArtNet, AUniverseIsItsAddressItsSequenceAndItsDimmers) {
 
   // And back out as the bytes it was read from: a codec that reads what
   // it cannot write is half a codec.
-  EXPECT_EQ(encodeArtNet(*value), bytesOf(deskWire));
+  EXPECT_EQ(encode(*value, Dialect::ArtNet), bytesOf(deskWire));
 }
 
 TEST(DataArtNet, ThePortAddressIsItsTwoHalvesPutBackTogether) {
   // The sub-universe is the low byte and the net the seven bits above
   // it, so a desk on net 2 at sub-universe 5 is universe 517 — and
   // nothing reading that number has to know it travelled in halves.
-  const std::optional<Json> value = decodeArtNet(deskWith(14, {0x05, 0x02}));
+  const std::optional<Json> value = decode(deskWith(14, {0x05, 0x02}), Dialect::ArtNet);
   ASSERT_TRUE(value.has_value());
   EXPECT_EQ((*value)["universe"], Json(0x205));
-  EXPECT_EQ(encodeArtNet(*value), deskWith(14, {0x05, 0x02}));
+  EXPECT_EQ(encode(*value, Dialect::ArtNet), deskWith(14, {0x05, 0x02}));
 
   // The eighth bit of the net byte is no part of an address, so it is
   // not read and the address is the same one.
-  const std::optional<Json> topped = decodeArtNet(deskWith(14, {0x05, 0x82}));
+  const std::optional<Json> topped = decode(deskWith(14, {0x05, 0x82}), Dialect::ArtNet);
   ASSERT_TRUE(topped.has_value());
   EXPECT_EQ((*topped)["universe"], Json(0x205));
 }
@@ -105,10 +105,10 @@ TEST(DataArtNet, APollIsTheAskingAndNothingElse) {
   // be to be worth sending, neither of which a scene acts on.
   const std::vector<std::byte> asked = bytesOf(
       {'A', 'r', 't', '-', 'N', 'e', 't', 0, 0x00, 0x20, 0x00, 0x0E, 0, 0});
-  const std::optional<Json> value = decodeArtNet(asked);
+  const std::optional<Json> value = decode(asked, Dialect::ArtNet);
   ASSERT_TRUE(value.has_value());
   EXPECT_EQ(*value, Json(Json::Object{{"kind", Json("Poll")}}));
-  EXPECT_EQ(encodeArtNet(*value), asked);
+  EXPECT_EQ(encode(*value, Dialect::ArtNet), asked);
 }
 
 TEST(DataArtNet, APacketWithNoReadingIsCarriedWholeAndGoesBackOutTheSame) {
@@ -117,45 +117,45 @@ TEST(DataArtNet, APacketWithNoReadingIsCarriedWholeAndGoesBackOutTheSame) {
   // all, the code standing where every other packet's version does.
   const std::vector<std::byte> answered =
       bytesOf({'A', 'r', 't', '-', 'N', 'e', 't', 0, 0x00, 0x21, 2, 0, 0, 1});
-  const std::optional<Json> reply = decodeArtNet(answered);
+  const std::optional<Json> reply = decode(answered, Dialect::ArtNet);
   ASSERT_TRUE(reply.has_value());
-  EXPECT_EQ((*reply)["kind"].text(), "PollReply");
+  EXPECT_EQ((*reply)["kind"].string(), "PollReply");
   EXPECT_EQ((*reply)["bytes"].size(), answered.size());
-  EXPECT_EQ(encodeArtNet(*reply), answered);
+  EXPECT_EQ(encode(*reply, Dialect::ArtNet), answered);
 
   // Every other code says which one it was, so a reader that knows it
   // reads the bytes under it.
   const std::vector<std::byte> synchronised = bytesOf(
       {'A', 'r', 't', '-', 'N', 'e', 't', 0, 0x00, 0x52, 0x00, 0x0E, 0, 0});
-  const std::optional<Json> sync = decodeArtNet(synchronised);
+  const std::optional<Json> sync = decode(synchronised, Dialect::ArtNet);
   ASSERT_TRUE(sync.has_value());
-  EXPECT_EQ((*sync)["kind"].text(), "ArtNet");
+  EXPECT_EQ((*sync)["kind"].string(), "ArtNet");
   EXPECT_EQ((*sync)["opcode"], Json(0x5200));
-  EXPECT_EQ(encodeArtNet(*sync), synchronised);
+  EXPECT_EQ(encode(*sync, Dialect::ArtNet), synchronised);
 }
 
 TEST(DataArtNet, BytesThatAreNoPacketReadAsNothing) {
   // Not this wire's name at all, which is the one mark that tells a
   // lighting packet from whatever else reached the port.
-  EXPECT_FALSE(decodeArtNet(deskWith(0, {'B'})).has_value());
+  EXPECT_FALSE(decode(deskWith(0, {'B'}), Dialect::ArtNet).has_value());
   // Too few bytes to say even what it is.
   EXPECT_FALSE(
-      decodeArtNet(bytesOf({'A', 'r', 't', '-', 'N', 'e', 't', 0, 0x00}))
+      decode(bytesOf({'A', 'r', 't', '-', 'N', 'e', 't', 0, 0x00}), Dialect::ArtNet)
           .has_value());
   // A count reaching past what arrived: every length on the wire is a
   // claim the bytes make about themselves, and this one they do not
   // hold.
-  EXPECT_FALSE(decodeArtNet(deskWith(16, {0x02, 0x00})).has_value());
+  EXPECT_FALSE(decode(deskWith(16, {0x02, 0x00}), Dialect::ArtNet).has_value());
   // A count the wire cannot mean: dimmers are counted in pairs, and
   // there is no packet of none.
-  EXPECT_FALSE(decodeArtNet(deskWith(16, {0x00, 0x03})).has_value());
-  EXPECT_FALSE(decodeArtNet(deskWith(16, {0x00, 0x00})).has_value());
+  EXPECT_FALSE(decode(deskWith(16, {0x00, 0x03}), Dialect::ArtNet).has_value());
+  EXPECT_FALSE(decode(deskWith(16, {0x00, 0x00}), Dialect::ArtNet).has_value());
   // A sender writing an older version of the protocol writes other
   // fields where these are read.
-  EXPECT_FALSE(decodeArtNet(deskWith(10, {0x00, 0x0D})).has_value());
+  EXPECT_FALSE(decode(deskWith(10, {0x00, 0x0D}), Dialect::ArtNet).has_value());
   // A poll too short to be one.
-  EXPECT_FALSE(decodeArtNet(bytesOf({'A', 'r', 't', '-', 'N', 'e', 't', 0, 0x00,
-                                     0x20, 0x00, 0x0E}))
+  EXPECT_FALSE(decode(bytesOf({'A', 'r', 't', '-', 'N', 'e', 't', 0, 0x00,
+                                     0x20, 0x00, 0x0E}), Dialect::ArtNet)
                    .has_value());
 }
 
@@ -163,9 +163,9 @@ TEST(DataArtNet, ADimmerListGoesOutInThePairsTheWireCounts) {
   // Three levels for one fixture go out as four, the fourth at nothing:
   // the wire counts its dimmers in pairs.
   EXPECT_EQ(
-      encodeArtNet(Json(Json::Object{{"kind", Json("Dmx")},
+      encode(Json(Json::Object{{"kind", Json("Dmx")},
                                      {"sequence", Json(7)},
-                                     {"channels", listOf({255, 128, 0})}})),
+                                     {"channels", listOf({255, 128, 0})}}), Dialect::ArtNet),
       bytesOf(deskWire));
 
   // A sequence and a physical input nobody named stand at 0, which is
@@ -173,8 +173,8 @@ TEST(DataArtNet, ADimmerListGoesOutInThePairsTheWireCounts) {
   // outside what a dimmer holds is written at the nearer end of it,
   // since wrapping it would put a fixture at nothing that was meant to
   // stand at full.
-  EXPECT_EQ(encodeArtNet(Json(Json::Object{{"kind", Json("Dmx")},
-                                           {"channels", listOf({300, -20})}})),
+  EXPECT_EQ(encode(Json(Json::Object{{"kind", Json("Dmx")},
+                                           {"channels", listOf({300, -20})}}), Dialect::ArtNet),
             bytesOf({'A',  'r',  't', '-', 'N',  'e',  't',  0,    0x00, 0x50,
                      0x00, 0x0E, 0,   0,   0x00, 0x00, 0x00, 0x02, 255,  0}));
 
@@ -182,8 +182,8 @@ TEST(DataArtNet, ADimmerListGoesOutInThePairsTheWireCounts) {
   // longer than one stops at the end of it.
   Json::Array many;
   for (int at = 0; at != 600; ++at) many.push_back(Json(at % 256));
-  const std::vector<std::byte> full = encodeArtNet(Json(Json::Object{
-      {"kind", Json("Dmx")}, {"channels", Json(std::move(many))}}));
+  const std::vector<std::byte> full = encode(Json(Json::Object{
+      {"kind", Json("Dmx")}, {"channels", Json(std::move(many))}}), Dialect::ArtNet);
   ASSERT_EQ(full.size(), 18u + 512u);
   EXPECT_EQ(std::to_integer<int>(full[16]), 0x02);
   EXPECT_EQ(std::to_integer<int>(full[17]), 0x00);
@@ -193,10 +193,10 @@ TEST(DataArtNet, AValueWithNoSpellingOnTheWireWritesNoBytes) {
   // A kind this has no reading for and no bytes of its own: an empty
   // datagram is no dimmer at all rather than a shorter message.
   EXPECT_TRUE(
-      encodeArtNet(Json(Json::Object{{"kind", Json("Blackout")}})).empty());
-  EXPECT_TRUE(encodeArtNet(Json()).empty());
+      encode(Json(Json::Object{{"kind", Json("Blackout")}}), Dialect::ArtNet).empty());
+  EXPECT_TRUE(encode(Json(), Dialect::ArtNet).empty());
   EXPECT_TRUE(
-      encodeArtNet(Json(Json::Object{{"address", Json("/sky/wind")}})).empty());
+      encode(Json(Json::Object{{"address", Json("/sky/wind")}}), Dialect::ArtNet).empty());
 }
 
 }  // namespace

@@ -4,6 +4,7 @@
 
 #include <benchmark/benchmark.h>
 #include <sigildata/decode/Csv.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
 
 #include <string>
@@ -37,7 +38,7 @@ BENCHMARK(BM_DecodeCsv)->Arg(100)->Arg(10000);
 static void BM_DecodeJsonTable(benchmark::State& state) {
   const std::string text = jsonOf((size_t)state.range(0));
   for ([[maybe_unused]] auto _ : state) {
-    const auto document = sigil::data::decodeJson(text);
+    const auto document = sigil::data::decode(text, sigil::data::Dialect::Json);
     benchmark::DoNotOptimize(sigil::data::tableFromJson(*document));
   }
   state.SetItemsProcessed(state.iterations() * state.range(0));

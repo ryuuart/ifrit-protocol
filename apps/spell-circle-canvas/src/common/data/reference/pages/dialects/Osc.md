@@ -1,13 +1,13 @@
 ---
-kind: function
+kind: type
 library: SigilData
-name: decodeOsc
-qualified: sigil::data::decodeOsc
+name: Dialect::Osc
+qualified: sigil::data::Dialect::Osc
 group: Wires
 status: stable
 ---
 
-# decodeOsc
+# Dialect::Osc
 
 ## Description
 
@@ -76,22 +76,21 @@ value there that nobody meant.
 
 ### Reading and writing
 
-`sigil::data::decodeOsc` answers nothing when the bytes are not an OSC
+`sigil::data::decode` with `Dialect::Osc` answers nothing when the bytes are not an OSC
 packet. Every length on the wire is a claim the bytes make about
 themselves — a blob's, a bundle element's, the null a string ends at —
 and each is judged against what actually arrived before a byte of it is
 read, so a packet that claims more than it holds answers nothing rather
 than reading past its own end.
 
-`sigil::data::encodeOsc` writes a message to an address carrying
-arguments, as the bytes a sender puts on the wire. The arguments value
-is the list of them, and a value that is not a list is the one argument
-it is. An address that is empty or does not begin with a slash is no
-address and answers no bytes, as do arguments that will not fit one
-packet. The whole-message overload takes the `address` and `arguments`
-form a packet reads as: a message with no `arguments` member is a
-message with no arguments; a value with no `address` is no message and
-answers no bytes; a bundle is read but not written.
+`sigil::data::encode` with `Dialect::Osc` writes the `address` and
+`arguments` form a packet reads as, which `sigil::data::oscMessage`
+builds from an address and its arguments — the list of them, a value
+that is not a list being the one argument it is. A message with no
+`arguments` member is a message with no arguments; a value with no
+`address`, or an address that is empty or does not begin with a slash,
+is no message and answers no bytes, as do arguments that will not fit
+one packet; a bundle is read but not written.
 
 `sigil::data::maxOscPacketBytes` is the largest packet this writes —
 one packet is one datagram, and a datagram carries what a UDP payload
