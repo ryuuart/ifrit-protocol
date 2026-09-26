@@ -5,10 +5,13 @@
 
 #import <Metal/Metal.h>
 
+#include <include/core/SkImage.h>
 #include <sigilio/frames/Subscription.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmedia/advanced/Device.h>
+#include <sigilmedia/core/Image.h>
+#include <sigilmedia/image/Encode.h>
 
-#include "Capture.h"
 #include "Servers.h"
 
 #include <cstdint>
@@ -43,8 +46,7 @@ int runGrab(const Arguments &arguments) {
   const NSTimeInterval deadline = [NSDate timeIntervalSinceReferenceDate] + budget;
 
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-  id<MTLCommandQueue> queue = [device newCommandQueue];
-  if (!device || !queue) {
+  if (!device) {
     std::fprintf(stderr, "this machine has no Metal device to receive on\n");
     return 4;
   }
@@ -95,20 +97,22 @@ int runGrab(const Arguments &arguments) {
     turnRunLoop(kSlice);
   }
 
-  const std::optional<sigil::io::frames::Frame> arrival = subscription.latest();
-  id<MTLTexture> frame = arrival ? (__bridge id<MTLTexture>)arrival->texture : nil;
-  if (!frame) {
+  // THE SUBSCRIPTION IS A PICTURE SOURCE: its newest frame read back with
+  // no recorder is the arrival in host memory, already turned the right
+  // way up from the bottom-first surface it was carried on.
+  const sk_sp<SkImage> picture =
+      sigil::media::deviceImage(subscription.frameAt(), nullptr);
+  if (!picture) {
     std::fprintf(stderr, "\"%s\" announced a frame it then had none of\n",
                  arguments.texture.c_str());
     return 3;
   }
-  // A RECEIVED FRAME IS THE CARRIED SURFACE ITSELF, whose first row is
-  // the bottom of the picture, so the file is written the other way up
-  // from the rows it arrived in.
-  if (!writeTexturePng(frame, queue, arguments.grabPath, Rows::BottomFirst))
+  if (!hub.save(arguments.grabPath, sigil::media::Image::of(picture))) {
+    std::fprintf(stderr, "%s could not be written\n", arguments.grabPath.c_str());
     return 4;
-  std::printf("wrote %s (%lux%lu)\n", arguments.grabPath.c_str(), (unsigned long)frame.width,
-              (unsigned long)frame.height);
+  }
+  std::printf("wrote %s (%dx%d)\n", arguments.grabPath.c_str(), picture->width(),
+              picture->height());
   return 0;
 }
 
