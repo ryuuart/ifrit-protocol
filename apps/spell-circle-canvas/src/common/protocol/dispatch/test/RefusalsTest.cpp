@@ -10,6 +10,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
 #include <sigilprotocol/dispatch/InProcess.h>
 
@@ -30,7 +31,7 @@ std::optional<Json> ask(const protocol::InProcess& client,
                         std::string_view envelope) {
   std::optional<Json> answered;
   client.send(envelope, [&](std::string answer) {
-    answered = sigil::data::decodeJson(answer);
+    answered = sigil::data::decode(answer, sigil::data::Dialect::Json);
   });
   return answered;
 }
@@ -47,10 +48,10 @@ TEST(ProtocolRefusals, AnAnswerCarriesTheRequestsIdAndTheClientsSession) {
   const std::optional<Json> answer =
       ask(client, R"({"id": "first", "method": "host.version"})");
   ASSERT_TRUE(answer);
-  EXPECT_EQ((*answer)["id"].text(), "first");
-  EXPECT_EQ((*answer)["session"].text(), client.session());
+  EXPECT_EQ((*answer)["id"].string(), "first");
+  EXPECT_EQ((*answer)["session"].string(), client.session());
   EXPECT_TRUE((*answer)["error"].null());
-  EXPECT_EQ((*answer)["result"].kind(), Json::Kind::Record);
+  EXPECT_EQ((*answer)["result"].kind(), Json::Kind::Object);
 }
 
 TEST(ProtocolRefusals, AMethodTheDefinitionDoesNotDeclareIsNotFound) {
@@ -62,11 +63,11 @@ TEST(ProtocolRefusals, AMethodTheDefinitionDoesNotDeclareIsNotFound) {
       ask(client, R"({"id": 1, "method": "clock.warp"})");
   ASSERT_TRUE(answer);
   EXPECT_EQ((*answer)["id"].number(), 1);
-  EXPECT_EQ((*answer)["error"]["code"].text(), "methodNotFound");
-  EXPECT_TRUE(holds((*answer)["error"]["message"].text(), "clock.warp"))
-      << (*answer)["error"]["message"].text();
+  EXPECT_EQ((*answer)["error"]["code"].string(), "methodNotFound");
+  EXPECT_TRUE(holds((*answer)["error"]["message"].string(), "clock.warp"))
+      << (*answer)["error"]["message"].string();
   // The seam that refused opens its own words.
-  EXPECT_TRUE((*answer)["error"]["message"].text().starts_with("dispatcher: "));
+  EXPECT_TRUE((*answer)["error"]["message"].string().starts_with("dispatcher: "));
 }
 
 TEST(ProtocolRefusals, ADeclaredCommandNoAgentAnswersIsNotMounted) {
@@ -80,9 +81,9 @@ TEST(ProtocolRefusals, ADeclaredCommandNoAgentAnswersIsNotMounted) {
     const std::optional<Json> answer =
         ask(client, R"({"id": 2, "method": ")" + std::string(method) + "\"}");
     ASSERT_TRUE(answer) << method;
-    EXPECT_EQ((*answer)["error"]["code"].text(), "notMounted") << method;
-    EXPECT_TRUE(holds((*answer)["error"]["message"].text(), method))
-        << (*answer)["error"]["message"].text();
+    EXPECT_EQ((*answer)["error"]["code"].string(), "notMounted") << method;
+    EXPECT_TRUE(holds((*answer)["error"]["message"].string(), method))
+        << (*answer)["error"]["message"].string();
   }
 }
 
@@ -98,9 +99,9 @@ TEST(ProtocolRefusals, BadParametersToADomainNoAgentAnswersAreNotMounted) {
         ask(client, R"({"id": 12, "method": ")" + std::string(method) +
                         R"(", "parameters": {"frames": "many"}})");
     ASSERT_TRUE(answer) << method;
-    EXPECT_EQ((*answer)["error"]["code"].text(), "notMounted") << method;
-    EXPECT_TRUE(holds((*answer)["error"]["message"].text(), method))
-        << (*answer)["error"]["message"].text();
+    EXPECT_EQ((*answer)["error"]["code"].string(), "notMounted") << method;
+    EXPECT_TRUE(holds((*answer)["error"]["message"].string(), method))
+        << (*answer)["error"]["message"].string();
   }
 }
 
@@ -115,44 +116,44 @@ TEST(ProtocolRefusals, ParametersTheTableCannotHoldNeverReachTheAgent) {
       client,
       R"({"id": 3, "method": "clock.step", "parameters": {"frames": "many"}})");
   ASSERT_TRUE(mistyped);
-  EXPECT_EQ((*mistyped)["error"]["code"].text(), "invalidParameters");
-  EXPECT_TRUE(holds((*mistyped)["error"]["message"].text(), "frames"))
-      << (*mistyped)["error"]["message"].text();
+  EXPECT_EQ((*mistyped)["error"]["code"].string(), "invalidParameters");
+  EXPECT_TRUE(holds((*mistyped)["error"]["message"].string(), "frames"))
+      << (*mistyped)["error"]["message"].string();
   const std::optional<Json> unknown =
       ask(client,
           R"({"id": 4, "method": "clock.step", "parameters": {"framez": 2}})");
   ASSERT_TRUE(unknown);
-  EXPECT_EQ((*unknown)["error"]["code"].text(), "invalidParameters");
-  EXPECT_TRUE(holds((*unknown)["error"]["message"].text(), "framez"))
-      << (*unknown)["error"]["message"].text();
+  EXPECT_EQ((*unknown)["error"]["code"].string(), "invalidParameters");
+  EXPECT_TRUE(holds((*unknown)["error"]["message"].string(), "framez"))
+      << (*unknown)["error"]["message"].string();
   // A whole number its type cannot hold, and a name no value of the
   // enumeration carries, are refused the same way.
   const std::optional<Json> negative = ask(
       client,
       R"({"id": 10, "method": "clock.step", "parameters": {"frames": -1}})");
   ASSERT_TRUE(negative);
-  EXPECT_EQ((*negative)["error"]["code"].text(), "invalidParameters");
-  EXPECT_TRUE(holds((*negative)["error"]["message"].text(), "frames"))
-      << (*negative)["error"]["message"].text();
+  EXPECT_EQ((*negative)["error"]["code"].string(), "invalidParameters");
+  EXPECT_TRUE(holds((*negative)["error"]["message"].string(), "frames"))
+      << (*negative)["error"]["message"].string();
   EXPECT_EQ(clock.steps, 0);
   const std::optional<Json> sideways = ask(
       client,
       R"({"id": 11, "method": "clock.setPolicy", "parameters": {"policy": "Sideways"}})");
   ASSERT_TRUE(sideways);
-  EXPECT_EQ((*sideways)["error"]["code"].text(), "invalidParameters");
-  EXPECT_TRUE(holds((*sideways)["error"]["message"].text(), "policy"))
-      << (*sideways)["error"]["message"].text();
-  EXPECT_TRUE(holds((*sideways)["error"]["message"].text(), "Sideways"))
-      << (*sideways)["error"]["message"].text();
+  EXPECT_EQ((*sideways)["error"]["code"].string(), "invalidParameters");
+  EXPECT_TRUE(holds((*sideways)["error"]["message"].string(), "policy"))
+      << (*sideways)["error"]["message"].string();
+  EXPECT_TRUE(holds((*sideways)["error"]["message"].string(), "Sideways"))
+      << (*sideways)["error"]["message"].string();
   // An enumeration given by a number it does not declare is refused as a
   // name it does not carry is, though the number fits its type.
   const std::optional<Json> seventh = ask(
       client,
       R"({"id": 13, "method": "clock.setPolicy", "parameters": {"policy": 7}})");
   ASSERT_TRUE(seventh);
-  EXPECT_EQ((*seventh)["error"]["code"].text(), "invalidParameters");
-  EXPECT_TRUE(holds((*seventh)["error"]["message"].text(), "policy"))
-      << (*seventh)["error"]["message"].text();
+  EXPECT_EQ((*seventh)["error"]["code"].string(), "invalidParameters");
+  EXPECT_TRUE(holds((*seventh)["error"]["message"].string(), "policy"))
+      << (*seventh)["error"]["message"].string();
 
   // The same command, with parameters that fit, does reach it.
   EXPECT_FALSE(
@@ -167,29 +168,29 @@ TEST(ProtocolRefusals, AMessageThatIsNoRequestIsAnInvalidRequest) {
 
   const std::optional<Json> notJson = ask(client, "a scene arrives");
   ASSERT_TRUE(notJson);
-  EXPECT_EQ((*notJson)["error"]["code"].text(), "invalidRequest");
+  EXPECT_EQ((*notJson)["error"]["code"].string(), "invalidRequest");
   EXPECT_TRUE((*notJson)["id"].null());
 
   const std::optional<Json> noId =
       ask(client, R"({"method": "host.describe"})");
   ASSERT_TRUE(noId);
-  EXPECT_EQ((*noId)["error"]["code"].text(), "invalidRequest");
+  EXPECT_EQ((*noId)["error"]["code"].string(), "invalidRequest");
   // It names the method the message did carry.
-  EXPECT_TRUE(holds((*noId)["error"]["message"].text(), "host.describe"))
-      << (*noId)["error"]["message"].text();
+  EXPECT_TRUE(holds((*noId)["error"]["message"].string(), "host.describe"))
+      << (*noId)["error"]["message"].string();
 
   const std::optional<Json> noMethod = ask(client, R"({"id": 6})");
   ASSERT_TRUE(noMethod);
   EXPECT_EQ((*noMethod)["id"].number(), 6);
-  EXPECT_EQ((*noMethod)["error"]["code"].text(), "invalidRequest");
+  EXPECT_EQ((*noMethod)["error"]["code"].string(), "invalidRequest");
 
   const std::optional<Json> another =
       ask(client,
           R"({"id": 7, "session": "session-99", "method": "host.describe"})");
   ASSERT_TRUE(another);
-  EXPECT_EQ((*another)["error"]["code"].text(), "invalidRequest");
-  EXPECT_TRUE(holds((*another)["error"]["message"].text(), "session-99"))
-      << (*another)["error"]["message"].text();
+  EXPECT_EQ((*another)["error"]["code"].string(), "invalidRequest");
+  EXPECT_TRUE(holds((*another)["error"]["message"].string(), "session-99"))
+      << (*another)["error"]["message"].string();
 }
 
 TEST(ProtocolRefusals, AReplyLetGoWithoutAnsweringIsAnsweredFailed) {
@@ -201,9 +202,9 @@ TEST(ProtocolRefusals, AReplyLetGoWithoutAnsweringIsAnsweredFailed) {
   const std::optional<Json> answer =
       ask(client, R"({"id": 8, "method": "clock.step"})");
   ASSERT_TRUE(answer);
-  EXPECT_EQ((*answer)["error"]["code"].text(), "failed");
-  EXPECT_TRUE(holds((*answer)["error"]["message"].text(), "clock.step"))
-      << (*answer)["error"]["message"].text();
+  EXPECT_EQ((*answer)["error"]["code"].string(), "failed");
+  EXPECT_TRUE(holds((*answer)["error"]["message"].string(), "clock.step"))
+      << (*answer)["error"]["message"].string();
 }
 
 TEST(ProtocolRefusals, AReplyIsAnsweredOnceWhenTheAgentCallsIt) {
@@ -215,7 +216,7 @@ TEST(ProtocolRefusals, AReplyIsAnsweredOnceWhenTheAgentCallsIt) {
   std::optional<Json> answered;
   client.send(R"({"id": 9, "method": "clock.step"})", [&](std::string text) {
     ++heard;
-    answered = sigil::data::decodeJson(text);
+    answered = sigil::data::decode(text, sigil::data::Dialect::Json);
   });
   EXPECT_EQ(heard, 0);
   ASSERT_TRUE(clock.heldStep);

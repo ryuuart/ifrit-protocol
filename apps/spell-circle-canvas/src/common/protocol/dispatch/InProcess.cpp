@@ -1,6 +1,8 @@
 #include <sigildata/decode/Json.h>
 #include <sigilprotocol/dispatch/InProcess.h>
 
+#include "Parameters.h"
+
 #include <map>
 #include <optional>
 #include <utility>
@@ -19,7 +21,7 @@ std::string nowhere(const std::optional<data::Json>& request,
                     std::string_view session, std::string_view why) {
   const data::Json id = request ? (*request)["id"] : data::Json();
   const std::string method = request && !(*request)["method"].null()
-                                 ? std::string((*request)["method"].text())
+                                 ? std::string((*request)["method"].string())
                                  : std::string("a request");
   const data::Json answered(data::Json::Object{
       {"id", id},
@@ -31,7 +33,7 @@ std::string nowhere(const std::optional<data::Json>& request,
            {"message", data::Json(clientRefusal(ErrorCode_notSent, method,
                                                 why)
                                       .message)}})}});
-  return data::encodeJson(answered);
+  return jsonText(answered);
 }
 
 }  // namespace
@@ -121,7 +123,7 @@ void InProcess::send(std::string_view envelope,
                      std::function<void(std::string answer)> hear) const {
   // Text that is no JSON is handed on as nothing, which the dispatcher
   // answers as a message that is no request.
-  const std::optional<data::Json> read = data::decodeJson(envelope);
+  const std::optional<data::Json> read = data::decode(envelope, data::Dialect::Json);
   if (!m_state) return hear(nowhere(read, {}, kMovedFrom));
   if (!m_state->dispatcher)
     return hear(nowhere(read, m_state->session, m_state->gone));

@@ -6,13 +6,22 @@
 
 #pragma once
 
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
 
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace sigil::protocol {
+
+/** @p value AS JSON TEXT: an envelope is text, and a value goes into one
+ *  as the text its own dialect writes. */
+inline std::string jsonText(const data::Json& value) {
+  const std::vector<std::byte> bytes = data::encode(value, data::Dialect::Json);
+  return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+}
 
 /** WHY @p parameters DO NOT FIT @p method's TABLE, naming the parameter:
  *  a member the table does not declare, or a value no field of that

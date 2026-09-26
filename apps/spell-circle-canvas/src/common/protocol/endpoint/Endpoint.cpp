@@ -1,3 +1,4 @@
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/connection/Connection.h>
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Feed.h>
@@ -20,6 +21,13 @@
 
 namespace sigil::protocol {
 namespace {
+
+/** A value as JSON text. */
+std::string jsonText(const sigil::data::Json& value) {
+  const std::vector<std::byte> bytes =
+      sigil::data::encode(value, sigil::data::Dialect::Json);
+  return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+}
 
 /** The path a client reaches the protocol at. */
 constexpr std::string_view kPath = "/sigil";
@@ -159,12 +167,12 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
   if (policy.statedPeers.empty()) uri += "&bind=127.0.0.1";
   for (const std::string& peer : policy.statedPeers) uri += "&admit=" + peer;
   if (!io::transport(hub, "ws")) io::registerTransports(hub, {"ws"});
-  socket.connection = data::Connection(hub, uri);
-  if (!socket.connection.error().empty()) {
-    socket.error = "endpoint: " + socket.connection.error();
+  socket.connection = data::connect(hub, uri);
+  if (!socket.connection.state().error.empty()) {
+    socket.error = "endpoint: " + socket.connection.state().error;
     return;
   }
-  const std::string port = portOf(socket.connection.localAddress());
+  const std::string port = portOf(socket.connection.state().localAddress);
   if (port.empty()) {
     socket.error = "endpoint: the listener named no port it holds";
     return;
@@ -185,9 +193,9 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
 
   // EVERY REQUEST, on the frame thread: a peer's first message attaches
   // it, and every answer goes back to that peer alone.
-  socket.connection.on("*", [this](const data::Json& message) {
+  socket.connection.on("*", [this](const data::Message& message) {
     Socket& held = *m_socket;
-    const std::string peer = held.connection.sender();
+    const std::string peer = message.sender();
     if (peer.empty()) return;
     const io::Feed feed = held.connection.feed();
     auto found = held.sessionOfPeer.find(peer);
@@ -197,15 +205,15 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
       attachment.deliver = [feed, peer](const std::string& session,
                                         std::string_view method,
                                         std::string_view parameters) {
-        feed.send(bytesOf("{\"session\":" + data::encodeJson(data::Json(session)) +
+        feed.send(bytesOf("{\"session\":" + jsonText(data::Json(session)) +
                     ",\"method\":" +
-                    data::encodeJson(data::Json(std::string(method))) +
+                    jsonText(data::Json(std::string(method))) +
                     ",\"parameters\":" + std::string(parameters) + "}"), {.to = peer});
       };
       const std::string session = held.dispatcher.attach(std::move(attachment));
       found = held.sessionOfPeer.emplace(peer, session).first;
     }
-    held.dispatcher.request(found->second, message,
+    held.dispatcher.request(found->second, message.payload,
                             [feed, peer](std::string answer) {
                               feed.send(bytesOf(answer), {.to = peer});
                             });

@@ -7,6 +7,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
 #include <sigilprotocol/clock/ClockClient.h>
 #include <sigilprotocol/dispatch/InProcess.h>
@@ -107,14 +108,14 @@ TEST(ProtocolSessions, AClientOutlivingItsDispatcherSendsNowhere) {
   // The envelope is refused the same way, under the request's own id.
   std::optional<sigil::data::Json> answered;
   client.send(R"({"id": 5, "method": "host.describe"})", [&](std::string text) {
-    answered = sigil::data::decodeJson(text);
+    answered = sigil::data::decode(text, sigil::data::Dialect::Json);
   });
   ASSERT_TRUE(answered);
   EXPECT_EQ((*answered)["id"].number(), 5);
-  EXPECT_EQ((*answered)["error"]["code"].text(), "notSent");
-  EXPECT_TRUE((*answered)["error"]["message"].text().starts_with(
+  EXPECT_EQ((*answered)["error"]["code"].string(), "notSent");
+  EXPECT_TRUE((*answered)["error"]["message"].string().starts_with(
       "client: host.describe: "))
-      << (*answered)["error"]["message"].text();
+      << (*answered)["error"]["message"].string();
 }
 
 TEST(ProtocolSessions, AClientThatDetachedItselfSaysSo) {
@@ -125,14 +126,14 @@ TEST(ProtocolSessions, AClientThatDetachedItselfSaysSo) {
 
   std::optional<sigil::data::Json> answered;
   client.send(R"({"id": 6, "method": "host.describe"})", [&](std::string text) {
-    answered = sigil::data::decodeJson(text);
+    answered = sigil::data::decode(text, sigil::data::Dialect::Json);
   });
   ASSERT_TRUE(answered);
-  EXPECT_EQ((*answered)["error"]["code"].text(), "notSent");
+  EXPECT_EQ((*answered)["error"]["code"].string(), "notSent");
   // Its dispatcher still stands; it is the client that went.
-  EXPECT_NE((*answered)["error"]["message"].text().find("has detached"),
+  EXPECT_NE((*answered)["error"]["message"].string().find("has detached"),
             std::string::npos)
-      << (*answered)["error"]["message"].text();
+      << (*answered)["error"]["message"].string();
 }
 
 TEST(ProtocolSessions, AClientMovedFromIsAnsweredAndSaysSo) {
@@ -151,15 +152,15 @@ TEST(ProtocolSessions, AClientMovedFromIsAnsweredAndSaysSo) {
   moved.send(R"({"id": 7, "method": "host.describe"})",
              [&](std::string text) {
                ++heard;
-               answered = sigil::data::decodeJson(text);
+               answered = sigil::data::decode(text, sigil::data::Dialect::Json);
              });
   EXPECT_EQ(heard, 1);
   ASSERT_TRUE(answered);
   EXPECT_EQ((*answered)["id"].number(), 7);
-  EXPECT_EQ((*answered)["error"]["code"].text(), "notSent");
-  EXPECT_NE((*answered)["error"]["message"].text().find("moved"),
+  EXPECT_EQ((*answered)["error"]["code"].string(), "notSent");
+  EXPECT_NE((*answered)["error"]["message"].string().find("moved"),
             std::string::npos)
-      << (*answered)["error"]["message"].text();
+      << (*answered)["error"]["message"].string();
 }
 
 }  // namespace

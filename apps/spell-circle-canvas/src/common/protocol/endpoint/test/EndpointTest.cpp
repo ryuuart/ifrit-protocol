@@ -14,6 +14,7 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
@@ -44,6 +45,13 @@
 #include "ScratchDir.h"
 
 namespace {
+
+/** A value as JSON text. */
+std::string jsonText(const sigil::data::Json& value) {
+  const std::vector<std::byte> bytes =
+      sigil::data::encode(value, sigil::data::Dialect::Json);
+  return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
+}
 
 namespace protocol = sigil::protocol;
 using sigil::data::Json;
@@ -170,7 +178,7 @@ class ProtocolEndpoint : public ::testing::Test {
     waitUntil([&] {
       sigil::io::advance(hostHub);
       if (const std::optional<sigil::io::Message> arrival = client.receive())
-        heard = sigil::data::decodeJson(arrival->payload->asText());
+        heard = sigil::data::decode(arrival->payload->asText(), sigil::data::Dialect::Json);
       return heard.has_value();
     });
     return heard;
@@ -221,17 +229,17 @@ TEST_F(ProtocolEndpoint, AnswersACommandOverTheWireInsideTheDispatch) {
   const std::optional<Json> answer = hear(client);
   ASSERT_TRUE(answer);
   EXPECT_EQ((*answer)["id"].number(), 1);
-  EXPECT_EQ((*answer)["result"]["version"]["program"].text(), "EndpointTest");
-  EXPECT_EQ((*answer)["result"]["state_root"].text(), state.path.string());
+  EXPECT_EQ((*answer)["result"]["version"]["program"].string(), "EndpointTest");
+  EXPECT_EQ((*answer)["result"]["state_root"].string(), state.path.string());
   ASSERT_EQ((*answer)["result"]["attached"].size(), 1u);
-  EXPECT_EQ((*answer)["result"]["attached"][0].text(),
-            (*answer)["session"].text());
+  EXPECT_EQ((*answer)["result"]["attached"][0].string(),
+            (*answer)["session"].string());
 
   // A method nobody declared is refused over the wire in the same words.
   ASSERT_TRUE(client.send(bytesOf(R"({"id": 2, "method": "clock.warp"})")));
   const std::optional<Json> refused = hear(client);
   ASSERT_TRUE(refused);
-  EXPECT_EQ((*refused)["error"]["code"].text(), "methodNotFound");
+  EXPECT_EQ((*refused)["error"]["code"].string(), "methodNotFound");
 }
 
 TEST_F(ProtocolEndpoint, SendsAnEventToTheClientThatEnabledItsDomain) {
@@ -245,15 +253,15 @@ TEST_F(ProtocolEndpoint, SendsAnEventToTheClientThatEnabledItsDomain) {
   const auto client = dial(endpoint, R"({"id": 1, "method": "clock.enable"})");
   const std::optional<Json> enabled = hear(client);
   ASSERT_TRUE(enabled);
-  ASSERT_TRUE((*enabled)["error"].null()) << sigil::data::encodeJson(*enabled);
+  ASSERT_TRUE((*enabled)["error"].null()) << jsonText(*enabled);
 
   protocol::clock::values::BudgetExpiredEvent expired;
   expired.seconds = 4;
   EXPECT_TRUE(events.budgetExpired(expired));
   const std::optional<Json> event = hear(client);
   ASSERT_TRUE(event);
-  EXPECT_EQ((*event)["method"].text(), "clock.budgetExpired");
-  EXPECT_EQ((*event)["session"].text(), (*enabled)["session"].text());
+  EXPECT_EQ((*event)["method"].string(), "clock.budgetExpired");
+  EXPECT_EQ((*event)["session"].string(), (*enabled)["session"].string());
   EXPECT_EQ((*event)["parameters"]["seconds"].number(), 4);
 }
 
@@ -279,8 +287,8 @@ TEST_F(ProtocolEndpoint, AClientInProcessStandsOnTheSameDispatcher) {
   const std::optional<Json> described = hear(client);
   ASSERT_TRUE(described);
   ASSERT_EQ((*described)["result"]["attached"].size(), 2u)
-      << sigil::data::encodeJson(*described);
-  EXPECT_EQ((*described)["result"]["attached"][0].text(), inside.session());
+      << jsonText(*described);
+  EXPECT_EQ((*described)["result"]["attached"][0].string(), inside.session());
 
   protocol::clock::values::BudgetExpiredEvent expired;
   expired.seconds = 6;
@@ -300,13 +308,13 @@ TEST_F(ProtocolEndpoint, LettingItGoTellsAClientThatEnabledHostWhy) {
   const auto client = dial(*endpoint, R"({"id": 1, "method": "host.enable"})");
   const std::optional<Json> enabled = hear(client);
   ASSERT_TRUE(enabled);
-  ASSERT_TRUE((*enabled)["error"].null()) << sigil::data::encodeJson(*enabled);
+  ASSERT_TRUE((*enabled)["error"].null()) << jsonText(*enabled);
 
   endpoint = {};
   const std::optional<Json> told = hear(client);
   ASSERT_TRUE(told);
-  EXPECT_EQ((*told)["method"].text(), "host.detached");
-  EXPECT_EQ((*told)["parameters"]["reason"].text(), "the endpoint is closing");
+  EXPECT_EQ((*told)["method"].string(), "host.detached");
+  EXPECT_EQ((*told)["parameters"]["reason"].string(), "the endpoint is closing");
   // Only its own clients go with it: the one attached in process stays.
   EXPECT_EQ(dispatcher.sessions(), std::vector<std::string>{inside.session()});
 }

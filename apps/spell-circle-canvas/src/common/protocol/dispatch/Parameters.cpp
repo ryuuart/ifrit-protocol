@@ -96,11 +96,11 @@ std::string kindWord(const data::Json& value) {
       return "a boolean";
     case data::Json::Kind::Number:
       return "a number";
-    case data::Json::Kind::Text:
+    case data::Json::Kind::String:
       return "text";
-    case data::Json::Kind::List:
+    case data::Json::Kind::Array:
       return "a list";
-    case data::Json::Kind::Record:
+    case data::Json::Kind::Object:
       return "a table";
   }
   return "a value";
@@ -123,12 +123,12 @@ std::optional<std::string> misfitField(const reflection::Field& field,
   const bool enumeration = type.index() >= 0 && base != reflection::Obj &&
                            base != reflection::Vector &&
                            base != reflection::Vector64;
-  if (enumeration && value.kind() == data::Json::Kind::Text) {
+  if (enumeration && value.kind() == data::Json::Kind::String) {
     const reflection::Enum* declared =
         schema.enums()->Get(static_cast<uint32_t>(type.index()));
     for (const reflection::EnumVal* each : *declared->values())
-      if (each->name()->string_view() == value.text()) return std::nullopt;
-    return named + " names " + std::string(value.text()) +
+      if (each->name()->string_view() == value.string()) return std::nullopt;
+    return named + " names " + std::string(value.string()) +
            ", which is no value of " + expected;
   }
   switch (base) {
@@ -140,14 +140,14 @@ std::optional<std::string> misfitField(const reflection::Field& field,
       if (value.kind() == data::Json::Kind::Number) return std::nullopt;
       return refuse();
     case reflection::String:
-      if (value.kind() == data::Json::Kind::Text) return std::nullopt;
+      if (value.kind() == data::Json::Kind::String) return std::nullopt;
       return refuse();
     case reflection::Vector:
     case reflection::Vector64:
-      if (value.kind() == data::Json::Kind::List) return std::nullopt;
+      if (value.kind() == data::Json::Kind::Array) return std::nullopt;
       return refuse();
     case reflection::Obj:
-      if (value.kind() == data::Json::Kind::Record) return std::nullopt;
+      if (value.kind() == data::Json::Kind::Object) return std::nullopt;
       return refuse();
     default:
       break;
@@ -157,7 +157,7 @@ std::optional<std::string> misfitField(const reflection::Field& field,
     const double number = value.number();
     if (std::floor(number) != number || number < range->first ||
         number > range->second)
-      return named + " holds " + data::encodeJson(value) + ", which " +
+      return named + " holds " + jsonText(value) + ", which " +
              (enumeration ? "no value of " : "no ") + expected + " holds";
     // An enumeration given by its number is one of the numbers it
     // declares, as one given by name is one of its names.
@@ -166,7 +166,7 @@ std::optional<std::string> misfitField(const reflection::Field& field,
           schema.enums()->Get(static_cast<uint32_t>(type.index()));
       for (const reflection::EnumVal* each : *declared->values())
         if (static_cast<double>(each->value()) == number) return std::nullopt;
-      return named + " holds " + data::encodeJson(value) +
+      return named + " holds " + jsonText(value) +
              ", which is no value of " + expected;
     }
     return std::nullopt;
@@ -184,10 +184,10 @@ std::optional<std::string> misfit(std::string_view method,
       !definition.schema)
     return std::nullopt;
   if (parameters.null()) return std::nullopt;
-  if (parameters.kind() != data::Json::Kind::Record)
+  if (parameters.kind() != data::Json::Kind::Object)
     return "the parameters are " + kindWord(parameters) + ", not a table";
   const reflection::Object& table = *found->second;
-  for (const auto& [name, value] : parameters.fields()) {
+  for (const auto& [name, value] : parameters.object()) {
     const reflection::Field* field = nullptr;
     if (table.fields())
       for (const reflection::Field* each : *table.fields())

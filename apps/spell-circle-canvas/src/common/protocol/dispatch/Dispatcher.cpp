@@ -37,8 +37,8 @@ data::Json errorJson(const values::Error& error) {
 
 /** The opening an answer's envelope shares: `{"id": …, "session": …,`. */
 std::string opening(const data::Json& id, std::string_view session) {
-  return "{\"id\":" + data::encodeJson(id) +
-         ",\"session\":" + data::encodeJson(data::Json(std::string(session)));
+  return "{\"id\":" + jsonText(id) +
+         ",\"session\":" + jsonText(data::Json(std::string(session)));
 }
 
 /** An answer's envelope text: the result's JSON text as the handler
@@ -48,7 +48,7 @@ std::string answerEnvelope(const data::Json& id, std::string_view session,
   if (answer)
     return opening(id, session) + ",\"result\":" + answer.result() + "}";
   return opening(id, session) +
-         ",\"error\":" + data::encodeJson(errorJson(answer.error())) + "}";
+         ",\"error\":" + jsonText(errorJson(answer.error())) + "}";
 }
 
 }  // namespace
@@ -249,7 +249,7 @@ void Dispatcher::answer(const std::string& session, std::string_view method,
   // them, so the refusal names the parameter it stopped at; what fits
   // here is read again by the handler, whose reading is the last word.
   if (!parameters.empty()) {
-    const std::optional<data::Json> read = data::decodeJson(parameters);
+    const std::optional<data::Json> read = data::decode(parameters, data::Dialect::Json);
     if (!read)
       return once(dispatcherRefusal(
           ErrorCode_invalidParameters,
@@ -281,39 +281,39 @@ void Dispatcher::answer(const std::string& session, std::string_view method,
 void Dispatcher::request(const std::string& session, const data::Json& envelope,
                          std::function<void(std::string answer)> send) {
   const data::Json nothing;
-  if (envelope.kind() != data::Json::Kind::Record)
+  if (envelope.kind() != data::Json::Kind::Object)
     return send(
         answerEnvelope(nothing, session,
                        dispatcherRefusal(ErrorCode_invalidRequest,
                                          "the message is no JSON object")));
   const data::Json& id = envelope["id"];
   const data::Json& method = envelope["method"];
-  const std::string named = method.kind() == data::Json::Kind::Text
-                                ? std::string(method.text())
+  const std::string named = method.kind() == data::Json::Kind::String
+                                ? std::string(method.string())
                                 : std::string("a request");
   if (id.kind() != data::Json::Kind::Number &&
-      id.kind() != data::Json::Kind::Text)
+      id.kind() != data::Json::Kind::String)
     return send(answerEnvelope(
         nothing, session,
         dispatcherRefusal(ErrorCode_invalidRequest,
                           named + ": the request carries no id")));
-  if (method.kind() != data::Json::Kind::Text)
+  if (method.kind() != data::Json::Kind::String)
     return send(
         answerEnvelope(id, session,
                        dispatcherRefusal(ErrorCode_invalidRequest,
                                          "the request carries no method")));
   const data::Json& claimed = envelope["session"];
-  if (!claimed.null() && claimed.text() != session)
+  if (!claimed.null() && claimed.string() != session)
     return send(answerEnvelope(
         id, session,
         dispatcherRefusal(ErrorCode_invalidRequest,
                           named + ": names session " +
-                              std::string(claimed.text()) +
+                              std::string(claimed.string()) +
                               ", and this client's is " + session)));
   const data::Json& parameters = envelope["parameters"];
   const std::string text =
-      parameters.null() ? std::string() : data::encodeJson(parameters);
-  answer(session, method.text(), text,
+      parameters.null() ? std::string() : jsonText(parameters);
+  answer(session, method.string(), text,
          [id, session, send = std::move(send)](Answer<std::string> answered) {
            send(answerEnvelope(id, session, answered));
          });
