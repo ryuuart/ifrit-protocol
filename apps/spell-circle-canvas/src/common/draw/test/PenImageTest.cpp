@@ -1,5 +1,6 @@
 /** @file
- * Images through the pen: what smoothing does to the sampler.
+ * Images through the pen: what smoothing does to the sampler, and a
+ * picture source's frame meeting its box under each fit.
  */
 
 #include <gtest/gtest.h>
@@ -58,6 +59,51 @@ TEST(Pen, SmoothingOnBlendsAcrossTheImageBoundary) {
   const SkColor left = paper.pixel(19, 20);
   EXPECT_NE(left, SK_ColorRED);
   EXPECT_NE(left, SK_ColorGREEN);
+}
+
+// ---- a frame meets its box under a fit --------------------------------------
+
+/** A frame twice as wide as it is tall: red on the left half, green on
+ *  the right. */
+sigil::media::Frame wideFrame() {
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(20, 10));
+  bitmap.eraseArea(SkIRect::MakeXYWH(0, 0, 10, 10), SK_ColorRED);
+  bitmap.eraseArea(SkIRect::MakeXYWH(10, 0, 10, 10), SK_ColorGREEN);
+  bitmap.setImmutable();
+  sigil::media::Frame frame;
+  frame.image = bitmap.asImage();
+  return frame;
+}
+
+TEST(Pen, AFrameMeetsItsBoxUnderEachFit) {
+  const auto drawn = [](sigil::material::Fit fit) {
+    Paper paper(100, 100, SK_ColorBLACK);
+    paper.begin();
+    paper.pen.noSmooth();
+    paper.pen.image(wideFrame(), 0, 0, 40, 40, fit);
+    paper.end();
+    return paper.pixels();
+  };
+  // Contain keeps the whole frame and letterboxes it: the bands above and
+  // below stay bare, and both halves show.
+  const SkBitmap contained = drawn(sigil::material::Fit::Contain);
+  EXPECT_EQ(contained.getColor(20, 2), SK_ColorBLACK);
+  EXPECT_EQ(contained.getColor(5, 20), SK_ColorRED);
+  EXPECT_EQ(contained.getColor(35, 20), SK_ColorGREEN);
+  // Cover fills the box and crops the sides: the middle column of the
+  // frame fills it, so the box's corners are red and green.
+  const SkBitmap covered = drawn(sigil::material::Fit::Cover);
+  EXPECT_EQ(covered.getColor(1, 1), SK_ColorRED);
+  EXPECT_EQ(covered.getColor(38, 38), SK_ColorGREEN);
+  // Stretch fills both axes.
+  const SkBitmap stretched = drawn(sigil::material::Fit::Stretch);
+  EXPECT_EQ(stretched.getColor(5, 35), SK_ColorRED);
+  EXPECT_EQ(stretched.getColor(35, 2), SK_ColorGREEN);
+  // Native draws the frame's own pixels from the box's corner.
+  const SkBitmap native = drawn(sigil::material::Fit::Native);
+  EXPECT_EQ(native.getColor(15, 5), SK_ColorGREEN);
+  EXPECT_EQ(native.getColor(25, 5), SK_ColorBLACK);
 }
 
 }  // namespace

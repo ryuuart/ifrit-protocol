@@ -35,6 +35,7 @@
 #include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmedia/core/Frame.h>
 #include <sigilweave/style/Type.h>
 
 #include <concepts>
@@ -426,6 +427,16 @@ class Pen {
    *  was formed at. Its words are in `<sigildraw/Graphics.h>`. */
   void image(const Graphics& buffer, float x, float y);
   void image(const Graphics& buffer, float x, float y, float w, float h);
+  /** A FRAME OF ANY PICTURE SOURCE — an `Image`'s, a `Video`'s, a
+   *  publication's — put down in the box (@p x, @p y, @p w, @p h) the
+   *  image mode reads, meeting it under @p fit: `Stretch` fills both
+   *  axes, `Contain` keeps the aspect and letterboxes the whole of it,
+   *  `Cover` keeps it and crops what overflows, `Native` draws the
+   *  frame's own pixels from the box's corner. A frame standing on a
+   *  device is bound for the recorder this pen's canvas records on, and
+   *  read back where the canvas has none; an empty frame draws nothing. */
+  void image(const media::Frame& frame, float x, float y, float w, float h,
+             material::Fit fit = material::Fit::Stretch);
   /** @} */
 
   /** @name The transform

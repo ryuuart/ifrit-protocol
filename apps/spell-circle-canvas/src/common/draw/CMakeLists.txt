@@ -23,7 +23,8 @@ set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 # is where the silhouette concept the shape verb takes is declared, so a
 # generator written for the kit's wrappers is a value the pen draws, and
 # the geometry path library names the cap and the join a stroke ends and
-# turns with. All public: the pen's header spells each of their types.
+# turns with; a media frame is what a picture source answers at a time.
+# All public: the pen's header spells each of their types.
 find_package(boost_container_hash CONFIG REQUIRED)
 find_package(boost_unordered CONFIG REQUIRED)
 sigil_library(SigilDraw
@@ -32,8 +33,8 @@ sigil_library(SigilDraw
           PenTransform.cpp Text.cpp
   HEADERS Color.h Constants.h Graphics.h Math.h Noise.h Pen.h
           PenTypes.h Retained.h
-  PUBLIC SigilMaterialSkia SigilCoreCompute SigilGeometryKit SigilGeometryPath
-         SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
+  PUBLIC SigilMaterialSkia SigilMediaCore SigilCoreCompute SigilGeometryKit
+         SigilGeometryPath SigilWeaveStyle SigilWeaveParagraph SigilWeaveLayout SigilWeavePaint
          SigilWeaveFonts Boost::container_hash Boost::unordered)
 sigil_shader_sources(SigilDraw DIR ${_shaders} NAMESPACE sigil::draw)
 
@@ -78,6 +79,7 @@ sigil_doc_probes(draw
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Pen.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/path
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial/skia
+           ${CMAKE_CURRENT_SOURCE_DIR}/../media/include/sigilmedia/core
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/include
   PRELUDES "<sigilgeometry/path/Polyline.h>"
