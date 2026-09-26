@@ -36,7 +36,6 @@ sigil_doc_probes(seer
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/io/include/sigilio
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/data/include/sigildata
   PRELUDES "<sigilio/advanced/Time.h>" "<sigilio/hub/Feed.h>" "<sigilio/hub/Hub.h>"
-           "<sigildata/decode/FlatBuffer.h>" "<sigildata/decode/Midi.h>"
-           "<sigildata/decode/ArtNet.h>"
+           "<sigildata/decode/FlatBuffer.h>" "<sigildata/decode/Dialect.h>"
   FLOORS 22,5,20,0,0
   LIBRARIES SigilSeerWire SigilDataDecode)

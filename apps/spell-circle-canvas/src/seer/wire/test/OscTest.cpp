@@ -11,7 +11,7 @@
 
 #include <gtest/gtest.h>
 #include <sigildata/decode/Json.h>
-#include <sigildata/decode/Osc.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigilseer/wire/Rendering.h>
 #include <sigilseer/wire/Sender.h>
 
@@ -37,8 +37,7 @@ Bytes messageOf(std::vector<std::byte> packet) {
 }  // namespace
 
 TEST(SeerOsc, APacketIsReadAsTheAddressAndTheArgumentsUnderIt) {
-  const Bytes packet = messageOf(sigil::data::encodeOsc(
-      "/sky/wind", sigil::data::Json::Array{0.5, std::string("gust")}));
+  const Bytes packet = messageOf(sigil::data::encode(sigil::data::oscMessage("/sky/wind", sigil::data::Json::Array{0.5, std::string("gust")}), sigil::data::Dialect::Osc));
   EXPECT_EQ(sigil::seer::oscReading(packet),
             "{\n"
             "  \"address\": \"/sky/wind\",\n"
@@ -57,7 +56,7 @@ TEST(SeerOsc, ADocumentIsNoPacketAndAPacketIsNoDocument) {
   EXPECT_FALSE(sigil::seer::indentedJson(document).empty());
 
   const Bytes packet = messageOf(
-      sigil::data::encodeOsc("/sky/wind", sigil::data::Json::Array{}));
+      sigil::data::encode(sigil::data::oscMessage("/sky/wind", sigil::data::Json::Array{}), sigil::data::Dialect::Osc));
   EXPECT_FALSE(sigil::seer::oscReading(packet).empty());
   EXPECT_TRUE(sigil::seer::indentedJson(packet).empty());
 
@@ -66,15 +65,15 @@ TEST(SeerOsc, ADocumentIsNoPacketAndAPacketIsNoDocument) {
 
 TEST(SeerOsc, AMessageIsSpelledFromAnAddressAndTheArgumentsAsADocument) {
   EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", R"([0.5, "gust"])"),
-            sigil::io::Bytes(sigil::data::encodeOsc("/sky/wind", sigil::data::Json::Array{
-                                                    0.5, std::string("gust")})));
+            sigil::io::Bytes(sigil::data::encode(sigil::data::oscMessage("/sky/wind", sigil::data::Json::Array{
+                                                    0.5, std::string("gust")}), sigil::data::Dialect::Osc)));
 
   // An argument that is not a list is the one argument it is, and an
   // editor with nothing in it is a message carrying none.
   EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", "0.5"),
-            sigil::io::Bytes(sigil::data::encodeOsc("/sky/wind", sigil::data::Json(0.5))));
+            sigil::io::Bytes(sigil::data::encode(sigil::data::oscMessage("/sky/wind", sigil::data::Json(0.5)), sigil::data::Dialect::Osc)));
   EXPECT_EQ(sigil::seer::oscMessage("/sky/wind", "  \n"),
-            sigil::io::Bytes(sigil::data::encodeOsc("/sky/wind", sigil::data::Json::Array{})));
+            sigil::io::Bytes(sigil::data::encode(sigil::data::oscMessage("/sky/wind", sigil::data::Json::Array{}), sigil::data::Dialect::Osc)));
 
   // Arguments that are no document, and a message with no address, are
   // no message: half a message spelled is not a shorter one.

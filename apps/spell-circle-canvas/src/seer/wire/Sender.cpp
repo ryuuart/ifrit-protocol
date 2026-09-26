@@ -6,10 +6,8 @@
 
 #include "sigilseer/wire/Sender.h"
 
-#include <sigildata/decode/ArtNet.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Json.h>
-#include <sigildata/decode/Midi.h>
-#include <sigildata/decode/Osc.h>
 
 #include <charconv>
 #include <cstddef>
@@ -74,11 +72,11 @@ bool numberOf(std::string_view word, int& number) {
 io::Bytes oscMessage(std::string_view address, std::string_view arguments) {
   data::Json carried{data::Json::Array{}};
   if (anythingIn(arguments)) {
-    std::optional<data::Json> read = data::decodeJson(arguments);
+    std::optional<data::Json> read = data::decode(arguments, data::Dialect::Json);
     if (!read) return {};
     carried = std::move(*read);
   }
-  return io::Bytes(data::encodeOsc(address, carried));
+  return io::Bytes(data::encode(data::oscMessage(address, carried), data::Dialect::Osc));
 }
 
 io::Bytes midiMessage(std::string_view kind, int channel, int first,
@@ -94,7 +92,7 @@ io::Bytes midiMessage(std::string_view kind, int channel, int first,
                             {"channel", data::Json(channel)}};
   played.push_back({numbers.first, data::Json(first)});
   if (numbers.second) played.push_back({numbers.second, data::Json(second)});
-  return io::Bytes(data::encodeMidi(data::Json(std::move(played))));
+  return io::Bytes(data::encode(data::Json(std::move(played)), data::Dialect::Midi));
 }
 
 std::optional<MidiWords> midiWords(std::string_view words) {
@@ -123,16 +121,16 @@ std::optional<MidiWords> midiWords(std::string_view words) {
 }
 
 io::Bytes dmxMessage(int universe, std::string_view channels) {
-  const std::optional<data::Json> levels = data::decodeJson(channels);
+  const std::optional<data::Json> levels = data::decode(channels, data::Dialect::Json);
   // A universe is a list of levels and nothing else. One number where a
   // list was meant would go out as one fixture lit and the rest of the
   // rig dark, which is a thing a desk says and never a thing a reader
   // meant to say by typing it.
-  if (!levels || levels->kind() != data::Json::Kind::List) return {};
-  return io::Bytes(data::encodeArtNet(
+  if (!levels || levels->kind() != data::Json::Kind::Array) return {};
+  return io::Bytes(data::encode(
       data::Json(data::Json::Object{{"kind", data::Json("Dmx")},
                                     {"universe", data::Json(universe)},
-                                    {"channels", *levels}})));
+                                    {"channels", *levels}}), data::Dialect::ArtNet));
 }
 
 Sender::Sender(Wires& wires) : m_wires(wires) {}

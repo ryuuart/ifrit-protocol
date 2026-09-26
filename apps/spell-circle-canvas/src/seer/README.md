@@ -178,8 +178,9 @@ would take the whole thing for a broken string rather than for bytes.
 All of them are written out in one layout, so a reader turning from one
 to another reads what differs rather than how each was printed.
 
-The two dialect readings are `sigil::data::decodeMidi()` and
-`sigil::data::decodeArtNet()` laid out that same way: a message off an
+The two dialect readings — `sigil::data::decode()` with
+`sigil::data::Dialect::Midi` and with `sigil::data::Dialect::ArtNet` — are
+laid out that same way: a message off an
 instrument is its kind, the channel it was played on and the numbers
 that kind carries, and a packet off a lighting desk is a universe of
 dimmers with the address it is for. A list whose every member is a

@@ -8,11 +8,9 @@
 
 #include "sigilseer/wire/Rendering.h"
 
-#include <sigildata/decode/ArtNet.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigildata/decode/Json.h>
-#include <sigildata/decode/Midi.h>
-#include <sigildata/decode/Osc.h>
 
 #include <charconv>
 #include <cstddef>
@@ -175,11 +173,11 @@ void appendValue(std::string& out, const data::Json& value, size_t depth,
     case data::Json::Kind::Number:
       appendNumber(out, value.number());
       break;
-    case data::Json::Kind::Text:
-      appendQuoted(out, value.text());
+    case data::Json::Kind::String:
+      appendQuoted(out, value.string());
       break;
-    case data::Json::Kind::List: {
-      const std::span<const data::Json> items = value.items();
+    case data::Json::Kind::Array: {
+      const std::span<const data::Json> items = value.array();
       if (items.empty()) {
         out += "[]";
         break;
@@ -225,9 +223,9 @@ void appendValue(std::string& out, const data::Json& value, size_t depth,
       out += ']';
       break;
     }
-    case data::Json::Kind::Record: {
+    case data::Json::Kind::Object: {
       const std::span<const std::pair<std::string, data::Json>> fields =
-          value.fields();
+          value.object();
       if (fields.empty()) {
         out += "{}";
         break;
@@ -285,25 +283,25 @@ std::string printableText(const io::Bytes& bytes) {
 }
 
 std::string indentedJson(const io::Bytes& bytes) {
-  const std::optional<data::Json> document = data::decodeJson(bytes.asText());
+  const std::optional<data::Json> document = data::decode(bytes.asText(), data::Dialect::Json);
   if (!document) return {};
   return indented(*document);
 }
 
 std::string oscReading(const io::Bytes& bytes) {
-  const std::optional<data::Json> packet = data::decodeOsc(bytes);
+  const std::optional<data::Json> packet = data::decode(bytes, data::Dialect::Osc);
   if (!packet) return {};
   return indented(*packet);
 }
 
 std::string midiReading(const io::Bytes& bytes) {
-  const std::optional<data::Json> message = data::decodeMidi(bytes);
+  const std::optional<data::Json> message = data::decode(bytes, data::Dialect::Midi);
   if (!message) return {};
   return indented(*message, {kNumbersPerRow});
 }
 
 std::string dmxReading(const io::Bytes& bytes) {
-  const std::optional<data::Json> packet = data::decodeArtNet(bytes);
+  const std::optional<data::Json> packet = data::decode(bytes, data::Dialect::ArtNet);
   if (!packet) return {};
   return indented(*packet, {kNumbersPerRow});
 }
@@ -336,7 +334,7 @@ std::string schemaReading(const io::Bytes& bytes, const data::Schema& schema,
   // the same printer the document and the packet go through, so a reader
   // turning from one reading to another reads what differs rather than
   // how each was printed.
-  const std::optional<data::Json> document = data::decodeJson(*form);
+  const std::optional<data::Json> document = data::decode(*form, data::Dialect::Json);
   return document ? indented(*document) : *form;
 }
 
