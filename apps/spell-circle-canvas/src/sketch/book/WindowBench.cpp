@@ -102,7 +102,11 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
           const sketch::Kind kind = entry.kind();
           const std::string_view runtime = kind ? kind->runtime() : "?";
           const SkSize canvas = host ? host->canvasSize() : SkSize::Make(0, 0);
-          const double work = host ? host->workMsAverage() : 0.0;
+          const double work =
+              host ? sigil::measure::Milliseconds(
+                         host->frameTimes().work().mean())
+                         .count()
+                   : 0.0;
           // THE SAME SESSION AT BOTH ENDS OF THE STRETCH, and the frames
           // it put on screen in between.
           const unsigned long long frames =
@@ -137,9 +141,13 @@ bool startWindowBench(QGuiApplication& application, QQuickWindow& window,
                 entry.key, window.width(), window.height(),
                 window.devicePixelRatio(), (int)canvas.width(),
                 (int)canvas.height(), (int)runtime.size(), runtime.data(), fps,
-                work, host->workMsP99(), host->drawMsAverage(),
+                work,
+                sigil::measure::Milliseconds(
+                    host->frameTimes().work().quantile(0.99))
+                    .count(),
+                sigil::measure::Milliseconds(host->drawTimes().mean()).count(),
                 metrics.value(QStringLiteral("submitMs")).toDouble(),
-                work > 0 ? 1000.0 / work : 0.0);
+                host->frameTimes().headroomFps());
           }
         } else {
           // Step::Skip — the window never presented this entry's session.

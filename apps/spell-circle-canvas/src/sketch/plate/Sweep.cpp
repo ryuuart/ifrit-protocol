@@ -19,12 +19,11 @@
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmeasure/advanced/FrameTimer.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Session.h>
-#include <sigilsketch/plate/FrameStats.h>
 #include <sigilsketch/plate/Graphite.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/PaintOrder.h>
@@ -281,17 +280,19 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     // seconds out spends its whole render there.
     SkNoDrawCanvas discarded((int)size.width(), (int)size.height());
 
-    FrameStats stats;
+    // The three lanes a frame is judged by, the same instrument the live
+    // host and the product renderer read theirs from.
+    measure::FrameTimer stats;
     const auto stepOne = [&](SkSurface&) {
-      // One watch, read twice: the two lanes both start at the top of the
+      // One mark, closed twice: the two lanes both start at the top of the
       // frame and differ only in whether the backend drain is inside.
-      const measure::Stopwatch watch;
+      stats.begin();
       frameCanvas->clear(clearColor);
       PhaseMark mark(Phase::Update);
       session->frame(*frameCanvas, kStep);
-      stats.addWork(watch.elapsedMs());
+      stats.composed();
       if (flushHook) flushHook();
-      stats.add(watch.elapsedMs());
+      stats.finished();
     };
     /** One stepped frame whose pixels are thrown away. */
     const auto advanceOne = [&] {
@@ -321,7 +322,8 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
     std::vector<LaneCost> lanes;
     if (!options.ledger) {
       for (int f = 0; f < kProbeFrames; ++f) stepOne(*surface);
-      const double probeMs = std::max(0.01, stats.average());
+      const double probeMs =
+          std::max(0.01, measure::Milliseconds(stats.frame().mean()).count());
       warmFrames =
           std::max(0, std::min(kMaxWarmFrames, (int)(warmBudgetMs / probeMs)));
       sampleFrames =
@@ -330,7 +332,7 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       shortened = warmFrames < kMaxWarmFrames;
       anyShortened = anyShortened || shortened;
       for (int f = 0; f < warmFrames; ++f) stepOne(*surface);
-      stats = {};
+      stats.reset();
       std::vector<double> laneTotals;
       for (int f = 0; f < sampleFrames; ++f) {
         stepOne(*surface);
@@ -420,7 +422,9 @@ int sweep(const SweepOptions& options, weave::FontContext& fonts,
       std::printf("%-22s %10s  [ledger]\n", nameLabel, canvasLabel);
     } else {
       std::printf("%-22s %10s %8.2f %8.2f %9.0f ", nameLabel, canvasLabel,
-                  sample.frameMs, sample.p99Ms, sample.headroomFps);
+                  measure::Milliseconds(sample.frame).count(),
+                  measure::Milliseconds(sample.frameTail).count(),
+                  sample.headroomFps);
       for (const LaneCost& lane : lanes)
         std::printf(" %s %.2f", lane.name, lane.ms);
       std::printf("\n");

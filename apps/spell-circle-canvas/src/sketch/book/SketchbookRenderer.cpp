@@ -351,11 +351,16 @@ void SketchbookRenderer::publishMetrics() {
                                            QLatin1Char('0')));
   // fps: what the window actually presents. headroom: what the frame's
   // work alone would allow — the number a frame-time floor is judged on.
-  metrics.insert(QStringLiteral("fps"), SketchbookView::host->presentedFps());
-  const double work = SketchbookView::host->workMsAverage();
-  metrics.insert(QStringLiteral("workMs"), work);
-  metrics.insert(QStringLiteral("p99Ms"), SketchbookView::host->workMsP99());
-  metrics.insert(QStringLiteral("headroomFps"), work > 0 ? 1000.0 / work : 0.0);
+  const sigil::measure::FrameTimer& frameTimes =
+      SketchbookView::host->frameTimes();
+  metrics.insert(QStringLiteral("fps"), frameTimes.presentedFps());
+  metrics.insert(
+      QStringLiteral("workMs"),
+      sigil::measure::Milliseconds(frameTimes.work().mean()).count());
+  metrics.insert(
+      QStringLiteral("p99Ms"),
+      sigil::measure::Milliseconds(frameTimes.work().quantile(0.99)).count());
+  metrics.insert(QStringLiteral("headroomFps"), frameTimes.headroomFps());
   metrics.insert(QStringLiteral("submitMs"), m_submitMsAverage);
   // WHAT THE FRAME IS LEAVING UNDER, while it is leaving: the name a
   // subscriber binds to, read off the publisher rather than remembered.
@@ -841,7 +846,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
         drawSketch(*canvas, pixelSize, published.get());
         const sigil::measure::Stopwatch submitWatch;
         surface.submit();
-        const double submitMs = submitWatch.elapsedMs();
+        const double submitMs = sigil::measure::Milliseconds(submitWatch.elapsed()).count();
         m_submitMsAverage = m_submitMsAverage == 0.0
                                 ? submitMs
                                 : m_submitMsAverage * 0.95 + submitMs * 0.05;
@@ -927,7 +932,7 @@ void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {
   QRhiTextureSubresourceUploadDescription sub(uploadBytes);
   batch->uploadTexture(texture, QRhiTextureUploadDescription({0, 0, sub}));
   commandBuffer->resourceUpdate(batch);
-  const double submitMs = submitWatch.elapsedMs();
+  const double submitMs = sigil::measure::Milliseconds(submitWatch.elapsed()).count();
   m_submitMsAverage = m_submitMsAverage == 0.0
                           ? submitMs
                           : m_submitMsAverage * 0.95 + submitMs * 0.05;

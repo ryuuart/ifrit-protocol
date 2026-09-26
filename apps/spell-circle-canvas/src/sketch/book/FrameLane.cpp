@@ -8,7 +8,8 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilmeasure/stats/Samples.h>
+#include <sigilmeasure/advanced/Quantiles.h>
+#include <sigilmeasure/stats/Summary.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Session.h>
@@ -156,7 +157,7 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
   for (int i = 0; i < options.benchFrames; ++i) {
     const sigil::measure::Stopwatch watch;
     if (!step()) return 1;
-    frames.push_back(watch.elapsedMs());
+    frames.push_back(sigil::measure::Milliseconds(watch.elapsed()).count());
     if (sketch::Session* session = host.session()) {
       const sketch::Timing timing = session->timing();
       updates.push_back(timing.updateMs);
@@ -171,17 +172,16 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
     }
   }
 
-  const auto mean = [](const std::vector<double>& v) {
-    if (v.empty()) return 0.0;
-    double sum = 0;
-    for (double x : v) sum += x;
-    return sum / (double)v.size();
+  // The tails off one sort; the mean and the worst frame off one pass.
+  const auto mean = [](const std::vector<double>& values) {
+    return sigil::measure::summary(values).mean();
   };
-  std::vector<double> sorted = frames;
-  std::sort(sorted.begin(), sorted.end());
-  const double p50 = sigil::measure::quantile(sorted, 0.50);
-  const double p95 = sigil::measure::quantile(sorted, 0.95);
-  const double p99 = sigil::measure::quantile(sorted, 0.99);
+  const std::vector<double> tails =
+      sigil::measure::quantiles(frames, std::vector<double>{0.50, 0.95, 0.99});
+  const double p50 = tails[0];
+  const double p95 = tails[1];
+  const double p99 = tails[2];
+  const sigil::measure::Summary frameSummary = sigil::measure::summary(frames);
 
   // A DECLARED PLATE IS JUDGED ON ITS CAPTURE COST, not on 60 FPS. Its
   // subject is the size of the sheet it draws, so the still it is
@@ -200,7 +200,7 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
         const sigil::measure::Stopwatch watch;
         session->still(*plate->getCanvas());
         (void)plate->readPixels(probe.pixmap(), 0, 0);  // force completion
-        captureMs = watch.elapsedMs();
+        captureMs = sigil::measure::Milliseconds(watch.elapsed()).count();
       }
     }
   }
@@ -215,7 +215,7 @@ int runBench(sketch::Host& host, const CaptureOptions& options,
       "mean=%.2fms max=%.2fms fps50=%.1f VERDICT=%s\n",
       path.stem().string().c_str(), width, height, (int)frames.size(),
       options.jitterDt > 0.0 ? "jittered" : "fixed", p50, p95, p99,
-      mean(frames), sorted.empty() ? 0.0 : sorted.back(),
+      frameSummary.mean(), frameSummary.max(),
       p50 > 0 ? 1000.0 / p50 : 0.0,
       plateOnly ? "PLATE" : (pass ? "PASS" : "FAIL"));
   std::printf("  phases (mean ms): update %.2f · draw %.2f", mean(updates),
@@ -312,6 +312,7 @@ int runFrames(sketch::Host& host, const CaptureOptions& options) {
       options.frames == 1 ? "" : "s", options.scale, at,
       options.at >= 0.0 ? "asked for"
                         : (declared >= 0.0 ? "declared" : "by default"),
-      host.generation(), host.workMsAverage());
+      host.generation(),
+      sigil::measure::Milliseconds(host.frameTimes().work().mean()).count());
   return 0;
 }

@@ -84,11 +84,11 @@ TEST(SketchHost, RestartsTheRuntimeSessionWithoutBuildingAgain) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(120, 90));
   host.frame(*surface->getCanvas(), 1.0 / 60.0);
-  EXPECT_GT(host.workMsAverage(), 0.0);
+  EXPECT_GT(host.frameTimes().work().mean(), sigil::measure::Duration::zero());
 
   EXPECT_TRUE(host.restartSession());
   EXPECT_EQ(Restarted::setups, 2);
-  EXPECT_EQ(host.workMsAverage(), 0.0);
+  EXPECT_TRUE(host.frameTimes().work().empty());
   EXPECT_FALSE(host.compiling());
 }
 

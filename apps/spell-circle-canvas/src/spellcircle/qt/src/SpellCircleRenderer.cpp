@@ -3,7 +3,7 @@
 #include <TexturePublisher.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
-#include <sigilmeasure/time/FrameTimer.h>
+#include <sigilmeasure/advanced/FrameTimer.h>
 #include <sigilskia/qt/QtInterop.h>
 #include <sigilweave/qt/SigilWeaveQt.h>
 #include <spdlog/spdlog.h>
@@ -143,14 +143,16 @@ QCanvasImage SpellCircleRenderer::drawScene(QCanvasPainter* painter) {
   surface.submit();
   state.timing.finished();
   if (state.frame++ % 600 == 0) {
-    const double recordMs = state.timing.work().last();
-    const double submitMs = state.timing.frame().last() - recordMs;
+    using sigil::measure::Microseconds;
+    const Microseconds record = state.timing.work().latest();
+    const Microseconds submit = state.timing.frame().latest() - record;
+    const Microseconds recordMean = state.timing.work().mean();
+    const Microseconds submitMean = state.timing.frame().mean() - recordMean;
     spdlog::info(
         "drawScene: record {:.0f} us (mean {:.0f}), submit {:.0f} "
         "us (mean {:.0f})",
-        recordMs * 1000.0, state.timing.work().mean() * 1000.0,
-        submitMs * 1000.0,
-        (state.timing.frame().mean() - state.timing.work().mean()) * 1000.0);
+        record.count(), recordMean.count(), submit.count(),
+        submitMean.count());
   }
 
   // The texture already contains blended, premultiplied pixels; the image

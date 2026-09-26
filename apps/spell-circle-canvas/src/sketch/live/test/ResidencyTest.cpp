@@ -90,11 +90,13 @@ TEST(SketchResidency, TheReadoutSurvivesALookAtSomethingElse) {
   Host* host = residency.present(a, opener(files[0].path, nullptr)).host;
   ASSERT_NE(host, nullptr);
   for (int i = 0; i < 8; ++i) present(*host);
-  const double work = host->workMsAverage();
-  EXPECT_GT(work, 0.0);
+  const sigil::measure::Duration work = host->frameTimes().work().mean();
+  EXPECT_GT(work, sigil::measure::Duration::zero());
   residency.present(files[1].path.string(), opener(files[1].path, nullptr));
   EXPECT_EQ(residency.present(a, opener(files[0].path, nullptr))
-                .host->workMsAverage(),
+                .host->frameTimes()
+                .work()
+                .mean(),
             work);
 }
 

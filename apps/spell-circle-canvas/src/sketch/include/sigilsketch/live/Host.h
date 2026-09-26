@@ -10,8 +10,8 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkRefCnt.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmeasure/stats/Samples.h>
-#include <sigilmeasure/time/Stopwatch.h>
+#include <sigilmeasure/advanced/FrameTimer.h>
+#include <sigilmeasure/stats/Window.h>
 #include <sigilmotion/advanced/ClockPolicy.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/core/Assets.h>
@@ -231,17 +231,21 @@ class Host {
     return m_session ? State::Live : State::Waiting;
   }
 
-  /** Honest frame metrics over a rolling window: the full frame body is
-   *  timed, presentation is what the host reports via markPresented(). */
-  [[nodiscard]] double workMsAverage() const;
-  [[nodiscard]] double workMsP99() const;
-  /** The session's own PAINT phase over the same rolling window. It is
-   *  inside the work above, and it is worth having on its own because
-   *  for a set drawn on a device it is where the readback and the blit
-   *  onto the canvas land — the host cost a frame-time gate rendering
-   *  onto a raster surface never pays. */
-  [[nodiscard]] double drawMsAverage() const;
-  [[nodiscard]] double presentedFps() const;
+  /** Honest frame metrics over the last 120 frames: the work lane is the
+   *  full frame body, timed by `frame()`, and the presentation lane is
+   *  what the host reports through `markPresented()`, an interval of a
+   *  second or more read as a pause rather than a frame. */
+  [[nodiscard]] const measure::FrameTimer& frameTimes() const {
+    return m_frameTimes;
+  }
+  /** The session's own PAINT phase over the same frames. It is inside the
+   *  work lane, and it is worth having on its own because for a set drawn
+   *  on a device it is where the readback and the blit onto the canvas
+   *  land — the host cost a frame-time gate rendering onto a raster
+   *  surface never pays. */
+  [[nodiscard]] const measure::Window<measure::Duration>& drawTimes() const {
+    return m_drawTimes;
+  }
   void markPresented();
   /** HOW MANY FRAMES OF THIS SESSION HAVE REACHED THE SCREEN, counted
    *  from the moment it started running. A reader outside the render
@@ -262,7 +266,7 @@ class Host {
    *  presentation starts one rather than extending the one this session
    *  was paused in the middle of — the rolling windows themselves stay,
    *  which is the point of a session outliving the look away from it. */
-  void resume() { m_presentSince.reset(); }
+  void resume() { m_frameTimes.resume(); }
 
   /** Advances a newly opened session to a capture moment: the explicit
    *  interval, the declared moment, or 1.5 seconds when neither is supplied.
@@ -462,13 +466,9 @@ class Host {
   motion::Engine m_clock;
   double m_lastAssetPoll = 0.0;
   std::chrono::steady_clock::time_point m_compileStart;
-  // Absent until the first presentation: there is no interval to measure
-  // from before one, and resume() empties it for the same reason.
-  std::optional<measure::Stopwatch> m_presentSince;
   unsigned long long m_presentedFrames = 0;
-  measure::Samples m_workMs{120};    // rolling frame-body cost window
-  measure::Samples m_drawMs{120};    // …and the paint phase inside it
-  measure::Samples m_presentMs{60};  // rolling present-interval window
+  measure::FrameTimer m_frameTimes{{.pause = std::chrono::seconds(1)}};
+  measure::Window<measure::Duration> m_drawTimes{120};
   std::string m_status = "waiting for first build";
   std::string m_errorLog;
   /** What `noteAssetProblems` last put in the error log, so that it takes

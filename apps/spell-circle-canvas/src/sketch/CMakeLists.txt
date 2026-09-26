@@ -72,7 +72,7 @@ set(SIGIL_SKETCH_HEADERS
   canvas/Guest.h canvas/Sketch.h
   set/Set.h
   live/Host.h live/Residency.h
-  plate/Compare.h plate/FrameStats.h plate/Graphite.h plate/Story.h
+  plate/Compare.h plate/Graphite.h plate/Story.h
   plate/Sweep.h plate/ThumbnailQueue.h plate/Thumbnails.h
   plate/ThumbnailWriter.h)
 set(SIGIL_SKETCH_PUBLIC

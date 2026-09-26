@@ -14,6 +14,7 @@
 #include <sigilcore/schedule/ConcurrentIo.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/source/Sink.h>
+#include <sigilmeasure/time/Stopwatch.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilsketch/core/Sources.h>
@@ -323,12 +324,12 @@ bool Host::openSession(const Kind& kind) {
                  m_errorLog.c_str());
     return false;
   }
-  std::fprintf(stderr, "[sketch] set up in %.0f ms\n", opened.elapsedMs());
+  std::fprintf(stderr, "[sketch] set up in %.0f ms\n", measure::Milliseconds(opened.elapsed()).count());
   m_runtimeFailed = false;
   m_errorLog.clear();
   m_assetProblems.clear();
-  m_workMs.clear();
-  m_drawMs.clear();
+  m_frameTimes.reset();
+  m_drawTimes.clear();
   m_presentedFrames = 0;
   noteAssetProblems();
   return true;
@@ -368,19 +369,16 @@ bool Host::restartSession() {
   m_clock.restart();
   m_lastAssetPoll = 0.0;
   m_frameIndex = -1;
-  m_presentSince.reset();
-  m_presentMs.clear();
+  m_frameTimes.resetPresentation();
   return m_session != nullptr;
 }
 
 void Host::resetMetrics() {
-  m_workMs.clear();
-  m_drawMs.clear();
-  m_presentMs.clear();
   // The interval running when this was called spans the boundary, so it
   // is not one of the intervals that follow it: the next presentation
-  // seeds a new one.
-  m_presentSince.reset();
+  // seeds a new one, which is what emptying the lanes does.
+  m_frameTimes.reset();
+  m_drawTimes.clear();
 }
 
 SkSize Host::canvasSize() const {
@@ -653,7 +651,7 @@ void Host::loadPython() {
   }
   char line[160];
   std::snprintf(line, sizeof line, "live · Python %d · loaded in %.0f ms",
-                m_generation, loaded.elapsedMs());
+                m_generation, measure::Milliseconds(loaded.elapsed()).count());
   m_status = line;
   std::fprintf(stderr, "[sketch] %s\n", m_status.c_str());
 }
@@ -730,7 +728,7 @@ void Host::poll() {
 
 bool Host::frame(SkCanvas& canvas, double fixedDt) {
   if (!m_session || m_runtimeFailed) return false;
-  const measure::Stopwatch watch;
+  m_frameTimes.begin();
   // A stated step and a wall-clock one are the same clock here as
   // everywhere else. It matters beyond tidiness: the asset poll below
   // measures its half-second against this reading, and a free-running
@@ -749,8 +747,8 @@ bool Host::frame(SkCanvas& canvas, double fixedDt) {
       return false;
     }
   }
-  m_workMs.add(watch.elapsedMs());
-  m_drawMs.add(m_session->timing().drawMs);
+  m_frameTimes.composed();
+  m_drawTimes.add(measure::Milliseconds(m_session->timing().drawMs));
   return true;
 }
 
@@ -798,28 +796,9 @@ double Host::prepareCapture(std::optional<double> at, double fps,
   return seconds;
 }
 
-double Host::workMsAverage() const { return m_workMs.mean(); }
-
-double Host::drawMsAverage() const { return m_drawMs.mean(); }
-
-double Host::workMsP99() const { return m_workMs.percentile(0.99); }
-
-double Host::presentedFps() const {
-  if (m_presentMs.size() < 2) return 0.0;
-  const double mean = m_presentMs.mean();
-  return mean > 0 ? 1000.0 / mean : 0.0;
-}
-
 void Host::markPresented() {
   ++m_presentedFrames;
-  if (!m_presentSince) {
-    m_presentSince.emplace();  // seeds the cadence; nothing to measure yet
-    return;
-  }
-  const double ms = m_presentSince->elapsedMs();
-  if (ms < 1000.0)  // ignore stalls (window drags, sleeps)
-    m_presentMs.add(ms);
-  m_presentSince->reset();
+  m_frameTimes.presented();
 }
 
 SkBitmap Host::drawStill(SkISize extent, float scale, const SkColor4f& ground,
