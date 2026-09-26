@@ -435,7 +435,7 @@ struct ChladniTab1 {
                        return text(letter.glyph)
                            .role("letter")
                            .key(tag + "letter" + std::to_string(at))
-                           .centerAt(kUnit.about(middle()).px(
+                           .centerAt(kUnit.about(middle()).atPixels(
                                letter.bearing, radius * letter.radius))
                            .opacity(settled(index, 0.84f, 0.99f))
                            .translateY(settled(index, 0.84f, 0.99f)

@@ -232,7 +232,7 @@ inline Element artLineup(sigil::weave::FontContext& f) {
 
 // --- p-sitemap.gif, 104x67 — a rainbow vortex and four yellow darts.
 /** An arrowhead: tip forward, two barbs, a notch in the back. */
-inline shapes::OutlineFunction dart() {
+inline sigil::compose::Shape dart() {
   return [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(s.width(), s.height() * 0.5f);
@@ -286,7 +286,7 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
  *  `shapes::polygon(3, deg)` is inscribed and equilateral, which is the
  *  wrong shape for a swept fin: it has one aspect ratio and one rotation,
  *  where a fin needs three independent vertices. */
-inline shapes::OutlineFunction tri(float ax, float ay, float bx, float by,
+inline sigil::compose::Shape tri(float ax, float ay, float bx, float by,
                                    float cx, float cy) {
   return [=](SkSize s) {
     SkPathBuilder b;

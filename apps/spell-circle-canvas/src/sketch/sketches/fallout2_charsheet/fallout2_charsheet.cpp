@@ -200,7 +200,7 @@ Element rows(float x, float y, float width, float pitch, float valueAt,
 struct Sheet {
   Json character;
   std::map<char, kit::Sprite> numerals;
-  std::map<std::string, shapes::Svg, std::less<>> figures;
+  std::map<std::string, shapes::Fitted, std::less<>> figures;
 
   void read(sketch::SketchContext& context) {
     const auto file = [&](const char* name) {

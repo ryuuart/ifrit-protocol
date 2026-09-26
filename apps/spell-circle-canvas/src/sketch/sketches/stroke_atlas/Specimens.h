@@ -112,13 +112,13 @@ Element romanBold(const char* words, float size, material::Color c = kInk,
 // ---------------------------------------------------------------------------
 // the geometry the specimens ride on
 //
-// Each is an OutlineFunction: a path in the node's own laid-out box. Keeping
+// Each is a Shape: a path in the node's own laid-out box. Keeping
 // them as generators (rather than baked paths) is what lets the SAME
 // decoration value be dropped onto a straight run, an S, a ring and a
 // spiral without restating it.
 
 /** A straight run down the middle of the box. */
-shapes::OutlineFunction hline() {
+sigil::compose::Shape hline() {
   return [](SkSize s) {
     SkPathBuilder b;
     b.moveTo(0, s.height() * 0.5f);
@@ -130,7 +130,7 @@ shapes::OutlineFunction hline() {
 /** The serpent: one gentle bend, then a tight one. This is the shape that
  *  exposes an offset-contour bug — the tight lobe's inner rail is much
  *  shorter than its outer one. */
-shapes::OutlineFunction serpent() {
+sigil::compose::Shape serpent() {
   return [](SkSize s) {
     const float w = s.width(), h = s.height();
     SkPathBuilder b;
@@ -145,7 +145,7 @@ shapes::OutlineFunction serpent() {
 /** A hairpin: a 180° turn at a radius small enough that a 6 px casing
  *  self-intersects on the inside. If a style survives this it survives
  *  anything. */
-shapes::OutlineFunction hairpin() {
+sigil::compose::Shape hairpin() {
   return [](SkSize s) {
     const float w = s.width(), h = s.height();
     const float r = h * 0.30f;
@@ -161,7 +161,7 @@ shapes::OutlineFunction hairpin() {
 }
 
 /** A plain rectangle inset by `pad` — the frame specimens' carrier. */
-shapes::OutlineFunction frameRect(float pad) {
+sigil::compose::Shape frameRect(float pad) {
   return [pad](SkSize s) {
     SkPathBuilder b;
     b.addRect(SkRect::MakeLTRB(pad, pad, s.width() - pad, s.height() - pad));
@@ -180,7 +180,7 @@ shapes::OutlineFunction frameRect(float pad) {
  *  shape being shown, and a flex row would put every rule on the same
  *  baseline, which is exactly the reading this sheet exists to refute. */
 Element specimen(float x, float y, float w, float h,
-                 shapes::OutlineFunction shape, Decoration dec,
+                 sigil::compose::Shape shape, Decoration dec,
                  const char* label, float labelDy = 6) {
   return box()
 
@@ -192,7 +192,7 @@ Element specimen(float x, float y, float w, float h,
 
 /** The same, with no caption (for the rings, which are captioned outside
  *  the circle). */
-Element bare(float x, float y, float w, float h, shapes::OutlineFunction shape,
+Element bare(float x, float y, float w, float h, sigil::compose::Shape shape,
              Decoration dec) {
   return box()
 

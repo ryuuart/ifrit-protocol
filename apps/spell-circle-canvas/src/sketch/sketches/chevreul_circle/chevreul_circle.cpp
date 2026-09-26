@@ -114,7 +114,7 @@ struct ChevreulCircle {
     const float half = (kSectorDegrees - kBladeGap) * 0.5f;
     return box().inset(0).children(
         each(sectors, [half](const Sector& sector, size_t number) {
-          const float centre = kCircle.skiaDeg(kSectorDegrees * (float)number);
+          const float centre = kCircle.screenDegrees(kSectorDegrees * (float)number);
           return kit::disc(kCircle, kBladeOuter)
               .shape(shapes::sector(centre - half, 2 * half,
                                     kMedallionOuter / kBladeOuter))
@@ -152,7 +152,7 @@ struct ChevreulCircle {
                    .width(cellWidth)
                    .centerAt(kCircle.at(degrees, middle))
                    .transformOrigin(pct(50), pct(50))
-                   .rotate(kCircle.skiaDeg(degrees) - 90.0f);
+                   .rotate(kCircle.screenDegrees(degrees) - 90.0f);
              }))});
   }
 

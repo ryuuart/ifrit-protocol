@@ -240,7 +240,7 @@ struct StrokeAtlasSketch {
              .at({640, 1082})});
     {
       auto field = [&](float x, float dy, const char* label,
-                       shapes::OutlineFunction shape, Decoration dec) {
+                       sigil::compose::Shape shape, Decoration dec) {
         return box()
             .rect(SkRect::MakeXYWH(x, 1108 + dy, 124, 124))
             .shape(std::move(shape))
@@ -278,7 +278,7 @@ struct StrokeAtlasSketch {
     {
       struct Frame {
         const char* label;
-        shapes::OutlineFunction shape;
+        sigil::compose::Shape shape;
         Decoration dec;
         float rot = 0;
         std::optional<LayerStyle> style;  // set instead of dec for stacks
@@ -287,12 +287,12 @@ struct StrokeAtlasSketch {
       };
       // Laid out in two staggered rows of seven and eight.
       std::vector<Frame> frames;
-      auto add = [&](const char* label, shapes::OutlineFunction shape,
+      auto add = [&](const char* label, sigil::compose::Shape shape,
                      Decoration dec, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
                                std::nullopt, std::nullopt});
       };
-      auto addStyle = [&](const char* label, shapes::OutlineFunction shape,
+      auto addStyle = [&](const char* label, sigil::compose::Shape shape,
                           LayerStyle style, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), PathFormat{.width = 0},
                                rot, std::move(style), std::nullopt});
@@ -302,7 +302,7 @@ struct StrokeAtlasSketch {
       // as a dedicated decoration that draws its own rectangle. The ink then
       // follows whatever shape the node actually has, so the same call gives
       // four brackets on a rect and eight on a chamfer.
-      auto addSpans = [&](const char* label, shapes::OutlineFunction shape,
+      auto addSpans = [&](const char* label, sigil::compose::Shape shape,
                           Spans where, Decoration dec, float rot = 0) {
         frames.push_back(Frame{label, std::move(shape), std::move(dec), rot,
                                std::nullopt, std::move(where)});

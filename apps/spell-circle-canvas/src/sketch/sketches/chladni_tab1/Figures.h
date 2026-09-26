@@ -269,7 +269,7 @@ void seedSand(const Figure& figure, float radius, float bowAt, SkPoint origin,
       for (path::Polyline& ring : starRings(figure, 1.0f))
         region.rings.push_back(std::move(ring));
     }
-    rests = path::sample(region, path::uniform(figure.grains * 2,
+    rests = path::sample(region, path::distribution::uniform(figure.grains * 2,
                                                17u + (uint64_t)figure.number));
     // Combed sand gathers thickest at the rim, where the plate moves
     // least, and thins toward the channel: a grain is kept with a chance

@@ -95,7 +95,7 @@ void reading(draw::Pen& p, const path::PolarFrame& frame, float deg,
              material::Color colour) {
   const SkPoint at = frame.at(deg, 0.78f);
   const SkPoint out = frame.at(deg, 0.90f);
-  const SkVector dir = frame.dir(deg);
+  const SkVector dir = frame.direction(deg);
   pen(p, colour, 1.3f);
   p.line(frame.centre.fX, frame.centre.fY, at.fX, at.fY);
   p.line(out.fX, out.fY, out.fX + dir.fX * 20, out.fY + dir.fY * 20);

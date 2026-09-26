@@ -524,7 +524,7 @@ struct ShippingForecast {
     const SkPoint below{0, 24};
     return box()
         .cover()
-        .shape(sigil::geometry::shapes::Circle{.inset = kEye.x() - kPorthole})
+        .shape(sigil::geometry::shapes::circle(kEye.x() - kPorthole))
         .overflow(Overflow::Clip)
         .key("pressure-chart")
         .children({

@@ -202,7 +202,7 @@ struct Diagram {
 /** THE SPOKE a line is drawn or lettered along: one tick of a
  *  one-division ladder at @p bearing, from @p inner to @p outer of the
  *  node's own radius — a straight baseline AND a comparable value. */
-shapes::TicksShape spoke(float bearing, float inner, float outer) {
+shapes::Radial spoke(float bearing, float inner, float outer) {
   return shapes::ticks({.divisions = 1, .from = bearing, .mark = {inner, outer}},
                        kPlate);
 }
@@ -210,7 +210,7 @@ shapes::TicksShape spoke(float bearing, float inner, float outer) {
 /** THE MONTHS' BASELINE: a clockwise ring from 12 o'clock, so a run's
  *  arc-length fraction IS its bearing over 360, and glyph-up points
  *  radially outward — the engraver's one convention on this sheet. */
-const shapes::Circle kRimBaseline{.startIndex = 0};
+const shapes::Ellipse kRimBaseline = shapes::ellipse({.start = 0});
 
 /** The paint of a tint stone: the paper-side wash and the ink dot laid
  *  over it — a fine stipple for the tint, a coarse sparse one so the ink
@@ -638,9 +638,9 @@ struct NightingaleCoxcomb {
    *  wheels, to the April 1855 wedge's on diagram 2. */
   Element leader() const {
     const SkPoint yearEnds =
-        kPlate.about(first.hub).px(270.0f, radiusOf(first.months[8].disease));
+        kPlate.about(first.hub).atPixels(270.0f, radiusOf(first.months[8].disease));
     const SkPoint yearBegins =
-        kPlate.about(second.hub).px(270.0f, radiusOf(second.months[9].disease));
+        kPlate.about(second.hub).atPixels(270.0f, radiusOf(second.months[9].disease));
     const SkPoint knee{(yearEnds.x() + yearBegins.x()) * 0.5f, kHubRow + 138.0f};
     PathFormat dashed = stroke(1.1f);
     dashed.dashIntervals = {7.0f, 5.0f};
