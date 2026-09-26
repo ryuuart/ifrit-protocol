@@ -74,6 +74,7 @@ sigil_doc_probes(world
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../material/include/sigilmaterial
+           ${CMAKE_CURRENT_SOURCE_DIR}/../media/include/sigilmedia
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
   PRELUDES "<sigilmotion/schedule/Stagger.h>"
            "<sigilcore/reconcile/Phases.h>"

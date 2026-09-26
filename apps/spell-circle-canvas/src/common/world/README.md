@@ -397,9 +397,10 @@ it the tree each frame, and puts the value it returns in a material slot.
 That is the whole handoff.
 
 **The device reaches those pixels through one narrow value.** A
-`material::TextureSource` may answer a `DeviceImage`: the device that
-owns the texture, and the texture as the graphics API's own object,
-bridged to opaque values. SigilMaterial reads none of it. The device
+texture's `media::PixelSource` may answer a frame standing on a device,
+which the texture reads as a `DeviceImage`: the device that owns the
+texture, and the texture as the graphics API's own object, bridged to
+opaque values. SigilMaterial reads none of it. The device
 executor here asks a map where its pixels stand, and when the answer
 names the very device this frame is running on it wraps that image and
 samples it where it is; when the answer names another device, or none,

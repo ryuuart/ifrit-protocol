@@ -33,13 +33,13 @@ void TextureSceneStill(benchmark::State& state) {
       TextureScene::make({kSide, kSide}, fonts());
   const Element tree = card((int)state.range(0), 0);
   scene->render(tree);
-  const uint64_t painted = scene->version();
+  const uint64_t painted = scene->revision();
   double seconds = 0.0;
   for ([[maybe_unused]] auto iteration : state) {
     seconds += 1.0 / 60.0;
     scene->render(tree, seconds);
   }
-  state.counters["paints"] = (double)(scene->version() - painted);
+  state.counters["paints"] = (double)(scene->revision() - painted);
   reportNodes(state, (int)state.range(0));
 }
 

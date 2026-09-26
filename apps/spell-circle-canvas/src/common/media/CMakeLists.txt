@@ -54,7 +54,9 @@ sigil_doc_probes(media
   PRELUDES "<sigilio/hub/Hub.h>"
            "<sigilio/advanced/Decoding.h>"
   EXCLUDE "unofficial::skia::skia=a CMake target name, not a C++ name"
+          "material::Texture=SigilMaterial stands on this library, so a name its README gives a caller is compiled by SigilMaterial's probe"
+          "compose::image=SigilCompose stands on this library, so a name its README gives a caller is compiled by SigilCompose's probe"
           "OIIO::ImageOutput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
           "OIIO::ImageInput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
-  FLOORS 40,54,20,43,1
+  FLOORS 45,54,21,49,1
   LIBRARIES SigilMedia SigilIOHub)

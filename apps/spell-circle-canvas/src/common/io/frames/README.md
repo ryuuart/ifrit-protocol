@@ -94,8 +94,8 @@ So the two ends are not symmetrical, and each says which way round it is:
   turns it over as it draws: a scene-graph node mirrors vertically, a canvas
   draws through a flipped transform, a readback walks the rows backwards.
 
-Seer's capture and preview, and the door a sketch wears a publication through,
-each do that turn, so what a reader of this repository's own tools looks at is
+Seer's capture and preview, and a subscription read as a picture (below), each
+do that turn, so what a reader of this repository's own tools looks at is
 upright.
 
 On Metal the publication is appended to the caller's open command buffer and
@@ -157,6 +157,26 @@ publication: it is what a frame rate is read from and what says a frame is NEW
 rather than whatever was already there. `sigil::io::frames::Subscription::name` is the
 requested name; `sigil::io::frames::Subscription::publishingApplication` is the
 application the current publication names, empty until connected.
+
+**A subscription is a picture source.** It answers what
+`sigil::media::PixelSource` takes — `sigil::io::frames::Subscription::frameAt`,
+`sigil::io::frames::Subscription::revision` and
+`sigil::io::frames::Subscription::isRunning` — so it goes wherever a picture
+does, a material's texture and a leaf among them:
+
+```cpp
+#include <sigilmedia/core/PixelSource.h>
+
+const sigil::media::PixelSource worn(incoming);
+```
+
+`frameAt` answers the newest arrival as a `sigil::media::Frame` standing on
+the device, holding its own reference to the texture, the same frame until
+another arrives. `sigil::media::deviceImage` binds it for the recorder a
+drawing is recorded on, turned the right way up once per arrival, and reads it
+back into host memory, turned the same way, for a caller with no recorder — a
+body in a world drawn on another device, an encode. Asking for it is also the
+reconnection `latest` is.
 
 `sigil::io::frames::defaultMetalDevice` returns the process's shared system Metal
 device, or null without Metal. The platform owns it and nothing here releases

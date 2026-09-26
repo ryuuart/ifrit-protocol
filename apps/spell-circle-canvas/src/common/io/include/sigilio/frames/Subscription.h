@@ -6,6 +6,9 @@
  * `hub.subscribe()` answers, and the seam a backend implements behind it.
  */
 
+#include <sigilmedia/core/Frame.h>
+
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -61,6 +64,11 @@ class SubscriptionEnd {
   [[nodiscard]] virtual std::string_view publishingApplication() const = 0;
 };
 
+/** What every copy of one handle shares: the picture the newest arrival
+ *  was presented as, so asking again before another arrives answers the
+ *  same one. */
+struct Presentation;
+
 }  // namespace detail
 
 /** A PUBLICATION, HELD BY ITS NAME: the end that receives the frames
@@ -76,6 +84,12 @@ class SubscriptionEnd {
  * starts is followed, and a name nothing publishes yet is waited for.
  * A copyable handle: the subscription ends when the last handle onto it
  * goes, and a handle made empty receives nothing.
+ *
+ * IT IS A PICTURE SOURCE besides: `frameAt()` answers the newest frame as
+ * a `media::Frame` standing on the device it arrived on, which
+ * `media::deviceImage()` binds for a recorder the right way up — or
+ * reads back and turns over with no recorder — so a subscription goes
+ * wherever a `media::PixelSource` does: `material::Texture(subscription)`.
  * @trap Asking for the latest frame is also what OPENS onto a
  * publication that has appeared, so a host asks every frame. */
 class Subscription {
@@ -83,8 +97,7 @@ class Subscription {
   /** A handle onto no subscription. */
   Subscription() = default;
   /** A handle onto @p end, which a backend made. */
-  explicit Subscription(std::shared_ptr<detail::SubscriptionEnd> end)
-      : m_end(std::move(end)) {}
+  explicit Subscription(std::shared_ptr<detail::SubscriptionEnd> end);
 
   /** THE NEWEST PUBLISHED FRAME — its texture and size, with no command
    *  buffer — or nothing before the first one arrives, and the ask that
@@ -121,8 +134,26 @@ class Subscription {
   /** Whether this handle holds a subscription. */
   explicit operator bool() const { return m_end != nullptr; }
 
+  /** THE NEWEST FRAME AS A PICTURE: the arrived texture as a device
+   *  frame whose binding wraps it for a recorder, or reads it back, the
+   *  right way up; the same frame until another arrives, and an empty
+   *  one before the first. @p time is not read: a publication answers
+   *  what has most recently arrived. Asking is also what opens onto a
+   *  publication that has appeared. */
+  media::Frame frameAt(std::chrono::duration<double> time = {}) const;
+  /** The frames that have arrived, which is what says a frame is new. */
+  [[nodiscard]] uint64_t revision() const { return state().revision; }
+  /** Whether frames can keep arriving: a held subscription always can,
+   *  a publisher that stops being waited for until it comes back. */
+  [[nodiscard]] bool isRunning() const { return m_end != nullptr; }
+  /** Two handles onto one subscription are one source. */
+  bool operator==(const Subscription& other) const {
+    return m_end == other.m_end;
+  }
+
  private:
   std::shared_ptr<detail::SubscriptionEnd> m_end;
+  std::shared_ptr<detail::Presentation> m_presentation;
 };
 
 /** THE METAL DEVICE THIS MACHINE DRAWS ON, as an `id<MTLDevice>` bridged

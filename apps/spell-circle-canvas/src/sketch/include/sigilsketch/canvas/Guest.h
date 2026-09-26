@@ -13,7 +13,6 @@
 #include <include/core/SkRefCnt.h>
 #include <sigilmaterial/texture/Texture.h>
 
-#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -21,7 +20,6 @@
 #include <sigilio/frames/Subscription.h>
 
 class SkCanvas;
-class SkSurface;
 
 namespace skgpu::graphite {
 class Recorder;
@@ -83,7 +81,7 @@ class Guest {
    *  rasterising on the CPU has no recorder, and the answer there is
    *  null.
    *
-   *  IT ARRIVES THE OTHER WAY UP AND IS TURNED OVER HERE. A publication
+   *  IT ARRIVES THE OTHER WAY UP AND IS TURNED OVER ON THE WAY IN. A publication
    *  is carried on a surface whose first row is the image's BOTTOM,
    *  which is the order every application sharing textures on this
    *  machine writes and reads; a canvas draws with its first row at the
@@ -131,10 +129,11 @@ class Guest {
    *  its own device like any other image, which is what makes the slot
    *  work on every tier rather than on none.
    *
-   *  ONE READ PER FRAME THAT ARRIVED, like `frame()`: the same texture
-   *  is handed back until another frame arrives or the publication
-   *  stops, and two textures taken either side of a still frame compare
-   *  equal, so a material holding one prunes.
+   *  IT IS THE SUBSCRIPTION ITSELF, as the `media::PixelSource` it is:
+   *  the texture answers the newest frame whenever the material is
+   *  drawn, read once per frame that arrived, so a texture taken once
+   *  keeps showing what arrives and two taken at different times compare
+   *  equal.
    *
    *  ASK EVERY FRAME, for the reason `frame()` gives: asking is also
    *  what opens onto a publication that appeared after this guest was
@@ -160,20 +159,10 @@ class Guest {
         std::string application);
 
   std::string m_name;
+  /** The publication, which is also the picture source both answers are
+   *  read off: it turns each arrival the right way up once per recorder
+   *  and once for a read back. */
   io::frames::Subscription m_subscription;
-  /** The last picture, and what it was made OF: which frame had arrived
-   *  and which recorder it was turned over on. */
-  sk_sp<SkImage> m_picture;
-  /** The target that turn landed in, held for as long as the picture is:
-   *  an image made from a surface names the surface's texture. */
-  sk_sp<SkSurface> m_turned;
-  skgpu::graphite::Recorder* m_recorder = nullptr;
-  uint64_t m_arrived = 0;
-  /** The last read, and which frame had arrived when it was taken. It is
-   *  counted apart from the wrap's: a scene may ask for both, and each
-   *  is made from whichever frame stood when it was asked for. */
-  material::Texture m_dress;
-  uint64_t m_read = 0;
 };
 
 }  // namespace sigil::sketch

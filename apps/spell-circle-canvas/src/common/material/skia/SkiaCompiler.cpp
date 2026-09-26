@@ -255,7 +255,7 @@ std::unique_ptr<SkRuntimeShaderBuilder> builder(
       c = shader(*child.material, frame, variant);
     } else if (const auto* leaf =
                    dynamic_cast<const ShaderLeaf*>(child.leaf.get())) {
-      c = leaf->shader();
+      c = leaf->shaderAt(frame);
     }
   }
   return b;

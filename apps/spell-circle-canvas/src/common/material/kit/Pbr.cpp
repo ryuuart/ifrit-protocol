@@ -194,7 +194,7 @@ SurfaceParameters SurfaceParameters::glass() {
 const Texture* map(const Material& material, std::string_view slot) {
   const auto* texture = dynamic_cast<const Texture*>(material.leaf(slot));
   if (!texture) return nullptr;
-  const auto* producer = texture->source().as<ProducerSource>();
+  const auto* producer = texture->source().as<media::Produced>();
   const bool fill = producer && producer->key().rfind(kFillPrefix, 0) == 0;
   return fill ? nullptr : texture;
 }

@@ -27,6 +27,7 @@ uses; every public header lives under `include/sigilmedia/<feature>/`.
 #include <sigilio/advanced/Decoding.h>
 #include <sigilmedia/advanced/Resource.h>
 #include <sigilmedia/core/Image.h>
+#include <sigilmedia/core/PixelSource.h>
 #include <sigilmedia/difference/Difference.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilmedia/video/Encoder.h>
@@ -46,6 +47,12 @@ sigil::media::Frame moving = clip->frameAt(elapsed);        // a video loops for
 frame.image;                                                // what every drawer takes
 poster->size();  clip->duration();  poster->isRunning();
 
+// SHOW — every other library takes a PixelSource: a picture, an Image, a
+// Video, frames another application publishes, a rendered scene
+sigil::media::PixelSource shown = clip;                     // read on the caller's clock
+material::Texture(poster);                                  // Material's texture over any source
+compose::image(poster);                                     // Compose's leaf
+
 // WRITE
 std::vector<std::byte> png = sigil::media::encode(*baked, sigil::media::Format::Png);
 sigil::media::Encoder movie({.width = 1080, .height = 1920}); // MP4, 30 frames a second
@@ -59,6 +66,22 @@ apart.identical();
 
 `elapsed` is any `std::chrono` duration — `380ms`, `1.2s` — and so is
 every time this library answers.
+
+## The one seam pixels cross
+
+`sigil::media::PixelSource` is how a picture reaches another library, in
+the way the web's `CanvasImageSource` is how one reaches a canvas: a
+picture in hand, an `Image` or a `Video` read under a `Timing`, a picture
+baked once by `sigil::media::PixelSource::produce`, and any other type
+that answers `frameAt(time)` and `isRunning()` and compares by value —
+SigilIO's frame subscription and SigilCompose's rendered scene are two.
+`frameAt` answers the frame standing at a time on the caller's clock,
+`revision` counts the frames that have stood, `size` is the frame size.
+A frame that stands on a device carries no image until
+`sigil::media::deviceImage` binds it, which is what the drawing libraries
+call. Two sources are equal when a consumer holding one may keep what it
+made of the other, so a material holding a still prunes and one holding
+a clip redraws.
 
 ## When a default is wrong
 
@@ -95,6 +118,7 @@ if (shown->hasFrame()) draw(shown->frameAt(elapsed));
 | names | for | header |
 |---|---|---|
 | `sigil::media::DeviceFrame`, `sigil::media::deviceImage`, `sigil::media::HardwareUse` | a frame that stands on a device, and binding it for the recorder that draws it — what a leaf, a pen and a texture call | `advanced/Device.h` |
+| `sigil::media::PixelSourceType`, `sigil::media::RevisedPixelSource`, `sigil::media::SizedPixelSource`, `sigil::media::TimedDocument` | writing a new pixel source | `advanced/Source.h` |
 | `sigil::media::formatForPath`, `sigil::media::extensionFor` | the filename question | `advanced/Formats.h` |
 | `sigil::media::registerDecoders`, `sigil::media::probeResource` | this library on a resource hub | `advanced/Resource.h` |
 | `sigil::media::embeddedImages` | the last-resort signature scan | `advanced/Embedded.h` |
@@ -110,7 +134,7 @@ feature.
 
 | target | directory | holds |
 |---|---|---|
-| `SigilMediaCore` | `core/` | `Frame`, `Timing`, `Loop`, `HardwarePreference`, `Image`, `ImageOptions`, `Metadata`, `Format`, the `decode<T>` door, the device frame and `deviceImage`, the filename question; Skia only |
+| `SigilMediaCore` | `core/` | `Frame`, `Timing`, `Loop`, `HardwarePreference`, `Image`, `ImageOptions`, `Metadata`, `Format`, `PixelSource`, the `decode<T>` door, the device frame and `deviceImage`, the filename question; Skia only |
 | `SigilMediaImageDecode` | `image/decode/` | the image route and `Channels`, over the Skia codecs, KTX, and OpenImageIO and SVG where they are built in; the embedded scan |
 | `SigilMediaImageEncode` | `image/encode/` | `encode`, `EncodeOptions`, `canEncode`, `encodeResource` |
 | `SigilMediaVideoDecode` | `video/decode/` | `Video`, `VideoOptions`, `Playback`, over FFmpeg with the device executor beside the CPU one |
@@ -130,6 +154,8 @@ only draws pictures somebody else decoded links the core alone.
 - `core/Metadata.h` — `Metadata`
 - `core/Format.h` — `Format`
 - `core/Decode.h` — `decode`, `ConfiguredDocument`, `DocumentOptions`
+- `core/PixelSource.h` — `PixelSource`, `Produced`
+- `advanced/Source.h` — `PixelSourceType`, `RevisedPixelSource`, `SizedPixelSource`, `TimedDocument`
 - `advanced/Device.h` — `DeviceFrame`, `DeviceBinding`, `HardwareUse`, `deviceImage`
 - `advanced/Formats.h` — `formatForPath`, `extensionFor`
 - `advanced/Resource.h` — `registerDecoders`, `probe`, `probeResource`

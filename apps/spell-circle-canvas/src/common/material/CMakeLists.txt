@@ -110,6 +110,7 @@ sigil_doc_probes(material
            ${SIGIL_TEST_SUPPORT_DIR}
   PRELUDES "<sigilcore/cache/Policy.h>"
            "<sigilio/hub/Hub.h>"
+           "<sigilmedia/core/Image.h>"
            "<sigilshaders/MaterialKit.h>"
            "<sigilskia/graphite/GraphiteContext.h>"
            "<ScratchDir.h>"

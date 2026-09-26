@@ -12,6 +12,7 @@
 
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
+#include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
 
 namespace sigil::material {
@@ -21,6 +22,13 @@ class ShaderLeaf : public Leaf {
  public:
   /** The shader bound into the slot; null binds nothing. */
   virtual sk_sp<SkShader> shader() const = 0;
+  /** The shader bound into the slot of a material drawn at @p frame — a
+   *  leaf whose pixels move with time answers the frame standing at
+   *  `frame.seconds`; every other leaf answers `shader()`. */
+  virtual sk_sp<SkShader> shaderAt(const FrameData& frame) const {
+    (void)frame;
+    return shader();
+  }
 };
 
 }  // namespace sigil::material

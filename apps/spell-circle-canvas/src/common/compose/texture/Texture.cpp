@@ -149,7 +149,24 @@ material::Texture TextureScene::texture() const {
   return material::Texture(SceneSource(shared_from_this(), m_impl->version));
 }
 
-uint64_t TextureScene::version() const { return m_impl->version; }
+uint64_t TextureScene::revision() const { return m_impl->version; }
+
+media::Frame SceneSource::frameAt(std::chrono::duration<double>) const {
+  media::Frame frame;
+  if (!m_scene) return frame;
+  frame.image = m_scene->image();
+  const material::DeviceImage where = m_scene->deviceImage();
+  if (!where) return frame;
+  frame.device.kind = media::DeviceFrame::Kind::Texture;
+  frame.device.device = where.device;
+  frame.device.pointer = where.pointer;
+  frame.device.handle = where.handle;
+  frame.device.format = where.format;
+  frame.device.layout = where.layout;
+  frame.device.width = where.width;
+  frame.device.height = where.height;
+  return frame;
+}
 SkISize TextureScene::size() const { return m_impl->size; }
 sk_sp<SkImage> TextureScene::image() const { return m_impl->image; }
 

@@ -34,6 +34,7 @@
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -266,14 +267,24 @@ Frame dressedQuad(material::Material surface) {
   return frame;
 }
 
-/** A source whose pixels stand on a device and NOWHERE ELSE: `image()`
- *  answers null, so a renderer that cannot bind what the device holds
- *  has nothing at all to draw with. */
+/** A source whose pixels stand on a device and NOWHERE ELSE: its frame
+ *  carries no image and no binding, so a renderer that cannot bind what
+ *  the device holds has nothing at all to draw with. */
 struct StandingSource {
   material::DeviceImage where;
-  sk_sp<SkImage> image() const { return nullptr; }
-  bool animated() const { return false; }
-  material::DeviceImage deviceImage() const { return where; }
+  media::Frame frameAt(std::chrono::duration<double>) const {
+    media::Frame frame;
+    frame.device.kind = media::DeviceFrame::Kind::Texture;
+    frame.device.device = where.device;
+    frame.device.pointer = where.pointer;
+    frame.device.handle = where.handle;
+    frame.device.format = where.format;
+    frame.device.layout = where.layout;
+    frame.device.width = where.width;
+    frame.device.height = where.height;
+    return frame;
+  }
+  bool isRunning() const { return false; }
   bool operator==(const StandingSource& other) const {
     return where == other.where;
   }

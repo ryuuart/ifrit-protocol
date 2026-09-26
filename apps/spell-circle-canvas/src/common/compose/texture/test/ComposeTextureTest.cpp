@@ -18,11 +18,11 @@ Element plate(SkColor4f colour) {
 TEST(ComposeTexture, FirstRenderPaintsAndVersionsFromOne) {
   const std::shared_ptr<TextureScene> scene =
       TextureScene::make({64, 48}, fonts());
-  EXPECT_EQ(scene->version(), 0u);
+  EXPECT_EQ(scene->revision(), 0u);
   EXPECT_EQ(scene->image(), nullptr);
 
   scene->render(plate(SkColors::kRed));
-  EXPECT_EQ(scene->version(), 1u);
+  EXPECT_EQ(scene->revision(), 1u);
   ASSERT_NE(scene->image(), nullptr);
   EXPECT_EQ(scene->image()->width(), 64);
   EXPECT_EQ(scene->image()->height(), 48);
@@ -33,10 +33,10 @@ TEST(ComposeTexture, AStillTreeBumpsNothing) {
       TextureScene::make({32, 32}, fonts());
   const Element still = plate(SkColors::kBlue);
   scene->render(still);
-  const uint64_t painted = scene->version();
+  const uint64_t painted = scene->revision();
   for (int frame = 0; frame < 8; ++frame)
     scene->render(still, (double)(frame + 1) / 60.0);
-  EXPECT_EQ(scene->version(), painted);
+  EXPECT_EQ(scene->revision(), painted);
   EXPECT_FALSE(scene->isRunning());
 }
 
@@ -44,9 +44,9 @@ TEST(ComposeTexture, ADescriptionThatChangedPaintsAgain) {
   const std::shared_ptr<TextureScene> scene =
       TextureScene::make({32, 32}, fonts());
   scene->render(plate(SkColors::kBlue));
-  const uint64_t painted = scene->version();
+  const uint64_t painted = scene->revision();
   scene->render(plate(SkColors::kGreen));
-  EXPECT_EQ(scene->version(), painted + 1);
+  EXPECT_EQ(scene->revision(), painted + 1);
 }
 
 TEST(ComposeTexture, ARetainedBindingPaintsWhenItsOutputMoves) {
@@ -56,12 +56,12 @@ TEST(ComposeTexture, ARetainedBindingPaintsWhenItsOutputMoves) {
   const Element retained = plate(SkColors::kRed).opacity(alpha);
 
   scene->render(retained);
-  const uint64_t painted = scene->version();
+  const uint64_t painted = scene->revision();
   ASSERT_TRUE(scene->isRunning());
 
   alpha = 0.0f;
   scene->render(retained, 1.0 / 60.0);
-  EXPECT_EQ(scene->version(), painted + 1)
+  EXPECT_EQ(scene->revision(), painted + 1)
       << "the unchanged description hid its moved binding";
 
   SkBitmap read;
@@ -162,9 +162,9 @@ TEST(ComposeTexture, ADeviceTakesTheSceneAndSaysWhereItStands) {
   EXPECT_TRUE(scene->image()->isTextureBacked());
 
   // The version rule is the surface's, not the device's.
-  const uint64_t painted = scene->version();
+  const uint64_t painted = scene->revision();
   scene->render(plate(SkColors::kRed), 1.0 / 60.0);
-  EXPECT_EQ(scene->version(), painted);
+  EXPECT_EQ(scene->revision(), painted);
 }
 
 }  // namespace

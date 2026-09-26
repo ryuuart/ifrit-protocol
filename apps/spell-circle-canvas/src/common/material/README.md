@@ -337,14 +337,16 @@ answer null for the other kind.
 ## Textures
 
 **A texture is a source plus sampling, and both enter equality.** The
-source is type-erased behind `TextureSource`: `ImageSource` (a decoded
-still, equal when it is the same image object), `AssetSource` (a frame of
-a `media::Image` at a playback time; animated when the asset is),
-and `ProducerSource` (a function that bakes an image on first use, keyed
-by a string — the key IS the identity, so it must name the picture and
-every parameter that shaped it). Any type with `image()`, `animated()`
-and `==` is a source; two sources are equal only when they are the same
-source type and that type agrees. Sampling is the tiling per axis, the
+source is SigilMedia's `media::PixelSource`, the one seam pixels cross:
+a picture (`Texture::of`, equal when it is the same image object), a
+`media::Image` or a video read on the material's clock (animated
+when the document is), a producer that bakes an image on first use
+(`Texture::produce`, keyed by a string — the key IS the identity, so it
+must name the picture and every parameter that shaped it), frames
+another application publishes, a rendered scene. The frame drawn is the
+one the source answers at the material's `FrameData::seconds`, and one
+standing on a device is read back unless a renderer on that device takes
+`Texture::deviceImage` instead. Sampling is the tiling per axis, the
 uv matrix placing texture space in the sampled space (`at(origin)` is
 the translation), a region of the image to read, and the filter. A
 region is cut once per source image and kept, so a texture sampled every

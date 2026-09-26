@@ -15,7 +15,7 @@
  * The scene behind the value keeps a composer, so the tree it is handed
  * is RECONCILED rather than rebuilt: a description that did not change
  * costs a comparison. It paints only when that reconcile (or a
- * transition still in flight) actually moved something, and the version
+ * transition still in flight) actually moved something, and the revision
  * it hands the texture counts the paints — so a consumer's material
  * compares EQUAL across a frame in which nothing was painted, and
  * unequal the frame something was.
@@ -30,6 +30,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/texture/Texture.h>
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 
@@ -106,7 +107,7 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   material::Texture texture() const;
 
   /** How many times this scene has painted. */
-  uint64_t version() const;
+  uint64_t revision() const;
   SkISize size() const;
   /** What the last paint left, whether it stands in host memory or on a
    *  device; null before the first one. */
@@ -135,33 +136,35 @@ class TextureScene : public std::enable_shared_from_this<TextureScene> {
   std::unique_ptr<Impl> m_impl;
 };
 
-/** THE SOURCE a scene's texture carries: the scene, and the version it
- *  had when the value was taken.
+/** THE SOURCE a scene's texture carries: the scene, and the revision it
+ *  had when the value was taken — a `media::PixelSource` built from a
+ *  scene.
  *
  *  Two sources are equal when they name one scene that has painted the
  *  same number of times — which is what makes a material holding a
  *  scene texture prune across a still frame and patch across a painted
- *  one. */
+ *  one. The frame it answers is the last paint, standing in host memory
+ *  or on the device the scene paints on. */
 class SceneSource {
  public:
-  SceneSource(std::shared_ptr<const TextureScene> scene, uint64_t version)
-      : m_scene(std::move(scene)), m_version(version) {}
+  SceneSource(std::shared_ptr<const TextureScene> scene, uint64_t revision)
+      : m_scene(std::move(scene)), m_revision(revision) {}
 
-  sk_sp<SkImage> image() const { return m_scene ? m_scene->image() : nullptr; }
-  bool animated() const { return m_scene && m_scene->isRunning(); }
-  material::DeviceImage deviceImage() const {
-    return m_scene ? m_scene->deviceImage() : material::DeviceImage{};
+  sigil::media::Frame frameAt(std::chrono::duration<double> time) const;
+  bool isRunning() const { return m_scene && m_scene->isRunning(); }
+  SkISize size() const {
+    return m_scene ? m_scene->size() : SkISize::MakeEmpty();
   }
   const TextureScene* scene() const { return m_scene.get(); }
-  uint64_t version() const { return m_version; }
+  uint64_t revision() const { return m_revision; }
 
   bool operator==(const SceneSource& other) const {
-    return m_scene == other.m_scene && m_version == other.m_version;
+    return m_scene == other.m_scene && m_revision == other.m_revision;
   }
 
  private:
   std::shared_ptr<const TextureScene> m_scene;
-  uint64_t m_version = 0;
+  uint64_t m_revision = 0;
 };
 
 /** ONE TREE, ONE TEXTURE: a scene of its own, rendered once and held by
