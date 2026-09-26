@@ -13,8 +13,9 @@
 
 #include <gtest/gtest.h>
 #include <sigilmeasure/stats/Histogram.h>
-#include <sigilmeasure/stats/Moments.h>
-#include <sigilmeasure/stats/Rescale.h>
+#include <sigilmeasure/advanced/Moments.h>
+#include <sigilmeasure/advanced/Rescale.h>
+#include <sigilmeasure/stats/Summary.h>
 
 #include <cmath>
 #include <numeric>
@@ -44,7 +45,7 @@ TEST(Moments, AreTheMeanAndSpreadTheClosedFormGivesForACountingRun) {
   EXPECT_DOUBLE_EQ(moments.mean(), 50.5);
   EXPECT_DOUBLE_EQ(moments.sum(), 5050.0);
   EXPECT_NEAR(moments.variance(), (100.0 * 100.0 - 1.0) / 12.0, 1e-9);
-  EXPECT_NEAR(moments.sd(), std::sqrt((100.0 * 100.0 - 1.0) / 12.0), 1e-9);
+  EXPECT_NEAR(moments.deviation(), std::sqrt((100.0 * 100.0 - 1.0) / 12.0), 1e-9);
   EXPECT_DOUBLE_EQ(moments.min(), 1.0);
   EXPECT_DOUBLE_EQ(moments.max(), 100.0);
   EXPECT_DOUBLE_EQ(moments.range(), 99.0);
@@ -56,7 +57,7 @@ TEST(Moments, TellApartTheRunInHandFromWhatItWasDrawnFrom) {
   // Bessel's correction is exactly the ratio n / (n − 1), and nothing
   // else about the two answers differs.
   EXPECT_NEAR(moments.sampleVariance(), moments.variance() * 10.0 / 9.0, 1e-12);
-  EXPECT_NEAR(moments.sampleSd(), std::sqrt(moments.sampleVariance()), 1e-12);
+  EXPECT_NEAR(moments.sampleDeviation(), std::sqrt(moments.sampleVariance()), 1e-12);
 
   Moments one;
   one.add(7.0);
@@ -160,24 +161,24 @@ TEST(Moments, ReadZeroEverywhereBeforeAnythingIsAdded) {
 // ---- the histogram --------------------------------------------------------
 
 TEST(Histogram, PutsEveryValueInTheBinItsEdgesName) {
-  Histogram histogram(0.0, 10.0, 5);
+  Histogram histogram({.low = 0.0, .high = 10.0, .bins = 5});
   EXPECT_EQ(histogram.bins(), 5u);
   EXPECT_DOUBLE_EQ(histogram.binWidth(), 2.0);
   EXPECT_DOUBLE_EQ(histogram.edge(0), 0.0);
   EXPECT_DOUBLE_EQ(histogram.edge(5), 10.0);
-  EXPECT_DOUBLE_EQ(histogram.centre(0), 1.0);
+  EXPECT_DOUBLE_EQ(histogram.center(0), 1.0);
 
   // Half-open bins: a value on a boundary belongs to the bin above it.
-  EXPECT_EQ(histogram.binOf(0.0), 0u);
-  EXPECT_EQ(histogram.binOf(1.999), 0u);
-  EXPECT_EQ(histogram.binOf(2.0), 1u);
+  EXPECT_EQ(histogram.binContaining(0.0), 0u);
+  EXPECT_EQ(histogram.binContaining(1.999), 0u);
+  EXPECT_EQ(histogram.binContaining(2.0), 1u);
   // Except the high edge itself, which belongs to the last bin rather
   // than to nothing.
-  EXPECT_EQ(histogram.binOf(10.0), 4u);
+  EXPECT_EQ(histogram.binContaining(10.0), 4u);
 }
 
 TEST(Histogram, CountsWhatFellOutsideRatherThanDroppingOrClampingIt) {
-  Histogram histogram(0.0, 1.0, 4);
+  Histogram histogram({.low = 0.0, .high = 1.0, .bins = 4});
   histogram.add(-0.5);
   histogram.add(-1.0);
   histogram.add(2.0);
@@ -192,7 +193,7 @@ TEST(Histogram, CountsWhatFellOutsideRatherThanDroppingOrClampingIt) {
 }
 
 TEST(Histogram, BinsAFlatRunFlatAndItsDensityIntegratesToOne) {
-  Histogram histogram(0.0, 1.0, 10);
+  Histogram histogram({.low = 0.0, .high = 1.0, .bins = 10});
   for (int i = 0; i < 1000; ++i) histogram.add(((double)i + 0.5) / 1000.0);
   for (size_t bin = 0; bin < histogram.bins(); ++bin) {
     EXPECT_DOUBLE_EQ(histogram.count(bin), 100.0) << "bin " << bin;
@@ -208,7 +209,7 @@ TEST(Histogram, BinsAFlatRunFlatAndItsDensityIntegratesToOne) {
 }
 
 TEST(Histogram, TakesWeightsSoAResampledRunNeedsNoSecondClass) {
-  Histogram histogram(0.0, 2.0, 2);
+  Histogram histogram({.low = 0.0, .high = 2.0, .bins = 2});
   histogram.add(0.5, 3.0);
   histogram.add(1.5, 1.0);
   EXPECT_DOUBLE_EQ(histogram.count(0), 3.0);
@@ -221,7 +222,7 @@ TEST(Histogram, TakesWeightsSoAResampledRunNeedsNoSecondClass) {
 
 TEST(Histogram, OverARunTakesItsRangeFromTheRunSoNothingFallsOutside) {
   const std::vector<double> values = {2.0, 4.0, 6.0, 8.0};
-  const Histogram histogram = Histogram::over(values, 4);
+  const Histogram histogram = Histogram::over(values, {.bins = 4});
   EXPECT_DOUBLE_EQ(histogram.low(), 2.0);
   EXPECT_DOUBLE_EQ(histogram.high(), 8.0);
   EXPECT_DOUBLE_EQ(histogram.below(), 0.0);
@@ -230,13 +231,13 @@ TEST(Histogram, OverARunTakesItsRangeFromTheRunSoNothingFallsOutside) {
 }
 
 TEST(Histogram, ARangeThatIsEmptyOrBackwardsIsOneBinAndNotADivideByZero) {
-  Histogram backwards(5.0, 1.0, 4);
+  Histogram backwards({.low = 5.0, .high = 1.0, .bins = 4});
   EXPECT_DOUBLE_EQ(backwards.high(), 5.0);
   backwards.add(5.0);
   EXPECT_DOUBLE_EQ(backwards.total(), 1.0);
-  EXPECT_EQ(backwards.binOf(5.0), 0u);
+  EXPECT_EQ(backwards.binContaining(5.0), 0u);
 
-  Histogram none(0.0, 1.0, 0);
+  Histogram none({.low = 0.0, .high = 1.0, .bins = 0});
   EXPECT_EQ(none.bins(), 1u);
   none.add(0.5);
   EXPECT_DOUBLE_EQ(none.count(0), 1.0);
@@ -252,7 +253,7 @@ TEST(Rescale, AZScoreLeavesTheRunWithNoMeanAndOneDeviation) {
   for (double value : values) mapped.push_back(standardise(value));
   const Moments after = Moments::of(mapped);
   EXPECT_NEAR(after.mean(), 0.0, 1e-12);
-  EXPECT_NEAR(after.sd(), 1.0, 1e-12);
+  EXPECT_NEAR(after.deviation(), 1.0, 1e-12);
   // Two runs in different units become comparable exactly because the
   // same value's standing in each is the same number.
   std::vector<double> scaled;
@@ -294,4 +295,34 @@ TEST(Rescale, ARunWithNoWidthCollapsesRatherThanDividingByZero) {
 
   const Rescale nothing = zScore({});
   EXPECT_DOUBLE_EQ(nothing(4.0), 0.0);
+}
+
+// ---- the summary ----------------------------------------------------------
+
+TEST(Summary, OfACountingRunIsItsClosedForm) {
+  const Summary run = summary(counting(100));
+  EXPECT_EQ(run.count(), 100u);
+  EXPECT_DOUBLE_EQ(run.sum(), 5050.0);
+  EXPECT_DOUBLE_EQ(run.mean(), 50.5);
+  EXPECT_DOUBLE_EQ(run.min(), 1.0);
+  EXPECT_DOUBLE_EQ(run.max(), 100.0);
+  EXPECT_DOUBLE_EQ(run.range(), 99.0);
+  EXPECT_NEAR(run.deviation(), std::sqrt((100.0 * 100.0 - 1.0) / 12.0), 1e-9);
+}
+
+TEST(Summary, ReadsAMemberThroughAProjectionAndMergesItsHalves) {
+  struct Point {
+    float x, y;
+  };
+  const std::vector<Point> points = {{0, 3}, {1, -2}, {2, 7}};
+  const Summary heights = summary(points, &Point::y);
+  EXPECT_DOUBLE_EQ(heights.min(), -2.0);
+  EXPECT_DOUBLE_EQ(heights.max(), 7.0);
+
+  Summary first = summary(std::vector<double>{1, 2, 3});
+  first.merge(summary(std::vector<double>{4, 5}));
+  EXPECT_EQ(first.count(), 5u);
+  EXPECT_DOUBLE_EQ(first.mean(), 3.0);
+  EXPECT_DOUBLE_EQ(first.moments().sampleVariance(), 2.5);
+  EXPECT_TRUE(Summary{}.empty());
 }

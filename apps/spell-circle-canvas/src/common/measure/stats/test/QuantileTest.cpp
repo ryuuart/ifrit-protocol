@@ -1,17 +1,21 @@
 /** @file
- * The one quantile every ring and every one-off sample list shares, the
- * several-fractions call that must agree with it off one sort, and the
- * rolling ring itself.
+ * The one quantile every window and every one-off run shares, and the
+ * several-fractions call that must agree with it off one sort.
  */
 
 #include <gtest/gtest.h>
-#include <sigilmeasure/stats/Samples.h>
+#include <sigilmeasure/advanced/Quantiles.h>
+#include <sigilmeasure/stats/Quantile.h>
 
+#include <chrono>
+#include <span>
 #include <vector>
 
 using namespace sigil::measure;
 
-TEST(Quantile, EmptyReadsZero) { EXPECT_DOUBLE_EQ(quantile({}, 0.5), 0.0); }
+TEST(Quantile, EmptyReadsZero) {
+  EXPECT_DOUBLE_EQ(quantile(std::vector<double>{}, 0.5), 0.0);
+}
 
 TEST(Quantile, OneSampleReadsItselfEverywhere) {
   const double one[] = {7.5};
@@ -41,57 +45,6 @@ TEST(Quantile, LeavesTheInputAlone) {
   EXPECT_EQ(v, (std::vector<double>{3, 1, 2}));
 }
 
-TEST(Samples, EmptyReadsZeroEverywhere) {
-  Samples w(4);
-  EXPECT_TRUE(w.empty());
-  EXPECT_EQ(w.size(), 0u);
-  EXPECT_DOUBLE_EQ(w.mean(), 0.0);
-  EXPECT_DOUBLE_EQ(w.percentile(0.99), 0.0);
-  EXPECT_DOUBLE_EQ(w.min(), 0.0);
-  EXPECT_DOUBLE_EQ(w.max(), 0.0);
-  EXPECT_DOUBLE_EQ(w.last(), 0.0);
-}
-
-TEST(Samples, WrapsAroundKeepingTheNewest) {
-  Samples w(3);
-  for (double v : {1.0, 2.0, 3.0, 4.0, 5.0}) w.add(v);
-  EXPECT_EQ(w.size(), 3u);
-  EXPECT_EQ(w.capacity(), 3u);
-  EXPECT_EQ(w.samples(), (std::vector<double>{3, 4, 5}));
-  EXPECT_DOUBLE_EQ(w.mean(), 4.0);
-  EXPECT_DOUBLE_EQ(w.min(), 3.0);
-  EXPECT_DOUBLE_EQ(w.max(), 5.0);
-  EXPECT_DOUBLE_EQ(w.last(), 5.0);
-  EXPECT_DOUBLE_EQ(w.percentile(0.5), 4.0);
-}
-
-TEST(Samples, OrderSurvivesExactlyOneLap) {
-  Samples w(3);
-  for (double v : {1.0, 2.0, 3.0}) w.add(v);
-  EXPECT_EQ(w.samples(), (std::vector<double>{1, 2, 3}));
-  w.add(4.0);
-  EXPECT_EQ(w.samples(), (std::vector<double>{2, 3, 4}));
-  EXPECT_DOUBLE_EQ(w.last(), 4.0);
-}
-
-TEST(Samples, ClearForgetsButKeepsCapacity) {
-  Samples w(2);
-  w.add(1.0);
-  w.clear();
-  EXPECT_TRUE(w.empty());
-  EXPECT_EQ(w.capacity(), 2u);
-  w.add(9.0);
-  EXPECT_DOUBLE_EQ(w.last(), 9.0);
-}
-
-TEST(Samples, ZeroCapacityHoldsOne) {
-  Samples w(0);
-  w.add(1.0);
-  w.add(2.0);
-  EXPECT_EQ(w.size(), 1u);
-  EXPECT_DOUBLE_EQ(w.last(), 2.0);
-}
-
 TEST(Quantiles, AreEachTheOneQuantileWouldHaveGivenForOneSort) {
   const std::vector<double> values = {4.0, 1.0, 3.0, 2.0, 9.0, 7.0, 5.0};
   const std::vector<double> fractions = {0.0, 0.5, 0.9, 0.25, 1.0};
@@ -104,8 +57,9 @@ TEST(Quantiles, AreEachTheOneQuantileWouldHaveGivenForOneSort) {
   EXPECT_DOUBLE_EQ(answers[1], 4.0);
   EXPECT_GT(answers[2], answers[3]);
 
-  EXPECT_TRUE(quantiles({}, fractions).size() == fractions.size());
-  EXPECT_DOUBLE_EQ(quantiles({}, fractions)[0], 0.0);
+  const std::vector<double> none;
+  EXPECT_TRUE(quantiles(none, fractions).size() == fractions.size());
+  EXPECT_DOUBLE_EQ(quantiles(none, fractions)[0], 0.0);
 }
 
 TEST(Quantiles, TheMedianIsTheMiddleAndInterpolatesAcrossAnEvenRun) {
@@ -113,4 +67,24 @@ TEST(Quantiles, TheMedianIsTheMiddleAndInterpolatesAcrossAnEvenRun) {
   EXPECT_DOUBLE_EQ(median(even), 2.5);
   const std::vector<double> odd = {1.0, 2.0, 3.0};
   EXPECT_DOUBLE_EQ(median(odd), 2.0);
+}
+
+TEST(Quantile, ReadsAMemberThroughAProjection) {
+  struct Reading {
+    int index;
+    double value;
+  };
+  const std::vector<Reading> readings = {{0, 4}, {1, 1}, {2, 3}, {3, 2}};
+  EXPECT_DOUBLE_EQ(quantile(readings, 0.5, &Reading::value), 2.5);
+}
+
+TEST(Quantile, OfSpansOfTimeIsASpanOfTimeInTheirOwnUnit) {
+  using namespace std::chrono_literals;
+  const std::vector<std::chrono::milliseconds> spans = {1ms, 2ms, 3ms, 4ms};
+  // Whole milliseconds are read as fractional ones, so the median of an
+  // even run is the half it falls on rather than a rounded whole.
+  const auto median = quantile(spans, 0.5);
+  static_assert(std::is_same_v<decltype(median),
+                               const std::chrono::duration<double, std::milli>>);
+  EXPECT_DOUBLE_EQ(median.count(), 2.5);
 }

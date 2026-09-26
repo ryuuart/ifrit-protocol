@@ -4,6 +4,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilmeasure/advanced/CheckFormat.h>
 #include <sigilmeasure/check/Check.h>
 
 #include <string>
@@ -56,7 +57,7 @@ struct Lines : testing::TestWithParam<Row> {};
 
 TEST_P(Lines, PadTheLabelAndRightAlignTheValueAndSayWhatWasWanted) {
   const Row& row = GetParam();
-  EXPECT_EQ(row.made.line(row.labelWidth, row.valueWidth), row.line);
+  EXPECT_EQ(line(row.made, {.labelWidth = row.labelWidth, .valueWidth = row.valueWidth}), row.line);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -84,7 +85,7 @@ TEST(Check, FailuresCountsAndTableSummarises) {
   EXPECT_EQ(t.failures(), 1);
   EXPECT_FALSE(t.pass());
   EXPECT_EQ(failures(t.rows), 1);
-  const std::vector<std::string> lines = t.lines(4, 2);
+  const std::vector<std::string> lines = t.lines({.labelWidth = 4, .valueWidth = 2});
   ASSERT_EQ(lines.size(), 4u);
   EXPECT_EQ(lines[0], "  a     1   PASS");
   EXPECT_EQ(lines[1], "  b     2   FAIL want 1");
@@ -100,14 +101,14 @@ TEST(Check, AFindingIsPrintedAsAClaimAndNeverCountedAgainstTheRun) {
   const Check legend = finding(check("legend holds", 1.0, 1.126, 0.01));
   EXPECT_FALSE(legend.pass);
   EXPECT_EQ(legend.standing, Standing::Finding);
-  EXPECT_EQ(legend.line(12, 5),
+  EXPECT_EQ(line(legend, {.labelWidth = 12, .valueWidth = 5}),
             "  legend holds 1.126   FAIL want 1 \xc2\xb1 0.01");
   CheckTable t;
   t.add(check("a", 1, 1)).add(legend);
   EXPECT_EQ(t.failures(), 0);
   EXPECT_EQ(t.findings(), 1);
   EXPECT_TRUE(t.pass());
-  EXPECT_EQ(t.lines(4, 2).back(), "  2 checks, all passed, 1 finding");
+  EXPECT_EQ(t.lines({.labelWidth = 4, .valueWidth = 2}).back(), "  2 checks, all passed, 1 finding");
   // A finding that holds is a finding of nothing.
   t.add(finding(check("b", 2, 2)));
   EXPECT_EQ(t.findings(), 1);
@@ -117,19 +118,20 @@ TEST(Check, ReadingsAndHeadingsStandBesideTheClaimsUnjudged) {
   const Check residual = reading("max residual", 5.6e-16);
   EXPECT_TRUE(residual.pass);
   EXPECT_FALSE(residual.judged());
-  EXPECT_EQ(residual.line(12, 8), "  max residual  5.6e-16");
-  EXPECT_EQ(reading("pieces", 12).line(6, 2), "  pieces 12");
-  EXPECT_EQ(reading("centre", "305.185, 393.529").line(6, 2),
+  EXPECT_EQ(line(residual, {.labelWidth = 12, .valueWidth = 8}), "  max residual  5.6e-16");
+  EXPECT_EQ(line(reading("pieces", 12), {.labelWidth = 6, .valueWidth = 2}), "  pieces 12");
+  EXPECT_EQ(line(reading("centre", "305.185, 393.529"),
+                 {.labelWidth = 6, .valueWidth = 2}),
             "  centre 305.185, 393.529");
   const Check title = heading("THE RETE IS ONE PIECE OF METAL");
-  EXPECT_EQ(title.line(), "THE RETE IS ONE PIECE OF METAL");
+  EXPECT_EQ(line(title), "THE RETE IS ONE PIECE OF METAL");
   EXPECT_EQ(title.standing, Standing::Heading);
   // Neither is a check: the summary counts the claims alone.
   CheckTable t;
   t.add(title).add(residual).add(check("spurs", 0, 0)).add(reading("bars", 41));
   EXPECT_EQ(t.checks(), 1);
   EXPECT_EQ(t.failures(), 0);
-  const std::vector<std::string> lines = t.lines(6, 2);
+  const std::vector<std::string> lines = t.lines({.labelWidth = 6, .valueWidth = 2});
   ASSERT_EQ(lines.size(), 5u);
   EXPECT_EQ(lines[0], "THE RETE IS ONE PIECE OF METAL");
   EXPECT_EQ(lines[2], "  spurs   0   PASS");

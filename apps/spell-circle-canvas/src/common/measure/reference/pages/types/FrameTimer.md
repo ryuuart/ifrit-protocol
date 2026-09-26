@@ -59,19 +59,31 @@ frame time.
 ### The sample a gate reads
 
 `sigil::measure::FrameSample` is the timing a headless sweep snapshots
-when its sample window closes: both numbers a frame-budget gate judges
-and the one it derives from. Plain numbers, so a snapshot survives the
-ring it was read from being cleared or refilled; how a sample is written
-out is the writer's business, not that struct's.
+when its sample window closes, read off `FrameTimer::sample`: both
+numbers a frame-budget gate judges and the one it derives from. Plain
+values, so a snapshot survives the lanes it was read from being cleared
+or refilled; how a sample is written out is the writer's business, not
+that struct's.
 
-`FrameSample::frameMs` is the mean end-to-end frame time in
-milliseconds, backend flush included: what the machine actually spent
-per frame. `FrameSample::workMs` is the mean of the frame's own work,
-the backend flush taken out. `FrameSample::p99Ms` is the tail of the
-end-to-end lane. `FrameSample::headroomFps` is 1000 over the work time —
-a ceiling, on the same terms as the timer's own.
+`FrameSample::frame` is the mean end-to-end frame time, backend flush
+included: what the machine actually spent per frame.
+`FrameSample::work` is the mean of the frame's own work, the backend
+flush taken out. `FrameSample::frameTail` is the 0.99 quantile of the
+end-to-end lane. `FrameSample::headroomFps` is the rate the work time
+allows — a ceiling, on the same terms as the timer's own.
+
+### One home
+
+The product renderer, the live host and the headless plate sweep all
+read their lanes from this one timer: the renderer lays all four marks,
+the host times its frame body as the work lane and reports what reached
+the screen through `FrameTimer::presented` with a one-second
+`FrameTimerOptions::pause`, and the sweep closes the work lane before
+its backend flush and the end-to-end lane after it.
+`FrameTimer::resume` forgets only the last presented mark — for a
+stretch in which something else held the screen — and keeps every lane.
 
 ## See also
 
-`sigil::measure::Samples`, `sigil::measure::Laps`,
+`sigil::measure::Window`, `sigil::measure::Laps`,
 `sigil::measure::Stopwatch`.

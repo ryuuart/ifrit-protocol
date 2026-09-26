@@ -12,11 +12,11 @@ status: stable
 ## Description
 
 Marks laid through one span of work, each named for the phase that just
-ended. `Laps::mark` returns the milliseconds since the previous mark (or
-since construction) and records them under that name, so consecutive
+ended. `Laps::mark` returns the time since the previous mark (or since
+construction) and records it under that name, so consecutive
 laps tile the span exactly: the end of one is the start of the next,
 with no gap between. The recorded laps read back through `Laps::each` in
-the order they were laid, and `Laps::totalMs` is their sum — the span
+the order they were laid, and `Laps::total` is their sum — the span
 from construction, or the last reset, to the last mark.
 
 ### A name is borrowed, not copied
@@ -28,6 +28,17 @@ would be dangling by the time `Laps::each` read it, so a `std::string`
 rvalue is REFUSED at compile time rather than stored: build the name
 into something that outlives the timer, or name the phase with a
 literal.
+
+`sigil::measure::ScopedDuration` writes the time a scope took into a
+value the caller keeps, at scope exit:
+
+```cpp
+Duration layoutTime;
+{ ScopedDuration timing(layoutTime); layout(); }
+```
+
+The target is ASSIGNED, not accumulated, so a block entered twice
+reports its last run.
 
 ## See also
 

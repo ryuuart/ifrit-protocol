@@ -5,10 +5,12 @@
 // up as a rate that fell.
 
 #include <benchmark/benchmark.h>
+#include <sigilmeasure/advanced/Moments.h>
+#include <sigilmeasure/advanced/Quantiles.h>
+#include <sigilmeasure/advanced/Rescale.h>
 #include <sigilmeasure/stats/Histogram.h>
-#include <sigilmeasure/stats/Moments.h>
-#include <sigilmeasure/stats/Rescale.h>
-#include <sigilmeasure/stats/Samples.h>
+#include <sigilmeasure/stats/Quantile.h>
+#include <sigilmeasure/stats/Summary.h>
 
 #include <cstddef>
 #include <vector>
@@ -48,8 +50,19 @@ void BM_MomentsOf(benchmark::State& state) {
 }
 BENCHMARK(BM_MomentsOf)->Arg(120)->Arg(1000)->Arg(100000);
 
+/** The tier-1 face over a run in hand: the same fold through a range and
+ *  a projection, which should cost what `Moments::of` does. */
+void BM_SummaryOf(benchmark::State& state) {
+  const std::vector<double> values = run((size_t)state.range(0));
+  for ([[maybe_unused]] auto iteration : state)
+    benchmark::DoNotOptimize(summary(values).deviation());
+  state.SetItemsProcessed(state.iterations() * state.range(0));
+}
+BENCHMARK(BM_SummaryOf)->Arg(120)->Arg(1000)->Arg(100000);
+
 void BM_HistogramAdd(benchmark::State& state) {
-  Histogram histogram(0.0, 100.0, (size_t)state.range(0));
+  Histogram histogram(
+      {.low = 0.0, .high = 100.0, .bins = (size_t)state.range(0)});
   double value = 0.0;
   for ([[maybe_unused]] auto iteration : state) {
     histogram.add(value);
@@ -67,7 +80,7 @@ BENCHMARK(BM_HistogramAdd)->Arg(16)->Arg(256);
 void BM_HistogramOver(benchmark::State& state) {
   const std::vector<double> values = run((size_t)state.range(0));
   for ([[maybe_unused]] auto iteration : state)
-    benchmark::DoNotOptimize(Histogram::over(values, 64).total());
+    benchmark::DoNotOptimize(Histogram::over(values, {.bins = 64}).total());
   state.SetItemsProcessed(state.iterations() * state.range(0));
 }
 BENCHMARK(BM_HistogramOver)->Arg(1000)->Arg(100000);
@@ -79,7 +92,8 @@ void BM_QuantileOneAtATime(benchmark::State& state) {
   const std::vector<double> values = run((size_t)state.range(0));
   const std::vector<double> fractions = {0.5, 0.9, 0.99};
   for ([[maybe_unused]] auto iteration : state)
-    for (double p : fractions) benchmark::DoNotOptimize(quantile(values, p));
+    for (double fraction : fractions)
+      benchmark::DoNotOptimize(quantile(values, fraction));
   state.SetItemsProcessed(state.iterations() * state.range(0) * 3);
 }
 BENCHMARK(BM_QuantileOneAtATime)->Arg(120)->Arg(10000);

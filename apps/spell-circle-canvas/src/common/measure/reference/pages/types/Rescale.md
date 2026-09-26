@@ -19,18 +19,18 @@ goes through it the other way.
 
 ### It is a statistic, not a drawing's scale
 
-What is here is DERIVED from a run of numbers — where its centre is, how
+What is here is DERIVED from a run of numbers — where its center is, how
 wide it is — so that runs of different units can be compared. A
 drawing's scale is AUTHORED: a domain someone chose, a range in pixels,
 a transform, a tick ladder. Deriving one from the data and calling it a
 scale is what makes an axis move whenever a new point arrives.
 
-`Rescale::centre` is subtracted from the value first: where the run's
+`Rescale::center` is subtracted from the value first: where the run's
 own zero is. `Rescale::scale` is what the centred value is multiplied
 by: how the run's own width becomes the answer's. `Rescale::origin` is
 added last: where the answer's zero is. `Rescale::invert` answers the
 value that maps to a given one, and a map that collapsed the run to a
-point cannot be undone and answers the centre.
+point cannot be undone and answers the center.
 
 ### The two derivations
 

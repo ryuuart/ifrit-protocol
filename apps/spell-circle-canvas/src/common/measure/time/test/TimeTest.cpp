@@ -9,8 +9,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmeasure/time/FrameTimer.h>
-#include <sigilmeasure/time/Laps.h>
+#include <sigilmeasure/advanced/FrameTimer.h>
+#include <sigilmeasure/advanced/Laps.h>
 #include <sigilmeasure/time/Stopwatch.h>
 
 #include <chrono>
@@ -22,30 +22,32 @@
 #include <vector>
 
 using namespace sigil::measure;
+using namespace std::chrono_literals;
 
 // The one case in this file that reads the wall clock. It is here so
 // that every other timing claim below is deterministic: sleeping and then
 // asserting on a duration asserts the operating system's scheduler, which
 // is not this library's to promise.
 TEST(Timing, TheClocksAdvanceWithRealTimeAndResetSendsThemBack) {
-  Stopwatch sw;
+  Stopwatch watch;
   Laps laps;
-  double scoped = -1.0;
+  Duration scoped = -1s;
   {
-    ScopedMs timed(scoped);
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    ScopedDuration timing(scoped);
+    std::this_thread::sleep_for(2ms);
   }
-  const double slept = sw.elapsedMs();
-  EXPECT_GE(slept, 1.0);
-  EXPECT_GE(laps.mark("slept"), 1.0);
-  EXPECT_GE(scoped, 1.0);
+  const Duration slept = watch.elapsed();
+  EXPECT_GE(slept, 1ms);
+  EXPECT_GE(laps.mark("slept"), 1ms);
+  EXPECT_GE(scoped, 1ms);
+  EXPECT_GE(timed([] { std::this_thread::sleep_for(2ms); }), 1ms);
   // Reset is only observable once a span has been measured, which is why
   // it is claimed here rather than beside the deterministic cases. A
   // stopwatch that ignored reset would only ever read higher, so the
   // comparison is against the span already measured and not against a
   // ceiling the scheduler could cross.
-  sw.reset();
-  EXPECT_LT(sw.elapsedMs(), slept);
+  watch.restart();
+  EXPECT_LT(watch.elapsed(), slept);
 }
 
 TEST(Laps, MarksAreNamedInOrderAndSumToTheTotal) {
@@ -53,18 +55,18 @@ TEST(Laps, MarksAreNamedInOrderAndSumToTheTotal) {
   // of the next — so their sum IS the total, whatever the durations turn
   // out to be.
   Laps laps;
-  const double layout = laps.mark("layout");
-  const double paint = laps.mark("paint");
+  const Duration layout = laps.mark("layout");
+  const Duration paint = laps.mark("paint");
   std::vector<std::string> names;
-  double sum = 0.0;
-  laps.each([&](std::string_view n, double ms) {
-    names.emplace_back(n);
-    sum += ms;
+  Duration sum{};
+  laps.each([&](std::string_view name, Duration lap) {
+    names.emplace_back(name);
+    sum += lap;
   });
   EXPECT_EQ(names, (std::vector<std::string>{"layout", "paint"}));
   EXPECT_EQ(laps.size(), 2u);
-  EXPECT_DOUBLE_EQ(sum, layout + paint);
-  EXPECT_DOUBLE_EQ(laps.totalMs(), sum);
+  EXPECT_DOUBLE_EQ(sum.count(), (layout + paint).count());
+  EXPECT_DOUBLE_EQ(laps.total().count(), sum.count());
 }
 
 // Whether `laps.mark(x)` compiles at all, for an argument of type T.
@@ -94,7 +96,7 @@ TEST(Laps, RefuseANameThatWouldBeGoneBeforeItIsReadBack) {
   laps.mark(phase);
   phase[0] = 'L';
   std::string seen;
-  laps.each([&](std::string_view n, double) { seen = n; });
+  laps.each([&](std::string_view name, Duration) { seen = name; });
   EXPECT_EQ(seen, "Layout");
 }
 
@@ -104,49 +106,70 @@ TEST(Laps, ResetForgetsTheMarksAndStartsThePhaseThere) {
   laps.mark("paint");
   laps.reset();
   EXPECT_EQ(laps.size(), 0u);
-  EXPECT_DOUBLE_EQ(laps.totalMs(), 0.0);
+  EXPECT_DOUBLE_EQ(laps.total().count(), 0.0);
   laps.mark("again");
   EXPECT_EQ(laps.size(), 1u);
 }
 
-TEST(ScopedMs, LeavesItsTargetUntouchedUntilScopeExit) {
+TEST(ScopedDuration, LeavesItsTargetUntouchedUntilScopeExit) {
   // The target is assigned at destruction, not accumulated as the block
   // runs, so a caller may read the previous run's number until then.
-  double ms = -1.0;
+  Duration spent = -1s;
   {
-    ScopedMs timed(ms);
-    EXPECT_DOUBLE_EQ(ms, -1.0);
+    ScopedDuration timing(spent);
+    EXPECT_EQ(spent, -1s);
   }
-  EXPECT_GE(ms, 0.0);
-  EXPECT_NE(ms, -1.0);
+  EXPECT_GE(spent, 0s);
 }
 
 TEST(FrameTimer, MarksFeedTheirLanes) {
-  FrameTimer t(4);
-  t.presented();  // seeds only
-  EXPECT_TRUE(t.present().empty());
-  t.begin();
-  t.composed();
-  t.finished();
-  t.presented();
-  EXPECT_EQ(t.work().size(), 1u);
-  EXPECT_EQ(t.frame().size(), 1u);
-  EXPECT_EQ(t.present().size(), 1u);
-  EXPECT_GE(t.frame().last(), t.work().last());
-  t.resetPresentation();
-  EXPECT_TRUE(t.present().empty());
-  EXPECT_EQ(t.work().size(), 1u);
-  t.reset();
-  EXPECT_TRUE(t.work().empty());
+  FrameTimer timer({.frames = 4});
+  timer.presented();  // seeds only
+  EXPECT_TRUE(timer.present().empty());
+  timer.begin();
+  timer.composed();
+  timer.finished();
+  timer.presented();
+  EXPECT_EQ(timer.work().size(), 1u);
+  EXPECT_EQ(timer.frame().size(), 1u);
+  EXPECT_EQ(timer.present().size(), 1u);
+  EXPECT_GE(timer.frame().latest(), timer.work().latest());
+  timer.resetPresentation();
+  EXPECT_TRUE(timer.present().empty());
+  EXPECT_EQ(timer.work().size(), 1u);
+  timer.reset();
+  EXPECT_TRUE(timer.work().empty());
 }
 
 TEST(FrameTimer, HeadroomIsTheWorkCeiling) {
-  FrameTimer t;
-  EXPECT_DOUBLE_EQ(t.headroomFps(), 0.0);
-  EXPECT_DOUBLE_EQ(t.presentedFps(), 0.0);
-  t.addWork(4.0);
-  t.addFrame(8.0);
-  t.addPresent(20.0);
-  EXPECT_DOUBLE_EQ(t.headroomFps(), 250.0);
-  EXPECT_DOUBLE_EQ(t.presentedFps(), 50.0);
+  FrameTimer timer;
+  EXPECT_DOUBLE_EQ(timer.headroomFps(), 0.0);
+  EXPECT_DOUBLE_EQ(timer.presentedFps(), 0.0);
+  timer.addWork(4ms);
+  timer.addFrame(8ms);
+  timer.addPresent(20ms);
+  EXPECT_DOUBLE_EQ(timer.headroomFps(), 250.0);
+  EXPECT_DOUBLE_EQ(timer.presentedFps(), 50.0);
+}
+
+TEST(FrameTimer, AnIntervalAsLongAsAPauseIsNotAFrame) {
+  FrameTimer timer({.pause = 1s});
+  timer.addPresent(16ms);
+  timer.addPresent(3s);  // a window drag
+  EXPECT_EQ(timer.present().size(), 1u);
+}
+
+TEST(FrameTimer, TheSampleIsTheLanesAsPlainValues) {
+  FrameTimer timer({.frames = 100});
+  for (int frame = 1; frame <= 100; ++frame) {
+    timer.addWork(std::chrono::duration<double, std::milli>(frame));
+    timer.addFrame(std::chrono::duration<double, std::milli>(frame * 2.0));
+  }
+  const FrameSample sample = timer.sample();
+  EXPECT_DOUBLE_EQ(Milliseconds(sample.work).count(), 50.5);
+  EXPECT_DOUBLE_EQ(Milliseconds(sample.frame).count(), 101.0);
+  EXPECT_NEAR(Milliseconds(sample.frameTail).count(), 198.02, 1e-9);
+  EXPECT_DOUBLE_EQ(sample.headroomFps, 1000.0 / 50.5);
+  timer.reset();
+  EXPECT_DOUBLE_EQ(Milliseconds(sample.work).count(), 50.5);
 }

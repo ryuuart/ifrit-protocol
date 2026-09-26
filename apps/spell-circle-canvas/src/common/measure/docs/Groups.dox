@@ -3,15 +3,16 @@
 // reach them.
 
 /** @defgroup measure-time Timing
- *  The clocks a run is measured by: a stopwatch over one span, a lap
- *  timer over the phases of one, and the frame timer a render loop lays
- *  its marks in.
+ *  The clocks a run is measured by: a stopwatch and a timed block over
+ *  one span, a lap timer over the phases of one, and the frame timer a
+ *  render loop lays its marks in.
  *  @{ */
 /** @} */
 
 /** @defgroup measure-stats Statistics
- *  What a run of numbers amounts to: a rolling ring and its quantiles,
- *  running moments that keep no values, a histogram, named counters,
+ *  What a run of numbers amounts to: its summary, quantiles and histogram;
+ *  the window, smoothed reading and rate of a live stream;
+ *  running moments that keep no values, named counters,
  *  the straight-line map that puts runs of different units on a common
  *  footing, and the least-squares line through a run.
  *  @{ */

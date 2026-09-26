@@ -13,12 +13,12 @@ status: stable
 
 WHAT A RUN OF NUMBERS AMOUNTS TO, accumulated one at a time.
 
-`sigil::measure::Samples` keeps the numbers and computes on read; this
+`sigil::measure::Window` keeps the numbers and computes on read; this
 keeps none of them and computes as they arrive, so it summarises a run
 of any length in a fixed six words — a sweep of a million values, a
 per-frame count that never ends. What it cannot do is anything that
 needs the values back: a quantile, a histogram, a re-read after a wider
-window was wanted. Reach for `sigil::measure::Samples` or a
+window was wanted. Reach for `sigil::measure::Window` or a
 `sigil::measure::Histogram` for those.
 
 ### The spread is accumulated, not subtracted
@@ -63,5 +63,6 @@ parts put back together.
 
 ## See also
 
-`sigil::measure::Samples`, `sigil::measure::Histogram`,
+`sigil::measure::Summary`, the tier-1 face over these moments;
+`sigil::measure::Window`, `sigil::measure::Histogram`,
 `sigil::measure::Rescale`.

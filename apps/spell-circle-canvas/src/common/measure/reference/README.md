@@ -13,8 +13,9 @@ here.
 | `pages/types/Histogram.md` | equal bins, what falls outside and is counted, and weights rather than integers |
 | `pages/types/LineFit.md` | the least-squares line and the residuals that make it evidence |
 | `pages/types/Rescale.md` | a statistic and not a drawing's scale, and the two derivations over it |
-| `pages/types/FrameTimer.md` | four marks, three rings, why the two cost lanes are separate, and the sample a gate reads |
-| `pages/types/Laps.md` | the tiling marks, and the name a lap borrows rather than copies |
+| `pages/types/FrameTimer.md` | four marks, three lanes, why the two cost lanes are separate, the sample a gate reads, and the one home every host reads its lanes from |
+| `pages/types/Laps.md` | the tiling marks, the name a lap borrows rather than copies, and a block timed into a value |
+| `pages/types/Window.md` | the last few values of a stream by count or by time, why the run is contiguous, and the smoothed reading and the rate beside it |
 
 ## What this library is for
 
@@ -40,33 +41,25 @@ Every quantile in the library reads through one interpolation body, so
 the single-fraction call and the several-fractions call cannot drift
 apart in what "the median" means.
 
-## The rings and the watches
+## The watches and the streams
 
-`sigil::measure::Samples` holds the last few samples, oldest dropping
-first. The summaries read every sample the ring holds; none is cached,
-so a ring that is read every frame costs a pass over its contents each
-time, and a percentile costs a sort. Sized for a HUD, not for a
-histogram.
+`sigil::measure::Stopwatch` reads the steady clock rather than system
+time, so a clock adjustment mid-measure cannot produce a negative or
+absurd reading, and answers a `sigil::measure::Duration` — seconds held
+as a double — which a printout turns into the unit it wants with
+`sigil::measure::Milliseconds` or `sigil::measure::Microseconds`.
+`sigil::measure::timed` is the same reading over one block.
 
-`sigil::measure::Stopwatch` reads milliseconds on the steady clock
-rather than on system time, so a clock adjustment mid-measure cannot
-produce a negative or absurd reading. `Stopwatch::elapsedUs` is the same
-span in microseconds — the unit a per-frame reading wants, where a
-millisecond is already the whole budget.
-
-`sigil::measure::ScopedMs` writes the milliseconds a scope took into the
-double it was given, at scope exit:
-
-```cpp
-double layoutMs;
-{ ScopedMs timed(layoutMs); layout(); }
-```
-
-The target is ASSIGNED, not accumulated, so a block entered twice
-reports its last run.
+`sigil::measure::Window` holds the last few values of a stream — by
+count, by a span of time, or both — and `sigil::measure::Rate` is a
+window of event stamps read per second. `sigil::measure::Smoothed`
+follows a stream without holding it. The window's page says why its
+run is contiguous and why its time is the caller's.
 
 `sigil::measure::Counters` is a set of counters addressed by name,
 created on first use and iterated in name order so a printed set reads
 the same every run. Reading a name that was never counted is 0, not an
 error, and `Counters::reset` keeps the names so a set printed after a
-reset still lists what it counts.
+reset still lists what it counts. Its table is kept behind the
+implementation, so its header includes nothing beyond the standard
+library.

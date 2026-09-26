@@ -43,48 +43,38 @@ enum class Standing : uint8_t {
  *  COMPUTED from the same two values it reports, so the sentence and
  *  the measurement cannot drift apart, and the verdict is a value
  *  rather than a string, so a set of them can fail a build — see
- *  `failures()`. */
+ *  `CheckTable::failures()`. */
 struct Check {
   std::string label;
   std::string expected, actual;  ///< already formatted, for printing
   bool pass = false;
   Standing standing = Standing::Claim;
 
-  /** `  <label padded> <actual, right-aligned>   PASS`, or
-   *  `… FAIL want <expected>` — the shape of `"  %-44s %8ld   %s"`. A
-   *  reading stops after its value and a heading is its label alone,
-   *  unindented.
-   *  @trap A long label is NOT truncated: it pushes the value column
-   *  right rather than losing the qualifier at the end of a claim. */
-  std::string line(int labelWidth = 44, int valueWidth = 8) const {
-    if (standing == Standing::Heading) return label;
-    std::string out = "  " + label;
-    if ((int)label.size() < labelWidth)
-      out.append((size_t)labelWidth - label.size(), ' ');
-    out += ' ';
-    if ((int)actual.size() < valueWidth)
-      out.append((size_t)valueWidth - actual.size(), ' ');
-    out += actual;
-    if (standing == Standing::Reading) return out;
-    out += pass ? "   PASS" : "   FAIL want " + expected;
-    return out;
-  }
   /** Whether this row carries a verdict at all — a claim or a finding. */
   bool judged() const {
     return standing == Standing::Claim || standing == Standing::Finding;
   }
 };
 
+/** THE TWO COLUMNS A CHECK PRINTS IN: the label padded to `labelWidth`,
+ *  the value right-aligned in `valueWidth`.
+ *  @trap A long label is NOT truncated: it pushes the value column
+ *  right rather than losing the qualifier at the end of a claim. */
+struct CheckColumns {
+  int labelWidth = 44;
+  int valueWidth = 8;
+};
+
 namespace detail {
-inline std::string fmtLong(long v) {
-  char buf[32];
-  std::snprintf(buf, sizeof buf, "%ld", v);
-  return buf;
+inline std::string formatCount(long count) {
+  char text[32];
+  std::snprintf(text, sizeof text, "%ld", count);
+  return text;
 }
-inline std::string fmtDouble(double v) {
-  char buf[48];
-  std::snprintf(buf, sizeof buf, "%.6g", v);
-  return buf;
+inline std::string formatNumber(double number) {
+  char text[48];
+  std::snprintf(text, sizeof text, "%.6g", number);
+  return text;
 }
 }  // namespace detail
 
@@ -96,20 +86,21 @@ inline std::string fmtDouble(double v) {
  *  here and belongs to the tolerance overload. */
 template <std::integral T, std::integral U>
 Check check(std::string label, T expected, U actual) {
-  return {std::move(label), detail::fmtLong((long)expected),
-          detail::fmtLong((long)actual), expected == actual};
+  return {std::move(label), detail::formatCount((long)expected),
+          detail::formatCount((long)actual), expected == actual};
 }
 
-/** Float agreement within @p tol, in the values' own units.
+/** Float agreement within @p tolerance, in the values' own units.
  *  @trap There is NO default tolerance: how closely a measured value
  *  and a solved one must agree is a property of the construction being
  *  checked, not of this header. */
 inline Check check(std::string label, double expected, double actual,
-                   double tol) {
-  Check c{std::move(label), detail::fmtDouble(expected),
-          detail::fmtDouble(actual), std::fabs(expected - actual) <= tol};
-  c.expected += " \xc2\xb1 " + detail::fmtDouble(tol);
-  return c;
+                   double tolerance) {
+  Check made{std::move(label), detail::formatNumber(expected),
+             detail::formatNumber(actual),
+             std::fabs(expected - actual) <= tolerance};
+  made.expected += " \xc2\xb1 " + detail::formatNumber(tolerance);
+  return made;
 }
 
 /** Text identity — for a claim whose evidence is a name or a spelling
@@ -144,12 +135,12 @@ inline Check reading(std::string label, std::string value) {
 /** A reading of a number, formatted as the tolerance overload formats
  *  its values. */
 inline Check reading(std::string label, double value) {
-  return reading(std::move(label), detail::fmtDouble(value));
+  return reading(std::move(label), detail::formatNumber(value));
 }
 /** A reading of a count. */
 template <std::integral T>
 Check reading(std::string label, T value) {
-  return reading(std::move(label), detail::fmtLong((long)value));
+  return reading(std::move(label), detail::formatCount((long)value));
 }
 
 /** A HEADING: @p title over the rows that follow it. */
@@ -157,58 +148,38 @@ inline Check heading(std::string title) {
   return {std::move(title), "", "", true, Standing::Heading};
 }
 
-/** How many CLAIMS in @p checks failed — an exit code for a
- *  verification run.
- *  @trap A finding that fails is not among them: its failing is a
- *  statement about the subject, and is counted by `findings()`. */
-inline int failures(std::span<const Check> checks) {
-  int n = 0;
-  for (const Check& c : checks)
-    n += (!c.pass && c.standing == Standing::Claim) ? 1 : 0;
-  return n;
-}
-
-/** How many findings in @p checks failed — the things the run found out
- *  about its subject. */
-inline int findings(std::span<const Check> checks) {
-  int n = 0;
-  for (const Check& c : checks)
-    n += (!c.pass && c.standing == Standing::Finding) ? 1 : 0;
-  return n;
-}
-
 /** A run of checks in the order they were made, printed as one table:
- *  every row through `Check::line()` at a shared width, then a summary
+ *  every row through `line()` at a shared width, then a summary
  *  row, so a run of claims reads as a column and ends with its verdict. */
 struct CheckTable {
   std::vector<Check> rows;
 
-  /** Appends @p c as the next row and answers this table, so rows chain. */
-  CheckTable& add(Check c) {
-    rows.push_back(std::move(c));
+  /** Appends @p row and answers this table, so rows chain. */
+  CheckTable& add(Check row) {
+    rows.push_back(std::move(row));
     return *this;
   }
-  /** How many claims in the table did not hold. */
-  int failures() const { return measure::failures(rows); }
-  /** How many findings in the table did not hold. */
-  int findings() const { return measure::findings(rows); }
+  /** How many claims in the table did not hold — an exit code for a
+   *  verification run.
+   *  @trap A finding that fails is not among them: its failing is a
+   *  statement about the subject, and is counted by `findings()`. */
+  int failures() const;
+  /** How many findings in the table did not hold — the things the run
+   *  found out about its subject. */
+  int findings() const;
   /** Whether every claim held; a finding that did not hold is not a
    *  failure. */
   bool pass() const { return failures() == 0; }
   /** How many rows carry a verdict — the claims and the findings. */
-  int checks() const {
-    int n = 0;
-    for (const Check& c : rows) n += c.judged() ? 1 : 0;
-    return n;
-  }
+  int checks() const;
 
-  /** One string per row, then a final `  <n> checks, <m> failed` line
+  /** One string per row at @p columns, then a final `  <n> checks, <m> failed` line
    *  (`all passed` when none did), with the findings after it when one
    *  did not hold. The readings and headings are printed and not
    *  counted.
    *  @silent a table with no rows: it prints nothing rather than a
    *  summary of nothing. */
-  std::vector<std::string> lines(int labelWidth = 44, int valueWidth = 8) const;
+  std::vector<std::string> lines(CheckColumns columns = {}) const;
 };
 
 }  // namespace sigil::measure

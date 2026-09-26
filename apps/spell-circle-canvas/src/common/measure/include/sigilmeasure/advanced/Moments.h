@@ -2,9 +2,8 @@
 
 /** @file
  * @ingroup measure-stats
- * The summary of a run of numbers that costs one pass and holds no
- * copies: how many, how large, how spread, how lopsided, and the two
- * ends.
+ * The running moments behind a `Summary`: the same one-pass fold, with
+ * the sample spread and the skew a summary does not print.
  */
 
 #include <cmath>
@@ -21,7 +20,7 @@ namespace sigil::measure {
  *  together.
  *  @trap Nothing that needs the values back can be asked of it — a
  *  quantile, a histogram, a re-read over a wider window. Those are
- *  `Samples` and `Histogram`. */
+ *  `Window` and `Histogram`. */
 class Moments {
  public:
   Moments() = default;
@@ -37,12 +36,12 @@ class Moments {
   void add(double value) {
     const double previous = (double)m_count;
     m_count += 1;
-    const double n = (double)m_count;
+    const double count = (double)m_count;
     const double delta = value - m_mean;
-    const double deltaOverN = delta / n;
-    const double weighted = delta * deltaOverN * previous;
-    m_mean += deltaOverN;
-    m_third += weighted * deltaOverN * (n - 2.0) - 3.0 * deltaOverN * m_second;
+    const double step = delta / count;
+    const double weighted = delta * step * previous;
+    m_mean += step;
+    m_third += weighted * step * (count - 2.0) - 3.0 * step * m_second;
     m_second += weighted;
     if (value < m_min) m_min = value;
     if (value > m_max) m_max = value;
@@ -60,14 +59,17 @@ class Moments {
       *this = other;
       return;
     }
-    const double a = (double)m_count, b = (double)other.m_count;
-    const double n = a + b;
+    const double mine = (double)m_count, theirs = (double)other.m_count;
+    const double both = mine + theirs;
     const double delta = other.m_mean - m_mean;
-    const double third = m_third + other.m_third +
-                         delta * delta * delta * a * b * (a - b) / (n * n) +
-                         3.0 * delta * (a * other.m_second - b * m_second) / n;
-    const double second = m_second + other.m_second + delta * delta * a * b / n;
-    m_mean += delta * b / n;
+    const double third =
+        m_third + other.m_third +
+        delta * delta * delta * mine * theirs * (mine - theirs) /
+            (both * both) +
+        3.0 * delta * (mine * other.m_second - theirs * m_second) / both;
+    const double second =
+        m_second + other.m_second + delta * delta * mine * theirs / both;
+    m_mean += delta * theirs / both;
     m_second = second;
     m_third = third;
     m_count += other.m_count;
@@ -100,10 +102,12 @@ class Moments {
   }
   /** The population spread in the values' own units: the root of
    *  `variance()`. */
-  [[nodiscard]] double sd() const { return std::sqrt(variance()); }
+  [[nodiscard]] double deviation() const { return std::sqrt(variance()); }
   /** The sample spread in the values' own units: the root of
    *  `sampleVariance()`. */
-  [[nodiscard]] double sampleSd() const { return std::sqrt(sampleVariance()); }
+  [[nodiscard]] double sampleDeviation() const {
+    return std::sqrt(sampleVariance());
+  }
 
   /** HOW LOPSIDED THE RUN IS: zero for anything symmetric about its
    *  mean, positive when the long tail runs high, negative when it runs
@@ -112,8 +116,8 @@ class Moments {
    *  @silent a run with no spread, which has no shape to report. */
   [[nodiscard]] double skewness() const {
     if (m_count < 2 || !(m_second > 0.0)) return 0.0;
-    const double n = (double)m_count;
-    return std::sqrt(n) * m_third / std::pow(m_second, 1.5);
+    const double count = (double)m_count;
+    return std::sqrt(count) * m_third / std::pow(m_second, 1.5);
   }
 
   /** The smallest and largest seen; 0 over nothing, so that an empty

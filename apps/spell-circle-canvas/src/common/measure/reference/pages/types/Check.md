@@ -19,7 +19,7 @@ identically whether the geometry is exact or not, because the sentence
 and the measurement are joined only by whoever typed them; here they
 cannot drift apart. And because the verdict is a value rather than a
 string, a set of them can fail a build — see
-`sigil::measure::failures`.
+`CheckTable::failures`.
 
 ### What a row's verdict means to the run it stands in
 
@@ -46,15 +46,18 @@ value under a label with no verdict: a residual in scientific notation,
 a count, a ratio, a name. `sigil::measure::heading` is a title over the
 rows that follow it.
 
-`sigil::measure::failures` counts the CLAIMS that failed — an exit code
+`CheckTable::failures` counts the CLAIMS that failed — an exit code
 for a verification run, and what makes the claims mean something away
 from the screen. A finding that fails is not among them: its failing is
-a statement about the subject, and `sigil::measure::findings` counts
-those.
+a statement about the subject, and `CheckTable::findings` counts
+those. For a loose run of checks that is not a table,
+`sigil::measure::failures` and `sigil::measure::findings` under
+`advanced/CheckFormat.h` count the same over a span.
 
 ### The line a row prints as
 
-`Check::line` writes `  <label padded> <actual, right-aligned>   PASS`,
+`sigil::measure::line`, under `advanced/CheckFormat.h`, writes
+`  <label padded> <actual, right-aligned>   PASS`,
 or `… FAIL want <expected>` — the shape of `"  %-44s %8ld   %s"`. Values
 right-align because a column of results is a table, and a ragged number
 column is hard to scan at small type.
@@ -94,7 +97,7 @@ and the bare assertion is for a claim with no two numbers to compare
 ### The table a run prints as
 
 `sigil::measure::CheckTable` holds the checks in the order they were
-made and prints them as one table: every row through `Check::line` at a
+made and prints them as one table: every row through `sigil::measure::line` at a
 shared width, then a summary row, so a run of claims reads as a column
 and ends with its verdict. `CheckTable::add` appends a row and answers
 the table, so rows chain; `CheckTable::failures`,

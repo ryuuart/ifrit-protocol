@@ -5,7 +5,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmeasure/stats/Fit.h>
+#include <sigilmeasure/advanced/LineFit.h>
 
 #include <cmath>
 #include <vector>
@@ -19,7 +19,7 @@ TEST(LineFit, APerfectLineIsFoundExactlyAndExplainsEverything) {
   const LineFit<double> fit = lineFit<double>(xs, ys);
   EXPECT_NEAR(fit.slope, 2.25, 1e-12);
   EXPECT_NEAR(fit.intercept, 3.5, 1e-12);
-  EXPECT_NEAR(fit.r2, 1.0, 1e-12);
+  EXPECT_NEAR(fit.explained, 1.0, 1e-12);
   EXPECT_NEAR(fit.maxResidual, 0.0, 1e-12);
   EXPECT_NEAR(fit.rmsResidual, 0.0, 1e-12);
   EXPECT_EQ(fit.samples, 5u);
@@ -35,8 +35,8 @@ TEST(LineFit, TheResidualIsWhatTurnsASlopeIntoEvidence) {
   const LineFit<double> fit = lineFit<double>(xs, ys);
   EXPECT_NEAR(fit.slope, 1.0, 1e-12);
   EXPECT_GT(fit.maxResidual, 0.5);
-  EXPECT_LT(fit.r2, 1.0);
-  EXPECT_GT(fit.r2, 0.8) << "one lifted point still leaves a good line";
+  EXPECT_LT(fit.explained, 1.0);
+  EXPECT_GT(fit.explained, 0.8) << "one lifted point still leaves a good line";
   EXPECT_NEAR(fit.residual(2.0, ys[2]), fit.maxResidual, 1e-12);
 }
 
@@ -46,7 +46,7 @@ TEST(LineFit, WhatIsNotALineAnswersNoSlopeRatherThanADivideByZero) {
   const LineFit<double> vertical = lineFit<double>(flat, ys);
   EXPECT_EQ(vertical.slope, 0.0);
   EXPECT_NEAR(vertical.intercept, 3.0, 1e-12) << "the mean of the ordinates";
-  EXPECT_EQ(vertical.r2, 0.0);
+  EXPECT_EQ(vertical.explained, 0.0);
   EXPECT_NEAR(vertical.maxResidual, 6.0, 1e-12);
   // The residuals off that flat answer are the spread of the ordinates:
   // {1, 5, -3, 9} about 3 is {-2, 2, -6, 6}, so 80/4 under the root.
@@ -100,18 +100,18 @@ TEST(LineFit, TheCorrelationSaysTheDirectionThatR2CannotSay) {
 
   const LineFit<double> up = lineFit<double>(xs, rising);
   const LineFit<double> down = lineFit<double>(xs, falling);
-  // Both explain everything, which is all r2 can say; the correlation
+  // Both explain everything, which is all `explained` can say; the correlation
   // separates them.
-  EXPECT_NEAR(up.r2, 1.0, 1e-12);
-  EXPECT_NEAR(down.r2, 1.0, 1e-12);
+  EXPECT_NEAR(up.explained, 1.0, 1e-12);
+  EXPECT_NEAR(down.explained, 1.0, 1e-12);
   EXPECT_NEAR(up.correlation(), 1.0, 1e-12);
   EXPECT_NEAR(down.correlation(), -1.0, 1e-12);
 
-  // And on a run that is not a line, it is the root of r2 with the
+  // And on a run that is not a line, it is the root of `explained` with the
   // slope's sign and nothing else.
   const std::vector<double> scattered = {1.0, 4.0, 2.0, 8.0};
   const LineFit<double> loose = lineFit<double>(xs, scattered);
-  EXPECT_NEAR(std::abs(loose.correlation()), std::sqrt(loose.r2), 1e-12);
+  EXPECT_NEAR(std::abs(loose.correlation()), std::sqrt(loose.explained), 1e-12);
   EXPECT_EQ(loose.correlation() < 0, loose.slope < 0);
 
   // Nothing to fit is no correlation rather than a divide by zero.

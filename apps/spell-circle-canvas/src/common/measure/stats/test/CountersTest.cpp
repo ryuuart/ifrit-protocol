@@ -3,7 +3,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmeasure/stats/Counters.h>
+#include <sigilmeasure/advanced/Counters.h>
 
 #include <cstdint>
 #include <string>

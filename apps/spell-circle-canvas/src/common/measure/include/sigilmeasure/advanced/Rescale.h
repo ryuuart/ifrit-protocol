@@ -7,7 +7,7 @@
  * into a chosen span.
  */
 
-#include <sigilmeasure/stats/Moments.h>
+#include <sigilmeasure/advanced/Moments.h>
 
 #include <span>
 
@@ -20,7 +20,7 @@ namespace sigil::measure {
  *  what makes it move whenever a new point arrives. */
 struct Rescale {
   /** Subtracted from the value first: where the run's own zero is. */
-  double centre = 0.0;
+  double center = 0.0;
   /** What the centred value is multiplied by: how the run's own width
    *  becomes the answer's. */
   double scale = 1.0;
@@ -29,12 +29,12 @@ struct Rescale {
 
   /** Where @p value lands under the map. */
   [[nodiscard]] double operator()(double value) const {
-    return origin + (value - centre) * scale;
+    return origin + (value - center) * scale;
   }
   /** The value that maps to @p mapped. A map that collapsed the run to a
-   *  point cannot be undone and answers the centre. */
+   *  point cannot be undone and answers the center. */
   [[nodiscard]] double invert(double mapped) const {
-    return scale != 0.0 ? (mapped - origin) / scale + centre : centre;
+    return scale != 0.0 ? (mapped - origin) / scale + center : center;
   }
   friend bool operator==(const Rescale&, const Rescale&) = default;
 };
@@ -47,8 +47,8 @@ struct Rescale {
  *  every value to zero. */
 [[nodiscard]] inline Rescale zScore(std::span<const double> values) {
   const Moments moments = Moments::of(values);
-  const double sd = moments.sd();
-  return {moments.mean(), sd > 0.0 ? 1.0 / sd : 0.0, 0.0};
+  const double deviation = moments.deviation();
+  return {moments.mean(), deviation > 0.0 ? 1.0 / deviation : 0.0, 0.0};
 }
 
 /** THE RUN SQUEEZED INTO [@p low, @p high], its smallest value at the

@@ -1,203 +1,222 @@
 # SigilMeasure
 
-Timing, statistics and check reporting, on the standard library plus
-Boost.Container for the compact ordered counter table. The library gives you
-a stopwatch, a lap timer that names the phases of one
-span, a frame timer whose four marks feed the three lanes a render loop
-is judged by, a rolling ring of samples with the summaries a HUD prints,
-named counters, the frame sample a headless timing sweep snapshots, the
-running moments a run of any length is summarised by, the histogram that
-says what shape its spread has, the straight-line map that puts two runs
-of different units on a common footing, the least-squares line, and
-`Check` — a claim whose printed verdict is computed from the values it
-reports. It has no domain-library dependency, so every other library can
-measure itself without pulling in another Sigil layer.
+How long something took, what a run of numbers amounts to, and whether a
+claim about it held. A stopwatch and a timed block; the summary, quantile
+and histogram of a run in hand; the window, smoothed reading and rate of
+a live stream; and `Check` — a claim whose printed verdict is computed
+from the values it reports. It has no domain-library dependency, so every
+other library can measure itself without pulling in another Sigil layer,
+and a sketch can read its own numbers with the same instruments.
 
-Namespace `sigil::measure`, target `SigilMeasure`. Timing and statistics are
-inline; check formatting lives in the library's one compiled source file.
-The same target supplies the headers and their implementation. Every public header
-lives under `include/sigilmeasure/<feature>/` and is spelled
-`<sigilmeasure/<feature>/X.h>`:
+Namespace `sigil::measure`, target `SigilMeasure`. Every duration is a
+`std::chrono` span: `measure::Duration` is seconds held as a double, a
+literal such as `380ms` converts into it, and `measure::Milliseconds`
+turns it back into a number for a printout. The one outside link,
+Boost.Container, stays behind the implementation of the counter table;
+no public header includes it.
 
-| header | holds |
-|--------|-------|
-| `time/Stopwatch.h`    | `Stopwatch` (`elapsedMs()`, `elapsedUs()`, `reset()`), `toMicroseconds()` for a caller holding two clock readings, and `ScopedMs`, which writes a block's milliseconds into a double at scope exit |
-| `time/Laps.h`         | `Laps` — `mark(name)` returns the milliseconds since the previous mark and records the lap; `each()` reads them back, `size()` and `totalMs()` summarise them, `reset()` forgets them and starts the next phase there |
-| `time/FrameTimer.h`   | `FrameTimer` — `begin()`, `composed()`, `finished()`, `presented()` feeding the `frame()`, `work()` and `present()` rings, with `headroomFps()` and `presentedFps()` read off them; `addFrame()`, `addWork()` and `addPresent()` put a duration measured elsewhere into a lane, and `reset()` and `resetPresentation()` empty them |
-| `stats/Samples.h`     | `Samples`, a rolling ring (`add`, `clear`, `mean`, `percentile`, `min`, `max`, `last`, `size`, `capacity`, `empty`, `samples`), the free `quantile()` it and everything else shares, `quantiles()` for several fractions off one sort, and `median()` |
-| `stats/Moments.h`     | `Moments` — a run of any length summarised in six words: `add`, `of`, `merge`, `clear`, `count`, `empty`, `mean`, `sum`, `variance`, `sampleVariance`, `sd`, `sampleSd`, `skewness`, `min`, `max`, `range` |
-| `stats/Histogram.h`   | `Histogram` — equal bins across a range: `add` (weighted), `over`, `clear`, `binOf`, `bins`, `low`, `high`, `edge`, `centre`, `binWidth`, `counts`, `count`, `fraction`, `density`, `total`, `below`, `above`, `mode`, `peak` |
-| `stats/Rescale.h`     | `Rescale` — an invertible straight-line map (`centre`, `scale`, `origin`, applied with `operator()` and undone with `invert()`), with `zScore()` and `unitRange()` deriving one from a run |
-| `stats/Fit.h`         | `lineFit(xs, ys)` and the `LineFit` it answers — `slope`, `intercept`, `r2`, `correlation()`, `maxResidual`, `rmsResidual` and the `samples` they were read off, with `at()` and `residual()` |
-| `stats/Counters.h`    | `Counters` — named `int64_t` counters (`add`, `get`, `reset`, `clear`, `size`, `each`) |
-| `stats/FrameSample.h` | `FrameSample` — the plain numbers a frame-budget gate judges a scene by: `frameMs`, `workMs`, `p99Ms`, `headroomFps` |
-| `check/Check.h`       | `Check` (`label`, `expected`, `actual`, `pass`, a `Standing`, with `line()` and `judged()`), the `check()` overloads that build one, `finding()`, `reading()` and `heading()` for the other standings, the free `failures()` and `findings()` over a span, and `CheckTable` — `add`, `lines`, `checks`, `failures`, `findings`, `pass` |
+## Tier 1 — the whole front door
 
-## Using it
+One include, `<sigilmeasure/Measure.h>`, and every call on one screen:
 
 ```cpp
-#include <sigilmeasure/check/Check.h>
-#include <sigilmeasure/time/FrameTimer.h>
-#include <sigilmeasure/time/Laps.h>
+#include <sigilmeasure/Measure.h>
 
 using namespace sigil::measure;
+using namespace std::chrono_literals;
 
-// Laps tile the frame: each starts where the last ended.
-Laps laps;
-layout();
-stats.layoutMs = laps.mark("layout");
-paint();
-stats.paintMs = laps.mark("paint");
+// ── HOW LONG ─────────────────────────────────────────────────────────────
+Stopwatch watch;                                      // starts now
+Duration spent = watch.elapsed();                     // watch.restart() starts it again
+Duration baked = timed([&] { bake(); });              // one block, one call
+double shown = Milliseconds(baked).count();           // a number for a printout
 
-// Four marks, three lanes.
-FrameTimer timer;                 // 120 frames deep by default
+// ── A RUN IN HAND ────────────────────────────────────────────────────────
+Summary heights = summary(points, &Point::y);         // count, sum, mean, min, max, deviation
+double tail = quantile(frameTimes, 0.99);             // the one quantile
+Histogram shape = Histogram::over(values, {.bins = 20});   // bins, counts, below/above, peak
+
+// ── A LIVE STREAM ────────────────────────────────────────────────────────
+Window last{180};                                     // add, mean, min, max, quantile, latest, values
+Smoothed level{12};                                   // about the last 12: add, value
+Rate arrivals{4s};                                    // mark(at), advance(now), perSecond, times
+
+// ── A PROOF ──────────────────────────────────────────────────────────────
+CheckTable table;
+table.add(heading("THE RETE"))
+     .add(check("pieces", 12, tiling.size()))         // exact, for counts
+     .add(check("outer radius", 257.972, measured, 0.01))   // reals take a tolerance
+     .add(finding(check("legend holds", 1.0, ratio, 0.01)))
+     .add(reading("residual", 5.6e-16));
+for (const std::string& line : table.lines()) std::puts(line.c_str());
+return table.failures();                              // an exit code a build can read
+```
+
+- `time/Stopwatch.h` — `Duration`, `Milliseconds`, `Microseconds`, `Stopwatch`, `timed`
+- `stats/Summary.h` — `Summary`, `summary`
+- `stats/Quantile.h` — `quantile`, `Measurable`, `ReadingOf`
+- `stats/Histogram.h` — `Histogram`, `HistogramOptions`
+- `stats/Window.h` — `Window`, `WindowOptions`
+- `stats/Smoothed.h` — `Smoothed`, `SmoothedOptions`
+- `stats/Rate.h` — `Rate`, `RateOptions`
+- `check/Check.h` — `Check`, `Standing`, `CheckColumns`, `CheckTable`, `check`, `finding`, `reading`, `heading`
+
+## Tier 2 — one options struct per instrument
+
+Every instrument that has anything to set takes one struct, last:
+
+```cpp
+Window recent{{.span = 4s}};                // what arrived in the last four seconds: add(value, at)
+Window both{{.count = 600, .span = 10s}};   // whichever says a value is too old first
+Smoothed build{{.weight = 0.15}};           // the new value's weight, stated
+Smoothed follow{{.timeConstant = 250ms}};   // add(value, elapsed): the same speed at any frame rate
+Smoothed meter{{.over = 30, .peak = true}}; // rises at once, falls over about 30 values
+Rate frames{{.span = 1s}};
+Histogram fixed{{.low = 0, .high = 40, .bins = 20}};   // then add(value), add(value, weight)
+table.lines({.labelWidth = 22, .valueWidth = 9});
+```
+
+`WindowOptions::count` and `WindowOptions::span` bound a window; a value
+leaves when either says it is too old. `SmoothedOptions::over` is the
+exponential mean over about that many values, each new one weighing
+2 / (over + 1); `SmoothedOptions::weight` states that weight directly,
+which is what keeps a reading written as `old · 0.85 + new · 0.15`
+exactly the number it was; `SmoothedOptions::timeConstant` is read by
+`Smoothed::add` when it is handed the time that passed, so the reading
+follows at the same speed whatever the step; `SmoothedOptions::peak`
+makes it a decaying peak. `HistogramOptions::low` and
+`HistogramOptions::high` fix a range; left equal, `Histogram::over` takes
+the range from the run. `check()`'s tolerance keeps no default: how
+closely two numbers must agree is the construction's to say.
+
+## Tier 3 — control, under `advanced/`
+
+What a host, a bench or a study reaches for and a sketch rarely does:
+
+- `advanced/FrameTimer.h` — `FrameTimer`, `FrameTimerOptions`, `FrameSample`: four marks a render loop lays and the three lanes they feed, the one implementation the product renderer, the live host and the plate sweep all read
+- `advanced/Moments.h` — `Moments`: the running moments under `Summary`, with the sample spread, the skew and a merge
+- `advanced/Quantiles.h` — `quantiles`, `median`: several fractions off one sort
+- `advanced/Rescale.h` — `Rescale`, `zScore`, `unitRange`: a straight-line map derived from a run
+- `advanced/LineFit.h` — `LineFit`, `lineFit`: the least-squares line and its residuals
+- `advanced/Laps.h` — `Laps`, `ScopedDuration`: named phases of one span, and a block timed into a value
+- `advanced/Counters.h` — `Counters`: named integer counters in name order
+- `advanced/CheckFormat.h` — `line`, `failures`, `findings`: one check as a printed line, and the counts over a loose run of them
+
+```cpp
+#include <sigilmeasure/advanced/FrameTimer.h>
+
+FrameTimer timer{{.pause = 1s}};  // 120 frames deep; a present gap of a second is a pause
 timer.begin();
 record(canvas);
 timer.composed();                 // the frame's own work ends here
 flush();
 timer.finished();                 // the backend is done with it
-timer.presented();                // a wall-clock interval per call after the first
+timer.presented();                // an interval per call after the first
 hud("work %.2f ms  p99 %.2f  headroom ~%.0f fps",
-    timer.work().mean(), timer.work().percentile(0.99), timer.headroomFps());
-
-// A claim and its verdict, printed from the same values it judges.
-CheckTable table;
-table.add(check("pieces", 12, tiling.size()));
-table.add(check("outer radius", 257.972, measured, 0.01));
-for (const std::string& line : table.lines()) std::puts(line.c_str());
-return table.failures();          // an exit code a build can read
+    Milliseconds(timer.work().mean()).count(),
+    Milliseconds(timer.work().quantile(0.99)).count(), timer.headroomFps());
+const FrameSample sample = timer.sample();   // plain values, for a table
 ```
 
 ## Mental model
 
+**One unit of time.** Every reading that is a span of time is a
+`std::chrono` duration, so a stopwatch, a window of frame times and a
+rate over a feed's arrival stamps add and compare without a conversion
+in between, and no name carries its unit. A printout converts once, at
+the edge: `Milliseconds(spent).count()`.
+
+**A run in hand, or a stream.** `summary`, `quantile` and
+`Histogram::over` read a run that is already in a container, once; a
+projection — a member pointer or a callable — picks the number out of
+each element, so a run of points is summarised without copying out its
+heights. `Window`, `Smoothed` and `Rate` are fed a stream one value at a
+time and are read whenever the reader likes.
+
 **Two cost lanes, never one derived from the other.** `FrameTimer` keeps
 the frame's own work (begin to composed) and the frame end to end (begin
-to finished, backend flush included) as separate rings. A synchronous
+to finished, backend flush included) as separate lanes. A synchronous
 backend drain is not work the frame did, but it is time the machine
 spent: charging it to the work lane understates headroom, and leaving
 it out of the frame lane understates the cost. So both are kept and
-both are reported. `headroomFps()` is 1000 over the mean work time —
-the rate the frame's work alone would allow, a ceiling rather than a
-frame rate, which stays high exactly when a stutter comes from outside
-the measured work. The presented lane is the only one that can see a
-stutter at all: a window that mostly hits the vsync and occasionally
-misses several in a row averages to very near the display rate, so its
-tail (`present().percentile(0.99)`, `present().max()`) is what separates
+both are reported. `FrameTimer::headroomFps` is the rate the mean work
+time would allow — a ceiling rather than a frame rate, which stays high
+exactly when a stutter comes from outside the measured work. The
+presented lane is the only one that can see a stutter at all: a window
+that mostly hits the vsync and occasionally misses several in a row
+averages to very near the display rate, so its tail
+(`present().quantile(0.99)`, `present().max()`) is what separates
 "smooth" from "lagging".
 
-**One quantile.** `quantile(samples, p)` sorts a copy and interpolates
-linearly between the two ranks `p` falls between, so the median of
-{1, 2, 3, 4} is 2.5. Empty reads 0, one sample reads itself at every
-`p`, and `p` is clamped to [0, 1]. `Samples::percentile` is that function
-over the ring's contents; nothing else in the tree defines its own.
+**One quantile.** `quantile(values, fraction)` sorts a copy and
+interpolates linearly between the two ranks the fraction falls between,
+so the 0.5 quantile of {1, 2, 3, 4} is 2.5. Empty reads 0, one value
+reads itself at every fraction, and the fraction is clamped to [0, 1].
+`Window::quantile` is that function over the values held, and
+`quantiles` reads several fractions through the same body off one sort;
+nothing else in the tree defines its own.
 
-**One line fit, in the caller's own precision.** `lineFit(xs, ys)` is
-ordinary least squares, and it answers the residuals with the slope
-because a study that quotes a slope without one has stated a preference
-rather than a measurement: `r2` says how much of the ordinate the line
-explains, `maxResidual` says how far the worst point stands off it, and
-`at()`/`residual()` are the line evaluated so a drawing and its caption
-go through one arithmetic. It is a template on the scalar and the sums
-accumulate in that scalar — a caller that has always fitted in `float`
-gets the `float` answer it had rather than a `double` one rounded back,
-which is the difference between a drawing that holds and one that moves
-by a sub-pixel. Fewer than two points, or every point at one abscissa,
-is not a line: the answer is a zero slope through the mean with `r2` at
-0, never a divide by zero.
+**A window is contiguous.** `Window::values` is the held run itself,
+oldest first, as one span, so a chart's trace or any loop reads it with
+no copy. What falls out of the window leaves every reading at once:
+nothing is cached, so a mean or a quantile is a pass over what is held.
+A window over TIME is stamped by the caller's clock — the scene's
+seconds, a feed's arrivals — and `Window::advance` moves that time on
+with nothing added, so a stream that fell silent empties rather than
+freezing on its last values. A window over scene time is therefore
+deterministic, and so is a `Rate`, which is the same window counting
+events.
 
 **A spread is accumulated, never subtracted.** The obvious variance —
 the mean of the squares less the square of the mean — is two large
 numbers differing in their last digits, and for values that are large
-and close together (a run of timestamps, a run of coordinates on a wide
-sheet) the difference is nearly all rounding and can come out NEGATIVE.
-Clamping that at zero hides the loss and reports no spread where there
-was a real one. `Moments` folds each value's deviation from the mean so
-far in as it arrives, so the sum is of small numbers and cannot go
-negative, and shifting a whole run leaves its variance where it was.
-That is also what makes it MERGEABLE: two halves summarised separately
-amount to the same numbers as one pass over the whole, so a sweep can be
-divided across workers and put back together.
+and close together it can come out NEGATIVE. `Summary` folds each
+value's deviation from the mean so far in as it arrives, so the sum is
+of small numbers and cannot go negative, and two summaries of two halves
+merge into the summary of the whole. `Summary::deviation` takes the
+values in hand as everything there is; the sample spread, which claims
+something about what they were drawn from, is `Moments::sampleVariance`
+under `Summary::moments`.
 
-**Which spread is being claimed is the caller's to say.** `variance()`
-divides by the count and describes the values in hand as the whole of
-what there is — every frame of a recording, every point of a drawing.
-`sampleVariance()` divides by one less and claims something about what
-those values were DRAWN FROM. Neither is a default that suits both, so
-both are spelled out and neither is named `variance` alone by accident.
-
-**`Moments` keeps no values, `Samples` keeps the last few, a `Histogram`
-keeps a shape.** Three summaries, and the choice between them is what
-has to be answered later. `Moments` costs six words whatever the run's
-length and can never give a quantile back. `Samples` keeps a fixed
-window and can, at the cost of a sort. `Histogram` keeps the shape of a
-run of any length — one hump or two, a tail on one side, a wall at a
-limit — and is the only one a drawing can be made of directly. What
-falls outside its range is COUNTED, in `below()` and `above()`, rather
-than clamped into an end bin (which would draw a wall that is not in the
+**What falls outside a histogram is counted.** A value past either edge
+goes to `Histogram::below` or `Histogram::above`, rather than being
+clamped into an end bin (which would draw a wall that is not in the
 data) or dropped (which would leave a total that does not add up).
-
-**A derived rescaling is a statistic, not a drawing's scale.** `zScore`
-and `unitRange` answer a `Rescale` computed FROM a run of numbers —
-where its centre is, how wide it is — so that runs in different units
-can be compared: a frame time and a byte count both become "how unusual
-is this, for its own run". A drawing's scale is AUTHORED — a domain
-someone chose, a range in pixels, a transform, a tick ladder — and
-deriving one from the data is what makes an axis move every time a point
-arrives. The value is three numbers rather than a lambda, so it is
-storable, comparable and invertible: a reading taken back off a drawing
-goes through the same arithmetic the other way.
-
-**`Samples` is a ring.** `Samples(capacity)` keeps the last `capacity`
-samples, oldest dropping first, and computes every summary on read — no
-running sums, so `clear()` is exact and a sample that fell out of the
-ring is gone from every number. `samples()` returns them oldest first.
-Sized for a HUD: a percentile costs a sort of the ring.
 
 **A check's sentence cannot drift from its measurement.** `check(label,
 expected, actual)` returns a `Check` carrying both values formatted and
-the verdict computed from them, and `Check::line()` prints
-`  <label> <actual>   PASS` or `… FAIL want <expected>`. Three rules keep
-it honest: the integral overload is constrained to integral types so a
-float cannot be compared by truncation, the double overload takes a
-tolerance with no default because how closely two numbers must agree is
-a property of the construction being checked, and long labels push the
-value column right rather than being clipped, since a clipped label
-silently loses the qualifier at the end of a claim. `failures(checks)`
-counts the misses, and `CheckTable::lines()` prints the rows at one width
-followed by a summary line.
+the verdict computed from them, and a printed line reads
+`  <label> <actual>   PASS` or `… FAIL want <expected>`. The integral
+overload is constrained to integral types so a float cannot be compared
+by truncation, the real overload takes a tolerance with no default, and
+a long label pushes the value column right rather than being clipped.
 
 **A verification is not only claims, and each row says what it is.**
 `Check::standing` is a `Standing`: a `Claim` about the construction,
-whose FAIL fails the run; a `Finding`, a claim about the SUBJECT — a
-published formula that does not hold, a plate whose engraving
-contradicts its legend — whose verdict is computed and printed exactly
-as a claim's is and never counted against the run (`finding(check(…))`
-restates one, `findings()` counts the ones that did not hold, and the
-summary line says `, 1 finding`); a `Reading`, a measurement reported
-beside the claims and judged by nobody, printed with no verdict
-(`reading(label, value)` for a number, a count or a string); and a
-`Heading`, a title over the rows under it, printed as its label alone
-(`heading(title)`). `CheckTable::checks()` counts the rows that carry a
-verdict, and `Check::judged()` says whether one does. The standing is a
-value on the row rather than a word in its text, so the sentence a
-reader sees and the count a build reads cannot disagree about which
-failures are the run's.
-
-**A sample is plain numbers.** `FrameSample` holds `frameMs`, `workMs`,
-`p99Ms` and `headroomFps` as values, so a snapshot taken when a sample
-window closes survives the ring being cleared or refilled behind it.
-It carries no writer: how a sample is serialized belongs to whoever
-writes it out.
+whose FAIL fails the run; a `Finding`, a claim about the SUBJECT, whose
+verdict is printed as a claim's is and never counted against the run
+(`finding(check(…))` restates one); a `Reading`, a measurement reported
+beside the claims and judged by nobody (`reading(label, value)`); and a
+`Heading`, a title over the rows under it (`heading(title)`).
+`CheckTable::checks` counts the rows that carry a verdict,
+`CheckTable::failures` the claims that did not hold and
+`CheckTable::findings` the findings that did not, and the summary line
+`CheckTable::lines` ends with says both. The standing is a value on the
+row rather than a word in its text, so the sentence a reader sees and
+the count a build reads cannot disagree.
 
 ## Boundaries
 
 Nothing here knows what a frame is drawn with, what a scene is, or what
 a check is checking. The typed per-frame statistics each library keeps
-about its own work — which nodes were painted, how many pictures were
-recorded — stay with that library; this one holds the instruments they
-are read through. Nothing here serializes: writing a check into a text
-feed is the feed's library's business, and writing a sample as JSON is
-the writer's, not this one's.
+about its own work stay with that library; this one holds the
+instruments they are read through. A drawing's AUTHORED scale — a
+domain someone chose, a range in pixels, ticks — is SigilData's; what a
+run of numbers SAYS about itself — its extent, mean, spread, quantiles,
+bins — is this library's, and the two meet at the call site as two
+numbers, so neither links the other. Nothing here serializes or draws:
+writing a check into a text feed is the feed's business, and drawing a
+window as a sparkline is the chart's.
 
 ## Testing and benchmarks
 
@@ -207,45 +226,32 @@ contract every library here is built, tested and measured under: one
 a case may pin, and what a label promises. No case here carries one.
 What is only true of SigilMeasure:
 
-The cases sit beside each subject: `stats/test/` holds `SamplesTest.cpp`,
-`StatsTest.cpp`, `FitTest.cpp` and `CountersTest.cpp`,
-`time/test/TimeTest.cpp` the instruments and `check/test/CheckTest.cpp`
-the claims.
+The cases sit beside each subject: `stats/test/` holds
+`QuantileTest.cpp`, `StatsTest.cpp` (the summary, the moments, the
+histogram and the rescale), `StreamTest.cpp` (the window, the smoothed
+reading and the rate), `FitTest.cpp` and `CountersTest.cpp`;
+`time/test/TimeTest.cpp` the stopwatch, the laps and the frame timer;
+and `check/test/CheckTest.cpp` the claims.
 
 Every statistical claim is asserted against an arithmetic answer that
 can be written down — the variance of the first n whole numbers, the
-skewness of three zeros and a one, the density of a flat run, the mean
-and deviation a z-score leaves behind — rather than against a number
-this code once produced. One case is of a different kind and is the
-reason the accumulation is shaped as it is: a run of large, close
-values, where the naive formula is shown missing the answer the shifted
-run gives exactly. Between them the cases cover the quantile's edges
-(empty, one sample, interpolation, clamping), several fractions off one
-sort agreeing with the single-fraction call, the line fit (an exact line
-found exactly, a lifted point read off the residual rather than off the
-slope, a vertical run answering no slope and still reporting the spread
-of its ordinates, and the float sums matching a hand-written
-accumulation term for term), the ring's wrap-around, the counters, the
-lap timer's naming and totals, the names a lap may be given — a literal,
-a view, a string the caller keeps — and the temporary it refuses,
-asserted as a compile-time refusal rather than as a value, `ScopedMs`
-leaving its target alone until scope exit, the frame timer's lanes, and
-`Check::line` formatting as one parameterised case per kind of claim:
-integral, tolerance, text, bare condition, and a label longer than its
-column.
+skewness of three zeros and a one, the density of a flat run, a
+smoothed reading after two steps of a stated weight, the count a span
+leaves in a rate — rather than against a number this code once
+produced. Every stamp a stream case feeds is stated, never read off a
+clock.
 
 **Exactly one case reads the wall clock**, and it owns every claim that
-needs one: that the stopwatch, the lap timer and `ScopedMs` advance with
-real time, and that a reset sends the reading back — asserted against
-the span already measured, since a stopwatch that ignored reset could
-only ever read higher, and not against a ceiling a busy scheduler could
-cross. Every other timing case is deterministic, because sleeping and
-then asserting on a duration asserts the operating system's scheduler
-rather than anything this library promises.
+needs one: that the stopwatch, a timed block, the lap timer and
+`ScopedDuration` advance with real time, and that a restart sends the
+reading back — asserted against the span already measured, not against
+a ceiling a busy scheduler could cross.
 
-`measure_bench`'s arms are in `stats/bench/`: `SamplesBench.cpp` times
-`Samples::add`, `Samples::percentile` and `Samples::mean` per sample
-count, and `StatsBench.cpp` the per-value cost of `Moments::add` and
-`Histogram::add`, the per-run cost of `Moments::of`, `Histogram::over`
-and `zScore`, and the two quantile arms side by side, where the whole
-point is that one sorts once and the other sorts per fraction.
+`measure_bench`'s arms are in `stats/bench/`: `WindowBench.cpp` times a
+window's add (by count and over a span), its quantile and its mean at
+the sizes a HUD and a sweep use, a smoothed reading's add and a rate's
+mark; `StatsBench.cpp` the per-value cost of `Moments::add` and
+`Histogram::add`, the per-run cost of `Moments::of`, `summary`,
+`Histogram::over` and `zScore`, and the two quantile arms side by side,
+where the whole point is that one sorts once and the other sorts per
+fraction.

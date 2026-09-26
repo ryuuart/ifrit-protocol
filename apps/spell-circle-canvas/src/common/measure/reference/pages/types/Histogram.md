@@ -48,14 +48,14 @@ count.
 
 ### The bins
 
-`Histogram::binOf` answers which bin a value falls in. The bins are
+`Histogram::binContaining` answers which bin a value falls in. The bins are
 half-open — a value on a boundary belongs to the bin above it — except
 at the top, where the high edge itself belongs to the last bin rather
 than to nothing.
 
 `Histogram::edge` is the left edge of a bin, and `edge(bins())` is the
 high end, so the edges read as one run of `bins() + 1` values.
-`Histogram::centre` is the middle of a bin, where a bar is centred and a
+`Histogram::center` is the middle of a bin, where a bar is centred and a
 point is plotted. `Histogram::mode` is the heaviest bin, the first of a
 tie, and `Histogram::peak` is how heavy it is.
 

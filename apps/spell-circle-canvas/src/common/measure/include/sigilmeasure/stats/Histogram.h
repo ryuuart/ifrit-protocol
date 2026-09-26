@@ -8,11 +8,25 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <iterator>
+#include <limits>
+#include <ranges>
 #include <span>
 #include <vector>
 
 namespace sigil::measure {
+
+/** THE BINS A `Histogram` CUTS ITS RANGE INTO. */
+struct HistogramOptions {
+  /** The low edge of the range. */
+  double low = 0;
+  /** The high edge. When it is not above `low`, `Histogram::over` takes
+   *  the range from the run itself. */
+  double high = 0;
+  /** How many equal bins; zero is one. */
+  std::size_t bins = 20;
+};
 
 /** EQUAL BINS ACROSS A RANGE, AND WHAT FELL IN EACH — what SHAPE a
  *  run's spread has, where `Moments` says only how wide it is. Counts
@@ -23,25 +37,38 @@ namespace sigil::measure {
  *  is the weight INSIDE and not everything added. */
 class Histogram {
  public:
-  /** @p bins equal bins spanning [@p low, @p high). A count of zero is
-   *  one bin. A range that is empty or backwards collapses to [low,
-   *  low]: only `low` itself is inside it, and it falls in the first
-   *  bin — never a divide by a width of nothing. */
-  Histogram(double low, double high, size_t bins)
-      : m_low(low),
-        m_high(high > low ? high : low),
-        m_counts(bins > 0 ? bins : 1, 0.0) {}
+  /** `bins` equal bins spanning [`low`, `high`). A range that is empty
+   *  or backwards collapses to [low, low]: only `low` itself is inside
+   *  it, and it falls in the first bin — never a divide by a width of
+   *  nothing. */
+  explicit Histogram(HistogramOptions options)
+      : m_low(options.low),
+        m_high(options.high > options.low ? options.high : options.low),
+        m_counts(options.bins > 0 ? options.bins : 1, 0.0) {}
 
-  /** THE HISTOGRAM OF A RUN ALREADY IN HAND, over the range the run
-   *  itself covers: the first look at data whose extent is not known in
-   *  advance. `below()` and `above()` are zero for one of these,
-   *  nothing falling outside a range taken from the values. */
-  [[nodiscard]] static Histogram over(std::span<const double> values,
-                                      size_t bins) {
-    if (values.empty()) return Histogram(0.0, 0.0, bins);
-    const auto [low, high] = std::minmax_element(values.begin(), values.end());
-    Histogram histogram(*low, *high, bins);
-    for (double value : values) histogram.add(value);
+  /** THE HISTOGRAM OF A RUN ALREADY IN HAND: `Histogram::over(values,
+   *  {.bins = 20})`. With no range in @p options the range is the one the
+   *  run itself covers — the first look at data whose extent is not known
+   *  in advance, where `below()` and `above()` stay zero. @p projection
+   *  picks the number out of each element. */
+  template <std::ranges::input_range Range, class Projection = std::identity>
+  [[nodiscard]] static Histogram over(Range&& values,
+                                      HistogramOptions options = {},
+                                      Projection projection = {}) {
+    if (!(options.high > options.low)) {
+      double low = std::numeric_limits<double>::infinity();
+      double high = -low;
+      for (auto&& value : values) {
+        const auto number = static_cast<double>(std::invoke(projection, value));
+        low = std::min(low, number);
+        high = std::max(high, number);
+      }
+      options.low = low <= high ? low : 0.0;
+      options.high = low <= high ? high : 0.0;
+    }
+    Histogram histogram(options);
+    for (auto&& value : values)
+      histogram.add(static_cast<double>(std::invoke(projection, value)));
     return histogram;
   }
 
@@ -56,7 +83,7 @@ class Histogram {
       m_above += weight;
       return;
     }
-    m_counts[binOf(value)] += weight;
+    m_counts[binContaining(value)] += weight;
     m_inside += weight;
   }
 
@@ -69,7 +96,7 @@ class Histogram {
   /** WHICH BIN @p value FALLS IN. The bins are half-open — a value on a
    *  boundary belongs to the bin above it — except at the top, where
    *  the high edge belongs to the last bin rather than to nothing. */
-  [[nodiscard]] size_t binOf(double value) const {
+  [[nodiscard]] size_t binContaining(double value) const {
     if (!(m_high > m_low)) return 0;
     const double where =
         (value - m_low) / (m_high - m_low) * (double)m_counts.size();
@@ -95,7 +122,7 @@ class Histogram {
   }
   /** The middle of bin @p bin — where a bar is centred and a point is
    *  plotted. */
-  [[nodiscard]] double centre(size_t bin) const {
+  [[nodiscard]] double center(size_t bin) const {
     return edge(bin) + binWidth() * 0.5;
   }
 

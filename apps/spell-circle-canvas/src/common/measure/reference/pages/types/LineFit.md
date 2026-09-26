@@ -13,21 +13,22 @@ status: stable
 
 A LINE FITTED BY LEAST SQUARES, and the residuals that say whether the
 claim it makes is worth printing. The slope and the intercept are the
-answer; `r2`, `maxResidual` and `rmsResidual` are what turns a drawn
+answer; `explained`, `maxResidual` and `rmsResidual` are what turns a drawn
 line into evidence. A study that quotes a slope without a residual has
 stated a preference, not a measurement.
 
-- `stats/Fit.h` — `LineFit`, `slope`, `intercept`, `r2`, `maxResidual`,
+- `advanced/LineFit.h` — `LineFit`, `slope`, `intercept`, `explained`, `maxResidual`,
   `rmsResidual`, `samples`, `correlation`, `at`, `residual`, `lineFit`
 
 `correlation` is HOW STRONGLY THE TWO RUN TOGETHER, -1 to 1: the square
-root of `r2` carrying the slope's sign. It says the same thing `r2`
+root of `explained` carrying the slope's sign. It says the same thing `explained`
 says about how much was explained, and one thing more that a drawing
 usually wants stated — the DIRECTION, so that "they move together" and
 "one falls as the other rises" are told apart without reading the slope
 in the ordinate's own units.
 
-`r2` is the coefficient of determination, 0 to 1; a run whose abscissae
+`explained` is the coefficient of determination, 0 to 1 — how much of
+the ordinates' spread the line accounts for; a run whose abscissae
 are all one value has no line to fit and answers 0 with a zero slope.
 `maxResidual` is the largest absolute deviation over the points, in the
 ordinate's own units, and `rmsResidual` the root mean square of the
@@ -43,7 +44,7 @@ one rounded back. Fit in double where the answer is the finding and in
 float where it feeds a drawing that must not move.
 
 Fewer than two points, or every point at one abscissa, is not a line:
-the answer is a zero slope through the mean, with `r2` at 0, which reads
+the answer is a zero slope through the mean, with `explained` at 0, which reads
 as "nothing was explained" rather than as a divide by zero. The
 residuals are still measured, off that flat answer, so a run that has no
 slope still reports how far its ordinates stand apart.
