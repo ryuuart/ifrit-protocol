@@ -120,7 +120,7 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   EXPECT_TRUE(sameDrawing(
       readout,
       byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8850"},
-              {.name = u8"state", .value = u8"closed"},
+              {.name = u8"state", .value = u8"open"},
               {.name = u8"revision", .value = u8"0"},
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"0"},
@@ -129,7 +129,7 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   EXPECT_FALSE(sameDrawing(
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),
       byHand({{.name = u8"door", .value = u8"ws://127.0.0.1:8850"},
-              {.name = u8"state", .value = u8"closed"},
+              {.name = u8"state", .value = u8"open"},
               {.name = u8"revision", .value = u8"0"},
               {.name = u8"dropped", .value = u8"0"},
               {.name = u8"undecodable", .value = u8"0"},
@@ -138,11 +138,11 @@ TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
 
 TEST(SketchKitConnectionReadout,
      ADoorThatNeverOpenedReadsWhyWhereTheSenderStood) {
-  // No transport is registered for the scheme, so the URI opens nothing:
+  // No transport answers the scheme, so the URI opens nothing:
   // no door stands, no address is bound, nothing arrives, and the feed
   // says why.
   Hub hub;
-  data::Connection sky = data::connect(hub, "ws://:8851/sky");
+  data::Connection sky = data::connect(hub, "pigeon://:8851/sky");
   ASSERT_FALSE(sky.feed().state().isOpen());
   ASSERT_TRUE(sky.state().localAddress.empty());
   const std::string why = sky.state().error;
@@ -158,7 +158,7 @@ TEST(SketchKitConnectionReadout,
   };
   EXPECT_TRUE(sameDrawing(
       onTheSheet(kit::connectionReadout(sky, {.rows = {.measure = 300}})),
-      rows(u8"ws://:8851/sky")));
+      rows(u8"pigeon://:8851/sky")));
   EXPECT_TRUE(sameDrawing(
       onTheSheet(kit::connectionReadout(
           sky, {.door = u8"the sky's door", .rows = {.measure = 300}})),

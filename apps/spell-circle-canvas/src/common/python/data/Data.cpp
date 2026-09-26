@@ -763,6 +763,42 @@ void bindData(py::module_& root) {
           py::arg("sql"));
   module.def("engineOf", &data::engineOf, py::arg("uri"));
 
+  module.attr("maxOscPacketBytes") = data::maxOscPacketBytes;
+  py::class_<data::Schema>(module, "Schema")
+      .def(py::init<>())
+      .def_static(
+          "fromBinarySchema",
+          [](py::bytes bytes) {
+            const auto source = bytes.cast<std::string>();
+            std::string why;
+            auto schema = data::Schema::fromBinarySchema(
+                std::as_bytes(std::span(source)), &why);
+            if (!schema) throw py::value_error(why);
+            return schema;
+          },
+          py::arg("bytes"))
+      .def("__bool__", [](const data::Schema& value) { return bool(value); })
+      .def("rootName", &data::Schema::rootName)
+      .def(
+          "text",
+          [](const data::Schema& value, py::bytes bytes) {
+            const auto source = bytes.cast<std::string>();
+            std::string why;
+            auto result = value.text(std::as_bytes(std::span(source)), &why);
+            if (!result) throw py::value_error(why);
+            return *result;
+          },
+          py::arg("binary"))
+      .def(
+          "binary",
+          [](const data::Schema& value, std::string_view json) {
+            std::string why;
+            auto result = value.binary(json, &why);
+            if (!result) throw py::value_error(why);
+            return py::bytes(reinterpret_cast<const char*>(result->data()),
+                             result->size());
+          },
+          py::arg("json"));
   py::enum_<data::Dialect>(module, "Dialect")
       .value("Json", data::Dialect::Json)
       .value("Osc", data::Dialect::Osc)
@@ -825,42 +861,6 @@ void bindData(py::module_& root) {
         return data::table(hub, uri, {.query = std::move(query)});
       },
       py::arg("hub"), py::arg("uri"), py::arg("query") = "");
-  module.attr("maxOscPacketBytes") = data::maxOscPacketBytes;
-  py::class_<data::Schema>(module, "Schema")
-      .def(py::init<>())
-      .def_static(
-          "fromBinarySchema",
-          [](py::bytes bytes) {
-            const auto source = bytes.cast<std::string>();
-            std::string why;
-            auto schema = data::Schema::fromBinarySchema(
-                std::as_bytes(std::span(source)), &why);
-            if (!schema) throw py::value_error(why);
-            return schema;
-          },
-          py::arg("bytes"))
-      .def("__bool__", [](const data::Schema& value) { return bool(value); })
-      .def("rootName", &data::Schema::rootName)
-      .def(
-          "text",
-          [](const data::Schema& value, py::bytes bytes) {
-            const auto source = bytes.cast<std::string>();
-            std::string why;
-            auto result = value.text(std::as_bytes(std::span(source)), &why);
-            if (!result) throw py::value_error(why);
-            return *result;
-          },
-          py::arg("binary"))
-      .def(
-          "binary",
-          [](const data::Schema& value, std::string_view json) {
-            std::string why;
-            auto result = value.binary(json, &why);
-            if (!result) throw py::value_error(why);
-            return py::bytes(reinterpret_cast<const char*>(result->data()),
-                             result->size());
-          },
-          py::arg("json"));
 }
 
 }  // namespace sigil::python
