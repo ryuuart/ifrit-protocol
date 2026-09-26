@@ -57,8 +57,8 @@ struct JsonDecoder {
  *  `TableDecoder` AFTERWARDS. */
 template <typename Hub>
 void registerDecoders(Hub& hub) {
-  hub.template registerDecoder<Table>(TableDecoder{});
-  hub.template registerDecoder<Json>(JsonDecoder{});
+  registerDecoder<Table>(hub, TableDecoder{});
+  registerDecoder<Json>(hub, JsonDecoder{});
 }
 
 }  // namespace sigil::data

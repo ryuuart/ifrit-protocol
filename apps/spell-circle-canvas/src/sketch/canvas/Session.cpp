@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <sigilio/advanced/Time.h>
 
 namespace sigil::sketch {
 
@@ -171,7 +172,7 @@ class CanvasSession final : public Session {
     // the body reads them: what a frame sees is everything that had
     // arrived by the moment it draws.
     const double seconds = m_engine.elapsed().count();
-    m_assets.hub().advance(std::chrono::duration<double>(seconds));
+    io::advance(m_assets.hub(), std::chrono::duration<double>(seconds));
     {
       SketchContext ctx = context();
       m_sketch->update(seconds, ctx);

@@ -10,6 +10,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/testing/Testing.h>
+#include <sigilio/advanced/Time.h>
 
 #include <cstddef>
 #include <memory>
@@ -62,7 +63,7 @@ sheet::Sheet aSheet() {
 
 TEST(DataTyped, ABufferOnTheDoorIsTheNewestValue) {
   Hub hub;
-  hub.setFeedTransport("ws", intoNowhere());
+  sigil::io::registerTransport(hub, "ws", intoNowhere());
 
   Connection door(hub, "ws://:8850/sheet");
   // Nothing has arrived, so there is no value to hand out.
@@ -76,7 +77,7 @@ TEST(DataTyped, ABufferOnTheDoorIsTheNewestValue) {
   EXPECT_FALSE(door.latest<sheet::Sheet>());
   EXPECT_TRUE(door.latest().null());
 
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   const std::optional<sheet::Sheet> read = door.latest<sheet::Sheet>();
   ASSERT_TRUE(read);
@@ -105,13 +106,13 @@ TEST(DataTyped, ABufferOnTheDoorIsTheNewestValue) {
 
 TEST(DataTyped, TheSchemasJsonFormReadsAsTheSameValue) {
   Hub hub;
-  hub.setFeedTransport("ws", intoNowhere());
+  sigil::io::registerTransport(hub, "ws", intoNowhere());
 
   Connection door(hub, "ws://:8851/sheet", schema<flatbuffer_test::Sheet>());
   ASSERT_TRUE(door.schema());
   inletOf(door.feed()).deliver(bytesOf(R"({"readings": [{"name": "a", "value": 2.5},)"
                                        R"( {"name": "c", "value": -1.0}]})"));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   const std::optional<sheet::Sheet> read = door.latest<sheet::Sheet>();
   ASSERT_TRUE(read);
@@ -134,7 +135,7 @@ TEST(DataTyped, TheSchemasJsonFormReadsAsTheSameValue) {
   ASSERT_TRUE(before);
   EXPECT_EQ(before->readings.size(), 2u);  // still the frame's own message
 
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   const std::optional<sheet::Sheet> again = door.latest<sheet::Sheet>();
   ASSERT_TRUE(again);
   ASSERT_EQ(again->readings.size(), 1u);
@@ -145,11 +146,11 @@ TEST(DataTyped, TheSchemasJsonFormReadsAsTheSameValue) {
 
 TEST(DataTyped, BytesThatAreNoSheetReadAsNothing) {
   Hub hub;
-  hub.setFeedTransport("ws", intoNowhere());
+  sigil::io::registerTransport(hub, "ws", intoNowhere());
 
   Connection plain(hub, "ws://:8852/sheet");
   inletOf(plain.feed()).deliver(bytesOf("not a sheet at all"));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   // The bytes do not verify as the root the value is read from, so
   // there is no value rather than a reading of whatever they were.
   EXPECT_FALSE(plain.latest<sheet::Sheet>());
@@ -159,7 +160,7 @@ TEST(DataTyped, BytesThatAreNoSheetReadAsNothing) {
   Connection through(hub, "ws://:8853/sheet", schema<flatbuffer_test::Sheet>());
   inletOf(through.feed()).deliver(
               bytesOf(R"({"readings": [{"name": "a", "value": "tall"}]})"));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   EXPECT_FALSE(through.latest<sheet::Sheet>());
   EXPECT_EQ(through.undecodable(), 1u);
 }

@@ -86,7 +86,7 @@ void SpellCircleRenderer::resolveGeometry(SpellCircleModel* model) {
 
 void SpellCircleRenderer::initializeResources(QCanvasPainter* painter) {
   static_cast<void>(painter);
-  m_publisher = ifrit::qt::createPublisher(rhi(), "SpellCircle");
+  m_publisher = ifrit::qt::createPublisher(m_hub, rhi(), "SpellCircle");
   if (auto context = sigil::skia::createGraphiteContext(rhi()))
     m_renderState = std::make_unique<RenderState>(std::move(context));
   else {

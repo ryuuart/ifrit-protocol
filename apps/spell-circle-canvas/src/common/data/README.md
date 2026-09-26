@@ -489,7 +489,7 @@ sky.on("/sky/ping", [&](const Json&) {
   sky.reply("/sky/pong", Json::Array{1});             // back to that sender
 });
 
-hub.advance(time);                        // the frame: handlers run here
+sigil::io::advance(hub, time);                        // the frame: handlers run here
 wind = sky.latest()["arguments"][0].number(); // the newest, already read
 while (const std::optional<Json> message = sky.receive()) log(*message);
 sky.send("/sky/ack", Json::Array{1});         // back out the same door
@@ -540,7 +540,7 @@ carrying whichever fields it happened to have.
 ```cpp
 Connection door(hub, "udp://:27022", schema<Sky>());   // the generated root
 
-hub.advance(time);                         // the frame: the door fills
+sigil::io::advance(hub, time);                         // the frame: the door fills
 if (const std::optional<Sky> state = door.latest<Sky>())   // the value type
   for (const Band& band : state->bands) draw(band);        // a field, held
 ```
@@ -577,7 +577,7 @@ read whole.
 
 **Nothing drives it but the frame.** Opening a connection registers it
 on the hub's advance, so the one call a host already makes,
-`hub.advance(time)`, drains the feed, reads what arrived and runs
+`sigil::io::advance(hub, time)`, drains the feed, reads what arrived and runs
 the handlers — after it has moved every replayed recording forward, so a
 recording replays through a connection exactly as a live sender arrives
 through it. Between two advances every reading answers what the last

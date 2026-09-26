@@ -11,6 +11,7 @@
 #include <include/core/SkSurface.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilio/frames/Subscription.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/set/Set.h>
@@ -68,20 +69,23 @@ sk_sp<SkImage> turnOver(const sk_sp<SkImage>& read) {
 }  // namespace
 
 Guest::Guest(SketchContext& context, std::string name, std::string application)
-    : Guest(context.deterministic, std::move(name), std::move(application)) {}
+    : Guest(context.assets.hub(), context.deterministic, std::move(name),
+            std::move(application)) {}
 
 Guest::Guest(SetContext& context, std::string name, std::string application)
-    : Guest(context.deterministic, std::move(name), std::move(application)) {}
+    : Guest(context.assets.hub(), context.deterministic, std::move(name),
+            std::move(application)) {}
 
-Guest::Guest(bool deterministic, std::string name, std::string application)
+Guest::Guest(io::Hub& hub, bool deterministic, std::string name,
+             std::string application)
     : m_name(std::move(name)) {
   // A DETERMINISTIC RUN SUBSCRIBES TO NOTHING: a capture that will be
   // diffed must be a function of this sketch's declaration, and what
   // another application happens to be publishing while it is taken is
   // not one.
   if (deterministic) return;
-  m_subscription = io::frames::subscribe(m_name, std::move(application),
-                                          io::frames::defaultMetalDevice());
+  m_subscription = hub.subscribe("syphon://" + m_name,
+                                 {.application = std::move(application)});
 }
 
 Guest::~Guest() = default;
@@ -99,7 +103,8 @@ sk_sp<SkImage> Guest::frame(skgpu::graphite::Recorder* recorder) {
   // ASKING IS ALSO THE RECONNECTION, so it is asked whatever can be done
   // with the answer: a publication that appeared after this guest was
   // made, or came back after its publisher stopped, is opened onto here.
-  void* texture = m_subscription.latest();
+  const std::optional<io::frames::Frame> arrival = m_subscription.latest();
+  void* texture = arrival ? arrival->texture : nullptr;
   m_picture.reset();
   m_turned.reset();
   m_recorder = recorder;
@@ -130,7 +135,8 @@ material::Texture Guest::texture() {
     return m_dress;
   // ASKING IS ALSO THE RECONNECTION, so it is asked whatever can be done
   // with the answer.
-  void* texture = m_subscription.latest();
+  const std::optional<io::frames::Frame> arrival = m_subscription.latest();
+  void* texture = arrival ? arrival->texture : nullptr;
   m_dress = {};
   m_read = arrived;
   if (!texture) return m_dress;

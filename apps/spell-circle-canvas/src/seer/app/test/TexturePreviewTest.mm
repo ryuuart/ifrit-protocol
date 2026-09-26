@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilio/frames/Publisher.h>
+#include <sigilio/hub/Hub.h>
 #include <QtCore/QElapsedTimer>
 #include <QtCore/QTemporaryDir>
 #include <QtCore/QThread>
@@ -27,9 +28,9 @@ TEST(SeerTexturePreview, OwnsFramesAcrossPauseResizeReconnectAndWindowTeardown) 
     id<MTLCommandQueue> queue = [device newCommandQueue];
     ASSERT_TRUE(queue);
     const std::string name = NSUUID.UUID.UUIDString.UTF8String;
+    sigil::io::Hub hub;
     auto makePublisher = [&] {
-      return sigil::io::frames::createPublisher(name, sigil::io::frames::Backend::Metal,
-                                                 (__bridge void*)device);
+      return hub.publish("syphon://" + name, {.device = {.handle = (__bridge void*)device}});
     };
     auto publisher = makePublisher();
     ASSERT_TRUE(publisher);
@@ -47,7 +48,7 @@ TEST(SeerTexturePreview, OwnsFramesAcrossPauseResizeReconnectAndWindowTeardown) 
                    withBytes:pixels.data()
                  bytesPerRow:width * 4];
       id<MTLCommandBuffer> commands = [queue commandBuffer];
-      publisher.publishFrame((__bridge void*)texture, (__bridge void*)commands, width, height);
+      publisher.send({.texture = (__bridge void*)texture, .commandBuffer = (__bridge void*)commands, .width = width, .height = height});
       [commands commit];
       [commands waitUntilCompleted];
       EXPECT_EQ(commands.status, MTLCommandBufferStatusCompleted);

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <sigildata/decode/Decoders.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Places.h>
 
 #include <cmath>
 #include <string>
@@ -387,7 +388,7 @@ TEST(DataDecode, OneRegisterCallIsAllAHubNeeds) {
   scratch.write("nested.json", R"({"root": {"depth": 4}})");
 
   sigil::io::Hub hub;
-  hub.mount("res://", scratch.path);
+  sigil::io::mount(hub, "res://", scratch.path);
   registerDecoders(hub);
 
   const std::shared_ptr<const Table> deaths =
@@ -425,7 +426,7 @@ TEST(DataDecode, AWriteThroughTheHubDropsTheTableItDecoded) {
   scratch.write("t.csv", "v\n1\n");
 
   sigil::io::Hub hub;
-  hub.mount("res://", scratch.path);
+  sigil::io::mount(hub, "res://", scratch.path);
   registerDecoders(hub);
   ASSERT_TRUE(hub.load<Table>("res://t.csv"));
   EXPECT_DOUBLE_EQ(1.0, hub.load<Table>("res://t.csv")->column<double>("v")[0]);

@@ -878,7 +878,7 @@ told; `Feed::receive()` drains in order the ones this frame has not seen,
 for a scene that folds every message in. Neither ever waits.
 
 The host moves those feeds forward, and there is nothing for a sketch to
-call: both runtimes hand `Hub::advance()` on `Assets::hub()` the scene
+call: both runtimes hand `sigil::io::advance()` on `Assets::hub()` the scene
 time the frame is being drawn at, after the clock has advanced and before
 the sketch's own body runs, which moves every feed the sketch opened.
 A window and a headless capture step through the same call, so a sketch
@@ -899,7 +899,7 @@ void setup(SketchContext& ctx) {
 }
 ```
 
-`Hub::mount()` is the whole of it: the code that listens is the code that
+`sigil::io::mount()` is the whole of it: the code that listens is the code that
 reads, so a plate is the arrivals rather than a picture of an empty port,
 and a sweep that steps from zero delivers them at the seconds they were
 heard at. A sketch's recording stands under `data/` beside it like any

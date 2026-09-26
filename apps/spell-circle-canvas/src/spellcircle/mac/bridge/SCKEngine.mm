@@ -61,8 +61,8 @@ constexpr uint64_t kInspectionPumpNanoseconds = 30 * NSEC_PER_MSEC;
   // The publisher announces itself immediately and keeps the last
   // published frame for late-joining clients.
   if (_device)
-    _publisher = sigil::io::frames::createPublisher(
-        "SpellCircle", sigil::io::frames::Backend::Metal, (__bridge void *)_device);
+    _publisher = _hub.publish("syphon://SpellCircle",
+                              {.device = {.handle = (__bridge void *)_device}});
 
   // Only UDP: this product speaks nothing else, so the hub is taught the
   // one scheme its port is opened on.

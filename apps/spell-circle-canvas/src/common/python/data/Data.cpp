@@ -14,6 +14,7 @@
 #include <sigildata/query/Database.h>
 #include <sigildata/scale/Scale.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Decoding.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/data/Convert.h>
 #include <sigilpython/data/Registration.h>
@@ -297,7 +298,7 @@ void bindData(py::module_& root) {
         // One Python module stands over every feature of this library, so
         // the call that puts its decoders on a hub puts the database
         // decoder there too: an owned hub loads what a session hub loads.
-        hub.registerDecoder<data::Database>(data::DatabaseDecoder{});
+        io::registerDecoder<data::Database>(hub, data::DatabaseDecoder{});
       },
       py::arg("hub"));
   py::enum_<data::Json::Kind>(module, "JsonKind")

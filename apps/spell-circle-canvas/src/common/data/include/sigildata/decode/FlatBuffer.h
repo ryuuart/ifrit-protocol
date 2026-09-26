@@ -121,7 +121,7 @@ struct FlatBufferDecoder {
  *  Registering a Root again replaces the decoder later asks run. */
 template <class Root, typename Hub>
 void registerFlatBuffer(Hub& hub) {
-  hub.template registerDecoder<FlatBuffer<Root>>(FlatBufferDecoder<Root>{});
+  registerDecoder<FlatBuffer<Root>>(hub, FlatBufferDecoder<Root>{});
 }
 
 /** A FLATBUFFER WHOSE ROOT A SCHEMA NAMES rather than a generated C++
@@ -218,7 +218,7 @@ struct SchemaBufferDecoder {
  *  schema later asks are read through. */
 template <typename Hub>
 void registerSchemaBuffer(Hub& hub, Schema schema) {
-  hub.template registerDecoder<SchemaBuffer>(
+  registerDecoder<SchemaBuffer>(hub,
       SchemaBufferDecoder{std::move(schema)});
 }
 

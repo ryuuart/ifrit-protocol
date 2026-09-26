@@ -19,6 +19,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilprotocol/clock/ClockAgent.h>
 #include <sigilprotocol/clock/ClockClient.h>
 #include <sigilprotocol/definition/Definition.h>
@@ -167,7 +168,7 @@ class ProtocolEndpoint : public ::testing::Test {
   std::optional<Json> hear(const sigil::io::Feed& client) {
     std::optional<Json> heard;
     waitUntil([&] {
-      hostHub.advance();
+      sigil::io::advance(hostHub);
       if (const std::optional<sigil::io::Message> arrival = client.receive())
         heard = sigil::data::decodeJson(arrival->payload->asText());
       return heard.has_value();
@@ -320,7 +321,7 @@ TEST_F(ProtocolEndpoint, APeerThatLeavesIsDetached) {
   client.close();
   client = {};
   EXPECT_TRUE(waitUntil([&] {
-    hostHub.advance();
+    sigil::io::advance(hostHub);
     return dispatcher.sessions().empty();
   }));
 }

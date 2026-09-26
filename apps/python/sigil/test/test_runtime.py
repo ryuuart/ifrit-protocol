@@ -112,7 +112,7 @@ class Resources:
         hub = ctx.assets.hub()
         uri = ctx.local("hello.txt")
         text = hub.text(uri)
-        stored = hub.fetch(uri)
+        stored = hub.read(uri)
         info = hub.probe(ResourceInfo, uri)
         names = hub.select(ctx.local("*.txt"))
         missing = ctx.assets.image(ctx.local("missing.png"))

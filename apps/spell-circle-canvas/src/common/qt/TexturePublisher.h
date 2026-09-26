@@ -7,10 +7,12 @@
  */
 
 #include <sigilio/frames/Publisher.h>
+#include <sigilio/hub/Hub.h>
 
 #include <QtCore/QSize>
 #include <memory>
 #include <string>
+#include <string_view>
 
 class QRhi;
 class QRhiTexture;
@@ -18,10 +20,12 @@ class QRhiCommandBuffer;
 
 namespace ifrit::qt {
 
-/** Opens the native publisher supported by this QRhi backend, or returns
- * null. The publisher must be destroyed before QRhi's device. */
-sigil::io::frames::Publisher createPublisher(
-    QRhi* rhi, std::string name);
+/** Publishes under @p name through @p hub on the device this QRhi
+ * backend draws on — Syphon over Metal, Spout over Direct3D11 — or
+ * returns an empty handle. The publisher must be destroyed before QRhi's
+ * device. */
+sigil::io::frames::Publisher createPublisher(sigil::io::Hub& hub, QRhi* rhi,
+                                             std::string_view name);
 
 /** Publishes a texture from the QRhi that created the publisher. Drawing
  * must already be submitted; Qt commits the still-open command buffer.

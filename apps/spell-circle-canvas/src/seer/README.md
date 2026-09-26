@@ -106,7 +106,7 @@ whether it is closed, and `sigil::seer::Vitals::lastFrom`, the address
 that message came from. The rate is worked out from the generations
 earlier ticks read, so it is a property of how often the host calls
 this and needs no thread behind it. Nothing here has a clock: the
-hub's `sigil::io::Hub::advance()`, reached through
+hub's `sigil::io::advance()`, reached through
 `sigil::seer::Wires::hub()`, and the tick both take the caller's time.
 
 `sigil::seer::Log` keeps what `sigil::seer::Log::drain()` takes off one

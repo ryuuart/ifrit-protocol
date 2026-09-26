@@ -32,7 +32,7 @@ sky.on("/sky/gust", [&](const Json& message) {
 sky.on("*", [&](const Json&) { ++messages; });
 sky.otherwise([&](const Json&) { ++strangers; });
 ...
-hub.advance(time);                   // the frame: handlers run here
+sigil::io::advance(hub, time);                   // the frame: handlers run here
 wind = sky.latest()["arguments"][0].number();
 calm = sky.latest("/sky/calm")["arguments"][0].number();
 sky.send("/sky/ack", Json::Array{1});
@@ -87,7 +87,7 @@ reading:
 namespace sky = feed_sky::values;    // what that schema generated
 Connection door(hub, "udp://:27022", schema<feed_sky::Sky>());
 ...
-hub.advance(time);               // the frame: the door fills
+sigil::io::advance(hub, time);               // the frame: the door fills
 if (const std::optional<sky::Sky> state = door.latest<sky::Sky>())
   for (const sky::Band& band : state->bands) draw(band);
 ```

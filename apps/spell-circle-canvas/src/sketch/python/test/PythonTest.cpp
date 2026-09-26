@@ -75,8 +75,7 @@ struct FeedFixture {
   sketch::Assets services{fs::path{}};
 
   FeedFixture() {
-    services.hub().setFeedTransport(
-        "fixture", [counts = counts](std::string_view uri,
+    sigil::io::registerTransport(services.hub(), "fixture", [counts = counts](std::string_view uri,
                                      sigil::io::Inlet inlet) {
           const std::string key(uri);
           ++counts->opened[key];

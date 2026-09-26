@@ -35,7 +35,7 @@ sigil_doc_probes(seer
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/WIRES.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../common/io/include/sigilio
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/data/include/sigildata
-  PRELUDES "<sigilio/hub/Feed.h>" "<sigilio/hub/Hub.h>"
+  PRELUDES "<sigilio/advanced/Time.h>" "<sigilio/hub/Feed.h>" "<sigilio/hub/Hub.h>"
            "<sigildata/decode/FlatBuffer.h>" "<sigildata/decode/Midi.h>"
            "<sigildata/decode/ArtNet.h>"
   FLOORS 22,5,20,0,0

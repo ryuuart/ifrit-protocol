@@ -7,6 +7,7 @@
  */
 
 #include <sigilio/frames/Publisher.h>
+#include <sigilio/hub/Hub.h>
 
 #include <QColor>
 #include <QFont>
@@ -70,7 +71,9 @@ class SpellCircleRenderer : public QCanvasPainterItemRenderer {
   uint64_t m_knownModelGeneration = std::numeric_limits<uint64_t>::max();
   int m_knownConfigGeneration = -1;
   bool m_geometryDirty = true;
-  // Null when the active QRhi backend has no publisher implementation.
+  // The hub the canvas is published through; it reads no resource.
+  sigil::io::Hub m_hub;
+  // Empty when the active QRhi backend has no publisher implementation.
   sigil::io::frames::Publisher m_publisher;
 
   // Graphite context, scene drawer and frame timing, owned by this render

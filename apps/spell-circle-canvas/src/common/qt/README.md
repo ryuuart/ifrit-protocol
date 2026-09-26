@@ -230,7 +230,7 @@ the window cancels the capture. A failed grab or save exits with status 1.
 
 ## Texture publication
 
-`ifrit::qt::createPublisher` takes a QRhi and publication name, checks its
+`ifrit::qt::createPublisher` takes a hub, a QRhi and a publication name, checks its
 backend and opens the matching native publisher. `ifrit::qt::publishFrame`
 unwraps a texture and still-open command buffer from that same QRhi. The host
 submits drawing first and Qt commits the command buffer afterwards. Destroy

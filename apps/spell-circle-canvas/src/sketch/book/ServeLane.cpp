@@ -6,6 +6,7 @@
 #include "ServeLane.h"
 
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilprotocol/dispatch/Dispatcher.h>
 #include <sigilprotocol/endpoint/Endpoint.h>
 #include <sigilsketch/core/Crash.h>
@@ -79,7 +80,7 @@ int runServe(const Arguments& args, const std::filesystem::path& flagsFile,
       std::signal(SIGTERM, endServing);
       auto next = std::chrono::steady_clock::now();
       while (!g_ending.load()) {
-        hub.advance();
+        sigil::io::advance(hub);
         agents.frame();
         next += kTurn;
         const auto now = std::chrono::steady_clock::now();

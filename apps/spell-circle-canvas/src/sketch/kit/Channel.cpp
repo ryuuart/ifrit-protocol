@@ -9,6 +9,7 @@
 #include <sigildata/connection/Connection.h>
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Time.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -95,7 +96,7 @@ Channel::Channel(io::Hub& hub, data::Connection& connection, std::string name,
   // The advance knows the state weakly: the state owns the lease, and a
   // lease owning the state back would keep both standing after the last
   // channel onto them was gone.
-  state->lease = hub.onAdvance([held = std::weak_ptr<State>(state)](std::chrono::duration<double>) {
+  state->lease = io::onAdvance(hub, [held = std::weak_ptr<State>(state)](std::chrono::duration<double>) {
     if (const std::shared_ptr<State> living = held.lock()) living->follow();
   });
   m_state = std::move(state);

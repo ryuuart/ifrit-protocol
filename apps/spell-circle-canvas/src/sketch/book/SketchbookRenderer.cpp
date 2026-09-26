@@ -159,7 +159,7 @@ void SketchbookRenderer::initialize(QRhiCommandBuffer* /*commandBuffer*/) {
   // publish. The canvas it was offering belonged to the old device too.
   m_publishedCanvas.reset();
   m_publishedSize = QSize();
-  m_publisher.reset();
+  m_publisher = {};
   if (m_publishing) startPublishing();
 }
 
@@ -360,7 +360,7 @@ void SketchbookRenderer::publishMetrics() {
   // WHAT THE FRAME IS LEAVING UNDER, while it is leaving: the name a
   // subscriber binds to, read off the publisher rather than remembered.
   if (m_publisher) {
-    const std::string_view published = m_publisher->name();
+    const std::string_view published = m_publisher.name();
     metrics.insert(
         QStringLiteral("publish"),
         QString::fromUtf8(published.data(), (qsizetype)published.size()));
@@ -702,7 +702,8 @@ void SketchbookRenderer::startPublishing() {
 #ifdef SIGILSKETCH_BOOK_GPU
   if (m_graphiteContext)
     m_publisher =
-        ifrit::qt::createPublisher(m_rhi, SketchbookView::publishName);
+        ifrit::qt::createPublisher(m_publicationHub, m_rhi,
+                                   SketchbookView::publishName);
 #endif
   if (m_publisher) {
     std::fprintf(stderr, "[sketchbook] publishing as \"%s\"\n",
@@ -749,7 +750,7 @@ void SketchbookRenderer::stopPublishing() {
   m_publishedSize = QSize();
   if (!m_publisher) return;
   std::fprintf(stderr, "[sketchbook] publishing stopped\n");
-  m_publisher.reset();
+  m_publisher = {};
   m_metricsDirty = true;
 }
 
@@ -760,7 +761,7 @@ void SketchbookRenderer::publishFrame(QRhiTexture* texture,
   // The drawing has already been submitted on this device's queue and
   // the buffer below is the one Qt commits after render() returns, so
   // the copy is ordered behind the frame it is copying.
-  ifrit::qt::publishFrame(*m_publisher, texture, commandBuffer, pixelSize);
+  ifrit::qt::publishFrame(m_publisher, texture, commandBuffer, pixelSize);
 }
 
 void SketchbookRenderer::render(QRhiCommandBuffer* commandBuffer) {

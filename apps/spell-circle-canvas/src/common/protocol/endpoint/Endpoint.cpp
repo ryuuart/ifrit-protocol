@@ -4,6 +4,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/source/Source.h>
 #include <sigilio/transport/Transport.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilprotocol/definition/Definition.h>
 #include <sigilprotocol/endpoint/Endpoint.h>
 
@@ -157,7 +158,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
                     "&frames=text&admit=loopback";
   if (policy.statedPeers.empty()) uri += "&bind=127.0.0.1";
   for (const std::string& peer : policy.statedPeers) uri += "&admit=" + peer;
-  if (!hub.feedTransport("ws")) io::registerTransports(hub, {"ws"});
+  if (!io::transport(hub, "ws")) io::registerTransports(hub, {"ws"});
   socket.connection = data::Connection(hub, uri);
   if (!socket.connection.error().empty()) {
     socket.error = "endpoint: " + socket.connection.error();
@@ -211,7 +212,7 @@ Endpoint::Endpoint(io::Hub& hub, Dispatcher& dispatcher,
   });
   // A PEER THAT LEFT IS DETACHED on the frame after, which clears what
   // it alone set. With no client attached this reads nothing.
-  socket.departures = hub.onAdvance([this](std::chrono::duration<double>) {
+  socket.departures = io::onAdvance(hub, [this](std::chrono::duration<double>) {
     Socket& held = *m_socket;
     if (held.sessionOfPeer.empty()) return;
     const std::vector<std::string> attached = held.connection.feed().peers();

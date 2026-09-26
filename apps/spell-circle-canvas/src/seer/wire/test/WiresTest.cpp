@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <sigilio/hub/Recording.h>
 #include <sigilio/testing/Testing.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilseer/wire/Log.h>
 #include <sigilseer/wire/Recorder.h>
 #include <sigilseer/wire/Rendering.h>
@@ -317,13 +318,13 @@ TEST_F(SeerRecorder, AReplayedWireDeliversTheRecordingAsTimeIsDispatched) {
 
   // The first dispatch is where the recording starts, whatever the
   // caller's clock reads then: nothing is due at its own origin.
-  wires.hub().advance(std::chrono::duration<double>(10.0));
+  sigil::io::advance(wires.hub(), std::chrono::duration<double>(10.0));
   EXPECT_EQ(replayed.state().revision, 0u);
-  wires.hub().advance(std::chrono::duration<double>(10.3));
+  sigil::io::advance(wires.hub(), std::chrono::duration<double>(10.3));
   EXPECT_EQ(replayed.state().revision, 1u);
   EXPECT_EQ(replayed.latest()->payload->asText(), "first");
   EXPECT_NE(replayed.state().readiness, sigil::io::ReadyState::Closed);
-  wires.hub().advance(std::chrono::duration<double>(11.0));
+  sigil::io::advance(wires.hub(), std::chrono::duration<double>(11.0));
   EXPECT_EQ(replayed.state().revision, 2u);
   EXPECT_EQ(replayed.latest()->payload->asText(), "second");
   // Nothing else is coming, and the wire says so rather than waiting on
@@ -342,7 +343,7 @@ TEST_F(SeerRecorder, ReplayingAFileThatIsNoRecordingSaysSoOnTheWire) {
   const Feed replayed =
       recorder.replay("pigeon://the.desk", file);
   EXPECT_FALSE(replayed.state().error.empty());
-  wires.hub().advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(wires.hub(), std::chrono::duration<double>(0.0));
   EXPECT_EQ(replayed.state().revision, 0u);
 }
 

@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <sigilio/advanced/Time.h>
 
 QStringList SeerSession::opensOn;
 QString SeerSession::receivesOn;
@@ -115,7 +116,7 @@ void SeerSession::tick() {
   const double seconds = elapsed();
   // The recordings move first, so what one of them delivered this frame
   // is read by the tick below rather than a frame later.
-  m_wires.hub().advance(std::chrono::duration<double>(seconds));
+  sigil::io::advance(m_wires.hub(), std::chrono::duration<double>(seconds));
   m_wires.tick(seconds);
   m_sender.tick(seconds);
   // What a run was given to say goes out on a frame rather than as the
@@ -266,7 +267,7 @@ void SeerSession::replay(const QString& uri, const QUrl& file) {
 void SeerSession::loadSchema(const QUrl& file) {
   const std::filesystem::path path = pathOf(file);
   const std::shared_ptr<const sigil::io::Bytes> bytes =
-      m_wires.hub().fetch(path.string());
+      m_wires.hub().read(path.string());
   if (!bytes) {
     setNote(QStringLiteral("the schema could not be read: ") +
             QString::fromStdString(path.string()));

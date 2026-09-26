@@ -6,6 +6,7 @@
 #include "Inspection.h"
 
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilprotocol/dispatch/Dispatcher.h>
 #include <sigilprotocol/endpoint/Endpoint.h>
 #include <sigilsketch/core/State.h>
@@ -95,7 +96,7 @@ Inspection::Inspection(uint16_t port, sketch::CatalogSources catalog,
 
 Inspection::~Inspection() = default;
 
-void Inspection::advance() { m_state->hub.advance(); }
+void Inspection::advance() { sigil::io::advance(m_state->hub); }
 
 bool Inspection::listening() const { return m_state->endpoint->listening(); }
 

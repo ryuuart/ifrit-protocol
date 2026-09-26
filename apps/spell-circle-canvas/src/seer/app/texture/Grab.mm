@@ -6,6 +6,7 @@
 #import <Metal/Metal.h>
 
 #include <sigilio/frames/Subscription.h>
+#include <sigilio/hub/Hub.h>
 
 #include "Capture.h"
 #include "Servers.h"
@@ -13,6 +14,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <optional>
 
 namespace seer::texture {
 
@@ -47,8 +49,11 @@ int runGrab(const Arguments &arguments) {
     return 4;
   }
 
-  sigil::io::frames::Subscription subscription = sigil::io::frames::subscribe(
-      arguments.texture, arguments.application, (__bridge void *)device);
+  sigil::io::Hub hub;
+  sigil::io::frames::Subscription subscription =
+      hub.subscribe("syphon://" + arguments.texture,
+                    {.application = arguments.application,
+                     .device = {.handle = (__bridge void *)device}});
   if (!subscription) {
     std::fprintf(stderr, "this build subscribes to nothing\n");
     return 4;
@@ -90,7 +95,8 @@ int runGrab(const Arguments &arguments) {
     turnRunLoop(kSlice);
   }
 
-  id<MTLTexture> frame = (__bridge id<MTLTexture>)subscription.latest();
+  const std::optional<sigil::io::frames::Frame> arrival = subscription.latest();
+  id<MTLTexture> frame = arrival ? (__bridge id<MTLTexture>)arrival->texture : nil;
   if (!frame) {
     std::fprintf(stderr, "\"%s\" announced a frame it then had none of\n",
                  arguments.texture.c_str());

@@ -14,6 +14,7 @@
 #include <sigilimage/decode/Decode.h>
 #include <sigilio/frames/Publisher.h>
 #include <sigilio/frames/Subscription.h>
+#include <sigilio/hub/Hub.h>
 
 #include <algorithm>
 #include <chrono>
@@ -97,8 +98,8 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
     id<MTLCommandQueue> queue = [device newCommandQueue];
     ASSERT_TRUE(queue);
     const std::string name = NSUUID.UUID.UUIDString.UTF8String;
-    auto publisher = sigil::io::frames::createPublisher(name, sigil::io::frames::Backend::Metal,
-                                                         (__bridge void*)device);
+    sigil::io::Hub hub;
+    auto publisher = hub.publish("syphon://" + name, {.device = {.handle = (__bridge void*)device}});
     ASSERT_TRUE(publisher);
     EXPECT_EQ(publisher.name(), name);
 
@@ -115,7 +116,7 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
                  withBytes:kQuadrants
                bytesPerRow:8];
     id<MTLCommandBuffer> commands = [queue commandBuffer];
-    publisher.publishFrame((__bridge void*)texture, (__bridge void*)commands, 2, 2);
+    publisher.send({.texture = (__bridge void*)texture, .commandBuffer = (__bridge void*)commands, .width = 2, .height = 2});
     [commands commit];
     [commands waitUntilCompleted];
     ASSERT_EQ(commands.status, MTLCommandBufferStatusCompleted);
@@ -134,13 +135,14 @@ TEST(SeerTextureDelivery, AStaticFrameReachesClientsThatSubscribeAfterDrawingSto
     } while (std::chrono::steady_clock::now() < discoveryDeadline);
     ASSERT_TRUE(listed);
     for (int client = 0; client < 2; ++client) {
-      auto incoming = sigil::io::frames::subscribe(name, "", (__bridge void*)device);
+      auto incoming = hub.subscribe("syphon://" + name, {.device = {.handle = (__bridge void*)device}});
       ASSERT_TRUE(incoming);
       id<MTLTexture> received = nil;
       const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(4);
       while (!received && std::chrono::steady_clock::now() < deadline) {
         [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
-        received = (__bridge id<MTLTexture>)incoming.latest();
+        const std::optional<sigil::io::frames::Frame> arrival = incoming.latest();
+        received = arrival ? (__bridge id<MTLTexture>)arrival->texture : nil;
       }
       ASSERT_TRUE(received) << "late client " << client;
       EXPECT_TRUE(incoming.state().isOpen());

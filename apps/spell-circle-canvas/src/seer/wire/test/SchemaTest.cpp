@@ -49,7 +49,7 @@ Bytes ping(int hops, const char* label) {
 Schema schemaFromFile() {
   Wires wires;
   const std::shared_ptr<const Bytes> file =
-      wires.hub().fetch(SEER_TEST_SCHEMA_FILE);
+      wires.hub().read(SEER_TEST_SCHEMA_FILE);
   if (!file) return {};
   return Schema::fromBinarySchema(*file);
 }
@@ -70,7 +70,7 @@ TEST(SeerSchema, AWireIsReadThroughTheSchemaAFileHolds) {
   // resource does: a path is a URI a hub resolves, so a reader who was
   // handed a file names it and nothing else.
   const std::shared_ptr<const Bytes> file =
-      wires.hub().fetch(SEER_TEST_SCHEMA_FILE);
+      wires.hub().read(SEER_TEST_SCHEMA_FILE);
   ASSERT_NE(file, nullptr);
 
   std::string why;

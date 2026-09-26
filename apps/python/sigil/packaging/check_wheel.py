@@ -204,7 +204,7 @@ hub = io.Hub()
 hub.mount("out://", pathlib.Path.cwd() / "output")
 encoded = data.encodeJson(payload).encode("utf-8")
 assert hub.write("out://readings.json", encoded)
-assert hub.fetch("out://readings.json") == encoded
+assert hub.read("out://readings.json") == encoded
 io.registerTransports(hub, ["udp"])
 listener = hub.listen("udp://:0")
 assert listener.state().isOpen(), listener.state().error

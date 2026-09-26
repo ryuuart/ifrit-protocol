@@ -8,24 +8,28 @@
 
 namespace ifrit::qt {
 
-sigil::io::frames::Publisher createPublisher(
-    QRhi* rhi, std::string name) {
+sigil::io::frames::Publisher createPublisher(sigil::io::Hub& hub, QRhi* rhi,
+                                             std::string_view name) {
   if (!rhi) return {};
 #if defined(Q_OS_MACOS)
   if (rhi->backend() == QRhi::Metal) {
     const auto* handles =
         static_cast<const QRhiMetalNativeHandles*>(rhi->nativeHandles());
-    return sigil::io::frames::createPublisher(
-        std::move(name), sigil::io::frames::Backend::Metal,
-        handles ? handles->dev : nullptr);
+    if (!handles || !handles->dev) return {};
+    return hub.publish(
+        "syphon://" + std::string(name),
+        {.device = {.api = sigil::io::frames::GraphicsApi::Metal,
+                    .handle = handles->dev}});
   }
 #elif defined(Q_OS_WIN)
   if (rhi->backend() == QRhi::D3D11) {
     const auto* handles =
         static_cast<const QRhiD3D11NativeHandles*>(rhi->nativeHandles());
-    return sigil::io::frames::createPublisher(
-        std::move(name), sigil::io::frames::Backend::Direct3D11,
-        handles ? handles->dev : nullptr);
+    if (!handles || !handles->dev) return {};
+    return hub.publish(
+        "spout://" + std::string(name),
+        {.device = {.api = sigil::io::frames::GraphicsApi::Direct3D11,
+                    .handle = handles->dev}});
   }
 #endif
   return {};
@@ -48,8 +52,10 @@ void publishFrame(sigil::io::frames::Publisher& publisher,
   // NOLINTNEXTLINE(performance-no-int-to-ptr)
   void* nativeTexture = reinterpret_cast<void*>(
       static_cast<uintptr_t>(texture->nativeTexture().object));
-  publisher.publishFrame(nativeTexture, nativeBuffer, size.width(),
-                         size.height());
+  publisher.send({.texture = nativeTexture,
+                  .commandBuffer = nativeBuffer,
+                  .width = size.width(),
+                  .height = size.height()});
 }
 
 }  // namespace ifrit::qt

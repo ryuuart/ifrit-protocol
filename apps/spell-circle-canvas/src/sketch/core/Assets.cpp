@@ -8,8 +8,11 @@
 #include <sigildata/decode/Decoders.h>
 #include <sigildata/query/Database.h>
 #include <sigilimage/decode/Decoders.h>
+#include <sigilio/advanced/Network.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/transport/Transport.h>
+#include <sigilio/advanced/Decoding.h>
+#include <sigilio/advanced/Places.h>
 
 #include <algorithm>
 #include <iterator>
@@ -76,18 +79,27 @@ std::string uriFor(std::string_view name) {
   return "res://" + std::string(name);
 }
 
+/** The hub a host's assets stand on. An empty root mounts nothing: a
+ *  name under it is a placeholder, not a file found wherever the process
+ *  happened to be started. A sketch's own files stand beside it:
+ *  `sketch://<key>/name` is the file `name` in the directory the sketch's
+ *  entry stands in, which for a directory sketch is its own and for a
+ *  bare file is the folder the sketches share. A sketch that carries data
+ *  of its own is a directory. */
+io::HubOptions hubOptions(const std::filesystem::path& root,
+                          const std::filesystem::path& sketches) {
+  io::HubOptions options;
+  if (!root.empty()) options.mounts.emplace("res://", root);
+  if (!sketches.empty()) options.mounts.emplace("sketch://", sketches);
+  return options;
+}
+
 }  // namespace
 
 Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
-    : m_root(std::move(root)), m_sketches(std::move(sketches)) {
-  // An empty root mounts nothing: a name under it is a placeholder, not
-  // a file found wherever the process happened to be started.
-  if (!m_root.empty()) m_hub.mount("res://", m_root);
-  // A sketch's own files stand beside it: `sketch://<key>/name` is the
-  // file `name` in the directory the sketch's entry stands in, which for
-  // a directory sketch is its own and for a bare file is the folder the
-  // sketches share. A sketch that carries data of its own is a directory.
-  if (!m_sketches.empty()) m_hub.mount("sketch://", m_sketches);
+    : m_root(std::move(root)),
+      m_sketches(std::move(sketches)),
+      m_hub(hubOptions(m_root, m_sketches)) {
   // An image is a resource SigilImage says the meaning of: with its
   // decoders on, hub().load<image::ImageAsset>(uri) answers — stills,
   // animations and vector sources, with the library's own DecodeOptions
@@ -99,7 +111,7 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // by the same machinery, and a sketch carries no literal table. A
   // database file answers the same way, opened in place.
   sigil::data::registerDecoders(m_hub);
-  m_hub.registerDecoder<sigil::data::Database>(sigil::data::DatabaseDecoder{});
+  io::registerDecoder<sigil::data::Database>(m_hub, sigil::data::DatabaseDecoder{});
   // A resource that keeps ARRIVING is a feed, and a sketch opens one
   // through this same hub: with the transports registered,
   // hub().listen("udp://:27020") binds the port and every datagram that
@@ -109,8 +121,7 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   // A shader is decoded by compiling it, here in the host's own image,
   // so the effect a sketch is handed is the host's whichever image the
   // sketch itself was loaded from.
-  m_hub.registerDecoder<CompiledShader>(
-      [](const sigil::io::Bytes& bytes, std::string_view) {
+  io::registerDecoder<CompiledShader>(m_hub, [](const sigil::io::Bytes& bytes, std::string_view) {
         return compileShader(bytes);
       });
   m_placeholder = makePlaceholder();
@@ -121,7 +132,7 @@ Assets::~Assets() = default;
 
 void Assets::mountSketch(std::string_view key,
                          std::filesystem::path directory) {
-  m_hub.mount("sketch://" + std::string(key) + "/", std::move(directory));
+  io::mount(m_hub, "sketch://" + std::string(key) + "/", std::move(directory));
 }
 
 std::shared_ptr<const sigil::data::Database> Assets::database(
@@ -155,11 +166,11 @@ std::shared_ptr<sigil::video::Video> Assets::video(
     if (cached.name == name && cached.options == options) return cached.clip;
 
   const std::string uri = uriFor(name);
-  const std::shared_ptr<const sigil::io::Bytes> encoded = m_hub.fetch(uri);
+  const std::shared_ptr<const sigil::io::Bytes> encoded = m_hub.read(uri);
   if (!encoded) return nullptr;
   std::shared_ptr<sigil::video::Video> clip =
       sigil::video::decodeVideo(encoded->data(), encoded->size(),
-                                options, m_hub.resolve(uri));
+                                options, io::resolve(m_hub, uri));
   if (clip)
     m_videos.push_back(
         {.name = std::string(name), .options = options, .clip = clip});
@@ -204,7 +215,7 @@ void Assets::beginDeclaration() {
 }
 
 bool Assets::poll() {
-  bool changed = m_hub.poll();
+  bool changed = io::poll(m_hub);
   if (changed) m_videos.clear();
   // Placeholders heal the moment their file becomes loadable.
   for (auto it = m_placeholders.begin(); it != m_placeholders.end();) {
@@ -231,7 +242,7 @@ bool requireCached(std::span<const std::string_view> urls, std::string* why,
                    const std::filesystem::path& cacheDirectory) {
   for (std::string_view url : urls) {
     // A present but empty resource cannot supply the sketch's art.
-    const auto bytes = sigil::io::probeNetworkCache(url, cacheDirectory);
+    const auto bytes = sigil::io::NetworkCache(cacheDirectory).byteSize(url);
     if (bytes && *bytes > 0) continue;
     if (why)
       *why = "not in the IO hub's network cache on this machine \xe2\x80\x94 " +

@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <sigildata/decode/FlatBuffer.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Places.h>
 
 #include <cstddef>
 #include <memory>
@@ -131,7 +132,7 @@ TEST(DataFlatBuffer, AHubAnswersAFileInEitherForm) {
   scratch.write("sheet.bin", std::string(bytes.begin(), bytes.end()));
 
   sigil::io::Hub hub;
-  hub.mount("res://", scratch.path);
+  sigil::io::mount(hub, "res://", scratch.path);
   registerFlatBuffer<flatbuffer_test::Sheet>(hub);
   const std::shared_ptr<const FlatBuffer<flatbuffer_test::Sheet>> fromJson =
       hub.load<FlatBuffer<flatbuffer_test::Sheet>>("res://sheet.json");
@@ -202,7 +203,7 @@ TEST(DataSchemaBuffer, AHubAnswersAFileInEitherFormWithNoGeneratedRoot) {
   scratch.write("sheet.bin", std::string(raw.begin(), raw.end()));
 
   sigil::io::Hub hub;
-  hub.mount("res://", scratch.path);
+  sigil::io::mount(hub, "res://", scratch.path);
   registerSchemaBuffer(hub, schema<flatbuffer_test::Sheet>());
   const std::shared_ptr<const SchemaBuffer> fromJson =
       hub.load<SchemaBuffer>("res://sheet.json");

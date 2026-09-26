@@ -29,18 +29,18 @@ class IO(unittest.TestCase):
             payload = bytearray(b"first\x00value")
             self.assertTrue(hub.write("out://nested/value.bin", payload))
             payload[:] = b"xxxxx\x00xxxxx"
-            before = hub.fetch("out://nested/value.bin")
+            before = hub.read("out://nested/value.bin")
             self.assertEqual(before, b"first\x00value")
             self.assertTrue(hub.write("out://nested/value.bin", b"second"))
             self.assertEqual(before, b"first\x00value")
-            self.assertEqual(hub.fetch("out://nested/value.bin"), b"second")
+            self.assertEqual(hub.read("out://nested/value.bin"), b"second")
             self.assertEqual(hub.text("out://nested/value.bin"), "second")
             self.assertEqual(hub.probe(io.ResourceInfo, "out://nested/value.bin").byteSize, 6)
             self.assertEqual(
                 hub.resolve("out://nested/value.bin"),
                 Path(directory) / "nested/value.bin",
             )
-            self.assertIsNone(hub.fetch("out://missing"))
+            self.assertIsNone(hub.read("out://missing"))
             self.assertFalse(hub.write("https://example.invalid/output", b"x"))
 
     def test_arrivals_copy_buffers_and_survive_feed_destruction(self):

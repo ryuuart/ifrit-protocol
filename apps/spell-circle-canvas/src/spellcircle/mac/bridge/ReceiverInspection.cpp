@@ -3,6 +3,7 @@
 #include "ReceiverInspection.h"
 
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilprotocol/dispatch/Dispatcher.h>
 #include <sigilprotocol/endpoint/Endpoint.h>
 
@@ -71,7 +72,7 @@ ReceiverInspection::ReceiverInspection(const InspectionRequest& request,
 
 ReceiverInspection::~ReceiverInspection() = default;
 
-void ReceiverInspection::advance() { m_state->hub.advance(); }
+void ReceiverInspection::advance() { sigil::io::advance(m_state->hub); }
 
 bool ReceiverInspection::listening() const {
   return m_state->endpoint->listening();

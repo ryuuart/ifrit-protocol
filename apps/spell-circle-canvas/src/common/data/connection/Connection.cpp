@@ -12,6 +12,7 @@
 #include <sigildata/decode/Midi.h>
 #include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Time.h>
 
 #include <cstddef>
 #include <deque>
@@ -335,7 +336,7 @@ Connection::Connection(io::Hub& hub, std::string_view uri, Schema schema,
   // The advance knows the state weakly: the state owns the lease, and
   // a lease owning the state back would keep both standing after the
   // last connection onto them was gone.
-  state->lease = hub.onAdvance([held = std::weak_ptr<State>(state)](std::chrono::duration<double>) {
+  state->lease = io::onAdvance(hub, [held = std::weak_ptr<State>(state)](std::chrono::duration<double>) {
     if (const std::shared_ptr<State> living = held.lock()) living->advance();
   });
   m_state = std::move(state);

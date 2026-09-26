@@ -7,11 +7,13 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <sigildata/decode/Json.h>
+#include <sigilio/advanced/Network.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Network.h>
 #include <sigilio/hub/Recording.h>
 #include <sigilio/source/Sink.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilvideo/encode/Encode.h>
 
@@ -63,8 +65,7 @@ TEST(RequireCached, AnswersFromTheCacheAndNamesTheFirstMissingUrl) {
   const char* fetched = "https://sketch.invalid/art/panel.gif";
   const char* missing = "https://sketch.invalid/art/logo.svg";
   const std::string body = "gif";
-  ASSERT_TRUE(sigil::io::seedNetworkCache(
-      fetched, std::as_bytes(std::span(body.data(), body.size())), cache.path));
+  ASSERT_TRUE(sigil::io::NetworkCache(cache.path).put(fetched, std::as_bytes(std::span(body.data(), body.size()))));
 
   std::string why;
   EXPECT_TRUE(requireCached({fetched}, &why, cache.path));
@@ -80,7 +81,7 @@ TEST(RequireCached, AnswersFromTheCacheAndNamesTheFirstMissingUrl) {
   EXPECT_FALSE(requireCached({missing}, nullptr, cache.path));
 
   // Empty bytes cannot supply the sketch's art.
-  ASSERT_TRUE(sigil::io::seedNetworkCache(missing, {}, cache.path));
+  ASSERT_TRUE(sigil::io::NetworkCache(cache.path).put(missing, {}));
   EXPECT_FALSE(requireCached({missing}, &why, cache.path));
   EXPECT_NE(why.find(missing), std::string::npos);
 }
@@ -93,8 +94,7 @@ TEST(RequireCached, AnswersOverAListDecidedWhileItRuns) {
   const std::string fetched = "https://sketch.invalid/art/sheet.png";
   const std::string missing = "https://sketch.invalid/art/mask.png";
   const std::string body = "png";
-  ASSERT_TRUE(sigil::io::seedNetworkCache(
-      fetched, std::as_bytes(std::span(body.data(), body.size())), cache.path));
+  ASSERT_TRUE(sigil::io::NetworkCache(cache.path).put(fetched, std::as_bytes(std::span(body.data(), body.size()))));
 
   std::vector<std::string_view> urls{fetched};
   std::string why;
@@ -116,8 +116,7 @@ TEST(RequireCached, AConfiguredCacheIsNotTheDefaultCache) {
   const std::string url = "https://sketch.invalid/art/panel.png?fixture=" +
                           cache.path.filename().string();
   const std::string body = "png";
-  ASSERT_TRUE(sigil::io::seedNetworkCache(
-      url, std::as_bytes(std::span(body.data(), body.size())), cache.path));
+  ASSERT_TRUE(sigil::io::NetworkCache(cache.path).put(url, std::as_bytes(std::span(body.data(), body.size()))));
   EXPECT_TRUE(requireCached({url}, nullptr, cache.path));
   std::string why;
   EXPECT_FALSE(requireCached({url}, &why));
@@ -189,7 +188,7 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
   EXPECT_TRUE(feed.state().error.empty());
   EXPECT_EQ(feed.state().revision, 0u);  // nothing arrives until time moves
 
-  assets.hub().advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(assets.hub(), std::chrono::duration<double>(0.0));
   EXPECT_EQ(feed.state().revision, 1u);
   ASSERT_TRUE(feed.latest().has_value());
   EXPECT_EQ(feed.latest()->payload->asText(), "dawn");
@@ -197,12 +196,12 @@ TEST(Assets, AReplayedRecordingIsAFeedThatPlaysByTheSceneTimeDispatched) {
 
   // One dispatch may cover several arrivals and never covers one that is
   // still ahead: the scene time decides, not the number of calls.
-  assets.hub().advance(std::chrono::duration<double>(0.6));
+  sigil::io::advance(assets.hub(), std::chrono::duration<double>(0.6));
   EXPECT_EQ(feed.state().revision, 2u);
   EXPECT_EQ(feed.latest()->payload->asText(), "noon");
   EXPECT_NE(feed.state().readiness, sigil::io::ReadyState::Closed);
 
-  assets.hub().advance(std::chrono::duration<double>(2.0));
+  sigil::io::advance(assets.hub(), std::chrono::duration<double>(2.0));
   EXPECT_EQ(feed.state().revision, 3u);
   EXPECT_EQ(feed.latest()->payload->asText(), "dusk");
   EXPECT_EQ(feed.state().readiness, sigil::io::ReadyState::Closed);  // the recording ran out

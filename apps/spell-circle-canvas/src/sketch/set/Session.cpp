@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <sigilio/advanced/Time.h>
 
 namespace sigil::sketch {
 
@@ -102,7 +103,7 @@ class SetSession final : public Session {
     // it describes: what a frame is described from is everything that had
     // arrived by the moment it draws.
     const double seconds = m_engine.elapsed().count();
-    m_assets.hub().advance(std::chrono::duration<double>(seconds));
+    io::advance(m_assets.hub(), std::chrono::duration<double>(seconds));
     world::Frame frame = m_set->describe((float)seconds);
     // The plate's size and its viewpoint are the host's to state: a set
     // says what it is of, not where it lands. The size is the declared

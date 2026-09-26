@@ -2,6 +2,12 @@
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
 #include <sigilimage/decode/Decoders.h>
+#include <sigilio/advanced/Decoding.h>
+#include <sigilio/advanced/Feeds.h>
+#include <sigilio/advanced/Network.h>
+#include <sigilio/advanced/Places.h>
+#include <sigilio/advanced/Residency.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilio/hub/Feed.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
@@ -15,6 +21,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <stdexcept>
 #include <thread>
@@ -67,7 +74,7 @@ class ResourceHandle {
       : m_hub(std::move(hub)) {
     auto& native = m_hub.get();
     std::vector<std::string_view> views(selectors.begin(), selectors.end());
-    m_lease.emplace(unlocked([&] { return native.retain(views); }));
+    m_lease.emplace(unlocked([&] { return io::retain(native, views); }));
   }
   ~ResourceHandle() {
     unlocked([&] { m_lease.reset(); });
@@ -172,6 +179,8 @@ using SharedMemoryHandle = Serialized<io::SharedMemoryWriter>;
 }  // namespace
 
 HubHandle::HubHandle() : m_owner(std::make_shared<io::Hub>()) {}
+HubHandle::HubHandle(io::HubOptions options)
+    : m_owner(std::make_shared<io::Hub>(std::move(options))) {}
 HubHandle::HubHandle(std::function<io::Hub&()> access,
                      std::function<std::shared_ptr<void>(io::Feed)> retainFeed)
     : m_access(std::move(access)), m_retainFeed(std::move(retainFeed)) {}
@@ -239,6 +248,34 @@ void bindIO(py::module_& module) {
       .value("CacheFirst", io::NetworkPolicy::CacheFirst)
       .value("Refresh", io::NetworkPolicy::Refresh)
       .value("Offline", io::NetworkPolicy::Offline);
+  py::class_<io::NetworkOptions>(resources, "NetworkOptions")
+      .def(py::init([](io::NetworkPolicy policy,
+                       std::filesystem::path cacheDirectory) {
+             io::NetworkOptions options;
+             options.policy = policy;
+             options.cacheDirectory = std::move(cacheDirectory);
+             return options;
+           }),
+           py::arg("policy") = io::NetworkPolicy::CacheFirst,
+           py::arg("cacheDirectory") = std::filesystem::path())
+      .def_readwrite("policy", &io::NetworkOptions::policy)
+      .def_readwrite("cacheDirectory", &io::NetworkOptions::cacheDirectory);
+  py::class_<io::HubOptions>(resources, "HubOptions")
+      .def(py::init([](std::map<std::string, std::filesystem::path> mounts,
+                       std::vector<std::string> transports,
+                       io::NetworkOptions network) {
+             io::HubOptions options;
+             options.mounts = std::move(mounts);
+             options.transports = std::move(transports);
+             options.network = std::move(network);
+             return options;
+           }),
+           py::arg("mounts") = std::map<std::string, std::filesystem::path>{},
+           py::arg("transports") = std::vector<std::string>{},
+           py::arg("network") = io::NetworkOptions{})
+      .def_readwrite("mounts", &io::HubOptions::mounts)
+      .def_readwrite("transports", &io::HubOptions::transports)
+      .def_readwrite("network", &io::HubOptions::network);
   py::class_<io::ListenOptions>(resources, "ListenOptions")
       .def(py::init([](size_t capacity, std::string peer) {
              return io::ListenOptions{capacity, std::move(peer)};
@@ -274,6 +311,13 @@ void bindIO(py::module_& module) {
           "arrivedAt",
           [](const io::Message& value) { return value.arrivedAt().count(); })
       .def_property_readonly("sender", &io::Message::sender)
+      .def_property_readonly(
+          "receivedAt",
+          [](const io::Message& value) {
+            return std::chrono::duration<double>(
+                       value.receivedAt().time_since_epoch())
+                .count();
+          })
       .def_property(
           "payload",
           [](const io::Message& value) {
@@ -371,6 +415,7 @@ void bindIO(py::module_& module) {
 
   py::class_<HubHandle>(resources, "Hub")
       .def(py::init<>())
+      .def(py::init<io::HubOptions>(), py::arg("options"))
       .def(
           "load",
           [](const HubHandle& value, py::handle type,
@@ -394,7 +439,7 @@ void bindIO(py::module_& module) {
                   "loaded through the library that owns the meaning");
             auto& hub = value.get();
             auto info =
-                unlocked([&] { return hub.probe<io::ResourceInfo>(uri); });
+                unlocked([&] { return io::probe<io::ResourceInfo>(hub, uri); });
             return info ? py::cast(*info) : py::none();
           },
           py::arg("type"), py::arg("uri"))
@@ -416,7 +461,7 @@ void bindIO(py::module_& module) {
           "preload",
           [](const HubHandle& value, const std::string& selector) {
             auto& hub = value.get();
-            return unlocked([&] { return hub.preload(selector); });
+            return unlocked([&] { return io::preload(hub, selector); });
           },
           py::arg("selector"))
       .def(
@@ -424,38 +469,49 @@ void bindIO(py::module_& module) {
           [](const HubHandle& value, const std::vector<std::string>& uris) {
             auto& hub = value.get();
             return unlocked([&] {
-              return hub.preload(std::span<const std::string>(uris));
+              return io::preload(hub, std::span<const std::string>(uris));
             });
           },
           py::arg("uris"))
       .def("discardUnretained",
            [](const HubHandle& value) {
              auto& hub = value.get();
-             return unlocked([&] { return hub.discardUnretained(); });
+             return unlocked([&] { return io::discardUnretained(hub); });
            })
       .def(
           "mount",
           [](const HubHandle& value, std::string prefix,
              std::filesystem::path path) {
             auto& hub = value.get();
-            unlocked([&] { hub.mount(std::move(prefix), std::move(path)); });
+            unlocked([&] { io::mount(hub, std::move(prefix), std::move(path)); });
           },
           py::arg("prefix"), py::arg("path"))
-#define SIGIL_HUB_URI(name)                                \
-  .def(                                                    \
-      #name,                                               \
-      [](const HubHandle& value, const std::string& uri) { \
-        auto& hub = value.get();                           \
-        return unlocked([&] { return hub.name(uri); });    \
-      },                                                   \
-      py::arg("uri"))
-          SIGIL_HUB_URI(resolve) SIGIL_HUB_URI(text) SIGIL_HUB_URI(select)
-#undef SIGIL_HUB_URI
       .def(
-          "fetch",
+          "resolve",
           [](const HubHandle& value, const std::string& uri) {
             auto& hub = value.get();
-            return copiedBytes(unlocked([&] { return hub.fetch(uri); }));
+            return unlocked([&] { return io::resolve(hub, uri); });
+          },
+          py::arg("uri"))
+      .def(
+          "text",
+          [](const HubHandle& value, const std::string& uri) {
+            auto& hub = value.get();
+            return unlocked([&] { return hub.text(uri); });
+          },
+          py::arg("uri"))
+      .def(
+          "select",
+          [](const HubHandle& value, const std::string& uri) {
+            auto& hub = value.get();
+            return unlocked([&] { return io::select(hub, uri); });
+          },
+          py::arg("uri"))
+      .def(
+          "read",
+          [](const HubHandle& value, const std::string& uri) {
+            auto& hub = value.get();
+            return copiedBytes(unlocked([&] { return hub.read(uri); }));
           },
           py::arg("uri"))
       .def(
@@ -492,7 +548,7 @@ void bindIO(py::module_& module) {
       .def("feeds",
            [](const HubHandle& value) {
              auto& hub = value.get();
-             auto feeds = unlocked([&] { return hub.feeds(); });
+             auto feeds = unlocked([&] { return io::feeds(hub); });
              std::vector<FeedHandle> result;
              result.reserve(feeds.size());
              for (auto& feed : feeds)
@@ -502,7 +558,7 @@ void bindIO(py::module_& module) {
       .def("advance",
            [](const HubHandle& value) {
              auto& hub = value.get();
-             unlocked([&] { hub.advance(); });
+             unlocked([&] { io::advance(hub); });
            })
       .def(
           "advance",
@@ -510,27 +566,27 @@ void bindIO(py::module_& module) {
             validTime(time);
             auto& hub = value.get();
             unlocked([&] {
-              hub.advance(std::chrono::duration<double>(time));
+              io::advance(hub, std::chrono::duration<double>(time));
             });
           },
           py::arg("time"))
       .def("poll",
            [](const HubHandle& value) {
              auto& hub = value.get();
-             return unlocked([&] { return hub.poll(); });
+             return unlocked([&] { return io::poll(hub); });
            })
       .def(
           "setNetworkCacheDirectory",
           [](const HubHandle& value, std::filesystem::path path) {
             auto& hub = value.get();
-            unlocked([&] { hub.setNetworkCacheDirectory(std::move(path)); });
+            unlocked([&] { io::setNetworkCacheDirectory(hub, std::move(path)); });
           },
           py::arg("path"))
       .def(
           "setNetworkPolicy",
           [](const HubHandle& value, io::NetworkPolicy policy) {
             auto& hub = value.get();
-            unlocked([&] { hub.setNetworkPolicy(policy); });
+            unlocked([&] { io::setNetworkPolicy(hub, policy); });
           },
           py::arg("policy"));
 

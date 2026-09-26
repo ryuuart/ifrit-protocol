@@ -10,6 +10,7 @@
 #include <sigildata/decode/Osc.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/testing/Testing.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilmotion/advanced/Held.h>
 #include <sigilmotion/bind/Binding.h>
 #include <sigilmotion/values/Animatable.h>
@@ -63,7 +64,7 @@ Bytes packet(std::string_view address, data::Json::Array arguments) {
 
 TEST(SketchKitChannel, AnOscArgumentOfTheNamedAddressMovesTheValueOnDispatch) {
   Hub hub;
-  hub.setFeedTransport("osc", intoNothing());
+  sigil::io::registerTransport(hub, "osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
   kit::Channel fader(hub, desk, "/fader/1", 0);
 
@@ -75,7 +76,7 @@ TEST(SketchKitChannel, AnOscArgumentOfTheNamedAddressMovesTheValueOnDispatch) {
   // Nothing has been read yet: the dispatch is what reads it.
   EXPECT_FLOAT_EQ(fader.value(), 0.0f);
 
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   EXPECT_FLOAT_EQ(fader.value(), 63.5f);
   ASSERT_TRUE(fader.lastRead().has_value());
   EXPECT_DOUBLE_EQ(*fader.lastRead(), 63.5);
@@ -83,14 +84,14 @@ TEST(SketchKitChannel, AnOscArgumentOfTheNamedAddressMovesTheValueOnDispatch) {
 
 TEST(SketchKitChannel, AMessageOnAnotherAddressLeavesTheValueWhereItWas) {
   Hub hub;
-  hub.setFeedTransport("osc", intoNothing());
+  sigil::io::registerTransport(hub, "osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
   kit::Channel fader(hub, desk, "/fader/1", 0);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   inletOf(desk.feed()).deliver(packet("/fader/2", {data::Json(120.0)}));
-  hub.advance(std::chrono::duration<double>(0.1));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.1));
 
   EXPECT_FLOAT_EQ(fader.value(), 63.5f);
   EXPECT_DOUBLE_EQ(*fader.lastRead(), 63.5);
@@ -98,50 +99,50 @@ TEST(SketchKitChannel, AMessageOnAnotherAddressLeavesTheValueWhereItWas) {
 
 TEST(SketchKitChannel, AJsonFieldOfTheNamedKindMovesTheValue) {
   Hub hub;
-  hub.setFeedTransport("ws", intoNothing());
+  sigil::io::registerTransport(hub, "ws", intoNothing());
   data::Connection phone(hub, "ws://:8849/desk");
   kit::Channel wind(hub, phone, "Wind", "value");
 
   inletOf(phone.feed()).deliver(bytesOf(R"({"kind":"Wind","value":12.25})"));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   EXPECT_FLOAT_EQ(wind.value(), 12.25f);
 
   // Another kind, and the same kind carrying no field of that name:
   // neither says anything about this reading.
   inletOf(phone.feed()).deliver(bytesOf(R"({"kind":"Gust","value":88.0})"));
   inletOf(phone.feed()).deliver(bytesOf(R"({"kind":"Wind","strength":4.0})"));
-  hub.advance(std::chrono::duration<double>(0.1));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.1));
   EXPECT_FLOAT_EQ(wind.value(), 12.25f);
 }
 
 TEST(SketchKitChannel, AReadingThatNamesNoNumberLeavesTheValueWhereItWas) {
   Hub hub;
-  hub.setFeedTransport("osc", intoNothing());
+  sigil::io::registerTransport(hub, "osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
   kit::Channel fader(hub, desk, "/fader/1", 0);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   // The same address carrying a word where the fader stands, and then
   // carrying nothing at all.
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json("quiet")}));
-  hub.advance(std::chrono::duration<double>(0.1));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.1));
   EXPECT_FLOAT_EQ(fader.value(), 63.5f);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {}));
-  hub.advance(std::chrono::duration<double>(0.2));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.2));
   EXPECT_FLOAT_EQ(fader.value(), 63.5f);
   EXPECT_DOUBLE_EQ(*fader.lastRead(), 63.5);
 
   // And a dispatch that delivered nothing at all.
-  hub.advance(std::chrono::duration<double>(0.3));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.3));
   EXPECT_FLOAT_EQ(fader.value(), 63.5f);
 }
 
 TEST(SketchKitChannel, ABindingOverTheLiveValueReadsTheMappedValue) {
   Hub hub;
-  hub.setFeedTransport("osc", intoNothing());
+  sigil::io::registerTransport(hub, "osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
   kit::Channel fader(hub, desk, "/fader/1", 0);
 
@@ -153,17 +154,17 @@ TEST(SketchKitChannel, ABindingOverTheLiveValueReadsTheMappedValue) {
   EXPECT_FLOAT_EQ(motion::valueOf(nullptr, level), 0.0f);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   EXPECT_NEAR(motion::valueOf(nullptr, level), 0.5f, 0.001f);
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(127.0)}));
-  hub.advance(std::chrono::duration<double>(0.1));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.1));
   EXPECT_NEAR(motion::valueOf(nullptr, level), 1.0f, 0.001f);
 }
 
 TEST(SketchKitChannel, AMovedChannelGoesOnFollowingTheSameWire) {
   Hub hub;
-  hub.setFeedTransport("osc", intoNothing());
+  sigil::io::registerTransport(hub, "osc", intoNothing());
   data::Connection desk(hub, "osc://:27080");
   kit::Channel first(hub, desk, "/fader/1", 0);
 
@@ -175,7 +176,7 @@ TEST(SketchKitChannel, AMovedChannelGoesOnFollowingTheSameWire) {
   EXPECT_EQ(moved.live().identity(), bound.identity());
 
   inletOf(desk.feed()).deliver(packet("/fader/1", {data::Json(63.5)}));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   EXPECT_FLOAT_EQ(moved.value(), 63.5f);
   EXPECT_FLOAT_EQ(bound.value(), 63.5f);
 }

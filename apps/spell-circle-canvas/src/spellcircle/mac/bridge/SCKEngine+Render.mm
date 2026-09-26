@@ -98,8 +98,10 @@ SkColor toSkColor(NSColor *color) {
   // the window. Saying otherwise turns every frame over on the way across
   // and costs a redraw where an unturned frame is a straight copy.
   if (commandBuffer) {
-    _publisher.publishFrame((__bridge void *)sceneTexture, (__bridge void *)commandBuffer,
-                             _canvasWidth, _canvasHeight);
+    _publisher.send({.texture = (__bridge void *)sceneTexture,
+                     .commandBuffer = (__bridge void *)commandBuffer,
+                     .width = _canvasWidth,
+                     .height = _canvasHeight});
     [commandBuffer commit];
   }
 

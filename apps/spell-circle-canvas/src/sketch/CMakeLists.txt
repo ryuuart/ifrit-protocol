@@ -223,7 +223,8 @@ sigil_doc_probes(sketch
            ${CMAKE_CURRENT_SOURCE_DIR}/../sigilweave/include/sigilweave
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/protocol/include/sigilprotocol
            ${CMAKE_BINARY_DIR}/generated/protocol/sigilprotocol
-  PRELUDES ${SIGIL_SKETCH_DOC_SCRY_PRELUDE}
+  PRELUDES "<sigilio/advanced/Places.h>" "<sigilio/advanced/Time.h>"
+           ${SIGIL_SKETCH_DOC_SCRY_PRELUDE}
            "<sigilio/transport/Transport.h>"
            "<sigilcompose/Compose.h>"
            "<sigilcompose/draw/Draw.h>"

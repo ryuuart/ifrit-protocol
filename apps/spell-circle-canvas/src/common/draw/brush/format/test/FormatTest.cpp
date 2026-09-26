@@ -12,6 +12,8 @@
 #include <sigildraw/brush/format/Procreate.h>
 #include <sigilimage/encode/Encode.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilio/advanced/Decoding.h>
+#include <sigilio/advanced/Places.h>
 
 #include <algorithm>
 #include <cmath>
@@ -67,7 +69,7 @@ struct Table {
     entries[std::move(uri)] = std::make_shared<const sigil::io::Bytes>(
         sigil::io::Bytes{std::move(bytes)});
   }
-  std::shared_ptr<const sigil::io::Bytes> fetch(std::string_view uri) {
+  std::shared_ptr<const sigil::io::Bytes> read(std::string_view uri) {
     const auto found = entries.find(std::string(uri));
     return found == entries.end() ? nullptr : found->second;
   }
@@ -131,8 +133,8 @@ TEST(BrushFormat, ADirectoryOfThreeFilesLoadsThroughAnyByteSource) {
 TEST(BrushFormat, ADirectoryLoadsThroughAHubAndItsRegisteredDecoder) {
   sigil::test::ScratchDir scratch{"draw_brush_format"};
   sigil::io::Hub hub;
-  hub.mount("res://", scratch.path);
-  hub.registerDecoder<brush::Tool>(format::BrushDecoder{});
+  sigil::io::mount(hub, "res://", scratch.path);
+  sigil::io::registerDecoder<brush::Tool>(hub, format::BrushDecoder{});
 
   brush::Tool written;
   written.tip = brush::Tip::Image;

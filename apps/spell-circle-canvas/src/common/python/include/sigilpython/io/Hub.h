@@ -13,6 +13,7 @@
 namespace sigil::io {
 class Hub;
 class Feed;
+struct HubOptions;
 }  // namespace sigil::io
 
 namespace sigil::python {
@@ -24,6 +25,8 @@ class HubHandle {
  public:
   /** A hub of this handle's own, owned outright. */
   HubHandle();
+  /** The same, made with @p options. */
+  explicit HubHandle(io::HubOptions options);
   /** A handle onto the host's hub: @p access reaches it and throws
    *  when the session is gone, and @p retainFeed gives the session a
    *  lease on a feed opened through it. */

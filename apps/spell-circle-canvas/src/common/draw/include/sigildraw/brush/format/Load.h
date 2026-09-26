@@ -80,19 +80,19 @@ template <io::ByteSource S>
 [[nodiscard]] std::optional<Tool> loadBrush(S& source, std::string_view uri) {
   // One file first: a brush that is one resource costs one fetch, and a
   // directory has no bytes of its own, so it falls through to its parts.
-  if (const std::shared_ptr<const io::Bytes> packed = source.fetch(uri))
+  if (const std::shared_ptr<const io::Bytes> packed = source.read(uri))
     if (std::optional<Tool> tool = decodeBrush(*packed, uri)) return tool;
 
   std::string base(uri);
   while (!base.empty() && base.back() == '/') base.pop_back();
 
   const std::shared_ptr<const io::Bytes> description =
-      source.fetch(base + "/" + std::string(kDescriptionName));
+      source.read(base + "/" + std::string(kDescriptionName));
   const std::shared_ptr<const io::Bytes> shape =
-      source.fetch(base + "/" + std::string(kShapeName));
+      source.read(base + "/" + std::string(kShapeName));
   if (description || shape) {
     const std::shared_ptr<const io::Bytes> grain =
-        source.fetch(base + "/" + std::string(kGrainName));
+        source.read(base + "/" + std::string(kGrainName));
     static constexpr std::span<const std::byte> kNothing;
     return assembleBrush(description ? description->span() : kNothing,
                          shape ? shape->span() : kNothing,

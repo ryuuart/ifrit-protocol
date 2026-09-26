@@ -28,7 +28,7 @@ the pkg-config files beside them cannot do.
 ```cpp
 #include <sigilvideo/decode/Decode.h>
 
-auto bytes = hub.fetch("res://motion/title.mp4");
+auto bytes = hub.read("res://motion/title.mp4");
 auto clip = sigil::video::decodeVideo(bytes->data(), bytes->size());
 
 clip->draw(canvas, destination, elapsedSeconds);

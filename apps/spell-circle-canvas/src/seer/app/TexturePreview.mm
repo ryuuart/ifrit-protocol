@@ -4,10 +4,12 @@
 #import <Metal/Metal.h>
 #include <QtQuick/qsgtexture_platform.h>
 #include <sigilio/frames/Subscription.h>
+#include <sigilio/hub/Hub.h>
 #include <QtQuick/QQuickWindow>
 #include <QtQuick/QSGRendererInterface>
 #include <QtQuick/QSGSimpleTextureNode>
 #include <memory>
+#include <optional>
 #include <utility>
 
 namespace {
@@ -24,6 +26,9 @@ class TextureNode final : public QSGNode {
   QSGSimpleTextureNode* image = nullptr;
   QString source;
   QString application;
+  /** The hub the subscription is asked of: the node's own, since a
+   *  preview reads no resource and opens no feed. */
+  sigil::io::Hub hub;
   sigil::io::frames::Subscription subscription;
   id<MTLTexture> frame = nil;
   id<MTLCommandQueue> queue = nil;
@@ -69,8 +74,9 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
       node->source = source();
       node->application = application();
       void* device = renderer->getResource(window(), QSGRendererInterface::DeviceResource);
-      node->subscription = sigil::io::frames::subscribe(source().toStdString(),
-                                                         application().toStdString(), device);
+      node->subscription = node->hub.subscribe(
+          "syphon://" + source().toStdString(),
+          {.application = application().toStdString(), .device = {.handle = device}});
       node->queue = [(__bridge id<MTLDevice>)device newCommandQueue];
     }
     if (!node->subscription) {
@@ -79,7 +85,8 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
       return nullptr;
     }
     if (!paused() || !node->frame) {
-      id<MTLTexture> next = (__bridge id<MTLTexture>)node->subscription.latest();
+      const std::optional<sigil::io::frames::Frame> arrival = node->subscription.latest();
+      id<MTLTexture> next = arrival ? (__bridge id<MTLTexture>)arrival->texture : nil;
       const auto generation = node->subscription.state().revision;
       if (next && (generation != node->generation || !node->frame)) {
         auto* texture = QNativeInterface::QSGMetalTexture::fromNative(

@@ -12,6 +12,8 @@
 #include <QtCore/QSize>
 #include <QtCore/QSizeF>
 #include <QtQuick/QQuickRhiItem>
+#include <sigilio/frames/Publisher.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilmotion/clock/Engine.h>
 #include <cstdint>
 #include <future>
@@ -142,7 +144,9 @@ class SketchbookRenderer final : public QQuickRhiItemRenderer {
   /** WHAT THIS WINDOW IS OFFERING ITS FRAMES THROUGH, and whether it is
    *  offering them. The flag is the view's, read on every synchronize;
    *  the publisher stands only while it is true, because a publication
-   *  that exists is one other applications can already see. */
+   *  that exists is one other applications can already see. The hub is
+   *  the one it is published through, and reads no resource. */
+  sigil::io::Hub m_publicationHub;
   sigil::io::frames::Publisher m_publisher;
   /** THE SKETCH'S OWN CANVAS, IN A TEXTURE OF ITS OWN. What leaves by
    *  the publication door is this and not the window's: the declared

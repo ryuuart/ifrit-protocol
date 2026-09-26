@@ -27,6 +27,10 @@ namespace skgpu::graphite {
 class Recorder;
 }  // namespace skgpu::graphite
 
+namespace sigil::io {
+class Hub;
+}  // namespace sigil::io
+
 namespace sigil::sketch {
 
 struct SketchContext;
@@ -149,9 +153,11 @@ class Guest {
   [[nodiscard]] std::string_view application() const;
 
  private:
-  /** What both constructors are: a name, and whether the host is
-   *  capturing — which is the only thing a guest reads off a context. */
-  Guest(bool deterministic, std::string name, std::string application);
+  /** What both constructors are: the hub the host's assets stand on, a
+   *  name, and whether the host is capturing — which is all a guest reads
+   *  off a context. */
+  Guest(io::Hub& hub, bool deterministic, std::string name,
+        std::string application);
 
   std::string m_name;
   io::frames::Subscription m_subscription;

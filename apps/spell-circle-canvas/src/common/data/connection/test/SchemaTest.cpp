@@ -11,6 +11,7 @@
 #include <sigildata/decode/Json.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/testing/Testing.h>
+#include <sigilio/advanced/Time.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -136,14 +137,14 @@ TEST(DataSchema, WhatDoesNotFitTheSchemaIsNeitherTextNorBuffer) {
 
 TEST(DataSchema, AJsonArrivalThatFitsIsTheLatestInTheSchemasForm) {
   Hub hub;
-  hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
+  sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
   Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
   int handled = 0;
   sheet.on("*", [&handled](const Json&) { ++handled; });
 
   inletOf(sheet.feed()).deliver(bytesOf(R"({"readings":[{"name":"a","value":2.5}]})"));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(handled, 1);
   EXPECT_EQ(sheet.undecodable(), 0u);
@@ -154,7 +155,7 @@ TEST(DataSchema, AJsonArrivalThatFitsIsTheLatestInTheSchemasForm) {
 
 TEST(DataSchema, AJsonArrivalThatDoesNotFitLeavesTheLatestStanding) {
   Hub hub;
-  hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
+  sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
   Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
   int handled = 0;
@@ -165,7 +166,7 @@ TEST(DataSchema, AJsonArrivalThatDoesNotFitLeavesTheLatestStanding) {
   // and it is not this schema's, which is the whole difference a schema
   // makes: without one it would be the newest message.
   inletOf(sheet.feed()).deliver(bytesOf(R"({"gust":0.5})"));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   EXPECT_EQ(handled, 1);
   EXPECT_EQ(sheet.undecodable(), 1u);
@@ -175,11 +176,11 @@ TEST(DataSchema, AJsonArrivalThatDoesNotFitLeavesTheLatestStanding) {
 
 TEST(DataSchema, ABufferArrivesAsItsOwnJsonForm) {
   Hub hub;
-  hub.setFeedTransport("ws", intoVector(std::make_shared<Sent>()));
+  sigil::io::registerTransport(hub, "ws", intoVector(std::make_shared<Sent>()));
 
   Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
   inletOf(sheet.feed()).deliver(bytesOf(builtSheet()));
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
 
   // The same reading as the JSON form: which form the sender wrote is
   // not something a reader has to know.
@@ -193,7 +194,7 @@ TEST(DataSchema, ABufferArrivesAsItsOwnJsonForm) {
 TEST(DataSchema, SendWritesTheBufferTheSchemaMakesOfTheMessage) {
   Hub hub;
   const auto sent = std::make_shared<Sent>();
-  hub.setFeedTransport("ws", intoVector(sent));
+  sigil::io::registerTransport(hub, "ws", intoVector(sent));
   const Connection sheet(hub, "ws://:8848/sheet", sheetSchema());
 
   ASSERT_TRUE(sheet.send(oneReading(2.5)));
@@ -219,7 +220,7 @@ TEST(DataSchema, SendWritesTheBufferTheSchemaMakesOfTheMessage) {
 
 TEST(DataSchema, AnOscDoorTakesNoSchema) {
   Hub hub;
-  hub.setFeedTransport("osc", intoVector(std::make_shared<Sent>()));
+  sigil::io::registerTransport(hub, "osc", intoVector(std::make_shared<Sent>()));
 
   const Connection desk(hub, "osc://:9000", sheetSchema());
   EXPECT_FALSE(desk.error().empty());

@@ -11,6 +11,7 @@
 #include <sigildata/connection/Connection.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/testing/Testing.h>
+#include <sigilio/advanced/Time.h>
 #include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -64,12 +65,12 @@ Element byHand(std::vector<compose::kit::Reading> rows) {
 
 TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
   Hub hub;
-  hub.setFeedTransport("ws", binding("ws://127.0.0.1:8848"));
+  sigil::io::registerTransport(hub, "ws", binding("ws://127.0.0.1:8848"));
   data::Connection sky(hub, "ws://:8848/sky");
   inletOf(sky.feed()).deliver(bytesOf(R"({"kind":"gust"})"), "ws://127.0.0.1:52341");
   inletOf(sky.feed()).deliver(bytesOf("this is no document at all"),
                               "ws://127.0.0.1:52341");
-  hub.advance(std::chrono::duration<double>(0.0));
+  sigil::io::advance(hub, std::chrono::duration<double>(0.0));
   ASSERT_EQ(sky.revision(), 2u);
 
   EXPECT_TRUE(sameDrawing(
@@ -83,7 +84,7 @@ TEST(SketchKitConnectionReadout, AnOpenDoorReadsItsAddressCountsAndSender) {
 
 TEST(SketchKitConnectionReadout, AShutDoorWithNoAddressReadsWhatItIsCalled) {
   Hub hub;
-  hub.setFeedTransport("ws", binding(""));
+  sigil::io::registerTransport(hub, "ws", binding(""));
   data::Connection sky(hub, "ws://:8849/sky");
   sky.feed().close();
   ASSERT_TRUE(sky.closed());
@@ -107,7 +108,7 @@ TEST(SketchKitConnectionReadout, AShutDoorWithNoAddressReadsWhatItIsCalled) {
 
 TEST(SketchKitConnectionReadout, AFailedDoorReadsItsErrorWhereTheSenderStood) {
   Hub hub;
-  hub.setFeedTransport("ws", binding("ws://127.0.0.1:8850"));
+  sigil::io::registerTransport(hub, "ws", binding("ws://127.0.0.1:8850"));
   data::Connection sky(hub, "ws://:8850/sky");
   inletOf(sky.feed()).fail("port 8850 is in use");
   ASSERT_EQ(sky.error(), "port 8850 is in use");
