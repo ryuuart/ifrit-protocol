@@ -17,27 +17,27 @@ from sigil.sketch import render_file
 class Data(unittest.TestCase):
     def test_json_preserves_native_order_duplicates_and_owned_members(self):
         self.assertIs(data.Json, native.Json)
-        document = data.decodeJson(
-            '{"name":"fern","values":[1,null,true],"name":"moss"}'
+        document = data.decode(
+            '{"name":"fern","values":[1,null,true],"name":"moss"}', data.Dialect.Json
         )
         self.assertEqual(
-            [name for name, _ in document.fields()], ["name", "values", "name"]
+            [name for name, _ in document.object()], ["name", "values", "name"]
         )
-        self.assertEqual(document["name"].text(), "fern")
+        self.assertEqual(document["name"].string(), "fern")
         self.assertTrue(document["absent"]["deeper"].null())
         self.assertEqual(document["name"].number(8), 8)
-        values = document["values"].items()
-        encoded = data.encodeJson(document)
-        self.assertEqual(data.decodeJson(encoded), document)
+        values = document["values"].array()
+        encoded = data.encode(document, data.Dialect.Json)
+        self.assertEqual(data.decode(encoded, data.Dialect.Json), document)
         self.assertEqual(
             document.to_python(), {"name": "fern", "values": [1, None, True]}
         )
         del document
         gc.collect()
         self.assertEqual([value.to_python() for value in values], [1, None, True])
-        duplicate = data.Json.object([("x", 2), ("x", 4)])
-        self.assertEqual(data.encodeJson(duplicate), '{"x":2,"x":4}')
-        self.assertIsNone(data.decodeJson("not json"))
+        duplicate = data.Json.fromPairs([("x", 2), ("x", 4)])
+        self.assertEqual(data.encode(duplicate, data.Dialect.Json), b'{"x":2,"x":4}')
+        self.assertIsNone(data.decode("not json", data.Dialect.Json))
         repeated = [1, {"x": 2}]
         self.assertEqual(data.Json([repeated, repeated]).size(), 2)
         cycle = []
@@ -48,7 +48,7 @@ class Data(unittest.TestCase):
             data.Json({1: "key must be text"})
 
     def test_decoded_json_respects_python_conversion_recursion_limit(self):
-        document = data.decodeJson("[" * 180 + "0" + "]" * 180)
+        document = data.decode("[" * 180 + "0" + "]" * 180, data.Dialect.Json)
         self.assertIsNotNone(document)
         nested = 0
         for _ in range(180):
@@ -324,13 +324,13 @@ class Resources:
             gc.collect()
             with self.assertRaisesRegex(RuntimeError, "session"):
                 assets.json("anything")
-            self.assertEqual(document["title"].text(), "field measurements")
+            self.assertEqual(document["title"].string(), "field measurements")
             self.assertEqual(table.column("height").values(), [42, 3])
             self.assertEqual(
                 database.query("SELECT count FROM totals").cell("count", 0), 2
             )
             table.remove("height")
-        self.assertEqual(document["units"].text(), "cm")
+        self.assertEqual(document["units"].string(), "cm")
 
 
 if __name__ == "__main__":

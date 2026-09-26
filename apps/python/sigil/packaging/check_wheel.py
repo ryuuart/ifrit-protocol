@@ -197,12 +197,12 @@ assert Animatable is motion.Animatable
 assert data.Json.__module__ == "sigil.data"
 assert io.Hub.__module__ == "sigil.io"
 payload = {"values": [1, 2, 3], "label": "installed"}
-assert data.decodeJson(data.encodeJson(payload)).to_python() == payload
+assert data.decode(data.encode(payload, data.Dialect.Json), data.Dialect.Json).to_python() == payload
 assert data.Scale(domain=(0, 100), range=(20, 420))(25) == 120
 assert compose_kit.line(length=24, thickness=2).__class__ is compose.Element
 hub = io.Hub()
 hub.mount("out://", pathlib.Path.cwd() / "output")
-encoded = data.encodeJson(payload).encode("utf-8")
+encoded = data.encode(payload, data.Dialect.Json)
 assert hub.write("out://readings.json", encoded)
 assert hub.read("out://readings.json") == encoded
 io.registerTransports(hub, ["udp"])

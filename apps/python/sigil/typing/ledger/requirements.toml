@@ -409,7 +409,7 @@ library = "Sketch kit"
 python = ["sketch.kit.bars"]
 
 [requirement.kit-connection-readout]
-native = "`sketch::kit::connectionReadout` over `data::Connection::Vitals`"
+native = "`sketch::kit::connectionReadout` over `data::Connection::state()`"
 library = "Sketch kit"
 python = ["sketch.kit.connection_readout"]
 

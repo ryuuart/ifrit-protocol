@@ -69,6 +69,8 @@ Every sketch in Draw, Draw · Generative, Draw · Observable reproductions, Draw
 
 One surface alone stands between each of these sketches and a translation:
 
+- `sketch::kit::instrument`: `artnet_lights`, `feed_events`, `grpc_watch`,
+  `midi_pads`, `osc_desk`, `phone_sky`, `serial_sensor` and `webrtc_sky`.
 - `geometry::shapes` silhouette generators: `attribute_ring`, `beethoven`,
   `mawarikomi`, `persona menu` and `svg_silhouette`.
 - `sketch::kit::readout`: `grid_layouts`, `optical_kerning`, `tile map` and
@@ -111,7 +113,6 @@ needs.
 | `material::Texture` and `Material::slot` | Material | 13 |
 | `sketch::kit::plot` chart layers | Sketch kit | 13 |
 | `measure::CheckTable` and `measure::check` | Measure | 12 |
-| `data::Connection` | Data | 11 |
 | `sketch::kit::Document` content reader | Sketch kit | 11 |
 | `sketch::kit::table` | Sketch kit | 11 |
 | `compose::lines::Line` and `lines::Rails` | Compose | 10 |
@@ -190,7 +191,7 @@ Python environment.
 | Decorations | `Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, joins, stamps, trims and animated phases) or `Shadow`; `stroke`, `shadow`, `LayerStyle` and `Element.layerStyle`; overlay, background, foreground and stroke layers; span passes over `spans` selections; `Element.decorationOutline` and `Boundary` | `Slice`, `ContourWalk`, `Wash`, `Border` and the `decorations::` borders and washes; `onEdges` and `inset`; the `brush::` solids, weaves, scatters, patterns, corner art, ribbons and art; `Brush` shaped layer stacks and `brush::restyle`; `LayeredBrush`; `lines::Line`, `Rails`, `Hatch` and `RadialHatch`; the `styles::` inner shadow, outer glow, bevel and emboss, overlays, ripple, brackets, tick rails, scanlines, stipple and dither; `PathFormat::effect`; shadow offsets driven by motion outputs; decoration schemes written in Python |
 | Compose kit | `compose.kit` records `Sheet`, `Panel`, `Board`, `Well`, `WellContent`, `Caption`, `Cells`, `PanelGrid`, `Line` and `Ladder` with every native field, their factories, `centred`, `at`, `disc`, `dot`, `ring` and `figure`, with caption, sheet and panel lines as Python callables; `compose.layouts` `Grid` with tracks, areas and dense flow, `Radial`, `Diagonal`, `BaselineGrid`, `Jittered` and `AlongPath`; the connecting operators `compose.connect.Between` and `ByLane` with their router, gap, wire and bleed | the rows (`section`, `readout`, `table`, `bars`); typesetting (`ruby`, `kenten`, `bullets`, `textColumns`, `rules`, `nestedRun`); `annotate` with `Beside` and `Anchored`; the kinetic `textFx::` presets, `trackMeter` and `restGhost`; `marquee`; legibility (`scrim`, `haloed`, `shaded`, `emboldened` and `drawHaloed`); `vignette` and `grained`; the chrome, gel and gloss styles; `plate`, `console` and `tinted`; `routers::`; `instancing::place::`; the stroke and brush presets; sprites and pixel type; `ornament::` and `flourish::`; the named default leaves |
 | Document kit | Every `compose::document` component and property: `article`, `section`, `list`, `quote`, `heading` and `h1` to `h6`, `paragraph` over a string or rich text, `lead`, `caption`, `label`, `eyebrow`, `footer`, `code`, `item`, `figure` and `rule`; `measure`, `gap`, `list_gap` and `quote_inset`; roles resolved through inherited stylesheets | Nothing |
-| Specimen kit | `sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`; `house_face`, `house_theme`, `study_theme`, `feature_theme` with `Density`, and `theme`; a checked `Provide`; `stage`, `page`, `well`, `caption`, `cell`, `cells`, `panel_grid` and `comparison`; `section_header` and `section` with `SectionHeader` | `specimenTheme`, `Theme::sans` and `Theme::mono`; `stage(SetContext)`; `passage`; `Document`; `Instrument`; the heading `titleCard`; the rows `readout`, `labelRow`, `table` and `bars`; the legends `legend`, `swatchStrip` and `chip`; `meter` and `gauge`; the charts `plot`, `axis`, `rules`, `trace`, `area`, `path`, `marks`, `bands`, `segments` and `label`; `scrollbar`; `backdrop`, `panel` and `frame`; `console`; `ticker` and `timeline`; `Channel`; `connectionReadout` over a connection's vitals |
+| Specimen kit | `sketch.kit` `Palette`, `Register`, `TypeScale`, `Spacing` and a comparable `Theme` with `font`, `style`, `styleSheet` and `voice`; `house_face`, `house_theme`, `study_theme`, `feature_theme` with `Density`, and `theme`; a checked `Provide`; `stage`, `page`, `well`, `caption`, `cell`, `cells`, `panel_grid` and `comparison`; `section_header` and `section` with `SectionHeader` | `specimenTheme`, `Theme::sans` and `Theme::mono`; `stage(SetContext)`; `passage`; `Document`; `Instrument`; the heading `titleCard`; the rows `readout`, `labelRow`, `table` and `bars`; the legends `legend`, `swatchStrip` and `chip`; `meter` and `gauge`; the charts `plot`, `axis`, `rules`, `trace`, `area`, `path`, `marks`, `bands`, `segments` and `label`; `scrollbar`; `backdrop`, `panel` and `frame`; `console`; `ticker` and `timeline`; `Channel`; `connectionReadout` over a connection's state |
 
 <!-- prose: composition -->
 <!-- /prose -->
@@ -257,7 +258,7 @@ and texture maps do not reach a World pixel. An image set as
 
 | Surface | Bound | Not yet bound |
 | --- | --- | --- |
-| Data and assets | `Json`, `Column` and `Table` reshaping, `decodeCsv`, `Instant` and `Flag`, which compare, order and hash as their values do, a `Flag` against the boolean a cell reads as; `Interval` and `Scale`; SQLite and DuckDB `Database` values with owned writes and query views that refuse a writing statement through every method; `Schema` text and binary conversion; OSC, MIDI and Art-Net codecs; `registerDecoders`, which installs the database decoder beside the table and JSON ones; the session asset loaders | `data::Connection`; `FlatBuffer` roots and the generated value types; typed column spans; `maxOscBundleDepth` |
+| Data and assets | `Json`, `Column` and `Table` reshaping, `decodeCsv`, `Instant` and `Flag`, which compare, order and hash as their values do, a `Flag` against the boolean a cell reads as; `Interval` and `Scale`; SQLite and DuckDB `Database` values with owned writes and query views that refuse a writing statement through every method; `Schema` text and binary conversion; `decode` and `encode` over `Dialect` — JSON, OSC, MIDI, Art-Net, a FlatBuffer through its schema, CSV — `oscMessage` and `maxOscBundleDepth`; `json`, `csv` and `table` reading a file whole over a hub, a query over a CSV run as `source`; `registerDecoders`, which installs the database decoder beside the table and JSON ones; the session asset loaders; `connect` and `replay` answering a `Connection` — `latest`, `receive`, `on` with OSC address patterns, `otherwise`, `send` to one sender, `reply`, `record`, `state`, `close` — its `Message` and its `ConnectionState` | `FlatBuffer` roots and the generated value types; typed column spans |
 | IO | An owned or session `Hub`, made with `HubOptions` and `NetworkOptions`, with mounts, resolution, text, `read` for bytes, probes, selection, writes, polling, typed `load` for tables, JSON, databases and image assets, leases, preload and network policy; `Hub.advance`; `Feed` from `Hub.listen` with `ListenOptions`, with `receive`, `latest`, `state` as a `FeedState` and `ReadyState`, and `send` to a peer or `to` one sender; the `Inlet` a test delivers onto one through, from `io.testing.inletOf`; owned `Message`; recordings through `Feed.record` and its `Recording`, played back through `Hub.replay`; the UDP, WebSocket, shared memory, MIDI, serial, gRPC, QUIC and WebRTC transports; `Message.receivedAt` | `io::onAdvance`; `io::registerDecoder` for further types; custom feed and network transports; `io::NetworkCache`; hub image views with decode options, channels and probes; archives, byte sources and `writeBytes` |
 | Texture publication | `Hub.publish` and `Hub.subscribe` over `syphon://` and `spout://` URIs, with `io.frames.Frame` (native handles as integers), `Publisher.send` and `Subscription.latest`; Sketchbook publishes a Python canvas through its own publisher | publication listing and a `Device` of a named graphics API |
 
@@ -408,7 +409,7 @@ model, arithmetic and data become Python code and are not listed.
 | `border_weave` | Silhouette-following border modes; double and weighted borders; woven braid brush; crossing rule; shape generators; section headers | `compose::Border` and `compose::decorations::border` rules; `compose::brush::weave` strand composite; `compose::kit::braid` strands; `geometry::shapes` silhouette generators; `geometry::shapes` corner operators; `geometry::path` crossings and crossing rules |
 | `bullets_dropcap` | Initial letters; nested opening styles; flow around a shaped ornament; hanging list kit; font fallback; wells | `compose::kit` typesetting (`bullets`, `nestedRun`, `textColumns`, `rules`); `geometry::shapes` silhouette generators |
 | `cascade` | Inherited type, ink transitions, classes and custom properties; lexical environment values; pen and graphics leaves; readout kit | `sketch::kit::readout`; `core::environment::Provide` / `inheritedOr` values |
-| `channel_bind` | OSC connection on the hub; kit channels writing outputs; binding chains; recording replay; readout kit | `sketch::kit::readout`; `sketch::kit::Channel` address follower; `data::Connection` |
+| `channel_bind` | OSC connection on the hub; kit channels writing outputs; binding chains; recording replay; readout kit | `sketch::kit::readout`; `sketch::kit::Channel` address follower |
 | `cjk_rules` | Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume | — |
 | `codec_roundtrip` | PLY encode and decode of meshes and clouds; model merge, bounds and fit; point attributes; billboard splats; mesh painter | `geometry::mesh::Cloud` and `mesh::points`; `geometry::mesh::codec` |
 | `compute_variant` | Set-kind hosting; wave rail; compute pass cooking a point chain; stamped geometry pass; variant repaint; readback callback | Set sketches (`sketch::SetContext`, `describe`); `geometry::mesh::pop` point-operator chains; `geometry::mesh::curve::Spline3` and frames; `world::kit` rails (`wave`, `winding`, `rail`); `world::computePass` passes and `world::readback` |
@@ -530,18 +531,18 @@ model, arithmetic and data become Python code and are not listed.
 
 | Sketch | Needs | Not yet bound |
 | --- | --- | --- |
-| `artnet_lights` | Art-Net Connection handlers and sends; recording replay; eased ticker ramps; instrument page; themed pen drawing | `sketch::kit::instrument`; `data::Connection` |
+| `artnet_lights` | Art-Net Connection handlers and sends; recording replay; eased ticker ramps; instrument page; themed pen drawing | `sketch::kit::instrument` |
 | `data_scales` | Scale transforms; chart plot kit layers; stylesheet classes; stated default face; caption and panel grid | `sketch::kit::plot` chart layers |
 | `data_sources` | Asset table and database; DuckDB memory query; bars and section header kit; comparison well | `sketch::kit::bars` over `data::Table` |
-| `feed_events` | JSON Connection kind handlers; recording replay; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
-| `feed_sky` | One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording replay per door; kit panels and vitals readouts; cached band elements on one bound clock | `data::Connection`; `data::FlatBuffer` roots and `data::schema`; `sketch::kit::connectionReadout` over `data::Connection::Vitals` |
-| `grpc_watch` | gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument`; `data::Connection` |
-| `midi_pads` | MIDI Connection in and out; eased ticker ramps; instrument page; pen cells and knob | `sketch::kit::instrument`; `data::Connection` |
-| `osc_desk` | OSC Connection address handlers and replies; chained ticker ramps; instrument page; pen faders | `sketch::kit::instrument`; `data::Connection` |
-| `phone_sky` | WebSocket Connection with served pages; broadcast sends; eased ticker ramps; instrument page | `sketch::kit::instrument`; `data::Connection` |
-| `schema_scene` | Generated schema values; FlatBuffer hub decoder; schema-backed Connection; instrument page; document labels | `sketch::kit::instrument`; `data::Connection`; `data::FlatBuffer` roots and `data::schema` |
-| `serial_sensor` | Serial line Connection; recording replay; instrument page; transformed pen ribbons | `sketch::kit::instrument`; `data::Connection` |
-| `webrtc_sky` | WebRTC Connection over WebSocket signal; broadcast sends; eased ticker ramps; instrument page | `sketch::kit::instrument`; `data::Connection` |
+| `feed_events` | JSON Connection kind handlers; recording replay; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument` |
+| `feed_sky` | One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording replay per door; kit panels and state readouts; cached band elements on one bound clock | `data::FlatBuffer` roots and `data::schema`; `sketch::kit::connectionReadout` over `data::Connection::state()` |
+| `grpc_watch` | gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands | `sketch::kit::instrument` |
+| `midi_pads` | MIDI Connection in and out; eased ticker ramps; instrument page; pen cells and knob | `sketch::kit::instrument` |
+| `osc_desk` | OSC Connection address handlers and replies; chained ticker ramps; instrument page; pen faders | `sketch::kit::instrument` |
+| `phone_sky` | WebSocket Connection with served pages; broadcast sends; eased ticker ramps; instrument page | `sketch::kit::instrument` |
+| `schema_scene` | Generated schema values; FlatBuffer hub decoder; schema-backed Connection; instrument page; document labels | `sketch::kit::instrument`; `data::FlatBuffer` roots and `data::schema` |
+| `serial_sensor` | Serial line Connection; recording replay; instrument page; transformed pen ribbons | `sketch::kit::instrument` |
+| `webrtc_sky` | WebRTC Connection over WebSocket signal; broadcast sends; eased ticker ramps; instrument page | `sketch::kit::instrument` |
 
 ### Media
 

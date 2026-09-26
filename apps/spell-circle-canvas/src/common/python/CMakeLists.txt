@@ -21,7 +21,7 @@ sigil_library(SigilPython
     compose/TextEffects.cpp
     compose/TextureScene.cpp core/Compute.cpp core/Features.cpp
     core/RecordProtocol.cpp core/Values.cpp data/Connection.cpp
-    data/Schema.cpp data/Tables.cpp draw/CanvasSeam.cpp draw/Standalone.cpp
+    draw/CanvasSeam.cpp draw/Standalone.cpp
     geometry/Charts.cpp geometry/DeviceHandle.cpp geometry/Frames.cpp
     geometry/Mesh.cpp geometry/MeshCamera.cpp geometry/MeshCodec.cpp
     geometry/MeshCurve.cpp geometry/MeshPoints.cpp geometry/MeshRender.cpp
@@ -65,7 +65,7 @@ sigil_library(SigilPython
   PRIVATE
     SigilCoreCompute SigilCoreHardware SigilCoreReconcile SigilComposeDraw
     SigilComposeTexture SigilComposeTypography SigilComposeVideo
-    SigilDataConnection SigilDataDecode SigilDataQuery SigilDataScale
+    SigilDataConnection SigilDataDecode SigilDataQuery SigilDataRead SigilDataScale
     SigilDataTable SigilDataValues SigilDraw SigilDrawBrush
     SigilDrawBrushFormat SigilGeometryDevice SigilGeometryMesh
     SigilGeometryMeshCamera SigilGeometryMeshCodec SigilGeometryMeshCurve

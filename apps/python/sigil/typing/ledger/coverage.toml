@@ -890,7 +890,7 @@ native = "`Channel`"
 python = ["sketch.kit.Channel"]
 
 [[section.surface.item]]
-native = "`connectionReadout` over a connection's vitals"
+native = "`connectionReadout` over a connection's state"
 python = ["sketch.kit.connection_readout"]
 
 [[section]]
@@ -2039,24 +2039,34 @@ bound = "SQLite and DuckDB `Database` values with owned writes and query views t
 python = ["data.Database", "data.Engine"]
 
 [[section.surface.item]]
-bound = "`Schema` text and binary conversion; OSC, MIDI and Art-Net codecs"
+bound = "`Schema` text and binary conversion; `decode` and `encode` over `Dialect` — JSON, OSC, MIDI, Art-Net, a FlatBuffer through its schema, CSV — `oscMessage` and `maxOscBundleDepth`"
 python = [
   "data.Schema",
-  "data.encodeOsc",
-  "data.decodeOsc",
-  "data.encodeMidi",
-  "data.decodeMidi",
-  "data.encodeArtNet",
-  "data.decodeArtNet",
+  "data.decode",
+  "data.encode",
+  "data.Dialect",
+  "data.oscMessage",
+  "data.maxOscBundleDepth",
 ]
+
+[[section.surface.item]]
+bound = "`json`, `csv` and `table` reading a file whole over a hub, a query over a CSV run as `source`"
+python = ["data.json", "data.csv", "data.table"]
 
 [[section.surface.item]]
 bound = "`registerDecoders`, which installs the database decoder beside the table and JSON ones; the session asset loaders"
 python = ["data.registerDecoders"]
 
 [[section.surface.item]]
-native = "`data::Connection`"
-python = ["data.Connection"]
+bound = "`connect` and `replay` answering a `Connection` — `latest`, `receive`, `on` with OSC address patterns, `otherwise`, `send` to one sender, `reply`, `record`, `state`, `close` — its `Message` and its `ConnectionState`"
+python = [
+  "data.connect",
+  "data.replay",
+  "data.Connection",
+  "data.Message",
+  "data.ConnectionState",
+  "data.matchesAddress",
+]
 
 [[section.surface.item]]
 native = "`FlatBuffer` roots and the generated value types"
@@ -2064,10 +2074,6 @@ python = ["data.FlatBuffer"]
 
 [[section.surface.item]]
 native = "typed column spans"
-
-[[section.surface.item]]
-native = "`maxOscBundleDepth`"
-python = ["data.maxOscBundleDepth"]
 
 [[section.surface]]
 name = "IO"

@@ -336,8 +336,7 @@ assembly guards their calls the same way.
   `bindWorldDevice`, `bindWorldEnvironment`, `bindWorldGeometry`,
   `bindWorldPasses`, `bindWorldPlan`, `bindWorldTargets`, `bindWorldView`
 * `io/Registration.h` — `bindIO`, `bindIOFrames`
-* `data/Registration.h` — `bindData`, `bindDataConnection`,
-  `bindDataSchema`, `bindDataTables`
+* `data/Registration.h` — `bindData`, `bindDataConnection`
 * `measure/Registration.h` — `bindMeasure`
 * `video/Registration.h` — `bindVideo`
 * `scry/Registration.h` — `bindScry`

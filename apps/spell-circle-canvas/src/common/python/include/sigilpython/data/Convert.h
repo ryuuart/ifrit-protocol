@@ -12,6 +12,7 @@
 
 namespace sigil::data {
 class Database;
+class Json;
 }
 namespace sigil::io {
 class Hub;
@@ -19,6 +20,10 @@ class Hub;
 
 namespace sigil::python {
 
+/** @p value, a Python value or a native Json, as the native Json. */
+data::Json dataJson(pybind11::handle value);
+/** @p value as a detached Python value. */
+pybind11::object dataPython(const data::Json& value);
 /** A query view owns the native database independently of its asset cache. */
 pybind11::object dataDatabase(std::shared_ptr<const data::Database> database);
 /** The resource @p uri from @p hub, decoded into @p type — a table, a

@@ -31,22 +31,26 @@ class LibraryCoverage(unittest.TestCase):
         self.assertEqual(result.column("name").values(), ["fern", "moss"])
 
     def test_codecs_use_python_values_and_native_wire_formats(self):
-        packet = data.encodeOsc(address="/level", arguments=(0.5, True, "hello"))
-        message = data.decodeOsc(packet).to_python()
+        Dialect = data.Dialect
+        packet = data.encode(
+            data.oscMessage("/level", (0.5, True, "hello")), Dialect.Osc
+        )
+        message = data.decode(packet, Dialect.Osc).to_python()
         self.assertEqual(message["address"], "/level")
         self.assertEqual(message["arguments"], [0.5, True, "hello"])
-        self.assertEqual(data.encodeOsc(message=message), packet)
-        midi = data.encodeMidi(
-            {"kind": "NoteOn", "channel": 1, "note": 60, "velocity": 0}
+        self.assertEqual(data.encode(message, Dialect.Osc), packet)
+        midi = data.encode(
+            {"kind": "NoteOn", "channel": 1, "note": 60, "velocity": 0}, Dialect.Midi
         )
         self.assertEqual(midi, b"\x90\x3c\x00")
-        self.assertEqual(data.decodeMidi(midi)["kind"].text(), "NoteOff")
-        dmx = data.decodeArtNet(
-            data.encodeArtNet({"kind": "Dmx", "channels": [255, 64, 8]})
+        self.assertEqual(data.decode(midi, Dialect.Midi)["kind"].string(), "NoteOff")
+        dmx = data.decode(
+            data.encode({"kind": "Dmx", "channels": [255, 64, 8]}, Dialect.ArtNet),
+            Dialect.ArtNet,
         )
         self.assertEqual(dmx["channels"].to_python(), [255, 64, 8, 0])
-        for decoder in (data.decodeOsc, data.decodeMidi, data.decodeArtNet):
-            self.assertIsNone(decoder(b""))
+        for dialect in (Dialect.Osc, Dialect.Midi, Dialect.ArtNet):
+            self.assertIsNone(data.decode(b"", dialect))
 
     def test_schema_owns_its_bytes_and_verifies_both_directions(self):
         fixture = Path(__file__).with_name("assets") / "coverage.bfbs"

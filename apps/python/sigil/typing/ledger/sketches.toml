@@ -549,7 +549,7 @@ needs = "JSON Connection kind handlers; recording replay; eased ticker ramps; in
 requires = ["kit-instrument", "timelines", "connection"]
 
 [sketch.feed_sky]
-needs = "One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording replay per door; kit panels and vitals readouts; cached band elements on one bound clock"
+needs = "One sky through three doors side by side: a Connection read through the sketch's own FlatBuffers schema over UDP, and as JSON over QUIC and shared memory; a recording replay per door; kit panels and state readouts; cached band elements on one bound clock"
 requires = ["sketch-schemas", "connection", "flatbuffer", "kit-connection-readout"]
 
 [sketch.feed_vitals]

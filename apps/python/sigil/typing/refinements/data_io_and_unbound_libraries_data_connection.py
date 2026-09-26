@@ -1,4 +1,4 @@
-"""data::Connection: handlers, schema doors, replies and the checked session wrapper.
+"""data.connect and data.replay: the Connection, its Message and its state.
 
 Input contracts for the erased signatures of the
 data-io-and-unbound-libraries/data-connection package, and nothing else: a fragment is one
@@ -12,3 +12,13 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    table.erased("_sigil.data.Connection", "send reply", "_t.JsonInput")
+    table.parameters(
+        "_sigil.data.Connection.on",
+        handler="collections.abc.Callable[[Message], object]",
+    )
+    table.parameters(
+        "_sigil.data.Connection.otherwise",
+        handler="collections.abc.Callable[[Message], object]",
+    )
+    table.erased("_sigil.data.Message", "__getitem__", "str | typing.SupportsInt")

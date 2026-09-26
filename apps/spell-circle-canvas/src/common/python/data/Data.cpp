@@ -4,14 +4,12 @@
 
 #include <pybind11/stl.h>
 #include <pybind11/stl/filesystem.h>
-#include <sigildata/decode/ArtNet.h>
+#include <sigildata/decode/Dialect.h>
 #include <sigildata/decode/Csv.h>
-#include <sigildata/decode/Decoders.h>
 #include <sigildata/decode/Json.h>
-#include <sigildata/decode/Midi.h>
-#include <sigildata/decode/Osc.h>
 #include <sigildata/decode/Schema.h>
 #include <sigildata/query/Database.h>
+#include <sigildata/read/Read.h>
 #include <sigildata/scale/Scale.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Decoding.h>
@@ -25,8 +23,10 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <span>
 #include <type_traits>
 #include <unordered_set>
+#include <vector>
 
 namespace sigil::python {
 namespace py = pybind11;
@@ -254,6 +254,10 @@ py::class_<T> record(py::module_& module, const char* name) {
 
 }  // namespace
 
+data::Json dataJson(py::handle value) { return json(value); }
+
+py::object dataPython(const data::Json& value) { return pythonJson(value); }
+
 py::object dataDatabase(std::shared_ptr<const data::Database> database) {
   return database ? py::cast(DatabaseView{std::move(database)}) : py::none();
 }
@@ -295,24 +299,20 @@ void bindData(py::module_& root) {
         auto& hub = value.get();
         const py::gil_scoped_release release;
         data::registerDecoders(hub);
-        // One Python module stands over every feature of this library, so
-        // the call that puts its decoders on a hub puts the database
-        // decoder there too: an owned hub loads what a session hub loads.
-        io::registerDecoder<data::Database>(hub, data::DatabaseDecoder{});
       },
       py::arg("hub"));
   py::enum_<data::Json::Kind>(module, "JsonKind")
       .value("Null", data::Json::Kind::Null)
       .value("Boolean", data::Json::Kind::Boolean)
       .value("Number", data::Json::Kind::Number)
-      .value("Text", data::Json::Kind::Text)
-      .value("List", data::Json::Kind::List)
-      .value("Record", data::Json::Kind::Record);
+      .value("String", data::Json::Kind::String)
+      .value("Array", data::Json::Kind::Array)
+      .value("Object", data::Json::Kind::Object);
   py::class_<data::Json>(module, "Json")
       .def(py::init([](py::handle value) { return json(value); }),
            py::arg("value") = py::none())
       .def_static(
-          "object",
+          "fromPairs",
           [](py::iterable fields) {
             data::Json::Object result;
             for (auto item : fields) {
@@ -331,9 +331,9 @@ void bindData(py::module_& root) {
       .def("boolean", &data::Json::boolean, py::arg("fallback") = false)
       .def("number", &data::Json::number, py::arg("fallback") = 0)
       .def(
-          "text",
+          "string",
           [](const data::Json& value, std::string_view fallback) {
-            return std::string(value.text(fallback));
+            return std::string(value.string(fallback));
           },
           py::arg("fallback") = "")
       .def("size", &data::Json::size)
@@ -349,15 +349,15 @@ void bindData(py::module_& root) {
             return index < 0 ? data::Json{} : value[static_cast<size_t>(index)];
           },
           py::arg("key"))
-      .def("items",
+      .def("array",
            [](const data::Json& value) {
-             return std::vector<data::Json>(value.items().begin(),
-                                            value.items().end());
+             return std::vector<data::Json>(value.array().begin(),
+                                            value.array().end());
            })
-      .def("fields",
+      .def("object",
            [](const data::Json& value) {
-             return data::Json::Object(value.fields().begin(),
-                                       value.fields().end());
+             return data::Json::Object(value.object().begin(),
+                                       value.object().end());
            })
       .def("to_python", &pythonJson,
            "A detached Python value; duplicate object keys keep the first "
@@ -367,13 +367,13 @@ void bindData(py::module_& root) {
           [](const data::Json& a, const data::Json& b) { return a == b; },
           py::arg("other"))
       .def("__repr__", [](const data::Json& value) {
-        return "Json(" + data::encodeJson(value) + ")";
+        const std::vector<std::byte> text =
+            data::encode(value, data::Dialect::Json);
+        return "Json(" +
+               std::string(reinterpret_cast<const char*>(text.data()),
+                           text.size()) +
+               ")";
       });
-  module.def("decodeJson", &data::decodeJson, py::arg("text"));
-  module.def(
-      "encodeJson",
-      [](py::handle value) { return data::encodeJson(json(value)); },
-      py::arg("value"));
   module.def(
       "tableFromJson",
       [](py::handle value) { return data::tableFromJson(json(value)); },
@@ -763,39 +763,68 @@ void bindData(py::module_& root) {
           py::arg("sql"));
   module.def("engineOf", &data::engineOf, py::arg("uri"));
 
-  auto decodePacket = [](auto decoder) {
-    return [decoder](py::bytes input) {
-      const auto source = input.cast<std::string>();
-      return decoder(std::as_bytes(std::span(source)));
-    };
-  };
-  auto encodePacket = [](auto encoder) {
-    return [encoder](py::handle message) {
-      const auto result = encoder(json(message));
-      return py::bytes(reinterpret_cast<const char*>(result.data()),
-                       result.size());
-    };
-  };
-  module.def("decodeOsc", decodePacket(data::decodeOsc), py::arg("packet"));
-  module.def("decodeMidi", decodePacket(data::decodeMidi), py::arg("message"));
-  module.def("decodeArtNet", decodePacket(data::decodeArtNet),
-             py::arg("packet"));
+  py::enum_<data::Dialect>(module, "Dialect")
+      .value("Json", data::Dialect::Json)
+      .value("Osc", data::Dialect::Osc)
+      .value("Midi", data::Dialect::Midi)
+      .value("ArtNet", data::Dialect::ArtNet)
+      .value("FlatBuffer", data::Dialect::FlatBuffer)
+      .value("Csv", data::Dialect::Csv);
   module.def(
-      "encodeOsc",
-      encodePacket(static_cast<std::vector<std::byte> (*)(const data::Json&)>(
-          &data::encodeOsc)),
-      py::arg("message"));
+      "decode",
+      [](py::handle input, data::Dialect dialect,
+         std::optional<data::Schema> schema) -> std::optional<data::Json> {
+        // Text is read as its UTF-8 bytes; anything else as a buffer.
+        const std::string source = py::isinstance<py::str>(input)
+                                       ? py::cast<std::string>(input)
+                                       : py::cast<py::bytes>(input).cast<std::string>();
+        return data::decode(std::as_bytes(std::span(source)), dialect,
+                            schema.value_or(data::Schema{}));
+      },
+      py::arg("input"), py::arg("dialect"), py::arg("schema") = py::none());
   module.def(
-      "encodeOsc",
-      [](std::string_view address, py::handle arguments) {
-        const auto result = data::encodeOsc(address, json(arguments));
+      "encode",
+      [](py::handle value, data::Dialect dialect,
+         std::optional<data::Schema> schema) {
+        const std::vector<std::byte> result = data::encode(
+            json(value), dialect, schema.value_or(data::Schema{}));
         return py::bytes(reinterpret_cast<const char*>(result.data()),
                          result.size());
       },
-      py::arg("address"), py::arg("arguments"));
-  module.def("encodeMidi", encodePacket(data::encodeMidi), py::arg("message"));
-  module.def("encodeArtNet", encodePacket(data::encodeArtNet),
-             py::arg("message"));
+      py::arg("value"), py::arg("dialect"), py::arg("schema") = py::none());
+  module.def(
+      "oscMessage",
+      [](std::string_view address, py::handle arguments) {
+        return data::oscMessage(address, arguments.is_none()
+                                             ? data::Json(data::Json::Array{})
+                                             : json(arguments));
+      },
+      py::arg("address"), py::arg("arguments") = py::none());
+  module.attr("maxOscBundleDepth") = data::maxOscBundleDepth;
+  module.def(
+      "json",
+      [](const HubHandle& value, const std::string& uri) {
+        auto& hub = value.get();
+        const py::gil_scoped_release release;
+        return data::json(hub, uri);
+      },
+      py::arg("hub"), py::arg("uri"));
+  module.def(
+      "csv",
+      [](const HubHandle& value, const std::string& uri) {
+        auto& hub = value.get();
+        const py::gil_scoped_release release;
+        return data::csv(hub, uri);
+      },
+      py::arg("hub"), py::arg("uri"));
+  module.def(
+      "table",
+      [](const HubHandle& value, const std::string& uri, std::string query) {
+        auto& hub = value.get();
+        const py::gil_scoped_release release;
+        return data::table(hub, uri, {.query = std::move(query)});
+      },
+      py::arg("hub"), py::arg("uri"), py::arg("query") = "");
   module.attr("maxOscPacketBytes") = data::maxOscPacketBytes;
   py::class_<data::Schema>(module, "Schema")
       .def(py::init<>())

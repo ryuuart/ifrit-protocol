@@ -26,17 +26,19 @@ def register(table: Table) -> None:
     for name in ("__lt__", "__le__", "__gt__", "__ge__"):
         table.parameters("_sigil.data.Flag." + name, other="Flag | bool")
     table.returns("_sigil.data.Database", "fromBytes", "Database")
-    table.erased("_sigil.data", "encodeOsc encodeMidi encodeArtNet", "_t.JsonInput")
+    table.erased("_sigil.data", "encode", "_t.JsonInput")
+    table.erased("_sigil.data", "decode", "str | bytes")
+    table.erased("_sigil.data", "oscMessage", "_t.JsonInput")
     table.parameters("_sigil.data.Database.open", path=PATH_INPUT)
     table.parameters("_sigil.data.engineOf", uri=PATH_INPUT)
     table.erased("_sigil.data.Json", "__init__", "_t.JsonInput")
     table.erased("_sigil.data.Json", "__getitem__", "str | typing.SupportsInt")
     table.parameters(
-        "_sigil.data.Json.object",
+        "_sigil.data.Json.fromPairs",
         items="collections.abc.Iterable[tuple[str, _t.JsonInput]]",
     )
     table.returns("_sigil.data.Json", "to_python", "_t.JsonValue")
-    table.erased("_sigil.data", "encodeJson tableFromJson", "_t.JsonInput")
+    table.erased("_sigil.data", "tableFromJson", "_t.JsonInput")
     table.returns("_sigil.data", "tableFromJson", "Table | None")
     table.erased("_sigil.data.Table", "add derive", "ColumnType | None")
     table.parameters(

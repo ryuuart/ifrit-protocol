@@ -133,8 +133,6 @@ void bindLibraries(pybind11::module_& module) {
   bindIO(module);
   bindIOFrames(module);
   bindData(module);
-  bindDataTables(module);
-  bindDataSchema(module);
   bindDataConnection(module);
   bindMeasure(module);
   bindVideo(module);

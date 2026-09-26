@@ -17,7 +17,7 @@ from math import isfinite, sin
 
 from sigil.compose import Element, box, column, graphics, row, text
 from sigil.compose import document as doc
-from sigil.data import decodeJson
+from sigil.data import Dialect, decode
 from sigil.draw import CENTER, LEFT, RIGHT, Pen
 from sigil.io import Feed, ListenOptions, ReadyState
 from sigil.io.testing import inletOf
@@ -57,7 +57,7 @@ def encoded(signal: Signal) -> bytes:
 
 
 def decoded(payload: bytes) -> Signal:
-    document = decodeJson(payload.decode("utf-8"))
+    document = decode(payload, Dialect.Json)
     if document is None:
         raise ValueError("The datagram is not valid JSON.")
     value = document.to_python()
