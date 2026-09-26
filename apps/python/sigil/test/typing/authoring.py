@@ -23,7 +23,7 @@ from sigil.compose import document as doc
 from sigil.compose import kit as marks
 from sigil.compose.layouts import Grid, fr
 from sigil.draw import Pen
-from sigil.image import load
+from sigil.media import load
 from sigil.material import Paint
 from sigil.motion import animatable, animate, bind
 from sigil.sketch import SketchContext, kit, render_file, sketch

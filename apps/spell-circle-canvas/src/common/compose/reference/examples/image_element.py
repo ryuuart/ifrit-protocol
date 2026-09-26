@@ -8,7 +8,7 @@ The Python twin of image_element.cpp. A reference example: it is
 rendered with ``sigil render`` and belongs to no sketch registry.
 """
 
-from sigil import compose, image, material, skia
+from sigil import compose, material, media, skia
 from sigil.sketch import SketchContext, sketch
 
 GROUND = "#14181d"
@@ -25,7 +25,7 @@ def checker() -> skia.Image:
     for row in range(4):
         for column in range(8):
             pixels.extend(LIGHT if (row + column) % 2 == 0 else DARK)
-    return image.from_rgba(bytes(pixels), 8, 4)
+    return media.fromRgba(bytes(pixels), 8, 4)
 
 
 def cell(caption: str, leaf: compose.Element) -> compose.Element:

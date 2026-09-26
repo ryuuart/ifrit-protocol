@@ -6,10 +6,13 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
+#include <pybind11/stl.h>
+#include <sigilmedia/advanced/Device.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/difference/Difference.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/image/Encode.h>
+#include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/media/Registration.h>
 #include <sigilpython/skia/Values.h>
@@ -77,8 +80,15 @@ void bindMediaImages(py::module_& module) {
       .value("Webp", media::Format::Webp)
       .value("Exr", media::Format::Exr)
       .value("Mp4", media::Format::Mp4);
+  // A frame standing on a device is read back when Python asks for its
+  // picture: Python draws through a canvas that holds no recorder of the
+  // device a hardware decode or a publication stands on.
   py::class_<media::Frame>(media, "Frame")
-      .def_readonly("image", &media::Frame::image)
+      .def_property_readonly(
+          "image",
+          [](const media::Frame& frame) {
+            return media::deviceImage(frame, nullptr);
+          })
       .def_readonly("time", &media::Frame::time)
       .def_readonly("duration", &media::Frame::duration)
       .def_readonly("index", &media::Frame::index);

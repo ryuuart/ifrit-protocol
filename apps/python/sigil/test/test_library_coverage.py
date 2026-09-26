@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sigil import data, image, io, material, weave
+from sigil import data, io, material, media, weave
 from sigil.compose import Annotation, text
 from sigil.sketch import render_file
 
@@ -94,16 +94,34 @@ class LibraryCoverage(unittest.TestCase):
                 hub.load(str, "res://sample.csv")
         self.assertEqual(table.size(), 2)
 
-    def test_owned_hub_loads_images_once_image_registers_its_decoders(self):
+    def test_owned_hub_loads_images_once_media_registers_its_decoders(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            image.save(image.from_rgba(bytes([255, 0, 0, 255]) * 4, 2, 2), root / "red.png")
+            media.save(media.fromRgba(bytes([255, 0, 0, 255]) * 4, 2, 2), root / "red.png")
             hub = io.Hub()
             hub.mount("res://", root)
-            self.assertIsNone(hub.load(image.ImageAsset, "res://red.png"))
-            image.registerDecoders(hub)
-            asset = hub.load(image.ImageAsset, "res://red.png")
-            self.assertEqual((asset.width(), asset.height()), (2, 2))
+            self.assertIsNone(hub.load(media.Image, "res://red.png"))
+            media.registerDecoders(hub)
+            asset = hub.load(media.Image, "res://red.png")
+            self.assertEqual(asset.size(), (2, 2))
+
+    def test_a_movie_written_by_the_encoder_opens_as_a_video_on_a_hub(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            movie = media.Encoder(width=16, height=16, framesPerSecond=10)
+            self.assertTrue(movie)
+            red = media.fromRgba(bytes([255, 0, 0, 255]) * 256, 16, 16)
+            self.assertTrue(movie.append(red))
+            self.assertTrue(movie.append(red))
+            (root / "red.mp4").write_bytes(movie.finish())
+            hub = io.Hub()
+            hub.mount("res://", root)
+            media.registerDecoders(hub)
+            clip = hub.load(media.Video, "res://red.mp4")
+            self.assertEqual(clip.size(), (16, 16))
+            self.assertTrue(clip.hasFrame())
+            picture = clip.frameAt(0.05).image
+            self.assertEqual((picture.width(), picture.height()), (16, 16))
 
     def test_palette_color_spaces_and_python_iteration(self):
         self.assertEqual(material.Oklch(L=0.5, chroma=0.1, hueDegrees=20).alpha, 1)
@@ -261,7 +279,7 @@ class ParagraphSketch:
         self.layout.drawBatched(pen, self.paragraph)
 """)
             render_file(source, output, at=0)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
             self.assertGreater(sum(pixels[0::4]), 1000)
 
 

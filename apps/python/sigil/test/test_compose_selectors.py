@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import compose, image, material, motion, weave
+from sigil import compose, material, media, motion, weave
 from sigil.compose import select
 from sigil.sketch import render_file
 
@@ -448,7 +448,7 @@ class Matching(unittest.TestCase):
             output = Path(folder) / "scene.png"
             source.write_text(body)
             render_file(source, output, at=0)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
         return [
             self.cell(pixels, width, height, start, span)
             for start, span in self.cells

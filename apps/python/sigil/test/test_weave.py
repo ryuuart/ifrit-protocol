@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from _sigil import weave as native_weave
-from sigil import geometry, image, material, skia, weave
+from sigil import geometry, material, media, skia, weave
 from sigil.compose import SpanStyle, Text, TextPath, frame, text
 from sigil.compose import selectors as composition_selectors
 from sigil.motion import animatable
@@ -19,7 +19,7 @@ class Typography(unittest.TestCase):
             output = Path(folder) / "typography.png"
             path.write_text(source)
             render_file(path, output, at=0)
-            return image.load(output).rgba()
+            return media.load(output).frameAt(0).image.rgba()
 
     def test_rich_runs_keep_inheritance_and_resolve_names_by_value(self):
         self.assertIs(weave.RichText, native_weave.RichText)

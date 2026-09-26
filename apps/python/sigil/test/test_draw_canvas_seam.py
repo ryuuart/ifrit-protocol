@@ -7,7 +7,7 @@ import unittest
 from array import array
 from pathlib import Path
 
-from sigil import draw, image
+from sigil import draw, media
 from sigil.sketch import render_file
 
 
@@ -36,7 +36,7 @@ class CanvasSeamContracts(unittest.TestCase):
             + "\n"
         )
         render_file(source, output, at=0)
-        return image.decode(output.read_bytes())
+        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):
         offset = 4 * (y * picture.width() + x)

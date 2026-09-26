@@ -16,7 +16,7 @@ import weakref
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import image, material, skia, weave
+from sigil import material, media, skia, weave
 from sigil.sketch import render_file
 
 RESULTS = "_sigil_paint_program_results"
@@ -165,8 +165,8 @@ class PaintProgramValues(unittest.TestCase):
         self.assertNotEqual(native.Fill.var("accent"), native.Fill.var("ground"))
 
     def test_the_image_leaf_takes_a_decoded_asset_or_a_picture(self):
-        picture = image.from_rgba(bytes([255, 0, 0, 255]) * 16, 4, 4)
-        asset = image.decodeAsset(image.encode(picture))
+        picture = media.fromRgba(bytes([255, 0, 0, 255]) * 16, 4, 4)
+        asset = media.decode(media.Image, media.encode(picture))
         self.assertIsInstance(native.image(asset), native.Image)
         self.assertIsInstance(native.image(asset=asset), native.Image)
         self.assertIsInstance(native.image(picture), native.Image)
@@ -205,7 +205,7 @@ class PaintProgramRenders(unittest.TestCase):
             "import builtins\n"
             "import weakref\n"
             "from _sigil import compose\n"
-            "from sigil import image, material, skia, weave\n"
+            "from sigil import material, media, skia, weave\n"
             "from sigil.sketch import sketch\n"
             f"results = builtins.{RESULTS}\n"
             f"@sketch(size={size!r}, background='#000000', capture_at=0)\n"
@@ -214,7 +214,7 @@ class PaintProgramRenders(unittest.TestCase):
             + "\n"
         )
         render_file(source, output, at=at)
-        return image.decode(output.read_bytes())
+        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y, size):
         """The colour at @p x, @p y of a canvas @p size wide, at any density."""
@@ -439,15 +439,15 @@ class PaintProgramRenders(unittest.TestCase):
 
     def test_one_asset_is_one_identity_in_every_describe(self):
         held = (
-            "asset = image.decodeAsset(image.encode("
-            "image.from_rgba(bytes([255, 0, 0, 255]) * 64, 8, 8)))"
+            "asset = media.decode(media.Image, media.encode("
+            "media.fromRgba(bytes([255, 0, 0, 255]) * 64, 8, 8)))"
         )
         self.assertEqual(
             self.patched("compose.image(asset).size(8, 8)", prelude=held), 0
         )
         decoded = (
-            "compose.image(image.decodeAsset(image.encode("
-            "image.from_rgba(bytes([255, 0, 0, 255]) * 64, 8, 8)))).size(8, 8)"
+            "compose.image(media.decode(media.Image, media.encode("
+            "media.fromRgba(bytes([255, 0, 0, 255]) * 64, 8, 8)))).size(8, 8)"
         )
         self.assertGreaterEqual(self.patched(decoded), 1)
 
@@ -456,8 +456,8 @@ class PaintProgramRenders(unittest.TestCase):
         picture = self.render(
             """
             def setup(self, ctx):
-                asset = image.decodeAsset(image.encode(
-                    image.from_rgba(bytes([255, 0, 0, 255]) * 64, 8, 8)))
+                asset = media.decode(media.Image, media.encode(
+                    media.fromRgba(bytes([255, 0, 0, 255]) * 64, 8, 8)))
                 paragraph = weave.Paragraph(
                     'Held words', weave.Type(size=16, color='#ffffff'))
                 results['paragraph'] = paragraph

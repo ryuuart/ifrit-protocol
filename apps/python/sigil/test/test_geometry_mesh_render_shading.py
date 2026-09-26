@@ -23,7 +23,7 @@ import unittest
 from pathlib import Path
 
 from _sigil.geometry.mesh import render as native
-from sigil import image, skia
+from sigil import media, skia
 from sigil.geometry.mesh import camera, render
 from sigil.sketch import render_file
 
@@ -154,7 +154,7 @@ class RuntimeSeam(unittest.TestCase):
 
 class Sky(unittest.TestCase):
     def picture(self):
-        return image.from_rgba(TEXELS, 2, 2)
+        return media.fromRgba(TEXELS, 2, 2)
 
     def assertReads(self, shown, asked):
         """The three channels, each the number beside it within a float."""
@@ -192,8 +192,8 @@ class Sky(unittest.TestCase):
             self.assertReads(render.samplePanorama(panorama, uv), (1, 0, 0))
 
     def test_a_roughness_picks_among_the_levels(self):
-        sharp = image.from_rgba(bytes([255, 0, 0, 255]) * 4, 2, 2)
-        blurry = image.from_rgba(bytes([0, 255, 0, 255]) * 4, 2, 2)
+        sharp = media.fromRgba(bytes([255, 0, 0, 255]) * 4, 2, 2)
+        blurry = media.fromRgba(bytes([0, 255, 0, 255]) * 4, 2, 2)
         sky = render.Environment(levels=[sharp, blurry])
         ahead = (0, 0, -1)
         self.assertReads(render.environmentRadiance(sky, ahead, 0), (1, 0, 0))
@@ -206,8 +206,8 @@ class Sky(unittest.TestCase):
         self.assertReads(render.environmentRadiance(sky, ahead, 0), (0, 1, 0))
 
     def test_a_second_sky_is_mixed_in_at_the_crossfade(self):
-        red = image.from_rgba(bytes([255, 0, 0, 255]) * 4, 2, 2)
-        green = image.from_rgba(bytes([0, 255, 0, 255]) * 4, 2, 2)
+        red = media.fromRgba(bytes([255, 0, 0, 255]) * 4, 2, 2)
+        green = media.fromRgba(bytes([0, 255, 0, 255]) * 4, 2, 2)
         sky = render.Environment(
             levels=[red],
             irradiance=red,
@@ -389,7 +389,7 @@ class Panels(unittest.TestCase):
         output = Path(self.directory.name) / "panel.png"
         source.write_text(
             "import builtins\n"
-            "from sigil import image\n"
+            "from sigil import media\n"
             "from sigil.geometry import mesh\n"
             "from sigil.geometry.mesh import camera, render\n"
             "from sigil.sketch import sketch\n"
@@ -404,7 +404,7 @@ class Panels(unittest.TestCase):
             + "\n"
         )
         render_file(source, output, at=0)
-        return image.decode(output.read_bytes())
+        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):
         offset = 4 * (y * picture.width() + x)
@@ -465,7 +465,7 @@ class Panels(unittest.TestCase):
     def test_an_image_panel_takes_the_runtime_it_draws_on(self):
         picture = self.render("""
             extent = frustum()
-            texture = image.from_rgba(bytes([255, 0, 0, 255] * 4), 2, 2)
+            texture = media.fromRgba(bytes([255, 0, 0, 255] * 4), 2, 2)
             render.drawImagePanel(pen, texture, extent.width(), extent.height(),
                                   camera.Matrix(), camera.Camera(),
                                   runtime=render.Runtime.cpu())
@@ -480,7 +480,7 @@ class Panels(unittest.TestCase):
         # reaches every corner; at zero strength none of it is drawn.
         drawing = """
             sky = render.Environment(
-                levels=[image.from_rgba(bytes([255, 0, 0, 255]) * 4, 2, 2)],
+                levels=[media.fromRgba(bytes([255, 0, 0, 255]) * 4, 2, 2)],
                 backdrop=results['backdrop'])
             lens = camera.Camera()
             render.drawBackdrop(pen, sky, lens.projection(1), lens.view())
@@ -546,7 +546,7 @@ class Panels(unittest.TestCase):
             face = mesh.quad(extent.width(), extent.height())
             style = render.MeshStyle(lit=False, baseColor='#ffffff',
                                      backfaceCull=False,
-                                     texture=image.from_rgba(results['texels'], 2, 2),
+                                     texture=media.fromRgba(results['texels'], 2, 2),
                                      filter=results['filter'])
             render.drawMesh(pen, face, camera.Matrix(), camera.Camera(), style)
         """

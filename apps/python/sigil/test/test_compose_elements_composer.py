@@ -23,7 +23,7 @@ import unittest
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import compose, image, material, motion, skia, weave
+from sigil import compose, material, media, motion, skia, weave
 from sigil.compose import Composer, box, slot
 from sigil.sketch import render_file
 
@@ -380,7 +380,7 @@ class Session(unittest.TestCase):
             + "\n"
         )
         render_file(source, output, at=at)
-        return image.decode(output.read_bytes())
+        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):
         offset = 4 * (y * picture.width() + x)

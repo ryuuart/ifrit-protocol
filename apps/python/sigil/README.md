@@ -68,11 +68,11 @@ there whenever `sigil_python` links.
 ## Direct bindings and convenient authorship
 
 There is one importable package, `sigil`, and its library modules are the
-direct binding surface: `compose`, `draw`, `material`, `geometry`, `image`,
+direct binding surface: `compose`, `draw`, `material`, `geometry`, `media`,
 `weave`, `core`, `motion`, `sketch`, `data`, `io`, `skia` and `world`.
 Each one carries the bound native types and verbs, plus the few things
 Python adds by hand — `row()` and `column()` as shortcuts for a box's flow
-direction, `image.load()` and `image.save()`, the `@sketch` decorator.
+direction, `media.load()` and `media.save()`, the `@sketch` decorator.
 Properties use native fluent methods; container arguments supply composed
 elements:
 
@@ -1353,12 +1353,16 @@ shader paints, while effect uniforms can also take bound motion values.
 New backend-neutral recipes and unbound material catalogues still require
 C++ bindings.
 
-`sigil.image.from_rgba(buffer, width, height)` copies a contiguous RGBA byte
+`sigil.media.fromRgba(buffer, width, height)` copies a contiguous RGBA byte
 buffer into an immutable native image. It accepts `bytearray`, `memoryview`
 and compatible NumPy arrays. This is the bridge for Python simulations:
 compute with an array library, then hand the finished pixels to the pen in
-one call. `image.decode`/`encode` operate on bytes, and `load`/`save` provide
-ordinary Python file access. Native `weave.Type`, relative lengths and
+one call. `media.decode(media.Image, data)` answers the decoded document —
+still or animated, `frameAt(elapsed).image` the picture at a time — and
+`media.encode` its bytes; `load`/`save` provide ordinary Python file
+access, the suffix choosing the format. A `media.Video` is opened through a
+hub, `hub.load(media.Video, uri)`, and read the same way; `media.Encoder`
+appends pictures and finishes as a movie's bytes. Native `weave.Type`, relative lengths and
 typefaces can be passed to `pen.textFont` or an element's `font` method.
 
 ## Natural media
@@ -1409,7 +1413,7 @@ from `sigil.material`, and animation values from `sigil.motion`. These are
 the same values used by the direct bindings.
 
 ```python
-from sigil import image, world
+from sigil import media, world
 from sigil.geometry import mesh
 from sigil.material import kit as surfaces
 
@@ -1420,7 +1424,7 @@ model = (world.Element().key("vessel")
          .mesh(mesh.torus(65, 20)).fill(finish).rotateX(25))
 scene = world.Scene()
 scene.render(world.kit.litSet(model, world.kit.Set(ground=0), seconds=1))
-image.save(scene.image((640, 480), background="#141d25"), "world.png")
+media.save(scene.image((640, 480), background="#141d25"), "world.png")
 ```
 
 An `Element` supports keyed children, mesh and material values, tags,

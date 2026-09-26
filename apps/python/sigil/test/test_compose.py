@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sigil import compose
 from sigil import compose as raw
-from sigil import image, skia, weave
+from sigil import media, skia, weave
 from sigil.compose import Align, Dimension, Fill, box, pct, stroke
 from sigil.motion import animatable
 from sigil.sketch import render_file
@@ -19,7 +19,7 @@ class Compose(unittest.TestCase):
             source, output = Path(folder) / "scene.py", Path(folder) / "scene.png"
             source.write_text(body)
             render_file(source, output, at=at)
-            return image.load(output).rgba()
+            return media.load(output).frameAt(0).image.rgba()
 
     def setUp(self):
         builtins._sigil_compose_contract = []

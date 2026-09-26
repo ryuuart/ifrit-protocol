@@ -23,7 +23,7 @@ from pathlib import Path
 
 import _sigil
 from _sigil import compose as native
-from sigil import compose, geometry, image, skia
+from sigil import compose, geometry, media, skia
 from sigil.sketch import render_file
 
 RESULTS = "_sigil_derive_results"
@@ -521,7 +521,7 @@ class Session(unittest.TestCase):
             + "\n"
         )
         render_file(source, output, at=0)
-        return image.decode(output.read_bytes())
+        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def frame(self, drawing):
         """Render @p drawing as the body of a sketch's draw."""

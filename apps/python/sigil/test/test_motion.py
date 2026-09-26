@@ -11,7 +11,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from _sigil import motion as native
-from sigil import image
+from sigil import media
 from sigil.compose import Fill, box
 from sigil.motion import (
     Animatable,
@@ -73,7 +73,7 @@ class Motion(unittest.TestCase):
             entry, output = Path(folder) / "scene.py", Path(folder) / "scene.png"
             entry.write_text(textwrap.dedent(source))
             render_file(entry, output, at=at)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
         return lambda x, y: pixels[(y * width + x) * 4 : (y * width + x + 1) * 4]
 
     def clean_globals(self, *names):

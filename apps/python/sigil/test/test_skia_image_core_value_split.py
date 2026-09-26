@@ -4,7 +4,7 @@ import copy
 import gc
 import unittest
 
-from sigil import image, skia
+from sigil import media, skia
 from sigil.core import chance
 
 # Two by two, opaque, one channel high in each texel: the pixels survive a
@@ -92,20 +92,23 @@ class SkiaValues(unittest.TestCase):
 
 
 class ImageValues(unittest.TestCase):
-    def test_every_moved_image_name_is_still_there(self):
+    def test_every_media_name_is_there(self):
         for name in (
             "Format",
-            "ImageAsset",
+            "Frame",
+            "Image",
+            "Video",
+            "Encoder",
             "decode",
-            "decodeAsset",
             "encode",
-            "from_rgba",
+            "fromRgba",
+            "difference",
         ):
-            self.assertTrue(hasattr(image, name), name)
+            self.assertTrue(hasattr(media, name), name)
 
     def test_pixels_are_copied_out_of_the_buffer_they_came_from(self):
         pixels = bytearray(PIXELS)
-        made = image.from_rgba(pixels, width=2, height=2)
+        made = media.fromRgba(pixels, width=2, height=2)
         pixels[:] = bytes(len(PIXELS))
         del pixels
         gc.collect()
@@ -113,35 +116,36 @@ class ImageValues(unittest.TestCase):
         self.assertEqual(made.rgba(), PIXELS)
 
     def test_an_encoded_image_decodes_back_to_the_pixels_it_held(self):
-        encoded = image.encode(
-            image.from_rgba(PIXELS, 2, 2), format=image.Format.Png, quality=100
+        encoded = media.encode(
+            media.fromRgba(PIXELS, 2, 2), format=media.Format.Png, quality=100
         )
-        self.assertEqual(image.decode(data=encoded).rgba(), PIXELS)
-        asset = image.decodeAsset(data=encoded, width=0, height=0, hint="")
-        self.assertEqual((asset.width(), asset.height()), (2, 2))
-        self.assertFalse(asset.animated())
+        self.assertEqual(media.decode(media.Image, data=encoded).frameAt(0).image.rgba(), PIXELS)
+        asset = media.decode(media.Image, data=encoded, width=0, height=0, hint="")
+        self.assertEqual(asset.size(), (2, 2))
+        self.assertFalse(asset.isRunning())
+        self.assertTrue(media.difference(asset, asset).identical())
 
-    def test_a_frame_outlives_the_asset_that_decoded_it(self):
-        asset = image.decodeAsset(image.encode(image.from_rgba(PIXELS, 2, 2)))
-        frame = asset.frameAt(milliseconds=0)
+    def test_a_frame_outlives_the_image_that_decoded_it(self):
+        asset = media.decode(media.Image, media.encode(media.fromRgba(PIXELS, 2, 2)))
+        picture = asset.frameAt(elapsed=0).image
         del asset
         gc.collect()
-        self.assertEqual(frame.rgba(), PIXELS)
+        self.assertEqual(picture.rgba(), PIXELS)
 
     def test_the_image_doors_answer_the_class_the_skia_file_registers(self):
         # The two libraries are bound from two files now, so an image door
         # naming a Skia value is the seam between them.
-        made = image.from_rgba(PIXELS, 2, 2)
+        made = media.fromRgba(PIXELS, 2, 2)
         self.assertIsInstance(made, skia.Image)
-        self.assertIsInstance(image.decode(image.encode(made)), skia.Image)
+        self.assertIsInstance(media.decode(media.Image, media.encode(made)).frameAt(0).image, skia.Image)
 
     def test_a_refused_buffer_says_what_it_needed(self):
         with self.assertRaises(ValueError):
-            image.from_rgba(bytes(3), 1, 1)
+            media.fromRgba(bytes(3), 1, 1)
         with self.assertRaises(ValueError):
-            image.from_rgba(bytes(4), 0, 1)
+            media.fromRgba(bytes(4), 0, 1)
         with self.assertRaises(ValueError):
-            image.decode(b"not an image")
+            media.decode(media.Image, b"not an image").frameAt(0).image
 
 
 class CoreValues(unittest.TestCase):
@@ -200,8 +204,8 @@ class PublicNaming(unittest.TestCase):
     def test_each_moved_value_names_the_module_it_is_imported_from(self):
         self.assertEqual(skia.Point.__module__, "sigil.skia")
         self.assertEqual(skia.Image.__module__, "sigil.skia")
-        self.assertEqual(image.Format.__module__, "sigil.image")
-        self.assertEqual(image.ImageAsset.__module__, "sigil.image")
+        self.assertEqual(media.Format.__module__, "sigil.media")
+        self.assertEqual(media.Image.__module__, "sigil.media")
         self.assertEqual(chance.Source.__module__, "sigil.core.chance")
         self.assertEqual(chance.Stream.__module__, "sigil.core.chance")
 

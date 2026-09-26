@@ -7,7 +7,7 @@ from pathlib import Path
 from types import ModuleType
 
 from _sigil import compose as raw
-from sigil import image
+from sigil import media
 from sigil.compose import Element, box, column, graphics, row, text
 from sigil.motion import animate
 from sigil.sketch import render_file, sketch
@@ -139,7 +139,7 @@ class Inheritance:
         )
 """)
             render_file(source, output, at=0)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
             panels = [
                 b"".join(
                     pixels[(y * 192 + x) * 4 : (y * 192 + x + 64) * 4]
@@ -182,7 +182,7 @@ class Children:
         ctx.render(box().column().children(rows))
 """)
             render_file(source, output, at=0)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
             line = bytes((255, 0, 0, 255)) * 4
             line += bytes((0, 255, 0, 255)) * 4
             line += bytes((0, 0, 255, 255)) * 4
@@ -213,7 +213,7 @@ class Containers:
         ctx.render(column(row.size(12, 4).flexShrink(0) for row in rows))
 """)
             render_file(source, output, at=0)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
             line = bytes((255, 0, 0, 255)) * 4
             line += bytes((0, 255, 0, 255)) * 4
             line += bytes((0, 0, 255, 255)) * 4
@@ -278,7 +278,7 @@ class Keywords:
         ctx.render(element=column().children(composed, pen(key="drawing", program=draw).size(12, 12)))
 """)
             render_file(source, output, at=0)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
             self.assertEqual(pixels[: 12 * 12 * 4], pixels[12 * 12 * 4 :])
             self.assertEqual(pixels[:4], bytes((255, 0, 0, 255)))
             self.assertEqual(

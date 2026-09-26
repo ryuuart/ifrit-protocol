@@ -25,7 +25,7 @@ import weakref
 from pathlib import Path
 
 from _sigil.compose import instancing as native
-from sigil import compose, image, motion, skia
+from sigil import compose, media, motion, skia
 from sigil.compose import box, instancing
 from sigil.sketch import render_file
 
@@ -858,7 +858,7 @@ class Session(unittest.TestCase):
             + "\n"
         )
         render_file(source, output, at=0)
-        return image.decode(output.read_bytes())
+        return media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, picture, x, y):
         offset = 4 * (y * picture.width() + x)

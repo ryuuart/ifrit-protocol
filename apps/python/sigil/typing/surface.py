@@ -85,7 +85,6 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.geometry.sections": "sigil.geometry.sections",
     "_sigil.geometry.shapers": "sigil.geometry.shapers",
     "_sigil.geometry.shapes": "sigil.geometry.shapes",
-    "_sigil.image": "sigil.image",
     "_sigil.io": "sigil.io",
     "_sigil.io.frames": "sigil.io.frames",
     "_sigil.io.testing": "sigil.io.testing",
@@ -104,6 +103,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.material.stock": "sigil.material.stock",
     "_sigil.material.texture": "sigil.material.texture",
     "_sigil.measure": "sigil.measure",
+    "_sigil.media": "sigil.media",
     "_sigil.motion": "sigil.motion",
     "_sigil.motion.ease": "sigil.motion.ease",
     "_sigil.motion.envelope": "sigil.motion.envelope",
@@ -119,7 +119,6 @@ PUBLIC_MODULES: dict[str, str] = {
     # in-process route beside sigil.protocol.connect's socket.
     "_sigil.testing": "sigil.testing",
     "_sigil.usd": "sigil.usd",
-    "_sigil.video": "sigil.video",
     "_sigil.weave": "sigil.weave",
     "_sigil.weave.features": "sigil.weave.features",
     "_sigil.weave.flowshape": "sigil.weave.flowshape",

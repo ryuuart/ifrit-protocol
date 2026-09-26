@@ -1,4 +1,4 @@
-"""Decode options, probes, channel planes, pixmap and layer encoding, asset frames, coverage masks and distance fields.
+"""SigilMedia's images: the decoded document and its frames, decode and encode, the pixel difference.
 
 Input contracts for the erased signatures of the
 skia-image-core/image-meaning package, and nothing else: a fragment is one

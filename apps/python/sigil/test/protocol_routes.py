@@ -17,7 +17,7 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from sigil import image
+from sigil import media
 from sigil.protocol import (
     Clock,
     ErrorCode,
@@ -73,7 +73,7 @@ class InProcessRoute(unittest.TestCase):
         self.assertEqual(stepped.frame, 30)
         still = Session(self.host).still(density=1.0, path="after.png")
         self.assertEqual(Path(still.path), self.root / "state" / "after.png")
-        pixels = image.load(still.path).rgba()
+        pixels = media.load(still.path).frameAt(0).image.rgba()
         # The box has moved eight units right of the origin by half a
         # second: the origin is ground again, and the box stands at x = 8.
         self.assertEqual(pixels[:4], bytes((0, 0, 0, 255)))
@@ -162,7 +162,7 @@ class SocketRoute(unittest.TestCase):
 
     def test_a_registry_sketch_stepped_a_second_is_the_sweeps_plate_of_it(self):
         plate = self.plate(1.0)
-        expected = image.load(plate)
+        expected = media.load(plate).frameAt(0).image
         state = self.root / "state"
         with launch(executable=self.sketchbook, state=state) as host:
             Clock(host).set_policy(policy=Policy.Advance)
@@ -178,11 +178,11 @@ class SocketRoute(unittest.TestCase):
             self.assertEqual(
                 (still.width, still.height), (expected.width(), expected.height())
             )
-            self.assertEqual(image.load(still.path).rgba(), expected.rgba())
+            self.assertEqual(media.load(still.path).frameAt(0).image.rgba(), expected.rgba())
 
     def test_a_written_still_is_the_sweeps_plate_and_the_sockets_still(self):
         plate = self.plate(1.0)
-        expected = image.load(plate)
+        expected = media.load(plate).frameAt(0).image
         source = (
             Path(__file__).resolve().parents[3]
             / "spell-circle-canvas/src/sketch/sketches"
@@ -211,7 +211,10 @@ class SocketRoute(unittest.TestCase):
             Session(host).open(sketch=self.SCENE)
             Clock(host).step(seconds=1)
             still = Session(host).still(density=2, path="stepped.png")
-        pictures = (image.load(written), image.load(still.path))
+        pictures = (
+            media.load(written).frameAt(0).image,
+            media.load(still.path).frameAt(0).image,
+        )
         for picture in pictures:
             self.assertEqual(
                 (picture.width(), picture.height()),

@@ -1,4 +1,4 @@
-"""SigilVideo decode, playback, encode and the Compose video leaf.
+"""SigilMedia's video: the clip a hub opens, the decode pool and the movie encoder.
 
 Input contracts for the erased signatures of the
 data-io-and-unbound-libraries/video package, and nothing else: a fragment is one

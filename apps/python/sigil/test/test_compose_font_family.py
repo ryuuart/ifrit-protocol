@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sigil import image
+from sigil import media
 from sigil.sketch import render_file
 
 SCENE = """from sigil.compose import SpanStyle, StyleSheet, box, rule, text
@@ -44,7 +44,7 @@ class FontFamilyList(unittest.TestCase):
             output = Path(folder) / "scene.png"
             source.write_text(SCENE.format(family=family, where=where))
             render_file(source, output, at=0)
-            return image.load(output).rgba()
+            return media.load(output).frameAt(0).image.rgba()
 
     def test_a_list_is_set_in_its_first_installed_family(self):
         georgia = self.render("Georgia")

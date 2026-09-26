@@ -7,7 +7,7 @@ Requires the optional ``studies`` package extra.
 
 import numpy as np
 from sigil.draw import Pen
-from sigil.image import from_rgba
+from sigil.media import fromRgba
 from sigil.sketch import SketchContext, sketch
 
 REQUIRES = ("numpy",)
@@ -52,4 +52,4 @@ class ReactionDiffusion:
         shade = np.clip((self.a - self.b) * np.float32(255), 0, 255).astype(np.uint8)
         self.pixels[:, :, :3] = shade[:, :, None]
         pen.background(0)
-        pen.image(from_rgba(self.pixels, 144, 144), 0, 0, pen.width, pen.height)
+        pen.image(fromRgba(self.pixels, 144, 144), 0, 0, pen.width, pen.height)

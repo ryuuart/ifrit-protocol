@@ -4,8 +4,10 @@
  */
 
 #include <include/core/SkImage.h>
+#include <pybind11/stl.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilmedia/video/Video.h>
+#include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/media/Registration.h>
 

@@ -255,7 +255,7 @@ prose = "composition"
 name = "Elements"
 
 [[section.surface.item]]
-bound = "Factories `box`, `stack`, `positioned`, `text` over a string, a styled string, rich text or a `weave.Paragraph`, `frame`, `image` over a Skia image or an `image.ImageAsset`, `picture`, `pathFigure`, `slot`, `memo`, `pen` and `graphics` with Python programs, keyed or not, `custom` paint programs reading `PaintContext`, and `layout` over the six stock schemes, an operator or a Python operator"
+bound = "Factories `box`, `stack`, `positioned`, `text` over a string, a styled string, rich text or a `weave.Paragraph`, `frame`, `image` over a Skia image or a `media.Image`, `picture`, `pathFigure`, `slot`, `memo`, `pen` and `graphics` with Python programs, keyed or not, `custom` paint programs reading `PaintContext`, and `layout` over the six stock schemes, an operator or a Python operator"
 python = [
   "compose.box",
   "compose.stack",
@@ -1520,57 +1520,61 @@ python = [
 ]
 
 [[section.surface]]
-name = "Image"
+name = "Media"
 
 [[section.surface.item]]
-bound = "`image.decode`, `decodeAsset` with animated `ImageAsset.frameAt`, `encode` to PNG, JPEG, WebP and EXR, `from_rgba`, `load` and `save`; `registerDecoders`, which puts the image decoders on an owned hub; hub and session image loading"
+bound = "`media.decode(media.Image, …)` answering the decoded `Image` — still or animated, `frameAt(elapsed)` its `Frame` at a time, `of`, `size`, `duration`, `repetitions`, `isRunning` and `frames` — `encode` to PNG, JPEG, WebP and EXR, `fromRgba`, `load` and `save`, and `difference` answering a `PixelDifference`; `registerDecoders`, which puts the image and video decoders on an owned hub; hub and session image loading"
 python = [
-  "image.decode",
-  "image.decodeAsset",
-  "image.ImageAsset.frameAt",
-  "image.encode",
-  "image.Format",
-  "image.from_rgba",
-  "image.load",
-  "image.registerDecoders",
-  "image.save",
+  "media.decode",
+  "media.Image.of",
+  "media.Image.frameAt",
+  "media.Image.frames",
+  "media.Frame",
+  "media.encode",
+  "media.Format",
+  "media.fromRgba",
+  "media.load",
+  "media.save",
+  "media.difference",
+  "media.registerDecoders",
 ]
 
 [[section.surface.item]]
-native = "`DecodeOptions::layer`"
-python = ["image.DecodeOptions"]
+bound = "a `Video` a hub opens, read by `frameAt(elapsed)` and asked `hasFrame`; the decode pool `Playback` several share; the movie `Encoder` appending pictures and frames and finishing as bytes"
+python = [
+  "media.Video.frameAt",
+  "media.Video.hasFrame",
+  "media.Playback",
+  "media.Encoder",
+]
 
 [[section.surface.item]]
-native = "`probeImage`"
-python = ["image.probeImage"]
+native = "`Timing` and `PixelSource`, the one seam pixels cross"
+python = ["media.Timing", "media.PixelSource"]
 
 [[section.surface.item]]
-native = "`decodeChannels`"
-python = ["image.decodeChannels"]
+native = "`probe` and `Metadata`"
+python = ["media.probe", "media.Metadata"]
+
+[[section.surface.item]]
+native = "`Channels` and `ChannelPick`"
+python = ["media.Channels"]
 
 [[section.surface.item]]
 native = "pixmap and channel encoding with 16-bit and float pixels"
-python = ["image.encodePixmap"]
-
-[[section.surface.item]]
-native = "`ImageAsset::frames`, `repetitionCount` and `wrap`"
-python = [
-  "image.ImageAsset.frames",
-  "image.ImageAsset.repetitionCount",
-  "image.ImageAsset.wrap",
-]
+python = ["media.encodePixmap"]
 
 [[section.surface.item]]
 native = "`coverageMask` and `distanceField`"
-python = ["image.coverageMask", "image.distanceField"]
+python = ["media.coverageMask", "media.distanceField"]
 
 [[section.surface.item]]
 native = "`formatForPath` and `extensionFor`"
-python = ["image.formatForPath", "image.extensionFor"]
+python = ["media.formatForPath", "media.extensionFor"]
 
 [[section.surface.item]]
-native = "`embeddedPngs`"
-python = ["image.embeddedPngs"]
+native = "`embeddedImages`"
+python = ["media.embeddedImages"]
 
 [[section.surface.item]]
 native = "reporting which codecs are available"
@@ -2228,10 +2232,6 @@ python = [
 [[section.surface.item]]
 native = "the advanced instruments: `FrameTimer` lanes, `Moments`, `quantiles`, `Rescale`, `lineFit`, `Laps`, `Counters` and the check formatter"
 python = ["measure.lineFit"]
-
-[library.Video]
-native = "SigilVideo"
-modules = ["video"]
 
 [library.Scry]
 native = "SigilScry"

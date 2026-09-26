@@ -7,7 +7,7 @@ import unittest
 import weakref
 from pathlib import Path
 
-from sigil import image, world
+from sigil import media, world
 from sigil.geometry import mesh
 from sigil.material import Color, Material
 from sigil.material import kit as surfaces
@@ -233,7 +233,7 @@ class Study:
         self.scene.draw(pen)
 """)
             render_file(source, output)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
             self.assertEqual(pixels[:4], bytes([0, 0, 0, 255]))
             self.assertGreater(pixels[(48 * 96 + 48) * 4], 0)
 

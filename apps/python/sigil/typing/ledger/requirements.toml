@@ -22,12 +22,12 @@ library = "Compose kit"
 python = ["compose.kit.annotate"]
 
 [requirement.asset-frames]
-native = "`image::ImageAsset` frames, repetition and wrap"
-library = "Image"
+native = "`media::Image` frames, repetitions and `Image::of`"
+library = "Media"
 python = [
-  "image.ImageAsset.frames",
-  "image.ImageAsset.repetitionCount",
-  "image.ImageAsset.wrap",
+  "media.Image.frames",
+  "media.Image.repetitions",
+  "media.Image.of",
 ]
 
 [requirement.atlas]
@@ -238,9 +238,9 @@ library = "Material"
 python = ["material.Filter.filter"]
 
 [requirement.embedded-pngs]
-native = "`image::embeddedPngs` signature scan"
-library = "Image"
-python = ["image.embeddedPngs"]
+native = "`media::embeddedImages` signature scan"
+library = "Media"
+python = ["media.embeddedImages"]
 
 [requirement.environment-maps]
 native = "`material::EnvironmentMap` and kit environments"
@@ -288,9 +288,9 @@ library = "Data"
 python = ["data.FlatBuffer"]
 
 [requirement.float-encode]
-native = "`image::encodeImage` float pixmaps (`Format::Exr`)"
-library = "Image"
-python = ["image.encodePixmap"]
+native = "`media::encode` float pixmaps (`Format::Exr`)"
+library = "Media"
+python = ["media.encodePixmap"]
 
 [requirement.float-readback]
 native = "`skia::isFloatImage` / `halfFloatPixels` float readback"
@@ -361,14 +361,14 @@ library = "Weave"
 python = ["weave.HyphenationOptions.patterns"]
 
 [requirement.image-asset-leaf]
-native = "`compose::image` over a shared `image::ImageAsset`"
+native = "`compose::image` over a shared `media::Image`"
 library = "Compose"
 python = ["compose.image(asset)", "compose.Image.imageRegion"]
 
 [requirement.image-probe]
-native = "`image::probeImage` and `image::decodeChannels`"
-library = "Image"
-python = ["image.probeImage", "image.decodeChannels"]
+native = "`media::probe` and `media::Channels`"
+library = "Media"
+python = ["media.probe", "media.Channels"]
 
 [requirement.image-sampling]
 native = "`material::skia::image` sampling options"
@@ -944,19 +944,19 @@ library = "Motion"
 python = ["motion.physics.Points", "motion.physics.Constraint"]
 
 [requirement.video-decode]
-native = "`video::decodeVideo` and `video::Video::frameAt`"
-library = "Video"
-python = ["video.decodeVideo", "video.Video.frameAt"]
+native = "`media::Video` and `Video::frameAt`"
+library = "Media"
+python = ["media.Video", "media.Video.frameAt"]
 
 [requirement.video-leaf]
 native = "`compose::video` leaf and `compose::VideoOptions`"
-library = "Video"
+library = "Media"
 python = ["compose.video", "compose.VideoOptions"]
 
 [requirement.video-playback]
-native = "`video::Playback` scheduled frame requests"
-library = "Video"
-python = ["video.Playback"]
+native = "`media::Playback`, the decode pool several videos share"
+library = "Media"
+python = ["media.Playback"]
 
 [requirement.wash]
 native = "`compose::Wash` material wash"

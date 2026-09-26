@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from _sigil import compose as raw
-from sigil import image
+from sigil import media
 from sigil.compose import Element, Text, box
 from sigil.compose import document as doc
 from sigil.sketch import render_file
@@ -18,7 +18,7 @@ class Document(unittest.TestCase):
             entry, output = Path(folder) / "document.py", Path(folder) / "document.png"
             entry.write_text(source)
             render_file(entry, output, at=0)
-            return image.load(output).rgba()
+            return media.load(output).frameAt(0).image.rgba()
 
     def test_factories_are_native_and_named_arguments_remain_available(self):
         self.assertIs(doc.article, raw.document.article)

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sigil import compose, image, material, motion, skia, weave
+from sigil import compose, material, media, motion, skia, weave
 from sigil.geometry import mesh
 from sigil.material import field
 from sigil.sketch import render_file
@@ -16,12 +16,12 @@ Paint = material.Paint
 class Values(unittest.TestCase):
     def test_pixel_image_copies_contiguous_buffer(self):
         pixels = bytearray([255, 0, 0, 255, 0, 128, 255, 255])
-        native = image.from_rgba(pixels, 2, 1)
+        native = media.fromRgba(pixels, 2, 1)
         pixels[:] = bytes(8)
         self.assertEqual(native.rgba(), bytes([255, 0, 0, 255, 0, 128, 255, 255]))
-        self.assertEqual(image.decode(image.encode(native)).rgba(), native.rgba())
+        self.assertEqual(media.decode(media.Image, media.encode(native)).frameAt(0).image.rgba(), native.rgba())
         with self.assertRaises(ValueError):
-            image.from_rgba(bytes(3), 1, 1)
+            media.fromRgba(bytes(3), 1, 1)
 
     def test_native_path_boolean_preserves_hole(self):
         outer = skia.Path.Rect((0, 0, 100, 100))
@@ -84,7 +84,7 @@ class Scene:
         mesh.render.drawMesh(pen, self.body, mesh.camera.place(), self.camera, self.style)
 """)
             render_file(source, output)
-            raster = image.load(output)
+            raster = media.load(output)
             pixels = raster.rgba()
             self.assertEqual(pixels[:4], bytes([34, 204, 136, 255]))
             center = (48 * 96 + 48) * 4

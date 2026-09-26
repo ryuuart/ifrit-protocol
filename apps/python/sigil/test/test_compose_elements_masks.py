@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 
 from _sigil import compose as native
-from sigil import compose, image, material, motion, skia
+from sigil import compose, material, media, motion, skia
 from sigil.compose import box, spans
 from sigil.sketch import render_file
 
@@ -389,7 +389,7 @@ class Session(unittest.TestCase):
             + "\n        ]))\n"
         )
         render_file(source, output, at=0)
-        self.picture = image.decode(output.read_bytes())
+        self.picture = media.decode(media.Image, output.read_bytes()).frameAt(0).image
 
     def pixel(self, point):
         """The colour at a canvas point, at whatever density the frame has."""

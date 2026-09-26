@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sigil import image
+from sigil import media
 from sigil.sketch import render_file
 
 SCENE = """from sigil import skia
@@ -33,7 +33,7 @@ class ShaderDoor(unittest.TestCase):
             output = Path(folder) / "scene.png"
             source.write_text(SCENE.format(name=name))
             render_file(source, output, at=0)
-            pixels = image.load(output).rgba()
+            pixels = media.load(output).frameAt(0).image.rgba()
             offset = (at[1] * 32 + at[0]) * 4
             return bytes(pixels[offset : offset + 4])
 
