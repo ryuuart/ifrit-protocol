@@ -42,7 +42,9 @@ Element shapedGrid(int count, ShapeIdentity identity) {
       leaf.shape(geometry::shapes::star(5 + id % 3, 0.45f, 0.08f));
     } else {
       const auto shape = geometry::shapes::star(5 + id % 3, 0.45f, 0.08f);
-      leaf.shape([shape](SkSize size) { return shape.path(size); });
+      leaf.shape([shape](SkSize size) {
+        return geometry::path::toSk(shape.outline(geometry::path::fromSk(size)));
+      });
     }
     root.children({std::move(leaf)});
   }

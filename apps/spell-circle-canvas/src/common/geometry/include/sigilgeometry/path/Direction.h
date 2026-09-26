@@ -24,20 +24,10 @@
 #include <span>
 #include <vector>
 
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Polyline.h"
 
 namespace sigil::geometry::path {
-
-/** Which way the OUTER rings of an outline are drawn; a hole is always
- *  drawn the other way, which is what makes it a hole under the non-zero
- *  fill rule. */
-enum class Winding : uint8_t {
-  /** Outers clockwise, holes counter-clockwise — TrueType's convention
-   *  in Skia's y-down space. */
-  OutersClockwise,
-  /** Outers counter-clockwise, holes clockwise — PostScript's. */
-  OutersCounterClockwise,
-};
 
 /** WHERE ONE RING SITS AMONG THE OTHERS: how many rings enclose it, and
  *  which of those encloses it most tightly. Depth zero is an outer, one

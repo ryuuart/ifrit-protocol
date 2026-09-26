@@ -14,6 +14,7 @@
 #include <include/core/SkRect.h>
 #include <sigilgeometry/kit/Divisions.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <cmath>
 #include <vector>
@@ -21,6 +22,12 @@
 using namespace sigil::geometry;
 
 namespace {
+
+/** The Skia path @p source answers for @p box. */
+template <typename S>
+SkPath drawnAt(const S& source, SkSize box) {
+  return path::toSk(shapes::outlineOf(source, path::fromSk(box)));
+}
 
 ::testing::AssertionResult near(SkPoint a, SkPoint b, float tol) {
   const float d = std::hypot(a.fX - b.fX, a.fY - b.fY);
@@ -79,7 +86,7 @@ TEST(FrameOnAShape, FractionAgreesWithTheCircleContourTheShelfBuilds) {
   // carries a −90° term. A change to where circle() starts fails here
   // rather than silently rotating every label on a ring.
   const SkSize size{200, 200};
-  const SkPath circle = shapes::circle()(size);
+  const SkPath circle = drawnAt(shapes::circle(), size);
   const path::PolarFrame f{.centre = {100, 100}, .radius = 100};
   for (float th : {0.0f, 45.0f, 90.0f, 137.0f, 180.0f, 300.0f})
     EXPECT_TRUE(near(atFraction(circle, f.fraction(th)), f.at(th, 1.0f), 0.25f))
@@ -92,8 +99,8 @@ TEST(FrameOnAShape, TheBaselinesDirectionIsNotTheFramesSense) {
   // a separate argument rather than reading it off the frame. A CCW circle
   // still STARTS due east — only the travel direction flips.
   const SkSize size{200, 200};
-  const SkPath cw = shapes::circle(SkPathDirection::kCW)(size);
-  const SkPath ccw = shapes::circle(SkPathDirection::kCCW)(size);
+  const SkPath cw = drawnAt(shapes::circle(path::Winding::OutersClockwise), size);
+  const SkPath ccw = drawnAt(shapes::circle(path::Winding::OutersCounterClockwise), size);
   EXPECT_TRUE(near(atFraction(cw, 0.0f), atFraction(ccw, 0.0f), 0.25f))
       << "both contours start due east";
   EXPECT_FALSE(near(atFraction(cw, 0.25f), atFraction(ccw, 0.25f), 1.0f))
@@ -128,7 +135,7 @@ TEST(FrameOnAShape, TheBoxIsWhereACircleInscribesItselfOnTheFrame) {
   // the same geometry.
   const path::PolarFrame f{.centre = {50, 60}, .radius = 20};
   const SkRect b = f.box(0.5f);
-  const SkPath c = shapes::circle()(SkSize{b.width(), b.height()});
+  const SkPath c = drawnAt(shapes::circle(), SkSize{b.width(), b.height()});
   SkPoint p = atFraction(c, f.fraction(0.0f));
   p.offset(b.fLeft, b.fTop);
   EXPECT_TRUE(near(p, f.at(0.0f, 0.5f), 0.2f));
@@ -139,7 +146,7 @@ TEST(FrameOnAShape, TheBoxIsWhereACircleInscribesItselfOnTheFrame) {
 
 TEST(Divisions, ATickLadderEmitsOneContourPerDivisionOnTheFrame) {
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
-  const SkPath p = shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}});
+  const SkPath p = path::toSk(shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}}));
   const Contours c = walk(p);
   EXPECT_EQ(c.pieces.size(), 12u);
   for (float len : c.lengths) EXPECT_NEAR(len, 10.0f, 1e-2f);
@@ -150,18 +157,18 @@ TEST(Divisions, ATickLadderEmitsOneContourPerDivisionOnTheFrame) {
   // Every mark stands inside the frame's own box, and fewer divisions is
   // less path.
   const path::PolarFrame boxed{.centre = {100, 100}, .radius = 100};
-  const SkPath twelve = shapes::ticks(boxed, {.divisions = 12});
+  const SkPath twelve = path::toSk(shapes::ticks(boxed, {.divisions = 12}));
   EXPECT_TRUE(boxed.box().contains(twelve.getBounds()));
-  EXPECT_LT(shapes::ticks(boxed, {.divisions = 6}).countPoints(),
+  EXPECT_LT(path::toSk(shapes::ticks(boxed, {.divisions = 6})).countPoints(),
             twelve.countPoints());
 }
 
 TEST(Divisions, LongEveryLengthensEveryNthMark) {
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
-  const SkPath p = shapes::ticks(f, {.divisions = 72,
+  const SkPath p = path::toSk(shapes::ticks(f, {.divisions = 72,
                                      .mark = {0.96f, 1.0f},
                                      .longEvery = 6,
-                                     .longMark = {0.91f, 1.0f}});
+                                     .longMark = {0.91f, 1.0f}}));
   const Contours c = walk(p);
   ASSERT_EQ(c.pieces.size(), 72u);
   int longs = 0;
@@ -178,13 +185,13 @@ TEST(Divisions, ClassifyReachesLengthClassesTheLongShortPairCannot) {
   // which is the whole reason `classify` exists: it hands each mark's
   // index to the caller and takes back that mark's span.
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
-  const SkPath p = shapes::ticks(
+  const SkPath p = path::toSk(shapes::ticks(
       f, {.divisions = 9,
           .mark = {0.5f, 1.0f},
           .classify = [](int i, shapes::Span s) {
             s.outer = (i % 3 == 0) ? 1.0f : (i % 3 == 1 ? 0.86f : 0.93f);
             return s;
-          }});
+          }}));
   const Contours c = walk(p);
   ASSERT_EQ(c.lengths.size(), 9u);
   for (size_t i = 0; i < 9; ++i) {
@@ -198,22 +205,21 @@ TEST(Divisions, ClosedAddsTheEndMarkAndSweepScopesTheLadder) {
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const shapes::Ticks quarter{
       .divisions = 9, .from = 0, .sweep = 90, .closed = true};
-  const Contours c = walk(shapes::ticks(f, quarter));
+  const Contours c = walk(path::toSk(shapes::ticks(f, quarter)));
   EXPECT_EQ(c.pieces.size(), 10u);  // 9 divisions, 10 rules
   SkPoint last{0, 0};
   ASSERT_TRUE(c.pieces.back().getLastPt(&last));
   EXPECT_TRUE(near(last, f.at(90.0f, 1.0f), 1e-3f));
 
   const shapes::Ticks open{.divisions = 9, .from = 0, .sweep = 90};
-  EXPECT_EQ(walk(shapes::ticks(f, open)).pieces.size(), 9u);
+  EXPECT_EQ(walk(path::toSk(shapes::ticks(f, open))).pieces.size(), 9u);
 }
 
 TEST(Divisions, TheOutlineFormTakesHalfTheShorterSideOfANonSquareBox) {
   // A non-square box must still produce a CIRCULAR ladder, or the frame's
   // fraction stops matching and every label on it slides.
-  const shapes::OutlineFunction fn =
-      shapes::ticks({.divisions = 4, .mark = {0, 1}});
-  const Contours c = walk(fn(SkSize{400, 100}));
+  const auto ladder = shapes::ticks({.divisions = 4, .mark = {0, 1}});
+  const Contours c = walk(drawnAt(ladder, SkSize{400, 100}));
   ASSERT_EQ(c.pieces.size(), 4u);
   for (float len : c.lengths) EXPECT_NEAR(len, 50.0f, 1e-2f);
 }
@@ -221,7 +227,7 @@ TEST(Divisions, TheOutlineFormTakesHalfTheShorterSideOfANonSquareBox) {
 TEST(Divisions, ZeroLengthMarksAreSkippedRatherThanEmittedEmpty) {
   const path::PolarFrame f{.centre = {0, 0}, .radius = 10};
   EXPECT_TRUE(
-      shapes::ticks(f, {.divisions = 6, .mark = {1.0f, 1.0f}}).isEmpty());
+      path::toSk(shapes::ticks(f, {.divisions = 6, .mark = {1.0f, 1.0f}})).isEmpty());
 }
 
 TEST(Divisions, ATickLadderIsAComparableSilhouette) {
@@ -232,7 +238,7 @@ TEST(Divisions, ATickLadderIsAComparableSilhouette) {
   EXPECT_FALSE(shapes::ticks(shapes::Ticks{.divisions = 12}) ==
                shapes::ticks(shapes::Ticks{.divisions = 13}));
   EXPECT_FALSE(
-      shapes::ticks(shapes::Ticks{.divisions = 12})({200, 200}).isEmpty());
+      shapes::ticks(shapes::Ticks{.divisions = 12}).outline({200, 200}).empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -245,7 +251,7 @@ TEST(Divisions, SideKsMidpointIsAtExactlyKPlusHalfOverN) {
   // against the path chords() built, not against the formula it used.
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   for (int n : {5, 7, 12}) {
-    const SkPath p = shapes::chords(f, {.sides = n, .radius = 1.0f});
+    const SkPath p = path::toSk(shapes::chords(f, {.sides = n, .radius = 1.0f}));
     const Contours c = walk(p);
     ASSERT_EQ((int)c.pieces.size(), n) << "n=" << n;
     for (int k = 0; k < n; ++k) {
@@ -264,30 +270,30 @@ TEST(Divisions, APolygonIsOneContourAndHasNoPerSideCoordinate) {
   // The control for the case above: polygon() emits ONE closed contour, so
   // a per-side coordinate does not exist on it. If this ever starts
   // failing, chords() has become redundant.
-  EXPECT_EQ(walk(shapes::polygon(7)(SkSize{200, 200})).pieces.size(), 1u);
+  EXPECT_EQ(walk(drawnAt(shapes::polygon(7), SkSize{200, 200})).pieces.size(), 1u);
 }
 
 TEST(Divisions, AChordInsetShortensBothEndsAndDropsDegenerateSides) {
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
-  const Contours plain = walk(shapes::chords(f, {.sides = 7}));
-  const Contours inset = walk(shapes::chords(f, {.sides = 7, .inset = 6.0f}));
+  const Contours plain = walk(path::toSk(shapes::chords(f, {.sides = 7})));
+  const Contours inset = walk(path::toSk(shapes::chords(f, {.sides = 7, .inset = 6.0f})));
   ASSERT_EQ(inset.pieces.size(), 7u);
   EXPECT_NEAR(plain.lengths[0] - inset.lengths[0], 12.0f, 1e-2f);
   // An inset wider than the side leaves nothing to draw.
-  EXPECT_TRUE(shapes::chords(f, {.sides = 7, .inset = 500.0f}).isEmpty());
+  EXPECT_TRUE(path::toSk(shapes::chords(f, {.sides = 7, .inset = 500.0f})).isEmpty());
 }
 
 TEST(Divisions, StepMakesStarPolygonsAndTheCommonFactorDecidesTheRingCount) {
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   // {7/2}: coprime, so one closed traversal of all seven vertices.
-  EXPECT_EQ(walk(shapes::chords(f, {.sides = 7, .step = 2, .closed = true}))
+  EXPECT_EQ(walk(path::toSk(shapes::chords(f, {.sides = 7, .step = 2, .closed = true})))
                 .pieces.size(),
             1u);
   // {6/2}: two in common, so the hexagram really is TWO separate
   // triangles. Emitting one contour here would be wrong geometry, not a
   // simplification.
   const Contours hex =
-      walk(shapes::chords(f, {.sides = 6, .step = 2, .closed = true}));
+      walk(path::toSk(shapes::chords(f, {.sides = 6, .step = 2, .closed = true})));
   EXPECT_EQ(hex.pieces.size(), 2u);
   for (float len : hex.lengths)
     EXPECT_NEAR(len, 3.0f * 100.0f * std::sqrt(3.0f), 0.5f);
@@ -295,7 +301,7 @@ TEST(Divisions, StepMakesStarPolygonsAndTheCommonFactorDecidesTheRingCount) {
 
 TEST(Divisions, AChordFanIsAComparableSilhouette) {
   const path::PolarFrame f{.centre = {100, 100}, .radius = 100};
-  EXPECT_FALSE(shapes::chords(f, {.sides = 7}).isEmpty());
+  EXPECT_FALSE(path::toSk(shapes::chords(f, {.sides = 7})).isEmpty());
   EXPECT_TRUE(shapes::chords(shapes::Chords{.sides = 7}) ==
               shapes::chords(shapes::Chords{.sides = 7}));
   EXPECT_FALSE(shapes::chords(shapes::Chords{.sides = 7}) ==
@@ -308,7 +314,7 @@ TEST(Divisions, AMarkWidthTurnsTheLadderIntoClosedNodes) {
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const shapes::Ticks node{
       .divisions = 12, .mark = {0.9f, 1.0f}, .markPx = 4.0f};
-  const SkPath p = shapes::ticks(f, node);
+  const SkPath p = path::toSk(shapes::ticks(f, node));
   const Contours c = walk(p);
   ASSERT_EQ(c.pieces.size(), 12u);
   // Each mark is now a closed rectangle standing on the same radius: the
@@ -317,7 +323,7 @@ TEST(Divisions, AMarkWidthTurnsTheLadderIntoClosedNodes) {
   for (float len : c.lengths) EXPECT_NEAR(len, 28.0f, 1e-2f);
   // A closed mark is geometry rather than a paint decision, so it fills;
   // the open ladder encloses nothing at all.
-  const SkPath line = shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}});
+  const SkPath line = path::toSk(shapes::ticks(f, {.divisions = 12, .mark = {0.9f, 1.0f}}));
   EXPECT_FALSE(line.contains(f.at(0, 0.95f).fX, f.at(0, 0.95f).fY));
   EXPECT_TRUE(p.contains(f.at(0, 0.95f).fX, f.at(0, 0.95f).fY));
   // …and it stands square to its own radius: the mark on the frame's zero
@@ -337,7 +343,7 @@ TEST(Divisions, ArcSegmentsFollowTheRingWhereANodeStandsAcrossIt) {
   const path::PolarFrame f{.centre = {0, 0}, .radius = 100};
   const shapes::Arcs ring{
       .divisions = 8, .mark = {0.8f, 1.0f}, .spanDeg = 30.0f};
-  const SkPath p = shapes::arcs(f, ring);
+  const SkPath p = path::toSk(shapes::arcs(f, ring));
   const Contours c = walk(p);
   ASSERT_EQ(c.pieces.size(), 8u);
   // A segment fattens with radius, which is the whole difference from a
@@ -359,12 +365,12 @@ TEST(Divisions, ArcSegmentsFollowTheRingWhereANodeStandsAcrossIt) {
   // Nothing to enclose is nothing drawn, rather than a degenerate contour
   // that fills as nothing and strokes as a doubled arc.
   EXPECT_TRUE(
-      shapes::arcs(f, {.divisions = 8, .mark = {0.9f, 0.9f}}).isEmpty());
-  EXPECT_TRUE(shapes::arcs(f, {.divisions = 0}).isEmpty());
+      path::toSk(shapes::arcs(f, {.divisions = 8, .mark = {0.9f, 0.9f}})).isEmpty());
+  EXPECT_TRUE(path::toSk(shapes::arcs(f, {.divisions = 0})).isEmpty());
 
   // The shape form takes half the shorter side, like its two neighbours.
   const shapes::ArcsShape shape = shapes::arcs(ring);
   EXPECT_EQ(shape, shapes::arcs(ring));
-  const SkRect bounds = shape.path({240, 120}).computeTightBounds();
+  const SkRect bounds = drawnAt(shape, SkSize{240, 120}).computeTightBounds();
   EXPECT_LE(bounds.width(), 120.5f);
 }

@@ -31,6 +31,7 @@
 #include <sigildraw/PenTypes.h>
 #include <sigildraw/Retained.h>
 #include <sigilgeometry/kit/Corners.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -337,14 +338,14 @@ class Pen {
   void endShape(Constant mode = OPEN);
 
   /** THE PEN'S OWN SHAPE VERB: a silhouette — a geometry kit value, or
-   *  any comparable value with `path(SkSize)` — fitted to the box the
+   *  any comparable value with `outline(size)` — fitted to the box the
    *  rect mode reads from the four numbers, filled and stroked as a
    *  rect is. The concept is the geometry kit's own, so a value written
    *  for `rounded` or `hatch` is a value this verb draws. */
   template <geometry::shapes::Silhouette S>
   void shape(const S& silhouette, float x, float y, float w, float h) {
     const SkRect box = rectBox(x, y, w, h);
-    shape(silhouette.path({box.width(), box.height()})
+    shape(geometry::path::toSk(silhouette.outline({box.width(), box.height()}))
               .makeOffset(box.left(), box.top()));
   }
   /** A path as it stands, filled and stroked with the current style. */

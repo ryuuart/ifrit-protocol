@@ -67,7 +67,7 @@ beneath, in `sigil::geometry::shapes`.
 - **`kit/Hatches.h`** — `hatchOutline()`, a silhouette filled with lines
   as one path: the outline narrowed by `operations::offset`, flattened, run
   through `path::lattice` and joined up. It is a door rather than a
-  construction — a caller holding an `SkPath` should not have to flatten
+  construction — a caller holding an outline should not have to flatten
   it into rings itself, and that is why the fill has next to no adoption
   while three drawings fake it by clipping a line field. What comes back
   are CENTRELINES, so every mark can be walked, banded to a width or
@@ -99,7 +99,7 @@ beneath, in `sigil::geometry::shapes`.
   radius the way a segment of a dial does.
 - **`kit/Solids.h`** — the 3D shelf, in `sigil::geometry::mesh` because
   what it makes is a `Mesh`. Two of them LIFT another currency:
-  `extrude()` raises a filled path into a solid (caps earcut-triangulated
+  `extrude()` raises a filled outline into a solid (caps earcut-triangulated
   with holes intact, walls swept from the flattened contours) and
   `revolve()` lathes a profile polyline around +y. Most of the rest are
   the named surfaces — `torus()`, `superellipsoid()`, `cylinderPanel()` —
@@ -124,16 +124,17 @@ beneath, in `sigil::geometry::shapes`.
   corners and an edge is a pair of indices. The cube's hard-cornered form
   IS `box()`, so that is what it answers.
 
-Every value here has `path(SkSize)`, `operator==` and `operator()`, and
-that is the whole contract: a consumer that caches drawings prunes on the
-equality, and a consumer that wants a plain path-over-size function gets
-one from the call operator. A silhouette is ONE value and a lowercase
-factory spelling that value's fields as arguments — `shapes::Polygon`
-and `shapes::polygon` are the same shape — and the value is where the
+Every value here has `outline(size)` answering a `path::Outline` and
+`operator==`, and that is the whole contract (`shapes::Silhouette`): a
+consumer that caches drawings prunes on the equality, and
+`shapes::outlineOf()` asks any value — or a bare callable — for its
+outline, which is the one call a wrapper or a consumer that holds a plain
+function needs. A silhouette is ONE value and a lowercase factory
+spelling that value's fields as arguments, and the value is where the
 documentation lives, parameter by parameter, so there is no second copy
 of it to drift. Your own generator written the same way has the same
 standing — the kit is stock, never privileged, and equal values must
-draw identical paths at every size. A hand-rolled
+draw identical outlines at every size. A hand-rolled
 `shapes::OutlineFunction` is the escape hatch beside them, and the size is
-offered to it rather than demanded: one that draws the same path whatever
-the box is takes `[] { return p; }`.
+offered to it rather than demanded: one that draws the same outline
+whatever the box is takes `[] { return outline; }`.

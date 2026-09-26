@@ -27,7 +27,8 @@ sigil_library(SigilGeometryPath
           Extremes.cpp Fit.cpp Hull.cpp Interpolate.cpp Lattice.cpp
           Multigrid.cpp
           Neighbours.cpp Noise.cpp OffsetInternal.h
-          Operations.cpp OperationsInternal.h Polyline.cpp Pose.cpp
+          Operations.cpp OperationsInternal.h Outline.cpp OutlineInternal.h
+          Polyline.cpp Pose.cpp
           Projection.cpp
           Scatter.cpp
           Segments.cpp Strips.cpp Symmetry.cpp Tidy.cpp Trace.cpp
@@ -35,7 +36,7 @@ sigil_library(SigilGeometryPath
   HEADERS Arrange.h Band.h Cells.h Conic.h Contour.h Crossings.h Direction.h
           Edges.h Extremes.h Fit.h Frame.h Hull.h Interpolate.h Lattice.h
           Neighbours.h
-          Noise.h Numeric.h Operations.h Polyline.h Pose.h Profile.h Projection.h
+          Noise.h Numeric.h Operations.h Outline.h Polyline.h Pose.h Profile.h Projection.h
           Scatter.h
           Segments.h Shaper.h Skia.h Stride.h Stroke.h StrokeSkia.h
           Symmetry.h Tidy.h Trace.h

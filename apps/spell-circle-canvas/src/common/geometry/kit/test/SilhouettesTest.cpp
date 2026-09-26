@@ -12,6 +12,7 @@
 #include <include/core/SkRect.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -19,10 +20,23 @@
 
 using namespace sigil::geometry::shapes;
 namespace shapers = sigil::geometry::shapers;
+namespace path = sigil::geometry::path;
 
 namespace {
 
 constexpr SkSize kBox{200, 120};
+
+/** The Skia path @p source answers for @p box. */
+template <typename S>
+SkPath drawnAt(const S& source, SkSize box) {
+  return path::toSk(outlineOf(source, path::fromSk(box)));
+}
+
+/** The Skia path @p source answers for the test box. */
+template <typename S>
+SkPath drawn(const S& source) {
+  return drawnAt(source, kBox);
+}
 
 /** How many line segments an outline was AUTHORED with, read through
  *  Skia's public iterator. The line the iterator synthesizes to close a
@@ -46,6 +60,11 @@ int lineSegments(const SkPath& p) {
 // rather than on the box, escapes it.
 
 struct Generator {
+  template <typename S>
+  Generator(const char* named, S shape)
+      : name(named), make([shape](glm::vec2 size) {
+          return outlineOf(shape, size);
+        }) {}
   const char* name;
   OutlineFunction make;
 };
@@ -56,16 +75,15 @@ TEST(Silhouettes, AnOutlineFunctionMayLeaveTheBoxUnnamed) {
   // do read it — are unchanged beside it.
   SkPathBuilder pb;
   pb.addRect(SkRect::MakeXYWH(1, 2, 3, 4));
-  const SkPath fixed = pb.detach();
+  const path::Outline fixed = path::fromSk(pb.detach());
   const OutlineFunction same = [fixed] { return fixed; };
-  const OutlineFunction sized = [](SkSize box) {
-    SkPathBuilder b;
-    b.addRect(SkRect::MakeWH(box.width(), box.height()));
-    return b.detach();
+  const OutlineFunction sized = [](glm::vec2 box) {
+    return path::Outline::rectangle(path::Rect::of({0, 0}, box));
   };
-  EXPECT_EQ(same(kBox).getBounds(), SkRect::MakeXYWH(1, 2, 3, 4));
-  EXPECT_EQ(same(SkSize::Make(9, 9)).getBounds(), SkRect::MakeXYWH(1, 2, 3, 4));
-  EXPECT_EQ(sized(kBox).getBounds(),
+  EXPECT_EQ(drawn(same).getBounds(), SkRect::MakeXYWH(1, 2, 3, 4));
+  EXPECT_EQ(path::toSk(same(glm::vec2{9, 9})).getBounds(),
+            SkRect::MakeXYWH(1, 2, 3, 4));
+  EXPECT_EQ(drawn(sized).getBounds(),
             SkRect::MakeWH(kBox.width(), kBox.height()));
 }
 
@@ -73,7 +91,7 @@ class SilhouetteGenerator : public ::testing::TestWithParam<Generator> {};
 
 TEST_P(SilhouetteGenerator, StaysInsideTheBoxItIsGiven) {
   const SkRect box = SkRect::MakeWH(kBox.width(), kBox.height());
-  const SkPath p = GetParam().make(kBox);
+  const SkPath p = drawn(GetParam().make);
   ASSERT_FALSE(p.isEmpty());
   const SkRect b = p.getBounds();
   EXPECT_GE(b.left(), box.left() - 0.5f);
@@ -110,7 +128,7 @@ INSTANTIATE_TEST_SUITE_P(
 class CurveFamily : public ::testing::TestWithParam<Generator> {};
 
 TEST_P(CurveFamily, SamplesIntoAPathInscribedInItsBox) {
-  const SkPath p = GetParam().make(kBox);
+  const SkPath p = drawn(GetParam().make);
   ASSERT_FALSE(p.isEmpty());
   const SkRect b = p.getBounds();
   EXPECT_GE(b.left(), -1.0f);
@@ -138,14 +156,14 @@ TEST(Silhouettes, ACornerTreatmentOfZeroIsASquareCorner) {
   // vertices afterwards sees a degenerate segment there. Rounding is the
   // one that shows it — it rounds the corners it can find, and a
   // duplicated corner is not one of them.
-  EXPECT_EQ(chamfered(0)(kBox), parallelogram(0)(kBox));
-  EXPECT_EQ(lineSegments(chamfered(0)(kBox)), 3);  // …and the close is the 4th
-  EXPECT_EQ(lineSegments(notched(0, 6)(kBox)), 3);
-  EXPECT_EQ(lineSegments(notched(10, 0)(kBox)), 3);
+  EXPECT_EQ(drawn(chamfered(0)), drawn(parallelogram(0)));
+  EXPECT_EQ(lineSegments(drawn(chamfered(0))), 3);  // …and the close is the 4th
+  EXPECT_EQ(lineSegments(drawn(notched(0, 6))), 3);
+  EXPECT_EQ(lineSegments(drawn(notched(10, 0))), 3);
   // Rounded, the square-cornered box rounds all four corners rather than
   // the one seam a duplicated vertex leaves roundable.
-  EXPECT_EQ(rounded(chamfered(0), 10)(kBox),
-            rounded(parallelogram(0), 10)(kBox));
+  EXPECT_EQ(drawn(rounded(chamfered(0), 10)),
+            drawn(rounded(parallelogram(0), 10)));
 }
 
 TEST(Silhouettes, EqualValuesGenerateEqualPaths) {
@@ -153,9 +171,9 @@ TEST(Silhouettes, EqualValuesGenerateEqualPaths) {
   // values that compare equal must draw the same path at every size.
   EXPECT_EQ(star(5, 0.4f), star(5, 0.4f));
   EXPECT_NE(star(5, 0.4f), star(5, 0.5f));
-  EXPECT_EQ(star(5, 0.4f)(kBox), star(5, 0.4f)(kBox));
-  EXPECT_EQ(blob(3)(kBox), blob(3)(kBox));  // seeded, so it is reproducible
-  EXPECT_NE(blob(3)(kBox), blob(4)(kBox));
+  EXPECT_EQ(drawn(star(5, 0.4f)), drawn(star(5, 0.4f)));
+  EXPECT_EQ(drawn(blob(3)), drawn(blob(3)));  // seeded, so it is reproducible
+  EXPECT_NE(drawn(blob(3)), drawn(blob(4)));
 }
 
 TEST(Silhouettes, ABlobIsSeededChaosThatStaysInsideItsBox) {
@@ -165,11 +183,11 @@ TEST(Silhouettes, ABlobIsSeededChaosThatStaysInsideItsBox) {
   // a circle, the lobes reach in and out, and it still covers the centre
   // and escapes nothing.
   const SkSize box{120, 120};
-  const SkPath organic = blob(7, 0.3f, 9)(box);
+  const SkPath organic = drawnAt(blob(7, 0.3f, 9), box);
   ASSERT_FALSE(organic.isEmpty());
-  EXPECT_EQ(organic, blob(7, 0.3f, 9)(box));
-  EXPECT_NE(organic, blob(8, 0.3f, 9)(box));
-  EXPECT_NE(organic, circle()(box));
+  EXPECT_EQ(organic, drawnAt(blob(7, 0.3f, 9), box));
+  EXPECT_NE(organic, drawnAt(blob(8, 0.3f, 9), box));
+  EXPECT_NE(organic, drawnAt(circle(), box));
   EXPECT_TRUE(organic.contains(60, 60)) << "the centre is always covered";
 }
 
@@ -188,9 +206,9 @@ TEST(Silhouettes, StarArmsCanBeWaisted) {
                              (float)y * 200.0f / 128.0f + 0.5f);
     return inside;
   };
-  const SkPath straight = star(6, 0.35f, 0.0f)(box);
-  const SkPath waisted = star(6, 0.35f, 0.22f)(box);
-  const SkPath bulged = star(6, 0.35f, -0.22f)(box);
+  const SkPath straight = drawnAt(star(6, 0.35f, 0.0f), box);
+  const SkPath waisted = drawnAt(star(6, 0.35f, 0.22f), box);
+  const SkPath bulged = drawnAt(star(6, 0.35f, -0.22f), box);
   // The tips are unmoved — the waist pinches the EDGES, not the points.
   EXPECT_NEAR(straight.getBounds().height(), waisted.getBounds().height(),
               1.0f);
@@ -209,7 +227,7 @@ TEST(Silhouettes, TheCurveFamiliesEvaluateInTheUnitFrame) {
   const SkSize box{200, 100};
 
   // A 1:1 Lissajous with a quarter-turn phase IS the inscribed ellipse.
-  const SkPath ellipse = lissajous(1, 1, 90.0f)(box);
+  const SkPath ellipse = drawnAt(lissajous(1, 1, 90.0f), box);
   const SkRect bounds = ellipse.getBounds();
   EXPECT_NEAR(bounds.width(), 200.0f, 1.5f);
   EXPECT_NEAR(bounds.height(), 100.0f, 1.5f);
@@ -220,7 +238,7 @@ TEST(Silhouettes, TheCurveFamiliesEvaluateInTheUnitFrame) {
   // between a harmonograph and a Lissajous, and why a pen-and-pendulum
   // figure spirals inward instead of retracing one rosette. Both ends sit
   // AT the centre, so the honest measurement is the reach of each half.
-  const SkPath damped = harmonograph(3, 2, 0, 0.25f, 0, 6.0f)(box);
+  const SkPath damped = drawnAt(harmonograph(3, 2, 0, 0.25f, 0, 6.0f), box);
   const SkPoint centre = SkPoint{100, 50};
   const int pts = damped.countPoints();
   ASSERT_GT(pts, 100);
@@ -236,7 +254,7 @@ TEST(Silhouettes, TheCurveFamiliesEvaluateInTheUnitFrame) {
   // centred on the box — r = cos(5θ) puts tips at θ = 0, 2π/5, … — so the
   // bounds sit off to one side, and asserting otherwise would be asserting
   // a defect into existence.
-  const SkPath five = rose(5)(box);
+  const SkPath five = drawnAt(rose(5), box);
   EXPECT_GT(five.countPoints(), 100);
   int tips = 0;
   for (int i = 0; i < five.countPoints(); ++i)
@@ -244,7 +262,7 @@ TEST(Silhouettes, TheCurveFamiliesEvaluateInTheUnitFrame) {
   EXPECT_GT(tips, 5);
 
   // Spirals start at the centre and end at the rim.
-  const SkPath coil = spiral(3)(box);
+  const SkPath coil = drawnAt(spiral(3), box);
   EXPECT_NEAR(SkPoint::Distance(coil.getPoint(0), centre), 0.0f, 1.0f);
   EXPECT_GT(SkPoint::Distance(coil.getPoint(coil.countPoints() - 1), centre),
             40.0f);
@@ -252,19 +270,19 @@ TEST(Silhouettes, TheCurveFamiliesEvaluateInTheUnitFrame) {
 
 TEST(Silhouettes, CircleInsetStandsConcentricallyInsideTheBox) {
   const SkSize size{200, 200};
-  const SkRect inscribed = circle()(size).getBounds();
-  const SkRect drawn = circle(24.0f)(size).getBounds();
+  const SkRect inscribed = drawnAt(circle(), size).getBounds();
+  const SkRect drawn = drawnAt(circle(24.0f), size).getBounds();
   EXPECT_FLOAT_EQ(drawn.left(), inscribed.left() + 24.0f);
   EXPECT_FLOAT_EQ(drawn.top(), inscribed.top() + 24.0f);
   EXPECT_FLOAT_EQ(drawn.right(), inscribed.right() - 24.0f);
   EXPECT_FLOAT_EQ(drawn.bottom(), inscribed.bottom() - 24.0f);
   // Zero inset IS the inscribed circle, and the value form compares by its
   // parameters — the prune contract every generator keeps.
-  EXPECT_EQ(circle()(size), circle(0.0f)(size));
+  EXPECT_EQ(drawnAt(circle(), size), drawnAt(circle(0.0f), size));
   EXPECT_TRUE(circle() == circle(0.0f));
   EXPECT_FALSE(circle() == circle(24.0f));
   // The oriented overload carries the same trailing inset.
-  EXPECT_EQ(circle(SkPathDirection::kCCW, 1, 24.0f)(size).getBounds(), drawn);
+  EXPECT_EQ(drawnAt(circle(path::Winding::OutersCounterClockwise, 1, 24.0f), size).getBounds(), drawn);
 }
 
 TEST(Silhouettes, TheCornerWrapperComposesOverAnyGeneratorAndKeepsComparing) {
@@ -276,21 +294,21 @@ TEST(Silhouettes, TheCornerWrapperComposesOverAnyGeneratorAndKeepsComparing) {
   // equality over one is vacuously true — it would claim two different
   // drawings are the same. Wrapping a callable must therefore give
   // something that compares to nothing, exactly as the callable did.
-  const auto raw = [](SkSize s) { return circle()(s); };
+  const auto raw = [](glm::vec2 size) { return circle().outline(size); };
   static_assert(!Silhouette<decltype(rounded(raw, 6.0f))>);
   // Rounding a star cannot be said with a box-corner radius, which is
   // why the wrapper exists: the result is a different path.
-  EXPECT_NE(a(kBox), star(5)(kBox));
-  EXPECT_EQ(rounded(star(5), 0.0f)(kBox), star(5)(kBox));  // no radius, no-op
+  EXPECT_NE(drawn(a), drawn(star(5)));
+  EXPECT_EQ(drawn(rounded(star(5), 0.0f)), drawn(star(5)));  // no radius, no-op
 }
 
 TEST(Silhouettes, AKeyedParametricComparesByItsKeyAndAnUnkeyedOneNever) {
-  const auto f = [](float t) { return SkPoint{std::cos(t), std::sin(t)}; };
+  const auto f = [](float t) { return glm::vec2{std::cos(t), std::sin(t)}; };
   EXPECT_EQ(parametric("ring", f, 0.0f, 6.28f),
             parametric("ring", f, 0.0f, 6.28f));
   EXPECT_NE(parametric("ring", f, 0.0f, 6.28f),
             parametric("arc", f, 0.0f, 6.28f));
-  EXPECT_FALSE(parametric(f, 0.0f, 6.28f)(kBox).isEmpty());
+  EXPECT_FALSE(drawn(parametric(f, 0.0f, 6.28f)).isEmpty());
 }
 
 }  // namespace
@@ -339,7 +357,7 @@ TEST(Silhouettes, TheChamferCutsWhereItIsMaskedAndRoundsWhereItIsNot) {
   // the point of it.
   const Chamfered panel{
       .cut = 20, .radius = 12, .mask = Corner::TopLeft | Corner::BottomRight};
-  const SkPath p = panel(kBox);
+  const SkPath p = drawn(panel);
   EXPECT_TRUE(passesThrough(p, {20, 0}));             // the cut runs
   EXPECT_TRUE(passesThrough(p, {0, 20}));             // …to here
   EXPECT_FALSE(passesThrough(p, {kBox.width(), 0}));  // this one rounded
@@ -353,7 +371,7 @@ TEST(Silhouettes, TheChamferCutsWhereItIsMaskedAndRoundsWhereItIsNot) {
   // from the same box cut.
   const Chamfered round{.radius = 12};
   const Chamfered cut{.cut = 12};
-  EXPECT_NE(round(kBox), cut(kBox));
+  EXPECT_NE(drawn(round), drawn(cut));
   // Neither field alone is the other, so a consumer prunes on both.
   const Chamfered uncornered{.cut = 20, .mask = panel.mask};
   EXPECT_NE(panel, uncornered);
@@ -365,11 +383,11 @@ TEST(Silhouettes, AnAnisotropicCutStatesBothItsLegs) {
   // that figure is a square corner and already has a spelling.
   const Chamfered stated{.cut = 20, .cutRise = 20};
   const Chamfered unstated{.cut = 20, .cutRise = 0};
-  EXPECT_EQ(stated(kBox), chamfered(20)(kBox));
-  EXPECT_EQ(unstated(kBox), chamfered(20)(kBox));
+  EXPECT_EQ(drawn(stated), drawn(chamfered(20)));
+  EXPECT_EQ(drawn(unstated), drawn(chamfered(20)));
 
   const Chamfered flat{.cut = 40, .cutRise = 10};
-  const SkPath wide = flat(kBox);
+  const SkPath wide = drawn(flat);
   EXPECT_TRUE(passesThrough(wide, {40, 0}));
   EXPECT_TRUE(passesThrough(wide, {0, 10}));
   EXPECT_FALSE(passesThrough(wide, {0, 40}));
@@ -377,10 +395,10 @@ TEST(Silhouettes, AnAnisotropicCutStatesBothItsLegs) {
   // Each leg clamps to its own half-side once they are stated apart; the
   // 45 degree cut still clamps to the short side, so it stays at 45.
   const Chamfered overrun{.cut = 9999};
-  const SkPath huge = overrun(kBox);
+  const SkPath huge = drawn(overrun);
   EXPECT_TRUE(passesThrough(huge, {kBox.height() * 0.5f, 0}));
   const Chamfered legs{.cut = 9999, .cutRise = 5};
-  const SkPath split = legs(kBox);
+  const SkPath split = drawn(legs);
   EXPECT_TRUE(passesThrough(split, {kBox.width() * 0.5f, 0}));
 }
 
@@ -390,29 +408,29 @@ TEST(Silhouettes, AShapedSilhouetteBendsOnceAtTheOutline) {
 
   // What comes out is an ordinary outline that already carries the
   // deviation, so every mark the consumer paints on it agrees.
-  EXPECT_NE(ring(kBox), circle()(kBox));
-  EXPECT_EQ(ring(kBox), wobble.shape(circle()(kBox)));
+  EXPECT_NE(drawn(ring), drawn(circle()));
+  EXPECT_EQ(drawn(ring), wobble.shape(drawn(circle())));
 
   // It compares by its parameters, both of them, which is what keeps a
   // caching consumer from re-recording a figure that did not change.
   EXPECT_EQ(ring, shaped(circle(), wobble));
   EXPECT_NE(ring, shaped(circle(), shapers::Wave{9, 40}));
-  EXPECT_NE(ring(kBox), shaped(polygon(6), wobble)(kBox));  // a different shape
+  EXPECT_NE(drawn(ring), drawn(shaped(polygon(6), wobble)));  // a different shape
 
   // The two wrappers compose either way about, and the order is a
   // different picture rather than the same one.
-  EXPECT_NE(rounded(shaped(polygon(6), wobble), 8)(kBox),
-            shaped(rounded(polygon(6), 8), wobble)(kBox));
+  EXPECT_NE(drawn(rounded(shaped(polygon(6), wobble), 8)),
+            drawn(shaped(rounded(polygon(6), 8), wobble)));
 }
 
 TEST(Silhouettes, ACircleInABoxThatIsNotSquareIsAnOvalUnlessItIsAskedNotToBe) {
   // The box is 200 x 120, so the default is an oval out of round by 80 px
   // and the uniform one is a circle on the short side, centred.
-  const SkRect oval = circle()(kBox).getBounds();
+  const SkRect oval = drawn(circle()).getBounds();
   EXPECT_NEAR(oval.width(), 200.0f, 1e-3f);
   EXPECT_NEAR(oval.height(), 120.0f, 1e-3f);
 
-  const SkRect round = Circle{.uniform = true}(kBox).getBounds();
+  const SkRect round = drawnAt(Circle{.uniform = true}, kBox).getBounds();
   EXPECT_NEAR(round.width(), 120.0f, 1e-3f);
   EXPECT_NEAR(round.height(), 120.0f, 1e-3f);
   EXPECT_NEAR(round.centerX(), 100.0f, 1e-3f);
@@ -421,7 +439,7 @@ TEST(Silhouettes, ACircleInABoxThatIsNotSquareIsAnOvalUnlessItIsAskedNotToBe) {
   // On a square box the two are the same figure, which is why a caller
   // that never leaves square boxes never has to say which it wants.
   constexpr SkSize kSquare{120, 120};
-  EXPECT_EQ(circle()(kSquare), (Circle{.uniform = true}(kSquare)));
+  EXPECT_EQ(drawnAt(circle(), kSquare), (drawnAt(Circle{.uniform = true}, kSquare)));
 }
 
 TEST(Silhouettes, ARingIsAsThickAsItIsToldAndCarriesItsOwnDot) {
@@ -430,7 +448,7 @@ TEST(Silhouettes, ARingIsAsThickAsItIsToldAndCarriesItsOwnDot) {
   // whole reason to say it that way.
   // 10 px off a 50 px radius IS 0.8 of it, so at this size the two
   // spellings are the same ring: ink 45 px out, hole 35 px out.
-  for (const SkPath& same : {annulus(0.8f)(kSquare), ring(10)(kSquare)}) {
+  for (const SkPath& same : {drawnAt(annulus(0.8f), kSquare), drawnAt(ring(10), kSquare)}) {
     EXPECT_TRUE(same.contains(50, 5));
     EXPECT_FALSE(same.contains(50, 15));
   }
@@ -439,23 +457,23 @@ TEST(Silhouettes, ARingIsAsThickAsItIsToldAndCarriesItsOwnDot) {
   // pixel ring keeps it. A point 85 px out from the centre of a 200 px
   // box lands in the pixel ring's hole and in the ratio ring's ink.
   constexpr SkSize kBigger{200, 200};
-  EXPECT_FALSE(ring(10)(kBigger).contains(100, 15));
-  EXPECT_TRUE(annulus(0.8f)(kBigger).contains(100, 15));
+  EXPECT_FALSE(drawnAt(ring(10), kBigger).contains(100, 15));
+  EXPECT_TRUE(drawnAt(annulus(0.8f), kBigger).contains(100, 15));
 
   // The hole and the dot are two more contours of one outline, so the
   // dot fills where the hole does not.
-  const SkPath dotted = ring(10, 8)(kSquare);
+  const SkPath dotted = drawnAt(ring(10, 8), kSquare);
   EXPECT_TRUE(dotted.contains(50, 50));   // the dot
   EXPECT_FALSE(dotted.contains(50, 30));  // the hole
   EXPECT_TRUE(dotted.contains(50, 3));    // the ring itself
 
   // A ring thicker than its own radius has no hole left, so it is a disc.
-  EXPECT_TRUE(ring(80)(kSquare).contains(50, 30));
+  EXPECT_TRUE(drawnAt(ring(80), kSquare).contains(50, 30));
 }
 
 TEST(Silhouettes, AChevronIsAVAndItsBarsAreLevelWithItsShoulders) {
   constexpr SkSize kSquare{100, 100};
-  const SkRect bare = chevron()(kSquare).getBounds();
+  const SkRect bare = drawnAt(chevron(), kSquare).getBounds();
   // Spread and drop are what the mark is: 20 per cent of the width either
   // side of centre, and the point 34 per cent of the height below it.
   EXPECT_NEAR(bare.left(), 30.0f, 1e-3f);
@@ -465,7 +483,7 @@ TEST(Silhouettes, AChevronIsAVAndItsBarsAreLevelWithItsShoulders) {
   // The bars run in from the box's own edges, so they widen the mark to
   // the full box while the V stays where it was.
   const SkRect barred =
-      chevron(0.20f, 0.34f, 0.16f, 0.20f)(kSquare).getBounds();
+      drawnAt(chevron(0.20f, 0.34f, 0.16f, 0.20f), kSquare).getBounds();
   EXPECT_NEAR(barred.left(), 0.0f, 1e-3f);
   EXPECT_NEAR(barred.right(), 100.0f, 1e-3f);
   EXPECT_NEAR(barred.bottom(), 84.0f, 1e-3f);
@@ -476,9 +494,9 @@ TEST(Silhouettes, AnArrowsHeadSpansTheBoxUnlessItIsGivenItsOwnSize) {
   // The default barb fills the box's height; a paddle's head is a stated
   // fraction of it, so a fan of arms of different lengths carries heads
   // of one size.
-  EXPECT_NEAR(arrow()(kWide).getBounds().height(), 40.0f, 1e-3f);
-  EXPECT_NEAR(arrow(0.2f, 0.2f, 0.5f)(kWide).getBounds().height(), 20.0f,
+  EXPECT_NEAR(drawnAt(arrow(), kWide).getBounds().height(), 40.0f, 1e-3f);
+  EXPECT_NEAR(drawnAt(arrow(0.2f, 0.2f, 0.5f), kWide).getBounds().height(), 20.0f,
               1e-3f);
-  EXPECT_NEAR(arrow(0.2f, 0.2f, 0.5f)(kWide).getBounds().width(), 200.0f,
+  EXPECT_NEAR(drawnAt(arrow(0.2f, 0.2f, 0.5f), kWide).getBounds().width(), 200.0f,
               1e-3f);
 }

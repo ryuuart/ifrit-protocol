@@ -6,12 +6,23 @@ header. `README.md` beside the library is the front page;
 `MESH.md` is the 3D tier, `POP.md` the point operators and `KIT.md` the
 shelf over both.
 
-**`path`** — `SigilGeometryPath`, the leaf. Thirty headers that
+**`path`** — `SigilGeometryPath`, the leaf. Thirty-one headers that
 depend on nothing else in the library: Skia, glm, SigilCoreCompute, whose
 seeded mixers the value-noise field and the scatter's stream are built
 on, and CDT, the Delaunay triangulator, read in one source file and named
 in no header.
 
+- **`path/Outline.h`** — THE 2D ANSWER TYPE. `Outline` is any number of
+  contours, open or closed, under a `FillRule` (`NonZero`, `EvenOdd`), as a
+  value: copies share one immutable body and two outlines are equal when
+  they are the same verbs through the same points under the same rule,
+  which is what a consumer caching a drawing proves reuse by. Every shape
+  generator in the kit answers one. `Outline::svg()` parses SVG path data,
+  `Outline::rectangle()` is the closed rectangle, and `bounds()` answers a
+  `Rect` — the rectangle by its two corners, with `of()` and `centredOn()`.
+  `Winding` (`OutersClockwise`, `OutersCounterClockwise`) is which way the
+  outer rings of an outline are drawn. Nothing in the header names the
+  renderer that executes the outline; `path/Skia.h` is the crossing.
 - **`path/Polyline.h`** — the resampling core. `Polyline` (its points, its
   closure and its `lane`, one scalar riding each vertex) with `length()`,
   `centroid()` (length-weighted over the edges), `signedArea()` and
@@ -314,8 +325,11 @@ in no header.
   than on the kit's shelf because it is not a silhouette in a box: what it
   is measured from is off centre, and a drawing that puts the thing at the
   focus in the middle of the ellipse has said something false.
-- **`path/Skia.h`** — `toSk()` and `fromSk()` between `glm::vec2` and
-  `SkPoint`, and `centre()` of an `SkRect`.
+- **`path/Skia.h`** — the bridge to the executor: `toSk()` and `fromSk()`
+  between `glm::vec2` and `SkPoint`, between `Rect` and `SkRect`, and
+  between `Outline` and the `SkPath` behind it (sharing, not copying),
+  `toSkSize()` for a size, the `Winding` as Skia's path direction, and
+  `centre()` of an `SkRect`.
 - **`path/Stroke.h`** — the two words every widened mark decides:
   `Join` (`Round`, `Miter`, `Bevel`) at a corner and `Cap` (`Butt`,
   `Round`, `Square`) at an end. They are the library's, not a drawing

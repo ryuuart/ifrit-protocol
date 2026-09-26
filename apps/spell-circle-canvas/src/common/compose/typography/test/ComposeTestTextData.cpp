@@ -185,7 +185,7 @@ TEST(ComposeText, OnPathCanOrientGlyphsRadiallyForADial) {
   // down a quarter turn lands at the BOTTOM.
   auto ring = [](TextPath::Orient orient) {
     auto circle = geometry::shapes::parametric(
-        [](float t) { return SkPoint{std::cos(t), std::sin(t)}; }, 0.0f,
+        [](float t) { return glm::vec2{std::cos(t), std::sin(t)}; }, 0.0f,
         2.0f * SK_FloatPI, 360, true);
     // ONE tall glyph: a run spread along the arc keeps a wide footprint
     // whichever way its glyphs face, so a multi-glyph run cannot see the
@@ -241,7 +241,7 @@ TEST(ComposeText, OnPathCanLeaveEveryGlyphLevelForACalendarRing) {
   // one still stands.
   auto ring = [](TextPath::Orient orient) {
     auto circle = geometry::shapes::parametric(
-        [](float t) { return SkPoint{std::cos(t), std::sin(t)}; }, 0.0f,
+        [](float t) { return glm::vec2{std::cos(t), std::sin(t)}; }, 0.0f,
         2.0f * SK_FloatPI, 360, true);
     return box().children(
         {text(u8"I", whiteStyle(64))
@@ -771,8 +771,8 @@ TEST(ComposeText, RingWindingDecidesWhichWayTheGlyphsFace) {
     return n;
   };
 
-  auto cw = render(geometry::shapes::circle(SkPathDirection::kCW));
-  auto ccw = render(geometry::shapes::circle(SkPathDirection::kCCW));
+  auto cw = render(geometry::shapes::circle(geometry::path::Winding::OutersClockwise));
+  auto ccw = render(geometry::shapes::circle(geometry::path::Winding::OutersCounterClockwise));
   auto plain = render(geometry::shapes::circle());
 
   ASSERT_GT(inked(*cw), 300);

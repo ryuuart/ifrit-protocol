@@ -19,6 +19,8 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
+#include <sigilgeometry/path/Outline.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
@@ -37,26 +39,46 @@ namespace sigil::compose {
 // ---------------------------------------------------------------------------
 // The shape seam — a COMPARABLE silhouette value
 
-/** A shape scheme: `SkPath path(SkSize) const`, plus equality. (A raw
- *  callable is the escape hatch below and may name the size or leave it
- *  unnamed; a SCHEME spells the member, so it takes the size.)
+/** A shape scheme: a comparable value that answers the node's outline
+ *  for its laid-out size — Geometry's `path::Outline outline(glm::vec2)
+ *  const`, which every `shapes::` generator declares, or a Skia path
+ *  through `SkPath path(SkSize) const`. (A raw callable is the escape
+ *  hatch below and may name the size or leave it unnamed; a SCHEME spells
+ *  the member, so it takes the size.)
  *
  *  This is the seam-value convention the library uses throughout — one
  *  named required member and a comparable value. `Shaper` spells
  *  `shape()`, `CrossingRule` spells `decide()`, a shape value spells
- *  `path()`.
+ *  `outline()`.
  *
  *  Equality is the point, not decoration. A shaped node can only prune —
  *  skip its dirty marking, keep its recording — if the reconciler can
  *  prove the shape is the same one, and a `std::function` cannot be
- *  compared. Every stock generator in `Shapes.h` is a scheme for that
- *  reason. A scheme's equality is a contract on the author: equal values
- *  must generate identical paths at every size. */
+ *  compared. Every stock generator is a scheme for that reason. A
+ *  scheme's equality is a contract on the author: equal values must
+ *  generate identical outlines at every size. */
+template <typename S>
+concept OutlineGenerator = requires(const S& s, glm::vec2 size) {
+  { s.outline(size) } -> std::convertible_to<geometry::path::Outline>;
+};
+
 template <typename S>
 concept ShapeScheme =
-    std::equality_comparable<S> && requires(const S& s, SkSize size) {
+    std::equality_comparable<S> &&
+    (OutlineGenerator<S> || requires(const S& s, SkSize size) {
       { s.path(size) } -> std::convertible_to<SkPath>;
-    };
+    });
+
+/** The Skia path @p scheme answers for @p size, whichever member it
+ *  spells. */
+template <typename S>
+SkPath shapePath(const S& scheme, SkSize size) {
+  if constexpr (OutlineGenerator<S>)
+    return geometry::path::toSk(
+        scheme.outline(geometry::path::fromSk(size)));
+  else
+    return scheme.path(size);
+}
 
 /** THE NODE'S SILHOUETTE, type-erased: what `Element::shape()`, a
  *  `TextPath` baseline and a `band()` spine hold.
@@ -91,7 +113,7 @@ class Shape {
       return std::any_cast<const S&>(a) == std::any_cast<const S&>(b);
     };
     state.generate = [s = std::move(scheme)](SkSize size) {
-      return s.path(size);
+      return shapePath(s, size);
     };
     m_state = std::make_shared<const State>(std::move(state));
   }
@@ -107,6 +129,28 @@ class Shape {
   Shape(F fn) {  // NOLINT: implicit by design (.shape([](SkSize s) {…}))
     State state;
     state.generate = std::move(fn);
+    m_state = std::make_shared<const State>(std::move(state));
+  }
+
+  /** The same escape hatch for a generator that answers an outline but
+   *  cannot compare — an unkeyed `shapes::parametric` — or a callable
+   *  answering a Geometry outline for a size (`shapes::OutlineFunction`).
+   *  Never compares equal to a separately-constructed Shape. */
+  template <typename F>
+    requires(!ShapeScheme<std::remove_cvref_t<F>> &&
+             !std::same_as<std::remove_cvref_t<F>, Shape> &&
+             !core::PrefixCallable<F, SkPath(SkSize)> &&
+             (OutlineGenerator<std::remove_cvref_t<F>> ||
+              std::is_invocable_r_v<geometry::path::Outline, const F&,
+                                    glm::vec2>))
+  Shape(F fn) {  // NOLINT: implicit by design (.shape(shapes::parametric(…)))
+    State state;
+    state.generate = [f = std::move(fn)](SkSize size) {
+      if constexpr (OutlineGenerator<std::remove_cvref_t<F>>)
+        return geometry::path::toSk(f.outline(geometry::path::fromSk(size)));
+      else
+        return geometry::path::toSk(f(geometry::path::fromSk(size)));
+    };
     m_state = std::make_shared<const State>(std::move(state));
   }
 

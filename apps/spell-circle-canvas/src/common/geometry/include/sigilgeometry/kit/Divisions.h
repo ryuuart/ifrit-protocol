@@ -5,20 +5,18 @@
  *
  * A figure's divisions as ONE path with N contours.
  *
- * Three generators, one idea: emit N marks into a single `SkPathBuilder`
- * rather than N drawn things. `ticks()` walks a division count around a
+ * Three generators, one idea: emit N marks into a single outline rather
+ * than N drawn things. `ticks()` walks a division count around a
  * `PolarFrame`; `arcs()` walks the same count as CLOSED segments of the
  * ring itself; `chords()` walks a polygon's sides.
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkPathBuilder.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/path/Frame.h>
 
 #include <algorithm>
 #include <functional>
-#include <vector>
+#include <glm/vec2.hpp>
 
 namespace sigil::geometry::shapes {
 
@@ -86,38 +84,7 @@ struct Ticks {
 
 /** The ladder as a path in the FRAME's parent space (absolute coordinates:
  *  `frame.centre` is where it says it is). */
-inline SkPath ticks(const path::PolarFrame& frame, const Ticks& t) {
-  SkPathBuilder b;
-  const int n = std::max(0, t.divisions);
-  if (n == 0) return b.detach();
-  const int count = t.closed ? n + 1 : n;
-  const float step = t.sweep / (float)n;
-  for (int i = 0; i < count; ++i) {
-    Span s = (t.longEvery > 0 && i % t.longEvery == 0) ? t.longMark : t.mark;
-    if (t.classify) s = t.classify(i, s);
-    if (s.inner == s.outer) continue;
-    const float deg = t.from + step * (float)i;
-    const SkPoint inner = frame.at(deg, s.inner);
-    const SkPoint outer = frame.at(deg, s.outer);
-    if (t.markPx <= 0.0f) {
-      b.moveTo(inner);
-      b.lineTo(outer);
-      continue;
-    }
-    // A closed mark: the same radial run, given a width across it. The
-    // offset is perpendicular to the frame's own outward direction, so a
-    // mark stands square to its radius whatever the frame's conventions
-    // are.
-    const SkVector out = frame.dir(deg);
-    const SkVector across{-out.fY * t.markPx * 0.5f, out.fX * t.markPx * 0.5f};
-    b.moveTo(inner.fX + across.fX, inner.fY + across.fY);
-    b.lineTo(outer.fX + across.fX, outer.fY + across.fY);
-    b.lineTo(outer.fX - across.fX, outer.fY - across.fY);
-    b.lineTo(inner.fX - across.fX, inner.fY - across.fY);
-    b.close();
-  }
-  return b.detach();
-}
+path::Outline ticks(const path::PolarFrame& frame, const Ticks& t);
 
 /** THE LADDER AS A SHAPE VALUE, with the frame taken from the node's own
  *  laid-out box: centre at the box centre, radius half the SHORTER side.
@@ -131,13 +98,12 @@ struct TicksShape {
   Ticks t;
   path::PolarFrame conventions;
   bool operator==(const TicksShape&) const = default;
-  SkPath path(SkSize size) const {
+  path::Outline outline(glm::vec2 size) const {
     path::PolarFrame f = conventions;
-    f.centre = {size.width() * 0.5f, size.height() * 0.5f};
-    f.radius = std::min(size.width(), size.height()) * 0.5f;
+    f.centre = {size.x * 0.5f, size.y * 0.5f};
+    f.radius = std::min(size.x, size.y) * 0.5f;
     return ticks(f, t);
   }
-  SkPath operator()(SkSize s) const { return path(s); }
 };
 
 /** The tick marks @p t describes, as a shape value that takes its
@@ -182,29 +148,7 @@ struct Arcs {
 };
 
 /** The segments as a path in the FRAME's parent space. */
-inline SkPath arcs(const path::PolarFrame& frame, const Arcs& a) {
-  SkPathBuilder b;
-  const int n = std::max(0, a.divisions);
-  if (n == 0 || a.spanDeg == 0.0f || a.mark.inner == a.mark.outer)
-    return b.detach();
-  const int count = a.closed ? n + 1 : n;
-  const float step = a.sweep / (float)n;
-  const SkRect outer = frame.box(a.mark.outer);
-  const SkRect inner = frame.box(a.mark.inner);
-  for (int i = 0; i < count; ++i) {
-    const float centre = a.from + step * (float)i;
-    const float start = centre - a.spanDeg * 0.5f;
-    const float end = centre + a.spanDeg * 0.5f;
-    // Out along the far edge, in across the end, back along the near one:
-    // one contour whose two curved sides are the ring's own arcs rather
-    // than a polyline that would show its facets under a stroke.
-    b.arcTo(outer, frame.skiaDeg(start), frame.skiaSweep(a.spanDeg), true);
-    b.lineTo(frame.at(end, a.mark.inner));
-    b.arcTo(inner, frame.skiaDeg(end), frame.skiaSweep(-a.spanDeg), false);
-    b.close();
-  }
-  return b.detach();
-}
+path::Outline arcs(const path::PolarFrame& frame, const Arcs& a);
 
 /** `arcs` as a SHAPE VALUE, frame from the laid-out box — the same rule
  *  as `ticks` and `chords`: centre at the box centre, radius half the
@@ -214,13 +158,12 @@ struct ArcsShape {
   Arcs a;
   path::PolarFrame conventions;
   bool operator==(const ArcsShape&) const = default;
-  SkPath path(SkSize size) const {
+  path::Outline outline(glm::vec2 size) const {
     path::PolarFrame f = conventions;
-    f.centre = {size.width() * 0.5f, size.height() * 0.5f};
-    f.radius = std::min(size.width(), size.height()) * 0.5f;
+    f.centre = {size.x * 0.5f, size.y * 0.5f};
+    f.radius = std::min(size.x, size.y) * 0.5f;
     return arcs(f, a);
   }
-  SkPath operator()(SkSize s) const { return path(s); }
 };
 
 /** The ring segments @p a describes, as a shape value that takes its
@@ -265,48 +208,7 @@ struct Chords {
 
 /** The chords @p c describes, drawn on @p frame: one open contour per
  *  side, or joined into closed contours when @p c asks. */
-inline SkPath chords(const path::PolarFrame& frame, const Chords& c) {
-  SkPathBuilder b;
-  const int n = std::max(2, c.sides);
-  const int step = std::max(1, c.step);
-  const float pitch = 360.0f / (float)n;
-  auto vertex = [&](int k) {
-    return frame.at(c.from + pitch * (float)((k % n + n) % n), c.radius);
-  };
-  if (c.closed) {
-    // Walk k, k+step, k+2·step … until it returns to k; repeat for every
-    // ring the step generates. gcd(n, step) rings, n/gcd vertices each.
-    std::vector<bool> seen((size_t)n, false);
-    for (int start = 0; start < n; ++start) {
-      if (seen[(size_t)start]) continue;
-      int k = start;
-      bool first = true;
-      do {
-        seen[(size_t)k] = true;
-        const SkPoint p = vertex(k);
-        first ? b.moveTo(p) : b.lineTo(p);
-        first = false;
-        k = (k + step) % n;
-      } while (k != start);
-      b.close();
-    }
-    return b.detach();
-  }
-  for (int k = 0; k < n; ++k) {
-    SkPoint a = vertex(k), z = vertex(k + step);
-    if (c.inset > 0) {
-      const SkVector d{z.fX - a.fX, z.fY - a.fY};
-      const float len = std::hypot(d.fX, d.fY);
-      if (len <= 2 * c.inset) continue;
-      const SkVector u{d.fX / len, d.fY / len};
-      a = {a.fX + u.fX * c.inset, a.fY + u.fY * c.inset};
-      z = {z.fX - u.fX * c.inset, z.fY - u.fY * c.inset};
-    }
-    b.moveTo(a);
-    b.lineTo(z);
-  }
-  return b.detach();
-}
+path::Outline chords(const path::PolarFrame& frame, const Chords& c);
 
 /** `chords` as a SHAPE VALUE, frame from the laid-out box — same rule as
  *  `ticks`: centre at the box centre, radius half the shorter side, and
@@ -317,13 +219,12 @@ struct ChordsShape {
   Chords c;
   path::PolarFrame conventions;
   bool operator==(const ChordsShape&) const = default;
-  SkPath path(SkSize size) const {
+  path::Outline outline(glm::vec2 size) const {
     path::PolarFrame f = conventions;
-    f.centre = {size.width() * 0.5f, size.height() * 0.5f};
-    f.radius = std::min(size.width(), size.height()) * 0.5f;
+    f.centre = {size.x * 0.5f, size.y * 0.5f};
+    f.radius = std::min(size.x, size.y) * 0.5f;
     return chords(f, c);
   }
-  SkPath operator()(SkSize s) const { return path(s); }
 };
 
 /** The same chords as a shape value that takes its centre and radius

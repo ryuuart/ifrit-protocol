@@ -1,5 +1,7 @@
 #include <pybind11/stl.h>
+#include <include/core/SkPath.h>
 #include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/mesh/Faces.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/Vec.h>
@@ -229,12 +231,17 @@ void bindGeometryMesh(py::module_& module) {
   meshes.def("cylinderPanel", &mesh::cylinderPanel, py::arg("width"),
              py::arg("height"), py::arg("radius"), py::arg("nu") = 32,
              py::arg("nv") = 8);
-  meshes.def("extrude", &mesh::extrude, py::arg("path"),
-             py::arg("options") = mesh::ExtrudeOptions{});
+  meshes.def(
+      "extrude",
+      [](const SkPath& path, const mesh::ExtrudeOptions& options) {
+        return mesh::extrude(geometry::path::fromSk(path), options);
+      },
+      py::arg("path"), py::arg("options") = mesh::ExtrudeOptions{});
   meshes.def(
       "extrude",
       [](const SkPath& path, float depth, float tolerance) {
-        return mesh::extrude(path, {.depth = depth, .tolerance = tolerance});
+        return mesh::extrude(geometry::path::fromSk(path),
+                             {.depth = depth, .tolerance = tolerance});
       },
       py::arg("path"), py::arg("depth") = 24, py::arg("tolerance") = 0.25f);
   meshes.def("revolve", &mesh::revolve, py::arg("profile"),

@@ -543,10 +543,10 @@ void bindPen(py::module_& root) {
           bool operator==(const Shape& other) const {
             return object.is(other.object);
           }
-          SkPath path(SkSize size) const {
-            return object
-                .attr("path")(py::make_tuple(size.width(), size.height()))
-                .cast<SkPath>();
+          geometry::path::Outline outline(glm::vec2 size) const {
+            return geometry::path::fromSk(
+                object.attr("path")(py::make_tuple(size.x, size.y))
+                    .cast<SkPath>());
           }
         } shape{std::move(silhouette)};
         self.get().shape(shape, x, y, width, height);

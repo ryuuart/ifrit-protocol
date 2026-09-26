@@ -10,20 +10,20 @@
 
 #include <concepts>
 #include <cstdint>
+#include <glm/vec2.hpp>
+#include <type_traits>
 #include <utility>
 
-#include "sigilgeometry/path/Operations.h"
-#include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Shaper.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::geometry::shapes {
 
 // ---------------------------------------------------------------------------
 // Wrappers — generators over generators
 
-/** A silhouette VALUE: comparable, and answering a path for a size
- *  through the `path(SkSize)` member every generator here declares.
+/** A silhouette VALUE: comparable, and answering an outline for a size
+ *  through the `outline(size)` member every generator here declares.
  *
  *  The member is what separates a value from a bare closure, and the
  *  separation is load-bearing: a capture-free closure is an EMPTY class,
@@ -32,9 +32,32 @@ namespace sigil::geometry::shapes {
  *  before it agrees to compare. */
 template <typename S>
 concept Silhouette =
-    std::equality_comparable<S> && requires(const S& s, SkSize size) {
-      { s.path(size) } -> std::convertible_to<SkPath>;
+    std::equality_comparable<S> && requires(const S& s, glm::vec2 size) {
+      { s.outline(size) } -> std::convertible_to<path::Outline>;
     };
+
+/** Anything that answers an outline for a size: a silhouette value, a
+ *  generator that cannot compare (an unkeyed `parametric`), or a bare
+ *  callable. What a wrapper can wrap. */
+template <typename S>
+concept OutlineSource =
+    requires(const S& s, glm::vec2 size) {
+      { s.outline(size) } -> std::convertible_to<path::Outline>;
+    } || std::is_invocable_r_v<path::Outline, const S&, glm::vec2>;
+
+/** The outline @p source answers for @p size, whichever way it answers. */
+template <OutlineSource S>
+path::Outline outlineOf(const S& source, glm::vec2 size) {
+  if constexpr (requires { source.outline(size); })
+    return source.outline(size);
+  else
+    return source(size);
+}
+
+namespace detail {
+path::Outline roundCorners(const path::Outline& outline, float radius);
+path::Outline shape(const path::Outline& outline, const path::Shaper& shaper);
+}  // namespace detail
 
 /** Wraps any silhouette so every sharp corner rounds to a consistent
  *  @p radius — the corner treatment for shapes that have no box corners:
@@ -42,8 +65,7 @@ concept Silhouette =
  *  it, so wrapping a generator gives a generator that compares by its
  *  parameters, and wrapping a bare callable gives something that compares
  *  to nothing — the same escape hatch the callable itself was. */
-template <typename Inner>
-  requires std::invocable<const Inner&, SkSize>
+template <OutlineSource Inner>
 struct Rounded {
   Inner inner;
   float radius = 0.0f;
@@ -52,10 +74,9 @@ struct Rounded {
   {
     return inner == o.inner && radius == o.radius;
   }
-  SkPath path(SkSize s) const {
-    return path::operations::roundCorners(inner(s), radius);
+  path::Outline outline(glm::vec2 size) const {
+    return detail::roundCorners(outlineOf(inner, size), radius);
   }
-  SkPath operator()(SkSize s) const { return path(s); }
 };
 
 template <typename Inner>
@@ -80,8 +101,7 @@ Rounded<Inner> rounded(Inner shape, float radius) {
  *  different picture: rounding a torn edge softens the tears, tearing a
  *  rounded one leaves the corners round and the runs between them
  *  ragged. */
-template <typename Inner, typename S>
-  requires std::invocable<const Inner&, SkSize> && path::ShaperScheme<S>
+template <OutlineSource Inner, path::ShaperScheme S>
 struct Shaped {
   Inner inner;
   S shaper;
@@ -90,8 +110,9 @@ struct Shaped {
   {
     return inner == o.inner && shaper == o.shaper;
   }
-  SkPath path(SkSize s) const { return shaper.shape(inner(s)); }
-  SkPath operator()(SkSize s) const { return path(s); }
+  path::Outline outline(glm::vec2 size) const {
+    return detail::shape(outlineOf(inner, size), path::Shaper(shaper));
+  }
 };
 
 template <typename Inner, typename S>
@@ -153,8 +174,7 @@ struct Chamfered {
   float radius = 0.0f;
   Corner mask = Corner::All;
   bool operator==(const Chamfered&) const = default;
-  SkPath path(SkSize s) const;
-  SkPath operator()(SkSize s) const { return path(s); }
+  path::Outline outline(glm::vec2 size) const;
 };
 
 inline Chamfered chamfered(float cut, Corner mask = Corner::All) {
@@ -169,8 +189,7 @@ struct Notched {
   float depth = 0.0f;
   Corner mask = Corner::All;
   bool operator==(const Notched&) const = default;
-  SkPath path(SkSize s) const;
-  SkPath operator()(SkSize s) const { return path(s); }
+  path::Outline outline(glm::vec2 size) const;
 };
 
 inline Notched notched(float notchWidth, float depth,

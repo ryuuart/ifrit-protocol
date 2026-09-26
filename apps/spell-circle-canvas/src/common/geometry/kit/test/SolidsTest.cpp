@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/mesh/Faces.h>
 
 #include <cmath>
@@ -16,6 +17,7 @@
 #include "support/Paths.h"
 
 using namespace sigil::geometry::mesh;
+namespace path = sigil::geometry::path;
 using sigil::geometry::test::rect;
 using sigil::geometry::test::square;
 
@@ -30,7 +32,7 @@ bool normalsAreUnit(const Mesh& mesh) {
 }  // namespace
 
 TEST(Solids, ExtrudeLiftsAPathIntoASolidAndDroppingCapsLeavesAShell) {
-  const Mesh solid = extrude(square(10), {.depth = 4});
+  const Mesh solid = extrude(path::fromSk(square(10)), {.depth = 4});
   EXPECT_FALSE(solid.positions.empty());
   EXPECT_GT(solid.triangleCount(), 0u);
   EXPECT_EQ(solid.normals.size(), solid.positions.size());
@@ -40,13 +42,14 @@ TEST(Solids, ExtrudeLiftsAPathIntoASolidAndDroppingCapsLeavesAShell) {
   EXPECT_NEAR(hi.z - lo.z, 4.0f, 1e-4f);  // the depth is total, centred on 0
 
   const Mesh shell =
-      extrude(square(10), {.depth = 4, .frontCap = false, .backCap = false});
+      extrude(path::fromSk(square(10)),
+              {.depth = 4, .frontCap = false, .backCap = false});
   EXPECT_LT(shell.triangleCount(), solid.triangleCount());
 
   // A rectangle keeps its own two extents and gains the depth as the
   // third, and a four-sided profile with both caps is six quads: two caps
   // and four walls, two triangles each.
-  const Mesh box = extrude(rect(0, 0, 100, 60), {.depth = 20});
+  const Mesh box = extrude(path::fromSk(rect(0, 0, 100, 60)), {.depth = 20});
   box.bounds(&lo, &hi);
   EXPECT_NEAR(hi.x - lo.x, 100.0f, 1e-3f);
   EXPECT_NEAR(hi.y - lo.y, 60.0f, 1e-3f);
@@ -59,7 +62,7 @@ TEST(Solids, ExtrudeAnnulusKeepsHole) {
   SkPathBuilder ring;
   ring.addCircle(0, 0, 80);
   ring.addCircle(0, 0, 40, SkPathDirection::kCCW);
-  Mesh m = extrude(ring.detach(), {.depth = 10});
+  Mesh m = extrude(path::fromSk(ring.detach()), {.depth = 10});
   ASSERT_GT(m.triangleCount(), 0u);
   // The hole must survive triangulation, which is checked by area rather
   // than by counting triangles: the tessellation is free to change, the

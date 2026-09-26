@@ -7,7 +7,7 @@
 # not this, and nothing in the tier below may reach back up into here.
 #
 # One shelf per dimension: `kit/Silhouettes.h` (the 2D generators, curves
-# and corner treatments, as comparable `path(SkSize)` values) and
+# and corner treatments, as comparable `outline(size)` values) and
 # `kit/Solids.h` (the stock meshes over the parametric-sheet seam). Beside
 # them the stock values over the leaf's other two 2D seams —
 # `kit/Shapers.h` (what bends one continuous mark, and the width laws that
@@ -19,7 +19,7 @@
 # key.
 find_package(earcut_hpp CONFIG REQUIRED)
 sigil_library(SigilGeometryKit
-  SOURCES Hatches.cpp Sections.cpp Silhouettes.cpp Solids.cpp
+  SOURCES Divisions.cpp Hatches.cpp Sections.cpp Silhouettes.cpp Solids.cpp
   HEADERS Corners.h Curves.h Divisions.h Generators.h Hatches.h Sections.h
           Shapers.h Silhouettes.h Solids.h
   PUBLIC SigilGeometryPath SigilGeometryMesh SigilCoreCallable SigilCoreCompute

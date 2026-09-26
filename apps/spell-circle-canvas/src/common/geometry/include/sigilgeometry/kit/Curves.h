@@ -12,8 +12,6 @@
 #include <string>
 
 #include "sigilgeometry/kit/Generators.h"
-#include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::geometry::shapes {
 
@@ -40,25 +38,24 @@ namespace sigil::geometry::shapes {
  *  @p close joins the last point back to the first.
  *
  *      .shape(shapes::parametric([](float t) {
- *        return SkPoint{std::cos(3 * t), std::sin(2 * t)};
- *      }, 0, 2 * SK_FloatPI, 720))
+ *        return glm::vec2{std::cos(3 * t), std::sin(2 * t)};
+ *      }, 0, 2 * std::numbers::pi_v<float>, 720))
  *
  *  UNKEYED: the callable is the whole identity and it cannot compare, so
  *  a node shaped by this re-records every render() — the escape hatch.
  *  The keyed overload below is the prunable spelling. */
 struct Parametric {
-  std::function<SkPoint(float)> f;
+  std::function<glm::vec2(float)> f;
   float t0 = 0.0f;
   float t1 = 1.0f;
   int samples = 512;
   bool close = false;
-  SkPath path(SkSize s) const {
-    return detail::samplePolyline(f, t0, t1, samples, close, s);
+  path::Outline outline(glm::vec2 size) const {
+    return detail::samplePolyline(f, t0, t1, samples, close, size);
   }
-  SkPath operator()(SkSize s) const { return path(s); }
 };
 
-inline Parametric parametric(std::function<SkPoint(float)> f, float t0,
+inline Parametric parametric(std::function<glm::vec2(float)> f, float t0,
                              float t1, int samples = 512, bool close = false) {
   return Parametric{std::move(f), t0, t1, samples, close};
 }
@@ -71,7 +68,7 @@ inline Parametric parametric(std::function<SkPoint(float)> f, float t0,
  *  named family below) when the curve changes. */
 struct KeyedParametric {
   std::string key;
-  std::function<SkPoint(float)> f;
+  std::function<glm::vec2(float)> f;
   float t0 = 0.0f;
   float t1 = 1.0f;
   int samples = 512;
@@ -80,14 +77,13 @@ struct KeyedParametric {
     return key == o.key && t0 == o.t0 && t1 == o.t1 && samples == o.samples &&
            close == o.close;
   }
-  SkPath path(SkSize s) const {
-    return detail::samplePolyline(f, t0, t1, samples, close, s);
+  path::Outline outline(glm::vec2 size) const {
+    return detail::samplePolyline(f, t0, t1, samples, close, size);
   }
-  SkPath operator()(SkSize s) const { return path(s); }
 };
 
 inline KeyedParametric parametric(std::string_view key,
-                                  std::function<SkPoint(float)> f, float t0,
+                                  std::function<glm::vec2(float)> f, float t0,
                                   float t1, int samples = 512,
                                   bool close = false) {
   return KeyedParametric{std::string(key), std::move(f), t0, t1,
@@ -107,8 +103,7 @@ struct Lissajous {
   float turns = 1.0f;
   int samples = 720;
   bool operator==(const Lissajous&) const = default;
-  SkPath path(SkSize s) const;
-  SkPath operator()(SkSize s) const { return path(s); }
+  path::Outline outline(glm::vec2 size) const;
 };
 
 inline Lissajous lissajous(float a, float b, float deltaDeg = 0.0f,
@@ -132,8 +127,7 @@ struct Harmonograph {
   float turns = 6.0f;
   int samples = 2000;
   bool operator==(const Harmonograph&) const = default;
-  SkPath path(SkSize s) const;
-  SkPath operator()(SkSize s) const { return path(s); }
+  path::Outline outline(glm::vec2 size) const;
 };
 
 inline Harmonograph harmonograph(float a, float b, float deltaDeg = 0.0f,
@@ -150,8 +144,7 @@ struct Rose {
   float turns = 1.0f;
   int samples = 720;
   bool operator==(const Rose&) const = default;
-  SkPath path(SkSize s) const;
-  SkPath operator()(SkSize s) const { return path(s); }
+  path::Outline outline(glm::vec2 size) const;
 };
 
 inline Rose rose(float k, float turns = 1.0f, int samples = 720) {
@@ -168,8 +161,7 @@ struct Spiral {
   float growth = 0.25f;
   int samples = 720;
   bool operator==(const Spiral&) const = default;
-  SkPath path(SkSize s) const;
-  SkPath operator()(SkSize s) const { return path(s); }
+  path::Outline outline(glm::vec2 size) const;
 };
 
 inline Spiral spiral(float turns = 3.0f, bool logarithmic = false,
@@ -190,8 +182,7 @@ struct Trochoid {
   float turns = 1.0f;
   int samples = 1440;
   bool operator==(const Trochoid&) const = default;
-  SkPath path(SkSize s) const;
-  SkPath operator()(SkSize s) const { return path(s); }
+  path::Outline outline(glm::vec2 size) const;
 };
 
 inline Trochoid trochoid(float R, float r, float d, bool inside = false,

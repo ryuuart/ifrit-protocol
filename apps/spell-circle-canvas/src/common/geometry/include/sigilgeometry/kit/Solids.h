@@ -6,7 +6,7 @@
  * The 3D shelf of the geometry kit — the stock solids.
  *
  * Two of them LIFT another currency into a mesh: `extrude()` raises a
- * filled path, `revolve()` lathes a profile polyline. Most of the rest
+ * filled outline, `revolve()` lathes a profile polyline. Most of the rest
  * are the named surfaces, each one the parametric sheet seam
  * `mesh::grid()` evaluated through a formula anyone could have written —
  * which is why they are a shelf and not the currency. A consumer with its
@@ -20,16 +20,15 @@
  * in what it says.
  */
 
-#include <include/core/SkPath.h>
-
 #include <glm/glm.hpp>
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::mesh {
 
-/** How `extrude()` thickens a path: the total depth and which of the
+/** How `extrude()` thickens an outline: the total depth and which of the
  *  three surfaces — front cap, back cap, swept walls — to emit.
  *  Dropping caps leaves an open shell, which is what a wall-only
  *  extrusion is for. */
@@ -41,11 +40,11 @@ struct ExtrudeOptions {
   bool walls = true;
 };
 
-/** Lift a filled path into a solid: front/back caps triangulated with
+/** Lift a filled outline into a solid: front/back caps triangulated with
  *  hole support (even-odd containment decides outer vs hole rings),
- *  walls swept between them. Cap UVs are the path's unit bounds; wall
+ *  walls swept between them. Cap UVs are the outline's unit bounds; wall
  *  UVs run u = contour arc length, v = depth. */
-Mesh extrude(const SkPath& path, const ExtrudeOptions& options = {});
+Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options = {});
 
 /** How `revolve()` lathes a profile: the number of steps around the
  *  axis and how far around to go. A partial sweep leaves the surface

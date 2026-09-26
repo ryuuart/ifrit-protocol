@@ -230,7 +230,7 @@ TEST(ComposeShapeValues, AnSvgSilhouetteComparesByItsGeometry) {
 }
 
 TEST(ComposeShapeValues, KeyedParametricIsAValueUnkeyedIsNot) {
-  auto fig8 = [](float t) { return SkPoint{std::sin(2 * t), std::sin(t)}; };
+  auto fig8 = [](float t) { return glm::vec2{std::sin(2 * t), std::sin(t)}; };
   // Unkeyed: the callable is the identity and cannot compare.
   EXPECT_FALSE(Shape(geometry::shapes::parametric(fig8, 0, 6.2832f, 720)) ==
                Shape(geometry::shapes::parametric(fig8, 0, 6.2832f, 720)));

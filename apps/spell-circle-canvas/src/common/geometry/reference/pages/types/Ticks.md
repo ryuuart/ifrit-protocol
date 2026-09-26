@@ -63,7 +63,7 @@ where the heavy pass goes, or both passes stack on the same mark and
 it prints darker than either weight.
 
 Null (the default) means "use the fields". A `std::function` here has
-no reconciler consequence through the SkPath overload — that path is
+no reconciler consequence through the frame overload — that outline is
 built immediately and never stored. Through the SHAPE overload it is
 the one member equality cannot see, so a Ticks carrying a classifier
 compares unequal to EVERYTHING, including a copy of itself: its node

@@ -203,9 +203,9 @@ TEST(Pen, AMeshTakesAFittedMaterialOverItsOwnBounds) {
 struct Ring {
   float inset = 0;
   bool operator==(const Ring&) const = default;
-  SkPath path(SkSize size) const {
-    return SkPath::Oval(
-        SkRect::MakeWH(size.width(), size.height()).makeInset(inset, inset));
+  sigil::geometry::path::Outline outline(glm::vec2 size) const {
+    return sigil::geometry::path::fromSk(
+        SkPath::Oval(SkRect::MakeWH(size.x, size.y).makeInset(inset, inset)));
   }
 };
 

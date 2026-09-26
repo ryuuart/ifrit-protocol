@@ -9,6 +9,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilgeometry/kit/Solids.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <cmath>
 #include <numbers>
@@ -65,7 +66,7 @@ void BM_Extrude(benchmark::State& state) {
   const SkPath outline = ringWithHole((int)state.range(0));
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = mesh::extrude(outline);
+    last = mesh::extrude(path::fromSk(outline));
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);
@@ -82,7 +83,7 @@ void BM_ExtrudeWallsOnly(benchmark::State& state) {
   options.frontCap = options.backCap = false;
   Mesh last;
   for ([[maybe_unused]] auto iteration : state) {
-    last = mesh::extrude(outline, options);
+    last = mesh::extrude(path::fromSk(outline), options);
     benchmark::DoNotOptimize(last.positions.data());
   }
   countVertices(state, last);

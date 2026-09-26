@@ -56,17 +56,18 @@ std::vector<path::LatticeMark> hatchMarks(std::span<const path::Polyline> rings,
   return passes(inside, hatch);
 }
 
-SkPath hatchOutline(const SkPath& outline, const Hatch& hatch) {
+path::Outline hatchOutline(const path::Outline& outline, const Hatch& hatch) {
+  const SkPath source = path::toSk(outline);
   const SkPath filled = hatch.inset == 0
-                            ? outline
-                            : path::operations::offset(outline, -hatch.inset);
+                            ? source
+                            : path::operations::offset(source, -hatch.inset);
   const std::vector<path::Polyline> rings = path::flatten(filled);
   SkPathBuilder out;
   for (const path::LatticeMark& mark : passes(rings, hatch)) {
     out.moveTo(path::toSk(mark.from));
     out.lineTo(path::toSk(mark.to));
   }
-  return out.detach();
+  return path::fromSk(out.detach());
 }
 
 }  // namespace sigil::geometry::shapes

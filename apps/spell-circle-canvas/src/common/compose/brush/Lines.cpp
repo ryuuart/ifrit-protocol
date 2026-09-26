@@ -401,7 +401,9 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
     laid.angle = radians;
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(width);
-    c.drawPath(geometry::shapes::hatchOutline(ctx.outline, laid), p);
+    c.drawPath(geometry::path::toSk(geometry::shapes::hatchOutline(
+                   geometry::path::fromSk(ctx.outline), laid)),
+               p);
   } else {
     // An even pattern is the same lines as Skia's own line lattice lays
     // them, which fills the outline in one path effect per pass.

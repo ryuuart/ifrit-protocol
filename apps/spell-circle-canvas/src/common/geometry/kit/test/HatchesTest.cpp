@@ -10,6 +10,7 @@
 #include <sigilgeometry/kit/Hatches.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Segments.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <cmath>
 #include <glm/geometric.hpp>
@@ -21,9 +22,14 @@ namespace {
 
 size_t markCount(const SkPath& path) { return path::segments(path).size(); }
 
+/** The hatch door, over the Skia paths these cases build. */
+SkPath hatchOf(const SkPath& outline, const shapes::Hatch& hatch) {
+  return path::toSk(shapes::hatchOutline(path::fromSk(outline), hatch));
+}
+
 TEST(Hatch, FillsAShapeWithLinesInsideIt) {
   const SkPath square = SkPath::Rect(SkRect::MakeWH(100, 100));
-  const SkPath hatched = shapes::hatchOutline(square, {.spacing = 10.0f});
+  const SkPath hatched = hatchOf(square, {.spacing = 10.0f});
   EXPECT_EQ(markCount(hatched), 10u);
   const SkRect bounds = hatched.computeTightBounds();
   EXPECT_GE(bounds.left(), -1e-3f);
@@ -40,7 +46,7 @@ TEST(Hatch, LeavesTheHoleOfARingEmpty) {
   b.addCircle(0, 0, 50);
   const SkPath ring = b.detach();
   for (const path::SegmentContour& mark :
-       path::segments(shapes::hatchOutline(ring, {.spacing = 8.0f}))) {
+       path::segments(hatchOf(ring, {.spacing = 8.0f}))) {
     ASSERT_EQ(mark.segments.size(), 1u);
     const glm::vec2 middle =
         (mark.segments[0].start() + mark.segments[0].end()) * 0.5f;
@@ -55,9 +61,9 @@ TEST(Hatch, AnOriginHoldsTheLinesStillWhileTheShapeMoves) {
   const SkPath there = SkPath::Rect(SkRect::MakeXYWH(0, 3, 100, 100));
   const shapes::Hatch pinned{.spacing = 10.0f, .origin = glm::vec2{0, 0}};
   const std::vector<path::SegmentContour> a =
-      path::segments(shapes::hatchOutline(here, pinned));
+      path::segments(hatchOf(here, pinned));
   const std::vector<path::SegmentContour> b =
-      path::segments(shapes::hatchOutline(there, pinned));
+      path::segments(hatchOf(there, pinned));
   ASSERT_FALSE(a.empty());
   ASSERT_FALSE(b.empty());
   // Every line of the moved shape stands on a rung of the same ladder.
@@ -71,7 +77,7 @@ TEST(Hatch, AnOriginHoldsTheLinesStillWhileTheShapeMoves) {
 TEST(Hatch, AnInsetKeepsTheMarksInsideTheEdge) {
   const SkPath square = SkPath::Rect(SkRect::MakeWH(100, 100));
   const SkPath hatched =
-      shapes::hatchOutline(square, {.spacing = 10.0f, .inset = 12.0f});
+      hatchOf(square, {.spacing = 10.0f, .inset = 12.0f});
   const SkRect bounds = hatched.computeTightBounds();
   EXPECT_GE(bounds.left(), 11.0f);
   EXPECT_LE(bounds.right(), 89.0f);
@@ -83,7 +89,7 @@ TEST(Hatch, AnInsetKeepsTheMarksInsideTheEdge) {
 TEST(Hatch, ACrossPassLaysTheSameLatticeTurnedARightAngle) {
   const SkPath square = SkPath::Rect(SkRect::MakeWH(100, 100));
   const shapes::Hatch crossed{.spacing = 10.0f, .cross = true};
-  EXPECT_EQ(markCount(shapes::hatchOutline(square, crossed)), 20u);
+  EXPECT_EQ(markCount(hatchOf(square, crossed)), 20u);
   const std::vector<path::Polyline> rings = path::flatten(square);
   const std::vector<path::LatticeMark> marks =
       shapes::hatchMarks(rings, crossed);
@@ -101,7 +107,7 @@ TEST(Hatch, MarksOverRingsAreTheOutlineFillsContours) {
   const SkPath ring = b.detach();
   const shapes::Hatch hatch{.spacing = 8.0f, .angle = 0.3f};
   EXPECT_EQ(shapes::hatchMarks(path::flatten(ring), hatch).size(),
-            markCount(shapes::hatchOutline(ring, hatch)));
+            markCount(hatchOf(ring, hatch)));
   // An inset narrows the rings as it narrows an outline: every mark's
   // ends stand inside the ring by the inset.
   const std::vector<path::LatticeMark> inset = shapes::hatchMarks(

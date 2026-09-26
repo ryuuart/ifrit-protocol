@@ -1,27 +1,75 @@
 /** @file
- * The silhouette catalog's bodies: every generator's `path(SkSize)` and
- * the corner shapes.
+ * The silhouette catalog's bodies: every generator's `outline(size)` and
+ * the corner shapes, each built on a Skia path builder and handed back
+ * as an outline.
  */
 
 #include "sigilgeometry/kit/Silhouettes.h"
 
 #include <include/core/SkMatrix.h>
-#include <include/utils/SkParsePath.h>
+#include <include/core/SkPathBuilder.h>
 #include <sigilcore/compute/Noise.h>
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
+#include "sigilgeometry/path/Operations.h"
+#include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Skia.h"
+
 namespace sigil::geometry::shapes {
 
-Svg svg(const char* d, bool preserveAspect) {
-  SkPath parsed;
-  if (auto result = SkParsePath::FromSVGString(d)) parsed = std::move(*result);
-  return Svg{std::move(parsed), preserveAspect};
+namespace detail {
+
+path::Outline samplePolyline(const std::function<glm::vec2(float)>& f,
+                             float t0, float t1, int samples, bool close,
+                             glm::vec2 size) {
+  const float cx = size.x * 0.5f, cy = size.y * 0.5f;
+  const path::Polyline unit = path::sample(f, t0, t1, samples, close);
+  SkPathBuilder b;
+  bool first = true;
+  for (const glm::vec2& u : unit.points) {
+    const SkPoint p{cx + cx * u.x, cy + cy * u.y};
+    if (first)
+      b.moveTo(p);
+    else
+      b.lineTo(p);
+    first = false;
+  }
+  if (close) b.close();
+  return path::fromSk(b.detach());
 }
 
-SkPath Polygon::path(SkSize s) const {
+path::Outline roundCorners(const path::Outline& outline, float radius) {
+  return path::fromSk(
+      path::operations::roundCorners(path::toSk(outline), radius));
+}
+
+path::Outline shape(const path::Outline& outline, const path::Shaper& shaper) {
+  return path::fromSk(shaper.shape(path::toSk(outline)));
+}
+
+}  // namespace detail
+
+Svg svg(std::string_view data, bool preserveAspect) {
+  return Svg{path::Outline::svg(data), preserveAspect};
+}
+
+path::Outline Svg::outline(glm::vec2 size) const {
+  const SkPath source = path::toSk(parsed);
+  const SkRect b = source.getBounds();
+  if (b.isEmpty() || size.x <= 0 || size.y <= 0) return parsed;
+  const SkRect box = SkRect::MakeWH(size.x, size.y);
+  const SkMatrix m =
+      preserveAspect
+          ? SkMatrix::RectToRect(b, box, SkMatrix::kCenter_ScaleToFit)
+          : SkMatrix::RectToRect(b, box);
+  return path::fromSk(source.makeTransform(m));
+}
+
+path::Outline Polygon::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const int n = std::max(sides, 3);
   const float cx = s.width() / 2, cy = s.height() / 2;
   const float base = rotationDeg * SK_FloatPI / 180 - SK_FloatPI / 2;
@@ -35,10 +83,11 @@ SkPath Polygon::path(SkSize s) const {
       b.lineTo(p);
   }
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Star::path(SkSize s) const {
+path::Outline Star::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const int n = std::max(points, 2) * 2;
   const float cx = s.width() / 2, cy = s.height() / 2;
   auto vertex = [&](int i) {
@@ -61,10 +110,11 @@ SkPath Star::path(SkSize s) const {
     b.quadTo({mid.fX - dx * waist, mid.fY - dy * waist}, to);
   }
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Circle::path(SkSize s) const {
+path::Outline Circle::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   SkRect r = SkRect::MakeWH(s.width(), s.height());
   if (uniform) {
     const float side = std::min(s.width(), s.height());
@@ -73,11 +123,12 @@ SkPath Circle::path(SkSize s) const {
   }
   r.inset(inset, inset);
   SkPathBuilder b;
-  b.addOval(r, direction, startIndex);
-  return b.detach();
+  b.addOval(r, path::toSk(winding), startIndex);
+  return path::fromSk(b.detach());
 }
 
-SkPath Annulus::path(SkSize s) const {
+path::Outline Annulus::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const SkRect outer = SkRect::MakeWH(s.width(), s.height());
   SkRect inner = outer;
   if (thickness > 0) {
@@ -94,10 +145,11 @@ SkPath Annulus::path(SkSize s) const {
   // contour, and what stands is the disc.
   if (!inner.isEmpty()) b.addOval(inner);
   if (dot > 0) b.addCircle(outer.centerX(), outer.centerY(), dot);
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Squircle::path(SkSize s) const {
+path::Outline Squircle::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const float e = std::max(exponent, 0.5f);
   const float cx = s.width() / 2, cy = s.height() / 2;
   constexpr int kSegments = 96;
@@ -114,10 +166,11 @@ SkPath Squircle::path(SkSize s) const {
       b.lineTo(p);
   }
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Blob::path(SkSize s) const {
+path::Outline Blob::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const int n = std::max(lobes, 3);
   const float cx = s.width() / 2, cy = s.height() / 2;
   std::vector<SkPoint> pts((size_t)n);
@@ -142,17 +195,19 @@ SkPath Blob::path(SkSize s) const {
     b.cubicTo(c1, c2, p2);
   }
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Arc::path(SkSize s) const {
+path::Outline Arc::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   SkPathBuilder b;
   b.addArc(SkRect::MakeWH(s.width(), s.height()), startDeg,
            std::min(sweepDeg, 359.9f));
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Sector::path(SkSize s) const {
+path::Outline Sector::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
   // arcTo swallows a full turn, so an unclamped sector(start, 360,
   // inner) — a gauge's annular TRACK, the most obvious call there is —
@@ -165,17 +220,18 @@ SkPath Sector::path(SkSize s) const {
     b.moveTo(cx, cy);
     b.arcTo(outerBox, startDeg, sweep, false);
     b.close();
-    return b.detach();
+    return path::fromSk(b.detach());
   }
   const SkRect innerBox = SkRect::MakeXYWH(
       cx - cx * inner, cy - cy * inner, s.width() * inner, s.height() * inner);
   b.arcTo(outerBox, startDeg, sweep, true);
   b.arcTo(innerBox, startDeg + sweep, -sweep, false);
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Parallelogram::path(SkSize s) const {
+path::Outline Parallelogram::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   // One signed lean drives both ends: the top edge slides right by it and
   // the bottom left by it, or the reverse when the skew is negative. So
   // either sign inscribes a parallelogram of width w - |lean| in the box
@@ -188,19 +244,19 @@ SkPath Parallelogram::path(SkSize s) const {
   b.lineTo(s.width() - top, s.height());
   b.lineTo(bottom, s.height());
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Lissajous::path(SkSize s) const {
+path::Outline Lissajous::outline(glm::vec2 size) const {
   const float delta = deltaDeg * SK_FloatPI / 180.0f;
   return detail::samplePolyline(
       [fa = a, fb = b, delta](float t) {
-        return SkPoint{std::sin(fa * t + delta), std::sin(fb * t)};
+        return glm::vec2{std::sin(fa * t + delta), std::sin(fb * t)};
       },
-      0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+      0.0f, turns * 2.0f * SK_FloatPI, samples, false, size);
 }
 
-SkPath Harmonograph::path(SkSize s) const {
+path::Outline Harmonograph::outline(glm::vec2 size) const {
   const float delta = deltaDeg * SK_FloatPI / 180.0f;
   return detail::samplePolyline(
       [fa = a, fb = b, delta, fdamping = damping,
@@ -208,50 +264,51 @@ SkPath Harmonograph::path(SkSize s) const {
         const float envelope = std::exp(-fdamping * t);
         const float x = envelope * std::sin(fa * t + delta);
         const float y = envelope * std::sin(fb * t);
-        if (fprecession == 0.0f) return SkPoint{x, y};
+        if (fprecession == 0.0f) return glm::vec2{x, y};
         const float th = fprecession * t;
         const float c = std::cos(th), sn = std::sin(th);
-        return SkPoint{x * c - y * sn, x * sn + y * c};
+        return glm::vec2{x * c - y * sn, x * sn + y * c};
       },
-      0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+      0.0f, turns * 2.0f * SK_FloatPI, samples, false, size);
 }
 
-SkPath Rose::path(SkSize s) const {
+path::Outline Rose::outline(glm::vec2 size) const {
   return detail::samplePolyline(
       [fk = k](float th) {
         const float r = std::cos(fk * th);
-        return SkPoint{r * std::cos(th), r * std::sin(th)};
+        return glm::vec2{r * std::cos(th), r * std::sin(th)};
       },
-      0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+      0.0f, turns * 2.0f * SK_FloatPI, samples, false, size);
 }
 
-SkPath Spiral::path(SkSize s) const {
+path::Outline Spiral::outline(glm::vec2 size) const {
   const float total = turns * 2.0f * SK_FloatPI;
   return detail::samplePolyline(
       [flog = logarithmic, fgrowth = growth, total](float th) {
         const float r = flog
                             ? std::exp(fgrowth * th) / std::exp(fgrowth * total)
                             : th / total;
-        return SkPoint{r * std::cos(th), r * std::sin(th)};
+        return glm::vec2{r * std::cos(th), r * std::sin(th)};
       },
-      0.0f, total, samples, false, s);
+      0.0f, total, samples, false, size);
 }
 
-SkPath Trochoid::path(SkSize s) const {
+path::Outline Trochoid::outline(glm::vec2 size) const {
   const float sign = inside ? -1.0f : 1.0f;
   const float sum = R + sign * r;
   const float extent = std::max(std::abs(sum) + std::abs(d), 1e-3f);
   return detail::samplePolyline(
       [fR = R, fr = r, fd = d, sign, sum, extent](float t) {
         const float k = sum / std::max(fr, 1e-3f);
-        return SkPoint{
+        return glm::vec2{
             (sum * std::cos(t) - sign * fd * std::cos(k * t)) / extent,
             (sum * std::sin(t) - fd * std::sin(k * t)) / extent};
       },
-      0.0f, turns * 2.0f * SK_FloatPI, samples, false, s);
+      0.0f, turns * 2.0f * SK_FloatPI, samples, false, size);
 }
 
-SkPath Chamfered::path(SkSize s) const {
+path::Outline Chamfered::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const float w = s.width(), h = s.height();
   // A 45 degree cut clamps to the SHORT side so it stays at 45 degrees;
   // an anisotropic one was never at 45 and clamps each leg to its own
@@ -308,10 +365,11 @@ SkPath Chamfered::path(SkSize s) const {
   }
   if (cutting(Corner::TopLeft)) b.lineTo(0, rise);
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Notched::path(SkSize s) const {
+path::Outline Notched::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const float w = s.width(), h = s.height();
   const float n = std::clamp(notchWidth, 0.0f, std::min(w, h) * 0.45f);
   const float d = std::clamp(depth, 0.0f, std::min(w, h) * 0.45f);
@@ -352,10 +410,11 @@ SkPath Notched::path(SkSize s) const {
     b.lineTo(n, d);
   }
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Arrow::path(SkSize s) const {
+path::Outline Arrow::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const float w = s.width(), h = s.height();
   const float half = std::clamp(shaftFrac, 0.02f, 1.0f) * h * 0.5f;
   const float head = std::clamp(headFrac, 0.05f, 1.0f) * w;
@@ -370,10 +429,11 @@ SkPath Arrow::path(SkSize s) const {
   b.lineTo(w - head, cy + half);
   b.lineTo(0, cy + half);
   b.close();
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
-SkPath Chevron::path(SkSize s) const {
+path::Outline Chevron::outline(glm::vec2 size) const {
+  const SkSize s = path::toSkSize(size);
   const float w = s.width(), h = s.height();
   const float cx = w * 0.5f, cy = h * 0.5f;
   const float out = w * spread, fall = h * drop, weight = h * thickness;
@@ -394,7 +454,7 @@ SkPath Chevron::path(SkSize s) const {
     b.addRect({0, cy - weight * 0.5f, run, cy + weight * 0.5f});
     b.addRect({w - run, cy - weight * 0.5f, w, cy + weight * 0.5f});
   }
-  return b.detach();
+  return path::fromSk(b.detach());
 }
 
 }  // namespace sigil::geometry::shapes

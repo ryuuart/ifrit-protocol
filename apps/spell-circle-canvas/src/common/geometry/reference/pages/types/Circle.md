@@ -27,9 +27,10 @@ reads upside down wants this argument rather than a hand-written
 
 `sigil::geometry::shapes::Circle::startIndex` picks which of the oval's
 four extreme points the contour begins at, which is what a text path
-measures its arc-length fraction from. It defaults to 1 to match Skia's
-own `addOval(rect, dir)`, so `circle(kCW)` yields byte-for-byte the
-path `circle()` gives and the oriented overload is a strict superset.
+measures its arc-length fraction from. It defaults to 1, the oval's
+due-east extreme, so `circle(path::Winding::OutersClockwise)` yields
+exactly the outline `circle()` gives and the oriented overload is a
+strict superset.
 Changing that default would silently move every label placed by
 arc-length fraction.
 

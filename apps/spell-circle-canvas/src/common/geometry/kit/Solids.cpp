@@ -15,6 +15,7 @@
 #include "sigilgeometry/path/Direction.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::geometry::mesh {
 
@@ -39,15 +40,16 @@ void orientTriangle(const std::vector<glm::vec3>& positions, uint32_t* tri,
 
 }  // namespace
 
-Mesh extrude(const SkPath& path, const ExtrudeOptions& options) {
+Mesh extrude(const path::Outline& outline, const ExtrudeOptions& options) {
   Mesh out;
-  std::vector<Polyline> rings = flatten(path, options.tolerance);
+  const SkPath source = path::toSk(outline);
+  std::vector<Polyline> rings = flatten(source, options.tolerance);
   std::erase_if(rings, [](const Polyline& r) { return r.points.size() < 3; });
   if (rings.empty()) return out;
 
   // Center on the path bounds, flip y so the mesh sits in y-up space
   // with the artwork upright.
-  const SkRect pathBounds = path.computeTightBounds();
+  const SkRect pathBounds = source.computeTightBounds();
   const glm::vec2 center = {pathBounds.centerX(), pathBounds.centerY()};
   for (Polyline& ring : rings)
     for (glm::vec2& p : ring.points) p = {p.x - center.x, -(p.y - center.y)};

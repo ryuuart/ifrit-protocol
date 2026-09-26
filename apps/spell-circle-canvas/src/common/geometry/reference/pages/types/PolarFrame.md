@@ -71,7 +71,7 @@ spelled as two absolute angles.
 ## The arc-length fraction
 
 `fraction()` answers the value a text path's `at` wants.
-`shapes::circle()` is `addOval` on an `SkPathBuilder` with direction kCW
+`shapes::circle()` is an oval drawn with `path::Winding::OutersClockwise`
 and `startIndex` 1,
 so its contour starts at the oval's **due-east** extreme and advances
 the way screen-clockwise runs. The fraction is therefore the screen
