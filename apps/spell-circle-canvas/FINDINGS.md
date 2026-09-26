@@ -1073,3 +1073,19 @@ should assert that `Filter::of` does not accept a colour type — a
 deleted overload taking an integral or enumeration argument, or a radius
 type of its own — so the mistake fails to compile; the sketches still to
 be swept are where it would otherwise recur.
+
+## Two Compose log cases pass alone and fail when the whole binary runs in one process
+
+`ComposeMaterial.AFillRefusesATextUnitOnASurfaceWithNoPaintToPlace`
+(`compose/core/test/ComposeTestMaterial.cpp:940`) and
+`ComposeInkUnits.ARulesUnitLandingOnABoxDrawsAsTheVerbsDoes`
+(`compose/typography/test/ComposeTestInkUnits.cpp:525`) each expect a
+warning in the log their case captures. Under ctest, one process per
+case, both pass; running `compose_test` whole, both fail, because the
+warnings they read are warned once per process and an earlier case in
+the same process already spent them.
+
+The cases are evidently meant to assert the refusal whatever ran before
+them. A test should reset the warn-once state it reads (or read a
+per-composer report), so that `compose_test` run whole and each case run
+alone give the same answer.
