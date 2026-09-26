@@ -58,5 +58,5 @@ sigil_doc_probes(media
           "compose::image=SigilCompose stands on this library, so a name its README gives a caller is compiled by SigilCompose's probe"
           "OIIO::ImageOutput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
           "OIIO::ImageInput=OpenImageIO's own, named as the dependency it is: its headers are not scanned"
-  FLOORS 45,54,21,49,1
+  FLOORS 44,54,21,49,1
   LIBRARIES SigilMedia SigilIOHub)

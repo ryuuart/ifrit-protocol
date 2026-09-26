@@ -63,7 +63,7 @@ bool redAt(SkSurface& surface, int x, int y) {
 
 }  // namespace
 
-TEST(ComposeMovingImage, AClipIsALiveLeafAtItsOwnSize) {
+TEST(ComposeMovingImage, AClipIsALiveLeafDrawnIntoItsBox) {
   const auto clip = redClip();
   ASSERT_NE(clip, nullptr);
   sigil::motion::Engine engine;
@@ -73,7 +73,7 @@ TEST(ComposeMovingImage, AClipIsALiveLeafAtItsOwnSize) {
                       .fill(Fill::color({0, 0, 1, 1}))
                       .alignItems(Align::Center)
                       .justifyContent(Justify::Center)
-                      .children({image(clip)}));
+                      .children({image(clip).width(64).height(64)}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 128));

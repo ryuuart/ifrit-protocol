@@ -48,7 +48,8 @@ def image(image: skia.Image,
 elapsed time**, so an animation or a video plays on the motion clock —
 placed by the `media::Timing` the source was made with — and a moving
 source keeps the node live while a still one caches. Under `Native` it
-asks nothing of the box; under the other fits it meets the box as a
+asks nothing of the box, so the leaf is sized as any node is and the
+frame is drawn into that box; under the other fits it meets the box as a
 picture does, below.
 
 **The picture leaf takes the box it stands in** under every fit, and

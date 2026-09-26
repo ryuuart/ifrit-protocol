@@ -193,13 +193,13 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *  an animation and a video play on the motion clock, placed by the
  *  `sigil::media::Timing` the source was made with.
  *
- *      image(poster)                                   // its own pixels
+ *      image(poster).width(320).height(180)            // sized as any node is
  *      image(clip, material::Fit::Cover)               // a video filling its box
  *      image(media::PixelSource(clip, {.start = 410ms, .rate = 0.72}))
  *
  *  @p fit is how the source meets a box of another shape, as it is for a
- *  picture below; `Native`, the default, asks nothing of the box, so a
- *  leaf given no size stands at the source's own pixels.
+ *  picture below; `Native`, the default, asks nothing of the box, so the
+ *  leaf is sized as any node is and the frame is drawn into that box.
  *  `imageRegion()` draws one sub-rect of an atlas and `imageRendering()` —
  *  inherited from any ancestor — says how the pixels are filtered. An
  *  empty source draws nothing. */
