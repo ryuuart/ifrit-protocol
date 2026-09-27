@@ -1,6 +1,7 @@
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/material/Convert.h>
 #include <sigilpython/material/Registration.h>
@@ -19,11 +20,19 @@ void bindMaterialPattern(py::module_& module) {
            py::arg("factor"), fluent)
       .def("rotate", py::overload_cast<float>(&pattern::Tile::rotate),
            py::arg("degrees"), fluent)
-      .def("offset", py::overload_cast<SkPoint>(&pattern::Tile::offset),
-           py::arg("offset"), fluent)
-      .def("image", &pattern::Tile::image)
+      .def(
+          "offset",
+          [](pattern::Tile& tile, py::handle value) -> pattern::Tile& {
+            const SkPoint offset = point(value);
+            return tile.offset({offset.x(), offset.y()});
+          },
+          py::arg("offset"), fluent)
+      .def("image",
+           [](const pattern::Tile& tile) {
+             return material::skia::image(tile.texture());
+           })
       .def("paint", [](const pattern::Tile& tile) {
-        return material::skia::paint(tile.texture().shader());
+        return material::skia::paint(material::skia::shader(tile.texture()));
       });
   patterns.def(
       "gridLines",
