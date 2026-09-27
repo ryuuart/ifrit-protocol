@@ -246,8 +246,10 @@ class Element {
    *  @{ */
   /** What the author asked of this node's cache. */
   Element& cache(core::Cache c);
-  /** The node's default transition, for the plain constants on it. A
-   *  duration alone is the common case: `.transition(320ms)`. */
+  /** The node's default transition, for the plain constants on it: a
+   *  tween read for its timing, whose `from`, `to`, keyframes and repeat
+   *  are not read. A duration alone is the common case:
+   *  `.transition(320ms)`. */
   Element& transition(const motion::Tween<float>& transition);
   Element& transition(motion::Duration duration) {
     return transition(motion::Tween<float>{.duration = duration});
