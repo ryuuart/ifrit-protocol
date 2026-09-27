@@ -44,8 +44,7 @@ void bindComposeKit(pybind11::module_& module);
 /** Registers annotate with Beside and Anchored, trackMeter and
  *  restGhost on @p module. */
 void bindComposeKitAnnotations(pybind11::module_& module);
-/** Registers bevel, the era token sets, y2k chrome, aqua gel and gloss
- *  on @p module. */
+/** Registers bevel and the era token sets on @p module. */
 void bindComposeKitEras(pybind11::module_& module);
 /** Registers the textFx:: kinetic presets on @p module. */
 void bindComposeKitKinetic(pybind11::module_& module);

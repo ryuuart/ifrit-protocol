@@ -44,7 +44,8 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Ground.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilmaterial/field/Field.h>
@@ -57,6 +58,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
+#include <algorithm>
 #include <memory>
 
 #include "Figures.h"
@@ -72,6 +74,29 @@ using namespace sigil::weave::literals;
 using material::Paint;
 
 namespace {
+
+/** The darkening toward the corners of the box it fills: transparent out
+ *  to @p clear of the way to the far corner, then ramped to @p edge at the
+ *  corner itself, measured to the CORNER so the shading meets all four
+ *  corners at one value on a box that is not square. */
+material::Material vignette(material::Color edge, float clear = 0.45f) {
+  material::Color inner = edge;
+  inner.a = 0;
+  return material::radialGradient(
+      {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
+}
+
+/** @p over WITH A GRAIN IN IT: luminance noise soft-lit over the colour,
+ *  so the ground is dressed in light rather than speckled in hue. @p amount
+ *  is how far the grain reaches (0 is @p over exactly), @p frequency is
+ *  features per px: around 0.8 is film grain, around 0.05 is paper. */
+material::Material grained(material::Color over, float amount = 0.06f,
+                           float frequency = 0.8f) {
+  return material::from(over).layer(
+      material::noise(frequency, {.octaves = 2, .grain = true}),
+      {.blend = material::BlendMode::SoftLight,
+       .opacity = std::clamp(amount, 0.0f, 1.0f)});
+}
 
 /** The star's tips stop just short of the rim, as engraved. */
 constexpr float kTip = 0.985f;
@@ -238,7 +263,7 @@ struct ChladniTab1 {
     return box()
         .key("leaf")
         .cover()
-        .fill(kit::grained(colourOf(plate["ink"]["paper"]), 0.16f, 0.013f))
+        .fill(grained(colourOf(plate["ink"]["paper"]), 0.16f, 0.013f))
         .children({
             box().cover().fill(foxing.material()),
             kit::at(box().fill(foxingLow.material()), 0, canvas.height() * 0.5f,
@@ -257,7 +282,7 @@ struct ChladniTab1 {
                                         .shadow = {edge.r * 0.6f, edge.g * 0.6f,
                                                    edge.b * 0.6f, 0.5f}}),
             box().cover().fill(
-                kit::vignette(canvas, {edge.r, edge.g, edge.b, 0.26f}, 0.62f)),
+                vignette({edge.r, edge.g, edge.b, 0.26f}, 0.62f)),
             box().cover().fill(material::Paint::linearGradient(
                 {0, 0}, {canvas.width() * 0.09f, 0},
                 {{edge.r * 0.5f, edge.g * 0.5f, edge.b * 0.5f, 0.22f},

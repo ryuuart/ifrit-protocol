@@ -51,7 +51,7 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Ground.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Rows.h>
 #include <sigilcompose/typography/Typography.h>
@@ -73,6 +73,7 @@
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
 
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 #include <ranges>
@@ -91,6 +92,17 @@ using namespace sigil::compose;
 using sigil::material::hexColor;
 
 namespace {
+
+/** The darkening toward the corners of the box it fills: transparent out
+ *  to @p clear of the way to the far corner, then ramped to @p edge at the
+ *  corner itself, measured to the CORNER so the shading meets all four
+ *  corners at one value on a box that is not square. */
+material::Material vignette(material::Color edge, float clear = 0.45f) {
+  material::Color inner = edge;
+  inner.a = 0;
+  return material::radialGradient(
+      {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
+}
 
 constexpr SkSize kCanvas{1440, 880};
 
@@ -803,10 +815,10 @@ struct ShippingForecast {
             {.units = material::GradientUnits::Pixels}))
         .children({
             // The sea falls to near black at the corners. It carries no
-            // grain: `kit::grained` lays its noise on as soft light, which
+            // grain: a grain soft-lit over the ground, which
             // moves a ground this dark by less than one level.
             box().cover().fill(
-                kit::vignette(kCanvas, hexColor(0x020304, 0.9f), 0.3f)),
+                vignette(hexColor(0x020304, 0.9f), 0.3f)),
             spine().opacity(envelope()),
             box()
                 .column()

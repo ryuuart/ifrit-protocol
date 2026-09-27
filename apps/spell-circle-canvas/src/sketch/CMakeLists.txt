@@ -230,7 +230,6 @@ sigil_doc_probes(sketch
            "<sigilio/transport/Transport.h>"
            "<sigilcompose/Compose.h>"
            "<sigilcompose/draw/Draw.h>"
-           "<sigilcompose/kit/Ground.h>"
            "<sigilcompose/kit/Marquee.h>"
            "<sigilcompose/kit/Plate.h>"
            "<sigilcompose/typography/TextEffect.h>"

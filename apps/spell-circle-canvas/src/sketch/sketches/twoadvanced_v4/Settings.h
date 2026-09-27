@@ -18,7 +18,6 @@
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/kit/Placers.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -58,6 +57,7 @@
 #include <vector>
 
 #include "../twoadvanced_v3/TwoAdvanced.h"
+#include "../y2k_chrome/Gloss.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;

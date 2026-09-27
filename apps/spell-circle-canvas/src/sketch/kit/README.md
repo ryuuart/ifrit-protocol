@@ -696,7 +696,7 @@ computed from anything states its `thumbLength` instead.
 
 | | |
 | --- | --- |
-| `backdrop(Backdrop)` | the theme's ground over the whole surface, shaded toward the corners and grained, over `compose::kit::vignette` and `grained` |
+| `backdrop(Backdrop)` | the theme's ground over the whole surface, shaded toward the corners and grained, as two materials: a radial gradient and a noise soft-lit over mid grey |
 | `panel(Panel, content)` | a titled region of a page: an eyebrow over a title, a note ranged at the far edge of the head, and the content on the plate under it |
 | `frame(Frame, screen)` | a device's chrome: an outer shell, a screen inset into it by the bezel on every side, and the plate its word is engraved on |
 
@@ -828,9 +828,9 @@ A leaf may not invent what an ancestor should own.
   head and the sheet's own layout — `compose::kit::cells`, `panelGrid`,
   `cell`, `well`, `panel`, `sheet`. This library
   puts values into those; it does not restate them.
-* A ground's vignette and its grain as fills — `compose::kit::vignette`
-  and `compose::kit::grained` (`kit/Ground.h`). `backdrop` puts the
-  theme's values into those; it does not build a shader.
+* A ground's vignette and its grain — `material::radialGradient` and
+  `material::noise` layered by `material::Material::layer`. `backdrop`
+  puts the theme's values into those; it does not build a shader.
 * Ring and grid arithmetic — `geometry::arrange`. Do not respell it with
   `std::cos` and `std::sin`; the two round differently.
 * Entrances, loops and the stagger cascade — `compose::kit::textFx`, spelled

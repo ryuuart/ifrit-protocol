@@ -413,7 +413,7 @@ auto TwoAdvancedV4::monitorBody(float h) -> Element {
                                                    {0.15f, kPanel},
                                                    {0.88f, kPanel},
                                                    {1.00f, kPanelSh}}))
-      .foreground(kit::gloss(sigil::material::withAlpha(kPanelHi, 0.5f), 40,
+      .foreground(y2k::gloss(sigil::material::withAlpha(kPanelHi, 0.5f), 40,
                              {0, -h * 0.34f}, 0.72f, 0.28f))
       .foreground(onEdges(path::Edge::Top,
                           stroke(1,

@@ -30,6 +30,7 @@
 
 #include <include/core/SkMaskFilter.h>
 #include <sigilcompose/brush/Adaptors.h>
+#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>

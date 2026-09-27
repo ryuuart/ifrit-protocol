@@ -59,7 +59,7 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Ground.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigildata/decode/Json.h>
@@ -89,6 +89,17 @@ namespace weave = sigil::weave;
 using namespace sigil::compose;
 
 namespace {
+
+/** The darkening toward the corners of the box it fills: transparent out
+ *  to @p clear of the way to the far corner, then ramped to @p edge at the
+ *  corner itself, measured to the CORNER so the shading meets all four
+ *  corners at one value on a box that is not square. */
+material::Material vignette(material::Color edge, float clear = 0.45f) {
+  material::Color inner = edge;
+  inner.a = 0;
+  return material::radialGradient(
+      {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
+}
 
 constexpr float kWidth = 1280;
 constexpr float kHeight = 780;
@@ -464,8 +475,7 @@ struct MatrixRain {
         .cache(Cache::Texture)
         .foreground(styles::scanlines({0, 0, 0, 0.14f}, 3, 1))
         .children({
-            box().cover().fill(kit::vignette(
-                {kWidth, kHeight}, {0.002f, 0.008f, 0.004f, 0.55f}, 0.35f)),
+            box().cover().fill(vignette({0.002f, 0.008f, 0.004f, 0.55f}, 0.35f)),
             box().cover().fill(material::Paint::linearGradient(
                 {0, 0}, {kWidth * 0.55f, kHeight * 0.75f},
                 {{0.0f, {0.80f, 1.0f, 0.88f, 0.050f}},

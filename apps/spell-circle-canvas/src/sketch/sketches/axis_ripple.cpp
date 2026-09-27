@@ -59,7 +59,8 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Ground.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/TextFx.h>
@@ -73,6 +74,7 @@
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <string_view>
@@ -86,6 +88,29 @@ using namespace sigil::compose;
 using sigil::material::hexColor;
 
 namespace {
+
+/** The darkening toward the corners of the box it fills: transparent out
+ *  to @p clear of the way to the far corner, then ramped to @p edge at the
+ *  corner itself, measured to the CORNER so the shading meets all four
+ *  corners at one value on a box that is not square. */
+material::Material vignette(material::Color edge, float clear = 0.45f) {
+  material::Color inner = edge;
+  inner.a = 0;
+  return material::radialGradient(
+      {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
+}
+
+/** @p over WITH A GRAIN IN IT: luminance noise soft-lit over the colour,
+ *  so the ground is dressed in light rather than speckled in hue. @p amount
+ *  is how far the grain reaches (0 is @p over exactly), @p frequency is
+ *  features per px: around 0.8 is film grain, around 0.05 is paper. */
+material::Material grained(material::Color over, float amount = 0.06f,
+                           float frequency = 0.8f) {
+  return material::from(over).layer(
+      material::noise(frequency, {.octaves = 2, .grain = true}),
+      {.blend = material::BlendMode::SoftLight,
+       .opacity = std::clamp(amount, 0.0f, 1.0f)});
+}
 
 constexpr float kWidth = 1120.0f;
 constexpr float kHeight = 620.0f;
@@ -427,7 +452,7 @@ struct AxisRipple {
    *  specimen line and darkened toward the corners. Nothing on it moves,
    *  so it is baked once and blitted under everything that does.
    *
-   *  The sheet asks for a fine grain, but `kit::grained` puts no grain on
+   *  The sheet asks for a fine grain, but `grained` puts no grain on
    *  a near-black ground: it folds its noise in by soft light, whose
    *  change on a dark destination stays under one 8-bit level, so this
    *  fill reads as the flat paper until the kit's grain holds its
@@ -438,15 +463,14 @@ struct AxisRipple {
         .cover()
         .key("ground")
         .cache(Cache::Texture)
-        .fill(kit::grained(kPaper, 0.07f, 0.85f))
+        .fill(grained(kPaper, 0.07f, 0.85f))
         .children({box().cover().fill(material::Paint::radialGradient(
                        {kWidth * 0.5f, kHeight * 0.36f}, kWidth * 0.62f,
                        {{0.0f, material::withAlpha(skylight, 0.13f)},
                         {0.5f, material::withAlpha(skylight, 0.04f)},
                         {1.0f, material::withAlpha(skylight, 0.0f)}},
                        {.units = material::GradientUnits::Pixels})),
-                   box().cover().fill(kit::vignette({kWidth, kHeight},
-                                                    {0, 0, 0, 0.55f}, 0.4f))});
+                   box().cover().fill(vignette({0, 0, 0, 0.55f}, 0.4f))});
   }
 
   [[nodiscard]] Element describe() const {

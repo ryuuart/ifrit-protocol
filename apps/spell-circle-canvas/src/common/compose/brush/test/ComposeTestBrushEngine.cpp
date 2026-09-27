@@ -476,32 +476,6 @@ TEST(ComposeBrushes, OutgoingCornerAlignmentFacesTheNextEdge) {
   EXPECT_GT(gc.y() - rc.y(), 6.0f);
 }
 
-TEST(ComposeBrushTail, GlossContourRingIsWhereTheCoverageSaysNotTheAlpha) {
-  // A translucent gloss whose alpha equals the ring's centre must still
-  // leave the deep interior at the fill: the ring reads coverage, and the
-  // alpha only dims the ring it found.
-  Host plain, glossed;
-  auto shape = [] {
-    return box()
-        .absolute()
-        .inset(50)
-        .borderRadius({24})
-        .fill(Fill::color({0.2f, 0.3f, 0.5f, 1}));
-  };
-  plain.composer.render(box().children({shape()}));
-  plain.frame();
-  glossed.composer.render(box().children({shape().foreground(
-      kit::gloss({1, 1, 1, 0.5f}, 8, {0, -4}, /*ringCenter=*/0.5f))}));
-  glossed.frame();
-  int changed = 0;
-  for (int y = 52; y < 148; y += 2)
-    for (int x = 52; x < 148; x += 2)
-      if (plain.pixel(x, y) != glossed.pixel(x, y)) ++changed;
-  EXPECT_GT(changed, 40);                                     // a band
-  EXPECT_EQ(plain.pixel(100, 100), glossed.pixel(100, 100));  // not a wash
-  EXPECT_EQ(plain.pixel(30, 30), glossed.pixel(30, 30));      // and clipped out
-}
-
 // ---------------------------------------------------------------------------
 // The numbers a brush is asked for, and the ones it refuses
 

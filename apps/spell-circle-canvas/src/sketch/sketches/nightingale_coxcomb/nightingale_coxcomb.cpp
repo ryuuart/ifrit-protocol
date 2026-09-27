@@ -50,7 +50,8 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Ground.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/kit/Kinetic.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/scale/Scale.h>
@@ -99,6 +100,29 @@ using namespace std::chrono_literals;
 using sigil::material::Paint;
 
 namespace {
+
+/** The darkening toward the corners of the box it fills: transparent out
+ *  to @p clear of the way to the far corner, then ramped to @p edge at the
+ *  corner itself, measured to the CORNER so the shading meets all four
+ *  corners at one value on a box that is not square. */
+material::Material vignette(material::Color edge, float clear = 0.45f) {
+  material::Color inner = edge;
+  inner.a = 0;
+  return material::radialGradient(
+      {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
+}
+
+/** @p over WITH A GRAIN IN IT: luminance noise soft-lit over the colour,
+ *  so the ground is dressed in light rather than speckled in hue. @p amount
+ *  is how far the grain reaches (0 is @p over exactly), @p frequency is
+ *  features per px: around 0.8 is film grain, around 0.05 is paper. */
+material::Material grained(material::Color over, float amount = 0.06f,
+                           float frequency = 0.8f) {
+  return material::from(over).layer(
+      material::noise(frequency, {.octaves = 2, .grain = true}),
+      {.blend = material::BlendMode::SoftLight,
+       .opacity = std::clamp(amount, 0.0f, 1.0f)});
+}
 
 // ---------------------------------------------------------------------------
 // THE SHEET'S GRID. The canvas keeps the plate's 35:19. Both hubs stand on
@@ -325,10 +349,10 @@ struct NightingaleCoxcomb {
     const float gutter = 180.0f;
     return stack()
         .inset(0)
-        .fill(kit::grained(colour("paper"), 0.05f, 0.011f))
+        .fill(grained(colour("paper"), 0.05f, 0.011f))
         .children({
             box().inset(0).fill(foxing.material()),
-            box().inset(0).fill(kit::vignette(kCanvas, colour("umber"), 0.62f)),
+            box().inset(0).fill(vignette(colour("umber"), 0.62f)),
             box()
                 .inset(kPlateMark + 2)
                 .fill(Fill::color(material::withAlpha(colour("paper"), 0.28f))),

@@ -937,12 +937,7 @@ bar in `Bars::bar` on the track `Bars::rest` holds, with the figure after it as
 a function of the VALUE because how a number reads is the data's business; a
 readout and a table are different readings and neither is the other with a
 field set, and `kit::figure` is the one leaf a measured figure is set by, in
-the class `readout`, wherever it stands; `kit/Ground.h`'s two dressings for a
-flat ground — `kit::vignette`, a radial ramp measured to the CORNER so it meets
-all four at one value on a surface that is not square, and `kit::grained`,
-value noise collapsed to one channel and soft-lit so a coloured ground takes a
-grain as light rather than as speckled hue, with mid grey soft light's identity
-and so the strength linear and zero exact — the furniture a page of set text
+the class `readout`, wherever it stands; the furniture a page of set text
 carries in `kit/Typeset.h` (`kit::ruby` and `kit::kenten`, the two stock
 `Annotation`s; `kit::bullets`, whose markers hang in the indent; `kit::rules`,
 cut to the extent a block's lines occupy; `kit::NestedStyle` with

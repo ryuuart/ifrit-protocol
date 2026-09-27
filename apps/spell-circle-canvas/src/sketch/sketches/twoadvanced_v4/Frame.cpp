@@ -40,7 +40,7 @@ auto TwoAdvancedV4::cta(const char* lbl, float w, float h,
           {0, 0}, {0, 1},
           {{0.0f, kCtaHi}, {0.42f, kCta}, {1.0f, hexColor(0x3A0000)}}))
       .stroke(stroke(1, Fill::color(kChrome), PathFormat::Align::Outer))
-      .foreground(kit::gloss(sigil::material::withAlpha(kCtaHi, 0.55f),
+      .foreground(y2k::gloss(sigil::material::withAlpha(kCtaHi, 0.55f),
                              h * 0.30f, {0, -h * 0.26f}, 0.62f, 0.30f))
       .foreground(
           stroke(1, Fill::color(sigil::material::withAlpha(hairline, 0.45f)),

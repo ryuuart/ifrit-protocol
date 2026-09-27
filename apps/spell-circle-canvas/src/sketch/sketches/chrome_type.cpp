@@ -18,13 +18,13 @@
 //
 // The rows:
 //
-//   · CHROME — y2kChrome(), the whole bundle: shadow, palette ramp,
-//     horizon sliver, chisel bevel, keyline. On glyphs the horizon
+//   · CHROME — y2k::y2kChrome(), the whole plate: shadow, palette ramp,
+//     chisel bevel, keyline. On glyphs the horizon
 //     crosses every letter at the same height, because the ramp is read
 //     off the node's box while the shape it fills is the letters.
-//   · AQUA — aquaGel(), body and gloss. Its lens is a fraction of the
-//     node's height, so on a word it reads as one lens across the whole
-//     wordmark rather than one per letter.
+//   · AQUA — y2k::aquaGel(), the gel body. Its lengths are a fraction of
+//     the height it is given, so on a word it reads as one body across the
+//     whole wordmark rather than one per letter.
 //   · BEVEL + GLOW — the two plainest decorations, to show that the
 //     boundary is a property of the NODE and not of any one style.
 //
@@ -37,9 +37,7 @@
 
 #include <sigilcompose/brush/Brush.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilcompose/kit/Chrome.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
@@ -47,6 +45,9 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
+
+#include "y2k_chrome/Aqua.h"
+#include "y2k_chrome/ChromeType.h"
 
 #include <string>
 #include <utility>
@@ -118,25 +119,23 @@ struct ChromeType {
     ctx.composer.render(describe());
   }
 
-  /** One PAIR: the same style value on a box and on the letters, as two
+  /** One PAIR: the same material on a box and on the letters, as two
    *  cells of one run so the two boundaries are captioned in one voice and
    *  the only thing that differs between them is the boundary. */
-  Element pair(const char* name, const LayerStyle& style,
+  Element pair(const char* name, const material::Material& finish,
                material::Color letterInk = {0.72f, 0.75f, 0.80f, 1}) {
     namespace c = chrome;
     // On the box: the style dresses the node's own shape and the word
     // sits inside it.
     Element onBox = sketch::kit::caption(
         0, "RECTANGLE", "The finish follows the enclosing box.",
-        box().padding(18).borderRadius({6}).layerStyle(style).children(
+        box().padding(18).borderRadius({6}).fill(finish).children(
             {text(c::kWordmark, c::wordmark(letterInk))}));
     // The letters: the same value, the other boundary.
     Element onGlyphs = sketch::kit::caption(
         0, "GLYPH OUTLINE", "The same finish follows the letters.",
         box().padding(18).children(
-            {text(c::kWordmark, c::wordmark({0, 0, 0, 0}))
-                 .decorationOutline(Boundary::Glyphs)
-                 .layerStyle(style)}));
+            {text(c::kWordmark, c::wordmark({0, 0, 0, 0})).ink(finish)}));
     // The pair's own name stands wider and larger than a cell's call, so
     // its label is this cell's own leaf — the register, this size over it
     // — and the two captions under it keep the register as it is.
@@ -157,25 +156,29 @@ struct ChromeType {
   Element describe() {
     namespace c = chrome;
 
-    // The two plainest decorations, hand-bundled: what is under the shape
-    // and what is over it, which is all a LayerStyle is.
-    const LayerStyle bevelAndGlow{
-        .under = {styles::OuterGlow{{0.45f, 0.72f, 1.0f, 0.85f}, 16.0f, 1.0f}},
-        .over = {styles::BevelEmboss{
-            .depth = 3.0f, .size = 4.0f, .angleDeg = 120.0f}}};
+    // The two plainest effects, hand-bundled over a plain body: a glow
+    // under the shape and a bevel over it.
+    const material::Material bevelAndGlow =
+        material::from(material::Color{0.72f, 0.75f, 0.80f, 1})
+            .effects(material::Filter::shadow({0.45f, 0.72f, 1.0f, 0.85f},
+                                              {.blur = 16.0f, .spread = 1.0f})
+                         .then(material::Filter::bevel({.depth = 3.0f,
+                                                        .size = 4.0f,
+                                                        .angleDegrees = 120.0f})));
 
     return sketch::kit::page(
         {.title = u8"One finish, two outlines",
          .subtitle = u8"Compare how the same light, bevel and colour follow "
                      u8"a rectangle or the contours of a word.",
          .footer = u8"Boundary::Auto uses the box. Boundary::Glyphs uses "
-                   u8"the shaped letters. The layer style stays the same.",
+                   u8"the shaped letters. The material stays the same.",
          .ground = material::Paint::linearGradient(
              {0, 0}, {0, c::kH}, {c::kGroundLift, c::kGround},
              {.units = material::GradientUnits::Pixels})},
         kit::cells(
-            {.cells = {pair("Y2K CHROME", kit::y2kChrome()),
-                       pair("AQUA GEL", kit::aquaGel(hexColor(0x1E8FFF))),
+            {.cells = {pair("Y2K CHROME", y2k::y2kChrome()),
+                       pair("AQUA GEL",
+                            y2k::aquaGel(hexColor(0x1E8FFF), c::kDisplay + 36)),
                        pair("BEVEL + GLOW", bevelAndGlow)},
              .column = true,
              .gap = 24}));
@@ -186,4 +189,4 @@ struct ChromeType {
 
 SIGIL_SKETCH_AS(
     ChromeType, "chrome_type", "Catalog · Type",
-    "layer styles dressing glyph outlines, beside the same on a box")
+    "materials dressing glyph outlines, beside the same on a box")

@@ -17,12 +17,13 @@
 #include <sigilcompose/core/SurfacePaint.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Gel.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+
+#include "y2k_chrome/Aqua.h"
 #include <sigilweave/style/Type.h>
 
 #include <cmath>
@@ -53,7 +54,8 @@ Element gel(float height) {
                           .width(112)
                           .height(height)
                           .borderRadius({height / 2})
-                          .layerStyle(kit::aquaGel({0.10f, 0.64f, 0.96f, 1}))
+                          .fill(y2k::aquaGel({0.10f, 0.64f, 0.96f, 1}, height))
+                          .foreground(y2k::aquaLens())
                           .cache(Cache::Texture));
 }
 

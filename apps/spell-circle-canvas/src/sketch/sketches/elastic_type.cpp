@@ -105,7 +105,8 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Ground.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/TextFx.h>
 #include <sigilcompose/typography/Track.h>
@@ -135,6 +136,29 @@ using namespace sigil::compose;
 using sigil::material::hexColor;
 
 namespace {
+
+/** The darkening toward the corners of the box it fills: transparent out
+ *  to @p clear of the way to the far corner, then ramped to @p edge at the
+ *  corner itself, measured to the CORNER so the shading meets all four
+ *  corners at one value on a box that is not square. */
+material::Material vignette(material::Color edge, float clear = 0.45f) {
+  material::Color inner = edge;
+  inner.a = 0;
+  return material::radialGradient(
+      {0.5f, 0.5f}, 1.0f, {{std::clamp(clear, 0.0f, 1.0f), inner}, {1.0f, edge}});
+}
+
+/** @p over WITH A GRAIN IN IT: luminance noise soft-lit over the colour,
+ *  so the ground is dressed in light rather than speckled in hue. @p amount
+ *  is how far the grain reaches (0 is @p over exactly), @p frequency is
+ *  features per px: around 0.8 is film grain, around 0.05 is paper. */
+material::Material grained(material::Color over, float amount = 0.06f,
+                           float frequency = 0.8f) {
+  return material::from(over).layer(
+      material::noise(frequency, {.octaves = 2, .grain = true}),
+      {.blend = material::BlendMode::SoftLight,
+       .opacity = std::clamp(amount, 0.0f, 1.0f)});
+}
 
 constexpr SkSize kCanvas{1080, 620};
 constexpr float kMargin = 48;
@@ -542,11 +566,11 @@ Element ground() {
       .inset(0)
       .cache(Cache::Texture)
       .key("ground")
-      // The paper asks for a grain, but `kit::grained` puts no grain on a
+      // The paper asks for a grain, but `grained` puts no grain on a
       // near-black ground: it folds its noise in by soft light, which moves
       // a colour this dark by under one level, so this fill reads as plain
       // `kPaper` until the kit's grain holds its strength on dark grounds.
-      .fill(kit::grained(kPaper, 0.07f, 0.9f))
+      .fill(grained(kPaper, 0.07f, 0.9f))
       .children(
           {box().absolute().inset(0).fill(material::Paint::linearGradient(
                {0, 0}, {0, kCanvas.fHeight},
@@ -560,7 +584,7 @@ Element ground() {
                 {1.0f, material::Color{kLamp.r, kLamp.g, kLamp.b, 0}}},
                {.units = material::GradientUnits::Pixels})),
            box().absolute().inset(0).fill(
-               kit::vignette(kCanvas, {0, 0, 0, 0.5f}, 0.5f))});
+               vignette({0, 0, 0, 0.5f}, 0.5f))});
 }
 
 }  // namespace

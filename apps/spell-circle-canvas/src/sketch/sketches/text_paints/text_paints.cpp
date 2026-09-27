@@ -12,7 +12,6 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Gloss.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -23,6 +22,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "../y2k_chrome/ChromeType.h"
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -86,9 +87,9 @@ std::vector<Ink> inks() {
        field(material::kit::tunnel(unit, kMoment))},
       {"sunset", "SUNSET CHROME", "sunsetChromeType()",
        "A hard horizon at half cap height; a column takes one band of it.",
-       kit::sunsetChromeType()},
+       y2k::sunsetChromeType()},
       {"silver", "SILVER CHROME", "silverChromeType()",
-       "The same mapping in a colder ramp.", kit::silverChromeType()},
+       "The same mapping in a colder ramp.", y2k::silverChromeType()},
   };
 }
 
