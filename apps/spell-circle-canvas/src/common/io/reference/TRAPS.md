@@ -53,7 +53,8 @@ read — not at the ask itself.
 
 Failed lookups are deliberately not cached. A URI that resolves to a file
 which does not exist yet returns null now and loads as soon as the file
-appears.
+appears; when the ask was a `load<T>()`, the `poll()` that sees the file
+appear answers true, so a host that re-asks on a true poll heals.
 
 `write()` refuses a network URI. A hub writes where it mounts; a network
 URI belongs to its server, and changing the local cache cannot write there.

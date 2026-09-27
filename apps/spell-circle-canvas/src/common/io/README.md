@@ -146,7 +146,7 @@ resources never does, is declared apart, as free functions over the hub:
 * `advanced/Lease.h` — `Lease`: the handle a callback stands on the advance by
 * `advanced/Places.h` — `mount`, `resolve`, `select`, `poll`: a late mount, the file a URI stands for, the files a selector names, and hot reload
 * `advanced/Residency.h` — `ResourceLease`, `retain`, `preload`, `discardUnretained`: what the hub keeps in memory and reads ahead
-* `advanced/Decoding.h` — `ResourceInfo`, `registerDecoder`, `probe`: how a library teaches `load<T>()`, and what a resource is without decoding it
+* `advanced/Decoding.h` — `ResourceInfo`, `registerDecoder`, `probe`: how a library teaches `load<T>()`, under the name T's meaning declares, and what a resource is without decoding it
 * `advanced/Feeds.h` — `feeds`: every feed the hub has open
 * `advanced/Network.h` — `NetworkCache`, `setNetworkCacheDirectory`, `setNetworkPolicy`, `setNetworkTransport`: the disk cache by URL, and a standing hub's network settings
 * `advanced/Transport.h` — `Transport`, `Inlet`, `TransportEnd`, `registerTransport`, `transport`: the producer's side a scheme is opened through
@@ -168,7 +168,7 @@ sigil::io::preload(hub, "shader://");                 // a directory selector re
 auto authored = sigil::io::retain(hub, {"shader://material/**/*.sksl",
                                         "shader://compose/**/*.sksl"});
 authored.include("plugin://**/*.slang");
-sigil::io::registerDecoder<Mesh>(hub, ObjParser{});   // any type: a Decoder<T> object or a function
+sigil::io::registerDecoder<Mesh>(hub, ObjParser{});   // any named type: a Decoder<T> object or a function
 auto crate = hub.load<Mesh>("res://props/crate.obj");
 if (auto info = sigil::io::probe<sigil::io::ResourceInfo>(hub, "res://light/probe.exr"))
   budgetFor(info->byteSize);
@@ -258,7 +258,11 @@ semantics. The hub adds zero format knowledge of its own and names no
 image type: a hub starts with no decoder at all, `sigil::media::registerDecoders(hub)`
 is SigilMedia putting its own on it, `load<T>(uri, options)` takes the
 options T's library declares through `loadOptions()` — SigilMedia's
-`DecodeOptions` for an image — every decode is a delegation,
+`ImageOptions` for an image — and finds its decoder by the name T's
+library declares through `meaningName()` — "media.Image" — so a program
+made of several images, a host and a sketch it compiled and loaded
+while running, asks one door whichever image holds the type; every
+decode is a delegation,
 `ResourceInfo` says only how many bytes there are and where they came
 from, `sigil::io::probe<T>()` asks T's own library what they mean, and `write()`
 takes bytes somebody else encoded. Neither library links the other:

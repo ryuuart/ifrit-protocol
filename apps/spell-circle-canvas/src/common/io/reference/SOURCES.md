@@ -18,7 +18,7 @@ fetch, for `resolve()` and for a selector alike. A URI that names a
 directory rather than a file answers nothing too: the hub answers bytes.
 
 The cache holds one entry per URI. An entry carries the bytes and one
-decoded view per type — whatever `load<T>()` has been asked for, an
+decoded view per meaning — whatever `load<T>()` has been asked for, an
 image and its channel data among them — each populated the first time
 its accessor is asked. Asking for bytes never decodes, and a later
 `load<T>()` ask on the same URI decodes the bytes the entry already
@@ -85,6 +85,30 @@ the decoder later asks run, while a view already decoded keeps its value
 and the decoder that made it, which is what `poll()` re-runs for it.
 `load<T>()` with no decoder registered for `T` answers null without
 fetching. The hub never inspects bytes.
+
+A meaning is registered and asked for by NAME, never by the identity of
+its C++ type. T's own namespace declares
+`std::string_view meaningName(std::type_identity<T>)` — the `Named`
+concept, found by argument-dependent lookup as `loadOptions` is —
+answering one name no other meaning answers: "media.Image",
+"media.Channels", "media.Video", "data.Table", "data.Json",
+"data.Database", "draw.brush.Tool". `registerDecoder<T>` and
+`load<T>` both require it. The reason is a program made of several
+images: a sketch compiled and loaded while its host runs is a library of
+its own, compiled with hidden symbols, and its `media::Image` is another
+type identity than the host's although it is the same type. Keyed by the
+name, the sketch's `load<media::Image>` reaches the decoder the host
+registered and the view the host decoded. The name finds the decoder;
+the C++ type's own name — the same text in every image that holds the
+type — is then checked as well, so a type that borrows a name answers
+null rather than another type's view.
+
+A typed ask that finds nothing to decode — no file yet, or bytes its
+decoder refused — is remembered with the stamp its file carried, and the
+next `poll()` that sees that file appear or change answers true and
+forgets it. The ask is not retried by the poll: the answer is the next
+ask's, which is what a host re-running a declaration on a true poll
+makes.
 
 A type is loaded with options when its own namespace declares
 `loadOptions(std::type_identity<T>)`, answering the options at their

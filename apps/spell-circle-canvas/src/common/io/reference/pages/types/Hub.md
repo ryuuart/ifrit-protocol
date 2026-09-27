@@ -40,14 +40,17 @@ auto mesh  = hub.load<Mesh>("res://props/crate.obj");
 
 Each URI is cached as one entry whose bytes and decoded views are
 independent: each populates the first time its accessor is asked, and
-asking for one never affects another. A view is one decoded type — each
-type `Hub::load` is asked for populates its own — and a `Hub::load` ask
+asking for one never affects another. A view is one decoded meaning —
+each meaning `Hub::load` is asked for populates its own, found by the
+name the meaning's library declares (`sigil::io::Named`) so a sketch
+compiled and loaded while its host runs shares the host's — and a `Hub::load` ask
 with options other than the type's defaults, an image with a layer or an
 explicit size, is a different decode that gets its own entry. `sigil::io::poll` re-stats every previously
 requested resource and reloads the changed ones, returning true so hosts
 can re-render (holders of old shared_ptrs keep the old data — swap by
 re-asking). Failed lookups are NOT cached: a missing file loads as soon
-as it appears.
+as it appears, and a `Hub::load` that found it missing makes the poll
+that sees it appear answer true.
 
 Calls on one `Hub` may overlap: mount, decoder, cache and retention state
 are synchronized internally. A `Hub` satisfies `sigil::io::ByteSource` and

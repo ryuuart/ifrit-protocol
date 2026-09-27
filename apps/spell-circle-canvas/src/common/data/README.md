@@ -241,7 +241,11 @@ the caller feeds back to `take()` rather than a second kind of table.
 answers a URI with bytes and hands them to whichever decoder is
 registered for the type asked for; `registerDecoders(hub)` registers
 `TableDecoder` for `Table`, `JsonDecoder` for `Json` and
-`DatabaseDecoder` for `Database`, and everything after that — the cache,
+`DatabaseDecoder` for `Database`, each under the name its header
+declares beside the type — `meaningName` answers "data.Table",
+"data.Json" and "data.Database", and "data.FlatBuffer<…>" per root — which
+is what a hub finds a decoder by, so a sketch compiled and loaded while
+its host runs reads the host's registration; and everything after that — the cache,
 the hot reload, the mount table — is the hub's as it is for an image.
 Without a host, `json(hub, uri)`, `csv(hub, uri)` and `table(hub, uri,
 {.query})` read a file whole in one line, the last running its query in

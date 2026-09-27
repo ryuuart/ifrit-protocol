@@ -49,7 +49,12 @@ Through a hub the same decoders answer a URI, once
 this library's `ImageOptions` because `core/Image.h` declares
 `loadOptions(std::type_identity<Image>)` answering them, found by
 argument-dependent lookup the way the probe is: a hub takes the options
-as this library spells them without knowing an image format.
+as this library spells them without knowing an image format. Beside it
+`meaningName(std::type_identity<Image>)` answers "media.Image" — and
+"media.Channels" and "media.Video" for the other two — the name a hub
+registers and finds the decoder under, so a sketch compiled and loaded
+while its host runs, holding `Image` under another C++ identity, reaches
+the decoder the host registered.
 
 `image/Decode.h` is the route. Decoding an `Image` sniffs the bytes and
 tries the Skia codecs first (skipped when a layer is named, since layers

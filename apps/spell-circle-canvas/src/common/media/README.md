@@ -151,7 +151,7 @@ writes pictures pulls in no codec it will not call, and a consumer that
 only draws pictures somebody else decoded links the core alone.
 
 - `core/Frame.h` — `Frame`, `Timing`, `Loop`, `HardwarePreference`
-- `core/Image.h` — `Image`, `ImageOptions`, `loadOptions`
+- `core/Image.h` — `Image`, `ImageOptions`, `loadOptions`, `meaningName`
 - `core/Metadata.h` — `Metadata`
 - `core/Format.h` — `Format`
 - `core/Decode.h` — `decode`, `ConfiguredDocument`, `DocumentOptions`
@@ -162,9 +162,9 @@ only draws pictures somebody else decoded links the core alone.
 - `advanced/Resource.h` — `registerDecoders`, `probe`, `probeResource`
 - `advanced/Embedded.h` — `EmbeddedImage`, `EmbeddedScan`, `embeddedImages`
 - `image/Decode.h` — `decodeDocument`, `probeDocument`
-- `image/Channels.h` — `Channels`, `ChannelPick`
+- `image/Channels.h` — `Channels`, `ChannelPick`, `meaningName`
 - `image/Encode.h` — `EncodeOptions`, `encode`, `canEncode`, `encodeResource`
-- `video/Video.h` — `Video`, `VideoOptions`, `Playback`, `decodeDocument`, `probeDocument`, `loadOptions`
+- `video/Video.h` — `Video`, `VideoOptions`, `Playback`, `decodeDocument`, `probeDocument`, `loadOptions`, `meaningName`
 - `video/Encoder.h` — `Encoder`
 - `field/DistanceField.h` — `Mask`, `DistanceField`, `FieldOptions`, `coverageMask`, `distanceField`
 - `difference/Difference.h` — `PixelDifference`, `difference`
