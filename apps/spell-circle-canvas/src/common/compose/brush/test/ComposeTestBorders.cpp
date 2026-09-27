@@ -474,3 +474,40 @@ TEST(ComposeMotion, AppendedItemEntersWithoutInheritedDelay) {
   host.frame(0.15);  // > its 100ms entrance, << 2·400ms ordinal delay
   EXPECT_EQ(host.pixel(30, 70), SK_ColorRED);  // "c" already in
 }
+
+TEST(ComposePaint, AMaterialsEffectsDressTheNodesOwnLayer) {
+  // A stroke inside the coverage paints over the fill at the edge; a
+  // spread shadow outside it paints beneath, past the box.
+  Host host;
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(50, 90, 90, 50)
+           .fill(material::from(material::Color{1, 0, 0, 1})
+                     .effects(material::Filter::shadow({0, 0, 1, 1},
+                                                       {.spread = 8})
+                                  .then(material::Filter::stroke(
+                                      {0, 1, 0, 1},
+                                      {.width = 4,
+                                       .position =
+                                           material::StrokePosition::Inside}))))}));
+  host.frame();
+  EXPECT_EQ(host.pixel(70, 70), SK_ColorRED);    // the fill
+  EXPECT_EQ(host.pixel(51, 70), SK_ColorGREEN);  // the inside keyline
+  EXPECT_EQ(host.pixel(45, 70), SK_ColorBLUE);   // the spread beneath
+  EXPECT_EQ(host.pixel(30, 70), SK_ColorBLACK);  // nothing past it
+  // The same material described again prunes.
+  host.composer.render(box().children(
+      {box()
+           .absolute()
+           .inset(50, 90, 90, 50)
+           .fill(material::from(material::Color{1, 0, 0, 1})
+                     .effects(material::Filter::shadow({0, 0, 1, 1},
+                                                       {.spread = 8})
+                                  .then(material::Filter::stroke(
+                                      {0, 1, 0, 1},
+                                      {.width = 4,
+                                       .position =
+                                           material::StrokePosition::Inside}))))}));
+  EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
+}

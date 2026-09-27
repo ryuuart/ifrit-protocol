@@ -3,9 +3,27 @@
  * over a node's layer.
  */
 
+#include <include/core/SkTypes.h>  // SkDebugf
+
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
+
+namespace {
+
+/** A coverage step reads the shape of the layer it dresses, which a
+ *  subtree filter does not have: said once, and the step paints nothing. */
+void warnCoverageIsAMaterialsEffect(const material::Filter& filter) {
+  static thread_local bool warned = false;
+  if (warned || filter.coverage().empty()) return;
+  warned = true;
+  SkDebugf(
+      "[compose] filter() was given Filter::shadow, stroke or bevel, which "
+      "read a layer's coverage and paint nothing over a subtree; state them "
+      "in a material's effects and fill() with it. (warned once)\n");
+}
+
+}  // namespace
 
 template <class Derived>
 Derived& EffectVerbs<Derived>::opacity(motion::Animatable<float> o) {
@@ -21,6 +39,7 @@ Derived& EffectVerbs<Derived>::blendMode(material::BlendMode mode) {
 
 template <class Derived>
 Derived& EffectVerbs<Derived>::filter(material::Filter e) {
+  warnCoverageIsAMaterialsEffect(e);
   declarations()->fxData.ensure().layerEffect = std::move(e);
   return self();
 }
