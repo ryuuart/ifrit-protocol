@@ -51,9 +51,11 @@
 #include <sigilcompose/kit/Part.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigildata/scale/Scale.h>
+#include <sigilmeasure/stats/Window.h>
 
 #include <cstddef>
 #include <cstdint>
+#include <chrono>
 #include <functional>
 #include <optional>
 #include <ranges>
@@ -317,10 +319,31 @@ struct Trace {
  *  The run is copied into the layer, and the curve prunes on the run's
  *  own values, so a series that did not change this frame is not
  *  re-walked. `Trace::samples` is not read: a recording is walked at the
- *  sampling it was taken at. A `measure::Window`'s `values()` is such a
- *  run as it stands — `trace(window.values())` is a sparkline. */
+ *  sampling it was taken at. */
 [[nodiscard]] Layer trace(std::span<const double> series,
                           const Trace& how = {});
+
+/** THE SAME CURVE OVER A LIVE STREAM'S WINDOW: @p window's held values,
+ *  oldest first, which is a sparkline — `trace(frameTimes)`. A window of
+ *  doubles is read as it stands; one of other numbers as doubles, and one
+ *  of durations in seconds. */
+template <measure::Measurable Value>
+[[nodiscard]] Layer trace(const measure::Window<Value>& window,
+                          const Trace& how = {}) {
+  if constexpr (std::is_same_v<Value, double>) {
+    return trace(window.values(), how);
+  } else {
+    std::vector<double> series;
+    series.reserve(window.size());
+    for (const Value& value : window.values()) {
+      if constexpr (std::is_arithmetic_v<Value>)
+        series.push_back((double)value);
+      else
+        series.push_back(std::chrono::duration<double>(value).count());
+    }
+    return trace(std::span<const double>(series), how);
+  }
+}
 
 /** THE BAND BETWEEN A CURVE AND A BASE. */
 struct Area {

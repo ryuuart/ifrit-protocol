@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/StyleSheet.h>
+#include <sigilmeasure/stats/Window.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
 
@@ -38,6 +39,7 @@ namespace kit = sigil::sketch::kit;
 namespace weave = sigil::weave;
 using compose::Element;
 using sigil::sketch::kit::test::Drawn;
+using sigil::sketch::kit::test::sameDrawing;
 
 constexpr float kField = 240;
 constexpr float kFieldTall = 160;
@@ -286,6 +288,27 @@ TEST(SketchKitChart, ARecordedSeriesIsWalkedAtItsOwnIndex) {
   drawn.composer.render(tree(moved));
   drawn.composer.draw(*drawn.surface->getCanvas());
   EXPECT_GT(drawn.composer.stats().patchedNodes, 0u);
+}
+
+/** A window is a series as it stands: its held run draws the curve the
+ *  same run handed over as numbers draws, whatever the window holds. */
+TEST(SketchKitChart, AWindowTracesTheRunItHolds) {
+  const auto tree = [](kit::Layer curve) {
+    return sheet(kit::plot("w", plane(), {std::move(curve)})
+                     .width(kField)
+                     .height(kFieldTall));
+  };
+  sigil::measure::Window<double> numbers{4};
+  sigil::measure::Window<sigil::measure::Duration> times{4};
+  for (double value : {10.0, 90.0, 40.0, 70.0, 20.0}) {
+    numbers.add(value);
+    times.add(sigil::measure::Duration(value));
+  }
+  const std::vector<double> held{90.0, 40.0, 70.0, 20.0};
+  EXPECT_TRUE(sameDrawing(tree(kit::trace(numbers)),
+                          tree(kit::trace(std::span<const double>(held)))));
+  EXPECT_TRUE(sameDrawing(tree(kit::trace(times)),
+                          tree(kit::trace(std::span<const double>(held)))));
 }
 
 TEST(SketchKitChart, APathWalksOneParameterIntoBothCoordinates) {

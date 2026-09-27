@@ -505,6 +505,7 @@ each entry's place in the run.
 | --- | --- |
 | `meter(Meter)` | a fraction along a bar, with a label over it at the left and its reading at the right; `level` is the bound spelling, scaled rather than sized, for a bar that moves every frame; `keyline` and `inset` set it in a bezel |
 | `gauge(Gauge)` | the same reading around a dial, over `geometry::shapes::sector` |
+| `meter(level, full, Meter)` | a live instrument on the bar: a `measure::Smoothed` value, or a `measure::Rate`'s events a second, as the fraction of `full`, written out after the bar |
 
 ```cpp
 sketch::kit::meter({.fraction = load, .label = "cache",
@@ -525,7 +526,8 @@ on a sheet is a bare bar.
 | `axis(Ruler)` | one of the frame's two scales drawn: its line, its ticks, and the numbers under them |
 | `rules(Rules)` | hairlines across the field at the domain values a curve is read against, stroked with the same kind of pen |
 | `trace(f, Trace)` | a function of one variable walked across the x domain and stroked with `Trace::pen` — a width, a dash and a cap — and gated along its own length by `Trace::along`, which is the curve drawing itself on |
-| `trace(series, Trace)` | the same curve over a run that was MEASURED rather than one that can be evaluated: the samples as they are, spread across the frame's whole x domain, pruning on the run's own values — a SigilMeasure window's `values()` is such a run, contiguous and oldest first, so a sparkline is the window handed over as it stands |
+| `trace(series, Trace)` | the same curve over a run that was MEASURED rather than one that can be evaluated: the samples as they are, spread across the frame's whole x domain, pruning on the run's own values |
+| `trace(window, Trace)` | the same over a `measure::Window` handed over as it stands — `trace(frameTimes)` is a sparkline; a window of durations is read in seconds |
 | `path(at, Path)` | a curve walked over a PARAMETER into both coordinates — `(x(t), y(t))` over `Path::over` — which is what a locus, a mirrored sweep and a pole's track are and what no trace can be |
 | `area(f, Area)` | the band between that curve and a base, filled |
 | `marks(rows, mark, Marks)` | one element per row, placed where the frame maps its datum |

@@ -45,6 +45,26 @@ TEST(SketchKitMeter, ABoundLevelFillsTheRailAsAFractionDoes) {
   EXPECT_TRUE(barAt(0.25f, 20));
 }
 
+/** A live instrument on the bar is its reading as a fraction, written
+ *  out: the drawing a plain fraction and the same words make. */
+TEST(SketchKitMeter, AnInstrumentIsItsReadingAsAFraction) {
+  sigil::measure::Smoothed level{4};
+  level.add(0.008);
+  EXPECT_TRUE(sameDrawing(
+      kit::meter(level, 0.016, {.width = compose::Dimension(200)}),
+      kit::meter({.fraction = 0.5f,
+                  .reading = "0.008",
+                  .width = compose::Dimension(200)})));
+  sigil::measure::Rate arrivals{std::chrono::seconds(2)};
+  for (double at : {0.1, 0.5, 0.9, 1.3, 1.7, 1.9})
+    arrivals.mark(sigil::measure::Duration(at));
+  EXPECT_TRUE(sameDrawing(
+      kit::meter(arrivals, 6.0, {.width = compose::Dimension(200)}),
+      kit::meter({.fraction = 0.5f,
+                  .reading = "3/s",
+                  .width = compose::Dimension(200)})));
+}
+
 // A fraction drawn
 
 TEST(SketchKitMeter, TheBarIsTheFractionOfTheTrack) {

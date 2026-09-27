@@ -10,6 +10,8 @@
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilmeasure/stats/Rate.h>
+#include <sigilmeasure/stats/Smoothed.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/kit/Theme.h>
 
@@ -65,6 +67,19 @@ struct Meter {
  *  A plain fraction is a WIDTH, so a bar that changes is a re-describe;
  *  `level` is the binding for one that moves every frame. */
 [[nodiscard]] compose::Element meter(const Meter& bar);
+
+/** A LIVE READING ON THE BAR: @p level's value as the fraction of
+ *  @p full, written out after the bar unless @p bar states its own
+ *  reading.
+ *
+ *      sketch::kit::meter(buildTime, 0.016, {.label = "build"})
+ */
+[[nodiscard]] compose::Element meter(const measure::Smoothed& level,
+                                     double full, Meter bar = {});
+/** THE SAME FOR HOW OFTEN SOMETHING HAPPENS: @p rate's events per second
+ *  as the fraction of @p full, written out as so many a second. */
+[[nodiscard]] compose::Element meter(const measure::Rate& rate, double full,
+                                     Meter bar = {});
 
 /** A FRACTION AROUND A DIAL — the same reading where the picture wants a
  *  face rather than a rail. */

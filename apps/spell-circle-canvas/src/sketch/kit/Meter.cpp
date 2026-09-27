@@ -1,6 +1,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Document.h>
+#include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilsketch/kit/Meter.h>
 
@@ -108,6 +109,21 @@ compose::Element gauge(const Gauge& dial) {
                                                          look.palette.figure))
                             .styleClass("readout")})});
   return face;
+}
+
+compose::Element meter(const measure::Smoothed& level, double full,
+                       Meter bar) {
+  bar.fraction = full != 0 ? (float)(level.value() / full) : 0.0f;
+  if (bar.reading.empty())
+    bar.reading = compose::kit::formatted("%.3g", level.value());
+  return meter(bar);
+}
+
+compose::Element meter(const measure::Rate& rate, double full, Meter bar) {
+  bar.fraction = full != 0 ? (float)(rate.perSecond() / full) : 0.0f;
+  if (bar.reading.empty())
+    bar.reading = compose::kit::formatted("%.3g/s", rate.perSecond());
+  return meter(bar);
 }
 
 }  // namespace sigil::sketch::kit
