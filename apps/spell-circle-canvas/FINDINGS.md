@@ -1014,24 +1014,6 @@ as a length leaves the target standing and says so once, as a colour var read
 as a length does today. Wanted by `cosmati`; `black_watch` holds its board and
 yarn paints as members for the same reason.
 
-## A Substance render drops the colour space its graph declared
-
-`src/common/substance/graph/Describe.cpp` records whether each output is
-sRGB from the SDK's channel description, and `graph/Render.cpp` copies every
-result into an image with no colour space, so nothing downstream can tell a
-base-colour output from a normal map. The description evidently means to
-tag the image. A test should render a graph with one sRGB and one linear
-output and assert each image carries its declared space.
-
-## A Substance render rebuilds every output description on each cook
-
-`src/common/substance/graph/Render.cpp` rebuilds the full list of output
-descriptions every time a graph is cooked, although the descriptions do not
-change between cooks of one graph; only the parameter values do. The list
-evidently belongs to the graph, built once when it is opened. A test should
-cook one graph twice and assert the descriptions are the same objects, or a
-bench arm should show the second cook paying only for the render.
-
 ## Two Compose warning cases pass alone and fail when the whole binary runs
 
 `ComposeMaterial.AFillRefusesATextUnitOnASurfaceWithNoPaintToPlace`

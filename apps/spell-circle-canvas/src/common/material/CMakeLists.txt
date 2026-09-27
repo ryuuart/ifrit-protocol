@@ -29,6 +29,7 @@ sigil_library_root(SigilMaterial
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
        ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
        ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
+       ${CMAKE_CURRENT_SOURCE_DIR}/SUBSTANCE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md)
 
 # Dependencies point up this list.
@@ -91,6 +92,7 @@ sigil_doc_probes(material
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
           ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
           ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/SUBSTANCE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/enums/Backface.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/over.md
@@ -122,7 +124,8 @@ sigil_doc_probes(material
            "<ScratchDir.h>"
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   FLOORS 94,69,91,67,3
-  LIBRARIES SigilMaterial SigilIOHub SigilCoreCache SigilSkiaGraphite)
+  LIBRARIES SigilMaterial SigilMaterialSubstance SigilIOHub SigilCoreCache
+            SigilSkiaGraphite)
 
 # THE DEVICE SWEEP, over the whole library rather than one feature: a body
 # is validated one way as its own runtime effect and another once a GPU

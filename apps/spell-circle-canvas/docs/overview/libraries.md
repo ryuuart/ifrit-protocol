@@ -97,10 +97,9 @@ turned into a frame — a scene, an ordered list of passes, the readbacks
 the caller asked for — and executed. It consumes SigilGeometry's types
 and never the reverse.
 
-**[SigilUsd](doxygen:SigilUsd)** and
-**[SigilSubstance](doxygen:SigilSubstance)** — optional SDK
-integrations: USD in and out, and Adobe Substance archives rendered to
-images.
+**[SigilUsd](doxygen:SigilUsd)** — an optional SDK integration: USD
+in and out. Adobe Substance archives are a feature of SigilMaterial,
+cooked into a Material where the SDK is installed.
 
 ## Getting things in and out
 

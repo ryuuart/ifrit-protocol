@@ -326,8 +326,9 @@ installed and imported without a CMake build in reach. Run
 
 Two dependencies are downloads behind an account, so no port can fetch
 them: the Ultralight SDK (SigilScry) and the Adobe Substance 3D SDK
-(SigilSubstance). Both libraries, and everything that links them, leave
-the build when their SDK is absent.
+(SigilMaterial's substance feature). SigilScry, and everything that links
+it, leaves the build when its SDK is absent; the substance feature still
+builds and answers that it is unavailable.
 
 An archive that cannot be fetched is put into the vcpkg asset cache
 once per machine, and every configure after that resolves it locally:
