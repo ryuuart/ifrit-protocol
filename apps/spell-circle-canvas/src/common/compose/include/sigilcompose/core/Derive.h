@@ -19,13 +19,12 @@
  * kernel's schedule.
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilcore/comparable/Erased.h>
+#include <sigilgeometry/path/Outline.h>
 
 #include <concepts>
 #include <functional>
@@ -40,7 +39,7 @@
 
 namespace sigil::compose {
 
-/** A route scheme: `SkPath route(const SkRect& from, const SkRect& to)
+/** A route scheme: `geometry::path::Outline route(const geometry::path::Rect& from, const geometry::path::Rect& to)
  *  const`, plus equality — the same seam-value convention a `Shape`
  *  takes, and for the same reason. A routed node can only prune if the
  *  reconciler can prove the route is the same one, so a router is a
@@ -51,8 +50,8 @@ namespace sigil::compose {
 template <typename R>
 concept RouteScheme =
     std::equality_comparable<R> &&
-    requires(const R& r, const SkRect& from, const SkRect& to) {
-      { r.route(from, to) } -> std::convertible_to<SkPath>;
+    requires(const R& r, const geometry::path::Rect& from, const geometry::path::Rect& to) {
+      { r.route(from, to) } -> std::convertible_to<geometry::path::Outline>;
     };
 
 namespace detail {
@@ -62,7 +61,7 @@ namespace detail {
  *  one mechanism and this header holds only the vocabulary. */
 struct RouteOperations {
   virtual ~RouteOperations() = default;
-  virtual SkPath route(const SkRect& from, const SkRect& to) const = 0;
+  virtual geometry::path::Outline route(const geometry::path::Rect& from, const geometry::path::Rect& to) const = 0;
 };
 
 /** A comparable scheme as those operations. Its equality is the scheme's,
@@ -72,18 +71,18 @@ struct RouteModel : RouteOperations {
   R scheme;
   explicit RouteModel(R s) : scheme(std::move(s)) {}
   bool operator==(const RouteModel& o) const { return scheme == o.scheme; }
-  SkPath route(const SkRect& from, const SkRect& to) const override {
+  geometry::path::Outline route(const geometry::path::Rect& from, const geometry::path::Rect& to) const override {
     return scheme.route(from, to);
   }
 };
 
 /** The callable escape hatch, which carries no equality at all. */
 struct RouteFunction : RouteOperations {
-  std::function<SkPath(const SkRect&, const SkRect&)> fn;
-  explicit RouteFunction(std::function<SkPath(const SkRect&, const SkRect&)> f)
+  std::function<geometry::path::Outline(const geometry::path::Rect&, const geometry::path::Rect&)> fn;
+  explicit RouteFunction(std::function<geometry::path::Outline(const geometry::path::Rect&, const geometry::path::Rect&)> f)
       : fn(std::move(f)) {}
-  SkPath route(const SkRect& from, const SkRect& to) const override {
-    return fn ? fn(from, to) : SkPath();
+  geometry::path::Outline route(const geometry::path::Rect& from, const geometry::path::Rect& to) const override {
+    return fn ? fn(from, to) : geometry::path::Outline();
   }
 };
 
@@ -97,7 +96,7 @@ struct RouteFunction : RouteOperations {
  *  - a COMPARABLE scheme (any `routers::` value, or your own value with
  *    `route(from, to)` + `==`) — the node prunes while the value and the
  *    rects are unchanged;
- *  - a raw callable (`[](const SkRect&, const SkRect&) -> SkPath`) — the
+ *  - a raw callable (`[](const geometry::path::Rect&, const geometry::path::Rect&) -> Outline`) — the
  *    escape hatch. It never compares equal to a separately-constructed
  *    Router, so the node re-patches on every describe and can never
  *    prune. Copies of ONE Router do compare equal (they share state), so
@@ -120,21 +119,21 @@ class Router {
   template <typename F>
     requires(!RouteScheme<std::remove_cvref_t<F>> &&
              !std::same_as<std::remove_cvref_t<F>, Router> &&
-             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
-                                   const SkRect&, const SkRect&>)
+             std::is_invocable_r_v<geometry::path::Outline, const std::remove_cvref_t<F>&,
+                                   const geometry::path::Rect&, const geometry::path::Rect&>)
   Router(F fn)  // NOLINT: implicit by design (.router = [](…){…})
       : m_held(core::Erased<detail::RouteOperations>(
             detail::RouteFunction(std::move(fn)))) {}
 
   explicit operator bool() const { return (bool)m_held; }
-  SkPath operator()(const SkRect& from, const SkRect& to) const {
-    return m_held ? m_held->route(from, to) : SkPath();
+  geometry::path::Outline operator()(const geometry::path::Rect& from, const geometry::path::Rect& to) const {
+    return m_held ? m_held->route(from, to) : geometry::path::Outline();
   }
   /** A Router is itself a scheme, so it NESTS: a wrapper that asks for a
    *  scheme takes one, and the equality it then uses is the one below —
    *  which refuses a callable, where a compiler-written equality over an
    *  empty closure type would vacuously accept it. */
-  SkPath route(const SkRect& from, const SkRect& to) const {
+  geometry::path::Outline route(const geometry::path::Rect& from, const geometry::path::Rect& to) const {
     return (*this)(from, to);
   }
   /** Does this value participate in structural equality? (False for the
@@ -158,7 +157,7 @@ class Router {
  *  shape, so the gap is how a wire stops at the glow instead of piercing
  *  it. The one statement of that rule, so nothing routing a wire can
  *  disagree with anything else about where it ends. */
-SkPath routeBetween(const Router& router, const SkRect& from, const SkRect& to,
+geometry::path::Outline routeBetween(const Router& router, const geometry::path::Rect& from, const geometry::path::Rect& to,
                     float gap = 0.0f);
 
 /** A WIRE'S STOP — an endpoint or a waypoint. It is ONE OF TWO THINGS,
@@ -192,12 +191,12 @@ struct Anchor {
   /** Bound to a node: `norm` is read on that node's resolved bounds. */
   struct OnNode {
     std::string key;
-    SkPoint norm = {0.5f, 0.5f};
+    glm::vec2 norm = {0.5f, 0.5f};
     bool operator==(const OnNode&) const = default;
   };
   /** Bound to nothing: `point` is read in the rail's own coordinates. */
   struct FreePoint {
-    SkPoint point = {0.0f, 0.0f};
+    glm::vec2 point = {0.0f, 0.0f};
     bool operator==(const FreePoint&) const = default;
   };
 
@@ -209,10 +208,10 @@ struct Anchor {
   Anchor() = default;
   /** The bound form, spelled as the anchor's own constructor so a rail's
    *  initializer list reads `{{"a"}, {"b", {1, 0.5f}}}`. */
-  Anchor(std::string key, SkPoint norm = {0.5f, 0.5f}, float gap = 0.0f)
+  Anchor(std::string key, glm::vec2 norm = {0.5f, 0.5f}, float gap = 0.0f)
       : where(OnNode{std::move(key), norm}), gap(gap) {}
   /** The free form. */
-  static Anchor at(SkPoint point, float gap = 0.0f) {
+  static Anchor at(glm::vec2 point, float gap = 0.0f) {
     Anchor a;
     a.where = FreePoint{point};
     a.gap = gap;
@@ -220,7 +219,7 @@ struct Anchor {
   }
   /** The bound form, named, for a call site that reads better with a verb
    *  than with a brace. */
-  static Anchor on(std::string key, SkPoint norm = {0.5f, 0.5f},
+  static Anchor on(std::string key, glm::vec2 norm = {0.5f, 0.5f},
                    float gap = 0.0f) {
     return Anchor(std::move(key), norm, gap);
   }
@@ -265,33 +264,31 @@ struct Anchor {
  *  off a named anchor itself. */
 struct Tether {
   std::string key;
-  SkPoint on = {0.5f, 0.5f};
-  SkPoint at = {0.5f, 0.5f};
-  SkVector offset = {0.0f, 0.0f};
-  SkRect within = SkRect::MakeEmpty();
+  glm::vec2 on = {0.5f, 0.5f};
+  glm::vec2 at = {0.5f, 0.5f};
+  glm::vec2 offset = {0.0f, 0.0f};
+  geometry::path::Rect within;
   std::vector<Tether> fallbacks;
   bool operator==(const Tether&) const = default;
 
   /** Where a box of @p size lands when this tether ties it to @p anchor.
    *  Both rects are in ONE space and the answer is in that space; which
    *  space that is belongs to the caller. */
-  SkRect place(const SkRect& anchor, SkSize size) const {
-    return SkRect::MakeXYWH(anchor.left() + anchor.width() * on.x() +
-                                offset.x() - size.width() * at.x(),
-                            anchor.top() + anchor.height() * on.y() +
-                                offset.y() - size.height() * at.y(),
-                            size.width(), size.height());
+  geometry::path::Rect place(const geometry::path::Rect& anchor,
+                             glm::vec2 size) const {
+    return geometry::path::Rect::of(
+        anchor.min + anchor.size() * on + offset - size * at, size);
   }
 };
 
-/** A rail-route scheme: `SkPath route(std::span<const SkPoint>) const`,
+/** A rail-route scheme: `geometry::path::Outline route(std::span<const glm::vec2>) const`,
  *  plus equality — the pointwise seam's half of the same convention
  *  `RouteScheme` states. Equal values must route identical paths through
  *  every anchor run. */
 template <typename R>
 concept RailScheme = std::equality_comparable<R> &&
-                     requires(const R& r, std::span<const SkPoint> anchors) {
-                       { r.route(anchors) } -> std::convertible_to<SkPath>;
+                     requires(const R& r, std::span<const glm::vec2> anchors) {
+                       { r.route(anchors) } -> std::convertible_to<geometry::path::Outline>;
                      };
 
 namespace detail {
@@ -300,7 +297,7 @@ namespace detail {
  *  The rail's half of the same one mechanism the route seam uses. */
 struct RailOperations {
   virtual ~RailOperations() = default;
-  virtual SkPath route(std::span<const SkPoint> anchors) const = 0;
+  virtual geometry::path::Outline route(std::span<const glm::vec2> anchors) const = 0;
 };
 
 template <RailScheme R>
@@ -308,18 +305,18 @@ struct RailModel : RailOperations {
   R scheme;
   explicit RailModel(R s) : scheme(std::move(s)) {}
   bool operator==(const RailModel& o) const { return scheme == o.scheme; }
-  SkPath route(std::span<const SkPoint> anchors) const override {
+  geometry::path::Outline route(std::span<const glm::vec2> anchors) const override {
     return scheme.route(anchors);
   }
 };
 
 /** The callable escape hatch, which carries no equality at all. */
 struct RailFunction : RailOperations {
-  std::function<SkPath(std::span<const SkPoint>)> fn;
-  explicit RailFunction(std::function<SkPath(std::span<const SkPoint>)> f)
+  std::function<geometry::path::Outline(std::span<const glm::vec2>)> fn;
+  explicit RailFunction(std::function<geometry::path::Outline(std::span<const glm::vec2>)> f)
       : fn(std::move(f)) {}
-  SkPath route(std::span<const SkPoint> anchors) const override {
-    return fn ? fn(anchors) : SkPath();
+  geometry::path::Outline route(std::span<const glm::vec2> anchors) const override {
+    return fn ? fn(anchors) : geometry::path::Outline();
   }
 };
 
@@ -332,7 +329,7 @@ struct RailFunction : RailOperations {
  *
  *  Comparable exactly as `Router` is: a `routers::` value or your own
  *  value with `route(anchors)` + `==` prunes; a raw callable
- *  (`[](std::span<const SkPoint>) -> SkPath`) is the escape hatch that
+ *  (`[](std::span<const glm::vec2>) -> Outline`) is the escape hatch that
  *  compares equal to nothing but its own copies. */
 class RailRouter {
  public:
@@ -348,19 +345,19 @@ class RailRouter {
   template <typename F>
     requires(!RailScheme<std::remove_cvref_t<F>> &&
              !std::same_as<std::remove_cvref_t<F>, RailRouter> &&
-             std::is_invocable_r_v<SkPath, const std::remove_cvref_t<F>&,
-                                   std::span<const SkPoint>>)
+             std::is_invocable_r_v<geometry::path::Outline, const std::remove_cvref_t<F>&,
+                                   std::span<const glm::vec2>>)
   RailRouter(F fn)  // NOLINT: implicit by design (.router = [](auto p){…})
       : m_held(core::Erased<detail::RailOperations>(
             detail::RailFunction(std::move(fn)))) {}
 
   explicit operator bool() const { return (bool)m_held; }
-  SkPath operator()(std::span<const SkPoint> anchors) const {
-    return m_held ? m_held->route(anchors) : SkPath();
+  geometry::path::Outline operator()(std::span<const glm::vec2> anchors) const {
+    return m_held ? m_held->route(anchors) : geometry::path::Outline();
   }
   /** A RailRouter is itself a scheme, so it NESTS — same reason a Router
    *  and a Shape do. */
-  SkPath route(std::span<const SkPoint> anchors) const {
+  geometry::path::Outline route(std::span<const glm::vec2> anchors) const {
     return (*this)(anchors);
   }
   /** Does this value participate in structural equality? (False for the
@@ -383,7 +380,7 @@ class RailRouter {
  *  Fewer than two points draw nothing. The one statement of that rule, so
  *  an operator threading a wire through stops and the kernel cannot
  *  disagree about where the wire ends. */
-SkPath routeAlong(const RailRouter& router, std::span<const SkPoint> stops,
+geometry::path::Outline routeAlong(const RailRouter& router, std::span<const glm::vec2> stops,
                   float gapStart = 0.0f, float gapEnd = 0.0f);
 
 /** A BAND: the shape a spine sweeps out at a given width across it.
@@ -426,8 +423,8 @@ Band band(Shape spine, geometry::path::Profile width);
  *  fraction of the spine's total arc length, `across` is px on the normal.
  *
  *  **Positive `across` is to the LEFT of travel**, which in screen space
- *  (y down) is OUTSIDE a clockwise path — SkPath's own direction for rects
- *  and circles, so `Formation::Outer` exits the shape.
+ *  (y down) is OUTSIDE a clockwise path — the direction a rectangle and a
+ *  circle are drawn in, so `Formation::Outer` exits the shape.
  *
  *  THIS IS THE ONE STATEMENT OF THAT CONVENTION for the whole library.
  *  `Profile::across`, `strand::offset`, `geometry::parallel`,
@@ -435,7 +432,8 @@ Band band(Shape spine, geometry::path::Profile width);
  *  `TextPath::offset` all mean this same side. Anything placing content on
  *  a band reads it here, so the placement and the band's own geometry
  *  cannot disagree. */
-SkPoint bandPointAt(const SkPath& spine, float along, float acrossPx);
+glm::vec2 bandPointAt(const geometry::path::Outline& spine, float along,
+                      float acrossPx);
 
 // ---------------------------------------------------------------------------
 // WHAT EVERY DERIVATION SHARES

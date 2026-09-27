@@ -609,10 +609,14 @@ PathDump dumpPath(const SkPath& p) {
   return d;
 }
 
+PathDump dumpPath(const sigil::geometry::path::Outline& outline) {
+  return dumpPath(sigil::geometry::path::toSk(outline));
+}
+
 }  // namespace
 
 TEST(ComposeRouters, ChamferCutsTheCornerRoundingCannot) {
-  const SkPoint run[2] = {{20, 20}, {180, 160}};
+  const glm::vec2 run[2] = {{20, 20}, {180, 160}};
   // An 8 px chamfer on the HFirst L: the corner vertex (180,20) is
   // REPLACED by the two cut points 8 px along each leg — the 45° face.
   PathDump cut = dumpPath(

@@ -24,7 +24,6 @@
  * the finished result.
  */
 
-#include <include/core/SkRect.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Derive.h>
 #include <sigilcompose/core/Element.h>
@@ -113,7 +112,7 @@ struct Beside {
   for (const TextUnit& entry : units) {
     const bool column =
         entry.writingMode == sigil::weave::WritingMode::kVerticalRL;
-    const SkRect& rect = entry.rect;
+    const geometry::path::Rect& rect = entry.rect;
     // ALONG the reading direction the annotation takes the unit's own
     // extent; ACROSS it, its own content decides, and the gap stands it off
     // the unit's band.
@@ -208,8 +207,8 @@ struct Anchored {
   enum class From { Unit, Line, Frame };
   From horizontal = From::Unit;
   From vertical = From::Unit;
-  SkPoint at = {0.0f, 0.0f};
-  SkVector offset = {0.0f, 0.0f};
+  glm::vec2 at = {0.0f, 0.0f};
+  glm::vec2 offset = {0.0f, 0.0f};
 };
 
 /** ONE ELEMENT PER UNIT, AT THE POSITION THE CALLER STATES — the same
@@ -249,29 +248,29 @@ struct Anchored {
                       sigil::weave::selectors::each(sigil::weave::Unit::Line),
                       sigil::weave::Unit::Line)
                 : std::vector<TextUnit>{};
-  const std::optional<SkRect> frame =
+  const std::optional<geometry::path::Rect> frame =
       wantsFrame ? composer.bounds(baseKey) : std::nullopt;
   for (const TextUnit& entry : units) {
-    const SkRect* line = nullptr;
+    const geometry::path::Rect* line = nullptr;
     for (const TextUnit& candidate : lines)
       if (candidate.lineIndex == entry.lineIndex) {
         line = &candidate.rect;
         break;
       }
-    const auto rectFor = [&](Anchored::From from) -> const SkRect& {
+    const auto rectFor = [&](Anchored::From from) -> const geometry::path::Rect& {
       if (from == Anchored::From::Line && line) return *line;
       if (from == Anchored::From::Frame && frame) return *frame;
       return entry.rect;
     };
-    const SkRect& across = rectFor(anchored.horizontal);
-    const SkRect& down = rectFor(anchored.vertical);
+    const geometry::path::Rect& across = rectFor(anchored.horizontal);
+    const geometry::path::Rect& down = rectFor(anchored.vertical);
     // One tether per axis, because the two axes may be measured from
     // different rects; each answers for its own coordinate. `at` is left
     // at the object's top-left, which is what lands on the point.
     const Tether hang{
         .on = anchored.at, .at = {0.0f, 0.0f}, .offset = anchored.offset};
-    const float left = hang.place(across, SkSize::MakeEmpty()).left();
-    const float top = hang.place(down, SkSize::MakeEmpty()).top();
+    const float left = hang.place(across, {0, 0}).left();
+    const float top = hang.place(down, {0, 0}).top();
     overlay.children({box()
                           .key(std::string(baseKey) + "-anchored" +
                                std::to_string(entry.index))

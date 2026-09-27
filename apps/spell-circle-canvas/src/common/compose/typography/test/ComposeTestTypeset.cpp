@@ -35,7 +35,7 @@ TEST(ComposeTypeset, ANestedStyleCoversTheWordsItCountsAndStops) {
       sigil::weave::Unit::Word);
   ASSERT_EQ(words.size(), 5u);
   for (size_t index = 0; index < words.size(); ++index) {
-    const SkRect& word = words[index].rect;
+    const SkRect word = geometry::path::toSk(words[index].rect);
     const SkIRect box =
         SkIRect::MakeLTRB((int)word.left(), (int)word.top(),
                           (int)word.right() + 1, (int)word.bottom() + 1);
@@ -66,7 +66,7 @@ TEST(ComposeTypeset, ANestedRunEndsOnItsDelimiterAndIncludesIt) {
       sigil::weave::Unit::Word);
   ASSERT_GE(words.size(), 4u);
   const auto greenAt = [&](size_t index) {
-    const SkRect& word = words[index].rect;
+    const SkRect word = geometry::path::toSk(words[index].rect);
     return anyGreenIn(
         host, SkIRect::MakeLTRB((int)word.left(), (int)word.top(),
                                 (int)word.right() + 1, (int)word.bottom() + 1));
@@ -120,7 +120,7 @@ TEST(ComposeTypeset, AnInitialLetterCarriesANestedOpeningIntoItsBlock) {
       sigil::weave::Unit::Word);
   ASSERT_GE(words.size(), 4u);
   const auto greenAt = [&](size_t index) {
-    const SkRect& word = words[index].rect;
+    const SkRect word = geometry::path::toSk(words[index].rect);
     return anyGreenIn(
         host, SkIRect::MakeLTRB((int)word.left(), (int)word.top(),
                                 (int)word.right() + 1, (int)word.bottom() + 1));

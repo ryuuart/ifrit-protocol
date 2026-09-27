@@ -33,7 +33,6 @@
  * the page's face and a reading follows its base's colour.
  */
 
-#include <include/core/SkRect.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
@@ -397,9 +396,10 @@ struct BlockRule {
   const std::vector<TextUnit> lines =
       composer.units(key, where, sigil::weave::Unit::Line);
   if (lines.empty()) return overlay;
-  SkRect extent = lines.front().rect;
-  for (const TextUnit& line : lines) extent.join(line.rect);
-  extent.inset(rule.inset, 0);
+  geometry::path::Rect extent = lines.front().rect;
+  for (const TextUnit& line : lines) extent = extent.united(line.rect);
+  extent.min.x += rule.inset;
+  extent.max.x -= rule.inset;
   const std::string base(key);
   switch (rule.where) {
     case BlockRule::Where::Behind:

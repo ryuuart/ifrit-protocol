@@ -126,7 +126,7 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
   bool sawDistinct = false;
   for (const Beat& beat : beats) {
     const SkColor probe =
-        host.pixel((int)beat.rect.centerX(), (int)beat.rect.centerY());
+        host.pixel((int)beat.rect.centre().x, (int)beat.rect.centre().y);
     const float painted = (float)SkColorGetR(probe) / 255.0f;
     EXPECT_NEAR(painted, beat.localProgress, 0.02f)
         << "unit " << beat.unitIndex << " painted a different local time "
@@ -170,9 +170,9 @@ TEST(TextPass, ThePassFillsTheBoxGrownByItsReachAndNothingBeyond) {
            .textFx({.effect = textFx::pass(passOver(kFloodSksl)),
                     .reach = 12.0f})}));
   host.frame();
-  const std::optional<SkRect> laidOut = host.composer.bounds("bounded");
+  const std::optional<geometry::path::Rect> laidOut = host.composer.bounds("bounded");
   ASSERT_TRUE(laidOut.has_value());
-  const SkRect box = laidOut.value_or(SkRect::MakeEmpty());
+  const SkRect box = geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
   const SkColor green = SkColorSetRGB(0, 255, 0);
   // Inside the box: flooded.
   EXPECT_EQ(host.pixel((int)box.centerX(), (int)box.centerY()), green);
@@ -215,9 +215,9 @@ TEST(TextPass, ReachGrowsBoundsWithoutMovingContent) {
   Host wide;
   wide.composer.render(describe(40.0f));
   wide.frame();
-  const std::optional<SkRect> laidOut = wide.composer.bounds("hoist");
+  const std::optional<geometry::path::Rect> laidOut = wide.composer.bounds("hoist");
   ASSERT_TRUE(laidOut.has_value());
-  const SkRect box = laidOut.value_or(SkRect::MakeEmpty());
+  const SkRect box = geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
 
   // Inside the box, byte for byte the same picture: the reach must not
   // move, scale or resample what the glyphs painted. Probed per pixel —

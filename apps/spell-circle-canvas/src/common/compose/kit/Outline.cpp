@@ -13,6 +13,7 @@
 #include <sigilgeometry/path/Hull.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilgeometry/path/Polyline.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <vector>
 
@@ -23,7 +24,7 @@ void Around::add(Scope& scope) const {
   if (!node) return;
   // The band is the node's own outline swept `across` wide, in the
   // node's coordinates, laid over the node's box so it moves with it.
-  Band ring = band(heldPath(node->toLocal(node->outline)), across);
+  Band ring = band(heldPath(geometry::path::toSk(node->toLocal(node->outline))), across);
   ring.bandAlignment(formation)
       .key(key + "-outline")
       .rect(0, 0, node->bounds.width(), node->bounds.height());
@@ -37,7 +38,7 @@ void Hull::add(Scope& scope) const {
   std::vector<glm::vec2> points;
   for (const Scope::Node* node : nodes)
     for (const geometry::path::Polyline& line :
-         geometry::path::flatten(node->outline))
+         geometry::path::flatten(geometry::path::toSk(node->outline)))
       points.insert(points.end(), line.points.begin(), line.points.end());
   const std::vector<geometry::path::Polyline> rings =
       geometry::path::hull(points, alpha);

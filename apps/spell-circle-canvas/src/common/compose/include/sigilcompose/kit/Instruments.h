@@ -88,7 +88,7 @@ struct MeterPlacement {
   const bool under = placement.where == MeterPlacement::Where::Under;
   const std::vector<Beat> beats = composer.beatsOf(key, trackIndex);
   for (size_t i = 0; i < beats.size(); ++i) {
-    const SkRect& rect = beats[i].rect;
+    const geometry::path::Rect& rect = beats[i].rect;
     const float width = std::max(0.0f, rect.width() - placement.trim);
     const float height = under ? placement.thickness : rect.height();
     const float top = under ? rect.bottom() + placement.gap : rect.top();

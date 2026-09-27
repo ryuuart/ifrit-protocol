@@ -236,14 +236,14 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
   const sigil::weave::ParagraphLayout* layout =
       host.composer.paragraphLayout("p");
   ASSERT_NE(layout, nullptr);
-  const std::optional<SkRect> box_ = host.composer.bounds("p");
+  const std::optional<geometry::path::Rect> box_ = host.composer.bounds("p");
   ASSERT_TRUE(box_.has_value());
 
   const std::vector<SkRect> placed =
       wordExtents(*layout, beats.size(), {box_->left(), box_->top()});
   bool wrapped = false;
   for (size_t i = 1; i < beats.size(); ++i)
-    if (beats[i].rect.centerY() > beats[i - 1].rect.centerY() + 4)
+    if (beats[i].rect.centre().y > beats[i - 1].rect.centre().y + 4)
       wrapped = true;
   EXPECT_TRUE(wrapped) << "the paragraph never wrapped: nothing is proven";
   for (size_t i = 0; i < beats.size(); ++i) {
@@ -296,10 +296,10 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
   SkRect union_ = SkRect::MakeEmpty();
   for (const Beat& beat : beats) {
     const float radius =
-        std::hypot(beat.rect.centerX() - 200.0f, beat.rect.centerY() - 100.0f);
+        std::hypot(beat.rect.centre().x - 200.0f, beat.rect.centre().y - 100.0f);
     EXPECT_NEAR(radius, 60.0f, 14.0f)
         << "a beat left the baseline it was supposed to be reading";
-    union_.join(beat.rect);
+    union_.join(geometry::path::toSk(beat.rect));
   }
   EXPECT_GT(union_.right(), 200.0f)
       << "every beat stayed inside the node's box, so the rects are the "
@@ -307,8 +307,8 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
   // …and they go ROUND the ring rather than piling at its entry point: the
   // run sweeps a real arc, which only a rect read off the curve can show.
   const auto angleOf = [](const Beat& beat) {
-    return std::atan2(beat.rect.centerY() - 100.0f,
-                      beat.rect.centerX() - 200.0f);
+    return std::atan2(beat.rect.centre().y - 100.0f,
+                      beat.rect.centre().x - 200.0f);
   };
   float swept = 0;
   for (size_t i = 1; i < beats.size(); ++i) {
@@ -639,7 +639,7 @@ TEST(ComposeTextFx, AHeldEffectOnALoopingCascadeHasNothingLeftToVeto) {
     // The right word's whole travel: its rest box plus the rise's reach
     // below it, clamped to the host.
     return anyWhiteIn(host,
-                      SkIRect::MakeLTRB((int)(b->centerX() + 4), (int)b->top(),
+                      SkIRect::MakeLTRB((int)(b->centre().x + 4), (int)b->top(),
                                         std::min((int)b->right(), 239),
                                         std::min((int)b->bottom() + 24, 119)));
   };

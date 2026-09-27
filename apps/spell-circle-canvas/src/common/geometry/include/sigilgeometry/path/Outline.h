@@ -7,6 +7,7 @@
  * this header names the renderer that stands behind it — the bridge to
  * and from a renderer's path is `path/Skia.h`.
  */
+#include <algorithm>
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <memory>
@@ -31,11 +32,53 @@ struct Rect {
   static Rect centredOn(glm::vec2 centre, glm::vec2 size) {
     return {centre - size * 0.5f, centre + size * 0.5f};
   }
+  /** @name The four edges, as the web's `DOMRect` names them
+   *  @{ */
+  float left() const { return min.x; }
+  float top() const { return min.y; }
+  float right() const { return max.x; }
+  float bottom() const { return max.y; }
+  /** @} */
   float width() const { return max.x - min.x; }
   float height() const { return max.y - min.y; }
   glm::vec2 size() const { return max - min; }
   glm::vec2 centre() const { return (min + max) * 0.5f; }
   bool empty() const { return !(max.x > min.x && max.y > min.y); }
+  /** Whether @p point is inside: the left and top edges included, the
+   *  right and bottom ones not, so rectangles that share an edge never
+   *  both hold a point on it. */
+  bool contains(glm::vec2 point) const {
+    return point.x >= min.x && point.x < max.x && point.y >= min.y &&
+           point.y < max.y;
+  }
+  /** Whether @p other lies wholly inside, edges included; an empty
+   *  rectangle lies inside nothing. */
+  bool contains(const Rect& other) const {
+    return !other.empty() && !empty() && other.min.x >= min.x &&
+           other.min.y >= min.y && other.max.x <= max.x &&
+           other.max.y <= max.y;
+  }
+  /** Whether the two share any area; a shared edge alone is not. */
+  bool intersects(const Rect& other) const {
+    return min.x < other.max.x && other.min.x < max.x &&
+           min.y < other.max.y && other.min.y < max.y;
+  }
+  /** The smallest rectangle holding both; an empty one adds nothing. */
+  Rect united(const Rect& other) const {
+    if (other.empty()) return *this;
+    if (empty()) return other;
+    return {{std::min(min.x, other.min.x), std::min(min.y, other.min.y)},
+            {std::max(max.x, other.max.x), std::max(max.y, other.max.y)}};
+  }
+  /** The rectangle moved by @p offset. */
+  Rect translated(glm::vec2 offset) const {
+    return {min + offset, max + offset};
+  }
+  /** The rectangle grown by @p distance on every side; a negative
+   *  distance shrinks it. */
+  Rect outset(float distance) const {
+    return {min - glm::vec2(distance), max + glm::vec2(distance)};
+  }
   bool operator==(const Rect&) const = default;
 };
 

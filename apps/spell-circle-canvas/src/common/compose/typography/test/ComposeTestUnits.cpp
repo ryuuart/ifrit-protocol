@@ -217,7 +217,7 @@ TEST(ComposeUnits, AnAnchoredObjectStandsWhereTheOffsetPutsIt) {
   const std::vector<TextUnit> words = host.composer.units(
       "t", sigil::weave::selectors::text(u8"gamma"), sigil::weave::Unit::Word);
   ASSERT_EQ(words.size(), 1u);
-  const SkRect& word = words.front().rect;
+  const SkRect word = geometry::path::toSk(words.front().rect);
   const auto frame = host.composer.bounds("t");
   ASSERT_TRUE(frame.has_value());
   EXPECT_GT(word.left(), frame->left() + 40.0f)

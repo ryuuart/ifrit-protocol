@@ -11,7 +11,7 @@
  * what to hang and where; the operator hangs it.
  */
 
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Derive.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Operator.h>
@@ -44,7 +44,7 @@ namespace sigil::compose::pin {
  *  prunes. */
 struct Request {
   Element element;
-  SkSize size = {0, 0};
+  glm::vec2 size = {0, 0};
   Tether where;
   bool operator==(const Request& other) const {
     return size == other.size && where == other.where &&

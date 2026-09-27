@@ -318,8 +318,11 @@ void bindQueries(py::class_<ComposerHandle>& composer) {
   composer
       .def(
           "bounds",
-          [](const ComposerHandle& self, const std::string& key) {
-            return self.get().bounds(key);
+          [](const ComposerHandle& self,
+             const std::string& key) -> std::optional<SkRect> {
+            const auto bounds = self.get().bounds(key);
+            if (!bounds) return std::nullopt;
+            return geometry::path::toSk(*bounds);
           },
           py::arg("key"))
       .def(

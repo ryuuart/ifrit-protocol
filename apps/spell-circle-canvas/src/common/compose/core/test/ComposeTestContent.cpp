@@ -398,8 +398,8 @@ TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
                             .justifyContent(Justify::Center)
                             .children({image(picture, fit).key("fig")})}));
     host.frame();
-    const std::optional<SkRect> fig = host.composer.bounds("fig");
-    return fig.value_or(SkRect::MakeEmpty());
+    const std::optional<geometry::path::Rect> fig = host.composer.bounds("fig");
+    return geometry::path::toSk(fig.value_or(geometry::path::Rect{}));
   };
   // Both axes independently: the picture's proportions are the box's.
   EXPECT_EQ(shown(material::Fit::Stretch), SkRect::MakeWH(100, 100));
@@ -415,7 +415,7 @@ TEST(ComposeContent, APictureMeetsItsBoxTheWayTheFitSays) {
   Host bare;
   bare.composer.render(box().children({image(sk_sp<SkImage>()).key("none")}));
   bare.frame();
-  const std::optional<SkRect> empty = bare.composer.bounds("none");
+  const std::optional<geometry::path::Rect> empty = bare.composer.bounds("none");
   ASSERT_TRUE(empty.has_value());
   EXPECT_FLOAT_EQ(empty->height(), 0);
 }

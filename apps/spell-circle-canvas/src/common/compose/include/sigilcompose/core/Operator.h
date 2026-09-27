@@ -18,10 +18,7 @@
  * the same verb.
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcore/comparable/Erased.h>
@@ -122,10 +119,10 @@ class Scope {
     Attributes attributes;
     std::vector<std::string> classes;
     /// Where the node stands, in the scope's coordinates.
-    SkRect bounds = SkRect::MakeEmpty();
+    geometry::path::Rect bounds;
     /// The outline the node resolved to — its shape, a routed path, or
     /// its box — in the scope's coordinates.
-    SkPath outline;
+    geometry::path::Outline outline;
 
     template <typename T>
     std::optional<T> attribute(std::string_view name) const {
@@ -134,11 +131,10 @@ class Scope {
     std::optional<float> number(std::string_view name) const;
     bool hasClass(std::string_view name) const;
     /** @p point in the scope's coordinates, moved into this node's own. */
-    SkPoint toLocal(SkPoint point) const {
-      return {point.x() - bounds.left(), point.y() - bounds.top()};
-    }
-    /** @p path in the scope's coordinates, moved into this node's own. */
-    SkPath toLocal(const SkPath& path) const;
+    glm::vec2 toLocal(glm::vec2 point) const { return point - bounds.min; }
+    /** @p outline in the scope's coordinates, moved into this node's own. */
+    geometry::path::Outline toLocal(
+        const geometry::path::Outline& outline) const;
     /** ATTACHES @p element TO THIS NODE, placed in the node's own
      *  coordinates: what is about this node alone, drawn with it. */
     void attach(Element element) const;
@@ -150,7 +146,7 @@ class Scope {
   };
 
   /// The scope's own box, at the origin.
-  SkRect box = SkRect::MakeEmpty();
+  geometry::path::Rect box;
 
   std::span<const Node> nodes() const { return m_nodes; }
   /** The node keyed @p key, or null: an unknown key is silent, as it is

@@ -152,7 +152,7 @@ TEST(KitSpecimen, AWellAppliesTheCallersSizeGroundAndPadding) {
   const auto body = host.composer.bounds("body");
   ASSERT_TRUE(well.has_value());
   ASSERT_TRUE(body.has_value());
-  EXPECT_EQ(*well, SkRect::MakeWH(100, 80));
+  EXPECT_EQ(geometry::path::toSk(*well), SkRect::MakeWH(100, 80));
   EXPECT_FLOAT_EQ(body->left(), 10);
   EXPECT_FLOAT_EQ(body->top(), 10);
   EXPECT_EQ(host.pixel(1, 1), SK_ColorRED);
@@ -374,19 +374,19 @@ TEST(KitSpecimen, ASheetRulesOffItsHeaderAndFooterAndFootsThePage) {
                            .width(400)
                            .height(300));
   host.frame();
-  const SkRect content = host.composer.bounds("page-content").value();
+  const SkRect content = require(host.composer.bounds("page-content"));
   // The content stands one content gap under the title, inside the side
   // margins, and one content gap over the footer, which sits on the bottom
   // margin.
   EXPECT_NEAR(content.top(), 16 + title + 18, 1.5f);
   EXPECT_FLOAT_EQ(content.left(), 30.0f);
   EXPECT_FLOAT_EQ(content.right(), 370.0f);
-  const SkRect foot = host.composer.bounds("page-footer").value();
+  const SkRect foot = require(host.composer.bounds("page-footer"));
   EXPECT_NEAR(foot.bottom(), 300 - 14, 1.5f);
   EXPECT_NEAR(foot.height(), footer, 1.0f);
   EXPECT_NEAR(content.bottom(), foot.top() - 18, 1.5f);
   // The rule bisects that gap and is drawn full width.
-  const SkRect rule = host.composer.bounds("page-head-rule").value();
+  const SkRect rule = require(host.composer.bounds("page-head-rule"));
   EXPECT_FLOAT_EQ(rule.height(), 2.0f);
   EXPECT_NEAR(rule.top(), 16 + title + 8, 1.5f);
   EXPECT_EQ(host.pixel(200, (int)rule.top() + 1), SK_ColorRED);

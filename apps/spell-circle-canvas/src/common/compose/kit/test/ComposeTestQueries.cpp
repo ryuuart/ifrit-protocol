@@ -3,6 +3,7 @@
 // testing, and the slot that survives its content and says so when its
 // key is renamed.
 
+#include <cmath>
 #include <string>
 
 #include "support/StudioTestSupport.h"
@@ -54,7 +55,7 @@ TEST(ComposeQuery, BoundsIsAbsentRatherThanNaNBeforeLayout) {
   host.frame();
   const auto after = host.composer.bounds("cell");
   ASSERT_TRUE(after.has_value());
-  EXPECT_TRUE(after->isFinite());
+  EXPECT_TRUE(std::isfinite(after->width()) && std::isfinite(after->height()));
   EXPECT_FLOAT_EQ(after->width(), 50.0f);
 
   // A key that was never in the tree is still absent, not NaN.

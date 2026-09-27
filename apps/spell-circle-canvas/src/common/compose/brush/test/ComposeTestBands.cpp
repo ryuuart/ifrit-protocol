@@ -91,16 +91,16 @@ TEST(ComposeBand, AlongAcrossIsTheBandsOwnSpace) {
   SkPathBuilder b;
   b.moveTo(0, 50);
   b.lineTo(100, 50);
-  const SkPath spine = b.detach();
-  EXPECT_EQ(bandPointAt(spine, 0.0f, 0), SkPoint::Make(0, 50));
-  EXPECT_EQ(bandPointAt(spine, 0.5f, 0), SkPoint::Make(50, 50));
-  EXPECT_EQ(bandPointAt(spine, 1.0f, 0), SkPoint::Make(100, 50));
+  const geometry::path::Outline spine = geometry::path::fromSk(b.detach());
+  EXPECT_EQ(bandPointAt(spine, 0.0f, 0), glm::vec2(0, 50));
+  EXPECT_EQ(bandPointAt(spine, 0.5f, 0), glm::vec2(50, 50));
+  EXPECT_EQ(bandPointAt(spine, 1.0f, 0), glm::vec2(100, 50));
   // across is pixels along the normal, positive to the LEFT of travel. With
   // y down, travelling +x, a positive across therefore goes UP the screen.
   // geometry::path::parallel means the same side — there is one convention —
   // and it is asserted here so the two signs cannot drift apart.
-  EXPECT_EQ(bandPointAt(spine, 0.5f, 10), SkPoint::Make(50, 40));
-  EXPECT_EQ(bandPointAt(spine, 0.5f, -10), SkPoint::Make(50, 60));
+  EXPECT_EQ(bandPointAt(spine, 0.5f, 10), glm::vec2(50, 40));
+  EXPECT_EQ(bandPointAt(spine, 0.5f, -10), glm::vec2(50, 60));
 }
 
 TEST(ComposeBand, ProfileMaxKeepsTheReachOutOfTheCull) {

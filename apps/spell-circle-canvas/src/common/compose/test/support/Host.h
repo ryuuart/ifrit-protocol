@@ -14,6 +14,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmotion/time/Duration.h>
 
 #include <chrono>
@@ -58,6 +59,13 @@ template <class T>
 const T& require(const std::optional<T>& maybe) {
   if (!maybe.has_value()) throw std::logic_error("expected a value");
   return maybe.value();
+}
+
+/** A node's bounds as a Skia rect, for a case that checks them against
+ *  Skia's rect arithmetic; an empty optional is a test failure. */
+inline SkRect require(const std::optional<geometry::path::Rect>& maybe) {
+  if (!maybe.has_value()) throw std::logic_error("expected a value");
+  return geometry::path::toSk(*maybe);
 }
 
 /** A style at `size` in the instrument that puts every letter on one known

@@ -39,7 +39,7 @@ TEST(ComposeAdders, PinHangsTheElementWhereTheRequestSaysAndFallsBack) {
   auto a = host.composer.bounds("a-pin");
   ASSERT_TRUE(a.has_value());
   EXPECT_NEAR(a->left(), 50, 0.5f);
-  EXPECT_NEAR(a->centerY(), 100, 0.5f);
+  EXPECT_NEAR(a->centre().y, 100, 0.5f);
   EXPECT_EQ(host.pixel(60, 100), SK_ColorRED);
   // b's would leave the box to the right, so it takes the fallback and
   // hangs to the left: its right edge 10 px short of b.
@@ -104,8 +104,8 @@ TEST(ComposeAdders, StampMakesOneElementPerNodeAttachedToIt) {
   host.frame();
   auto a = host.composer.bounds("a-stamp");
   ASSERT_TRUE(a.has_value());
-  EXPECT_NEAR(a->centerX(), 30, 0.5f);
-  EXPECT_NEAR(a->centerY(), 30, 0.5f);
+  EXPECT_NEAR(a->centre().x, 30, 0.5f);
+  EXPECT_NEAR(a->centre().y, 30, 0.5f);
   EXPECT_TRUE(host.composer.bounds("b-stamp").has_value());
   EXPECT_FALSE(host.composer.bounds("c-stamp").has_value());
   EXPECT_EQ(host.pixel(30, 30), SK_ColorRED);

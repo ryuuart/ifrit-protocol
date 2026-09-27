@@ -41,7 +41,7 @@ TEST(ComposeAdders, APinRequestStatedByAnotherImageIsHung) {
   const auto pinned = host.composer.bounds("card-pin");
   ASSERT_TRUE(pinned.has_value());
   EXPECT_NEAR(pinned->left(), 50, 0.5f);
-  EXPECT_NEAR(pinned->centerY(), 100, 0.5f);
+  EXPECT_NEAR(pinned->centre().y, 100, 0.5f);
   EXPECT_EQ(host.pixel(60, 100), SK_ColorRED);
   // The guest stays loaded: the fact's value and its equality are its.
 }

@@ -12,7 +12,6 @@
  * `zIndex` says.
  */
 
-#include <include/core/SkPath.h>
 #include <sigilcompose/core/Derive.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
@@ -60,14 +59,15 @@ struct Dressing {
 /** THE WIRE ITSELF: the route between two rects as a path figure, dressed
  *  and keyed. `bleed` is the room the figure's box keeps around the path
  *  for the dress's width; an under-grown box clips the wire. */
-[[nodiscard]] Element wire(const SkRect& from, const SkRect& to,
+[[nodiscard]] Element wire(const geometry::path::Rect& from,
+                           const geometry::path::Rect& to,
                            const Router& router, float gap, float bleed,
                            std::string key, const Dressing& dressing);
 
 /** THE SAME WIRE THROUGH A RUN OF STOPS: the route along @p stops as a
  *  path figure, with the ends held @p gapStart and @p gapEnd px clear of
  *  the first and last of them. */
-[[nodiscard]] Element wire(std::span<const SkPoint> stops,
+[[nodiscard]] Element wire(std::span<const glm::vec2> stops,
                            const RailRouter& router, float gapStart,
                            float gapEnd, float bleed, std::string key,
                            const Dressing& dressing);
@@ -148,7 +148,7 @@ struct Along {
   bool operator==(const Along&) const = default;
 
   void add(Scope& scope) const {
-    std::vector<SkPoint> points;
+    std::vector<glm::vec2> points;
     points.reserve(stops.size());
     std::string joined;
     for (const Anchor& stop : stops) {
@@ -160,9 +160,7 @@ struct Along {
       const Anchor::OnNode& on = std::get<Anchor::OnNode>(stop.where);
       const Scope::Node* node = scope.find(on.key);
       if (!node) return;  // a key the scope does not hold draws nothing
-      points.push_back(
-          {node->bounds.left() + node->bounds.width() * on.norm.x(),
-           node->bounds.top() + node->bounds.height() * on.norm.y()});
+      points.push_back(node->bounds.min + node->bounds.size() * on.norm);
       if (!joined.empty()) joined += "->";
       joined += on.key;
     }

@@ -28,7 +28,7 @@ sigil::weave::Story article() {
 std::vector<float> depths(Host& host, int count) {
   std::vector<float> out;
   for (int i = 0; i < count; ++i) {
-    const std::optional<SkRect> box =
+    const std::optional<geometry::path::Rect> box =
         host.composer.bounds("column" + std::to_string(i));
     out.push_back(box ? box->height() : 0.0f);
   }

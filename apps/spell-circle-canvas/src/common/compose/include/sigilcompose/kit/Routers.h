@@ -85,7 +85,7 @@ Router orthogonal(float cornerRadius = 0.0f);
  *  bends at midX (a Z), this one also spells the two Ls — see `Bend`.
  *  Collinear points collapse, so an axis-aligned pair emits ONE segment
  *  rather than three with zero-length ends, and the corner is either
- *  rounded (@p cornerRadius, SkCornerPathEffect) or cut at 45°
+ *  rounded (@p cornerRadius) or cut at 45°
  *  (@p chamferCut — `geometry::path::operations::chamferCorners`). The two
  *  are alternatives:
  *  chamfer wins when both are set.
@@ -126,7 +126,7 @@ RailRouter manhattan(Bend bend = Bend::MidX, float cornerRadius = 0.0f,
 RailRouter fromPairwise(Router router);
 
 /** Straight polyline through the waypoints; a positive @p cornerRadius
- *  rounds every turn (SkCornerPathEffect). */
+ *  rounds every turn. */
 RailRouter polyline(float cornerRadius = 0.0f);
 
 /** The metro-map router: each leg runs a 45° diagonal for the shorter
@@ -142,7 +142,7 @@ RailRouter octilinear(float cornerRadius = 8.0f);
  *  reads, where nodes live on concentric rings and their in-ring links are
  *  arcs rather than chords. `tolerance` is the radius-match slack as a
  *  fraction of the radius. */
-RailRouter orbit(SkPoint center, float tolerance = 0.05f);
+RailRouter orbit(glm::vec2 center, float tolerance = 0.05f);
 
 /** Circular-ish bow between the centers: the route's midpoint bulges
  *  off the chord by @p bulge × chord-length (sign picks the side). */

@@ -5,7 +5,6 @@
  */
 
 #include "sigilcompose/kit/Pin.h"
-#include <sigilgeometry/path/Skia.h>
 
 namespace sigil::compose::pin {
 
@@ -18,12 +17,12 @@ void ByLane::add(Scope& scope) const {
     // is taken; when none fits, the stated one stands, so an element
     // that fits nowhere is still hung where it was asked for.
     const auto within = [&](const Tether& tether) {
-      return tether.within.isEmpty() ? scope.box : tether.within;
+      return tether.within.empty() ? scope.box : tether.within;
     };
-    SkRect placed = request->where.place(node->bounds, request->size);
+    geometry::path::Rect placed = request->where.place(node->bounds, request->size);
     if (!within(request->where).contains(placed)) {
       for (const Tether& fallback : request->where.fallbacks) {
-        const SkRect tried = fallback.place(node->bounds, request->size);
+        const geometry::path::Rect tried = fallback.place(node->bounds, request->size);
         if (within(fallback).contains(tried)) {
           placed = tried;
           break;
@@ -31,7 +30,7 @@ void ByLane::add(Scope& scope) const {
       }
     }
     Element hung = request->element;
-    hung.key(node->key + "-pin").rect(geometry::path::fromSk(placed));
+    hung.key(node->key + "-pin").rect(placed);
     scope.attach(std::move(hung));
   }
 }

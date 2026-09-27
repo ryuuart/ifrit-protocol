@@ -62,7 +62,7 @@ TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
   const auto accent = host.composer.bounds("accent");
   ASSERT_TRUE(accent);
   // Node-local x = 3 samples source x = (3 - pan) mod 16: red at pan 0.
-  const int px = (int)accent->left() + 3, py = (int)accent->centerY();
+  const int px = (int)accent->left() + 3, py = (int)accent->centre().y;
   EXPECT_EQ(host.pixel(px, py), SK_ColorRED);
   panX = 8.0f;  // half a tile
   host.frame(0.016);
@@ -89,7 +89,7 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   host.frame();
   const auto accent = host.composer.bounds("accent");
   ASSERT_TRUE(accent);
-  const int px = (int)accent->left() + 3, py = (int)accent->centerY();
+  const int px = (int)accent->left() + 3, py = (int)accent->centre().y;
   EXPECT_EQ(host.pixel(px, py), SK_ColorRED);
   // BEFORE the settle: a fresh bound pan denies contentStable at the root.
   {
@@ -157,7 +157,7 @@ TEST(ComposePatternPan, AMovingBoundPanNeverReleases) {
   host.frame();
   const auto accent = host.composer.bounds("accent");
   ASSERT_TRUE(accent);
-  const int px = (int)accent->left() + 3, py = (int)accent->centerY();
+  const int px = (int)accent->left() + 3, py = (int)accent->centre().y;
   for (int i = 0; i < 20; ++i) {
     panX = (float)((i % 4) + 1);  // moves every frame, never twice the same
     host.frame(0.016);
@@ -212,7 +212,7 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
   host.frame();
   const auto accent = host.composer.bounds("accent");
   ASSERT_TRUE(accent);
-  const int px = (int)accent->left() + 3, py = (int)accent->centerY();
+  const int px = (int)accent->left() + 3, py = (int)accent->centre().y;
   EXPECT_EQ(host.pixel(px, py), SK_ColorGREEN);  // 8 px static pan: flipped
   host.composer.render(pannedPanel(pat));
   host.frame();

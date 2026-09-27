@@ -43,7 +43,7 @@ std::vector<SkRect> linesUnder(State state, const char* passage = kPassage) {
   for (const TextUnit& line : host.composer.units(
            "t", sigil::weave::selectors::each(sigil::weave::Unit::Line),
            sigil::weave::Unit::Line))
-    lines.push_back(line.rect);
+    lines.push_back(geometry::path::toSk(line.rect));
   return lines;
 }
 
@@ -199,7 +199,7 @@ TEST(ComposeLineSetting, BothLonghandsAreStatableInARule) {
   for (const TextUnit& line : host.composer.units(
            "t", sigil::weave::selectors::each(sigil::weave::Unit::Line),
            sigil::weave::Unit::Line))
-    ruled.push_back(line.rect);
+    ruled.push_back(geometry::path::toSk(line.rect));
   EXPECT_TRUE(sameLines(
       ruled, linesUnder([](Element node) {
         return node.paragraph(

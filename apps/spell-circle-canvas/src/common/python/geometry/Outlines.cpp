@@ -65,6 +65,21 @@ void bindGeometryOutlines(pybind11::module_& module) {
       .def("size", &path::Rect::size)
       .def("centre", &path::Rect::centre)
       .def("empty", &path::Rect::empty)
+      .def("left", &path::Rect::left)
+      .def("top", &path::Rect::top)
+      .def("right", &path::Rect::right)
+      .def("bottom", &path::Rect::bottom)
+      .def("contains",
+           py::overload_cast<glm::vec2>(&path::Rect::contains, py::const_),
+           py::arg("point"))
+      .def("contains",
+           py::overload_cast<const path::Rect&>(&path::Rect::contains,
+                                                py::const_),
+           py::arg("other"))
+      .def("intersects", &path::Rect::intersects, py::arg("other"))
+      .def("united", &path::Rect::united, py::arg("other"))
+      .def("translated", &path::Rect::translated, py::arg("offset"))
+      .def("outset", &path::Rect::outset, py::arg("distance"))
       .def(py::self == py::self);
 
   auto pose = bindRecord<path::Pose>(paths, "Pose", "Unknown pose field: ");

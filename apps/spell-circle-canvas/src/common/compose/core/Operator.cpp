@@ -9,7 +9,7 @@
 #include "sigilcompose/core/Operator.h"
 #include <sigilgeometry/path/Skia.h>
 
-#include <include/core/SkMatrix.h>
+#include <sigilgeometry/path/Transform.h>
 
 #include <algorithm>
 #include <memory>
@@ -45,8 +45,9 @@ bool Scope::Node::hasClass(std::string_view name) const {
   return std::find(classes.begin(), classes.end(), name) != classes.end();
 }
 
-SkPath Scope::Node::toLocal(const SkPath& path) const {
-  return path.makeTransform(SkMatrix::Translate(-bounds.left(), -bounds.top()));
+geometry::path::Outline Scope::Node::toLocal(
+    const geometry::path::Outline& outline) const {
+  return outline.transformed(geometry::path::Transform::translate(-bounds.min));
 }
 
 void Scope::Node::attach(Element element) const {

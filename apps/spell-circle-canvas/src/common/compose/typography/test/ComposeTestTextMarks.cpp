@@ -92,8 +92,8 @@ namespace {
 
 /** The mark's rect, as the composer reports it. */
 SkRect markRect(Host& host, std::string_view key) {
-  const std::optional<SkRect> rect = host.composer.bounds(key);
-  return rect.value_or(SkRect::MakeEmpty());
+  const std::optional<geometry::path::Rect> rect = host.composer.bounds(key);
+  return geometry::path::toSk(rect.value_or(geometry::path::Rect{}));
 }
 
 }  // namespace
@@ -291,7 +291,7 @@ TEST(ComposeTextFx, MarkIsNotASlotAndReservesNoSpaceInTheFlow) {
     host.composer.render(
         box().padding(10).children({std::move(leaf).key("line")}));
     host.frame();
-    return host.composer.bounds("line").value_or(SkRect::MakeEmpty()).width();
+    return host.composer.bounds("line").value_or(geometry::path::Rect{}).width();
   };
   const float bare = widthOf(text(u8"ALPHA BETA", whiteStyle(24)));
   const float marked =

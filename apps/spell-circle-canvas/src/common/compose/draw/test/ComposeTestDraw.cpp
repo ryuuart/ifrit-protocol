@@ -68,8 +68,8 @@ TEST(DrawNode, DrawWithHandsAProgramTheScopeAndPaintsOverIt) {
           EXPECT_EQ(scope.nodes().size(), 2u);
           pen.noStroke();
           pen.fill(255, 0, 0);
-          pen.rect(a->bounds.centerX(), a->bounds.centerY() - 3,
-                   b->bounds.centerX() - a->bounds.centerX(), 6);
+          pen.rect(a->bounds.centre().x, a->bounds.centre().y - 3,
+                   b->bounds.centre().x - a->bounds.centre().x, 6);
         })});
   };
   host.composer.render(tree());
@@ -181,9 +181,9 @@ TEST(DrawNode, ACanvasFillsTheBoxItStandsIn) {
   host.composer.render(box().children({box().width(80).height(60).children(
       {box().height(12), box().cover().key("over")})}));
   host.frame();
-  const std::optional<SkRect> over = host.composer.bounds("over");
+  const std::optional<geometry::path::Rect> over = host.composer.bounds("over");
   ASSERT_TRUE(over.has_value());
-  EXPECT_EQ(*over, SkRect::MakeWH(80, 60));
+  EXPECT_EQ(geometry::path::toSk(*over), SkRect::MakeWH(80, 60));
 }
 
 TEST(DrawNode, AProgramNamesTheParametersItReadsAndTheVerbTakesTheCache) {

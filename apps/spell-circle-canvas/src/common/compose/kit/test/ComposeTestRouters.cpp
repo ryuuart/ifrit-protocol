@@ -12,9 +12,10 @@
 
 TEST(ComposeRouters, OrbitFollowsTheRing) {
   const SkPoint center{100, 100};
-  RailRouter router = routers::orbit(center);
-  const SkPoint pts[2] = {{200, 100}, {100, 200}};
-  const SkPath path = router(std::span<const SkPoint>(pts, 2));
+  RailRouter router = routers::orbit(sigil::geometry::path::fromSk(center));
+  const glm::vec2 pts[2] = {{200, 100}, {100, 200}};
+  const SkPath path =
+      sigil::geometry::path::toSk(router(std::span<const glm::vec2>(pts, 2)));
   const auto contours = sigil::geometry::path::Contour::of(path);
   ASSERT_FALSE(contours.empty());
   const sigil::geometry::path::Contour& contour = contours.front();
@@ -105,11 +106,12 @@ TEST(ComposeRouters, ARedescribedRouteRecordsOnce) {
 TEST(ComposeRouters, ARawRouteCallableNeverSettles) {
   // The escape hatch, stated as a test so the difference is visible: a
   // lambda re-minted each describe compares equal to nothing.
-  Router held = [](const SkRect& from, const SkRect& to) {
+  Router held = [](const sigil::geometry::path::Rect& from,
+                   const sigil::geometry::path::Rect& to) {
     SkPathBuilder b;
-    b.moveTo(from.centerX(), from.centerY());
-    b.lineTo(to.centerX(), to.centerY());
-    return b.detach();
+    b.moveTo(sigil::geometry::path::toSk(from.centre()));
+    b.lineTo(sigil::geometry::path::toSk(to.centre()));
+    return sigil::geometry::path::fromSk(b.detach());
   };
   EXPECT_FALSE(held.comparable());
   EXPECT_EQ(held, held);  // copies of ONE value share state
@@ -190,6 +192,10 @@ PathDump dumpPath(const SkPath& p) {
   return d;
 }
 
+PathDump dumpPath(const sigil::geometry::path::Outline& outline) {
+  return dumpPath(sigil::geometry::path::toSk(outline));
+}
+
 }  // namespace
 
 TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
@@ -199,7 +205,7 @@ TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
   RailRouter router = routers::manhattan();
 
   // An axis-aligned pair: ONE segment, no zero-length verbs.
-  const SkPoint aligned[2] = {{20, 100}, {180, 100}};
+  const glm::vec2 aligned[2] = {{20, 100}, {180, 100}};
   PathDump collapsed = dumpPath(router(std::span(aligned, 2)));
   EXPECT_EQ(collapsed.moves, 1);
   EXPECT_EQ(collapsed.lines, 1);
@@ -208,7 +214,7 @@ TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
   EXPECT_EQ(collapsed.pts[1], SkPoint::Make(180, 100));
 
   // Three collinear anchors thread as ONE straight run.
-  const SkPoint three[3] = {{20, 100}, {100, 100}, {180, 100}};
+  const glm::vec2 three[3] = {{20, 100}, {100, 100}, {180, 100}};
   PathDump merged = dumpPath(router(std::span(three, 3)));
   EXPECT_EQ(merged.lines, 1);
   ASSERT_EQ(merged.pts.size(), 2u);
@@ -220,8 +226,8 @@ TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
   // exactly-degenerate segments -- so it answers the same pair with a bend
   // where manhattan() answers with one run.
   Router pairwise = routers::orthogonal();
-  PathDump bent = dumpPath(pairwise(SkRect::MakeXYWH(10, 90, 20, 20),
-                                    SkRect::MakeXYWH(170, 90, 20, 20)));
+  PathDump bent = dumpPath(pairwise(sigil::geometry::path::Rect::of({10, 90}, {20, 20}),
+                                    sigil::geometry::path::Rect::of({170, 90}, {20, 20})));
   EXPECT_GT(bent.lines, collapsed.lines)
       << "orthogonal() collapsed its legs, so manhattan()'s promise to do "
          "so says nothing";
@@ -230,7 +236,7 @@ TEST(ComposeRouters, ManhattanIsARailRouterAndCollapsesCollinearRuns) {
 }
 
 TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
-  const SkPoint run[2] = {{20, 20}, {180, 160}};
+  const glm::vec2 run[2] = {{20, 20}, {180, 160}};
   // HFirst: horizontal out of the source, with the L bending AT the target
   // column — the shape a circuit-style graph wants and the midpoint router
   // cannot produce.
@@ -251,7 +257,7 @@ TEST(ComposeRouters, BendPoliciesTakeTheNamedColumns) {
   EXPECT_EQ(z.pts[2], SkPoint::Make(100, 160));
   // The pairwise spelling routes the same shape from rects.
   PathDump hr = dumpPath(routers::orthogonal(routers::Bend::HFirst)(
-      SkRect::MakeXYWH(15, 15, 10, 10), SkRect::MakeXYWH(175, 155, 10, 10)));
+      sigil::geometry::path::Rect::of({15, 15}, {10, 10}), sigil::geometry::path::Rect::of({175, 155}, {10, 10})));
   ASSERT_EQ(hr.pts.size(), 3u);
   EXPECT_EQ(hr.pts[1], SkPoint::Make(180, 20));
 }
@@ -269,7 +275,7 @@ TEST(ComposeRouters, AStampedRouteCarriesAWholeCountOfTilesPerLeg) {
   // An end three px OFF the count: the plain router turns at the far row,
   // the stamped one turns at the nearest whole number of cells from the
   // start, which is what gives the leg an exact tile count.
-  const SkPoint off[2] = {{20, 20}, {116, 137}};  // 4 cells over, ~4.9 down
+  const glm::vec2 off[2] = {{20, 20}, {116, 137}};  // 4 cells over, ~4.9 down
   const PathDump plain =
       dumpPath(routers::manhattan(routers::Bend::VFirst)(std::span(off, 2)));
   ASSERT_EQ(plain.pts.size(), 3u);
@@ -281,7 +287,7 @@ TEST(ComposeRouters, AStampedRouteCarriesAWholeCountOfTilesPerLeg) {
   // On the count, which is what a route between grid-placed nodes is:
   // both legs are axis-aligned and each END gives up half a cell along
   // its own leg.
-  const SkPoint run[2] = {{20, 20}, {116, 140}};  // 4 cells over, 5 down
+  const glm::vec2 run[2] = {{20, 20}, {116, 140}};  // 4 cells over, 5 down
   const PathDump onGrid = dumpPath(stamped(std::span(run, 2)));
   ASSERT_EQ(onGrid.pts.size(), 3u);
   EXPECT_EQ(onGrid.pts[1], SkPoint::Make(20, 140));
@@ -291,7 +297,7 @@ TEST(ComposeRouters, AStampedRouteCarriesAWholeCountOfTilesPerLeg) {
   // A STRAIGHT run collapses first and is then inset from both ends of
   // the one segment it became, so a stamped axis-aligned route is still
   // one segment and not three.
-  const SkPoint flat[2] = {{20, 20}, {212, 20}};
+  const glm::vec2 flat[2] = {{20, 20}, {212, 20}};
   const PathDump line = dumpPath(stamped(std::span(flat, 2)));
   ASSERT_EQ(line.pts.size(), 2u);
   EXPECT_EQ(line.pts.front(), SkPoint::Make(20 + kCell * 0.5f, 20));
@@ -310,9 +316,9 @@ TEST(ComposeRouters, FromPairwiseStitchesOneContourAndKeepsCurves) {
   // stations, the
   // legs stitch into ONE contour (terminal caps fire once, junction
   // moves dropped) and the old router's zero-length verbs collapse.
-  const SkPoint stops[3] = {{20, 100}, {100, 100}, {100, 180}};
+  const glm::vec2 stops[3] = {{20, 100}, {100, 100}, {100, 180}};
   RailRouter rr = routers::fromPairwise(routers::orthogonal());
-  const SkPath path = rr(std::span(stops, 3));
+  const SkPath path = sigil::geometry::path::toSk(rr(std::span(stops, 3)));
   PathDump d = dumpPath(path);
   EXPECT_EQ(d.moves, 1);  // ONE contour, not one per pair
   ASSERT_GE(d.pts.size(), 2u);

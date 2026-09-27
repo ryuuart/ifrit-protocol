@@ -12,6 +12,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the renderSlot diagnostic
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmeasure/advanced/Laps.h>
 #include <sigilmeasure/time/Stopwatch.h>
@@ -520,7 +521,8 @@ void Composer::purgeCaches() {
   impl.volatileDirty = true;
 }
 
-std::optional<SkRect> Composer::bounds(std::string_view key) const {
+std::optional<geometry::path::Rect> Composer::bounds(
+    std::string_view key) const {
   auto it = m_impl->byKey.find(key);
   if (it == m_impl->byKey.end()) return std::nullopt;
   // Accumulate offsets up the yoga tree.
@@ -535,7 +537,7 @@ std::optional<SkRect> Composer::bounds(std::string_view key) const {
     const SkRect parentRect = m_impl->instanceRect(*p);
     rect.offset(parentRect.left(), parentRect.top());
   }
-  return rect;
+  return geometry::path::fromSk(rect);
 }
 
 const sigil::weave::ParagraphLayout* Composer::paragraphLayout(
@@ -578,7 +580,8 @@ std::vector<Beat> Composer::beatsOf(std::string_view key,
     if (!rect.isFinite()) return {};  // laid out by nothing yet
     origin.offset(rect.left(), rect.top());
   }
-  for (Beat& beat : beats) beat.rect.offset(origin.x(), origin.y());
+  for (Beat& beat : beats)
+    beat.rect = beat.rect.translated(geometry::path::fromSk(origin));
   return beats;
 }
 
@@ -608,7 +611,7 @@ std::vector<TextUnit> Composer::units(std::string_view key,
     origin.offset(rect.left(), rect.top());
   }
   for (TextUnit& entry : units) {
-    entry.rect.offset(origin.x(), origin.y());
+    entry.rect = entry.rect.translated(geometry::path::fromSk(origin));
     entry.axis += entry.writingMode == sigil::weave::WritingMode::kVerticalRL
                       ? origin.x()
                       : origin.y();

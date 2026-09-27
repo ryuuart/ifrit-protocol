@@ -62,7 +62,7 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
   // where it has, and the boundary between them at its localProgress.
   int running = 0, unfinished = 0;
   for (const Beat& beat : beats) {
-    const int y = (int)beat.rect.centerY();
+    const int y = (int)beat.rect.centre().y;
     const int left = (int)beat.rect.left() + 1;
     const int right = (int)beat.rect.right() - 1;
     ASSERT_LT(left, right) << "a beat rect with no width to draw in";
@@ -85,7 +85,7 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
   // …and outside the last beat's rect there is no meter at all: the cells
   // are the units' boxes and not one strip across the node.
   EXPECT_EQ(SkColorGetB(host.pixel((int)beats.back().rect.right() + 6,
-                                   (int)beats.back().rect.centerY())),
+                                   (int)beats.back().rect.centre().y)),
             0u);
   // An unknown key is the query family's silent nothing, drawn: an overlay
   // with no cells in it, which measures as nothing rather than warning.
@@ -143,9 +143,9 @@ TEST(ComposeDebug, RestGhostDrawsTheSameWordUndeformedUnderTheMovingOne) {
   EXPECT_EQ(countBlue(shoved), 0) << "the ghost is carrying the track too";
   // The ghost is addressable, and it is exactly as wide as the word.
   const SkRect ghost =
-      host.composer.bounds("word-rest").value_or(SkRect::MakeEmpty());
+      geometry::path::toSk(host.composer.bounds("word-rest").value_or(geometry::path::Rect{}));
   const SkRect moving =
-      host.composer.bounds("word").value_or(SkRect::MakeEmpty());
+      geometry::path::toSk(host.composer.bounds("word").value_or(geometry::path::Rect{}));
   ASSERT_FALSE(ghost.isEmpty());
   EXPECT_NEAR(ghost.width(), moving.width(), 0.51f);
   EXPECT_NEAR(ghost.left(), moving.left(), 0.51f);
@@ -164,7 +164,7 @@ TEST(ComposeDebug, RestGhostCopiesTheTypeAndNotTheMarksOnIt) {
       {0, 0, 1, 1})}));
   host.frame();
   const SkRect caret =
-      host.composer.bounds("caret").value_or(SkRect::MakeEmpty());
+      geometry::path::toSk(host.composer.bounds("caret").value_or(geometry::path::Rect{}));
   ASSERT_FALSE(caret.isEmpty()) << "the mark on the moving copy is gone";
   int greens = 0;
   for (int y = 0; y < 140; ++y)

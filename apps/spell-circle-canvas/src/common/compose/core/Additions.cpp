@@ -5,6 +5,7 @@
  * authored children, after them, out of their flow.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkMatrix.h>
 
 #include <algorithm>
@@ -80,9 +81,10 @@ void Composer::Impl::collectScope(Instance& from, SkPoint origin, Scope& scope,
     if (node.operatorData) record.attributes = node.operatorData->attributes;
     if (node.cascadeData) record.classes = node.cascadeData->classes;
     const SkRect absolute = absoluteRect(*child);
-    record.bounds = absolute.makeOffset(-origin.x(), -origin.y());
-    record.outline = resolvedShapeOf(*child).makeTransform(
-        SkMatrix::Translate(record.bounds.left(), record.bounds.top()));
+    record.bounds =
+        geometry::path::fromSk(absolute.makeOffset(-origin.x(), -origin.y()));
+    record.outline = geometry::path::fromSk(resolvedShapeOf(*child).makeTransform(
+        SkMatrix::Translate(record.bounds.left(), record.bounds.top())));
     scope.mutableNodes().push_back(std::move(record));
     owners.push_back(child.get());
     // THE SCOPE IS CLOSED at a node with operators of its own: it is one
@@ -135,7 +137,7 @@ bool Composer::Impl::phaseAdditions() {
     const OperatorData& operators = *inst->description->operatorData;
     Scope scope;
     const SkRect own = absoluteRect(*inst);
-    scope.box = SkRect::MakeWH(own.width(), own.height());
+    scope.box = geometry::path::Rect::of({0, 0}, {own.width(), own.height()});
     std::vector<Instance*> owners;
     collectScope(*inst, {own.left(), own.top()}, scope, owners);
     scope.mutableNodes();  // binds every record to the scope it is read from

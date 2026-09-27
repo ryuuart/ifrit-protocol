@@ -13,7 +13,7 @@
  * is the paragraph engine's.
  */
 
-#include <include/core/SkRect.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilweave/paragraph/Paragraph.h>
 #include <sigilweave/style/ShapingStyle.h>
 #include <sigilweave/style/TextStyle.h>
@@ -42,7 +42,7 @@ struct TextUnit {
    *  bound of the advance boxes of the glyphs the selector addressed in it,
    *  lifted through every node above the text, so a sibling placed from it
    *  stands where the glyphs do. */
-  SkRect rect = SkRect::MakeEmpty();
+  geometry::path::Rect rect;
   /** The unit's ordinal among those the selector addressed, from 0 in draw
    *  order. */
   uint32_t index = 0;

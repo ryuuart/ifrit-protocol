@@ -407,19 +407,19 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
   const std::vector<Beat> beats = host.composer.beatsOf("col", 0);
   ASSERT_GT(beats.size(), 12u);
   const SkRect block =
-      host.composer.bounds("col").value_or(SkRect::MakeEmpty());
+      geometry::path::toSk(host.composer.bounds("col").value_or(geometry::path::Rect{}));
   ASSERT_FALSE(block.isEmpty()) << "the column block was never laid out";
   for (const Beat& beat : beats) {
-    EXPECT_FALSE(beat.rect.isEmpty());
+    EXPECT_FALSE(beat.rect.empty());
     EXPECT_GT(beat.rect.height(), 4.0f)
         << "a vertical glyph's beat has no extent along its own advance";
   }
   // Down a column: consecutive beats descend until the column breaks.
   int descents = 0, columnBreaks = 0;
   for (size_t i = 1; i < beats.size(); ++i) {
-    if (beats[i].rect.centerY() > beats[i - 1].rect.centerY() + 1.0f)
+    if (beats[i].rect.centre().y > beats[i - 1].rect.centre().y + 1.0f)
       ++descents;
-    else if (beats[i].rect.centerX() < beats[i - 1].rect.centerX() - 1.0f)
+    else if (beats[i].rect.centre().x < beats[i - 1].rect.centre().x - 1.0f)
       ++columnBreaks;
   }
   EXPECT_GT(descents, (int)beats.size() / 2)
@@ -428,7 +428,7 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
       << "the passage never broke to a second column: nothing is proven";
   // …and the whole schedule stays inside the node it belongs to.
   for (const Beat& beat : beats)
-    EXPECT_TRUE(block.intersects(beat.rect))
+    EXPECT_TRUE(block.intersects(geometry::path::toSk(beat.rect)))
         << "a beat landed outside the column block";
 }
 
@@ -558,7 +558,7 @@ TEST(TextVertical, AMarkAnchorsToTheColumnItsUnitStandsIn) {
   const auto* layout = host.composer.paragraphLayout("t");
   ASSERT_NE(layout, nullptr);
   const SkRect rule =
-      host.composer.bounds("rule").value_or(SkRect::MakeEmpty());
+      geometry::path::toSk(host.composer.bounds("rule").value_or(geometry::path::Rect{}));
   ASSERT_FALSE(rule.isEmpty()) << "the mark never resolved";
   EXPECT_GT(rule.height(), rule.width() * 3)
       << "three characters of a column make a TALL mark";
@@ -834,7 +834,7 @@ TEST(TextVertical, AGroupReadingSplitsWithItsCompoundDownTheColumns) {
       cut.composer.units("t", sigil::weave::selectors::text(compound),
                          sigil::weave::Unit::Selection);
   ASSERT_EQ(pieces.size(), 2u) << "the compound did not cross a column";
-  EXPECT_GT(pieces[0].rect.centerX(), pieces[1].rect.centerX())
+  EXPECT_GT(pieces[0].rect.centre().x, pieces[1].rect.centre().x)
       << "columns advance right to left";
   const SkIRect first = greenBoxIn(cut, bandRightOf(pieces[0]));
   const SkIRect second = greenBoxIn(cut, bandRightOf(pieces[1]));

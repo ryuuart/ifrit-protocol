@@ -12,7 +12,7 @@ namespace {
  *  "how much room the geometry offered": the same words in the same box
  *  need fewer lines when the exclusion gives room back. */
 float flowedHeight(Host& host, const char* key) {
-  std::optional<SkRect> bounds = host.composer.bounds(key);
+  std::optional<geometry::path::Rect> bounds = host.composer.bounds(key);
   return bounds ? bounds->height() : 0.0f;
 }
 

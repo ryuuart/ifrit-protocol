@@ -126,7 +126,7 @@ TEST(ComposeOperators, AnArrangingOperatorPlacesByAFactNotByIndex) {
   host.frame();
   auto centre = [&](const char* key) {
     auto rect = host.composer.bounds(key);
-    return SkPoint{rect->centerX(), rect->centerY()};
+    return SkPoint{rect->centre().x, rect->centre().y};
   };
   EXPECT_NEAR(centre("h12").x(), 100, 1);
   EXPECT_NEAR(centre("h12").y(), 20, 1);
@@ -147,8 +147,8 @@ TEST(ComposeOperators, ALaterOperatorSeesWhereTheEarlierOneLeftEachChild) {
   host.frame();
   auto rect = host.composer.bounds("h3");
   ASSERT_TRUE(rect.has_value());
-  EXPECT_NEAR(rect->centerX(), 187, 1);
-  EXPECT_NEAR(rect->centerY(), 97, 1);
+  EXPECT_NEAR(rect->centre().x, 187, 1);
+  EXPECT_NEAR(rect->centre().y, 97, 1);
 }
 
 TEST(ComposeOperators, ATurnReachesThePaint) {
@@ -261,7 +261,7 @@ TEST(ComposeOperators, AComparableOperatorPrunesAndAFactChangeDoesNot) {
   host.frame();
   auto rect = host.composer.bounds("h6");
   ASSERT_TRUE(rect.has_value());
-  EXPECT_NEAR(rect->centerY(), 180, 1);
+  EXPECT_NEAR(rect->centre().y, 180, 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -284,7 +284,7 @@ struct MarkEach {
 struct Sheet {
   bool operator==(const Sheet&) const = default;
   void add(Scope& scope) const {
-    scope.attach(box().key("sheet").rect(geometry::path::fromSk(scope.box)).fill(red()));
+    scope.attach(box().key("sheet").rect(scope.box).fill(red()));
   }
 };
 
@@ -294,7 +294,7 @@ struct SheetAt {
   bool operator==(const SheetAt&) const = default;
   void add(Scope& scope) const {
     scope.attach(
-        box().key("sheet").rect(geometry::path::fromSk(scope.box)).fill(red()).zIndex(zIndex));
+        box().key("sheet").rect(scope.box).fill(red()).zIndex(zIndex));
   }
 };
 
@@ -308,14 +308,13 @@ struct Wire {
     if (!a || !b) return;
     // A level bar between the two centres, the kernel test's wire: what
     // dresses a path is the brush tier's business, not this seam's.
-    const SkPoint start = a->bounds.center();
-    const SkPoint end = b->bounds.center();
+    const glm::vec2 start = a->bounds.centre();
+    const glm::vec2 end = b->bounds.centre();
     scope.attach(box()
                      .key(from + "->" + to)
-                     .rect(geometry::path::fromSk(SkRect::MakeLTRB(std::min(start.x(), end.x()),
-                                            start.y() - 2,
-                                            std::max(start.x(), end.x()),
-                                            start.y() + 2)))
+                     .rect(geometry::path::Rect{
+                         {std::min(start.x, end.x), start.y - 2},
+                         {std::max(start.x, end.x), start.y + 2}})
                      .fill(red()));
   }
 };
@@ -332,7 +331,7 @@ TEST(ComposeOperators, AnAdditionOnTheScopeStandsBesideTheAuthoredChildren) {
   // The wire is a keyed element with bounds, painted between the boxes.
   auto wire = host.composer.bounds("a->b");
   ASSERT_TRUE(wire.has_value());
-  EXPECT_NEAR(wire->centerY(), 100, 1);
+  EXPECT_NEAR(wire->centre().y, 100, 1);
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
   // Over the authored children by default: listed after them.
   EXPECT_EQ(host.pixel(30, 100), SK_ColorRED);

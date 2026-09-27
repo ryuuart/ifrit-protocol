@@ -7,6 +7,9 @@
 
 #include <sigilgeometry/path/Contour.h>  // the terminal gap
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/path/Skia.h>
+
+#include <glm/geometric.hpp>
 
 #include <algorithm>
 
@@ -17,15 +20,17 @@ namespace sigil::compose {
 
 using namespace detail;
 
-SkPath routeBetween(const Router& router, const SkRect& from, const SkRect& to,
-                    float gap) {
+geometry::path::Outline routeBetween(const Router& router,
+                                     const geometry::path::Rect& from,
+                                     const geometry::path::Rect& to,
+                                     float gap) {
   SkPath path;
   if (router) {
-    path = router(from, to);
+    path = geometry::path::toSk(router(from, to));
   } else {
     SkPathBuilder b;
-    b.moveTo(from.centerX(), from.centerY());
-    b.lineTo(to.centerX(), to.centerY());
+    b.moveTo(geometry::path::toSk(from.centre()));
+    b.lineTo(geometry::path::toSk(to.centre()));
     path = b.detach();
   }
   // The terminal gap, the same knob a run of stops carries on its ends:
@@ -48,32 +53,33 @@ SkPath routeBetween(const Router& router, const SkRect& from, const SkRect& to,
     }
     if (touched) path = trimmed.detach();
   }
-  return path;
+  return geometry::path::fromSk(std::move(path));
 }
 
-SkPath routeAlong(const RailRouter& router, std::span<const SkPoint> stops,
-                  float gapStart, float gapEnd) {
-  if (stops.size() < 2) return SkPath();
-  std::vector<SkPoint> pts(stops.begin(), stops.end());
+geometry::path::Outline routeAlong(const RailRouter& router,
+                                   std::span<const glm::vec2> stops,
+                                   float gapStart, float gapEnd) {
+  if (stops.size() < 2) return {};
+  std::vector<glm::vec2> points(stops.begin(), stops.end());
   // Terminal gaps: pull the run's ends back along their own segments,
   // clamped so a short segment keeps a visible run (and a two-point run
   // pulled from both ends cannot invert).
-  const auto pullIn = [](SkPoint& end, const SkPoint& next, float gap) {
+  const auto pullIn = [](glm::vec2& end, glm::vec2 next, float gap) {
     if (gap <= 0) return;
-    SkVector d = next - end;
-    const float len = d.length();
-    if (len < 1e-3f) return;
-    const float pull = std::min(gap, len * 0.45f);
-    d.scale(pull / len);
-    end += d;
+    const glm::vec2 direction = next - end;
+    const float length = glm::length(direction);
+    if (length < 1e-3f) return;
+    const float pull = std::min(gap, length * 0.45f);
+    end += direction * (pull / length);
   };
-  pullIn(pts.front(), pts[1], gapStart);
-  pullIn(pts.back(), pts[pts.size() - 2], gapEnd);
-  if (router) return router(pts);
+  pullIn(points.front(), points[1], gapStart);
+  pullIn(points.back(), points[points.size() - 2], gapEnd);
+  if (router) return router(points);
   SkPathBuilder b;  // default: the straight polyline
-  b.moveTo(pts.front());
-  for (size_t i = 1; i < pts.size(); ++i) b.lineTo(pts[i]);
-  return b.detach();
+  b.moveTo(geometry::path::toSk(points.front()));
+  for (size_t i = 1; i < points.size(); ++i)
+    b.lineTo(geometry::path::toSk(points[i]));
+  return geometry::path::fromSk(b.detach());
 }
 
 void Composer::Impl::deriveBorrows(Instance& inst) {

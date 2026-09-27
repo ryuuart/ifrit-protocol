@@ -8,6 +8,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/path/Profile.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>
@@ -166,13 +167,15 @@ py::object routeOf(const PythonValue& held, bool scheme) {
 /** Asks Python for the path between two endpoint rects. The rects are
  *  handed over as copies, so one kept past the call reads its own
  *  storage. */
-SkPath routeBetween(const PythonValue& held, bool scheme, const SkRect& from,
-                    const SkRect& to) {
+geometry::path::Outline routeBetween(const PythonValue& held, bool scheme,
+                                     const geometry::path::Rect& from,
+                                     const geometry::path::Rect& to) {
   const py::gil_scoped_acquire lock;
   const CallbackBoundary boundary;
   try {
-    return readRoutedPath(
-        routeOf(held, scheme)(py::cast(from, copied), py::cast(to, copied)));
+    return geometry::path::fromSk(readRoutedPath(routeOf(held, scheme)(
+        py::cast(geometry::path::toSk(from), copied),
+        py::cast(geometry::path::toSk(to), copied))));
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());
   }
@@ -180,15 +183,16 @@ SkPath routeBetween(const PythonValue& held, bool scheme, const SkRect& from,
 
 /** Asks Python for the path through a resolved anchor run, handed over
  *  as a list of copied points. */
-SkPath routeThrough(const PythonValue& held, bool scheme,
-                    std::span<const SkPoint> anchors) {
+geometry::path::Outline routeThrough(const PythonValue& held, bool scheme,
+                                     std::span<const glm::vec2> anchors) {
   const py::gil_scoped_acquire lock;
   const CallbackBoundary boundary;
   try {
     py::list points;
-    for (const SkPoint& anchor : anchors)
-      points.append(py::cast(anchor, copied));
-    return readRoutedPath(routeOf(held, scheme)(points));
+    for (const glm::vec2 anchor : anchors)
+      points.append(py::cast(geometry::path::toSk(anchor), copied));
+    return geometry::path::fromSk(
+        readRoutedPath(routeOf(held, scheme)(points)));
   } catch (const py::error_already_set& error) {
     throw std::runtime_error(error.what());
   }
@@ -234,7 +238,8 @@ class PythonSchemeValue {
 struct PythonRouteScheme {
   PythonSchemeValue value;
   bool operator==(const PythonRouteScheme&) const = default;
-  SkPath route(const SkRect& from, const SkRect& to) const {
+  geometry::path::Outline route(const geometry::path::Rect& from,
+                                const geometry::path::Rect& to) const {
     return routeBetween(value.held(), true, from, to);
   }
 };
@@ -243,7 +248,7 @@ struct PythonRouteScheme {
 struct PythonRailScheme {
   PythonSchemeValue value;
   bool operator==(const PythonRailScheme&) const = default;
-  SkPath route(std::span<const SkPoint> anchors) const {
+  geometry::path::Outline route(std::span<const glm::vec2> anchors) const {
     return routeThrough(value.held(), true, anchors);
   }
 };
@@ -255,7 +260,8 @@ Router schemeRouter(const RouteSchemeObject& scheme) {
 Router functionRouter(const py::object& function) {
   std::shared_ptr<PythonValue> held =
       retainCallback(py::reinterpret_borrow<py::function>(function));
-  return Router{[held](const SkRect& from, const SkRect& to) {
+  return Router{[held](const geometry::path::Rect& from,
+                       const geometry::path::Rect& to) {
     return routeBetween(*held, false, from, to);
   }};
 }
@@ -267,31 +273,35 @@ RailRouter schemeRailRouter(const RouteSchemeObject& scheme) {
 RailRouter functionRailRouter(const py::object& function) {
   std::shared_ptr<PythonValue> held =
       retainCallback(py::reinterpret_borrow<py::function>(function));
-  return RailRouter{[held](std::span<const SkPoint> anchors) {
+  return RailRouter{[held](std::span<const glm::vec2> anchors) {
     return routeThrough(*held, false, anchors);
   }};
 }
 
 /** Every point of an anchor run, read for a router asked directly. */
-std::vector<SkPoint> readPoints(py::handle values) {
+std::vector<glm::vec2> readPoints(py::handle values) {
   if (py::isinstance<py::str>(values) || !py::isinstance<py::iterable>(values))
     throw py::type_error("An anchor run is an iterable of points.");
-  std::vector<SkPoint> points;
+  std::vector<glm::vec2> points;
   for (const py::handle value : py::reinterpret_borrow<py::iterable>(values))
-    points.push_back(readPoint(value));
+    points.push_back(geometry::path::fromSk(readPoint(value)));
   return points;
 }
 
 /** A point member of @p Record as a property: written through the point
- *  reading, so a pair of numbers sets it, and read as the member itself,
- *  so setting one coordinate of what was read sets the record's. */
+ *  reading, so a pair of numbers sets it, and read as a copy of the
+ *  member, so a change to what was read reaches the record only when it
+ *  is assigned back. */
 template <class Record>
 void pointField(py::class_<Record>& type, const char* name,
-                SkPoint Record::* member, const char* documentation) {
+                glm::vec2 Record::* member, const char* documentation) {
   type.def_property(
-      name, [member](Record& self) -> SkPoint& { return self.*member; },
+      name,
+      [member](const Record& self) {
+        return geometry::path::toSk(self.*member);
+      },
       [member](Record& self, py::handle value) {
-        self.*member = readPoint(value);
+        self.*member = geometry::path::fromSk(readPoint(value));
       },
       fluent, documentation);
 }
@@ -321,7 +331,9 @@ void bindRouters(py::module_& composition) {
       .def(
           "route",
           [](const Router& self, py::handle from, py::handle to) {
-            return self.route(readRect(from), readRect(to));
+            return geometry::path::toSk(
+                self.route(geometry::path::fromSk(readRect(from)),
+                           geometry::path::fromSk(readRect(to))));
           },
           py::arg("from_"), py::arg("to"),
           "The path between the two rects; empty from an empty router.")
@@ -354,8 +366,8 @@ void bindRouters(py::module_& composition) {
       .def(
           "route",
           [](const RailRouter& self, py::handle anchors) {
-            const std::vector<SkPoint> points = readPoints(anchors);
-            return self.route(points);
+            const std::vector<glm::vec2> points = readPoints(anchors);
+            return geometry::path::toSk(self.route(points));
           },
           py::arg("anchors"),
           "The path through the points; empty from an empty router.")
@@ -409,14 +421,16 @@ void bindAnchor(py::module_& composition) {
 
   anchor.def(py::init<>())
       .def(py::init([](std::string key, py::handle norm, float gap) {
-             return Anchor(std::move(key), readPoint(norm), gap);
+             return Anchor(std::move(key), geometry::path::fromSk(readPoint(norm)),
+                           gap);
            }),
            py::arg("key"), py::arg("norm") = py::make_tuple(0.5f, 0.5f),
            py::arg("gap") = 0.0f)
       .def_static(
           "on",
           [](std::string key, py::handle norm, float gap) {
-            return Anchor::on(std::move(key), readPoint(norm), gap);
+            return Anchor::on(std::move(key),
+                              geometry::path::fromSk(readPoint(norm)), gap);
           },
           py::arg("key"), py::arg("norm") = py::make_tuple(0.5f, 0.5f),
           py::arg("gap") = 0.0f,
@@ -424,7 +438,7 @@ void bindAnchor(py::module_& composition) {
       .def_static(
           "at",
           [](py::handle point, float gap) {
-            return Anchor::at(readPoint(point), gap);
+            return Anchor::at(geometry::path::fromSk(readPoint(point)), gap);
           },
           py::arg("point"), py::arg("gap") = 0.0f,
           "The free form: a point in the scope's own coordinates.")
@@ -467,8 +481,11 @@ void bindTether(py::module_& composition) {
              "How far from there, in pixels, in the composition's axes.");
   tether
       .def_property(
-          "within", [](Tether& self) -> SkRect& { return self.within; },
-          [](Tether& self, py::handle value) { self.within = readRect(value); },
+          "within",
+          [](const Tether& self) { return geometry::path::toSk(self.within); },
+          [](Tether& self, py::handle value) {
+            self.within = geometry::path::fromSk(readRect(value));
+          },
           fluent,
           "The rect a placed box has to stay inside; empty is the "
           "composer's own bounds.")
@@ -483,7 +500,9 @@ void bindTether(py::module_& composition) {
       .def(
           "place",
           [](const Tether& self, py::handle anchor, py::handle size) {
-            return self.place(readRect(anchor), readSize(size));
+            return geometry::path::toSk(
+                self.place(geometry::path::fromSk(readRect(anchor)),
+                           geometry::path::fromSk(readSize(size))));
           },
           py::arg("anchor"), py::arg("size"),
           "Where a box of `size` lands when this tether ties it to "
@@ -519,7 +538,12 @@ void bindSpines(py::module_& composition) {
         "length.");
 
   composition.def(
-      "bandPointAt", &compose::bandPointAt, py::arg("spine"), py::arg("along"),
+      "bandPointAt",
+      [](const SkPath& spine, float along, float acrossPx) {
+        return geometry::path::toSk(compose::bandPointAt(
+            geometry::path::fromSk(spine), along, acrossPx));
+      },
+      py::arg("spine"), py::arg("along"),
       py::arg("acrossPx"),
       "The point at `along`, a fraction of the spine's arc length, and "
       "`acrossPx` pixels on its normal. Positive is to the left of travel, "

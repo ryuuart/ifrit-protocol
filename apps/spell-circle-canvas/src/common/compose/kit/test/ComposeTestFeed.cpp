@@ -19,7 +19,7 @@ feed::TextOptions feedOptions(size_t visible, float size = 12.0f) {
 }
 
 /** The brightest ink inside a rect — how lit a row is, whatever it says. */
-int brightestIn(Host& host, SkRect r) {
+int brightestIn(Host& host, const geometry::path::Rect& r) {
   int best = 0;
   for (int y = (int)r.top(); y < (int)r.bottom(); ++y)
     for (int x = (int)r.left(); x < (int)r.right(); ++x)
@@ -92,7 +92,7 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   host.composer.render(describe());
   host.frame(0.4);  // every mounted row has finished its entrance
   for (uint64_t sequence = 1; sequence <= 4; ++sequence) {
-    const std::optional<SkRect> band =
+    const std::optional<geometry::path::Rect> band =
         host.composer.bounds(feed::rowKey(sequence));
     ASSERT_TRUE(band.has_value()) << sequence;
     EXPECT_GT(brightestIn(host, *band), 150) << "row " << sequence;
@@ -102,14 +102,14 @@ TEST(ComposeFeed, ASurvivingRowKeepsItsInstanceRatherThanReentering) {
   host.composer.render(describe());
   host.frame(0.016);
   for (uint64_t sequence = 1; sequence <= 4; ++sequence) {
-    const std::optional<SkRect> band =
+    const std::optional<geometry::path::Rect> band =
         host.composer.bounds(feed::rowKey(sequence));
     ASSERT_TRUE(band.has_value()) << sequence;
     EXPECT_GT(brightestIn(host, *band), 150)
         << "row " << sequence << " re-entered: the append remounted it";
   }
   // …and the new row really is new — it is mid-entrance, not already lit.
-  const std::optional<SkRect> tail = host.composer.bounds(feed::rowKey(5));
+  const std::optional<geometry::path::Rect> tail = host.composer.bounds(feed::rowKey(5));
   ASSERT_TRUE(tail.has_value());
   EXPECT_LT(brightestIn(host, *tail), 120);
 }
@@ -164,8 +164,8 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
 
   host.composer.render(describe());
   host.frame(0.25);  // row 1's 200 ms is done; row 2 waits out its 400 ms
-  const std::optional<SkRect> r1 = host.composer.bounds(feed::rowKey(1));
-  const std::optional<SkRect> r2 = host.composer.bounds(feed::rowKey(2));
+  const std::optional<geometry::path::Rect> r1 = host.composer.bounds(feed::rowKey(1));
+  const std::optional<geometry::path::Rect> r2 = host.composer.bounds(feed::rowKey(2));
   ASSERT_TRUE(r1.has_value());
   ASSERT_TRUE(r2.has_value());
   EXPECT_GT(brightestIn(host, *r1), 150);
@@ -179,7 +179,7 @@ TEST(ComposeFeed, TheEntranceStaggerDelaysOnlyTheRowsThatMount) {
   ring.append({u8"tail"});
   host.composer.render(describe());
   host.frame(0.25);
-  const std::optional<SkRect> r4 = host.composer.bounds(feed::rowKey(4));
+  const std::optional<geometry::path::Rect> r4 = host.composer.bounds(feed::rowKey(4));
   ASSERT_TRUE(r4.has_value());
   EXPECT_GT(brightestIn(host, *r4), 150)
       << "the appended row inherited the window's cascade";

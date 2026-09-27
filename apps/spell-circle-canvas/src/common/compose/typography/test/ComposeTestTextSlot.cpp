@@ -59,14 +59,14 @@ TEST(TextSlot, AChildPaintsInsideTheReservedRect) {
   host.composer.render(pillCaption("pill", 280));
   host.frame();
 
-  const std::optional<SkRect> rect = host.composer.bounds("pill");
+  const std::optional<geometry::path::Rect> rect = host.composer.bounds("pill");
   ASSERT_TRUE(rect);
   // The box IS the size the content reserved — nothing about the child's
   // own description decides it.
   EXPECT_FLOAT_EQ(rect->width(), 34.0f);
   EXPECT_FLOAT_EQ(rect->height(), 16.0f);
   // …and the fill lands inside it.
-  EXPECT_EQ(host.pixel((int)rect->centerX(), (int)rect->centerY()),
+  EXPECT_EQ(host.pixel((int)rect->centre().x, (int)rect->centre().y),
             SK_ColorRED);
   // The reserved run is blank: the caption's own words sit either side of
   // it, never through it.
@@ -93,8 +93,8 @@ TEST(TextSlot, AVerticalChildReceivesThePhysicalSlotRect) {
   EXPECT_FLOAT_EQ(rect->width(), 30);
   EXPECT_FLOAT_EQ(rect->height(), 80);
   EXPECT_TRUE(caption->contains(*rect));
-  EXPECT_EQ(host.pixel(static_cast<int>(rect->centerX()),
-                       static_cast<int>(rect->centerY())),
+  EXPECT_EQ(host.pixel(static_cast<int>(rect->centre().x),
+                       static_cast<int>(rect->centre().y)),
             SK_ColorRED);
 }
 
@@ -107,15 +107,15 @@ TEST(TextSlot, TheReservedRunIsUnbreakableAndMovesOnRelayout) {
   narrow.composer.render(pillCaption("pill", 120));
   narrow.frame();
 
-  const std::optional<SkRect> a = wide.composer.bounds("pill");
-  const std::optional<SkRect> b = narrow.composer.bounds("pill");
+  const std::optional<geometry::path::Rect> a = wide.composer.bounds("pill");
+  const std::optional<geometry::path::Rect> b = narrow.composer.bounds("pill");
   ASSERT_TRUE(a && b);
   EXPECT_NE(a->top(), b->top());
   // Same reserved size wherever it lands — the box travels, it does not
   // stretch, and no line breaks inside it.
   EXPECT_FLOAT_EQ(a->width(), b->width());
   EXPECT_FLOAT_EQ(a->height(), b->height());
-  EXPECT_EQ(narrow.pixel((int)b->centerX(), (int)b->centerY()), SK_ColorRED);
+  EXPECT_EQ(narrow.pixel((int)b->centre().x, (int)b->centre().y), SK_ColorRED);
 }
 
 TEST(TextSlot, ATallSlotOpensItsLine) {
@@ -126,8 +126,8 @@ TEST(TextSlot, ATallSlotOpensItsLine) {
   shortPill.frame();
   tallPill.composer.render(pillCaption("pill", 280, {34, 60}));
   tallPill.frame();
-  const std::optional<SkRect> a = shortPill.composer.bounds("caption");
-  const std::optional<SkRect> b = tallPill.composer.bounds("caption");
+  const std::optional<geometry::path::Rect> a = shortPill.composer.bounds("caption");
+  const std::optional<geometry::path::Rect> b = tallPill.composer.bounds("caption");
   ASSERT_TRUE(a && b);
   EXPECT_GT(b->height(), a->height());
 }
@@ -138,9 +138,9 @@ TEST(TextSlot, AnUnknownKeyDrawsNothing) {
   Host host(300, 200);
   host.composer.render(pillCaption("typo", 280));
   host.frame();
-  const std::optional<SkRect> rect = host.composer.bounds("typo");
+  const std::optional<geometry::path::Rect> rect = host.composer.bounds("typo");
   ASSERT_TRUE(rect);
-  EXPECT_TRUE(rect->isEmpty());
+  EXPECT_TRUE(rect->empty());
   EXPECT_EQ(countColor(host, SkIRect::MakeXYWH(0, 0, 300, 200), SK_ColorRED),
             0);
 }
@@ -149,10 +149,10 @@ TEST(TextSlot, TheHitTestReachesThePillChild) {
   Host host(300, 200);
   host.composer.render(pillCaption("pill", 280));
   host.frame();
-  const std::optional<SkRect> rect = host.composer.bounds("pill");
+  const std::optional<geometry::path::Rect> rect = host.composer.bounds("pill");
   ASSERT_TRUE(rect);
   const std::optional<std::string> hit =
-      host.composer.hitTest({rect->centerX(), rect->centerY()});
+      host.composer.hitTest({rect->centre().x, rect->centre().y});
   ASSERT_TRUE(hit);
   EXPECT_EQ(*hit, "pill");
 }

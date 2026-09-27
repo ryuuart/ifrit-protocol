@@ -6,6 +6,8 @@
 
 #include "sigilcompose/kit/Connect.h"
 
+#include <sigilgeometry/path/Skia.h>
+
 #include <utility>
 
 namespace sigil::compose::connect {
@@ -15,9 +17,9 @@ namespace {
 /** The routed path as a figure of its own: a box grown by @p bleed around
  *  the path, so the dress's width is not clipped, and the path held in it
  *  as the element's shape — which is what every mark then dresses. */
-Element figureOf(SkPath route, float bleed, std::string key,
+Element figureOf(const geometry::path::Outline& route, float bleed, std::string key,
                  const Dressing& dressing) {
-  Element figure = pathFigure(std::move(route), bleed);
+  Element figure = pathFigure(geometry::path::toSk(route), bleed);
   if (dressing.mark) {
     // A stated run CLAIMS that part of the boundary, which is what fits a
     // mark to a reveal; the whole wire is an unqualified pass.
@@ -41,14 +43,14 @@ Element figureOf(SkPath route, float bleed, std::string key,
 
 }  // namespace
 
-Element wire(const SkRect& from, const SkRect& to, const Router& router,
-             float gap, float bleed, std::string key,
+Element wire(const geometry::path::Rect& from, const geometry::path::Rect& to,
+             const Router& router, float gap, float bleed, std::string key,
              const Dressing& dressing) {
   return figureOf(routeBetween(router, from, to, gap), bleed, std::move(key),
                   dressing);
 }
 
-Element wire(std::span<const SkPoint> stops, const RailRouter& router,
+Element wire(std::span<const glm::vec2> stops, const RailRouter& router,
              float gapStart, float gapEnd, float bleed, std::string key,
              const Dressing& dressing) {
   return figureOf(routeAlong(router, stops, gapStart, gapEnd), bleed,

@@ -10,8 +10,6 @@
  */
 
 #include <include/core/SkPicture.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
 #include <glm/vec2.hpp>
@@ -215,7 +213,7 @@ class Composer {
    *  @{ */
   /** Layout rect of a keyed node, in the composer's coordinate space.
    *  Valid after a draw() (or any other call that runs layout). */
-  std::optional<SkRect> bounds(std::string_view key) const;
+  std::optional<geometry::path::Rect> bounds(std::string_view key) const;
   /** Live SigilWeave layout of a keyed text node (valid until the next
    *  layout; for glyph choreography and queries). */
   const sigil::weave::ParagraphLayout* paragraphLayout(

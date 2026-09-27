@@ -4,6 +4,7 @@
  * uses.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the empty-selector diagnostic
 #include <sigilweave/choreograph/Choreograph.h>
 
@@ -182,7 +183,7 @@ std::vector<TextUnit> detail::unitsOfText(
         const UnitKey key{source, placed.lineIndex};
         if (const size_t at = indexOfKey(keys, key); at < keys.size()) {
           TextUnit& existing = units[at];
-          existing.rect.join(box);
+          existing.rect = existing.rect.united(geometry::path::fromSk(box));
           existing.range.start =
               std::min(existing.range.start, placed.textIndex);
           existing.range.end =
@@ -190,7 +191,7 @@ std::vector<TextUnit> detail::unitsOfText(
           return;
         }
         TextUnit entry;
-        entry.rect = box;
+        entry.rect = geometry::path::fromSk(box);
         entry.index = (uint32_t)units.size();
         // A COLUMN HAS NO BASELINE: its glyphs centre themselves across the
         // column's axis, so that axis is what the annotation beside them
@@ -335,14 +336,14 @@ std::vector<Beat> detail::beatsOfTrack(Instance& inst, size_t trackIndex) {
             glyphBox(placed, pose, bandOf(placed.shaped, bandMemo));
         const BeatKey key{outer, inner};
         if (const size_t at = indexOfKey(keys, key); at < keys.size()) {
-          beats[at].rect.join(box);
+          beats[at].rect = beats[at].rect.united(geometry::path::fromSk(box));
           return;
         }
         // The schedule half is the schedule's own answer, so a mark
         // travelling beside a track cannot be told a different one from
         // the glyphs it is marking; the rect is this library's.
         Beat beat{resolved.schedule.beat(master, outer, inner)};
-        beat.rect = box;
+        beat.rect = geometry::path::fromSk(box);
         keys.push_back(key);
         beats.push_back(beat);
       });

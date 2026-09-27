@@ -393,7 +393,7 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   host.frame();
   const auto boundsLonghand = host.composer.bounds("plate");
   ASSERT_TRUE(boundsLonghand.has_value());
-  EXPECT_EQ(*boundsLonghand, r);
+  EXPECT_EQ(geometry::path::toSk(*boundsLonghand), r);
   EXPECT_EQ(host.pixel(45, 65), SK_ColorRED);    // inside
   EXPECT_EQ(host.pixel(45, 55), SK_ColorBLACK);  // above the top edge
   EXPECT_EQ(host.pixel(95, 65), SK_ColorBLACK);  // right of the right edge
@@ -483,8 +483,8 @@ TEST(ComposePlacement, AtPinsTheCornerAndLeavesTheNodeToSizeItself) {
   host.frame();
   const auto measured = host.composer.bounds("cap");
   ASSERT_TRUE(measured.has_value());
-  EXPECT_FLOAT_EQ(measured->fLeft, 30.0f);
-  EXPECT_FLOAT_EQ(measured->fTop, 40.0f);
+  EXPECT_FLOAT_EQ(measured->left(), 30.0f);
+  EXPECT_FLOAT_EQ(measured->top(), 40.0f);
   // Sized by its content, not by the caller: this is what rect() cannot do
   // and is why at() exists separately (ScenesPersona.h:438-447 is the
   // gallery case that rect() cannot serve at all).
@@ -533,7 +533,7 @@ TEST(ComposeLayout, AnEdgeSetterMakesANodeAbsoluteAndAloneAbsoluteStillDoes) {
   host.frame();
   const auto pinned = host.composer.bounds("p");
   ASSERT_TRUE(pinned.has_value());
-  EXPECT_EQ(*pinned, SkRect::MakeXYWH(30, 30, 20, 20));
+  EXPECT_EQ(geometry::path::toSk(*pinned), SkRect::MakeXYWH(30, 30, 20, 20));
 
   host.composer.render(without());
   host.frame();

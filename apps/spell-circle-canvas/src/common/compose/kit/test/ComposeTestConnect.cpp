@@ -32,7 +32,7 @@ TEST(ComposeConnect, BetweenWiresTwoKeyedNodesAndDressesTheWire) {
   host.frame();
   auto wire = host.composer.bounds("a->b");
   ASSERT_TRUE(wire.has_value());
-  EXPECT_NEAR(wire->centerY(), 100, 1);
+  EXPECT_NEAR(wire->centre().y, 100, 1);
   EXPECT_EQ(host.pixel(100, 100), SK_ColorRED);
 }
 
@@ -113,9 +113,9 @@ TEST(ComposeConnect, AStopSaysWhichOfTheTwoThingsItIs) {
   const Anchor free = Anchor::at({20.0f, 160.0f});
   EXPECT_EQ(bound.key(), "a");
   EXPECT_TRUE(free.key().empty());
-  EXPECT_EQ(std::get<Anchor::OnNode>(bound.where).norm, (SkPoint{1.0f, 0.5f}));
+  EXPECT_EQ(std::get<Anchor::OnNode>(bound.where).norm, (glm::vec2{1.0f, 0.5f}));
   EXPECT_EQ(std::get<Anchor::FreePoint>(free.where).point,
-            (SkPoint{20.0f, 160.0f}));
+            (glm::vec2{20.0f, 160.0f}));
   EXPECT_EQ(bound.gap, 4.0f);  // the gap belongs to neither half
   EXPECT_NE(bound, free);
   EXPECT_EQ(bound, Anchor("a", {1.0f, 0.5f}, 4.0f));  // the brace spelling

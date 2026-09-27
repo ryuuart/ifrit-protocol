@@ -6,6 +6,7 @@
  * the results where the kernel can draw them.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/Beside.h>
 #include <sigilweave/unicode/Unicode.h>
@@ -81,7 +82,7 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
       Instance::PlacedAnnotation placed;
       placed.layout = sigil::weave::layoutBeside(
           impl.fonts, *reading,
-          {.base = unit.rect,
+          {.base = geometry::path::toSk(unit.rect),
            .writingMode = mode,
            .side = annotation.side == Annotation::Side::Before
                        ? sigil::weave::Beside::Side::Before

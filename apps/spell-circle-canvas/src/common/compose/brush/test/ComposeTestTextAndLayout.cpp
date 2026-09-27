@@ -14,7 +14,7 @@ TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
   host.frame();
   auto b = host.composer.bounds("badge");
   ASSERT_TRUE(b.has_value());
-  EXPECT_EQ(*b, SkRect::MakeXYWH(130, 10, 50, 30));
+  EXPECT_EQ(geometry::path::toSk(*b), SkRect::MakeXYWH(130, 10, 50, 30));
   EXPECT_EQ(host.pixel(140, 15), SK_ColorRED);
 }
 
@@ -25,7 +25,7 @@ TEST(ComposeLayout, DimInsetsAcceptPercent) {
   host.frame();
   auto b = host.composer.bounds("panel");
   ASSERT_TRUE(b.has_value());
-  EXPECT_EQ(*b, SkRect::MakeXYWH(20, 10, 160, 80));
+  EXPECT_EQ(geometry::path::toSk(*b), SkRect::MakeXYWH(20, 10, 160, 80));
 }
 
 TEST(ComposeMeasure, MeasureReportsIntrinsicSize) {
@@ -319,7 +319,7 @@ TEST(ComposeLayout, CenterAtPinsMeasuredBoxOnPoint) {
   host.frame();
   auto b = host.composer.bounds("s");
   ASSERT_TRUE(b.has_value());
-  EXPECT_EQ(*b, SkRect::MakeXYWH(100, 70, 40, 20));
+  EXPECT_EQ(geometry::path::toSk(*b), SkRect::MakeXYWH(100, 70, 40, 20));
   EXPECT_EQ(host.pixel(120, 80), SK_ColorRED);
 }
 

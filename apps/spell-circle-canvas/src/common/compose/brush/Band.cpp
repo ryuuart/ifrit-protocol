@@ -14,12 +14,15 @@
 #include "SpanArithmetic.h"
 #include "SpanContours.h"
 #include "sigilgeometry/path/Contour.h"
+#include "sigilgeometry/path/Skia.h"
 
 namespace sigil::compose {
 
 using namespace detail;
 
-SkPoint bandPointAt(const SkPath& spine, float along, float acrossPx) {
+glm::vec2 bandPointAt(const geometry::path::Outline& outline, float along,
+                      float acrossPx) {
+  const SkPath spine = geometry::path::toSk(outline);
   float total = 0;
   measureContours(spine, &total);
   if (total <= 0) return {0, 0};

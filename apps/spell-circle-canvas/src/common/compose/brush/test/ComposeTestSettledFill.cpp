@@ -50,7 +50,7 @@ TEST(ComposeSettledFill, ASettledBoundFillReleasesVolatilityAndPromotes) {
   host.frame();
   const auto accentRect = host.composer.bounds("accent");
   ASSERT_TRUE(accentRect);
-  const int ax = (int)accentRect->centerX(), ay = (int)accentRect->centerY();
+  const int ax = (int)accentRect->centre().x, ay = (int)accentRect->centre().y;
   EXPECT_EQ(host.pixel(ax, ay), SK_ColorRED);
   // BEFORE the settle: the bound fill denies contentStable at the root —
   // the asked-for texture is refused and the whole chain paints live.
@@ -117,7 +117,7 @@ TEST(ComposeSettledFill, AMovingBoundFillNeverReleases) {
   host.frame();
   const auto accentRect = host.composer.bounds("accent");
   ASSERT_TRUE(accentRect);
-  const int ax = (int)accentRect->centerX(), ay = (int)accentRect->centerY();
+  const int ax = (int)accentRect->centre().x, ay = (int)accentRect->centre().y;
   for (int i = 0; i < 20; ++i) {
     const float t = (float)(i % 10) / 10.0f;
     tint = Fill::color({1.0f - t, 0.0f, t, 1.0f});

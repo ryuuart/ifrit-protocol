@@ -27,7 +27,7 @@ TEST(ComposeLayouts, RadialPlacesChildrenOnTheRing) {
   // Radius 80 from center (100,100), starting up, clockwise quarters.
   auto center = [&](const char* k) {
     auto r = host.composer.bounds(k);
-    return SkPoint{r->centerX(), r->centerY()};
+    return SkPoint{r->centre().x, r->centre().y};
   };
   EXPECT_NEAR(center("d0").x(), 100, 1);
   EXPECT_NEAR(center("d0").y(), 20, 1);   // top
@@ -53,14 +53,14 @@ TEST(ComposeLayouts, AlongPathFollowsAStarContour) {
   // First bead sits on the star's top point (contour start).
   auto b0 = host.composer.bounds("b0");
   ASSERT_TRUE(b0.has_value());
-  EXPECT_NEAR(b0->centerX(), 90, 1.5);
-  EXPECT_NEAR(b0->centerY(), 0, 1.5);
+  EXPECT_NEAR(b0->centre().x, 90, 1.5);
+  EXPECT_NEAR(b0->centre().y, 0, 1.5);
   // All beads land ON the star outline: distance from center between
   // inner and outer radius.
   for (int i = 0; i < 10; ++i) {
     auto r = host.composer.bounds("b" + std::to_string(i));
     ASSERT_TRUE(r.has_value());
-    const float dx = r->centerX() - 90, dy = r->centerY() - 90;
+    const float dx = r->centre().x - 90, dy = r->centre().y - 90;
     const float dist = std::sqrt(dx * dx + dy * dy);
     EXPECT_GE(dist, 0.4f * 90 - 2);
     EXPECT_LE(dist, 90 + 2);
@@ -116,7 +116,7 @@ TEST(ComposeLayouts, JitteredIsDeterministicAndContained) {
     std::vector<SkPoint> out;
     for (int i = 0; i < 9; ++i) {
       auto r = host.composer.bounds("s" + std::to_string(i));
-      out.push_back({r->centerX(), r->centerY()});
+      out.push_back({r->centre().x, r->centre().y});
       EXPECT_GE(r->left(), -0.01f);
       EXPECT_GE(r->top(), -0.01f);
       EXPECT_LE(r->right(), 200.01f);
@@ -148,7 +148,7 @@ TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
   host.frame();
   auto center = [&](const char* k) {
     auto r = host.composer.bounds(k);
-    return SkPoint{r->centerX(), r->centerY()};
+    return SkPoint{r->centre().x, r->centre().y};
   };
   EXPECT_NEAR(center("r0").y(), 60, 1);   // top, INNER ring (0.4 → r=40)
   EXPECT_NEAR(center("r1").x(), 180, 1);  // right, outer (0.8 → r=80)
@@ -200,7 +200,7 @@ TEST(ComposeLayouts, RadialPlacesByAFactWhenToldTheLane) {
   host.frame();
   auto centre = [&](const char* key) {
     auto rect = host.composer.bounds(key);
-    return SkPoint{rect->centerX(), rect->centerY()};
+    return SkPoint{rect->centre().x, rect->centre().y};
   };
   EXPECT_NEAR(centre("h3").x(), 180, 1);
   EXPECT_NEAR(centre("h3").y(), 100, 1);
@@ -223,8 +223,8 @@ TEST(ComposeLayouts, RadialFacingTurnsEachChildAlongItsRadius) {
   host.frame();
   auto rect = host.composer.bounds("bar");
   ASSERT_TRUE(rect.has_value());
-  EXPECT_NEAR(rect->centerX(), 150, 1);
-  EXPECT_NEAR(rect->centerY(), 100, 1);
+  EXPECT_NEAR(rect->centre().x, 150, 1);
+  EXPECT_NEAR(rect->centre().y, 100, 1);
   EXPECT_EQ(host.pixel(150, 85), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(135, 100), SK_ColorRED);
   EXPECT_EQ(host.pixel(165, 100), SK_ColorRED);
@@ -241,10 +241,10 @@ TEST(ComposeLayouts, JitterNudgesWhatTheOperatorBeforeItPlaced) {
   };
   host.composer.render(tree(false));
   host.frame();
-  const SkRect still = *host.composer.bounds("a");
+  const SkRect still = require(host.composer.bounds("a"));
   host.composer.render(tree(true));
   host.frame();
-  const SkRect moved = *host.composer.bounds("a");
+  const SkRect moved = require(host.composer.bounds("a"));
   // Moved off the ring, by no more than the amount, and still in the box.
   EXPECT_NE(still, moved);
   EXPECT_LE(std::abs(moved.left() - still.left()), 12.5f);
@@ -254,5 +254,5 @@ TEST(ComposeLayouts, JitterNudgesWhatTheOperatorBeforeItPlaced) {
   // Deterministic: the same seed lands in the same place again.
   host.composer.render(tree(true));
   host.frame();
-  EXPECT_EQ(*host.composer.bounds("a"), moved);
+  EXPECT_EQ(require(host.composer.bounds("a")), moved);
 }

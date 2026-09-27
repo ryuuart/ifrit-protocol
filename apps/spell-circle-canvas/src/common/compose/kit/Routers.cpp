@@ -8,6 +8,7 @@
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <sigilcompose/kit/Routers.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilgeometry/path/Operations.h>
 
@@ -346,9 +347,9 @@ SkPath PairwiseRail::route(std::span<const SkPoint> pts) const {
     cur = p;
   };
   for (size_t i = 1; i < pts.size(); ++i) {
-    const SkPath leg =
-        router(SkRect::MakeXYWH(pts[i - 1].x(), pts[i - 1].y(), 0, 0),
-               SkRect::MakeXYWH(pts[i].x(), pts[i].y(), 0, 0));
+    const SkPath leg = geometry::path::toSk(
+        router(geometry::path::Rect::of({pts[i - 1].x(), pts[i - 1].y()}, {0, 0}),
+               geometry::path::Rect::of({pts[i].x(), pts[i].y()}, {0, 0})));
     SkPath::Iter iter(leg, false);
     SkPoint lp[4];
     SkPath::Verb verb;
@@ -410,36 +411,67 @@ SkPath PairwiseRail::route(std::span<const SkPoint> pts) const {
   return b.detach();
 }
 
+/** A stock route answered by Skia's path builder and corner effect,
+ *  seen through the seam's own types: the rects go in as Skia rects and
+ *  the path comes back as an outline. Equality is the scheme's. */
+template <typename Scheme>
+struct PairOnSkia {
+  Scheme scheme;
+  bool operator==(const PairOnSkia&) const = default;
+  geometry::path::Outline route(const geometry::path::Rect& from,
+                                const geometry::path::Rect& to) const {
+    return geometry::path::fromSk(
+        scheme.route(geometry::path::toSk(from), geometry::path::toSk(to)));
+  }
+};
+
+/** The rail's half of the same crossing. */
+template <typename Scheme>
+struct RailOnSkia {
+  Scheme scheme;
+  bool operator==(const RailOnSkia&) const = default;
+  geometry::path::Outline route(std::span<const glm::vec2> anchors) const {
+    std::vector<SkPoint> points;
+    points.reserve(anchors.size());
+    for (glm::vec2 anchor : anchors) points.push_back(geometry::path::toSk(anchor));
+    return geometry::path::fromSk(scheme.route(points));
+  }
+};
+
 }  // namespace
 
-Router straight() { return StraightRoute{}; }
+Router straight() { return PairOnSkia<StraightRoute>{}; }
 
-Router orthogonal(float cornerRadius) { return OrthogonalRoute{cornerRadius}; }
+Router orthogonal(float cornerRadius) {
+  return PairOnSkia<OrthogonalRoute>{{cornerRadius}};
+}
 
 Router orthogonal(Bend bend, float cornerRadius, float chamferCut,
                   Stamp stamp) {
-  return BentRoute{bend, cornerRadius, chamferCut, stamp};
+  return PairOnSkia<BentRoute>{{bend, cornerRadius, chamferCut, stamp}};
 }
 
 RailRouter manhattan(Bend bend, float cornerRadius, float chamferCut,
                      Stamp stamp) {
-  return ManhattanRail{bend, cornerRadius, chamferCut, stamp};
+  return RailOnSkia<ManhattanRail>{{bend, cornerRadius, chamferCut, stamp}};
 }
 
 RailRouter fromPairwise(Router router) {
-  return PairwiseRail{std::move(router)};
+  return RailOnSkia<PairwiseRail>{{std::move(router)}};
 }
 
-RailRouter polyline(float cornerRadius) { return PolylineRail{cornerRadius}; }
+RailRouter polyline(float cornerRadius) {
+  return RailOnSkia<PolylineRail>{{cornerRadius}};
+}
 
 RailRouter octilinear(float cornerRadius) {
-  return OctilinearRail{cornerRadius};
+  return RailOnSkia<OctilinearRail>{{cornerRadius}};
 }
 
-RailRouter orbit(SkPoint center, float tolerance) {
-  return OrbitRail{center, tolerance};
+RailRouter orbit(glm::vec2 center, float tolerance) {
+  return RailOnSkia<OrbitRail>{{geometry::path::toSk(center), tolerance}};
 }
 
-Router arc(float bulge) { return ArcRoute{bulge}; }
+Router arc(float bulge) { return PairOnSkia<ArcRoute>{{bulge}}; }
 
 }  // namespace sigil::compose::routers

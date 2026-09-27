@@ -24,8 +24,8 @@ TEST(ComposePositioned, RectsAreHonoredAndYogaFree) {
   const auto a = host.composer.bounds("a");
   const auto b = host.composer.bounds("b");
   ASSERT_TRUE(a && b);
-  EXPECT_EQ(*a, SkRect::MakeXYWH(10, 20, 50, 30));
-  EXPECT_EQ(*b, SkRect::MakeXYWH(70, 90, 40, 40));
+  EXPECT_EQ(geometry::path::toSk(*a), SkRect::MakeXYWH(10, 20, 50, 30));
+  EXPECT_EQ(geometry::path::toSk(*b), SkRect::MakeXYWH(70, 90, 40, 40));
   EXPECT_EQ(host.pixel(30, 30), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(90, 110), SK_ColorRED);
   EXPECT_EQ(host.pixel(5, 5), SK_ColorBLACK);
@@ -54,7 +54,7 @@ TEST(ComposePositioned, NestedRectsComposeYogaFreeAllTheWayDown) {
   const auto inner = host.composer.bounds("inner");
   ASSERT_TRUE(inner);
   // bounds() is absolute: outer's origin + inner's own rect.
-  EXPECT_EQ(*inner, SkRect::MakeXYWH(50, 60, 30, 30));
+  EXPECT_EQ(geometry::path::toSk(*inner), SkRect::MakeXYWH(50, 60, 30, 30));
   EXPECT_EQ(host.composer.stats().yogaNodes, 1u);
   EXPECT_EQ(host.composer.stats().instances, 3u);
 }
@@ -74,8 +74,8 @@ TEST(ComposePositioned, PctAndOpposingInsetsResolve) {
   const auto half = host.composer.bounds("half");
   const auto pinned = host.composer.bounds("pinned");
   ASSERT_TRUE(half && pinned);
-  EXPECT_EQ(*half, SkRect::MakeXYWH(0, 0, 100, 50));
-  EXPECT_EQ(*pinned, SkRect::MakeXYWH(20, 100, 150, 10));
+  EXPECT_EQ(geometry::path::toSk(*half), SkRect::MakeXYWH(0, 0, 100, 50));
+  EXPECT_EQ(geometry::path::toSk(*pinned), SkRect::MakeXYWH(20, 100, 150, 10));
 }
 
 TEST(ComposePositioned, TextMeasuresAgainstItsSuppliedWidth) {

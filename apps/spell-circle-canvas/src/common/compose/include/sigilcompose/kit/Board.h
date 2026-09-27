@@ -13,7 +13,7 @@
  * and the rules of the sheets in force where it lands style those roles.
  */
 
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
@@ -42,7 +42,7 @@ namespace sigil::compose::kit {
 struct Board {
   /** How big, px. An axis left at 0 stretches to the parent's own edge,
    *  which for the root a sketch renders is the canvas. */
-  SkSize size{0, 0};
+  glm::vec2 size{0, 0};
   /** Behind the whole board. Fill::none() (default) paints nothing, for
    *  a canvas the host already cleared. */
   Fill ground;

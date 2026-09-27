@@ -418,9 +418,10 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
   wide.render(describe(40.0f));
   const SkBitmap widePx = drawOnGpu(wide, w, h);
   ASSERT_FALSE(widePx.empty());
-  const std::optional<SkRect> laidOut = wide.bounds("hoist");
+  const std::optional<geometry::path::Rect> laidOut = wide.bounds("hoist");
   ASSERT_TRUE(laidOut.has_value());
-  const SkRect box = laidOut.value_or(SkRect::MakeEmpty());
+  const SkRect box =
+      geometry::path::toSk(laidOut.value_or(geometry::path::Rect{}));
 
   // Inside the box the two renders agree pixel for pixel (an AA-width
   // tolerance, same as every backend comparison here) — and glyph pixels

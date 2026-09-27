@@ -638,10 +638,16 @@ void bindScope(py::module_& composition) {
       .def_property_readonly(
           "classes", [](const ScopeNode& self) { return self.get().classes; })
       .def_property_readonly(
-          "bounds", [](const ScopeNode& self) { return self.get().bounds; },
+          "bounds",
+          [](const ScopeNode& self) {
+            return geometry::path::toSk(self.get().bounds);
+          },
           "Where the node stands, in the scope's coordinates.")
       .def_property_readonly(
-          "outline", [](const ScopeNode& self) { return self.get().outline; },
+          "outline",
+          [](const ScopeNode& self) {
+            return geometry::path::toSk(self.get().outline);
+          },
           "The outline the node resolved to — its shape, a routed path, or "
           "its box — in the scope's coordinates.")
       .def(
@@ -666,8 +672,11 @@ void bindScope(py::module_& composition) {
           "toLocal",
           [](const ScopeNode& self, py::handle value) -> py::object {
             if (py::isinstance<SkPath>(value))
-              return py::cast(self.get().toLocal(value.cast<SkPath>()));
-            return py::cast(self.get().toLocal(point(value)), copied);
+              return py::cast(geometry::path::toSk(self.get().toLocal(
+                  geometry::path::fromSk(value.cast<SkPath>()))));
+            return py::cast(geometry::path::toSk(self.get().toLocal(
+                                geometry::path::fromSk(point(value)))),
+                            copied);
           },
           py::arg("value"),
           "This point or path, in the scope's coordinates, moved into the "
@@ -684,7 +693,10 @@ void bindScope(py::module_& composition) {
 
   scope
       .def_property_readonly(
-          "box", [](const BorrowedScope& self) { return self.get().box; })
+          "box",
+          [](const BorrowedScope& self) {
+            return geometry::path::toSk(self.get().box);
+          })
       .def("nodes",
            [](const std::shared_ptr<BorrowedScope>& self) {
              py::list nodes;

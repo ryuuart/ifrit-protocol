@@ -12,7 +12,7 @@
  * schedule read back where the text put it.
  */
 
-#include <include/core/SkRect.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilcompose/typography/Selector.h>
 #include <sigilcompose/typography/TextEffect.h>
 #include <sigilcompose/typography/TextUnit.h>
@@ -190,7 +190,7 @@ struct Beat : motion::Beat {
    *  a mixed-style run's own size, a path run's curve and a vertical
    *  column's axis, because it is read off the placement rather than
    *  measured again. */
-  SkRect rect = SkRect::MakeEmpty();
+  geometry::path::Rect rect;
 
   bool operator==(const Beat&) const = default;
 };

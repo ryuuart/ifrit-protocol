@@ -66,7 +66,7 @@ GroupReading groupReading(sigil::weave::Unit unit, std::u8string reading,
   for (const TextUnit& piece :
        host.composer.units("t", sigil::weave::selectors::text(u8"alpha beta"),
                            sigil::weave::Unit::Selection)) {
-    out.bases.push_back(piece.rect);
+    out.bases.push_back(geometry::path::toSk(piece.rect));
     out.ink.push_back(greenBoxIn(host, bandAbove(piece)));
   }
   return out;
