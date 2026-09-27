@@ -560,8 +560,7 @@ struct Flourish {
     sceneTicker = &ticker;
     hatch = ctx.assets.shader(ctx.local("hatch.sksl"));
     engraved = ctx.assets.shader(ctx.local("engraved.sksl"));
-    carvedFrame = (sigil::media::Image::of(
-            makeCarvedFrame(toOrnamentPalette(st), 192)));
+    carvedFrame = (makeCarvedFrame(toOrnamentPalette(st), 192));
     gemAtlas = makeGemAtlas();
 
     reveal = 0.0f;

@@ -30,6 +30,8 @@ find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeBrush
   SOURCES Adaptors.cpp Decorations.cpp LayerStyles.cpp Lines.cpp
           PixelStyles.cpp
+          # the ornament kit's drawing, behind its declarations
+          Ornament.cpp Flourish.cpp
           Composites.cpp Stamps.cpp Ribbon.cpp Art.cpp BakedArt.h
           # the stroke grammar's engine and the mask gates, behind the
           # kernel's StrokeResolver and MaskResolver seams

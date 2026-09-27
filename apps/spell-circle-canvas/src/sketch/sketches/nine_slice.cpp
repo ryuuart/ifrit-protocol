@@ -118,8 +118,7 @@ struct NineSlice {
       const Palette& pal, float density = kFrameDensity) {
     // The intermediate canvas: draw the carved frame once, wrap the
     // snapshot, stretch it everywhere below.
-    return (sigil::media::Image::of(
-            makeCarvedFrame(pal, (int)(96 * density))));
+    return makeCarvedFrame(pal, (int)(96 * density));
   }
 
   Element describe() {

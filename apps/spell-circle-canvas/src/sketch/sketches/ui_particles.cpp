@@ -68,7 +68,7 @@ const std::array<Palette, 4>& carvedPalettes() {
 /** The nine-slice a carved frame is drawn from, at the pixels per layout
  *  unit the cell it fills was baked at. */
 Slice carved(const Palette& pal, int side) {
-  return carvedFrameSlice(sigil::media::Image::of(makeCarvedFrame(pal, side)));
+  return carvedFrameSlice(makeCarvedFrame(pal, side));
 }
 
 struct UiParticles {

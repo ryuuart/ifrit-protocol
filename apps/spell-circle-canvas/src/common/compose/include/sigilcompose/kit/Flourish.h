@@ -11,14 +11,10 @@
  * job and not a card's.
  */
 
-#include <include/core/SkPathBuilder.h>
-#include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilcompose/Compose.h>
-#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/kit/Ornament.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 
 #include <string>
 #include <vector>
@@ -58,66 +54,16 @@ inline Palette toOrnamentPalette(const FlourishStyle& s) {
 /** Muted-grain parchment. Skia fractal noise is COLORED, so we drop it to
  *  grayscale (kLuminosity over a mid tone) before the soft-light pass —
  *  the grain without ornament::parchmentFill's rainbow speckle. */
-inline Fill flourishParchment(const FlourishStyle& s, float freq = 0.04f) {
-  sk_sp<SkShader> noise = SkShaders::MakeFractalNoise(freq, freq, 3, 7.0f);
-  if (!noise) return Fill::color(s.parchment);
-  sk_sp<SkShader> muted = SkShaders::Blend(
-      SkBlendMode::kLuminosity,
-      SkShaders::Color(SkColorSetARGB(255, 128, 128, 128)), std::move(noise));
-  return Fill{material::skia::paint(SkShaders::Blend(
-      SkBlendMode::kSoftLight,
-      SkShaders::Color(material::skia::toSkColor(s.parchment).toSkColor()),
-      std::move(muted)))};
-}
+Fill flourishParchment(const FlourishStyle& s, float freq = 0.04f);
 
 // ---------------------------------------------------------------------------
 // The acanthus leaf stamp — a pointed leaf whose own contour is walked with
 // gilt beads (recursion level 2) and split by a gilt midrib.
 
-inline Shape leafOutline() {
-  return [](glm::vec2 size) {
-    const float w = size.x, h = size.y;
-    SkPathBuilder b;
-    b.moveTo(w * 0.06f, h * 0.5f);
-    b.quadTo(w * 0.42f, h * 0.04f, w * 0.96f, h * 0.5f);
-    b.quadTo(w * 0.42f, h * 0.96f, w * 0.06f, h * 0.5f);
-    b.close();
-    return geometry::path::fromSk(b.detach());
-  };
-}
+Shape leafOutline();
 
-inline Element acanthusLeaf(const FlourishStyle& s, float w = 28.0f,
-                            float h = 20.0f) {
-  ContourWalk veins;  // recursion level 2: the stamp walks its own contour
-  veins.spacing = 4.0f;
-  const material::Color bead = s.goldBright;
-  veins.draw = [bead](SkCanvas& c) {
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setColor4f(material::skia::toSkColor(bead), nullptr);
-    c.drawCircle(0, 0, 0.7f, p);
-  };
-  const material::Color rib = s.goldBright;
-  Decoration midrib{PaintProgram([rib](SkCanvas& c, const PaintContext& ctx) {
-    SkPaint p;
-    p.setAntiAlias(true);
-    p.setStyle(SkPaint::kStroke_Style);
-    p.setStrokeWidth(1.1f);
-    p.setColor4f(material::skia::toSkColor(rib), nullptr);
-    c.drawLine(ctx.size.width() * 0.1f, ctx.size.height() * 0.5f,
-               ctx.size.width() * 0.92f, ctx.size.height() * 0.5f, p);
-  })};
-  return box()
-      .width(w)
-      .height(h)
-      .shape(leafOutline())
-      .fill(material::Paint::linearGradient(
-          {0, 0}, {w, h}, {s.leaf, s.bronze},
-          {.units = material::GradientUnits::Pixels}))
-      .foreground(sigil::compose::stroke(1.1f, Fill::color(s.goldBright)))
-      .foreground(midrib)
-      .foreground(veins);
-}
+Element acanthusLeaf(const FlourishStyle& s, float w = 28.0f,
+                            float h = 20.0f);
 
 /** The acanthus vine as a contour-walked element stamp (bakes once). */
 inline ContourWalk flourishVine(const FlourishStyle& s, float spacing = 18.0f,
@@ -129,21 +75,8 @@ inline ContourWalk flourishVine(const FlourishStyle& s, float spacing = 18.0f,
 }
 
 /** A gilt diamond bead chain, stamped along the outline. */
-inline PathFormat beadChain(material::Color color, float advance = 14.0f,
-                            float r = 2.6f) {
-  SkPathBuilder bead;
-  bead.moveTo(0, -r);
-  bead.lineTo(r, 0);
-  bead.lineTo(0, r);
-  bead.lineTo(-r, 0);
-  bead.close();
-  PathFormat f;
-  f.width = 1.0f;
-  f.strokeFill = Fill::color(color);
-  f.stampPath = bead.detach();
-  f.stampAdvance = advance;
-  return f;
-}
+PathFormat beadChain(material::Color color, float advance = 14.0f,
+                            float r = 2.6f);
 
 /** A broken gilt rule (dashed stroke) of the outline. */
 inline PathFormat giltDash(material::Color color, float width = 1.2f) {
