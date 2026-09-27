@@ -14,6 +14,7 @@
 #include <chrono>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -98,5 +99,12 @@ class Image {
  *  `load<media::Image>(uri, {.width = 124})` with these options spelled
  *  as this library spells them. */
 inline ImageOptions loadOptions(std::type_identity<Image>) { return {}; }
+
+/** The name a resource library registers and asks for an image under, so
+ *  every image of a program — a host and a sketch it loaded while running
+ *  — reaches the one decoder: `hub.load<media::Image>(uri)`. */
+inline std::string_view meaningName(std::type_identity<Image>) {
+  return "media.Image";
+}
 
 }  // namespace sigil::media

@@ -73,9 +73,9 @@ struct detail::HubAccess {
   static void setNetworkTransport(Hub& hub, NetworkTransport transport) {
     hub.setNetworkTransport(std::move(transport));
   }
-  static void setDecoder(Hub& hub, std::type_index type,
+  static void setDecoder(Hub& hub, const detail::Meaning& meaning,
                          detail::Redecode decode, detail::Configure configure) {
-    hub.setDecoder(type, std::move(decode), std::move(configure));
+    hub.setDecoder(meaning, std::move(decode), std::move(configure));
   }
   static std::shared_ptr<const Bytes> probeRead(const Hub& hub,
                                                 std::string_view uri,
@@ -148,9 +148,9 @@ void setNetworkTransport(Hub& hub, NetworkTransport transport) {
   HubAccess::setNetworkTransport(hub, std::move(transport));
 }
 
-void detail::setDecoder(Hub& hub, std::type_index type, Redecode decode,
+void detail::setDecoder(Hub& hub, const Meaning& meaning, Redecode decode,
                         Configure configure) {
-  HubAccess::setDecoder(hub, type, std::move(decode), std::move(configure));
+  HubAccess::setDecoder(hub, meaning, std::move(decode), std::move(configure));
 }
 std::shared_ptr<const Bytes> detail::probeRead(const Hub& hub,
                                                std::string_view uri,

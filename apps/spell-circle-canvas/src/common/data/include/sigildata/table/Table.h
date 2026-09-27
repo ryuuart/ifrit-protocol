@@ -271,4 +271,10 @@ class Table {
   std::vector<Column> m_columns;
 };
 
+/** The name a resource hub registers and asks for a table under, so
+ *  `hub.load<Table>(uri)` answers wherever it is compiled. */
+inline std::string_view meaningName(std::type_identity<Table>) {
+  return "data.Table";
+}
+
 }  // namespace sigil::data

@@ -21,6 +21,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -108,6 +109,12 @@ class Json {
  private:
   Held m_held;
 };
+
+/** The name a resource hub registers and asks for a document under, so
+ *  `hub.load<Json>(uri)` answers wherever it is compiled. */
+inline std::string_view meaningName(std::type_identity<Json>) {
+  return "data.Json";
+}
 
 /** THE RECTANGLE INSIDE @p document — a list of records, a record of
  *  lists, or a list of lists — or nothing when it holds no rectangle. A

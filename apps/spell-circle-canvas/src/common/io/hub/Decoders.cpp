@@ -1,7 +1,6 @@
 /** @file
- * The hub's construction and its decoder registry: the lookup that
- * answers a typed ask with the decoder registered for its type, and the
- * one that binds a load's options into it.
+ * The hub's construction and its decoder registry, keyed by the name a
+ * meaning declares.
  */
 
 #include "Caches.h"
@@ -21,20 +20,21 @@ Hub::Hub(HubOptions options)
 
 Hub::~Hub() = default;
 
-void Hub::setDecoder(std::type_index type, Redecode decode,
+void Hub::setDecoder(const detail::Meaning& meaning, Redecode decode,
                      Configure configure) {
   const std::lock_guard lock(m_mutex);
-  m_caches->decoders[type] = std::move(decode);
-  if (configure)
-    m_caches->configured[type] = std::move(configure);
-  else
-    m_caches->configured.erase(type);
+  m_caches->decoders.insert_or_assign(
+      std::string(meaning.name),
+      Caches::Registered{std::string(meaning.type), std::move(decode),
+                         std::move(configure)});
 }
 
-Hub::Redecode Hub::registeredDecoder(std::type_index type) const {
-  const std::lock_guard lock(m_mutex);
-  const auto it = m_caches->decoders.find(type);
-  return it == m_caches->decoders.end() ? Redecode{} : it->second;
+const Hub::Caches::Registered* Hub::Caches::registered(
+    const detail::Meaning& meaning) const {
+  const auto found = decoders.find(meaning.name);
+  if (found == decoders.end() || found->second.type != meaning.type)
+    return nullptr;
+  return &found->second;
 }
 
 }  // namespace sigil::io

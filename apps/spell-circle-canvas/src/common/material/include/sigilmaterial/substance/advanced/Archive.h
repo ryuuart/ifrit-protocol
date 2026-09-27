@@ -17,6 +17,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace sigil::material::sbsar {
 
@@ -48,6 +49,11 @@ class Archive {
  private:
   std::shared_ptr<const Decoded> m_decoded;
 };
+
+/** The name a resource hub registers and asks for an archive under. */
+inline std::string_view meaningName(std::type_identity<Archive>) {
+  return "material.sbsar.Archive";
+}
 
 /** Registers on @p hub how an `Archive` is decoded from bytes, so
  *  `hub.load<Archive>(uri)` answers. `load()` below calls it when it has

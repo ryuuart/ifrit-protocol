@@ -4,8 +4,9 @@
  * @ingroup io-hub
  * HOW A HUB LEARNS WHAT BYTES MEAN: the decoder a library registers so
  * `hub.load<T>()` can answer, and the probe that reads what a resource
- * is without decoding it. The `Decoder`, `Probable` and `Configurable`
- * concepts and `LoadOptions` are the source vocabulary these stand on.
+ * is without decoding it. The `Decoder`, `Named`, `Probable` and
+ * `Configurable` concepts and `LoadOptions` are the source vocabulary
+ * these stand on.
  */
 
 #include <sigilcore/callable/Callable.h>
@@ -18,7 +19,6 @@
 #include <span>
 #include <string_view>
 #include <type_traits>
-#include <typeindex>
 #include <typeinfo>
 
 #include "sigilio/hub/Hub.h"
@@ -69,10 +69,10 @@ using Redecode = std::function<std::shared_ptr<const void>(
 /** A registered decoder with a load's options bound into it. */
 using Configure = std::function<Redecode(std::shared_ptr<const void>)>;
 
-/** Registers @p decode for @p type on @p hub at its defaults, and — for
- *  a type loaded with options — @p configure, which binds other options
- *  in. */
-void setDecoder(Hub& hub, std::type_index type, Redecode decode,
+/** Registers @p decode under @p meaning on @p hub at its defaults, and
+ *  — for a type loaded with options — @p configure, which binds other
+ *  options in. */
+void setDecoder(Hub& hub, const Meaning& meaning, Redecode decode,
                 Configure configure);
 
 /** The one read a probe makes: the bytes, uncached, with @p info filled
@@ -87,10 +87,12 @@ std::shared_ptr<const Bytes> probeRead(const Hub& hub, std::string_view uri,
  *  `[](const Bytes& bytes) {…}`. For a Configurable T the options a load
  *  asked for are offered third, T's defaults when it named none. A hub
  *  registers nothing itself: the library that owns T calls this, as
- *  SigilMedia's and SigilData's `registerDecoders(hub)` do.
+ *  SigilMedia's and SigilData's `registerDecoders(hub)` do. The decoder
+ *  is registered under T's meaning name — the `Named` seam — so a
+ *  `load<T>` compiled into another image of the program finds it.
  *  @trap Replacing a decoder leaves a view already decoded holding its
  *  value and the decoder that made it, which poll() re-runs. */
-template <typename T>
+template <Named T>
 void registerDecoder(
     Hub& hub,
     core::Callable<typename detail::DecoderCall<T>::type> decode) {
@@ -107,12 +109,12 @@ void registerDecoder(
         return std::make_shared<const T>(std::move(*value));
       };
     };
-    detail::setDecoder(hub, std::type_index(typeid(T)),
+    detail::setDecoder(hub, detail::meaningOf<T>(),
                        configure(std::make_shared<const Options>()),
                        configure);
   } else {
     detail::setDecoder(
-        hub, std::type_index(typeid(T)),
+        hub, detail::meaningOf<T>(),
         [decode = std::move(decode)](const Bytes& bytes,
                                      const std::filesystem::path& path)
             -> std::shared_ptr<const void> {
@@ -126,7 +128,7 @@ void registerDecoder(
 
 /** The same, from any object satisfying the Decoder concept — which
  *  reads the hint or the bytes alone, as the callable form does. */
-template <typename T, Decoder<T> D>
+template <Named T, Decoder<T> D>
 void registerDecoder(Hub& hub, D decoder) {
   registerDecoder<T>(hub, [decoder = std::move(decoder)](
                               const Bytes& bytes, std::string_view hint) {

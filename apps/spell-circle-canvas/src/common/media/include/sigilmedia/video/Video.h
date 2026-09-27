@@ -25,6 +25,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <string_view>
 #include <type_traits>
 
 #include "sigilmedia/core/Decode.h"
@@ -168,5 +169,10 @@ std::optional<Metadata> probeDocument(std::type_identity<Video>,
 /** What a video is loaded with, under the name a resource library asks
  *  by, so a hub takes `load<media::Video>(uri, {.cachedFrames = 8})`. */
 inline VideoOptions loadOptions(std::type_identity<Video>) { return {}; }
+
+/** The name a resource library registers and asks for a video under. */
+inline std::string_view meaningName(std::type_identity<Video>) {
+  return "media.Video";
+}
 
 }  // namespace sigil::media

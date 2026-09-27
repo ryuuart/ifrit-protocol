@@ -1,8 +1,9 @@
 /** @file
  * Entries, cache and poll: the key an ask is cached under, the bytes and
  * every typed view populated independently on first ask, the probe that
- * caches nothing, and the poll that re-stats every entry and re-decodes
- * the changed ones from one read.
+ * caches nothing, and the poll that re-stats every entry, re-decodes the
+ * changed ones from one read and says when a file a typed ask found
+ * nothing at appears or changes.
  */
 
 #include <sigilcore/schedule/ConcurrentIo.h>
@@ -131,6 +132,7 @@ size_t Hub::preload(std::span<const std::string_view> uris) {
 
 size_t Hub::discardUnretained() {
   const std::lock_guard cacheLock(m_mutex);
+  m_caches->missed.clear();
   if (!m_residency) {
     const size_t discarded = m_caches->entries.size();
     m_caches->entries.clear();
@@ -153,9 +155,17 @@ size_t Hub::discardUnretained() {
 
 std::shared_ptr<const void> Hub::loadView(const std::string& key,
                                           std::string_view uri,
-                                          std::type_index type,
+                                          std::string_view meaning,
                                           const Redecode& decode) {
   if (!decode) return nullptr;
+  // An ask that finds nothing to decode is remembered with the stamp its
+  // file carried — none when there was no file — so poll() can say when
+  // that changes. A network URI has no stamp to watch.
+  const auto rememberMiss = [&](std::filesystem::file_time_type stamp) {
+    if (isNetworkUri(uri)) return;
+    m_caches->missed.insert_or_assign(key,
+                                      Caches::Missed{std::string(uri), stamp});
+  };
 
   // Bytes already cached by a fetch() ask are decoded as they are —
   // one read serves every view of the entry; otherwise fetch fresh.
@@ -167,7 +177,7 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
     const std::lock_guard lock(m_mutex);
     const auto entry = m_caches->entries.find(key);
     if (entry != m_caches->entries.end()) {
-      if (const auto view = entry->second.views.find(type);
+      if (const auto view = entry->second.views.find(meaning);
           view != entry->second.views.end() && view->second.value)
         return view->second.value;
       if (entry->second.bytes) {
@@ -182,18 +192,27 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   FetchResult fetched;
   if (!bytes) {
     fetched = fetchResource(*this, network, uri);
-    if (!fetched.bytes) return nullptr;
+    if (!fetched.bytes) {
+      const std::lock_guard lock(m_mutex);
+      rememberMiss({});
+      return nullptr;
+    }
     bytes = fetched.bytes;
     path = fetched.path;
     mtime = fetched.mtime;
   }
   auto value = decode(*bytes, path);
-  if (!value) return nullptr;
+  if (!value) {
+    const std::lock_guard lock(m_mutex);
+    rememberMiss(mtime);
+    return nullptr;
+  }
 
   const std::lock_guard lock(m_mutex);
+  m_caches->missed.erase(key);
   auto [entry, inserted] = m_caches->entries.try_emplace(key);
   if (!inserted) {
-    if (const auto view = entry->second.views.find(type);
+    if (const auto view = entry->second.views.find(meaning);
         view != entry->second.views.end() && view->second.value)
       return view->second.value;
   } else {
@@ -203,43 +222,53 @@ std::shared_ptr<const void> Hub::loadView(const std::string& key,
   }
   // The encoded bytes are not kept unless fetch() asked for them, so
   // a decode-only workload never holds them alive beside the value.
-  Caches::View& view = entry->second.views[type];
+  Caches::View& view = entry->second.views[std::string(meaning)];
   view.value = std::move(value);
   view.decode = decode;
   return view.value;
 }
 
-std::shared_ptr<const void> Hub::loadRegisteredView(const std::string& key,
-                                                    std::string_view uri,
-                                                    std::type_index type) {
+std::shared_ptr<const void> Hub::loadRegisteredView(
+    const std::string& key, std::string_view uri,
+    const detail::Meaning& meaning) {
   Redecode decode;
   {
     const std::lock_guard lock(m_mutex);
+    // The type is checked before the cache is: a view decoded under the
+    // name is answered only to an ask for the type registered under it.
+    const Caches::Registered* registered = m_caches->registered(meaning);
+    if (!registered) return nullptr;
     const auto entry = m_caches->entries.find(key);
     if (entry != m_caches->entries.end())
-      if (const auto view = entry->second.views.find(type);
+      if (const auto view = entry->second.views.find(meaning.name);
           view != entry->second.views.end() && view->second.value)
         return view->second.value;
-    const auto registered = m_caches->decoders.find(type);
-    if (registered != m_caches->decoders.end()) decode = registered->second;
+    decode = registered->decode;
   }
-  return loadView(key, uri, type, decode);
+  return loadView(key, uri, meaning.name, decode);
 }
 
 std::shared_ptr<const void> Hub::loadConfiguredView(
-    std::string_view uri, std::type_index type,
+    std::string_view uri, const detail::Meaning& meaning,
     std::shared_ptr<const void> options, SameOptions same) {
   Redecode decode;
   std::string key(uri);
   {
     const std::lock_guard lock(m_mutex);
-    const auto configure = m_caches->configured.find(type);
-    if (configure == m_caches->configured.end()) return nullptr;
+    const Caches::Registered* registered = m_caches->registered(meaning);
+    if (!registered || !registered->configure) return nullptr;
     // Each options value asked of a type holds one place, and the key is
     // the URI and that place behind a '\0' — a byte no URI that names a
     // real resource contains, so no URI can alias an options entry.
     // Nothing parses a key back apart: the entry stores its own uri.
-    std::vector<std::shared_ptr<const void>>& asked = m_caches->options[type];
+    auto optionsAsked = m_caches->options.find(meaning.name);
+    if (optionsAsked == m_caches->options.end())
+      optionsAsked =
+          m_caches->options
+              .emplace(std::string(meaning.name),
+                       std::vector<std::shared_ptr<const void>>{})
+              .first;
+    std::vector<std::shared_ptr<const void>>& asked = optionsAsked->second;
     size_t place = 0;
     while (place < asked.size() && !same(asked[place].get(), options.get()))
       ++place;
@@ -249,13 +278,13 @@ std::shared_ptr<const void> Hub::loadConfiguredView(
     key += std::to_string(place);
     const auto entry = m_caches->entries.find(key);
     if (entry != m_caches->entries.end())
-      if (const auto view = entry->second.views.find(type);
+      if (const auto view = entry->second.views.find(meaning.name);
           view != entry->second.views.end() && view->second.value)
         return view->second.value;
     // The options ride in the decode, so poll() re-runs the same one.
-    decode = configure->second(asked[place]);
+    decode = registered->configure(asked[place]);
   }
-  return loadView(key, uri, type, decode);
+  return loadView(key, uri, meaning.name, decode);
 }
 
 std::shared_ptr<const Bytes> Hub::probeFetch(std::string_view uri,
@@ -284,10 +313,10 @@ std::optional<Hub::Reloaded> Hub::reload(const Reload& pending) const {
   auto bytes = readFile(path);
   if (!bytes) return std::nullopt;
   Reloaded reloaded;
-  for (const auto& [type, decode] : pending.decodes) {
+  for (const auto& [meaning, decode] : pending.decodes) {
     auto value = decode(*bytes, path);
     if (!value) return std::nullopt;
-    reloaded.views.emplace_back(type, std::move(value));
+    reloaded.views.emplace_back(meaning, std::move(value));
   }
   reloaded.path = path;
   reloaded.mtime = pending.mtime;
@@ -302,15 +331,17 @@ bool Hub::poll() {
   // still carry the stamp the snapshot saw. An entry that another
   // thread replaced or dropped meanwhile keeps that thread's answer.
   std::vector<Reload> pending;
+  std::vector<std::pair<std::string, Caches::Missed>> missed;
   {
     const std::lock_guard lock(m_mutex);
+    missed.assign(m_caches->missed.begin(), m_caches->missed.end());
     pending.reserve(m_caches->entries.size());
     for (const auto& [key, entry] : m_caches->entries) {
       if (isNetworkUri(entry.uri))
         continue;  // no mtime to watch: network entries stay as fetched
       Reload reload{key, entry.uri, entry.mtime, entry.bytes != nullptr, {}};
-      for (const auto& [type, view] : entry.views)
-        if (view.value) reload.decodes.emplace_back(type, view.decode);
+      for (const auto& [meaning, view] : entry.views)
+        if (view.value) reload.decodes.emplace_back(meaning, view.decode);
       pending.push_back(std::move(reload));
     }
   }
@@ -335,10 +366,28 @@ bool Hub::poll() {
     if (auto reloaded = this->reload(changed))
       outcomes.push_back({&reload, false, std::move(reloaded)});
   }
-  if (outcomes.empty()) return false;
+  // An ask that found nothing is answered by the next ask, not here: a
+  // file that appeared or changed under one is reported, and forgotten.
+  std::vector<const std::pair<std::string, Caches::Missed>*> healed;
+  for (const auto& miss : missed) {
+    std::error_code ec;
+    const auto mtime =
+        std::filesystem::last_write_time(localPath(*this, miss.second.uri), ec);
+    if ((ec ? std::filesystem::file_time_type{} : mtime) != miss.second.mtime)
+      healed.push_back(&miss);
+  }
+  if (outcomes.empty() && healed.empty()) return false;
 
   bool changed = false;
   const std::lock_guard lock(m_mutex);
+  for (const auto* miss : healed) {
+    const auto found = m_caches->missed.find(miss->first);
+    if (found == m_caches->missed.end() ||
+        found->second.mtime != miss->second.mtime)
+      continue;  // asked again since the snapshot: that ask's stamp stands
+    m_caches->missed.erase(found);
+    changed = true;
+  }
   for (Outcome& outcome : outcomes) {
     const auto found = m_caches->entries.find(outcome.reload->key);
     if (found == m_caches->entries.end() ||
@@ -351,8 +400,8 @@ bool Hub::poll() {
     }
     Caches::Entry& entry = found->second;
     Reloaded& reloaded = *outcome.reloaded;
-    for (auto& [type, value] : reloaded.views) {
-      const auto view = entry.views.find(type);
+    for (auto& [meaning, value] : reloaded.views) {
+      const auto view = entry.views.find(meaning);
       if (view != entry.views.end()) view->second.value = std::move(value);
     }
     if (entry.bytes && reloaded.bytes) entry.bytes = std::move(reloaded.bytes);

@@ -30,6 +30,8 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -56,6 +58,16 @@ class FlatBuffer {
  private:
   std::vector<uint8_t> m_bytes;
 };
+
+/** The name a resource hub registers and asks for a FlatBuffer of Root
+ *  under: one per root, spelled with the root's own C++ name, which is
+ *  the same text in every image of a program that holds the root. */
+template <class Root>
+std::string_view meaningName(std::type_identity<FlatBuffer<Root>>) {
+  static const std::string name =
+      std::string("data.FlatBuffer<") + typeid(Root).name() + ">";
+  return name;
+}
 
 /** @p bytes as a FlatBuffer of Root, verified before any of it is read.
  *  Nothing when they are not one — a truncated buffer, another schema —

@@ -32,7 +32,8 @@ find_package(OpenImageIO CONFIG QUIET)
 # preloads more resources than a fan-out runs at once, and it asks that
 # seam how many that is rather than guessing a number.
 sigil_test(io_test
-  SOURCES test/CacheTest.cpp test/FeedTest.cpp test/MountsTest.cpp
+  SOURCES test/CacheTest.cpp test/FeedTest.cpp test/MeaningElsewhere.cpp
+          test/MeaningElsewhere.h test/MeaningTest.cpp test/MountsTest.cpp
           test/NetworkTest.cpp test/OiioTest.cpp test/RetentionTest.cpp
           test/SelectionTest.cpp test/StandardExceptionsTest.cpp
           test/MountedHub.h

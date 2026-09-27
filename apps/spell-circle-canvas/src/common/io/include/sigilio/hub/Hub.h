@@ -25,7 +25,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <typeindex>
 #include <type_traits>
 #include <typeinfo>
 #include <utility>
@@ -52,6 +51,21 @@ namespace detail {
 struct Residency;
 /** The one door the control in `sigilio/advanced/` reaches the hub by. */
 struct HubAccess;
+
+/** WHAT A TYPED ASK NAMES ITS MEANING BY: the name T's library declares,
+ *  which the hub keys by, and the C++ type's own name, which is the same
+ *  text in every image of the program that holds T although the type's
+ *  identity need not be. */
+struct Meaning {
+  std::string_view name;
+  std::string_view type;
+};
+
+/** The meaning of @p T, as registerDecoder<T> and load<T> both ask by. */
+template <Named T>
+Meaning meaningOf() {
+  return {meaningName(std::type_identity<T>{}), typeid(T).name()};
+}
 }  // namespace detail
 
 /** WHAT A HUB IS MADE WITH, passed once to its constructor. */
@@ -102,15 +116,20 @@ class Hub {
   /** The same, as UTF-8 text. */
   std::optional<std::string> text(std::string_view uri);
 
-  /** The resource decoded as a T through the decoder registered for T;
-   *  null on failure, and null (with no read) when no decoder is
-   *  registered for T. Decodes on the first ask, from bytes a prior
-   *  read() already cached when they are present, and caches the
-   *  result as one view of the URI's entry. */
-  template <typename T>
+  /** The resource decoded as a T through the decoder registered under
+   *  T's meaning name; null on failure, and null (with no read) when no
+   *  decoder is registered for T. Decodes on the first ask, from bytes a
+   *  prior read() already cached when they are present, and caches the
+   *  result as one view of the URI's entry. The decoder and the view are
+   *  found by the name T's library declares, so a sketch compiled and
+   *  loaded while its host runs reads the view the host decoded.
+   *  @trap A resource that cannot be read or decoded is remembered as
+   *  asked for: the next `poll()` that finds its file appeared or changed
+   *  answers true, so a host re-asks, and the answer heals. */
+  template <Named T>
   std::shared_ptr<const T> load(std::string_view uri) {
-    return std::static_pointer_cast<const T>(loadRegisteredView(
-        std::string(uri), uri, std::type_index(typeid(T))));
+    return std::static_pointer_cast<const T>(
+        loadRegisteredView(std::string(uri), uri, detail::meaningOf<T>()));
   }
 
   /** The same, decoded with @p options — T's own, as the library that
@@ -120,12 +139,13 @@ class Hub {
    *  every later ask with equal options shares and a reload re-runs with
    *  the same options. */
   template <Configurable T>
+    requires Named<T>
   std::shared_ptr<const T> load(std::string_view uri,
                                 const LoadOptions<T>& options) {
     using Options = LoadOptions<T>;
     if (options == Options{}) return load<T>(uri);
     return std::static_pointer_cast<const T>(loadConfiguredView(
-        uri, std::type_index(typeid(T)),
+        uri, detail::meaningOf<T>(),
         std::make_shared<const Options>(options),
         [](const void* left, const void* right) {
           return *static_cast<const Options*>(left) ==
@@ -257,7 +277,8 @@ class Hub {
     std::string uri;
     std::filesystem::file_time_type mtime;
     bool holdsBytes = false;
-    std::vector<std::pair<std::type_index, Redecode>> decodes;
+    /** Every populated view's meaning name and the decode that made it. */
+    std::vector<std::pair<std::string, Redecode>> decodes;
   };
 
   /** What poll() commits for one changed entry: the fresh bytes and
@@ -266,45 +287,46 @@ class Hub {
     std::shared_ptr<const Bytes> bytes;
     std::filesystem::path path;
     std::filesystem::file_time_type mtime;
-    std::vector<std::pair<std::type_index, std::shared_ptr<const void>>> views;
+    std::vector<std::pair<std::string, std::shared_ptr<const void>>> views;
   };
 
   std::optional<Reloaded> reload(const Reload& pending) const;
 
-  /** The one decode path every typed accessor shares: the view of
-   *  `type` in the entry at `key`, decoded with `decode` from cached or
-   *  freshly fetched bytes. Null when `decode` is empty, when the fetch
-   *  fails, or when the decode does. */
+  /** The one decode path every typed accessor shares: the view named
+   *  `meaning` in the entry at `key`, decoded with `decode` from cached
+   *  or freshly fetched bytes. Null when `decode` is empty, when the
+   *  fetch fails, or when the decode does — the last two remembered as
+   *  asked for, so poll() says when the file appears or changes. */
   std::shared_ptr<const void> loadView(const std::string& key,
                                        std::string_view uri,
-                                       std::type_index type,
+                                       std::string_view meaning,
                                        const Redecode& decode);
 
   /** The registered-decoder path. A populated view returns under one cache
    *  lock; only a miss copies the decoder and enters loadView(). */
-  std::shared_ptr<const void> loadRegisteredView(const std::string& key,
-                                                 std::string_view uri,
-                                                 std::type_index type);
+  std::shared_ptr<const void> loadRegisteredView(
+      const std::string& key, std::string_view uri,
+      const detail::Meaning& meaning);
 
   /** Whether two option values of one type are equal, compared through
    *  the type that load<T>() knew and this hub does not. */
   using SameOptions = bool (*)(const void* left, const void* right);
 
-  /** The registered decoder of `type` with `options` bound into it:
+  /** The decoder registered for `meaning` with `options` bound into it:
    *  options equal to ones asked before share their entry. Null when no
-   *  decoder that takes options is registered for `type`. */
+   *  decoder that takes options is registered for `meaning`. */
   std::shared_ptr<const void> loadConfiguredView(
-      std::string_view uri, std::type_index type,
+      std::string_view uri, const detail::Meaning& meaning,
       std::shared_ptr<const void> options, SameOptions same);
 
   /** A registered decoder with a load's options bound into it. */
   using Configure = std::function<Redecode(std::shared_ptr<const void>)>;
 
-  /** The decoder registered for `type`, or an empty function. */
-  Redecode registeredDecoder(std::type_index type) const;
-  /** Registers `decode` for `type` at its defaults, and — for a type
-   *  loaded with options — `configure`, which binds other options in. */
-  void setDecoder(std::type_index type, Redecode decode, Configure configure);
+  /** Registers `decode` under `meaning` at its defaults, and — for a
+   *  type loaded with options — `configure`, which binds other options
+   *  in. */
+  void setDecoder(const detail::Meaning& meaning, Redecode decode,
+                  Configure configure);
 
   std::vector<std::pair<std::string, std::filesystem::path>>
   mountedDirectories() const;

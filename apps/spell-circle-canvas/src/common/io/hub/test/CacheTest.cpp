@@ -40,6 +40,9 @@ namespace fs = std::filesystem;
 struct WordCount {
   size_t words = 0;
 };
+inline std::string_view meaningName(std::type_identity<WordCount>) {
+  return "test.WordCount";
+}
 struct WordCounter {
   std::optional<WordCount> decode(const Bytes& bytes, std::string_view) const {
     WordCount count;
@@ -65,6 +68,9 @@ struct ExcerptOptions {
   bool operator==(const ExcerptOptions&) const = default;
 };
 inline ExcerptOptions loadOptions(std::type_identity<Excerpt>) { return {}; }
+inline std::string_view meaningName(std::type_identity<Excerpt>) {
+  return "test.Excerpt";
+}
 }  // namespace excerpt
 static_assert(Configurable<excerpt::Excerpt>);
 static_assert(!Configurable<WordCount>);
@@ -220,6 +226,9 @@ TEST_F(IOHub, PollReloadsFilesWhoseNamesContainHash) {
 struct Concatenation {
   std::string text;
 };
+inline std::string_view meaningName(std::type_identity<Concatenation>) {
+  return "test.Concatenation";
+}
 
 TEST_F(IOHub, PollRunsDecodersOutsideTheCacheLock) {
   dir.write("head.txt", "head");

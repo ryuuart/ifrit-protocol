@@ -70,9 +70,12 @@ BENCHMARK(BM_Fetch_CacheHit)
 struct Length {
   size_t value = 0;
 };
+inline std::string_view meaningName(std::type_identity<Length>) {
+  return "bench.Length";
+}
 
-/** A typed load whose view is already decoded: the type-indexed
- *  decoder lookup, the entry lookup and the view lookup. */
+/** A typed load whose view is already decoded: the decoder lookup by
+ *  meaning name, the entry lookup and the view lookup. */
 void BM_Load_ViewHit(benchmark::State& state) {
   Mounted fixture((int)state.range(0));
   registerDecoder<Length>(fixture.hub, [](const Bytes& bytes) -> std::optional<Length> {

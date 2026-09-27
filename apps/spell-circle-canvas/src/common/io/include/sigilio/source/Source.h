@@ -143,6 +143,27 @@ concept Probable = requires(std::span<const std::byte> bytes,
   } -> std::same_as<std::optional<T>>;
 };
 
+/** WHAT A KIND OF MEANING IS CALLED: a free function found by
+ *  argument-dependent lookup in T's own namespace,
+ *  `std::string_view meaningName(std::type_identity<T>)`, answering the
+ *  one name that meaning is registered and asked for under — "media.Image"
+ *  for SigilMedia's image — which no other meaning answers. A hub keys
+ *  its decoders and the views it decodes by this name, never by the
+ *  identity of the C++ type: a program built from several images — a
+ *  host and the sketch it compiled and loaded while running — can hold
+ *  one type under two identities, and both ask for it by one name.
+ *  Declaring it is what lets a hub take `registerDecoder<T>` and
+ *  `load<T>` at all.
+ *  @trap The name is a promise that every image means the same type by
+ *  it: a hub checks the asking type's own name against the registered
+ *  one as well, and a type that differs answers nothing. */
+template <typename T>
+concept Named = requires {
+  {
+    meaningName(std::type_identity<T>{})
+  } -> std::convertible_to<std::string_view>;
+};
+
 /** WHAT A KIND OF MEANING IS LOADED WITH, beyond its URI: a free
  *  function found by argument-dependent lookup in T's own namespace,
  *  `Options loadOptions(std::type_identity<T>)`, answering the options

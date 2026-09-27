@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace sigil::media {
@@ -66,5 +67,10 @@ struct Channels {
   /** The channels @p pick names, composited the same way. */
   std::shared_ptr<const Image> image(ChannelPick pick) const;
 };
+
+/** The name a resource library registers and asks for channels under. */
+inline std::string_view meaningName(std::type_identity<Channels>) {
+  return "media.Channels";
+}
 
 }  // namespace sigil::media

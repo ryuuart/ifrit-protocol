@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace sigil::data {
 
@@ -105,6 +106,12 @@ class Database {
   explicit Database(std::unique_ptr<Impl> impl);
   std::unique_ptr<Impl> m_impl;
 };
+
+/** The name a resource hub registers and asks for a store under, so
+ *  `hub.load<Database>(uri)` answers wherever it is compiled. */
+inline std::string_view meaningName(std::type_identity<Database>) {
+  return "data.Database";
+}
 
 /** DECODES A DATABASE FILE FOR A RESOURCE HUB:
  *  `hub.load<Database>(uri)`. A resource that is a file on disk is

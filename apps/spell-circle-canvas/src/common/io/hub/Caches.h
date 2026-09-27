@@ -3,9 +3,10 @@
 /** @file
  * The tables a hub keeps, defined where they are read rather than where
  * the hub is declared: the cache of entries keyed by the string an ask
- * is cached under, the decoder registered per decoded type, the
- * transport registered per feed scheme and the recording replayed per
- * feed URI. Every one is read and written only under the hub's mutex.
+ * is cached under, the decoder registered per meaning name, the asks
+ * that found nothing, the transport registered per feed scheme and the
+ * recording replayed per feed URI. Every one is read and written only
+ * under the hub's mutex.
  */
 
 #include <boost/container/flat_map.hpp>
@@ -13,7 +14,6 @@
 #include <functional>
 #include <memory>
 #include <string>
-#include <typeindex>
 #include <vector>
 
 #include "sigilio/hub/Hub.h"
@@ -50,22 +50,46 @@ struct Hub::Caches {
   struct Entry {
     std::string uri;
     std::shared_ptr<const Bytes> bytes;
-    boost::container::flat_map<std::type_index, View> views;
+    /** Per meaning name, the view decoded as that meaning. */
+    boost::container::flat_map<std::string, View, std::less<>> views;
     std::filesystem::path path;
     std::filesystem::file_time_type mtime;
   };
 
+  /** One registered decoder: the C++ type's own name it decodes into,
+   *  which an ask must match as well as the meaning name, the decode at
+   *  the type's defaults and — for a type loaded with options — what
+   *  binds other options into it. */
+  struct Registered {
+    std::string type;
+    Redecode decode;
+    Configure configure;
+  };
+
+  /** A typed ask that found nothing to decode — no file, or bytes the
+   *  decoder refused: the URI, and the stamp its file carried then, empty
+   *  for none. poll() answers true once the stamp differs. */
+  struct Missed {
+    std::string uri;
+    std::filesystem::file_time_type mtime;
+  };
+
+  /** The decoder registered under @p meaning's name for the C++ type it
+   *  names; null for none, or for one registered for another type. */
+  const Registered* registered(const detail::Meaning& meaning) const;
+
   boost::container::flat_map<std::string, Entry, std::less<>> entries;
-  boost::container::flat_map<std::type_index, Redecode> decoders;
-  /** Per type loaded with options, what binds other options into its
-   *  registered decoder. */
-  boost::container::flat_map<std::type_index, Configure> configured;
-  /** Per type, every distinct non-default options value asked of it, in
-   *  the order first asked: an options value's place here is what its
-   *  entries are keyed by, so equal options share one decode. */
-  boost::container::flat_map<std::type_index,
-                             std::vector<std::shared_ptr<const void>>>
+  /** Per meaning name, the decoder registered under it. */
+  boost::container::flat_map<std::string, Registered, std::less<>> decoders;
+  /** Per meaning name, every distinct non-default options value asked of
+   *  it, in the order first asked: an options value's place here is what
+   *  its entries are keyed by, so equal options share one decode. */
+  boost::container::flat_map<std::string,
+                             std::vector<std::shared_ptr<const void>>,
+                             std::less<>>
       options;
+  /** Per cache key, the typed ask that found nothing there. */
+  boost::container::flat_map<std::string, Missed, std::less<>> missed;
   boost::container::flat_map<std::string, Transport, std::less<>>
       feedTransports;
   /** Per feed URI, the recording replay() named for it: a feed opened

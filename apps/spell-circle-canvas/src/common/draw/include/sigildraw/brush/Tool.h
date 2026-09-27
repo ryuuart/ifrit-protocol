@@ -18,6 +18,8 @@
 
 #include <functional>
 #include <optional>
+#include <string_view>
+#include <type_traits>
 
 namespace sigil::draw {
 class Pen;
@@ -131,5 +133,11 @@ struct Tool {
  *  width; a procedural tool states it in canvas units already. Every
  *  resampling in the library asks this rather than reading `spacing`. */
 [[nodiscard]] float spacingOf(const Tool& tool);
+
+/** The name a resource hub registers and asks for a brush under, so
+ *  `hub.load<brush::Tool>(uri)` answers wherever it is compiled. */
+inline std::string_view meaningName(std::type_identity<Tool>) {
+  return "draw.brush.Tool";
+}
 
 }  // namespace sigil::draw::brush
