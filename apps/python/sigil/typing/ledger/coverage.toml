@@ -845,15 +845,6 @@ native = "the heading `titleCard`"
 python = ["sketch.kit.titleCard"]
 
 [[section.surface.item]]
-native = "the rows `readout`, `labelRow`, `table` and `bars`"
-python = [
-  "sketch.kit.readout",
-  "sketch.kit.labelRow",
-  "sketch.kit.table",
-  "sketch.kit.bars",
-]
-
-[[section.surface.item]]
 native = "the legends `legend`, `swatchStrip` and `chip`"
 python = ["sketch.kit.legend", "sketch.kit.swatchStrip", "sketch.kit.chip"]
 

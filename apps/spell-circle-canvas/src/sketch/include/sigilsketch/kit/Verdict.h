@@ -10,8 +10,8 @@
 
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Utf8.h>
+#include <sigilcompose/kit/Rows.h>
 #include <sigilmeasure/check/Check.h>
-#include <sigilsketch/kit/Rows.h>
 
 #include <optional>
 #include <vector>
@@ -36,10 +36,11 @@ enum class VerdictRows {
  *  a rule and never with a prop. */
 struct Verdict {
   VerdictRows rows = VerdictRows::Every;
-  /** The label, the value and the verdict, in that order, as a table's
-   *  columns take them. Empty sets the label at 220 px, the value at 72 px
-   *  in the figure register, and the verdict in what is left. */
-  std::vector<Column> columns;
+  /** The label, the value and the verdict, in that order, as the compose
+   *  kit's table takes its columns. Empty sets the label at 220 px, the
+   *  value at 72 px in the figure register, and the verdict in what is
+   *  left. */
+  std::vector<compose::kit::Column> columns;
   /** A mark before each judged row in its verdict's colour. */
   bool swatches = true;
   /** A hairline between neighbouring rows. */

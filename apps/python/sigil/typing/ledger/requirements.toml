@@ -113,10 +113,20 @@ native = "`geometry::mesh::Cloud` and `mesh::points`"
 library = "Geometry"
 python = ["geometry.mesh.Cloud", "geometry.mesh.points.stamp"]
 
+[requirement.compose-bars]
+native = "`compose::kit::bars` over a table's two columns"
+library = "Compose kit"
+python = ["compose.kit.bars"]
+
 [requirement.compose-readout]
 native = "`compose::kit::readout` rows"
 library = "Compose kit"
 python = ["compose.kit.readout"]
+
+[requirement.compose-table]
+native = "`compose::kit::table` with `Column`"
+library = "Compose kit"
+python = ["compose.kit.table"]
 
 [requirement.compose-test]
 native = "`compose::test` geometry and pixel checks"
@@ -365,11 +375,6 @@ python = [
   "compose.textFx.typeOn",
 ]
 
-[requirement.kit-bars]
-native = "`sketch::kit::bars` over `data::Table`"
-library = "Sketch kit"
-python = ["sketch.kit.bars"]
-
 [requirement.kit-connection-readout]
 native = "`sketch::kit::connectionReadout` over `data::Connection::state()`"
 library = "Sketch kit"
@@ -410,11 +415,6 @@ native = "`sketch::kit::plot` chart layers"
 library = "Sketch kit"
 python = ["sketch.kit.plot"]
 
-[requirement.kit-readout]
-native = "`sketch::kit::readout`"
-library = "Sketch kit"
-python = ["sketch.kit.readout"]
-
 [requirement.kit-scrollbar]
 native = "`sketch::kit::scrollbar` with `Scrolled`"
 library = "Sketch kit"
@@ -424,11 +424,6 @@ python = ["sketch.kit.scrollbar", "sketch.kit.Scrolled"]
 native = "`sketch::kit::sectionHeader`"
 library = "Sketch kit"
 python = ["sketch.kit.section_header"]
-
-[requirement.kit-table]
-native = "`sketch::kit::table`"
-library = "Sketch kit"
-python = ["sketch.kit.table"]
 
 [requirement.kit-ticker]
 native = "`sketch::kit::ticker` marquee strip"

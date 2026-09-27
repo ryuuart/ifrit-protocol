@@ -28,7 +28,7 @@ the installed extension use that assembly.
 * `kit/Registration.h` — `bindSketchKit`, `bindSketchKitCharts`,
   `bindSketchKitContent`, `bindSketchKitControls`, `bindSketchKitLegends`,
   `bindSketchKitPanels`,
-  `bindSketchKitRows`, `bindSketchKitStreams`, `stageContext`
+  `bindSketchKitStreams`, `bindSketchKitVerdict`, `stageContext`
 
 `host/Runtime.cpp` owns interpreter selection for embedded hosts, fresh
 source imports, sketch instances, checked context and service views,

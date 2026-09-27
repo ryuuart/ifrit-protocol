@@ -78,14 +78,9 @@ Element verdict(const measure::CheckTable& table, const Verdict& how) {
     swatches.emplace_back();
   }
 
-  std::vector<compose::kit::Column> columns;
-  if (how.columns.empty()) {
+  std::vector<compose::kit::Column> columns = how.columns;
+  if (columns.empty())
     columns = {{.width = 220}, {.width = 72, .figure = true}, {}};
-  } else {
-    for (const Column& one : how.columns)
-      columns.push_back(
-          {.head = one.head, .width = one.width, .figure = one.figure});
-  }
   std::vector<std::span<const Utf8>> rows(cells.begin(), cells.end());
   compose::kit::Table specification{
       .columns = std::move(columns),

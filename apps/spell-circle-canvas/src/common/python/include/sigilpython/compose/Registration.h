@@ -56,8 +56,7 @@ void bindComposeKitPixelType(pybind11::module_& module);
 /** Registers the wire routers and the instance placers on @p
  *  module. */
 void bindComposeKitRoutes(pybind11::module_& module);
-/** Registers rows, table, bars and the bordered feed plate on @p
- *  module. */
+/** Registers the table's column on @p module. */
 void bindComposeKitRows(pybind11::module_& module);
 /** Registers palette-indexed sprites, the pixel pen and the sprite
  *  sheet on @p module. */

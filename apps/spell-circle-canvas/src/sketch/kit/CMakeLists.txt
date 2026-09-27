@@ -19,15 +19,15 @@
 sigil_library(SigilSketchKit
   SOURCES Cells.cpp Channel.cpp Chart.cpp ChartMarks.cpp Connection.cpp Controls.cpp
           Console.cpp Document.cpp Heading.cpp Instrument.cpp Legend.cpp Meter.cpp Page.cpp Panel.cpp
-          Passage.cpp Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp Verdict.cpp
+          Passage.cpp Scrollbar.cpp Theme.cpp Ticker.cpp Verdict.cpp
   HEADERS Cells.h Channel.h Chart.h Connection.h Console.h Controls.h Document.h
           Heading.h Kit.h
-          Instrument.h Legend.h Meter.h Page.h Panel.h Passage.h Rows.h Scrollbar.h
+          Instrument.h Legend.h Meter.h Page.h Panel.h Passage.h Scrollbar.h
           Theme.h Ticker.h Verdict.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
          SigilDataConnection SigilDataDecode SigilDataScale SigilGeometryKit
          SigilMaterial SigilMeasure SigilWeave
-  PRIVATE SigilWeavePorts SigilIO SigilDataTable SigilDraw
+  PRIVATE SigilWeavePorts SigilIO SigilDraw
           SigilMaterialSubstance)
 
 # The kit's own claim: the theme is a comparable value a scope binds, and
@@ -46,10 +46,10 @@ sigil_test(sketch_test
           test/ConnectionReadoutTest.cpp test/ConsoleTest.cpp test/DocumentTest.cpp
           test/HeadingTest.cpp test/LegendTest.cpp test/MeterTest.cpp
           test/PageTest.cpp test/PanelTest.cpp test/PassageTest.cpp
-          test/RowsTest.cpp test/ScrollbarTest.cpp test/ThemeTest.cpp
+          test/ScrollbarTest.cpp test/ThemeTest.cpp
           test/TickerTest.cpp test/VerdictTest.cpp
   LIBRARIES SigilSketchKit SigilMaterialCore SigilMotionClock
-            SigilMotionValues SigilDataTable SigilMaterialSubstance
+            SigilMotionValues SigilMaterialSubstance
   # The one case that asks the machine's font manager for a family by name.
   LABELS fonts
   SUITES SketchKitHeading.AFamilyTheSheetSetsReachesTheCardsLines

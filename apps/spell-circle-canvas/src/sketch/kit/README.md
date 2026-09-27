@@ -410,57 +410,16 @@ sketch::kit::titleCard(
      .key = "head"});
 ```
 
-### A name and the figure that answers it — `Rows.h`
+### A name and the figure that answers it
 
-| | |
-| --- | --- |
-| `labelRow(Reading, Readout)` | the name at the left in the quiet register, the figure at the right in the figure colour and the face a call is set in, with a swatch before the name where the row is also a key |
-| `readout(rows, Readout)` | a stack of those, at the theme's row gap, optionally ruled between |
-| `table(rows, Table)` | N columns each at its own width, the ones that carry a number in the figure register, with a mark before the first and the word each column carries over it — the reading a pair cannot hold |
-| `bars(labels, values, Bars)` | one row per value against the largest of them: the label at the left, the bar in the theme's figure colour on a track of the same dimmed, and the figure after it — with the overload that reads the two columns off a table; `Bars::inks` is one colour per row, over the bar's paint and the row's two lines, for the sheet where WHICH row is lit is the data's business |
-
-```cpp
-sketch::kit::readout({{u8"nodes", nodes}, {u8"instances", live}},
-                     {.measure = 220, .nameMeasure = 168});
-```
-
-`Readout` is HOW a row is set and the rows are the data, so one value
-sets a whole stack. `nameMeasure` is what ranges the figures of unequal
-names.
-
-A READOUT and a TABLE are different readings, and neither is the other
-with a field set. A readout is a PAIR ranged to opposite edges of one
-measure; a table is N columns each at its own width, which is what a
-reading of more than a name and a figure needs — a key, a cost, the tier
-it took and the condition that refused it.
-
-```cpp
-sketch::kit::table(rows, {.columns = {{.width = 126, .figure = true}, {.width = 46, .figure = true}, {.width = 66}, {}},
-                          .swatch = 9});
-```
-
-A ROW STATES THE COLOUR IT IS SET IN, and a column the word over it.
-`Reading::ink` and `Row::ink` stand over the theme's own and keep the
-registers the row was set in — the foot a table's own reading is, a
-reading in the colour of the thing it reads — because WHICH rows are lit
-is what the data says and a theme cannot. `Column::head` is the word over
-one column, in the theme's section register, so a headed table is one call
-and the head and the reading under it are ranged by one arrangement.
-
-A figure a sketch measured about its own execution goes through
-`ctx.measured` **before** it reaches here. These components arrange a
-row; what the number is, and whether it is pinned, is the sketch's.
-
-**BARS ARE NOT A ROW OF METERS.** A meter is one fraction of a known
-whole; `bars` is N rows against an extent DERIVED from the values, which
-is what a plot of a column is and why no scale is stated anywhere.
-`Bars::largest` states the extent where a plot must share one with the
-plot beside it, and `Bars::rest` is the track behind each bar —
-`Fill::none()` draws none.
-
-```cpp
-sketch::kit::bars(*cities, "city", "population", {.length = 150})
-```
+The rows are the compose kit's — `compose::kit::reading`,
+`compose::kit::readout`, `compose::kit::table` and `compose::kit::bars` —
+and this kit adds none of its own. They take content and arrangement
+only; the theme's sheet sets their names and notes in the caption role,
+their figures in the `.readout` class and a table's head in the `h2` role,
+so a readout under `Theme::styleSheet()` is in the theme's registers with
+no prop naming them. A figure a sketch measured about its own execution
+goes through `ctx.measured` **before** it reaches a row.
 
 ### Colour, named — `Legend.h`
 

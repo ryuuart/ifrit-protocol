@@ -1,6 +1,5 @@
 #include <sigilmeasure/check/Check.h>
 #include <sigilpython/compose/Kit.h>
-#include <sigilsketch/kit/Rows.h>
 #include <sigilsketch/kit/Verdict.h>
 
 #include "Registration.h"
@@ -11,12 +10,11 @@ namespace sketchKit = sigil::sketch::kit;
 using sigil::python::kit::field;
 using sigil::python::kit::record;
 
-void bindSketchKitRows(py::module_& root) {
+void bindSketchKitVerdict(py::module_& root) {
   auto module = root.attr("sketch").attr("kit").cast<py::module_>();
-  auto column = record<sketchKit::Column>(module, "Column");
-  field(column, "head", &sketchKit::Column::head);
-  field(column, "width", &sketchKit::Column::width);
-  field(column, "figure", &sketchKit::Column::figure);
+  // A verdict's columns are the compose kit's, so the one class is offered
+  // here under the name a verdict's author reaches for beside it.
+  module.attr("Column") = root.attr("compose").attr("kit").attr("Column");
 
   py::enum_<sketchKit::VerdictRows>(module, "VerdictRows")
       .value("Every", sketchKit::VerdictRows::Every)

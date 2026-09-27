@@ -10,7 +10,7 @@ sigil_library(SigilSketchPython
     host/SetSketches.cpp host/Testing.cpp host/WorldSet.cpp
     kit/Charts.cpp kit/Content.cpp kit/Controls.cpp kit/Legends.cpp
     kit/Panels.cpp
-    kit/Rows.cpp kit/Specimen.cpp kit/Streams.cpp
+    kit/Specimen.cpp kit/Streams.cpp kit/Verdict.cpp
   HEADERS Python.h
   PUBLIC SigilSketch
   PRIVATE SigilPython SigilSketchKit SigilSketchTesting SigilWorldFrame

@@ -113,7 +113,7 @@ requires = [
 needs = "Woven cloth generator; custom pattern tiles; instanced atlas pool; nearest image paint; board recipe; check table; justified paragraph"
 requires = [
   "kit-document",
-  "kit-table",
+  "compose-table",
   "instancing",
   "compose-test",
   "pattern-fill",
@@ -145,7 +145,7 @@ requires = [
 
 [sketch.bound_lane]
 needs = "Bound-lane chain stages and wiggle; motion paths with travel; specimen chart plots and readout; stock silhouettes"
-requires = ["kit-readout", "kit-plot", "silhouettes"]
+requires = ["compose-readout", "kit-plot", "silhouettes"]
 
 [sketch.bousen]
 needs = "Vertical blocks; decorated span paints; OpenType features; phrase marks; column cascade track; kit cells"
@@ -197,7 +197,7 @@ requires = []
 
 [sketch.cascade]
 needs = "Inherited type, ink transitions, classes and custom properties; lexical environment values; pen and graphics leaves; readout kit"
-requires = ["kit-readout", "environment-values"]
+requires = ["compose-readout", "environment-values"]
 
 [sketch.cde_motif]
 needs = "Inherited colour sets; Motif bevels, inset adaptor; pixel styles, sprites; program tile; edge mask; scrollbar; aliased type; checks"
@@ -217,14 +217,14 @@ requires = [
 
 [sketch.channel_bind]
 needs = "OSC connection on the hub; kit channels writing outputs; binding chains; recording replay; readout kit"
-requires = ["kit-readout", "kit-channel", "connection"]
+requires = ["compose-readout", "kit-channel", "connection"]
 
 [sketch.chaucer_astrolabe]
 needs = "Scoped theme; stereographic projection; stock silhouettes; banked latten; speckle; instanced ticks; hatch and taper strokes; edge wipe; check console; charts"
 requires = [
   "kit-plot",
   "kit-document",
-  "kit-table",
+  "compose-table",
   "kit-title-card",
   "instancing",
   "keyed-shape",
@@ -251,7 +251,7 @@ needs = "Scoped theme; stock silhouettes; instanced tints; text on path; cap-hei
 requires = [
   "kit-plot",
   "kit-document",
-  "kit-table",
+  "compose-table",
   "instancing",
   "keyed-shape",
   "mask",
@@ -368,7 +368,7 @@ requires = ["kit-plot", "default-face"]
 
 [sketch.data_sources]
 needs = "Asset table and database; DuckDB memory query; bars and section header kit; comparison well"
-requires = ["kit-section-header", "kit-bars"]
+requires = ["kit-section-header", "compose-bars"]
 
 [sketch.decay_step]
 needs = "Clock arithmetic (decay, quantize, step, phase); closed-form spring state; plot kit with axes, rules and traces"
@@ -462,7 +462,7 @@ requires = ["kit-section-header", "environment-maps", "world-environment"]
 [sketch.eva_magi_defense]
 needs = "Cap-height metrics; image-filter phosphor; bound image pan; raster bakes; stroke-to-outline paths; chamfered silhouettes; cascade ladder; measured checks; kit table"
 requires = [
-  "kit-table",
+  "compose-table",
   "keyed-shape",
   "measurement",
   "layered-brush",
@@ -527,7 +527,7 @@ requires = [
 [sketch.fallout2_charsheet]
 needs = "Check tables; condensed face matching; bevels and layer styles; decoration adaptors; rounded outlines; keyed shapes; sketch-kit table; unit grid; slots"
 requires = [
-  "kit-table",
+  "compose-table",
   "keyed-shape",
   "layer-styles",
   "adaptors",
@@ -656,7 +656,7 @@ requires = [
 
 [sketch.grid_layouts]
 needs = "Grid, diagonal and baseline layout schemes; ladder rules; themed mono type; readout rows"
-requires = ["kit-readout"]
+requires = ["compose-readout"]
 
 [sketch.grpc_watch]
 needs = "gRPC Connection handlers and broadcast sends; eased ticker ramps; instrument page; pen bands"
@@ -680,7 +680,7 @@ requires = []
 
 [sketch.hit_slots]
 needs = "Slots; hit test and bounds queries; wires keyed by the pair they join; star and blob silhouettes; readout rows"
-requires = ["kit-readout", "connect", "routers", "silhouettes"]
+requires = ["compose-readout", "connect", "routers", "silhouettes"]
 
 [sketch.hitman_verlet]
 needs = "JSON content; Verlet points and constraints; fixed-step interpolant; instanced atlas pools; chart plots; per-glyph track; layered paints"
@@ -700,7 +700,7 @@ requires = ["silhouettes", "corners"]
 
 [sketch.hub_reload]
 needs = "Standalone hub mount, text, image and poll; custom decoder; offscreen pen to PNG; readout rows"
-requires = ["kit-readout", "raster-surfaces", "hub-decoders"]
+requires = ["compose-readout", "raster-surfaces", "hub-decoders"]
 
 [sketch.import_native]
 needs = "Set hosting; compose texture scene; material texture slots; Scry web view frames; world elements, lights, quads"
@@ -773,7 +773,7 @@ requires = ["keyed-shape", "layered-brush"]
 
 [sketch.lane_retarget]
 needs = "Standalone ticker; animated float lanes; slot and family retargeting; chart kit plots; readout rows"
-requires = ["kit-readout", "kit-plot", "timelines", "lanes"]
+requires = ["compose-readout", "kit-plot", "timelines", "lanes"]
 
 [sketch.lantern_room]
 needs = "Set hosting; sun, spot and point emitters; unlit emissive and PBR surfaces; superellipsoids; turntable camera"
@@ -781,7 +781,7 @@ requires = ["set-sketches"]
 
 [sketch.live_settling]
 needs = "Offscreen composer frame driving; live Knuth-Plass passages; settling reports; comparison kit; readout rows"
-requires = ["kit-readout", "standalone-composer", "raster-surfaces"]
+requires = ["compose-readout", "standalone-composer", "raster-surfaces"]
 
 [sketch."loot grid"]
 needs = "Instanced atlas stamps; bevel emboss panel; recessed wells; noise recipes; pattern tiles; path silhouettes; legends; bound outputs"
@@ -843,7 +843,7 @@ requires = ["kit-instrument", "timelines", "connection"]
 needs = "Kit charts; px-keyed ribbon bands; double rules; wipe masks; speckle paper; path operators; contour audits; console feeds"
 requires = [
   "kit-plot",
-  "kit-table",
+  "compose-table",
   "kit-title-card",
   "keyed-shape",
   "mask",
@@ -977,7 +977,7 @@ requires = ["kit-section-header", "raster-surfaces", "textures", "ocio"]
 
 [sketch.optical_kerning]
 needs = "Optical kerning shaping; context measurement; cells, captions and readout rows"
-requires = ["kit-readout"]
+requires = ["compose-readout"]
 
 [sketch.osc_desk]
 needs = "OSC Connection address handlers and replies; chained ticker ramps; instrument page; pen faders"
@@ -1068,7 +1068,7 @@ requires = ["stock-tiles", "tile-programs"]
 needs = "Multigrid tiling; polygon inset; stone recipe bank; canvas-program decoration; layered trimmed brush; check table; slot re-render"
 requires = [
   "kit-document",
-  "kit-table",
+  "compose-table",
   "brush-stacks",
   "paint-program",
   "inset-polygon",
@@ -1117,11 +1117,11 @@ requires = ["point-operators", "clouds"]
 
 [sketch.pop_order]
 needs = "Point chain with depth-lane ramp and order permutation; unsorted billboard sink; sprite bake; readout"
-requires = ["kit-readout", "raster-surfaces", "point-operators", "clouds"]
+requires = ["compose-readout", "raster-surfaces", "point-operators", "clouds"]
 
 [sketch.pop_prims]
 needs = "Mesh primitive lanes and vertex bake; primitive-colour mesh style; promoted point Id stamps; OKLab ramp; readouts"
-requires = ["kit-readout", "point-operators", "primitive-lanes"]
+requires = ["compose-readout", "point-operators", "primitive-lanes"]
 
 [sketch.pop_stamps]
 needs = "Silhouette motifs baked to atlas; point chains swept into tubes, stamped quads, profile sweeps, windowed ribbon; mesh painter"
@@ -1289,7 +1289,7 @@ requires = [
 [sketch.spacejam_1996]
 needs = "Table layout scheme; element snapshots; runtime shaders; element tile; view effect; custom decoration; stock shapes; fixed ticker; checks"
 requires = [
-  "kit-table",
+  "compose-table",
   "paint-program",
   "pattern-fill",
   "composer-view",
@@ -1389,7 +1389,7 @@ requires = ["typesetting"]
 needs = "Profiled ribbons under span masks; layered brushes, rails, washes; jittered shapes; path displacement, measure; chart, table, console; checks"
 requires = [
   "kit-plot",
-  "kit-table",
+  "compose-table",
   "keyed-shape",
   "mask",
   "lines",
@@ -1418,7 +1418,7 @@ requires = ["kit-plot", "timelines"]
 needs = "Memoized chunks over one shared image asset with regions; bound flash opacity; profiling probe composer; readouts"
 requires = [
   "kit-section-header",
-  "kit-readout",
+  "compose-readout",
   "standalone-composer",
   "image-asset-leaf",
 ]
@@ -1525,8 +1525,8 @@ requires = [
 [sketch.volatility_cost]
 needs = "Eager profiling probe composer: stats, profile, cache states, refusals, bounds; star silhouettes; bound movers; legend, table, readout"
 requires = [
-  "kit-readout",
-  "kit-table",
+  "compose-readout",
+  "compose-table",
   "kit-legend",
   "standalone-composer",
   "composer-profile",
@@ -1535,7 +1535,7 @@ requires = [
 
 [sketch.warichu_placeholder]
 needs = "Warichu split of a note paragraph; vertical writing; rich text slots; measured advances; readout"
-requires = ["kit-readout"]
+requires = ["compose-readout"]
 
 [sketch.web_panel]
 needs = "Shared web engine; web view leaf; web image slot painted by pen; deterministic settle; availability probe"
@@ -1587,7 +1587,7 @@ requires = [
 [sketch.xcom_battlescape]
 needs = "Instanced atlas pools; palette lookup shader; index sprites; coverage pixel type; pattern tiles; check table; lattice hash; composer queries"
 requires = [
-  "kit-table",
+  "compose-table",
   "instancing",
   "pattern-fill",
   "pixel-type",
