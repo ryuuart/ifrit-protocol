@@ -79,6 +79,12 @@ const sbsar::Output* outputFor(const sbsar::Description& description,
   return nullptr;
 }
 
+/** The cooked base colour under either spelling a graph may use. */
+media::PixelSource baseOf(const Material& material) {
+  media::PixelSource base = sbsar::output(material, "baseColor");
+  return base ? base : sbsar::output(material, "diffuse");
+}
+
 /** What a generated input struct answers, written by hand. */
 struct LeavesInputs {
   float hueShift = 0;
@@ -162,7 +168,7 @@ TEST(Substance, TagsEachOutputWithTheColourSpaceItDeclares) {
 
   const Material material =
       material::substance(hub, uri, {.resolution = 64});
-  const sk_sp<SkImage> colour = frameOf(sbsar::output(material, base->usage));
+  const sk_sp<SkImage> colour = frameOf(baseOf(material));
   const sk_sp<SkImage> normals = frameOf(sbsar::output(material, "normal"));
   ASSERT_TRUE(colour && normals);
   ASSERT_TRUE(colour->colorSpace());
@@ -213,15 +219,18 @@ TEST(Substance, TheMaterialCarriesTheOutputsAsItsBaseAndSurface) {
       hub, sample("Autumn_Leaves.sbsar"), {.resolution = 32});
   EXPECT_FALSE(leaves.hasProgram());
   ASSERT_EQ(1u, leaves.layers().size()) << "the base colour over the cook";
+  // The sample declares an opacity output, which masks the base colour.
+  EXPECT_TRUE(leaves.layers()[0].options.mask);
   const SurfaceOptions* surface = leaves.surface();
   ASSERT_TRUE(surface);
   EXPECT_TRUE(surface->normal);
-  EXPECT_TRUE(std::holds_alternative<Material>(surface->roughness));
+  // The sample declares no roughness, so the channel keeps its number.
+  EXPECT_TRUE(std::holds_alternative<float>(surface->roughness));
   // An output the surface has no channel for is not cooked unless asked.
   EXPECT_FALSE(sbsar::output(leaves, "height"));
   const Material withHeight = material::substance(
       hub, sample("Autumn_Leaves.sbsar"),
-      {.resolution = 32, .outputs = {{"baseColor"}, {"height"}}});
+      {.resolution = 32, .outputs = {{"diffuse"}, {"height"}}});
   EXPECT_TRUE(sbsar::output(withHeight, "height"));
   EXPECT_FALSE(sbsar::output(withHeight, "normal"));
 }
@@ -231,7 +240,7 @@ TEST(Substance, SetOnTheMaterialCooksApartAndTheNewestValueLands) {
   io::Hub hub;
   Material leaves = material::substance(hub, sample("Autumn_Leaves.sbsar"),
                                         {.resolution = 64});
-  const media::PixelSource base = sbsar::output(leaves, "baseColor");
+  const media::PixelSource base = baseOf(leaves);
   ASSERT_TRUE(base);
   const sk_sp<SkImage> before = frameOf(base);
   const uint64_t landed = base.revision();
@@ -242,6 +251,9 @@ TEST(Substance, SetOnTheMaterialCooksApartAndTheNewestValueLands) {
   EXPECT_GT(base.revision(), landed);
   EXPECT_TRUE(leaves.isRunning()) << "a landed cook not yet handed out";
   const sk_sp<SkImage> after = frameOf(base);
+  // Settled once every cooked output has handed out what landed.
+  frameOf(sbsar::output(leaves, "normal"));
+  frameOf(sbsar::output(leaves, "opacity"));
   EXPECT_FALSE(leaves.isRunning());
   EXPECT_GT(differing(before, after), 3);
 }
@@ -251,7 +263,8 @@ TEST(Substance, BindFollowsAValueThroughTheMaterial) {
   io::Hub hub;
   Material leaves = material::substance(hub, sample("Autumn_Leaves.sbsar"),
                                         {.resolution = 64});
-  const media::PixelSource base = sbsar::output(leaves, "baseColor");
+  const media::PixelSource base = baseOf(leaves);
+  ASSERT_TRUE(base);
   const sk_sp<SkImage> before = frameOf(base);
   leaves.bind("Hue_Shift", motion::Animatable<float>(0.5f));
   sbsar::settle(leaves);
@@ -266,14 +279,14 @@ TEST(Substance, TheGeneratedStructFormWritesItsFields) {
   const Material shifted =
       material::substance(hub, uri, LeavesInputs{.hueShift = 0.5f},
                           {.resolution = 64});
-  EXPECT_GT(differing(frameOf(sbsar::output(plain, "baseColor")),
-                      frameOf(sbsar::output(shifted, "baseColor"))),
+  EXPECT_GT(differing(frameOf(baseOf(plain)),
+                      frameOf(baseOf(shifted))),
             3);
   // The keyed form states the same thing.
   const Material keyed = material::substance(
       hub, uri, {.inputs = {{"Hue_Shift", 0.5f}}, .resolution = 64});
-  EXPECT_EQ(0, differing(frameOf(sbsar::output(keyed, "baseColor")),
-                         frameOf(sbsar::output(shifted, "baseColor"))));
+  EXPECT_EQ(0, differing(frameOf(baseOf(keyed)),
+                         frameOf(baseOf(shifted))));
 }
 
 TEST(Substance, APresetBesideTheArchiveIsAppliedByLabel) {
@@ -283,8 +296,8 @@ TEST(Substance, APresetBesideTheArchiveIsAppliedByLabel) {
   const Material authored = material::substance(hub, uri, {.resolution = 64});
   const Material green =
       material::substance(hub, uri, {.preset = "Green", .resolution = 64});
-  EXPECT_GT(differing(frameOf(sbsar::output(authored, "baseColor")),
-                      frameOf(sbsar::output(green, "baseColor"))),
+  EXPECT_GT(differing(frameOf(baseOf(authored)),
+                      frameOf(baseOf(green))),
             3);
   sbsar::CookScheduler cook(sbsar::load(hub, uri), 0);
   EXPECT_FALSE(cook.applyPreset("Green")) << "not embedded in the archive";
