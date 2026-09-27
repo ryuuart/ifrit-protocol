@@ -81,7 +81,10 @@ built, each copying on write, has a page of its own.
 - `core/Gradient.h` — `ColorStops`, `GradientOptions`, `GradientUnits`,
   `RadialExtent`, `Repeat`
 - `skia/Paint.h` — `Paint`, `FrameData`, `Fit`
-- `filter/Filter.h` — `Filter`, `ShadowOptions`, `BloomOptions`
+- `filter/Filter.h` — `Filter`, `ShadowOptions`, `BevelOptions`,
+  `StrokeOptions`, `BloomOptions`
+- `pattern/Patterns.h` — `scanlines`, `ScanlineOptions`, `stipple`,
+  `StippleOptions`, `ditherBits`
 - `paint/Paint.h` — `Paint`, `Fit`
 - `core/BlendMode.h` — `BlendMode`
 - `skia/Ramp.h` — `paletteImage`, `paletteLookup`

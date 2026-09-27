@@ -58,6 +58,10 @@ emit adds a light of the layer, never a light of the first light.
 | `Filter::brightPass(threshold, knee)` | C++ | the layer with everything but its light taken out — the first half of a bloom |
 | `Filter::phosphorBloom(radius, threshold)` | C++ | the whole bloom in one gather |
 | `Filter::dilate(pixels)`, `Filter::deepen(amount)`, `Filter::whiten(amount)` | C++ | the small tonal passes |
+| `Filter::shadow(colour, {.blur, .offset, .inside = true})` | C++ | a material's inner shadow: a finite band cast along the offset, hugging the opposite inner edge |
+| `Filter::shadow(colour, {.blur, .spread})` | C++ | a material's outer glow — a spread shadow with no offset |
+| `Filter::bevel({.depth, .size, .angleDegrees, .highlight, .shadow})` | C++ | a material's bevel: the lit edge and the shaded one, as two opposed inner shadows |
+| `Filter::stroke(colour, {.width, .position})` | C++ | a material's keyline |
 | `material.Filter.blur(...)` and the rest | Python | the same factories under the same names |
 
 Then the modifiers: `Filter::set` sets and `Filter::bind` binds a named parameter —
