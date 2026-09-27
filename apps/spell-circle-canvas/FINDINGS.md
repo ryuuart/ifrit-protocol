@@ -1026,3 +1026,18 @@ opened when it closes, whatever Python still holds. A test should store a
 connection wrapper in `builtins`, close the session, and assert the feed's state
 is closed and its inlet expired, as `SketchPython.ASessionClosesFeedsDespiteEscapedPythonWrappers`
 asserts for a feed.
+
+## `tweenEqual` stands under no field pin, and the Motion README says every comparator does
+
+`motion::tweenEqual` compares every field of `Tween<T>` by hand, and a
+field added to `Tween` compiles with the comparator silently ignoring it.
+The pin the other comparators sit under (`core::kFieldCount`, Boost.PFR)
+cannot be put on it: PFR counts `Tween<float>` as three fields, because
+`Staggered<V>`'s implicit converting constructor lets one brace
+initialiser swallow several members. The Motion README's comparator table
+opens by saying each comparator is under a field pin.
+
+The intent is a pin that fails the build when `Tween` gains a member. A
+test should assert a hand-kept count against a structured binding of
+`Tween<float>` (or PFR once `Staggered`'s constructor is explicit), and
+the README sentence should hold for every row it introduces.
