@@ -51,7 +51,7 @@ class PictureSession final : public sketch::Session {
     const std::shared_ptr<const sigil::media::Image> picture =
         m_assets.hub().load<sigil::media::Image>("sketch://" + m_key +
                                                  "/mark.png");
-    m_canvas.size = picture ? SkSize::Make(picture->size()) : SkSize{1, 1};
+    m_canvas.size = picture ? SkSize::Make((float)picture->size().x, (float)picture->size().y) : SkSize{1, 1};
   }
 
   sketch::Assets& m_assets;
