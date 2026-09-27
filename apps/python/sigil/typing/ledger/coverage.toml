@@ -516,9 +516,9 @@ native = "`Rule::inkVar` and `Rule::vars`, which name a `VarTable` registered la
 python = ["compose.Rule.inkVar", "compose.Rule.vars"]
 
 [[section.surface.item]]
-native = "the `Rule` readers `inkPaint`, `inkAnchor`, `inkUnit` and `statesInk`"
+native = "the `Rule` readers `inkMaterial`, `inkAnchor`, `inkUnit` and `statesInk`"
 python = [
-  "compose.Rule.inkPaint",
+  "compose.Rule.inkMaterial",
   "compose.Rule.inkAnchor",
   "compose.Rule.inkUnit",
   "compose.Rule.statesInk",
@@ -794,6 +794,22 @@ python = [
   "sketch.kit.cells",
   "sketch.kit.panel_grid",
   "sketch.kit.comparison",
+]
+
+[[section.surface.item]]
+bound = "`verdict` with `Verdict`, `VerdictRows` and `Column`, and the control surface `controls` with `Controls`, `ControlsView`, `Control`, `Option`, `Widget` and `controls_of`"
+python = [
+  "sketch.kit.verdict",
+  "sketch.kit.Verdict",
+  "sketch.kit.VerdictRows",
+  "sketch.kit.Column",
+  "sketch.kit.controls",
+  "sketch.kit.Controls",
+  "sketch.kit.ControlsView",
+  "sketch.kit.Control",
+  "sketch.kit.Option",
+  "sketch.kit.Widget",
+  "sketch.kit.controls_of",
 ]
 
 [[section.surface.item]]

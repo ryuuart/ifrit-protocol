@@ -6,9 +6,14 @@
 from _sigil.sketch import kit as _native
 from _sigil.sketch.kit import (
     Cell,
+    Column,
     Comparison,
     ComparisonCase,
+    Control,
+    Controls,
+    ControlsView,
     Density,
+    Option,
     Page,
     Palette,
     PanelGrid,
@@ -22,11 +27,15 @@ from _sigil.sketch.kit import (
     Stage,
     Theme,
     TypeScale,
+    Verdict,
+    VerdictRows,
     Voice,
     Well,
     WellContent,
+    Widget,
     theme,
 )
+from _sigil.sketch.kit import controlsOf as controls_of
 
 from .._kit import children as _children
 from .._kit import specification as _specification
@@ -111,11 +120,26 @@ def comparison(cases, props=None, **properties):
     return _native.comparison(spec)
 
 
+def verdict(table, props=None, **properties):
+    """Draw a measure CheckTable's rows, each verdict coloured by the sheet."""
+    return _native.verdict(table, _specification(Verdict, props, properties))
+
+
+def controls(surface, props=None, **properties):
+    """Draw a Controls surface: a slider, toggle or choice per parameter."""
+    return _native.controls(surface, _specification(ControlsView, props, properties))
+
+
 __all__ = [
     "Cell",
+    "Column",
     "Comparison",
     "ComparisonCase",
+    "Control",
+    "Controls",
+    "ControlsView",
     "Density",
+    "Option",
     "Page",
     "Palette",
     "PanelGrid",
@@ -129,13 +153,18 @@ __all__ = [
     "Stage",
     "Theme",
     "TypeScale",
+    "Verdict",
+    "VerdictRows",
     "Voice",
     "Well",
     "WellContent",
+    "Widget",
     "caption",
     "cell",
     "cells",
     "comparison",
+    "controls",
+    "controls_of",
     "feature_theme",
     "house_face",
     "house_theme",
@@ -147,5 +176,6 @@ __all__ = [
     "stage",
     "study_theme",
     "theme",
+    "verdict",
     "well",
 ]
