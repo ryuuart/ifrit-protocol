@@ -55,7 +55,6 @@ def register(table: Table) -> None:
              "tuple[typing.SupportsFloat, typing.SupportsFloat]]")
     table.parameters(PATH + ".offset", width=width)
     table.parameters(PATH + ".band", width=width)
-    table.parameters(PATH + ".heading", vector=VEC2_LIKE)
 
     for shape in ("Radial", "Ellipse", "Fitted", "Blob", "Parallelogram",
                   "Arrow", "Chevron"):

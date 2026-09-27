@@ -282,8 +282,7 @@ void bindGeometryOutlines(pybind11::module_& module) {
           [](const path::Rect& where, const path::Pattern& pattern) {
             return path::points(where, pattern);
           },
-          py::arg("where"), py::arg("pattern"))
-      .def("heading", &path::heading, py::arg("vector"));
+          py::arg("where"), py::arg("pattern"));
 
   // The bodies an outline is lifted into, registered here so their
   // declarations name the outline class.

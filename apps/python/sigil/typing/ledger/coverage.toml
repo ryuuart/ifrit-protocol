@@ -1795,8 +1795,13 @@ python = ["material.Filter.filter", "material.Filter.lowered"]
 name = "Geometry"
 
 [[section.surface.item]]
-bound = "`geometry.arrange`"
-python = ["geometry.arrange.onRing", "geometry.arrange.cellAt"]
+bound = "`geometry.arrange`: the run, `onEllipse`, the `Ring` with `onRing` and `placeOnRing`, `Placement`, `heading` and `placeAlong`, and the module grid"
+python = [
+  "geometry.arrange.onRing",
+  "geometry.arrange.placeOnRing",
+  "geometry.arrange.heading",
+  "geometry.arrange.cellAt",
+]
 
 [[section.surface.item]]
 bound = "`mesh.Mesh` and its generators `grid` over a Python function, `quad`, `box`, `platonic`, `torus`, `superellipsoid`, `cylinderPanel`, `extrude` and `revolve`"
@@ -1818,7 +1823,7 @@ bound = "`mesh.fill` over an outline, `mesh.loft` through section rings, and `ex
 python = ["geometry.mesh.fill", "geometry.mesh.loft"]
 
 [[section.surface.item]]
-bound = "the outline: `path.Outline` with its measure, area, booleans and rewrites, `Rect`, `Transform`, `through` and `curveThrough`, `offset` and `band` at a width, `points` over `random`, `poisson`, `grid`, `radial` and `along`, and `heading`"
+bound = "the outline: `path.Outline` with its measure, area, booleans and rewrites, `Rect`, `Transform`, `through` and `curveThrough`, `offset` and `band` at a width, `points` over `random`, `poisson`, `grid`, `radial` and `along`"
 python = [
   "geometry.path.Outline",
   "geometry.path.Transform",

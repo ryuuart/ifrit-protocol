@@ -10,7 +10,7 @@ import math
 import unittest
 
 from sigil import compose
-from sigil.geometry import mesh, path, shapes
+from sigil.geometry import arrange, mesh, path, shapes
 
 SQUARE = path.Outline.rectangle(path.Rect.of((0, 0), (100, 100)))
 
@@ -42,7 +42,26 @@ class Outline(unittest.TestCase):
             path.radial(50, path.RadialOptions(stepDegrees=137.508,
                                                growth=path.Growth.SquareRoot)))
         self.assertEqual(len(seeds), 50)
-        self.assertAlmostEqual(path.heading((0, 1)), 90.0, places=4)
+        self.assertAlmostEqual(arrange.heading((0, 1)), 90.0, places=4)
+
+
+class Arrangements(unittest.TestCase):
+    def test_a_ring_places_and_faces_each_item(self):
+        ring = arrange.Ring(center=(100, 50), radii=(80, 40))
+        top = arrange.onRing(0, 4, ring)
+        self.assertAlmostEqual(top[0], 100.0, places=4)
+        self.assertAlmostEqual(top[1], 10.0, places=4)
+        right = arrange.placeOnRing(1, 4, ring)
+        self.assertAlmostEqual(right.position[0], 180.0, places=4)
+        self.assertAlmostEqual(right.headingDegrees, 90.0, places=4)
+
+    def test_a_cell_block_swallows_the_gaps_it_crosses(self):
+        module = arrange.moduleSize((100, 50), 4, 2, (4, 2))
+        rect = arrange.cellRect(
+            arrange.Cell(1, 1), module,
+            arrange.CellBlock(gap=(4, 2), origin=(10, 10), columnSpan=2))
+        self.assertAlmostEqual(rect.min[0], 36.0, places=4)
+        self.assertAlmostEqual(rect.width(), 48.0, places=4)
 
 
 class Shapes(unittest.TestCase):
