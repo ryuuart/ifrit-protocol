@@ -14,11 +14,14 @@
  * granularity (`weave::Unit::Word`), the selector value and every form
  * that addresses the text itself (`weave::selectors::`), a style's own numbers
  * and the face behind them (`weave::textStyle`,
- * `weave::ports::pickTypeface`). The stock effects over the seam are the
- * kit's (`kit/Kinetic.h`).
+ * `weave::ports::pickTypeface`). The stock effects over the seam are plain
+ * values in `typography/Presets.h`, over the entrance in
+ * `typography/Entrance.h`.
  */
 
 #include "sigilcompose/typography/Annotation.h"
+#include "sigilcompose/typography/Entrance.h"
+#include "sigilcompose/typography/Presets.h"
 #include "sigilcompose/typography/Selector.h"
 #include "sigilcompose/typography/TextEffect.h"
 #include "sigilcompose/typography/TextFx.h"

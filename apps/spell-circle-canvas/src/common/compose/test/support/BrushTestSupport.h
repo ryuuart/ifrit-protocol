@@ -14,7 +14,7 @@
 #include <sigilcompose/brush/Stamps.h>
 #include <sigilcompose/core/Pattern.h>
 #include <sigilcompose/kit/Chrome.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Plate.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilcompose/typography/Typography.h>

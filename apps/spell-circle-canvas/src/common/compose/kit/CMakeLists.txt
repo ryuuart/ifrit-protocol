@@ -7,10 +7,9 @@
 # ComposeRuntime.h are unreachable from kit code.
 #
 # The shelves of stock values are here: WHERE a child lands (`layouts::`),
-# WHAT JOINS two of them (`routers::`), HOW a glyph deviates from rest
-# (the `textFx::` presets over the typography tier's effect seam in
-# kit/Kinetic.h, with the marquee beside it in kit/Marquee.h), and HOW a
-# pool is filled (the placers). The
+# WHAT JOINS two of them (`routers::`), the marquee (kit/Marquee.h), and
+# HOW a pool is filled (the placers). The `textFx::` stock effects are the
+# typography tier's own values, in typography/Presets.h. The
 # silhouette generators are the geometry library's, because a
 # `path(SkSize)` value needs nothing of a component tree.
 #
@@ -34,7 +33,7 @@ sigil_library(SigilComposeKit
           Stamp.cpp
   HEADERS Board.h Chrome.h Connect.h Document.h Feed.h Frame.h
           Annotations.h Outline.h Pin.h Stamp.h
-          Typeset.h Instruments.h Kinetic.h Kit.h Layouts.h Marquee.h
+          Typeset.h Instruments.h Kit.h Layouts.h Marquee.h
           PixelType.h Placers.h Routers.h Rows.h Specimen.h Sprites.h
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
          SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave SigilWeavePorts)

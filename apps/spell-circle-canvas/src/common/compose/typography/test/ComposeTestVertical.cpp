@@ -618,7 +618,7 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
            .width(200)
            .height(200)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .textFx({.effect = textFx::typeOn(),
+           .textFx({.effect = textFx::enter(textFx::typeOn()),
                     .tween = {.duration = 450ms, .delay = sigil::motion::stagger(400ms)},
                     .unit = sigil::weave::Unit::Line,
                     .progress = progress})

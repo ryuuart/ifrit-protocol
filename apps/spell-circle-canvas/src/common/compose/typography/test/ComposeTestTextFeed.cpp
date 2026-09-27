@@ -32,7 +32,7 @@ TEST(ComposeFeed, ATypedOnRowPaintsLiveThenCachesWhenItsTrackSettles) {
   const feed::TextOptions options = feedOptions(8, 16.0f);
   auto typed = [&](const feed::TextRow& row) {
     return feed::textRow(row, options.styles)
-        .textFx({.effect = textFx::typeOn(),
+        .textFx({.effect = textFx::enter(textFx::typeOn()),
                  .tween = {.duration = 40ms, .delay = motion::stagger(12ms)}, 
                  .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = motion::ease::linear})});
   };
@@ -86,7 +86,7 @@ TEST(ComposeFeed, AStructuredRowAppendsAtItsOwnConstantCost) {
     return box().row().gap(6).children(
         {box().width(3).height(10).fill(Fill::color(SkColors::kRed)),
          text(std::move(line))
-             .textFx({.effect = textFx::typeOn(),
+             .textFx({.effect = textFx::enter(textFx::typeOn()),
                       .tween = {.duration = 30ms, .delay = motion::stagger(5ms)}, 
                       .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 200ms, .ease = motion::ease::linear})})});
   };

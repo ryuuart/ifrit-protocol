@@ -118,10 +118,10 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   EXPECT_TRUE(textFx::waveLoop().displaces());
   // …and the ones that touch coverage, colour or the outline only, leaving
   // every pen position exactly where the layout put it.
-  EXPECT_FALSE(textFx::typeOn().displaces());
+  EXPECT_FALSE(textFx::enter(textFx::typeOn()).displaces());
   EXPECT_FALSE(TextEffect::variableAxis("GRAD", 80).displaces());
-  EXPECT_FALSE(textFx::variableAxisSweep("GRAD", 0, 80).displaces());
-  EXPECT_FALSE(textFx::tint(SkColors::kGray, SkColors::kWhite).displaces());
+  EXPECT_FALSE(textFx::enter(textFx::variableAxisSweep("GRAD", 0, 80)).displaces());
+  EXPECT_FALSE(textFx::tint({.from = SkColors::kGray, .to = SkColors::kWhite}).displaces());
   EXPECT_FALSE(textFx::scramble().displaces());
 
   // A TWEEN ANSWERS FROM ITS OWN STOPS. Colour and coverage are not
@@ -144,19 +144,19 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   // A COMBINATOR DERIVES: any operand it may evaluate moving is enough, and
   // none of them moving is enough the other way. `textFx::hold` vetoes with
   // alpha, which places nothing, so it is its operand's answer.
-  EXPECT_FALSE(textFx::mix(textFx::typeOn(), textFx::scramble()).displaces());
-  EXPECT_TRUE(textFx::mix(textFx::typeOn(), textFx::enter(textFx::rise())).displaces());
+  EXPECT_FALSE(textFx::mix(textFx::enter(textFx::typeOn()), textFx::scramble()).displaces());
+  EXPECT_TRUE(textFx::mix(textFx::enter(textFx::typeOn()), textFx::enter(textFx::rise())).displaces());
   EXPECT_FALSE(
-      textFx::sequence(textFx::typeOn().until(0.5f), textFx::scramble())
+      textFx::sequence(textFx::enter(textFx::typeOn()).until(0.5f), textFx::scramble())
           .displaces());
-  EXPECT_TRUE(textFx::sequence(textFx::typeOn().until(0.5f), textFx::enter(textFx::rise()))
+  EXPECT_TRUE(textFx::sequence(textFx::enter(textFx::typeOn()).until(0.5f), textFx::enter(textFx::rise()))
                   .displaces());
   EXPECT_FALSE(textFx::hold(textFx::scramble()).displaces());
   EXPECT_TRUE(textFx::hold(textFx::enter(textFx::rise())).displaces());
   // Nesting keeps the derivation exact rather than sticky.
   EXPECT_FALSE(textFx::mix(textFx::sequence(
-                               textFx::tint(SkColors::kGray, SkColors::kWhite)),
-                           textFx::hold(textFx::typeOn()))
+                               textFx::tint({.from = SkColors::kGray, .to = SkColors::kWhite})),
+                           textFx::hold(textFx::enter(textFx::typeOn())))
                    .displaces());
 
   // A PASS IS NOT A PLACEMENT: its shader runs over pixels already
@@ -351,6 +351,31 @@ TEST(ComposeTextFx, ATweenedTrackPrunesWhenItsStopsAreUnchanged) {
   // the node it describes has to be patched.
   host.composer.render(tree(-9.0f));
   EXPECT_GT(host.composer.stats().patchedNodes, 0u);
+}
+
+TEST(ComposeTextFx, TypeOnAndTheAxisSweepAreTweensOfDisplaced) {
+  // The typewriter is the opacity lane stepping at the middle of the beat:
+  // absent before, simply there from the middle on.
+  const TextEffect typed = textFx::enter(textFx::typeOn());
+  EXPECT_FLOAT_EQ(evaluate(typed, 0.0f).alpha, 0.0f);
+  EXPECT_FLOAT_EQ(evaluate(typed, 0.49f).alpha, 0.0f);
+  EXPECT_FLOAT_EQ(evaluate(typed, 0.5f).alpha, 1.0f);
+  EXPECT_FLOAT_EQ(evaluate(typed, 1.0f).alpha, 1.0f);
+  EXPECT_FLOAT_EQ(evaluate(typed, 0.75f).dy, 0.0f);
+
+  // The sweep is the axis lane, straight from one coordinate to the other.
+  const TextEffect swept =
+      textFx::enter(textFx::variableAxisSweep("GRAD", 0.0f, 80.0f));
+  const GlyphModifier quarter = evaluate(swept, 0.25f);
+  ASSERT_TRUE(quarter.axis.has_value());
+  EXPECT_EQ(std::string(quarter.axis->tag, 4), "GRAD");
+  EXPECT_FLOAT_EQ(quarter.axis->value, 20.0f);
+  EXPECT_FLOAT_EQ(quarter.alpha, 1.0f);
+  // Both are values: equal arguments are one effect.
+  EXPECT_TRUE(textFx::enter(textFx::variableAxisSweep("GRAD", 0.0f, 80.0f)) ==
+              swept);
+  EXPECT_FALSE(textFx::enter(textFx::variableAxisSweep("GRAD", 0.0f, 90.0f)) ==
+               swept);
 }
 
 TEST(ComposeTextFx, HoldWithholdsTheEffectUntilTheBeatOpens) {

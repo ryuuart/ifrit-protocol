@@ -5,14 +5,16 @@
  *
  * SigilCompose typography — THE `textFx::` CATALOGUE: the effects the runtime
  * evaluates by STRUCTURE rather than by calling a preset's body. The
- * substitution, the shader pass, the keyframed tween, the hold, the two
- * combinators, and the escape hatch an ad-hoc body goes through.
+ * substitution, the shader pass, the keyframed tween and the colour tween,
+ * the hold, the two combinators, and the escape hatch an ad-hoc body goes
+ * through.
  *
  * The value they are all built as is <sigilcompose/typography/TextEffect.h>;
- * the presets that are plain values over the seam — the entrances, the
- * loops, the tints — are the kit's, in <sigilcompose/kit/Kinetic.h>. What
- * separates the two shelves is who evaluates: a preset is a body this
- * library calls, and everything here is a shape the runtime reads.
+ * the entrance a glyph walks home is <sigilcompose/typography/Entrance.h>,
+ * and the stock values over both — the entrances and the loop — are
+ * <sigilcompose/typography/Presets.h>. What separates the shelves: a
+ * preset is a plain value a caller may copy and change field by field,
+ * and everything here is a door that builds an effect the runtime reads.
  */
 
 #include <sigilcompose/typography/TextEffect.h>
@@ -27,20 +29,19 @@ namespace sigil::compose {
 
 // ---------------------------------------------------------------------------
 // The effects the RUNTIME evaluates by structure rather than by calling a
-// preset's body: the substitution, the shader pass, the keyframed tween and
-// the combinators over whole effects. Their bodies are the engine's; the
-// presets that are plain values are the kit's, in kit/Kinetic.h.
+// preset's body: the substitution, the shader pass, the two tweens and the
+// combinators over whole effects. Their bodies are the engine's; the
+// presets that are plain values are in typography/Presets.h.
 
 /** THE TEXT-EFFECT CATALOGUE: what one `textFx()` track does to each glyph
- *  it addresses — a substitution, a shader pass, a keyframed tween, a
- *  hold, the two combinators that compose whole effects, and the escape
- *  hatch an ad-hoc body goes through.
+ *  it addresses — a substitution, a shader pass, a keyframed deviation, a
+ *  colour reveal, a hold, the two combinators that compose whole effects,
+ *  and the escape hatch an ad-hoc body goes through.
  *
  *  Everything here is a shape the RUNTIME reads and evaluates by
  *  structure. The presets that are plain values over the same seam —
- *  the entrances, the loops, the tints — are the kit's, and the
- *  difference is who evaluates: a preset is a body this library calls,
- *  and one of these is a value it inspects. Both are the same
+ *  the entrances and the loop, in typography/Presets.h — are tweens and
+ *  effects a caller copies and changes. Both reach a track as the same
  *  `TextEffect` type and compose in one track list. */
 namespace textFx {
 
@@ -253,6 +254,43 @@ inline constexpr float kNominalSizePx = 96.0f;
  *  effect declares its own reach, and whether it displaces, from the
  *  offsets, growths and leans its stops publish. */
 [[nodiscard]] TextEffect tween(motion::Tween<GlyphModifier> description);
+
+/** A COLOUR REVEAL AS A SCHEDULE: one `motion::Tween` of colours — `.from`
+ *  what the glyphs read at local 0, `.to` (or the last keyframe) what they
+ *  read at local 1, any `.keyframes` between — a karaoke wipe, a highlight
+ *  sweeping a word, an initial catching its colour as it lands.
+ *
+ *      text(u8"sung", lyric.fill(sung))
+ *          .textFx({.effect = textFx::tint({.from = pale, .to = sung})})
+ *
+ *  THE ELEMENT IS SET IN THE COLOUR THE TWEEN RESTS AT, AND THE EFFECT
+ *  MULTIPLIES DOWN TOWARD THE REST. That inversion is the one thing to get
+ *  right here. A `GlyphModifier` carries `colorMultiplier`, a per-channel
+ *  MULTIPLIER over every pass the glyph's style draws, and a multiplier can
+ *  only take a colour toward black — so the DESTINATION is what the style
+ *  paints, and every other stop is reached by dividing by it. The stops
+ *  still read in time order and the division is done here: a line set in
+ *  `sung` under `{.from = pale, .to = sung}` wipes from pale to sung. Set
+ *  the line in `pale` and it draws pale throughout, which is the obvious
+ *  first mistake and has no diagnostic.
+ *
+ *  Multiplying is also what lets this tint a gradient-filled or
+ *  image-filled line without knowing what fills it. Its cost is that a
+ *  DESTINATION CHANNEL OF ZERO cannot be departed from — nothing multiplies
+ *  0 into anything else — so that channel holds at 0 for the whole ramp
+ *  whatever the other stops say there. The way UP is the other two colour
+ *  terms: `GlyphModifier::colorAdd` is the hard flash over whatever the
+ *  style paints, `GlyphModifier::colorScreen` the glow that brightens toward
+ *  white without clipping — both usually spoken through `textFx::tween`.
+ *
+ *  WHEN a unit runs is the track's tween; this one says only the path, and a
+ *  keyframe's `duration` is its share of it, as in `textFx::tween`. Alpha is
+ *  untouched: a reveal that also fades wants an alpha track, which composes
+ *  with this one. UNSET, THE CURVE IS A SMOOTHSTEP (`motion::ease::smoothstep`)
+ *  because a hard cut at display size flickers at any frame rate; the width
+ *  of the edge is bought with the track's `duration`, not with the curve. A
+ *  named curve runs every segment whole. */
+[[nodiscard]] TextEffect tint(motion::Tween<material::Color> description);
 
 /** NOTHING UNTIL THE BEAT OPENS: `effect` as it is, except that a unit
  *  whose beat has not begun paints nothing at all.

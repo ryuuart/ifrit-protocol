@@ -46,8 +46,8 @@ sigil_library(SigilComposeTypography
     Legibility.cpp
     PathText.cpp TextPainter.cpp AxisGate.h TextEngine.h TextPose.h
     TextSubstitution.h
-  HEADERS Annotation.h Selector.h TextEffect.h TextFx.h TextPath.h TextUnit.h
-          Track.h Typography.h ../kit/Legibility.h
+  HEADERS Annotation.h Entrance.h Presets.h Selector.h TextEffect.h TextFx.h
+          TextPath.h TextUnit.h Track.h Typography.h ../kit/Legibility.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilCoreComparable SigilCoreCompute SigilMaterial
          SigilMotion SigilWeave

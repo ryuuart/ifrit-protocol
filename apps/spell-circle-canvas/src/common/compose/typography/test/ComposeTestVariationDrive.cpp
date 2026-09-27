@@ -320,7 +320,8 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
     sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.0f);
     // A zero delay: every glyph reads the one master phase, so the
     // coordinate is exactly the sequence driven below and nothing else.
-    Track track{.effect = textFx::variableAxisSweep("GRAD", gradeMin, gradeMax),
+    Track track{.effect = textFx::enter(
+                      textFx::variableAxisSweep("GRAD", gradeMin, gradeMax)),
                 .tween = {.duration = 100ms, .delay = 0ms},
                 .progress = phase};
     track.continuous = continuous;

@@ -1,6 +1,6 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Kinetic.h>
+#include <sigilcompose/typography/Presets.h>
 #include <sigilcompose/kit/Marquee.h>
 #include <sigilsketch/kit/Ticker.h>
 

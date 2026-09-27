@@ -12,13 +12,13 @@
 // textFx::tint — the colour reveal, and the inversion it hides
 
 TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
-  // The arguments read in TIME ORDER while the mechanism runs the other
+  // The stops read in TIME ORDER while the mechanism runs the other
   // way: colorMultiplier MULTIPLIES, so the element is set in the destination
   // and the effect divides down toward the origin. At t = 1 the multiplier must
   // therefore be white — anything else tints a line that has arrived.
   const sigil::material::Color pale{0.9f, 0.8f, 0.4f, 1};
   const sigil::material::Color sung{0.3f, 0.6f, 0.8f, 1};
-  const TextEffect ramp = textFx::tint(pale, sung);
+  const TextEffect ramp = textFx::tint({.from = pale, .to = sung});
   GlyphInfo glyph;
   sigil::core::noise::Mix64Stream rng(1);
   const GlyphModifier start = ramp(glyph, 0.0f, rng);
@@ -45,12 +45,13 @@ TEST(ComposeTextFx, TintRampsColorMulBetweenTheTwoColoursInTimeOrder) {
   // Alpha is left alone: a reveal that also fades is a separate track.
   EXPECT_FLOAT_EQ(start.colorMultiplier.a, 1.0f);
   // The value is comparable, which is what lets a re-described wipe prune.
-  EXPECT_TRUE(textFx::tint(pale, sung) == ramp);
-  EXPECT_FALSE(textFx::tint(sung, pale) == ramp);
+  EXPECT_TRUE(textFx::tint({.from = pale, .to = sung}) == ramp);
+  EXPECT_FALSE(textFx::tint({.from = sung, .to = pale}) == ramp);
   // A destination channel of zero cannot be departed from, and the ramp
   // says so by holding at 1 rather than dividing by nothing.
   const GlyphModifier dark =
-      textFx::tint({1, 1, 1, 1}, {0, 0, 0, 1})(glyph, 0.0f, rng);
+      textFx::tint({.from = sigil::material::Color{1, 1, 1, 1},
+                    .to = sigil::material::Color{0, 0, 0, 1}})(glyph, 0.0f, rng);
   EXPECT_FLOAT_EQ(dark.colorMultiplier.r, 1.0f);
 }
 
@@ -64,10 +65,12 @@ TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {
            .key("k")
            // Both tracks are AT REST (progress 0), where each contributes
            // its own origin: 0.5 on red and 0.5 on green.
-           .textFx({.effect = textFx::tint({0.5f, 1, 1, 1}, {1, 1, 1, 1}),
+           .textFx({.effect = textFx::tint({.from = sigil::material::Color{0.5f, 1, 1, 1},
+                                              .to = sigil::material::Color{1, 1, 1, 1}}),
                     .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)}, 
                     .progress = 0.0f})
-           .textFx({.effect = textFx::tint({1, 0.5f, 1, 1}, {1, 1, 1, 1}),
+           .textFx({.effect = textFx::tint({.from = sigil::material::Color{1, 0.5f, 1, 1},
+                                              .to = sigil::material::Color{1, 1, 1, 1}}),
                     .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)}, 
                     .progress = 0.0f})}));
   host.frame();

@@ -17,7 +17,6 @@
 #include "sigilcompose/kit/Document.h"
 #include "sigilcompose/kit/Frame.h"
 #include "sigilcompose/kit/Instruments.h"
-#include "sigilcompose/kit/Kinetic.h"
 #include "sigilcompose/kit/Layouts.h"
 #include "sigilcompose/kit/Legibility.h"
 #include "sigilcompose/kit/Marquee.h"

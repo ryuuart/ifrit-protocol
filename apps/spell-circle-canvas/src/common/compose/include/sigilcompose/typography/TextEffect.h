@@ -9,8 +9,8 @@
  * comparable value one is wrapped in (`TextEffect`, with `Phase` for a
  * sequence) — and nothing else. The effects the runtime evaluates by STRUCTURE
  * are the catalogue beside this file, <sigilcompose/typography/TextFx.h>; the
- * stock presets that are plain values over the seam are the kit's, in
- * <sigilcompose/kit/Kinetic.h>.
+ * stock presets that are plain values over the seam are in
+ * <sigilcompose/typography/Presets.h>.
  *
  * Everything on the seam is a COMPARABLE VALUE. That is not decoration:
  * the reconciler prunes a re-described element only when it can prove the

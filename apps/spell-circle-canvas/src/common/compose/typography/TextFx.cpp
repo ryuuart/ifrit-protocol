@@ -222,6 +222,77 @@ TextEffect tween(motion::Tween<GlyphModifier> description) {
       reach, std::move(curves), displaces);
 }
 
+TextEffect tint(motion::Tween<material::Color> description) {
+  // The colour the style paints is where the tween rests; a tween naming no
+  // start starts there too, and tints nothing.
+  const material::Color rest = description.rest();
+  const auto multiplierFor = [&rest](const material::Color& stop) {
+    // A multiplier can only take a colour toward black, so every stop is
+    // reached by dividing by the rest — and a rest channel of zero holds.
+    return material::Color{rest.r > 0 ? stop.r / rest.r : 1.0f,
+                           rest.g > 0 ? stop.g / rest.g : 1.0f,
+                           rest.b > 0 ? stop.b / rest.b : 1.0f, 1.0f};
+  };
+
+  // The path of MULTIPLIERS, walked the way `tween` walks a deviation: the
+  // steps' lengths resolved by Motion's rule, the whole path one unit of
+  // local progress.
+  motion::Tween<material::Color> shape;
+  const material::Color start =
+      description.from ? description.from->value() : rest;
+  shape.from = multiplierFor(start);
+  const motion::Duration length = description.duration.value();
+  if (description.keyframes.empty()) {
+    shape.keyframes.push_back({multiplierFor(rest), length, {}});
+  } else {
+    const motion::Duration share =
+        length / (double)description.keyframes.size();
+    for (const motion::Keyframe<material::Color>& step : description.keyframes)
+      shape.keyframes.push_back({multiplierFor(step.to),
+                                 step.duration.value_or(share), step.ease});
+  }
+  motion::Duration total{};
+  for (const motion::Keyframe<material::Color>& step : shape.keyframes)
+    total += *step.duration;
+  shape.duration = total;
+  // A hard cut at display size flickers at any frame rate, so an unnamed
+  // curve is a smoothstep.
+  shape.ease = description.ease ? description.ease
+                                : motion::Easing(motion::ease::smoothstep);
+
+  // What two tints compare by: the colours as written, where each step
+  // falls, and the curves as written.
+  std::vector<float> parameters{start.r, start.g, start.b, start.a};
+  std::vector<motion::Easing> curves{description.ease};
+  const auto appendColor = [&parameters](const material::Color& colour) {
+    parameters.insert(parameters.end(), {colour.r, colour.g, colour.b, colour.a});
+  };
+  if (description.keyframes.empty()) {
+    appendColor(rest);
+    parameters.push_back(1.0f);
+    curves.push_back({});
+  }
+  for (size_t index = 0; index < description.keyframes.size(); ++index) {
+    appendColor(description.keyframes[index].to);
+    parameters.push_back(total > motion::Duration{}
+                             ? (float)(*shape.keyframes[index].duration / total)
+                             : 0.0f);
+    curves.push_back(description.keyframes[index].ease);
+  }
+
+  return TextEffect(
+      "tint", std::move(parameters),
+      [shape = std::move(shape), total](const GlyphInfo&, float t,
+                                        core::noise::Mix64Stream&) {
+        GlyphModifier m;
+        m.colorMultiplier = shape.at(total * (double)std::clamp(t, 0.0f, 1.0f));
+        m.colorMultiplier.a = 1.0f;
+        return m;
+      },
+      // Colour only: a wipe repaints letters, it does not move them.
+      0.0f, std::move(curves), /*displaces=*/false);
+}
+
 TextEffect hold(TextEffect effect) {
   const float reach = effect.reach();
   // The veto is alpha, which moves nothing: a hold places its glyphs exactly
