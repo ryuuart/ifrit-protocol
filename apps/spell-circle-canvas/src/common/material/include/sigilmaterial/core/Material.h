@@ -66,6 +66,25 @@ class Part {
   virtual bool isRunning() const = 0;
   /** Whether the part depends on the box it is painted into. */
   virtual bool geometryDependent() const = 0;
+  /** THE PART WITH ITS INPUT @p name WRITTEN TO @p values, for a part a
+   *  renderer computes from named inputs of its own (a procedural graph
+   *  that cooks its pictures from them) — what `Material::set()` reaches
+   *  on a material whose base is such a part. Null when the part takes
+   *  no input by that name, which is every part that takes none. */
+  virtual std::shared_ptr<const Part> withInput(
+      std::string_view name, std::span<const float> values) const {
+    (void)name;
+    (void)values;
+    return nullptr;
+  }
+  /** The same with @p name following @p value — what `Material::bind()`
+   *  reaches. Null when the part takes no input by that name. */
+  virtual std::shared_ptr<const Part> withBinding(
+      std::string_view name, motion::Animatable<float> value) const {
+    (void)name;
+    (void)value;
+    return nullptr;
+  }
 };
 }  // namespace detail
 
@@ -169,7 +188,8 @@ class Material {
 
   /** Sets the field @p name to @p value. A name the recipe does not
    *  declare, or a value whose kind does not match the field, is reported
-   *  once and ignored. */
+   *  once and ignored. On a material whose base is a part that takes
+   *  inputs of its own, the part's input @p name is written instead. */
   template <Uniform T>
   Material& set(std::string_view name, const T& value) {
     write(name, UniformTraits<T>::kind, &value, UniformTraits<T>::floats);
@@ -180,6 +200,20 @@ class Material {
    *  time. A count that is not the field's is reported once and ignored. */
   Material& set(std::string_view name, std::span<const float> floats) {
     write(name, ParameterType::FloatArray, floats.data(), floats.size());
+    return *this;
+  }
+  /** Writes every input a generated input struct states — a struct
+   *  whose `inputs()` lists `{identifier, values}` pairs, as the header
+   *  generated beside a procedural archive does — each as `set(name,
+   *  values)` would. */
+  template <class P>
+    requires requires(const P& parameters) {
+      { parameters.inputs().begin()->identifier };
+      { std::span<const float>(parameters.inputs().begin()->values) };
+    }
+  Material& set(const P& parameters) {
+    for (const auto& input : parameters.inputs())
+      set(input.identifier, std::span<const float>(input.values));
     return *this;
   }
   /** Rewrites every field from @p parameters. */
@@ -207,7 +241,10 @@ class Material {
    *
    *  A material holds no clock, so an animatable carrying its OWN
    *  transition has nothing to run it and reads as its target. Motion
-   *  into a shader arrives through an Output the host steps. */
+   *  into a shader arrives through an Output the host steps.
+   *
+   *  On a material whose base is a part that takes inputs of its own,
+   *  the part's input @p name follows @p value instead. */
   Material& bind(std::string_view name, motion::Animatable<float> value);
   /** Drops the binding on @p name, leaving whatever `set()` last wrote in
    *  the field. Unknown names are ignored. */
@@ -304,6 +341,9 @@ class Material {
   Material(std::shared_ptr<const Recipe> recipe, const void* parameters,
            size_t size, const Schema* schema);
   void write(const void* parameters, size_t size, const Schema* schema);
+  /** Writes the input @p name of a base part that takes inputs; false
+   *  when the base is a program or its part takes no such input. */
+  bool writePartInput(std::string_view name, std::span<const float> values);
   void write(std::string_view name, ParameterType kind, const void* floats,
              size_t count);
   Binding* binding(std::string_view name);

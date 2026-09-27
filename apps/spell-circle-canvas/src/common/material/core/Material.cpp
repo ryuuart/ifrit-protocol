@@ -162,6 +162,16 @@ Material Material::withRecipe(std::shared_ptr<const Recipe> recipe) const {
   return out;
 }
 
+bool Material::writePartInput(std::string_view name,
+                              std::span<const float> values) {
+  if (m_recipe || !m_composition || !m_composition->source) return false;
+  std::shared_ptr<const detail::Part> next =
+      m_composition->source->withInput(name, values);
+  if (!next) return false;
+  compose().source = std::move(next);
+  return true;
+}
+
 void Material::write(const void* parameters, size_t size,
                      const Schema* schema) {
   if (refuseWithoutProgram(m_recipe, "set", "parameters")) return;
@@ -181,6 +191,9 @@ void Material::write(const void* parameters, size_t size,
 
 void Material::write(std::string_view name, ParameterType kind,
                      const void* floats, size_t count) {
+  if (writePartInput(name, std::span<const float>(
+                               static_cast<const float*>(floats), count)))
+    return;
   if (refuseWithoutProgram(m_recipe, "set", name)) return;
   const Field* f = m_recipe->parameters().find(name);
   // THE REPORT'S KEY IS BUILT WHERE IT IS REPORTED. This is the per-field
@@ -228,6 +241,13 @@ Material::Binding* Material::binding(std::string_view name) {
 
 Material& Material::bind(std::string_view name,
                          motion::Animatable<float> value) {
+  if (!m_recipe && m_composition && m_composition->source) {
+    if (std::shared_ptr<const detail::Part> next =
+            m_composition->source->withBinding(name, value)) {
+      compose().source = std::move(next);
+      return *this;
+    }
+  }
   if (refuseWithoutProgram(m_recipe, "bind", name)) return *this;
   const Field* f = m_recipe->parameters().find(name);
   if (!f || f->kind != ParameterType::Float) {
