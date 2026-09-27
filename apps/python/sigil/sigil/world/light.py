@@ -2,21 +2,19 @@
 # typing/additions, not this file.
 
 from _sigil.world.light import (
-    Light,
-    LightKind,
     attenuation,
     point,
     radiance,
     spot,
     sun,
+    travel,
 )
 
 __all__ = [
-    "Light",
-    "LightKind",
     "attenuation",
     "point",
     "radiance",
     "spot",
     "sun",
+    "travel",
 ]
