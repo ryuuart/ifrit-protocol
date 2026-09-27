@@ -1,4 +1,4 @@
-"""Place, stagger, cues, Staggered, Timing, Schedule and Beat.
+"""Place, stagger, cues, Staggered, Timing, timingOf, Schedule and Beat.
 
 Input contracts for the erased signatures of the
 motion/schedule package, and nothing else: a fragment is one
@@ -31,4 +31,12 @@ def register(table: Table) -> None:
     table.accessor(
         MOTION + ".Timing", "within", f"float | {STAGGERED} | None",
         TIMES + " | None",
+    )
+    # A tween as a collective's schedule reads it: the number family's
+    # tween, and a second stagger inside every beat when one is nested.
+    table.declares(
+        MOTION,
+        "timingOf",
+        f"def timingOf(tween: {MOTION}.Tween, within: {TIMES} | None = None) "
+        f"-> {MOTION}.Timing: ...\n",
     )
