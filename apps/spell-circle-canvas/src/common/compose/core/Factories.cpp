@@ -132,7 +132,9 @@ Image image(sigil::media::PixelSource source, material::Fit fit) {
 }
 
 Image image(sk_sp<SkImage> picture, material::Fit fit) {
-  if (!picture) return image(sigil::media::PixelSource());
+  // A picture that is not there takes no room, whatever the fit.
+  if (!picture)
+    return image(sigil::media::PixelSource(), material::Fit::Native);
   return image(sigil::media::PixelSource(std::move(picture)), fit);
 }
 

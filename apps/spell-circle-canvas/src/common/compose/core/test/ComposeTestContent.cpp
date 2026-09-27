@@ -432,7 +432,9 @@ TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
                                 .imageRegion(geometry::path::Rect::of({16, 0}, {16, 16}))
                                 .width(50)
                                 .height(50),
-                            image(atlas).width(50).height(50)}));
+                            image(atlas, material::Fit::Native)
+                                .width(50)
+                                .height(50)}));
   host.frame();
   EXPECT_EQ(host.pixel(25, 25), SK_ColorGREEN);  // region: right cell only
   EXPECT_EQ(host.pixel(60, 25), SK_ColorRED);    // whole atlas: left half
