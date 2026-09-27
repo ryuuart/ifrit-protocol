@@ -213,6 +213,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/../../sigilweave/PARITY.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/testing/include/sigilcompose
            ${CMAKE_CURRENT_SOURCE_DIR}/../motion/include
+           ${CMAKE_CURRENT_SOURCE_DIR}/../material/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../measure/include
            ${CMAKE_CURRENT_SOURCE_DIR}/../geometry/include/sigilgeometry/kit

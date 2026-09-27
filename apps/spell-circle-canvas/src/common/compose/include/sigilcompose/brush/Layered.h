@@ -8,7 +8,6 @@
  * painted bottom-up.
  */
 
-#include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
 #include <sigilmaterial/color/Color.h>
@@ -29,7 +28,7 @@ struct StrokeLayer {
   float width = 2.0f;
   material::Color color = {1, 1, 1, 1};
   float blurSigma = 0;         ///< soft halo layers
-  std::vector<SkScalar> dash;  ///< empty → solid
+  std::vector<float> dash;  ///< empty → solid
   float dashPhase = 0;
   material::BlendMode blend = material::BlendMode::Normal;
   bool roundCap = true;

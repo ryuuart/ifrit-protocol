@@ -69,8 +69,9 @@ namespace sigil::compose::lines {
  *
  *  Hairline is the rec to use. Returns the input unchanged when the
  *  pattern is empty or Skia declines. */
-SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
-                    float phase);
+geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
+                                     std::span<const float> intervals,
+                                     float phase);
 
 /** CORNER BRACKETS as GEOMETRY: keep only the arc within @p arm px of each
  *  corner, so a rectangle becomes four L-shaped marks and nothing else —
@@ -82,7 +83,8 @@ SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
  *  CLAIMS runs on the element's real boundary and leaves the rest of it
  *  free, where this returns a path that replaces the shape. Reach for this
  *  when you want the geometry itself. */
-SkPath cornerBrackets(const SkPath& src, float arm, float angleDeg = 30.0f);
+geometry::path::Outline cornerBrackets(const geometry::path::Outline& src,
+                                       float arm, float angleDeg = 30.0f);
 
 /** The complement: a rule that STOPS SHORT of every corner, leaving @p gap
  *  px of paper at each. The printer's open-corner box rule; also how a
@@ -90,7 +92,8 @@ SkPath cornerBrackets(const SkPath& src, float arm, float angleDeg = 30.0f);
  *
  *  `spans::edges(gap)` is the same scan claimed on an element's own
  *  boundary; see cornerBrackets above for when to prefer which. */
-SkPath cornerGaps(const SkPath& src, float gap, float angleDeg = 30.0f);
+geometry::path::Outline cornerGaps(const geometry::path::Outline& src,
+                                   float gap, float angleDeg = 30.0f);
 
 /** How a line run terminates (per contour end). Heads are FILLED with the
  *  line's own fill — solid arrowheads, station dots, buffer bars. */
@@ -164,7 +167,7 @@ struct Line {
 
   /** Dashing still composes with everything above (applied to the body
    *  strokes, never to heads or ties). */
-  std::vector<SkScalar> dashIntervals;
+  std::vector<float> dashIntervals;
   float dashPhase = 0.0f;
   /** Bind it and the dashes march (see PathFormat::dashPhaseBinding). */
   std::optional<motion::Animatable<float>> dashPhaseBinding;

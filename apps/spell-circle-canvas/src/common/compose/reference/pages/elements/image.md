@@ -63,7 +63,7 @@ box.
 **Sampling is inherited, and the default is wrong for pixels.** Linear
 is right for a photograph and wrong for every grid of pixels — art,
 tilemaps, fonts baked as sprites, simulation buffers. State
-`imageRendering(SkSamplingOptions(SkFilterMode::kNearest))` once on the panel
+`imageRendering` with nearest sampling once on the panel
 that holds them and every image leaf under it takes it, as CSS inherits
 `image-rendering`.
 

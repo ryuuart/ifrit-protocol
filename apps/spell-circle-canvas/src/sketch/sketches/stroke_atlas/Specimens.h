@@ -452,7 +452,7 @@ std::vector<Style> stampedStyles() {
     leaf.quadTo(3.5f, -4.5f, 8, 0);
     leaf.quadTo(3.5f, 4.5f, 0, 0);
     leaf.close();
-    vine.stampPath = leaf.detach();
+    vine.stampPath = sigil::geometry::path::fromSk(leaf.detach());
     vine.stampAdvance = 13.0f;
   }
 

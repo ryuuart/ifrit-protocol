@@ -354,7 +354,7 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
   // Material::image() has always taken sampling; the element factory did
   // not, so the fix was discoverable only by diffing two signatures.
   auto atlas = twoCellAtlas();  // 32x16: left half red, right half green
-  auto magnified = [&](SkSamplingOptions options) {
+  auto magnified = [&](material::Sampling options) {
     Host host(200, 200);
     host.composer.render(box().children({image(atlas)
                                              .imageRendering(options)
@@ -376,8 +376,8 @@ TEST(ComposeContent, SamplingReachesTheImageLeaf) {
     return blended;
   };
 
-  EXPECT_GT(magnified(SkSamplingOptions(SkFilterMode::kLinear)), 3);
-  EXPECT_LE(magnified(SkSamplingOptions(SkFilterMode::kNearest)), 1);
+  EXPECT_GT(magnified(material::Sampling::Linear), 3);
+  EXPECT_LE(magnified(material::Sampling::Nearest), 1);
 }
 
 // -------------------------------------------------------------------------
@@ -429,7 +429,7 @@ TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
   auto atlas = twoCellAtlas();
   host.composer.render(
       box().row().children({image(atlas)
-                                .imageRegion(SkRect::MakeXYWH(16, 0, 16, 16))
+                                .imageRegion(geometry::path::Rect::of({16, 0}, {16, 16}))
                                 .width(50)
                                 .height(50),
                             image(atlas).width(50).height(50)}));

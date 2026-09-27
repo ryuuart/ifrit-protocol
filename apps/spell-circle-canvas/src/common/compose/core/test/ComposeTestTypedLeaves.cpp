@@ -27,7 +27,7 @@ concept SaysTextWillChange = requires(Node node) { node.textWillChange(); };
 template <class Node>
 concept SaysAtRest = requires(Node node) { node.atRest(); };
 template <class Node>
-concept SaysImageRegion = requires(Node node) { node.imageRegion(SkRect{}); };
+concept SaysImageRegion = requires(Node node) { node.imageRegion(geometry::path::Rect{}); };
 template <class Node>
 concept SaysBandAlignment = requires(Node node) {
   node.bandAlignment(sigil::geometry::path::Formation::Inner);

@@ -14,7 +14,6 @@
  * `Brush` (<sigilcompose/brush/Brushes.h>).
  */
 
-#include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/path/Stroke.h>

@@ -52,8 +52,8 @@ Element benchChunk(const ChunkProps& p) {
   for (int i = 0; i < (int)p.ids.size(); ++i) {
     const int row = i / 10;
     tiles.children({image(benchAtlas())
-                        .imageRegion(SkRect::MakeXYWH(
-                            (float)(p.ids[(size_t)i] % 4) * 16, 0, 16, 16))
+                        .imageRegion(sigil::geometry::path::Rect::of(
+                            {(float)(p.ids[(size_t)i] % 4) * 16, 0}, {16, 16}))
                         .absolute()
                         .inset((float)row * kTile, 0, 0, (float)(i % 10) * kTile)
                         .width(kTile)

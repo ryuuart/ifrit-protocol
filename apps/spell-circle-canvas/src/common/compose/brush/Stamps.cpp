@@ -58,8 +58,8 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
                               : p.offset;
       auto sampleAt = [&](float d) {
         if (const auto sample = contour.at(d))
-          out.push_back({geometry::path::toSk(sample->position),
-                         geometry::path::toSk(sample->tangent), d,
+          out.push_back({sample->position,
+                         sample->tangent, d,
                          len > 0 ? d / len : 0});
       };
       if (p.mode == Mode::CentralPoint) {
@@ -110,18 +110,20 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
       case Mode::Vertex:
         for (size_t i = 0; i < c.size(); ++i)
           out.push_back(
-              {c[i], tangentAt(i), 0, n > 1 ? (float)i / (n - 1) : 0});
+              {geometry::path::fromSk(c[i]), geometry::path::fromSk(tangentAt(i)), 0, n > 1 ? (float)i / (n - 1) : 0});
         break;
       case Mode::FirstVertex:
-        out.push_back({c.front(), tangentAt(0), 0, 0});
+        out.push_back({geometry::path::fromSk(c.front()),
+                       geometry::path::fromSk(tangentAt(0)), 0, 0});
         break;
       case Mode::LastVertex:
-        out.push_back({c.back(), tangentAt(c.size() - 1), 0, 1});
+        out.push_back({geometry::path::fromSk(c.back()),
+                       geometry::path::fromSk(tangentAt(c.size() - 1)), 0, 1});
         break;
       case Mode::InnerVertices:
         for (size_t i = 1; i + 1 < c.size(); ++i)
           out.push_back(
-              {c[i], tangentAt(i), 0, n > 1 ? (float)i / (n - 1) : 0});
+              {geometry::path::fromSk(c[i]), geometry::path::fromSk(tangentAt(i)), 0, n > 1 ? (float)i / (n - 1) : 0});
         break;
       case Mode::SegmentCenter:
         for (size_t i = 0; i + 1 < c.size(); ++i) {
@@ -130,7 +132,7 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
           SkVector t{c[i + 1].x() - c[i].x(), c[i + 1].y() - c[i].y()};
           const float m = std::hypot(t.x(), t.y());
           if (m > 1e-4f)
-            out.push_back({mid,
+            out.push_back({geometry::path::fromSk(mid),
                            {t.x() / m, t.y() / m},
                            0,
                            n > 1 ? ((float)i + 0.5f) / (n - 1) : 0});
@@ -149,10 +151,10 @@ void drawStamp(SkCanvas& c, const SkPicture& picture, const PathSample& sample,
   if (m.skip || m.alpha <= 0.003f || m.scale <= 0.001f) return;
   const SkRect cull = picture.cullRect();
   c.save();
-  c.translate(sample.position.x(), sample.position.y());
+  c.translate(sample.position.x, sample.position.y);
   if (align)
     c.rotate(geometry::path::degrees(
-        std::atan2(sample.tangent.y(), sample.tangent.x())));
+        std::atan2(sample.tangent.y, sample.tangent.x)));
   c.translate(m.dAlong, m.dNormal);  // tangent frame (post-align)
   c.rotate(rotateDeg + m.rotateDeg);
   c.scale(scaleX * m.scale, scaleY * m.scale);
@@ -325,8 +327,8 @@ void Pattern::paint(draw::Pen& pen, const PaintContext& ctx) const {
         const float d = a + slot * ((float)i + 0.5f);
         if (const auto at = contour.at(d))
           sideSlots.push_back(
-              {{geometry::path::toSk(at->position),
-                geometry::path::toSk(at->tangent), d, len > 0 ? d / len : 0},
+              {{at->position,
+                at->tangent, d, len > 0 ? d / len : 0},
                sx});
       }
     }
@@ -345,20 +347,20 @@ void Pattern::paint(draw::Pen& pen, const PaintContext& ctx) const {
         // silent zero rotation. Fall back to the outgoing leg.
         if (dir.length() < 1e-3f || corner->align == CornerAlign::Outgoing)
           dir = geometry::path::toSk(hit.out);
-        caps.push_back({{geometry::path::toSk(at->position), dir, hit.distance,
+        caps.push_back({{at->position, geometry::path::fromSk(dir), hit.distance,
                          len > 0 ? hit.distance / len : 0},
                         cache->corner.get()});
       }
     if (!closed && cache->start) {
       if (const auto at = contour.at(head * 0.5f))
-        caps.push_back({{geometry::path::toSk(at->position),
-                         geometry::path::toSk(at->tangent), 0, 0},
+        caps.push_back({{at->position,
+                         at->tangent, 0, 0},
                         cache->start.get()});
     }
     if (!closed && cache->end) {
       if (const auto at = contour.at(len - tail * 0.5f))
-        caps.push_back({{geometry::path::toSk(at->position),
-                         geometry::path::toSk(at->tangent), len, 1},
+        caps.push_back({{at->position,
+                         at->tangent, len, 1},
                         cache->end.get()});
     }
   }

@@ -1,3 +1,4 @@
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
@@ -45,7 +46,7 @@ compose::Element well(const Well& specification, compose::Element surface) {
   if (specification.recess) {
     const Well::Recess& hole = *specification.recess;
     plate.foreground(compose::styles::InnerShadow{hole.shade.colorValue,
-                                                  hole.offset, hole.blur});
+                                                  sigil::geometry::path::fromSk(hole.offset), hole.blur});
     if (hole.lipLight && hole.lipDark)
       plate.overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
                                                hole.lipWidth,

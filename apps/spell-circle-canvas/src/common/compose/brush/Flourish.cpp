@@ -87,7 +87,7 @@ PathFormat beadChain(material::Color color, float advance,
   PathFormat f;
   f.width = 1.0f;
   f.strokeFill = Fill::color(color);
-  f.stampPath = bead.detach();
+  f.stampPath = geometry::path::fromSk(bead.detach());
   f.stampAdvance = advance;
   return f;
 }

@@ -6,6 +6,7 @@
  * Region value and the `parts::` selections are the kernel's.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <memory>
@@ -23,19 +24,20 @@ using detail::Kind;
 
 // ---- the masking family ---------------------------------------------------
 
-SkPath Region::resolve(const SkPath& ownShape) const {
+geometry::path::Outline Region::resolve(
+    const geometry::path::Outline& ownShape) const {
   switch (m_kind) {
     case Kind::Own:
       return ownShape;
     case Kind::Rect: {
       SkPathBuilder b;
-      b.addRect(m_rect);
-      return b.detach();
+      b.addRect(geometry::path::toSk(m_rect));
+      return geometry::path::fromSk(b.detach());
     }
     case Kind::Oval: {
       SkPathBuilder b;
-      b.addOval(m_rect);
-      return b.detach();
+      b.addOval(geometry::path::toSk(m_rect));
+      return geometry::path::fromSk(b.detach());
     }
     case Kind::Path:
       return m_path;
@@ -122,7 +124,8 @@ struct MaskEngine final : MaskResolverOperations {
     return detail::normalizeSpans(gate.where.resolve(in));
   }
   SkPath clipRegion(const Gate& gate, const SkPath& ownShape) const override {
-    return gate.region.resolve(ownShape);
+    return geometry::path::toSk(
+        gate.region.resolve(geometry::path::fromSk(ownShape)));
   }
   Fill coverage(const Gate& gate, const PaintContext& ctx) const override {
     if (!gate.coverage) return {};

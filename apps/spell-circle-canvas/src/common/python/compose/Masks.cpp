@@ -1,3 +1,4 @@
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <pybind11/operators.h>
@@ -52,10 +53,10 @@ void bindRegion(py::module_& composition) {
                   "The node's own silhouette, which is the region `overflow` "
                   "uses.")
       .def_static(
-          "rect", [](py::handle bounds) { return Region::rect(rect(bounds)); },
+          "rect", [](py::handle bounds) { return Region::rect(geometry::path::fromSk(rect(bounds))); },
           py::arg("bounds"), "A rectangle in the node's local coordinates.")
       .def_static(
-          "oval", [](py::handle bounds) { return Region::oval(rect(bounds)); },
+          "oval", [](py::handle bounds) { return Region::oval(geometry::path::fromSk(rect(bounds))); },
           py::arg("bounds"),
           "The oval inscribed in a rectangle of the node's local "
           "coordinates.")

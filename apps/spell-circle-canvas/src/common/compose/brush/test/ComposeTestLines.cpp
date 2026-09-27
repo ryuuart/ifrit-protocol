@@ -426,8 +426,8 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
   SkPathBuilder cb;
   cb.addCircle(150, 150, 100);
   const std::vector<SkScalar> pattern = {8.0f, 8.0f};
-  const SkPath dashed = lines::dashGeometry(
-      cb.detach(), SkSpan(pattern.data(), pattern.size()), 0);
+  const SkPath dashed = geometry::path::toSk(lines::dashGeometry(
+      geometry::path::fromSk(cb.detach()), pattern, 0));
   auto spans = [](const SkPath& p) {
     std::vector<std::pair<double, double>> out;
     for (const sigil::geometry::path::Contour& c :

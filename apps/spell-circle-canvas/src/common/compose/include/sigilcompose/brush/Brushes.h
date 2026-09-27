@@ -35,7 +35,6 @@
  * has to cover. Under-reporting either truncates or thins silently.
  */
 
-#include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>  // lines::displace (the wave operation)
 #include <sigilgeometry/kit/Shapers.h>

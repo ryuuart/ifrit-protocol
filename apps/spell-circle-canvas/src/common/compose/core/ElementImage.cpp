@@ -2,13 +2,14 @@
  * The image leaf's own verb — the source region it draws.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include "ComposeInternal.h"
 
 namespace sigil::compose {
 
 template <class Derived>
-Derived& ImageVerbs<Derived>::imageRegion(SkRect sourceRect) {
-  declarations()->imageData.ensure().region = sourceRect;
+Derived& ImageVerbs<Derived>::imageRegion(const geometry::path::Rect& source) {
+  declarations()->imageData.ensure().region = geometry::path::toSk(source);
   return self();
 }
 

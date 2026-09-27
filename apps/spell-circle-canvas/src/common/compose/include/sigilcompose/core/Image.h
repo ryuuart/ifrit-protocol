@@ -6,7 +6,7 @@
  * The image leaf's own verb: which part of its source it draws.
  */
 
-#include <include/core/SkRect.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/verbs/Node.h>
 
@@ -24,7 +24,7 @@ class ImageVerbs {
   /** Draw this sub-rect of the asset, in SOURCE pixels, instead of the
    *  whole image — atlas and sprite regions. Strictly constrained, so
    *  neighbouring atlas cells never bleed in. */
-  Derived& imageRegion(SkRect sourceRect);
+  Derived& imageRegion(const geometry::path::Rect& source);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

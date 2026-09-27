@@ -15,7 +15,6 @@
  * so a mask filter inside a tile is re-run on every stamp.
  */
 
-#include <include/core/SkCanvas.h>
 #include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 

@@ -20,7 +20,7 @@ wrong for every pixel grid: art, tilemaps, fonts baked as sprites,
 simulation buffers.
 
 ```cpp
-element.image(tileset).imageRendering(SkSamplingOptions(SkFilterMode::kNearest));
+element.image(tileset).imageRendering(material::Sampling::Nearest);
 ```
 
 **It is set on any node and inherited by every image leaf under it**,

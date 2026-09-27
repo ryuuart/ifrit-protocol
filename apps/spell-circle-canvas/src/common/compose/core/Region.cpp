@@ -12,24 +12,24 @@ using detail::Kind;
 
 Region Region::own() { return Region{}; }
 
-Region Region::rect(const SkRect& r) {
+Region Region::rect(const geometry::path::Rect& r) {
   Region out;
   out.m_kind = Kind::Rect;
   out.m_rect = r;
   return out;
 }
 
-Region Region::oval(const SkRect& bounds) {
+Region Region::oval(const geometry::path::Rect& bounds) {
   Region out;
   out.m_kind = Kind::Oval;
   out.m_rect = bounds;
   return out;
 }
 
-Region Region::path(SkPath p) {
+Region Region::path(geometry::path::Outline outline) {
   Region out;
   out.m_kind = Kind::Path;
-  out.m_path = std::move(p);
+  out.m_path = std::move(outline);
   return out;
 }
 

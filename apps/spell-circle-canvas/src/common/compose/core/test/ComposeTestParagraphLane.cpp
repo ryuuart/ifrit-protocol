@@ -201,7 +201,7 @@ TEST(ComposeParagraphLane, ImageSamplingSetOnAnAncestorReachesTheImageUnderIt) {
     return count;
   };
   const auto picture = [&] { return image(asset).width(160).height(160); };
-  const SkSamplingOptions nearest(SkFilterMode::kNearest);
+  const material::Sampling nearest = material::Sampling::Nearest;
   EXPECT_GT(mixed(box().children({picture()})), 2)
       << "linear when nothing states it";
   EXPECT_LE(mixed(box().children({picture().imageRendering(nearest)})), 1)

@@ -558,15 +558,19 @@ void bindCompose(py::module_& module) {
           "color", [](const Shadow& self) { return self.color; },
           [](Shadow& self, py::object value) { self.color = color(value); })
       .def_property(
-          "offset", [](const Shadow& self) { return self.offset; },
-          [](Shadow& self, py::object value) { self.offset = point(value); })
+          "offset",
+          [](const Shadow& self) { return geometry::path::toSk(self.offset); },
+          [](Shadow& self, py::object value) {
+            self.offset = geometry::path::fromSk(point(value));
+          })
       .def_readwrite("blur", &Shadow::blur)
       .def_readwrite("maxBind", &Shadow::maxBind)
       .def_readwrite("knockout", &Shadow::knockout);
   composition.def(
       "shadow",
       [](py::object ink, py::object offset, float blur) {
-        return compose::shadow(color(ink), point(offset), blur);
+        return compose::shadow(color(ink), geometry::path::fromSk(point(offset)),
+                               blur);
       },
       py::arg("color"), py::arg("offset"), py::arg("blur"));
   py::class_<Decoration>(composition, "Decoration")

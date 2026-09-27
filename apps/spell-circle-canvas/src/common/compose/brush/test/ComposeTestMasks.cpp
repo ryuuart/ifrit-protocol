@@ -565,10 +565,10 @@ TEST(ComposeMaskGates, TheShapeGateAndItsComplementAreBothTerms) {
     return box().absolute().left(20).top(20).width(100).height(100).fill(red());
   };
   inside.composer.render(
-      stack().children({plate().mask(by::shape(Region::rect(seal)))}));
+      stack().children({plate().mask(by::shape(Region::rect(geometry::path::fromSk(seal))))}));
   inside.frame();
   outside.composer.render(
-      stack().children({plate().mask(by::outside(Region::rect(seal)))}));
+      stack().children({plate().mask(by::outside(Region::rect(geometry::path::fromSk(seal))))}));
   outside.frame();
   // The gate is stated in the node's LOCAL space, so the seal covers
   // (40,40)-(100,100) on the canvas.
@@ -580,8 +580,8 @@ TEST(ComposeMaskGates, TheShapeGateAndItsComplementAreBothTerms) {
   // the picture the raw SkPathOp was written for.
   diff.composer.render(stack().children(
       {plate()
-           .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 0, 80, 80))))
-           .mask(by::outside(Region::rect(SkRect::MakeXYWH(0, 0, 40, 40))))}));
+           .mask(by::shape(Region::rect(geometry::path::Rect::of({0, 0}, {80, 80}))))
+           .mask(by::outside(Region::rect(geometry::path::Rect::of({0, 0}, {40, 40}))))}));
   diff.frame();
   EXPECT_EQ(diff.pixel(35, 35), SK_ColorBLACK) << "cut out of the middle";
   EXPECT_GT(SkColorGetR(diff.pixel(70, 70)), 180) << "inside the outer";
@@ -781,7 +781,7 @@ TEST(ComposeMaskGates, ThreeMasksAtThreeRatesIntersectPerFrame) {
            .fill(red())
            .mask(by::edge(0.0f, fast))    // from the left
            .mask(by::edge(180.0f, slow))  // …and from the right
-           .mask(by::shape(Region::rect(SkRect::MakeXYWH(0, 40, 160, 80))))}));
+           .mask(by::shape(Region::rect(geometry::path::Rect::of({0, 40}, {160, 80}))))}));
   host.frame();
   // All three open: the band the shape gate leaves is fully lit.
   EXPECT_GT(redInk(host, 25, 65, 175, 155), 8000);
@@ -818,7 +818,7 @@ TEST(ComposeMaskGates, TheOvalRegionCutsTheInscribedEllipseAndNotItsBox) {
     return box().absolute().left(20).top(20).width(100).height(100).fill(red());
   };
   host.composer.render(stack().children(
-      {plate().mask(by::shape(Region::oval(SkRect::MakeWH(100, 100))))}));
+      {plate().mask(by::shape(Region::oval(geometry::path::Rect::of({0, 0}, {100, 100}))))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(70, 70)), 180) << "the middle is kept";
   EXPECT_GT(SkColorGetR(host.pixel(70, 25)), 180) << "…and the top of the arc";
@@ -828,7 +828,7 @@ TEST(ComposeMaskGates, TheOvalRegionCutsTheInscribedEllipseAndNotItsBox) {
   // The complement is the same region read the other way round.
   Host outside(200, 200);
   outside.composer.render(stack().children(
-      {plate().mask(by::outside(Region::oval(SkRect::MakeWH(100, 100))))}));
+      {plate().mask(by::outside(Region::oval(geometry::path::Rect::of({0, 0}, {100, 100}))))}));
   outside.frame();
   EXPECT_EQ(outside.pixel(70, 70), SK_ColorBLACK);
   EXPECT_GT(SkColorGetR(outside.pixel(26, 26)), 180);
@@ -842,17 +842,17 @@ TEST(ComposeMaskGates, RegionIsAComparableValue) {
   // caches. Region is a closed, comparable value instead, which is what lets
   // a shape gate sit on a node without disabling every cache above it.
   EXPECT_TRUE(Region::own() == Region::own());
-  EXPECT_TRUE(Region::rect(SkRect::MakeWH(4, 4)) ==
-              Region::rect(SkRect::MakeWH(4, 4)));
-  EXPECT_FALSE(Region::rect(SkRect::MakeWH(4, 4)) ==
-               Region::rect(SkRect::MakeWH(4, 5)));
-  EXPECT_FALSE(Region::rect(SkRect::MakeWH(4, 4)) ==
-               Region::oval(SkRect::MakeWH(4, 4)));
-  EXPECT_FALSE(Region::own() == Region::rect(SkRect::MakeWH(4, 4)));
+  EXPECT_TRUE(Region::rect(geometry::path::Rect::of({0, 0}, {4, 4})) ==
+              Region::rect(geometry::path::Rect::of({0, 0}, {4, 4})));
+  EXPECT_FALSE(Region::rect(geometry::path::Rect::of({0, 0}, {4, 4})) ==
+               Region::rect(geometry::path::Rect::of({0, 0}, {4, 5})));
+  EXPECT_FALSE(Region::rect(geometry::path::Rect::of({0, 0}, {4, 4})) ==
+               Region::oval(geometry::path::Rect::of({0, 0}, {4, 4})));
+  EXPECT_FALSE(Region::own() == Region::rect(geometry::path::Rect::of({0, 0}, {4, 4})));
   SkPathBuilder a, b;
   a.addRect(SkRect::MakeWH(3, 3));
   b.addRect(SkRect::MakeWH(3, 3));
-  EXPECT_TRUE(Region::path(a.detach()) == Region::path(b.detach()));
+  EXPECT_TRUE(Region::path(geometry::path::fromSk(a.detach())) == Region::path(geometry::path::fromSk(b.detach())));
   // …and the gates built from them compare, which is what the reconciler
   // actually asks.
   EXPECT_TRUE(by::shape(Region::own()) == by::shape(Region::own()));

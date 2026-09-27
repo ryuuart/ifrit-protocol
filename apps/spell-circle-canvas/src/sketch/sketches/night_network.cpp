@@ -317,7 +317,7 @@ struct NightNetwork {
     PathFormat cableRings;
     cableRings.width = 1.4f;
     cableRings.strokeFill = Fill::color(nn::kBone);
-    cableRings.stampPath = SkPath::Circle(0, 0, 4.0f);
+    cableRings.stampPath = sigil::geometry::path::fromSk(SkPath::Circle(0, 0, 4.0f));
     cableRings.stampAdvance = 24.0f;
     Brush cableway;
     cableway.layer(lines::Line{

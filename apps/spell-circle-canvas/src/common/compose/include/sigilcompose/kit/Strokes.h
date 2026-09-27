@@ -159,7 +159,7 @@ inline Hatch crosshatch(Fill fill, float spacing = 6.0f, float width = 1.2f,
 
 /** Rules that fan out of a point, `spokes` of them. */
 inline RadialHatch radialHatch(Fill fill, int spokes = 48, float width = 1.2f,
-                               SkPoint centre = {0.5f, 0.5f}) {
+                               glm::vec2 centre = {0.5f, 0.5f}) {
   RadialHatch h;
   h.strokeFill = std::move(fill);
   h.spokes = spokes;
@@ -170,7 +170,7 @@ inline RadialHatch radialHatch(Fill fill, int spokes = 48, float width = 1.2f,
 
 /** The other half of the pair: rings only, no spokes. */
 inline RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
-                              SkPoint centre = {0.5f, 0.5f}) {
+                              glm::vec2 centre = {0.5f, 0.5f}) {
   RadialHatch h;
   h.strokeFill = std::move(fill);
   h.spokes = 0;
@@ -186,7 +186,7 @@ inline RadialHatch concentric(Fill fill, int rings = 12, float width = 1.2f,
  *  node clips its outermost ring away. */
 inline RadialHatch concentric(Fill fill, std::vector<float> radiiPx,
                               float width = 1.2f,
-                              SkPoint centre = {0.5f, 0.5f}) {
+                              glm::vec2 centre = {0.5f, 0.5f}) {
   RadialHatch h;
   h.strokeFill = std::move(fill);
   h.spokes = 0;

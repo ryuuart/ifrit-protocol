@@ -39,14 +39,14 @@ void InnerShadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
   p.setColor4f(material::skia::toSkColor(color), nullptr);
   p.setStyle(SkPaint::kStroke_Style);
   const float reach =
-      std::max(size, 1.0f) + std::max(std::abs(offset.fX), std::abs(offset.fY));
+      std::max(size, 1.0f) + std::max(std::abs(offset.x), std::abs(offset.y));
   p.setStrokeWidth(reach);
   if (size > 0)
     p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, size * 0.5f));
   // Cast semantics: shifting the stroked ring WITH the cast direction
   // thickens the half that stays inside the clip on the edge the shadow
   // falls from — offset (0,3) casts down, so the band hugs the top.
-  c.translate(offset.fX, offset.fY);
+  c.translate(offset.x, offset.y);
   c.drawPath(geometry::path::toSk(ctx.outline), p);
   c.restore();
 }
@@ -71,7 +71,7 @@ void BevelEmboss::paint(draw::Pen& pen, const PaintContext& ctx) const {
   // Canvas y grows downward: light FROM angle → the vector pointing away
   // from the light. An inner shadow's visible edge is OPPOSITE its offset.
   const SkVector away = {-std::cos(rad) * depth, std::sin(rad) * depth};
-  InnerShadow{highlight, away, size}.paint(pen, ctx);               // lit edges
+  InnerShadow{highlight, geometry::path::fromSk(away), size}.paint(pen, ctx);               // lit edges
   InnerShadow{shadow, {-away.fX, -away.fY}, size}.paint(pen, ctx);  // far edges
 }
 

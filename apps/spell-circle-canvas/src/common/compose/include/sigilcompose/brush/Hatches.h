@@ -78,7 +78,7 @@ struct RadialHatch {
   /** Skip the innermost `holeFraction` of the reach — a fan out of a
    *  point crowds to solid ink at the centre otherwise. */
   float holeFraction = 0.08f;
-  SkPoint centre = {0.5f, 0.5f};
+  glm::vec2 centre = {0.5f, 0.5f};
   float rotateDeg = 0.0f;
   /** STATED ring radii, in px from the centre. When non-empty this list
    *  replaces the `rings` spacing entirely — one circle per entry, exactly

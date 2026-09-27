@@ -28,7 +28,7 @@ Slice cornerSlice(float density) {
   nine.asset = cornerMarkedFrame();
   nine.xDivs = {8, 16};
   nine.yDivs = {8, 16};
-  nine.filter = SkFilterMode::kNearest;
+  nine.filter = material::Sampling::Nearest;
   nine.density = density;
   return nine;
 }

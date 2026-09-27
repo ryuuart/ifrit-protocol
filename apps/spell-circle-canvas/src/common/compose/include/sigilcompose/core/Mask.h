@@ -8,8 +8,8 @@
  * Mask, the pairing of the two that `Element::mask` stacks.
  */
 
+#include <sigilgeometry/path/Outline.h>
 #include <include/core/SkPath.h>
-#include <include/core/SkRect.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
@@ -80,29 +80,29 @@ class Region {
     Own,   ///< the node's own shape() / corners box
     Rect,  ///< a rectangle in local coordinates
     Oval,  ///< the oval inscribed in a local rectangle
-    Path,  ///< an explicit local path (SkPath is a comparable value)
+    Path,  ///< an explicit local outline (an outline is a comparable value)
   };
 
   /** The node's own silhouette — the region `overflow(Overflow::Clip)`
    *  cuts to, as a value. */
   static Region own();
-  static Region rect(const SkRect& r);
-  static Region oval(const SkRect& bounds);
-  /** An explicit path in the node's LOCAL space. Comparable (SkPath has
-   *  structural equality), so this is the general escape hatch that still
-   *  prunes — unlike a generator. */
-  static Region path(SkPath p);
+  static Region rect(const geometry::path::Rect& r);
+  static Region oval(const geometry::path::Rect& bounds);
+  /** An explicit outline in the node's LOCAL space. Comparable (an outline
+   *  has structural equality), so this is the general escape hatch that
+   *  still prunes — unlike a generator. */
+  static Region path(geometry::path::Outline outline);
 
   Kind kind() const { return m_kind; }
   bool operator==(const Region& other) const;
 
-  /** The path this region covers, given the node's own silhouette. */
-  SkPath resolve(const SkPath& ownShape) const;
+  /** The outline this region covers, given the node's own silhouette. */
+  geometry::path::Outline resolve(const geometry::path::Outline& ownShape) const;
 
  private:
   Kind m_kind = Kind::Own;
-  SkRect m_rect = SkRect::MakeEmpty();
-  SkPath m_path;
+  geometry::path::Rect m_rect;
+  geometry::path::Outline m_path;
 
   /** FIELD PIN (see ComposeInternal.h's FIELD PINS block). A Region rides
    *  inside a mask gate, which is read LIVE every frame — a region that

@@ -3,6 +3,7 @@
  * and the runs and grids several of them are set in.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/LayerStyles.h>
@@ -189,7 +190,7 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
           .overflow(compose::Overflow::Clip)
           .fill(ground)
           .foreground(compose::styles::InnerShadow{hole.shade.colorValue,
-                                                   hole.offset, hole.blur})
+                                                   sigil::geometry::path::fromSk(hole.offset), hole.blur})
           .overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
                                               hole.lipWidth,
                                               /*sunken=*/true)),

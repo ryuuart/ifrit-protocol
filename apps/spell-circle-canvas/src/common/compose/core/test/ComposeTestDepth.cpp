@@ -223,7 +223,7 @@ TEST(ComposeDepth, AGroupingPropertyFlattensTheSpaceItStandsOn) {
   flattened("overflow(Overflow::Clip)",
             [](Element& e) { e.overflow(Overflow::Clip); });
   flattened("a mask", [](Element& e) {
-    e.mask(by::shape(Region::rect(SkRect::MakeWH(200, 200))));
+    e.mask(by::shape(Region::rect(geometry::path::Rect::of({0, 0}, {200, 200}))));
   });
   flattened("a layer effect", [](Element& e) {
     e.filter(

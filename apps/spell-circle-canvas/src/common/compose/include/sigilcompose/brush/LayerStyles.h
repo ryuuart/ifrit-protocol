@@ -16,7 +16,6 @@
  * the fill, the content and the children.
  */
 
-#include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>  // PathFormat keylines in the presets
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/filter/Filter.h>
@@ -42,7 +41,7 @@ namespace sigil::compose::styles {
  *  whole interior when the node is cached at a non-origin offset. */
 struct InnerShadow {
   material::Color color = {0, 0, 0, 0.5f};
-  SkVector offset = {0, 3};
+  glm::vec2 offset = {0, 3};
   float size = 5;  ///< blur extent, px
 
   bool operator==(const InnerShadow&) const = default;

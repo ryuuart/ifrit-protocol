@@ -4,6 +4,7 @@
  * and the three keywords — with the identity a node names in the cascade.
  */
 
+#include <sigilmaterial/skia/Texture.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the indent's diagnostic
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
@@ -148,8 +149,9 @@ Derived& CascadeVerbs<Derived>::varDefaults(VarTable defaults) {
 }
 
 template <class Derived>
-Derived& CascadeVerbs<Derived>::imageRendering(SkSamplingOptions options) {
-  declarations()->imageRendering().sampling = options;
+Derived& CascadeVerbs<Derived>::imageRendering(material::Sampling sampling) {
+  declarations()->imageRendering().sampling =
+      SkSamplingOptions(material::skia::toSkFilterMode(sampling));
   return self();
 }
 

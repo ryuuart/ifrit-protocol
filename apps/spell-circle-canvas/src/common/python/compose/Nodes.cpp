@@ -343,7 +343,14 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
             return self.varDefaults(std::move(table));
           },
           py::arg("defaults"), fluent)
-      .def("imageRendering", &Node::imageRendering, py::arg("sampling"), fluent)
+      .def(
+          "imageRendering",
+          [](Node& self, const SkSamplingOptions& sampling) -> Node& {
+            return self.imageRendering(sampling.filter == SkFilterMode::kNearest
+                                           ? material::Sampling::Nearest
+                                           : material::Sampling::Linear);
+          },
+          py::arg("sampling"), fluent)
       .def("inherit", &Node::inherit, py::arg("property"), fluent)
       .def("initial", &Node::initial, py::arg("property"), fluent)
       .def("unset", &Node::unset, py::arg("property"), fluent)
@@ -585,7 +592,7 @@ void bindImageVerbs(py::class_<Image>& element) {
   element.def(
       "imageRegion",
       [](Image& self, py::object value) -> Image& {
-        return self.imageRegion(rect(value));
+        return self.imageRegion(geometry::path::fromSk(rect(value)));
       },
       py::arg("rect"), fluent);
 }

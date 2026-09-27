@@ -8,7 +8,7 @@
  * the three keywords. The font and the ink are the font family's.
  */
 
-#include <include/core/SkSamplingOptions.h>
+#include <sigilmaterial/texture/Texture.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
@@ -94,7 +94,7 @@ class CascadeVerbs {
    *  nothing states it, which is right for photographs and wrong for
    *  every pixel grid, and inherited as CSS inherits `image-rendering`,
    *  so a panel of pixel art states nearest once. */
-  Derived& imageRendering(SkSamplingOptions options);
+  Derived& imageRendering(material::Sampling sampling);
 
   /** @p property TAKES THE PARENT'S COMPUTED VALUE, whether or not it is
    *  one that inherits on its own: `inherit(Property::PaddingLeft)` gives

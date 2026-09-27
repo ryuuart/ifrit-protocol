@@ -30,8 +30,12 @@
 
 namespace sigil::compose::lines {
 
-SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
-                    float phase) {
+namespace {
+
+/** The dash pattern applied as geometry to a Skia path: what the public
+ *  outline form and the rails' own passes both come down to. */
+SkPath dashPath(const SkPath& src, SkSpan<const SkScalar> intervals,
+                float phase) {
   if (intervals.empty() || src.isEmpty()) return src;
   sk_sp<SkPathEffect> fx = SkDashPathEffect::Make(intervals, phase);
   if (!fx) return src;
@@ -43,14 +47,31 @@ SkPath dashGeometry(const SkPath& src, SkSpan<const SkScalar> intervals,
   return dashed.detach();
 }
 
-SkPath cornerBrackets(const SkPath& src, float arm, float angleDeg) {
-  sigil::compose::detail::warnIfNoCorners(src, angleDeg);
-  return geometry::path::cornerWindows(src, arm, true, angleDeg);
+}  // namespace
+
+geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
+                                     std::span<const float> intervals,
+                                     float phase) {
+  return geometry::path::fromSk(
+      dashPath(geometry::path::toSk(src),
+               SkSpan<const SkScalar>(intervals.data(), intervals.size()),
+               phase));
 }
 
-SkPath cornerGaps(const SkPath& src, float gap, float angleDeg) {
-  sigil::compose::detail::warnIfNoCorners(src, angleDeg);
-  return geometry::path::cornerWindows(src, gap, false, angleDeg);
+geometry::path::Outline cornerBrackets(const geometry::path::Outline& src,
+                                       float arm, float angleDeg) {
+  const SkPath path = geometry::path::toSk(src);
+  sigil::compose::detail::warnIfNoCorners(path, angleDeg);
+  return geometry::path::fromSk(
+      geometry::path::cornerWindows(path, arm, true, angleDeg));
+}
+
+geometry::path::Outline cornerGaps(const geometry::path::Outline& src,
+                                   float gap, float angleDeg) {
+  const SkPath path = geometry::path::toSk(src);
+  sigil::compose::detail::warnIfNoCorners(path, angleDeg);
+  return geometry::path::fromSk(
+      geometry::path::cornerWindows(path, gap, false, angleDeg));
 }
 
 float Line::bleed() const {
@@ -155,7 +176,7 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
       // centreline once and displacing the resulting segments keeps every
       // rail in register. Note dashGeometry's stroke-rec requirement — the
       // obvious fill rec silently yields a solid path.
-      const SkPath dashedBody = dashGeometry(
+      const SkPath dashedBody = dashPath(
           body, SkSpan(dashIntervals.data(), dashIntervals.size()), phase());
       SkPaint p = stroke;
       p.setPathEffect(nullptr);  // geometry already dashed
@@ -357,7 +378,7 @@ void Rails::paint(draw::Pen& pen, const PaintContext& ctx) const {
     SkPath run =
         rail.dash.empty()
             ? body
-            : dashGeometry(body, SkSpan(rail.dash.data(), rail.dash.size()),
+            : dashPath(body, SkSpan(rail.dash.data(), rail.dash.size()),
                            base + rail.dashPhase);
     if (rail.across != 0)
       run = geometry::path::parallel(run, rail.across, stride);
@@ -433,8 +454,8 @@ void RadialHatch::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (width <= 0 || (spokes <= 0 && rings <= 0 && radiiPx.empty())) return;
   const SkRect box = geometry::path::toSk(ctx.outline).getBounds();
   if (box.isEmpty()) return;
-  const SkPoint origin{box.left() + box.width() * centre.fX,
-                       box.top() + box.height() * centre.fY};
+  const SkPoint origin{box.left() + box.width() * centre.x,
+                       box.top() + box.height() * centre.y};
   // Far enough to leave the outline from anywhere inside it.
   const float reach =
       std::hypot(std::max(origin.fX - box.left(), box.right() - origin.fX),

@@ -39,13 +39,13 @@
 #include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
 #include <optional>
 
 #include "sigilcompose/Compose.h"
 
-class SkCanvas;
 
 namespace sigil::compose {
 
@@ -83,7 +83,7 @@ struct PathFormat {
   Align align = Align::Center;
 
   /** Dash on/off intervals in px (empty → solid). */
-  std::vector<SkScalar> dashIntervals;
+  std::vector<float> dashIntervals;
   /** How the stroke ends and how its corners meet. The defaults are
    *  butt caps and mitred joins, which end open contours square; line art
    *  built from many short open contours usually wants round for both.
@@ -115,9 +115,9 @@ struct PathFormat {
    *  value reads as its target. */
   std::optional<motion::Animatable<float>> dashPhaseBinding;
 
-  /** Stamp this path repeatedly along the contour (advance px apart),
+  /** Stamp this outline repeatedly along the contour (advance px apart),
    *  rotated to follow it — vines, chains, ornament runs. */
-  SkPath stampPath;
+  geometry::path::Outline stampPath;
   float stampAdvance = 0.0f;
 
   /** Escape hatch: any SkPathEffect; overrides dash/stamp when set. */
@@ -202,7 +202,7 @@ inline PathFormat stroke(float width,
  *  *before* the fill so the fill paints over it. */
 struct Shadow {
   material::Color color = {0, 0, 0, 1};
-  SkVector offset = {0, 0};
+  glm::vec2 offset = {0, 0};
   float blur = 0;
 
   /** Bound offsets: when set, the live value's current number REPLACES that
@@ -236,7 +236,7 @@ struct Shadow {
 
 /** A blurred copy of the node's outline cast at @p offset — attach it
  *  as the FIRST background so everything else paints over it. */
-inline Shadow shadow(material::Color color, SkVector offset, float blur) {
+inline Shadow shadow(material::Color color, glm::vec2 offset, float blur) {
   return Shadow{color, offset, blur};
 }
 
@@ -249,7 +249,7 @@ struct Slice {
   /** How the slices sample. Linear is right for a soft frame and wrong
    *  for pixel art — a window chrome, a dialog border, a button cut from a
    *  tile sheet — where it blurs every slice boundary. */
-  SkFilterMode filter = SkFilterMode::kLinear;
+  material::Sampling filter = material::Sampling::Linear;
   /** Source pixels per layout unit in the CORNER and EDGE bands. 1 draws the
    *  bands at their pixel count, which is right for a texture authored at the
    *  size it is used. A frame generated oversized so it stays sharp on a
@@ -271,8 +271,8 @@ struct Slice {
 
 /** One arc-length sample along the outline. */
 struct PathSample {
-  SkPoint position;
-  SkVector tangent;
+  glm::vec2 position{0, 0};
+  glm::vec2 tangent{1, 0};
   float distance = 0.0f;
   float fraction = 0.0f;  ///< 0..1 within its contour
 };
@@ -429,7 +429,7 @@ struct Border {
    *  sharpest break it did see and what to pass. */
   float cornerAngleDeg = 30.0f;
 
-  std::vector<SkScalar> dash;
+  std::vector<float> dash;
   float dashPhase = 0.0f;
   /** On `PathFormat::dashPhaseBinding`'s terms. */
   std::optional<motion::Animatable<float>> dashPhaseBinding;

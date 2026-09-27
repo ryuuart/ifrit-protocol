@@ -3,6 +3,7 @@
  * shadows, lattice slices, contour walks, washes and borders.
  */
 
+#include <sigilmaterial/skia/Texture.h>
 #include <sigildraw/Pen.h>
 #include <include/core/SkClipOp.h>
 #include <include/core/SkPathBuilder.h>
@@ -36,7 +37,7 @@ float Shadow::bleed() const {
     extent = std::max({-bounds.left(), -bounds.top(), bounds.right() - 1,
                        bounds.bottom() - 1});
   }
-  return std::max({std::abs(offset.fX), std::abs(offset.fY), maxBind}) + extent;
+  return std::max({std::abs(offset.x), std::abs(offset.y), maxBind}) + extent;
 }
 
 void Shadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
@@ -49,9 +50,9 @@ void Shadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
   canvas.save();
   if (knockout) canvas.clipPath(geometry::path::toSk(ctx.outline), SkClipOp::kDifference, true);
   canvas.translate(bindOffsetX ? bindOffsetX->value()
-                               : offset.x(),
+                               : offset.x,
                    bindOffsetY ? bindOffsetY->value()
-                               : offset.y());
+                               : offset.y);
   canvas.drawPath(geometry::path::toSk(ctx.outline), p);
   canvas.restore();
 }
@@ -75,8 +76,8 @@ void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
     p.setShader(material::skia::staticShader(detail::paintOf(stroke)));
 
   sk_sp<SkPathEffect> chosen = effect;
-  if (!chosen && stampAdvance > 0 && !stampPath.isEmpty())
-    chosen = SkPath1DPathEffect::Make(stampPath, stampAdvance, phase(),
+  if (!chosen && stampAdvance > 0 && !stampPath.empty())
+    chosen = SkPath1DPathEffect::Make(geometry::path::toSk(stampPath), stampAdvance, phase(),
                                       SkPath1DPathEffect::kRotate_Style);
   if (!chosen && !dashIntervals.empty())
     chosen = SkDashPathEffect::Make(
@@ -138,7 +139,8 @@ void Slice::paint(draw::Pen& pen, const PaintContext& ctx) const {
   sk_sp<SkImage> img = asset->frames().front().image;
   if (!img) return;
   const SkRect dst = SkRect::MakeWH(ctx.size.x, ctx.size.y);
-  skia::draw::drawLattice(canvas, std::move(img), xDivs, yDivs, dst, filter,
+  skia::draw::drawLattice(canvas, std::move(img), xDivs, yDivs, dst,
+                          material::skia::toSkFilterMode(filter),
                           density);
 }
 
@@ -166,8 +168,7 @@ void ContourWalk::paint(draw::Pen& pen, const PaintContext& ctx) const {
     for (float d = 0; d < length; d += spacing) {
       const auto measured = contour.at(d);
       if (!measured) continue;
-      PathSample sample{geometry::path::toSk(measured->position),
-                        geometry::path::toSk(measured->tangent), d,
+      PathSample sample{measured->position, measured->tangent, d,
                         length > 0 ? d / length : 0};
       // This sample's OWN art (stampAt): baked per call, uncached — see
       // the field note. The shell box is needed because snapshot() sizes
@@ -178,9 +179,9 @@ void ContourWalk::paint(draw::Pen& pen, const PaintContext& ctx) const {
           own = snapshot(box().children({std::move(*e)}), *ctx.fonts);
       const sk_sp<SkPicture>& art = own ? own : stampPicture;
       canvas.save();
-      canvas.translate(sample.position.x(), sample.position.y());
+      canvas.translate(sample.position.x, sample.position.y);
       canvas.rotate(geometry::path::degrees(
-          std::atan2(sample.tangent.y(), sample.tangent.x())));
+          std::atan2(sample.tangent.y, sample.tangent.x)));
       if (art) {
         const SkRect cull = art->cullRect();
         canvas.save();
@@ -258,17 +259,17 @@ void Border::paint(draw::Pen& pen, const PaintContext& ctx) const {
       strokeWith(base, width);
       break;
     case Mode::Bracket:
-      strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg), width);
+      strokeWith(geometry::path::toSk(lines::cornerBrackets(geometry::path::fromSk(base), corner, cornerAngleDeg)), width);
       break;
     case Mode::Gapped:
-      strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
+      strokeWith(geometry::path::toSk(lines::cornerGaps(geometry::path::fromSk(base), corner, cornerAngleDeg)), width);
       break;
     case Mode::Weighted:
       // Two passes over complementary windows: the runs BETWEEN corners at
       // `width`, then the corners themselves at `cornerWidth` — a rule that
       // thickens where it turns.
-      strokeWith(lines::cornerGaps(base, corner, cornerAngleDeg), width);
-      strokeWith(lines::cornerBrackets(base, corner, cornerAngleDeg),
+      strokeWith(geometry::path::toSk(lines::cornerGaps(geometry::path::fromSk(base), corner, cornerAngleDeg)), width);
+      strokeWith(geometry::path::toSk(lines::cornerBrackets(geometry::path::fromSk(base), corner, cornerAngleDeg)),
                  cornerWidth > 0 ? cornerWidth : width);
       break;
   }
