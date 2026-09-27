@@ -511,18 +511,15 @@ class Measure:
         style.variations = []
         del style
         self.assertEqual(saved.value, 600)
-        # The misprint preset is a layer style like any other, applied through
-        # the same verb, and the verb it replaced is gone.
-        self.assertIsInstance(
-            box().layerStyle(raw.LayerStyle.echo((6, -8), "#ff0000")), raw.Element
+        # The misprint is a hard shadow in a material's effects, placed by the
+        # fill verb, and the verbs it replaced are gone.
+        from sigil import material
+        echoed = material.from_("#ffffff").effects(
+            material.Filter.shadow("#ff0000", material.ShadowOptions(offset=(6, -8)))
         )
+        self.assertIsInstance(box().fill(echoed), raw.Element)
         self.assertFalse(hasattr(raw.Element, "echo"))
-        layers = raw.LayerStyle()
-        layers.over = [raw.Decoration(stroke(2, "#ffaa88"))]
-        mark = layers.over[0]
-        layers.over = []
-        del layers
-        self.assertFalse(mark.isRunning())
+        self.assertFalse(hasattr(raw.Element, "layerStyle"))
 
     def test_abandoned_constructor_theme_closes_before_setup(self):
         self.render(

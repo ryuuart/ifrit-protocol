@@ -222,7 +222,6 @@ def layout(scheme: _t.OperatorLike, *children: _t.NodeLike) -> Element: ...
 def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLike], /) -> Element: ...
 """,
     )
-    table.erased("_sigil.compose.LayerStyle", "echo", "_t.PointLike", "_t.ColorLike")
     table.erased("_sigil.compose.Composer", "hitTest", "_t.PointLike")
     table.erased("_sigil.compose.Decoration", "__init__", "_t.DecorationLike")
     table.erased("_sigil.compose.Dimension", "__init__", "_t.DimensionLike")
