@@ -4,6 +4,7 @@
 
 #include <sigilcompose/texture/Texture.h>
 #include <sigilcore/hardware/GpuDevice.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include "support/Host.h"
@@ -89,17 +90,18 @@ TEST(ComposeTexture, EverySamplingDialRidesTheValue) {
       TextureScene::make({16, 16}, fonts());
   scene->render(plate(SkColors::kWhite));
   sigil::material::Texture tiled = scene->texture();
-  tiled.tile(SkTileMode::kRepeat).filter(SkFilterMode::kNearest);
-  EXPECT_EQ(tiled.tileX(), SkTileMode::kRepeat);
-  EXPECT_EQ(tiled.filter(), SkFilterMode::kNearest);
+  tiled.tile(sigil::material::Repeat::Repeat)
+      .sampling(sigil::material::Sampling::Nearest);
+  EXPECT_EQ(tiled.tileX(), sigil::material::Repeat::Repeat);
+  EXPECT_EQ(tiled.sampling(), sigil::material::Sampling::Nearest);
   // A dial is part of the value, so a texture that differs only by one
   // is a different texture.
   EXPECT_FALSE(tiled == scene->texture());
 
   sigil::material::Texture cut = scene->texture();
-  cut.region(SkIRect::MakeWH(8, 8));
-  EXPECT_EQ(cut.size(), SkISize::Make(8, 8));
-  EXPECT_NE(cut.shader(), nullptr);
+  cut.region({0, 0, 8, 8});
+  EXPECT_EQ(cut.size(), glm::ivec2(8, 8));
+  EXPECT_NE(sigil::material::skia::shader(cut), nullptr);
 }
 
 TEST(ComposeTexture, TheScenePaintsWhatTheTreeDescribed) {
@@ -116,7 +118,7 @@ TEST(ComposeTexture, TheOneShotVerbHoldsItsOwnScene) {
   const sigil::material::Texture value =
       texture(plate(SkColors::kCyan), {24, 24}, fonts());
   ASSERT_TRUE(value.valid());
-  EXPECT_EQ(value.size(), SkISize::Make(24, 24));
+  EXPECT_EQ(value.size(), glm::ivec2(24, 24));
   // The scene stands behind the value, so a copy of the value is the
   // same texture and compares equal to it.
   EXPECT_TRUE(sigil::material::Texture(value) == value);
