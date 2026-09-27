@@ -42,6 +42,8 @@ sigil_library(SigilComposeTypography
     TextStructure.cpp TextSelection.cpp TextSchedule.cpp TextFx.cpp
     TextSubstitution.cpp TextUnitBox.cpp TextFxPainting.cpp TextInkUnits.cpp
     TextAnnotations.cpp TextMarks.cpp
+    # the legibility underlays the kit spells
+    Legibility.cpp
     PathText.cpp TextPainter.cpp AxisGate.h TextEngine.h TextPose.h
     TextSubstitution.h
   HEADERS Annotation.h Selector.h TextEffect.h TextFx.h TextPath.h TextUnit.h

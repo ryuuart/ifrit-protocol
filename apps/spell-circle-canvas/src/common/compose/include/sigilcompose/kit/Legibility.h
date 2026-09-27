@@ -16,10 +16,8 @@
  *    knockout cannot survive.
  *
  * The first two are text-style transforms built on `weave::PaintStyle::
- * addUnderlay`, so they apply to any text node. There is also an
- * immediate-mode halo at the bottom of this file, because a caption drawn
- * inside a `custom()` leaf has a canvas and no text node, and none of the
- * underlay path is reachable from there.
+ * addUnderlay`, so they apply to any text node. A caption a pen program
+ * draws is a pen's text, stroked in the ground and then filled in the ink.
  *
  * ## A halo makes a CHOICE cheap, so read this first
  *
@@ -29,20 +27,14 @@
  * use this where the label MUST cross the artwork.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkFont.h>
-#include <include/core/SkPaint.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
-#include <sigilcompose/core/Shape.h>
-#include <sigilgeometry/path/StrokeSkia.h>
+#include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
+#include <sigilweave/style/TextStyle.h>
 #include <sigilweave/style/Type.h>
-
-#include <initializer_list>
-#include <string_view>
 
 namespace sigil::compose::kit {
 
@@ -65,61 +57,27 @@ struct Halo {
  *  instead of separating it. */
 struct Shade {
   material::Color colour = {0, 0, 0, 0.9f};
-  SkVector offset = {1, 1};
+  glm::vec2 offset = {1, 1};
 };
 
 /** @p style with a halo pass beneath its glyphs. Returns a copy; the
  *  original is untouched, so one base style can spawn haloed and plain
  *  variants without a mutable helper. */
-inline sigil::weave::TextStyle haloed(sigil::weave::TextStyle style,
-                                      const Halo& halo = {}) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(halo.width);
-  p.setStrokeJoin(geometry::path::toSk(halo.join));
-  style.paint.addUnderlay(sigil::weave::PaintLayer(std::move(p)));
-  return style;
-}
+sigil::weave::TextStyle haloed(sigil::weave::TextStyle style,
+                                      const Halo& halo = {});
 
 /** @p style with a displaced solid copy beneath its glyphs. */
-inline sigil::weave::TextStyle shaded(sigil::weave::TextStyle style,
-                                      const Shade& shade = {}) {
-  sigil::weave::PaintLayer layer;
-  layer.paint.setAntiAlias(true);
-  layer.paint.setColor4f(material::skia::toSkColor(shade.colour), nullptr);
-  layer.offset = shade.offset;
-  style.paint.addUnderlay(std::move(layer));
-  return style;
-}
+sigil::weave::TextStyle shaded(sigil::weave::TextStyle style,
+                                      const Shade& shade = {});
 
 /** The same two on a PARTIAL: the pass is stated on the partial's own
  *  underlays, which replace whatever the text would have inherited, and a
  *  colour of transparent black is drawn in the colour the text is set in
  *  — a halo that follows the ink wherever the partial lands. */
-inline sigil::weave::Type haloed(sigil::weave::Type type,
-                                 const Halo& halo = {}) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(halo.width);
-  p.setStrokeJoin(geometry::path::toSk(halo.join));
-  if (!type.underlays) type.underlays.emplace();
-  type.underlays->push_back(sigil::weave::PaintLayer(std::move(p)));
-  return type;
-}
-inline sigil::weave::Type shaded(sigil::weave::Type type,
-                                 const Shade& shade = {}) {
-  sigil::weave::PaintLayer layer;
-  layer.paint.setAntiAlias(true);
-  layer.paint.setColor4f(material::skia::toSkColor(shade.colour), nullptr);
-  layer.offset = shade.offset;
-  if (!type.underlays) type.underlays.emplace();
-  type.underlays->push_back(std::move(layer));
-  return type;
-}
+sigil::weave::Type haloed(sigil::weave::Type type,
+                                 const Halo& halo = {});
+sigil::weave::Type shaded(sigil::weave::Type type,
+                                 const Shade& shade = {});
 
 /** The same underlay used for weight rather than for separation: a stroke
  *  in the INK's colour thickens the face at the glyph level, which is how
@@ -127,31 +85,12 @@ inline sigil::weave::Type shaded(sigil::weave::Type type,
  *  Same three lines as `haloed`, opposite intent, so it has its own name
  *  rather than a flag — the colour a caller passes is the difference, and
  *  a flag would not make that visible. */
-inline sigil::weave::TextStyle emboldened(sigil::weave::TextStyle style,
-                                          float width, material::Color colour) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setColor4f(material::skia::toSkColor(colour), nullptr);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(width);
-  p.setStrokeJoin(SkPaint::kRound_Join);
-  style.paint.addUnderlay(sigil::weave::PaintLayer(std::move(p)));
-  return style;
-}
+sigil::weave::TextStyle emboldened(sigil::weave::TextStyle style,
+                                          float width, material::Color colour);
 /** On a partial; a @p colour of transparent black is the ink the text is
  *  set in, which is what a weight usually wants. */
-inline sigil::weave::Type emboldened(sigil::weave::Type type, float width,
-                                     material::Color colour = {0, 0, 0, 0}) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setColor4f(material::skia::toSkColor(colour), nullptr);
-  p.setStyle(SkPaint::kStroke_Style);
-  p.setStrokeWidth(width);
-  p.setStrokeJoin(SkPaint::kRound_Join);
-  if (!type.underlays) type.underlays.emplace();
-  type.underlays->push_back(sigil::weave::PaintLayer(std::move(p)));
-  return type;
-}
+sigil::weave::Type emboldened(sigil::weave::Type type, float width,
+                                     material::Color colour = {0, 0, 0, 0});
 
 // ---------------------------------------------------------------------------
 // The plate, for a ground a halo cannot survive.
@@ -183,76 +122,6 @@ inline Element scrim(Element run, const Scrim& s = {}) {
                       .children({std::move(run)});
   if (s.radius > 0) plate.borderRadius({s.radius});
   return plate;
-}
-
-// ---------------------------------------------------------------------------
-// Immediate mode — for a caption inside a PaintProgram.
-
-/** Draw @p s haloed, at an SkFont baseline origin: a stroke pass in the
- *  ground colour, then the same string again in the ink. For a caption
- *  inside a `custom()` leaf, which has a canvas and no text node and so
- *  cannot reach the underlay path above.
- *
- *  @p ink is used exactly as configured, so pass a paint you have already
- *  coloured and blended and a caption inside a `kPlus` program keeps its
- *  blend. */
-inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
-                       const SkFont& font, const SkPaint& ink,
-                       const Halo& halo = {}) {
-  SkPaint h;
-  h.setAntiAlias(true);
-  h.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
-  h.setStyle(SkPaint::kStroke_Style);
-  h.setStrokeWidth(halo.width);
-  h.setStrokeJoin(geometry::path::toSk(halo.join));
-  canvas.drawSimpleText(s.data(), s.size(), SkTextEncoding::kUTF8, at.fX, at.fY,
-                        font, h);
-  canvas.drawSimpleText(s.data(), s.size(), SkTextEncoding::kUTF8, at.fX, at.fY,
-                        font, ink);
-}
-
-/** The colour spelling, for the common case where the ink is a flat
- *  antialiased fill. */
-inline void drawHaloed(SkCanvas& canvas, std::string_view s, SkPoint at,
-                       const SkFont& font, material::Color ink,
-                       const Halo& halo = {}) {
-  SkPaint p;
-  p.setAntiAlias(true);
-  p.setColor4f(material::skia::toSkColor(ink), nullptr);
-  drawHaloed(canvas, s, at, font, p, halo);
-}
-
-/** One line of a haloed block: the words, and the baseline they sit on. */
-struct HaloedLine {
-  std::string_view text;
-  /** SkFont baseline origin. */
-  SkPoint at{0, 0};
-};
-
-/** A BLOCK of haloed lines: every halo first, then every ink.
- *
- *  **Not a convenience — pass the whole block.** Calling the single-line
- *  form in a loop draws line 2's knockout AFTER line 1's ink, so the
- *  second line's halo eats the first line's descenders. Any halo wider
- *  than the leading minus the descent has this, which for a tightly-led
- *  note is most of them, and the damage looks like a font bug rather than
- *  an ordering one. */
-inline void drawHaloed(SkCanvas& canvas,
-                       std::initializer_list<HaloedLine> lines,
-                       const SkFont& font, const SkPaint& ink,
-                       const Halo& halo = {}) {
-  SkPaint h;
-  h.setAntiAlias(true);
-  h.setColor4f(material::skia::toSkColor(halo.colour), nullptr);
-  h.setStyle(SkPaint::kStroke_Style);
-  h.setStrokeWidth(halo.width);
-  h.setStrokeJoin(geometry::path::toSk(halo.join));
-  for (const HaloedLine& l : lines)
-    canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
-                          l.at.fX, l.at.fY, font, h);
-  for (const HaloedLine& l : lines)
-    canvas.drawSimpleText(l.text.data(), l.text.size(), SkTextEncoding::kUTF8,
-                          l.at.fX, l.at.fY, font, ink);
 }
 
 }  // namespace sigil::compose::kit
