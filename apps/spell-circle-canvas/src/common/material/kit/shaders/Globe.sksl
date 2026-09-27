@@ -1,5 +1,0 @@
-// The paint-side entry: the globe read at the pixel, in SkSL's types.
-half4 main(float2 p) {
-  float4 c = globeAt(p);
-  return half4(half3(c.rgb), half(c.a));
-}

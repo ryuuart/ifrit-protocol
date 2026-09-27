@@ -83,7 +83,7 @@ set(SIGIL_SKETCH_PUBLIC
   SigilComposeCore SigilComposeKit SigilComposeBrush SigilComposeTypography
   SigilComposeTexture SigilComposeTesting SigilComposeDraw
   SigilGeometry SigilMaterial
-  SigilMaterialKit SigilMaterialSurface SigilWeaveKit SigilWeavePorts
+  SigilMaterialSurface SigilWeaveKit SigilWeavePorts
   SigilWorldScene SigilWorldKit SigilWorldFrame SigilWorldElement
   SigilWorldLight
   SigilDraw EnTT::EnTT)

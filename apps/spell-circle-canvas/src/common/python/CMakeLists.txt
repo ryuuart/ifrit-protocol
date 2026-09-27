@@ -72,11 +72,11 @@ sigil_library(SigilPython
     SigilGeometryMeshCamera SigilGeometryMeshCodec SigilGeometryMeshCurve
     SigilGeometryMeshPop SigilGeometryMeshRender SigilGeometryPathBlend
     SigilIOHub SigilIOFrames SigilIOSource SigilIOTransport
-    SigilMaterialCore SigilMaterialField SigilMaterialKit SigilMaterialMask
+    SigilMaterialCore SigilMaterialField SigilMaterialMask
     SigilMaterialSurface
     SigilMaterialOcio SigilMaterialPattern SigilMaterialSdf SigilMaterialSkia
     SigilMaterialSubstance
-    SigilMaterialSlang SigilMaterialStock SigilMaterialTexture SigilMeasure
+    SigilMaterialSlang SigilMaterialTexture SigilMeasure
     SigilMedia SigilMotionBind SigilMotionClock SigilMotionPhysics
     SigilMotionSchedule SigilSkiaDraw SigilSkiaGraphite
     SigilWeaveChoreograph SigilWeaveFonts SigilWeaveKit

@@ -124,19 +124,19 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialTexture` | `Texture` and its sources, with `Sampling` and `PixelRect`; `texture::` (the tools' sets by role), `EnvironmentMap`, `Atlas` — no Skia type in any header | SigilMaterialCore, SigilMediaCore, Boost.Container; Skia and simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, applied through a private 3D-LUT recipe or a per-channel response recipe | SigilMaterialTexture; OpenColorIO privately, when found |
-| `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
+| `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute and SigilMaterialSkia privately |
-| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, the screen `crt` and the three subjects it composes, `crtBeam`, `crtBloom` and `crtGlass`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
+| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple` | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::ShaderLeaf`, the leaf that yields its own Skia shader; a texture through Skia — `skia::image` and `skia::shader` over a `Texture`, `skia::toSkFilterMode`, `skia::toSkIRect` and `skia::toPixelRect`; `skia::painted`, a tile program painted into a canvas; `skia::bevelNormals`; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialSurface` | `surface::` — the metallic-roughness program a lit renderer shades with: `SurfaceParameters`, `Reflection`, `surfaceRecipe`, `program` and `unlit`, `isSurface` and `isUnlit`, `map` and the seven slot names, the dressing of a decoded texture set, and `lower`, which turns a material's stated `surface({…})` response into the program | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
-| `SigilMaterialKit` | the presets: the colour CRT `kit::crt`; the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialField, SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, SigilMaterialSurface, Boost.Container |
-| `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, the list a host hands a warm-up before its first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
 
 `SigilMaterial` is the umbrella, an interface over all twelve. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
 `<sigilmaterial/core/Recipe.h>`, `<sigilmaterial/texture/Texture.h>`,
-`<sigilmaterial/kit/Reflections.h>`.
+`<sigilmaterial/surface/Surface.h>`. The library holds no catalogue of
+looks: a named look — a grained stone, a chrome, a CRT tube, a text
+paint — is a material a sketch builds and keeps beside itself.
 
 ## Using it
 
@@ -207,23 +207,17 @@ A renderer applying a recipe-backed paint to a layer calls
 rectangles, progress and seeds. The paint owns shader specialization and
 program reuse for each unit count.
 
-A surface from the kit reads the same way, its slots filled with textures:
+The surface program reads the same way, its slots filled with textures:
 
 ```cpp
-#include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Reflections.h>
-#include <sigilmaterial/skia/Bevel.h>
 #include <sigilmaterial/skia/Draw.h>
+#include <sigilmaterial/surface/Surface.h>
 
-const EnvironmentMap studio = kit::studioEnvironment();
-kit::ChromeParameters steel;
-steel.brushed = 0.6f;
-steel.roughness = 0.2f;
-// bevelNormals() places its map at the outline's bounds, so the recipe
-// reads the normal under the pixel it shades.
-const Material badge =
-    kit::chrome(skia::bevelNormals(outline, 12), studio, steel);
-skia::fill(canvas, outline, badge);   // per frame; the program is cached
+// The map in the base-colour slot is multiplied by the factor, so a white
+// factor shows the image as it is.
+Material wall = surface::unlit({.baseColor = {1, 1, 1, 1}});
+wall.slot(surface::kBaseColorSlot, Texture(bricks));
+skia::fill(canvas, outline, wall);   // per frame; the program is cached
 ```
 
 ## Mental model
@@ -448,8 +442,8 @@ panorama a surface sees when it looks past the lights — equirectangular,
 u = azimuth, v = 0 at the zenith, with `equirectangularUv` and
 `equirectangularDirection` as the one convention every consumer shares. Sources
 resolve into that single form while the value is built: `baked()` runs a
-radiance function over the panorama (the kit's `studioEnvironment()` and
-`sunsetEnvironment()` are two written against it, and need no assets),
+radiance function over the panorama (a named sky a sketch keeps is one
+written against it, and needs no assets),
 `fromEquirectangular()` wraps a loaded
 lat-long panorama, `fromFaces()` resamples six cube faces and
 `fromCubeMap()` unpacks one sheet — a 4:3 or 3:4 cross, a 6:1 row or a
@@ -588,75 +582,13 @@ has — a session remembers a module by its name, so two recipes under one
 name would be one module and every material after the first would be
 drawn with the first one's program.
 
-## The kit
+## Surfaces, masks and banks
 
-The kit is presets: functions that fix a colour, a proportion or a named
-style over the primitives. `kit::girih8` is the 8-fold star-and-cross
-panel as a `Tile`, with `fezPalette()` and `nasridPalette()`; its
-`contactDegrees` is Hankin's contact angle, the one dial of the construction
-— two rays leave every edge midpoint at that angle to the edge and meet
-on the bisector between neighbours, so the star sharpens as the angle
-grows. At the 45° default the rays through an octagon are collinear, the
-panel is the classic one, and it is drawn in the closed form it has
-always had: two squares through the octagon's edge midpoints, whose union
-is the {8/2} khatam and whose outlines are the interlace.
-
-`kit::globe` is the sphere seen ORTHOGRAPHICALLY: the disc inscribed in
-the node it fills, inverted back onto its own near hemisphere, carried
-into the sphere's frame by undoing `yaw`, `pitch` and `roll`, and read
-for two hemispheres, a graticule at three pitches and a horizon. It is a
-preset and not a renderer: there is no perspective, no depth and no
-mesh, so a globe on a page, a planet on a map and an aircraft's attitude
-ball are one recipe at three sets of colours. Every rule in the
-graticule is a PLANE DISTANCE — a meridian is the plane through the
-poles at its longitude, a parallel the plane at its own sine — so a
-rule's width is measured in the sphere's own space and the crowding
-toward the limb and toward the poles falls out of the arithmetic instead
-of being drawn. `GlobeParameters`'s `ambient` and `diffuse` are what a point
-keeps at the limb and what it gains facing the eye, which is the whole of
-what makes the disc read as a ball, and the alpha falls to nothing across
-`edgeFeather` so nothing outside the disc is painted. The reading is ONE
-TEXT: written in Slang and crossed into SkSL the way the grained four's
-noise is, with each target's body that reading plus the one line that
-spells the return in that target's own types, so a globe on a device and
-a globe on a raster surface are the same ball.
-
-The gel and
-chrome tables — `aquaBodyRamp`, `aquaGlowRamp`, `chromeRamp`,
-`contourRing` — are `ColorStop` lists and alpha ladders a renderer turns
-into its own gradient, and nothing else: which highlight a bundle shows
-and how deep its bevel cuts are knobs on that renderer's decorations, so
-its option sets are its own. The text paints
-— `water`, `meshGradient`, `sparkle`, `starNest`, `clouds`, `tunnel` —
-share the `TextPaintParameters` ABI of a run's origin and extent, the clock
-and a slow motion vector; `sunsetChromeText()` and `silverChromeText()`
-are the chrome-type ramps in unit space.
-
-**The named colormaps are stock ramps, and that is why they are here and
-not in the leaf.** Each answers a plain `Ramp` — a stock value over a
-seam is kit — so a caller takes one, moves its domain onto the numbers
-it is reading, reverses it or eases it, and still holds a value every
-consumer of a ramp understands. What naming them buys is that these
-particular stop lists were MEASURED rather than picked. `kit::viridis`,
-`kit::magma`, `kit::inferno` and `kit::plasma` are the sequential four:
-each rises steadily in lightness the whole way, so a difference in the
-data is a difference an eye reports and none of them puts a false edge
-where a rainbow puts one; they differ in where they spend their chroma,
-and `plasma` is the one without a black end, for a map that has to sit
-on a dark ground. `kit::turbo` is the rainbow done properly — every hue,
-and no lightness cliff at the yellow or the cyan — and it still says
-nothing about which end is more, because its lightness rises to the
-middle and falls again: it is for telling many bands apart, not for
-reading which value is larger. `kit::redBlue` and `kit::brownTeal` are
-the diverging pair, palest in the middle where the quantity is neither
-sign, so the sign reads as the hue and the magnitude as the depth of it;
-the second stays two colours for a reader who cannot tell red from
-green. `kit::cubehelix` is the one map that is GENERATED rather than
-tabulated: `CubehelixOptions` — the starting hue, the turns, how far
-from grey it strays, the lightness path and how many stops the curve is
-sampled into — is the whole definition, so the hue path moves without
-leaving the family, and the lightness still climbs evenly from black to
-white, which is what makes it readable printed in grey.
+The library ships primitives and no named looks. A look — a grained
+stone, a chrome over bevel normals, a globe, a CRT tube, a text paint, a
+colormap — is a material a sketch composes from these and keeps in its
+own directory, so what follows is the machinery every such look is made
+from: the shading terms, the surface program, masks, banks and resolve.
 
 **A surface is composed of TERMS.** `termsSource(target)` is one
 text holding each piece of shading arithmetic as a function with a closed
@@ -708,7 +640,7 @@ intrinsics the languages spell differently — `frac` to `fract`, `lerp` to
 `mix`, and `atan2` to the two-argument `atan`, whose arguments SkSL takes
 in the same order Slang does. Whole identifiers only, so `atan2P` and a
 `fraction` are left alone, which is what lets one table serve the terms
-and a kit body at once. Everything else has to be spelled the same in
+and a body at once. Everything else has to be spelled the same in
 both, and a source written for this crossing accepts that in exchange for
 being one source: no texture sampling, no construct one language has and
 the other does not.
@@ -787,43 +719,6 @@ that was wrong. Both mask
 recipes carry a body in every language a renderer here speaks, because a
 mask is an operand of a stack and a stack is only composable for a target
 all three of its operands have a body for.
-
-`kit::gold`, `kit::chrome` and `kit::glass` are recipes over two slots,
-`normals` and `env` (glass adds `backdrop`, an image of what sits behind
-the shape in the same device coordinates). Each parameter struct's fields
-are the body's uniforms by name, with two exceptions the comments state:
-`roughness` picks the environment level when the material is built, and
-`envSize` is filled by the builder. Real reflection models sampled per
-pixel: gold adds foil crinkle and glints, chrome the contrast curve and
-brushed anisotropy, glass refracts the backdrop through the normal field
-with a fresnel-weighted reflection on top.
-
-**The grained surfaces are generated, never photographed.** `kit::stone`,
-`kit::timber`, `kit::latten` and `kit::board` are recipes over no texture
-at all, and all four are the same construction: a RAMP of the material's
-own tones, a GRAIN of value noise folded into the colour as light rather
-than as hue — which is what keeps a coloured surface from reading as
-rainbow terrazzo — and a SPECKLE in some fraction of the cells of a
-lattice. What differs is the ramp. `kit::StoneParameters` runs a bed of `hi`
-and `lo` at `bedAngle` over `bedLength`, flecked in its own tones;
-`kit::TimberParameters` is a planed board, a flat face between a narrow lit
-arris and a narrow shadowed one across its `span`, with `flip` to light
-the far edge and `along` to turn the piece down local y, so one recipe
-boards a lattice's rails and its posts; `kit::LattenParameters` is sheet
-brass, whose one colour and many lights are a three-tone LADDER — a
-piece's `level` is where on it that face sits, and `sheen` drifts that
-position along the run from `from` to `to`, which is how one light
-crosses two hundred nodes of one instrument — and `kit::lattenTone`
-reads that ladder on the CPU, at a position along the same run, for the
-stroke or the gradient stop that takes a colour and cannot take a
-material; `kit::BoardParameters` is a flat
-`paint` under a fine tooth and a slow wear. Every length is in pixels
-rather than in the box, because a tessera is cut from a slab and its
-grain does not scale with the piece, and `seed` offsets every field, so
-two pieces at two seeds are two pieces of one quarry. Each recipe carries
-a body in both languages — the SkSL one reads pixels, the Slang one the
-surface's uv — so a device renderer shades the same piece the 2D painter
-does.
 
 **A field of a thousand pieces banks its materials.** A paving whose
 every sett differs cannot afford a material per sett — a material is a
@@ -932,91 +827,8 @@ with `tile.material()`.
 reads the resolution; `noise` is Skia's Perlin generator behind a
 pass-through recipe, so it fills a slot and compares by its parameters;
 `grain` is value-noise fBm collapsed to one channel, one recipe per
-octave count because the count is a constant in the body; `ripple`
-resamples its `content` child through a sine displacement; `crtOverlay`
-is the tube laid over a picture — in black, with the alpha carrying all
-of it — and reads the resolution. Its darkening is a SUM, and each term
-is absent at no strength, so one recipe covers a monitor across a room
-and a plate shot close: a hard line at `uScanPitch`, the beam's own
-profile at `uBeamPitch` and `uBeamFalloff`, the beat a composite signal
-carries under it at `uBeatPitch`, `uGrain` moving how much light a cell
-gives up, and the corner falloff. `crtOverlay()` at its defaults is the
-hard line alone; a `CrtOverlayParameters` naming more is the whole tube.
-
-### CRT screens
-
-A screen is THREE SUBJECTS, and `<sigilmaterial/field/Crt.h>` holds each
-of them as a recipe of its own:
-
-- `field::crtBeam` — what the tube draws, in the coordinates it draws it
-  in: the picture in the `content` slot read line by line with the guns
-  converging `uRgbShift` apart, rastered at `uScanPitch` by `uRaster`,
-  swept sideways by `uJitter` and `uSync`, carrying the supply's
-  `uFlicker` and the signal's `uNoise` at `uBrightness`. The scanlines
-  alone, for a flat surface.
-- `field::crtBloom` — the light that picture throws: the layer blurred
-  at `uBloomRadius` and kept inside the bounds. The bloom source alone,
-  as a layer to add over whatever threw it.
-- `field::crtGlass` — the glass over both: the barrel at `uCurvature`,
-  the light from the `bloom` slot at `uBloom`, the corner falloff at
-  `uVignette`. The barrel alone, for any surface that wants a tube's
-  curvature over it, and opaque wherever it stands, so a transparent
-  region of what is under it reads as black glass. What stands under
-  the glass is read ONCE, at the bent coordinate, because in one
-  program a second reading is a second whole pass of whatever is under
-  there — which is why the guns are the beam's and not the glass's.
-
-`field::crt` is their composition and the whole screen: one program, in
-which the glass reads the beam where it would read a bound picture, so
-the coordinate is bent ONCE and the beam is drawn at the coordinate it
-was bent to. Its `field::CrtParameters` are the three parameter sets
-under one name, in local pixels and explicit seconds, so a still is
-deterministic. Zero strengths preserve source RGB inside the bounds. The
-screen is opaque black beneath transparent source content; outside its
-rectangular bounds it is transparent. Burn-in needs frame history and is
-not included.
-
-The supply is the BEAM'S. `uBrightness` and `uFlicker` modulate the
-picture the tube draws and nothing else, so the light over it holds the
-strength `uBloom` names while the picture dims and stutters. And the
-beam's picture is finished before the glass reads it — rastered,
-grained and clamped to what a display can carry — so the light is added
-to a highlight already standing at white, and `uVignette` darkens the
-picture and the light over it together.
-
-The tube's light is a SECOND slot, `bloom`, declared as one an executor
-fills from the same layer blurred at `uBloomRadius` — a Gaussian sigma
-in local pixels — and read once at the bent coordinate. So the bloom is
-spread flat and sampled through the curvature, its cost follows its own
-radius, and how far it reaches is not capped by a tap count. The blur is
-taken over the whole layer, so a bright thing drawn outside the bounds
-lights the glass near that edge; where the light lands is gated by the
-bounds exactly as the picture is. An ordinary fill has no layer and
-therefore no executor: the bodies of `crt`, `crtGlass` and `crtBloom`
-spell that slot at every strength, so bind a source to `bloom` as well
-whatever `uBloom` is, or the compiler refuses the material by name.
-
-`kit::crt` in `<sigilmaterial/kit/Crt.h>` supplies a restrained colour CRT
-preset. The material stays renderer-independent; fill its `content` and
-`bloom` slots with textures for a material, or pass it to
-`Filter::of` for a rendered layer, which fills `bloom` itself.
-Pass a conservative local sampling radius to the effect;
-`field::crtSampleRadius` calculates it from a parameter struct as the sum
-of its passes' own — `field::crtGlassSampleRadius`, the warp, and
-`field::crtBeamSampleRadius`, the guns, the jitter and the sync — and
-never the bloom, which asks for no reach of its own. When changing
-uniforms on the preset, update that radius to cover them.
-
-```cpp
-#include <sigilmaterial/kit/Crt.h>
-#include <sigilmaterial/skia/Filter.h>
-
-const auto screen = sigil::material::kit::crt(SkRect::MakeWH(1440, 1052));
-const auto effect = sigil::material::Filter::of(screen, 40.0f);
-```
-
-The SkSL adaptation and its provenance are described in
-[CRT-NOTICE.md](CRT-NOTICE.md); its license is GPL-3.0-or-later.
+octave count because the count is a constant in the body; and `ripple`
+resamples its `content` child through a sine displacement.
 
 ## The Skia paint
 
@@ -1039,22 +851,10 @@ filter's own identity.
 
 ## Warming every program
 
-**One instance of every recipe, as a list.** `kit::everyRecipe()`,
-`sdf::everyRecipe()` and `field::everyRecipe()` each answer a
-`std::vector<Material>` holding one instance of every recipe that
-feature ships, dressed the way its own builder dresses it and with a
-stand-in image in any slot that needs one — because a recipe is only
-half of what a backend compiles and a slot left empty generates a
-different program. They are for a caller that has to reach every program
-the library can ask a backend for without knowing what it holds: a
-device renderer warming its pipeline cache, and the device sweep below.
-A recipe added to one of those features belongs in its list.
-
-Every body those instances carry is already in the archive, so building the
-list opens nothing. A Skia host can prepare the entire catalogue with
-`skia::warmup(stock::everyRecipe())`, or pass only the materials it uses.
-This prepares the backend and compiles its distinct programs before the
-first draw; omitting warm-up leaves compilation to first use.
+**Warming a list of materials.** `skia::warmup(materials)` prepares the
+backend and compiles the distinct programs of the materials a host
+hands it before the first draw — a host passes the materials it uses;
+omitting warm-up leaves compilation to first use.
 `material::warmup(materials, target, variant)` folds identical recipe,
 target and variant keys and compiles distinct keys concurrently into the
 shared cache; `ProgramCache::warmup` takes the requests themselves. A request arriving while the same key is compiling shares that
@@ -1091,8 +891,9 @@ shader tool see the language, and `sigil_shader_sources()` compiles that
 whole directory into the feature's archive as a table of
 `std::string_view` keyed by file name. A feature reaches its own text
 through the accessor the generated header declares —
-`<sigilshaders/MaterialKit.h>` spells `kit::shaderSource("Stone.sksl")`
-and `kit::shaderSources()`, the whole table — and no feature reaches
+`<sigilshaders/MaterialSurface.h>` spells
+`surface::shaderSource("Surface.sksl")` and `surface::shaderSources()`,
+the whole table — and no feature reaches
 another's: text that two of them need is asked for by name from the one
 that owns it, which is what `termsSource` is.
 
@@ -1123,7 +924,7 @@ SigilGeometry draws
 the normals passes and outlines a surface is shaded over, and links
 nothing here but the colour leaf, privately, for the OKLab interpolation
 its path blend runs in; SigilWorld's renderer is one executor of the
-surface the kit defines and adds no shading model of its own;
+surface program this library defines and adds no shading model of its own;
 SigilCompose places what a material paints — it takes a `Paint` as
 a node's fill and routes it, and holds no paint model of its own.
 
@@ -1143,10 +944,9 @@ promises. What is only true of SigilMaterial:
 | `ocio/test/` | the bake: an exponent baked to a response row, that row lowered to a table an eight-bit surface admits, and the program held to what it paints across a whole ramp, while a float surface and a channel-mixing transform keep the program. A config that cannot be read failing soft is asked unconditionally, since that needs no OpenColorIO | `ocio` on `Ocio` |
 | `texture/test/` | the image side: the sources and their identity across the erasure, the sampling dials, the environment map, the bevel producer, the atlas readers and packer, and the tools' file names — one row per name, so a failure says which tool's spelling moved rather than that a list changed | — |
 | `mask/test/` | that a mask shapes what it reads, and that reshaping something that is not a mask changes nothing | — |
-| `kit/test/` | every preset compiled and a fill staying inside its path, a surface dressed from a decoded set, a stack shaded at both ends of its mask, every shading term against its closed form, the named ramps asked for the properties they were chosen for rather than their stop lists, and the sampler budget: a stack asks a device for its operands' samplers and no more, and a tree over the limit is refused with the count and the limit named rather than drawn | — |
+| `surface/test/` | both surface programs compiled, an authored colour and a map texel one number, a program dressed from a decoded set, a stated response lowered with its numbers and maps in place, a stack shaded at both ends of its mask, every shading term against its closed form, and the sampler budget: a stack asks a device for its operands' samplers and no more, and a tree over the limit is refused with the count and the limit named rather than drawn | — |
 | `skia/test/` | the SkSL backend — a two-uniform recipe compiled through the cache shading a raster byte identical to the same SkSL compiled and filled by hand, the four parameter names a body may not redeclare and the three spellings that must still compile — and `SkiaPalette`, a picture's own colours coming back | — |
 | `slang/test/` | the Slang backend, with no device | — |
-| `stock/test/` | that the catalogue holds every feature catalogue, and that the warm-up compiles every program it gathered | — |
 | `MaterialGpu` | every body this library ships, on a device | `gpu` |
 
 The `MaterialGpu` suite belongs to the whole library rather than to a
@@ -1154,9 +954,8 @@ feature: every other suite shades on a raster surface, where a body is
 compiled as its own SkSL program, and a body can pass that and fail once
 a GPU backend has inlined it into a pipeline. It stands Graphite up,
 installs a shader-error handler through
-`GraphiteContext::reportShaderErrorsTo`, and draws every material
-`kit::everyRecipe()`, `sdf::everyRecipe()` and `field::everyRecipe()`
-answer — plus a stack per blend, the whole terms text, and the ocio bake
+`GraphiteContext::reportShaderErrorsTo`, and draws one instance of every
+recipe the surface, sdf and field features ship — plus a stack per blend, the whole terms text, and the ocio bake
 where OpenColorIO is available — through the same `Paint` a
 consumer draws it through, demanding that not one reports an error. It
 needs Metal, and it carries its own control: the collision the reserved

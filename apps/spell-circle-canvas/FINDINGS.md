@@ -48,7 +48,8 @@ composite differs — a plate rebase names the cause.
 
 ## A study turns a screen's light off and builds it again outside the recipe
 
-`eva_magi_interior/EvangelionUi.h` sets `uBloom` to zero on `kit::crt`
+`eva_magi_interior/EvangelionUi.h` sets `uBloom` to zero on the tube
+(`evangelion::crtTube`, `eva_magi_interior/Crt.h`)
 and adds the tube's light itself — two Gaussians, two weighting matrices
 and a table holding the sum at half — because the recipe used to gather
 that light per pixel. It does not any more: the light is a slot an
@@ -378,7 +379,7 @@ pixels must not move. A test cannot see where a specimen puts its cache,
 so `--bench` on each entry is the check: at or under the gate where the
 original met it.
 
-## `material::kit::sparkle` alone ignores the run's extent, so it cannot follow the type on the default ink box
+## `text_paints::sparkle` alone ignores the run's extent, so it cannot follow the type on the default ink box
 
 Five of the six text paints read the run's `extent` from
 `TextPaintParameters` and work in `(point - origin) / extent`. `Sparkle.sksl`
@@ -795,11 +796,12 @@ Wanted by `karaoke_wipe`, whose sung line glows through a blurred copy of
 itself added under it (a second text leaf on the same tracks) because the
 one-node bloom does not fit a frame.
 
-## `kit::grained` puts no grain on a near-black ground
+## `grained` puts no grain on a near-black ground
 
-`compose::kit::grained(over, amount, frequency)` (`kit/Ground.h`) folds
-Skia's fractal noise into `over` by `SkBlendMode::kSoftLight`, with
-the noise reduced to luminance and faded toward mid grey by `amount`.
+The `grained(over, amount, frequency)` the ground studies carry
+(`axis_ripple`, `chladni_tab1`, `elastic_type`, `nightingale_coxcomb`)
+layers `material::noise(frequency, {.grain = true})` over `over` with
+`BlendMode::SoftLight` at `amount` opacity.
 Soft light has two halves, and both scale with the ground's value `d`.
 Where the noise `s` is below mid grey it darkens by `d·(1−d)·(1−2s)`;
 where it is above, it lightens by `(2s−1)·(D(d)−d)`, and for `d ≤ 0.25`
@@ -833,11 +835,11 @@ also call `grained` and would move with it.
 
 Not a new finding: append `axis_ripple` to the wanted-by list of the
 entry of that name (filed from `shipping_forecast`). Its ground asks
-for `kit::grained(0x0C0C0E, 0.07f, 0.85f)`, and a 100 x 80 px patch of
+for `grained(0x0C0C0E, 0.07f, 0.85f)`, and a 100 x 80 px patch of
 that ground at 2x measures a luminance standard deviation of 0.58
 8-bit levels with the vignette's slope included, so no grain reads.
 The sketch keeps the call, with a comment beside the ground stating
-the constraint, so the grain appears when the kit's grain holds its
+the constraint, so the grain appears when the grain holds its
 strength on a dark ground.
 
 ## `sigillum_aemeth` still marks a workaround for an echo that now follows the path
@@ -894,8 +896,7 @@ Also wanted by `cosmati` (its nine quarries and four inks live in `data/pavement
 
 `Fill::operator==` (`sigilcompose/core/Paint.h`) compares `shaderValue`,
 an `sk_sp<SkShader>`, by pointer. `linearGradient`, `radialGradient`
-(`core/Paint.h`), `kit::vignette` and `kit::grained`
-(`kit/Ground.h`) each mint a new shader on every call. So a node filled
+(`core/Paint.h`) each mint a new shader on every call. So a node filled
 with one of them compares unequal to itself on the next describe, even
 with every colour, stop and point the same: it is re-patched, and a
 `Cache::Texture` over it is baked again. `chladni_tab1`'s leaf — a
@@ -915,7 +916,7 @@ A test should describe a box filled with `radialGradient({50, 50}, 40,
 {a, b}, {0.2f, 1})` under `Cache::Texture`, draw, describe the same box
 with a second identical call, draw again, and assert the second draw
 takes no bake (the stats' cache writes are zero); and the same for
-`linearGradient`, `kit::vignette` and `kit::grained`; and that changing
+`linearGradient`; and that changing
 one stop does take a bake.
 
 Wanted by `chladni_tab1` (holds its leaf element, its twelve fan fills
@@ -995,7 +996,7 @@ Wanted by `nightingale_coxcomb`.
 `compose::VarValue` is `std::variant<material::Color, Dimension>`
 (`core/Cascade.h`), so `var(name, …)` on a node or a rule takes a colour or a
 length and nothing else. A study whose palette is MATERIALS — `cosmati`'s nine
-quarried stones, each a `material::kit::stone` recipe, and the brass its
+quarried stones, each a `cosmati::stone` recipe, and the brass its
 letters are set in — cannot state them once as custom properties at the root
 and read them with `fill(Fill::var("porphyry"))`; the stones are built in code
 by a helper and handed to every piece's `fill()` as values, and a class
@@ -1007,9 +1008,9 @@ takes — a gradient or an image as readily as a colour: a `var` holding a
 `ink` and a stroke's paint exactly as a colour var is, so a quarry is a token
 and a class is its whole look.
 
-A test should state `rule(":root").var("stone", material::kit::stone({}))`,
+A test should state `rule(":root").var("stone", someMaterial)`,
 fill a box with `Fill::var("stone")` under it, and assert the box paints what
-`fill(material::kit::stone({}))` paints; and that reading the same property
+`fill(someMaterial)` paints; and that reading the same property
 as a length leaves the target standing and says so once, as a colour var read
 as a length does today. Wanted by `cosmati`; `black_watch` holds its board and
 yarn paints as members for the same reason.

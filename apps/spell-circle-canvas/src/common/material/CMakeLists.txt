@@ -18,10 +18,10 @@
 # parameterised generators — the ocio feature bakes OpenColorIO's view
 # transforms to LUT materials over the texture feature, the substance
 # feature cooks an Adobe Substance 3D archive into a material where the
-# SDK is installed and answers an empty one where it is not, and the kit
-# holds the presets over them. The stock feature gathers every catalogue
-# into the one list a host warms in one call, which is why it is the one
-# target that links the primitives and the kit together.
+# SDK is installed and answers an empty one where it is not, and the
+# surface feature is the metallic-roughness program a lit renderer shades
+# with and the lowering of a material's stated response into it. No
+# feature holds a named look: a look is a material a sketch composes.
 # `SigilMaterial` is the umbrella: an
 # interface over every feature, for a consumer of the whole library.
 sigil_library_root(SigilMaterial
@@ -45,8 +45,6 @@ add_subdirectory(field)
 add_subdirectory(skia)
 add_subdirectory(program)
 add_subdirectory(surface)
-add_subdirectory(kit)
-add_subdirectory(stock)
 add_subdirectory(slang)
 
 sigil_library(SigilMaterial
@@ -54,7 +52,7 @@ sigil_library(SigilMaterial
             SigilMaterialMask SigilMaterialOcio SigilMaterialSdf
             SigilMaterialPattern SigilMaterialField SigilMaterialSkia
             SigilMaterialProgram SigilMaterialSurface
-            SigilMaterialKit SigilMaterialStock SigilMaterialSlang)
+            SigilMaterialSlang)
 
 # THE PRIMITIVES AND THE LEAF, in one binary. The colour value, the
 # signed-distance surfaces, the tiles, the fields and the baked view
@@ -119,7 +117,7 @@ sigil_doc_probes(material
   PRELUDES "<sigilcore/cache/Policy.h>"
            "<sigilio/hub/Hub.h>"
            "<sigilmedia/core/Image.h>"
-           "<sigilshaders/MaterialKit.h>"
+           "<sigilshaders/MaterialSurface.h>"
            "<sigilskia/graphite/GraphiteContext.h>"
            "<ScratchDir.h>"
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}

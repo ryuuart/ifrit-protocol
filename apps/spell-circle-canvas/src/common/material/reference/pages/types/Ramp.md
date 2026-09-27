@@ -75,7 +75,6 @@ a colour for it.
 | `Ramp{.stops = {...}, .space = RampSpace::Srgb}` | C++ | designated initialisers for the five decisions |
 | `ramp(palette)` | C++ | a fixed table read continuously: one stop per entry, evenly spaced |
 | `ramp(palette, space)` | C++ | the same, in a stated space |
-| `kit::viridis()` and the other stock ramps | C++ | a named colormap — a stock VALUE over the type, not a type of its own; take one, move its domain, reverse it, and it is still a ramp |
 | `material.Ramp(stops=[...], space=...)` | Python | the same five decisions, by keyword |
 | `material.ramp(palette)` | Python | a fixed table read continuously |
 
@@ -96,7 +95,6 @@ a gradient paint; a consumer that wants one colour out of it calls it.
 | What | Kind | Library |
 | --- | --- | --- |
 | `ramp` | function | SigilMaterial — the way back from a fixed table |
-| `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal`, `kit::cubehelix` | function | SigilMaterial |
 
 ## Description
 

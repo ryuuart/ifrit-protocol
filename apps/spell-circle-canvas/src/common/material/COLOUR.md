@@ -57,9 +57,9 @@ an eased ramp a value two of which can be proved the same. It answers
 `at(v)` and it is CALLABLE, so a ramp is an interpolator: anything that
 hands a unit position to one — a data scale's `through()`, a legend, a
 table — takes a ramp with no adapter. `sampleRamp` is still the ladder
-underneath, for a caller holding bare stops. The named ramps are stock
-values over it in the kit (`kit::viridis` and the rest), not types: take
-one, move its domain, reverse it, and it is still a ramp.
+underneath, for a caller holding bare stops. A named colormap is a
+value over it that a sketch writes down, not a type: take one, move its
+domain, reverse it, and it is still a ramp.
 
 `palette(ramp, entries)` reads a ramp at BAND CENTRES into a fixed table
 — the posterising crossing — and `ramp(palette)` is the way back, which
