@@ -313,7 +313,7 @@ struct Flourish {
     frieze.reserve(kFriezeTiles);
     for (int i = 0; i < kFriezeTiles; ++i)
       frieze.push_back(
-          image(gemAtlas)
+          image(gemAtlas, material::Fit::Native)
               .imageRegion(sigil::geometry::path::Rect::of({(float)(i % 4) * 16, 0}, {16, 16}))
               .width(16)
               .height(16));

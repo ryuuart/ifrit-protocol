@@ -163,7 +163,7 @@ Element chunkElement(const std::shared_ptr<const sigil::media::Image>& tileset,
         const int id = cell == chunk.edit.cell
                            ? chunk.edit.id
                            : tileAt(chunk.index, at.column, at.row);
-        return image(tileset)
+        return image(tileset, material::Fit::Native)
             .imageRegion(sigil::geometry::path::Rect::of({(float)id * 16, 0}, {16, 16}))
             .rect(arrange::cellRect(at, {kTile, kTile}));
       })});
@@ -270,7 +270,7 @@ struct TileMap {
     const char* names[] = {"FLOOR", "BRICK", "MOSS", "EMBER"};
     Element atlasLegend = box().row().children({each(4, [&](int i) {
       return box().column().gap(10).width(96).children(
-          {image(tileset)
+          {image(tileset, material::Fit::Native)
                .imageRegion(sigil::geometry::path::Rect::of({(float)i * 16, 0}, {16, 16}))
                .width(80)
                .height(80)

@@ -130,7 +130,7 @@ struct NineSlice {
     const float breathH = kPanelH + 26 * stretch;
 
     Element sourceImage = box().width(192).height(192).children(
-        {image(oak).cover(),
+        {image(oak, material::Fit::Native).cover(),
          box().left(64).top(0).width(1).height(192).fill(Fill::color(kInk)),
          box().left(128).top(0).width(1).height(192).fill(Fill::color(kInk)),
          box().left(0).top(64).width(192).height(1).fill(Fill::color(kInk)),

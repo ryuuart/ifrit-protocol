@@ -225,7 +225,7 @@ struct TwoAdvancedEquipment {
     auto it = art.find(name);
     if (it == art.end() || !it->second)
       return box().width(w).height(h).flexShrink(0).fill(fallback);
-    return image(it->second).width(w).height(h).flexShrink(0);
+    return image(it->second, material::Fit::Native).width(w).height(h).flexShrink(0);
   }
 
   // ---- the three frames ---------------------------------------------------
