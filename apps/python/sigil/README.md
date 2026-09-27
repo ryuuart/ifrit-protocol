@@ -605,8 +605,10 @@ The context exposes checked views of the native services:
   `cancel`, `revert`, `onComplete` and the rest — and a fixed-rate timer
   reports `betweenSteps()`, the render interpolant, and whether a frame
   `droppedTime()`. The host moves the clock; a body never does.
-- `ctx.assets.image(uri)` reads an owned native image asset; `frameAt`
-  supplies its image. `json` and `table` return owned data snapshots, and
+- `ctx.assets.hub().load(media.Image, uri)` reads an owned native image,
+  `None` until the file is there; `frameAt` supplies its image, and the
+  host sets the sketch up again when a file it asked for appears or
+  changes. `json` and `table` return owned data snapshots, and
   `database` returns a native query view. `shader(uri)` compiles an `.sksl`
   file into the `skia.RuntimeEffect` that `Paint.sksl` takes, recompiled
   when the file changes; a file that is missing or does not compile keeps

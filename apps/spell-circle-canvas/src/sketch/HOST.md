@@ -169,8 +169,8 @@ assets root, `build/assets`, which `mise run assets` fills. A sketch's
 OWN files stand in its directory, under `data/`: `ctx.local("data/x.csv")`
 is the URI of `data/x.csv` under the directory the sketch's entry stands
 in — `sketch://<key>/data/x.csv`, the sketches folder mounted at
-`sketch://` — which `ctx.assets.table()`, `ctx.assets.image()`,
-`ctx.assets.database()` and the hub take as they take any URI. For a
+`sketch://` — which `ctx.assets.table()`, `ctx.assets.database()` and
+`ctx.assets.hub().load<sigil::media::Image>()` take as they take any URI. For a
 directory sketch that directory is its own, for a bare file it is the
 folder the sketches share, so a sketch that carries data of its own is
 written as a directory, and a workspace sketch opened by path has the

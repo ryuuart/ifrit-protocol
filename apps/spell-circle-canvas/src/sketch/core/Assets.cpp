@@ -1,9 +1,6 @@
 #include "sigilsketch/core/Assets.h"
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkPaint.h>
 #include <include/core/SkString.h>
-#include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigildata/read/Read.h>
 #include <sigildata/query/Database.h>
@@ -19,28 +16,12 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
+#include <type_traits>
 
 namespace sigil::sketch {
 
 namespace {
-
-/** The classic missing-texture checker: magenta/black, unmistakable. */
-std::shared_ptr<const sigil::media::Image> makePlaceholder() {
-  constexpr int kSize = 64, kCell = 16;
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSize, kSize));
-  SkCanvas& canvas = *surface->getCanvas();
-  SkPaint paint;
-  for (int y = 0; y < kSize / kCell; ++y)
-    for (int x = 0; x < kSize / kCell; ++x) {
-      paint.setColor(((unsigned)(x + y) & 1u) ? SK_ColorMAGENTA
-                                              : SK_ColorBLACK);
-      canvas.drawRect(SkRect::MakeXYWH((float)(x * kCell), (float)(y * kCell),
-                                       kCell, kCell),
-                      paint);
-    }
-  return sigil::media::Image::of(surface->makeImageSnapshot());
-}
 
 /** THE MISSING-TEXTURE CHECKER AS A PROGRAM, sixteen canvas units a cell:
  *  what a shader that never compiled paints, declaring nothing a caller
@@ -63,6 +44,11 @@ struct CompiledShader {
   sk_sp<SkRuntimeEffect> program;
   std::string error;
 };
+
+/** The name the hub registers and asks for a compiled shader under. */
+std::string_view meaningName(std::type_identity<CompiledShader>) {
+  return "sketch.CompiledShader";
+}
 
 std::optional<CompiledShader> compileShader(const sigil::io::Bytes& bytes) {
   auto [program, error] = SkRuntimeEffect::MakeForShader(
@@ -101,9 +87,11 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
       m_hub(hubOptions(m_root, m_sketches)) {
   // An image is a resource SigilMedia says the meaning of: with its
   // decoders on, hub().load<media::Image>(uri) answers — stills,
-  // animations and vector sources, with the library's own DecodeOptions
-  // when a sketch names a size or a layer — and load<ChannelData>() the
-  // float planes of the same file.
+  // animations and vector sources, with the library's own ImageOptions
+  // when a sketch names a size or a layer — load<media::Channels>() the
+  // float planes of the same file, and load<media::Video>() a clip. The
+  // hub finds each by the name the meaning declares, so a sketch
+  // compiled and loaded while the host runs asks the same door.
   sigil::media::registerDecoders(m_hub);
   // A data file is a resource like an image is: with the decoders on,
   // hub().load<Table>("sketch://<key>/data/x.csv") answers, cached and reloaded
@@ -122,7 +110,6 @@ Assets::Assets(std::filesystem::path root, std::filesystem::path sketches)
   io::registerDecoder<CompiledShader>(m_hub, [](const sigil::io::Bytes& bytes, std::string_view) {
         return compileShader(bytes);
       });
-  m_placeholder = makePlaceholder();
   m_placeholderShader = makePlaceholderShader();
 }
 
@@ -138,29 +125,12 @@ std::shared_ptr<const sigil::data::Database> Assets::database(
   return m_hub.load<sigil::data::Database>(uriFor(name));
 }
 
-std::shared_ptr<const sigil::media::Image> Assets::image(
-    std::string_view name) {
-  if (auto asset = m_hub.load<sigil::media::Image>(uriFor(name))) {
-    std::erase(m_placeholders, name);
-    return asset;
-  }
-  if (std::find(m_placeholders.begin(), m_placeholders.end(), name) ==
-      m_placeholders.end())
-    m_placeholders.emplace_back(name);
-  return m_placeholder;
-}
-
 std::shared_ptr<const sigil::data::Table> Assets::table(std::string_view name) {
   return m_hub.load<sigil::data::Table>(uriFor(name));
 }
 
 std::shared_ptr<const sigil::data::Json> Assets::json(std::string_view name) {
   return m_hub.load<sigil::data::Json>(uriFor(name));
-}
-
-std::shared_ptr<const sigil::media::Video> Assets::video(
-    std::string_view name, const sigil::media::VideoOptions& options) {
-  return m_hub.load<sigil::media::Video>(uriFor(name), options);
 }
 
 sk_sp<SkRuntimeEffect> Assets::shader(std::string_view name) {
@@ -201,19 +171,11 @@ void Assets::beginDeclaration() {
 }
 
 bool Assets::poll() {
+  // A file any typed ask found missing or unreadable is the hub's to
+  // watch, as a loaded one is: its poll says when it appears or changes.
   bool changed = io::poll(m_hub);
-  // Placeholders heal the moment their file becomes loadable.
-  for (auto it = m_placeholders.begin(); it != m_placeholders.end();) {
-    if (m_hub.load<sigil::media::Image>(uriFor(*it))) {
-      it = m_placeholders.erase(it);
-      changed = true;
-    } else {
-      ++it;
-    }
-  }
-  // …and so does a shader the sketch still asks for whose file was not
-  // there. One that is there and did not compile is the hub's to watch,
-  // as any loaded file is.
+  // A shader the sketch still asks for whose file was not there heals
+  // here as well, so the problem said about it clears with it.
   for (HeldShader& shader : m_shaders)
     if (shader.asked && shader.missing &&
         m_hub.load<CompiledShader>(uriFor(shader.name))) {

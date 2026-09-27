@@ -33,6 +33,8 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -58,6 +60,11 @@ const char* kSecond = "the second, after the write";
 struct Cloud {
   std::vector<SkPoint> points;
 };
+
+/** The name the hub registers and asks for a cloud under. */
+std::string_view meaningName(std::type_identity<Cloud>) {
+  return "hub_reload.Cloud";
+}
 
 std::optional<Cloud> parseCloud(const io::Bytes& bytes, std::string_view) {
   Cloud cloud;

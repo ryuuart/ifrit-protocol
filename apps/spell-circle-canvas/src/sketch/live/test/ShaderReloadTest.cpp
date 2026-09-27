@@ -155,41 +155,7 @@ TEST(SketchShaderReload, ANameTheSketchNoLongerAsksForLeavesTheLog) {
 
 #ifdef SIGIL_SKETCH_SHADER_GUEST
 
-/** A COMPILER THAT BUILDS NOTHING: an object is an empty file and the
- *  library is the guest image built beside this binary, copied to where
- *  the link names it. While a file named `refuse` stands beside the
- *  script it fails instead, saying so, as a build that did not compile. */
-std::string guestCompiler(const std::filesystem::path& script) {
-  std::ofstream(script) << "if [ -e \"$(dirname \"$0\")/refuse\" ]; then\n"
-                           "  echo 'the stub compiler refused this build'\n"
-                           "  exit 1\n"
-                           "fi\n"
-                           "prev=\n"
-                           "for arg in \"$@\"; do\n"
-                           "  if [ \"$prev\" = \"-o\" ]; then\n"
-                           "    case \"$arg\" in\n"
-                           "      *.dylib) cp '" SIGIL_SKETCH_SHADER_GUEST
-                           "' \"$arg\" ;;\n"
-                           "      *) : > \"$arg\" ;;\n"
-                           "    esac\n"
-                           "  fi\n"
-                           "  prev=$arg\n"
-                           "done\n"
-                           "exit 0\n";
-  return "/bin/sh " + script.string();
-}
-
-/** One build of @p host run to its adoption, in a bounded count of turns
- *  so a build that never finishes fails the case instead of hanging it. */
-[[nodiscard]] bool buildOnce(sketch::Host& host) {
-  host.poll();
-  for (int turn = 0; turn < 20000; ++turn) {
-    if (!host.compiling()) return true;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    host.poll();
-  }
-  return false;
-}
+using sketch::test::buildOnce;
 
 TEST(SketchShaderReload, AnAdoptedBuildShowsWhatItsShadersFoundWrong) {
   sigil::test::ScratchDir sketches("sigil_sketch_shader_adopted");
@@ -212,7 +178,8 @@ TEST(SketchShaderReload, AnAdoptedBuildShowsWhatItsShadersFoundWrong) {
   options.assetsDirectory = std::filesystem::temp_directory_path();
   options.sketchesDirectory = sketches.path;
   options.flagsFile = std::filesystem::temp_directory_path() / "no_such.rsp";
-  options.compiler = guestCompiler(sketches.path / "compiler.sh");
+  options.compiler = sketch::test::guestCompiler(sketches.path / "compiler.sh",
+                                                SIGIL_SKETCH_SHADER_GUEST);
   options.compiledIn = nullptr;
   options.clock = sigil::motion::ClockPolicy::Advance;
   sketch::Host host(std::move(options), sketch::test::fonts());

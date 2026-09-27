@@ -9,9 +9,7 @@
  */
 
 #include <include/core/SkRefCnt.h>
-#include <sigilmedia/core/Image.h>
 #include <sigilio/hub/Hub.h>
-#include <sigilmedia/video/Video.h>
 
 #include <filesystem>
 #include <initializer_list>
@@ -34,12 +32,15 @@ namespace sigil::sketch {
 /** THE FILES A SKETCH REACHES FOR that it did not generate.
  *
  *  The demo assets root mounts at `res://` and the sketches folder at
- *  `sketch://`, under which a sketch's own files stand. `image()` and
- *  `shader()` keep the forgiving contract a live-edited file wants — a
- *  magenta placeholder stands in for a missing or unreadable file and
- *  heals the moment one appears — and `hub()` opens the full resource
- *  surface (text, bytes, metadata probes, EXR layers, PSD) without the
- *  sketch ever touching the filesystem. */
+ *  `sketch://`, under which a sketch's own files stand. `hub()` is the
+ *  resource surface — `hub().load<media::Image>(uri)`, a video, a table,
+ *  text, bytes, metadata probes — with SigilMedia's and SigilData's
+ *  decoders on it, answering a sketch compiled into the host and one
+ *  compiled and loaded while it runs alike; a file a load found missing
+ *  or unreadable is watched, and `poll()` says when it appears.
+ *  `shader()` keeps the forgiving contract a live-edited program wants:
+ *  a magenta checker stands in for one that is missing or does not
+ *  compile. */
 class Assets {
  public:
   /** @p root mounts at `res://`; @p sketches, the directory the sketch
@@ -54,27 +55,9 @@ class Assets {
    *  that path and not under the sketches the build compiled. */
   void mountSketch(std::string_view key, std::filesystem::path directory);
 
-  /** The image at "res://<name>", cached by the hub. Never null: a
-   *  missing or undecodable file yields the placeholder until it
-   *  becomes loadable. */
-  std::shared_ptr<const sigil::media::Image> image(std::string_view name);
-
-  /** The video at "res://<name>", opened with @p options and cached by the
-   *  hub, a clip asked with other options being a clip of its own. Null
-   *  when the resource is missing or cannot be opened. The clip keeps only
-   *  a small cache of frames around its playhead. */
-  std::shared_ptr<const sigil::media::Video> video(
-      std::string_view name, const sigil::media::VideoOptions& options = {});
-
   /** The table at "res://<name>", decoded from whichever rectangular
    *  format the file is in, cached and reloaded by the hub. Null where
-   *  there is no such resource or no decoder answers for it.
-   *
-   *  A TYPED LOAD IS SPELLED HERE and not at the call site, because a
-   *  hot-reloaded sketch is its own image: the hub keys a decoder by
-   *  the asking image's type, and a sketch dylib's `data::Table` is not
-   *  the host's. Asked through this one function, a sketch reads its
-   *  data whether it was compiled in or swapped in while running. */
+   *  there is no such resource or no decoder answers for it. */
   std::shared_ptr<const sigil::data::Table> table(std::string_view name);
   /** A SQL store — a `.sqlite`, `.sqlite3`, `.db` or `.duckdb` file —
    *  opened in place, cached and reopened when the file changes. Null
@@ -121,12 +104,14 @@ class Assets {
    *  compiled under every name is kept. */
   void beginDeclaration();
 
-  /** The full resource hub (text/bytes/probe/EXR layers…) with the
-   *  sketch's assets directory mounted at "res://". */
+  /** The full resource hub (images, videos, text, bytes, probes, EXR
+   *  layers…) with the sketch's assets directory mounted at "res://":
+   *  `hub().load<media::Image>("res://ui/mark.png")`. */
   sigil::io::Hub& hub() { return m_hub; }
 
   /** Re-checks everything: returns true when a loaded resource changed
-   *  on disk OR a placeholder's file appeared (host re-runs setup). */
+   *  on disk OR a file a load or a shader found missing appeared (host
+   *  re-runs setup). */
   bool poll();
 
   const std::filesystem::path& root() const { return m_root; }
@@ -146,12 +131,7 @@ class Assets {
   std::filesystem::path m_root;
   std::filesystem::path m_sketches;
   sigil::io::Hub m_hub;
-  /** The names whose file was not there, still standing in. A sketch
-   *  asks for a handful of pictures, so the list is walked rather than
-   *  looked up. */
-  std::vector<std::string> m_placeholders;
   std::vector<HeldShader> m_shaders;
-  std::shared_ptr<const sigil::media::Image> m_placeholder;
   sk_sp<SkRuntimeEffect> m_placeholderShader;
 };
 

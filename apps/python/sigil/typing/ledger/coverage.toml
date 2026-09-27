@@ -44,9 +44,8 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "checked assets (`image`, `json`, `table`, `database`, `shader`, `hub`, `root`)"
+bound = "checked assets (`json`, `table`, `database`, `shader`, `hub`, `root`)"
 python = [
-  "sketch.Assets.image",
   "sketch.Assets.json",
   "sketch.Assets.table",
   "sketch.Assets.database",
@@ -82,10 +81,6 @@ python = [
   "sketch.CanvasSpecification",
   "sketch.SketchContext.key",
 ]
-
-[[section.surface.item]]
-native = "`Assets::video`"
-python = ["sketch.Assets.video"]
 
 [[section.surface.item]]
 native = "`sketch::Guest`"

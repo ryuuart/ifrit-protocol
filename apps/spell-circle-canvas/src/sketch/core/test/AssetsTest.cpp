@@ -1,6 +1,7 @@
 /** @file
- * The probe a sketch over fetched art answers its availability with:
- * what stands in the IO hub's cache, and what does not.
+ * What a sketch's files are through the host's assets: the probe a sketch
+ * over fetched art answers its availability with, and the pictures,
+ * clips, documents and recordings the hub loads and watches.
  */
 
 #include <gtest/gtest.h>
@@ -15,7 +16,10 @@
 #include <sigilio/source/Sink.h>
 #include <sigilio/advanced/Time.h>
 #include <sigilsketch/core/Assets.h>
+#include <sigilmedia/core/Image.h>
+#include <sigilmedia/image/Encode.h>
 #include <sigilmedia/video/Encoder.h>
+#include <sigilmedia/video/Video.h>
 
 #include <chrono>
 #include <cstddef>
@@ -135,9 +139,10 @@ TEST(Assets, AVideoIsCachedByTheHubAndReopenedAfterItsFileChanges) {
       .cachedFrames = 2,
       .hardware = sigil::media::HardwarePreference::Disabled};
   const std::shared_ptr<const sigil::media::Video> first =
-      assets.video("clip.mp4", options);
+      assets.hub().load<sigil::media::Video>("res://clip.mp4", options);
   ASSERT_TRUE(first);
-  EXPECT_EQ(assets.video("clip.mp4", options), first);
+  EXPECT_EQ(assets.hub().load<sigil::media::Video>("res://clip.mp4", options),
+            first);
 
   const std::vector<std::byte> secondBytes = solidVideo(SK_ColorBLUE);
   ASSERT_FALSE(secondBytes.empty());
@@ -153,9 +158,33 @@ TEST(Assets, AVideoIsCachedByTheHubAndReopenedAfterItsFileChanges) {
   ASSERT_TRUE(assets.poll());
 
   const std::shared_ptr<const sigil::media::Video> second =
-      assets.video("clip.mp4", options);
+      assets.hub().load<sigil::media::Video>("res://clip.mp4", options);
   ASSERT_TRUE(second);
   EXPECT_NE(second, first);
+}
+
+/** A picture a sketch asks for before its file is there: nothing, then a
+ *  poll that says the file appeared — the host's cue to set the sketch up
+ *  again — and the picture. */
+TEST(Assets, APictureAskedForBeforeItsFileIsThereIsAChangeWhenItAppears) {
+  sigil::test::ScratchDir root("sketch_image_asset");
+  Assets assets(root.path);
+  EXPECT_EQ(assets.hub().load<sigil::media::Image>("res://mark.png"), nullptr);
+  EXPECT_FALSE(assets.poll());
+
+  SkBitmap bitmap;
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(12, 7));
+  bitmap.eraseColor(SK_ColorGREEN);
+  const std::vector<std::byte> png =
+      sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
+  ASSERT_FALSE(png.empty());
+  ASSERT_TRUE(sigil::io::writeBytes(root.path / "mark.png", png.data(),
+                                    png.size()));
+  EXPECT_TRUE(assets.poll());
+  const auto image = assets.hub().load<sigil::media::Image>("res://mark.png");
+  ASSERT_NE(image, nullptr);
+  EXPECT_EQ(image->size().width(), 12);
+  EXPECT_EQ(image->size().height(), 7);
 }
 
 /** A recording standing among a sketch's own files, replayed at the URI

@@ -528,7 +528,7 @@ struct Cloth {
 **A live readout that is a retained tree is a guest, and the guest IS
 the slot.** What `slot()` and `Composer::renderSlot` are to a described
 scene — a part updated without re-describing the rest —
-`pen.element(tree, box)` is to a pen program: the pen keeps one composer
+`pen.element(tree, x, y, w, h)` is to a pen program: the pen keeps one composer
 per CALL SITE, so the tree handed in each frame is reconciled against
 what that site already holds and its layout, its shaping and its caches
 carry. Nothing has to be declared for it, and a loop that paints several
@@ -838,13 +838,17 @@ and settings stand in such a file reads them in `setup()`, and an edit to
 the file re-runs setup without a rebuild, which is the live-editing door
 for content. A key that is not there reads as a null value, so the sketch
 states its fallback where it reads.
-`image()` answers a `media::Image` — still or animated, read with
+`hub()` opens the full resource surface without the sketch ever touching
+the filesystem, with SigilMedia's and SigilData's decoders on it:
+`ctx.assets.hub().load<sigil::media::Image>(ctx.local("mark.png"))`
+answers a `media::Image` — still or animated, read with
 `frameAt(elapsed)` and shown by `compose::image()`, a pen's `image()` or
-a `material::Texture` — and keeps the
-forgiving contract a live-edited file wants — a magenta placeholder
-stands in for a missing or undecodable file and heals the moment one
-appears, re-running the sketch's declaration — and `hub()` opens the
-full resource surface without the sketch ever touching the filesystem.
+a `material::Texture` — whether the sketch was compiled into the host or
+compiled and loaded while it runs, because the hub finds a decoder by
+the name its meaning declares and not by the C++ type's identity, which
+the two images need not share. A load answers null for a file that is
+missing or does not decode, and the hub watches it: the poll that sees
+it appear or change re-runs the sketch's declaration, which asks again.
 `shader()` is the door for a shader a sketch carries as a file: an `.sksl`
 file beside it holding one SkSL program, `half4 main(float2 xy)` with the
 uniforms and child shaders it declares, compiled into the
@@ -852,8 +856,8 @@ uniforms and child shaders it declares, compiled into the
 `material::skia::program` and a pen's shader builder all take —
 `material::skia::sksl(ctx.assets.shader(ctx.local("aurora.sksl")))`. One file is one
 compiled effect however often it is asked for, and an edit to it recompiles
-and re-runs setup without a rebuild. It keeps the image door's forgiving
-contract: an edit that does not compile leaves the sketch drawing with the
+and re-runs setup without a rebuild. It keeps a forgiving contract a
+picture does not need: an edit that does not compile leaves the sketch drawing with the
 last program that did, or a magenta checker before any has — a fill, which
 as an effect over a layer filters nothing — and the compiler's message,
 naming the file, is the host's error log until the file compiles or the
@@ -863,10 +867,10 @@ with a shader is a directory sketch, the `.sksl` beside `<stem>.cpp`. A
 material recipe's body is not a whole program — it reads the declarations
 the recipe adds — so it stands in a file the same way and is read as text,
 `ctx.assets.hub().text(ctx.local("burn.sksl"))`, for `Recipe::body`.
-`video()` is `hub.load<sigil::media::Video>` with the options given: one
-clip per URI and options, cached and reopened by the hub when the source
-changes. A video keeps only its small decoded-frame cache; the asset store
-does not expand the whole timeline into images.
+`hub().load<sigil::media::Video>(uri, options)` is one clip per URI and
+options, cached and reopened by the hub when the source changes. A video
+keeps only its small decoded-frame cache; the hub does not expand the
+whole timeline into images.
 
 ### A resource that keeps arriving
 

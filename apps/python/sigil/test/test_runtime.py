@@ -103,6 +103,7 @@ class Queries:
             """import builtins
 from sigil.compose import box
 from sigil.io import ResourceInfo
+from sigil.media import Image
 from sigil.sketch import sketch
 
 
@@ -115,7 +116,7 @@ class Resources:
         stored = hub.read(uri)
         info = hub.probe(ResourceInfo, uri)
         names = hub.select(ctx.local("*.txt"))
-        missing = ctx.assets.image(ctx.local("missing.png"))
+        missing = hub.load(Image, ctx.local("missing.png"))
         builtins._sigil_runtime = (ctx.assets, hub, text, stored, info, names, missing)
         assert hub.text(ctx.local("absent.txt")) is None
         ctx.render(box())
@@ -127,7 +128,7 @@ class Resources:
         self.assertEqual(stored, b"resource value")
         self.assertEqual(info.byteSize, len(stored))
         self.assertEqual(len(names), 1)
-        self.assertGreater(image.size()[0], 0)
+        self.assertIsNone(image)
         with self.assertRaisesRegex(RuntimeError, "closed session"):
             assets.hub()
         with self.assertRaisesRegex(RuntimeError, "closed session"):

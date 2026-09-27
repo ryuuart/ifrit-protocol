@@ -2,15 +2,21 @@
 
 /** @file
  * What both halves of the live host's tests hold: a sketch this binary
- * already carries, and a file on disk for a host to watch it through.
+ * already carries, a file on disk for a host to watch it through, and
+ * the stub compiler a case adopts a guest image built beside the test
+ * binary with.
  */
 
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Registry.h>
+#include <sigilsketch/live/Host.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <string_view>
+#include <thread>
 
 #include "ScratchDir.h"
 
@@ -81,5 +87,44 @@ struct Watched {
   sigil::test::ScratchDir dir;
   std::filesystem::path path;
 };
+
+/** A COMPILER THAT BUILDS NOTHING, written to @p script: an object is an
+ *  empty file and the library is @p guest, a guest image built beside
+ *  this binary, copied to where the link names it. While a file named
+ *  `refuse` stands beside the script it fails instead, saying so, as a
+ *  build that did not compile. */
+inline std::string guestCompiler(const std::filesystem::path& script,
+                                 std::string_view guest) {
+  std::ofstream(script) << "if [ -e \"$(dirname \"$0\")/refuse\" ]; then\n"
+                           "  echo 'the stub compiler refused this build'\n"
+                           "  exit 1\n"
+                           "fi\n"
+                           "prev=\n"
+                           "for arg in \"$@\"; do\n"
+                           "  if [ \"$prev\" = \"-o\" ]; then\n"
+                           "    case \"$arg\" in\n"
+                           "      *.dylib) cp '"
+                        << guest
+                        << "' \"$arg\" ;;\n"
+                           "      *) : > \"$arg\" ;;\n"
+                           "    esac\n"
+                           "  fi\n"
+                           "  prev=$arg\n"
+                           "done\n"
+                           "exit 0\n";
+  return "/bin/sh " + script.string();
+}
+
+/** One build of @p host run to its adoption, in a bounded count of turns
+ *  so a build that never finishes fails the case instead of hanging it. */
+[[nodiscard]] inline bool buildOnce(Host& host) {
+  host.poll();
+  for (int turn = 0; turn < 20000; ++turn) {
+    if (!host.compiling()) return true;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    host.poll();
+  }
+  return false;
+}
 
 }  // namespace sigil::sketch::test
