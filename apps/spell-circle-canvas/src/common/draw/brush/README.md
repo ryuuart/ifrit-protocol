@@ -102,7 +102,7 @@ so pens drawing through one recorder share its retained texture.
 
 | word | what it is |
 | --- | --- |
-| `Polygon` | vertices, the whole of its state; `intersect(line)` (`path::edgeCrossings`, nearest the line's start first) and `translated`. It carries no verbs: paint it through an engine, or pass its vertices to `hatch`, `wash`, `mass` or `paint` with a tool |
+| `Polygon` | vertices, the whole of its state; `intersect(from, to)` (`path::edgeCrossings`, nearest `from` first) and `translated`. It carries no verbs: paint it through an engine, or pass its vertices to `hatch`, `wash`, `mass` or `paint` with a tool |
 | `Plot` | a path by turns: `addSegment(angle, length, pressure)`, `endPlot`, `rotate`; `angle(distance)` and `pressure(distance)`; `path(origin, spacing, curvature, scale)` and `polygon(x, y, …)` place it anywhere at any scale. `fromStroke` records a stroke's turns relative to its first sample. A plot is always relative |
 | `PlacedPlot` | a plot and the origin it was first drawn at — what the engine's `circle`, `arc`, `spline` and `endShape` answer |
 | `Position` | a cursor: `moveTo(direction, length, step)` walks with its field's answer added to the direction, `plotTo(plot, length, step, scale)` walks a plot's headings; `plotted()` accumulates; with bounds it stops once it has left them by half their size |

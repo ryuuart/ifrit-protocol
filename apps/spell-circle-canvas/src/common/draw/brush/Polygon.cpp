@@ -12,10 +12,9 @@
 
 namespace sigil::draw::brush {
 
-std::vector<SkPoint> Polygon::intersect(const Line& line) const {
+std::vector<SkPoint> Polygon::intersect(SkPoint from, SkPoint to) const {
   const std::vector<glm::vec2> hits = geometry::path::edgeCrossings(
-      ring(vertices), geometry::path::fromSk(line.from),
-      geometry::path::fromSk(line.to));
+      ring(vertices), geometry::path::fromSk(from), geometry::path::fromSk(to));
   std::vector<SkPoint> result;
   result.reserve(hits.size());
   for (const glm::vec2 hit : hits) result.push_back(geometry::path::toSk(hit));

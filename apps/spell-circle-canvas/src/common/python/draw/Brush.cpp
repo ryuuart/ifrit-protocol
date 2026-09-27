@@ -291,9 +291,6 @@ void bindBrush(py::module_& root) {
   auto depositOptions = record<brush::DepositOptions>(module, "DepositOptions");
   field(depositOptions, "start", &brush::DepositOptions::start);
   field(depositOptions, "end", &brush::DepositOptions::end);
-  auto line = record<brush::Line>(module, "Line");
-  field(line, "from", &brush::Line::from);
-  field(line, "to", &brush::Line::to);
   auto vortex = record<brush::Vortex>(module, "Vortex");
   field(vortex, "center", &brush::Vortex::center);
   field(vortex, "direction", &brush::Vortex::direction);
@@ -414,11 +411,6 @@ void bindBrush(py::module_& root) {
     return fields;
   });
 
-  line.def(py::init([](py::handle start, py::handle end) {
-             return brush::Line{point(start), point(end)};
-           }),
-           py::arg("start"), py::arg("end"));
-  field(line, "from_", &brush::Line::from);
 
   py::class_<brush::Polygon>(module, "Polygon")
       .def(py::init<>())
@@ -432,7 +424,12 @@ void bindBrush(py::module_& root) {
           [](brush::Polygon& value, py::iterable vertices) {
             value.vertices = points(vertices);
           })
-      .def("intersect", &brush::Polygon::intersect, py::arg("line"))
+      .def(
+          "intersect",
+          [](const brush::Polygon& polygon, py::handle start, py::handle end) {
+            return polygon.intersect(point(start), point(end));
+          },
+          py::arg("start"), py::arg("end"))
       .def("translated", &brush::Polygon::translated, py::arg("x"),
            py::arg("y"))
       .def("empty", &brush::Polygon::empty)

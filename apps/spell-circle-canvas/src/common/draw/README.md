@@ -351,6 +351,17 @@ Its chapter is `brush/README.md` beside the code: the five parts, the
 stock tools, the dynamics a stylus drives, the surfaces, and the brush
 formats a tool is imported from and written back to.
 
+**The brush is the LINE vocabulary; SigilCompose's brush tier is the MARK
+vocabulary.** A tool, its dabs, a stroke and the interiors a polygon
+receives are laid down here, on a pen, by a hand. What SigilCompose calls
+a brush, a line, a style or a decoration is a comparable value it places
+across an element's outline. The two namespaces stay
+apart and no function is spelled in both. Three words are shared with a
+different meaning: here `Hatch` lays a tool's marks along SigilGeometry's
+hatch pattern, `Wash` is a wet pigment deposit, and `Shape` is the artwork
+a tool stamps; SigilCompose's are a stroked hatch, a material flood and a
+node's silhouette. A segment here is its two points, not a type.
+
 ## Not provided
 
 p5 verbs and variables a pasted sketch has to replace, stated so nobody

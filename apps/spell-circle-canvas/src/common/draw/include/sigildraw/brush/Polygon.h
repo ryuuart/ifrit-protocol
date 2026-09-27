@@ -22,16 +22,6 @@ struct Tool;
 struct Hatch;
 struct Mass;
 
-/** A straight segment between two points, as the interiors ask about
- *  one: a hatch line, a mass sweep and a polygon intersection all name
- *  the same pair. */
-struct Line {
-  SkPoint from{0, 0};
-  SkPoint to{0, 0};
-
-  bool operator==(const Line&) const = default;
-};
-
 /** Stored polygon geometry. The vertices are the whole of its state and
  *  every edge is derived from them when asked; what paints the shape is
  *  an engine or a tool verb taking those vertices, never the polygon
@@ -42,8 +32,9 @@ struct Polygon {
 
   std::vector<SkPoint> vertices;
 
-  /** Where @p line crosses the edges, nearest its start first. */
-  [[nodiscard]] std::vector<SkPoint> intersect(const Line& line) const;
+  /** Where the segment from @p from to @p to crosses the edges, nearest
+   *  @p from first. */
+  [[nodiscard]] std::vector<SkPoint> intersect(SkPoint from, SkPoint to) const;
   [[nodiscard]] Polygon translated(float x, float y) const;
 
   [[nodiscard]] bool empty() const { return vertices.size() < 3; }

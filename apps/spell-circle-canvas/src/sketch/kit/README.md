@@ -388,7 +388,7 @@ off — which turns the card into a row with the lines taking the rest of
 the width and the two ranged against each other at their ENDS, so the
 last note sits on the card's last line. `TitleCard::key` names the parts
 (`<key>-eyebrow`, `-title`, `-subtitle`, `-note0`…) the way `Page::key`
-and `Row::key` do.
+does.
 
 **THE CARD'S LINES ARE SET IN THE FAMILY THE SHEET IN FORCE SETS.** Each
 line is its document role — `eyebrow`, `h1`, `lead`, `caption` — with a

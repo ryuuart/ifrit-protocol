@@ -736,6 +736,36 @@ What it refuses to be:
   and performs **no** conversion, because a colour-managed surface would
   be a breaking change rather than a setting.
 
+### Marks here, lines in SigilDraw, and the words both use
+
+**Compose is the MARK vocabulary; SigilDraw's brush is the LINE
+vocabulary.** What the brush tier's `compose::brush`, `lines::`,
+`styles::` and `decorations::` hold is a comparable value placed across a
+node's outline — a rule, a hatch, a wash, a border — that prunes, caches
+and cascades like any other declaration. What SigilDraw's brush holds is the hand: a tool, the
+dabs it deposits, the strokes and interiors it lays down on a pen. The
+two namespaces stay apart and no function is spelled in both, and where
+a mark wants a pattern's geometry it reads Geometry's.
+
+Four words mean different things in neighbouring libraries, and each is
+kept because each is the right word where it stands:
+
+- `Hatch` — one pattern, `geometry::shapes::Hatch` (spacing, angle,
+  taper, origin, inset, cross); `lines::Hatch` strokes it in an ink at a
+  width across a node's outline, and SigilDraw's brush `Hatch` lays a
+  tool's marks along it with jitter.
+- `Line` — `lines::Line` is a patterned line value stroked along a run
+  (casings, waves, ties, markers, dashes); `kit::Line` is a rule element,
+  a box of one small dimension in the ink. SigilDraw names no line type:
+  a segment there is its two points.
+- `Wash` — `compose::Wash` floods a node's outline with a material
+  through a blend mode; SigilDraw's brush `Wash` is a wet pigment
+  deposit inside a polygon.
+- `Shape` — `compose::Shape` is a node's silhouette, an outline answered
+  for its box; `material::sdf::Shape` is the signed-distance silhouette a
+  material draws; SigilDraw's brush `Shape` is the artwork a tool stamps
+  at every dab.
+
 ---
 
 ### Where Skia still shows

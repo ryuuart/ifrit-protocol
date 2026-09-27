@@ -81,7 +81,7 @@ class Brush(unittest.TestCase):
         vertical = brush.trace((0, 0), 10, 2, 0, custom)
         self.assertAlmostEqual(vertical[-1].position.y, 10, places=5)
         polygon = brush.Polygon([(0, 0), (10, 0), (10, 10), (0, 10)])
-        crossings = polygon.intersect(brush.Line((-5, 5), (15, 5)))
+        crossings = polygon.intersect((-5, 5), (15, 5))
         self.assertEqual(len(crossings), 2)
         self.assertAlmostEqual(crossings[0].x, 0)
         self.assertAlmostEqual(crossings[1].x, 10)
