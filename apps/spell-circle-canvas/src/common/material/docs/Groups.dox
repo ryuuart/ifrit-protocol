@@ -20,9 +20,10 @@
 /** @defgroup material-texture Textures
  *  An image and how it is sampled, as a comparable value filling a
  *  recipe's slot: the texture itself, the folders an authoring tool
- *  exports by role, the environment a reflective surface sees, the bevel
- *  normals an outline implies, and the atlas a sheet is cut into
- *  (texture/Texture.h, texture/TextureSet.h). */
+ *  exports by role, the environment a reflective surface sees, and the
+ *  atlas a sheet is cut into (texture/Texture.h, texture/TextureSet.h);
+ *  the bevel normals an outline implies are the Skia executor's
+ *  (skia/Bevel.h). */
 /** @defgroup material-field Fields
  *  Surfaces evaluated per pixel rather than baked as a tile: the halftone
  *  ramp, Perlin noise, luminance grain, the tube overlay and the ripple
