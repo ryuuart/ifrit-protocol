@@ -132,9 +132,9 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
   const kit::Theme& house = kit::houseTheme();
   {
     const compose::StyleSheet sheet = house.styleSheet();
-    // The eight registers, `readout`, and the eight a chart's parts are
-    // dressed in.
-    EXPECT_EQ(sheet.size(), 17u);
+    // The eight registers, `readout`, the eight a chart's parts are
+    // dressed in, and the three a verdict names.
+    EXPECT_EQ(sheet.size(), 20u);
     ASSERT_NE(ruleFor(sheet, "eyebrow"), nullptr);
     EXPECT_EQ(ruleFor(sheet, "eyebrow")->type(), house.font(house.type.eyebrow))
         << "a register a sheet sets inside its content names no colour";
@@ -157,13 +157,15 @@ TEST(SketchKitTheme, TheRegistersStyleDocumentRoles) {
     ASSERT_NE(ruleFor(sheet, ".readout"), nullptr);
     EXPECT_EQ(ruleFor(sheet, ".readout")->type(),
               house.font(house.type.captionLabel, house.palette.figure));
+    ASSERT_NE(ruleFor(sheet, ".checkFail"), nullptr);
+    EXPECT_EQ(ruleFor(sheet, ".checkFail")->type().color, house.palette.fail);
 
     compose::StyleSheet own =
         house.styleSheet() +
         compose::StyleSheet{compose::rule(".value").font({.size = 13.0f})};
-    EXPECT_EQ(own.size(), 18u) << "the registers and the sketch's own";
+    EXPECT_EQ(own.size(), 21u) << "the registers and the sketch's own";
     EXPECT_NE(ruleFor(own, ".value"), nullptr);
-    EXPECT_EQ(house.styleSheet().size(), 17u) << "a copy, not the theme's";
+    EXPECT_EQ(house.styleSheet().size(), 20u) << "a copy, not the theme's";
   }
 }
 
