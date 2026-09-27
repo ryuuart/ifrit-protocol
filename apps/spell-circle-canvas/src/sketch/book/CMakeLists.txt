@@ -133,6 +133,9 @@ sigil_test(sketch_test
   LIBRARIES SigilSketchRegistryAgent SigilProtocolEndpoint SigilIOHub Qt6::Core
   DEFINITIONS SIGIL_SKETCHBOOK_VERSION="${PROJECT_VERSION}"
   SUITES SketchbookInspection LABELS protocol)
+# The test includes Qt headers without moc, so it turns Qt's keyword
+# macros off itself; the libraries own identifiers they would rewrite.
+target_compile_definitions(sketch_test PRIVATE QT_NO_KEYWORDS)
 
 # WHAT A FRAME OF THE PANE COSTS AS THE READER ZOOMS, over a fixture
 # scene the bench declares itself, so no sketch the owner edits moves it

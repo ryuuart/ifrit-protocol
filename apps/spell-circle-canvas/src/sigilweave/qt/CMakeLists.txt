@@ -8,3 +8,7 @@ sigil_library(SigilWeaveQt
   HEADERS SigilWeaveQt.h
   INTERFACE Qt6::Gui unofficial::skia::skia SigilWeaveParagraph
             SigilWeaveQuery)
+
+# Qt's keyword macros would rewrite library identifiers spelled `emit` or
+# `slots` in every consumer's translation unit.
+target_compile_definitions(SigilWeaveQt INTERFACE QT_NO_KEYWORDS)

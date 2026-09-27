@@ -11,6 +11,8 @@
 #   sigil_finalize_tests()   the ctest entries, once every directory has
 #                            contributed
 #   sigil_qt_target()        turns Qt's source scanning on for one target
+#                            and Qt's keyword macros off for it and its
+#                            consumers
 #   sigil_header_self_test() compiles every public header first and alone
 #   sigil_doc_probes()       compiles the names a library's README spells
 #                            against the headers that own them
@@ -401,9 +403,18 @@ endfunction()
 #   (CMAKE_AUTOMOC in the top-level file) and named here by the targets
 #   that need it. Call it right after the target is created and BEFORE
 #   qt_add_qml_module(), which registers its types out of moc's output.
+#
+#   It also defines QT_NO_KEYWORDS, publicly: Qt's lowercase `slots`,
+#   `signals`, `emit` and `foreach` are macros that rewrite any identifier
+#   of that spelling in a translation unit that includes a Qt header, and
+#   the libraries own names such as `Recipe::slots()` and `Filter::emit()`.
+#   Qt code in this tree spells `Q_SLOTS`, `Q_SIGNALS` and `Q_EMIT`. A
+#   target that includes Qt headers without needing moc defines
+#   QT_NO_KEYWORDS itself.
 function(sigil_qt_target)
   foreach(target IN LISTS ARGV)
     set_target_properties(${target} PROPERTIES AUTOMOC ON)
+    target_compile_definitions(${target} PUBLIC QT_NO_KEYWORDS)
   endforeach()
 endfunction()
 
