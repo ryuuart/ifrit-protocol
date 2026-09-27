@@ -16,7 +16,8 @@
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/skia/Bevel.h>
+#include <sigilmaterial/skia/Texture.h>
 
 #include <utility>
 
@@ -30,7 +31,7 @@ const EnvironmentMap& studio() {
 }
 
 void SurfaceBuild(benchmark::State& state) {
-  const Texture normals = bevelNormals(SkPath::Circle(40, 40, 30), 6);
+  const Texture normals = skia::bevelNormals(SkPath::Circle(40, 40, 30), 6);
   for ([[maybe_unused]] auto iteration : state) {
     Material m = state.range(0) == 0 ? kit::gold(normals, studio())
                                      : kit::chrome(normals, studio());
@@ -40,7 +41,7 @@ void SurfaceBuild(benchmark::State& state) {
 BENCHMARK(SurfaceBuild)->Arg(0)->Arg(1);
 
 void SurfaceShader(benchmark::State& state) {
-  const Texture normals = bevelNormals(SkPath::Circle(40, 40, 30), 6);
+  const Texture normals = skia::bevelNormals(SkPath::Circle(40, 40, 30), 6);
   const Material m = kit::gold(normals, studio());
   for ([[maybe_unused]] auto iteration : state) {
     sk_sp<SkShader> s = skia::shader(m, {});
@@ -54,7 +55,7 @@ void BadgeFill(benchmark::State& state) {
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
       SkImageInfo::MakeN32Premul((int)radius * 2 + 40, (int)radius * 2 + 40));
   const SkPath shape = SkPath::Circle(radius + 20, radius + 20, radius);
-  const Material m = kit::chrome(bevelNormals(shape, 8), studio());
+  const Material m = kit::chrome(skia::bevelNormals(shape, 8), studio());
   for ([[maybe_unused]] auto iteration : state)
     skia::fill(*surface->getCanvas(), shape, m);
   state.SetItemsProcessed(state.iterations() *

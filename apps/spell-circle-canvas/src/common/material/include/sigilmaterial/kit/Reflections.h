@@ -14,7 +14,6 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <glm/vec2.hpp>

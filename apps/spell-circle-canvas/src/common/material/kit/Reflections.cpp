@@ -19,8 +19,8 @@ namespace sigil::material::kit {
 namespace {
 
 glm::vec2 sizeOf(const EnvironmentMap& env) {
-  const SkISize s = env.size();
-  return {(float)std::max(s.width(), 1), (float)std::max(s.height(), 1)};
+  const glm::ivec2 s = env.size();
+  return {(float)std::max(s.x, 1), (float)std::max(s.y, 1)};
 }
 
 const std::shared_ptr<const Recipe>& goldRecipe() {

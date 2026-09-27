@@ -26,7 +26,8 @@
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/skia/Bevel.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialKit.h>
 
@@ -46,7 +47,7 @@ TEST(Surfaces, RecipesCompileAndShade) {
   const EnvironmentMap env = kit::studioEnvironment(128);
   ASSERT_TRUE(env.valid());
   const SkPath shape = SkPath::Circle(40, 40, 30);
-  const Texture normals = bevelNormals(shape, SkIRect::MakeWH(80, 80), 6);
+  const Texture normals = skia::bevelNormals(shape, SkIRect::MakeWH(80, 80), 6);
   ASSERT_TRUE(normals.valid());
   EXPECT_TRUE(skia::shader(kit::gold(normals, env), {}));
   EXPECT_TRUE(skia::shader(kit::chrome(normals, env), {}));
@@ -57,12 +58,12 @@ TEST(Surfaces, RecipesCompileAndShade) {
     backdrop = s->makeImageSnapshot();
   }
   EXPECT_TRUE(
-      skia::shader(kit::glass(normals, env, Texture::of(backdrop)), {}));
+      skia::shader(kit::glass(normals, env, Texture(backdrop)), {}));
 }
 
 TEST(Surfaces, BuildersFillTheDeclaredSlots) {
   const EnvironmentMap env = kit::studioEnvironment(64);
-  const Texture normals = bevelNormals(SkPath::Circle(30, 30, 20), 5);
+  const Texture normals = skia::bevelNormals(SkPath::Circle(30, 30, 20), 5);
   kit::ChromeParameters parameters;
   parameters.roughness = 0.5f;
   const Material m = kit::chrome(normals, env, parameters);
@@ -72,8 +73,8 @@ TEST(Surfaces, BuildersFillTheDeclaredSlots) {
   // Roughness picked the blurred level, not the base.
   const auto* envTexture = dynamic_cast<const Texture*>(m.leaf("env"));
   ASSERT_NE(envTexture, nullptr);
-  EXPECT_EQ(envTexture->image().get(), env.image(0.5f).get());
-  EXPECT_NE(envTexture->image().get(), env.image(0).get());
+  EXPECT_EQ(skia::image(*envTexture).get(), skia::image(env.texture(0.5f)).get());
+  EXPECT_NE(skia::image(*envTexture).get(), skia::image(env.texture(0)).get());
   // Same inputs, equal materials: what lets a scene prune a repainted
   // badge.
   EXPECT_EQ(m, kit::chrome(normals, env, parameters));
@@ -87,7 +88,7 @@ TEST(Surfaces, FillShadesInsideTheShapeOnly) {
   const EnvironmentMap env = kit::studioEnvironment(128);
   const SkPath shape = SkPath::Circle(60, 60, 40);
   skia::fill(*surface->getCanvas(), shape,
-             kit::chrome(bevelNormals(shape, 8), env));
+             kit::chrome(skia::bevelNormals(shape, 8), env));
   SkBitmap bm;
   bm.allocPixels(surface->imageInfo());
   ASSERT_TRUE(surface->readPixels(bm.pixmap(), 0, 0));
@@ -102,9 +103,9 @@ TEST(Patterns, Girih8IsTheRealStarAndCross) {
   const pattern::Tile tile = kit::girih8(16);
   // s = a(1+sqrt 2): the tile is square and the khatam sits at its centre.
   const float s = 16.0f * (1.0f + 1.41421356f);
-  EXPECT_NEAR(tile.size().width(), s, 1e-3f);
-  EXPECT_NEAR(tile.size().height(), s, 1e-3f);
-  sk_sp<SkImage> img = tile.image();
+  EXPECT_NEAR(tile.size().x, s, 1e-3f);
+  EXPECT_NEAR(tile.size().y, s, 1e-3f);
+  sk_sp<SkImage> img = skia::image(tile.texture());
   ASSERT_TRUE(img);
   SkBitmap bm;
   bm.allocPixels(SkImageInfo::MakeN32Premul(img->width(), img->height()));
@@ -129,11 +130,11 @@ TEST(Patterns, Girih8ContactAngleSharpensTheStar) {
   const auto reach = [&](float contactDeg, float strapWidth = 0,
                          float edge = 40) {
     const pattern::Tile tile = kit::girih8(edge, pal, strapWidth, contactDeg);
-    sk_sp<SkImage> img = tile.image();
+    sk_sp<SkImage> img = skia::image(tile.texture());
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(img->width(), img->height()));
     img->readPixels(nullptr, bm.pixmap(), 0, 0);
-    const float R = tile.size().width() / 2;
+    const float R = tile.size().x / 2;
     const auto isStar = [&](SkColor c) {
       return std::abs((int)SkColorGetR(c) -
                       (int)std::lround(pal.star.r * 255)) < 8 &&
@@ -161,7 +162,7 @@ TEST(Patterns, Girih8ContactAngleSharpensTheStar) {
   EXPECT_NEAR(reach(45, 1.0f, 200).first, 0.7654f, 0.02f);
   // The default IS the classic panel, pixel for pixel.
   const pattern::Tile plain = kit::girih8(40, pal);
-  sk_sp<SkImage> img = plain.image();
+  sk_sp<SkImage> img = skia::image(plain.texture());
   SkBitmap defaulted;
   defaulted.allocPixels(
       SkImageInfo::MakeN32Premul(img->width(), img->height()));

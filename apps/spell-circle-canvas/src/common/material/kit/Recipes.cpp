@@ -14,12 +14,12 @@
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/skia/Bevel.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 
 namespace sigil::material::kit {
@@ -32,14 +32,14 @@ Texture stand(SkColor color) {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
   if (!s) return {};
   s->getCanvas()->clear(color);
-  return Texture::of(s->makeImageSnapshot());
+  return Texture(s->makeImageSnapshot());
 }
 
 }  // namespace
 
 std::vector<Material> everyRecipe() {
   const SkPath shape = SkPath::Circle(20, 20, 16);
-  const Texture normals = bevelNormals(shape, 5);
+  const Texture normals = skia::bevelNormals(shape, 5);
   const EnvironmentMap env = kit::studioEnvironment(64);
   const SkRect bounds = SkRect::MakeWH(64, 24);
   // A time other than zero, because a body whose motion is folded away at

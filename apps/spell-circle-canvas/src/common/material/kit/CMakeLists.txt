@@ -24,7 +24,8 @@ sigil_library(SigilMaterialKit
           Recipes.h Reflections.h TextPaint.h
   PUBLIC SigilMaterialField SigilMaterialPattern SigilMaterialColor SigilMaterialMask
          SigilMaterialSurface
-         Boost::container)
+         Boost::container
+  PRIVATE SigilMaterialSkia)
 sigil_shader_sources(SigilMaterialKit
   DIR ${SIGIL_MATERIAL_KIT_SHADER_DIR} NAMESPACE sigil::material::kit)
 

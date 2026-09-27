@@ -8,6 +8,7 @@
 
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilmaterial/skia/Painted.h>
 
 #include <algorithm>
 #include <cmath>
@@ -202,14 +203,14 @@ pattern::Tile girih8(float edge, GirihPalette palette, float strapWidth,
   // been.
   if (std::abs(theta - 45.0f) < 1e-3f)
     return pattern::Tile::of({s, s},
-                             [a, s, w, palette](SkCanvas& c, SkSize, uint32_t) {
+                             skia::painted([a, s, w, palette](SkCanvas& c, SkSize, uint32_t) {
                                classic(c, a, s, w, palette);
-                             });
+                             }));
   const float radians = theta * kPi / 180.0f;
   return pattern::Tile::of(
-      {s, s}, [a, s, w, radians, palette](SkCanvas& c, SkSize, uint32_t) {
+      {s, s}, skia::painted([a, s, w, radians, palette](SkCanvas& c, SkSize, uint32_t) {
         hankin(c, a, s, w, radians, palette);
-      });
+      }));
 }
 
 }  // namespace sigil::material::kit
