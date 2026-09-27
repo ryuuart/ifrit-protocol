@@ -14,7 +14,6 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmotion/ease/Ease.h>
@@ -24,6 +23,8 @@
 
 #include <algorithm>
 #include <initializer_list>
+
+#include "Board.h"
 
 #include "Joinery.h"
 #include "ShopDrawing.h"
@@ -302,13 +303,13 @@ struct KumikoAsanoha {
     // reads amber rather than grey: the formation all wear and no tooth, the fibre all
     // tooth drawn out into strands and no wear.
     formation = material::Paint::recipe(
-        material::kit::board({.paint = hexColor(0xFFEFD8),
+        kumiko_asanoha::board({.paint = hexColor(0xFFEFD8),
                               .tooth = 0.0f,
                               .wear = 0.42f,
                               .wearScale = 0.011f,
                               .seed = 5}));
     fibre = material::Paint::recipe(
-        material::kit::board({.paint = hexColor(0xFFF3E4),
+        kumiko_asanoha::board({.paint = hexColor(0xFFF3E4),
                               .tooth = 0.4f,
                               .toothScale = 0.06f,
                               .stretch = 4.0f,

@@ -20,7 +20,6 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/field/Crt.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -31,6 +30,8 @@
 #include <cmath>
 #include <numbers>
 #include <string>
+
+#include "CrtBeam.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -376,7 +377,7 @@ struct LainNavi {
    *  at its own 4.42 px pitch. */
   static Filter tube() {
     return Filter::phosphorBloom(8, 0.45f, 0.40f, 0.5f)
-        .then(Filter::of(material::field::crtBeam(
+        .then(Filter::of(lain_navi::crtBeam(
             {.uBounds = {0, 0, kWidth, kHeight},
              .uScanPitch = 4.42f,
              .uRaster = 0.45f,

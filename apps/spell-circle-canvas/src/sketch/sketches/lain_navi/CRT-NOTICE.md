@@ -1,7 +1,6 @@
 # CRT shader attribution
 
-`field/shaders/CrtBeam.sksl`, `field/shaders/CrtBloom.sksl` and
-`field/shaders/CrtGlass.sksl` adapt the curvature, RGB spread and
+The beam body in `CrtBeam.h` adapts the curvature, RGB spread and
 scanline rasterization from cool-retro-term by Filippo Scognamiglio and
 contributors:
 
@@ -13,7 +12,6 @@ contributors:
 The adaptation uses SkSL child shaders, explicit local bounds and time,
 a bloom taken from a second child the executor fills with the layer
 blurred, black outside the curved screen, and procedural noise. It
-splits the beam, the light and the glass into three recipes a caller
-may take one at a time. It preserves input colour rather than applying
+takes the beam alone, run as a filter over the study's frame. It preserves input colour rather than applying
 a terminal palette. It does not implement frame reflections or temporal
 burn-in.

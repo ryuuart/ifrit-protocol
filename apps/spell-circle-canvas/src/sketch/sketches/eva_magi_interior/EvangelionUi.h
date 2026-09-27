@@ -25,7 +25,6 @@
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Crt.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -34,6 +33,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+
+#include "Crt.h"
 
 namespace evangelion {
 
@@ -230,7 +231,7 @@ inline sigil::material::Filter crt(float width, float height) {
   // 192 taps a pixel every frame, where the same two Gaussians — 0.8 and
   // 2.4 px, weighted 0.7 and 0.3, at 0.38, held at half and added — are
   // separable blurs over the finished screen.
-  auto screen = sigil::material::kit::crt(SkRect::MakeWH(width, height));
+  auto screen = crtTube(SkRect::MakeWH(width, height));
   screen.set("uBloom", 0.0f);
   static const Filter tubeLight = [] {
     const auto weigh = [](float w) {

@@ -30,7 +30,6 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmeasure/check/Check.h>
@@ -41,6 +40,8 @@
 #include <sigilweave/kit/LineTables.h>
 
 #include <ranges>
+
+#include "Board.h"
 
 #include "Card.h"
 #include "Fringe.h"
@@ -219,7 +220,7 @@ struct BlackWatch {
     // as paper and almost no wear, since any slow blotch on a light card
     // reads as marble rather than as board.
     board = material::Paint::recipe(
-        material::kit::board({.paint = colours.ground,
+        black_watch::board({.paint = colours.ground,
                               .tooth = 0.05f,
                               .toothScale = 0.06f,
                               .wear = 0.004f,

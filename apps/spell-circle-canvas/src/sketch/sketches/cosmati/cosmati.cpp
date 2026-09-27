@@ -46,7 +46,6 @@
 #include <sigilgeometry/path/Crossings.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
@@ -61,6 +60,9 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include "Stone.h"
+#include "Latten.h"
 
 #include "Construction.h"
 
@@ -168,7 +170,7 @@ struct Quarries {
  *  on longer beds than the tesserae so the Purbeck reads as one slab. */
 material::Material cut(const Quarry& quarry, float bedAngle, float seed = 0,
                        float veining = 0.35f, float bedLength = 52) {
-  return material::kit::stone({.hi = quarry.hi,
+  return cosmati::stone({.hi = quarry.hi,
                         .lo = quarry.lo,
                         .bedAngle = bedAngle,
                         .bedLength = bedLength,
@@ -338,7 +340,7 @@ struct Cosmati {
   /** Brass under the nave's one light, laid across the whole canvas so the
    *  sheen runs through every letter as one sheet. */
   static material::Material brass() {
-    return material::kit::latten({.from = {0, 0},
+    return cosmati::latten({.from = {0, 0},
                            .to = {kCanvas.fWidth, kCanvas.fHeight},
                            .level = 0.55f,
                            .sheen = 0.16f,

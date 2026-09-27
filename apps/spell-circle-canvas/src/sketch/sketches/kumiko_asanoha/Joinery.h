@@ -19,7 +19,6 @@
 #include <sigilgeometry/path/Segments.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Bank.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
@@ -28,6 +27,8 @@
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <vector>
+
+#include "Timber.h"
 
 namespace kumiko {
 
@@ -148,7 +149,7 @@ constexpr float kDrawingAt = 3.05f, kDrawingFor = 0.70f;
 // ---------------------------------------------------------------------------
 // The timber, ONE recipe seeded per piece.
 //
-// EVERY PIECE IS A BOARD, and `material::kit::timber` is what a board is: a
+// EVERY PIECE IS A BOARD, and `kumiko_asanoha::timber` is what a board is: a
 // flat face between a narrow lit arris and a narrow shadowed one, with
 // grain running down the piece and a fine tooth over the whole face.
 // `span` is the piece's face width, so the cross-section shading lands
@@ -163,8 +164,8 @@ class TimberBank {
   material::Paint get(const Timber& timber, float span, bool flip,
                             uint32_t seed, bool along = false) {
     return material::Paint::recipe(m_bank.get(
-        material::kit::timberRecipe(),
-        material::kit::TimberParameters{.base = timber.base,
+        kumiko_asanoha::timberRecipe(),
+        kumiko_asanoha::TimberParameters{.base = timber.base,
                                         .light = timber.light,
                                         .dark = timber.dark,
                                         .span = span,

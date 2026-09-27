@@ -37,7 +37,6 @@
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -47,6 +46,10 @@
 #include <sigilsketch/kit/Kit.h>
 
 #include <string>
+
+#include "Stone.h"
+#include "Latten.h"
+#include "Board.h"
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
@@ -100,7 +103,7 @@ material::Texture placedRamp() {
 }
 
 material::Material stone() {
-  return material::kit::stone({.hi = {0.62f, 0.63f, 0.66f, 1},
+  return over_under::stone({.hi = {0.62f, 0.63f, 0.66f, 1},
                                .lo = {0.34f, 0.35f, 0.39f, 1},
                                .bedAngle = 18,
                                .bedLength = 44,
@@ -109,7 +112,7 @@ material::Material stone() {
 }
 
 material::Material brass() {
-  return material::kit::latten({.from = {18, 18},
+  return over_under::latten({.from = {18, 18},
                                 .to = {kCell - 18, kPicture - 18},
                                 .level = 0.55f,
                                 .sheen = 0.45f,
@@ -145,7 +148,7 @@ struct OverUnder {
     const material::Material mixed =
         material::over(stone(), brass(), material::maskMap(placedRamp()));
     const material::Material twice = material::over(
-        mixed, material::kit::board({.paint = {0.10f, 0.11f, 0.13f, 1}}),
+        mixed, over_under::board({.paint = {0.10f, 0.11f, 0.13f, 1}}),
         material::maskConstant(0.35f), material::BlendMode::Multiply);
 
     ctx.composer.render(sketch::kit::page(
@@ -164,9 +167,9 @@ struct OverUnder {
                           {.label = "THE TWO SURFACES", .note = ""},
                           sketch::kit::comparison(
                               {.cases =
-                                   {cell("BASE · STONE", "kit::stone(…)",
+                                   {cell("BASE · STONE", "stone(…)",
                                          "Stone supplies the base.", stone()),
-                                    cell("TOP · BRASS", "kit::latten(…)",
+                                    cell("TOP · BRASS", "latten(…)",
                                          "Brass supplies the top.", brass())},
                                .measure = 500,
                                .gap = 20})),

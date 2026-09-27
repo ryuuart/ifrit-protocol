@@ -34,7 +34,6 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
@@ -46,6 +45,11 @@
 #include <cstring>
 #include <glm/mat4x4.hpp>
 #include <string>
+
+#include "Stone.h"
+#include "Timber.h"
+#include "Latten.h"
+#include "Board.h"
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -203,10 +207,10 @@ struct SlangPortable {
     // hands them.
     std::string surfaces = "recipe    slang bytes  uniforms  result\n";
     for (const material::Recipe* recipe :
-         {material::kit::stoneRecipe().get(),
-          material::kit::timberRecipe().get(),
-          material::kit::lattenRecipe().get(),
-          material::kit::boardRecipe().get()}) {
+         {slang_portable::stoneRecipe().get(),
+          slang_portable::timberRecipe().get(),
+          slang_portable::lattenRecipe().get(),
+          slang_portable::boardRecipe().get()}) {
       slang::Compiled surface;
       std::string why;
       const std::string source =

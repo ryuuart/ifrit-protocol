@@ -25,7 +25,6 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Conic.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
@@ -39,6 +38,8 @@
 #include <string>
 #include <vector>
 #include <sigilmotion/ease/Ease.h>
+
+#include "Globe.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -462,7 +463,7 @@ struct KspMapView {
              .stroke(stroke(1.2f, Fill::color(hexColor(0x2A3034)))),
          kit::dot(kBall, kBallRadius + 5, Fill::color(hexColor(0x171B1E))),
          kit::disc(kBall, kBallRadius)
-             .fill(material::kit::globe({.sky = hexColor(0x1180AC),
+             .fill(ksp_mapview::globe({.sky = hexColor(0x1180AC),
                                          .skyPole = hexColor(0x8ED4E8),
                                          .ground = hexColor(0x8B5A2E),
                                          .groundPole = hexColor(0x5A3A1E),

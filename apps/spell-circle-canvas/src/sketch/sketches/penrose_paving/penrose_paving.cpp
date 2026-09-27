@@ -21,7 +21,6 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
@@ -31,6 +30,8 @@
 #include <glm/vec2.hpp>
 #include <numbers>
 #include <vector>
+
+#include "../cosmati/Stone.h"
 
 namespace field = sigil::material::field;
 namespace material = sigil::material;
@@ -197,7 +198,7 @@ Element rhombOf(const Rhomb& sett, float side) {
 /** Granite cut from one slab per sett: the stone's two tones, grain and
  *  speckle, seeded by the sett's place so no two neighbours match. */
 material::Material granite(bool fat, int place) {
-  return material::kit::stone({
+  return cosmati::stone({
       .hi = fat ? kWhiteLit : kGreyLit,
       .lo = fat ? kWhiteShade : kGreyShade,
       .bedLength = 260,

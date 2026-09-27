@@ -28,7 +28,6 @@
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Projection.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -42,6 +41,8 @@
 #include <cmath>
 #include <optional>
 #include <string>
+
+#include "Latten.h"
 
 namespace data = sigil::data;
 namespace material = sigil::material;
@@ -197,7 +198,7 @@ constexpr double kStill = 22.1;
  *  sheen laid corner to corner across the whole canvas so every face of
  *  the instrument is lit by the same light. */
 Paint brass(float level) {
-  return Paint::recipe(material::kit::latten(
+  return Paint::recipe(chaucer_astrolabe::latten(
                            {.shadow = hexColor(0x5c462f),
                             .body = hexColor(0xa18643),
                             .light = kGilt,

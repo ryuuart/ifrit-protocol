@@ -9,7 +9,6 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Crt.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
@@ -210,7 +209,7 @@ struct EvaMagiInterior {
                              .captureAt = 9,
                              .background = kGround,
                              .nonlinearPicture = true});
-    auto tube = material::kit::crt(SkRect::MakeWH(kWidth, kHeight));
+    auto tube = evangelion::crtTube(SkRect::MakeWH(kWidth, kHeight));
     tube.set("uBloom", 0.22f);
     const auto phosphor = material::Filter::bloom({.sigma = 1.6f,
                                                 .strength = 0.24f,

@@ -36,7 +36,6 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigildata/table/Table.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
@@ -48,6 +47,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "Board.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -314,7 +315,7 @@ struct DunhuangStarChart {
     for (const Map& map : maps)
       if (onThis((float)(map.number - 1) * kSlot)) columns.push_back(map);
     return kit::at(length.left, length.top, kWidth - length.left, height)
-        .fill(material::kit::board({.paint = kPaper,
+        .fill(dunhuang_star_chart::board({.paint = kPaper,
                                     .tooth = 0.07f,
                                     .toothScale = 0.08f,
                                     .stretch = 2.5f,

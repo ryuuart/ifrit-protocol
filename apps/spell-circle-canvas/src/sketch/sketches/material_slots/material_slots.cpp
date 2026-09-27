@@ -53,7 +53,6 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Grained.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -62,6 +61,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "Stone.h"
+#include "Latten.h"
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
@@ -210,10 +212,10 @@ sketch::kit::ComparisonCase panel(const char* caseTitle, const Tables& tables,
 // the pair, and the stack answers every query over all three.
 
 material::Material stackBase() {
-  return material::kit::latten({.level = 0.62f, .sheen = 0.55f, .seed = 4});
+  return material_slots::latten({.level = 0.62f, .sheen = 0.55f, .seed = 4});
 }
 material::Material stackTop() {
-  return material::kit::stone({.hi = {0.36f, 0.55f, 0.42f, 1},
+  return material_slots::stone({.hi = {0.36f, 0.55f, 0.42f, 1},
                       .lo = {0.13f, 0.26f, 0.21f, 1},
                       .bedAngle = 62,
                       .bedLength = 70,
@@ -307,10 +309,10 @@ struct MaterialChild {
                                       .note = "The operands stay the same."})
                                      .width(396)}),
                   sketch::kit::comparison(
-                      {.cases = {operand("BASE", "kit::latten({.level = 0.62})",
+                      {.cases = {operand("BASE", "latten({.level = 0.62})",
                                          "Latten provides the base.",
                                          stackBase(), "base"),
-                                 operand("TOP", "kit::stone({.bedAngle = 62})",
+                                 operand("TOP", "stone({.bedAngle = 62})",
                                          "Stone provides the top.", stackTop(),
                                          "top"),
                                  operand("MASK",
