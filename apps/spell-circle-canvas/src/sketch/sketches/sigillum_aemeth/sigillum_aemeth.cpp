@@ -209,15 +209,11 @@ struct SigillumAemeth {
 
   Element wax() const {
     return kit::dot(kSeal.centre, kWax,
-                    Paint::blend(
-                        {{Paint::radialGradient({0.42f, 0.36f}, 1.05f,
+                    material::from(material::radialGradient({0.42f, 0.36f}, 1.05f,
                                                 {{0.0f, kWaxPale},
                                                  {0.45f, kWaxLit},
                                                  {0.82f, kWaxMid},
-                                                 {1.0f, kWaxDeep}}),
-                          material::BlendMode::Normal},
-                         {Paint::recipe(field::grain(1.6f, 4, 1582.0f, 0.34f)),
-                          material::BlendMode::Overlay}}))
+                                                 {1.0f, kWaxDeep}})).layer(field::grain(1.6f, 4, 1582.0f, 0.34f), {.blend = material::BlendMode::Overlay}))
         .layerStyle(
             {.under = {styles::dropShadow(hexColor(0x05070a, 0.7f), {6, 12},
                                           18)},

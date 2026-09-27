@@ -82,9 +82,7 @@ const Paint kPlate = Paint::linearGradient({0, 0}, {0.15f, 1},
                                             {1.0f, hexColor(0x302820)}});
 const material::Material kPlateTooth = field::grain(0.22f, 3, 11.0f, 0.65f);
 const Paint kRust =
-    Paint::blend({{Paint::solid(hexColor(0x7C581C)), material::BlendMode::Normal},
-                  {Paint::recipe(field::grain(0.0075f, 3, 5.0f, 1.35f)),
-                   material::BlendMode::Multiply}});
+    material::from(hexColor(0x7C581C)).layer(field::grain(0.0075f, 3, 5.0f, 1.35f), {.blend = material::BlendMode::Multiply});
 const Paint kRaised = Paint::linearGradient({0, 0}, {0, 1},
                                             {{0.0f, hexColor(0x483828)},
                                              {0.55f, hexColor(0x383020)},
@@ -95,14 +93,11 @@ const Paint kWheel = Paint::linearGradient({0, 0}, {0, 1},
                                             {0.58f, hexColor(0x282828)},
                                             {1.0f, hexColor(0x1C1C1C)}});
 const Paint kParchment =
-    Paint::blend({{Paint::linearGradient({0.1f, 0}, {0.9f, 1},
+    material::from(material::linearGradient({0.1f, 0}, {0.9f, 1},
                                          {{0.0f, kParchmentGold},
                                           {0.3f, hexColor(0xAC8044)},
                                           {0.66f, hexColor(0x9C7434)},
-                                          {1.0f, hexColor(0x8C6428)}}),
-                   material::BlendMode::Normal},
-                  {Paint::recipe(field::grain(0.013f, 4, 21.0f, 0.62f, 1.4f)),
-                   material::BlendMode::Overlay}});
+                                          {1.0f, hexColor(0x8C6428)}})).layer(field::grain(0.013f, 4, 21.0f, 0.62f, 1.4f), {.blend = material::BlendMode::Overlay});
 const Paint kRivet = Paint::radialGradient({0.34f, 0.3f}, 1.15f,
                                            {{0.0f, hexColor(0x6A5838)},
                                             {0.55f, hexColor(0x3A3020)},

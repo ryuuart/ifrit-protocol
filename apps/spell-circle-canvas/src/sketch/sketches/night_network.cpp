@@ -366,12 +366,12 @@ struct NightNetwork {
             .width(72)
             .height(72)
             .centerAt({436, 320})
-            .fill(Paint::recipe(sdf::material(sdf::star(8, 3.2f),
+            .fill(sdf::material(sdf::star(8, 3.2f),
                                               {.fill = nn::kBone,
                                                .borderWidth = 2,
                                                .borderColor = nn::kInk,
                                                .glowRadius = 6,
-                                               .glowColor = nn::kEmber}))
+                                               .glowColor = nn::kEmber})
                       .bind("uGlowR", hubGlow))
             .zIndex(7);
 

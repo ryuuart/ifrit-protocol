@@ -43,12 +43,7 @@ material::Paint threadInk(sk_sp<SkRuntimeEffect> program) {
 }
 
 material::Paint ground() {
-  return material::Paint::blend(
-      {{material::Paint::solid({0.018f, 0.025f, 0.052f, 1.0f}),
-        material::BlendMode::Normal},
-       {material::Paint::recipe(field::grain(0.018f, 4, 29.0f, 0.8f, 1.7f))
-            .amount(0.18f),
-        material::BlendMode::SoftLight}});
+  return material::from({0.018f, 0.025f, 0.052f, 1.0f}).layer(field::grain(0.018f, 4, 29.0f, 0.8f, 1.7f), {.blend = material::BlendMode::SoftLight, .opacity = 0.18f});
 }
 
 struct P5AttractorLoom {

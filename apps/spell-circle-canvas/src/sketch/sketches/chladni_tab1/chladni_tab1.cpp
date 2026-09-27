@@ -568,10 +568,7 @@ struct ChladniTab1 {
 
     // Ink on rag paper is never flat: luminance noise shades the fill
     // without moving its hue.
-    ink = Paint::blend(
-        {{Paint::solid(colourOf(plate["ink"]["ink"])), material::BlendMode::Source},
-         {Paint::recipe(field::grain(0.09f, 3, 4.0f, 0.35f)),
-          material::BlendMode::SoftLight}});
+    ink = material::from(colourOf(plate["ink"]["ink"])).layer(field::grain(0.09f, 3, 4.0f, 0.35f), {.blend = material::BlendMode::SoftLight});
     // Sparse, and on a tile large enough that its repeat is not the
     // strongest mark on the page.
     foxing =

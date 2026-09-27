@@ -46,12 +46,7 @@ material::Paint branchInk(sk_sp<SkRuntimeEffect> program) {
 }
 
 material::Paint ground() {
-  return material::Paint::blend(
-      {{material::Paint::solid({0.025f, 0.032f, 0.065f, 1.0f}),
-        material::BlendMode::Normal},
-       {material::Paint::recipe(field::grain(0.012f, 4, 31.0f, 0.6f, 2.2f))
-            .amount(0.22f),
-        material::BlendMode::SoftLight}});
+  return material::from({0.025f, 0.032f, 0.065f, 1.0f}).layer(field::grain(0.012f, 4, 31.0f, 0.6f, 2.2f), {.blend = material::BlendMode::SoftLight, .opacity = 0.22f});
 }
 
 material::Paint budLight() {

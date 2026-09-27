@@ -765,8 +765,7 @@ struct VertigoTitles {
       const float j = 0.012f * noise::hash(17u, (uint32_t)i);
       fibres.push_back({(float)i / 96.0f, {v + j, v + j, v + j, 1}});
     }
-    irisMat = Paint::blend(
-        {{Paint::radialGradient(
+    irisMat = material::from(material::radialGradient(
               kEye, 360.0f,
               {{0.00f, hexColor(0x100C09)},  // pupil
                {0.11f, hexColor(0x17110B)},
@@ -774,13 +773,10 @@ struct VertigoTitles {
                {0.40f, hexColor(0x6E5230)},
                {0.72f, hexColor(0x6A5030)},
                {1.00f, hexColor(0x36271A)}},
-              {.units = material::GradientUnits::Pixels}),
-          material::BlendMode::Source},
-         {Paint::conicGradient(kEye, fibres,
+              {.units = material::GradientUnits::Pixels})).layer(material::conicGradient(kEye, fibres,
                                {.units = material::GradientUnits::Pixels,
                                 .startDegrees = 0.0f,
-                                .endDegrees = 360.0f}),
-          material::BlendMode::SoftLight}});
+                                .endDegrees = 360.0f}), {.blend = material::BlendMode::SoftLight});
 
     // LUMINANCE noise — the `contrast` knob is the difference between
     // film grain and concrete.

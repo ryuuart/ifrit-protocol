@@ -199,7 +199,7 @@ struct LootGrid {
              .at({0, 0})
              .translateX(dragX)
              .translateY(dragY)
-             .fill(Paint::solid({0.16f, 0.80f, 0.24f, 0.26f}))
+             .fill({0.16f, 0.80f, 0.24f, 0.26f})
              .foreground(stroke(1.4f, Fill::color({0.35f, 1.0f, 0.45f, 0.75f})))
              .opacity(fitsMix)
              .zIndex(5),
@@ -210,7 +210,7 @@ struct LootGrid {
              .at({0, 0})
              .translateX(dragX)
              .translateY(dragY)
-             .fill(Paint::solid({0.90f, 0.16f, 0.14f, 0.30f}))
+             .fill({0.90f, 0.16f, 0.14f, 0.30f})
              .foreground(stroke(1.4f, Fill::color({1.0f, 0.35f, 0.30f, 0.8f})))
              .opacity(blockedMix)
              .zIndex(6),
@@ -360,7 +360,7 @@ struct LootGrid {
                          .flexGrow(1)
                          .height(1.0f)
                          .margin(0, 6)
-                         .fill(Paint::solid({0.42f, 0.38f, 0.31f, 0.28f})),
+                         .fill({0.42f, 0.38f, 0.31f, 0.28f}),
                      text(value).styleClass("value").ink(valueColor)});
     };
     // The two columns D2 puts under the paperdoll. A reading here is not
@@ -419,7 +419,7 @@ struct LootGrid {
         .padding(11, 14)
         .gap(2)
         .borderRadius({2})
-        .fill(Paint::solid({0.02f, 0.02f, 0.02f, 0.90f}))
+        .fill({0.02f, 0.02f, 0.02f, 0.90f})
         .foreground(stroke(1.0f, Fill::color({rc.r, rc.g, rc.b, 0.45f})))
         .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 5}, 12))
         .key("tooltip")

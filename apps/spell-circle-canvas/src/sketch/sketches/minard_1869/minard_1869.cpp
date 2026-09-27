@@ -323,7 +323,7 @@ struct Minard1869 {
     context.composer.render(
         box()
             .inset(0)
-            .fill(Paint::solid(kPaper))
+            .fill(kPaper)
             .font(italic)
             .ink(kInk)
             .children({

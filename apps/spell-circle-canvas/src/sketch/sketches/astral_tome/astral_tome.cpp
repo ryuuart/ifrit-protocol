@@ -39,14 +39,10 @@ struct AstralTome {
                     .inset(0, 0, at::kBandH, 0)
                     .key("leather")
                     .cache(Cache::Texture)
-                    .fill(Paint::blend(
-                        {{Paint::radialGradient({0.5f, 0.5f}, 0.95f,
+                    .fill(material::from(material::radialGradient({0.5f, 0.5f}, 0.95f,
                                                 {{0.0f, at::kLeatherWarm},
                                                  {0.55f, at::kLeatherMid},
-                                                 {1.0f, at::kLeatherDark}}),
-                          material::BlendMode::Normal},
-                         {Paint::recipe(field::grain(2.6f, 4, 21.0f)),
-                          material::BlendMode::Overlay}}));
+                                                 {1.0f, at::kLeatherDark}})).layer(field::grain(2.6f, 4, 21.0f), {.blend = material::BlendMode::Overlay}));
     return e;
   }
 
@@ -64,19 +60,14 @@ struct AstralTome {
             .rect(SkRect::MakeXYWH(x, y, w, h))
             .key("page")
             .cache(Cache::Texture)
-            .fill(Paint::blend(
-                {{Paint::solid({0, 0, 0, 1}), material::BlendMode::Normal},
-                 {Paint::radialGradient(
+            .fill(material::from({0, 0, 0, 1}).layer(material::radialGradient(
                       {0.42f, 0.38f}, 0.85f,
                       {{0.0f, sigil::material::scale(at::kNebula, 2.2f)},
                        {0.5f, at::kNebula},
-                       {1.0f, {0, 0, 0, 1}}}),
-                  material::BlendMode::PlusLighter},
-                 {Paint::radialGradient(
+                       {1.0f, {0, 0, 0, 1}}}), {.blend = material::BlendMode::PlusLighter}).layer(material::radialGradient(
                       {0.78f, 0.74f}, 0.55f,
                       {{0.0f, sigil::material::scale(at::kNebula, 1.6f)},
-                       {1.0f, {0, 0, 0, 0}}}),
-                  material::BlendMode::PlusLighter}}));
+                       {1.0f, {0, 0, 0, 0}}}), {.blend = material::BlendMode::PlusLighter}));
     // The field. Six scatter runs on lissajous routes with a wide normal
     // jitter — a brush, seeded, not a table of hand-placed dots. The measured
     // budget is the constraint: ~0.95% of the plate's pixels exceed L = 60, so

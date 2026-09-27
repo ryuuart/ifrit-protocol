@@ -179,8 +179,8 @@ struct WorldHud {
              .children({box()
                             .rect(SkRect::MakeWH(wh::kHealthW, wh::kHealthH))
                             .borderRadius({2})
-                            .fill(Paint::solid({wh::kCritHp.r, wh::kCritHp.g,
-                                                wh::kCritHp.b, 0.55f}))
+                            .fill({wh::kCritHp.r, wh::kCritHp.g,
+                                                wh::kCritHp.b, 0.55f})
                             .opacity(lowPulse)
                             .blendMode(material::BlendMode::PlusLighter),
                         text("640 / 1030")
@@ -276,12 +276,12 @@ struct WorldHud {
                      {wh::boneFrame(34, 38, 3).inset(0),
                       box()
                           .rect(SkRect::MakeXYWH(3, 20, 28.0f, 6.0f))
-                          .fill(Paint::solid(wh::kTrack))
+                          .fill(wh::kTrack)
                           .children({box()
                                          .rect(SkRect::MakeWH(28.0f, 6.0f))
                                          .transformOrigin(pct(0), pct(50))
                                          .scaleX(xp)
-                                         .fill(Paint::solid(wh::kXp))}),
+                                         .fill(wh::kXp)}),
                       text("34").font(wh::line(13, 0.4f, 640)).at({9, 3})})});
   }
 
@@ -306,7 +306,7 @@ struct WorldHud {
       return box()
           .rect(SkRect::MakeXYWH(d * u, d * v, 6.0f, 6.0f))
           .borderRadius({3})
-          .fill(Paint::solid(ink));
+          .fill(ink);
     };
     const sigil::material::Color bone = wh::kBoneHi;
     return stack()
@@ -321,7 +321,7 @@ struct WorldHud {
                  .inset(0)
                  .borderRadius({d * 0.5f})
                  .overflow(Overflow::Clip)
-                 .fill(Paint::solid(hexColor(0x2E4A2A)))
+                 .fill(hexColor(0x2E4A2A))
                  .children({each(kBands,
                                  [](const Band& b) {
                                    return box()
@@ -357,7 +357,7 @@ struct WorldHud {
                      {box()
                           .inset(0)
                           .shape(shapes::star(8, 0.34f))
-                          .fill(Paint::solid({bone.r, bone.g, bone.b, 0.30f})),
+                          .fill({bone.r, bone.g, bone.b, 0.30f}),
                       box()
                           .inset(9)
                           .shape(shapes::star(4, 0.22f))
@@ -366,7 +366,7 @@ struct WorldHud {
              box()
                  .rect(SkRect::MakeXYWH(d * 0.5f - 4, d * 0.5f - 4, 8.0f, 8.0f))
                  .shape(shapes::polygon(3))
-                 .fill(Paint::solid(hexColor(0xFFE9A8))),
+                 .fill(hexColor(0xFFE9A8)),
              pin(0.30f, 0.36f, wh::kQualityLegendary),
              pin(0.68f, 0.62f, wh::kEnemyHp),
              // the ring
@@ -449,7 +449,7 @@ struct WorldHud {
                              .bottom(0)
                              .width(30.0f)
                              .height(30.0f * (1.0f - p.left))
-                             .fill(Paint::solid({0, 0, 0, 0.62f}))
+                             .fill({0, 0, 0, 0.62f})
                              .zIndex(1),
                          text(p.label)
                              .font(wh::line(9, 0.6f, 640))
@@ -493,8 +493,8 @@ struct WorldHud {
                        .width(16.0f)
                        .height(16.0f)
                        .borderRadius({2})
-                       .fill(Paint::solid({l.color.r * 0.28f, l.color.g * 0.28f,
-                                           l.color.b * 0.28f, 1}))
+                       .fill({l.color.r * 0.28f, l.color.g * 0.28f,
+                                           l.color.b * 0.28f, 1})
                        .foreground(stroke(1.0f, Fill::color(l.color))),
                    text(l.text).font(wh::line(11, 0.4f)).ink(l.color)});
         }));
@@ -523,14 +523,14 @@ struct WorldHud {
              box()
                  .width(168.0f)
                  .height(9.0f)
-                 .fill(Paint::solid(worldhud::kTrack))
+                 .fill(worldhud::kTrack)
                  .foreground(
                      stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
                  .children({box()
                                 .rect(SkRect::MakeXYWH(1, 1, 166.0f, 7.0f))
                                 .transformOrigin(pct(0), pct(50))
                                 .scaleX(enemyHp)
-                                .fill(Paint::solid(wh::kEnemyHp))})});
+                                .fill(wh::kEnemyHp)})});
   }
 
   /** The HUD itself: everything Veloren draws over the world. */

@@ -73,11 +73,7 @@ std::vector<Ink> inks() {
       // the 22 px it was drawn at; the bounds place only the origin.
       {"sparkle", "SPARKLE OVER A BASE", "sparkle(px, t) · plus · Subtree",
        "Stated over the passage's pixels, where its cells keep their size.",
-       material::Paint::blend(
-           {{material::Paint::solid({0.23f, 0.30f, 0.46f, 1}),
-             material::BlendMode::Normal},
-            {field(material::kit::sparkle(SkRect::MakeWH(220, 70), kMoment)),
-             material::BlendMode::PlusLighter}}),
+       material::from({0.23f, 0.30f, 0.46f, 1}).layer(field(material::kit::sparkle(SkRect::MakeWH(220, 70), kMoment)), {.blend = material::BlendMode::PlusLighter}),
        PaintBox::Subtree},
       {"star-nest", "STAR NEST", "starNest(unit, t)",
        "Dense light inside the letterforms; small type keeps its warmth.",

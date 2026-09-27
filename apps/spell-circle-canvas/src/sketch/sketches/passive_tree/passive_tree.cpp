@@ -363,7 +363,7 @@ struct PassiveTree {
              .height(dia * 0.50f)
              .centerAt(at)
              .shape(shapes::star(4, 0.34f))
-             .fill(Paint::solid({ring.r, ring.g, ring.b, alloc ? 0.95f : 0.6f}))
+             .fill({ring.r, ring.g, ring.b, alloc ? 0.95f : 0.6f})
              .zIndex(4)});
   }
 
@@ -380,7 +380,7 @@ struct PassiveTree {
                          .centerAt(at)
                          .key(nodeKey(i))
                          .shape(shapes::polygon(4))
-                         .fill(Paint::solid(pt::kSocket))
+                         .fill(pt::kSocket)
                          .stroke(stroke(1.8f, Fill::color(ring)))
                          .zIndex(3),
                      box()
@@ -388,7 +388,7 @@ struct PassiveTree {
                          .height(dia * 0.42f)
                          .centerAt(at)
                          .shape(shapes::polygon(4))
-                         .fill(Paint::solid({ring.r, ring.g, ring.b, 0.75f}))
+                         .fill({ring.r, ring.g, ring.b, 0.75f})
                          .zIndex(4)});
   }
 
@@ -754,8 +754,8 @@ struct PassiveTree {
                    .height(3.0f)
                    .margin(6, 0, 0, 0)
                    .borderRadius({1.5f})
-                   .fill(Paint::solid(
-                       {pt::kRimLit.r, pt::kRimLit.g, pt::kRimLit.b, 0.9f})),
+                   .fill(
+                       {pt::kRimLit.r, pt::kRimLit.g, pt::kRimLit.b, 0.9f}),
                document::paragraph(line)
                    .font({.size = 12,
                           .color = material::Color{0.62f, 0.68f, 0.90f, 1},
@@ -837,7 +837,7 @@ struct PassiveTree {
              .zIndex(8)
              .padding(5, 10)
              .borderRadius({3})
-             .fill(Paint::solid({0.075f, 0.063f, 0.051f, 0.9f}))
+             .fill({0.075f, 0.063f, 0.051f, 0.9f})
              .foreground(stroke(1.0f, Fill::color({pt::kSearch.r, pt::kSearch.g,
                                                    pt::kSearch.b, 0.4f})))
              .children({text("search").font({.size = 10, .track = 1.8f}),

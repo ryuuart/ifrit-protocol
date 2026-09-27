@@ -255,9 +255,7 @@ struct EvaMagiDefense {
     return box()
         .width(kW)
         .height(kH)
-        .fill(material::Paint::blend(
-            {{material::skia::image(ribbonHalo), material::BlendMode::Source},
-             {field(haloStrip), material::BlendMode::SourceIn}}))
+        .fill(material::from(material::skia::image(ribbonHalo)).layer(field(haloStrip), {.blend = material::BlendMode::SourceIn}))
         .cache(Cache::Texture)
         .cacheScale(0.5f)
         .key("ribbonglow");
@@ -345,7 +343,7 @@ struct EvaMagiDefense {
     };
 
     auto root = stack().inset(0);
-    auto picture = stack().inset(0).fill(material::Paint::solid(kGround));
+    auto picture = stack().inset(0).fill(kGround);
 
 
     // The ribbons: flat fills of one continuous field, panned by the front.

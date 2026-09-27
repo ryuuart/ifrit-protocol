@@ -124,7 +124,7 @@ struct EvaMagiDeliberation {
     return kit::at(box()
                        .rotate(layout.rotationFor(number))
                        .transformOrigin(pct(50), pct(50))
-                       .fill(material::Paint::solid(kMint)),
+                       .fill(kMint),
                    rect.left(), rect.top(), side, side)
         // The module's ink is its label colour; the inner rule is drawn in it.
         .ink(kInk)
@@ -175,7 +175,7 @@ struct EvaMagiDeliberation {
              .centerAt({720.0f, 535.0f}),
          kit::at(
              box()
-                 .fill(material::Paint::solid(hexColor(0x150103)))
+                 .fill(hexColor(0x150103))
                  .layerStyle(decorations::doubleBorder(
                      decorations::border(7.0f, Fill::color(kRed), 0.0f),
                      decorations::border(3.0f, Fill::color(kRedHot), 14.0f)))
@@ -189,7 +189,7 @@ struct EvaMagiDeliberation {
     return box().inset(0).children(
         {box()
              .inset(0)
-             .fill(material::Paint::solid(kGround))
+             .fill(kGround)
              .filter(evangelion::crt(layout.canvasWidth, layout.canvasHeight))
              .cache(Cache::Texture)
              .key("crt")

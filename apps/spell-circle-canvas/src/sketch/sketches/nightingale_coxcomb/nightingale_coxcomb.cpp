@@ -224,12 +224,7 @@ Paint tintStone(material::Color wash, material::Color ink, int fine,
   blot = material::pattern::speckle(320, coarse * 8, 1.8f, 5.0f,
                            {material::withAlpha(ink, 0.12f)});
   blot.seed(seed * 7 + 3);
-  return Paint::blend(
-      {{Paint::solid(wash), material::BlendMode::Source},
-       {stipple.material(), material::BlendMode::Normal},
-       {blot.material(), material::BlendMode::Normal},
-       {Paint::recipe(field::grain(0.010f, 3, (float)seed)),
-        material::BlendMode::SoftLight}});
+  return material::from(wash).layer(stipple.material()).layer(blot.material()).layer(field::grain(0.010f, 3, (float)seed), {.blend = material::BlendMode::SoftLight});
 }
 
 }  // namespace

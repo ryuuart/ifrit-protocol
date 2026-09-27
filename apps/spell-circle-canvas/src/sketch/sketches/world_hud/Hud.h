@@ -207,8 +207,8 @@ inline Element bar(const Bar& b) {
     e.children({box()
                     .rect(SkRect::MakeXYWH(padX + b.innerW * (1.0f - b.decay),
                                            padY, b.innerW * b.decay, b.innerH))
-                    .fill(Paint::solid({kQualityEpic.r, kQualityEpic.g,
-                                        kQualityEpic.b, 0.55f}))});
+                    .fill({kQualityEpic.r, kQualityEpic.g,
+                                        kQualityEpic.b, 0.55f})});
   // the live fill rides on top of the static frame so only IT repaints
   if (b.live)
     e.children({box()

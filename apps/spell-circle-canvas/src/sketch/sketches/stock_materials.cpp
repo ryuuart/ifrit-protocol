@@ -140,9 +140,7 @@ struct StockMaterialsSheet {
                     .slot("content", under)),
          swatch(field::crtOverlayRecipe()->name(),
                 "field::crtOverlay(4 px) laid over the same checker",
-                material::Paint::blend({{under, material::BlendMode::Source},
-                                     {material::Paint::recipe(field::crtOverlay()),
-                                      material::BlendMode::Normal}})),
+                material::from(under).layer(field::crtOverlay())),
          painted("field::noise(0.02, 5, turbulence)",
                  field::noise(0.02f, 5, 9.0f, true))});
 

@@ -46,12 +46,7 @@ material::Paint graphPaper() {
       pattern::gridLines(34.0f, 1.15f, {0.18f, 0.46f, 0.58f, 0.34f});
   pattern::Tile coarse =
       pattern::gridLines(136.0f, 2.2f, {0.70f, 0.82f, 0.88f, 0.22f});
-  return material::Paint::blend(
-      {{material::Paint::solid({0.018f, 0.035f, 0.070f, 1.0f}),
-        material::BlendMode::Normal},
-       {material::skia::paint(fine.texture().shader()), material::BlendMode::Normal},
-       {material::skia::paint(coarse.texture().shader()),
-        material::BlendMode::Normal}});
+  return material::from({0.018f, 0.035f, 0.070f, 1.0f}).layer(material::skia::paint(fine.texture().shader())).layer(material::skia::paint(coarse.texture().shader()));
 }
 
 brush::Tool liquidNib(material::Color colour, float width) {

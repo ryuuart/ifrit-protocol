@@ -235,11 +235,8 @@ Element nebula(SkSize size) {
 // The frame: four bands of dark grained wood, a square post at each corner.
 
 Paint wood(bool vertical) {
-  return Paint::blend(
-      {{Paint::recipe(field::grain(0.03f, 2, vertical ? 5.0f : 9.0f, 1.3f,
-                                   vertical ? 1.0f / 6.0f : 6.0f)),
-        material::BlendMode::Source},
-       {Paint::solid(kWood), material::BlendMode::Multiply}});
+  return material::from(field::grain(0.03f, 2, vertical ? 5.0f : 9.0f, 1.3f,
+                                   vertical ? 1.0f / 6.0f : 6.0f)).layer(kWood, {.blend = material::BlendMode::Multiply});
 }
 
 Element plank(float x, float y, float width, float height) {
@@ -257,7 +254,7 @@ Element frame() {
   for (const SkPoint corner : {SkPoint{-2, -2}, SkPoint{622, -2}, SkPoint{-2, 382},
                                SkPoint{622, 382}})
     parts.push_back(plank(corner.x(), corner.y(), post, post)
-                        .fill(Paint::solid(hexColor(0x4A3020))));
+                        .fill(hexColor(0x4A3020)));
   return box().inset(0).children(parts);
 }
 

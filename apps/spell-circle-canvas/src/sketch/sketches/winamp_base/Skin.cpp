@@ -13,32 +13,19 @@ auto WinampBase::buildMaterials() -> void {
   // window, which is then the loudest texture in the picture and is not
   // in the skin. One recipe, three windows, two sizes — the unit square
   // is what makes 275x116 and 400x377 share it.
-  steel = material::Paint::blend(
-      {{material::Paint::linearGradient(
-            {0, 0}, {0, 1}, {{0.0f, kBodyTop}, {1.0f, kBodyBot}}),
-        material::BlendMode::Normal},
-       {material::Paint::radialGradient(
+  steel = material::from(material::linearGradient(
+            {0, 0}, {0, 1}, {{0.0f, kBodyTop}, {1.0f, kBodyBot}})).layer(material::radialGradient(
             {0.34f, 0.42f}, 1.15f,
-            {{0.0f, {1, 1, 1, 0.055f}}, {1.0f, {1, 1, 1, 0.0f}}}),
-        material::BlendMode::Normal},
-       {material::Paint::recipe(
-            field::grain(0.34f, 2, 3.0f, 0.20f, 1.0f)),
-        material::BlendMode::Overlay}});
+            {{0.0f, {1, 1, 1, 0.055f}}, {1.0f, {1, 1, 1, 0.0f}}})).layer(field::grain(0.34f, 2, 3.0f, 0.20f, 1.0f), {.blend = material::BlendMode::Overlay});
 
   // The desktop: flat teal plus ONE low-octave dither, baked once.
-  deskMat = material::Paint::blend(
-      {{material::Paint::solid(kDesk), material::BlendMode::Normal},
-       {material::Paint::recipe(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f)),
-        material::BlendMode::Overlay}});
+  deskMat = material::from(kDesk).layer(field::grain(0.45f, 1, 3.0f, 0.055f, 1.0f), {.blend = material::BlendMode::Overlay});
 
   // CRT glass: the flat screen colour plus a soft off-centre catch-light.
-  lcdMat = material::Paint::blend(
-      {{material::Paint::solid(kLcd), material::BlendMode::Normal},
-       {material::Paint::radialGradient(
+  lcdMat = material::from(kLcd).layer(material::radialGradient(
             {0.28f, 0.22f}, 1.25f,
             {{0.0f, hexColor(0x2A2A46, 0.75f)},
-             {1.0f, hexColor(0x2A2A46, 0.0f)}}),
-        material::BlendMode::Normal}});
+             {1.0f, hexColor(0x2A2A46, 0.0f)}}));
 
   // ONE fader-track value shared by all eleven faders (preamp + 10
   // bands), and it is a LADDER rather than a ramp. EQMAIN.BMP carries

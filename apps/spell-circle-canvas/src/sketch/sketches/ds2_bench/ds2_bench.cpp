@@ -170,7 +170,7 @@ struct Ds2Bench {
                                    {1.0f, material::withAlpha(kBody, 0.70f)}}))
         .background(styles::OuterGlow{cyan(0.28f), 9})
         .foreground(
-            decorations::wash(Paint::recipe(field::grain(0.9f, 2, 7.0f)),
+            decorations::wash(field::grain(0.9f, 2, 7.0f),
                               SkBlendMode::kOverlay, 0.07f))
         .foreground(
             decorations::border(2.2f, Fill::color(hexColor(0xCFF2F5, 0.95f))))

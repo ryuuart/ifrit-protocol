@@ -136,18 +136,13 @@ Element GenesisFire::regolith() {
   // A generated surface, plus the ONE hand-added light in the shot
   // (Tom Duff's), riding the wavefront.
   Paint ground =
-      Paint::blend({{Paint::radialGradient({0.5f, 0.723f}, 0.50f,
+      material::from(material::radialGradient({0.5f, 0.723f}, 0.50f,
                                            {{0.0f, hexColor(0x3B3933)},
                                             {0.42f, hexColor(0x232119)},
-                                            {1.0f, hexColor(0x0A0A0C)}}),
-                     material::BlendMode::Source},
-                    {Paint::recipe(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f)),
-                     material::BlendMode::SoftLight},
-                    {Pattern(material::pattern::speckle(
+                                            {1.0f, hexColor(0x0A0A0C)}})).layer(field::grain(0.022f, 4, 7.0f, 0.5f, 1.0f), {.blend = material::BlendMode::SoftLight}).layer(Pattern(material::pattern::speckle(
                                  170, 17, 0.9f, 3.4f,
                                  {hexColor(0x6A655B), hexColor(0x171512)}))
-                         .material(),
-                     material::BlendMode::Overlay}});
+                         .material(), {.blend = material::BlendMode::Overlay});
 
   return box()
       .inset(0)

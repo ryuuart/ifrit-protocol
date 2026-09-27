@@ -317,12 +317,8 @@ auto TwoAdvancedV4::footerDock() -> Element {
   }
   Element strip =
       box()
-          .fill(material::Paint::blend(
-              {{material::Paint::linearGradient(
-                    {0, 0}, {0, 1}, {{0.0f, kD5}, {0.45f, kD2}, {1.0f, kD1}}),
-                material::BlendMode::Normal},
-               {hatchA.material(), material::BlendMode::Normal},
-               {hatchB.material(), material::BlendMode::Normal}}))
+          .fill(material::from(material::linearGradient(
+                    {0, 0}, {0, 1}, {{0.0f, kD5}, {0.45f, kD2}, {1.0f, kD1}})).layer(hatchA.material()).layer(hatchB.material()))
           .row()
           .alignItems(Align::Center)
           .padding(12, 14)

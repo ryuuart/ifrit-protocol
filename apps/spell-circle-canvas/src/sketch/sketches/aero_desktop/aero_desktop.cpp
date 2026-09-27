@@ -560,20 +560,13 @@ struct AeroDesktop {
                           .fill(Paint::sksl(aurora).set("uTime", 0.75f))
                           .filter(sigil::material::skia::filter(
                               SkImageFilters::Blur(3, 3, nullptr)))}),
-             box().inset(0).fill(Paint::blend({
-                 {Paint::solid({0.02f, 0.05f, 0.10f, 0.52f}),
-                  material::BlendMode::Normal},
-                 {Paint::solid({ad::kSky.r, ad::kSky.g, ad::kSky.b, 0.16f}),
-                  material::BlendMode::Normal},
-                 {Paint::linearGradient(
+             box().inset(0).fill(material::from({0.02f, 0.05f, 0.10f, 0.52f}).layer({ad::kSky.r, ad::kSky.g, ad::kSky.b, 0.16f}).layer(material::linearGradient(
                       {0, 0}, {0, th},
                       {{0.00f, {1, 1, 1, 0.22f}},
                        {0.08f, {1, 1, 1, 0.05f}},
                        {0.55f, {1, 1, 1, 0.00f}},
                        {1.00f, {0, 0, 0, 0.18f}}},
-                      {.units = material::GradientUnits::Pixels}),
-                  material::BlendMode::Normal},
-             })),
+                      {.units = material::GradientUnits::Pixels}))),
              // 1px light top edge over a dark seam
              box().inset(0, 0, th - 1, 0).fill(Fill::color({1, 1, 1, 0.30f})),
              startOrb(),
@@ -582,7 +575,7 @@ struct AeroDesktop {
                  .inset(4, 0, 4, 62)
                  .width(54)
                  .borderRadius({3})
-                 .fill(Paint::linearGradient(
+                 .fill(material::linearGradient(
                      {0, 0}, {0, th - 8},
                      {{0.0f, {1, 1, 1, 0.26f}},
                       {0.5f, {1, 1, 1, 0.08f}},
@@ -595,7 +588,7 @@ struct AeroDesktop {
                           .width(16)
                           .height(13)
                           .borderRadius({2})
-                          .fill(Paint::linearGradient(
+                          .fill(material::linearGradient(
                               {0, 0}, {0, 13},
                               {{0.0f, {1.0f, 0.87f, 0.55f, 1}},
                                {1.0f, {0.90f, 0.67f, 0.25f, 1}}},

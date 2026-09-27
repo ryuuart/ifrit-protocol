@@ -340,7 +340,7 @@ struct PersonaMenu {
                                 .fill(field::noise(0.006f, 4))
                                 .opacity(0.20f)
                                 .blendMode(material::BlendMode::SoftLight),
-                            box().inset(0).fill(Paint::solid(nn::kTintVeil))})})
+                            box().inset(0).fill(nn::kTintVeil)})})
         // The sea: one dual-layer 6Hz shader, its own texture plane --
         // baked at HALF raster scale and linear-upscaled at the blit.
         // The bands are watercolor-soft already, so the reduced bake
@@ -434,7 +434,7 @@ struct PersonaMenu {
         {kit::at(10, 3, wW, wH)
              .shape(nn::sliverWedge())
              .rotate(8)
-             .fill(Paint::solid(nn::kPink)),
+             .fill(nn::kPink),
          // white wedge -- clips the red echo; idle heartbeat on scale.
          // The echo's top carries an extra +5px. The wedge rotates +8 deg about
          // its OWN centre, which walks the echo up by about that much, so the
@@ -444,7 +444,7 @@ struct PersonaMenu {
              .shape(nn::sliverWedge())
              .rotate(8)
              .overflow(Overflow::Clip)
-             .fill(Paint::solid(nn::kPaper))
+             .fill(nn::kPaper)
              .scale(wedgePulse)
              .children({text(r.label)
                             .font(nn::menuType(50, nn::kRedC, 0))
@@ -481,13 +481,13 @@ struct PersonaMenu {
         .children({box()
                        .inset(0)
                        .shape(shapes::polygon(3, 92))
-                       .fill(Paint::solid(nn::kRedC))
+                       .fill(nn::kRedC)
                        .translateX(1)
                        .translateY(5),
                    box()
                        .inset(0)
                        .shape(shapes::polygon(3, 90))
-                       .fill(Paint::solid(nn::kPaper))});
+                       .fill(nn::kPaper)});
   }
 
   Element promptCircle(const char* glyph) {
@@ -591,7 +591,7 @@ struct PersonaMenu {
                    .width(84)
                    .height(6)
                    .flexGrow(0)
-                   .fill(Paint::solid({0, 0.05f, 0.18f, 0.55f}))
+                   .fill({0, 0.05f, 0.18f, 0.55f})
                    .children(
                        {kit::at(0, 0, 84 * frac, 6.0f)
                             .fill(Paint::linearGradient(

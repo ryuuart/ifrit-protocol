@@ -11,7 +11,7 @@ struct StrokeAtlasSketch {
     // The plate's voices stand on its root, so every leaf under it
     // resolves the class it names here.
     Element plate =
-        stack().fill(material::Paint::solid(kPaper)).applyStyleSheet(voices());
+        stack().fill(kPaper).applyStyleSheet(voices());
 
     // ---- masthead --------------------------------------------------------
     plate.children(
@@ -259,8 +259,8 @@ struct StrokeAtlasSketch {
            field(1078, 22, "Concentric / 14 contours", shapes::squircle(4.0f),
                  lines::presets::concentric(red(), 14, 0.8f)),
            field(1224, 2, "Halftone / clipped wash", shapes::circle(),
-                 decorations::wash(material::Paint::recipe(field::halftoneRamp(
-                                       8, 1.0f, 3.2f, kInk)),
+                 decorations::wash(field::halftoneRamp(
+                                       8, 1.0f, 3.2f, kInk),
                                    SkBlendMode::kSrcOver, 0.95f)),
            field(1370, 26, "Hatch / chamfered edge", shapes::chamfered(22.0f),
                  lines::presets::hatch(soft(), 6.0f, 0.8f, -45.0f))});
