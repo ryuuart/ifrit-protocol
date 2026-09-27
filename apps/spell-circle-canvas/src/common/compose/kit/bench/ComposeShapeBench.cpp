@@ -3,6 +3,7 @@
 // leaves cost the hit test and the painter.
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Layouts.h>
@@ -92,7 +93,7 @@ static void BM_HitTest_ShapedTree(benchmark::State& state) {
   int step = 0;
   for ([[maybe_unused]] auto iteration : state) {
     const SkPoint pt{(float)(step * 37 % 900), (float)(step * 53 % 640)};
-    benchmark::DoNotOptimize(host.composer.hitTest(pt));
+    benchmark::DoNotOptimize(host.composer.hitTest(geometry::path::fromSk(pt)));
     ++step;
   }
   reportNodes(state, count);

@@ -14,6 +14,7 @@
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilmaterial/color/Color.h>
@@ -107,7 +108,7 @@ class Composer {
    *  An EMPTY size means INTRINSIC instead: the root sizes to its content
    *  wherever it states no size. That is the rule the
    *  snapshot()/intrinsicSize() path runs under. */
-  void setSize(SkSize size);
+  void setSize(glm::vec2 size);
 
   /** WHAT A LEAF UNDER NOTHING IS SET IN: the font and the ink the root
    *  inherits from, which every node that leaves them unset takes in turn.
@@ -323,7 +324,7 @@ class Composer {
    *  whether or not that node painted anything — so a keyed transparent
    *  container will answer for its whole box. See
    *  `Element::hitTestable` for the opt-out. */
-  std::optional<std::string> hitTest(SkPoint canvasPoint) const;
+  std::optional<std::string> hitTest(glm::vec2 canvasPoint) const;
   /** @} */
 
   /** @name Introspection
@@ -664,7 +665,7 @@ class Composer {
    *  own box, and a paint program as `PaintContext::pointer`. Nothing is
    *  invalidated by it — a node that reads the pointer repaints anyway,
    *  since it is at `Cache::None`. */
-  void setPointer(SkPoint canvasPoint, bool pressed);
+  void setPointer(glm::vec2 canvasPoint, bool pressed);
   /** A KEY GOING DOWN OR UP, by the name a keyboard spells it and its
    *  code: what a pen program reads as `keyIsPressed`, `key`, `keyCode`
    *  and `keyIsDown`, and a paint program as `PaintContext::keys`. */

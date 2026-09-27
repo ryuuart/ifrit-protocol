@@ -8,6 +8,7 @@
 // plane where the projection put it.
 
 #include <include/core/SkM44.h>
+#include <sigilgeometry/path/Skia.h>
 #include <include/effects/SkImageFilters.h>
 
 #include <functional>
@@ -329,7 +330,7 @@ TEST(ComposeDepth, AHitLandsWhereTheProjectionPutThePlane) {
   for (SkPoint local : {SkPoint{10, 10}, SkPoint{90, 50}, SkPoint{50, 90},
                         SkPoint{5, 95}, SkPoint{95, 5}}) {
     const SkPoint on = flat.mapPoint(local);
-    EXPECT_EQ(host.composer.hitTest(on).value_or(""), "card")
+    EXPECT_EQ(host.composer.hitTest(geometry::path::fromSk(on)).value_or(""), "card")
         << "local (" << local.x() << ", " << local.y() << ") projected to ("
         << on.x() << ", " << on.y() << ")";
     EXPECT_EQ(host.pixel((int)std::lround(on.x()), (int)std::lround(on.y())),
@@ -338,7 +339,7 @@ TEST(ComposeDepth, AHitLandsWhereTheProjectionPutThePlane) {
   }
   // Just outside the card's own edge, projected: a miss.
   const SkPoint off = flat.mapPoint({-4, 50});
-  EXPECT_FALSE(host.composer.hitTest(off).has_value());
+  EXPECT_FALSE(host.composer.hitTest(geometry::path::fromSk(off)).has_value());
   // Inside the FLAT box but off the projected quad: the far (right) edge
   // recedes, so the right side of where the card used to be is empty.
   const SkPoint farEdge = flat.mapPoint({100, 50});

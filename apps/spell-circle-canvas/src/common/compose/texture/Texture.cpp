@@ -90,7 +90,7 @@ std::shared_ptr<TextureScene> TextureScene::make(SkISize size,
   impl.background = background;
   impl.composer = std::make_unique<Composer>(impl.engine, fonts);
   impl.composer->setSize(
-      SkSize::Make((float)impl.size.width(), (float)impl.size.height()));
+      glm::vec2{(float)impl.size.width(), (float)impl.size.height()});
   impl.makeRaster();
   return scene;
 }

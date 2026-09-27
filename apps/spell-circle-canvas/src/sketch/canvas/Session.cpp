@@ -139,7 +139,8 @@ class CanvasSession final : public Session {
     // TWO SIZINGS, deliberately: a sketch may lay out during setup, so
     // it needs a canvas before it runs, and it declares its own from
     // inside setup. The second call is a no-op when they agree.
-    m_composer->setSize(m_specification.size);
+    m_composer->setSize(glm::vec2{m_specification.size.width(),
+                                  m_specification.size.height()});
     SketchContext ctx = context();
     m_sketch->setup(ctx);
     applySize();
@@ -348,7 +349,8 @@ class CanvasSession final : public Session {
    *  composer is told its size and never asked for it. */
   void applySize() {
     if (m_applied == m_specification.size) return;
-    m_composer->setSize(m_specification.size);
+    m_composer->setSize(glm::vec2{m_specification.size.width(),
+                                  m_specification.size.height()});
     m_applied = m_specification.size;
   }
 

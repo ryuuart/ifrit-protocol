@@ -70,7 +70,8 @@ Composer::Composer(motion::Engine& engine, sigil::weave::FontContext& fonts)
     : m_impl(std::make_unique<Impl>(engine, fonts)) {}
 Composer::~Composer() = default;
 
-void Composer::setSize(SkSize size) {
+void Composer::setSize(glm::vec2 requested) {
+  const SkSize size = SkSize::Make(requested.x, requested.y);
   if (m_impl->size == size) return;
   m_impl->size = size;
   m_impl->needsLayout = true;
@@ -435,8 +436,8 @@ void Composer::setBakeDensity(float devicePixelsPerUnit) {
 
 float Composer::bakeDensity() const { return m_impl->bakeDensity; }
 
-void Composer::setPointer(SkPoint canvasPoint, bool pressed) {
-  m_impl->pointerAt = canvasPoint;
+void Composer::setPointer(glm::vec2 canvasPoint, bool pressed) {
+  m_impl->pointerAt = SkPoint{canvasPoint.x, canvasPoint.y};
   m_impl->pointerPressed = pressed;
 }
 
@@ -627,12 +628,12 @@ motion::Duration Composer::scheduleSpan(std::string_view key,
                  : motion::Duration{};
 }
 
-std::optional<std::string> Composer::hitTest(SkPoint canvasPoint) const {
+std::optional<std::string> Composer::hitTest(glm::vec2 canvasPoint) const {
   // Logically const; fills the same per-instance outline caches paint does
   // (memoization, not mutation of observable state).
   Impl& impl = *m_impl;
   if (!impl.root) return std::nullopt;
-  return impl.hitInstance(*impl.root, canvasPoint, nullptr, nullptr);
+  return impl.hitInstance(*impl.root, SkPoint{canvasPoint.x, canvasPoint.y}, nullptr, nullptr);
 }
 
 const Composer::Stats& Composer::stats() const {

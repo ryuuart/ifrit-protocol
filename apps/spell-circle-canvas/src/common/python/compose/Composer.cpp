@@ -6,6 +6,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkSize.h>
 #include <pybind11/stl.h>
 #include <sigilcompose/core/Composer.h>
@@ -256,7 +257,7 @@ void bindDescribePath(py::class_<ComposerHandle>& composer) {
             self.ownedComposer(
                     "A host sizes the composer it lends; a body describes "
                     "what goes in it")
-                .setSize(value);
+                .setSize(glm::vec2{value.width(), value.height()});
           },
           py::arg("size"))
       .def(
@@ -338,7 +339,7 @@ void bindQueries(py::class_<ComposerHandle>& composer) {
           "hitTest",
           [](const ComposerHandle& self, py::handle canvasPoint) {
             const SkPoint at = canvasPosition(canvasPoint);
-            return self.get().hitTest(at);
+            return self.get().hitTest(geometry::path::fromSk(at));
           },
           py::arg("canvasPoint"));
   // The two text queries answer in the typography vocabulary, which
@@ -438,7 +439,7 @@ void bindSettings(py::class_<ComposerHandle>& composer) {
           [](const ComposerHandle& self, py::handle canvasPoint,
              bool pressed) {
             const SkPoint at = canvasPosition(canvasPoint);
-            self.get().setPointer(at, pressed);
+            self.get().setPointer(geometry::path::fromSk(at), pressed);
           },
           py::arg("canvasPoint"), py::arg("pressed"))
       .def(
