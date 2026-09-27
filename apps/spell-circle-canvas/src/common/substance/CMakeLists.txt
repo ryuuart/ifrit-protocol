@@ -3,7 +3,16 @@
 # is a licensed download that is never vendored and has no vcpkg port, so
 # the find module beside this file is what locates an installed copy.
 # Without one the whole library is left out of the build.
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/../material/cmake)
+
+# The find module's choice among several installs needs no SDK, so it is
+# asked on every machine.
+add_test(NAME Substance.FindModuleChoosesTheNewestInstall
+  COMMAND ${CMAKE_COMMAND}
+          -DSUBSTANCE_INSTALL_MODULE=${CMAKE_CURRENT_LIST_DIR}/../material/cmake/SubstanceInstall.cmake
+          -DSCRATCH=${CMAKE_CURRENT_BINARY_DIR}/find_substance_test
+          -P ${CMAKE_CURRENT_LIST_DIR}/../material/substance/test/FindSubstanceTest.cmake)
+
 find_package(Substance)
 if(NOT Substance_FOUND)
   message(STATUS "Substance SDK not found -- SigilSubstance is left out")

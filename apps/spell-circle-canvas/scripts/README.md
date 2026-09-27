@@ -198,7 +198,7 @@ next run rather than waiting for someone to remember a flag; an edit to
 the file itself does not survive one.
 
 No library is named there. A library whose dependency needs finding
-carries its own find module (`src/common/substance/cmake`,
+carries its own find module (`src/common/material/cmake`,
 `src/common/scry/cmake`), so the setup verb composes the toolchain, the
 Qt prefix, the asset cache and the instrumented trees, and nothing about
 what is built with them.

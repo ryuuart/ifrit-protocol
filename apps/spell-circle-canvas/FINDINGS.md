@@ -1014,17 +1014,6 @@ as a length leaves the target standing and says so once, as a colour var read
 as a length does today. Wanted by `cosmati`; `black_watch` holds its board and
 yarn paints as members for the same reason.
 
-## The Substance find module scores the documented install layout as version zero
-
-`src/common/substance/cmake/FindSubstance.cmake` reads a candidate's version
-from a `v<major>.<minor>…` field in its directory name and otherwise scores
-it 0. The layout the library's README and the machine follow is
-`~/.local/opt/substance/<version>/` with no `v`, so the installed `9.4.6`
-scores 0, and a second install beside it wins or loses by glob order rather
-than by version. The module evidently means to choose the newest install.
-A test should lay out `9.4.6` and `10.0.1` side by side and assert the
-second is chosen, with and without a `v`.
-
 ## A Substance render drops the colour space its graph declared
 
 `src/common/substance/graph/Describe.cpp` records whether each output is
