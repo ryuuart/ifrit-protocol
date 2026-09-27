@@ -8,6 +8,7 @@
 
 // TAGS: Interfaces/Film
 
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/core/Measure.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilmaterial/color/Color.h>
@@ -238,7 +239,7 @@ struct EvaMagiDefense {
     return box()
         .width(kW)
         .height(kH)
-        .shape(heldPath(funnel))
+        .shape(heldPath(sigil::geometry::path::fromSk(funnel)))
         .fill(field(fieldStrip))
         .cache(Cache::Texture)
         .key("funnel");

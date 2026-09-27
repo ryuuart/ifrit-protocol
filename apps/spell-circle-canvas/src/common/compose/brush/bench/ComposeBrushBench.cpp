@@ -421,13 +421,13 @@ static void BM_Draw_ArtWarp_Live(benchmark::State& state) {
       {box()
            .absolute()
            .inset(20)
-           .shape([](SkSize s) {
+           .shape(sigil::compose::bench::skiaShape([](SkSize s) {
              SkPathBuilder b;
              b.moveTo(0, s.height() / 2);
              b.cubicTo(s.width() * 0.3f, 0, s.width() * 0.5f, s.height(),
                        s.width(), s.height() / 2);
              return b.detach();
-           })
+           }))
            .foreground(vine)
            .cache(Cache::None)}));
   host.draw();
@@ -643,11 +643,11 @@ BENCHMARK(BM_Draw_SlowAccent_Plain)->Apply(accentLadder);
 // wall-clock ceiling; the ladder is what shows the rate.
 static void BM_Band_Construct(benchmark::State& state) {
   const float radius = (float)state.range(0);
-  auto ring = [radius](SkSize s) {
+  auto ring = sigil::compose::bench::skiaShape([radius](SkSize s) {
     SkPathBuilder b;
     b.addCircle(s.width() * 0.5f, s.height() * 0.5f, radius);
     return b.detach();
-  };
+  });
   Host host(1400, 1400);
   for ([[maybe_unused]] auto iteration : state) {
     host.composer.render(stack().children(

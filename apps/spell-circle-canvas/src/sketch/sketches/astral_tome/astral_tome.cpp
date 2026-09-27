@@ -2,6 +2,7 @@
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/color/Color.h>
 
@@ -200,7 +201,7 @@ struct AstralTome {
                                std::max(box2.height(), 1.0f))
         .key(std::string("lk") + std::to_string(key) + "_" +
              std::to_string(pass))
-        .shape(heldPath(spine))
+        .shape(heldPath(sigil::geometry::path::fromSk(spine)))
         .stroke(std::move(bloom))
         .stroke(std::move(body))
         .stroke(std::move(rails));

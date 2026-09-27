@@ -197,12 +197,12 @@ TEST(ComposeTravel, WrapsOnAClosedCurveAndClampsOnAnOpenOne) {
   EXPECT_NEAR(back.y(), threeQuarters.y(), 1.0f);
 
   // Open: both ends park. The line runs the frame's full width at mid-height.
-  const auto line = [](SkSize s) {
+  const auto line = skiaShape([](SkSize s) {
     SkPathBuilder b;
     b.moveTo(0, s.height() / 2);
     b.lineTo(s.width(), s.height() / 2);
     return b.detach();
-  };
+  });
   const SkPoint past = atT(line, 1.5f);
   EXPECT_NEAR(past.x(), 180.0f, 1.5f) << "an open curve did not CLAMP";
   const SkPoint before = atT(line, -0.5f);
@@ -275,13 +275,13 @@ TEST(ComposeTravel, AutoOrientAddsToRotateAndHoldsTheLastGoodChord) {
   // At the far end of an OPEN curve the forward chord collapses. The last
   // good one is held, so a path that ends going DOWN leaves the bar standing
   // rather than snapping back to zero.
-  const auto ell = [](SkSize) {
+  const auto ell = skiaShape([](SkSize) {
     SkPathBuilder b;
     b.moveTo(0, 0);
     b.lineTo(100, 0);
     b.lineTo(100, 60);
     return b.detach();
-  };
+  });
   t = 1.0f;
   host.composer.render(
       travelFrame(box()
@@ -347,12 +347,12 @@ TEST(ComposeTravel, PrunesOnlyWhenEveryFieldOfThePathMatches) {
   // compares equal, so a travelling node built from one never prunes.
   const auto raw = [] {
     return travelFrame(rider({.path =
-                                  [](SkSize s) {
+                                  skiaShape([](SkSize s) {
                                     SkPathBuilder b;
                                     b.addOval(
                                         SkRect::MakeWH(s.width(), s.height()));
                                     return b.detach();
-                                  },
+                                  }),
                               .t = 0.25f}));
   };
   host.composer.render(raw());

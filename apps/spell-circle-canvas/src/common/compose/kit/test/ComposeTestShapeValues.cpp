@@ -158,12 +158,12 @@ TEST(ComposeShapeValues, ARawCallableIsTheEscapeHatchAndStaysConservative) {
     return box().children({box()
                                .width(100)
                                .height(100)
-                               .shape([](SkSize s) {
+                               .shape(skiaShape([](SkSize s) {
                                  SkPathBuilder b;
                                  b.addOval(
                                      SkRect::MakeWH(s.width(), s.height()));
                                  return b.detach();
-                               })
+                               }))
                                .fill(red())});
   };
   host.composer.render(tree());
@@ -177,22 +177,22 @@ TEST(ComposeShapeValues, CopiesOfOneShapeCompareEqualEvenWhenRaw) {
   // Two copies of one Shape share state, and shared state IS identity — so
   // a caller who builds a raw callable once and holds it gets a real prune,
   // where one who re-mints an equivalent lambda each describe does not.
-  const Shape raw = [](SkSize s) {
+  const Shape raw = skiaShape([](SkSize s) {
     SkPathBuilder b;
     b.addRect(SkRect::MakeWH(s.width(), s.height()));
     return b.detach();
-  };
+  });
   // the copy is what the test compares
   // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
   const Shape copy = raw;
   EXPECT_TRUE(raw == copy);
   // But two separate constructions from equivalent lambdas cannot know
   // they agree, and must not claim to.
-  const Shape other = [](SkSize s) {
+  const Shape other = skiaShape([](SkSize s) {
     SkPathBuilder b;
     b.addRect(SkRect::MakeWH(s.width(), s.height()));
     return b.detach();
-  };
+  });
   EXPECT_FALSE(raw == other);
 }
 

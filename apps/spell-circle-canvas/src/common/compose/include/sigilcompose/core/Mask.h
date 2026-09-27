@@ -60,8 +60,8 @@ struct Instance;
 //    different rates and the intersection is exact per frame.
 
 /** A COMPARABLE region in the node's own local space — the shape gate's
- *  value, and deliberately a closed vocabulary rather than an
- *  `std::function<SkPath(SkSize)>`.
+ *  value, and deliberately a closed vocabulary rather than a callable
+ *  over the node's size.
  *
  *  A callable would defeat the point of the gate. A gate is read live,
  *  every frame; an incomparable generator never participates in reconciler

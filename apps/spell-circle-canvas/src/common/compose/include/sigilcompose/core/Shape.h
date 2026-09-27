@@ -14,7 +14,6 @@
  * `TextPath`, in <sigilcompose/typography/TextPath.h>.
  */
 
-#include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
@@ -42,10 +41,9 @@ namespace sigil::compose {
 
 /** A shape scheme: a comparable value that answers the node's outline
  *  for its laid-out size — Geometry's `path::Outline outline(glm::vec2)
- *  const`, which every `shapes::` generator declares, or a Skia path
- *  through `SkPath path(SkSize) const`. (A raw callable is the escape
- *  hatch below and may name the size or leave it unnamed; a SCHEME spells
- *  the member, so it takes the size.)
+ *  const`, which every `shapes::` generator declares. (A raw callable is
+ *  the escape hatch below and may name the size or leave it unnamed; a
+ *  SCHEME spells the member, so it takes the size.)
  *
  *  This is the seam-value convention the library uses throughout — one
  *  named required member and a comparable value. `Shaper` spells
@@ -64,22 +62,7 @@ concept OutlineGenerator = requires(const S& s, glm::vec2 size) {
 };
 
 template <typename S>
-concept ShapeScheme =
-    std::equality_comparable<S> &&
-    (OutlineGenerator<S> || requires(const S& s, SkSize size) {
-      { s.path(size) } -> std::convertible_to<SkPath>;
-    });
-
-/** The Skia path @p scheme answers for @p size, whichever member it
- *  spells. */
-template <typename S>
-SkPath shapePath(const S& scheme, SkSize size) {
-  if constexpr (OutlineGenerator<S>)
-    return geometry::path::toSk(
-        scheme.outline(geometry::path::fromSk(size)));
-  else
-    return scheme.path(size);
-}
+concept ShapeScheme = std::equality_comparable<S> && OutlineGenerator<S>;
 
 /** THE NODE'S SILHOUETTE, type-erased: what `Element::shape()`, a
  *  `TextPath` baseline and a `band()` spine hold.
@@ -87,11 +70,11 @@ SkPath shapePath(const S& scheme, SkSize size) {
  *  Two constructions, one value:
  *
  *  - a COMPARABLE scheme (any `shapes::` generator, or your own value
- *    with `path(SkSize)` + `==`) — the node prunes while the value and
- *    its size are unchanged;
- *  - a raw callable answering the path, over the laid-out size or over
- *    nothing (`[](SkSize s) { … }`, `[] { return p; }`, an
- *    `OutlineFunction`) — the escape
+ *    with `outline(glm::vec2)` + `==`) — the node prunes while the value
+ *    and its size are unchanged;
+ *  - a raw callable answering the outline, over the laid-out size or
+ *    over nothing (`[](glm::vec2 size) { … }`, `[] { return outline; }`,
+ *    an `OutlineFunction`) — the escape
  *    hatch. It never compares equal to a separately-constructed Shape, so
  *    the node re-patches on every describe and can never prune. That is a
  *    real per-frame cost on a node that would otherwise be static; reach
@@ -113,57 +96,55 @@ class Shape {
     state.equals = [](const std::any& a, const std::any& b) {
       return std::any_cast<const S&>(a) == std::any_cast<const S&>(b);
     };
-    state.generate = [s = std::move(scheme)](SkSize size) {
-      return shapePath(s, size);
+    state.generate = [s = std::move(scheme)](glm::vec2 size) {
+      return geometry::path::Outline(s.outline(size));
     };
     m_state = std::make_shared<const State>(std::move(state));
   }
 
   /** The escape hatch: any callable answering the outline, over the
-   *  laid-out size or over nothing — an outline that is the same path
-   *  whatever the box is takes `[] { return p; }`. Never compares equal to
-   *  a separately-constructed Shape. */
+   *  laid-out size or over nothing — an outline that is the same whatever
+   *  the box is takes `[] { return outline; }`. Never compares equal to a
+   *  separately-constructed Shape. */
   template <typename F>
     requires(!ShapeScheme<std::remove_cvref_t<F>> &&
              !std::same_as<std::remove_cvref_t<F>, Shape> &&
-             core::PrefixCallable<F, SkPath(SkSize)>)
-  Shape(F fn) {  // NOLINT: implicit by design (.shape([](SkSize s) {…}))
+             !OutlineGenerator<std::remove_cvref_t<F>> &&
+             core::PrefixCallable<F, geometry::path::Outline(glm::vec2)>)
+  Shape(F fn) {  // NOLINT: implicit by design (.shape([](glm::vec2 s) {…}))
     State state;
     state.generate = std::move(fn);
     m_state = std::make_shared<const State>(std::move(state));
   }
 
   /** The same escape hatch for a generator that answers an outline but
-   *  cannot compare — an unkeyed `shapes::parametric` — or a callable
-   *  answering a Geometry outline for a size (`shapes::OutlineFunction`).
-   *  Never compares equal to a separately-constructed Shape. */
+   *  cannot compare — an unkeyed `shapes::parametric`. Never compares
+   *  equal to a separately-constructed Shape. */
   template <typename F>
     requires(!ShapeScheme<std::remove_cvref_t<F>> &&
              !std::same_as<std::remove_cvref_t<F>, Shape> &&
-             !core::PrefixCallable<F, SkPath(SkSize)> &&
-             (OutlineGenerator<std::remove_cvref_t<F>> ||
-              std::is_invocable_r_v<geometry::path::Outline, const F&,
-                                    glm::vec2>))
+             OutlineGenerator<std::remove_cvref_t<F>>)
   Shape(F fn) {  // NOLINT: implicit by design (.shape(shapes::parametric(…)))
     State state;
-    state.generate = [f = std::move(fn)](SkSize size) {
-      if constexpr (OutlineGenerator<std::remove_cvref_t<F>>)
-        return geometry::path::toSk(f.outline(geometry::path::fromSk(size)));
-      else
-        return geometry::path::toSk(f(geometry::path::fromSk(size)));
+    state.generate = [f = std::move(fn)](glm::vec2 size) {
+      return geometry::path::Outline(f.outline(size));
     };
     m_state = std::make_shared<const State>(std::move(state));
   }
 
   explicit operator bool() const { return m_state && (bool)m_state->generate; }
-  SkPath operator()(SkSize size) const {
-    return m_state && m_state->generate ? m_state->generate(size) : SkPath();
+  /** The outline for a box of @p size; empty from an empty shape. */
+  geometry::path::Outline operator()(glm::vec2 size) const {
+    return m_state && m_state->generate ? m_state->generate(size)
+                                        : geometry::path::Outline();
   }
   /** A Shape is itself a scheme, so it NESTS: a wrapper that asks for a
    *  scheme takes one, and the equality it then uses is the one below —
    *  which refuses a callable, where a compiler-written equality over an
    *  empty closure type would vacuously accept it. */
-  SkPath path(SkSize size) const { return (*this)(size); }
+  geometry::path::Outline outline(glm::vec2 size) const {
+    return (*this)(size);
+  }
   /** Does this value participate in structural equality? (False for the
    *  callable escape hatch.) */
   bool comparable() const { return m_state && (bool)m_state->equals; }
@@ -180,57 +161,51 @@ class Shape {
 
  private:
   struct State {
-    core::Callable<SkPath(SkSize)> generate;
+    core::Callable<geometry::path::Outline(glm::vec2)> generate;
     std::any held;
     bool (*equals)(const std::any&, const std::any&) = nullptr;
   };
   std::shared_ptr<const State> m_state;
 };
 
-/** A PATH COOKED ONCE, held as a comparable Shape.
+/** AN OUTLINE COOKED ONCE, held as a comparable Shape.
  *
- *  The commonest escape hatch in the tree is `.shape([p](SkSize) { return
- *  p; })` — a path already built in the author's own coordinates, handed
- *  to the node through a lambda. That lambda compares equal to nothing,
- *  so the node re-patches and re-records on every describe however static
- *  the drawing is. This is the same handover as a value: the path is the
- *  identity.
+ *  The commonest escape hatch in the tree is `.shape([o](glm::vec2) {
+ *  return o; })` — an outline already built in the author's own
+ *  coordinates, handed to the node through a lambda. That lambda compares
+ *  equal to nothing, so the node re-patches and re-records on every
+ *  describe however static the drawing is. This is the same handover as
+ *  a value: the outline is the identity.
  *
- *  Equality is the path's own generation, which a COPY carries and a
- *  rebuild does not. So `heldPath(m_ring)` re-minted every describe off a
- *  path the caller holds prunes, and a path rebuilt from its parts each
- *  describe does not — cook it once, hold it, hand it here.
+ *  Equality is the outline's own: a copy shares its body and answers at
+ *  once, and an outline rebuilt each describe — the figure an operator
+ *  attaches every frame — is compared verb for verb, so an unchanged one
+ *  prunes too.
  *
- *  The path is used AS IT WAS COOKED, in the node's local coordinates. It
- *  is not fitted to the box (`shapes::svg()` is the fitting one), so a
- *  node whose box is not the path's own bounds shows the path where the
- *  path is. `pathFigure()` is the factory that gives a node exactly those
- *  bounds. */
+ *  The outline is used AS IT WAS COOKED, in the node's local
+ *  coordinates. It is not fitted to the box (`shapes::svg()` is the
+ *  fitting one), so a node whose box is not the outline's own bounds
+ *  shows the outline where it is. `pathFigure()` is the factory that
+ *  gives a node exactly those bounds. */
 class HeldPath {
  public:
   HeldPath() = default;
-  explicit HeldPath(SkPath cooked) : m_cooked(std::move(cooked)) {}
-  SkPath path(SkSize) const { return m_cooked; }
-  const SkPath& cooked() const { return m_cooked; }
-  /** The generation id changes on every edit and rides every copy, so a
-   *  held path answers at once; a path rebuilt each describe — the
-   *  figure an operator attaches every frame — is compared verb for
-   *  verb, so an unchanged one prunes too. Fill type joins both because
-   *  the id does not answer for it. */
-  bool operator==(const HeldPath& o) const {
-    if (m_cooked.getFillType() != o.m_cooked.getFillType()) return false;
-    return m_cooked.getGenerationID() == o.m_cooked.getGenerationID() ||
-           m_cooked == o.m_cooked;
-  }
+  explicit HeldPath(geometry::path::Outline cooked)
+      : m_cooked(std::move(cooked)) {}
+  geometry::path::Outline outline(glm::vec2) const { return m_cooked; }
+  const geometry::path::Outline& cooked() const { return m_cooked; }
+  bool operator==(const HeldPath& o) const = default;
 
  private:
-  SkPath m_cooked;
+  geometry::path::Outline m_cooked;
 };
 
-/** A path ALREADY COOKED, as a comparable shape: the node ignores its
+/** An outline ALREADY COOKED, as a comparable shape: the node ignores its
  *  own size and traces exactly this. For geometry computed once and
  *  held, where a generator would recompute it every frame. */
-inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
+inline HeldPath heldPath(geometry::path::Outline cooked) {
+  return HeldPath(std::move(cooked));
+}
 
 /** A CALLABLE MADE COMPARABLE BY THE VALUE IT CLOSES OVER.
  *
@@ -242,8 +217,9 @@ inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
  *  `custom(key, …)` take.
  *
  *      .shape(keyedShape(std::tuple(radius, cut, mask),
- *                        [=](SkSize s) { return panel(radius, cut, mask)(s);
- * }))
+ *                        [=](glm::vec2 size) {
+ *                          return panel(radius, cut, mask)(size);
+ *                        }))
  *
  *  ONE KEY MUST NAME ONE DRAWING. Anything the callable reads that is not
  *  in the key is invisible to the prune, and a node that prunes replays
@@ -256,11 +232,13 @@ inline HeldPath heldPath(SkPath cooked) { return HeldPath(std::move(cooked)); }
  *  own type match, which is what makes a `std::tuple` of the closed-over
  *  numbers the natural spelling. */
 template <std::equality_comparable K, typename F>
-  requires core::PrefixCallable<const F&, SkPath(SkSize)>
+  requires core::PrefixCallable<const F&, geometry::path::Outline(glm::vec2)>
 class KeyedShape {
  public:
   KeyedShape(K key, F fn) : m_key(std::move(key)), m_fn(std::move(fn)) {}
-  SkPath path(SkSize size) const { return core::callPrefix(m_fn, size); }
+  geometry::path::Outline outline(glm::vec2 size) const {
+    return core::callPrefix(m_fn, size);
+  }
   const K& key() const { return m_key; }
   bool operator==(const KeyedShape& o) const { return m_key == o.m_key; }
 
@@ -271,10 +249,10 @@ class KeyedShape {
 
 /** @p fn made comparable by @p key: two of these are equal when their
  *  keys are, so a generated shape prunes. The author takes on the
- *  one-key-one-drawing contract — the same key must mean the same path
- *  — which nothing can check. */
+ *  one-key-one-drawing contract — the same key must mean the same
+ *  outline — which nothing can check. */
 template <std::equality_comparable K, typename F>
-  requires core::PrefixCallable<const F&, SkPath(SkSize)>
+  requires core::PrefixCallable<const F&, geometry::path::Outline(glm::vec2)>
 KeyedShape<K, F> keyedShape(K key, F fn) {
   return KeyedShape<K, F>(std::move(key), std::move(fn));
 }
@@ -327,10 +305,10 @@ KeyedShape<K, F> keyedShape(K key, F fn) {
  *    A path is closed when EVERY contour it resolved to is closed.
  *  - **ARC LENGTH is the only parameterisation.** `t` is a fraction of
  *    the path's TOTAL arc length across every contour — the same
- *    coordinate `bandPointAt`, `spans::` and `SkTrimPathEffect` speak, so
- *    a motion path and a span reveal driven by the same numbers describe
- *    the same run. There is no flag to switch it off because there is no
- *    alternative: an `SkPath` has no native parameter, only length.
+ *    coordinate `bandPointAt` and `spans::` speak, so a motion path and a
+ *    span reveal driven by the same numbers describe the same run. There
+ *    is no flag to switch it off because there is no alternative: an
+ *    outline has no native parameter, only length.
  *  - **A path that resolves to no length is not engaged.**
  *
  *  Paint-only, like the lanes it outranks: a travelling node never

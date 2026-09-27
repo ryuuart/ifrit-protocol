@@ -387,10 +387,10 @@ TEST(ComposeInkUnits, ALetterOnAPathTakesTheBoxItStandsInThere) {
   // On a path baseline the unit's box is where the path set the letter,
   // not where the paragraph would have: two letters centred on a line
   // across the lower half of the leaf each restart the ramp.
-  const Shape baseline = [](SkSize size) {
+  const Shape baseline = skiaShape([](SkSize size) {
     return SkPath::Line({0, size.height() * 0.8f},
                         {size.width(), size.height() * 0.8f});
-  };
+  });
   Host host(360, 200);
   host.composer.render(
       box().children({text(u8"HH", whiteStyle(80))

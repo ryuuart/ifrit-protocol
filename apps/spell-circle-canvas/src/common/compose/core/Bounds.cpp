@@ -139,7 +139,8 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   // bounds with no diagnostic.
   if (node.textData && node.textData->onPath) {
     const TextPath& spec = *node.textData->onPath;
-    const SkPath baseline = spec.path({rect.width(), rect.height()});
+    const SkPath baseline =
+        skiaOutline(spec.path, SkSize{rect.width(), rect.height()});
     if (!baseline.isEmpty()) {
       const TextMetrics band = metrics(baseStyleOf(inst), fonts);
       const float reach =
@@ -155,8 +156,8 @@ SkRect Composer::Impl::ownPaintBounds(Instance& inst) {
   // hold the spine itself.
   if (const geometry::path::Profile* band = node.bandWidth()) {
     const SkPath spine = node.deriveData->bandSpine
-                             ? node.deriveData->bandSpine(
-                                   {rect.width(), rect.height()})
+                             ? skiaOutline(node.deriveData->bandSpine,
+                                           SkSize{rect.width(), rect.height()})
                              : SkPath();
     if (!spine.isEmpty()) {
       SkRect swept = spine.getBounds();
@@ -201,7 +202,8 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
       cache.size.height() != frame.height()) {
     cache.shape = spec.path;
     cache.size = frame;
-    cache.contours = geometry::path::Contour::of(spec.path(frame));
+    cache.contours =
+        geometry::path::Contour::of(skiaOutline(spec.path, frame));
     cache.total = geometry::path::totalLength(cache.contours);
     cache.closed = geometry::path::closedThroughout(cache.contours);
   }

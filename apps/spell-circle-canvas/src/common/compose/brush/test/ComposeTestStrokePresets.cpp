@@ -237,7 +237,7 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
              // the callable is invoked on every layout, so its capture must
              // survive each return
              // NOLINTNEXTLINE(performance-no-automatic-move)
-             .shape([&] { return spine; })
+             .shape(skiaShape([&] { return spine; }))
              .stroke(brush::weave(strands,
                                   geometry::path::crossing::alternate()))}));
     host.frame();

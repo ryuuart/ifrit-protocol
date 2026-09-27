@@ -331,13 +331,13 @@ TEST(ComposeBrushes, PatternCornerTileSitsOnTheBend) {
       {box()
            .absolute()
            .inset(40)
-           .shape([](SkSize s) {  // an L: right then down
+           .shape(skiaShape([](SkSize s) {  // an L: right then down
              SkPathBuilder p;
              p.moveTo(0, 0);
              p.lineTo(s.width(), 0);
              p.lineTo(s.width(), s.height());
              return p.detach();
-           })
+           }))
            .stroke(std::move(b))}));
   host.frame();
   EXPECT_EQ(host.pixel(160, 40), SK_ColorBLUE);  // corner tile at the bend
@@ -369,7 +369,7 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
       {box()
            .absolute()
            .inset(50)
-           .shape([](SkSize s) {  // closed rect starting at (0,0)
+           .shape(skiaShape([](SkSize s) {  // closed rect starting at (0,0)
              SkPathBuilder p;
              p.moveTo(0, 0);
              p.lineTo(s.width(), 0);
@@ -377,7 +377,7 @@ TEST(ComposeBrushes, PatternCornerTileAtTheClosedSeam) {
              p.lineTo(0, s.height());
              p.close();
              return p.detach();
-           })
+           }))
            .stroke(std::move(b))}));
   host.frame();
   EXPECT_EQ(host.pixel(50, 50), SK_ColorBLUE);  // the seam corner tile

@@ -1,3 +1,4 @@
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -25,6 +26,17 @@ using compose::Element;
 using compose::PaintContext;
 
 namespace {
+
+/** A chart layer's Skia path drawing as the outline a shape answers: the
+ *  drawing is handed the box as an `SkSize`, and its path crosses into an
+ *  outline here, the one place the chart kit's builder meets a shape. */
+template <class Draw>
+auto outlineDrawnBy(Draw draw) {
+  return [draw = std::move(draw)](glm::vec2 box) {
+    return geometry::path::fromSk(draw(SkSize{box.x, box.y}));
+  };
+}
+
 
 /** WHERE A MARK STANDS on @p ranged — the middle of the band a transform
  *  with bands gives @p value, the value's own position where there is no
@@ -317,7 +329,7 @@ Layer rules(const Rules& how) {
         .inset(0)
         .shape(compose::keyedShape(
             std::tuple{name, frame, how.x, how.y},
-            [how, frame](SkSize size) {
+            outlineDrawnBy([how, frame](SkSize size) {
               SkPathBuilder path;
               if (frame.polar) {
                 const SkPoint hub = frame.centre(size);
@@ -350,7 +362,7 @@ Layer rules(const Rules& how) {
                 path.lineTo((float)across.range.high, at);
               }
               return path.detach();
-            }))
+            })))
         .stroke(how.pen);
   };
 }
@@ -398,9 +410,9 @@ Layer trace(sigil::core::Callable<double(double)> f, const Trace& how) {
             .inset(0)
             .shape(compose::keyedShape(
                 std::tuple{name, frame, how.samples},
-                [f, frame, samples = how.samples](SkSize box) {
+                outlineDrawnBy([f, frame, samples = how.samples](SkSize box) {
                   return f ? walked(frame, f, samples, box).detach() : SkPath();
-                }));
+                })));
     if (how.along)
       curve.stroke(*how.along, how.pen);
     else
@@ -424,7 +436,7 @@ Layer trace(std::span<const double> series, const Trace& how) {
                 std::string(detail::classOf(how.styleClass, "plotTrace")))
             .cover()
             .shape(compose::keyedShape(
-                std::tuple{name, frame, held}, [held, frame](SkSize box) {
+                std::tuple{name, frame, held}, outlineDrawnBy([held, frame](SkSize box) {
                   SkPathBuilder path;
                   if (held.empty()) return SkPath();
                   const data::Interval domain = frame.x.domain;
@@ -438,7 +450,7 @@ Layer trace(std::span<const double> series, const Trace& how) {
                     i == 0 ? path.moveTo(point) : path.lineTo(point);
                   }
                   return path.detach();
-                }));
+                })));
     if (how.along)
       curve.stroke(*how.along, how.pen);
     else
@@ -462,7 +474,7 @@ Layer path(sigil::core::Callable<Datum(double)> at, const Path& how) {
             .shape(compose::keyedShape(
                 std::tuple{name, frame, how.samples, how.over.low,
                            how.over.high},
-                [at, frame, how](SkSize box) {
+                outlineDrawnBy([at, frame, how](SkSize box) {
                   SkPathBuilder path;
                   if (!at) return SkPath();
                   const int steps = std::max(how.samples, 1);
@@ -475,7 +487,7 @@ Layer path(sigil::core::Callable<Datum(double)> at, const Path& how) {
                     i == 0 ? path.moveTo(on) : path.lineTo(on);
                   }
                   return path.detach();
-                }));
+                })));
     if (how.along)
       curve.stroke(*how.along, how.pen);
     else

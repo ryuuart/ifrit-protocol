@@ -429,10 +429,11 @@ inline geometry::shapes::Radial starburstOutline(int spikes, float depth) {
 
 /** Scalloped outline: rounded lobes bulging out of each edge — the
  *  cloud-bubble / wax-seal silhouette. */
-inline std::function<SkPath(SkSize)> scallopOutline(float lobe = 14.0f) {
-  return [lobe](SkSize s) {
+inline std::function<geometry::path::Outline(glm::vec2)> scallopOutline(
+    float lobe = 14.0f) {
+  return [lobe](glm::vec2 size) {
     SkPathBuilder b;
-    const float w = s.width(), h = s.height(), inset = lobe * 0.5f;
+    const float w = size.x, h = size.y, inset = lobe * 0.5f;
     auto edge = [&](SkPoint from, SkPoint to) {
       const float dx = to.x() - from.x(), dy = to.y() - from.y();
       const float len = std::sqrt(dx * dx + dy * dy);
@@ -452,7 +453,7 @@ inline std::function<SkPath(SkSize)> scallopOutline(float lobe = 14.0f) {
     edge({w - inset, h - inset}, {inset, h - inset});
     edge({inset, h - inset}, {inset, inset});
     b.close();
-    return b.detach();
+    return geometry::path::fromSk(b.detach());
   };
 }
 

@@ -169,9 +169,9 @@ Element grade(float radius, float alpha) {
       .top(200 - radius)
       .width(radius * 2)
       .height(radius * 2)
-      .shape([](SkSize s) {
+      .shape(sigil::compose::bench::skiaShape([](SkSize s) {
         return SkPath::Oval(SkRect::MakeWH(s.fWidth, s.fHeight));
-      })
+      }))
       .fill(Fill::color({1.0f, 0.72f, 0.31f, alpha}))
       .blendMode(material::BlendMode::PlusLighter);
 }

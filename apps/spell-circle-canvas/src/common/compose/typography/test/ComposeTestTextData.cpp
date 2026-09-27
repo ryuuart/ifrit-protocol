@@ -53,12 +53,12 @@ TEST(ComposeText, OnPathFillsEveryContourNotJustTheFirst) {
   // words fill them in order, and a word that does not fit the contour it
   // reached starts the next one rather than bending across the gap between
   // two disconnected curves.
-  auto twoSegments = [](SkSize s) {
+  auto twoSegments = skiaShape([](SkSize s) {
     SkPathBuilder b;
     b.moveTo(10, 40).lineTo(190, 40);    // contour 1: across the top
     b.moveTo(10, 160).lineTo(190, 160);  // contour 2: across the bottom
     return b.detach();
-  };
+  });
   auto lit = [](Host& host, int y0, int y1) {
     int count = 0;
     for (int y = y0; y < y1; ++y)
@@ -88,12 +88,12 @@ TEST(ComposeText, OnPathBreaksAtWordsBetweenContours) {
   // never split across two contours. The two segments here are far apart,
   // and a word bent across the gap would land letters in the empty band
   // between them.
-  auto twoSegments = [](SkSize) {
+  auto twoSegments = skiaShape([](SkSize) {
     SkPathBuilder b;
     b.moveTo(10, 40).lineTo(120, 40);
     b.moveTo(10, 160).lineTo(190, 160);
     return b.detach();
-  };
+  });
   auto lit = [](Host& host, int y0, int y1) {
     int count = 0;
     for (int y = y0; y < y1; ++y)

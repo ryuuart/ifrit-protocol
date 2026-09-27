@@ -14,8 +14,8 @@
  *     .foreground(onEdges(geometry::path::Edge::Top, PathFormat{…}))
  *
  * The silhouettes themselves are SigilGeometry's
- * (`<sigilgeometry/kit/Silhouettes.h>`): values with `path(SkSize)` and
- * `operator==`, which `Element::shape()` takes.
+ * (`<sigilgeometry/kit/Silhouettes.h>`): values with `outline(glm::vec2)`
+ * and `operator==`, which `Element::shape()` takes.
  */
 
 #include <sigilcompose/Compose.h>

@@ -67,8 +67,7 @@ struct WireBetween {
     const Scope::Node* end = scope.find(to);
     if (!start || !end) return;
     Element figure =
-        pathFigure(geometry::path::toSk(routeBetween({}, start->bounds, end->bounds)),
-                   6.0f);
+        pathFigure(routeBetween({}, start->bounds, end->bounds), 6.0f);
     figure.key(from + "->" + to);
     scope.attach(std::move(figure));
   }

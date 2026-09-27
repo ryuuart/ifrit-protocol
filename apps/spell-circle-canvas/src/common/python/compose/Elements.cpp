@@ -1,5 +1,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Composer.h>
@@ -476,7 +477,7 @@ void bindCompose(py::module_& module) {
       .def(
           "path",
           [](const Shape& self, float w, float h) {
-            return self.path(SkSize::Make(w, h));
+            return geometry::path::toSk(self(glm::vec2{w, h}));
           },
           py::arg("width"), py::arg("height"))
       .def("comparable", &Shape::comparable)
@@ -484,7 +485,10 @@ void bindCompose(py::module_& module) {
   composition.def(
       "shape", [](py::object value) { return shape(value); }, py::arg("value"));
   composition.def(
-      "heldPath", [](SkPath path) { return Shape{heldPath(std::move(path))}; },
+      "heldPath",
+      [](const SkPath& path) {
+        return Shape{heldPath(geometry::path::fromSk(path))};
+      },
       py::arg("path"));
   py::class_<MotionPath>(composition, "MotionPath")
       .def(py::init([](py::object path, py::object progress, float look) {

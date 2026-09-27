@@ -30,7 +30,7 @@ inline SkPath resolvedShapeOf(Instance& inst) {
   const ElementNode& node = *inst.description;
   const SkRect rect = inst.owner->instanceRect(inst);
   const SkSize size{rect.width(), rect.height()};
-  if (node.shapeFn) return node.shapeFn(size);
+  if (node.shapeFn) return skiaOutline(node.shapeFn, size);
   SkPathBuilder b;
   b.addRect(SkRect::MakeWH(size.width(), size.height()));
   return b.detach();

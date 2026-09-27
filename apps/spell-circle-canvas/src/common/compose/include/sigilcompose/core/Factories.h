@@ -296,7 +296,7 @@ Element picture(sk_sp<SkPicture> recorded, SkSize native);
  *
  *  It has NO FILL and no mark of its own: dress it with `.fill()`, a
  *  `.stroke()` or a `foreground(PathFormat{…})` as the drawing wants. */
-Element pathFigure(SkPath absolute, float bleed = 0.0f);
+Element pathFigure(const geometry::path::Outline& absolute, float bleed = 0.0f);
 
 /** A NODE WITH NO EXTENT: a place in its parent's box that carries a key
  *  and facts (`Element::attribute`) and draws nothing. Out of the flow,

@@ -307,10 +307,10 @@ namespace {
  *  to the right of it. A comparable scheme rather than a raw callable, so
  *  the node can still prune and the cache under test is really reached. */
 struct RingBesideTheBox {
-  SkPath path(SkSize) const {
+  geometry::path::Outline outline(glm::vec2) const {
     SkPathBuilder builder;
     builder.addCircle(200, 100, 60);
-    return builder.detach();
+    return geometry::path::fromSk(builder.detach());
   }
   bool operator==(const RingBesideTheBox&) const = default;
 };

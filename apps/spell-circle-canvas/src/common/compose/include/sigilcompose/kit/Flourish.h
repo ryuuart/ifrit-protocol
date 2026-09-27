@@ -75,14 +75,14 @@ inline Fill flourishParchment(const FlourishStyle& s, float freq = 0.04f) {
 // gilt beads (recursion level 2) and split by a gilt midrib.
 
 inline Shape leafOutline() {
-  return [](SkSize s) {
-    const float w = s.width(), h = s.height();
+  return [](glm::vec2 size) {
+    const float w = size.x, h = size.y;
     SkPathBuilder b;
     b.moveTo(w * 0.06f, h * 0.5f);
     b.quadTo(w * 0.42f, h * 0.04f, w * 0.96f, h * 0.5f);
     b.quadTo(w * 0.42f, h * 0.96f, w * 0.06f, h * 0.5f);
     b.close();
-    return b.detach();
+    return geometry::path::fromSk(b.detach());
   };
 }
 

@@ -131,12 +131,12 @@ const SlotScene kSlotScenes[] = {
        e.rect(0, 0, 24, 24);
        e.fill(red());
        e.travel({.path =
-                     [](SkSize) {
+                     skiaShape([](SkSize) {
                        SkPathBuilder b;
                        b.moveTo(20, 20);
                        b.lineTo(170, 170);
                        return b.detach();
-                     },
+                     }),
                  .t = std::move(lane)});
        return e;
      }},

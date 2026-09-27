@@ -18,12 +18,12 @@ Element straightRun(Decoration style) {
       {box()
            .absolute()
            .inset(80, 20)
-           .shape([](SkSize s) {
+           .shape(skiaShape([](SkSize s) {
              SkPathBuilder b;
              b.moveTo(0, s.height() / 2);
              b.lineTo(s.width(), s.height() / 2);
              return b.detach();
-           })
+           }))
            .stroke(std::move(style))});
 }
 

@@ -419,12 +419,12 @@ TEST(ComposeSpans, EachContourStitchesItsOwnSeamOnAMultiContourPath) {
                            .absolute()
                            .inset(0)
                            .fill(Fill::none())
-                           .shape([] {
+                           .shape(skiaShape([] {
                              SkPathBuilder b;
                              b.addCircle(50, 100, 30);
                              b.addCircle(150, 100, 30);
                              return b.detach();
-                           })
+                           }))
                            .stroke(spans::range(0.0f, 0.10f) |
                                        spans::range(0.5f, 0.6f) |
                                        spans::range(0.9f, 1.0f),

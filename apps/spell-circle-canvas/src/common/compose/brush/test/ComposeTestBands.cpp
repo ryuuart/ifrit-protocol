@@ -9,12 +9,12 @@
 namespace {
 
 /** The boundary of a plain box, as the painter builds it. */
-std::function<SkPath(SkSize)> rectSpine() {
-  return [](SkSize s) {
+Shape rectSpine() {
+  return skiaShape([](SkSize s) {
     SkPathBuilder b;
     b.addRect(SkRect::MakeWH(s.width(), s.height()));
     return b.detach();
-  };
+  });
 }
 
 }  // namespace
@@ -69,12 +69,12 @@ TEST(ComposeBand, MultiContourSpinesDoNotBridge) {
   Host host(400, 400);
   host.composer.render(stack().children(
       {band(
-           [](SkSize s) {
+           skiaShape([](SkSize s) {
              SkPathBuilder b;
              b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 150);
              b.addCircle(s.width() * 0.5f, s.height() * 0.5f, 60);
              return b.detach();
-           },
+           }),
            12)
            .inset(0)
            .fill(red())}));
@@ -144,12 +144,12 @@ TEST(ComposeRibbon, ProfileRibbonPaintsItsBand) {
   host.composer.render(
       stack().children({box()
                             .rect(40, 40, 100, 100)
-                            .shape([](SkSize s) {
+                            .shape(skiaShape([](SkSize s) {
                               SkPathBuilder p;
                               p.moveTo(0, s.height() * 0.5f);
                               p.lineTo(s.width(), s.height() * 0.5f);
                               return p.detach();
-                            })
+                            }))
                             .stroke(std::move(r))}));
   host.frame();
   EXPECT_EQ(host.pixel(90, 90), SK_ColorRED) << "on the spine";
@@ -200,12 +200,12 @@ struct PulseAtFraction {
 Element straightRun(brush::Ribbon r) {
   return box()
       .rect(0, 0, 200, 200)
-      .shape([](SkSize s) {
+      .shape(skiaShape([](SkSize s) {
         SkPathBuilder p;
         p.moveTo(20, s.height() * 0.5f);
         p.lineTo(s.width() - 20, s.height() * 0.5f);
         return p.detach();
-      })
+      }))
       .stroke(std::move(r));
 }
 
@@ -289,12 +289,12 @@ TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
     // spans::upTo is the reveal; at 1.0 the whole spine is handed over.
     Element revealed = box()
                            .rect(0, 0, 200, 200)
-                           .shape([](SkSize s) {
+                           .shape(skiaShape([](SkSize s) {
                              SkPathBuilder p;
                              p.moveTo(20, s.height() * 0.5f);
                              p.lineTo(s.width() - 20, s.height() * 0.5f);
                              return p.detach();
-                           })
+                           }))
                            .stroke(spans::upTo(reveal), std::move(r));
     host.composer.render(stack().children({std::move(revealed)}));
     host.frame();

@@ -99,7 +99,7 @@ void perturb(Dimension& v) { v = Dimension(v.value + 1.0f); }
 void perturb(cd::LayoutProps& v) { v.gap = Dimension(v.gap.value + 1.0f); }
 
 void perturb(Shape& v) {
-  v = Shape([](SkSize) { return SkPath(); });  // the raw-callable escape hatch
+  v = Shape(skiaShape([](SkSize) { return SkPath(); }));  // the raw-callable escape hatch
 }
 
 void perturb(std::optional<sigil::motion::Transition>& v) {

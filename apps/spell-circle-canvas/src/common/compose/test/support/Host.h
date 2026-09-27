@@ -21,6 +21,7 @@
 #include <cstring>
 #include <optional>
 #include <stdexcept>
+#include <type_traits>
 
 #include "Fonts.h"
 
@@ -59,6 +60,20 @@ template <class T>
 const T& require(const std::optional<T>& maybe) {
   if (!maybe.has_value()) throw std::logic_error("expected a value");
   return maybe.value();
+}
+
+/** A test's Skia path drawing as the outline callable a shape takes: the
+ *  drawing is handed the box as an `SkSize` (or nothing, when it takes
+ *  none) and its path crosses into an outline. For a case that builds its
+ *  figure with Skia's path builder. */
+template <class Draw>
+auto skiaShape(Draw draw) {
+  return [draw = std::move(draw)](glm::vec2 size) {
+    if constexpr (std::is_invocable_v<const Draw&, SkSize>)
+      return geometry::path::fromSk(draw(SkSize{size.x, size.y}));
+    else
+      return geometry::path::fromSk(draw());
+  };
 }
 
 /** A node's bounds as a Skia rect, for a case that checks them against

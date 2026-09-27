@@ -119,12 +119,12 @@ TEST(ComposeBrushEngine, AnExplicitIntervalIsNotOverriddenBySpacing) {
         {box()
              .absolute()
              .inset(20)
-             .shape([](SkSize s) {
+             .shape(skiaShape([](SkSize s) {
                SkPathBuilder p;
                p.moveTo(0, 0);
                p.lineTo(s.width(), 0);
                return p.detach();
-             })
+             }))
              .stroke(std::move(b))}));
     host.frame();
     int runs = 0;
@@ -154,14 +154,14 @@ TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
       {box()
            .absolute()
            .inset(40)
-           .shape([](SkSize s) {
+           .shape(skiaShape([](SkSize s) {
              SkPathBuilder p;  // three segments, two bends
              p.moveTo(0, s.height());
              p.lineTo(60, s.height());
              p.lineTo(60, 0);
              p.lineTo(s.width(), 0);
              return p.detach();
-           })
+           }))
            .stroke(std::move(b))}));
   host.frame();
   EXPECT_EQ(host.pixel(100, 160), SK_ColorRED);   // bend 1 (60,120)+40
@@ -177,12 +177,12 @@ TEST(ComposeBrushEngine, PlacementGrammarLandsOnRealVertices) {
       {box()
            .absolute()
            .inset(40)
-           .shape([](SkSize s) {
+           .shape(skiaShape([](SkSize s) {
              SkPathBuilder p;
              p.moveTo(0, 0);
              p.lineTo(s.width(), 0);
              return p.detach();
-           })
+           }))
            .stroke(std::move(c))}));
   centers.frame();
   EXPECT_EQ(centers.pixel(100, 40), SK_ColorBLUE);  // the segment midpoint
@@ -225,12 +225,12 @@ TEST(ComposeBrushTail, BrushArtWarpsArtAlongTheOutline) {
   Host host;
   // A straight horizontal outline through the node's middle: the warped
   // ribbon must be a horizontal band of the art's height around it.
-  auto lineOutline = [](SkSize s) {
+  auto lineOutline = skiaShape([](SkSize s) {
     SkPathBuilder b;
     b.moveTo(0, s.height() / 2);
     b.lineTo(s.width(), s.height() / 2);
     return b.detach();
-  };
+  });
   brush::Art brush = brush::artAlong(
       box().width(40).height(20).fill(Fill::color({1, 1, 1, 1})), 20);
   host.composer.render(box().children(
@@ -290,13 +290,13 @@ TEST(ComposeBrushes, PatternCopyRebakesAllChangedArt) {
     return box().children({box()
                                .absolute()
                                .inset(30)
-                               .shape([](SkSize size) {
+                               .shape(skiaShape([](SkSize size) {
                                  SkPathBuilder path;
                                  path.moveTo(0, 0);
                                  path.lineTo(size.width(), 0);
                                  path.lineTo(size.width(), size.height());
                                  return path.detach();
-                               })
+                               }))
                                .stroke(std::move(brush))});
   };
 
@@ -377,7 +377,7 @@ TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
   host.composer.render(box().children({box()
                                            .absolute()
                                            .inset(0)
-                                           .shape([] {
+                                           .shape(skiaShape([] {
                                              SkPathBuilder p;
                                              p.moveTo(100, 100);
                                              p.lineTo(300, 100);
@@ -385,7 +385,7 @@ TEST(ComposeBrushes, PatternCornerLandsOnTheVertexAndFacesTheBisector) {
                                              p.lineTo(100, 240);
                                              p.close();
                                              return p.detach();
-                                           })
+                                           }))
                                            .stroke(std::move(brush))}));
   host.frame();
 
@@ -443,7 +443,7 @@ TEST(ComposeBrushes, OutgoingCornerAlignmentFacesTheNextEdge) {
   host.composer.render(box().children({box()
                                            .absolute()
                                            .inset(0)
-                                           .shape([] {
+                                           .shape(skiaShape([] {
                                              SkPathBuilder p;
                                              p.moveTo(100, 100);
                                              p.lineTo(300, 100);
@@ -451,7 +451,7 @@ TEST(ComposeBrushes, OutgoingCornerAlignmentFacesTheNextEdge) {
                                              p.lineTo(100, 240);
                                              p.close();
                                              return p.detach();
-                                           })
+                                           }))
                                            .stroke(std::move(brush))}));
   host.frame();
   SkBitmap bm;
@@ -509,14 +509,14 @@ TEST(ComposeBrushEngine, AStepThatCannotAdvanceSkipsItsContour) {
       {box()
            .absolute()
            .inset(80, 20)
-           .shape([](SkSize s) {
+           .shape(skiaShape([](SkSize s) {
              SkPathBuilder b;
              b.moveTo(0, s.height() / 2);
              b.close();  // no length at all
              b.moveTo(0, s.height() / 2);
              b.lineTo(s.width(), s.height() / 2);
              return b.detach();
-           })
+           }))
            .stroke(Decoration(s))}));
   host.frame();
   SUCCEED();  // it finished

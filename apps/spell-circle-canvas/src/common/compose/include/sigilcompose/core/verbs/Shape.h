@@ -7,8 +7,6 @@
  * that overrides them, and the clip to either.
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkSize.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
@@ -40,7 +38,7 @@ class ShapeVerbs {
    *  so the node settles. A path already cooked wants
    *  `shape(heldPath(p))` instead. */
   template <typename K, typename F>
-    requires core::PrefixCallable<const F&, SkPath(SkSize)>
+    requires core::PrefixCallable<const F&, geometry::path::Outline(glm::vec2)>
   Derived& shape(K key, F fn) {
     return shape(Shape(keyedShape(std::move(key), std::move(fn))));
   }

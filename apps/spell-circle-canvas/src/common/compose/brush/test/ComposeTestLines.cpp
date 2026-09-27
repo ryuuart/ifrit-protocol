@@ -175,13 +175,13 @@ Element corneredRun(lines::Line style) {
       {box()
            .absolute()
            .inset(20)
-           .shape([] {
+           .shape(skiaShape([] {
              SkPathBuilder b;
              b.moveTo(0, 120);
              b.lineTo(120, 120);
              b.lineTo(120, 0);
              return b.detach();
-           })
+           }))
            .stroke(std::move(style))});
 }
 
@@ -349,11 +349,11 @@ Element circleRun(Decoration style, float radius) {
       {box()
            .absolute()
            .inset(0)
-           .shape([radius](SkSize s) {
+           .shape(skiaShape([radius](SkSize s) {
              SkPathBuilder b;
              b.addCircle(s.width() / 2, s.height() / 2, radius);
              return b.detach();
-           })
+           }))
            .stroke(std::move(style))});
 }
 
@@ -665,12 +665,12 @@ TEST(ComposeRouters, AManhattanCasedWireMatchesCleanGeometry) {
   clean.composer.render(stations().children({box()
                                                  .absolute()
                                                  .inset(0)
-                                                 .shape([] {
+                                                 .shape(skiaShape([] {
                                                    SkPathBuilder b;
                                                    b.moveTo(20, 100);
                                                    b.lineTo(180, 100);
                                                    return b.detach();
-                                                 })
+                                                 }))
                                                  .stroke(wire)}));
   routed.frame();
   clean.frame();

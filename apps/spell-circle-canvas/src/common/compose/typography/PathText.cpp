@@ -113,7 +113,7 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
   textStateOf(inst).pathTotalLength = 0;
   if (!spec.path) return;
 
-  const SkPath baseline = spec.path(size);
+  const SkPath baseline = skiaOutline(spec.path, size);
   // The centre Orient::Radial radiates from: the bounds of the resolved
   // baseline, which for every dial-shaped path is its centre.
   const SkRect baselineBounds = baseline.getBounds();

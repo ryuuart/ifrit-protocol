@@ -159,14 +159,14 @@ TEST(ComposeLayouts, RadialRadiusAtGivesEachChildItsOwnRing) {
 TEST(ComposeLayouts, AlongPathUsesTheSelectedContoursClosure) {
   for (bool firstClosed : {false, true}) {
     SCOPED_TRACE(firstClosed);
-    layouts::AlongPath scheme{.path = [firstClosed] {
+    layouts::AlongPath scheme{.path = skiaShape([firstClosed] {
       SkPathBuilder path;
       path.moveTo(0, 0).lineTo(100, 0);
       if (firstClosed) path.close();
       path.moveTo(0, 50).lineTo(100, 50);
       if (!firstClosed) path.close();
       return path.detach();
-    }};
+    })};
     Arrangement arrangement;
     arrangement.box = geometry::path::Rect::of({0, 0}, {100, 100});
     arrangement.children.resize(2);

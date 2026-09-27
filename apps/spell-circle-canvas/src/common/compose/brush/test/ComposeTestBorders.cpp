@@ -364,12 +364,12 @@ TEST_P(OpenContourWrap, AWrappedWindowOnAnOpenContourStaysTwoPieces) {
   Element run = box()
                     .absolute()
                     .inset(80, 20)
-                    .shape([](SkSize s) {
+                    .shape(skiaShape([](SkSize s) {
                       SkPathBuilder b;  // an open horizontal line
                       b.moveTo(0, s.height() / 2);
                       b.lineTo(s.width(), s.height() / 2);
                       return b.detach();
-                    });
+                    }));
   if (GetParam() == WrapDoor::NodeGate) {
     run.mask(by::spans(spans::wrap(0.9f, 1.2f))).stroke(stroke(6, green()));
   } else {
@@ -414,7 +414,7 @@ TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
       {box()
            .absolute()
            .inset(20)
-           .shape([](SkSize s) {  // closed rect, seam at its top-left corner
+           .shape(skiaShape([](SkSize s) {  // closed rect, seam at its top-left corner
              SkPathBuilder b;
              b.moveTo(0, 0);
              b.lineTo(s.width(), 0);
@@ -422,7 +422,7 @@ TEST(ComposeMask, ClosedContourWrapSeamIsOnePiece) {
              b.lineTo(0, s.height());
              b.close();
              return b.detach();
-           })
+           }))
            // perimeter 640: [0, 0.2] runs 128 px right along the top edge,
            // [0.9, 1] runs the last 64 px UP the left edge into the seam.
            .mask(by::spans(spans::wrap(0.9f, 1.2f)))

@@ -146,7 +146,7 @@ const SkPath& Composer::Impl::resolveOutline(Instance& inst,
                                              SkSize size) const {
   if (!(inst.outlineCacheShape == inst.description->shapeFn) ||
       inst.outlineCacheSize != size) {
-    inst.outlineCache = inst.description->shapeFn(size);
+    inst.outlineCache = skiaOutline(inst.description->shapeFn, size);
     inst.outlineCacheShape = inst.description->shapeFn;
     inst.outlineCacheSize = size;
   }
@@ -213,7 +213,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     // profile's width, on the declared side. The spine is guide data.
     const SkPath spine =
         node.deriveData->bandSpine
-            ? node.deriveData->bandSpine({bounds.width(), bounds.height()})
+            ? skiaOutline(node.deriveData->bandSpine,
+                          SkSize{bounds.width(), bounds.height()})
             : SkPath();
     const StrokeResolver& resolver = node.deriveData->bandResolver;
     outlinePath = resolver ? resolver->bandRegion(

@@ -3,6 +3,7 @@
 #include <include/core/SkPath.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
@@ -151,14 +152,15 @@ compose::Shape shapeKeyedBy(py::object key, py::function function) {
         "A shape function takes the box's width and height, or nothing.");
   auto held = retainCallback(std::move(function));
   return compose::Shape{compose::keyedShape(
-      PythonShapeKey{retainValue(std::move(key))}, [held, named](SkSize size) {
+      PythonShapeKey{retainValue(std::move(key))},
+      [held, named](glm::vec2 size) {
         const py::gil_scoped_acquire lock;
         const CallbackBoundary boundary;
         try {
           const py::function outline = held->get();
           const py::object path =
-              named == 0 ? outline() : outline(size.width(), size.height());
-          return path.cast<SkPath>();
+              named == 0 ? outline() : outline(size.x, size.y);
+          return geometry::path::fromSk(path.cast<SkPath>());
         } catch (const py::error_already_set& error) {
           throw std::runtime_error(error.what());
         }

@@ -9,6 +9,7 @@
  */
 
 #include <sigilcore/compute/Noise.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Reads.h>
 #include <sigilmaterial/skia/Filter.h>
@@ -37,6 +38,17 @@
 // defined in these headers.
 #include "DeclaredFields.h"
 #include "sigilcompose/typography/Typography.h"
+
+namespace sigil::compose::detail {
+
+/** @p shape's outline for a box of @p size, as the Skia path the painter
+ *  draws and measures: the one place the renderer's path crosses from a
+ *  shape's answer. */
+inline SkPath skiaOutline(const Shape& shape, SkSize size) {
+  return geometry::path::toSk(shape(geometry::path::fromSk(size)));
+}
+
+}  // namespace sigil::compose::detail
 
 namespace sigil::compose::detail {
 

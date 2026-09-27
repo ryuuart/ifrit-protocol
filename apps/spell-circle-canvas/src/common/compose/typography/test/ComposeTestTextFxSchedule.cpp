@@ -39,10 +39,10 @@ std::vector<SkRect> wordExtents(const sigil::weave::ParagraphLayout& layout,
 /** A baseline that leaves the node's box entirely: a ring centred well to
  *  the right of it, as a comparable scheme so the node still prunes. */
 struct BeatRing {
-  SkPath path(SkSize) const {
+  geometry::path::Outline outline(glm::vec2) const {
     SkPathBuilder builder;
     builder.addCircle(200, 100, 60);
-    return builder.detach();
+    return geometry::path::fromSk(builder.detach());
   }
   bool operator==(const BeatRing&) const = default;
 };

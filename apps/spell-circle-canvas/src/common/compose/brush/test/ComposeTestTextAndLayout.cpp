@@ -497,11 +497,11 @@ TEST(ComposeTextPath, ATrackDeviatesInTheBaselinesOwnFrame) {
   // the same track on the same text with no baseline, where local up is
   // canvas up. Different directions from one description is the whole
   // claim.
-  auto downward = [](SkSize) {
+  auto downward = skiaShape([](SkSize) {
     SkPathBuilder b;
     b.moveTo(100, 20).lineTo(100, 180);
     return b.detach();
-  };
+  });
   // A bare offset, so the assertion is about DIRECTION and nothing else —
   // a preset that also fades would cull the glyphs it is being asked about.
   const TextEffect lift =

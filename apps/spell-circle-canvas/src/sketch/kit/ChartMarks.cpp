@@ -136,18 +136,18 @@ struct Wedge {
   SkRect unit{0, 0, 0, 0};
   bool operator==(const Wedge&) const = default;
 
-  SkPath path(SkSize box) const {
+  geometry::path::Outline outline(glm::vec2 box) const {
     const float span = std::max(unit.width(), unit.height());
-    if (!(span > 0)) return SkPath();
+    if (!(span > 0)) return {};
     const float outer =
         unit.width() >= unit.height()
-            ? (unit.width() > 0 ? box.width() / unit.width() : 0.0f)
-            : (unit.height() > 0 ? box.height() / unit.height() : 0.0f);
+            ? (unit.width() > 0 ? box.x / unit.width() : 0.0f)
+            : (unit.height() > 0 ? box.y / unit.height() : 0.0f);
     // The generator strikes the sector from the middle of the box it is
     // given; this box's own middle is not the hub.
-    return geometry::path::toSk(sector.outline({2 * outer, 2 * outer}))
-        .makeTransform(SkMatrix::Translate(-unit.fLeft * outer - outer,
-                                           -unit.fTop * outer - outer));
+    return sector.outline({2 * outer, 2 * outer})
+        .transformed(geometry::path::Transform::translate(
+            {-unit.fLeft * outer - outer, -unit.fTop * outer - outer}));
   }
 };
 
@@ -208,11 +208,11 @@ struct Chord {
   bool rising = false;
   bool operator==(const Chord&) const = default;
 
-  SkPath path(SkSize box) const {
+  geometry::path::Outline outline(glm::vec2 box) const {
     SkPathBuilder line;
-    line.moveTo(0, rising ? box.height() : 0);
-    line.lineTo(box.width(), rising ? 0 : box.height());
-    return line.detach();
+    line.moveTo(0, rising ? box.y : 0);
+    line.lineTo(box.x, rising ? 0 : box.y);
+    return geometry::path::fromSk(line.detach());
   }
 };
 

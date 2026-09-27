@@ -29,6 +29,7 @@
 
 // TAGS: Patterns/Tiling
 
+#include <sigilgeometry/path/Skia.h>
 #include <choreograph/Easing.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/brush/Brushes.h>
@@ -187,7 +188,7 @@ material::Material cut(const Quarry& quarry, float bedAngle, float seed = 0,
 /** A closed outline through @p corners, as a held path in the coordinates
  *  of the node that wears it. */
 HeldPath outline(std::initializer_list<glm::vec2> corners) {
-  return heldPath(path::toPath(path::Polyline{.points = corners, .closed = true}));
+  return heldPath(sigil::geometry::path::fromSk(path::toPath(path::Polyline{.points = corners, .closed = true})));
 }
 
 /** A BED OF TESSERAE: the region a field is cut to, its courses of stone
@@ -582,13 +583,13 @@ struct Cosmati {
       return sigil::motion::bind(seconds, {.from = {kBandFrom + span * from / band.length, kBandFrom + span * to / band.length}, .clampFrom = true});
     };
     Element run = stack().cover().key("band").children(
-        {box().cover().shape(heldPath(band.spine)).stroke(
+        {box().cover().shape(heldPath(sigil::geometry::path::fromSk(band.spine))).stroke(
             spans::upTo(laying(0, band.length)), bandDress(stone))});
     for (const cosmati::Interlace::Knot& knot : band.knots) {
       const SkPath patch = path::crossingPatch(
           knot.over, kBand, knot.under, kBand, {knot.at.x, knot.at.y}, kBand * 1.6f);
-      run.children({box().cover().shape(heldPath(patch)).overflow(Overflow::Clip).children(
-          {box().cover().shape(heldPath(knot.over)).stroke(
+      run.children({box().cover().shape(heldPath(sigil::geometry::path::fromSk(patch))).overflow(Overflow::Clip).children(
+          {box().cover().shape(heldPath(sigil::geometry::path::fromSk(knot.over))).stroke(
               spans::upTo(laying(knot.overFrom, knot.overTo)),
               bandDress(stone, knot.overFrom))})});
     }

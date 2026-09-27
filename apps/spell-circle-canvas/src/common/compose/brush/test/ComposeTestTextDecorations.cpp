@@ -85,11 +85,11 @@ TEST(ComposeDecorations, EachStrokeCarriesItsOwnTrimWindow) {
       for (int x = x0; x < x1; ++x) n += host.pixel(x, y) != SK_ColorBLACK;
     return n;
   };
-  auto line = [](SkSize) {
+  auto line = skiaShape([](SkSize) {
     SkPathBuilder b;
     b.moveTo(10, 100).lineTo(190, 100);
     return b.detach();
-  };
+  });
 
   // Node gated to the first 60% — one geometry, two windows on it:
   // a wide dim body over all of it, and a bright sliver at its head.
@@ -290,11 +290,11 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
 TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {
   // ~30 open contours of line art all ended square and mitred because
   // this paint was built and never asked.
-  auto elbow = [](SkSize) {
+  auto elbow = skiaShape([](SkSize) {
     SkPathBuilder b;
     b.moveTo(40, 40).lineTo(160, 40).lineTo(160, 160);
     return b.detach();
-  };
+  });
   auto corner = [&](geometry::path::Join join) {
     PathFormat f = stroke(24, Fill::color({1, 1, 1, 1}));
     f.join = join;

@@ -39,12 +39,12 @@ TEST(ComposeMaskGates, ADecorationReceivesTheAlreadyGatedRun) {
   // the NIB. The pool is a PathFormat with its own
   // trimStart 0.93 — a fraction of what is written, not of the whole line,
   // so it must ride the head of the node gate and needs no second node.
-  const auto line = [](SkSize s) {
+  const auto line = skiaShape([](SkSize s) {
     SkPathBuilder b;
     b.moveTo(0, s.height() * 0.5f);
     b.lineTo(s.width(), s.height() * 0.5f);
     return b.detach();
-  };
+  });
   PathFormat wet = stroke(8, green());
   wet.trimStart = 0.90f;
   wet.trimEnd = 1.0f;

@@ -146,10 +146,9 @@ struct AlongPath {
   void arrange(Arrangement& arrangement) const {
     const size_t n = arrangement.children.size();
     if (n == 0 || !path) return;
-    const SkPath resolved =
-        path({arrangement.box.width(), arrangement.box.height()});
     const std::vector<geometry::path::Contour> contours =
-        geometry::path::Contour::of(resolved);
+        geometry::path::Contour::of(
+            geometry::path::toSk(path(arrangement.box.size())));
     if (contours.empty()) return;
     const geometry::path::Contour& contour = contours.front();
     const float length = contour.length();

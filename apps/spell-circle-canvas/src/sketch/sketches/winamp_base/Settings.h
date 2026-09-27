@@ -2,6 +2,7 @@
 
 // Construction data and drawing primitives owned by this study.
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
@@ -218,8 +219,8 @@ inline const material::Color kWellLo = hexColor(0x0E0E18);
  *  the direction and of nothing else, so the direction is the key it
  *  settles on. */
 inline Shape tri(int dir) {  // 0 right 1 left 2 up
-  return keyedShape(dir, [dir](SkSize s) {
-    const float w = s.width(), h = s.height();
+  return keyedShape(dir, [dir](glm::vec2 s) {
+    const float w = s.x, h = s.y;
     SkPathBuilder b;
     if (dir == 0) {
       b.moveTo(0, 0);
@@ -235,14 +236,14 @@ inline Shape tri(int dir) {  // 0 right 1 left 2 up
       b.lineTo(0, h);
     }
     b.close();
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   });
 }
 
 /** The scroll-arrow triangles: up or down. */
 inline Shape upDown(bool up) {
-  return keyedShape(up, [up](SkSize s) {
-    const float w = s.width(), h = s.height();
+  return keyedShape(up, [up](glm::vec2 s) {
+    const float w = s.x, h = s.y;
     SkPathBuilder b;
     if (up) {
       b.moveTo(w * 0.5f, 0);
@@ -254,7 +255,7 @@ inline Shape upDown(bool up) {
       b.lineTo(w * 0.5f, h);
     }
     b.close();
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   });
 }
 

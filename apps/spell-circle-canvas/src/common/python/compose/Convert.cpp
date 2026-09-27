@@ -101,21 +101,21 @@ compose::Shape shape(py::handle value) {
   if (py::isinstance<geometry::shapes::Chevron>(value))
     return value.cast<geometry::shapes::Chevron>();
   if (py::isinstance<geometry::path::Outline>(value))
-    return compose::heldPath(
-        geometry::path::toSk(value.cast<geometry::path::Outline>()));
+    return compose::heldPath(value.cast<geometry::path::Outline>());
   if (PyCallable_Check(value.ptr())) {
     auto callback = retainCallback(py::reinterpret_borrow<py::function>(value));
-    return compose::Shape{[callback](SkSize size) {
+    return compose::Shape{[callback](glm::vec2 size) {
       const py::gil_scoped_acquire lock;
       const CallbackBoundary boundary;
       try {
-        return callback->get()(size.width(), size.height()).cast<SkPath>();
+        return geometry::path::fromSk(
+            callback->get()(size.x, size.y).cast<SkPath>());
       } catch (const py::error_already_set& error) {
         throw std::runtime_error(error.what());
       }
     }};
   }
-  return compose::heldPath(value.cast<SkPath>());
+  return compose::heldPath(geometry::path::fromSk(value.cast<SkPath>()));
 }
 
 compose::Decoration decoration(py::handle value) {

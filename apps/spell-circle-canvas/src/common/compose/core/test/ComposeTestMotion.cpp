@@ -242,13 +242,13 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
   // bend instead.
   Host host(200, 200);
   motion::Animatable<float> t = motion::animatable(0.5f);
-  const auto bent = [](SkSize) {
+  const auto bent = skiaShape([](SkSize) {
     SkPathBuilder b;
     b.moveTo(0, 0);
     b.lineTo(100, 0);
     b.lineTo(100, 20);
     return b.detach();
-  };
+  });
   host.composer.render(travelFrame(rider({.path = bent, .t = t})));
   host.frame();
   SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);
@@ -257,14 +257,14 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
 
   // Two contours of 20 and 100: half the total (60) is 40 into the SECOND,
   // which no per-contour split can produce.
-  const auto twoRuns = [](SkSize) {
+  const auto twoRuns = skiaShape([](SkSize) {
     SkPathBuilder b;
     b.moveTo(0, 0);
     b.lineTo(20, 0);
     b.moveTo(0, 100);
     b.lineTo(100, 100);
     return b.detach();
-  };
+  });
   host.composer.render(travelFrame(rider({.path = twoRuns, .t = t})));
   host.frame();
   ink = inkCentroid(host, SK_ColorRED, 200, 200);
@@ -276,7 +276,7 @@ TEST(ComposeTravel, TIsAFractionOfTotalArcLengthAcrossEveryContour) {
 TEST(ComposeTravel, APathWithNoMeasurableLengthLeavesTheLanesStanding) {
   Host host(200, 200);
   host.composer.render(travelFrame(
-      rider({.path = [] { return SkPath(); }, .t = 0.5f}).translateX(40)));
+      rider({.path = skiaShape([] { return SkPath(); }), .t = 0.5f}).translateX(40)));
   host.frame();
   const SkPoint ink = inkCentroid(host, SK_ColorRED, 200, 200);
   EXPECT_NEAR(ink.x(), 63.5f, 1.5f)

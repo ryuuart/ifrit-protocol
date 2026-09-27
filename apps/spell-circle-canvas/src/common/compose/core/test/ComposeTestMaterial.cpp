@@ -521,12 +521,12 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
   // Cache::Texture makes the truncation hard rather than merely likely: the
   // bake surface is exactly recordBounds, so anything outside it cannot
   // survive by accident.
-  auto overflowShape = [](SkSize s) {
+  auto overflowShape = skiaShape([](SkSize s) {
     // A disc centered on the box, poking 20px beyond every edge.
     SkPathBuilder b;
     b.addOval(SkRect::MakeLTRB(-20, -20, s.width() + 20, s.height() + 20));
     return b.detach();
-  };
+  });
   {
     Host host;  // recipe carrier: a static solid material
     host.composer.render(box().padding(40).children(

@@ -152,8 +152,8 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   const SkPath cooked = pb.detach();
   auto tree = [&cooked](bool held) {
     return box().children(
-        {held ? box().width(60).height(60).shape(heldPath(cooked))
-              : box().width(60).height(60).shape([cooked] { return cooked; })});
+        {held ? box().width(60).height(60).shape(heldPath(geometry::path::fromSk(cooked)))
+              : box().width(60).height(60).shape(skiaShape([cooked] { return cooked; }))});
   };
   Host host;
   host.composer.render(tree(true));
@@ -168,13 +168,13 @@ TEST(ComposeContent, AHeldPathShapePrunesWhereALambdaNeverCan) {
   SkPathBuilder rebuilt;
   rebuilt.addOval(SkRect::MakeXYWH(10, 10, 40, 40));
   host.composer.render(box().children(
-      {box().width(60).height(60).shape(heldPath(rebuilt.detach()))}));
+      {box().width(60).height(60).shape(heldPath(geometry::path::fromSk(rebuilt.detach())))}));
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
   // A DIFFERENT path is a change.
   SkPathBuilder moved;
   moved.addOval(SkRect::MakeXYWH(12, 12, 36, 36));
   host.composer.render(box().children(
-      {box().width(60).height(60).shape(heldPath(moved.detach()))}));
+      {box().width(60).height(60).shape(heldPath(geometry::path::fromSk(moved.detach())))}));
   EXPECT_GE(host.composer.stats().patchedNodes, 1u);
   // The lambda spelling never settles.
   Host raw;
@@ -190,12 +190,12 @@ TEST(ComposeContent, AnOutlineThatIgnoresTheBoxNeedNotNameIt) {
   // the value it closes over it compares and prunes exactly as a sized one.
   auto tree = [](float inset) {
     return box().children(
-        {box().width(60).height(60).fill(red()).shape(inset, [inset] {
+        {box().width(60).height(60).fill(red()).shape(inset, skiaShape([inset] {
           SkPathBuilder pb;
           pb.addOval(
               SkRect::MakeXYWH(inset, inset, 60 - 2 * inset, 60 - 2 * inset));
           return pb.detach();
-        })});
+        }))});
   };
   Host host;
   host.composer.render(tree(0.0f));
@@ -219,12 +219,12 @@ TEST(ComposeContent, AKeyedShapeSettlesOnTheValueItClosesOver) {
   // equal keys prune, a changed key re-patches, and the keyless form is
   // conservative forever.
   auto tree = [](bool keyed, float radius) {
-    auto fn = [radius](SkSize s) {
+    auto fn = skiaShape([radius](SkSize s) {
       SkPathBuilder pb;
       pb.addRRect(SkRRect::MakeRectXY(SkRect::MakeWH(s.width(), s.height()),
                                       radius, radius));
       return pb.detach();
-    };
+    });
     auto leaf = keyed ? box().width(60).height(60).shape(radius, fn)
                       : box().width(60).height(60).shape(fn);
     return box().children({leaf.fill(red())});
@@ -291,7 +291,7 @@ TEST(ComposeContent, APathFigureCarriesItsOwnBox) {
   pb.addRect(SkRect::MakeXYWH(30, 40, 20, 10));
   Host host;
   host.composer.render(positioned().children(
-      {pathFigure(pb.detach(), 4.0f).key("fig").fill(red())}));
+      {pathFigure(geometry::path::fromSk(pb.detach()), 4.0f).key("fig").fill(red())}));
   host.frame();
   const auto placed = host.composer.bounds("fig");
   ASSERT_TRUE(placed.has_value());

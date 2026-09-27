@@ -2,6 +2,7 @@
 
 // Construction data and drawing primitives owned by this study.
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPathBuilder.h>
@@ -174,11 +175,11 @@ inline sigil::weave::Type prose(float size, material::Color c) {
 /** An OPEN hairline across the node — the trim() reveal primitive: a
  *  stroked open outline draws itself on when trim's end ramps 0→1. */
 inline Shape ray(float dirX, float dirY) {
-  return keyedShape(std::pair{dirX, dirY}, [dirX, dirY](SkSize s) {
+  return keyedShape(std::pair{dirX, dirY}, [dirX, dirY](glm::vec2 s) {
     SkPathBuilder b;
-    b.moveTo(dirX < 0 ? s.width() : 0, dirY < 0 ? s.height() : 0);
-    b.lineTo(dirX < 0 ? 0 : s.width(), dirY < 0 ? 0 : s.height());
-    return b.detach();
+    b.moveTo(dirX < 0 ? s.x : 0, dirY < 0 ? s.y : 0);
+    b.lineTo(dirX < 0 ? 0 : s.x, dirY < 0 ? 0 : s.y);
+    return sigil::geometry::path::fromSk(b.detach());
   });
 }
 

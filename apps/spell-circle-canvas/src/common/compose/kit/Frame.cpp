@@ -56,13 +56,13 @@ Element line(const Line& mark) {
   return std::move(
       rule.fill(Fill::none())
           .shape(keyedShape(std::tuple{column, across},
-                            [column, across](SkSize size) {
+                            [column, across](glm::vec2 size) {
                               SkPathBuilder route;
                               route.moveTo(column ? across : 0.0f,
                                            column ? 0.0f : across);
-                              route.lineTo(column ? across : size.width(),
-                                           column ? size.height() : across);
-                              return route.detach();
+                              route.lineTo(column ? across : size.x,
+                                           column ? size.y : across);
+                              return geometry::path::fromSk(route.detach());
                             }))
           .stroke(lines::Rails{
               .rails = {

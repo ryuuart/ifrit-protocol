@@ -199,7 +199,7 @@ Element board(int i) {
       .width(74)
       .height(11)
       .rotate(ang)
-      .shape([shape] { return shape; })
+      .shape(skiaShape([shape] { return shape; }))
       .fill(material::skia::sksl(boardGrain()))
       .foreground(styles::BevelEmboss{0.8f,
                                       1.2f,

@@ -24,7 +24,7 @@ void Around::add(Scope& scope) const {
   if (!node) return;
   // The band is the node's own outline swept `across` wide, in the
   // node's coordinates, laid over the node's box so it moves with it.
-  Band ring = band(heldPath(geometry::path::toSk(node->toLocal(node->outline))), across);
+  Band ring = band(heldPath(node->toLocal(node->outline)), across);
   ring.bandAlignment(formation)
       .key(key + "-outline")
       .rect(0, 0, node->bounds.width(), node->bounds.height());
@@ -49,7 +49,7 @@ void Hull::add(Scope& scope) const {
   builder.setFillType(SkPathFillType::kEvenOdd);
   SkPath figure = builder.detach();
   if (margin > 0) figure = geometry::path::operations::offset(figure, margin);
-  Element enclosure = pathFigure(figure, 1.0f);
+  Element enclosure = pathFigure(geometry::path::fromSk(figure), 1.0f);
   enclosure.key("hull:" + (lane.empty() ? styleClass : lane));
   if (fill) enclosure.fill(*fill);
   scope.attach(std::move(enclosure));

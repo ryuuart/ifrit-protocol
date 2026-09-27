@@ -490,9 +490,9 @@ TEST(ComposePathMotion, ExactTangentTurnsAGlyphTheLadderSnaps) {
   };
   // A baseline with no curvature at all: every glyph on it faces the same
   // way, and that way is already on every ladder.
-  const Shape straight = [](SkSize s) {
+  const Shape straight = skiaShape([](SkSize s) {
     return SkPath::Line({0, s.height() * 0.5f}, {s.width(), s.height() * 0.5f});
-  };
+  });
   for (const float size : {40.0f, 120.0f, 300.0f})
     for (const float phase : {0.06f, 0.19f, 0.31f}) {
       EXPECT_GT(

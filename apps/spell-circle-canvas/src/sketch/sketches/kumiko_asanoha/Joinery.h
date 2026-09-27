@@ -8,6 +8,7 @@
  * Nothing here knows how the page is set.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <choreograph/Easing.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/brush/Decorations.h>
@@ -539,7 +540,7 @@ inline Element pieceElement(const Piece& piece, TimberBank& bank,
       kit::at(middle.x - width * 0.5f, middle.y - piece.width * 0.5f, width,
               piece.width)
           .rotate(degrees)
-          .shape(heldPath(outline))
+          .shape(heldPath(sigil::geometry::path::fromSk(outline)))
           .fill(bank.get(*piece.timber, piece.width, !lit, piece.seed))
           .foreground(styles::BevelEmboss{heavy ? piece.width * 0.09f : 0.7f,
                                           heavy ? piece.width * 0.14f : 1.0f,

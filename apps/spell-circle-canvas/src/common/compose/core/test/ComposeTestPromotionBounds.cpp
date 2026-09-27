@@ -177,7 +177,7 @@ namespace {
  *  Forty rules on a centre of the node's own, from a radius inside the box
  *  to one well past every edge of it. */
 Shape rulesPastTheBox() {
-  return Shape([](SkSize size) {
+  return Shape(skiaShape([](SkSize size) {
     SkPathBuilder b;
     const SkPoint c{size.width() * 0.5f, size.height() * 0.5f};
     for (int i = 0; i < 40; ++i) {
@@ -186,7 +186,7 @@ Shape rulesPastTheBox() {
       b.lineTo(c.x() + std::cos(a) * 110.0f, c.y() + std::sin(a) * 110.0f);
     }
     return b.detach();
-  });
+  }));
 }
 
 /** That shape on an 80×80 node in the middle of a 240×240 page, so the ink
@@ -406,11 +406,11 @@ struct Reserve {
  *  fills — where `rulesPastTheBox` draws lines, this encloses an area, so
  *  the pixels it covers are a silhouette a coverage trace can answer for. */
 Shape discPastTheBox() {
-  return Shape([](SkSize size) {
+  return Shape(skiaShape([](SkSize size) {
     SkPathBuilder b;
     b.addCircle(size.width() * 0.5f, size.height() * 0.5f, 100.0f);
     return b.detach();
-  });
+  }));
 }
 
 /** An 80×80 node in the middle of a 240×240 page, dressed along the

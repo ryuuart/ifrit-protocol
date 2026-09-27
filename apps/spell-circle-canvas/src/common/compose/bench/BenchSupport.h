@@ -17,6 +17,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -34,6 +35,16 @@
 #endif
 
 namespace sigil::compose::bench {
+
+/** A bench's Skia path drawing as the outline callable a shape takes,
+ *  handed the box as an `SkSize`. */
+template <class Draw>
+auto skiaShape(Draw draw) {
+  return [draw = std::move(draw)](glm::vec2 size) {
+    return sigil::geometry::path::fromSk(draw(SkSize{size.x, size.y}));
+  };
+}
+
 
 /** One font context for the process: shaping caches warm once and every
  *  arm measures the library rather than the system font manager. */

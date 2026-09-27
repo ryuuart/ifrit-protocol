@@ -19,7 +19,7 @@ namespace {
  *  as the element's shape — which is what every mark then dresses. */
 Element figureOf(const geometry::path::Outline& route, float bleed, std::string key,
                  const Dressing& dressing) {
-  Element figure = pathFigure(geometry::path::toSk(route), bleed);
+  Element figure = pathFigure(route, bleed);
   if (dressing.mark) {
     // A stated run CLAIMS that part of the boundary, which is what fits a
     // mark to a reveal; the whole wire is an unqualified pass.

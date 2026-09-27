@@ -310,11 +310,11 @@ TEST(ComposeComposites, CrossingCacheFollowsTheOutlineUnderRelativeStrands) {
                      brush::solid(6, green())}},
       geometry::path::CrossingRule(EveryCrossingRedOnTop{}));
   auto ring = [](float radius) {
-    return [radius](SkSize) {
+    return skiaShape([radius](SkSize) {
       SkPathBuilder p;
       p.addCircle(100, 100, radius);
       return p.detach();
-    };
+    });
   };
   Host host(200, 200);
   host.composer.render(stack().children(

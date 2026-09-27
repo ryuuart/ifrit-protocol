@@ -295,12 +295,11 @@ void bindLayouts(py::module_& compose) {
       "path",
       [](const layouts::AlongPath& value) {
         return py::cpp_function([path = value.path](SkSize size) {
-          return path ? path(size) : SkPath{};
+          return geometry::path::toSk(path(geometry::path::fromSk(size)));
         });
       },
       [](layouts::AlongPath& value, py::handle path) {
-        const compose::Shape outline = shape(path);
-        value.path = [outline](SkSize size) { return outline(size); };
+        value.path = shape(path);
       });
   field(along, "startFraction", &layouts::AlongPath::startFraction);
   field(along, "endFraction", &layouts::AlongPath::endFraction);

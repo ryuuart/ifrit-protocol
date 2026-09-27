@@ -170,12 +170,14 @@ Element picture(sk_sp<SkPicture> recorded, SkSize native) {
   return e.width(Dimension(native.width())).height(Dimension(native.height()));
 }
 
-Element pathFigure(SkPath absolute, float bleed) {
-  SkRect bounds = absolute.getBounds();
+Element pathFigure(const geometry::path::Outline& absolute, float bleed) {
+  // The box is the path's control-point bounds, as Skia measures them, so
+  // a figure keeps the room its curves' handles reach toward.
+  SkRect bounds = geometry::path::toSk(absolute).getBounds();
   bounds.outset(bleed, bleed);
-  SkPath local = absolute.makeTransform(
-      SkMatrix::Translate(-bounds.left(), -bounds.top()));
-  return box().absolute().rect(geometry::path::fromSk(bounds)).shape(heldPath(std::move(local)));
+  const geometry::path::Rect box = geometry::path::fromSk(bounds);
+  return compose::box().absolute().rect(box).shape(heldPath(
+      absolute.transformed(geometry::path::Transform::translate(-box.min))));
 }
 
 Element slot(std::string_view name) {

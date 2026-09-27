@@ -27,6 +27,7 @@
 
 // TAGS: Typography/Lettering, Drawing/Brushes
 
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Lines.h>
@@ -300,7 +301,7 @@ struct ThunderFulu {
         .children(each(sealGraphs, [](const path::Polyline& graph) {
           return box()
               .inset(0)
-              .shape(heldPath(path::smoothThrough(graph)))
+              .shape(heldPath(sigil::geometry::path::fromSk(path::smoothThrough(graph))))
               .fill(Fill::none())
               .stroke(PathFormat{.width = 4.6f,
                                  .strokeFill = Fill::color(kSealInk),
@@ -431,7 +432,7 @@ struct ThunderFulu {
         {box().width(kSpan + 20).height(kSpan * 0.53f + 84).children(
              {box()
                   .inset(0)
-                  .shape(heldPath(path::toPath(walk)))
+                  .shape(heldPath(sigil::geometry::path::fromSk(path::toPath(walk))))
                   .fill(Fill::none())
                   .stroke(lines::rails(
                       {{.width = 2.6f,

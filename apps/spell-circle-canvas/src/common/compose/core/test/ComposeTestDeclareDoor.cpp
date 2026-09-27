@@ -224,7 +224,7 @@ void writeThroughWriter(cd::ElementNode& node, Property property, bool moved) {
       return;
     case Property::Shape:
       if (moved)
-        node.shape() = Shape([](SkSize) { return SkPath(); });
+        node.shape() = Shape(skiaShape([](SkSize) { return SkPath(); }));
       else
         node.shape();
       return;
