@@ -256,3 +256,63 @@ TEST(ComposeLayouts, JitterNudgesWhatTheOperatorBeforeItPlaced) {
   host.frame();
   EXPECT_EQ(require(host.composer.bounds("a")), moved);
 }
+
+namespace {
+/** Where an operator left one child: its top-left corner and its turn. */
+struct Placed {
+  float left;
+  float top;
+  float turnDegrees;
+};
+void expectPlaced(const Arrangement& arrangement,
+                  const std::vector<Placed>& expected) {
+  ASSERT_EQ(arrangement.children.size(), expected.size());
+  for (size_t index = 0; index < expected.size(); ++index) {
+    SCOPED_TRACE(index);
+    const Arrangement::Child& child = arrangement.children[index];
+    EXPECT_EQ(child.rect.min.x, expected[index].left);
+    EXPECT_EQ(child.rect.min.y, expected[index].top);
+    EXPECT_EQ(child.turnDegrees, expected[index].turnDegrees);
+  }
+}
+}  // namespace
+
+TEST(ComposeLayouts, RadialPlacesAnOblongRingToTheBit) {
+  // Seven children on the ellipse inscribed in a 300 × 180 box, facing:
+  // every coordinate and every turn is pinned to the bit, so a change in
+  // how the ring's multiplications associate shows here before it moves
+  // a picture.
+  Arrangement ring;
+  ring.box = geometry::path::Rect::of({0, 0}, {300, 180});
+  ring.children.resize(7);
+  for (auto& child : ring.children) child.size = {10, 10};
+  layouts::Radial{.facing = true}.arrange(ring);
+  expectPlaced(ring, {{0x1.22p+7f, 0x1.ap+3f, 0x0p+0f},
+                      {0x1.dda3b8p+7f, 0x1.40deaep+5f, 0x1.9b6db6p+5f},
+                      {0x1.05fdc8p+8f, 0x1.941606p+6f, 0x1.9b6db6p+6f},
+                      {0x1.8a21dp+7f, 0x1.2bbd5p+7f, 0x1.34924ap+7f},
+                      {0x1.73bc62p+6f, 0x1.2bbd5p+7f, 0x1.9b6db6p+7f},
+                      {0x1.c02378p+4f, 0x1.94160ap+6f, 0x1.012492p+8f},
+                      {0x1.99712p+5f, 0x1.40deacp+5f, 0x1.34924ap+8f}});
+}
+
+TEST(ComposeLayouts, AlongPathTurnsWithTheCurveToTheBit) {
+  // Five children walked along one quadratic arch, facing: the turn is
+  // the tangent's heading, level at the crown and mirrored either side.
+  layouts::AlongPath walk{.path = skiaShape([] {
+                            SkPathBuilder path;
+                            path.moveTo(0, 100).quadTo(150, 0, 300, 100);
+                            return path.detach();
+                          }),
+                          .facing = true};
+  Arrangement curve;
+  curve.box = geometry::path::Rect::of({0, 0}, {300, 180});
+  curve.children.resize(5);
+  for (auto& child : curve.children) child.size = {10, 10};
+  walk.arrange(curve);
+  expectPlaced(curve, {{-0x1.4p+2f, 0x1.7cp+6f, -0x1.0d8542p+5f},
+                       {0x1.0981b4p+6f, 0x1.d5e548p+5f, -0x1.342e5p+4f},
+                       {0x1.22p+7f, 0x1.68p+5f, 0x0p+0f},
+                       {0x1.bf3f26p+7f, 0x1.d5e548p+5f, 0x1.342e5p+4f},
+                       {0x1.27p+8f, 0x1.7cp+6f, 0x1.0d8542p+5f}});
+}
