@@ -828,9 +828,9 @@ A leaf may not invent what an ancestor should own.
   head and the sheet's own layout — `compose::kit::cells`, `panelGrid`,
   `cell`, `well`, `panel`, `sheet`. This library
   puts values into those; it does not restate them.
-* A ground's vignette and its grain — `material::radialGradient` and
-  `material::noise` layered by `material::Material::layer`. `backdrop`
-  puts the theme's values into those; it does not build a shader.
+* A ground's vignette and its grain — a radial gradient, and a noise
+  soft-lit over mid grey as a material's layer. `backdrop` puts the
+  theme's values into those; it does not build a shader.
 * Ring and grid arithmetic — `geometry::arrange`. Do not respell it with
   `std::cos` and `std::sin`; the two round differently.
 * Entrances, loops and the stagger cascade — `compose::kit::textFx`, spelled
