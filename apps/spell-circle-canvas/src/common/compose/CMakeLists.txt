@@ -231,6 +231,7 @@ sigil_doc_probes(compose
   PRELUDES "\"support/DocsTestSupport.h\""
            "<sigilskia/draw/Direct.h>"
            "<sigilmedia/video/Video.h>"
+           "<sigilmaterial/program/Shader.h>"
   SKIP_HEADERS Web.h
   EXCLUDE "kit::PatternHyphenator=${weave_owned}"
           "kit::englishHyphenator=${weave_owned}"
