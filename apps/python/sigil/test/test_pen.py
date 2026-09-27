@@ -63,7 +63,7 @@ class PenContracts(unittest.TestCase):
     def test_the_ground_takes_a_material_as_the_fill_and_the_stroke_do(self):
         picture = self.render("""
             from sigil import material
-            recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor='#e75a31'))
+            recipe = material.surface.unlit(material.surface.SurfaceParameters(baseColor='#e75a31'))
             pen.background(recipe)
         """)
         ground = self.pixel(picture, 16, 16)

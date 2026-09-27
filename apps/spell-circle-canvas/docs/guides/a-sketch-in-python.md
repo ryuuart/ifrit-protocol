@@ -107,7 +107,7 @@ them.
 | `sigil.draw` | the pen, its verbs and the brushes |
 | `sigil.material` | `Color`, `Material`, `Ramp`, `Palette` and the colour arithmetic |
 | `sigil.material.skia` | `Paint` and `Effect` — the paint model, and the filter over a rendered layer |
-| `sigil.material.kit` | the stock recipes, and Python's only door to a `Material`: `unlit`, `surface` |
+| `sigil.material.surface` | the surface program, and Python's only door to a `Material`: `unlit`, `program` |
 | `sigil.motion` | `animate`, `animatable`, `bind`, `Tween`, `Transition`, the easing curves |
 | `sigil.weave` | the text styles, the paragraph vocabulary |
 | `sigil.skia` | the raw Skia values a canvas program uses: paths, images, `Paint` as Skia means it |

@@ -1,4 +1,4 @@
-"""The field parameter structs and recipe accessors, plus the CRT screen and its kit preset.
+"""The field parameter structs and recipe accessors.
 
 Input contracts for the erased signatures of the
 material/field-crt package, and nothing else: a fragment is one

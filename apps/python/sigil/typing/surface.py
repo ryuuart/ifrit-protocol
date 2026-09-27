@@ -90,18 +90,17 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.io.testing": "sigil.io.testing",
     "_sigil.material": "sigil.material",
     "_sigil.material.field": "sigil.material.field",
-    "_sigil.material.kit": "sigil.material.kit",
     "_sigil.material.ocio": "sigil.material.ocio",
     "_sigil.material.sbsar": "sigil.material.sbsar",
     "_sigil.material.pattern": "sigil.material.pattern",
     "_sigil.material.sdf": "sigil.material.sdf",
     # The Skia backend of SigilMaterial is one executor of the material
-    # catalogue, not a catalogue of peers beside field, kit and pattern, and
+    # catalogue, not a catalogue of peers beside field and pattern, and
     # it is the only executor Python reaches. Its paint, effect, fit and
     # bloom stand in the material module itself.
     "_sigil.material.skia": "sigil.material",
     "_sigil.material.slang": "sigil.material.slang",
-    "_sigil.material.stock": "sigil.material.stock",
+    "_sigil.material.surface": "sigil.material.surface",
     "_sigil.material.texture": "sigil.material.texture",
     "_sigil.measure": "sigil.measure",
     "_sigil.media": "sigil.media",

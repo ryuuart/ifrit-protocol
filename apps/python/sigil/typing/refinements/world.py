@@ -70,10 +70,8 @@ def {name}(self, value: {written}) -> None: ...
     )
     table.parameters(LIGHT + ".attenuation", at="_t.Vec3Like")
     table.returns(LIGHT, "radiance", "_t.Vec3")
-    surface = "_sigil.material.kit.SurfaceParameters"
-    table.erased(
-        surface, "baseColor emissive absorption metal dielectric", "_t.ColorLike"
-    )
+    surface = "_sigil.material.surface.SurfaceParameters"
+    table.erased(surface, "baseColor emissive absorption", "_t.ColorLike")
     # workaround: stubgen interprets this class as the legacy typing.Set alias.
     table.declares(
         "_sigil.world.kit.Set",

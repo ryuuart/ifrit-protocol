@@ -142,7 +142,7 @@ class HostContextSurface(unittest.TestCase):
             from sigil import world
             from sigil.compose import image
             from sigil.geometry import mesh
-            from sigil.material import kit as surfaces
+            from sigil.material import surface as surfaces
             from sigil.sketch import sketch
 
 

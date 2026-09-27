@@ -65,11 +65,11 @@ specialization of the same parameter layout.
 | `Material(recipe, parameters)` | C++ | an instance with the field values of a parameter struct, whose type must be the struct the recipe was defined over |
 | `Material(recipe)` | C++ | an instance whose fields all start at zero |
 | `Material::withRecipe(recipe)` | C++ | the same values, bindings, children and settings over a second definition of the same layout |
-| the kit's recipe functions | C++ | a stock look already instanced — the kit composes, it decides nothing |
-| `material.kit.unlit(parameters)`, `material.kit.surface(parameters)` | Python | the kit's recipe functions, which are the whole Python door |
+| `surface::program(parameters)`, `surface::unlit(parameters)` | C++ | the surface program already instanced |
+| `material.surface.unlit(parameters)`, `material.surface.program(parameters)` | Python | the surface program's functions, which are the whole Python door |
 
 A RECIPE HAS NO PYTHON SPELLING, so neither constructor is reachable
-from Python and a Python author takes an instance the kit already made
+from Python and a Python author takes an instance the surface feature made
 and moves it from there: `material::surface::unlit` and
 `material::surface::program` are the two bound, and both answer a material.
 
@@ -95,7 +95,7 @@ so a slot that colours a surface takes one directly.
 | --- | --- | --- |
 | `Material::withRecipe` | member | SigilMaterial |
 | `Paint::recipeMaterial` | member | SigilMaterial — the instance behind a recipe paint, or null |
-| the kit's recipe functions | function | SigilMaterial |
+| `surface::program`, `surface::unlit` | function | SigilMaterial |
 
 ## Description
 

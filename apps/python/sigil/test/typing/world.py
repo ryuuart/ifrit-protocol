@@ -3,12 +3,12 @@
 from sigil import world
 from sigil.geometry import mesh
 from sigil.material import Material
-from sigil.material import kit as surfaces
+from sigil.material import surface as surfaces
 from sigil.motion import animatable
 from sigil.skia import Image
 
 parameters = surfaces.SurfaceParameters(baseColor="#a3c4bd", roughness=0.3)
-finish: Material = surfaces.surface(parameters)
+finish: Material = surfaces.program(parameters)
 spin = animatable(12)
 part = (
     world.Element()

@@ -103,8 +103,8 @@ def paint(pen: draw.Pen) -> None:
     pen.fill(ink, draw.CANVAS)
     pen.stroke(ink, draw.SHAPE)
     pen.background(ink)
-    pen.background(material.kit.unlit(material.kit.SurfaceParameters()))
-    pen.fill(material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31")))
+    pen.background(material.surface.unlit(material.surface.SurfaceParameters()))
+    pen.fill(material.surface.unlit(material.surface.SurfaceParameters(baseColor="#e75a31")))
 
     class Squircle:
         def path(self, size: tuple[float, float]) -> skia.Path:

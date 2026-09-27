@@ -1,4 +1,4 @@
-"""The equirectangular panorama, the two named skies, and gold, chrome and glass over a normal map.
+"""The surface program: its parameters, the reflection choice, and the lit and unlit program.
 
 Input contracts for the erased signatures of the
 material/environment-reflections package, and nothing else: a fragment is one

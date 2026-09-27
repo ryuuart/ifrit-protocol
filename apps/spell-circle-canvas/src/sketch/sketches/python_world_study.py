@@ -5,7 +5,7 @@
 from sigil import world
 from sigil.draw import LEFT, TOP, Pen
 from sigil.geometry import mesh
-from sigil.material import kit as surfaces
+from sigil.material import surface as surfaces
 from sigil.sketch import SketchContext, sketch
 
 INK = "#ebeee7"
@@ -33,12 +33,12 @@ class WorldStudy:
         )
         self.plinth = mesh.box((-80, -9, -68), (80, 9, 68))
         self.finishes = (
-            surfaces.surface(surfaces.SurfaceParameters.dielectric("#87b9ad", 0.45)),
-            surfaces.surface(surfaces.SurfaceParameters.dielectric("#dfa573", 0.45)),
-            surfaces.surface(surfaces.SurfaceParameters.dielectric("#bdcbd8", 0.45)),
+            surfaces.program(surfaces.SurfaceParameters(baseColor="#87b9ad", roughness=0.45)),
+            surfaces.program(surfaces.SurfaceParameters(baseColor="#dfa573", roughness=0.45)),
+            surfaces.program(surfaces.SurfaceParameters(baseColor="#bdcbd8", roughness=0.45)),
         )
-        self.base = surfaces.surface(
-            surfaces.SurfaceParameters.dielectric("#283642", 0.9)
+        self.base = surfaces.program(
+            surfaces.SurfaceParameters(baseColor="#283642", roughness=0.9)
         )
         self.camera = mesh.camera.Camera()
         self.camera.eye = (0, 175, 510)

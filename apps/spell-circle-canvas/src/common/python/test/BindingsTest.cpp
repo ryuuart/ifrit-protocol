@@ -64,8 +64,8 @@ camera = native.geometry.mesh.camera.Camera()
 camera.eye = (0, 0, 320)
 body = (native.world.Element().key("body")
         .mesh(native.geometry.mesh.box((-65, -35, -20), (65, 35, 20)))
-        .fill(native.material.kit.unlit(
-            native.material.kit.SurfaceParameters(baseColor="#e75a31")))
+        .fill(native.material.surface.unlit(
+            native.material.surface.SurfaceParameters(baseColor="#e75a31")))
         .rotateZ(angle)
         .translateX(native.motion.animate(from_=0, to=30, duration=1)))
 frame = native.world.Frame(body).camera(camera)

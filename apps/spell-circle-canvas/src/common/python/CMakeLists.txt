@@ -31,9 +31,9 @@ sigil_library(SigilPython
     geometry/Regions.cpp geometry/Seams.cpp geometry/Shapes.cpp
     geometry/Structures.cpp media/Images.cpp media/Video.cpp
     io/Frames.cpp material/Core.cpp
-    material/Environment.cpp material/Field.cpp material/KitGrained.cpp
-    material/KitText.cpp material/PaintEffect.cpp material/Pattern.cpp
-    material/Shading.cpp material/SkiaDraw.cpp material/Substance.cpp
+    material/Environment.cpp material/Field.cpp
+    material/PaintEffect.cpp material/Pattern.cpp
+    material/Shading.cpp material/Substance.cpp
     material/Texture.cpp
     material/TextureSets.cpp measure/Measure.cpp motion/AnimatableForms.cpp
     motion/Clock.cpp motion/Lanes.cpp motion/Particles.cpp motion/Physics.cpp

@@ -118,7 +118,6 @@ requires = [
   "compose-test",
   "pattern-fill",
   "silhouettes",
-  "grained",
   "image-sampling",
   "woven-cloth",
   "check-table",
@@ -243,7 +242,6 @@ requires = [
   "divisions",
   "projections",
   "stock-tiles",
-  "grained",
   "recipes",
   "bank",
 ]
@@ -282,7 +280,7 @@ requires = [
 
 [sketch.chrome_type]
 needs = "Layer style presets on glyph boundaries; glow and bevel decorations; themed kit cells and page"
-requires = ["layer-styles", "finishes"]
+requires = ["layer-styles"]
 
 [sketch.cjk_rules]
 needs = "Vertical Japanese blocks; stock and house kinsoku; hanging punctuation table; mojikumi bracket spacing; tsume"
@@ -316,7 +314,7 @@ requires = ["kit-section-header", "silhouettes", "corners"]
 
 [sketch.cosmati]
 needs = "Stone recipes read through the one colour reader; the whole Great Pavement: a lettered Purbeck border, the turned square, great roundels and a guilloche that crosses itself; a setting-out diagram and a quarry key on one rhythm; text on arc; entrance transitions"
-requires = ["kit-legend", "kit-panel-chrome", "silhouettes", "grained"]
+requires = ["kit-legend", "kit-panel-chrome", "silhouettes"]
 
 [sketch.coverage_boundary]
 needs = "Coverage boundary; outer glow and inner shadow layer styles; alpha cut-out images; shape generators; section headers"
@@ -455,7 +453,6 @@ requires = [
   "textures",
   "environment-maps",
   "bevel-normals",
-  "reflections",
 ]
 
 [sketch.env_lanes]
@@ -760,7 +757,6 @@ requires = [
   "sdf",
   "recipes",
   "paint-motion",
-  "globe",
 ]
 
 [sketch.kumiko_asanoha]
@@ -770,7 +766,6 @@ requires = [
   "layer-styles",
   "silhouettes",
   "strip-laps",
-  "grained",
   "bank",
 ]
 
@@ -808,7 +803,7 @@ requires = ["set-sketches", "textures", "over", "texture-maps"]
 
 [sketch.material_slots]
 needs = "Runtime shader child slots and uniforms; nearest image paints; LUT images; material kits; masked material stacks"
-requires = ["kit-section-header", "grained", "over", "image-sampling"]
+requires = ["kit-section-header", "over", "image-sampling"]
 
 [sketch.matrix_rain]
 needs = "Looping per-glyph streak, scramble and mirror tracks from one sheet and one clock; words in data/; seeded spread; vertical upright text; glow underlays; kit::vignette"
@@ -840,7 +835,6 @@ requires = [
   "textures",
   "environment-maps",
   "bevel-normals",
-  "reflections",
 ]
 
 [sketch.midi_pads]
@@ -999,7 +993,6 @@ requires = [
   "raster-surfaces",
   "corners",
   "textures",
-  "grained",
   "bevel-normals",
   "over",
 ]
@@ -1083,7 +1076,6 @@ requires = [
   "paint-program",
   "inset-polygon",
   "multigrid",
-  "grained",
   "recipes",
   "bank",
 ]
@@ -1239,7 +1231,6 @@ requires = [
   "textures",
   "environment-maps",
   "bevel-normals",
-  "reflections",
 ]
 
 [sketch.shipping_forecast]
@@ -1278,7 +1269,7 @@ requires = [
 
 [sketch.slang_portable]
 needs = "Runtime Slang module compile; reflected uniform layout and writer; material recipe Slang sources; diagnostics readouts"
-requires = ["kit-section-header", "grained", "recipes", "slang"]
+requires = ["kit-section-header", "recipes", "slang"]
 
 [sketch.slitscan_2001]
 needs = "Instanced texture-window pools; runtime tone shader; per-glyph track; edge masks; line-decoration presets; haloed text; stock silhouettes; float raster readback; line fit"
@@ -1320,7 +1311,7 @@ requires = ["availability-probe", "require-cached", "video-decode"]
 
 [sketch.stock_materials]
 needs = "Field recipes; recipe names; pattern tiles; grained and girih kit materials; SDF materials; kit text paints; unit ramps; kit cells"
-requires = ["stock-tiles", "grained", "sdf", "recipes", "text-paints", "girih"]
+requires = ["stock-tiles", "sdf", "recipes"]
 
 [sketch.stroke_atlas]
 needs = "Line, rail and layered brush decorations; shapers; stamp and corner patterns; borders and hatches; stock silhouettes; animated dashes"
@@ -1354,7 +1345,7 @@ requires = [
 
 [sketch.surface_components]
 needs = "Compose kit sheet, panel grid and wells; material and live fill grounds; gel layer style; update hook"
-requires = ["finishes"]
+requires = []
 
 [sketch.svg_silhouette]
 needs = "SVG path-data silhouette with stretch or aspect fit; stroked keylined boxes; comparisons"
@@ -1366,7 +1357,7 @@ requires = ["text-fx", "kinetic-presets", "schedules"]
 
 [sketch.text_paints]
 needs = "One ink across a word, a paragraph and a cropped long run; eight inks on display and body type from one sheet; chrome ramps; justified Knuth-Plass text with pattern hyphenation; measured passage files; wells and comparisons"
-requires = ["chrome-type", "hyphenation-patterns", "text-paints", "paint-shader"]
+requires = ["hyphenation-patterns", "paint-shader"]
 
 [sketch.text_wrap]
 needs = "`textWrap` and `textJustify` longhands over one passage at one measure; themed specimen page"
@@ -1467,7 +1458,6 @@ requires = [
   "pixel-styles",
   "placers",
   "bevels",
-  "finishes",
   "face-width",
   "silhouettes",
   "corners",
@@ -1617,8 +1607,6 @@ requires = [
   "kit-ticker",
   "layer-styles",
   "adaptors",
-  "finishes",
-  "chrome-type",
   "silhouettes",
 ]
 
@@ -1628,4 +1616,4 @@ requires = ["raster-surfaces", "splines", "sweeps", "world-rails"]
 
 [sketch.zellige]
 needs = "Girih pattern generator; speckle tile; regenerated pattern fills on update; inner-glow decoration; document type"
-requires = ["layer-styles", "stock-tiles", "girih"]
+requires = ["layer-styles", "stock-tiles"]

@@ -2,8 +2,6 @@
 # typing/additions, not this file.
 
 from _sigil.material.field import (
-    CrtOverlayParameters,
-    crtOverlay,
     grain,
     halftoneRamp,
     noise,
@@ -11,8 +9,6 @@ from _sigil.material.field import (
 )
 
 __all__ = [
-    "CrtOverlayParameters",
-    "crtOverlay",
     "grain",
     "halftoneRamp",
     "noise",

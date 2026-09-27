@@ -10,7 +10,7 @@ from pathlib import Path
 from sigil import media, world
 from sigil.geometry import mesh
 from sigil.material import Color, Material
-from sigil.material import kit as surfaces
+from sigil.material import surface as surfaces
 from sigil.motion import animatable
 from sigil.sketch import render_file
 
@@ -141,7 +141,9 @@ class World(unittest.TestCase):
         self.assertEqual(scene.image((96, 96)).rgba(), end)
 
     def test_lights_presets_and_getters_use_owned_native_values(self):
-        material = surfaces.surface(surfaces.SurfaceParameters.gold())
+        material = surfaces.program(surfaces.SurfaceParameters(
+            baseColor=(1.0, 0.766, 0.336), metallic=1, roughness=0.18
+        ))
         self.assertIsInstance(material, Material)
         setup = world.kit.Set(ground=0)
         setup.rig.extent = 90
@@ -178,7 +180,7 @@ class World(unittest.TestCase):
             self.assertAlmostEqual(channel, expected, places=4)
         # And a colour a builder was handed is the same colour on the
         # way back.
-        metal = surfaces.SurfaceParameters.metal("#804000", 0.3)
+        metal = surfaces.SurfaceParameters(baseColor="#804000", metallic=1, roughness=0.3)
         for written, built in zip(parameters.baseColor, metal.baseColor):
             self.assertAlmostEqual(written, built, places=4)
         # Absorption is taken per unit of thickness rather than looked
@@ -218,7 +220,7 @@ class World(unittest.TestCase):
             source, output = Path(folder) / "world.py", Path(folder) / "world.png"
             source.write_text("""from sigil import world
 from sigil.geometry import mesh
-from sigil.material import kit
+from sigil.material import surface
 from sigil.sketch import sketch
 @sketch(size=(96,96), capture_at=0, background="#000000")
 class Study:
@@ -227,7 +229,7 @@ class Study:
         camera = mesh.camera.Camera()
         camera.eye = (0,0,320)
         body = world.Element().mesh(mesh.box((-65,-35,-20),(65,35,20)))
-        body.fill(kit.unlit(kit.SurfaceParameters(baseColor="#e75a31")))
+        body.fill(surface.unlit(surface.SurfaceParameters(baseColor="#e75a31")))
         self.scene.render(world.Frame(body).camera(camera))
     def draw(self, pen):
         self.scene.draw(pen)

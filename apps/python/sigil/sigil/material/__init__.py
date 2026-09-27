@@ -68,12 +68,10 @@ from _sigil.material.skia import (
 
 from . import (
     field,
-    kit,
     ocio,
     pattern,
     sdf,
     slang,
-    stock,
     texture,
 )
 
@@ -117,7 +115,6 @@ __all__ = [
     "hexColor",
     "hsv",
     "inSrgbGamut",
-    "kit",
     "lerpOklab",
     "lighten",
     "linearOf",
@@ -138,7 +135,6 @@ __all__ = [
     "sdf",
     "slang",
     "srgbToLinear",
-    "stock",
     "texture",
     "toLab",
     "toOklab",

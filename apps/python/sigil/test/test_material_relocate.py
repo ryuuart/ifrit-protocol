@@ -15,13 +15,12 @@ from sigil import material, skia
 # file and each re-exported by the package.
 SUBMODULES = (
     "field",
-    "kit",
     "ocio",
     "pattern",
     "sdf",
     "skia",
     "slang",
-    "stock",
+    "surface",
     "texture",
 )
 
@@ -31,14 +30,12 @@ SUBMODULES = (
 # and never that nothing else is.
 MOVED_NAMES = {
     "field": (
-        "CrtOverlayParameters",
-        "crtOverlay",
         "grain",
         "halftoneRamp",
         "noise",
         "ripple",
     ),
-    "kit": ("Reflection", "SurfaceParameters", "surface", "unlit"),
+    "surface": ("Reflection", "SurfaceParameters", "program", "unlit"),
     "pattern": ("Tile", "checker", "gridLines", "halftone", "stripes"),
     "skia": ("BlendMode", "BloomOptions", "Filter", "Fit", "Paint", "ShadowOptions"),
 }
@@ -46,33 +43,13 @@ MOVED_NAMES = {
 # The members the classes carried across with them: the fields a record
 # is written by keyword, and the verbs and factories a value answers.
 MOVED_MEMBERS = {
-    ("field", "CrtOverlayParameters"): (
-        "uBeamFalloff",
-        "uBeamPitch",
-        "uBeamStrength",
-        "uBeatFalloff",
-        "uBeatPitch",
-        "uBeatStrength",
-        "uGrain",
-        "uScanPitch",
-        "uScanStrength",
-        "uSqueeze",
-        "uVigInner",
-        "uVigOuter",
-        "uVigStrength",
-    ),
-    ("kit", "SurfaceParameters"): (
+    ("surface", "SurfaceParameters"): (
         "absorption",
         "alphaCutoff",
         "baseColor",
-        "chrome",
-        "dielectric",
         "emissive",
         "emissiveStrength",
-        "glass",
-        "gold",
         "ior",
-        "metal",
         "metallic",
         "metallicChannel",
         "normalDirectX",
@@ -150,7 +127,7 @@ MOVED_MEMBERS = {
 
 # The enumerations that moved, and the values an author writes.
 MOVED_VALUES = {
-    ("kit", "Reflection"): ("Additive", "SplitSum"),
+    ("surface", "Reflection"): ("Additive", "SplitSum"),
     ("skia", "Fit"): ("Contain", "Cover", "Native", "Stretch"),
 }
 
@@ -161,7 +138,7 @@ class MovedNames(unittest.TestCase):
         self.assertTrue(hasattr(_sigil.material.skia, "Paint"))
         self.assertTrue(hasattr(_sigil.material.pattern, "checker"))
         self.assertTrue(hasattr(_sigil.material.field, "noise"))
-        self.assertTrue(hasattr(_sigil.material.kit, "SurfaceParameters"))
+        self.assertTrue(hasattr(_sigil.material.surface, "SurfaceParameters"))
 
     def test_the_colour_leaf_carries_every_name_it_registered(self):
         for name in (
@@ -284,15 +261,16 @@ class MovedInventories(unittest.TestCase):
         # slots, and the property the move brought across converts
         # nothing either way, so the parameter answers the colour class
         # it was written with, at the value it was written with.
-        parameters = material.kit.SurfaceParameters(baseColor="#e75a31")
+        parameters = material.surface.SurfaceParameters(baseColor="#e75a31")
         read = parameters.baseColor
         self.assertIsInstance(read, material.Color)
         for written, answered in zip(material.Color("#e75a31"), read):
             self.assertAlmostEqual(written, answered, places=3)
-        self.assertIsInstance(material.kit.surface(parameters), material.Material)
+        self.assertIsInstance(material.surface.program(parameters), material.Material)
         self.assertIsInstance(
-            material.kit.surface(
-                parameters=parameters, reflection=material.kit.Reflection.Additive
+            material.surface.program(
+                parameters=parameters,
+                reflection=material.surface.Reflection.Additive,
             ),
             material.Material,
         )
@@ -307,7 +285,6 @@ class TheFieldSubject(unittest.TestCase):
             field.ripple(4, 40),
             field.ripple(amplitudePx=4, wavelengthPx=40, phase=0.5, vertical=True),
             field.halftoneRamp(6, 1, 2, "#ff0000"),
-            field.crtOverlay(),
             field.noise(0.02),
             field.grain(0.5),
         ):
@@ -320,24 +297,6 @@ class TheFieldSubject(unittest.TestCase):
                     spacing=6, minimumRadius=1, maximumRadius=2, color=value
                 )
                 self.assertIsInstance(made, material.Material)
-
-    def test_the_tube_takes_its_parameters_by_keyword(self):
-        parameters = material.field.CrtOverlayParameters(uScanPitch=6.0)
-        self.assertEqual(parameters.uScanPitch, 6.0)
-        self.assertEqual(
-            parameters.uBeamPitch,
-            material.field.CrtOverlayParameters().uBeamPitch,
-        )
-        parameters.uGrain = 0.25
-        self.assertEqual(copy.copy(parameters).uGrain, 0.25)
-        self.assertEqual(copy.deepcopy(parameters).uGrain, 0.25)
-        self.assertIsInstance(
-            material.field.crtOverlay(parameters=parameters), material.Material
-        )
-
-    def test_a_parameter_the_tube_does_not_have_says_so(self):
-        with self.assertRaisesRegex(TypeError, "CRT"):
-            material.field.CrtOverlayParameters(scanPitch=6.0)
 
 
 class TheColourSubject(unittest.TestCase):
@@ -371,12 +330,9 @@ class PublicNaming(unittest.TestCase):
         self.assertEqual(material.Color.__module__, "sigil.material")
         self.assertEqual(material.Material.__module__, "sigil.material")
         self.assertEqual(material.Paint.__module__, "sigil.material")
-        self.assertEqual(
-            material.field.CrtOverlayParameters.__module__, "sigil.material.field"
-        )
         self.assertEqual(material.pattern.Tile.__module__, "sigil.material.pattern")
         self.assertEqual(
-            material.kit.SurfaceParameters.__module__, "sigil.material.kit"
+            material.surface.SurfaceParameters.__module__, "sigil.material.surface"
         )
 
 
@@ -395,12 +351,11 @@ class RegistrationOrder(unittest.TestCase):
             (_sigil.material.pattern.Tile.paint, "_sigil.material.skia.Paint"),
             (_sigil.material.skia.Filter.of, "_sigil.material.Material"),
             (_sigil.material.skia.Paint.recipe, "_sigil.material.Material"),
-            (_sigil.material.kit.surface, "_sigil.material.kit.SurfaceParameters"),
-            (_sigil.material.kit.unlit, "_sigil.material.Material"),
             (
-                _sigil.material.field.crtOverlay,
-                "_sigil.material.field.CrtOverlayParameters",
+                _sigil.material.surface.program,
+                "_sigil.material.surface.SurfaceParameters",
             ),
+            (_sigil.material.surface.unlit, "_sigil.material.Material"),
             (_sigil.material.field.halftoneRamp, "_sigil.material.Material"),
         ):
             with self.subTest(named=named.__name__):

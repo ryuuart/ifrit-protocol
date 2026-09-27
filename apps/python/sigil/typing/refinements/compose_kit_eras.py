@@ -1,4 +1,4 @@
-"""Bevel, the era token sets, y2k chrome, aqua gel and gloss.
+"""Bevel and the era token sets.
 
 Input contracts for the erased signatures of the
 compose-kit/eras package, and nothing else: a fragment is one

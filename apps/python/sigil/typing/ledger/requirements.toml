@@ -108,11 +108,6 @@ native = "`measure::CheckTable` and `measure::check`"
 library = "Measure"
 python = ["measure.CheckTable", "measure.check"]
 
-[requirement.chrome-type]
-native = "`compose::kit::sunsetChromeType`, `silverChromeType` paints"
-library = "Compose kit"
-python = ["compose.kit.sunsetChromeType", "compose.kit.silverChromeType"]
-
 [requirement.clouds]
 native = "`geometry::mesh::Cloud` and `mesh::points`"
 library = "Geometry"
@@ -277,11 +272,6 @@ python = [
   "compose.feed.textRow",
 ]
 
-[requirement.finishes]
-native = "`compose::kit::aquaGel`, `y2kChrome`, `gloss` finishes"
-library = "Compose kit"
-python = ["compose.kit.aquaGel", "compose.kit.y2kChrome", "compose.kit.gloss"]
-
 [requirement.flatbuffer]
 native = "`data::FlatBuffer` roots and `data::schema`"
 library = "Data"
@@ -314,26 +304,6 @@ python = ["material.fill", "material.FrameData"]
 native = "`geometry::path::PolarFrame` and `path::Grid`"
 library = "Geometry"
 python = ["geometry.path.PolarFrame", "geometry.path.Grid"]
-
-[requirement.girih]
-native = "`material::kit::girih8` and `GirihPalette`"
-library = "Material"
-python = ["material.kit.girih8", "material.kit.GirihPalette"]
-
-[requirement.globe]
-native = "`material::kit::globe`"
-library = "Material"
-python = ["material.kit.globe"]
-
-[requirement.grained]
-native = "`material::kit` grained surfaces (`stone`, `timber`, `latten`, `board`)"
-library = "Material"
-python = [
-  "material.kit.stone",
-  "material.kit.timber",
-  "material.kit.latten",
-  "material.kit.board",
-]
 
 [requirement.guests]
 native = "`sketch::Guest` publication subscriptions"
@@ -688,11 +658,6 @@ native = "`material::Recipe` authoring"
 library = "Material"
 python = ["material.Recipe"]
 
-[requirement.reflections]
-native = "`material::kit` reflections (`gold`, `chrome`, `glass`)"
-library = "Material"
-python = ["material.kit.gold", "material.kit.chrome", "material.kit.glass"]
-
 [requirement.render-runtime]
 native = "`geometry::mesh::render::Runtime` selection"
 library = "Geometry"
@@ -869,19 +834,10 @@ native = "`compose::Text::textFx` text tracks"
 library = "Compose"
 python = ["compose.Text.textFx"]
 
-[requirement.text-paints]
-native = "`material::kit` text paints (`water`, `starNest`, `clouds`)"
-library = "Material"
-python = [
-  "material.kit.water",
-  "material.kit.starNest",
-  "material.kit.clouds",
-]
-
 [requirement.texture-maps]
-native = "`material::kit::surface` over `texture::TextureMaps`"
+native = "`material::surface::program` over `texture::TextureMaps`"
 library = "Material"
-python = ["material.kit.surface", "material.texture.TextureMaps"]
+python = ["material.surface.program", "material.texture.TextureMaps"]
 
 [requirement.texture-scene]
 native = "`compose::TextureScene` and `SketchContext::textureScene`"

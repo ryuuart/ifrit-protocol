@@ -297,9 +297,8 @@ assembly guards their calls the same way.
 * `media/Registration.h` — `bindMediaImages`, `bindMediaVideo`
 * `material/Registration.h` — `bindColor`, `bindMaterial`,
   `bindMaterialCore`, `bindMaterialEnvironment`, `bindMaterialField`,
-  `bindMaterialKitGrained`, `bindMaterialKitText`,
   `bindMaterialPaintEffect`, `bindMaterialPattern`, `bindMaterialShading`,
-  `bindMaterialSkiaDraw`, `bindMaterialSubstance`, `bindMaterialTexture`,
+  `bindMaterialSubstance`, `bindMaterialTexture`,
   `bindMaterialTextureSets`
 * `geometry/Registration.h` — `bindGeometry`, `bindGeometryCharts`,
   `bindGeometryDeviceHandle`, `bindGeometryFrames`, `bindGeometryMesh`,

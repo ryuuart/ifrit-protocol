@@ -1340,8 +1340,8 @@ effect avoids compiling source on each description. Use a fresh instance
 or `paint.copy()` before changing uniform values or child slots on a shared
 paint.
 
-The native `sigil.material.kit.SurfaceParameters` record and its `surface`
-and `unlit` factories describe mesh surfaces: base color, roughness, metallic
+The native `sigil.material.surface.SurfaceParameters` record and its
+`program` and `unlit` factories describe mesh surfaces: base color, roughness, metallic
 response, emission and transmission. The CPU executor, the only one Python
 reaches, shades from base color and metallic response; emission and
 transmission do not reach its pixels. The returned `sigil.material.Material`
@@ -1415,10 +1415,10 @@ the same values used by the direct bindings.
 ```python
 from sigil import media, world
 from sigil.geometry import mesh
-from sigil.material import kit as surfaces
+from sigil.material import surface as surfaces
 
-finish = surfaces.surface(
-    surfaces.SurfaceParameters.dielectric("#87b9ad", roughness=0.45)
+finish = surfaces.program(
+    surfaces.SurfaceParameters(baseColor="#87b9ad", roughness=0.45)
 )
 model = (world.Element().key("vessel")
          .mesh(mesh.torus(65, 20)).fill(finish).rotateX(25))

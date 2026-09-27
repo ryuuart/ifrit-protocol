@@ -60,9 +60,6 @@ void bindLibraries(pybind11::module_& module) {
   bindMaterialShading(module);
   bindMaterialPattern(module);
   bindMaterialField(module);
-  bindMaterialKitGrained(module);
-  bindMaterialKitText(module);
-  bindMaterialSkiaDraw(module);
   bindMaterialSubstance(module);
   bindWeavePorts(module);
   bindWeave(module);

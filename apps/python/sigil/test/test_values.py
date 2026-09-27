@@ -113,7 +113,7 @@ class Colors(unittest.TestCase):
             compose.Fill.color(7)
 
     def test_a_fill_takes_a_paint_and_a_material(self):
-        recipe = material.kit.unlit(material.kit.SurfaceParameters(baseColor="#e75a31"))
+        recipe = material.surface.unlit(material.surface.SurfaceParameters(baseColor="#e75a31"))
         unit = Paint.linearGradient((0, 0), (1, 0), [(0, "#000"), (1, "#fff")])
         # A fill is a paint or a cascade reference, so both are fills, and
         # the same paint described twice is one fill.

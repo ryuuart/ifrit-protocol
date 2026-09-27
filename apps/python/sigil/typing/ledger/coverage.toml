@@ -702,14 +702,6 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "`vignette` and `grained`"
-python = ["compose.kit.vignette", "compose.kit.grained"]
-
-[[section.surface.item]]
-native = "the chrome, gel and gloss styles"
-python = ["compose.kit.aquaGel", "compose.kit.y2kChrome", "compose.kit.gloss"]
-
-[[section.surface.item]]
 native = "`plate`, `console` and `tinted`"
 python = ["compose.kit.plate", "compose.kit.console", "compose.kit.tinted"]
 
@@ -1654,21 +1646,20 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "the `field` recipes `noise`, `grain`, `ripple`, `halftoneRamp` and `crtOverlay`"
+bound = "the `field` recipes `noise`, `grain`, `ripple` and `halftoneRamp`"
 python = [
   "material.field.noise",
   "material.field.grain",
   "material.field.ripple",
   "material.field.halftoneRamp",
-  "material.field.crtOverlay",
 ]
 
 [[section.surface.item]]
-bound = "`kit.SurfaceParameters` with `surface` and `unlit`"
+bound = "`surface.SurfaceParameters` with `program` and `unlit`"
 python = [
-  "material.kit.SurfaceParameters",
-  "material.kit.surface",
-  "material.kit.unlit",
+  "material.surface.SurfaceParameters",
+  "material.surface.program",
+  "material.surface.unlit",
 ]
 
 [[section.surface.item]]
@@ -1795,16 +1786,6 @@ python = ["material.Paint.image(image, sampling)"]
 [[section.surface.item]]
 native = "`skia::filter` and `skia::lowered`"
 python = ["material.Filter.filter", "material.Filter.lowered"]
-
-[[section.surface.item]]
-native = "the kit's ramps, grained surfaces, globe, girih, reflection materials (`gold`, `chrome` and `glass` over normals and an environment map), environments, text paints and texture-mapped surfaces"
-python = [
-  "material.kit.stone",
-  "material.kit.globe",
-  "material.kit.girih8",
-  "material.kit.gold",
-  "material.kit.water",
-]
 
 [[section.surface]]
 name = "Geometry"

@@ -19,18 +19,13 @@ void bindMaterial(pybind11::module_& module);
 /** Registers the value model: Material, Recipe authoring, Schema,
  *  UniformBlock, Bank, over and masking stacks on @p module. */
 void bindMaterialCore(pybind11::module_& module);
-/** Registers the equirectangular panorama, the two named skies, and
- *  gold, chrome and glass over a normal map on @p module. */
+/** Registers the surface program — its parameters, the reflection
+ *  choice, the lit and the unlit program — under `material.surface` on
+ *  @p module. */
 void bindMaterialEnvironment(pybind11::module_& module);
-/** Registers the field parameter structs and recipe accessors, plus the
- *  CRT screen and its kit preset on @p module. */
+/** Registers the field parameter structs and recipe accessors on
+ *  @p module. */
 void bindMaterialField(pybind11::module_& module);
-/** Registers stone, timber, latten and board, the orthographic globe,
- *  and the girih panel on @p module. */
-void bindMaterialKitGrained(pybind11::module_& module);
-/** Registers the six animated text paints, the chrome-type ramps, the
- *  named colormaps and the gel tables on @p module. */
-void bindMaterialKitText(pybind11::module_& module);
 /** Registers the revisioned pixel buffer, raw shader interop, bound
  *  pans, live paint parameters and the filter on @p module. */
 void bindMaterialPaintEffect(pybind11::module_& module);
@@ -43,9 +38,6 @@ void bindMaterialSubstance(pybind11::module_& module);
 /** Registers signed-distance shapes and styles, OpenColorIO view
  *  transforms, and the Slang compiler on @p module. */
 void bindMaterialShading(pybind11::module_& module);
-/** Registers skia::fill and shader, the two ramp crossings, the palette
- *  images and the stock warm-up on @p module. */
-void bindMaterialSkiaDraw(pybind11::module_& module);
 /** Registers textures, their three sources, leaves in material slots,
  *  bevel normals and masks on @p module. */
 void bindMaterialTexture(pybind11::module_& module);
