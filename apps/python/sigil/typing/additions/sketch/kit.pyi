@@ -3,8 +3,12 @@ import typing
 
 import sigil._types as _t
 import sigil.compose
+import sigil.compose.kit
 import sigil.sketch
 import sigil.skia
+
+# A verdict's columns are the compose kit's; the one class is offered here too.
+Column = sigil.compose.kit.Column
 
 class _StageProperties(typing.TypedDict, total=False):
     size: _t.SizeLike
