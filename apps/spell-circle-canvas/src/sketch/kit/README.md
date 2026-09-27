@@ -838,6 +838,28 @@ The verdict cell names the class `checkPass` or `checkFail` and a heading
 `Palette::fail` and `Palette::ink`, so a plate restyles its verdict with a
 rule.
 
+### What a study moves beside a material — `Controls.h`
+
+| | |
+| --- | --- |
+| `sketch::kit::controls` | a control surface: one row per parameter, grouped, each a slider, a toggle or a run of choices as the parameter asks |
+| `sketch::kit::Controls` | the surface's live values, held by the sketch; `value(name)` is what `Material::bind` takes, `bind(material)` binds every row |
+| `sketch::kit::controlsOf` | the rows a description asks for: a Substance graph's `material::sbsar::Description`, or a program material's float fields |
+
+```cpp
+sketch::kit::Controls leavesControls(material::sbsar::describe(hub, uri));
+leavesControls.bind(leaves);
+…
+sketch::kit::controls(leavesControls, {.groups = {"Colors"}})
+```
+
+This is THE control surface a study puts beside a material, and it is
+general: any list of `sketch::kit::Control` rows is a surface. The widget
+comes from the description's hint, the range and step from its author, or
+from `Controls::range` where the description states none. A row answers
+the pointer the host already feeds the composer, read in a paint program
+as `PaintContext::pointer`; nothing here adds an input path.
+
 ## What is NOT here, and where it is
 
 A leaf may not invent what an ancestor should own.

@@ -62,7 +62,7 @@ Element verdict(const measure::CheckTable& table, const Verdict& how) {
       continue;
     }
     cells.push_back({Utf8(row.label), Utf8(row.actual),
-                     row.pass ? how.pass : joined(how.fail, row.expected)});
+                     row.pass ? how.passed : joined(how.failed, row.expected)});
     kinds.push_back(row.pass ? Kind::Held : Kind::Failed);
     swatches.push_back(how.swatches ? Fill::color(row.pass ? look.palette.pass
                                                            : look.palette.fail)

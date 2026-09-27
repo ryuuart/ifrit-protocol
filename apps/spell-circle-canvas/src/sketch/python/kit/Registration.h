@@ -29,9 +29,12 @@ void bindSketchKitLegends(pybind11::module_& module);
 /** Registers backdrop, panel, frame, scrollbar, ticker and timeline on
  *  @p module. */
 void bindSketchKitPanels(pybind11::module_& module);
-/** Registers title cards, section headers, readouts, tables and bars on
- *  @p module. */
+/** Registers title cards, section headers, readouts, tables, bars and the
+ *  verdict on @p module. */
 void bindSketchKitRows(pybind11::module_& module);
+/** Registers the control surface a study puts beside a material on
+ *  @p module. */
+void bindSketchKitControls(pybind11::module_& module);
 /** Registers the console and the channel on @p module. */
 void bindSketchKitStreams(pybind11::module_& module);
 

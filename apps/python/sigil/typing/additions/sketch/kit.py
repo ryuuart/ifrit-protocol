@@ -83,3 +83,13 @@ def comparison(cases, props=None, **properties):
     spec = _specification(Comparison, props, properties)
     spec.cases = list(cases)
     return _native.comparison(spec)
+
+
+def verdict(table, props=None, **properties):
+    """Draw a measure CheckTable's rows, each verdict coloured by the sheet."""
+    return _native.verdict(table, _specification(Verdict, props, properties))
+
+
+def controls(surface, props=None, **properties):
+    """Draw a Controls surface: a slider, toggle or choice per parameter."""
+    return _native.controls(surface, _specification(ControlsView, props, properties))

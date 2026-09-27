@@ -13,6 +13,7 @@
 #include <sigilsketch/kit/Chart.h>
 #include <sigilsketch/kit/Connection.h>
 #include <sigilsketch/kit/Console.h>
+#include <sigilsketch/kit/Controls.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Heading.h>
 #include <sigilsketch/kit/Instrument.h>

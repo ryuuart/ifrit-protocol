@@ -47,10 +47,10 @@ struct Verdict {
   /** A last row counting the claims and the ones that failed. */
   bool summary = false;
   /** The verdict cell of a row that held. */
-  compose::Utf8 pass = u8"PASS";
+  compose::Utf8 passed = u8"PASS";
   /** The verdict cell of a row that did not hold, followed by the value
    *  the row expected. */
-  compose::Utf8 fail = u8"FAIL want ";
+  compose::Utf8 failed = u8"FAIL want ";
   /** The verdict cell of a reading, which is judged by nobody. */
   compose::Utf8 unjudged;
 };
