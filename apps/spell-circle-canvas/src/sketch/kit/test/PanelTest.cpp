@@ -157,7 +157,7 @@ TEST(SketchKitPanel, AVignetteDarkensTheCornersAndNotTheMiddle) {
 /** A grain moves pixels that a flat ground leaves identical. */
 TEST(SketchKitPanel, AGrainIsNotAFlatGround) {
   SkBitmap grained =
-      Drawn(kit::backdrop({.over = {kWide, kTall}, .grain = 0.5f})).pixels();
+      Drawn(kit::backdrop({.grain = 0.5f})).pixels();
   bool moved = false;
   const uint32_t first = *grained.getAddr32(0, 8);
   for (int x = 1; x < kWide && !moved; ++x)
