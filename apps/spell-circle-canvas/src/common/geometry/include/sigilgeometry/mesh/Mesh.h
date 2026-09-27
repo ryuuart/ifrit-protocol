@@ -36,14 +36,14 @@
  *  operator chain over them, model import and export, and the painter
  *  that puts the result on an ordinary canvas.
  *
- *  3D data speaks glm; Skia's types appear only where geometry genuinely
- *  comes from or goes to Skia. Where the 2D tier's currency is an
- *  `SkPath` addressed by arc length, this one's is vertices and
- *  indices. */
+ *  3D data speaks glm; the renderer's types appear only where geometry
+ *  genuinely comes from or goes to the renderer. Where the 2D tier's
+ *  currency is an outline addressed by arc length, this one's is
+ *  vertices and indices. */
 namespace sigil::geometry::mesh {
 
-/** Renderer-neutral triangle mesh. Indices are 32-bit; Skia's 16-bit
- *  SkVertices limit is handled by the draw (chunking), not by
+/** Renderer-neutral triangle mesh. Indices are 32-bit; the renderer's
+ *  16-bit vertex-batch limit is handled by the draw (chunking), not by
  *  the data. */
 struct Mesh {
   std::vector<glm::vec3> positions;

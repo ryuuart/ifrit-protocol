@@ -144,7 +144,7 @@ CARRIES is a point operator and lives in `mesh/pop`.
   `sampleArcLength()`; the two rails — `curve::frames()`, parallel-transport
   `Frame3`s that do not flip at inflections, and `curve::hangFrames()`, a
   window of a closed loop whose across-vector is held world-vertical; and
-  `project()` to draw the curve as a 2D path under a camera.
+  `project()` to draw the curve as a 2D outline under a camera.
 - **`mesh/curve/Pose.h`** — the rail addressed by DISTANCE rather than by
   index: `curve::poseAlong()` answers the `Frame3` at an arc length, over
   a rail you hold or over a spline that builds one, under the same

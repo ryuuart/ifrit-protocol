@@ -169,7 +169,7 @@ TEST(Curves, FramesStayOrthonormalAndContinuous) {
   }
 }
 
-// curve::project() flattens a 3D spline to a 2D SkPath through the same
+// curve::project() flattens a 3D spline to a 2D outline through the same
 // camera the mesh painter uses, so the two agree on where a point lands: a
 // segment centred on the world origin comes back centred on the viewport in
 // pixels. Drawing a projected curve over a drawn mesh depends on this.
@@ -179,10 +179,10 @@ TEST(Curves, ProjectMatchesCameraProjection) {
   line.points = {{-50, 0, 0}, {50, 0, 0}};
   camera::Camera camera;
   camera.eye = {0, 0, 200};
-  const SkPath path = curve::project(line, camera, {400, 300}, 16);
-  const SkRect bounds = path.computeTightBounds();
-  EXPECT_NEAR(bounds.centerY(), 150, 1e-2);
-  EXPECT_NEAR(bounds.centerX(), 200, 1e-2);
+  const path::Outline outline = curve::project(line, camera, {400, 300}, 16);
+  const path::Rect bounds = outline.bounds();
+  EXPECT_NEAR(bounds.centre().y, 150, 1e-2);
+  EXPECT_NEAR(bounds.centre().x, 200, 1e-2);
 }
 
 // A spline is a VALUE — the controls, the rule that reads them and the

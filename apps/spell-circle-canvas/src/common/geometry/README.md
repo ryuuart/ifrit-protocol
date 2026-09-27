@@ -509,14 +509,14 @@ What else the headers still spell, and why:
   matrices, frustum extent and projected points in Skia's size and point,
   and `camera::toSkM44()` is the matrix crossing, because the mesh
   painter draws through a Skia canvas.
-- **A spline projected.** `curve::project` answers the Skia path a
-  painter strokes, under the camera's viewport.
 - **The blend's drawn steps.** `blend::Step` holds the path and the
   colours a blend's in-between is painted with, and `blend::draw` paints
-  them.
+  them: the colour value is SigilMaterial's, and the blend links it
+  privately, so naming that value in the header is a boundary change of
+  its own.
 
-The first two are the boundary a painter needs; the last two move to
-the path tier's vocabulary when their consumers do.
+The first two are the boundary a painter needs; the blend's steps move
+to the library's vocabulary when its colour link does.
 
 ## Build and test
 

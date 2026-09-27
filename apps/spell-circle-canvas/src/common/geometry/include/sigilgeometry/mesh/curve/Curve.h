@@ -10,7 +10,7 @@
  *
  *  - sample()/frames()/hangFrames(): positions and moving frames —
  *    the RAIL, and the spine for placement, cameras and point clouds;
- *  - project(): the curve as a 2D SkPath under a Camera — draw the
+ *  - project(): the curve as a 2D outline under a Camera — draw the
  *    SAME spline as a glowing overlay over the scene that reads it.
  *
  * What a rail CARRIES is a separate subject: sweeping a profile along
@@ -21,13 +21,12 @@
  * anchors interpolated), Linear is the polyline.
  */
 
-#include <include/core/SkPath.h>
-
 #include <glm/glm.hpp>
 #include <vector>
 
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/mesh/curve/Frame.h"
 #include "sigilgeometry/path/Polyline.h"
 
@@ -92,9 +91,10 @@ std::vector<Frame3> frames(const Spline3& spline, int count,
 std::vector<Frame3> hangFrames(const Spline3& spline, int sections,
                                float head = 1, float span = 1);
 
-/** The spline as a 2D path under @p camera — points behind the near
- *  plane split the path into separate contours. */
-SkPath project(const Spline3& spline, const camera::Camera& camera,
-               SkSize viewport, int samples = 128);
+/** The spline as a 2D outline under @p camera, in the pixels of a
+ *  @p viewport that size — points behind the near plane split the
+ *  outline into separate contours. */
+path::Outline project(const Spline3& spline, const camera::Camera& camera,
+                      glm::vec2 viewport, int samples = 128);
 
 }  // namespace sigil::geometry::mesh::curve

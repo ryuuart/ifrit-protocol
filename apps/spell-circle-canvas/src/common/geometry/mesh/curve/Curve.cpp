@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/Vec.h"
 
 namespace sigil::geometry::mesh::curve {
@@ -260,8 +261,9 @@ std::vector<Frame3> hangFrames(const Spline3& spline, int sections, float head,
   return out;
 }
 
-SkPath project(const Spline3& spline, const camera::Camera& camera,
-               SkSize viewport, int samples) {
+static SkPath projectedPath(const Spline3& spline,
+                            const camera::Camera& camera, SkSize viewport,
+                            int samples) {
   SkPathBuilder out;
   samples = std::max(samples, 2);
   const glm::mat4 vp = camera.viewProjection(viewport);
@@ -285,6 +287,12 @@ SkPath project(const Spline3& spline, const camera::Camera& camera,
   }
   if (spline.closed && penDown) out.close();
   return out.detach();
+}
+
+path::Outline project(const Spline3& spline, const camera::Camera& camera,
+                      glm::vec2 viewport, int samples) {
+  return path::fromSk(
+      projectedPath(spline, camera, path::toSkSize(viewport), samples));
 }
 
 }  // namespace sigil::geometry::mesh::curve
