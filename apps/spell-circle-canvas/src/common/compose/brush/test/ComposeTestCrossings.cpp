@@ -218,9 +218,9 @@ TEST(ComposeComposites, WeaveRepairsTheCrossingsTheRuleDisagreesWith) {
   auto draw = [](geometry::path::CrossingRule rule) {
     Host host(200, 200);
     brush::Weave w = brush::weave(
-        {brush::Strand{strand::path(diagonal({20, 20}, {180, 180})),
+        {brush::Strand{strand::path(geometry::path::fromSk(diagonal({20, 20}, {180, 180}))),
                        brush::solid(9, red())},
-         brush::Strand{strand::path(diagonal({20, 180}, {180, 20})),
+         brush::Strand{strand::path(geometry::path::fromSk(diagonal({20, 180}, {180, 20}))),
                        brush::solid(9, green())}},
         std::move(rule));
     host.composer.render(stack().children({box().inset(0).stroke(w)}));
@@ -263,11 +263,11 @@ TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
   // knot 1 and aims its red repair at (60,100), where nothing is left to
   // repair.
   brush::Weave w =
-      brush::weave({brush::Strand{strand::path(diagonal({0, 100}, {200, 100})),
+      brush::weave({brush::Strand{strand::path(geometry::path::fromSk(diagonal({0, 100}, {200, 100}))),
                                   brush::solid(9, red())},
-                    brush::Strand{strand::path(diagonal({60, 0}, {60, 200})),
+                    brush::Strand{strand::path(geometry::path::fromSk(diagonal({60, 0}, {60, 200}))),
                                   brush::solid(9, green())},
-                    brush::Strand{strand::path(diagonal({140, 0}, {140, 200})),
+                    brush::Strand{strand::path(geometry::path::fromSk(diagonal({140, 0}, {140, 200}))),
                                   brush::solid(9, green())}},
                    geometry::path::crossing::alternate());
   Host host(240, 240);
@@ -282,7 +282,7 @@ TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
       << "a steady repaint must HIT, not rediscover";
 
   brush::Weave moved = w;  // shares the WARM cache — that is the scenario
-  moved.strands[1].path = strand::path(diagonal({180, 0}, {180, 200}));
+  moved.strands[1].path = strand::path(geometry::path::fromSk(diagonal({180, 0}, {180, 200})));
   host.composer.render(
       stack().children({box().inset(0).stroke(moved).cache(Cache::None)}));
   host.frame();
@@ -307,7 +307,7 @@ TEST(ComposeComposites, CrossingCacheFollowsTheOutlineUnderRelativeStrands) {
   // cache's).
   brush::Weave w = brush::weave(
       {brush::Strand{geometry::path::profile::self(), brush::solid(6, red())},
-       brush::Strand{strand::path(diagonal({100, 0}, {100, 200})),
+       brush::Strand{strand::path(geometry::path::fromSk(diagonal({100, 0}, {100, 200}))),
                      brush::solid(6, green())}},
       geometry::path::CrossingRule(EveryCrossingRedOnTop{}));
   auto ring = [](float radius) {
@@ -349,9 +349,9 @@ TEST(ComposeComposites, CrossingCacheIsByteNeutral) {
   };
   auto weaveX = [] {
     return brush::weave(
-        {brush::Strand{strand::path(diagonal({20, 20}, {180, 180})),
+        {brush::Strand{strand::path(geometry::path::fromSk(diagonal({20, 20}, {180, 180}))),
                        brush::solid(9, red())},
-         brush::Strand{strand::path(diagonal({20, 180}, {180, 20})),
+         brush::Strand{strand::path(geometry::path::fromSk(diagonal({20, 180}, {180, 20}))),
                        brush::solid(9, green())}},
         geometry::path::crossing::alternate());
   };
@@ -404,8 +404,8 @@ TEST(ComposeComposites, TheRepairCoversShallowCrossings) {
                       {mid.fX + d.x() * len, mid.fY + d.y() * len});
     };
     brush::Weave w = brush::weave(
-        {brush::Strand{strand::path(through(dirA)), stroke(9, red())},
-         brush::Strand{strand::path(through(dirB)), stroke(9, green())}},
+        {brush::Strand{strand::path(geometry::path::fromSk(through(dirA))), stroke(9, red())},
+         brush::Strand{strand::path(geometry::path::fromSk(through(dirB))), stroke(9, green())}},
         geometry::path::crossing::alternate());  // strand 0 (red) passes OVER
                                                  // at crossing 0
     host.composer.render(stack().children({box().inset(0).stroke(w)}));
@@ -448,9 +448,9 @@ TEST(ComposeComposites, ReachReportsTheMarkWhereBleedReportsNothing) {
   };
   Host host(400, 400);
   brush::Weave w = brush::weave(
-      {brush::Strand{strand::path(circle(160, 200, 90)),
+      {brush::Strand{strand::path(geometry::path::fromSk(circle(160, 200, 90))),
                      stroke(9, red(), PathFormat::Align::Inner)},
-       brush::Strand{strand::path(circle(240, 200, 90)),
+       brush::Strand{strand::path(geometry::path::fromSk(circle(240, 200, 90))),
                      stroke(9, green(), PathFormat::Align::Inner)}},
       geometry::path::CrossingRule(EveryCrossingRedOnTop{}));
   host.composer.render(stack().children({box().inset(0).stroke(w)}));
@@ -478,7 +478,7 @@ TEST(ComposeStrands, AbsoluteOnlyLeavesTheBoundaryUnpainted) {
       {box()
            .rect(40, 40, 100, 100)
            .stroke(brush::weave(
-               {brush::Strand{strand::path(diagonal({0, 0}, {100, 0})),
+               {brush::Strand{strand::path(geometry::path::fromSk(diagonal({0, 0}, {100, 0}))),
                               brush::solid(6, red())}},
                geometry::path::CrossingRule{}))}));
   host.frame();
@@ -550,8 +550,8 @@ TEST(ComposeComposites, ClosedStrandsWrapAtTheirSeam) {
 
   Host host(400, 400);
   host.composer.render(stack().children({box().inset(0).stroke(
-      brush::weave({brush::Strand{strand::path(big), stroke(6, red())},
-                    brush::Strand{strand::path(small), stroke(6, green())}},
+      brush::weave({brush::Strand{strand::path(geometry::path::fromSk(big)), stroke(6, red())},
+                    brush::Strand{strand::path(geometry::path::fromSk(small)), stroke(6, green())}},
                    geometry::path::crossing::alternate()))}));
   host.frame();
 

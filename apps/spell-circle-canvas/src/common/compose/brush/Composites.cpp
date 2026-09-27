@@ -87,7 +87,7 @@ void Weave::paint(draw::Pen& pen, const PaintContext& ctx) const {
         paths.push_back(geometry::path::toSk(ctx.borrowedPath(s.path.key())));
         break;
       case StrandPath::Source::Authored:
-        paths.push_back(s.path.path());
+        paths.push_back(geometry::path::toSk(s.path.path()));
         break;
     }
   }

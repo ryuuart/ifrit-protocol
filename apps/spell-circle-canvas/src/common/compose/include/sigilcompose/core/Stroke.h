@@ -58,7 +58,7 @@ class StrokeResolverOperations;
 // query-side vocabulary (Composer::bounds), never a shape.
 
 /** One claimed run of a boundary, as fractions of its TOTAL arc length —
- *  every contour end to end. This is `SkTrimPathEffect`'s coordinate, and
+ *  every contour end to end. This is a trim's coordinate, and
  *  the one every span, reveal and motion path in the library speaks. */
 struct Span {
   float begin = 0.0f, end = 1.0f;
@@ -283,7 +283,7 @@ class SpanArithmeticOperations {
   virtual std::vector<Span> complement(
       const std::vector<Span>& spans) const = 0;
   /** The sub-geometry of @p src covered by @p spans — fractions of the
-   *  path's TOTAL arc length, SkTrimPathEffect's coordinate. */
+   *  path's TOTAL arc length, a trim's coordinate. */
   virtual SkPath spanPath(const SkPath& src,
                           const std::vector<Span>& spans) const = 0;
 };
@@ -326,7 +326,7 @@ using StrokeResolver = core::Erased<StrokeResolverOperations>;
  *
  *  ABSOLUTE — `strand::from(key)` borrows a keyed element's resolved path
  *  through the derive phase, and `strand::path(p)` is authored geometry
- *  (SkPath is comparable, so it prunes). **With only absolute strands the
+ *  (an outline is comparable, so it prunes). **With only absolute strands the
  *  boundary is an unpainted host** — nothing runs on it, which is a real
  *  and useful shape of composite.
  *
@@ -338,7 +338,7 @@ class StrandPath {
   enum class Source : uint8_t {
     Relative,  ///< a profile over the host boundary, offset from it
     Borrowed,  ///< a keyed element's resolved path, read in the derive pass
-    Authored   ///< an explicit `SkPath`, which is a comparable value
+    Authored   ///< an explicit outline, which is a comparable value
   };
 
   StrandPath() = default;
@@ -351,17 +351,17 @@ class StrandPath {
     s.m_key = std::move(key);
     return s;
   }
-  static StrandPath authored(SkPath path) {
+  static StrandPath authored(geometry::path::Outline outline) {
     StrandPath s;
     s.m_source = Source::Authored;
-    s.m_path = std::move(path);
+    s.m_path = std::move(outline);
     return s;
   }
 
   Source source() const { return m_source; }
   const geometry::path::Profile& profile() const { return m_profile; }
   const std::string& key() const { return m_key; }
-  const SkPath& path() const { return m_path; }
+  const geometry::path::Outline& path() const { return m_path; }
   /** How far off the boundary this strand can run — 0 for the absolute
    *  family, whose geometry is its own. */
   float reach() const {
@@ -376,13 +376,13 @@ class StrandPath {
   Source m_source = Source::Relative;
   geometry::path::Profile m_profile;
   std::string m_key;
-  SkPath m_path;
+  geometry::path::Outline m_path;
 };
 
 /** THE STRAND-PATH FACTORIES: where one strand of a composite stroke
  *  gets its own geometry — a profile offset from the host boundary, a
  *  keyed element's resolved path borrowed in the derive pass, or an
- *  authored `SkPath`. A path is DATA here and never an element. */
+ *  authored outline. A path is DATA here and never an element. */
 namespace strand {
 /** Borrow a keyed element's resolved path (derive phase, cycle-guarded
  *  like every other borrow). */
@@ -390,7 +390,9 @@ inline StrandPath from(std::string_view key) {
   return StrandPath::borrowed(std::string(key));
 }
 /** Authored geometry, in the host element's local space. */
-inline StrandPath path(SkPath p) { return StrandPath::authored(std::move(p)); }
+inline StrandPath path(geometry::path::Outline outline) {
+  return StrandPath::authored(std::move(outline));
+}
 }  // namespace strand
 
 }  // namespace sigil::compose

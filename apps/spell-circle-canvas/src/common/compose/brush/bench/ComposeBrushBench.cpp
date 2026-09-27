@@ -95,7 +95,8 @@ Element weaveScene(int strandCount) {
     const SkColor4f color = i % 2 == 0 ? SkColor4f{0.95f, 0.35f, 0.25f, 1.0f}
                                        : SkColor4f{0.25f, 0.75f, 0.95f, 1.0f};
     strands.push_back(
-        {strand::path(path.detach()), brush::solid(5.0f, Fill::color(color))});
+        {strand::path(sigil::geometry::path::fromSk(path.detach())),
+         brush::solid(5.0f, Fill::color(color))});
   }
   return stack().children(
       {box()
