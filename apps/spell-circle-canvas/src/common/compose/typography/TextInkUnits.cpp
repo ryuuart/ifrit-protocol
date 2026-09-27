@@ -131,7 +131,7 @@ void detail::inkByUnit(const sigil::weave::ParagraphLayout& layout,
                 textUnitOf(span.inkBox);
             if (!spanUnit || !span.inkShader) continue;
             sk_sp<SkShader> spanShader =
-                material::skia::staticShader(span.inkShader->paint());
+                material::skia::staticShader(detail::paintOf(*span.inkShader));
             if (spanShader.get() != painted) continue;
             whose = (uint32_t)index + 1;
             base = placed.paint;

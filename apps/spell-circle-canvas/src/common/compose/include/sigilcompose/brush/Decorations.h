@@ -38,7 +38,7 @@
 #include <sigilgeometry/path/Stroke.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Paint.h>  // Wash — the material-valued decoration
+#include <sigilmaterial/core/Material.h>
 
 #include <algorithm>
 #include <optional>
@@ -169,7 +169,7 @@ struct PathFormat {
   bool isRunning() const {
     return (trimPhase && trimPhase->isRunning()) ||
            (dashPhaseBinding && dashPhaseBinding->isRunning()) ||
-           strokeFill.paint().isRunning();
+           detail::paintOf(strokeFill).isRunning();
   }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value()
@@ -355,7 +355,7 @@ struct ContourWalk {
  *                                    material::BlendMode::SoftLight, 0.35f))
  */
 struct Wash {
-  material::Paint material;
+  material::Material material;
   material::BlendMode blend = material::BlendMode::Normal;
   /** Strength, 0..1, applied as alpha on the pass. Clamped at paint; 0
    *  paints nothing at all. */
@@ -465,8 +465,7 @@ namespace decorations {
 inline Wash wash(const material::Material& material,
                  material::BlendMode blend = material::BlendMode::Normal,
                  float amount = 1.0f) {
-  return Wash{material::skia::paint(material),
-              blend, amount};
+  return Wash{material, blend, amount};
 }
 
 /** A plain rule around the node's outline, `inset` px inside it. */

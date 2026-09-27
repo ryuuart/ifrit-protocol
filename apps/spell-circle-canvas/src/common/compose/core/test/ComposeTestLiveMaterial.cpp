@@ -317,7 +317,7 @@ TEST(ComposeMaterial, BoundUniformOwnsItsSlotOverInjection) {
   Fill f = resolveFill(m, ctx);
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
   SkPaint p;
-  p.setShader(material::skia::staticShader(f.paint()));
+  p.setShader(material::skia::staticShader(detail::paintOf(f)));
   s->getCanvas()->drawPaint(p);
   SkBitmap bm;
   bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));

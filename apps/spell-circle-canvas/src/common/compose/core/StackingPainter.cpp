@@ -270,7 +270,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
     inst.pendingLiveFill = resolveFill(*liveMaterialOf(inst), probe);
     inst.hasPendingLiveFill = true;
     liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&
-                 material::skia::staticShader(inst.pendingLiveFill.paint()) == inst.bakedLiveShader;
+                 material::skia::staticShader(detail::paintOf(inst.pendingLiveFill)) == inst.bakedLiveShader;
     // The temporal-stability estimate. Material::resolve() memoizes on the
     // byte-identical digest of every varying input, so a stable shader
     // POINTER is a proof that the quantized inputs have not ticked — and

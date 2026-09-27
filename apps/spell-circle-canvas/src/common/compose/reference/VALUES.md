@@ -103,9 +103,9 @@ scheme of your own is C++ only.
 ## Where they live
 
 - `core/Paint.h` — `Fill`, with `Fill::color`, `Fill::none`,
-  `Fill::currentInk`, `Fill::var`, `Fill::paint` and `Fill::needsFrame`; `Corners`; `PaintContext`, and the
-  `KeyState` and `PromotionPolicy` it carries; `PaintProgram`;
-  `StampCache`; and `resolveRef`, `toFill`, `resolveFill` and `frameOf`.
+  `Fill::currentInk`, `Fill::var`, `Fill::material` and `Fill::needsFrame`; `Corners`; `PaintContext`, and the
+  `KeyState` and `PromotionPolicy` it carries; `PaintProgram`; and
+  `resolveRef`, `toFill`, `resolveFill` and `frameOf`.
 - `core/PaintBox.h` — `PaintBox`, the rectangle a paint is stretched over.
 - `core/Var.h` — `VarRef`, the `var` that interns one, and the `varName`
   that reads it back.

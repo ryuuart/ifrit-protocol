@@ -87,7 +87,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
         paintCtx);
     if (sk_sp<SkShader> shader =
             sf.kind == Fill::Kind::Paint
-                ? material::skia::staticShader(sf.paint())
+                ? material::skia::staticShader(detail::paintOf(sf))
                 : nullptr)
       outline.paint.setShader(std::move(shader));
     else
@@ -112,7 +112,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
     const Fill anchored = resolveInk(*metricMat, paintCtx);
     if (sk_sp<SkShader> shader =
             anchored.kind == Fill::Kind::Paint
-                ? material::skia::staticShader(anchored.paint())
+                ? material::skia::staticShader(detail::paintOf(anchored))
                 : nullptr) {
       metric.foreground.setShader(std::move(shader));
       havePaint = true;
@@ -141,7 +141,7 @@ detail::TextInk Composer::Impl::textInkOf(Instance& inst,
   // still dresses the decoration bands, which span a run, not a unit.
   const std::optional<sigil::weave::Unit> unit = textUnitOf(inst.inkPaint.box);
   const sk_sp<SkShader> shader = f.kind == Fill::Kind::Paint
-                                     ? material::skia::staticShader(f.paint())
+                                     ? material::skia::staticShader(detail::paintOf(f))
                                      : nullptr;
   if (shader && unit) {
     ink.unitSquare = shader;

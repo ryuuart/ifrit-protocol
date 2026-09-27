@@ -25,9 +25,9 @@ find out.
   inheritance is real: a live child makes the parent effect live, so no
   cache can freeze the parameter.
 - A decoration that paints beyond the node's box declares `bleed()`, or
-  `bleed(SkSize)` when its overflow depends on the resolved layout size.
+  `bleed(size)` when its overflow depends on the resolved layout size.
   The latter is queried again after resize. Mark width is declared with
-  `reach()` or `reach(SkSize)`. Composite brushes and outline adaptors
+  `reach()` or `reach(size)`. Composite brushes and outline adaptors
   forward the resolved size to their decorations. These
   are different numbers — an inner-aligned stroke bleeds zero while
   painting a mark several pixels wide. Over-reporting is safe;

@@ -21,6 +21,49 @@
 
 namespace sigil::compose {
 
+namespace detail {
+
+struct FillMaterial {
+  material::Paint paint;
+  /** The material a fill was written as; a fill written as a paint
+   *  derives it, as that paint's base, the first time it is asked. */
+  mutable std::optional<material::Material> material;
+};
+
+const material::Paint& paintOf(const Fill& fill) {
+  static const material::Paint nothing;
+  return fill.m_paint ? fill.m_paint->paint : nothing;
+}
+
+}  // namespace detail
+
+Fill::Fill(material::Paint paint) {
+  if (paint.isNone()) return;
+  kind = Kind::Paint;
+  m_paint = std::make_shared<const detail::FillMaterial>(
+      detail::FillMaterial{std::move(paint), std::nullopt});
+}
+
+const material::Material* Fill::material() const {
+  if (!m_paint) return nullptr;
+  if (!m_paint->material)
+    m_paint->material = material::skia::base(m_paint->paint);
+  return &*m_paint->material;
+}
+
+bool Fill::needsFrame() const {
+  return m_paint &&
+         (m_paint->paint.isRunning() || m_paint->paint.geometryDependent());
+}
+
+bool Fill::operator==(const Fill& o) const {
+  return kind == o.kind && colorValue == o.colorValue && ref == o.ref &&
+         varId == o.varId &&
+         (m_paint == o.m_paint ||
+          (m_paint && o.m_paint && m_paint->paint == o.m_paint->paint));
+}
+
+
 material::FrameData frameOf(const PaintContext& ctx) {
   material::FrameData frame;
   frame.resolution = {ctx.size.x, ctx.size.y};
@@ -36,7 +79,13 @@ Fill Fill::fromMaterial(const material::Material& material) {
   if (const material::Color* color = material.color();
       color && material.layers().empty())
     return Fill::color(*color);
-  return Fill{material::skia::paint(material)};
+  material::Paint lowered = material::skia::paint(material);
+  if (lowered.isNone()) return {};
+  Fill fill;
+  fill.kind = Kind::Paint;
+  fill.m_paint = std::make_shared<const detail::FillMaterial>(
+      detail::FillMaterial{std::move(lowered), material});
+  return fill;
 }
 
 Fill toFill(const material::Paint& paint) {
@@ -79,7 +128,7 @@ Fill resolveFill(const material::Paint& paint, const PaintContext& ctx) {
 }
 
 Fill resolveFill(const Fill& fill, const PaintContext& ctx) {
-  if (fill.kind == Fill::Kind::Paint) return resolveFill(fill.paint(), ctx);
+  if (fill.kind == Fill::Kind::Paint) return resolveFill(detail::paintOf(fill), ctx);
   return resolveRef(fill, ctx);
 }
 

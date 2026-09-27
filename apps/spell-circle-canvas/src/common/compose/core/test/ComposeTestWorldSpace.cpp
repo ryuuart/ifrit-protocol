@@ -160,7 +160,7 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   ASSERT_EQ(f.kind, Fill::Kind::Paint);
   Host raw;
   SkPaint p;
-  p.setShader(material::skia::staticShader(f.paint()));
+  p.setShader(material::skia::staticShader(detail::paintOf(f)));
   raw.surface->getCanvas()->clear(SK_ColorBLACK);
   raw.surface->getCanvas()->save();
   raw.surface->getCanvas()->translate(40, 40);

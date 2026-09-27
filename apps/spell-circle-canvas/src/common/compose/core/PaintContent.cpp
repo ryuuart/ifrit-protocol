@@ -550,7 +550,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         const bool luma = m.with.channel == Gate::Channel::Luma;
         if (sk_sp<SkShader> shader =
                 f.kind == Fill::Kind::Paint
-                    ? material::skia::staticShader(f.paint())
+                    ? material::skia::staticShader(detail::paintOf(f))
                     : nullptr)
           cover.setShader(luma ? lumaCoverageShader(std::move(shader))
                                : std::move(shader));
@@ -720,7 +720,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       Fill placed = resolveFill(*live, originCtx);
       if (placed.kind == Fill::Kind::Paint)
         if (sk_sp<SkShader> shader =
-                material::skia::staticShader(placed.paint()))
+                material::skia::staticShader(detail::paintOf(placed)))
           placed = Fill{material::skia::paint(shader->makeWithLocalMatrix(
               SkMatrix::Translate(inset.left, inset.top)))};
       resolvedFill = std::move(placed);
@@ -780,7 +780,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
     if (fill.kind == Fill::Kind::Color)
       paint.setColor4f(material::skia::toSkColor(fill.colorValue), nullptr);
     else
-      paint.setShader(material::skia::staticShader(fill.paint()));
+      paint.setShader(material::skia::staticShader(detail::paintOf(fill)));
     // Leaf fast path: paint() proved a layer is unnecessary and routed the
     // node's blend/opacity straight onto the fill.
     paint.setBlendMode(leafBlend);

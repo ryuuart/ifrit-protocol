@@ -34,7 +34,7 @@ Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
   // A paint written as a fill is the paint: it takes the paint's own
   // route, so a live or geometry-dependent one is resolved with the frame.
   if (const Fill* plain = f.constant(); plain && plain->kind == Fill::Kind::Paint)
-    return fill(plain->paint(), PaintBox::Element);
+    return fill(detail::paintOf(*plain), PaintBox::Element);
   detail::ElementNode* node = declarations();
   node->fields.fill() = std::move(f);
   // The box is part of the fill's statement, so a fill with no picture to
@@ -106,7 +106,7 @@ Derived& PaintVerbs<Derived>::fill(material::Material material, PaintBox box) {
 template <class Derived>
 Derived& PaintVerbs<Derived>::fill(Fill fill, PaintBox box) {
   if (fill.kind == Fill::Kind::Paint)
-    return this->fill(fill.paint(), box);
+    return this->fill(detail::paintOf(fill), box);
   if (detail::textUnitOf(box)) warnFillTakesNoTextUnit();
   return this->fill(motion::Animatable<Fill>{std::move(fill)});
 }

@@ -69,7 +69,7 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   if (stroke.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(stroke.colorValue), nullptr);
   else if (stroke.kind == Fill::Kind::Paint)
-    p.setShader(material::skia::staticShader(stroke.paint()));
+    p.setShader(material::skia::staticShader(detail::paintOf(stroke)));
 
   sk_sp<SkPathEffect> chosen = effect;
   if (!chosen && stampAdvance > 0 && !stampPath.isEmpty())
@@ -193,7 +193,9 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
 void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
   if (a <= 0.0f) return;
-  const Fill fill = resolveFill(material, ctx);
+  // The material is lowered to the executor's paint where it is drawn,
+  // against this node's frame.
+  const Fill fill = resolveFill(material::skia::paint(material), ctx);
   SkPaint p;
   p.setAntiAlias(true);
   p.setBlendMode(material::skia::toSkBlendMode(blend));
@@ -202,7 +204,7 @@ void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     c.a *= a;
     p.setColor4f(material::skia::toSkColor(c), nullptr);
   } else if (fill.kind == Fill::Kind::Paint) {
-    p.setShader(material::skia::staticShader(fill.paint()));
+    p.setShader(material::skia::staticShader(detail::paintOf(fill)));
     p.setAlphaf(a);
   } else {
     return;
@@ -237,7 +239,7 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     if (resolved.kind == Fill::Kind::Color)
       p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
     else if (resolved.kind == Fill::Kind::Paint)
-      p.setShader(material::skia::staticShader(resolved.paint()));
+      p.setShader(material::skia::staticShader(detail::paintOf(resolved)));
     if (!dash.empty())
       p.setPathEffect(
           SkDashPathEffect::Make(SkSpan(dash.data(), dash.size()), phase()));

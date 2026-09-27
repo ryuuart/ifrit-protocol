@@ -49,44 +49,49 @@ namespace sigil::compose {
 
 class VarTable;
 
+struct Fill;
+
 namespace detail {
 struct ElementNode;
+/** A fill's material and the executor's lowering of it, held together. */
+struct FillMaterial;
+/** The paint the executor lowered @p fill's material to — what the
+ *  painter draws with; a paint of nothing for a fill that holds none. */
+const material::Paint& paintOf(const Fill& fill);
 }  // namespace detail
 
 // ---------------------------------------------------------------------------
 // Paint values
 
-/** WHAT A SLOT IS PAINTED WITH: nothing, a colour, a `material::Paint`
- *  — a gradient, a recipe, a blend, an image, a program — or a REFERENCE
+/** WHAT A SLOT IS PAINTED WITH: nothing, a colour, a `material::Material`
+ *  — a gradient, a recipe, layers, an image, a program — or a REFERENCE
  *  to a colour the tree supplies where the fill is painted: the ink in
  *  force, or a custom property. The references are the part only a
- *  cascade can mean; everything else is the paint's.
+ *  cascade can mean; everything else is the material's.
  *
- *  A `material::Paint` and a `material::Material` convert to a fill
- *  implicitly, so a component declares one `Fill` property and its caller
- *  writes whichever it holds. It compares as its paint does, by recipe:
- *  the same gradient described again is the same fill. */
+ *  A material converts to a fill implicitly, so a component declares one
+ *  `Fill` property and its caller writes whichever it holds; the paint an
+ *  executor lowers a material to converts as well, as that material's
+ *  base. It compares as its lowered paint does, by recipe: the same
+ *  gradient described again is the same fill. */
 struct Fill {
   /** Which of the three things a fill holds. */
   enum class Kind : uint8_t {
     None,   ///< nothing is painted
     Color,  ///< a single colour, or a reference that resolves to one
-    Paint   ///< a material paint
+    Paint   ///< a material
   };
   /** Where a colour fill READS its colour from when it was written as a
    *  reference rather than a value. `None` is a value. */
   enum class Ref : uint8_t { None, CurrentInk, Var };
 
   Fill() = default;
-  /** @p paint as a fill. A paint of nothing is no fill; a flat paint stays
-   *  a paint, which the ink tells apart from a colour: a colour is the
-   *  inherited ink lane, and a paint is a paint. */
+  /** @p paint as a fill: the material whose base it is. A paint of
+   *  nothing is no fill; a flat paint stays a paint, which the ink tells
+   *  apart from a colour: a colour is the inherited ink lane, and a paint
+   *  is a paint. */
   // NOLINTNEXTLINE(google-explicit-constructor)
-  Fill(material::Paint paint) {
-    if (paint.isNone()) return;
-    kind = Kind::Paint;
-    m_paint = std::make_shared<const material::Paint>(std::move(paint));
-  }
+  Fill(material::Paint paint);
   /** A material recipe, as the paint that wears it. */
   template <class Recipe>
     requires(std::convertible_to<Recipe, material::Material> &&
@@ -135,11 +140,8 @@ struct Fill {
   Ref ref = Ref::None;
   uint32_t varId = 0;
 
-  /** The paint, when `kind` is `Paint`; a paint of nothing otherwise. */
-  [[nodiscard]] const material::Paint& paint() const {
-    static const material::Paint nothing;
-    return m_paint ? *m_paint : nothing;
-  }
+  /** The material, when `kind` is `Paint`; null otherwise. */
+  [[nodiscard]] const material::Material* material() const;
 
   /** Whether the colour is a reference the paint context still has to
    *  resolve — see `resolveRef`. */
@@ -147,23 +149,18 @@ struct Fill {
   /** Does this fill need a frame to paint — a live paint, or one that
    *  reads the box it lands on? A slot that stores a fill without a frame
    *  cannot hold one of these as it stands. */
-  [[nodiscard]] bool needsFrame() const {
-    return m_paint && (m_paint->isRunning() || m_paint->geometryDependent());
-  }
+  [[nodiscard]] bool needsFrame() const;
 
   /** A paint compares by its recipe, so the same paint described again is
    *  an equal fill. */
-  bool operator==(const Fill& o) const {
-    return kind == o.kind && colorValue == o.colorValue && ref == o.ref &&
-           varId == o.varId &&
-           (m_paint == o.m_paint ||
-            (m_paint && o.m_paint && *m_paint == *o.m_paint));
-  }
+  bool operator==(const Fill& o) const;
 
  private:
-  // Held once and shared, so a fill costs a node no more than a colour and
-  // a pointer however much a paint grows.
-  std::shared_ptr<const material::Paint> m_paint;
+  friend const material::Paint& detail::paintOf(const Fill& fill);
+  // The material and the paint it lowers to, held once and shared, so a
+  // fill costs a node no more than a colour and a pointer however much a
+  // material grows.
+  std::shared_ptr<const detail::FillMaterial> m_paint;
 
   /** FIELD PIN. `operator==` above is written by hand, and a fill that
    *  compares equal when it is not lets its node prune and keep painting

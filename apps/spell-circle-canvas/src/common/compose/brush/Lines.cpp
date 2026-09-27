@@ -275,7 +275,7 @@ void Line::applyFill(SkPaint& p, const PaintContext& ctx) const {
   if (resolved.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
   else if (resolved.kind == Fill::Kind::Paint)
-    p.setShader(material::skia::staticShader(resolved.paint()));
+    p.setShader(material::skia::staticShader(detail::paintOf(resolved)));
 }
 
 void Line::drawMarker(SkCanvas& canvas, const SkPaint& head, Marker marker,
@@ -368,7 +368,7 @@ void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     if (railFill.kind == Fill::Kind::Color)
       p.setColor4f(material::skia::toSkColor(railFill.colorValue), nullptr);
     else if (railFill.kind == Fill::Kind::Paint)
-      p.setShader(material::skia::staticShader(railFill.paint()));
+      p.setShader(material::skia::staticShader(detail::paintOf(railFill)));
     canvas.drawPath(run, p);
   }
 }
@@ -389,7 +389,7 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (hatchFill.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(hatchFill.colorValue), nullptr);
   else if (hatchFill.kind == Fill::Kind::Paint)
-    p.setShader(material::skia::staticShader(hatchFill.paint()));
+    p.setShader(material::skia::staticShader(detail::paintOf(hatchFill)));
   c.save();
   c.clipPath(geometry::path::toSk(ctx.outline), true);
   if (pattern.taper != 1.0f || pattern.origin || pattern.inset != 0.0f) {
@@ -444,7 +444,7 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (ringFill.kind == Fill::Kind::Color)
     p.setColor4f(material::skia::toSkColor(ringFill.colorValue), nullptr);
   else if (ringFill.kind == Fill::Kind::Paint)
-    p.setShader(material::skia::staticShader(ringFill.paint()));
+    p.setShader(material::skia::staticShader(detail::paintOf(ringFill)));
 
   c.save();
   c.clipPath(geometry::path::toSk(ctx.outline), true);

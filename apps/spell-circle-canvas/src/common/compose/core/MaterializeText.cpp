@@ -298,7 +298,7 @@ sigil::weave::TextStyle Composer::Impl::styleOfSpan(
   // A paint stated as the ink IS the ink: its own alpha rules, so the
   // colour it replaces must not fade it.
   if (span.inkShader) {
-    style.paint.foreground.setShader(material::skia::staticShader(span.inkShader->paint()));
+    style.paint.foreground.setShader(material::skia::staticShader(detail::paintOf(*span.inkShader)));
     style.paint.foreground.setAlphaf(1.0f);
   }
   return style;

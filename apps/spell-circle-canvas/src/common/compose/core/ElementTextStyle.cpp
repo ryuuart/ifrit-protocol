@@ -118,7 +118,7 @@ Derived& TextStyleVerbs<Derived>::textStroke(float width, Fill paint) {
   // in the black an empty fill would leave them.
   text.textStrokeFill = paint.kind != Fill::Kind::Paint ? std::move(paint)
                         : paint.needsFrame() ? Fill::currentInk()
-                                             : toFill(paint.paint());
+                                             : toFill(detail::paintOf(paint));
   return self();
 }
 

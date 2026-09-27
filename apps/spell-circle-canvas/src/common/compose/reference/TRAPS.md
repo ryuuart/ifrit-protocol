@@ -76,8 +76,8 @@ unkeyed `custom()` program, a bare `PaintProgram` decoration — can never
 compare equal to a separately constructed one, so their nodes re-patch on
 every describe. (Each of them names only the parameters it reads: the
 laid-out size is offered to an outline and the canvas and its context to a
-program, so `.shape([] { return p; })` is as much an outline as
-`.shape([](SkSize s) { … })` is. What a callable NAMES has no bearing on
+program, so `.shape([] { return outline; })` is as much an outline as
+`.shape([](glm::vec2 size) { … })` is. What a callable NAMES has no bearing on
 what it compares — which is nothing.) They stay in the grammar and they stay always-live: a
 node carrying one is re-patched and re-recorded for as long as it exists,
 which is the price of handing over something the library cannot read.

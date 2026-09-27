@@ -194,7 +194,7 @@ Derived& FontVerbs<Derived>::ink(Fill paint, PaintBox box) {
   // something to write, so a standing paint survives the asking.
   if (paint.kind != Fill::Kind::Paint) return self();
   cascade.statesInk = true;
-  cascade.inkPaint = paint.paint();
+  cascade.inkPaint = detail::paintOf(paint);
   cascade.inkBox = box;
   return self();
 }

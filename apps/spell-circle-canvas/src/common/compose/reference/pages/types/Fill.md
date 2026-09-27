@@ -21,17 +21,18 @@ writes whichever it holds. A fill that moves is `motion::Animatable<Fill>`.
 
 ## Anatomy
 
-Two small enumerations, two numbers and a paint.
+Two small enumerations, two numbers and a material.
 
 `Fill::kind` is which of three things the fill is. `Fill::Kind::None`
 paints nothing and is a value, not an absence — a slot holding it is
 answered, not skipped. `Fill::Kind::Color` carries `Fill::colorValue`,
 four straight sRGB floats. `Fill::Kind::Paint` carries a
-`material::Paint`, read through `Fill::paint`; the fill holds it once and
-shares it, so a fill costs a node a colour and a pointer however much a
-paint grows. `Fill::needsFrame` answers whether that paint is live or
-reads the box it lands on — a paint a slot measured without a frame
-cannot hold as it stands.
+`material::Material`, read through `Fill::material`; the fill holds it
+once, beside the paint the executor lowers it to, and shares both, so a
+fill costs a node a colour and a pointer however much a material grows.
+`Fill::needsFrame` answers whether that material is live or reads the
+box it lands on — one a slot measured without a frame cannot hold as it
+stands.
 
 `Fill::ref` is where a colour fill READS its colour from. `Fill::Ref::None`
 is the ordinary case: the colour is the value in hand. `Fill::Ref::CurrentInk`
@@ -54,8 +55,8 @@ version of its top.
 | Spelling | Language | What it gives |
 | --- | --- | --- |
 | `Fill::color(colour)` | C++ | a flat `material::Color` |
-| `Fill{paint}`, or a `material::Paint` where a fill is taken | C++ | the paint, implicitly |
-| `Fill{material}`, or a `material::Material` where a fill is taken | C++ | the material's recipe paint, implicitly |
+| `Fill{material}`, or a `material::Material` where a fill is taken | C++ | the material, implicitly |
+| `Fill{paint}`, or a `material::Paint` where a fill is taken | C++ | the material that paint is the base of, implicitly |
 | `Fill::none()` | C++ | the value that paints nothing |
 | `Fill::currentInk()` | C++ | the ink in force where the mark lands |
 | `Fill::var(reference)` | C++ | the colour a custom property holds |

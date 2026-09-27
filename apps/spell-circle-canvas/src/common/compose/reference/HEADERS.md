@@ -33,8 +33,7 @@ sound model; nothing below them changes kernel semantics.
   a canvas that NAMES ONLY THE PARAMETERS IT READS: the canvas and the
   context are both offered, so `[](SkCanvas& c) {…}`,
   `[](SkCanvas& c, const PaintContext& ctx) {…}` and `[] {…}` are all paint
-  programs and nothing spells a parameter in order to ignore it —
-  and `StampCache`. A colour from a source palette's hex integer is
+  programs and nothing spells a parameter in order to ignore it. A colour from a source palette's hex integer is
   SigilMaterial's `material::hexColor`. A `Fill` may be written as a
   REFERENCE the tree resolves at paint — `Fill::currentInk`, the ink in
   force, and `Fill::var`, a custom property — through `resolveRef`, which
@@ -334,7 +333,7 @@ the value is unchanged: make it once and keep it.
 
 **Geometry — `kit/`.** The silhouette and curve catalog is
 SigilGeometry's, spelled `geometry::shapes::` from
-`<sigilgeometry/kit/Silhouettes.h>`: a comparable `path(SkSize)` value
+`<sigilgeometry/kit/Silhouettes.h>`: a comparable `outline(glm::vec2)` value
 needs nothing of a component tree, and every one of them prunes a shaped
 node exactly as an unshaped one prunes. `kit/Layouts.h` holds the placement schemes for the `layout()`
 seam (`layouts::Radial`, `AlongPath`, `Diagonal`,

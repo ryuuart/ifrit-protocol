@@ -147,7 +147,7 @@ bool paintTextureBake(PaintPass& pass) {
         inst.textureBakeMatrix = totalM;
         inst.textureScale = maxScaleOf(totalM, localBounds);
         inst.bakedLiveShader = inst.hasPendingLiveFill
-                                   ? material::skia::staticShader(inst.pendingLiveFill.paint())
+                                   ? material::skia::staticShader(detail::paintOf(inst.pendingLiveFill))
                                    : nullptr;
         inst.bakedScalars = scalarsNow;
         inst.paintDirty = false;
@@ -376,7 +376,7 @@ bool paintTextureBake(PaintPass& pass) {
       inst.textureEffectDeferred = deferLiveEffect;
       inst.textureBakeRect = bake;
       inst.bakedLiveShader =
-          inst.hasPendingLiveFill ? material::skia::staticShader(inst.pendingLiveFill.paint()) : nullptr;
+          inst.hasPendingLiveFill ? material::skia::staticShader(detail::paintOf(inst.pendingLiveFill)) : nullptr;
       inst.bakedScalars = std::move(scalarsNow);
       inst.paintDirty = false;
       impl.stats.picturesRecorded++;
