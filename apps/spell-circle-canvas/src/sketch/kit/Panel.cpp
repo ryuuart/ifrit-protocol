@@ -2,8 +2,10 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Ground.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilsketch/kit/Panel.h>
 
 #include <algorithm>
@@ -26,15 +28,25 @@ compose::Element backdrop(const Backdrop& ground) {
   if (ground.grain > 0) {
     // The grain is a fill of its own laid over the ground rather than a
     // grained ground, so a ground that is a gradient or an image takes the
-    // same grain the flat one does.
-    surface.children({box().absolute().inset(0).fill(compose::kit::grained(
-        {0.5f, 0.5f, 0.5f, 1}, ground.grain, ground.grainScale))});
+    // same grain the flat one does: luminance noise soft-lit over mid grey,
+    // which is soft light's identity, so the strength is linear and 0 is
+    // exact.
+    surface.children({box().absolute().inset(0).fill(
+        material::from(material::Color{0.5f, 0.5f, 0.5f, 1})
+            .layer(material::noise(ground.grainScale,
+                                   {.octaves = 2, .grain = true}),
+                   {.blend = material::BlendMode::SoftLight,
+                    .opacity = std::clamp(ground.grain, 0.0f, 1.0f)}))});
   }
   if (ground.vignette > 0) {
     material::Color edge = ground.edge.value_or(material::Color{0, 0, 0, 1});
     edge.a = std::clamp(ground.vignette, 0.0f, 1.0f);
-    surface.children({box().absolute().inset(0).fill(
-        compose::kit::vignette(ground.over, edge))});
+    material::Color clear = edge;
+    clear.a = 0;
+    // Transparent out to a little under half the way to the far corner,
+    // then ramped to the edge colour at the corner itself.
+    surface.children({box().absolute().inset(0).fill(material::radialGradient(
+        {0.5f, 0.5f}, 1.0f, {{0.45f, clear}, {1.0f, edge}}))});
   }
   return surface;
 }

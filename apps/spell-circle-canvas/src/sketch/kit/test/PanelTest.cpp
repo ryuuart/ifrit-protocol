@@ -107,7 +107,7 @@ TEST(SketchKitPanel, ThePlatesOwnValuesStandOverTheThemes) {
 // What stands behind and around
 
 TEST(SketchKitPanel, TheBackdropIsTheThemesGround) {
-  SkBitmap flat = Drawn(kit::backdrop({.over = {kWide, kTall}})).pixels();
+  SkBitmap flat = Drawn(kit::backdrop({})).pixels();
   const sigil::material::Color ground = kit::houseTheme().palette.ground;
   const sigil::material::Color drawn = flat.getColor4f(4, 4);
   EXPECT_NEAR(drawn.r, ground.r, 0.01f);
@@ -122,7 +122,7 @@ TEST(SketchKitPanel, AVignetteDarkensTheCornersAndNotTheMiddle) {
   paper.palette.ground = {0.6f, 0.6f, 0.6f, 1};
   const kit::Provide bound(paper);
   SkBitmap shaded =
-      Drawn(kit::backdrop({.over = {kWide, kTall}, .vignette = 0.9f})).pixels();
+      Drawn(kit::backdrop({.vignette = 0.9f})).pixels();
   const sigil::material::Color corner = shaded.getColor4f(1, 1);
   const sigil::material::Color middle = shaded.getColor4f(kWide / 2, kTall / 2);
   EXPECT_LT(corner.r, middle.r);

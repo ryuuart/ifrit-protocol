@@ -29,13 +29,10 @@ namespace sigil::sketch::kit {
  *  ground under it, and usually wants it shaded toward the corners and
  *  grained so a flat fill does not read as a flat fill. */
 struct Backdrop {
-  /** The surface the vignette is measured against — the canvas, which is
-   *  `ctx.size`. A vignette is a fact about an EXTENT, so it is the one
-   *  thing here a theme cannot carry. */
-  SkSize over{0, 0};
   /** Unset is the theme's ground. */
   std::optional<compose::Fill> ground;
-  /** How dark the corners go, 0 to 1. 0 shades nothing. */
+  /** How dark the corners go, 0 to 1, measured out from the middle of the
+   *  box the backdrop covers. 0 shades nothing. */
   float vignette = 0;
   /** The colour the corners are shaded TOWARD; unset is black, because a
    *  vignette is a shadow. Its own alpha is ignored — `vignette` is how
@@ -54,7 +51,7 @@ struct Backdrop {
 /** THE DRESSED GROUND, over the whole surface.
  *
  *      ctx.composer.render(box().absolute().inset(0).children(
- *          {sketch::kit::backdrop({.over = ctx.size, .vignette = 0.45f}),
+ *          {sketch::kit::backdrop({.vignette = 0.45f}),
  *           subject()}));
  *
  *  It places itself over the canvas and paints nothing else, so it is the
