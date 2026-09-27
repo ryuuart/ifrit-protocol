@@ -231,7 +231,7 @@ class PainterExecutor : public Executor {
 
     std::vector<dg::ITexture*> textures(program.textures.size(), nullptr);
     dg::ITexture* sampled =
-        style.texture ? state.maps.sample(material::Texture::of(style.texture))
+        style.texture ? state.maps.sample(material::Texture(style.texture))
                       : nullptr;
     for (size_t i = 0; i < textures.size(); ++i) {
       if (program.textures[i] == "uTexture") textures[i] = sampled;

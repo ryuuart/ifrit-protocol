@@ -13,7 +13,7 @@ constexpr material::Color kRed = {1, 0, 0, 1};
 constexpr material::Color kBlue = {0, 0, 1, 1};
 
 /** A plain weave of one red and one blue thread each way, two pixels a
- *  thread: a tile whose own filter is nearest. */
+ *  thread: a tile whose own sampling is nearest. */
 material::pattern::Tile checkedCloth() {
   return material::pattern::clothTile(
       {.warp = {0, 1},
@@ -47,7 +47,7 @@ int blendedPixels(const Pattern& pattern) {
 }  // namespace
 
 TEST(ComposePatternSampling, APatternSamplesAsItsTileSays) {
-  ASSERT_EQ(checkedCloth().filter(), SkFilterMode::kNearest);
+  ASSERT_EQ(checkedCloth().sampling(), material::Sampling::Nearest);
   Pattern cloth(checkedCloth());
   cloth.scale(8);
   EXPECT_EQ(blendedPixels(cloth), 0);

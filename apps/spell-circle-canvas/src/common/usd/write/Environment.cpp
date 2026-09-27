@@ -98,7 +98,7 @@ std::string Writer::environmentMap(std::string_view name,
   }
   const std::string leaf =
       std::to_string(++impl.textureCounter) + "_environment.png";
-  const float peak = writePanorama(environment.map.image(0), dir / leaf);
+  const float peak = writePanorama(environment.map.texture(0).frameAt().image, dir / leaf);
   if (peak > 0)
     dome.CreateTextureFileAttr().Set(
         SdfAssetPath((impl.textureDirectory() / leaf).generic_string()));

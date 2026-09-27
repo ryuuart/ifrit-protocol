@@ -75,7 +75,7 @@ inline Torus twoSlotTorus() {
   material::Material textured = material::surface::program();
   textured.slot(
       material::surface::kBaseColorSlot,
-      material::Texture(solid(SK_ColorBLUE)).tile(SkTileMode::kRepeat));
+      material::Texture(solid(SK_ColorBLUE)).tile(material::Repeat::Repeat));
 
   return Torus{std::move(mesh), material::surface::program(redParameters),
                std::move(textured)};

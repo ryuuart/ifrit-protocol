@@ -241,7 +241,7 @@ TEST(SurfaceSlots, AnImportedNativeTextureCarriesItsColourAndNoHostImage) {
   ASSERT_TRUE(imported.valid());
   // NO HOST IMAGE AT ALL: a picture carrying this colour cannot have
   // come from a copy of it.
-  EXPECT_EQ(imported.image(), nullptr);
+  EXPECT_EQ(imported.frameAt().image, nullptr);
   EXPECT_EQ(imported.deviceImage().device, on.device->gpu());
 
   const SkColor4f centre =

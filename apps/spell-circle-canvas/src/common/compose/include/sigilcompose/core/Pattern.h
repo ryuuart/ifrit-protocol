@@ -29,6 +29,8 @@
 #include <include/core/SkPicture.h>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Painted.h>
+#include <sigilmaterial/skia/Texture.h>
 
 #include <memory>
 #include <optional>
@@ -50,16 +52,20 @@ class Pattern {
               tile)  // NOLINT(google-explicit-constructor)
       : m_tile(std::move(tile)) {}
 
-  /** A generator tile (the procedural route). */
-  static Pattern tile(SkSize size, sigil::material::pattern::Program draw) {
-    return Pattern(sigil::material::pattern::Tile::of(size, std::move(draw)));
+  /** A generator tile (the procedural route): @p draw paints one tile
+   *  into a canvas of @p size. */
+  static Pattern tile(SkSize size, sigil::material::skia::Painter draw) {
+    return Pattern(sigil::material::pattern::Tile::of(
+        {size.width(), size.height()},
+        sigil::material::skia::painted(std::move(draw))));
   }
 
   /** An element-tree tile (patterns are compositions too). The tree is
    *  forced to exactly the tile size so the repeat is seamless. */
   static Pattern tile(SkSize size, Element tileTree) {
     Pattern p;
-    p.m_tile = sigil::material::pattern::Tile::of(size, {});
+    p.m_tile = sigil::material::pattern::Tile::of(
+        {size.width(), size.height()}, {});
     tileTree.width(size.width()).height(size.height());
     p.m_tree = std::make_shared<Element>(std::move(tileTree));
     return p;
@@ -81,8 +87,8 @@ class Pattern {
   /** Swap the element tile (element-tile patterns' regeneration).
    *  Copy-on-write for the same reason as seed(). */
   Pattern& retile(Element tileTree) {
-    const SkSize size = m_tile.size();
-    tileTree.width(size.width()).height(size.height());
+    const glm::vec2 size = m_tile.size();
+    tileTree.width(size.x).height(size.y);
     m_tree = std::make_shared<Element>(std::move(tileTree));
     m_tile.program({});
     return *this;
@@ -104,7 +110,7 @@ class Pattern {
    *  Describe-time: this form moves only when the element is re-described.
    *  The BOUND overload below is the live sibling. */
   Pattern& offset(SkPoint px) {
-    m_tile.offset(px);
+    m_tile.offset({px.x(), px.y()});
     return *this;
   }
   /** Pan the repeat LIVE — the bound form of the same word. Write the live
@@ -162,16 +168,18 @@ class Pattern {
       // everything it draws. (Wrapped so the intrinsic-size root adopts
       // the tile's forced dims.)
       sk_sp<SkPicture> pic = snapshot(box().children({*m_tree}), *fonts);
-      m_tile.program([pic](SkCanvas& canvas, SkSize, uint32_t) {
-        if (pic) canvas.drawPicture(pic);
-      });
+      m_tile.program(material::skia::painted(
+          [pic](SkCanvas& canvas, SkSize, uint32_t) {
+            if (pic) canvas.drawPicture(pic);
+          }));
     }
-    sk_sp<SkImage> baked = m_tile.image();
+    sk_sp<SkImage> baked = material::skia::image(m_tile.texture());
     if (!baked) return {};
     material::Paint m = material::skia::image(
         std::move(baked), material::Repeat::Repeat, material::Repeat::Repeat,
-        m_tile.mapping(),
-        m_sampling.value_or(SkSamplingOptions(m_tile.filter())));
+        material::skia::toSkMatrix(m_tile.mapping()),
+        m_sampling.value_or(SkSamplingOptions(
+            material::skia::toSkFilterMode(m_tile.sampling()))));
     if (m_boundX || m_boundY)
       m.offset(m_boundX,
                m_boundY);  // the live pan rides material::Paint's

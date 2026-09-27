@@ -130,9 +130,9 @@ SdfPath Writer::Impl::material(const material::Material& top,
                            const char* channel, bool srgb) -> bool {
     const material::Texture* map = material::surface::map(m, slot);
     if (!map) return false;
-    const std::optional<std::string> asset = textureAsset(map->image(), role);
+    const std::optional<std::string> asset = textureAsset(map->frameAt().image, role);
     if (!asset) return false;
-    const bool repeat = map->tileX() == SkTileMode::kRepeat;
+    const bool repeat = map->tileX() == material::Repeat::Repeat;
     UsdShadeShader node = UsdShadeShader::Define(
         stage, SdfPath(path + "/" + std::string(role) + "Texture"));
     node.CreateIdAttr(VtValue(TfToken("UsdUVTexture")));
@@ -143,7 +143,7 @@ SdfPath Writer::Impl::material(const material::Material& top,
     node.CreateInput(TfToken("wrapS"), SdfValueTypeNames->Token)
         .Set(TfToken(repeat ? "repeat" : "clamp"));
     node.CreateInput(TfToken("wrapT"), SdfValueTypeNames->Token)
-        .Set(TfToken(map->tileY() == SkTileMode::kRepeat ? "repeat" : "clamp"));
+        .Set(TfToken(map->tileY() == material::Repeat::Repeat ? "repeat" : "clamp"));
     node.CreateInput(TfToken("sourceColorSpace"), SdfValueTypeNames->Token)
         .Set(TfToken(srgb ? "sRGB" : "raw"));
     node.CreateOutput(TfToken(channel), type);
@@ -187,7 +187,7 @@ SdfPath Writer::Impl::material(const material::Material& top,
           material::surface::map(m, material::surface::kNormalSlot)) {
     // UsdUVTexture can remap [0,1] to [-1,1] itself.
     const std::optional<std::string> asset =
-        textureAsset(normal->image(), "normal");
+        textureAsset(normal->frameAt().image, "normal");
     if (asset) {
       const bool directX = scalar(m, "normalDirectX", 0) > 0.5f;
       UsdShadeShader node =

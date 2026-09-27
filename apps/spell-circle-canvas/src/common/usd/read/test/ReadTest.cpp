@@ -106,7 +106,7 @@ constexpr float kSkyIntensity = 1.5f;
  *  writer normalises: it divides the panorama by its peak and multiplies
  *  that peak into the light's strength. */
 material::EnvironmentMap overbrightSky() {
-  return material::EnvironmentMap::baked(64, [](float u, float v) -> SkV3 {
+  return material::EnvironmentMap::baked(64, [](float u, float v) -> glm::vec3 {
     const float sun = std::exp(-((u - 0.5f) * (u - 0.5f)) / 0.002f) *
                       std::exp(-((v - 0.45f) * (v - 0.45f)) / 0.004f);
     return {0.05f + 2.6f * sun, 0.10f + 1.6f * sun, 0.30f + 0.7f * sun};

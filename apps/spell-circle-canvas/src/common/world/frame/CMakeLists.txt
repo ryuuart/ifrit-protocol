@@ -7,7 +7,8 @@
 # surface is dressed with, which every executor samples;
 # SigilCoreReconcile because a pass body and a generator are its erased
 # value. The CPU executor cooks a body's chain itself, so the point
-# operators are named privately.
+# operators are named privately, and a texture is read into the picture
+# and placing a mesh samples through the Skia executor, also privately.
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWorldFrame
   SOURCES Cpu.cpp CpuGeometry.cpp CpuPost.cpp Frame.cpp Pass.cpp Targets.cpp
@@ -15,7 +16,7 @@ sigil_library(SigilWorldFrame
   HEADERS Frame.h Pass.h Runtime.h Targets.h View.h
   PUBLIC SigilWorldElement SigilMaterialTexture SigilGeometryMeshRender
          SigilCoreCallable SigilCoreReconcile Boost::container
-  PRIVATE SigilGeometryMeshPop)
+  PRIVATE SigilGeometryMeshPop SigilMaterialSkia)
 
 # Links only the library it exercises, so a link edge that pulled the
 # retained side or a device in would show up as a build failure here.

@@ -112,7 +112,7 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map) {
     // The wrap was refused; the pixels are still readable the long way.
   }
 
-  const sk_sp<SkImage> image = map.image();
+  const sk_sp<SkImage> image = map.frameAt().image;
   if (!image) return nullptr;
   SampledImage& held = m_uploaded[image->uniqueID()];
   held.used = m_frame;
@@ -153,7 +153,10 @@ dg::ITexture* TextureResidency::sample(const material::Texture& map) {
 dg::ITexture* TextureResidency::environment(
     const material::EnvironmentMap& map) {
   if (!map.valid()) return nullptr;
-  return panorama(map.chain());
+  std::vector<sk_sp<SkImage>> levels;
+  for (const material::Texture& level : map.chain())
+    levels.push_back(level.frameAt().image);
+  return panorama(levels);
 }
 
 dg::ITexture* TextureResidency::panorama(
@@ -211,7 +214,7 @@ dg::ITexture* TextureResidency::panorama(
 dg::ITexture* TextureResidency::irradiance(
     const material::EnvironmentMap& map) {
   if (!map.valid()) return nullptr;
-  return convolution(map.irradiance());
+  return convolution(map.irradiance().frameAt().image);
 }
 
 dg::ITexture* TextureResidency::convolution(const sk_sp<SkImage>& lobe) {

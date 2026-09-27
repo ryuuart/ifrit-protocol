@@ -4,6 +4,8 @@
  */
 
 #include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilworld/frame/View.h>
 #include <sigilworld/light/Light.h>
 
@@ -11,7 +13,7 @@ namespace sigil::world {
 
 Sampling samplingOf(const material::Texture& texture) {
   Sampling out;
-  out.image = texture.image();
+  out.image = material::skia::image(texture);
   // A source may hold its pixels on a device and NOWHERE ELSE, in which
   // case there is no host image to read and the size comes from where
   // they stand — the placement is a question about the picture, not
@@ -21,14 +23,15 @@ Sampling samplingOf(const material::Texture& texture) {
   // Either axis repeating is a repeat: a mesh's sampler has one wrap for
   // both, and clamping the axis that was asked to repeat would drag one
   // edge's pixels across the whole face.
-  out.tile = texture.tileX() != SkTileMode::kClamp ||
-             texture.tileY() != SkTileMode::kClamp;
-  out.filter = texture.filter();
+  out.tile = texture.tileX() != material::Repeat::Pad ||
+             texture.tileY() != material::Repeat::Pad;
+  out.filter = material::skia::toSkFilterMode(texture.sampling());
 
   const SkISize size = out.image ? out.image->dimensions()
                                  : SkISize::Make(where.width, where.height);
   SkMatrix lookup;
-  if (size.isEmpty() || !texture.uv().invert(&lookup)) return out;
+  if (size.isEmpty() || !material::skia::toSkMatrix(texture.uv()).invert(&lookup))
+    return out;
   out.uv =
       SkMatrix::Scale(1.0f / (float)size.width(), 1.0f / (float)size.height());
   out.uv.preConcat(lookup);
@@ -98,11 +101,18 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material) {
   if (!environment.valid()) return out;
   // The chain and the convolution are baked once per panorama and kept
   // by the value, so asking for them every frame is a lookup.
-  out.levels = environment.map.chain();
-  out.irradiance = environment.map.irradiance();
+  const auto images = [](const std::vector<material::Texture>& levels) {
+    std::vector<sk_sp<SkImage>> out;
+    out.reserve(levels.size());
+    for (const material::Texture& level : levels)
+      out.push_back(material::skia::image(level));
+    return out;
+  };
+  out.levels = images(environment.map.chain());
+  out.irradiance = material::skia::image(environment.map.irradiance());
   if (environment.next.valid()) {
-    out.nextLevels = environment.next.chain();
-    out.nextIrradiance = environment.next.irradiance();
+    out.nextLevels = images(environment.next.chain());
+    out.nextIrradiance = material::skia::image(environment.next.irradiance());
   }
   out.crossfade = environment.crossfade;
   out.orientation = orientation;

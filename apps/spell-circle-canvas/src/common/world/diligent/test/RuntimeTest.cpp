@@ -416,7 +416,7 @@ const std::vector<float>& quarters() {
 
 TEST_P(EitherTier, ANearestFilteredMapIsTwoColoursAndOneEdge) {
   const std::vector<float> across = acrossTheCard(
-      photographSquare(mappedCard(twoTexelMap().filter(SkFilterMode::kNearest)),
+      photographSquare(mappedCard(twoTexelMap().sampling(material::Sampling::Nearest)),
                        runtime),
       quarters());
   ASSERT_EQ(across.size(), quarters().size());
@@ -429,7 +429,7 @@ TEST_P(EitherTier, ANearestFilteredMapIsTwoColoursAndOneEdge) {
 
 TEST_P(EitherTier, ALinearFilteredMapIsAGradientBetweenTwoTexels) {
   const std::vector<float> across = acrossTheCard(
-      photographSquare(mappedCard(twoTexelMap().filter(SkFilterMode::kLinear)),
+      photographSquare(mappedCard(twoTexelMap().sampling(material::Sampling::Linear)),
                        runtime),
       quarters());
   ASSERT_EQ(across.size(), quarters().size());
@@ -449,9 +449,11 @@ TEST_P(EitherTier, AMapAskedToRepeatIsAsManyOfItselfAsItWasAsked) {
   constexpr float kTimes = 4.0f;
   const Frame frame =
       mappedCard(twoTexelMap()
-                     .filter(SkFilterMode::kNearest)
-                     .tile(SkTileMode::kRepeat)
-                     .uv(SkMatrix::Scale(1.0f / kTimes, 1.0f / kTimes)));
+                     .sampling(material::Sampling::Nearest)
+                     .tile(material::Repeat::Repeat)
+                     .uv(glm::mat3(glm::vec3(1.0f / kTimes, 0, 0),
+                                   glm::vec3(0, 1.0f / kTimes, 0),
+                                   glm::vec3(0, 0, 1))));
   // The middle of each half of each repeat, so no sample lands on a
   // seam: eight of them, alternating dark and light all the way across.
   std::vector<float> at(8);
