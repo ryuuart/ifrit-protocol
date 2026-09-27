@@ -106,7 +106,7 @@ class WireDetail : public QObject {
   /** Shows what a tick read; null shows no wire at all. */
   void show(const sigil::seer::Vitals* vitals);
 
- signals:
+ Q_SIGNALS:
   void changed();
 
  private:

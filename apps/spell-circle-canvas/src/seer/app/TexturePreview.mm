@@ -113,7 +113,7 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
                                                         path.toStdString(),
                                                         seer::texture::Rows::BottomFirst);
       QMetaObject::invokeMethod(
-          this, [this, path, success] { emit saved(path, success); }, Qt::QueuedConnection);
+          this, [this, path, success] { Q_EMIT saved(path, success); }, Qt::QueuedConnection);
     }
     if (node->image) node->image->setRect(boundingRect());
     return node;

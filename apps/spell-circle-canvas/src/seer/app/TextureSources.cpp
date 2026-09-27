@@ -31,5 +31,5 @@ void TextureSources::refresh() {
         {"application", QString::fromStdString(source.application)}});
   if (m_publications == next) return;
   m_publications = std::move(next);
-  emit changed();
+  Q_EMIT changed();
 }

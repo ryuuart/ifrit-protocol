@@ -47,7 +47,7 @@ class Receiver : public QObject {
   Q_INVOKABLE void beginSettings();
   Q_INVOKABLE void cancelSettings();
   Q_INVOKABLE bool saveSettings();
- signals:
+ Q_SIGNALS:
   void changed();
   void wiresChanged();
 

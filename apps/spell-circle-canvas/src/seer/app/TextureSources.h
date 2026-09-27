@@ -17,7 +17,7 @@ class TextureSources : public QObject {
   QVariantList publications() const { return m_publications; }
   bool supported() const;
   Q_INVOKABLE void refresh();
- signals:
+ Q_SIGNALS:
   void changed();
 
  private:

@@ -143,7 +143,7 @@ class SendForm : public QObject {
    *  the repeat or by an echo shows up without the pane asking. */
   void refresh();
 
- signals:
+ Q_SIGNALS:
   void peerChanged();
   void messageChanged();
   void hexadecimalChanged();

@@ -103,9 +103,9 @@ void Receiver::setUri(const QString& uri) {
     start();
   else {
     refresh();
-    emit changed();
+    Q_EMIT changed();
   }
-  emit wiresChanged();
+  Q_EMIT wiresChanged();
 }
 
 void Receiver::setPort(int port) {
@@ -121,15 +121,15 @@ void Receiver::start() {
   m_wires.open(uri);
   m_opened = true;
   refresh();
-  emit changed();
-  emit wiresChanged();
+  Q_EMIT changed();
+  Q_EMIT wiresChanged();
 }
 
 void Receiver::stop() {
   if (m_deferWireChange && m_deferWireChange([this] { stop(); })) return;
   m_wires.close(m_uri.toStdString());
   refresh();
-  emit wiresChanged();
+  Q_EMIT wiresChanged();
 }
 
 void Receiver::refresh() {
@@ -149,7 +149,7 @@ void Receiver::refresh() {
   if (m_listening == listening && m_status == status) return;
   m_listening = listening;
   m_status = status;
-  emit changed();
+  Q_EMIT changed();
 }
 
 void Receiver::accept(const sigil::io::Feed& feed,

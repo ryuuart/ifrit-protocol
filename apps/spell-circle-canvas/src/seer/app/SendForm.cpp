@@ -63,20 +63,20 @@ SendForm::SendForm(sigil::seer::Sender& sender, double period, QObject* parent)
 void SendForm::setPeerUri(const QString& uri) {
   if (uri == m_peerUri) return;
   m_peerUri = uri;
-  emit peerChanged();
+  Q_EMIT peerChanged();
 }
 
 void SendForm::setMessage(const QString& message) {
   if (message == m_message) return;
   m_message = message;
-  emit messageChanged();
+  Q_EMIT messageChanged();
   rearmRepeat();
 }
 
 void SendForm::setHexadecimal(bool hexadecimal) {
   if (hexadecimal == m_hexadecimal) return;
   m_hexadecimal = hexadecimal;
-  emit hexadecimalChanged();
+  Q_EMIT hexadecimalChanged();
   rearmRepeat();
 }
 
@@ -92,7 +92,7 @@ QString SendForm::dialect() const {
 void SendForm::setOscAddress(const QString& address) {
   if (address == m_oscAddress) return;
   m_oscAddress = address;
-  emit oscAddressChanged();
+  Q_EMIT oscAddressChanged();
   rearmRepeat();
 }
 
@@ -115,35 +115,35 @@ QString SendForm::midiSecondName() const {
 void SendForm::setMidiKind(const QString& kind) {
   if (kind == m_midiKind) return;
   m_midiKind = kind;
-  emit midiChanged();
+  Q_EMIT midiChanged();
   rearmRepeat();
 }
 
 void SendForm::setMidiChannel(int channel) {
   if (channel == m_midiChannel) return;
   m_midiChannel = channel;
-  emit midiChanged();
+  Q_EMIT midiChanged();
   rearmRepeat();
 }
 
 void SendForm::setMidiFirst(int number) {
   if (number == m_midiFirst) return;
   m_midiFirst = number;
-  emit midiChanged();
+  Q_EMIT midiChanged();
   rearmRepeat();
 }
 
 void SendForm::setMidiSecond(int number) {
   if (number == m_midiSecond) return;
   m_midiSecond = number;
-  emit midiChanged();
+  Q_EMIT midiChanged();
   rearmRepeat();
 }
 
 void SendForm::setDmxUniverse(int universe) {
   if (universe == m_dmxUniverse) return;
   m_dmxUniverse = universe;
-  emit dmxChanged();
+  Q_EMIT dmxChanged();
   rearmRepeat();
 }
 
@@ -156,25 +156,25 @@ void SendForm::rearmRepeat() {
 void SendForm::setRepeating(bool repeating) {
   if (!repeating) {
     m_sender.stopRepeating();
-    emit repeatingChanged();
+    Q_EMIT repeatingChanged();
     return;
   }
   const std::optional<sigil::io::Bytes> bytes = messageBytes();
   if (!bytes || !reachPeer()) {
     m_sender.stopRepeating();
-    emit repeatingChanged();
+    Q_EMIT repeatingChanged();
     return;
   }
   m_sender.repeat(*bytes, m_period);
   setNote({});
-  emit repeatingChanged();
+  Q_EMIT repeatingChanged();
 }
 
 void SendForm::setLoopingBack(bool looping) {
   if (looping == m_loopingBack) return;
   m_loopingBack = looping;
   if (looping) reachPeer();
-  emit loopingBackChanged();
+  Q_EMIT loopingBackChanged();
 }
 
 void SendForm::sendOnce() {
@@ -221,7 +221,7 @@ bool SendForm::echo(const sigil::io::Bytes& bytes) {
 void SendForm::refresh() {
   if (m_sentSeen == m_sender.sent()) return;
   m_sentSeen = m_sender.sent();
-  emit sentChanged();
+  Q_EMIT sentChanged();
 }
 
 std::optional<sigil::io::Bytes> SendForm::messageBytes() {
@@ -306,5 +306,5 @@ bool SendForm::reachPeer() {
 void SendForm::setNote(const QString& note) {
   if (note == m_note) return;
   m_note = note;
-  emit noteChanged();
+  Q_EMIT noteChanged();
 }

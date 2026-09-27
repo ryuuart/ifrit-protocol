@@ -153,7 +153,7 @@ class SeerSession : public QObject {
    *  in the note. */
   Q_INVOKABLE void loadSchema(const QUrl& file);
 
- signals:
+ Q_SIGNALS:
   void selectionChanged();
   void recordingChanged();
   void noteChanged();

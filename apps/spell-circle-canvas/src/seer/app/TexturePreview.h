@@ -34,7 +34,7 @@ class TexturePreview : public QQuickItem {
   void setApplication(const QString& application);
   void setPaused(bool paused);
   Q_INVOKABLE void saveFrame(const QUrl& file);
- signals:
+ Q_SIGNALS:
   void sourceChanged();
   void pausedChanged();
   void frameChanged();

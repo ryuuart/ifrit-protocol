@@ -87,7 +87,7 @@ void WireList::refresh(const std::vector<sigil::seer::Vitals>& vitals) {
   if (m_rows.isEmpty()) return;
   for (int at = 0; at != m_rows.size(); ++at)
     m_rows[at] = take(vitals[size_t(at)]);
-  emit dataChanged(index(0), index(int(m_rows.size()) - 1));
+  Q_EMIT dataChanged(index(0), index(int(m_rows.size()) - 1));
 }
 
 QString WireList::uriAt(int row) const {

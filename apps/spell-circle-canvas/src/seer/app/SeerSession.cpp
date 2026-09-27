@@ -180,14 +180,14 @@ void SeerSession::publish() {
   const int row = m_wireList.rowOf(m_selectedUri);
   if (row != m_selectedRow) {
     m_selectedRow = row;
-    emit selectionChanged();
+    Q_EMIT selectionChanged();
   }
   const bool recording = m_recorder.recording();
   const QString path = QString::fromStdString(m_recorder.path().string());
   if (recording != m_recording || path != m_recordingPath) {
     m_recording = recording;
     m_recordingPath = path;
-    emit recordingChanged();
+    Q_EMIT recordingChanged();
   }
 }
 
@@ -291,7 +291,7 @@ void SeerSession::loadSchema(const QUrl& file) {
   m_detail.readThrough(m_wires.schema());
   if (root != m_schemaRoot) {
     m_schemaRoot = root;
-    emit schemaChanged();
+    Q_EMIT schemaChanged();
   }
   setNote({});
   publish();
@@ -300,5 +300,5 @@ void SeerSession::loadSchema(const QUrl& file) {
 void SeerSession::setNote(const QString& note) {
   if (note == m_note) return;
   m_note = note;
-  emit noteChanged();
+  Q_EMIT noteChanged();
 }

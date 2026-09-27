@@ -19,8 +19,8 @@ void TexturePreview::setSource(const QString& source) {
   m_size = {};
   m_frames = 0;
   m_status.clear();
-  emit sourceChanged();
-  emit frameChanged();
+  Q_EMIT sourceChanged();
+  Q_EMIT frameChanged();
   update();
 }
 
@@ -32,15 +32,15 @@ void TexturePreview::setApplication(const QString& application) {
   m_size = {};
   m_frames = 0;
   m_status.clear();
-  emit sourceChanged();
-  emit frameChanged();
+  Q_EMIT sourceChanged();
+  Q_EMIT frameChanged();
   update();
 }
 
 void TexturePreview::setPaused(bool paused) {
   if (m_paused == paused) return;
   m_paused = paused;
-  emit pausedChanged();
+  Q_EMIT pausedChanged();
   update();
 }
 
@@ -66,7 +66,7 @@ void TexturePreview::reportFrame(bool connected, QSize size, qulonglong frames,
         m_size = size;
         m_frames = frames;
         m_status = status;
-        emit frameChanged();
+        Q_EMIT frameChanged();
       },
       Qt::QueuedConnection);
 }
@@ -79,7 +79,7 @@ QSGNode* TexturePreview::updatePaintNode(QSGNode* node, UpdatePaintNodeData*) {
   if (!m_capturePath.isEmpty()) {
     const auto path = std::exchange(m_capturePath, {});
     QMetaObject::invokeMethod(
-        this, [this, path] { emit saved(path, false); }, Qt::QueuedConnection);
+        this, [this, path] { Q_EMIT saved(path, false); }, Qt::QueuedConnection);
   }
   return nullptr;
 }

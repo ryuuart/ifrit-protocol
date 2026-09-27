@@ -77,7 +77,7 @@ void WireDetail::show(const sigil::seer::Vitals* vitals) {
     m_schemaNote.clear();
     m_readUri.clear();
     m_readGeneration = 0;
-    emit changed();
+    Q_EMIT changed();
     return;
   }
 
@@ -99,7 +99,7 @@ void WireDetail::show(const sigil::seer::Vitals* vitals) {
   m_dropped = vitals->dropped;
   m_closed = vitals->closed;
   moved = readMessage(*vitals) || moved;
-  if (moved) emit changed();
+  if (moved) Q_EMIT changed();
 }
 
 bool WireDetail::readMessage(const sigil::seer::Vitals& vitals) {
