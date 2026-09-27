@@ -24,11 +24,14 @@ glyphs is [`textStroke`](textStroke.md).
 
 ```cpp
 Element& stroke(Decoration brush, std::string name = {});
+Element& stroke(material::Material material, material::StrokeOptions options = {});
 Element& stroke(Spans where, Decoration what, std::string name = {});
 ```
 
 ```python
 def stroke(self, decoration: DecorationLike, name: str = '') -> Element: ...
+def stroke(self, material: Material, width: float = 1,
+           position: StrokePosition = ...) -> Element: ...
 def stroke(self, spans: Spans, decoration: DecorationLike,
            name: str = '') -> Element: ...
 ```
@@ -39,6 +42,7 @@ def stroke(self, spans: Spans, decoration: DecorationLike,
 |---|---|---|
 | `Decoration` | The mark: anything answering `paint(canvas, PaintContext)`. | [`Decoration`](../../VALUES.md#the-marks), usually a [`PathFormat`](../types/PathFormat.md) |
 | `Spans` | Which runs of the boundary this pass claims. | [`Spans`](../../VALUES.md#the-marks): `spans::corners`, `spans::edges`, `spans::upTo`, `spans::every`, and `\|` between them |
+| `material::Material` | A keyline painted with a material, `options.width` wide on the side `options.position` names (`Outside` by default). | a colour, a gradient, `material::from(…).layer(…)` |
 | `name` | A LOCAL label for this mark, for `parts::named` and `spans::rest(name)`. | Any string; it is not a query key |
 
 In Python a decoration is a `compose.Decoration`, a `compose.PathFormat`

@@ -19,8 +19,8 @@ much paint counts as ink.
 ## Description
 
 ```cpp
-text(u8"CHROME", heavy).decorationOutline(Boundary::Glyphs).layerStyle(kit::y2kChrome());
-image(cutOut).decorationOutline(Boundary::Coverage).layerStyle(kit::y2kChrome());
+text(u8"CHROME", heavy).decorationOutline(Boundary::Glyphs).foreground(styles::BevelEmboss{});
+image(cutOut).decorationOutline(Boundary::Coverage).foreground(styles::OuterGlow{});
 image(photo).key("fig").decorationOutline(Boundary::Coverage, 0.35f);
 text(body, bodyStyle).contentFlowAround("fig", 12);
 ```

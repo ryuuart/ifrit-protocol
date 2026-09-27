@@ -15,9 +15,9 @@ Paints the node's own box. It is the ground the node stands on: under
 its content, under its children, and over whatever
 [`background`](background.md) put beneath it.
 
-A colour, a gradient, a material as SigilMaterial builds it, a whole
-authored paint, a transition between two of them, or a live binding
-whose value IS the node's colour.
+A colour, a material as SigilMaterial builds it — a base, layers over it
+and effects around it — a whole authored paint, a transition between two
+of them, or a live binding whose value IS the node's colour.
 
 <!-- example: fill_verb -->
 
@@ -26,7 +26,7 @@ whose value IS the node's colour.
 ```cpp
 Element& fill(motion::Animatable<Fill> colour);
 Element& fill(material::Paint paint, PaintBox box = PaintBox::Element);
-Element& fill(material::Material recipe, PaintBox box = PaintBox::Element);
+Element& fill(material::Material material, PaintBox box = PaintBox::Element);
 Element& fill(material::Color colour);
 Element& fill(Fill fill, PaintBox box = PaintBox::Element);
 ```
@@ -42,7 +42,7 @@ def fill(self, value: MotionFillLike, box: PaintBox = ...) -> Element: ...
 | `Fill` | Nothing, a colour, a material paint, or a reference the tree resolves at paint — what a component property hands on. A paint in it is placed over the box as the paint form below places it. | [`Fill`](../types/Fill.md) |
 | `motion::Animatable<Fill>` | The same, at rest, as a described motion, or as a live value somebody writes. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
 | `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::Paint`](../../VALUES.md#the-surface) |
-| `material::Material` | A recipe, painted as `material::Paint::recipe` of it. | any recipe SigilMaterial builds: a field, a mount board, a signed-distance surface |
+| `material::Material` | The whole model: its base and layers paint the box as a paint would, and its effects dress the node's own layer — a `Filter::shadow` beneath the fill (a hard one as an echo of the fill and the text), an inside shadow, a `Filter::stroke` and a `Filter::bevel` over it; a pass that reads pixels runs over the node and its subtree as [`filter`](filter.md) does. | `material::from(base).layer(…).effects(…)`, a gradient, `material::noise`, `material::image`, `material::program`, a sketch's own look |
 | `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
 | `PaintBox` | The rectangle the paint's unit square is stretched over. | [`PaintBox`](../types/PaintBox.md): `Element`, `Padding`, `Content`, `Canvas` |
 

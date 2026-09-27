@@ -74,5 +74,5 @@ which is how a bare drop shadow, a glow or a ground texture is written.
 
 [`fill`](fill.md), [`overlay`](overlay.md),
 [`foreground`](foreground.md) and [`stroke`](stroke.md) for the rest of
-the stacking order, and `layerStyle` for a whole bundle of decorations at
-once.
+the stacking order; a look that puts a shadow under the fill and a bevel
+over it is a material's effects, stated with `fill`.

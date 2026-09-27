@@ -430,7 +430,7 @@ draws a wire between nodes — the pairing stated in the operator
 (`connect::Along`), or every pairing read off the nodes
 (`connect::ByLane`) — keyed by what it joins and dressed by a
 `connect::Dressing`: the mark, where on the wire that mark paints, the
-gate over it and a whole `LayerStyle` where one mark will not do; `pin::`
+gate over it and a list of marks where one mark will not do; `pin::`
 hangs an element off every node stating a `pin::Request` — the element,
 the box it is given and a `Tether` for where — at the first place that
 fits; `outline::` builds from where nodes resolved their edges, a band
@@ -488,7 +488,7 @@ rectangle, and is why a chrome style on a word bevelled a slab behind the
 word. `Element::decorationOutline` says otherwise:
 
 ```cpp
-text(u8"CHROME", display).decorationOutline(Boundary::Glyphs).layerStyle(kit::y2kChrome());
+text(u8"CHROME", display).decorationOutline(Boundary::Glyphs).foreground(styles::BevelEmboss{});
 ```
 
 `Boundary::Glyphs` hands them the glyph contours the placement produced,
@@ -507,7 +507,7 @@ knows about an image's alpha cut-out, a clipped or masked subtree, or
 anything else whose visible silhouette is neither a shape nor a glyph run.
 
 ```cpp
-image(logo).decorationOutline(Boundary::Coverage).layerStyle(kit::y2kChrome());
+image(logo).decorationOutline(Boundary::Coverage).foreground(styles::OuterGlow{});
 image(photo).key("fig").decorationOutline(Boundary::Coverage, 0.35f);
 text(body, bodyStyle).contentFlowAround("fig", 12);
 ```

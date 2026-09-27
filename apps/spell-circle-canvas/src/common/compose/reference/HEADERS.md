@@ -51,7 +51,7 @@ sound model; nothing below them changes kernel semantics.
   holds the paragraph, lays it out and draws it at rest by itself.
 - `core/Shape.h` — the comparable seam values `Shape` (with
   `ShapeScheme`), `MotionPath`, `Decoration` and its declared-volatility
-  concepts, and `LayerStyle`; and `Boundary`, which outline a node hands
+  concepts, and `DecorationStack`; and `Boundary`, which outline a node hands
   its decorations.
 - `core/Stroke.h` — the stroke grammar: `Spans` and `spans::`,
   `StrandPath` and `strand::`. The path arithmetic under it is
@@ -137,7 +137,7 @@ sound model; nothing below them changes kernel semantics.
 - `core/verbs/Paint.h` — `PaintVerbs`: `fill`, in every form a surface
   can be painted with.
 - `core/verbs/Decoration.h` — `DecorationVerbs`: `background`,
-  `overlay`, `foreground`, `stroke`, `layerStyle`, `decorationOutline`.
+  `overlay`, `foreground`, `stroke`, `decorationOutline`.
 - `core/verbs/Effects.h` — `EffectVerbs`: `opacity`, `blendMode`,
   `filter`, `backdropFilter`.
 - `core/verbs/Transform.h` — `TransformVerbs`: `translateX`,
@@ -483,7 +483,7 @@ bound to a node or to nothing, routed by a `RailRouter` — and
 key or a list of them. Each is keyed by the nodes it joins or by the
 `key` it states, attached to the scope, and dressed by a `Dressing`: the
 `mark` it is drawn with, the `Spans` saying `where` on the wire that mark
-paints, the `Gate` over the lot, and a whole `LayerStyle` where one mark
+paints, the `Gate` over the lot, and a list of marks where one mark
 will not do. `connect::wire` is the figure itself.
 `kit/Pin.h` holds `pin::ByLane`, which hangs an element off every node
 stating a `pin::Request` — the element, the box it is given and a
@@ -614,14 +614,14 @@ namespace apart as `lines::presets::` in `kit/Strokes.h`, which — with
 tier because each is spelled in its types.
 
 **Fills.** The paint vocabulary is SigilMaterial's and is spelled there:
-`material::Paint` is what `Element::fill` takes, and
-`material::sdf`, `material::pattern` and `material::field` are where the
-signed-distance surfaces, the tiles and the fields come from.
-`brush/LayerStyles.h` is the Photoshop route to rich surfaces — the
-MECHANISMS: bevels, sheens, inner shadows, outer glows and overlays built
-from gradients and blurs rather than shaders. The LOOKS they are bundled
-into are the kit's, one era per header: `kit/Gel.h`, `kit/Chrome.h`,
-`kit/Gloss.h`, each over SigilMaterial's colour tables.
+a `material::Material` is what `Element::fill` takes — a base, layers
+over it and effects around it — and `material::sdf`, `material::pattern`
+and `material::field` are where the signed-distance surfaces, the tiles
+and the fields come from. A look (a glow, a shadow, a bevel, an overlay)
+is a material's effects and layers; a look belongs to the sketch that
+uses it. `brush/LayerStyles.h` holds the drawn marks a kit places on one
+slot beside its own fill: `styles::InnerShadow`, `styles::OuterGlow`,
+`styles::BevelEmboss`, and the `styles::ripple` filter.
 `brush/PixelStyles.h` is the other route, the bitmap era's — strokes and
 rectangles on the pixel lattice, never a blur: `styles::BevelPair`, a
 light edge and a dark edge kept inside the silhouette, raised or sunken
