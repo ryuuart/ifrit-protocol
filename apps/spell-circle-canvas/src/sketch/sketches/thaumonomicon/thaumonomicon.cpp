@@ -357,7 +357,7 @@ struct Thaumonomicon {
       const std::u8string run(lines[index].begin(), lines[index].end());
       const kit::Coverage coverage = kit::coverage(run, fonts, face);
       const kit::Mask mask = kit::threshold(coverage);
-      widest = std::max(widest, coverage.advance.width());
+      widest = std::max(widest, coverage.advance.x);
       // The title stands two pixels clear of the lines under it.
       const float top = 4 + 10 * (float)index + (index > 0 ? 2 : 0);
       set.push_back(kit::masked(mask, {.colour = colours[std::min<size_t>(index, 2)],

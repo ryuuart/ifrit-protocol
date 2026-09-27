@@ -30,7 +30,7 @@
  *
  * ## Which shape to reach for
  *
- * - `PixelInk` — a canvas and a cell size, with the three verbs. For a
+ * - `PixelInk` — a pen and a cell size, with the three verbs. For a
  *   drawing made inside a paint program and thrown away, where holding the
  *   marks as a value would buy nothing.
  * - `Sprite` — the same three verbs, but recorded. Hold it, present it
@@ -42,18 +42,14 @@
  *   handed back the rectangle it occupies.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkColor.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkImageInfo.h>
-#include <include/core/SkPaint.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSurface.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilcompose/core/Shelf.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
+#include <sigilmedia/core/Image.h>
+
+#include <memory>
 
 #include <algorithm>
 #include <optional>
@@ -61,6 +57,10 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
+namespace sigil::draw {
+class Pen;
+}
 
 namespace sigil::compose::kit {
 
@@ -80,44 +80,27 @@ namespace sigil::compose::kit {
  *
  *  Bake it once and hold the result — this allocates a surface and
  *  rasterises. */
-inline sk_sp<SkImage> dotSprite(int px = 32, float margin = 2.0f) {
-  sk_sp<SkSurface> surface =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(px, px));
-  SkCanvas* canvas = surface->getCanvas();
-  canvas->clear(SK_ColorTRANSPARENT);
-  SkPaint paint;
-  paint.setAntiAlias(true);
-  paint.setColor(SK_ColorWHITE);
-  const float centre = (float)px * 0.5f;
-  canvas->drawCircle(centre, centre, centre - margin, paint);
-  return surface->makeImageSnapshot();
-}
+std::shared_ptr<const media::Image> dotSprite(int px = 32,
+                                              float margin = 2.0f);
 
 // ---------------------------------------------------------------------------
 // The pen
 
-/** A canvas and the size of one sprite pixel on it. Coordinates are in
- *  SPRITE pixels throughout — the cell multiply happens here, once, so a
- *  drawing reads as the grid it was authored on rather than as arithmetic.
+/** A pen and the size of one sprite pixel on its canvas. Coordinates are
+ *  in SPRITE pixels throughout — the cell multiply happens here, once, so
+ *  a drawing reads as the grid it was authored on rather than as
+ *  arithmetic.
  *
  *  Antialiasing is off on every mark, which is what keeps the colour
  *  census equal to the palette. */
 struct PixelInk {
-  SkCanvas& canvas;
+  draw::Pen& pen;
   float cell = 1.0f;
   /** Where the grid's origin sits on the canvas, in canvas pixels. */
-  SkPoint at = {0, 0};
+  glm::vec2 at = {0, 0};
 
   void rect(float x, float y, float w, float h,
-            const material::Color& colour) const {
-    if (colour.a <= 0) return;
-    SkPaint paint;
-    paint.setAntiAlias(false);
-    paint.setColor4f(material::skia::toSkColor(colour), nullptr);
-    canvas.drawRect(SkRect::MakeXYWH(at.fX + x * cell, at.fY + y * cell,
-                                     w * cell, h * cell),
-                    paint);
-  }
+            const material::Color& colour) const;
   void px(float x, float y, const material::Color& colour) const {
     rect(x, y, 1, 1, colour);
   }
@@ -157,7 +140,7 @@ struct Sprite {
   /** The extent in sprite pixels. It is authored, not measured: a sprite
    *  whose marks stop short of its edge still occupies its whole cell, and
    *  a sheet packs the cell. */
-  SkISize grid{0, 0};
+  glm::ivec2 grid{0, 0};
   std::vector<material::Color> colours;
   std::vector<SpriteRun> runs;
 
@@ -243,7 +226,7 @@ struct SpriteStyle {
 };
 
 /** Draw @p sprite with its top-left at @p at, immediate mode. */
-void drawSprite(SkCanvas& canvas, const Sprite& sprite, SkPoint at,
+void drawSprite(draw::Pen& pen, const Sprite& sprite, glm::vec2 at,
                 const SpriteStyle& style = {});
 
 /** The same sprite as a retained node, sized `grid * cell`, one absolutely
@@ -260,14 +243,15 @@ Element pixelSprite(const Sprite& sprite, const SpriteStyle& style = {});
 /** @p sprite rasterised on its own transparent image, `grid * cell` in
  *  size. The bake a sheet is made of, and the form to hold when the same
  *  drawing is stamped many times. */
-sk_sp<SkImage> spriteImage(const Sprite& sprite, const SpriteStyle& style = {});
+std::shared_ptr<const media::Image> spriteImage(const Sprite& sprite,
+                                                const SpriteStyle& style = {});
 
 /** @p sprite rasterised as INDICES rather than colours: each mark writes
  *  its palette index into the red channel, opaque, and everything else is
  *  transparent. The sprite's own `colours` are not read at all.
  *
  *  This is the 8-bit sheet as a shader reads it. A runtime effect samples
- *  this image with `kNearest` — the value is data, and a linear tap
+ *  this image with nearest sampling — the value is data, and a linear tap
  *  between two indices is a blend of two unrelated hues — recovers the
  *  index, does whatever index arithmetic the drawing wants (a shade
  *  addend, a block replacement) and looks the result up in a palette
@@ -278,7 +262,8 @@ sk_sp<SkImage> spriteImage(const Sprite& sprite, const SpriteStyle& style = {});
  *  mark in entry 0 leaves its pixels transparent, so a sampler can tell
  *  "no sprite here" from "index zero here" with the alpha it already
  *  reads. An index above 255 does not fit in a channel and is dropped. */
-sk_sp<SkImage> indexImage(const Sprite& sprite, float cell = 1.0f);
+std::shared_ptr<const media::Image> indexImage(const Sprite& sprite,
+                                               float cell = 1.0f);
 
 // ---------------------------------------------------------------------------
 // Many, under names
@@ -316,11 +301,11 @@ class SpriteSheet {
   bool bake(const SpriteStyle& style = {});
 
   /** The baked sheet, null until `bake()` succeeds. */
-  const sk_sp<SkImage>& image() const { return m_sheet; }
+  const std::shared_ptr<const media::Image>& image() const { return m_sheet; }
 
   /** Where @p name sits on the baked sheet, in sheet pixels — empty for an
    *  unknown name or before a bake. */
-  SkRect rect(std::string_view name) const;
+  geometry::path::Rect rect(std::string_view name) const;
 
   /** The baked sprite under @p name as a node: the sheet, drawn through
    *  the window `rect(name)` cuts, at the size it was baked. Empty when
@@ -331,11 +316,11 @@ class SpriteSheet {
   struct Entry {
     std::string name;
     Sprite sprite;
-    SkRect rect = SkRect::MakeEmpty();
+    geometry::path::Rect rect;
   };
   const Entry* entryOf(std::string_view name) const;
   std::vector<Entry> m_entries;
-  sk_sp<SkImage> m_sheet;
+  std::shared_ptr<const media::Image> m_sheet;
 };
 
 }  // namespace sigil::compose::kit

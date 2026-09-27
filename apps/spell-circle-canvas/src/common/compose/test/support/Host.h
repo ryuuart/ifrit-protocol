@@ -77,6 +77,20 @@ auto skiaShape(Draw draw) {
   };
 }
 
+/** A pen begun on @p canvas, for a case that draws with one by hand; it
+ *  ends with the scope. */
+class PenOn {
+ public:
+  explicit PenOn(SkCanvas& canvas) { m_pen.begin(canvas, {}); }
+  ~PenOn() { m_pen.end(); }
+  PenOn(const PenOn&) = delete;
+  PenOn& operator=(const PenOn&) = delete;
+  sigil::draw::Pen& pen() { return m_pen; }
+
+ private:
+  sigil::draw::Pen m_pen;
+};
+
 /** @p mark painted onto @p canvas with a pen begun there for one mark —
  *  what the painter does for every decoration — for a case that paints a
  *  mark by hand outside a composer. */

@@ -30,7 +30,8 @@
 # Brush, and Brush links nothing here.
 sigil_library(SigilComposeKit
   SOURCES Bevels.cpp Board.cpp Connect.cpp Document.cpp Frame.cpp
-          Outline.cpp Pin.cpp Routers.cpp Rows.cpp Specimen.cpp Sprites.cpp
+          Outline.cpp Pin.cpp PixelType.cpp Routers.cpp Rows.cpp Specimen.cpp
+          Sprites.cpp
           Stamp.cpp
   HEADERS Board.h Chrome.h Connect.h Document.h Feed.h Frame.h
           Annotations.h Outline.h Pin.h Stamp.h

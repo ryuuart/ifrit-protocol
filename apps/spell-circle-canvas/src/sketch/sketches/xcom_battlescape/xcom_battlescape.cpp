@@ -207,8 +207,8 @@ Element stamp(const Artefact& art, const kit::Sprite& sprite,
               std::string_view name, float x, float y) {
   const Artefact::Drawing& drawing = art.drawings.find(name)->second;
   return screen(kit::pixelSprite(sprite, {.cell = kPixel}), x + drawing.left,
-                y + drawing.top, (float)sprite.grid.width(),
-                (float)sprite.grid.height());
+                y + drawing.top, (float)sprite.grid.x,
+                (float)sprite.grid.y);
 }
 
 /** A figure in the 3 x 5 numerals, every lit pixel in one entry. */
@@ -216,7 +216,7 @@ Element numeral(const Artefact& art, int value, float x, float y, int entry) {
   const kit::Sprite digits =
       art.lettering(std::to_string(value), "digits", entry);
   return screen(kit::pixelSprite(digits, {.cell = kPixel}), x, y,
-                (float)digits.grid.width(), (float)digits.grid.height());
+                (float)digits.grid.x, (float)digits.grid.y);
 }
 
 struct XcomBattlescape {
@@ -428,7 +428,7 @@ struct XcomBattlescape {
         reserveSwitch(78, 189, 2, "reserve-auto"),
         stamp(art, art.sprite("rank-squaddie"), "rank-squaddie", 107, 177),
         screen(kit::pixelSprite(name, {.cell = kPixel}), 134, 176,
-               (float)name.grid.width(), (float)name.grid.height()),
+               (float)name.grid.x, (float)name.grid.y),
         recess(134, 185, block(3, 7)),
         recess(152, 185, block(1, 5)),
         recess(134, 193, block(2, 5)),

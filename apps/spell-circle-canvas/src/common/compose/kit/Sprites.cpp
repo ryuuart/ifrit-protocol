@@ -4,10 +4,18 @@
  */
 
 #include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkImageInfo.h>
 #include <include/core/SkMatrix.h>
+#include <include/core/SkPaint.h>
 #include <include/core/SkSamplingOptions.h>
+#include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
+#include <sigilcompose/core/Shelf.h>
 #include <sigilcompose/kit/Sprites.h>
+#include <sigildraw/Pen.h>
+#include <sigilgeometry/path/Skia.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
@@ -15,6 +23,42 @@
 #include <utility>
 
 namespace sigil::compose::kit {
+
+namespace {
+
+/** One axis-aligned mark on @p canvas, antialiasing off, in a palette
+ *  entry: the plotting every sprite verb comes down to. */
+void plot(SkCanvas& canvas, float cell, glm::vec2 at, float x, float y,
+          float w, float h, const material::Color& colour) {
+  if (colour.a <= 0) return;
+  SkPaint paint;
+  paint.setAntiAlias(false);
+  paint.setColor4f(material::skia::toSkColor(colour), nullptr);
+  canvas.drawRect(
+      SkRect::MakeXYWH(at.x + x * cell, at.y + y * cell, w * cell, h * cell),
+      paint);
+}
+
+}  // namespace
+
+std::shared_ptr<const media::Image> dotSprite(int px, float margin) {
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(px, px));
+  SkCanvas* canvas = surface->getCanvas();
+  canvas->clear(SK_ColorTRANSPARENT);
+  SkPaint paint;
+  paint.setAntiAlias(true);
+  paint.setColor(SK_ColorWHITE);
+  const float centre = (float)px * 0.5f;
+  canvas->drawCircle(centre, centre, centre - margin, paint);
+  return media::Image::of(surface->makeImageSnapshot());
+}
+
+void PixelInk::rect(float x, float y, float w, float h,
+                    const material::Color& colour) const {
+  if (SkCanvas* canvas = pen.canvas())
+    plot(*canvas, cell, at, x, y, w, h, colour);
+}
 
 std::optional<Sprite> pixelMap(std::span<const std::string> rows,
                                const SpriteKey& key) {
@@ -79,19 +123,24 @@ material::Color faded(const material::Color& colour, float alpha) {
 }
 }  // namespace
 
-void drawSprite(SkCanvas& canvas, const Sprite& sprite, SkPoint at,
+/** @p sprite plotted onto @p canvas with its top-left at @p at. */
+void plotSprite(SkCanvas& canvas, const Sprite& sprite, glm::vec2 at,
                 const SpriteStyle& style) {
-  const PixelInk ink{canvas, style.cell, at};
   for (const SpriteRun& run : sprite.runs)
-    ink.rect(run.x, run.y, run.w, run.h,
-             faded(sprite.colourOf(run.index), style.alpha));
+    plot(canvas, style.cell, at, run.x, run.y, run.w, run.h,
+         faded(sprite.colourOf(run.index), style.alpha));
+}
+
+void drawSprite(draw::Pen& pen, const Sprite& sprite, glm::vec2 at,
+                const SpriteStyle& style) {
+  if (SkCanvas* canvas = pen.canvas()) plotSprite(*canvas, sprite, at, style);
 }
 
 Element pixelSprite(const Sprite& sprite, const SpriteStyle& style) {
   Element root =
       stack()
-          .width(Dimension((float)sprite.grid.width() * style.cell))
-          .height(Dimension((float)sprite.grid.height() * style.cell));
+          .width(Dimension((float)sprite.grid.x * style.cell))
+          .height(Dimension((float)sprite.grid.y * style.cell));
   for (const SpriteRun& run : sprite.runs) {
     const material::Color colour =
         faded(sprite.colourOf(run.index), style.alpha);
@@ -106,34 +155,35 @@ Element pixelSprite(const Sprite& sprite, const SpriteStyle& style) {
   return root;
 }
 
-sk_sp<SkImage> spriteImage(const Sprite& sprite, const SpriteStyle& style) {
-  const int w = (int)std::lround((float)sprite.grid.width() * style.cell);
-  const int h = (int)std::lround((float)sprite.grid.height() * style.cell);
+std::shared_ptr<const media::Image> spriteImage(const Sprite& sprite,
+                                                const SpriteStyle& style) {
+  const int w = (int)std::lround((float)sprite.grid.x * style.cell);
+  const int h = (int)std::lround((float)sprite.grid.y * style.cell);
   if (w <= 0 || h <= 0) return nullptr;
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
   if (!surface) return nullptr;
   surface->getCanvas()->clear(SK_ColorTRANSPARENT);
-  drawSprite(*surface->getCanvas(), sprite, {0, 0}, style);
-  return surface->makeImageSnapshot();
+  plotSprite(*surface->getCanvas(), sprite, {0, 0}, style);
+  return media::Image::of(surface->makeImageSnapshot());
 }
 
-sk_sp<SkImage> indexImage(const Sprite& sprite, float cell) {
-  const int w = (int)std::lround((float)sprite.grid.width() * cell);
-  const int h = (int)std::lround((float)sprite.grid.height() * cell);
+std::shared_ptr<const media::Image> indexImage(const Sprite& sprite,
+                                               float cell) {
+  const int w = (int)std::lround((float)sprite.grid.x * cell);
+  const int h = (int)std::lround((float)sprite.grid.y * cell);
   if (w <= 0 || h <= 0) return nullptr;
   SkBitmap plane;
   plane.allocPixels(SkImageInfo::MakeN32Premul(w, h));
   plane.eraseColor(SK_ColorTRANSPARENT);
   SkCanvas canvas(plane);
-  const PixelInk ink{canvas, cell, {0, 0}};
   for (const SpriteRun& run : sprite.runs) {
     if (run.index <= 0 || run.index > 255) continue;
-    ink.rect(run.x, run.y, run.w, run.h,
-             material::Color{(float)run.index / 255.0f, 0.0f, 0.0f, 1.0f});
+    plot(canvas, cell, {0, 0}, run.x, run.y, run.w, run.h,
+         material::Color{(float)run.index / 255.0f, 0.0f, 0.0f, 1.0f});
   }
   plane.setImmutable();
-  return plane.asImage();
+  return media::Image::of(plane.asImage());
 }
 
 // ---------------------------------------------------------------------------
@@ -143,7 +193,7 @@ void SpriteSheet::add(std::string name, Sprite sprite) {
   for (Entry& entry : m_entries)
     if (entry.name == name) {
       entry.sprite = std::move(sprite);
-      entry.rect = SkRect::MakeEmpty();
+      entry.rect = {};
       return;
     }
   m_entries.push_back({std::move(name), std::move(sprite), {}});
@@ -167,9 +217,9 @@ std::vector<std::string_view> SpriteSheet::names() const {
   return out;
 }
 
-SkRect SpriteSheet::rect(std::string_view name) const {
+geometry::path::Rect SpriteSheet::rect(std::string_view name) const {
   const Entry* entry = entryOf(name);
-  return entry && m_sheet ? entry->rect : SkRect::MakeEmpty();
+  return entry && m_sheet ? entry->rect : geometry::path::Rect{};
 }
 
 bool SpriteSheet::bake(const SpriteStyle& style) {
@@ -178,8 +228,8 @@ bool SpriteSheet::bake(const SpriteStyle& style) {
   std::vector<SkSize> boxes;
   boxes.reserve(m_entries.size());
   for (const Entry& entry : m_entries)
-    boxes.push_back({(float)entry.sprite.grid.width() * style.cell,
-                     (float)entry.sprite.grid.height() * style.cell});
+    boxes.push_back({(float)entry.sprite.grid.x * style.cell,
+                     (float)entry.sprite.grid.y * style.cell});
   // A gutter of one sheet pixel: a sheet exists to be sampled, and a
   // sprite flush against its neighbour bleeds into it the moment a stamp
   // lands off the pixel grid or is scaled.
@@ -191,22 +241,24 @@ bool SpriteSheet::bake(const SpriteStyle& style) {
   SkCanvas& canvas = *surface->getCanvas();
   canvas.clear(SK_ColorTRANSPARENT);
   for (size_t i = 0; i < m_entries.size(); ++i) {
-    m_entries[i].rect = packed.cells[i];
-    drawSprite(canvas, m_entries[i].sprite,
+    m_entries[i].rect = geometry::path::fromSk(packed.cells[i]);
+    plotSprite(canvas, m_entries[i].sprite,
                {packed.cells[i].left(), packed.cells[i].top()}, style);
   }
-  m_sheet = surface->makeImageSnapshot();
+  m_sheet = media::Image::of(surface->makeImageSnapshot());
   return m_sheet != nullptr;
 }
 
 Element SpriteSheet::cell(std::string_view name) const {
-  const SkRect window = rect(name);
-  if (!m_sheet || window.isEmpty()) return box().width(0).height(0);
+  const geometry::path::Rect window = rect(name);
+  if (!m_sheet || window.empty() || m_sheet->frames().empty())
+    return box().width(0).height(0);
   return box()
       .width(window.width())
       .height(window.height())
       .fill(material::skia::image(
-          m_sheet, material::Repeat::None, material::Repeat::None,
+          m_sheet->frames().front().image, material::Repeat::None,
+          material::Repeat::None,
           SkMatrix::Translate(-window.left(), -window.top()),
           SkSamplingOptions(SkFilterMode::kNearest)));
 }

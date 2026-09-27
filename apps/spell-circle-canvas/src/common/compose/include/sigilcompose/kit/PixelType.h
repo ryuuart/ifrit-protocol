@@ -14,7 +14,7 @@
  *
  * `text()` takes a `std::u8string`, not an animatable value, so a LIVE
  * numeric readout cannot be a text node at all. Baking to a mask and
- * blitting it inside a `custom()` leaf is how a readout gets drawn from a
+ * blitting it with a pen inside a `custom()` leaf is how a readout gets drawn from a
  * live value without re-describing anything. If `text()` ever accepts
  * an animatable, most of the reason to reach for this file goes away —
  * what would remain is the aliased look itself.
@@ -50,61 +50,33 @@
  * 3. **Digits want one tabular advance,** or a rolling readout shivers as
  *    a `1` narrows the string.
  *
- * 4. **Present at an INTEGER scale with `kNearest`.** A bitmap face at a
- *    fractional scale is a blurry bitmap face. `Material::image` is the
- *    image path that takes a sampling parameter.
+ * 4. **Present at an INTEGER scale with nearest sampling.** A bitmap face
+ *    at a fractional scale is a blurry bitmap face. `Material::image` is
+ *    the image path that takes a sampling parameter.
  */
 
-#include <sigildraw/Pen.h>
-#include <include/core/SkBitmap.h>
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkImageInfo.h>
-#include <include/core/SkSamplingOptions.h>
-#include <include/core/SkSurface.h>
+#include <glm/vec2.hpp>
+#include <glm/vec4.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
-#include <sigilcompose/core/Measure.h>
 #include <sigilcompose/typography/Typography.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
+#include <sigilmedia/core/Image.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
+
+namespace sigil::draw {
+class Pen;
+}
 
 namespace sigil::compose::kit {
-
-namespace detail {
-/** @p root baked at @p size and read back as F16 pixels, or a null bitmap
- *  when nothing could be drawn. Float rather than 8-bit because a coverage
- *  measured near the faint end of a glyph edge would otherwise quantise to
- *  a handful of levels. The wrapper carries EXPLICIT dims and an explicit
- *  canvas size: snapshot() sizes by the root's children and ignores the
- *  root's own dimensions. */
-inline SkBitmap rasterize(Element root, sigil::weave::FontContext& fonts,
-                          SkISize size) {
-  SkBitmap out;
-  if (size.isEmpty()) return out;
-  const SkImageInfo info = SkImageInfo::Make(
-      size.width(), size.height(), kRGBA_F16_SkColorType, kPremul_SkAlphaType);
-  sk_sp<SkSurface> surface = SkSurfaces::Raster(info);
-  if (!surface) return out;
-  surface->getCanvas()->clear(SkColor4f{0, 0, 0, 0});
-  if (sk_sp<SkPicture> picture =
-          snapshot(box()
-                       .width((float)size.width())
-                       .height((float)size.height())
-                       .children({std::move(root)}),
-                   fonts, {(float)size.width(), (float)size.height()}))
-    surface->getCanvas()->drawPicture(picture);
-  out.allocPixels(info);
-  if (!surface->readPixels(out.pixmap(), 0, 0)) out.reset();
-  return out;
-}
-}  // namespace detail
 
 /** Slack around the measured run, in px **on each side** — ink overhangs
  *  the advance a measurement reports, and it overhangs on the left as
@@ -128,28 +100,30 @@ inline constexpr int kPadRetries = 4;
  *  looking each up in a palette is another, and a colour-aware
  *  classification reads the plane directly. */
 struct Coverage {
-  /** F16 premultiplied, `pad` bigger than the measured advance. Read it
-   *  with `alphaAt`, or directly for a colour-aware classification. */
-  SkBitmap plane;
-  /** The bbox of pixels with any coverage at all. Empty when nothing lit
-   *  (a space, an unmapped codepoint). */
-  SkIRect ink = SkIRect::MakeEmpty();
+  /** Premultiplied RGBA per pixel, row by row, `pad` bigger than the
+   *  measured advance. Read it with `alphaAt`, or directly for a
+   *  colour-aware classification. */
+  std::vector<glm::vec4> plane;
+  /** The plane's width and height in pixels. */
+  glm::ivec2 planeSize{0, 0};
+  /** The bbox of pixels with any coverage at all, in whole plane pixels.
+   *  Empty when nothing lit (a space, an unmapped codepoint). */
+  geometry::path::Rect ink;
   /** What `intrinsicSize()` reported — the ADVANCE, which is what a layout
    *  wants and is NOT the ink extent. */
-  SkSize advance = {0, 0};
+  glm::vec2 advance{0, 0};
   /** The slack the bake actually used, which is NOT the slack asked for:
    *  a run whose ink touched an edge was baked again with the pad doubled.
    *  It is the origin of the run's own line box inside the plane, so it is
    *  what turns a plane coordinate into a typographic one. */
   Pad pad;
 
-  bool valid() const { return !plane.isNull(); }
-  int width() const { return plane.width(); }
-  int height() const { return plane.height(); }
+  bool valid() const { return !plane.empty(); }
+  int width() const { return planeSize.x; }
+  int height() const { return planeSize.y; }
   float alphaAt(int x, int y) const {
-    if (x < 0 || y < 0 || x >= plane.width() || y >= plane.height())
-      return 0.0f;
-    return plane.getColor4f(x, y).fA;
+    if (x < 0 || y < 0 || x >= planeSize.x || y >= planeSize.y) return 0.0f;
+    return plane[(size_t)y * (size_t)planeSize.x + (size_t)x].a;
   }
 };
 
@@ -164,63 +138,13 @@ struct Coverage {
  *  Built on `snapshot()`, which sizes by the root's CHILDREN, so the
  *  wrapper must carry explicit dimensions or an absolutely-placed child
  *  resolves against nothing. */
-inline Coverage coverage(std::u8string_view run,
-                         sigil::weave::FontContext& fonts,
-                         const sigil::weave::TextStyle& style, Pad pad = {}) {
-  Coverage out;
-  const std::u8string text8(run);
-  const SkSize sz = intrinsicSize(box().children({text(text8, style)}), fonts);
-  out.advance = sz;
-  // SLACK ON THE ADVANCE, because the scratch surface CONSTRAINS the run.
-  // `intrinsicSize()` answers an unconstrained layout; laid out again inside
-  // exactly that width, a run can wrap its last word. A wrapped bake is
-  // not a clipped glyph — it is a second LINE — and the pad retry below
-  // cannot see it, because nothing touches an edge. The mask is cropped to
-  // its ink afterwards, so the slack costs a larger scratch surface and
-  // nothing in the output.
-  const int advW = std::max(1, (int)std::ceil(sz.width()) + 8);
-  const int advH = std::max(1, (int)std::ceil(sz.height()));
-
-  for (int attempt = 0;; ++attempt) {
-    const int w = advW + 2 * std::max(0, pad.x);
-    const int h = advH + 2 * std::max(0, pad.y);
-    // padding() rather than an absolute offset: the run is inset by `pad`
-    // on EVERY side, so a negative left side-bearing has somewhere to go.
-    // Growing only the surface would pad right and bottom alone and clip
-    // that case no matter how large the pad got.
-    SkBitmap plane =
-        detail::rasterize(box()
-                              .padding((float)std::max(0, pad.y), (float)std::max(0, pad.x))
-                              .children({text(text8, style)}),
-                          fonts, {w, h});
-    if (plane.isNull()) return out;
-    out.plane = std::move(plane);
-    out.pad = pad;
-    int x0 = w, y0 = h, x1 = -1, y1 = -1;
-    for (int y = 0; y < h; ++y)
-      for (int x = 0; x < w; ++x)
-        if (out.plane.getColor4f(x, y).fA > 0.0f) {
-          x0 = std::min(x0, x);
-          y0 = std::min(y0, y);
-          x1 = std::max(x1, x);
-          y1 = std::max(y1, y);
-        }
-    out.ink = x1 < 0 ? SkIRect::MakeEmpty()
-                     : SkIRect::MakeLTRB(x0, y0, x1 + 1, y1 + 1);
-    const bool clipped =
-        !out.ink.isEmpty() && (out.ink.fLeft == 0 || out.ink.fTop == 0 ||
-                               out.ink.fRight == w || out.ink.fBottom == h);
-    if (!clipped || attempt >= kPadRetries || (pad.x <= 0 && pad.y <= 0))
-      return out;
-    pad.x = std::max(1, pad.x * 2);
-    pad.y = std::max(1, pad.y * 2);
-  }
-}
+Coverage coverage(std::u8string_view run, sigil::weave::FontContext& fonts,
+                  const sigil::weave::TextStyle& style, Pad pad = {});
 
 /** A baked run: a 1-bit A8 image plus the numbers a caller needs to place
  *  and advance past it. */
 struct Mask {
-  sk_sp<SkImage> image;
+  std::shared_ptr<const media::Image> image;
   int w = 0, h = 0;
   /** Where the ink sat inside the padded plane, before cropping — the
    *  offset to add back if you want the run on its own baseline rather
@@ -235,33 +159,13 @@ struct Mask {
 /** Threshold a `Coverage` to 1-bit A8 and (by default) crop to its ink.
  *
  *  @p threshold is in coverage units [0, 1] and is **inert under aliased
- *  shaping**: there Skia lights a pixel iff its centre is inside the
- *  outline, so the coverage is already 0 or 1 and every threshold in
+ *  shaping**: there the renderer lights a pixel iff its centre is inside
+ *  the outline, so the coverage is already 0 or 1 and every threshold in
  *  (0, 1] classifies it identically. It becomes a real control only when
  *  the run was deliberately shaped antialiased and is being quantised
  *  afterwards. */
-inline Mask threshold(const Coverage& cov, float threshold = 0.5f,
-                      bool cropToInk = true) {
-  Mask m;
-  if (!cov.valid() || cov.ink.isEmpty()) return m;
-  const SkIRect r =
-      cropToInk ? cov.ink : SkIRect::MakeWH(cov.width(), cov.height());
-  SkBitmap a8;
-  a8.allocPixels(SkImageInfo::MakeA8(r.width(), r.height()));
-  a8.eraseColor(SK_ColorTRANSPARENT);
-  for (int y = 0; y < r.height(); ++y)
-    for (int x = 0; x < r.width(); ++x)
-      *a8.getAddr8(x, y) =
-          cov.alphaAt(r.fLeft + x, r.fTop + y) >= threshold ? 255 : 0;
-  a8.setImmutable();
-  m.image = a8.asImage();
-  m.w = r.width();
-  m.h = r.height();
-  m.inkX = r.fLeft;
-  m.inkY = r.fTop;
-  m.advance = cov.advance.width();
-  return m;
-}
+Mask threshold(const Coverage& cov, float threshold = 0.5f,
+               bool cropToInk = true);
 
 /** The whole bake in one call: shape, rasterise, threshold, crop. */
 inline Mask bakeRun(std::u8string_view run, sigil::weave::FontContext& fonts,
@@ -292,53 +196,26 @@ struct Present {
    *  the colour's RGB multiplied by `shadowMultiplier`. The defaults follow
    *  Minecraft's own font renderer, which offsets by one GUI pixel and
    *  multiplies by a quarter. Zero offset = no shadow pass. */
-  SkVector shadowOffset = {0, 0};
+  glm::vec2 shadowOffset = {0, 0};
   float shadowMultiplier = 0.25f;
 };
 
-/** Draw a baked mask at @p at (top-left), immediate mode.
+/** Draw a baked mask at @p at (top-left) with @p pen, immediate mode.
  *
- *  An A8 image drawn through `drawImageRect` modulates the PAINT's colour,
- *  which is the reason to blit rather than fill: the mask carries only
- *  coverage, so one bake serves every tint the drawing needs. */
-inline void draw(SkCanvas& canvas, const Mask& m, SkPoint at,
-                 const Present& p = {}) {
-  if (!m.image) return;
-  const SkRect dst = SkRect::MakeXYWH(at.fX, at.fY, (float)m.w * p.scale,
-                                      (float)m.h * p.scale);
-  const SkSamplingOptions nearest(SkFilterMode::kNearest);
-  SkPaint paint;
-  paint.setAntiAlias(false);
-  if (p.shadowOffset.fX != 0 || p.shadowOffset.fY != 0) {
-    paint.setColor4f(
-        {p.colour.r * p.shadowMultiplier, p.colour.g * p.shadowMultiplier,
-         p.colour.b * p.shadowMultiplier, p.colour.a},
-        nullptr);
-    canvas.drawImageRect(m.image,
-                         dst.makeOffset(p.shadowOffset.fX, p.shadowOffset.fY),
-                         nearest, &paint);
-  }
-  paint.setColor4f(material::skia::toSkColor(p.colour), nullptr);
-  canvas.drawImageRect(m.image, dst, nearest, &paint);
-}
+ *  An A8 image drawn over a rectangle modulates the paint's colour, which
+ *  is the reason to blit rather than fill: the mask carries only coverage,
+ *  so one bake serves every tint the drawing needs. */
+void draw(draw::Pen& pen, const Mask& m, glm::vec2 at, const Present& p = {});
 
 /** The same as a retained leaf sized to the mask, for a STATIC run. The
  *  node is `m.w × scale` by `m.h × scale`; place it with `.at()`/`.rect()`
  *  like any other absolute node.
  *
  *  Note this is a `custom()` leaf, so it never records a picture and its
- *  program runs every frame it is visible — cheap here (one
- *  `drawImageRect`) but not free. A static run that never changes colour
- *  is better as `.cache(Cache::Texture)` on its parent. */
-inline Element masked(const Mask& m, const Present& p = {}) {
-  if (!m.image) return box().width(0).height(0);
-  return custom([m, p](sigil::draw::Pen& pen) {
-           SkCanvas& canvas = *pen.canvas();
-           draw(canvas, m, {0, 0}, p);
-         })
-      .width((float)m.w * p.scale)
-      .height((float)m.h * p.scale);
-}
+ *  program runs every frame it is visible — cheap here (one image draw)
+ *  but not free. A static run that never changes colour is better as
+ *  `.cache(Cache::Texture)` on its parent. */
+Element masked(const Mask& m, const Present& p = {});
 
 // ---------------------------------------------------------------------------
 // The 96-cell font — what a LIVE readout needs.
@@ -351,7 +228,7 @@ inline Element masked(const Mask& m, const Present& p = {}) {
  *  `inkX` is the left side bearing and `inkY` the drop from the top of the
  *  line box, both in px, and `blit` adds them back. */
 struct Cell {
-  sk_sp<SkImage> mask;
+  std::shared_ptr<const media::Image> mask;
   int w = 0, h = 0;
   /** The shaped advance, rounded — NOT the ink width. */
   int advance = 0;
@@ -384,41 +261,9 @@ struct PixFont {
  *  so the crop-to-ink step would otherwise reduce it to nothing and every
  *  word would run together. @p spaceRatio is its advance as a fraction of
  *  the font size, scaled by the style's horizontal condense. */
-inline PixFont bakeFont(sigil::weave::FontContext& fonts,
-                        const sigil::weave::TextStyle& style, Pad pad = {3, 3},
-                        float thresholdAt = 0.5f, float spaceRatio = 0.34f) {
-  PixFont f;
-  const float size = style.shaping.fontSize;
-  const float condense = style.shaping.scaleX;
-  for (int i = 0; i < 96; ++i) {
-    const char32_t ch = (char32_t)(32 + i);
-    if (ch == U' ') {
-      f.cells[(size_t)i].advance =
-          std::max(1, (int)std::lround(size * spaceRatio * condense));
-      continue;
-    }
-    const char c = (char)ch;
-    const std::u8string one(1, (char8_t)c);
-    const Coverage cov = coverage(one, fonts, style, pad);
-    const Mask m = threshold(cov, thresholdAt);
-    Cell& cell = f.cells[(size_t)i];
-    cell.mask = m.image;
-    cell.w = m.w;
-    cell.h = m.h;
-    cell.advance = std::max(1, (int)std::lround(cov.advance.width()));
-    // Plane coordinates back to line-box ones: the run was drawn inset by
-    // the pad the bake settled on, and that pad is not the same for every
-    // cell — one whose ink touched an edge was baked again with a larger
-    // one.
-    cell.inkX = m.inkX - cov.pad.x;
-    cell.inkY = m.inkY - cov.pad.y;
-    f.lineHeight = std::max(f.lineHeight, cell.inkY + cell.h);
-  }
-  for (int d = 0; d < 10; ++d)
-    f.digitAdvance =
-        std::max(f.digitAdvance, f.cells[(size_t)d + ('0' - 32)].advance);
-  return f;
-}
+PixFont bakeFont(sigil::weave::FontContext& fonts,
+                 const sigil::weave::TextStyle& style, Pad pad = {3, 3},
+                 float thresholdAt = 0.5f, float spaceRatio = 0.34f);
 /** On a partial, resolved against the initial values as every bake is. */
 inline PixFont bakeFont(sigil::weave::FontContext& fonts,
                         const sigil::weave::Type& type, Pad pad = {3, 3},
@@ -481,28 +326,13 @@ inline float widthOf(const PixFont& f, std::string_view s, const Blit& b = {}) {
   return detail::walkRun(f, s, b, [](const Cell&, float) {});
 }
 
-/** Draw @p s at @p at (top-left of the line box) and return the advance.
+/** Draw @p s at @p at (top-left of the line box) with @p pen and return
+ *  the advance.
  *
  *  Immediate-mode, for inside a `custom()` leaf — which is the whole point:
  *  a live readout reads its live value here and draws the number, with
  *  nothing re-described and nothing reconciled. */
-inline float blit(SkCanvas& canvas, const PixFont& f, SkPoint at,
-                  std::string_view s, material::Color colour,
-                  const Blit& b = {}) {
-  SkPaint p;
-  p.setAntiAlias(false);
-  p.setColor4f(material::skia::toSkColor(colour), nullptr);
-  const SkSamplingOptions nearest(SkFilterMode::kNearest);
-  const float x0 = detail::snapTo(at.fX, b.snap);
-  const float y = detail::snapTo(at.fY, b.snap);
-  return detail::walkRun(f, s, b, [&](const Cell& cell, float x) {
-    if (cell.mask)
-      canvas.drawImageRect(
-          cell.mask,
-          SkRect::MakeXYWH(x0 + x + (float)cell.inkX, y + (float)cell.inkY,
-                           (float)cell.w, (float)cell.h),
-          nearest, &p);
-  });
-}
+float blit(draw::Pen& pen, const PixFont& f, glm::vec2 at, std::string_view s,
+           material::Color colour, const Blit& b = {});
 
 }  // namespace sigil::compose::kit

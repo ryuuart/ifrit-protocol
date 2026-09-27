@@ -20,10 +20,10 @@ TEST(KitPixelType, PadsWideEnoughThatTheLastGlyphIsNotClipped) {
        {u8"Centrifuge", u8"WAV", u8"research", u8"1234567890"}) {
     const kit::Coverage cov = kit::coverage(s, fonts(), style);
     ASSERT_TRUE(cov.valid());
-    ASSERT_FALSE(cov.ink.isEmpty());
-    EXPECT_LT(cov.ink.fRight, cov.width())
+    ASSERT_FALSE(cov.ink.empty());
+    EXPECT_LT(cov.ink.right(), cov.width())
         << "ink touches the right edge — the surface is too small";
-    EXPECT_LT(cov.ink.fBottom, cov.height());
+    EXPECT_LT(cov.ink.bottom(), cov.height());
   }
 }
 
@@ -48,8 +48,8 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
     for (const char8_t* s : {u8"Wf", u8"of", u8"lift", u8"Ay"}) {
       const kit::Coverage tight =
           kit::coverage(s, fonts(), style, {.x = 0, .y = 0});
-      if (!tight.valid() || tight.ink.isEmpty() ||
-          tight.ink.fRight < tight.width())
+      if (!tight.valid() || tight.ink.empty() ||
+          tight.ink.right() < tight.width())
         continue;
       ++overhangs;
       // The same string with ANY pad must come back unclipped, because
@@ -61,12 +61,12 @@ TEST(KitPixelType, InkReallyDoesOverhangTheAdvanceSoThePadIsLoadBearing) {
       for (kit::Pad pad : {kit::Pad{1, 1}, kit::Pad{}}) {
         const kit::Coverage grown = kit::coverage(s, fonts(), style, pad);
         ASSERT_TRUE(grown.valid());
-        ASSERT_FALSE(grown.ink.isEmpty());
-        EXPECT_GT(grown.ink.fLeft, 0) << family << " / " << (const char*)s;
-        EXPECT_GT(grown.ink.fTop, 0);
-        EXPECT_LT(grown.ink.fRight, grown.width())
+        ASSERT_FALSE(grown.ink.empty());
+        EXPECT_GT(grown.ink.left(), 0) << family << " / " << (const char*)s;
+        EXPECT_GT(grown.ink.top(), 0);
+        EXPECT_LT(grown.ink.right(), grown.width())
             << family << " / " << (const char*)s;
-        EXPECT_LT(grown.ink.fBottom, grown.height());
+        EXPECT_LT(grown.ink.bottom(), grown.height());
         // The clipped bake LOST ink; the grown one recovered it.
         EXPECT_GE(grown.ink.width(), tight.ink.width());
       }
@@ -84,7 +84,7 @@ TEST(KitPixelType, MaskIsCroppedToItsInkAndCarriesTheOffsetBack) {
   ASSERT_TRUE(m);
   EXPECT_EQ(m.w, cov.ink.width());
   EXPECT_EQ(m.h, cov.ink.height());
-  EXPECT_EQ(m.inkX, cov.ink.fLeft);
+  EXPECT_EQ(m.inkX, cov.ink.left());
   EXPECT_GT(m.advance, 0.0f);
   // Uncropped keeps the whole padded plane.
   const kit::Mask full = kit::threshold(cov, 0.5f, /*cropToInk=*/false);
@@ -99,7 +99,8 @@ TEST(KitPixelType, TheMaskIsOneBit) {
   ASSERT_TRUE(m);
   SkBitmap read;
   read.allocPixels(SkImageInfo::MakeA8(m.w, m.h));
-  ASSERT_TRUE(m.image->readPixels(read.pixmap(), 0, 0));
+  ASSERT_FALSE(m.image->frames().empty());
+  ASSERT_TRUE(m.image->frames().front().image->readPixels(read.pixmap(), 0, 0));
   for (int y = 0; y < m.h; ++y)
     for (int x = 0; x < m.w; ++x) {
       const uint8_t v = *read.getAddr8(x, y);
@@ -129,12 +130,12 @@ TEST(KitPixelType, BlitAdvancesByTheMeasuredWidthAndSnaps) {
   ASSERT_TRUE(s);
   const kit::Blit b{.track = 1.0f};
   const float w =
-      kit::blit(*s->getCanvas(), f, {4, 4}, "1234", {1, 1, 1, 1}, b);
+      kit::blit(PenOn(*s->getCanvas()).pen(), f, {4, 4}, "1234", {1, 1, 1, 1}, b);
   EXPECT_NEAR(w, kit::widthOf(f, "1234", b), 1e-3f);
 
   const kit::Blit snapped{.track = 1.0f, .snap = 4.0f};
   const float ws =
-      kit::blit(*s->getCanvas(), f, {4.9f, 4.1f}, "1", {1, 1, 1, 1}, snapped);
+      kit::blit(PenOn(*s->getCanvas()).pen(), f, {4.9f, 4.1f}, "1", {1, 1, 1, 1}, snapped);
   EXPECT_NEAR(std::fmod(ws, 4.0f), 0.0f, 1e-3f);
 }
 
@@ -148,13 +149,13 @@ TEST(KitPixelType, ASnappedRunMeasuresTheWidthItDraws) {
   // next thing.
   const kit::Blit b{.track = 1.0f, .snap = 3.0f};
   const float drawn =
-      kit::blit(*s->getCanvas(), f, {3.0f, 3.0f}, "1234", {1, 1, 1, 1}, b);
+      kit::blit(PenOn(*s->getCanvas()).pen(), f, {3.0f, 3.0f}, "1234", {1, 1, 1, 1}, b);
   EXPECT_FLOAT_EQ(drawn, kit::widthOf(f, "1234", b));
   EXPECT_NEAR(std::fmod(drawn, 3.0f), 0.0f, 1e-3f);
   // The origin's own fraction is not part of the run's width: it is snapped
   // once, before the walk.
   EXPECT_FLOAT_EQ(
-      kit::blit(*s->getCanvas(), f, {4.9f, 4.1f}, "1234", {1, 1, 1, 1}, b),
+      kit::blit(PenOn(*s->getCanvas()).pen(), f, {4.9f, 4.1f}, "1234", {1, 1, 1, 1}, b),
       drawn);
 }
 
@@ -190,7 +191,7 @@ TEST(KitPixelType, ABlitLandsEachCellAtItsOwnDropInTheLineBox) {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(80, 40));
   ASSERT_TRUE(s);
   s->getCanvas()->clear(SK_ColorBLACK);
-  kit::blit(*s->getCanvas(), f, {4, 4}, "x", {1, 1, 1, 1});
+  kit::blit(PenOn(*s->getCanvas()).pen(), f, {4, 4}, "x", {1, 1, 1, 1});
   SkBitmap read;
   ASSERT_TRUE(read.tryAllocPixels(SkImageInfo::MakeN32Premul(80, 40)));
   ASSERT_TRUE(s->readPixels(read.pixmap(), 0, 0));
