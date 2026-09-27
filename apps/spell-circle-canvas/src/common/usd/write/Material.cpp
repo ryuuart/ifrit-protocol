@@ -21,7 +21,7 @@
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 
 #include <cmath>
 
@@ -128,7 +128,7 @@ SdfPath Writer::Impl::material(const material::Material& top,
   const auto texture = [&](std::string_view slot, const char* role,
                            const char* input, const SdfValueTypeName& type,
                            const char* channel, bool srgb) -> bool {
-    const material::Texture* map = material::kit::map(m, slot);
+    const material::Texture* map = material::surface::map(m, slot);
     if (!map) return false;
     const std::optional<std::string> asset = textureAsset(map->image(), role);
     if (!asset) return false;
@@ -158,7 +158,7 @@ SdfPath Writer::Impl::material(const material::Material& top,
 
   const material::Color baseColor =
       tint(m, "baseColor", material::Color{0.8f, 0.8f, 0.8f, 1});
-  if (!texture(material::kit::kBaseColorSlot, "baseColor", "diffuseColor",
+  if (!texture(material::surface::kBaseColorSlot, "baseColor", "diffuseColor",
                SdfValueTypeNames->Color3f, "rgb", true))
     surface.CreateInput(TfToken("diffuseColor"), SdfValueTypeNames->Color3f)
         .Set(GfVec3f(baseColor.r, baseColor.g, baseColor.b));
@@ -169,22 +169,22 @@ SdfPath Writer::Impl::material(const material::Material& top,
         TfToken("sigil:baseColorFactor"),
         VtValue(GfVec3f(baseColor.r, baseColor.g, baseColor.b)));
 
-  if (!texture(material::kit::kRoughnessSlot, "roughness", "roughness",
+  if (!texture(material::surface::kRoughnessSlot, "roughness", "roughness",
                SdfValueTypeNames->Float,
                channelName(scalar(m, "roughnessChannel", 0)), false))
     surface.CreateInput(TfToken("roughness"), SdfValueTypeNames->Float)
         .Set(scalar(m, "roughness", 0.5f));
-  if (!texture(material::kit::kMetallicSlot, "metallic", "metallic",
+  if (!texture(material::surface::kMetallicSlot, "metallic", "metallic",
                SdfValueTypeNames->Float,
                channelName(scalar(m, "metallicChannel", 0)), false))
     surface.CreateInput(TfToken("metallic"), SdfValueTypeNames->Float)
         .Set(scalar(m, "metallic", 0.0f));
-  texture(material::kit::kOcclusionSlot, "occlusion", "occlusion",
+  texture(material::surface::kOcclusionSlot, "occlusion", "occlusion",
           SdfValueTypeNames->Float,
           channelName(scalar(m, "occlusionChannel", 0)), false);
 
   if (const material::Texture* normal =
-          material::kit::map(m, material::kit::kNormalSlot)) {
+          material::surface::map(m, material::surface::kNormalSlot)) {
     // UsdUVTexture can remap [0,1] to [-1,1] itself.
     const std::optional<std::string> asset =
         textureAsset(normal->image(), "normal");
@@ -212,13 +212,13 @@ SdfPath Writer::Impl::material(const material::Material& top,
   const float emissiveStrength = scalar(m, "emissiveStrength", 0);
   if (emissiveStrength > 0) {
     const material::Color e = tint(m, "emissive", material::Color{0, 0, 0, 1});
-    if (!texture(material::kit::kEmissiveSlot, "emissive", "emissiveColor",
+    if (!texture(material::surface::kEmissiveSlot, "emissive", "emissiveColor",
                  SdfValueTypeNames->Color3f, "rgb", true))
       surface.CreateInput(TfToken("emissiveColor"), SdfValueTypeNames->Color3f)
           .Set(GfVec3f(e.r * emissiveStrength, e.g * emissiveStrength,
                        e.b * emissiveStrength));
   }
-  if (!texture(material::kit::kOpacitySlot, "opacity", "opacity",
+  if (!texture(material::surface::kOpacitySlot, "opacity", "opacity",
                SdfValueTypeNames->Float,
                channelName(scalar(m, "opacityChannel", 0)), false))
     if (baseColor.a < 1.0f)
@@ -239,7 +239,7 @@ SdfPath Writer::Impl::material(const material::Material& top,
   if (depth > 0)
     material.GetPrim().SetCustomDataByKey(TfToken("sigil:layers"),
                                           VtValue(depth));
-  if (material::kit::isUnlit(m))
+  if (material::surface::isUnlit(m))
     material.GetPrim().SetCustomDataByKey(TfToken("sigil:unlit"),
                                           VtValue(true));
   materials.emplace_back(top, SdfPath(path));

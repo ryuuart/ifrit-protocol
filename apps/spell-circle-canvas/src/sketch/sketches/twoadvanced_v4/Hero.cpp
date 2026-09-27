@@ -64,7 +64,7 @@ auto TwoAdvancedV4::pod(const std::string& key, float x, float z, float scale)
                   .key(key + "-shell")
                   .at({0.0f, 66.0f, 0.0f})
                   .mesh(gm::superellipsoid({52.0f, 74.0f, 52.0f}, 2.6f, 28, 18))
-                  .fill(sigil::material::kit::surface(
+                  .fill(sigil::material::surface::program(
                       {.baseColor = {0.070f, 0.086f, 0.098f, 1.0f},
                        .metallic = 0.7f,
                        .roughness = 0.28f})),
@@ -72,7 +72,7 @@ auto TwoAdvancedV4::pod(const std::string& key, float x, float z, float scale)
                   .key(key + "-visor")
                   .at({0.0f, 50.0f, 42.0f})
                   .mesh(gm::superellipsoid({18.0f, 14.0f, 16.0f}, 1.8f, 20, 14))
-                  .fill(sigil::material::kit::unlit(
+                  .fill(sigil::material::surface::unlit(
                       {.baseColor = {0.42f, 0.055f, 0.045f, 1.0f},
                        .emissive = {1.0f, 0.16f, 0.12f, 1.0f},
                        .emissiveStrength = 1.4f}))});
@@ -100,19 +100,19 @@ auto TwoAdvancedV4::bakeHero(int w, int h, sketch::SketchContext& ctx)
            .key("sky")
            .at({0.0f, 900.0f, -5200.0f})
            .mesh(skyMesh())
-           .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}})),
+           .fill(sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}})),
        world::Element()
            .key("water")
            .rotateX(-90.0f)
            .mesh(gm::quad(9000.0f, 9000.0f))
-           .fill(sigil::material::kit::surface(
+           .fill(sigil::material::surface::program(
                {.baseColor = {0.012f, 0.070f, 0.082f, 1.0f},
                 .metallic = 0.9f,
                 .roughness = 0.10f})),
        world::Element()
            .key("city")
            .mesh(cityMesh())
-           .fill(sigil::material::kit::surface(
+           .fill(sigil::material::surface::program(
                {.baseColor = {1, 1, 1, 1}, .roughness = 0.85f})),
        // THE HALO: a real ring behind the pods, which is what the reference
        // reads as depth rather than as a drawn circle — the middle pod
@@ -122,7 +122,7 @@ auto TwoAdvancedV4::bakeHero(int w, int h, sketch::SketchContext& ctx)
            .at({0.0f, 150.0f, -760.0f})
            .rotateX(90.0f)
            .mesh(gm::torus(300.0f, 7.0f, 80, 8))
-           .fill(sigil::material::kit::unlit(
+           .fill(sigil::material::surface::unlit(
                {.baseColor = {0.62f, 0.98f, 0.99f, 1.0f},
                 .emissive = {0.62f, 0.98f, 0.99f, 1.0f},
                 .emissiveStrength = 2.4f})),

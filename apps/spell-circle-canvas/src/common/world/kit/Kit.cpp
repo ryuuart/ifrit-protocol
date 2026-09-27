@@ -7,7 +7,7 @@
 
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -146,7 +146,7 @@ Element litSet(Element subject, const Set& set, float seconds) {
     const float side = set.ground * set.rig.extent;
     material::Material surface =
         set.surface ? *set.surface
-                    : material::kit::surface(
+                    : material::surface::program(
                           {.baseColor = {kNeutralGround.r, kNeutralGround.g,
                                          kNeutralGround.b, kNeutralGround.a}});
     root.children(

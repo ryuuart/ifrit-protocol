@@ -17,7 +17,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcore/hardware/GpuDevice.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilworld/diligent/Import.h>
 #include <sigilworld/diligent/Runtime.h>
@@ -42,13 +42,13 @@ constexpr SkISize kExtent{120, 120};
  *  so two identical asks are one texture. */
 material::Texture drawnTexture(const std::string& key, int width, int height,
                                const std::function<void(SkCanvas&)>& paint) {
-  return material::Texture::produce(key, [width, height, paint] {
+  return material::Texture(sigil::media::PixelSource::produce(key, [width, height, paint] {
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
     surface->getCanvas()->clear(SK_ColorTRANSPARENT);
     paint(*surface->getCanvas());
     return surface->makeImageSnapshot();
-  });
+  }));
 }
 
 /** One flat colour, one texel. */
@@ -76,11 +76,11 @@ TEST(SurfaceSlots, AnOcclusionMapDarkensWhereItIsDark) {
   if (!on) GTEST_SKIP() << on.error;
 
   material::Material plain =
-      material::kit::surface({.baseColor = {0.9f, 0.9f, 0.9f, 1.0f}});
+      material::surface::program({.baseColor = {0.9f, 0.9f, 0.9f, 1.0f}});
   material::Material occluded = plain;
   // Two texels: the left half black, the right half white.
   occluded.slot(
-      material::kit::kOcclusionSlot,
+      material::surface::kOcclusionSlot,
       drawnTexture("world.test.occlusion", 2, 1, [](SkCanvas& canvas) {
         canvas.clear(SK_ColorWHITE);
         SkPaint paint;
@@ -107,13 +107,13 @@ TEST(SurfaceSlots, AnEmissiveMapCarriesItsOwnColour) {
   // Emission is the map TIMES the strength, so a surface with no
   // strength emits nothing whatever its slot holds — which is what makes
   // the stock parameters say "not an emitter" rather than "a white one".
-  material::kit::SurfaceParameters parameters;
+  material::surface::SurfaceParameters parameters;
   parameters.baseColor = {0.1f, 0.1f, 0.1f, 1.0f};
   parameters.emissive = {1, 1, 1, 1};
-  material::Material dark = material::kit::surface(parameters);
+  material::Material dark = material::surface::program(parameters);
   parameters.emissiveStrength = 1;
-  material::Material glowing = material::kit::surface(parameters);
-  glowing.slot(material::kit::kEmissiveSlot,
+  material::Material glowing = material::surface::program(parameters);
+  glowing.slot(material::surface::kEmissiveSlot,
                flat("world.test.emissive", {0.9f, 0.2f, 0.2f, 1.0f}));
 
   const SkColor4f bare = at(cardOn(dark, on.runtime), 0.5f, 0.5f);
@@ -126,11 +126,11 @@ TEST(SurfaceSlots, AnOpacityCutoutDropsTexelsOutright) {
   const auto on = diligent::onDevice();
   if (!on) GTEST_SKIP() << on.error;
 
-  material::kit::SurfaceParameters parameters;
+  material::surface::SurfaceParameters parameters;
   parameters.baseColor = {0.9f, 0.5f, 0.2f, 1.0f};
   parameters.alphaCutoff = 0.5f;
-  material::Material cut = material::kit::surface(parameters);
-  cut.slot(material::kit::kOpacitySlot,
+  material::Material cut = material::surface::program(parameters);
+  cut.slot(material::surface::kOpacitySlot,
            drawnTexture("world.test.opacity", 2, 1, [](SkCanvas& canvas) {
              canvas.clear(SK_ColorWHITE);
              SkPaint paint;
@@ -150,12 +150,12 @@ TEST(SurfaceSlots, ANormalMapTiltsTheShading) {
   if (!on) GTEST_SKIP() << on.error;
 
   material::Material plain =
-      material::kit::surface({.baseColor = {0.8f, 0.8f, 0.8f, 1.0f}});
+      material::surface::program({.baseColor = {0.8f, 0.8f, 0.8f, 1.0f}});
   material::Material bumped = plain;
   // Two texels, each a tangent normal leaning hard the opposite way, so
   // the two halves of one flat card face two different directions and
   // the sun reaches them differently.
-  bumped.slot(material::kit::kNormalSlot,
+  bumped.slot(material::surface::kNormalSlot,
               drawnTexture("world.test.normal", 2, 1, [](SkCanvas& canvas) {
                 SkPaint paint;
                 paint.setColor(SkColor4f{0.05f, 0.5f, 0.6f, 1}.toSkColor());
@@ -187,15 +187,15 @@ TEST(SurfaceSlots, ASlotDressedInWhiteIsTheSamePictureAsOneDressedInNothing) {
   // an undressed surface and one dressed with white in every slot a
   // scalar multiplies must be the SAME picture — not a near one — which
   // is the whole of what "white means no map here" claims.
-  const material::kit::SurfaceParameters parameters{
+  const material::surface::SurfaceParameters parameters{
       .baseColor = {0.7f, 0.55f, 0.3f, 1.0f}};
-  const material::Material plain = material::kit::surface(parameters);
-  material::Material white = material::kit::surface(parameters);
+  const material::Material plain = material::surface::program(parameters);
+  material::Material white = material::surface::program(parameters);
   const material::Texture texel = flat("world.test.white", SkColors::kWhite);
-  white.slot(material::kit::kRoughnessSlot, texel);
-  white.slot(material::kit::kMetallicSlot, texel);
-  white.slot(material::kit::kOcclusionSlot, texel);
-  white.slot(material::kit::kOpacitySlot, texel);
+  white.slot(material::surface::kRoughnessSlot, texel);
+  white.slot(material::surface::kMetallicSlot, texel);
+  white.slot(material::surface::kOcclusionSlot, texel);
+  white.slot(material::surface::kOpacitySlot, texel);
 
   const SkBitmap bare = cardOn(plain, on.runtime);
   const SkBitmap dressed = cardOn(white, on.runtime);
@@ -220,8 +220,8 @@ constexpr SkColor4f kImportedColour{0.15f, 0.75f, 0.35f, 1.0f};
  *  every pixel of it. */
 material::Material dressedWith(material::Texture map) {
   material::Material surface =
-      material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-  surface.slot(material::kit::kBaseColorSlot, std::move(map));
+      material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+  surface.slot(material::surface::kBaseColorSlot, std::move(map));
   return surface;
 }
 
@@ -432,13 +432,10 @@ TEST(Environment, AMirrorWearsTheSkyAndAMatteSurfaceIsLitByIt) {
     return plateOf(frame, on.runtime);
   };
 
-  material::kit::SurfaceParameters mirror =
-      material::kit::SurfaceParameters::chrome();
-  mirror.baseColor = {1, 1, 1, 1};
-  const SkBitmap chrome = photographWith(material::kit::surface(mirror));
-  const SkBitmap matte = photographWith(
-      material::kit::surface(material::kit::SurfaceParameters::dielectric(
-          {0.1f, 0.6f, 0.1f, 1}, 0.9f)));
+  const SkBitmap chrome = photographWith(material::surface::program(
+      {.baseColor = {1, 1, 1, 1}, .metallic = 1, .roughness = 0.04f}));
+  const SkBitmap matte = photographWith(material::surface::program(
+      {.baseColor = {0.1f, 0.6f, 0.1f, 1}, .metallic = 0, .roughness = 0.9f}));
 
   const SkColor4f mirrored = at(chrome, 0.5f, 0.5f);
   const SkColor4f diffuse = at(matte, 0.5f, 0.5f);

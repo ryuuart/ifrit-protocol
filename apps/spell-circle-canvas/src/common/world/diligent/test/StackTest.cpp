@@ -13,7 +13,7 @@
 #include <gtest/gtest.h>
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilworld/diligent/Runtime.h>
 
@@ -37,11 +37,11 @@ SkColor4f centreOfCard(const material::Material& surface,
 }
 
 material::Material red() {
-  return material::kit::surface({.baseColor = {0.9f, 0.05f, 0.05f, 1.0f}});
+  return material::surface::program({.baseColor = {0.9f, 0.05f, 0.05f, 1.0f}});
 }
 
 material::Material blue() {
-  return material::kit::surface({.baseColor = {0.05f, 0.05f, 0.9f, 1.0f}});
+  return material::surface::program({.baseColor = {0.05f, 0.05f, 0.9f, 1.0f}});
 }
 
 }  // namespace

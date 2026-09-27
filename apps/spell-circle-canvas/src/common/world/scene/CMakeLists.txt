@@ -5,7 +5,7 @@
 # public header: there is no registry accessor and no write path through
 # one.
 #
-# SigilMaterialKit is PRIVATE and is read for one thing: the slot name a
+# SigilMaterialSurface is PRIVATE and is read for one thing: the slot name a
 # surface carries its base-colour map in, so that extract can hand an
 # execution the map the body is dressed with rather than a material tree
 # to walk. Nothing here defines a shading model. The stats a scene
@@ -21,7 +21,7 @@ sigil_library(SigilWorldScene
   HEADERS Scene.h Stats.h
   PUBLIC SigilWorldGraph SigilGeometryMeshRender SigilMotionClock
          SigilMotionSchedule SigilCoreReconcile SigilMeasure
-  PRIVATE EnTT::EnTT SigilMaterialKit SigilCoreCache SigilGeometryMeshCurve
+  PRIVATE EnTT::EnTT SigilMaterialSurface SigilCoreCache SigilGeometryMeshCurve
           SigilMotionValues)
 
 sigil_test(world_test

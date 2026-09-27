@@ -16,7 +16,7 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Parameters.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/light/Light.h>
 
@@ -288,7 +288,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
     // null for a slot still holding the neutral dressing a surface is
     // built with, which is what keeps an undressed body reading the one
     // white texel rather than a map that says nothing.
-    const material::Texture* worn = material::kit::map(*material, slot);
+    const material::Texture* worn = material::surface::map(*material, slot);
     if (worn && worn != map) textures[i] = gpu.maps.sample(*worn);
   }
 

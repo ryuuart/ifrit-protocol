@@ -52,7 +52,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
@@ -218,7 +218,7 @@ world::Element card(std::string_view key, float x, material::Material surface) {
 /** PLAIN: a colour and a roughness, and no map anywhere. It is the
  *  control — the one card that reads the same on both tiers. */
 material::Material plain() {
-  return material::kit::surface(
+  return material::surface::program(
       {.baseColor = {0.62f, 0.28f, 0.24f, 1.0f}, .roughness = 0.55f});
 }
 
@@ -228,11 +228,11 @@ material::Material plain() {
  *  device the stack shades AS a stack, the two operands' colours and
  *  their per-pixel terms mixed by the same coverage. */
 material::Material stacked() {
-  const material::Material base = material::kit::surface(
+  const material::Material base = material::surface::program(
       {.baseColor = {0.13f, 0.20f, 0.17f, 1.0f}, .roughness = 0.8f});
-  material::Material crust = material::kit::surface(
+  material::Material crust = material::surface::program(
       {.baseColor = {0.80f, 0.72f, 0.56f, 1.0f}, .roughness = 0.35f});
-  crust.slot(material::kit::kNormalSlot,
+  crust.slot(material::surface::kNormalSlot,
              material::Texture::produce("material_lab.crust.normal",
                                         [] { return domes(6, 0.9f); }));
   const material::Material mask = material::maskMap(material::Texture::produce(
@@ -244,9 +244,9 @@ material::Material stacked() {
  *  light land on a field of domes. Nothing but the map varies over this
  *  card, so what the device shows past its colour is the map. */
 material::Material bumped() {
-  material::Material m = material::kit::surface(
+  material::Material m = material::surface::program(
       {.baseColor = {0.42f, 0.47f, 0.58f, 1.0f}, .roughness = 0.35f});
-  m.slot(material::kit::kNormalSlot,
+  m.slot(material::surface::kNormalSlot,
          material::Texture::produce("material_lab.bumps",
                                     [] { return domes(5, 1.0f); }));
   return m;
@@ -257,7 +257,7 @@ material::Material bumped() {
  *  metallic image is wired. The scalars start at one so the map's own
  *  values are what reach the shading. */
 material::Material sweep() {
-  material::Material m = material::kit::surface({
+  material::Material m = material::surface::program({
       .baseColor = {0.78f, 0.76f, 0.70f, 1.0f},
       .metallic = 1.0f,
       .roughness = 1.0f,
@@ -266,8 +266,8 @@ material::Material sweep() {
   });
   const material::Texture packed = material::Texture::produce(
       "material_lab.orm", [] { return occlusionRoughnessMetallic(); });
-  m.slot(material::kit::kRoughnessSlot, packed);
-  m.slot(material::kit::kMetallicSlot, packed);
+  m.slot(material::surface::kRoughnessSlot, packed);
+  m.slot(material::surface::kMetallicSlot, packed);
   return m;
 }
 
@@ -275,13 +275,13 @@ material::Material sweep() {
  *  the emissive slot multiplied by the emission's own colour and
  *  strength, added after the lighting. */
 material::Material emitting() {
-  material::Material m = material::kit::surface({
+  material::Material m = material::surface::program({
       .baseColor = {0.30f, 0.13f, 0.09f, 1.0f},
       .roughness = 0.6f,
       .emissive = {1.0f, 0.62f, 0.24f, 1.0f},
       .emissiveStrength = 2.4f,
   });
-  m.slot(material::kit::kEmissiveSlot,
+  m.slot(material::surface::kEmissiveSlot,
          material::Texture::produce("material_lab.filaments",
                                     [] { return filaments(22); }));
   return m;
@@ -325,9 +325,9 @@ struct MaterialLab {
     // The floor wears the set: a texture that repeats is what says how
     // large the room is.
     material::Material floor =
-        material::kit::surface(floorMaps(), {.baseColor = {1, 1, 1, 1}});
+        material::surface::program(floorMaps(), {.baseColor = {1, 1, 1, 1}});
     if (const material::Texture* map =
-            material::kit::map(floor, material::kit::kBaseColorSlot)) {
+            material::surface::map(floor, material::surface::kBaseColorSlot)) {
       material::Texture tiled = *map;
       tiled
           .tile(SkTileMode::kRepeat)
@@ -335,7 +335,7 @@ struct MaterialLab {
           // against ITS size rather than against a map's: this many
           // tiles cover the floor.
           .uv(SkMatrix::Scale(1.0f / 20.0f, 1.0f / 20.0f));
-      floor.slot(material::kit::kBaseColorSlot, std::move(tiled));
+      floor.slot(material::surface::kBaseColorSlot, std::move(tiled));
     }
     floorSurface = std::move(floor);
   }

@@ -13,7 +13,7 @@ environment maps and cameras as the same values
 the writer took — so a stage this library authors round-trips whole.
 
 Materials travel as `UsdPreviewSurface` with `UsdUVTexture` inputs — the
-metallic-roughness surface SigilMaterial's kit defines, slot for slot —
+metallic-roughness surface program SigilMaterial defines, slot for slot —
 and their images are written as PNG files beside the stage, or inside
 the archive when the stage is a package.
 
@@ -165,7 +165,7 @@ authored by hand must spell it.
 
 ## Boundary
 
-Public: SigilMaterialKit for the surface a preview surface is written
+Public: SigilMaterialSurface for the surface program a preview surface is written
 from, SigilWorldLight for the emitters, SigilWorldElement for the
 environment map a dome light carries, and the geometry features each
 door takes values from (mesh, pop and camera for the writer; codec, mesh

@@ -11,7 +11,7 @@
 #include <include/core/SkVertices.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/Draw.h>
 
@@ -399,10 +399,10 @@ TEST(Pen, AMaterialIsAGroundAsWellAsAFill) {
   // The three ground verbs take the same set: a recipe instance reaches
   // background() exactly as it reaches fill() and stroke(), so a sketch
   // that grounds itself in a material spells no conversion.
-  using sigil::material::kit::SurfaceParameters;
+  using sigil::material::surface::SurfaceParameters;
   Paper paper;
   paper.begin();
-  paper.pen.background(sigil::material::kit::unlit(SurfaceParameters{
+  paper.pen.background(sigil::material::surface::unlit(SurfaceParameters{
       .baseColor = sigil::material::Color{0.0f, 1.0f, 0.0f, 1.0f}}));
   paper.end();
   EXPECT_EQ(SkColorGetG(paper.pixel(5, 5)), 255u);

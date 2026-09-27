@@ -1,6 +1,6 @@
 # The write feature: a stage built from the values a scene is made of and
 # saved in the format the file's extension asks for. Links the geometry
-# features it takes values from, SigilMaterialKit for the surface recipe
+# features it takes values from, SigilMaterialSurface for the surface program
 # whose parameters and map slots become a preview surface, SigilWorldLight for
 # the emitters and SigilWorldElement for the environment map a dome light
 # carries; OpenUSD, the image encoder that turns a texture into bytes and
@@ -11,7 +11,7 @@ sigil_library(SigilUsdWrite
   SOURCES Camera.cpp Environment.cpp GfMatrix.h Lights.cpp Material.cpp
           Mesh.cpp Stamps.cpp Writer.cpp WriterImpl.h
   HEADERS Writer.h
-  PUBLIC SigilMaterialKit SigilWorldElement SigilWorldLight SigilGeometryMesh
+  PUBLIC SigilMaterialSurface SigilWorldElement SigilWorldLight SigilGeometryMesh
          SigilGeometryMeshPop SigilGeometryMeshCamera unofficial::skia::skia
   PRIVATE SigilMediaImageEncode SigilIOSource usd usdGeom usdShade usdLux
           usdUtils sdf tf gf vt Boost::unordered)

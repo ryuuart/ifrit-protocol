@@ -9,7 +9,7 @@
 #include <benchmark/benchmark.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
 
@@ -36,7 +36,7 @@ geometry::mesh::Mesh torusOf(int triangles) {
 
 void BM_Mesh(benchmark::State& state) {
   const geometry::mesh::Mesh mesh = torusOf((int)state.range(0));
-  const material::Material surface = material::kit::surface();
+  const material::Material surface = material::surface::program();
   for ([[maybe_unused]] auto _ : state) {
     usd::Writer writer(scratch("mesh.usdc"));
     benchmark::DoNotOptimize(
@@ -51,7 +51,7 @@ void BM_Save(benchmark::State& state) {
   const std::filesystem::path file = scratch(ascii ? "save.usda" : "save.usdc");
   for ([[maybe_unused]] auto _ : state) {
     usd::Writer writer(file);
-    writer.mesh("prop", mesh, glm::mat4(1.0f), material::kit::surface());
+    writer.mesh("prop", mesh, glm::mat4(1.0f), material::surface::program());
     benchmark::DoNotOptimize(writer.save());
   }
 }

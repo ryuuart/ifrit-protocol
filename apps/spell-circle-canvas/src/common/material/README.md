@@ -72,7 +72,8 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, the screen `crt` and the three subjects it composes, `crtBeam`, `crtBloom` and `crtGlass`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
-| `SigilMaterialKit` | the presets: the colour CRT `kit::crt`; the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; the metallic-roughness `kit::surface` and `kit::unlit`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialField, SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, Boost.Container |
+| `SigilMaterialSurface` | `surface::` — the metallic-roughness program a lit renderer shades with: `SurfaceParameters`, `Reflection`, `surfaceRecipe`, `program` and `unlit`, `isSurface` and `isUnlit`, `map` and the seven slot names, the dressing of a decoded texture set, and `lower`, which turns a material's stated `surface({…})` response into the program | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
+| `SigilMaterialKit` | the presets: the colour CRT `kit::crt`; the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialField, SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, SigilMaterialSurface, Boost.Container |
 | `SigilMaterialStock` | `stock::everyRecipe()`, one instance of every recipe this library ships gathered from the catalogues that own them, the list a host hands a warm-up before its first frame | SigilMaterialCore; SigilMaterialField, SigilMaterialSdf, SigilMaterialKit and SigilCoreSchedule privately |
 
 `SigilMaterial` is the umbrella, an interface over all twelve. Headers live
@@ -644,28 +645,26 @@ both, and a source written for this crossing accepts that in exchange for
 being one source: no texture sampling, no construct one language has and
 the other does not.
 
-**The metallic-roughness surface** is `kit::SurfaceParameters` — base
+**The metallic-roughness surface** is `surface::SurfaceParameters` — base
 colour, metallic, roughness, emission, the normal convention, the channel
 each packed map is read from, the cutout threshold and the glass terms,
 which are transmission, index of refraction, thickness and the
 Beer-Lambert absorption a medium takes out of what passes through it —
-under two recipes over the same ABI: `kit::surface()` takes light,
-`kit::unlit()` is its own light. Its colours are FACTORS on the maps in
+under two recipes over the same ABI: `surface::program()` takes light,
+`surface::unlit()` is its own light. Its colours are FACTORS on the maps in
 their slots, and neither body transforms either side of that multiply or
 the product it hands on, so a colour is held exactly as it is typed and
 is in the encoding the images beside it are in: over the white fill a
 surface is dressed with, `unlit()` paints the number that was written
-into it. `SurfaceParameters::chrome()`, `gold()`,
-`metal(tint, roughness)`, `dielectric(colour, roughness)` and `glass()`
-are the compositions the kit ships. `Reflection` is how the environment
+into it. `Reflection` is how the environment
 reaches a lit surface — `SplitSum`, where the surface's own reflectance
 and its Fresnel decide, or `Additive` at `reflectionWeight`, with
 neither — and it is one recipe each, so no body carries a branch. Seven slots, one per role
 (`kBaseColorSlot`, `kNormalSlot`, `kRoughnessSlot`, `kMetallicSlot`,
 `kOcclusionSlot`, `kEmissiveSlot`, `kOpacitySlot`), each dressed with a
 neutral one-pixel fill when it is built so no body ever evaluates an
-unbound child; `kit::map(m, slot)` answers the texture a caller placed
-there and null for a fill. `kit::surface(TextureMaps)` dresses one from a
+unbound child; `surface::map(m, slot)` answers the texture a caller placed
+there and null for a fill. `surface::program(TextureMaps)` dresses one from a
 decoded set: a packed occlusion-roughness-metallic image wired to
 whichever of the three channel slots no separate map fills, at channels
 0, 1 and 2, the set's normal convention flagged, and the scalar a present
@@ -677,7 +676,7 @@ albedo, the same occlusion at the same strength, the same emission and
 the same cutout — one ABI, two spellings. What a body can answer is
 bounded by what its renderer knows: there is no surface normal, no view
 vector and no light in a 2D paint, so metallic, roughness, the normal map
-and the glass terms have no effect on either body. `surface()` shades the
+and the glass terms have no effect on either body. `program()` shades the
 albedo attenuated by occlusion plus its emission — the ambient-only
 evaluation of the model — and `unlit()` shades the albedo alone.
 
@@ -691,6 +690,15 @@ the surface knows how rough it is. A MAP that varies the normal, the
 roughness or the metallic across a face says one thing more and raises
 the per-pixel flag: that is the case a shading evaluated once per vertex
 cannot carry.
+
+A MATERIAL STATES ITS RESPONSE with `Material::surface(SurfaceOptions)`
+and `surface::lower(material)` turns that statement into the program: the
+base is the base colour — a colour its factor, an image's texture the
+base-colour map, any other base or a base under layers the map slot's
+material — each channel a number or a material placed in its map slot,
+`.unlit` the unlit program, and a material that states no response its
+base, unlit. A bare program lowers to itself. A surface has no coverage,
+so an effects stage on a lowered material is dropped and said once.
 
 A Slang body writes out the intrinsics whose two targets are two
 different pieces of code — a `lerp`, a `dot`, a `smoothstep` — because an

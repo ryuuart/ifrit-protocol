@@ -44,7 +44,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Element.h>
@@ -135,7 +135,7 @@ struct ComputeVariant {
   /** The bodies. The cooked cloud is NOT among them — it arrives as a
    *  resource a pass stamps. */
   world::Element scene() const {
-    const material::Material slate = material::kit::surface(
+    const material::Material slate = material::surface::program(
         {.baseColor = {0.30f, 0.33f, 0.40f, 1.0f}, .roughness = 0.6f});
     // THE READBACK, STOOD UP: one post per hundred points the callback
     // counted — none at all in a frame nothing came back in.
@@ -148,7 +148,7 @@ struct ComputeVariant {
              .at({0, -104, 0})
              .rotateX(-90.0f)
              .mesh(gm::quad(900, 900))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.07f, 0.08f, 0.11f, 1.0f}})),
          row("far", -300.0f, "keep", slate),
          row("near", 110.0f, kSwapTag, slate),
@@ -159,7 +159,7 @@ struct ComputeVariant {
                    .at({((float)i - (float)(posts - 1) * 0.5f) * 34.0f, -90.0f,
                         200.0f})
                    .mesh(gm::superellipsoid({9.0f, 18.0f, 9.0f}, 2.0f, 8, 5))
-                   .fill(material::kit::unlit(
+                   .fill(material::surface::unlit(
                        {.baseColor = {0.95f, 0.78f, 0.35f, 1.0f}}));
              }))});
   }
@@ -171,7 +171,7 @@ struct ComputeVariant {
     // under the pass's own lights, the device draws the surface it
     // names — so the row reads hot on both and identical on neither.
     const material::Material hot =
-        material::kit::unlit({.baseColor = {1.0f, 0.42f, 0.22f, 1.0f}});
+        material::surface::unlit({.baseColor = {1.0f, 0.42f, 0.22f, 1.0f}});
 
     world::Frame frame(scene());
     frame

@@ -39,7 +39,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilsketch/kit/Page.h>
@@ -71,12 +71,12 @@ constexpr float kRise = 120;      // how far a child enters from, world units
 /** The material the far row wears, held as a value so a pass can name it
  *  with `selectors::material` — a selector compares it by value. */
 material::Material litSlab() {
-  return material::kit::surface(
+  return material::surface::program(
       {.baseColor = {0.86f, 0.62f, 0.34f, 1}, .roughness = 0.38f});
 }
 
 material::Material coolSlab() {
-  return material::kit::surface(
+  return material::surface::program(
       {.baseColor = {0.62f, 0.68f, 0.78f, 1}, .roughness = 0.45f});
 }
 
@@ -135,7 +135,7 @@ struct SetStagger {
              .key("ground")
              .at({0, -12, 0})
              .mesh(gm::superellipsoid({420, 10, 300}, 8.0f, 12, 8))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.20f, 0.21f, 0.24f, 1}, .roughness = 0.7f})),
          world::kit::threePoint(rig),
          world::Element().key("rows").children(

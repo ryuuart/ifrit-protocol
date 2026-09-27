@@ -3,7 +3,7 @@
 # returns an ordinary Element built out of the verbs a tree is already
 # written in, so a caller reads, replaces or ignores any part of one.
 #
-# It links the description and SigilMaterial's kit, because a ground
+# It links the description and SigilMaterial's surface program, because a ground
 # plane given no surface has to be made of something; it defines no
 # shading model, no catalog and no material of its own. The turntable's
 # phase along its rail is a motion value, read in the source alone.
@@ -12,7 +12,7 @@
 sigil_library(SigilWorldKit
   SOURCES Kit.cpp
   HEADERS Kit.h
-  PUBLIC SigilWorldElement SigilMaterialKit SigilGeometryKit
+  PUBLIC SigilWorldElement SigilMaterialSurface SigilGeometryKit
   PRIVATE SigilMotionValues)
 
 # Links only the library it exercises, so a link edge that pulled the

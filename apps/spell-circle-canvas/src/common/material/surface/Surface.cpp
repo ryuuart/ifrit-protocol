@@ -4,20 +4,20 @@
  * that reads a decoded texture set into slots and channels.
  */
 
-#include "sigilmaterial/kit/Pbr.h"
+#include "sigilmaterial/surface/Surface.h"
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/skia/Color.h>
-#include <sigilshaders/MaterialKit.h>
+#include <sigilshaders/MaterialSurface.h>
 
 #include <string>
 #include <string_view>
 #include <utility>
 
-namespace sigil::material::kit {
+namespace sigil::material::surface {
 
 namespace {
 
@@ -33,7 +33,7 @@ std::string slangSurface(Reflection reflection) {
   // into: report it and hand back what was read, rather than throwing out
   // of a recipe definition on a shader edit.
   if (at == std::string::npos) {
-    reportOnce("kit.surface.mark",
+    reportOnce("surface.mark",
                "the Slang surface body carries no REFLECTION_WEIGHT mark, so "
                "the reflection choice could not be written into it; the body "
                "compiles as it stands");
@@ -69,20 +69,21 @@ Recipe define(std::string name, std::string_view bodyFile,
 
 /** What every neutral fill's producer key starts with, so a reader can
  *  tell a dressing apart from a map a caller placed. */
-constexpr char kFillPrefix[] = "material.kit.surface.";
+constexpr char kFillPrefix[] = "material.surface.";
 
 /** A one-pixel texture of @p color, shared by key so two undressed
  *  surfaces compare equal. */
 Texture flat(const char* key, material::Color color) {
-  return Texture::produce(std::string(kFillPrefix) + key,
-                          [color]() -> sk_sp<SkImage> {
-                            sk_sp<SkSurface> s = SkSurfaces::Raster(
-                                SkImageInfo::MakeN32Premul(1, 1));
-                            if (!s) return nullptr;
-                            s->getCanvas()->clear(skia::toSkColor(color));
-                            return s->makeImageSnapshot();
-                          })
-      .tile(SkTileMode::kClamp);
+  return Texture(media::PixelSource::produce(
+                     std::string(kFillPrefix) + key,
+                     [color]() -> sk_sp<SkImage> {
+                       sk_sp<SkSurface> s = SkSurfaces::Raster(
+                           SkImageInfo::MakeN32Premul(1, 1));
+                       if (!s) return nullptr;
+                       s->getCanvas()->clear(skia::toSkColor(color));
+                       return s->makeImageSnapshot();
+                     }))
+      .tile(Repeat::Pad);
 }
 
 /** Every slot filled with the value that leaves the parameters speaking for
@@ -124,7 +125,7 @@ const std::shared_ptr<const Recipe>& unlitRecipe() {
 
 }  // namespace
 
-Material surface(const SurfaceParameters& parameters, Reflection reflection) {
+Material program(const SurfaceParameters& parameters, Reflection reflection) {
   return dress(Material(surfaceRecipe(reflection), parameters));
 }
 
@@ -140,57 +141,6 @@ bool isSurface(const Material& material) {
 
 bool isUnlit(const Material& material) { return material.recipePointer() == unlitRecipe(); }
 
-SurfaceParameters SurfaceParameters::chrome() {
-  // Steel is not a mirror and not white: a slight cool bias and a
-  // roughness a hand-polished object actually has.
-  SurfaceParameters p;
-  p.baseColor = {0.92f, 0.95f, 1.0f, 1};
-  p.metallic = 1;
-  p.roughness = 0.04f;
-  return p;
-}
-
-SurfaceParameters SurfaceParameters::gold() {
-  // The measured reflectance of gold, which is what a metal's base
-  // colour means.
-  SurfaceParameters p;
-  p.baseColor = {1.0f, 0.766f, 0.336f, 1};
-  p.metallic = 1;
-  p.roughness = 0.18f;
-  return p;
-}
-
-SurfaceParameters SurfaceParameters::metal(Color tint, float roughness) {
-  SurfaceParameters p;
-  p.baseColor = tint;
-  p.metallic = 1;
-  p.roughness = roughness;
-  return p;
-}
-
-SurfaceParameters SurfaceParameters::dielectric(Color baseColor,
-                                                float roughness) {
-  SurfaceParameters p;
-  p.baseColor = baseColor;
-  p.metallic = 0;
-  p.roughness = roughness;
-  return p;
-}
-
-SurfaceParameters SurfaceParameters::glass() {
-  SurfaceParameters p;
-  p.baseColor = {1, 1, 1, 1};
-  p.metallic = 0;
-  p.roughness = 0.02f;
-  p.transmission = 1;
-  p.ior = 1.5f;
-  p.thickness = 0.35f;
-  // A faint green cast in a thick edge, which is what soda-lime glass
-  // does and what tells an eye it is glass rather than a hole.
-  p.absorption = {0.55f, 0.12f, 0.35f, 1};
-  return p;
-}
-
 const Texture* map(const Material& material, std::string_view slot) {
   const auto* texture = dynamic_cast<const Texture*>(material.leaf(slot));
   if (!texture) return nullptr;
@@ -199,7 +149,7 @@ const Texture* map(const Material& material, std::string_view slot) {
   return fill ? nullptr : texture;
 }
 
-Material surface(const texture::TextureMaps& maps, SurfaceParameters base) {
+Material program(const texture::TextureMaps& maps, SurfaceParameters base) {
   using texture::Role;
   const auto has = [&](Role role) { return maps.map(role) != nullptr; };
   // A packed occlusion-roughness-metallic image stands in for whichever
@@ -231,7 +181,7 @@ Material surface(const texture::TextureMaps& maps, SurfaceParameters base) {
   }
   base.normalDirectX = maps.normalDirectX ? 1.0f : 0.0f;
 
-  Material m = surface(base);
+  Material m = program(base);
   const auto place = [&](std::string_view slot, const Texture* t) {
     if (t) m.slot(slot, *t);
   };
@@ -245,4 +195,4 @@ Material surface(const texture::TextureMaps& maps, SurfaceParameters base) {
   return m;
 }
 
-}  // namespace sigil::material::kit
+}  // namespace sigil::material::surface

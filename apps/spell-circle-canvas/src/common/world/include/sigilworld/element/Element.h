@@ -128,9 +128,16 @@ class Element {
   /** @name What it is made of
    *  The surface every face of the body is shaded by.
    *  @{ */
-  /** The surface. */
+  /** The surface: a material's base is the base colour and its
+   *  `surface({…})` the lit response, lowered once here into the surface
+   *  program. A material that states no response is lit at the stock
+   *  one, so `fill(color)` lights; `.surface({.unlit = true})` is its
+   *  own light; a bare program is drawn as the program it is. Effects
+   *  read a 2D coverage a body has none of, so they are dropped and said
+   *  once. */
   Element& fill(material::Material m);
-  /** …and the per-face form: one material per slot, in slot order. */
+  /** …and the per-face form: one material per slot, in slot order, each
+   *  lowered as the one-material form is. */
   Element& fill(std::span<const material::Material> slots);
   /** @} */
 

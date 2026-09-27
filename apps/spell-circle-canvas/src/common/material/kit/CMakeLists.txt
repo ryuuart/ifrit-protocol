@@ -18,11 +18,12 @@ set(SIGIL_MATERIAL_KIT_SHADER_DIR "${CMAKE_CURRENT_LIST_DIR}/shaders"
 find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilMaterialKit
   SOURCES Crt.cpp Environments.cpp Globe.cpp Grained.cpp LayerStyles.cpp
-          Patterns.cpp Ramps.cpp Recipes.cpp Pbr.cpp Reflections.cpp
+          Patterns.cpp Ramps.cpp Recipes.cpp Reflections.cpp
           TextPaint.cpp
   HEADERS Crt.h Environments.h Globe.h Grained.h LayerStyles.h Patterns.h Ramps.h
-          Recipes.h Pbr.h Reflections.h TextPaint.h
+          Recipes.h Reflections.h TextPaint.h
   PUBLIC SigilMaterialField SigilMaterialPattern SigilMaterialColor SigilMaterialMask
+         SigilMaterialSurface
          Boost::container)
 sigil_shader_sources(SigilMaterialKit
   DIR ${SIGIL_MATERIAL_KIT_SHADER_DIR} NAMESPACE sigil::material::kit)
@@ -36,11 +37,11 @@ sigil_shader_sources(SigilMaterialKit
 # another library, and it is the point of the case: two spellings of one
 # arithmetic cannot be compared from inside one of them.
 sigil_test(material_test
-  SOURCES test/KitTest.cpp test/TermsTest.cpp test/GrainedTest.cpp
+  SOURCES test/KitTest.cpp test/GrainedTest.cpp
           test/GlobeTest.cpp test/RampsTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_KIT_SHADER_DIR="${SIGIL_MATERIAL_KIT_SHADER_DIR}"
-  LIBRARIES SigilMaterialKit SigilMaterialSkia SigilGeometryMeshRender)
+  LIBRARIES SigilMaterialKit SigilMaterialSkia)
 
 sigil_bench(material_bench
   SOURCES bench/KitBench.cpp

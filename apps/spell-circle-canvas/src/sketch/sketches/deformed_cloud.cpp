@@ -32,7 +32,7 @@
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
@@ -152,7 +152,7 @@ struct DeformedCloud {
             .key("forged")
             .chain(forged)
             .stamp(gm::quad(3.1f, 3.1f))
-            .fill(material::kit::surface(
+            .fill(material::surface::program(
                 {.baseColor = {1, 1, 1, 1}, .roughness = 0.6f}))
             .tag("cloud"),
         set, seconds));

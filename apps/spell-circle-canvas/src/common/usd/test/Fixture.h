@@ -14,7 +14,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilusd/runtime/Runtime.h>
 
 #include <cstddef>
@@ -67,17 +67,17 @@ inline Torus twoSlotTorus() {
   std::vector<glm::vec4>& lane = mesh.primitive("Material", {0, 0, 0, 0});
   for (size_t t = 0; t < lane.size(); ++t) lane[t] = {(float)(t % 2), 0, 0, 0};
 
-  material::kit::SurfaceParameters redParameters;
+  material::surface::SurfaceParameters redParameters;
   redParameters.baseColor = {1, 0, 0, 1};
   redParameters.roughness = 0.3f;
   redParameters.metallic = 0.75f;
 
-  material::Material textured = material::kit::surface();
+  material::Material textured = material::surface::program();
   textured.slot(
-      material::kit::kBaseColorSlot,
-      material::Texture::of(solid(SK_ColorBLUE)).tile(SkTileMode::kRepeat));
+      material::surface::kBaseColorSlot,
+      material::Texture(solid(SK_ColorBLUE)).tile(SkTileMode::kRepeat));
 
-  return Torus{std::move(mesh), material::kit::surface(redParameters),
+  return Torus{std::move(mesh), material::surface::program(redParameters),
                std::move(textured)};
 }
 

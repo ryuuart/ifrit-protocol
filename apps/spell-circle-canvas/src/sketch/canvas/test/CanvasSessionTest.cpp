@@ -17,7 +17,7 @@
 #include <sigilio/hub/Hub.h>
 #include <sigilio/hub/Recording.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/paint/Paint.h>
@@ -78,7 +78,7 @@ world::Frame cardFrame() {
       {world::Element()
            .key("card")
            .mesh(gm::quad(kCardW, kCardH))
-           .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}))}));
+           .fill(sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}}))}));
 }
 
 gm::camera::Camera cardCamera(float eyeZ) {
@@ -335,7 +335,7 @@ world::Frame enteringFrame() {
                                             .duration = kEnter,
                                             .delay = sigil::motion::stagger(kStagger)}))
         .mesh(gm::quad(kCardW * 0.4f, kCardH))
-        .fill(sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}}));
+        .fill(sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}}));
   };
   return world::Frame(
       world::Element()

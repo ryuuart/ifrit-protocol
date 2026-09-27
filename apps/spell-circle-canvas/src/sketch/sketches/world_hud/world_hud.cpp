@@ -118,8 +118,8 @@ struct WorldHud {
     const float h = frame.height(), w = frame.width();
     const glm::vec3 at = lens.eye + forward * kAt;
     sigil::material::Material surface =
-        sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-    surface.slot(sigil::material::kit::kBaseColorSlot, std::move(texture));
+        sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+    surface.slot(sigil::material::surface::kBaseColorSlot, std::move(texture));
     return world::Element()
         .key("overlay")
         .transform(
@@ -147,7 +147,7 @@ struct WorldHud {
     scene.children({world::Element()
                         .key("terrain")
                         .mesh(valley)
-                        .fill(sigil::material::kit::surface(
+                        .fill(sigil::material::surface::program(
                             {.baseColor = {1, 1, 1, 1}, .roughness = 0.92f}))
                         .tag("terrain")});
 

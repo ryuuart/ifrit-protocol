@@ -52,7 +52,7 @@
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/style/Type.h>
@@ -276,8 +276,8 @@ struct Screen {
  *  says light does not reach it. */
 material::Material screenOf(material::Texture texture) {
   material::Material surface =
-      material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-  surface.slot(material::kit::kBaseColorSlot, std::move(texture));
+      material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+  surface.slot(material::surface::kBaseColorSlot, std::move(texture));
   return surface;
 }
 
@@ -359,7 +359,7 @@ struct SceneSurfaces {
              .key("shelf")
              .at({0.0f, -96.0f, 96.0f})
              .mesh(gm::superellipsoid({330.0f, 9.0f, 74.0f}, 6.0f, 48, 16))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.42f, 0.45f, 0.53f, 1.0f}, .roughness = 0.3f}))
              .tag("frame")});
 
@@ -371,8 +371,8 @@ struct SceneSurfaces {
     printed.tile(SkTileMode::kRepeat)
         .uv(alongTheBand({kTapeWidth, kTapeHeight}, kRepeats));
     material::Material printedTape =
-        material::kit::surface({.baseColor = {1, 1, 1, 1}, .roughness = 0.4f});
-    printedTape.slot(material::kit::kBaseColorSlot, std::move(printed));
+        material::surface::program({.baseColor = {1, 1, 1, 1}, .roughness = 0.4f});
+    printedTape.slot(material::surface::kBaseColorSlot, std::move(printed));
 
     world::Element room = world::Element().key("room");
     room.children({std::move(console)});

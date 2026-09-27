@@ -22,7 +22,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Node.h>
@@ -62,7 +62,7 @@ world::Element subject() {
            .key("body")
            .at({0.0f, 34.0f, 0.0f})
            .mesh(gm::superellipsoid({46, 46, 46}, 3.0f, 28, 18))
-           .fill(material::kit::surface(
+           .fill(material::surface::program(
                {.baseColor = {0.72f, 0.70f, 0.66f, 1.0f}, .roughness = 0.45f}))
            .tag("lit")});
   set.children(world::each(kPosts, [](std::size_t i) {
@@ -77,7 +77,7 @@ world::Element subject() {
         .rotateY(angle * 57.2957795f)
         .mesh(gm::superellipsoid({11, 52, 11}, 5.0f, 12, 8))
         .fill(
-            material::kit::surface({.baseColor = {0.36f, 0.38f, 0.44f, 1.0f}}))
+            material::surface::program({.baseColor = {0.36f, 0.38f, 0.44f, 1.0f}}))
         .tag("lit");
   }));
   return set;

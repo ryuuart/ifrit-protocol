@@ -21,7 +21,7 @@
 #include <sigilmedia/image/Encode.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -153,12 +153,12 @@ struct ExrChannels {
   static sk_sp<SkImage> throughRoughnessSlot(const media::Channels& planes) {
     const int g = planes.index("G");
     if (g < 0) return nullptr;
-    material::Material stone = material::kit::surface(
+    material::Material stone = material::surface::program(
         {.baseColor = {0.62f, 0.60f, 0.56f, 1}, .roughness = 1.0f});
-    stone.slot(material::kit::kRoughnessSlot,
+    stone.slot(material::surface::kRoughnessSlot,
                material::Texture::of(planes.makeImage(g, g, g, -1)));
     const material::Texture* placed =
-        material::kit::map(stone, material::kit::kRoughnessSlot);
+        material::surface::map(stone, material::surface::kRoughnessSlot);
     return placed ? placed->image() : nullptr;
   }
 

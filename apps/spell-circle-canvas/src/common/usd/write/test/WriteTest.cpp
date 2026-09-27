@@ -69,10 +69,10 @@ geometry::mesh::Cloud sparkCloud() {
 }
 
 material::Material glowSurface() {
-  material::kit::SurfaceParameters glowParameters;
+  material::surface::SurfaceParameters glowParameters;
   glowParameters.emissive = {1, 0.5f, 0, 1};
   glowParameters.emissiveStrength = 2;
-  return material::kit::surface(glowParameters);
+  return material::surface::program(glowParameters);
 }
 
 }  // namespace
@@ -201,7 +201,7 @@ TEST(UsdWrite, ADirectionOfNoLengthLeavesTheDefaultOrientationStanding) {
   {
     usd::Writer writer(file);
     writer.stamps("sparks", cloud, geometry::mesh::quad(1, 1), glm::mat4(1.0f),
-                  material::kit::surface());
+                  material::surface::program());
     // A sun and a spot with no direction either.
     writer.light("sun", world::light::sun({0, 0, 0}));
     writer.light("beam",
@@ -234,11 +234,11 @@ TEST(UsdWrite, AnEmptyMeshAndAnEmptyCloudAuthorPrimsWithNothingInThem) {
   {
     usd::Writer writer(file);
     EXPECT_EQ(writer.mesh("void", geometry::mesh::Mesh(), glm::mat4(1.0f),
-                          material::kit::surface()),
+                          material::surface::program()),
               "/World/void");
     EXPECT_EQ(
         writer.stamps("motes", geometry::mesh::Cloud(), geometry::mesh::Mesh(),
-                      glm::mat4(1.0f), material::kit::surface()),
+                      glm::mat4(1.0f), material::surface::program()),
         "/World/motes");
     ASSERT_TRUE(writer.save());
   }
@@ -296,16 +296,16 @@ TEST(UsdWrite, SanitizesANameIntoAPrimPathAndKeepsEveryPathUnique) {
   usd::Writer writer(file);
   const geometry::mesh::Mesh plate = geometry::mesh::quad(1, 1);
   EXPECT_EQ(
-      writer.mesh("prop", plate, glm::mat4(1.0f), material::kit::surface()),
+      writer.mesh("prop", plate, glm::mat4(1.0f), material::surface::program()),
       "/World/prop");
   // Punctuation and spaces become underscores, and a leading digit gains
   // a leading underscore.
   EXPECT_EQ(writer.mesh("2nd prop!", plate, glm::mat4(1.0f),
-                        material::kit::surface()),
+                        material::surface::program()),
             "/World/_2nd_prop_");
   // A name already taken gets a suffix rather than overwriting the prim.
   EXPECT_EQ(
-      writer.mesh("prop", plate, glm::mat4(1.0f), material::kit::surface()),
+      writer.mesh("prop", plate, glm::mat4(1.0f), material::surface::program()),
       "/World/prop_2");
 }
 

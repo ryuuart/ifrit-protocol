@@ -28,7 +28,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
@@ -99,7 +99,7 @@ gm::Mesh plinth() {
 /** A lantern's shell: a body that says light does not reach it, so what
  *  it shows is its own colour and nothing the room does to it. */
 material::Material glow(glm::vec4 color) {
-  return material::kit::unlit({.baseColor = {color.r, color.g, color.b, 1.0f},
+  return material::surface::unlit({.baseColor = {color.r, color.g, color.b, 1.0f},
                                .emissive = {color.r, color.g, color.b, 1.0f},
                                .emissiveStrength = 2.6f});
 }
@@ -124,7 +124,7 @@ struct LanternRoom {
              .key("plinth")
              .at({0.0f, kFloor, 0.0f})
              .mesh(plinth())
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.13f, 0.13f, 0.16f, 1.0f}, .roughness = 0.8f}))
              .tag("ground"),
          // A sun so faint it is an outline rather than a light: what keeps
@@ -173,7 +173,7 @@ struct LanternRoom {
                .key("body" + std::to_string(i))
                .at({body.at.x, kFloor + body.at.y, body.at.z})
                .mesh(gm::superellipsoid(body.radii, body.exponent, 40, 26))
-               .fill(material::kit::surface(
+               .fill(material::surface::program(
                    {.baseColor = {0.52f, 0.53f, 0.57f, 1.0f},
                     .roughness = 0.5f}))
                .tag("body")});

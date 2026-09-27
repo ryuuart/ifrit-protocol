@@ -10,7 +10,7 @@
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/element/Element.h>
 
@@ -62,7 +62,7 @@ struct Spun {
              .key("body")
              .rotateY(seconds * 90.0f)
              .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
-             .fill(sigil::material::kit::surface())});
+             .fill(sigil::material::surface::program())});
   }
 };
 
@@ -84,8 +84,8 @@ struct Screened {
     screen->render(box().width(64).height(64).fill(Fill::color({0, 1, 0, 1})),
                    seconds);
     sigil::material::Material surface =
-        sigil::material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-    surface.slot(sigil::material::kit::kBaseColorSlot, screen->texture());
+        sigil::material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+    surface.slot(sigil::material::surface::kBaseColorSlot, screen->texture());
     return world::Element().key("set").children(
         {world::Element().key("card").mesh(gm::quad(120, 90)).fill(surface)});
   }
@@ -121,7 +121,7 @@ struct Framed {
              .key("body")
              .at({40, 30, -10})
              .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
-             .fill(sigil::material::kit::surface())});
+             .fill(sigil::material::surface::program())});
   }
 };
 
@@ -311,7 +311,7 @@ struct Bare {
              .key("body")
              .rotateY(seconds * 90.0f)
              .mesh(gm::superellipsoid({40, 40, 40}, 0.2f, 24, 16))
-             .fill(sigil::material::kit::surface())});
+             .fill(sigil::material::surface::program())});
   }
 };
 

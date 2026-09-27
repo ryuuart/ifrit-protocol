@@ -45,7 +45,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilscry/engine/WebEngine.h>
 #include <sigilscry/engine/WebView.h>
@@ -246,11 +246,11 @@ struct ImportNative {
     if (composed) composed->render(dial((float)kBake.width()), (double)seconds);
 
     material::Material screenSurface =
-        material::kit::unlit({.baseColor = {1, 1, 1, 1}});
+        material::surface::unlit({.baseColor = {1, 1, 1, 1}});
 
     material::Material fromCompose = screenSurface;
     if (composed)
-      fromCompose.slot(material::kit::kBaseColorSlot, composed->texture());
+      fromCompose.slot(material::surface::kBaseColorSlot, composed->texture());
 
     // THE PAGE SCREEN'S GROUND until a frame carries the page: the page's
     // own, so a page arriving in a window is a picture appearing on a
@@ -260,10 +260,10 @@ struct ImportNative {
     // first frame.
     material::Material fromPage =
         pageFrame ? screenSurface
-                  : material::kit::unlit(
+                  : material::surface::unlit(
                         {.baseColor = {0.043f, 0.063f, 0.094f, 1.0f}});
     if (pageFrame)
-      fromPage.slot(material::kit::kBaseColorSlot,
+      fromPage.slot(material::surface::kBaseColorSlot,
                     material::Texture::of(pageFrame));
 
     world::Element root;
@@ -275,7 +275,7 @@ struct ImportNative {
              .at({0, -118, 0})
              .rotateX(-90.0f)
              .mesh(gm::quad(900, 700))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.05f, 0.06f, 0.09f, 1.0f}})),
          screen("compose", -125.0f, 17.0f, std::move(fromCompose)),
          screen("page", 125.0f, -17.0f, std::move(fromPage))});

@@ -1,15 +1,20 @@
 #pragma once
 
 /** @file
- * @ingroup material-kit
+ * @ingroup material-surface
  *
- * The metallic-roughness surface — the shading model the authoring tools
- * export for. One parameter struct is its ABI and one slot per map, so a
- * discovered texture set drops straight in, under two recipes: one takes
- * light, the other is its own light. The bodies are composed from the
- * library's shading TERMS. What a 2D paint can answer is bounded — no
- * surface normal, no view vector, no light — so those parameters are
- * Slang-only.
+ * THE SURFACE PROGRAM a lit renderer shades with: the metallic-roughness
+ * model the authoring tools export for. One parameter struct is its ABI
+ * and one slot per map, so a discovered texture set drops straight in,
+ * under two recipes: one takes light, the other is its own light. The
+ * bodies are composed from the library's shading TERMS. What a 2D paint
+ * can answer is bounded — no surface normal, no view vector, no light —
+ * so those parameters are Slang-only.
+ *
+ * A material states its response with `Material::surface(SurfaceOptions)`;
+ * `lower()` is the step that turns that statement into this program, and
+ * the rest of this header is the program itself, for a renderer or a
+ * writer that reads its slots.
  */
 
 #include <sigilmaterial/color/Color.h>
@@ -22,7 +27,7 @@
 #include <memory>
 #include <string_view>
 
-namespace sigil::material::kit {
+namespace sigil::material::surface {
 
 /** The slots the surface recipes declare, one per map a texture
  *  set carries. Each takes a `Texture` (or any leaf a renderer binds);
@@ -48,11 +53,11 @@ inline constexpr std::string_view kOpacitySlot =
  *  the image stores, and what comes out reaches the target as it is. So
  *  a colour is held here exactly as it is typed, in the encoding the
  *  images beside it are in, and a surface whose map is the white one
- *  `surface()` dresses it with shows the colour it was given.
+ *  `program()` dresses it with shows the colour it was given.
  *
  *  Each scalar is multiplied by the map in the matching slot, so a set
  *  that ships a metallic map wants `metallic = 1` for the map's values
- *  to come through — which is what `surface(TextureMaps)` arranges. */
+ *  to come through — which is what `program(TextureMaps)` arranges. */
 struct SurfaceParameters {
   Color baseColor = {0.8f, 0.8f, 0.8f, 1};
   float metallic = 0;
@@ -93,19 +98,6 @@ struct SurfaceParameters {
    *  surface's reflectance and its Fresnel. */
   float reflectionWeight = 1;
 
-  /** A polished mirror: metal, and rough enough to be a real object. */
-  static SurfaceParameters chrome();
-  /** Warm metal at the reflectance gold actually has. */
-  static SurfaceParameters gold();
-  /** A metal at @p roughness — the study between a mirror and a matte
-   *  casting. */
-  static SurfaceParameters metal(Color tint, float roughness);
-  /** A dielectric: not a metal, so it reflects a few per cent head on
-   *  and much more at the rim, and keeps its colour in the diffuse. */
-  static SurfaceParameters dielectric(Color baseColor, float roughness);
-  /** Clear glass: what is behind it, refracted, with a reflection over
-   *  the top. */
-  static SurfaceParameters glass();
 };
 
 /** HOW THE ENVIRONMENT REACHES A SURFACE, which is a choice about the
@@ -132,7 +124,7 @@ const std::shared_ptr<const Recipe>& surfaceRecipe(
 /** A lit metallic-roughness surface, composed from the shading terms:
  *  occlusion over the albedo, emission added, and the surface's PBR
  *  standing handed to whatever renderer shades it. */
-Material surface(const SurfaceParameters& parameters = {},
+Material program(const SurfaceParameters& parameters = {},
                  Reflection reflection = Reflection::SplitSum);
 /** A surface that is its own light: no shading, no shadow terms. */
 Material unlit(const SurfaceParameters& parameters = {});
@@ -156,6 +148,22 @@ const Texture* map(const Material& material, std::string_view slot);
  *  scalar a present map multiplies started at one — left at its stock
  *  value a metallic map would multiply zero and never be seen — unless
  *  @p base already moved it. */
-Material surface(const texture::TextureMaps& maps, SurfaceParameters base = {});
+Material program(const texture::TextureMaps& maps, SurfaceParameters base = {});
 
-}  // namespace sigil::material::kit
+/** THE SURFACE PROGRAM @p material states. A bare program — a surface
+ *  program, or any recipe instance with nothing stated around it — comes
+ *  back as it is, since a renderer draws a program as the program it is.
+ *  Otherwise the base is the base colour: a colour is the `baseColor`
+ *  factor, an image base's texture fills `baseColorMap`, and any other
+ *  base — a gradient, a noise, a program, or the base with its layers —
+ *  fills that slot as a material. Each `SurfaceOptions` channel is a
+ *  number or a material, placed the same way in the channel's map slot
+ *  with its factor at one. `.unlit` answers the unlit program, and a
+ *  material that states no response at all is its base, unlit.
+ *
+ *  A surface has no coverage for an effects stage to read, so effects on
+ *  @p material are dropped and said once; so is a clearcoat, which the
+ *  program has no term for. */
+Material lower(const Material& material);
+
+}  // namespace sigil::material::surface

@@ -11,7 +11,6 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Globe.h>
-#include <sigilmaterial/kit/Pbr.h>
 #include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
@@ -63,18 +62,6 @@ void BadgeFill(benchmark::State& state) {
 }
 BENCHMARK(BadgeFill)->Arg(32)->Arg(128);
 
-/** The metallic-roughness surface: what a dressed material costs to
- *  build, and what a stack of them costs to shade. */
-void PbrBuild(benchmark::State& state) {
-  const kit::SurfaceParameters parameters;
-  for ([[maybe_unused]] auto iteration : state) {
-    Material m =
-        state.range(0) == 0 ? kit::surface(parameters) : kit::unlit(parameters);
-    benchmark::DoNotOptimize(m);
-  }
-}
-BENCHMARK(PbrBuild)->Arg(0)->Arg(1);
-
 /** The globe: what one costs to build, and what a disc of it costs to
  *  shade at two sizes. */
 void GlobeBuild(benchmark::State& state) {
@@ -100,16 +87,5 @@ void GlobeShade(benchmark::State& state) {
   state.SetItemsProcessed(state.iterations() * (int64_t)side * side);
 }
 BENCHMARK(GlobeShade)->Arg(168)->Arg(512);
-
-void StackShader(benchmark::State& state) {
-  Material m = kit::surface();
-  for (int i = 0; i < (int)state.range(0); ++i)
-    m = over(std::move(m), kit::unlit(), maskConstant(0.5f));
-  for ([[maybe_unused]] auto iteration : state) {
-    sk_sp<SkShader> s = skia::shader(m, {});
-    benchmark::DoNotOptimize(s);
-  }
-}
-BENCHMARK(StackShader)->Arg(0)->Arg(2);
 
 }  // namespace

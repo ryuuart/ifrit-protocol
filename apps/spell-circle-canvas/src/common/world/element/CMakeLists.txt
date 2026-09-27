@@ -1,8 +1,10 @@
 # The element feature: one node of a 3D scene as a comparable
 # copy-on-write value — the verbs, the transform lanes, the geometry
 # slot, tags, selectors and the generator seam. Nothing here cooks, draws
-# or retains: it links the vocabularies it is written in and the
-# reconciler's kernels, and nothing that owns a device.
+# or retains: it links the vocabularies it is written in, the
+# reconciler's kernels, and SigilMaterial's surface program, which a
+# filled material is lowered into once at the verb — and nothing that
+# owns a device.
 sigil_library(SigilWorldElement
   SOURCES Element.cpp Equal.cpp Geometry.cpp Lanes.cpp Selector.cpp
           Transform.cpp
@@ -11,7 +13,7 @@ sigil_library(SigilWorldElement
   PUBLIC SigilCoreComparable SigilCoreCompute SigilCoreReconcile
          SigilCoreCache SigilGeometryMesh SigilGeometryMeshCamera
          SigilGeometryMeshCurve SigilGeometryMeshPop SigilMaterialCore
-         SigilMaterialTexture SigilMotionValues SigilMotionSchedule
+         SigilMaterialTexture SigilMaterialSurface SigilMotionValues SigilMotionSchedule
          SigilWorldLight)
 
 # Links only the library it exercises, so a link edge that pulled the

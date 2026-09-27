@@ -308,7 +308,7 @@ and a rim term that nothing scales. So:
   and metallic takes the light out of the diffuse term and puts the
   surface's own colour into the highlight.
 - **with an environment map the model has a Fresnel and an environment
-  term**, composed from the material kit's shading terms: the flat
+  term**, composed from the material library's shading terms: the flat
   ambient constant is replaced by the panorama's cosine convolution
   sampled by the normal, and the split sum — prefiltered radiance times
   the surface's own reflectance and its Fresnel — is added for what the

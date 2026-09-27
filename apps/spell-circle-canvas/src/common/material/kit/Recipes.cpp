@@ -14,7 +14,7 @@
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Globe.h>
 #include <sigilmaterial/kit/Grained.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/mask/Mask.h>
@@ -53,9 +53,9 @@ std::vector<Material> everyRecipe() {
   screen.slot("bloom", stand(SK_ColorCYAN));
   return {
       std::move(screen),
-      surface({}, Reflection::SplitSum),
-      surface({}, Reflection::Additive),
-      unlit(),
+      surface::program({}, surface::Reflection::SplitSum),
+      surface::program({}, surface::Reflection::Additive),
+      surface::unlit(),
       gold(normals, env),
       chrome(normals, env),
       glass(normals, env, stand(SK_ColorCYAN)),

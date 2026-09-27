@@ -8,7 +8,7 @@
 #include <include/core/SkCanvas.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -52,7 +52,7 @@ struct Ring {
                .rotateY(angle)
                .at({160.0f, 0, 0})
                .mesh(gm::superellipsoid({20, 20, 20}, 0.2f, 16, 12))
-               .fill(sigil::material::kit::surface())});
+               .fill(sigil::material::surface::program())});
     }
     return root;
   }

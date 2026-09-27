@@ -48,7 +48,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
@@ -98,18 +98,18 @@ world::Element balls() {
       .rotateY(90.0f)
       .children(
           {ball("chrome", left,
-                material::kit::surface(
-                    material::kit::SurfaceParameters::chrome())),
+                material::surface::program(
+                    material::surface::SurfaceParameters::chrome())),
            ball("rough", left + kGap,
-                material::kit::surface(material::kit::SurfaceParameters::metal(
+                material::surface::program(material::surface::SurfaceParameters::metal(
                     {0.85f, 0.86f, 0.88f, 1}, 0.35f))),
            ball("dielectric", left + 2.0f * kGap,
-                material::kit::surface(
-                    material::kit::SurfaceParameters::dielectric(
+                material::surface::program(
+                    material::surface::SurfaceParameters::dielectric(
                         {0.14f, 0.30f, 0.42f, 1}, 0.15f))),
            ball("glass", left + 3.0f * kGap,
-                material::kit::surface(
-                    material::kit::SurfaceParameters::glass()))});
+                material::surface::program(
+                    material::surface::SurfaceParameters::glass()))});
 }
 
 }  // namespace

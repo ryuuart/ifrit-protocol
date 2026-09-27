@@ -29,7 +29,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/curve/Curve.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
@@ -105,11 +105,11 @@ struct DartFlight {
                         .scale = 3.4f,
                         .normals = gm::pop::SweepOptions::Normals::Radial});
 
-    const material::Material chrome = material::kit::surface(
+    const material::Material chrome = material::surface::program(
         {.baseColor = {0.90f, 0.93f, 1.0f, 1.0f}, .roughness = 0.12f});
-    const material::Material wire = material::kit::surface(
+    const material::Material wire = material::surface::program(
         {.baseColor = {0.38f, 0.44f, 0.60f, 1.0f}, .roughness = 0.5f});
-    const material::Material brass = material::kit::surface(
+    const material::Material brass = material::surface::program(
         {.baseColor = {0.86f, 0.62f, 0.28f, 1.0f}, .roughness = 0.35f});
 
     // The gates: one node per station, each standing at a constant

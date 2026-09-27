@@ -26,7 +26,7 @@
 #include <sigilmaterial/core/Combine.h>
 #include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/ocio/Ocio.h>
@@ -206,13 +206,13 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
   // The stacks: one per blend, over operands the kit supplies. A stack is
   // a material like any other and its operands are its children, so the
   // body compiled is the combinator's over three sampled slots.
-  kit::SurfaceParameters red;
+  surface::SurfaceParameters red;
   red.baseColor = {1, 0.2f, 0.1f, 1};
-  kit::SurfaceParameters blue;
+  surface::SurfaceParameters blue;
   blue.baseColor = {0.1f, 0.3f, 1, 1};
   for (const BlendMode blend :
        {BlendMode::Normal, BlendMode::PlusLighter, BlendMode::Multiply})
-    add({over(kit::unlit(red), kit::unlit(blue), maskConstant(0.5f), blend)});
+    add({over(surface::unlit(red), surface::unlit(blue), maskConstant(0.5f), blend)});
 
   if (ocio::available()) add({ocio::exponent(2.2f)});
   return all;

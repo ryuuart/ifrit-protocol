@@ -59,7 +59,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/kit/Page.h>
@@ -176,9 +176,9 @@ struct GuestBody {
     if (!picture.valid() && card) picture = card->texture();
 
     material::Material screen =
-        material::kit::unlit({.baseColor = {1, 1, 1, 1}});
+        material::surface::unlit({.baseColor = {1, 1, 1, 1}});
     if (picture.valid())
-      screen.slot(material::kit::kBaseColorSlot, std::move(picture));
+      screen.slot(material::surface::kBaseColorSlot, std::move(picture));
 
     world::Element root;
     root.key("set").children(
@@ -192,7 +192,7 @@ struct GuestBody {
              .key("wall")
              .at({0, 40, -240})
              .mesh(gm::quad(1100, 620))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.055f, 0.066f, 0.094f, 1.0f},
                   .roughness = 0.85f})),
          world::Element()
@@ -200,7 +200,7 @@ struct GuestBody {
              .at({0, -108, -40})
              .rotateX(-90.0f)
              .mesh(gm::quad(1100, 520))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.07f, 0.078f, 0.10f, 1.0f},
                   .roughness = 0.6f})),
          // THE BODY: one turning thing, with the lit bezel and the unlit
@@ -215,7 +215,7 @@ struct GuestBody {
                             .mesh(gm::quad(kScreen + kBezel * 2.0f,
                                            kScreenHeight + kBezel * 2.0f))
                             .backface(material::Backface::Visible)
-                            .fill(material::kit::surface(
+                            .fill(material::surface::program(
                                 {.baseColor = {0.60f, 0.63f, 0.67f, 1.0f},
                                  .metallic = 0.9f,
                                  .roughness = 0.34f})),

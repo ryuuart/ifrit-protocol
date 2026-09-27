@@ -8,6 +8,7 @@ sigil_test(sketch_test
   SOURCES test/CanvasSessionTest.cpp test/GuestTest.cpp
   LIBRARIES SigilSketch SigilComposeTexture SigilWorldElement
             SigilWorldFrame SigilGeometryKit SigilMaterialKit
+            SigilMaterialSurface
             SigilWeavePorts)
 
 sigil_bench(sketch_bench

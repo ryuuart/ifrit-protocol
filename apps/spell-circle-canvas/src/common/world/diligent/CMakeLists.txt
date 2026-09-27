@@ -33,7 +33,7 @@ sigil_slang_module(NAME Post SOURCE ${_shaders}/Post.slang
 # executed by a Scene. SigilMaterialSlang is PUBLIC because a compiled
 # program and the uniforms written into it are what Gpu.h hands around;
 # Slang itself is reached only through it, so nothing here links the
-# compiler. SigilMaterialKit is PRIVATE and is read for one thing:
+# compiler. SigilMaterialSurface is PRIVATE and is read for one thing:
 # whether a material's sampled slot holds a map a caller placed or the
 # neutral dressing every surface is built with, which is what decides
 # whether a slot is bound or left reading one white texel. Diligent
@@ -67,7 +67,7 @@ sigil_library(SigilWorldDiligent
   PUBLIC SigilGeometryDevice SigilWorldScene SigilMaterialSlang
          SigilGeometryMeshPop SigilGeometryMeshPopDevice SigilCoreHardware
          SigilGeometryMeshRender
-  PRIVATE SigilGeometryDeviceResidency SigilMaterialKit SigilSkiaGraphite
+  PRIVATE SigilGeometryDeviceResidency SigilMaterialSurface SigilSkiaGraphite
           Boost::container)
 sigil_shader_sources(SigilWorldDiligent
   DIR ${_shaders} NAMESPACE sigil::world::diligent)
@@ -90,7 +90,7 @@ sigil_test(world_test
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
                ${SIGIL_GEOMETRY_DEVICE_TEST_SUPPORT_DIR}
   DEFINITIONS SIGIL_WORLD_SHADER_DIR="${_shaders}"
-  LIBRARIES SigilWorldDiligent SigilMaterialKit SigilGeometryKit
+  LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilGeometryKit
   SUITES EitherTier Environment GpuRuntime Programs Stack SurfaceProgram
          SurfaceSlots
   LABELS gpu)
@@ -98,4 +98,4 @@ sigil_test(world_test
 sigil_bench(world_bench
   SOURCES bench/DeviceBench.cpp
   SUPPORT_DIRS ${CMAKE_CURRENT_LIST_DIR}
-  LIBRARIES SigilWorldDiligent SigilMaterialKit SigilGeometryKit SigilMeasure)
+  LIBRARIES SigilWorldDiligent SigilMaterialSurface SigilGeometryKit SigilMeasure)

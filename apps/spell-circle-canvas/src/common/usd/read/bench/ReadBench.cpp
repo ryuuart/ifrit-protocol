@@ -11,7 +11,7 @@
 #include <benchmark/benchmark.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilusd/read/Reader.h>
 #include <sigilusd/runtime/Runtime.h>
 #include <sigilusd/write/Writer.h>
@@ -40,7 +40,7 @@ std::pair<std::filesystem::path, size_t> stageOf(int triangles) {
   const std::filesystem::path file =
       scratch(("torus_" + std::to_string(triangles) + ".usdc").c_str());
   usd::Writer writer(file);
-  writer.mesh("prop", mesh, glm::mat4(1.0f), material::kit::surface());
+  writer.mesh("prop", mesh, glm::mat4(1.0f), material::surface::program());
   writer.save();
   return {file, mesh.triangleCount()};
 }

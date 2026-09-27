@@ -8,7 +8,7 @@
 #include <sigilcore/cache/Cache.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/advanced/Held.h>
 
@@ -419,11 +419,11 @@ void Scene::Impl::writeComponents(Instance& inst) {
   const material::Material* readable =
       surface.material ? readableSurface(&*surface.material) : nullptr;
   surface.texture =
-      readable ? material::kit::map(*readable, material::kit::kBaseColorSlot)
+      readable ? material::surface::map(*readable, material::surface::kBaseColorSlot)
                : nullptr;
   // …and so is the answer to whether light reaches it. A surface that is
   // its own light says so once, here, rather than being asked per pass.
-  surface.lit = !(readable && material::kit::isUnlit(*readable));
+  surface.lit = !(readable && material::surface::isUnlit(*readable));
   if (node.tags.empty())
     registry.remove<component::Tagged>(inst.entity);
   else

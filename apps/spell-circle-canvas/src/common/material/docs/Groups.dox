@@ -58,8 +58,11 @@
 /** @defgroup material-stock The stock shaders
  *  Every recipe this library ships, enumerated, and the one call that
  *  warms them before the first frame asks (stock/Stock.h). */
+/** @defgroup material-surface The surface program
+ *  The metallic-roughness program a lit renderer shades with, its slots
+ *  and parameters, and the lowering of a material's stated response into
+ *  it (surface/Surface.h). */
 /** @defgroup material-kit The kit
- *  Presets over the primitives: named ramps and skies, the
- *  metallic-roughness surface, grained and reflective surfaces, the
- *  pattern panels, the layer-style tables and the animated text paints
- *  (kit/Recipes.h). */
+ *  Presets over the primitives: named ramps and skies, grained and
+ *  reflective surfaces, the pattern panels, the layer-style tables and
+ *  the animated text paints (kit/Recipes.h). */

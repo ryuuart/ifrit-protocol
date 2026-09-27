@@ -38,7 +38,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilio/source/Source.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
@@ -145,7 +145,7 @@ struct ScatteredModel {
     world::Element core = world::Element()
                               .key("body")
                               .mesh(subject)
-                              .fill(material::kit::unlit(
+                              .fill(material::surface::unlit(
                                   {.baseColor = {0.10f, 0.11f, 0.15f, 1.0f}}))
                               .tag("core");
 
@@ -162,7 +162,7 @@ struct ScatteredModel {
             .scale(1.05f)
             .chain(dust)
             .stamp(gm::quad(2.9f, 2.9f))
-            .fill(material::kit::surface(
+            .fill(material::surface::program(
                 {.baseColor = {1, 1, 1, 1}, .roughness = 0.65f}))
             .tag("dust");
 

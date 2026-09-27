@@ -19,7 +19,7 @@
 #include <sigilgeometry/mesh/curve/Pose.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
@@ -103,13 +103,13 @@ struct FirstLight {
              .at({0, -150, 0})
              .rotateX(-90.0f)
              .mesh(gm::quad(900, 900))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.10f, 0.11f, 0.14f, 1.0f}}))
              .tag("ground"),
          world::Element()
              .key("tube")
              .mesh(tube)
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.62f, 0.66f, 0.74f, 1.0f}}))
              .tag("lit"),
          world::Element()
@@ -117,7 +117,7 @@ struct FirstLight {
              .chain(comet)
              .stamp(gm::quad(7.0f, 7.0f))
              .window(head, 0.28f)
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.95f, 0.75f, 0.42f, 1.0f}}))
              .tag("glow")});
   }

@@ -70,8 +70,8 @@ specialization of the same parameter layout.
 
 A RECIPE HAS NO PYTHON SPELLING, so neither constructor is reachable
 from Python and a Python author takes an instance the kit already made
-and moves it from there: `material::kit::unlit` and
-`material::kit::surface` are the two bound, and both answer a material.
+and moves it from there: `material::surface::unlit` and
+`material::surface::program` are the two bound, and both answer a material.
 
 A material is a VALUE: every setter copies on write, so binding on a copy
 never affects the material it was copied from.
@@ -120,7 +120,7 @@ without a cache lookup.
 
 - `core/Material.h` — the header: `Material`
 - `core/Leaf.h` — the header: `Leaf`
-- `kit/Pbr.h` — the header the Python door comes from: `surface`,
+- `surface/Surface.h` — the header the Python door comes from: `program`,
   `unlit`, `SurfaceParameters`
 - [Paint](value:sigil::material::Paint) — the paint model a
   material is one leaf of

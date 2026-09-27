@@ -26,7 +26,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilshaders/WorldDiligent.h>
@@ -239,15 +239,15 @@ material::Texture flatMap(SkColor4f colour, int side = 8) {
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(side, side));
   bitmap.eraseColor(colour.toSkColor());
   bitmap.setImmutable();
-  return material::Texture::of(bitmap.asImage());
+  return material::Texture(bitmap.asImage());
 }
 
 /** A white lit surface wearing @p map, so what reaches the pixels is
  *  the map and the shading and nothing else. */
 material::Material dressed(material::Texture map) {
   material::Material surface =
-      material::kit::surface({.baseColor = {1, 1, 1, 1}});
-  surface.slot(material::kit::kBaseColorSlot, std::move(map));
+      material::surface::program({.baseColor = {1, 1, 1, 1}});
+  surface.slot(material::surface::kBaseColorSlot, std::move(map));
   return surface;
 }
 
@@ -373,7 +373,7 @@ material::Texture twoTexelMap() {
   // of this format stand.
   *bitmap.getAddr32(1, 0) = 0xFFFFFFFFu;
   bitmap.setImmutable();
-  return material::Texture::of(bitmap.asImage());
+  return material::Texture(bitmap.asImage());
 }
 
 /** A card wearing @p map, its own light, so the map alone decides every
@@ -381,8 +381,8 @@ material::Texture twoTexelMap() {
 Frame mappedCard(material::Texture map) {
   namespace gm = ::sigil::geometry::mesh;
   material::Material surface =
-      material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-  surface.slot(material::kit::kBaseColorSlot, std::move(map));
+      material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+  surface.slot(material::surface::kBaseColorSlot, std::move(map));
   return squareFrame(
       Element().key("set").children({Element()
                                          .key("card")
@@ -474,7 +474,7 @@ constexpr glm::vec4 kBodyColour{0.85f, 0.55f, 0.25f, 1.0f};
  *  only whether the emitter reached them. */
 Frame litAndUnlitCards() {
   namespace gm = ::sigil::geometry::mesh;
-  const material::kit::SurfaceParameters parameters{
+  const material::surface::SurfaceParameters parameters{
       .baseColor = {kBodyColour.r, kBodyColour.g, kBodyColour.b, 1.0f}};
   return squareFrame(
       Element()
@@ -487,12 +487,12 @@ Frame litAndUnlitCards() {
                          .key("lit")
                          .at({-70, 0, 0})
                          .mesh(gm::quad(110, 110))
-                         .fill(material::kit::surface(parameters)),
+                         .fill(material::surface::program(parameters)),
                      Element()
                          .key("unlit")
                          .at({70, 0, 0})
                          .mesh(gm::quad(110, 110))
-                         .fill(material::kit::unlit(parameters))}));
+                         .fill(material::surface::unlit(parameters))}));
 }
 
 /** The two cards' middles: the left run is the lit one and the right is
@@ -565,7 +565,7 @@ TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
                 .writes("colour")
                 .clear(SkColors::kBlack)
                 .only(selectors::tag("glow"))
-                .variant(material::kit::surface({.baseColor = {1, 1, 1, 1}})));
+                .variant(material::surface::program({.baseColor = {1, 1, 1, 1}})));
   const SkBitmap plate = photograph(frame, runtime);
   // The sphere stands at the centre of the frame; the sun travels toward
   // -x, so its +x side is the lit one.

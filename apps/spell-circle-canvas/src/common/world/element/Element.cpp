@@ -4,6 +4,7 @@
  * that is the Scene's side of the seam.
  */
 
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Node.h>
 
@@ -106,16 +107,32 @@ Element& Element::along(geometry::mesh::curve::Spline3 spline,
 
 // ---- what it is made of ----------------------------------------------------
 
+namespace {
+
+/** @p material as the program a body is shaded with. A body is lit, so a
+ *  material that states no response takes the stock one before it is
+ *  lowered, rather than lowering to its base unlit. */
+material::Material worn(const material::Material& material) {
+  if (material.hasProgram() || material.surface())
+    return material::surface::lower(material);
+  return material::surface::lower(
+      material::from(material).surface(material::SurfaceOptions{}));
+}
+
+}  // namespace
+
 Element& Element::fill(material::Material m) {
   ElementNode* node = m_node.operator->();
-  node->material = std::move(m);
+  node->material = worn(m);
   node->slots.clear();
   return *this;
 }
 
 Element& Element::fill(std::span<const material::Material> slots) {
   ElementNode* node = m_node.operator->();
-  node->slots.assign(slots.begin(), slots.end());
+  node->slots.clear();
+  node->slots.reserve(slots.size());
+  for (const material::Material& slot : slots) node->slots.push_back(worn(slot));
   node->material.reset();
   return *this;
 }

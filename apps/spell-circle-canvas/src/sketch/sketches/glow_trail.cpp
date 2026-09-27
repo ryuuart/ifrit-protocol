@@ -23,7 +23,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilsketch/set/Set.h>
@@ -91,7 +91,7 @@ world::Element set(float seconds) {
         .rotateY(angle * 57.2957795f)
         .mesh(gm::superellipsoid({8.0f, 40.0f, 8.0f}, 6.0f, 10, 6))
         .fill(
-            material::kit::surface({.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
+            material::surface::program({.baseColor = {0.34f, 0.37f, 0.46f, 1.0f}}))
         .tag("lit");
   }));
 
@@ -104,7 +104,7 @@ world::Element set(float seconds) {
            .at({0, -120, 0})
            .rotateX(-90.0f)
            .mesh(gm::quad(760, 760))
-           .fill(material::kit::surface(
+           .fill(material::surface::program(
                {.baseColor = {0.09f, 0.10f, 0.13f, 1.0f}}))
            .tag("ground"),
        std::move(posts),
@@ -113,7 +113,7 @@ world::Element set(float seconds) {
            .chain(comet)
            .stamp(gm::quad(8.9f, 8.9f))
            .window(head, 0.22f)
-           .fill(material::kit::surface(
+           .fill(material::surface::program(
                {.baseColor = {1.0f, 0.72f, 0.34f, 1.0f}}))
            .tag("glow")});
   return root;

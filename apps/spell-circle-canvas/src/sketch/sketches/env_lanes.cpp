@@ -37,7 +37,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -86,14 +86,14 @@ world::Element subject() {
            .key("body")
            .at({0, 40, 0})
            .mesh(gm::superellipsoid({46, 46, 46}, 2.0f, 40, 26))
-           .fill(material::kit::surface({.baseColor = {0.85f, 0.86f, 0.88f, 1},
+           .fill(material::surface::program({.baseColor = {0.85f, 0.86f, 0.88f, 1},
                                          .metallic = 1.0f,
                                          .roughness = 0.12f})),
        world::Element()
            .key("slab")
            .at({0, -14, 0})
            .mesh(gm::superellipsoid({150, 12, 150}, 8.0f, 20, 10))
-           .fill(material::kit::surface(
+           .fill(material::surface::program(
                {.baseColor = {0.20f, 0.21f, 0.24f, 1}, .roughness = 0.65f}))});
   return set;
 }

@@ -103,7 +103,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/kit/Meter.h>
 #include <sigilsketch/set/Set.h>
 #include <sigilweave/fonts/FontContext.h>
@@ -318,7 +318,7 @@ constexpr material::Color kBlood{0.659f, 0.094f, 0.125f, 1.0f};
  *  distance, unlit so the room's emitters do not shade it. A wire is its
  *  own light in the reference too — the sphere is drawn, not lit. */
 material::Material wire(float alpha, float glow) {
-  return material::kit::unlit({.baseColor = {kCyan.r, kCyan.g, kCyan.b, alpha},
+  return material::surface::unlit({.baseColor = {kCyan.r, kCyan.g, kCyan.b, alpha},
                                .emissive = {kCyan.r, kCyan.g, kCyan.b, 1.0f},
                                .emissiveStrength = glow});
 }
@@ -656,8 +656,8 @@ struct VagrantStoryTarget {
     const float w = frame.width(), h = frame.height();
     const glm::vec3 at = lens.eye + forward * kAt;
     material::Material surface =
-        material::kit::unlit({.baseColor = {1, 1, 1, 1}});
-    surface.slot(material::kit::kBaseColorSlot, std::move(texture));
+        material::surface::unlit({.baseColor = {1, 1, 1, 1}});
+    surface.slot(material::surface::kBaseColorSlot, std::move(texture));
     return Element()
         .key("overlay")
         .transform(
@@ -679,7 +679,7 @@ struct VagrantStoryTarget {
              .key("floor")
              .rotateX(-90.0f)
              .mesh(gm::quad(1800.0f, 1800.0f))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.112f, 0.104f, 0.116f, 1.0f},
                   .roughness = 0.9f}))
              .tag("ground"),
@@ -690,7 +690,7 @@ struct VagrantStoryTarget {
              .key("wall")
              .at({0.0f, 300.0f, -900.0f})
              .mesh(gm::quad(2400.0f, 1200.0f))
-             .fill(material::kit::surface(
+             .fill(material::surface::program(
                  {.baseColor = {0.088f, 0.086f, 0.104f, 1.0f},
                   .roughness = 0.95f}))
              .tag("ground"),
@@ -706,12 +706,12 @@ struct VagrantStoryTarget {
              {0.34f, -0.42f, 0.84f}, {0.44f, 0.50f, 0.66f, 1.0f}, 0.34f)),
          figure(
              "ashley", kAshleyAt, 72.0f, 1.0f,
-             material::kit::surface({.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},
+             material::surface::program({.baseColor = {0.62f, 0.60f, 0.55f, 1.0f},
                                      .roughness = 0.44f}),
              0.0f, -1),
          figure(
              "dullahan", kEnemyAt, -104.0f, 1.34f,
-             material::kit::surface({.baseColor = {0.22f, 0.24f, 0.30f, 1.0f},
+             material::surface::program({.baseColor = {0.22f, 0.24f, 0.30f, 1.0f},
                                      .roughness = 0.28f}),
              pulse, kSelected),
          reachSphere(seconds), attackLadder()});

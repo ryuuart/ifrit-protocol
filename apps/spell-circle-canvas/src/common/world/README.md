@@ -503,7 +503,7 @@ per vertex, so:
   strength it has there. The full falloff is `light::attenuation`.
 - bodies are sorted back to front by view depth, stably, so two at one
   depth land in tree order.
-- a surface that says light does not reach it — `material::kit::unlit`
+- a surface that says light does not reach it — `material::surface::unlit`
   — is drawn unshaded, here and on the device alike: what it shows is
   its base colour and the mesh's own tint, with no ambient under it and
   no emitter, specular or rim over it. The answer is read off the
@@ -678,7 +678,7 @@ vanishes, and none of them needs a font or a network.
 
 Three things are deliberately asked elsewhere. **That every recipe this
 repository ships compiles** is SigilMaterial's: its Slang suite compiles
-the kit's own surfaces through the same backend and its `MaterialGpu`
+the surface program through the same backend and its `MaterialGpu`
 suite draws every recipe on a device, so a sweep here would be a third
 reading of one fact. **How far the two tiers stand apart** is judged
 over the whole registry, each device plate against the CPU plate of the

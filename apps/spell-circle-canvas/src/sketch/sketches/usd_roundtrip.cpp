@@ -18,7 +18,7 @@
 #include <sigilgeometry/mesh/pop/Points.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilusd/read/Reader.h>
@@ -146,7 +146,7 @@ struct UsdRoundtrip {
     // THE SOURCE, as values. Nothing below reaches into a renderer.
     const gm::Mesh source = gm::torus(kR, kr, kNu, kNv);
     const gm::Cloud motes = gm::points::onMesh(source, kMotes, 7);
-    const material::Material brass = material::kit::surface(
+    const material::Material brass = material::surface::program(
         {.baseColor = kBrass, .metallic = 1, .roughness = 0.28f});
     const world::light::Light sun =
         world::light::sun({-0.5f, -0.7f, -0.5f}, {1.0f, 0.95f, 0.88f, 1}, 1.2f);

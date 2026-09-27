@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilgeometry/kit/Solids.h>
-#include <sigilmaterial/kit/Pbr.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilworld/element/Node.h>
 #include <sigilworld/kit/Kit.h>
 
@@ -155,7 +155,7 @@ TEST(WorldKit, TheSetIsAGroundARigACameraAndTheSubject) {
   // A ground the caller made is the ground.
   kit::Set own;
   own.surface =
-      ::sigil::material::kit::surface({.baseColor = {0.9f, 0.1f, 0.1f, 1.0f}});
+      ::sigil::material::surface::program({.baseColor = {0.9f, 0.1f, 0.1f, 1.0f}});
   const Element painted = kit::litSet(Element().key("body"), own);
   ASSERT_NE(surfaceOf(painted, "ground"), nullptr);
   EXPECT_FLOAT_EQ(surfaceOf(painted, "ground")->get<glm::vec4>("baseColor").r,
