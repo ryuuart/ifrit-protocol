@@ -892,39 +892,6 @@ Wanted by `chladni_tab1`, `black_watch`, `chevreul_circle` and
 `thaumonomicon`.
 Also wanted by `cosmati` (its nine quarries and four inks live in `data/pavement.json` and it links the pen library for one function), `chevreul_circle` and `thaumonomicon` (each parses hex by hand over `std::stoul`, without alpha), beside `black_watch` and `nightingale_coxcomb`.
 
-## A gradient or grained fill compares by its shader's address, so the same fill described again is a new paint and its bake is taken again
-
-`Fill::operator==` (`sigilcompose/core/Paint.h`) compares `shaderValue`,
-an `sk_sp<SkShader>`, by pointer. `linearGradient`, `radialGradient`
-(`core/Paint.h`) each mint a new shader on every call. So a node filled
-with one of them compares unequal to itself on the next describe, even
-with every colour, stop and point the same: it is re-patched, and a
-`Cache::Texture` over it is baked again. `chladni_tab1`'s leaf — a
-1560 x 2020 grained, vignetted, gutter-shaded paper under a
-`Cache::Texture` — was baked again on every describe while the sketch
-described its sand each frame, and its capture took minutes instead of
-seconds until the leaf was built once in `setup()` and held; its fan
-gradients are held for the same reason.
-
-The fills are documented as ordinary values ("Both are ordinary
-`Fill`s"), so they evidently mean to compare as the values they were
-made from: a gradient by its points, colours, stops and tiling, a
-grain by its colour, amount and frequency, the way a
-`geometry::shapes::` generator compares by its fields.
-
-A test should describe a box filled with `radialGradient({50, 50}, 40,
-{a, b}, {0.2f, 1})` under `Cache::Texture`, draw, describe the same box
-with a second identical call, draw again, and assert the second draw
-takes no bake (the stats' cache writes are zero); and the same for
-`linearGradient`; and that changing
-one stop does take a bake.
-
-Wanted by `chladni_tab1` (holds its leaf element, its twelve fan fills
-and the two gradients its wavefronts are inked with as members for this
-reason alone); any sketch that describes again from `update()` over a
-gradient or grained ground meets it.
-Also wanted by `kumiko_asanoha`, which holds its washi material as a member so the fill keeps one identity across describes, and `black_watch`, which holds its board and yarn paints for the same reason.
-
 ## A node filled with a material recipe takes its bake again on every describe, even when the paint is held
 
 `chladni_tab1` fills its stars with `ink`, a `material::skia::Paint`
@@ -1045,22 +1012,6 @@ should assert that `Filter::of` does not accept a colour type — a
 deleted overload taking an integral or enumeration argument, or a radius
 type of its own — so the mistake fails to compile; the sketches still to
 be swept are where it would otherwise recur.
-
-## Two Compose log cases pass alone and fail when the whole binary runs in one process
-
-`ComposeMaterial.AFillRefusesATextUnitOnASurfaceWithNoPaintToPlace`
-(`compose/core/test/ComposeTestMaterial.cpp:940`) and
-`ComposeInkUnits.ARulesUnitLandingOnABoxDrawsAsTheVerbsDoes`
-(`compose/typography/test/ComposeTestInkUnits.cpp:525`) each expect a
-warning in the log their case captures. Under ctest, one process per
-case, both pass; running `compose_test` whole, both fail, because the
-warnings they read are warned once per process and an earlier case in
-the same process already spent them.
-
-The cases are evidently meant to assert the refusal whatever ran before
-them. A test should reset the warn-once state it reads (or read a
-per-composer report), so that `compose_test` run whole and each case run
-alone give the same answer.
 
 ## An escaped Python connection may keep its door open after the session closes
 
