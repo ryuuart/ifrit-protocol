@@ -65,6 +65,7 @@ from _sigil.motion import (
     quantizeTime,
     stagger,
     stepIndex,
+    timingOf,
     withPrevious,
 )
 
@@ -130,5 +131,6 @@ __all__ = [
     "quantizeTime",
     "stagger",
     "stepIndex",
+    "timingOf",
     "withPrevious",
 ]
