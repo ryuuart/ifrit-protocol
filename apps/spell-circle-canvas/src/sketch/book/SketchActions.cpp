@@ -126,15 +126,15 @@ SketchActions::SketchActions(QObject* parent)
     m_taskLine = found.isEmpty()
                      ? QStringLiteral("no answer (exit %1)").arg(code)
                      : found;
-    emit taskChanged();
+    Q_EMIT taskChanged();
   });
   connect(&m_task, &QProcess::stateChanged, this,
-          [this] { emit taskChanged(); });
+          [this] { Q_EMIT taskChanged(); });
 
   connect(&m_task, &QProcess::errorOccurred, this,
           [this](QProcess::ProcessError) {
             m_taskLine = m_task.errorString();
-            emit taskChanged();
+            Q_EMIT taskChanged();
           });
 }
 
@@ -202,12 +202,12 @@ void SketchActions::openRecent(const QVariantMap& recent) {
 
 void SketchActions::clearRecents() {
   m_history.clear();
-  emit recentsChanged();
+  Q_EMIT recentsChanged();
 }
 
 void SketchActions::refreshRecents() {
   m_settings.sync();
-  emit recentsChanged();
+  Q_EMIT recentsChanged();
 }
 
 void SketchActions::noteSelection(const QVariantMap& row) {
@@ -219,14 +219,14 @@ void SketchActions::noteSelection(const QVariantMap& row) {
     return;
   if (!workspaceRoot.empty() && !within(path, workspaceRoot)) return;
   m_history.remember({.root = workspaceRoot, .file = path});
-  emit recentsChanged();
+  Q_EMIT recentsChanged();
 }
 
 void SketchActions::failOpen(const QString& message) {
   m_opening = false;
   m_openStatus.clear();
   m_openError = message;
-  emit openChanged();
+  Q_EMIT openChanged();
 }
 
 void SketchActions::open(sketchbook::WorkspaceLocation location) {
@@ -262,7 +262,7 @@ void SketchActions::open(sketchbook::WorkspaceLocation location) {
   m_openError.clear();
   m_openStatus =
       QStringLiteral("Opening %1…").arg(pathString(target.filename()));
-  emit openChanged();
+  Q_EMIT openChanged();
 
   if (!python) {
     launch(m_pending, {}, {});
@@ -270,7 +270,7 @@ void SketchActions::open(sketchbook::WorkspaceLocation location) {
   }
   m_openStatus = QStringLiteral("Preparing Python environment for %1…")
                      .arg(pathString(target.filename()));
-  emit openChanged();
+  Q_EMIT openChanged();
   m_prepare.setProcessEnvironment(childEnvironment());
   m_prepare.setWorkingDirectory(
       pathString(folder ? target : target.parent_path()));
@@ -301,7 +301,7 @@ void SketchActions::launch(const sketchbook::WorkspaceLocation& location,
     return;
   }
   m_history.remember(location);
-  emit recentsChanged();
+  Q_EMIT recentsChanged();
   if (startsAtWelcome) QCoreApplication::quit();
   m_opening = false;
   m_openStatus =
@@ -311,7 +311,7 @@ void SketchActions::launch(const sketchbook::WorkspaceLocation& location,
                 .arg(pathString(
                     (location.root.empty() ? location.file : location.root)
                         .filename()));
-  emit openChanged();
+  Q_EMIT openChanged();
 }
 
 void SketchActions::closeWorkspace() {
@@ -333,7 +333,7 @@ void SketchActions::browseExamples() {
   m_openError.clear();
   m_openStatus =
       QStringLiteral("Preparing Python dependencies for the examples…");
-  emit openChanged();
+  Q_EMIT openChanged();
   m_prepare.setProcessEnvironment(childEnvironment());
   m_prepare.setWorkingDirectory(QStringLiteral(SIGIL_SKETCH_DIR));
   m_prepare.start(QString::fromUtf8(SIGIL_PYTHON_EXECUTABLE),
@@ -410,7 +410,7 @@ void SketchActions::run(const QString& label, const QStringList& arguments,
   if (m_task.state() != QProcess::NotRunning) return;
   m_taskPrefix = prefix;
   m_taskLine = label + QStringLiteral(" — running…");
-  emit taskChanged();
+  Q_EMIT taskChanged();
   // THE SAME BINARY, on the same file. A run through the app's own
   // headless flags is the one that answers for what the app is showing:
   // a second executable could have been built from other sources.

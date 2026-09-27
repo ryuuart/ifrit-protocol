@@ -57,7 +57,7 @@ SketchbookView::SketchbookView(QQuickItem* parent)
           m_status = status;
           m_errorLog = error;
           m_state = state;
-          emit stateChanged();
+          Q_EMIT stateChanged();
         }
       }
     }
@@ -86,7 +86,7 @@ void SketchbookView::setCanvasScale(qreal scale) {
   if (!std::isfinite(scale) || scale < 0.0) scale = 0.0;
   if (scale == m_canvasScale) return;
   m_canvasScale = scale;
-  emit canvasViewChanged();
+  Q_EMIT canvasViewChanged();
   update();
 }
 
@@ -94,7 +94,7 @@ void SketchbookView::setCanvasOffset(const QPointF& offset) {
   if (!std::isfinite(offset.x()) || !std::isfinite(offset.y())) return;
   if (offset == m_canvasOffset) return;
   m_canvasOffset = offset;
-  emit canvasViewChanged();
+  Q_EMIT canvasViewChanged();
   update();
 }
 
@@ -104,14 +104,14 @@ void SketchbookView::setSketchIndex(int index) {
           (int)(sketch::registry().size() + SketchCatalog::externals.size()))
     return;
   m_sketchIndex = index;
-  emit sketchIndexChanged();
+  Q_EMIT sketchIndexChanged();
   update();
 }
 
 void SketchbookView::setPaused(bool paused) {
   if (paused == m_paused) return;
   m_paused = paused;
-  emit pausedChanged();
+  Q_EMIT pausedChanged();
   update();
 }
 
@@ -120,7 +120,7 @@ void SketchbookView::setTimeScale(double scale) {
   scale = std::clamp(scale, 0.0, 16.0);
   if (scale == m_timeScale) return;
   m_timeScale = scale;
-  emit timeScaleChanged();
+  Q_EMIT timeScaleChanged();
   update();
 }
 
@@ -141,7 +141,7 @@ void SketchbookView::setPublishing(bool publishing) {
   ++m_publicationRequest;
   m_publicationError.clear();
   if (publishing && window()) WindowChrome::keepRendering(window());
-  emit publishingChanged();
+  Q_EMIT publishingChanged();
   update();  // the renderer reads it on the synchronize this asks for
 }
 

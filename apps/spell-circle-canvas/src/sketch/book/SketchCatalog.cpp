@@ -139,7 +139,7 @@ bool SketchCatalog::fillFromDisk(int index) {
   if (row.value(QStringLiteral("plate")).toString() == url) return true;
   row.insert(QStringLiteral("plate"), url);
   m_rows[index] = row;
-  emit thumbnailReady(index, row);
+  Q_EMIT thumbnailReady(index, row);
   return true;
 }
 
@@ -183,7 +183,7 @@ void SketchCatalog::fillThumbnails() {
   m_fillNote.clear();
   m_filling = true;
   m_thumbnails->fill(std::move(wanted));
-  emit fillChanged();
+  Q_EMIT fillChanged();
 }
 
 void SketchCatalog::endFill() {
@@ -193,7 +193,7 @@ void SketchCatalog::endFill() {
   if (m_thumbnails) m_thumbnails->endFill();
   if (!m_filling) return;
   m_filling = false;
-  emit fillChanged();
+  Q_EMIT fillChanged();
 }
 
 void SketchCatalog::requestThumbnail(int index) {
@@ -261,10 +261,10 @@ void SketchCatalog::finished(int index, const QString& name,
   if (note.isEmpty())
     fillFromDisk(index);
   else
-    emit thumbnailNoted(name, note);
+    Q_EMIT thumbnailNoted(name, note);
   if (!m_filling) return;
   m_fillDone = std::max(m_fillDone + 1, m_fillTotal - remaining);
   if (!note.isEmpty()) m_fillNote = name + QStringLiteral(" — ") + note;
   if (remaining <= 0) m_filling = false;
-  emit fillChanged();
+  Q_EMIT fillChanged();
 }

@@ -68,7 +68,7 @@ class SketchActions : public QObject {
   Q_INVOKABLE void video(const QVariantMap& row, const QUrl& output);
   Q_INVOKABLE QUrl videoDefault(const QVariantMap& row) const;
 
- signals:
+ Q_SIGNALS:
   void taskChanged();
   void recentsChanged();
   void openChanged();

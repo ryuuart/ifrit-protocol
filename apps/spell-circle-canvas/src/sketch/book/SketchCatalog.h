@@ -170,7 +170,7 @@ class SketchCatalog : public QObject {
   static sigil::weave::FontContext* thumbnailFonts;
   static sigil::sketch::Assets* thumbnailAssets;
 
- signals:
+ Q_SIGNALS:
   void fillChanged();
   /** A thumbnail landed for @p index: the row, with its plate filled in,
    *  for QML to overlay without remounting every other thumbnail. */

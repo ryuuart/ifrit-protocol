@@ -185,7 +185,7 @@ class SketchbookView : public QQuickRhiItem {
   static bool oneSessionAtATime;
   static QMutex hostMutex;
 
- signals:
+ Q_SIGNALS:
   void sketchIndexChanged();
   void pausedChanged();
   void publishingChanged();

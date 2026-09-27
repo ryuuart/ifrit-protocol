@@ -288,7 +288,7 @@ void SketchbookRenderer::resetPresentation() {
         view,
         [view, orbits] {
           view->m_orbitable = orbits;
-          emit view->sketchIndexChanged();
+          Q_EMIT view->sketchIndexChanged();
         },
         Qt::QueuedConnection);
 }
@@ -388,7 +388,7 @@ void SketchbookRenderer::publishMetrics() {
       view,
       [view, metrics = std::move(metrics)]() mutable {
         view->m_metrics = std::move(metrics);
-        emit view->metricsChanged();
+        Q_EMIT view->metricsChanged();
       },
       Qt::QueuedConnection);
 
@@ -402,7 +402,7 @@ void SketchbookRenderer::publishMetrics() {
         view,
         [view, seen = *orbit] {
           view->m_orbit = seen;
-          emit view->orbitChanged();
+          Q_EMIT view->orbitChanged();
         },
         Qt::QueuedConnection);
 }
@@ -617,7 +617,7 @@ void SketchbookRenderer::reportWrittenThumbnails() {
   if (written.empty() || !m_view) return;
   for (int index : written)
     QMetaObject::invokeMethod(
-        m_view, [view = m_view, index] { emit view->thumbnailCaptured(index); },
+        m_view, [view = m_view, index] { Q_EMIT view->thumbnailCaptured(index); },
         Qt::QueuedConnection);
 }
 
@@ -652,7 +652,7 @@ void SketchbookRenderer::runPendingCaptures() {
     }
     if (m_view)
       QMetaObject::invokeMethod(
-          m_view, [view = m_view, result] { emit view->captureReady(result); },
+          m_view, [view = m_view, result] { Q_EMIT view->captureReady(result); },
           Qt::QueuedConnection);
   }
 }
@@ -742,7 +742,7 @@ void SketchbookRenderer::refusePublishing(QString reason) {
           return;
         view->m_publishing = false;
         view->m_publicationError = reason;
-        emit view->publishingChanged();
+        Q_EMIT view->publishingChanged();
       },
       Qt::QueuedConnection);
 }
