@@ -14,6 +14,7 @@
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilshaders/MaterialMask.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <memory>
 #include <string>

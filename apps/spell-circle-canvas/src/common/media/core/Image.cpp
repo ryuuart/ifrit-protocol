@@ -23,10 +23,10 @@ Image::Image(std::vector<Frame> frames, int repetitions)
   }
   m_duration = at;
   if (!m_frames.empty() && m_frames.front().image)
-    m_size = m_frames.front().image->dimensions();
+    m_size = m_frames.front().image.size();
 }
 
-std::shared_ptr<const Image> Image::of(sk_sp<SkImage> picture) {
+std::shared_ptr<const Image> Image::of(Picture picture) {
   if (!picture) return std::make_shared<const Image>();
   std::vector<Frame> frames(1);
   frames.front().image = std::move(picture);

@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/advanced/Device.h"
 
 struct AVFrame;

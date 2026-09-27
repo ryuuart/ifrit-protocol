@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "DecodeInternal.h"
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::media {
 namespace {

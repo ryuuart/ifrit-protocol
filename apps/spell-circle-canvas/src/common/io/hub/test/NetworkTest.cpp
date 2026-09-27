@@ -11,6 +11,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Resource.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/hub/Hub.h>
@@ -212,7 +213,7 @@ TEST(IONetwork, SeededCacheDecodesImagesWithExtensionHint) {
   setNetworkCacheDirectory(hub, cache.path);
   auto image = hub.load<sigil::media::Image>(url);
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->size().width(), 1);
+  EXPECT_EQ(image->size().x, 1);
   auto info = probe<ResourceInfo>(hub, url);
   ASSERT_TRUE(info.has_value());
   EXPECT_GT(info->byteSize, 0u);

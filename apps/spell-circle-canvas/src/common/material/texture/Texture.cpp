@@ -7,6 +7,7 @@
 
 #include <include/core/SkImage.h>
 #include <include/core/SkRect.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
 
 namespace sigil::material {
@@ -27,24 +28,24 @@ media::Frame Texture::frameAt(std::chrono::duration<double> time,
     frame.device = {};
   }
   if (!frame.image || !m_region) return frame;
-  if (m_cut.image && m_cutFrom.image.get() == frame.image.get()) return m_cut;
+  if (m_cut.image && m_cutFrom.image == frame.image) return m_cut;
   SkIRect rect = SkIRect::MakeXYWH(m_region->x, m_region->y, m_region->width,
                                    m_region->height);
   if (!rect.intersect(
-          SkIRect::MakeWH(frame.image->width(), frame.image->height())))
+          SkIRect::MakeWH(frame.image.size().x, frame.image.size().y)))
     return {};
   m_cutFrom = frame;
   m_cut = frame;
-  m_cut.image = frame.image->makeSubset(nullptr, rect, {});
+  m_cut.image = media::toSk(frame.image)->makeSubset(nullptr, rect, {});
   return m_cut;
 }
 
 glm::ivec2 Texture::size() const {
-  const SkISize whole = m_source.size();
-  if (!m_region) return {whole.width(), whole.height()};
+  const glm::ivec2 whole = m_source.size();
+  if (!m_region) return whole;
   SkIRect rect = SkIRect::MakeXYWH(m_region->x, m_region->y, m_region->width,
                                    m_region->height);
-  if (!rect.intersect(SkIRect::MakeSize(whole))) return {0, 0};
+  if (!rect.intersect(SkIRect::MakeWH(whole.x, whole.y))) return {0, 0};
   return {rect.width(), rect.height()};
 }
 

@@ -23,6 +23,7 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <filesystem>
 #include <fstream>

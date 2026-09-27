@@ -3,6 +3,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>

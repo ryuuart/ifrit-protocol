@@ -4,6 +4,7 @@
  */
 
 #include "sigilmedia/video/Encoder.h"
+#include "sigilmedia/advanced/Skia.h"
 
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkData.h>
@@ -301,13 +302,12 @@ Encoder& Encoder::operator=(Encoder&&) noexcept = default;
 
 Encoder::operator bool() const { return m_impl && m_impl->opened; }
 
-bool Encoder::append(const SkPixmap& pixels) {
+bool Encoder::append(const Picture& held) {
   // An encoder that never opened keeps the reason it did not.
   if (!m_impl->opened) return false;
-  return m_impl->append(pixels);
-}
-
-bool Encoder::append(const SkImage& picture) {
+  const sk_sp<SkImage> image = toSk(held);
+  if (!image) return m_impl->fail("the input image pixels are not readable");
+  const SkImage& picture = *image;
   const SkImageInfo info =
       SkImageInfo::Make(picture.width(), picture.height(), kRGBA_8888_SkColorType,
                         kUnpremul_SkAlphaType, SkColorSpace::MakeSRGB());
@@ -315,18 +315,23 @@ bool Encoder::append(const SkImage& picture) {
   const SkPixmap pixmap(info, pixels.data(), info.minRowBytes());
   if (!picture.readPixels(nullptr, pixmap, 0, 0))
     return m_impl->fail("the input image pixels are not readable");
-  return append(pixmap);
+  return m_impl->append(pixmap);
 }
 
 bool Encoder::append(const Frame& frame) {
   const sk_sp<SkImage> picture = deviceImage(frame, nullptr);
   if (!picture) return m_impl->fail("the frame holds no picture");
-  return append(*picture);
+  return append(fromSk(picture));
 }
 
 bool Encoder::append(const Image& image) {
   if (image.frames().empty()) return m_impl->fail("the image holds no frame");
   return append(image.frames().front());
+}
+
+bool append(Encoder& encoder, const SkPixmap& pixels) {
+  // Wrapped where the pixels stand, which outlive the call.
+  return encoder.append(fromSk(SkImages::RasterFromPixmap(pixels, nullptr, nullptr)));
 }
 
 std::vector<std::byte> Encoder::finish() {

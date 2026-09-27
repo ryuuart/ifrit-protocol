@@ -18,6 +18,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <cmath>
 #include <utility>

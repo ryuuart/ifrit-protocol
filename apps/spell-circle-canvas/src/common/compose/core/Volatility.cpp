@@ -4,6 +4,7 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 
 #include <chrono>

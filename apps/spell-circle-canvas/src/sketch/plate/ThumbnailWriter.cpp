@@ -4,6 +4,7 @@
  */
 
 #include <include/core/SkData.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilsketch/plate/ThumbnailWriter.h>

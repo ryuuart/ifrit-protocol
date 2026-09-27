@@ -4,6 +4,7 @@
  */
 
 #include "sigilmedia/image/Decode.h"
+#include "sigilmedia/advanced/Skia.h"
 
 #include <utility>
 #include <vector>

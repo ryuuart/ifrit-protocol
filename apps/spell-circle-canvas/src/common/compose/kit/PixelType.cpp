@@ -17,6 +17,7 @@
 #include <sigilcompose/core/Measure.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::compose::kit {
 

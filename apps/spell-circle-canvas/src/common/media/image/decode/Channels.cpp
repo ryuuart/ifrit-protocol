@@ -5,6 +5,7 @@
  */
 
 #include "sigilmedia/image/Channels.h"
+#include "sigilmedia/advanced/Skia.h"
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>

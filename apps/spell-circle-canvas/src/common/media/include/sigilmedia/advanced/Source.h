@@ -9,7 +9,7 @@
  * one does.
  */
 
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 
 #include <chrono>
 #include <concepts>
@@ -44,7 +44,7 @@ concept RevisedPixelSource = requires(const Source& source) {
  *  source without it answers the size of the frame at time zero. */
 template <class Source>
 concept SizedPixelSource = requires(const Source& source) {
-  { source.size() } -> std::convertible_to<SkISize>;
+  { source.size() } -> std::convertible_to<glm::ivec2>;
 };
 
 /** A DOCUMENT read on a clock: an `Image` or a `Video`, anything whose
@@ -56,7 +56,7 @@ concept TimedDocument = requires(const Document& document,
                                  const Timing& timing) {
   { document.frameAt(elapsed, timing) } -> std::convertible_to<Frame>;
   { document.isRunning() } -> std::convertible_to<bool>;
-  { document.size() } -> std::convertible_to<SkISize>;
+  { document.size() } -> std::convertible_to<glm::ivec2>;
 };
 
 }  // namespace sigil::media

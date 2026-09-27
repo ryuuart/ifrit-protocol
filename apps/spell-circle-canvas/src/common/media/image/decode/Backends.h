@@ -15,6 +15,7 @@
 #include <optional>
 #include <string_view>
 
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/core/Image.h"
 #include "sigilmedia/core/Metadata.h"
 #include "sigilmedia/image/Channels.h"

@@ -9,6 +9,7 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <sigildraw/Pen.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <cmath>
 #include <memory>

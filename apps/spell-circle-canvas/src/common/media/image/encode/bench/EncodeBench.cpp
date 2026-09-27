@@ -11,6 +11,7 @@
 
 #include <cstdint>
 
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/image/Encode.h"
 
 namespace {
@@ -60,7 +61,7 @@ void BM_EncodePngFromImage(benchmark::State& state) {
   const int side = (int)state.range(0);
   const sk_sp<SkImage> image = fixture(side).asImage();
   for (auto _ : state) {
-    std::vector<std::byte> bytes = encode(*image, Format::Png);
+    std::vector<std::byte> bytes = encode(image, Format::Png);
     benchmark::DoNotOptimize(bytes);
   }
   state.SetItemsProcessed(state.iterations() * (int64_t)side * side);

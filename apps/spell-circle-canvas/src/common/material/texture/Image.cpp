@@ -40,8 +40,7 @@ Material image(media::PixelSource pixels, ImageOptions options) {
 
 Environment environment(media::PixelSource pixels, EnvironmentOptions options) {
   if (options.size.x <= 0 || options.size.y <= 0) {
-    const SkISize own = pixels.size();
-    options.size = {(float)own.width(), (float)own.height()};
+    options.size = glm::vec2(pixels.size());
   }
   return environment(image(std::move(pixels), {.repeat = Repeat::Repeat,
                                                .repeatY = Repeat::Pad}),

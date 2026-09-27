@@ -16,9 +16,7 @@
 
 #include "sigilmedia/core/Format.h"
 #include "sigilmedia/core/Image.h"
-
-class SkImage;
-class SkPixmap;
+#include "sigilmedia/core/Picture.h"
 
 namespace sigil::media {
 
@@ -44,19 +42,12 @@ struct EncodeOptions {
  *  movie is `media::Encoder`'s.
  *  @trap A frame standing on a device is read back through
  *  `deviceImage()` first; a caller wanting another depth reads back
- *  itself and uses the pixmap door. */
+ *  itself and uses the pixmap door in `advanced/Skia.h`. */
 std::vector<std::byte> encode(const Image& image, Format format,
                               const EncodeOptions& options = {});
 
 /** The same for a picture in hand. */
-std::vector<std::byte> encode(const SkImage& picture, Format format,
-                              const EncodeOptions& options = {});
-
-/** THE PIXELS EXACTLY AS GIVEN: the colour type is the caller's choice
- *  and is carried through where the format can hold it, so F16 pixels
- *  reach a PNG encoder as sixteen bits per channel. A raster door for a
- *  caller that chose a depth or holds rows it did not decode. */
-std::vector<std::byte> encode(const SkPixmap& pixels, Format format,
+std::vector<std::byte> encode(const Picture& picture, Format format,
                               const EncodeOptions& options = {});
 
 /** EVERY CHANNEL UNDER ITS OWN NAME: what the decode side hands back,

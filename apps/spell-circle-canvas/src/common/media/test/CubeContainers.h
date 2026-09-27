@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::media::test {
 

@@ -4,39 +4,24 @@
  * @ingroup media-core
  * A FRAME THAT STANDS ON A DEVICE: the platform surface a hardware decode
  * produced, or a texture another renderer painted, carried unexamined to
- * whoever can bind it where it stands — and `deviceImage()`, the one call
- * that turns such a frame into an image a canvas draws. Hosts, executors
- * and the drawing libraries reach for this; a sketch draws a `Frame`
- * through a leaf or a pen, which call it.
+ * whoever can bind it where it stands. The binding that turns such a
+ * frame into an image a canvas draws, and `deviceImage()`, the one call
+ * that does it, speak the renderer and stand in `advanced/Skia.h`. Hosts,
+ * executors and the drawing libraries reach for this; a sketch draws a
+ * `Frame` through a leaf or a pen, which call it.
  */
-
-#include <include/core/SkImage.h>
-#include <include/core/SkRefCnt.h>
 
 #include <cstdint>
 #include <memory>
-
-namespace skgpu::graphite {
-class Recorder;
-}  // namespace skgpu::graphite
 
 namespace sigil::media {
 
 struct Frame;
 
-/** HOW A FRAME STANDING ON A DEVICE BECOMES AN IMAGE: made by the source
- *  that produced the frame, which alone knows what its surface is.
- *  `image(recorder)` wraps the surface for @p recorder where it stands,
- *  and with no recorder reads it back into host memory. An
- *  implementation keeps what it made, so a frame drawn in several places
- *  is bound once per recorder. */
-class DeviceBinding {
- public:
-  virtual ~DeviceBinding() = default;
-  /** The frame as an image @p recorder draws, or read back to the CPU
-   *  when @p recorder is null; null when neither can be made. */
-  virtual sk_sp<SkImage> image(skgpu::graphite::Recorder* recorder) = 0;
-};
+/** How a frame standing on a device becomes an image: made by the source
+ *  that produced the frame, and declared with the renderer it answers in,
+ *  in `advanced/Skia.h`. */
+class DeviceBinding;
 
 /** WHERE A FRAME'S PIXELS STAND WHEN THEY STAND ON A DEVICE. Nothing in
  *  this library reads the surface itself: it is carried to a renderer on
@@ -86,13 +71,5 @@ struct HardwareUse {
    *  fact, where `configured` is the intent. */
   bool decoding = false;
 };
-
-/** THE FRAME AS AN IMAGE @p recorder DRAWS: its raster image when it has
- *  one, its device surface bound for @p recorder when it has that, and
- *  that surface read back to host memory when @p recorder is null. Null
- *  for an empty frame. What a leaf, a pen and a texture call; a sketch
- *  draws a frame through one of them. */
-sk_sp<SkImage> deviceImage(const Frame& frame,
-                           skgpu::graphite::Recorder* recorder);
 
 }  // namespace sigil::media

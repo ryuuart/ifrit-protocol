@@ -5,6 +5,7 @@
 // whole, and narrowed to the run a span has revealed so far.
 
 #include <sigilmedia/core/Image.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilskia/draw/Direct.h>
 
 #include <memory>

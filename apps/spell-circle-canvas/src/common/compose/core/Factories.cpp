@@ -11,6 +11,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <sigilcore/reconcile/Environment.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 
 #include <any>
@@ -109,7 +110,7 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
 }
 
 Image image(sigil::media::PixelSource source, material::Fit fit) {
-  const SkISize size = source.size();
+  const glm::ivec2 size = source.size();
   Image leaf{std::make_shared<detail::ElementNode>()};
   leaf.node()->kind = Kind::Image;
   leaf.node()->imageData.ensure().source = std::move(source);
@@ -119,8 +120,8 @@ Image image(sigil::media::PixelSource source, material::Fit fit) {
   // in, and where its proportions are kept the node itself is the right
   // shape — so what is painted is the whole of the node and a caller
   // computes nothing.
-  const float width = (float)size.width();
-  const float height = (float)size.height();
+  const float width = (float)size.x;
+  const float height = (float)size.y;
   if (fit == material::Fit::Stretch || width <= 0.0f || height <= 0.0f)
     return leaf.width(pct(100)).height(pct(100));
   leaf.aspectRatio(width / height);

@@ -3,6 +3,7 @@
 // blitted cells lands.
 
 #include <sigilcompose/kit/PixelType.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include "support/KitType.h"
 #include "support/ShapeTestSupport.h"
@@ -100,7 +101,7 @@ TEST(KitPixelType, TheMaskIsOneBit) {
   SkBitmap read;
   read.allocPixels(SkImageInfo::MakeA8(m.w, m.h));
   ASSERT_FALSE(m.image->frames().empty());
-  ASSERT_TRUE(m.image->frames().front().image->readPixels(read.pixmap(), 0, 0));
+  ASSERT_TRUE(sigil::media::toSk(m.image->frames().front().image)->readPixels(read.pixmap(), 0, 0));
   for (int y = 0; y < m.h; ++y)
     for (int x = 0; x < m.w; ++x) {
       const uint8_t v = *read.getAddr8(x, y);

@@ -12,6 +12,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkData.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilsketch/plate/Compare.h>
 #include <sigilsketch/plate/Sweep.h>

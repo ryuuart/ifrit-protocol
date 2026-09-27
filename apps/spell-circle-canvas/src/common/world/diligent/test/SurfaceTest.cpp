@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "DeviceSeams.h"
+#include <sigilmedia/advanced/Skia.h>
 
 using namespace sigil;
 using namespace sigil::world;

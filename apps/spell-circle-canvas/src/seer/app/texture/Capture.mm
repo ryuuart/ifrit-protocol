@@ -6,6 +6,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPixmap.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 

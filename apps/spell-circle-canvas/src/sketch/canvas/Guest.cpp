@@ -7,6 +7,7 @@
 #include <include/core/SkCanvas.h>
 #include <sigilio/frames/Subscription.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
 #include <sigilsketch/canvas/Guest.h>
 #include <sigilsketch/canvas/Sketch.h>

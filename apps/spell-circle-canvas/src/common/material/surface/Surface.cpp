@@ -12,6 +12,7 @@
 #include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/MaterialSurface.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <string>
 #include <string_view>

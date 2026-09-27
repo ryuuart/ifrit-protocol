@@ -73,13 +73,14 @@ pouring a channel group back into a picture.
 ## Encoding
 
 ```cpp
+#include <sigilmedia/advanced/Skia.h>   // the pixmap door alone
 #include <sigilmedia/image/Encode.h>
 
 // A document's first frame, or a picture in hand, read back at the depth
 // the format holds.
 std::vector<std::byte> png = sigil::media::encode(*poster, sigil::media::Format::Png);
 std::vector<std::byte> jpeg =
-    sigil::media::encode(*picture, sigil::media::Format::Jpeg, {.quality = 90});
+    sigil::media::encode(frame.image, sigil::media::Format::Jpeg, {.quality = 90});
 
 // Pixels the caller already holds, encoded exactly as they are.
 std::vector<std::byte> deep = sigil::media::encode(bitmap.pixmap(), sigil::media::Format::Png);
@@ -95,7 +96,8 @@ float pixels reach EXR as float. The picture and document doors read
 back to the CPU first, at the depth the format can hold: premultiplied
 N32 for the LDR formats, RGBA float for EXR. A caller who wants a depth
 the format allows but the readback would not choose reads back itself
-and uses the pixmap door.
+and uses the pixmap door, which speaks Skia and so is declared in
+`advanced/Skia.h`.
 
 The channel-plane door writes every channel under the name it carries,
 so a group like `diffuse.R`/`diffuse.G`/`diffuse.B` comes back through

@@ -12,6 +12,7 @@
  */
 
 #include <sigilio/hub/Hub.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/CanvasSpecification.h>

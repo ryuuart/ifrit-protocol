@@ -8,6 +8,7 @@
 #include <sigilskia/graphite/GraphiteContext.h>
 
 #include "support/Host.h"
+#include <sigilmedia/advanced/Skia.h>
 
 namespace {
 

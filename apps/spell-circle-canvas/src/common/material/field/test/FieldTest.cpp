@@ -15,6 +15,7 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialField.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <vector>

@@ -9,6 +9,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Channels.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/image/Encode.h>
@@ -124,7 +125,7 @@ TEST_F(IOHub, ImagesLoadOnlyOnceSigilMediaRegistersItsDecoders) {
   EXPECT_NE(bare.read("res://logo.png"), nullptr);
   auto image = hub.load<sigil::media::Image>("res://logo.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->size().width(), 3);
+  EXPECT_EQ(image->size().x, 3);
   // Options at their defaults are the plain ask, and share its view.
   EXPECT_EQ(hub.load<sigil::media::Image>("res://logo.png", {}), image);
 }
@@ -167,7 +168,7 @@ TEST_F(IOHub, FetchThenImageThenChannelsAllAnswer) {
   ASSERT_NE(hub.read("res://logo.png"), nullptr);
   auto image = hub.load<sigil::media::Image>("res://logo.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->size().width(), 1);
+  EXPECT_EQ(image->size().x, 1);
   ASSERT_NE(hub.load<sigil::media::Channels>("res://logo.png"), nullptr);
   // The earlier views are still served, not evicted by the later asks.
   EXPECT_NE(hub.read("res://logo.png"), nullptr);
@@ -195,7 +196,7 @@ TEST_F(IOHub, ImageDecodesOnDemandFromCachedBytes) {
   fs::remove(dir.path / "logo.png");
   auto image = hub.load<sigil::media::Image>("res://logo.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->size().width(), 1);
+  EXPECT_EQ(image->size().x, 1);
 }
 
 // A '#' in a filename is URI content, not cache-key syntax. The decoy
@@ -206,18 +207,18 @@ TEST_F(IOHub, PollReloadsFilesWhoseNamesContainHash) {
   writePng(dir.path / "tile#3.png", 1, SK_ColorRED);  // the resource
   auto image = hub.load<sigil::media::Image>("res://tile#3.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->size().width(), 1);
+  EXPECT_EQ(image->size().x, 1);
   // Nothing changed: no spurious erase, no reload against the decoy.
   EXPECT_FALSE(poll(hub));
   ASSERT_NE(hub.load<sigil::media::Image>("res://tile#3.png"), nullptr);
-  EXPECT_EQ(hub.load<sigil::media::Image>("res://tile#3.png")->size().width(), 1);
+  EXPECT_EQ(hub.load<sigil::media::Image>("res://tile#3.png")->size().x, 1);
   // Touch the real file: poll() reloads that same file.
   writePng(dir.path / "tile#3.png", 2, SK_ColorBLUE);
   touchForward(dir.path / "tile#3.png");
   EXPECT_TRUE(poll(hub));
   auto reloaded = hub.load<sigil::media::Image>("res://tile#3.png");
   ASSERT_NE(reloaded, nullptr);
-  EXPECT_EQ(reloaded->size().width(), 2);
+  EXPECT_EQ(reloaded->size().x, 2);
 }
 
 /** A decoder that asks the same hub for a second resource while it
@@ -336,7 +337,7 @@ TEST_F(IOHub, WrittenImageBytesDecodeBackThroughTheHub) {
   ASSERT_TRUE(hub.write("res://made/tile.png", encoded));
   auto image = hub.load<sigil::media::Image>("res://made/tile.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->size().width(), 7);
+  EXPECT_EQ(image->size().x, 7);
 }
 
 TEST_F(IOHub, ASavedImageIsEncodedByItsNameAndDecodesBack) {
@@ -349,7 +350,7 @@ TEST_F(IOHub, ASavedImageIsEncodedByItsNameAndDecodesBack) {
   ASSERT_TRUE(hub.save("res://made/saved.png", picture));
   auto image = hub.load<sigil::media::Image>("res://made/saved.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->size(), SkISize::Make(5, 3));
+  EXPECT_EQ(image->size(), glm::ivec2(5, 3));
   // A name that names nothing the library writes is refused, and so is
   // nothing at all.
   EXPECT_FALSE(hub.save("res://made/saved.txt", picture));

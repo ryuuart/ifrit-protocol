@@ -7,6 +7,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
 #include <pybind11/stl.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/difference/Difference.h>
@@ -104,7 +105,7 @@ void bindMediaImages(py::module_& module) {
           py::arg("picture"))
       .def("size",
            [](const media::Image& image) {
-             return py::make_tuple(image.size().width(), image.size().height());
+             return py::make_tuple(image.size().x, image.size().y);
            })
       .def("duration", &media::Image::duration)
       .def("repetitions", &media::Image::repetitions)

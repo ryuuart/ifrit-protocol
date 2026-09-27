@@ -39,13 +39,13 @@ sigil::media::registerDecoders(hub);                        // once, where the h
 // OPEN — through the hub; this library gives the meaning
 auto poster = hub.load<sigil::media::Image>("res://poster.png");   // still or animated, decoded once, cached
 auto clip   = hub.load<sigil::media::Video>("res://title.mp4");    // opened, not decoded
-auto baked  = sigil::media::Image::of(surface->makeImageSnapshot());  // a picture already rendered
+auto baked  = sigil::media::Image::of(frame.image);         // a picture already in hand
 
 // READ — a still is a one-frame document, so one call reads any of them
 sigil::media::Frame frame = poster->frameAt(elapsed);       // loops as the file says
 sigil::media::Frame moving = clip->frameAt(elapsed);        // a video loops forever
-frame.image;                                                // what every drawer takes
-poster->size();  clip->duration();  poster->isRunning();
+frame.image;                                                // a media::Picture: what every drawer takes
+poster->size();  clip->duration();  poster->isRunning();     // sizes are glm::ivec2
 
 // SHOW — every other library takes a PixelSource: a picture, an Image, a
 // Video, frames another application publishes, a rendered scene
@@ -118,13 +118,15 @@ if (shown->hasFrame()) draw(shown->frameAt(elapsed));
 
 | names | for | header |
 |---|---|---|
-| `sigil::media::DeviceFrame`, `sigil::media::deviceImage`, `sigil::media::HardwareUse` | a frame that stands on a device, and binding it for the recorder that draws it — what a leaf, a pen and a texture call | `advanced/Device.h` |
+| `sigil::media::DeviceFrame`, `sigil::media::HardwareUse` | a frame that stands on a device | `advanced/Device.h` |
+| `sigil::media::toSk`, `sigil::media::fromSk`, `sigil::media::DeviceBinding`, `sigil::media::deviceImage` | a picture as Skia's image and back, and a device frame bound for the recorder that draws it — what a leaf, a pen and a texture call | `advanced/Skia.h` |
 | `sigil::media::PixelSourceType`, `sigil::media::RevisedPixelSource`, `sigil::media::SizedPixelSource`, `sigil::media::TimedDocument` | writing a new pixel source | `advanced/Source.h` |
 | `sigil::media::formatForPath`, `sigil::media::extensionFor` | the filename question | `advanced/Formats.h` |
 | `sigil::media::registerDecoders`, `sigil::media::probeResource` | this library on a resource hub | `advanced/Resource.h` |
 | `sigil::media::embeddedImages` | the last-resort signature scan | `advanced/Embedded.h` |
 | `sigil::media::Video::decodeAt`, `sigil::media::Video::hardware` | the worker half of the pool; which way the device was taken | `video/Video.h` |
-| the pixmap and channel-plane doors of `encode`, `difference` and `coverageMask`; `sigil::media::canEncode` | a caller that chose a depth or holds rows it did not decode | their feature headers |
+| the pixmap doors of `encode`, `difference`, `coverageMask` and `append` | a caller that chose a depth or holds rows it did not decode | `advanced/Skia.h` |
+| the channel-plane door of `encode`; `sigil::media::canEncode` | writing named planes; whether a format can be written | `image/Encode.h` |
 
 The backends — Skia's codecs, the KTX reader, SVG, OpenImageIO in and
 out, FFmpeg's demux, decode and mux, the VideoToolbox executor — have no
@@ -135,7 +137,7 @@ feature.
 
 | target | directory | holds |
 |---|---|---|
-| `SigilMediaCore` | `core/` | `Frame`, `Timing`, `Loop`, `HardwarePreference`, `Image`, `ImageOptions`, `Metadata`, `Format`, `PixelSource`, the `decode<T>` door, the device frame and `deviceImage`, the filename question; Skia only |
+| `SigilMediaCore` | `core/` | `Frame`, `Timing`, `Loop`, `HardwarePreference`, `Image`, `ImageOptions`, `Metadata`, `Format`, `Picture`, `PixelSource`, the `decode<T>` door, the device frame and `deviceImage`, the filename question; Skia only |
 | `SigilMediaImageDecode` | `image/decode/` | the image route and `Channels`, over the Skia codecs, KTX, and OpenImageIO and SVG where they are built in; the embedded scan |
 | `SigilMediaImageEncode` | `image/encode/` | `encode`, `EncodeOptions`, `canEncode`, `encodeResource` |
 | `SigilMediaVideoDecode` | `video/decode/` | `Video`, `VideoOptions`, `Playback`, over FFmpeg with the device executor beside the CPU one |
@@ -155,9 +157,11 @@ only draws pictures somebody else decoded links the core alone.
 - `core/Metadata.h` — `Metadata`
 - `core/Format.h` — `Format`
 - `core/Decode.h` — `decode`, `ConfiguredDocument`, `DocumentOptions`
+- `core/Picture.h` — `Picture`, `PictureAdapter`, `AdaptsToPicture`
 - `core/PixelSource.h` — `PixelSource`, `Produced`
 - `advanced/Source.h` — `PixelSourceType`, `RevisedPixelSource`, `SizedPixelSource`, `TimedDocument`
-- `advanced/Device.h` — `DeviceFrame`, `DeviceBinding`, `HardwareUse`, `deviceImage`
+- `advanced/Device.h` — `DeviceFrame`, `HardwareUse`
+- `advanced/Skia.h` — `PictureAdapter`, `toSk`, `fromSk`, `DeviceBinding`, `deviceImage`, `encode`, `difference`, `coverageMask`, `append`
 - `advanced/Formats.h` — `formatForPath`, `extensionFor`
 - `advanced/Resource.h` — `registerDecoders`, `probe`, `probeResource`
 - `advanced/Embedded.h` — `EmbeddedImage`, `EmbeddedScan`, `embeddedImages`
@@ -168,6 +172,33 @@ only draws pictures somebody else decoded links the core alone.
 - `video/Encoder.h` — `Encoder`
 - `field/DistanceField.h` — `Mask`, `DistanceField`, `FieldOptions`, `coverageMask`, `distanceField`
 - `difference/Difference.h` — `PixelDifference`, `difference`
+
+## Where Skia still shows
+
+Every header a caller reaches for speaks this library's own values: a
+picture is a `sigil::media::Picture`, a size a `glm::ivec2`, a picture
+that moves a `sigil::media::Frame` or a `sigil::media::PixelSource`.
+Skia's image stands behind a `Picture` unnamed, so no default include of
+this library reaches Skia.
+
+`advanced/Skia.h` is the one door, included by name, and nothing else
+spells Skia:
+
+- **The crossing.** `toSk` and `fromSk` turn a `Picture` into Skia's
+  image and back, and a pixel size into Skia's. With the header
+  included, Skia's image also stands wherever a `Picture` or a
+  `PixelSource` is taken, and a `Picture` assigns to Skia's image.
+- **The device binding.** `DeviceBinding` and `deviceImage` answer in
+  the image a Graphite recorder draws, which is what a leaf, a pen and a
+  texture call.
+- **The raster doors.** `encode`, `difference`, `coverageMask` and
+  `append` over a pixmap take pixels exactly as stored, for a caller that
+  chose a depth or holds rows it did not decode. Each is defined by the
+  feature that owns its question.
+
+That list is the boundary, not a queue: the backends behind it are
+Skia's codecs and encoders, and a drawing library hands its canvas a
+picture through this door.
 
 ## The pixel difference
 

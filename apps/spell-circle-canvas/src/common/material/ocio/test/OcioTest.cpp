@@ -19,6 +19,7 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <cmath>
 #include <cstdlib>

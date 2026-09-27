@@ -18,6 +18,7 @@
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <memory>
 

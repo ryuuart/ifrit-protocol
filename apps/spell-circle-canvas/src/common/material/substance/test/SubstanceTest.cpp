@@ -24,6 +24,7 @@
 #include <sigilmaterial/substance/advanced/Archive.h>
 #include <sigilmaterial/substance/advanced/Cook.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 
@@ -156,7 +157,7 @@ TEST(Substance, AGpuCookReachesATextureWithNoCopyBack) {
   ASSERT_EQ(media::DeviceFrame::Kind::Texture, frame.device.kind);
   EXPECT_EQ(64, frame.device.width);
   EXPECT_EQ(64, frame.device.height);
-  EXPECT_EQ(SkISize::Make(64, 64), normal.size());
+  EXPECT_EQ(glm::ivec2(64, 64), normal.size());
 
   // The texture a surface slot holds names the device texture itself,
   // and sampled through a recorder it is that texture, wrapped.

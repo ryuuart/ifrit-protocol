@@ -14,9 +14,7 @@
 
 #include "sigilmedia/core/Format.h"
 #include "sigilmedia/core/Frame.h"
-
-class SkImage;
-class SkPixmap;
+#include "sigilmedia/core/Picture.h"
 
 namespace sigil::media {
 
@@ -67,9 +65,7 @@ class Encoder {
   /** The same for an image's first frame. */
   bool append(const Image& image);
   /** The same for a picture in hand. */
-  bool append(const SkImage& picture);
-  /** The same for pixels in hand. */
-  bool append(const SkPixmap& pixels);
+  bool append(const Picture& picture);
 
   /** Flushes the codec and muxer and answers the container's bytes.
    *  Empty when nothing was appended, because a movie is at least one

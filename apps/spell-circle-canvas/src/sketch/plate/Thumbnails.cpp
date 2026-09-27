@@ -7,6 +7,7 @@
 #include <include/core/SkData.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/color/Color.h>

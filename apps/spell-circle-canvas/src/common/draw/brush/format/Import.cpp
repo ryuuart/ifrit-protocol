@@ -6,6 +6,7 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 
 #include <cstdint>

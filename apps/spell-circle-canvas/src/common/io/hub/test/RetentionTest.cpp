@@ -197,7 +197,7 @@ TEST_F(IOHub, ConcurrentLoadsRunBesideLeasesAndDiscards) {
         }
         auto tile = hub.load<sigil::media::Image>("res://kept/tile.png");
         ASSERT_NE(tile, nullptr);
-        EXPECT_EQ(tile->size().width(), 3);
+        EXPECT_EQ(tile->size().x, 3);
       }
     });
   std::thread churn([&] {
@@ -224,7 +224,7 @@ TEST_F(IOHub, ConcurrentLoadsRunBesideLeasesAndDiscards) {
     EXPECT_EQ(hub.text(kept[i]), "kept " + std::to_string(i));
   auto tile = hub.load<sigil::media::Image>("res://kept/tile.png");
   ASSERT_NE(tile, nullptr);
-  EXPECT_EQ(tile->size().width(), 3);
+  EXPECT_EQ(tile->size().x, 3);
 }
 
 TEST(IOResourceLease, MayBeDestroyedAfterItsHub) {

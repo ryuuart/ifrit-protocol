@@ -15,6 +15,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmedia/advanced/Skia.h>
 
 using namespace sigil::material;
 

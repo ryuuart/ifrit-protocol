@@ -13,6 +13,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkImageFilters.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>

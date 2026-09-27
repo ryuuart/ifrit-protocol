@@ -9,6 +9,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/difference/Difference.h>
 
 using namespace sigil::media;

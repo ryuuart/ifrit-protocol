@@ -14,6 +14,7 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilmedia/video/Video.h>
 
@@ -35,9 +36,9 @@ TEST(VideoDevice, VideoToolboxFrameWrapsAsGraphiteYuvaImage) {
   SkBitmap pixels;
   pixels.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   pixels.eraseColor(SK_ColorMAGENTA);
-  ASSERT_TRUE(encoder.append(pixels.pixmap()));
+  ASSERT_TRUE(append(encoder, pixels.pixmap()));
   pixels.eraseColor(SK_ColorCYAN);
-  ASSERT_TRUE(encoder.append(pixels.pixmap()));
+  ASSERT_TRUE(append(encoder, pixels.pixmap()));
   const std::vector<std::byte> encoded = encoder.finish();
   ASSERT_FALSE(encoded.empty()) << encoder.error();
 

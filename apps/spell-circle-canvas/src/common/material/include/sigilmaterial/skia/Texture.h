@@ -16,6 +16,7 @@
 #include <include/core/SkShader.h>
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <chrono>
 

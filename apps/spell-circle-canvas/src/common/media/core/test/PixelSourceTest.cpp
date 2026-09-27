@@ -9,6 +9,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/core/PixelSource.h>
 
@@ -67,7 +68,7 @@ TEST(MediaPixelSource, APictureIsTheSameAtEveryTime) {
   EXPECT_EQ(source.frameAt(0s).image, picture);
   EXPECT_EQ(source.frameAt(9s).image, picture);
   EXPECT_FALSE(source.isRunning());
-  EXPECT_EQ(source.size(), SkISize::Make(4, 4));
+  EXPECT_EQ(source.size(), glm::ivec2(4, 4));
   EXPECT_EQ(source, PixelSource(picture));
   EXPECT_FALSE(source == PixelSource(solid(SK_ColorBLUE)));
   EXPECT_FALSE(PixelSource());
@@ -78,7 +79,7 @@ TEST(MediaPixelSource, ADocumentIsReadUnderItsTiming) {
   const auto document = redThenGreen();
   const PixelSource source(document);
   EXPECT_TRUE(source.isRunning());
-  EXPECT_EQ(source.size(), SkISize::Make(4, 4));
+  EXPECT_EQ(source.size(), glm::ivec2(4, 4));
   EXPECT_EQ(source.frameAt(50ms).image, document->frames()[0].image);
   EXPECT_EQ(source.frameAt(150ms).image, document->frames()[1].image);
   const PixelSource late(document, {.start = 100ms});
@@ -111,7 +112,7 @@ TEST(MediaPixelSource, ASourceWrittenElsewhereCarriesItsRevision) {
   const PixelSource second(Counting{picture, 2});
   EXPECT_EQ(first.revision(), 1u);
   EXPECT_TRUE(first.isRunning());
-  EXPECT_EQ(first.size(), SkISize::Make(4, 4));
+  EXPECT_EQ(first.size(), glm::ivec2(4, 4));
   EXPECT_FALSE(first == second);
   EXPECT_EQ(first, PixelSource(Counting{picture, 1}));
   EXPECT_EQ(PixelSource(picture).revision(), 0u);

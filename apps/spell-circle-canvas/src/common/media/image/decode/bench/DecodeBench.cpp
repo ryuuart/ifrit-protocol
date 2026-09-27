@@ -12,6 +12,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkData.h>
 #include <include/core/SkStream.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/image/Encode.h>
 
@@ -103,7 +104,7 @@ void BM_DecodeImage_Fixture(benchmark::State& state) {
     state.SkipWithError("fixture did not decode");
     return;
   }
-  countPixels(state, asset->size().width(), asset->size().height(),
+  countPixels(state, asset->size().x, asset->size().y,
               bytes.size());
 }
 BENCHMARK(BM_DecodeImage_Fixture)

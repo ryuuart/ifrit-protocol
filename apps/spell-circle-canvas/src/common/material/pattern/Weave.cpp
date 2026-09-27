@@ -10,6 +10,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilmaterial/skia/Painted.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <numeric>

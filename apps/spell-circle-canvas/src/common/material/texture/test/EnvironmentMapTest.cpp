@@ -11,6 +11,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkSurface.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/skia/Bevel.h>

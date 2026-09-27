@@ -32,6 +32,7 @@
 #include <sigilshaders/WorldDiligent.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <chrono>

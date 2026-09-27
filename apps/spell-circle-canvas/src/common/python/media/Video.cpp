@@ -5,6 +5,7 @@
 
 #include <include/core/SkImage.h>
 #include <pybind11/stl.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilmedia/video/Video.h>
 #include <sigilpython/Bindings.h>
@@ -34,7 +35,7 @@ void bindMediaVideo(py::module_& module) {
   py::class_<media::Video, std::shared_ptr<media::Video>>(media, "Video")
       .def("size",
            [](const media::Video& video) {
-             return py::make_tuple(video.size().width(), video.size().height());
+             return py::make_tuple(video.size().x, video.size().y);
            })
       .def("duration", &media::Video::duration)
       .def("isRunning", &media::Video::isRunning)

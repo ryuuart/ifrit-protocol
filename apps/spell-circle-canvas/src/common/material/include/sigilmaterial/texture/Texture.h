@@ -27,6 +27,10 @@
 #include <optional>
 #include <utility>
 
+namespace skgpu::graphite {
+class Recorder;
+}  // namespace skgpu::graphite
+
 namespace sigil::material {
 
 /** WHERE A TEXTURE'S PIXELS ALREADY LIVE, when they live on a GPU: the

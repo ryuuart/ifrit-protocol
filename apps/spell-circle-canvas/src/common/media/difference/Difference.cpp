@@ -1,4 +1,5 @@
 #include "sigilmedia/difference/Difference.h"
+#include "sigilmedia/advanced/Skia.h"
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
@@ -69,7 +70,13 @@ PixelDifference difference(const SkPixmap& actual, const SkPixmap& expected) {
   return found;
 }
 
-PixelDifference difference(const SkImage& actual, const SkImage& expected) {
+PixelDifference difference(const Picture& actualPicture,
+                           const Picture& expectedPicture) {
+  const sk_sp<SkImage> actualImage = toSk(actualPicture);
+  const sk_sp<SkImage> expectedImage = toSk(expectedPicture);
+  if (!actualImage || !expectedImage) return {};
+  const SkImage& actual = *actualImage;
+  const SkImage& expected = *expectedImage;
   SkBitmap actualStorage;
   SkBitmap expectedStorage;
   SkPixmap actualPixels;
@@ -85,7 +92,7 @@ PixelDifference difference(const Image& actual, const Image& expected) {
   const sk_sp<SkImage> left = deviceImage(actual.frames().front(), nullptr);
   const sk_sp<SkImage> right = deviceImage(expected.frames().front(), nullptr);
   if (!left || !right) return {};
-  return difference(*left, *right);
+  return difference(fromSk(left), fromSk(right));
 }
 
 }  // namespace sigil::media

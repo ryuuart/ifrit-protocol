@@ -8,6 +8,7 @@
 #include <include/core/SkImage.h>
 #include <sigilio/frames/Subscription.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/image/Encode.h>

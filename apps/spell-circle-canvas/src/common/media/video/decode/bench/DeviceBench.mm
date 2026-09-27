@@ -41,6 +41,7 @@
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
 #include <sigilskia/graphite/GraphiteContext.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilmedia/video/Video.h>
 
@@ -128,7 +129,7 @@ std::vector<std::byte> makeClip(int width, int height, int frames) {
     const unsigned phase = static_cast<unsigned>(frame * 17);
     pixels.eraseColor(
         SkColorSetARGB(255, 24 + phase % 208, 24 + (phase * 3) % 208, 24 + (phase * 7) % 208));
-    if (!encoder.append(pixels.pixmap())) return {};
+    if (!append(encoder, pixels.pixmap())) return {};
   }
   return encoder.finish();
 }

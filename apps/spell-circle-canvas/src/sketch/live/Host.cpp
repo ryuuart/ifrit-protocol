@@ -12,6 +12,7 @@
 #include <include/core/SkSurface.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <sigilcore/schedule/ConcurrentIo.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmeasure/time/Stopwatch.h>

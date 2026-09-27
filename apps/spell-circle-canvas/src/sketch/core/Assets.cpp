@@ -4,6 +4,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigildata/read/Read.h>
 #include <sigildata/query/Database.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Resource.h>
 #include <sigilio/advanced/Network.h>
 #include <sigilio/hub/Network.h>

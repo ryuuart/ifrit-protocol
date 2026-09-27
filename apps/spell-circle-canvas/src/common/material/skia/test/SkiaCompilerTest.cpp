@@ -14,6 +14,7 @@
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialSkia.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <memory>
 #include <string>

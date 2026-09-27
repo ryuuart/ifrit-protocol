@@ -70,7 +70,7 @@ sigil_doc_probes(io
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../media/include/sigilmedia
   PRELUDES "<sigilmedia/core/Image.h>"
            "<sigilmedia/core/PixelSource.h>"
-           "<sigilmedia/advanced/Device.h>"
+           "<sigilmedia/advanced/Skia.h>"
            "<sigilmedia/advanced/Resource.h>"
            "<sigilmedia/image/Encode.h>"
   EXCLUDE "sigil::data::registerDecoders=SigilData stands on this library, so its registration is named and not probed"

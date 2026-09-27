@@ -16,6 +16,7 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmedia/video/Video.h>
 #include <sigilsketch/canvas/Sketch.h>

@@ -10,14 +10,14 @@
 namespace sigil::media {
 
 struct Produced::State {
-  explicit State(std::function<sk_sp<SkImage>()> function)
+  explicit State(std::function<Picture()> function)
       : produce(std::move(function)) {}
-  std::function<sk_sp<SkImage>()> produce;
+  std::function<Picture()> produce;
   std::once_flag once;
-  sk_sp<SkImage> baked;
+  Picture baked;
 };
 
-Produced::Produced(std::string key, std::function<sk_sp<SkImage>()> producer)
+Produced::Produced(std::string key, std::function<Picture()> producer)
     : m_key(std::move(key)),
       m_state(std::make_shared<State>(std::move(producer))) {}
 
@@ -30,11 +30,11 @@ Frame Produced::frameAt(std::chrono::duration<double>) const {
   return frame;
 }
 
-PixelSource::PixelSource(sk_sp<SkImage> picture)
+PixelSource::PixelSource(Picture picture)
     : m_impl(std::make_shared<Model<Still>>(Still{std::move(picture)})) {}
 
 PixelSource PixelSource::produce(std::string key,
-                                 std::function<sk_sp<SkImage>()> producer) {
+                                 std::function<Picture()> producer) {
   return PixelSource(Produced(std::move(key), std::move(producer)));
 }
 

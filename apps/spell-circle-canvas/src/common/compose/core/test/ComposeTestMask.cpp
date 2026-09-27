@@ -1,6 +1,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmedia/advanced/Skia.h>
 #include "support/CoreTestSupport.h"
 
 namespace {

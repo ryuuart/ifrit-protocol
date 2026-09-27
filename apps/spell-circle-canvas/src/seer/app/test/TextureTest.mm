@@ -11,6 +11,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilio/frames/Publisher.h>
 #include <sigilio/frames/Subscription.h>

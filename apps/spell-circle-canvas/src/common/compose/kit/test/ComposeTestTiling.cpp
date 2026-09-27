@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "support/ShapeTestSupport.h"
+#include <sigilmedia/advanced/Skia.h>
 
 namespace {
 

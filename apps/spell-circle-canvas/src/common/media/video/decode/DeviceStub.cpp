@@ -1,4 +1,5 @@
 #include "Device.h"
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::media::device {
 

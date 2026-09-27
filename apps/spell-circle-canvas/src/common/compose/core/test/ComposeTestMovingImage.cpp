@@ -9,6 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilmedia/video/Video.h>
 
@@ -41,7 +42,7 @@ std::shared_ptr<const sigil::media::Video> redClip(
        .framesPerSecond = 10,
        .bitRate = 500'000,
        .hardware = sigil::media::HardwarePreference::Disabled});
-  if (!encoder || !encoder.append(pixels.pixmap())) return nullptr;
+  if (!encoder || !append(encoder, pixels.pixmap())) return nullptr;
   const std::vector<std::byte> bytes = encoder.finish();
   if (bytes.empty()) return nullptr;
   return sigil::media::decode<sigil::media::Video>(

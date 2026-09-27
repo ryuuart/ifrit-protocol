@@ -8,6 +8,7 @@
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilworld/frame/View.h>
 #include <sigilworld/light/Light.h>
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::world {
 

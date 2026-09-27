@@ -40,6 +40,7 @@
 #include <include/gpu/graphite/Recorder.h>
 #include <include/gpu/graphite/Recording.h>
 #include <include/gpu/graphite/Surface.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <gtest/gtest.h>
 

@@ -2,6 +2,7 @@
 // A decoded image asset with two distinguishable cells, for atlas and
 // image-leaf tests.
 
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 
 #include "Host.h"

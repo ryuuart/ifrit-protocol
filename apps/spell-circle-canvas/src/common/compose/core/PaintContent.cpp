@@ -16,6 +16,7 @@
 #include <include/core/SkTypes.h>  // SkASSERT
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilgeometry/path/Numeric.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
 #include <sigilmedia/core/PixelSource.h>
 #include <sigilmaterial/color/Color.h>

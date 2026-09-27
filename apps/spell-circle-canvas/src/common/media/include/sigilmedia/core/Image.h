@@ -7,9 +7,7 @@
  * image is decoded with.
  */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 
 #include <chrono>
 #include <memory>
@@ -66,10 +64,10 @@ class Image {
   /** A PICTURE ALREADY RENDERED, as a one-frame document: a snapshot of a
    *  surface, a texture baked on an intermediate canvas. A null picture
    *  is an empty document. */
-  static std::shared_ptr<const Image> of(sk_sp<SkImage> picture);
+  static std::shared_ptr<const Image> of(Picture picture);
 
   /** The size of every frame in pixels; empty for an empty document. */
-  SkISize size() const { return m_size; }
+  glm::ivec2 size() const { return m_size; }
   /** The sum of every frame's duration; zero for a still. */
   std::chrono::duration<double> duration() const { return m_duration; }
   /** How many times an animation plays, negative for forever. A still
@@ -89,7 +87,7 @@ class Image {
 
  private:
   std::vector<Frame> m_frames;
-  SkISize m_size = SkISize::MakeEmpty();
+  glm::ivec2 m_size{0, 0};
   std::chrono::duration<double> m_duration{};
   int m_repetitions = -1;
 };

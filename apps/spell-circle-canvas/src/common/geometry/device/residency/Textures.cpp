@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "Resources.h"
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::geometry::device {
 

@@ -13,6 +13,7 @@
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/Compose.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 
 #include <memory>

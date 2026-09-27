@@ -21,6 +21,7 @@
 #include <sigilgeometry/device/Device.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <include/core/SkImage.h>
 
 #include <Common/interface/RefCntAutoPtr.hpp>
 #include <boost/container/map.hpp>

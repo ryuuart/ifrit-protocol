@@ -11,6 +11,7 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/difference/Difference.h>
 #include <sigilweave/kit/PaintLayers.h>
 

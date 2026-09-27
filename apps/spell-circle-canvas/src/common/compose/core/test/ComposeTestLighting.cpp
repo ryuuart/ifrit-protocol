@@ -8,6 +8,7 @@
 #include <include/core/SkImage.h>
 #include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/texture/Image.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/PixelSource.h>
 
 #include <chrono>

@@ -16,6 +16,7 @@
 #include <sigilio/source/Sink.h>
 #include <sigilio/advanced/Time.h>
 #include <sigilsketch/core/Assets.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilmedia/video/Encoder.h>
@@ -59,7 +60,7 @@ std::vector<std::byte> solidVideo(SkColor color) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   bitmap.eraseColor(color);
-  if (!encoder.append(bitmap.pixmap())) return {};
+  if (!append(encoder, bitmap.pixmap())) return {};
   return encoder.finish();
 }
 
@@ -183,8 +184,8 @@ TEST(Assets, APictureAskedForBeforeItsFileIsThereIsAChangeWhenItAppears) {
   EXPECT_TRUE(assets.poll());
   const auto image = assets.hub().load<sigil::media::Image>("res://mark.png");
   ASSERT_NE(image, nullptr);
-  EXPECT_EQ(image->size().width(), 12);
-  EXPECT_EQ(image->size().height(), 7);
+  EXPECT_EQ(image->size().x, 12);
+  EXPECT_EQ(image->size().y, 7);
 }
 
 /** A recording standing among a sketch's own files, replayed at the URI

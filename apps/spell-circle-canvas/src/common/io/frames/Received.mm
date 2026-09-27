@@ -17,6 +17,7 @@
 
 #include <mutex>
 #include <utility>
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::io::frames::detail {
 

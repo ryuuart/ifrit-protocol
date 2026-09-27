@@ -4,6 +4,7 @@
  */
 
 #include "sigilmedia/image/Encode.h"
+#include "sigilmedia/advanced/Skia.h"
 
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkColorType.h>
@@ -82,8 +83,11 @@ std::vector<std::byte> encode(const Channels& channels, Format format,
 #endif
 }
 
-std::vector<std::byte> encode(const SkImage& picture, Format format,
+std::vector<std::byte> encode(const Picture& held, Format format,
                               const EncodeOptions& options) {
+  const sk_sp<SkImage> image = toSk(held);
+  if (!image) return {};
+  const SkImage& picture = *image;
   const SkImageInfo info =
       SkImageInfo::Make(picture.width(), picture.height(),
                         readbackType(format), kPremul_SkAlphaType,
@@ -105,7 +109,7 @@ std::vector<std::byte> encode(const Image& image, Format format,
   if (image.frames().empty()) return {};
   const sk_sp<SkImage> picture = deviceImage(image.frames().front(), nullptr);
   if (!picture) return {};
-  return encode(*picture, format, options);
+  return encode(fromSk(picture), format, options);
 }
 
 std::vector<std::byte> encodeResource(const Image& image,

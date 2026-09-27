@@ -14,6 +14,7 @@
 #include <string>
 
 #include "Pixels.h"
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/advanced/Formats.h"
 #include "sigilmedia/image/Decode.h"
 #include "sigilmedia/image/Encode.h"
@@ -124,7 +125,7 @@ TEST(Encode, TheImageOverloadReadsBackAndEncodes) {
   const SkBitmap src = fixture();
   const sk_sp<SkImage> image = src.asImage();
   ASSERT_TRUE(image);
-  const std::vector<std::byte> bytes = encode(*image, Format::Png);
+  const std::vector<std::byte> bytes = encode(image, Format::Png);
   ASSERT_FALSE(bytes.empty());
   const std::optional<SkBitmap> back = roundTrip(bytes, kN32_SkColorType);
   ASSERT_TRUE(back);

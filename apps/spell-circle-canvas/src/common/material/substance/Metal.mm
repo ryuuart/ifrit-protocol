@@ -23,6 +23,7 @@
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilskia/graphite/TextureImage.h>
 
 #include <dlfcn.h>

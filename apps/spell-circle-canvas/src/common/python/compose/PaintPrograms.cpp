@@ -10,6 +10,7 @@
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/draw/Draw.h>
 #include <sigildraw/Pen.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>

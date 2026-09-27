@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPixmap.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Channels.h>
 #include <sigilio/hub/Hub.h>
 #include <sigilio/advanced/Decoding.h>
@@ -102,7 +103,7 @@ TEST_F(IOOiio, ChannelsExposeRawFloatData) {
   // And the Skia composition helper agrees.
   const auto composed = channels->image("glow");
   ASSERT_NE(composed, nullptr);
-  EXPECT_EQ(composed->frames().front().image->colorType(),
+  EXPECT_EQ(toSk(composed->frames().front().image)->colorType(),
             kRGBA_F32_SkColorType);
 }
 

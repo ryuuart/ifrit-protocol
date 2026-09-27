@@ -9,9 +9,7 @@
  * texture, a leaf and a pen take any of them.
  */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 
 #include <chrono>
 #include <cstdint>
@@ -22,6 +20,7 @@
 
 #include "sigilmedia/advanced/Source.h"
 #include "sigilmedia/core/Frame.h"
+#include "sigilmedia/core/Picture.h"
 
 namespace sigil::media {
 
@@ -31,7 +30,7 @@ namespace sigil::media {
  *  every parameter that shaped it. */
 class Produced {
  public:
-  Produced(std::string key, std::function<sk_sp<SkImage>()> producer);
+  Produced(std::string key, std::function<Picture()> producer);
 
   /** The key the picture was produced under. */
   const std::string& key() const { return m_key; }
@@ -65,7 +64,14 @@ class PixelSource {
 
   /** A picture in hand, the same at every time. Equal when it is the same
    *  picture object. */
-  PixelSource(sk_sp<SkImage> picture);  // NOLINT(google-explicit-constructor)
+  PixelSource(Picture picture);  // NOLINT(google-explicit-constructor)
+
+  /** A renderer's own image handle, once the header that adapts it is
+   *  included: the same as the picture it wraps. */
+  template <class Native>
+    requires AdaptsToPicture<Native>
+  PixelSource(Native native)  // NOLINT(google-explicit-constructor)
+      : PixelSource(Picture(std::move(native))) {}
 
   /** A document — an `Image`, a `Video` — read under @p timing. Equal when
    *  it is the same document under the same timing. */
@@ -92,7 +98,7 @@ class PixelSource {
   /** A picture baked by @p producer on first use and kept, identified by
    *  @p key. */
   static PixelSource produce(std::string key,
-                             std::function<sk_sp<SkImage>()> producer);
+                             std::function<Picture()> producer);
 
   /** Whether a source is held. */
   explicit operator bool() const { return m_impl != nullptr; }
@@ -108,9 +114,7 @@ class PixelSource {
   /** Whether the frame can change from one time to the next. */
   bool isRunning() const { return m_impl && m_impl->isRunning(); }
   /** The frame size in pixels; empty with no source. */
-  SkISize size() const {
-    return m_impl ? m_impl->size() : SkISize::MakeEmpty();
-  }
+  glm::ivec2 size() const { return m_impl ? m_impl->size() : glm::ivec2{0, 0}; }
 
   /** The held source when it is an @p Source, else null — how a caller
    *  asks a `Produced` source for its key. */
@@ -132,8 +136,8 @@ class PixelSource {
       return document ? document->frameAt(time, timing) : Frame{};
     }
     bool isRunning() const { return document && document->isRunning(); }
-    SkISize size() const {
-      return document ? document->size() : SkISize::MakeEmpty();
+    glm::ivec2 size() const {
+      return document ? glm::ivec2(document->size()) : glm::ivec2{0, 0};
     }
     bool operator==(const Timed& other) const {
       return document == other.document && timing == other.timing;
@@ -141,18 +145,16 @@ class PixelSource {
   };
   /** A picture in hand. */
   struct Still {
-    sk_sp<SkImage> picture;
+    Picture picture;
     Frame frameAt(std::chrono::duration<double>) const {
       Frame frame;
       frame.image = picture;
       return frame;
     }
     bool isRunning() const { return false; }
-    SkISize size() const {
-      return picture ? picture->dimensions() : SkISize::MakeEmpty();
-    }
+    glm::ivec2 size() const { return picture.size(); }
     bool operator==(const Still& other) const {
-      return picture.get() == other.picture.get();
+      return picture == other.picture;
     }
   };
 
@@ -161,7 +163,7 @@ class PixelSource {
     virtual Frame frameAt(std::chrono::duration<double> time) const = 0;
     virtual uint64_t revision() const = 0;
     virtual bool isRunning() const = 0;
-    virtual SkISize size() const = 0;
+    virtual glm::ivec2 size() const = 0;
     virtual bool equals(const Concept& other) const = 0;
   };
   template <class Source>
@@ -175,13 +177,13 @@ class PixelSource {
       return 0;
     }
     bool isRunning() const override { return value.isRunning(); }
-    SkISize size() const override {
+    glm::ivec2 size() const override {
       if constexpr (SizedPixelSource<Source>) {
         return value.size();
       } else {
         const Frame frame = value.frameAt(std::chrono::duration<double>{});
-        if (frame.image) return frame.image->dimensions();
-        return SkISize::Make(frame.device.width, frame.device.height);
+        if (frame.image) return frame.image.size();
+        return {frame.device.width, frame.device.height};
       }
     }
     bool equals(const Concept& other) const override {

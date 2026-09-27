@@ -19,11 +19,10 @@
  *  @{ */
 /** @} */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkPixmap.h>
-
 #include <cstdint>
 #include <vector>
+
+#include "sigilmedia/core/Picture.h"
 
 namespace sigil::media {
 
@@ -82,11 +81,7 @@ struct DistanceField {
 [[nodiscard]] Mask coverageMask(const Image& image, FieldOptions options = {});
 
 /** The same for a picture in hand. */
-[[nodiscard]] Mask coverageMask(const SkImage& picture,
-                                FieldOptions options = {});
-
-/** The raster door: a pixmap's alpha as it is stored. */
-[[nodiscard]] Mask coverageMask(const SkPixmap& alpha,
+[[nodiscard]] Mask coverageMask(const Picture& picture,
                                 FieldOptions options = {});
 
 /** HOW FAR EVERY PIXEL IS FROM THE PIXELS @p image COVERS: the coverage

@@ -10,6 +10,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 
 #include <chrono>
@@ -48,7 +49,7 @@ TEST(MediaImage, APictureIsAOneFrameDocument) {
   const sk_sp<SkImage> picture = solid(SK_ColorRED);
   const auto image = Image::of(picture);
   ASSERT_TRUE(image);
-  EXPECT_EQ(image->size(), SkISize::Make(4, 4));
+  EXPECT_EQ(image->size(), glm::ivec2(4, 4));
   EXPECT_FALSE(image->isRunning());
   EXPECT_EQ(image->duration(), 0s);
   EXPECT_EQ(image->frameAt(0s).image, picture);

@@ -16,6 +16,7 @@
 #include <include/core/SkPixmap.h>
 #include <include/core/SkTypes.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>

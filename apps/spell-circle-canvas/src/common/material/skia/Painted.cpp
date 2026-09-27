@@ -7,6 +7,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkSurface.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <utility>
 

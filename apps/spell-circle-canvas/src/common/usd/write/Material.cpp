@@ -18,6 +18,7 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/output.h>
 #include <pxr/usd/usdShade/shader.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/advanced/Combine.h>
@@ -34,7 +35,7 @@ namespace sigil::usd {
 namespace {
 
 bool writePng(const sk_sp<SkImage>& image, const std::filesystem::path& path) {
-  const std::vector<std::byte> png = media::encode(*image, media::Format::Png);
+  const std::vector<std::byte> png = media::encode(image, media::Format::Png);
   return !png.empty() && io::writeBytes(path, png.data(), png.size());
 }
 

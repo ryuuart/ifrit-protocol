@@ -1,6 +1,7 @@
 // Where no frames arrive, no arrival is retained or bound.
 
 #include "Received.h"
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::io::frames::detail {
 

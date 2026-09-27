@@ -15,6 +15,7 @@ extern "C" {
 
 #include <array>
 #include <mutex>
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::media::device {
 namespace {

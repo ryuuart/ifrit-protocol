@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "Backends.h"
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::media::backend {
 

@@ -9,6 +9,7 @@
 
 #include <include/core/SkRefCnt.h>
 
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/image/Encode.h"
 
 class SkData;

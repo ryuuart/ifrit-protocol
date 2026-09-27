@@ -9,6 +9,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkRect.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Video.h>
 
 #include <array>
@@ -123,13 +124,13 @@ TEST(VideoDecode, PreservesAndPremultipliesWebMAlpha) {
   const media::Frame frame = video->frameAt(0s);
   ASSERT_TRUE(frame);
   ASSERT_TRUE(frame.image);
-  EXPECT_EQ(frame.image->alphaType(), kPremul_SkAlphaType);
+  EXPECT_EQ(toSk(frame.image)->alphaType(), kPremul_SkAlphaType);
 
   SkBitmap pixels;
   pixels.allocPixels(
-      SkImageInfo::Make(frame.image->width(), frame.image->height(),
+      SkImageInfo::Make(toSk(frame.image)->width(), toSk(frame.image)->height(),
                         kRGBA_8888_SkColorType, kPremul_SkAlphaType));
-  ASSERT_TRUE(frame.image->readPixels(nullptr, pixels.pixmap(), 0, 0));
+  ASSERT_TRUE(toSk(frame.image)->readPixels(nullptr, pixels.pixmap(), 0, 0));
   bool foundTranslucent = false;
   for (int y = 0; y < pixels.height(); ++y) {
     for (int x = 0; x < pixels.width(); ++x) {
@@ -202,7 +203,7 @@ TEST(VideoDecode, TheCacheHoldsCachedFramesAndNoMore) {
   const media::Frame later = roomy->frameAt(100ms);
   ASSERT_TRUE(later);
   EXPECT_NE(later.index, first.index);
-  EXPECT_EQ(roomy->frameAt(0s).image.get(), first.image.get());
+  EXPECT_EQ(roomy->frameAt(0s).image.identity(), first.image.identity());
 
   // Room for one: the later ask evicts the first, which decodes again
   // into a new image.
@@ -214,7 +215,7 @@ TEST(VideoDecode, TheCacheHoldsCachedFramesAndNoMore) {
   const media::Frame again = tight->frameAt(0s);
   ASSERT_TRUE(again);
   EXPECT_EQ(again.index, only.index);
-  EXPECT_NE(again.image.get(), only.image.get());
+  EXPECT_NE(again.image.identity(), only.image.identity());
 }
 
 TEST(VideoDecode, CapacityZeroBehavesAsOne) {
@@ -222,7 +223,7 @@ TEST(VideoDecode, CapacityZeroBehavesAsOne) {
   ASSERT_NE(video, nullptr);
   const media::Frame first = video->frameAt(0s);
   ASSERT_TRUE(first);
-  EXPECT_EQ(video->frameAt(0s).image.get(), first.image.get());
+  EXPECT_EQ(video->frameAt(0s).image.identity(), first.image.identity());
 }
 
 TEST(VideoDecode, APoolServesTheAskedFrame) {
@@ -244,7 +245,7 @@ TEST(VideoDecode, APoolServesTheAskedFrame) {
   EXPECT_NE(later.index, first.index);
 
   // An ask inside the frame on show is coalesced away.
-  EXPECT_EQ(video->frameAt(later.time).image.get(), later.image.get());
+  EXPECT_EQ(video->frameAt(later.time).image.identity(), later.image.identity());
 }
 
 TEST(VideoDecode, APoolOutlivesAsksInFlight) {

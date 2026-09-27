@@ -11,6 +11,7 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkM44.h>
 #include <include/core/SkPixmap.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Device.h>
 
 #include <algorithm>

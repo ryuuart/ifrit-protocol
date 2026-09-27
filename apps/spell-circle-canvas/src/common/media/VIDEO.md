@@ -16,6 +16,7 @@ pkg-config files beside them cannot do.
 ## Decode and compose
 
 ```cpp
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Video.h>
 
 auto clip = hub.load<sigil::media::Video>("res://motion/title.mp4");

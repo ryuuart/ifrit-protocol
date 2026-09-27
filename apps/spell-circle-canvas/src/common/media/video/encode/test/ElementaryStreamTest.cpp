@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilmedia/video/Video.h>
 
@@ -151,7 +152,7 @@ std::vector<std::byte> rampMp4() {
   for (int frame = 0; frame < kFrames; ++frame) {
     const auto level = static_cast<uint8_t>(rampLevel(frame));
     bitmap.eraseColor(SkColorSetRGB(level, level, level));
-    if (!encoder.append(bitmap.pixmap())) return {};
+    if (!append(encoder, bitmap.pixmap())) return {};
   }
   return encoder.finish();
 }

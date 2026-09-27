@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::compose {
 

@@ -49,8 +49,8 @@ time and index from the durations before it.
 
 ## Reading one
 
-`Image::size` is every frame's size in pixels, empty for an empty
-document. `Image::isRunning` is whether it carries more than one frame,
+`Image::size` is every frame's size in pixels as a `glm::ivec2`, zero
+for an empty document. `Image::isRunning` is whether it carries more than one frame,
 and `Image::frames` is every frame in playback order, already
 composited.
 
@@ -66,7 +66,7 @@ frame at any time; `Timing::start`, `Timing::rate` and `Timing::loop`
 move, scale and override that.
 
 `Frame` is one decoded frame: `Frame::image`, a premultiplied, immutable
-picture; `Frame::time`, where it begins on the document's clock;
+`Picture`, which `toSk` in `advanced/Skia.h` hands to Skia; `Frame::time`, where it begins on the document's clock;
 `Frame::duration`, how long it stays on screen, zero for a still; and
 `Frame::index`.
 

@@ -19,6 +19,7 @@
 #include <sigilmaterial/texture/Image.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialSurface.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <memory>
 #include <string>

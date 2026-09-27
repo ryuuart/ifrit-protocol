@@ -9,6 +9,7 @@
 
 #include <include/core/SkImage.h>
 
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/video/Video.h"
 
 extern "C" {

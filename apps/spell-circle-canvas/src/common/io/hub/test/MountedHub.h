@@ -14,6 +14,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkData.h>
 #include <include/core/SkImage.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Resource.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/advanced/Residency.h>

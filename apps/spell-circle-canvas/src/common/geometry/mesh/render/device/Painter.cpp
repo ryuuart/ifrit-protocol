@@ -26,6 +26,7 @@
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/GeometryMeshRenderDevice.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>

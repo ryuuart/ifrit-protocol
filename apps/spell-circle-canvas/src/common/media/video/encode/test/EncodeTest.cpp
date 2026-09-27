@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Formats.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilmedia/video/Video.h>
@@ -65,7 +66,7 @@ TEST(VideoEncode, Mp4RoundTripsFramesAndTiming) {
                                              SK_ColorBLUE, SK_ColorWHITE};
   for (SkColor color : colors) {
     bitmap.eraseColor(color);
-    ASSERT_TRUE(encoder.append(bitmap.pixmap())) << encoder.error();
+    ASSERT_TRUE(append(encoder, bitmap.pixmap())) << encoder.error();
   }
   EXPECT_EQ(encoder.frameCount(), 4);
   const std::vector<std::byte> mp4 = encoder.finish();
@@ -110,8 +111,8 @@ TEST(VideoEncode, CpuDecodeReadsBackTheColourItWasGiven) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   bitmap.eraseColor(given);
-  ASSERT_TRUE(encoder.append(bitmap.pixmap())) << encoder.error();
-  ASSERT_TRUE(encoder.append(bitmap.pixmap())) << encoder.error();
+  ASSERT_TRUE(append(encoder, bitmap.pixmap())) << encoder.error();
+  ASSERT_TRUE(append(encoder, bitmap.pixmap())) << encoder.error();
   const std::vector<std::byte> mp4 = encoder.finish();
   ASSERT_FALSE(mp4.empty()) << encoder.error();
 
@@ -138,13 +139,13 @@ TEST(VideoEncode, FinishingIsTerminal) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(kWidth, kHeight));
   bitmap.eraseColor(SK_ColorGREEN);
-  ASSERT_TRUE(encoder.append(bitmap.pixmap())) << encoder.error();
+  ASSERT_TRUE(append(encoder, bitmap.pixmap())) << encoder.error();
   ASSERT_FALSE(encoder.finish().empty()) << encoder.error();
   EXPECT_EQ(encoder.frameCount(), 1);
 
   // The muxed bytes are already handed out, so neither another frame nor
   // another trailer can join them.
-  EXPECT_FALSE(encoder.append(bitmap.pixmap()));
+  EXPECT_FALSE(append(encoder, bitmap.pixmap()));
   EXPECT_FALSE(encoder.error().empty());
   EXPECT_EQ(encoder.frameCount(), 1);
   EXPECT_TRUE(encoder.finish().empty());
@@ -166,7 +167,7 @@ TEST(VideoEncode, RefusesToFinishWithNoFrames) {
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(64, 64));
   bitmap.eraseColor(SK_ColorGREEN);
-  EXPECT_FALSE(encoder.append(bitmap.pixmap()));
+  EXPECT_FALSE(append(encoder, bitmap.pixmap()));
   EXPECT_EQ(encoder.frameCount(), 0);
 }
 
@@ -177,7 +178,7 @@ TEST(VideoEncode, RejectsOddDimensions) {
   // An encoder that never opened takes no frame and finishes as nothing.
   SkBitmap bitmap;
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(64, 64));
-  EXPECT_FALSE(encoder.append(bitmap.pixmap()));
+  EXPECT_FALSE(append(encoder, bitmap.pixmap()));
   EXPECT_TRUE(encoder.finish().empty());
 }
 

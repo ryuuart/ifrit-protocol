@@ -10,6 +10,7 @@
 
 #include "DecodeInternal.h"
 #include "PlaybackInternal.h"
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::media {
 
@@ -27,8 +28,8 @@ Video::~Video() = default;
 
 const Metadata& Video::metadata() const { return m_decoder->metadata; }
 
-SkISize Video::size() const {
-  return SkISize::Make(m_decoder->metadata.width, m_decoder->metadata.height);
+glm::ivec2 Video::size() const {
+  return {m_decoder->metadata.width, m_decoder->metadata.height};
 }
 
 std::chrono::duration<double> Video::duration() const {

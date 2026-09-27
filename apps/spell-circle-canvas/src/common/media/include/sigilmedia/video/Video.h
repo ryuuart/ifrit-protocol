@@ -17,7 +17,7 @@
  *  @{ */
 /** @} */
 
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 
 #include <chrono>
 #include <cstddef>
@@ -105,7 +105,7 @@ class Video {
   /** What the container said about the stream when it was opened. */
   const Metadata& metadata() const;
   /** The frame size in pixels. */
-  SkISize size() const;
+  glm::ivec2 size() const;
   /** How long one play lasts; zero when the container states none. */
   std::chrono::duration<double> duration() const;
   /** Whether the clip moves: more than one frame, or a length. */

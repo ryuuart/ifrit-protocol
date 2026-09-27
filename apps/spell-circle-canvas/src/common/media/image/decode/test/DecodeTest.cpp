@@ -10,6 +10,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSize.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 
 #include <chrono>
@@ -113,7 +114,7 @@ TEST(ImageDecode, DecodesEveryStillFormat) {
   for (const auto& testCase : kCases) {
     const auto image = decodeImage(readFile(assetPath(testCase.file)));
     ASSERT_TRUE(image) << testCase.file;
-    EXPECT_EQ(image->size(), SkISize::Make(4, 4)) << testCase.file;
+    EXPECT_EQ(image->size(), glm::ivec2(4, 4)) << testCase.file;
     EXPECT_FALSE(image->isRunning()) << testCase.file;
     ASSERT_EQ(image->frames().size(), 1u) << testCase.file;
     EXPECT_EQ(image->duration().count(), 0.0) << testCase.file;
@@ -274,8 +275,8 @@ TEST(SvgDecode, RendersAtExplicitSize) {
   auto asset = decodeImage(svgBytes(kTwoRectSvg),
       {.width = 64, .height = 32});
   ASSERT_TRUE(asset);
-  EXPECT_EQ(asset->size().width(), 64);
-  EXPECT_EQ(asset->size().height(), 32);
+  EXPECT_EQ(asset->size().x, 64);
+  EXPECT_EQ(asset->size().y, 32);
   ASSERT_EQ(asset->frames().size(), 1u);
   expectNearColor(pixelAt(asset->frames()[0].image, 16, 16), SK_ColorRED, 0,
                   "left rect");
@@ -288,13 +289,13 @@ TEST(SvgDecode, WidthOnlyDerivesHeightFromAspect) {
   auto asset = decodeImage(svgBytes(kTwoRectSvg),
       {.width = 100});
   ASSERT_TRUE(asset);
-  EXPECT_EQ(asset->size().width(), 100);
-  EXPECT_EQ(asset->size().height(), 50);  // 8x4 intrinsic aspect
+  EXPECT_EQ(asset->size().x, 100);
+  EXPECT_EQ(asset->size().y, 50);  // 8x4 intrinsic aspect
   // And with no size at all, the intrinsic size wins.
   auto intrinsic = decodeImage(svgBytes(kTwoRectSvg));
   ASSERT_TRUE(intrinsic);
-  EXPECT_EQ(intrinsic->size().width(), 8);
-  EXPECT_EQ(intrinsic->size().height(), 4);
+  EXPECT_EQ(intrinsic->size().x, 8);
+  EXPECT_EQ(intrinsic->size().y, 4);
 }
 
 TEST(SvgDecode, ProbeReportsFormatAndIntrinsicSize) {

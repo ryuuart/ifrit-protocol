@@ -5,6 +5,7 @@
 
 #include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/kit/Sprites.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include "support/ShapeTestSupport.h"
 

@@ -8,6 +8,7 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkColor.h>
 
+#include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/difference/Difference.h"
 
 namespace {

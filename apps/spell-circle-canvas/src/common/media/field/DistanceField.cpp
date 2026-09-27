@@ -5,6 +5,7 @@
  */
 
 #include "sigilmedia/field/DistanceField.h"
+#include "sigilmedia/advanced/Skia.h"
 
 #include <include/core/SkAlphaType.h>
 #include <include/core/SkBitmap.h>
@@ -88,7 +89,10 @@ Mask coverageMask(const SkPixmap& alpha, FieldOptions options) {
   return mask;
 }
 
-Mask coverageMask(const SkImage& image, FieldOptions options) {
+Mask coverageMask(const Picture& picture, FieldOptions options) {
+  const sk_sp<SkImage> held = toSk(picture);
+  if (!held) return {};
+  const SkImage& image = *held;
   SkPixmap pixels;
   if (image.peekPixels(&pixels)) return coverageMask(pixels, options);
   // Not already on the CPU: one readback into an alpha raster, which is the
@@ -103,7 +107,7 @@ Mask coverageMask(const SkImage& image, FieldOptions options) {
 Mask coverageMask(const Image& image, FieldOptions options) {
   if (image.frames().empty()) return {};
   const sk_sp<SkImage> picture = deviceImage(image.frames().front(), nullptr);
-  return picture ? coverageMask(*picture, options) : Mask{};
+  return picture ? coverageMask(fromSk(picture), options) : Mask{};
 }
 
 DistanceField distanceField(const Image& image, FieldOptions options) {

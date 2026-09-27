@@ -14,6 +14,7 @@
 #include <include/core/SkRefCnt.h>
 
 #include <string>
+#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::media::test {
 

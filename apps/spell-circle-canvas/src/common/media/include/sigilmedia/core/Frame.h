@@ -16,13 +16,11 @@
  *  @{ */
 /** @} */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkRefCnt.h>
-
 #include <chrono>
 #include <cstdint>
 
 #include "sigilmedia/advanced/Device.h"
+#include "sigilmedia/core/Picture.h"
 
 /** What pictures MEAN, still and moving, for a caller that already has
  *  their bytes: an image document decoded whole, a video opened as a
@@ -85,7 +83,7 @@ struct Timing {
 struct Frame {
   /** The picture, premultiplied and immutable; null for a frame that
    *  stands on a device and has not been bound. */
-  sk_sp<SkImage> image;
+  Picture image;
   /** Where the frame begins on its document's clock. */
   std::chrono::duration<double> time{};
   /** How long it stands before the next one begins; zero for a still. */
@@ -97,7 +95,7 @@ struct Frame {
 
   /** Whether anything is here: an image or a device surface. */
   explicit operator bool() const {
-    return image != nullptr || static_cast<bool>(device);
+    return static_cast<bool>(image) || static_cast<bool>(device);
   }
 };
 

@@ -16,6 +16,7 @@
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/program/Shader.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/core/Image.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/io/Hub.h>

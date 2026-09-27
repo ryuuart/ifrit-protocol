@@ -5,6 +5,7 @@
 #include "sigilsketch/testing/Comparison.h"
 
 #include <sigilio/source/Source.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/image/Decode.h>
 
 #include <memory>
@@ -39,8 +40,8 @@ Comparison compare(const std::filesystem::path& actual,
     comparison.problem = "cannot read " + expected.string();
     return comparison;
   }
-  comparison.actual = left->size();
-  comparison.expected = right->size();
+  comparison.actual = media::toSk(left->size());
+  comparison.expected = media::toSk(right->size());
   comparison.pixels = media::difference(*left, *right);
   return comparison;
 }

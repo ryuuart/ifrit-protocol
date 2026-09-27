@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkData.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Embedded.h>
 #include <sigilmedia/image/Decode.h>
 

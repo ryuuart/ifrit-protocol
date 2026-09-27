@@ -16,9 +16,7 @@
  *  @{ */
 /** @} */
 
-#include <include/core/SkPixmap.h>
-
-class SkImage;
+#include "sigilmedia/core/Picture.h"
 
 namespace sigil::media {
 
@@ -44,13 +42,7 @@ struct PixelDifference {
                                          const Image& expected);
 
 /** The same for two pictures in hand. */
-[[nodiscard]] PixelDifference difference(const SkImage& actual,
-                                         const SkImage& expected);
-
-/** The raster door: two pixmaps as they are stored. Two of one colour
- *  type and alpha type are compared row by row as stored first, so
- *  identical rows cost a memory comparison. */
-[[nodiscard]] PixelDifference difference(const SkPixmap& actual,
-                                         const SkPixmap& expected);
+[[nodiscard]] PixelDifference difference(const Picture& actual,
+                                         const Picture& expected);
 
 }  // namespace sigil::media

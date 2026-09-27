@@ -11,6 +11,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilio/source/Sink.h>
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilmedia/advanced/Formats.h>
 #include <sigilmedia/video/Encoder.h>
 #include <sigilsketch/core/Assets.h>
@@ -68,7 +69,7 @@ bool appendTitle(media::Encoder& encoder, SkSurface& surface,
     drawLabel(canvas, face, outro ? "EVERY SKETCH" : "SIGIL SKETCHBOOK",
               72.0f * scale, surface.height() * 0.5f, 72.0f * scale, kInk);
     const sk_sp<SkImage> image = surface.makeImageSnapshot();
-    if (!image || !encoder.append(*image)) return false;
+    if (!image || !encoder.append(image)) return false;
   }
   return true;
 }
@@ -245,7 +246,7 @@ int story(const StoryOptions& options, weave::FontContext& fonts,
         drawClip(*output->getCanvas(), image, labels, options.width,
                  options.height);
         const sk_sp<SkImage> encodedFrame = output->makeImageSnapshot();
-        if (!encodedFrame || !encoder.append(*encodedFrame)) {
+        if (!encodedFrame || !encoder.append(encodedFrame)) {
           std::fprintf(stderr, "story frame encode failed at %s: %s\n",
                        entry.name, encoder.error().c_str());
           return 1;
