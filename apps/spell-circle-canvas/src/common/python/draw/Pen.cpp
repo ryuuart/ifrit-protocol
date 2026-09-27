@@ -584,13 +584,16 @@ void bindPen(py::module_& root) {
   });
   cls.def(
       "element",
-      [](BorrowedPen& self, const compose::Element& element, py::object box,
-         int index) {
+      [](BorrowedPen& self, const compose::Element& element, float x, float y,
+         float width, float height, int index) {
         auto& native = self.get();
-        compose::paintRetained(native, element, rect(box),
-                               callerSlot(native, index));
+        compose::paintRetained(
+            native, element,
+            geometry::path::Rect::of({x, y}, {width, height}),
+            callerSlot(native, index));
       },
-      py::arg("element"), py::arg("box"), py::arg("index") = 0);
+      py::arg("element"), py::arg("x"), py::arg("y"), py::arg("width"),
+      py::arg("height"), py::arg("index") = 0);
   penMethod(cls, "image",
             py::overload_cast<const sk_sp<SkImage>&, float, float>(&Pen::image),
             py::arg("image"), py::arg("x"), py::arg("y"));

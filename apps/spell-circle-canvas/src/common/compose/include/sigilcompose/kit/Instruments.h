@@ -131,18 +131,6 @@ struct MeterPlacement {
  *  keyed `-rest` after the original — is `Text::atRest`'s statement;
  *  this adds the one ink, over whatever the style paints, and drops any
  *  glyph stroke so the ghost reads as one flat colour. */
-[[nodiscard]] inline Element restGhost(Text moving, material::Color colour) {
-  Text ghost = moving.atRest();
-  // The ink is written as a PAINT and not as a colour: an ink colour is
-  // the inherited lane, which a leaf's own style overrides, and the ghost
-  // has to read in @p colour whatever that style paints.
-  ghost.ink(material::Paint::solid(colour))
-      .textStroke(0.0f, Fill{})
-      // Pinned at the origin so the two copies share one origin, and
-      // absolute so the MOVING copy is what sizes the box around them.
-      .left(0.0f)
-      .top(0.0f);
-  return box().children({std::move(ghost), std::move(moving)});
-}
+[[nodiscard]] Element restGhost(Text moving, material::Color colour);
 
 }  // namespace sigil::compose::kit

@@ -97,7 +97,7 @@ void GlyphStructure::build(const sigil::weave::ParagraphLayout& layout,
       layout, paragraph, [&](const sigil::weave::PlacedGlyph& placed) {
         GlyphInfo info;
         info.index = glyphs.size();
-        info.rest = placed.rest;
+        info.rest = {placed.rest.x(), placed.rest.y()};
         info.advance = placed.advance;
         info.fontSize = placed.shaped ? placed.shaped->fontSize : 0.0f;
         info.cluster = placed.cluster;

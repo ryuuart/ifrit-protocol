@@ -50,6 +50,7 @@ Material::Material(std::shared_ptr<const detail::Part> source) {
 Material::Material(const MaterialParts& parts) : Material(parts.base) {
   for (const Layer& layer : parts.layers) this->layer(layer.source, layer.options);
   if (parts.surface) surface(*parts.surface);
+  if (parts.effects.part()) placeEffects(parts.effects.part());
 }
 
 Material::Material(std::shared_ptr<const Recipe> recipe)

@@ -94,7 +94,7 @@ Element groupScene(int count, Cache mode) {
              .width(64)
              .height(13)
              .rotate((float)(id % 7) * 6.0f - 18.0f)
-             .fill(sigil::material::skia::sksl(groupShader()))});
+             .fill(sigil::material::skia::base(sigil::material::skia::sksl(groupShader())))});
   }
   // Keep the parent live so it calls into the group every frame. An Auto
   // parent would cache one picture containing the first-frame traversal and

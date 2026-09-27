@@ -39,10 +39,12 @@ material::Material ember =
     material::program(hub, "res://ember.sksl", Ember{.heat = 0.6f});  // a recipe body in a file
 ember.set("heat", 0.8f).bind("heat", flicker);                        // a program base's parameters
 
-// The designated form: the same value.
-material::Material steelToo{{.base = material::hexColor(0xB8BDC4),
-                             .layers = {{material::noise(0.4f), {.blend = BlendMode::Multiply}}},
-                             .surface = material::SurfaceOptions{.metallic = 1.0f}}};
+// The designated form, through from(): the same value in one pair of braces.
+material::Material steelToo = material::from({
+    .base = material::hexColor(0xB8BDC4),
+    .layers = {{material::noise(0.4f), {.blend = BlendMode::Multiply}}},
+    .surface = material::SurfaceOptions{.metallic = 1.0f},
+    .effects = Filter::shadow(black, {.blur = 8, .offset = {0, 4}})});
 ```
 
 Where it goes: `box().fill(steel)`, `text(…).ink(steel)`,

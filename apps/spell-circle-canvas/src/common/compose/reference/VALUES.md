@@ -24,10 +24,9 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a material paint, or a reference the tree resolves at paint — the one value a component declares for a surface. | `Fill::color`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `toFill`, and implicitly from a `material::Paint` or a `material::Material` | `Element::fill`, `Element::ink`, `Text::textStroke`, `PathFormat::strokeFill`, the kit's wells and sheets, every decoration's own paint |
+| [`Fill`](pages/types/Fill.md) | Nothing, a colour, a material, or a reference the tree resolves at paint — the one value a component declares for a surface. | `Fill::color`, `Fill::none`, `Fill::currentInk`, `Fill::var`, `toFill`, and implicitly from a `material::Material` | `Element::fill`, `Element::ink`, `Text::textStroke`, `PathFormat::strokeFill`, the kit's wells and sheets, every decoration's own paint |
 | [`PaintBox`](pages/types/PaintBox.md) | The rectangle a paint's unit square is stretched over: the element's own box, its padding or content box, the subtree's, the canvas, or each glyph, cluster, word, line or sentence of a passage. | `PaintBox::Element`, `PaintBox::Canvas`, `PaintBox::Glyph`, … | `Element::fill`, `Element::ink`, `Rule::ink`, `SpanStyle::ink` |
-| `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | `Paint::solid`, `Paint::linearGradient`, `Paint::radialGradient`, `Paint::conicGradient`, `material::skia::image`, `Paint::recipe`, `Paint::blend` | `Element::fill`, `Element::ink` |
-| `material::Material` | A recipe — a pattern described rather than a shader built. | SigilMaterial's own catalogue | `Element::fill`, `Element::ink`, `Text::textStroke`, `Fill`, and `Paint::recipe` where a blend or a uniform needs a paint |
+| `material::Material` | What a surface is painted with: a base, the layers over it and the effects around it. | `material::linearGradient`, `material::radialGradient`, `material::conicGradient`, `material::noise`, `material::program`, `material::from(base).layer(…)`, SigilMaterial's own catalogue | `Element::fill`, `Element::ink`, `Text::textStroke`, `Fill`, a mask's coverage, a text pass, a ribbon's surface |
 | `material::Color` | The one colour class: a colour in a stated space, convertible to Skia's. | SigilMaterial's colour vocabulary | Anywhere a colour is taken, through `material::skia::toSkColor` |
 
 ## The marks

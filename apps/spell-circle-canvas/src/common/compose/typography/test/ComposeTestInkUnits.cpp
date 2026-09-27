@@ -4,6 +4,7 @@
 // Each case sets a two-stop ramp and reads back where its two colours
 // landed on the letters.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <include/utils/SkNoDrawCanvas.h>
 #include <src/text/GlyphRun.h>
 
@@ -16,14 +17,14 @@
 namespace {
 
 /** Red on the left of the unit square, blue on the right. */
-material::Paint across() {
-  return material::Paint::linearGradient(
+material::Material across() {
+  return material::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 
 /** Red at the top of the unit square, blue at the bottom. */
-material::Paint down() {
-  return material::Paint::linearGradient(
+material::Material down() {
+  return material::linearGradient(
       {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 

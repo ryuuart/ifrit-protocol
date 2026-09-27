@@ -110,9 +110,10 @@ class Material {
   /** A flat colour. */
   // NOLINTNEXTLINE(google-explicit-constructor)
   Material(Color color);
-  /** The designated-initialiser form: `Material{{.base = …, .layers =
-   *  {…}, .surface = SurfaceOptions{…}}}`. The parts' layers stack over
-   *  whatever layers the base already carries. */
+  /** The designated-initialiser form, most often written through
+   *  `from({.base = …, .layers = {…}, .surface = {…}, .effects = …})`.
+   *  The parts' layers stack over whatever layers the base already
+   *  carries. */
   // NOLINTNEXTLINE(google-explicit-constructor)
   Material(const MaterialParts& parts);
   /** A base only a renderer can supply — a gradient, an image — built by
@@ -457,15 +458,37 @@ struct SurfaceOptions {
   bool operator==(const SurfaceOptions&) const = default;
 };
 
-/** The designated-initialiser form of a material. The effects stage is
- *  added with `effects()`, since the filter belongs to its renderer. */
+/** A FILTER CHAIN AS THE EFFECTS STAGE of the designated form: any
+ *  `Filter` converts. Empty for no effects. */
+class EffectsStage {
+ public:
+  EffectsStage() = default;
+  /** @p chain as the stage. Defined by the renderer that owns the
+   *  filter. */
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  EffectsStage(const Filter& chain);
+  /** The stage as the part a material holds; null for none. */
+  const std::shared_ptr<const detail::Part>& part() const { return m_part; }
+
+ private:
+  std::shared_ptr<const detail::Part> m_part;
+};
+
+/** THE DESIGNATED-INITIALISER FORM of a material: a base, layers over it,
+ *  the lit response and the effects stage, each optional but the base.
+ *  Written through `from()`, so one pair of braces holds it:
+ *  `from({.base = hexColor(0xB8BDC4), .layers = {{noise(0.4f)}},
+ *  .surface = {{.metallic = 1}}, .effects = Filter::shadow(black)})`. */
 struct MaterialParts {
   Material base = Color{0, 0, 0, 0};
   std::vector<Layer> layers;
   std::optional<SurfaceOptions> surface;
+  EffectsStage effects;
 };
 
 /** Starts a chain from any base: `from(hexColor(0x223344)).layer(…)`. */
 inline Material from(Material base) { return base; }
+/** A material written in the designated form, in one pair of braces. */
+inline Material from(const MaterialParts& parts) { return Material(parts); }
 
 }  // namespace sigil::material

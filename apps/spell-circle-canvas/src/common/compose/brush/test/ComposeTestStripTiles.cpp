@@ -39,7 +39,7 @@ SkColor stripMark(int index) {
  *  in a per-tile colour — so a rendered tile reports its index by colour and
  *  its handedness by which side the mark landed on. `flow` picks whether the
  *  strip runs down (a column of tiles) or across (a row). */
-sk_sp<SkPicture> markedStrip(tiles::Flow flow) {
+sk_sp<SkPicture> markedStrip(tiles::Flow flow, SnapshotOptions options = {}) {
   const bool down = flow == tiles::Flow::Down;
   const float w = (float)(down ? kTileW : kTileW * kTileCount);
   const float h = (float)(down ? kTileH * kTileCount : kTileH);
@@ -54,7 +54,8 @@ sk_sp<SkPicture> markedStrip(tiles::Flow flow) {
              .height(kMarkSize)
              .fill(Fill::color(SkColor4f::FromColor(stripMark(j))))});
   // Shell box: snapshot() sizes by the ROOT's children, not its own dims.
-  return snapshot(box().children({std::move(strip)}), fonts());
+  return snapshot(box().children({std::move(strip)}), fonts(),
+                  SkSize::MakeEmpty(), options);
 }
 
 sk_sp<SkSurface> renderTile(const sk_sp<SkPicture>& pic, int index,
@@ -158,16 +159,14 @@ TEST(ComposeStripTiles, MirroredTileReadsForwardUnderMirroredSampling) {
   }
 }
 
-TEST(ComposeStripTiles, SliceableFlattensTheOpsAndChangesNoPixel) {
+TEST(ComposeStripTiles, ASliceableSnapshotChangesNoPixel) {
   const sk_sp<SkPicture> strip = markedStrip(tiles::Flow::Down);
   ASSERT_NE(strip, nullptr);
-  const sk_sp<SkPicture> sliced = tiles::sliceable(strip);
+  const sk_sp<SkPicture> sliced =
+      markedStrip(tiles::Flow::Down, {.sliceable = true});
   ASSERT_NE(sliced, nullptr);
-  // The trap this verb exists for: drawPicture() into the recorder would
-  // store ONE nested op the hierarchy cannot index into. Counting
-  // non-nested ops is what tells the two apart.
   EXPECT_EQ(sliced->approximateOpCount(false), strip->approximateOpCount(false))
-      << "sliceable() nested the picture instead of flattening it";
+      << "the hierarchy changed what was recorded";
   EXPECT_GT(sliced->approximateOpCount(false), 3);
   for (int k = 0; k < kTileCount; ++k) {
     sk_sp<SkSurface> plain =

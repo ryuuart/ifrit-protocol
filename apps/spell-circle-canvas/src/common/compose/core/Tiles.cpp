@@ -1,14 +1,10 @@
 /** @file
  * tiles::, the slicing of one baked picture into a run of tile-sized
- * rasters: the window a tile index names, and the picture a slice is
- * taken from.
+ * rasters: the window a tile index names.
  */
 
-#include <include/core/SkBBHFactory.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkPictureRecorder.h>
 #include <sigilgeometry/path/Skia.h>
 
 #include "ComposeRuntime.h"
@@ -35,17 +31,6 @@ geometry::path::Transform window(glm::vec2 tile, int index, Flow flow,
       facing == Facing::Mirrored
           ? SkMatrix::MakeAll(1, 0, step, 0, -1, h, 0, 0, 1)
           : SkMatrix::MakeAll(1, 0, step, 0, 1, 0, 0, 0, 1));
-}
-
-sk_sp<SkPicture> sliceable(const sk_sp<SkPicture>& art) {
-  if (!art) return nullptr;
-  SkRTreeFactory rtree;
-  SkPictureRecorder recorder;
-  // playback(), NOT drawPicture(): drawPicture on a recording canvas stores
-  // a nested reference the hierarchy cannot index into, which leaves the
-  // tree empty and the slice exactly as expensive as before.
-  art->playback(recorder.beginRecording(art->cullRect(), &rtree));
-  return recorder.finishRecordingAsPicture();
 }
 
 }  // namespace tiles

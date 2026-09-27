@@ -5,6 +5,7 @@
 // a composer and reads the keyed boxes back, rather than restating the
 // margins the component spells.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
 
@@ -483,7 +484,7 @@ TEST(KitSpecimen, AWellGroundResolvesAPaintAgainstItsOwnBox) {
   // A ground is a Fill, and a box-unit paint in it is stretched over
   // whatever width the well is given.
   Host host(200, 100);
-  const Fill paint = material::Paint::linearGradient(
+  const Fill paint = material::linearGradient(
       {0, 0}, {1, 0}, {{0, {1, 0, 0, 1}}, {1, {0, 0, 1, 1}}});
   for (float width : {80.0f, 160.0f}) {
     host.composer.render(box().children(

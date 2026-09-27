@@ -218,10 +218,10 @@ A range goes into `children()` as it stands. An element that needs an
 identity of its own keys itself; the rest reconcile by position, as
 unkeyed siblings do.
 
-A surface is anything `fill` takes: a colour, a `Fill`, a
-`material::Paint` ramp, or a `material::Material` exactly as
-SigilMaterial builds it. A component whose caller chooses the surface
-declares one `Fill` property, which converts from a paint and a material,
+A surface is anything `fill` takes: a colour, a `Fill`, or a
+`material::Material` exactly as SigilMaterial builds it — a gradient,
+layers, an image, a program. A component whose caller chooses the surface
+declares one `Fill` property, which converts from a material,
 and passes it to `fill`, `ink` or `textStroke` as it stands:
 
 ```cpp
@@ -756,10 +756,12 @@ as it was found. That is why the kernel links `SigilDraw`.
 What else the headers still spell, and why:
 
 - **The host's entrances.** `Composer::draw` takes the canvas a host owns;
-  `snapshot()` answers a recorded picture and `intrinsicSize()` a Skia
-  size; `picture()` and `image()` take a recording or an image a host
-  already holds; `texture()` and its scene speak the host's image and
-  pixel size. Each is where a host hands Skia work in or takes it out.
+  `snapshot()` answers a recorded picture — `SnapshotOptions::sliceable`
+  records it behind a bounding-box hierarchy for `tiles::window` to slice —
+  and `intrinsicSize()` a Skia size; `picture()` and `image()` take a
+  recording or an image a host already holds; `texture()` and its scene
+  speak the host's image and pixel size. Each is where a host hands Skia
+  work in or takes it out.
 - **Seams the painter implements.** `TextPainter`, the stroke and span
   resolvers in `Stroke.h` and `MaskResolverOperations::clipRegion` are the
   interfaces between the kernel and its brush and typography tiers, and
@@ -767,16 +769,25 @@ What else the headers still spell, and why:
 - **Skia's own effects, offered as escapes.** `PathFormat::effect` takes
   any path effect, and `Lines.h` names the stroke record a dash needs.
 - **Bakes held inside values.** A contour walk's stamp, a stamp brush's
-  tiles and a ribbon's art keep the picture or image they baked, so a
-  rebuilt value finds its bake.
+  tiles, a ribbon's art and a brush's crossing cache keep the picture,
+  image or paths they were made from, so a rebuilt value finds its bake.
 - **The instanced leaf.** `Instances.h` is the sprite batch the direct
   draw stamps through: its positions, sizes, windows and sheet are the
   atlas call's own.
 - **Recipe bodies.** A material program's body is written in SkSL, and
   `TextFx` names that language where a pass is authored.
-- **What has not yet moved.** The kit's placers and layouts, the tile
-  slicer's `sliceable()`, `TextEffect`'s glyph origin, the web view's
-  sampling and the kit's groove ramp still take Skia values.
+
+That list is the boundary, not a queue. Every other entrance speaks the
+libraries above: a fill, an ink, a mask's coverage, a text pass, a
+pattern's bake and a ribbon's surface are a `material::Material`; a
+retained guest's box is a `geometry::path::Rect`, a glyph's origin and a
+placer's points `glm::vec2`, the web view's sampling a
+`material::Sampling`. The executor's paint a material lowers to is the
+painter's own business, read in the sources and never in a header. Two
+answers Compose reads are still Skia-typed in SigilGeometry itself —
+`geometry::arrange`'s cells and rings, which the kit's layouts and placers
+step through in their sources, and the `geometry::path::Shaper` protocol a
+brush's geometry pipeline holds — and move when Geometry's do.
 
 ## Build and test
 
@@ -796,7 +807,7 @@ stroke grammar's engine and the mask gates, with `kit/Plate.h` and
 `kit/Strokes.h`),
 `SigilComposeTexture` (`texture/` — a scene painted into a surface and
 handed out as a texture value, a `media::PixelSource` built from a scene),
-`SigilComposeWeb` (`web/` — header-only, present only with SigilScry),
+`SigilComposeWeb` (`web/` — present only with SigilScry),
 `SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
 shelves: the silhouette catalog spelled for a node, the layout schemes

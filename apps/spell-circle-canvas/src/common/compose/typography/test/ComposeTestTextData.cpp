@@ -7,6 +7,7 @@
 // off the face, what fitting or condensing a run to a width moves, and
 // the edges an aliased run draws.
 
+#include <sigilmaterial/paint/Bases.h>
 #include "support/TextTestSupport.h"
 
 TEST(ComposeText, OnPathReDescribeDoesNotKeepTheOldBaseline) {
@@ -318,7 +319,7 @@ TEST(ComposeText, TextFillWorksWithTheUnitRamps) {
   Host host(320, 160);
   host.composer.render(box().padding(20).children(
       {text(u8"HH", whiteStyle(96))
-           .ink(material::Paint::linearGradient(
+           .ink(material::linearGradient(
                {0, 0}, {0, 1},
                {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
@@ -388,7 +389,7 @@ TEST(ComposeText, TextStrokeComposesWithTextFill) {
   host.composer.render(box().padding(20).children(
       {text(u8"HH", whiteStyle(96))
            .textStroke(9.0f, Fill::color({0, 1, 0, 1}))
-           .ink(material::Paint::linearGradient(
+           .ink(material::linearGradient(
                {0, 0}, {0, 1},
                {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}))}));
   host.frame();
@@ -418,7 +419,7 @@ TEST(ComposeText, AGlyphOutlineTakesTheInkWhenAPaintHasNoOneColour) {
           .ink({0, 1, 0, 1})
           .children(
               {text(u8"HH", whiteStyle(96))
-                   .textStroke(8.0f, material::Paint::linearGradient(
+                   .textStroke(8.0f, material::linearGradient(
                                          {0, 0}, {0, 1},
                                          {{0.0f, {1, 0, 0, 1}},
                                           {1.0f, {0, 0, 1, 1}}}))}));
@@ -438,7 +439,7 @@ TEST(ComposeText, AnInkPaintTheSlotCannotStoreLeavesTheOneItHas) {
   // tree. Writing one over a ramp must therefore leave the ramp alone —
   // blanking it would repaint the letters in a colour nobody named,
   // while an EMPTY paint is how the paint is meant to be cleared.
-  const auto ramp = material::Paint::linearGradient(
+  const material::Material ramp = material::linearGradient(
       {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   auto rampedPixels = [&](Fill after) {
     Host host(320, 160);

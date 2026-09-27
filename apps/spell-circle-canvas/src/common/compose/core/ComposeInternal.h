@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "ComposeCompare.h"
+#include "FillLowering.h"
 #include "sigilcompose/Compose.h"
 #include "sigilcompose/core/Cascade.h"
 #include "sigilcompose/core/Property.h"

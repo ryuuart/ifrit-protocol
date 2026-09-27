@@ -18,6 +18,7 @@
 #include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
+#include "FillLowering.h"
 
 namespace sigil::compose::brush {
 

@@ -13,8 +13,8 @@
  * whole surface.
  */
 
-#include <include/core/SkRect.h>
 #include <sigildraw/Retained.h>
+#include <sigilgeometry/path/Outline.h>
 
 #include <span>
 #include <string>
@@ -31,12 +31,12 @@ class Pen;
 /** A GUEST: something another library keeps between frames and paints
  *  inside a box the pen names — a retained element tree, a shaped page.
  *  The guest's own library says how, by declaring
- *  `paintRetained(Pen&, const Guest&, const SkRect&, Slot)` in the
- *  guest's namespace, where argument lookup finds it; this library
- *  names no guest. */
+ *  `paintRetained(Pen&, const Guest&, const geometry::path::Rect&, Slot)`
+ *  in the guest's namespace, where argument lookup finds it; this
+ *  library names no guest. */
 template <class G>
-concept Retainable =
-    requires(Pen& pen, const G& guest, const SkRect& box, Slot slot) {
+concept Retainable = requires(Pen& pen, const G& guest,
+                              const geometry::path::Rect& box, Slot slot) {
       paintRetained(pen, guest, box, slot);
     };
 

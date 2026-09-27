@@ -41,7 +41,7 @@ struct Ribbon {
    *  and can carry live uniforms, where a `Fill` is node-local pixels
    *  compared by shader pointer. A live material makes the ribbon
    *  animated, so the node repaints without a re-describe. */
-  std::optional<material::Paint> fillMaterial;
+  std::optional<material::Material> fillMaterial;
   float widthStart = 10.0f, widthEnd = 2.0f;
   float nibAngleDeg = -1.0f;  ///< ≥0 → calligraphic (widthStart = full)
   float nibContrast = 0.15f;  ///< thinnest fraction at nib-aligned tangents

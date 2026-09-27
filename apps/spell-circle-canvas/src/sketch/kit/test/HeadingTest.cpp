@@ -239,7 +239,7 @@ TEST(SketchKitHeading, DocumentRulesStyleAPreviouslyConstructedCard) {
 TEST(SketchKitHeading, AnAuthoredShaderKeepsDocumentTypography) {
   const Element card = kit::titleCard(
       {.title = {.words = "AAAA",
-                 .ink = Fill{sigil::material::skia::paint(SkShaders::Color(SK_ColorGREEN))}},
+                 .ink = Fill{sigil::material::skia::base(sigil::material::skia::paint(SkShaders::Color(SK_ColorGREEN)))}},
        .key = "card"});
   Drawn original(compose::box().children({card}));
   Drawn styled(

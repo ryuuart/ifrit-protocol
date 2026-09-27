@@ -14,6 +14,8 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/core/Paint.h>
 
+#include "FillLowering.h"
+
 #include <optional>
 #include <utility>
 
@@ -30,19 +32,21 @@ struct FillMaterial {
   mutable std::optional<material::Material> material;
 };
 
-const material::Paint& paintOf(const Fill& fill) {
+const material::Paint& FillAccess::paint(const Fill& fill) {
   static const material::Paint nothing;
   return fill.m_paint ? fill.m_paint->paint : nothing;
 }
 
-}  // namespace detail
-
-Fill::Fill(material::Paint paint) {
-  if (paint.isNone()) return;
-  kind = Kind::Paint;
-  m_paint = std::make_shared<const detail::FillMaterial>(
-      detail::FillMaterial{std::move(paint), std::nullopt});
+Fill FillAccess::of(material::Paint paint) {
+  Fill fill;
+  if (paint.isNone()) return fill;
+  fill.kind = Fill::Kind::Paint;
+  fill.m_paint = std::make_shared<const FillMaterial>(
+      FillMaterial{std::move(paint), std::nullopt});
+  return fill;
 }
+
+}  // namespace detail
 
 const material::Material* Fill::material() const {
   if (!m_paint) return nullptr;
@@ -93,7 +97,14 @@ Fill toFill(const material::Paint& paint) {
   if (paint.isSolid()) return Fill::color(paint.solidColor());
   if (paint.isNone() || !material::skia::staticShader(paint))
     return Fill::none();
-  return Fill{paint};
+  return detail::fillOf(paint);
+}
+
+Fill toFill(const material::Material& material) {
+  if (const material::Color* color = material.color();
+      color && material.layers().empty())
+    return Fill::color(*color);
+  return toFill(material::skia::paint(material));
 }
 
 Fill resolveInk(const material::Paint& paint, const PaintContext& ctx) {
@@ -110,7 +121,7 @@ Fill resolveInk(const material::Paint& paint, const PaintContext& ctx) {
   material::Paint anchored = paint;
   anchored.worldSpace(true);
   if (sk_sp<SkShader> shader = material::skia::shader(anchored, frame))
-    return Fill{material::skia::paint(std::move(shader))};
+    return detail::fillOf(material::skia::paint(std::move(shader)));
   return Fill::none();
 }
 
@@ -124,8 +135,15 @@ Fill resolveFill(const material::Paint& paint, const PaintContext& ctx) {
   // back keeps the fill equal to the one the node stored.
   if (!paint.isRunning() && !paint.geometryDependent()) return toFill(paint);
   if (sk_sp<SkShader> shader = material::skia::shader(paint, frameOf(ctx)))
-    return Fill{material::skia::paint(std::move(shader))};
+    return detail::fillOf(material::skia::paint(std::move(shader)));
   return Fill::none();
+}
+
+Fill resolveFill(const material::Material& material, const PaintContext& ctx) {
+  if (const material::Color* color = material.color();
+      color && material.layers().empty())
+    return Fill::color(*color);
+  return resolveFill(material::skia::paint(material), ctx);
 }
 
 Fill resolveFill(const Fill& fill, const PaintContext& ctx) {

@@ -30,4 +30,4 @@ fill.
 
 ## See also
 
-`image`, `imageRegion`, `material::Paint`.
+`image`, `imageRegion`, `material::Material`.

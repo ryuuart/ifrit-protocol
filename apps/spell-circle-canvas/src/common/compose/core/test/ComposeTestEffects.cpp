@@ -431,7 +431,7 @@ void stripePlate(Host& host, material::Filter e) {
            .height(120)
            .inset(40)
            .absolute()
-           .fill(stripeFill())
+           .fill(material::skia::base(stripeFill()))
            .filter(std::move(e))}));
   host.frame();
 }

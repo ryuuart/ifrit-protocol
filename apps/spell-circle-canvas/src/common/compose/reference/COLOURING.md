@@ -7,14 +7,12 @@ The short answer, before the detail:
 
 - **Everything a surface is painted with is a `Fill`.** It is the
   comparable slot the reconciler stores a node's paint in: nothing, a
-  colour, a `material::Paint`, or a reference to a colour the tree
+  colour, a `material::Material`, or a reference to a colour the tree
   supplies — the ink in force, or a custom property. The references are
-  the part only a cascade can mean; the rest is SigilMaterial's paint.
-- **A material enters a fill through a recipe paint, and never the other
-  way.** A `material::Paint` and a `material::Material` convert to a
-  `Fill` implicitly, the material as `material::Paint::recipe` of it; the
-  wrap is spelled only where a paint is needed for its own sake, as a
-  layer of a blend or to bind a uniform. No verb anywhere turns a colour
+  the part only a cascade can mean; the rest is SigilMaterial's material.
+- **A material converts to a fill implicitly**, so a component declares
+  one `Fill` property and its caller writes a colour, a gradient, layers,
+  an image or a program as it holds it. No verb anywhere turns a colour
   into a material.
 - **A fill that moves is `motion::Animatable<Fill>`**, which the `fill`
   verb takes beside the plain value.
@@ -27,17 +25,12 @@ The short answer, before the detail:
                       compose::Fill                 the top
          - Kind::None                 - Kind::Paint
          - Kind::Color                        |
-         - Ref::CurrentInk             material::Paint
-         - Ref::Var                     - solid
-              |                         - linearGradient, radialGradient,
-              |                           conicGradient
-              |                         - image, buffer, sksl, shader
-              |                         - blend
-              |                         - recipe
-              |                                |
-              |                        material::Material
-              |                         - a recipe, and its bytes
-              |                         - bindings, slots, settings
+         - Ref::CurrentInk            material::Material
+         - Ref::Var                     - a base: a colour, a gradient,
+              |                           an image, noise, a program
+              |                         - layers over it, each blended,
+              |                           faded and masked
+              |                         - effects around it
               |                                |
       material::Color                 material::Color fields
               |                                |
@@ -53,23 +46,20 @@ live value made by `motion::animatable` and compared by the IDENTITY of
 the cell it reads. That identity comparison is what lets a live fill
 declare volatility without defeating the prune.
 
-**`compose::Fill`** — nothing, a colour, a material paint, or a
-REFERENCE the tree resolves where the mark lands. It compares as its
-paint does, by recipe, so the same gradient described again is an equal
-fill; and it holds the paint once and shares it, so a fill costs a node a
-colour and a pointer. A component declares one `Fill` property and its
-caller writes whichever it holds. See [Fill](pages/types/Fill.md).
+**`compose::Fill`** — nothing, a colour, a material, or a REFERENCE the
+tree resolves where the mark lands. It compares as the paint the executor
+lowers its material to does, by recipe, so the same gradient described
+again is an equal fill; and it holds the material and that lowering once
+and shares them, so a fill costs a node a colour and a pointer. A
+component declares one `Fill` property and its caller writes whichever it
+holds. See [Fill](pages/types/Fill.md).
 
-**`material::Paint`** — this project's paint model: solids, ramps in node
-px and in the box's unit square, images, buffers, programs, raw shaders,
-blends, and recipe instances. It carries the volatility tier — static,
-geometry, live — that decides what a node's paint costs; `Fill::needsFrame`
-asks it. See [Paint](../../material/reference/pages/types/Paint.md).
-
-**`material::Material`** — a recipe instance: the recipe, the parameter
-bytes, the live bindings, the slots, the instance settings. One KIND of
-paint, beside solid and gradient and image, handed to `fill`, `ink` or
-`textStroke` as it stands. See
+**`material::Material`** — the paint model: a base, the layers over it
+and the effects around it, each layer blended, faded and masked. It
+carries the volatility tier — static, geometry, live — that decides what a
+node's paint costs; `Fill::needsFrame` asks it. What a renderer draws it
+with is that renderer's executor, read inside this library's sources and
+never in its headers. See
 [Material](../../material/reference/pages/types/Material.md).
 
 **`material::Color`** — four straight sRGB floats, and the one colour
@@ -81,8 +71,9 @@ reasoned about in: interpolated, measured, lifted, fitted. Each has a
 round trip to and from a colour, and nothing paints from one directly.
 
 **`material::Filter`** stands beside the lattice rather than in it.
-A paint shades a shape; a filter works on a layer that is already drawn.
-See [Filter](../../material/reference/pages/types/Filter.md).
+A material shades a shape; a filter works on a layer that is already
+drawn. A material's own effects are filters, which `fill` places around
+the node. See [Filter](../../material/reference/pages/types/Filter.md).
 
 ## Why the containment runs this way
 
@@ -92,30 +83,22 @@ anywhere* — is right. There is one such thing; it is `Fill`.
 
 **A reference is not a value.** `Fill::currentInk()` reads the ink in
 force where the node lands, and `Fill::var(name)` reads a custom property
-from the nearest ancestor that set it. A recipe instance carries bytes,
-bindings and slots — there is nowhere in it to put "ask the tree".
+from the nearest ancestor that set it. A material carries a base, layers
+and effects — there is nowhere in it to put "ask the tree".
 
-**A flat colour would carry a program.** A material is a recipe pointer
-plus bytes plus bindings plus slots plus a resolve memo, and a recipe
-compiles one program per identity, target and variant. `Paint::isSolid`
-short-circuits before any shader is built, precisely because a solid has
-no coordinates and nothing to resolve.
+**A flat colour would carry a program.** A flat material is kept as the
+colour it is, so a solid never reaches a shader: it has no coordinates
+and nothing to resolve.
 
 **Equality would get worse.** A colour fill compares in a handful of
-scalar comparisons and never reaches a paint's. `Material` compares by
-recipe identity, bytes, bindings under SigilMotion's animatable rule,
-children by value and instance settings. Every node's paint prune would
+scalar comparisons and never reaches a material's. A material compares
+its base, every layer and every effect. Every node's paint prune would
 move from the first to the second.
 
 **Motion is typed on the fill.** The animation family is
 `motion::Animatable<Fill>` and its described and live forms. A
 material animates SCALARS inside itself, binding one float field at a
 time — a different mechanism with different equality.
-
-**A paint already is the general paint value.** A material is one leaf of
-`material::Paint`, beside solid, gradients, image, buffer, SkSL,
-raw shader and blend. Inverting the containment would mean teaching a
-material every one of those, which is a paint under another name.
 
 ## The rule for a colouring parameter
 
@@ -128,7 +111,7 @@ Three unions name the three roles, and in Python they are spelled:
 | Role | Python union | What it accepts |
 | --- | --- | --- |
 | a flat colour value | `ColorLike` | `material.Color`, a CSS string, a 3- or 4-tuple or list of unit floats |
-| a fill | `FillLike` | everything in `ColorLike`, plus `compose.Fill`, `compose.VarRef`, `material.Paint`, `material.Material` and `None` |
+| a fill | `FillLike` | everything in `ColorLike`, plus `compose.Fill`, `compose.VarRef`, `material.Material`, `material.Paint` as the base of a material, and `None` |
 | a fill that may move | `MotionFillLike` | everything in `FillLike`, plus the transitions and outputs |
 
 The narrowings that ARE modelled, with their reasons:
@@ -137,7 +120,7 @@ The narrowings that ARE modelled, with their reasons:
   inherits, so a bound ink would make the whole inheriting subtree
   volatile.
 - **A component property takes a `Fill` and not an animatable.** It
-  converts from a paint and a material in one step, which an animatable
+  converts from a material in one step, which an animatable
   could not; a ground that moves is given to the component's element with
   `fill` directly.
 - **A slot measured without a frame reads a paint that needs one as the
@@ -171,9 +154,10 @@ of the difference.
 | Name | What it is | Python |
 | --- | --- | --- |
 | Skia's paint | a style, a stroke width, a blend mode, a colour and the filter objects for ONE draw | `sigil.skia.Paint` |
-| the material paint | what a surface is shaded WITH, as a comparable value that compiles to one shader | `sigil.material.Paint` |
+| the material paint | what the Skia executor lowers a material to — one comparable value that compiles to one shader | `sigil.material.Paint` |
 
-`Element::fill` takes the material one. A raw Skia paint appears where a
+`Element::fill` takes a material, and neither paint is spelled in
+Compose's headers. A raw Skia paint appears where a
 caller is drawing on a canvas directly — inside a paint program, a pen
 program, or SigilWeave's own text passes, where `weave::PaintLayer::paint`
 is deliberately the complete Skia vocabulary because a text pass wants
@@ -187,7 +171,7 @@ Skia colour converts into it implicitly.
 
 The vocabulary belongs to the library that owns it, and no library
 re-exports another's. Compose places what a material paints and holds no
-paint model of its own; SigilMaterial owns the paint, the effect, the
+paint model of its own; SigilMaterial owns the material, the effect, the
 colour and the ramp; SigilWeave owns the text paint, and links no
 renderer's paint model, which is why it holds a material by pointer and a
 Skia paint by value.

@@ -58,7 +58,7 @@ struct NoParameters {};
  *  definition compare equal, which is what the equality assertions below
  *  rest on, and a fresh definition per call would compile a fresh program
  *  every time. */
-material::Paint passOver(const char* source) {
+material::Material passOver(const char* source) {
   struct Held {
     const char* source;
     std::shared_ptr<const sigil::material::Recipe> recipe;
@@ -66,12 +66,12 @@ material::Paint passOver(const char* source) {
   static std::vector<Held> held;
   for (const Held& h : held)
     if (h.source == source)
-      return material::Paint::recipe(sigil::material::Material(h.recipe));
+      return sigil::material::Material(h.recipe);
   auto recipe = std::make_shared<const sigil::material::Recipe>(
       sigil::material::Recipe::of<NoParameters>("test.pass")
           .body(sigil::material::Target::SkSL, source));
   held.push_back({source, recipe});
-  return material::Paint::recipe(sigil::material::Material(recipe));
+  return sigil::material::Material(recipe);
 }
 
 }  // namespace
@@ -79,8 +79,8 @@ material::Paint passOver(const char* source) {
 TEST(TextPass, RecipeMaterialsCompareByDefinition) {
   // Two materials over one recipe compare EQUAL — a helper may rebuild its
   // material every describe and still prune.
-  const material::Paint a = passOver(kFloodSksl);
-  const material::Paint b = passOver(kFloodSksl);
+  const material::Material a = passOver(kFloodSksl);
+  const material::Material b = passOver(kFloodSksl);
   EXPECT_TRUE(a == b);
   EXPECT_FALSE(a == passOver(kIdentitySksl));
   // And so do the pass effects wrapping them.
@@ -94,7 +94,7 @@ TEST(TextPass, NonRecipeMaterialRefusedAndGlyphsSurvive) {
   // effect is EMPTY, the track is skipped, and the text draws at rest
   // rather than vanishing.
   const TextEffect refused =
-      textFx::pass(material::skia::sksl(ukEffect()));
+      textFx::pass(material::skia::base(material::skia::sksl(ukEffect())));
   EXPECT_FALSE(refused);
 
   Host host;
@@ -373,7 +373,7 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
   // only in their rests must compare unequal, or a re-described track
   // would prune onto the old declaration and keep (or keep skipping) a
   // shader the author changed their mind about.
-  const material::Paint m = passOver(kEraseSksl);
+  const material::Material m = passOver(kEraseSksl);
   EXPECT_FALSE(textFx::pass(m).restsAt(0.0f) == textFx::pass(m));
   EXPECT_TRUE(textFx::pass(m).restsAt(0.0f, 1.0f) ==
               textFx::pass(m).restsAt(0.0f, 1.0f));
@@ -446,10 +446,10 @@ sk_sp<SkRuntimeEffect> wideUniformEffect() {
 TEST(TextPass, WideAndArrayUniformsBindByDeclaredSize) {
   Host host;
   host.composer.render(box().children({box().width(60).height(60).fill(
-      material::skia::sksl(wideUniformEffect())
+      material::skia::base(material::skia::sksl(wideUniformEffect())
           .set("uPair", std::array<float, 2>{1, 0})
           .set("uQuad", std::array<float, 4>{0, 1, 0, 0})
-          .set("uVals", std::vector<float>{0, 0, 1, 0}))}));
+          .set("uVals", std::vector<float>{0, 0, 1, 0})))}));
   host.frame();
   EXPECT_EQ(host.pixel(30, 30), SK_ColorWHITE);  // all three lanes landed
 }
@@ -505,7 +505,8 @@ TEST(TextPass, UniformBlockIsLiveAndReadsOnCommit) {
 
   Host host;
   host.composer.render(
-      box().children({box().key("live").width(60).height(60).fill(live)}));
+      box().children({box().key("live").width(60).height(60).fill(
+          material::skia::base(live))}));
   host.frame();
   EXPECT_EQ(SkColorGetB(host.pixel(30, 30)), 0u);  // uVals[2] still 0
   // An UNcommitted write changes nothing on screen: the resolve memo holds

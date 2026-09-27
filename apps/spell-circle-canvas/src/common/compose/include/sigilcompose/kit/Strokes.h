@@ -25,7 +25,6 @@
  * plain compositions instead.
  */
 
-#include <include/core/SkColor.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/Hatches.h>
@@ -35,8 +34,8 @@
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
-#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <algorithm>
 #include <vector>
@@ -245,23 +244,20 @@ inline std::vector<brush::Strand> braid(int n, float amplitude,
  *  width the two walls take to meet, as a fraction of it — 0 a hard step
  *  at the floor, 0.5 a ramp the whole width across. The tones carry their
  *  own alpha, which is what sets how deep the cut reads over the surface
- *  beneath. A comparable paint, so a plate of seventy grooves prunes;
- *  `toFill` turns it into the `Fill` a `lines::Rail` takes. */
-inline material::Paint grooveRamp(float radius, float width,
-                                        material::Color dark,
-                                        material::Color lite,
-                                        float shoulder = 0.22f) {
+ *  beneath. A comparable material, so a plate of seventy grooves prunes;
+ *  it converts to the `Fill` a `lines::Rail` takes. */
+inline material::Material grooveRamp(float radius, float width,
+                                     material::Color dark,
+                                     material::Color lite,
+                                     float shoulder = 0.22f) {
   const float reach = radius + width;
   const float inner = (radius - width * 0.5f) / reach;
   const float outer = (radius + width * 0.5f) / reach;
   const float mid = (inner + outer) * 0.5f;
   const float half = (outer - inner) * std::clamp(shoulder, 0.0f, 0.5f);
-  return material::Paint::radialGradient(
+  return material::radialGradient(
       {radius, radius}, reach,
-      {{0.0f, material::skia::toSkColor(dark)},
-       {mid - half, material::skia::toSkColor(dark)},
-       {mid + half, material::skia::toSkColor(lite)},
-       {1.0f, material::skia::toSkColor(lite)}},
+      {{0.0f, dark}, {mid - half, dark}, {mid + half, lite}, {1.0f, lite}},
       {.units = material::GradientUnits::Pixels});
 }
 
@@ -455,11 +451,11 @@ inline brush::Ribbon taper(float widthStart, float widthEnd, Fill fill) {
 /** …painted by a recipe, which is the same taper with `fillMaterial`
  *  set: a band is a surface, and a surface a material can dress. */
 inline brush::Ribbon taper(float widthStart, float widthEnd,
-                           material::Paint paint) {
+                           material::Material material) {
   brush::Ribbon r;
   r.widthStart = widthStart;
   r.widthEnd = widthEnd;
-  r.fillMaterial = std::move(paint);
+  r.fillMaterial = std::move(material);
   return r;
 }
 
@@ -476,13 +472,13 @@ inline brush::Ribbon calligraphic(float nibAngleDeg, float width, Fill fill,
 }
 
 inline brush::Ribbon calligraphic(float nibAngleDeg, float width,
-                                  material::Paint paint,
+                                  material::Material material,
                                   float contrast = 0.15f) {
   brush::Ribbon r;
   r.widthStart = width;
   r.nibAngleDeg = nibAngleDeg;
   r.nibContrast = contrast;
-  r.fillMaterial = std::move(paint);
+  r.fillMaterial = std::move(material);
   return r;
 }
 

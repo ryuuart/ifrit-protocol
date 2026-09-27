@@ -19,11 +19,10 @@
  * the key its author gave it.
  */
 
-#include <include/core/SkPoint.h>
+#include <glm/vec2.hpp>
 #include <sigilcore/compute/Noise.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
-#include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilweave/style/ShapingStyle.h>
 
@@ -38,6 +37,15 @@
 
 namespace sigil::compose {
 
+namespace detail {
+/** A pass material as the executor lowered it, made once where the pass
+ *  was built; defined where the runtime draws it. */
+struct LoweredPass;
+/** Whether two lowered passes are the same pass — the executor's own
+ *  recipe equality, under which a live pass never compares equal. */
+bool samePass(const LoweredPass& first, const LoweredPass& second);
+}  // namespace detail
+
 /** What an effect sees for one glyph.
  *
  *  Enumeration order is stable across relayouts while the text is
@@ -48,7 +56,7 @@ namespace sigil::compose {
 struct GlyphInfo {
   size_t index = 0;    ///< glyph position in the paragraph
   size_t count = 1;    ///< total glyphs
-  SkPoint rest;        ///< the glyph's laid-out origin (pen position)
+  glm::vec2 rest{0, 0};  ///< the glyph's laid-out origin (pen position)
   float advance = 0;   ///< the glyph's advance width
   float fontSize = 0;  ///< the glyph's font size (em-relative effects)
 
@@ -282,7 +290,8 @@ class TextEffect {
     // and a live pass material never compares equal, conservatively.
     if ((m_state->pass != nullptr) != (other.m_state->pass != nullptr))
       return false;
-    if (m_state->pass && !(*m_state->pass == *other.m_state->pass))
+    if (m_state->pass &&
+        !detail::samePass(*m_state->lowered, *other.m_state->lowered))
       return false;
     if (m_state->curves.size() != other.m_state->curves.size()) return false;
     for (size_t i = 0; i < m_state->curves.size(); ++i)
@@ -317,17 +326,20 @@ class TextEffect {
   /** A PASS EFFECT: the track's evaluation is one shader pass over the
    *  addressed units' rendered pixels, not a per-glyph deviation — the
    *  factory behind `textFx::pass` below, where the contract is
-   *  documented. The material must be RECIPE-BACKED
-   *  (`material::Paint::recipe`)
-   *  over a recipe with an SkSL body, because the runtime bakes the unit
-   *  count into a specialization of that recipe; any other material warns
-   *  once and returns an EMPTY effect, so the track draws its glyphs at
-   *  rest. */
-  static TextEffect pass(material::Paint material);
+   *  documented. The material must be a recipe instance over a recipe
+   *  with an SkSL body, because the runtime bakes the unit count into a
+   *  specialization of that recipe; any other material warns once and
+   *  returns an EMPTY effect, so the track draws its glyphs at rest. */
+  static TextEffect pass(material::Material material);
   /** The pass material, or null for every per-glyph effect — what the
    *  runtime dispatches on. */
-  [[nodiscard]] const material::Paint* passMaterial() const {
+  [[nodiscard]] const material::Material* passMaterial() const {
     return m_state ? m_state->pass.get() : nullptr;
+  }
+  /** @private the runtime's lowering of the pass material, null where
+   *  `passMaterial()` is. */
+  [[nodiscard]] const detail::LoweredPass* loweredPass() const {
+    return m_state ? m_state->lowered.get() : nullptr;
   }
 
   /** DECLARES A PHASE WHERE THIS PASS IS AN EXACT PASS-THROUGH — an
@@ -398,8 +410,11 @@ class TextEffect {
     bool displaces = true;
     /** Set only by pass(): the material run over the units' layer. Held by
      *  pointer so an effect that is not a pass carries nothing; it rides
-     *  equality by VALUE (the paint's operator==), like an Effect child. */
-    std::shared_ptr<const material::Paint> pass;
+     *  equality by VALUE (the material's operator==), like an Effect
+     *  child. */
+    std::shared_ptr<const material::Material> pass;
+    /** `pass` lowered, set with it. */
+    std::shared_ptr<const detail::LoweredPass> lowered;
   };
   /** restsAt()'s one body: appends the phases to the pass's parameters — a
    *  pass carries no other parameters, so its parameters slot IS the rest

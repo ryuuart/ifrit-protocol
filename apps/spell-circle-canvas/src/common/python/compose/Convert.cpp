@@ -9,6 +9,7 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/kit/Radial.h>
 #include <sigilgeometry/path/Skia.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilpython/Bindings.h>
@@ -50,7 +51,7 @@ compose::Fill fill(py::handle value) {
   if (py::isinstance<compose::VarRef>(value))
     return compose::Fill::var(value.cast<compose::VarRef>());
   if (py::isinstance<material::Paint>(value))
-    return value.cast<material::Paint>();
+    return compose::Fill(material::skia::base(value.cast<material::Paint>()));
   if (py::isinstance<material::Material>(value))
     return value.cast<material::Material>();
   return compose::Fill::color(color(value));

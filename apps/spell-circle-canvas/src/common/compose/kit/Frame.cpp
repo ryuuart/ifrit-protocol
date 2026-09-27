@@ -50,7 +50,7 @@ Element line(const Line& mark) {
   // rather than in the black an empty fill would leave it.
   const auto collapsed = [](const Fill& fill, const Fill& otherwise) {
     if (fill.kind != Fill::Kind::Paint) return fill;
-    return fill.needsFrame() ? otherwise : toFill(detail::paintOf(fill));
+    return fill.needsFrame() ? otherwise : toFill(*fill.material());
   };
   const Fill railInk = collapsed(ink, Fill::currentInk());
   return std::move(

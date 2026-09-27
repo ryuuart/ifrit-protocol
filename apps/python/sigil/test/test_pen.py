@@ -263,8 +263,8 @@ class PenContracts(unittest.TestCase):
         picture = self.render(
             """
             pen.background('#000000')
-            pen.element(self.guest, (0, 0, 12, 12))
-            pen.element(self.guest, (16, 16, 12, 12))
+            pen.element(self.guest, 0, 0, 12, 12)
+            pen.element(self.guest, 16, 16, 12, 12)
         """,
             setup="""
             from sigil.motion import animate

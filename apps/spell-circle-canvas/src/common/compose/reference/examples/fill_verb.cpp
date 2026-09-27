@@ -6,6 +6,7 @@
  * photographed with `--frame` and never enters the plate sweep.
  */
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -53,7 +54,7 @@ struct FillVerb {
         .children({
             swatch(box().fill(kAccent), "fill(colour)"),
             swatch(
-                box().fill(material::Paint::linearGradient(
+                box().fill(material::linearGradient(
                     {0, 0}, {1, 1},
                     {{0.0f, material::hexColor(0x2f6f8f)}, {1.0f, material::hexColor(0x8f2f4f)}})),
                 "fill(paint)"),

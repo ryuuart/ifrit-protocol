@@ -4,6 +4,7 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <memory>
 
 #include "DressedTypeProbes.h"
@@ -177,7 +178,7 @@ TEST(TextSpans, AnInkPaintIsNotFadedByTheColourItReplaces) {
   host.composer.render(box().padding(10).children(
       {text(u8"Count 1234 now", faint)
            .span(sigil::weave::Selector{},
-                 SpanStyle().ink(material::Paint::linearGradient(
+                 SpanStyle().ink(material::linearGradient(
                      {0, 0}, {400, 0},
                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {1, 0, 0, 1}}},
                      {.units = material::GradientUnits::Pixels})))}));
@@ -197,7 +198,7 @@ TEST(TextSpans, AnInkPaintResolvedAgainstABoxIsLeftOut) {
   spanned.composer.render(box().padding(10).children(
       {text(body, base)
            .span(sigil::weave::selectors::regex(u8"[0-9]+"),
-                 SpanStyle().ink(material::Paint::linearGradient(
+                 SpanStyle().ink(material::linearGradient(
                      {0, 0}, {1, 0},
                      {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}})))}));
   spanned.frame();

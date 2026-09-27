@@ -109,9 +109,10 @@ class Rule : public detail::Declaring,
   [[nodiscard]] const sigil::weave::ParagraphBlock& paragraph() const;
   /** The property the ink reads, where it was written as one. */
   [[nodiscard]] const std::optional<VarRef>& inkVar() const;
-  /** The paint the ink is, where it was written as one. */
-  [[nodiscard]] const std::optional<material::Paint>& inkPaint() const;
-  /** The rectangle that paint's unit square is stretched over. */
+  /** The material the ink is, where it was written as one rather than as
+   *  a colour. */
+  [[nodiscard]] std::optional<material::Material> inkMaterial() const;
+  /** The rectangle that material's unit square is stretched over. */
   [[nodiscard]] PaintBox inkBox() const;
   /** Whether this rule writes the ink lane at all — a colour, a
    *  property, a paint, or an empty paint, which is the lane cleared. */

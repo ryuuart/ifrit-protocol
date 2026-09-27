@@ -27,7 +27,7 @@ TEST(ComposeMaterial, LiveUniformAnimatesAndDeclaresVolatility) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(material::skia::sksl(effect).bind("uK", k))}));
+           .fill(material::skia::base(material::skia::sksl(effect).bind("uK", k)))}));
   host.frame();
   const SkColor c0 = host.pixel(20, 20);
   k = 1.0f;      // change the bound uniform — NO re-render
@@ -69,13 +69,13 @@ TEST(ComposeMaterial, UniformCopiesOnWriteNeverAlias) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(a),
+           .fill(material::skia::base(a)),
        box()
            .width(40)
            .height(40)
            .inset(0, 100, 160, 60)
            .absolute()
-           .fill(b)}));
+           .fill(material::skia::base(b))}));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 90u);   // a: uK=0.2
   EXPECT_GT(SkColorGetR(host.pixel(80, 20)), 200u);  // b: uK=1.0 — not aliased
@@ -94,8 +94,8 @@ TEST(ComposeMaterial, LaterPlainFillReplacesLiveMaterial) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(material::skia::sksl(ukEffect())
-                     .bind("uK", k))         // live red
+           .fill(material::skia::base(material::skia::sksl(ukEffect())
+                     .bind("uK", k)))         // live red
            .fill(Fill::color({0, 1, 0, 1}))}));  // then plain green
   host.frame();
   const SkColor c = host.pixel(20, 20);
@@ -122,7 +122,7 @@ TEST(ComposeMaterial, BlendWithLiveLayerTracksLiveValues) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(m)}));
+           .fill(material::skia::base(m))}));
   host.frame();
   const uint32_t bright = SkColorGetR(host.pixel(20, 20));
   EXPECT_GT(bright, 170u);  // ~0.8 * 255 = 204
@@ -196,7 +196,7 @@ TEST(ComposeMaterial, DeclaringUTimeMakesMaterialLive) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(m)}));
+           .fill(material::skia::base(m))}));
   host.frame();
   // The engine stands at zero, so uTime is zero and the fill is black; the
   // claim is that the material painted live rather than from a snapshot.
@@ -225,8 +225,8 @@ TEST(ComposeMaterial, LiveMaterialUnderLeafDirectBlend) {
                    .height(40)
                    .inset(0, 160, 160, 0)
                    .absolute()
-                   .fill(material::skia::sksl(ukEffect())
-                             .bind("uK", k))
+                   .fill(material::skia::base(material::skia::sksl(ukEffect())
+                             .bind("uK", k)))
                    .blendMode(material::BlendMode::PlusLighter)}));
   host.frame();
   const SkColor c = host.pixel(20, 20);  // red + green = yellow
@@ -241,7 +241,7 @@ TEST(ComposeMaterial, SnapshotSamplesLiveMaterialNow) {
   sigil::motion::Animatable<float> k = sigil::motion::animatable(1.0f);
   sk_sp<SkPicture> pic =
       snapshot(box().width(60).height(60).fill(
-                   material::skia::sksl(ukEffect()).bind("uK", k)),
+                   material::skia::base(material::skia::sksl(ukEffect()).bind("uK", k))),
                fonts());
   ASSERT_TRUE(pic);
   Host host;
@@ -258,7 +258,7 @@ TEST(ComposeMaterial, RenderSlotHostsLiveMaterial) {
   host.composer.render(box().children({slot("s").width(40).height(40)}));
   host.composer.renderSlot(
       "s", box().width(40).height(40).fill(
-               material::skia::sksl(ukEffect()).bind("uK", k)));
+               material::skia::base(material::skia::sksl(ukEffect()).bind("uK", k))));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 30u);  // k=0
   k = 1.0f;                                         // no render, no renderSlot
@@ -288,7 +288,7 @@ TEST(ComposeMaterial, StableLiveResolveReplaysThePicture) {
   Host host;
   sigil::motion::Animatable<float> phase = sigil::motion::animatable(0.25f);
   host.composer.render(box().children({box().width(100).height(100).fill(
-      material::skia::sksl(fx).bind("uPhase", phase))}));
+      material::skia::base(material::skia::sksl(fx).bind("uPhase", phase)))}));
   host.frame();  // records once
   const SkColor before = host.pixel(50, 50);
   host.frame();  // same phase → stable resolve → pure replay
@@ -314,10 +314,10 @@ TEST(ComposeMaterial, BoundUniformOwnsItsSlotOverInjection) {
   PaintContext ctx;
   ctx.size = {4, 4};
   ctx.elapsedSeconds = 123.789;  // continuous clock — must be IGNORED
-  Fill f = resolveFill(m, ctx);
+  Fill f = resolveFill(material::skia::base(m), ctx);
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
   SkPaint p;
-  p.setShader(material::skia::staticShader(detail::paintOf(f)));
+  p.setShader(material::skia::staticShader(material::skia::paint(*f.material())));
   s->getCanvas()->drawPaint(p);
   SkBitmap bm;
   bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));
@@ -364,8 +364,8 @@ TEST(ComposeMaterial, StableLiveResolveBlitsTheTexture) {
                          .width(100)
                          .height(100)
                          .cache(Cache::Texture)
-                         .fill(material::skia::sksl(fx).bind(
-                             "uPhase", phase))})
+                         .fill(material::skia::base(material::skia::sksl(fx).bind(
+                             "uPhase", phase)))})
           // An always-animating sibling keeps the ROOT live, which is the
           // ordinary case in a real scene: the shader-filled node must still
           // blit even though the frame as a whole is repainting.

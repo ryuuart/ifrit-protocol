@@ -10,14 +10,13 @@ status: stable
 # Fill
 
 What one surface is painted with: no paint at all, a flat colour, a
-`material::Paint`, or a REFERENCE the tree resolves where the mark lands.
+`material::Material`, or a REFERENCE the tree resolves where the mark lands.
 It is the top of the colouring lattice — the one value a component
 declares and every verb that paints a surface takes — and the references
 are the part of it only a cascade can mean.
 
-A `material::Paint` and a `material::Material` convert to a `Fill`
-implicitly, the material as `material::Paint::recipe` of it, so a caller
-writes whichever it holds. A fill that moves is `motion::Animatable<Fill>`.
+A `material::Material` converts to a `Fill` implicitly, so a caller
+writes a gradient, layers, an image or a program as it holds it. A fill that moves is `motion::Animatable<Fill>`.
 
 ## Anatomy
 
@@ -56,13 +55,12 @@ version of its top.
 | --- | --- | --- |
 | `Fill::color(colour)` | C++ | a flat `material::Color` |
 | `Fill{material}`, or a `material::Material` where a fill is taken | C++ | the material, implicitly |
-| `Fill{paint}`, or a `material::Paint` where a fill is taken | C++ | the material that paint is the base of, implicitly |
 | `Fill::none()` | C++ | the value that paints nothing |
 | `Fill::currentInk()` | C++ | the ink in force where the mark lands |
 | `Fill::var(reference)` | C++ | the colour a custom property holds |
 | `Fill::var(name)` | C++ | the same, interning the name through `compose::var` — C++ only, since Python's `Fill.var` takes the reference alone |
 | `material::hexColor(0x1f2933)` | C++ | a packed sRGB integer, constexpr, as the `material::Color` a `Fill::color` takes |
-| `compose::toFill(paint)` | C++ | the static collapse of a material paint — a solid is its colour, a static paint is itself, and a paint that needs a frame is nothing |
+| `compose::toFill(material)` | C++ | the static collapse of a material — a flat one is its colour, a static one is itself, and one that needs a frame is nothing |
 | `"#1f2933"` | Python | a CSS colour string, implicitly |
 | `(0.12, 0.16, 0.20)` | Python | a 3-tuple of unit floats, implicitly |
 | `(0.12, 0.16, 0.20, 0.5)` | Python | a 4-tuple, the fourth being alpha |
@@ -124,8 +122,8 @@ same gradient described again is an equal fill and its node prunes.
 
 - `core/Paint.h` — the header: `Fill`, `Corners`,
   `PaintContext`, `resolveRef`, `frameOf`, `toFill`, `resolveFill`
-- [Paint](value:sigil::material::Paint) — the paint a fill carries, in
-  SigilMaterial
+- [Material](value:sigil::material::Material) — the material a fill
+  carries, in SigilMaterial
 - The colour chapter on the [SigilCompose](doxygen:SigilCompose) site —
   the lattice whole, and which of the three spellings of the current ink
   is which

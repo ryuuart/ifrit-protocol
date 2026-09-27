@@ -51,7 +51,9 @@ bool nodeUsesWorldSpace(const ElementNode& n) {
     if (n.fxData->backdropEffect && n.fxData->backdropEffect->usesWorldSpace())
       return true;
     for (const Mask& m : n.fxData->masks)
-      if (m.with.coverage && m.with.coverage->usesWorldSpace()) return true;
+      if (m.with.coverage &&
+          material::skia::paint(*m.with.coverage).usesWorldSpace())
+        return true;
   }
   return false;
 }

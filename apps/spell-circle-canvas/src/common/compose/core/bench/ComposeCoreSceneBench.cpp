@@ -144,7 +144,7 @@ static void BM_Draw_TileGrid_SkSLFill(benchmark::State& state) {
   host.composer.render(box().children({box()
                                            .width(960)
                                            .height(640)
-                                           .fill(Fill{material::skia::paint(field)})
+                                           .fill(Fill{material::skia::base(material::skia::paint(field))})
                                            .cache(Cache::None)}));
   for ([[maybe_unused]] auto iteration : state) host.draw();
 }

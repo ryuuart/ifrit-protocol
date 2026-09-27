@@ -27,6 +27,7 @@
 #include "sigilgeometry/path/Contour.h"  // the contour walkers: corners,
                                          // parallels, displacement, windows
 #include "sigilgeometry/path/Skia.h"
+#include "FillLowering.h"
 
 namespace sigil::compose::lines {
 

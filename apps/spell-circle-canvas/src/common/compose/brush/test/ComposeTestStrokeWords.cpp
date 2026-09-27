@@ -166,7 +166,7 @@ TEST(ComposeVolatility, ALiveMaterialOnASpanPassDeclaresItself) {
   auto paintedPerFrame = [](bool live) {
     Host host(200, 200);
     PathFormat mark = stroke(8, red());
-    mark.strokeFill = material::skia::sksl(heavyEffect(live));
+    mark.strokeFill = material::skia::base(material::skia::sksl(heavyEffect(live)));
     host.composer.render(stack().children(
         {revealBox().stroke(spans::upTo(0.6f), std::move(mark))}));
     host.frame();

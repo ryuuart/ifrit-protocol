@@ -232,7 +232,7 @@ namespace {
 
 Element heavyLeaf(const char* key) {
   return profiledUnder(box().width(400).height(400).key(key).fill(
-      material::skia::sksl(heavyEffect(false))));
+      material::skia::base(material::skia::sksl(heavyEffect(false)))));
 }
 
 }  // namespace
@@ -277,7 +277,7 @@ TEST(ComposeCache, ARefusalNamesTheReasonItRefused) {
                         .width(400)
                         .height(400)
                         .key("wash")
-                        .fill(material::skia::sksl(heavyEffect(false)))
+                        .fill(material::skia::base(material::skia::sksl(heavyEffect(false))))
                         .opacity(0.4f)));
   for (int i = 0; i < 24; ++i) host.frame();
   const Composer::NodeCost* row = requireRow(host.composer, "wash");

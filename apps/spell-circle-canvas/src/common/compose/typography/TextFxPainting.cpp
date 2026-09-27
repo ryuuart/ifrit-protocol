@@ -27,6 +27,7 @@
 #include "TextEngine.h"
 #include "TextPose.h"
 #include "TextSubstitution.h"
+#include "FillLowering.h"
 
 namespace sigil::compose {
 
@@ -542,9 +543,9 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
     inputs.rects = rects.data();
     inputs.phases = phases.data();
     inputs.units = n;
-    const material::Paint* passPaint =
-        lane->source->track->effect.passMaterial();
-    sk_sp<SkShader> pass = material::skia::resolvePass(*passPaint, inputs, frameOf(ctx));
+    const material::Paint& passPaint =
+        lane->source->track->effect.loweredPass()->paint;
+    sk_sp<SkShader> pass = material::skia::resolvePass(passPaint, inputs, frameOf(ctx));
     if (!pass) {
       // The refusal already said why (no source, or it does not compile):
       // show resting letters rather than nothing, so the text survives

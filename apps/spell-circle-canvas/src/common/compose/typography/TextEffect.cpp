@@ -12,11 +12,17 @@
 #include <sigilmaterial/core/Material.h>
 
 #include <utility>
+#include "FillLowering.h"
 
 namespace sigil::compose {
 
-TextEffect TextEffect::pass(material::Paint material) {
-  const sigil::material::Material* backing = material.recipeMaterial();
+bool detail::samePass(const LoweredPass& first, const LoweredPass& second) {
+  return first.paint == second.paint;
+}
+
+TextEffect TextEffect::pass(material::Material material) {
+  material::Paint lowered = material::skia::paint(material);
+  const sigil::material::Material* backing = lowered.recipeMaterial();
   if (!backing || !backing->recipe().has(sigil::material::Target::SkSL)) {
     // Once per process: the door takes only the recipe-backed form,
     // because the runtime specializes the recipe per unit count and needs
@@ -26,10 +32,9 @@ TextEffect TextEffect::pass(material::Paint material) {
       warned = true;
       SkDebugf(
           "[compose] textFx::pass: the material carries no SkSL recipe — a "
-          "pass is compiled per unit count, which needs "
-          "material::Paint::recipe(...) over a recipe with an SkSL body. "
-          "The "
-          "effect is empty and the track draws its glyphs at rest.\n");
+          "pass is compiled per unit count, which needs a recipe instance "
+          "over a recipe with an SkSL body. The effect is empty and the "
+          "track draws its glyphs at rest.\n");
     }
     return {};
   }
@@ -43,7 +48,7 @@ TextEffect TextEffect::pass(material::Paint material) {
   };
   // A pass paints where its material says it does; the material's declared
   // reserve is the effect's reach, and Track::reach overrides as ever.
-  state->reach = material.bleed();
+  state->reach = lowered.bleed();
   // A PASS IS NOT A PLACEMENT. Its shader reads a layer whose glyphs were
   // rasterized at their RESTING origins — the pass moves pixels, not pen
   // positions — so putting those origins on the subpixel grid refines masks
@@ -52,7 +57,9 @@ TextEffect TextEffect::pass(material::Paint material) {
   // pass does with them, the layer is re-rendered every frame it runs.
   state->displaces = false;
   state->pass =
-      std::make_shared<const material::Paint>(std::move(material));
+      std::make_shared<const material::Material>(std::move(material));
+  state->lowered = std::make_shared<const detail::LoweredPass>(
+      detail::LoweredPass{std::move(lowered)});
   TextEffect out;
   out.m_state = std::move(state);
   return out;

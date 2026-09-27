@@ -168,7 +168,7 @@ TEST(ComposeTransform, ScaleXGrowsFromItsOrigin) {
                           .top(0)
                           .transformOrigin(pct(0), pct(50))
                           .scaleX(fraction)
-                          .fill(material::Paint::solid({1, 0, 0, 1}))}));
+                          .fill(material::Color{1, 0, 0, 1})}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(20, 20)), 200u);  // inside the quarter
   EXPECT_LT(SkColorGetR(host.pixel(80, 20)), 60u);   // past it
@@ -190,7 +190,7 @@ TEST(ComposeTransform, ScaleYIsIndependentOfScaleX) {
                           .transformOrigin(pct(0), pct(0))
                           .scaleX(0.25f)
                           .scaleY(0.75f)
-                          .fill(material::Paint::solid({0, 1, 0, 1}))}));
+                          .fill(material::Color{0, 1, 0, 1})}));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(10, 10)), 200u);   // inside both
   EXPECT_LT(SkColorGetG(host.pixel(90, 10)), 60u);    // past x, inside y

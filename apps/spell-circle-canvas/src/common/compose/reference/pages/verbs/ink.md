@@ -70,8 +70,8 @@ nearest ancestor's, and the root's is the composer's inherited default.
 decoration whose paint is unnamed, which is what makes `stroke(2)` a
 stroke in the colour in force; and `Fill::currentInk()`, wherever a slot
 demands a fill and the answer is "whatever the ink is". A paint program
-reads the same value off `PaintContext::ink`, and the paint form off
-`PaintContext::inkPaint`.
+reads the same value off `PaintContext::ink`; the paint form is the
+cascade's own record, which `Fill::currentInk()` resolves through.
 
 **A colour eases and does not relayout.** A node whose ink changes under
 a `transition` eases it, and every descendant with no `transition` of its

@@ -6,6 +6,7 @@
 
 #include "support/BrushTestSupport.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 TEST(ComposeLayout, PerSideInsetPinsWithoutStretch) {
   Host host(200, 100);
@@ -81,7 +82,7 @@ TEST(ComposeText, TextFillMapsUnitRampToCapBand) {
   Host host(300, 120);
   host.composer.render(box().padding(20).children(
       {text(u8"HHH", whiteStyle(64))
-           .ink(material::Paint::linearGradient(
+           .ink(material::linearGradient(
                {0, 0}, {0, 1},
                {{0.0f, {1, 0, 0, 1}},
                 {0.499f, {1, 0, 0, 1}},
@@ -247,7 +248,7 @@ TEST(ComposeText, TextFillKeepsTheStylesOtherPasses) {
   }();
   host.composer.render(box().padding(20).children(
       {text(u8"HHH", styled)
-           .ink(material::Paint::solid({1, 0, 0, 1}))}));
+           .ink(material::skia::base(material::Paint::solid({1, 0, 0, 1})))}));
   host.frame();
   int red = 0, green = 0;
   for (int y = 0; y < 120; ++y)

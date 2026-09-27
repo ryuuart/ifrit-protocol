@@ -3,6 +3,7 @@
 // wherever the code that built it ran; what it names it keeps. Each case
 // asserts one thing the headers promise.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Cascade.h>
@@ -678,8 +679,8 @@ TEST(ComposeCascade, TheRootInheritsWhatTheComposerWasTold) {
 namespace {
 
 /** A red-to-blue ramp across the unit square, left to right. */
-material::Paint redToBlue() {
-  return material::Paint::linearGradient(
+material::Material redToBlue() {
+  return material::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
 }
 
@@ -779,7 +780,7 @@ TEST(ComposeCascade, APaintHoldingOneColourIsAPaintAndAPlainColourIsTheLane) {
   Host host;
   host.composer.render(box().padding(10).children(
       {text(u8"HH", whiteStyle(48))
-           .ink(material::Paint::solid({1, 0, 0, 1}))}));
+           .ink(material::skia::base(material::Paint::solid({1, 0, 0, 1})))}));
   host.frame();
   EXPECT_GT(redInk(host), 40);
   Host plain;

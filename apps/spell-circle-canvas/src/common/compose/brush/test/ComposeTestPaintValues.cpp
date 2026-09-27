@@ -47,7 +47,7 @@ TEST(ComposeMaterial, BlendWithSdfLayerResolvesGeometry) {
            .height(100)
            .inset(0, 100, 100, 0)
            .absolute()
-           .fill(m)}));
+           .fill(material::skia::base(m))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 150u);  // circle body visible
   EXPECT_LT(SkColorGetR(host.pixel(3, 3)), 40u);     // corner outside circle
@@ -124,9 +124,9 @@ TEST(ComposeSdf, BoundGlowAnimatesWithinReserve) {
            .height(100)
            .inset(0, 100, 100, 0)
            .absolute()
-           .fill(material::Paint::recipe(
+           .fill(material::skia::base(material::Paint::recipe(
                      material::sdf::material(material::sdf::circle(), style))
-                     .bind("uGlowR", glow))}));
+                     .bind("uGlowR", glow)))}));
   host.frame();
   // Size the probe from the PUBLIC pad helper (no hand-copied formula):
   // circle radius = 50 − pad; sample 6px outside the edge.

@@ -377,17 +377,17 @@ compose element tree with its layout, its text shaping, its bindings and
 its caches — and the pen paints those as **guests**:
 
 ```cpp
-pen.element(card, SkRect::MakeXYWH(40, 40, 320, 180));  // one card
+pen.element(card, 40, 40, 320, 180);  // one card
 for (int i = 0; i < 3; ++i)
-  pen.element(row(i), SkRect::MakeXYWH(40, 260 + i * 60, 320, 50), i);
+  pen.element(row(i), 40, 260 + i * 60, 320, 50, i);
 ```
 
 A guest is told apart by the CALL SITE — file, line and column — and by
 the index a loop adds; the pen keeps one retained value per slot, in
 `Retained`, and hands it back next frame. What a guest is and how it is
 painted is its own library's business: that library declares
-`paintRetained(Pen&, const Guest&, const SkRect&, Slot)` in the guest's
-own namespace, argument lookup finds it, and this library names no
+`paintRetained(Pen&, const Guest&, const geometry::path::Rect&, Slot)` in
+the guest's own namespace, argument lookup finds it, and this library names no
 guest. SigilCompose declares it for `Element`, in its `draw` feature,
 which is also where `compose::pen(program)` hosts a pen program inside
 a node — the same door from the other side.

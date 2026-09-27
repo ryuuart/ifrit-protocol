@@ -15,7 +15,7 @@ TEST(ComposeShapes, ArrowPointsAlongPositiveX) {
                           .left(0)
                           .top(0)
                           .shape(geometry::shapes::arrow())
-                          .fill(material::Paint::solid({0, 1, 0, 1}))}));
+                          .fill(material::Color{0, 1, 0, 1})}));
   host.frame();
   EXPECT_GT(SkColorGetG(host.pixel(20, 30)), 200u);  // shaft on the axis
   EXPECT_LT(SkColorGetG(host.pixel(20, 6)), 60u);    // and not above it
@@ -35,7 +35,7 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
                           .absolute()
                           .inset(0)
                           .shape(geometry::shapes::sector(0, 90))
-                          .fill(material::Paint::solid({1, 0, 0, 1}))}));
+                          .fill(material::Color{1, 0, 0, 1})}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(130, 130)), 200u);  // inside the wedge
   EXPECT_LT(SkColorGetR(host.pixel(70, 130)), 60u);    // lower-left: outside
@@ -50,7 +50,7 @@ TEST(ComposeShapes, SectorIsClosedAndFillable) {
                           .absolute()
                           .inset(0)
                           .shape(geometry::shapes::sector(0, 350, 0.6f))
-                          .fill(material::Paint::solid({1, 0, 0, 1}))}));
+                          .fill(material::Color{1, 0, 0, 1})}));
   donut.frame();
   EXPECT_GT(SkColorGetR(donut.pixel(180, 100)), 200u);  // on the ring
   EXPECT_LT(SkColorGetR(donut.pixel(100, 100)), 60u);   // through the hole
@@ -68,7 +68,8 @@ TEST(ComposeMaterial, LiveMaterialOnOutlineShapeFillsTheShape) {
            .inset(0, 100, 100, 0)
            .absolute()
            .shape(geometry::shapes::star(4, 0.3f))
-           .fill(material::skia::sksl(ukEffect()).bind("uK", k))}));
+           .fill(material::skia::base(
+               material::skia::sksl(ukEffect()).bind("uK", k)))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(50, 50)), 200u);  // star body
   EXPECT_LT(SkColorGetR(host.pixel(8, 8)), 30u);     // outside the arms

@@ -17,7 +17,6 @@ def register(table: Table) -> None:
     table.erased("_sigil.draw", "lerpColor", "_t.ColorLike", "_t.ColorLike")
     table.erased("_sigil.draw.Pen", "circle point", "_t.PointLike")
     table.erased("_sigil.draw.Pen", "line", "_t.PointLike", "_t.PointLike")
-    table.erased("_sigil.draw.Pen", "element", "_t.RectLike")
     table.erased("_sigil.draw.Pen", "inherit", "_t.ColorLike")
     # A silhouette is whatever answers a path over a size; geometry's own
     # generators are not bound, so in Python the author writes the object.

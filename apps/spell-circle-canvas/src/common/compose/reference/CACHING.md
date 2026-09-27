@@ -19,7 +19,7 @@ find out.
   library cannot see) must declare `.cache(Cache::None)`. It is the
   immediate-mode floor and it costs a repaint per frame, which is the
   point.
-- A `material::Paint` that reads `uTime` or carries a uniform bound
+- A `material::Material` that reads `uTime` or carries a uniform bound
   to a live value is live by construction and declares itself; so is a
   `material::Filter` with a bound uniform or a live child. Tier
   inheritance is real: a live child makes the parent effect live, so no

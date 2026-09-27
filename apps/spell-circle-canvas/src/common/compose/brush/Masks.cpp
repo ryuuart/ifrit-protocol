@@ -16,6 +16,7 @@
 #include "ComposeInternal.h"
 #include "SpanArithmetic.h"
 #include "sigilgeometry/path/Contour.h"
+#include "FillLowering.h"
 
 namespace sigil::compose {
 
@@ -73,25 +74,25 @@ Gate outside(Region r) {
   g.outside = true;
   return g;
 }
-Gate alpha(material::Paint coverage) {
+Gate alpha(material::Material coverage) {
   Gate g;
   g.resolver = detail::maskResolver();
   g.kind = Gate::Kind::Coverage;
   g.coverage =
-      std::make_shared<const material::Paint>(std::move(coverage));
+      std::make_shared<const material::Material>(std::move(coverage));
   return g;
 }
-Gate alphaOut(material::Paint coverage) {
+Gate alphaOut(material::Material coverage) {
   Gate g = alpha(std::move(coverage));
   g.outside = true;
   return g;
 }
-Gate luma(material::Paint coverage) {
+Gate luma(material::Material coverage) {
   Gate g = alpha(std::move(coverage));
   g.channel = Gate::Channel::Luma;
   return g;
 }
-Gate lumaOut(material::Paint coverage) {
+Gate lumaOut(material::Material coverage) {
   Gate g = luma(std::move(coverage));
   g.outside = true;
   return g;
@@ -129,7 +130,7 @@ struct MaskEngine final : MaskResolverOperations {
   }
   Fill coverage(const Gate& gate, const PaintContext& ctx) const override {
     if (!gate.coverage) return {};
-    const material::Paint& mat = *gate.coverage;
+    const material::Paint mat = material::skia::paint(*gate.coverage);
     return (mat.isRunning() || mat.geometryDependent()) ? resolveFill(mat, ctx)
                                                          : toFill(mat);
   }

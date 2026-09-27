@@ -189,10 +189,11 @@ TEST(ComposeMaterials, QuantizeTimeStepsTheClock) {
     PaintContext ctx;
     ctx.size = {8, 8};
     ctx.elapsedSeconds = seconds;
-    Fill f = resolveFill(m, ctx);
+    Fill f = resolveFill(material::skia::base(m), ctx);
     sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
     SkPaint p;
-    p.setShader(material::skia::staticShader(detail::paintOf(f)));
+    p.setShader(material::skia::staticShader(
+        material::skia::paint(*f.material())));
     s->getCanvas()->drawPaint(p);
     SkBitmap bm;
     bm.allocPixels(SkImageInfo::MakeN32Premul(1, 1));

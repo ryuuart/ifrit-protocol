@@ -25,10 +25,11 @@ struct Card {
 
 struct Seen {
   int paints = 0;
-  SkRect box = SkRect::MakeEmpty();
+  sigil::geometry::path::Rect box;
 };
 
-void paintRetained(sigil::draw::Pen& pen, const Card& card, const SkRect& box,
+void paintRetained(sigil::draw::Pen& pen, const Card& card,
+                   const sigil::geometry::path::Rect& box,
                    sigil::draw::Slot slot) {
   Seen& seen =
       pen.retained().get<Seen>(slot, [] { return std::make_shared<Seen>(); });
@@ -116,9 +117,9 @@ TEST(Pen, AGuestIsRetainedPerCallSite) {
   const probe::Card card{1};
   for (int frame = 1; frame <= 3; ++frame) {
     paper.begin(frame);
-    paper.pen.element(card, SkRect::MakeXYWH(10, 10, 30, 20));
+    paper.pen.element(card, 10, 10, 30, 20);
     for (int i = 0; i < 2; ++i)
-      paper.pen.element(card, SkRect::MakeXYWH(0, 0, 5, 5), i);
+      paper.pen.element(card, 0, 0, 5, 5, i);
     paper.end();
   }
   // One slot for the single call, one per index for the loop.

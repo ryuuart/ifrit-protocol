@@ -30,14 +30,14 @@ TEST(ComposeValues, AStaticPaintCollapsesToTheFillItResolvesTo) {
   // per-frame resolve answers the same thing.
   const material::Paint solid =
       material::Paint::solid({0.25f, 0.5f, 0.75f, 1.0f});
-  const Fill collapsed = toFill(solid);
+  const Fill collapsed = toFill(material::skia::base(solid));
   EXPECT_EQ(collapsed.kind, Fill::Kind::Color);
   EXPECT_FLOAT_EQ(collapsed.colorValue.r, 0.25f);
   EXPECT_FLOAT_EQ(collapsed.colorValue.b, 0.75f);
 
   PaintContext ctx;
   ctx.size = {40, 20};
-  const Fill resolved = resolveFill(solid, ctx);
+  const Fill resolved = resolveFill(material::skia::base(solid), ctx);
   EXPECT_EQ(resolved.kind, collapsed.kind);
   EXPECT_EQ(resolved.colorValue, collapsed.colorValue);
 }

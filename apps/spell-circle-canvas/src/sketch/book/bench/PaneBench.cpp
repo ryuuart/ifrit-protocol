@@ -9,6 +9,7 @@
 // before the prelude: the macro chooses its form at include time.
 #define SIGIL_SKETCH_STATIC "pane_bench_probe"
 
+#include <sigilmaterial/paint/Bases.h>
 #include <benchmark/benchmark.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
@@ -59,7 +60,7 @@ struct PaneProbe {
         tiles.push_back(
             compose::kit::at(column * width + 1.0f, row * height + 1.0f,
                              width - 2.0f, height - 2.0f)
-                .fill(sigil::material::Paint::linearGradient(
+                .fill(sigil::material::linearGradient(
                     {0, 0}, {width, height},
                     {sigil::material::Color{0.3f + 0.5f * shade, 0.35f,
                                             0.6f - 0.3f * shade, 1},

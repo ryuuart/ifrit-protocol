@@ -25,7 +25,6 @@ of them, or a live binding whose value IS the node's colour.
 
 ```cpp
 Element& fill(motion::Animatable<Fill> colour);
-Element& fill(material::Paint paint, PaintBox box = PaintBox::Element);
 Element& fill(material::Material material, PaintBox box = PaintBox::Element);
 Element& fill(material::Color colour);
 Element& fill(Fill fill, PaintBox box = PaintBox::Element);
@@ -39,10 +38,9 @@ def fill(self, value: MotionFillLike, box: PaintBox = ...) -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `Fill` | Nothing, a colour, a material paint, or a reference the tree resolves at paint — what a component property hands on. A paint in it is placed over the box as the paint form below places it. | [`Fill`](../types/Fill.md) |
+| `Fill` | Nothing, a colour, a material, or a reference the tree resolves at paint — what a component property hands on. A material in it is placed over the box as the material form below places it. | [`Fill`](../types/Fill.md) |
 | `motion::Animatable<Fill>` | The same, at rest, as a described motion, or as a live value somebody writes. | [`motion::Animatable`](../../VALUES.md#motion-over-a-value) |
-| `material::Paint` | A shader authored as a value: ramps, blends, sprites, recipes, SkSL. | [`material::Paint`](../../VALUES.md#the-surface) |
-| `material::Material` | The whole model: its base and layers paint the box as a paint would, and its effects dress the node's own layer — a `Filter::shadow` beneath the fill (a hard one as an echo of the fill and the text), an inside shadow, a `Filter::stroke` and a `Filter::bevel` over it; a pass that reads pixels runs over the node and its subtree as [`filter`](filter.md) does. | `material::from(base).layer(…).effects(…)`, a gradient, a noise, an image, a program, a sketch's own look |
+| `material::Material` | The whole model: its base and layers paint the box, and its effects dress the node's own layer — a `Filter::shadow` beneath the fill (a hard one as an echo of the fill and the text), an inside shadow, a `Filter::stroke` and a `Filter::bevel` over it; a pass that reads pixels runs over the node and its subtree as [`filter`](filter.md) does. | `material::from(base).layer(…).effects(…)`, a gradient, a noise, an image, a program, a sketch's own look |
 | `material::Color` | A solid colour, without the `Fill::color` ceremony. | `hexColor(0xRRGGBB)`, or the four channels |
 | `PaintBox` | The rectangle the paint's unit square is stretched over. | [`PaintBox`](../types/PaintBox.md): `Element`, `Padding`, `Content`, `Canvas` |
 
@@ -78,16 +76,10 @@ paint is stretched over the element's own box. The box is part of the
 fill's statement, so a later fill replaces it with its own, and a colour
 or a surface with no picture to place takes the element's.
 
-**A static paint collapses to a fill.** Handing over a
-`material::Paint` that reads nothing live stores the shader it
+**A static material collapses to a fill.** Handing over a
+`material::Material` that reads nothing live stores the shader it
 resolves to, so it caches and prunes on exactly the path a colour does.
-A live paint re-resolves per frame instead.
-
-**A material is passed as it stands.** `fill(material::field::grain(…))`
-paints exactly what the same material does wrapped in a
-`material::Paint`, over the same box. The wrapper is for what only a
-paint states: a layer of a blend stack, or a uniform bound to a live
-output.
+A live material re-resolves per frame instead.
 
 **A fill may be written as a REFERENCE the tree answers.**
 `Fill::currentInk()` is the ink in force where the node is painted —

@@ -142,6 +142,9 @@ class Filter {
    *  declare the largest the binding will reach, because a declared 0
    *  rebuilds every pass at every paint. */
   static Filter blur(Paint sigmaMap, float maximumSigma);
+  /** The same with the map written as a material — a gradient, a noise,
+   *  an image — lowered as a fill of it would be. */
+  static Filter blur(const Material& sigmaMap, float maximumSigma);
   /** A blur that smears ALONG one direction: @p sigma along the axis at
    *  @p angleDegrees (screen sense — 0 horizontal, 90 vertical), @p across
    *  perpendicular to it. Its "sigma", "angle" and "across" take a bound

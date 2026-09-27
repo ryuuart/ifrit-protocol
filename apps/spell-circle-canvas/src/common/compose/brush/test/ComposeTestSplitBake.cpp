@@ -111,7 +111,7 @@ Element splitPlane(bool clipped, material::BlendMode childBlend) {
           .width(200)
           .height(200)
           .background(stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
-          .fill(material::skia::sksl(sharedHeavyEffect()))
+          .fill(material::skia::base(material::skia::sksl(sharedHeavyEffect())))
           .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
           .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})));
   if (clipped) plane.overflow(Overflow::Clip);
@@ -267,7 +267,7 @@ TEST(ComposeCache, ItIsTheVolatileChildThatSplitsTheBake) {
             .width(200)
             .height(200)
             .background(stroke(6.0f, Fill::color({0.2f, 0.4f, 0.9f, 0.6f})))
-            .fill(material::skia::sksl(sharedHeavyEffect()))
+            .fill(material::skia::base(material::skia::sksl(sharedHeavyEffect())))
             .overlay(stroke(3.0f, Fill::color({1.0f, 0.9f, 0.2f, 0.45f})))
             .foreground(stroke(1.5f, Fill::color({1, 1, 1, 0.5f})))
             .children({box()

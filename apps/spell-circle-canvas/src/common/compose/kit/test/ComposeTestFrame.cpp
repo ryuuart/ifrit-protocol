@@ -6,6 +6,7 @@
 // `left/top/width/height` in the assertion would check the spelling
 // against itself.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Frame.h>
 
@@ -166,7 +167,7 @@ TEST(KitLine, ARuleIsASurfaceAndAPairedOneRulesInTheInkItCannotCollapse) {
       box().width(120).height(40).column().children({kit::line(
           {.length = Dimension(100),
            .thickness = 8,
-           .fill = material::Paint::linearGradient(
+           .fill = material::linearGradient(
                {0, 0}, {100, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
                {.units = material::GradientUnits::Pixels})})}));
   gradient.frame();
@@ -187,7 +188,7 @@ TEST(KitLine, ARuleIsASurfaceAndAPairedOneRulesInTheInkItCannotCollapse) {
           .children(
               {kit::line({.length = Dimension(100),
                           .thickness = 4,
-                          .fill = material::Paint::linearGradient(
+                          .fill = material::linearGradient(
                               {0, 0}, {1, 0},
                               {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}),
                           .pair = {{.thickness = 2, .gap = 6}}})}));

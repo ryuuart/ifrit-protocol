@@ -484,15 +484,20 @@ class Pen {
    *  box on this one and told apart by the call site that painted it.
    *  @{ */
   /** THE OTHER WAY THROUGH THE DOOR: something another library keeps
-   *  between frames, painted inside @p box on this frame, with this pen
-   *  lending it the canvas, the transform above the box and the clock.
-   *  The guest is told apart by the call site and @p index, and it
-   *  advances only on the frames it is painted. */
+   *  between frames, painted on this frame inside the box whose corner is
+   *  @p x, @p y and whose size is @p width by @p height — in the pen's
+   *  current space, whatever `rectMode` says — with this pen lending it
+   *  the canvas, the transform above the box and the clock. The guest is
+   *  told apart by the call site and @p index, and it advances only on
+   *  the frames it is painted. */
   template <Retainable G>
-  void element(const G& guest, const SkRect& box, int index = 0,
+  void element(const G& guest, float x, float y, float width, float height,
+               int index = 0,
                std::source_location where = std::source_location::current()) {
     if (!m_canvas) return;
-    paintRetained(*this, guest, box, Slot::at(where, index));
+    paintRetained(*this, guest,
+                  geometry::path::Rect::of({x, y}, {width, height}),
+                  Slot::at(where, index));
   }
   /** @} */
 

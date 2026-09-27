@@ -42,7 +42,7 @@ namespace {
  *  about a node that never could be. */
 Element expensivePanel() {
   Element panel = box().width(180).height(180).fill(
-      material::skia::sksl(heavyEffect(false)));
+      material::skia::base(material::skia::sksl(heavyEffect(false))));
   for (int i = 0; i < 220; ++i) {
     const float t = (float)i / 220.0f;
     panel.children(

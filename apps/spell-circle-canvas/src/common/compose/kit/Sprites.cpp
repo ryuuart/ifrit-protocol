@@ -256,11 +256,11 @@ Element SpriteSheet::cell(std::string_view name) const {
   return box()
       .width(window.width())
       .height(window.height())
-      .fill(material::skia::image(
+      .fill(material::skia::base(material::skia::image(
           m_sheet->frames().front().image, material::Repeat::None,
           material::Repeat::None,
           SkMatrix::Translate(-window.left(), -window.top()),
-          SkSamplingOptions(SkFilterMode::kNearest)));
+          SkSamplingOptions(SkFilterMode::kNearest))));
 }
 
 }  // namespace sigil::compose::kit

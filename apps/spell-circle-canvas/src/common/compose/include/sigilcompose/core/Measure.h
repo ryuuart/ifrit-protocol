@@ -27,6 +27,17 @@ class FontContext;
 
 namespace sigil::compose {
 
+/** HOW `snapshot` RECORDS its picture. */
+struct SnapshotOptions {
+  /** Record behind a bounding-box hierarchy, so a replay clipped to one
+   *  tile of a long strip — `tiles::window` — visits only the ops that meet
+   *  that tile instead of all of them. Worth it past a handful of tiles
+   *  and not before: the hierarchy costs a pass over the ops, which a
+   *  two-tile run does not earn back, while slicing without it is
+   *  quadratic, every tile walking every tile's ops. */
+  bool sliceable = false;
+};
+
 /** One-shot element render: reconciles, lays out, and records the
  *  paint into a picture. With an empty @p maxSize the tree takes its
  *  intrinsic (content) size; a non-empty one bounds it (root max
@@ -41,7 +52,8 @@ namespace sigil::compose {
  *  sized tree in a plain `box().children({...})` and the dims are honoured,
  *  because they now belong to a child. */
 sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
-                          SkSize maxSize = SkSize::MakeEmpty());
+                          SkSize maxSize = SkSize::MakeEmpty(),
+                          SnapshotOptions options = {});
 
 /** A face's vertical metrics at a given size, without laying anything out.
  *

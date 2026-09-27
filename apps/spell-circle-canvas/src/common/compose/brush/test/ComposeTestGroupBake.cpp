@@ -200,7 +200,7 @@ Element board(int i) {
       .height(11)
       .rotate(ang)
       .shape(skiaShape([shape] { return shape; }))
-      .fill(material::skia::sksl(boardGrain()))
+      .fill(material::skia::base(material::skia::sksl(boardGrain())))
       .foreground(styles::BevelEmboss{0.8f,
                                       1.2f,
                                       120.0f + ang,
@@ -543,7 +543,7 @@ TEST(ComposeCache, GroupRefusesWhatItsMemoCannotSee) {
   // the tree to compare, so a group holding a bake across one would blit last
   // second's picture forever.
   EXPECT_FALSE(groupBakesWith(
-      plainExtra().fill(material::skia::sksl(heavyEffect(true)))))
+      plainExtra().fill(material::skia::base(material::skia::sksl(heavyEffect(true))))))
       << "a group baked over a live material";
 
   // A NON-SRCOVER BLEND below the root: inside the bake it resolves against

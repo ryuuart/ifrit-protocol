@@ -22,7 +22,6 @@
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/paint/Paint.h>
 #include <sigilweave/style/Type.h>
 
 #include <algorithm>
@@ -58,9 +57,10 @@ namespace detail {
 struct ElementNode;
 /** A fill's material and the executor's lowering of it, held together. */
 struct FillMaterial;
-/** The paint the executor lowered @p fill's material to — what the
- *  painter draws with; a paint of nothing for a fill that holds none. */
-const material::Paint& paintOf(const Fill& fill);
+/** The painter's door to what a fill lowered to. */
+struct FillAccess;
+/** The ink in force as a paint, as the cascade carries it down. */
+struct InkInForce;
 }  // namespace detail
 
 // ---------------------------------------------------------------------------
@@ -73,9 +73,8 @@ const material::Paint& paintOf(const Fill& fill);
  *  cascade can mean; everything else is the material's.
  *
  *  A material converts to a fill implicitly, so a component declares one
- *  `Fill` property and its caller writes whichever it holds; the paint an
- *  executor lowers a material to converts as well, as that material's
- *  base. It compares as its lowered paint does, by recipe: the same
+ *  `Fill` property and its caller writes whichever it holds. It compares
+ *  as the paint the executor lowers it to does, by recipe: the same
  *  gradient described again is the same fill. */
 struct Fill {
   /** Which of the three things a fill holds. */
@@ -89,13 +88,7 @@ struct Fill {
   enum class Ref : uint8_t { None, CurrentInk, Var };
 
   Fill() = default;
-  /** @p paint as a fill: the material whose base it is. A paint of
-   *  nothing is no fill; a flat paint stays a paint, which the ink tells
-   *  apart from a colour: a colour is the inherited ink lane, and a paint
-   *  is a paint. */
-  // NOLINTNEXTLINE(google-explicit-constructor)
-  Fill(material::Paint paint);
-  /** A material recipe, as the paint that wears it. */
+  /** A material, as the paint that wears it. */
   template <class Recipe>
     requires(std::convertible_to<Recipe, material::Material> &&
              !std::same_as<std::decay_t<Recipe>, material::Color>)
@@ -159,7 +152,7 @@ struct Fill {
   bool operator==(const Fill& o) const;
 
  private:
-  friend const material::Paint& detail::paintOf(const Fill& fill);
+  friend struct detail::FillAccess;
   // The material and the paint it lowers to, held once and shared, so a
   // fill costs a node no more than a colour and a pointer however much a
   // material grows.
@@ -308,10 +301,11 @@ struct PaintContext {
    *  which is the root's own default. */
   material::Color ink = {0, 0, 0, 1};
   /** THE INK IN FORCE AS A PAINT, where `Element::ink` was given a ramp,
-   *  a sprite, a recipe or SkSL rather than a colour. Null is the
+   *  a sprite, a recipe or a program rather than a colour — the cascade's
+   *  own record, which `Fill::currentInk()` resolves through. Null is the
    *  ordinary case, where `ink` above is the whole of it; valid for the
    *  duration of the paint call. */
-  const material::Paint* inkPaint = nullptr;
+  const detail::InkInForce* inkPaint = nullptr;
   /** THE BOX THAT PAINT IS ANCHORED TO: its extent, and this node's own
    *  space mapped into it. An EMPTY extent is the own-box case — the box
    *  being painted is the box the paint maps onto — and is what a paint
@@ -371,16 +365,9 @@ using PaintProgram =
  *  root's black for the ink and nothing for a property. */
 [[nodiscard]] Fill resolveRef(const Fill& fill, const PaintContext& ctx);
 
-/** THE INK'S PAINT AS A FILL at the node @p ctx describes. An own-box ink
- *  maps the paint's unit square onto that node's box, which is what every
- *  other paint on a node does; an anchored one maps it onto the box the
- *  context names and hands back this node's slice of it. */
-[[nodiscard]] Fill resolveInk(const material::Paint& paint,
-                              const PaintContext& ctx);
-
 // ---------------------------------------------------------------------------
-// A paint as a node's fill — the adapter between SigilMaterial's Skia
-// paint value and the slot the reconciler stores.
+// A material as a node's fill — the adapter between SigilMaterial's value
+// and the slot the reconciler stores.
 
 /** The frame @p ctx supplies a paint: the node's box, the root's size and
  *  the node→root matrix a world-space paint anchors against, the clock and
@@ -389,16 +376,16 @@ using PaintProgram =
  *  one rather than answering wrongly. */
 material::FrameData frameOf(const PaintContext& ctx);
 
-/** The STATIC collapse a non-live paint stores, so it rides the fill
- *  caching and prune path unchanged: a flat paint is its colour, a static
- *  one is itself, and one that needs a frame is no fill. */
-Fill toFill(const material::Paint& paint);
+/** The STATIC collapse a material stores when it needs no frame, so it
+ *  rides the fill caching and prune path unchanged: a flat material is its
+ *  colour, a static one is itself, and one that needs a frame is no fill. */
+Fill toFill(const material::Material& material);
 
-/** The current-frame fill: a flat paint as its colour, and any other as a
- *  paint whose shader was built against @p ctx — for a live paint from
- *  the live values, for a geometry-dependent one from the node's box. What
- *  the painter calls for a live fill. */
-Fill resolveFill(const material::Paint& paint, const PaintContext& ctx);
+/** The current-frame fill: a flat material as its colour, and any other as
+ *  a paint built against @p ctx — for a live material from the live
+ *  values, for a geometry-dependent one from the node's box. What the
+ *  painter calls for a live fill. */
+Fill resolveFill(const material::Material& material, const PaintContext& ctx);
 
 /** @p fill AS IT PAINTS at the node @p ctx describes: a reference resolved
  *  to the colour it names, and a paint as `resolveFill` above resolves it.

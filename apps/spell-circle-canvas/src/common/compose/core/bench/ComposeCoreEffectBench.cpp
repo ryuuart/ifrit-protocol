@@ -262,7 +262,7 @@ Element varyingPanel(int side, sigil::material::Filter e) {
   return box()
       .width((float)side)
       .height((float)side)
-      .fill(stripeTarget())
+      .fill(sigil::material::skia::base(stripeTarget()))
       .filter(std::move(e));
 }
 

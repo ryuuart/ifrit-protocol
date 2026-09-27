@@ -4,6 +4,7 @@
 // not. The box first, then the text properties, which a rule states and an
 // element cannot.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/core/Property.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/typography/TextUnit.h>
@@ -259,8 +260,8 @@ TEST(ComposeRuleScope, ARuleFillsAndRoundsTheElementsItMatches) {
 namespace {
 
 /** A ramp down the unit square, from @p top to @p bottom. */
-material::Paint ramp(material::Color top, material::Color bottom) {
-  return material::Paint::linearGradient({0, 0}, {0, 1},
+material::Material ramp(material::Color top, material::Color bottom) {
+  return material::linearGradient({0, 0}, {0, 1},
                                                {{0.0f, top}, {1.0f, bottom}});
 }
 
@@ -307,7 +308,7 @@ TEST(ComposeRuleScope, ARuleFillsWithARampLaidOnEachElementsOwnBox) {
 
 TEST(ComposeRuleScope, ARuleFillOverTheCanvasDrawsAsTheVerbsDoes) {
   const auto across = [] {
-    return material::Paint::linearGradient({0, 0}, {1, 0},
+    return material::linearGradient({0, 0}, {1, 0},
                                                  {{0.0f, kRed}, {1.0f, kBlue}});
   };
   Host ruled, stated;

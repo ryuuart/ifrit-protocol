@@ -240,8 +240,8 @@ Element graphics(std::string_view key, PenProgram program, Cache caching) {
   return custom(key, onto(std::move(program))).cache(caching).cover();
 }
 
-void paintRetained(draw::Pen& pen, const Element& element, const SkRect& box,
-                   draw::Slot slot) {
+void paintRetained(draw::Pen& pen, const Element& element,
+                   const geometry::path::Rect& box, draw::Slot slot) {
   SkCanvas* canvas = pen.canvas();
   weave::FontContext* fonts = pen.fonts();
   if (!canvas || !fonts) return;

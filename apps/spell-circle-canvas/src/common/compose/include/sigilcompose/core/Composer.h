@@ -51,6 +51,8 @@ struct Instance;
 // at which granularity are SigilWeave's, declared above.
 struct TextUnit;
 struct Beat;
+// How `snapshot` records, declared with it in <sigilcompose/core/Measure.h>.
+struct SnapshotOptions;
 
 /** WHAT A LIVE PASSAGE'S LAST LAYOUT COST — `Composer::settling`'s answer.
  *
@@ -676,7 +678,7 @@ class Composer {
  private:
   friend struct detail::Instance;
   friend sk_sp<SkPicture> snapshot(const Element&, sigil::weave::FontContext&,
-                                   SkSize);
+                                   SkSize, SnapshotOptions);
   friend SkSize intrinsicSize(const Element&, sigil::weave::FontContext&,
                               SkSize);
   std::unique_ptr<Impl> m_impl;

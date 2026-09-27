@@ -179,7 +179,7 @@ Element revealedPage(float reveal) {
                        .top(20)
                        .width(200)
                        .height(200)
-                       .fill(material::skia::sksl(gridEffect()))
+                       .fill(material::skia::base(material::skia::sksl(gridEffect())))
                        .key("mark")});
   page.children({window.key("window")});
   return page;

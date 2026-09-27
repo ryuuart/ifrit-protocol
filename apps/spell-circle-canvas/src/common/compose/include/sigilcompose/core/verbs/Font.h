@@ -80,8 +80,7 @@ class FontVerbs {
    *  standing and says so once. */
   Derived& ink(VarRef reference);
   /** THE INK AS A WHOLE PAINT — a ramp, a sprite, a recipe, a program —
-   *  as a `Fill`, which a `material::Paint` and a `material::Material`
-   *  convert to. A plain colour behaves as the
+   *  as a `Fill`, which a `material::Material` converts to. A plain colour behaves as the
    *  colour form above does; any other paint inherits the same way but
    *  SNAPS under a transition rather than easing, as a fill does. @p box
    *  is the rectangle the paint's unit square is stretched over:

@@ -5,6 +5,7 @@
 // the sampling an image leaf is magnified with, the box a picture and
 // an atlas region meet, and what a paint program is handed.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <cstring>  // memcmp — for the no-conversion control
@@ -97,7 +98,7 @@ TEST(ComposeComposer, DeclaredInputSpaceIsALoudDeclarationAndNothingElse) {
     Host h;
     h.composer.declareInputSpace(space);
     h.composer.render(box().children({box().width(160).height(120).fill(
-        material::Paint::linearGradient(
+        material::linearGradient(
             {0, 0}, {160, 120},
             {{0.0f, {1, 0, 0, 1}},
              {0.5f, {0.25f, 0.5f, 0.25f, 0.8f}},

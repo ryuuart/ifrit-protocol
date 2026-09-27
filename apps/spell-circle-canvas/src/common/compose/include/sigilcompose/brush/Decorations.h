@@ -169,7 +169,7 @@ struct PathFormat {
   bool isRunning() const {
     return (trimPhase && trimPhase->isRunning()) ||
            (dashPhaseBinding && dashPhaseBinding->isRunning()) ||
-           detail::paintOf(strokeFill).isRunning();
+           (strokeFill.material() && strokeFill.material()->isRunning());
   }
   float phase() const {
     return dashPhaseBinding ? dashPhaseBinding->value()

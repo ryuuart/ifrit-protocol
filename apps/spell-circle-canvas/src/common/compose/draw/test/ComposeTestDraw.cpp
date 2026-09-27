@@ -148,10 +148,9 @@ TEST(DrawNode, ARetainedGuestRunsUnderItsHostsPromotionPolicy) {
   };
   const Element penGuest = probe(byPen);
   const Element graphicsGuest = probe(byGraphics);
-  const SkRect box = SkRect::MakeWH(40, 40);
   host.composer.render(stack().children(
-      {pen([&](Pen& p) { p.element(penGuest, box); }).width(50).height(50),
-       graphics([&](Pen& g) { g.element(graphicsGuest, box); })
+      {pen([&](Pen& p) { p.element(penGuest, 0, 0, 40, 40); }).width(50).height(50),
+       graphics([&](Pen& g) { g.element(graphicsGuest, 0, 0, 40, 40); })
            .width(50)
            .height(50)}));
   host.frame();
@@ -303,7 +302,7 @@ TEST(RetainedElement, PaintsAtTheBoxAndKeepsItsComposer) {
   Paper paper;
   for (int frame = 1; frame <= 2; ++frame) {
     paper.begin(frame);
-    paper.pen.element(box().fill(red()), SkRect::MakeXYWH(10, 10, 30, 30));
+    paper.pen.element(box().fill(red()), 10, 10, 30, 30);
     paper.pen.end();
   }
   EXPECT_EQ(paper.pixel(20, 20), SK_ColorRED);
@@ -317,7 +316,7 @@ TEST(RetainedElement, ShapesTextWithThePensFonts) {
   Paper paper;
   paper.begin(1);
   paper.pen.element(text(u8"Hi", whiteStyle(24)),
-                    SkRect::MakeXYWH(10, 10, 80, 40));
+                    10, 10, 80, 40);
   paper.pen.end();
   EXPECT_TRUE(paper.anyWhiteIn(SkIRect::MakeXYWH(10, 10, 80, 40)));
   EXPECT_FALSE(paper.anyWhiteIn(SkIRect::MakeXYWH(0, 60, 100, 40)));
@@ -327,7 +326,7 @@ TEST(RetainedElement, FollowsThePensTransform) {
   Paper paper;
   paper.begin(1);
   paper.pen.translate(50, 50);
-  paper.pen.element(box().fill(blue()), SkRect::MakeXYWH(0, 0, 20, 20));
+  paper.pen.element(box().fill(blue()), 0, 0, 20, 20);
   paper.pen.end();
   EXPECT_EQ(paper.pixel(60, 60), SK_ColorBLUE);
   EXPECT_EQ(paper.pixel(10, 10), SK_ColorTRANSPARENT);
@@ -347,7 +346,7 @@ TEST(RetainedElement, AnotherFontContextGetsAComposerBuiltOnIt) {
   for (int frame = 1; frame <= 2; ++frame) {
     paper.beginWith(frame, frame == 1 ? &fonts() : &second);
     paper.pen.element(text(u8"Hi", whiteStyle(24)),
-                      SkRect::MakeXYWH(0, frame == 1 ? 0.0f : 50.0f, 90, 40));
+                      0, frame == 1 ? 0.0f : 50.0f, 90, 40);
     paper.pen.end();
   }
   EXPECT_EQ(paper.pen.retained().size(), 1u) << "one slot, one guest";
@@ -359,7 +358,7 @@ TEST(RetainedElement, AnotherFontContextGetsAComposerBuiltOnIt) {
 TEST(RetainedElement, PaintsNothingWithoutFonts) {
   Paper paper;
   paper.begin(1, false);
-  paper.pen.element(box().fill(red()), SkRect::MakeXYWH(10, 10, 30, 30));
+  paper.pen.element(box().fill(red()), 10, 10, 30, 30);
   paper.pen.end();
   EXPECT_EQ(paper.pixel(20, 20), SK_ColorTRANSPARENT);
   EXPECT_EQ(paper.pen.retained().size(), 0u);

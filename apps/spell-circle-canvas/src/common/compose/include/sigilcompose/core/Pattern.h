@@ -135,18 +135,18 @@ class Pattern {
   /** The tile beneath: its bake, its mapping. */
   const sigil::material::pattern::Tile& tile() const { return m_tile; }
 
-  /** Bake-once + wrap as a repeating paint. PROGRAM TILES ONLY: an
+  /** Bake-once + wrap as a repeating material. PROGRAM TILES ONLY: an
    *  element-tile Pattern has no font context here, so it draws nothing
-   *  and returns an EMPTY paint — use the overload below. */
-  material::Paint material() const { return bake(nullptr); }
+   *  and returns a material that paints nothing — use the overload below. */
+  material::Material material() const { return bake(nullptr); }
   /** Element-tile overload, and the required one for element tiles: the
    *  tree is laid out and shaped during the bake, which needs the fonts. */
-  material::Paint material(sigil::weave::FontContext& fonts) const {
+  material::Material material(sigil::weave::FontContext& fonts) const {
     return bake(&fonts);
   }
 
  private:
-  material::Paint bake(sigil::weave::FontContext* fonts) const;
+  material::Material bake(sigil::weave::FontContext* fonts) const;
 
   // Mutable because the element tile's program is installed at the first
   // bake, which is a const query on the value: the tile's shared state is

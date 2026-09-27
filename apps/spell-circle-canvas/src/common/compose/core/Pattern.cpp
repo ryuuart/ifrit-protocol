@@ -15,14 +15,16 @@
 
 namespace sigil::compose {
 
-material::Paint Pattern::bake(sigil::weave::FontContext* fonts) const {
-  if (!m_tile.valid()) return {};
+material::Material Pattern::bake(sigil::weave::FontContext* fonts) const {
+  // A pattern that cannot bake paints nothing.
+  const material::Material nothing = material::skia::base(material::Paint{});
+  if (!m_tile.valid()) return nothing;
   if (m_tree && !m_tile.baked()) {
     if (!fonts) {
       SkDebugf(
           "Pattern::material(): an element tile needs the "
           "material(FontContext&) overload\n");
-      return {};
+      return nothing;
     }
     // The element tile is SHAPED HERE, while the fonts are in hand, and
     // the program is the recording it produced. The tile's state
@@ -38,7 +40,7 @@ material::Paint Pattern::bake(sigil::weave::FontContext* fonts) const {
         }));
   }
   sk_sp<SkImage> baked = material::skia::image(m_tile.texture());
-  if (!baked) return {};
+  if (!baked) return nothing;
   material::Paint m = material::skia::image(
       std::move(baked), material::Repeat::Repeat, material::Repeat::Repeat,
       material::skia::toSkMatrix(m_tile.mapping()),
@@ -48,7 +50,7 @@ material::Paint Pattern::bake(sigil::weave::FontContext* fonts) const {
     m.offset(m_boundX,
              m_boundY);  // the live pan rides material::Paint's
                          // bound-matrix channel
-  return m;
+  return material::skia::base(std::move(m));
 }
 
 }  // namespace sigil::compose

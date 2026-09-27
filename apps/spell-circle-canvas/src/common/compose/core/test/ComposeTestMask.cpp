@@ -222,7 +222,7 @@ TEST(ComposeCache, ALiveEffectMovingOverAHeldMaterialRepaints) {
   Host host(200, 200);
   host.composer.render(box().children(
       {maskBox()
-           .fill(material::skia::sksl(matfx).bind("lift", lift))
+           .fill(material::skia::base(material::skia::sksl(matfx).bind("lift", lift)))
            .filter(material::skia::program(fx, {{"amt", 1.0f}})
                        .bind("amt", amt))}));
   host.frame();

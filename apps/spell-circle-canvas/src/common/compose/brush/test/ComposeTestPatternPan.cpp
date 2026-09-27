@@ -199,12 +199,12 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
   // and one with no pan at all, answer no.
   Pattern parked = halfTilePattern();
   parked.offset(8.0f, std::nullopt);
-  EXPECT_TRUE(parked.material().boundOffsetOnly()) << "a parked pan is a pan";
+  EXPECT_TRUE(material::skia::paint(parked.material()).boundOffsetOnly()) << "a parked pan is a pan";
   EXPECT_FALSE(parked.material().isRunning()) << "…and it is not moving";
-  EXPECT_TRUE(bound.material().boundOffsetOnly()) << "…so is a moving one";
-  EXPECT_FALSE(pat.material().boundOffsetOnly())
+  EXPECT_TRUE(material::skia::paint(bound.material()).boundOffsetOnly()) << "…so is a moving one";
+  EXPECT_FALSE(material::skia::paint(pat.material()).boundOffsetOnly())
       << "the describe-time offset is the recipe's, not the lane's";
-  EXPECT_FALSE(halfTilePattern().material().boundOffsetOnly())
+  EXPECT_FALSE(material::skia::paint(halfTilePattern().material()).boundOffsetOnly())
       << "a material with no pan channel must not claim the lane";
   // The static pan draws at its phase and prunes across re-describes.
   Host host(300, 300);

@@ -403,7 +403,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       // names no colour takes, the font a pen program begins in, and the
       // custom properties a fill or an ink may read.
       .ink = inst.font.color.value_or(material::Color{0, 0, 0, 1}),
-      .inkPaint = inst.inkPaint.paint ? &*inst.inkPaint.paint : nullptr,
+      .inkPaint = inst.inkPaint.paint ? &inst.inkPaint : nullptr,
       .inkAnchorSize = geometry::path::fromSk(inkAnchorSize),
       // This node's own space mapped INTO the anchor box: the walk holds
       // the anchor's node→root matrix, and a slice is what stands between
@@ -727,8 +727,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       if (placed.kind == Fill::Kind::Paint)
         if (sk_sp<SkShader> shader =
                 material::skia::staticShader(detail::paintOf(placed)))
-          placed = Fill{material::skia::paint(shader->makeWithLocalMatrix(
-              SkMatrix::Translate(inset.left, inset.top)))};
+          placed = detail::fillOf(material::skia::paint(shader->makeWithLocalMatrix(
+              SkMatrix::Translate(inset.left, inset.top))));
       resolvedFill = std::move(placed);
     }
   } else if (style.paint.fill) {

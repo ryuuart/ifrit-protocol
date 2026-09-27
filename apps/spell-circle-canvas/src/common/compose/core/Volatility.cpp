@@ -278,7 +278,7 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const bool passLive = [&] {
     for (const Track& t : tracksOf(node))
       if (t.effect)
-        if (const material::Paint* pm = t.effect.passMaterial())
+        if (const material::Material* pm = t.effect.passMaterial())
           if (pm->isRunning()) return true;
     return false;
   }();

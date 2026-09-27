@@ -7,6 +7,7 @@
 // box-unit gradient's falloff reaches over however many stops it carries, and
 // what a uniform name the effect never declared does.
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Paint.h>
 #include "support/CoreTestSupport.h"
 
@@ -16,7 +17,7 @@ TEST(ComposeMaterial, ABoxUnitGradientFollowsTheBoxItLandsIn) {
   // material reads correctly at two different sizes.
   auto card = [](float w, float h) {
     return box().width(w).height(h).absolute().left(0).top(0).fill(
-        material::Paint::linearGradient(
+        material::linearGradient(
             {0, 0}, {0, 1}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}}));
   };
   Host small(80, 40);
@@ -46,7 +47,7 @@ TEST(ComposeMaterial, LinearGradientFillPaints) {
            .height(20)
            .inset(0, 100, 180, 0)
            .absolute()
-           .fill(material::Paint::linearGradient(
+           .fill(material::linearGradient(
                {0, 0}, {100, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
                {.units = material::GradientUnits::Pixels}))}));
   host.frame();
@@ -67,7 +68,7 @@ TEST(ComposeMaterial, AFocusMovesTheHighlightWithoutMovingTheFalloff) {
   const auto sphere = [](SkPoint focus) {
     return box().children(
         {box().width(120).height(120).inset(40).absolute().fill(
-            material::Paint::radialGradient(
+            material::radialGradient(
                 {60, 60}, 60.0f,
                 {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0.2f, 1}}},
                 {.units = material::GradientUnits::Pixels,
@@ -180,11 +181,11 @@ TEST(ComposeMaterial, BlendStackCompositesToOneShader) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(material::Paint::blend({
+           .fill(material::skia::base(material::Paint::blend({
                {material::Paint::solid({1, 0, 0, 1}),
                 material::BlendMode::Normal},
                {material::Paint::solid({0, 1, 0, 1}), material::BlendMode::PlusLighter},
-           }))}));
+           })))}));
   host.frame();
   const SkColor c = host.pixel(20, 20);
   EXPECT_GT(SkColorGetR(c), 200u);
@@ -199,7 +200,7 @@ TEST(ComposeMaterial, StaticMaterialCollapsesToFillAndCaches) {
   // StaticMaterialPrunesAcrossRerender.)
   Host host;
   host.composer.render(box().children(
-      {box().width(60).height(60).fill(material::Paint::radialGradient(
+      {box().width(60).height(60).fill(material::radialGradient(
           {30, 30}, 30, {{0.0f, {1, 1, 1, 1}}, {1.0f, {0, 0, 0, 1}}},
           {.units = material::GradientUnits::Pixels}))}));
   host.frame();  // records
@@ -216,17 +217,17 @@ TEST(ComposeMaterial, StaticMaterialPrunesAcrossRerender) {
   Host host;
   auto tree = [] {
     return box().children(
-        {box().width(60).height(60).fill(material::Paint::linearGradient(
+        {box().width(60).height(60).fill(material::linearGradient(
              {0, 0}, {60, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
              {.units = material::GradientUnits::Pixels})),
-         box().width(40).height(40).fill(material::Paint::blend({
+         box().width(40).height(40).fill(material::skia::base(material::Paint::blend({
              {material::Paint::solid({0, 0, 0, 1}),
               material::BlendMode::Normal},
              {material::Paint::radialGradient(
                   {20, 20}, 20, {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 0, 1}}},
                   {.units = material::GradientUnits::Pixels}),
               material::BlendMode::PlusLighter},
-         }))});
+         })))});
   };
   host.composer.render(tree());
   host.frame();
@@ -243,7 +244,7 @@ TEST(ComposeMaterial, ChangedRecipeStillInvalidates) {
   Host host;
   auto tree = [](SkColor4f c) {
     return box().children({box().key("g").width(60).height(60).fill(
-        material::Paint::linearGradient(
+        material::linearGradient(
             {0, 0}, {60, 0}, {{0.0f, c}, {1.0f, c}},
             {.units = material::GradientUnits::Pixels}))});
   };
@@ -342,9 +343,9 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // child) — they are sources the material brings with it.
   Host host(80, 20);
   host.composer.render(stack().children({box().absolute().inset(0).fill(
-      material::skia::sksl(paletteEffect(), {{"uShade", 0.0f}})
+      material::skia::base(material::skia::sksl(paletteEffect(), {{"uShade", 0.0f}})
           .slot("uIndex", indexSource())
-          .slot("uPalette", paletteSource(rampPalette())))}));
+          .slot("uPalette", paletteSource(rampPalette()))))}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "index 0";
   EXPECT_EQ(host.pixel(30, 10), SK_ColorGREEN) << "index 1";
@@ -355,9 +356,9 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // without touching the index texture — the paletted-shading trick itself.
   Host swapped(80, 20);
   swapped.composer.render(stack().children({box().absolute().inset(0).fill(
-      material::skia::sksl(paletteEffect(), {{"uShade", 0.0f}})
+      material::skia::base(material::skia::sksl(paletteEffect(), {{"uShade", 0.0f}})
           .slot("uIndex", indexSource())
-          .slot("uPalette", paletteSource(reversedPalette())))}));
+          .slot("uPalette", paletteSource(reversedPalette()))))}));
   swapped.frame();
   EXPECT_EQ(swapped.pixel(10, 10), SK_ColorWHITE) << "same indices, new LUT";
   EXPECT_EQ(swapped.pixel(70, 10), SK_ColorRED);
@@ -366,9 +367,9 @@ TEST(ComposeMaterial, AChildSlotSamplesAnIndexTextureThroughAPalette) {
   // every cell moves one entry down the palette and the last one sticks.
   Host shaded(80, 20);
   shaded.composer.render(stack().children({box().absolute().inset(0).fill(
-      material::skia::sksl(paletteEffect(), {{"uShade", 1.0f}})
+      material::skia::base(material::skia::sksl(paletteEffect(), {{"uShade", 1.0f}})
           .slot("uIndex", indexSource())
-          .slot("uPalette", paletteSource(rampPalette())))}));
+          .slot("uPalette", paletteSource(rampPalette()))))}));
   shaded.frame();
   EXPECT_EQ(shaded.pixel(10, 10), SK_ColorGREEN) << "0 + 1";
   EXPECT_EQ(shaded.pixel(50, 10), SK_ColorWHITE) << "2 + 1";
@@ -400,9 +401,9 @@ TEST(ComposeMaterial, TheChildRidesThePruneSignature) {
   Host host(80, 20);
   auto tree = [](const sk_sp<SkImage>& lut) {
     return stack().children({box().key("lut").absolute().inset(0).fill(
-        material::skia::sksl(paletteEffect(), {{"uShade", 0.0f}})
+        material::skia::base(material::skia::sksl(paletteEffect(), {{"uShade", 0.0f}})
             .slot("uIndex", indexSource())
-            .slot("uPalette", paletteSource(lut)))});
+            .slot("uPalette", paletteSource(lut))))});
   };
   host.composer.render(tree(rampPalette()));
   host.frame();
@@ -444,7 +445,7 @@ TEST(ComposeMaterial, ALiveChildMakesTheParentLive) {
 
   Host host;
   host.composer.render(stack().children(
-      {box().absolute().inset(0).width(40).height(40).fill(live)}));
+      {box().absolute().inset(0).width(40).height(40).fill(material::skia::base(live))}));
   host.frame();
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);  // uK = 0 → black
   k = 1.0f;                                         // no render()
@@ -478,7 +479,7 @@ TEST(ComposeMaterial, AGeometryChildPropagatesTheGeometryTier) {
   EXPECT_FALSE(m.isRunning()) << "geometry is not live";
 
   Host host(100, 20);
-  host.composer.render(stack().children({box().absolute().inset(0).fill(m)}));
+  host.composer.render(stack().children({box().absolute().inset(0).fill(material::skia::base(m))}));
   host.frame();
   // The ramp spans the node's own width: dark at the left edge, bright at
   // the right. A child resolved with a null context would read uResolution
@@ -498,7 +499,7 @@ TEST(ComposeMaterial, AnUndeclaredChildNameIsIgnored) {
           .slot("uPalette", paletteSource(rampPalette()))
           .slot("uNoSuchSlot", material::Paint::solid({1, 1, 1, 1}));
   EXPECT_FALSE(m.isRunning());
-  host.composer.render(stack().children({box().absolute().inset(0).fill(m)}));
+  host.composer.render(stack().children({box().absolute().inset(0).fill(material::skia::base(m))}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 10), SK_ColorRED) << "the declared slots still ran";
 
@@ -535,7 +536,7 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
              .height(40)
              .cache(Cache::Texture)
              .shape(overflowShape)
-             .fill(material::Paint::solid({1, 0, 0, 1}).bleed(24))}));
+             .fill(material::skia::base(material::Paint::solid({1, 0, 0, 1}).bleed(24)))}));
     host.frame();
     host.frame();  // the cached replay is where a small cull would bite
     // Node spans y∈[40,80); 14px below is inside the disc's overflow.
@@ -549,9 +550,9 @@ TEST(ComposeMaterial, DeclaredBleedGrowsTheRecordingCull) {
              .height(40)
              .cache(Cache::Texture)
              .shape(overflowShape)
-             .fill(material::Paint::linearGradient(
+             .fill(material::skia::base(material::Paint::linearGradient(
                        {0, 0}, {1, 1}, {{0, {1, 0, 0, 1}}, {1, {1, 0, 0, 1}}})
-                       .bleed(24))}));
+                       .bleed(24)))}));
     host.frame();
     host.frame();
     EXPECT_EQ(host.pixel(70, 94), SK_ColorRED);
@@ -583,11 +584,11 @@ TEST(ComposeMaterial, ABlendLayerCompositesAtItsAmount) {
              .height(60)
              .inset(0, 140, 140, 0)
              .absolute()
-             .fill(material::Paint::blend(
+             .fill(material::skia::base(material::Paint::blend(
                  {{material::Paint::solid({1, 0, 0, 1}),
                    material::BlendMode::Normal},
                   {material::Paint::solid({1, 1, 1, 1}).amount(amt),
-                   material::BlendMode::Normal}}))}));
+                   material::BlendMode::Normal}})))}));
     host.frame();
     return host.pixel(30, 30);
   };
@@ -629,7 +630,7 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
              .height(100)
              .inset(0, 100, 100, 0)
              .absolute()
-             .fill(material::skia::buffer(src))});
+             .fill(material::skia::base(material::skia::buffer(src)))});
   };
   host.composer.render(tree());
   host.frame();
@@ -657,31 +658,29 @@ TEST(ComposeMaterial, ABufferPrunesBetweenCommitsAndPatchesOnCommit) {
 // ---------------------------------------------------------------------------
 // A Fill is a paint or a cascade reference, and compares as its paint does.
 
-TEST(ComposeMaterial, AFillHoldsAPaintAndComparesByItsRecipe) {
-  using material::Paint;
+TEST(ComposeMaterial, AFillHoldsAMaterialAndComparesByItsRecipe) {
   const std::vector<material::ColorStop> ramp{{0.0f, {1, 0, 0, 1}},
                                               {1.0f, {0, 0, 1, 1}}};
   const auto pixels = [&] {
-    return Paint::linearGradient({0, 0}, {10, 0}, ramp,
-                                 {.units = material::GradientUnits::Pixels});
+    return material::linearGradient({0, 0}, {10, 0}, ramp,
+                                    {.units = material::GradientUnits::Pixels});
   };
   // The same gradient described twice is one fill: each call mints its own
   // renderer object, and the fill compares by the recipe, not by it.
   EXPECT_EQ(Fill{pixels()}, Fill{pixels()});
   EXPECT_EQ(Fill{pixels()}.kind, Fill::Kind::Paint);
   EXPECT_NE(Fill{pixels()},
-            Fill{Paint::linearGradient(
+            Fill{material::linearGradient(
                 {0, 0}, {20, 0}, ramp,
                 {.units = material::GradientUnits::Pixels})});
-  // A flat paint stays a paint, which the ink tells apart from a colour;
-  // stored, it collapses to the colour.
-  EXPECT_EQ(Fill{Paint::solid({0, 1, 0, 1})}.kind, Fill::Kind::Paint);
-  EXPECT_EQ(toFill(Paint::solid({0, 1, 0, 1})), green());
-  // A paint of nothing is no fill.
-  EXPECT_EQ(Fill{Paint()}, Fill::none());
+  // A flat material is the colour it is, and collapses to it stored.
+  EXPECT_EQ(Fill{material::Material(material::Color{0, 1, 0, 1})}, green());
+  EXPECT_EQ(toFill(material::Material(material::Color{0, 1, 0, 1})), green());
+  // A material that paints nothing is no fill.
+  EXPECT_EQ(Fill{material::skia::base(material::Paint())}, Fill::none());
   // A box-unit gradient reads the box it lands on, so it needs a frame; a
   // pixel one does not.
-  EXPECT_TRUE(Fill{Paint::linearGradient({0, 0}, {1, 0}, ramp)}.needsFrame());
+  EXPECT_TRUE(Fill{material::linearGradient({0, 0}, {1, 0}, ramp)}.needsFrame());
   EXPECT_FALSE(Fill{pixels()}.needsFrame());
   // The references are what only the cascade can mean.
   EXPECT_TRUE(Fill::currentInk().references());
@@ -715,7 +714,7 @@ TEST(ComposeMaterials, TheClosestSideReachesTheInscribedCircleNotTheCorners) {
   auto edgeValue = [&](material::Paint m) {
     Host host(200, 200);
     host.composer.render(
-        box().children({box().absolute().inset(0).fill(std::move(m))}));
+        box().children({box().absolute().inset(0).fill(material::skia::base(std::move(m)))}));
     host.frame();
     // Just inside the box edge, on the horizontal centre line — where the
     // inscribed circle touches.
@@ -758,7 +757,7 @@ TEST(ComposeMaterials, BoxUnitGradientsTakeAnyNumberOfStops) {
     }
     Host host(256, 32);
     host.composer.render(box().children({box().absolute().inset(0).fill(
-        material::Paint::linearGradient({0, 0}, {1, 0}, stops))}));
+        material::linearGradient({0, 0}, {1, 0}, stops))}));
     host.frame();
     // Count the light/dark transitions across the middle scanline.
     int flips = 0;
@@ -780,7 +779,7 @@ TEST(ComposeMaterials, BoxUnitGradientsTakeAnyNumberOfStops) {
   // Degenerate counts still behave.
   Host one(64, 64);
   one.composer.render(box().children(
-      {box().absolute().inset(0).fill(material::Paint::linearGradient(
+      {box().absolute().inset(0).fill(material::linearGradient(
           {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}}))}));
   one.frame();
   EXPECT_GT(SkColorGetR(one.pixel(32, 32)), 200);
@@ -805,7 +804,7 @@ TEST(ComposeMaterial, UnknownUniformNamesWarnAndIgnore) {
            .height(40)
            .inset(0, 160, 160, 0)
            .absolute()
-           .fill(m)}));
+           .fill(material::skia::base(m))}));
   host.frame();  // paints with uK at its SkSL default (0) — and does not crash
   EXPECT_LT(SkColorGetR(host.pixel(20, 20)), 40u);
 }
@@ -818,7 +817,7 @@ TEST(ComposeMaterial, AFillOverTheCanvasIsOneFieldSeveralBoxesShowSlicesOf) {
   // stretched over the canvas: the left card shows the ramp's left, the
   // right card its right, and together they read as one gradient.
   const auto ramp = [] {
-    return material::Paint::linearGradient(
+    return material::linearGradient(
         {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   };
   Host host;
@@ -847,7 +846,7 @@ TEST(ComposeMaterial, AFillOnTheContentBoxStartsInsideThePadding) {
   // the painted area is identical — there is no clip — and only where the
   // ramp starts moves, so the top-left corner is redder on the inset one.
   const auto ramp = [] {
-    return material::Paint::linearGradient(
+    return material::linearGradient(
         {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   };
   const auto page = [&](PaintBox over) {
@@ -879,7 +878,7 @@ TEST(ComposeMaterial, APaddingFillNamesTheSameRectangleTheElementsOwnDoes) {
   // A border here is a stroke dressing the boundary, not a box lane, so
   // the two boxes are the same rectangle until one exists.
   const auto ramp = [] {
-    return material::Paint::linearGradient(
+    return material::linearGradient(
         {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   };
   const auto page = [&](PaintBox over) {
@@ -900,7 +899,7 @@ TEST(ComposeMaterial, AFillRefusesATextUnitAndSaysSo) {
   // stretched over the element's own box. The subtree's box is the
   // element's own too, since a fill does not inherit — silently.
   const auto ramp = [] {
-    return material::Paint::linearGradient(
+    return material::linearGradient(
         {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   };
   const auto page = [&](PaintBox over) {

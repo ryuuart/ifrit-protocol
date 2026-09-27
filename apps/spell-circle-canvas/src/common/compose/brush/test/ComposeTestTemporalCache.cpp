@@ -36,7 +36,8 @@ Element timedLeaf(float quantizeHz) {
   material::Paint m = material::skia::sksl(heavyEffect(true));
   if (quantizeHz > 0) m.quantizeTime(quantizeHz);
   return box().children(
-      {box().width(400).height(400).key("plasma").fill(std::move(m))});
+      {box().width(400).height(400).key("plasma").fill(
+          material::skia::base(std::move(m)))});
 }
 
 }  // namespace

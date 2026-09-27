@@ -6,6 +6,7 @@
 #include "support/BrushTestSupport.h"
 #include <sigilgeometry/path/Skia.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 // ---- S1 · the helper's three strokes, gated from OUTSIDE the helper -------
 
@@ -601,7 +602,7 @@ TEST(ComposeMaskGates, TheAlphaGateTakesItsCoverageFromAMaterial) {
            .width(160)
            .height(160)
            .fill(red())
-           .mask(by::alpha(material::Paint::linearGradient(
+           .mask(by::alpha(material::linearGradient(
                {0, 0}, {160, 0}, {{0.0f, {1, 1, 1, 1}}, {1.0f, {1, 1, 1, 0}}},
                {.units = material::GradientUnits::Pixels})))}));
   host.frame();
@@ -666,11 +667,11 @@ TEST(ComposeMaskGates, TheLumaGateIsRec601OnEncodedPremultipliedValues) {
   // black, the way After Effects' luma matte does.
   Host host(200, 200);
   host.composer.render(coveragePlates({
-      by::luma(material::Paint::solid({1, 0, 0, 1})),
-      by::luma(material::Paint::solid({0, 1, 0, 1})),
-      by::luma(material::Paint::solid({0, 0, 1, 1})),
-      by::luma(material::Paint::solid({0.5f, 0.5f, 0.5f, 1})),
-      by::luma(material::Paint::solid({1, 1, 1, 0.5f})),
+      by::luma(material::Color{1, 0, 0, 1}),
+      by::luma(material::Color{0, 1, 0, 1}),
+      by::luma(material::Color{0, 0, 1, 1}),
+      by::luma(material::Color{0.5f, 0.5f, 0.5f, 1}),
+      by::luma(material::Color{1, 1, 1, 0.5f}),
   }));
   host.frame();
   EXPECT_NEAR(plateByte(host, 0), 76, 2) << "red is 0.299, not 0.2126 (Rec.709 "
@@ -702,7 +703,7 @@ TEST(ComposeMaskGates, TheLumaLawIsTheSameThroughAShader) {
            .width(160)
            .height(160)
            .fill(Fill::color({1, 1, 1, 1}))
-           .mask(by::luma(material::Paint::linearGradient(
+           .mask(by::luma(material::linearGradient(
                {0, 0}, {160, 0}, {{0.0f, {0, 1, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
                {.units = material::GradientUnits::Pixels})))}));
   host.frame();
@@ -718,8 +719,8 @@ TEST(ComposeMaskGates, EachCoverageGateHasItsComplementAsItsOwnTerm) {
   // Mechanically it is kDstOut instead of kDstIn, which is dst·(1-a): the
   // pair of plates must sum to 255 at every sample, not merely differ.
   Host host(200, 200);
-  const material::Paint ramp =
-      material::Paint::solid({0.5f, 0.5f, 0.5f, 0.25f});
+  const material::Material ramp =
+      material::skia::base(material::Paint::solid({0.5f, 0.5f, 0.5f, 0.25f}));
   host.composer.render(coveragePlates({
       by::alpha(ramp),     // 0.25            ->  64
       by::alphaOut(ramp),  // 1 - 0.25        -> 191
@@ -746,8 +747,8 @@ TEST(ComposeMaskGates, ACoverageGatesChannelAndSenseReachTheComparator) {
   // arm already, so the compile-time field pin cannot notice the Coverage
   // arm ignoring it — and a matte that compares equal to its own INVERSE
   // prunes and stays showing the wrong half for as long as the node lives.
-  const material::Paint m =
-      material::Paint::solid({0.5f, 0.5f, 0.5f, 1});
+  const material::Material m =
+      material::skia::base(material::Paint::solid({0.5f, 0.5f, 0.5f, 1}));
   // Gate::operator== IS the arm the structural prune reads for a mask, so
   // the value is compared where the comparator lives.
   const auto same = [&](const Gate& a, const Gate& b) { return a == b; };

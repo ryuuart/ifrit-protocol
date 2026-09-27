@@ -123,6 +123,10 @@ Filter Filter::blur(Paint sigmaMap, float maximumSigma) {
   return FilterAccess::wrap(Effect::blur(std::move(sigmaMap), maximumSigma));
 }
 
+Filter Filter::blur(const Material& sigmaMap, float maximumSigma) {
+  return blur(skia::paint(sigmaMap), maximumSigma);
+}
+
 Filter Filter::directionalBlur(float sigma, float angleDegrees, float across) {
   return FilterAccess::wrap(Effect::directionalBlur(sigma, angleDegrees, across));
 }
@@ -301,6 +305,10 @@ class EffectsPart final : public detail::Part {
 };
 
 }  // namespace
+
+EffectsStage::EffectsStage(const Filter& chain)
+    : m_part(chain.isNone() ? nullptr
+                            : std::make_shared<const EffectsPart>(chain)) {}
 
 Material& Material::effects(const Filter& chain) {
   placeEffects(chain.isNone() ? nullptr

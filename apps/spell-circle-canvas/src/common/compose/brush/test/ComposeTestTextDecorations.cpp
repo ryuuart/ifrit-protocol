@@ -6,6 +6,7 @@
 #include <sigildraw/Pen.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/kit/Strokes.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include "support/BrushTestSupport.h"
 
@@ -322,7 +323,7 @@ TEST(ComposeDecorations, AStrokeCanTakeAMaterial) {
   // whose surfaces are mostly STROKES, that meant writing the same brass
   // twice, once per return type.
   PathFormat f = stroke(30, Fill::color({1, 1, 1, 1}));
-  f.strokeFill = material::Paint::linearGradient(
+  f.strokeFill = material::linearGradient(
       {0, 0}, {1, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}});
   Host host(200, 200);
   host.composer.render(box().children(
@@ -435,7 +436,7 @@ TEST(ComposePattern, ARepeatCanBePanned) {
     p.offset(pan).sampling(material::Sampling::Nearest);
     return p.material();
   };
-  auto colourAt = [](material::Paint m, int x) {
+  auto colourAt = [](material::Material m, int x) {
     Host host(64, 64);
     host.composer.render(
         box().children({box().absolute().inset(0).fill(std::move(m))}));

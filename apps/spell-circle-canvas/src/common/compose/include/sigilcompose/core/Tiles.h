@@ -9,8 +9,6 @@
  */
 
 #include <glm/vec2.hpp>
-#include <include/core/SkPicture.h>
-#include <include/core/SkRefCnt.h>
 #include <sigilgeometry/path/Transform.h>
 
 namespace sigil::compose {
@@ -23,8 +21,9 @@ namespace sigil::compose {
  *  consumer then wants it as N tile-sized rasters. That slice is a clip
  *  and a translate and nothing else: **there is no windowed bake, and
  *  there is no need for one.** Replaying the whole picture per tile,
- *  behind `sliceable()` below, is as cheap as extracting each tile's ops
- *  in advance would be.
+ *  recorded behind a bounding-box hierarchy with `snapshot`'s
+ *  `SnapshotOptions::sliceable`, is as cheap as extracting each tile's
+ *  ops in advance would be.
  *
  *  What DOES go wrong is the transform, and that is what these two verbs
  *  exist to own.
@@ -68,22 +67,6 @@ enum class Facing {
 geometry::path::Transform window(glm::vec2 tile, int index,
                                  Flow flow = Flow::Down,
                                  Facing facing = Facing::Forward);
-
-/** The same picture, re-recorded behind a bounding-box hierarchy, so each
- *  `window()` replay visits only the ops that meet its tile instead of all
- *  of them.
- *
- *  Worth it past a handful of tiles and not before: building the
- *  hierarchy costs a pass over the picture, which a two-tile run does not
- *  earn back. Slicing WITHOUT it is quadratic, because every tile walks
- *  every tile's ops, so the saving grows with the tile count while the
- *  build cost does not.
- *
- *  It exists as a verb because the obvious one-liner has a trap:
- *  `drawPicture()` into a recorder stores a NESTED reference the
- *  bounding-box hierarchy cannot see into, leaving the tree empty and the
- *  replay cost unchanged. This flattens with `playback()` instead. */
-sk_sp<SkPicture> sliceable(const sk_sp<SkPicture>& art);
 
 }  // namespace tiles
 

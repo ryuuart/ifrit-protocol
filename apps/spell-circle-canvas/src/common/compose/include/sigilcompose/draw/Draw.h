@@ -7,7 +7,6 @@
  * is a pen program, and a retained element painted inside a pen's loop.
  */
 
-#include <include/core/SkRect.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Operator.h>
@@ -87,7 +86,7 @@ Element graphics(PenProgram program, Cache caching = Cache::None);
 Element graphics(std::string_view key, PenProgram program,
                  Cache caching = Cache::None);
 
-/** THE OTHER WAY THROUGH THE DOOR: `pen.element(element, box)` lands
+/** THE OTHER WAY THROUGH THE DOOR: `pen.element(element, x, y, w, h)` lands
  *  here. A composer is kept in the pen for the call site, @p element is
  *  reconciled against what that composer already holds — so its layout,
  *  its text shaping, its caches and its bindings carry from one frame
@@ -101,8 +100,8 @@ Element graphics(std::string_view key, PenProgram program,
  *  it inherits are what the composer's root inherits, so a tree painted
  *  inside a pen program begins in the same colour and the same type the
  *  pen's own verbs do. */
-void paintRetained(draw::Pen& pen, const Element& element, const SkRect& box,
-                   draw::Slot slot);
+void paintRetained(draw::Pen& pen, const Element& element,
+                   const geometry::path::Rect& box, draw::Slot slot);
 
 /** A SCOPE PROGRAM: what a pen draws over a node's scope — every settled
  *  node under it, with its key, facts, bounds and outline — the one door

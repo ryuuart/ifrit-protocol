@@ -63,7 +63,7 @@ Element rotatedInstrument(float rotationDeg, bool flagged) {
            .width(120)
            .height(120)
            .key("panel")
-           .fill(canvasLight(flagged, {40, 40}))
+           .fill(material::skia::base(canvasLight(flagged, {40, 40})))
            .children({box().absolute().left(0).top(0).width(4).height(4).fill(
                Fill::color({0, 0.3f, 0, 1}))})});
   return box().children({std::move(group)});
@@ -115,8 +115,8 @@ TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
         {0, 0}, {200, 0}, {{0.0f, {1, 0, 0, 1}}, {1.0f, {0, 0, 1, 1}}},
         {.units = material::GradientUnits::Pixels});
     if (flagged) ramp.worldSpace();
-    return box().row().children({box().width(100).height(200).fill(ramp),
-                                 box().width(100).height(200).fill(ramp)});
+    return box().row().children({box().width(100).height(200).fill(material::skia::base(ramp)),
+                                 box().width(100).height(200).fill(material::skia::base(ramp))});
   };
   Host flagged, control;
   flagged.composer.render(scene(true));
@@ -146,8 +146,7 @@ TEST(ComposeWorldSpace, TwoSiblingsShareOneContinuousField) {
 TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   Host host;
   host.composer.render(box().children(
-      {box().absolute().left(40).top(40).width(120).height(120).fill(
-          canvasLight(true, {0, 0}))}));
+      {box().absolute().left(40).top(40).width(120).height(120).fill(material::skia::base(canvasLight(true, {0, 0})))}));
   host.frame();
   EXPECT_LT(SkPoint::Distance(brightestPixel(host), {70, 70}), 3.0f)
       << "the composer resolve did not anchor through the layout offset";
@@ -156,11 +155,11 @@ TEST(ComposeWorldSpace, TheLayoutOffsetAlignsTheFieldAndIdentityDegrades) {
   // node's offset it sits at canvas (110,110), a (40,40) shift.
   PaintContext bare;
   bare.size = {120, 120};
-  const Fill f = resolveFill(canvasLight(true, {0, 0}), bare);
+  const Fill f = resolveFill(material::skia::base(canvasLight(true, {0, 0})), bare);
   ASSERT_EQ(f.kind, Fill::Kind::Paint);
   Host raw;
   SkPaint p;
-  p.setShader(material::skia::staticShader(detail::paintOf(f)));
+  p.setShader(material::skia::staticShader(material::skia::paint(*f.material())));
   raw.surface->getCanvas()->clear(SK_ColorBLACK);
   raw.surface->getCanvas()->save();
   raw.surface->getCanvas()->translate(40, 40);
@@ -186,7 +185,7 @@ TEST(ComposeWorldSpace, ALayoutMoveLeavesTheFieldAnchored) {
     // this pin exists to close).
     return box().row().children(
         {box().width(spacer).height(10),
-         box().width(120).height(200).key("panel").fill(light).children(
+         box().width(120).height(200).key("panel").fill(material::skia::base(light)).children(
              {box().absolute().left(0).top(0).width(4).height(4).fill(
                  green())})});
   };
@@ -218,7 +217,7 @@ TEST(ComposeWorldSpace, AnAncestorsMoveReanchorsTheDescendant) {
     return box().children(
         {box().width(10).height(spacerH),
          box().width(200).height(140).key("group").children(
-             {box().absolute().inset(10).key("panel").fill(light)})});
+             {box().absolute().inset(10).key("panel").fill(material::skia::base(light))})});
   };
   Host host;
   host.composer.render(scene(20));
@@ -253,7 +252,7 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
                         .width(120)
                         .height(120)
                         .key("panel")
-                        .fill(canvasLight(true, {40, 40}))});
+                        .fill(material::skia::base(canvasLight(true, {40, 40})))});
     host.composer.render(box().children({std::move(group)}));
   };
   describe();
@@ -301,7 +300,7 @@ TEST(ComposeWorldSpace, TheFlagRidesThePruneSignature) {
     material::Paint m = material::Paint::linearGradient(
         {0, 0}, {200, 0}, stops, {.units = material::GradientUnits::Pixels});
     if (flagged) m.worldSpace();
-    return box().children({box().width(100).height(100).key("panel").fill(m)});
+    return box().children({box().width(100).height(100).key("panel").fill(material::skia::base(m))});
   };
   Host host;
   host.composer.render(scene(true));
@@ -337,7 +336,7 @@ TEST(ComposeWorldSpace, TheResolveDigestSeesTheNodeMove) {
   Host host;
   host.composer.render(box().row().children(
       {box().flexGrow(1).height(10),
-       box().width(120).height(200).key("panel").fill(m)}));
+       box().width(120).height(200).key("panel").fill(material::skia::base(m))}));
   host.frame();
   // Canvas 200 wide: the spacer grows to 80, the panel spans [80, 200] —
   // the red→blue boundary sits at CANVAS x=130 (world coordinates).

@@ -401,8 +401,7 @@ TEST(ComposeGpu, TextPassReachKeepsContentInPlaceOnGraphite) {
         {text(u8"HOIST", style)
              .key("hoist")
              .textFx({.effect = lift})
-             .textFx({.effect = textFx::pass(sigil::material::Paint::recipe(
-                          sigil::material::Material(identity))),
+             .textFx({.effect = textFx::pass(sigil::material::Material(identity)),
                       .reach = reach})});
   };
   const int w = 200, h = 200;

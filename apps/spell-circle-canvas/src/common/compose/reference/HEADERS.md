@@ -274,10 +274,10 @@ sound model; nothing below them changes kernel semantics.
   feeds, which a pen or paint program under a node reads.
 - `core/Paint.h` — beside `Fill` and `PaintContext`: `frameOf`, `toFill`
   and `resolveFill`, the three lines that put SigilMaterial's
-  `material::Paint` on a node. The paint model itself is that
-  library's — gradients, images, raw SkSL with live uniforms, blend
-  stacks, world-space anchoring — and what is compose's is the routing: a
-  static paint collapses to a `Fill` and rides the caching and prune path,
+  `material::Material` on a node. The paint model itself is that
+  library's — gradients, images, programs with live uniforms, layers,
+  world-space anchoring — and what is compose's is the routing: a
+  static material collapses to a `Fill` and rides the caching and prune path,
   a live or geometry-dependent one is kept whole on the node so the
   painter resolves it against the frame it is drawn at.
 - `kit/Feed.h` — the streaming collection, kit rather than core: a `feed::Ring` of rows,
@@ -597,7 +597,7 @@ MEASURES what was drawn does not have to transcribe how it is built. `Ribbon::fi
 band with a recipe instead of a `Fill` — the door `strokeFill` opens
 on a stroke, mirrored here, so a ribbon beside a stroked outline does not
 have to have the same paint written twice; `brush::presets::taper` and
-`brush::presets::calligraphic` each take a `material::Paint` beside a
+`brush::presets::calligraphic` each take a `material::Material` beside a
 `Fill`, and a live material declares the ribbon animated. The line vocabulary is three
 more:
 `brush/Lines.h`, the cartography and diagram stroke (`lines::Line` —
@@ -661,7 +661,7 @@ panel and well under it. `kit::bevels::motif`, `motifEtched`, `flash`,
 `skin` and `plate` are the token sets four toolkits' edges resolve to.
 `core/Pattern.h` adds the one thing a tile cannot do for itself — an
 element tree AS the tile, baked through `snapshot()`. A recipe instance
-becomes a paint through `material::Paint::recipe`, an effect
+is a material as it stands, an effect
 through `material::Filter::of`, and an output-stage view
 transform for
 `Composer::setView` is SigilMaterial's colour transform, compiled only

@@ -28,31 +28,10 @@ void warnFillTakesNoTextUnit() {
       "PaintBox::Element. A unit restarts an ink. (warned once)\n");
 }
 
-}  // namespace
-
-template <class Derived>
-Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
-  // A paint written as a fill is the paint: it takes the paint's own
-  // route, so a live or geometry-dependent one is resolved with the frame.
-  if (const Fill* plain = f.constant(); plain && plain->kind == Fill::Kind::Paint)
-    return fill(detail::paintOf(*plain), PaintBox::Element);
-  detail::ElementNode* node = declarations();
-  node->fields.fill() = std::move(f);
-  // The box is part of the fill's statement, so a fill with no picture to
-  // place states the element's own and ends whatever an earlier one said.
-  node->fields.fillBox() = PaintBox::Element;
-  // Symmetric with fill(Material): the fill setters are last-wins — a plain
-  // fill after a live-material fill must actually take effect (and release
-  // the node from the live-volatile path). staticMaterial must drop too, or
-  // a stale equal-comparing recipe would over-prune this new fill.
-  // Dropping the WHOLE block (not just its members) keeps propertiesEqual's
-  // block-presence check aligned with a node that never had a material.
-  node->materialData = {};
-  return self();
-}
-
-template <class Derived>
-Derived& PaintVerbs<Derived>::fill(material::Paint m, PaintBox box) {
+/** A paint placed as a node's fill over @p box: a static one collapses
+ *  onto the fill slot, a live or geometry-dependent one is kept whole on
+ *  the material slot for the painter to resolve with the frame. */
+void placePaint(detail::ElementNode* node, material::Paint m, PaintBox box) {
   switch (box) {
     case PaintBox::Element:
     case PaintBox::Padding:
@@ -78,7 +57,6 @@ Derived& PaintVerbs<Derived>::fill(material::Paint m, PaintBox box) {
       box = PaintBox::Element;
       break;
   }
-  detail::ElementNode* node = declarations();
   std::optional<motion::Animatable<Fill>>& fill = node->fields.fill();
   node->fields.fillBox() = box;
   detail::MaterialData& slots = node->materialData.ensure();
@@ -94,8 +72,34 @@ Derived& PaintVerbs<Derived>::fill(material::Paint m, PaintBox box) {
     slots.recipe = std::move(m);  // the prune signature
     slots.live.reset();
   }
+}
+
+}  // namespace
+
+template <class Derived>
+Derived& PaintVerbs<Derived>::fill(motion::Animatable<Fill> f) {
+  // A paint written as a fill is the paint: it takes the paint's own
+  // route, so a live or geometry-dependent one is resolved with the frame.
+  if (const Fill* plain = f.constant();
+      plain && plain->kind == Fill::Kind::Paint) {
+    placePaint(declarations(), detail::paintOf(*plain), PaintBox::Element);
+    return self();
+  }
+  detail::ElementNode* node = declarations();
+  node->fields.fill() = std::move(f);
+  // The box is part of the fill's statement, so a fill with no picture to
+  // place states the element's own and ends whatever an earlier one said.
+  node->fields.fillBox() = PaintBox::Element;
+  // Symmetric with fill(Material): the fill setters are last-wins — a plain
+  // fill after a live-material fill must actually take effect (and release
+  // the node from the live-volatile path). staticMaterial must drop too, or
+  // a stale equal-comparing recipe would over-prune this new fill.
+  // Dropping the WHOLE block (not just its members) keeps propertiesEqual's
+  // block-presence check aligned with a node that never had a material.
+  node->materialData = {};
   return self();
 }
+
 
 template <class Derived>
 Derived& PaintVerbs<Derived>::fill(material::Material material, PaintBox box) {
@@ -111,8 +115,10 @@ Derived& PaintVerbs<Derived>::fill(material::Material material, PaintBox box) {
 
 template <class Derived>
 Derived& PaintVerbs<Derived>::fill(Fill fill, PaintBox box) {
-  if (fill.kind == Fill::Kind::Paint)
-    return this->fill(detail::paintOf(fill), box);
+  if (fill.kind == Fill::Kind::Paint) {
+    placePaint(declarations(), detail::paintOf(fill), box);
+    return self();
+  }
   if (detail::textUnitOf(box)) warnFillTakesNoTextUnit();
   return this->fill(motion::Animatable<Fill>{std::move(fill)});
 }

@@ -52,7 +52,7 @@ void RetainedCard(benchmark::State& state) {
     frame.fonts = &bench::fonts();
     pen.begin(*surface->getCanvas(), frame);
     pen.background(20);
-    pen.element(card, SkRect::MakeXYWH(40, 40, 320, 120));
+    pen.element(card, 40, 40, 320, 120);
     pen.end();
   }
 }

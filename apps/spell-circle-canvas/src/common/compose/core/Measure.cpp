@@ -25,7 +25,7 @@ namespace sigil::compose {
 using namespace detail;
 
 sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
-                          SkSize maxSize) {
+                          SkSize maxSize, SnapshotOptions options) {
   motion::Engine engine;  // inert: nothing steps it, transitions can't run
   Composer composer(engine, fonts);
   Composer::Impl& impl = *composer.m_impl;
@@ -45,8 +45,10 @@ sk_sp<SkPicture> snapshot(const Element& root, sigil::weave::FontContext& fonts,
   const SkRect rect = impl.instanceRect(*impl.root);
   if (rect.isEmpty()) return nullptr;
   SkPictureRecorder recorder;
+  SkRTreeFactory hierarchy;
   SkCanvas* canvas =
-      recorder.beginRecording(SkRect::MakeWH(rect.width(), rect.height()));
+      recorder.beginRecording(SkRect::MakeWH(rect.width(), rect.height()),
+                              options.sliceable ? &hierarchy : nullptr);
   impl.paint(*impl.root, *canvas);
   return recorder.finishRecordingAsPicture();
 }

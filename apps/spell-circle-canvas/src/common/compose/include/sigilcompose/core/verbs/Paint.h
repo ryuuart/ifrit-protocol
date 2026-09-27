@@ -29,10 +29,9 @@ class Pattern;
 
 /** THE SURFACE. Unfilled when unstated, so a box paints nothing and
  *  only its decorations and children show. What may be passed: a
- *  `material::Color`, a `Fill`, a `motion::Animatable<Fill>`, a
- *  `material::Paint` or a `material::Material` recipe. A `Fill` is the
- *  one value the others but the animatable convert into, and the type a
- *  component declares. */
+ *  `material::Color`, a `Fill`, a `motion::Animatable<Fill>` or a
+ *  `material::Material`. A `Fill` is the one value the others but the
+ *  animatable convert into, and the type a component declares. */
 template <class Derived>
 class PaintVerbs {
  public:
@@ -40,27 +39,23 @@ class PaintVerbs {
    *  colours, or a LIVE binding — `fill(&output)` where the output
    *  holds a `Fill`. */
   Derived& fill(motion::Animatable<Fill> f);
-  /** Fill with a paint — a gradient ramp, a blend stack, a sprite,
-   *  SkSL — its unit square stretched over @p box: the element's own box
-   *  by default, `Padding` or `Content` to start it inside the border or
-   *  the padding, `Canvas` for one field several boxes show slices of. A
-   *  static paint collapses to a Fill, so it caches and prunes on the
-   *  same path.
+  /** FILL WITH A MATERIAL — a gradient, layers, an image, a program —
+   *  its unit square stretched over @p box: the element's own box by
+   *  default, `Padding` or `Content` to start it inside the border or the
+   *  padding, `Canvas` for one field several boxes show slices of. A
+   *  static material collapses to a Fill, so it caches and prunes on the
+   *  same path. Its effects dress the node's own layer — shadows and glows
+   *  beneath the fill, strokes and bevels over it, a hard shadow as an
+   *  echo of the fill and the text; passes that read pixels run over the
+   *  node and its subtree as `filter` does. The surface is a 3D renderer's
+   *  and is not painted here.
    *  @trap A fill does not inherit, so `Subtree` is `Element`, and a
    *  border here is a stroke dressing the boundary rather than a box
    *  lane, so `Padding` is `Element` too. A text unit is refused, said
    *  once, and read as `Element`. */
-  Derived& fill(material::Paint m, PaintBox box = PaintBox::Element);
-  /** FILL WITH A MATERIAL — the whole model: its base and layers paint
-   *  the box's region over @p box exactly as a paint would, and its
-   *  effects dress the node's own layer — shadows and glows beneath the
-   *  fill, strokes and bevels over it, a hard shadow as an echo of the
-   *  fill and the text; passes that read pixels run over the node and its
-   *  subtree as `filter` does. The surface is a 3D renderer's and is not
-   *  painted here. */
   Derived& fill(material::Material material, PaintBox box = PaintBox::Element);
-  /** A FILL, as a component property hands it on: a paint in it is
-   *  placed over @p box exactly as `fill(material::Paint, box)` places
+  /** A FILL, as a component property hands it on: a material in it is
+   *  placed over @p box exactly as `fill(material::Material, box)` places
    *  it, and a colour, the ink in force or a custom property — which have
    *  no unit square to place — is applied whole. A text unit is refused
    *  and said once, whatever the fill. */

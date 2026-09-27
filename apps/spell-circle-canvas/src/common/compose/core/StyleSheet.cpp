@@ -55,10 +55,10 @@ const std::optional<VarRef>& Rule::inkVar() const {
   return cascade ? cascade->inkVar : none;
 }
 
-const std::optional<material::Paint>& Rule::inkPaint() const {
-  static const std::optional<material::Paint> none;
+std::optional<material::Material> Rule::inkMaterial() const {
   const detail::CascadeData* cascade = cascadeOf(*node());
-  return cascade ? cascade->inkPaint : none;
+  if (!cascade || !cascade->inkPaint) return std::nullopt;
+  return material::skia::base(*cascade->inkPaint);
 }
 
 PaintBox Rule::inkBox() const {

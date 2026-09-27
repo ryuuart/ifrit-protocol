@@ -405,15 +405,14 @@ plus one pass whatever the unit count is:
 ```cpp
 // emberDissolve is a SigilMaterial recipe over the parameter struct Burn,
 // carrying the pass body as its SkSL.
-auto burn = material::Paint::recipe(
-    sigil::material::Material(emberDissolve, Burn{ink}));
+sigil::material::Material burn(emberDissolve, Burn{ink});
 text(u8"EMBER DECODE", display)
     .textFx({.effect = textFx::pass(burn),
              .tween = {.duration = 450ms, .delay = motion::stagger(260ms)}});
 ```
 
-The paint must be RECIPE-BACKED — `material::Paint::recipe` over a recipe
-carrying an SkSL body — because the unit count is baked into the compiled
+The material must be a RECIPE INSTANCE over a recipe carrying an SkSL
+body — because the unit count is baked into the compiled
 shader: a runtime effect's array size is fixed at compile and SkSL has no
 uniform-bounded loop, so the runtime holds a specialization of that recipe
 per distinct count, its body the declarations above plus `const int

@@ -23,8 +23,7 @@
  * and when a lane is left alone.
  */
 
-#include <include/core/SkPoint.h>
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Instances.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Numeric.h>
@@ -47,15 +46,16 @@ namespace sigil::compose::instancing::place {
 
 /** Row-major grid of @p count slots @p cell in size, @p columns to a row,
  *  from @p origin and spaced by @p gap. */
-inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
-                 SkPoint origin = {0, 0}, SkSize gap = {0, 0}) {
+inline void grid(Pool& pool, size_t count, int columns, glm::vec2 cell,
+                 glm::vec2 origin = {0, 0}, glm::vec2 gap = {0, 0}) {
   pool.resize(count);
   auto positions = pool.positions();
   // An instance sits at the CENTRE of its slot; a laid-out child is given
   // the whole rect. Same cells either way.
   for (size_t i = 0; i < count; ++i)
     positions[i] = geometry::arrange::cellRect(
-                       geometry::arrange::cellAt(i, columns), cell, gap, origin)
+                       geometry::arrange::cellAt(i, columns), {cell.x, cell.y},
+                       {gap.x, gap.y}, {origin.x, origin.y})
                        .center();
   pool.commit();
 }
@@ -63,7 +63,7 @@ inline void grid(Pool& pool, size_t count, int columns, SkSize cell,
 /** Evenly spaced ring of @p count slots on @p radius about @p center,
  *  begun at @p startRadians; @p faceOut rotates each instance along its
  *  spoke. */
-inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
+inline void ring(Pool& pool, size_t count, glm::vec2 center, float radius,
                  float startRadians = 0.0f, bool faceOut = false) {
   pool.resize(count);
   auto positions = pool.positions();
@@ -74,7 +74,8 @@ inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
   for (size_t i = 0; i < count; ++i) {
     const float a = geometry::arrange::along(startRadians, sweep, i, count,
                                              geometry::arrange::Turn::Closed);
-    positions[i] = geometry::arrange::onEllipse(center, {radius, radius}, a);
+    positions[i] =
+        geometry::arrange::onEllipse({center.x, center.y}, {radius, radius}, a);
     // faceOut turns each instance to look along its own spoke.
     if (faceOut) rotations[i] = a + geometry::path::kPi / 2.0f;
   }
@@ -89,7 +90,8 @@ inline void ring(Pool& pool, size_t count, SkPoint center, float radius,
  *  authored tint rather than overwriting it — and only when the two opacity
  *  arguments actually say something; @p frame is written only when it is
  *  non-negative. */
-inline void repeat(Pool& pool, size_t count, SkPoint start, SkPoint translate,
+inline void repeat(Pool& pool, size_t count, glm::vec2 start,
+                   glm::vec2 translate,
                    float rotateStepRadians = 0.0f, float scaleStep = 1.0f,
                    float opacityFrom = 1.0f, float opacityTo = 1.0f,
                    int frame = -1) {
@@ -98,8 +100,8 @@ inline void repeat(Pool& pool, size_t count, SkPoint start, SkPoint translate,
   auto rotations = pool.rotations();
   auto scales = pool.scales();
   for (size_t i = 0; i < count; ++i) {
-    positions[i] = {start.fX + translate.fX * (float)i,
-                    start.fY + translate.fY * (float)i};
+    positions[i] = {start.x + translate.x * (float)i,
+                    start.y + translate.y * (float)i};
     rotations[i] = rotateStepRadians * (float)i;
     scales[i] = std::pow(scaleStep, (float)i);
   }

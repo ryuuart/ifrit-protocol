@@ -210,17 +210,17 @@ void bindGates(py::module_& composition, py::module_& gates) {
                      "reads.")
       .def_property(
           "coverage",
-          [](const Gate& self) -> std::optional<material::Paint> {
+          [](const Gate& self) -> std::optional<material::Material> {
             if (!self.coverage) return std::nullopt;
             return *self.coverage;
           },
-          [](Gate& self, std::optional<material::Paint> coverage) {
+          [](Gate& self, std::optional<material::Material> coverage) {
             self.coverage = coverage
-                                ? std::make_shared<const material::Paint>(
+                                ? std::make_shared<const material::Material>(
                                       std::move(*coverage))
                                 : nullptr;
           },
-          "The paint a coverage gate reads, or None. Read as a copy.")
+          "The material a coverage gate reads, or None. Read as a copy.")
       .def("valueCount", &Gate::valueCount,
            "How many animatable numbers this gate carries: three per spans "
            "term, one for an edge fraction, none for a shape or a coverage "

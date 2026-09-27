@@ -21,6 +21,7 @@
 #include <sigilskia/draw/Direct.h>
 
 #include <cmath>
+#include "FillLowering.h"
 
 namespace sigil::compose {
 
@@ -202,7 +203,7 @@ void Wash::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (a <= 0.0f) return;
   // The material is lowered to the executor's paint where it is drawn,
   // against this node's frame.
-  const Fill fill = resolveFill(material::skia::paint(material), ctx);
+  const Fill fill = resolveFill(material, ctx);
   SkPaint p;
   p.setAntiAlias(true);
   p.setBlendMode(material::skia::toSkBlendMode(blend));

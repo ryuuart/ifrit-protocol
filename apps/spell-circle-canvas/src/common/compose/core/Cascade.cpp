@@ -136,7 +136,8 @@ Fill resolveRef(const Fill& fill, const PaintContext& ctx) {
       // The ink is a whole paint wherever one was stated, and a colour
       // everywhere else; both are what a mark naming no colour is
       // painted in.
-      if (ctx.inkPaint) return resolveInk(*ctx.inkPaint, ctx);
+      if (ctx.inkPaint && ctx.inkPaint->paint)
+        return resolveInk(*ctx.inkPaint->paint, ctx);
       return Fill::color(ctx.ink);
     case Fill::Ref::Var: {
       const VarValue* value =
@@ -503,8 +504,11 @@ void Composer::Impl::resolveCascade(
           warnInkTextUnitNeedsAPassage();
           box = PaintBox::Element;
         }
-        inkPaint = {rule.inkPaint(), box};
-        inkPaintOrigin = rule.inkPaint().has_value();
+        const detail::ElementNode& stated = *rule.node();
+        const std::optional<material::Paint> rulePaint =
+            stated.cascadeData ? stated.cascadeData->inkPaint : std::nullopt;
+        inkPaint = {rulePaint, box};
+        inkPaintOrigin = rulePaint.has_value();
       }
       if (!rule.vars().empty()) ruleVars.overlay(rule.vars());
       const ElementNode& stated = *rule.node();
