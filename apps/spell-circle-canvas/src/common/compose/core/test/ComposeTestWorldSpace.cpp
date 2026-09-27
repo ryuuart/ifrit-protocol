@@ -48,7 +48,7 @@ material::Paint canvasLight(bool flagged,
  *  inside a group that rotates about its own centre — the rete. */
 Element rotatedInstrument(float rotationDeg, bool flagged) {
   auto group = box()
-                   .rect(SkRect::MakeXYWH(20, 20, 160, 160))
+                   .rect(20, 20, 160, 160)
                    .key("group")
                    .rotate(rotationDeg)
                    .transformOrigin(pct(50), pct(50));
@@ -242,7 +242,7 @@ TEST(ComposeWorldSpace, ABoundTransformKeepsTheFieldAnchoredPerFrame) {
   Host host;
   const auto describe = [&] {
     auto group = box()
-                     .rect(SkRect::MakeXYWH(20, 20, 160, 160))
+                     .rect(20, 20, 160, 160)
                      .key("group")
                      .rotate(rot)
                      .transformOrigin(pct(50), pct(50));

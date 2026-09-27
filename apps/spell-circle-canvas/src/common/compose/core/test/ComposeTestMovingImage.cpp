@@ -101,8 +101,8 @@ TEST(ComposeMovingImage, AClipOnAPoolPaintsEveryLeafThatShowsIt) {
   Composer composer(engine, fonts());
   composer.setSize({128, 64});
   composer.render(stack().children(
-      {image(clip, material::Fit::Stretch).rect(SkRect::MakeXYWH(0, 0, 64, 64)),
-       image(clip, material::Fit::Stretch).rect(SkRect::MakeXYWH(64, 0, 64, 64))}));
+      {image(clip, material::Fit::Stretch).rect(0, 0, 64, 64),
+       image(clip, material::Fit::Stretch).rect(64, 0, 64, 64)}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 64));

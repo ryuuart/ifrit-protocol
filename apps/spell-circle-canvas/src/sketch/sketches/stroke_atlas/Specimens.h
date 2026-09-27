@@ -184,7 +184,7 @@ Element specimen(float x, float y, float w, float h,
                  const char* label, float labelDy = 6) {
   return box()
 
-      .rect(SkRect::MakeXYWH(x, y, w, h))
+      .rect(x, y, w, h)
       .shape(std::move(shape))
       .stroke(std::move(dec))
       .children({call(label).width(w).at({0, h + labelDy})});
@@ -196,7 +196,7 @@ Element bare(float x, float y, float w, float h, sigil::compose::Shape shape,
              Decoration dec) {
   return box()
 
-      .rect(SkRect::MakeXYWH(x, y, w, h))
+      .rect(x, y, w, h)
       .shape(std::move(shape))
       .stroke(std::move(dec));
 }
@@ -204,7 +204,7 @@ Element bare(float x, float y, float w, float h, sigil::compose::Shape shape,
 Element rule(float x, float y, float w, Decoration dec) {
   return box()
 
-      .rect(SkRect::MakeXYWH(x, y, w, 10))
+      .rect(x, y, w, 10)
       .shape(hline())
       .stroke(std::move(dec));
 }

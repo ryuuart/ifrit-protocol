@@ -7,6 +7,7 @@
  */
 
 #include <pybind11/operators.h>
+#include <sigilgeometry/path/Skia.h>
 #include <pybind11/stl.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Cascade.h>
@@ -257,13 +258,13 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
       .def(
           "centerAt",
           [](Node& self, py::object value) -> Node& {
-            return self.centerAt(point(value));
+            return self.centerAt(geometry::path::fromSk(point(value)));
           },
           py::arg("point"), fluent)
       .def(
           "at",
           [](Node& self, py::object value) -> Node& {
-            return self.at(point(value));
+            return self.at(geometry::path::fromSk(point(value)));
           },
           py::arg("point"), fluent)
       .def(
@@ -275,7 +276,7 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
       .def(
           "rect",
           [](Node& self, py::object value) -> Node& {
-            return self.rect(rect(value));
+            return self.rect(geometry::path::fromSk(rect(value)));
           },
           py::arg("rect"), fluent)
       .def(

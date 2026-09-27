@@ -175,7 +175,7 @@ struct PathBooleans {
             .ink(sketch::kit::theme().palette.ink)
             .children(
                 {pen("path.booleans", [this](draw::Pen& pen) { draw(pen); })
-                     .rect(SkRect::MakeXYWH(0, 60, 1240, 800)),
+                     .rect(0, 60, 1240, 800),
                  document::h1("One outline, many operations")
                      .font({.size = 32})
                      .at({44, 28}),

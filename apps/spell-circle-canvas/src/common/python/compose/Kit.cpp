@@ -1,4 +1,5 @@
 #include <pybind11/operators.h>
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Frame.h>
@@ -204,19 +205,19 @@ void bindComponents(py::module_& module) {
   module.def(
       "disc",
       [](py::handle centre, float radius) {
-        return composeKit::disc(point(centre), radius);
+        return composeKit::disc(geometry::path::fromSk(point(centre)), radius);
       },
       py::arg("centre"), py::arg("radius"));
   module.def(
       "dot",
       [](py::handle centre, float radius, py::handle ink) {
-        return composeKit::dot(point(centre), radius, fill(ink));
+        return composeKit::dot(geometry::path::fromSk(point(centre)), radius, fill(ink));
       },
       py::arg("centre"), py::arg("radius"), py::arg("ink"));
   module.def(
       "ring",
       [](py::handle centre, float radius, compose::Decoration pen) {
-        return composeKit::ring(point(centre), radius, std::move(pen));
+        return composeKit::ring(geometry::path::fromSk(point(centre)), radius, std::move(pen));
       },
       py::arg("centre"), py::arg("radius"), py::arg("pen"));
 }

@@ -156,8 +156,8 @@ struct VideoCompose {
       // leaves never leave a seam between them.
       const SkRect at =
           arrange::cellRect(arrange::cellAt((size_t)cell, kColumns), module);
-      return leaf.rect(SkRect::MakeXYWH(at.fLeft, at.fTop, at.width() + 0.5f,
-                                        at.height() + 0.5f));
+      return leaf.rect(at.fLeft, at.fTop, at.width() + 0.5f,
+                                        at.height() + 0.5f);
     };
     const auto cells = std::views::iota(0, kCells);
 

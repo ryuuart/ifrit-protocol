@@ -174,10 +174,10 @@ Element tangentDetail(weave::FontContext& fonts) {
                 .height(overview.height() * scale)
                 .at(origin),
             box()
-                .rect(SkRect::MakeXYWH(
+                .rect(
                     origin.x() + (crop.x() - overview.x()) * scale,
                     origin.y() + (crop.y() - overview.y()) * scale,
-                    crop.width() * scale, crop.height() * scale))
+                    crop.width() * scale, crop.height() * scale)
                 .foreground(decorations::border(1, Fill::color(marker)))}),
        document::label("EDGE DETAIL \u00b7 8\u00d7 RASTER").padding(0, 10),
        image(pixels, material::Fit::Stretch)

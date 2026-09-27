@@ -239,7 +239,7 @@ struct GerstnerGrid {
   Element gridPlate() {
     namespace g = gerstner;
     return stack()
-        .rect(SkRect::MakeXYWH(g::kFieldX, g::kFieldY, g::kFieldW, g::kFieldH))
+        .rect(g::kFieldX, g::kFieldY, g::kFieldW, g::kFieldH)
         .children({box().inset(0).fill(unitRule.material()),
                    box().inset(0).fill(emphasisRule.material())});
   }
@@ -253,8 +253,8 @@ struct GerstnerGrid {
 
     Element bands = stack()
                         .key("bands")
-                        .rect(SkRect::MakeXYWH(g::kFieldX, g::kFieldY,
-                                               g::kFieldW, g::kFieldH))
+                        .rect(g::kFieldX, g::kFieldY,
+                                               g::kFieldW, g::kFieldH)
                         .staggerChildren(52ms);
     for (int i = 0; i < c.columns; ++i) {
       const float x = g::columnUnit(c, i) * g::kUnit;
@@ -262,7 +262,7 @@ struct GerstnerGrid {
       Element band =
           box()
               .key("col" + std::to_string(i))
-              .rect(SkRect::MakeXYWH(x, 0, colW, g::kFieldH))
+              .rect(x, 0, colW, g::kFieldH)
               .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .ease = motion::ease::outQuad}))
               .translateY(motion::animate({.from = 9.0f, .to = 0.0f, .duration = 420ms, .ease = motion::ease::outQuint}))
               .fill(Fill::color({g::kRed.r, g::kRed.g, g::kRed.b, 0.045f}))
@@ -286,7 +286,7 @@ struct GerstnerGrid {
           {std::move(copy),
            // a column rule at the head, the way Capital marked its columns
            box()
-               .rect(SkRect::MakeXYWH(0, g::kUnit * 3.4f, colW, 1.4f))
+               .rect(0, g::kUnit * 3.4f, colW, 1.4f)
                .fill(Fill::currentInk())});
       const std::string label = kit::formatted("%02d", i + 1);
       band.children(

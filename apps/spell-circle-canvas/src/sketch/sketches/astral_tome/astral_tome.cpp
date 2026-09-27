@@ -57,7 +57,7 @@ struct AstralTome {
     const float w = at::g(at::kGuiW - 30), h = at::g(at::kGuiH - 20);
     Element p =
         box()
-            .rect(SkRect::MakeXYWH(x, y, w, h))
+            .rect(x, y, w, h)
             .key("page")
             .cache(Cache::Texture)
             .fill(material::from({0, 0, 0, 1}).layer(material::radialGradient(
@@ -195,9 +195,9 @@ struct AstralTome {
     spineBuilder.lineTo(b.fX - box2.left(), b.fY - box2.top());
     const SkPath spine = spineBuilder.detach();
     return box()
-        .rect(SkRect::MakeXYWH(box2.left(), box2.top(),
+        .rect(box2.left(), box2.top(),
                                std::max(box2.width(), 1.0f),
-                               std::max(box2.height(), 1.0f)))
+                               std::max(box2.height(), 1.0f))
         .key(std::string("lk") + std::to_string(key) + "_" +
              std::to_string(pass))
         .shape(heldPath(spine))
@@ -240,7 +240,7 @@ struct AstralTome {
               {1.0f, sigil::material::scale(col, 1.0f, 0.0f)}},
              {.extent = sigil::material::RadialExtent::ClosestSide})),
          box()
-             .rect(SkRect::MakeXYWH((side - r) * 0.5f, (side - r) * 0.5f, r, r))
+             .rect((side - r) * 0.5f, (side - r) * 0.5f, r, r)
              .shape(shapes::star(4, 0.24f, 0.16f))
              .fill(Fill::color(sigil::material::scale(col, 1.15f, 0.74f)))});
     // the white-hot core. The one kPlus on this canvas, declared as a
@@ -248,8 +248,8 @@ struct AstralTome {
     // throughout (Blending.java:23).
     const float cr = r * 0.34f;
     grp.children({box()
-                      .rect(SkRect::MakeXYWH((side - cr) * 0.5f,
-                                             (side - cr) * 0.5f, cr, cr))
+                      .rect((side - cr) * 0.5f,
+                                             (side - cr) * 0.5f, cr, cr)
                       .blendMode(material::BlendMode::PlusLighter)
                       .shape(shapes::circle())
                       .fill(Fill::color({0.92f, 0.94f, 1.0f, 0.52f}))});
@@ -264,8 +264,8 @@ struct AstralTome {
                 const char* k) const {
     Element e =
         box()
-            .rect(SkRect::MakeXYWH(at::gx(guiX), at::gy(guiY), at::g(30),
-                                   at::g(15)))
+            .rect(at::gx(guiX), at::gy(guiY), at::g(30),
+                                   at::g(15))
             .key(k)
             .transformOrigin(pct(50), pct(50))
             .shape(shapes::arrow(0.34f, 0.42f))
@@ -327,9 +327,9 @@ struct AstralTome {
         {each(4, [](int i) -> Element {
           const bool sel = i == 1;  // bookmarkIndex 20 = Constellations
           return box()
-              .rect(SkRect::MakeXYWH(
+              .rect(
                   at::gx(at::kGuiW - 17.25f), at::gy(20.0f + 18.0f * (float)i),
-                  at::g(67.0f + (sel ? 0.0f : 5.0f)), at::g(15)))
+                  at::g(67.0f + (sel ? 0.0f : 5.0f)), at::g(15))
               .key("bmk" + std::to_string(i))
               .shape(shapes::notched(
                   at::g(9.0f), at::g(4.0f),

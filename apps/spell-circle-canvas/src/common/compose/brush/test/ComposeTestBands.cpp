@@ -44,7 +44,7 @@ TEST(ComposeBand, FormationsTakeTheDeclaredSide) {
   auto draw = [](geometry::path::Formation f) {
     Host host(200, 200);
     Band b =
-        band(rectSpine(), 10).rect(SkRect::MakeXYWH(20, 20, 100, 100));
+        band(rectSpine(), 10).rect(20, 20, 100, 100);
     b.bandAlignment(f);
     host.composer.render(stack().children({b.fill(red())}));
     host.frame();
@@ -111,7 +111,7 @@ TEST(ComposeBand, ProfileMaxKeepsTheReachOutOfTheCull) {
   host.composer.render(
       stack().children({band(rectSpine(), 20)
                             .bandAlignment(geometry::path::Formation::Outer)
-                            .rect(SkRect::MakeXYWH(60, 60, 40, 40))
+                            .rect(60, 60, 40, 40)
                             .cache(Cache::Picture)
                             .fill(red())}));
   host.frame();
@@ -123,7 +123,7 @@ TEST(ComposeBand, StrokePassesDressABandLikeAnyShape) {
   Host host(200, 200);
   host.composer.render(
       stack().children({band(rectSpine(), 16)
-                            .rect(SkRect::MakeXYWH(30, 30, 80, 80))
+                            .rect(30, 30, 80, 80)
                             .stroke(spans::every(1), stroke(4, green()))}));
   host.frame();
   int inked = 0;
@@ -143,7 +143,7 @@ TEST(ComposeRibbon, ProfileRibbonPaintsItsBand) {
   r.fill = Fill::color({1, 0, 0, 1});
   host.composer.render(
       stack().children({box()
-                            .rect(SkRect::MakeXYWH(40, 40, 100, 100))
+                            .rect(40, 40, 100, 100)
                             .shape([](SkSize s) {
                               SkPathBuilder p;
                               p.moveTo(0, s.height() * 0.5f);
@@ -199,7 +199,7 @@ struct PulseAtFraction {
  *  constructions are supposed to agree. */
 Element straightRun(brush::Ribbon r) {
   return box()
-      .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+      .rect(0, 0, 200, 200)
       .shape([](SkSize s) {
         SkPathBuilder p;
         p.moveTo(20, s.height() * 0.5f);
@@ -288,7 +288,7 @@ TEST(ComposeWidthProfile, APxKeyedLawStaysPutUnderAReveal) {
       r.width = geometry::path::Profile(PulseAtFraction{});
     // spans::upTo is the reveal; at 1.0 the whole spine is handed over.
     Element revealed = box()
-                           .rect(SkRect::MakeXYWH(0, 0, 200, 200))
+                           .rect(0, 0, 200, 200)
                            .shape([](SkSize s) {
                              SkPathBuilder p;
                              p.moveTo(20, s.height() * 0.5f);

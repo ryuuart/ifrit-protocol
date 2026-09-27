@@ -44,7 +44,6 @@
  * chain — are the kit's, in <sigilcompose/kit/Placers.h>.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>

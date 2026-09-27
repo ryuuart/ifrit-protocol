@@ -33,7 +33,6 @@
  * the page's face and a reading follows its base's colour.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>

@@ -15,7 +15,7 @@
  * whisker, which are one component at four thicknesses.
  */
 
-#include <include/core/SkPoint.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Layout.h>
@@ -39,7 +39,7 @@ namespace sigil::compose::kit {
  *  inscribed-in-the-box generator (sector, arc, circle, star) otherwise
  *  needs `width(2r).height(2r).centerAt(c)` spelled out at its call
  *  site. */
-inline Element disc(SkPoint centre, float radius) {
+inline Element disc(glm::vec2 centre, float radius) {
   return box()
       .width(Dimension(radius * 2))
       .height(Dimension(radius * 2))
@@ -96,10 +96,10 @@ Node at(Node node, float x, float y, Dimension w, Dimension h) {
  *  IT TAKES A FRAME THAT ALREADY EXISTS, and the constraint is what
  *  makes that true rather than a matter of style. A `PolarFrame` begins with
  *  a point and a radius, so `disc({x, y}, r)` initialises one just as
- *  readily as it initialises the SkPoint the centre overload wants, and
+ *  readily as it initialises the point the centre overload wants, and
  *  a plain overload pair leaves that call ambiguous — which is a
  *  compile error at every site that writes a centre as a braced pair,
- *  the way every other Skia point is written. Deduction cannot see
+ *  the way every point is written. Deduction cannot see
  *  through a braced list, so this overload drops out of the set there
  *  and the pair means the point it reads as. Spell a frame LITERAL as
  *  `geometry::path::PolarFrame{…}`. */
@@ -107,7 +107,7 @@ template <class FrameLike>
   requires std::same_as<std::remove_cvref_t<FrameLike>,
                         geometry::path::PolarFrame>
 inline Element disc(const FrameLike& frame, float rNorm = 1.0f) {
-  return disc(geometry::path::toSk(frame.centre), rNorm * frame.radius);
+  return disc(frame.centre, rNorm * frame.radius);
 }
 
 /** ONE CIRCLE STROKED AND NOT FILLED, of @p radius about @p centre: a
@@ -119,7 +119,7 @@ inline Element disc(const FrameLike& frame, float rNorm = 1.0f) {
  *  It is `disc` with the three verbs of pure ceremony that always follow
  *  it written once — the circle's own silhouette, a fill of none and the
  *  pen — because a box of radius r about a point is not yet a circle. */
-inline Element ring(SkPoint centre, float radius, Decoration pen) {
+inline Element ring(glm::vec2 centre, float radius, Decoration pen) {
   return disc(centre, radius)
       .shape(geometry::shapes::circle())
       .fill(Fill::none())
@@ -128,7 +128,7 @@ inline Element ring(SkPoint centre, float radius, Decoration pen) {
 
 /** ONE FILLED CIRCLE of @p radius about @p centre: a pole, a star, a
  *  crossing, a marked point of a construction. */
-inline Element dot(SkPoint centre, float radius, Fill fill) {
+inline Element dot(glm::vec2 centre, float radius, Fill fill) {
   return disc(centre, radius)
       .shape(geometry::shapes::circle())
       .fill(std::move(fill));
@@ -208,7 +208,7 @@ struct Line {
      *  rail cannot collapse to one comparable fill. */
     Fill fill;
     /** Dash on/off intervals, px; empty is solid. */
-    std::vector<SkScalar> dash;
+    std::vector<float> dash;
   };
   std::optional<Companion> pair;
 };

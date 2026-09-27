@@ -221,7 +221,7 @@ Element travelFrame(Element rider) {
   return box().children({box()
                              .key("frame")
                              .absolute()
-                             .rect(SkRect::MakeXYWH(20, 20, 160, 160))
+                             .rect(20, 20, 160, 160)
                              .children({std::move(rider)})});
 }
 
@@ -229,7 +229,7 @@ Element rider(MotionPath along, float size = 8) {
   return box()
       .key("dot")
       .absolute()
-      .rect(SkRect::MakeXYWH(0, 0, size, size))
+      .rect(0, 0, size, size)
       .fill(red())
       .travel(std::move(along));
 }
@@ -294,7 +294,7 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
     return box().children({box()
                                .key("bar")
                                .absolute()
-                               .rect(SkRect::MakeXYWH(0, 0, 40, 40))
+                               .rect(0, 0, 40, 40)
                                .transformOrigin(pct(0), pct(0))
                                .fill(red())
                                .scaleX(sx)});
@@ -320,7 +320,7 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
       bar(2.0f).children({box()
                               .key("y")
                               .absolute()
-                              .rect(SkRect::MakeXYWH(0, 60, 40, 40))
+                              .rect(0, 60, 40, 40)
                               .transformOrigin(pct(0), pct(0))
                               .fill(green())
                               .scaleY(1.0f)}));
@@ -329,7 +329,7 @@ TEST(ComposeTravel, PerAxisScaleParticipatesInReconcilerEquality) {
       bar(2.0f).children({box()
                               .key("y")
                               .absolute()
-                              .rect(SkRect::MakeXYWH(0, 60, 40, 40))
+                              .rect(0, 60, 40, 40)
                               .transformOrigin(pct(0), pct(0))
                               .fill(green())
                               .scaleY(2.0f)}));

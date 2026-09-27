@@ -205,25 +205,25 @@ inline Element bar(const Bar& b) {
                   .children({track(b.innerW, b.innerH).at({padX, padY})});
   if (b.decay > 0.0f)
     e.children({box()
-                    .rect(SkRect::MakeXYWH(padX + b.innerW * (1.0f - b.decay),
-                                           padY, b.innerW * b.decay, b.innerH))
+                    .rect(padX + b.innerW * (1.0f - b.decay),
+                                           padY, b.innerW * b.decay, b.innerH)
                     .fill({kQualityEpic.r, kQualityEpic.g,
                                         kQualityEpic.b, 0.55f})});
   // the live fill rides on top of the static frame so only IT repaints
   if (b.live)
     e.children({box()
-                    .rect(SkRect::MakeXYWH(padX, padY, b.innerW, b.innerH))
+                    .rect(padX, padY, b.innerW, b.innerH)
                     .transformOrigin(pct(0), pct(50))
                     .scaleX(b.live)
                     .fill(body)});
   else
     e.children({box()
-                    .rect(SkRect::MakeXYWH(padX, padY, b.innerW * b.fraction,
-                                           b.innerH))
+                    .rect(padX, padY, b.innerW * b.fraction,
+                                           b.innerH)
                     .fill(body)});
   if (b.ticks)
     e.children({box()
-                    .rect(SkRect::MakeXYWH(padX, padY, b.innerW, b.innerH))
+                    .rect(padX, padY, b.innerW, b.innerH)
                     .foreground(styles::TickRail{.color = kPoiseTick,
                                                  .pitch = b.innerW / 6.0f,
                                                  .minor = 10.0f,

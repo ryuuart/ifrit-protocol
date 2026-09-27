@@ -147,7 +147,7 @@ TEST(ComposeKitStrokes, ShapedAgreesWithTheRestyleWrapper) {
   // that silently drew nothing, or drew something else, still fails.
   auto draw = [](bool legacySpelling) {
     Host host(200, 200);
-    Element e = box().rect(SkRect::MakeXYWH(30, 30, 140, 140));
+    Element e = box().rect(30, 30, 140, 140);
     if (legacySpelling)
       e.stroke(brush::restyle(geometry::shapers::Wave{5, 24},
                               brush::solid(3, red()), 8));
@@ -454,7 +454,7 @@ TEST(ComposeKitStrokes, TheGrooveIsDarkOnTheInnerWallAndLitOnTheOuter) {
   const SkColor4f dark{0.2f, 0.1f, 0.0f, 1};
   const SkColor4f lite{1.0f, 0.9f, 0.6f, 1};
   // A disc of radius 30 about (50, 50), its outline cut 8 px wide.
-  Element disc = kit::disc(SkPoint{50, 50}, 30)
+  Element disc = kit::disc(glm::vec2{50, 50}, 30)
                      .shape(geometry::shapes::circle())
                      .fill(Fill::none())
                      .stroke(kit::groove(30, 8, dark, lite));
@@ -512,7 +512,7 @@ TEST(ComposeKitStrokes, TheGrooveShoulderIsHowFarTheTwoWallsTakeToMeet) {
   // themselves there; a shoulder the whole width across is still climbing
   // at both samples.
   auto walls = [&](float shoulder) {
-    Element disc = kit::disc(SkPoint{50, 50}, 30)
+    Element disc = kit::disc(glm::vec2{50, 50}, 30)
                        .shape(geometry::shapes::circle())
                        .fill(Fill::none())
                        .stroke(kit::groove(30, 16, dark, lite, shoulder));

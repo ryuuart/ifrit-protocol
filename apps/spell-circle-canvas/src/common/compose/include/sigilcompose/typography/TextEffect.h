@@ -19,7 +19,6 @@
  * the key its author gave it.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkPoint.h>
 #include <sigilcore/compute/Noise.h>
 #include <sigilmaterial/color/Color.h>

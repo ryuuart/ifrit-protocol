@@ -5,6 +5,7 @@
  */
 
 #include "sigilcompose/kit/Pin.h"
+#include <sigilgeometry/path/Skia.h>
 
 namespace sigil::compose::pin {
 
@@ -30,7 +31,7 @@ void ByLane::add(Scope& scope) const {
       }
     }
     Element hung = request->element;
-    hung.key(node->key + "-pin").rect(placed);
+    hung.key(node->key + "-pin").rect(geometry::path::fromSk(placed));
     scope.attach(std::move(hung));
   }
 }

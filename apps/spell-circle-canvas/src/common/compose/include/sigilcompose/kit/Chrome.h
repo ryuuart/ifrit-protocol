@@ -26,7 +26,6 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <include/core/SkColor.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Paint.h>

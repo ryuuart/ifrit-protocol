@@ -5,6 +5,7 @@
 // own seam.
 
 #include "support/BrushTestSupport.h"
+#include <sigilgeometry/path/Skia.h>
 
 namespace {
 
@@ -73,7 +74,7 @@ TEST(ComposeSpans, CornerPassMarksOnlyTheCorners) {
   Host host(200, 200);
   host.composer.render(
       stack().children({box()
-                            .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                            .rect(20, 20, 100, 100)
                             .stroke(spans::corners(20), stroke(6, red()))}));
   host.frame();
   EXPECT_EQ(host.pixel(30, 20), SK_ColorRED) << "10px along the top edge";
@@ -89,7 +90,7 @@ TEST(ComposeSpans, PassesAppendAndRestFillsTheGaps) {
   Host host(200, 200);
   host.composer.render(
       stack().children({box()
-                            .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                            .rect(20, 20, 100, 100)
                             .stroke(spans::corners(20), stroke(6, red()))
                             .stroke(spans::rest(), stroke(6, green()))}));
   host.frame();
@@ -106,7 +107,7 @@ TEST(ComposeSpans, OverlappingClaimsAreSaidOutLoud) {
     Host host(200, 200);
     host.composer.render(stack().children(
         {box()
-             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+             .rect(20, 20, 100, 100)
              .stroke(spans::every(1), stroke(4, red()), "halo")
              .stroke(spans::upTo(0.5f), stroke(2, green()), "keyline")}));
     host.frame();
@@ -125,7 +126,7 @@ TEST(ComposeSpans, UnqualifiedStrokesOverlayAndNeverCollide) {
     Host host(200, 200);
     host.composer.render(
         stack().children({box()
-                              .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+                              .rect(20, 20, 100, 100)
                               .stroke(stroke(8, red()))
                               .stroke(stroke(3, green()))}));
     host.frame();
@@ -145,7 +146,7 @@ TEST(ComposeSpans, ReorderedTermsPruneBecauseResolveNeverReadsOrder) {
     return stack().children(
         {box()
              .key("m")
-             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+             .rect(20, 20, 100, 100)
              .stroke(std::move(where), stroke(4, red()), "marks")});
   };
   Host host;
@@ -176,7 +177,7 @@ TEST(ComposeSpans, PassRevealMatchesTheNodeGatePixelForPixel) {
   // so the same numbers describe the same run through both doors.
   auto draw = [](bool useLegacyTrim) {
     Host host(200, 200);
-    Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100));
+    Element e = box().rect(20, 20, 100, 100);
     if (useLegacyTrim)
       e.mask(by::spans(spans::upTo(0.4f))).stroke(stroke(6, red()));
     else
@@ -203,7 +204,7 @@ TEST(ComposeSpans, AnimatedRevealDrawsOnAndDeclaresVolatility) {
   Host host(200, 200);
   host.composer.render(stack().children(
       {box()
-           .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+           .rect(20, 20, 100, 100)
            .stroke(spans::upTo(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
                    stroke(6, red()))}));
   host.frame(0.02);
@@ -233,9 +234,9 @@ TEST(ComposeSpans, FitSizesAGapFromKeyedContent) {
   Host host(200, 200);
   auto scene = [](SkRect label) {
     return stack().children(
-        {box().key("lbl").rect(label),
+        {box().key("lbl").rect(geometry::path::fromSk(label)),
          box()
-             .rect(SkRect::MakeXYWH(20, 20, 100, 100))
+             .rect(20, 20, 100, 100)
              .stroke(spans::fit("lbl", 0.0f), stroke(6, red()))});
   };
   host.composer.render(scene(SkRect::MakeXYWH(40, 10, 30, 20)));
@@ -296,7 +297,7 @@ TEST(ComposeSpanBackground, ThePassPaintsUNDERTheChildren) {
     // A child straddling the top edge, opaque, painted between the halves.
     e.children({box()
                     .absolute()
-                    .rect(SkRect::MakeXYWH(30, -6, 40, 12))
+                    .rect(30, -6, 40, 12)
                     .fill(green())});
     host.composer.render(stack().children({std::move(e)}));
     host.frame();

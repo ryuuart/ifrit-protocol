@@ -7,6 +7,7 @@
 // the hit test that follows paint order and skew.
 
 #include "support/CoreTestSupport.h"
+#include <sigilgeometry/path/Skia.h>
 
 TEST(ComposeLayout, FlexRowPositionsAndFills) {
   Host host;
@@ -199,7 +200,7 @@ TEST(ComposeTransform, AnOriginIsAPercentageOfTheBoxOrALengthInIt) {
     Host host(200, 200);
     host.composer.render(
         box().children({pivoted.absolute()
-                            .rect(SkRect::MakeXYWH(60, 60, 80, 80))
+                            .rect(60, 60, 80, 80)
                             .fill(red())
                             .scale(0.25f)}));
     host.frame();
@@ -241,12 +242,12 @@ TEST(ComposePaintBounds, PerAxisScaleReachesTheParentsChildBoundsUnion) {
   host.composer.render(
       box().children({box()
                           .absolute()
-                          .rect(SkRect::MakeXYWH(20, 20, 40, 40))
+                          .rect(20, 20, 40, 40)
                           .filter(material::skia::filter(
                               SkImageFilters::Offset(0, 0, nullptr)))
                           .children({box()
                                          .absolute()
-                                         .rect(SkRect::MakeXYWH(0, 0, 40, 40))
+                                         .rect(0, 0, 40, 40)
                                          .transformOrigin(pct(0), pct(0))
                                          .fill(red())
                                          .scaleX(3.0f)})}));
@@ -379,7 +380,7 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
                                .fill(red())});
   };
   auto terse = [&] {
-    return box().children({box().key("plate").rect(r).fill(red())});
+    return box().children({box().key("plate").rect(geometry::path::fromSk(r)).fill(red())});
   };
 
   host.composer.render(longhand());
@@ -410,7 +411,7 @@ TEST(ComposePlacement, RectIsTheLonghandAndPrunesIdentically) {
   // composer that never patches anything, which is exactly the vacuous
   // shape this program keeps finding. A different rect MUST patch.
   host.composer.render(box().children(
-      {box().key("plate").rect(SkRect::MakeXYWH(41, 60, 50, 30)).fill(red())}));
+      {box().key("plate").rect(41, 60, 50, 30).fill(red())}));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
       << "the patch counter is not live, so the zeroes above prove nothing";

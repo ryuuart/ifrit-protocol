@@ -28,7 +28,7 @@ Element straightRun(Decoration style) {
 }
 
 /** A box whose whole boundary is stroked, for the trim/span comparisons. */
-Element revealBox() { return box().rect(SkRect::MakeXYWH(20, 20, 100, 100)); }
+Element revealBox() { return box().rect(20, 20, 100, 100); }
 
 /** A ring of samples around the stroked boundary above — enough of them
  *  that a window landing in the wrong place cannot hide. */

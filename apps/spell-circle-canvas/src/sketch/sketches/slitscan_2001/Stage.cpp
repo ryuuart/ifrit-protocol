@@ -65,7 +65,7 @@ auto SlitScan2001::filmFrame() -> Element {
   // no core.
   Element vanishing =
       box()
-          .rect(SkRect::MakeXYWH(-150.0f, -150.0f, 300.0f, 300.0f))
+          .rect(-150.0f, -150.0f, 300.0f, 300.0f)
           .translateX(&coreX)
           .translateY(&coreY)
           // The core's own picture never changes — only where it is —
@@ -125,7 +125,7 @@ auto SlitScan2001::filmFrame() -> Element {
       // addFixed's interpolant, and the caption says why.
       .children(
           {box()
-               .rect(SkRect::MakeXYWH(0, 0, kFilmW, 2))
+               .rect(0, 0, kFilmW, 2)
                .fill(al(kCold, 0.4f))
                .mask(by::edge(0.0f, sigil::motion::bind(frameAlpha))),
            hud(s.name, 10, 10, -1, -1, al(kCold, 0.75f)),
@@ -181,19 +181,19 @@ auto SlitScan2001::rigStrip() -> Element {
       // frame; a key would name one drawing and replay it.
       .children(
           {pen([this](Pen& p, const PaintContext& ctx) { drawRig(p, ctx); })
-               .rect(SkRect::MakeXYWH(0, 0, kElevW, kRigH))
+               .rect(0, 0, kElevW, kRigH)
                .overflow(Overflow::Clip),
            pen([this](Pen& p, const PaintContext& ctx) {
              drawArtworkPanel(p, ctx);
            })
-               .rect(SkRect::MakeXYWH(kRigW - kPanelStripW, 0, kPanelStripW,
-                                      kRigH))})
+               .rect(kRigW - kPanelStripW, 0, kPanelStripW,
+                                      kRigH)})
       // The "THIS EXPOSURE" monitor, in the elevation's upper-left where
       // there is nothing but sky. The only place you see a frame BEING
       // MADE rather than made, so it gets the good corner.
       .children(
           {box()
-               .rect(SkRect::MakeXYWH(18, 10, 264, 116))
+               .rect(18, 10, 264, 116)
                .borderRadius({4})
                .fill(al(kPanelBg, 0.92f))
                .stroke(stroke(1.0f, Fill::color(kRule)))

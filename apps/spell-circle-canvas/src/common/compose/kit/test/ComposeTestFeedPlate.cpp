@@ -35,7 +35,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
                      .border = green(),
                      .divider = red()})
              .key("plate")
-             .rect(SkRect::MakeXYWH(20, 20, 200, 80))});
+             .rect(20, 20, 200, 80)});
   };
   host.composer.render(strip());
   host.frame();
@@ -74,7 +74,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
                    .gap = 8,
                    .fill = Fill::color({0, 0, 0.5f, 1}),
                    .divider = red()})
-           .rect(SkRect::MakeXYWH(20, 20, 200, 80))}));
+           .rect(20, 20, 200, 80)}));
   col.frame();
   int redRows = 0;
   for (int y = 21; y < 99; ++y)
@@ -154,7 +154,7 @@ TEST(ComposeFeed, VisibleRowsHaveAHeightAndThreeFeedsFitOnePlate) {
            .children({feed::feed(b, st).key("feedB")})
            .children({divider()})
            .children({feed::feed(c, st).key("feedC")})
-           .rect(SkRect::MakeXYWH(10, 10, 300, panelH))}));
+           .rect(10, 10, 300, panelH)}));
   host.frame();
 
   ASSERT_TRUE(host.composer.bounds("panel").has_value());

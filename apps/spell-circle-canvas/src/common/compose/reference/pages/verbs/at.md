@@ -21,7 +21,7 @@ describe a node the longhand could not nor drift from it.
 
 **Two lengths in any unit, or a point in hand.** `at(x, y)` takes what
 `left()` and `top()` take, so `at(pct(50), pct(50))` is a percent of the
-parent's box; `at(SkPoint)` is the same pin for coordinates already
+parent's box; `at(glm::vec2)` is the same pin for coordinates already
 measured, in pixels.
 
 The same qualification as [`rect`](rect.md) holds: it is for a position

@@ -295,7 +295,7 @@ struct LootGrid {
 
       Element socket =
           stack()
-              .rect(SkRect::MakeXYWH(pad + 17 + s.x, pad + 22 + s.y, w, h))
+              .rect(pad + 17 + s.x, pad + 22 + s.y, w, h)
               .children({lt::well(w, h).inset(0)});
       if (equipped) {
         const sigil::material::Color rc = lt::rarityColor(equipped->rarity);
@@ -524,8 +524,8 @@ struct LootGrid {
                                  .at({lt::cellX(i % 3), lt::cellY(i / 3)});
                            }),
                       kit::centred()
-                          .rect(SkRect::MakeXYWH(lt::cellX(1), lt::cellY(1),
-                                                 lt::kCell, lt::kCell))
+                          .rect(lt::cellX(1), lt::cellY(1),
+                                                 lt::kCell, lt::kCell)
                           .row()
 
                           .children({lt::artwork(

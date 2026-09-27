@@ -122,7 +122,7 @@ Element travelFrame(Element rider) {
   return box().children({box()
                              .key("frame")
                              .absolute()
-                             .rect(SkRect::MakeXYWH(20, 20, 160, 160))
+                             .rect(20, 20, 160, 160)
                              .children({std::move(rider)})});
 }
 
@@ -130,7 +130,7 @@ Element rider(MotionPath along, float size = 8) {
   return box()
       .key("dot")
       .absolute()
-      .rect(SkRect::MakeXYWH(0, 0, size, size))
+      .rect(0, 0, size, size)
       .fill(red())
       .travel(std::move(along));
 }
@@ -226,7 +226,7 @@ TEST(ComposeTravel, OutranksTheTranslateLanesAndHandsThemBack) {
   host.composer.render(travelFrame(box()
                                        .key("dot")
                                        .absolute()
-                                       .rect(SkRect::MakeXYWH(0, 0, 8, 8))
+                                       .rect(0, 0, 8, 8)
                                        .fill(red())
                                        .translateX(-60)
                                        .translateY(-60)));
@@ -244,7 +244,7 @@ TEST(ComposeTravel, AutoOrientAddsToRotateAndHoldsTheLastGoodChord) {
     Element e = box()
                     .key("dot")
                     .absolute()
-                    .rect(SkRect::MakeXYWH(0, 0, 40, 4))
+                    .rect(0, 0, 40, 4)
                     .fill(red())
                     .travel({.path = geometry::shapes::circle(),
                              .t = t,
@@ -287,7 +287,7 @@ TEST(ComposeTravel, AutoOrientAddsToRotateAndHoldsTheLastGoodChord) {
       travelFrame(box()
                       .key("dot")
                       .absolute()
-                      .rect(SkRect::MakeXYWH(0, 0, 40, 4))
+                      .rect(0, 0, 40, 4)
                       .fill(red())
                       .travel({.path = ell, .t = t, .lookAhead = 0.02f})));
   host.frame();
@@ -337,7 +337,7 @@ TEST(ComposeTravel, PrunesOnlyWhenEveryFieldOfThePathMatches) {
   host.composer.render(travelFrame(box()
                                        .key("dot")
                                        .absolute()
-                                       .rect(SkRect::MakeXYWH(0, 0, 8, 8))
+                                       .rect(0, 0, 8, 8)
                                        .fill(red())));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 1u)
@@ -373,7 +373,7 @@ TEST(ComposeTravel, IsPaintOnlyAndAResizedFrameKeepsT) {
         {box()
              .key("frame")
              .absolute()
-             .rect(SkRect::MakeXYWH(20, 20, frameSize, frameSize))
+             .rect(20, 20, frameSize, frameSize)
              .children(
                  {rider({.path = geometry::shapes::circle(), .t = t})})});
   };

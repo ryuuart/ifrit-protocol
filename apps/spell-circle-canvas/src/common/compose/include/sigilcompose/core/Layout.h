@@ -11,7 +11,6 @@
  * concepts the generic entry points are constrained by.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Attributes.h>

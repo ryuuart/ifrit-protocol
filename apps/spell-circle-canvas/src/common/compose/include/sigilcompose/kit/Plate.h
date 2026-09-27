@@ -12,7 +12,6 @@
  * checks into.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Decorations.h>
@@ -167,7 +166,7 @@ struct Plate {
  *                              .fill = Fill::color(material::hexColor(0x1b1e26, 0.86f)),
  *                              .border = Fill::color(material::hexColor(0xc7ab74,
  * 0.22f)), .divider = Fill::color(material::hexColor(0xc7ab74, 0.16f))}})
- *          .rect(SkRect::MakeXYWH(1383, 882, 690, 468))
+ *          .rect(1383, 882, 690, 468)
  *
  *  `plate.columns` is the console's to fill; anything in it is replaced.
  *  A feed left null is skipped. The rings are the caller's and outlive

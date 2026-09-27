@@ -10,7 +10,7 @@ TEST(ComposeShapeRename, ShapeOverridesTheBox) {
   // for stroking, and for hit testing. The rect it was given is not
   // intersected with the shape, it is discarded.
   Host host(200, 200);
-  Element e = box().rect(SkRect::MakeXYWH(20, 20, 100, 100)).fill(red());
+  Element e = box().rect(20, 20, 100, 100).fill(red());
   e.shape(geometry::shapes::circle());
   host.composer.render(stack().children({std::move(e)}));
   host.frame();

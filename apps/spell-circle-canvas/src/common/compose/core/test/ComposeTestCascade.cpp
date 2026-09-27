@@ -206,7 +206,7 @@ TEST(ComposeCascade, AnOriginInEmsFollowsTheFontItIsMeasuredIn) {
         .font({.size = size})
         .children({box()
                        .absolute()
-                       .rect(SkRect::MakeWH(100, 20))
+                       .rect(0, 0, 100, 20)
                        .fill(red())
                        .transformOrigin(2_em, pct(0))
                        .scaleX(0.04f)});

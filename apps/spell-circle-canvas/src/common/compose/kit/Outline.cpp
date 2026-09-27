@@ -26,7 +26,7 @@ void Around::add(Scope& scope) const {
   Band ring = band(heldPath(node->toLocal(node->outline)), across);
   ring.bandAlignment(formation)
       .key(key + "-outline")
-      .rect(SkRect::MakeWH(node->bounds.width(), node->bounds.height()));
+      .rect(0, 0, node->bounds.width(), node->bounds.height());
   if (fill) ring.fill(*fill);
   node->attach(std::move(ring));
 }

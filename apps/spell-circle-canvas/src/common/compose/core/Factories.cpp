@@ -6,6 +6,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <sigilcore/reconcile/Environment.h>
@@ -174,7 +175,7 @@ Element pathFigure(SkPath absolute, float bleed) {
   bounds.outset(bleed, bleed);
   SkPath local = absolute.makeTransform(
       SkMatrix::Translate(-bounds.left(), -bounds.top()));
-  return box().absolute().rect(bounds).shape(heldPath(std::move(local)));
+  return box().absolute().rect(geometry::path::fromSk(bounds)).shape(heldPath(std::move(local)));
 }
 
 Element slot(std::string_view name) {

@@ -54,7 +54,7 @@ struct StrokeAtlasSketch {
         // is the actual payload: a reader is here to learn what to type.
         plate.children(
             {box()
-                 .rect(SkRect::MakeXYWH(originX, originY - 19, length, 38))
+                 .rect(originX, originY - 19, length, 38)
                  .transformOrigin(pct(0), pct(50))
                  .rotate(deg)
                  .shape(hline())
@@ -69,14 +69,14 @@ struct StrokeAtlasSketch {
       // The pivot, drawn as a registration mark.
       plate.children(
           {box()
-               .rect(SkRect::MakeXYWH(originX - 8, originY - 8, 16, 16))
+               .rect(originX - 8, originY - 8, 16, 16)
                .shape(shapes::circle())
                .foreground(stroke(1.0f, red())),
            box()
-               .rect(SkRect::MakeXYWH(originX - 13, originY - 0.5f, 26, 1))
+               .rect(originX - 13, originY - 0.5f, 26, 1)
                .fill(kRed),
            box()
-               .rect(SkRect::MakeXYWH(originX - 0.5f, originY - 13, 1, 26))
+               .rect(originX - 0.5f, originY - 13, 1, 26)
                .fill(kRed)});
 
       // The key.
@@ -172,12 +172,12 @@ struct StrokeAtlasSketch {
         const float capX = 1352;
         plate.children(
             {box()
-                 .rect(SkRect::MakeXYWH(lx, ly - 0.5f, capX - 6 - lx, 1))
+                 .rect(lx, ly - 0.5f, capX - 6 - lx, 1)
                  .fill(kInkSoft),
              call(r.label, 9.5f, kCaptionInk).width(190).at({capX, ly - 5})});
       }
       plate.children({box()
-                          .rect(SkRect::MakeXYWH(cx - 3, cy - 3, 6, 6))
+                          .rect(cx - 3, cy - 3, 6, 6)
                           .shape(shapes::circle())
                           .fill(kRed)});
     }
@@ -194,13 +194,13 @@ struct StrokeAtlasSketch {
     {
       plate.children(
           {box()
-               .rect(SkRect::MakeXYWH(1058, 732, 486, 300))
+               .rect(1058, 732, 486, 300)
                .fill(sigil::material::Color{0.055f, 0.055f, 0.068f, 1})});
       float y = 748;
       for (Style& s : stackStyles()) {
         plate.children(
             {box()
-                 .rect(SkRect::MakeXYWH(1078, y, 330, 44))
+                 .rect(1078, y, 330, 44)
                  .shape(serpent())
                  .stroke(std::move(s.dec))
                  .children({call(s.label, 8.0f, {0.72f, 0.74f, 0.78f, 1})
@@ -242,7 +242,7 @@ struct StrokeAtlasSketch {
       auto field = [&](float x, float dy, const char* label,
                        sigil::compose::Shape shape, Decoration dec) {
         return box()
-            .rect(SkRect::MakeXYWH(x, 1108 + dy, 124, 124))
+            .rect(x, 1108 + dy, 124, 124)
             .shape(std::move(shape))
             .background(std::move(dec))
             .foreground(stroke(1.0f, ink()))
@@ -410,7 +410,7 @@ struct StrokeAtlasSketch {
                                                         : (i % 3 == 2) ? -8.0f
                                                                        : 0.0f);
         Element frame = box()
-                            .rect(SkRect::MakeXYWH(x, y, 150, 100))
+                            .rect(x, y, 150, 100)
                             .transformOrigin(pct(50), pct(50))
                             .rotate(frames[i].rot)
                             .shape(frames[i].shape);
@@ -484,8 +484,8 @@ struct StrokeAtlasSketch {
         pb.bleedPx = 20.0f;
         plate.children(
             {box()
-                 .rect(SkRect::MakeXYWH(56.0f + 360.0f * (float)i, 1762, 230,
-                                        120))
+                 .rect(56.0f + 360.0f * (float)i, 1762, 230,
+                                        120)
                  .shape(frameRect(10))
                  .stroke(std::move(pb))
                  .children({call(variants[i].label, 7.5f, kCaptionInk)
@@ -515,7 +515,7 @@ struct StrokeAtlasSketch {
       octo.cornerLength = 16.0f;
       octo.bleedPx = 18.0f;
       plate.children({box()
-                          .rect(SkRect::MakeXYWH(776, 1762, 230, 120))
+                          .rect(776, 1762, 230, 120)
                           .shape(shapes::chamfered(20.0f))
                           .stroke(std::move(octo))
                           .children({call("on shapes::chamfered(20) — eight "

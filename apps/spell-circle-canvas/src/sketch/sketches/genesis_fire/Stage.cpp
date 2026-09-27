@@ -155,7 +155,7 @@ Element GenesisFire::regolith() {
           sigil::motion::animate({.from = 12.0f, .to = 0.0f, .duration = 520ms, .delay = 420ms, .ease = sigil::motion::ease::outCubic}))
       // Duff's local light. ONE Output (loopU) shaped into px.
       .children(
-          {kit::disc(SkPoint{0, 0}, 132)
+          {kit::disc(glm::vec2{0, 0}, 132)
                .fill(Paint::radialGradient({0.5f, 0.5f}, 0.707f,
                                            {{0.0f, hexColor(0xFF8A3A, 0.62f)},
                                             {0.38f, hexColor(0xC24E14, 0.24f)},
@@ -233,7 +233,7 @@ Element GenesisFire::planInset() {
               12, 12, 184, 184)
           // the expanding wavefront ring — same Output, unit scale
           .children(
-              {kit::disc(SkPoint{34, 106}, 124)
+              {kit::disc(glm::vec2{34, 106}, 124)
                    .shape(shapes::circle())
                    .stroke(stroke(1.0f, Fill::color(hexColor(0x4FB8D8, 0.75f))))
                    .scale(sigil::motion::bind(loopU, {.to = {0.0f, 10.0f / (float)kFrontCrossSeconds}, .clamp = {0.004f, 1.0f}})),

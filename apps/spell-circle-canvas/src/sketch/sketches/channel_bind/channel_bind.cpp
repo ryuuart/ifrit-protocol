@@ -260,7 +260,7 @@ struct ChannelBind {
     const auto plate = [&](std::vector<compose::Element> parts) {
       parts.push_back(
           compose::box()
-              .rect(SkRect::MakeLTRB(26, kFloor, kFigureWidth - 26, kFloor + 1))
+              .rect(geometry::path::fromSk(SkRect::MakeLTRB(26, kFloor, kFigureWidth - 26, kFloor + 1)))
               .fill(compose::Fill::color(look.palette.rule)));
       return sketch::kit::well(
           {.width = kFigureWidth, .height = kFigureHeight},
@@ -289,8 +289,8 @@ struct ChannelBind {
   /** A HEIGHT, as the scale of a blade about its own foot. */
   compose::Element blade(const sketch::kit::Theme& look) {
     return compose::box()
-        .rect(SkRect::MakeLTRB(kBladeAt, kFloor - kBladeTall,
-                               kBladeAt + kBladeWide, kFloor))
+        .rect(geometry::path::fromSk(SkRect::MakeLTRB(kBladeAt, kFloor - kBladeTall,
+                               kBladeAt + kBladeWide, kFloor)))
         .fill(compose::Fill::color(look.palette.figure))
         .borderRadius(4)
         .transformOrigin(compose::pct(50), compose::pct(100))
@@ -305,8 +305,8 @@ struct ChannelBind {
     std::vector<compose::Element> pieces;
     pieces.push_back(
         compose::box()
-            .rect(SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
-                                   kWheelTop + kWheelSide))
+            .rect(geometry::path::fromSk(SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
+                                   kWheelTop + kWheelSide)))
             .borderRadius(kWheelSide * 0.5f)
             .fill(material::Paint::conicGradient(
                 SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}, hues(),
@@ -317,16 +317,16 @@ struct ChannelBind {
     // wheel would name one colour forever.
     pieces.push_back(
         compose::box()
-            .rect(SkRect::MakeLTRB(kWheelMiddleX - kHubSide * 0.5f,
+            .rect(geometry::path::fromSk(SkRect::MakeLTRB(kWheelMiddleX - kHubSide * 0.5f,
                                    kWheelMiddleY - kHubSide * 0.5f,
                                    kWheelMiddleX + kHubSide * 0.5f,
-                                   kWheelMiddleY + kHubSide * 0.5f))
+                                   kWheelMiddleY + kHubSide * 0.5f)))
             .borderRadius(kHubSide * 0.5f)
             .fill(compose::Fill::color(look.palette.cellGround)));
     pieces.push_back(
         compose::box()
-            .rect(SkRect::MakeLTRB(kWheelMiddleX - 5, kWheelTop - 16,
-                                   kWheelMiddleX + 5, kWheelTop + 14))
+            .rect(geometry::path::fromSk(SkRect::MakeLTRB(kWheelMiddleX - 5, kWheelTop - 16,
+                                   kWheelMiddleX + 5, kWheelTop + 14)))
             .borderRadius(2)
             .fill(compose::Fill::color(look.palette.ink)));
     return pieces;
@@ -340,26 +340,26 @@ struct ChannelBind {
     std::vector<compose::Element> pieces;
     pieces.push_back(
         compose::box()
-            .rect(SkRect::MakeLTRB(kPlumbAt, kPlumbTop, kPlumbAt + kPlumbWide,
-                                   kPlumbTop + kPlumbLong))
+            .rect(geometry::path::fromSk(SkRect::MakeLTRB(kPlumbAt, kPlumbTop, kPlumbAt + kPlumbWide,
+                                   kPlumbTop + kPlumbLong)))
             .transformOrigin(compose::pct(50), compose::pct(0))
             .rotate(swing())
             .children({compose::box()
-                           .rect(SkRect::MakeLTRB(kPlumbWide * 0.5f - 3, 0,
+                           .rect(geometry::path::fromSk(SkRect::MakeLTRB(kPlumbWide * 0.5f - 3, 0,
                                                   kPlumbWide * 0.5f + 3,
-                                                  kPlumbLong - kBobSide))
+                                                  kPlumbLong - kBobSide)))
                            .fill(compose::Fill::color(look.palette.rule)),
                        compose::box()
-                           .rect(SkRect::MakeLTRB(
+                           .rect(geometry::path::fromSk(SkRect::MakeLTRB(
                                kPlumbWide * 0.5f - kBobSide * 0.5f,
                                kPlumbLong - kBobSide,
-                               kPlumbWide * 0.5f + kBobSide * 0.5f, kPlumbLong))
+                               kPlumbWide * 0.5f + kBobSide * 0.5f, kPlumbLong)))
                            .borderRadius(kBobSide * 0.5f)
                            .fill(compose::Fill::color(look.palette.figure))}));
     pieces.push_back(compose::box()
-                         .rect(SkRect::MakeLTRB(
+                         .rect(geometry::path::fromSk(SkRect::MakeLTRB(
                              kPlumbAt + kPlumbWide * 0.5f - 7, kPlumbTop - 7,
-                             kPlumbAt + kPlumbWide * 0.5f + 7, kPlumbTop + 7))
+                             kPlumbAt + kPlumbWide * 0.5f + 7, kPlumbTop + 7)))
                          .borderRadius(7)
                          .fill(compose::Fill::color(look.palette.ink)));
     return pieces;

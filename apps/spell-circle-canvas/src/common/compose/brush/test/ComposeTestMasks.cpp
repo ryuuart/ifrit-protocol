@@ -3,6 +3,7 @@
 // the coverage laws each gate resolves its own term by.
 
 #include "support/BrushTestSupport.h"
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmotion/ease/Ease.h>
 
 // ---- S1 · the helper's three strokes, gated from OUTSIDE the helper -------
@@ -473,7 +474,7 @@ TEST(ComposeMaskGates, TheGateGeometryIsTrimsGeometry) {
                             p.setStrokeWidth(6);
                             p.setColor4f({1, 0, 0, 1}, nullptr);
                             c.drawPath(want, p);
-                          }).rect(r)}));
+                          }).rect(geometry::path::fromSk(r))}));
     truth.frame();
     EXPECT_EQ(boundaryRing(gated), boundaryRing(truth))
         << "window " << lo << ".." << hi;

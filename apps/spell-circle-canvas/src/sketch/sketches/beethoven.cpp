@@ -264,8 +264,8 @@ struct Beethoven {
         .children({
             // The plate, centered on the wall — the letterbox panels are
             // the mat itself.
-            plate().key("plate").rect(SkRect::MakeXYWH(
-                bp::kPlateX, bp::kPlateY, bp::kPlateW, bp::kPlateH)),
+            plate().key("plate").rect(
+                bp::kPlateX, bp::kPlateY, bp::kPlateW, bp::kPlateH),
             // The museum label, right panel, at hanging height.
             box()
                 .key("label")

@@ -198,7 +198,7 @@ TEST(ComposeComposites, LayersIsWeaveWithCoincidentSelfStrands) {
   auto draw = [](const brush::Weave& w) {
     Host host(200, 200);
     host.composer.render(stack().children(
-        {box().rect(SkRect::MakeXYWH(40, 40, 100, 100)).stroke(w)}));
+        {box().rect(40, 40, 100, 100).stroke(w)}));
     host.frame();
     std::vector<SkColor> out;
     for (int x = 30; x < 150; x += 3) out.push_back(host.pixel(x, 40));
@@ -475,7 +475,7 @@ TEST(ComposeStrands, AbsoluteOnlyLeavesTheBoundaryUnpainted) {
   Host host(200, 200);
   host.composer.render(stack().children(
       {box()
-           .rect(SkRect::MakeXYWH(40, 40, 100, 100))
+           .rect(40, 40, 100, 100)
            .stroke(brush::weave(
                {brush::Strand{strand::path(diagonal({0, 0}, {100, 0})),
                               brush::solid(6, red())}},
@@ -506,9 +506,9 @@ TEST(ComposeStrands, RelativeStrandsRideTheBandsFrame) {
 TEST(ComposeStrands, BorrowedStrandsRideTheDerivePass) {
   Host host(200, 200);
   host.composer.render(stack().children(
-      {box().key("guide").rect(SkRect::MakeXYWH(60, 20, 80, 40)),
+      {box().key("guide").rect(60, 20, 80, 40),
        box()
-           .rect(SkRect::MakeXYWH(20, 20, 160, 160))
+           .rect(20, 20, 160, 160)
            .stroke(brush::weave(
                {brush::Strand{strand::from("guide"), brush::solid(6, red())}},
                geometry::path::CrossingRule{}))}));
@@ -576,7 +576,7 @@ TEST(ComposeComposites, CompositesNest) {
       brush::layers({brush::solid(9, red()), brush::solid(3, green())});
   host.composer.render(stack().children(
       {box()
-           .rect(SkRect::MakeXYWH(40, 40, 100, 100))
+           .rect(40, 40, 100, 100)
            .stroke(brush::weave(
                {brush::Strand{geometry::path::profile::self(), inner},
                 brush::Strand{geometry::path::profile::offset(12),

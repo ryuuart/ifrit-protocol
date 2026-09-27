@@ -5,7 +5,7 @@ namespace {
 
 /** A 100×100 box at (20,20) whose boundary is the ring `boundaryRing`
  *  samples, dressed with one red stroke. The masking family's fixture. */
-Element maskBox() { return box().rect(SkRect::MakeXYWH(20, 20, 100, 100)); }
+Element maskBox() { return box().rect(20, 20, 100, 100); }
 
 }  // namespace
 

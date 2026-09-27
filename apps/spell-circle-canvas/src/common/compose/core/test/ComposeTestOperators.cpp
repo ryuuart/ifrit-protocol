@@ -7,6 +7,7 @@
 // operator keeps and a fact change breaks.
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include <cmath>
 #include <numbers>
@@ -276,7 +277,7 @@ struct MarkEach {
 struct Sheet {
   bool operator==(const Sheet&) const = default;
   void add(Scope& scope) const {
-    scope.attach(box().key("sheet").rect(scope.box).fill(red()));
+    scope.attach(box().key("sheet").rect(geometry::path::fromSk(scope.box)).fill(red()));
   }
 };
 
@@ -286,7 +287,7 @@ struct SheetAt {
   bool operator==(const SheetAt&) const = default;
   void add(Scope& scope) const {
     scope.attach(
-        box().key("sheet").rect(scope.box).fill(red()).zIndex(zIndex));
+        box().key("sheet").rect(geometry::path::fromSk(scope.box)).fill(red()).zIndex(zIndex));
   }
 };
 
@@ -304,10 +305,10 @@ struct Wire {
     const SkPoint end = b->bounds.center();
     scope.attach(box()
                      .key(from + "->" + to)
-                     .rect(SkRect::MakeLTRB(std::min(start.x(), end.x()),
+                     .rect(geometry::path::fromSk(SkRect::MakeLTRB(std::min(start.x(), end.x()),
                                             start.y() - 2,
                                             std::max(start.x(), end.x()),
-                                            start.y() + 2))
+                                            start.y() + 2)))
                      .fill(red()));
   }
 };

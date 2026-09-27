@@ -177,7 +177,7 @@ struct WorldHud {
                   .live = hp})
              .at({wh::kBarX, wh::kBarY})
              .children({box()
-                            .rect(SkRect::MakeWH(wh::kHealthW, wh::kHealthH))
+                            .rect(0, 0, wh::kHealthW, wh::kHealthH)
                             .borderRadius({2})
                             .fill({wh::kCritHp.r, wh::kCritHp.g,
                                                 wh::kCritHp.b, 0.55f})
@@ -220,8 +220,8 @@ struct WorldHud {
         {"0", wh::Glyph::Frost, false}, {"M2", wh::Glyph::Bow, true},
     };
     return stack()
-        .rect(SkRect::MakeXYWH(wh::kSlotsX, wh::kSlotsY, wh::kSlotsW,
-                               wh::kSlotFrame))
+        .rect(wh::kSlotsX, wh::kSlotsY, wh::kSlotsW,
+                               wh::kSlotFrame)
         .children(
             {instances(slotAtlas, slotPool),
              each(kSlots,
@@ -231,12 +231,11 @@ struct WorldHud {
                                           {wh::kSlotFrame, wh::kSlotFrame},
                                           {wh::kSlotGap, 0})
                             .fLeft;
-                    Element cell = box().rect(
-                        SkRect::MakeXYWH(x, 0, wh::kSlotFrame, wh::kSlotFrame));
+                    Element cell = box().rect(x, 0, wh::kSlotFrame, wh::kSlotFrame);
                     if (s.filled)
                       cell.children(
                           {box()
-                               .rect(SkRect::MakeXYWH(9, 9, 24.0f, 24.0f))
+                               .rect(9, 9, 24.0f, 24.0f)
                                .shape(wh::glyphPath(s.glyph))
                                .fill(Paint::linearGradient(
                                    {0, 0}, {0, 24},
@@ -254,8 +253,8 @@ struct WorldHud {
                     if (i >= 1 && i <= 4)
                       cell.children(
                           {box()
-                               .rect(SkRect::MakeXYWH(3, 3, wh::kSlot - 4,
-                                                      wh::kSlot - 4))
+                               .rect(3, 3, wh::kSlot - 4,
+                                                      wh::kSlot - 4)
                                .transformOrigin(pct(50), pct(0))
                                .scaleY(&cooldown[i - 1])
                                .fill(Paint::linearGradient(
@@ -271,14 +270,14 @@ struct WorldHud {
                   }),
              // the selected-exp chip skillbar.rs hangs off slot10
              box()
-                 .rect(SkRect::MakeXYWH(wh::kSlotsW + 3, 2, 34.0f, 38.0f))
+                 .rect(wh::kSlotsW + 3, 2, 34.0f, 38.0f)
                  .children(
                      {wh::boneFrame(34, 38, 3).inset(0),
                       box()
-                          .rect(SkRect::MakeXYWH(3, 20, 28.0f, 6.0f))
+                          .rect(3, 20, 28.0f, 6.0f)
                           .fill(wh::kTrack)
                           .children({box()
-                                         .rect(SkRect::MakeWH(28.0f, 6.0f))
+                                         .rect(0, 0, 28.0f, 6.0f)
                                          .transformOrigin(pct(0), pct(50))
                                          .scaleX(xp)
                                          .fill(wh::kXp)}),
@@ -304,7 +303,7 @@ struct WorldHud {
     // a marker on the map: a small rounded pip at a fraction of the dial
     const auto pin = [](float u, float v, sigil::material::Color ink) {
       return box()
-          .rect(SkRect::MakeXYWH(d * u, d * v, 6.0f, 6.0f))
+          .rect(d * u, d * v, 6.0f, 6.0f)
           .borderRadius({3})
           .fill(ink);
     };
@@ -350,8 +349,8 @@ struct WorldHud {
              // a cross: small, at the middle, eight points, with the four
              // cardinal arms longer than the four between them.
              box()
-                 .rect(SkRect::MakeXYWH(d * 0.5f - 23, d * 0.5f - 23, 46.0f,
-                                        46.0f))
+                 .rect(d * 0.5f - 23, d * 0.5f - 23, 46.0f,
+                                        46.0f)
                  .rotate(compass)
                  .children(
                      {box()
@@ -364,7 +363,7 @@ struct WorldHud {
                           .fill(
                               Paint::solid({bone.r, bone.g, bone.b, 0.62f}))}),
              box()
-                 .rect(SkRect::MakeXYWH(d * 0.5f - 4, d * 0.5f - 4, 8.0f, 8.0f))
+                 .rect(d * 0.5f - 4, d * 0.5f - 4, 8.0f, 8.0f)
                  .shape(shapes::polygon(3))
                  .fill(hexColor(0xFFE9A8)),
              pin(0.30f, 0.36f, wh::kQualityLegendary),
@@ -527,7 +526,7 @@ struct WorldHud {
                  .foreground(
                      stroke(1.0f, Fill::color({0.05f, 0.04f, 0.03f, 0.9f})))
                  .children({box()
-                                .rect(SkRect::MakeXYWH(1, 1, 166.0f, 7.0f))
+                                .rect(1, 1, 166.0f, 7.0f)
                                 .transformOrigin(pct(0), pct(50))
                                 .scaleX(enemyHp)
                                 .fill(wh::kEnemyHp)})});

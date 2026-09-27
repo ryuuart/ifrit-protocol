@@ -6,6 +6,7 @@
  */
 
 #include "ComposeInternal.h"
+#include <sigilgeometry/path/Skia.h>
 
 namespace sigil::compose {
 
@@ -98,10 +99,10 @@ Derived& PlacementVerbs<Derived>::bottom(Dimension d) {
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::centerAt(SkPoint p) {
+Derived& PlacementVerbs<Derived>::centerAt(glm::vec2 point) {
   detail::DeclaredFields& fields = declarations()->fields;
   fields.absolute().absolute = true;
-  fields.centerAt() = p;
+  fields.centerAt() = SkPoint{point.x, point.y};
   return self();
 }
 
@@ -166,9 +167,9 @@ Derived& PlacementVerbs<Derived>::rect(Dimension x, Dimension y,
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::rect(const SkRect& r) {
-  return rect(Dimension(r.fLeft), Dimension(r.fTop), Dimension(r.width()),
-              Dimension(r.height()));
+Derived& PlacementVerbs<Derived>::rect(const geometry::path::Rect& box) {
+  return rect(Dimension(box.min.x), Dimension(box.min.y), Dimension(box.width()),
+              Dimension(box.height()));
 }
 
 template <class Derived>
@@ -179,8 +180,8 @@ Derived& PlacementVerbs<Derived>::at(Dimension x, Dimension y) {
 }
 
 template <class Derived>
-Derived& PlacementVerbs<Derived>::at(SkPoint topLeft) {
-  return at(Dimension(topLeft.fX), Dimension(topLeft.fY));
+Derived& PlacementVerbs<Derived>::at(glm::vec2 topLeft) {
+  return at(Dimension(topLeft.x), Dimension(topLeft.y));
 }
 
 template class PlacementVerbs<Element>;

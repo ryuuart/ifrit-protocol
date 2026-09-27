@@ -818,8 +818,8 @@ struct DaemonConsole {
         // rest position puts the tent's centre 90 px above the top edge,
         // so the sweep enters from above and leaves below the foot.
         .children({box()
-                       .rect(SkRect::MakeXYWH(0, -90.0f - dc::kRefreshH * 0.5f,
-                                              dc::kW, dc::kRefreshH))
+                       .rect(0, -90.0f - dc::kRefreshH * 0.5f,
+                                              dc::kW, dc::kRefreshH)
                        .zIndex(4)
                        .hitTestable(false)
                        .fill(dc::refreshBand())

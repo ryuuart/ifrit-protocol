@@ -44,7 +44,7 @@ inline Element artBball(sigil::weave::FontContext& f,
                         const sk_sp<SkRuntimeEffect>& ball) {
   const float W = S(62), H = S(62);
   return artBox(W, H).children(
-      {kit::dot(SkPoint{S(31), S(37.5f)}, S(25.5f),
+      {kit::dot(glm::vec2{S(31), S(37.5f)}, S(25.5f),
                 ballMaterial(ball, false, C5(0xFF9C10), C5(0xC66300),
                              C5(0x843900), 0.055f))
            .stroke(stroke(S(1.2f), Fill::color(C5(0x632900)),

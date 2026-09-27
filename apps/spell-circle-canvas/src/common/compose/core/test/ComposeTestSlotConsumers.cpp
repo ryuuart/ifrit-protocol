@@ -128,7 +128,7 @@ const SlotScene kSlotScenes[] = {
      [](Lane lane) {
        Element e = box();
        e.absolute();
-       e.rect(SkRect::MakeXYWH(0, 0, 24, 24));
+       e.rect(0, 0, 24, 24);
        e.fill(red());
        e.travel({.path =
                      [](SkSize) {

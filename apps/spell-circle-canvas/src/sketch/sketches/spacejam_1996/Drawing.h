@@ -286,7 +286,7 @@ inline Element starTile() {
   // two levels, which is exactly what an 8-bit screen did to them.
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
-    tile.children({kit::disc(SkPoint{S(g[0]), S(g[1])}, S(g[2]))
+    tile.children({kit::disc(glm::vec2{S(g[0]), S(g[1])}, S(g[2]))
                        .fill(material::Paint::radialGradient(
                            {0.5f, 0.5f}, 1.0f,
                            {{0.0f, {1, 1, 1, 0.0f}},
@@ -308,7 +308,7 @@ inline Element starTile() {
     // into a grey haze the artefact does not have.
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
-    tile.children({kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, R)
+    tile.children({kit::disc(glm::vec2{S((float)s.x), S((float)s.y)}, R)
                        .fill(material::Paint::radialGradient(
                            {0.5f, 0.5f}, 1.0f,
                            {{0.0f, {L, L, L, 1.0f}},
@@ -329,7 +329,7 @@ inline Element starTile() {
       const int pts = eight ? 8 : 4;
       const float waist = eight ? 0.15f : 0.12f;
       const float len = S(eight ? 4.8f + 6.6f * L : 4.2f + 6.0f * L);
-      Element sp = kit::disc(SkPoint{S((float)s.x), S((float)s.y)}, len)
+      Element sp = kit::disc(glm::vec2{S((float)s.x), S((float)s.y)}, len)
                        .shape(shapes::star(pts, 0.035f, waist))
                        .fill(Fill::color({1, 1, 1, 0.38f + 0.42f * L}))
                        .blendMode(material::BlendMode::PlusLighter);

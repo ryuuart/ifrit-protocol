@@ -22,7 +22,7 @@ unpinned.
 
 **Four lengths in any unit, or a rect in hand.** `rect(x, y, width,
 height)` takes what the four setters take, so a percent is of the
-parent's box; `rect(SkRect)` is the same box for coordinates already
+parent's box; `rect(geometry::path::Rect)` is the same box for coordinates already
 measured, in pixels.
 
 **A primitive for placing content whose coordinates you already have**,
@@ -32,7 +32,7 @@ wide as the column" — flex and `inset` express it and this does not.
 
 ```cpp
 g.children({box().rect(panelBox).fill(ink)});
-g.children({text(u8"…", st).at({panelBox.fLeft + 16, panelBox.fTop})});
+g.children({text(u8"…", st).at(panelBox.min + glm::vec2{16, 0})});
 ```
 
 **No right or bottom pin.** `autoDimension()` sides and right/bottom

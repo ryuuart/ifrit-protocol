@@ -10,7 +10,6 @@
  * both draw what is otherwise only inferable.
  */
 
-#include <include/core/SkColor.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>

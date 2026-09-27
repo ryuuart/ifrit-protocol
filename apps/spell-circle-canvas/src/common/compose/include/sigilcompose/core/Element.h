@@ -9,7 +9,6 @@
  * take a tree without a live composer are in Measure.h and Tiles.h.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkSize.h>
 #include <sigilcompose/core/Band.h>

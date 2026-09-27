@@ -21,7 +21,6 @@
  * unequal the frame something was.
  */
 
-#include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>

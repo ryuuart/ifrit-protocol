@@ -363,8 +363,8 @@ struct NightingaleCoxcomb {
                  {1.0f, colour("raking-shade")}},
                 {.units = material::GradientUnits::Pixels})),
             box()
-                .rect(SkRect::MakeXYWH(kAxis - gutter / 2, 0, gutter,
-                                       kCanvas.height()))
+                .rect(kAxis - gutter / 2, 0, gutter,
+                                       kCanvas.height())
                 .fill(material::Paint::linearGradient(
                     {0, 0}, {gutter, 0},
                     {{0.0f, colour("gutter-shadow", 0)},

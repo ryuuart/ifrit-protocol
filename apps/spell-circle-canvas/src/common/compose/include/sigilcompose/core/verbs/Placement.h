@@ -9,10 +9,10 @@
  * in.
  */
 
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Layout.h>
+#include <sigilgeometry/path/Outline.h>
 
 #include <string_view>
 
@@ -63,7 +63,7 @@ class PlacementVerbs {
   Derived& bottom(Dimension d);
   /** CENTRE this node ON a parent-space point, resolved after
    *  measurement so an intrinsic-size node centres correctly. */
-  Derived& centerAt(SkPoint p);
+  Derived& centerAt(glm::vec2 point);
   /** WHICH CELLS this child claims of the scheme above it, and how many
    *  it covers — read by grid-shaped schemes and by nothing else. A
    *  span of zero is raised to one. */
@@ -86,12 +86,12 @@ class PlacementVerbs {
    *  bottom stay unpinned. */
   Derived& rect(Dimension x, Dimension y, Dimension width, Dimension height);
   /** The same box, from a rect already in hand, in pixels. */
-  Derived& rect(const SkRect& r);
+  Derived& rect(const geometry::path::Rect& box);
   /** Pin this node's top-left to a parent-space POINT and leave it to
    *  size itself — exactly `left(x).top(y)`, in any unit. */
   Derived& at(Dimension x, Dimension y);
   /** The same pin, from a point already in hand, in pixels. */
-  Derived& at(SkPoint topLeft);
+  Derived& at(glm::vec2 topLeft);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

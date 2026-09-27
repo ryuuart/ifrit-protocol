@@ -231,8 +231,8 @@ struct MeshGenerators {
                      .at({42, 28}),
                  custom("mesh.generators",
                         [this](SkCanvas& canvas) { draw(canvas); })
-                     .rect(SkRect::MakeXYWH(0, 82, kCanvas.width(),
-                                            kCanvas.height())),
+                     .rect(0, 82, kCanvas.width(),
+                                            kCanvas.height()),
                  box().column().gap(8).width(630).at({42, 590}).children(
                      {document::h2("Outline, profile and solid")
                           .font({.size = 20}),

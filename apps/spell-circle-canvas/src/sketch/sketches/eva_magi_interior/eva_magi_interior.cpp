@@ -166,7 +166,7 @@ struct EvaMagiInterior {
   Element panel(float x, float y, float width, Utf8 heading, Utf8 reading,
                 bool timer) const {
     Element plate = box()
-                        .rect(SkRect::MakeXYWH(x, y, width, 112))
+                        .rect(x, y, width, 112)
                         .fill(kGround)
                         .borderRadius({8})
                         .stroke(stroke(4, Paint::solid(kOrange)));
@@ -183,11 +183,11 @@ struct EvaMagiInterior {
     return box().inset(0).children(
         {std::move(plate),
          box()
-             .rect(SkRect::MakeXYWH(x - 31, y - 2, 17, 116))
+             .rect(x - 31, y - 2, 17, 116)
              .fill(kOrange)
              .borderRadius({9}),
          box()
-             .rect(SkRect::MakeXYWH(x + width + 15, y - 2, 17, 116))
+             .rect(x + width + 15, y - 2, 17, 116)
              .fill(kOrange)
              .borderRadius({9})});
   }
