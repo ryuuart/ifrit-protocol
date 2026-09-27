@@ -21,6 +21,9 @@ namespace sigil::material {
 /** The executor's filter a `Filter` holds (opaque in the header). */
 struct Filter::Node {
   skia::Effect effect;
+  /** The steps that read coverage, which no image filter carries: a
+   *  renderer that knows the layer's shape draws them. */
+  std::vector<CoverageEffect> coverage;
 };
 
 }  // namespace sigil::material
@@ -36,10 +39,10 @@ struct FilterAccess {
   }
   /** @p effect as a filter; an effect that paints nothing is the filter
    *  of none, so the two spellings of "nothing" compare equal. */
-  static Filter wrap(Effect effect) {
-    if (effect == Effect{}) return {};
+  static Filter wrap(Effect effect, std::vector<CoverageEffect> coverage = {}) {
+    if (effect == Effect{} && coverage.empty()) return {};
     return Filter(std::make_shared<const Filter::Node>(
-        Filter::Node{std::move(effect)}));
+        Filter::Node{std::move(effect), std::move(coverage)}));
   }
   static Effect& edit(Filter& filter) { return filter.edit().effect; }
 };
@@ -132,6 +135,39 @@ Filter Filter::glow(Color color, float sigma) {
   return FilterAccess::wrap(Effect::glow(color, sigma));
 }
 
+Filter Filter::shadow(Color color, ShadowOptions options) {
+  CoverageEffect step;
+  step.kind = CoverageEffect::Kind::Shadow;
+  step.color = color;
+  step.shadow = options;
+  return FilterAccess::wrap({}, {step});
+}
+
+Filter Filter::stroke(Color color, StrokeOptions options) {
+  CoverageEffect step;
+  step.kind = CoverageEffect::Kind::Stroke;
+  step.color = color;
+  step.stroke = options;
+  return FilterAccess::wrap({}, {step});
+}
+
+Filter Filter::bevel(BevelOptions options) {
+  CoverageEffect step;
+  step.kind = CoverageEffect::Kind::Bevel;
+  step.bevel = options;
+  return FilterAccess::wrap({}, {step});
+}
+
+std::span<const CoverageEffect> Filter::coverage() const {
+  if (!m_node) return {};
+  return m_node->coverage;
+}
+
+Filter Filter::withoutCoverage() const {
+  if (!m_node) return {};
+  return FilterAccess::wrap(m_node->effect);
+}
+
 Filter Filter::bloom(BloomOptions options) {
   return FilterAccess::wrap(skia::bloom(options));
 }
@@ -212,14 +248,20 @@ Filter& Filter::bind(std::string name,
 Filter Filter::then(const Filter& next) const {
   if (!m_node) return next;
   if (!next.m_node) return *this;
-  return FilterAccess::wrap(m_node->effect.then(next.m_node->effect));
+  std::vector<CoverageEffect> coverage = m_node->coverage;
+  coverage.insert(coverage.end(), next.m_node->coverage.begin(),
+                  next.m_node->coverage.end());
+  return FilterAccess::wrap(m_node->effect.then(next.m_node->effect),
+                            std::move(coverage));
 }
 
 Filter Filter::emit(const Filter& light, BlendMode mode) const {
   if (!light.m_node) return *this;
   const Effect none;
   const Effect& self = m_node ? m_node->effect : none;
-  return FilterAccess::wrap(self.emit(light.m_node->effect, mode));
+  return FilterAccess::wrap(self.emit(light.m_node->effect, mode),
+                            m_node ? m_node->coverage
+                                   : std::vector<CoverageEffect>{});
 }
 
 bool Filter::isRunning() const {
@@ -234,7 +276,36 @@ bool Filter::operator==(const Filter& other) const {
   // The same node is not enough: a live filter never compares equal, even
   // to itself, so a node carrying one repaints every frame.
   if (!m_node || !other.m_node) return m_node == other.m_node;
-  return m_node->effect == other.m_node->effect;
+  return m_node->effect == other.m_node->effect &&
+         m_node->coverage == other.m_node->coverage;
+}
+
+namespace {
+
+/** A filter as a material's effects stage. */
+class EffectsPart final : public detail::Part {
+ public:
+  explicit EffectsPart(Filter filter) : filter(std::move(filter)) {}
+  bool equals(const detail::Part& other) const override {
+    const auto* same = dynamic_cast<const EffectsPart*>(&other);
+    return same && same->filter == filter;
+  }
+  bool isRunning() const override { return filter.isRunning(); }
+  bool geometryDependent() const override { return filter.usesWorldSpace(); }
+  Filter filter;
+};
+
+}  // namespace
+
+Material& Material::effects(const Filter& chain) {
+  placeEffects(chain.isNone() ? nullptr
+                              : std::make_shared<const EffectsPart>(chain));
+  return *this;
+}
+
+const Filter* Material::effects() const {
+  const auto* part = dynamic_cast<const EffectsPart*>(effectsPart());
+  return part ? &part->filter : nullptr;
 }
 
 }  // namespace sigil::material

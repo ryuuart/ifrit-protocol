@@ -15,8 +15,127 @@
 
 namespace sigil::material {
 
+/** Everything beyond a bare program: the base when it is not a program,
+ *  the layer stack, the surface and the effects. */
+struct Material::Composition {
+  std::optional<Color> color;
+  std::shared_ptr<const detail::Part> source;
+  std::vector<Layer> layers;
+  std::optional<SurfaceOptions> surface;
+  std::shared_ptr<const detail::Part> effects;
+};
+
+namespace {
+
+bool samePart(const std::shared_ptr<const detail::Part>& a,
+              const std::shared_ptr<const detail::Part>& b) {
+  if (a == b) return true;
+  return a && b && a->equals(*b);
+}
+
+}  // namespace
+
+Material::Material() : Material(Color{0, 0, 0, 0}) {}
+
+Material::Material(Color color) {
+  auto composition = std::make_shared<Composition>();
+  composition->color = color;
+  m_composition = std::move(composition);
+}
+
+Material::Material(std::shared_ptr<const detail::Part> source) {
+  auto composition = std::make_shared<Composition>();
+  composition->source = std::move(source);
+  m_composition = std::move(composition);
+}
+
+Material::Material(const MaterialParts& parts) : Material(parts.base) {
+  for (const Layer& layer : parts.layers) this->layer(layer.source, layer.options);
+  if (parts.surface) surface(*parts.surface);
+}
+
 Material::Material(std::shared_ptr<const Recipe> recipe)
     : m_recipe(std::move(recipe)), m_bytes(m_recipe->parameters().byteSize) {}
+
+Material::Composition& Material::compose() {
+  // Copy on write: a material is a value, and a copy shares its parts.
+  auto copy = m_composition ? std::make_shared<Composition>(*m_composition)
+                            : std::make_shared<Composition>();
+  Composition& edited = *copy;
+  m_composition = std::move(copy);
+  return edited;
+}
+
+Material& Material::layer(Material source) {
+  return layer(std::move(source), LayerOptions{});
+}
+
+Material& Material::layer(Material source, const LayerOptions& options) {
+  LayerOptions clamped = options;
+  clamped.opacity = std::clamp(clamped.opacity, 0.0f, 1.0f);
+  compose().layers.push_back(Layer{std::move(source), std::move(clamped)});
+  return *this;
+}
+
+Material& Material::surface(const SurfaceOptions& options) {
+  compose().surface = options;
+  return *this;
+}
+
+void Material::placeEffects(std::shared_ptr<const detail::Part> effects) {
+  compose().effects = std::move(effects);
+}
+
+const detail::Part* Material::effectsPart() const {
+  return m_composition ? m_composition->effects.get() : nullptr;
+}
+
+const Color* Material::color() const {
+  return m_composition && m_composition->color ? &*m_composition->color
+                                               : nullptr;
+}
+
+const detail::Part* Material::source() const {
+  return m_composition ? m_composition->source.get() : nullptr;
+}
+
+std::span<const Layer> Material::layers() const {
+  if (!m_composition) return {};
+  return m_composition->layers;
+}
+
+const SurfaceOptions* Material::surface() const {
+  return m_composition && m_composition->surface ? &*m_composition->surface
+                                                 : nullptr;
+}
+
+Material Material::base() const {
+  Material out = *this;
+  if (!m_composition) return out;
+  if (m_recipe) {
+    out.m_composition = nullptr;
+    return out;
+  }
+  auto bare = std::make_shared<Composition>();
+  bare->color = m_composition->color;
+  bare->source = m_composition->source;
+  out.m_composition = std::move(bare);
+  return out;
+}
+
+namespace {
+
+/** A program-only operation on a material whose base is not a program. */
+bool refuseWithoutProgram(const std::shared_ptr<const Recipe>& recipe,
+                          std::string_view what, std::string_view name) {
+  if (recipe) return false;
+  reportOnce("noprogram:" + std::string(what),
+             std::string(what) + " \"" + std::string(name) +
+                 "\" on a material whose base is not a program is ignored");
+  return true;
+}
+
+}  // namespace
 
 Material::Material(std::shared_ptr<const Recipe> recipe, const void* parameters,
                    size_t size, const Schema* schema)
@@ -25,6 +144,7 @@ Material::Material(std::shared_ptr<const Recipe> recipe, const void* parameters,
 }
 
 Material Material::withRecipe(std::shared_ptr<const Recipe> recipe) const {
+  if (!m_recipe) return *this;
   if (!recipe || recipe->parameters() != m_recipe->parameters()) {
     reportOnce(
         "specialize:" + m_recipe->name(),
@@ -44,6 +164,7 @@ Material Material::withRecipe(std::shared_ptr<const Recipe> recipe) const {
 
 void Material::write(const void* parameters, size_t size,
                      const Schema* schema) {
+  if (refuseWithoutProgram(m_recipe, "set", "parameters")) return;
   // A parameter struct with no fields lays out to nothing while still
   // occupying a byte as a C++ object, so its size can never be the
   // upload's; there is simply nothing to copy.
@@ -60,6 +181,7 @@ void Material::write(const void* parameters, size_t size,
 
 void Material::write(std::string_view name, ParameterType kind,
                      const void* floats, size_t count) {
+  if (refuseWithoutProgram(m_recipe, "set", name)) return;
   const Field* f = m_recipe->parameters().find(name);
   // THE REPORT'S KEY IS BUILT WHERE IT IS REPORTED. This is the per-field
   // setter, called once per field of every material built, and a string
@@ -106,6 +228,7 @@ Material::Binding* Material::binding(std::string_view name) {
 
 Material& Material::bind(std::string_view name,
                          motion::Animatable<float> value) {
+  if (refuseWithoutProgram(m_recipe, "bind", name)) return *this;
   const Field* f = m_recipe->parameters().find(name);
   if (!f || f->kind != ParameterType::Float) {
     reportOnce("bind:" + m_recipe->name() + ":" + std::string(name),
@@ -129,6 +252,7 @@ Material& Material::unbind(std::string_view name) {
 
 Material& Material::bind(std::string_view name,
                          std::shared_ptr<const UniformBlock> block) {
+  if (refuseWithoutProgram(m_recipe, "bind", name)) return *this;
   const Field* f = m_recipe->parameters().find(name);
   const std::string key = "bind:" + m_recipe->name() + ":" + std::string(name);
   if (!f || f->kind != ParameterType::FloatArray) {
@@ -165,6 +289,7 @@ bool Material::isBound(std::string_view name) const {
 }
 
 void Material::place(std::string_view name, Slot slot) {
+  if (refuseWithoutProgram(m_recipe, "slot", name)) return;
   const auto slots = m_recipe->slots();
   if (std::find(slots.begin(), slots.end(), name) == slots.end()) {
     reportOnce("child:" + m_recipe->name() + ":" + std::string(name),
@@ -231,9 +356,18 @@ bool Material::isRunning() const {
   // plain number written into a uniform every resolve moves nothing.
   for (const Binding& b : m_bindings)
     if (b.block || b.value.isRunning()) return true;
-  if (m_recipe->reads(FrameInput::Time) ||
-      m_recipe->reads(FrameInput::ContentScale))
+  if (m_recipe && (m_recipe->reads(FrameInput::Time) ||
+                   m_recipe->reads(FrameInput::ContentScale)))
     return true;
+  if (m_composition) {
+    const Composition& parts = *m_composition;
+    if (parts.source && parts.source->isRunning()) return true;
+    if (parts.effects && parts.effects->isRunning()) return true;
+    for (const Layer& layer : parts.layers)
+      if (layer.source.isRunning() ||
+          (layer.options.mask && layer.options.mask->source.isRunning()))
+        return true;
+  }
   for (const auto& [slot, s] : m_slots) {
     if (s.material && s.material->isRunning()) return true;
     if (s.leaf && s.leaf->animated()) return true;
@@ -242,9 +376,19 @@ bool Material::isRunning() const {
 }
 
 bool Material::geometryDependent() const {
-  if (m_recipe->reads(FrameInput::Resolution) ||
-      m_recipe->reads(FrameInput::WorldTransform))
+  if (m_recipe && (m_recipe->reads(FrameInput::Resolution) ||
+                   m_recipe->reads(FrameInput::WorldTransform)))
     return true;
+  if (m_composition) {
+    const Composition& parts = *m_composition;
+    if (parts.source && parts.source->geometryDependent()) return true;
+    if (parts.effects && parts.effects->geometryDependent()) return true;
+    for (const Layer& layer : parts.layers)
+      if (layer.source.geometryDependent() ||
+          (layer.options.mask &&
+           layer.options.mask->source.geometryDependent()))
+        return true;
+  }
   for (const auto& [slot, s] : m_slots)
     if (s.material && s.material->geometryDependent()) return true;
   return false;
@@ -257,6 +401,15 @@ bool Material::operator==(const Material& other) const {
       m_bindings.size() != other.m_bindings.size() ||
       m_slots.size() != other.m_slots.size())
     return false;
+  if (m_composition != other.m_composition) {
+    if (!m_composition || !other.m_composition) return false;
+    const Composition& a = *m_composition;
+    const Composition& b = *other.m_composition;
+    if (a.color != b.color || !samePart(a.source, b.source) ||
+        !samePart(a.effects, b.effects) || a.surface != b.surface ||
+        a.layers != b.layers)
+      return false;
+  }
   for (const Binding& a : m_bindings) {
     const Binding* b = nullptr;
     for (const Binding& x : other.m_bindings)
@@ -278,6 +431,7 @@ bool Material::operator==(const Material& other) const {
 
 Material::Resolved Material::resolve(Target target, const FrameData& frame,
                                      Variant variant) const {
+  if (!m_recipe) return {};
   const Schema& layout = m_recipe->layout();
   m_scratch.assign(layout.byteSize, std::byte{0});
   if (!m_bytes.empty())

@@ -39,6 +39,7 @@ add_subdirectory(sdf)
 add_subdirectory(pattern)
 add_subdirectory(field)
 add_subdirectory(skia)
+add_subdirectory(program)
 add_subdirectory(kit)
 add_subdirectory(stock)
 add_subdirectory(slang)
@@ -47,6 +48,7 @@ sigil_library(SigilMaterial
   INTERFACE SigilMaterialColor SigilMaterialCore SigilMaterialTexture
             SigilMaterialMask SigilMaterialOcio SigilMaterialSdf
             SigilMaterialPattern SigilMaterialField SigilMaterialSkia
+            SigilMaterialProgram
             SigilMaterialKit SigilMaterialStock SigilMaterialSlang)
 
 # THE PRIMITIVES AND THE LEAF, in one binary. The colour value, the

@@ -197,3 +197,15 @@ std::vector<Material> everyRecipe() {
 }
 
 }  // namespace sigil::material::field
+
+namespace sigil::material {
+
+Material noise(float frequency, NoiseOptions options) {
+  if (options.grain)
+    return field::grain(frequency, options.octaves, options.seed,
+                        options.contrast, options.stretch);
+  return field::noise(frequency, options.octaves, options.seed,
+                      options.turbulence);
+}
+
+}  // namespace sigil::material

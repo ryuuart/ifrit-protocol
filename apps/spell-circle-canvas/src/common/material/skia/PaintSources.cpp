@@ -81,6 +81,9 @@ Paint Paint::solid(Color color) {
 }
 
 Paint Paint::recipe(Material material) {
+  // A material built up from a base and layers is folded into one paint;
+  // a bare program is held as the instance it is.
+  if (material.isComposed()) return skia::paint(material);
   Paint m;
   m.m_backed = std::make_shared<Backed>(Backed{std::move(material), {}});
   m.m_shader = PaintAccess::hold(PaintAccess::buildBacked(m, nullptr));

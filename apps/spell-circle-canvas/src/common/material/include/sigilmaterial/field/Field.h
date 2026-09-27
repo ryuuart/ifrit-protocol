@@ -152,3 +152,28 @@ const std::shared_ptr<const Recipe>& rippleRecipe();
 std::vector<Material> everyRecipe();
 
 }  // namespace sigil::material::field
+
+namespace sigil::material {
+
+/** How a noise base is shaped. */
+struct NoiseOptions {
+  int octaves = 4;
+  float seed = 1;
+  /** Folded, sharper and veinier: the absolute value of each octave. */
+  bool turbulence = false;
+  /** One luminance, as film grain, rather than three independent
+   *  channels — the choice for a grain layer; a displacement source wants
+   *  the channels. */
+  bool grain = false;
+  /** Grain only: the spread of the luminance around its middle. */
+  float contrast = 1;
+  /** Grain only: the anisotropy, horizontal over vertical. */
+  float stretch = 1;
+  bool operator==(const NoiseOptions&) const = default;
+};
+
+/** FRACTAL NOISE at @p frequency cycles per local pixel, as a material. */
+Material noise(float frequency, NoiseOptions options = {});
+
+}  // namespace sigil::material
+

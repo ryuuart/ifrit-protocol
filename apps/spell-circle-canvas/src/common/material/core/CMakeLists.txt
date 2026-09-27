@@ -49,7 +49,7 @@ sigil_shader_sources(SigilMaterialCore
 # directory is named for the case that asks whether the embedded table
 # holds every file in it.
 sigil_test(material_test
-  SOURCES test/ParametersTest.cpp test/RecipeTest.cpp
+  SOURCES test/BuilderTest.cpp test/ParametersTest.cpp test/RecipeTest.cpp
           test/ProgramCacheTest.cpp test/MaterialTest.cpp
           test/StackingTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}

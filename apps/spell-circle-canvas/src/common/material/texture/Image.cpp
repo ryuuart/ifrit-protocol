@@ -1,0 +1,56 @@
+/** @file
+ * The image base: one recipe with a single slot a texture fills, in each
+ * language a renderer speaks, so an image stacks and fills a surface
+ * channel as any program does.
+ */
+
+#include "sigilmaterial/texture/Image.h"
+
+#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/texture/Texture.h>
+
+#include <memory>
+#include <utility>
+
+namespace sigil::material {
+
+namespace {
+
+struct ImageParameters {};
+
+const std::shared_ptr<const Recipe>& imageRecipe() {
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<ImageParameters>("material.image")
+          .slot("image")
+          .body(Target::SkSL, "half4 main(float2 xy) { return image.eval(xy); }\n")
+          .body(Target::Slang,
+                "float4 surface(float2 uv) { return image.Sample(uv); }\n"));
+  return recipe;
+}
+
+SkTileMode tileOf(Repeat repeat) {
+  switch (repeat) {
+    case Repeat::Pad:
+      return SkTileMode::kClamp;
+    case Repeat::Repeat:
+      return SkTileMode::kRepeat;
+    case Repeat::Mirror:
+      return SkTileMode::kMirror;
+    case Repeat::None:
+      break;
+  }
+  return SkTileMode::kDecal;
+}
+
+}  // namespace
+
+Material image(media::PixelSource pixels, ImageOptions options) {
+  Texture texture(std::move(pixels));
+  texture.tile(tileOf(options.repeat),
+               tileOf(options.repeatY.value_or(options.repeat)));
+  Material material(imageRecipe(), ImageParameters{});
+  material.slot("image", std::move(texture));
+  return material;
+}
+
+}  // namespace sigil::material

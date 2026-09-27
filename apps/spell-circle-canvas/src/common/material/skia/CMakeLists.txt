@@ -13,12 +13,12 @@
 set(_shaders ${CMAKE_CURRENT_LIST_DIR}/shaders)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilMaterialSkia
-  SOURCES Bloom.cpp Draw.cpp Effect.cpp EffectBloom.cpp EffectBlurs.cpp
+  SOURCES Bases.cpp Bloom.cpp Draw.cpp Effect.cpp EffectBloom.cpp EffectBlurs.cpp
           EffectDoors.cpp EffectLight.cpp EffectPrograms.cpp Filter.cpp
           Paint.cpp PaintBlend.cpp PaintBuild.cpp
           PaintDetail.cpp PaintResolve.cpp PaintSources.cpp
           PaintUniforms.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp
-  HEADERS ../filter/Filter.h ../paint/Paint.h Color.h Draw.h Filter.h Paint.h
+  HEADERS ../filter/Filter.h ../paint/Bases.h ../paint/Paint.h Color.h Draw.h Filter.h Paint.h
           Pass.h PixelBuffer.h
           Palette.h Ramp.h SkiaCompiler.h
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
@@ -30,7 +30,7 @@ sigil_shader_sources(SigilMaterialSkia
 # embedded table holds every file in it.
 sigil_test(material_test
   SOURCES test/SkiaCompilerTest.cpp test/SkiaFirstUseTest.cpp test/SkiaColorTest.cpp
-          test/SkiaPaintTest.cpp test/SkiaEffectTest.cpp
+          test/SkiaPaintTest.cpp test/SkiaMaterialTest.cpp test/SkiaEffectTest.cpp
           test/SkiaEffectBlurTest.cpp test/SkiaEffectPhosphorTest.cpp
           test/SkiaEffectLightTest.cpp test/SkiaEffectSlotTest.cpp
           test/SkiaRampTest.cpp test/PaletteTest.cpp

@@ -3,14 +3,21 @@
 /** @file
  * @ingroup material-core
  *
- * Material — an instance of a recipe: the recipe, its parameter values
- * mirrored as upload bytes, the live bindings that overwrite fields at
- * resolve, the materials filling its slots, and the instance-side
- * settings a renderer reads. Comparable by value so a scene can prune,
- * and resolvable against a frame into the program plus the bytes to
- * upload, memoised on the last inputs.
+ * Material — what a region or a surface looks like, built up by
+ * composition: a BASE (a colour, a gradient, an image, a noise, a
+ * program, or another material), a stack of LAYERS each blended over
+ * the ones beneath it through an opacity and an optional mask, an
+ * optional lit SURFACE response, and an optional EFFECTS stage that
+ * reads the painted layer's coverage. A program base is an instance of
+ * a recipe: its parameter values mirrored as upload bytes, the live
+ * bindings that overwrite fields at resolve, the materials filling its
+ * slots. Comparable by value so a scene can prune, and a program base
+ * resolves against a frame into the program plus the bytes to upload,
+ * memoised on the last inputs.
  */
 
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
 #include <sigilmaterial/core/Parameters.h>
@@ -23,10 +30,12 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 /** Materials as recipe instances, and everything a surface is described
@@ -37,7 +46,38 @@
  *  textures, the generators, and the values already built. */
 namespace sigil::material {
 
-/** A recipe instance: the VALUES as the bytes the shader receives, the
+class Filter;
+struct Layer;
+struct LayerOptions;
+struct MaterialParts;
+struct SurfaceOptions;
+
+namespace detail {
+/** A part of a material only a renderer can supply or read — a
+ *  gradient or an image base, an effects stage — held behind this
+ *  interface so the value model links no renderer. The renderer defines
+ *  the subclass beside the executor that draws it. */
+class Part {
+ public:
+  virtual ~Part() = default;
+  /** Value equality against @p other, which may be of any part type. */
+  virtual bool equals(const Part& other) const = 0;
+  /** Whether the part can change between frames with no edit. */
+  virtual bool isRunning() const = 0;
+  /** Whether the part depends on the box it is painted into. */
+  virtual bool geometryDependent() const = 0;
+};
+}  // namespace detail
+
+/** WHAT A REGION OR A SURFACE LOOKS LIKE, as one value built up by
+ *  composition. The base is a colour, a program (an instance of a
+ *  recipe), or a source only a renderer can supply (a gradient, an
+ *  image); `layer()` stacks further materials over it, `surface()` adds
+ *  the lit response a 3D renderer reads, and `effects()` a filter chain
+ *  over the painted layer's coverage. A `Color` converts implicitly, so
+ *  every place that takes a material takes a colour.
+ *
+ *  A PROGRAM base is a recipe instance: the VALUES as the bytes the shader receives, the
  *  BINDINGS that replace a field's bytes at every resolve, and the
  *  CHILDREN that fill the recipe's declared slots. A live binding or a
  *  live child makes the whole instance live. EQUALITY is by value —
@@ -47,6 +87,20 @@ namespace sigil::material {
  *  number behind it. */
 class Material {
  public:
+  /** No paint: a fully transparent colour base. */
+  Material();
+  /** A flat colour. */
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  Material(Color color);
+  /** The designated-initialiser form: `Material{{.base = …, .layers =
+   *  {…}, .surface = SurfaceOptions{…}}}`. The parts' layers stack over
+   *  whatever layers the base already carries. */
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  Material(const MaterialParts& parts);
+  /** A base only a renderer can supply — a gradient, an image — built by
+   *  that renderer's own factories. */
+  explicit Material(std::shared_ptr<const detail::Part> source);
+
   /** An instance of @p recipe with the field values of @p parameters, whose
    *  type must be the struct the recipe was defined over. */
   template <class P>
@@ -55,6 +109,49 @@ class Material {
   /** An instance whose fields all start at zero. */
   explicit Material(std::shared_ptr<const Recipe> recipe);
 
+  /** @name Building it up
+   *  @{ */
+  /** Stacks @p source over everything beneath it, composited with the
+   *  normal blend at full opacity. */
+  Material& layer(Material source);
+  /** Stacks @p source over everything beneath it with @p options: its
+   *  blend mode, its opacity, and the mask that says where it applies. */
+  Material& layer(Material source, const LayerOptions& options);
+  /** The lit response a 3D renderer reads: metallic, roughness, normal,
+   *  emission and the rest. A material without one is flat. */
+  Material& surface(const SurfaceOptions& options);
+  /** The effects stage: a filter chain over the painted layer's
+   *  coverage — shadows and glows under it, strokes and bevels over it.
+   *  A renderer that has no coverage (a 3D surface) ignores it and says
+   *  so once. Defined by the renderer that owns the filter. */
+  Material& effects(const Filter& chain);
+  /** @} */
+
+  /** @name Reading the parts (for renderers)
+   *  @{ */
+  /** Whether the base is a program — a recipe instance. */
+  bool hasProgram() const { return m_recipe != nullptr; }
+  /** The base colour, when the base is a colour. */
+  const Color* color() const;
+  /** The renderer-supplied base, when the base is one. */
+  const detail::Part* source() const;
+  /** The layers, bottom first. */
+  std::span<const Layer> layers() const;
+  /** The lit response, when one was stated. */
+  const SurfaceOptions* surface() const;
+  /** The effects stage, when one was stated. Defined by the renderer that
+   *  owns the filter. */
+  const Filter* effects() const;
+  /** Whether anything beyond the base was stated: a layer, a surface or
+   *  effects — or the base is not a program. */
+  bool isComposed() const { return m_composition != nullptr; }
+  /** The base alone: this material without its layers, surface and
+   *  effects. */
+  [[nodiscard]] Material base() const;
+  /** @} */
+
+  /** The recipe of a program base. Only a material that `hasProgram()`
+   *  has one. */
   const Recipe& recipe() const { return *m_recipe; }
   const std::shared_ptr<const Recipe>& recipePointer() const {
     return m_recipe;
@@ -96,7 +193,7 @@ class Material {
   template <Uniform T>
   T get(std::string_view name) const {
     T out{};
-    const Field* f = m_recipe->parameters().find(name);
+    const Field* f = m_recipe ? m_recipe->parameters().find(name) : nullptr;
     if (f && f->floats == UniformTraits<T>::floats)
       std::memcpy(&out, m_bytes.data() + f->offset, sizeof(T));
     return out;
@@ -212,6 +309,12 @@ class Material {
   Binding* binding(std::string_view name);
   void place(std::string_view name, Slot slot);
 
+  struct Composition;
+  Composition& compose();
+  /** The effects stage behind the renderer's filter (see effects()). */
+  void placeEffects(std::shared_ptr<const detail::Part> effects);
+  const detail::Part* effectsPart() const;
+
   std::shared_ptr<const Recipe> m_recipe;
   std::vector<std::byte> m_bytes;
   std::vector<Binding> m_bindings;
@@ -219,6 +322,10 @@ class Material {
   float m_amount = 1.0f;
   float m_quantizeHz = 0.0f;
   bool m_worldSpace = false;
+  /** The base when it is not a program, the layers, the surface and the
+   *  effects; null for a bare program. Shared and copied on write, so a
+   *  material costs a program no more than a pointer. */
+  std::shared_ptr<const Composition> m_composition;
 
   struct Memo {
     bool valid = false;
@@ -230,5 +337,86 @@ class Material {
   mutable Memo m_memo;
   mutable std::vector<std::byte> m_scratch;
 };
+
+/** What a layer's mask reads from its source material. */
+enum class MaskChannel : uint8_t {
+  Alpha,      ///< coverage (CSS mask-mode: alpha)
+  Luminance,  ///< brightness (CSS mask-mode: luminance)
+  Red,
+  Green,
+  Blue,
+};
+
+/** WHERE A LAYER APPLIES: one channel of any material — an image, a
+ *  noise, a signed-distance shape — remapped from [low, high] onto
+ *  [0, 1] and optionally inverted. */
+struct Mask {
+  Material source;
+  MaskChannel channel = MaskChannel::Alpha;
+  float low = 0, high = 1;
+  bool invert = false;
+  bool operator==(const Mask&) const = default;
+};
+
+/** How a layer meets what is beneath it. */
+struct LayerOptions {
+  BlendMode blend = BlendMode::Normal;
+  /** The layer composites in full with its blend mode, and the result
+   *  mixes back toward what is beneath by this fraction. */
+  float opacity = 1;
+  std::optional<Mask> mask;
+  bool operator==(const LayerOptions&) const = default;
+};
+
+/** One layer of the stack: a material and how it meets the ones beneath. */
+struct Layer {
+  Material source;
+  LayerOptions options;
+  bool operator==(const Layer&) const = default;
+};
+
+/** A surface channel: a number, or a material read by the channel (a
+ *  texture, a noise), as a node graph connects an input. */
+using Channel = std::variant<float, Material>;
+
+/** THE LIT RESPONSE a 3D renderer reads — metallic-roughness with
+ *  transmission and clearcoat. The base colour is the material's own
+ *  base; every channel here takes a number or a material. */
+struct SurfaceOptions {
+  Channel metallic = 0.0f;
+  Channel roughness = 0.5f;
+  Channel occlusion = 1.0f;
+  /** A tangent-space normal map. */
+  std::optional<Material> normal;
+  float normalScale = 1;
+  /** Whether the normal map is authored green-down (DirectX), as some
+   *  tools write it. */
+  bool normalDirectX = false;
+  Color emission = {0, 0, 0, 1};
+  float emissionStrength = 0;
+  std::optional<Material> emissionMap;
+  /** Alpha below this is cut out; zero blends. */
+  float alphaCutoff = 0;
+  float clearcoat = 0;
+  float transmission = 0;
+  float ior = 1.5f;
+  float thickness = 40;
+  Color absorption = {0, 0, 0, 1};
+  float reflectionWeight = 1;
+  /** No lighting: the base colour as it is. */
+  bool unlit = false;
+  bool operator==(const SurfaceOptions&) const = default;
+};
+
+/** The designated-initialiser form of a material. The effects stage is
+ *  added with `effects()`, since the filter belongs to its renderer. */
+struct MaterialParts {
+  Material base;
+  std::vector<Layer> layers;
+  std::optional<SurfaceOptions> surface;
+};
+
+/** Starts a chain from any base: `from(hexColor(0x223344)).layer(…)`. */
+inline Material from(Material base) { return base; }
 
 }  // namespace sigil::material

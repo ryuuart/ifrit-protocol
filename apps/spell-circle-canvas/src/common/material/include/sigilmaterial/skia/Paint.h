@@ -63,6 +63,10 @@ Paint sksl(sk_sp<SkRuntimeEffect> effect,
            std::vector<std::pair<std::string, float>> constants = {});
 /** A raw shader as a paint (interop, escape). It compares by pointer. */
 Paint paint(sk_sp<SkShader> shader);
+/** A MATERIAL AS ONE PAINT: its base, with each layer blended over the
+ *  accumulation, mixed back by its opacity and applied through its mask.
+ *  The surface and the effects are not part of a paint. */
+Paint paint(const Material& material);
 /** @} */
 
 /** @name What a paint becomes

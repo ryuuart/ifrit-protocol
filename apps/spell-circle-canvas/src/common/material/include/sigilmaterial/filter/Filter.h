@@ -22,6 +22,7 @@
 #include <array>
 #include <glm/vec2.hpp>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -31,12 +32,62 @@ namespace skia {
 struct FilterAccess;
 }  // namespace skia
 
-/** Where a drop shadow falls and how soft it is. */
+/** Where a shadow falls and how soft it is. */
 struct ShadowOptions {
   /** The Gaussian's standard deviation in local pixels; 0 is a hard edge. */
   float blur = 0;
   /** How far the shadow is displaced from the layer, in local pixels. */
   glm::vec2 offset = {0, 0};
+  /** Local pixels the coverage grows by before the blur (a material's
+   *  effects stage only): a spread shadow with no offset is an outer
+   *  glow. */
+  float spread = 0;
+  /** Inside the coverage rather than outside it (a material's effects
+   *  stage only): an inner shadow, or with no offset an inner glow. */
+  bool inside = false;
+  bool operator==(const ShadowOptions&) const = default;
+};
+
+/** Which side of the coverage's edge a stroke sits on. */
+enum class StrokePosition : uint8_t { Inside, Center, Outside };
+
+/** A keyline around a layer's coverage. */
+struct StrokeOptions {
+  /** Local pixels. */
+  float width = 1;
+  StrokePosition position = StrokePosition::Outside;
+  bool operator==(const StrokeOptions&) const = default;
+};
+
+/** THE BEVEL: two opposed inner shadows lit from one direction, the
+ *  fake-3D edge an image editor's layer style draws. */
+struct BevelOptions {
+  /** How far the lit and the shaded plane are pushed apart, in local
+   *  pixels. */
+  float depth = 3;
+  /** How soft the edge is, in local pixels. */
+  float size = 4;
+  /** Where the light comes from, in degrees counter-clockwise from 3
+   *  o'clock. */
+  float angleDegrees = 120;
+  Color highlight = {1, 1, 1, 0.65f};
+  Color shadow = {0, 0, 0, 0.45f};
+  bool operator==(const BevelOptions&) const = default;
+};
+
+/** ONE STEP THAT READS A LAYER'S COVERAGE — its distance to the edge, its
+ *  alpha — rather than its pixels: a shadow, a stroke or a bevel in a
+ *  material's effects stage. A renderer that knows the layer's shape
+ *  draws these around it; shadows draw under the layer, the rest over
+ *  it. */
+struct CoverageEffect {
+  enum class Kind : uint8_t { Shadow, Stroke, Bevel };
+  Kind kind = Kind::Shadow;
+  Color color = {0, 0, 0, 1};
+  ShadowOptions shadow;
+  StrokeOptions stroke;
+  BevelOptions bevel;
+  bool operator==(const CoverageEffect&) const = default;
 };
 
 /** OPTICAL BLOOM in local pixels: the bright part of the layer, spread by
@@ -104,6 +155,18 @@ class Filter {
   /** The layer re-emitted blurred beneath itself in @p color — a drop
    *  shadow at zero offset, which keeps the content on top. */
   static Filter glow(Color color, float sigma);
+  /** A SHADOW OF THE LAYER'S COVERAGE, for a material's effects stage:
+   *  outside the shape and under it by default, inside it with
+   *  `.inside`; with no offset and a spread, an outer (or inner) glow; with
+   *  no blur, a hard echo of the shape. Over a whole subtree
+   *  (`Element::filter`) use `dropShadow`, which reads pixels.
+   *  @silent used as a subtree filter it paints nothing (said once). */
+  static Filter shadow(Color color, ShadowOptions options = {});
+  /** A KEYLINE around the layer's coverage, for a material's effects
+   *  stage. */
+  static Filter stroke(Color color, StrokeOptions options = {});
+  /** A BEVEL of the layer's coverage, for a material's effects stage. */
+  static Filter bevel(BevelOptions options = {});
   /** Optical bloom: bright colour extracted, spread, deepened and
    *  whitened, and laid back over the source. Hold the returned filter:
    *  its graph compares by identity, and copies share it. */
@@ -205,6 +268,11 @@ class Filter {
 
   /** The filter that passes the layer through untouched. */
   bool isNone() const { return m_node == nullptr; }
+  /** The steps that read the layer's coverage, in chain order. */
+  std::span<const CoverageEffect> coverage() const;
+  /** This filter without its coverage steps: the passes that read
+   *  pixels. */
+  [[nodiscard]] Filter withoutCoverage() const;
   /** THE VOLATILITY DECLARATION: does this filter change without a
    *  re-describe? True while any parameter is bound, or while any slot's
    *  paint is live. */

@@ -12,8 +12,8 @@ find_package(boost_container CONFIG REQUIRED)
 find_package(simdjson CONFIG REQUIRED)
 find_package(unofficial-skia CONFIG REQUIRED)
 sigil_library(SigilMaterialTexture
-  SOURCES Atlas.cpp EnvironmentMap.cpp Surface.cpp Texture.cpp TextureSet.cpp
-  HEADERS Atlas.h EnvironmentMap.h ShaderLeaf.h Surface.h Texture.h
+  SOURCES Atlas.cpp EnvironmentMap.cpp Image.cpp Surface.cpp Texture.cpp TextureSet.cpp
+  HEADERS Atlas.h EnvironmentMap.h Image.h ShaderLeaf.h Surface.h Texture.h
           TextureSet.h
   INCLUDE_PRIVATE ${Stb_INCLUDE_DIR}
   PUBLIC SigilMaterialCore SigilMediaCore unofficial::skia::skia
