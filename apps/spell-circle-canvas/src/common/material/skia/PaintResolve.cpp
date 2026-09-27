@@ -143,6 +143,7 @@ PaintFrame paintFrameOf(const FrameData& frame) {
   out.toRoot = toSkMatrix(frame.world);
   out.seconds = frame.seconds;
   out.contentScale = frame.contentScale;
+  out.recorder = frame.recorder;
   return out;
 }
 

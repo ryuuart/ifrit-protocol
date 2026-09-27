@@ -149,6 +149,12 @@ Derived& CascadeVerbs<Derived>::varDefaults(VarTable defaults) {
 }
 
 template <class Derived>
+Derived& CascadeVerbs<Derived>::lighting(material::Lighting lighting) {
+  declarations()->lighting().lighting = std::move(lighting);
+  return self();
+}
+
+template <class Derived>
 Derived& CascadeVerbs<Derived>::imageRendering(material::Sampling sampling) {
   declarations()->imageRendering().sampling =
       SkSamplingOptions(material::skia::toSkFilterMode(sampling));

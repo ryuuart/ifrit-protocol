@@ -44,7 +44,7 @@ sigil_library(SigilComposeCore
     ElementTextStyle.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
     Pattern.cpp
-    MaterialEffects.cpp
+    MaterialEffects.cpp LitSurface.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
     ElementCascade.cpp ElementFont.cpp
     # the facts a node states, the operator seam that reads them, and the
@@ -130,6 +130,7 @@ sigil_test(compose_test
           test/StandardExceptionsTest.cpp
           test/ComposeTestEffects.cpp test/ComposeTestMaterial.cpp
           test/ComposeTestLiveMaterial.cpp test/ComposeTestWorldSpace.cpp
+          test/ComposeTestLighting.cpp
           test/ComposeTestMask.cpp test/ComposeTestFieldPins.cpp
           test/ComposeTestDeclareDoor.cpp
           test/ComposeTestSlotConsumers.cpp

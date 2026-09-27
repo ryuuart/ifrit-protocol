@@ -230,6 +230,7 @@ sk_sp<SkShader> PaintAccess::buildBacked(const Paint& self, const PaintFrame* pa
   if (paintFrame) {
     frame.seconds = paintFrame->seconds;
     frame.contentScale = paintFrame->contentScale;
+    frame.recorder = paintFrame->recorder;
     // A world-space material's uResolution is the ROOT canvas size, as on
     // the sksl path: the shader samples in root coordinates.
     const SkSize resolutionSize =
@@ -361,6 +362,7 @@ sk_sp<SkShader> PaintAccess::resolvePass(const Paint& self, const PassInputs& in
   sigil::material::FrameData frame;
   frame.seconds = paintFrame.seconds;
   frame.contentScale = paintFrame.contentScale;
+  frame.recorder = paintFrame.recorder;
   const SkSize resolutionSize = self.m_worldSpace && !paintFrame.rootSize.isEmpty()
                                     ? paintFrame.rootSize
                                     : paintFrame.size;

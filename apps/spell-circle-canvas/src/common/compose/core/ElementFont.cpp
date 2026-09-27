@@ -13,6 +13,7 @@
 #include <utility>
 
 #include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/skia/Lit.h>
 
 #include "ComposeInternal.h"
 #include "MaterialEffects.h"
@@ -132,6 +133,7 @@ Derived& FontVerbs<Derived>::ink(material::Color colour) {
   cascade.font->color = colour;
   cascade.inkVar.reset();
   cascade.inkPaint.reset();
+  cascade.inkSurfaced.reset();
   cascade.inkBox = PaintBox::Element;
   cascade.statesInk = true;
   return self();
@@ -143,6 +145,7 @@ Derived& FontVerbs<Derived>::ink(VarRef reference) {
   cascade.inkVar = reference;
   if (cascade.font) cascade.font->color.reset();
   cascade.inkPaint.reset();
+  cascade.inkSurfaced.reset();
   cascade.inkBox = PaintBox::Element;
   cascade.statesInk = true;
   return self();
@@ -152,12 +155,18 @@ template <class Derived>
 Derived& FontVerbs<Derived>::ink(material::Material material, PaintBox box) {
   if (const material::Filter* effects = material.effects())
     detail::applyEffects(*declarations(), *effects);
-  return ink(Fill::fromMaterial(material), box);
+  ink(Fill::fromMaterial(material), box);
+  // A lit surface keeps its material, shaded under the lighting in force
+  // at each node the ink reaches.
+  if (material::skia::isLit(material))
+    declarations()->ink().inkSurfaced = std::move(material);
+  return self();
 }
 
 template <class Derived>
 Derived& FontVerbs<Derived>::ink(Fill paint, PaintBox box) {
   detail::CascadeData& cascade = declarations()->ink();
+  cascade.inkSurfaced.reset();
   // A PLAIN COLOUR is the ink lane, and has no unit square for a box to
   // stretch. A paint that happens to be flat is not one: it overrides the
   // glyphs of a leaf set in a style of its own, which an inherited colour

@@ -6,6 +6,7 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the fill box's diagnostic
 
 #include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include "ComposeInternal.h"
@@ -100,7 +101,12 @@ template <class Derived>
 Derived& PaintVerbs<Derived>::fill(material::Material material, PaintBox box) {
   if (const material::Filter* effects = material.effects())
     detail::applyEffects(*declarations(), *effects);
-  return fill(Fill::fromMaterial(material), box);
+  fill(Fill::fromMaterial(material), box);
+  // A surface that takes light keeps its material: the painter shades it
+  // under the lighting in force, and paints the fill above where none is.
+  if (material::skia::isLit(material))
+    declarations()->materialData.ensure().surfaced = std::move(material);
+  return self();
 }
 
 template <class Derived>

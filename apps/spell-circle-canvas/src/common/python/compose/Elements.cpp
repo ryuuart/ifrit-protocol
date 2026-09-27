@@ -342,7 +342,8 @@ void bindCompose(py::module_& module) {
       .value("Paragraph", Property::Paragraph)
       .value("Ink", Property::Ink)
       .value("CustomProperties", Property::CustomProperties)
-      .value("ImageRendering", Property::ImageRendering);
+      .value("ImageRendering", Property::ImageRendering)
+      .value("Lighting", Property::Lighting);
   composition.def("inheritsByDefault", &inheritsByDefault, py::arg("property"))
       .def("propertyName", &propertyName, py::arg("property"));
   py::enum_<FlexDirection>(composition, "FlexDirection")

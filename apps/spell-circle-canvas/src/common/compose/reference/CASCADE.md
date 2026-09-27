@@ -79,6 +79,9 @@ letter, and a whole style — and, on a whole style, the block's air before and
 after, its keeps with the next block and its every-line insets, as a margin is
 a box's own. Image sampling inherits the same way, as CSS's `image-rendering`
 does: `Element::imageRendering` on any node reaches every image leaf under it.
+`Element::lighting` inherits the same way: a lit surface under the node —
+a fill, an ink or a stroke whose material states a `surface()` — is shaded
+under the nearest lighting above it.
 
 **A range and a reading take the same partial.** `Text::span` lays
 the font fields and the ink its `SpanStyle` state over the style the

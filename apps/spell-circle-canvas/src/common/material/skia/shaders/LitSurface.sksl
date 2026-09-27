@@ -1,0 +1,109 @@
+// A surface lit in 2D: the colour stack beneath it as painted, a normal
+// map for relief, roughness, metallic and occlusion as numbers or maps,
+// shaded under one directional light and a latitude-longitude
+// environment. The page is the surface: x runs right, y runs down, and z
+// comes out of the page toward the viewer, who looks straight at it.
+uniform shader uColor;
+uniform shader uNormal;
+uniform shader uRoughnessMap;
+uniform shader uMetallicMap;
+uniform shader uOcclusionMap;
+uniform shader uEmissionMap;
+uniform shader uEnvironment;
+
+uniform float uHasNormal;
+uniform float uNormalScale;
+uniform float uNormalDirectX;
+uniform float uHasRoughnessMap;
+uniform float uRoughness;
+uniform float uHasMetallicMap;
+uniform float uMetallic;
+uniform float uHasOcclusionMap;
+uniform float uOcclusion;
+uniform float uHasEmissionMap;
+uniform float4 uEmission;
+uniform float uEmissionStrength;
+uniform float uReflection;
+
+uniform float uHasLight;
+uniform float uDirection;  // degrees counter-clockwise from three o'clock
+uniform float uElevation;  // degrees above the page
+uniform float4 uLightColor;
+uniform float uIntensity;
+uniform float uAmbient;
+
+uniform float uHasEnvironment;
+uniform float uEnvironmentRotation;  // degrees about the vertical axis
+uniform float uEnvironmentIntensity;
+uniform float2 uEnvironmentSize;
+
+const float kPi = 3.14159265;
+
+// The environment in direction d (page frame), read by latitude and
+// longitude with +y up the picture.
+float3 around(float3 d) {
+  float3 up = float3(d.x, -d.y, d.z);
+  float turn = radians(uEnvironmentRotation);
+  float c = cos(turn), s = sin(turn);
+  up = float3(c * up.x + s * up.z, up.y, -s * up.x + c * up.z);
+  float longitude = atan(up.x, -up.z) / (2.0 * kPi) + 0.5;
+  float latitude = acos(clamp(up.y, -1.0, 1.0)) / kPi;
+  half4 picked = uEnvironment.eval(float2(longitude, latitude) * uEnvironmentSize);
+  return float3(picked.rgb) * uEnvironmentIntensity;
+}
+
+half4 main(float2 xy) {
+  half4 painted = uColor.eval(xy);
+  float alpha = float(painted.a);
+  if (alpha <= 0.0) return half4(0);
+  float3 albedo = float3(painted.rgb) / alpha;
+
+  float3 n = float3(0, 0, 1);
+  if (uHasNormal > 0.5) {
+    float3 t = float3(uNormal.eval(xy).rgb) * 2.0 - 1.0;
+    t.xy *= uNormalScale;
+    // A map's green points up the picture unless it was authored
+    // green-down; the page's y runs down.
+    n = normalize(float3(t.x, uNormalDirectX > 0.5 ? t.y : -t.y, max(t.z, 0.001)));
+  }
+  float roughness = uRoughness;
+  if (uHasRoughnessMap > 0.5) roughness *= float(uRoughnessMap.eval(xy).r);
+  roughness = clamp(roughness, 0.03, 1.0);
+  float metallic = uMetallic;
+  if (uHasMetallicMap > 0.5) metallic *= float(uMetallicMap.eval(xy).r);
+  metallic = clamp(metallic, 0.0, 1.0);
+  float occlusion = uOcclusion;
+  if (uHasOcclusionMap > 0.5) occlusion *= float(uOcclusionMap.eval(xy).r);
+
+  float3 view = float3(0, 0, 1);
+  float3 diffuse = albedo * (1.0 - metallic);
+  float3 f0 = mix(float3(0.04), albedo, metallic);
+  float3 ambientTint = float3(1);
+  if (uHasEnvironment > 0.5) ambientTint = around(n);
+  // The ambient share reaches a metal too, at the colour it reflects.
+  float3 lit = uAmbient * (diffuse + f0 * metallic) * ambientTint * occlusion;
+
+  if (uHasLight > 0.5) {
+    float azimuth = radians(uDirection), height = radians(uElevation);
+    float3 l = normalize(float3(cos(height) * cos(azimuth),
+                                -cos(height) * sin(azimuth), sin(height)));
+    float facing = max(dot(n, l), 0.0);
+    float3 h = normalize(l + view);
+    float r4 = roughness * roughness * roughness * roughness;
+    float shininess = min(2.0 / max(r4, 0.0001) - 2.0, 4096.0);
+    float highlight = pow(max(dot(n, h), 0.0), shininess) * (shininess + 8.0) / (8.0 * kPi);
+    float3 radiance = uLightColor.rgb * uIntensity;
+    lit += (diffuse + f0 * highlight) * facing * radiance;
+  }
+  if (uHasEnvironment > 0.5) {
+    float3 r = reflect(-view, n);
+    float grazing = pow(1.0 - max(dot(n, view), 0.0), 5.0);
+    float3 fresnel = f0 + (1.0 - f0) * grazing;
+    float sharp = (1.0 - roughness) * (1.0 - roughness);
+    lit += around(r) * fresnel * sharp * uReflection * occlusion;
+  }
+  float3 emitted = uEmission.rgb * uEmissionStrength;
+  if (uHasEmissionMap > 0.5) emitted *= float3(uEmissionMap.eval(xy).rgb);
+  lit += emitted;
+  return half4(half3(lit * alpha), half(alpha));
+}

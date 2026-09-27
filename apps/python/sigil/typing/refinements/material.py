@@ -19,6 +19,14 @@ def register(table: Table) -> None:
     )
     table.parameters("_sigil.material.sbsar.describe", hub="_sigil.io.Hub")
     table.parameters(
+        "_sigil.material.studio",
+        direction="_t.ScalarLike",
+        elevation="_t.ScalarLike",
+        color="_t.ColorLike",
+        intensity="_t.ScalarLike",
+    )
+    table.parameters("_sigil.material.environment", rotation="_t.ScalarLike")
+    table.parameters(
         "_sigil.material.substance",
         hub="_sigil.io.Hub",
         seed="int",

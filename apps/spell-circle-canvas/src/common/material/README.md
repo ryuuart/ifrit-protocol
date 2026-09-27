@@ -4,7 +4,8 @@ A **material** is what a region or a surface looks like, as one value
 built up by composition: a **base** (a colour, a gradient, an image, a
 noise, a program, or another material), a stack of **layers** each
 blended over the ones beneath it through an opacity and an optional mask,
-an optional lit **surface** response a 3D renderer reads, and an optional
+an optional lit **surface** response — shaded by a 3D renderer's lights,
+and in 2D by the lighting a scene states — and an optional
 **effects** stage — a filter chain over the painted layer's coverage.
 The same value fills a Compose box, inks its text, strokes a boundary and
 dresses a World body; the library ships the builder and its primitives,
@@ -14,6 +15,7 @@ and no named looks — a look belongs to the sketch that uses it.
 
 ```cpp
 #include <sigilmaterial/core/Material.h>    // Material, from, LayerOptions, Mask, SurfaceOptions
+#include <sigilmaterial/core/Lighting.h>    // studio, environment, Lighting
 #include <sigilmaterial/field/Field.h>      // noise
 #include <sigilmaterial/filter/Filter.h>    // Filter
 #include <sigilmaterial/paint/Bases.h>      // linearGradient, radialGradient, conicGradient
@@ -52,6 +54,51 @@ surface and ignores the effects; `material::skia::paint(steel)` for a raw
 canvas. Two materials built the same way compare equal, so a re-described
 node prunes.
 
+### A lit surface in 2D
+
+```cpp
+// The looks live in the sketch that wears them.
+/** Gold leaf: a warm metal, burnished, with a beaten relief. */
+inline material::Material goldLeaf(media::PixelSource beaten) {
+  return material::from(material::hexColor(0xC9A45C))
+      .surface({.metallic = 1.0f, .roughness = 0.3f,
+                .normal = material::image(beaten, {.repeat = material::Repeat::Repeat})});
+}
+/** An embossed plate: a cool body whose stamped relief catches the light. */
+inline material::Material embossedPlate(media::PixelSource stamp) {
+  return material::from(material::linearGradient({0, 0}, {0, 1}, {plateTop, plateFoot}))
+      .layer(material::noise(3.5f, {.octaves = 2, .contrast = 0.6f}),
+             {.blend = BlendMode::Multiply, .opacity = 0.18f})
+      .surface({.roughness = 0.45f, .normal = material::image(stamp)});
+}
+
+motion::Animatable<float> sun = motion::animatable(0.0f);   // the sketch turns it each frame
+stack().lighting(material::studio({.direction = sun, .elevation = 35.0f}))
+    .children({box().fill(embossedPlate(stamp)),
+               text(u8"GILT").ink(goldLeaf(beaten)),
+               box().stroke(goldLeaf(beaten), {.width = 6})});
+```
+
+A material whose `surface()` states a response is **lit in 2D** where it
+fills a Compose box, inks a line of type or strokes a boundary: its colour
+stack is lowered once, exactly as it paints flat, and a lighting pass over
+it reads the normal map for relief and the roughness, metallic, occlusion
+and emission channels for the rest. What lights it is the scene's
+**`lighting`**, an inherited Compose property set once on a parent or the
+page — `material::studio({.direction, .elevation, .color, .intensity,
+.ambient})` for a directional key light (direction in degrees
+counter-clockwise from three o'clock, where the light comes from;
+elevation above the page), `material::environment(pixels, {.rotation})`
+for a latitude-longitude picture the surface reflects and takes its
+ambient colour from, or a `material::Lighting` holding both. A surface's
+own `.surface({.lighting = …})` stands over the scene's. With no lighting
+in force a lit surface is painted flat, as its colours. Every angle and
+strength takes an `Animatable<float>`: a bound light re-runs only the
+lighting pass each frame, so a relief turns while the colours beneath are
+never painted again. The effects stage still reads coverage, and a World
+mesh shades the same surface under its own lights and ignores the effects.
+`material::skia::lit(material, lighting)` is the pass on a raw canvas.
+
 ### Tier 2 — the options
 
 `GradientOptions` (units, extent, repeat, focus, the conic window),
@@ -62,7 +109,10 @@ slots a body samples), `LayerOptions` (`blend`, `opacity`, `mask`), `Mask`
 channel a number or a material: `metallic`, `roughness`, `occlusion`,
 `normal`, `emission`, `clearcoat`, `transmission`, `unlit` …), and the
 filter options `ShadowOptions` (`blur`, `offset`, `spread`, `inside`),
-`StrokeOptions` (`width`, `position`), `BevelOptions`, `BloomOptions`.
+`StrokeOptions` (`width`, `position`), `BevelOptions`, `BloomOptions`;
+and the light: `Light` (`direction`, `elevation`, `color`, `intensity`,
+`ambient`), `EnvironmentOptions` (`rotation`, `intensity`, `size`),
+`Lighting`.
 The pixel sources a layer reads — the `pattern::` tiles, the sdf shapes
 as masks — are tier 2 as well.
 
@@ -120,14 +170,14 @@ directory, each a static archive that links only what sits beneath it:
 | target | holds | links |
 |--------|-------|-------|
 | `SigilMaterialColor` | `Color`, `hexColor()`, `hsv()`, the three mixes and `luminance()`, `ColorStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Parameters.h` includes | SigilCoreCompute |
-| `SigilMaterialCore` | the value model: `Target`, `Parameters`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `ColorStops` and `GradientOptions`, what a gradient is told in box units or pixels; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
-| `SigilMaterialTexture` | `Texture` and its sources, with `Sampling` and `PixelRect`; `texture::` (the tools' sets by role), `EnvironmentMap`, `Atlas` — no Skia type in any header | SigilMaterialCore, SigilMediaCore, Boost.Container; Skia and simdjson privately |
+| `SigilMaterialCore` | the value model: `Target`, `Parameters`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; the light a lit surface is shaded under — `Light`, `studio()`, `Environment`, `environment()` over any material, `Lighting`; `ColorStops` and `GradientOptions`, what a gradient is told in box units or pixels; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
+| `SigilMaterialTexture` | `Texture` and its sources, with `Sampling` and `PixelRect`, a frame standing on a device bound for the recorder that draws it (`Texture::frameAt(time, recorder)`); the image base `image()` and `environment()` over a pixel source; `texture::` (the tools' sets by role), `EnvironmentMap`, `Atlas` — no Skia type in any header | SigilMaterialCore, SigilMediaCore, Boost.Container; Skia and simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, applied through a private 3D-LUT recipe or a per-channel response recipe | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute and SigilMaterialSkia privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple` | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::ShaderLeaf`, the leaf that yields its own Skia shader; a texture through Skia — `skia::image` and `skia::shader` over a `Texture`, `skia::toSkFilterMode`, `skia::toSkIRect` and `skia::toPixelRect`; `skia::painted`, a tile program painted into a canvas; `skia::bevelNormals`; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::ShaderLeaf`, the leaf that yields its own Skia shader; a texture through Skia — `skia::image` and `skia::shader` over a `Texture`, `skia::toSkFilterMode`, `skia::toSkIRect` and `skia::toPixelRect`; `skia::painted`, a tile program painted into a canvas; `skia::bevelNormals`; `skia::fill`; a lit surface in 2D — `skia::isLit`, `skia::lightingFor`, `skia::lit`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialSurface` | `surface::` — the metallic-roughness program a lit renderer shades with: `SurfaceParameters`, `Reflection`, `surfaceRecipe`, `program` and `unlit`, `isSurface` and `isUnlit`, `map` and the seven slot names, the dressing of a decoded texture set, and `lower`, which turns a material's stated `surface({…})` response into the program | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
 

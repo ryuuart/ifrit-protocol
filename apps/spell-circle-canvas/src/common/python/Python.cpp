@@ -56,6 +56,7 @@ void bindLibraries(pybind11::module_& module) {
   bindMaterialPaintEffect(module);
   // The builder names the blend modes and filters the paint effects bind.
   bindMaterialBuilder(module);
+  bindMaterialLighting(module);
   bindMaterialTexture(module);
   bindMaterialTextureSets(module);
   bindMaterialEnvironment(module);

@@ -105,6 +105,7 @@ enum class Property : uint8_t {
   Ink,
   CustomProperties,
   ImageRendering,
+  Lighting,
 
   kCount
 };
@@ -158,7 +159,8 @@ static_assert(static_cast<size_t>(Property::kCount) <= 128,
 /** WHETHER A PROPERTY IS TAKEN FROM THE PARENT where nothing states it.
  *
  *  CSS's inherited set, as this library spells it: the type, the paragraph,
- *  the ink, the custom properties and the image sampling. Nothing in the box,
+ *  the ink, the custom properties, the image sampling and the lighting a
+ *  lit surface is shaded under. Nothing in the box,
  *  the flex line, the placement, the fill, the silhouette, the transforms or
  *  the plane inherits — each of those is a statement about ONE box, and a box
  *  that took its parent's padding would apply it again at every depth.
@@ -172,6 +174,7 @@ constexpr bool inheritsByDefault(Property property) {
     case Property::Ink:
     case Property::CustomProperties:
     case Property::ImageRendering:
+    case Property::Lighting:
       return true;
     default:
       return false;

@@ -38,4 +38,14 @@ Material image(media::PixelSource pixels, ImageOptions options) {
   return material;
 }
 
+Environment environment(media::PixelSource pixels, EnvironmentOptions options) {
+  if (options.size.x <= 0 || options.size.y <= 0) {
+    const SkISize own = pixels.size();
+    options.size = {(float)own.width(), (float)own.height()};
+  }
+  return environment(image(std::move(pixels), {.repeat = Repeat::Repeat,
+                                               .repeatY = Repeat::Pad}),
+                     std::move(options));
+}
+
 }  // namespace sigil::material

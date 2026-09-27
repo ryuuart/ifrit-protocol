@@ -237,6 +237,18 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // THE IMAGE SAMPLING IN FORCE at this node, or none stated, which an
   // image leaf reads as linear.
   std::optional<SkSamplingOptions> sampling;
+  // THE LIGHTING IN FORCE at this node, shared down the subtree that
+  // inherits it; null where no node above states one.
+  std::shared_ptr<const material::Lighting> lighting;
+  // THE LIT FILL: the fill slot's surfaced material shaded under
+  // `lighting`, made on first ask and kept until either moves. `litFrom`
+  // and `litUnder` are what it was made from.
+  mutable std::optional<material::Paint> litFill;
+  mutable const material::Material* litFrom = nullptr;
+  mutable const material::Lighting* litUnder = nullptr;
+  /** The fill in force as a lit surface under the lighting in force, or
+   *  null where the fill is not lit or nothing lights it. */
+  const material::Paint* litFillOf(const MaterialData& slot) const;
   // The face's own line height at `font`, px — what an `lh` length under
   // this node resolves against.
   float lineHeight = 0.0f;

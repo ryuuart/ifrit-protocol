@@ -14,6 +14,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
@@ -151,7 +152,19 @@ void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
   SkCanvas& canvas = *pen.canvas();
   SkPaint stroke;
   stroke.setAntiAlias(true);
-  if (source.isSolid()) {
+  const material::Lighting under =
+      surfaced ? material::skia::lightingFor(
+                     *surfaced, context.lighting ? *context.lighting
+                                                 : material::Lighting{})
+               : material::Lighting{};
+  if (under) {
+    // Shaded under the lighting at paint: the pass re-resolves with the
+    // frame, the colours beneath it do not.
+    const sk_sp<SkShader> shader = material::skia::shader(
+        material::skia::lit(*surfaced, under), frameOf(context));
+    if (!shader) return;
+    stroke.setShader(shader);
+  } else if (source.isSolid()) {
     stroke.setColor4f(material::skia::toSkColor(source.solidColor()), nullptr);
   } else if (sk_sp<SkShader> shader = material::skia::staticShader(source)) {
     stroke.setShader(std::move(shader));

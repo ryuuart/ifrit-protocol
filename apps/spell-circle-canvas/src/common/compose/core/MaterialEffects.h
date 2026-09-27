@@ -8,7 +8,10 @@
  */
 
 #include <sigilcompose/core/Shape.h>
+#include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/filter/Filter.h>
+
+#include <optional>
 
 class SkCanvas;
 
@@ -25,11 +28,14 @@ struct CoverageMark {
   void paint(draw::Pen& pen, const PaintContext& context) const;
 };
 
-/** A keyline around the node's outline painted with a material. */
+/** A keyline around the node's outline painted with a material; one whose
+ *  material states a lit surface is shaded under the lighting in force. */
 struct MaterialStroke {
   material::Paint source;
   material::StrokeOptions options;
+  std::optional<material::Material> surfaced;
   bool operator==(const MaterialStroke&) const = default;
+  bool readsLighting() const { return surfaced.has_value(); }
   float bleed() const {
     return options.position == material::StrokePosition::Inside ? 0
                                                                 : options.width;

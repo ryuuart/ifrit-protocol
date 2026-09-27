@@ -29,4 +29,11 @@ struct ImageOptions {
 /** @p pixels as a material, at their own size from the region's origin. */
 Material image(media::PixelSource pixels, ImageOptions options = {});
 
+/** @p pixels, a latitude-longitude (equirectangular) picture, as the
+ *  environment a lit surface reflects — read across the picture's own
+ *  size unless `options.size` says otherwise, and repeating round the
+ *  horizon. */
+Environment environment(media::PixelSource pixels,
+                        EnvironmentOptions options = {});
+
 }  // namespace sigil::material

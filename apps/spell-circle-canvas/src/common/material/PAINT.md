@@ -56,6 +56,25 @@ baked per palette. A slot rides the volatility tier and the prune
 signature: a live source makes the parent live, and two paints with
 different sources never compare equal.
 
+**A LIT SURFACE IS ONE MORE `sksl` PAINT OVER THE COLOURS.**
+`material::skia::lit(material, lighting)` lowers the colour stack once, as
+`paint(material)` does, and hands it to a lighting pass as its `uColor`
+slot beside the normal, roughness, metallic, occlusion and emission maps
+the surface states; the light's direction, elevation and strength and the
+environment's rotation are uniforms BOUND to their animatables. So the
+pass is LIVE exactly while the light moves, and each rebuild re-uses the
+colours' own static snapshot: the stack beneath is never lowered or
+sampled again for a moved light. With no lighting, or a surface stated
+`unlit`, the answer is the colour stack itself.
+`material::skia::lightingFor` is the rule a surface's own `lighting`
+stands over the scene's by.
+
+**A TEXTURE STANDING ON A DEVICE is bound where it stands** when the frame
+a paint resolves against names the recorder drawing it
+(`FrameData::recorder`) — a GPU Substance cook, frames another application
+publishes — and read back into host memory once where it does not: a
+static snapshot, a raster canvas, a picture recorded to replay.
+
 **A PASS body is not a shader of its own.** A material handed to a text
 runtime's pass is written against declarations that runtime prepends once
 it knows the track's unit count — `uContent`, `uUnitRect[N]`,

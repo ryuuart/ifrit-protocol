@@ -33,7 +33,7 @@ sigil_library(SigilPython
     io/Frames.cpp material/Core.cpp
     material/Environment.cpp material/Field.cpp
     material/PaintEffect.cpp material/Pattern.cpp
-    material/Shading.cpp material/Substance.cpp
+    material/Shading.cpp material/Substance.cpp material/Lighting.cpp
     material/Texture.cpp
     material/TextureSets.cpp measure/Measure.cpp motion/AnimatableForms.cpp
     motion/Clock.cpp motion/Lanes.cpp motion/Particles.cpp motion/Physics.cpp

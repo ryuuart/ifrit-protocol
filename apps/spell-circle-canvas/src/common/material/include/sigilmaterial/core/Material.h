@@ -20,6 +20,7 @@
 #include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
+#include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/core/Program.h>
 #include <sigilmaterial/core/Recipe.h>
@@ -419,9 +420,14 @@ struct Layer {
  *  texture, a noise), as a node graph connects an input. */
 using Channel = std::variant<float, Material>;
 
-/** THE LIT RESPONSE a 3D renderer reads — metallic-roughness with
- *  transmission and clearcoat. The base colour is the material's own
- *  base; every channel here takes a number or a material. */
+/** THE LIT RESPONSE — metallic-roughness with transmission and
+ *  clearcoat. The base colour is the material's own base and stack of
+ *  layers; every channel here takes a number or a material. A 3D
+ *  renderer shades it under its own lights. In 2D a box, a line of type
+ *  or a stroke filled with it is shaded under the lighting in force
+ *  where it stands — Compose's inherited `lighting()`, or `lighting`
+ *  here, which overrides it — reading the normal map for relief; with no
+ *  lighting in force it is painted as its colours, flat. */
 struct SurfaceOptions {
   Channel metallic = 0.0f;
   Channel roughness = 0.5f;
@@ -445,6 +451,9 @@ struct SurfaceOptions {
   float reflectionWeight = 1;
   /** No lighting: the base colour as it is. */
   bool unlit = false;
+  /** The light this surface is shaded under in 2D, over whatever lighting
+   *  the scene states where it stands. */
+  std::optional<Lighting> lighting;
   bool operator==(const SurfaceOptions&) const = default;
 };
 

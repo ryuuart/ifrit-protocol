@@ -7,6 +7,7 @@
 
 #include <algorithm>
 
+#include <sigilmaterial/skia/Lit.h>
 #include <sigilmaterial/skia/Paint.h>
 
 #include "ComposeInternal.h"
@@ -93,8 +94,10 @@ Derived& DecorationVerbs<Derived>::decorationOutline(Boundary source,
 template <class Derived>
 Derived& DecorationVerbs<Derived>::stroke(material::Material material,
                                           material::StrokeOptions options) {
+  std::optional<material::Material> surfaced;
+  if (material::skia::isLit(material)) surfaced = material;
   return foreground(Decoration(detail::MaterialStroke{
-      material::skia::paint(material), options}));
+      material::skia::paint(material), options, std::move(surfaced)}));
 }
 
 template class DecorationVerbs<Element>;

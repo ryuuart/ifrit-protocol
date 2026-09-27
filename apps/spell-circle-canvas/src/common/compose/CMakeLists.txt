@@ -201,6 +201,7 @@ sigil_doc_probes(compose
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/preserve3d.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/rect.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/imageRendering.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/lighting.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/scaleX.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/shape.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/verbs/span.md

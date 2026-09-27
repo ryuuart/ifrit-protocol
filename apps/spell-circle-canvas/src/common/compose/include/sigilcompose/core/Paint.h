@@ -250,6 +250,10 @@ struct PaintContext {
    *  replay or drawn on a raster canvas, which reads such a texture back
    *  into host memory once. */
   skgpu::graphite::Recorder* recorder = nullptr;
+  /** THE LIGHTING IN FORCE at this node (`Element::lighting`), which a
+   *  stroke whose material states a lit surface is shaded under. Null
+   *  where none is stated, or outside a composer. */
+  const material::Lighting* lighting = nullptr;
   /** Is the composer's engine running anything at all this frame, as
    *  read by a node that REPAINTS this frame (a cached node replays its
    *  recording and keeps its last-read value) — the

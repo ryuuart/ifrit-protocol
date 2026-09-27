@@ -18,7 +18,8 @@ sigil_library(SigilMaterialSkia
           Paint.cpp PaintBlend.cpp PaintBuild.cpp
           PaintDetail.cpp PaintResolve.cpp PaintSources.cpp
           PaintUniforms.cpp Painted.cpp Palette.cpp Ramp.cpp SkiaCompiler.cpp Texture.cpp
-  HEADERS ../filter/Filter.h ../paint/Bases.h ../paint/Paint.h Bevel.h Color.h Draw.h Filter.h Paint.h
+          Lit.cpp
+  HEADERS ../filter/Filter.h ../paint/Bases.h ../paint/Paint.h Bevel.h Color.h Draw.h Filter.h Lit.h Paint.h
           Painted.h Pass.h PixelBuffer.h
           Palette.h Ramp.h ShaderLeaf.h SkiaCompiler.h Texture.h
   PUBLIC SigilMaterialTexture SigilMaterialColor SigilMotionValues
@@ -33,7 +34,7 @@ sigil_test(material_test
           test/SkiaPaintTest.cpp test/SkiaMaterialTest.cpp test/SkiaEffectTest.cpp
           test/SkiaEffectBlurTest.cpp test/SkiaEffectPhosphorTest.cpp
           test/SkiaEffectLightTest.cpp test/SkiaEffectSlotTest.cpp
-          test/SkiaRampTest.cpp test/PaletteTest.cpp
+          test/SkiaRampTest.cpp test/PaletteTest.cpp test/SkiaLitTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SKIA_SHADER_DIR="${_shaders}"
   LIBRARIES SigilMaterialSkia)

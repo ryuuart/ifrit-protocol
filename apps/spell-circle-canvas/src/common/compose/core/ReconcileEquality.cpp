@@ -246,7 +246,7 @@ bool fxEqual(const Box<FxData>& a, const Box<FxData>& b) {
          effectEqual(a->backdropEffect, b->backdropEffect);
 }
 
-static_assert(kFieldCount<MaterialData> == 2,
+static_assert(kFieldCount<MaterialData> == 3,
               "MaterialData gained or lost a field — rule on it in "
               "materialEqual() below (or in propertiesEqual, which owns the "
               "->recipe half), then bump this count.");
@@ -273,6 +273,9 @@ bool materialEqual(const Box<MaterialData>& a, const Box<MaterialData>& b) {
       return false;
     if (!(*a->live == *b->live)) return false;
   }
+  // A lit surface is shaded from its material, so a moved one is a new
+  // fill even where the colours it lowered to compare equal.
+  if (!(a->surfaced == b->surfaced)) return false;
   return true;  // ->recipe is handled with the fill compare in propertiesEqual
 }
 

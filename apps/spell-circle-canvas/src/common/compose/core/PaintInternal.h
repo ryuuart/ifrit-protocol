@@ -41,9 +41,12 @@ inline const MaterialData* fillSlotOf(const Instance& inst) {
   return &*rules->material;
 }
 /** The paint the fill in force resolves per frame or per size — a live
- *  or box-relative one — or null where the fill is a plain `Fill`. */
+ *  or box-relative one, or a lit surface under the lighting in force —
+ *  or null where the fill is a plain `Fill`. */
 inline const material::Paint* liveMaterialOf(const Instance& inst) {
   const MaterialData* slot = fillSlotOf(inst);
+  if (slot && slot->surfaced && inst.lighting)
+    if (const material::Paint* lit = inst.litFillOf(*slot)) return lit;
   return slot && slot->live ? &*slot->live : nullptr;
 }
 /** THE INK IN FORCE AS A PAINT at this instance, or null where the ink

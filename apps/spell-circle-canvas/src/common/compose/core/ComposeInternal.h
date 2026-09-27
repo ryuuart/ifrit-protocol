@@ -437,6 +437,10 @@ struct MaterialData {
   // re-described material fill prunes even though each describe minted a fresh
   // shader.
   std::optional<material::Paint> recipe;
+  // THE MATERIAL OF A LIT SURFACE, where fill(Material) was handed one that
+  // states a surface taking light: the painter shades it under the lighting
+  // in force, and paints `live` or the fill beneath where none is.
+  std::optional<material::Material> surfaced;
 };
 
 /** THE DEPTH LANES — Element::rotateX/rotateY/translateZ/scaleZ, the view
@@ -483,6 +487,9 @@ struct DepthData {
 struct InkInForce {
   std::optional<material::Paint> paint;
   PaintBox box = PaintBox::Element;
+  /** The material of a lit ink, shaded under the lighting in force at
+   *  each node it reaches into `paint`. */
+  std::optional<material::Material> surfaced;
   bool operator==(const InkInForce&) const = default;
 };
 
@@ -555,6 +562,9 @@ struct CascadeData {
   /** How image leaves under this node sample their source
    *  (Element::imageRendering), inherited as CSS's image-rendering is. */
   std::optional<SkSamplingOptions> sampling;
+  /** The light a lit surface under this node is shaded under
+   *  (Element::lighting), inherited as the ink is. */
+  std::optional<material::Lighting> lighting;
   /** ink(var(...)): the property the ink reads. Exclusive with a colour in
    *  `font->color` — whichever was written last stands. */
   std::optional<VarRef> inkVar;
@@ -565,6 +575,8 @@ struct CascadeData {
    *  absent paint beside a stated lane is the colour case. */
   std::optional<material::Paint> inkPaint;
   PaintBox inkBox = PaintBox::Element;
+  /** ink(material): the material, where it states a lit surface. */
+  std::optional<material::Material> inkSurfaced;
   bool statesInk = false;
   /** Properties supplied only where no ancestor or this node states a
    *  value, so component defaults do not override their document. */
@@ -702,6 +714,9 @@ struct ElementNode {
   }
   CascadeData& imageRendering() {
     return fields.state(Property::ImageRendering, cascadeData.ensure());
+  }
+  CascadeData& lighting() {
+    return fields.state(Property::Lighting, cascadeData.ensure());
   }
 
   /** Whether this node applies operators that place its children. */

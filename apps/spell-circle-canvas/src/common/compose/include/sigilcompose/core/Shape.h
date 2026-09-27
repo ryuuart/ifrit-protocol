@@ -478,6 +478,14 @@ concept BlendingDecoration = requires(const D& d) {
   { d.blends() } -> std::convertible_to<bool>;
 };
 
+/** Optional on a DecorationScheme: whether it is shaded under the
+ *  lighting in force (`PaintContext::lighting`), so a node carrying it
+ *  repaints while that lighting moves. */
+template <class D>
+concept LitDecoration = requires(const D& d) {
+  { d.readsLighting() } -> std::convertible_to<bool>;
+};
+
 /** Optional on a DecorationScheme: element keys whose resolved PATHS this
  *  decoration needs (a weave's `strand::from(key)`). The element collects
  *  them at build time and the derive pass answers them into
@@ -510,6 +518,12 @@ class Decoration {
         m_blends([&] {
           if constexpr (BlendingDecoration<D>)
             return scheme.blends();
+          else
+            return false;
+        }()),
+        m_readsLighting([&] {
+          if constexpr (LitDecoration<D>)
+            return scheme.readsLighting();
           else
             return false;
         }()),
@@ -583,6 +597,8 @@ class Decoration {
    *  BlendingDecoration). True for a bare PaintProgram, which declares
    *  nothing. */
   bool blends() const { return m_blends; }
+  /** Whether it is shaded under the lighting in force. */
+  bool readsLighting() const { return m_readsLighting; }
   /** Keyed elements whose resolved paths this decoration reads (see
    *  BorrowingDecoration). Empty for everything that borrows nothing. */
   const std::vector<std::string>& borrows() const { return m_borrows; }
@@ -604,6 +620,7 @@ class Decoration {
  private:
   bool m_animated = false;
   bool m_blends = false;
+  bool m_readsLighting = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
   std::function<float(glm::vec2)> m_sizedBleed;

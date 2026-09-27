@@ -351,6 +351,12 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
                                            : material::Sampling::Linear);
           },
           py::arg("sampling"), fluent)
+      .def(
+          "lighting",
+          [](Node& self, const material::Lighting& lighting) -> Node& {
+            return self.lighting(lighting);
+          },
+          py::arg("lighting"), fluent)
       .def("inherit", &Node::inherit, py::arg("property"), fluent)
       .def("initial", &Node::initial, py::arg("property"), fluent)
       .def("unset", &Node::unset, py::arg("property"), fluent)

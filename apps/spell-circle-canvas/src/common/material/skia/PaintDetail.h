@@ -50,6 +50,9 @@ struct PaintFrame {
   double seconds = 0.0;
   /** Device pixels per logical pixel; the `uContentScale` uniform. */
   float contentScale = 1.0f;
+  /** The recorder the paint is drawn through; a texture standing on its
+   *  device is bound there. Null reads such a texture back. */
+  skgpu::graphite::Recorder* recorder = nullptr;
 };
 
 /** @p frame in Skia's terms. */

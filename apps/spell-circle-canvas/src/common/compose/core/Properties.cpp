@@ -145,6 +145,8 @@ std::string_view propertyName(Property property) {
       return "var";
     case Property::ImageRendering:
       return "imageRendering";
+    case Property::Lighting:
+      return "lighting";
     case Property::kCount:
       break;
   }
@@ -344,6 +346,7 @@ void copyProperty(Property property, const ComputedStyle& from,
     case Property::Ink:
     case Property::CustomProperties:
     case Property::ImageRendering:
+    case Property::Lighting:
     case Property::kCount:
       return;
   }
@@ -484,7 +487,8 @@ namespace {
 bool materialSlotEqual(const std::optional<MaterialData>& a,
                        const std::optional<MaterialData>& b) {
   if (a.has_value() != b.has_value()) return false;
-  return !a || (a->live == b->live && a->recipe == b->recipe);
+  return !a || (a->live == b->live && a->recipe == b->recipe &&
+                a->surfaced == b->surfaced);
 }
 
 }  // namespace

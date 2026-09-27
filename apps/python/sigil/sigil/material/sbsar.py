@@ -5,6 +5,7 @@ from _sigil.material.sbsar import (
     Choice,
     Description,
     Encoding,
+    Engine,
     Format,
     Input,
     InputType,
@@ -13,6 +14,7 @@ from _sigil.material.sbsar import (
     Widget,
     available,
     describe,
+    engine,
     settle,
 )
 
@@ -20,6 +22,7 @@ __all__ = [
     "Choice",
     "Description",
     "Encoding",
+    "Engine",
     "Format",
     "Input",
     "InputType",
@@ -28,5 +31,6 @@ __all__ = [
     "Widget",
     "available",
     "describe",
+    "engine",
     "settle",
 ]

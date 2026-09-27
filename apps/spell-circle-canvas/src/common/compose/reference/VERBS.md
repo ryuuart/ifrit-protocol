@@ -294,6 +294,7 @@ compile.
 |---|---|
 | `imageRegion` | Image leaves: draw this sub-rect of the asset instead of the whole picture. |
 | [`imageRendering`](pages/verbs/imageRendering.md) | How image leaves under this node sample their source. Inherits. |
+| [`lighting`](pages/verbs/lighting.md) | The light a lit surface under this node is shaded under. Inherits. |
 
 ## Identity, layering and hit testing
 

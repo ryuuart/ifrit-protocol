@@ -185,10 +185,15 @@ core::SubtreeVerdict Composer::Impl::computeVolatile(Instance& inst,
   const material::Paint* inkLive = inkPaintOf(inst);
   const bool metricLive = inkLive && inkLive->isRunning();
   const bool cacheNone = node.cacheMode == Cache::None;
+  // A decoration shaded under the lighting in force repaints while that
+  // lighting moves, though nothing of its own does.
+  const bool lightMoves = inst.lighting && inst.lighting->isRunning();
   const bool decorLive = [&] {
     bool live = false;
-    for (const Decoration& d : node.backgrounds) live |= d.isRunning();
-    for (const Decoration& d : node.foregrounds) live |= d.isRunning();
+    for (const Decoration& d : node.backgrounds)
+      live |= d.isRunning() || (lightMoves && d.readsLighting());
+    for (const Decoration& d : node.foregrounds)
+      live |= d.isRunning() || (lightMoves && d.readsLighting());
     if (node.fxData)
       for (const Decoration& d : node.fxData->overlays) live |= d.isRunning();
     return live;
