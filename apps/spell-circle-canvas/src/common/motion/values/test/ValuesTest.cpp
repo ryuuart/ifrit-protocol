@@ -560,3 +560,31 @@ TEST(Values, TheStepIndexAndThePhaseReadADuration) {
   EXPECT_NEAR(phase(-250ms, 1s), 0.75f, 1e-6f);
   EXPECT_FLOAT_EQ(phase(3s, 0s), 0.0f);
 }
+
+TEST(Values, ALoopingTweenHoldsItsLoopDelayAtTheEndOfEveryPass) {
+  const Tween<float> pulse{.from = 0.0f, .to = 1.0f, .duration = 1s,
+                           .ease = ease::linear, .loop = -1,
+                           .loopDelay = 500ms};
+  EXPECT_NEAR(pulse.at(500ms), 0.5f, 1e-5f);
+  EXPECT_NEAR(pulse.at(1250ms), 1.0f, 1e-5f);  // held
+  EXPECT_NEAR(pulse.at(2000ms), 0.5f, 1e-5f);  // the next pass, 500ms in
+}
+
+TEST(Values, ATweensTimingIsWhatACollectivesScheduleReads) {
+  const Tween<float> tween{.duration = 480ms, .delay = stagger(28ms),
+                           .loop = -1, .loopDelay = 120ms, .alternate = true};
+  const Timing timing = timingOf(tween, stagger(10ms));
+  EXPECT_EQ(timing.delay, tween.delay);
+  EXPECT_EQ(timing.duration, Duration(480ms));
+  EXPECT_TRUE(timing.loop);
+  EXPECT_EQ(timing.loopDelay, Duration(120ms));
+  EXPECT_TRUE(timing.alternate);
+  ASSERT_TRUE(timing.within.has_value());
+  EXPECT_FALSE(timingOf(Tween<float>{}).loop);
+}
+
+TEST(Values, AnEmptyCurveReadsAsTheDefault) {
+  const Tween<float> tween{.to = 1.0f};
+  EXPECT_FALSE((bool)tween.ease);
+  EXPECT_TRUE(easeEqual(tween.easing(), ease::outQuad));
+}

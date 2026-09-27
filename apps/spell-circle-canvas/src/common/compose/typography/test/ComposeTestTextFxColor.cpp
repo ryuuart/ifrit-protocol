@@ -135,7 +135,7 @@ TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInAKeysTable) {
         box().padding(10).children({text(u8"I", greyStyle(52, 0.25f))
                                         .key("k")
                                         .textFx({.effect = std::move(effect),
-                                                 .delay = sigil::motion::stagger(0ms),
+                                                 .tween = {.duration = 450ms, .delay = sigil::motion::stagger(0ms)},
                                                  .progress = 0.5f})}));
     host.frame();
     return surfaceBytes(host, 140, 140);

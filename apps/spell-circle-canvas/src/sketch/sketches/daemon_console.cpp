@@ -520,8 +520,8 @@ struct DaemonConsole {
       case dc::kFlux:
         // A warning rises glyph by glyph — more insistent than type-on,
         // still a sweep the eye can follow.
-        leaf.textFx({.effect = textFx::rise(6),
-                     .delay = motion::stagger(4ms), .duration = 120ms,
+        leaf.textFx({.effect = textFx::enter(textFx::rise(6)),
+                     .tween = {.duration = 120ms, .delay = motion::stagger(4ms)}, 
                      .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 300ms, .ease = motion::ease::linear})});
         break;
       case dc::kBreach:
@@ -549,7 +549,7 @@ struct DaemonConsole {
       default:
         // Info and seals type on — the terminal's own voice.
         leaf.textFx({.effect = textFx::typeOn(),
-                     .delay = motion::stagger(6ms), .duration = 40ms,
+                     .tween = {.duration = 40ms, .delay = motion::stagger(6ms)}, 
                      .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 320ms, .ease = motion::ease::linear})});
         break;
     }
@@ -560,7 +560,7 @@ struct DaemonConsole {
       leaf.textFx(
           {.where = selectors::style("cipher"),
            .effect = textFx::hold(textFx::scramble(U"0123456789abcdef", 10)),
-           .delay = motion::stagger(30ms), .duration = 340ms,
+           .tween = {.duration = 340ms, .delay = motion::stagger(30ms)}, 
            .unit = weave::Unit::Cluster,
            .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = 750ms, .ease = motion::ease::linear})});
 

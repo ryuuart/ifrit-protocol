@@ -401,7 +401,7 @@ struct NightingaleCoxcomb {
   Element titles() const {
     const auto writing = [](float startMs, float spanMs, float durationMs) {
       return Track{.effect = textFx::typeOn(),
-                   .delay = sigil::motion::stagger({0ms, std::chrono::duration<double, std::milli>(spanMs)}), .duration = 40ms,
+                   .tween = {.duration = 40ms, .delay = sigil::motion::stagger({0ms, std::chrono::duration<double, std::milli>(spanMs)})}, 
                    .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::duration<double, std::milli>(durationMs), .delay = std::chrono::duration<double, std::milli>(startMs), .ease = sigil::motion::ease::linear})};
     };
     const auto arrive = [](float startMs) {

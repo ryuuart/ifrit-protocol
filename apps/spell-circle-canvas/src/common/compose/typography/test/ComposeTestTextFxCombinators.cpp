@@ -92,16 +92,16 @@ TEST(ComposeTextFx, MixEvaluatesBothAndComposesByTheTrackAlgebra) {
 }
 
 TEST(ComposeTextFx, CombinatorsAreComparableWhenTheirOperandsAre) {
-  EXPECT_TRUE(textFx::sequence(textFx::rise(20).until(0.5f), textFx::pop()) ==
-              textFx::sequence(textFx::rise(20).until(0.5f), textFx::pop()));
-  EXPECT_FALSE(textFx::sequence(textFx::rise(20).until(0.5f), textFx::pop()) ==
-               textFx::sequence(textFx::rise(20).until(0.6f), textFx::pop()));
-  EXPECT_FALSE(textFx::sequence(textFx::rise(20).until(0.5f), textFx::pop()) ==
-               textFx::sequence(textFx::rise(22).until(0.5f), textFx::pop()));
-  EXPECT_TRUE(textFx::mix(textFx::rise(20), textFx::slide()) ==
-              textFx::mix(textFx::rise(20), textFx::slide()));
-  EXPECT_FALSE(textFx::mix(textFx::rise(20), textFx::slide()) ==
-               textFx::mix(textFx::slide(), textFx::rise(20)));
+  EXPECT_TRUE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f), textFx::enter(textFx::pop())) ==
+              textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f), textFx::enter(textFx::pop())));
+  EXPECT_FALSE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f), textFx::enter(textFx::pop())) ==
+               textFx::sequence(textFx::enter(textFx::rise(20)).until(0.6f), textFx::enter(textFx::pop())));
+  EXPECT_FALSE(textFx::sequence(textFx::enter(textFx::rise(20)).until(0.5f), textFx::enter(textFx::pop())) ==
+               textFx::sequence(textFx::enter(textFx::rise(22)).until(0.5f), textFx::enter(textFx::pop())));
+  EXPECT_TRUE(textFx::mix(textFx::enter(textFx::rise(20)), textFx::enter(textFx::slide())) ==
+              textFx::mix(textFx::enter(textFx::rise(20)), textFx::enter(textFx::slide())));
+  EXPECT_FALSE(textFx::mix(textFx::enter(textFx::rise(20)), textFx::enter(textFx::slide())) ==
+               textFx::mix(textFx::enter(textFx::slide()), textFx::enter(textFx::rise(20))));
 }
 
 // THE PLACEMENT FACT IS INFERRED wherever the data allows it, because it is
@@ -110,11 +110,11 @@ TEST(ComposeTextFx, CombinatorsAreComparableWhenTheirOperandsAre) {
 // ad-hoc lambda is opaque, and that door assumes motion.
 TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   // The presets that move geometry.
-  EXPECT_TRUE(textFx::rise().displaces());
-  EXPECT_TRUE(textFx::slide().displaces());
-  EXPECT_TRUE(textFx::pop().displaces());
-  EXPECT_TRUE(textFx::spinIn().displaces());
-  EXPECT_TRUE(textFx::scatter().displaces());
+  EXPECT_TRUE(textFx::enter(textFx::rise()).displaces());
+  EXPECT_TRUE(textFx::enter(textFx::slide()).displaces());
+  EXPECT_TRUE(textFx::enter(textFx::pop()).displaces());
+  EXPECT_TRUE(textFx::enter(textFx::spinIn()).displaces());
+  EXPECT_TRUE(textFx::enter(textFx::scatter()).displaces());
   EXPECT_TRUE(textFx::waveLoop().displaces());
   // …and the ones that touch coverage, colour or the outline only, leaving
   // every pen position exactly where the layout put it.
@@ -146,14 +146,14 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   // none of them moving is enough the other way. `textFx::hold` vetoes with
   // alpha, which places nothing, so it is its operand's answer.
   EXPECT_FALSE(textFx::mix(textFx::typeOn(), textFx::scramble()).displaces());
-  EXPECT_TRUE(textFx::mix(textFx::typeOn(), textFx::rise()).displaces());
+  EXPECT_TRUE(textFx::mix(textFx::typeOn(), textFx::enter(textFx::rise())).displaces());
   EXPECT_FALSE(
       textFx::sequence(textFx::typeOn().until(0.5f), textFx::scramble())
           .displaces());
-  EXPECT_TRUE(textFx::sequence(textFx::typeOn().until(0.5f), textFx::rise())
+  EXPECT_TRUE(textFx::sequence(textFx::typeOn().until(0.5f), textFx::enter(textFx::rise()))
                   .displaces());
   EXPECT_FALSE(textFx::hold(textFx::scramble()).displaces());
-  EXPECT_TRUE(textFx::hold(textFx::rise()).displaces());
+  EXPECT_TRUE(textFx::hold(textFx::enter(textFx::rise())).displaces());
   // Nesting keeps the derivation exact rather than sticky.
   EXPECT_FALSE(textFx::mix(textFx::sequence(
                                textFx::tint(SkColors::kGray, SkColors::kWhite)),
@@ -323,10 +323,10 @@ TEST(ComposeTextFx, HoldWithholdsTheEffectUntilTheBeatOpens) {
   EXPECT_FLOAT_EQ(evaluate(held, 0.001f).dy, 10.0f);
   EXPECT_FLOAT_EQ(evaluate(held, 1.0f).dy, 10.0f);
 
-  EXPECT_TRUE(textFx::hold(textFx::rise(20)) == textFx::hold(textFx::rise(20)));
-  EXPECT_FALSE(textFx::hold(textFx::rise(20)) ==
-               textFx::hold(textFx::rise(22)));
-  EXPECT_FALSE(textFx::hold(textFx::rise(20)) == textFx::rise(20));
-  EXPECT_FLOAT_EQ(textFx::hold(textFx::rise(20)).reach(),
-                  textFx::rise(20).reach());
+  EXPECT_TRUE(textFx::hold(textFx::enter(textFx::rise(20))) == textFx::hold(textFx::enter(textFx::rise(20))));
+  EXPECT_FALSE(textFx::hold(textFx::enter(textFx::rise(20))) ==
+               textFx::hold(textFx::enter(textFx::rise(22))));
+  EXPECT_FALSE(textFx::hold(textFx::enter(textFx::rise(20))) == textFx::enter(textFx::rise(20)));
+  EXPECT_FLOAT_EQ(textFx::hold(textFx::enter(textFx::rise(20))).reach(),
+                  textFx::enter(textFx::rise(20)).reach());
 }

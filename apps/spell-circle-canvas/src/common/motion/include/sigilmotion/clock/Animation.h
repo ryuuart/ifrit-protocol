@@ -61,6 +61,9 @@ class AnimationState final : public PlaybackState {
         m_steps.push_back({step.to, step.duration.value_or(share),
                            step.ease ? step.ease : resolved.easing()});
     }
+    // A looping motion holds where each pass ends before the next starts.
+    if (resolved.loop != 0 && resolved.loopDelay > Duration{})
+      m_steps.push_back({m_steps.back().to, resolved.loopDelay, {}});
     delay = resolved.delay.value();
     for (const Step& step : m_steps) pass += step.duration;
     passes = resolved.loop < 0 ? 0 : 1 + resolved.loop;

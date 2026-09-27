@@ -65,10 +65,10 @@ TEST(ComposeTextFx, TintComposesWithAnotherTrackByMultiplying) {
            // Both tracks are AT REST (progress 0), where each contributes
            // its own origin: 0.5 on red and 0.5 on green.
            .textFx({.effect = textFx::tint({0.5f, 1, 1, 1}, {1, 1, 1, 1}),
-                    .delay = sigil::motion::stagger(0ms), .duration = 100ms,
+                    .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)}, 
                     .progress = 0.0f})
            .textFx({.effect = textFx::tint({1, 0.5f, 1, 1}, {1, 1, 1, 1}),
-                    .delay = sigil::motion::stagger(0ms), .duration = 100ms,
+                    .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)}, 
                     .progress = 0.0f})}));
   host.frame();
   bool sawProduct = false;
@@ -107,7 +107,7 @@ TEST(ComposeTextFx, MarkPlacesAChildOnTheRectItsSelectorResolves) {
       {text(u8"ALPHA BETA GAMMA", whiteStyle(24))
            .key("line")
            .textFx(
-               {.effect = textFx::rise(4), .unit = sigil::weave::Unit::Word})
+               {.effect = textFx::enter(textFx::rise(4)), .unit = sigil::weave::Unit::Word})
            .textAttach(sigil::weave::selectors::word(1),
                        box().key("caret").fill(green()))}));
   host.frame();
@@ -172,8 +172,8 @@ TEST(ComposeTextFx, MarkStandsAtRestWhileACascadeDeviatesTheGlyphs) {
     host.composer.render(box().padding(10).children(
         {text(u8"ALPHA BETA", whiteStyle(24))
              .key("line")
-             .textFx({.effect = textFx::rise(40),
-                      .delay = sigil::motion::stagger(0ms), .duration = 100ms,
+             .textFx({.effect = textFx::enter(textFx::rise(40)),
+                      .tween = {.duration = 100ms, .delay = sigil::motion::stagger(0ms)}, 
                       .progress = progress})
              .textAttach(sigil::weave::selectors::word(1),
                          box().key("caret").fill(green()))}));
@@ -201,7 +201,7 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
            .height(180)
            .textOnPath({.path = geometry::shapes::circle()})
            .textFx(
-               {.effect = textFx::rise(4), .unit = sigil::weave::Unit::Word})
+               {.effect = textFx::enter(textFx::rise(4)), .unit = sigil::weave::Unit::Word})
            .textAttach(sigil::weave::selectors::word(2),
                        box().key("caret").fill(green()))}));
   host.frame();
@@ -223,7 +223,7 @@ TEST(ComposeTextFx, MarkOnAPathRunStandsOnTheCurve) {
            .width(180)
            .height(180)
            .textFx(
-               {.effect = textFx::rise(4), .unit = sigil::weave::Unit::Word})
+               {.effect = textFx::enter(textFx::rise(4)), .unit = sigil::weave::Unit::Word})
            .textAttach(sigil::weave::selectors::word(2),
                        box().key("caret").fill(green()))}));
   straight.frame();

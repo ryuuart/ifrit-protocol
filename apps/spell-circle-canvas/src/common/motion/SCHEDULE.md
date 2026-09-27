@@ -3,8 +3,8 @@
 The chapter on values that differ per child and on how a run of units
 shares one progress: `stagger()`, the value a tween field takes to step or
 spread from one sibling to the next; the orderings it deals in; and the
-`Schedule` a `Timing` resolves into against the counts a frame actually
-has. `README.md` beside this file is the library. Nothing here reads a
+`Schedule` a collective's tween resolves into against the counts a frame
+actually has. `README.md` beside this file is the library. Nothing here reads a
 clock, which is the point.
 
 ## A value per child
@@ -43,19 +43,24 @@ it opens from.
 ## How N units share one progress
 
 A text track's glyphs are units, not children, and they share ONE master
-progress: a `Timing` — its delay, duration, loop and within — says when each
-unit's beat opens (a stagger, a table, or a plain duration they all
-share), how long one unit's own motion lasts, whether the whole thing
-loops, and a second stagger inside every beat. `Schedule` resolves it
-against the counts a frame actually has, and then answers per index:
+progress — but they are a collective on a tween like any other: the
+tween's delay (a stagger, a table, or a plain duration they all share)
+says when each unit's beat opens, its duration how long one unit's own
+motion lasts, and its `loop`, `loopDelay` and `alternate` whether the
+whole thing loops. `timingOf()` (`values/Tween.h`) reads that off a
+tween, with a second stagger inside every beat when one is nested, into
+the `Timing` a `Schedule` is built from; nobody authors a `Timing`.
+`Schedule` resolves it against the counts a frame actually has, and then
+answers per index:
 
 ```cpp
 #include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Tween.h>
 
-const Timing timing{.delay = stagger(60ms, {.from = StaggerFrom::Center}),
-                    .duration = 420ms};
+const Tween<float> each{.duration = 420ms,
+                        .delay = stagger(60ms, {.from = StaggerFrom::Center})};
 Schedule schedule;                   // reused in place across frames
-schedule.build(timing, unitCount, 0);
+schedule.build(timingOf(each), unitCount, 0);
 for (uint32_t i = 0; i < unitCount; ++i)
   paint(i, schedule.localProgress(master, i));   // this unit's own 0→1
 ```
@@ -68,9 +73,11 @@ schedule feature links no clock: nothing in it reads time.
 duration has to be for the last beat to close exactly as the master
 arrives at 1, before any of the units exist. `Schedule::total()` is the
 same number off a resolved schedule, and the two agree because one body
-computes both. `Timing::loop` turns any timing into a wrapping beat: each
-unit re-opens on its own cycle, offset by its start, and one sweep of the
-master 0→1 is one cycle.
+computes both. `Timing::loop` — any tween `loop` other than zero — turns
+the timing into a wrapping beat: each unit re-opens on its own cycle of
+one beat plus `Timing::loopDelay`, offset by its start, every other cycle
+backwards under `Timing::alternate`, and one sweep of the master 0→1 is
+one cycle.
 
 `Schedule::beat()` is the schedule read BACK rather than driven — start,
 local progress and whether the beat is running — for anything that has

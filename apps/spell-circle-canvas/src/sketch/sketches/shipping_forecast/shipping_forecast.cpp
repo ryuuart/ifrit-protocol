@@ -328,12 +328,12 @@ struct ShippingForecast {
             .key(key)
             .width(pct(100))
             .ink(ramp)
-            .textFx({.effect = textFx::rise(92 * 1.24f),
-                     .delay = motion::stagger({0ms, 320ms}, {.from = motion::StaggerFrom::First}), .duration = 560ms,
+            .textFx({.effect = textFx::enter(textFx::rise(92 * 1.24f)),
+                     .tween = {.duration = 560ms, .delay = motion::stagger({0ms, 320ms}, {.from = motion::StaggerFrom::First})}, 
                      .unit = weave::Unit::Glyph,
                      .progress = beat(from, from + 2.0f)})
             .textFx({.effect = textFx::variableAxisSweep("GRAD", 400, 880),
-                     .delay = motion::stagger(34ms), .duration = 620ms,
+                     .tween = {.duration = 620ms, .delay = motion::stagger(34ms)}, 
                      .progress = motion::bind(seconds, {.from = {0, kBreathPeriod}, .envelope = motion::envelope::cosine()})}),
     });
   }
@@ -417,8 +417,8 @@ struct ShippingForecast {
                                 .align = TextPath::Align::Center,
                                 .offset = 7,
                                 .autoFlip = false})
-                   .textFx({.effect = textFx::rise(13),
-                            .delay = motion::stagger(20ms), .duration = 420ms,
+                   .textFx({.effect = textFx::enter(textFx::rise(13)),
+                            .tween = {.duration = 420ms, .delay = motion::stagger(20ms)}, 
                             .progress = beat(at, at + 0.62f)});
              }),
         // A lamp comes up behind the name as it arrives, spreading from
@@ -605,9 +605,9 @@ struct ShippingForecast {
                 .styleClass("warning")
                 .key("gale")
                 .textFx({.effect = textFx::sequence(
-                             textFx::slide(-46).until(0.46f).crossfade(0.20f),
-                             textFx::pop(0.86f, 2.6f)),
-                         .delay = motion::stagger({0ms, 520ms}), .duration = 620ms,
+                             textFx::enter(textFx::slide(-46)).until(0.46f).crossfade(0.20f),
+                             textFx::enter(textFx::pop(0.86f, 2.6f))),
+                         .tween = {.duration = 620ms, .delay = motion::stagger({0ms, 520ms})}, 
                          .progress = beat(0.25f, 1.85f)}),
         });
   }
@@ -642,7 +642,7 @@ struct ShippingForecast {
                            float durationMs, float from, float to) {
       return Track{.where = where,
                    .effect = std::move(effect),
-                   .delay = motion::stagger(46ms), .duration = std::chrono::duration<double, std::milli>(durationMs),
+                   .tween = {.duration = std::chrono::duration<double, std::milli>(durationMs), .delay = motion::stagger(46ms)}, 
                    .unit = weave::Unit::Word,
                    .beatsOver = beats::Text,
                    .progress = beat(from, to)};
@@ -652,7 +652,7 @@ struct ShippingForecast {
             .key("forecast")
             .width(pct(100))
             .span(figures, SpanStyle().ink(var("amber")))
-            .textFx(words(initials, textFx::rise(16), 460, 1.75f, 4.10f))
+            .textFx(words(initials, textFx::enter(textFx::rise(16)), 460, 1.75f, 4.10f))
             .textFx(words(initials & !selectors::style("term") & !figures,
                           textFx::sequence(
                               textFx::variableAxisSweep("GRAD", 400, 900)
@@ -662,7 +662,7 @@ struct ShippingForecast {
             .textFx(words(figures, textFx::variableAxisSweep("GRAD", 400, 900),
                           460, 1.75f, 4.10f))
             .textFx(words(weave::selectors::each(weave::Unit::Word).drop(1),
-                          textFx::rise(9), 500, 1.83f, 4.30f)),
+                          textFx::enter(textFx::rise(9)), 500, 1.83f, 4.30f)),
     });
   }
 
@@ -679,7 +679,7 @@ struct ShippingForecast {
             .key("barometer")
             .textFx({.effect = textFx::hold(textFx::scramble(
                          U"0123456789ABCDEFGHJKLMNPRSTUVWXYZ", 16)),
-                     .delay = motion::stagger(26ms, {.from = motion::StaggerFrom::First}), .duration = 520ms,
+                     .tween = {.duration = 520ms, .delay = motion::stagger(26ms, {.from = motion::StaggerFrom::First})}, 
                      .progress = beat(2.25f, 4.10f)}),
         document::caption(page["note"]).opacity(beat(3.30f, 3.90f)),
     });
@@ -702,8 +702,8 @@ struct ShippingForecast {
             .span(figures, SpanStyle().font(
                                {.variations = {weave::FontVariation("GRAD", 800)}}))
             .span(figures, SpanStyle().ink(var("amber")))
-            .textFx({.effect = textFx::slide(-22),
-                     .delay = motion::stagger(150ms), .duration = 620ms,
+            .textFx({.effect = textFx::enter(textFx::slide(-22)),
+                     .tween = {.duration = 620ms, .delay = motion::stagger(150ms)}, 
                      .unit = weave::Unit::Line,
                      .progress = beat(2.70f, 4.60f)}),
     });
@@ -783,8 +783,8 @@ struct ShippingForecast {
         .top(196)
         .width(28)
         .height(560)
-        .textFx({.effect = textFx::rise(11),
-                 .delay = motion::stagger({0ms, 780ms}, {.from = motion::StaggerFrom::First}), .duration = 420ms,
+        .textFx({.effect = textFx::enter(textFx::rise(11)),
+                 .tween = {.duration = 420ms, .delay = motion::stagger({0ms, 780ms}, {.from = motion::StaggerFrom::First})}, 
                  .progress = beat(0.45f, 2.70f)});
   }
 
@@ -798,8 +798,8 @@ struct ShippingForecast {
     return sketch::kit::titleCard(
         {.eyebrow = {.words = page["eyebrow"], .opacity = beat(0.05f, 0.55f)},
          .title = {.words = page["title"],
-                   .textFx = Track{.effect = textFx::rise(16),
-                                   .delay = motion::stagger({0ms, 420ms}), .duration = 520ms,
+                   .textFx = Track{.effect = textFx::enter(textFx::rise(16)),
+                                   .tween = {.duration = 520ms, .delay = motion::stagger({0ms, 420ms})}, 
                                    .progress = beat(0.15f, 1.30f)}},
          .notes = std::move(slugs),
          .align = Align::Stretch,

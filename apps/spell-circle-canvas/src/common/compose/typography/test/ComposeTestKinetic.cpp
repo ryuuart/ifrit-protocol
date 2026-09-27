@@ -17,8 +17,8 @@ TEST(ComposeKinetic, StaggeredRiseRevealsInOrder) {
     return box().padding(10).children(
         {text(u8"IIIIIIIIIIII", whiteStyle(32))
              .key("k")
-             .textFx({.effect = textFx::rise(24),
-                      .delay = sigil::motion::stagger(40ms), .duration = 200ms,
+             .textFx({.effect = textFx::enter(textFx::rise(24)),
+                      .tween = {.duration = 200ms, .delay = sigil::motion::stagger(40ms)}, 
                       .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.0f));
@@ -78,8 +78,8 @@ TEST(ComposeKinetic, ATrackKeepsABlurredUnderlayBeneathTheStroke) {
         .key(key)
         .absolute()
         .inset(20)
-        .textFx({.effect = textFx::pop(),
-                 .delay = sigil::motion::stagger(30ms), .duration = 480ms,
+        .textFx({.effect = textFx::enter(textFx::pop()),
+                 .tween = {.duration = 480ms, .delay = sigil::motion::stagger(30ms)}, 
                  .progress = kMidCascade});
   };
 
@@ -125,8 +125,8 @@ TEST(ComposeKinetic, ADescribedProgressPaintsLive) {
     return box().padding(10).children(
         {text(u8"POP", whiteStyle(40))
              .key("k")
-             .textFx({.effect = textFx::pop(),
-                      .delay = sigil::motion::stagger(20ms), .duration = 150ms,
+             .textFx({.effect = textFx::enter(textFx::pop()),
+                      .tween = {.duration = 150ms, .delay = sigil::motion::stagger(20ms)}, 
                       .progress = std::move(progress)})});
   };
   host.composer.render(tree(0.001f));
@@ -162,8 +162,8 @@ TEST(ComposeKinetic, ABoundProgressRevealsWithoutARedescribe) {
   host.composer.render(box().padding(10).children(
       {text(u8"IIIIIIIIIIII", whiteStyle(32))
            .key("k")
-           .textFx({.effect = textFx::rise(24),
-                    .delay = sigil::motion::stagger(40ms), .duration = 200ms,
+           .textFx({.effect = textFx::enter(textFx::rise(24)),
+                    .tween = {.duration = 200ms, .delay = sigil::motion::stagger(40ms)}, 
                     .progress = progress})}));
   host.frame();
   auto b = host.composer.bounds("k");
@@ -185,18 +185,74 @@ TEST(ComposeKinetic, AnEntranceComparesByItsDisplacementAndItsCurve) {
   // The curve is a motion easing, compared the way every curve slot is: a
   // named curve by identity, a parameterised one by its numbers.
   const auto rising = [](sigil::motion::Easing ease) {
-    return textFx::enter({.from = {.dy = 26}, .ease = std::move(ease)});
+    return textFx::enter({.from = textFx::Displaced{.dy = 26}, .ease = std::move(ease)});
   };
   EXPECT_TRUE(rising(sigil::motion::ease::outExpo) ==
               rising(sigil::motion::ease::outExpo));
   EXPECT_FALSE(rising(sigil::motion::ease::outExpo) ==
                rising(sigil::motion::ease::outCubic));
-  EXPECT_TRUE(textFx::pop(0.35f, 1.7f) == textFx::pop(0.35f, 1.7f));
-  EXPECT_FALSE(textFx::pop(0.35f, 1.7f) == textFx::pop(0.35f, 2.4f));
+  EXPECT_TRUE(textFx::enter(textFx::pop(0.35f, 1.7f)) == textFx::enter(textFx::pop(0.35f, 1.7f)));
+  EXPECT_FALSE(textFx::enter(textFx::pop(0.35f, 1.7f)) == textFx::enter(textFx::pop(0.35f, 2.4f)));
   // A curve that stays inside [0, 1] reserves the travel alone; one that
   // overshoots reserves its overshoot of the travel and the glyph beyond.
   EXPECT_FLOAT_EQ(rising(sigil::motion::ease::outCubic).reach(), 26.0f);
   EXPECT_FLOAT_EQ(textFx::overshootOf(sigil::motion::ease::outCubic), 0.0f);
   EXPECT_NEAR(textFx::overshootOf(sigil::motion::ease::outBack()), 0.1f, 0.01f);
   EXPECT_GT(rising(sigil::motion::ease::outBack()).reach(), 26.0f);
+}
+
+TEST(ComposeKinetic, AnEntranceIsOneTweenWhoseTimingIsTheTracks) {
+  const sigil::motion::Tween<textFx::Displaced> landing{
+      .from = textFx::Displaced{.dy = 24},
+      .duration = 480ms,
+      .delay = sigil::motion::stagger(28ms),
+      .ease = sigil::motion::ease::outExpo,
+      .loop = -1,
+      .loopDelay = 100ms};
+  const Track track =
+      textFx::entrance(landing, {.unit = sigil::weave::Unit::Word});
+  // The path is the effect; the timing is the track's schedule, and the
+  // unit's own progress runs straight because the path carries the curve.
+  EXPECT_TRUE(track.effect == textFx::enter(landing));
+  EXPECT_EQ(track.tween.duration, landing.duration);
+  EXPECT_EQ(track.tween.delay, landing.delay);
+  EXPECT_EQ(track.tween.loop, -1);
+  EXPECT_EQ(track.tween.loopDelay, sigil::motion::Duration(100ms));
+  EXPECT_FALSE((bool)track.tween.ease);
+  EXPECT_EQ(track.unit, sigil::weave::Unit::Word);
+  EXPECT_TRUE(track.timing().loop);
+  // A stock entrance carries the timing a track defaults to.
+  EXPECT_TRUE(sigil::motion::tweenEqual(textFx::entrance(textFx::rise()).tween,
+                                        Track{}.tween));
+}
+
+TEST(ComposeKinetic, ATracksTweenShapesWhatEachUnitsProgressReads) {
+  EXPECT_FLOAT_EQ(Track{}.unitProgress(0.3f), 0.3f);  // no curve: straight
+  const Track eased{.tween = {.ease = sigil::motion::ease::inQuad}};
+  EXPECT_FLOAT_EQ(eased.unitProgress(0.3f), 0.09f);
+  // A staggered end resolves per unit, the units being siblings.
+  const Track spread{
+      .tween = {.from = 0.5f, .to = sigil::motion::stagger({0.0f, 1.0f})}};
+  EXPECT_FLOAT_EQ(spread.unitProgress(1.0f, {0, 2}), 0.0f);
+  EXPECT_FLOAT_EQ(spread.unitProgress(1.0f, {1, 2}), 1.0f);
+  EXPECT_FLOAT_EQ(spread.unitProgress(0.0f, {1, 2}), 0.5f);
+  // Keyframes share the unit's pass.
+  const Track there{.tween = {.from = 0.0f,
+                              .keyframes = {{.to = 1.0f}, {.to = 0.0f}},
+                              .ease = sigil::motion::ease::linear}};
+  EXPECT_FLOAT_EQ(there.unitProgress(0.25f), 0.5f);
+  EXPECT_FLOAT_EQ(there.unitProgress(0.5f), 1.0f);
+  EXPECT_FLOAT_EQ(there.unitProgress(1.0f), 0.0f);
+}
+
+TEST(ComposeKinetic, AnEntranceHomeIsWhereTheGlyphRests) {
+  // The path runs from `.from` home over one unit of progress: half way
+  // on a straight curve the glyph is half way up, and at the end it rests.
+  const TextEffect straight = textFx::enter(
+      {.from = textFx::Displaced{.dy = 20, .fadeOver = 0},
+       .ease = sigil::motion::ease::linear});
+  sigil::core::noise::Mix64Stream stream(1);
+  EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 0.5f, stream).dy, 10.0f);
+  EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 1.0f, stream).dy, 0.0f);
+  EXPECT_FLOAT_EQ(straight(GlyphInfo{}, 0.0f, stream).alpha, 1.0f);
 }

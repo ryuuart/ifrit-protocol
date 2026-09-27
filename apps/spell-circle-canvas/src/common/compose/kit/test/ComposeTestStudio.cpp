@@ -40,9 +40,8 @@ TEST(ComposeDebug, TrackMeterDrawsACellPerBeatAtItsRect) {
     Element root = box().padding(10).children(
         {text(u8"ABCD", whiteStyle(28))
              .key("word")
-             .textFx({.effect = textFx::rise(4),
-                      .delay = motion::stagger(100ms),
-                      .duration = 100ms,
+             .textFx({.effect = textFx::enter(textFx::rise(4)),
+                      .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
                       .progress = 0.5f})});
     if (withMeter)
       root.children(

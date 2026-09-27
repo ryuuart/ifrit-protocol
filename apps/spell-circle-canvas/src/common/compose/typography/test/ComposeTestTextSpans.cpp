@@ -310,8 +310,8 @@ TEST(TextStyleSelector, AddressesTheNamedRunsAndNotTheirWords) {
   const auto wordsAddressed = [&](sigil::weave::Selector where) {
     host.composer.render(box().padding(10).children(
         {text(copy).key("t").textFx({.where = std::move(where),
-                                     .effect = textFx::rise(0),
-                                     .delay = sigil::motion::stagger(1ms), .duration = 1ms,
+                                     .effect = textFx::enter(textFx::rise(0)),
+                                     .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)}, 
                                      .unit = sigil::weave::Unit::Word})}));
     host.frame();
     return host.composer.beatsOf("t", 0);
@@ -339,8 +339,8 @@ TEST(TextStyleSelector, ComposesUnderTheSelectorAlgebra) {
   const auto glyphsAddressed = [&](sigil::weave::Selector where) {
     host.composer.render(box().padding(10).children(
         {text(copy).key("t").textFx({.where = std::move(where),
-                                     .effect = textFx::rise(0),
-                                     .delay = sigil::motion::stagger(1ms), .duration = 1ms,
+                                     .effect = textFx::enter(textFx::rise(0)),
+                                     .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)}, 
                                      .unit = sigil::weave::Unit::Glyph})}));
     host.frame();
     return host.composer.beatsOf("t", 0).size();
@@ -374,8 +374,8 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
         {text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
              .key("t")
              .textFx({.where = selectors::style("unregistered-register"),
-                      .effect = textFx::rise(0),
-                      .duration = 1ms,
+                      .effect = textFx::enter(textFx::rise(0)),
+                      .tween = {.duration = 1ms, .delay = sigil::motion::stagger(30ms)},
                       .unit = sigil::weave::Unit::Glyph})});
   };
   host.composer.render(describe());
@@ -389,8 +389,8 @@ TEST(TextStyleSelector, PlainTextCarriesNoNamesAndSaysSoOnce) {
       {text(u8"alpha beta gamma", coloredStyle(24, SK_ColorWHITE))
            .key("t")
            .textFx({.where = selectors::style("unregistered-register"),
-                    .effect = textFx::rise(0),
-                    .duration = 1ms,
+                    .effect = textFx::enter(textFx::rise(0)),
+                    .tween = {.duration = 1ms, .delay = sigil::motion::stagger(30ms)},
                     .unit = sigil::weave::Unit::Glyph})}));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -413,8 +413,8 @@ TEST(TextStyleSelector, ReachesTheSpanRestylesToo) {
   // guessed, so the assertions below can name one of them.
   host.composer.render(box().padding(10).children({text(copy).key("t").textFx(
       {.where = sigil::weave::selectors::text(u8"beta"),
-       .effect = textFx::rise(0),
-       .delay = sigil::motion::stagger(1ms), .duration = 1ms,
+       .effect = textFx::enter(textFx::rise(0)),
+       .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)}, 
        .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const std::vector<Beat> betas = host.composer.beatsOf("t", 0);
@@ -473,8 +473,8 @@ TEST(TextStyleSelector, ANameOutlivesTheStyleItResolvedTo) {
         {text(glossaryCopy(set))
              .key("t")
              .textFx({.where = selectors::style("term"),
-                      .effect = textFx::rise(0),
-                      .delay = sigil::motion::stagger(1ms), .duration = 1ms,
+                      .effect = textFx::enter(textFx::rise(0)),
+                      .tween = {.duration = 1ms, .delay = sigil::motion::stagger(1ms)}, 
                       .unit = sigil::weave::Unit::Glyph})}));
     host.frame();
     return host.composer.beatsOf("t", 0).size();

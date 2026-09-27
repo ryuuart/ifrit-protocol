@@ -602,7 +602,7 @@ struct Cosmati {
   Element letters() const {
     const auto setting = [&](float from, float to) {
       return Track{.effect = textFx::enter({.fromScale = 1.5f, .fadeOver = 0.45f}),
-                   .delay = sigil::motion::stagger(40ms), .duration = 260ms,
+                   .tween = {.duration = 260ms, .delay = sigil::motion::stagger(40ms)}, 
                    .progress = sigil::motion::bind(seconds, {.from = {from, to}, .clampFrom = true})};
     };
     const float beat = (kLettersTo - kLettersFrom) / 5;

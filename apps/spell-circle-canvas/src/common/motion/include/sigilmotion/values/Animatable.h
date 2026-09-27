@@ -236,10 +236,10 @@ namespace detail {
  *  converts from anything its value does, which a counted pin cannot see
  *  past, so this one is spelled out. */
 inline auto fields(Tween<float>& tween) {
-  auto& [from, to, keyframes, duration, delay, ease, loop, alternate,
-         composition] = tween;
-  return std::tie(from, to, keyframes, duration, delay, ease, loop, alternate,
-                  composition);
+  auto& [from, to, keyframes, duration, delay, ease, loop, loopDelay,
+         alternate, composition] = tween;
+  return std::tie(from, to, keyframes, duration, delay, ease, loop, loopDelay,
+                  alternate, composition);
 }
 }  // namespace detail
 

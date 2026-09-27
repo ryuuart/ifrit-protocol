@@ -278,9 +278,12 @@ void detail::paintTextFx(Composer::Impl& impl, Instance& inst, SkCanvas& canvas,
           info.unitIndex = rc.outerUnit[g];
           info.unitCount =
               std::max<uint32_t>((uint32_t)rc.schedule.outerOrder.size(), 1u);
-          const float t =
+          // The unit's own place in its beat, then what the track's tween
+          // says that place reads: from, to, curve and keyframes.
+          const float t = r.track->unitProgress(
               rc.schedule.localProgress(r.master, rc.outerUnit[g],
-                                   rc.innerUnit.empty() ? 0u : rc.innerUnit[g]);
+                                        rc.innerUnit.empty() ? 0u : rc.innerUnit[g]),
+              {info.unitIndex, info.unitCount});
           core::noise::Mix64Stream rng(detail::glyphSeed(info));
           detail::compose(modifier, r.track->effect(info, t, rng));
           continuous |= r.track->continuous;

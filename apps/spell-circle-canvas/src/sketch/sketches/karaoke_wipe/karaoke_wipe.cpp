@@ -588,7 +588,7 @@ struct KaraokeWipe {
     Text next = text(song.next).role("lyric").styleClass("next").textFx(
         {.effect = textFx::keys({{0.0f, {}}, {1.0f, {.colorScreen = kCueLight}}},
                                 motion::ease::inOutQuad),
-         .delay = motion::stagger(70ms), .duration = 320ms,
+         .tween = {.duration = 320ms, .delay = motion::stagger(70ms)}, 
          .unit = weave::Unit::Word,
          .progress = motion::bind(cycle, {.from = {(float)(kLeadIn + kLineSeconds + 0.25), (float)(kLeadIn + kLineSeconds + kHold - 0.15)}, .clampFrom = true})});
 

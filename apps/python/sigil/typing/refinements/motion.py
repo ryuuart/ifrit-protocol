@@ -98,6 +98,7 @@ def register(table: Table) -> None:
     timing = (
         f"duration: {TIMES} | None = None, delay: {TIMES} | None = None, "
         "ease: _t.EaseLike = None, loop: typing.SupportsInt = 0, "
+        "loopDelay: _t.DurationLike = 0.0, "
         f"alternate: bool = False, composition: {MOTION}.Composition = ..."
     )
     for prefix, value, _, field_type in (FAMILIES[0], FAMILIES[2], FAMILIES[1]):

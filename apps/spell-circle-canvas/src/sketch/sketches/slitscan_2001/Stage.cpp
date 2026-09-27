@@ -3,8 +3,8 @@
 
 auto SlitScan2001::header() -> Element {
   using namespace slit;
-  Track rise{.effect = textFx::rise(18.0f),
-             .delay = sigil::motion::stagger(22ms),
+  Track rise{.effect = textFx::enter(textFx::rise(18.0f)),
+             .tween = {.duration = 450ms, .delay = sigil::motion::stagger(22ms)},
              .progress = sigil::motion::animate({.to = 1.0f, .duration = 440ms, .delay = 120ms, .ease = sigil::motion::ease::outExpo})};
   // The masthead is set in the interface face; the title alone takes
   // the bold cut.

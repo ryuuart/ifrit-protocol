@@ -95,7 +95,7 @@ TEST(ComposeTextFx, AHeldTrackPaintsNothingBeforeItsBeatBesideAnOpenTrack) {
         {text(u8"HOLD", whiteStyle(36))
              .key("k")
              .textFx({.effect = std::move(decode),
-                      .delay = sigil::motion::stagger(40ms), .duration = 200ms,
+                      .tween = {.duration = 200ms, .delay = sigil::motion::stagger(40ms)}, 
                       .progress = progress})
              .textFx({.effect = fixed("lift", lift)})}));
     host.frame();
@@ -267,7 +267,7 @@ TEST(ComposeTextFx, ContinuousLiftsTheSnapAndStillSettles) {
   // whose progress has stopped moving settles like any other.
   Host settling(200, 200);
   sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.0f);
-  Track track{.effect = textFx::rise(14), .progress = progress};
+  Track track{.effect = textFx::enter(textFx::rise(14)), .progress = progress};
   track.continuous = true;
   settling.composer.render(box().padding(20).children(
       {text(u8"SETTLE", whiteStyle(24)).key("k").textFx(std::move(track))}));

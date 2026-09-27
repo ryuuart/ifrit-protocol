@@ -5,11 +5,12 @@ A chapter of [TYPOGRAPHY.md](../TYPOGRAPHY.md), the type chapter of
 
 Motion inside a text leaf is a list of **tracks**. One `Track` is five
 things — *which* glyphs (`weave::Selector`), *what* deviation from rest
-(`TextEffect`), *when* each beat opens and how long it lasts (the timing
-fields `Track::delay`, `Track::duration`, `Track::loop` and
-`Track::within`, read together as a `motion::Timing`), what a unit IS
-(`Track::unit`), and the master `Animatable<float>` progress that drives
-it. The timing is SigilMotion's and says nothing about text; `unit` is the
+(`TextEffect`), *when* each beat opens and how long it lasts
+(`Track::tween`, a `motion::Tween` — the one description of a motion —
+run over the units as siblings, with `Track::within` nesting a second
+stagger inside each beat), what a unit IS (`Track::unit`), and the master
+`Animatable<float>` progress that drives it. The timing is SigilMotion's
+and says nothing about text; `unit` is the
 whole of what makes it a schedule over glyphs rather than over any other
 run of units. `Text::textFx` appends one;
 several compose per glyph, with `GlyphModifier` offsets and rotations adding
@@ -25,12 +26,18 @@ and scale and alpha multiplying. The seam is three headers:
   against.
 - `typography/Track.h` — the schedule. `Track` is the five things above,
   and `Beats` is which list its beats are numbered against.
-- `kit/Kinetic.h` — the stock effects an example reaches for: `rise`,
-  `waveLoop` and the rest are values over the seam, and so the kit's.
+- `kit/Kinetic.h` — the entrance a track is made of and the stock
+  effects an example reaches for. `textFx::entrance` is ONE
+  `motion::Tween` of a glyph's `textFx::Displaced` lanes — `.from` where
+  it starts, `.ease` how it comes home, `.duration`, `.delay` and `.loop`
+  the track's schedule — made a track; `textFx::enter` is the same path as
+  an effect, for the combinators, where the track around it says when.
+  The stock entrances `rise`, `slide`, `pop`, `spinIn` and `scatter` are
+  tween values; `waveLoop` and the rest are effect values over the seam.
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
-    .textFx({.effect = textFx::rise(20), .unit = weave::Unit::Word})
+    .textFx(textFx::entrance(textFx::rise(20), {.unit = weave::Unit::Word}))
     .textFx({.where = weave::selectors::text(u8"TWO"),
          .effect = textFx::waveLoop(),
          .progress = phase});   // a motion::animatable the sketch steps
@@ -76,9 +83,11 @@ named `weave::rich()` run carries a name: plain text, a run given a style
 directly, and the paragraph overload have none, so there it selects nothing
 and warns once per name, as does a name no run was written with.
 
-**Staggers.** When each unit's beat opens is `Track::delay`, a
-`motion::Staggered` duration — the same stagger value any tween field
-takes, with anime.js's model: `motion::stagger(28ms)` steps from one unit
+**Staggers.** A track is a collective on one tween: its units are the
+siblings every `motion::stagger()` and `motion::cues()` in it resolves
+over, exactly as a list handed to `motion::Engine::animate` is. When each
+unit's beat opens is the tween's `.delay`, a `motion::Staggered` duration,
+with anime.js's model: `motion::stagger(28ms)` steps from one unit
 to the next, `motion::stagger({0ms, 620ms})` spreads a fixed span across
 however many units there are, and a plain duration opens every unit
 together. `motion::StaggerOptions` says where the run opens from —
@@ -90,24 +99,31 @@ is keyed on the unit count and the seed, so the same text scatters the
 same way on every frame and after every relayout. At the default seed of
 0 the key is the count alone, which makes two same-count staggers scatter
 identically; give each field its own nonzero seed for independent
-scatters. `Track::duration` is how long one unit's own motion lasts, and
-`Track::within` nests a second stagger inside every beat of the first —
-`Track::innerUnit` says what a unit is at that second level.
+scatters. The tween's `.duration` is how long one unit's own motion
+lasts, and `Track::within` nests a second stagger inside every beat of
+the first — `Track::innerUnit` says what a unit is at that second level.
+What a unit's motion reads is its local progress run through the rest of
+the tween: `.from` (0) to `.to` (1) on `.ease` — straight when none is
+named, because an effect carries its own curve — through any
+`.keyframes`, each of which may itself be a stagger resolved per unit
+(`Track::unitProgress`). A track written with no tween opens one unit
+30ms after the one before, each for 450ms; a tween written whole takes
+`motion::Tween`'s own defaults, no delay and 250ms.
 
 **Irregular timing.** `motion::cues` replaces the even steps with a TABLE
 — one start time per unit — which is what caption, lyric and lip-sync
 timing actually is:
 
 ```cpp
-text(lyric).textFx({.effect = textFx::rise(12),
-                    .delay = motion::cues({0ms, 340ms, 720ms, 1180ms}),
-                    .duration = 180ms,
+text(lyric).textFx({.effect = textFx::enter(textFx::rise(12)),
+                    .tween = {.duration = 180ms,
+                              .delay = motion::cues({0ms, 340ms, 720ms, 1180ms})},
                     .unit = weave::Unit::Word});
 ```
 
 A table is a stagger, so it goes anywhere one goes and compares like one.
-It says only *when unit k starts*; `Track::duration` and `Track::within`
-are untouched by it. A unit past the end of the table starts at the last
+It says only *when unit k starts*; the tween's `.duration` and
+`Track::within` are untouched by it. A unit past the end of the table starts at the last
 entry (the tail piles, visibly, rather than being given times nobody
 wrote), entries past the last unit go unread, and either mismatch warns
 once.
@@ -119,8 +135,8 @@ granularity in the paragraph, addressed or not. Two tracks that partition
 one paragraph share a clock *by construction* only under `beats::Text`;
 under the default they line up while their selections happen to resolve
 lists of the same length and silently drift apart when they stop. The
-nested stagger takes the outer one's answer, as one `Track::loop`
-governs both levels.
+nested stagger takes the outer one's answer, as one loop governs both
+levels.
 
 **Reading the schedule back.** `Composer::beatsOf` reports the schedule one
 track is actually running, after layout:
@@ -183,8 +199,8 @@ that needs it before any node exists — above all the progress
 transition written right next to the stagger:
 
 ```cpp
-const Track title{.effect = textFx::rise(20),
-                  .delay = motion::stagger(28ms), .duration = 480ms};
+const Track title{.effect = textFx::enter(textFx::rise(20)),
+                  .tween = {.duration = 480ms, .delay = motion::stagger(28ms)}};
 const motion::Duration span = title.span(13);  // 480 + 28·12 ms, before any layout
 // Drive the track's progress over exactly `span` and the last glyph
 // lands as the master arrives at 1. After a draw,
@@ -197,32 +213,35 @@ beat holds (the widest beat's count, where they vary), and a spread
 span is the same for every count past one, because the spread *is* the
 span.
 
-**The looping schedule.** `Track::loop` makes the schedule wrap: above
-zero, every unit's beat re-opens on its own cycle of that period,
+**The looping schedule.** A tween `.loop` other than zero makes the
+schedule wrap: every unit's beat re-opens on its own cycle — one beat
+plus the tween's `.loopDelay`, the hold between passes —
 phase-offset by the unit's start time — stepped stagger and cue table
 alike — so steady continuous motion (rain re-dropping column by column,
 arrivals that never stop) is *declared* rather than faked by re-running a
 one-shot. The master stays the one clock, and one sweep 0→1 is exactly
-one cycle: unit *i* reads `clamp(((master·loop − startᵢ) mod loop) /
-duration)`, so master 0 and master 1 name the same instant of the cycle
+one cycle: unit *i* reads `clamp(((master·period − startᵢ) mod period) /
+duration)`, and every other cycle backwards under `.alternate`, so master
+0 and master 1 name the same instant of the cycle
 and a **wrapping live phase** — a `motion::animatable` stepped mod 1, the
 clock `textFx::waveLoop` already reads — drives it seamlessly forever:
 
 ```cpp
 text(field, rain).textFx({.effect = streak,
-                          .delay = motion::cues(columnStarts),
-                          .duration = 1400ms,
-                          .loop = 5s,     // every column re-drops on its own cue, forever
+                          .tween = {.duration = 1400ms,
+                                    .delay = motion::cues(columnStarts),
+                                    .loop = -1,  // every column re-drops on its own cue, forever
+                                    .loopDelay = 2s},
                           .within = motion::stagger(80ms),
                           .unit = weave::Unit::Line,
                           .innerUnit = weave::Unit::Cluster,
-                          .progress = phase});  // phase wraps every 5 s
+                          .progress = phase});  // phase wraps once a period
 ```
 
 Between its beat's close and its next opening a unit rests at local 1 — its
 landed deviation — and returns to 0 the instant the beat re-opens, so an
 effect that loops cleanly ends where nothing shows. Start offsets fold mod
-the period (a start past `loop` lands at start mod `loop`), and the
+the period (a start past the period lands at start mod the period), and the
 fold means every unit is *always* somewhere in its cycle: there is no
 "before the first beat", which leaves `textFx::hold` nothing to veto (local
 progress touches 0 only at the instant of re-opening) — an effect on a
@@ -238,7 +257,9 @@ whoever steps the phase. Driving that phase is also what keeps the
 element live: a looping schedule at a *constant* master is one still
 frame of its cycle, exactly as a wave at one phase is, so permanent
 volatility is declared by the wrapping live value, never by the field,
-and a zero `loop` — the default — is the one-shot schedule.
+and a zero `.loop` — the default — is the one-shot schedule. A looping
+track loops for as long as its master wraps, so any count other than
+zero loops.
 
 **Marking the type.** `Text::textAttach` anchors a child to the rect a
 *selector
@@ -387,7 +408,8 @@ plus one pass whatever the unit count is:
 auto burn = material::Paint::recipe(
     sigil::material::Material(emberDissolve, Burn{ink}));
 text(u8"EMBER DECODE", display)
-    .textFx({.effect = textFx::pass(burn), .delay = motion::stagger(260ms)});
+    .textFx({.effect = textFx::pass(burn),
+             .tween = {.duration = 450ms, .delay = motion::stagger(260ms)}});
 ```
 
 The paint must be RECIPE-BACKED — `material::Paint::recipe` over a recipe

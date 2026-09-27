@@ -10,6 +10,7 @@
  */
 
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmotion/schedule/Schedule.h>
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Interpolate.h>
@@ -86,8 +87,14 @@ struct Tween {
   std::vector<Keyframe<T>> keyframes;
   Staggered<Duration> duration = Duration(std::chrono::milliseconds(250));
   Staggered<Duration> delay = Duration{};
-  Easing ease = ease::outQuad;
+  /** The curve; empty reads as `ease::outQuad` (`easing()`), and a
+   *  collective that runs a unit's progress through it — a text track —
+   *  reads empty as straight. */
+  Easing ease;
   int loop = 0;
+  /** Held at the end of every pass before the next one starts, when the
+   *  motion loops — anime.js's `loopDelay`. */
+  Duration loopDelay{};
   bool alternate = false;
   Composition composition = Composition::Replace;
 
@@ -143,6 +150,9 @@ struct Tween {
     Duration pass{};
     for (size_t index = 0; index < count; ++index)
       pass += steps[index].duration.value_or(share);
+    // A looping pass ends on its hold, where the value rests at the last
+    // step's end until the next pass starts.
+    if (loop != 0) pass += loopDelay;
     if (time <= wait) return start;
     Duration into = time - wait;
     int index = 0;
@@ -176,8 +186,29 @@ bool tweenEqual(const Tween<T>& left, const Tween<T>& right) {
          left.keyframes == right.keyframes &&
          left.duration == right.duration && left.delay == right.delay &&
          easeEqual(left.easing(), right.easing()) && left.loop == right.loop &&
-         left.alternate == right.alternate &&
+         left.loopDelay == right.loopDelay && left.alternate == right.alternate &&
          left.composition == right.composition;
+}
+
+/** A TWEEN AS A COLLECTIVE'S SCHEDULE READS IT: its delay — a
+ *  `stagger()` or `cues()` resolved over the run's units — the length of
+ *  one unit's motion, and whether it loops, holding `loopDelay` between
+ *  passes and running every other one backwards under `alternate`; with
+ *  @p within, a second stagger inside every beat. A collective loops for
+ *  as long as its master progress wraps, so any `loop` other than zero
+ *  loops. A staggered `duration` reads as a unit alone's: one schedule
+ *  has one beat length. */
+template <typename T>
+Timing timingOf(const Tween<T>& tween,
+                std::optional<Staggered<Duration>> within = std::nullopt) {
+  Timing timing;
+  timing.delay = tween.delay;
+  timing.duration = tween.duration.value();
+  timing.loop = tween.loop != 0;
+  timing.loopDelay = tween.loopDelay;
+  timing.alternate = tween.alternate;
+  timing.within = std::move(within);
+  return timing;
 }
 
 template <typename T>

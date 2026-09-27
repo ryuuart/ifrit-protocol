@@ -630,7 +630,7 @@ struct ElasticType {
     const auto oneBodyWord = [&] {
       return deform(specimen(word).textFx(
           {.effect = tint,
-           .delay = motion::stagger(0ms), .duration = std::chrono::duration<double, std::milli>(kDurationMs),
+           .tween = {.duration = std::chrono::duration<double, std::milli>(kDurationMs), .delay = motion::stagger(0ms)}, 
            .progress = whole}));
     };
     return box().column().gap(6).children(

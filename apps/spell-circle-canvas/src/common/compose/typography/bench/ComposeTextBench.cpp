@@ -95,7 +95,7 @@ static void BM_Draw_KineticText(benchmark::State& state) {
   for (int i = 0; i < lines; ++i)
     block.children(
         {text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-             .textFx({.effect = textFx::rise(24), .progress = progress})});
+             .textFx({.effect = textFx::enter(textFx::rise(24)), .progress = progress})});
   host.composer.render(block);
   host.draw();
   float t = 0;
@@ -127,8 +127,8 @@ static void BM_Draw_KineticColumns(benchmark::State& state) {
              .width(160)
              .height(1100)
              .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-             .textFx({.effect = textFx::rise(24),
-                      .delay = sigil::motion::stagger(120ms),
+             .textFx({.effect = textFx::enter(textFx::rise(24)),
+                      .tween = {.duration = 450ms, .delay = sigil::motion::stagger(120ms)},
                       .unit = sigil::weave::Unit::Line,
                       .progress = progress})});
   host.composer.render(block);
@@ -217,7 +217,7 @@ static void BM_Draw_KineticText_Graphite(benchmark::State& state) {
   for (int i = 0; i < lines; ++i)
     block.children(
         {text(u8"KINETIC ATLAS RESIDENCY PROBE 0123456789", style)
-             .textFx({.effect = textFx::rise(24), .progress = progress})});
+             .textFx({.effect = textFx::enter(textFx::rise(24)), .progress = progress})});
   host.composer.render(block);
   host.composer.draw(target.canvas());
   target.submit();

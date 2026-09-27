@@ -129,7 +129,9 @@ void Schedule::build(const Timing& timing, uint32_t outerCount,
   // PERIOD rather than the one-shot closing span — one sweep 0→1 is one
   // cycle — so totalMs IS the period and localProgress() folds each unit's
   // elapsed time by it.
-  loopMs = std::max(milliseconds(timing.loop), 0.0f);
+  loopMs = timing.loop ? beatMs + std::max(milliseconds(timing.loopDelay), 0.0f)
+                       : 0.0f;
+  alternate = timing.loop && timing.alternate;
   if (loopMs > 0) totalMs = loopMs;
 }
 
@@ -175,10 +177,14 @@ float Schedule::localProgress(float master, uint32_t outerUnit,
     // 0 and master 1 the same instant, and puts every unit somewhere in
     // its cycle from the first frame. Past its duration a beat rests at 1
     // until the fold brings it back to 0.
-    float elapsed =
-        std::fmod(master * totalMs - startMs(outerUnit, innerUnit), loopMs);
+    const float since = master * totalMs - startMs(outerUnit, innerUnit);
+    float elapsed = std::fmod(since, loopMs);
     if (elapsed < 0) elapsed += loopMs;
-    return std::clamp(elapsed / duration, 0.0f, 1.0f);
+    const float local = std::clamp(elapsed / duration, 0.0f, 1.0f);
+    // Alternating, an odd cycle runs the beat backwards.
+    if (alternate && ((int64_t)std::floor(since / loopMs) & 1) != 0)
+      return 1.0f - local;
+    return local;
   }
   return std::clamp(
       (master * totalMs - startMs(outerUnit, innerUnit)) / duration, 0.0f,

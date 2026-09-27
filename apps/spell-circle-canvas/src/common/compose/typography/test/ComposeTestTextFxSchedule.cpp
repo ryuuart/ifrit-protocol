@@ -67,17 +67,16 @@ TEST(ComposeTextFx, PartitioningTracksShareOneClockOnlyUnderBeatsText) {
                                    sigil::weave::Unit::Word)
                                    .take(1) &
                                sigil::weave::selectors::words(1, 4),
-                      .effect = textFx::rise(6),
-                      .delay = motion::stagger(100ms),
-                      .duration = 100ms,
+                      .effect = textFx::enter(textFx::rise(6)),
+                      .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
                       .unit = sigil::weave::Unit::Word,
                       .beatsOver = numbering})
              .textFx({.where = sigil::weave::selectors::each(
                                    sigil::weave::Unit::Word)
                                    .drop(1),
-                      .effect = textFx::rise(6),
-                      .delay = motion::stagger(100ms),
-                      .duration = 100ms})}));
+                      .effect = textFx::enter(textFx::rise(6)),
+                      .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
+                      })}));
     host.frame();
     return std::pair(host.composer.beatsOf("p", 0),
                      host.composer.beatsOf("p", 1));
@@ -124,9 +123,8 @@ TEST(ComposeTextFx, ATrackOverTheSelectionBeatsOnceForEachExtentItNamed) {
              .key("p")
              .width(460)
              .textFx({.where = sigil::weave::selectors::text(u8"AA"),
-                      .effect = textFx::rise(6),
-                      .delay = motion::stagger(100ms),
-                      .duration = 100ms,
+                      .effect = textFx::enter(textFx::rise(6)),
+                      .tween = {.duration = 100ms, .delay = motion::stagger(100ms)},
                       .unit = sigil::weave::Unit::Selection,
                       .beatsOver = numbering})}));
     host.frame();
@@ -158,9 +156,8 @@ TEST(ComposeTextFx, ACueTableStartsUnitKAtItsOwnTime) {
       {text(u8"AA BB CC DD", whiteStyle(16))
            .key("p")
            .width(360)
-           .textFx({.effect = textFx::rise(6),
-                    .delay = motion::cues(table),
-                    .duration = 180ms,
+           .textFx({.effect = textFx::enter(textFx::rise(6)),
+                    .tween = {.duration = 180ms, .delay = motion::cues(table)},
                     .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("p", 0);
@@ -189,9 +186,8 @@ TEST(ComposeTextFx, AShortCueTablePilesItsTailAndWarnsOnce) {
       {text(u8"AA BB CC DD", whiteStyle(16))
            .key("p")
            .width(360)
-           .textFx({.effect = textFx::rise(6),
-                    .delay = motion::cues({0ms, 200ms}),
-                    .duration = 100ms,
+           .textFx({.effect = textFx::enter(textFx::rise(6)),
+                    .tween = {.duration = 100ms, .delay = motion::cues({0ms, 200ms})},
                     .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const std::string log = ::testing::internal::GetCapturedStderr();
@@ -224,9 +220,8 @@ TEST(ComposeTextFx, BeatsOfReportsWhereTheGlyphsActuallyWentAndWhen) {
   copy.add(u8"alpha bravo ").add(u8"charlie", whiteStyle(24)).add(u8" delta");
   host.composer.render(
       box().padding(10).children({text(copy).key("p").width(120).textFx(
-          {.effect = textFx::rise(8),
-           .delay = motion::stagger(100ms),
-           .duration = 200ms,
+          {.effect = textFx::enter(textFx::rise(8)),
+           .tween = {.duration = 200ms, .delay = motion::stagger(100ms)},
            .unit = sigil::weave::Unit::Word,
            .progress = progress})}));
   host.frame();
@@ -286,7 +281,7 @@ TEST(ComposeTextFx, BeatsOfFollowsAPathBaseline) {
                           .width(100)
                           .height(100)
                           .textOnPath({.path = BeatRing{}})
-                          .textFx({.effect = textFx::rise(4),
+                          .textFx({.effect = textFx::enter(textFx::rise(4)),
                                    .unit = sigil::weave::Unit::Cluster})}));
   host.frame();
   const std::vector<Beat> beats = host.composer.beatsOf("ring", 0);
@@ -330,9 +325,8 @@ TEST(ComposeTextFx, BeatsOfCompoundsANestedSchedule) {
       {text(u8"AB CD", whiteStyle(16))
            .key("p")
            .width(360)
-           .textFx({.effect = textFx::rise(6),
-                    .delay = motion::stagger(300ms),
-                    .duration = 100ms,
+           .textFx({.effect = textFx::enter(textFx::rise(6)),
+                    .tween = {.duration = 100ms, .delay = motion::stagger(300ms)},
                     .within = motion::stagger(40ms),
                     .unit = sigil::weave::Unit::Word,
                     .innerUnit = sigil::weave::Unit::Cluster})}));
@@ -355,7 +349,7 @@ TEST(ComposeTextFx, BeatsOfResolvesEmptyRatherThanGuessing) {
   host.composer.render(box().padding(6).children(
       {text(u8"AA BB", whiteStyle(16))
            .key("p")
-           .textFx({.effect = textFx::rise(6),
+           .textFx({.effect = textFx::enter(textFx::rise(6)),
                     .unit = sigil::weave::Unit::Word})}));
   host.frame();
   EXPECT_FALSE(host.composer.beatsOf("p", 0).empty());
@@ -376,9 +370,8 @@ TEST(ComposeTextFx, ScheduleSpanIsWhatTheMasterProgressMapsOnto) {
       {text(u8"AA BB CC DD", whiteStyle(16))
            .key("p")
            .width(360)
-           .textFx({.effect = textFx::rise(6),
-                    .delay = timing.delay,
-                    .duration = timing.duration,
+           .textFx({.effect = textFx::enter(textFx::rise(6)),
+                    .tween = {.duration = timing.duration, .delay = timing.delay},
                     .unit = sigil::weave::Unit::Word})}));
   host.frame();
   const float span = inMilliseconds(host.composer.scheduleSpan("p", 0));
@@ -417,9 +410,8 @@ TEST(ComposeTextFx, ScheduleSpanCompoundsNestingAndReadsTheTable) {
         {text(u8"AB CD", whiteStyle(16))
              .key("p")
              .width(360)
-             .textFx({.effect = textFx::rise(6),
-                      .delay = nested.delay,
-                      .duration = nested.duration,
+             .textFx({.effect = textFx::enter(textFx::rise(6)),
+                      .tween = {.duration = nested.duration, .delay = nested.delay},
                       .within = nested.within,
                       .unit = sigil::weave::Unit::Word,
                       .innerUnit = sigil::weave::Unit::Cluster})}));
@@ -444,9 +436,8 @@ TEST(ComposeTextFx, ScheduleSpanCompoundsNestingAndReadsTheTable) {
         {text(u8"AA BB CC DD", whiteStyle(16))
              .key("p")
              .width(360)
-             .textFx({.effect = textFx::rise(6),
-                      .delay = cued.delay,
-                      .duration = cued.duration,
+             .textFx({.effect = textFx::enter(textFx::rise(6)),
+                      .tween = {.duration = cued.duration, .delay = cued.delay},
                       .unit = sigil::weave::Unit::Word})}));
     host.frame();
     const float span = inMilliseconds(host.composer.scheduleSpan("p", 0));
@@ -466,7 +457,7 @@ TEST(ComposeTextFx, ScheduleSpanResolvesZeroRatherThanGuessing) {
   host.composer.render(box().padding(6).key("b").children(
       {text(u8"AA BB", whiteStyle(16))
            .key("p")
-           .textFx({.effect = textFx::rise(6),
+           .textFx({.effect = textFx::enter(textFx::rise(6)),
                     .unit = sigil::weave::Unit::Word})}));
   host.frame();
   EXPECT_GT(inMilliseconds(host.composer.scheduleSpan("p", 0)), 0.0f);
@@ -489,10 +480,8 @@ std::vector<Beat> loopBeatsAt(Host& host, float master) {
            .key("p")
            .width(360)
            .textFx(
-               {.effect = textFx::rise(6),
-                .delay = motion::stagger(100ms),
-                .duration = 200ms,
-                .loop = 400ms,
+               {.effect = textFx::enter(textFx::rise(6)),
+                .tween = {.duration = 200ms, .delay = motion::stagger(100ms), .loop = -1, .loopDelay = 400ms - 200ms},
                 .unit = sigil::weave::Unit::Word,
                 .progress = master})}));
   host.frame();
@@ -543,7 +532,7 @@ TEST(ComposeTextFx, ALoopingScheduleReopensEachUnitOnItsOwnCycle) {
   EXPECT_FLOAT_EQ(inMilliseconds(host.composer.scheduleSpan("p", 0)), 400.0f);
   const motion::Timing looping{.delay = motion::stagger(100ms),
                                .duration = 200ms,
-                               .loop = 400ms};
+                               .loop = true, .loopDelay = 400ms - 200ms};
   EXPECT_FLOAT_EQ(inMilliseconds(looping.span(3)), 400.0f);
 
   // A start PAST the period folds mod it — the beat still re-opens once
@@ -554,10 +543,8 @@ TEST(ComposeTextFx, ALoopingScheduleReopensEachUnitOnItsOwnCycle) {
              .key("p")
              .width(360)
              .textFx(
-                 {.effect = textFx::rise(6),
-                  .delay = motion::stagger(300ms),
-                  .duration = 200ms,
-                  .loop = 400ms,
+                 {.effect = textFx::enter(textFx::rise(6)),
+                  .tween = {.duration = 200ms, .delay = motion::stagger(300ms), .loop = -1, .loopDelay = 400ms - 200ms},
                   .unit = sigil::weave::Unit::Word,
                   .progress = 0.75f})}));  // virtual 300
     host.frame();
@@ -577,12 +564,12 @@ TEST(ComposeTextFx, AZeroLoopIsTheOneShotSchedule) {
   const motion::Timing defaultedTiming{.delay = motion::stagger(100ms),
                                        .duration = 200ms};
   const motion::Timing spelledTiming{
-      .delay = motion::stagger(100ms), .duration = 200ms, .loop = 0ms};
+      .delay = motion::stagger(100ms), .duration = 200ms, .loop = false};
   EXPECT_TRUE(defaultedTiming == spelledTiming);
   EXPECT_FALSE(defaultedTiming ==
                (motion::Timing{.delay = motion::stagger(100ms),
                                .duration = 200ms,
-                               .loop = 400ms}));
+                               .loop = true, .loopDelay = 400ms - 200ms}));
 
   const auto render = [](const motion::Timing& timing) {
     Host host(400, 120);
@@ -590,10 +577,8 @@ TEST(ComposeTextFx, AZeroLoopIsTheOneShotSchedule) {
         {text(u8"AA BB CC", whiteStyle(16))
              .key("p")
              .width(360)
-             .textFx({.effect = textFx::rise(6),
-                      .delay = timing.delay,
-                      .duration = timing.duration,
-                      .loop = timing.loop,
+             .textFx({.effect = textFx::enter(textFx::rise(6)),
+                      .tween = {.duration = timing.duration, .delay = timing.delay, .loop = timing.loop ? -1 : 0, .loopDelay = timing.loopDelay, .alternate = timing.alternate},
                       .unit = sigil::weave::Unit::Word,
                       .progress = 0.25f})}));
     host.frame();
@@ -626,10 +611,8 @@ TEST(ComposeTextFx, AHeldEffectOnALoopingCascadeHasNothingLeftToVeto) {
     return box().padding(10).children(
         {text(u8"AA BB", whiteStyle(28))
              .key("p")
-             .textFx({.effect = textFx::hold(textFx::rise(24)),
-                      .delay = motion::stagger(300ms),
-                      .duration = 100ms,
-                      .loop = loop,
+             .textFx({.effect = textFx::hold(textFx::enter(textFx::rise(24))),
+                      .tween = {.duration = 100ms, .delay = motion::stagger(300ms), .loop = -1, .loopDelay = loop - 100ms},
                       .unit = sigil::weave::Unit::Word,
                       .progress = 0.25f})});
   };
@@ -669,10 +652,8 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
       {text(u8"LOOP", whiteStyle(28))
            .key("p")
            .textFx(
-               {.effect = textFx::rise(24),
-                .delay = motion::stagger(100ms),
-                .duration = 200ms,
-                .loop = 400ms,
+               {.effect = textFx::enter(textFx::rise(24)),
+                .tween = {.duration = 200ms, .delay = motion::stagger(100ms), .loop = -1, .loopDelay = 400ms - 200ms},
                 .unit = sigil::weave::Unit::Cluster,
                 .progress = phase})}));
   live.frame();
@@ -690,9 +671,8 @@ TEST(ComposeTextFx, ALoopingCascadeOnAWrappingPhaseNeverSettles) {
   still.composer.render(box().padding(10).children(
       {text(u8"LOOP", whiteStyle(28))
            .key("p")
-           .textFx({.effect = textFx::rise(24),
-                    .delay = motion::stagger(100ms),
-                    .duration = 200ms,
+           .textFx({.effect = textFx::enter(textFx::rise(24)),
+                    .tween = {.duration = 200ms, .delay = motion::stagger(100ms)},
                     .unit = sigil::weave::Unit::Cluster,
                     .progress = motion::animate(
                         {.from = 0.0f,

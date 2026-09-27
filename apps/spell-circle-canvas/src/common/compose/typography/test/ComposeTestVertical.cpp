@@ -206,8 +206,8 @@ TEST(TextVertical, AClusterEntranceStaggersDownTheColumn) {
            .width(60)
            .height(300)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .textFx({.effect = textFx::rise(30),
-                    .delay = sigil::motion::stagger(90ms),
+           .textFx({.effect = textFx::enter(textFx::rise(30)),
+                    .tween = {.duration = 450ms, .delay = sigil::motion::stagger(90ms)},
                     .unit = sigil::weave::Unit::Cluster,
                     .progress = progress})
            .key("t")}));
@@ -399,8 +399,8 @@ TEST(TextVertical, BeatsOfRunsDownTheColumnAndAcrossToTheNext) {
            .width(180)
            .height(240)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-           .textFx({.effect = textFx::rise(10),
-                    .delay = sigil::motion::stagger(40ms),
+           .textFx({.effect = textFx::enter(textFx::rise(10)),
+                    .tween = {.duration = 450ms, .delay = sigil::motion::stagger(40ms)},
                     .unit = sigil::weave::Unit::Cluster})}));
   host.frame();
 
@@ -619,7 +619,7 @@ TEST(TextVertical, ACascadeOverLinesBeatsColumnByColumn) {
            .height(200)
            .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
            .textFx({.effect = textFx::typeOn(),
-                    .delay = sigil::motion::stagger(400ms),
+                    .tween = {.duration = 450ms, .delay = sigil::motion::stagger(400ms)},
                     .unit = sigil::weave::Unit::Line,
                     .progress = progress})
            .key("t")}));
@@ -663,8 +663,8 @@ TEST(TextVertical, ABandStandsAtRestUnderATrack) {
              .height(220)
              .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
              .span(sigil::weave::selectors::text(u8"三四五六"), sidelined)
-             .textFx({.effect = textFx::rise(24),
-                      .delay = sigil::motion::stagger(90ms),
+             .textFx({.effect = textFx::enter(textFx::rise(24)),
+                      .tween = {.duration = 450ms, .delay = sigil::motion::stagger(90ms)},
                       .unit = sigil::weave::Unit::Cluster,
                       .progress = progress})
              .key("t")});

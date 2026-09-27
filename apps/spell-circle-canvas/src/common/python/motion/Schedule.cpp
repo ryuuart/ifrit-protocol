@@ -12,6 +12,7 @@
 
 #include <pybind11/stl.h>
 #include <sigilmotion/schedule/Schedule.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/motion/Convert.h>
@@ -236,22 +237,26 @@ void bindMotionSchedule(py::module_& root) {
 
   auto timing = py::class_<motion::Timing>(
       module, "Timing",
-      "How a run of units shares one progress: each unit's delay, its own "
-      "motion's length, the loop period, and a second stagger inside every "
-      "beat.");
+      "A schedule's resolved timing, what a Schedule is built from: each "
+      "unit's delay, its own motion's length, whether it loops and what it "
+      "holds between passes, and a second stagger inside every beat. A "
+      "collective says its timing as a Tween.");
   timing
-      .def(py::init([](py::handle delay, motion::Duration duration,
-                       motion::Duration loop, py::handle within) {
+      .def(py::init([](py::handle delay, motion::Duration duration, bool loop,
+                       motion::Duration loopDelay, bool alternate,
+                       py::handle within) {
              motion::Timing value;
              value.delay = staggeredDuration(delay);
              value.duration = duration;
              value.loop = loop;
+             value.loopDelay = loopDelay;
+             value.alternate = alternate;
              if (!within.is_none()) value.within = staggeredDuration(within);
              return value;
            }),
-           py::kw_only(),
-           py::arg("delay") = Seconds::each(0.03, {}), py::arg("duration") = 0.45,
-           py::arg("loop") = 0.0, py::arg("within") = py::none())
+           py::kw_only(), py::arg("delay") = 0.0, py::arg("duration") = 0.25,
+           py::arg("loop") = false, py::arg("loopDelay") = 0.0,
+           py::arg("alternate") = false, py::arg("within") = py::none())
       .def_property(
           "delay",
           [](const motion::Timing& value) { return staggeredReading(value.delay); },
@@ -260,6 +265,8 @@ void bindMotionSchedule(py::module_& root) {
           })
       .def_readwrite("duration", &motion::Timing::duration)
       .def_readwrite("loop", &motion::Timing::loop)
+      .def_readwrite("loopDelay", &motion::Timing::loopDelay)
+      .def_readwrite("alternate", &motion::Timing::alternate)
       .def_property(
           "within",
           [](const motion::Timing& value) -> py::object {
@@ -283,6 +290,16 @@ void bindMotionSchedule(py::module_& root) {
           },
           py::arg("other"));
   copyProtocol(timing);
+  module.def(
+      "timingOf",
+      [](const motion::Tween<float>& tween, py::handle within) {
+        std::optional<motion::Staggered<motion::Duration>> inner;
+        if (!within.is_none()) inner = staggeredDuration(within);
+        return motion::timingOf(tween, std::move(inner));
+      },
+      py::arg("tween"), py::arg("within") = py::none(),
+      "A tween as a collective's schedule reads it: its delay over the "
+      "units, one unit's length, and whether it loops.");
 
   auto schedule = py::class_<motion::Schedule>(
       module, "Schedule",

@@ -6,13 +6,15 @@
  * A stagger RESOLVED against the counts a frame actually has: the delay
  * ladder, the beat length, and the span one master progress maps onto.
  * This is where a schedule becomes arithmetic — the timing a text track's
- * units and a host reading starts by hand run through.
+ * tween and a host reading starts by hand resolve to.
  */
 
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/time/Duration.h>
 
+#include <chrono>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace sigil::motion {
@@ -41,20 +43,27 @@ struct Beat {
   bool operator==(const Beat&) const = default;
 };
 
-/** HOW A RUN OF UNITS SHARES ONE PROGRESS: each unit's delay, its own
- *  motion's length, whether the whole thing loops, and a second stagger
- *  inside every beat. What a text track carries. */
+/** A SCHEDULE'S RESOLVED TIMING: what `Schedule` is built from. Nobody
+ *  authors one — a collective (a text track, a host staggering a run by
+ *  hand) says its timing as a `Tween`, and `timingOf()` in
+ *  `values/Tween.h` reads it off: each unit's delay, its own motion's
+ *  length, whether the run loops and what it holds between passes, and a
+ *  second stagger inside every beat. */
 struct Timing {
   /** When each unit starts: `stagger(30ms)`, `stagger({0ms, 620ms})`,
    *  `cues({…})` or a plain duration every unit shares. */
-  Staggered<Duration> delay = stagger(std::chrono::milliseconds(30));
+  Staggered<Duration> delay{};
   /** How long one unit's own motion lasts. Under `within`, the innermost
    *  unit's. */
-  Duration duration = std::chrono::milliseconds(450);
-  /** Above zero the schedule LOOPS: every beat re-opens once per period,
-   *  offset by its start, and one sweep of the master 0→1 is one period.
-   *  Zero is the one-shot schedule. */
-  Duration loop{};
+  Duration duration = std::chrono::milliseconds(250);
+  /** The schedule LOOPS: every beat re-opens once per period — a beat's
+   *  length plus `loopDelay` — offset by its start, and one sweep of the
+   *  master 0→1 is one period. False is the one-shot schedule. */
+  bool loop = false;
+  /** Held at the end of every beat before it re-opens, when it loops. */
+  Duration loopDelay{};
+  /** Looping, every other cycle runs backwards. */
+  bool alternate = false;
   /** A second stagger inside every beat — words, then the letters inside
    *  each word. A beat then lasts exactly as long as the inner run needs;
    *  nothing past one level of nesting is read. */
@@ -100,6 +109,8 @@ struct Schedule {
   float totalMs = 1;
   /** The wrapping period in ms, or 0 for a one-shot schedule. */
   float loopMs = 0;
+  /** Looping, every other cycle runs backwards. */
+  bool alternate = false;
 
   Schedule() = default;
   /** Resolves @p timing over @p outerCount units, each holding

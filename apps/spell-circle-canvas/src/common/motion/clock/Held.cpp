@@ -287,6 +287,10 @@ void enter(Engine& engine, std::unique_ptr<HeldMotion>& held,
                         segmentSeconds(tween->duration.value()),
                         tween->easing()});
   }
+  // A looping entrance holds where each pass ends before the next starts.
+  if (tween->loop != 0 && tween->loopDelay > Duration{})
+    segments.push_back({segments.back().to, segments.back().to,
+                        segmentSeconds(tween->loopDelay), {}});
   auto& anim = held;
   if (!anim) anim = std::make_unique<HeldMotion>();
   anim->live = from;

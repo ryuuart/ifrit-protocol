@@ -16,7 +16,7 @@ text(u8"SIGILLVM · DEI · AEMETH", inscription)
              .at = &phase,                       // the marquee
              .align = TextPath::Align::Center,
              .orient = TextPath::Orient::Tangent})
-    .textFx({.effect = textFx::rise(18)});
+    .textFx(textFx::entrance(textFx::rise(18)));
 ```
 
 **`at` is where along the baseline the run sits**, as a fraction of the whole

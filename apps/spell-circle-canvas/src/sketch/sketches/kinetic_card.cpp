@@ -198,26 +198,26 @@ struct KineticCard {
     const Composer& composer = ctx.composer;
 
     static const Row kRows[9] = {
-        {"rise", "textFx::rise(26)",
+        {"rise", "textFx::enter(textFx::rise(26))",
          "up from below, fading in over the first "
          "third of its beat",
-         "RISE", textFx::rise(26)},
-        {"slide", "textFx::slide(-32)",
+         "RISE", textFx::enter(textFx::rise(26))},
+        {"slide", "textFx::enter(textFx::slide(-32))",
          "in from the side; negative is from the "
          "left",
-         "SLIDE", textFx::slide(-32)},
-        {"pop", "textFx::pop(0.35, 1.70158)",
+         "SLIDE", textFx::enter(textFx::slide(-32))},
+        {"pop", "textFx::enter(textFx::pop(0.35, 1.70158))",
          "scale overshoot — "
          "back.out(1.7)",
-         "POP", textFx::pop(0.35f, 1.70158f)},
-        {"spin", "textFx::spinIn(70, 14)",
+         "POP", textFx::enter(textFx::pop(0.35f, 1.70158f))},
+        {"spin", "textFx::enter(textFx::spinIn(70, 14))",
          "a tumble: rotation and a rise, "
          "eased out together",
-         "SPIN IN", textFx::spinIn(70, 14)},
-        {"scatter", "textFx::scatter(40, 24)",
+         "SPIN IN", textFx::enter(textFx::spinIn(70, 14))},
+        {"scatter", "textFx::enter(textFx::scatter(40, 24))",
          "each glyph from its own seeded "
          "offset and lean",
-         "SCATTER", textFx::scatter(40, 24)},
+         "SCATTER", textFx::enter(textFx::scatter(40, 24))},
         {"typeon", "textFx::typeOn()",
          "absent, then simply there — "
          "coverage only, no displacement",

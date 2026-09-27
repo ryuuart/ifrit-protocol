@@ -223,11 +223,10 @@ TEST(ComposeStory, BeatsSpanTheChainOnOneMasterProgress) {
       sigil::weave::rich(whiteStyle(13)).add(longPassage()));
   const auto reveal = [] {
     Track track;
-    track.effect = textFx::rise(20.0f);
+    track.effect = textFx::enter(textFx::rise(20.0f));
     track.unit = sigil::weave::Unit::Word;
     track.beatsOver = beats::Text;
-    track.delay = sigil::motion::stagger(20ms);
-    track.duration = 100ms;
+    track.tween = {.duration = 100ms, .delay = sigil::motion::stagger(20ms)};
     track.progress = 0.5f;
     return track;
   };

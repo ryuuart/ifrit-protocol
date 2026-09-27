@@ -113,8 +113,8 @@ motion::Keyframe<T> keyframe(py::handle value) {
 template <class T>
 motion::Tween<T> tweenOf(py::handle from, py::handle to, py::handle keyframes,
                          py::handle duration, py::handle delay,
-                         py::handle ease, int loop, bool alternate,
-                         motion::Composition composition) {
+                         py::handle ease, int loop, motion::Duration loopDelay,
+                         bool alternate, motion::Composition composition) {
   motion::Tween<T> tween;
   if (!from.is_none()) tween.from = Family<T>::readStaggered(from);
   if (!to.is_none()) tween.to = Family<T>::readStaggered(to);
@@ -126,6 +126,7 @@ motion::Tween<T> tweenOf(py::handle from, py::handle to, py::handle keyframes,
   if (!delay.is_none()) tween.delay = animationTimes(delay, "A tween's delay");
   if (!ease.is_none()) tween.ease = motionEase(ease);
   tween.loop = loop;
+  tween.loopDelay = animationTime(loopDelay, "A tween's loop delay");
   tween.alternate = alternate;
   tween.composition = composition;
   return tween;
@@ -186,16 +187,16 @@ py::class_<motion::Tween<T>> bindTween(py::module_& module, const char* name,
   py::class_<Tween> type(module, name);
   type.def(py::init([](py::handle from, py::handle to, py::handle keyframes,
                        py::handle duration, py::handle delay, py::handle ease,
-                       int loop, bool alternate,
+                       int loop, motion::Duration loopDelay, bool alternate,
                        motion::Composition composition) {
              return tweenOf<T>(from, to, keyframes, duration, delay, ease, loop,
-                               alternate, composition);
+                               loopDelay, alternate, composition);
            }),
            py::kw_only(), py::arg("from_") = py::none(),
            py::arg("to") = py::none(), py::arg("keyframes") = py::none(),
            py::arg("duration") = 0.25, py::arg("delay") = 0.0,
            py::arg("ease") = py::none(), py::arg("loop") = 0,
-           py::arg("alternate") = false,
+           py::arg("loopDelay") = 0.0, py::arg("alternate") = false,
            py::arg("composition") = motion::Composition::Replace)
       .def_property(
           "from_",
@@ -249,6 +250,11 @@ py::class_<motion::Tween<T>> bindTween(py::module_& module, const char* name,
           "ease", [](const Tween& tween) { return Easing{tween.easing()}; },
           [](Tween& tween, py::handle value) { tween.ease = motionEase(value); })
       .def_readwrite("loop", &Tween::loop)
+      .def_property(
+          "loopDelay", [](const Tween& tween) { return tween.loopDelay; },
+          [](Tween& tween, motion::Duration value) {
+            tween.loopDelay = animationTime(value, "A tween's loop delay");
+          })
       .def_readwrite("alternate", &Tween::alternate)
       .def_readwrite("composition", &Tween::composition)
       .def("rest", [](const Tween& tween) { return Family<T>::reading(tween.rest()); })
@@ -607,8 +613,8 @@ void bindMotion(py::module_& root) {
       "animate",
       [](py::handle described, py::handle from, py::handle to,
          py::handle keyframes, py::handle duration, py::handle delay,
-         py::handle easing, int loop, bool alternate,
-         motion::Composition composition) -> py::object {
+         py::handle easing, int loop, motion::Duration loopDelay,
+         bool alternate, motion::Composition composition) -> py::object {
         if (py::isinstance<motion::Tween<float>>(described))
           return py::cast(
               motion::animate(py::cast<motion::Tween<float>>(described)));
@@ -636,23 +642,24 @@ void bindMotion(py::module_& root) {
           case Kind::Number:
             return py::cast(motion::animate(
                 tweenOf<float>(from, to, frames, length, delay, easing, loop,
-                               alternate, composition)));
+                               loopDelay, alternate, composition)));
           case Kind::Fill:
             return py::cast(motion::animate(
                 tweenOf<compose::Fill>(from, to, frames, length, delay,
-                                       easing, loop, alternate, composition)));
+                                       easing, loop, loopDelay, alternate, composition)));
           case Kind::Colour:
             break;
         }
         return py::cast(motion::animate(
             tweenOf<SkColor4f>(from, to, frames, length, delay, easing, loop,
-                               alternate, composition)));
+                               loopDelay, alternate, composition)));
       },
       py::arg("tween") = py::none(), py::kw_only(),
       py::arg("from_") = py::none(), py::arg("to") = py::none(),
       py::arg("keyframes") = py::none(), py::arg("duration") = py::none(),
       py::arg("delay") = py::none(), py::arg("ease") = py::none(),
-      py::arg("loop") = 0, py::arg("alternate") = false,
+      py::arg("loop") = 0, py::arg("loopDelay") = 0.0,
+      py::arg("alternate") = false,
       py::arg("composition") = motion::Composition::Replace,
       "A property value that moves: the tween given, or one written out of "
       "the fields named. A number, a colour and a fill each make their own "

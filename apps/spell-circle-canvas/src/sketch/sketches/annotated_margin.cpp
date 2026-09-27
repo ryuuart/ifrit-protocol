@@ -177,7 +177,7 @@ struct AnnotatedMargin {
                  .left(m::kTextLeft)
                  .top(m::kH - 210)
                  .width(m::kMeasure)
-                 .textFx({.effect = textFx::rise(14),
+                 .textFx({.effect = textFx::enter(textFx::rise(14)),
                           .stagger = m::kRoll,
                           .unit = weave::Unit::Word,
                           .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((int)m::kRollSpan), .delay = 200ms, .ease = motion::ease::linear})}),

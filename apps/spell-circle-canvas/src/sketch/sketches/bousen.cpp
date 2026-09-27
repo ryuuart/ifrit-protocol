@@ -302,7 +302,7 @@ struct Bousen {
                        bs::bandedSpan(bs::kAi,
                                       weave::Decoration::Kind::kUnderline,
                                       bs::kAka, 2.0f))
-                 .textFx({.effect = textFx::rise(18),
+                 .textFx({.effect = textFx::enter(textFx::rise(18)),
                           .stagger = bs::kColumnEntrance,
                           .unit = weave::Unit::Line,
                           .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((

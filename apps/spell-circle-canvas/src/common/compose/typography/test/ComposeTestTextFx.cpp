@@ -45,9 +45,7 @@ Track probeTrack(std::vector<FxSample>* into, sigil::weave::Selector where = {},
                  sigil::weave::Unit over = sigil::weave::Unit::Cluster) {
   return Track{.where = std::move(where),
                .effect = probe("probe", into),
-               .delay = std::move(timing.delay),
-               .duration = timing.duration,
-               .loop = timing.loop,
+               .tween = {.duration = timing.duration, .delay = std::move(timing.delay), .loop = timing.loop ? -1 : 0, .loopDelay = timing.loopDelay, .alternate = timing.alternate},
                .within = std::move(timing.within),
                .unit = over,
                .progress = progress};
@@ -330,11 +328,11 @@ TEST(ComposeTextFx, RandomSeedDealsItsOwnScatterAndZeroKeepsTheDefault) {
     host.composer.render(box().padding(10).children(
         {text(u8"AAA BBB CCC", whiteStyle(20))
              .key("k")
-             .textFx({.effect = textFx::rise(6),
-                      .delay = motion::stagger(
+             .textFx({.effect = textFx::enter(textFx::rise(6)),
+                      .tween = {.duration = 100ms, .delay = motion::stagger(
                           100ms, {.from = motion::StaggerFrom::Random,
-                                  .seed = seed}),
-                      .duration = 100ms})}));
+                                  .seed = seed})},
+                      })}));
     host.frame();
     const std::vector<Beat> beats = host.composer.beatsOf("k", 0);
     std::vector<int> ranks;
@@ -514,13 +512,13 @@ TEST(ComposeTextFx, EqualTrackListsPruneAndAKeyedLambdaComparesByKey) {
              .key("k")
              .textFx({.effect = std::move(effect)})});
   };
-  host.composer.render(tree(textFx::rise(20)));
+  host.composer.render(tree(textFx::enter(textFx::rise(20))));
   host.frame();
-  host.composer.render(tree(textFx::rise(20)));
+  host.composer.render(tree(textFx::enter(textFx::rise(20))));
   host.frame();
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u)
       << "an unchanged track list did not prune";
-  host.composer.render(tree(textFx::rise(24)));
+  host.composer.render(tree(textFx::enter(textFx::rise(24))));
   host.frame();
   EXPECT_GT(host.composer.stats().patchedNodes, 0u)
       << "a changed preset parameter pruned anyway";
@@ -552,8 +550,8 @@ TEST(ComposeTextFx, SettledMultiTrackTextStopsPaintingLive) {
   host.composer.render(box().padding(10).children(
       {text(u8"AAA BBB", whiteStyle(20))
            .key("k")
-           .textFx({.effect = textFx::rise(12), .progress = a})
-           .textFx({.effect = textFx::slide(-8), .progress = b})}));
+           .textFx({.effect = textFx::enter(textFx::rise(12)), .progress = a})
+           .textFx({.effect = textFx::enter(textFx::slide(-8)), .progress = b})}));
   host.frame();
   a = 1.0f;
   b = 1.0f;

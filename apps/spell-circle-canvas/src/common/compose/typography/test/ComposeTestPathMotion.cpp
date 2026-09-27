@@ -216,7 +216,7 @@ std::vector<SkPoint> slidingTrack(float pixelSize) {
                             .absolute()
                             .left(0)
                             .top(0)
-                            .textFx({.effect = textFx::slide(kDistance),
+                            .textFx({.effect = textFx::enter(textFx::slide(kDistance)),
                                      .progress = progress})}));
     host.frame();
     track.push_back(inkCentroid(host, kField, kField));
@@ -366,7 +366,7 @@ TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
   Host settled(kField, kField);
   const SkBitmap withTrack = shot(
       settled,
-      ringWith(0.05f, 44.0f, {.effect = textFx::slide(), .progress = 1.0f}));
+      ringWith(0.05f, 44.0f, {.effect = textFx::enter(textFx::slide()), .progress = 1.0f}));
   for (int y = 0; y < kField; ++y)
     for (int x = 0; x < kField; ++x)
       ASSERT_EQ(untracked.getColor(x, y), withTrack.getColor(x, y))
@@ -374,7 +374,7 @@ TEST(ComposePathMotion, ASettledDisplacingTrackReturnsToWholePixels) {
 
   Host sliding(kField, kField);
   const int distinct = distinctFramesAcrossOnePixel(sliding, [](float at) {
-    return ringWith(at, 44.0f, {.effect = textFx::slide(), .progress = 1.0f});
+    return ringWith(at, 44.0f, {.effect = textFx::enter(textFx::slide()), .progress = 1.0f});
   });
   EXPECT_LE(distinct, kWholePixelCeiling)
       << "a settled track is paying for the subpixel grid";

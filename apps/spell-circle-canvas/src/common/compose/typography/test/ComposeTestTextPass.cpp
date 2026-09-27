@@ -112,8 +112,7 @@ TEST(TextPass, UnitRectAndPhaseAgreeWithBeatsOf) {
       {text(u8"ABC DEF", whiteStyle(30))
            .key("probe")
            .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
-                    .delay = sigil::motion::stagger(90ms),
-                    .duration = 200ms,
+                    .tween = {.duration = 200ms, .delay = sigil::motion::stagger(90ms)},
                     .unit = sigil::weave::Unit::Cluster,
                     .progress = 0.55f})}));
   host.frame();
@@ -258,7 +257,7 @@ TEST(TextPass, ProgressAdvancesWithCascadeAndSettles) {
         {text(u8"ABCD", whiteStyle(30))
              .key("run")
              .textFx({.effect = textFx::pass(passOver(kPhaseProbeSksl)),
-                      .delay = sigil::motion::stagger(60ms), .duration = 200ms,
+                      .tween = {.duration = 200ms, .delay = sigil::motion::stagger(60ms)}, 
                       .unit = sigil::weave::Unit::Cluster,
                       .progress =
                           motion::animate({.to = target, .duration = 200ms})})});
@@ -333,9 +332,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
         {text(u8"REST", whiteStyle(40))
              .key("t")
              .textFx({.effect = std::move(effect),
-                      .delay = timing.delay,
-                      .duration = timing.duration,
-                      .loop = timing.loop,
+                      .tween = {.duration = timing.duration, .delay = timing.delay, .loop = timing.loop ? -1 : 0, .loopDelay = timing.loopDelay, .alternate = timing.alternate},
                       .unit = sigil::weave::Unit::Cluster,
                       .progress = master})}));
     host.frame();
@@ -366,7 +363,7 @@ TEST(TextPass, RestsAtSkipsTheShaderWhenEveryUnitSitsOnADeclaredPhase) {
   // any unit is mid-beat.
   const sigil::motion::Timing loop{.delay = sigil::motion::stagger(60ms),
                                    .duration = 100ms,
-                                   .loop = 1000ms};
+                                   .loop = true, .loopDelay = 1000ms - 100ms};
   EXPECT_TRUE(lettersShow(erase.restsAt(1.0f), loop, 0.5f));
   EXPECT_FALSE(lettersShow(erase.restsAt(1.0f), loop, 0.05f));
 }
@@ -389,7 +386,7 @@ TEST(TextPass, RestDeclarationRidesEqualityAndNeedsAPass) {
 
   // On a per-glyph effect the declaration is about a shader that does not
   // exist: it warns once and the effect comes back unchanged.
-  const TextEffect plain = textFx::rise(10);
+  const TextEffect plain = textFx::enter(textFx::rise(10));
   EXPECT_TRUE(plain.restsAt(0.0f) == plain);
   EXPECT_TRUE(plain.restsAt(0.0f).restPhases().empty());
 }

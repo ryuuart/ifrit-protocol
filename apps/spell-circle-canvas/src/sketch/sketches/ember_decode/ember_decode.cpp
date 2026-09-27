@@ -215,7 +215,7 @@ struct EmberDecode {
                     .key("burn-display")
                     .textFx(
                         {.effect = textFx::pass(burn),
-                         .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(kEachMs)), .duration = std::chrono::duration<double, std::milli>(kUnitMs),
+                         .tween = {.duration = std::chrono::duration<double, std::milli>(kUnitMs), .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(kEachMs))}, 
                          .unit = weave::Unit::Cluster,
                          .progress = display}),
                 document::paragraph(
@@ -228,7 +228,7 @@ struct EmberDecode {
                     .key("burn-words")
                     .textFx(
                         {.effect = textFx::pass(burn),
-                         .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(kEachMs)), .duration = std::chrono::duration<double, std::milli>(kUnitMs),
+                         .tween = {.duration = std::chrono::duration<double, std::milli>(kUnitMs), .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(kEachMs))}, 
                          .unit = weave::Unit::Word,
                          .progress = words}),
                 document::paragraph(

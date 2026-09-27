@@ -52,7 +52,9 @@ property value of one:
 
 Its fields are declared in the order a designated initialiser names
 them: `from`, `to`, `keyframes`, `duration` (250ms), `delay` (0ms), `ease`
-(`ease::outQuad`), `loop`, `alternate`, `composition`. A tween that NAMES
+(empty, read as `ease::outQuad` by `Tween::easing()`), `loop`, `loopDelay`
+(held at the end of each pass before the next, anime.js's), `alternate`,
+`composition`. A tween that NAMES
 `.from` is an entrance: it plays once, when its owner first appears, and
 afterwards the property behaves as though only `.to` had been written. A
 tween with `.to` alone eases on change: the property starts out holding

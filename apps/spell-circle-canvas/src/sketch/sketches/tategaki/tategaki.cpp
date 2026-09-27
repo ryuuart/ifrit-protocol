@@ -163,7 +163,7 @@ struct Tategaki {
                        SpanStyle().ink(tg::kAka).font({.color8 = true}))
                  // One settling entrance, beating cluster by cluster in
                  // READING ORDER: down each column, then right to left.
-                 .textFx({.effect = textFx::rise(30),
+                 .textFx({.effect = textFx::enter(textFx::rise(30)),
                           .stagger = tg::kSettle,
                           .progress = motion::animate({.from = 0.0f, .to = 1.0f, .duration = std::chrono::milliseconds((int)tg::kSettleSpan), .delay = 180ms, .ease = motion::ease::linear})}),
              box()

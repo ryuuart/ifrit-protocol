@@ -329,7 +329,8 @@ TEST(Schedule, LocalProgressClampsAtBothEnds) {
 
 TEST(Schedule, ALoopingScheduleSpansItsPeriodAndFoldsEveryUnit) {
   const Timing timing{
-      .delay = stagger(100ms), .duration = 200ms, .loop = 400ms};
+      .delay = stagger(100ms), .duration = 200ms, .loop = true,
+      .loopDelay = 200ms};
   const Schedule schedule(timing, 4);
   EXPECT_FLOAT_EQ(schedule.totalMs, 400.0f);
   EXPECT_FLOAT_EQ(milliseconds(timing.span(4)), 400.0f);
@@ -341,6 +342,20 @@ TEST(Schedule, ALoopingScheduleSpansItsPeriodAndFoldsEveryUnit) {
   // A unit whose start is past the period lands at start mod period
   // rather than waiting: every unit is always somewhere in its cycle.
   EXPECT_GT(schedule.localProgress(0.0f, 3), 0.0f);
+}
+
+TEST(Schedule, AnAlternatingLoopRunsEveryOtherCycleBackwards) {
+  const Schedule schedule(
+      {.delay = Duration{}, .duration = 200ms, .loop = true, .alternate = true},
+      1);
+  EXPECT_FLOAT_EQ(schedule.totalMs, 200.0f);
+  EXPECT_FLOAT_EQ(schedule.localProgress(0.25f, 0), 0.25f);
+  // The period is one beat, 200ms: 250ms after its start a unit is 50ms
+  // into its second cycle, which runs backwards.
+  const Schedule twice(
+      {.delay = stagger(200ms), .duration = 200ms, .loop = true, .alternate = true},
+      2);
+  EXPECT_FLOAT_EQ(twice.localProgress(250.0f / twice.totalMs, 0), 0.75f);
 }
 
 TEST(Schedule, TheBeatReadBackAgreesWithTheTwoAccessors) {
@@ -404,7 +419,9 @@ TEST(Schedule, TwoTimingsAreEqualByEveryField) {
   moved.delay = stagger(100ms, {.seed = 3});
   EXPECT_NE(base, moved);
   moved = base;
-  moved.loop = 1s;
+  moved.loop = true;
+  EXPECT_NE(base, moved);
+  moved.loopDelay = 1s;
   EXPECT_NE(base, moved);
   moved = base;
   moved.within = stagger(10ms);

@@ -18,7 +18,7 @@ text(weave::rich(mincho)
          .add(u8"年、縦組みに対応した。"))
     .width(260).height(300)
     .paragraph({.writingMode = sigil::weave::WritingMode::kVerticalRL})
-    .textFx({.effect = textFx::rise(24)});
+    .textFx(textFx::entrance(textFx::rise(24)));
 ```
 
 **BOTH AXES ARE MEASURES.** A horizontal passage reads its width as the

@@ -343,10 +343,10 @@ TEST(ComposeGpu, FxTrackKeepsBlurredUnderlayBeneathForeground) {
   auto tree = [&] {
     return box().padding(20).children({text(u8"VERTIGO", style)
                                            .key("word")
-                                           .textFx({.effect = textFx::pop(),
-                                                    .delay = sigil::motion::stagger(
-                                                        std::chrono::milliseconds(30)),
-                                                    .duration = std::chrono::milliseconds(480),
+                                           .textFx({.effect = textFx::enter(textFx::pop()),
+                                                    .tween = {.duration = std::chrono::milliseconds(480),
+                                                              .delay = sigil::motion::stagger(
+                                                                  std::chrono::milliseconds(30))},
                                                     .progress = 0.55f})});
   };
 

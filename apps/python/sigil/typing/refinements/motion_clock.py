@@ -19,7 +19,36 @@ def register(table: Table) -> None:
     # was called on, and a completion report is told nothing.
     for kind in ("Playback", "Animation", "Timer", "Timeline"):
         table.parameters(f"{MOTION}.{kind}.onComplete", callback=NOTIFY)
-    table.erased(MOTION + ".Timeline", "add", MOTION + ".Tween")
+    # One engine runs every animated value: a number or a colour with the
+    # tween of its own family, and a list of numbers as siblings a stagger
+    # resolves over.
+    position = f"position: {MOTION}.Position = ..."
+    table.declares(
+        MOTION + ".Timeline",
+        "add",
+        "".join(
+            "@typing.overload\n"
+            f"def add(self, {lead}, tween: {MOTION}.{family}Tween, {position}) "
+            f"-> {MOTION}.Timeline: ...\n"
+            for lead, family in (
+                (f"target: {MOTION}.Animatable", ""),
+                (f"target: {MOTION}.ColorAnimatable", "Color"),
+                (f"targets: list[{MOTION}.Animatable]", ""),
+            )
+        ),
+    )
     table.parameters(MOTION + ".Timeline.call", callback=NOTIFY)
-    table.erased(MOTION + ".Engine", "animate", MOTION + ".Tween")
+    table.declares(
+        MOTION + ".Engine",
+        "animate",
+        "@typing.overload\n"
+        f"def animate(self, target: {MOTION}.Animatable, tween: {MOTION}.Tween) "
+        f"-> {MOTION}.Animation: ...\n"
+        "@typing.overload\n"
+        f"def animate(self, target: {MOTION}.ColorAnimatable, "
+        f"tween: {MOTION}.ColorTween) -> {MOTION}.Animation: ...\n"
+        "@typing.overload\n"
+        f"def animate(self, targets: list[{MOTION}.Animatable], "
+        f"tween: {MOTION}.Tween) -> {MOTION}.Timeline: ...\n",
+    )
     table.parameters(MOTION + ".Engine.timer", callback="_t.TimerCallback")

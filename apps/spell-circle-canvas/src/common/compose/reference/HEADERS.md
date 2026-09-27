@@ -843,12 +843,15 @@ hole), `kit::pixelSprite` presents it as nodes, `kit::spriteImage` bakes it,
 draw, and `kit::SpriteSheet` holds sprites under names and packs them onto one
 image, each handed the rectangle it occupies — `kit::Scrim` and the halo/shade
 legibility helpers, the stock text effects over the `Text::textFx` seam in
-`kit/Kinetic.h` — `textFx::enter`, the one entrance every unit-offset reveal is
-a setting of, said as a tween's entrance is (`textFx::Entrance`: `.from` the
-`textFx::Displaced` lanes, `.ease` any SigilMotion easing), with `textFx::rise`, `textFx::slide`, `textFx::pop`,
-`textFx::spinIn` and `textFx::scatter` over it, and `textFx::typeOn`,
-`textFx::waveLoop`, `textFx::variableAxisSweep` and `textFx::tint` beside them,
-each a comparable `TextEffect` built from the constructor any caller may use —
+`kit/Kinetic.h` — `textFx::entrance`, the one entrance every unit-offset reveal
+is a setting of: ONE `motion::Tween` of the `textFx::Displaced` lanes (`.from`
+where a glyph starts, `.ease` any SigilMotion easing, `.duration`, `.delay` and
+`.loop` the track's schedule) made a `Track`, with `textFx::enter` the same path
+as an effect for the combinators and `textFx::rise`, `textFx::slide`,
+`textFx::pop`, `textFx::spinIn` and `textFx::scatter` the stock tween values
+over it; and `textFx::typeOn`, `textFx::waveLoop`, `textFx::variableAxisSweep`
+and `textFx::tint` beside them, each a comparable `TextEffect` built from the
+constructor any caller may use —
 with `kit/Marquee.h`'s `kit::marquee`, the seamless ticker built from a clipped
 strip and a wrapping phase, whose every dial is one options struct,
 `kit/Board.h`'s `kit::board`, the ground a placed drawing stands on — a `stack`

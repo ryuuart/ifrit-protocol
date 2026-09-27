@@ -268,7 +268,7 @@ TEST(ComposeVariationDrive, TheVerbIsATrackAndComposesWithOtherTracks) {
       box().children({text(u8"GRADE", style)
                           .key("t")
                           .variationDrive("GRAD", grade)
-                          .textFx({.effect = textFx::rise(0)})
+                          .textFx({.effect = textFx::enter(textFx::rise(0))})
                           .absolute()
                           .inset(60, 20)}));
   stacked.frame();
@@ -321,8 +321,7 @@ TEST(ComposeVariationDrive, ADrivenAxisRetainsABoundedFacePopulation) {
     // A zero delay: every glyph reads the one master phase, so the
     // coordinate is exactly the sequence driven below and nothing else.
     Track track{.effect = textFx::variableAxisSweep("GRAD", gradeMin, gradeMax),
-                .delay = 0ms,
-                .duration = 100ms,
+                .tween = {.duration = 100ms, .delay = 0ms},
                 .progress = phase};
     track.continuous = continuous;
     composer.render(box().padding(10).children(

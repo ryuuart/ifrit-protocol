@@ -269,8 +269,8 @@ auto HitmanVerlet::panelB3() -> Element {
 }
 
 auto HitmanVerlet::header() -> Element {
-  Track rise{.effect = textFx::rise(22.0f),
-             .delay = sigil::motion::stagger(24ms), .duration = 440ms,
+  Track rise{.effect = textFx::enter(textFx::rise(22.0f)),
+             .tween = {.duration = 440ms, .delay = sigil::motion::stagger(24ms)}, 
              .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 1100ms, .delay = 120ms, .ease = sigil::motion::ease::outQuad})};
   const sigil::data::Json& head = doc()["header"];
   return box().column().height(kHeaderH).flexShrink(0).gap(3).children(

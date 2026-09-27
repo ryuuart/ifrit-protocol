@@ -166,8 +166,8 @@ Element GenesisFire::productionPanel() {
 }
 
 Element GenesisFire::header() {
-  Track rise{.effect = textFx::rise(22),
-             .delay = sigil::motion::stagger(26ms), .duration = 460ms,
+  Track rise{.effect = textFx::enter(textFx::rise(22)),
+             .tween = {.duration = 460ms, .delay = sigil::motion::stagger(26ms)}, 
              .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 850ms, .delay = 120ms, .ease = sigil::motion::ease::linear})};
   // The masthead is set in the interface face and steel; the title alone
   // takes the black cut and the bone.

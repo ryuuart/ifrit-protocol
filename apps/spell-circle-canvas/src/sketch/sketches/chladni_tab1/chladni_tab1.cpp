@@ -496,7 +496,7 @@ struct ChladniTab1 {
                 .key("title")
                 .textFx(Track{
                     .effect = textFx::typeOn(),
-                    .delay = sigil::motion::stagger({0ms, 520ms}), .duration = 60ms,
+                    .tween = {.duration = 60ms, .delay = sigil::motion::stagger({0ms, 520ms})}, 
                     .progress = sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 620ms, .delay = std::chrono::duration<double, std::milli>(kTitleAt * 1000), .ease = sigil::motion::ease::linear})})
                 .centerAt(at(title)),
         })

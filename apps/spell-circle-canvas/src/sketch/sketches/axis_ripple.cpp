@@ -351,7 +351,7 @@ struct AxisRipple {
     const float periodMs = kPeriod * 1000.0f;
     Text hero = text(kProof).role("hero").fontSize(heroSize).key("ripple");
     hero.textFx({.effect = gradeSwell(),
-                 .delay = motion::stagger(std::chrono::duration<double, std::milli>(kBeat * 1000.0f)), .duration = std::chrono::duration<double, std::milli>(periodMs), .loop = std::chrono::duration<double, std::milli>(periodMs),
+                 .tween = {.duration = std::chrono::duration<double, std::milli>(periodMs), .delay = motion::stagger(std::chrono::duration<double, std::milli>(kBeat * 1000.0f)), .loop = -1, .loopDelay = std::chrono::duration<double, std::milli>(periodMs) - std::chrono::duration<double, std::milli>(periodMs)},  
                  .progress = phase});
     for (size_t index = 0; index < kProof.size(); ++index)
       hero.textAttach(weave::selectors::range({(uint32_t)index,
