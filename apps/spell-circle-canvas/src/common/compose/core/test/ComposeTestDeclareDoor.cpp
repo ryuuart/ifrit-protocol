@@ -340,6 +340,12 @@ void writeThroughWriter(cd::ElementNode& node, Property property, bool moved) {
       else
         node.imageRendering();
       return;
+    case Property::Lighting:
+      if (moved)
+        node.lighting().lighting = material::studio({.direction = 30.0f});
+      else
+        node.lighting();
+      return;
     case Property::kCount:
       break;
   }
