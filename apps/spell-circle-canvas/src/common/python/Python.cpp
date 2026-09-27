@@ -148,7 +148,6 @@ void bindLibraries(pybind11::module_& module) {
   bindComposeKitRows(module);
   bindComposeKitTypeset(module);
   bindComposeKitAnnotations(module);
-  bindComposeKitKinetic(module);
   bindComposeKitLegibility(module);
   bindComposeKitEras(module);
   bindComposeKitRoutes(module);

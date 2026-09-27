@@ -369,12 +369,19 @@ bound = "`instancing` pools and cell sheets"
 python = ["compose.instancing.Pool", "compose.instancing.CellSheet"]
 
 [[section.surface.item]]
-native = "`Text::textFx` tracks and the `textFx::` text effects (`scramble`, `keys`, `hold`, `sequence`, `mix` and `variableAxis`)"
+native = "`Text::textFx` tracks and the `textFx::` text effects (`scramble`, `tween`, `tint`, `hold`, `sequence`, `mix` and `variableAxis`)"
 python = [
   "compose.Text.textFx",
   "compose.textFx.scramble",
-  "compose.textFx.keys",
+  "compose.textFx.tween",
   "compose.textFx.sequence",
+]
+
+[[section.surface.item]]
+native = "the `textFx::` entrance (`Displaced`, `enter`, `entrance`) and its stock tweens (`rise`, `slide`, `pop`, `spinIn`, `scatter`, `typeOn`, `variableAxisSweep`) with `waveLoop`"
+python = [
+  "compose.textFx.entrance",
+  "compose.textFx.rise",
 ]
 
 [[section.surface.item]]
@@ -675,9 +682,8 @@ native = "`annotate` with `Beside` and `Anchored`"
 python = ["compose.kit.annotate"]
 
 [[section.surface.item]]
-native = "the kinetic `textFx::` presets, `trackMeter` and `restGhost`"
+native = "`trackMeter` and `restGhost`"
 python = [
-  "compose.textFx.rise",
   "compose.kit.trackMeter",
   "compose.kit.restGhost",
 ]

@@ -321,7 +321,7 @@ assembly guards their calls the same way.
   `bindComposeDecorationPrimitives`, `bindComposeDecorationSeam`,
   `bindComposeDerive`, `bindComposeFeed`, `bindComposeInstancing`,
   `bindComposeKit`, `bindComposeKitAnnotations`, `bindComposeKitEras`,
-  `bindComposeKitKinetic`, `bindComposeKitLegibility`,
+  `bindComposeKitLegibility`,
   `bindComposeKitPixelType`,
   `bindComposeKitRoutes`, `bindComposeKitRows`, `bindComposeKitSprites`,
   `bindComposeKitStrokes`, `bindComposeKitTypeset`,

@@ -46,8 +46,6 @@ void bindComposeKit(pybind11::module_& module);
 void bindComposeKitAnnotations(pybind11::module_& module);
 /** Registers bevel and the era token sets on @p module. */
 void bindComposeKitEras(pybind11::module_& module);
-/** Registers the textFx:: kinetic presets on @p module. */
-void bindComposeKitKinetic(pybind11::module_& module);
 /** Registers halo, shade, scrim, emboldened, and the two ground
  *  dressings on @p module. */
 void bindComposeKitLegibility(pybind11::module_& module);

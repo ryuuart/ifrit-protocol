@@ -367,8 +367,8 @@ library = "Compose"
 python = ["compose.keyedShape"]
 
 [requirement.kinetic-presets]
-native = "`compose::textFx` kinetic presets (`rise`, `pop`, `typeOn`)"
-library = "Compose kit"
+native = "`compose::textFx` stock entrances (`rise`, `pop`, `typeOn`)"
+library = "Compose"
 python = [
   "compose.textFx.rise",
   "compose.textFx.pop",
@@ -799,10 +799,10 @@ library = "Compose"
 python = ["compose.Text.textAttach"]
 
 [requirement.text-effects]
-native = "`compose::textFx` text effects (`keys`, `scramble`, `sequence`)"
+native = "`compose::textFx` text effects (`tween`, `scramble`, `sequence`)"
 library = "Compose"
 python = [
-  "compose.textFx.keys",
+  "compose.textFx.tween",
   "compose.textFx.scramble",
   "compose.textFx.sequence",
 ]
