@@ -7,16 +7,19 @@
 # delta nor the time names neither — hence the callable leaf.
 sigil_library(SigilMotionClock
   SOURCES Engine.cpp Held.cpp
-  HEADERS Engine.h
+  HEADERS Animation.h Engine.h Playback.h
           ${CMAKE_CURRENT_SOURCE_DIR}/../include/sigilmotion/advanced/ClockPolicy.h
           ${CMAKE_CURRENT_SOURCE_DIR}/../include/sigilmotion/advanced/Held.h
   PUBLIC SigilMotionValues SigilMotionTime SigilCoreCallable)
 
 # Links only the library it exercises, so a link edge that pulled a
 # drawing library in would show up as a build failure here.
+# glm is the test's own: the values it moves on the engine are the vectors
+# a consumer animates.
 sigil_test(motion_test
-  SOURCES test/ClockTest.cpp test/EngineTest.cpp test/HeldTest.cpp test/LanesTest.cpp
-  LIBRARIES SigilMotionClock)
+  SOURCES test/ClockTest.cpp test/EngineTest.cpp test/EngineValuesTest.cpp
+          test/HeldTest.cpp test/LanesTest.cpp
+  LIBRARIES SigilMotionClock glm::glm)
 
 sigil_bench(motion_bench
   SOURCES bench/ClockBench.cpp

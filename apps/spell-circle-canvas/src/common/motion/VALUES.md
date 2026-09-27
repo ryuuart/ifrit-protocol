@@ -66,6 +66,17 @@ on top so its velocity carries. `Transition` is the same timing for every
 plain value on a node, and a consumer's `.transition(320ms)` takes a
 duration alone.
 
+A tween moves between two values of `T` along ONE line, `interpolate()`
+(`values/Interpolate.h`): the straight line `start + (end - start) *
+amount` for a value that is `Additive` — a float, a `Duration`, a
+`glm::vec2`, a `glm::vec3` — and, for any other type, the line its own
+namespace declares beside it, found by argument-dependent lookup.
+`material::interpolate` is a colour's: straight sRGB with alpha mixed
+beside it, as a CSS transition runs. `Tween::at`, the engine's
+animations and timeline items all read that one body, so a type is
+`Interpolable` once and animates everywhere; one with no line between two
+of its values cannot be animated and says so at the call that tries.
+
 ## Two signals that are functions of a time and nothing else
 
 `bind()` shapes a phase somebody else is stepping, and a tween plays when

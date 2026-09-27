@@ -22,6 +22,9 @@ sigil_library_root(SigilMotion
        ${CMAKE_CURRENT_SOURCE_DIR}/SCHEDULE.md
        ${CMAKE_CURRENT_SOURCE_DIR}/VALUES.md)
 
+# glm is the vector type: the engine moves one and the tests animate it.
+find_package(glm CONFIG REQUIRED)
+
 # Dependencies point down this list.
 add_subdirectory(time)
 add_subdirectory(ease)
@@ -38,7 +41,7 @@ sigil_library(SigilMotion
 # Every API name the prose spells, compiled against the headers that own
 # it — README.md and all five chapters, because a chapter is the same
 # canon as the page that links it. SigilCore is scanned for the settle
-# policy the values chapter names, and `ch` is the alias the prose writes
+# policy the values chapter names, glm for the vectors the engine moves, and `ch` is the alias the prose writes
 # choreograph's own names through.
 sigil_doc_probes(motion
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
@@ -48,6 +51,8 @@ sigil_doc_probes(motion
           ${CMAKE_CURRENT_SOURCE_DIR}/SCHEDULE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/VALUES.md
   INCLUDES ${CMAKE_CURRENT_SOURCE_DIR}/../core/include
-  PRELUDES "<sigilcore/cache/Settle.h>"
+  PRELUDES "<sigilcore/cache/Settle.h>" "<glm/vec2.hpp>" "<glm/vec3.hpp>"
+  EXCLUDE "material::Color=a value the engine animates, declared by SigilMaterial, which this library does not link"
+          "material::interpolate=a colour's own line, declared by SigilMaterial beside the colour, which this library does not link"
   FLOORS 6,6,8,0,0
-  LIBRARIES SigilMotion SigilCoreCompute)
+  LIBRARIES SigilMotion SigilCoreCompute glm::glm)

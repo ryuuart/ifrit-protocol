@@ -273,6 +273,17 @@ constexpr Color mixToward(Color color, Color target, float amount, float alpha) 
           color.b + (target.b - color.b) * amount, alpha};
 }
 
+/** THE LINE A MOVING COLOUR TAKES, which SigilMotion's `interpolate()`
+ *  finds for every tween, engine animation and timeline item over a
+ *  `Color`: straight sRGB with alpha mixed beside it, as a CSS transition
+ *  runs — the same mix a node's colour crossfade reads, so a colour eased
+ *  by a description and one driven by the engine pass through the same
+ *  values. A path through a perceptual space is a tween over OKLab values
+ *  converted back, or `lerpOklab` read at the tween's progress. */
+constexpr Color interpolate(const Color& start, const Color& end, float amount) {
+  return mixToward(start, end, amount, start.a + (end.a - start.a) * amount);
+}
+
 /** @p start and @p end mixed a fraction @p amount apart IN LINEAR LIGHT — each
  *  channel linearised, mixed, and encoded back. Alpha mixes as given,
  *  since it never went through the transfer function. This is the mix

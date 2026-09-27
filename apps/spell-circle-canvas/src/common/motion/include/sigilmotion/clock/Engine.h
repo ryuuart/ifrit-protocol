@@ -12,6 +12,8 @@
 
 #include <sigilcore/callable/Callable.h>
 #include <sigilmotion/advanced/ClockPolicy.h>
+#include <sigilmotion/clock/Animation.h>
+#include <sigilmotion/clock/Playback.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
@@ -21,45 +23,13 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace sigil::motion {
-
-class Engine;
-
-namespace detail {
-/** ONE THING THE ENGINE STEPS: advanced by a frame's delta in seconds,
- *  answering whether it still runs. */
-class Stepped {
- public:
-  virtual ~Stepped() = default;
-  virtual bool advance(double deltaSeconds) = 0;
-  /** Declared to move: what the engine's own `isRunning()` asks. A paused
-   *  playback stays on the engine and says no. */
-  [[nodiscard]] virtual bool isRunning() const { return true; }
-};
-
-class PlaybackState;
-class TimelineState;
-class TimerState;
-
-/** WHAT AN ENGINE IS STEPPING, in order: its motions, then its timers.
- *  Shared with the playbacks it runs, so one that finished and is played
- *  again goes back on the engine that started it. */
-struct Running {
-  std::vector<std::shared_ptr<Stepped>> motions;
-  std::vector<std::shared_ptr<Stepped>> timers;
-};
-
-/** The motion `engine.animate` starts on one live value: the tween
- *  resolved to a path from where the value stands, written into its cell
- *  on every step. Built by `Engine::animate` and `Timeline::add`. */
-std::shared_ptr<PlaybackState> animationOf(
-    std::shared_ptr<Cell<float>> cell, const Tween<float>& tween);
-}  // namespace detail
 
 /** WHERE A TIMELINE ITEM STARTS, relative to what is already on it. */
 struct Position {
@@ -105,66 +75,6 @@ struct TimerOptions {
   Duration delay{};
 };
 
-/** A PLAYBACK — what `animate`, `timeline` and `timer` hand back — and
- *  the control every one of them answers to. A handle: copies control the
- *  same playback, and the engine keeps running it whether or not a handle
- *  is kept. */
-class Playback {
- public:
-  Playback() = default;
-
-  /** Runs from where it stands; a completed playback starts again. */
-  Playback& play();
-  /** Holds where it stands; the engine stops advancing it. */
-  Playback& pause();
-  /** Runs again from where it was paused. */
-  Playback& resume();
-  /** Back to the start, running. */
-  Playback& restart();
-  /** Runs the other way from where it stands. */
-  Playback& reverse();
-  /** Flips direction at the end of every pass from now on. */
-  Playback& alternate();
-  /** Moves to @p time from its start and shows it there, running every
-   *  update up to it. */
-  Playback& seek(Duration time);
-  /** Jumps to the end: the targets take their final values and it
-   *  completes. */
-  Playback& complete();
-  /** Stops where it stands and leaves the engine; the targets keep the
-   *  values they hold. */
-  Playback& cancel();
-  /** Stops and puts every target back where it was before it started. */
-  Playback& revert();
-  /** Called once, when it completes. */
-  Playback& onComplete(std::function<void()> callback);
-
-  /** Declared to move: started, not paused, not completed. */
-  [[nodiscard]] bool isRunning() const;
-  [[nodiscard]] bool isPaused() const;
-  [[nodiscard]] bool isCompleted() const;
-  /** Time from its start, delay included. */
-  [[nodiscard]] Duration currentTime() const;
-  /** How far through, 0 to 1, over every pass. */
-  [[nodiscard]] float progress() const;
-
-  explicit Playback(std::shared_ptr<detail::PlaybackState> state)
-      : m_state(std::move(state)) {}
-  /** The state behind the handle, for the engine that steps it. */
-  [[nodiscard]] const std::shared_ptr<detail::PlaybackState>& state() const {
-    return m_state;
-  }
-
- protected:
-  std::shared_ptr<detail::PlaybackState> m_state;
-};
-
-/** One tween running on one live value. */
-class Animation : public Playback {
- public:
-  using Playback::Playback;
-};
-
 /** A CALLBACK THE ENGINE RUNS every frame, at a fixed rate, or throttled —
  *  until it is cancelled or its duration runs out. */
 class Timer : public Playback {
@@ -189,13 +99,58 @@ class Timeline : public Playback {
  public:
   using Playback::Playback;
   /** Plays @p tween on @p target, starting at @p when. A tween with no
-   *  `from` starts from the value @p target holds when the item starts. */
-  Timeline& add(Animatable<float>& target, Tween<float> tween,
-                Position when = afterEnd());
+   *  `from` starts from the value @p target holds when the item starts.
+   *  Any value an `Animatable` holds that has a line between two of its
+   *  values — a number, a vector, a colour. */
+  template <Interpolable T>
+  Timeline& add(Animatable<T>& target, std::type_identity_t<Tween<T>> tween,
+                Position when = afterEnd()) {
+    if (!m_state) return *this;
+    return place({animationOn(target, tween)}, when);
+  }
+  /** Plays @p tween on EVERY ONE of @p targets as a collective starting at
+   *  @p when: each target is a sibling, so a field written as `stagger()`
+   *  or `cues()` resolves to that target's own value from its place in
+   *  the run — `.delay = stagger(40ms)` starts one after the other. The
+   *  next item placed after the group follows its last target's end. */
+  template <Interpolable T>
+  Timeline& add(std::span<Animatable<T>> targets,
+                std::type_identity_t<Tween<T>> tween,
+                Position when = afterEnd()) {
+    if (!m_state) return *this;
+    std::vector<std::shared_ptr<detail::PlaybackState>> group;
+    group.reserve(targets.size());
+    for (size_t index = 0; index < targets.size(); ++index)
+      group.push_back(
+          animationOn(targets[index], tween.resolved({index, targets.size()})));
+    return place(std::move(group), when);
+  }
+  /** The same over a vector of targets. */
+  template <Interpolable T>
+  Timeline& add(std::vector<Animatable<T>>& targets,
+                std::type_identity_t<Tween<T>> tween,
+                Position when = afterEnd()) {
+    return add(std::span<Animatable<T>>(targets), std::move(tween), when);
+  }
   /** Calls @p callback when the timeline passes @p when, going forwards. */
   Timeline& call(std::function<void()> callback, Position when = afterEnd());
   /** Names a moment for `atLabel()`. */
   Timeline& label(std::string name, Position when = afterEnd());
+
+ private:
+  /** An animation of @p tween on @p target, made live, placed and not
+   *  started: it takes the value over when the timeline reaches it, so it
+   *  writes nothing until then. */
+  template <typename T>
+  static std::shared_ptr<detail::PlaybackState> animationOn(
+      Animatable<T>& target, const Tween<T>& tween) {
+    detail::makeLive(target);
+    return std::make_shared<detail::AnimationState<T>>(target.cell(), tween);
+  }
+  /** Places @p group — one item, or a collective starting together — at
+   *  @p when. */
+  Timeline& place(std::vector<std::shared_ptr<detail::PlaybackState>> group,
+                  Position when);
 };
 
 /** WHAT THE ENGINE IS BUILT WITH, by whoever owns it. */
@@ -235,10 +190,54 @@ class Engine {
   explicit Engine(EngineOptions options = {});
 
   /** RUNS @p tween ON @p target, a live value — made live from the value
-   *  it holds if it is not one. A tween with no `from` starts where the
-   *  value stands. A second animation on the same value takes it over;
-   *  under `Composition::Blend` it rides on top of the first instead. */
-  Animation animate(Animatable<float>& target, Tween<float> tween);
+   *  it holds if it is not. A tween with no `from` starts where the value
+   *  stands. A second animation on the same value takes it over; under
+   *  `Composition::Blend` a value that adds rides the change on top of
+   *  the first instead, and one that does not (a colour) starts again
+   *  from where it stands. Any value an `Animatable` holds that has a line
+   *  between two of its values — a number, a `glm::vec2`, a colour. */
+  template <Interpolable T>
+  Animation animate(Animatable<T>& target, std::type_identity_t<Tween<T>> tween) {
+    detail::makeLive(target);
+    const std::shared_ptr<detail::Cell<T>>& cell = target.cell();
+    if constexpr (Additive<T>) {
+      // BLEND: the change rides on top of the animation already writing
+      // the value, so its velocity carries through.
+      if (tween.composition == Composition::Blend && cell->moving) {
+        if (auto running = std::static_pointer_cast<detail::AnimationState<T>>(
+                cell->motion.lock());
+            running && running->isRunning()) {
+          const Tween<T> resolved = tween.resolved({});
+          running->blend(resolved.rest() - running->target(),
+                         resolved.delay.value(), resolved.duration.value(),
+                         resolved.easing());
+          return Animation(running);
+        }
+      }
+    }
+    auto state = std::make_shared<detail::AnimationState<T>>(cell, tween);
+    state->claim();
+    cell->motion = state;
+    start(state);
+    return Animation(state);
+  }
+  /** RUNS @p tween ON EVERY ONE of @p targets as a collective, from now:
+   *  each target is a sibling, so `.delay = stagger(40ms)` starts them one
+   *  after the other and `.to = stagger({0.0f, 360.0f})` spreads where
+   *  they land. The timeline it hands back controls the run as one. */
+  template <Interpolable T>
+  Timeline animate(std::span<Animatable<T>> targets,
+                   std::type_identity_t<Tween<T>> tween) {
+    Timeline run = timeline();
+    run.add(targets, std::move(tween), at(Duration{}));
+    return run;
+  }
+  /** The same over a vector of targets. */
+  template <Interpolable T>
+  Timeline animate(std::vector<Animatable<T>>& targets,
+                   std::type_identity_t<Tween<T>> tween) {
+    return animate(std::span<Animatable<T>>(targets), std::move(tween));
+  }
   /** A TIMELINE, running from now. */
   Timeline timeline();
   /** A CALLBACK the engine runs every frame (or at @p options' rate) until
@@ -320,6 +319,8 @@ class Engine {
   void run(std::shared_ptr<detail::Stepped> motion);
 
  private:
+  /** Puts @p state on this engine's motions, from the next frame on. */
+  void start(const std::shared_ptr<detail::PlaybackState>& state);
   Timer startTimer(std::function<bool(Duration, Duration)> onUpdate,
                    TimerOptions options);
   /** Moves every motion and timer by @p delta and counts the frame. */

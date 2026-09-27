@@ -27,6 +27,12 @@ engine.timeline()                                           // createTimeline
     .add(rule, {.to = 1.0f}, withPrevious())
     .call([&] { armed = true; });
 
+Animatable<glm::vec2> at = animatable(glm::vec2(0));     // any value with a line
+engine.animate(at, {.to = glm::vec2(120, 40)});
+
+std::vector<Animatable<float>> letters(5, animatable(0.0f));
+engine.animate(letters, {.to = 1.0f, .delay = stagger(40ms)});  // a collective
+
 Animatable<float> wave = animatable(0.0f);
 engine.timer([&] { wave = std::sin(engine.elapsed().count() * 1.6); });
 engine.timer([&] { stepFire(); }, {.stepRate = 27.0});      // a fixed-rate simulation
@@ -35,8 +41,17 @@ engine.timer([&] { stepFire(); }, {.stepRate = 27.0});      // a fixed-rate simu
 `Engine::animate` runs a `Tween` on a live value — made live from the
 value it holds if it is not one — and a second animation on the same
 value takes it over, unless the tween says `Composition::Blend`, when it
-rides on top of the first so the value's velocity carries. `Timeline`
-places tweens and calls in time: `at(time)`, `afterEnd(offset)` — the
+rides on top of the first so the value's velocity carries. It runs ONE
+body for every value type an `Animatable<T>` holds: a float, a
+`glm::vec2` or `glm::vec3`, a `Duration`, a `material::Color`, anything
+`interpolate()` draws a line between (`VALUES.md`). A value that does not
+add — a colour — has no difference to ride on top of a running motion,
+so under `Composition::Blend` it starts again from where it stands.
+Handed a list of values, `Engine::animate` runs the tween on every one
+of them as siblings: a field written as `stagger()` or `cues()` resolves
+to each value's own from its place in the list, and the `Timeline` it
+hands back controls the run as one. `Timeline`
+places tweens, collectives and calls in time: `at(time)`, `afterEnd(offset)` — the
 position an item takes when none is named — `afterPrevious(offset)`,
 `withPrevious(offset)` and `atLabel(name, offset)`, with `Timeline::label`
 naming a moment. `Engine::timer` runs a callback every frame, at an exact

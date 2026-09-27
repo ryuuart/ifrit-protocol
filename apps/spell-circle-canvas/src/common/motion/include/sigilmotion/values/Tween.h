@@ -12,6 +12,7 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/time/Duration.h>
+#include <sigilmotion/values/Interpolate.h>
 
 #include <chrono>
 #include <cmath>
@@ -126,17 +127,22 @@ struct Tween {
    *  uniform and a value read three times in one frame all get the same
    *  number. The delay holds `from`; the passes repeat as `loop` and
    *  `alternate` say; past the last pass the value is where it rests. A
-   *  tween with no `from` starts at `to`. Needs `T` to add, subtract and
-   *  scale by a float. */
-  [[nodiscard]] T at(Duration time) const {
+   *  tween with no `from` starts at `to`. Moves through `interpolate()`,
+   *  the line between two values of `T` the engine moves by too. */
+  [[nodiscard]] T at(Duration time) const
+    requires Interpolable<T>
+  {
     const T start = from ? from->value() : rest();
     const Duration length = duration.value();
     const Duration wait = delay.value();
-    std::vector<Keyframe<T>> steps = keyframes;
-    if (steps.empty()) steps.push_back({rest(), length, {}});
-    const Duration share = length / (double)steps.size();
+    // A tween with no keyframes is one step to where it rests.
+    const Keyframe<T> single{rest(), length, {}};
+    const Keyframe<T>* steps = keyframes.empty() ? &single : keyframes.data();
+    const size_t count = keyframes.empty() ? 1 : keyframes.size();
+    const Duration share = length / (double)count;
     Duration pass{};
-    for (const Keyframe<T>& step : steps) pass += step.duration.value_or(share);
+    for (size_t index = 0; index < count; ++index)
+      pass += steps[index].duration.value_or(share);
     if (time <= wait) return start;
     Duration into = time - wait;
     int index = 0;
@@ -147,16 +153,16 @@ struct Tween {
     }
     if (alternate && index % 2 == 1) into = pass - into;
     T at = start;
-    for (const Keyframe<T>& step : steps) {
-      const Duration stepLength = step.duration.value_or(share);
+    for (size_t step = 0; step < count; ++step) {
+      const Duration stepLength = steps[step].duration.value_or(share);
       if (into <= stepLength) {
         const float unit =
             stepLength > Duration{} ? (float)(into / stepLength) : 1.0f;
-        const Easing& curve = step.ease ? step.ease : easing();
-        return at + (step.to - at) * curve(unit);
+        const Easing& curve = steps[step].ease ? steps[step].ease : easing();
+        return interpolate(at, steps[step].to, curve(unit));
       }
       into -= stepLength;
-      at = step.to;
+      at = steps[step].to;
     }
     return at;
   }

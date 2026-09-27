@@ -13,7 +13,7 @@
 # device, nothing that draws.
 sigil_library(SigilMotionValues
   SOURCES Transition.cpp
-  HEADERS Animatable.h Oscillator.h Spring.h Tween.h Time.h Transition.h
+  HEADERS Animatable.h Interpolate.h Oscillator.h Spring.h Tween.h Time.h Transition.h
   PUBLIC SigilMotionBind SigilMotionSchedule SigilMotionTime SigilCoreComparable
          SigilCoreCompute)
 

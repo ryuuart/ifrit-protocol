@@ -9,6 +9,7 @@
 #include <include/core/SkColor.h>
 #include <pybind11/pybind11.h>
 #include <sigilcompose/core/Paint.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/schedule/Stagger.h>
@@ -20,6 +21,19 @@
 #include <functional>
 #include <memory>
 #include <thread>
+
+/** THE LINE A COLOUR ANIMATED FROM PYTHON TAKES: Python's colour
+ *  animatable holds Skia's four floats, and its line between two of them
+ *  is Material's, so the engine moves it exactly as it moves a
+ *  `material::Color`. Declared beside the type's own namespace, where the
+ *  engine's `interpolate()` finds it. */
+inline SkColor4f interpolate(const SkColor4f& start, const SkColor4f& end,
+                             float amount) {
+  const sigil::material::Color mixed = sigil::material::interpolate(
+      {start.fR, start.fG, start.fB, start.fA},
+      {end.fR, end.fG, end.fB, end.fA}, amount);
+  return {mixed.r, mixed.g, mixed.b, mixed.a};
+}
 
 namespace sigil::python {
 

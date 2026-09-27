@@ -25,6 +25,28 @@
 namespace sigil::python {
 namespace py = pybind11;
 
+namespace {
+/** Every value in @p targets, made live in place — so the Python objects
+ *  themselves move — and copied into one run sharing their cells. */
+template <class T>
+std::vector<motion::Animatable<T>> liveRun(const py::sequence& targets) {
+  std::vector<motion::Animatable<T>> run;
+  run.reserve(py::len(targets));
+  for (py::handle item : targets) {
+    auto& target = py::cast<motion::Animatable<T>&>(item);
+    motion::detail::makeLive(target);
+    run.push_back(target);
+  }
+  return run;
+}
+
+motion::Tween<SkColor4f> colorTween(py::handle value) {
+  if (!py::isinstance<motion::Tween<SkColor4f>>(value))
+    throw py::type_error("A motion on a colour needs a ColorTween.");
+  return py::cast<motion::Tween<SkColor4f>>(value);
+}
+}  // namespace
+
 EngineHandle::EngineHandle(motion::EngineOptions options)
     : m_owner(std::make_shared<motion::Engine>(options)),
       m_thread(std::this_thread::get_id()) {}
@@ -308,6 +330,25 @@ void bindMotionClock(py::module_& root) {
           py::arg("target"), py::arg("tween"),
           py::arg("position") = motion::afterEnd(), fluent)
       .def(
+          "add",
+          [](motion::Timeline& self, motion::Animatable<SkColor4f>& target,
+             py::handle tween, const motion::Position& when)
+              -> motion::Timeline& {
+            return self.add(target, colorTween(tween), when);
+          },
+          py::arg("target"), py::arg("tween"),
+          py::arg("position") = motion::afterEnd(), fluent)
+      .def(
+          "add",
+          [](motion::Timeline& self, const py::list& targets, py::handle tween,
+             const motion::Position& when) -> motion::Timeline& {
+            std::vector<motion::Animatable<float>> run =
+                liveRun<float>(targets);
+            return self.add(run, motionTween(tween), when);
+          },
+          py::arg("targets"), py::arg("tween"),
+          py::arg("position") = motion::afterEnd(), fluent)
+      .def(
           "call",
           [](motion::Timeline& self, py::function callback,
              const motion::Position& when) -> motion::Timeline& {
@@ -340,6 +381,27 @@ void bindMotionClock(py::module_& root) {
           py::arg("target"), py::arg("tween"),
           "Runs the tween on the target, a live value — made live from the "
           "value it holds if it is not one.")
+      .def(
+          "animate",
+          [](const EngineHandle& handle, motion::Animatable<SkColor4f>& target,
+             py::handle tween) {
+            return handle.get().animate(target, colorTween(tween));
+          },
+          py::arg("target"), py::arg("tween"),
+          "Runs a colour tween on a colour value, on the line Material mixes "
+          "a colour along.")
+      .def(
+          "animate",
+          [](const EngineHandle& handle, const py::list& targets,
+             py::handle tween) {
+            std::vector<motion::Animatable<float>> run =
+                liveRun<float>(targets);
+            return handle.get().animate(run, motionTween(tween));
+          },
+          py::arg("targets"), py::arg("tween"),
+          "Runs the tween on every one of the targets as siblings: a field "
+          "written as stagger() or cues() takes each target's own value from "
+          "its place in the list. The timeline handed back controls the run.")
       .def(
           "timeline",
           [](const EngineHandle& handle) { return handle.get().timeline(); },
