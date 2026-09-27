@@ -77,7 +77,8 @@ struct @NAME@ {
     // worth taking. The ground is the theme's unless this says another.
     sketch::kit::stage(ctx, {.size = {960, 600}, .captureAt = 0.4});
     // Drop a reference.png into assets/ and it appears here.
-    reference = ctx.assets.image("reference.png");
+    reference =
+        ctx.assets.hub().load<sigil::media::Image>("res://reference.png");
     ctx.composer.render(describe(ctx));
   }
 };
@@ -140,12 +141,13 @@ one file at a time.
 ## Where its files come from
 
 `assets/` is what mounts at `res://` for this sketch, so
-`ctx.assets.image("reference.png")` reads `assets/reference.png`; a file
-that is not there answers with a placeholder and heals when one appears.
+`ctx.assets.hub().load<sigil::media::Image>("res://reference.png")` reads
+`assets/reference.png`; a file that is not there answers nothing, and the
+sketch is set up again, asking once more, when one appears.
 `--assets <dir>` names another directory instead. A file this sketch
 carries as its own data stands under `data/` here and is reached as
 `ctx.local("data/rows.csv")`, which the asset store's `table()`,
-`image()` and `database()` take as they take any URI.
+`database()` and its hub's `load<T>()` take as they take any URI.
 
 `captures/` is where the window's Capture writes the frame on screen.
 """
