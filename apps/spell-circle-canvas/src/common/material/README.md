@@ -43,11 +43,11 @@ material::Material steelToo{{.base = material::hexColor(0xB8BDC4),
                              .surface = material::SurfaceOptions{.metallic = 1.0f}}};
 ```
 
-Where it goes: `box().fill(steel)`, `text(…).ink(steel, PaintBox::Line)`,
+Where it goes: `box().fill(steel)`, `text(…).ink(steel)`,
 `box().stroke(steel, {.width = 2})` in Compose, where the effects dress
 the node's own layer (shadows beneath the fill, strokes and bevels over
 it, a hard shadow as an echo of the fill and the text);
-`world::Element().fill(steel)` in World, which reads the base and the
+a World element's `fill(steel)`, which reads the base and the
 surface and ignores the effects; `material::skia::paint(steel)` for a raw
 canvas. Two materials built the same way compare equal, so a re-described
 node prunes.
