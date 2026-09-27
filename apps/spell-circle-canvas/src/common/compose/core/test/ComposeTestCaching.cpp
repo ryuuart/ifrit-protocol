@@ -5,6 +5,7 @@
 // view scales, a texture-cached node blending on its blit, and a child
 // overflowing its parent's box under each of the three.
 
+#include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
 
 #include "support/CoreTestSupport.h"
@@ -18,7 +19,7 @@ TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
          ++programRuns;
          SkPaint p;
          p.setColor(SK_ColorCYAN);
-         c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+         c.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), p);
        })
            .width(80)
            .height(80)}));
@@ -119,7 +120,7 @@ TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
            ++programRuns;
            SkPaint p;
            p.setColor(color);
-           c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+           c.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), p);
          })
              .key("tex")
              .width(80)
@@ -482,7 +483,7 @@ struct TracedRule {
     p.setStrokeWidth(width);
     p.setColor(SkColorSetRGB(255, 80, 25));
     p.setAntiAlias(true);
-    canvas.drawPath(ctx.outline, p);
+    canvas.drawPath(geometry::path::toSk(ctx.outline), p);
   }
 };
 
@@ -657,8 +658,8 @@ TEST(ComposeCaching, DecorationOverflowFollowsResizeAndCachedReplay) {
     void paint(SkCanvas& canvas, const PaintContext& ctx) const {
       SkPaint paint;
       paint.setColor(SK_ColorRED);
-      const float extra = bleed(ctx.size);
-      canvas.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height())
+      const float extra = bleed(SkSize{ctx.size.x, ctx.size.y});
+      canvas.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y)
                           .makeOutset(extra, extra),
                       paint);
     }

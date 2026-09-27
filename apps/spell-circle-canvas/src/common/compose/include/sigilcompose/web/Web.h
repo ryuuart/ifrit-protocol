@@ -39,7 +39,7 @@ inline Element web(
   Element leaf = custom([view = std::move(view), sampling](
                             SkCanvas& canvas, const PaintContext& ctx) {
     if (view)
-      view->draw(canvas, SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+      view->draw(canvas, SkRect::MakeWH(ctx.size.x, ctx.size.y),
                  sampling);
   });
   leaf.cache(Cache::None);  // live frames — declared volatility

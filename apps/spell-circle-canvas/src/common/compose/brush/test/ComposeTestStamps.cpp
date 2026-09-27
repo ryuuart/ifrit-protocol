@@ -26,7 +26,7 @@ TEST(ComposeStamps, StampRecordsOnceReplaysPerSample) {
         ++stampDescribes;
         SkPaint p;
         p.setColor(SK_ColorYELLOW);
-        c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+        c.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), p);
       })
           .width(12)
           .height(12);

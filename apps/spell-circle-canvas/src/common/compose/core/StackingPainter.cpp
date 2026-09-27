@@ -205,7 +205,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
                                    .fonts = &fonts,
                                    .stamps = &inst.stampCache,
                                    .toRoot = geometry::path::fromSk(curToRoot),  // this node→root
-                                   .rootSize = rootLayoutSize};
+                                   .rootSize = geometry::path::fromSk(rootLayoutSize)};
     const material::FrameData backdropFrame = frameOf(backdropCtx);
     backdropFilter = material::skia::resolvedImageFilter(*backdropFx, &backdropFrame);
   }
@@ -266,7 +266,7 @@ void Composer::Impl::paint(Instance& inst, SkCanvas& canvas) {
         .animating = engine.isRunning(),
         .fonts = &fonts,
         .toRoot = geometry::path::fromSk(curToRoot),  // so the memo digest sees this move
-        .rootSize = rootLayoutSize};
+        .rootSize = geometry::path::fromSk(rootLayoutSize)};
     inst.pendingLiveFill = resolveFill(*liveMaterialOf(inst), probe);
     inst.hasPendingLiveFill = true;
     liveStable = (inst.picture || inst.textureImage) && !inst.paintDirty &&

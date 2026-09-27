@@ -59,13 +59,13 @@ float Line::bleed() const {
 }
 
 void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
-  if (ctx.outline.isEmpty() || width <= 0) return;
+  if (ctx.outline.empty() || width <= 0) return;
 
   // 1. The body run: offset, then displaced into a wave, then trimmed
   //    back from under Arrow and Bar heads, which also stops dashes
   //    cleanly instead of letting them show through the head.
   SkPath body =
-      across != 0 ? geometry::path::parallel(ctx.outline, across) : ctx.outline;
+      across != 0 ? geometry::path::parallel(geometry::path::toSk(ctx.outline), across) : geometry::path::toSk(ctx.outline);
   if (waveAmplitude > 0)
     body = geometry::path::displace(body, waveAmplitude, waveLength, zigzag);
   // Markers ride the FINAL geometry (offset + wave applied), not the raw
@@ -338,11 +338,11 @@ float Rails::span() const {
 }
 
 void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
-  if (ctx.outline.isEmpty() || rails.empty()) return;
+  if (ctx.outline.empty() || rails.empty()) return;
   const SkPath body = waveAmplitude > 0
-                          ? geometry::path::displace(ctx.outline, waveAmplitude,
+                          ? geometry::path::displace(geometry::path::toSk(ctx.outline), waveAmplitude,
                                                      waveLength, zigzag)
-                          : ctx.outline;
+                          : geometry::path::toSk(ctx.outline);
   const float base = phase();
   const float stride =
       std::isfinite(offsetStep) ? std::max(offsetStep, 0.5f) : 2.0f;
@@ -391,7 +391,7 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   else if (hatchFill.kind == Fill::Kind::Paint)
     p.setShader(material::skia::staticShader(hatchFill.paint()));
   c.save();
-  c.clipPath(ctx.outline, true);
+  c.clipPath(geometry::path::toSk(ctx.outline), true);
   if (pattern.taper != 1.0f || pattern.origin || pattern.inset != 0.0f) {
     // A pattern whose gaps change, whose ladder is anchored or whose
     // region is narrowed is laid by Geometry's lattice as centrelines and
@@ -402,7 +402,7 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(width);
     c.drawPath(geometry::path::toSk(geometry::shapes::hatchOutline(
-                   geometry::path::fromSk(ctx.outline), laid)),
+                   ctx.outline, laid)),
                p);
   } else {
     // An even pattern is the same lines as Skia's own line lattice lays
@@ -415,7 +415,7 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
       turn.setSinCos(sin, cos);
       lattice.postConcat(turn);
       p.setPathEffect(SkLine2DPathEffect::Make(width, lattice));
-      c.drawPath(ctx.outline, p);
+      c.drawPath(geometry::path::toSk(ctx.outline), p);
     };
     pass(sine, cosine);
     // A quarter turn exactly: the sine and cosine trade places.
@@ -426,7 +426,7 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
 
 void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (width <= 0 || (spokes <= 0 && rings <= 0 && radiiPx.empty())) return;
-  const SkRect box = ctx.outline.getBounds();
+  const SkRect box = geometry::path::toSk(ctx.outline).getBounds();
   if (box.isEmpty()) return;
   const SkPoint origin{box.left() + box.width() * centre.fX,
                        box.top() + box.height() * centre.fY};
@@ -447,7 +447,7 @@ void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
     p.setShader(material::skia::staticShader(ringFill.paint()));
 
   c.save();
-  c.clipPath(ctx.outline, true);
+  c.clipPath(geometry::path::toSk(ctx.outline), true);
   if (spokes > 0) {
     SkPathBuilder b;
     const float step = geometry::path::kTau / (float)spokes;

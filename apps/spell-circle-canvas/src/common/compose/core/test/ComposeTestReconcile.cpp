@@ -84,7 +84,7 @@ struct BorrowedStroke {
     paint.setStyle(SkPaint::kStroke_Style);
     paint.setStrokeWidth(6.0f);
     paint.setAntiAlias(false);
-    canvas.drawPath(ctx.borrowedPath(key), paint);
+    canvas.drawPath(geometry::path::toSk(ctx.borrowedPath(key)), paint);
   }
 };
 

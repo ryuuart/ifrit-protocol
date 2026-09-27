@@ -103,8 +103,8 @@ sketch::kit::ComparisonCase cell(
               custom(call,
                      [draw = std::move(draw)](SkCanvas& canvas,
                                               const PaintContext& pc) {
-                       draw(canvas, {.resolution = {pc.size.width(),
-                                                    pc.size.height()}});
+                       draw(canvas, {.resolution = {pc.size.x,
+                                                    pc.size.y}});
                      })),
           .note = note};
 }

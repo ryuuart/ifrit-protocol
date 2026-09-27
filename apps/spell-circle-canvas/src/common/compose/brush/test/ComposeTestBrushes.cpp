@@ -3,6 +3,8 @@
 // the corner shapes a silhouette is cut to, and how far a ribbon
 // reaches when its profile rather than its own defaults decides.
 
+#include <sigilgeometry/path/Skia.h>
+#include "../../core/StampCache.h"
 #include <sigilmaterial/skia/Paint.h>
 #include <utility>
 
@@ -394,7 +396,7 @@ struct ContextProbe {
     int paints = 0;
     const StampCache* stamps = nullptr;
     geometry::path::Transform toRoot;
-    SkSize rootSize = SkSize::MakeEmpty();
+    glm::vec2 rootSize{0, 0};
     SkRect outline = SkRect::MakeEmpty();
     double elapsedSeconds = 0.0;
   };
@@ -406,7 +408,7 @@ struct ContextProbe {
     seen->stamps = ctx.stamps;
     seen->toRoot = ctx.toRoot;
     seen->rootSize = ctx.rootSize;
-    seen->outline = ctx.outline.getBounds();
+    seen->outline = geometry::path::toSk(ctx.outline).getBounds();
     seen->elapsedSeconds = ctx.elapsedSeconds;
   }
 };
@@ -423,7 +425,7 @@ struct BlendingMark {
 PaintContext nodeContext(StampCache& stamps) {
   PaintContext ctx;
   ctx.size = {100, 60};
-  ctx.outline = SkPath::Rect(SkRect::MakeWH(100, 60));
+  ctx.outline = geometry::path::Outline::rectangle({{0, 0}, {100, 60}});
   ctx.elapsedSeconds = 2.5;
   ctx.contentScale = 2.0f;
   ctx.animating = true;
@@ -457,7 +459,7 @@ TEST(ComposeBrushes, ANestedBrushKeepsEverythingButTheOutline) {
     ASSERT_EQ(probe->seen->paints, 1);
     EXPECT_EQ(probe->seen->stamps, &stamps);
     EXPECT_EQ(probe->seen->toRoot, geometry::path::Transform::translate({30, 40}));
-    EXPECT_EQ(probe->seen->rootSize, SkSize::Make(800, 600));
+    EXPECT_EQ(probe->seen->rootSize, glm::vec2(800, 600));
     EXPECT_DOUBLE_EQ(probe->seen->elapsedSeconds, 2.5);
     EXPECT_EQ(probe->seen->outline, SkRect::MakeWH(100, 60));
   }

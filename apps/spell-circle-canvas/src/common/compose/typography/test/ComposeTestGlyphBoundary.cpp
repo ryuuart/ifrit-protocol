@@ -1,6 +1,7 @@
 // What a decoration dresses: on the default boundary the node's whole
 // box, and on the glyph boundary only where the letters are.
 
+#include <sigilgeometry/path/Skia.h>
 #include "support/ParagraphTestSupport.h"
 
 TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
@@ -20,7 +21,7 @@ TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
                              SkPaint paint;
                              paint.setColor(SK_ColorGREEN);
                              paint.setAntiAlias(false);
-                             canvas.drawPath(ctx.outline, paint);
+                             canvas.drawPath(geometry::path::toSk(ctx.outline), paint);
                            })));
     if (boundary != Boundary::Auto) leaf.decorationOutline(boundary);
     return box().children({std::move(leaf)});

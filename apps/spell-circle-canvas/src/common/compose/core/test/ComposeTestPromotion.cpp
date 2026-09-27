@@ -139,7 +139,7 @@ TEST(ComposeCache, ACustomProgramIsCountedAsCompositingWithTheCanvas) {
                      paint.setColor4f({0.4f, 0.4f, 0.4f, 1});
                      paint.setBlendMode(SkBlendMode::kPlus);
                      canvas.drawRect(
-                         SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+                         SkRect::MakeWH(ctx.size.x, ctx.size.y),
                          paint);
                    })
                        .key("plus")

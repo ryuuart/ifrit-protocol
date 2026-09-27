@@ -15,6 +15,7 @@
 // height and they stay on the horizon at any size. The Flash-portfolio
 // study includes this header from here.
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/effects/SkGradient.h>
@@ -128,9 +129,9 @@ struct ChromeSliver {
   bool operator==(const ChromeSliver&) const = default;
 
   void paint(SkCanvas& c, const sigil::compose::PaintContext& ctx) const {
-    const float W = ctx.size.width(), H = ctx.size.height();
+    const float W = ctx.size.x, H = ctx.size.y;
     c.save();
-    c.clipPath(ctx.outline, true);
+    c.clipPath(sigil::geometry::path::toSk(ctx.outline), true);
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f({1, 1, 1, 0.9f}, nullptr);

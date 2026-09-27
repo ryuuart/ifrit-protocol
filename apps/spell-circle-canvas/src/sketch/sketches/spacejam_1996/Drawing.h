@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPathBuilder.h>
@@ -183,10 +184,10 @@ struct Bands {
   float tilt = 0.0f;      // streaks running off the horizontal
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const {
-    const float w = ctx.size.width(), h = ctx.size.height();
+    const float w = ctx.size.x, h = ctx.size.y;
     if (w <= 0 || h <= 0 || inks.empty()) return;
     canvas.save();
-    canvas.clipPath(ctx.outline, true);
+    canvas.clipPath(sigil::geometry::path::toSk(ctx.outline), true);
     SkPaint p;
     p.setAntiAlias(true);
     for (int b = 0; b < count; ++b) {

@@ -5,6 +5,7 @@
  * outline, and the stipple as a tint through a mask tile.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkBitmap.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkColorFilter.h>
@@ -179,7 +180,7 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
   // whole ring, and a band's facing is classified against a bounds centre
   // a run does not have. What the narrowed outline decides is how much of
   // the ring is SHOWN, which is the band below.
-  const SkPath& shape = ctx.silhouette.isEmpty() ? ctx.outline : ctx.silhouette;
+  const SkPath& shape = ctx.silhouette.empty() ? geometry::path::toSk(ctx.outline) : geometry::path::toSk(ctx.silhouette);
   const SkRect bounds = shape.getBounds();
   // …and, where the outline WAS narrowed, the band that limits the ring to
   // the part of the boundary that is shown. A run bounds no area, so it
@@ -188,11 +189,11 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
   // else. Empty when nothing narrowed the outline, which is every panel
   // that wears a bevel and no gate.
   SkPath revealed;
-  if (!ctx.silhouette.isEmpty()) {
+  if (!ctx.silhouette.empty()) {
     SkPaint depth;
     depth.setStyle(SkPaint::kStroke_Style);
     depth.setStrokeWidth(std::max(nearWidth, farWidth) * 2.0f);
-    revealed = skpathutils::FillPathWithPaint(ctx.outline, depth);
+    revealed = skpathutils::FillPathWithPaint(geometry::path::toSk(ctx.outline), depth);
   }
   const auto clipToShape = [&](SkCanvas& canvas) {
     canvas.clipPath(shape, SkClipOp::kIntersect, antiAlias);
@@ -276,7 +277,7 @@ void Brackets::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setStrokeWidth(width);
   p.setStrokeCap(SkPaint::kButt_Cap);
   p.setStrokeJoin(SkPaint::kMiter_Join);
-  const float w = ctx.size.width(), h = ctx.size.height();
+  const float w = ctx.size.x, h = ctx.size.y;
   // The stroke is centred on its path, so the path stands half a width
   // further in than the gap for the mark's outer edge to land on it.
   const float o = gap + width * 0.5f;
@@ -300,7 +301,7 @@ void TickRail::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(antiAlias);
   p.setColor4f(material::skia::toSkColor(color), nullptr);
-  const float w = ctx.size.width(), h = ctx.size.height();
+  const float w = ctx.size.x, h = ctx.size.y;
   const auto rail = [&](Edge which) {
     const bool vertical = which == Edge::Left || which == Edge::Right;
     const float run = vertical ? h : w;
@@ -338,12 +339,12 @@ void TickRail::paint(SkCanvas& c, const PaintContext& ctx) const {
 void Scanlines::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (period <= 0.0f || on <= 0.0f) return;
   c.save();
-  c.clipPath(ctx.outline, false);
+  c.clipPath(geometry::path::toSk(ctx.outline), false);
   SkPaint p;
   p.setAntiAlias(false);
   p.setColor4f(material::skia::toSkColor(color), nullptr);
   p.setBlendMode(material::skia::toSkBlendMode(blend));
-  const float w = ctx.size.width(), h = ctx.size.height();
+  const float w = ctx.size.x, h = ctx.size.y;
   // Start one period above the top so a phase in either direction keeps
   // the first row whole.
   const float start = std::fmod(phase, period) - period;
@@ -369,8 +370,8 @@ void Stipple::paint(SkCanvas& c, const PaintContext& ctx) const {
   p.setColorFilter(SkColorFilters::Blend(
       material::skia::toSkColor(color).toSkColor(), SkBlendMode::kSrcIn));
   c.save();
-  c.clipPath(ctx.outline, SkClipOp::kIntersect, false);
-  c.drawRect(ctx.outline.getBounds(), p);
+  c.clipPath(geometry::path::toSk(ctx.outline), SkClipOp::kIntersect, false);
+  c.drawRect(geometry::path::toSk(ctx.outline).getBounds(), p);
   c.restore();
 }
 

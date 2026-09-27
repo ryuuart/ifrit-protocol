@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "BakedArt.h"
+#include "StampCache.h"
 
 namespace sigil::compose::brush {
 
@@ -64,7 +65,7 @@ void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
 
   std::vector<SkPoint> positions, texs;
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(ctx.outline)) {
+       geometry::path::Contour::of(geometry::path::toSk(ctx.outline))) {
     const float length = contour.length();
     if (length < 1.0f) continue;
     const int stations =

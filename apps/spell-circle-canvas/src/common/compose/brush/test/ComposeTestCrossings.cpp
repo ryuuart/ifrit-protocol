@@ -3,6 +3,7 @@
 // the crossings, the strands themselves, and the names the brush kinds
 // answer to.
 
+#include <sigilgeometry/path/Skia.h>
 #include <type_traits>
 
 #include "support/BrushTestSupport.h"
@@ -295,7 +296,7 @@ TEST(ComposeComposites, CrossingCacheRecomputesWhenAuthoredGeometryChanges) {
 
 TEST(ComposeComposites, CrossingCacheFollowsTheOutlineUnderRelativeStrands) {
   // Staleness through the OUTLINE door. A relative strand resolves against
-  // ctx.outline, so the SAME weave value over a changed shape must
+  // geometry::path::toSk(ctx.outline), so the SAME weave value over a changed shape must
   // rediscover: the key is the resolved paths, not the value's own fields.
   // A self-strand ring crossed by an authored line, red always on top;
   // when the ring grows, the knots move outward along the line, and only

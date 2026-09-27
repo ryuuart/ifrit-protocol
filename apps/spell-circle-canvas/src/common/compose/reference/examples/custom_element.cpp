@@ -29,8 +29,8 @@ constexpr material::Color kAsh = material::hexColor(0x8ea0ad);
 /** The program: rings measured off the box the node was laid out at,
  *  which is what `PaintContext::size` carries. */
 void rings(SkCanvas& canvas, const PaintContext& context) {
-  const SkPoint centre{context.size.width() * 0.5f,
-                       context.size.height() * 0.5f};
+  const SkPoint centre{context.size.x * 0.5f,
+                       context.size.y * 0.5f};
   SkPaint paint;
   paint.setAntiAlias(true);
   paint.setStyle(SkPaint::kStroke_Style);

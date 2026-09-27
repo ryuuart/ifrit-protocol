@@ -352,9 +352,12 @@ void bindComposePaintPrograms(py::module_& module) {
       }))
       .def("copy", [](const PaintContext::Pointer& value) { return value; })
       .def_property(
-          "at", [](const PaintContext::Pointer& value) { return value.at; },
+          "at",
+          [](const PaintContext::Pointer& value) {
+            return geometry::path::toSk(value.at);
+          },
           [](PaintContext::Pointer& value, py::handle at) {
-            value.at = point(at);
+            value.at = geometry::path::fromSk(point(at));
           })
       .def_readwrite("pressed", &PaintContext::Pointer::pressed);
   copyProtocol(pointer);
@@ -364,13 +367,18 @@ void bindComposePaintPrograms(py::module_& module) {
   context
       .def_property_readonly(
           "size",
-          [](const BorrowedPaintContext& self) { return self.get().size; })
+          [](const BorrowedPaintContext& self) {
+            return geometry::path::toSkSize(self.get().size);
+          })
       .def_property_readonly(
           "outline",
-          [](const BorrowedPaintContext& self) { return self.get().outline; })
+          [](const BorrowedPaintContext& self) {
+            return geometry::path::toSk(self.get().outline);
+          })
       .def_property_readonly("silhouette",
                              [](const BorrowedPaintContext& self) {
-                               return self.get().silhouette;
+                               return geometry::path::toSk(
+                                   self.get().silhouette);
                              })
       .def_property_readonly("elapsedSeconds",
                              [](const BorrowedPaintContext& self) {
@@ -386,14 +394,16 @@ void bindComposePaintPrograms(py::module_& module) {
       .def_property_readonly(
           "borrowed",
           [](const BorrowedPaintContext& self) {
-            const auto* borrowed = self.get().borrowed;
-            return borrowed ? *borrowed
-                            : std::vector<std::pair<std::string, SkPath>>{};
+            std::vector<std::pair<std::string, SkPath>> paths;
+            if (const auto* borrowed = self.get().borrowed)
+              for (const auto& [key, outline] : *borrowed)
+                paths.emplace_back(key, geometry::path::toSk(outline));
+            return paths;
           })
       .def(
           "borrowedPath",
           [](const BorrowedPaintContext& self, const std::string& key) {
-            return self.get().borrowedPath(key);
+            return geometry::path::toSk(self.get().borrowedPath(key));
           },
           py::arg("key"))
       .def_property_readonly(
@@ -403,7 +413,9 @@ void bindComposePaintPrograms(py::module_& module) {
           })
       .def_property_readonly(
           "rootSize",
-          [](const BorrowedPaintContext& self) { return self.get().rootSize; })
+          [](const BorrowedPaintContext& self) {
+            return geometry::path::toSkSize(self.get().rootSize);
+          })
       .def_property_readonly(
           "ink", [](const BorrowedPaintContext& self) { return self.get().ink; })
       .def_property_readonly(

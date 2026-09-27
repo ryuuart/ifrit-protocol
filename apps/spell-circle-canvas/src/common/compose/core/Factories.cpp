@@ -163,8 +163,8 @@ Element picture(sk_sp<SkPicture> recorded, SkSize native) {
                          SkCanvas& canvas, const PaintContext& ctx) {
                        SkAutoCanvasRestore restore(&canvas, true);
                        if (recordedAt.width() > 0 && recordedAt.height() > 0)
-                         canvas.scale(ctx.size.width() / recordedAt.width(),
-                                      ctx.size.height() / recordedAt.height());
+                         canvas.scale(ctx.size.x / recordedAt.width(),
+                                      ctx.size.y / recordedAt.height());
                        canvas.drawPicture(pic.get());
                      });
   return e.width(Dimension(native.width())).height(Dimension(native.height()));

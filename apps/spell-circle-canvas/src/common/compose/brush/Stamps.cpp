@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "BakedArt.h"
+#include "StampCache.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Skia.h"
 
@@ -195,7 +196,7 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
   // spacing lives rather than by comparing against a sentinel value an
   // author could also have typed on purpose.
   std::vector<PathSample> samples =
-      placementSamples(ctx.outline, place, spacing);
+      placementSamples(geometry::path::toSk(ctx.outline), place, spacing);
   for (size_t i = 0; i < samples.size(); ++i) {
     StampModifier m;
     if (modifier) m = modifier(samples[i], i, samples.size());
@@ -264,7 +265,7 @@ void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
   std::vector<std::pair<PathSample, const SkPicture*>> caps;
 
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(ctx.outline)) {
+       geometry::path::Contour::of(geometry::path::toSk(ctx.outline))) {
     const float len = contour.length();
     const bool closed = contour.closed();
 

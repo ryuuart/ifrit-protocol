@@ -98,7 +98,7 @@ Element directLattice(std::shared_ptr<const sigil::media::Image> asset) {
                     const std::vector<int> ys{side / 3, side * 2 / 3};
                     sigil::skia::draw::drawLattice(
                         canvas, image, xs, ys,
-                        SkRect::MakeWH(ctx.size.width(), ctx.size.height()),
+                        SkRect::MakeWH(ctx.size.x, ctx.size.y),
                         SkFilterMode::kLinear);
                   })
                .cover(),

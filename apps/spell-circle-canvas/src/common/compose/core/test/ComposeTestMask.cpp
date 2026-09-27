@@ -1,3 +1,4 @@
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include "support/CoreTestSupport.h"
 
@@ -288,7 +289,7 @@ Decoration flooding(SkColor color) {
         SkPaint paint;
         paint.setColor(color);
         paint.setAntiAlias(false);
-        canvas.drawPath(ctx.outline, paint);
+        canvas.drawPath(geometry::path::toSk(ctx.outline), paint);
       }));
 }
 

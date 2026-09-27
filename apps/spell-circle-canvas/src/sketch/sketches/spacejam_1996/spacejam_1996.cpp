@@ -67,7 +67,7 @@ struct SpaceJam1996 {
                       std::floor(h / sj::kScale * frac) * sj::kScale;
                   if (rows <= 0.0f) return;
                   canvas.save();
-                  canvas.clipRect(SkRect::MakeWH(ctx.size.width(), rows));
+                  canvas.clipRect(SkRect::MakeWH(ctx.size.x, rows));
                   canvas.drawPicture(p.get());
                   canvas.restore();
                 })

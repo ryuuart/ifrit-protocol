@@ -23,8 +23,8 @@ namespace sigil::compose {
 
 material::FrameData frameOf(const PaintContext& ctx) {
   material::FrameData frame;
-  frame.resolution = {ctx.size.width(), ctx.size.height()};
-  frame.rootResolution = {ctx.rootSize.width(), ctx.rootSize.height()};
+  frame.resolution = {ctx.size.x, ctx.size.y};
+  frame.rootResolution = {ctx.rootSize.x, ctx.rootSize.y};
   frame.world = ctx.toRoot.matrix;
   frame.seconds = ctx.elapsedSeconds;
   frame.contentScale = ctx.contentScale;
@@ -47,7 +47,7 @@ Fill toFill(const material::Paint& paint) {
 }
 
 Fill resolveInk(const material::Paint& paint, const PaintContext& ctx) {
-  if (ctx.inkAnchorSize.isEmpty()) return resolveFill(paint, ctx);
+  if ((ctx.inkAnchorSize.x <= 0 || ctx.inkAnchorSize.y <= 0)) return resolveFill(paint, ctx);
   if (paint.isSolid()) return Fill::color(paint.solidColor());
   if (paint.isNone()) return Fill::none();
   // The anchor box stands in for the canvas: a root-anchored build maps
@@ -55,7 +55,7 @@ Fill resolveInk(const material::Paint& paint, const PaintContext& ctx) {
   // inverse of `toRoot`, which is exactly "the slice of that box this
   // node stands on".
   material::FrameData frame = frameOf(ctx);
-  frame.rootResolution = {ctx.inkAnchorSize.width(), ctx.inkAnchorSize.height()};
+  frame.rootResolution = {ctx.inkAnchorSize.x, ctx.inkAnchorSize.y};
   frame.world = ctx.inkAnchorToRoot.matrix;
   material::Paint anchored = paint;
   anchored.worldSpace(true);

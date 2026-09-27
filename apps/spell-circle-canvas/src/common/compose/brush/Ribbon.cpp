@@ -9,6 +9,7 @@
  * spine are one geometry rather than three.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilgeometry/path/Band.h>
 #include <sigilgeometry/path/Numeric.h>
@@ -46,7 +47,7 @@ SkPath Ribbon::band(const SkPath& spine) const {
 }
 
 void Ribbon::paint(SkCanvas& c, const PaintContext& ctx) const {
-  const SkPath region = band(ctx.outline);
+  const SkPath region = band(geometry::path::toSk(ctx.outline));
   if (region.isEmpty()) return;
   SkPaint p;
   p.setAntiAlias(true);

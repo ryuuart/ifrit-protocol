@@ -45,12 +45,12 @@ void Shadow::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   if (blur > 0)
     p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
   canvas.save();
-  if (knockout) canvas.clipPath(ctx.outline, SkClipOp::kDifference, true);
+  if (knockout) canvas.clipPath(geometry::path::toSk(ctx.outline), SkClipOp::kDifference, true);
   canvas.translate(bindOffsetX ? bindOffsetX->value()
                                : offset.x(),
                    bindOffsetY ? bindOffsetY->value()
                                : offset.y());
-  canvas.drawPath(ctx.outline, p);
+  canvas.drawPath(geometry::path::toSk(ctx.outline), p);
   canvas.restore();
 }
 
@@ -81,7 +81,8 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   p.setPathEffect(std::move(chosen));
 
   // The decoration's own trim window (wrapping; the marching sliver).
-  const SkPath* drawn = &ctx.outline;
+  const SkPath outline = geometry::path::toSk(ctx.outline);
+  const SkPath* drawn = &outline;
   SkPath windowed;
   const float off =
       trimPhase ? trimPhase->value() : trimOffset;
@@ -92,7 +93,7 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     const float e = e0 - std::floor(e0);
     SkPathBuilder window;
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(ctx.outline)) {
+         geometry::path::Contour::of(outline)) {
       const float len = contour.length();
       if (s < e) {
         contour.appendSegment(window, s * len, e * len);
@@ -115,7 +116,7 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
     // itself unless an adaptor narrowed the outline to runs that bound no
     // area and left the shape in `silhouette`.
     const SkPath& shape =
-        ctx.silhouette.isEmpty() ? ctx.outline : ctx.silhouette;
+        ctx.silhouette.empty() ? geometry::path::toSk(ctx.outline) : geometry::path::toSk(ctx.silhouette);
     canvas.save();
     canvas.clipPath(
         shape,
@@ -132,7 +133,7 @@ void Slice::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   if (!asset || asset->frames().empty()) return;
   sk_sp<SkImage> img = asset->frames().front().image;
   if (!img) return;
-  const SkRect dst = SkRect::MakeWH(ctx.size.width(), ctx.size.height());
+  const SkRect dst = SkRect::MakeWH(ctx.size.x, ctx.size.y);
   skia::draw::drawLattice(canvas, std::move(img), xDivs, yDivs, dst, filter,
                           density);
 }
@@ -153,7 +154,7 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
 
   size_t index = 0;  // runs across contours — the sequence's position
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(ctx.outline)) {
+       geometry::path::Contour::of(geometry::path::toSk(ctx.outline))) {
     const float length = contour.length();
     // the loop walks a distance; the accumulated float is the position
     // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
@@ -206,7 +207,7 @@ void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   } else {
     return;
   }
-  canvas.drawPath(ctx.outline, p);
+  canvas.drawPath(geometry::path::toSk(ctx.outline), p);
 }
 
 void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
@@ -217,10 +218,10 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   // draw nothing at all.
   const float heaviest =
       mode == Mode::Weighted ? std::max(width, cornerWidth) : width;
-  if (ctx.outline.isEmpty() || heaviest <= 0) return;
+  if (ctx.outline.empty() || heaviest <= 0) return;
   const SkPath base = inset != 0
-                          ? geometry::path::insetOutline(ctx.outline, inset)
-                          : ctx.outline;
+                          ? geometry::path::insetOutline(geometry::path::toSk(ctx.outline), inset)
+                          : geometry::path::toSk(ctx.outline);
 
   // A fill written as the ink in force, or as a custom property, takes
   // its colour from the node the border is painted under.
@@ -268,7 +269,7 @@ namespace decorations {
 void paintOn(SkCanvas& canvas, const PaintContext& ctx, SkPath outline,
              const Decoration& decoration) {
   PaintContext local = ctx;
-  local.outline = std::move(outline);
+  local.outline = geometry::path::fromSk(std::move(outline));
   decoration.paint(canvas, local);
 }
 }  // namespace decorations

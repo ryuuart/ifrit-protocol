@@ -198,7 +198,7 @@ struct RailFlares {
   bool operator==(const RailFlares&) const = default;
   bool isRunning() const { return true; }
   void paint(SkCanvas& c, const PaintContext& ctx) const {
-    const float w = ctx.size.width(), h = ctx.size.height();
+    const float w = ctx.size.x, h = ctx.size.y;
     const float ys[3] = {h * 0.167f, h * 0.5f, h * 0.833f};
     const float len = 90.0f, lean = 12.6f;
     const double tt = ctx.elapsedSeconds + phase;

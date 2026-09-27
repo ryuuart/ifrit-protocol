@@ -164,7 +164,7 @@ geometry::path::Outline taperedStroke(const std::vector<glm::vec2>& pts,
  *  the side edge instead of along the top/bottom. */
 PaintProgram edgeFlourish(const Palette& pal, int quadrant, bool vertical) {
   return [pal, quadrant, vertical](SkCanvas& c, const PaintContext& ctx) {
-    const float w = ctx.size.width(), h = ctx.size.height();
+    const float w = ctx.size.x, h = ctx.size.y;
     const bool right = quadrant == 1 || quadrant == 2;
     const bool bottom = quadrant >= 2;
     if (bottom) {
@@ -225,7 +225,7 @@ PaintProgram edgeFlourish(const Palette& pal, int quadrant, bool vertical) {
  *  the call site. */
 PaintProgram sprig(const Palette& pal) {
   return [pal](SkCanvas& c, const PaintContext& ctx) {
-    const float w = ctx.size.width(), h = ctx.size.height();
+    const float w = ctx.size.x, h = ctx.size.y;
     c.translate(w / 2, h);
 
     std::vector<SkPoint> stem;
@@ -260,7 +260,7 @@ PaintProgram sprig(const Palette& pal) {
 }
 
 void SwirlCorners::paint(SkCanvas& c, const PaintContext& ctx) const {
-    const float w = ctx.size.width(), h = ctx.size.height();
+    const float w = ctx.size.x, h = ctx.size.y;
     for (int q = 0; q < 4; ++q) {
       const bool right = q == 1 || q == 2;
       const bool bottom = q >= 2;

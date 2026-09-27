@@ -383,11 +383,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
   PaintContext::Pointer pointerHere;
   pointerHere.pressed = pointerPressed;
   if (SkMatrix toNode; curToRoot.invert(&toNode))
-    pointerHere.at = toNode.mapPoint(pointerAt);
+    pointerHere.at = geometry::path::fromSk(toNode.mapPoint(pointerAt));
   const PaintContext paintCtx{
       .size = {bounds.width(), bounds.height()},
-      .outline = std::move(marksPath),
-      .silhouette = std::move(marksSilhouette),
+      .outline = geometry::path::fromSk(std::move(marksPath)),
+      .silhouette = geometry::path::fromSk(std::move(marksSilhouette)),
       .elapsedSeconds = elapsed(),
       .contentScale = contentScale,
       .animating = engine.isRunning(),
@@ -395,13 +395,13 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .borrowed = inst.borrowedPaths.empty() ? nullptr : &inst.borrowedPaths,
       .stamps = &inst.stampCache,
       .toRoot = geometry::path::fromSk(curToRoot),  // node→root, as paint() stacked it
-      .rootSize = rootLayoutSize,  // …and the canvas it maps into
+      .rootSize = geometry::path::fromSk(rootLayoutSize),  // …and the canvas it maps into
       // The cascade as it resolved at this node: the ink every mark that
       // names no colour takes, the font a pen program begins in, and the
       // custom properties a fill or an ink may read.
       .ink = inst.font.color.value_or(material::Color{0, 0, 0, 1}),
       .inkPaint = inst.inkPaint.paint ? &*inst.inkPaint.paint : nullptr,
-      .inkAnchorSize = inkAnchorSize,
+      .inkAnchorSize = geometry::path::fromSk(inkAnchorSize),
       // This node's own space mapped INTO the anchor box: the walk holds
       // the anchor's node→root matrix, and a slice is what stands between
       // the two.
@@ -612,8 +612,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       const int saves =
           granularPlane ? enterGates(false, Parts::kMarks, passes[i].name) : -1;
       PaintContext passCtx = paintCtx;
-      passCtx.outline = arith ? arith->spanPath(fullOutline, run) : fullOutline;
-      passCtx.silhouette = gateSilhouette(fullOutline, run);
+      passCtx.outline = geometry::path::fromSk(
+          arith ? arith->spanPath(fullOutline, run) : fullOutline);
+      passCtx.silhouette =
+          geometry::path::fromSk(gateSilhouette(fullOutline, run));
       passCtx.stamps = nullptr;  // deliberately not shared with a span pass
       passes[i].what.paint(canvas, passCtx);
       if (granularPlane) leaveGates(saves, cover);
@@ -646,8 +648,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       std::vector<Span> run = *refine;
       if (marksShow) run = intersect(run, *marksShow);
       PaintContext markCtx = paintCtx;
-      markCtx.outline = gateOutline(arith, fullOutline, run);
-      markCtx.silhouette = gateSilhouette(fullOutline, run);
+      markCtx.outline =
+          geometry::path::fromSk(gateOutline(arith, fullOutline, run));
+      markCtx.silhouette =
+          geometry::path::fromSk(gateSilhouette(fullOutline, run));
       markCtx.stamps = nullptr;  // not shared with a mark
       d.paint(canvas, markCtx);
     } else {

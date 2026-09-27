@@ -5,6 +5,7 @@
  * pass.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include "MaterialEffects.h"
 
 #include <include/core/SkCanvas.h>
@@ -38,7 +39,7 @@ void blurred(SkPaint& paint, float blur) {
 }
 
 const SkPath& shapeOf(const PaintContext& context) {
-  return context.silhouette.isEmpty() ? context.outline : context.silhouette;
+  return context.silhouette.empty() ? geometry::path::toSk(context.outline) : geometry::path::toSk(context.silhouette);
 }
 
 /** A band hugging the inner edge, displaced along @p offset. */
@@ -54,7 +55,7 @@ void innerShadow(SkCanvas& canvas, const PaintContext& context,
   paint.setStrokeWidth(reach);
   blurred(paint, blur);
   canvas.translate(offset.x, offset.y);
-  canvas.drawPath(context.outline, paint);
+  canvas.drawPath(geometry::path::toSk(context.outline), paint);
   canvas.restore();
 }
 
@@ -82,7 +83,7 @@ void strokeSide(SkCanvas& canvas, const PaintContext& context, SkPaint paint,
       paint.setStrokeWidth(width);
       break;
   }
-  canvas.drawPath(context.outline, paint);
+  canvas.drawPath(geometry::path::toSk(context.outline), paint);
   canvas.restore();
 }
 
@@ -122,7 +123,7 @@ void CoverageMark::paint(SkCanvas& canvas, const PaintContext& context) const {
       blurred(paint, shadow.blur);
       canvas.save();
       canvas.translate(shadow.offset.x, shadow.offset.y);
-      canvas.drawPath(context.outline, paint);
+      canvas.drawPath(geometry::path::toSk(context.outline), paint);
       canvas.restore();
       return;
     }

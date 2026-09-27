@@ -157,7 +157,8 @@ struct Standing {
         {custom("mesh", [painter = painterRuntime()](
                             SkCanvas& canvas, const PaintContext& paint) {
           const sigil::geometry::mesh::camera::Camera camera;
-          painter.get()->drawPanel(canvas, glm::mat4(1.0f), camera, paint.size,
+          painter.get()->drawPanel(canvas, glm::mat4(1.0f), camera,
+                                   SkSize{paint.size.x, paint.size.y},
                                    [](SkCanvas&) {});
         })}));
   }

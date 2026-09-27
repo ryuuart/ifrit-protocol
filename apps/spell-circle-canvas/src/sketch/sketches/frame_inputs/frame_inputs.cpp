@@ -95,7 +95,7 @@ sketch::kit::ComparisonCase example(const char* title, const char* control,
                          SkCanvas& canvas, const PaintContext& pc) {
                        material::skia::fill(
                            canvas, face, m,
-                           {.resolution = {pc.size.width(), pc.size.height()},
+                           {.resolution = {pc.size.x, pc.size.y},
                             .contentScale = contentScale,
                             .world = world});
                      })),

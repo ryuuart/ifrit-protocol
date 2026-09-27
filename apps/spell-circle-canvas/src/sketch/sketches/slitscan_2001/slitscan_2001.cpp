@@ -2,6 +2,7 @@
 
 // TAGS: Media/Video
 
+#include <sigilgeometry/path/Skia.h>
 #include "SlitScan2001.h"
 
 auto SlitScan2001::describe(sketch::SketchContext& ctx) -> Element {
@@ -36,7 +37,7 @@ auto SlitScan2001::describe(sketch::SketchContext& ctx) -> Element {
 static void dressed(Pen& pen, const PaintContext& node, SkPath outline,
                     const Decoration& dress) {
   PaintContext ctx = node;
-  ctx.outline = outline;
+  ctx.outline = sigil::geometry::path::fromSk(outline);
   decorations::paintOn(*pen.canvas(), ctx, std::move(outline), dress);
 }
 

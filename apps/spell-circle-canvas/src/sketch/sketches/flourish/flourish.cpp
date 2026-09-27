@@ -21,6 +21,7 @@
 
 // TAGS: Drawing/Generative, Patterns/Ornament
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSurface.h>
@@ -289,7 +290,7 @@ struct Flourish {
             p.setShader(SkRuntimeShaderBuilder(fx).makeShader());
             p.setAlphaf(0.6f);
             c.save();
-            c.clipPath(ctx.outline, true);
+            c.clipPath(sigil::geometry::path::toSk(ctx.outline), true);
             c.drawRect(SkRect::MakeSize(ctx.size), p);
             c.restore();
           }));

@@ -9,6 +9,7 @@
 // differencing it, so the pair of runs is the fixture rather than
 // anything a single case sets up.
 
+#include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <functional>
 #include <vector>
@@ -31,7 +32,7 @@ struct FlatStroke {
     p.setStrokeWidth(width);
     p.setColor(SK_ColorWHITE);
     p.setAntiAlias(true);
-    canvas.drawPath(ctx.outline, p);
+    canvas.drawPath(geometry::path::toSk(ctx.outline), p);
   }
 };
 

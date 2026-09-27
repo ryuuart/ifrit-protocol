@@ -15,6 +15,7 @@
 #include <yoga/Yoga.h>
 
 #include "ComposeInternal.h"
+#include "StampCache.h"
 #include "ComputedStyle.h"
 #include "SelectorMatch.h"
 #include "TextState.h"
@@ -425,7 +426,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   std::vector<std::pair<std::string, SkRect>> spanFitRects;
   // strand::from(key): the keyed paths, in this node's local space —
   // handed to decorations as PaintContext::borrowed.
-  std::vector<std::pair<std::string, SkPath>> borrowedPaths;
+  std::vector<std::pair<std::string, geometry::path::Outline>> borrowedPaths;
   // Animated span endpoints (THREE per term — begin, end, offset — per
   // pass, in declaration order). A vector rather than the fixed Slot array
   // because the count is a property of the description, not of the kernel.

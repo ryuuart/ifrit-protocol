@@ -81,7 +81,7 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
                          SkCanvas& canvas, const PaintContext& pc) {
                        material::skia::fill(
                            canvas, face, paint,
-                           {.resolution = {pc.size.width(), pc.size.height()}});
+                           {.resolution = {pc.size.x, pc.size.y}});
                      })),
           .note = note};
 }

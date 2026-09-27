@@ -5,6 +5,7 @@
 // the sampling an image leaf is magnified with, the box a picture and
 // an atlas region meet, and what a paint program is handed.
 
+#include <sigilgeometry/path/Skia.h>
 #include <cstring>  // memcmp — for the no-conversion control
 #include <utility>
 
@@ -19,7 +20,7 @@ TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
          ++staticRuns;
          SkPaint p;
          p.setColor(SK_ColorRED);
-         c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+         c.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), p);
        })
            .width(50)
            .height(50),
@@ -315,7 +316,7 @@ TEST(ComposeContent, AKeyedCustomPrunesAndTheKeyIsHonest) {
       ++runs;
       SkPaint p;
       p.setColor4f({shade, 0, 0, 1});
-      c.drawRect(SkRect::MakeWH(ctx.size.width(), ctx.size.height()), p);
+      c.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y), p);
     };
     return box().children({key ? custom(key, program).width(60).height(60)
                                : custom(program).width(60).height(60)});
@@ -446,7 +447,7 @@ TEST(ComposePaint, APaintProgramNamesOnlyTheParametersItReads) {
     paint.setAntiAlias(false);
     canvas.drawRect(SkRect::MakeWH(20, 20), paint);
   };
-  SkSize offered = SkSize::MakeEmpty();
+  glm::vec2 offered{0, 0};
   host.composer.render(box().row().children(
       {custom([&](SkCanvas& canvas) { square(canvas, SK_ColorGREEN); })
            .width(20)
@@ -466,7 +467,7 @@ TEST(ComposePaint, APaintProgramNamesOnlyTheParametersItReads) {
   host.frame();
   EXPECT_EQ(host.pixel(10, 10), SK_ColorGREEN);
   EXPECT_EQ(host.pixel(30, 10), SK_ColorRED);
-  EXPECT_EQ(offered, SkSize::Make(20, 20));
+  EXPECT_EQ(offered, glm::vec2(20, 20));
   EXPECT_EQ(nullaryRuns, 1) << "a program that reads neither still runs";
 }
 

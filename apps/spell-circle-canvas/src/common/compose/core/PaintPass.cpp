@@ -139,7 +139,7 @@ sk_sp<SkImageFilter> PaintPass::resolveLayerFilter() {
                                .fonts = &impl.fonts,
                                .stamps = &inst.stampCache,
                                .toRoot = geometry::path::fromSk(impl.curToRoot),
-                               .rootSize = impl.rootLayoutSize};
+                               .rootSize = geometry::path::fromSk(impl.rootLayoutSize)};
   const material::FrameData effectFrame = frameOf(effectCtx);
   return material::skia::resolvedImageFilter(*layerEffectOf(node), &effectFrame);
 }

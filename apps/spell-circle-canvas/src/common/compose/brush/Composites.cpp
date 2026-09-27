@@ -12,6 +12,7 @@
  * the root and the root's size ride through unchanged.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkMaskFilter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkPathBuilder.h>
@@ -49,7 +50,7 @@ void LayeredBrush::paint(SkCanvas& c, const PaintContext& ctx) const {
     if (!layer.dash.empty())
       p.setPathEffect(SkDashPathEffect::Make(
           SkSpan(layer.dash.data(), layer.dash.size()), layer.dashPhase));
-    c.drawPath(ctx.outline, p);
+    c.drawPath(geometry::path::toSk(ctx.outline), p);
   }
 }
 
@@ -76,11 +77,11 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
       case StrandPath::Source::Relative:
         paths.push_back(
             s.path.profile().max() == 0.0f
-                ? ctx.outline
-                : geometry::path::profileOffset(ctx.outline, s.path.profile()));
+                ? geometry::path::toSk(ctx.outline)
+                : geometry::path::profileOffset(geometry::path::toSk(ctx.outline), s.path.profile()));
         break;
       case StrandPath::Source::Borrowed:
-        paths.push_back(ctx.borrowedPath(s.path.key()));
+        paths.push_back(geometry::path::toSk(ctx.borrowedPath(s.path.key())));
         break;
       case StrandPath::Source::Authored:
         paths.push_back(s.path.path());
@@ -95,7 +96,7 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
     // them would re-rasterise its stamps every frame and anchor a
     // world-space material to itself.
     PaintContext sub = ctx;
-    sub.outline = paths[i];
+    sub.outline = geometry::path::fromSk(paths[i]);
     strands[i].brush.paint(c, sub);
   };
 
@@ -126,7 +127,7 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
     // The MARK's full width, not the cull's bleed(): an Align::Inner
     // stroke bleeds zero while painting a mark `width` wide, so a region
     // built from bleed() would be too small to cover its own crossing.
-    return patch > 0 ? patch : std::max(strands[i].brush.reach(ctx.size), 1.0f);
+    return patch > 0 ? patch : std::max(strands[i].brush.reach(SkSize{ctx.size.x, ctx.size.y}), 1.0f);
   };
 
   // Each strand's arc length, so a crossing's `along` fractions convert to
@@ -218,14 +219,14 @@ Weave weave(std::vector<Strand> strands, geometry::path::CrossingRule rule) {
 }  // namespace brush
 
 void Brush::paint(SkCanvas& c, const PaintContext& ctx) const {
-  SkPath styled = ctx.outline;
+  SkPath styled = geometry::path::toSk(ctx.outline);
   for (const geometry::path::Shaper& g : pipeline) styled = g.shape(styled);
   for (const Layer& l : layers) {
     SkPath layerPath = styled;
     for (const geometry::path::Shaper& g : l.shapers)
       layerPath = g.shape(layerPath);
     PaintContext restyled = ctx;
-    restyled.outline = std::move(layerPath);
+    restyled.outline = geometry::path::fromSk(std::move(layerPath));
     l.decoration.paint(c, restyled);
   }
 }
@@ -236,7 +237,7 @@ void Restyled::paint(SkCanvas& c, const PaintContext& ctx) const {
   // No null check: a shaper passes the path through unchanged when it holds
   // nothing.
   PaintContext restyled = ctx;
-  restyled.outline = operation.shape(ctx.outline);
+  restyled.outline = geometry::path::fromSk(operation.shape(geometry::path::toSk(ctx.outline)));
   inner.paint(c, restyled);
 }
 

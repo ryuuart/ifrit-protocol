@@ -3,6 +3,7 @@
  * blurred strokes, and the ripple filter.
  */
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkMaskFilter.h>
 #include <include/core/SkPaint.h>
@@ -30,7 +31,7 @@ void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
   // and left the shape in `silhouette`, where clipping to the run would
   // discard the whole mark. The ring drawn is still `outline`, which is
   // the part of the boundary that is shown.
-  c.clipPath(ctx.silhouette.isEmpty() ? ctx.outline : ctx.silhouette, true);
+  c.clipPath(ctx.silhouette.empty() ? geometry::path::toSk(ctx.outline) : geometry::path::toSk(ctx.silhouette), true);
   SkPaint p;
   p.setAntiAlias(true);
   p.setColor4f(material::skia::toSkColor(color), nullptr);
@@ -44,7 +45,7 @@ void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
   // thickens the half that stays inside the clip on the edge the shadow
   // falls from — offset (0,3) casts down, so the band hugs the top.
   c.translate(offset.fX, offset.fY);
-  c.drawPath(ctx.outline, p);
+  c.drawPath(geometry::path::toSk(ctx.outline), p);
   c.restore();
 }
 
@@ -58,7 +59,7 @@ void OuterGlow::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
   if (size > 0)
     p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, size * 0.5f));
-  c.drawPath(ctx.outline, p);
+  c.drawPath(geometry::path::toSk(ctx.outline), p);
 }
 
 void BevelEmboss::paint(SkCanvas& c, const PaintContext& ctx) const {

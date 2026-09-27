@@ -50,8 +50,8 @@ struct Held {
   /** The frame for a node of @p size, and the step since the last one. */
   draw::Frame frameIn(const PaintContext& ctx) {
     draw::Frame frame;
-    frame.width = ctx.size.width();
-    frame.height = ctx.size.height();
+    frame.width = ctx.size.x;
+    frame.height = ctx.size.y;
     frame.seconds = ctx.elapsedSeconds;
     frame.deltaSeconds =
         lastSeconds < 0.0 ? 0.0 : ctx.elapsedSeconds - lastSeconds;
@@ -59,8 +59,8 @@ struct Held {
     frame.frameCount = ++frames;
     frame.fonts = ctx.fonts;
     // The input the host fed the composer, in the node's own box.
-    frame.mouseX = ctx.pointer.at.x();
-    frame.mouseY = ctx.pointer.at.y();
+    frame.mouseX = ctx.pointer.at.x;
+    frame.mouseY = ctx.pointer.at.y;
     frame.mouseIsPressed = ctx.pointer.pressed;
     if (ctx.keys) {
       frame.keyIsPressed = ctx.keys->pressed;

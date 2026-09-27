@@ -12,12 +12,9 @@
  * which the three lines below carry onto a node.
  */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkPath.h>
+#include <glm/vec2.hpp>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/path/Transform.h>
-#include <include/core/SkPicture.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSize.h>
 #include <sigilcompose/core/PaintBox.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/callable/Callable.h>
@@ -228,8 +225,8 @@ enum class PromotionPolicy : uint8_t {
  *  is painted outside a composer) — what element stamps and ad-hoc
  *  SigilWeave drawing inside paint programs lay text out with. */
 struct PaintContext {
-  SkSize size = SkSize::MakeEmpty();
-  SkPath outline;
+  glm::vec2 size{0, 0};
+  geometry::path::Outline outline;
   /** The CLOSED outline the node's shape encloses — what an Inner- or
    *  Outer-aligned stroke clips against. Empty means `outline` is that
    *  shape, which is the usual case; whatever narrows `outline` to
@@ -243,7 +240,7 @@ struct PaintContext {
    *  band's facing, say, which a run has no centre to be read against.
    *  What is drawn ALONG the boundary follows `outline`, which is the
    *  part of it that is shown. */
-  SkPath silhouette;
+  geometry::path::Outline silhouette;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;
   /** Is the composer's engine running anything at all this frame, as
@@ -264,14 +261,15 @@ struct PaintContext {
    *  below) so the element can register the keys without introspecting a
    *  type-erased value; the derive pass then resolves them on the same
    *  flat edge-store walk connectors and contentFlowAround ride. */
-  const std::vector<std::pair<std::string, SkPath>>* borrowed = nullptr;
+  const std::vector<std::pair<std::string, geometry::path::Outline>>*
+      borrowed = nullptr;
 
-  /** The borrowed path for `key`, or an empty path. */
-  SkPath borrowedPath(const std::string& key) const {
+  /** The borrowed outline for `key`, or an empty one. */
+  geometry::path::Outline borrowedPath(const std::string& key) const {
     if (borrowed)
-      for (const auto& [k, p] : *borrowed)
-        if (k == key) return p;
-    return SkPath();
+      for (const auto& [name, outline] : *borrowed)
+        if (name == key) return outline;
+    return {};
   }
 
   /** The instance's stamp-bake store — null outside a composer (standalone
@@ -291,7 +289,7 @@ struct PaintContext {
   /** The composer root's laid-out size in canvas px — what uResolution
    *  becomes for a world-space material (a canvas-unit ramp spans the
    *  canvas). Empty outside a composer; resolve falls back to `size`. */
-  SkSize rootSize = SkSize::MakeEmpty();
+  glm::vec2 rootSize{0, 0};
 
   /** THE INK IN FORCE at this node — the colour the nearest
    *  `Element::ink` set, which every mark that names no colour is painted
@@ -307,7 +305,7 @@ struct PaintContext {
    *  space mapped into it. An EMPTY extent is the own-box case — the box
    *  being painted is the box the paint maps onto — and is what a paint
    *  anchored to a declaring box or to the canvas replaces. */
-  SkSize inkAnchorSize = SkSize::MakeEmpty();
+  glm::vec2 inkAnchorSize{0, 0};
   geometry::path::Transform inkAnchorToRoot;
   /** THE FONT IN FORCE at this node, every field resolved — what a pen
    *  program hosted here sets its text in, and what a guest tree painted
@@ -322,7 +320,7 @@ struct PaintContext {
    *  through the node's transform. The origin with the button up where
    *  nobody points. */
   struct Pointer {
-    SkPoint at = {0, 0};
+    glm::vec2 at{0, 0};
     bool pressed = false;
   };
   Pointer pointer;
@@ -391,67 +389,5 @@ Fill resolveFill(const material::Paint& paint, const PaintContext& ctx);
  *  to the colour it names, and a paint as `resolveFill` above resolves it.
  *  What a decoration reads a fill it was handed through. */
 Fill resolveFill(const Fill& fill, const PaintContext& ctx);
-
-/** The INSTANCE-SIDE bake store for stamped brushes: tile bakes live with
- *  the NODE, not inside the brush value. A brush value constructed fresh
- *  by every describe would otherwise re-rasterize its art each time — the
- *  one place where re-describing costs raster work rather than a diff.
- *  Keeping the bake on the instance means the rebuilt value finds it.
- *
- *  Keyed on the art Element's node WITH A WEAK GUARD, and the guard is
- *  load-bearing: a plain map on the raw pointer would let a freed node's
- *  recycled address silently inherit the wrong art's bake. Locking the
- *  weak handle and comparing identity makes that impossible — a recycled
- *  key fails the check and re-bakes. Entries carry either a picture
- *  (pattern and scatter tiles) or a rastered image plus its logical size;
- *  each consumer reads only its own kind. */
-class StampCache {
- public:
-  /** One bake. A consumer stores either a recorded picture or a
-   *  rastered image with the logical size it was baked at, and reads
-   *  back only the kind it wrote. */
-  struct Entry {
-    sk_sp<SkPicture> picture;
-    sk_sp<SkImage> image;
-    SkSize artSize{0, 0};
-  };
-  /** The entry for `key`, or null — never a recycled address's entry. */
-  const Entry* get(const std::shared_ptr<const void>& key) const {
-    for (const Row& row : m_entries) {
-      if (row.address != key.get()) continue;
-      if (row.owner.lock() != key)
-        return nullptr;  // the address was recycled: not this art's bake
-      return &row.entry;
-    }
-    return nullptr;
-  }
-  void put(const std::shared_ptr<const void>& key, Entry entry) {
-    // At this size a scan beats a hash, which is why the store is a list
-    // and this header needs no map. A key already here is replaced in
-    // place: re-baking one art must not cost the other bakes their
-    // entries.
-    for (Row& row : m_entries)
-      if (row.address == key.get()) {
-        row.owner = key;
-        row.entry = std::move(entry);
-        return;
-      }
-    // A node's stamp arts are few; a store that runs past its capacity
-    // means keys churn every frame, and keeping stale bakes alive would
-    // pin their nodes' memory. Only a new key can push it there.
-    if (m_entries.size() >= kCapacity) m_entries.clear();
-    m_entries.push_back({key.get(), key, std::move(entry)});
-  }
-
- private:
-  /** How many bakes one node may hold at once. */
-  static constexpr size_t kCapacity = 16;
-  struct Row {
-    const void* address = nullptr;
-    std::weak_ptr<const void> owner;
-    Entry entry;
-  };
-  std::vector<Row> m_entries;
-};
 
 }  // namespace sigil::compose

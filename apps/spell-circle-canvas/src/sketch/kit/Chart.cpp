@@ -194,16 +194,16 @@ Layer axis(const Ruler& how) {
             if (polar && how.of == Axis::X) {
               // The rim: the whole sweep at the radius `other` stands at.
               const float r =
-                  (float)frame.radiusFraction(other) * frame.radius(pc.size);
+                  (float)frame.radiusFraction(other) * frame.radius(SkSize{pc.size.x, pc.size.y});
               const data::Interval sweep = frame.polar->sweep;
-              canvas.drawArc(ring(frame.centre(pc.size), r), (float)sweep.low,
+              canvas.drawArc(ring(frame.centre(SkSize{pc.size.x, pc.size.y}), r), (float)sweep.low,
                              (float)sweep.extent(), false, pen);
               return;
             }
             if (polar) {
               // One spoke to number the rings along.
-              const SkPoint hub = frame.centre(pc.size);
-              const float outer = frame.radius(pc.size);
+              const SkPoint hub = frame.centre(SkSize{pc.size.x, pc.size.y});
+              const float outer = frame.radius(SkSize{pc.size.x, pc.size.y});
               const float theta =
                   radians(how.at ? frame.angle(other) : frame.polar->sweep.low);
               const float inner = frame.polar->inner * outer;
@@ -218,9 +218,9 @@ Layer axis(const Ruler& how) {
             // only its position comes from the other scale's mapping, so a
             // category axis is as long as the field whatever its domain is.
             const data::Scale across =
-                frame.scale(how.of == Axis::X ? Axis::X : Axis::Y, pc.size);
+                frame.scale(how.of == Axis::X ? Axis::X : Axis::Y, SkSize{pc.size.x, pc.size.y});
             const data::Scale along =
-                frame.scale(how.of == Axis::X ? Axis::Y : Axis::X, pc.size);
+                frame.scale(how.of == Axis::X ? Axis::Y : Axis::X, SkSize{pc.size.x, pc.size.y});
             const float fixed = (float)along.apply(other);
             const float from = (float)across.range.low;
             const float to = (float)across.range.high;
@@ -237,8 +237,8 @@ Layer axis(const Ruler& how) {
                                                    const PaintContext& pc) {
             SkPaint pen = strokePen(pc, how.width);
             if (polar) {
-              const SkPoint hub = frame.centre(pc.size);
-              const float outer = frame.radius(pc.size);
+              const SkPoint hub = frame.centre(SkSize{pc.size.x, pc.size.y});
+              const float outer = frame.radius(SkSize{pc.size.x, pc.size.y});
               const float inner = frame.polar->inner * outer;
               for (double tick : ticks) {
                 if (how.of == Axis::Y) {
@@ -263,8 +263,8 @@ Layer axis(const Ruler& how) {
             // left off a y one.
             for (double tick : ticks) {
               const SkPoint point = how.of == Axis::X
-                                        ? frame.at(tick, other, pc.size)
-                                        : frame.at(other, tick, pc.size);
+                                        ? frame.at(tick, other, SkSize{pc.size.x, pc.size.y})
+                                        : frame.at(other, tick, SkSize{pc.size.x, pc.size.y});
               if (how.of == Axis::X)
                 canvas.drawLine(point, {point.fX, point.fY + reach}, pen);
               else
@@ -506,7 +506,7 @@ Layer area(sigil::core::Callable<double(double)> f, const Area& how) {
           SkPaint pen;
           pen.setAntiAlias(true);
           pen.setColor4f(material::skia::toSkColor(pc.ink));
-          SkPathBuilder path = walked(frame, f, how.samples, pc.size);
+          SkPathBuilder path = walked(frame, f, how.samples, SkSize{pc.size.x, pc.size.y});
           // Closed back along the base, so the band between the
           // curve and that value is what is filled.
           const int steps = std::max(how.samples, 1);
@@ -514,7 +514,7 @@ Layer area(sigil::core::Callable<double(double)> f, const Area& how) {
           for (int i = steps; i >= 0; --i)
             path.lineTo(frame.at(
                 domain.low + domain.extent() * ((double)i / (double)steps),
-                how.base, pc.size));
+                how.base, SkSize{pc.size.x, pc.size.y}));
           path.close();
           canvas.drawPath(path.detach(), pen);
         });

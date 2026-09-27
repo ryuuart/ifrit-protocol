@@ -5,6 +5,7 @@
 // dressed coverage that holds ink outside the box without moving the ink
 // inside it.
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkFontMetrics.h>
 
 #include <vector>
@@ -385,7 +386,7 @@ struct Halo {
     p.setColor4f(color, nullptr);
     p.setStyle(SkPaint::kStrokeAndFill_Style);
     p.setStrokeWidth(spread * 2);
-    c.drawPath(ctx.outline, p);
+    c.drawPath(geometry::path::toSk(ctx.outline), p);
   }
 };
 

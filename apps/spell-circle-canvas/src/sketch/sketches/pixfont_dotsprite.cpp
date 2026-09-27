@@ -210,7 +210,7 @@ struct PixFontDotSprite {
                [image](SkCanvas& canvas, const PaintContext& pc) {
                  static constexpr material::Color kTints[3] = {
                      {1, 1, 1, 1}, kOn, {1.0f, 0.55f, 0.35f, 1}};
-                 const float side = std::min(90.0f, pc.size.width() / 3.4f);
+                 const float side = std::min(90.0f, pc.size.x / 3.4f);
                  // A white stamp is TINTED by modulating it —
                  // setting a paint colour does nothing to a colour
                  // image, and this is the step a point sink takes

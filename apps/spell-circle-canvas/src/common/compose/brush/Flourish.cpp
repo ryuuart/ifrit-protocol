@@ -58,8 +58,8 @@ Element acanthusLeaf(const FlourishStyle& s, float w,
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(1.1f);
     p.setColor4f(material::skia::toSkColor(rib), nullptr);
-    c.drawLine(ctx.size.width() * 0.1f, ctx.size.height() * 0.5f,
-               ctx.size.width() * 0.92f, ctx.size.height() * 0.5f, p);
+    c.drawLine(ctx.size.x * 0.1f, ctx.size.y * 0.5f,
+               ctx.size.x * 0.92f, ctx.size.y * 0.5f, p);
   })};
   return box()
       .width(w)

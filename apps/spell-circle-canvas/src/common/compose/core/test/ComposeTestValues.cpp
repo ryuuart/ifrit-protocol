@@ -4,6 +4,7 @@
 // resolved against, the store a node keeps its stamp bakes in, and the
 // value semantics of an Element that has already been rendered.
 
+#include "../StampCache.h"
 #include <sigilmaterial/skia/Paint.h>
 #include <memory>
 #include <string>

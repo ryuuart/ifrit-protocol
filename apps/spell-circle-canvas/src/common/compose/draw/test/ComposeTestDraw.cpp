@@ -189,7 +189,7 @@ TEST(DrawNode, ACanvasFillsTheBoxItStandsIn) {
 TEST(DrawNode, AProgramNamesTheParametersItReadsAndTheVerbTakesTheCache) {
   Host host;
   int runs = 0;
-  SkSize box{0, 0};
+  glm::vec2 box{0, 0};
   // The pen and the paint context are both offered; this program names
   // both, and the one below names neither.
   host.composer.render(
@@ -207,7 +207,7 @@ TEST(DrawNode, AProgramNamesTheParametersItReadsAndTheVerbTakesTheCache) {
                             .height(40)}));
   host.frame();
   EXPECT_EQ(runs, 1);
-  EXPECT_FLOAT_EQ(box.width(), 50.0f);
+  EXPECT_FLOAT_EQ(box.x, 50.0f);
   EXPECT_EQ(host.pixel(5, 5), SK_ColorRED);
   // A drawing the verb was told is drawn ONCE is not run again: the bake
   // is put down instead.

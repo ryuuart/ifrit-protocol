@@ -11,6 +11,7 @@
 //
 // The Flash-portfolio study includes this header from here.
 
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkPaint.h>
@@ -71,9 +72,9 @@ struct GlossContour {
             SkColorFilters::TableARGB(table.data(), nullptr, nullptr, nullptr)),
         SkImageFilters::Blur(sigma, sigma, nullptr)));
     c.save();
-    c.clipPath(ctx.outline, true);  // satin lives INSIDE the shape
+    c.clipPath(sigil::geometry::path::toSk(ctx.outline), true);  // satin lives INSIDE the shape
     c.translate(offset.fX, offset.fY);
-    c.drawPath(ctx.outline, p);
+    c.drawPath(sigil::geometry::path::toSk(ctx.outline), p);
     c.restore();
   }
 };
