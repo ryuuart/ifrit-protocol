@@ -103,10 +103,16 @@ struct Grid {
   float gap = 8;
   float cellHeight = 40;
 
-  std::vector<SkRect> place(const LayoutInput& in) const {
+  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+
+    return rectanglesOf(placeSkia(in));
+
+  }
+
+  std::vector<SkRect> placeSkia(const LayoutInput& in) const {
     std::vector<SkRect> rects;
     const float cellWidth =
-        (in.container.width() - gap * (float)(columns - 1)) / (float)columns;
+        (in.container.x - gap * (float)(columns - 1)) / (float)columns;
     for (size_t i = 0; i < in.childSizes.size(); ++i) {
       const int col = (int)i % columns;
       const int row = (int)i / columns;

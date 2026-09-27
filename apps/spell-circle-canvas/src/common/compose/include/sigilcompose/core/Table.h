@@ -7,8 +7,6 @@
  * proportional surplus distribution.
  */
 
-#include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 
 #include <algorithm>
@@ -110,26 +108,26 @@ struct Table {
   };
 
   /** Where every child lands, in child order. */
-  std::vector<SkRect> place(const LayoutInput& in) const {
+  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
     const std::vector<CellSpan> spans = flowed(in);
     const Grid grid = solve(in);
-    std::vector<SkRect> rects(in.childSizes.size());
+    std::vector<geometry::path::Rect> rects(in.childSizes.size());
     for (size_t i = 0; i < spans.size(); ++i) {
       const CellSpan& s = spans[i];
       if ((size_t)s.column >= grid.columnX.size() ||
           (size_t)s.row >= grid.rowY.size())
         continue;  // outside the grid it was given; placed nowhere
-      const SkSize box{extent(grid.columnWidths, s.column, s.columns),
-                       extent(grid.rowHeights, s.row, s.rows)};
-      const SkPoint at{grid.columnX[(size_t)s.column],
-                       grid.rowY[(size_t)s.row]};
-      const SkSize size{
-          s.across == Align::Stretch ? box.width() : in.childSizes[i].width(),
-          s.down == Align::Stretch ? box.height() : in.childSizes[i].height()};
-      rects[i] =
-          SkRect::MakeXYWH(at.fX + slack(s.across, box.width(), size.width()),
-                           at.fY + slack(s.down, box.height(), size.height()),
-                           size.width(), size.height());
+      const glm::vec2 box{extent(grid.columnWidths, s.column, s.columns),
+                          extent(grid.rowHeights, s.row, s.rows)};
+      const glm::vec2 at{grid.columnX[(size_t)s.column],
+                         grid.rowY[(size_t)s.row]};
+      const glm::vec2 size{
+          s.across == Align::Stretch ? box.x : in.childSizes[i].x,
+          s.down == Align::Stretch ? box.y : in.childSizes[i].y};
+      rects[i] = geometry::path::Rect::of(
+          {at.x + slack(s.across, box.x, size.x),
+           at.y + slack(s.down, box.y, size.y)},
+          size);
     }
     return rects;
   }
@@ -150,8 +148,8 @@ struct Table {
     // only where a child can be set narrower than it was measured.
     std::vector<float> least((size_t)cols, 0.0f);
     auto narrowest = [&](size_t i) {
-      return i < in.childMinSizes.size() ? in.childMinSizes[i].width()
-                                         : in.childSizes[i].width();
+      return i < in.childMinSizes.size() ? in.childMinSizes[i].x
+                                         : in.childSizes[i].x;
     };
 
     // 1. Every column is at least as wide as the widest thing that sits
@@ -163,7 +161,7 @@ struct Table {
           c >= grid.columnWidths.size())
         continue;
       grid.columnWidths[c] =
-          std::max(grid.columnWidths[c], in.childSizes[i].width());
+          std::max(grid.columnWidths[c], in.childSizes[i].x);
       least[c] = std::max(least[c], narrowest(i));
     }
 
@@ -187,13 +185,13 @@ struct Table {
     for (int k = 2; k <= cols; ++k)
       for (size_t i = 0; i < spans.size(); ++i) {
         if (spans[i].columns != k || spans[i].column < 0) continue;
-        topUp(grid.columnWidths, spans[i], in.childSizes[i].width());
+        topUp(grid.columnWidths, spans[i], in.childSizes[i].x);
         topUp(least, spans[i], narrowest(i));
       }
 
     // 3. The room the table has for columns, which is what a percentage
     //    is a share of and what the two divisions below spend.
-    const float table = width > 0 ? width : in.container.width();
+    const float table = width > 0 ? width : in.container.x;
     float room =
         table - ((float)cols * 2 * padding + (float)(cols + 1) * spacing);
 
@@ -254,13 +252,13 @@ struct Table {
     for (size_t i = 0; i < spans.size(); ++i)
       if (spans[i].rows == 1 && (size_t)spans[i].row < grid.rowHeights.size())
         grid.rowHeights[(size_t)spans[i].row] = std::max(
-            grid.rowHeights[(size_t)spans[i].row], in.childSizes[i].height());
+            grid.rowHeights[(size_t)spans[i].row], in.childSizes[i].y);
     // …and deliberately NOT the same second one: the whole of a rowspan's
     //    deficit lands on the last row it covers.
     for (int k = 2; k <= lines; ++k)
       for (size_t i = 0; i < spans.size(); ++i) {
         if (spans[i].rows != k) continue;
-        const float deficit = in.childSizes[i].height() -
+        const float deficit = in.childSizes[i].y -
                               extent(grid.rowHeights, spans[i].row, k);
         const size_t last = (size_t)(spans[i].row + k - 1);
         if (deficit > 0 && last < grid.rowHeights.size())

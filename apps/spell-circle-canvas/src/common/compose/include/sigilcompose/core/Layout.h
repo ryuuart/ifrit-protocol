@@ -11,11 +11,11 @@
  * concepts the generic entry points are constrained by.
  */
 
-#include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 #include <sigilcompose/core/Attributes.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilcore/cache/Policy.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilweave/style/Length.h>
 
@@ -330,7 +330,7 @@ enum class Justify : uint8_t {
  *  look — offset ink under-copies, hard-edged sticker stacks — as one call
  *  rather than duplicate sibling nodes. */
 struct Echo {
-  SkVector offset = {3, 3};
+  glm::vec2 offset = {3, 3};
   material::Color color = {0, 0, 0, 1};
   bool operator==(const Echo&) const = default;
 };
@@ -467,8 +467,8 @@ void flowCells(std::vector<CellSpan>& spans, int columns, bool dense = false);
  *  what baseline-rhythm schemes (layouts::BaselineGrid) snap by — and the
  *  cells each child claimed with `Element::gridCells`. */
 struct LayoutInput {
-  SkSize container = SkSize::MakeEmpty();
-  std::vector<SkSize> childSizes;
+  glm::vec2 container{0, 0};
+  std::vector<glm::vec2> childSizes;
   std::vector<float> childBaselines;  ///< NaN = no baseline (non-text)
   std::vector<CellSpan> childCells;   ///< .declared = false when unspoken
   /** THE NAME OF THE REGION each child claims, when the scheme draws a
@@ -496,7 +496,7 @@ struct LayoutInput {
    *  EMPTY unless the scheme asked for it, since the text minimum costs a
    *  measure per text child. A scheme asks by declaring
    *  `static constexpr bool readsChildMinSizes = true;`. */
-  std::vector<SkSize> childMinSizes;
+  std::vector<glm::vec2> childMinSizes;
   /** THE FACTS EACH CHILD STATES (`Element::attribute`), one table per
    *  child, so a scheme places by what a child says of itself — its
    *  tier, its hour, its weight — rather than by its index alone. */
@@ -514,7 +514,7 @@ struct LayoutInput {
  *  size, container-relative). Runs as a bounded second layout pass. */
 template <typename L>
 concept LayoutScheme = requires(const L& l, const LayoutInput& in) {
-  { l.place(in) } -> std::convertible_to<std::vector<SkRect>>;
+  { l.place(in) } -> std::convertible_to<std::vector<geometry::path::Rect>>;
 };
 
 /** A scheme that sizes tracks from the content and therefore needs

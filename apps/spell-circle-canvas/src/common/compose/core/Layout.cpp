@@ -7,6 +7,7 @@
  */
 
 #include <algorithm>
+#include <sigilgeometry/path/Skia.h>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <iterator>
@@ -360,8 +361,8 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       !placed.empty()) {
     const OperatorData& operators = *node.operatorData;
     Arrangement arrangement;
-    arrangement.box = SkRect::MakeWH(YGNodeLayoutGetWidth(inst.yoga),
-                                     YGNodeLayoutGetHeight(inst.yoga));
+    arrangement.box = geometry::path::Rect::of(
+        {0, 0}, {YGNodeLayoutGetWidth(inst.yoga), YGNodeLayoutGetHeight(inst.yoga)});
     arrangement.minSizesMeasured = operators.readsChildMinSizes();
     arrangement.children.reserve(placed.size());
     for (Instance* child : placed) {
@@ -381,17 +382,18 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       if (description.deriveData) record.area = description.deriveData->cellArea;
       if (description.operatorData)
         record.attributes = description.operatorData->attributes;
-      if (arrangement.minSizesMeasured) record.minSize = minimumSizeOf(*child);
+      if (arrangement.minSizesMeasured)
+        record.minSize = geometry::path::fromSk(minimumSizeOf(*child));
       // Where the child stands before the list runs: the flex layout's
       // answer, which an operator that nudges rather than places reads.
-      record.rect = instanceRect(*child);
+      record.rect = geometry::path::fromSk(instanceRect(*child));
       arrangement.children.push_back(std::move(record));
     }
     // THE LIST RUNS FROM THE SAME START EVERY TIME: each run begins at the
     // rects the flex layout gave and no turn, so a run after a text
     // reflow answers the same question the first did rather than nudging
     // what the first run left.
-    std::vector<SkRect> starting;
+    std::vector<geometry::path::Rect> starting;
     starting.reserve(arrangement.children.size());
     for (const Arrangement::Child& child : arrangement.children)
       starting.push_back(child.rect);
@@ -439,12 +441,12 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
             child, vertical,
             vertical ? child.measuredSize.width + padding.across()
                      : child.measuredSize.height + padding.down());
-        float& extent = vertical ? record.size.fWidth : record.size.fHeight;
+        float& extent = vertical ? record.size.x : record.size.y;
         if (std::abs(extent - measured) <= 0.25f) continue;
         extent = measured;
         if (arrangement.minSizesMeasured) {
           float& minimum =
-              vertical ? record.minSize.fWidth : record.minSize.fHeight;
+              vertical ? record.minSize.x : record.minSize.y;
           minimum = measured;
         }
         reflowed = true;
@@ -465,7 +467,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
       // wins (otherwise the placement and the pin fight in a period-2
       // oscillation that never settles).
       if (child.computed.layout.centerAt) continue;
-      const SkRect& rect = record.rect;
+      const SkRect rect = geometry::path::toSk(record.rect);
       // Count a change only on an actual delta: the convergence loop in
       // ensureLayout keys off this (idempotent writes are free).
       const SkRect cur = instanceRect(child);
@@ -493,7 +495,7 @@ bool Composer::Impl::applyCustomLayouts(Instance& inst) {
     const LayoutProps& l = inst.computed.layout;
     SkRect extent = SkRect::MakeEmpty();
     for (size_t i = 0; i < count; ++i)
-      extent.join(arrangement.children[i].rect);
+      extent.join(geometry::path::toSk(arrangement.children[i].rect));
     const bool widthPinned = l.hasInsets &&
                              l.insets.left.unit != Dimension::Unit::Auto &&
                              l.insets.right.unit != Dimension::Unit::Auto;

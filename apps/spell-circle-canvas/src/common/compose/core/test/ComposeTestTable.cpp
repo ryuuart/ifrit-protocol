@@ -114,9 +114,9 @@ namespace {
  *  the cells they claimed, and the narrowest each can be set — which
  *  defaults to the measured size, as the composer fills it for every child
  *  that is not text. */
-LayoutInput given(SkSize container, std::vector<SkSize> sizes,
+LayoutInput given(glm::vec2 container, std::vector<glm::vec2> sizes,
                   std::vector<CellSpan> cells = {},
-                  std::vector<SkSize> minima = {}) {
+                  std::vector<glm::vec2> minima = {}) {
   LayoutInput in;
   in.container = container;
   in.childSizes = std::move(sizes);
@@ -169,7 +169,7 @@ TEST(ComposeTable, ItResolvesTheGridAPageOfTheTableEraWasSetOn) {
       {104, 139, claims(2, 4)},        // site map, four <br>
       {67, 63, claims(3, 4)},          // behind the jam
   };
-  std::vector<SkSize> sizes;
+  std::vector<glm::vec2> sizes;
   std::vector<CellSpan> spans;
   for (const Cell& c : cells) {
     sizes.push_back({c.w, c.h});
@@ -204,7 +204,7 @@ TEST(ComposeTable, TooNarrowAndEveryColumnGivesUpTheSameFractionOfItsRoom) {
   const Table::Grid grid =
       table.solve(given({170, 100}, {{100, 20}, {60, 20}, {40, 20}},
                         {claims(0, 0), claims(1, 0), claims(2, 0)},
-                        {SkSize{40, 20}, SkSize{60, 20}, SkSize{40, 20}}));
+                        {glm::vec2{40, 20}, glm::vec2{60, 20}, glm::vec2{40, 20}}));
   ASSERT_EQ(grid.columnWidths.size(), 3u);
   EXPECT_NEAR(grid.columnWidths[0], 70, 0.01f)
       << "40 + half of the 60 it can give";
@@ -217,7 +217,7 @@ TEST(ComposeTable, TooNarrowAndEveryColumnGivesUpTheSameFractionOfItsRoom) {
   const Table::Grid tight =
       pinched.solve(given({60, 100}, {{100, 20}, {60, 20}, {40, 20}},
                           {claims(0, 0), claims(1, 0), claims(2, 0)},
-                          {SkSize{40, 20}, SkSize{60, 20}, SkSize{40, 20}}));
+                          {glm::vec2{40, 20}, glm::vec2{60, 20}, glm::vec2{40, 20}}));
   EXPECT_NEAR(tight.columnWidths[0], 40, 0.01f);
   EXPECT_NEAR(tight.columnWidths[1], 60, 0.01f);
   EXPECT_NEAR(tight.columnWidths[2], 40, 0.01f);
@@ -226,7 +226,7 @@ TEST(ComposeTable, TooNarrowAndEveryColumnGivesUpTheSameFractionOfItsRoom) {
 TEST(ComposeTable, AShrinkToFitTableStopsAtWhatIsInIt) {
   // The same three columns in the same 300-wide container, the one with a
   // width in its markup and the one without.
-  const std::vector<SkSize> sizes{{30, 20}, {60, 20}, {90, 20}};
+  const std::vector<glm::vec2> sizes{{30, 20}, {60, 20}, {90, 20}};
   const std::vector<CellSpan> spans{claims(0, 0), claims(1, 0), claims(2, 0)};
   const Table shrink{.fit = Table::ColumnSizing::Shrink};
   const Table::Grid tight = shrink.solve(given({300, 100}, sizes, spans));
@@ -243,7 +243,7 @@ TEST(ComposeTable, AShrinkToFitTableStopsAtWhatIsInIt) {
   // fall toward what they need either way.
   const Table::Grid pinched =
       shrink.solve(given({120, 100}, sizes, spans,
-                         {SkSize{30, 20}, SkSize{30, 20}, SkSize{30, 20}}));
+                         {glm::vec2{30, 20}, glm::vec2{30, 20}, glm::vec2{30, 20}}));
   EXPECT_LT(pinched.columnWidths[2], 90.0f);
   EXPECT_GE(pinched.columnWidths[2], 30.0f);
 }

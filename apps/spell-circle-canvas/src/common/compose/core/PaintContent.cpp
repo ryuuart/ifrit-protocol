@@ -759,7 +759,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       stamp.setAntiAlias(true);
       stamp.setColor4f(material::skia::toSkColor(e.color), nullptr);
       canvas.save();
-      canvas.translate(e.offset.fX, e.offset.fY);
+      canvas.translate(e.offset.x, e.offset.y);
       if (customShape || trimmed)
         canvas.drawPath(surfacePath, stamp);
       else
@@ -882,7 +882,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
               stamp.passage->foreground.setColor4f(
                   material::skia::toSkColor(e.color), nullptr);
               canvas.save();
-              canvas.translate(e.offset.fX, e.offset.fY);
+              canvas.translate(e.offset.x, e.offset.y);
               if (onPath && painter)
                 painter->paint(inst, canvas, stamp, onPath,
                                {bounds.width(), bounds.height()}, paintCtx);

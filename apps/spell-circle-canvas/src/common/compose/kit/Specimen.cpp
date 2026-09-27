@@ -51,7 +51,7 @@ namespace {
 
 Element arrangement(std::vector<Element> children,
                     std::vector<layouts::Track> columns,
-                    std::vector<layouts::Track> rows, SkSize gap, Align down,
+                    std::vector<layouts::Track> rows, glm::vec2 gap, Align down,
                     Align measuredAlign) {
   Element grid = layout(layouts::Grid{.columns = std::move(columns),
                                       .rows = std::move(rows),

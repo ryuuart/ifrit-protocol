@@ -73,7 +73,7 @@ float declaredBleed(const Instance& inst, SkSize size) {
     bleed = std::max(bleed, band->max());
   for (const Echo& e : echoesOf(node))
     bleed =
-        std::max(bleed, std::max(std::abs(e.offset.fX), std::abs(e.offset.fY)));
+        std::max(bleed, std::max(std::abs(e.offset.x), std::abs(e.offset.y)));
   // An textFx() track throws glyphs OUTSIDE the text's box — a rise starts
   // below the line, a scatter starts anywhere in its disc — and a cull
   // taken at the box truncates them at the cached picture or texture

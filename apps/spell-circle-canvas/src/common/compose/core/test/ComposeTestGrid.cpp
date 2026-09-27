@@ -19,10 +19,10 @@ namespace layouts = sigil::compose::layouts;
  *  measured sizes, and the cells they claimed. `childMinSizes` defaults to
  *  the measured sizes, which is what the composer fills in for every child
  *  that is not text. */
-LayoutInput given(SkSize container, std::vector<SkSize> sizes,
+LayoutInput given(glm::vec2 container, std::vector<glm::vec2> sizes,
                   std::vector<CellSpan> cells = {},
                   std::vector<std::string> areas = {},
-                  std::vector<SkSize> minima = {}) {
+                  std::vector<glm::vec2> minima = {}) {
   LayoutInput in;
   in.container = container;
   in.childSizes = std::move(sizes);
@@ -44,8 +44,8 @@ CellSpan claims(int column, int row, int columns = 1, int rows = 1) {
                   .declared = true};
 }
 
-std::vector<SkSize> boxes(size_t count, SkSize size) {
-  return std::vector<SkSize>(count, size);
+std::vector<glm::vec2> boxes(size_t count, glm::vec2 size) {
+  return std::vector<glm::vec2>(count, size);
 }
 
 }  // namespace
@@ -56,7 +56,7 @@ std::vector<SkSize> boxes(size_t count, SkSize size) {
 TEST(ComposeGrid, AFixedTrackIsItsLengthAndFreeSpaceBesideItStaysFree) {
   const Grid grid{
       .columns = {layouts::px(100), layouts::px(50), layouts::px(120)}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({300, 100}, boxes(3, {10, 10})));
   ASSERT_EQ(at.size(), 3u);
   EXPECT_FLOAT_EQ(at[0].left(), 0);
@@ -73,7 +73,7 @@ TEST(ComposeGrid, AContentTrackIsTheWidestThingInItAndDoesNotStretch) {
   const Grid grid{
       .columns = {layouts::content(), layouts::content(), layouts::content()},
       .gap = {10, 0}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({300, 50}, {{40, 10}, {60, 10}, {20, 10}}));
   ASSERT_EQ(at.size(), 3u);
   EXPECT_FLOAT_EQ(at[0].width(), 40);
@@ -86,7 +86,7 @@ TEST(ComposeGrid, AContentTrackIsTheWidestThingInItAndDoesNotStretch) {
 TEST(ComposeGrid, SharesDivideWhatIsLeftAfterTheFixedTracks) {
   const Grid grid{
       .columns = {layouts::px(100), layouts::fr(1), layouts::fr(3)}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({320, 50}, boxes(3, {10, 10})));
   ASSERT_EQ(at.size(), 3u);
   EXPECT_FLOAT_EQ(at[0].width(), 100);
@@ -97,7 +97,7 @@ TEST(ComposeGrid, SharesDivideWhatIsLeftAfterTheFixedTracks) {
 
 TEST(ComposeGrid, WeightsSummingUnderOneTakeOnlyTheirOwnShareOfTheFreeSpace) {
   const Grid grid{.columns = {layouts::fr(0.5f), layouts::fr(0.25f)}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({200, 50}, boxes(2, {0, 10})));
   ASSERT_EQ(at.size(), 2u);
   EXPECT_FLOAT_EQ(at[0].width(), 100);  // half a share, not half the space
@@ -111,7 +111,7 @@ TEST(ComposeGrid, AShareThatWouldFallUnderItsFloorFreezesAndTheRestRedivides) {
   // wider than the container it was given.
   const Grid grid{.columns = {layouts::minmax(layouts::px(180), layouts::fr(1)),
                               layouts::fr(1)}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({200, 50}, boxes(2, {0, 10})));
   ASSERT_EQ(at.size(), 2u);
   EXPECT_FLOAT_EQ(at[0].width(), 180);
@@ -122,21 +122,21 @@ TEST(ComposeGrid, AShareThatWouldFallUnderItsFloorFreezesAndTheRestRedivides) {
 TEST(ComposeGrid, MinmaxIsAFloorAndACeilingAndBothHold) {
   const Grid ceilinged{
       .columns = {layouts::minmax(layouts::px(0), layouts::px(60))}};
-  const std::vector<SkRect> clamped =
+  const SkiaRects clamped =
       ceilinged.place(given({300, 50}, {{200, 10}}));
   ASSERT_EQ(clamped.size(), 1u);
   EXPECT_FLOAT_EQ(clamped[0].width(), 60);
 
   const Grid floored{
       .columns = {layouts::minmax(layouts::px(120), layouts::content())}};
-  const std::vector<SkRect> held = floored.place(given({300, 50}, {{40, 10}}));
+  const SkiaRects held = floored.place(given({300, 50}, {{40, 10}}));
   ASSERT_EQ(held.size(), 1u);
   EXPECT_FLOAT_EQ(held[0].width(), 120);
 }
 
 TEST(ComposeGrid, ASpanTopsUpItsTracksInProportionToWhatTheyAlreadyHold) {
   const Grid grid{.columns = {layouts::content(), layouts::content()}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({500, 50}, {{100, 10}, {40, 10}, {200, 10}},
                        {claims(0, 0), claims(1, 0), claims(0, 0, 2, 1)}));
   ASSERT_EQ(at.size(), 3u);
@@ -150,7 +150,7 @@ TEST(ComposeGrid, ASpanTopsUpItsTracksInProportionToWhatTheyAlreadyHold) {
 TEST(ComposeGrid, ARowSpanSharesItsDeficitAcrossItsRowsJustAsAColumnSpanDoes) {
   const Grid grid{.columns = {layouts::px(50)},
                   .rows = {layouts::content(), layouts::content()}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({50, 400}, {{10, 30}, {10, 20}, {10, 100}},
                        {claims(0, 0), claims(0, 1), claims(0, 0, 1, 2)}));
   ASSERT_EQ(at.size(), 3u);
@@ -167,7 +167,7 @@ TEST(ComposeGrid, ANameInThePicturePlacesAChildOnTheRectangleItCovers) {
   const Grid grid{.columns = {layouts::px(100), layouts::px(100)},
                   .rows = {layouts::px(50), layouts::px(50)},
                   .areas = {"head head", "nav  main"}};
-  const std::vector<SkRect> at = grid.place(
+  const SkiaRects at = grid.place(
       given({200, 100}, boxes(3, {10, 10}), {}, {"head", "nav", "main"}));
   ASSERT_EQ(at.size(), 3u);
   EXPECT_EQ(at[0], SkRect::MakeXYWH(0, 0, 200, 50));
@@ -177,7 +177,7 @@ TEST(ComposeGrid, ANameInThePicturePlacesAChildOnTheRectangleItCovers) {
 
 TEST(ComposeGrid, ThePictureAloneSaysHowWideAndHowDeepTheGridIs) {
   const Grid grid{.areas = {"a a b", "c c b"}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({300, 100}, boxes(3, {10, 10}), {}, {"a", "b", "c"}));
   ASSERT_EQ(at.size(), 3u);
   // Three equal columns because no column list was given, two rows because
@@ -192,7 +192,7 @@ TEST(ComposeGrid, ANameThatCoversNoRectangleIsPlacedAtTheRectangleBoundingIt) {
   const Grid grid{
       .columns = {layouts::px(10), layouts::px(10), layouts::px(10)},
       .areas = {"a . a"}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({30, 20}, boxes(1, {5, 5}), {}, {"a"}));
   ASSERT_EQ(at.size(), 1u);
   EXPECT_FLOAT_EQ(at[0].left(), 0);
@@ -202,7 +202,7 @@ TEST(ComposeGrid, ANameThatCoversNoRectangleIsPlacedAtTheRectangleBoundingIt) {
 TEST(ComposeGrid, ANameThePictureDoesNotCarryFlowsLikeAChildThatSaidNothing) {
   const Grid grid{.columns = {layouts::px(10), layouts::px(10)},
                   .areas = {"a b"}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({20, 20}, boxes(2, {5, 5}), {}, {"nowhere", "b"}));
   ASSERT_EQ(at.size(), 2u);
   EXPECT_FLOAT_EQ(at[1].left(), 10);  // "b" is where the picture says
@@ -216,7 +216,7 @@ TEST(ComposeGrid, SparseFlowNeverLooksBackAndDenseFillsTheHoleBehindIt) {
   // Three columns, two children two wide and one single: the second wide
   // child cannot start at column two, so it drops to the next row and
   // leaves a one-cell hole at the end of the first.
-  const std::vector<SkSize> sizes = boxes(3, {5, 5});
+  const std::vector<glm::vec2> sizes = boxes(3, {5, 5});
   const std::vector<CellSpan> spans = {CellSpan{.columns = 2},
                                        CellSpan{.columns = 2}, CellSpan{}};
   const std::vector<layouts::Track> three = {layouts::px(10), layouts::px(10),
@@ -224,7 +224,7 @@ TEST(ComposeGrid, SparseFlowNeverLooksBackAndDenseFillsTheHoleBehindIt) {
 
   const Grid sparse{.columns = three,
                     .rows = {layouts::px(10), layouts::px(10)}};
-  const std::vector<SkRect> flowed =
+  const SkiaRects flowed =
       sparse.place(given({30, 20}, sizes, spans));
   ASSERT_EQ(flowed.size(), 3u);
   EXPECT_EQ(flowed[1], SkRect::MakeXYWH(0, 10, 20, 10));
@@ -233,7 +233,7 @@ TEST(ComposeGrid, SparseFlowNeverLooksBackAndDenseFillsTheHoleBehindIt) {
   const Grid dense{.columns = three,
                    .rows = {layouts::px(10), layouts::px(10)},
                    .dense = true};
-  const std::vector<SkRect> packed = dense.place(given({30, 20}, sizes, spans));
+  const SkiaRects packed = dense.place(given({30, 20}, sizes, spans));
   ASSERT_EQ(packed.size(), 3u);
   EXPECT_EQ(packed[1], SkRect::MakeXYWH(0, 10, 20, 10));
   EXPECT_EQ(packed[2], SkRect::MakeXYWH(20, 0, 10, 10));  // back into the hole
@@ -242,7 +242,7 @@ TEST(ComposeGrid, SparseFlowNeverLooksBackAndDenseFillsTheHoleBehindIt) {
 TEST(ComposeGrid, AFlowingChildNeverLandsOnACellSomethingElseClaimed) {
   const Grid grid{.columns = {layouts::px(10), layouts::px(10)},
                   .rows = {layouts::px(10), layouts::px(10)}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({20, 20}, boxes(2, {5, 5}), {CellSpan{}, claims(0, 0)}));
   ASSERT_EQ(at.size(), 2u);
   EXPECT_EQ(at[1], SkRect::MakeXYWH(0, 0, 10, 10));
@@ -259,7 +259,7 @@ TEST(ComposeGrid, AChildWiderThanTheGridTakesTheWholeOfIt) {
       .rows = {layouts::px(10), layouts::px(10)}};
   std::vector<CellSpan> spans(2);
   spans[0].columns = 5;
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({30, 20}, boxes(2, {5, 5}), spans));
   ASSERT_EQ(at.size(), 2u);
   EXPECT_EQ(at[0], SkRect::MakeXYWH(0, 0, 30, 10));
@@ -278,7 +278,7 @@ TEST(ComposeGrid, TheGridsOwnAlignmentHoldsUntilAChildStatesItsOwn) {
   spans[1].alignDeclared = true;
   const Grid grid{.columns = {layouts::px(40), layouts::px(40)},
                   .rows = {layouts::px(40)}};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({80, 40}, boxes(2, {10, 10}), spans));
   ASSERT_EQ(at.size(), 2u);
   EXPECT_EQ(at[0], SkRect::MakeXYWH(0, 0, 40, 40));  // stretched, the default
@@ -296,12 +296,15 @@ struct Recorder {
   std::shared_ptr<LayoutInput> seen = std::make_shared<LayoutInput>();
   bool operator==(const Recorder& o) const { return seen == o.seen; }
   static constexpr bool readsChildMinSizes = true;
-  std::vector<SkRect> place(const LayoutInput& in) const {
+  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+    return rectanglesOf(placeSkia(in));
+  }
+  std::vector<SkRect> placeSkia(const LayoutInput& in) const {
     *seen = in;
     std::vector<SkRect> at(in.childSizes.size());
     for (size_t i = 0; i < at.size(); ++i)
-      at[i] = SkRect::MakeXYWH(0, (float)i * 20, in.childSizes[i].width(),
-                               in.childSizes[i].height());
+      at[i] = SkRect::MakeXYWH(0, (float)i * 20, in.childSizes[i].x,
+                               in.childSizes[i].y);
     return at;
   }
 };
@@ -319,16 +322,19 @@ TEST(ComposeGrid, ASchemeThatAsksIsToldHowNarrowItsTextChildrenCanGo) {
   ASSERT_EQ(recorder.seen->childMinSizes.size(), 1u);
   // The narrowest the paragraph goes is one word, and it was measured at
   // two hundred — so the minimum is real and it is smaller.
-  EXPECT_GT(recorder.seen->childMinSizes[0].width(), 0.0f);
-  EXPECT_LT(recorder.seen->childMinSizes[0].width(),
-            recorder.seen->childSizes[0].width());
+  EXPECT_GT(recorder.seen->childMinSizes[0].x, 0.0f);
+  EXPECT_LT(recorder.seen->childMinSizes[0].x,
+            recorder.seen->childSizes[0].x);
 }
 
 TEST(ComposeGrid, ASchemeThatDoesNotAskIsToldNothingAndPaysForNothing) {
   Host host(300, 200);
   struct Quiet {
     bool operator==(const Quiet&) const = default;
-    std::vector<SkRect> place(const LayoutInput& in) const {
+    std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+      return rectanglesOf(placeSkia(in));
+    }
+    std::vector<SkRect> placeSkia(const LayoutInput& in) const {
       return std::vector<SkRect>(in.childSizes.size(), SkRect::MakeWH(10, 10));
     }
   };
@@ -648,12 +654,15 @@ TEST(ComposeGrid, TextWrapsAtItsBoundedWidthBeforeRowsAreSized) {
 TEST(ComposeGrid, ACustomSchemeCanReturnFewerRectsAfterTextReflow) {
   struct ReflowSensitive {
     std::shared_ptr<bool> shortened = std::make_shared<bool>(false);
-    std::vector<SkRect> place(const LayoutInput& in) const {
-      if (in.childSizes.front().height() > 40) {
+    std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+      return rectanglesOf(placeSkia(in));
+    }
+    std::vector<SkRect> placeSkia(const LayoutInput& in) const {
+      if (in.childSizes.front().y > 40) {
         *shortened = true;
         return {};
       }
-      return {SkRect::MakeWH(60, in.childSizes.front().height())};
+      return {SkRect::MakeWH(60, in.childSizes.front().y)};
     }
   };
   Host host(500, 400);
@@ -704,7 +713,7 @@ TEST(ComposeGrid, RepeatTrackIsNCopiesOfOneTrack) {
   EXPECT_EQ(four[3], layouts::fr(1));
   // …and a grid built from it divides its container four ways.
   const Grid grid{.columns = four};
-  const std::vector<SkRect> at =
+  const SkiaRects at =
       grid.place(given({400, 100}, boxes(4, {10, 10})));
   ASSERT_EQ(at.size(), 4u);
   for (int i = 0; i < 4; ++i)

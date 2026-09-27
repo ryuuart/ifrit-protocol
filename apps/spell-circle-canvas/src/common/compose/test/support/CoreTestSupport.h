@@ -32,3 +32,29 @@
 #include "Host.h"
 #include "Profile.h"
 #include "Strokes.h"
+
+#include <sigilgeometry/path/Skia.h>
+
+namespace sigil::compose {
+
+/** Placed rectangles read back as Skia rects, which a test compares with
+ *  `SkRect::MakeXYWH` and prints on a failure. */
+struct SkiaRects : std::vector<SkRect> {
+  SkiaRects(const std::vector<geometry::path::Rect>& rects) {  // NOLINT
+    reserve(rects.size());
+    for (const geometry::path::Rect& rect : rects)
+      push_back(geometry::path::toSk(rect));
+  }
+};
+
+/** Skia rects as the layout's own rectangles, for a scheme a test writes
+ *  in Skia's terms. */
+inline std::vector<geometry::path::Rect> rectanglesOf(
+    const std::vector<SkRect>& rects) {
+  std::vector<geometry::path::Rect> out;
+  out.reserve(rects.size());
+  for (const SkRect& rect : rects) out.push_back(geometry::path::fromSk(rect));
+  return out;
+}
+
+}  // namespace sigil::compose

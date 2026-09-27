@@ -27,6 +27,17 @@
 
 namespace sigil::compose::layouts {
 
+/** @p rect moved the least distance that puts it inside a box of @p extent
+ *  at the origin, so a placement that nudges or scatters never clips a
+ *  child away. A rect larger than the box keeps its top-left inside. */
+inline geometry::path::Rect heldInside(const geometry::path::Rect& rect,
+                                       glm::vec2 extent) {
+  const glm::vec2 shift{
+      std::max(0.0f, -rect.min.x) - std::max(0.0f, rect.max.x - extent.x),
+      std::max(0.0f, -rect.min.y) - std::max(0.0f, rect.max.y - extent.y)};
+  return {rect.min + shift, rect.max + shift};
+}
+
 /** Children on a ring. Child i centers at startDeg + i·(sweepDeg/n), at
  *  `radiusFraction` of the container's half-extent — applied per axis, so
  *  an oblong container gives an ellipse rather than a circle. A partial
@@ -97,8 +108,8 @@ struct Radial {
       } else {
         angle = geometry::arrange::along(start, sweep, i, n, turn);
       }
-      child.centreAt(
-          geometry::arrange::onEllipse({cx, cy}, {cx * r, cy * r}, angle));
+      child.centreAt(geometry::path::fromSk(
+          geometry::arrange::onEllipse({cx, cy}, {cx * r, cy * r}, angle)));
       // Standing along the radius: a child at twelve o'clock (−90°) is
       // upright, one at three o'clock turned a quarter clockwise.
       if (facing) child.turn(angle * geometry::path::kRadToDeg + 90.0f);
@@ -155,7 +166,7 @@ struct AlongPath {
       const auto sample =
           contour.at(geometry::arrange::along(d0, d1 - d0, i, n, turn));
       if (!sample) continue;
-      arrangement.children[i].centreAt(geometry::path::toSk(sample->position));
+      arrangement.children[i].centreAt(sample->position);
       if (facing)
         arrangement.children[i].turn(
             std::atan2(sample->tangent.y, sample->tangent.x) *
@@ -179,13 +190,11 @@ struct Jitter {
       Arrangement::Child& child = arrangement.children[i];
       const float dx = core::noise::hash(seed, (uint32_t)(i * 2)) * amount;
       const float dy = core::noise::hash(seed, (uint32_t)(i * 2 + 1)) * amount;
-      SkRect moved = child.rect.makeOffset(dx, dy);
+      const glm::vec2 nudge{dx, dy};
+      const geometry::path::Rect moved{child.rect.min + nudge,
+                                       child.rect.max + nudge};
       // Held inside the box, so a nudge never clips a child away.
-      moved.offset(std::max(0.0f, -moved.left()) -
-                       std::max(0.0f, moved.right() - arrangement.box.width()),
-                   std::max(0.0f, -moved.top()) -
-                       std::max(0.0f, moved.bottom() - arrangement.box.height()));
-      child.place(moved);
+      child.place(heldInside(moved, arrangement.box.size()));
     }
   }
 };
@@ -207,24 +216,30 @@ struct Diagonal {
    *  extent. */
   enum class Anchor : uint8_t { Start, End } anchor = Anchor::Start;
 
-  std::vector<SkRect> place(const LayoutInput& in) const {
+  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
     const float k = std::tan(skewDeg * geometry::path::kDegToRad);
-    std::vector<SkRect> rects(in.childSizes.size());
+    std::vector<geometry::path::Rect> rects(in.childSizes.size());
     float y = 0.0f, minX = 0.0f, maxRight = 0.0f;
     for (size_t i = 0; i < in.childSizes.size(); ++i) {
       const float x = k * y;
-      rects[i] = SkRect::MakeXYWH(x, y, in.childSizes[i].width(),
-                                  in.childSizes[i].height());
+      rects[i] = geometry::path::Rect::of({x, y}, in.childSizes[i]);
       minX = std::min(minX, x);
-      maxRight = std::max(maxRight, rects[i].right());
-      y += in.childSizes[i].height() + gap;
+      maxRight = std::max(maxRight, rects[i].max.x);
+      y += in.childSizes[i].y + gap;
     }
-    for (SkRect& r : rects) r.offset(-minX, 0);
+    for (geometry::path::Rect& r : rects) {
+      r.min.x -= minX;
+      r.max.x -= minX;
+    }
     if (anchor == Anchor::End) {
       // Mirror horizontally: each row's RIGHT edge rides the shear line.
       const float extent =
-          in.container.width() > 0 ? in.container.width() : maxRight - minX;
-      for (SkRect& r : rects) r.offsetTo(extent - r.right(), r.top());
+          in.container.x > 0 ? in.container.x : maxRight - minX;
+      for (geometry::path::Rect& r : rects) {
+        const float shift = extent - r.max.x - r.min.x;
+        r.min.x += shift;
+        r.max.x += shift;
+      }
     }
     return rects;
   }
@@ -243,22 +258,22 @@ struct BaselineGrid {
   float offset = 0.0f;   ///< grid phase
   float gap = 0.0f;      ///< extra space between children before snapping
 
-  std::vector<SkRect> place(const LayoutInput& in) const {
-    std::vector<SkRect> rects(in.childSizes.size());
+  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+    std::vector<geometry::path::Rect> rects(in.childSizes.size());
     const float step = std::max(rhythm, 1.0f);
     float flowY = 0.0f;
     for (size_t i = 0; i < in.childSizes.size(); ++i) {
-      const SkSize size = in.childSizes[i];
+      const glm::vec2 size = in.childSizes[i];
       const float anchor =
           (i < in.childBaselines.size() && !std::isnan(in.childBaselines[i]))
               ? in.childBaselines[i]
-              : size.height();
+              : size.y;
       // Snap the anchor to the next grid line at or below its flow spot.
       const float line =
           offset + step * std::ceil((flowY + anchor - offset) / step - 1e-4f);
       const float top = line - anchor;
-      rects[i] = SkRect::MakeXYWH(0, top, size.width(), size.height());
-      flowY = top + size.height() + gap;
+      rects[i] = geometry::path::Rect::of({0, top}, size);
+      flowY = top + size.y + gap;
     }
     return rects;
   }
@@ -275,16 +290,17 @@ struct Jittered {
   uint32_t seed = 1;
   float jitter = 0.6f;  ///< 0 = regular grid, 1 = up to half a cell off
 
-  std::vector<SkRect> place(const LayoutInput& in) const {
+  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
     const size_t n = in.childSizes.size();
-    std::vector<SkRect> rects(n);
+    std::vector<geometry::path::Rect> rects(n);
     if (n == 0) return rects;
     const int cols = (int)std::ceil(std::sqrt((float)n));
     const int rows = (int)std::ceil((float)n / (float)cols);
     // The regular grid the jitter is measured against is the same grid a
     // modular layout lays down: gapless modules filling the container.
     const SkSize module =
-        geometry::arrange::moduleSize(in.container, cols, rows, {0, 0});
+        geometry::arrange::moduleSize(geometry::path::toSkSize(in.container),
+                                      cols, rows, {0, 0});
     for (size_t i = 0; i < n; ++i) {
       const float jx = core::noise::hash(seed, (uint32_t)(i * 2)) * jitter *
                        module.width() / 2;
@@ -293,15 +309,10 @@ struct Jittered {
       const SkPoint cell = geometry::arrange::cellRect(
                                geometry::arrange::cellAt(i, cols), module)
                                .center();
-      SkRect r = geometry::path::toSk(geometry::path::Rect::centredOn(
-          {cell.fX + jx, cell.fY + jy},
-          geometry::path::fromSk(in.childSizes[i])));
-      // Clamp into the container so jitter never clips children away.
-      r.offset(std::max(0.0f, -r.left()) -
-                   std::max(0.0f, r.right() - in.container.width()),
-               std::max(0.0f, -r.top()) -
-                   std::max(0.0f, r.bottom() - in.container.height()));
-      rects[i] = r;
+      // Clamped into the container so jitter never clips children away.
+      rects[i] = heldInside(geometry::path::Rect::centredOn(
+                                {cell.fX + jx, cell.fY + jy}, in.childSizes[i]),
+                            in.container);
     }
     return rects;
   }

@@ -242,8 +242,8 @@ struct SpaceJam1996 {
     for (const Slot& s : kSlotTable) {
       in.childSizes.push_back(
           s.asset < 0
-              ? SkSize{0, 0}
-              : SkSize{artW[s.asset], artH[s.asset] + S(18) * (float)s.brs});
+              ? glm::vec2{0, 0}
+              : glm::vec2{artW[s.asset], artH[s.asset] + S(18) * (float)s.brs});
       in.childCells.push_back({.column = s.col,
                                .row = s.row,
                                .columns = s.colspan,

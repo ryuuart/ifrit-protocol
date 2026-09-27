@@ -7,6 +7,7 @@
  */
 
 #include "sigilcompose/core/Operator.h"
+#include <sigilgeometry/path/Skia.h>
 
 #include <include/core/SkMatrix.h>
 
@@ -100,7 +101,7 @@ namespace detail {
 
 LayoutInput layoutInputOf(const Arrangement& arrangement) {
   LayoutInput input;
-  input.container = {arrangement.box.width(), arrangement.box.height()};
+  input.container = arrangement.box.size();
   input.childSizes.reserve(arrangement.children.size());
   input.childBaselines.reserve(arrangement.children.size());
   input.childCells.reserve(arrangement.children.size());
@@ -123,7 +124,8 @@ LayoutInput layoutInputOf(const Arrangement& arrangement) {
   return input;
 }
 
-void placeFromRects(Arrangement& arrangement, const std::vector<SkRect>& rects) {
+void placeFromRects(Arrangement& arrangement,
+                    const std::vector<geometry::path::Rect>& rects) {
   const size_t count = std::min(rects.size(), arrangement.children.size());
   for (size_t i = 0; i < count; ++i) arrangement.children[i].rect = rects[i];
 }

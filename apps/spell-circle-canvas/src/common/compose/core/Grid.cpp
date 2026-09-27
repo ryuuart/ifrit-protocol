@@ -106,7 +106,7 @@ struct GridLayout {
   const std::vector<Track>& columns;
   const std::vector<Track>& rows;
   const std::vector<std::string>& areas;
-  SkSize gap;
+  glm::vec2 gap;
   bool dense;
   Align across, down;
   using Resolved = Grid::Resolved;
@@ -117,32 +117,31 @@ struct GridLayout {
   }
 
   /** Where every child lands, in child order. */
-  std::vector<SkRect> place(const LayoutInput& in) const {
+  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
     // The picture is read ONCE per call and handed down: parsing it again
     // inside each step would read the same strings three times over for
     // every layout pass.
     const AreaPicture picture = readAreas(areas);
     const std::vector<CellSpan> spans = flowed(in, picture);
     const Resolved grid = solve(in, spans, picture);
-    std::vector<SkRect> rects(in.childSizes.size());
+    std::vector<geometry::path::Rect> rects(in.childSizes.size());
     for (size_t i = 0; i < spans.size() && i < rects.size(); ++i) {
       const CellSpan& s = spans[i];
       if (s.column < 0 || s.row < 0 ||
           (size_t)s.column >= grid.columnX.size() ||
           (size_t)s.row >= grid.rowY.size())
         continue;  // outside the grid it was given; placed nowhere
-      const SkSize box{
-          extent(grid.columnWidths, s.column, s.columns, gap.width()),
-          extent(grid.rowHeights, s.row, s.rows, gap.height())};
+      const glm::vec2 box{
+          extent(grid.columnWidths, s.column, s.columns, gap.x),
+          extent(grid.rowHeights, s.row, s.rows, gap.y)};
       const Align a = s.alignDeclared ? s.across : across;
       const Align d = s.alignDeclared ? s.down : down;
-      const SkSize size{
-          a == Align::Stretch ? box.width() : in.childSizes[i].width(),
-          d == Align::Stretch ? box.height() : in.childSizes[i].height()};
-      rects[i] = SkRect::MakeXYWH(
-          grid.columnX[(size_t)s.column] + slack(a, box.width(), size.width()),
-          grid.rowY[(size_t)s.row] + slack(d, box.height(), size.height()),
-          size.width(), size.height());
+      const glm::vec2 size{a == Align::Stretch ? box.x : in.childSizes[i].x,
+                           d == Align::Stretch ? box.y : in.childSizes[i].y};
+      rects[i] = geometry::path::Rect::of(
+          {grid.columnX[(size_t)s.column] + slack(a, box.x, size.x),
+           grid.rowY[(size_t)s.row] + slack(d, box.y, size.y)},
+          size);
     }
     return rects;
   }
@@ -158,13 +157,13 @@ struct GridLayout {
     // row list that was never given is a page that grows down, so its rows
     // are as tall as what is in them.
     out.columnWidths =
-        resolve(columns, Track::fr(1.0f), cols, in.container.width(),
-                gap.width(), spans, in, /*horizontal=*/true);
+        resolve(columns, Track::fr(1.0f), cols, in.container.x,
+                gap.x, spans, in, /*horizontal=*/true);
     out.rowHeights =
-        resolve(rows, Track::content(), lines, in.container.height(),
-                gap.height(), spans, in, /*horizontal=*/false);
-    out.columnX = origins(out.columnWidths, gap.width());
-    out.rowY = origins(out.rowHeights, gap.height());
+        resolve(rows, Track::content(), lines, in.container.y,
+                gap.y, spans, in, /*horizontal=*/false);
+    out.columnX = origins(out.columnWidths, gap.x);
+    out.rowY = origins(out.rowHeights, gap.y);
     return out;
   }
 
@@ -243,8 +242,8 @@ struct GridLayout {
     }
 
     // 2. The content, narrowest span first.
-    const auto axisOf = [&](const SkSize& s) {
-      return horizontal ? s.width() : s.height();
+    const auto axisOf = [&](const glm::vec2& s) {
+      return horizontal ? s.x : s.y;
     };
     const auto firstOf = [&](const CellSpan& s) {
       return horizontal ? s.column : s.row;
@@ -399,7 +398,7 @@ Grid::Resolved Grid::solve(const LayoutInput& in) const {
   return GridLayout(*this).solve(in);
 }
 
-std::vector<SkRect> Grid::place(const LayoutInput& in) const {
+std::vector<geometry::path::Rect> Grid::place(const LayoutInput& in) const {
   return GridLayout(*this).place(in);
 }
 

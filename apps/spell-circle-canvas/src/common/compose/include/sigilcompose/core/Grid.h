@@ -14,8 +14,6 @@
  * below cover the lot.
  */
 
-#include <include/core/SkRect.h>
-#include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 
 #include <cstdint>
@@ -145,7 +143,7 @@ struct Grid {
    *  addressed by number alone. */
   std::vector<std::string> areas;
   /** Between tracks: x across, y down. */
-  SkSize gap = {0.0f, 0.0f};
+  glm::vec2 gap = {0.0f, 0.0f};
   /** Fill the earliest hole a flowing child fits rather than never
    *  backtracking past the cursor. */
   bool dense = false;
@@ -173,7 +171,7 @@ struct Grid {
   };
 
   [[nodiscard]] Resolved solve(const LayoutInput& in) const;
-  [[nodiscard]] std::vector<SkRect> place(const LayoutInput& in) const;
+  [[nodiscard]] std::vector<geometry::path::Rect> place(const LayoutInput& in) const;
 };
 
 }  // namespace sigil::compose::layouts

@@ -26,15 +26,14 @@ struct AroundRing {
   bool operator==(const AroundRing&) const = default;
 
   void arrange(Arrangement& arrangement) const {
-    const SkPoint centre = arrangement.box.center();
-    const float radius =
-        std::min(centre.x(), centre.y()) * radiusFraction;
+    const glm::vec2 centre = arrangement.box.centre();
+    const float radius = std::min(centre.x, centre.y) * radiusFraction;
     for (Arrangement::Child& child : arrangement.children) {
       const int hour = child.attribute<int>("hour").value_or(0);
       const float degrees = (float)hour * 30.0f - 90.0f;
       const float radians = degrees * kRadiansPerDegree;
-      child.centreAt({centre.x() + radius * std::cos(radians),
-                      centre.y() + radius * std::sin(radians)});
+      child.centreAt({centre.x + radius * std::cos(radians),
+                      centre.y + radius * std::sin(radians)});
       child.turn(degrees + 90.0f);
     }
   }
@@ -42,12 +41,12 @@ struct AroundRing {
 
 /** Every child moved by the same offset from wherever it stands. */
 struct Nudge {
-  SkVector by = {0, 0};
+  glm::vec2 by = {0, 0};
   bool operator==(const Nudge&) const = default;
 
   void arrange(Arrangement& arrangement) const {
     for (Arrangement::Child& child : arrangement.children)
-      child.place(child.rect.makeOffset(by));
+      child.place({child.rect.min + by, child.rect.max + by});
   }
 };
 
@@ -56,11 +55,16 @@ struct AllAtCorner {
   float inset = 0.0f;
   bool operator==(const AllAtCorner&) const = default;
 
-  std::vector<SkRect> place(const LayoutInput& in) const {
+  std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+
+    return rectanglesOf(placeSkia(in));
+
+  }
+
+  std::vector<SkRect> placeSkia(const LayoutInput& in) const {
     std::vector<SkRect> rects;
-    for (SkSize size : in.childSizes)
-      rects.push_back(
-          SkRect::MakeXYWH(inset, inset, size.width(), size.height()));
+    for (const glm::vec2 size : in.childSizes)
+      rects.push_back(SkRect::MakeXYWH(inset, inset, size.x, size.y));
     return rects;
   }
 };
@@ -192,13 +196,16 @@ TEST(ComposeOperators, ASchemeOfTheOlderShapeRunsThroughTheSameList) {
 TEST(ComposeOperators, AFactReachesASchemeOfTheOlderShape) {
   struct ByTier {
     bool operator==(const ByTier&) const = default;
-    std::vector<SkRect> place(const LayoutInput& in) const {
+    std::vector<geometry::path::Rect> place(const LayoutInput& in) const {
+      return rectanglesOf(placeSkia(in));
+    }
+    std::vector<SkRect> placeSkia(const LayoutInput& in) const {
       std::vector<SkRect> rects;
       for (size_t i = 0; i < in.childSizes.size(); ++i) {
         const int tier = in.attribute<int>(i, "tier").value_or(0);
         rects.push_back(SkRect::MakeXYWH(0, (float)tier * 50.0f,
-                                         in.childSizes[i].width(),
-                                         in.childSizes[i].height()));
+                                         in.childSizes[i].x,
+                                         in.childSizes[i].y));
       }
       return rects;
     }

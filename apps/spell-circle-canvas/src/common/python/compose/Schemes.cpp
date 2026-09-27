@@ -9,6 +9,7 @@
  */
 
 #include <include/core/SkPath.h>
+#include <sigilgeometry/path/Skia.h>
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkSize.h>
@@ -527,7 +528,7 @@ void bindArrangement(py::module_& composition) {
       "overwrites it.");
   child
       .def_property_readonly(
-          "size", [](const ArrangementChild& self) { return self.get().size; })
+          "size", [](const ArrangementChild& self) { return geometry::path::toSkSize(self.get().size); })
       .def_property_readonly(
           "baseline",
           [](const ArrangementChild& self) { return self.get().baseline; },
@@ -535,7 +536,9 @@ void bindArrangement(py::module_& composition) {
           "for a child with none.")
       .def_property_readonly(
           "minSize",
-          [](const ArrangementChild& self) { return self.get().minSize; },
+          [](const ArrangementChild& self) {
+            return geometry::path::toSkSize(self.get().minSize);
+          },
           "The smallest the child can be without spilling its content, "
           "filled only where an operator asked with readsChildMinSizes.")
       .def_property_readonly(
@@ -547,9 +550,12 @@ void bindArrangement(py::module_& composition) {
           "attributes",
           [](const ArrangementChild& self) { return self.get().attributes; })
       .def_property(
-          "rect", [](const ArrangementChild& self) { return self.get().rect; },
+          "rect",
+          [](const ArrangementChild& self) {
+            return geometry::path::toSk(self.get().rect);
+          },
           [](const ArrangementChild& self, py::handle where) {
-            self.get().place(rect(where));
+            self.get().place(geometry::path::fromSk(rect(where)));
           })
       .def_property(
           "turnDegrees",
@@ -575,13 +581,13 @@ void bindArrangement(py::module_& composition) {
       .def(
           "place",
           [](const ArrangementChild& self, py::handle where) {
-            self.get().place(rect(where));
+            self.get().place(geometry::path::fromSk(rect(where)));
           },
           py::arg("rect"), "Puts the child here, size included.")
       .def(
           "centreAt",
           [](const ArrangementChild& self, py::handle centre) {
-            self.get().centreAt(point(centre));
+            self.get().centreAt(geometry::path::fromSk(point(centre)));
           },
           py::arg("centre"), "Centres the child's measured size on a point.")
       .def(
@@ -595,7 +601,10 @@ void bindArrangement(py::module_& composition) {
 
   arrangement
       .def_property_readonly(
-          "box", [](const BorrowedArrangement& self) { return self.get().box; })
+          "box",
+          [](const BorrowedArrangement& self) {
+            return geometry::path::toSk(self.get().box);
+          })
       .def_property_readonly(
           "children",
           [](const std::shared_ptr<BorrowedArrangement>& self) {

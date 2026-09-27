@@ -168,13 +168,13 @@ TEST(ComposeLayouts, AlongPathUsesTheSelectedContoursClosure) {
       return path.detach();
     }};
     Arrangement arrangement;
-    arrangement.box = SkRect::MakeWH(100, 100);
+    arrangement.box = geometry::path::Rect::of({0, 0}, {100, 100});
     arrangement.children.resize(2);
     scheme.arrange(arrangement);
     const auto& placed = arrangement.children;
-    EXPECT_FLOAT_EQ(placed[0].rect.centerX(), 0);
-    EXPECT_FLOAT_EQ(placed[1].rect.centerX(), 100);
-    EXPECT_FLOAT_EQ(placed[1].rect.centerY(), 0);
+    EXPECT_FLOAT_EQ(placed[0].rect.centre().x, 0);
+    EXPECT_FLOAT_EQ(placed[1].rect.centre().x, 100);
+    EXPECT_FLOAT_EQ(placed[1].rect.centre().y, 0);
   }
 }
 

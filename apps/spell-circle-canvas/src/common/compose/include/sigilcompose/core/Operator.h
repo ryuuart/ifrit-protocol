@@ -54,16 +54,16 @@ struct Arrangement {
    *  child's own transform origin, laid over the rotation the child
    *  states for itself; it moves no layout. */
   struct Child {
-    SkSize size = SkSize::MakeEmpty();
+    glm::vec2 size{0, 0};
     /// First-baseline offset from the child's top; NaN for a child with none.
     float baseline = std::numeric_limits<float>::quiet_NaN();
     /// The smallest the child can be without spilling its content, filled
     /// only for an operator that declares `readsChildMinSizes`.
-    SkSize minSize = SkSize::MakeEmpty();
+    glm::vec2 minSize{0, 0};
     CellSpan cells;
     std::string area;
     Attributes attributes;
-    SkRect rect = SkRect::MakeEmpty();
+    geometry::path::Rect rect;
     float turnDegrees = 0.0f;
 
     /** The fact under @p name, as the child stated it. */
@@ -76,19 +76,17 @@ struct Arrangement {
      *  author who wrote `3` and one who wrote `3.0f` are placed alike. */
     std::optional<float> number(std::string_view name) const;
     /** Puts the child at @p where, size included. */
-    void place(SkRect where) { rect = where; }
+    void place(const geometry::path::Rect& where) { rect = where; }
     /** Centres the child's measured size on @p centre. */
-    void centreAt(SkPoint centre) {
-      rect = SkRect::MakeXYWH(centre.x() - size.width() / 2,
-                              centre.y() - size.height() / 2, size.width(),
-                              size.height());
+    void centreAt(glm::vec2 centre) {
+      rect = geometry::path::Rect::centredOn(centre, size);
     }
     /** Turns the child @p degrees clockwise about its transform origin. */
     void turn(float degrees) { turnDegrees = degrees; }
   };
 
   /// The node's own box, at the origin: what the children are placed in.
-  SkRect box = SkRect::MakeEmpty();
+  geometry::path::Rect box;
   std::vector<Child> children;
   /// Whether each child's `minSize` was measured — true only when an
   /// operator in the list asked, since the measure costs one text layout
@@ -269,7 +267,8 @@ struct AddingModel : OperatorOperations {
 /** The table a placement scheme reads, built from the arrangement's
  *  records, and the rectangles it answers written back onto them. */
 LayoutInput layoutInputOf(const Arrangement& arrangement);
-void placeFromRects(Arrangement& arrangement, const std::vector<SkRect>& rects);
+void placeFromRects(Arrangement& arrangement,
+                    const std::vector<geometry::path::Rect>& rects);
 
 /** A placement scheme — `place(const LayoutInput&)` returning one rect per
  *  child — as the same operations, adapted. */
