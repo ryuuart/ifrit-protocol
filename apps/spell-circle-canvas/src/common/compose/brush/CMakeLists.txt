@@ -7,9 +7,7 @@
 # (`styles::` — inner shadows, glows, bevels and the gel and chrome
 # bundles over SigilMaterial's kit tables), with the kit's stroke grammar
 # and finished lines, rails and hatches (`kit/Strokes.h`), the bordered
-# feed plate (`kit/Plate.h`) and the
-# ornament and flourish pieces (`kit/Ornament.h`, `kit/Flourish.h`) that are
-# spelled in this tier's types. And the engine behind the kernel's stroke
+# feed plate (`kit/Plate.h`) that are spelled in this tier's types. And the engine behind the kernel's stroke
 # grammar and mask gates — span claims, the span normal form, bands, the
 # `by::` gates — reached by the kernel through the StrokeResolver and
 # MaskResolver values the verbs install, which is why `stroke(spans, …)`,
@@ -30,8 +28,6 @@ find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeBrush
   SOURCES Adaptors.cpp Decorations.cpp LayerStyles.cpp Lines.cpp
           PixelStyles.cpp
-          # the ornament kit's drawing, behind its declarations
-          Ornament.cpp Flourish.cpp
           Composites.cpp Stamps.cpp Ribbon.cpp Art.cpp BakedArt.h
           # the stroke grammar's engine and the mask gates, behind the
           # kernel's StrokeResolver and MaskResolver seams
@@ -40,7 +36,7 @@ sigil_library(SigilComposeBrush
   HEADERS Adaptors.h Brush.h Brushes.h Decorations.h Hatches.h
           Ribbons.h Stamps.h
           LayerStyles.h Layered.h Lines.h PixelStyles.h Rails.h
-          ../kit/Flourish.h ../kit/Ornament.h ../kit/Plate.h ../kit/Strokes.h
+          ../kit/Plate.h ../kit/Strokes.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilComposeTypography SigilGeometryKit SigilMediaCore
          SigilMaterial SigilSkiaDraw SigilWeave

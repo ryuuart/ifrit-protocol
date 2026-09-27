@@ -287,14 +287,6 @@ native = "`skia::isFloatImage` / `halfFloatPixels` float readback"
 library = "Skia"
 python = ["skia.isFloatImage", "skia.halfFloatPixels"]
 
-[requirement.flourish]
-native = "`compose::kit::flourish` vines and cards"
-library = "Compose kit"
-python = [
-  "compose.kit.flourish.acanthusLeaf",
-  "compose.kit.flourish.beadChain",
-]
-
 [requirement.frame-fill]
 native = "`material::skia::fill` with `FrameData`"
 library = "Material"
@@ -521,15 +513,6 @@ python = ["core.noise.hash", "core.noise.lattice"]
 native = "`material::ocio` colour management"
 library = "Material"
 python = ["material.ocio.convert", "material.ocio.Transform"]
-
-[requirement.ornament]
-native = "`compose::kit::ornament` palettes, frames and marks"
-library = "Compose kit"
-python = [
-  "compose.kit.ornament.azurePalette",
-  "compose.kit.ornament.carvedFrameSlice",
-  "compose.kit.ornament.illuminatedPanel",
-]
 
 [requirement.over]
 native = "`material::over` layering and masks"

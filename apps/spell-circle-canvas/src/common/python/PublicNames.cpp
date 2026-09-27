@@ -34,8 +34,6 @@ constexpr std::array<std::pair<std::string_view, std::string_view>, 102> kPublic
     {"compose.instancing.place", "sigil.compose.instancing.place"},
     {"compose.kit", "sigil.compose.kit"},
     {"compose.kit.bevels", "sigil.compose.kit.bevels"},
-    {"compose.kit.flourish", "sigil.compose.kit.flourish"},
-    {"compose.kit.ornament", "sigil.compose.kit.ornament"},
     {"compose.layouts", "sigil.compose.layouts"},
     {"compose.lines", "sigil.compose.lines"},
     {"compose.lines.presets", "sigil.compose.lines.presets"},

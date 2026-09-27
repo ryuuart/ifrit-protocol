@@ -722,13 +722,6 @@ native = "sprites and pixel type"
 python = ["compose.kit.Sprite", "compose.kit.PixFont"]
 
 [[section.surface.item]]
-native = "`ornament::` and `flourish::`"
-python = [
-  "compose.kit.ornament.azurePalette",
-  "compose.kit.flourish.acanthusLeaf",
-]
-
-[[section.surface.item]]
 native = "the named default leaves"
 
 [[section.surface]]

@@ -30,8 +30,6 @@ from ..._kit import children as _children
 from ..._kit import specification as _specification
 from . import (
     bevels,
-    flourish,
-    ornament,
 )
 
 
@@ -112,10 +110,8 @@ __all__ = [
     "disc",
     "dot",
     "figure",
-    "flourish",
     "ladder",
     "line",
-    "ornament",
     "panel",
     "panel_grid",
     "ring",

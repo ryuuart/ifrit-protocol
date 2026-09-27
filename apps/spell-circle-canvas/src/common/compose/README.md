@@ -792,8 +792,8 @@ elements, layout, paint, transitions, text, the feed and the instanced
 leaf, as the host of SigilCore's reconciler), `SigilComposeTypography`
 (`typography/` — the text vocabulary and the engine behind dressed
 type), `SigilComposeBrush` (`brush/` — decorations, lines, brushes, the
-stroke grammar's engine and the mask gates, with `kit/Flourish.h`,
-`kit/Ornament.h`, `kit/Plate.h` and `kit/Strokes.h`),
+stroke grammar's engine and the mask gates, with `kit/Plate.h` and
+`kit/Strokes.h`),
 `SigilComposeTexture` (`texture/` — a scene painted into a surface and
 handed out as a texture value, a `media::PixelSource` built from a scene),
 `SigilComposeWeb` (`web/` — header-only, present only with SigilScry),

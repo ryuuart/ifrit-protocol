@@ -51,9 +51,6 @@ void bindComposeKitKinetic(pybind11::module_& module);
 /** Registers halo, shade, scrim, emboldened, and the two ground
  *  dressings on @p module. */
 void bindComposeKitLegibility(pybind11::module_& module);
-/** Registers the manuscript border pieces and the gilt flourish card on
- *  @p module. */
-void bindComposeKitOrnament(pybind11::module_& module);
 /** Registers the aliased bitmap-font bake on @p module. */
 void bindComposeKitPixelType(pybind11::module_& module);
 /** Registers the wire routers and the instance placers on @p

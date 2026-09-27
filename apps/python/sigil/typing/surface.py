@@ -40,8 +40,6 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.compose.instancing.place": "sigil.compose.instancing.place",
     "_sigil.compose.kit": "sigil.compose.kit",
     "_sigil.compose.kit.bevels": "sigil.compose.kit.bevels",
-    "_sigil.compose.kit.flourish": "sigil.compose.kit.flourish",
-    "_sigil.compose.kit.ornament": "sigil.compose.kit.ornament",
     "_sigil.compose.layouts": "sigil.compose.layouts",
     "_sigil.compose.lines": "sigil.compose.lines",
     "_sigil.compose.lines.presets": "sigil.compose.lines.presets",

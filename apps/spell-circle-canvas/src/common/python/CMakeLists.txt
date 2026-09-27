@@ -12,7 +12,7 @@ sigil_library(SigilPython
     compose/Derive.cpp compose/ElementEdges.cpp compose/Feed.cpp
     compose/Instancing.cpp
     compose/KitAnnotations.cpp compose/KitEras.cpp compose/KitKinetic.cpp
-    compose/KitLegibility.cpp compose/KitOrnament.cpp
+    compose/KitLegibility.cpp
     compose/KitPixelType.cpp compose/KitRoutes.cpp compose/KitRows.cpp
     compose/KitSprites.cpp compose/KitStrokes.cpp compose/KitTypeset.cpp
     compose/LayerStyles.cpp compose/Lines.cpp compose/Masks.cpp

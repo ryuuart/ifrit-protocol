@@ -153,7 +153,6 @@ void bindLibraries(pybind11::module_& module) {
   bindComposeKitStrokes(module);
   bindComposeKitSprites(module);
   bindComposeKitPixelType(module);
-  bindComposeKitOrnament(module);
 }
 
 }  // namespace sigil::python

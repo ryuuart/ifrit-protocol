@@ -610,8 +610,7 @@ marks along too; the ink and the width are the decoration's. The finished ones o
 chosen (`cased`, `triple`, `arrow`, `railway`, `wavy`, `rails(n, …)`,
 `quad`, `hatch`, `crosshatch`, `radialHatch`, `concentric`), stand a
 namespace apart as `lines::presets::` in `kit/Strokes.h`, which — with
-`kit/Plate.h`, `kit/Ornament.h` and `kit/Flourish.h` — ships with this
-tier because each is spelled in its types.
+`kit/Plate.h` — ships with this tier because each is spelled in its types.
 
 **Fills.** The paint vocabulary is SigilMaterial's and is spelled there:
 a `material::Material` is what `Element::fill` takes — a base, layers
@@ -952,9 +951,8 @@ types they are spelled in, `kit/Strokes.h`'s finished lines, braid, bracket
 spans, brush presets and `kit::groove` — the engraved cut across a disc's
 stroke, a radial ramp concentric with the circle so it is dark on the inner
 wall and lit on the outer, as the comparable `kit::grooveRamp` paint or the
-`PathFormat` that wears it — with `kit/Plate.h`'s bordered feed plate and
-`kit/Ornament.h` and `kit/Flourish.h`, the pieces a manuscript border is made
-of (Brush), and `kit/Legibility.h` (Typography). The kit is a **separate CMake
+`PathFormat` that wears it — with `kit/Plate.h`'s bordered feed plate
+(Brush), and `kit/Legibility.h` (Typography). The kit is a **separate CMake
 library** (`SigilComposeKit`) whose only include path is compose's public
 headers, which is how the public/internal boundary is proven rather than
 asserted. Note that `kit/Kit.h` does not pull in the headers shipped with other

@@ -569,7 +569,7 @@ needs = "Compose texture bakes; gauge kit; image panels; textured cylinder and g
 requires = ["painter-runtime", "kit-meter", "texture-scene", "render-runtime"]
 
 [sketch.flourish]
-needs = "Ornament and flourish kits; contour walks; nine-slice; paint programs; routed wires; layer blur; runtime shaders; silhouettes; pen overlays"
+needs = "Its own ornament and gilt border pieces; contour walks; nine-slice; paint programs; routed wires; layer blur; runtime shaders; silhouettes; pen overlays"
 requires = [
   "adaptors",
   "connect",
@@ -577,8 +577,6 @@ requires = [
   "slice",
   "contour-walk",
   "routers",
-  "ornament",
-  "flourish",
   "raster-surfaces",
   "silhouettes",
   "corners",
@@ -790,8 +788,8 @@ needs = "Instanced atlas stamps; bevel emboss panel; recessed wells; noise recip
 requires = ["kit-legend", "instancing", "layer-styles", "placers"]
 
 [sketch.manuscript]
-needs = "Ornament kit; nested small-caps run; Knuth-Plass with pattern hyphenation; flowAround exclusions; texture cache; page-turn update"
-requires = ["ornament", "hyphenation-patterns"]
+needs = "Its own ornament pieces; nested small-caps run; Knuth-Plass with pattern hyphenation; flowAround exclusions; texture cache; page-turn update"
+requires = ["hyphenation-patterns"]
 
 [sketch.material_atlas]
 needs = "Produced sheet texture; atlas grid, TexturePacker and Aseprite imports; wrapping sequences; texture shader draws"
@@ -905,7 +903,6 @@ needs = "Generated ornament textures; nine-slice decoration with density; direct
 requires = [
   "kit-section-header",
   "slice",
-  "ornament",
   "draw-lattice",
   "asset-frames",
 ]
@@ -1467,7 +1464,7 @@ requires = [
 
 [sketch."ui particles"]
 needs = "Instanced atlas stamping from a live pool; fixed-step simulation; ornament nine-slice and flourish cards; scrim; gradients"
-requires = ["instancing", "slice", "ornament", "flourish", "legibility"]
+requires = ["instancing", "slice", "legibility"]
 
 [sketch.usd_roundtrip]
 needs = "USD stage writer and readers for mesh, instancer, light, camera; point scatter on mesh; mesh painter"

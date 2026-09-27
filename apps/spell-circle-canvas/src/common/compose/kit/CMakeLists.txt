@@ -14,11 +14,10 @@
 # silhouette generators are the geometry library's, because a
 # `path(SkSize)` value needs nothing of a component tree.
 #
-# Five kit headers live with other tiers instead, because their values are
-# spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar),
-# `kit/Plate.h` (the bordered feed plate), `kit/Ornament.h` and
-# `kit/Flourish.h` (the pieces a manuscript border is made of) with Brush,
-# and `kit/Legibility.h` with Typography. Include them directly.
+# Three kit headers live with other tiers instead, because their values are
+# spelled in those tiers' types: `kit/Strokes.h` (the stroke grammar) and
+# `kit/Plate.h` (the bordered feed plate) with Brush, and `kit/Legibility.h`
+# with Typography. Include them directly.
 #
 # PUBLIC (not PRIVATE): anything that links the kit gets the tiers its values
 # are expressed in — the kernel, type styles, the brush tier whose
