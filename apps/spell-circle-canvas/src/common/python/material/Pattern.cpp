@@ -61,6 +61,28 @@ void bindMaterialPattern(py::module_& module) {
       },
       py::arg("spacing"), py::arg("radius"), py::arg("color"),
       py::arg("staggered") = true);
+  patterns.def(
+      "scanlines",
+      [](py::handle value, float period, float on, float phase) {
+        return pattern::scanlines({.color = materialColor(value),
+                                   .period = period,
+                                   .on = on,
+                                   .phase = phase});
+      },
+      py::arg("color"), py::arg("period") = 4.0f, py::arg("on") = 2.0f,
+      py::arg("phase") = 0.0f);
+  patterns.def(
+      "stipple",
+      [](py::handle value, uint64_t bits, int size, float cell) {
+        return pattern::stipple({.color = materialColor(value),
+                                 .bits = bits,
+                                 .size = size,
+                                 .cell = cell});
+      },
+      py::arg("color"), py::arg("bits") = uint64_t{0b1001},
+      py::arg("size") = 2, py::arg("cell") = 1.0f);
+  patterns.def("ditherBits", &pattern::ditherBits, py::arg("on"),
+               py::arg("size") = 4);
 }
 
 }  // namespace sigil::python

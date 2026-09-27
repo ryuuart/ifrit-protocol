@@ -605,12 +605,11 @@ python = [
 ]
 
 [[section.surface.item]]
-native = "the `styles::` inner shadow, outer glow, bevel and emboss, overlays, ripple, brackets, tick rails, scanlines, stipple and dither"
+native = "the `styles::` bevel pair, brackets and tick rails, each inked with a material"
 python = [
-  "compose.styles.innerShadow",
   "compose.styles.bevelPair",
+  "compose.styles.brackets",
   "compose.styles.tickRail",
-  "compose.styles.scanlines",
 ]
 
 [[section.surface.item]]
@@ -1663,13 +1662,16 @@ python = [
 ]
 
 [[section.surface.item]]
-bound = "`pattern.Tile` grid lines, stripes, checker and halftone"
+bound = "`pattern.Tile` grid lines, stripes, checker and halftone, and the lattice sources scanlines and stipple with the ordered-dither mask"
 python = [
   "material.pattern.Tile",
   "material.pattern.gridLines",
   "material.pattern.stripes",
   "material.pattern.checker",
   "material.pattern.halftone",
+  "material.pattern.scanlines",
+  "material.pattern.stipple",
+  "material.pattern.ditherBits",
 ]
 
 [[section.surface.item]]

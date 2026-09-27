@@ -326,7 +326,7 @@ assembly guards their calls the same way.
   `bindComposeKitPixelType`,
   `bindComposeKitRoutes`, `bindComposeKitRows`, `bindComposeKitSprites`,
   `bindComposeKitStrokes`, `bindComposeKitTypeset`,
-  `bindComposeLayerStyles`, `bindComposeLines`, `bindComposeMasks`,
+  `bindComposeLines`, `bindComposeMasks`,
   `bindComposeMediaLeaves`, `bindComposePaintPrograms`,
   `bindComposePixelStyles`, `bindComposeSchemes`, `bindComposeSelectors`,
   `bindComposeSheets`, `bindComposeTextEffects`,

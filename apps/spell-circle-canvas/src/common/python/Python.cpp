@@ -111,7 +111,6 @@ void bindLibraries(pybind11::module_& module) {
   bindComposeBrushComposites(module);
   bindComposeBrushMarks(module);
   bindComposeLines(module);
-  bindComposeLayerStyles(module);
   bindComposePixelStyles(module);
   bindPen(module);
   bindDrawStandalonePen(module);

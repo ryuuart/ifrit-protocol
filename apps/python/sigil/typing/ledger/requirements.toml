@@ -441,12 +441,11 @@ library = "Motion"
 python = ["motion.Lane", "motion.HeldMotions"]
 
 [requirement.layer-styles]
-native = "`compose::styles` layer styles (glow, inner shadow, bevel)"
-library = "Compose"
+native = "a material's effects: inner shadow, outer glow and bevel (`material::Filter::shadow`, `material::Filter::bevel`)"
+library = "Material"
 python = [
-  "compose.styles.outerGlow",
-  "compose.styles.innerShadow",
-  "compose.styles.bevelEmboss",
+  "material.Filter.shadow",
+  "material.Filter.bevel",
 ]
 
 [requirement.layered-brush]
@@ -570,12 +569,12 @@ library = "Compose kit"
 python = ["compose.kit.Sprite", "compose.kit.PixelInk"]
 
 [requirement.pixel-styles]
-native = "`compose::styles` rails, scanlines and stipple"
+native = "`compose::styles` tick rails over the lattice sources `material::pattern::scanlines` and `stipple`"
 library = "Compose"
 python = [
   "compose.styles.tickRail",
-  "compose.styles.scanlines",
-  "compose.styles.stipple",
+  "material.pattern.scanlines",
+  "material.pattern.stipple",
 ]
 
 [requirement.pixel-type]

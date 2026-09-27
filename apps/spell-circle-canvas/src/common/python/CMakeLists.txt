@@ -15,7 +15,7 @@ sigil_library(SigilPython
     compose/KitLegibility.cpp
     compose/KitPixelType.cpp compose/KitRoutes.cpp compose/KitRows.cpp
     compose/KitSprites.cpp compose/KitStrokes.cpp compose/KitTypeset.cpp
-    compose/LayerStyles.cpp compose/Lines.cpp compose/Masks.cpp
+    compose/Lines.cpp compose/Masks.cpp
     compose/MediaLeaves.cpp compose/PaintPrograms.cpp compose/PixelStyles.cpp
     compose/Schemes.cpp compose/Selectors.cpp compose/Sheets.cpp
     compose/TextEffects.cpp

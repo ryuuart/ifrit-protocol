@@ -1,4 +1,4 @@
-"""The bitmap-era mechanisms: bevel pair, brackets, tick rail, scanlines, stipple.
+"""The bitmap-era marks: bevel pair, brackets, tick rail.
 
 Input contracts for the erased signatures of the
 compose-decorations/pixel-styles package, and nothing else: a fragment is one

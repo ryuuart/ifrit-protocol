@@ -65,9 +65,6 @@ void bindComposeKitStrokes(pybind11::module_& module);
 /** Registers ruby, kenten, bullets, columns, nested runs and block
  *  rules on @p module. */
 void bindComposeKitTypeset(pybind11::module_& module);
-/** Registers the blurred layer-style mechanisms: inner shadow, outer
- *  glow, bevel emboss, overlay, ripple on @p module. */
-void bindComposeLayerStyles(pybind11::module_& module);
 /** Registers the cartography stroke: Line, Rails, Hatch, RadialHatch
  *  and the path helpers on @p module. */
 void bindComposeLines(pybind11::module_& module);
@@ -79,8 +76,8 @@ void bindComposeMediaLeaves(pybind11::module_& module);
 /** Registers paintContext, keyless paint programs, keyed shapes, asset
  *  and paragraph leaves on @p module. */
 void bindComposePaintPrograms(pybind11::module_& module);
-/** Registers the bitmap-era mechanisms: bevel pair, brackets, tick
- *  rail, scanlines, stipple on @p module. */
+/** Registers the bitmap-era marks: bevel pair, brackets, tick rail on
+ *  @p module. */
 void bindComposePixelStyles(pybind11::module_& module);
 /** Registers the operator seam on @p module: the facts a node states,
  *  the arrangement and the settled scope an operator is handed, the

@@ -242,10 +242,10 @@ def layout(scheme: _t.OperatorLike, children: collections.abc.Iterable[_t.NodeLi
         "_t.ScalarLike | None",
     )
     table.erased("_sigil.compose.PathFormat", "strokeFill", "_t.FillLike")
-    table.erased("_sigil.compose.Shadow", "color", "_t.ColorLike")
+    table.erased("_sigil.compose.Shadow", "ink", "_t.ColorLike | _sigil.material.Material")
     table.erased("_sigil.compose.Shadow", "offset", "_t.PointLike")
     table.erased("_sigil.compose.Shape", "__init__", "_t.ShapeLike")
-    table.erased("_sigil.compose", "shadow", "_t.ColorLike", "_t.PointLike")
+    table.erased("_sigil.compose", "shadow", "_t.ColorLike | _sigil.material.Material", "_t.PointLike")
     table.erased("_sigil.compose", "shape", "_t.ShapeLike")
     # A band's spine is any shape a node takes; the leaf it hands back
     # keeps the band's own verb in reach.
