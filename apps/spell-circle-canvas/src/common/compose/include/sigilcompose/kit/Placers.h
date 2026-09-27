@@ -52,11 +52,13 @@ inline void grid(Pool& pool, size_t count, int columns, glm::vec2 cell,
   auto positions = pool.positions();
   // An instance sits at the CENTRE of its slot; a laid-out child is given
   // the whole rect. Same cells either way.
-  for (size_t i = 0; i < count; ++i)
-    positions[i] = geometry::arrange::cellRect(
-                       geometry::arrange::cellAt(i, columns), {cell.x, cell.y},
-                       {gap.x, gap.y}, {origin.x, origin.y})
-                       .center();
+  for (size_t i = 0; i < count; ++i) {
+    const glm::vec2 centre =
+        geometry::arrange::cellRect(geometry::arrange::cellAt(i, columns),
+                                    cell, {.gap = gap, .origin = origin})
+            .centre();
+    positions[i] = {centre.x, centre.y};
+  }
   pool.commit();
 }
 
@@ -72,12 +74,14 @@ inline void ring(Pool& pool, size_t count, glm::vec2 center, float radius,
   // than doubling it.
   const float sweep = geometry::path::kTau;
   for (size_t i = 0; i < count; ++i) {
-    const float a = geometry::arrange::along(startRadians, sweep, i, count,
-                                             geometry::arrange::Turn::Closed);
-    positions[i] =
-        geometry::arrange::onEllipse({center.x, center.y}, {radius, radius}, a);
-    // faceOut turns each instance to look along its own spoke.
-    if (faceOut) rotations[i] = a + geometry::path::kPi / 2.0f;
+    const float angle = geometry::arrange::along(
+        startRadians, sweep, i, count, geometry::arrange::Turn::Closed);
+    const glm::vec2 position =
+        geometry::arrange::onEllipse(center, glm::vec2(radius), angle);
+    positions[i] = {position.x, position.y};
+    // faceOut turns each instance to look along its own spoke; a pool's
+    // rotation lane is in radians, so the quarter turn is added in them.
+    if (faceOut) rotations[i] = angle + geometry::path::kPi / 2.0f;
   }
   pool.commit();
 }
