@@ -393,7 +393,7 @@ struct ContextProbe {
   struct Seen {
     int paints = 0;
     const StampCache* stamps = nullptr;
-    SkMatrix toRoot = SkMatrix::I();
+    geometry::path::Transform toRoot;
     SkSize rootSize = SkSize::MakeEmpty();
     SkRect outline = SkRect::MakeEmpty();
     double elapsedSeconds = 0.0;
@@ -428,7 +428,7 @@ PaintContext nodeContext(StampCache& stamps) {
   ctx.contentScale = 2.0f;
   ctx.animating = true;
   ctx.stamps = &stamps;
-  ctx.toRoot = SkMatrix::Translate(30, 40);
+  ctx.toRoot = geometry::path::Transform::translate({30, 40});
   ctx.rootSize = {800, 600};
   return ctx;
 }
@@ -456,7 +456,7 @@ TEST(ComposeBrushes, ANestedBrushKeepsEverythingButTheOutline) {
   for (const ContextProbe* probe : {&woven, &layered, &restyled}) {
     ASSERT_EQ(probe->seen->paints, 1);
     EXPECT_EQ(probe->seen->stamps, &stamps);
-    EXPECT_EQ(probe->seen->toRoot, SkMatrix::Translate(30, 40));
+    EXPECT_EQ(probe->seen->toRoot, geometry::path::Transform::translate({30, 40}));
     EXPECT_EQ(probe->seen->rootSize, SkSize::Make(800, 600));
     EXPECT_DOUBLE_EQ(probe->seen->elapsedSeconds, 2.5);
     EXPECT_EQ(probe->seen->outline, SkRect::MakeWH(100, 60));

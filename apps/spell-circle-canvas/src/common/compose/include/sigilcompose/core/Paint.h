@@ -13,8 +13,8 @@
  */
 
 #include <include/core/SkImage.h>
-#include <include/core/SkMatrix.h>
 #include <include/core/SkPath.h>
+#include <sigilgeometry/path/Transform.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSize.h>
@@ -287,7 +287,7 @@ struct PaintContext {
    *  resolved standalone anchors node-locally and draws the same picture
    *  as the unflagged one. Layout-derived, like `size` — never part of any
    *  prune signature. */
-  SkMatrix toRoot = SkMatrix::I();
+  geometry::path::Transform toRoot;
   /** The composer root's laid-out size in canvas px — what uResolution
    *  becomes for a world-space material (a canvas-unit ramp spans the
    *  canvas). Empty outside a composer; resolve falls back to `size`. */
@@ -308,7 +308,7 @@ struct PaintContext {
    *  being painted is the box the paint maps onto — and is what a paint
    *  anchored to a declaring box or to the canvas replaces. */
   SkSize inkAnchorSize = SkSize::MakeEmpty();
-  SkMatrix inkAnchorToRoot = SkMatrix::I();
+  geometry::path::Transform inkAnchorToRoot;
   /** THE FONT IN FORCE at this node, every field resolved — what a pen
    *  program hosted here sets its text in, and what a guest tree painted
    *  from it inherits. The initial values outside a composer. */

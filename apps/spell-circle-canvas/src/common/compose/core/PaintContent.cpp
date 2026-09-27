@@ -394,7 +394,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       .fonts = &fonts,
       .borrowed = inst.borrowedPaths.empty() ? nullptr : &inst.borrowedPaths,
       .stamps = &inst.stampCache,
-      .toRoot = curToRoot,         // node→root, as paint() stacked it
+      .toRoot = geometry::path::fromSk(curToRoot),  // node→root, as paint() stacked it
       .rootSize = rootLayoutSize,  // …and the canvas it maps into
       // The cascade as it resolved at this node: the ink every mark that
       // names no colour takes, the font a pen program begins in, and the
@@ -405,7 +405,7 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       // This node's own space mapped INTO the anchor box: the walk holds
       // the anchor's node→root matrix, and a slice is what stands between
       // the two.
-      .inkAnchorToRoot = anchorSpace(),
+      .inkAnchorToRoot = geometry::path::fromSk(anchorSpace()),
       .font = inst.font,
       .vars = inst.vars.get(),
       .pointer = pointerHere,

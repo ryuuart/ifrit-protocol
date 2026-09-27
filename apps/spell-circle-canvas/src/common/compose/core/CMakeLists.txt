@@ -43,6 +43,7 @@ sigil_library(SigilComposeCore
     ElementTransform.cpp ElementDepth.cpp
     ElementTextStyle.cpp ElementText.cpp
     ElementIdentity.cpp ElementImage.cpp Factories.cpp Region.cpp
+    Pattern.cpp
     MaterialEffects.cpp
     ElementNode.cpp Diagnostics.cpp CellFlow.cpp Grid.cpp
     ElementCascade.cpp ElementFont.cpp

@@ -419,7 +419,7 @@ TEST(ComposePattern, ARepeatCanBePanned) {
   // translation part of the matrix it already hands to Material::image.
   // Without it, a pattern can be scaled and rotated but not offset, which is
   // two thirds of a matrix its own backend takes whole.
-  auto stripes = [](SkPoint pan) {
+  auto stripes = [](glm::vec2 pan) {
     Pattern p = Pattern::tile({8, 8}, [](SkCanvas& c, SkSize s, uint32_t) {
       SkPaint left;
       left.setColor4f({1, 0, 0, 1}, nullptr);
@@ -430,7 +430,7 @@ TEST(ComposePattern, ARepeatCanBePanned) {
           SkRect::MakeXYWH(s.width() * 0.5f, 0, s.width() * 0.5f, s.height()),
           right);
     });
-    p.offset(pan).sampling(SkSamplingOptions(SkFilterMode::kNearest));
+    p.offset(pan).sampling(material::Sampling::Nearest);
     return p.material();
   };
   auto colourAt = [](material::Paint m, int x) {

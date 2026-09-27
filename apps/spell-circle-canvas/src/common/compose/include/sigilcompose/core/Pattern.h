@@ -24,13 +24,10 @@
  * shared state with no bake in it, so every render re-renders the tile.
  */
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkPicture.h>
+#include <glm/vec2.hpp>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Painted.h>
-#include <sigilmaterial/skia/Texture.h>
 
 #include <memory>
 #include <optional>
@@ -54,19 +51,17 @@ class Pattern {
 
   /** A generator tile (the procedural route): @p draw paints one tile
    *  into a canvas of @p size. */
-  static Pattern tile(SkSize size, sigil::material::skia::Painter draw) {
+  static Pattern tile(glm::vec2 size, sigil::material::skia::Painter draw) {
     return Pattern(sigil::material::pattern::Tile::of(
-        {size.width(), size.height()},
-        sigil::material::skia::painted(std::move(draw))));
+        size, sigil::material::skia::painted(std::move(draw))));
   }
 
   /** An element-tree tile (patterns are compositions too). The tree is
    *  forced to exactly the tile size so the repeat is seamless. */
-  static Pattern tile(SkSize size, Element tileTree) {
+  static Pattern tile(glm::vec2 size, Element tileTree) {
     Pattern p;
-    p.m_tile = sigil::material::pattern::Tile::of(
-        {size.width(), size.height()}, {});
-    tileTree.width(size.width()).height(size.height());
+    p.m_tile = sigil::material::pattern::Tile::of(size, {});
+    tileTree.width(size.x).height(size.y);
     p.m_tree = std::make_shared<Element>(std::move(tileTree));
     return p;
   }
@@ -109,8 +104,8 @@ class Pattern {
    *
    *  Describe-time: this form moves only when the element is re-described.
    *  The BOUND overload below is the live sibling. */
-  Pattern& offset(SkPoint px) {
-    m_tile.offset({px.x(), px.y()});
+  Pattern& offset(glm::vec2 px) {
+    m_tile.offset(px);
     return *this;
   }
   /** Pan the repeat LIVE — the bound form of the same word. Write the live
@@ -132,8 +127,8 @@ class Pattern {
    *  nearest for a tile on a pixel grid (a woven cloth, a dither, a grid
    *  line), linear for an organic one — so a pattern made from a stock
    *  tile samples as that tile says; a statement here overrides it. */
-  Pattern& sampling(SkSamplingOptions options) {
-    m_sampling = options;
+  Pattern& sampling(material::Sampling mode) {
+    m_sampling = mode;
     return *this;
   }
   uint32_t currentSeed() const { return m_tile.currentSeed(); }
@@ -151,41 +146,7 @@ class Pattern {
   }
 
  private:
-  material::Paint bake(sigil::weave::FontContext* fonts) const {
-    if (!m_tile.valid()) return {};
-    if (m_tree && !m_tile.baked()) {
-      if (!fonts) {
-        SkDebugf(
-            "Pattern::material(): an element tile needs the "
-            "material(FontContext&) overload\n");
-        return {};
-      }
-      // The element tile is SHAPED HERE, while the fonts are in hand, and
-      // the program is the recording it produced. The tile's state
-      // outlives this call — a later seed() or invalidate() re-runs the
-      // program — so a program holding the borrowed context would shape
-      // against a font context that may be gone. A picture holds
-      // everything it draws. (Wrapped so the intrinsic-size root adopts
-      // the tile's forced dims.)
-      sk_sp<SkPicture> pic = snapshot(box().children({*m_tree}), *fonts);
-      m_tile.program(material::skia::painted(
-          [pic](SkCanvas& canvas, SkSize, uint32_t) {
-            if (pic) canvas.drawPicture(pic);
-          }));
-    }
-    sk_sp<SkImage> baked = material::skia::image(m_tile.texture());
-    if (!baked) return {};
-    material::Paint m = material::skia::image(
-        std::move(baked), material::Repeat::Repeat, material::Repeat::Repeat,
-        material::skia::toSkMatrix(m_tile.mapping()),
-        m_sampling.value_or(SkSamplingOptions(
-            material::skia::toSkFilterMode(m_tile.sampling()))));
-    if (m_boundX || m_boundY)
-      m.offset(m_boundX,
-               m_boundY);  // the live pan rides material::Paint's
-                           // bound-matrix channel
-    return m;
-  }
+  material::Paint bake(sigil::weave::FontContext* fonts) const;
 
   // Mutable because the element tile's program is installed at the first
   // bake, which is a const query on the value: the tile's shared state is
@@ -194,7 +155,7 @@ class Pattern {
   std::shared_ptr<const Element> m_tree;
   std::optional<motion::Animatable<float>> m_boundX;
   std::optional<motion::Animatable<float>> m_boundY;
-  std::optional<SkSamplingOptions> m_sampling;
+  std::optional<material::Sampling> m_sampling;
 };
 
 }  // namespace sigil::compose

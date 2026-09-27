@@ -832,7 +832,7 @@ struct CdeMotifSketch {
         backdrops[i] =
             Pattern::tile({28, 52},
                           cde::pinStripeTile(cde::toSk(d.ts), cde::toSk(d.bs)))
-                .sampling(SkSamplingOptions(SkFilterMode::kNearest));
+                .sampling(material::Sampling::Nearest);
       }
       backdropsBuilt = true;
     }

@@ -398,7 +398,9 @@ void bindComposePaintPrograms(py::module_& module) {
           py::arg("key"))
       .def_property_readonly(
           "toRoot",
-          [](const BorrowedPaintContext& self) { return self.get().toRoot; })
+          [](const BorrowedPaintContext& self) {
+            return geometry::path::toSk(self.get().toRoot);
+          })
       .def_property_readonly(
           "rootSize",
           [](const BorrowedPaintContext& self) { return self.get().rootSize; })

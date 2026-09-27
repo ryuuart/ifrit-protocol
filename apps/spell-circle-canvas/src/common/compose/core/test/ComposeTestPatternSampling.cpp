@@ -55,6 +55,6 @@ TEST(ComposePatternSampling, APatternSamplesAsItsTileSays) {
 
 TEST(ComposePatternSampling, ASamplingThePatternStatesWins) {
   Pattern cloth(checkedCloth());
-  cloth.scale(8).sampling(SkSamplingOptions(SkFilterMode::kLinear));
+  cloth.scale(8).sampling(material::Sampling::Linear);
   EXPECT_GT(blendedPixels(cloth), 0);
 }

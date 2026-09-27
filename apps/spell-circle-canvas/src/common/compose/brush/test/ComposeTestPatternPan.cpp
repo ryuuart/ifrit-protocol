@@ -54,7 +54,7 @@ TEST(ComposePatternPan, ABoundPanMovesThePatternWithNoRedescribe) {
   // describe (the whole point of the bound form).
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
-  pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
+  pat.sampling(material::Sampling::Nearest)
       .offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
@@ -81,7 +81,7 @@ TEST(ComposePatternPan, ASettledBoundPanReleasesVolatilityAndPromotes) {
   // denied its bake would keep all of the cost.
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
-  pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
+  pat.sampling(material::Sampling::Nearest)
       .offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
@@ -149,7 +149,7 @@ TEST(ComposePatternPan, AMovingBoundPanNeverReleases) {
   // true phase on screen.
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);
   Pattern pat = halfTilePattern();
-  pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
+  pat.sampling(material::Sampling::Nearest)
       .offset(panX, std::nullopt);
   Host host(300, 300);
   host.composer.render(pannedPanel(pat));
@@ -179,8 +179,8 @@ TEST(ComposePatternPan, AnUnboundOffsetStaysDescribeTimeAndPrunes) {
   // bound channel — still describe-time, still the static fill path (no
   // live slot, no volatility), and an identical re-describe still prunes.
   Pattern pat = halfTilePattern();
-  pat.sampling(SkSamplingOptions(SkFilterMode::kNearest))
-      .offset(SkPoint{8.0f, 0.0f});
+  pat.sampling(material::Sampling::Nearest)
+      .offset(glm::vec2{8.0f, 0.0f});
   EXPECT_FALSE(pat.material().isRunning())
       << "a static pan must not route to the live material slot";
   sigil::motion::Animatable<float> panX = sigil::motion::animatable(0.0f);

@@ -63,7 +63,8 @@ sk_sp<SkSurface> renderTile(const sk_sp<SkPicture>& pic, int index,
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kTileW, kTileH));
   SkCanvas* canvas = surface->getCanvas();
   canvas->clear(SK_ColorBLACK);
-  canvas->concat(tiles::window({kTileW, kTileH}, index, flow, facing));
+  canvas->concat(geometry::path::toSk(
+      tiles::window({kTileW, kTileH}, index, flow, facing)));
   canvas->drawPicture(pic);
   return surface;
 }

@@ -25,7 +25,7 @@ material::FrameData frameOf(const PaintContext& ctx) {
   material::FrameData frame;
   frame.resolution = {ctx.size.width(), ctx.size.height()};
   frame.rootResolution = {ctx.rootSize.width(), ctx.rootSize.height()};
-  frame.world = material::skia::toMatrix(ctx.toRoot);
+  frame.world = ctx.toRoot.matrix;
   frame.seconds = ctx.elapsedSeconds;
   frame.contentScale = ctx.contentScale;
   return frame;
@@ -56,7 +56,7 @@ Fill resolveInk(const material::Paint& paint, const PaintContext& ctx) {
   // node stands on".
   material::FrameData frame = frameOf(ctx);
   frame.rootResolution = {ctx.inkAnchorSize.width(), ctx.inkAnchorSize.height()};
-  frame.world = material::skia::toMatrix(ctx.inkAnchorToRoot);
+  frame.world = ctx.inkAnchorToRoot.matrix;
   material::Paint anchored = paint;
   anchored.worldSpace(true);
   if (sk_sp<SkShader> shader = material::skia::shader(anchored, frame))

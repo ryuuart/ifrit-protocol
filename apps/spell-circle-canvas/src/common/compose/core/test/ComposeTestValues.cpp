@@ -48,7 +48,7 @@ TEST(ComposeValues, TheFrameAPaintResolvesAgainstIsTheContextsOwn) {
   PaintContext ctx;
   ctx.size = {40, 20};
   ctx.rootSize = {800, 600};
-  ctx.toRoot = SkMatrix::Translate(30, 40);
+  ctx.toRoot = geometry::path::Transform::translate({30, 40});
   ctx.elapsedSeconds = 2.5;
   ctx.contentScale = 2.0f;
   const material::FrameData frame = frameOf(ctx);

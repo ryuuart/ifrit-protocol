@@ -59,6 +59,16 @@ inline SkMatrix toSk(const Transform& transform) {
                            m[2][1], 0, 0, 1);
 }
 
+/** A Skia matrix as the affine map, its perspective row dropped. */
+inline Transform fromSk(const SkMatrix& matrix) {
+  Transform transform;
+  transform.matrix = glm::mat3(matrix.getScaleX(), matrix.getSkewY(), 0.0f,
+                               matrix.getSkewX(), matrix.getScaleY(), 0.0f,
+                               matrix.getTranslateX(), matrix.getTranslateY(),
+                               1.0f);
+  return transform;
+}
+
 /** The winding as the direction Skia draws a closed figure in. */
 inline SkPathDirection toSk(Winding winding) {
   return winding == Winding::OutersClockwise ? SkPathDirection::kCW

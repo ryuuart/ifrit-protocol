@@ -8,10 +8,10 @@
  * that makes replaying the whole picture per tile cheap.
  */
 
-#include <include/core/SkMatrix.h>
+#include <glm/vec2.hpp>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRefCnt.h>
-#include <include/core/SkSize.h>
+#include <sigilgeometry/path/Transform.h>
 
 namespace sigil::compose {
 
@@ -59,20 +59,15 @@ enum class Facing {
   Mirrored  ///< flipped across the strip, for mirrored sampling
 };
 
-/** The canvas transform that brings tile @p index of a @p tile -sized run
- *  into view. Concat it, then draw the picture:
- *
- *  ```
- *  SkAutoCanvasRestore restore(canvas, true);
- *  canvas->clear(SK_ColorTRANSPARENT);
- *  canvas->concat(tiles::window(size, k, Flow::Down, Facing::Mirrored));
- *  canvas->drawPicture(strip);
- *  ```
+/** The transform that brings tile @p index of a run of @p tile -sized
+ *  tiles into view: concatenate it onto the tile's canvas, then draw the
+ *  whole picture.
  *
  *  The surface's own bounds are the clip, so nothing else is needed —
  *  neighbouring tiles share their boundary texels and the seams vanish. */
-SkMatrix window(SkISize tile, int index, Flow flow = Flow::Down,
-                Facing facing = Facing::Forward);
+geometry::path::Transform window(glm::vec2 tile, int index,
+                                 Flow flow = Flow::Down,
+                                 Facing facing = Facing::Forward);
 
 /** The same picture, re-recorded behind a bounding-box hierarchy, so each
  *  `window()` replay visits only the ops that meet its tile instead of all

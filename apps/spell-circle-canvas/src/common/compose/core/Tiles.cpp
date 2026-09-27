@@ -9,6 +9,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkPictureRecorder.h>
+#include <sigilgeometry/path/Skia.h>
 
 #include "ComposeRuntime.h"
 
@@ -16,21 +17,24 @@ namespace sigil::compose {
 
 namespace tiles {
 
-SkMatrix window(SkISize tile, int index, Flow flow, Facing facing) {
-  const float w = (float)tile.width();
-  const float h = (float)tile.height();
+geometry::path::Transform window(glm::vec2 tile, int index, Flow flow,
+                                 Facing facing) {
+  const float w = tile.x;
+  const float h = tile.y;
   const float step = -(float)index * (flow == Flow::Down ? h : w);
   // The step runs ALONG the flow; the mirror, when asked for, runs ACROSS
   // it — the axis perpendicular to the slicing. Both are written out as
   // one matrix so no call site has to get the concat order right.
   if (flow == Flow::Down) {
-    return facing == Facing::Mirrored
-               ? SkMatrix::MakeAll(-1, 0, w, 0, 1, step, 0, 0, 1)
-               : SkMatrix::MakeAll(1, 0, 0, 0, 1, step, 0, 0, 1);
+    return geometry::path::fromSk(
+        facing == Facing::Mirrored
+            ? SkMatrix::MakeAll(-1, 0, w, 0, 1, step, 0, 0, 1)
+            : SkMatrix::MakeAll(1, 0, 0, 0, 1, step, 0, 0, 1));
   }
-  return facing == Facing::Mirrored
-             ? SkMatrix::MakeAll(1, 0, step, 0, -1, h, 0, 0, 1)
-             : SkMatrix::MakeAll(1, 0, step, 0, 1, 0, 0, 0, 1);
+  return geometry::path::fromSk(
+      facing == Facing::Mirrored
+          ? SkMatrix::MakeAll(1, 0, step, 0, -1, h, 0, 0, 1)
+          : SkMatrix::MakeAll(1, 0, step, 0, 1, 0, 0, 0, 1));
 }
 
 sk_sp<SkPicture> sliceable(const sk_sp<SkPicture>& art) {
