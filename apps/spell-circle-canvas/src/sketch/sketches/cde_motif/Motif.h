@@ -4,6 +4,7 @@
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilmaterial/skia/Painted.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/PixelStyles.h>
@@ -402,8 +403,8 @@ inline styles::Stipple stipple() { return styles::stipple(ambient().bg); }
  *  each, on a staggered half-drop. Period 14 in x, 13 in y. In 1993 a
  *  texture was a pixmap and a gradient was a dither, and this is why the
  *  CDE root window is a faintly-structured mid-tone rather than flat. */
-inline pattern::Program pinStripeTile(material::Color light,
-                                      material::Color dark) {
+inline material::skia::Painter pinStripeTile(material::Color light,
+                                             material::Color dark) {
   return [light, dark](SkCanvas& c, SkSize, uint32_t) {
     SkPaint p;
     p.setAntiAlias(false);

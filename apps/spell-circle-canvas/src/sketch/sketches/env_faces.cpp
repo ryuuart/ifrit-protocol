@@ -109,7 +109,8 @@ sk_sp<SkImage> row(const material::EnvironmentMap::Faces& six) {
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kFaceSide * 6, kFaceSide));
   for (int i = 0; i < 6; ++i)
-    surface->getCanvas()->drawImage(six[(size_t)i], (float)(i * kFaceSide), 0);
+    surface->getCanvas()->drawImage(six[(size_t)i].frameAt({}).image,
+                                    (float)(i * kFaceSide), 0);
   return surface->makeImageSnapshot();
 }
 
@@ -194,7 +195,7 @@ struct EnvFaces {
             resampled.texture(0).source());
     const material::EnvironmentMap grounded =
         resampled.withGround(material::skia::toSkColor(kGroundColour));
-    const material::Color mean = material::skia::toColor(resampled.average());
+    const material::Color mean = resampled.average();
 
     ctx.composer.render(sketch::kit::page(
         {.title = "From a sky to a reflection",

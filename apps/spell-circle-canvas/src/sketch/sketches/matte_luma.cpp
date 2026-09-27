@@ -42,6 +42,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -101,9 +102,7 @@ sketch::kit::Theme sheetTheme() {
 /** The "is it there?" backdrop — the stock checker tile, 8 px cells. */
 material::Paint checker() {
   return material::skia::paint(
-      material::pattern::checker(8, material::hexColor(0x1a1c24), material::hexColor(0x282c38))
-          .texture()
-          .shader());
+      material::skia::shader(material::pattern::checker(8, material::hexColor(0x1a1c24), material::hexColor(0x282c38)).texture()));
 }
 
 /** The eight bands as one repeating run along +x — the generator the
@@ -113,7 +112,7 @@ material::Paint bandStrip(float width) {
   std::vector<std::pair<float, material::Color>> runs;
   runs.reserve(kBands.size());
   for (const Band& band : kBands) runs.emplace_back(bandWidth, band.color);
-  return material::skia::paint(material::pattern::sequence(runs).texture().shader());
+  return material::skia::paint(material::skia::shader(material::pattern::sequence(runs).texture()));
 }
 
 /** THE MATTE, baked at panel size so its local matrix is the identity.

@@ -106,10 +106,8 @@ sk_sp<SkImage> bakeChecker(int w, int h) {
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(w, h));
   SkCanvas* c = surface->getCanvas();
   SkPaint paint;
-  paint.setShader(material::pattern::checker(28.0f, {0.169f, 0.169f, 0.227f, 1},
-                                    {0.725f, 0.745f, 0.808f, 1})
-                      .texture()
-                      .shader());
+  paint.setShader(material::skia::shader(material::pattern::checker(28.0f, {0.169f, 0.169f, 0.227f, 1},
+                                    {0.725f, 0.745f, 0.808f, 1}).texture()));
   c->drawRect(SkRect::MakeWH((float)w, (float)h), paint);
   paint.setShader(nullptr);
   paint.setAntiAlias(true);

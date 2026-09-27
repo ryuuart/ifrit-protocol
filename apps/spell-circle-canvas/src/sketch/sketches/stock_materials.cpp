@@ -33,6 +33,7 @@
 
 // TAGS: Materials/Shaders
 
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
@@ -98,7 +99,7 @@ Element painted(const char* call, material::Material material) {
 /** A tile names itself by its generator, since a baked tile has no recipe
  *  of its own: what repeats is an image, sampled through the mapping. */
 Element tiled(const char* name, const char* call, material::pattern::Tile tile) {
-  return swatch(name, call, material::skia::paint(tile.texture().shader()));
+  return swatch(name, call, material::skia::paint(material::skia::shader(tile.texture())));
 }
 
 Element row(std::vector<Element> cells) {
@@ -124,9 +125,7 @@ struct StockMaterialsSheet {
     // The tile the two content-reading fields are shown over, so the
     // warp has something to displace and the tube something to darken.
     const material::Paint under = material::skia::paint(
-        material::pattern::checker(14, material::hexColor(0x2b3a54), material::hexColor(0x8fa6c8))
-            .texture()
-            .shader());
+        material::skia::shader(material::pattern::checker(14, material::hexColor(0x2b3a54), material::hexColor(0x8fa6c8)).texture()));
 
     Element fields = row(
         {painted("field::halftoneRamp(9, 1, 3.6, gold)",

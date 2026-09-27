@@ -72,7 +72,7 @@ SkPath whole() {
 /** What `ripple` warps: a ruled grid, baked once, so the displacement is
  *  legible as a displacement rather than as a texture. */
 material::Texture ruled() {
-  return material::Texture::produce("field_shelf.ruled", [] {
+  return material::Texture(sigil::media::PixelSource::produce("field_shelf.ruled", [] {
     constexpr int kSide = 200;
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
@@ -88,14 +88,14 @@ material::Texture ruled() {
       canvas->drawLine(0, (float)i, kSide, (float)i, line);
     }
     return surface->makeImageSnapshot();
-  });
+  }));
 }
 
 material::Material rippled(float amplitude, float wavelength, bool vertical) {
   material::Material warp = field::ripple(amplitude, wavelength, 0, vertical);
   // The grid repeats, so a displacement that reads past the edge finds
   // more grid rather than a smeared last row.
-  warp.slot("content", material::Texture(ruled()).tile(SkTileMode::kRepeat));
+  warp.slot("content", material::Texture(ruled()).tile(material::Repeat::Repeat));
   return warp;
 }
 

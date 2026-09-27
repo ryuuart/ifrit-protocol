@@ -31,6 +31,7 @@
 
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -40,7 +41,7 @@
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
-#include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/skia/Bevel.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -79,7 +80,7 @@ SkPath plate() {
  *  sampled mask on this sheet reads, so the four readings differ only in
  *  how they read it and never in what they were given. */
 material::Texture ramp() {
-  return material::Texture::produce("over_under.ramp", [] {
+  return material::Texture(sigil::media::PixelSource::produce("over_under.ramp", [] {
     constexpr int kSide = 128;
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kSide, kSide));
@@ -90,15 +91,15 @@ material::Texture ramp() {
         ends, SkGradient({{stops, 2}, {}, SkTileMode::kClamp}, {})));
     surface->getCanvas()->drawPaint(paint);
     return surface->makeImageSnapshot();
-  });
+  }));
 }
 
 /** The map placed over the plate's own box, so a mask reading it lines
  *  up with the shape it is masking. */
 material::Texture placedRamp() {
   material::Texture map = ramp();
-  map.uv(SkMatrix::Scale((kCell - 36) / 128.0f, (kPicture - 36) / 128.0f)
-             .postTranslate(18, 18));
+  map.uv(material::skia::toMatrix(SkMatrix::Scale((kCell - 36) / 128.0f, (kPicture - 36) / 128.0f)
+             .postTranslate(18, 18)));
   return map;
 }
 
@@ -224,7 +225,7 @@ struct OverUnder {
                                 "up.",
                                 material::over(stone(), brass(),
                                                material::maskSlope(
-                                                   material::bevelNormals(
+                                                   material::skia::bevelNormals(
                                                        plate(), kBevel),
                                                    {0, -1, 0}, 0.05f, 0.55f)))},
                       .measure = 1020,

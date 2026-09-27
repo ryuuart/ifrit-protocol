@@ -48,6 +48,8 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/color/Color.h>
@@ -61,6 +63,7 @@
 #include <sigilsketch/set/Set.h>
 #include <sigilworld/kit/Kit.h>
 
+#include <map>
 #include <algorithm>
 #include <boost/container/map.hpp>
 #include <cmath>
@@ -118,7 +121,7 @@ sk_sp<SkImage> generated(const F& texel) {
  *  all a floor needs from a map, and the tile is the shortest true
  *  statement of both. */
 sk_sp<SkImage> check(material::Color a, material::Color b, float cell) {
-  return material::pattern::checker(cell, a, b).image();
+  return material::skia::image(material::pattern::checker(cell, a, b).texture());
 }
 
 /** A TANGENT NORMAL MAP: a grid of domes, each rising out of the flat
@@ -196,7 +199,7 @@ sk_sp<SkImage> filaments(int period) {
  *  tags its outputs with — the same door a discovered folder's files
  *  arrive through once they are decoded. */
 material::texture::TextureMaps floorMaps() {
-  boost::container::map<std::string, sk_sp<SkImage>> byUsage;
+  std::map<std::string, sigil::media::PixelSource> byUsage;
   byUsage["baseColor"] =
       check({0.30f, 0.33f, 0.38f, 1}, {0.17f, 0.19f, 0.23f, 1}, 16.0f);
   byUsage["roughness"] =
@@ -233,10 +236,10 @@ material::Material stacked() {
   material::Material crust = material::surface::program(
       {.baseColor = {0.80f, 0.72f, 0.56f, 1.0f}, .roughness = 0.35f});
   crust.slot(material::surface::kNormalSlot,
-             material::Texture::produce("material_lab.crust.normal",
-                                        [] { return domes(6, 0.9f); }));
-  const material::Material mask = material::maskMap(material::Texture::produce(
-      "material_lab.patches", [] { return patches(); }));
+             material::Texture(sigil::media::PixelSource::produce("material_lab.crust.normal",
+                                        [] { return domes(6, 0.9f); })));
+  const material::Material mask = material::maskMap(material::Texture(sigil::media::PixelSource::produce(
+      "material_lab.patches", [] { return patches(); })));
   return material::over(base, std::move(crust), mask);
 }
 
@@ -247,8 +250,8 @@ material::Material bumped() {
   material::Material m = material::surface::program(
       {.baseColor = {0.42f, 0.47f, 0.58f, 1.0f}, .roughness = 0.35f});
   m.slot(material::surface::kNormalSlot,
-         material::Texture::produce("material_lab.bumps",
-                                    [] { return domes(5, 1.0f); }));
+         material::Texture(sigil::media::PixelSource::produce("material_lab.bumps",
+                                    [] { return domes(5, 1.0f); })));
   return m;
 }
 
@@ -264,8 +267,8 @@ material::Material sweep() {
       .roughnessChannel = 1.0f,
       .metallicChannel = 2.0f,
   });
-  const material::Texture packed = material::Texture::produce(
-      "material_lab.orm", [] { return occlusionRoughnessMetallic(); });
+  const material::Texture packed = material::Texture(sigil::media::PixelSource::produce(
+      "material_lab.orm", [] { return occlusionRoughnessMetallic(); }));
   m.slot(material::surface::kRoughnessSlot, packed);
   m.slot(material::surface::kMetallicSlot, packed);
   return m;
@@ -282,8 +285,8 @@ material::Material emitting() {
       .emissiveStrength = 2.4f,
   });
   m.slot(material::surface::kEmissiveSlot,
-         material::Texture::produce("material_lab.filaments",
-                                    [] { return filaments(22); }));
+         material::Texture(sigil::media::PixelSource::produce("material_lab.filaments",
+                                    [] { return filaments(22); })));
   return m;
 }
 
@@ -330,11 +333,11 @@ struct MaterialLab {
             material::surface::map(floor, material::surface::kBaseColorSlot)) {
       material::Texture tiled = *map;
       tiled
-          .tile(SkTileMode::kRepeat)
+          .tile(material::Repeat::Repeat)
           // The baked tile is two cells across, so the repeat is set
           // against ITS size rather than against a map's: this many
           // tiles cover the floor.
-          .uv(SkMatrix::Scale(1.0f / 20.0f, 1.0f / 20.0f));
+          .uv(material::skia::toMatrix(SkMatrix::Scale(1.0f / 20.0f, 1.0f / 20.0f)));
       floor.slot(material::surface::kBaseColorSlot, std::move(tiled));
     }
     floorSurface = std::move(floor);

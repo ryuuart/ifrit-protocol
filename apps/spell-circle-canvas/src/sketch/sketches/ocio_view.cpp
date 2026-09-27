@@ -65,7 +65,7 @@ constexpr const char* kConfig = "ocio://default";
  *  primary ramps, baked once. A step wedge is what a transform is read
  *  off — a smooth gradient hides where a curve lifts the shadows. */
 material::Texture wedge() {
-  return material::Texture::produce("ocio_view.wedge", [] {
+  return material::Texture(sigil::media::PixelSource::produce("ocio_view.wedge", [] {
     constexpr int kW = 320, kH = 180;
     sk_sp<SkSurface> surface =
         SkSurfaces::Raster(SkImageInfo::MakeN32Premul(kW, kH));
@@ -95,14 +95,14 @@ material::Texture wedge() {
           ramp);
     }
     return surface->makeImageSnapshot();
-  });
+  }));
 }
 
 /** The transform with the wedge bound into its one open slot, which is
  *  the whole shape of using this feature. */
 material::Material through(material::Material transform) {
   material::Texture map = wedge();
-  map.uv(SkMatrix::Scale(kCell / 320.0f, kPicture / 180.0f));
+  map.uv(material::skia::toMatrix(SkMatrix::Scale(kCell / 320.0f, kPicture / 180.0f)));
   transform.slot("content", std::move(map));
   return transform;
 }

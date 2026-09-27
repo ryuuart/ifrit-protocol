@@ -209,10 +209,10 @@ struct BlackWatch {
     // The grooves between yarns: a hairline at every end and pick, which
     // the rib alone does not draw, kept on the threads' pixel grid.
     grooves = material::pattern::gridLines(kThread, 1, {0, 0, 0, 0.12f})
-                  .filter(SkFilterMode::kNearest);
+                  .sampling(material::Sampling::Nearest);
     draftGrid =
         material::pattern::gridLines(kDraftCell, 0.7f, faded(colours.rule, 0.6f))
-            .filter(SkFilterMode::kNearest);
+            .sampling(material::Sampling::Nearest);
     // The board is one recipe, paint and tooth together; the yarn's tooth
     // keeps frequency · stretch · 2^(octaves−1) under 0.4, past which its
     // y axis aliases into hash noise.
@@ -240,7 +240,7 @@ struct BlackWatch {
                  {1.5f, dyed},
                  {0.5f, material::mixToward(dyed, {0, 0, 0, 1}, 0.45f, 1)}},
                 0, material::pattern::Axis::V)
-                .filter(SkFilterMode::kNearest);
+                .sampling(material::Sampling::Nearest);
       }
       wraps.push_back(std::move(wound));
     }

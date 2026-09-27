@@ -41,6 +41,7 @@
 
 // TAGS: Geometry/Meshes
 
+#include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/StyleSheet.h>
@@ -368,8 +369,8 @@ struct SceneSurfaces {
     // is lit, so the texture is read here through a shading model
     // rather than emitted straight out of the slot.
     material::Texture printed = loop.at(seconds, tape(seconds));
-    printed.tile(SkTileMode::kRepeat)
-        .uv(alongTheBand({kTapeWidth, kTapeHeight}, kRepeats));
+    printed.tile(material::Repeat::Repeat)
+        .uv(material::skia::toMatrix(alongTheBand({kTapeWidth, kTapeHeight}, kRepeats)));
     material::Material printedTape =
         material::surface::program({.baseColor = {1, 1, 1, 1}, .roughness = 0.4f});
     printedTape.slot(material::surface::kBaseColorSlot, std::move(printed));

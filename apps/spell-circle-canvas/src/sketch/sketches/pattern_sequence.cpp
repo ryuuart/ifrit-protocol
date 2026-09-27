@@ -26,6 +26,7 @@
 
 // TAGS: Patterns/Tiling
 
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -85,7 +86,7 @@ pattern::Tile squaresTile() {
 
 /** A tile as a paint: what a node is grounded in. */
 material::Paint painted(const pattern::Tile& tile) {
-  return material::skia::paint(tile.texture().shader());
+  return material::skia::paint(material::skia::shader(tile.texture()));
 }
 
 /** One cell: the tile as the ground of the well the specimen stands in. */
@@ -115,11 +116,9 @@ struct PatternSequence {
         sketch::kit::well({.width = kCell, .height = kPicture})
             .row()
             .children({box().flexGrow(1).fill(
-                           painted(pattern::Tile(squares).scale(5).filter(
-                               SkFilterMode::kNearest))),
+                           painted(pattern::Tile(squares).scale(5).sampling(material::Sampling::Nearest))),
                        box().flexGrow(1).fill(
-                           painted(pattern::Tile(squares).scale(5).filter(
-                               SkFilterMode::kLinear)))});
+                           painted(pattern::Tile(squares).scale(5).sampling(material::Sampling::Linear)))});
     ctx.composer.render(sketch::kit::page(
         {.title = "Bake the pattern, move the sampling",
          .subtitle = kit::formatted(

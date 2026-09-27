@@ -33,6 +33,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/path/Arrange.h>
@@ -71,7 +72,7 @@ constexpr size_t kPlayhead = 6;      // the frame index the wrap cell reads
  *  callback rasterises a fresh sheet on every paint, and one held in a
  *  static outlives this dylib, which a reload unloads. */
 material::Texture buildSheet() {
-  return material::Texture::produce("material_atlas.sheet", [] {
+  return material::Texture(sigil::media::PixelSource::produce("material_atlas.sheet", [] {
     sk_sp<SkSurface> surface = SkSurfaces::Raster(
         SkImageInfo::MakeN32Premul(kCols * kCellSide, kRows * kCellSide));
     SkCanvas* canvas = surface->getCanvas();
@@ -93,7 +94,7 @@ material::Texture buildSheet() {
           45.0f * (float)(i + 1), true, wedge);
     }
     return surface->makeImageSnapshot();
-  });
+  }));
 }
 
 /** TexturePacker's hash form, with two name stems so two sequences fall
@@ -161,7 +162,7 @@ void put(SkCanvas& canvas, const material::Texture& texture, SkRect where,
          SkISize source) {
   if (source.isEmpty()) return;
   SkPaint paint;
-  paint.setShader(texture.shader());
+  paint.setShader(material::skia::shader(texture));
   canvas.save();
   canvas.translate(where.x(), where.y());
   canvas.scale(where.width() / (float)source.width(),

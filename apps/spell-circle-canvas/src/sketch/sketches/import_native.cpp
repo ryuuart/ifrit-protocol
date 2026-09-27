@@ -264,7 +264,7 @@ struct ImportNative {
                         {.baseColor = {0.043f, 0.063f, 0.094f, 1.0f}});
     if (pageFrame)
       fromPage.slot(material::surface::kBaseColorSlot,
-                    material::Texture::of(pageFrame));
+                    material::Texture(pageFrame));
 
     world::Element root;
     root.key("set").children(

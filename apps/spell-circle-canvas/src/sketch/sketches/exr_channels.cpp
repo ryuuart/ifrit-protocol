@@ -156,10 +156,10 @@ struct ExrChannels {
     material::Material stone = material::surface::program(
         {.baseColor = {0.62f, 0.60f, 0.56f, 1}, .roughness = 1.0f});
     stone.slot(material::surface::kRoughnessSlot,
-               material::Texture::of(planes.makeImage(g, g, g, -1)));
+               material::Texture(planes.makeImage(g, g, g, -1)));
     const material::Texture* placed =
         material::surface::map(stone, material::surface::kRoughnessSlot);
-    return placed ? placed->image() : nullptr;
+    return placed ? placed->frameAt().image : nullptr;
   }
 
   Element sheet(const media::Channels& planes,
