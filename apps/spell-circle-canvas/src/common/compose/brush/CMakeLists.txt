@@ -26,7 +26,7 @@
 # seeded mixer a brush jitters with is read in the sources alone.
 find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeBrush
-  SOURCES Adaptors.cpp Decorations.cpp LayerStyles.cpp Lines.cpp
+  SOURCES Adaptors.cpp Decorations.cpp Lines.cpp
           PixelStyles.cpp
           Composites.cpp Stamps.cpp Ribbon.cpp Art.cpp BakedArt.h
           # the stroke grammar's engine and the mask gates, behind the
@@ -35,7 +35,7 @@ sigil_library(SigilComposeBrush
           SpanArithmetic.h SpanContours.h
   HEADERS Adaptors.h Brush.h Brushes.h Decorations.h Hatches.h
           Ribbons.h Stamps.h
-          LayerStyles.h Layered.h Lines.h PixelStyles.h Rails.h
+          Layered.h Lines.h PixelStyles.h Rails.h
           ../kit/Plate.h ../kit/Strokes.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilComposeTypography SigilGeometryKit SigilMediaCore
@@ -61,8 +61,9 @@ sigil_test(compose_test
           test/ComposeTestSlices.cpp test/ComposeTestStamps.cpp
           test/ComposeTestStripTiles.cpp test/ComposeTestMasks.cpp
           test/ComposeTestSettledFill.cpp test/ComposeTestPatternPan.cpp
-          test/ComposeTestPaintValues.cpp test/ComposeTestLayerStyles.cpp
-          test/ComposeTestPixelStyles.cpp test/ComposeTestStrokePresets.cpp
+          test/ComposeTestPaintValues.cpp test/ComposeTestFields.cpp
+          test/ComposeTestPixelStyles.cpp test/ComposeTestStyleEffects.cpp
+          test/ComposeTestStrokePresets.cpp
           test/ComposeTestTextAndLayout.cpp test/ComposeTestPromotion.cpp
           test/ComposeTestTextureBake.cpp test/ComposeTestTemporalCache.cpp
           test/ComposeTestSplitBake.cpp test/ComposeTestGroupBake.cpp

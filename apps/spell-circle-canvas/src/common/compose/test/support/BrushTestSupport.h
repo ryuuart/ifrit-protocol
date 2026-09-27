@@ -2,13 +2,12 @@
 // Support for compose_brush_test: decorations, lines, wires, hatches and
 // brushes, the kit's stroke grammar and the bordered feed plate, and the
 // paint vocabulary this tier spells over SigilMaterial -- tiles, fields,
-// SDF surfaces and layer styles as a node's fill -- over the shape
+// SDF surfaces and a material's effects as a node's fill -- over the shape
 // support. The Brush tier carries the typography headers with it, so
 // text-fx presets are in reach here too.
 
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilcompose/brush/Stamps.h>
@@ -21,6 +20,7 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Paint.h>

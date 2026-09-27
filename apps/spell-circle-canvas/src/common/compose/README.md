@@ -490,11 +490,12 @@ rectangle, and is why a chrome style on a word bevelled a slab behind the
 word. `Element::decorationOutline` says otherwise:
 
 ```cpp
-text(u8"CHROME", display).decorationOutline(Boundary::Glyphs).foreground(styles::BevelEmboss{});
+text(u8"CHROME", display).decorationOutline(Boundary::Glyphs)
+    .ink(material::from(chrome).effects(material::Filter::bevel()));
 ```
 
 `Boundary::Glyphs` hands them the glyph contours the placement produced,
-so every layer style already written works on letters with no new preset
+so every material effect already written works on letters with no new preset
 and no second code path. The outline follows a wrapped line, a mixed-style
 run's size, a path run's curve and a vertical column's axis, because it is
 read off the placed glyphs.
@@ -509,7 +510,9 @@ knows about an image's alpha cut-out, a clipped or masked subtree, or
 anything else whose visible silhouette is neither a shape nor a glyph run.
 
 ```cpp
-image(logo).decorationOutline(Boundary::Coverage).foreground(styles::OuterGlow{});
+image(logo).decorationOutline(Boundary::Coverage)
+    .fill(material::from(material::Color{0, 0, 0, 0})
+              .effects(material::Filter::shadow(white, {.blur = 8, .spread = 2})));
 image(photo).key("fig").decorationOutline(Boundary::Coverage, 0.35f);
 text(body, bodyStyle).contentFlowAround("fig", 12);
 ```

@@ -1,11 +1,11 @@
 #include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Specimen.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilsketch/kit/Cells.h>
 
 #include <algorithm>
@@ -38,15 +38,37 @@ compose::Element well(const Well& specification, compose::Element surface) {
        .keylineWidth = specification.keylineWidth,
        .content = held},
       std::move(surface));
+  // THE RELIEF AND THE RECESS ARE THE GROUND'S EFFECTS: the plate is
+  // filled again with its ground carrying a bevel, an inner shadow or both,
+  // in that order. A ground written as a reference to the ink in force has
+  // no material to carry them, and is taken as the colour it holds.
+  material::Filter effects;
+  const auto then = [&](const material::Filter& step) {
+    effects = effects.isNone() ? step : effects.then(step);
+  };
   if (specification.relief) {
     const Well::Relief& lift = *specification.relief;
-    plate.foreground(compose::styles::BevelEmboss{
-        lift.depth, lift.blur, lift.angleDeg, lift.light, lift.shade});
+    then(material::Filter::bevel({.depth = lift.depth,
+                                  .size = lift.blur,
+                                  .angleDegrees = lift.angleDeg,
+                                  .highlight = lift.light,
+                                  .shadow = lift.shade}));
   }
   if (specification.recess) {
     const Well::Recess& hole = *specification.recess;
-    plate.foreground(compose::styles::InnerShadow{hole.shade.colorValue,
-                                                  sigil::geometry::path::fromSk(hole.offset), hole.blur});
+    then(material::Filter::shadow(
+        hole.shade.colorValue,
+        {.blur = hole.blur,
+         .offset = sigil::geometry::path::fromSk(hole.offset),
+         .inside = true}));
+  }
+  if (!effects.isNone()) {
+    const material::Material ground =
+        bed.material() ? *bed.material() : material::Material(bed.colorValue);
+    plate.fill(material::from(ground).effects(effects));
+  }
+  if (specification.recess) {
+    const Well::Recess& hole = *specification.recess;
     if (hole.lipLight && hole.lipDark)
       plate.overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
                                                hole.lipWidth,

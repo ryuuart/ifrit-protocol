@@ -45,7 +45,7 @@ TEST(ComposePatterns, HalftoneRampBandRemaps) {
   EXPECT_GT(bandBottom, band20 * 2);  // full swell at the bottom
 }
 
-TEST(ComposeStyles, RippleDisplacesTheLayer) {
+TEST(ComposeFields, RippleDisplacesTheLayer) {
   // A thin horizontal red bar warped by a strong ripple: pixels appear
   // off-axis where the flat version has none.
   auto bar = [](bool warped) {
@@ -53,7 +53,7 @@ TEST(ComposeStyles, RippleDisplacesTheLayer) {
                     .absolute()
                     .inset(96, 20)
                     .fill(Fill::color({1, 0, 0, 1}));
-    if (warped) e.filter(styles::ripple(10, 60));
+    if (warped) e.filter(material::Filter::of(material::field::ripple(10, 60)));
     return box().children({std::move(e)});
   };
   Host flat, warped;

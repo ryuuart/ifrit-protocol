@@ -13,7 +13,6 @@
 #include "sigilcompose/brush/Brushes.h"
 #include "sigilcompose/brush/Decorations.h"
 #include "sigilcompose/brush/Hatches.h"
-#include "sigilcompose/brush/LayerStyles.h"
 #include "sigilcompose/brush/Layered.h"
 #include "sigilcompose/brush/Lines.h"
 #include "sigilcompose/brush/PixelStyles.h"

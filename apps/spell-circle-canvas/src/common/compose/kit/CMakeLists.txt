@@ -35,6 +35,9 @@ sigil_library(SigilComposeKit
           Annotations.h Outline.h Pin.h Stamp.h
           Typeset.h Instruments.h Kit.h Layouts.h Marquee.h
           PixelType.h Placers.h Routers.h Rows.h Specimen.h Sprites.h
+  # the softened bevel is the material's bevel effect, painted by the
+  # kernel's own coverage mark
+  INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../core
   PUBLIC SigilComposeCore SigilComposeTypography SigilComposeBrush
          SigilGeometryKit SigilCoreCompute SigilMaterial SigilWeave SigilWeavePorts)
 

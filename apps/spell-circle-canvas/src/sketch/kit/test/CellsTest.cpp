@@ -6,7 +6,7 @@
 #include <sigilgeometry/path/Skia.h>
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
@@ -188,9 +188,12 @@ TEST(SketchKitCells, ARecessIsAShadowInsideTheEdgeAndASunkenLip) {
           .width(140)
           .height(90)
           .overflow(compose::Overflow::Clip)
-          .fill(ground)
-          .foreground(compose::styles::InnerShadow{hole.shade.colorValue,
-                                                   sigil::geometry::path::fromSk(hole.offset), hole.blur})
+          .fill(sigil::material::from(ground.colorValue)
+                    .effects(sigil::material::Filter::shadow(
+                        hole.shade.colorValue,
+                        {.blur = hole.blur,
+                         .offset = sigil::geometry::path::fromSk(hole.offset),
+                         .inside = true})))
           .overlay(compose::styles::bevelPair(*hole.lipLight, *hole.lipDark,
                                               hole.lipWidth,
                                               /*sunken=*/true)),

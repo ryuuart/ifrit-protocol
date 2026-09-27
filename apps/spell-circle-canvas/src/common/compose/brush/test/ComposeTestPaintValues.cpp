@@ -264,7 +264,7 @@ TEST(ComposePattern, AnElementTreeIsATile) {
   EXPECT_EQ(host.pixel(25, 5), SK_ColorRED);  // the repeat
 }
 
-// ---- layer styles: the Photoshop route --------------------------------------
+// ---- a material's effects: the Photoshop route --------------------------------------
 
 TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {
   // The fake bevel = two opposed inner shadows: with light from the upper
@@ -277,8 +277,8 @@ TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {
            .height(60)
            .inset(0, 140, 140, 0)
            .absolute()
-           .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
-           .foreground(styles::BevelEmboss{.depth = 4, .size = 3})}));
+           .fill(material::from(material::Color{0.5f, 0.5f, 0.5f, 1})
+                     .effects(material::Filter::bevel({.depth = 4, .size = 3})))}));
   host.frame();
   const uint32_t top = SkColorGetR(host.pixel(30, 2));
   const uint32_t mid = SkColorGetR(host.pixel(30, 30));
@@ -318,8 +318,8 @@ TEST(ComposeStyles, BevelBandsEdgesWhenNested) {
       {box()
            .width(60)
            .height(60)
-           .fill(Fill::color({0.5f, 0.5f, 0.5f, 1}))
-           .foreground(styles::BevelEmboss{.depth = 4, .size = 3})})}));
+           .fill(material::from(material::Color{0.5f, 0.5f, 0.5f, 1})
+                     .effects(material::Filter::bevel({.depth = 4, .size = 3})))})}));
   host.frame();
   host.frame();  // the CACHED replay is the bug's trigger
   const uint32_t top = SkColorGetR(host.pixel(70, 42));
@@ -357,8 +357,8 @@ TEST(ComposeStyles, OuterGlowHalosOutsideTheShape) {
            .inset(60, 100, 100, 60)
            .absolute()
            .borderRadius({8})
-           .background(styles::OuterGlow{.color = {1, 1, 1, 1}, .size = 10})
-           .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))}));
+           .fill(material::from(material::Color{0.2f, 0.2f, 0.2f, 1})
+                     .effects(material::Filter::shadow({1, 1, 1, 1}, {.blur = 10})))}));
   host.frame();
   EXPECT_GT(SkColorGetR(host.pixel(56, 80)), 40u);  // halo 4px outside
   EXPECT_LT(SkColorGetR(host.pixel(30, 80)), 12u);  // fades with distance

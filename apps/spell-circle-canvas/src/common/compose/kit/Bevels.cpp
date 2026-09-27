@@ -6,15 +6,17 @@
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Adaptors.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Color.h>
 
 #include <algorithm>
 #include <cmath>
+
+#include "MaterialEffects.h"
 
 namespace sigil::compose::kit {
 namespace {
@@ -32,10 +34,16 @@ void ring(draw::Pen& pen, const PaintContext& ctx, const Bevel& b,
   if (b.softness > 0) {
     // A moulded edge has one depth and one blur, and turns over by
     // swapping the two planes rather than by swapping the light. It has
-    // no bands, so the edge mask has nothing to select.
-    styles::BevelEmboss{std::max(lit, drop), b.softness, b.angleDeg,
-                        sunken ? shadow : light, sunken ? light : shadow}
-        .paint(pen, ctx);
+    // no bands, so the edge mask has nothing to select. It is the
+    // material's bevel effect, painted where this ring stands.
+    material::CoverageEffect bevel;
+    bevel.kind = material::CoverageEffect::Kind::Bevel;
+    bevel.bevel = {.depth = std::max(lit, drop),
+                   .size = b.softness,
+                   .angleDegrees = b.angleDeg,
+                   .highlight = sunken ? shadow : light,
+                   .shadow = sunken ? light : shadow};
+    detail::CoverageMark{bevel}.paint(pen, ctx);
     return;
   }
   styles::BevelPair{light, shadow,   lit,         drop,  sunken,

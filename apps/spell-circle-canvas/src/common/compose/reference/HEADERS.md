@@ -626,9 +626,11 @@ over it and effects around it — and `material::sdf`, `material::pattern`
 and `material::field` are where the signed-distance surfaces, the tiles
 and the fields come from. A look (a glow, a shadow, a bevel, an overlay)
 is a material's effects and layers; a look belongs to the sketch that
-uses it. `brush/LayerStyles.h` holds the drawn marks a kit places on one
-slot beside its own fill: `styles::InnerShadow`, `styles::OuterGlow`,
-`styles::BevelEmboss`, and the `styles::ripple` filter.
+uses it. An inner shadow, an outer glow and a bevel are the effects
+`material::Filter::shadow` (with `.inside`, or with a `.spread` and no
+offset) and `material::Filter::bevel` on the material a node is filled or
+inked with, and a ripple is `material::Filter::of(material::field::ripple(…))`
+on the node's `filter()`.
 `brush/PixelStyles.h` is the other route, the bitmap era's — strokes and
 rectangles on the pixel lattice, never a blur: `styles::BevelPair`, a
 light edge and a dark edge kept inside the silhouette, raised or sunken

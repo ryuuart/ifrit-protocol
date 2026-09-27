@@ -43,7 +43,15 @@ struct ShadowOptions {
    *  glow. */
   float spread = 0;
   /** Inside the coverage rather than outside it (a material's effects
-   *  stage only): an inner shadow, or with no offset an inner glow. */
+   *  stage only): an inner shadow, or with no offset an inner glow. The
+   *  offset is the direction the shadow is CAST, so (0, 3) casts downward
+   *  and the band hugs the TOP inner edge.
+   *
+   *  An inner shadow is a FINITE band — the edge stroked `blur` plus the
+   *  offset wide, blurred and clipped inside the shape — and an executor
+   *  must draw it so. A blurred inverse fill has bounds that depend on
+   *  the device, so it floods the whole interior once the layer is cached
+   *  at an offset from the origin. */
   bool inside = false;
   bool operator==(const ShadowOptions&) const = default;
 };

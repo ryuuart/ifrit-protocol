@@ -200,12 +200,13 @@ Element board(int i) {
       .height(11)
       .rotate(ang)
       .shape(skiaShape([shape] { return shape; }))
-      .fill(material::skia::base(material::skia::sksl(boardGrain())))
-      .foreground(styles::BevelEmboss{0.8f,
-                                      1.2f,
-                                      120.0f + ang,
-                                      {1, 0.96f, 0.86f, 0.45f},
-                                      {0.14f, 0.09f, 0.03f, 0.45f}})
+      .fill(material::from(material::skia::base(material::skia::sksl(boardGrain())))
+                .effects(material::Filter::bevel(
+                    {.depth = 0.8f,
+                     .size = 1.2f,
+                     .angleDegrees = 120.0f + ang,
+                     .highlight = {1, 0.96f, 0.86f, 0.45f},
+                     .shadow = {0.14f, 0.09f, 0.03f, 0.45f}})))
       .stroke(stroke(0.6f, Fill::color({0.29f, 0.21f, 0.12f, 0.55f}),
                      PathFormat::Align::Inner))
       .opacity(boardFade()[i])

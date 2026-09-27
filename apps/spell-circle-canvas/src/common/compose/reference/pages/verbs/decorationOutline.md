@@ -19,14 +19,17 @@ much paint counts as ink.
 ## Description
 
 ```cpp
-text(u8"CHROME", heavy).decorationOutline(Boundary::Glyphs).foreground(styles::BevelEmboss{});
-image(cutOut).decorationOutline(Boundary::Coverage).foreground(styles::OuterGlow{});
+text(u8"CHROME", heavy).decorationOutline(Boundary::Glyphs)
+    .ink(material::from(chrome).effects(material::Filter::bevel()));
+image(cutOut).decorationOutline(Boundary::Coverage)
+    .fill(material::from(material::Color{0, 0, 0, 0})
+              .effects(material::Filter::shadow(white, {.blur = 8, .spread = 2})));
 image(photo).key("fig").decorationOutline(Boundary::Coverage, 0.35f);
 text(body, bodyStyle).contentFlowAround("fig", 12);
 ```
 
 **A decoration was never about a box.** It is drawn across an outline,
-and this is which outline it gets — so every layer style already
+and this is which outline it gets — so every material effect already
 written works on letters, or around a cut-out, the moment that is the
 outline, with no new preset and no second code path.
 
