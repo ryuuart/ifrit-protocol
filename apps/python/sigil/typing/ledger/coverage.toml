@@ -537,12 +537,12 @@ bound = "`Decoration` over `PathFormat` (stroke fill, alignment, dashes, caps, j
 python = ["compose.Decoration", "compose.PathFormat", "compose.Shadow"]
 
 [[section.surface.item]]
-bound = "`stroke`, `shadow`, `LayerStyle` and `Element.layerStyle`"
+bound = "`stroke`, `shadow`, and a material's effects through `Element.fill`"
 python = [
   "compose.stroke",
   "compose.shadow",
-  "compose.LayerStyle",
-  "compose.Element.layerStyle",
+  "compose.Element.fill",
+  "material.Filter.shadow",
 ]
 
 [[section.surface.item]]

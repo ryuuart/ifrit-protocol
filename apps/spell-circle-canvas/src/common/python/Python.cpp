@@ -54,6 +54,8 @@ void bindLibraries(pybind11::module_& module) {
   // stock draw and every pen verb answer one, so it stands ahead of
   // them rather than at the end of its own library.
   bindMaterialPaintEffect(module);
+  // The builder names the blend modes and filters the paint effects bind.
+  bindMaterialBuilder(module);
   bindMaterialTexture(module);
   bindMaterialTextureSets(module);
   bindMaterialEnvironment(module);

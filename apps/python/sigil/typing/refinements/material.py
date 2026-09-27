@@ -11,7 +11,20 @@ PAINT = "_sigil.material.skia.Paint"
 
 
 def register(table: Table) -> None:
-    table.erased("_sigil.material.skia.Filter", "glow dropShadow", "_t.ColorLike")
+    table.erased("_sigil.material.skia.Filter", "glow dropShadow shadow stroke", "_t.ColorLike")
+    table.erased("_sigil.material.Material", "__init__", "_t.ColorLike | _sigil.material.skia.Paint")
+    table.erased("_sigil.material.Material", "bind", "_t.ScalarLike")
+    table.erased(
+        "_sigil.material", "from_", "_sigil.material.Material | _sigil.material.skia.Paint | _t.ColorLike"
+    )
+    table.parameters("_sigil.material.sbsar.describe", hub="_sigil.io.Hub")
+    table.parameters(
+        "_sigil.material.substance",
+        hub="_sigil.io.Hub",
+        seed="int",
+        outputs="collections.abc.Iterable[str | _sigil.material.sbsar.OutputRequest]",
+        kwargs="float | int | bool",
+    )
     table.parameters("_sigil.material.skia.Filter.blur", sigmaMap="Paint")
     table.erased("_sigil.material.skia.Filter", "set", "_t.UniformValue")
     table.erased("_sigil.material.skia.Filter", "bind", "_t.ScalarLike")

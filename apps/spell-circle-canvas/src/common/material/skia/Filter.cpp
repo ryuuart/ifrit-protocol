@@ -75,6 +75,7 @@ Filter program(sk_sp<SkRuntimeEffect> effect,
 }
 
 Filter lowered(const Material& program, SkColorType surface) {
+  if (!program.hasProgram()) return {};
   return FilterAccess::wrap(Effect::recipe(program, surface));
 }
 
@@ -201,11 +202,15 @@ Filter Filter::dilate(float pixels) {
   return FilterAccess::wrap(Effect::dilate(pixels));
 }
 
+// A pass is a program over the layer; a material with no program base has
+// no body to run, so it is the filter of nothing.
 Filter Filter::of(const Material& program) {
+  if (!program.hasProgram()) return {};
   return FilterAccess::wrap(Effect::recipe(program));
 }
 
 Filter Filter::of(const Material& program, float sampleRadius) {
+  if (!program.hasProgram()) return {};
   return FilterAccess::wrap(Effect::recipe(program, sampleRadius));
 }
 

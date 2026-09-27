@@ -16,40 +16,6 @@ namespace py = pybind11;
 namespace {
 constexpr auto fluent = py::return_value_policy::reference_internal;
 
-/** A surface channel as Python writes it: a number, or a material. */
-material::Channel channel(py::handle value) {
-  if (py::isinstance<material::Material>(value))
-    return py::cast<material::Material>(value);
-  return py::cast<float>(value);
-}
-
-/** The surface's fields from keyword arguments; an unknown one raises. */
-material::SurfaceOptions surfaceOptions(const py::kwargs& fields) {
-  material::SurfaceOptions options;
-  for (const auto& [key, value] : fields) {
-    const std::string name = py::cast<std::string>(key);
-    if (name == "metallic") options.metallic = channel(value);
-    else if (name == "roughness") options.roughness = channel(value);
-    else if (name == "occlusion") options.occlusion = channel(value);
-    else if (name == "normal") options.normal = py::cast<material::Material>(value);
-    else if (name == "normalScale") options.normalScale = py::cast<float>(value);
-    else if (name == "normalDirectX") options.normalDirectX = py::cast<bool>(value);
-    else if (name == "emission") options.emission = materialColor(value);
-    else if (name == "emissionStrength") options.emissionStrength = py::cast<float>(value);
-    else if (name == "emissionMap") options.emissionMap = py::cast<material::Material>(value);
-    else if (name == "alphaCutoff") options.alphaCutoff = py::cast<float>(value);
-    else if (name == "clearcoat") options.clearcoat = py::cast<float>(value);
-    else if (name == "transmission") options.transmission = py::cast<float>(value);
-    else if (name == "ior") options.ior = py::cast<float>(value);
-    else if (name == "thickness") options.thickness = py::cast<float>(value);
-    else if (name == "absorption") options.absorption = materialColor(value);
-    else if (name == "reflectionWeight") options.reflectionWeight = py::cast<float>(value);
-    else if (name == "unlit") options.unlit = py::cast<bool>(value);
-    else throw py::type_error("Unknown surface field: " + name);
-  }
-  return options;
-}
-
 }  // namespace
 
 void bindMaterialCore(py::module_& module) {
@@ -61,6 +27,23 @@ void bindMaterialCore(py::module_& module) {
       .value("Green", material::MaskChannel::Green)
       .value("Blue", material::MaskChannel::Blue);
   py::class_<material::Material> type(materials, "Material");
+  py::implicitly_convertible<material::Color, material::Material>();
+  py::class_<material::Mask>(materials, "Mask")
+      .def(py::init([](const material::Material& source,
+                       material::MaskChannel channel, float low, float high,
+                       bool invert) {
+             return material::Mask{source, channel, low, high, invert};
+           }),
+           py::arg("source"), py::arg("channel") = material::MaskChannel::Alpha,
+           py::arg("low") = 0.0f, py::arg("high") = 1.0f,
+           py::arg("invert") = false)
+      .def(py::self == py::self);
+}
+
+void bindMaterialBuilder(py::module_& module) {
+  auto materials = submodule(module, "material");
+  auto type = py::reinterpret_borrow<py::class_<material::Material>>(
+      py::type::of<material::Material>());
   type.def(py::init([](py::handle color) {
              return material::Material(materialColor(color));
            }),
@@ -69,23 +52,42 @@ void bindMaterialCore(py::module_& module) {
       .def(
           "layer",
           [](material::Material& self, const material::Material& source,
-             py::object blend, float opacity,
+             material::BlendMode blend, float opacity,
              std::optional<material::Mask> mask) -> material::Material& {
-            material::LayerOptions options;
-            if (!blend.is_none()) options.blend = py::cast<material::BlendMode>(blend);
-            options.opacity = opacity;
-            options.mask = std::move(mask);
-            return self.layer(source, options);
+            return self.layer(source, {blend, opacity, std::move(mask)});
           },
-          py::arg("source"), py::arg("blend") = py::none(),
+          py::arg("source"), py::arg("blend") = material::BlendMode::Normal,
           py::arg("opacity") = 1.0f, py::arg("mask") = py::none(), fluent)
       .def(
           "surface",
-          [](material::Material& self, const py::kwargs& fields)
-              -> material::Material& {
-            return self.surface(surfaceOptions(fields));
+          [](material::Material& self, material::Channel metallic,
+             material::Channel roughness, material::Channel occlusion,
+             std::optional<material::Material> normal, float normalScale,
+             bool normalDirectX, const material::Color& emission,
+             float emissionStrength, std::optional<material::Material> emissionMap,
+             float alphaCutoff, float clearcoat, float transmission, float ior,
+             float thickness, const material::Color& absorption,
+             float reflectionWeight, bool unlit) -> material::Material& {
+            return self.surface(
+                {std::move(metallic), std::move(roughness), std::move(occlusion),
+                 std::move(normal), normalScale, normalDirectX, emission,
+                 emissionStrength, std::move(emissionMap), alphaCutoff,
+                 clearcoat, transmission, ior, thickness, absorption,
+                 reflectionWeight, unlit});
           },
-          fluent)
+          py::kw_only(),
+          py::arg_v("metallic", material::Channel(0.0f), "0.0"),
+          py::arg_v("roughness", material::Channel(0.5f), "0.5"),
+          py::arg_v("occlusion", material::Channel(1.0f), "1.0"),
+          py::arg("normal") = py::none(), py::arg("normalScale") = 1.0f,
+          py::arg("normalDirectX") = false,
+          py::arg_v("emission", material::Color{0, 0, 0, 1}, "Color(0, 0, 0, 1)"),
+          py::arg("emissionStrength") = 0.0f,
+          py::arg("emissionMap") = py::none(), py::arg("alphaCutoff") = 0.0f,
+          py::arg("clearcoat") = 0.0f, py::arg("transmission") = 0.0f,
+          py::arg("ior") = 1.5f, py::arg("thickness") = 40.0f,
+          py::arg_v("absorption", material::Color{0, 0, 0, 1}, "Color(0, 0, 0, 1)"),
+          py::arg("reflectionWeight") = 1.0f, py::arg("unlit") = false, fluent)
       .def(
           "effects",
           [](material::Material& self, const material::Filter& chain)
@@ -107,19 +109,19 @@ void bindMaterialCore(py::module_& module) {
       .def("isRunning", &material::Material::isRunning)
       .def("base", &material::Material::base)
       .def(py::self == py::self);
-  py::implicitly_convertible<material::Color, material::Material>();
-  py::class_<material::Mask>(materials, "Mask")
-      .def(py::init([](const material::Material& source,
-                       material::MaskChannel channel, float low, float high,
-                       bool invert) {
-             return material::Mask{source, channel, low, high, invert};
-           }),
-           py::arg("source"), py::arg("channel") = material::MaskChannel::Alpha,
-           py::arg("low") = 0.0f, py::arg("high") = 1.0f,
-           py::arg("invert") = false)
-      .def(py::self == py::self);
   materials.def(
-      "from_", [](const material::Material& base) { return material::from(base); },
+      "from_",
+      [](py::handle base) {
+        // A chain starts from a material, a paint, or any colour spelling.
+        if (py::isinstance<material::Material>(base) ||
+            py::isinstance<material::Color>(base))
+          return material::from(py::cast<material::Material>(base));
+        try {
+          return material::from(py::cast<material::Material>(base));
+        } catch (const py::cast_error&) {
+          return material::from(materialColor(base));
+        }
+      },
       py::arg("base"));
   materials.def(
       "noise",

@@ -167,9 +167,11 @@ class Material {
   [[nodiscard]] Material base() const;
   /** @} */
 
-  /** The recipe of a program base. Only a material that `hasProgram()`
-   *  has one. */
-  const Recipe& recipe() const { return *m_recipe; }
+  /** The recipe of a program base. A material whose base is not a
+   *  program answers an empty recipe — no parameters, no slots and no
+   *  body in any language — so a reader that asks is told nothing rather
+   *  than crashing; `hasProgram()` is the question to ask first. */
+  const Recipe& recipe() const;
   const std::shared_ptr<const Recipe>& recipePointer() const {
     return m_recipe;
   }

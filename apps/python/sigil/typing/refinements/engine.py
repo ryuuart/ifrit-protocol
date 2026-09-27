@@ -32,6 +32,9 @@ def show(node: ast.AST | None) -> str:
 
 
 def erased_annotation(node: ast.AST | None) -> bool:
+    # A parameter the generator wrote with no annotation at all is erased.
+    if node is None:
+        return True
     text = show(node)
     # An optional parameter keeps the erasure of the type it makes optional.
     if text.endswith(" | None"):
@@ -233,7 +236,10 @@ def refine(table: Table, seen: set[str], module: str, tree: ast.Module) -> None:
                         ast.TypeVar(name=name) for name in table.type_parameters[full]
                     ]
                 if full in parameters:
-                    for arg in all_args:
+                    # A keyword collector is named by its own name, so a
+                    # binding's `**inputs` is typed like any parameter.
+                    collected = [node.args.kwarg] if node.args.kwarg else []
+                    for arg in [*all_args, *collected]:
                         if arg.arg in parameters[full] and erased_annotation(
                             arg.annotation
                         ):

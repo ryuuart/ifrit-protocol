@@ -55,6 +55,13 @@ Material::Material(const MaterialParts& parts) : Material(parts.base) {
 Material::Material(std::shared_ptr<const Recipe> recipe)
     : m_recipe(std::move(recipe)), m_bytes(m_recipe->parameters().byteSize) {}
 
+const Recipe& Material::recipe() const {
+  if (m_recipe) return *m_recipe;
+  struct Nothing {};
+  static const Recipe nothing = Recipe::of<Nothing>("material.none");
+  return nothing;
+}
+
 Material::Composition& Material::compose() {
   // Copy on write: a material is a value, and a copy shares its parts.
   auto copy = m_composition ? std::make_shared<Composition>(*m_composition)

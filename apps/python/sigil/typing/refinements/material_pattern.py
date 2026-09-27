@@ -12,3 +12,4 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    table.erased("_sigil.material.pattern.Tile", "offset", "_t.PointLike")

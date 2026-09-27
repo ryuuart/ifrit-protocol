@@ -19,6 +19,7 @@ void bindMaterial(pybind11::module_& module);
 /** Registers the value model: Material, Recipe authoring, Schema,
  *  UniformBlock, Bank, over and masking stacks on @p module. */
 void bindMaterialCore(pybind11::module_& module);
+void bindMaterialBuilder(pybind11::module_& module);
 /** Registers the surface program — its parameters, the reflection
  *  choice, the lit and the unlit program — under `material.surface` on
  *  @p module. */
