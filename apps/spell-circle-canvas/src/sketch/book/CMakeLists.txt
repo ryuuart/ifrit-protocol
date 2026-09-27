@@ -332,7 +332,7 @@ if(TARGET SigilComposeWeb AND TARGET SigilScry)
       ${SIGIL_SKETCH_DIR}/web_panel.cpp
       --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface_web.png)
 endif()
-if(TARGET SigilSubstance)
+if(SUBSTANCE_SDK_DIR)
   add_test(NAME sketch_reload_surface_substance
     COMMAND Sketchbook
       ${SIGIL_SKETCH_DIR}/substance_swatches.cpp

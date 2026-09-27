@@ -1,23 +1,24 @@
 // substance_swatches.cpp — a procedural material archive cooked, and its
 // channels laid out as cards.
 //
-// A .sbsar is a graph with named parameters and named outputs, each
-// output tagged with the material channel it feeds. This renders one at
-// a fixed resolution and shows what came back: one card per channel,
-// keyed by the usage the archive declared, which is the map a texture
-// set is built from.
+// A .sbsar is a graph with named inputs and named outputs, each output
+// tagged with the material channel it feeds. `material::substance()`
+// cooks one into a Material; this asks it to cook every output at a fixed
+// size and shows what came back: one card per channel, keyed by the usage
+// the archive declared, which is how the material fills its surface.
 //
 // The archive is the SDK's own sample rather than anything in this
-// repository — the sample ships with the engine that renders it, so the
-// sketch has nothing to carry and nothing to keep in step. That is also
+// repository — the sample ships with the engine that renders it and its
+// licence is the SDK's, so the sketch has nothing to carry and nothing to
+// keep in step. That is also
 // why it can be UNAVAILABLE on a machine whose SDK arrived without its
 // assets: the probe says which file it looked for, and no plate is
 // taken.
 //
 // EDIT THESE FIRST
-//   kCookLog2 — the cook's resolution as a power of two, both axes. It
-//               is the number the archive is rendered at, so it is also
-//               what every card shows under its usage word.
+//   kCook     — the cook's resolution in pixels, a power of two. It is
+//               the size the archive is cooked at, so it is also what
+//               every card shows under its usage word.
 //   kPerRow   — cards across, which sets the canvas: the sheet is sized
 //               from the count rather than a size being chosen and the
 //               cards fitted into it.
@@ -26,12 +27,13 @@
 
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilmedia/core/Image.h>
+#include <sigilio/hub/Hub.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/substance/Substance.h>
+#include <sigilmaterial/substance/advanced/Archive.h>
+#include <sigilmedia/core/Image.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
-#include <sigilsubstance/graph/Graph.h>
-#include <sigilsubstance/package/Package.h>
 
 #include <cstdio>
 #include <filesystem>
@@ -43,7 +45,7 @@
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
-namespace substance = sigil::substance;
+namespace sbsar = sigil::material::sbsar;
 
 using namespace sigil::compose;
 using sigil::material::hexColor;
@@ -53,7 +55,7 @@ namespace {
 /** The channels are cooked at this many pixels a side and shown at
  *  `kCard`, so the cards are a downsample of real output rather than a
  *  magnification of a thumbnail. */
-constexpr int kCookLog2 = 8;
+constexpr int kCook = 256;
 constexpr float kCard = 200;
 constexpr float kGap = 16;
 constexpr float kMargin = 40;
@@ -80,9 +82,10 @@ sketch::kit::Theme sheetTheme() {
   return look;
 }
 
-std::filesystem::path archive() {
-  return std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
-         "Autumn_Leaves.sbsar";
+std::string archive() {
+  return (std::filesystem::path(SIGIL_SUBSTANCE_SDK_DIR) / "assets" /
+          "Autumn_Leaves.sbsar")
+      .string();
 }
 
 /** One cooked channel: the usage the archive tagged it with, and the
@@ -127,16 +130,20 @@ Element notice(Utf8 heading, Utf8 detail) {
 }  // namespace
 
 struct SubstanceSwatchesSketch {
-  /** WHAT THIS MACHINE MUST HAVE. The library is only built where the
+  /** WHAT THIS MACHINE MUST HAVE. The feature cooks only where the
    *  SDK is, and the SDK's sample archives are a separate part of that
    *  install — an SDK without them renders nothing, which is a piece
    *  this machine cannot show rather than a piece that is broken. */
   static bool available(std::string* why) {
+    if (!sbsar::available()) {
+      if (why) *why = "this build has no Substance SDK";
+      return false;
+    }
     std::error_code ec;
     if (std::filesystem::is_regular_file(archive(), ec)) return true;
     if (why)
       *why = "the Substance SDK's sample archive is not installed (" +
-             archive().string() + ")";
+             archive() + ")";
     return false;
   }
 
@@ -154,28 +161,32 @@ struct SubstanceSwatchesSketch {
     ctx.background(sketch::kit::featureTheme().palette.ground);
     ctx.captureAt(0.5);
 
-    std::string error;
-    std::unique_ptr<substance::Package> package =
-        substance::Package::load(archive(), &error);
-    if (!package || package->graphCount() == 0) {
-      refuse(ctx, u8"the archive did not load",
-             error.empty() ? archive().string() : error);
+    sigil::io::Hub& hub = ctx.assets.hub();
+    const sbsar::Description graph = sbsar::describe(hub, archive());
+    if (graph.outputs.empty()) {
+      refuse(ctx, u8"the archive did not load", archive());
       return;
     }
-
-    substance::Graph& graph = package->graph(0);
-    graph.setResolution(kCookLog2, kCookLog2);
-    if (!graph.render()) {
-      refuse(ctx, u8"the graph did not cook", archive().string());
-      return;
-    }
+    // Every picture the graph declares, not only the ones the material
+    // reads, so each channel gets its card.
+    std::vector<sbsar::OutputRequest> every;
+    for (const sbsar::Output& output : graph.outputs)
+      if (output.image) every.push_back({output.usage});
+    const material::Material leaves = material::substance(
+        hub, archive(), {.resolution = kCook, .outputs = every});
 
     const sketch::kit::Provide look(sheetTheme());
     std::vector<Swatch> swatches;
-    for (const auto& [usage, cooked] : graph.outputsByUsage()) {
+    for (const sbsar::OutputRequest& output : every) {
+      const sk_sp<SkImage> cooked =
+          sbsar::output(leaves, output.usage).frameAt({}).image;
       if (!cooked) continue;
-      swatches.push_back({usage, cooked->width(), cooked->height(),
+      swatches.push_back({output.usage, cooked->width(), cooked->height(),
                           (sigil::media::Image::of(cooked))});
+    }
+    if (swatches.empty()) {
+      refuse(ctx, u8"the graph did not cook", archive());
+      return;
     }
 
     // The canvas follows the archive: a piece whose content is a cooked
@@ -194,12 +205,11 @@ struct SubstanceSwatchesSketch {
     // change under an SDK upgrade that changed no pixel anyone authored,
     // and a byte-identity sweep would report that as a mover.
     std::fprintf(stderr, "[substance] engine %s · %s\n",
-                 substance::Package::engineVersion().c_str(),
-                 graph.label().c_str());
+                 sbsar::engineVersion().c_str(), graph.graph.c_str());
 
     const std::string caption = kit::formatted(
-        "%s · %zu parameters · %zu channels", graph.label().c_str(),
-        graph.parameters().size(), swatches.size());
+        "%s · %zu inputs · %zu channels", graph.graph.c_str(),
+        graph.inputs.size(), swatches.size());
 
     Element grid =
         box()
@@ -214,8 +224,7 @@ struct SubstanceSwatchesSketch {
         stack()
             .applyStyleSheet(sketch::kit::theme().styleSheet())
             .children({sketch::kit::backdrop(
-                           {.over = ctx.size,
-                            .ground = Fill::color(
+                           {.ground = Fill::color(
                                 sketch::kit::theme().palette.ground)}),
                        sketch::kit::titleCard(
                            {.title = {u8"A procedural archive, cooked"},

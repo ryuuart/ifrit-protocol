@@ -65,7 +65,7 @@ endforeach()
 # in the directory yet; it costs nothing until the file arrives.
 set(SIGIL_SKETCH_REQUIREMENTS
   import_native      SigilScry
-  substance_swatches SigilSubstance
+  substance_swatches SigilMaterialSubstance
   web_panel          SigilComposeWeb
   web_panel          SigilScry
   web_script         SigilComposeWeb
@@ -298,14 +298,13 @@ if(SIGIL_SKETCH_SUBSTANCE_HEADERS)
 endif()
 
 # Where the Substance SDK stands, for the sketch that draws one of its
-# sample archives. On the TARGET rather than on the source file, because
-# a hot-reloaded sketch compiles with the flags lifted from Anchor.cpp:
-# a definition only the compiled-in copy carried would break the file the
-# moment someone edited it.
-if(TARGET SigilSubstance)
-  target_compile_definitions(SigilSketches PUBLIC
-    SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
-endif()
+# sample archives — empty where there is none, which the sketch answers
+# by declaring itself unavailable. On the TARGET rather than on the source
+# file, because a hot-reloaded sketch compiles with the flags lifted from
+# Anchor.cpp: a definition only the compiled-in copy carried would break
+# the file the moment someone edited it.
+target_compile_definitions(SigilSketches PUBLIC
+  SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 
 # THE REFERENCE EXAMPLES. Each library's `reference/examples/<stem>.cpp` is
 # a sketch outside the registry, drawn for its reference page by opening
