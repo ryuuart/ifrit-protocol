@@ -90,7 +90,7 @@ bool Scene::Impl::phaseGraph() {
   draws.clear();
   if (frame.passes().empty()) return false;
 
-  if (frame.extent().isEmpty()) {
+  if (frame.extent().x <= 0 || frame.extent().y <= 0) {
     error = "the frame declares passes and no extent to run them at";
     return false;
   }

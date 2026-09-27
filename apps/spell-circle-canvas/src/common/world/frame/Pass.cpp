@@ -4,6 +4,9 @@
  */
 
 #include <sigilworld/frame/Pass.h>
+#include <sigilworld/advanced/Skia.h>
+
+#include <sigilmaterial/skia/Paint.h>
 
 #include <algorithm>
 #include <utility>
@@ -65,7 +68,7 @@ Pass& Pass::realise(Selection realisation) {
   return *this;
 }
 
-Pass& Pass::clear(SkColor4f colour) {
+Pass& Pass::clear(material::Color colour) {
   m_clear = colour;
   return *this;
 }
@@ -87,12 +90,12 @@ Pass& Pass::blur(float sigma) {
   return *this;
 }
 
-Pass& Pass::levels(float gain, float lift, SkColor4f tint) {
+Pass& Pass::levels(float gain, float lift, material::Color tint) {
   m_operation = Levels{gain, lift, tint};
   return *this;
 }
 
-Pass& Pass::composite(SkBlendMode mode, float opacity) {
+Pass& Pass::composite(material::BlendMode mode, float opacity) {
   m_operation = Composite{mode, opacity};
   return *this;
 }
@@ -127,5 +130,9 @@ Pass computePass(std::string name) {
 }
 
 Pass postPass(std::string name) { return Pass(Stage::Post, std::move(name)); }
+
+SkBlendMode toSk(material::BlendMode mode) {
+  return material::skia::toSkBlendMode(mode);
+}
 
 }  // namespace sigil::world

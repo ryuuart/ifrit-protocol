@@ -6,9 +6,9 @@
 #include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/View.h>
 #include <sigilworld/light/Light.h>
-#include <sigilmedia/advanced/Skia.h>
 
 namespace sigil::world {
 
@@ -26,17 +26,18 @@ Sampling samplingOf(const material::Texture& texture) {
   // edge's pixels across the whole face.
   out.tile = texture.tileX() != material::Repeat::Pad ||
              texture.tileY() != material::Repeat::Pad;
-  out.filter = material::skia::toSkFilterMode(texture.sampling());
+  out.filter = texture.sampling();
 
-  const SkISize size = out.image ? out.image->dimensions()
+  const SkISize size = out.image ? media::toSk(out.image.size())
                                  : SkISize::Make(where.width, where.height);
   SkMatrix lookup;
   if (size.isEmpty() || !material::skia::toSkMatrix(texture.uv()).invert(&lookup))
     return out;
-  out.uv =
+  SkMatrix uv =
       SkMatrix::Scale(1.0f / (float)size.width(), 1.0f / (float)size.height());
-  out.uv.preConcat(lookup);
-  out.uv.preConcat(SkMatrix::Scale((float)size.width(), (float)size.height()));
+  uv.preConcat(lookup);
+  uv.preConcat(SkMatrix::Scale((float)size.width(), (float)size.height()));
+  out.uv = fromSk(uv);
   return out;
 }
 
@@ -44,7 +45,7 @@ Subject subjectOf(const Draw& draw) {
   return Subject{draw.key, draw.tags, draw.ancestors, draw.material};
 }
 
-::sigil::geometry::mesh::render::Light painterLight(const light::Light& light) {
+::sigil::geometry::mesh::render::Light painterLight(const material::Light& light) {
   const light::Directional value = light::directional(light);
   ::sigil::geometry::mesh::render::Light out;
   out.direction = value.direction;
@@ -57,10 +58,10 @@ void dress(::sigil::geometry::mesh::render::MeshStyle& style,
            const Draw& body) {
   const Sampling sampling =
       body.texture ? samplingOf(*body.texture) : Sampling{};
-  style.texture = sampling.image;
-  style.uvTransform = sampling.uv;
+  style.texture = media::toSk(sampling.image);
+  style.uvTransform = toSk(sampling.uv);
   style.tileTexture = sampling.tile;
-  style.filter = sampling.filter;
+  style.filter = toSk(sampling.filter);
   style.lit = body.lit;
   style.backfaceCull = body.backface == material::Backface::Hidden;
   const SurfaceTerms terms = surfaceTermsOf(body.material);

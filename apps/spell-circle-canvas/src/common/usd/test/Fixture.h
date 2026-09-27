@@ -16,6 +16,7 @@
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilusd/runtime/Runtime.h>
+#include <sigilmedia/advanced/Skia.h>
 
 #include <cstddef>
 #include <filesystem>

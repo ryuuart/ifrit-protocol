@@ -7,7 +7,6 @@
 # owns a device.
 sigil_library(SigilWorldElement
   SOURCES Element.cpp Equal.cpp Geometry.cpp Lanes.cpp Selector.cpp
-          Transform.cpp
   HEADERS Element.h Environment.h Geometry.h Lanes.h Node.h Selector.h
           Transform.h
   PUBLIC SigilCoreComparable SigilCoreCompute SigilCoreReconcile

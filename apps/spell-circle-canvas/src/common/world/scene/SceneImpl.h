@@ -14,6 +14,7 @@
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Node.h>
 #include <sigilcore/reconcile/Reconciler.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/element/Lanes.h>
 #include <sigilworld/element/Node.h>
 #include <sigilworld/frame/Runtime.h>
@@ -102,7 +103,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   motion::Place mountPlace;
 
   /** What the lanes resolved to this frame. */
-  TransformValues values;
+  geometry::mesh::Transform values;
   float alongDistance = 0.0f;
   float windowHead = 1.0f;
   float windowSpan = 1.0f;
@@ -190,7 +191,7 @@ struct Scene::Impl {
   core::Reconciler<Impl, Instance, Description>::KeyIndex byKey;
   /** The extracted draw order, in tree order. */
   std::vector<entt::entity> order;
-  std::vector<light::Light> lights;
+  std::vector<material::Light> lights;
   /** The one environment map the frame described, with its dials
    *  resolved and the node's placement folded into its orientation. A
    *  frame holds one; a second is a warning naming both keys. */
@@ -319,6 +320,12 @@ struct Scene::Impl {
                      std::vector<Draw>& into) const;
   /** Hands over what the frame before read back. */
   void deliverReadbacks();
+};
+
+/** The scene's state, for the draw declared beside the renderer it draws
+ *  on. */
+struct SceneAccess {
+  static Scene::Impl& of(Scene& scene) { return *scene.m_impl; }
 };
 
 }  // namespace sigil::world

@@ -8,15 +8,14 @@
  * declared they read and write.
  */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSize.h>
 #include <sigilcore/callable/Callable.h>
+#include <sigilmedia/core/Picture.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/frame/Runtime.h>
 
 #include <cstdint>
 #include <functional>
+#include <glm/vec2.hpp>
 #include <span>
 #include <string>
 #include <utility>
@@ -36,7 +35,7 @@ class Readback {
    *  set, depending on what wrote the resource. */
   struct Result {
     std::string resource;
-    sk_sp<SkImage> image;
+    media::Picture image;
     const geometry::mesh::Cloud* points = nullptr;
     /** The frame the content was produced in. */
     uint64_t frame = 0;
@@ -86,7 +85,7 @@ class Frame {
   Frame& scene(Element root);
   /** The size the frame's targets are made at. A frame declaring passes
    *  needs one. */
-  Frame& extent(SkISize size);
+  Frame& extent(glm::ivec2 size);
   /** The viewpoint, for a tree that declares none of its own. */
   Frame& camera(geometry::mesh::camera::Camera c);
   /** Adds a pass. The order passes are added in is not the order they
@@ -103,7 +102,7 @@ class Frame {
   /** The tree this frame describes. */
   [[nodiscard]] const Element& scene() const { return m_scene; }
   /** The size the targets are made at; zero when none was declared. */
-  [[nodiscard]] SkISize extent() const { return m_extent; }
+  [[nodiscard]] glm::ivec2 extent() const { return m_extent; }
   /** The frame's own viewpoint, used where the tree declares none. */
   [[nodiscard]] const geometry::mesh::camera::Camera& camera() const {
     return m_camera;
@@ -122,7 +121,7 @@ class Frame {
 
  private:
   Element m_scene;
-  SkISize m_extent{0, 0};
+  glm::ivec2 m_extent{0, 0};
   geometry::mesh::camera::Camera m_camera;
   std::vector<Pass> m_passes;
   std::vector<Readback> m_readbacks;

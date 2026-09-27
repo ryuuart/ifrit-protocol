@@ -85,7 +85,7 @@ void lanesOf(const ElementNode& node, std::vector<Lane>& out) {
     return standingValue(slot);
   };
   pushEmitter(kIntensity, emission ? &emission->intensity : nullptr,
-              standing(kIntensity, node.light ? node.light->intensity : 0,
+              standing(kIntensity, node.light ? node.light->intensity.value() : 0,
                        sky ? sky->intensity : 0));
   pushEmitter(kEmissionRed, emission ? &emission->red : nullptr,
               standing(kEmissionRed, node.light ? node.light->color.r : 0,

@@ -25,7 +25,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace sigil::usd {
 
-std::optional<world::light::Light> readLight(const UsdPrim& prim,
+std::optional<material::Light> readLight(const UsdPrim& prim,
                                              ReadContext& context) {
   const bool distant = prim.IsA<UsdLuxDistantLight>();
   if (!distant && !prim.IsA<UsdLuxSphereLight>()) return std::nullopt;
@@ -37,12 +37,12 @@ std::optional<world::light::Light> readLight(const UsdPrim& prim,
   const glm::vec3 direction = -glm::normalize(glm::vec3(world[2]));
 
   const UsdLuxLightAPI api(prim);
-  const world::light::Light defaults;
-  float intensity = defaults.intensity;
+  const material::Light defaults;
+  float intensity = defaults.intensity.value();
   api.GetIntensityAttr().Get(&intensity);
   GfVec3f rgb(1, 1, 1);
   api.GetColorAttr().Get(&rgb);
-  const glm::vec4 color(rgb[0], rgb[1], rgb[2], 1);
+  const material::Color color(rgb[0], rgb[1], rgb[2], 1);
 
   if (distant) return world::light::sun(direction, color, intensity);
 
@@ -59,13 +59,13 @@ std::optional<world::light::Light> readLight(const UsdPrim& prim,
   // the inner edge is what is left of it.
   const UsdLuxShapingAPI shaping(prim);
   const UsdAttribute cone = shaping.GetShapingConeAngleAttr();
-  float outerDeg = 0;
-  if (cone && cone.HasAuthoredValue() && cone.Get(&outerDeg)) {
+  float outerAngle = 0;
+  if (cone && cone.HasAuthoredValue() && cone.Get(&outerAngle)) {
     float softness = 0;
     if (const UsdAttribute attr = shaping.GetShapingConeSoftnessAttr())
       attr.Get(&softness);
-    return world::light::spot(position, direction, outerDeg,
-                              outerDeg * (1.0f - softness), color, intensity,
+    return world::light::spot(position, direction, outerAngle,
+                              outerAngle * (1.0f - softness), color, intensity,
                               range);
   }
   return world::light::point(position, color, intensity, range);
@@ -78,7 +78,7 @@ std::optional<std::vector<ReadLight>> readLights(
   ReadContext context;
   std::vector<ReadLight> lights;
   for (const UsdPrim& prim : stage->Traverse())
-    if (std::optional<world::light::Light> light = readLight(prim, context))
+    if (std::optional<material::Light> light = readLight(prim, context))
       lights.push_back({prim.GetPath().GetString(), *light});
   return lights;
 }

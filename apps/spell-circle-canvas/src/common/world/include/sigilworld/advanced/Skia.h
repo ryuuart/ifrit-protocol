@@ -2,9 +2,14 @@
 
 /** @file
  * @ingroup world-frame
- * The resources a frame's passes write and read: named surfaces, the
- * images they stood as at the end of the frame before, and the point
- * sets a compute pass cooks.
+ * THE ONE DOOR BETWEEN THIS LIBRARY AND SKIA, included by name by an
+ * executor, a pass body or a host: `Targets`, the resources a frame's
+ * passes write and read — named raster surfaces, the images they stood as
+ * at the end of the frame before, and the point sets a compute pass
+ * cooks; `draw`, a scene presented on a host's canvas; and the crossings
+ * of a colour, a blend, a size and a uv matrix into Skia's own. Every
+ * other header here speaks Material's colour and blend, Media's picture
+ * and glm.
  *
  * A name is bound to a SURFACE SLOT rather than to a surface, so two
  * resources whose live ranges do not overlap can be handed one surface
@@ -12,10 +17,21 @@
  * slot — the ordering does, and calls `bind()` with the answer.
  */
 
+#include <include/core/SkBlendMode.h>
+#include <include/core/SkCanvas.h>
+#include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkMatrix.h>
 #include <include/core/SkRefCnt.h>
+#include <include/core/SkSamplingOptions.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkSurface.h>
+#include <sigilgeometry/mesh/camera/Camera.h>
+#include <sigilgeometry/mesh/render/Runtime.h>
+#include <sigilmaterial/core/BlendMode.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <sigilworld/element/Geometry.h>
 
 #include <boost/container/map.hpp>
@@ -25,9 +41,9 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <glm/mat3x3.hpp>
+#include <glm/vec2.hpp>
 #include <vector>
-
-class SkCanvas;
 
 namespace sigil::world {
 
@@ -39,9 +55,9 @@ class Targets {
 
   /** The size every surface here is made at. Setting a different one
    *  drops everything, including what `previous()` would have said. */
-  void extent(SkISize size);
+  void extent(glm::ivec2 size);
   /** The size every surface here is made at; empty until one is set. */
-  [[nodiscard]] SkISize extent() const { return m_extent; }
+  [[nodiscard]] glm::ivec2 extent() const { return m_extent; }
 
   /** Point @p name at surface slot @p slot. A negative slot gives the
    *  name a surface no other name shares. Re-binding a name to another
@@ -106,7 +122,7 @@ class Targets {
   void endFrame();
 
  private:
-  SkISize m_extent{0, 0};
+  glm::ivec2 m_extent{0, 0};
   /** The shared slots, in slot order, and which names sit in them. */
   std::vector<sk_sp<SkSurface>> m_shared;
   boost::container::map<std::string, int> m_slotOf;
@@ -132,5 +148,51 @@ class Targets {
   /** The surface @p name sits in, made on the first ask. */
   SkSurface* surfaceOf(std::string_view name);
 };
+
+class Scene;
+
+/** Draw what @p scene's last `render()` produced on @p canvas, from
+ *  @p camera, on @p runtime. A frame that declared passes has already run
+ *  them, and this presents the resource they wrote — the camera and the
+ *  runtime are the ones the passes already used, and these arguments do
+ *  not enter into it. */
+void draw(Scene& scene, SkCanvas& canvas,
+          const geometry::mesh::camera::Camera& camera,
+          const geometry::mesh::render::Runtime& runtime =
+              geometry::mesh::render::Runtime::cpu());
+/** …and from the viewpoint the tree declared, if it declared one. A tree
+ *  with no `camera()` in it draws from the frame's, and a frame that named
+ *  none from the default Camera. */
+void draw(Scene& scene, SkCanvas& canvas,
+          const geometry::mesh::render::Runtime& runtime =
+              geometry::mesh::render::Runtime::cpu());
+
+/** A pixel size as Skia's. */
+inline SkISize toSk(glm::ivec2 size) { return SkISize::Make(size.x, size.y); }
+/** A blend as Skia's. */
+SkBlendMode toSk(material::BlendMode mode);
+/** A colour as Skia's, field for field. */
+inline SkColor4f toSk(const material::Color& colour) {
+  return {colour.r, colour.g, colour.b, colour.a};
+}
+/** A 2D affine matrix on column vectors as Skia's. */
+inline SkMatrix toSk(const glm::mat3& matrix) {
+  return SkMatrix::MakeAll(matrix[0][0], matrix[1][0], matrix[2][0],
+                           matrix[0][1], matrix[1][1], matrix[2][1],
+                           matrix[0][2], matrix[1][2], matrix[2][2]);
+}
+/** Skia's matrix as a 2D affine matrix on column vectors. */
+inline glm::mat3 fromSk(const SkMatrix& matrix) {
+  glm::mat3 out{1.0f};
+  out[0][0] = matrix.getScaleX(); out[1][0] = matrix.getSkewX(); out[2][0] = matrix.getTranslateX();
+  out[0][1] = matrix.getSkewY();  out[1][1] = matrix.getScaleY(); out[2][1] = matrix.getTranslateY();
+  out[0][2] = matrix.getPerspX(); out[1][2] = matrix.getPerspY(); out[2][2] = matrix.get(SkMatrix::kMPersp2);
+  return out;
+}
+/** How a sampling reads between texels, as Skia's filter. */
+inline SkFilterMode toSk(material::Sampling sampling) {
+  return sampling == material::Sampling::Nearest ? SkFilterMode::kNearest
+                                                 : SkFilterMode::kLinear;
+}
 
 }  // namespace sigil::world

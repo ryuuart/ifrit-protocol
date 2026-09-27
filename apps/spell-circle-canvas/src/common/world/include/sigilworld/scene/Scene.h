@@ -11,7 +11,6 @@
 #include <sigilgeometry/mesh/render/Runtime.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/frame/Frame.h>
-#include <sigilworld/frame/Targets.h>
 #include <sigilworld/graph/Plan.h>
 #include <sigilworld/scene/Stats.h>
 
@@ -22,8 +21,6 @@
 #include <string>
 #include <string_view>
 #include <vector>
-
-class SkCanvas;
 
 namespace sigil::motion {
 class Engine;
@@ -58,26 +55,13 @@ class Scene {
    *  @trap Execution reads the extracted state and never the tree. */
   void render(const Frame& frame);
 
-  /** Draw what the last `render()` produced, from @p camera, on
-   *  @p runtime. A frame that declared passes has already run them, and
-   *  this presents the resource they wrote — the camera and the runtime
-   *  are the ones the passes already used, and these arguments do not
-   *  enter into it. */
-  void draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
-            const geometry::mesh::render::Runtime& runtime =
-                geometry::mesh::render::Runtime::cpu());
-  /** …and from the viewpoint the tree declared, if it declared one. A
-   *  tree with no `camera()` in it draws from the frame's, and a frame
-   *  that named none from the default Camera. */
-  void draw(SkCanvas& canvas, const geometry::mesh::render::Runtime& runtime =
-                                  geometry::mesh::render::Runtime::cpu());
 
   /** The viewpoint the tree declared, carried by its node's placement —
    *  the first one in tree order when there are several. */
   [[nodiscard]] std::optional<geometry::mesh::camera::Camera> camera() const;
   /** The emitters the tree declared, each carried by its node's
    *  placement. */
-  [[nodiscard]] std::vector<light::Light> lights() const;
+  [[nodiscard]] std::vector<material::Light> lights() const;
 
   /** THE HOST HANDLE of the node addressed by @p key, opaque and
    *  non-zero; 0 when no node answers to that key. It is the pin on a
@@ -112,6 +96,8 @@ class Scene {
   struct Impl;
 
  private:
+  /** How the canvas draw in `advanced/Skia.h` reaches the scene's state. */
+  friend struct SceneAccess;
   std::unique_ptr<Impl> m_impl;
 };
 

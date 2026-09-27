@@ -7,7 +7,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilworld/frame/Targets.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <iterator>
 #include <string>
@@ -17,17 +17,17 @@ namespace sigil::world {
 
 namespace {
 
-sk_sp<SkSurface> makeSurface(SkISize extent) {
-  if (extent.isEmpty()) return nullptr;
+sk_sp<SkSurface> makeSurface(glm::ivec2 extent) {
+  if (extent.x <= 0 || extent.y <= 0) return nullptr;
   sk_sp<SkSurface> surface = SkSurfaces::Raster(
-      SkImageInfo::MakeN32Premul(extent.width(), extent.height()));
+      SkImageInfo::MakeN32Premul(extent.x, extent.y));
   if (surface) surface->getCanvas()->clear(SK_ColorTRANSPARENT);
   return surface;
 }
 
 }  // namespace
 
-void Targets::extent(SkISize size) {
+void Targets::extent(glm::ivec2 size) {
   if (size == m_extent) return;
   m_extent = size;
   m_shared.clear();

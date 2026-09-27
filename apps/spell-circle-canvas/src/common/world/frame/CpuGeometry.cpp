@@ -8,6 +8,7 @@
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <glm/mat4x4.hpp>
 #include <utility>
@@ -24,7 +25,7 @@ geometry::mesh::render::MeshStyle litStyle(const View& view) {
   style.runtime = geometry::mesh::render::Runtime::cpu();
   if (!view.lights.empty()) {
     style.lights.clear();
-    for (const light::Light& light : view.lights)
+    for (const material::Light& light : view.lights)
       style.lights.push_back(painterLight(light));
   }
   // THE SET'S PANORAMA, once for the whole list: it is a property of the
@@ -53,7 +54,7 @@ geometry::mesh::render::MeshStyle coverageStyle() {
 }
 
 SkSize viewportOf(const View& view) {
-  return SkSize::Make((float)view.extent.width(), (float)view.extent.height());
+  return SkSize::Make((float)view.extent.x, (float)view.extent.y);
 }
 
 /** The base colour a material was resolved to, as the mesh painter
@@ -113,7 +114,7 @@ void paintGeometry(const PassWork& work, const View& view, Targets& targets) {
   const std::string* name = target(pass);
   SkCanvas* canvas = name ? targets.canvas(*name) : nullptr;
   if (!canvas) return;
-  canvas->clear(pass.clear());
+  canvas->clear(toSk(pass.clear()));
 
   geometry::mesh::render::MeshStyle style = litStyle(view);
   const bool asCoverage = work.realisation == Selection::Mask;

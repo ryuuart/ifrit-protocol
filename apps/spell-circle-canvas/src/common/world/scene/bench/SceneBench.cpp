@@ -9,6 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilmotion/clock/Engine.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <cstdint>
@@ -115,7 +116,7 @@ void FramePasses(benchmark::State& state) {
         .pass(postPass("picture")
                   .reads("colour", "hot")
                   .writes("picture")
-                  .composite(SkBlendMode::kPlus, 0.7f));
+                  .composite(material::BlendMode::PlusLighter, 0.7f));
     return frame;
   };
   for ([[maybe_unused]] auto iteration : state) {
@@ -139,7 +140,7 @@ void DrawFrame(benchmark::State& state) {
   SkCanvas canvas(bitmap);
   geometry::mesh::camera::Camera camera;
   camera.eye = {0, 0, 480};
-  for ([[maybe_unused]] auto iteration : state) scene.draw(canvas, camera);
+  for ([[maybe_unused]] auto iteration : state) draw(scene, canvas, camera);
   state.SetItemsProcessed(state.iterations() * nodes);
 }
 BENCHMARK(DrawFrame)->Arg(64)->Arg(512);

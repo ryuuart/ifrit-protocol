@@ -45,7 +45,6 @@ def {name}(self, *resources: str) -> Pass: ...
     table.erased("_sigil.world.Pass", "clear levels", "_t.ColorLike")
     table.erased("_sigil.world.Scene", "image", "_t.ColorLike")
     for record, fields in (
-        ("_sigil.world.light.Light", {"color": 4, "direction": 3, "position": 3}),
         ("_sigil.world.kit.Rig", {"at": 3, "color": 4}),
         ("_sigil.world.kit.Turntable", {"at": 3}),
     ):
@@ -70,6 +69,7 @@ def {name}(self, value: {written}) -> None: ...
     )
     table.parameters(LIGHT + ".attenuation", at="_t.Vec3Like")
     table.returns(LIGHT, "radiance", "_t.Vec3")
+    table.returns(LIGHT, "travel", "_t.Vec3")
     surface = "_sigil.material.surface.SurfaceParameters"
     table.erased(surface, "baseColor emissive absorption", "_t.ColorLike")
     # workaround: stubgen interprets this class as the legacy typing.Set alias.

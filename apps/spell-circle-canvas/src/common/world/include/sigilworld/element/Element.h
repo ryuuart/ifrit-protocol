@@ -186,7 +186,7 @@ class Element {
   /** An emitter standing where this node stands: the light's position
    *  and direction are carried by the node's transform, so `at()` and
    *  `along()` move it. */
-  Element& light(light::Light l);
+  Element& light(material::Light l);
   /** THE EMITTER'S STRENGTH, as a lane: it scales what `light()`
    *  declared, so binding it dims and lifts a lamp without describing a
    *  new one. A node with no emitter ignores it. */

@@ -53,7 +53,7 @@ using namespace sigil::world::test;
 
 namespace {
 
-constexpr SkISize kExtent{160, 120};
+constexpr glm::ivec2 kExtent{160, 120};
 
 /** A cube, a plate under it and a sun: enough for a depth test and a
  *  lit surface to have something to say. */
@@ -183,7 +183,7 @@ TEST(GpuRuntime, AReadbackArrivesTheFrameAfter) {
   frame.runtime(on.runtime)
       .readback(readback("colour").then([&](const Readback::Result& result) {
         ++delivered;
-        if (result.image) width = result.image->width();
+        if (result.image) width = result.image.size().x;
       }));
 
   scene.render(frame);
@@ -192,7 +192,7 @@ TEST(GpuRuntime, AReadbackArrivesTheFrameAfter) {
   EXPECT_EQ(delivered, 0);
   scene.render(frame);
   EXPECT_EQ(delivered, 1);
-  EXPECT_EQ(width, kExtent.width());
+  EXPECT_EQ(width, kExtent.x);
 }
 
 TEST(GpuRuntime, AMaskedPassReachesOnlyTheSelection) {
@@ -221,7 +221,7 @@ TEST(GpuRuntime, AMaskedPassReachesOnlyTheSelection) {
   // where it stood.
   EXPECT_GT(diligent::worstChannel(masked, unmasked), 16)
       << "the mask lifted nothing at all";
-  const int y = kExtent.height() - 4;
+  const int y = kExtent.y - 4;
   const SkColor4f groundMasked = masked.getColor4f(6, y);
   const SkColor4f groundPlain = unmasked.getColor4f(6, y);
   EXPECT_NEAR(groundMasked.fR, groundPlain.fR, 2.0f / 255.0f);
@@ -299,7 +299,7 @@ TEST_P(EitherTier, TheMapABodyIsDressedWithReachesThePixels) {
   // The map, not the surface: a white surface under a green map is
   // green wherever the card stands.
   const SkColor4f centre =
-      plate.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
+      plate.getColor4f(kExtent.x / 2, kExtent.y / 2);
   EXPECT_GT(centre.fG, centre.fR + 0.15f);
   EXPECT_GT(centre.fG, centre.fB + 0.15f);
 }
@@ -514,7 +514,7 @@ TEST_P(EitherTier, AnUnlitSurfaceIsItsOwnLight) {
   const SkBitmap plate = photographSquare(litAndUnlitCards(), runtime);
   int litAt = 0, unlitAt = 0;
   ASSERT_TRUE(cardCentres(plate, &litAt, &unlitAt));
-  const int y = kExtent.height() / 2;
+  const int y = kExtent.y / 2;
   const SkColor4f unlit = plate.getColor4f(unlitAt, y);
   const SkColor4f lit = plate.getColor4f(litAt, y);
   // The unlit card IS its base colour, and the lit one — with the sun on
@@ -550,7 +550,7 @@ TEST(GpuRuntime, AMapAlreadyOnThisDeviceIsBoundWhereItStands) {
       photograph(dressedQuad(dressed(material::Texture(StandingSource{where}))),
                  on.runtime);
   const SkColor4f centre =
-      graphics.getColor4f(kExtent.width() / 2, kExtent.height() / 2);
+      graphics.getColor4f(kExtent.x / 2, kExtent.y / 2);
   EXPECT_GT(centre.fB, centre.fR + 0.15f);
   EXPECT_GT(centre.fB, centre.fG + 0.15f);
   on.device->gpu()->destroy(painted.handle);
@@ -572,9 +572,9 @@ TEST_P(EitherTier, AVariantReDrawStandsUnderThePassesLights) {
   const SkBitmap plate = photograph(frame, runtime);
   // The sphere stands at the centre of the frame; the sun travels toward
   // -x, so its +x side is the lit one.
-  const int y = kExtent.height() / 2;
-  const SkColor4f shaded = plate.getColor4f(kExtent.width() / 2 - 14, y);
-  const SkColor4f sunlit = plate.getColor4f(kExtent.width() / 2 + 14, y);
+  const int y = kExtent.y / 2;
+  const SkColor4f shaded = plate.getColor4f(kExtent.x / 2 - 14, y);
+  const SkColor4f sunlit = plate.getColor4f(kExtent.x / 2 + 14, y);
   // The overlay is the variant's white and not the body's own amber…
   EXPECT_NEAR(sunlit.fG, sunlit.fR, 0.05f);
   EXPECT_NEAR(sunlit.fB, sunlit.fR, 0.05f);

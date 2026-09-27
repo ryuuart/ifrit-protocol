@@ -5,6 +5,7 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/frame/Runtime.h>
 
@@ -17,7 +18,7 @@ using namespace sigil::world;
 
 namespace {
 
-constexpr SkISize kExtent{512, 512};
+constexpr glm::ivec2 kExtent{512, 512};
 
 geometry::mesh::Mesh triangle() {
   geometry::mesh::Mesh m;
@@ -35,7 +36,7 @@ struct Bodies {
   std::vector<std::string> keys;
   std::vector<std::vector<std::string>> tags;
   std::vector<Draw> draws;
-  std::vector<light::Light> lights;
+  std::vector<material::Light> lights;
 
   explicit Bodies(int count) {
     keys.reserve((size_t)count);
@@ -127,7 +128,7 @@ void PostComposite(benchmark::State& state) {
                          .reads("colour")
                          .previous("trail")
                          .writes("trail")
-                         .composite(SkBlendMode::kPlus, 0.85f);
+                         .composite(material::BlendMode::PlusLighter, 0.85f);
   for ([[maybe_unused]] auto iteration : state) {
     Runtime::cpu()->execute(workOf(trail, Selection::None), scene.view(), into);
     into.endFrame();

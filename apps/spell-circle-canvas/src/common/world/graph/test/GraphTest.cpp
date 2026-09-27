@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/graph/Plan.h>
 
 #include <algorithm>
@@ -21,7 +22,7 @@ using namespace sigil::world::test;
 
 namespace {
 
-constexpr SkISize kExtent{64, 64};
+constexpr glm::ivec2 kExtent{64, 64};
 
 Frame framed() { return Frame().extent(kExtent); }
 

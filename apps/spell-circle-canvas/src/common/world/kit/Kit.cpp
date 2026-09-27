@@ -46,7 +46,7 @@ glm::vec3 station(glm::vec3 at, float distance, float bearing,
 Element lamp(std::string_view key, glm::vec3 position, glm::vec4 color,
              float intensity, float reach) {
   return Element().key(key).light(
-      light::point(position, color, intensity, reach));
+      light::point(position, {color.r, color.g, color.b, color.a}, intensity, reach));
 }
 
 }  // namespace

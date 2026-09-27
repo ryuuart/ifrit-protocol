@@ -4,8 +4,13 @@
  * @ingroup world-element
  * The environment a set stands in: a panorama placed in the scene, what
  * of it reaches a surface, and how much of it is shown behind one. The
- * map itself is the material library's value; what is added here is
- * where it stands and how far it is believed.
+ * map itself is the material library's `material::EnvironmentMap`; what
+ * is added here is what only image-based lighting in three dimensions
+ * reads, and Material's `material::Environment` — a picture a plane
+ * reflects, any material standing for it — cannot say: the prefiltered
+ * map a roughness picks a level of, the diffuse and specular sides apart,
+ * a roughness bias, the exposure a lit sum is read at, a second map
+ * crossfaded over the first, and a backdrop projected onto the ground.
  */
 
 #include <sigilmaterial/texture/EnvironmentMap.h>

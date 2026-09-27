@@ -11,6 +11,7 @@
  */
 
 #include <sigilworld/diligent/Runtime.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <cstdint>
 #include <string>
@@ -99,7 +100,7 @@ void applyOperation(Gpu& gpu, const PostOperation& operation,
     material::slang::Uniforms uniforms =
         baseUniforms(programs.levels, gpu.extent, 0.0f, 1.0f);
     uniforms.set("uGrade", levels->gain, levels->lift, 1.0f, 0.0f);
-    uniforms.set("uTint", levels->tint.fR, levels->tint.fG, levels->tint.fB,
+    uniforms.set("uTint", levels->tint.r, levels->tint.g, levels->tint.b,
                  1.0f);
     drawStage(gpu, programs.levels, into, blend, uniforms, {source}, clear);
     return;
@@ -115,7 +116,7 @@ void applyOperation(Gpu& gpu, const PostOperation& operation,
 SkBlendMode compositeBlend(const PostOperation& operation) {
   const Composite* composite = std::get_if<Composite>(&operation);
   if (!composite) return SkBlendMode::kSrcOver;
-  return composite->mode == SkBlendMode::kPlus ? SkBlendMode::kPlus
+  return composite->mode == material::BlendMode::PlusLighter ? SkBlendMode::kPlus
                                                : SkBlendMode::kSrcOver;
 }
 

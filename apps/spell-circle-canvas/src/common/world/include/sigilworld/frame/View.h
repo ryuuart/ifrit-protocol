@@ -8,21 +8,18 @@
  * not reachable from a pass.
  */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkMatrix.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSamplingOptions.h>
-#include <include/core/SkSize.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/mesh/render/Shading.h>
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/Picture.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Environment.h>
 #include <sigilworld/element/Selector.h>
 
 #include <glm/mat3x3.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 #include <span>
 #include <string>
@@ -69,13 +66,15 @@ struct Draw {
  *  through the image's size — so a placement and a scale mean the same
  *  thing on a mesh as they do in a plane. */
 struct Sampling {
-  sk_sp<SkImage> image;
-  SkMatrix uv = SkMatrix::I();
+  media::Picture image;
+  /** Where the image is read at, over the mesh's own uv coordinates, as
+   *  a 2D affine matrix acting on column vectors `(u, v, 1)`. */
+  glm::mat3 uv{1.0f};
   bool tile = false;
   /** How the image is read BETWEEN texels, carried across from the
    *  texture: nearest keeps a texel's edge hard, linear reads across
    *  it. */
-  SkFilterMode filter = SkFilterMode::kLinear;
+  ::sigil::material::Sampling filter = ::sigil::material::Sampling::Linear;
 };
 
 /** @p texture as a mesh samples it. An empty texture answers an empty
@@ -100,7 +99,7 @@ SurfaceTerms surfaceTermsOf(const ::sigil::material::Material* material);
 
 /** AN EMITTER AS THE MESH PAINTER TAKES IT: the one directional reading
  *  every tier that shades without a per-pixel position works from. */
-::sigil::geometry::mesh::render::Light painterLight(const light::Light& light);
+::sigil::geometry::mesh::render::Light painterLight(const material::Light& light);
 
 /** The map @p body is dressed with and whether the emitters reach it,
  *  put on @p style — and taken off it again for a body carrying
@@ -120,7 +119,7 @@ void dress(::sigil::geometry::mesh::render::MeshStyle& style, const Draw& body);
  *  depth buffer must draw them in. */
 struct View {
   std::span<const Draw> draws;
-  std::span<const light::Light> lights;
+  std::span<const material::Light> lights;
   /** THE SET'S ENVIRONMENT MAP, oriented — the panorama every lit body
    *  samples for what reaches it from every direction. `orientation`
    *  carries a world-space direction into the panorama's own frame, so
@@ -130,7 +129,7 @@ struct View {
   Environment environment;
   glm::mat3 orientation{1.0f};
   geometry::mesh::camera::Camera camera;
-  SkISize extent{0, 0};
+  glm::ivec2 extent{0, 0};
 };
 
 /** @p draw as a Selector reads it. */

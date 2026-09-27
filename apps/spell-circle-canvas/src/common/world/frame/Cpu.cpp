@@ -6,6 +6,7 @@
 
 #include "Cpu.h"
 
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/Runtime.h>
 
 namespace sigil::world {

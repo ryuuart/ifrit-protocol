@@ -4,9 +4,14 @@
  * @ingroup world-element
  * Where a node's content stands, as lanes that can move: nine placement
  * lanes about an origin of three more, one turn about an arbitrary axis,
- * and the matrix escape that replaces all of them.
+ * and the matrix escape that replaces all of them. What the lanes resolve
+ * to in a frame is Geometry's `geometry::mesh::Transform`, whose
+ * `matrix()` places the node; the lanes are what is added here, since a
+ * placement that moves is this library's and a placement that stands is
+ * Geometry's.
  */
 
+#include <sigilgeometry/mesh/Transform.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <glm/mat4x4.hpp>
@@ -40,24 +45,5 @@ struct Transform {
   motion::Animatable<float> axisDegrees{0.0f};
   std::optional<glm::mat4> matrix;
 };
-
-/** What a Transform's lanes resolved to this frame — the numbers, with
- *  no animation left in them. */
-struct TransformValues {
-  glm::vec3 translate{0.0f, 0.0f, 0.0f};
-  glm::vec3 rotateDegrees{0.0f, 0.0f, 0.0f};
-  glm::vec3 scale{1.0f, 1.0f, 1.0f};
-  glm::vec3 origin{0.0f, 0.0f, 0.0f};
-  glm::vec3 axis{0.0f, 1.0f, 0.0f};
-  float axisDegrees = 0.0f;
-
-  bool operator==(const TransformValues&) const = default;
-};
-
-/** The local matrix @p values describe: the origin brought to zero, then
- *  scale, then the z, y and x turns in that order, then the axis turn,
- *  then the origin put back, then the translation. Reading it right to
- *  left is reading the order the operations apply in. */
-glm::mat4 localMatrix(const TransformValues& values);
 
 }  // namespace sigil::world

@@ -20,13 +20,14 @@ with; the device and its handles are SigilCoreHardware's, and Graphite is
 SigilSkia's; animation is SigilMotion's; counters and timers are
 SigilMeasure's.
 
-Two dependencies reach a consumer through the public headers rather than
-staying behind them: **Skia**, which is genuine vocabulary here — a frame
-hands back an `SkImage`, a pass draws into an `SkSurface`, and a target's
-size is an `SkISize` — and **Boost.Container**, which is not: the frame
-targets keep six ordered tables of their surfaces, points and stampings
-as private members, and a private member in a header is still an include
-every consumer pays for.
+A frame's colours and blends are Material's (`material::Color`,
+`material::BlendMode`), a picture a readback hands back is Media's
+`media::Picture`, and a size, a matrix and a placement are glm. No
+default include of this library reaches Skia; see *Where Skia still
+shows* below. **Boost.Container** reaches a consumer through
+`advanced/Skia.h`: the frame targets keep six ordered tables of their
+surfaces, points and stampings as private members, and a private member
+in a header is still an include every consumer pays for.
 
 Namespace `sigil::world`, headers under `include/sigilworld/`. Each
 feature is its own static archive with its own tests and benchmark, and
@@ -43,7 +44,7 @@ library that is not here.
 | `frame/` | `SigilWorldFrame` | `sigil::world` | `Frame`, `Pass`, `Readback`, the `Targets` a frame's passes write, the `View` they read, and the `Runtime`/`Executor` seam with its CPU executor. No device, no retained state. |
 | `graph/` | `SigilWorldGraph` | `sigil::world::graph` | the `Plan`: the order the passes run in, the surfaces they share, the barriers between them, and how each selection is realised. It reads declarations and draws nothing. |
 | `scene/` | `SigilWorldScene` | `sigil::world` | the retained side: the reconcile host, the entity store, the content-keyed resource store, the declared phases, the execution of a frame's passes, and the draw. |
-| `light/` | `SigilWorldLight` | `sigil::world::light` | emitters as plain comparable values over glm: a sun, a point light, a spot, their falloffs and the per-frame budget. |
+| `light/` | `SigilWorldLight` | `sigil::world::light` | Material's `material::Light` placed in a set: its angles read as a world direction (`travel`, `aim`), a sun, a point light and a spot spelled by where they stand and aim, and their falloffs. The light value itself is Material's, one value for a surface in the plane and a body in a set; what stays here is only what a set in space adds. |
 | `kit/` | `SigilWorldKit` | `sigil::world::kit` | presets that compose elements: a three-point rig, a turntable, and the lit set both make over a ground plane; and the rails a body rides — the turntable's ring, a loop that rises and falls, a winding round a shell. Nothing here decides a look. |
 | `diligent/` | `SigilWorldDiligent` | `sigil::world::diligent` | the programs this backend draws with — the scaffold, the sky and the post stages, compiled through SigilMaterial's Slang backend — the `Runtime` that performs a frame's passes on that device, and `importNative`, the door a foreign texture reaches a material slot by. What stands on the device beneath all of it is SigilGeometry's: `geometry::device::MeshResidency` and `TextureResidency` put a mesh and a map there, `PipelineCache` builds a pipeline out of a compiled program, and this feature asks them. So are the device executors of every seam it is not — the chain cook, the swept rings and the mesh painter each stand beside the CPU executor of their own seam. |
 | — | `SigilWorld` | — | the umbrella target: an interface over every feature above, so a consumer of the whole library names one link and includes the headers it spells. The device feature is in it where it was built. |
@@ -84,7 +85,7 @@ scene.render(
                 .tag("glow"),
         }));
 
-scene.draw(canvas);   // from the viewpoint the tree declared
+draw(scene, canvas);  // from the viewpoint the tree declared — advanced/Skia.h
 ```
 
 A tree handed to `render()` is a `Frame` with no passes, which is why the
@@ -105,11 +106,11 @@ frame.extent({1280, 720})
                .reads("lit")
                .previous("trail")
                .writes("trail")
-               .composite(SkBlendMode::kPlus, 0.88f))
+               .composite(material::BlendMode::PlusLighter, 0.88f))
      .readback(readback("trail").then(observe));
 
 scene.render(frame);
-scene.draw(canvas);   // what the passes wrote
+draw(scene, canvas);  // what the passes wrote
 ```
 
 ### Presets
@@ -168,6 +169,26 @@ screen or other open surface that must remain visible as the viewpoint passes
 behind it declares `backface(material::Backface::Visible)`; the choice reaches both the
 CPU rasterizer and the device pipeline.
 
+## Where Skia still shows
+
+`advanced/Skia.h` is the one door, included by name by an executor, a
+pass body or a host, and nothing else here spells Skia:
+
+- **The frame's resources.** `Targets` holds the named raster surfaces a
+  frame's passes paint and the images they stood as the frame before; a
+  pass body and an `Executor` are handed one, because a surface is what
+  they draw on.
+- **The host's entrance.** `draw(scene, canvas)` presents what the last
+  `render()` produced on the canvas a host owns.
+- **The crossings.** `toSk` turns a `material::Color`, a
+  `material::BlendMode`, a `material::Sampling`, a `glm::ivec2` size and a
+  `glm::mat3` uv matrix into Skia's own, and `fromSk` brings a matrix
+  back.
+
+That list is the boundary, not a queue: every other entrance — a pass's
+clear, levels and composite, a frame's extent, a readback's picture, a
+sampling's image, uv and filter — speaks Material, Media and glm.
+
 ## Mental model
 
 **A description is a value; a node is what it became.** `Element` is
@@ -207,8 +228,8 @@ the node holds. The four EMITTER rows and the seven ENVIRONMENT rows
 stand at their own value's fields rather than at a fixed default: a
 light whose strength lane is dropped ramps back to the strength
 `light()` declared, which is what makes the lanes dials on a value
-rather than a second copy of it, and why `light::Light` itself carries
-no animation.
+rather than a second copy of it, and why a light a node emits is read
+at its declared values, the lanes animating it.
 
 **There are exactly two write paths**: `Scene::render`, and the live
 values a description's lanes are bound to. Nothing writes onto a retained
@@ -249,7 +270,7 @@ a tree prunes on a node.
 | `only(Selector)` | which bodies the pass addresses — `selectors::tag`, `selectors::key`, `selectors::under`, `selectors::material`, composed with `\|`, `&` and `!` |
 | `variant(Material)` | …drawn again in that surface |
 | `realise(Selection)` | override how the selection reaches the pixels |
-| `clear(SkColor4f)` | what a geometry pass clears its target to |
+| `clear(material::Color)` | what a geometry pass clears its target to |
 | `chain(geometry::mesh::pop::Chain, geometry::mesh::pop::Runtime)` | the points a compute pass cooks, into the point set it writes |
 | `stamp(geometry::mesh::Mesh)` | the body a geometry pass stands at every point of every point set it reads |
 | `blur(sigma)` / `levels(gain, lift, tint)` / `composite(mode, opacity)` | what a post pass does to what it reads |
@@ -332,7 +353,8 @@ and these are the names it reads them with:
   described, cooked, drew and let go;
 - `lanesOf(node, out)` reads a node's fixed lanes in `Slot` order and
   `standingValue(slot)` is what a lane holds when nothing animates it;
-  `localMatrix(values)` is a placement's own matrix;
+  what the lanes resolve to is Geometry's `geometry::mesh::Transform`,
+  whose `matrix()` is a placement's own matrix;
 - `GeneratorOperations` is the seam a geometry that cooks itself implements,
   and `PassBodyOperations` the seam a pass that does its own work implements —
   both carried as comparable values, so a frame holding one prunes on
@@ -486,7 +508,7 @@ one artefact covers a whole settled subtree rather than one per node.
 
 ## What the CPU tier can and cannot say
 
-`Scene::draw` runs on `geometry::mesh::render::Runtime`, whose built-in
+`draw(scene, canvas)` runs on `geometry::mesh::render::Runtime`, whose built-in
 executor shades on the CPU. That executor's shading is directional and
 per vertex, so:
 

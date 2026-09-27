@@ -5,6 +5,7 @@
  */
 
 #include <benchmark/benchmark.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/graph/Plan.h>
 
 #include <string>
@@ -14,7 +15,7 @@ using namespace sigil::world;
 
 namespace {
 
-constexpr SkISize kExtent{256, 256};
+constexpr glm::ivec2 kExtent{256, 256};
 
 /** A chain: every pass reads what the one before it wrote, so the order
  *  is fully determined and the transients take turns. */

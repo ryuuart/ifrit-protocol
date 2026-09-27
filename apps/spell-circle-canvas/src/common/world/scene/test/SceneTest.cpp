@@ -14,6 +14,7 @@
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Tween.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>
@@ -57,7 +58,7 @@ std::vector<uint8_t> plate(Scene& scene,
   bitmap.allocPixels(SkImageInfo::MakeN32Premul(96, 96));
   bitmap.eraseColor(SK_ColorTRANSPARENT);
   SkCanvas canvas(bitmap);
-  scene.draw(canvas, camera);
+  draw(scene, canvas, camera);
   const uint8_t* pixels = (const uint8_t*)bitmap.getPixels();
   return {pixels, pixels + bitmap.computeByteSize()};
 }
@@ -296,7 +297,7 @@ TEST_F(WorldScene, EmittersAndViewpointsRideTheirNodesPlacement) {
   EXPECT_FLOAT_EQ(camera->eye.x, 50.0f);
   EXPECT_FLOAT_EQ(camera->eye.z, 100.0f);
 
-  const std::vector<light::Light> lights = scene.lights();
+  const std::vector<material::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
   EXPECT_FLOAT_EQ(lights.front().position.x, 50.0f);
   EXPECT_FLOAT_EQ(lights.front().position.y, 20.0f);
@@ -316,9 +317,9 @@ TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
   };
 
   scene.render(describe());
-  std::vector<light::Light> lights = scene.lights();
+  std::vector<material::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
-  EXPECT_FLOAT_EQ(lights.front().intensity, 0.25f);
+  EXPECT_FLOAT_EQ(lights.front().intensity.value(), 0.25f);
   EXPECT_FLOAT_EQ(lights.front().color.r, 1.0f);
   EXPECT_FLOAT_EQ(lights.front().color.g, 0.5f);
 
@@ -328,16 +329,16 @@ TEST_F(WorldScene, AnEmitterDialReachesTheLightItScales) {
   scene.render(describe());
   lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
-  EXPECT_FLOAT_EQ(lights.front().intensity, 0.9f);
+  EXPECT_FLOAT_EQ(lights.front().intensity.value(), 0.9f);
   EXPECT_FLOAT_EQ(lights.front().color.r, 0.2f);
 }
 
 TEST_F(WorldScene, AnEmitterWithNoDialsShinesAsItWasDeclared) {
   scene.render(Element().key("root").children({Element().key("lamp").light(
       light::point({0, 0, 0}, {0.3f, 0.6f, 0.9f, 1.0f}, 0.4f))}));
-  const std::vector<light::Light> lights = scene.lights();
+  const std::vector<material::Light> lights = scene.lights();
   ASSERT_EQ(lights.size(), 1u);
-  EXPECT_FLOAT_EQ(lights.front().intensity, 0.4f);
+  EXPECT_FLOAT_EQ(lights.front().intensity.value(), 0.4f);
   EXPECT_FLOAT_EQ(lights.front().color.b, 0.9f);
 }
 
@@ -357,7 +358,7 @@ TEST_F(WorldScene, RetiringANodeHandsBackItsEntityAndItsArtefact) {
 
 namespace {
 
-constexpr SkISize kFrameExtent{96, 96};
+constexpr glm::ivec2 kFrameExtent{96, 96};
 
 /** A set with one plain body on the left and one tagged "glow" on the
  *  right, so a selection is visible as which half is painted. */
@@ -377,10 +378,10 @@ Frame framed(Element scene) {
 SkBitmap present(Scene& scene) {
   SkBitmap bitmap;
   bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(kFrameExtent.width(), kFrameExtent.height()));
+      SkImageInfo::MakeN32Premul(kFrameExtent.x, kFrameExtent.y));
   bitmap.eraseColor(SK_ColorTRANSPARENT);
   SkCanvas canvas(bitmap);
-  scene.draw(canvas);
+  draw(scene, canvas);
   return bitmap;
 }
 
@@ -457,11 +458,11 @@ TEST_F(WorldScene, ANarrowedPostPassReachesOnlyItsCoverage) {
   EXPECT_EQ(inkIn(plain, true), inkIn(masked, true));
   const SkBitmap before = present(plain);
   const SkBitmap after = present(masked);
-  const int y = kFrameExtent.height() / 2;
-  EXPECT_EQ(before.getColor(kFrameExtent.width() / 4, y),
-            after.getColor(kFrameExtent.width() / 4, y));
-  EXPECT_NE(before.getColor(kFrameExtent.width() * 3 / 4, y),
-            after.getColor(kFrameExtent.width() * 3 / 4, y));
+  const int y = kFrameExtent.y / 2;
+  EXPECT_EQ(before.getColor(kFrameExtent.x / 4, y),
+            after.getColor(kFrameExtent.x / 4, y));
+  EXPECT_NE(before.getColor(kFrameExtent.x * 3 / 4, y),
+            after.getColor(kFrameExtent.x * 3 / 4, y));
 }
 
 TEST_F(WorldScene, AReadbackIsHandedOverTheFrameAfter) {

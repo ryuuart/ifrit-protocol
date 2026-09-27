@@ -11,6 +11,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkImageInfo.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/element/Node.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/frame/Runtime.h>
@@ -28,7 +29,7 @@ using namespace sigil::world::test;
 
 namespace {
 
-constexpr SkISize kExtent{80, 80};
+constexpr glm::ivec2 kExtent{80, 80};
 
 /** Two squares side by side, the right one tagged "glow". */
 struct Bodies {
@@ -36,7 +37,7 @@ struct Bodies {
   std::vector<std::string> none;
   std::vector<std::string> glow = {"glow"};
   std::vector<Draw> draws;
-  std::vector<light::Light> lights;
+  std::vector<material::Light> lights;
 
   Bodies() {
     Draw left;
@@ -107,7 +108,7 @@ PassWork workOf(const Pass& pass, Selection realisation = Selection::None) {
   return work;
 }
 
-Targets targetsAt(SkISize extent) {
+Targets targetsAt(glm::ivec2 extent) {
   Targets targets;
   targets.extent(extent);
   return targets;
@@ -206,8 +207,8 @@ TEST(WorldFrame, AVariantRealisationDrawsTheSelectionAgain) {
             inkIn(varied.image("colour"), true));
   const SkBitmap a = read(plain, "colour");
   const SkBitmap b = read(varied, "colour");
-  const int x = kExtent.width() * 3 / 4;
-  const int y = kExtent.height() / 2;
+  const int x = kExtent.x * 3 / 4;
+  const int y = kExtent.y / 2;
   EXPECT_NE(a.getColor(x, y), b.getColor(x, y));
 }
 
@@ -223,8 +224,8 @@ TEST(WorldFrame, APostPassGradesWhatItReads) {
 
   const SkBitmap before = read(targets, "colour");
   const SkBitmap after = read(targets, "graded");
-  const int x = kExtent.width() / 4;
-  const int y = kExtent.height() / 2;
+  const int x = kExtent.x / 4;
+  const int y = kExtent.y / 2;
   EXPECT_GT(
       SkColorGetR(before.getColor(x, y)) + SkColorGetG(before.getColor(x, y)) +
           SkColorGetB(before.getColor(x, y)),
@@ -244,7 +245,7 @@ TEST(WorldFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
                          .reads("colour")
                          .previous("trail")
                          .writes("trail")
-                         .composite(SkBlendMode::kPlus, 1.0f);
+                         .composite(material::BlendMode::PlusLighter, 1.0f);
 
   // The first frame has no previous, so the trail is only the picture.
   Runtime::cpu()->execute(workOf(main), bodies.view(), targets);
@@ -259,8 +260,8 @@ TEST(WorldFrame, APreviousReadIsWhatStoodAtTheEndOfTheFrameBefore) {
 
   const SkBitmap once = read(targets.previous("trail"));
   const SkBitmap twice = read(targets, "trail");
-  const int x = kExtent.width() / 4;
-  const int y = kExtent.height() / 2;
+  const int x = kExtent.x / 4;
+  const int y = kExtent.y / 2;
   EXPECT_NE(once.getColor(x, y), twice.getColor(x, y));
 }
 
@@ -328,7 +329,7 @@ TEST(WorldFrame, ADeclaredBodyIsHandedTheExtractedViewAndTheTargets) {
   Targets targets = targetsAt(kExtent);
   size_t seen = 0;
   std::string firstKey;
-  SkISize extent{0, 0};
+  glm::ivec2 extent{0, 0};
   const Pass hand = geometryPass("hand").writes("colour").body(
       [&](const View& view, Targets& into) {
         seen = view.draws.size();
@@ -343,7 +344,7 @@ TEST(WorldFrame, ADeclaredBodyIsHandedTheExtractedViewAndTheTargets) {
   EXPECT_EQ(firstKey, "left");
   EXPECT_EQ(extent, kExtent);
   EXPECT_EQ(inkOver(targets.image("colour")),
-            kExtent.width() * kExtent.height());
+            kExtent.x * kExtent.y);
 }
 
 TEST(WorldFrame, TwoNamesOnOneSlotShareTheSurface) {
@@ -353,7 +354,7 @@ TEST(WorldFrame, TwoNamesOnOneSlotShareTheSurface) {
   targets.canvas("first")->clear(SkColor4f{0.0f, 1.0f, 0.0f, 1.0f});
   EXPECT_EQ(targets.surfaces(), 1);
   EXPECT_EQ(inkOver(targets.image("second")),
-            kExtent.width() * kExtent.height());
+            kExtent.x * kExtent.y);
 }
 
 TEST(WorldFrame, AFrameWithNoPassesIsItsScene) {

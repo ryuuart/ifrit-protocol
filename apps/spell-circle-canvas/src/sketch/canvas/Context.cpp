@@ -11,6 +11,7 @@
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/Frame.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -45,7 +46,7 @@ sk_sp<SkImage> SketchContext::bakeSet(
   // forming and presenting then read the ONE viewpoint, and a frame that
   // named none is seen from the caller's.
   world::Frame framed = frame;
-  framed.extent(size).camera(camera);
+  framed.extent(glm::ivec2(size.width(), size.height())).camera(camera);
   // A scene for this call, on a CLOCK OF ITS OWN: nothing here is
   // retained between bakes, so the picture is a function of the frame
   // and the moment and not of how many times the sketch has baked one —
@@ -62,7 +63,7 @@ sk_sp<SkImage> SketchContext::bakeSet(
     engine.advance(motion::Duration(seconds));
     scene.render(framed);
   }
-  scene.draw(canvas);
+  world::draw(scene, canvas);
   return surface->makeImageSnapshot();
 }
 

@@ -35,7 +35,7 @@ const ElementNode* childOf(const Element& element, const std::string& key) {
 
 /** The emitter a keyed child of @p element carries, or null. Reached
  *  as a pointer so a case that asserts on one says so first. */
-const light::Light* lightOf(const Element& element, const std::string& key) {
+const material::Light* lightOf(const Element& element, const std::string& key) {
   const ElementNode* node = childOf(element, key);
   return node && node->light ? &*node->light : nullptr;
 }
@@ -65,17 +65,17 @@ TEST(WorldKit, TheRigIsThreeKeyedEmitters) {
   EXPECT_EQ(nodeOf(rig).key, "rig");
   EXPECT_EQ(keysOf(rig), (std::vector<std::string>{"key", "fill", "back"}));
 
-  const light::Light* key = lightOf(rig, "key");
-  const light::Light* fill = lightOf(rig, "fill");
-  const light::Light* back = lightOf(rig, "back");
+  const material::Light* key = lightOf(rig, "key");
+  const material::Light* fill = lightOf(rig, "fill");
+  const material::Light* back = lightOf(rig, "back");
   ASSERT_NE(key, nullptr);
   ASSERT_NE(fill, nullptr);
   ASSERT_NE(back, nullptr);
 
   // The key is what the subject is read by, and the other two are what
   // keep it from being read by the key alone.
-  EXPECT_GT(key->intensity, fill->intensity);
-  EXPECT_GT(key->intensity, back->intensity);
+  EXPECT_GT(key->intensity.value(), fill->intensity.value());
+  EXPECT_GT(key->intensity.value(), back->intensity.value());
   // …and none of them carries a surface, a mesh or a viewpoint: a rig
   // lights a set, it does not furnish one.
   EXPECT_EQ(surfaceOf(rig, "key"), nullptr);
@@ -178,7 +178,7 @@ TEST(WorldKit, ARigWithNoExtentStandsAtTheSubject) {
   const Element rig = kit::threePoint(flat);
   EXPECT_EQ(keysOf(rig), (std::vector<std::string>{"key", "fill", "back"}));
   for (const std::string& key : {"key", "fill", "back"}) {
-    const light::Light* lamp = lightOf(rig, key);
+    const material::Light* lamp = lightOf(rig, key);
     ASSERT_NE(lamp, nullptr) << key;
     EXPECT_NEAR(glm::length(lamp->position - flat.at), 0.0f, 1e-4f) << key;
   }

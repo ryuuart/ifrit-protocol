@@ -82,7 +82,7 @@ class Writer {
   /** An emitter: distant for a sun, sphere for a point light or for a
    *  spot, whose cone is UsdLux shaping about the prim's -Z. The range,
    *  which UsdLux has no word for, rides as `sigil:range`. */
-  std::string light(std::string_view name, const world::light::Light& light,
+  std::string light(std::string_view name, const material::Light& light,
                     std::string_view parent = "/World");
   /** THE SET'S ENVIRONMENT MAP, as a UsdLuxDomeLight: the panorama
    *  written beside the stage and declared lat-long, the strength and

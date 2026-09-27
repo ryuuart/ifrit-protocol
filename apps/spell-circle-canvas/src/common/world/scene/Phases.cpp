@@ -79,11 +79,10 @@ glm::vec4 baseColorOf(const material::Material* material) {
  *  A direction is not carried the way a point is: under a non-uniform
  *  scale the basis tilts it off the surfaces it was aimed at, and the
  *  normal transform is what keeps the angle. */
-light::Light placeLight(light::Light light, const glm::mat4& world) {
+material::Light placeLight(material::Light light, const glm::mat4& world) {
   const glm::mat3 basis = glm::inverseTranspose(glm::mat3(world));
-  light.direction = basis * light.direction;
-  if (glm::dot(light.direction, light.direction) > 0.0f)
-    light.direction = glm::normalize(light.direction);
+  const glm::vec3 carried = basis * light::travel(light);
+  if (glm::dot(carried, carried) > 0.0f) light::aim(light, carried);
   const glm::vec4 position = world * glm::vec4(light.position, 1.0f);
   light.position = glm::vec3(position);
   return light;
@@ -206,12 +205,12 @@ void Scene::Impl::deriveInto(Instance& inst, const glm::mat4& parentWorld,
     frame[1] = glm::vec4(pose.normal, 0.0f);
     frame[2] = glm::vec4(pose.tangent, 0.0f);
     frame[3] = glm::vec4(pose.position, 1.0f);
-    TransformValues inFrame = inst.values;
+    geometry::mesh::Transform inFrame = inst.values;
     inFrame.translate = {0.0f, 0.0f, 0.0f};
     inFrame.axisDegrees = 0.0f;
-    local = frame * localMatrix(inFrame);
+    local = frame * inFrame.matrix();
   } else {
-    local = localMatrix(inst.values);
+    local = inst.values.matrix();
   }
 
   const glm::mat4 world = parentWorld * local;
@@ -359,7 +358,7 @@ core::SubtreeVerdict Scene::Impl::foldVolatility(Instance& inst) {
   // every node every frame — a bake replays a draw order, and a light
   // inside one must not go missing with it.
   if (node.light) {
-    light::Light emitter = *node.light;
+    material::Light emitter = *node.light;
     emitter.intensity = inst.intensity;
     emitter.color = {inst.emission.r, inst.emission.g, inst.emission.b,
                      emitter.color.a};

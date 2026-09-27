@@ -265,7 +265,7 @@ TEST(WorldElement, AnEmitterLaneStandsWhereTheEmitterStands) {
 
   // An emitter with no dials: each row stands at the emitter's own
   // field, so a dropped dial ramps back to the light rather than to one.
-  const light::Light lamp =
+  const material::Light lamp =
       light::point({0, 0, 0}, {0.2f, 0.4f, 0.8f, 1.0f}, 0.6f);
   lanesOf(*Element().light(lamp).node(), lanes);
   EXPECT_EQ(lanes[kIntensity].value, nullptr);
@@ -283,15 +283,15 @@ TEST(WorldElement, AnEmitterLaneStandsWhereTheEmitterStands) {
 }
 
 TEST(WorldElement, LocalMatrixPlacesScalesAndTurns) {
-  TransformValues values;
+  geometry::mesh::Transform values;
   values.translate = {10, 0, 0};
   values.scale = {2, 2, 2};
-  const glm::vec4 placed = localMatrix(values) * glm::vec4(1, 0, 0, 1);
+  const glm::vec4 placed = values.matrix() * glm::vec4(1, 0, 0, 1);
   EXPECT_FLOAT_EQ(placed.x, 12.0f);
 
-  TransformValues turned;
+  geometry::mesh::Transform turned;
   turned.rotateDegrees = {0, 90, 0};
-  const glm::vec4 spun = localMatrix(turned) * glm::vec4(1, 0, 0, 1);
+  const glm::vec4 spun = turned.matrix() * glm::vec4(1, 0, 0, 1);
   EXPECT_NEAR(spun.x, 0.0f, 1e-5f);
   EXPECT_NEAR(spun.z, -1.0f, 1e-5f);
 }

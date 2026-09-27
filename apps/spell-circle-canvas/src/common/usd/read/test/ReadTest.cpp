@@ -50,7 +50,7 @@ Stage readAsset(const char* name) {
   return stage;
 }
 
-const world::light::Light* lightAt(const std::vector<usd::ReadLight>& lights,
+const material::Light* lightAt(const std::vector<usd::ReadLight>& lights,
                                    const char* path) {
   for (const usd::ReadLight& read : lights)
     if (read.path == path) return &read.light;
@@ -64,15 +64,15 @@ const geometry::mesh::codec::decode::Part* named(
   return nullptr;
 }
 
-world::light::Light sunLight() {
+material::Light sunLight() {
   return world::light::sun({-0.45f, -0.75f, -0.5f}, {1, 0.9f, 0.8f, 1}, 2.5f);
 }
 
-world::light::Light lampLight() {
+material::Light lampLight() {
   return world::light::point({10, 100, -20}, {0.2f, 0.4f, 1, 1}, 3.0f, 250.0f);
 }
 
-world::light::Light beamLight() {
+material::Light beamLight() {
   return world::light::spot({0, 80, 0}, {0, -1, 0}, 40.0f, 28.0f,
                             {1, 0.5f, 0, 1}, 4.0f, 500.0f);
 }
@@ -344,14 +344,14 @@ TEST(UsdRead, ASunComesBackAimedWhereItWasPointedAndStandingNowhere) {
 
   // The sun keeps its direction (normalized on the way out) and nothing
   // else: a distant light stands nowhere.
-  const world::light::Light* back = lightAt(*lights, "/World/sun");
+  const material::Light* back = lightAt(*lights, "/World/sun");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, world::light::LightKind::Sun);
-  const glm::vec3 aim = glm::normalize(sunLight().direction);
-  EXPECT_NEAR(back->direction.x, aim.x, 1e-5f);
-  EXPECT_NEAR(back->direction.y, aim.y, 1e-5f);
-  EXPECT_NEAR(back->direction.z, aim.z, 1e-5f);
-  EXPECT_FLOAT_EQ(back->intensity, 2.5f);
+  EXPECT_EQ(back->kind, material::LightKind::Directional);
+  const glm::vec3 aim = sigil::world::light::travel(sunLight());
+  EXPECT_NEAR(sigil::world::light::travel(*back).x, aim.x, 1e-5f);
+  EXPECT_NEAR(sigil::world::light::travel(*back).y, aim.y, 1e-5f);
+  EXPECT_NEAR(sigil::world::light::travel(*back).z, aim.z, 1e-5f);
+  EXPECT_FLOAT_EQ(back->intensity.value(), 2.5f);
   EXPECT_FLOAT_EQ(back->color.g, 0.9f);
 }
 
@@ -364,14 +364,14 @@ TEST(UsdRead, APointLightComesBackWhereItStoodAndAsFarAsItReached) {
       usd::readLights(file, &error);
   ASSERT_TRUE(lights) << error;
 
-  const world::light::Light* back = lightAt(*lights, "/World/lamp");
+  const material::Light* back = lightAt(*lights, "/World/lamp");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, world::light::LightKind::Point);
+  EXPECT_EQ(back->kind, material::LightKind::Point);
   EXPECT_NEAR(back->position.x, 10.0f, 1e-4f);
   EXPECT_NEAR(back->position.y, 100.0f, 1e-4f);
   EXPECT_NEAR(back->position.z, -20.0f, 1e-4f);
   EXPECT_FLOAT_EQ(back->range, 250.0f);
-  EXPECT_FLOAT_EQ(back->intensity, 3.0f);
+  EXPECT_FLOAT_EQ(back->intensity.value(), 3.0f);
   EXPECT_FLOAT_EQ(back->color.b, 1.0f);
 }
 
@@ -386,14 +386,14 @@ TEST(UsdRead, ASpotComesBackWithItsConeAndTheInnerEdgeTheSoftnessGivesIt) {
 
   // The inner edge travels as the fraction of the cone the falloff eats,
   // so it comes back through that arithmetic rather than as itself.
-  const world::light::Light* back = lightAt(*lights, "/World/beam");
+  const material::Light* back = lightAt(*lights, "/World/beam");
   ASSERT_TRUE(back);
-  EXPECT_EQ(back->kind, world::light::LightKind::Spot);
-  EXPECT_NEAR(back->direction.y, -1.0f, 1e-5f);
+  EXPECT_EQ(back->kind, material::LightKind::Spot);
+  EXPECT_NEAR(sigil::world::light::travel(*back).y, -1.0f, 1e-5f);
   EXPECT_NEAR(back->position.y, 80.0f, 1e-4f);
-  EXPECT_FLOAT_EQ(back->outerDeg, 40.0f);
+  EXPECT_FLOAT_EQ(back->outerAngle, 40.0f);
   const float softness = 1.0f - 28.0f / 40.0f;
-  EXPECT_FLOAT_EQ(back->innerDeg, 40.0f * (1.0f - softness));
+  EXPECT_FLOAT_EQ(back->innerAngle, 40.0f * (1.0f - softness));
   EXPECT_FLOAT_EQ(back->range, 500.0f);
 }
 
@@ -483,18 +483,18 @@ TEST(UsdRead, ReadsALightAndACameraAnotherToolAuthored) {
   ASSERT_TRUE(lights) << error;
   ASSERT_EQ(lights->size(), 1u);
   EXPECT_EQ(lights->front().path, "/World/rig/key");
-  const world::light::Light& key = lights->front().light;
+  const material::Light& key = lights->front().light;
   // A shaping cone and no sigil data: a spot whose range is the default,
   // standing where its parent Xform puts it and aimed by its own
   // rotation.
-  EXPECT_EQ(key.kind, world::light::LightKind::Spot);
+  EXPECT_EQ(key.kind, material::LightKind::Spot);
   EXPECT_NEAR(key.position.y, 200.0f, 1e-4f);
-  EXPECT_NEAR(key.direction.y, -1.0f, 1e-5f);
-  EXPECT_FLOAT_EQ(key.outerDeg, 30.0f);
-  EXPECT_FLOAT_EQ(key.innerDeg, 30.0f * (1.0f - 0.25f));
-  EXPECT_FLOAT_EQ(key.intensity, 3.0f);
+  EXPECT_NEAR(sigil::world::light::travel(key).y, -1.0f, 1e-5f);
+  EXPECT_FLOAT_EQ(key.outerAngle, 30.0f);
+  EXPECT_FLOAT_EQ(key.innerAngle, 30.0f * (1.0f - 0.25f));
+  EXPECT_FLOAT_EQ(key.intensity.value(), 3.0f);
   EXPECT_FLOAT_EQ(key.color.b, 1.0f);
-  EXPECT_FLOAT_EQ(key.range, world::light::Light{}.range);
+  EXPECT_FLOAT_EQ(key.range, material::Light{}.range);
 
   const std::optional<std::vector<usd::ReadCamera>> cameras =
       usd::readCameras(asset("foreign.usda"), &error);

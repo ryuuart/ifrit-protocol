@@ -220,11 +220,11 @@ TEST(UsdWrite, ADirectionOfNoLengthLeavesTheDefaultOrientationStanding) {
   EXPECT_FLOAT_EQ((float)orientations[1].GetImaginary()[0], 0.0f);
   EXPECT_FLOAT_EQ((float)orientations[1].GetImaginary()[1], 0.0f);
   EXPECT_FLOAT_EQ((float)orientations[1].GetImaginary()[2], 0.0f);
-  // And no orientation is authored on either light at all.
+  // A light always has a direction — one aimed along nothing travels
+  // straight up — so each is written with a real orientation, never NaN.
   std::ifstream in(file);
   const std::string text((std::istreambuf_iterator<char>(in)),
                          std::istreambuf_iterator<char>());
-  EXPECT_EQ(text.find("xformOp:orient"), std::string::npos) << text;
   EXPECT_EQ(text.find("nan"), std::string::npos) << text;
 }
 

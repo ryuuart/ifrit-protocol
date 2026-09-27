@@ -21,12 +21,12 @@ std::vector<glm::vec3> points(int n) {
 }
 
 void BM_Attenuation(benchmark::State& state) {
-  const light::Light lights[] = {
+  const material::Light lights[] = {
       light::sun({0, -1, 0}),
       light::point({0, 100, 0}),
       light::spot({0, 100, 0}, {0, -1, 0}),
   };
-  const light::Light& light = lights[state.range(0)];
+  const material::Light& light = lights[state.range(0)];
   const std::vector<glm::vec3> at = points(1024);
   for ([[maybe_unused]] auto iteration : state) {
     float sum = 0;

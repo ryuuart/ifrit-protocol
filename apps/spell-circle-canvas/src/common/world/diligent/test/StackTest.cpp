@@ -15,6 +15,7 @@
 #include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/mask/Mask.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/diligent/Runtime.h>
 
 #include "DeviceSeams.h"
@@ -24,7 +25,7 @@ using namespace sigil::world;
 
 namespace {
 
-constexpr SkISize kExtent{80, 80};
+constexpr glm::ivec2 kExtent{80, 80};
 
 /** The centre of a card wearing @p surface, rendered on @p runtime —
  *  which is where a mask that is half is half. */

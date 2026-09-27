@@ -55,7 +55,7 @@ auto lenses = usd::readCameras("shots/lab.usdc");  // ReadCamera: path + Camera
 **Values in, a stage out.** The writer never looks inside a renderer — the
 GPU has the meshes, not the CPU — it takes the same values you placed:
 `geometry::mesh::Mesh`, `glm::mat4`, `material::Material` (or a slot
-list), `geometry::mesh::Cloud`, `world::light::Light`,
+list), `geometry::mesh::Cloud`, `material::Light`,
 `geometry::mesh::camera::Camera`. Keep those around and writing the
 scene is one call per prop.
 

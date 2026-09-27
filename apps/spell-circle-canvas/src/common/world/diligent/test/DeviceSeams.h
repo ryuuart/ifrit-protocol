@@ -25,6 +25,7 @@
 #include <sigilmotion/clock/Engine.h>
 #include <sigilskia/graphite/GraphiteContext.h>
 #include <sigilskia/graphite/OffscreenSurface.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -75,7 +76,7 @@ inline geometry::mesh::camera::Camera levelEye() {
 }
 
 /** A card facing the camera, wearing @p surface, lit by one sun. */
-inline Frame card(const material::Material& surface, SkISize extent) {
+inline Frame card(const material::Material& surface, glm::ivec2 extent) {
   Element root = Element().key("set").children(
       {Element().key("sun").light(light::sun({-0.2f, -0.3f, -1.0f})),
        Element()
@@ -94,7 +95,7 @@ inline Frame card(const material::Material& surface, SkISize extent) {
  *  declaration and not of how long anything took. */
 inline SkBitmap photograph(const Frame& frame,
                            const ::sigil::world::Runtime& executor,
-                           SkISize extent,
+                           glm::ivec2 extent,
                            const geometry::mesh::camera::Camera& camera) {
   motion::Engine engine;
   Scene scene(engine);
@@ -105,10 +106,10 @@ inline SkBitmap photograph(const Frame& frame,
 
   SkBitmap bitmap;
   bitmap.allocPixels(
-      SkImageInfo::MakeN32Premul(extent.width(), extent.height()));
+      SkImageInfo::MakeN32Premul(extent.x, extent.y));
   SkCanvas canvas(bitmap);
   canvas.clear(SK_ColorBLACK);
-  scene.draw(canvas, camera);
+  draw(scene, canvas, camera);
   return bitmap;
 }
 

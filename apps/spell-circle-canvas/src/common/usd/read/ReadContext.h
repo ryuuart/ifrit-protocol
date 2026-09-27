@@ -50,7 +50,7 @@ void readInstancer(const pxr::UsdPrim& prim, ReadContext& context,
  *  light — a spot when the prim carries an authored shaping cone. The
  *  prim's local-to-world places it and aims its -Z; nullopt for a prim
  *  that is neither. */
-std::optional<world::light::Light> readLight(const pxr::UsdPrim& prim,
+std::optional<material::Light> readLight(const pxr::UsdPrim& prim,
                                              ReadContext& context);
 
 /** A UsdGeomCamera as a Camera: the prim's local-to-world as the

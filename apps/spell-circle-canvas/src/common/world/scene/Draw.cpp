@@ -10,6 +10,7 @@
 #include <include/core/SkImage.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <optional>
 #include <vector>
@@ -18,11 +19,10 @@
 
 namespace sigil::world {
 
-namespace {}  // namespace
-
-void Scene::draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
-                 const geometry::mesh::render::Runtime& runtime) {
-  Impl& impl = *m_impl;
+void draw(Scene& scene, SkCanvas& canvas,
+          const geometry::mesh::camera::Camera& camera,
+          const geometry::mesh::render::Runtime& runtime) {
+  Scene::Impl& impl = SceneAccess::of(scene);
   // A frame with passes has already been performed, from the viewpoint
   // the tree or the frame declared; presenting it is the whole of the
   // draw, and the arguments here do not enter into it.
@@ -41,9 +41,10 @@ void Scene::draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
   // scene by that fit and carry most of it off its own edge. A frame
   // that declared no extent has said nothing, and the surface is then
   // the only size there is.
-  const SkISize declared = impl.frame.extent();
-  const SkISize layer =
-      declared.isEmpty() ? canvas.getBaseLayerSize() : declared;
+  const glm::ivec2 declared = impl.frame.extent();
+  const SkISize layer = declared.x <= 0 || declared.y <= 0
+                            ? canvas.getBaseLayerSize()
+                            : toSk(declared);
   const SkSize viewport =
       SkSize::Make((float)layer.width(), (float)layer.height());
 
@@ -51,7 +52,7 @@ void Scene::draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
   style.runtime = runtime;
   if (!impl.lights.empty()) {
     style.lights.clear();
-    for (const light::Light& light : impl.lights)
+    for (const material::Light& light : impl.lights)
       style.lights.push_back(painterLight(light));
   }
   style.environment =
@@ -76,10 +77,12 @@ void Scene::draw(SkCanvas& canvas, const geometry::mesh::camera::Camera& camera,
   }
 }
 
-void Scene::draw(SkCanvas& canvas,
-                 const geometry::mesh::render::Runtime& runtime) {
-  const std::optional<geometry::mesh::camera::Camera> declared = camera();
-  draw(canvas, declared ? *declared : m_impl->frame.camera(), runtime);
+void draw(Scene& scene, SkCanvas& canvas,
+          const geometry::mesh::render::Runtime& runtime) {
+  const std::optional<geometry::mesh::camera::Camera> declared =
+      scene.camera();
+  draw(scene, canvas,
+       declared ? *declared : SceneAccess::of(scene).frame.camera(), runtime);
 }
 
 }  // namespace sigil::world

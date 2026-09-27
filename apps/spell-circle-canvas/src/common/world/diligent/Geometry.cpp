@@ -18,6 +18,7 @@
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/surface/Surface.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/diligent/Runtime.h>
 #include <sigilworld/light/Light.h>
 
@@ -144,7 +145,7 @@ void writeScaffold(material::slang::Uniforms& uniforms,
                    const material::slang::Compiled& program,
                    const glm::mat4& viewProj, const glm::mat4& view,
                    const glm::mat4& model, glm::vec4 baseColor,
-                   std::span<const light::Light> lights, const Environment& sky,
+                   std::span<const material::Light> lights, const Environment& sky,
                    const glm::mat3& orientation, int levels, bool lit) {
   uniforms.set("uViewProj", viewProj);
   uniforms.set("uModel", model);
@@ -199,7 +200,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
               uint64_t artefact, const geometry::mesh::Mesh& mesh,
               const glm::mat4& model, glm::vec4 baseColor,
               const material::Material* material, const material::Texture* map,
-              std::span<const light::Light> lights, const Environment& sky,
+              std::span<const material::Light> lights, const Environment& sky,
               const glm::mat3& orientation, bool lit, bool depthWrite,
               bool cull) {
   const MeshBuffers* buffers = gpu.meshes.upload(artefact, mesh);
@@ -250,7 +251,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   if (material && surface.recipe && material::stackDepth(*material) > 0)
     map = nullptr;
   const Sampling sampling = map ? samplingOf(*map) : Sampling{};
-  uniforms.set(kMapUv, mapMatrix(sampling.uv));
+  uniforms.set(kMapUv, mapMatrix(toSk(sampling.uv)));
   for (size_t i = 0; i < textures.size(); ++i) {
     const std::string& slot = surface.program->textures[i];
     // THE BASE COLOUR MAP IS THE SCAFFOLD'S, and only the scaffold's. It
@@ -299,7 +300,7 @@ void drawBody(Gpu& gpu, const glm::mat4& viewProj, const glm::mat4& view,
   // and every slot bound here, and clamping an axis that was asked to
   // repeat drags one edge's texels across the whole face.
   device::bindDraw(gpu.shared, *pipeline, *surface.program, uniforms, textures,
-                   sampling.filter, sampling.tile, &isEnvironmentSlot);
+                   toSk(sampling.filter), sampling.tile, &isEnvironmentSlot);
   dg::IBuffer* vertices = buffers->vertices;
   const dg::Uint64 offset = 0;
   context->SetVertexBuffers(0, 1, &vertices, &offset,
@@ -420,11 +421,11 @@ void paintGeometry(Gpu& gpu, const PassWork& work, const View& view,
   dg::ITexture* colour = gpu.target(writes.front());
   if (!colour) return;
 
-  const glm::mat4 viewProj = view.camera.clipProjection(view.extent);
+  const glm::mat4 viewProj = view.camera.clipProjection(toSk(view.extent));
   const glm::mat4 viewMatrix = view.camera.view();
 
   float clear[4];
-  premultiplied(pass.clear(), clear);
+  premultiplied(toSk(pass.clear()), clear);
   const bool asCoverage = work.realisation == Selection::Mask;
   if (asCoverage) {
     // Coverage is where the selection is, not what it looks like: flat

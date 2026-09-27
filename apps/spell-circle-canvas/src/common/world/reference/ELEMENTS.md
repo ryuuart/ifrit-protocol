@@ -285,7 +285,7 @@ returns, into the resources the ordering gave it, and the draw presents
 what they wrote. Execution reads the extracted state and never the
 Element tree.
 
-`Scene::draw` presents what the last render produced. A frame that
+`draw(scene, canvas)`, in `advanced/Skia.h`, presents what the last render produced. A frame that
 declared passes has already run them, so the camera and the runtime
 arguments are the ones the passes already used and do not enter into it.
 The overload with no camera draws from the viewpoint the tree declared; a

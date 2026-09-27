@@ -13,7 +13,7 @@ find_package(boost_container CONFIG REQUIRED)
 sigil_library(SigilWorldFrame
   SOURCES Cpu.cpp CpuGeometry.cpp CpuPost.cpp Frame.cpp Pass.cpp Targets.cpp
           View.cpp Cpu.h
-  HEADERS Frame.h Pass.h Runtime.h Targets.h View.h
+  HEADERS Frame.h Pass.h Runtime.h View.h ../advanced/Skia.h
   PUBLIC SigilWorldElement SigilMaterialTexture SigilGeometryMeshRender
          SigilCoreCallable SigilCoreReconcile Boost::container
   PRIVATE SigilGeometryMeshPop SigilMaterialSkia)

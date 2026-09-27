@@ -6,7 +6,7 @@
  */
 
 #include <sigilworld/frame/Pass.h>
-#include <sigilworld/frame/Targets.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/View.h>
 
 #include <string>

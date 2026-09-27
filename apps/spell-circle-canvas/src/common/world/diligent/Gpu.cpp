@@ -16,6 +16,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <sigilworld/advanced/Skia.h>
 
 namespace sigil::world::diligent {
 

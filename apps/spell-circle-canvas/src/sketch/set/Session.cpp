@@ -11,6 +11,7 @@
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/set/Set.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/frame/Pass.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -110,7 +111,7 @@ class SetSession final : public Session {
     // canvas in the pixels this canvas actually has, so the frame is
     // formed at the resolution it will be seen at.
     m_extent = extentOn(canvas);
-    frame.extent(m_extent).camera(viewing());
+    frame.extent(glm::ivec2(m_extent.width(), m_extent.height())).camera(viewing());
     if (m_orbiting) {
       // A TREE'S OWN LENS WINS over the frame's, which is what lets a
       // set put its camera on a rail and be photographed from it. A host
@@ -231,7 +232,7 @@ class SetSession final : public Session {
     SkAutoCanvasRestore restore(&canvas, true);
     canvas.scale(m_specification.size.width() / (float)m_extent.width(),
                  m_specification.size.height() / (float)m_extent.height());
-    m_scene.draw(canvas, viewing());
+    world::draw(m_scene, canvas, viewing());
   }
 
   /** The texture scenes the context handed out. Before the set and the

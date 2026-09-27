@@ -11,6 +11,7 @@
 #include <include/core/SkSamplingOptions.h>
 #include <include/effects/SkColorMatrix.h>
 #include <include/effects/SkImageFilters.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <variant>
 #include <vector>
@@ -27,11 +28,11 @@ constexpr SkSamplingOptions kSampling;
  *  one matrix Skia applies in a single pass. */
 sk_sp<SkColorFilter> gradeOf(const Levels& levels) {
   SkColorMatrix matrix;
-  matrix.setScale(levels.gain * levels.tint.fR, levels.gain * levels.tint.fG,
-                  levels.gain * levels.tint.fB, 1.0f);
-  matrix.postTranslate(levels.lift * levels.tint.fR,
-                       levels.lift * levels.tint.fG,
-                       levels.lift * levels.tint.fB, 0.0f);
+  matrix.setScale(levels.gain * levels.tint.r, levels.gain * levels.tint.g,
+                  levels.gain * levels.tint.b, 1.0f);
+  matrix.postTranslate(levels.lift * levels.tint.r,
+                       levels.lift * levels.tint.g,
+                       levels.lift * levels.tint.b, 0.0f);
   return SkColorFilters::Matrix(matrix);
 }
 
@@ -52,7 +53,7 @@ void paintOperation(SkCanvas& canvas, const PostOperation& operation,
   if (!composite) return;
   for (size_t i = 1; i < layers.size(); ++i) {
     SkPaint over;
-    over.setBlendMode(composite->mode);
+    over.setBlendMode(toSk(composite->mode));
     over.setAlphaf(composite->opacity);
     canvas.drawImage(layers[i], 0, 0, kSampling, &over);
   }

@@ -11,12 +11,15 @@
 
 #include <sigilcore/comparable/Erased.h>
 #include <sigilworld/frame/Pass.h>
-#include <sigilworld/frame/Targets.h>
 #include <sigilworld/frame/View.h>
 
 #include <utility>
 
 namespace sigil::world {
+
+/** The resources a frame's passes write and read, declared with the
+ *  renderer they are surfaces of, in `advanced/Skia.h`. */
+class Targets;
 
 /** The one operation a pass is performed by. An implementation owns
  *  whatever device it needs; the arguments carry none, so a frame

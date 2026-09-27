@@ -12,6 +12,7 @@
 #include "sigilworld/diligent/Runtime.h"
 
 #include <sigilgeometry/mesh/pop/device/Cook.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <memory>
 #include <string>
@@ -38,7 +39,7 @@ class GpuExecutor : public Executor {
   }
 
   void beginFrame(Targets& targets) const override {
-    m_gpu->resize(targets.extent());
+    m_gpu->resize(toSk(targets.extent()));
     m_gpu->beginFrame();
     // Where a resource's pixels are, for the frame that asks for one.
     // Installed every frame because the targets a scene holds may have

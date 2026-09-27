@@ -52,7 +52,7 @@ std::optional<geometry::mesh::codec::decode::Model> readModel(
  *  from — the same string the Writer returned for it. */
 struct ReadLight {
   std::string path;
-  world::light::Light light;
+  material::Light light;
 };
 
 /** ONE ENVIRONMENT MAP read from a stage: its dials, where the panorama

@@ -4,6 +4,7 @@
  */
 
 #include <sigilworld/frame/Frame.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <utility>
 
@@ -16,7 +17,7 @@ Frame& Frame::scene(Element root) {
   return *this;
 }
 
-Frame& Frame::extent(SkISize size) {
+Frame& Frame::extent(glm::ivec2 size) {
   m_extent = size;
   return *this;
 }

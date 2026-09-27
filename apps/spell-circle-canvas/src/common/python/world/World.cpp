@@ -8,6 +8,7 @@
 #include <sigilpython/motion/Convert.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/world/Registration.h>
+#include <sigilworld/advanced/Skia.h>
 #include <sigilworld/kit/Kit.h>
 #include <sigilworld/scene/Scene.h>
 
@@ -96,7 +97,7 @@ class Scene {
     if (!surface)
       throw std::runtime_error("The World image could not be allocated.");
     surface->getCanvas()->clear(color(background));
-    m_scene.draw(*surface->getCanvas());
+    world::draw(m_scene, *surface->getCanvas());
     return surface->makeImageSnapshot();
   }
 
@@ -110,33 +111,20 @@ class Scene {
 /** A light's tint. Four numbers are taken as written, because a light may
  *  be brighter than white and a colour's channels are read as unit
  *  values; every other spelling is a colour. */
-glm::vec4 lightColor(py::handle value) {
+material::Color lightColor(py::handle value) {
   if (!py::isinstance<py::str>(value) && py::isinstance<py::sequence>(value) &&
-      py::len(value) == 4)
-    return py::cast<glm::vec4>(value);
+      py::len(value) == 4) {
+    const glm::vec4 tint = py::cast<glm::vec4>(value);
+    return {tint.x, tint.y, tint.z, tint.w};
+  }
   const SkColor4f tint = color(value);
   return {tint.fR, tint.fG, tint.fB, tint.fA};
 }
 
 void bindLight(py::module_& module) {
   auto light = module.def_submodule("light");
-  using Light = world::light::Light;
-  py::enum_<world::light::LightKind>(light, "LightKind")
-      .value("Sun", world::light::LightKind::Sun)
-      .value("Point", world::light::LightKind::Point)
-      .value("Spot", world::light::LightKind::Spot);
-  bindRecord<Light>(light, "Light", "Unknown light field: ")
-      .def_readwrite("kind", &Light::kind)
-      .def_property(
-          "color", [](const Light& self) { return self.color; },
-          [](Light& self, py::handle value) { self.color = lightColor(value); })
-      .def_readwrite("intensity", &Light::intensity)
-      .def_readwrite("direction", &Light::direction)
-      .def_readwrite("position", &Light::position)
-      .def_readwrite("range", &Light::range)
-      .def_readwrite("innerDeg", &Light::innerDeg)
-      .def_readwrite("outerDeg", &Light::outerDeg)
-      .def(py::self == py::self);
+  light.def("travel", &world::light::travel, py::arg("light"),
+            "The unit direction a light travels, toward the scene.");
   light.def(
       "sun",
       [](const glm::vec3& direction, py::handle tint, float intensity) {
@@ -155,13 +143,13 @@ void bindLight(py::module_& module) {
       py::arg("intensity") = 1, py::arg("range") = 600);
   light.def(
       "spot",
-      [](const glm::vec3& position, const glm::vec3& direction, float outerDeg,
-         float innerDeg, py::handle tint, float intensity, float range) {
-        return world::light::spot(position, direction, outerDeg, innerDeg,
+      [](const glm::vec3& position, const glm::vec3& direction, float outerAngle,
+         float innerAngle, py::handle tint, float intensity, float range) {
+        return world::light::spot(position, direction, outerAngle, innerAngle,
                                   lightColor(tint), intensity, range);
       },
-      py::arg("position"), py::arg("direction"), py::arg("outerDeg") = 45,
-      py::arg("innerDeg") = 0, py::arg("color") = glm::vec4(1),
+      py::arg("position"), py::arg("direction"), py::arg("outerAngle") = 45,
+      py::arg("innerAngle") = 0, py::arg("color") = glm::vec4(1),
       py::arg("intensity") = 1, py::arg("range") = 600);
   light.def("attenuation", &world::light::attenuation, py::arg("light"),
             py::arg("at"));
@@ -184,7 +172,10 @@ void bindWorldKit(py::module_& module) {
       .def_readwrite("intensity", &Rig::intensity)
       .def_property(
           "color", [](const Rig& self) { return self.color; },
-          [](Rig& self, py::handle value) { self.color = lightColor(value); });
+          [](Rig& self, py::handle value) {
+            const material::Color tint = lightColor(value);
+            self.color = {tint.r, tint.g, tint.b, tint.a};
+          });
   bindRecord<Turntable>(kit, "Turntable", "Unknown turntable field: ")
       .def_readwrite("at", &Turntable::at)
       .def_readwrite("radius", &Turntable::radius)
@@ -368,7 +359,8 @@ void bindWorld(py::module_& root) {
       .def(
           "extent",
           [](world::Frame& self, std::array<int, 2> size) -> world::Frame& {
-            return self.extent(extent(size));
+            const SkISize pixels = extent(size);
+            return self.extent(glm::ivec2(pixels.width(), pixels.height()));
           },
           py::arg("size"), fluent)
       .def("camera",
@@ -409,7 +401,7 @@ void bindWorld(py::module_& root) {
       .def(
           "draw",
           [](Scene& self, BorrowedPen& pen) {
-            self.get().draw(*pen.get().canvas());
+            world::draw(self.get(), *pen.get().canvas());
           },
           py::arg("pen"))
       .def(

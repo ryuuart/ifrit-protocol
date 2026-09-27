@@ -37,7 +37,7 @@ using ::sigil::world::diligent::at;
 
 namespace {
 
-constexpr SkISize kExtent{120, 120};
+constexpr glm::ivec2 kExtent{120, 120};
 
 /** A texture of @p width x @p height, drawn by @p paint. Named by a key
  *  so two identical asks are one texture. */

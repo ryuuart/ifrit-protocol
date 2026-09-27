@@ -8,10 +8,10 @@
  * scene into pixels, not a thing standing in the world.
  */
 
-#include <include/core/SkBlendMode.h>
-#include <include/core/SkColor.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilcore/comparable/Erased.h>
+#include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/BlendMode.h>
 #include <sigilworld/element/Geometry.h>
 #include <sigilworld/element/Selector.h>
 #include <sigilworld/frame/View.h>
@@ -60,7 +60,7 @@ struct Blur {
 struct Levels {
   float gain = 1.0f;
   float lift = 0.0f;
-  SkColor4f tint{1.0f, 1.0f, 1.0f, 1.0f};
+  material::Color tint{1.0f, 1.0f, 1.0f, 1.0f};
   bool operator==(const Levels& other) const {
     return gain == other.gain && lift == other.lift && tint == other.tint;
   }
@@ -70,7 +70,7 @@ struct Levels {
  *  it is and every layer after it arrives under @c mode at @c opacity,
  *  so a pass reading its own previous output at less than one decays. */
 struct Composite {
-  SkBlendMode mode = SkBlendMode::kPlus;
+  material::BlendMode mode = material::BlendMode::PlusLighter;
   float opacity = 1.0f;
   bool operator==(const Composite&) const = default;
 };
@@ -157,7 +157,7 @@ class Pass {
    *  What the pass actually does when its turn comes.
    *  @{ */
   /** What a geometry pass clears its target to before it paints. */
-  Pass& clear(SkColor4f colour);
+  Pass& clear(material::Color colour);
   /** The points a compute pass cooks, and the executor it cooks them
    *  on. They land in the pass's first written resource. */
   Pass& chain(geometry::mesh::pop::Chain c,
@@ -170,10 +170,10 @@ class Pass {
    *  replaces whatever `levels` or `composite` set. */
   Pass& blur(float sigma);
   /** Grade what the pass reads, replacing any other post operation. */
-  Pass& levels(float gain, float lift, SkColor4f tint = {1, 1, 1, 1});
+  Pass& levels(float gain, float lift, material::Color tint = {1, 1, 1, 1});
   /** Lay what the pass reads one layer over another, replacing any other
    *  post operation. */
-  Pass& composite(SkBlendMode mode, float opacity = 1.0f);
+  Pass& composite(material::BlendMode mode, float opacity = 1.0f);
   /** THE ESCAPE, as a comparable seam value. */
   Pass& body(PassBody b);
   /** …and as a callable, which compares equal to nothing but its own
@@ -212,7 +212,7 @@ class Pass {
   [[nodiscard]] Selection realisation() const { return m_realisation; }
   /** The colour a geometry pass clears to; transparent black by
    *  default. */
-  [[nodiscard]] SkColor4f clear() const { return m_clear; }
+  [[nodiscard]] material::Color clear() const { return m_clear; }
   /** The points a compute pass cooks; empty on every other stage. */
   [[nodiscard]] const geometry::mesh::pop::Chain& chain() const {
     return m_chain;
@@ -246,7 +246,7 @@ class Pass {
   bool m_narrowed = false;
   std::optional<::sigil::material::Material> m_variant;
   Selection m_realisation = Selection::Auto;
-  SkColor4f m_clear{0.0f, 0.0f, 0.0f, 0.0f};
+  material::Color m_clear{0.0f, 0.0f, 0.0f, 0.0f};
   geometry::mesh::pop::Chain m_chain;
   geometry::mesh::pop::Runtime m_popRuntime =
       geometry::mesh::pop::Runtime::cpu();

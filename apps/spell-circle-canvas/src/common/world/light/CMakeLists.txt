@@ -1,12 +1,13 @@
-# The light feature: emitters as plain comparable values — a sun, a
-# point light, a spot, their falloffs and the per-frame budget. No
-# device, no registry, no renderer: glm and nothing else, so a consumer
-# that only needs to say where the lights are links this alone.
+# The light feature: Material's light placed in a set — its angles as a
+# direction in the world, a sun, a point light, a spot, and their
+# falloffs. No device, no registry, no renderer: Material's core value and
+# glm, so a consumer that only needs to say where the lights are links
+# this alone.
 find_package(glm CONFIG REQUIRED)
 sigil_library(SigilWorldLight
   SOURCES Light.cpp
   HEADERS Light.h
-  PUBLIC glm::glm)
+  PUBLIC SigilMaterialCore glm::glm)
 
 # The emitter values are asserted in world_test, beside the
 # description that carries them: the description links this feature, so a

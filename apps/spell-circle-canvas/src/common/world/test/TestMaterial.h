@@ -19,6 +19,7 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/advanced/Recipe.h>
+#include <sigilworld/advanced/Skia.h>
 
 #include <glm/vec4.hpp>
 #include <memory>

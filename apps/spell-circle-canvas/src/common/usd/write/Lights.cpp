@@ -24,23 +24,23 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace sigil::usd {
 
 std::string Writer::light(std::string_view name,
-                          const world::light::Light& light,
+                          const material::Light& light,
                           std::string_view parent) {
   Impl& impl = *m_impl;
   if (!impl.stage) return {};
   const std::string path = impl.uniquePath(parent, name);
-  if (light.kind != world::light::LightKind::Sun) {
+  if (light.kind != material::LightKind::Directional) {
     UsdLuxSphereLight sphere =
         UsdLuxSphereLight::Define(impl.stage, SdfPath(path));
     sphere.AddTranslateOp().Set(
         GfVec3d(light.position.x, light.position.y, light.position.z));
     sphere.CreateRadiusAttr().Set(1.0f);
-    sphere.CreateIntensityAttr().Set(light.intensity);
+    sphere.CreateIntensityAttr().Set(light.intensity.value());
     sphere.CreateColorAttr().Set(
-        GfVec3f(light.color.x, light.color.y, light.color.z));
+        GfVec3f(light.color.r, light.color.g, light.color.b));
     sphere.GetPrim().SetCustomDataByKey(TfToken("sigil:range"),
                                         VtValue(light.range));
-    if (light.kind == world::light::LightKind::Spot) {
+    if (light.kind == material::LightKind::Spot) {
       // The cone is UsdLux shaping: it opens around the light's -Z, so
       // the prim is oriented to aim -Z along the direction, the outer
       // angle is the shaping cone angle, and the inner edge is the
@@ -48,15 +48,15 @@ std::string Writer::light(std::string_view name,
       // off — so any UsdLux reader shades the same spot.
       // A spot with no direction to speak of keeps the prim's default
       // orientation: a rotation from a zero vector is a NaN.
-      if (const std::optional<glm::vec3> d = aimedAlong(light.direction)) {
+      if (const std::optional<glm::vec3> d = aimedAlong(world::light::travel(light))) {
         const GfRotation rot(GfVec3d(0, 0, -1), GfVec3d(d->x, d->y, d->z));
         sphere.AddOrientOp().Set(GfQuatf(rot.GetQuat()));
       }
       UsdLuxShapingAPI shaping = UsdLuxShapingAPI::Apply(sphere.GetPrim());
-      shaping.CreateShapingConeAngleAttr().Set(light.outerDeg);
+      shaping.CreateShapingConeAngleAttr().Set(light.outerAngle);
       const float softness =
-          light.outerDeg > 0
-              ? std::max(0.0f, 1.0f - light.innerDeg / light.outerDeg)
+          light.outerAngle > 0
+              ? std::max(0.0f, 1.0f - light.innerAngle / light.outerAngle)
               : 0.0f;
       shaping.CreateShapingConeSoftnessAttr().Set(softness);
     }
@@ -66,13 +66,13 @@ std::string Writer::light(std::string_view name,
       UsdLuxDistantLight::Define(impl.stage, SdfPath(path));
   // A distant light shines down its -Z; aim -Z along the direction, and
   // leave a sun with no direction facing the way a distant light faces.
-  if (const std::optional<glm::vec3> d = aimedAlong(light.direction)) {
+  if (const std::optional<glm::vec3> d = aimedAlong(world::light::travel(light))) {
     const GfRotation rot(GfVec3d(0, 0, -1), GfVec3d(d->x, d->y, d->z));
     distant.AddOrientOp().Set(GfQuatf(rot.GetQuat()));
   }
-  distant.CreateIntensityAttr().Set(light.intensity);
+  distant.CreateIntensityAttr().Set(light.intensity.value());
   distant.CreateColorAttr().Set(
-      GfVec3f(light.color.x, light.color.y, light.color.z));
+      GfVec3f(light.color.r, light.color.g, light.color.b));
   return path;
 }
 
