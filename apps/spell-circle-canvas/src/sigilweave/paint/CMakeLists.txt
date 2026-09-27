@@ -15,19 +15,17 @@ sigil_library(SigilWeavePaint
 # with, and the decoration bands beneath and above the glyphs. Where a band
 # lands is geometry and belongs to the decoration feature; only whether the
 # ink arrives is asked here. A pass carrying a material shades through a
-# resolver the host installs, so the kit paints and the Skia backend that
-# shades them are both linked. The column band is drawn beside a Japanese
+# resolver the host installs, so the Skia backend that shades the test's
+# own field is linked. The column band is drawn beside a Japanese
 # run in whatever face the machine resolves for it, so that case alone
 # carries the label.
 sigil_test(weave_test
   SOURCES test/PaintTest.cpp test/DecorationPaintTest.cpp
-  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialKit
-            SigilMaterialSkia
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialSkia
   LABELS fonts
   SUITES ColumnDecorationInk.AColumnDrawsItsBandBesideTheType)
 
 # draw and drawBatched per glyph on a raster surface.
 sigil_bench(weave_bench
   SOURCES bench/PaintBench.cpp
-  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialKit
-            SigilMaterialSkia)
+  LIBRARIES SigilWeavePaint SigilWeavePorts SigilWeaveKit SigilMaterialSkia)

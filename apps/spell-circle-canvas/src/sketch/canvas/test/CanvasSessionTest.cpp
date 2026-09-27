@@ -18,7 +18,6 @@
 #include <sigilio/hub/Recording.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilweave/paint/Paint.h>
 #include <sigilweave/style/PaintLayer.h>
@@ -38,6 +37,7 @@
 #include <utility>
 #include <vector>
 
+#include "TextFields.h"
 #include "ScratchDir.h"
 #include "support/Fixtures.h"
 #include "support/Pixels.h"
@@ -604,7 +604,7 @@ struct Shaded {
     sigil::weave::PaintLayer pass(SK_ColorWHITE);
     if (carriesMaterial)
       pass.material = std::make_shared<const sigil::material::Material>(
-          sigil::material::kit::meshGradient(
+          text_fields::meshGradient(
               SkRect::MakeWH(kShadedWidth, kShadedHeight), 0.0f));
     sigil::weave::Type type;
     type.face = sigil::test::instrument::sans();

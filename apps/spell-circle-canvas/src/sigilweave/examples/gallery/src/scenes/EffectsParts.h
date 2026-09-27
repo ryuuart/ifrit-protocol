@@ -16,7 +16,7 @@
 
 namespace gallery {
 
-/// A text-paint preset (sigilmaterial/kit/TextPaint.h) shaded by
+/// A text field (TextFields.h) shaded by
 /// SigilMaterial's Skia backend; the program compiles once per process,
 /// so a part may replace a paint's shader every frame.
 sk_sp<SkShader> shade(const sigil::material::Material& material);

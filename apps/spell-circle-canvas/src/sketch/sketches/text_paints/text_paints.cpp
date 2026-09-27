@@ -13,7 +13,6 @@
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
-#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -24,6 +23,7 @@
 #include <vector>
 
 #include "../y2k_chrome/ChromeType.h"
+#include "TextPaints.h"
 
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -62,11 +62,11 @@ std::vector<Ink> inks() {
   return {
       {"water", "WATER", "water(unit, t)",
        "Fine highlights in a blue field; at body size they read as grain.",
-       field(material::kit::water(unit, kMoment))},
+       field(text_paints::water(unit, kMoment))},
       {"mesh", "MESH", "meshGradient(unit, t)",
        "Four colour regions, crossed by the word and by the column alike.",
-       field(material::kit::meshGradient(unit, kMoment))},
-      // `material::kit::sparkle` sizes its cells in the pixels it is
+       field(text_paints::meshGradient(unit, kMoment))},
+      // `sparkle` sizes its cells in the pixels it is
       // sampled in and never reads the run's extent, so on the unit
       // square of the default box a whole passage falls inside one cell.
       // The rule states the ink on the passage itself, so the Subtree box
@@ -74,17 +74,17 @@ std::vector<Ink> inks() {
       // the 22 px it was drawn at; the bounds place only the origin.
       {"sparkle", "SPARKLE OVER A BASE", "sparkle(px, t) · plus · Subtree",
        "Stated over the passage's pixels, where its cells keep their size.",
-       material::from({0.23f, 0.30f, 0.46f, 1}).layer(field(material::kit::sparkle(SkRect::MakeWH(220, 70), kMoment)), {.blend = material::BlendMode::PlusLighter}),
+       material::from({0.23f, 0.30f, 0.46f, 1}).layer(field(text_paints::sparkle(SkRect::MakeWH(220, 70), kMoment)), {.blend = material::BlendMode::PlusLighter}),
        PaintBox::Subtree},
       {"star-nest", "STAR NEST", "starNest(unit, t)",
        "Dense light inside the letterforms; small type keeps its warmth.",
-       field(material::kit::starNest(unit, kMoment))},
+       field(text_paints::starNest(unit, kMoment))},
       {"clouds", "CLOUDS", "clouds(unit, t)",
        "Broad, soft changes of value that hold an even grey.",
-       field(material::kit::clouds(unit, kMoment))},
+       field(text_paints::clouds(unit, kMoment))},
       {"tunnel", "TUNNEL", "tunnel(unit, t)",
        "A high-contrast field; its dark rings eat whole words.",
-       field(material::kit::tunnel(unit, kMoment))},
+       field(text_paints::tunnel(unit, kMoment))},
       {"sunset", "SUNSET CHROME", "sunsetChromeType()",
        "A hard horizon at half cap height; a column takes one band of it.",
        y2k::sunsetChromeType()},

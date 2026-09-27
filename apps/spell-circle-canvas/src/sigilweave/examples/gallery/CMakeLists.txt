@@ -81,8 +81,7 @@ target_link_libraries(WeaveGallery
     SigilWeave   # the whole engine: layout, choreography, the label cache
     SigilWeaveQt # QFont/QString bridging
     SigilWeaveKit # rebuild/layout guards, glyph buckets, labels
-    SigilMaterialKit  # the text-paint presets the effect scenes shade
-    SigilMaterialSkia # and the Skia backend that shades them
+    SigilMaterialSkia # the Skia backend that shades the effect scenes' fields
     SigilWeavePorts # systemFontManager()
     SigilMeasure # the stopwatch each scene times its layout with
     SigilCoreCache # the rebuild guard each scene keys its derived values on

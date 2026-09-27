@@ -11,12 +11,12 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkShader.h>
 #include <include/core/SkSurface.h>
-#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilweave/kit/PaintLayers.h>
 
 #include <cmath>
 
+#include "TextFields.h"
 #include "support/Corpus.h"
 #include "support/Layouts.h"
 
@@ -190,10 +190,10 @@ Scene wall(bool effects) {
     textStyle.paint.addUnderlay(sigil::weave::kit::glow(0x772A77FF, 1.8f))
         .addUnderlay(sigil::weave::kit::outline(0xFF061229, 0.7f));
     textStyle.paint.foreground.setShader(
-        shade(sigil::material::kit::meshGradient(bounds, 1.25f)));
+        shade(text_fields::meshGradient(bounds, 1.25f)));
     SkPaint stars;
     stars.setAntiAlias(true);
-    stars.setShader(shade(sigil::material::kit::sparkle(bounds, 1.25f)));
+    stars.setShader(shade(text_fields::sparkle(bounds, 1.25f)));
     stars.setBlendMode(SkBlendMode::kScreen);
     textStyle.paint.addOverlay(PaintLayer(std::move(stars)));
   }

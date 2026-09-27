@@ -11,7 +11,6 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
-#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilweave/kit/Features.h>
 #include <sigilweave/layout/Flow.h>
@@ -20,6 +19,7 @@
 
 #include <utility>
 
+#include "TextFields.h"
 #include "support/Plates.h"
 
 using namespace sigil::weave;
@@ -112,7 +112,7 @@ TEST(WeavePlates, RunDressingDrawsItsBaseline) {
     meshPaint.setAntiAlias(true);
     meshPaint.setAlphaf(0.55f);  // keep the ink readable through the band
     meshPaint.setShader(
-        shade(sigil::material::kit::meshGradient(bandBounds, 1.5f)));
+        shade(text_fields::meshGradient(bandBounds, 1.5f)));
     meshHighlight.paint = meshPaint;
     meshMarked.paint.addDecoration(meshHighlight);
     paragraph.appendText(u8"a mesh-gradient marker ", meshMarked);

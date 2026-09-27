@@ -3,7 +3,6 @@
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
 #include <sigilcore/cache/Rebuild.h>
-#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmeasure/time/Stopwatch.h>
 #include <sigilweave/kit/PaintLayers.h>
@@ -14,6 +13,7 @@
 #include <cmath>
 #include <string>
 
+#include "TextFields.h"
 #include "EffectsParts.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
@@ -131,20 +131,19 @@ class LayerShowcasePart final : public Scene {
     // Each preset's program compiles once per process. These calls only
     // make new uniform blocks/shader instances; replacing them is
     // paint-only and the existing shapes and layouts remain valid.
-    namespace kit = sigil::material::kit;
     const SkRect shaderBounds = SkRect::MakeWH(canvasWidth, canvasHeight);
     const float time = static_cast<float>(elapsedSeconds);
-    m_paints[3].foreground.setShader(shade(kit::water(shaderBounds, time)));
+    m_paints[3].foreground.setShader(shade(text_fields::water(shaderBounds, time)));
     m_paints[4].foreground.setShader(
-        shade(kit::meshGradient(shaderBounds, time)));
+        shade(text_fields::meshGradient(shaderBounds, time)));
     m_paints[4].overlays[0].paint.setShader(
-        shade(kit::sparkle(shaderBounds, time)));
+        shade(text_fields::sparkle(shaderBounds, time)));
     m_paragraphPaints[3].foreground.setShader(
-        shade(kit::water(paragraphBounds, time)));
+        shade(text_fields::water(paragraphBounds, time)));
     m_paragraphPaints[4].foreground.setShader(
-        shade(kit::meshGradient(paragraphBounds, time)));
+        shade(text_fields::meshGradient(paragraphBounds, time)));
     m_paragraphPaints[4].overlays[0].paint.setShader(
-        shade(kit::sparkle(paragraphBounds, time)));
+        shade(text_fields::sparkle(paragraphBounds, time)));
 
     // A separate translucent gradient is composited above the stars as a
     // traveling sheen, demonstrating that runtime and stock shaders layer in

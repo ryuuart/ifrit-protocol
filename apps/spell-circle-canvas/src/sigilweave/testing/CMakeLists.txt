@@ -37,7 +37,7 @@ sigil_test(weave_test
           test/CjkColumnsPlateTest.cpp test/PathExclusionsPlateTest.cpp
           test/CjkFallbackPlateTest.cpp test/RunDressingPlateTest.cpp
   LIBRARIES SigilWeaveTesting SigilWeavePorts SigilWeaveKit SigilWeaveQuery
-            SigilMaterialKit SigilMaterialSkia
+            SigilMaterialSkia
   DEFINITIONS
     SIGIL_WEAVE_PLATE_BASELINES="${CMAKE_CURRENT_SOURCE_DIR}/test/plates"
     SIGIL_WEAVE_PLATE_RENDERS="${CMAKE_CURRENT_BINARY_DIR}/plates"

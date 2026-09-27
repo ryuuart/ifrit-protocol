@@ -15,7 +15,6 @@
 #include <include/core/SkSurface.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkGradient.h>
-#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilweave/kit/PaintLayers.h>
 #include <sigilweave/paint/Paint.h>
@@ -24,6 +23,7 @@
 #include <utility>
 #include <vector>
 
+#include "TextFields.h"
 #include "GlyphCanvas.h"
 #include "support/Faces.h"
 #include "support/Layouts.h"
@@ -204,7 +204,7 @@ TEST(PaintPasses, MaterialPassShadesThroughTheInstalledResolver) {
   // resolver its shader replaces the colour and the ink is the material's.
   PaintLayer pass(SK_ColorWHITE);
   pass.material = std::make_shared<const sigil::material::Material>(
-      sigil::material::kit::meshGradient(SkRect::MakeWH(300, 80), 0.0f));
+      text_fields::meshGradient(SkRect::MakeWH(300, 80), 0.0f));
   PaintStyle style(SK_ColorTRANSPARENT);
   style.addOverlay(pass);
   paragraph.setPaint(0, 13, style);
@@ -388,32 +388,3 @@ TEST(PaintPasses, AnInitialThatStatesNoPaintTakesTheOpeningsColour) {
   EXPECT_GT(ink.whiteInNotch, 100) << "the cap lost the opening's colour";
 }
 
-// ── The preset text paints a paint style can carry ───────────────────────
-
-namespace {
-
-/// One preset, named by the word a caller spells it with.
-struct TextPaintPreset {
-  const char* name;
-  sigil::material::Material (*build)(const SkRect&, float);
-};
-
-class TextPaintPresets : public ::testing::TestWithParam<TextPaintPreset> {};
-
-}  // namespace
-
-TEST_P(TextPaintPresets, EachResolvesToAShaderOverTheBoundsItIsGiven) {
-  const SkRect bounds = SkRect::MakeXYWH(10, 10, 1180, 880);
-  EXPECT_NE(sigil::material::skia::shader(GetParam().build(bounds, 1.25f), {}),
-            nullptr);
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    Presets, TextPaintPresets,
-    ::testing::Values(
-        TextPaintPreset{"Water", sigil::material::kit::water},
-        TextPaintPreset{"MeshGradient", sigil::material::kit::meshGradient},
-        TextPaintPreset{"Sparkle", sigil::material::kit::sparkle}),
-    [](const ::testing::TestParamInfo<TextPaintPreset>& info) {
-      return std::string(info.param.name);
-    });
