@@ -184,9 +184,9 @@ material::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
 /** The LUT itself, shown as the 16-swatch strip it is. */
 Element lutStrip(const sk_sp<SkImage>& table) {
   return box().width(kPanel).height(14).fill(
-      material::skia::image(table, material::Repeat::Pad, material::Repeat::Pad,
+      material::skia::base(material::skia::image(table, material::Repeat::Pad, material::Repeat::Pad,
                           SkMatrix::Scale(kPanel / 16.0f, 14.0f),
-                          SkSamplingOptions(SkFilterMode::kNearest)));
+                          SkSamplingOptions(SkFilterMode::kNearest))));
 }
 
 sketch::kit::ComparisonCase panel(const char* caseTitle, const Tables& tables,

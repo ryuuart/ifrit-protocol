@@ -356,7 +356,7 @@ struct NightingaleCoxcomb {
             box()
                 .inset(kPlateMark + 2)
                 .fill(Fill::color(material::withAlpha(colour("paper"), 0.28f))),
-            box().inset(0).fill(material::Paint::linearGradient(
+            box().inset(0).fill(material::linearGradient(
                 {0, 0}, {kCanvas.width(), kCanvas.height()},
                 {{0.0f, colour("raking-light")},
                  {0.45f, colour("raking-light", 0)},
@@ -365,7 +365,7 @@ struct NightingaleCoxcomb {
             box()
                 .rect(kAxis - gutter / 2, 0, gutter,
                                        kCanvas.height())
-                .fill(material::Paint::linearGradient(
+                .fill(material::linearGradient(
                     {0, 0}, {gutter, 0},
                     {{0.0f, colour("gutter-shadow", 0)},
                      {0.38f, colour("gutter-shadow", 0.45f)},

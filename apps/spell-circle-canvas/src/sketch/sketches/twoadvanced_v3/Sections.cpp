@@ -2,6 +2,7 @@
 
 #include "TwoAdvancedV3.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 Element TwoAdvancedV3::stageArt() {
   using namespace tv3;
@@ -23,7 +24,7 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
   if (bg)
     art.fill(stretchFill(bg, kStageW, kArtH));
   else
-    art.fill(material::Paint::linearGradient(
+    art.fill(material::linearGradient(
         {0, 0}, {0, 1}, {{0.0f, hexColor(0x2A3A58)}, {1.0f, kDeep}}));
 
   if (sec < 0) {
@@ -39,10 +40,10 @@ Element TwoAdvancedV3::sectionArt(int sec, float settle) {
                .children({at(
                    box().overflow(Overflow::Clip).children({slot("clouds")}),
                    415, 35, 310, 255)})
-               .mask(by::alpha(material::skia::image(
+               .mask(by::alpha(material::skia::base(material::skia::image(
                    gapMask, material::Repeat::Pad, material::Repeat::Pad,
                    SkMatrix::Scale(kStageW / (float)gapMask->width(),
-                                   kArtH / (float)gapMask->height()))))
+                                   kArtH / (float)gapMask->height())))))
                .filter(material::skia::filter(cloudLook))
                .opacity(0.95f)});
     }

@@ -137,6 +137,7 @@
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <algorithm>
 #include <cmath>
@@ -490,7 +491,7 @@ Element screen(Element caption) {
       .width(kScreenWidth)
       .height(kScreenHeight)
       .background(shadow(kSpill, {0, 6}, 46))
-      .fill(material::Paint::radialGradient(
+      .fill(material::radialGradient(
           {kScreenWidth * 0.5f, kScreenHeight * 0.42f}, kScreenWidth * 0.62f,
           {kGlass, kStage}, {.units = material::GradientUnits::Pixels}))
       .stroke(stroke(1.5f, Fill::var("bezel")))
@@ -596,7 +597,7 @@ struct KaraokeWipe {
         .column()
         .padding(34, kMargin)
         .gap(20)
-        .fill(material::Paint::linearGradient(
+        .fill(material::linearGradient(
             {0, 0}, {0, kHeight}, {{0.35f, kRoom}, {1.0f, kRoomFloor}},
             {.units = material::GradientUnits::Pixels}))
         .applyStyleSheet(look())

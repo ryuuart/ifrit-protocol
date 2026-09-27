@@ -54,6 +54,7 @@
 #include <sigilsketch/kit/Legend.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/kit/LineTables.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <array>
 #include <cmath>
@@ -647,7 +648,7 @@ struct Cosmati {
              .height(kSide + 200)
              .rotate(14.0f)
              .translateX(sigil::motion::bind(seconds, {.from = {kLightPhase, kLightPhase + kLightPeriod}, .envelope = sigil::motion::envelope::shaped(sigil::motion::ease::linear), .to = {0.0f, kSide + 600}}))
-             .fill(material::Paint::linearGradient(
+             .fill(material::linearGradient(
                  {0, 0}, {300, 0},
                  {{0.0f, material::withAlpha(kDaylight, 0)},
                   {0.35f, material::withAlpha(kDaylight, 0.09f)},
@@ -656,7 +657,7 @@ struct Cosmati {
                   {1.0f, material::withAlpha(kDaylight, 0)}},
                  {.units = material::GradientUnits::Pixels}))
              .blendMode(material::BlendMode::PlusLighter),
-         box().cover().fill(material::Paint::radialGradient(
+         box().cover().fill(material::radialGradient(
              {kCentre, kCentre * 0.8f}, kSide * 0.78f,
              {{0.0f, {0, 0, 0, 0}},
               {0.55f, {0, 0, 0, 0}},
@@ -752,7 +753,7 @@ struct Cosmati {
                       .marginTop(6)}),
              kit::line(
                  {.length = Dimension(kColumnWidth),
-                  .fill = material::Paint::linearGradient(
+                  .fill = material::linearGradient(
                       {0, 0}, {kColumnWidth, 0},
                       {draw::parseColor(words["ink"]["rule"].string()),
                        material::withAlpha(
@@ -787,7 +788,7 @@ struct Cosmati {
   Element describe() const {
     return stack()
         .applyStyleSheet(sheet())
-        .fill(material::Paint::radialGradient(
+        .fill(material::radialGradient(
             {kMargin + kCentre, kMargin + kCentre}, kCanvas.fWidth * 0.8f,
             {hexColor(0x1C1814),
              draw::parseColor(words["ink"]["ground"].string())},

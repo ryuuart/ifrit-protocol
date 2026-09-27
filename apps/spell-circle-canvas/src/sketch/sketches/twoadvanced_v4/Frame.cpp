@@ -1,5 +1,6 @@
 #include "TwoAdvancedV4.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 auto TwoAdvancedV4::panelHeader(const char* boldHalf, const char* restHalf,
                                 const char* flavor, int cluster) -> Element {
@@ -36,7 +37,7 @@ auto TwoAdvancedV4::cta(const char* lbl, float w, float h,
       .width(w)
       .height(h)
       .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
-      .fill(material::Paint::linearGradient(
+      .fill(material::linearGradient(
           {0, 0}, {0, 1},
           {{0.0f, kCtaHi}, {0.42f, kCta}, {1.0f, hexColor(0x3A0000)}}))
       .stroke(stroke(1, Fill::color(kChrome), PathFormat::Align::Outer))
@@ -293,7 +294,7 @@ auto TwoAdvancedV4::dockBars() -> std::vector<Element> {
     const float v = 0.14f + 0.82f * std::abs(std::sin(i * 0.51f) *
                                              std::cos(i * 0.19f + 0.7f));
     bars.push_back(box().flexGrow(1).flexShrink(0).height(72 * v).fill(
-        material::Paint::linearGradient(
+        material::linearGradient(
             {0, 0}, {0, 1},
             {{0.0f, sigil::material::withAlpha(kD7, 1.0f)},
              {1.0f, sigil::material::withAlpha(kD4, 0.9f)}})));
@@ -416,7 +417,7 @@ auto TwoAdvancedV4::footerDock() -> Element {
           .width(310)
           .height(150)
           .shape(shapes::chamfered(9, shapes::Corner::Diagonal))
-          .fill(material::Paint::linearGradient(
+          .fill(material::linearGradient(
               {0, 0}, {0, 1}, {{0.0f, kD3}, {1.0f, hexColor(0x0C0202)}}))
           .foreground(inset(5, styles::BevelPair{kD5, {0, 0, 0, 0.6f}, 2, 1}))
           .foreground(styles::Brackets{kD6, 12, 2, 5, shapes::Corner::All})
@@ -467,7 +468,7 @@ auto TwoAdvancedV4::rail(bool right) -> Element {
   }
   return r
       .fill(
-          material::Paint::linearGradient({0, 0}, {0, 1},
+          material::linearGradient({0, 0}, {0, 1},
                                                 {{0.00f, hexColor(0x6A1B21)},
                                                  {0.22f, kChrome},
                                                  {0.70f, hexColor(0x2A0708)},

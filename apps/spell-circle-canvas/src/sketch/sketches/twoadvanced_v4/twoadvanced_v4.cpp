@@ -4,6 +4,7 @@
 
 #include "TwoAdvancedV4.h"
 #include <sigilmedia/image/Decode.h>
+#include <sigilmaterial/paint/Bases.h>
 
 auto TwoAdvancedV4::describe() -> Element {
   using namespace tav;
@@ -66,7 +67,7 @@ auto TwoAdvancedV4::describe() -> Element {
     // figure and ground backwards, because the PANELS are the light
     // thing on this page.
     page.fill(
-            material::Paint::linearGradient({0, 0}, {0, 1},
+            material::linearGradient({0, 0}, {0, 1},
                                                   {{0.00f, kChrome},
                                                    {0.40f, hexColor(0x520F17)},
                                                    {0.55f, hexColor(0x470A12)},

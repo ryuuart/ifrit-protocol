@@ -505,7 +505,7 @@ StyleSheet sheet() {
           .fontWeight(700)
           .fontSize(60)
           .letterSpacing(3)
-          .ink(material::Paint::linearGradient(
+          .ink(material::linearGradient(
                    {0, 0}, {0, 1},
                    {{0.0f, hexColor(0xFFFBF3)},
                     {0.55f, hexColor(0xF3EADB)},
@@ -519,7 +519,7 @@ StyleSheet sheet() {
       rule("specimen.slab").ink(var("slab")).translateX(2.5f).translateY(4),
       // The pool is an ellipse because the unit square it is laid over is
       // as wide as the word and far shallower than it.
-      rule(".floor").fill(material::Paint::radialGradient(
+      rule(".floor").fill(material::radialGradient(
           {0.5f, 0.5f}, 1.0f,
           {{0.0f, material::Color{0, 0, 0, 0.8f}},
            {0.55f, material::Color{0, 0, 0, 0.3f}},
@@ -572,13 +572,13 @@ Element ground() {
       // `kPaper` until the kit's grain holds its strength on dark grounds.
       .fill(grained(kPaper, 0.07f, 0.9f))
       .children(
-          {box().absolute().inset(0).fill(material::Paint::linearGradient(
+          {box().absolute().inset(0).fill(material::linearGradient(
                {0, 0}, {0, kCanvas.fHeight},
                {{0.15f, material::Color{0, 0, 0, 0}},
                 {0.5f, kPaperLift},
                 {0.95f, material::Color{0, 0, 0, 0}}},
                {.units = material::GradientUnits::Pixels})),
-           box().absolute().inset(0).fill(material::Paint::radialGradient(
+           box().absolute().inset(0).fill(material::radialGradient(
                {kCanvas.fWidth * 0.5f, 250}, 560,
                {{0.0f, kLamp},
                 {1.0f, material::Color{kLamp.r, kLamp.g, kLamp.b, 0}}},

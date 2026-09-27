@@ -65,6 +65,7 @@
 #include <utility>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Time.h>
+#include <sigilmaterial/paint/Bases.h>
 
 namespace arrange = sigil::geometry::arrange;
 namespace material = sigil::material;
@@ -375,7 +376,7 @@ struct GerstnerGrid {
     // The page's one black, stated once; a line set in the soft grey or
     // the red says so.
     auto root = stack()
-                    .fill(material::Paint::linearGradient(
+                    .fill(material::linearGradient(
                         {0, 0}, {0, g::kH}, {g::kPaper, g::kPaperLo},
                         {.units = material::GradientUnits::Pixels}))
                     .ink(g::kInk);
@@ -407,7 +408,7 @@ struct GerstnerGrid {
              .height(1.0f)
              .top(0)
              .translateY(sweep)
-             .fill(material::Paint::linearGradient(
+             .fill(material::linearGradient(
                  {0, 0}, {g::kFieldW + 44, 0},
                  {{0.0f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.0f}},
                   {0.12f, {g::kRed.r, g::kRed.g, g::kRed.b, 0.55f}},

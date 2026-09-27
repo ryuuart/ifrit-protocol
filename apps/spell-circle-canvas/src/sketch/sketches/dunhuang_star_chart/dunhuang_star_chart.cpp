@@ -41,6 +41,7 @@
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <cmath>
 #include <optional>
@@ -324,7 +325,7 @@ struct DunhuangStarChart {
                                     .seed = (float)index}))
         .overflow(Overflow::Clip)
         .background(shadow(hexColor(0x000000, 0.55f), {0, 10}, 24))
-        .children({box().inset(0).fill(material::Paint::linearGradient(
+        .children({box().inset(0).fill(material::linearGradient(
                        {0, 0}, {0, height},
                        {{0.0f, material::withAlpha(kLining, 0.55f)},
                         {0.06f, material::withAlpha(kLining, 0.0f)},

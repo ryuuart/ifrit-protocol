@@ -1,6 +1,7 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include "WinampBase.h"
 
@@ -78,7 +79,7 @@ auto WinampBase::key(float x, float y, float w, float h, Element glyph)
     -> Element {
   using namespace wa;
   Element e = at(box(), x, y, w, h);
-  e.fill(material::Paint::linearGradient(
+  e.fill(material::linearGradient(
       {0, 0}, {0, 1},
       {{0.0f, sigil::material::lighten(kBtnFace, 0.10f)},
        {0.55f, kBtnFace},
@@ -150,7 +151,7 @@ auto WinampBase::titleBar(float wN, const char* label, bool wide, bool hasMin,
   };
   // the wordmark, the egg and the window buttons' glyphs: one gold
   return raised(at(box(), 0, 0, wN, hN)
-                    .fill(material::Paint::linearGradient(
+                    .fill(material::linearGradient(
                         {0, 0}, {0, 1},
                         {{0.0f, sigil::material::lighten(kTitle, 0.06f)},
                          {1.0f, dark(kTitle, 0.25f)}}))

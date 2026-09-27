@@ -26,6 +26,7 @@
 #include <sigilsketch/kit/Theme.h>
 #include <sigilweave/ports/SystemFontManager.h>
 #include <sigilweave/style/Type.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <algorithm>
 #include <array>
@@ -290,7 +291,7 @@ inline Element starTile() {
   const float ring[3][3] = {{14, 16, 26}, {17, 52, 19}, {80, 74, 15}};
   for (auto& g : ring)
     tile.children({kit::disc(glm::vec2{S(g[0]), S(g[1])}, S(g[2]))
-                       .fill(material::Paint::radialGradient(
+                       .fill(material::radialGradient(
                            {0.5f, 0.5f}, 1.0f,
                            {{0.0f, {1, 1, 1, 0.0f}},
                             {0.74f, {1, 1, 1, 0.0f}},
@@ -312,7 +313,7 @@ inline Element starTile() {
     const float hr = 0.85f + 2.6f * L * L;
     const float R = S(2.7f * hr);
     tile.children({kit::disc(glm::vec2{S((float)s.x), S((float)s.y)}, R)
-                       .fill(material::Paint::radialGradient(
+                       .fill(material::radialGradient(
                            {0.5f, 0.5f}, 1.0f,
                            {{0.0f, {L, L, L, 1.0f}},
                             {0.24f, {L, L, L, 0.66f}},

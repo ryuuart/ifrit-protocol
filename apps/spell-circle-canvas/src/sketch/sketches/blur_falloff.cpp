@@ -49,6 +49,7 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <cmath>
 #include <string>
@@ -162,7 +163,7 @@ struct BlurFalloff {
                                "shows where that blur is applied.")
                                .width(660),
                            box().width(660).height(42).fill(
-                               material::Paint::linearGradient(
+                               material::linearGradient(
                                    {0, 0}, {1, 0},
                                    {{0, {0, 0, 0, 1}}, {1, {1, 1, 1, 1}}})),
                            box()

@@ -59,7 +59,7 @@ class ComposeStamps:
 
     def stamp(self, pen: Pen) -> None:
         pen.scale(1 / 64)
-        pen.element(self.mark, (-32, -18, 64, 36))
+        pen.element(self.mark, -32, -18, 64, 36)
 
     def draw(self, pen: Pen) -> None:
         pen.background(self.look.palette.ground)
@@ -70,7 +70,7 @@ class ComposeStamps:
             pen.push()
             pen.translate(30 + i * 237, 65)
             pen.rotate((i - 1) * 0.04)
-            pen.element(tree, (0, 0, 200, 130), index=i)
+            pen.element(tree, 0, 0, 200, 130, index=i)
             pen.pop()
         pen.fill(self.look.palette.ash)
         pen.textFont(self.look.font(self.look.type.captionNote))

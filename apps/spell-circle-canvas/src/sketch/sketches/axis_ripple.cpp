@@ -225,7 +225,7 @@ StyleSheet look() {
       rule(".honoured").ink(var("honoured")),
       // A proof stands on a plate lit from its top edge.
       rule(".plate").padding(16, 22).borderRadius(12).fill(
-          material::Paint::linearGradient(
+          material::linearGradient(
               {0, 0}, {0, 190},
               {material::Color{1, 1, 1, 0.055f},
                material::Color{1, 1, 1, 0.012f}},
@@ -305,7 +305,7 @@ struct AxisRipple {
                        .cover()
                        // Deep at the foot and hot at the top, so a full bar
                        // reads as a lit column and a low one as embers.
-                       .fill(material::Paint::linearGradient(
+                       .fill(material::linearGradient(
                            {0, 0}, {0, kLevelHeight},
                            {{0.0f, hexColor(0xD6ECFF)},
                             {0.35f, hexColor(0x63B8FF)},
@@ -333,7 +333,7 @@ struct AxisRipple {
         .top(heroSize * 0.62f - kPoolHeight * 0.5f)
         .width(kPoolWidth)
         .height(kPoolHeight)
-        .fill(material::Paint::radialGradient(
+        .fill(material::radialGradient(
             {kPoolWidth * 0.5f, kPoolHeight * 0.5f}, kPoolWidth * 0.5f,
             {{0.0f, material::withAlpha(warm, 0.16f)},
              {0.45f, material::withAlpha(warm, 0.05f)},
@@ -464,7 +464,7 @@ struct AxisRipple {
         .key("ground")
         .cache(Cache::Texture)
         .fill(grained(kPaper, 0.07f, 0.85f))
-        .children({box().cover().fill(material::Paint::radialGradient(
+        .children({box().cover().fill(material::radialGradient(
                        {kWidth * 0.5f, kHeight * 0.36f}, kWidth * 0.62f,
                        {{0.0f, material::withAlpha(skylight, 0.13f)},
                         {0.5f, material::withAlpha(skylight, 0.04f)},

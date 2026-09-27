@@ -148,7 +148,7 @@ struct BrushCustom {
     pen.element(compose::document::h1("A brush made of images")
                     .font({.size = 24})
                     .ink(kInk),
-                SkRect::MakeXYWH(70, 16, 860, 36));
+                70, 16, 860, 36);
     int labelIndex = 0;
     for (const auto& [y, words] : std::array<std::pair<float, const char*>, 4>{{
              {62, "01 / SHAPE ALONE"},
@@ -157,14 +157,14 @@ struct BrushCustom {
              {548, "04 / GRAIN ON EACH DAB, SIZE FROM PRESSURE"},
          }}) {
       pen.element(compose::document::label(words).font({.size = 12}).ink(kInk),
-                  SkRect::MakeXYWH(70, y, 860, 22), labelIndex++);
+                  70, y, 860, 22, labelIndex++);
     }
     pen.element(compose::document::caption(
                     "One chisel image, one grain image. The same path reveals "
                     "what each brush control changes.")
                     .font({.size = 14})
                     .ink(kInk),
-                SkRect::MakeXYWH(70, 710, 860, 36));
+                70, 710, 860, 36);
 
     pen.noLoop();
   }

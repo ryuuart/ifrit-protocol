@@ -38,6 +38,7 @@
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/kit/Hyphenation.h>
 #include <sigilweave/kit/LineTables.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <ranges>
 
@@ -464,7 +465,7 @@ struct BlackWatch {
                     // it near and gives it up far.
                     box()
                         .cover()
-                        .fill(material::Paint::radialGradient(
+                        .fill(material::radialGradient(
                             {0.12f * width, 0.02f * height}, 0.85f * width,
                             {{0, {1, 1, 1, 0.13f}},
                              {0.4f, {1, 1, 1, 0}},
@@ -505,7 +506,7 @@ struct BlackWatch {
              .width(58)
              .height(11)
              .shape(shapes::svg("M0 5.5 C9 0 49 0 58 5.5 C49 11 9 11 0 5.5 Z"))
-             .fill(material::Paint::linearGradient(
+             .fill(material::linearGradient(
                  {0, 0}, {0, 11},
                  {{0, colourOf("#E0B878")},
                   {0.45f, colourOf("#B98A4E")},
@@ -891,7 +892,7 @@ struct BlackWatch {
             // upper left and the far corner sits in shade.
             box()
                 .cover()
-                .fill(material::Paint::radialGradient(
+                .fill(material::radialGradient(
                     {0.1f * kCanvas.width(), 0}, 1.15f * kCanvas.width(),
                     {{0, {1, 1, 1, 0.14f}},
                      {0.35f, {1, 1, 1, 0}},

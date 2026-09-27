@@ -57,6 +57,7 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <array>
 #include <cstddef>
@@ -308,7 +309,7 @@ struct ChannelBind {
             .rect(geometry::path::fromSk(SkRect::MakeLTRB(kWheelAt, kWheelTop, kWheelAt + kWheelSide,
                                    kWheelTop + kWheelSide)))
             .borderRadius(kWheelSide * 0.5f)
-            .fill(material::Paint::conicGradient(
+            .fill(material::conicGradient(
                 SkPoint{kWheelSide * 0.5f, kWheelSide * 0.5f}, hues(),
                 {.units = material::GradientUnits::Pixels}))
             .rotate(turn()));

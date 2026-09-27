@@ -403,7 +403,7 @@ struct PsxDoomFire {
     pen.rect(x, y, kPanelW, kPanelH);
 
     // the word, behind everything the automaton draws
-    pen.element(doomWord(), SkRect::MakeXYWH(x, y + 80, kPanelW, 220));
+    pen.element(doomWord(), x, y + 80, kPanelW, 220);
 
     // THE WHOLE PER-FRAME COST OF THE SUBJECT: one nearest-neighbour blit
     // of the bitmap the last sim tick rasterized. No sim work happens on a
@@ -797,7 +797,7 @@ struct PsxDoomFire {
     const double ms = pen.millis();
     pen.background(kInk);
     pen.element(header(),
-                SkRect::MakeXYWH(kPadX, kPadY, kCanvasW - 2 * kPadX, kHeaderH));
+                kPadX, kPadY, kCanvasW - 2 * kPadX, kHeaderH);
     rule(pen, kPadX, kPadY + kHeaderH - 4, kCanvasW - 2 * kPadX - 12,
          cue(ms, 320, 400));
     firePanel(pen, ms);

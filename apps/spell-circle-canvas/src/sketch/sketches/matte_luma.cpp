@@ -54,6 +54,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 #include <sigilweave/style/Type.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <array>
 #include <utility>
@@ -144,7 +145,7 @@ Element content(float w, float h) {
   return kit::centred()
       .width(w)
       .height(h)
-      .fill(material::Paint::linearGradient(
+      .fill(material::linearGradient(
           {0, 0}, {1, 1},
           {{0.0f, {1.0f, 0.85f, 0.20f, 1}},
            {0.5f, {0.95f, 0.32f, 0.42f, 1}},

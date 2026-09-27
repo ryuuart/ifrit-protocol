@@ -363,7 +363,7 @@ auto HitmanVerlet::instancingStrip(Pen& pen, float x0, float y0, float a)
   inset(pen, x0, y0, w, h, a);
   penUi(pen, 7.5f, fadeTo(kSteel, a), 0.9f);
   pen.text("SAME 24 STICKS · instances()+sizes() vs the pen", x0 + 7, y0 + 7);
-  pen.element(barsEl, SkRect::MakeXYWH(x0 + 7, y0 + 19, 150, 76));
+  pen.element(barsEl, x0 + 7, y0 + 19, 150, 76);
   {
     float sc = 1;
     SkPoint off{0, 0};

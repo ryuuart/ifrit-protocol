@@ -41,6 +41,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <cmath>
 #include <memory>
@@ -121,7 +122,7 @@ struct PlaceRepeatTiles {
                       .width(kTile.width())
                       // Dark on one side and light on the other, so a
                       // mirrored tile is legible AS mirrored.
-                      .fill(material::Paint::linearGradient(
+                      .fill(material::linearGradient(
                           {0, 0}, {(float)kTile.width(), 0},
                           {{0.09f, 0.10f, 0.12f, 1}, {0.30f, 0.32f, 0.36f, 1}},
                           {.units = material::GradientUnits::Pixels}));
@@ -132,8 +133,8 @@ struct PlaceRepeatTiles {
     // …and re-recorded behind a bounding-box hierarchy, so each tile's
     // replay visits only the ops that meet it. Slicing without that is
     // quadratic: every tile would walk every tile's ops.
-    strip = tiles::sliceable(
-        snapshot(box().children({std::move(run)}), *ctx.fonts));
+    strip = snapshot(box().children({std::move(run)}), *ctx.fonts,
+                     SkSize::MakeEmpty(), {.sliceable = true});
 
     ctx.composer.render(sketch::kit::page(
         {.title = "Copies and windows",
@@ -258,7 +259,7 @@ struct PlaceRepeatTiles {
                            "whose u runs backwards · legible in a PNG "
                            "either way, which is the trap"
                          : "four tiles of one baked picture, drawn apart "
-                           "· sliceable() first, so each replay "
+                           "· a sliceable snapshot, so each replay "
                            "visits only its own ops"};
   }
 };

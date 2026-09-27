@@ -5,7 +5,7 @@
 // The box around the node sets the font and the ink; the pen inside it
 // finds them already in force, so `pen.text` is shaped in the inherited
 // face at the inherited size with NO textFont call, and the guest the pen
-// paints through `pen.element(card, box)` begins in the same pair — its
+// paints through `pen.element(card, x, y, w, h)` begins in the same pair — its
 // lines name no style at all and are set in what the tree says.
 //
 // What the pen still decides for itself is what it sets: `pen.fill(Paint)`
@@ -110,7 +110,7 @@ struct P5MixedForms {
     pen.text("shaped by weave, drawn by a pen", pen.width / 2, 60);
     pen.element(
         card(pen.frameCount),
-        SkRect::MakeXYWH(pen.width / 2 - 150, pen.height - 120, 300, 80));
+        pen.width / 2 - 150, pen.height - 120, 300, 80);
   }
 };
 

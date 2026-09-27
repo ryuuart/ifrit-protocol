@@ -48,6 +48,7 @@
 #include <string>
 #include <vector>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include "GiltBorder.h"
 #include "Ornament.h"
@@ -532,7 +533,7 @@ struct Flourish {
 
   Element describe() const {
     return stack()
-        .fill(material::Paint::radialGradient(
+        .fill(material::radialGradient(
             {kW / 2, kH / 2}, 620, {st.velvetCore, st.velvetEdge},
             {.units = material::GradientUnits::Pixels}))
         .operators(filaments())

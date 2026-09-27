@@ -24,6 +24,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <cmath>
 #include <glm/geometric.hpp>
@@ -300,7 +301,7 @@ struct PenrosePaving {
             box()
                 .inset(0)
                 .blendMode(material::BlendMode::Multiply)
-                .fill(material::Paint::radialGradient(
+                .fill(material::radialGradient(
                     {470, 280}, 1280,
                     {{0.0f, hexColor(0xFFFFFF)},
                      {0.3f, hexColor(0xE8E8E6)},
@@ -369,7 +370,7 @@ struct PenrosePaving {
             .children(
                 {plaza(), weather(),
                  // A shaded foot for the plaque and the panel to sit in.
-                 kit::at(box().fill(material::Paint::linearGradient(
+                 kit::at(box().fill(material::linearGradient(
                              {0, 0}, {0, 200},
                              {hexColor(0x08090A, 0), hexColor(0x08090A, 0.6f)},
                              {.units = material::GradientUnits::Pixels})),

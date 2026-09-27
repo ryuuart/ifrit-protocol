@@ -119,11 +119,12 @@ void GenesisFire::draw(Pen& pen) {
 
   pen.background(kInk);
   pen.element(headerEl,
-              SkRect::MakeXYWH(kPad, kPad, kCanvasW - 2 * kPad, kHeaderH));
+              kPad, kPad, kCanvasW - 2 * kPad, kHeaderH);
 
   // --- the stage: two guests with the field drawn between them --------
   const SkRect stageBox = SkRect::MakeXYWH(kStageX, kBodyY, kStageW, kStageH);
-  pen.element(belowEl, stageBox);
+  pen.element(belowEl, stageBox.x(), stageBox.y(), stageBox.width(),
+              stageBox.height());
   {
     const float t = loopU.value() * 10.0f;
     const float a = std::clamp(t / 0.30f, 0.0f, 1.0f) *
@@ -140,7 +141,8 @@ void GenesisFire::draw(Pen& pen) {
     paintField(pen, fieldChunks, a);
     pen.pop();
   }
-  pen.element(aboveEl, stageBox);
+  pen.element(aboveEl, stageBox.x(), stageBox.y(), stageBox.width(),
+              stageBox.height());
   blurCallout(pen, kStageX + 24, kBodyY + kStageH - 24 - 142, 268, 142,
               cue(pen.millis(), 1150, 340));
   // the bezel
@@ -158,15 +160,15 @@ void GenesisFire::draw(Pen& pen) {
   // The census panel is described again every frame, from inside the
   // loop, so it carries its registers the way the panels built in setup
   // carry theirs.
-  pen.element(genEl, SkRect::MakeXYWH(kSideX, panelTop(0), kSideW, kPanelH[0]));
+  pen.element(genEl, kSideX, panelTop(0), kSideW, kPanelH[0]);
   pen.element(censusPanel().applyStyleSheet(registers()),
-              SkRect::MakeXYWH(kSideX, panelTop(1), kSideW, kPanelH[1]));
+              kSideX, panelTop(1), kSideW, kPanelH[1]);
   pen.element(rampEl,
-              SkRect::MakeXYWH(kSideX, panelTop(2), kSideW, kPanelH[2]));
+              kSideX, panelTop(2), kSideW, kPanelH[2]);
   pen.element(benchEl,
-              SkRect::MakeXYWH(kSideX, panelTop(3), kSideW, kPanelH[3]));
+              kSideX, panelTop(3), kSideW, kPanelH[3]);
   pen.element(prodEl,
-              SkRect::MakeXYWH(kSideX, panelTop(4), kSideW, kPanelH[4]));
+              kSideX, panelTop(4), kSideW, kPanelH[4]);
 
   // The bench's third cell: the SAME particles as the two instanced
   // cells, through the field's own quads.

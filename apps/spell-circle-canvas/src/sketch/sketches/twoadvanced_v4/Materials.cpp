@@ -1,5 +1,6 @@
 #include "TwoAdvancedV4.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 auto TwoAdvancedV4::available(std::string* why) -> bool {
   return sketch::requireCached(
@@ -38,7 +39,7 @@ auto TwoAdvancedV4::radarSweep(int i, sigil::material::Color tint, float inner)
   return box()
       .inset(0)
       .shape(shapes::sector(-100, 78, inner))
-      .fill(material::Paint::linearGradient(
+      .fill(material::linearGradient(
           {0, 0}, {1, 1},
           {{0.0f, sigil::material::withAlpha(tint, 0.85f)},
            {1.0f, sigil::material::withAlpha(tint, 0.05f)}}))
@@ -68,7 +69,7 @@ auto TwoAdvancedV4::statusBar() -> Element {
                    .width(22)
                    .height(22)
                    .borderRadius({5})
-                   .fill(material::Paint::radialGradient(
+                   .fill(material::radialGradient(
                        {0.5f, 0.42f}, 1.15f,
                        {{0.0f, kCyanRing},
                         {0.55f, kTealBar},
@@ -173,7 +174,7 @@ auto TwoAdvancedV4::audioModule() -> Element {
         .width(38)
         .height(22)
         .shape(shapes::chamfered(6, shapes::Corner::Diagonal))
-        .fill(material::Paint::linearGradient(
+        .fill(material::linearGradient(
             {0, 0}, {0, 1},
             {{0.0f, hot ? kCtaHi : hexColor(0x5A2226)},
              {0.5f, hot ? kCta : hexColor(0x3A0F12)},

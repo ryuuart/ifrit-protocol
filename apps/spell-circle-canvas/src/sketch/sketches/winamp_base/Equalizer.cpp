@@ -1,5 +1,6 @@
 #include "WinampBase.h"
 #include <sigilmotion/values/Animatable.h>
+#include <sigilmaterial/paint/Bases.h>
 
 auto WinampBase::eqWindow() -> Element {
   using namespace wa;
@@ -15,7 +16,7 @@ auto WinampBase::eqWindow() -> Element {
              // thumb 11x11, travel 0..52 native. bind() turns the [-1,1] gain
              // straight into pixels — no second Output in slider units.
              raised(at(box(), 1, 0, 12, 11)
-                        .fill(material::Paint::linearGradient(
+                        .fill(material::linearGradient(
                             {0, 0}, {0, 1},
                             {{0.0f, sigil::material::lighten(kBtnFace, 0.14f)},
                              {1.0f, dark(kBtnFace, 0.32f)}}))

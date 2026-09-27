@@ -158,7 +158,7 @@ StyleSheet screen() {
  *  whole face where it is struck most, so the ground the rain falls on is
  *  a faint green at the middle falling to the void at the corners. */
 Fill tubeGlow() {
-  return toFill(material::Paint::radialGradient(
+  return toFill(material::radialGradient(
       {kWidth * 0.5f, kHeight * 0.46f}, std::hypot(kWidth, kHeight) * 0.5f,
       {{0.0f, {0.012f, 0.044f, 0.022f, 1}},
        {0.55f, {0.007f, 0.020f, 0.011f, 1}},
@@ -436,7 +436,7 @@ struct MatrixRain {
         .key("refresh")
         .hitTestable(false)
         .blendMode(material::BlendMode::PlusLighter)
-        .fill(material::Paint::linearGradient(
+        .fill(material::linearGradient(
             {0, 0}, {0, sweep.height},
             {{0.0f, {0, 0, 0, 0}},
              {0.55f, {0.012f, 0.046f, 0.020f, 1}},
@@ -476,7 +476,7 @@ struct MatrixRain {
         .foreground(styles::scanlines({0, 0, 0, 0.14f}, 3, 1))
         .children({
             box().cover().fill(vignette({0.002f, 0.008f, 0.004f, 0.55f}, 0.35f)),
-            box().cover().fill(material::Paint::linearGradient(
+            box().cover().fill(material::linearGradient(
                 {0, 0}, {kWidth * 0.55f, kHeight * 0.75f},
                 {{0.0f, {0.80f, 1.0f, 0.88f, 0.050f}},
                  {0.45f, {0.80f, 1.0f, 0.88f, 0.012f}},

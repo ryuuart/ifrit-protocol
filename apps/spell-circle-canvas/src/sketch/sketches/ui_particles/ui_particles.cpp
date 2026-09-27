@@ -34,6 +34,7 @@
 #include <sigilmotion/clock/Engine.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <array>
 #include <cmath>
@@ -151,7 +152,7 @@ struct UiParticles {
   Element shout(const ChipTheme& t, std::u8string label, int spikes) {
     return chip(t, {kSprite - 4, kSprite - 4}, std::move(label), 13)
         .shape(starburstOutline(spikes, 0.32f))
-        .fill(material::Paint::radialGradient(
+        .fill(material::radialGradient(
             {kSprite / 2 - 2, kSprite / 2 - 2}, kSprite / 2,
             {{1.0f, 0.92f, 0.55f, 1}, t.fill},
             {.units = material::GradientUnits::Pixels}));
@@ -487,7 +488,7 @@ struct UiParticles {
                            std::pair{postAtlas, postPool}};
     composer.render(
         stack()
-            .fill(material::Paint::linearGradient(
+            .fill(material::linearGradient(
                 {0, 0}, {0, kSceneSize.height()},
                 {{0.05f, 0.04f, 0.12f, 1}, {0.12f, 0.05f, 0.14f, 1}},
                 {.units = material::GradientUnits::Pixels}))

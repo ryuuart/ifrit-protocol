@@ -41,6 +41,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include "tategaki/VerticalSpecimen.h"
 
@@ -99,7 +100,7 @@ struct Mawarikomi {
   Element describe() {
     namespace mw = mawari;
 
-    Fill ground = toFill(material::Paint::linearGradient(
+    Fill ground = toFill(material::linearGradient(
         {0, 0}, {0, mw::kH}, {mw::kKinariLift, mw::kKinari},
         {.units = material::GradientUnits::Pixels}));
 

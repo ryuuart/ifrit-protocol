@@ -1,6 +1,7 @@
 #include "TwoAdvancedV4.h"
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 auto TwoAdvancedV4::specPair(const sigil::data::Json& spec) -> Element {
   using namespace tav;
@@ -21,14 +22,14 @@ auto TwoAdvancedV4::featureSystem() -> Element {
           .height(150)
           .flexShrink(0)
           .shape(shapes::chamfered(12, shapes::Corner::Diagonal))
-          .fill(material::Paint::linearGradient(
+          .fill(material::linearGradient(
               {0, 0}, {0, 1},
               {{0.0f, hexColor(0x06232A)}, {1.0f, hexColor(0x011114)}}))
           .stroke(stroke(
               1,
               Fill::color(sigil::material::withAlpha(hexColor(0x0B3B40), 0.9f)),
               PathFormat::Align::Inner))
-          .children({box().inset(0).fill(material::Paint::radialGradient(
+          .children({box().inset(0).fill(material::radialGradient(
                          {0.5f, 0.72f}, 0.95f,
                          {{0.0f, sigil::material::withAlpha(kGlow, 0.8f)},
                           {0.5f, sigil::material::withAlpha(kTealBar, 0.28f)},
@@ -205,7 +206,7 @@ auto TwoAdvancedV4::pressUpdates() -> Element {
            .trailing = stepper(false),
            .thumb =
                box()
-                   .fill(material::Paint::linearGradient(
+                   .fill(material::linearGradient(
                        {0, 0}, {1, 0},
                        {{0.0f, hexColor(0xCFEFEC)}, {1.0f, kPanelHi}}))
                    .stroke(stroke(
@@ -258,7 +259,7 @@ auto TwoAdvancedV4::auxBar(const Utf8& label) -> Element {
       .alignItems(Align::Center)
       .padding(0, 6)
       .gap(6)
-      .fill(material::Paint::linearGradient(
+      .fill(material::linearGradient(
           {0, 0}, {0, 1},
           {{0.0f, hexColor(0x5A1A20)}, {1.0f, hexColor(0x2E0A0C)}}))
       .children({t("»", micro(10, kCyan, 0)),
@@ -269,7 +270,7 @@ auto TwoAdvancedV4::auxView() -> Element {
   using namespace tav;
   return kit::centred()
       .height(17)
-      .fill(material::Paint::linearGradient(
+      .fill(material::linearGradient(
           {0, 0}, {0, 1}, {{0.0f, kPanelHi}, {0.5f, kPanel}, {1.0f, kPanelSh}}))
       .stroke(stroke(
           1, Fill::color(sigil::material::withAlpha(hexColor(0xCFEFEC), 0.6f)),
@@ -298,7 +299,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                  .height(26)
                  .flexShrink(0)
                  .borderRadius({4})
-                 .fill(material::Paint::linearGradient(
+                 .fill(material::linearGradient(
                      {0, 0}, {0, 1},
                      {{0.0f, hexColor(0x8E2A2A)}, {1.0f, hexColor(0x3A0C0E)}}))
                  .stroke(stroke(
@@ -350,7 +351,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
            .alignItems(Align::Center)
            .padding(0, 8)
            .gap(7)
-           .fill(material::Paint::linearGradient(
+           .fill(material::linearGradient(
                {0, 0}, {0, 1},
                {{0.0f, hexColor(0x2A0A0C)}, {1.0f, hexColor(0x140404)}}))
            .stroke(stroke(1,
@@ -360,7 +361,7 @@ auto TwoAdvancedV4::auxiliary() -> Element {
                           .width(20)
                           .height(20)
                           .shape(shapes::chamfered(6, shapes::Corner::Diagonal))
-                          .fill(material::Paint::linearGradient(
+                          .fill(material::linearGradient(
                               {0, 0}, {0, 1},
                               {{0.0f, hexColor(0xE8A83C)},
                                {1.0f, hexColor(0x9A5E10)}})),
@@ -395,7 +396,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
         .width(40)
         .height(40)
         .borderRadius({20})
-        .fill(material::Paint::linearGradient(
+        .fill(material::linearGradient(
             {0, 0}, {0, 1},
             {{0.0f, hexColor(0x6A1B21)}, {1.0f, hexColor(0x220608)}}))
         .stroke(stroke(1, Fill::color(sigil::material::withAlpha(kDust, 0.5f)),
@@ -421,7 +422,7 @@ auto TwoAdvancedV4::subSystem() -> Element {
                  .width(46)
                  .height(34)
                  .shape(shapes::chamfered(8, shapes::Corner::Diagonal))
-                 .fill(material::Paint::radialGradient(
+                 .fill(material::radialGradient(
                      {0.5f, 0.76f}, 1.1f,
                      {{0.0f, hexColor(0x0A4148)}, {1.0f, hexColor(0x010D10)}}))
                  .stroke(stroke(

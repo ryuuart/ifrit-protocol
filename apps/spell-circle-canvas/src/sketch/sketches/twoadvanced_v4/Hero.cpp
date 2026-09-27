@@ -1,5 +1,6 @@
 #include "TwoAdvancedV4.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 auto TwoAdvancedV4::cityBlock(sigil::geometry::mesh::Mesh& out, glm::vec3 lo,
                               glm::vec3 hi, glm::vec4 tint) -> void {
@@ -155,13 +156,13 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // this page keeps.
   if (heroPlate)
     scene.children({box().inset(0).fill(
-        material::skia::image(heroPlate, material::Repeat::Pad, material::Repeat::Pad,
+        material::skia::base(material::skia::image(heroPlate, material::Repeat::Pad, material::Repeat::Pad,
                             SkMatrix::Scale(w / (float)heroPlate->width(),
                                             h / (float)heroPlate->height()),
-                            SkSamplingOptions(SkFilterMode::kLinear)))});
+                            SkSamplingOptions(SkFilterMode::kLinear))))});
   else
     scene.children({box().inset(0).fill(
-        material::Paint::linearGradient({0, 0}, {0, 0.66f},
+        material::linearGradient({0, 0}, {0, 0.66f},
                                               {{0.0f, hexColor(0x02070A)},
                                                {0.62f, hexColor(0x03181D)},
                                                {1.0f, hexColor(0x073038)}}))});
@@ -170,7 +171,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
   // black-on-black and the silhouettes have nothing to read against;
   // one kPlus ramp is the whole of the fix.
   scene.children(
-      {at(box().fill(material::Paint::linearGradient(
+      {at(box().fill(material::linearGradient(
               {0, 0}, {0, 1},
               {{0.00f, sigil::material::withAlpha(kTealBar, 0.0f)},
                {0.62f, sigil::material::withAlpha(kTealBar, 0.10f)},
@@ -235,7 +236,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .top(-72)
            .width(380)
            .height(300)
-           .fill(material::Paint::radialGradient(
+           .fill(material::radialGradient(
                {0.5f, 0.14f}, 1.05f,
                {{0.0f, sigil::material::withAlpha(kGlow, 0.75f)},
                 {0.45f, sigil::material::withAlpha(kTealBar, 0.32f)},
@@ -252,7 +253,7 @@ auto TwoAdvancedV4::heroScene(float w, float h, bool still) -> Element {
            .top(0)
            .width(80)
            .height(h - horizon)
-           .fill(material::Paint::linearGradient(
+           .fill(material::linearGradient(
                {0, 0}, {0, 1},
                {{0.00f, sigil::material::withAlpha(kGlow, 0.55f)},
                 {0.35f, sigil::material::withAlpha(kGlow, 0.20f)},
@@ -286,7 +287,7 @@ auto TwoAdvancedV4::hero(float w, float h) -> Element {
                   .blendMode(material::BlendMode::PlusLighter)
                   .cache(Cache::Texture)
                   .cacheScale(0.5f),
-              box().inset(0).fill(material::Paint::radialGradient(
+              box().inset(0).fill(material::radialGradient(
                   {0.5f, 0.5f}, 1.0f,
                   {{0.00f, {0, 0, 0, 0}},
                    {0.58f, {0, 0, 0, 0.10f}},
@@ -340,7 +341,7 @@ auto TwoAdvancedV4::mainframe() -> Element {
         .top(0)
         .width(pct(share))
         .height(100_pct)
-        .fill(material::Paint::linearGradient(
+        .fill(material::linearGradient(
             {0, 0}, {1, 0},
             {{0.0f, hexColor(0x2A0708)}, {1.0f, hexColor(0x1A0405)}}))
         .foreground(onEdges(
@@ -408,7 +409,7 @@ auto TwoAdvancedV4::monitorBody(float h) -> Element {
   using namespace tav;
   return box()
       .height(h)
-      .fill(material::Paint::linearGradient({0, 0}, {0, 1},
+      .fill(material::linearGradient({0, 0}, {0, 1},
                                                   {{0.00f, kPanelHi},
                                                    {0.15f, kPanel},
                                                    {0.88f, kPanel},
@@ -433,7 +434,7 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
         {box()
              .flexGrow(1)
              .shape(shapes::chamfered(7, shapes::Corner::Diagonal))
-             .fill(material::Paint::linearGradient(
+             .fill(material::linearGradient(
                  {0, 0}, {0, 1},
                  {{0.0f, hexColor(0x0A2C33)}, {1.0f, hexColor(0x02171B)}}))
              .stroke(stroke(1,
@@ -441,7 +442,7 @@ auto TwoAdvancedV4::relatedStills() -> std::vector<Element> {
                                 hexColor(0x0B3B40), 0.9f)),
                             PathFormat::Align::Inner))
              .children(
-                 {box().inset(0).fill(material::Paint::radialGradient(
+                 {box().inset(0).fill(material::radialGradient(
                       {0.3f + 0.15f * (float)i, 0.8f}, 0.95f,
                       {{0.0f, sigil::material::withAlpha(kGlow, g)},
                        {1.0f, sigil::material::withAlpha(kGlow, 0.0f)}})),

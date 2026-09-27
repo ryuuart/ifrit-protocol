@@ -94,7 +94,7 @@ auto HitmanVerlet::draw(Pen& pen) -> void {
 
   pen.background(kInk);
   pen.element(headerEl,
-              SkRect::MakeXYWH(kPad, kPad, kCanvasW - 2 * kPad, kHeaderH));
+              kPad, kPad, kCanvasW - 2 * kPad, kHeaderH);
 
   // --- the stage -------------------------------------------------------
   const SkRect stageBox = SkRect::MakeXYWH(kStageX, kBodyY, kStage, kStage);
@@ -104,7 +104,8 @@ auto HitmanVerlet::draw(Pen& pen) -> void {
   stageChrome(pen, ms);
   simulation(pen);
   pen.pop();
-  pen.element(overlayEl, stageBox);
+  pen.element(overlayEl, stageBox.x(), stageBox.y(), stageBox.width(),
+              stageBox.height());
   blastGlow(pen);
   pen.push();
   pen.translate(kStageX, kBodyY);
@@ -118,18 +119,12 @@ auto HitmanVerlet::draw(Pen& pen) -> void {
   errorLegend(pen, kStageX + 16, kBodyY + 302, cue(ms, 1440, 300));
 
   // --- the sidebar: six panels, three of them with a hole --------------
-  pen.element(colAEl[0], SkRect::MakeXYWH(kColAX, panelTop(kPanelAH, 0), kColW,
-                                          kPanelAH[0]));
-  pen.element(colAEl[1], SkRect::MakeXYWH(kColAX, panelTop(kPanelAH, 1), kColW,
-                                          kPanelAH[1]));
-  pen.element(colAEl[2], SkRect::MakeXYWH(kColAX, panelTop(kPanelAH, 2), kColW,
-                                          kPanelAH[2]));
-  pen.element(colBEl[0], SkRect::MakeXYWH(kColBX, panelTop(kPanelBH, 0), kColW,
-                                          kPanelBH[0]));
-  pen.element(colBEl[1], SkRect::MakeXYWH(kColBX, panelTop(kPanelBH, 1), kColW,
-                                          kPanelBH[1]));
-  pen.element(colBEl[2], SkRect::MakeXYWH(kColBX, panelTop(kPanelBH, 2), kColW,
-                                          kPanelBH[2]));
+  pen.element(colAEl[0], kColAX, panelTop(kPanelAH, 0), kColW, kPanelAH[0]);
+  pen.element(colAEl[1], kColAX, panelTop(kPanelAH, 1), kColW, kPanelAH[1]);
+  pen.element(colAEl[2], kColAX, panelTop(kPanelAH, 2), kColW, kPanelAH[2]);
+  pen.element(colBEl[0], kColBX, panelTop(kPanelBH, 0), kColW, kPanelBH[0]);
+  pen.element(colBEl[1], kColBX, panelTop(kPanelBH, 1), kColW, kPanelBH[1]);
+  pen.element(colBEl[2], kColBX, panelTop(kPanelBH, 2), kColW, kPanelBH[2]);
   // The holes: B1's heading is 12 tall over a 4 px gap, so the diagram
   // starts 30 px into the panel's padding box.
   const float holeX = kColBX + kPanelPad, holeW = kColW - 2 * kPanelPad;

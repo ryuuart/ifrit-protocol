@@ -283,7 +283,7 @@ struct ChladniTab1 {
                                                    edge.b * 0.6f, 0.5f}}),
             box().cover().fill(
                 vignette({edge.r, edge.g, edge.b, 0.26f}, 0.62f)),
-            box().cover().fill(material::Paint::linearGradient(
+            box().cover().fill(material::linearGradient(
                 {0, 0}, {canvas.width() * 0.09f, 0},
                 {{edge.r * 0.5f, edge.g * 0.5f, edge.b * 0.5f, 0.22f},
                  {edge.r, edge.g, edge.b, 0}},
@@ -625,7 +625,7 @@ struct ChladniTab1 {
       const auto across = [&](float share) {
         return figure.inner + share * (1 - figure.inner);
       };
-      fans.push_back(toFill(material::Paint::radialGradient(
+      fans.push_back(toFill(material::radialGradient(
           {radius, radius}, radius,
           {{across(0.2f), material::withAlpha(fur, 0)},
            {across(0.6f), fur},
@@ -636,7 +636,7 @@ struct ChladniTab1 {
     const material::Color line = colourOf(plate["ink"]["ink-line"]);
     for (const Front& front : kFronts) {
       const float outer = radius + front.width * 0.5f;
-      frontInks.push_back(toFill(material::Paint::radialGradient(
+      frontInks.push_back(toFill(material::radialGradient(
           {radius, radius}, outer,
           {{(radius - front.width * 0.5f) / outer,
             material::withAlpha(line, 0)},

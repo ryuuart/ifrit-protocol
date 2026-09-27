@@ -114,10 +114,10 @@ void drawDiamond(SkCanvas& c, SkPoint at, float r,
 Fill parchmentFill(material::Color base, float frequency) {
   sk_sp<SkShader> noise =
       SkShaders::MakeFractalNoise(frequency, frequency, 3, 7.0f);
-  return Fill{material::skia::paint(SkShaders::Blend(
+  return Fill{material::skia::base(material::skia::paint(SkShaders::Blend(
       SkBlendMode::kSoftLight,
       SkShaders::Color(material::skia::toSkColor(base), nullptr),
-      std::move(noise)))};
+      std::move(noise))))};
 }
 
 /** A half-edge flourish, drawn from a corner toward the edge's

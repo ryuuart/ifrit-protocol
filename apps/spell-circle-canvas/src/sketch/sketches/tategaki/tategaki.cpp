@@ -48,6 +48,7 @@
 
 #include "VerticalSpecimen.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -113,7 +114,7 @@ struct Tategaki {
   Element describe() {
     namespace tg = tategaki;
 
-    Fill ground = toFill(material::Paint::linearGradient(
+    Fill ground = toFill(material::linearGradient(
         {0, 0}, {0, tg::kH}, {tg::kSumiLift, tg::kSumi},
         {.units = material::GradientUnits::Pixels}));
 

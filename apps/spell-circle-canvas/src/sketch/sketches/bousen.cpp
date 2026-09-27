@@ -55,6 +55,7 @@
 
 #include "tategaki/VerticalSpecimen.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -177,7 +178,7 @@ struct Bousen {
   Element describe() {
     namespace bs = bousen;
 
-    Fill ground = toFill(material::Paint::linearGradient(
+    Fill ground = toFill(material::linearGradient(
         {0, 0}, {0, bs::kH}, {bs::kKinariLift, bs::kKinari},
         {.units = material::GradientUnits::Pixels}));
 

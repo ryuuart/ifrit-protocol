@@ -20,6 +20,7 @@
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilsketch/kit/Page.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <algorithm>
 #include <initializer_list>
@@ -142,7 +143,7 @@ struct KumikoAsanoha {
         .children({
             box()
                 .cover()
-                .fill(material::Paint::radialGradient(
+                .fill(material::radialGradient(
                     {middleX, middleY}, 585,
                     {{0.00f, hexColor(0xF7E8C6, 0.88f)},
                      {0.30f, hexColor(0xF2E0B4, 0.85f)},
@@ -154,7 +155,7 @@ struct KumikoAsanoha {
             box()
                 .cover()
                 .blendMode(material::BlendMode::PlusLighter)
-                .fill(material::Paint::radialGradient(
+                .fill(material::radialGradient(
                     {middleX, kOpening.height() * 0.64f}, 330,
                     {{0.00f, hexColor(0xFFE6B8, 0.42f)},
                      {0.35f, hexColor(0xF3C98A, 0.22f)},
@@ -196,7 +197,7 @@ struct KumikoAsanoha {
         .rect(kOpening)
         .opacity(breath())
         .blendMode(material::BlendMode::PlusLighter)
-        .fill(material::Paint::radialGradient(
+        .fill(material::radialGradient(
             {kOpening.width() * 0.5f, kOpening.height() * 0.5f}, 380,
             {{0.00f, hexColor(0xFFF2D2, 0.17f)},
              {0.45f, hexColor(0xE6BC7C, 0.09f)},
@@ -213,7 +214,7 @@ struct KumikoAsanoha {
     return kit::at(0, top, kWidth, 122)
         .opacity(breath())
         .blendMode(material::BlendMode::PlusLighter)
-        .fill(material::Paint::radialGradient(
+        .fill(material::radialGradient(
             {kCentre.x, kOpening.bottom() - top - 60}, 560,
             {{0.00f, hexColor(0xF6D9A2, 0.55f)},
              {0.22f, hexColor(0xE8BD7A, 0.32f)},
@@ -268,7 +269,7 @@ struct KumikoAsanoha {
                    // The near side of the room, in shadow. It stops at the
                    // room's floor: the drawing under it is a drawing.
                    kit::at(0, 0, kWidth, kRoom)
-                       .fill(material::Paint::radialGradient(
+                       .fill(material::radialGradient(
                            {700, 500}, 920,
                            {{0.30f, {0, 0, 0, 0}},
                             {0.72f, {0, 0, 0, 0.30f}},

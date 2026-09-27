@@ -49,6 +49,7 @@
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/query/Selector.h>
 #include <sigilweave/style/Type.h>
+#include <sigilmaterial/paint/Bases.h>
 
 #include <string>
 #include <utility>
@@ -203,7 +204,7 @@ struct RubyKenten {
             .top(320);
 
     return box()
-        .fill(sigil::material::Paint::linearGradient(
+        .fill(sigil::material::linearGradient(
             {0, 0}, {0, f::kH}, {f::kKinariLift, f::kKinari},
             {.units = sigil::material::GradientUnits::Pixels}))
         .font({.size = 10, .track = 0.2f})

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Drawing.h"
+#include <sigilmaterial/paint/Bases.h>
 
 namespace sj {
 
@@ -100,7 +101,7 @@ inline Element gasGiant(SkPoint c, float r, sigil::material::Color body,
           .overflow(Overflow::Clip)
           .overlay(std::move(bands))
           .stroke(stroke(S(1.5f), Fill::color(limb), PathFormat::Align::Inner));
-  d.children({box().inset(0).fill(material::Paint::radialGradient(
+  d.children({box().inset(0).fill(material::radialGradient(
       {0.34f, 0.28f}, 1.35f,
       {{0.0f, sigil::material::withAlpha(hi, 0.42f)},
        {0.34f, sigil::material::withAlpha(hi, 0.10f)},
@@ -254,7 +255,7 @@ inline Element artSitemap(sigil::weave::FontContext& f) {
   // they were authored.
   Element vortex = rect(c.fX - S(35), c.fY - S(17), S(70), S(34))
                        .shape(shapes::annulus(0.30f))
-                       .fill(material::Paint::radialGradient(
+                       .fill(material::radialGradient(
                            {0.5f, 0.5f}, 1.0f,
                            {{0.0f, C5(0xFFFF00)},
                             {0.34f, C5(0xFFEF00)},
@@ -312,7 +313,7 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
   ship.children(
       {rect(S(38), S(6), S(52), S(20))
            .shape(tri(1.0f, 1.0f, 0.86f, 0.0f, 0.0f, 1.0f))
-           .fill(material::Paint::linearGradient(
+           .fill(material::linearGradient(
                {0, 0}, {0, 1}, {{0.0f, C5(0xF71039)}, {1.0f, hullLo}})),
        // ventral fin
        rect(S(58), S(36), S(40), S(15))
@@ -321,13 +322,13 @@ inline Element artPressBox(sigil::weave::FontContext& f) {
        // rear nacelle
        rect(S(4), S(25), S(36), S(14))
            .shape(shapes::squircle(2.6f))
-           .fill(material::Paint::linearGradient(
+           .fill(material::linearGradient(
                {0, 0}, {0, 1},
                {{0.0f, C5(0x8CDE73)}, {0.42f, grn}, {1.0f, grnLo}})),
        // fuselage
        rect(S(16), S(23), S(100), S(17))
            .shape(shapes::squircle(2.2f))
-           .fill(material::Paint::linearGradient({0, 0}, {0, 1},
+           .fill(material::linearGradient({0, 0}, {0, 1},
                                                        {{0.0f, hullHi},
                                                         {0.26f, hull},
                                                         {0.68f, hullLo},
@@ -399,7 +400,7 @@ inline Element artLogo(sigil::weave::FontContext& fonts) {
                      float capTopY, float lean) {
     const float size = capPx / 0.72f;
     Text t = text(s).font(ty(display(), size, C5(0x2FA9A0), 0));
-    t.ink(material::Paint::linearGradient(
+    t.ink(material::linearGradient(
         {0, 0}, {0, 1},
         {{0.0f, C5(0x006BA5)},
          {0.22f, C5(0x007BAD)},

@@ -6,6 +6,7 @@
 #include "TwoAdvancedV3.h"
 #include <sigilmedia/image/Decode.h>
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmaterial/paint/Bases.h>
 
 Element TwoAdvancedV3::describe() {
   using namespace tv3;
@@ -17,7 +18,7 @@ Element TwoAdvancedV3::describe() {
     // clamped down (the page is shorter than the strip).
     page.fill(stretchFill(pageTile, 10, 1600, SkTileMode::kRepeat));
   } else {
-    page.fill(material::Paint::linearGradient(
+    page.fill(material::linearGradient(
         {0, 0}, {0, 1}, {{0.0f, kPageHi}, {0.55f, kPage}}));
   }
   page.children({bevelBar(), headerStrip(), wordmark(), navBar(), hairlines(),
@@ -29,7 +30,7 @@ Element TwoAdvancedV3::describe() {
   if (lowerPanelBg)
     ground.fill(stretchFill(lowerPanelBg, kStageW, 400));
   else
-    ground.fill(material::Paint::linearGradient(
+    ground.fill(material::linearGradient(
         {0, 0}, {1, 1}, {{0.0f, hexColor(0x22304A)}, {1.0f, kPage}}));
   ground.opacity(
       motion::animate({.from = 0.0f, .to = 1.0f, .duration = 380ms, .delay = 2250ms, .ease = motion::ease::outQuad}));

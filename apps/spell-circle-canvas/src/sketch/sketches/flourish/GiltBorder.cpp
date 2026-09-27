@@ -10,6 +10,7 @@
 #include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/paint/Bases.h>
 
 namespace flourish {
 
@@ -19,10 +20,10 @@ Fill flourishParchment(const FlourishStyle& s, float freq) {
   sk_sp<SkShader> muted = SkShaders::Blend(
       SkBlendMode::kLuminosity,
       SkShaders::Color(SkColorSetARGB(255, 128, 128, 128)), std::move(noise));
-  return Fill{material::skia::paint(SkShaders::Blend(
+  return Fill{material::skia::base(material::skia::paint(SkShaders::Blend(
       SkBlendMode::kSoftLight,
       SkShaders::Color(material::skia::toSkColor(s.parchment).toSkColor()),
-      std::move(muted)))};
+      std::move(muted))))};
 }
 
 Shape leafOutline() {
@@ -64,7 +65,7 @@ Element acanthusLeaf(const FlourishStyle& s, float w,
       .width(w)
       .height(h)
       .shape(leafOutline())
-      .fill(material::Paint::linearGradient(
+      .fill(material::linearGradient(
           {0, 0}, {w, h}, {s.leaf, s.bronze},
           {.units = material::GradientUnits::Pixels}))
       .foreground(sigil::compose::stroke(1.1f, Fill::color(s.goldBright)))

@@ -361,7 +361,7 @@ struct ShippingForecast {
             .cache(Cache::Texture)
             .key("ring-ground")
             .children({
-                box().cover().fill(material::Paint::radialGradient(
+                box().cover().fill(material::radialGradient(
                     {0.5f, 0.5f}, 0.94f,
                     {{0.0f, kSeaLift},
                      {0.62f, hexColor(0x090E15)},
@@ -425,7 +425,7 @@ struct ShippingForecast {
         // the middle, and breathes with the grade the name breathes on.
         kit::disc(kEye, kPorthole)
             .key("lamp")
-            .fill(material::Paint::radialGradient(
+            .fill(material::radialGradient(
                 {kPorthole, kPorthole}, kPorthole,
                 {material::withAlpha(kAmber, 0.15f),
                  material::withAlpha(kAmber, 0.05f),
@@ -469,7 +469,7 @@ struct ShippingForecast {
                 .cover()
                 .shape(sigil::geometry::shapes::sector(-51.5f, 51.5f))
                 .rotate(motion::bind(cycle, {.from = {kReadingResumes, finished}, .clampFrom = true, .to = {0.0f, last - readingBearing}}))
-                .fill(material::Paint::conicGradient(
+                .fill(material::conicGradient(
                     {radius, radius},
                     {{0.0f, material::withAlpha(kAmber, 0)},
                      {0.86f, material::withAlpha(kAmber, 0)},
@@ -481,7 +481,7 @@ struct ShippingForecast {
                         .top(radius - 0.5f)
                         .width(radius)
                         .height(1)
-                        .fill(material::Paint::linearGradient(
+                        .fill(material::linearGradient(
                             {0, 0.5f}, {1, 0.5f},
                             {{0.0f, material::withAlpha(kAmber, 0)},
                              {1.0f, material::withAlpha(kAmber, 0.7f)}})),
@@ -595,7 +595,7 @@ struct ShippingForecast {
                 .opacity(motion::bind(seconds, {.from = {0, kLampPeriod}, .envelope = motion::envelope::square(kLampLit), .to = {0.28f, 1.0f}}))
                 .children({
                     kit::disc({3.5f, 3.5f}, 13)
-                        .fill(material::Paint::radialGradient(
+                        .fill(material::radialGradient(
                             {0.5f, 0.5f}, 1.0f,
                             {{0.0f, material::withAlpha(kAmber, 0.45f)},
                              {1.0f, material::withAlpha(kAmber, 0)}},
@@ -809,7 +809,7 @@ struct ShippingForecast {
   [[nodiscard]] Element describe() {
     return stack()
         .applyStyleSheet(sheet())
-        .fill(material::Paint::linearGradient(
+        .fill(material::linearGradient(
             {0, 0}, {0, kCanvas.height()},
             {{0.0f, kSea}, {0.55f, kSeaLift}, {1.0f, hexColor(0x05080C)}},
             {.units = material::GradientUnits::Pixels}))
