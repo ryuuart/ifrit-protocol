@@ -111,8 +111,8 @@ const char* outcomeName(BaselineOutcome outcome) {
   return "unknown";
 }
 
-std::string sizeText(SkISize size) {
-  return std::to_string(size.width()) + "x" + std::to_string(size.height());
+std::string sizeText(glm::ivec2 size) {
+  return std::to_string(size.x) + "x" + std::to_string(size.y);
 }
 
 }  // namespace

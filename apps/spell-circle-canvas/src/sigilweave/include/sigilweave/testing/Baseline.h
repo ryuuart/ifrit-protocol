@@ -12,13 +12,14 @@
  */
 
 #include <include/core/SkPixmap.h>
-#include <include/core/SkSize.h>
 #include <sigilmedia/difference/Difference.h>
 
 #include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
+
+#include <glm/vec2.hpp>
 
 #include "sigilweave/testing/Plate.h"
 
@@ -50,8 +51,8 @@ struct BaselineComparison {
   BaselineOutcome outcome = BaselineOutcome::kMissing;
   std::filesystem::path baseline;
   std::filesystem::path rejected;
-  SkISize renderSize = {0, 0};
-  SkISize baselineSize = {0, 0};
+  glm::ivec2 renderSize{0, 0};
+  glm::ivec2 baselineSize{0, 0};
   media::PixelDifference difference;
   /// The faces the baseline was adopted on that the plate was not drawn
   /// in, and the ones it was drawn in that the baseline was not adopted

@@ -1,5 +1,6 @@
 #include "sigilweave/testing/Reading.h"
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilweave/choreograph/PlacedGlyph.h>
 
 #include <algorithm>
@@ -56,7 +57,7 @@ Reading read(const Passage& passage) {
     RunReading& runReading = reading.runs.emplace_back();
     runReading.wordIndex = run.wordIndex;
     runReading.lineIndex = run.lineIndex;
-    runReading.origin = run.origin;
+    runReading.origin = geometry::path::fromSk(run.origin);
     runReading.advance = run.advance;
     runReading.glyphCount =
         run.shaped ? static_cast<uint32_t>(run.shaped->glyphs.size()) : 0u;
@@ -69,24 +70,24 @@ Reading read(const Passage& passage) {
 
   forEachPlacedGlyph(layout, paragraph, [&](const PlacedGlyph& placed) {
     reading.glyphs.push_back({.glyph = placed.glyph,
-                              .rest = placed.rest,
+                              .rest = geometry::path::fromSk(placed.rest),
                               .advance = placed.advance,
                               .textIndex = placed.textIndex,
                               .wordIndex = placed.wordIndex,
                               .lineIndex = placed.lineIndex,
                               .transformed = placed.transformed,
-                              .tangent = placed.tangent});
+                              .tangent = geometry::path::fromSk(placed.tangent)});
   });
 
   for (uint32_t wordIndex = 0; wordIndex < words.size(); ++wordIndex)
     if (words[wordIndex].hyphenBreak)
       reading.hyphenationPoints.push_back(words[wordIndex].whitespaceEnd);
 
-  std::map<int, SkRect> boxes;
+  std::map<int, geometry::path::Rect> boxes;
   for (const LineMetrics& metrics : layout.lineMetrics(paragraph))
-    boxes[metrics.lineIndex] = metrics.rect();
+    boxes[metrics.lineIndex] = geometry::path::fromSk(metrics.rect());
   for (const ColumnMetrics& metrics : layout.columnMetrics(paragraph))
-    boxes[metrics.lineIndex] = metrics.rect();
+    boxes[metrics.lineIndex] = geometry::path::fromSk(metrics.rect());
 
   std::map<int, std::vector<LineScore>> scoresByLine;
   for (const LineScore& score : layout.lineScores)

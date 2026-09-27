@@ -128,7 +128,7 @@ TEST(WeaveReading, GlyphsRestWhereTheLineSetThem) {
   ASSERT_EQ(reading.glyphs.size(), 4u);
   ASSERT_EQ(reading.runs.size(), 2u);
   EXPECT_EQ(reading.glyphs[0].rest, reading.runs[0].origin);
-  EXPECT_NEAR(reading.glyphs[1].rest.x() - reading.glyphs[0].rest.x(), kLetter,
+  EXPECT_NEAR(reading.glyphs[1].rest.x - reading.glyphs[0].rest.x, kLetter,
               1e-3f);
   EXPECT_EQ(reading.glyphs[2].rest, reading.runs[1].origin);
   EXPECT_EQ(reading.glyphs[2].textIndex, 3u);

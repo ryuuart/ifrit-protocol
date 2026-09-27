@@ -93,7 +93,7 @@ TEST(WeaveBaseline, AMovedRenderDiffersAndIsWrittenAside) {
       weave::testing::compareToBaseline(pixelsOf(rendered(u8"one", {100, 40})),
                                         baseline);
   EXPECT_EQ(resized.outcome, BaselineOutcome::kResized);
-  EXPECT_EQ(resized.baselineSize, (SkISize{200, 40}));
+  EXPECT_EQ(resized.baselineSize, (glm::ivec2{200, 40}));
 
   scratch.write("junk.png", "not an image");
   EXPECT_EQ(weave::testing::compareToBaseline(pixelsOf(rendered(u8"one")),

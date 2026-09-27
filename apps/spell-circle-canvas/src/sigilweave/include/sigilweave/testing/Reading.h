@@ -11,13 +11,14 @@
  * what it expects as a value rather than walking the layout itself.
  */
 
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
 #include <include/core/SkTypes.h>
 
 #include <cstdint>
 #include <vector>
 
+#include <glm/vec2.hpp>
+
+#include "sigilgeometry/path/Outline.h"
 #include "sigilweave/layout/ParagraphLayout.h"
 #include "sigilweave/layout/PositionedRun.h"
 #include "sigilweave/testing/Passage.h"
@@ -29,13 +30,13 @@ namespace sigil::weave::testing {
  *  text. */
 struct GlyphPlacement {
   SkGlyphID glyph = 0;
-  SkPoint rest = {0, 0};      ///< absolute origin, fit applied
+  glm::vec2 rest{0, 0};       ///< absolute origin, fit applied
   float advance = 0;          ///< this glyph's pen travel
   uint32_t textIndex = 0;     ///< its cluster as an offset into the text
   uint32_t wordIndex = 0;     ///< into Paragraph::words()
   int lineIndex = 0;          ///< the line it landed on
   bool transformed = false;   ///< turned onto a contour or a rotated line
-  SkVector tangent = {1, 0};  ///< the direction it was turned to
+  glm::vec2 tangent{1, 0};    ///< the direction it was turned to
   bool operator==(const GlyphPlacement&) const = default;
 };
 
@@ -44,7 +45,7 @@ struct GlyphPlacement {
 struct RunReading {
   uint32_t wordIndex = 0;
   int lineIndex = 0;
-  SkPoint origin = {0, 0};
+  glm::vec2 origin{0, 0};
   float advance = 0;          ///< the advance it took where it landed
   uint32_t glyphCount = 0;    ///< none for a placeholder
   bool transformed = false;   ///< drawn from a positioned blob
@@ -64,7 +65,7 @@ struct LineReading {
   int lineIndex = 0;
   /// The band the line's runs occupy, ascent to descent — or the column's
   /// band down a vertical one; empty for a line of turned runs.
-  SkRect box = SkRect::MakeEmpty();
+  geometry::path::Rect box;
   uint32_t textBegin = 0;  ///< first UTF-16 unit on the line
   uint32_t textEnd = 0;    ///< one past the last, trailing glue included
   float measure = 0;       ///< the length of the interval it was set in
