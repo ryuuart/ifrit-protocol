@@ -240,8 +240,8 @@ inline TickRail tickRail(
  *
  *  Hard rows, deliberately: a 3 px period with a 1 px band is the house
  *  spelling of an interface shot off a monitor, and a raised-cosine beam
- *  is a different picture (`material::field::crtOverlay`, which also
- *  carries the tube's corner falloff). `kPlus` in a tint is the phosphor
+ *  is a different picture, a program a sketch writes, which also
+ *  carries the tube's corner falloff. `kPlus` in a tint is the phosphor
  *  reading; source-over in a low black alpha is the print reading.
  *  @p phase slides the rows, in px. */
 struct Scanlines {
