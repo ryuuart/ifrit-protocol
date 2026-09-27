@@ -34,7 +34,7 @@ sigil_library(SigilComposeBrush
           StrokePainting.cpp SpanNormalForm.cpp Band.cpp Masks.cpp
           SpanArithmetic.h SpanContours.h
   HEADERS Adaptors.h Brush.h Brushes.h Decorations.h Hatches.h
-          Ribbons.h Stamps.h
+          Ribbons.h Stamps.h ../advanced/PathEffect.h
           Layered.h Lines.h PixelStyles.h Rails.h
           ../kit/Plate.h ../kit/Strokes.h
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/../core

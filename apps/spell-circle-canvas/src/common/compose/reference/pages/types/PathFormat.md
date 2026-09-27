@@ -12,7 +12,7 @@ status: stable
 HOW A STROKE ALONG THE NODE'S OUTLINE IS FORMATTED, as one comparable
 value: a width and a paint, and then — if the mark is not a plain line —
 a dash pattern, a path stamped repeatedly along the contour, a trim
-window, or any `SkPathEffect` at all. In the brush taxonomy it is
+window, or any path effect the renderer ships. In the brush taxonomy it is
 `brush::Solid`, the plain stroke, and it is the same type under both
 names.
 
@@ -43,7 +43,9 @@ the runs were cut from.
 makes the dashes MARCH. `PathFormat::stampPath` and
 `PathFormat::stampAdvance` repeat a path along the contour, rotated to
 follow it — vines, chains, ornament runs. `PathFormat::effect` is the
-escape hatch, and supersedes both.
+escape hatch, and supersedes both: the renderer's own path effect held
+opaquely, built by `pathEffect()` in `<sigilcompose/advanced/PathEffect.h>`,
+which a consumer includes by name.
 
 `PathFormat::trimStart`, `PathFormat::trimEnd` and
 `PathFormat::trimOffset` are a window on the arc length, per DECORATION
@@ -99,9 +101,8 @@ the shape.
 Every field is a number, a small enumeration, a vector of numbers or a
 value that compares structurally, which is what lets a stroked, dashed or
 stamped border prune with no memo. A custom `PathFormat::effect` compares
-by pointer identity, so holding one effect and rebuilding the wrapper
-around it still prunes; building a fresh `SkPathEffect` per describe does
-not.
+by identity, so holding one effect and handing the same value to every
+describe still prunes; building a fresh effect per describe does not.
 
 `PathFormat::isRunning` answers true for a bound trim phase, a bound
 dash phase, or a live stroke paint, and the node then repaints every

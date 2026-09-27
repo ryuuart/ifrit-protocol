@@ -5,6 +5,10 @@
  *
  * SigilCompose hatches — the parallel lattice clipped to a silhouette, and
  * the radial and concentric hatches about a centre.
+ *
+ * THE INK IS A `Fill`: a material laid across the rules — a gradient, a
+ * pattern, a program, or a colour through `Fill::color` — or the ink in
+ * force.
  */
 
 #include <sigilgeometry/kit/Hatches.h>

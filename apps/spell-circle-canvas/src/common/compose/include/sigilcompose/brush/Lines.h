@@ -11,12 +11,15 @@
  * caches like any static chrome; attach with `.stroke()` to dress any
  * outline or routed wire.
  *
- * Skia's own seam here would be a custom SkPathEffect, but its public API
- * seals subclassing. This header mirrors that contract at OUR seam
- * instead — the geometry ops run on the outline before stroking, as
- * comparable values — and PathFormat::effect stays the raw
- * sk_sp<SkPathEffect> escape hatch for the effects Skia does ship (dash,
- * corner, discrete, 1D, trim).
+ * The renderer's own seam here would be a custom path effect, but its
+ * public API seals subclassing. This header mirrors that contract at OUR
+ * seam instead — the geometry ops run on the outline before stroking, as
+ * comparable values — and `PathFormat::effect` stays the escape to the
+ * effects the renderer does ship (dash, corner, discrete, 1D, trim).
+ *
+ * THE INK IS A `Fill`: a material — a colour converts through
+ * `Fill::color`, a gradient, pattern or program as itself — or the ink in
+ * force.
  *
  *   connect::Along{.stops = stops, .router = routers::octilinear(),
  *                  .wire = lines::Line{.width = 3, .fill = ink,
@@ -25,17 +28,14 @@
  *                    .wire = lines::presets::arrow(2, ink, 12)};
  */
 
-#include <include/core/SkPath.h>
 #include <sigilgeometry/path/Stroke.h>
-#include <sigilmaterial/skia/Paint.h>  // material::ColorStop — the along-arc gradient ramp
+#include <sigilmaterial/color/Color.h>  // material::ColorStop — the along-arc gradient ramp
 
 #include <optional>
+#include <span>
 #include <vector>
 
 #include "sigilcompose/Compose.h"
-
-class SkCanvas;
-class SkPaint;
 
 /** THE LINE VOCABULARY a map or a diagram needs beyond a dash: parallel
  *  casings (double and triple rails, highway pairs), terminal markers
@@ -54,21 +54,17 @@ namespace sigil::compose::lines {
  *  geometry (offset each dash onto a parallel rail, stamp along the marks,
  *  measure them).
  *
- *  IT EXISTS BECAUSE THE OBVIOUS SPELLING SILENTLY DOES NOTHING. Skia's
- *  dash effect opens with
+ *  IT EXISTS BECAUSE THE OBVIOUS SPELLING SILENTLY DOES NOTHING. The
+ *  renderer's dash effect declines a path that is to be FILLED and leaves
+ *  the destination untouched, while every other path effect used here —
+ *  corner, trim, discrete — accepts one, so a fill is the natural thing to
+ *  ask for, and the one effect that refuses it fails by leaving a SOLID
+ *  path behind rather than by reporting anything. Nothing in the render
+ *  says the line was meant to be dashed.
  *
- *      // we do nothing if the src wants to be filled
- *      if (kFill_Style == style || kStrokeAndFill_Style == style) return false;
- *
- *  so `filterPath` with a `SkStrokeRec(kFill_InitStyle)` returns false and
- *  leaves the destination untouched. Every other path effect used here —
- *  corner, trim, discrete — accepts a fill rec, so a fill rec is the
- *  natural thing to reach for, and the one effect that refuses it fails by
- *  leaving a SOLID path behind rather than by reporting anything. Nothing
- *  in the render says the line was meant to be dashed.
- *
- *  Hairline is the rec to use. Returns the input unchanged when the
- *  pattern is empty or Skia declines. */
+ *  This dashes the path as a hairline stroke, which the effect accepts.
+ *  Returns the input unchanged when the pattern is empty or the renderer
+ *  declines. */
 geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
                                      std::span<const float> intervals,
                                      float phase);
@@ -202,11 +198,6 @@ struct Line {
  private:
   /** How much body to cut under a marker (dashes stop under heads). */
   float trimFor(Marker marker) const;
-
-  void applyFill(SkPaint& p, const PaintContext& ctx) const;
-
-  void drawMarker(SkCanvas& canvas, const SkPaint& head, Marker marker,
-                  SkPoint pos, SkVector tan) const;
 };
 
 }  // namespace sigil::compose::lines

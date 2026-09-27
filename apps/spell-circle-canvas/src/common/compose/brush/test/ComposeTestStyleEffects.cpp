@@ -69,3 +69,44 @@ TEST(ComposeStyleEffects, ABevelPairInkedByAColourIsTheColoursMark) {
                     20, 60),
             0xFFCCCCCCu);
 }
+
+TEST(ComposeStyleEffects, AColourInkAndTheMaterialItConvertsToPaintTheSame) {
+  const material::Color red = {1, 0, 0, 1};
+  const auto framed = [](Fill ink) {
+    return box().fill(Fill::color(kGrey)).foreground(
+        decorations::border(3, std::move(ink), 4));
+  };
+  Host byColour(120, 120), byMaterial(120, 120);
+  byColour.composer.render(box().children(
+      {framed(Fill::color(red)).absolute().left(20).top(20).width(80).height(80)}));
+  byMaterial.composer.render(box().children(
+      {framed(material::Material(red)).absolute().left(20).top(20).width(80).height(80)}));
+  byColour.frame();
+  byMaterial.frame();
+  EXPECT_TRUE(identicalPixels(byColour, byMaterial, 120, 120));
+  EXPECT_EQ(byColour.pixel(24, 60), SK_ColorRED);  // on the inset rule
+}
+
+TEST(ComposeStyleEffects, AMarkInkedWithAGradientTakesItAcrossTheBox) {
+  // Brackets at all four corners, inked left red to right blue: the left
+  // arms are red and the right ones blue.
+  const Element bracketed =
+      box().fill(Fill::color({0, 0, 0, 1})).foreground(styles::brackets(
+          material::linearGradient({0, 0}, {1, 0},
+                                   {material::Color{1, 0, 0, 1},
+                                    material::Color{0, 0, 1, 1}}),
+          12, 2));
+  const SkColor left = pixelOf(bracketed, 20, 25);
+  const SkColor right = pixelOf(bracketed, 99, 25);
+  EXPECT_GT(SkColorGetR(left), 200u);
+  EXPECT_LT(SkColorGetB(left), 40u);
+  EXPECT_GT(SkColorGetB(right), 200u);
+  EXPECT_LT(SkColorGetR(right), 40u);
+}
+
+TEST(ComposeStyleEffects, AShadowTakesAMaterialInk) {
+  EXPECT_EQ(pixelOf(box().fill(Fill::color(kGrey)).background(sigil::compose::shadow(
+                        material::Color{0, 0, 1, 1}, {10, 10}, 0)),
+                    105, 105),
+            SK_ColorBLUE);
+}

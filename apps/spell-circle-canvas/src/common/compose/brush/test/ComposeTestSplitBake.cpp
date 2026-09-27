@@ -44,7 +44,7 @@ TEST(ComposeCache, TextureBakeKeepsBleedAndOverflow) {
            .absolute()
            .inset(70)
            .cache(Cache::Texture)
-           .background(Shadow{{0, 1, 0, 1}, {30, 0}, 0})
+           .background(Shadow{material::Color{0, 1, 0, 1}, {30, 0}, 0})
            .fill(red())}));
   host.frame();
   EXPECT_EQ(host.pixel(140, 100), SK_ColorGREEN);  // shadow past the box

@@ -4,12 +4,12 @@
  * @ingroup compose-brush
  *
  * SigilCompose decoration primitives — the concrete treatments over the
- * kernel's Decoration seam. Each is a thin value struct over machinery Skia
- * already ships, and there are deliberately few of them:
+ * kernel's Decoration seam. Each is a thin value struct over machinery the
+ * renderer already ships, and there are deliberately few of them:
  *
  *  - PathFormat: format any stroke along the node's outline — width and
- *    paint plus an optional dash pattern, a stamped path repeated along
- *    the contour (vines, chains), or any custom SkPathEffect.
+ *    ink plus an optional dash pattern, a stamped path repeated along
+ *    the contour (vines, chains), or the renderer's own path effect.
  *  - Slice: map an image onto the box through a lattice, of which
  *    nine-slice is the 3×3 case.
  *  - ContourWalk: walk the outline by arc length and run a draw program at
@@ -29,10 +29,15 @@
  * A decoration paints from `PaintContext::outline` and knows nothing about
  * the node it belongs to, which is why the same values also work on
  * geometry you built yourself — see `decorations::paintOn`.
+ *
+ * EVERY INK IS A MATERIAL. A mark that takes a `Fill` takes a material —
+ * a gradient, a pattern, a program, or a colour, which converts to one —
+ * or a reference to the ink in force; a mark that takes a
+ * `material::Material` takes the material alone. A `material::Color`
+ * converts to either implicitly where a material is asked for, and
+ * `Fill::color` spells it where a fill is.
  */
 
-#include <include/core/SkPathEffect.h>
-#include <include/core/SkPicture.h>
 #include <sigilcompose/brush/Lines.h>  // cornerBrackets, cornerGaps
 #include <sigilcore/callable/Callable.h>
 #include <sigilgeometry/path/Stroke.h>
@@ -42,16 +47,23 @@
 #include <sigilmaterial/texture/Texture.h>
 
 #include <algorithm>
+#include <memory>
 #include <optional>
+#include <utility>
 
 #include "sigilcompose/Compose.h"
 
 
 namespace sigil::compose {
 
+/** THE RENDERER'S OWN PATH EFFECT, held opaquely: built and read through
+ *  `<sigilcompose/advanced/PathEffect.h>`, which a consumer includes by
+ *  name. */
+struct PathEffect;
+
 /** Stroke the node's outline, formatted by data: dashes, a stamped
- *  path, or a custom effect (composable — dash of a stamp is legal in
- *  Skia by chaining effects yourself via `effect`). */
+ *  path, or the renderer's own path effect (composable — a dash of a
+ *  stamp is one effect chained by hand and handed to `effect`). */
 struct PathFormat {
   /** Where the stroke sits relative to the outline (the Photoshop/Figma
    *  stroke-position control). Center straddles it; Inner clips the
@@ -120,8 +132,10 @@ struct PathFormat {
   geometry::path::Outline stampPath;
   float stampAdvance = 0.0f;
 
-  /** Escape hatch: any SkPathEffect; overrides dash/stamp when set. */
-  sk_sp<SkPathEffect> effect;
+  /** The renderer's own path effect, from
+   *  `<sigilcompose/advanced/PathEffect.h>`; overrides the dash and the
+   *  stamp when set. */
+  std::shared_ptr<const PathEffect> effect;
 
   /** Per-DECORATION trim window (fractions of arc length) — one node can
    *  carry a full static band AND a marching sliver as two strokes. Wraps
@@ -150,7 +164,7 @@ struct PathFormat {
   std::optional<motion::Animatable<float>> trimPhase;
 
   /** Structural equality so a static stroked/dashed/stamped border prunes
-   *  without memo (the custom SkPathEffect compares by pointer identity). */
+   *  without memo (a renderer's path effect compares by identity). */
   bool operator==(const PathFormat&) const = default;
 
   /** Stroke reach beyond the outline (recording cull grows by this). */
@@ -201,7 +215,8 @@ inline PathFormat stroke(float width,
  *  (so a static shadowed node prunes without memo). Attach with .background()
  *  *before* the fill so the fill paints over it. */
 struct Shadow {
-  material::Color color = {0, 0, 0, 1};
+  /** What the shadow is painted in; a colour converts. */
+  material::Material ink = material::Color{0, 0, 0, 1};
   glm::vec2 offset = {0, 0};
   float blur = 0;
 
@@ -236,8 +251,8 @@ struct Shadow {
 
 /** A blurred copy of the node's outline cast at @p offset — attach it
  *  as the FIRST background so everything else paints over it. */
-inline Shadow shadow(material::Color color, glm::vec2 offset, float blur) {
-  return Shadow{color, offset, blur};
+inline Shadow shadow(material::Material ink, glm::vec2 offset, float blur) {
+  return Shadow{std::move(ink), offset, blur};
 }
 
 /** Image-onto-box through a lattice (per-cell stretch); nine-slice is
@@ -281,7 +296,7 @@ struct PathSample {
  *  canvas is translated to the sample and rotated so +x follows the
  *  tangent. The general procedural border. Three bodies, composable:
  *
- *  - `draw`: a raw program per sample (per-step images, SkSL, nested
+ *  - `draw`: a raw program per sample (per-step images, a shader, nested
  *    drawing). Set `animatedWalk` when it depends on
  *    ctx.elapsedSeconds (declared volatility).
  *  - `stamp`: a full element subtree — laid out and recorded ONCE via
@@ -328,13 +343,13 @@ struct ContourWalk {
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 
   /** @private Replay cache, shared across the by-value copies
-   *  Decoration makes; paint() is const, the bake is memoization.
-   *  (Public to keep ContourWalk an aggregate for designated init.) */
-  struct StampCache {
-    sk_sp<SkPicture> picture;
-    const void* bakedFor = nullptr;
-  };
-  std::shared_ptr<StampCache> stampCache = std::make_shared<StampCache>();
+   *  Decoration makes; paint() is const, the bake is memoization. Its
+   *  contents are the painter's. (Public to keep ContourWalk an aggregate
+   *  for designated init.) */
+  struct StampCache;
+  std::shared_ptr<StampCache> stampCache = freshStampCache();
+  /** @private An empty replay cache. */
+  static std::shared_ptr<StampCache> freshStampCache();
 };
 
 /** Floods the node's OUTLINE with a Material through a blend mode — the

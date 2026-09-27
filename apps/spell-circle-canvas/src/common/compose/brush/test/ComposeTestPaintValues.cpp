@@ -340,7 +340,7 @@ TEST(ComposeStyles, BigSoftShadowSurvivesPictureCaching) {
       {box()
            .width(60)
            .height(40)
-           .background(sigil::compose::shadow({1, 0, 0, 0.9f}, {0, 10}, 20))
+           .background(sigil::compose::shadow(material::Color{1, 0, 0, 0.9f}, {0, 10}, 20))
            .fill(Fill::color({0.2f, 0.2f, 0.2f, 1}))}));
   host.frame();
   host.frame();  // cached replay

@@ -750,6 +750,15 @@ dabs it deposits, the strokes and interiors it lays down on a pen. The
 two namespaces stay apart and no function is spelled in both, and where
 a mark wants a pattern's geometry it reads Geometry's.
 
+Every mark takes its ink as a material: `lines::Line`, `lines::Hatch`,
+`lines::RadialHatch`, `PathFormat` and `Border` take a `Fill` — a
+material or the ink in force — and `Shadow`, `styles::BevelPair`,
+`styles::Brackets` and `styles::TickRail` a `material::Material`; a
+colour converts to either. A LOOK laid over a node — an inner shadow, a
+glow, a bevel, scanlines, a stipple — is not a mark but the effects and
+layers of the material it is filled with, so after that a decoration
+names only WHERE a mark sits.
+
 Four words mean different things in neighbouring libraries, and each is
 kept because each is the right word where it stands:
 
@@ -801,9 +810,11 @@ What else the headers still spell, and why:
   resolvers in `Stroke.h` and `MaskResolverOperations::clipRegion` are the
   interfaces between the kernel and its brush and typography tiers, and
   they pass the Skia paths both sides draw with.
-- **Skia's own effects, offered as escapes.** `PathFormat::effect` takes
-  any path effect, and `Lines.h` names the stroke record a dash needs.
-- **Bakes held inside values.** A contour walk's stamp, a stamp brush's
+- **Skia's own effects, offered as escapes.** `PathFormat::effect` holds
+  the renderer's path effect opaquely; it is built by `pathEffect()` in
+  `<sigilcompose/advanced/PathEffect.h>`, which a consumer includes by
+  name and no default header reaches.
+- **Bakes held inside values.** A stamp brush's
   tiles, a ribbon's art and a brush's crossing cache keep the picture,
   image or paths they were made from, so a rebuilt value finds its bake.
 - **The instanced leaf.** `Instances.h` is the sprite batch the direct

@@ -48,6 +48,62 @@ SkPath dashPath(const SkPath& src, SkSpan<const SkScalar> intervals,
   return dashed.detach();
 }
 
+/** Lays @p line's ink on @p p. A fill written as the ink in force, or as a
+ *  custom property, takes its colour from the node the line is painted
+ *  under. */
+void applyLineFill(const Line& line, SkPaint& p, const PaintContext& ctx) {
+  const Fill resolved = resolveFill(line.fill, ctx);
+  if (resolved.kind == Fill::Kind::Color)
+    p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
+  else if (resolved.kind == Fill::Kind::Paint)
+    p.setShader(material::skia::staticShader(detail::paintOf(resolved)));
+}
+
+/** One of @p line's markers at @p pos, facing along @p tan. */
+void drawLineMarker(const Line& line, SkCanvas& canvas, const SkPaint& head,
+                    Marker marker, SkPoint pos, SkVector tan) {
+  const float markerSize = line.markerSize;
+  const float width = line.width;
+  const float t = std::hypot(tan.x(), tan.y());
+  if (t < 1e-4f) return;
+  tan = {tan.x() / t, tan.y() / t};
+  const SkVector n{-tan.y(), tan.x()};
+  switch (marker) {
+    case Marker::Arrow: {
+      // Tip AT the endpoint; barbs markerSize back at ±tan(30°)·markerSize,
+      // which is the 60° apex.
+      const SkPoint base{pos.x() - tan.x() * markerSize,
+                         pos.y() - tan.y() * markerSize};
+      SkPathBuilder tri;
+      tri.moveTo(pos);
+      tri.lineTo(base.x() - n.x() * markerSize * 0.577f,
+                 base.y() - n.y() * markerSize * 0.577f);
+      tri.lineTo(base.x() + n.x() * markerSize * 0.577f,
+                 base.y() + n.y() * markerSize * 0.577f);
+      tri.close();
+      canvas.drawPath(tri.detach(), head);
+      break;
+    }
+    case Marker::Dot:
+      canvas.drawCircle(pos, markerSize * 0.5f, head);
+      break;
+    case Marker::Bar: {
+      SkPaint bar = head;
+      bar.setStyle(SkPaint::kStroke_Style);
+      bar.setStrokeWidth(std::max(width, 2.0f));
+      canvas.drawLine(
+          {pos.x() - n.x() * markerSize * 0.5f,
+           pos.y() - n.y() * markerSize * 0.5f},
+          {pos.x() + n.x() * markerSize * 0.5f,
+           pos.y() + n.y() * markerSize * 0.5f},
+          bar);
+      break;
+    }
+    case Marker::None:
+      break;
+  }
+}
+
 }  // namespace
 
 geometry::path::Outline dashGeometry(const geometry::path::Outline& src,
@@ -119,7 +175,7 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
   // Round unless asked otherwise; the rails always end round.
   stroke.setStrokeJoin(geometry::path::toSk(join));
   stroke.setStrokeCap(SkPaint::kRound_Cap);
-  applyFill(stroke, ctx);
+  applyLineFill(*this, stroke, ctx);
   if (!dashIntervals.empty())
     stroke.setPathEffect(SkDashPathEffect::Make(
         SkSpan(dashIntervals.data(), dashIntervals.size()), phase()));
@@ -237,7 +293,7 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
     tiePaint.setAntiAlias(true);
     tiePaint.setStyle(SkPaint::kStroke_Style);
     tiePaint.setStrokeWidth(tickWidth > 0 ? tickWidth : width);
-    applyFill(tiePaint, ctx);
+    applyLineFill(*this, tiePaint, ctx);
     canvas.drawPath(ties.detach(), tiePaint);
   }
 
@@ -248,7 +304,7 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
       (midMarker != Marker::None && midSpacing > 0)) {
     SkPaint head;
     head.setAntiAlias(true);
-    applyFill(head, ctx);
+    applyLineFill(*this, head, ctx);
     using geometry::path::toSk;
     for (const geometry::path::Contour& contour :
          geometry::path::Contour::of(capPath)) {
@@ -257,11 +313,11 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
       if (!closed) {
         if (endMarker != Marker::None)
           if (const auto end = contour.at(len))
-            drawMarker(canvas, head, endMarker, toSk(end->position),
+            drawLineMarker(*this, canvas, head, endMarker, toSk(end->position),
                        toSk(end->tangent));
         if (startMarker != Marker::None)
           if (const auto start = contour.at(0))
-            drawMarker(canvas, head, startMarker, toSk(start->position),
+            drawLineMarker(*this, canvas, head, startMarker, toSk(start->position),
                        toSk(-start->tangent));
       }
       if (midMarker != Marker::None && midSpacing > 0) {
@@ -272,7 +328,7 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
         // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
         for (float d = from; d < until; d += midSpacing)
           if (const auto sample = contour.at(d))
-            drawMarker(canvas, head, midMarker, toSk(sample->position),
+            drawLineMarker(*this, canvas, head, midMarker, toSk(sample->position),
                        toSk(sample->tangent));
       }
     }
@@ -292,57 +348,6 @@ float Line::trimFor(Marker marker) const {
   return 0.0f;
 }
 
-void Line::applyFill(SkPaint& p, const PaintContext& ctx) const {
-  // A fill written as the ink in force, or as a custom property, takes
-  // its colour from the node the line is painted under.
-  const Fill resolved = resolveFill(fill, ctx);
-  if (resolved.kind == Fill::Kind::Color)
-    p.setColor4f(material::skia::toSkColor(resolved.colorValue), nullptr);
-  else if (resolved.kind == Fill::Kind::Paint)
-    p.setShader(material::skia::staticShader(detail::paintOf(resolved)));
-}
-
-void Line::drawMarker(SkCanvas& canvas, const SkPaint& head, Marker marker,
-                      SkPoint pos, SkVector tan) const {
-  const float t = std::hypot(tan.x(), tan.y());
-  if (t < 1e-4f) return;
-  tan = {tan.x() / t, tan.y() / t};
-  const SkVector n{-tan.y(), tan.x()};
-  switch (marker) {
-    case Marker::Arrow: {
-      // Tip AT the endpoint; barbs markerSize back at ±tan(30°)·markerSize,
-      // which is the 60° apex.
-      const SkPoint base{pos.x() - tan.x() * markerSize,
-                         pos.y() - tan.y() * markerSize};
-      SkPathBuilder tri;
-      tri.moveTo(pos);
-      tri.lineTo(base.x() - n.x() * markerSize * 0.577f,
-                 base.y() - n.y() * markerSize * 0.577f);
-      tri.lineTo(base.x() + n.x() * markerSize * 0.577f,
-                 base.y() + n.y() * markerSize * 0.577f);
-      tri.close();
-      canvas.drawPath(tri.detach(), head);
-      break;
-    }
-    case Marker::Dot:
-      canvas.drawCircle(pos, markerSize * 0.5f, head);
-      break;
-    case Marker::Bar: {
-      SkPaint bar = head;
-      bar.setStyle(SkPaint::kStroke_Style);
-      bar.setStrokeWidth(std::max(width, 2.0f));
-      canvas.drawLine(
-          {pos.x() - n.x() * markerSize * 0.5f,
-           pos.y() - n.y() * markerSize * 0.5f},
-          {pos.x() + n.x() * markerSize * 0.5f,
-           pos.y() + n.y() * markerSize * 0.5f},
-          bar);
-      break;
-    }
-    case Marker::None:
-      break;
-  }
-}
 
 float Rails::bleed() const {
   float worst = 0.0f;

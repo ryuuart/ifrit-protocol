@@ -9,6 +9,7 @@
 
 #include "support/BrushTestSupport.h"
 #include <sigilmotion/ease/Ease.h>
+#include <sigilmedia/advanced/Skia.h>
 
 TEST(ComposeDecorations, DashedBorderPaintsAlongOutline) {
   Host host;
@@ -149,7 +150,7 @@ TEST(ComposeDecorations, ShadowSitsUnderTheFillAndAStrokeSitsOverIt) {
            .inset(40)
            .absolute()
            .borderRadius({10})
-           .background(sigil::compose::shadow({0, 0, 1, 1}, {12, 12}, 0))
+           .background(sigil::compose::shadow(material::Color{0, 0, 1, 1}, {12, 12}, 0))
            .fill(red())
            .foreground(sigil::compose::stroke(4, green()))}));
   host.frame();
@@ -174,7 +175,7 @@ TEST(ComposeReconcile, StructuralPruneCoversDecorations) {
              .height(40)
              .borderRadius({6})
              .fill(red())
-             .background(sigil::compose::shadow({0, 0, 0, 0.5f}, {2, 2}, 4))
+             .background(sigil::compose::shadow(material::Color{0, 0, 0, 0.5f}, {2, 2}, 4))
              .foreground(sigil::compose::stroke(2, green())),
          box().width(60).height(20).foreground(dash)});
   };

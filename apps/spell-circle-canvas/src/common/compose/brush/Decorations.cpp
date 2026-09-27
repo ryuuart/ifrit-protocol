@@ -9,6 +9,8 @@
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/Sk1DPathEffect.h>
 #include <include/effects/SkDashPathEffect.h>
+#include <include/core/SkPicture.h>
+#include <sigilcompose/advanced/PathEffect.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Edges.h>
@@ -22,6 +24,7 @@
 
 #include <cmath>
 #include "FillLowering.h"
+#include "Ink.h"
 
 namespace sigil::compose {
 
@@ -45,7 +48,7 @@ void Shadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
   SkCanvas& canvas = *pen.canvas();
   SkPaint p;
   p.setAntiAlias(true);
-  p.setColor4f(material::skia::toSkColor(color), nullptr);
+  if (!detail::layInk(p, resolveFill(ink, ctx))) return;
   if (blur > 0)
     p.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur * 0.5f));
   canvas.save();
@@ -76,7 +79,7 @@ void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
   else if (stroke.kind == Fill::Kind::Paint)
     p.setShader(material::skia::staticShader(detail::paintOf(stroke)));
 
-  sk_sp<SkPathEffect> chosen = effect;
+  sk_sp<SkPathEffect> chosen = effect ? effect->skia : nullptr;
   if (!chosen && stampAdvance > 0 && !stampPath.empty())
     chosen = SkPath1DPathEffect::Make(geometry::path::toSk(stampPath), stampAdvance, phase(),
                                       SkPath1DPathEffect::kRotate_Style);
@@ -143,6 +146,16 @@ void Slice::paint(draw::Pen& pen, const PaintContext& ctx) const {
   skia::draw::drawLattice(canvas, std::move(img), xDivs, yDivs, dst,
                           material::skia::toSkFilterMode(filter),
                           density);
+}
+
+/** The walk's replayed stamp and the node it was baked from. */
+struct ContourWalk::StampCache {
+  sk_sp<SkPicture> picture;
+  const void* bakedFor = nullptr;
+};
+
+std::shared_ptr<ContourWalk::StampCache> ContourWalk::freshStampCache() {
+  return std::make_shared<StampCache>();
 }
 
 void ContourWalk::paint(draw::Pen& pen, const PaintContext& ctx) const {

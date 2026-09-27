@@ -27,7 +27,7 @@ Rgb rgb(SkColor c) {
 TEST(ComposePixelStyles, TheBevelPairLightsTheNearEdgesAndShadesTheFar) {
   Host host(100, 100);
   const styles::BevelPair raised =
-      styles::bevelPair(SkColor4f{1, 1, 1, 1}, SkColor4f{0, 0, 0, 1}, 2);
+      styles::bevelPair(material::Color{1, 1, 1, 1}, material::Color{0, 0, 0, 1}, 2);
   host.composer.render(box().children(
       {box().left(10).top(10).width(40).height(30).fill(grey()).overlay(
           raised)}));
@@ -79,7 +79,7 @@ TEST(ComposePixelStyles, BracketsStandOffTheBoxAtTheCornersAsked) {
                           .height(60)
                           .fill(Fill::color({0, 0, 0, 1}))
                           .foreground(styles::brackets(
-                              {1, 0, 0, 1}, 10, 2, 4,
+                              material::Color{1, 0, 0, 1}, 10, 2, 4,
                               geometry::shapes::Corner::TopLeft |
                                   geometry::shapes::Corner::BottomRight))}));
   host.frame();
@@ -104,7 +104,7 @@ TEST(ComposePixelStyles, TheTickRailWalksOneEdgeWithEveryNthMarkLong) {
            .width(100)
            .height(20)
            .fill(Fill::color({0, 0, 0, 1}))
-           .foreground(styles::tickRail({1, 0, 0, 1}, 10, 3, 6, 4))}));
+           .foreground(styles::tickRail(material::Color{1, 0, 0, 1}, 10, 3, 6, 4))}));
   host.frame();
   // Marks at 5, 15, 25, …: the first and every fourth are 6 px, the rest
   // 3 px, each one pixel wide.
@@ -119,7 +119,7 @@ TEST(ComposePixelStyles, TheTickRailWalksOneEdgeWithEveryNthMarkLong) {
 
   // The same rail hung off the bottom, from the far side.
   styles::TickRail bottom =
-      styles::tickRail({1, 0, 0, 1}, 10, 3, 6, 4, geometry::path::Edge::Bottom);
+      styles::tickRail(material::Color{1, 0, 0, 1}, 10, 3, 6, 4, geometry::path::Edge::Bottom);
   host.composer.render(box().children({box()
                                            .width(100)
                                            .height(20)
