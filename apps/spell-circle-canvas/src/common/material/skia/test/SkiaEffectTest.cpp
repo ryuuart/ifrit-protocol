@@ -133,7 +133,7 @@ TEST(SkiaEffect, RecipeSnapshotsDistinguishSurfaceLowering) {
   ASSERT_NE(surface, nullptr);
   surface->getCanvas()->clear(SK_ColorWHITE);
   Material material(recipe);
-  material.slot("response", Texture::of(surface->makeImageSnapshot()));
+  material.slot("response", Texture(surface->makeImageSnapshot()));
   const Filter table =
       skia::lowered(material, kRGBA_8888_SkColorType);
   const Filter shader =

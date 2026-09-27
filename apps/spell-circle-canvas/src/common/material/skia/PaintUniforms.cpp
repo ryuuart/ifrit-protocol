@@ -6,7 +6,7 @@
  */
 
 #include <include/core/SkTypes.h>  // SkDebugf
-#include <sigilmaterial/texture/ShaderLeaf.h>
+#include <sigilmaterial/skia/ShaderLeaf.h>
 
 #include <array>
 #include <glm/vec2.hpp>
@@ -28,7 +28,7 @@ namespace {
  *  compose's own equality so two equal descriptions prune. A child that
  *  needs a paint context to resolve is sampled once here, as its own
  *  documentation says a recipe slot does. */
-class MaterialLeaf final : public sigil::material::ShaderLeaf {
+class MaterialLeaf final : public ShaderLeaf {
  public:
   explicit MaterialLeaf(Paint source) : m_source(std::move(source)) {}
   sk_sp<SkShader> shader() const override {

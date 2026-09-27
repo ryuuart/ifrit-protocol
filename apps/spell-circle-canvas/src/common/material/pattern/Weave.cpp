@@ -9,6 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkSamplingOptions.h>
+#include <sigilmaterial/skia/Painted.h>
 
 #include <algorithm>
 #include <numeric>
@@ -102,8 +103,8 @@ Color Cloth::at(int end, int pick) const {
   return c;
 }
 
-SkISize clothRepeat(const Cloth& cloth) {
-  if (cloth.warp.empty() || cloth.weft.empty()) return SkISize::MakeEmpty();
+glm::ivec2 clothRepeat(const Cloth& cloth) {
+  if (cloth.warp.empty() || cloth.weft.empty()) return {0, 0};
   const int period = cloth.weave.period();
   const int step =
       cloth.weave.advance == 0
@@ -113,27 +114,40 @@ SkISize clothRepeat(const Cloth& cloth) {
           lcmOf((int)cloth.weft.size(), step)};
 }
 
-sk_sp<SkImage> clothImage(const Cloth& cloth, SkIPoint origin, SkISize size) {
+namespace {
+
+/** The window as a raster image; null for a cloth with no threads or an
+ *  empty window. */
+sk_sp<SkImage> wovenImage(const Cloth& cloth, glm::ivec2 origin,
+                          glm::ivec2 size) {
   if (cloth.warp.empty() || cloth.weft.empty()) return nullptr;
-  if (size.width() <= 0 || size.height() <= 0) return nullptr;
+  if (size.x <= 0 || size.y <= 0) return nullptr;
   SkBitmap bitmap;
-  if (!bitmap.tryAllocN32Pixels(size.width(), size.height())) return nullptr;
-  for (int y = 0; y < size.height(); ++y)
-    for (int x = 0; x < size.width(); ++x)
+  if (!bitmap.tryAllocN32Pixels(size.x, size.y)) return nullptr;
+  for (int y = 0; y < size.y; ++y)
+    for (int x = 0; x < size.x; ++x)
       *bitmap.getAddr32(x, y) =
-          packPixel(bitmap, cloth.at(origin.x() + x, origin.y() + y));
+          packPixel(bitmap, cloth.at(origin.x + x, origin.y + y));
   bitmap.setImmutable();
   return bitmap.asImage();
 }
 
+}  // namespace
+
+Texture clothImage(const Cloth& cloth, glm::ivec2 origin, glm::ivec2 size) {
+  sk_sp<SkImage> woven = wovenImage(cloth, origin, size);
+  if (!woven) return {};
+  return Texture(std::move(woven)).sampling(Sampling::Nearest);
+}
+
 Tile clothTile(const Cloth& cloth, float threadPx) {
-  const SkISize repeat = clothRepeat(cloth);
+  const glm::ivec2 repeat = clothRepeat(cloth);
   const float px = std::max(threadPx, 1.0f);
-  if (repeat.isEmpty()) return Tile::of({px, px}, nullptr);
-  const sk_sp<SkImage> woven = clothImage(cloth, {0, 0}, repeat);
-  Tile tile =
-      Tile::of({(float)repeat.width() * px, (float)repeat.height() * px},
-               [woven](SkCanvas& canvas, SkSize size, uint32_t) {
+  if (repeat.x <= 0 || repeat.y <= 0) return Tile::of({px, px}, nullptr);
+  const sk_sp<SkImage> woven = wovenImage(cloth, {0, 0}, repeat);
+  Tile tile = Tile::of(
+      {(float)repeat.x * px, (float)repeat.y * px},
+      skia::painted([woven](SkCanvas& canvas, SkSize size, uint32_t) {
                  if (!woven) return;
                  canvas.save();
                  canvas.scale(size.width() / (float)woven->width(),
@@ -141,8 +155,8 @@ Tile clothTile(const Cloth& cloth, float threadPx) {
                  canvas.drawImage(woven, 0, 0,
                                   SkSamplingOptions(SkFilterMode::kNearest));
                  canvas.restore();
-               });
-  return tile.filter(SkFilterMode::kNearest);
+               }));
+  return tile.sampling(Sampling::Nearest);
 }
 
 }  // namespace sigil::material::pattern

@@ -4,7 +4,7 @@
  * smoothstepped into a height field and Sobel-filtered into normals.
  */
 
-#include "sigilmaterial/texture/Surface.h"
+#include "sigilmaterial/skia/Bevel.h"
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
@@ -18,7 +18,7 @@
 #include <cmath>
 #include <vector>
 
-namespace sigil::material {
+namespace sigil::material::skia {
 
 namespace {
 
@@ -95,7 +95,7 @@ sk_sp<SkImage> bevelImage(const SkPath& path, SkIRect bounds, float bevelPx,
 
 Texture bevelNormals(const SkPath& path, SkIRect bounds, float bevelPx,
                      float heightScale) {
-  return Texture::of(bevelImage(path, bounds, bevelPx, heightScale))
+  return Texture(bevelImage(path, bounds, bevelPx, heightScale))
       .at({(float)bounds.left(), (float)bounds.top()});
 }
 
@@ -105,4 +105,4 @@ Texture bevelNormals(const SkPath& path, float bevelPx, float heightScale) {
   return bevelNormals(path, b.roundOut(), bevelPx, heightScale);
 }
 
-}  // namespace sigil::material
+}  // namespace sigil::material::skia

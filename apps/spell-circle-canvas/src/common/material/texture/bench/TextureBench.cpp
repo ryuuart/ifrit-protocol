@@ -5,6 +5,7 @@
 
 #include <benchmark/benchmark.h>
 #include <include/core/SkBitmap.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/Atlas.h>
 #include <sigilmaterial/texture/TextureSet.h>
 
@@ -25,7 +26,7 @@ sk_sp<SkImage> solid(int w, int h) {
 
 void AtlasGrid(benchmark::State& state) {
   const int side = (int)state.range(0);
-  const Texture sheet = Texture::of(solid(side * 8, side * 8));
+  const Texture sheet = Texture(solid(side * 8, side * 8));
   for ([[maybe_unused]] auto iteration : state) {
     Atlas atlas = Atlas::grid(sheet, side, side);
     benchmark::DoNotOptimize(atlas);
@@ -36,7 +37,7 @@ BENCHMARK(AtlasGrid)->Arg(4)->Arg(16)->Arg(64);
 
 void AtlasPack(benchmark::State& state) {
   const int count = (int)state.range(0);
-  std::vector<std::pair<std::string, sk_sp<SkImage>>> images;
+  std::vector<std::pair<std::string, sigil::media::PixelSource>> images;
   images.reserve((size_t)count);
   for (int i = 0; i < count; ++i)
     images.emplace_back("s" + std::to_string(i),
@@ -50,11 +51,11 @@ void AtlasPack(benchmark::State& state) {
 BENCHMARK(AtlasPack)->Arg(16)->Arg(64)->Arg(256);
 
 void AtlasRegionCut(benchmark::State& state) {
-  const Atlas atlas = Atlas::grid(Texture::of(solid(256, 256)), 8, 8);
+  const Atlas atlas = Atlas::grid(Texture(solid(256, 256)), 8, 8);
   for ([[maybe_unused]] auto iteration : state) {
     // A fresh texture each time so the cut is made, not recalled.
     Texture t = atlas.region((size_t)state.iterations() % 64);
-    benchmark::DoNotOptimize(t.image());
+    benchmark::DoNotOptimize(skia::image(t));
   }
 }
 BENCHMARK(AtlasRegionCut);

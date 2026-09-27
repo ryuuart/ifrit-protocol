@@ -5,6 +5,7 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Texture.h>
 
 using namespace sigil::material;
 
@@ -15,7 +16,7 @@ void TileBakeHalftone(benchmark::State& state) {
   for ([[maybe_unused]] auto iteration : state) {
     pattern::Tile t =
         pattern::halftone(pitch, pitch * 0.35f, {0.1f, 0.1f, 0.12f, 1});
-    benchmark::DoNotOptimize(t.image());
+    benchmark::DoNotOptimize(skia::image(t.texture()));
   }
 }
 BENCHMARK(TileBakeHalftone)->Arg(4)->Arg(16)->Arg(64);
@@ -24,7 +25,7 @@ void TileBakeSpeckle(benchmark::State& state) {
   const int count = (int)state.range(0);
   for ([[maybe_unused]] auto iteration : state) {
     pattern::Tile t = pattern::speckle(64, count, 0.5f, 2, {{1, 1, 1, 1}});
-    benchmark::DoNotOptimize(t.image());
+    benchmark::DoNotOptimize(skia::image(t.texture()));
   }
   state.SetItemsProcessed(state.iterations() * count);
 }
@@ -32,9 +33,9 @@ BENCHMARK(TileBakeSpeckle)->Arg(50)->Arg(500);
 
 void TileTexture(benchmark::State& state) {
   const pattern::Tile t = pattern::checker(8, {0, 0, 0, 1}, {1, 1, 1, 1});
-  t.image();
+  t.texture();
   for ([[maybe_unused]] auto iteration : state) {
-    sk_sp<SkShader> s = t.texture().shader();
+    sk_sp<SkShader> s = skia::shader(t.texture());
     benchmark::DoNotOptimize(s);
   }
 }

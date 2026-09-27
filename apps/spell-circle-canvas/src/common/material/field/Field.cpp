@@ -10,7 +10,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkPerlinNoiseShader.h>
-#include <sigilmaterial/texture/ShaderLeaf.h>
+#include <sigilmaterial/skia/ShaderLeaf.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/MaterialField.h>
 
@@ -63,7 +63,7 @@ Material crtOverlay(const CrtOverlayParameters& parameters) {
 namespace {
 
 /** Skia's Perlin generator as a leaf: equal when its parameters are. */
-class PerlinLeaf final : public ShaderLeaf {
+class PerlinLeaf final : public skia::ShaderLeaf {
  public:
   PerlinLeaf(float frequency, int octaves, float seed, bool turbulence)
       : m_frequency(frequency),
@@ -167,7 +167,7 @@ std::vector<Material> everyRecipe() {
   Material warp = ripple(4, 32);
   if (content) {
     content->getCanvas()->clear(SK_ColorMAGENTA);
-    warp.slot("content", Texture::of(content->makeImageSnapshot()));
+    warp.slot("content", Texture(content->makeImageSnapshot()));
   }
   // The whole screen and each of the three subjects it composes, since
   // every one of them is a program a backend can be asked for.
@@ -180,7 +180,7 @@ std::vector<Material> everyRecipe() {
     // fills generates a different program from the one a backend will
     // really run — and the bloom slot is the executor's where there is a
     // layer, which a catalogue entry has not got.
-    const auto stand = Texture::of(content->makeImageSnapshot());
+    const auto stand = Texture(content->makeImageSnapshot());
     screen.slot("content", stand);
     screen.slot("bloom", stand);
     beam.slot("content", stand);

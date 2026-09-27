@@ -192,10 +192,10 @@ TEST(SkiaCompiler, ALayerSlotNothingFilledRefusesRatherThanShadingAnEmptyChild) 
                 "half4 main(float2 p) { return content.eval(p) + "
                 "bloom.eval(p); }"));
   Material material(recipe, OneRadius{4});
-  material.slot("content", Texture::of(test::solid(SK_ColorRED, 8, 8)));
+  material.slot("content", Texture(test::solid(SK_ColorRED, 8, 8)));
   EXPECT_EQ(skia::shader(material, {}), nullptr);
   // Filled by hand, it shades: the declaration states who fills the slot
   // by default, and an author may answer for it.
-  material.slot("bloom", Texture::of(test::solid(SK_ColorBLUE, 8, 8)));
+  material.slot("bloom", Texture(test::solid(SK_ColorBLUE, 8, 8)));
   EXPECT_NE(skia::shader(material, {}), nullptr);
 }

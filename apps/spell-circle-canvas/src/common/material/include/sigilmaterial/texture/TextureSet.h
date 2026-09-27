@@ -12,13 +12,12 @@
  * caller's, so the library owns no file access.
  */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkRefCnt.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/PixelSource.h>
 
-#include <boost/container/map.hpp>
 #include <filesystem>
 #include <functional>
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -84,7 +83,7 @@ Role roleForUsage(std::string_view usage);
 /** One material's worth of files, keyed by role. */
 struct TextureSet {
   std::string name;
-  boost::container::map<Role, std::filesystem::path> files;
+  std::map<Role, std::filesystem::path> files;
   bool normalDirectX = false;
 };
 
@@ -93,14 +92,15 @@ struct TextureSet {
  *  role are ignored. Sorted by name. */
 std::vector<TextureSet> discover(const std::filesystem::path& directory);
 
-/** Decodes a path into an image; null when it cannot. */
-using Decoder = std::function<sk_sp<SkImage>(const std::filesystem::path&)>;
+/** Decodes a path into pixels; an empty source when it cannot. */
+using Decoder =
+    std::function<media::PixelSource(const std::filesystem::path&)>;
 
 /** A set decoded: one repeating texture per role that decoded, and the
  *  normal convention the set declared. */
 struct TextureMaps {
   std::string name;
-  boost::container::map<Role, Texture> maps;
+  std::map<Role, Texture> maps;
   bool normalDirectX = false;
 
   /** The texture for @p role, or null when the set has none. */
@@ -122,7 +122,7 @@ TextureMaps fromFiles(const TextureSet& set, const Decoder& decode);
  *  graphs author DirectX normals unless told otherwise, hence the
  *  default for @p normalDirectX. */
 TextureMaps fromUsageMap(
-    const boost::container::map<std::string, sk_sp<SkImage>>& byUsage,
+    const std::map<std::string, media::PixelSource>& byUsage,
     bool normalDirectX = true);
 
 }  // namespace sigil::material::texture

@@ -89,7 +89,7 @@ TEST(Field, RippleDisplacesTheContent) {
   content.erase(SK_ColorRED, SkIRect::MakeXYWH(0, 8, 32, 8));
   content.setImmutable();
   Material r = field::ripple(3, 16);
-  r.slot("content", Texture::of(content.asImage()));
+  r.slot("content", Texture(content.asImage()));
   const SkBitmap bm = render(r, 32, 16);
   int firstRow[2] = {16, 16};
   for (int k = 0; k < 2; ++k) {
@@ -265,7 +265,7 @@ sk_sp<SkImage> brightBand(int side, int wide) {
 
 TEST(Field, CrtZeroStrengthPreservesColourAndHonoursBounds) {
   field::CrtParameters p{.uBounds = {8, 8, 16, 16}};
-  const auto red = Texture::of(test::solid(SK_ColorRED, 32, 32));
+  const auto red = Texture(test::solid(SK_ColorRED, 32, 32));
   Material screen = field::crt(p);
   screen.slot("content", red);
   screen.slot("bloom", red);
@@ -372,7 +372,7 @@ TEST(Field, TheBeamAloneRastersAPictureAndBendsNothing) {
   const field::CrtBeamParameters parameters{
       .uBounds = {0, 0, 64, 64}, .uScanPitch = 4, .uRaster = 1.0f};
   Material beam = field::crtBeam(parameters);
-  beam.slot("content", Texture::of(test::solid(SK_ColorGRAY, 64, 64)));
+  beam.slot("content", Texture(test::solid(SK_ColorGRAY, 64, 64)));
   ASSERT_NE(skia::shader(beam, {}), nullptr);
   const SkBitmap lit = render(beam, 64, 64);
   int low = 256;
@@ -391,9 +391,9 @@ TEST(Field, TheBeamAloneRastersAPictureAndBendsNothing) {
   spread.uRgbShift = 2.0f;
   Material converging = field::crtBeam(spread);
   const sk_sp<SkImage> band = bandAt(64, 40, 4);
-  converging.slot("content", Texture::of(band));
+  converging.slot("content", Texture(band));
   Material straight = field::crtBeam(parameters);
-  straight.slot("content", Texture::of(band));
+  straight.slot("content", Texture(band));
   EXPECT_GT(test::differing(render(converging, 64, 64), render(straight, 64, 64)),
             0);
   // And the beam asks for no reach of its own until a gun or the sweep
@@ -432,7 +432,7 @@ TEST(Field, AnAuthorsOwnLightIsNotStoodInForByTheLayer) {
   const field::CrtBloomParameters light{.uBounds = {0, 0, 64, 64},
                                         .uBloomRadius = 6};
   Material filled = field::crtBloom(light);
-  filled.slot("bloom", Texture::of(brightBand(64, 4)));
+  filled.slot("bloom", Texture(brightBand(64, 4)));
   EXPECT_EQ(skia::resolvedImageFilter(Filter::of(filled, 0.0f), nullptr),
             nullptr);
   // Left to the executor, the same light IS a filter of the layer.

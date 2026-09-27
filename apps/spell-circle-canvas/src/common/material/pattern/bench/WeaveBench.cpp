@@ -5,6 +5,7 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilmaterial/pattern/Weave.h>
+#include <sigilmaterial/skia/Texture.h>
 
 #include <vector>
 
@@ -63,7 +64,7 @@ void WeaveClothImage(benchmark::State& state) {
   const pattern::Cloth cloth = tartan();
   for ([[maybe_unused]] auto iteration : state)
     benchmark::DoNotOptimize(
-        pattern::clothImage(cloth, {0, 0}, SkISize::Make(side, side)));
+        skia::image(pattern::clothImage(cloth, {0, 0}, {side, side})));
   state.SetItemsProcessed(state.iterations() * (int64_t)side * side);
 }
 BENCHMARK(WeaveClothImage)->Arg(64)->Arg(512);
@@ -72,7 +73,7 @@ void WeaveClothTile(benchmark::State& state) {
   const pattern::Cloth cloth = tartan();
   for ([[maybe_unused]] auto iteration : state) {
     pattern::Tile tile = pattern::clothTile(cloth, 2.0f);
-    benchmark::DoNotOptimize(tile.image());
+    benchmark::DoNotOptimize(skia::image(tile.texture()));
   }
 }
 BENCHMARK(WeaveClothTile);

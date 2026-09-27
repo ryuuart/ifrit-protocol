@@ -25,7 +25,7 @@ BENCHMARK(MaskBuild);
 void SampledMaskShader(benchmark::State& state) {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
   s->getCanvas()->clear(SK_ColorWHITE);
-  const Material m = maskMap(Texture::of(s->makeImageSnapshot()));
+  const Material m = maskMap(Texture(s->makeImageSnapshot()));
   for ([[maybe_unused]] auto iteration : state) {
     sk_sp<SkShader> shader = skia::shader(m, {});
     benchmark::DoNotOptimize(shader);

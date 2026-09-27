@@ -12,15 +12,14 @@
  * cosine lobe.
  */
 
-#include <include/core/SkColor.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkM44.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSize.h>
+#include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/PixelSource.h>
 
 #include <array>
 #include <functional>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 #include <memory>
 #include <vector>
 
@@ -30,10 +29,10 @@ namespace sigil::material {
  *  `u = 0.5 + atan2(d.x, -d.z) / 2pi`, `v = acos(d.y) / pi`. So v = 0 is
  *  the zenith (+y), v = 1 the nadir, and u = 0.5 looks along -z — the
  *  direction a camera with no rotation faces. */
-SkV2 equirectangularUv(SkV3 direction);
+glm::vec2 equirectangularUv(glm::vec3 direction);
 /** The inverse of `equirectangularUv`: the unit direction a panorama texel
  *  stands for. */
-SkV3 equirectangularDirection(SkV2 uv);
+glm::vec3 equirectangularDirection(glm::vec2 uv);
 
 /** An equirectangular panorama with the two prefiltered readings a lit body
  *  needs. A copyable handle; copies share one cache and compare equal, so
@@ -53,14 +52,15 @@ class EnvironmentMap {
    *  the seam a procedural sky is written against — the named bakes live
    *  in the kit. */
   static EnvironmentMap baked(
-      int width, const std::function<SkV3(float u, float v)>& radiance);
+      int width, const std::function<glm::vec3(float u, float v)>& radiance);
   /** Wrap a loaded equirectangular panorama (LDR, or F16/F32 with HDR range
-   *  intact). This is the primary form a photographed sky arrives in. */
-  static EnvironmentMap fromEquirectangular(sk_sp<SkImage> image);
+   *  intact), read from @p panorama once. This is the primary form a
+   *  photographed sky arrives in. */
+  static EnvironmentMap fromEquirectangular(const media::PixelSource& panorama);
 
   /** The six faces of a cube map, in the order every graphics API names
    *  them: +x, -x, +y, -y, +z, -z, each looking outward with +y up. */
-  using Faces = std::array<sk_sp<SkImage>, 6>;
+  using Faces = std::array<media::PixelSource, 6>;
   /** Resample six cube faces into one equirectangular panorama. @p width is the
    *  panorama's width (height is half); 0 asks for four times a face's
    *  edge, which keeps the texel density a face had at the equator. */
@@ -72,27 +72,26 @@ class EnvironmentMap {
    *  order faces are named in. A container that holds six faces and a
    *  mip chain in one file decodes to the 1:6 column, faces in that same
    *  order from the top at the base mip level. */
-  static EnvironmentMap fromCubeMap(sk_sp<SkImage> sheet);
+  static EnvironmentMap fromCubeMap(const media::PixelSource& sheet);
 
   bool valid() const { return m_state != nullptr; }
   explicit operator bool() const { return valid(); }
 
-  /** The panorama at @p roughness in [0,1]: 0 is the base image and
+  /** The panorama at @p roughness in [0,1] — 0 is the base image and
    *  higher values are progressively wider wrap-aware blurs, bucketed
-   *  into `kLevels` and cached. */
-  sk_sp<SkImage> image(float roughness = 0) const;
-  /** `image(roughness)` as a texture that repeats in azimuth and clamps
-   *  at the poles — the sampling an equirectangular panorama has to have. */
+   *  into `kLevels` and cached — as a texture that repeats in azimuth and
+   *  clamps at the poles, the sampling an equirectangular panorama has to
+   *  have. */
   Texture texture(float roughness = 0) const;
   /** The panorama's pixel size. */
-  SkISize size() const;
+  glm::ivec2 size() const;
 
-  /** The prefiltered chain as a mip pyramid: `kLevels` images, level k
+  /** The prefiltered chain as a mip pyramid: `kLevels` textures, level k
    *  holding the panorama at roughness k/8 at half the previous level's
    *  size. Level 0 is `prefilterSize()` wide. A blurrier level needs
    *  fewer texels, so the chain costs a third more than its base and
    *  a device binds it as one texture whose level a roughness picks. */
-  std::vector<sk_sp<SkImage>> chain() const;
+  std::vector<Texture> chain() const;
 
   /** The width level 0 of `chain()` is built at. A panorama is often
    *  larger than a reflection can show, and every level above 0 is a blur
@@ -109,15 +108,15 @@ class EnvironmentMap {
    *  a flat ground, which is what a photographed sky wants when its lower
    *  half is a tripod and a car park. The replacement happens in the
    *  panorama, so the blurs and the irradiance see it too. */
-  EnvironmentMap withGround(SkColor4f color) const;
+  EnvironmentMap withGround(Color color) const;
 
   /** The diffuse side: the panorama convolved with a cosine lobe, 32x16,
    *  sampled by a surface normal. The value a Lambertian body multiplies
    *  its albedo by — for a panorama of one colour it IS that colour. */
-  sk_sp<SkImage> irradiance() const;
+  Texture irradiance() const;
   /** One colour: the panorama's solid-angle-weighted mean. The flat
    *  fallback wherever a direction is not available. */
-  SkColor4f average() const;
+  Color average() const;
 
   /** Two maps are equal when they are the same panorama — copies of one
    *  value, sharing its cache. Building the same image twice makes two

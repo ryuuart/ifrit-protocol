@@ -12,6 +12,7 @@
 #include <include/core/SkTypes.h>  // SkDebugf — the slot diagnostics
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/core/Program.h>  // reportOnce
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
@@ -189,7 +190,7 @@ std::optional<ResponseTables> responseTables(const Material& material) {
   if (slot.empty()) return std::nullopt;
   const auto* texture = dynamic_cast<const Texture*>(material.leaf(slot));
   if (!texture) return std::nullopt;
-  const sk_sp<SkImage> row = texture->image();
+  const sk_sp<SkImage> row = skia::image(*texture);
   if (!row || row->width() != 256 || row->height() != 1) return std::nullopt;
   SkBitmap codes;
   if (!codes.tryAllocPixels(SkImageInfo::Make(256, 1, kRGBA_8888_SkColorType,

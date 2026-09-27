@@ -1,45 +1,45 @@
 /** @file
- * The frame a texture samples, the region cut out of it, the image
- * shader it samples through, and where its pixels stand on a device.
+ * The frame a texture samples, the region cut out of it, its size, and
+ * where its pixels stand on a device.
  */
 
 #include "sigilmaterial/texture/Texture.h"
 
+#include <include/core/SkImage.h>
+#include <include/core/SkRect.h>
 #include <sigilmedia/advanced/Device.h>
 
 namespace sigil::material {
 
-sk_sp<SkImage> Texture::image(std::chrono::duration<double> time) const {
+media::Frame Texture::frameAt(std::chrono::duration<double> time) const {
+  media::Frame frame = m_source.frameAt(time);
   // A frame standing on a device is read back: a texture is sampled by
   // whichever renderer draws the material, and a renderer that shares
   // the device reads `deviceImage()` instead.
-  sk_sp<SkImage> full = media::deviceImage(m_source.frameAt(time), nullptr);
-  if (!full || !m_region) return full;
-  if (m_cut && m_cutFrom.get() == full.get()) return m_cut;
-  SkIRect rect = *m_region;
-  if (!rect.intersect(SkIRect::MakeWH(full->width(), full->height())))
-    return nullptr;
-  m_cutFrom = full;
-  m_cut = full->makeSubset(nullptr, rect, {});
+  if (!frame.image && frame.device) {
+    frame.image = media::deviceImage(frame, nullptr);
+    frame.device = {};
+  }
+  if (!frame.image || !m_region) return frame;
+  if (m_cut.image && m_cutFrom.image.get() == frame.image.get()) return m_cut;
+  SkIRect rect = SkIRect::MakeXYWH(m_region->x, m_region->y, m_region->width,
+                                   m_region->height);
+  if (!rect.intersect(
+          SkIRect::MakeWH(frame.image->width(), frame.image->height())))
+    return {};
+  m_cutFrom = frame;
+  m_cut = frame;
+  m_cut.image = frame.image->makeSubset(nullptr, rect, {});
   return m_cut;
 }
 
-SkISize Texture::size() const {
-  sk_sp<SkImage> img = image();
-  return img ? img->dimensions() : SkISize::MakeEmpty();
-}
-
-sk_sp<SkShader> Texture::shader() const {
-  sk_sp<SkImage> img = image();
-  if (!img) return nullptr;
-  return img->makeShader(m_tileX, m_tileY, SkSamplingOptions(m_filter), m_uv);
-}
-
-sk_sp<SkShader> Texture::shaderAt(const FrameData& frame) const {
-  if (!m_source.isRunning()) return shader();
-  sk_sp<SkImage> img = image(std::chrono::duration<double>(frame.seconds));
-  if (!img) return nullptr;
-  return img->makeShader(m_tileX, m_tileY, SkSamplingOptions(m_filter), m_uv);
+glm::ivec2 Texture::size() const {
+  const SkISize whole = m_source.size();
+  if (!m_region) return {whole.width(), whole.height()};
+  SkIRect rect = SkIRect::MakeXYWH(m_region->x, m_region->y, m_region->width,
+                                   m_region->height);
+  if (!rect.intersect(SkIRect::MakeSize(whole))) return {0, 0};
+  return {rect.width(), rect.height()};
 }
 
 DeviceImage Texture::deviceImage() const {
@@ -57,7 +57,7 @@ DeviceImage Texture::deviceImage() const {
 bool Texture::operator==(const Texture& other) const {
   return m_source == other.m_source && m_tileX == other.m_tileX &&
          m_tileY == other.m_tileY && m_uv == other.m_uv &&
-         m_region == other.m_region && m_filter == other.m_filter;
+         m_region == other.m_region && m_sampling == other.m_sampling;
 }
 
 }  // namespace sigil::material

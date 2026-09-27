@@ -13,7 +13,9 @@
 #include <include/core/SkSurface.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/skia/Bevel.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <cmath>
@@ -33,7 +35,7 @@ namespace {
  *  layer above this feature; a test of the panorama itself writes its
  *  own radiance. */
 EnvironmentMap bandedSky(int width) {
-  return EnvironmentMap::baked(width, [](float u, float v) -> SkV3 {
+  return EnvironmentMap::baked(width, [](float u, float v) -> glm::vec3 {
     constexpr float kHorizon = 0.52f;
     if (v >= kHorizon) return {0.04f, 0.02f, 0.05f};
     const float t = v / kHorizon;
@@ -72,8 +74,8 @@ SkColor4f floatPixel(const sk_sp<SkImage>& image, int x, int y) {
 TEST(EnvironmentMap, RoughnessBlursAndEachBucketIsBuiltOnce) {
   const EnvironmentMap env = bandedSky(128);
   ASSERT_TRUE(env.valid());
-  sk_sp<SkImage> sharp = env.image(0);
-  sk_sp<SkImage> rough = env.image(0.6f);
+  sk_sp<SkImage> sharp = skia::image(env.texture(0));
+  sk_sp<SkImage> rough = skia::image(env.texture(0.6f));
   ASSERT_TRUE(sharp);
   ASSERT_TRUE(rough);
   EXPECT_NE(sharp.get(), rough.get());
@@ -81,12 +83,12 @@ TEST(EnvironmentMap, RoughnessBlursAndEachBucketIsBuiltOnce) {
   // Roughness is quantized into buckets and each bucket's blurred image is
   // built once and kept, so asking twice for the same roughness returns the
   // identical object rather than re-blurring the environment per draw.
-  EXPECT_EQ(env.image(0.6f).get(), rough.get());
-  EXPECT_EQ(env.size(), SkISize::Make(128, 64));
+  EXPECT_EQ(skia::image(env.texture(0.6f)).get(), rough.get());
+  EXPECT_EQ(env.size(), glm::ivec2(128, 64));
   const Texture t = env.texture(0.6f);
-  EXPECT_EQ(t.tileX(), SkTileMode::kRepeat);
-  EXPECT_EQ(t.tileY(), SkTileMode::kClamp);
-  EXPECT_EQ(t.image().get(), rough.get());
+  EXPECT_EQ(t.tileX(), Repeat::Repeat);
+  EXPECT_EQ(t.tileY(), Repeat::Pad);
+  EXPECT_EQ(skia::image(t).get(), rough.get());
 }
 
 TEST(EnvironmentMap, ASmallPanoramaKeepsItsOwnWidthInTheChain) {
@@ -97,7 +99,7 @@ TEST(EnvironmentMap, ASmallPanoramaKeepsItsOwnWidthInTheChain) {
   // have disagreed about one picture.
   EXPECT_EQ(bandedSky(64).prefilterSize(), 64);
   EXPECT_EQ(bandedSky(128).prefilterSize(), 128);
-  EXPECT_EQ(bandedSky(64).chain().front()->width(), 64);
+  EXPECT_EQ(bandedSky(64).chain().front().size().x, 64);
   // …and above the bound it is the bound, whatever the source's width.
   EXPECT_EQ(bandedSky(2048).prefilterSize(), 1024);
   // A width set by hand is that width, either side of the bound.
@@ -110,19 +112,19 @@ TEST(EnvironmentMap, TheEquirectangularConventionRoundTrips) {
   // and every consumer of the value depends on them agreeing.
   for (float u : {0.02f, 0.17f, 0.5f, 0.83f}) {
     for (float v : {0.05f, 0.3f, 0.5f, 0.95f}) {
-      const SkV2 back = equirectangularUv(equirectangularDirection({u, v}));
+      const glm::vec2 back = equirectangularUv(equirectangularDirection({u, v}));
       EXPECT_NEAR(back.x, u, 1e-4f) << u << "," << v;
       EXPECT_NEAR(back.y, v, 1e-4f) << u << "," << v;
     }
   }
   // The azimuth is periodic: u = 0 and u = 1 are one direction, and the
   // inverse answers whichever end of the turn it landed on.
-  const SkV2 seam = equirectangularUv(equirectangularDirection({0.0f, 0.5f}));
+  const glm::vec2 seam = equirectangularUv(equirectangularDirection({0.0f, 0.5f}));
   EXPECT_NEAR(std::min(seam.x, 1.0f - seam.x), 0.0f, 1e-4f);
   // v = 0 is the zenith and u = 0.5 looks along -z.
-  const SkV3 up = equirectangularDirection({0.5f, 0.0f});
+  const glm::vec3 up = equirectangularDirection({0.5f, 0.0f});
   EXPECT_NEAR(up.y, 1.0f, 1e-5f);
-  const SkV3 forward = equirectangularDirection({0.5f, 0.5f});
+  const glm::vec3 forward = equirectangularDirection({0.5f, 0.5f});
   EXPECT_NEAR(forward.z, -1.0f, 1e-5f);
 }
 
@@ -135,20 +137,20 @@ TEST(EnvironmentMap, SixFacesResampleIntoOnePanorama) {
   for (int i = 0; i < 6; ++i) faces[i] = solid(kFace[i], 32, 32);
   const EnvironmentMap env = EnvironmentMap::fromFaces(faces, 128);
   ASSERT_TRUE(env.valid());
-  EXPECT_EQ(env.size(), SkISize::Make(128, 64));
+  EXPECT_EQ(env.size(), glm::ivec2(128, 64));
 
   // Sample the panorama where each face's centre direction lands. The
   // faces are solid, so a bilinear tap well inside one is that colour
   // exactly.
-  const sk_sp<SkImage> pano = env.image(0);
-  const auto colourAt = [&](SkV3 direction) {
-    const SkV2 uv = equirectangularUv(direction);
+  const sk_sp<SkImage> pano = skia::image(env.texture(0));
+  const auto colourAt = [&](glm::vec3 direction) {
+    const glm::vec2 uv = equirectangularUv(direction);
     const int x = std::min((int)(uv.x * 128.0f), 127);
     const int y = std::min((int)(uv.y * 64.0f), 63);
     const SkColor4f c = floatPixel(pano, x, y);
     return SkColor4f{c.fR, c.fG, c.fB, 1};
   };
-  const SkV3 axes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
+  const glm::vec3 axes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
                         {0, -1, 0}, {0, 0, 1},  {0, 0, -1}};
   for (int i = 0; i < 6; ++i) {
     const SkColor4f got = colourAt(axes[i]);
@@ -186,8 +188,8 @@ TEST(EnvironmentMap, ACubeSheetIsUnpackedByItsLayout) {
   ASSERT_TRUE(fromRow.valid());
   ASSERT_TRUE(fromColumn.valid());
   EXPECT_EQ(fromRow.size(), fromColumn.size());
-  const SkColor4f a = floatPixel(fromRow.image(0), 32, 16);
-  const SkColor4f b = floatPixel(fromColumn.image(0), 32, 16);
+  const SkColor4f a = floatPixel(skia::image(fromRow.texture(0)), 32, 16);
+  const SkColor4f b = floatPixel(skia::image(fromColumn.texture(0)), 32, 16);
   EXPECT_NEAR(a.fR, b.fR, 1e-5f);
   EXPECT_NEAR(a.fG, b.fG, 1e-5f);
   EXPECT_NEAR(a.fB, b.fB, 1e-5f);
@@ -215,7 +217,7 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
       EnvironmentMap::fromCubeMap(column.asImage());
   ASSERT_TRUE(fromSheet.valid());
 
-  const SkV3 axes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
+  const glm::vec3 axes[6] = {{1, 0, 0},  {-1, 0, 0}, {0, 1, 0},
                         {0, -1, 0}, {0, 0, 1},  {0, 0, -1}};
   const auto expectSameAsSheet = [&](const std::vector<std::byte>& bytes,
                                      const char* name) {
@@ -226,10 +228,10 @@ TEST(EnvironmentMap, ACubeMapInAContainerIsTheSheetOfItsFaces) {
         EnvironmentMap::fromCubeMap(asset->frames()[0].image);
     ASSERT_TRUE(env.valid()) << name;
     ASSERT_EQ(env.size(), fromSheet.size()) << name;
-    const sk_sp<SkImage> pano = env.image(0);
-    const sk_sp<SkImage> sheet = fromSheet.image(0);
+    const sk_sp<SkImage> pano = skia::image(env.texture(0));
+    const sk_sp<SkImage> sheet = skia::image(fromSheet.texture(0));
     for (int i = 0; i < 6; ++i) {
-      const SkV2 uv = equirectangularUv(axes[i]);
+      const glm::vec2 uv = equirectangularUv(axes[i]);
       const int x =
           std::min((int)(uv.x * (float)pano->width()), pano->width() - 1);
       const int y =
@@ -263,7 +265,7 @@ TEST(EnvironmentMap, IrradianceOfAConstantPanoramaIsTheConstant) {
   const SkColor4f sky{0.2f, 0.55f, 0.9f, 1};
   const EnvironmentMap env =
       EnvironmentMap::fromEquirectangular(constantPanorama(64, 32, sky));
-  const sk_sp<SkImage> lobe = env.irradiance();
+  const sk_sp<SkImage> lobe = skia::image(env.irradiance());
   ASSERT_TRUE(lobe);
   EXPECT_EQ(lobe->dimensions(), SkISize::Make(32, 16));
   for (int y : {0, 8, 15}) {
@@ -275,7 +277,7 @@ TEST(EnvironmentMap, IrradianceOfAConstantPanoramaIsTheConstant) {
     }
   }
   // And the flat fallback is that same constant.
-  const SkColor4f mean = env.average();
+  const SkColor4f mean = skia::toSkColor(env.average());
   EXPECT_NEAR(mean.fR, sky.fR, 1e-4f);
   EXPECT_NEAR(mean.fG, sky.fG, 1e-4f);
   EXPECT_NEAR(mean.fB, sky.fB, 1e-4f);
@@ -289,19 +291,20 @@ TEST(EnvironmentMap, FloatSurvivesTheBucketsAndTheChain) {
   const EnvironmentMap env =
       EnvironmentMap::fromEquirectangular(constantPanorama(64, 32, bright));
   for (float roughness : {0.0f, 0.4f, 1.0f}) {
-    const SkColor4f got = floatPixel(env.image(roughness), 12, 7);
+    const SkColor4f got = floatPixel(skia::image(env.texture(roughness)), 12, 7);
     EXPECT_NEAR(got.fR, bright.fR, 1e-3f) << roughness;
     EXPECT_NEAR(got.fG, bright.fG, 1e-3f) << roughness;
     EXPECT_NEAR(got.fB, bright.fB, 1e-3f) << roughness;
   }
-  const SkColor4f mean = env.average();
+  const SkColor4f mean = skia::toSkColor(env.average());
   EXPECT_NEAR(mean.fR, bright.fR, 1e-3f);
 
   // The chain is one mip pyramid: nine levels, each half the last, and
   // level 0 at the prefilter size.
   const EnvironmentMap sized = env.withPrefilterSize(256);
   EXPECT_EQ(sized.prefilterSize(), 256);
-  const std::vector<sk_sp<SkImage>> levels = sized.chain();
+  std::vector<sk_sp<SkImage>> levels;
+  for (const Texture& level : sized.chain()) levels.push_back(skia::image(level));
   ASSERT_EQ((int)levels.size(), EnvironmentMap::kLevels);
   for (int i = 0; i < EnvironmentMap::kLevels; ++i) {
     ASSERT_TRUE(levels[i]);
@@ -317,19 +320,19 @@ TEST(EnvironmentMap, GroundColourReplacesTheLowerHemisphere) {
   ASSERT_TRUE(floored.valid());
   EXPECT_EQ(floored.size(), sky.size());
   // Below the horizon is the colour asked for; above it the sky stands.
-  const SkColor4f below = floatPixel(floored.image(0), 64, 60);
+  const SkColor4f below = floatPixel(skia::image(floored.texture(0)), 64, 60);
   EXPECT_NEAR(below.fR, 0.05f, 1e-3f);
   EXPECT_NEAR(below.fB, 0.05f, 1e-3f);
-  const SkColor4f above = floatPixel(floored.image(0), 64, 4);
-  const SkColor4f original = floatPixel(sky.image(0), 64, 4);
+  const SkColor4f above = floatPixel(skia::image(floored.texture(0)), 64, 4);
+  const SkColor4f original = floatPixel(skia::image(sky.texture(0)), 64, 4);
   EXPECT_NEAR(above.fR, original.fR, 1e-5f);
   EXPECT_FALSE(floored == sky);
 }
 
 TEST(Bevel, TheNormalsAreFlatInsideAndTiltedAtTheRim) {
   const SkPath shape = SkPath::Circle(50, 50, 40);
-  const Texture normals = bevelNormals(shape, SkIRect::MakeWH(100, 100), 10);
-  sk_sp<SkImage> img = normals.image();
+  const Texture normals = skia::bevelNormals(shape, SkIRect::MakeWH(100, 100), 10);
+  sk_sp<SkImage> img = skia::image(normals);
   ASSERT_TRUE(img);
   SkBitmap bm;
   bm.allocPixels(SkImageInfo::MakeN32Premul(100, 100));
@@ -347,7 +350,7 @@ TEST(Bevel, TheNormalsAreFlatInsideAndTiltedAtTheRim) {
   EXPECT_LT(SkColorGetR(rim), 110u);
   // The bounds-free overload places the map so device xy reads it: the
   // map's corner sits at the outset bounds' corner.
-  const Texture placed = bevelNormals(SkPath::Circle(200, 200, 40), 10);
-  EXPECT_FLOAT_EQ(placed.uv().getTranslateX(), 148);
-  EXPECT_FLOAT_EQ(placed.uv().getTranslateY(), 148);
+  const Texture placed = skia::bevelNormals(SkPath::Circle(200, 200, 40), 10);
+  EXPECT_FLOAT_EQ(placed.uv()[2][0], 148);
+  EXPECT_FLOAT_EQ(placed.uv()[2][1], 148);
 }

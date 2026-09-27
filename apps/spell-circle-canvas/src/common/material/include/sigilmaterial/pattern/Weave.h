@@ -12,14 +12,13 @@
  * a whole tile are read the same way.
  */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkSize.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/pattern/Tile.h>
+#include <sigilmaterial/texture/Texture.h>
 
 #include <compare>
 #include <cstdint>
+#include <glm/vec2.hpp>
 #include <vector>
 
 namespace sigil::material::pattern {
@@ -114,17 +113,17 @@ struct Cloth {
  *  weave's own period come round together — which is why a sett whose
  *  length is not a multiple of the weave's period tiles wider than the
  *  sett. */
-SkISize clothRepeat(const Cloth& cloth);
+glm::ivec2 clothRepeat(const Cloth& cloth);
 
 /** A WINDOW OF THE CLOTH as pixels, one pixel per thread, taken at
- *  @p origin in thread coordinates. Null for a cloth with no threads or
- *  an empty window.
+ *  @p origin in thread coordinates, as a texture read nearest. Empty for
+ *  a cloth with no threads or an empty window.
  *
- *  Magnify it by an INTEGER factor and sample it nearest: a thread
+ *  Magnify it by an INTEGER factor and keep it nearest: a thread
  *  narrower than a pixel, or a fractional magnification over the
- *  interlacing's own period, is a moire generator whatever the filter
+ *  interlacing's own period, is a moire generator whatever the sampling
  *  is. */
-sk_sp<SkImage> clothImage(const Cloth& cloth, SkIPoint origin, SkISize size);
+Texture clothImage(const Cloth& cloth, glm::ivec2 origin, glm::ivec2 size);
 
 /** The cloth as a repeating tile at @p threadPx pixels per thread, one
  *  whole repeat baked, sampled nearest. */

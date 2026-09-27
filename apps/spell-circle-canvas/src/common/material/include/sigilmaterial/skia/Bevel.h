@@ -1,20 +1,22 @@
 #pragma once
 
 /** @file
- * @ingroup material-texture
+ * @ingroup material-skia
  *
  * bevelNormals(): a normal map derived from an outline's coverage, so a
  * flat shape shades as though it had a rounded shoulder. It encodes
  * device-space normals (+y down, +z toward the viewer) and produces a
  * Texture a recipe's slot takes — the other half of what a
- * reflective 2D surface is shaded from, beside an EnvironmentMap.
+ * reflective 2D surface is shaded from, beside an EnvironmentMap. It
+ * stands in the Skia executor because the outline arrives as a Skia path
+ * and its coverage is rasterised by Skia.
  */
 
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <sigilmaterial/texture/Texture.h>
 
-namespace sigil::material {
+namespace sigil::material::skia {
 
 /** A rounded-bevel normal map derived from a path's coverage, placed so
  *  a shader's device xy reads the normal under it. The map covers
@@ -28,4 +30,4 @@ Texture bevelNormals(const SkPath& path, SkIRect bounds, float bevelPx,
  *  shoulder has room on every side. */
 Texture bevelNormals(const SkPath& path, float bevelPx, float heightScale = 1);
 
-}  // namespace sigil::material
+}  // namespace sigil::material::skia

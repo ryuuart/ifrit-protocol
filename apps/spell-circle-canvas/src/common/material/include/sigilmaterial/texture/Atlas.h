@@ -9,13 +9,11 @@
  * loose images into a sheet.
  */
 
-#include <include/core/SkImage.h>
-#include <include/core/SkRect.h>
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkSize.h>
 #include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/core/PixelSource.h>
 
 #include <boost/container/map.hpp>
+#include <glm/vec2.hpp>
 #include <initializer_list>
 #include <optional>
 #include <span>
@@ -32,13 +30,13 @@ namespace sigil::material {
 struct AtlasRegion {
   std::string name;
   /** The pixels on the sheet. */
-  SkIRect rect = SkIRect::MakeEmpty();
+  PixelRect rect;
   /** The sheet holds this region turned a quarter turn clockwise. */
   bool rotated = false;
   /** The untrimmed sprite size; `rect`'s size when nothing was trimmed. */
-  SkISize sourceSize = SkISize::MakeEmpty();
+  glm::ivec2 sourceSize{0, 0};
   /** Where `rect` sits inside the untrimmed sprite. */
-  SkIPoint sourceOffset = {0, 0};
+  glm::ivec2 sourceOffset{0, 0};
 
   bool operator==(const AtlasRegion&) const = default;
 };
@@ -62,16 +60,17 @@ class Atlas {
    *  "all". Nullopt when the text is not that JSON. */
   static std::optional<Atlas> fromAseprite(Texture sheet,
                                            std::string_view json);
-  /** Packs @p images into one sheet with @p padding pixels between them,
-   *  the sheet a power of two no larger than @p maxSide on a side. An
-   *  image that does not fit is left out of the regions. */
+  /** Packs @p images, each read once, into one sheet with @p padding
+   *  pixels between them, the sheet a power of two no larger than
+   *  @p maxSide on a side. An image that does not fit is left out of the
+   *  regions. */
   static Atlas pack(
-      std::span<const std::pair<std::string, sk_sp<SkImage>>> images,
+      std::span<const std::pair<std::string, media::PixelSource>> images,
       int padding = 1, int maxSide = 4096);
   static Atlas pack(
-      std::initializer_list<std::pair<std::string, sk_sp<SkImage>>> images,
+      std::initializer_list<std::pair<std::string, media::PixelSource>> images,
       int padding = 1, int maxSide = 4096) {
-    return pack(std::span<const std::pair<std::string, sk_sp<SkImage>>>(
+    return pack(std::span<const std::pair<std::string, media::PixelSource>>(
                     images.begin(), images.size()),
                 padding, maxSide);
   }

@@ -8,6 +8,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
+#include <sigilmedia/advanced/Device.h>
 #include <simdjson.h>
 
 #include <algorithm>
@@ -27,8 +28,8 @@ Atlas::Atlas(Texture sheet, std::vector<AtlasRegion> regions)
 Atlas Atlas::grid(Texture sheet, int cols, int rows) {
   cols = std::max(cols, 1);
   rows = std::max(rows, 1);
-  const SkISize size = sheet.size();
-  const int cw = size.width() / cols, ch = size.height() / rows;
+  const glm::ivec2 size = sheet.size();
+  const int cw = size.x / cols, ch = size.y / rows;
   std::vector<AtlasRegion> regions;
   std::vector<size_t> all;
   regions.reserve((size_t)cols * rows);
@@ -36,7 +37,7 @@ Atlas Atlas::grid(Texture sheet, int cols, int rows) {
     for (int c = 0; c < cols; ++c) {
       AtlasRegion region;
       region.name = std::to_string(regions.size());
-      region.rect = SkIRect::MakeXYWH(c * cw, r * ch, cw, ch);
+      region.rect = {c * cw, r * ch, cw, ch};
       region.sourceSize = {cw, ch};
       all.push_back(regions.size());
       regions.push_back(std::move(region));
@@ -109,29 +110,29 @@ std::pair<std::string, long> split(std::string_view name) {
 }
 
 bool readRect(simdjson::simdjson_result<simdjson::dom::element> e,
-              SkIRect* out) {
+              PixelRect* out) {
   int64_t x, y, w, h;
   if (e["x"].get(x) || e["y"].get(y) || e["w"].get(w) || e["h"].get(h))
     return false;
-  *out = SkIRect::MakeXYWH((int)x, (int)y, (int)w, (int)h);
+  *out = {(int)x, (int)y, (int)w, (int)h};
   return true;
 }
 
 bool readFrame(std::string_view name, simdjson::dom::element e,
                AtlasRegion* out) {
-  SkIRect frame;
+  PixelRect frame;
   if (!readRect(e["frame"], &frame)) return false;
   out->name = stem(name);
   out->rect = frame;
   bool rotated = false;
   if (!e["rotated"].get(rotated)) out->rotated = rotated;
-  out->sourceSize = frame.size();
+  out->sourceSize = {frame.width, frame.height};
   int64_t w, h;
   if (!e["sourceSize"]["w"].get(w) && !e["sourceSize"]["h"].get(h))
     out->sourceSize = {(int)w, (int)h};
-  SkIRect sprite;
+  PixelRect sprite;
   if (readRect(e["spriteSourceSize"], &sprite))
-    out->sourceOffset = {sprite.left(), sprite.top()};
+    out->sourceOffset = {sprite.x, sprite.y};
   return true;
 }
 
@@ -236,14 +237,19 @@ std::optional<Atlas> Atlas::fromAseprite(Texture sheet, std::string_view json) {
 // Packing
 
 Atlas Atlas::pack(
-    std::span<const std::pair<std::string, sk_sp<SkImage>>> images,
+    std::span<const std::pair<std::string, media::PixelSource>> images,
     int padding, int maxSide) {
   padding = std::max(padding, 0);
+  // Each source is read once, at time zero, back to host memory.
+  std::vector<sk_sp<SkImage>> pictures;
+  pictures.reserve(images.size());
+  for (const auto& [name, source] : images)
+    pictures.push_back(media::deviceImage(source.frameAt({}), nullptr));
   std::vector<stbrp_rect> rects;
   rects.reserve(images.size());
   long area = 0;
   for (size_t i = 0; i < images.size(); ++i) {
-    const sk_sp<SkImage>& img = images[i].second;
+    const sk_sp<SkImage>& img = pictures[i];
     if (!img) continue;
     stbrp_rect r{};
     r.id = (int)i;
@@ -277,16 +283,17 @@ Atlas Atlas::pack(
     canvas->clear(SK_ColorTRANSPARENT);
     for (const stbrp_rect& r : rects) {
       if (!r.was_packed) continue;
-      const auto& [name, img] = images[(size_t)r.id];
+      const std::string& name = images[(size_t)r.id].first;
+      const sk_sp<SkImage>& img = pictures[(size_t)r.id];
       canvas->drawImage(img, (float)r.x, (float)r.y);
       AtlasRegion region;
       region.name = name;
-      region.rect = SkIRect::MakeXYWH(r.x, r.y, img->width(), img->height());
-      region.sourceSize = region.rect.size();
+      region.rect = {r.x, r.y, img->width(), img->height()};
+      region.sourceSize = {img->width(), img->height()};
       regions.push_back(std::move(region));
     }
   }
-  return Atlas(Texture::of(surface ? surface->makeImageSnapshot() : nullptr),
+  return Atlas(Texture(surface ? surface->makeImageSnapshot() : nullptr),
                std::move(regions));
 }
 

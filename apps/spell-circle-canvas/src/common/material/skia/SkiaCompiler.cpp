@@ -14,7 +14,8 @@
 #include "sigilmaterial/skia/SkiaCompiler.h"
 
 #include <include/core/SkString.h>
-#include <sigilmaterial/texture/ShaderLeaf.h>
+#include <sigilmaterial/skia/ShaderLeaf.h>
+#include <sigilmaterial/skia/Texture.h>
 
 #include <cctype>
 #include <cstring>
@@ -188,7 +189,8 @@ int samplerCount(const Material& material) {
     if (!material.recipe().samples(Target::SkSL, slot)) continue;
     if (child.material) {
       count += samplerCount(*child.material);
-    } else if (dynamic_cast<const ShaderLeaf*>(child.leaf.get())) {
+    } else if (dynamic_cast<const Texture*>(child.leaf.get()) ||
+               dynamic_cast<const ShaderLeaf*>(child.leaf.get())) {
       ++count;
     }
   }
@@ -253,6 +255,9 @@ std::unique_ptr<SkRuntimeShaderBuilder> builder(
     if (!c.fChild) continue;
     if (child.material) {
       c = shader(*child.material, frame, variant);
+    } else if (const auto* texture =
+                   dynamic_cast<const Texture*>(child.leaf.get())) {
+      c = skia::shader(*texture, frame);
     } else if (const auto* leaf =
                    dynamic_cast<const ShaderLeaf*>(child.leaf.get())) {
       c = leaf->shaderAt(frame);

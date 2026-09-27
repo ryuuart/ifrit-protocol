@@ -13,12 +13,13 @@
 #include <sigilmedia/image/Decode.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/texture/TextureSet.h>
 
 #include <algorithm>
 #include <filesystem>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -46,47 +47,49 @@ SkColor pixelOf(const sk_sp<SkShader>& shader, int x, int y) {
 TEST(Texture, SourcesCompareByIdentityAcrossTheErasure) {
   const sk_sp<SkImage> a = solid(SK_ColorRED, 2, 2);
   const sk_sp<SkImage> b = solid(SK_ColorRED, 2, 2);
-  EXPECT_EQ(Texture::of(a), Texture::of(a));
-  EXPECT_FALSE(Texture::of(a) == Texture::of(b));
+  EXPECT_EQ(Texture(a), Texture(a));
+  EXPECT_FALSE(Texture(a) == Texture(b));
   // A different source kind is never equal, whatever it yields.
   // the callable is invoked on every layout, so its capture must survive each
   // return
   // NOLINTNEXTLINE(performance-no-automatic-move)
-  const Texture produced = Texture::produce("red", [a] { return a; });
-  EXPECT_FALSE(produced == Texture::of(a));
+  const Texture produced =
+      Texture(sigil::media::PixelSource::produce("red", [a] { return a; }));
+  EXPECT_FALSE(produced == Texture(a));
   // the callable is invoked on every layout, so its capture must survive each
   // return
   // NOLINTNEXTLINE(performance-no-automatic-move)
-  EXPECT_EQ(produced, Texture::produce("red", [b] { return b; }));
+  EXPECT_EQ(produced, Texture(sigil::media::PixelSource::produce(
+                          "red", [b] { return b; })));
   EXPECT_FALSE(Texture().valid());
   EXPECT_EQ(Texture(), Texture());
 }
 
 TEST(Texture, ProducerBakesOnceAndShares) {
   int bakes = 0;
-  const Texture t = Texture::produce("counted", [&] {
+  const Texture t = Texture(sigil::media::PixelSource::produce("counted", [&] {
     ++bakes;
     return solid(SK_ColorGREEN, 3, 3);
-  });
+  }));
   // the copy is what the test exercises
   // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
   const Texture copy = t;
   EXPECT_EQ(bakes, 0);
-  const sk_sp<SkImage> first = t.image();
+  const sk_sp<SkImage> first = skia::image(t);
   EXPECT_EQ(bakes, 1);
-  EXPECT_EQ(copy.image().get(), first.get());
+  EXPECT_EQ(skia::image(copy).get(), first.get());
   EXPECT_EQ(bakes, 1);
 }
 
 TEST(Texture, SamplingDialsEnterEquality) {
   const sk_sp<SkImage> img = solid(SK_ColorBLUE, 4, 4);
-  const Texture base = Texture::of(img);
-  EXPECT_FALSE(base == Texture(base).tile(SkTileMode::kRepeat));
+  const Texture base = Texture(img);
+  EXPECT_FALSE(base == Texture(base).tile(Repeat::Repeat));
   EXPECT_FALSE(base == Texture(base).at({3, 0}));
-  EXPECT_FALSE(base == Texture(base).region(SkIRect::MakeWH(2, 2)));
-  EXPECT_FALSE(base == Texture(base).filter(SkFilterMode::kNearest));
-  EXPECT_EQ(Texture(base).tile(SkTileMode::kRepeat),
-            Texture(base).tile(SkTileMode::kRepeat, SkTileMode::kRepeat));
+  EXPECT_FALSE(base == Texture(base).region({0, 0, 2, 2}));
+  EXPECT_FALSE(base == Texture(base).sampling(Sampling::Nearest));
+  EXPECT_EQ(Texture(base).tile(Repeat::Repeat),
+            Texture(base).tile(Repeat::Repeat, Repeat::Repeat));
 }
 
 TEST(Texture, RegionCutsAndPlacementMoves) {
@@ -99,15 +102,15 @@ TEST(Texture, RegionCutsAndPlacementMoves) {
   const sk_sp<SkImage> sheet = bm.asImage();
 
   const Texture right =
-      Texture::of(sheet).region(SkIRect::MakeXYWH(2, 0, 2, 2));
-  EXPECT_EQ(right.size(), SkISize::Make(2, 2));
-  EXPECT_EQ(pixelOf(right.shader(), 0, 0), SK_ColorBLUE);
+      Texture(sheet).region({2, 0, 2, 2});
+  EXPECT_EQ(right.size(), glm::ivec2(2, 2));
+  EXPECT_EQ(pixelOf(skia::shader(right), 0, 0), SK_ColorBLUE);
   // The cut is kept: the same image comes back for the same source.
-  EXPECT_EQ(right.image().get(), right.image().get());
+  EXPECT_EQ(skia::image(right).get(), skia::image(right).get());
 
-  const Texture moved = Texture::of(sheet).at({-2, 0});
-  EXPECT_EQ(pixelOf(moved.shader(), 0, 0), SK_ColorBLUE);
-  EXPECT_EQ(pixelOf(Texture::of(sheet).shader(), 0, 0), SK_ColorRED);
+  const Texture moved = Texture(sheet).at({-2, 0});
+  EXPECT_EQ(pixelOf(skia::shader(moved), 0, 0), SK_ColorBLUE);
+  EXPECT_EQ(pixelOf(skia::shader(Texture(sheet)), 0, 0), SK_ColorRED);
 }
 
 TEST(Texture, FillsAMaterialSlotAsALeaf) {
@@ -118,14 +121,14 @@ TEST(Texture, FillsAMaterialSlotAsALeaf) {
       Recipe::of<NoParameters>("sampler").slot("uImage"));
   const sk_sp<SkImage> img = solid(SK_ColorRED, 2, 2);
   Material a(recipe, NoParameters{0});
-  a.slot("uImage", Texture::of(img));
+  a.slot("uImage", Texture(img));
   Material b(recipe, NoParameters{0});
-  b.slot("uImage", Texture::of(img));
+  b.slot("uImage", Texture(img));
   EXPECT_EQ(a, b);
   ASSERT_NE(a.leaf("uImage"), nullptr);
   EXPECT_EQ(a.slot("uImage"), nullptr);
   EXPECT_FALSE(a.isRunning());
-  b.slot("uImage", Texture::of(img).tile(SkTileMode::kRepeat));
+  b.slot("uImage", Texture(img).tile(Repeat::Repeat));
   EXPECT_FALSE(a == b);
   // A slot holding a leaf and one holding a material are unequal.
   Material c(recipe, NoParameters{0});
@@ -246,7 +249,7 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
   EXPECT_TRUE(tiles.normalDirectX);
   EXPECT_EQ(tiles.files.size(), 4u);
 
-  boost::container::map<std::string, sk_sp<SkImage>> decoded;
+  std::map<std::string, sk_sp<SkImage>> decoded;
   const auto decode = [&](const fs::path& p) {
     sk_sp<SkImage>& img = decoded[p.filename().string()];
     if (!img) img = solid(SK_ColorWHITE, 2, 2);
@@ -256,11 +259,11 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
   EXPECT_EQ(maps.name, "tiles");
   EXPECT_TRUE(maps.normalDirectX);
   ASSERT_NE(maps.map(texture::Role::BaseColor), nullptr);
-  EXPECT_EQ(maps.map(texture::Role::BaseColor)->image().get(),
+  EXPECT_EQ(skia::image(*maps.map(texture::Role::BaseColor)).get(),
             decoded["tiles_diff_1k.png"].get());
   // A scanned material is meant to repeat.
-  EXPECT_EQ(maps.map(texture::Role::BaseColor)->tileX(), SkTileMode::kRepeat);
-  EXPECT_EQ(maps.map(texture::Role::Packed)->image().get(),
+  EXPECT_EQ(maps.map(texture::Role::BaseColor)->tileX(), Repeat::Repeat);
+  EXPECT_EQ(skia::image(*maps.map(texture::Role::Packed)).get(),
             decoded["tiles_arm_1k.png"].get());
   EXPECT_EQ(maps.map(texture::Role::Emissive), nullptr);
 
@@ -270,7 +273,7 @@ TEST(TextureSet, DiscoversAndDecodesByRole) {
   const texture::TextureMaps u = texture::fromUsageMap(
       {{"diffuse", a}, {"baseColor", b}, {"normal", b}, {"height", a}});
   EXPECT_TRUE(u.normalDirectX);
-  EXPECT_EQ(u.map(texture::Role::BaseColor)->image().get(), b.get());
-  EXPECT_EQ(u.map(texture::Role::Normal)->image().get(), b.get());
-  EXPECT_EQ(u.map(texture::Role::Height)->image().get(), a.get());
+  EXPECT_EQ(skia::image(*u.map(texture::Role::BaseColor)).get(), b.get());
+  EXPECT_EQ(skia::image(*u.map(texture::Role::Normal)).get(), b.get());
+  EXPECT_EQ(skia::image(*u.map(texture::Role::Height)).get(), a.get());
 }

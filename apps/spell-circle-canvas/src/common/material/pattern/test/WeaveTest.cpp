@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <sigilmaterial/pattern/Weave.h>
+#include <sigilmaterial/skia/Texture.h>
 
 #include <algorithm>
 #include <set>
@@ -49,10 +50,11 @@ std::vector<ThreadRun> runsOf(const std::vector<uint8_t>& threads) {
 }
 
 /** The cloth read back out of a baked window, one pixel per thread. */
-SkBitmap raster(const Cloth& cloth, SkIPoint origin, SkISize size) {
+SkBitmap raster(const Cloth& cloth, glm::ivec2 origin, glm::ivec2 size) {
   SkBitmap bitmap;
-  bitmap.allocPixels(SkImageInfo::MakeN32Premul(size.width(), size.height()));
-  const sk_sp<SkImage> woven = pattern::clothImage(cloth, origin, size);
+  bitmap.allocPixels(SkImageInfo::MakeN32Premul(size.x, size.y));
+  const sk_sp<SkImage> woven =
+      skia::image(pattern::clothImage(cloth, origin, size));
   if (woven) woven->readPixels(nullptr, bitmap.pixmap(), 0, 0);
   return bitmap;
 }
@@ -171,15 +173,15 @@ TEST(Weave, TheRepeatComesRoundWithTheWeaveAndNotOnlyTheSett) {
   const Cloth tartan{.warp = count, .weft = count};
   // 252 is a multiple of the twill's four, so the cloth repeats on the
   // sett itself.
-  EXPECT_EQ(pattern::clothRepeat(tartan), SkISize::Make(252, 252));
+  EXPECT_EQ(pattern::clothRepeat(tartan), glm::ivec2(252, 252));
   // A six-thread sett under the same twill does not: it tiles at twelve.
   const std::vector<uint8_t> six = pattern::threadcount({{3, 0}, {3, 1}});
   EXPECT_EQ(pattern::clothRepeat({.warp = six, .weft = six}),
-            SkISize::Make(12, 12));
+            glm::ivec2(12, 12));
   // Under a plain weave the same six threads tile at six.
   EXPECT_EQ(
       pattern::clothRepeat({.warp = six, .weft = six, .weave = Weave::plain()}),
-      SkISize::Make(6, 6));
+      glm::ivec2(6, 6));
 }
 
 TEST(Weave, TheRibDarkensTheWeftFloatsAndNothingElse) {
@@ -204,14 +206,14 @@ TEST(Weave, OnePixelPerThreadReadsWhatTheClothReads) {
                     .shades = {hexColor(0x101010), hexColor(0x2C2C80), hexColor(0x006818)},
                     .rib = 0.22f};
   // A window taken at a negative origin, so the wrap is exercised too.
-  const SkIPoint origin{-7, -3};
-  const SkISize size = SkISize::Make(23, 19);
+  const glm::ivec2 origin{-7, -3};
+  const glm::ivec2 size(23, 19);
   const SkBitmap baked = raster(cloth, origin, size);
   ASSERT_FALSE(baked.drawsNothing());
-  for (int y = 0; y < size.height(); ++y)
-    for (int x = 0; x < size.width(); ++x)
+  for (int y = 0; y < size.y; ++y)
+    for (int x = 0; x < size.x; ++x)
       ASSERT_EQ(baked.getColor(x, y),
-                toSkColor(cloth.at(origin.x() + x, origin.y() + y)))
+                toSkColor(cloth.at(origin.x + x, origin.y + y)))
           << x << "," << y;
 }
 
@@ -220,10 +222,10 @@ TEST(Weave, TheTileBakesTheWholeRepeatOfTheSameCloth) {
   const Cloth cloth{
       .warp = count, .weft = count, .shades = {hexColor(0x000000), hexColor(0xFFFFFF)}};
   pattern::Tile tile = pattern::clothTile(cloth);
-  EXPECT_EQ(tile.size().width(), 12.0f);
-  EXPECT_EQ(tile.size().height(), 12.0f);
-  EXPECT_EQ(tile.filter(), SkFilterMode::kNearest);
-  const sk_sp<SkImage> baked = tile.image();
+  EXPECT_EQ(tile.size().x, 12.0f);
+  EXPECT_EQ(tile.size().y, 12.0f);
+  EXPECT_EQ(tile.sampling(), Sampling::Nearest);
+  const sk_sp<SkImage> baked = skia::image(tile.texture());
   ASSERT_TRUE(baked);
   SkBitmap read;
   read.allocPixels(SkImageInfo::MakeN32Premul(12, 12));
@@ -236,7 +238,7 @@ TEST(Weave, TheTileBakesTheWholeRepeatOfTheSameCloth) {
 
 TEST(Weave, GinghamIsTheSameGeneratorAtATwoColourSett) {
   const Cloth cloth = gingham();
-  EXPECT_EQ(pattern::clothRepeat(cloth), SkISize::Make(16, 16));
+  EXPECT_EQ(pattern::clothRepeat(cloth), glm::ivec2(16, 16));
   // Two dyes and no third: gingham's middle tone is not a colour the
   // cloth holds, it is the two threads alternating faster than an eye
   // separates them, which is what the mixed quarter below asserts.
@@ -272,7 +274,7 @@ TEST(Weave, HoundstoothIsThatSettUnderTheTwillInstead) {
                     .weave = Weave::plain()};
   Cloth tooth = plain;
   tooth.weave = Weave::twill(2, 2);
-  EXPECT_EQ(pattern::clothRepeat(tooth), SkISize::Make(8, 8));
+  EXPECT_EQ(pattern::clothRepeat(tooth), glm::ivec2(8, 8));
   // Where warp and weft carry the same shade the weave cannot be seen:
   // both quarters are solid under either interlacing.
   for (int y = 0; y < 4; ++y)
@@ -296,8 +298,8 @@ TEST(Weave, HoundstoothIsThatSettUnderTheTwillInstead) {
 
 TEST(Weave, AClothWithNoThreadsPaintsNothing) {
   const Cloth empty;
-  EXPECT_TRUE(pattern::clothRepeat(empty).isEmpty());
-  EXPECT_EQ(pattern::clothImage(empty, {0, 0}, SkISize::Make(4, 4)), nullptr);
+  EXPECT_EQ(pattern::clothRepeat(empty), glm::ivec2(0, 0));
+  EXPECT_FALSE(pattern::clothImage(empty, {0, 0}, glm::ivec2(4, 4)).valid());
   EXPECT_EQ(empty.at(0, 0).a, 0.0f);
   // A thread naming a shade the card does not carry is transparent, not
   // a read past the end.

@@ -8,6 +8,7 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
 #include <sigilcore/compute/Noise.h>  // core::noise::hash
+#include <sigilmaterial/skia/Painted.h>
 
 #include <algorithm>
 #include <cmath>
@@ -16,12 +17,17 @@ namespace sigil::material::pattern {
 
 namespace {
 SkColor4f sk(Color c) { return {c.r, c.g, c.b, c.a}; }
+
+/** A tile of @p size baked by @p painter into a raster canvas. */
+Tile paintedTile(glm::vec2 size, skia::Painter painter) {
+  return Tile::of(size, skia::painted(std::move(painter)));
+}
 }  // namespace
 
 Tile halftone(float spacing, float radius, Color color, bool staggered) {
   const float s = std::max(spacing, 1.0f);
   const float tileH = staggered ? 2 * s : s;
-  return Tile::of(
+  return paintedTile(
       {s, tileH}, [s, radius, color, staggered](SkCanvas& c, SkSize, uint32_t) {
         SkPaint p;
         p.setAntiAlias(true);
@@ -40,7 +46,7 @@ Tile halftone(float spacing, float radius, Color color, bool staggered) {
 
 Tile stripes(float on, float off, Color color) {
   const float period = std::max(on + off, 1.0f);
-  return Tile::of({period, 8}, [on, color](SkCanvas& c, SkSize sz, uint32_t) {
+  return paintedTile({period, 8}, [on, color](SkCanvas& c, SkSize sz, uint32_t) {
     SkPaint p;
     p.setColor4f(sk(color), nullptr);
     c.drawRect(SkRect::MakeWH(on, sz.height()), p);
@@ -53,8 +59,8 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
   for (const auto& [w, c] : runs) period += std::max(w, 0.0f);
   if (period <= 0) return stripes(1, 0, {0, 0, 0, 0});  // draws nothing
   const bool down = along == Axis::V;
-  const SkSize size = down ? SkSize{8, period} : SkSize{period, 8};
-  return Tile::of(size, [runs = std::move(runs), period, phase, down](
+  const glm::vec2 size = down ? glm::vec2{8, period} : glm::vec2{period, 8};
+  return paintedTile(size, [runs = std::move(runs), period, phase, down](
                             SkCanvas& c, SkSize sz, uint32_t) {
     // Start one wrapped phase back along the axis and paint two periods,
     // so the seam is covered whatever the phase.
@@ -74,7 +80,7 @@ Tile sequence(std::vector<std::pair<float, Color>> runs, float phase,
 
 Tile checker(float cell, Color first, Color second) {
   const float s = std::max(cell, 1.0f);
-  return Tile::of({2 * s, 2 * s}, [s, first, second](SkCanvas& c, SkSize, uint32_t) {
+  return paintedTile({2 * s, 2 * s}, [s, first, second](SkCanvas& c, SkSize, uint32_t) {
     SkPaint pa, pb;
     pa.setColor4f(sk(first), nullptr);
     pb.setColor4f(sk(second), nullptr);
@@ -88,7 +94,7 @@ Tile checker(float cell, Color first, Color second) {
 Tile gridLines(float spacingX, float spacingY, float width, Color color) {
   const float sx = std::max(spacingX, 1.0f);
   const float sy = std::max(spacingY, 1.0f);
-  return Tile::of({sx, sy}, [width, color](SkCanvas& c, SkSize sz, uint32_t) {
+  return paintedTile({sx, sy}, [width, color](SkCanvas& c, SkSize sz, uint32_t) {
     SkPaint p;
     p.setColor4f(sk(color), nullptr);
     c.drawRect(SkRect::MakeWH(sz.width(), width), p);
@@ -99,7 +105,7 @@ Tile gridLines(float spacingX, float spacingY, float width, Color color) {
 Tile speckle(float tileSize, int count, float minimumRadius, float maximumRadius,
              std::vector<Color> palette) {
   const float s = std::max(tileSize, 8.0f);
-  return Tile::of({s, s}, [s, count, minimumRadius, maximumRadius, palette = std::move(palette)](
+  return paintedTile({s, s}, [s, count, minimumRadius, maximumRadius, palette = std::move(palette)](
                               SkCanvas& c, SkSize, uint32_t seed) {
     SkPaint p;
     p.setAntiAlias(true);

@@ -14,6 +14,13 @@ namespace sigil::material::texture {
 
 namespace {
 
+/** Whether @p map holds a picture: a decoder that fails may answer an
+ *  empty source or a source over no picture, and neither is a map. */
+bool hasPixels(const Texture& map) {
+  const glm::ivec2 size = map.size();
+  return map.valid() && size.x > 0 && size.y > 0;
+}
+
 std::string lower(std::string_view s) {
   std::string out(s);
   for (char& c : out) c = (char)std::tolower((unsigned char)c);
@@ -236,21 +243,21 @@ TextureMaps fromFiles(const TextureSet& set, const Decoder& decode) {
   out.normalDirectX = set.normalDirectX;
   if (!decode) return out;
   for (const auto& [role, path] : set.files)
-    if (sk_sp<SkImage> image = decode(path))
-      out.maps.emplace(role,
-                       Texture::of(std::move(image)).tile(SkTileMode::kRepeat));
+    if (Texture map(decode(path)); hasPixels(map))
+      out.maps.emplace(role, std::move(map.tile(Repeat::Repeat)));
   return out;
 }
 
 TextureMaps fromUsageMap(
-    const boost::container::map<std::string, sk_sp<SkImage>>& byUsage,
+    const std::map<std::string, media::PixelSource>& byUsage,
     bool normalDirectX) {
   TextureMaps out;
   out.normalDirectX = normalDirectX;
   for (const auto& [usage, image] : byUsage) {
     const Role role = roleForUsage(usage);
-    if (role == Role::Unknown || !image || out.maps.count(role)) continue;
-    out.maps.emplace(role, Texture::of(image).tile(SkTileMode::kRepeat));
+    if (role == Role::Unknown || out.maps.count(role)) continue;
+    if (Texture map(image); hasPixels(map))
+      out.maps.emplace(role, std::move(map.tile(Repeat::Repeat)));
   }
   return out;
 }

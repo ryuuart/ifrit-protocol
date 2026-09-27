@@ -95,7 +95,7 @@ TEST(SkiaEffect, AnAuthorFilledSlotIsNotRefilledByTheExecutor) {
   // rule: an author who binds a source to the name keeps it, which is
   // also what lets the same material be painted as an ordinary fill.
   Material material(blurredSlotRecipe(), OneRadius{8});
-  material.slot("bloom", Texture::of(oneColour(SK_ColorBLUE)));
+  material.slot("bloom", Texture(oneColour(SK_ColorBLUE)));
   const auto pixels = bloomThrough(
       skia::resolvedImageFilter(Filter::of(material, 0), nullptr),
       {1.0f, 0.72f, 0.1f, 1.0f});

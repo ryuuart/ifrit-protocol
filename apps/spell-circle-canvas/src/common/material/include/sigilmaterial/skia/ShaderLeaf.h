@@ -1,13 +1,14 @@
 #pragma once
 
 /** @file
- * @ingroup material-texture
+ * @ingroup material-skia
  *
  * ShaderLeaf — a leaf that binds into a slot as a Skia shader. The
- * seam between the material tree and anything Skia can already shade: an
- * image and its sampling, a gradient a renderer built natively, a
- * procedural shader Skia ships. A subclass yields the shader and compares
- * itself by value.
+ * seam between the material tree and anything Skia can already shade: a
+ * gradient a renderer built natively, a procedural shader Skia ships, a
+ * composed material lowered to one shader. A subclass yields the shader
+ * and compares itself by value. A `Texture` is not one: the executor
+ * binds it as the image shader `shader(texture, frame)` builds.
  */
 
 #include <include/core/SkRefCnt.h>
@@ -15,7 +16,7 @@
 #include <sigilmaterial/core/FrameData.h>
 #include <sigilmaterial/core/Leaf.h>
 
-namespace sigil::material {
+namespace sigil::material::skia {
 
 /** A leaf the Skia backend binds by asking for its shader. */
 class ShaderLeaf : public Leaf {
@@ -31,4 +32,4 @@ class ShaderLeaf : public Leaf {
   }
 };
 
-}  // namespace sigil::material
+}  // namespace sigil::material::skia

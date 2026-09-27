@@ -41,7 +41,7 @@ Material paint() {
 Texture whiteMap() {
   sk_sp<SkSurface> s = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(2, 2));
   s->getCanvas()->clear(SK_ColorWHITE);
-  return Texture::of(s->makeImageSnapshot());
+  return Texture(s->makeImageSnapshot());
 }
 
 }  // namespace

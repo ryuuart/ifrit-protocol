@@ -10,6 +10,7 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/Atlas.h>
 #include <sigilmaterial/texture/Texture.h>
 
@@ -39,14 +40,14 @@ SkColor pixelOf(const sk_sp<SkShader>& shader, int x, int y) {
 }  // namespace
 
 TEST(Atlas, AGridCutsEqualCellsRowMajorAndNamesThemByIndex) {
-  const Atlas atlas = Atlas::grid(Texture::of(solid(SK_ColorRED, 8, 4)), 4, 2);
+  const Atlas atlas = Atlas::grid(Texture(solid(SK_ColorRED, 8, 4)), 4, 2);
   ASSERT_EQ(atlas.regions().size(), 8u);
-  EXPECT_EQ(atlas.regions()[5].rect, SkIRect::MakeXYWH(2, 2, 2, 2));
+  EXPECT_EQ(atlas.regions()[5].rect, (PixelRect{2, 2, 2, 2}));
   EXPECT_EQ(atlas.regions()[5].name, "5");
   ASSERT_NE(atlas.sequence("all"), nullptr);
   EXPECT_EQ(atlas.sequence("all")->size(), 8u);
   EXPECT_EQ(atlas.frame("all", 9).region(), atlas.region(1).region());
-  EXPECT_EQ(atlas.region(5).size(), SkISize::Make(2, 2));
+  EXPECT_EQ(atlas.region(5).size(), glm::ivec2(2, 2));
   EXPECT_FALSE(atlas.region(8).valid());
 }
 
@@ -59,14 +60,14 @@ TEST(Atlas, ReadsTexturePackerAndDerivesSequences) {
     "idle.png": {"frame": {"x": 20, "y": 0, "w": 5, "h": 5}}
   }, "meta": {"app": "TexturePacker"}})";
   const std::optional<Atlas> atlas =
-      Atlas::fromTexturePacker(Texture::of(solid(SK_ColorRED, 32, 16)), json);
+      Atlas::fromTexturePacker(Texture(solid(SK_ColorRED, 32, 16)), json);
   ASSERT_TRUE(atlas);
   ASSERT_EQ(atlas->regions().size(), 3u);
   const AtlasRegion* walk2 = atlas->find("walk_02");
   ASSERT_NE(walk2, nullptr);
-  EXPECT_EQ(walk2->rect, SkIRect::MakeXYWH(10, 0, 10, 10));
-  EXPECT_EQ(walk2->sourceSize, SkISize::Make(16, 16));
-  EXPECT_EQ(walk2->sourceOffset, SkIPoint::Make(2, 3));
+  EXPECT_EQ(walk2->rect, (PixelRect{10, 0, 10, 10}));
+  EXPECT_EQ(walk2->sourceSize, glm::ivec2(16, 16));
+  EXPECT_EQ(walk2->sourceOffset, glm::ivec2(2, 3));
   EXPECT_TRUE(atlas->find("walk_01")->rotated);
   const std::vector<size_t>* walk = atlas->sequence("walk");
   ASSERT_NE(walk, nullptr);
@@ -95,14 +96,14 @@ TEST(Atlas, AsepritesTagsBecomeTheSequences) {
     {"name": "run", "from": 0, "to": 1, "direction": "forward"},
     {"name": "jump", "from": 2, "to": 2, "direction": "forward"}]}})";
   const std::optional<Atlas> atlas =
-      Atlas::fromAseprite(Texture::of(solid(SK_ColorRED, 24, 8)), json);
+      Atlas::fromAseprite(Texture(solid(SK_ColorRED, 24, 8)), json);
   ASSERT_TRUE(atlas);
   ASSERT_EQ(atlas->regions().size(), 3u);
   ASSERT_NE(atlas->sequence("run"), nullptr);
   EXPECT_EQ(*atlas->sequence("run"), (std::vector<size_t>{0, 1}));
   EXPECT_EQ(*atlas->sequence("jump"), (std::vector<size_t>{2}));
   EXPECT_EQ(atlas->sequence("all"), nullptr);
-  EXPECT_EQ(atlas->frame("run", 3).region(), SkIRect::MakeXYWH(8, 0, 8, 8));
+  EXPECT_EQ(atlas->frame("run", 3).region(), (PixelRect{8, 0, 8, 8}));
   // No tags: one sequence through every frame.
   const char* untagged = R"({"frames": [
     {"filename": "x", "frame": {"x": 0, "y": 0, "w": 8, "h": 8}}], "meta": {}})";
@@ -124,7 +125,7 @@ TEST(Atlas, ATagNamingNoFrameOfTheSheetIsNotASequence) {
     {"name": "gone", "from": 7, "to": 9, "direction": "forward"},
     {"name": "negative", "from": -4, "to": -1, "direction": "forward"}]}})";
   const std::optional<Atlas> atlas =
-      Atlas::fromAseprite(Texture::of(solid(SK_ColorRED, 16, 8)), json);
+      Atlas::fromAseprite(Texture(solid(SK_ColorRED, 16, 8)), json);
   ASSERT_TRUE(atlas);
   EXPECT_EQ(atlas->sequence("gone"), nullptr);
   EXPECT_EQ(atlas->sequence("negative"), nullptr);
@@ -139,7 +140,7 @@ TEST(Atlas, ATagNamingNoFrameOfTheSheetIsNotASequence) {
   ], "meta": {"app": "Aseprite", "frameTags": [
     {"name": "run", "from": -1, "to": 5, "direction": "forward"}]}})";
   const std::optional<Atlas> clamped =
-      Atlas::fromAseprite(Texture::of(solid(SK_ColorRED, 16, 8)), overhang);
+      Atlas::fromAseprite(Texture(solid(SK_ColorRED, 16, 8)), overhang);
   ASSERT_TRUE(clamped);
   ASSERT_NE(clamped->sequence("run"), nullptr);
   EXPECT_EQ(*clamped->sequence("run"), (std::vector<size_t>{0, 1}));
@@ -147,7 +148,7 @@ TEST(Atlas, ATagNamingNoFrameOfTheSheetIsNotASequence) {
 }
 
 TEST(Atlas, PacksWithoutOverlapAndKeepsPixels) {
-  std::vector<std::pair<std::string, sk_sp<SkImage>>> images;
+  std::vector<std::pair<std::string, sigil::media::PixelSource>> images;
   const SkColor colors[] = {SK_ColorRED, SK_ColorGREEN, SK_ColorBLUE,
                             SK_ColorYELLOW, SK_ColorCYAN};
   images.reserve(5);
@@ -160,15 +161,17 @@ TEST(Atlas, PacksWithoutOverlapAndKeepsPixels) {
   for (size_t i = 0; i < 5; ++i) {
     const AtlasRegion* r = atlas.find("s" + std::to_string(i));
     ASSERT_NE(r, nullptr);
-    EXPECT_EQ(r->rect.size(), SkISize::Make(6 + 3 * (int)i, 5 + 2 * (int)i));
+    EXPECT_EQ(r->rect.width, 6 + 3 * (int)i);
+    EXPECT_EQ(r->rect.height, 5 + 2 * (int)i);
     for (size_t j = 0; j < i; ++j)
-      EXPECT_FALSE(SkIRect::Intersects(r->rect, atlas.regions()[j].rect));
+      EXPECT_FALSE(SkIRect::Intersects(skia::toSkIRect(r->rect),
+                                       skia::toSkIRect(atlas.regions()[j].rect)));
     // The region reads back the image it was packed from.
-    EXPECT_EQ(pixelOf(atlas.region(r->name).shader(), 1, 1), colors[i]);
+    EXPECT_EQ(pixelOf(skia::shader(atlas.region(r->name)), 1, 1), colors[i]);
   }
   // A packed sheet is a power of two on a side.
-  const SkISize side = atlas.sheet().size();
-  EXPECT_EQ(side.width(), side.height());
-  const auto width = (uint32_t)side.width();
+  const glm::ivec2 side = atlas.sheet().size();
+  EXPECT_EQ(side.x, side.y);
+  const auto width = (uint32_t)side.x;
   EXPECT_EQ(width & (width - 1u), 0u);
 }

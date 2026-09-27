@@ -7,8 +7,11 @@
 
 #include "sigilmaterial/texture/EnvironmentMap.h"
 
+#include <include/core/SkImage.h>
 #include <include/core/SkImageInfo.h>
+#include <include/core/SkM44.h>
 #include <include/core/SkPixmap.h>
+#include <sigilmedia/advanced/Device.h>
 
 #include <algorithm>
 #include <boost/container/flat_map.hpp>
@@ -112,14 +115,14 @@ Grid resample(const Grid& src, int w, int h) {
 }
 
 sk_sp<SkImage> bakeEquirectangular(
-    int width, const std::function<SkV3(float u, float v)>& fn) {
+    int width, const std::function<glm::vec3(float u, float v)>& fn) {
   const int height = std::max(width / 2, 8);
   std::vector<float> pixels((size_t)width * height * 4);
   for (int y = 0; y < height; ++y) {
     const float v = ((float)y + 0.5f) / (float)height;
     for (int x = 0; x < width; ++x) {
       const float u = ((float)x + 0.5f) / (float)width;
-      const SkV3 c = fn(u, v);
+      const glm::vec3 c = fn(u, v);
       float* px = &pixels[((size_t)y * width + x) * 4];
       px[0] = c.x;
       px[1] = c.y;
@@ -188,7 +191,7 @@ struct FaceHit {
   float v;
 };
 
-FaceHit faceOf(SkV3 d) {
+FaceHit faceOf(glm::vec3 d) {
   const float ax = std::abs(d.x), ay = std::abs(d.y), az = std::abs(d.z);
   int face;
   float sc, tc, ma;
@@ -268,9 +271,15 @@ Grid cut(const Grid& sheet, int col, int row, int edge) {
   return out;
 }
 
+/** The picture @p source stands at time zero, read back to host memory
+ *  when it stands on a device. */
+sk_sp<SkImage> pictureOf(const media::PixelSource& source) {
+  return media::deviceImage(source.frameAt({}), nullptr);
+}
+
 }  // namespace
 
-SkV2 equirectangularUv(SkV3 d) {
+glm::vec2 equirectangularUv(glm::vec3 d) {
   const float len = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
   if (len <= 0) return {0.5f, 0.5f};
   d = {d.x / len, d.y / len, d.z / len};
@@ -278,7 +287,7 @@ SkV2 equirectangularUv(SkV3 d) {
           std::acos(std::clamp(d.y, -1.0f, 1.0f)) / kPi};
 }
 
-SkV3 equirectangularDirection(SkV2 uv) {
+glm::vec3 equirectangularDirection(glm::vec2 uv) {
   const float theta = uv.y * kPi;
   const float phi = (uv.x - 0.5f) * 2 * kPi;
   const float s = std::sin(theta);
@@ -293,18 +302,20 @@ struct EnvironmentMap::State {
 
   mutable std::mutex lock;
   mutable boost::container::flat_map<int, sk_sp<SkImage>> blurs;
-  mutable boost::container::flat_map<int, std::vector<sk_sp<SkImage>>> chains;
-  mutable sk_sp<SkImage> cosine;
-  mutable SkColor4f mean{0, 0, 0, 0};
+  mutable boost::container::flat_map<int, std::vector<Texture>> chains;
+  mutable Texture cosine;
+  mutable Color mean{0, 0, 0, 0};
   mutable bool meanDone = false;
 };
 
 EnvironmentMap EnvironmentMap::baked(
-    int width, const std::function<SkV3(float u, float v)>& radiance) {
+    int width, const std::function<glm::vec3(float u, float v)>& radiance) {
   return fromEquirectangular(bakeEquirectangular(width, radiance));
 }
 
-EnvironmentMap EnvironmentMap::fromEquirectangular(sk_sp<SkImage> image) {
+EnvironmentMap EnvironmentMap::fromEquirectangular(
+    const media::PixelSource& panorama) {
+  sk_sp<SkImage> image = pictureOf(panorama);
   EnvironmentMap env;
   if (!image) return env;
   env.m_state = std::make_shared<State>();
@@ -316,7 +327,7 @@ EnvironmentMap EnvironmentMap::fromFaces(const Faces& faces, int width) {
   std::array<Grid, 6> grids;
   int edge = 0;
   for (int i = 0; i < 6; ++i) {
-    grids[i] = readGrid(faces[i]);
+    grids[i] = readGrid(pictureOf(faces[i]));
     edge = std::max(edge, grids[i].w);
   }
   if (edge <= 0) return {};
@@ -326,8 +337,8 @@ EnvironmentMap EnvironmentMap::fromFaces(const Faces& faces, int width) {
   return fromEquirectangular(gridImage(facesToEquirectangular(grids, w)));
 }
 
-EnvironmentMap EnvironmentMap::fromCubeMap(sk_sp<SkImage> sheet) {
-  const Grid grid = readGrid(sheet);
+EnvironmentMap EnvironmentMap::fromCubeMap(const media::PixelSource& sheet) {
+  const Grid grid = readGrid(pictureOf(sheet));
   if (grid.empty()) return {};
 
   // Where each face sits in the layout the sheet's aspect ratio names,
@@ -362,27 +373,30 @@ EnvironmentMap EnvironmentMap::fromCubeMap(sk_sp<SkImage> sheet) {
   std::array<Grid, 6> faces;
   for (int i = 0; i < 6; ++i)
     faces[i] = cut(grid, layout->at[i][0], layout->at[i][1], edge);
-  return fromEquirectangular(
-      gridImage(facesToEquirectangular(faces, edge * 4)));
+  return fromEquirectangular(gridImage(facesToEquirectangular(faces, edge * 4)));
 }
 
-sk_sp<SkImage> EnvironmentMap::image(float roughness) const {
-  if (!m_state) return nullptr;
+Texture EnvironmentMap::texture(float roughness) const {
+  if (!m_state) return {};
+  // Repeat in u so azimuth wraps seamlessly; clamp at the poles.
+  const auto panorama = [](sk_sp<SkImage> picture) {
+    return Texture(std::move(picture)).tile(Repeat::Repeat, Repeat::Pad);
+  };
   const sk_sp<SkImage>& base = m_state->base;
   roughness = std::clamp(roughness, 0.0f, 1.0f);
   const int bucket = (int)std::lround(roughness * 8.0f);
-  if (bucket == 0) return base;
+  if (bucket == 0) return panorama(base);
   {
     const std::lock_guard<std::mutex> held(m_state->lock);
     if (auto it = m_state->blurs.find(bucket); it != m_state->blurs.end())
-      return it->second;
+      return panorama(it->second);
   }
   const int w = base->width(), h = base->height();
   const SkImageInfo info =
       SkImageInfo::Make(w, h, kRGBA_F32_SkColorType, kPremul_SkAlphaType);
   std::vector<float> pixels((size_t)w * h * 4);
   const SkPixmap pixmap(info, pixels.data(), (size_t)w * 4 * sizeof(float));
-  if (!base->readPixels(nullptr, pixmap, 0, 0)) return base;
+  if (!base->readPixels(nullptr, pixmap, 0, 0)) return panorama(base);
   // Box radius from the bucket: three passes triple the effective
   // spread, so keep the per-pass radius modest.
   const int radius =
@@ -390,21 +404,16 @@ sk_sp<SkImage> EnvironmentMap::image(float roughness) const {
                                    (float)w * 0.045f));
   boxBlurF32(pixels, w, h, radius);
   sk_sp<SkImage> blurred = SkImages::RasterFromPixmapCopy(pixmap);
-  if (!blurred) return base;
+  if (!blurred) return panorama(base);
   const std::lock_guard<std::mutex> held(m_state->lock);
   m_state->blurs[bucket] = blurred;
-  return blurred;
+  return panorama(std::move(blurred));
 }
 
-Texture EnvironmentMap::texture(float roughness) const {
-  // Repeat in u so azimuth wraps seamlessly; clamp at the poles.
-  return Texture::of(image(roughness))
-      .tile(SkTileMode::kRepeat, SkTileMode::kClamp);
-}
-
-SkISize EnvironmentMap::size() const {
-  return m_state && m_state->base ? m_state->base->dimensions()
-                                  : SkISize::MakeEmpty();
+glm::ivec2 EnvironmentMap::size() const {
+  return m_state && m_state->base
+             ? glm::ivec2(m_state->base->width(), m_state->base->height())
+             : glm::ivec2(0, 0);
 }
 
 int EnvironmentMap::prefilterSize() const {
@@ -414,7 +423,7 @@ int EnvironmentMap::prefilterSize() const {
   // width it never had would prefilter upsampled pixels — invented
   // detail, at a cost — and a set-by-hand size has no lower bound
   // either, so the two would have disagreed about the same picture.
-  const int w = size().width();
+  const int w = size().x;
   return w > 0 ? std::min(w, 1024) : 0;
 }
 
@@ -424,7 +433,7 @@ EnvironmentMap EnvironmentMap::withPrefilterSize(int width) const {
   return out;
 }
 
-EnvironmentMap EnvironmentMap::withGround(SkColor4f color) const {
+EnvironmentMap EnvironmentMap::withGround(Color color) const {
   if (!m_state) return {};
   Grid grid = readGrid(m_state->base);
   if (grid.empty()) return *this;
@@ -437,13 +446,13 @@ EnvironmentMap EnvironmentMap::withGround(SkColor4f color) const {
     if (k <= 0) continue;
     for (int x = 0; x < grid.w; ++x) {
       float* px = grid.at(x, y);
-      for (int c = 0; c < 4; ++c) px[c] += ((&color.fR)[c] - px[c]) * k;
+      for (int c = 0; c < 4; ++c) px[c] += ((&color.r)[c] - px[c]) * k;
     }
   }
   return fromEquirectangular(gridImage(grid)).withPrefilterSize(m_prefilter);
 }
 
-std::vector<sk_sp<SkImage>> EnvironmentMap::chain() const {
+std::vector<Texture> EnvironmentMap::chain() const {
   if (!m_state) return {};
   const int top = prefilterSize();
   {
@@ -451,14 +460,15 @@ std::vector<sk_sp<SkImage>> EnvironmentMap::chain() const {
     if (auto it = m_state->chains.find(top); it != m_state->chains.end())
       return it->second;
   }
-  std::vector<sk_sp<SkImage>> levels;
+  std::vector<Texture> levels;
   levels.reserve(kLevels);
   for (int level = 0; level < kLevels; ++level) {
     const int w = std::max(top >> level, 2);
     const int h = std::max(w / 2, 1);
-    const Grid src = readGrid(image((float)level / (float)(kLevels - 1)));
+    const Grid src =
+        readGrid(texture((float)level / (float)(kLevels - 1)).frameAt().image);
     if (src.empty()) return {};
-    levels.push_back(
+    levels.emplace_back(
         gridImage(src.w == w && src.h == h ? src : resample(src, w, h)));
   }
   const std::lock_guard<std::mutex> held(m_state->lock);
@@ -466,11 +476,11 @@ std::vector<sk_sp<SkImage>> EnvironmentMap::chain() const {
   return levels;
 }
 
-sk_sp<SkImage> EnvironmentMap::irradiance() const {
-  if (!m_state) return nullptr;
+Texture EnvironmentMap::irradiance() const {
+  if (!m_state) return {};
   {
     const std::lock_guard<std::mutex> held(m_state->lock);
-    if (m_state->cosine) return m_state->cosine;
+    if (m_state->cosine.valid()) return m_state->cosine;
   }
   // The convolution is quadratic in texel count, so the panorama is read
   // down to a size where a cosine lobe — the widest filter there is —
@@ -478,11 +488,11 @@ sk_sp<SkImage> EnvironmentMap::irradiance() const {
   constexpr int kSrcW = 64, kSrcH = 32;
   constexpr int kOutW = 32, kOutH = 16;
   const Grid src = resample(readGrid(m_state->base), kSrcW, kSrcH);
-  if (src.empty()) return nullptr;
+  if (src.empty()) return {};
 
   // Every source texel's direction and solid angle, once.
   struct Sample {
-    SkV3 dir;
+    glm::vec3 dir;
     float weight;
     float rgb[3];
   };
@@ -507,7 +517,7 @@ sk_sp<SkImage> EnvironmentMap::irradiance() const {
     const float v = ((float)y + 0.5f) / (float)kOutH;
     for (int x = 0; x < kOutW; ++x) {
       const float u = ((float)x + 0.5f) / (float)kOutW;
-      const SkV3 n = equirectangularDirection({u, v});
+      const glm::vec3 n = equirectangularDirection({u, v});
       float acc[3] = {0, 0, 0};
       float total = 0;
       for (const Sample& s : samples) {
@@ -526,13 +536,13 @@ sk_sp<SkImage> EnvironmentMap::irradiance() const {
       dst[3] = 1;
     }
   }
-  sk_sp<SkImage> made = gridImage(out);
+  const Texture made(gridImage(out));
   const std::lock_guard<std::mutex> held(m_state->lock);
   m_state->cosine = made;
   return made;
 }
 
-SkColor4f EnvironmentMap::average() const {
+Color EnvironmentMap::average() const {
   if (!m_state) return {0, 0, 0, 0};
   {
     const std::lock_guard<std::mutex> held(m_state->lock);
@@ -551,7 +561,7 @@ SkColor4f EnvironmentMap::average() const {
       total += solid;
     }
   }
-  const SkColor4f mean{(float)(acc[0] / total), (float)(acc[1] / total),
+  const Color mean{(float)(acc[0] / total), (float)(acc[1] / total),
                        (float)(acc[2] / total), 1};
   const std::lock_guard<std::mutex> held(m_state->lock);
   m_state->mean = mean;

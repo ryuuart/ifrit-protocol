@@ -121,13 +121,13 @@ directory, each a static archive that links only what sits beneath it:
 |--------|-------|-------|
 | `SigilMaterialColor` | `Color`, `hexColor()`, `hsv()`, the three mixes and `luminance()`, `ColorStop` with `sampleRamp()`, the OKLab, OKLCH and CIELAB round trips with `fitToSrgb`, `Ramp` (the ramp as one value) with `palette()` both ways, `harmony()` and `rotateHue()`, `Dither`, and `palette(pixels)` with `closestEntry()` — the leaf, which the core's `Parameters.h` includes | SigilCoreCompute |
 | `SigilMaterialCore` | the value model: `Target`, `Parameters`, `Recipe`, `Program` and the cache, `Material`, `Leaf`, `UniformBlock`, `FrameData`; `ColorStops` and `GradientOptions`, what a gradient is told in box units or pixels; `Bank`, the bounded seeded bank of a field's instances; `termsSource`, the shading terms a surface is composed of; and `over()`, the combinator that stacks one material on another through a mask | SigilMaterialColor, SigilMotionValues, glm, Boost.PFR, Boost.Container; Boost.Unordered privately |
-| `SigilMaterialTexture` | `Texture` and its sources, `ShaderLeaf`, `texture::` (the tools' sets by role), `EnvironmentMap` and `bevelNormals`, `Atlas` | SigilMaterialCore, SigilMediaCore, Skia, Boost.Container; simdjson privately |
+| `SigilMaterialTexture` | `Texture` and its sources, with `Sampling` and `PixelRect`; `texture::` (the tools' sets by role), `EnvironmentMap`, `Atlas` — no Skia type in any header | SigilMaterialCore, SigilMediaCore, Boost.Container; Skia and simdjson privately |
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, applied through a private 3D-LUT recipe or a per-channel response recipe | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material`, `everyRecipe` | SigilMaterialCore, SigilMaterialColor |
-| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute privately |
-| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, the screen `crt` and the three subjects it composes, `crtBeam`, `crtBloom` and `crtGlass`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor |
-| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
+| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute and SigilMaterialSkia privately |
+| `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple`, `crtOverlay`, the screen `crt` and the three subjects it composes, `crtBeam`, `crtBloom` and `crtGlass`, `everyRecipe` | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
+| `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::ShaderLeaf`, the leaf that yields its own Skia shader; a texture through Skia — `skia::image` and `skia::shader` over a `Texture`, `skia::toSkFilterMode`, `skia::toSkIRect` and `skia::toPixelRect`; `skia::painted`, a tile program painted into a canvas; `skia::bevelNormals`; `skia::fill`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialSurface` | `surface::` — the metallic-roughness program a lit renderer shades with: `SurfaceParameters`, `Reflection`, `surfaceRecipe`, `program` and `unlit`, `isSurface` and `isUnlit`, `map` and the seven slot names, the dressing of a decoded texture set, and `lower`, which turns a material's stated `surface({…})` response into the program | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
 | `SigilMaterialKit` | the presets: the colour CRT `kit::crt`; the named ramps `kit::viridis`, `kit::magma`, `kit::inferno`, `kit::plasma`, `kit::turbo`, `kit::redBlue`, `kit::brownTeal` and the generated `kit::cubehelix`; `kit::gold`, `kit::chrome`, `kit::glass`; the grained `kit::stone`, `kit::timber`, `kit::latten` and `kit::board` with `kit::lattenTone` reading the last one's ladder on the CPU; the orthographic `kit::globe`; `kit::girih8` and its palettes; the gel and chrome tables with `kit::contourRing`; the text paints and chrome-type ramps; `kit::studioEnvironment` and `kit::sunsetEnvironment`, the two named skies; and `kit::everyRecipe`, one instance of each of the above | SigilMaterialField, SigilMaterialPattern, SigilMaterialColor, SigilMaterialMask, SigilMaterialSurface, Boost.Container |
@@ -212,8 +212,8 @@ A surface from the kit reads the same way, its slots filled with textures:
 ```cpp
 #include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/kit/Reflections.h>
+#include <sigilmaterial/skia/Bevel.h>
 #include <sigilmaterial/skia/Draw.h>
-#include <sigilmaterial/texture/Surface.h>
 
 const EnvironmentMap studio = kit::studioEnvironment();
 kit::ChromeParameters steel;
@@ -221,7 +221,8 @@ steel.brushed = 0.6f;
 steel.roughness = 0.2f;
 // bevelNormals() places its map at the outline's bounds, so the recipe
 // reads the normal under the pixel it shades.
-const Material badge = kit::chrome(bevelNormals(outline, 12), studio, steel);
+const Material badge =
+    kit::chrome(skia::bevelNormals(outline, 12), studio, steel);
 skia::fill(canvas, outline, badge);   // per frame; the program is cached
 ```
 
@@ -385,10 +386,12 @@ into a pipeline the driver silently rejects.
 an image with its sampling, a rendered frame, anything a backend binds
 into a slot directly: it compares by value (same dynamic type, then the
 type's own equality) and says whether it moves between frames.
-`ShaderLeaf` is the Skia-facing refinement — a leaf that yields the
-`SkShader` to bind — and `Texture` is one such leaf; a renderer's own
-native sources (a gradient it built, a Perlin generator) are others. The
-Skia backend binds any `ShaderLeaf`. A slot holds a material or a leaf,
+`Texture` is the leaf every renderer binds: the Skia executor as the
+image shader `skia::shader(texture, frame)` builds, a device renderer as
+a texture. `skia::ShaderLeaf` is the Skia-facing refinement for
+everything else — a leaf that yields the `SkShader` to bind, such as a
+renderer's own native sources (a gradient it built, a Perlin generator)
+— and the Skia executor binds any of them. A slot holds a material or a leaf,
 never both, and `Material::slot(name)` and `Material::leaf(name)` each
 answer null for the other kind.
 
@@ -396,19 +399,25 @@ answer null for the other kind.
 
 **A texture is a source plus sampling, and both enter equality.** The
 source is SigilMedia's `media::PixelSource`, the one seam pixels cross:
-a picture (`Texture::of`, equal when it is the same image object), a
+a picture (`Texture(image)`, equal when it is the same image object), a
 `media::Image` or a video read on the material's clock (animated
 when the document is), a producer that bakes an image on first use
-(`Texture::produce`, keyed by a string — the key IS the identity, so it
-must name the picture and every parameter that shaped it), frames
+(`Texture(media::PixelSource::produce(key, producer))` — the key IS the
+identity, so it must name the picture and every parameter that shaped it), frames
 another application publishes, a rendered scene. The frame drawn is the
 one the source answers at the material's `FrameData::seconds`, and one
 standing on a device is read back unless a renderer on that device takes
-`Texture::deviceImage` instead. Sampling is the tiling per axis, the
-uv matrix placing texture space in the sampled space (`at(origin)` is
-the translation), a region of the image to read, and the filter. A
-region is cut once per source image and kept, so a texture sampled every
-frame does not copy its pixels every frame.
+`Texture::deviceImage` instead. Sampling is the tiling per axis
+(`tile(Repeat)`, the same `Repeat` a gradient is told), the uv matrix
+placing texture space in the sampled space (a `glm::mat3`; `at(origin)`
+is the translation), a region of the image to read (a `PixelRect`), and
+how it is read between pixels (`sampling(Sampling::Nearest)` or
+`Sampling::Linear`). `Texture::frameAt(time)` is the frame sampled, in
+host memory and cut to the region; the region is cut once per source
+image and kept, so a texture sampled every frame does not copy its
+pixels every frame. No texture header names a Skia type: `skia::image`
+and `skia::shader` in `<sigilmaterial/skia/Texture.h>` are where a
+texture becomes one.
 
 **A source MAY say that its pixels already stand on a GPU.** One
 optional member, `deviceImage()`, answers a `DeviceImage`: the device
@@ -418,8 +427,8 @@ compares none of it — the source's own equality is still what says
 whether two textures are the same picture. It is carried, unexamined,
 from a source that painted on a device to a renderer standing on the
 SAME device, which binds those pixels instead of uploading a copy of
-`image()`; a renderer holding another device, or none, finds a device it
-does not know and reads `image()` like any other source's. Every source
+the frame; a renderer holding another device, or none, finds a device it
+does not know and reads `frameAt()` like any other source's. Every source
 that has no device omits the member and is written exactly as it was.
 
 **Texture sets are the tools' folders.** `texture::classify` reads a
@@ -429,7 +438,8 @@ opacity, specular), the set it belongs to and whether a normal map is
 DirectX-convention; `discover` groups a directory into `TextureSet`s;
 `fromFiles(set, decoder)` and `fromUsageMap(images)` decode into
 `TextureMaps`, one repeating texture per role. The library opens no file:
-a `Decoder` returns an image for a path, and the caller supplies it. What
+a `Decoder` returns pixels (a `media::PixelSource`) for a path, and the
+caller supplies it. What
 a set MEANS to a renderer — which channel of a packed image feeds which
 slot — is the renderer's rule, not this library's.
 
@@ -450,10 +460,10 @@ through SigilMedia's own reader (uncompressed texels), a DDS through
 its OpenImageIO backend.
 
 Two readings hang off the panorama, cached with it and shared by every
-copy of the value. The SPECULAR side is `image(roughness)` — nine
-wrap-aware blurs a reflection picks by how rough the surface is — with
-`texture(roughness)` as the level a recipe's environment slot takes,
-repeating in azimuth and clamped at the poles, and `chain()` as the same
+copy of the value, and each is a `Texture`. The SPECULAR side is
+`texture(roughness)` — nine wrap-aware blurs a reflection picks by how
+rough the surface is, as the level a recipe's environment slot takes,
+repeating in azimuth and clamped at the poles — and `chain()` as the same
 nine levels shaped as a mip pyramid for a device that binds one texture
 and selects a level. `prefilterSize()` bounds how wide that pyramid's
 level 0 is built, since a panorama is often larger than a reflection can
@@ -465,7 +475,8 @@ below the horizon, which is what a photographed sky wants when its lower
 half is a tripod and a car park. Every reading is computed in F32, so a
 value above one survives the blur rather than being clipped to white.
 
-`bevelNormals(path, bevelPx)` blurs the outline's coverage into a height
+`skia::bevelNormals(path, bevelPx)`, in the Skia executor because the
+outline arrives as a Skia path, blurs the outline's coverage into a height
 ramp, differentiates it, and encodes device-space normals (+y down, +z
 toward the viewer) as rgb = n * 0.5 + 0.5, flat across the interior and
 tilted along the rim — placed at the outline's bounds so device xy reads
@@ -865,10 +876,12 @@ runs BLUNT TO SHARP: 2 is the regular polygon, and values toward the
 point count narrow the arms until at the count itself they close to
 nothing.
 
-**pattern.** A `Tile` is one bake plus a mapping. The program draws one
-seamless tile at a seed; the bake is memoised on shared state, `seed(n)`
+**pattern.** A `Tile` is one bake plus a mapping. The program bakes one
+seamless tile at a seed into pixels — `skia::painted(painter)` makes one
+from a painter that draws into a Skia canvas; the bake is memoised on
+shared state, `seed(n)`
 and `program()` copy-on-write that state and drop it, and `scale`,
-`rotate`, `offset` and `filter` act on the sampling matrix alone, so a
+`rotate`, `offset` and `sampling` act on the sampling alone, so a
 rotated repeat stays seamless with no rebake. The bake is the identity:
 hold a Tile where assets are held. `texture()` is the bake repeating on
 both axes through the mapping. The stock tiles — `halftone`, `stripes`,
@@ -903,7 +916,7 @@ where the warp is up, the weft's where it is not, darkened by the cloth's
 block of one colour. `clothRepeat` is the repeat in threads — a sett
 whose length is not a multiple of the weave's period tiles wider than
 the sett — `clothImage(cloth, origin, size)` bakes a window one pixel
-per thread, and `clothTile(cloth, threadPx)` is the whole repeat as a
+per thread as a nearest-read `Texture`, and `clothTile(cloth, threadPx)` is the whole repeat as a
 nearest-sampled `Tile`. A tartan is that generator at a reflective sett
 under a 2/2 twill; gingham is a two-colour sett under a plain weave;
 houndstooth is a four-and-four sett under the tartan's own twill.
@@ -1094,13 +1107,13 @@ from wherever that consumer keeps it.
 
 ## Boundaries
 
-The core links no renderer; the texture feature links Skia because a
-texture IS a Skia image with its sampling, and SigilMedia because an
-asset is a source. The Skia seam is therefore wider than
-`sigilmaterial/skia/*`: every `texture/*.h`, `pattern/Tile.h` and
-`kit/TextPaint.h` names a Skia type in its own signatures, because an
-image, a baked tile and a text paint ARE Skia values. A header outside
-those places that needed one would be the boundary moving. SigilIO owns resource access and SigilMedia owns
+The core links no renderer; the texture feature links SigilMedia
+because an asset is a source, and Skia only privately. The Skia seam is
+`sigilmaterial/skia/*`: no `texture/` or `pattern/` header names a Skia
+type, and a texture, an environment map, an atlas and a baked tile meet
+Skia in the executor — `skia::image`, `skia::shader`, `skia::painted`,
+`skia::bevelNormals`, `skia::ShaderLeaf`. A header outside it that
+needed one would be the boundary moving. SigilIO owns resource access and SigilMedia owns
 image meaning, so this library decodes no pixels and opens no consumer asset
 file — every door that needs pixels takes them or takes a decoder. Its own
 shader files are compiled into its archives rather than read through SigilIO,
