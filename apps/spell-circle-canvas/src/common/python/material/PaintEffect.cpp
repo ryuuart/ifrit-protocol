@@ -147,7 +147,24 @@ void bindMaterialPaintEffect(py::module_& module) {
           [](material::ShadowOptions& options, py::handle value) {
             const SkPoint at = point(value);
             options.offset = {at.x(), at.y()};
-          });
+          })
+      .def_readwrite("spread", &material::ShadowOptions::spread)
+      .def_readwrite("inside", &material::ShadowOptions::inside);
+  py::enum_<material::StrokePosition>(nativePaint, "StrokePosition")
+      .value("Inside", material::StrokePosition::Inside)
+      .value("Center", material::StrokePosition::Center)
+      .value("Outside", material::StrokePosition::Outside);
+  bindRecord<material::StrokeOptions>(nativePaint, "StrokeOptions",
+                                      "Unknown StrokeOptions field: ")
+      .def_readwrite("width", &material::StrokeOptions::width)
+      .def_readwrite("position", &material::StrokeOptions::position);
+  bindRecord<material::BevelOptions>(nativePaint, "BevelOptions",
+                                     "Unknown BevelOptions field: ")
+      .def_readwrite("depth", &material::BevelOptions::depth)
+      .def_readwrite("size", &material::BevelOptions::size)
+      .def_readwrite("angleDegrees", &material::BevelOptions::angleDegrees)
+      .def_readwrite("highlight", &material::BevelOptions::highlight)
+      .def_readwrite("shadow", &material::BevelOptions::shadow);
   bindRecord<material::BloomOptions>(nativePaint, "BloomOptions",
                                      "Unknown BloomOptions field: ")
       .def_readwrite("sigma", &material::BloomOptions::sigma)
@@ -192,6 +209,20 @@ void bindMaterialPaintEffect(py::module_& module) {
             return material::Filter::dropShadow(color(ink), options);
           },
           py::arg("color"), py::arg("options") = material::ShadowOptions{})
+      .def_static(
+          "shadow",
+          [](py::object ink, const material::ShadowOptions& options) {
+            return material::Filter::shadow(color(ink), options);
+          },
+          py::arg("color"), py::arg("options") = material::ShadowOptions{})
+      .def_static(
+          "stroke",
+          [](py::object ink, const material::StrokeOptions& options) {
+            return material::Filter::stroke(color(ink), options);
+          },
+          py::arg("color"), py::arg("options") = material::StrokeOptions{})
+      .def_static("bevel", &material::Filter::bevel,
+                  py::arg("options") = material::BevelOptions{})
       .def_static("bloom", &material::Filter::bloom,
                   py::arg("options") = material::BloomOptions{})
       .def_static("brightness", &material::Filter::brightness, py::arg("amount"))
@@ -367,6 +398,15 @@ void bindMaterialPaintEffect(py::module_& module) {
       .def("isRunning", &material::Paint::isRunning)
       .def("isNone", &material::Paint::isNone)
       .def(py::self == py::self);
+  // A paint is a material's base, so every place that takes a material
+  // takes a gradient, an image or a runtime effect built as a paint.
+  py::reinterpret_borrow<py::class_<material::Material>>(
+      py::type::of<material::Material>())
+      .def(py::init([](const material::Paint& paint) {
+             return material::skia::base(paint);
+           }),
+           py::arg("paint"));
+  py::implicitly_convertible<material::Paint, material::Material>();
   // A recipe instance is one kind of paint, so everything that takes a
   // paint takes a material: a slot, a blend layer, an effect's source.
   // The native constructor stays spelled, because a C++ overload set

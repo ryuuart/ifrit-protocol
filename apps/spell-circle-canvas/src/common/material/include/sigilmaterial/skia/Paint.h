@@ -67,6 +67,10 @@ Paint paint(sk_sp<SkShader> shader);
  *  accumulation, mixed back by its opacity and applied through its mask.
  *  The surface and the effects are not part of a paint. */
 Paint paint(const Material& material);
+/** A PAINT AS A MATERIAL'S BASE — the bridge for a source only this
+ *  executor supplies (an image, a caller-owned buffer, a runtime effect)
+ *  into the model, where it stacks under and over other materials. */
+Material base(Paint paint);
 /** @} */
 
 /** @name What a paint becomes

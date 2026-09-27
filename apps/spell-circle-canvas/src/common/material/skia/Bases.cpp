@@ -67,6 +67,8 @@ Paint maskedLayer(Paint under, Paint over, Paint mask, const Mask& how,
 
 }  // namespace
 
+Material base(Paint paint) { return asMaterial(std::move(paint)); }
+
 Paint paint(const Material& material) {
   if (!material.isComposed()) return Paint::recipe(material);
   Paint accumulated;

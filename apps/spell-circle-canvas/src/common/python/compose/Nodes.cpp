@@ -119,6 +119,10 @@ void bindFontVerbs(py::class_<Node>& element) {
           [](Node& self, py::object value, compose::PaintBox box) -> Node& {
             if (py::isinstance<compose::VarRef>(value))
               return self.ink(value.cast<compose::VarRef>());
+            // A material carries effects a fill does not, so it takes the
+            // material's own route.
+            if (py::isinstance<material::Material>(value))
+              return self.ink(value.cast<material::Material>(), box);
             // The ink takes everything a fill takes. A colour — the
             // ordinary case, and the one an author writes as a tuple or
             // a name — is the inherited, easing lane; anything else is a
@@ -162,6 +166,8 @@ void bindDeclarationVerbs(py::class_<Node>& element) {
       .def(
           "fill",
           [](Node& self, py::object value, compose::PaintBox box) -> Node& {
+            if (py::isinstance<material::Material>(value))
+              return self.fill(value.cast<material::Material>(), box);
             // One conversion for every surface-colouring parameter, so a
             // material reaches the node's fill exactly as it reaches a
             // stroke's or a kit ground's, and all three spellings of
@@ -468,6 +474,14 @@ void bindNodeVerbs(py::class_<Node>& element) {
           return (self.*setter)(motionAnimatable(value));
         },
         py::arg("value"), fluent);
+  element.def(
+      "stroke",
+      [](Node& self, const material::Material& material, float width,
+         material::StrokePosition position) -> Node& {
+        return self.stroke(material, {width, position});
+      },
+      py::arg("material"), py::arg("width") = 1.0f,
+      py::arg("position") = material::StrokePosition::Outside, fluent);
   for (const auto& [name, setter] : std::initializer_list<
            std::pair<const char*, Node& (Node::*)(Decoration, std::string)>>{
            {"overlay", &Node::overlay},
