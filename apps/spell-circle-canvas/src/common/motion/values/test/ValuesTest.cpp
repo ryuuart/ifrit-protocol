@@ -459,6 +459,34 @@ TEST(Values, ATransitionSurvivesAnEmptyEase) {
   EXPECT_NEAR(spec.easing()(1.0f), 1.0f, 1e-5f);
 }
 
+// THE PIN over tweenEqual: this binding names every member of a tween, so
+// a member added to `Tween` stops this file compiling until tweenEqual
+// rules on it and the binding names it. Boost.PFR cannot count a tween,
+// because a staggered field's converting constructor lets one initialiser
+// swallow several members.
+TEST(Values, TweenEqualRulesOnEveryMember) {
+  Tween<float> tween{.from = 0.0f, .to = 1.0f};
+  auto& [from, to, keyframes, duration, delay, ease, loop, loopDelay,
+         alternate, composition] = tween;
+  loop = 2;
+  EXPECT_FALSE(tweenEqual(tween, Tween<float>{.from = 0.0f, .to = 1.0f}));
+  loop = 0;
+  alternate = true;
+  EXPECT_FALSE(tweenEqual(tween, Tween<float>{.from = 0.0f, .to = 1.0f}));
+  alternate = false;
+  loopDelay = std::chrono::milliseconds(5);
+  EXPECT_FALSE(tweenEqual(tween, Tween<float>{.from = 0.0f, .to = 1.0f}));
+  loopDelay = {};
+  composition = Composition::Blend;
+  EXPECT_FALSE(tweenEqual(tween, Tween<float>{.from = 0.0f, .to = 1.0f}));
+  composition = Composition::Replace;
+  keyframes.push_back({.to = 2.0f});
+  EXPECT_FALSE(tweenEqual(tween, Tween<float>{.from = 0.0f, .to = 1.0f}));
+  keyframes.clear();
+  (void)from, (void)to, (void)duration, (void)delay, (void)ease;
+  EXPECT_TRUE(tweenEqual(tween, Tween<float>{.from = 0.0f, .to = 1.0f}));
+}
+
 TEST(Values, AShapedCurveComparesEqualAtTheSameSettings) {
   // A curve built by binding a shape parameter into a lambda compares
   // equal to nothing, so every value holding one re-patches forever.
