@@ -936,9 +936,9 @@ grained ink or ground meets it.
 ## An echo and a shadow take their colour as a value, so neither can follow the sheet's ink
 
 `LayerStyle::echo(SkVector offset, material::Color color)`
-(`sigilcompose/core/Shape.h`) and `shadow(material::Color color, SkVector
-offset, float blur)` (`sigilcompose/brush/Decorations.h`, the `Shadow`
-value) hold a colour, not a `SurfacePaint`, so neither can be written as
+(`sigilcompose/core/Shape.h`) and `shadow(material::Material ink,
+glm::vec2 offset, float blur)` (`sigilcompose/brush/Decorations.h`, the
+`Shadow` value) hold a colour or a material, not a `Fill`, so neither can be written as
 `Fill::currentInk()` or `Fill::var(name)`. A stroke's `PathFormat` already
 takes a `SurfacePaint` whose default is the ink in force, and
 `textStroke` resolves a `Fill::var` against the tree; an echo under a
@@ -1026,3 +1026,21 @@ opened when it closes, whatever Python still holds. A test should store a
 connection wrapper in `builtins`, close the session, and assert the feed's state
 is closed and its inlet expired, as `SketchPython.ASessionClosesFeedsDespiteEscapedPythonWrappers`
 asserts for a feed.
+
+## A layered brush's passes take a colour, where every other mark takes a material
+
+`StrokeLayer::color` (`sigilcompose/brush/Layered.h`, the pass a
+`LayeredBrush` stacks) is a `material::Color`. Every other mark in the
+brush tier takes its ink as a material — `Shadow`, `styles::BevelPair`,
+`styles::Brackets` and `styles::TickRail` a `material::Material`, the
+strokes, borders, lines and hatches a `Fill` — so a layered neon or a
+cased road cannot be inked with a gradient or a pattern, and cannot
+follow the ink in force, while a single stroke of the same road can.
+
+It is evidently meant to take a material like its neighbours: a
+`material::Material` ink (a colour converts) or a `Fill`, lowered where
+the pass is painted. A test should give one layer a left-to-right
+`material::linearGradient` from red to blue and assert the stroke is red
+at its left end and blue at its right, and give another `Fill::color(c)`
+and assert it paints exactly what the colour layer paints today.
+
