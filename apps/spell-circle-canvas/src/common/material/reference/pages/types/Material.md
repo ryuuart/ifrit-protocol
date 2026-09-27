@@ -62,7 +62,9 @@ specialization of the same parameter layout.
 
 | Spelling | Language | What it gives |
 | --- | --- | --- |
-| `Material(recipe, parameters)` | C++ | an instance with the field values of a parameter struct, whose type must be the struct the recipe was defined over |
+| `material::shader(source, parameters)` | C++ | a shader from its source over a parameter struct's fields, one definition per source — the tier-one door (`program/Shader.h`) |
+| `material.shader(source, parameters)` | Python | the same, the parameters a dict or a NamedTuple |
+| `Material(recipe, parameters)` | C++ | an instance with the field values of a parameter struct, whose type must be the struct the recipe was defined over (a recipe is the program model, `advanced/Recipe.h`) |
 | `Material(recipe)` | C++ | an instance whose fields all start at zero |
 | `Material::withRecipe(recipe)` | C++ | the same values, bindings, children and settings over a second definition of the same layout |
 | `surface::program(parameters)`, `surface::unlit(parameters)` | C++ | the surface program already instanced |
