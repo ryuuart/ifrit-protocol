@@ -98,7 +98,8 @@ inline constexpr float kNominalSizePx = 96.0f;
  *      material::Material burn(dissolve, Burn{ink});
  *      text(u8"EMBER DECODE", display)
  *          .textFx({.effect = textFx::pass(burn),
- *               .delay = motion::stagger(260ms), .unit = weave::Unit::Cluster});
+ *                   .tween = {.delay = motion::stagger(260ms)},
+ *                   .unit = weave::Unit::Cluster});
  *
  *  THE MATERIAL MUST BE A RECIPE INSTANCE over a recipe with an SkSL body, because the unit count is baked into the compiled
  *  shader — a runtime effect's array size is fixed at compile and SkSL has
