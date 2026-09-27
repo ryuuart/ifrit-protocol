@@ -12,3 +12,6 @@ from .table import Table
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from this package's signatures."""
+    board = "_sigil.compose.kit.Board"
+    table.parameters(board + ".__init__", size="_t.Vec2Like")
+    table.accessor(board, "size", "_t.Vec2", "_t.Vec2Like")

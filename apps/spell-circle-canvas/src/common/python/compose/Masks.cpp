@@ -60,12 +60,23 @@ void bindRegion(py::module_& composition) {
           py::arg("bounds"),
           "The oval inscribed in a rectangle of the node's local "
           "coordinates.")
-      .def_static("path", &Region::path, py::arg("path"),
+      .def_static(
+          "path",
+          [](const SkPath& path) {
+            return Region::path(geometry::path::fromSk(path));
+          },
+          py::arg("path"),
                   "An explicit path in the node's local space. A path "
                   "compares by its structure, so this region prunes as the "
                   "others do.")
       .def("kind", &Region::kind, "Which shape this region is.")
-      .def("resolve", &Region::resolve, py::arg("ownShape"),
+      .def(
+          "resolve",
+          [](const Region& self, const SkPath& ownShape) {
+            return geometry::path::toSk(
+                self.resolve(geometry::path::fromSk(ownShape)));
+          },
+          py::arg("ownShape"),
            "The path this region covers, given the node's own silhouette.")
       .def("copy", [](const Region& self) { return self; })
       .def(py::self == py::self);

@@ -29,6 +29,8 @@ def register(table: Table) -> None:
     table.parameters(rect + ".of", origin=VEC2_LIKE, size=VEC2_LIKE)
     table.parameters(rect + ".centredOn", centre=VEC2_LIKE, size=VEC2_LIKE)
     table.returns(rect, "size centre", VEC2)
+    table.parameters(rect + ".contains", point=VEC2_LIKE)
+    table.parameters(rect + ".translated", offset=VEC2_LIKE)
     for field in ("min", "max"):
         table.accessor(rect, field, VEC2, VEC2_LIKE)
 

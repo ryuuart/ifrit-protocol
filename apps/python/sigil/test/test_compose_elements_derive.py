@@ -279,10 +279,10 @@ class Anchors(unittest.TestCase):
         node = native.Anchor.OnNode(key="port", norm=(1, 0))
         self.assertEqual(node, native.Anchor.OnNode(key="port", norm=skia.Point(1, 0)))
         self.assertNotEqual(node, native.Anchor.OnNode(key="port"))
-        # A point read off a record is the record's own, so a coordinate
-        # set on it is set on the record.
+        # A point read off a record is a copy: the record changes when a
+        # point is assigned to it.
         node.norm.x = 0.25
-        self.assertEqual(node.norm.x, 0.25)
+        self.assertEqual(node.norm.x, 1)
         node.norm = (0.75, 1)
         self.assertEqual((node.norm.x, node.norm.y), (0.75, 1))
 
@@ -355,7 +355,7 @@ class Tethers(unittest.TestCase):
         assigned.within = skia.Rect(0, 0, 100, 80)
         assigned.fallbacks = [beside]
         self.assertEqual(assigned, above)
-        assigned.offset.y = -5
+        assigned.offset = (0, -5)
         self.assertNotEqual(assigned, above)
         with self.assertRaisesRegex(TypeError, "Unknown Tether field"):
             native.Tether(anchor="dial")
