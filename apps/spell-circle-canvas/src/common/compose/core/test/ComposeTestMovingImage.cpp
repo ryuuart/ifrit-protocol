@@ -63,7 +63,30 @@ bool redAt(SkSurface& surface, int x, int y) {
 
 }  // namespace
 
-TEST(ComposeMovingImage, AClipIsALiveLeafDrawnIntoItsBox) {
+TEST(ComposeMovingImage, AClipFitsItsBoxKeepingItsProportionsByDefault) {
+  // A square clip in a wide box with nothing stated: the leaf takes the
+  // box's height and its own proportions, and the slack beside it stays
+  // the parent's.
+  const auto clip = redClip();
+  ASSERT_NE(clip, nullptr);
+  sigil::motion::Engine engine;
+  Composer composer(engine, fonts());
+  composer.setSize({128, 64});
+  composer.render(box()
+                      .width(128)
+                      .height(64)
+                      .fill(Fill::color({0, 0, 1, 1}))
+                      .children({image(clip)}));
+
+  sk_sp<SkSurface> surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 64));
+  composer.draw(*surface->getCanvas());
+  EXPECT_TRUE(redAt(*surface, 8, 8));
+  EXPECT_TRUE(redAt(*surface, 56, 56));
+  EXPECT_FALSE(redAt(*surface, 100, 32));
+}
+
+TEST(ComposeMovingImage, AClipSpelledNativeIsDrawnIntoTheBoxItIsGiven) {
   const auto clip = redClip();
   ASSERT_NE(clip, nullptr);
   sigil::motion::Engine engine;
@@ -73,7 +96,9 @@ TEST(ComposeMovingImage, AClipIsALiveLeafDrawnIntoItsBox) {
                       .fill(Fill::color({0, 0, 1, 1}))
                       .alignItems(Align::Center)
                       .justifyContent(Justify::Center)
-                      .children({image(clip).width(64).height(64)}));
+                      .children({image(clip, material::Fit::Native)
+                                     .width(64)
+                                     .height(64)}));
 
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(128, 128));

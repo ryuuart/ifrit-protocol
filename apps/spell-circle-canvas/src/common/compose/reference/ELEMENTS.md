@@ -47,7 +47,9 @@ its own; nothing on this page needs it.
 | `each` | The children a range or a count describes, for a `children` block. | Not an element: a list of them. |
 
 `material::Fit` is the enum `image` takes: `Stretch`,
-`Contain`, `Cover` or `Native`.
+`Contain`, `Cover` or `Native`. It defaults to `Contain`, as CSS
+`object-fit: contain` does; a pixel-exact grid of sprites or atlas cells
+spells `Native`.
 `Children` is what a `children({…})` block is made of — an element, or
 the list `each` made, so one block mixes both.
 

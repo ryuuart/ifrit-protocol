@@ -428,7 +428,7 @@ TEST(ComposeContent, ImageRegionDrawsAtlasCell) {
   Host host;
   auto atlas = twoCellAtlas();
   host.composer.render(
-      box().row().children({image(atlas)
+      box().row().children({image(atlas, material::Fit::Native)
                                 .imageRegion(geometry::path::Rect::of({16, 0}, {16, 16}))
                                 .width(50)
                                 .height(50),

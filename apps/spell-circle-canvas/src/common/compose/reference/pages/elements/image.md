@@ -24,7 +24,7 @@ frames another application publishes, a rendered scene.
 
 ```cpp
 Image image(sigil::media::PixelSource source,
-            material::Fit fit = material::Fit::Native);
+            material::Fit fit = material::Fit::Contain);
 Image image(sk_sp<SkImage> picture,
             material::Fit fit = material::Fit::Contain);
 ```
@@ -47,10 +47,12 @@ def image(image: skia.Image,
 **The source leaf draws the frame its source answers at the composer's
 elapsed time**, so an animation or a video plays on the motion clock —
 placed by the `media::Timing` the source was made with — and a moving
-source keeps the node live while a still one caches. Under `Native` it
-asks nothing of the box, so the leaf is sized as any node is and the
-frame is drawn into that box; under the other fits it meets the box as a
-picture does, below.
+source keeps the node live while a still one caches. **Both leaves
+default to `Contain`**, as CSS `object-fit: contain` does: the source
+keeps its proportions inside the box it is given. Under `Native` it asks
+nothing of the box, so the leaf is sized as any node is and the frame is
+drawn into that box — the fit a pixel-exact grid spells, since an
+`imageRegion` cell of an atlas does not have the atlas's proportions.
 
 **The picture leaf takes the box it stands in** under every fit, and
 under `Contain` and `Cover` the node itself carries the picture's

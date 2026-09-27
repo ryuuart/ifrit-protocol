@@ -198,13 +198,16 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *      image(media::PixelSource(clip, {.start = 410ms, .rate = 0.72}))
  *
  *  @p fit is how the source meets a box of another shape, as it is for a
- *  picture below; `Native`, the default, asks nothing of the box, so the
- *  leaf is sized as any node is and the frame is drawn into that box.
+ *  picture below; `Contain`, the default, keeps the source's proportions
+ *  inside the box it stands in, as CSS `object-fit: contain` does.
+ *  `Native` asks nothing of the box, so the leaf is sized as any node is
+ *  and the frame is drawn into that box — the fit a pixel-exact grid of
+ *  sprites or atlas cells spells.
  *  `imageRegion()` draws one sub-rect of an atlas and `imageRendering()` —
  *  inherited from any ancestor — says how the pixels are filtered. An
  *  empty source draws nothing. */
 [[nodiscard]] Image image(sigil::media::PixelSource source,
-                          material::Fit fit = material::Fit::Native);
+                          material::Fit fit = material::Fit::Contain);
 
 /** A PLATE WEARING A PICTURE THAT IS ALREADY RENDERED: a bake taken on an
  *  intermediate surface, a frame decoded out of a file, a texture a
@@ -214,7 +217,7 @@ Text text(std::shared_ptr<sigil::weave::Paragraph> paragraph,
  *           image(frame, material::Fit::Cover))
  *
  *  It is the source leaf above over a picture in hand, the fit defaulting
- *  to `Contain` where the picture is, so a cell showing a bake states no matrix
+ *  to `Contain` as it does there, so a cell showing a bake states no matrix
  *  of its own. The fit is the one SigilMaterial states for a source
  *  meeting a box: `Stretch` takes both axes independently, `Contain`
  *  keeps the proportions and leaves the slack, `Cover` keeps them and
