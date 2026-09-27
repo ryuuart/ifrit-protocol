@@ -6,6 +6,9 @@
  */
 
 #include "Internal.h"
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+#include "Metal.h"
+#endif
 
 #include <sigilmaterial/substance/advanced/Cook.h>
 
@@ -226,6 +229,24 @@ std::string engineVersion() {
 
 bool available() { return true; }
 
-Engine engine() { return Engine::Cpu; }
+bool available(Engine engine) {
+  switch (engine) {
+    case Engine::None:
+      return false;
+    case Engine::Cpu:
+      return true;
+    case Engine::Metal:
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+      return detail::metalEngine() != nullptr;
+#else
+      return false;
+#endif
+  }
+  return false;
+}
+
+Engine engine() {
+  return available(Engine::Metal) ? Engine::Metal : Engine::Cpu;
+}
 
 }  // namespace sigil::material::sbsar

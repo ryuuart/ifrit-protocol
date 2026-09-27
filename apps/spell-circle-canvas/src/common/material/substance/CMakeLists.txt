@@ -31,6 +31,25 @@ if(Substance_FOUND)
   target_compile_definitions(SigilMaterialSubstance PUBLIC
     SIGILMATERIAL_ENABLE_SUBSTANCE)
 
+  # The GPU engine beside it: on macOS the Metal engine whose results stay
+  # on the device as Metal textures ("native", where "blend" would read
+  # them back into host memory). It is not linked — the framework takes
+  # an engine library at run time and a renderer switches to it — so the
+  # CPU engine stays the one every renderer starts on, and a machine whose
+  # SDK has no Metal engine, or whose device will not start it, cooks on
+  # the CPU with nothing else changed.
+  set(_substance_metal_engine
+      "${SUBSTANCE_SDK_DIR}/bin/release/libsubstance_mtl_native.dylib")
+  if(APPLE AND EXISTS "${_substance_metal_engine}")
+    target_sources(SigilMaterialSubstance PRIVATE Metal.mm Metal.h)
+    set_source_files_properties(Metal.mm PROPERTIES
+      COMPILE_OPTIONS "-fobjc-arc")
+    target_compile_definitions(SigilMaterialSubstance PRIVATE
+      SIGIL_SUBSTANCE_METAL_ENGINE="${_substance_metal_engine}")
+    target_link_libraries(SigilMaterialSubstance PRIVATE
+      SigilSkiaGraphite "-framework Metal" "-framework Foundation")
+  endif()
+
   # The input struct of an archive, as a header the build writes: the
   # tool reads the archive through this feature, so it exists only where
   # the SDK does.
@@ -91,7 +110,8 @@ if(_generated)
 endif()
 sigil_test(material_test
   SOURCES test/SubstanceTest.cpp
-  LIBRARIES SigilMaterialSubstance SigilIOHub
+  LIBRARIES SigilMaterialSubstance SigilIOHub SigilMaterialTexture
+            SigilMaterialSkia SigilSkiaGraphite SigilCoreHardware
   SUPPORT_DIRS ${CMAKE_CURRENT_BINARY_DIR}/generated
   DEFINITIONS SIGIL_SUBSTANCE_SDK_DIR="${SUBSTANCE_SDK_DIR}")
 if(_generated)

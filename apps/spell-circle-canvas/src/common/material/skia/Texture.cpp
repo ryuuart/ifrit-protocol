@@ -13,6 +13,11 @@ sk_sp<SkImage> image(const Texture& texture,
   return texture.frameAt(time).image;
 }
 
+sk_sp<SkImage> image(const Texture& texture, std::chrono::duration<double> time,
+                     skgpu::graphite::Recorder* recorder) {
+  return texture.frameAt(time, recorder).image;
+}
+
 namespace {
 
 sk_sp<SkShader> imageShader(const Texture& texture, sk_sp<SkImage> picture) {
@@ -31,9 +36,10 @@ sk_sp<SkShader> shader(const Texture& texture) {
 }
 
 sk_sp<SkShader> shader(const Texture& texture, const FrameData& frame) {
-  if (!texture.animated()) return shader(texture);
+  if (!texture.animated() && !frame.recorder) return shader(texture);
   return imageShader(texture,
-                     image(texture, std::chrono::duration<double>(frame.seconds)));
+                     image(texture, std::chrono::duration<double>(frame.seconds),
+                           frame.recorder));
 }
 
 SkFilterMode toSkFilterMode(Sampling sampling) {

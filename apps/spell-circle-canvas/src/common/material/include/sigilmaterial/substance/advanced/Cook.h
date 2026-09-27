@@ -8,9 +8,13 @@
  * (`$outputsize` in log2, `$randomseed`, `$normalformat`), presets
  * applied, and cooks scheduled apart from the caller with the newest
  * request replacing a stale one. Each cooked output is a
- * `media::PixelSource` whose `revision()` bumps when a cook lands.
- * `material::substance()` builds its material over one of these; reach
- * for it directly for control the material entrance does not give.
+ * `media::PixelSource` whose `revision()` bumps when a cook lands: on
+ * the CPU engine a frame holding an image in host memory, on the GPU
+ * engine a frame standing on the device as a texture, which a leaf, a
+ * pen or a material texture binds for the recorder drawing it with no
+ * copy back. `material::substance()` builds its material over one of
+ * these; reach for it directly for control the material entrance does
+ * not give.
  */
 
 #include <sigilmaterial/substance/Substance.h>
@@ -35,15 +39,6 @@ enum class PresetMode : uint8_t {
   Merge,  ///< inputs the preset does not list keep their values
 };
 
-/** Which engine a build cooks with. */
-enum class Engine : uint8_t {
-  None,  ///< no SDK
-  Cpu,   ///< the CPU engine; results land in host memory
-};
-
-/** The engine this build links. */
-Engine engine();
-
 /** How a cook is set up before its first run. */
 struct CookOptions {
   /** Pixels per side, rounded up to a power of two; zero keeps the
@@ -52,7 +47,16 @@ struct CookOptions {
   std::optional<int> seed;
   /** The outputs to cook; empty cooks every image output. */
   std::vector<OutputRequest> outputs;
+  /** The engine; unset takes `engine()`. One that does not start here
+   *  falls back to the CPU, said once. */
+  std::optional<Engine> engine;
 };
+
+/** How many times a cooked output standing on the device has been read
+ *  back into host memory in this process — which only a caller drawing
+ *  with no recorder, or feeding one cook's output to another's image
+ *  input, causes. */
+uint64_t deviceReadbacks();
 
 /** ONE GRAPH, COOKING. A handle: copies share the instance, the renderer
  *  and the cooked pictures. Every member is safe to call from any thread;
@@ -73,6 +77,8 @@ class CookScheduler {
   /** The graph described — the archive's own description, built when it
    *  was decoded and never again. */
   const Description& description() const;
+  /** The engine this graph cooks on; `None` for no graph. */
+  Engine engine() const;
 
   /** @name Inputs by raw identifier
    *  @{ */

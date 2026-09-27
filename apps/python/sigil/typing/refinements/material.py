@@ -23,6 +23,7 @@ def register(table: Table) -> None:
         hub="_sigil.io.Hub",
         seed="int",
         outputs="collections.abc.Iterable[str | _sigil.material.sbsar.OutputRequest]",
+        engine="_sigil.material.sbsar.Engine | None",
         kwargs="float | int | bool",
     )
     table.parameters("_sigil.material.skia.Filter.blur", sigmaMap="Paint")

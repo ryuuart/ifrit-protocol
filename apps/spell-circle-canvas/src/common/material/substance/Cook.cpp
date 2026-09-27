@@ -11,6 +11,8 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
+#include <sigilmaterial/core/Program.h>
+#include <sigilmedia/advanced/Device.h>
 
 #include <atomic>
 #include <cmath>
@@ -21,6 +23,9 @@
 #include <utility>
 
 #include "Internal.h"
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+#include "Metal.h"
+#endif
 
 namespace sigil::material::sbsar {
 
@@ -30,11 +35,15 @@ namespace {
 
 /** The precision an output is cooked at, as the engine's format bits
  *  over the channels the output was authored with; zero to keep the
- *  author's format. */
+ *  author's format. @p fourChannels asks for four channels whatever the
+ *  author's: a grey texture on the device is sampled as red alone, where
+ *  the CPU engine's grey is spread to four on the way into an image. */
 unsigned formatFor(const air::OutputDesc& output, const std::string& usage,
-                   Format format) {
+                   Format format, bool fourChannels) {
   const unsigned authored = (unsigned)output.mFormat;
-  const unsigned channels = authored & Substance_PF_MASK_RAWChannels;
+  const unsigned channels = fourChannels
+                                ? (unsigned)Substance_PF_RGBA
+                                : authored & Substance_PF_MASK_RAWChannels;
   const unsigned precision = authored & Substance_PF_MASK_RAWPrecision;
   switch (format) {
     case Format::Automatic:
@@ -43,6 +52,9 @@ unsigned formatFor(const air::OutputDesc& output, const std::string& usage,
       if ((usage == "normal" || usage == "height") &&
           precision == Substance_PF_8I)
         return channels | Substance_PF_16I;
+      if (fourChannels &&
+          (authored & Substance_PF_MASK_RAWChannels) != Substance_PF_RGBA)
+        return channels | precision;
       return 0;
     case Format::Unorm8:
       return channels | Substance_PF_8I;
@@ -55,6 +67,23 @@ unsigned formatFor(const air::OutputDesc& output, const std::string& usage,
   }
   return 0;
 }
+
+/** The engine a cook asked for, as it will run: the default where none
+ *  was named, and the CPU where the one named does not start here. */
+Engine engineFor(std::optional<Engine> asked) {
+  const Engine wanted = asked.value_or(engine());
+  if (wanted != Engine::Metal) return Engine::Cpu;
+  if (available(wanted)) return wanted;
+  reportOnce("substance:engine",
+             "the Substance GPU engine does not start on this machine; "
+             "graphs cook on the CPU");
+  return Engine::Cpu;
+}
+
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+struct SharedDeviceRenderer;
+SharedDeviceRenderer* sharedDeviceRenderer();
+#endif
 
 }  // namespace
 
@@ -77,7 +106,11 @@ struct CookScheduler::State {
     std::string name;
     Encoding encoding = Encoding::Raw;
     bool enabled = false;
+    /** The newest picture: in host memory from the CPU engine, standing
+     *  on the device from the GPU one. */
     sk_sp<SkImage> image;
+    media::DeviceFrame device;
+    bool holds() const { return image || device; }
     /** The revision the last frame read of this output handed out. */
     std::atomic<uint64_t> handedOut{0};
   };
@@ -91,9 +124,17 @@ struct CookScheduler::State {
 
   std::shared_ptr<const Archive> archive;
   size_t graph = 0;
+  /** The engine this graph cooks on. */
+  Engine runsOn = Engine::Cpu;
   std::unique_ptr<air::GraphInstance> instance;
   Callbacks callbacks;
-  std::unique_ptr<air::Renderer> renderer;
+  /** The renderer this graph is pushed through: its own on the CPU, the
+   *  process's one on the GPU. */
+  air::Renderer* renderer = nullptr;
+  std::unique_ptr<air::Renderer> ownRenderer;
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  SharedDeviceRenderer* shared = nullptr;
+#endif
   /** Guards the instance, the renderer, the bindings and the presets. */
   mutable std::mutex engine;
   /** Guards the cooked images. */
@@ -101,17 +142,19 @@ struct CookScheduler::State {
   std::vector<std::unique_ptr<Cooked>> outputs;
   std::vector<Binding> bindings;
   std::map<std::string, air::InputImage::SPtr, std::less<>> heldImages;
+  /** The device texture a GPU cook's image input names, held beside it. */
+  std::map<std::string, std::shared_ptr<void>, std::less<>> heldTextures;
   air::Presets addedPresets;
   std::atomic<uint64_t> revision{0};
   air::UInt lastRun = 0;
 
-  ~State() {
-    // Results the engine still holds must go before its renderer, and
-    // the renderer before the instance it cooks.
-    if (renderer) renderer->cancelAll();
-    renderer.reset();
-    instance.reset();
-  }
+  ~State();
+
+  /** Pushes the current values and runs the renderer with @p options;
+   *  answers the run. Called with `engine` held. */
+  air::UInt pushAndRun(air::UInt options);
+  bool isPendingRun(air::UInt run) const;
+  void flushRuns() const;
 
   air::InputInstanceBase* input(std::string_view identifier) const {
     for (air::InputInstanceBase* candidate : instance->getInputs())
@@ -139,6 +182,16 @@ struct CookScheduler::State {
     const size_t index = output.mUserData;
     if (index >= outputs.size()) return;
     auto* picture = static_cast<air::RenderResultImage*>(result.get());
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+    if (detail::isMetalResult(picture->getTextureAgnostic())) {
+      media::DeviceFrame device = detail::deviceFrameOf(
+          picture->getTextureAgnostic(), outputs[index]->encoding);
+      if (!device) return;
+      std::lock_guard lock(results);
+      outputs[index]->device = std::move(device);
+      return;
+    }
+#endif
     sk_sp<SkImage> image =
         imageOf(picture->getTexture(), outputs[index]->encoding);
     if (!image) return;
@@ -148,14 +201,13 @@ struct CookScheduler::State {
 
   /** Pushes the current values and runs; called with `engine` held. */
   void schedule() {
-    renderer->push(*instance);
-    lastRun = renderer->run(air::Renderer::Run_Asynchronous |
-                            air::Renderer::Run_Replace);
+    lastRun = pushAndRun(air::Renderer::Run_Asynchronous |
+                         air::Renderer::Run_Replace);
   }
 
   bool pending() const {
     std::lock_guard lock(engine);
-    return lastRun != 0 && renderer->isPending(lastRun);
+    return lastRun != 0 && isPendingRun(lastRun);
   }
 
   void follow() {
@@ -181,12 +233,143 @@ struct CookScheduler::State {
     const uint64_t landed = revision.load();
     std::lock_guard lock(results);
     for (const auto& output : outputs)
-      if (output->enabled && output->image &&
+      if (output->enabled && output->holds() &&
           output->handedOut.load() < landed)
         return true;
     return false;
   }
 };
+
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+namespace {
+
+/** workaround: the Substance Metal engine cooks for one renderer at a
+ *  time in a process — a second renderer alive beside the first cooks
+ *  nothing and reports nothing — so every Metal cook pushes its graph
+ *  through this one renderer, and each result is routed back to the
+ *  cook whose graph it belongs to. */
+struct SharedDeviceRenderer {
+  struct Dispatch final : air::RenderCallbacks {
+    SharedDeviceRenderer* owner = nullptr;
+    void outputComputed(air::UInt, size_t, const air::GraphInstance* graph,
+                        air::OutputInstance* output) override {
+      std::lock_guard lock(owner->enrolled);
+      if (auto found = owner->cooks.find(graph); found != owner->cooks.end())
+        found->second->land(*output);
+    }
+    void jobComputed(air::UInt, size_t cook) override {
+      std::lock_guard lock(owner->enrolled);
+      for (const auto& [graph, state] : owner->cooks)
+        if (reinterpret_cast<size_t>(state) == cook)
+          state->revision.fetch_add(1);
+    }
+    /** The engine hands a buffer large enough for any platform's
+     *  device; Metal's is its device and its queue. */
+    void fillSubstanceDevice(SubstanceEngineIDEnum,
+                             SubstanceDevice_* device) override {
+      if (const detail::MetalEngine* metal = detail::metalEngine()) {
+        void** slots = reinterpret_cast<void**>(device);
+        slots[0] = metal->device;
+        slots[1] = metal->queue;
+      }
+    }
+  };
+
+  Dispatch dispatch;
+  std::unique_ptr<air::Renderer> renderer;
+  /** Guards `cooks`, and is held while a result is handed to its cook,
+   *  so a cook leaving waits for a hand-over in flight. */
+  std::mutex enrolled;
+  std::map<const air::GraphInstance*, CookScheduler::State*> cooks;
+  /** The renderer's push, run, pending and flush are not safe to call
+   *  from two threads at once. */
+  std::mutex running;
+};
+
+SharedDeviceRenderer* sharedDeviceRenderer() {
+  // Kept for the process: the cooks of every material share it, and the
+  // engine's own thread runs until the process ends.
+  static SharedDeviceRenderer* const shared = []() -> SharedDeviceRenderer* {
+    const detail::MetalEngine* metal = detail::metalEngine();
+    if (!metal) return nullptr;
+    auto* made = new SharedDeviceRenderer;
+    made->dispatch.owner = made;
+    made->renderer = std::make_unique<air::Renderer>();
+    // The callbacks are set before the switch: the engine asks them for
+    // its device when it starts.
+    made->renderer->setRenderCallbacks(&made->dispatch);
+    if (!made->renderer->switchEngineLibrary(metal->library)) return nullptr;
+    return made;
+  }();
+  return shared;
+}
+
+air::Renderer* sharedRendererOf(SharedDeviceRenderer& shared) {
+  return shared.renderer.get();
+}
+
+void enroll(SharedDeviceRenderer& shared, const air::GraphInstance& graph,
+            CookScheduler::State& state) {
+  std::lock_guard lock(shared.enrolled);
+  shared.cooks[&graph] = &state;
+}
+
+}  // namespace
+#endif
+
+CookScheduler::State::~State() {
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  if (shared) {
+    // Out of the routing first, so nothing is handed to a cook that is
+    // going; the instance then tells the renderer it is gone.
+    {
+      std::lock_guard lock(shared->enrolled);
+      shared->cooks.erase(instance.get());
+    }
+    std::lock_guard lock(shared->running);
+    instance.reset();
+    return;
+  }
+#endif
+  // Results the engine still holds must go before its renderer, and
+  // the renderer before the instance it cooks.
+  if (ownRenderer) ownRenderer->cancelAll();
+  ownRenderer.reset();
+  instance.reset();
+}
+
+air::UInt CookScheduler::State::pushAndRun(air::UInt options) {
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  if (shared) {
+    std::lock_guard lock(shared->running);
+    renderer->push(*instance);
+    return renderer->run(options, reinterpret_cast<size_t>(this));
+  }
+#endif
+  renderer->push(*instance);
+  return renderer->run(options);
+}
+
+bool CookScheduler::State::isPendingRun(air::UInt run) const {
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  if (shared) {
+    std::lock_guard lock(shared->running);
+    return renderer->isPending(run);
+  }
+#endif
+  return renderer->isPending(run);
+}
+
+void CookScheduler::State::flushRuns() const {
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  if (shared) {
+    std::lock_guard lock(shared->running);
+    renderer->flush();
+    return;
+  }
+#endif
+  renderer->flush();
+}
 
 namespace {
 
@@ -201,6 +384,7 @@ struct CookedOutput {
     const uint64_t landed = state->revision.load();
     std::lock_guard lock(state->results);
     frame.image = state->outputs[index]->image;
+    frame.device = state->outputs[index]->device;
     state->outputs[index]->handedOut.store(landed);
     return frame;
   }
@@ -208,8 +392,9 @@ struct CookedOutput {
   uint64_t revision() const { return state->revision.load(); }
   SkISize size() const {
     std::lock_guard lock(state->results);
-    const sk_sp<SkImage>& image = state->outputs[index]->image;
-    return image ? image->dimensions() : SkISize::MakeEmpty();
+    const CookScheduler::State::Cooked& cooked = *state->outputs[index];
+    if (cooked.image) return cooked.image->dimensions();
+    return SkISize::Make(cooked.device.width, cooked.device.height);
   }
   bool operator==(const CookedOutput& other) const {
     return state == other.state && index == other.index;
@@ -228,8 +413,27 @@ CookScheduler::CookScheduler(std::shared_ptr<const Archive> archive,
       state->archive->decoded()->package->getGraphs()[graph];
   state->instance = std::make_unique<air::GraphInstance>(source);
   state->callbacks.state = state.get();
-  state->renderer = std::make_unique<air::Renderer>();
-  state->renderer->setRenderCallbacks(&state->callbacks);
+  state->runsOn = engineFor(options.engine);
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  if (state->runsOn == Engine::Metal) {
+    state->shared = sharedDeviceRenderer();
+    if (state->shared) {
+      state->renderer = sharedRendererOf(*state->shared);
+      enroll(*state->shared, *state->instance, *state);
+    } else {
+      reportOnce("substance:engine:switch",
+                 "the Substance Metal engine refused its renderer; graphs "
+                 "cook on the CPU");
+      state->runsOn = Engine::Cpu;
+    }
+  }
+#endif
+  if (!state->renderer) {
+    state->ownRenderer = std::make_unique<air::Renderer>();
+    state->ownRenderer->setRenderCallbacks(&state->callbacks);
+    state->renderer = state->ownRenderer.get();
+  }
+  const bool onDevice = state->runsOn != Engine::Cpu;
 
   const Description& described = state->archive->graph(graph);
   const air::GraphInstance::Outputs& outputs = state->instance->getOutputs();
@@ -250,7 +454,8 @@ CookScheduler::CookScheduler(std::shared_ptr<const Archive> archive,
     if (cooked->enabled) {
       if (const unsigned format =
               formatFor(output.mDesc, cooked->usage,
-                        request ? request->format : Format::Automatic)) {
+                        request ? request->format : Format::Automatic,
+                        onDevice)) {
         air::OutputFormat override;
         override.format = format;
         override.mipmapLevelsCount = air::OutputFormat::MipmapNone;
@@ -274,6 +479,18 @@ CookScheduler::CookScheduler(std::shared_ptr<const Archive> archive,
 const Description& CookScheduler::description() const {
   static const Description none;
   return m_state ? m_state->archive->graph(m_state->graph) : none;
+}
+
+Engine CookScheduler::engine() const {
+  return m_state ? m_state->runsOn : Engine::None;
+}
+
+uint64_t deviceReadbacks() {
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  return detail::metalReadbacks();
+#else
+  return 0;
+#endif
 }
 
 bool CookScheduler::set(std::string_view identifier,
@@ -300,7 +517,29 @@ bool CookScheduler::setImage(std::string_view identifier,
   air::InputInstanceBase* found = m_state->input(identifier);
   if (!found || !found->mDesc.isImage()) return false;
   auto* imageInput = static_cast<air::InputInstanceImage*>(found);
-  const sk_sp<SkImage> image = pixels.frameAt({}).image;
+#ifdef SIGIL_SUBSTANCE_METAL_ENGINE
+  if (m_state->runsOn == Engine::Metal) {
+    // The Metal engine reads its inputs from textures on its device: a
+    // frame already there is named where it stands.
+    const media::Frame frame = pixels.frameAt({});
+    if (!frame) {
+      imageInput->reset();
+      m_state->heldImages.erase(std::string(identifier));
+      m_state->heldTextures.erase(std::string(identifier));
+      return true;
+    }
+    detail::MetalInput input = detail::metalInputOf(frame);
+    if (!input.image) return false;
+    imageInput->setImage(input.image);
+    m_state->heldImages[std::string(identifier)] = std::move(input.image);
+    m_state->heldTextures[std::string(identifier)] = std::move(input.texture);
+    return true;
+  }
+#endif
+  // A frame standing on a device — another cook's output on the GPU
+  // engine — is read back: the engine takes an image input from host
+  // memory.
+  const sk_sp<SkImage> image = media::deviceImage(pixels.frameAt({}), nullptr);
   if (!image) {
     imageInput->reset();
     m_state->heldImages.erase(std::string(identifier));
@@ -368,6 +607,7 @@ void CookScheduler::reset() {
   for (air::InputInstanceBase* input : m_state->instance->getInputs())
     input->reset();
   m_state->heldImages.clear();
+  m_state->heldTextures.clear();
 }
 
 bool CookScheduler::normalsAreDirectX() const {
@@ -460,8 +700,7 @@ bool CookScheduler::cookNow() const {
   const uint64_t before = m_state->revision.load();
   {
     std::lock_guard lock(m_state->engine);
-    m_state->renderer->push(*m_state->instance);
-    m_state->renderer->run(air::Renderer::Run_Default);
+    m_state->pushAndRun(air::Renderer::Run_Default);
     // A result the callback did not take is taken here.
     for (air::OutputInstance* output : m_state->instance->getOutputs())
       m_state->land(*output);
@@ -473,7 +712,7 @@ bool CookScheduler::cookNow() const {
 void CookScheduler::wait() const {
   if (!m_state) return;
   std::lock_guard lock(m_state->engine);
-  m_state->renderer->flush();
+  m_state->flushRuns();
 }
 
 bool CookScheduler::isPending() const {

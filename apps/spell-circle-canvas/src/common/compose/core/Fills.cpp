@@ -71,6 +71,7 @@ material::FrameData frameOf(const PaintContext& ctx) {
   frame.world = ctx.toRoot.matrix;
   frame.seconds = ctx.elapsedSeconds;
   frame.contentScale = ctx.contentScale;
+  frame.recorder = ctx.recorder;
   return frame;
 }
 

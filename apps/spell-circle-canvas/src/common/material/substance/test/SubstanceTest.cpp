@@ -11,12 +11,21 @@
 
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
+#include <include/core/SkCanvas.h>
 #include <include/core/SkColorSpace.h>
 #include <include/core/SkImage.h>
+#include <include/core/SkPaint.h>
+#include <include/core/SkSurface.h>
+#include <include/gpu/graphite/Surface.h>
+#include <sigilcore/hardware/GpuDevice.h>
 #include <sigilio/hub/Hub.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/substance/Substance.h>
 #include <sigilmaterial/substance/advanced/Archive.h>
 #include <sigilmaterial/substance/advanced/Cook.h>
+#include <sigilmaterial/texture/Texture.h>
+#include <sigilmedia/advanced/Device.h>
+#include <sigilskia/graphite/GraphiteContext.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -45,8 +54,10 @@ std::string sample(const char* name) {
                    << " not found";                                      \
   } while (0)
 
+/** The frame as an image in host memory, whichever engine cooked it: a
+ *  frame the GPU engine left on the device is read back. */
 sk_sp<SkImage> frameOf(const media::PixelSource& pixels) {
-  return pixels.frameAt({}).image;
+  return media::deviceImage(pixels.frameAt({}), nullptr);
 }
 
 SkColor pixel(const sk_sp<SkImage>& image, int x, int y) {
@@ -97,8 +108,86 @@ struct LeavesInputs {
 
 TEST(Substance, ReportsTheEngineItCooksOn) {
   if (!sbsar::available()) GTEST_SKIP() << "no Substance SDK";
-  EXPECT_EQ(sbsar::Engine::Cpu, sbsar::engine());
+  // The GPU engine where it starts, the CPU one otherwise.
+  EXPECT_EQ(sbsar::available(sbsar::Engine::Metal) ? sbsar::Engine::Metal
+                                                   : sbsar::Engine::Cpu,
+            sbsar::engine());
+  EXPECT_TRUE(sbsar::available(sbsar::Engine::Cpu));
+  EXPECT_FALSE(sbsar::available(sbsar::Engine::None));
   EXPECT_FALSE(sbsar::engineVersion().empty());
+}
+
+TEST(Substance, ACookRunsOnTheEngineItNames) {
+  SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
+  io::Hub hub;
+  const std::shared_ptr<const sbsar::Archive> archive =
+      sbsar::load(hub, sample("Autumn_Leaves.sbsar"));
+  sbsar::CookScheduler cpu(archive, 0,
+                           {.resolution = 32, .engine = sbsar::Engine::Cpu});
+  EXPECT_EQ(sbsar::Engine::Cpu, cpu.engine());
+  ASSERT_TRUE(cpu.cookNow());
+  const media::Frame onHost = cpu.output("normal").frameAt({});
+  EXPECT_TRUE(onHost.image) << "the CPU engine lands in host memory";
+  EXPECT_FALSE(onHost.device);
+  sbsar::CookScheduler unnamed(archive, 0, {.resolution = 32});
+  EXPECT_EQ(sbsar::engine(), unnamed.engine());
+}
+
+TEST(Substance, AGpuCookReachesATextureWithNoCopyBack) {
+  SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
+  if (!sbsar::available(sbsar::Engine::Metal))
+    GTEST_SKIP() << "the Substance Metal engine does not start here";
+  const std::unique_ptr<core::hardware::GpuDevice> gpu =
+      core::hardware::GpuDevice::createOwned();
+  const std::unique_ptr<sigil::skia::GraphiteContext> graphite =
+      gpu ? sigil::skia::GraphiteContext::create(*gpu) : nullptr;
+  if (!graphite) GTEST_SKIP() << "no Metal device for Graphite";
+  io::Hub hub;
+  sbsar::CookScheduler cook(
+      sbsar::load(hub, sample("Autumn_Leaves.sbsar")), 0,
+      {.resolution = 64, .engine = sbsar::Engine::Metal});
+  ASSERT_EQ(sbsar::Engine::Metal, cook.engine());
+  ASSERT_TRUE(cook.cookNow());
+  const uint64_t readBefore = sbsar::deviceReadbacks();
+
+  const media::PixelSource normal = cook.output("normal");
+  const media::Frame frame = normal.frameAt({});
+  EXPECT_FALSE(frame.image) << "nothing landed in host memory";
+  ASSERT_EQ(media::DeviceFrame::Kind::Texture, frame.device.kind);
+  EXPECT_EQ(64, frame.device.width);
+  EXPECT_EQ(64, frame.device.height);
+  EXPECT_EQ(SkISize::Make(64, 64), normal.size());
+
+  // The texture a surface slot holds names the device texture itself,
+  // and sampled through a recorder it is that texture, wrapped.
+  const Texture texture(normal);
+  const DeviceImage where = texture.deviceImage();
+  EXPECT_TRUE(where);
+  EXPECT_EQ(frame.device.pointer, where.pointer);
+  skgpu::graphite::Recorder* recorder = graphite->recorder();
+  const sk_sp<SkImage> bound =
+      material::skia::image(texture, std::chrono::duration<double>{}, recorder);
+  ASSERT_TRUE(bound);
+  EXPECT_TRUE(bound->isTextureBacked());
+  EXPECT_EQ(64, bound->width());
+
+  // Drawn as a slot's shader onto a device surface.
+  FrameData drawnAt;
+  drawnAt.recorder = recorder;
+  const sk_sp<SkShader> shader = material::skia::shader(texture, drawnAt);
+  ASSERT_TRUE(shader);
+  const sk_sp<SkSurface> surface = SkSurfaces::RenderTarget(
+      recorder, SkImageInfo::MakeN32Premul(64, 64));
+  ASSERT_TRUE(surface);
+  SkPaint paint;
+  paint.setShader(shader);
+  surface->getCanvas()->drawPaint(paint);
+  EXPECT_EQ(readBefore, sbsar::deviceReadbacks())
+      << "the cook reached the texture and the draw without a copy back";
+
+  // A caller with no recorder is the one that reads it back.
+  EXPECT_TRUE(frameOf(normal));
+  EXPECT_EQ(readBefore + 1, sbsar::deviceReadbacks());
 }
 
 TEST(Substance, WithoutTheSdkEveryEntranceAnswersEmpty) {

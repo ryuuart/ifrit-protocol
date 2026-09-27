@@ -12,12 +12,18 @@
 namespace sigil::material {
 
 media::Frame Texture::frameAt(std::chrono::duration<double> time) const {
+  return frameAt(time, nullptr);
+}
+
+media::Frame Texture::frameAt(std::chrono::duration<double> time,
+                              skgpu::graphite::Recorder* recorder) const {
   media::Frame frame = m_source.frameAt(time);
-  // A frame standing on a device is read back: a texture is sampled by
+  // A frame standing on a device is bound for the recorder that draws
+  // it, and read back where there is none: a texture is sampled by
   // whichever renderer draws the material, and a renderer that shares
-  // the device reads `deviceImage()` instead.
+  // the device without a recorder reads `deviceImage()` instead.
   if (!frame.image && frame.device) {
-    frame.image = media::deviceImage(frame, nullptr);
+    frame.image = media::deviceImage(frame, recorder);
     frame.device = {};
   }
   if (!frame.image || !m_region) return frame;

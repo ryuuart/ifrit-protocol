@@ -11,6 +11,10 @@
 #include <glm/mat3x3.hpp>
 #include <glm/vec2.hpp>
 
+namespace skgpu::graphite {
+class Recorder;
+}  // namespace skgpu::graphite
+
 namespace sigil::material {
 
 /** What the frame supplies. A recipe declares which of these it reads
@@ -30,6 +34,11 @@ struct FrameData {
   /** The node's local space to the root, column-major; the `uWorld`
    *  uniform. Identity when the material is not anchored to the root. */
   glm::mat3 world{1.0f};
+  /** The recorder the frame is drawn through, where it is drawn on a
+   *  device: a texture whose pixels stand on that device is bound there
+   *  as it stands. Null — a raster canvas, a recording kept to replay —
+   *  reads such a texture back into host memory instead. */
+  skgpu::graphite::Recorder* recorder = nullptr;
 };
 
 }  // namespace sigil::material

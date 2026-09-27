@@ -12,6 +12,8 @@ namespace sigil::material::sbsar {
 
 bool available() { return false; }
 Engine engine() { return Engine::None; }
+bool available(Engine) { return false; }
+uint64_t deviceReadbacks() { return 0; }
 std::string engineVersion() { return {}; }
 
 struct Archive::Decoded {};
@@ -45,6 +47,7 @@ const Description& CookScheduler::description() const {
   static const Description none;
   return none;
 }
+Engine CookScheduler::engine() const { return Engine::None; }
 bool CookScheduler::set(std::string_view, std::span<const float>) {
   return false;
 }

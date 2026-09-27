@@ -33,11 +33,20 @@ void SubstanceDecode(benchmark::State& state) {
     benchmark::DoNotOptimize(sbsar::Archive::decode(bytes->span()));
 }
 
-/** A warm re-cook at range(0) pixels a side after the hue moves. */
-void SubstanceCook(benchmark::State& state) {
+/** A warm re-cook at range(0) pixels a side after the hue moves, on
+ *  @p engine: to host memory on the CPU, to a device texture on the GPU,
+ *  each ending where a drawer can take it. Timed by the wall clock,
+ *  since the calling thread waits while the engine's own threads and the
+ *  device do the work. */
+void SubstanceCookOn(benchmark::State& state, sbsar::Engine engine) {
   io::Hub hub;
   sbsar::CookScheduler cook(sbsar::load(hub, sampleArchive()), 0,
-                            {.resolution = (int)state.range(0)});
+                            {.resolution = (int)state.range(0),
+                             .engine = engine});
+  if (cook.engine() != engine) {
+    state.SkipWithError("the engine does not start here");
+    return;
+  }
   cook.cookNow();
   bool toggle = false;
   for ([[maybe_unused]] auto _ : state) {
@@ -56,10 +65,21 @@ const bool registered = [] {
     return false;
   benchmark::RegisterBenchmark("SubstanceDecode", SubstanceDecode)
       ->Unit(benchmark::kMillisecond);
-  benchmark::RegisterBenchmark("SubstanceCook", SubstanceCook)
+  benchmark::RegisterBenchmark("SubstanceCook/Cpu", SubstanceCookOn,
+                               sbsar::Engine::Cpu)
       ->Arg(64)
       ->Arg(256)
+      ->Arg(1024)
+      ->UseRealTime()
       ->Unit(benchmark::kMillisecond);
+  if (sbsar::available(sbsar::Engine::Metal))
+    benchmark::RegisterBenchmark("SubstanceCook/Metal", SubstanceCookOn,
+                                 sbsar::Engine::Metal)
+        ->Arg(64)
+        ->Arg(256)
+        ->Arg(1024)
+        ->UseRealTime()
+        ->Unit(benchmark::kMillisecond);
   return true;
 }();
 

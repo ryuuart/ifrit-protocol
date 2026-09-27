@@ -84,6 +84,40 @@ colour space, so nothing converts it on its way to a surface. A normal and
 a height cook at 16 bits unless an `material::sbsar::OutputRequest` says
 otherwise (`material::sbsar::Format::Automatic`).
 
+## Which engine cooks
+
+```cpp
+material::Material leaves = material::substance(hub, uri);          // the GPU where it starts
+material::Material onHost = material::substance(
+    hub, uri, {.engine = material::sbsar::Engine::Cpu});           // the CPU, by name
+if (material::sbsar::engine() == material::sbsar::Engine::Metal)
+  ;  // this machine cooks on the GPU by default
+```
+
+Two engines cook a graph. **`material::sbsar::Engine::Metal`**, the SDK's
+Metal engine, leaves each result on the device as a Metal texture; a cooked
+output is then a `media::PixelSource` whose frames stand on the device
+(`media::DeviceFrame`), and a leaf, a pen or a `material::Texture` filling a
+surface slot binds that texture for the recorder drawing it — nothing is
+copied back to host memory. **`material::sbsar::Engine::Cpu`** lands each
+result in host memory as an image. `material::sbsar::engine()` answers the
+one a cook takes when `SubstanceOptions::engine` names none: Metal where
+this build found the SDK's Metal engine and the machine starts it, the CPU
+otherwise; `material::sbsar::available(Engine)` asks about one engine. A
+named engine that does not start here falls back to the CPU, said once.
+
+The GPU engine pays a fixed cost per cook that the CPU engine does not, so
+a small graph can cook sooner on the CPU; a large one sooner on the GPU.
+`material_bench`'s `SubstanceCook/Cpu` and `SubstanceCook/Metal` arms time
+the same warm re-cook on each.
+
+Three things read a device frame back, once per cook, and nothing else
+does: a caller drawing with no recorder (a raster canvas, a picture recorded
+to replay), a graph's image input fed from a picture in host memory rather
+than another GPU cook's output, and a renderer on another graphics API.
+`material::sbsar::deviceReadbacks` counts them. One graph's output feeds
+another's image input where it stands, so graphs compose on the device.
+
 ## The generated struct
 
 Every `.sbsar` under a directory sketch's `data/` has its input struct
@@ -107,8 +141,16 @@ everywhere writes the keyed form.
   identifier (`$outputsize` in log2, `$randomseed`, `$normalformat`),
   `isHeavyDuty`, `applyPreset` with a `PresetMode`, `bind` and `follow`,
   `cook`, `cookNow`, `wait`, and `output` as a `media::PixelSource` whose
-  revision bumps when a cook lands; `engine`.
+  revision bumps when a cook lands; `engine`, the one this cook runs on.
 
-The engine is the CPU one: a cook lands in host memory and reaches a
-renderer as an image. The SDK's Metal and Vulkan engines, whose results
-stand on the device, are not wired.
+- `substance/advanced/Cook.h` also carries `deviceReadbacks`, the count
+  of device frames read back to host memory in the process, and
+  `CookOptions::engine`.
+
+The Metal engine cooks for one renderer at a time in a process, so every
+GPU cook pushes its graph through one shared renderer and each result is
+routed back to its own cook; `wait()` on a GPU cook waits for every GPU
+cook in flight. A grey output (a roughness, an opacity) is spread to four
+channels on the device as it lands, since a one-channel texture is sampled
+as red alone. The Vulkan engine is not wired: the World's device renderer
+reads a Metal texture back rather than share it.

@@ -26,12 +26,17 @@ namespace sigil::material::skia {
  *  Null when the source yields nothing. */
 sk_sp<SkImage> image(const Texture& texture,
                      std::chrono::duration<double> time = {});
+/** The same, bound for @p recorder when the source's frame stands on
+ *  that recorder's device, so nothing is copied back to host memory. */
+sk_sp<SkImage> image(const Texture& texture, std::chrono::duration<double> time,
+                     skgpu::graphite::Recorder* recorder);
 
 /** @p texture as an image shader: the image tiled, read between pixels
  *  and placed by its uv matrix. Null when there is no image. */
 sk_sp<SkShader> shader(const Texture& texture);
 /** The same over the frame the source answers at @p frame's time — what
- *  a slot holding a moving texture binds. */
+ *  a slot holding a moving texture binds — bound for `frame.recorder`
+ *  when the frame stands on its device. */
 sk_sp<SkShader> shader(const Texture& texture, const FrameData& frame);
 
 /** The filter Skia reads a texture between pixels with. */

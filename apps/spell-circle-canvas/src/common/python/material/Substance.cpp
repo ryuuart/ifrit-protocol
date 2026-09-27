@@ -45,9 +45,11 @@ std::vector<float> numbers(py::handle value) {
 material::Material substance(const HubHandle& hub, const std::string& uri,
                              const std::string& preset, py::object seed,
                              int resolution, py::iterable outputs,
-                             const std::string& graph, py::kwargs inputs) {
+                             const std::string& graph, py::object engine,
+                             py::kwargs inputs) {
   material::SubstanceOptions options;
   options.preset = preset;
+  if (!engine.is_none()) options.engine = engine.cast<material::sbsar::Engine>();
   if (!seed.is_none()) options.seed = seed.cast<int>();
   options.resolution = resolution;
   options.graph = graph;
@@ -103,6 +105,10 @@ void bindMaterialSubstance(py::module_& module) {
       .value("Combobox", Widget::Combobox)
       .value("Image", Widget::Image)
       .value("Position", Widget::Position);
+  py::enum_<Engine>(sbsar, "Engine")
+      .value("None_", Engine::None)
+      .value("Cpu", Engine::Cpu)
+      .value("Metal", Engine::Metal);
   py::enum_<Encoding>(sbsar, "Encoding")
       .value("Srgb", Encoding::Srgb)
       .value("Linear", Encoding::Linear)
@@ -148,9 +154,14 @@ void bindMaterialSubstance(py::module_& module) {
            py::arg("usage"), py::arg("format") = Format::Automatic)
       .def_readwrite("usage", &OutputRequest::usage)
       .def_readwrite("format", &OutputRequest::format);
-  sbsar.def("available", &available,
+  sbsar.def("available", py::overload_cast<>(&available),
             "Whether this build found the Substance SDK and its engine "
             "starts.");
+  sbsar.def("available", py::overload_cast<Engine>(&available),
+            py::arg("engine"), "Whether the engine starts on this machine.");
+  sbsar.def("engine", py::overload_cast<>(&engine),
+            "The engine a cook takes when none is named: the GPU one where "
+            "it starts, the CPU one otherwise.");
   sbsar.def(
       "describe",
       [](const HubHandle& hub, const std::string& uri,
@@ -166,8 +177,11 @@ void bindMaterialSubstance(py::module_& module) {
                 py::kw_only(), py::arg("preset") = "",
                 py::arg("seed") = py::none(), py::arg("resolution") = 0,
                 py::arg("outputs") = py::tuple(), py::arg("graph") = "",
-                "The Substance graph at uri, cooked, as a Material. Keywords "
-                "past the options are the graph's inputs by identifier.");
+                py::arg("engine") = py::none(),
+                "The Substance graph at uri, cooked, as a Material, on the "
+                "engine named (the GPU one where it starts when none is). "
+                "Keywords past the options are the graph's inputs by "
+                "identifier.");
 }
 
 }  // namespace sigil::python

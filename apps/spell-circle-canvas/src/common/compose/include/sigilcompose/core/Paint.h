@@ -243,6 +243,13 @@ struct PaintContext {
   geometry::path::Outline silhouette;
   double elapsedSeconds = 0.0;
   float contentScale = 1.0f;
+  /** THE RECORDER THE NODE IS DRAWN THROUGH when it is drawn straight
+   *  onto a device canvas: a material texture whose pixels stand on that
+   *  device — a cook on the GPU, a frame another application publishes —
+   *  is bound there as it stands. Null where the node is recorded to
+   *  replay or drawn on a raster canvas, which reads such a texture back
+   *  into host memory once. */
+  skgpu::graphite::Recorder* recorder = nullptr;
   /** Is the composer's engine running anything at all this frame, as
    *  read by a node that REPAINTS this frame (a cached node replays its
    *  recording and keeps its last-read value) — the

@@ -38,6 +38,23 @@ namespace sigil::material::sbsar {
 /** Whether this build found the Substance SDK and its engine starts. */
 bool available();
 
+/** WHICH ENGINE COOKS A GRAPH: the CPU, whose results land in host
+ *  memory, or the GPU, whose results stay on the device as textures a
+ *  renderer on that device draws without copying them back. */
+enum class Engine : uint8_t {
+  None,   ///< no SDK: nothing cooks
+  Cpu,    ///< the CPU engine; results land in host memory
+  Metal,  ///< the Metal engine; results stay on the device as Metal textures
+};
+
+/** The engine a cook takes when none is named: the GPU one where this
+ *  build found it and the machine starts it, the CPU one otherwise, and
+ *  `None` without the SDK. */
+Engine engine();
+
+/** Whether @p engine starts on this machine. */
+bool available(Engine engine);
+
 /** What a graph input holds, which decides how many numbers it takes. */
 enum class InputType : uint8_t {
   Float,
@@ -206,6 +223,10 @@ struct SubstanceOptions {
   std::vector<sbsar::OutputRequest> outputs;
   /** The graph by label or package url; empty for the first. */
   std::string graph;
+  /** The engine that cooks it; unset takes `sbsar::engine()`, the GPU
+   *  one where it starts. An engine that does not start here falls back
+   *  to the CPU, said once. */
+  std::optional<sbsar::Engine> engine;
   bool operator==(const SubstanceOptions&) const = default;
 };
 

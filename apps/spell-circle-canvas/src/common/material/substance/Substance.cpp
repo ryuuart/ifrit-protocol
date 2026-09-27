@@ -165,7 +165,8 @@ Material substance(io::Hub& hub, std::string_view uri,
 
   sbsar::CookOptions cooking{.resolution = options.resolution,
                              .seed = options.seed,
-                             .outputs = options.outputs};
+                             .outputs = options.outputs,
+                             .engine = options.engine};
   if (cooking.outputs.empty()) {
     for (const sbsar::Output& output : archive->graph(*graph).outputs)
       if (output.image && std::find(sbsar::kMaterialUsages.begin(),

@@ -129,6 +129,11 @@ class Texture : public Leaf {
    *  set. Empty when the source yields nothing or the region misses the
    *  image. */
   media::Frame frameAt(std::chrono::duration<double> time = {}) const;
+  /** The same, with a frame standing on a device bound for @p recorder
+   *  where it stands rather than read back — what a renderer drawing on
+   *  that device reads. A null @p recorder reads it back. */
+  media::Frame frameAt(std::chrono::duration<double> time,
+                       skgpu::graphite::Recorder* recorder) const;
   /** The sampled size in pixels — the region's, clipped to the image,
    *  when one is set — zero when there is no image. */
   glm::ivec2 size() const;
