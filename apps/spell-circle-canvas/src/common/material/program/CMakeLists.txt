@@ -11,4 +11,6 @@ sigil_library(SigilMaterialProgram
 
 sigil_test(material_test
   SOURCES test/ShaderTest.cpp
-  LIBRARIES SigilMaterialProgram SigilMaterialSkia SigilIOHub)
+  DEFINITIONS SIGIL_MATERIAL_INCLUDE_DIR="${SIGIL_INCLUDE_DIR}"
+  LIBRARIES SigilMaterialProgram SigilMaterialSkia SigilMaterialTexture
+            SigilIOHub)
