@@ -11,7 +11,6 @@
 #include <sigilpython/motion/Registration.h>
 #include <sigilpython/scry/Registration.h>
 #include <sigilpython/skia/Registration.h>
-#include <sigilpython/substance/Registration.h>
 #include <sigilpython/usd/Registration.h>
 #include <sigilpython/weave/Registration.h>
 #include <sigilpython/world/Registration.h>
@@ -64,6 +63,7 @@ void bindLibraries(pybind11::module_& module) {
   bindMaterialKitGrained(module);
   bindMaterialKitText(module);
   bindMaterialSkiaDraw(module);
+  bindMaterialSubstance(module);
   bindWeavePorts(module);
   bindWeave(module);
   bindWeaveCascade(module);
@@ -138,9 +138,6 @@ void bindLibraries(pybind11::module_& module) {
   bindOptionalLibraries(module);
 #ifdef SIGIL_PYTHON_HAS_SCRY
   bindScry(module);
-#endif
-#ifdef SIGIL_PYTHON_HAS_SUBSTANCE
-  bindSubstance(module);
 #endif
 #ifdef SIGIL_PYTHON_HAS_USD
   bindUsd(module);

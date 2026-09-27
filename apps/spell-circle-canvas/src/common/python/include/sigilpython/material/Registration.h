@@ -37,6 +37,9 @@ void bindMaterialPaintEffect(pybind11::module_& module);
 /** Registers tile programs and mapping, the sequence and speckle
  *  generators, and the woven cloth on @p module. */
 void bindMaterialPattern(pybind11::module_& module);
+/** Registers the Substance archive as a Material, and the graph's
+ *  description under `material.sbsar`, on @p module. */
+void bindMaterialSubstance(pybind11::module_& module);
 /** Registers signed-distance shapes and styles, OpenColorIO view
  *  transforms, and the Slang compiler on @p module. */
 void bindMaterialShading(pybind11::module_& module);

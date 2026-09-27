@@ -2237,10 +2237,6 @@ python = ["measure.lineFit"]
 native = "SigilScry"
 modules = ["scry", "sketch.scry"]
 
-[library.Substance]
-native = "SigilSubstance"
-modules = ["substance"]
-
 [library.USD]
 native = "SigilUSD"
 modules = ["usd"]

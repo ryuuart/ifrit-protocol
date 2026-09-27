@@ -33,7 +33,8 @@ sigil_library(SigilPython
     io/Frames.cpp material/Core.cpp
     material/Environment.cpp material/Field.cpp material/KitGrained.cpp
     material/KitText.cpp material/PaintEffect.cpp material/Pattern.cpp
-    material/Shading.cpp material/SkiaDraw.cpp material/Texture.cpp
+    material/Shading.cpp material/SkiaDraw.cpp material/Substance.cpp
+    material/Texture.cpp
     material/TextureSets.cpp measure/Measure.cpp motion/AnimatableForms.cpp
     motion/Clock.cpp motion/Lanes.cpp motion/Particles.cpp motion/Physics.cpp
     motion/Schedule.cpp motion/Signals.cpp skia/Effects.cpp skia/Fonts.cpp
@@ -56,7 +57,7 @@ sigil_library(SigilPython
     geometry/Registration.h io/Hub.h io/Registration.h media/Registration.h
     material/Convert.h material/Registration.h measure/Registration.h
     motion/Convert.h motion/Registration.h scry/Registration.h
-    skia/Registration.h skia/Values.h substance/Registration.h
+    skia/Registration.h skia/Values.h
     usd/Registration.h weave/Registration.h
     world/Registration.h
   PUBLIC
@@ -74,6 +75,7 @@ sigil_library(SigilPython
     SigilMaterialCore SigilMaterialField SigilMaterialKit SigilMaterialMask
     SigilMaterialSurface
     SigilMaterialOcio SigilMaterialPattern SigilMaterialSdf SigilMaterialSkia
+    SigilMaterialSubstance
     SigilMaterialSlang SigilMaterialStock SigilMaterialTexture SigilMeasure
     SigilMedia SigilMotionBind SigilMotionClock SigilMotionPhysics
     SigilMotionSchedule SigilSkiaDraw SigilSkiaGraphite
@@ -95,11 +97,6 @@ endif()
 if(TARGET SigilComposeWeb)
   target_link_libraries(SigilPython PRIVATE SigilComposeWeb)
   target_compile_definitions(SigilPython PUBLIC SIGIL_PYTHON_HAS_WEB)
-endif()
-if(TARGET SigilSubstance)
-  target_sources(SigilPython PRIVATE substance/Substance.cpp)
-  target_link_libraries(SigilPython PRIVATE SigilSubstance)
-  target_compile_definitions(SigilPython PUBLIC SIGIL_PYTHON_HAS_SUBSTANCE)
 endif()
 if(TARGET SigilUsd)
   target_sources(SigilPython PRIVATE usd/Usd.cpp)

@@ -836,9 +836,9 @@ library = "Compose kit"
 python = ["compose.lines.presets.railway", "compose.brush.presets.rope"]
 
 [requirement.substance]
-native = "`substance::Package` and `substance::Graph` rendering"
-library = "Substance"
-python = ["substance.Package", "substance.Graph"]
+native = "`material::substance` and `material::sbsar::describe`"
+library = "Material"
+python = ["material.substance", "material.sbsar.describe"]
 
 [requirement.sweeps]
 native = "`geometry::mesh::pop::sweep` and `geometry::sections`"

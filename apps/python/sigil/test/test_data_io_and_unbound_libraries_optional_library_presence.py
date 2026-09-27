@@ -12,7 +12,7 @@ from sigil._requirements import missing_requirements
 # The libraries whose SDK is a licensed download. A build that finds one
 # registers a submodule under its name and a build that does not registers
 # nothing, so this is the vocabulary the build's own answer is drawn from.
-LICENSED = ("scry", "substance", "usd")
+LICENSED = ("scry", "usd")
 
 
 class OptionalLibraryPresence(unittest.TestCase):

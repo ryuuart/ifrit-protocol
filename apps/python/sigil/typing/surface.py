@@ -92,6 +92,7 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.material.field": "sigil.material.field",
     "_sigil.material.kit": "sigil.material.kit",
     "_sigil.material.ocio": "sigil.material.ocio",
+    "_sigil.material.sbsar": "sigil.material.sbsar",
     "_sigil.material.pattern": "sigil.material.pattern",
     "_sigil.material.sdf": "sigil.material.sdf",
     # The Skia backend of SigilMaterial is one executor of the material
@@ -114,7 +115,6 @@ PUBLIC_MODULES: dict[str, str] = {
     "_sigil.sketch.scry": "sigil.sketch.scry",
     "_sigil.skia": "sigil.skia",
     "_sigil.skia.draw": "sigil.skia.draw",
-    "_sigil.substance": "sigil.substance",
     # A sketch host in this process, driven through the protocol: the
     # in-process route beside sigil.protocol.connect's socket.
     "_sigil.testing": "sigil.testing",
@@ -164,7 +164,7 @@ RENAMES: dict[str, dict[str, str]] = {
 # register is skipped rather than refused, and the package module already
 # committed for it is left alone.
 OPTIONAL_MODULES: frozenset[str] = frozenset(
-    {"_sigil.scry", "_sigil.substance", "_sigil.usd", "_sigil.sketch.scry"}
+    {"_sigil.scry", "_sigil.usd", "_sigil.sketch.scry"}
 )
 
 # The named unions the bindings convert through. They are declarations and

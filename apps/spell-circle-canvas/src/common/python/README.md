@@ -24,7 +24,7 @@ ONE DIRECTORY PER NATIVE LIBRARY, ONE FILE PER SUBJECT. Every binding
 source sits under the directory of the library it binds — `core/`,
 `skia/`, `media/`, `material/`, `geometry/`, `motion/`, `weave/`,
 `compose/`, `draw/`, `world/`, `data/`, `io/`, `measure/`,
-`scry/`, `substance/`, `usd/` — and the four files at the root are the
+`scry/`, `usd/` — and the four files at the root are the
 kernel every one of them is written out of: the module assembly, the
 conversions and callback ownership, the reach into another file's
 registration, and the public naming. The sketch adapter is laid out the
@@ -299,7 +299,8 @@ assembly guards their calls the same way.
   `bindMaterialCore`, `bindMaterialEnvironment`, `bindMaterialField`,
   `bindMaterialKitGrained`, `bindMaterialKitText`,
   `bindMaterialPaintEffect`, `bindMaterialPattern`, `bindMaterialShading`,
-  `bindMaterialSkiaDraw`, `bindMaterialTexture`, `bindMaterialTextureSets`
+  `bindMaterialSkiaDraw`, `bindMaterialSubstance`, `bindMaterialTexture`,
+  `bindMaterialTextureSets`
 * `geometry/Registration.h` — `bindGeometry`, `bindGeometryCharts`,
   `bindGeometryDeviceHandle`, `bindGeometryFrames`, `bindGeometryMesh`,
   `bindGeometryMeshCamera`, `bindGeometryMeshCodec`,
@@ -339,7 +340,6 @@ assembly guards their calls the same way.
 * `data/Registration.h` — `bindData`, `bindDataConnection`
 * `measure/Registration.h` — `bindMeasure`
 * `scry/Registration.h` — `bindScry`
-* `substance/Registration.h` — `bindSubstance`
 * `usd/Registration.h` — `bindUsd`
 
 ## World ownership
@@ -369,7 +369,7 @@ written yet still compiles and links: its bind function has an empty
 body until its author fills it in. A library whose SDK is a licensed
 download may be absent from a build, and then its target does not exist,
 its sources are left out, and the definition that says it is there —
-`SIGIL_PYTHON_HAS_SCRY`, `SIGIL_PYTHON_HAS_SUBSTANCE`,
+`SIGIL_PYTHON_HAS_SCRY`,
 `SIGIL_PYTHON_HAS_USD`, `SIGIL_PYTHON_HAS_WEB`, `SIGIL_PYTHON_HAS_VIDEO` —
 is not defined. The module those bindings would register is then not
 registered either, so a Python process asks `importlib.util.find_spec`

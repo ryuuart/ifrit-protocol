@@ -18,9 +18,6 @@ py::tuple optionalLibraries() {
 #ifdef SIGIL_PYTHON_HAS_SCRY
   carried.append(py::str("scry"));
 #endif
-#ifdef SIGIL_PYTHON_HAS_SUBSTANCE
-  carried.append(py::str("substance"));
-#endif
 #ifdef SIGIL_PYTHON_HAS_USD
   carried.append(py::str("usd"));
 #endif
