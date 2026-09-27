@@ -150,7 +150,7 @@ auto WinampBase::mainWindow() -> Element {
                .children({box().inset(0).fill(visDots.material()),
                           box().inset(0).children({instancing::instances(
                               ledAtlas, ledPool, instancing::Mode::Live,
-                              SkBlendMode::kPlus)})}),
+                              material::BlendMode::PlusLighter)})}),
            // The power-on tic: two 60 ms blinks before the display settles
            // lit. A shutter over the whole well, keyframed with easeNone so
            // each step is a hard cut — old displays do not fade in.

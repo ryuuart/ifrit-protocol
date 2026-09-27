@@ -5,7 +5,7 @@
  * one element that stamps the pool.
  */
 
-#include <include/core/SkBlendMode.h>
+#include <sigilmaterial/core/BlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkPoint.h>
@@ -1021,13 +1021,13 @@ void bindComposeInstancing(py::module_& root) {
   module.def(
       "instances",
       [](std::shared_ptr<CellSheet> atlas, std::shared_ptr<Pool> pool,
-         instancing::Mode mode, SkBlendMode blend) {
+         instancing::Mode mode, material::BlendMode blend) {
         return instancing::instances(std::move(atlas), std::move(pool), mode,
                                      blend);
       },
       py::arg("atlas").none(false), py::arg("pool").none(false),
       py::arg("mode") = instancing::Mode::Data,
-      py::arg("blend") = SkBlendMode::kSrcOver,
+      py::arg("blend") = material::BlendMode::Normal,
       "The single-draw stamping leaf. It FILLS ITS PARENT, so wrap it in a "
       "sized or positioned box and the pool's positions are that box's "
       "local pixels. `blend` is per sprite, which is what lets "

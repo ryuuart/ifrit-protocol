@@ -25,7 +25,7 @@
  * scanlines are usually foregrounds.
  */
 
-#include <include/core/SkBlendMode.h>
+#include <sigilmaterial/core/BlendMode.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <sigilcompose/core/Paint.h>
@@ -249,19 +249,19 @@ struct Scanlines {
   float period = 4.0f;
   float on = 2.0f;
   float phase = 0.0f;
-  SkBlendMode blend = SkBlendMode::kSrcOver;
+  material::BlendMode blend = material::BlendMode::Normal;
 
   bool operator==(const Scanlines&) const = default;
   /** The CRT reading composites with the picture beneath the rows; only
    *  the print reading (source-over black) draws over itself alone. */
-  bool blends() const { return blend != SkBlendMode::kSrcOver; }
+  bool blends() const { return blend != material::BlendMode::Normal; }
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
 
 inline Scanlines scanlines(material::Color color, float period = 4.0f,
                            float on = 2.0f,
-                           SkBlendMode blend = SkBlendMode::kSrcOver) {
+                           material::BlendMode blend = material::BlendMode::Normal) {
   return Scanlines{color, period, on, 0.0f, blend};
 }
 

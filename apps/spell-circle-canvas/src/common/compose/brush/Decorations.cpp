@@ -195,7 +195,7 @@ void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   const Fill fill = resolveFill(material, ctx);
   SkPaint p;
   p.setAntiAlias(true);
-  p.setBlendMode(blend);
+  p.setBlendMode(material::skia::toSkBlendMode(blend));
   if (fill.kind == Fill::Kind::Color) {
     material::Color c = fill.colorValue;
     c.a *= a;

@@ -151,7 +151,7 @@ TEST(ComposePixelStyles, ScanlinesAreRowsInsideTheOutline) {
 
   // A phase slides the rows, and a plus blend adds a tint to the ground.
   styles::Scanlines shifted =
-      styles::scanlines({1, 0, 0, 1}, 4, 2, SkBlendMode::kPlus);
+      styles::scanlines({1, 0, 0, 1}, 4, 2, material::BlendMode::PlusLighter);
   shifted.phase = 2.0f;
   host.composer.render(box().children({box()
                                            .width(20)

@@ -44,7 +44,6 @@
  * chain — are the kit's, in <sigilcompose/kit/Placers.h>.
  */
 
-#include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkImage.h>
 #include <sigilcompose/core/Element.h>
@@ -53,6 +52,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/BlendMode.h>
 #include <sigilmotion/schedule/Schedule.h>
 
 #include <algorithm>
@@ -381,6 +381,6 @@ std::optional<size_t> pick(const Pool& pool, const CellSheet& atlas,
  *  overlap count — and only a per-sprite mode gives it. */
 Element instances(std::shared_ptr<CellSheet> atlas,
                   std::shared_ptr<const Pool> pool, Mode mode = Mode::Data,
-                  SkBlendMode blend = SkBlendMode::kSrcOver);
+                  material::BlendMode blend = material::BlendMode::Normal);
 
 }  // namespace sigil::compose::instancing

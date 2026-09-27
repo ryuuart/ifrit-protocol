@@ -25,7 +25,6 @@
  * plain compositions instead.
  */
 
-#include <include/core/SkBlendMode.h>
 #include <include/core/SkColor.h>
 #include <sigilcompose/brush/Brushes.h>
 #include <sigilcompose/brush/Decorations.h>
@@ -320,8 +319,8 @@ inline LayeredBrush filament(material::Color glow = {0.435f, 0.847f, 1.0f, 1},
   g45.a = 0.45f;
   c90.a = 0.90f;
   return LayeredBrush{{
-      {14 * scale, g18, 8 * scale, {}, 0, SkBlendMode::kPlus},
-      {7 * scale, g45, 3 * scale, {}, 0, SkBlendMode::kPlus},
+      {14 * scale, g18, 8 * scale, {}, 0, material::BlendMode::PlusLighter},
+      {7 * scale, g45, 3 * scale, {}, 0, material::BlendMode::PlusLighter},
       {2.5f * scale, c90},
       {1 * scale, {1, 1, 1, 0.7f}},
   }};
@@ -340,13 +339,13 @@ inline LayeredBrush circuit(material::Color color = {0.208f, 0.878f, 0.824f, 1},
     under.a = 0.15f;
     b.layers.push_back({8, under, 4});
     c.a = 1.0f;
-    b.layers.push_back({4, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
+    b.layers.push_back({4, c, 0, {}, 0, material::BlendMode::Normal, false});
   } else if (tier == 1) {
     c.a = 0.85f;
-    b.layers.push_back({2, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
+    b.layers.push_back({2, c, 0, {}, 0, material::BlendMode::Normal, false});
   } else {
     c.a = 0.55f;
-    b.layers.push_back({1, c, 0, {}, 0, SkBlendMode::kSrcOver, false});
+    b.layers.push_back({1, c, 0, {}, 0, material::BlendMode::Normal, false});
   }
   return b;
 }
@@ -380,7 +379,7 @@ inline LayeredBrush rope(int state, float scale = 1.0f) {
   LayeredBrush b;
   if (state >= 2)
     b.layers.push_back({18 * k, {1.0f, 0.788f, 0.439f, 0.13f}, 6 * k});  // halo
-  b.layers.push_back({11 * k, p.body, 0, {}, 0, SkBlendMode::kSrcOver, false});
+  b.layers.push_back({11 * k, p.body, 0, {}, 0, material::BlendMode::Normal, false});
   b.layers.push_back({7 * k, p.ridge, 0, {7 * k, 5 * k}, 0});       // strand
   b.layers.push_back({7 * k, bodyLit, 0, {7 * k, 5 * k}, 6 * k});   // counter
   b.layers.push_back({2 * k, ridgeLit, 0, {7 * k, 5 * k}, 3 * k});  // ridge
@@ -397,8 +396,8 @@ inline LayeredBrush pulse(material::Color halo = {1.0f, 0.79f, 0.44f, 0.35f},
   material::Color body = halo;
   body.a = std::min(1.0f, halo.a * 2.2f);
   return LayeredBrush{{
-      {12 * scale, halo, 5 * scale, {}, 0, SkBlendMode::kPlus},
-      {5 * scale, body, 2 * scale, {}, 0, SkBlendMode::kPlus},
+      {12 * scale, halo, 5 * scale, {}, 0, material::BlendMode::PlusLighter},
+      {5 * scale, body, 2 * scale, {}, 0, material::BlendMode::PlusLighter},
       {2 * scale, core},
   }};
 }

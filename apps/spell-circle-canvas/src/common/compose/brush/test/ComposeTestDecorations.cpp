@@ -526,7 +526,7 @@ TEST(ComposeDecorations, ABrushThatBlendsRefusesItsNodeTheBake) {
     glow.layers.push_back({.width = 6,
                            .color = SkColor4f{0.9f, 0.7f, 0.3f, 1},
                            .blurSigma = 2,
-                           .blend = SkBlendMode::kPlus});
+                           .blend = material::BlendMode::PlusLighter});
     return box()
         .cache(Cache::None)
         .children({box().absolute().left(0).top(0).width(200).height(200).fill(

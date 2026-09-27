@@ -141,7 +141,7 @@ auto SlitScan2001::s4Sampling() -> Element {
                        .transformOrigin(pct(0), pct(50))
                        .children({instancing::instances(flatAtlas, s4[idx],
                                                         instancing::Mode::Data,
-                                                        SkBlendMode::kPlus)});
+                                                        material::BlendMode::PlusLighter)});
                  })});
       })});
   p.children({box().row().gap(5).flexShrink(0).children(

@@ -13,6 +13,7 @@
  */
 
 #include <include/core/SkMaskFilter.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkStrokeRec.h>
 #include <include/core/SkVertices.h>
@@ -41,7 +42,7 @@ void LayeredBrush::paint(SkCanvas& c, const PaintContext& ctx) const {
     p.setStrokeWidth(layer.width);
     p.setStrokeCap(layer.roundCap ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
     p.setColor4f(material::skia::toSkColor(layer.color), nullptr);
-    p.setBlendMode(layer.blend);
+    p.setBlendMode(material::skia::toSkBlendMode(layer.blend));
     if (layer.blurSigma > 0)
       p.setMaskFilter(
           SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, layer.blurSigma));

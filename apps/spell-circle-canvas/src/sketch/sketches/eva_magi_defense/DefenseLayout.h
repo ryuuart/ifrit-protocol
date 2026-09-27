@@ -157,7 +157,7 @@ inline weave::Type type(float size, float condense = 1.0f) {
 // marks receive a continuous halo after their geometry and type are drawn.
 inline LayeredBrush rimStroke(float core, material::Color c) {
   return LayeredBrush{{
-      {core, c, 0.0f, {}, 0, SkBlendMode::kSrcOver, false},
+      {core, c, 0.0f, {}, 0, material::BlendMode::Normal, false},
   }};
 }
 

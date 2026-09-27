@@ -45,9 +45,9 @@ auto SlitScan2001::filmFrame() -> Element {
   auto raw = [this] {
     return box().inset(0).children(
         {instancing::instances(atlas, wallA, instancing::Mode::Live,
-                               SkBlendMode::kPlus),
+                               material::BlendMode::PlusLighter),
          instancing::instances(atlas, wallB, instancing::Mode::Live,
-                               SkBlendMode::kPlus)});
+                               material::BlendMode::PlusLighter)});
   };
   Element accumulation =
       raw().filter(Effect::shader(transfer, {{"k", transferK()}}));
@@ -203,10 +203,10 @@ auto SlitScan2001::rigStrip() -> Element {
                         .inset(0)
                         .children({instancing::instances(atlas, monA,
                                                          instancing::Mode::Live,
-                                                         SkBlendMode::kPlus),
+                                                         material::BlendMode::PlusLighter),
                                    instancing::instances(atlas, monB,
                                                          instancing::Mode::Live,
-                                                         SkBlendMode::kPlus)})
+                                                         material::BlendMode::PlusLighter)})
                         .filter(Effect::shader(transfer, {{"k", 2.4f}})),
                     t("THIS EXPOSURE",
                       {.size = 8, .color = al(kCold, 0.85f), .track = 1.4f})

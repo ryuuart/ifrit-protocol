@@ -410,7 +410,7 @@ TEST(ComposeSpans, EachContourStitchesItsOwnSeamOnAMultiContourPath) {
   LayeredBrush additive;
   additive.layers.push_back({.width = 8.0f,
                              .color = SkColor4f{1, 1, 1, 0.4f},
-                             .blend = SkBlendMode::kPlus,
+                             .blend = material::BlendMode::PlusLighter,
                              .roundCap = true});
 
   Host host(200, 200);

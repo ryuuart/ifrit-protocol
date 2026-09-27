@@ -133,7 +133,7 @@ Element GenesisFire::benchCell(Element content, const Utf8& caption,
 Element GenesisFire::renderModelPanel() {
   // THE SAME POOL THREE WAYS: two instanced cells that differ only in
   // blend, and an empty third the pen fills with the field's own quads.
-  const auto instanced = [this](SkBlendMode blend) {
+  const auto instanced = [this](material::BlendMode blend) {
     return box().inset(0).children({instancing::instances(
         abAtlas, abPool, instancing::Mode::Live, blend)});
   };
@@ -143,9 +143,9 @@ Element GenesisFire::renderModelPanel() {
       .gap(4)
       .children({panelHead(model["head"]),
                  box().row().gap(15).flexShrink(0).children(
-                     {benchCell(instanced(SkBlendMode::kSrcOver), cells[0],
+                     {benchCell(instanced(material::BlendMode::Normal), cells[0],
                                 hexColor(0x8A93A8)),
-                      benchCell(instanced(SkBlendMode::kPlus), cells[1],
+                      benchCell(instanced(material::BlendMode::PlusLighter), cells[1],
                                 hexColor(0xFFB672)),
                       benchCell(box().inset(0), cells[2], hexColor(0xFFB672))}),
                  box().flexGrow(1), note(model["note"])});

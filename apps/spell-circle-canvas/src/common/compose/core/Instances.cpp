@@ -5,6 +5,7 @@
  */
 
 #include <include/core/SkCanvas.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkSurface.h>
@@ -339,7 +340,8 @@ std::optional<size_t> pick(const Pool& pool, const CellSheet& atlas,
 
 Element instances(std::shared_ptr<CellSheet> atlas,
                   std::shared_ptr<const Pool> pool, Mode mode,
-                  SkBlendMode blend) {
+                  material::BlendMode blendMode) {
+  const SkBlendMode blend = material::skia::toSkBlendMode(blendMode);
   if (mode == Mode::Live) {
     return custom([atlas = std::move(atlas), pool = std::move(pool), blend](
                       SkCanvas& canvas, const PaintContext& ctx) {

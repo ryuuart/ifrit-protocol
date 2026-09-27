@@ -342,8 +342,8 @@ TEST(ComposeKitPresets, TheFourPresetsAreTheCoreValuesTheyName) {
   g45.fA = 0.45f;
   c90.fA = 0.90f;
   const LayeredBrush wantFilament{{
-      {14, g18, 8, {}, 0, SkBlendMode::kPlus},
-      {7, g45, 3, {}, 0, SkBlendMode::kPlus},
+      {14, g18, 8, {}, 0, material::BlendMode::PlusLighter},
+      {7, g45, 3, {}, 0, material::BlendMode::PlusLighter},
       {2.5f, c90},
       {1, {1, 1, 1, 0.7f}},
   }};
@@ -360,11 +360,11 @@ TEST(ComposeKitPresets, TheFourPresetsAreTheCoreValuesTheyName) {
   // (Named locals, not braced temporaries inline: an aggregate inside
   // EXPECT_* hands the macro its commas.)
   const LayeredBrush wantData{
-      {{1, data, 0, {}, 0, SkBlendMode::kSrcOver, false}}};
+      {{1, data, 0, {}, 0, material::BlendMode::Normal, false}}};
   const LayeredBrush wantMain{
-      {{2, main, 0, {}, 0, SkBlendMode::kSrcOver, false}}};
+      {{2, main, 0, {}, 0, material::BlendMode::Normal, false}}};
   const LayeredBrush wantPower{
-      {{8, under, 4}, {4, power, 0, {}, 0, SkBlendMode::kSrcOver, false}}};
+      {{8, under, 4}, {4, power, 0, {}, 0, material::BlendMode::Normal, false}}};
   EXPECT_TRUE(circuit(teal, 0) == wantData);
   EXPECT_TRUE(circuit(teal, 1) == wantMain);
   EXPECT_TRUE(circuit(teal, 2) == wantPower);
@@ -379,7 +379,7 @@ TEST(ComposeKitPresets, TheFourPresetsAreTheCoreValuesTheyName) {
                            0.6f};
   const LayeredBrush wantActive{{
       {18, {1.0f, 0.788f, 0.439f, 0.13f}, 6},
-      {11, body, 0, {}, 0, SkBlendMode::kSrcOver, false},
+      {11, body, 0, {}, 0, material::BlendMode::Normal, false},
       {7, ridge, 0, {7, 5}, 0},
       {7, bodyLit, 0, {7, 5}, 6},
       {2, ridgeLit, 0, {7, 5}, 3},
@@ -394,8 +394,8 @@ TEST(ComposeKitPresets, TheFourPresetsAreTheCoreValuesTheyName) {
   SkColor4f pulseBody = halo;
   pulseBody.fA = std::min(1.0f, halo.fA * 2.2f);
   const LayeredBrush wantPulse{{
-      {12, halo, 5, {}, 0, SkBlendMode::kPlus},
-      {5, pulseBody, 2, {}, 0, SkBlendMode::kPlus},
+      {12, halo, 5, {}, 0, material::BlendMode::PlusLighter},
+      {5, pulseBody, 2, {}, 0, material::BlendMode::PlusLighter},
       {2, {1, 1, 1, 0.9f}},
   }};
   EXPECT_TRUE(pulse() == wantPulse);

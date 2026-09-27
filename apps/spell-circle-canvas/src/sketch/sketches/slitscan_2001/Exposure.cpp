@@ -86,9 +86,9 @@ auto SlitScan2001::fitAtK(sigil::weave::FontContext& fonts, int K) -> Fit {
 
   Element accum = box().width(kFilmW).height(kFilmH).children(
       {instancing::instances(flatAtlas, pa, instancing::Mode::Data,
-                             SkBlendMode::kPlus),
+                             material::BlendMode::PlusLighter),
        instancing::instances(flatAtlas, pb, instancing::Mode::Data,
-                             SkBlendMode::kPlus)});
+                             material::BlendMode::PlusLighter)});
   // snapshot() sizes the picture by the root's CHILDREN, not by the
   // root's own width/height -- hence the shell box. Passed directly, the
   // accumulation's children are instancing leaves, which measure zero on

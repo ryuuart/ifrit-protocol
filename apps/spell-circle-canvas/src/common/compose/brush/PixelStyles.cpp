@@ -6,6 +6,7 @@
  */
 
 #include <include/core/SkBitmap.h>
+#include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkMatrix.h>
@@ -341,7 +342,7 @@ void Scanlines::paint(SkCanvas& c, const PaintContext& ctx) const {
   SkPaint p;
   p.setAntiAlias(false);
   p.setColor4f(material::skia::toSkColor(color), nullptr);
-  p.setBlendMode(blend);
+  p.setBlendMode(material::skia::toSkBlendMode(blend));
   const float w = ctx.size.width(), h = ctx.size.height();
   // Start one period above the top so a phase in either direction keeps
   // the first row whole.

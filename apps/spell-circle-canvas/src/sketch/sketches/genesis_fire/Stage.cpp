@@ -51,7 +51,7 @@ Element GenesisFire::starField() {
       .opacity(
           sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 700ms, .delay = 340ms}))
       .children({instancing::instances(
-          starAtlas, starPool, instancing::Mode::Data, SkBlendMode::kPlus)});
+          starAtlas, starPool, instancing::Mode::Data, material::BlendMode::PlusLighter)});
 }
 
 Element GenesisFire::dipper() {
@@ -239,7 +239,7 @@ Element GenesisFire::planInset() {
                    .scale(sigil::motion::bind(loopU, {.to = {0.0f, 10.0f / (float)kFrontCrossSeconds}, .clamp = {0.004f, 1.0f}})),
                box().inset(0).children({instancing::instances(
                    planAtlas, planPool, instancing::Mode::Live,
-                   SkBlendMode::kPlus)})});
+                   material::BlendMode::PlusLighter)})});
 
   return kit::at(
              box()

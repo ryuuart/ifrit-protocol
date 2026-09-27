@@ -356,7 +356,7 @@ struct ContourWalk {
  */
 struct Wash {
   material::Paint material;
-  SkBlendMode blend = SkBlendMode::kSrcOver;
+  material::BlendMode blend = material::BlendMode::Normal;
   /** Strength, 0..1, applied as alpha on the pass. Clamped at paint; 0
    *  paints nothing at all. */
   float amount = 1.0f;
@@ -367,7 +367,7 @@ struct Wash {
   bool isRunning() const { return material.isRunning(); }
   /** A wash through anything but source-over reads what is under the node
    *  — which is the point of it, and why such a node cannot be baked. */
-  bool blends() const { return blend != SkBlendMode::kSrcOver; }
+  bool blends() const { return blend != material::BlendMode::Normal; }
 
   void paint(SkCanvas& canvas, const PaintContext& ctx) const;
 };
@@ -466,7 +466,7 @@ inline Wash wash(const material::Material& material,
                  material::BlendMode blend = material::BlendMode::Normal,
                  float amount = 1.0f) {
   return Wash{material::skia::paint(material),
-              material::skia::toSkBlendMode(blend), amount};
+              blend, amount};
 }
 
 /** A plain rule around the node's outline, `inset` px inside it. */

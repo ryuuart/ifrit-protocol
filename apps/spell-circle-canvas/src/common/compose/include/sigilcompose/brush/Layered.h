@@ -12,6 +12,7 @@
 #include <sigilcompose/brush/Decorations.h>  // PathSample
 #include <sigilcompose/brush/Lines.h>        // lines::displace (the wave op)
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/BlendMode.h>
 
 #include <any>
 #include <functional>
@@ -30,7 +31,7 @@ struct StrokeLayer {
   float blurSigma = 0;         ///< soft halo layers
   std::vector<SkScalar> dash;  ///< empty → solid
   float dashPhase = 0;
-  SkBlendMode blend = SkBlendMode::kSrcOver;
+  material::BlendMode blend = material::BlendMode::Normal;
   bool roundCap = true;
 
   bool operator==(const StrokeLayer&) const = default;
@@ -47,7 +48,7 @@ struct LayeredBrush {
    *  node being baked into a layer of its own. */
   bool blends() const {
     for (const StrokeLayer& layer : layers)
-      if (layer.blend != SkBlendMode::kSrcOver) return true;
+      if (layer.blend != material::BlendMode::Normal) return true;
     return false;
   }
 

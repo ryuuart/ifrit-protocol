@@ -254,10 +254,10 @@ struct ThunderFulu {
              .foreground(lines::presets::hatch(
                  Fill::color(hexColor(0x000000, 0.13f)), 31.0f, 3.4f, 24.0f))
              .foreground(Wash{.material = ironGrain,
-                              .blend = SkBlendMode::kOverlay,
+                              .blend = material::BlendMode::Overlay,
                               .amount = 0.30f})
              .foreground(Wash{.material = ironSpeck.material(),
-                              .blend = SkBlendMode::kMultiply,
+                              .blend = material::BlendMode::Multiply,
                               .amount = 0.85f})
              .stroke(lines::rails(
                  {{.width = 3.0f,

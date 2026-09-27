@@ -80,7 +80,7 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
   // composites it ONCE, so overlapping sprites never accumulate — which
   // is the entire colour model of an additive particle system: the colour
   // is the overlap count and there is no palette.
-  auto build = [](SkBlendMode blend) {
+  auto build = [](material::BlendMode blend) {
     auto atlas = std::make_shared<instancing::CellSheet>(1.0f);
     atlas->cell(
         box().width(40).height(40).fill(Fill::color({0.25f, 0.25f, 0.25f, 1})),
@@ -93,12 +93,12 @@ TEST(ComposeInstances, ThePerSpriteBlendAccumulatesWhereALayerCannot) {
   };
 
   Host over(200, 200);
-  over.composer.render(build(SkBlendMode::kSrcOver));
+  over.composer.render(build(material::BlendMode::Normal));
   over.frame();
   const int overR = SkColorGetR(over.pixel(100, 100));
 
   Host plus(200, 200);
-  plus.composer.render(build(SkBlendMode::kPlus));
+  plus.composer.render(build(material::BlendMode::PlusLighter));
   plus.frame();
   const int plusR = SkColorGetR(plus.pixel(100, 100));
 
