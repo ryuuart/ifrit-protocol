@@ -207,7 +207,8 @@ channel a number or a material: `metallic`, `roughness`, `occlusion`,
 filter options `ShadowOptions` (`blur`, `offset`, `spread`, `inside`),
 `StrokeOptions` (`width`, `position`), `BevelOptions`, `BloomOptions`;
 and the light: `Light` (`direction`, `elevation`, `color`, `intensity`,
-`ambient`), `EnvironmentOptions` (`rotation`, `intensity`, `size`),
+`ambient`, and for a set in three dimensions `kind` — a `LightKind` —
+`position`, `range`, `innerAngle`, `outerAngle`), `EnvironmentOptions` (`rotation`, `intensity`, `size`),
 `Lighting`.
 The pixel sources a layer reads — the `pattern::` tiles, the sdf shapes
 as masks — are tier 2 as well.

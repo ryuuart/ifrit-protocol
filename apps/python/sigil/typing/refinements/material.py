@@ -26,6 +26,14 @@ def register(table: Table) -> None:
         intensity="_t.ScalarLike",
     )
     table.parameters("_sigil.material.environment", rotation="_t.ScalarLike")
+    # Where a point or a spot stands is three numbers, read back as a vector.
+    table.declares(
+        "_sigil.material.Light",
+        "position",
+        """@property
+def position(self) -> _t.Vec3: ...
+""",
+    )
     table.parameters(
         "_sigil.material.substance",
         hub="_sigil.io.Hub",

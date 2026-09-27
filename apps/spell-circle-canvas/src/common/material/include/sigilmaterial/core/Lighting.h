@@ -16,6 +16,9 @@
 #include <sigilmotion/values/Animatable.h>
 
 #include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+
+#include <cstdint>
 
 #include <memory>
 #include <optional>
@@ -25,9 +28,20 @@ namespace sigil::material {
 
 class Material;
 
-/** ONE DIRECTIONAL LIGHT, as a studio key light is set: where it comes
- *  from, how high above the surface, its colour and strength, and the
- *  ambient share every point receives whatever way it faces. */
+/** What an emitter is. A surface lit in the plane answers to the
+ *  directional reading alone; a set in three dimensions also places the
+ *  other two where they stand. */
+enum class LightKind : uint8_t {
+  Directional,  ///< a direction only: a key light, the sun
+  Point,        ///< a position, falling off to nothing at a range
+  Spot,         ///< a position and a direction, within a cone
+};
+
+/** ONE LIGHT, as a studio key light is set: where it comes from, how high
+ *  above the surface, its colour and strength, and the ambient share
+ *  every point receives whatever way it faces. A point or a spot also
+ *  stands somewhere and reaches so far; the fields a kind does not read
+ *  keep their defaults and are ignored. */
 struct Light {
   /** Where the light comes FROM on the page, in degrees counter-clockwise
    *  from three o'clock: 120 is the upper left a bevel is lit from. */
@@ -40,6 +54,17 @@ struct Light {
   /** The light every point receives whichever way it faces, as a share of
    *  the surface's own colour. */
   float ambient = 0.3f;
+  /** Directional by default: every point is lit from one direction. */
+  LightKind kind = LightKind::Directional;
+  /** Point and spot: where the emitter stands, in the scene's units. */
+  glm::vec3 position = {0, 0, 0};
+  /** Point and spot: the distance at which the light has fallen to
+   *  nothing. */
+  float range = 600;
+  /** Spot: full strength within this many degrees of where it aims, dark
+   *  beyond `outerAngle`, and smoothly between. */
+  float innerAngle = 0;
+  float outerAngle = 45;
 
   /** Whether an angle or the strength is moving. */
   bool isRunning() const;

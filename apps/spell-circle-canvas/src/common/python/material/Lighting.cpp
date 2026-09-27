@@ -27,6 +27,10 @@ namespace py = pybind11;
 
 void bindMaterialLighting(py::module_& module) {
   auto materials = submodule(module, "material");
+  py::enum_<material::LightKind>(materials, "LightKind")
+      .value("Directional", material::LightKind::Directional)
+      .value("Point", material::LightKind::Point)
+      .value("Spot", material::LightKind::Spot);
   py::class_<material::Light>(materials, "Light")
       .def_property_readonly(
           "direction",
@@ -39,6 +43,11 @@ void bindMaterialLighting(py::module_& module) {
           "intensity",
           [](const material::Light& light) { return light.intensity.value(); })
       .def_readonly("ambient", &material::Light::ambient)
+      .def_readonly("kind", &material::Light::kind)
+      .def_readonly("position", &material::Light::position)
+      .def_readonly("range", &material::Light::range)
+      .def_readonly("innerAngle", &material::Light::innerAngle)
+      .def_readonly("outerAngle", &material::Light::outerAngle)
       .def("isRunning", &material::Light::isRunning)
       .def(py::self == py::self);
   materials.def(
