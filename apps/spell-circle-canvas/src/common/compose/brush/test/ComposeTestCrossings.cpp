@@ -632,16 +632,16 @@ TEST(ComposeBrushKinds, CornerArtCannotBeBuiltWithoutItsAlignment) {
 TEST(ComposeDecorations, CompositeBoundsFollowTheResolvedSize) {
   struct RelativeMark {
     bool operator==(const RelativeMark&) const = default;
-    float bleed(SkSize size) const { return size.height() / 2; }
-    float reach(SkSize size) const { return size.height(); }
-    void paint(SkCanvas&, const PaintContext&) const {}
+    float bleed(glm::vec2 size) const { return size.y / 2; }
+    float reach(glm::vec2 size) const { return size.y; }
+    void paint(sigil::draw::Pen& pen, const PaintContext&) const {}
   };
   const Decoration mark = RelativeMark{};
   const Decoration stack = Brush{}.layer(inset(-4, mark));
   const Decoration edge = onEdges(geometry::path::Edge::Top, stack);
   const Decoration woven = brush::layers({edge});
   for (float height : {20.0f, 100.0f, 40.0f}) {
-    const SkSize size{80, height};
+    const glm::vec2 size{80, height};
     EXPECT_FLOAT_EQ(woven.bleed(size), height / 2 + 4);
     EXPECT_FLOAT_EQ(woven.reach(size), height);
   }

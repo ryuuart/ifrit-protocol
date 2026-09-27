@@ -3,6 +3,7 @@
  * and terminal caps of a Line, the rails and the hatches.
  */
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
@@ -58,7 +59,8 @@ float Line::bleed() const {
          std::max({tickLength * 0.5f, markerSize, 0.0f});
 }
 
-void Line::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& canvas = *pen.canvas();
   if (ctx.outline.empty() || width <= 0) return;
 
   // 1. The body run: offset, then displaced into a wave, then trimmed
@@ -337,7 +339,8 @@ float Rails::span() const {
   return hi - lo;
 }
 
-void Rails::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+void Rails::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& canvas = *pen.canvas();
   if (ctx.outline.empty() || rails.empty()) return;
   const SkPath body = waveAmplitude > 0
                           ? geometry::path::displace(geometry::path::toSk(ctx.outline), waveAmplitude,
@@ -379,7 +382,8 @@ Rails rails(std::vector<Rail> set) {
   return r;
 }
 
-void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Hatch::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   const float pitchPx = pitch();
   const float radians = angle();
   if (pitchPx <= 0.5f) return;
@@ -424,7 +428,8 @@ void Hatch::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.restore();
 }
 
-void RadialHatch::paint(SkCanvas& c, const PaintContext& ctx) const {
+void RadialHatch::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   if (width <= 0 || (spokes <= 0 && rings <= 0 && radiiPx.empty())) return;
   const SkRect box = geometry::path::toSk(ctx.outline).getBounds();
   if (box.isEmpty()) return;

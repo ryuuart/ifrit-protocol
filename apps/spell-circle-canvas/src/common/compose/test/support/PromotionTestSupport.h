@@ -9,6 +9,7 @@
 // differencing it, so the pair of runs is the fixture rather than
 // anything a single case sets up.
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <functional>
@@ -26,7 +27,8 @@ struct FlatStroke {
   bool operator==(const FlatStroke&) const = default;
   bool blends() const { return false; }
   float bleed() const { return width * 0.5f; }
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+    SkCanvas& canvas = *pen.canvas();
     SkPaint p;
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(width);

@@ -27,6 +27,7 @@
 
 // TAGS: Geometry/Points, Media/Models
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
@@ -112,8 +113,8 @@ Element splat(geometry::mesh::Cloud cloud) {
   // KEYLESS: what the program closes over is a whole point cloud, which no
   // key spells — and the sink paints live at `Cache::None`, so its node was
   // never going to prune.
-  return custom([cloud = std::move(cloud), sprite = kit::dotSprite()](
-                    SkCanvas& canvas, const PaintContext& paint) {
+  return custom([cloud = std::move(cloud), sprite = kit::dotSprite()](sigil::draw::Pen& pen, const PaintContext& paint) {
+           SkCanvas& canvas = *pen.canvas();
            geometry::mesh::points::drawBillboards(canvas, cloud, lookDown(),
                                                   paint.size,
                                                   {.sprite = sprite,

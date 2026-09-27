@@ -176,7 +176,7 @@ struct PathFormat {
                             : dashPhase;
   }
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** A solid stroke of the node outline (dash/stamp via PathFormat).
@@ -231,7 +231,7 @@ struct Shadow {
    *  declared through `maxBind` — bleed() cannot read a future value. */
   float bleed() const;
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** A blurred copy of the node's outline cast at @p offset — attach it
@@ -266,7 +266,7 @@ struct Slice {
            filter == o.filter && density == o.density;
   }
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** One arc-length sample along the outline. */
@@ -296,7 +296,7 @@ struct PathSample {
  *  element superseding `stamp` at that sample), then `draw` on top. */
 struct ContourWalk {
   float spacing = 16.0f;
-  core::Callable<void(SkCanvas&, const PathSample&, const PaintContext&)> draw;
+  core::Callable<void(draw::Pen&, const PathSample&, const PaintContext&)> draw;
   bool animatedWalk = false;
 
   std::optional<Element> stamp;
@@ -325,7 +325,7 @@ struct ContourWalk {
 
   bool isRunning() const { return animatedWalk; }
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 
   /** @private Replay cache, shared across the by-value copies
    *  Decoration makes; paint() is const, the bake is memoization.
@@ -369,7 +369,7 @@ struct Wash {
    *  — which is the point of it, and why such a node cannot be baked. */
   bool blends() const { return blend != material::BlendMode::Normal; }
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** THE BORDER: one comparable value for a frame that is not simply a
@@ -452,7 +452,7 @@ struct Border {
    *  which moves the mark rather than widening it. */
   float reach() const { return std::max(width, cornerWidth); }
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** THE DECORATION FACTORIES, spelled the way a call site reads:
@@ -520,13 +520,14 @@ inline DecorationStack doubleBorder(Border outer, Border inner) {
  *  changes per frame (a simulated rope, a live EQ curve, a plotted
  *  signal) can wear all of it:
  *
- *      custom([&](SkCanvas &c, const PaintContext &ctx) {
- *        decorations::paintOn(c, ctx, ropePath(), lines::presets::cased(...));
+ *      custom([&](draw::Pen& pen, const PaintContext& ctx) {
+ *        decorations::paintOn(pen, ctx, ropePath(), lines::presets::cased(...));
  *      }).cache(Cache::None)
  *
  *  What live geometry inside `custom()` gives up is PRUNING, not the
  *  decoration vocabulary. */
-void paintOn(SkCanvas& canvas, const PaintContext& ctx, SkPath outline,
+void paintOn(draw::Pen& pen, const PaintContext& ctx,
+             geometry::path::Outline outline,
              const Decoration& decoration);
 }  // namespace decorations
 

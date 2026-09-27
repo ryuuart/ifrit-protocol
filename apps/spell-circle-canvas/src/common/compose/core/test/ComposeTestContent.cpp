@@ -5,6 +5,7 @@
 // the sampling an image leaf is magnified with, the box a picture and
 // an atlas region meet, and what a paint program is handed.
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <cstring>  // memcmp — for the no-conversion control
 #include <utility>
@@ -16,7 +17,8 @@ TEST(ComposeSlots, SlotUpdatesWithoutDisturbingSiblings) {
   staticRuns = 0;
   Host host;
   host.composer.render(box().row().gap(10).children(
-      {custom([](SkCanvas& c, const PaintContext& ctx) {
+      {custom([](sigil::draw::Pen& pen, const PaintContext& ctx) {
+         SkCanvas& c = *pen.canvas();
          ++staticRuns;
          SkPaint p;
          p.setColor(SK_ColorRED);
@@ -312,7 +314,8 @@ TEST(ComposeContent, AKeyedCustomPrunesAndTheKeyIsHonest) {
   static int runs;
   runs = 0;
   auto tree = [](const char* key, float shade) {
-    auto program = [shade](SkCanvas& c, const PaintContext& ctx) {
+    auto program = [shade](sigil::draw::Pen& pen, const PaintContext& ctx) {
+      SkCanvas& c = *pen.canvas();
       ++runs;
       SkPaint p;
       p.setColor4f({shade, 0, 0, 1});
@@ -449,11 +452,13 @@ TEST(ComposePaint, APaintProgramNamesOnlyTheParametersItReads) {
   };
   glm::vec2 offered{0, 0};
   host.composer.render(box().row().children(
-      {custom([&](SkCanvas& canvas) { square(canvas, SK_ColorGREEN); })
+      {custom([&](sigil::draw::Pen& pen) {
+        SkCanvas& canvas = *pen.canvas(); square(canvas, SK_ColorGREEN); })
            .width(20)
            .height(20)
            .cache(Cache::None),
-       custom([&](SkCanvas& canvas, const PaintContext& ctx) {
+       custom([&](sigil::draw::Pen& pen, const PaintContext& ctx) {
+         SkCanvas& canvas = *pen.canvas();
          offered = ctx.size;
          square(canvas, SK_ColorRED);
        })
@@ -475,7 +480,7 @@ TEST(ComposePaint, ContentScaleReportsHostScale) {
   Host host;
   float seen = 0.0f;
   host.composer.render(
-      box().children({custom([&seen](SkCanvas&, const PaintContext& ctx) {
+      box().children({custom([&seen](sigil::draw::Pen& pen, const PaintContext& ctx) {
                         seen = ctx.contentScale;
                       })
                           .width(50)
@@ -500,7 +505,7 @@ TEST(ComposePaint, AnimatingReportsTheEnginesState) {
   host.composer.render(
       box().children({box().width(40).height(40).fill(red()).opacity(
                           motion::animate({.from = 0.0f, .to = 1.0f, .duration = 400ms})),
-                      custom([&seen](SkCanvas&, const PaintContext& ctx) {
+                      custom([&seen](sigil::draw::Pen& pen, const PaintContext& ctx) {
                         seen = ctx.animating;
                       })
                           .width(10)

@@ -8,6 +8,7 @@
 
 // TAGS: Geometry/Layout, Materials/Compositing
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>
@@ -88,8 +89,9 @@ Element directLattice(std::shared_ptr<const sigil::media::Image> asset) {
       // The asset is the only captured input to this keyed draw.
       .children(
           {custom("lattice.direct",
-                  [asset = std::move(asset)](SkCanvas& canvas,
+                  [asset = std::move(asset)](sigil::draw::Pen& pen,
                                              const PaintContext& ctx) {
+                    SkCanvas& canvas = *pen.canvas();
                     const sk_sp<SkImage> image =
                         asset ? asset->frameAt(0).image : nullptr;
                     if (!image) return;

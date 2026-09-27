@@ -2,6 +2,7 @@
 // entrances, the one word that declares volatility, and the shape that
 // overrides a node's rect.
 
+#include <sigildraw/Pen.h>
 #include <sigilmaterial/skia/Paint.h>
 #include "support/BrushTestSupport.h"
 
@@ -86,7 +87,8 @@ namespace {
 struct SaysAnimated {
   bool live = true;
   bool isRunning() const { return live; }
-  void paint(SkCanvas& c, const PaintContext&) const {
+  void paint(sigil::draw::Pen& pen, const PaintContext&) const {
+    SkCanvas& c = *pen.canvas();
     SkPaint p;
     p.setColor4f({1, 0, 0, 1}, nullptr);
     c.drawRect(SkRect::MakeWH(40, 40), p);
@@ -101,7 +103,7 @@ struct SaysAnimated {
 struct SaysTheDeadWord {
   bool live = true;
   bool animates() const { return live; }
-  void paint(SkCanvas&, const PaintContext&) const {}
+  void paint(sigil::draw::Pen& pen, const PaintContext&) const {}
   bool operator==(const SaysTheDeadWord&) const = default;
 };
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkFontMgr.h>
@@ -183,7 +184,8 @@ struct Bands {
   float bow = 0.20f;      // limb curvature
   float tilt = 0.0f;      // streaks running off the horizontal
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+    SkCanvas& canvas = *pen.canvas();
     const float w = ctx.size.x, h = ctx.size.y;
     if (w <= 0 || h <= 0 || inks.empty()) return;
     canvas.save();

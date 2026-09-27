@@ -4,6 +4,7 @@
  * declarations.
  */
 
+#include <sigildraw/Pen.h>
 #include "sigilcompose/kit/Flourish.h"
 
 #include <include/core/SkCanvas.h>
@@ -45,14 +46,16 @@ Element acanthusLeaf(const FlourishStyle& s, float w,
   ContourWalk veins;  // recursion level 2: the stamp walks its own contour
   veins.spacing = 4.0f;
   const material::Color bead = s.goldBright;
-  veins.draw = [bead](SkCanvas& c) {
+  veins.draw = [bead](sigil::draw::Pen& pen) {
+    SkCanvas& c = *pen.canvas();
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(material::skia::toSkColor(bead), nullptr);
     c.drawCircle(0, 0, 0.7f, p);
   };
   const material::Color rib = s.goldBright;
-  Decoration midrib{PaintProgram([rib](SkCanvas& c, const PaintContext& ctx) {
+  Decoration midrib{PaintProgram([rib](sigil::draw::Pen& pen, const PaintContext& ctx) {
+    SkCanvas& c = *pen.canvas();
     SkPaint p;
     p.setAntiAlias(true);
     p.setStyle(SkPaint::kStroke_Style);

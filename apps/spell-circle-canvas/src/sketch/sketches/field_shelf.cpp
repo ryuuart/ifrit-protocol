@@ -26,6 +26,7 @@
 
 // TAGS: Materials/Shaders
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
@@ -101,8 +102,9 @@ sketch::kit::ComparisonCase cell(
           .figure = sketch::kit::well(
               {.width = kCell, .height = kPicture},
               custom(call,
-                     [draw = std::move(draw)](SkCanvas& canvas,
+                     [draw = std::move(draw)](sigil::draw::Pen& pen,
                                               const PaintContext& pc) {
+                       SkCanvas& canvas = *pen.canvas();
                        draw(canvas, {.resolution = {pc.size.x,
                                                     pc.size.y}});
                      })),

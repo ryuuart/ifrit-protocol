@@ -5,6 +5,7 @@
 // view scales, a texture-cached node blending on its blit, and a child
 // overflowing its parent's box under each of the three.
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
 
@@ -15,7 +16,8 @@ TEST(ComposeCaching, StaticSubtreeRecordsOnce) {
   programRuns = 0;
   Host host;
   host.composer.render(box().children(
-      {custom([](SkCanvas& c, const PaintContext& ctx) {
+      {custom([](sigil::draw::Pen& pen, const PaintContext& ctx) {
+         SkCanvas& c = *pen.canvas();
          ++programRuns;
          SkPaint p;
          p.setColor(SK_ColorCYAN);
@@ -116,7 +118,8 @@ TEST(ComposeCaching, TextureCacheRasterizesOnceAndInvalidates) {
   Host host;
   auto tree = [](SkColor color) {
     return box().children(
-        {custom([color](SkCanvas& c, const PaintContext& ctx) {
+        {custom([color](sigil::draw::Pen& pen, const PaintContext& ctx) {
+           SkCanvas& c = *pen.canvas();
            ++programRuns;
            SkPaint p;
            p.setColor(color);
@@ -477,7 +480,8 @@ struct TracedRule {
   bool operator==(const TracedRule&) const = default;
   bool blends() const { return false; }
   float bleed() const { return width * 0.5f; }
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+    SkCanvas& canvas = *pen.canvas();
     SkPaint p;
     p.setStyle(SkPaint::kStroke_Style);
     p.setStrokeWidth(width);
@@ -654,11 +658,12 @@ TEST(ComposeCache, ATracedBoundaryIsRetracedWhenTheScaleUnderItMoves) {
 TEST(ComposeCaching, DecorationOverflowFollowsResizeAndCachedReplay) {
   struct RelativeMark {
     bool operator==(const RelativeMark&) const = default;
-    float bleed(SkSize size) const { return size.height() / 2; }
-    void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+    float bleed(glm::vec2 size) const { return size.y / 2; }
+    void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+      SkCanvas& canvas = *pen.canvas();
       SkPaint paint;
       paint.setColor(SK_ColorRED);
-      const float extra = bleed(SkSize{ctx.size.x, ctx.size.y});
+      const float extra = bleed(ctx.size);
       canvas.drawRect(SkRect::MakeWH(ctx.size.x, ctx.size.y)
                           .makeOutset(extra, extra),
                       paint);

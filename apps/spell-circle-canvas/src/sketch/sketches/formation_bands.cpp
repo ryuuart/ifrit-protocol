@@ -28,6 +28,7 @@
 
 // TAGS: Geometry/Paths
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <sigilcompose/core/Core.h>
@@ -108,8 +109,9 @@ sketch::kit::ComparisonCase cell(const char* title, const char* call,
           .control = call,
           .figure = sketch::kit::well(
               {.width = kCell, .height = kPicture, .clip = false},
-              custom(call, [draw = std::move(draw)](
-                               SkCanvas& canvas) { draw(canvas); })),
+              custom(call, [draw = std::move(draw)](sigil::draw::Pen& pen) {
+                draw(*pen.canvas());
+              })),
           .note = note};
 }
 

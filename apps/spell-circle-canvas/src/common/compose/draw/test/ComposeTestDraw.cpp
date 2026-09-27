@@ -3,6 +3,7 @@
  * node's content, and an element retained inside a pen's loop.
  */
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/draw/Draw.h>
 
 #include <optional>
@@ -117,7 +118,7 @@ TEST(DrawNode, AProgramReadsThePromotionPolicyItsComposerRunsUnder) {
   host.composer.setAutoTexturePromotion(Composer::PromotionPolicy::Off);
   PromotionPolicy seen = PromotionPolicy::ByCost;
   host.composer.render(stack().children(
-      {custom("probe", [&](SkCanvas&, const PaintContext& ctx) {
+      {custom("probe", [&](sigil::draw::Pen& pen, const PaintContext& ctx) {
          seen = ctx.promotion;
        }).cache(Cache::None)}));
   host.frame();
@@ -140,7 +141,7 @@ TEST(DrawNode, ARetainedGuestRunsUnderItsHostsPromotionPolicy) {
   PromotionPolicy byGraphics = PromotionPolicy::ByCost;
   const auto probe = [](PromotionPolicy& seen) {
     return custom("probe",
-                  [&seen](SkCanvas&, const PaintContext& ctx) {
+                  [&seen](sigil::draw::Pen& pen, const PaintContext& ctx) {
                     seen = ctx.promotion;
                   })
         .cache(Cache::None);

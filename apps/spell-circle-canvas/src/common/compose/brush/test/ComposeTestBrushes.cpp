@@ -3,6 +3,7 @@
 // the corner shapes a silhouette is cut to, and how far a ribbon
 // reaches when its profile rather than its own defaults decides.
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include "../../core/StampCache.h"
 #include <sigilmaterial/skia/Paint.h>
@@ -217,7 +218,8 @@ TEST(ComposeBrushes, AStampBakeSurvivesABrushRebuiltEveryDescribe) {
   bakes = 0;
   const Element art =  // stable: its node pointer is the cache key
       box().width(8).height(8).children(
-          {custom([](SkCanvas& c) {
+          {custom([](sigil::draw::Pen& pen) {
+             SkCanvas& c = *pen.canvas();
              ++bakes;
              SkPaint p;
              p.setColor(SK_ColorRED);
@@ -271,7 +273,8 @@ TEST(ComposeBrushes, AFreshArtNodePerDescribeRebakesByContract) {
   auto tree = [&](SkColor color) {
     Element art =  // fresh node EVERY call, on purpose — the contract's cost
         box().width(8).height(8).children(
-            {custom([color](SkCanvas& c) {
+            {custom([color](sigil::draw::Pen& pen) {
+               SkCanvas& c = *pen.canvas();
                ++bakes;
                SkPaint p;
                p.setColor(color);
@@ -403,7 +406,7 @@ struct ContextProbe {
   std::shared_ptr<Seen> seen = std::make_shared<Seen>();
 
   bool operator==(const ContextProbe& o) const { return seen == o.seen; }
-  void paint(SkCanvas&, const PaintContext& ctx) const {
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
     ++seen->paints;
     seen->stamps = ctx.stamps;
     seen->toRoot = ctx.toRoot;
@@ -417,7 +420,7 @@ struct ContextProbe {
 struct BlendingMark {
   bool operator==(const BlendingMark&) const = default;
   bool blends() const { return true; }
-  void paint(SkCanvas&, const PaintContext&) const {}
+  void paint(sigil::draw::Pen& pen, const PaintContext&) const {}
 };
 
 /** The context a composer hands a node: a stamp store, a place in the
@@ -448,12 +451,12 @@ TEST(ComposeBrushes, ANestedBrushKeepsEverythingButTheOutline) {
   SkCanvas canvas(100, 60);  // no device: the probes record, they do not draw
 
   const ContextProbe woven, layered, restyled;
-  brush::layers({woven}).paint(canvas, ctx);
-  Brush{}.layer(layered).paint(canvas, ctx);
-  brush::restyle(geometry::path::Shaper::incomparable(
-                     [](const SkPath& p) { return p; }),
-                 restyled)
-      .paint(canvas, ctx);
+  paintWithPen(brush::layers({woven}), canvas, ctx);
+  paintWithPen(Brush{}.layer(layered), canvas, ctx);
+  paintWithPen(brush::restyle(geometry::path::Shaper::incomparable(
+                                  [](const SkPath& p) { return p; }),
+                              restyled),
+               canvas, ctx);
 
   for (const ContextProbe* probe : {&woven, &layered, &restyled}) {
     ASSERT_EQ(probe->seen->paints, 1);

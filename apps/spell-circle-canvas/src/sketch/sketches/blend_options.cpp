@@ -56,6 +56,7 @@
 
 // TAGS: Motion/Transitions
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
@@ -144,7 +145,8 @@ sketch::kit::ComparisonCase band(const char* caseTitle, std::string key,
   return {.title = caseTitle,
           .control = call,
           .figure = custom(std::move(key),
-                           [paint](SkCanvas& canvas) { paint(canvas); })
+                           [paint](sigil::draw::Pen& pen) {
+ SkCanvas& canvas = *pen.canvas(); paint(canvas); })
                         .width(width)
                         .height(height)
                         .fill(Fill::color(kCellGround)),

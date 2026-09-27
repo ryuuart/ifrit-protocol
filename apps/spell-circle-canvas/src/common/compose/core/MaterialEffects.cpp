@@ -5,6 +5,7 @@
  * pass.
  */
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include "MaterialEffects.h"
 
@@ -106,7 +107,8 @@ float CoverageMark::bleed() const {
   return 0;
 }
 
-void CoverageMark::paint(SkCanvas& canvas, const PaintContext& context) const {
+void CoverageMark::paint(draw::Pen& pen, const PaintContext& context) const {
+  SkCanvas& canvas = *pen.canvas();
   switch (effect.kind) {
     case Step::Shadow: {
       const material::ShadowOptions& shadow = effect.shadow;
@@ -145,7 +147,8 @@ void CoverageMark::paint(SkCanvas& canvas, const PaintContext& context) const {
   }
 }
 
-void MaterialStroke::paint(SkCanvas& canvas, const PaintContext& context) const {
+void MaterialStroke::paint(draw::Pen& pen, const PaintContext& context) const {
+  SkCanvas& canvas = *pen.canvas();
   SkPaint stroke;
   stroke.setAntiAlias(true);
   if (source.isSolid()) {

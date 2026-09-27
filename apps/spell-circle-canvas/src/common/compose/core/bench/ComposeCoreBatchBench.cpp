@@ -5,6 +5,7 @@
 // loop each of them exists to replace. Both are run again on a Graphite
 // Metal surface, which is where a batch of this size belongs.
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkRSXform.h>
 #include <include/core/SkSurface.h>
@@ -158,7 +159,8 @@ static void BM_Particles_EnttAtlasLeaf(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().children({custom([particles](SkCanvas& c) {
+      box().children({custom([particles](sigil::draw::Pen& pen) {
+                        SkCanvas& c = *pen.canvas();
                         particles->draw(c);
                       })
                           .inset(0)
@@ -178,7 +180,8 @@ static void BM_Particles_DrawCircleLoop(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().children({custom([particles](SkCanvas& c) {
+      box().children({custom([particles](sigil::draw::Pen& pen) {
+                        SkCanvas& c = *pen.canvas();
                         SkPaint p;
                         p.setAntiAlias(true);
                         p.setColor(0xff7ee8ff);
@@ -234,7 +237,8 @@ static void BM_Particles_EnttAtlasLeaf_Graphite(benchmark::State& state) {
   auto particles = std::make_shared<Particle>(count);
   Host host(800, 800);
   host.composer.render(
-      box().children({custom([particles](SkCanvas& c) {
+      box().children({custom([particles](sigil::draw::Pen& pen) {
+                        SkCanvas& c = *pen.canvas();
                         particles->draw(c);
                       })
                           .inset(0)

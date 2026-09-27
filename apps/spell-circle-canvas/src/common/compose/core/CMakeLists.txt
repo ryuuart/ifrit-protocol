@@ -102,7 +102,7 @@ sigil_library(SigilComposeCore
   INCLUDE_PRIVATE ${CMAKE_CURRENT_LIST_DIR}
   PUBLIC SigilCoreCache SigilCoreCallable SigilCoreComparable SigilCoreCompute
          SigilCoreReconcile SigilGeometryPath SigilMediaCore SigilMaterial
-         SigilMeasure SigilMotion SigilSkiaDraw SigilWeave
+         SigilMeasure SigilMotion SigilSkiaDraw SigilWeave SigilDraw
          unofficial::skia::skia
   PRIVATE Boost::container Boost::unordered yoga::yogacore)
 sigil_shader_sources(SigilComposeCore DIR ${_shaders} NAMESPACE sigil::compose)

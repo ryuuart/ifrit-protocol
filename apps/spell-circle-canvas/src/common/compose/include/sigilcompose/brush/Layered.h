@@ -75,7 +75,7 @@ struct LayeredBrush {
     return widest;
   }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 // Ready-made stroke stacks — an additive filament glow, circuit traces, a

@@ -28,6 +28,7 @@
 
 // TAGS: Geometry/Layout, Patterns/Tiling
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPicture.h>
 #include <sigilcompose/core/Core.h>
@@ -229,7 +230,8 @@ struct PlaceRepeatTiles {
         .figure = sketch::kit::cell(
             kSpecimen, "", "",
             custom(mirrored ? "tiles.mirrored" : "tiles.forward",
-                   [art, facing](SkCanvas& canvas) {
+                   [art, facing](sigil::draw::Pen& pen) {
+                     SkCanvas& canvas = *pen.canvas();
                      constexpr float kAir = 4;
                      const float scale = 1.1f;
                      canvas.save();

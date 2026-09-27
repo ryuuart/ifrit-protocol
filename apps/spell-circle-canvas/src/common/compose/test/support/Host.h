@@ -15,6 +15,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
 #include <sigilgeometry/path/Skia.h>
+#include <sigildraw/Pen.h>
 #include <sigilmotion/time/Duration.h>
 
 #include <chrono>
@@ -74,6 +75,22 @@ auto skiaShape(Draw draw) {
     else
       return geometry::path::fromSk(draw());
   };
+}
+
+/** @p mark painted onto @p canvas with a pen begun there for one mark —
+ *  what the painter does for every decoration — for a case that paints a
+ *  mark by hand outside a composer. */
+template <class Mark>
+void paintWithPen(const Mark& mark, SkCanvas& canvas,
+                  const PaintContext& context) {
+  sigil::draw::Pen pen;
+  sigil::draw::Frame frame;
+  frame.width = context.size.x;
+  frame.height = context.size.y;
+  frame.fonts = context.fonts;
+  pen.begin(canvas, frame);
+  mark.paint(pen, context);
+  pen.end();
 }
 
 /** A node's bounds as a Skia rect, for a case that checks them against

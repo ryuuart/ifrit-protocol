@@ -105,7 +105,7 @@ struct Rails {
    *  reserve room, and the one `Line` never exposed. */
   float span() const;
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** Explicit rails, displacements and all. */

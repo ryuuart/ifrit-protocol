@@ -51,7 +51,8 @@ namespace {
  *  over-report-is-safe contract, because what this number is for is a
  *  bounds — a layer, a cull, a bake — and under-reporting one truncates
  *  ink with no diagnostic. */
-float declaredBleed(const Instance& inst, SkSize size) {
+float declaredBleed(const Instance& inst, SkSize skiaSize) {
+  const glm::vec2 size{skiaSize.width(), skiaSize.height()};
   const ElementNode& node = *inst.description;
   float bleed = 0;
 

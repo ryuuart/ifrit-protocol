@@ -12,6 +12,7 @@
  * the root and the root's size ride through unchanged.
  */
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkMaskFilter.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -35,7 +36,8 @@
 
 namespace sigil::compose {
 
-void LayeredBrush::paint(SkCanvas& c, const PaintContext& ctx) const {
+void LayeredBrush::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   for (const StrokeLayer& layer : layers) {
     SkPaint p;
     p.setAntiAlias(true);
@@ -64,7 +66,8 @@ Solid solid(float width, Fill fill, PathFormat::Align align) {
   return s;
 }
 
-void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Weave::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   if (strands.empty()) return;
   // 1. Resolve every strand's geometry. A relative strand is a
   //    displacement of the boundary in the (along, across) frame the
@@ -97,7 +100,7 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
     // world-space material to itself.
     PaintContext sub = ctx;
     sub.outline = geometry::path::fromSk(paths[i]);
-    strands[i].brush.paint(c, sub);
+    strands[i].brush.paint(pen, sub);
   };
 
   // 2. List order first — the whole picture, correct wherever nothing
@@ -127,7 +130,7 @@ void Weave::paint(SkCanvas& c, const PaintContext& ctx) const {
     // The MARK's full width, not the cull's bleed(): an Align::Inner
     // stroke bleeds zero while painting a mark `width` wide, so a region
     // built from bleed() would be too small to cover its own crossing.
-    return patch > 0 ? patch : std::max(strands[i].brush.reach(SkSize{ctx.size.x, ctx.size.y}), 1.0f);
+    return patch > 0 ? patch : std::max(strands[i].brush.reach(ctx.size), 1.0f);
   };
 
   // Each strand's arc length, so a crossing's `along` fractions convert to
@@ -218,7 +221,8 @@ Weave weave(std::vector<Strand> strands, geometry::path::CrossingRule rule) {
 
 }  // namespace brush
 
-void Brush::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Brush::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   SkPath styled = geometry::path::toSk(ctx.outline);
   for (const geometry::path::Shaper& g : pipeline) styled = g.shape(styled);
   for (const Layer& l : layers) {
@@ -227,18 +231,19 @@ void Brush::paint(SkCanvas& c, const PaintContext& ctx) const {
       layerPath = g.shape(layerPath);
     PaintContext restyled = ctx;
     restyled.outline = geometry::path::fromSk(std::move(layerPath));
-    l.decoration.paint(c, restyled);
+    l.decoration.paint(pen, restyled);
   }
 }
 
 namespace brush {
 
-void Restyled::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Restyled::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   // No null check: a shaper passes the path through unchanged when it holds
   // nothing.
   PaintContext restyled = ctx;
   restyled.outline = geometry::path::fromSk(operation.shape(geometry::path::toSk(ctx.outline)));
-  inner.paint(c, restyled);
+  inner.paint(pen, restyled);
 }
 
 }  // namespace brush

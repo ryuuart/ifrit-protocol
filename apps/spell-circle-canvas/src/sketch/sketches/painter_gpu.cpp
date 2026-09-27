@@ -8,6 +8,7 @@
 
 // TAGS: Geometry/Meshes
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/texture/Texture.h>
@@ -132,7 +133,8 @@ struct PainterGpu {
 
   Element viewport(const char* key, const render::Runtime& runtime) {
     return custom(key,
-                  [this, runtime](SkCanvas& canvas) { draw(canvas, runtime); })
+                  [this, runtime](sigil::draw::Pen& pen) {
+ SkCanvas& canvas = *pen.canvas(); draw(canvas, runtime); })
         .width(kCell.width())
         .height(kCell.height())
         .overflow(Overflow::Clip)

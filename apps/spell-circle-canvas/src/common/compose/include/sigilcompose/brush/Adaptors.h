@@ -44,14 +44,14 @@ struct EdgeSlice {
   /** Forwarded, or an inner weave's strand::from(key) would never be
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
-  float bleed(SkSize size) const { return inner.bleed(size); }
-  float reach(SkSize size) const { return inner.reach(size); }
+  float bleed(glm::vec2 size) const { return inner.bleed(size); }
+  float reach(glm::vec2 size) const { return inner.reach(size); }
   /** Forwarded, or a wrapped blending mark would be baked into a layer of
    *  its own and resolve against transparent black instead of the page
    *  (BlendingDecoration). */
   bool blends() const { return inner.blends(); }
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
   bool isRunning() const { return inner.isRunning(); }
   /** Structural equality, so a static per-edge border prunes like any
    *  other decoration. Without it every `onEdges(...)` compares unequal
@@ -90,14 +90,14 @@ struct Inset {
   /** Forwarded, or an inner weave's strand::from(key) would never be
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
-  float bleed(SkSize size) const {
+  float bleed(glm::vec2 size) const {
     return inner.bleed(size) + std::max(0.0f, -px);
   }
-  float reach(SkSize size) const { return inner.reach(size); }
+  float reach(glm::vec2 size) const { return inner.reach(size); }
   /** Forwarded, for the reason EdgeSlice forwards it. */
   bool blends() const { return inner.blends(); }
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
   bool isRunning() const { return inner.isRunning(); }
   bool operator==(const Inset& o) const {
     return px == o.px && inner == o.inner;

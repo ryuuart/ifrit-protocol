@@ -29,11 +29,12 @@ sound model; nothing below them changes kernel semantics.
   decides a texture promotion, which `PaintContext::promotion` carries as
   the policy the painting composer runs under, so a program keeping a
   composer of its own runs it under the same rule — `PaintProgram`, a
-  drawing on
-  a canvas that NAMES ONLY THE PARAMETERS IT READS: the canvas and the
-  context are both offered, so `[](SkCanvas& c) {…}`,
-  `[](SkCanvas& c, const PaintContext& ctx) {…}` and `[] {…}` are all paint
-  programs and nothing spells a parameter in order to ignore it. A colour from a source palette's hex integer is
+  drawing made with the draw executor's pen that NAMES ONLY THE
+  PARAMETERS IT READS: the pen and the context are both offered, so
+  `[](draw::Pen& pen) {…}`, `[](draw::Pen& pen, const PaintContext& ctx)
+  {…}` and `[] {…}` are all paint programs and nothing spells a parameter
+  in order to ignore it; a program that draws past the pen's verbs takes
+  its canvas. A colour from a source palette's hex integer is
   SigilMaterial's `material::hexColor`. A `Fill` may be written as a
   REFERENCE the tree resolves at paint — `Fill::currentInk`, the ink in
   force, and `Fill::var`, a custom property — through `resolveRef`, which

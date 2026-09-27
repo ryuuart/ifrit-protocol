@@ -34,7 +34,7 @@ read before the four rows under *The surface*.
 
 | Value | What it is | Make one | Passed to |
 |---|---|---|---|
-| `Decoration` | A type-erased mark: anything answering `paint(canvas, PaintContext)`. | Implicitly from `PathFormat`, `Shadow`, `Slice`, any scheme of your own, or a bare `PaintProgram` | `Element::background`, `Element::overlay`, `Element::foreground`, `Element::stroke` |
+| `Decoration` | A type-erased mark: anything answering `paint(pen, PaintContext)`. | Implicitly from `PathFormat`, `Shadow`, `Slice`, any scheme of your own, or a bare `PaintProgram` | `Element::background`, `Element::overlay`, `Element::foreground`, `Element::stroke` |
 | [`PathFormat`](pages/types/PathFormat.md) | A stroke of the outline, formatted by data: width, paint, alignment, dashes, stamps. | `stroke(width, fill)`, `stroke(width)` for the ink in force, or the struct outright | The four decoration slots |
 | [`Shadow`](pages/types/Shadow.md) | A soft drop shadow behind the outline, with an optional knockout. | `shadow(colour, offset, blur)` | The same slots, `background` first among them |
 | `Boundary` | Which outline a node hands its decorations: `Auto`, `Outline`, `Glyphs`, `Coverage`. | The enumeration itself | `Element::decorationOutline` |
@@ -47,7 +47,7 @@ read before the four rows under *The surface*.
 | `material::Filter` | A filter over pixels: blurs, glows, colour programs, recipes. | `Filter::blur`, `Filter::glow`, `material::skia::filter`, `Filter::of`, `Filter::directionalBlur` | `Element::filter`, `Element::backdropFilter` |
 | `Cache` | How a node's paint is held: `Auto`, `Picture`, `Texture`, `Group`, `None`. | The enumeration itself | `Element::cache` |
 | `PaintContext` | What a paint program is handed: the box, the outline, the clock, the ink, the font, the properties. | The composer builds it; a program reads it | Every `PaintProgram` and every decoration |
-| `PaintProgram` | A drawing on a canvas that names only the parameters it reads. | Any callable taking a prefix of `(SkCanvas&, const PaintContext&)` | `custom`, and `Decoration` |
+| `PaintProgram` | A drawing made with the draw executor's pen that names only the parameters it reads. | Any callable taking a prefix of `(draw::Pen&, const PaintContext&)` | `custom`, and `Decoration` |
 
 ## Motion over a value
 

@@ -2,6 +2,7 @@
 
 // Construction data and drawing primitives owned by this study.
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkMaskFilter.h>
@@ -197,7 +198,8 @@ struct RailFlares {
 
   bool operator==(const RailFlares&) const = default;
   bool isRunning() const { return true; }
-  void paint(SkCanvas& c, const PaintContext& ctx) const {
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+    SkCanvas& c = *pen.canvas();
     const float w = ctx.size.x, h = ctx.size.y;
     const float ys[3] = {h * 0.167f, h * 0.5f, h * 0.833f};
     const float len = 90.0f, lean = 12.6f;

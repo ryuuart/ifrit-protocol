@@ -11,6 +11,7 @@
  * disagree about what a stamp at a sample means.
  */
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Stamps.h>
 #include <sigilcore/compute/Noise.h>
@@ -168,7 +169,8 @@ void drawStamp(SkCanvas& c, const SkPicture& picture, const PathSample& sample,
 
 }  // namespace
 
-void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Scatter::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   if (spacing <= 0 || !ctx.fonts) return;
   // Prefer the instance-side store, so a brush value rebuilt every
   // describe still finds its art's bake; the member cache is the
@@ -211,7 +213,8 @@ void Scatter::paint(SkCanvas& c, const PaintContext& ctx) const {
   }
 }
 
-void Pattern::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Pattern::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   if (!ctx.fonts) return;
   static const std::shared_ptr<detail::ElementNode> kNoArt;
   auto node = [](const std::optional<Element>& e)

@@ -14,7 +14,6 @@
  * `TextPath`, in <sigilcompose/typography/TextPath.h>.
  */
 
-#include <include/core/SkSize.h>
 #include <sigilcompose/core/Layout.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
@@ -32,7 +31,6 @@
 #include <type_traits>
 #include <vector>
 
-class SkCanvas;
 
 namespace sigil::compose {
 
@@ -388,13 +386,15 @@ struct MotionPath {
  *  repaint pages nobody asked to repaint. */
 enum class Boundary : uint8_t { Auto, Outline, Glyphs, Coverage };
 
-/** Anything with paint(canvas, PaintContext) — decorations, effect
- *  bodies. An optional `bool isRunning() const` declares per-frame
- *  volatility; see AnimatedDecoration below. */
+/** Anything with paint(pen, PaintContext) — decorations, effect bodies:
+ *  a mark drawn with the draw executor's pen, which carries the canvas a
+ *  mark that draws past the pen's verbs takes. An optional
+ *  `bool isRunning() const` declares per-frame volatility; see
+ *  AnimatedDecoration below. */
 template <typename D>
 concept DecorationScheme =
-    requires(const D& d, SkCanvas& canvas, const PaintContext& ctx) {
-      { d.paint(canvas, ctx) };
+    requires(const D& d, draw::Pen& pen, const PaintContext& ctx) {
+      { d.paint(pen, ctx) };
     };
 
 /** THE VOLATILITY DECLARATION, and the author obligation behind every
@@ -431,13 +431,13 @@ concept BleedingDecoration = requires(const D& d) {
 
 /** Overflow in pixels, evaluated with the resolved layout size. */
 template <typename D>
-concept SizedBleedingDecoration = requires(const D& d, SkSize size) {
+concept SizedBleedingDecoration = requires(const D& d, glm::vec2 size) {
   { d.bleed(size) } -> std::convertible_to<float>;
 };
 
 /** Mark width in pixels, evaluated with the resolved layout size. */
 template <typename D>
-concept SizedReachingDecoration = requires(const D& d, SkSize size) {
+concept SizedReachingDecoration = requires(const D& d, glm::vec2 size) {
   { d.reach(size) } -> std::convertible_to<float>;
 };
 
@@ -544,17 +544,18 @@ class Decoration {
       };
     }
     if constexpr (SizedBleedingDecoration<D>)
-      m_sizedBleed = [scheme](SkSize size) {
+      m_sizedBleed = [scheme](glm::vec2 size) {
         return (float)scheme.bleed(size);
       };
     if constexpr (SizedReachingDecoration<D>)
-      m_sizedReach = [scheme](SkSize size) {
+      m_sizedReach = [scheme](glm::vec2 size) {
         return (float)scheme.reach(size);
       };
     else if constexpr (!ReachingDecoration<D> && SizedBleedingDecoration<D>)
       m_sizedReach = m_sizedBleed;
-    m_paint = [s = std::move(scheme)](SkCanvas& c, const PaintContext& ctx) {
-      s.paint(c, ctx);
+    m_paint = [s = std::move(scheme)](draw::Pen& pen,
+                                      const PaintContext& ctx) {
+      s.paint(pen, ctx);
     };
   }
   Decoration(
@@ -565,17 +566,17 @@ class Decoration {
                              // leaf's program gets, and for the same reason.
       : m_blends(true), m_paint(std::move(program)) {}
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
-    if (m_paint) m_paint(canvas, ctx);
+  void paint(draw::Pen& pen, const PaintContext& ctx) const {
+    if (m_paint) m_paint(pen, ctx);
   }
   /** Declared volatility, read off whichever word the scheme spelled. */
   bool isRunning() const { return m_animated; }
-  float bleed(SkSize size) const {
+  float bleed(glm::vec2 size) const {
     return m_sizedBleed ? m_sizedBleed(size) : m_bleed;
   }
   /** FULL width of the mark this decoration paints, across the outline it
    *  dresses (see ReachingDecoration). Falls back to bleed(), then to 0. */
-  float reach(SkSize size) const {
+  float reach(glm::vec2 size) const {
     return m_sizedReach ? m_sizedReach(size) : m_reach;
   }
   /** Whether the mark composites with what is already on the canvas (see
@@ -605,8 +606,8 @@ class Decoration {
   bool m_blends = false;
   float m_bleed = 0.0f;
   float m_reach = 0.0f;
-  std::function<float(SkSize)> m_sizedBleed;
-  std::function<float(SkSize)> m_sizedReach;
+  std::function<float(glm::vec2)> m_sizedBleed;
+  std::function<float(glm::vec2)> m_sizedReach;
   std::vector<std::string> m_borrows;
   PaintProgram m_paint;
   std::any m_scheme;
@@ -625,13 +626,13 @@ struct DecorationStack {
       if (mark.isRunning()) return true;
     return false;
   }
-  float bleed(SkSize size) const {
+  float bleed(glm::vec2 size) const {
     float most = 0;
     for (const Decoration& mark : marks) most = std::max(most, mark.bleed(size));
     return most;
   }
-  void paint(SkCanvas& canvas, const PaintContext& context) const {
-    for (const Decoration& mark : marks) mark.paint(canvas, context);
+  void paint(draw::Pen& pen, const PaintContext& context) const {
+    for (const Decoration& mark : marks) mark.paint(pen, context);
   }
 };
 

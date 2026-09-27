@@ -194,7 +194,7 @@ struct Line {
    *  arms, and heads all overhang. */
   float bleed() const;
 
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 
  private:
   /** How much body to cut under a marker (dashes stop under heads). */

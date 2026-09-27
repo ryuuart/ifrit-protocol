@@ -5,6 +5,7 @@
  * behind the kit's declarations.
  */
 
+#include <sigildraw/Pen.h>
 #include "sigilcompose/kit/Ornament.h"
 
 #include <include/core/SkCanvas.h>
@@ -163,7 +164,8 @@ geometry::path::Outline taperedStroke(const std::vector<glm::vec2>& pts,
  *  `quadrant`: 0=NW, 1=NE, 2=SE, 3=SW; `vertical` runs the band down
  *  the side edge instead of along the top/bottom. */
 PaintProgram edgeFlourish(const Palette& pal, int quadrant, bool vertical) {
-  return [pal, quadrant, vertical](SkCanvas& c, const PaintContext& ctx) {
+  return [pal, quadrant, vertical](sigil::draw::Pen& pen, const PaintContext& ctx) {
+    SkCanvas& c = *pen.canvas();
     const float w = ctx.size.x, h = ctx.size.y;
     const bool right = quadrant == 1 || quadrant == 2;
     const bool bottom = quadrant >= 2;
@@ -224,7 +226,8 @@ PaintProgram edgeFlourish(const Palette& pal, int quadrant, bool vertical) {
  *  leaves either side, gilded berry at the tip. Points up; rotate at
  *  the call site. */
 PaintProgram sprig(const Palette& pal) {
-  return [pal](SkCanvas& c, const PaintContext& ctx) {
+  return [pal](sigil::draw::Pen& pen, const PaintContext& ctx) {
+    SkCanvas& c = *pen.canvas();
     const float w = ctx.size.x, h = ctx.size.y;
     c.translate(w / 2, h);
 
@@ -259,7 +262,8 @@ PaintProgram sprig(const Palette& pal) {
   };
 }
 
-void SwirlCorners::paint(SkCanvas& c, const PaintContext& ctx) const {
+void SwirlCorners::paint(draw::Pen& pen, const PaintContext& ctx) const {
+    SkCanvas& c = *pen.canvas();
     const float w = ctx.size.x, h = ctx.size.y;
     for (int q = 0; q < 4; ++q) {
       const bool right = q == 1 || q == 2;

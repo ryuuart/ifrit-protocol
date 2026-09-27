@@ -6,6 +6,7 @@
 // asked in plain Skia: which route the rasteriser takes, and what a
 // stack of cached rasters costs the pixel it lands on.
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/core/Pattern.h>
 
 #include <vector>
@@ -134,7 +135,8 @@ TEST(ComposeCache, ACustomProgramIsCountedAsCompositingWithTheCanvas) {
                        .width(180)
                        .height(180)
                        .fill(Fill::color({0.45f, 0.35f, 0.15f, 1})),
-                   custom([](SkCanvas& canvas, const PaintContext& ctx) {
+                   custom([](sigil::draw::Pen& pen, const PaintContext& ctx) {
+                     SkCanvas& canvas = *pen.canvas();
                      SkPaint paint;
                      paint.setColor4f({0.4f, 0.4f, 0.4f, 1});
                      paint.setBlendMode(SkBlendMode::kPlus);

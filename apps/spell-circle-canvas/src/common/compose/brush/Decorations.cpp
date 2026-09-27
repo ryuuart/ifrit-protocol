@@ -3,6 +3,7 @@
  * shadows, lattice slices, contour walks, washes and borders.
  */
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkClipOp.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/effects/Sk1DPathEffect.h>
@@ -38,7 +39,8 @@ float Shadow::bleed() const {
   return std::max({std::abs(offset.fX), std::abs(offset.fY), maxBind}) + extent;
 }
 
-void Shadow::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+void Shadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& canvas = *pen.canvas();
   SkPaint p;
   p.setAntiAlias(true);
   p.setColor4f(material::skia::toSkColor(color), nullptr);
@@ -54,7 +56,8 @@ void Shadow::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   canvas.restore();
 }
 
-void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& canvas = *pen.canvas();
   SkPaint p;
   p.setAntiAlias(antiAlias);
   p.setStyle(SkPaint::kStroke_Style);
@@ -129,7 +132,8 @@ void PathFormat::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   }
 }
 
-void Slice::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+void Slice::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& canvas = *pen.canvas();
   if (!asset || asset->frames().empty()) return;
   sk_sp<SkImage> img = asset->frames().front().image;
   if (!img) return;
@@ -138,7 +142,8 @@ void Slice::paint(SkCanvas& canvas, const PaintContext& ctx) const {
                           density);
 }
 
-void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+void ContourWalk::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& canvas = *pen.canvas();
   if ((!draw && !stamp && !stampAt) || spacing <= 0) return;
 
   // Bake (or re-bake) the stamp element: once per description for
@@ -183,14 +188,15 @@ void ContourWalk::paint(SkCanvas& canvas, const PaintContext& ctx) const {
         canvas.drawPicture(art);
         canvas.restore();
       }
-      if (draw) draw(canvas, sample, ctx);
+      if (draw) draw(pen, sample, ctx);
       canvas.restore();
       ++index;
     }
   }
 }
 
-void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+void Wash::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& canvas = *pen.canvas();
   const float a = amount < 0.0f ? 0.0f : (amount > 1.0f ? 1.0f : amount);
   if (a <= 0.0f) return;
   // The material is lowered to the executor's paint where it is drawn,
@@ -212,7 +218,8 @@ void Wash::paint(SkCanvas& canvas, const PaintContext& ctx) const {
   canvas.drawPath(geometry::path::toSk(ctx.outline), p);
 }
 
-void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
+void Border::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& canvas = *pen.canvas();
   // `width` is the RUN's width, and Weighted mode has a second width for
   // the corners — so in that mode width == 0 means "corners only, no runs
   // between them", which is a real frame. The bail-out therefore tests
@@ -268,11 +275,11 @@ void Border::paint(SkCanvas& canvas, const PaintContext& ctx) const {
 }
 
 namespace decorations {
-void paintOn(SkCanvas& canvas, const PaintContext& ctx, SkPath outline,
-             const Decoration& decoration) {
+void paintOn(draw::Pen& pen, const PaintContext& ctx,
+             geometry::path::Outline outline, const Decoration& decoration) {
   PaintContext local = ctx;
-  local.outline = geometry::path::fromSk(std::move(outline));
-  decoration.paint(canvas, local);
+  local.outline = std::move(outline);
+  decoration.paint(pen, local);
 }
 }  // namespace decorations
 

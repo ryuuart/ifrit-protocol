@@ -55,6 +55,7 @@
  *    image path that takes a sampling parameter.
  */
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
@@ -331,7 +332,8 @@ inline void draw(SkCanvas& canvas, const Mask& m, SkPoint at,
  *  is better as `.cache(Cache::Texture)` on its parent. */
 inline Element masked(const Mask& m, const Present& p = {}) {
   if (!m.image) return box().width(0).height(0);
-  return custom([m, p](SkCanvas& canvas) {
+  return custom([m, p](sigil::draw::Pen& pen) {
+           SkCanvas& canvas = *pen.canvas();
            draw(canvas, m, {0, 0}, p);
          })
       .width((float)m.w * p.scale)

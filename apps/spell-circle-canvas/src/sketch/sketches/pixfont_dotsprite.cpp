@@ -8,6 +8,7 @@
 
 // TAGS: Typography/Lettering, Media/Images
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkPaint.h>
@@ -178,7 +179,8 @@ struct PixFontDotSprite {
         "Digits, x-height and a descender share one baseline.\n"
         "The live readout uses baked glyphs at two tracking widths.",
         custom("pixfont.readout",
-               [f](SkCanvas& canvas, const PaintContext& pc) {
+               [f](sigil::draw::Pen& pen, const PaintContext& pc) {
+                 SkCanvas& canvas = *pen.canvas();
                  const double t = pc.elapsedSeconds;
                  // A cell is cropped to its ink and carries where
                  // that ink sits inside the shared line box, so a
@@ -207,7 +209,8 @@ struct PixFontDotSprite {
         "One antialiased white disc, baked once and tinted per point.\n"
         "The transparent ring prevents square edges.",
         custom("pixfont.dot",
-               [image](SkCanvas& canvas, const PaintContext& pc) {
+               [image](sigil::draw::Pen& pen, const PaintContext& pc) {
+                 SkCanvas& canvas = *pen.canvas();
                  static constexpr material::Color kTints[3] = {
                      {1, 1, 1, 1}, kOn, {1.0f, 0.55f, 0.35f, 1}};
                  const float side = std::min(90.0f, pc.size.x / 3.4f);

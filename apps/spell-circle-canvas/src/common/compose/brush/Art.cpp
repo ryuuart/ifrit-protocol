@@ -5,6 +5,7 @@
  * round every turn of the boundary.
  */
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkSurface.h>
@@ -20,7 +21,8 @@
 
 namespace sigil::compose::brush {
 
-void Art::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Art::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   if (!ctx.fonts) return;
   if (!cache->image || !bakedFromNode(cache->bakedFor, art.node())) {
     cache->bakedFor = art.node();

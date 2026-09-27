@@ -8,6 +8,7 @@
 
 // TAGS: Geometry/Meshes, Media/Models
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -98,8 +99,9 @@ std::string kib(size_t bytes) {
 Element meshFigure(const char* key, gm::Mesh mesh) {
   return sketch::kit::well(
       {.width = kCell, .height = kPicture},
-      custom(key, [mesh = std::move(mesh)](SkCanvas& canvas,
+      custom(key, [mesh = std::move(mesh)](sigil::draw::Pen& pen,
                                            const PaintContext& pc) {
+        SkCanvas& canvas = *pen.canvas();
         render::drawMesh(canvas, mesh, camera::place({0, 0, 0}, 24, 0),
                          stageCamera(), pc.size, stageStyle());
       }));
@@ -181,7 +183,8 @@ struct CodecRoundtrip {
         cloudPly.substr(0, end == std::string::npos ? 0 : end + 10);
     Element cloud = sketch::kit::well(
         {.width = kCell, .height = kPicture},
-        custom("cloud", [read](SkCanvas& canvas, const PaintContext& pc) {
+        custom("cloud", [read](sigil::draw::Pen& pen, const PaintContext& pc) {
+          SkCanvas& canvas = *pen.canvas();
           gm::points::BillboardStyle splat;
           splat.size = 3.4f;
           splat.sizeLane = "size";

@@ -51,6 +51,7 @@
 
 // TAGS: Geometry/Meshes, Materials/Lighting
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/skia/Texture.h>
@@ -208,7 +209,8 @@ struct MeshNormalBridge {
             // cooked above, in this setup, and nothing after it moves.
             .children(
                 {custom("mesh.normal.bridge",
-                        [this](SkCanvas& canvas) { draw(canvas); })
+                        [this](sigil::draw::Pen& pen) {
+ SkCanvas& canvas = *pen.canvas(); draw(canvas); })
                      .inset(0),
                  sketch::kit::page(
                      {.title = "Normal maps: two sources, one recipe",

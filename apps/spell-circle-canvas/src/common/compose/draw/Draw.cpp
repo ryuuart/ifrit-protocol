@@ -3,6 +3,7 @@
  * canvas beside it, and a composer held by a pen.
  */
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Factories.h>
@@ -74,8 +75,8 @@ struct Held {
 
 PaintProgram over(PenProgram program) {
   auto held = std::make_shared<Held>();
-  return [held, program = std::move(program)](SkCanvas& canvas,
-                                              const PaintContext& ctx) {
+  return [held, program = std::move(program)](draw::Pen& pen, const PaintContext& ctx) {
+    SkCanvas& canvas = *pen.canvas();
     held->pen.begin(canvas, held->frameIn(ctx));
     const SkScopeExit endFrame([&] { held->pen.end(); });
     held->pen.inherit(material::skia::toSkColor(ctx.ink), ctx.font);
@@ -119,8 +120,8 @@ bool shouldRun(draw::Pen& pen, HeldGraphics& held) {
 
 PaintProgram onto(PenProgram program) {
   auto held = std::make_shared<HeldGraphics>();
-  return [held, program = std::move(program)](SkCanvas& canvas,
-                                              const PaintContext& ctx) {
+  return [held, program = std::move(program)](draw::Pen& pen, const PaintContext& ctx) {
+    SkCanvas& canvas = *pen.canvas();
     const draw::Frame frame = held->host.frameIn(ctx);
     held->sinceDraw += frame.deltaSeconds;
     held->host.pen.begin(canvas, frame);

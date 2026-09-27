@@ -42,6 +42,7 @@
 
 // TAGS: Geometry/Paths, Runtime/Starter
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/skia/Texture.h>
@@ -201,7 +202,8 @@ struct ShapeworksLab {
     // every pixel of the badge for a picture that never changes.
     Element outlineLab =
         custom("lab.outline",
-               [this](SkCanvas& canvas, const PaintContext& paint) {
+               [this](sigil::draw::Pen& pen, const PaintContext& paint) {
+                 SkCanvas& canvas = *pen.canvas();
                  canvas.save();
                  canvas.translate(paint.size.width() * 0.5f,
                                   paint.size.height() * 0.5f);
@@ -215,7 +217,8 @@ struct ShapeworksLab {
     // static for the same reason, so the same bake is asked for.
     Element materialLab =
         custom("lab.materials",
-               [this](SkCanvas& canvas, const PaintContext& paint) {
+               [this](sigil::draw::Pen& pen, const PaintContext& paint) {
+                 SkCanvas& canvas = *pen.canvas();
                  (void)paint;
                  if (backdrop) canvas.drawImage(backdrop, 0, 0);
                  if (gold) material::skia::fill(canvas, goldPath, *gold);
@@ -230,7 +233,8 @@ struct ShapeworksLab {
     // Fibonacci band, and a point chain cooked along it.
     // KEYLESS: the wire is swept at the paint's own clock.
     Element flight =
-        custom([this](SkCanvas& canvas, const PaintContext& paint) {
+        custom([this](sigil::draw::Pen& pen, const PaintContext& paint) {
+          SkCanvas& canvas = *pen.canvas();
           const SkSize viewport = paint.size;
           const mesh::camera::Camera camera{
               .eye = {0, 620, 900}, .target = {0, 0, 0}, .fovYDeg = 40};

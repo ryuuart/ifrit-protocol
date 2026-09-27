@@ -29,6 +29,7 @@
 
 // TAGS: Materials/Compositing
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkGradient.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -128,8 +129,8 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
           .figure = sketch::kit::well(
               {.width = kCell, .height = kPicture},
               custom(call,
-                     [paint = std::move(paint), face = plate()](
-                         SkCanvas& canvas, const PaintContext& pc) {
+                     [paint = std::move(paint), face = plate()](sigil::draw::Pen& pen, const PaintContext& pc) {
+                       SkCanvas& canvas = *pen.canvas();
                        material::skia::fill(
                            canvas, face, paint,
                            {.resolution = {pc.size.x, pc.size.y}});

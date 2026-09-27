@@ -134,7 +134,7 @@ struct Ribbon {
    *  whether the band is the width its profile claims. */
   SkPath band(const SkPath& spine) const;
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** The ART brush: ONE art cell stretched and continuously BENT along each
@@ -185,7 +185,7 @@ struct Art {
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** Art warped along the path: the drawVertices ribbon. `height` 0 keeps

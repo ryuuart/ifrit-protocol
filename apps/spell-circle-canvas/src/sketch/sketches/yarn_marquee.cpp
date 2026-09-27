@@ -53,6 +53,7 @@
 
 // TAGS: Typography/Lettering, Geometry/Paths
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Measure.h>
@@ -219,7 +220,8 @@ struct YarnMarquee {
                 const std::vector<curve::Frame3>* rail) const {
     return sketch::kit::caption(kPanel, label, note,
                                 custom(std::move(key),
-                                       [this, rail](SkCanvas& canvas) {
+                                       [this, rail](sigil::draw::Pen& pen) {
+                                         SkCanvas& canvas = *pen.canvas();
                                          paintRail(canvas, *rail, art);
                                        })
                                     .width(kPanel)
@@ -231,7 +233,8 @@ struct YarnMarquee {
   Element orientation(const char* key, const std::vector<curve::Frame3>* rail) {
     return custom(
                key,
-               [rail](SkCanvas& canvas) {
+               [rail](sigil::draw::Pen& pen) {
+                 SkCanvas& canvas = *pen.canvas();
                  SkPaint rule;
                  rule.setAntiAlias(true);
                  rule.setStrokeWidth(1);

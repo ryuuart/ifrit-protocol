@@ -33,6 +33,7 @@
 
 // TAGS: Geometry/Points
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkMatrix.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -122,7 +123,8 @@ struct PopStamps {
   Element figure(const char* key, int output) const {
     return sketch::kit::well(
         {.width = 568, .height = 238},
-        custom(key, [this, output](SkCanvas& canvas, const PaintContext& pc) {
+        custom(key, [this, output](sigil::draw::Pen& pen, const PaintContext& pc) {
+          SkCanvas& canvas = *pen.canvas();
           const camera::Camera view{
               .eye = {0, 260, 980}, .target = {0, 20, 0}, .fovYDeg = 24};
           render::MeshStyle style;

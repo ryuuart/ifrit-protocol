@@ -3,6 +3,7 @@
 // is panned across, and what an edge gate does to a box that measured
 // to nothing.
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/kit/Strokes.h>
 
@@ -222,11 +223,12 @@ TEST(ComposeDecorations, TheBrushVocabularyWorksOnGeometryYouBuiltYourself) {
 
   Host host(200, 200);
   host.composer.render(box().children(
-      {custom([dashedHead](SkCanvas& canvas, const PaintContext& ctx) {
+      {custom([dashedHead](sigil::draw::Pen& pen, const PaintContext& ctx) {
          // Geometry computed HERE, per paint, and decorated.
          SkPathBuilder b;
          b.moveTo(10, 100).lineTo(190, 100);
-         decorations::paintOn(canvas, ctx, b.detach(), dashedHead);
+         decorations::paintOn(pen, ctx, geometry::path::fromSk(b.detach()),
+                              dashedHead);
        })
            .absolute()
            .inset(0)

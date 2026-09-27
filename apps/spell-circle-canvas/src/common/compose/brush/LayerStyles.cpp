@@ -3,6 +3,7 @@
  * blurred strokes, and the ripple filter.
  */
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkColorFilter.h>
 #include <include/core/SkMaskFilter.h>
@@ -24,7 +25,8 @@
 
 namespace sigil::compose::styles {
 
-void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
+void InnerShadow::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   c.save();
   // The clip is the SHAPE the outline encloses — `outline` itself unless
   // an edge adaptor or a span gate narrowed it to runs bounding no area
@@ -49,7 +51,8 @@ void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.restore();
 }
 
-void OuterGlow::paint(SkCanvas& c, const PaintContext& ctx) const {
+void OuterGlow::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   SkPaint p;
   p.setAntiAlias(true);
   p.setColor4f(material::skia::toSkColor(color), nullptr);
@@ -62,13 +65,14 @@ void OuterGlow::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.drawPath(geometry::path::toSk(ctx.outline), p);
 }
 
-void BevelEmboss::paint(SkCanvas& c, const PaintContext& ctx) const {
+void BevelEmboss::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   const float rad = geometry::path::radians(angleDeg);
   // Canvas y grows downward: light FROM angle → the vector pointing away
   // from the light. An inner shadow's visible edge is OPPOSITE its offset.
   const SkVector away = {-std::cos(rad) * depth, std::sin(rad) * depth};
-  InnerShadow{highlight, away, size}.paint(c, ctx);               // lit edges
-  InnerShadow{shadow, {-away.fX, -away.fY}, size}.paint(c, ctx);  // far edges
+  InnerShadow{highlight, away, size}.paint(pen, ctx);               // lit edges
+  InnerShadow{shadow, {-away.fX, -away.fY}, size}.paint(pen, ctx);  // far edges
 }
 
 material::Filter ripple(float amplitudePx, float wavelengthPx,

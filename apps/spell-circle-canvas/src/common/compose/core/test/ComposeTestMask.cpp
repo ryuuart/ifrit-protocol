@@ -1,3 +1,4 @@
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include "support/CoreTestSupport.h"
@@ -285,7 +286,8 @@ namespace {
  *  reads back exactly where the boundary was. */
 Decoration flooding(SkColor color) {
   return Decoration(
-      PaintProgram([color](SkCanvas& canvas, const PaintContext& ctx) {
+      PaintProgram([color](sigil::draw::Pen& pen, const PaintContext& ctx) {
+        SkCanvas& canvas = *pen.canvas();
         SkPaint paint;
         paint.setColor(color);
         paint.setAntiAlias(false);

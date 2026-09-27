@@ -47,7 +47,7 @@ struct InnerShadow {
 
   bool operator==(const InnerShadow&) const = default;
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** Outer Glow: the shape re-drawn blurred (optionally spread wider) —
@@ -61,7 +61,7 @@ struct OuterGlow {
   /** Paint reach beyond the node's bounds (recording cull grows by this). */
   float bleed() const { return size * 2 + spread; }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** Bevel and emboss, the fake-3D workhorse: two OPPOSED inner shadows — a
@@ -78,7 +78,7 @@ struct BevelEmboss {
 
   bool operator==(const BevelEmboss&) const = default;
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** The water/heat warp: the node's rendered layer resampled through a sine

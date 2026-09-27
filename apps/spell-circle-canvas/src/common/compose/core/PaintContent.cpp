@@ -34,6 +34,7 @@
 
 #include "ComposeRuntime.h"
 #include "PaintInternal.h"
+#include "PenOnCanvas.h"
 
 namespace sigil::compose {
 
@@ -617,7 +618,8 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       passCtx.silhouette =
           geometry::path::fromSk(gateSilhouette(fullOutline, run));
       passCtx.stamps = nullptr;  // deliberately not shared with a span pass
-      passes[i].what.paint(canvas, passCtx);
+      detail::PenOnCanvas passPen(canvas, passCtx);
+      passes[i].what.paint(passPen.pen(), passCtx);
       if (granularPlane) leaveGates(saves, cover);
     }
   };
@@ -653,9 +655,11 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
       markCtx.silhouette =
           geometry::path::fromSk(gateSilhouette(fullOutline, run));
       markCtx.stamps = nullptr;  // not shared with a mark
-      d.paint(canvas, markCtx);
+      detail::PenOnCanvas markPen(canvas, markCtx);
+      d.paint(markPen.pen(), markCtx);
     } else {
-      d.paint(canvas, paintCtx);
+      detail::PenOnCanvas markPen(canvas, paintCtx);
+      d.paint(markPen.pen(), paintCtx);
     }
     if (granularPlane) leaveGates(saves, cover);
   };
@@ -944,8 +948,10 @@ void Composer::Impl::paintContent(Instance& inst, SkCanvas& canvas,
         }
         break;
       case Kind::Custom:
-        if (node.customData && node.customData->program)
-          node.customData->program(canvas, paintCtx);
+        if (node.customData && node.customData->program) {
+          detail::PenOnCanvas programPen(canvas, paintCtx);
+          node.customData->program(programPen.pen(), paintCtx);
+        }
         break;
       case Kind::Box:
       case Kind::Stack:

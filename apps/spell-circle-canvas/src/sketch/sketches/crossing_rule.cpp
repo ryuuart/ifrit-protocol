@@ -25,6 +25,7 @@
 
 // TAGS: Geometry/Diagrams
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
@@ -158,7 +159,8 @@ sketch::kit::ComparisonCase cell(const char* title, std::string key,
       .control = call,
       .figure = custom(std::move(key),
                        [strands = std::move(strands), rule = std::move(rule),
-                        pinned](SkCanvas& canvas) {
+                        pinned](sigil::draw::Pen& pen) {
+                         SkCanvas& canvas = *pen.canvas();
                          paintWeave(canvas, strands, rule, pinned);
                        })
                     .width(kCell)

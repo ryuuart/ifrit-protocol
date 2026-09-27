@@ -139,7 +139,7 @@ struct BevelPair {
   /** How wide the mark is, inside the outline. */
   float reach() const { return std::max(lightWidth, darkWidth); }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** A bevel pair in two stated tones, @p width px each. */
@@ -185,7 +185,7 @@ struct Brackets {
   bool operator==(const Brackets&) const = default;
   float bleed() const { return std::max(0.0f, -gap); }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 inline Brackets brackets(
@@ -223,7 +223,7 @@ struct TickRail {
 
   bool operator==(const TickRail&) const = default;
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 inline TickRail tickRail(
@@ -255,7 +255,7 @@ struct Scanlines {
    *  the print reading (source-over black) draws over itself alone. */
   bool blends() const { return blend != material::BlendMode::Normal; }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 inline Scanlines scanlines(material::Color color, float period = 4.0f,
@@ -294,7 +294,7 @@ struct Stipple {
 
   bool operator==(const Stipple&) const = default;
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** The 50 % checkerboard in @p color — `stipple(x, y) = (x + y) & 1`,

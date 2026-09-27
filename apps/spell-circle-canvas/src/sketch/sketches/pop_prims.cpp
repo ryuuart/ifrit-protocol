@@ -35,6 +35,7 @@
 
 // TAGS: Geometry/Points
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
@@ -92,8 +93,9 @@ struct PopPrims {
                  bool stamps = false) const {
     return sketch::kit::well(
         {.width = 372, .height = 360},
-        custom(key, [subject, primitiveLane, stamps](SkCanvas& canvas,
+        custom(key, [subject, primitiveLane, stamps](sigil::draw::Pen& pen,
                                                      const PaintContext& pc) {
+          SkCanvas& canvas = *pen.canvas();
           const camera::Camera view{
               .eye = {0, 210, 900}, .target = {0, 0, 0}, .fovYDeg = 42};
           render::MeshStyle style{.baseColor = {1, 1, 1, 1},

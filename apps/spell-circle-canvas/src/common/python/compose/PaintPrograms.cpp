@@ -233,7 +233,8 @@ compose::PaintProgram paintProgram(py::handle value) {
   auto function = callable(value, "A paint program is a callable.");
   const int named = namedParameters(function, 2, 1);
   auto held = retainCallback(std::move(function));
-  return [held, named](SkCanvas& canvas, const compose::PaintContext& context) {
+  return [held, named](sigil::draw::Pen& pen, const compose::PaintContext& context) {
+    SkCanvas& canvas = *pen.canvas();
     const py::gil_scoped_acquire lock;
     const py::function program = held->get();
     // The loans outlive the callback boundary, so a native scope Python

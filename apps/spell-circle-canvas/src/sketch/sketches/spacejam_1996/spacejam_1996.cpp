@@ -3,6 +3,7 @@
 
 // TAGS: Interfaces/Web
 
+#include <sigildraw/Pen.h>
 #include "Artwork.h"
 #include <sigilmotion/values/Animatable.h>
 
@@ -56,7 +57,8 @@ struct SpaceJam1996 {
     // a partial image, which nothing in the picture can express.
     if (!inFlight) return picture(p, SkSize::Make(artW[i], artH[i]));
     // KEYLESS: the scanline edge is read off the arrival's live fraction.
-    Element e = custom([p, h, g](SkCanvas& canvas, const PaintContext& ctx) {
+    Element e = custom([p, h, g](sigil::draw::Pen& pen, const PaintContext& ctx) {
+                  SkCanvas& canvas = *pen.canvas();
                   const float frac = g.value();
                   if (frac <= 0.0f || !p) return;
                   // No interlacing on any of the sixteen (every image

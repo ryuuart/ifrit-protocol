@@ -6,6 +6,7 @@
 // the per-edge spacing and the Dimension literals a box is sized by, and
 // the hit test that follows paint order and skew.
 
+#include <sigildraw/Pen.h>
 #include "support/CoreTestSupport.h"
 #include <sigilgeometry/path/Skia.h>
 
@@ -332,7 +333,7 @@ TEST(ComposeLayout, ACoveringNodeGivenASizeStandsInTheFlowAgain) {
   // sheet asks for.
   Host host(400, 400);
   host.composer.render(box().column().gap(10).children(
-      {custom([](SkCanvas&) {}).cover().width(100).height(60).key("drawing"),
+      {custom([](sigil::draw::Pen& pen) {}).cover().width(100).height(60).key("drawing"),
        box().key("after").width(100).height(20).fill(red())}));
   host.frame();
   const auto drawing = host.composer.bounds("drawing");
@@ -344,7 +345,7 @@ TEST(ComposeLayout, ACoveringNodeGivenASizeStandsInTheFlowAgain) {
   // A pin stated after the size is a placement, and the node leaves the
   // flow again: what follows it lands where it would have without it.
   host.composer.render(box().column().gap(10).children(
-      {custom([](SkCanvas&) {})
+      {custom([](sigil::draw::Pen& pen) {})
            .cover()
            .width(100)
            .height(60)

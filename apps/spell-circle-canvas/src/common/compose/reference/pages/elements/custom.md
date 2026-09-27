@@ -36,7 +36,7 @@ def pen(key: str, program: Callable[[draw.Pen], None],
 
 | Parameter | What it is | Where one comes from |
 |---|---|---|
-| `program` | The drawing. It names only the parameters it reads, so `[](SkCanvas& canvas) {…}`, `[](SkCanvas& canvas, const PaintContext& context) {…}` and `[] {…}` are all paint programs. | [`PaintProgram`](../../VALUES.md#the-layer) |
+| `program` | The drawing. It names only the parameters it reads, so `[](draw::Pen& pen) {…}`, `[](draw::Pen& pen, const PaintContext& context) {…}` and `[] {…}` are all paint programs; one that draws past the pen's verbs takes `pen.canvas()`. | [`PaintProgram`](../../VALUES.md#the-layer) |
 | `key` | The program's IDENTITY: one key must always name one drawing at one parameterisation. | Any string the caller can keep stable |
 
 ## Description

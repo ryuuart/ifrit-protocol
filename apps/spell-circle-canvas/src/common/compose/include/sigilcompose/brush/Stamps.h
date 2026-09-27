@@ -124,7 +124,7 @@ struct Scatter {
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** Which way a corner tile faces. **There is no default**, deliberately:
@@ -258,7 +258,7 @@ struct Pattern {
   };
   std::shared_ptr<Cache> cache = std::make_shared<Cache>();
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 }  // namespace sigil::compose::brush

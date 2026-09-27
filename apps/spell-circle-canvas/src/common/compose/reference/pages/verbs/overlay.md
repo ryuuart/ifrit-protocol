@@ -32,7 +32,7 @@ def overlay(self, decoration: DecorationLike, name: str = '') -> Element: ...
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `Decoration` | The mark: anything answering `paint(canvas, PaintContext)`. | [`Decoration`](../../VALUES.md#the-marks) |
+| `Decoration` | The mark: anything answering `paint(pen, PaintContext)`. | [`Decoration`](../../VALUES.md#the-marks) |
 | `name` | A LOCAL label, so `mask(parts::named(name), …)` can address this mark and nothing else. | Any string; it is not a query key |
 
 ## Description
@@ -52,7 +52,7 @@ own shape, corners and boundary, and moves and caches with it.
 
 **A decoration is any value that paints.** `PathFormat`, `Shadow` and
 `Slice` are the ones in the box; a struct of your own with
-`paint(canvas, PaintContext)` is a decoration too, and one that also
+`paint(pen, PaintContext)` is a decoration too, and one that also
 answers `operator==` prunes with no memo around it. A scheme that
 repaints differently from frame to frame must say so with
 `isRunning()`, or its node is treated as static and the mark freezes.

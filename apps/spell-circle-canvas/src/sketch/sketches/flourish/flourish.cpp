@@ -170,7 +170,8 @@ struct Flourish {
     glow.spacing = 26.0f;
     glow.animatedWalk = true;
     const material::Color g = st.goldBright;
-    glow.draw = [g](SkCanvas& c, const PathSample& s, const PaintContext& ctx) {
+    glow.draw = [g](sigil::draw::Pen& pen, const PathSample& s, const PaintContext& ctx) {
+      SkCanvas& c = *pen.canvas();
       SkPaint p;
       p.setAntiAlias(true);
       const float w = 0.5f + 0.5f * std::sin(s.fraction * 18.85f +
@@ -285,7 +286,8 @@ struct Flourish {
     if (hatch) {
       auto fx = hatch;
       hatchDeco =
-          Decoration(PaintProgram([fx](SkCanvas& c, const PaintContext& ctx) {
+          Decoration(PaintProgram([fx](sigil::draw::Pen& pen, const PaintContext& ctx) {
+            SkCanvas& c = *pen.canvas();
             SkPaint p;
             p.setShader(SkRuntimeShaderBuilder(fx).makeShader());
             p.setAlphaf(0.6f);

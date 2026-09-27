@@ -4,6 +4,7 @@
  * carries a pool in either mode.
  */
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkPicture.h>
@@ -343,8 +344,8 @@ Element instances(std::shared_ptr<CellSheet> atlas,
                   material::BlendMode blendMode) {
   const SkBlendMode blend = material::skia::toSkBlendMode(blendMode);
   if (mode == Mode::Live) {
-    return custom([atlas = std::move(atlas), pool = std::move(pool), blend](
-                      SkCanvas& canvas, const PaintContext& ctx) {
+    return custom([atlas = std::move(atlas), pool = std::move(pool), blend](draw::Pen& pen, const PaintContext& ctx) {
+             SkCanvas& canvas = *pen.canvas();
              detail::stamp(canvas, ctx, *atlas, *pool, blend);
            })
         .absolute()
@@ -354,8 +355,8 @@ Element instances(std::shared_ptr<CellSheet> atlas,
   detail::DataProps properties{atlas, pool, pool->revision(), atlas->revision(),
                                blend};
   return memo(std::move(properties), [](const detail::DataProps& p) {
-    return custom([atlas = p.atlas, pool = p.pool, blend = p.blend](
-                      SkCanvas& canvas, const PaintContext& ctx) {
+    return custom([atlas = p.atlas, pool = p.pool, blend = p.blend](draw::Pen& pen, const PaintContext& ctx) {
+             SkCanvas& canvas = *pen.canvas();
              detail::stamp(canvas, ctx, *atlas, *pool, blend);
            })
         .absolute()

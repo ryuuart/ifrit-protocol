@@ -21,6 +21,7 @@
  * adapter at all: draw into a WebImage::paint() callback's canvas.
  */
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <sigilscry/engine/WebView.h>
 
@@ -36,8 +37,8 @@ namespace sigil::compose {
 inline Element web(
     std::shared_ptr<sigil::scry::WebView> view,
     SkSamplingOptions sampling = SkSamplingOptions(SkFilterMode::kLinear)) {
-  Element leaf = custom([view = std::move(view), sampling](
-                            SkCanvas& canvas, const PaintContext& ctx) {
+  Element leaf = custom([view = std::move(view), sampling](sigil::draw::Pen& pen, const PaintContext& ctx) {
+    SkCanvas& canvas = *pen.canvas();
     if (view)
       view->draw(canvas, SkRect::MakeWH(ctx.size.x, ctx.size.y),
                  sampling);

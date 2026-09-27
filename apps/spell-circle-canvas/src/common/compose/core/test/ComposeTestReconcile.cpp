@@ -4,6 +4,7 @@
 // parameters a wiggled binding has to match before it prunes, and the
 // structural prune that needs no memo to reach it.
 
+#include <sigildraw/Pen.h>
 #include "support/CoreTestSupport.h"
 
 TEST(ComposeReconcile, MemoSkipsDescribe) {
@@ -78,7 +79,8 @@ struct WireBetween {
 struct BorrowedStroke {
   std::string key;
   std::vector<std::string> borrows() const { return {key}; }
-  void paint(SkCanvas& canvas, const PaintContext& ctx) const {
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+    SkCanvas& canvas = *pen.canvas();
     SkPaint paint;
     paint.setColor(SK_ColorRED);
     paint.setStyle(SkPaint::kStroke_Style);

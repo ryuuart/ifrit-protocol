@@ -3,6 +3,7 @@
  * each toolkit's edge was, in tones, depth, corner and softness.
  */
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/LayerStyles.h>
@@ -21,7 +22,7 @@ namespace {
 /** ONE RING, drawn or moulded. The tokens mean the same thing on both
  *  sides of that choice, so the two mechanisms differ only in which value
  *  is built here. */
-void ring(SkCanvas& c, const PaintContext& ctx, const Bevel& b,
+void ring(draw::Pen& pen, const PaintContext& ctx, const Bevel& b,
           const material::Color& light, const material::Color& shadow,
           float depth, float shadowDepth, bool sunken,
           geometry::path::Edge edges, styles::BevelEnds ends) {
@@ -34,12 +35,12 @@ void ring(SkCanvas& c, const PaintContext& ctx, const Bevel& b,
     // no bands, so the edge mask has nothing to select.
     styles::BevelEmboss{std::max(lit, drop), b.softness, b.angleDeg,
                         sunken ? shadow : light, sunken ? light : shadow}
-        .paint(c, ctx);
+        .paint(pen, ctx);
     return;
   }
   styles::BevelPair{light, shadow,   lit,         drop,  sunken,
                     3.0f,  b.corner, b.antiAlias, edges, ends}
-      .paint(c, ctx);
+      .paint(pen, ctx);
 }
 
 }  // namespace
@@ -51,8 +52,8 @@ float Bevel::reach() const {
                                                 inner->shadowDepth, softness}));
 }
 
-void Bevel::paint(SkCanvas& c, const PaintContext& ctx) const {
-  ring(c, ctx, *this, light, shadow, depth, shadowDepth, sunken, edges, ends);
+void Bevel::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  ring(pen, ctx, *this, light, shadow, depth, shadowDepth, sunken, edges, ends);
   if (!inner) return;
   PaintContext local = ctx;
   if (inner->gap != 0) {
@@ -64,7 +65,7 @@ void Bevel::paint(SkCanvas& c, const PaintContext& ctx) const {
     if (!ctx.silhouette.empty())
       local.silhouette = geometry::path::fromSk(geometry::path::insetOutline(geometry::path::toSk(ctx.silhouette), inner->gap));
   }
-  ring(c, local, *this, inner->light, inner->shadow, inner->depth,
+  ring(pen, local, *this, inner->light, inner->shadow, inner->depth,
        inner->shadowDepth, sunken != inner->inverted, inner->edges,
        inner->ends);
 }

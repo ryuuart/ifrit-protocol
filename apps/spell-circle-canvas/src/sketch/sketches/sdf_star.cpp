@@ -29,6 +29,7 @@
 
 // TAGS: Materials/Shaders
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
@@ -77,8 +78,8 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
           .figure = sketch::kit::well(
               {.width = kCell, .height = kPicture},
               custom(call,
-                     [paint = sdf::material(shape, style), face = whole()](
-                         SkCanvas& canvas, const PaintContext& pc) {
+                     [paint = sdf::material(shape, style), face = whole()](sigil::draw::Pen& pen, const PaintContext& pc) {
+                       SkCanvas& canvas = *pen.canvas();
                        material::skia::fill(
                            canvas, face, paint,
                            {.resolution = {pc.size.x, pc.size.y}});

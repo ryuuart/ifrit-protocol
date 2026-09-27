@@ -55,6 +55,7 @@
 
 // TAGS: Geometry/Meshes
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <sigilcompose/kit/Document.h>
@@ -230,7 +231,8 @@ struct MeshGenerators {
                      .font({.size = 32})
                      .at({42, 28}),
                  custom("mesh.generators",
-                        [this](SkCanvas& canvas) { draw(canvas); })
+                        [this](sigil::draw::Pen& pen) {
+ SkCanvas& canvas = *pen.canvas(); draw(canvas); })
                      .rect(0, 82, kCanvas.width(),
                                             kCanvas.height()),
                  box().column().gap(8).width(630).at({42, 590}).children(

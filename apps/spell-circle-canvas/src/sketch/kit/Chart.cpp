@@ -1,3 +1,4 @@
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
@@ -189,7 +190,8 @@ Layer axis(const Ruler& how) {
     if (how.line)
       parts.push_back(recorded(
           named(key, "axis", index), "plotAxis",
-          [how, frame, other, polar](SkCanvas& canvas, const PaintContext& pc) {
+          [how, frame, other, polar](sigil::draw::Pen& drawingPen, const PaintContext& pc) {
+            SkCanvas& canvas = *drawingPen.canvas();
             SkPaint pen = strokePen(pc, how.width);
             if (polar && how.of == Axis::X) {
               // The rim: the whole sweep at the radius `other` stands at.
@@ -233,8 +235,8 @@ Layer axis(const Ruler& how) {
     if (reach > 0 && !ticks.empty())
       parts.push_back(recorded(
           named(key, "tick", index), "plotTick",
-          [how, frame, other, ticks, reach, polar](SkCanvas& canvas,
-                                                   const PaintContext& pc) {
+          [how, frame, other, ticks, reach, polar](sigil::draw::Pen& drawingPen, const PaintContext& pc) {
+            SkCanvas& canvas = *drawingPen.canvas();
             SkPaint pen = strokePen(pc, how.width);
             if (polar) {
               const SkPoint hub = frame.centre(SkSize{pc.size.x, pc.size.y});
@@ -501,7 +503,8 @@ Layer area(sigil::core::Callable<double(double)> f, const Area& how) {
                                  std::size_t index) {
     return recorded(
         named(key, "area", index), detail::classOf(how.styleClass, "plotArea"),
-        [f, how, frame](SkCanvas& canvas, const PaintContext& pc) {
+        [f, how, frame](sigil::draw::Pen& drawingPen, const PaintContext& pc) {
+          SkCanvas& canvas = *drawingPen.canvas();
           if (!f) return;
           SkPaint pen;
           pen.setAntiAlias(true);

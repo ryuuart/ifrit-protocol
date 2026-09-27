@@ -190,14 +190,14 @@ struct Weave {
       if (s.brush.blends()) return true;
     return false;
   }
-  float bleed(SkSize size) const {
+  float bleed(glm::vec2 size) const {
     float worst = 0;
     for (const Strand& s : strands)
       worst = std::max(worst, s.path.reach() + s.brush.bleed(size));
     return worst;
   }
   /** The widest mark any strand paints, off its own path. */
-  float reach(SkSize size) const {
+  float reach(glm::vec2 size) const {
     float worst = 0;
     for (const Strand& s : strands)
       worst = std::max(worst, s.path.reach() + s.brush.reach(size));
@@ -216,7 +216,7 @@ struct Weave {
     return keys;
   }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** FIXED ORDER, bottom-up: the first brush paints first, the last on top.
@@ -299,7 +299,7 @@ struct Brush {
     return false;
   }
   /** The widest mark any layer paints, plus the pipeline's own reach. */
-  float reach(SkSize size) const {
+  float reach(glm::vec2 size) const {
     float shared = 0;
     for (const geometry::path::Shaper& g : pipeline) shared += g.bleed();
     float worst = 0;
@@ -318,7 +318,7 @@ struct Brush {
       for (const std::string& k : l.decoration.borrows()) keys.push_back(k);
     return keys;
   }
-  float bleed(SkSize size) const {
+  float bleed(glm::vec2 size) const {
     float shared = 0;
     for (const geometry::path::Shaper& g : pipeline)
       shared += g.bleed();  // pipeline reaches compound (offset THEN wave)
@@ -331,7 +331,7 @@ struct Brush {
     return shared + worst;
   }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 namespace brush {
@@ -357,13 +357,13 @@ struct Restyled {
   bool isRunning() const { return inner.isRunning(); }
   /** Forwarded, for the reason a weave forwards it. */
   bool blends() const { return inner.blends(); }
-  float bleed(SkSize size) const { return inner.bleed(size) + extraBleed; }
-  float reach(SkSize size) const { return inner.reach(size); }
+  float bleed(glm::vec2 size) const { return inner.bleed(size) + extraBleed; }
+  float reach(glm::vec2 size) const { return inner.reach(size); }
   /** Forwarded, or a wrapped weave's strand::from(key) would never be
    *  registered for the derive pass (BorrowingDecoration). */
   std::vector<std::string> borrows() const { return inner.borrows(); }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 inline Restyled restyle(geometry::path::Shaper operation, Decoration inner,

@@ -2,6 +2,7 @@
 // one recording replayed per sample, a stamp that walks its own contour
 // again, and the nested composer a custom leaf draws.
 
+#include <sigildraw/Pen.h>
 #include "support/BrushTestSupport.h"
 
 TEST(ComposeStamps, SnapshotBakesIntrinsicSize) {
@@ -22,7 +23,8 @@ TEST(ComposeStamps, StampRecordsOnceReplaysPerSample) {
   ContourWalk vine;
   vine.spacing = 25.0f;
   vine.stamp =
-      custom([](SkCanvas& c, const PaintContext& ctx) {
+      custom([](sigil::draw::Pen& pen, const PaintContext& ctx) {
+        SkCanvas& c = *pen.canvas();
         ++stampDescribes;
         SkPaint p;
         p.setColor(SK_ColorYELLOW);
@@ -58,7 +60,8 @@ TEST(ComposeStamps, RecursiveStampWalksItsOwnContour) {
   Host host;
   ContourWalk dots;
   dots.spacing = 6.0f;
-  dots.draw = [](SkCanvas& c) {
+  dots.draw = [](sigil::draw::Pen& pen) {
+    SkCanvas& c = *pen.canvas();
     SkPaint p;
     p.setColor(SK_ColorCYAN);
     c.drawRect(SkRect::MakeXYWH(-1, -1, 2, 2), p);
@@ -101,7 +104,8 @@ TEST(ComposeStamps, CustomLeafDrawsNestedComposer) {
       {box().flexGrow(1).fill(red())}));
 
   host.composer.render(box().children(
-      {custom([nested, nestedEngine](SkCanvas& c) {
+      {custom([nested, nestedEngine](sigil::draw::Pen& pen) {
+         SkCanvas& c = *pen.canvas();
          nested->draw(c);
        })
            .width(60)

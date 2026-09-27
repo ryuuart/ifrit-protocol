@@ -39,10 +39,13 @@
 #include <utility>
 #include <vector>
 
-class SkCanvas;
 
 namespace sigil::weave {
 class FontContext;
+}
+
+namespace sigil::draw {
+class Pen;
 }
 
 namespace sigil::compose {
@@ -336,13 +339,17 @@ struct PaintContext {
   PromotionPolicy promotion = PromotionPolicy::ByCost;
 };
 
-/** A PAINT PROGRAM — a drawing on a canvas, in the frame the context
- *  above describes. Both parameters are offered and a program takes the
- *  ones it reads: `[](SkCanvas& c) {…}` is a paint program, so is
- *  `[] {…}`, and so is `[] {…}`.
+/** A PAINT PROGRAM — a drawing made with the draw executor's pen, in the
+ *  frame the context above describes. Both parameters are offered and a
+ *  program takes the ones it reads: `[](draw::Pen& pen) {…}` is a paint
+ *  program, so is `[](draw::Pen& pen, const PaintContext& ctx) {…}`, and
+ *  so is `[] {…}`. The pen's verbs are p5's; a program that draws past
+ *  them takes the pen's canvas, which is the one door to the renderer
+ *  this library opens.
  *  Incomparable, like every callable — see `Decoration::operator==` for
  *  what that costs a node that carries one. */
-using PaintProgram = core::Callable<void(SkCanvas&, const PaintContext&)>;
+using PaintProgram =
+    core::Callable<void(draw::Pen&, const PaintContext&)>;
 
 /** A fill written as a REFERENCE — the ink in force, or a custom property —
  *  resolved against @p ctx into the colour it names; a fill written as a

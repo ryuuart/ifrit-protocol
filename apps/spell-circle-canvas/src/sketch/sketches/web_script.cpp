@@ -8,6 +8,7 @@
 
 // TAGS: Interfaces/Web
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSamplingOptions.h>
 #include <sigilcompose/core/Core.h>
@@ -307,7 +308,8 @@ struct WebScript {
     // engine's page, not this one's.
     Element picture =
         custom(key, [view = views[at], settling = pages[at].get(),
-                     still = std::move(still), where](SkCanvas& canvas) {
+                     still = std::move(still), where](sigil::draw::Pen& pen) {
+          SkCanvas& canvas = *pen.canvas();
           if (still.image)
             canvas.drawImageRect(still.image, where,
                                  SkSamplingOptions(SkFilterMode::kLinear));

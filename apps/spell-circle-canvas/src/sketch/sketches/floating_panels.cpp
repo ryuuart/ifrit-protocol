@@ -47,6 +47,7 @@
 
 // TAGS: Geometry/Meshes
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/texture/Texture.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -218,8 +219,9 @@ struct FloatingPanels {
                      "plane or a cylindrical screen.",
          .footer = "Three flat image panels above · one "
                    "image mapped over a curved mesh below"},
-        custom("floating.panels", [this](SkCanvas& canvas,
+        custom("floating.panels", [this](sigil::draw::Pen& pen,
                                          const PaintContext& paint) {
+          SkCanvas& canvas = *pen.canvas();
           const float scale = std::min(paint.size.width() / kCanvas.width(),
                                        paint.size.height() / kCanvas.height());
           canvas.save();

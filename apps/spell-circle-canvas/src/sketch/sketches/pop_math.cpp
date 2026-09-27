@@ -24,6 +24,7 @@
 
 // TAGS: Geometry/Points
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
@@ -103,8 +104,9 @@ pop::Builder base() {
 Element cloudFigure(const char* key, gm::Cloud cloud) {
   return sketch::kit::well(
       {.width = kCell, .height = kPicture},
-      custom(key, [cloud = std::move(cloud)](SkCanvas& canvas,
+      custom(key, [cloud = std::move(cloud)](sigil::draw::Pen& pen,
                                              const PaintContext& pc) {
+        SkCanvas& canvas = *pen.canvas();
         points::drawBillboards(canvas, cloud, stage(), pc.size, splat());
       }).cache(Cache::Texture));
 }

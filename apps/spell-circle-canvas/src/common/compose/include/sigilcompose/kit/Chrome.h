@@ -112,7 +112,7 @@ struct Bevel {
   bool operator==(const Bevel&) const = default;
   /** How far in from the outline the marks reach. */
   float reach() const;
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** The bevel the theme provides over this subtree, or @p fallback where

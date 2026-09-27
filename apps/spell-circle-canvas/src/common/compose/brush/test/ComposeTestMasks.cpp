@@ -2,6 +2,7 @@
 // stroke's span claim, what a gate reaches and what it leaves alone, and
 // the coverage laws each gate resolves its own term by.
 
+#include <sigildraw/Pen.h>
 #include "support/BrushTestSupport.h"
 #include <sigilgeometry/path/Skia.h>
 #include <sigilmotion/ease/Ease.h>
@@ -467,7 +468,8 @@ TEST(ComposeMaskGates, TheGateGeometryIsTrimsGeometry) {
                               .mask(by::spans(spans::range(lo, hi)))}));
     gated.frame();
     truth.composer.render(
-        stack().children({custom([want](SkCanvas& c) {
+        stack().children({custom([want](sigil::draw::Pen& pen) {
+                            SkCanvas& c = *pen.canvas();
                             SkPaint p;
                             p.setAntiAlias(true);
                             p.setStyle(SkPaint::kStroke_Style);

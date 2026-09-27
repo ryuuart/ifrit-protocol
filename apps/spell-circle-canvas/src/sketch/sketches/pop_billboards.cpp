@@ -28,6 +28,7 @@
 
 // TAGS: Geometry/Points, Motion/Particles
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
@@ -141,8 +142,9 @@ std::function<void(SkCanvas&, SkSize)> splat(pop::Builder chain,
 Element figure(const char* key, std::function<void(SkCanvas&, SkSize)> draw) {
   return sketch::kit::well(
       {.width = kCell, .height = kPicture},
-      custom(key, [draw = std::move(draw)](SkCanvas& canvas,
+      custom(key, [draw = std::move(draw)](sigil::draw::Pen& pen,
                                            const PaintContext& pc) {
+        SkCanvas& canvas = *pen.canvas();
         draw(canvas, pc.size);
       }));
 }

@@ -22,7 +22,7 @@ struct CoverageMark {
   bool operator==(const CoverageMark&) const = default;
   /** How far past the node's box the mark paints. */
   float bleed() const;
-  void paint(SkCanvas& canvas, const PaintContext& context) const;
+  void paint(draw::Pen& pen, const PaintContext& context) const;
 };
 
 /** A keyline around the node's outline painted with a material. */
@@ -34,7 +34,7 @@ struct MaterialStroke {
     return options.position == material::StrokePosition::Inside ? 0
                                                                 : options.width;
   }
-  void paint(SkCanvas& canvas, const PaintContext& context) const;
+  void paint(draw::Pen& pen, const PaintContext& context) const;
 };
 
 /** Splices @p effects onto @p node: its coverage steps as marks and

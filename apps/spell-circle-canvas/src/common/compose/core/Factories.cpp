@@ -5,6 +5,7 @@
  * point — and the makers behind layout() and memo().
  */
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkMatrix.h>
@@ -159,8 +160,8 @@ Element picture(sk_sp<SkPicture> recorded, SkSize native) {
   Element e = custom("picture:" + std::to_string(recorded->uniqueID()) + ":" +
                          std::to_string(native.width()) + "x" +
                          std::to_string(native.height()),
-                     [pic = std::move(recorded), recordedAt](
-                         SkCanvas& canvas, const PaintContext& ctx) {
+                     [pic = std::move(recorded), recordedAt](draw::Pen& pen, const PaintContext& ctx) {
+                       SkCanvas& canvas = *pen.canvas();
                        SkAutoCanvasRestore restore(&canvas, true);
                        if (recordedAt.width() > 0 && recordedAt.height() > 0)
                          canvas.scale(ctx.size.x / recordedAt.width(),

@@ -122,7 +122,7 @@ struct SwirlCorners {
   float size = 24.0f;
   float weight = 2.0f;
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 // ---------------------------------------------------------------------------

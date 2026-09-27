@@ -9,6 +9,7 @@
 
 // TAGS: Media/Models
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -115,8 +116,8 @@ sketch::kit::ComparisonCase specimen(const std::string& key,
           .figure = sketch::kit::well(
               {.width = kCell, .height = kPicture},
               custom(key,
-                     [mesh = std::move(mesh), lens, tint](
-                         SkCanvas& canvas, const PaintContext& pc) {
+                     [mesh = std::move(mesh), lens, tint](sigil::draw::Pen& pen, const PaintContext& pc) {
+                       SkCanvas& canvas = *pen.canvas();
                        if (lens && !mesh.positions.empty()) {
                          render::MeshStyle style = stageStyle();
                          style.baseColor = {style.baseColor.fR * tint.r,

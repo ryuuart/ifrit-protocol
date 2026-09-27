@@ -34,6 +34,7 @@
 
 // TAGS: Geometry/Points
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Core.h>
@@ -110,8 +111,8 @@ Element splat(mesh::Cloud cloud, float spriteSize) {
   // The stamp is baked into the program BY VALUE, once per describe: asked
   // for inside the body it is a 64 px surface rasterised on every paint,
   // which at `Cache::None` is every frame.
-  return custom([cloud = std::move(cloud), spriteSize, sprite = disc()](
-                    SkCanvas& canvas, const PaintContext& paint) {
+  return custom([cloud = std::move(cloud), spriteSize, sprite = disc()](sigil::draw::Pen& pen, const PaintContext& paint) {
+           SkCanvas& canvas = *pen.canvas();
            mesh::points::drawBillboards(
                canvas, cloud, lookAtCrown(), paint.size,
                {.sprite = sprite,

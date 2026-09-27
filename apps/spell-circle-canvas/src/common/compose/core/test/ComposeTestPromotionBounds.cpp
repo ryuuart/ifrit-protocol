@@ -5,6 +5,7 @@
 // dressed coverage that holds ink outside the box without moving the ink
 // inside it.
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkFontMetrics.h>
 
@@ -380,7 +381,8 @@ struct Halo {
   bool operator==(const Halo&) const = default;
   float bleed() const { return spread; }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const {
+  void paint(sigil::draw::Pen& pen, const PaintContext& ctx) const {
+    SkCanvas& c = *pen.canvas();
     SkPaint p;
     p.setAntiAlias(true);
     p.setColor4f(color, nullptr);
@@ -400,7 +402,7 @@ struct Reserve {
 
   bool operator==(const Reserve&) const = default;
   float bleed() const { return extent; }
-  void paint(SkCanvas&, const PaintContext&) const {}
+  void paint(sigil::draw::Pen& pen, const PaintContext&) const {}
 };
 
 /** A DISC THAT REACHES WELL PAST THE BOX IT WAS RESOLVED AGAINST, and

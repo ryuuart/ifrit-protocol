@@ -40,7 +40,7 @@ def stroke(self, spans: Spans, decoration: DecorationLike,
 
 | Value | What it is | Where one comes from |
 |---|---|---|
-| `Decoration` | The mark: anything answering `paint(canvas, PaintContext)`. | [`Decoration`](../../VALUES.md#the-marks), usually a [`PathFormat`](../types/PathFormat.md) |
+| `Decoration` | The mark: anything answering `paint(pen, PaintContext)`. | [`Decoration`](../../VALUES.md#the-marks), usually a [`PathFormat`](../types/PathFormat.md) |
 | `Spans` | Which runs of the boundary this pass claims. | [`Spans`](../../VALUES.md#the-marks): `spans::corners`, `spans::edges`, `spans::upTo`, `spans::every`, and `\|` between them |
 | `material::Material` | A keyline painted with a material, `options.width` wide on the side `options.position` names (`Outside` by default). | a colour, a gradient, `material::from(…).layer(…)` |
 | `name` | A LOCAL label for this mark, for `parts::named` and `spans::rest(name)`. | Any string; it is not a query key |

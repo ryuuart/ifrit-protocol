@@ -2,6 +2,7 @@
 // shadows under a fill, strokes over one, the mask a decoration is gated
 // by, and the wire an operator threads through a run of stops.
 
+#include <sigildraw/Pen.h>
 #include <sigilcompose/kit/Strokes.h>
 
 #include <functional>
@@ -32,7 +33,8 @@ TEST(ComposeDecorations, ContourWalkVisitsSamplesPositioned) {
   visits = 0;
   ContourWalk walk;
   walk.spacing = 25.0f;
-  walk.draw = [](SkCanvas& c, const PathSample& s) {
+  walk.draw = [](sigil::draw::Pen& pen, const PathSample& s) {
+    SkCanvas& c = *pen.canvas();
     ++visits;
     EXPECT_GE(s.fraction, 0.0f);
     EXPECT_LE(s.fraction, 1.0f);

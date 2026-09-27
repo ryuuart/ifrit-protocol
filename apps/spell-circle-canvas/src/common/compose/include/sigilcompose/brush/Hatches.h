@@ -56,7 +56,7 @@ struct Hatch {
            angleBinding == o.angleBinding;
   }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 /** RADIAL hatching: rules that fan out of a centre, rings concentric with
@@ -95,7 +95,7 @@ struct RadialHatch {
            rotateDeg == o.rotateDeg && radiiPx == o.radiiPx;
   }
 
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
+  void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
 }  // namespace sigil::compose::lines

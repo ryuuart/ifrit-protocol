@@ -1,6 +1,7 @@
 // What a decoration dresses: on the default boundary the node's whole
 // box, and on the glyph boundary only where the letters are.
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include "support/ParagraphTestSupport.h"
 
@@ -17,7 +18,8 @@ TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {
                        .top(10.0f)
                        .width(240.0f)
                        .foreground(Decoration(PaintProgram(
-                           [](SkCanvas& canvas, const PaintContext& ctx) {
+                           [](sigil::draw::Pen& pen, const PaintContext& ctx) {
+                             SkCanvas& canvas = *pen.canvas();
                              SkPaint paint;
                              paint.setColor(SK_ColorGREEN);
                              paint.setAntiAlias(false);

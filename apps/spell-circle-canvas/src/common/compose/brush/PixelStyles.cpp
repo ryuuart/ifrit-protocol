@@ -5,6 +5,7 @@
  * outline, and the stipple as a tint through a mask tile.
  */
 
+#include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
 #include <include/core/SkBitmap.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -160,7 +161,8 @@ sk_sp<SkImage> maskTile(uint64_t bits, int size) {
 
 }  // namespace
 
-void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
+void BevelPair::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   using geometry::path::Edge;
   using geometry::path::has;
   // The near edges are the top and the left; sunken swaps the tones (and
@@ -266,7 +268,8 @@ void BevelPair::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.restore();
 }
 
-void Brackets::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Brackets::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   using geometry::shapes::Corner;
   using geometry::shapes::has;
   if (arm <= 0.0f || width <= 0.0f) return;
@@ -294,7 +297,8 @@ void Brackets::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (has(corners, Corner::BottomLeft)) corner(o, h - o, 1, -1);
 }
 
-void TickRail::paint(SkCanvas& c, const PaintContext& ctx) const {
+void TickRail::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   using geometry::path::Edge;
   using geometry::path::has;
   if (pitch <= 0.0f || width <= 0.0f) return;
@@ -336,7 +340,8 @@ void TickRail::paint(SkCanvas& c, const PaintContext& ctx) const {
   if (has(edge, Edge::Right)) rail(Edge::Right);
 }
 
-void Scanlines::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Scanlines::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   if (period <= 0.0f || on <= 0.0f) return;
   c.save();
   c.clipPath(geometry::path::toSk(ctx.outline), false);
@@ -354,7 +359,8 @@ void Scanlines::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.restore();
 }
 
-void Stipple::paint(SkCanvas& c, const PaintContext& ctx) const {
+void Stipple::paint(draw::Pen& pen, const PaintContext& ctx) const {
+  SkCanvas& c = *pen.canvas();
   if (bits == 0 || size <= 0 || size > 8 || cell <= 0.0f) return;
   const sk_sp<SkImage> tile = maskTile(bits, size);
   if (!tile) return;

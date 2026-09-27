@@ -20,6 +20,7 @@
 
 // TAGS: Media/Video
 
+#include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
@@ -175,7 +176,8 @@ struct VideoCompositing {
     Element stage =
         custom(
             "video.layers",
-            [clips](SkCanvas& canvas, const PaintContext& paint) {
+            [clips](sigil::draw::Pen& pen, const PaintContext& paint) {
+              SkCanvas& canvas = *pen.canvas();
               const SkRect page =
                   SkRect::MakeWH(paint.size.width(), paint.size.height());
               const double seconds = paint.elapsedSeconds;
