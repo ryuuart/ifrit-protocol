@@ -1,11 +1,19 @@
 # SigilMaterial — the Skia paint
 
-The chapter on `Paint` and `Filter`: the model as ONE Skia
-shader, the three volatility tiers a paint declares by what it reads,
-the blend stack, the three gradients and their box units, the buffer a
-caller writes into, and the post-processing recipe over a layer that is already rendered.
-`README.md` beside this file is the library; `COLOUR.md` is the colour
-leaf underneath it.
+The chapter on what a `Material` becomes on a Skia canvas, and on
+`Filter`. Tier 1 is the material: a base, `layer()`s, a `surface()` and
+`effects()`, written as `README.md` shows, and every Compose, Draw and
+World verb takes it. What follows is TIER 3 — the executor: `Paint`, the
+lowering `material::skia::paint(material)` folds a material's base and
+layers into (each layer blended over the accumulation, mixed back by its
+opacity, through its mask where it has one), and `material::skia::base`,
+the bridge a paint takes back into the model; the three volatility tiers
+a paint declares by what it reads; the gradients and their box units;
+the buffer a caller writes into; and the post-processing recipe over a
+layer that is already rendered, which is also a material's effects stage
+(`Filter::shadow`, `Filter::stroke` and `Filter::bevel` are the steps
+that read a layer's coverage rather than its pixels). `README.md` beside
+this file is the library; `COLOUR.md` is the colour leaf underneath it.
 
 ## The Skia paint
 

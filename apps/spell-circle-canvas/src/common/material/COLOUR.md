@@ -6,6 +6,14 @@ as one value, the harmonies read around a hue, the dither threshold and
 the table a run of pixels is made of. `README.md` beside this file is
 the library; `PAINT.md` is the Skia paint the colours are painted with.
 
+In tiers: tier 1 is `Color` and `hexColor`, and a `Color` IS a material —
+it converts implicitly wherever a `Material` is taken, so
+`box().fill(hexColor(0x223344))` and `material::from(hexColor(0x223344))`
+start from the same value — with the stock shorthands `withAlpha`,
+`lighten` and `scale` beside the mixes; tier 2 is `Ramp` and the options
+a mix takes; the perceptual round trips, the dither and the palette
+tables are the control a colour tool reaches for.
+
 ## Colour
 
 **THE BOUNDARY: this feature is colour and nothing else.** It links
