@@ -5,7 +5,7 @@
  * over the protocol for as long as the process runs.
  */
 
-#include <sigilmaterial/stock/Stock.h>
+#include <sigilmaterial/core/Program.h>
 
 #include <filesystem>
 #include <future>

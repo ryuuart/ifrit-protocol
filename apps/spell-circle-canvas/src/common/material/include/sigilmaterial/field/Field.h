@@ -4,9 +4,8 @@
  * @ingroup material-field
  *
  * Shader fields — surfaces evaluated per pixel rather than baked as a
- * tile: the halftone ramp, Perlin noise, luminance grain, the tube
- * overlay of a scanline, a mask and a bloom, and the ripple that
- * resamples a layer through a sine displacement. Every parameter is a
+ * tile: the halftone ramp, Perlin noise, luminance grain, and the ripple
+ * that resamples a layer through a sine displacement. Every parameter is a
  * uniform; each returns a Material.
  */
 
@@ -18,8 +17,7 @@
 #include <memory>
 
 /** Surfaces evaluated PER PIXEL rather than baked as a tile: the
- *  halftone ramp, Perlin noise, luminance grain, the tube overlay a CRT
- *  is made of, and the ripple. Reach for a field when the surface has no
+ *  halftone ramp, Perlin noise, luminance grain, and the ripple. Reach for a field when the surface has no
  *  repeat to exploit, or when a parameter moves every frame and a baked
  *  tile would have to be regenerated; reach for `pattern` when one tile
  *  can be baked once and repeated. */
@@ -81,49 +79,6 @@ Material grain(float frequency, int octaves = 4, float seed = 1.0f,
  *  count is a constant in the body, so each count is its own program. */
 const std::shared_ptr<const Recipe>& grainRecipe(int octaves);
 
-/** The tube overlay's ABI.
- *
- *  THE DARKENING IS A SUM: a hard line, a beam, a beat under it and a
- *  grain, each of which is absent at no strength. A monitor seen from
- *  across a room is the hard line alone; a plate shot close enough that
- *  the beam's own profile spans several pixels wants the beam, and close
- *  enough to read the composite signal's own period wants the beat as
- *  well. */
-struct CrtOverlayParameters {
-  float uScanPitch = 4.0f;       ///< px between scanline centres
-  float uScanStrength = 0.052f;  ///< how dark the dark half of a pitch goes
-  float uVigInner = 1.45f;       ///< normalised radius the falloff starts at
-  float uVigOuter = 2.15f;       ///< where it reaches full strength
-  float uVigStrength = 0.34f;
-  float uSqueeze = 0.70f;  ///< < 1 pulls the falloff in along the short axis
-  /** THE BEAM: px between beam centres, how fast its weight falls away
-   *  from one, and how dark the gap between two goes. */
-  float uBeamPitch = 4.0f;
-  float uBeamFalloff = 1.0f;
-  float uBeamStrength = 0.0f;
-  /** THE BEAT the composite carries under the line — a second period of
-   *  the same shape. */
-  float uBeatPitch = 8.0f;
-  float uBeatFalloff = 1.0f;
-  float uBeatStrength = 0.0f;
-  /** How far a per-pixel speckle moves the DARKENING either way. A tube's
-   *  noise is in how much light a cell gives up, not in its colour. */
-  float uGrain = 0.0f;
-};
-
-/** THE TUBE, as something laid OVER a picture: its lines and a corner
- *  falloff, in black, with the alpha carrying both, so it is drawn as
- *  the last layer over the frame it ages. The scan pitch is the full
- *  period in px and the darker half is the first half of it, which is
- *  what makes these lines hard-edged; a squeeze under 1 makes the
- *  falloff reach in from the sides sooner than from the top. It reads
- *  the resolution, and the defaults are a monitor seen straight on with
- *  the lines just visible; the beam, the beat and the grain are off
- *  until a field names them. */
-Material crtOverlay(const CrtOverlayParameters& parameters = {});
-/** crtOverlay()'s recipe, defined once. */
-const std::shared_ptr<const Recipe>& crtOverlayRecipe();
-
 /** The ripple's ABI. */
 struct RippleParameters {
   float uAmp;
@@ -142,14 +97,6 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase = 0.0f,
 /** ripple()'s recipe, defined once. Declares the `content` slot the warp
  *  resamples. */
 const std::shared_ptr<const Recipe>& rippleRecipe();
-
-/** An instance of every recipe this feature ships, one apiece, with the
- *  ripple's `content` slot dressed — a slot left empty and a slot
- *  holding an image are not the same program. The grain is one recipe
- *  per octave count, so the list carries the counts from one up to the
- *  default. For a caller that has to compile every program the feature
- *  can ask a backend for without knowing what it holds. */
-std::vector<Material> everyRecipe();
 
 }  // namespace sigil::material::field
 

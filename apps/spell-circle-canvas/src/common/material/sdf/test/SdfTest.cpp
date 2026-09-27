@@ -102,7 +102,20 @@ TEST(Sdf, StyleIsTheRecipeAndAGlowBindingIsLive) {
 // ---- the embedded shader table --------------------------------------------
 
 TEST(Sdf, EveryStockBodyCompiles) {
-  for (const Material& m : sdf::everyRecipe()) {
+  // One of each shape, dressed by a style that lights every layer, so
+  // what compiles is the whole of each body and not the part a bare fill
+  // runs.
+  sdf::Style dressed;
+  dressed.fill = {0.2f, 0.5f, 0.9f, 1};
+  dressed.borderWidth = 2;
+  dressed.glowRadius = 6;
+  dressed.shadowOffset = {2, 3};
+  dressed.shadowBlur = 4;
+  dressed.shadowColor = {0, 0, 0, 0.5f};
+  for (const Material& m :
+       {sdf::material(sdf::roundBox(8), dressed),
+        sdf::material(sdf::circle(), dressed),
+        sdf::material(sdf::star(5, 3), dressed)}) {
     if (!m.recipe().has(Target::SkSL)) continue;
     EXPECT_TRUE(skia::shader(m, {.resolution = {64, 64}})) << m.recipe().name();
   }

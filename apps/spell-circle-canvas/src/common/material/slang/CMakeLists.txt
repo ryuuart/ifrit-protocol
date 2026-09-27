@@ -36,7 +36,7 @@ sigil_test(material_test
   SOURCES test/SlangTest.cpp
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SLANG_SHADER_DIR="${SIGIL_MATERIAL_SLANG_SHADER_DIR}"
-  LIBRARIES SigilMaterialSlang SigilMaterialKit)
+  LIBRARIES SigilMaterialSlang)
 
 sigil_bench(material_bench
   SOURCES bench/SlangBench.cpp

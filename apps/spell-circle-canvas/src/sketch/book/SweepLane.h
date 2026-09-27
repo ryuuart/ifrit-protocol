@@ -5,7 +5,7 @@
  * each.
  */
 
-#include <sigilmaterial/stock/Stock.h>
+#include <sigilmaterial/core/Program.h>
 
 #include <future>
 

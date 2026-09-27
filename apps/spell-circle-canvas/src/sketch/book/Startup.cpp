@@ -7,6 +7,7 @@
 #include "Startup.h"
 
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/surface/Surface.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/core/Assets.h>
 #include <sigilsketch/core/Device.h>
@@ -37,8 +38,11 @@ std::span<const sigil::material::Material> stockRecipes() {
   // Leaked deliberately, as the font context is: the recipes hold
   // Skia-backed programs, and a static destructor racing Skia teardown
   // is a class of crash worth not having.
-  static const auto* recipes = new std::vector<sigil::material::Material>(
-      sigil::material::stock::everyRecipe());
+  namespace surface = sigil::material::surface;
+  static const auto* recipes = new std::vector<sigil::material::Material>{
+      surface::program({}, surface::Reflection::SplitSum),
+      surface::program({}, surface::Reflection::Additive),
+      surface::unlit()};
   return *recipes;
 }
 

@@ -8,7 +8,8 @@
  * set is lit on.
  */
 
-#include <sigilmaterial/stock/Stock.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/core/Program.h>
 #ifdef SIGILSKETCH_BOOK_SCRY
 #include <sigilsketch/scry/SharedEngine.h>
 #endif
@@ -56,19 +57,19 @@ class SharedWebEngineScope {
 };
 #endif
 
-/** THE PROCESS'S ONE LIST OF STOCK RECIPES, read from disk on the first
- *  ask and held. The warm-up compiles this list, and a later pass walks
- *  the same list to reach each compiled program — reading the
- *  catalogues a second time would spend the disk again and, worse,
- *  answer with recipes that are equal to the first lot without being
- *  the same objects. */
+/** THE PROCESS'S ONE LIST OF STOCK RECIPES, built on the first ask and
+ *  held: the surface programs the library ships and every lit body draws
+ *  with — lit by the split sum, lit additively, and unlit. A look belongs
+ *  to the sketch that wears it and compiles when that sketch first draws.
+ *  The warm-up compiles this list, and a later pass walks the same list
+ *  to reach each compiled program — building it a second time would
+ *  answer with recipes equal to the first lot without being the same
+ *  objects. */
 std::span<const sigil::material::Material> stockRecipes();
 
 /** THE STOCK MATERIALS, COMPILED BEFORE THE FIRST SKETCH DRAWS: the
- *  backend this host draws through, and then the material library's own
- *  warm-up over every recipe it ships. How many catalogues that is, where
- *  each reads its shader files from and how they are read side by side
- *  are the library's business, not this host's. */
+ *  material library's warm-up over the list above, through the backend
+ *  this host draws with. */
 sigil::material::WarmupResult warmStockMaterials();
 
 /** Waits for that warm-up and says on stderr how much of it landed. */

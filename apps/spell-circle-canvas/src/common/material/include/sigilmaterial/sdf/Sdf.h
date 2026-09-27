@@ -19,7 +19,6 @@
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <memory>
-#include <vector>
 
 /** Silhouettes described by their SIGNED DISTANCE, so shape, border,
  *  glow and soft shadow all fall out of one number and are painted in
@@ -142,12 +141,5 @@ const std::shared_ptr<const Recipe>& recipe(SdfShape silhouette);
 /** The material: @p shape dressed by @p style. Bind `uGlowR`, `uBorderW`
  *  and the rest to animate within the reserve the style computed. */
 Material material(const Shape& shape, const Style& style);
-
-/** An instance of every recipe this feature ships, one per SdfShape, each
- *  dressed by a style that lights every layer — so what the list reaches
- *  is the whole of each body and not the part a bare fill runs. For a
- *  caller that has to compile every program the feature can ask a
- *  backend for without knowing which shapes it holds. */
-std::vector<Material> everyRecipe();
 
 }  // namespace sigil::material::sdf

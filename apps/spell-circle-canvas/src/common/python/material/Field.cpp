@@ -8,7 +8,6 @@ namespace sigil::python {
 namespace py = pybind11;
 
 void bindMaterialField(py::module_& module) {
-  using material::field::CrtOverlayParameters;
   auto fields = submodule(module, "material.field");
   fields.def("noise", &material::field::noise, py::arg("frequency"),
              py::arg("octaves") = 4, py::arg("seed") = 1,
@@ -30,25 +29,6 @@ void bindMaterialField(py::module_& module) {
       py::arg("spacing"), py::arg("minimumRadius"), py::arg("maximumRadius"), py::arg("color"),
       py::arg("angleDegrees") = 0.0f, py::arg("rampFrom") = 0.0f,
       py::arg("rampTo") = 1.0f);
-  bindRecord<CrtOverlayParameters>(fields, "CrtOverlayParameters",
-                                   "Unknown CRT field: ")
-      .def_readwrite("uScanPitch", &CrtOverlayParameters::uScanPitch)
-      .def_readwrite("uScanStrength", &CrtOverlayParameters::uScanStrength)
-      .def_readwrite("uVigInner", &CrtOverlayParameters::uVigInner)
-      .def_readwrite("uVigOuter", &CrtOverlayParameters::uVigOuter)
-      .def_readwrite("uVigStrength", &CrtOverlayParameters::uVigStrength)
-      .def_readwrite("uSqueeze", &CrtOverlayParameters::uSqueeze)
-      .def_readwrite("uBeamPitch", &CrtOverlayParameters::uBeamPitch)
-      .def_readwrite("uBeamFalloff", &CrtOverlayParameters::uBeamFalloff)
-      .def_readwrite("uBeamStrength", &CrtOverlayParameters::uBeamStrength)
-      .def_readwrite("uBeatPitch", &CrtOverlayParameters::uBeatPitch)
-      .def_readwrite("uBeatFalloff", &CrtOverlayParameters::uBeatFalloff)
-      .def_readwrite("uBeatStrength", &CrtOverlayParameters::uBeatStrength)
-      .def_readwrite("uGrain", &CrtOverlayParameters::uGrain);
-  fields.def("crtOverlay",
-             py::overload_cast<const CrtOverlayParameters&>(
-                 &material::field::crtOverlay),
-             py::arg("parameters") = CrtOverlayParameters{});
 }
 
 }  // namespace sigil::python

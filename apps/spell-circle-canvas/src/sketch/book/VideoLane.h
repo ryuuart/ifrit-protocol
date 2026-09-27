@@ -4,7 +4,7 @@
  * The montage lane: the selection encoded into one vertical video.
  */
 
-#include <sigilmaterial/stock/Stock.h>
+#include <sigilmaterial/core/Program.h>
 
 #include <future>
 

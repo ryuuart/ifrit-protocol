@@ -1,12 +1,10 @@
 // The Slang backend: a module compiles, its layout is the compiler's own
 // answer rather than a guess, a draw's bytes land at those offsets, the
-// two modules every session carries are importable, and the kit's bodies
-// that carry a Slang twin — the grained four and the globe — compile as
-// the surface a device renderer asks them for.
+// two modules every session carries are importable, and a recipe's Slang
+// body compiles as the surface a device renderer asks it for.
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/kit/Globe.h>
-#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/core/Recipe.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilshaders/MaterialSlang.h>
 
@@ -218,7 +216,7 @@ TEST(MaterialSlang, AMissingEntryPointIsNamed) {
 }
 
 // ---------------------------------------------------------------------------
-// The kit's grained recipes carry a Slang body, and it compiles.
+// A recipe's Slang body compiles as a surface.
 
 namespace {
 
@@ -244,40 +242,34 @@ float4 fsTest(VSOut input) : SV_Target {
 
 }  // namespace
 
-TEST(MaterialSlang, EveryGrainedRecipeCompilesAsASurface) {
-  namespace kit = sigil::material::kit;
+namespace {
+
+struct SurfaceStandIn {
+  float seed = 0;
+};
+
+}  // namespace
+
+TEST(MaterialSlang, ARecipesSlangBodyCompilesAsASurface) {
+  using sigil::material::FrameInput;
   using sigil::material::Recipe;
   using sigil::material::Target;
-  for (const Recipe* recipe :
-       {kit::stoneRecipe().get(), kit::timberRecipe().get(),
-        kit::lattenRecipe().get(), kit::boardRecipe().get()}) {
-    Compiled built;
-    std::string error;
-    const std::string source = recipe->source(Target::Slang) + kSurfaceScaffold;
-    EXPECT_TRUE(compileModule(source, "vsTest", "fsTest", /*lit=*/false, &built,
-                              &error))
-        << recipe->name() << ": " << error;
-    // Every parameter the body reads is in the layout.
-    EXPECT_NE(built.uniform("seed"), nullptr) << recipe->name();
-  }
-}
-
-TEST(MaterialSlang, TheGlobeCompilesAsASurface) {
-  // The globe's reading is written once in Slang and crossed into SkSL,
-  // so this is the half of the pair that no paint-side case can reach:
-  // the text a device compiler is handed.
-  namespace kit = sigil::material::kit;
-  using sigil::material::Target;
+  Recipe recipe =
+      Recipe::of<SurfaceStandIn>("slang.test.surface")
+          .body(Target::Slang,
+                "float4 surface(float2 uv) {\n"
+                "  return float4(frac(uv * uResolution / 64.0), seed, 1.0);\n"
+                "}\n")
+          .frame(FrameInput::Resolution);
   Compiled built;
   std::string error;
-  const std::string source =
-      kit::globe().recipePointer()->source(Target::Slang) + kSurfaceScaffold;
+  const std::string source = recipe.source(Target::Slang) + kSurfaceScaffold;
   ASSERT_TRUE(
       compileModule(source, "vsTest", "fsTest", /*lit=*/false, &built, &error))
       << error;
-  EXPECT_NE(built.uniform("fill"), nullptr);
-  // The disc is inscribed in the node, so the body reads the frame's
-  // resolution and the layout has to carry it.
+  // Every parameter the body reads is in the layout, and a body that reads
+  // the frame's resolution has it there too.
+  EXPECT_NE(built.uniform("seed"), nullptr);
   EXPECT_NE(built.uniform("uResolution"), nullptr);
 }
 

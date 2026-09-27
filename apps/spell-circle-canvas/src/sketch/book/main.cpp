@@ -94,7 +94,6 @@
  * `assets/` beside its own file.
  */
 
-#include <sigilmaterial/stock/Stock.h>
 #include <sigilsketch/core/Crash.h>
 #include <sigilsketch/core/Registry.h>
 #include <sigilsketch/core/Sources.h>

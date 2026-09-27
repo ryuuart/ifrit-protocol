@@ -12,9 +12,9 @@
  * it.
  *
  * So this suite stands Graphite up, installs a handler where the failed
- * compiles are reported, and draws one instance of every recipe the kit,
- * the sdf, the field and the ocio features ship, plus a stack per blend
- * and the shading terms, demanding that not one of them reports an
+ * compiles are reported, and draws one instance of every recipe the
+ * surface, the sdf, the field and the ocio features ship, plus a stack
+ * per blend and the shading terms, demanding that not one of them reports an
  * error. The control below proves the handler is wired to something: the
  * exact collision the reserved names exist to prevent, built as a raw
  * runtime effect so it reaches the device, must be reported. That this
@@ -27,7 +27,6 @@
 #include <sigilmaterial/core/Terms.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/surface/Surface.h>
-#include <sigilmaterial/kit/Recipes.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/ocio/Ocio.h>
 #include <sigilmaterial/sdf/Sdf.h>
@@ -198,12 +197,27 @@ std::vector<std::pair<std::string, Material>> everyMaterial() {
       all.emplace_back(std::move(name), std::move(m));
     }
   };
-  add(kit::everyRecipe());
-  add(sdf::everyRecipe());
-  add(field::everyRecipe());
+  add({surface::program({}, surface::Reflection::SplitSum),
+       surface::program({}, surface::Reflection::Additive), surface::unlit()});
+  sdf::Style dressed;
+  dressed.fill = {0.2f, 0.5f, 0.9f, 1};
+  dressed.borderWidth = 2;
+  dressed.glowRadius = 6;
+  dressed.shadowOffset = {2, 3};
+  dressed.shadowBlur = 4;
+  dressed.shadowColor = {0, 0, 0, 0.5f};
+  add({sdf::material(sdf::roundBox(8), dressed),
+       sdf::material(sdf::circle(), dressed),
+       sdf::material(sdf::star(5, 3), dressed)});
+  Material warp = field::ripple(4, 32);
+  warp.slot("content", maskConstant(1.0f));
+  add({field::halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f),
+       field::noise(0.03f), std::move(warp)});
+  for (int octaves = 1; octaves <= 4; ++octaves)
+    add({field::grain(0.05f, octaves)});
   add({termsMaterial()});
 
-  // The stacks: one per blend, over operands the kit supplies. A stack is
+  // The stacks: one per blend, over operands the surface feature supplies. A stack is
   // a material like any other and its operands are its children, so the
   // body compiled is the combinator's over three sampled slots.
   surface::SurfaceParameters red;

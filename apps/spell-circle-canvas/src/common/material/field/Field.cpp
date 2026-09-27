@@ -5,10 +5,7 @@
  */
 
 #include "sigilmaterial/field/Field.h"
-#include <sigilmaterial/field/Crt.h>
 
-#include <include/core/SkCanvas.h>
-#include <include/core/SkSurface.h>
 #include <include/effects/SkPerlinNoiseShader.h>
 #include <sigilmaterial/skia/ShaderLeaf.h>
 #include <sigilmaterial/texture/Texture.h>
@@ -46,18 +43,6 @@ Material halftoneRamp(float spacing, float minimumRadius, float maximumRadius, C
                   HalftoneRampParameters{std::max(spacing, 1.0f), minimumRadius, maximumRadius,
                                          angleDegrees * 0.017453293f, 0.0f, 0.0f,
                                          rampFrom, rampTo, color});
-}
-
-const std::shared_ptr<const Recipe>& crtOverlayRecipe() {
-  static const auto recipe = std::make_shared<const Recipe>(
-      Recipe::of<CrtOverlayParameters>("field.crtOverlay")
-          .frame(FrameInput::Resolution)
-          .body(Target::SkSL, std::string(shaderSource("CrtOverlay.sksl"))));
-  return recipe;
-}
-
-Material crtOverlay(const CrtOverlayParameters& parameters) {
-  return Material(crtOverlayRecipe(), parameters);
 }
 
 namespace {
@@ -153,47 +138,6 @@ Material ripple(float amplitudePx, float wavelengthPx, float phase,
       rippleRecipe(),
       RippleParameters{amplitudePx, 6.2831853f / std::max(wavelengthPx, 1.0f),
                        phase, vertical ? 1.0f : 0.0f});
-}
-
-std::vector<Material> everyRecipe() {
-  std::vector<Material> all;
-  all.push_back(halftoneRamp(8, 1, 3, {1, 1, 1, 1}, 15.0f, 0.1f, 0.9f));
-  all.push_back(noise(0.03f));
-  for (int octaves = 1; octaves <= 4; ++octaves)
-    all.push_back(grain(0.05f, octaves));
-  all.push_back(crtOverlay());
-  sk_sp<SkSurface> content =
-      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(4, 4));
-  Material warp = ripple(4, 32);
-  if (content) {
-    content->getCanvas()->clear(SK_ColorMAGENTA);
-    warp.slot("content", Texture(content->makeImageSnapshot()));
-  }
-  // The whole screen and each of the three subjects it composes, since
-  // every one of them is a program a backend can be asked for.
-  Material screen = crt({.uBounds = {0, 0, 4, 4}});
-  Material beam = crtBeam({.uBounds = {0, 0, 4, 4}});
-  Material light = crtBloom({.uBounds = {0, 0, 4, 4}});
-  Material glass = crtGlass({.uBounds = {0, 0, 4, 4}});
-  if (content) {
-    // Both slots wherever a recipe declares both, because a slot nothing
-    // fills generates a different program from the one a backend will
-    // really run — and the bloom slot is the executor's where there is a
-    // layer, which a catalogue entry has not got.
-    const auto stand = Texture(content->makeImageSnapshot());
-    screen.slot("content", stand);
-    screen.slot("bloom", stand);
-    beam.slot("content", stand);
-    light.slot("bloom", stand);
-    glass.slot("content", stand);
-    glass.slot("bloom", stand);
-  }
-  all.push_back(std::move(screen));
-  all.push_back(std::move(beam));
-  all.push_back(std::move(light));
-  all.push_back(std::move(glass));
-  all.push_back(std::move(warp));
-  return all;
 }
 
 }  // namespace sigil::material::field
