@@ -4,7 +4,7 @@
  *
  * A field is a surface evaluated per pixel rather than baked as a tile,
  * so every parameter is a uniform and each one answers a Material like
- * any other. Two of the five have a shape worth knowing before reaching
+ * any other. Two of them have a shape worth knowing before reaching
  * for them.
  *
  * `noise` and `grain` are not the same generator at two settings.
@@ -14,10 +14,6 @@
  * channel, so a blend mode over a coloured surface reads as light: paper
  * tooth, film grain, stone veining, worn metal.
  *
- * `crtOverlay` shades nothing. It is black with the alpha carrying the
- * scanlines and the corner falloff, so it darkens what is UNDER it and
- * is drawn as the last layer over the frame it ages. Both crt cells here
- * paint a ground first, which is what a caller would be doing.
  *
  * `ripple` resamples its `content` child through a sine displacement, so
  * it is the one field on the shelf with a slot to fill.
@@ -62,8 +58,6 @@ constexpr float kPicture = 180;
 constexpr float kSpacing = 9;       // the halftone lattice pitch, px
 constexpr float kNoiseHz = 0.035f;  // features per px
 constexpr float kSeed = 4;          // the seed every generated field offsets by
-
-constexpr material::Color kScreen{0.72f, 0.80f, 0.62f, 1};
 
 SkPath whole() {
   return SkPathBuilder().addRect(SkRect::MakeWH(kCell, kPicture)).detach();
@@ -125,19 +119,6 @@ sketch::kit::ComparisonCase plain(const char* caseTitle, const char* call,
               });
 }
 
-/** A field over a lit ground — what crtOverlay is for. */
-sketch::kit::ComparisonCase aged(const char* caseTitle, const char* call,
-                                 const char* note, material::Material paint) {
-  return cell(caseTitle, call, note,
-              [paint = std::move(paint), face = whole()](
-                  SkCanvas& canvas, const material::FrameData& frame) {
-                SkPaint ground;
-                ground.setColor4f(material::skia::toSkColor(kScreen));
-                canvas.drawPath(face, ground);
-                material::skia::fill(canvas, face, paint, frame);
-              });
-}
-
 }  // namespace
 
 struct FieldShelf {
@@ -148,8 +129,8 @@ struct FieldShelf {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     ctx.composer.render(sketch::kit::page(
-        {.title = "Five fields, five questions",
-         .subtitle = "Pattern, channel structure, displacement, and an overlay",
+        {.title = "Four fields, four questions",
+         .subtitle = "Pattern, channel structure and displacement",
          .footer = "These fields are evaluated per pixel; their parameters "
                    "remain available as uniforms."},
         box().column().gap(28).children(
@@ -226,36 +207,13 @@ struct FieldShelf {
                  .alignItems(Align::Start)
                  .gap(20)
                  .children(
-                     {sketch::kit::section(
-                          {.label = "A SCREEN OVERLAY", .note = ""},
-                          sketch::kit::comparison(
-                              {.cases =
-                                   {aged("STOCK TUBE", "crtOverlay()",
-                                         "Alpha scanlines darken the green "
-                                         "ground.",
-                                         field::crtOverlay()),
-                                    aged("COARSER TUBE",
-                                         "crtOverlay(8, 0.16, 1.1, 1.9, 0.7)",
-                                         "Coarser lines and a stronger corner "
-                                         "falloff.",
-                                         field::crtOverlay(
-                                             {.uScanPitch = 8,
-                                              .uScanStrength =
-                                                  0.16f,
-                                              .uVigInner = 1.1f,
-                                              .uVigOuter = 1.9f,
-                                              .uVigStrength = 0.7f}))},
-                               .measure = 500,
-                               .gap = 20})),
-                      box().column().gap(18).children(
+                     {box().column().gap(18).children(
                           {sketch::kit::sectionHeader(
                                {.label = "WHAT A FIELD DOES", .note = ""}),
                            document::caption(
                                "Halftone, noise and grain generate colour. "
                                "Ripple samples a child image at displaced "
-                               "coordinates. The CRT overlay instead supplies "
-                               "black and alpha, changing the image beneath "
-                               "it.")
+                               "coordinates.")
                                .width(500),
                            document::caption(
                                "The paired wells keep the same size and seed. "
@@ -266,5 +224,5 @@ struct FieldShelf {
 };
 
 SIGIL_SKETCH(FieldShelf, "Specimen",
-             "the five shader fields at stock on one shelf and, under each, "
+             "the shader fields at stock on one shelf and, under each, "
              "the one dial that changes what it means")

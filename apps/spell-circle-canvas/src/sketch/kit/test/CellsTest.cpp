@@ -10,7 +10,10 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcore/reconcile/Environment.h>
-#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/core/Recipe.h>
+
+#include <memory>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -32,6 +35,28 @@ using sigil::sketch::kit::test::sameDrawing;
 using sigil::sketch::kit::test::subject;
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
+
+/** A banded two-tone program the tests ground things in: a material a
+ *  node carries as a recipe instance rather than as a colour. */
+struct BandParameters {
+  sigil::material::Color hi;
+  sigil::material::Color lo;
+  float angleDegrees = 24.0f;
+};
+
+sigil::material::Material bands(const BandParameters& parameters) {
+  using sigil::material::Recipe;
+  using sigil::material::Target;
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<BandParameters>("sketch.kit.test.bands")
+          .body(Target::SkSL,
+                "half4 main(float2 p) {\n"
+                "  float a = angleDegrees * 0.017453292;\n"
+                "  float t = fract(dot(p, float2(cos(a), sin(a))) / 23.0);\n"
+                "  return half4(mix(hi, lo, abs(2.0 * t - 1.0)));\n"
+                "}\n"));
+  return sigil::material::Material(recipe, parameters);
+}
 
 TEST(SketchKitCells, CaptionDrawsTheHandSpelledCell) {
   const kit::Theme& house = kit::houseTheme();
@@ -206,7 +231,7 @@ TEST(SketchKitCells, APaddingDownOfItsOwn) {
  *  than collapsing to a Fill — which is the half a `Fill` alone could not
  *  say. */
 TEST(SketchKitCells, AWellGroundedInAMaterialIsTheHandSpelledFill) {
-  const sigil::material::Material quarry = sigil::material::kit::stone(
+  const sigil::material::Material quarry = bands(
       {.hi = {0.47f, 0.29f, 0.29f, 1}, .lo = {0.30f, 0.19f, 0.19f, 1}});
   EXPECT_TRUE(
       sameDrawing(compose::box()

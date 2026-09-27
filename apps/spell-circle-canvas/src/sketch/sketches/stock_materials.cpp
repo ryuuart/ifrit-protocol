@@ -25,10 +25,9 @@
  * retyping it, and a generator that ships without arriving here has no
  * cell.
  *
- * The five rows are the five shelves: `field::` (the whole-box fields),
- * `pattern::` (the tiles, baked once and repeated), `kit::` grained (the
- * four quarried surfaces and the girih panel), `sdf::` with the unit-space
- * ramps, and `kit::` text paints.
+ * The three rows are the three shelves: `field::` (the whole-box fields),
+ * `pattern::` (the tiles, baked once and repeated), and `sdf::` with the
+ * unit-space ramps. The library ships no looks; a study carries its own.
  */
 
 // TAGS: Materials/Shaders
@@ -38,9 +37,6 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Grained.h>
-#include <sigilmaterial/kit/Patterns.h>
-#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/sdf/Sdf.h>
@@ -120,7 +116,6 @@ struct StockMaterialsSheet {
         {0.0f, {0.95f, 0.35f, 0.25f, 1}},
         {0.5f, {0.95f, 0.80f, 0.30f, 1}},
         {1.0f, {0.20f, 0.55f, 0.95f, 1}}};
-    const SkRect swatchBox = SkRect::MakeWH(kCell, kSwatch);
 
     // The tile the two content-reading fields are shown over, so the
     // warp has something to displace and the tube something to darken.
@@ -137,9 +132,6 @@ struct StockMaterialsSheet {
                 "field::ripple(7 px, 46 px) over a checker child",
                 material::Paint::recipe(field::ripple(7.0f, 46.0f, 0.6f))
                     .slot("content", under)),
-         swatch(field::crtOverlayRecipe()->name(),
-                "field::crtOverlay(4 px) laid over the same checker",
-                material::from(under).layer(field::crtOverlay())),
          painted("field::noise(0.02, 5, turbulence)",
                  field::noise(0.02f, 5, 9.0f, true))});
 
@@ -161,20 +153,6 @@ struct StockMaterialsSheet {
              tiled("speckle", "pattern::speckle(120, 34, 1.2, 4.2)",
                    material::pattern::speckle(120, 34, 1.2f, 4.2f,
                                 {material::hexColor(0xe8e2d2), material::hexColor(0xf2cc4d)}))});
-
-    Element grained = row(
-        {painted("kit::stone({.bedAngle = 24, .bedLength = 46})",
-                 material::kit::stone({.bedAngle = 24, .bedLength = 46, .seed = 3})),
-         painted("kit::timber({.span = 90, .figure = 0.5})",
-                 material::kit::timber({.span = 90, .figure = 0.5f, .seed = 5})),
-         painted("kit::latten({.level = 0.6, .sheen = 0.5})",
-                 material::kit::latten({.level = 0.6f, .sheen = 0.5f, .seed = 7})),
-         painted("kit::board({.tooth = 0.4, .wear = 0.3})",
-                 material::kit::board({.tooth = 0.4f, .wear = 0.3f, .seed = 11})),
-         tiled("girih8", "kit::girih8(30, fezPalette(), 1.6, 45°)",
-               material::kit::girih8(30, material::kit::fezPalette(), 1.6f, 45.0f)),
-         tiled("girih8 · nasrid", "kit::girih8(30, nasridPalette(), 1.6, 62°)",
-               material::kit::girih8(30, material::kit::nasridPalette(), 1.6f, 62.0f))});
 
     Element shapesAndRamps = row(
         {painted("sdf::circle, bordered and glowing",
@@ -206,27 +184,14 @@ struct StockMaterialsSheet {
                     {0.5f, 0.5f}, 1.0f, ramp,
                     {.extent = material::RadialExtent::ClosestSide}))});
 
-    Element textPaints = row(
-        {painted("kit::water(bounds, 1.4 s)", material::kit::water(swatchBox, 1.4f)),
-         painted("kit::meshGradient(bounds, 1.4 s)",
-                 material::kit::meshGradient(swatchBox, 1.4f)),
-         painted("kit::sparkle(bounds, 1.4 s)", material::kit::sparkle(swatchBox, 1.4f)),
-         painted("kit::starNest(bounds, 1.4 s)",
-                 material::kit::starNest(swatchBox, 1.4f)),
-         painted("kit::clouds(bounds, 1.4 s)", material::kit::clouds(swatchBox, 1.4f)),
-         painted("kit::tunnel(bounds, 1.4 s)", material::kit::tunnel(swatchBox, 1.4f))});
-
     ctx.composer.render(sketch::kit::page(
         {.title = "The material shelf",
-         .subtitle = "field · pattern tiles · the "
-                     "grained kit and girih · sdf and the "
-                     "unit ramps · the text paints",
+         .subtitle = "field · pattern tiles · sdf and the unit ramps",
          .footer = "Recipe names identify live materials; the smaller caption "
                    "shows the parameters behind each swatch."},
         sketch::kit::cells(
             {.cells = {std::move(fields), std::move(patterns),
-                       std::move(grained), std::move(shapesAndRamps),
-                       std::move(textPaints)},
+                       std::move(shapesAndRamps)},
              .column = true,
              .gap = 20})));
   }

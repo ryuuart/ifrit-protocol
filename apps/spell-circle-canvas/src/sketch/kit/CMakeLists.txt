@@ -46,7 +46,7 @@ sigil_test(sketch_test
           test/PageTest.cpp test/PanelTest.cpp test/PassageTest.cpp
           test/RowsTest.cpp test/ScrollbarTest.cpp test/ThemeTest.cpp
           test/TickerTest.cpp
-  LIBRARIES SigilSketchKit SigilMaterialKit SigilMotionClock
+  LIBRARIES SigilSketchKit SigilMaterialCore SigilMotionClock
             SigilMotionValues SigilDataTable
   # The one case that asks the machine's font manager for a family by name.
   LABELS fonts

@@ -5,7 +5,10 @@
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Board.h>
-#include <sigilmaterial/kit/Grained.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/core/Recipe.h>
+
+#include <memory>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
@@ -25,6 +28,28 @@ using sigil::sketch::kit::test::sameDrawing;
 using sigil::sketch::kit::test::subject;
 using sigil::sketch::test::assets;
 using sigil::sketch::test::fonts;
+
+/** A banded two-tone program the tests ground things in: a material a
+ *  node carries as a recipe instance rather than as a colour. */
+struct BandParameters {
+  sigil::material::Color hi;
+  sigil::material::Color lo;
+  float angleDegrees = 24.0f;
+};
+
+sigil::material::Material bands(const BandParameters& parameters) {
+  using sigil::material::Recipe;
+  using sigil::material::Target;
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<BandParameters>("sketch.kit.test.bands")
+          .body(Target::SkSL,
+                "half4 main(float2 p) {\n"
+                "  float a = angleDegrees * 0.017453292;\n"
+                "  float t = fract(dot(p, float2(cos(a), sin(a))) / 23.0);\n"
+                "  return half4(mix(hi, lo, abs(2.0 * t - 1.0)));\n"
+                "}\n"));
+  return sigil::material::Material(recipe, parameters);
+}
 
 /** A shell whose only rule runs round its OUTER edge asks the frame for
  *  none, and gets none — where a `Fill` with no kind would otherwise paint
@@ -173,12 +198,12 @@ TEST(SketchKitPanel, TheScreenIsInsetByTheBezel) {
  *  take a material, and the chrome is what the same materials on the two
  *  hand-spelled nodes draw. */
 TEST(SketchKitPanel, AFrameShellAndScreenTakeAMaterial) {
-  const sigil::material::Material purbeck = sigil::material::kit::stone(
+  const sigil::material::Material purbeck = bands(
       {.hi = {0.47f, 0.46f, 0.42f, 1}, .lo = {0.31f, 0.31f, 0.28f, 1}});
   const sigil::material::Material mortar =
-      sigil::material::kit::stone({.hi = {0.42f, 0.41f, 0.37f, 1},
+      bands({.hi = {0.42f, 0.41f, 0.37f, 1},
                                    .lo = {0.28f, 0.27f, 0.25f, 1},
-                                   .bedAngle = 60.0f});
+                                   .angleDegrees = 60.0f});
   const kit::Theme& house = kit::houseTheme();
   Element byHand =
       compose::box()
