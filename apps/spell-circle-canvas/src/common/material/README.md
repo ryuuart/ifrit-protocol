@@ -1,48 +1,105 @@
 # SigilMaterial
 
-Materials as recipe instances. A **recipe** is a material's definition: a
-plain C++ struct of uniform-typed fields that is its ABI, one shader body
-per shading language, the slots it samples and the per-frame values
-it reads. A **material** is one instance of a recipe: the field values,
-mirrored as the bytes the shader will receive; live bindings that overwrite
-fields every frame; other materials filling its slots; and the
-settings a renderer reads off the instance. A renderer asks a material to
+A **material** is what a region or a surface looks like, as one value
+built up by composition: a **base** (a colour, a gradient, an image, a
+noise, a program, or another material), a stack of **layers** each
+blended over the ones beneath it through an opacity and an optional mask,
+an optional lit **surface** response a 3D renderer reads, and an optional
+**effects** stage — a filter chain over the painted layer's coverage.
+The same value fills a Compose box, inks its text, strokes a boundary and
+dresses a World body; the library ships the builder and its primitives,
+and no named looks — a look belongs to the sketch that uses it.
+
+### Tier 1 — the builder and its bases
+
+```cpp
+#include <sigilmaterial/core/Material.h>    // Material, from, LayerOptions, Mask, SurfaceOptions
+#include <sigilmaterial/field/Field.h>      // noise
+#include <sigilmaterial/filter/Filter.h>    // Filter
+#include <sigilmaterial/paint/Bases.h>      // linearGradient, radialGradient, conicGradient
+#include <sigilmaterial/program/Program.h>  // program
+#include <sigilmaterial/texture/Image.h>    // image
+
+namespace material = sigil::material;
+using material::BlendMode, material::Filter;
+
+// Bases: each IS a Material, and a Color converts implicitly.
+material::Material steel = material::from(material::hexColor(0xB8BDC4))
+    .layer(material::noise(0.4f, {.grain = true}), {.blend = BlendMode::Multiply, .opacity = 0.3f})
+    .layer(material::linearGradient({0, 0}, {0, 1}, {white, clear}),
+           {.blend = BlendMode::Screen, .mask = material::Mask{.source = lens}})
+    .surface({.metallic = 1.0f, .roughness = 0.2f})
+    .effects(Filter::shadow(black, {.blur = 8, .offset = {0, 4}})
+                 .then(Filter::stroke(rim, {.width = 1})));
+
+material::image(pixels, {.repeat = material::Repeat::Repeat});      // a media::PixelSource
+material::Material ember =
+    material::program(hub, "res://ember.sksl", Ember{.heat = 0.6f});  // a recipe body in a file
+ember.set("heat", 0.8f).bind("heat", flicker);                        // a program base's parameters
+
+// The designated form: the same value.
+material::Material steelToo{{.base = material::hexColor(0xB8BDC4),
+                             .layers = {{material::noise(0.4f), {.blend = BlendMode::Multiply}}},
+                             .surface = material::SurfaceOptions{.metallic = 1.0f}}};
+```
+
+Where it goes: `box().fill(steel)`, `text(…).ink(steel, PaintBox::Line)`,
+`box().stroke(steel, {.width = 2})` in Compose, where the effects dress
+the node's own layer (shadows beneath the fill, strokes and bevels over
+it, a hard shadow as an echo of the fill and the text);
+`world::Element().fill(steel)` in World, which reads the base and the
+surface and ignores the effects; `material::skia::paint(steel)` for a raw
+canvas. Two materials built the same way compare equal, so a re-described
+node prunes.
+
+### Tier 2 — the options
+
+`GradientOptions` (units, extent, repeat, focus, the conic window),
+`ImageOptions` (`repeat`, `repeatY`), `NoiseOptions` (`octaves`, `seed`,
+`turbulence`, `grain`, `contrast`, `stretch`), `ProgramOptions` (the
+slots a body samples), `LayerOptions` (`blend`, `opacity`, `mask`), `Mask`
+(`source`, `channel`, `low`, `high`, `invert`), `SurfaceOptions` (every
+channel a number or a material: `metallic`, `roughness`, `occlusion`,
+`normal`, `emission`, `clearcoat`, `transmission`, `unlit` …), and the
+filter options `ShadowOptions` (`blur`, `offset`, `spread`, `inside`),
+`StrokeOptions` (`width`, `position`), `BevelOptions`, `BloomOptions`.
+The pixel sources a layer reads — the `pattern::` tiles, the sdf shapes
+as masks — are tier 2 as well.
+
+### Tier 3 — control
+
+A program base is a **recipe** instance. A **recipe** is a material's
+definition: a plain C++ struct of uniform-typed fields that is its ABI,
+one shader body per shading language, the slots it samples and the
+per-frame values it reads. The instance holds the field values, mirrored
+as the bytes the shader will receive; live bindings that overwrite fields
+every frame; other materials filling its slots; and the settings a
+renderer reads off the instance. A renderer asks such a material to
 **resolve** against a frame and receives the compiled **program** for its
 shading language plus the bytes to upload — the same answer, memoised,
-until an input changes.
+until an input changes. `Recipe`, `Program`, the compilers and the
+executors (`skia/`: `material::skia::paint`, `material::skia::base`, the
+`Paint` a material lowers to on a Skia canvas; `slang/`) are tier 3.
 
 Beside the recipe model sits the image side: a **texture** is an image
 and how it is sampled, a comparable value that fills a recipe's child
 slot as a **leaf** — bound by the backend rather than compiled. The
 texture feature also knows the folders material tools export (a texture
-set by role), bakes the two textures a reflective surface is shaded from
-(an environment and a bevel normal map), and cuts an atlas into regions
-and frame sequences.
+set by role), and cuts an atlas into regions and frame sequences. The
+**surface** feature is the metallic-roughness program a 3D renderer runs
+for a material's surface response.
 
-The shading model the authoring tools export for — metallic-roughness,
-with a map per role — is a preset like any other: one parameter struct is
-its ABI, one slot per map, and the choice between the lit and the
-unlit recipe is what the surface IS. Local variation on top of it is not
-a bespoke recipe per pair but a composition: `over(base, top, mask)`
-stacks two materials where a mask says.
-
-Above those sit the PRIMITIVES — fully parameterised generators, one
-feature each: **sdf** (shape,
-border, glow and shadow in one pass over a signed distance), **pattern**
-(a tile baked once with a mapping and an explicit reseed, the stock
-tiles over it, and the woven cloth a sett and a weave make), and **field** (the halftone ramp, Perlin noise, luminance
-grain, the ripple, the CRT overlay). Under the core sits **colour**, the
-leaf: the colour value a parameter struct holds, the OKLab, OKLCH and
-CIELAB round trips, the ramp as one value, the harmonies read around a
-hue, the dither threshold a pixel is rounded against and the table a run
-of pixels is made of — all of it linking nothing; above the texture
-feature sits **ocio**, OpenColorIO's view transforms baked to materials.
-The **kit** holds PRESETS — functions that fix
-colours, proportions or a named style over the primitives: the
-metallic-roughness surface and the masks that stack it; gold, chrome
-and glass over a normal map and an environment; the girih panel and its
-palettes; the named colormaps; the gel and chrome colour tables; the six
-text paints and the chrome-type ramps.
+The PRIMITIVES are fully parameterised generators, one feature each:
+**sdf** (shape, border, glow and shadow in one pass over a signed
+distance), **pattern** (a tile baked once with a mapping and an explicit
+reseed, the stock tiles over it, and the woven cloth a sett and a weave
+make), and **field** (the halftone ramp, Perlin noise, luminance grain,
+the ripple). Under the core sits **colour**, the leaf: the colour value a
+parameter struct holds, the OKLab, OKLCH and CIELAB round trips, the ramp
+as one value, the harmonies read around a hue, the dither threshold a
+pixel is rounded against and the table a run of pixels is made of — all
+of it linking nothing; above the texture feature sits **ocio**,
+OpenColorIO's view transforms baked to materials.
 
 The core links the colour leaf, glm (for the vector types a struct may
 hold), SigilMotionValues (for the animatable a field may bind to, and
