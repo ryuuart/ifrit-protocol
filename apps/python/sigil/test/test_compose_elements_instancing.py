@@ -25,7 +25,7 @@ import weakref
 from pathlib import Path
 
 from _sigil.compose import instancing as native
-from sigil import compose, media, motion, skia
+from sigil import compose, material, media, motion, skia
 from sigil.compose import box, instancing
 from sigil.sketch import render_file
 
@@ -805,7 +805,7 @@ class Leaves(unittest.TestCase):
                 atlas=sheet,
                 pool=pool,
                 mode=instancing.Mode.Data,
-                blend=skia.BlendMode.Plus,
+                blend=material.BlendMode.PlusLighter,
             ),
         ):
             self.assertIsInstance(leaf, compose.Element)
@@ -833,7 +833,7 @@ class Session(unittest.TestCase):
         source.write_text(
             "import builtins\n"
             "import gc\n"
-            "from sigil import skia\n"
+            "from sigil import material, skia\n"
             "from sigil.compose import Composer, box, instancing\n"
             "from sigil.sketch import sketch\n"
             "results = builtins._sigil_instancing_results\n"
@@ -969,13 +969,13 @@ class Frames(Session):
             pool.add((32, 24))
             probe = composer()
             probe.render(field(instancing.instances(
-                sheet, pool, blend=skia.BlendMode.{blend})))
+                sheet, pool, blend=material.BlendMode.{blend})))
             probe.draw(pen.canvas())
         """)
         return self.pixel(picture, 28, 24)[0]
 
     def test_the_blend_is_per_sprite_so_overlapping_sprites_accumulate(self):
-        self.assertGreater(self.overlap("Plus"), self.overlap("SrcOver") + 50)
+        self.assertGreater(self.overlap("PlusLighter"), self.overlap("Normal") + 50)
 
     def test_the_leaf_keeps_the_sheet_and_the_pool_it_names(self):
         picture = self.render("""

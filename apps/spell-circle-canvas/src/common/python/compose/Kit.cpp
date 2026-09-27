@@ -7,6 +7,7 @@
 #include <sigilpython/compose/Kit.h>
 #include <sigilpython/compose/Operators.h>
 #include <sigilpython/compose/Registration.h>
+#include <sigilpython/geometry/Casters.h>
 
 namespace sigil::python {
 namespace py = pybind11;
