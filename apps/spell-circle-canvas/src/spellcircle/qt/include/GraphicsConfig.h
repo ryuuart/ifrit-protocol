@@ -68,7 +68,7 @@ class BoxStyleConfig : public QObject {
    *  one does nothing. */
   void setDistance(qreal distance);
 
- signals:
+ Q_SIGNALS:
   /** Emitted when any value in this group actually moved. */
   void changed();
 
@@ -120,7 +120,7 @@ class CanvasSizeConfig : public QObject {
    *  maximum. */
   void setHeight(int height);
 
- signals:
+ Q_SIGNALS:
   /** Emitted when either axis actually moved. */
   void changed();
 
@@ -248,7 +248,7 @@ class GraphicsConfig : public QObject {
    *  carries nothing. */
   int generation() const { return m_generation; }
 
- signals:
+ Q_SIGNALS:
   /** @name Change notifications
    *  One per value, emitted only when that value actually moved. A
    *  renderer watches `generationChanged()` alone rather than all of

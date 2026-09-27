@@ -69,7 +69,7 @@ void SpellCircleModel::clear() {
     endRemoveRows();
   }
 
-  if (m_session.generation() != generation) emit geometryChanged();
+  if (m_session.generation() != generation) Q_EMIT geometryChanged();
 }
 
 void SpellCircleModel::onSpellCircleReceived(
@@ -106,12 +106,12 @@ void SpellCircleModel::onSpellCircleReceived(
     endRemoveRows();
   }
 
-  if (update == spellcircle::SceneUpdate::Changed) emit geometryChanged();
+  if (update == spellcircle::SceneUpdate::Changed) Q_EMIT geometryChanged();
 }
 
 void SpellCircleModel::updatePacketRate() {
   const double rate = m_session.packetRate();
   if (m_scenesPerSecond == rate) return;
   m_scenesPerSecond = rate;
-  emit scenesPerSecondChanged();
+  Q_EMIT scenesPerSecondChanged();
 }

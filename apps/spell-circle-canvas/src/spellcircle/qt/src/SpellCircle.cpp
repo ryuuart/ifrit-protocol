@@ -20,7 +20,7 @@ void SpellCircle::setModel(QObject* object) {
   if (m_model)
     connect(m_model, &SpellCircleModel::geometryChanged, this,
             &SpellCircle::update);
-  emit modelChanged();
+  Q_EMIT modelChanged();
   update();
 }
 
@@ -36,6 +36,6 @@ void SpellCircle::setConfig(QObject* object) {
   if (m_config)
     connect(m_config, &GraphicsConfig::generationChanged, this,
             &SpellCircle::update);
-  emit configChanged();
+  Q_EMIT configChanged();
   update();
 }

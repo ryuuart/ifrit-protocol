@@ -37,7 +37,7 @@ class SpellCircle : public QCanvasPainterItem {
    */
   void setConfig(QObject* config);
 
- signals:
+ Q_SIGNALS:
   /** Another scene model was bound to this item. */
   void modelChanged();
   /** Another graphics configuration was bound to this item. */

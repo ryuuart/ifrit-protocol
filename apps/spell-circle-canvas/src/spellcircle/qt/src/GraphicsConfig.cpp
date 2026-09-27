@@ -7,39 +7,39 @@
 void BoxStyleConfig::setWidth(qreal width) {
   if (qFuzzyCompare(m_width, width)) return;
   m_width = width;
-  emit changed();
+  Q_EMIT changed();
 }
 
 void BoxStyleConfig::setHeight(qreal height) {
   if (qFuzzyCompare(m_height, height)) return;
   m_height = height;
-  emit changed();
+  Q_EMIT changed();
 }
 
 void BoxStyleConfig::setPadding(qreal padding) {
   if (qFuzzyCompare(m_padding, padding)) return;
   m_padding = padding;
-  emit changed();
+  Q_EMIT changed();
 }
 
 void BoxStyleConfig::setDistance(qreal distance) {
   if (qFuzzyCompare(m_distance, distance)) return;
   m_distance = distance;
-  emit changed();
+  Q_EMIT changed();
 }
 
 void CanvasSizeConfig::setWidth(int width) {
   width = std::clamp(width, minimum(), maximum());
   if (m_width == width) return;
   m_width = width;
-  emit changed();
+  Q_EMIT changed();
 }
 
 void CanvasSizeConfig::setHeight(int height) {
   height = std::clamp(height, minimum(), maximum());
   if (m_height == height) return;
   m_height = height;
-  emit changed();
+  Q_EMIT changed();
 }
 
 GraphicsConfig::GraphicsConfig(QObject* parent)
@@ -63,48 +63,48 @@ GraphicsConfig::GraphicsConfig(QObject* parent)
 void GraphicsConfig::setColor(const QColor& color) {
   if (m_color == color) return;
   m_color = color;
-  emit colorChanged();
+  Q_EMIT colorChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setStrokeWidth(qreal strokeWidth) {
   if (qFuzzyCompare(m_strokeWidth, strokeWidth)) return;
   m_strokeWidth = strokeWidth;
-  emit strokeWidthChanged();
+  Q_EMIT strokeWidthChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setScale(qreal scale) {
   if (qFuzzyCompare(m_scale, scale)) return;
   m_scale = scale;
-  emit scaleChanged();
+  Q_EMIT scaleChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setLabelOffset(qreal labelOffset) {
   if (qFuzzyCompare(m_labelOffset, labelOffset)) return;
   m_labelOffset = labelOffset;
-  emit labelOffsetChanged();
+  Q_EMIT labelOffsetChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setPointDistance(qreal pointDistance) {
   if (qFuzzyCompare(m_pointDistance, pointDistance)) return;
   m_pointDistance = pointDistance;
-  emit pointDistanceChanged();
+  Q_EMIT pointDistanceChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::setFont(const QFont& font) {
   if (m_font == font) return;
   m_font = font;
-  emit fontChanged();
+  Q_EMIT fontChanged();
   bumpGeneration();
 }
 
 void GraphicsConfig::bumpGeneration() {
   ++m_generation;
-  emit generationChanged();
+  Q_EMIT generationChanged();
 }
 
 void GraphicsConfig::restore(const QJsonObject& rootObject) {
@@ -144,12 +144,12 @@ void GraphicsConfig::restore(const QJsonObject& rootObject) {
                  : QFontDatabase::font(family, style, qRound(pointSize));
   }
 
-  emit colorChanged();
-  emit strokeWidthChanged();
-  emit scaleChanged();
-  emit labelOffsetChanged();
-  emit pointDistanceChanged();
-  emit fontChanged();
+  Q_EMIT colorChanged();
+  Q_EMIT strokeWidthChanged();
+  Q_EMIT scaleChanged();
+  Q_EMIT labelOffsetChanged();
+  Q_EMIT pointDistanceChanged();
+  Q_EMIT fontChanged();
   bumpGeneration();
 }
 

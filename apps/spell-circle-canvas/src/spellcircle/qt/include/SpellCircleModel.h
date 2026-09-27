@@ -72,13 +72,13 @@ class SpellCircleModel : public QAbstractListModel {
   /** Incoming valid scene packet rate in Hz. */
   double scenesPerSecond() const { return m_scenesPerSecond; }
 
- signals:
+ Q_SIGNALS:
   /** Emitted after the scene registry is replaced with newly parsed data. */
   void geometryChanged();
   /** Emitted whenever the packet rate updates, including expiry to zero. */
   void scenesPerSecondChanged();
 
- public slots:
+ public Q_SLOTS:
   /**
    * Verifies a FlatBuffers-encoded scene through the shared session, updates
    * its document only when the payload changes, and prepends one feed entry
