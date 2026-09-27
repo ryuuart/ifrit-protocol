@@ -230,9 +230,8 @@ in no header.
   vertices `shapes::radial` deals, on a circle of half the bounds'
   shorter side, so a golden-angle step with square-root growth is
   phyllotaxis in one line — and `along(spacing, AlongOptions)`, a point
-  every so many px along the outline's contours walked as one run.
-  `heading(vector)` is the direction a vector points in, degrees
-  clockwise from +x on screen: the turn a mark laid along it takes.
+  every so many px along the outline's contours walked as one run. The
+  turn a mark laid along a curve takes is `arrange::heading`.
 - **`path/Triangulate.h`** — the Delaunay triangulation and its dual.
   `delaunay()` answers a `Triangulation`: the points actually triangulated
   (duplicates are one point), the triangles over them, what lies across
@@ -524,7 +523,9 @@ in no header.
   arc-length fraction IN THE DRAWING'S OWN CONVENTION: `Zero::North` or
   `East`, `Sense::CW` or `CCW`, plus an origin offset. That is the reason
   it is a value — written as a bare `polar()` helper the difference is a
-  sign flip and a −90 that every call site repeats. `scaled`, `about` and
+  sign flip and a −90 that every call site repeats. It owns the
+  convention and no trigonometry: `at` and `direction` hand the screen
+  angle to `arrange`. `scaled`, `about` and
   `turned` derive a frame that keeps the convention it came from. `Grid`
   is the unit map: artefact units to canvas px through one scale, an
   origin and an optional snap, `constexpr` so a canvas constant can be
@@ -547,9 +548,11 @@ in no header.
   `segment`, `bar` or any figure `shape` — cycled through `marks` and
   overridden per vertex by `each`. `uniform` measures the radius as half
   the shorter side; `frame` carries the zero and the sense.
-  `radialPoints()` answers the vertices on a frame and `radialOutline()`
-  draws them on a frame or in a box; `shapes::radial` and the `radial`
-  point pattern stand on these.
+  `radialPoints()` answers the vertices on a frame or in a box, and
+  `radialOutline()` draws them on a frame or in a box, the vertices in a
+  box landing exactly on the outline's corners; `shapes::radial` and the
+  `radial` point pattern stand on these, and every vertex is placed by
+  `arrange::onEllipse`.
 - **`path/Through.h`** — THE PATH THROUGH POINTS: `through(points,
   ThroughOptions)` with a `Smooth` — `None` straight, `CatmullRom`
   passing through every point, `Midpoint` steered by them without

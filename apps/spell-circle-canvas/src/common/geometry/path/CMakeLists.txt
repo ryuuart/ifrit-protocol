@@ -55,7 +55,7 @@ sigil_library(SigilGeometryPath
 # Blend is not a boundary anyone reads: no consumer links it without Path,
 # and its every claim is about the contours this leaf resamples. One file
 # per subject inside it — contours, polylines, marks, operators, seams,
-# crossings, frames, conics, projections, blend.
+# crossings, frames, arrangements, conics, projections, blend.
 sigil_test(geometry_test
   SOURCES test/ContoursTest.cpp test/ConicsTest.cpp test/PolylinesTest.cpp
           test/MarksTest.cpp test/SegmentsTest.cpp test/NodesTest.cpp
@@ -64,6 +64,7 @@ sigil_test(geometry_test
           test/OperationsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/ProjectionsTest.cpp test/BlendTest.cpp
           test/TilingsTest.cpp test/StripsTest.cpp test/OutlinesTest.cpp
+          test/ArrangeTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
 # One file per subject, over the one figure in bench/Figures.h.

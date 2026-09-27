@@ -101,9 +101,4 @@ std::vector<glm::vec2> points(const Rect& where, const Pattern& pattern) {
   return scattered(Region::of(toSk(where)), pattern);
 }
 
-float heading(glm::vec2 vector) {
-  if (vector.x == 0 && vector.y == 0) return 0;
-  return degrees(std::atan2(vector.y, vector.x));
-}
-
 }  // namespace sigil::geometry::path

@@ -132,7 +132,6 @@ TEST(Points, PlacesByEveryPattern) {
   ASSERT_EQ(seeds.size(), 200u);
   for (const glm::vec2 p : seeds)
     EXPECT_LE(std::hypot(p.x - 50, p.y - 50), 50.0f + 1e-3f);
-  EXPECT_NEAR(heading({0, 1}), 90.0f, 1e-4f);
 }
 
 TEST(Radial, DealsLoopsChordsAndMarks) {

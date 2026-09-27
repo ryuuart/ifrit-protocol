@@ -17,6 +17,7 @@
 #include <glm/vec2.hpp>
 #include <vector>
 
+#include "sigilgeometry/path/Arrange.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Transform.h"
@@ -39,7 +40,11 @@ enum class Sense { CW, CCW };
  *  than a `polar()` helper every call site adds a sign flip and a -90
  *  to. An aggregate, meant for designated initialisation, since a
  *  positional constructor could not gain a field later without breaking
- *  every call site. Trivially copyable; it holds no node state. */
+ *  every call site. Trivially copyable; it holds no node state.
+ *
+ *  A frame is a convention and no trigonometry: it turns its own degrees
+ *  into a screen angle and hands that to `arrange`, which is where every
+ *  angle in the library becomes a point. */
 struct PolarFrame {
   glm::vec2 centre{0, 0};
   /** The px radius that `normalizedRadius = 1` maps to. Authoring the rest of a
@@ -128,14 +133,12 @@ struct PolarFrame {
   /** `(angle, PX radius)` → a point, for a figure whose radii were
    *  measured in pixels rather than as fractions of one figure radius. */
   glm::vec2 atPixels(float deg, float pixels) const {
-    const float a = screenRadians(deg);
-    return {centre.x + pixels * std::cos(a), centre.y + pixels * std::sin(a)};
+    return arrange::onEllipse(centre, glm::vec2(pixels), screenRadians(deg));
   }
   /** The unit vector pointing out along @p deg — the direction a tick, a
    *  leader or a radial label runs. */
   glm::vec2 direction(float deg) const {
-    const float a = screenRadians(deg);
-    return {std::cos(a), std::sin(a)};
+    return arrange::direction(screenRadians(deg));
   }
 
   /** @} */

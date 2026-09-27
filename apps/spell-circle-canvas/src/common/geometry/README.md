@@ -120,7 +120,7 @@ path::Transform::rotate(degrees, about)  * path::Transform::translate(offset)
 
 // Points and projection
 path::points(where, pattern)                   // random, poisson, grid, radial, along
-path::heading(vector)
+arrange::heading(vector)                       // the degrees a mark laid along a vector turns by
 path::projection::stereographic(options)  .at(direction)  .from(point)   // any ProjectionScheme
 
 // Bodies

@@ -18,19 +18,7 @@
 namespace sigil::geometry::shapes {
 
 std::vector<glm::vec2> Radial::points(glm::vec2 size) const {
-  const glm::vec2 half = size * 0.5f;
-  path::PolarFrame frame = options.frame;
-  frame.centre = half;
-  frame.radius = std::min(half.x, half.y);
-  if (options.uniform) return path::radialPoints(count, options, frame);
-  // On the box's own ellipse each vertex stretches with its axis, which
-  // the frame's single radius cannot say: take the unit arrangement and
-  // scale it by the half-extents.
-  frame.centre = {0, 0};
-  frame.radius = 1;
-  std::vector<glm::vec2> unit = path::radialPoints(count, options, frame);
-  for (glm::vec2& point : unit) point = half + point * half;
-  return unit;
+  return path::radialPoints(count, options, size);
 }
 
 namespace {

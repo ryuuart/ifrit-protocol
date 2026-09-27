@@ -4,9 +4,8 @@
  *
  * POINTS WHERE A SHAPE SAYS: one verb, `points(where, pattern)`, over
  * every way of placing them — at random, on a grid, jittered, by Poisson
- * disc, dealt round a centre, or along an outline at a spacing — and the
- * heading of a vector, which is what a point laid along a curve is turned
- * by.
+ * disc, dealt round a centre, or along an outline at a spacing. The
+ * heading a point laid along a curve is turned by is `arrange::heading`.
  */
 #include <cstdint>
 #include <glm/vec2.hpp>
@@ -76,10 +75,5 @@ Pattern along(float spacing, AlongOptions options = {});
 std::vector<glm::vec2> points(const Outline& where, const Pattern& pattern);
 /** The same over a rectangle. */
 std::vector<glm::vec2> points(const Rect& where, const Pattern& pattern);
-
-/** The direction @p vector points in, as degrees clockwise from +x on
- *  screen — the angle a mark laid along it is turned by. The zero
- *  vector heads along +x. */
-float heading(glm::vec2 vector);
 
 }  // namespace sigil::geometry::path

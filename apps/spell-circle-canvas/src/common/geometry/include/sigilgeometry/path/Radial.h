@@ -146,6 +146,11 @@ struct RadialOptions {
 std::vector<glm::vec2> radialPoints(int count, const RadialOptions& options,
                                     const PolarFrame& frame);
 
+/** The vertices of @p count dealt by @p options inscribed in a box of
+ *  @p size, exactly where `radialOutline` over the same size draws them. */
+std::vector<glm::vec2> radialPoints(int count, const RadialOptions& options,
+                                    glm::vec2 size);
+
 /** The arrangement drawn on @p frame as one outline: loops, chords or
  *  marks as the options say. */
 Outline radialOutline(int count, const RadialOptions& options,

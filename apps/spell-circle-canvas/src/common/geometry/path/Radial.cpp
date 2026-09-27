@@ -12,6 +12,7 @@
 #include <cmath>
 #include <vector>
 
+#include "sigilgeometry/path/Arrange.h"
 #include "sigilgeometry/path/Skia.h"
 
 namespace sigil::geometry::path {
@@ -37,8 +38,8 @@ struct Placement {
   glm::vec2 halfExtents{1, 1};
 
   glm::vec2 at(float degrees, float normalisedRadius) const {
-    return frame.centre +
-           halfExtents * normalisedRadius * frame.direction(degrees);
+    return arrange::onEllipse(frame.centre, halfExtents * normalisedRadius,
+                              frame.screenRadians(degrees));
   }
   SkRect ring(float normalisedRadius) const {
     const glm::vec2 reach = halfExtents * normalisedRadius;
@@ -52,10 +53,6 @@ int dealt(int count, const RadialOptions& options) {
   return options.closed ? n + 1 : n;
 }
 
-float stepOf(int count, const RadialOptions& options) {
-  if (options.stepDegrees != 0) return options.stepDegrees;
-  return count > 0 ? options.sweepDegrees / (float)count : 0.0f;
-}
 
 float radiusOf(int index, int total, const RadialOptions& options) {
   float radius = options.radii.empty()
@@ -69,8 +66,17 @@ float radiusOf(int index, int total, const RadialOptions& options) {
   return radius;
 }
 
+/** Vertex @p index's degrees in the frame. A stated step strides on from
+ *  `fromDegrees` without end, which is how a golden-angle spiral is dealt;
+ *  otherwise the sweep is divided as a run: a full ring into `count`
+ *  steps, a closed ladder's `count + 1` vertices over both its ends. */
 float degreesOf(int index, int count, const RadialOptions& options) {
-  return options.fromDegrees + stepOf(count, options) * (float)index;
+  if (options.stepDegrees != 0)
+    return options.fromDegrees + options.stepDegrees * (float)index;
+  return arrange::along(
+      options.fromDegrees, options.sweepDegrees, (size_t)index,
+      (size_t)dealt(count, options),
+      options.closed ? arrange::Turn::Open : arrange::Turn::Closed);
 }
 
 std::vector<glm::vec2> vertices(int count, const RadialOptions& options,
@@ -239,6 +245,11 @@ Placement placementIn(const RadialOptions& options, glm::vec2 size) {
 std::vector<glm::vec2> radialPoints(int count, const RadialOptions& options,
                                     const PolarFrame& frame) {
   return vertices(count, options, {frame, glm::vec2(frame.radius)});
+}
+
+std::vector<glm::vec2> radialPoints(int count, const RadialOptions& options,
+                                    glm::vec2 size) {
+  return vertices(count, options, placementIn(options, size));
 }
 
 Outline radialOutline(int count, const RadialOptions& options,
