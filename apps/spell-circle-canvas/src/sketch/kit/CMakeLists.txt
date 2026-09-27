@@ -19,14 +19,14 @@
 sigil_library(SigilSketchKit
   SOURCES Cells.cpp Channel.cpp Chart.cpp ChartMarks.cpp Connection.cpp
           Console.cpp Document.cpp Heading.cpp Instrument.cpp Legend.cpp Meter.cpp Page.cpp Panel.cpp
-          Passage.cpp Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp
+          Passage.cpp Rows.cpp Scrollbar.cpp Theme.cpp Ticker.cpp Verdict.cpp
   HEADERS Cells.h Channel.h Chart.h Connection.h Console.h Document.h
           Heading.h Kit.h
           Instrument.h Legend.h Meter.h Page.h Panel.h Passage.h Rows.h Scrollbar.h
-          Theme.h Ticker.h
+          Theme.h Ticker.h Verdict.h
   PUBLIC SigilSketch SigilComposeCore SigilComposeKit SigilCoreReconcile
          SigilDataConnection SigilDataDecode SigilDataScale SigilGeometryKit
-         SigilMaterial SigilWeave
+         SigilMaterial SigilMeasure SigilWeave
   PRIVATE SigilWeavePorts SigilIO SigilDataTable)
 
 # The kit's own claim: the theme is a comparable value a scope binds, and
@@ -45,7 +45,7 @@ sigil_test(sketch_test
           test/HeadingTest.cpp test/LegendTest.cpp test/MeterTest.cpp
           test/PageTest.cpp test/PanelTest.cpp test/PassageTest.cpp
           test/RowsTest.cpp test/ScrollbarTest.cpp test/ThemeTest.cpp
-          test/TickerTest.cpp
+          test/TickerTest.cpp test/VerdictTest.cpp
   LIBRARIES SigilSketchKit SigilMaterialCore SigilMotionClock
             SigilMotionValues SigilDataTable
   # The one case that asks the machine's font manager for a family by name.
@@ -55,3 +55,9 @@ sigil_test(sketch_test
   # and the README is the canon, so the case that checks the table against
   # `Theme::styleSheet()` reads the document itself.
   DEFINITIONS SIGIL_SKETCH_KIT_README="${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+
+# The kit's cost is what a component takes to describe and lay out, so the
+# arms describe a component, render it and draw it on a raster surface.
+sigil_bench(sketch_bench
+  SOURCES bench/KitBench.cpp
+  LIBRARIES SigilSketchKit SigilMotionClock)

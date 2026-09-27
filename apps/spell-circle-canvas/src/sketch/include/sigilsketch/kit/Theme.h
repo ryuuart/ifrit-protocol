@@ -59,6 +59,10 @@ struct Palette {
    *  sheet that is not type or furniture, so it is the one a reader's eye
    *  is meant to find. */
   material::Color figure{0.90f, 0.83f, 0.68f, 1};
+  /** A CHECK THAT HELD and one that did not: the verdict a run of checks
+   *  answers with, and the only two colours on the sheet that judge. */
+  material::Color pass{0.47f, 0.78f, 0.55f, 1};
+  material::Color fail{0.93f, 0.38f, 0.34f, 1};
   bool operator==(const Palette&) const = default;
 };
 
@@ -231,7 +235,11 @@ struct Theme {
    *  nothing else about its look, so a plot under a page is dressed
    *  already; the two that set WORDS carry type and the six that dress a
    *  recording name a colour alone, which the recording paints in as the
-   *  ink in force. */
+   *  ink in force.
+   *
+   *  AND THE THREE A VERDICT NAMES: `.checkPass` and `.checkFail` for a
+   *  verdict in the palette's `pass` and `fail`, and `.checkHeading` for
+   *  the title over a run of checks in its ink. */
   [[nodiscard]] compose::StyleSheet styleSheet() const;
   /** @p line in @p color, set in whichever of the two faces it names. */
   [[nodiscard]] weave::TextStyle style(const Register& line,

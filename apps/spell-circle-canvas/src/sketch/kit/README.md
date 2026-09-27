@@ -820,6 +820,24 @@ that failed has nobody to answer. Nothing here sets type or colour: the
 names are captions and the figures the `readout` class, as the compose
 kit's readout sets them in the sheet in force.
 
+### A run of checks, judged — `Verdict.h`
+
+| | |
+| --- | --- |
+| `sketch::kit::verdict` | a `measure::CheckTable` as a table: a heading over the rows it groups, each claim and finding with the value it got and its verdict, each reading with its value alone |
+| `sketch::kit::Verdict` | which rows stand (`VerdictRows::Every`, `Judged`, `Failures`), the columns, the swatches, a summary row, and the verdict's words |
+
+```cpp
+sketch::kit::verdict(table)
+sketch::kit::verdict(table, {.rows = sketch::kit::VerdictRows::Failures})
+```
+
+The kit words each verdict and never judges: pass or fail is the check's.
+The verdict cell names the class `checkPass` or `checkFail` and a heading
+`checkHeading`; `Theme::styleSheet()` colours them from `Palette::pass`,
+`Palette::fail` and `Palette::ink`, so a plate restyles its verdict with a
+rule.
+
 ## What is NOT here, and where it is
 
 A leaf may not invent what an ancestor should own.

@@ -66,6 +66,12 @@ compose::StyleSheet Theme::styleSheet() const {
       rule(".plotMark").font(ink(palette.figure)),
       rule(".plotBar").font(ink(palette.figure)),
       rule(".plotLabel").font(font(type.captionLabel, palette.ink)),
+      // A VERDICT is the one judgement on the sheet: the colour says
+      // whether the check held, and the heading over a run of checks is
+      // set as a section in the ink.
+      rule(".checkPass").font(ink(palette.pass)),
+      rule(".checkFail").font(ink(palette.fail)),
+      rule(".checkHeading").font(font(type.section, palette.ink)),
   };
 }
 
