@@ -273,6 +273,30 @@ if(SIGIL_SKETCH_PYTHON_SCHEMAS)
   add_dependencies(SigilSketchesPython SigilSketchSchemas)
 endif()
 
+# A SKETCH'S SUBSTANCE ARCHIVES. Every `.sbsar` under a directory
+# sketch's `data/` has its input struct written into
+# `<stem>.substance.h` — `struct AutumnLeaves { std::optional<float>
+# hueShift; … }` with combos as enumerations — which the entry includes by
+# name and hands to `material::substance(hub, uri, AutumnLeaves{…})`.
+# The header is the build's and is never committed, and its directory is
+# on this target's include path, Anchor.cpp's included, so a hot-reloaded
+# entry sees it. Without the Substance SDK there is no generator and no
+# header; a sketch that must compile everywhere writes the keyed form,
+# `{.inputs = {{"Hue_Shift", 0.1f}}}`, or tests `__has_include`.
+file(GLOB SIGIL_SKETCH_SUBSTANCE_ARCHIVES CONFIGURE_DEPENDS
+     ${CMAKE_CURRENT_LIST_DIR}/*/data/*.sbsar)
+set(SIGIL_SKETCH_SUBSTANCE_HEADERS)
+foreach(archive IN LISTS SIGIL_SKETCH_SUBSTANCE_ARCHIVES)
+  substance_input_header(header ${archive}
+    ${CMAKE_CURRENT_BINARY_DIR}/substance)
+  list(APPEND SIGIL_SKETCH_SUBSTANCE_HEADERS ${header})
+endforeach()
+if(SIGIL_SKETCH_SUBSTANCE_HEADERS)
+  target_sources(SigilSketches PRIVATE ${SIGIL_SKETCH_SUBSTANCE_HEADERS})
+  target_include_directories(SigilSketches PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}/substance)
+endif()
+
 # Where the Substance SDK stands, for the sketch that draws one of its
 # sample archives. On the TARGET rather than on the source file, because
 # a hot-reloaded sketch compiles with the flags lifted from Anchor.cpp:

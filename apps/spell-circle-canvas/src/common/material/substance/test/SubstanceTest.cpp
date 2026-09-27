@@ -382,3 +382,36 @@ TEST(Substance, GraphsComposeThroughImageInputs) {
   EXPECT_FALSE(post.setImage("$outputsize", diffuse));
   EXPECT_TRUE(post.setImage(imageInputs[0], media::PixelSource{}));
 }
+
+// The header the build writes from the SDK's leaf sample, where there is
+// an SDK to write it with.
+#if __has_include("Autumn_Leaves.substance.h")
+#include "Autumn_Leaves.substance.h"
+
+TEST(Substance, TheGeneratedHeaderStatesTheArchiveInputsAsFields) {
+  SKIP_WITHOUT_SAMPLE("Autumn_Leaves.sbsar");
+  EXPECT_EQ("Autumn_Leaves", AutumnLeaves::stem);
+  // Nothing set, nothing written: the author's values stand.
+  EXPECT_TRUE(AutumnLeaves{}.inputs().empty());
+  // Fields stand in the author's order, a combobox as an enumeration.
+  const AutumnLeaves stated{.leafType = AutumnLeaves::LeafType::Chestnut,
+                            .hueShift = 0.5f};
+  const std::vector<sbsar::InputValue> inputs = stated.inputs();
+  ASSERT_EQ(2u, inputs.size());
+  EXPECT_EQ((sbsar::InputValue{"LeafType", 1.0f}), inputs[0]);
+  EXPECT_EQ((sbsar::InputValue{"Hue_Shift", 0.5f}), inputs[1]);
+
+  io::Hub hub;
+  const std::string uri = sample("Autumn_Leaves.sbsar");
+  Material leaves = material::substance(
+      hub, uri, AutumnLeaves{.hueShift = 0.5f}, {.resolution = 64});
+  const Material keyed = material::substance(
+      hub, uri, {.inputs = {{"Hue_Shift", 0.5f}}, .resolution = 64});
+  EXPECT_EQ(0, differing(frameOf(baseOf(leaves)), frameOf(baseOf(keyed))));
+  // The struct writes through the material's own set().
+  const sk_sp<SkImage> before = frameOf(baseOf(leaves));
+  leaves.set(AutumnLeaves{.hueShift = 0.0f});
+  sbsar::settle(leaves);
+  EXPECT_GT(differing(before, frameOf(baseOf(leaves))), 3);
+}
+#endif
