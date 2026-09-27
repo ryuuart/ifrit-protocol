@@ -155,6 +155,12 @@ void perturb(cd::Box<T>& v) {
   v.ensure();
 }
 
+// A boxed transition that is present but empty is the same as none, so the
+// box is perturbed by the tween it holds.
+void perturb(cd::Box<std::optional<sigil::motion::Tween<float>>>& v) {
+  v.ensure() = motion::Tween<float>{};
+}
+
 // ---- the walk --------------------------------------------------------------
 
 /** Perturb field @p I of a default-constructed @p S and hand the pair to
