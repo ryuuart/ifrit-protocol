@@ -12,8 +12,6 @@
  * checks into.
  */
 
-#include <include/core/SkRefCnt.h>
-#include <include/core/SkTypeface.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Factories.h>
@@ -30,8 +28,8 @@
 
 namespace sigil::compose::kit {
 
-/** A feed's ROW VOICES by name: a `weave::TypeSheet` whose base is one
- *  face at one size and whose entries differ from it only in COLOUR — the
+/** A feed's ROW VOICES by name: a `weave::TypeSheet` whose base, @p base, is
+ *  one face at one size and whose entries differ from it only in COLOUR — the
  *  shape `feed::height` measures exactly, and the usual shape for rows
  *  that are all one voice with levels marked in ink. A row names its
  *  entry; no selector rule reaches a feed row, which is set in this
@@ -42,10 +40,9 @@ namespace sigil::compose::kit {
  *  {trace, warn, alert}), so there is no fixed vocabulary in the library and
  *  a name is only what the caller's rows say. */
 [[nodiscard]] inline sigil::weave::TypeSheet tinted(
-    const sk_sp<SkTypeface>& face, float size, material::Color base,
+    const weave::Type& base,
     std::vector<std::pair<std::string, material::Color>> named) {
-  sigil::weave::TypeSheet sheet(
-      weave::textStyle({.face = face, .size = size, .color = base}));
+  sigil::weave::TypeSheet sheet(weave::textStyle(base));
   // Each level is an entry over the base: the colour alone, the face and
   // the size the base's.
   for (auto& [name, color] : named)

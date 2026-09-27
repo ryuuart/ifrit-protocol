@@ -191,7 +191,7 @@ TEST(ComposeConsole, StacksFeedsPerColumnInOneVoice) {
   for (feed::TextRing* ring : {&a, &b, &c, &d}) ring->append({u8"a row", ""});
   feed::TextOptions voice;
   voice.styles =
-      kit::tinted(nullptr, 12.0f, {1, 1, 1, 1}, {{"pass", {0, 1, 0, 1}}});
+      kit::tinted({.size = 12.0f, .color = material::Color{1, 1, 1, 1}}, {{"pass", {0, 1, 0, 1}}});
   voice.window.visible = 4;
   const float row = feed::height(voice, 1, fonts());
   kit::Plate chrome;
@@ -396,7 +396,7 @@ TEST(ComposeDebug, CheckPrintsTheVerdictItComputed) {
   // situation this replaces.
   Host host(200, 60);
   feed::TextOptions style;
-  style.styles = kit::tinted(nullptr, 9, {1, 1, 1, 1},
+  style.styles = kit::tinted({.size = 9, .color = material::Color{1, 1, 1, 1}},
                              {{"pass", {0, 1, 0, 1}}, {"fail", {1, 0, 0, 1}}});
   host.composer.render(box()
                            .fill(Fill::color({0, 0, 0, 1}))

@@ -36,9 +36,11 @@ TEST(SketchKitConsole, DrawsTheHandSpelledPlate) {
   Element byHand = compose::kit::console(
       {.feeds = {&rows},
        .style = {.window = {.visible = 24, .gap = house.spacing.rowGap},
-                 .styles = compose::kit::tinted(house.type.mono,
-                                                house.type.captionLabel.size,
-                                                house.palette.ink, {})},
+                 .styles = compose::kit::tinted(
+                     {.face = house.type.mono,
+                      .size = house.type.captionLabel.size,
+                      .color = house.palette.ink},
+                     {})},
        .plate = {.paddingX = house.spacing.panelPadding,
                  .paddingY = house.spacing.panelPadding * 0.6f,
                  .gap = house.spacing.labelGap,

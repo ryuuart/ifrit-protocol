@@ -86,7 +86,7 @@ TEST(ComposeFeed, PlateIsTheBorderedStripAFeedIsSetIn) {
   // tinted() builds one style per named colour from a single face and size.
   // The names carry no meaning to it, deliberately: what a study calls its
   // passing ink is the study's convention, not the library's.
-  const weave::TypeSheet mono = kit::tinted(nullptr, 10.5f, {1, 1, 1, 1},
+  const weave::TypeSheet mono = kit::tinted({.size = 10.5f, .color = material::Color{1, 1, 1, 1}},
                                             {{"dim", {0.5f, 0.5f, 0.5f, 1}},
                                              {"pass", {0, 1, 0, 1}},
                                              {"fail", {1, 0, 0, 1}}});
