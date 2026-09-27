@@ -191,7 +191,7 @@ Element shadowedCards(int count, Cache mode) {
              .height(72)
              .borderRadius({8})
              .fill(Fill::color(material::hexColor(0x2a3140)))
-             .background(styles::dropShadow({0, 0, 0, 0.55f}, {0, 4}, 10))
+             .background(shadow({0, 0, 0, 0.55f}, {0, 4}, 10))
              .cache(mode)});
   return root;
 }

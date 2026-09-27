@@ -31,6 +31,14 @@ material::FrameData frameOf(const PaintContext& ctx) {
   return frame;
 }
 
+Fill Fill::fromMaterial(const material::Material& material) {
+  // A flat colour is the colour lane, as a colour written directly is.
+  if (const material::Color* color = material.color();
+      color && material.layers().empty())
+    return Fill::color(*color);
+  return Fill{material::skia::paint(material)};
+}
+
 Fill toFill(const material::Paint& paint) {
   if (paint.isSolid()) return Fill::color(paint.solidColor());
   if (paint.isNone() || !material::skia::staticShader(paint))

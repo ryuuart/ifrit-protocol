@@ -1,6 +1,6 @@
 /** @file
- * Layer styles: bevels, sheens and inner shadows built from gradients and
- * blurs, and the gel and chrome bundles over the kit's colour tables.
+ * The style marks: inner shadows, outer glows and bevels built from
+ * blurred strokes, and the ripple filter.
  */
 
 #include <include/core/SkColorFilter.h>
@@ -14,7 +14,6 @@
 #include <sigilcompose/brush/LayerStyles.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/TextPaint.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
@@ -23,8 +22,6 @@
 #include <vector>
 
 namespace sigil::compose::styles {
-
-namespace kit = sigil::material::kit;
 
 void InnerShadow::paint(SkCanvas& c, const PaintContext& ctx) const {
   c.save();
@@ -71,20 +68,6 @@ void BevelEmboss::paint(SkCanvas& c, const PaintContext& ctx) const {
   const SkVector away = {-std::cos(rad) * depth, std::sin(rad) * depth};
   InnerShadow{highlight, away, size}.paint(c, ctx);               // lit edges
   InnerShadow{shadow, {-away.fX, -away.fY}, size}.paint(c, ctx);  // far edges
-}
-
-void Overlay::paint(SkCanvas& c, const PaintContext& ctx) const {
-  SkPaint p;
-  p.setAntiAlias(true);
-  if (material.isSolid())
-    p.setColor4f(material::skia::toSkColor(material.solidColor()), nullptr);
-  else if (sk_sp<SkShader> s = material::skia::shader(material))
-    p.setShader(std::move(s));
-  else
-    return;
-  p.setBlendMode(blend);
-  if (opacity < 1.0f) p.setAlphaf(p.getAlphaf() * opacity);
-  c.drawPath(ctx.outline, p);
 }
 
 material::Filter ripple(float amplitudePx, float wavelengthPx,

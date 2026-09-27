@@ -5,7 +5,11 @@
 
 #include <include/core/SkTypes.h>  // SkDebugf — the fill box's diagnostic
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/skia/Paint.h>
+
 #include "ComposeInternal.h"
+#include "MaterialEffects.h"
 
 namespace sigil::compose {
 
@@ -90,6 +94,13 @@ Derived& PaintVerbs<Derived>::fill(material::Paint m, PaintBox box) {
     slots.live.reset();
   }
   return self();
+}
+
+template <class Derived>
+Derived& PaintVerbs<Derived>::fill(material::Material material, PaintBox box) {
+  if (const material::Filter* effects = material.effects())
+    detail::applyEffects(*declarations(), *effects);
+  return fill(Fill::fromMaterial(material), box);
 }
 
 template <class Derived>

@@ -92,11 +92,16 @@ struct Fill {
   }
   /** A material recipe, as the paint that wears it. */
   template <class Recipe>
-    requires std::convertible_to<Recipe, material::Material>
+    requires(std::convertible_to<Recipe, material::Material> &&
+             !std::same_as<std::decay_t<Recipe>, material::Color>)
   // NOLINTNEXTLINE(google-explicit-constructor)
   Fill(Recipe&& recipe)
-      : Fill(material::Paint::recipe(
-            material::Material(std::forward<Recipe>(recipe)))) {}
+      : Fill(fromMaterial(material::Material(std::forward<Recipe>(recipe)))) {}
+
+  /** A material as a fill: a flat colour stays the colour it is, anything
+   *  else is the paint it lowers to. Its effects and surface are not part
+   *  of a fill; `fill(material)` places them. */
+  static Fill fromMaterial(const material::Material& material);
 
   static Fill color(material::Color c) {
     Fill f;

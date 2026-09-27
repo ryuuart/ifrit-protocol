@@ -12,7 +12,10 @@
 #include <type_traits>
 #include <utility>
 
+#include <sigilmaterial/filter/Filter.h>
+
 #include "ComposeInternal.h"
+#include "MaterialEffects.h"
 
 namespace sigil::compose {
 
@@ -143,6 +146,13 @@ Derived& FontVerbs<Derived>::ink(VarRef reference) {
   cascade.inkBox = PaintBox::Element;
   cascade.statesInk = true;
   return self();
+}
+
+template <class Derived>
+Derived& FontVerbs<Derived>::ink(material::Material material, PaintBox box) {
+  if (const material::Filter* effects = material.effects())
+    detail::applyEffects(*declarations(), *effects);
+  return ink(Fill::fromMaterial(material), box);
 }
 
 template <class Derived>

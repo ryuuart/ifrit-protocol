@@ -405,9 +405,9 @@ inline LayeredBrush pulse(material::Color halo = {1.0f, 0.79f, 0.44f, 0.35f},
 
 /** The cartographic railway: a dark line under a white dash overlay at
  *  about a third of its width, on a 50% duty cycle — the map convention,
- *  which uses no ties at all. Two decorations as one LayerStyle, so attach
- *  with `Element::layerStyle()`. */
-inline LayerStyle railwayCarto(float scale = 1.0f,
+ *  which uses no ties at all. Two decorations as one stack, so they attach
+ *  and prune together. */
+inline DecorationStack railwayCarto(float scale = 1.0f,
                                material::Color dark = {0.439f, 0.439f, 0.439f,
                                                        1},
                                material::Color light = {1, 1, 1, 1}) {
@@ -418,7 +418,7 @@ inline LayerStyle railwayCarto(float scale = 1.0f,
   dashes.width = 1.0f * scale;
   dashes.fill = Fill::color(light);
   dashes.dashIntervals = {8.0f * scale, 8.0f * scale};
-  return LayerStyle{{}, {Decoration(base), Decoration(dashes)}};
+  return DecorationStack{{Decoration(base), Decoration(dashes)}};
 }
 
 /** The engraver's asymmetric parallel rule: HEAVY / hair / HEAVY — the

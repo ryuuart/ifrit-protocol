@@ -26,9 +26,7 @@ Element figureOf(SkPath route, float bleed, std::string key,
     else
       figure.foreground(*dressing.mark);
   }
-  if (!dressing.style.under.empty() || !dressing.style.over.empty() ||
-      !dressing.style.echoes.empty())
-    figure.layerStyle(dressing.style);
+  for (const Decoration& mark : dressing.style) figure.foreground(mark);
   if (dressing.gate) figure.mask(*dressing.gate);
   if (!key.empty()) figure.key(std::move(key));
   // A WIRE IS TRANSPARENT TO THE HIT TEST. Its shape is one open path, and

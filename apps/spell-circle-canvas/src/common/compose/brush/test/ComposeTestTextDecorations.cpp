@@ -259,8 +259,8 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
                                .children({box().absolute().inset(40).fill(
                                    Fill::color({0, 0, 1, 1}))})
                                .foreground(decorations::wash(
-                                   material::Paint::solid({1, 0, 0, 1}),
-                                   SkBlendMode::kPlus, amount))});
+                                   material::Color{1, 0, 0, 1},
+                                   material::BlendMode::PlusLighter, amount))});
   };
   Host full(120, 120), half(120, 120), none(120, 120);
   full.composer.render(build(1.0f));
@@ -273,18 +273,18 @@ TEST(ComposeDecorations, WashFloodsTheOutlineWithAMaterialAndPrunes) {
   // It reaches OVER the child, which is what foreground() means and what
   // overlay() deliberately does not do.
   EXPECT_GT(SkColorGetR(full.pixel(60, 60)), 200);
-  EXPECT_GT(SkColorGetB(full.pixel(60, 60)), 200);  // kPlus kept the blue
+  EXPECT_GT(SkColorGetB(full.pixel(60, 60)), 200);  // the additive blend kept the blue
   // amount is a real dial, not a flag.
   EXPECT_NEAR(SkColorGetR(half.pixel(60, 60)), 128, 12);
   EXPECT_EQ(SkColorGetR(none.pixel(60, 60)), 0);
 
   // And it is a comparable VALUE, so a static wash prunes.
-  EXPECT_TRUE(decorations::wash(material::Paint::solid({1, 0, 0, 1}),
-                                SkBlendMode::kPlus, 0.5f) ==
-              decorations::wash(material::Paint::solid({1, 0, 0, 1}),
-                                SkBlendMode::kPlus, 0.5f));
-  EXPECT_FALSE(decorations::wash(material::Paint::solid({1, 0, 0, 1})) ==
-               decorations::wash(material::Paint::solid({0, 1, 0, 1})));
+  EXPECT_TRUE(decorations::wash(material::Color{1, 0, 0, 1},
+                                material::BlendMode::PlusLighter, 0.5f) ==
+              decorations::wash(material::Color{1, 0, 0, 1},
+                                material::BlendMode::PlusLighter, 0.5f));
+  EXPECT_FALSE(decorations::wash(material::Color{1, 0, 0, 1}) ==
+               decorations::wash(material::Color{0, 1, 0, 1}));
 }
 
 TEST(ComposeDecorations, PathFormatCarriesStrokeCapAndJoin) {

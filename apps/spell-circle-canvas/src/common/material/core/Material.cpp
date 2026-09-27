@@ -35,8 +35,6 @@ bool samePart(const std::shared_ptr<const detail::Part>& a,
 
 }  // namespace
 
-Material::Material() : Material(Color{0, 0, 0, 0}) {}
-
 Material::Material(Color color) {
   auto composition = std::make_shared<Composition>();
   composition->color = color;

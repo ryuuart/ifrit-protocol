@@ -7,7 +7,10 @@
 
 #include <algorithm>
 
+#include <sigilmaterial/skia/Paint.h>
+
 #include "ComposeInternal.h"
+#include "MaterialEffects.h"
 
 namespace sigil::compose {
 
@@ -88,20 +91,10 @@ Derived& DecorationVerbs<Derived>::decorationOutline(Boundary source,
 }
 
 template <class Derived>
-Derived& DecorationVerbs<Derived>::layerStyle(LayerStyle s) {
-  for (Decoration& d : s.under) {
-    claimBorrows(d);
-    declarations()->backgrounds.push_back(std::move(d));
-  }
-  for (Decoration& d : s.over) {
-    claimBorrows(d);
-    declarations()->foregrounds.push_back(std::move(d));
-  }
-  if (!s.echoes.empty()) {
-    std::vector<Echo>& echoes = declarations()->fxData.ensure().echoes;
-    echoes.insert(echoes.end(), s.echoes.begin(), s.echoes.end());
-  }
-  return self();
+Derived& DecorationVerbs<Derived>::stroke(material::Material material,
+                                          material::StrokeOptions options) {
+  return foreground(Decoration(detail::MaterialStroke{
+      material::skia::paint(material), options}));
 }
 
 template class DecorationVerbs<Element>;

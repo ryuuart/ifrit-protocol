@@ -17,9 +17,10 @@
 /** @defgroup compose-brush Brushes and layer styles
  *  Marks made along a boundary and treatments laid over a surface:
  *  brushes and their stamps, ribbons, lines and rails, hatches,
- *  decorations, and the Photoshop-shaped layer and pixel styles
- *  (brush/). What a node's `stroke`, `background`, `foreground` and
- *  `layerStyle` verbs take. */
+ *  decorations, and the pixel styles (brush/). What a node's `stroke`,
+ *  `background` and `foreground` verbs take; a look — a glow, a shadow,
+ *  a bevel, an overlay — is a material's layers and effects, stated with
+ *  `fill`. */
 /** @defgroup compose-typography Type
  *  Everything a text leaf says beyond its words: the per-glyph textFx tracks
  *  and their beats, the text effects, the selector vocabulary compose

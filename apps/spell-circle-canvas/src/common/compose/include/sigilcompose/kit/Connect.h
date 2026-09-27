@@ -44,9 +44,8 @@ namespace sigil::compose::connect {
  *  - `gate` is what of the wire is SHOWN, as `Element::mask` gates any
  *    node: the reveal that draws a whole dress on at once.
  *  - `style` is the wire's whole dress where one mark will not do — the
- *    marks under it, the marks over it and the echoes beneath, as
- *    `Element::layerStyle` takes them. A cased road is a bed, a lane and
- *    a curb.
+ *    marks painted over it in order, as a `DecorationStack` holds them. A
+ *    cased road is a bed, a lane and a curb.
  *
  *  Every member is a comparable value, so an operator stating the same
  *  dress every frame prunes. */
@@ -54,7 +53,7 @@ struct Dressing {
   std::optional<Decoration> mark;
   std::optional<Spans> where;
   std::optional<Gate> gate;
-  LayerStyle style;
+  std::vector<Decoration> style;
   bool operator==(const Dressing&) const = default;
 };
 
@@ -94,7 +93,7 @@ struct Between {
   /// What of the wire is shown — see Dressing::gate.
   std::optional<Gate> mask;
   /// The wire's whole dress, where one mark will not do.
-  LayerStyle style;
+  std::vector<Decoration> style;
   float bleed = 6.0f;
   /// The wire's key; `from->to` when empty.
   std::string key;
@@ -142,7 +141,7 @@ struct Along {
   /// What of the wire is shown — see Dressing::gate.
   std::optional<Gate> mask;
   /// The wire's whole dress, where one mark will not do.
-  LayerStyle style;
+  std::vector<Decoration> style;
   float bleed = 6.0f;
   /// The wire's key; its bound stops' keys, joined, when empty.
   std::string key;
@@ -193,7 +192,7 @@ struct ByLane {
   /// What of each wire is shown — see Dressing::gate.
   std::optional<Gate> mask;
   /// Each wire's whole dress, where one mark will not do.
-  LayerStyle style;
+  std::vector<Decoration> style;
   float bleed = 6.0f;
   bool operator==(const ByLane&) const = default;
 

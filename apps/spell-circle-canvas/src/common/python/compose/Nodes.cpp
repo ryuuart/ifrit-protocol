@@ -435,7 +435,6 @@ void bindNodeVerbs(py::class_<Node>& element) {
       .def("hitTestable", &Node::hitTestable, py::arg("enabled"), fluent)
       .def("decorationOutline", &Node::decorationOutline, py::arg("source"),
            py::arg("coverage") = 0.5f, fluent)
-      .def("layerStyle", &Node::layerStyle, py::arg("style"), fluent)
       .def("filter", &Node::filter, py::arg("effect"), fluent)
       .def("backdropFilter", &Node::backdropFilter, py::arg("effect"), fluent)
       .def("travel", &Node::travel, py::arg("path"), fluent)

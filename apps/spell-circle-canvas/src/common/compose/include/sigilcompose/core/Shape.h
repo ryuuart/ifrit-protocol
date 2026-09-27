@@ -9,8 +9,8 @@
  * behind them; Boundary, which of a node's outlines a mark dresses;
  * MotionPath, a node carried along a curve; Decoration, the type-erased
  * mark, with the concepts that read a scheme's declared volatility,
- * bleed, reach, blending and borrows; and LayerStyle, a bundle of
- * decorations applied together. A run of type carried along a curve is
+ * bleed, reach, blending and borrows; and DecorationStack, several
+ * decorations painted as one. A run of type carried along a curve is
  * `TextPath`, in <sigilcompose/typography/TextPath.h>.
  */
 
@@ -25,6 +25,7 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>
 
+#include <algorithm>
 #include <any>
 #include <concepts>
 #include <functional>
@@ -634,26 +635,25 @@ class Decoration {
   std::function<bool(const std::any&, const std::any&)> m_equals;
 };
 
-/** A named bundle of decorations applied together — the Photoshop "layer
- *  style" as a value. Presets (kit::aquaGel(), kit::y2kChrome())
- *  return one; Element::layerStyle() splices it in: `under` layers paint
- *  below the fill/content (drop shadows, body ramps), `over` layers above
- *  (gloss lenses, bevels, keylines), and `echoes` re-stamp the fill shape
- *  and the text beneath the real pass. One call dresses the node. */
-struct LayerStyle {
-  std::vector<Decoration> under;
-  std::vector<Decoration> over;
-  std::vector<Echo> echoes;
-  /** A VALUE, so a style stated on an operator prunes with everything
-   *  else that operator states. Each layer compares as a Decoration does:
-   *  a value scheme structurally, a bare paint program never. */
-  bool operator==(const LayerStyle&) const = default;
-
-  /** THE MISPRINT PRESET: one echo at @p offset in a flat @p color.
-   *  Applied again, it stacks another beneath the real pass, bottom
-   *  first. */
-  static LayerStyle echo(SkVector offset, material::Color color) {
-    return LayerStyle{.echoes = {Echo{offset, color}}};
+/** SEVERAL DECORATIONS AS ONE MARK, painted in order — a double border, a
+ *  cased road: drawn ornament that attaches and prunes together. A look
+ *  (a glow, a shadow, a bevel, an overlay) is a material's effects and
+ *  layers instead, stated with `fill`. */
+struct DecorationStack {
+  std::vector<Decoration> marks;
+  bool operator==(const DecorationStack&) const = default;
+  bool isRunning() const {
+    for (const Decoration& mark : marks)
+      if (mark.isRunning()) return true;
+    return false;
+  }
+  float bleed(SkSize size) const {
+    float most = 0;
+    for (const Decoration& mark : marks) most = std::max(most, mark.bleed(size));
+    return most;
+  }
+  void paint(SkCanvas& canvas, const PaintContext& context) const {
+    for (const Decoration& mark : marks) mark.paint(canvas, context);
   }
 };
 

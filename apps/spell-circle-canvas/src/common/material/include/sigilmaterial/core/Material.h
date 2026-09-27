@@ -106,8 +106,6 @@ class Part {
  *  number behind it. */
 class Material {
  public:
-  /** No paint: a fully transparent colour base. */
-  Material();
   /** A flat colour. */
   // NOLINTNEXTLINE(google-explicit-constructor)
   Material(Color color);
@@ -451,7 +449,7 @@ struct SurfaceOptions {
 /** The designated-initialiser form of a material. The effects stage is
  *  added with `effects()`, since the filter belongs to its renderer. */
 struct MaterialParts {
-  Material base;
+  Material base = Color{0, 0, 0, 0};
   std::vector<Layer> layers;
   std::optional<SurfaceOptions> surface;
 };

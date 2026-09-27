@@ -12,6 +12,8 @@
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>
+#include <sigilmaterial/core/Material.h>
+#include <sigilmaterial/filter/Filter.h>
 
 #include <cstddef>
 #include <string>
@@ -49,6 +51,11 @@ class DecorationVerbs {
    *  never collide. It appends to the foregrounds, which is why the
    *  unqualified strokes always paint under the span passes. */
   Derived& stroke(Decoration brush, std::string name = {});
+  /** A KEYLINE around the node's boundary painted with @p material, @p
+   *  options' width wide on the side it names (outside by default). It
+   *  appends to the foregrounds as a brush does. */
+  Derived& stroke(material::Material material,
+                  material::StrokeOptions options = {});
   /** THE STROKE SLOT: `where` on the boundary, painted by `what`.
    *  Span-qualified passes CLAIM the runs they resolve to, and two
    *  claims that overlap are reported out loud, naming both passes and
@@ -62,12 +69,6 @@ class DecorationVerbs {
    *  fraction of full opacity clamped to [0, 1]. Half when unstated,
    *  which is the rule an unantialiased rasteriser uses. */
   Derived& decorationOutline(Boundary source, float coverage = 0.5f);
-  /** Apply a whole `LayerStyle`: its `under` layers append as
-   *  backgrounds, its `over` layers as foregrounds and its `echoes` as
-   *  misprint re-stamps beneath the real pass, so one call dresses the
-   *  node in a bundled treatment. An echo is not applied to text
-   *  carrying `textFx()` tracks, nor to image or custom content. */
-  Derived& layerStyle(LayerStyle s);
 
  private:
   /** Register whatever a decoration says it borrows so the derive pass

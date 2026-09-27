@@ -94,6 +94,10 @@ class FontVerbs {
    *  passage, and `Padding` or `Content`, which are a fill's, read as
    *  `Element` and say so once. */
   Derived& ink(Fill paint, PaintBox box = PaintBox::Element);
+  /** THE INK AS A MATERIAL: its base and layers are the ink, as a paint
+   *  is, and its effects dress the node's own layer as `fill` places
+   *  them — a hard shadow echoes the text, as CSS `text-shadow` does. */
+  Derived& ink(material::Material material, PaintBox box = PaintBox::Element);
 
  private:
   Derived& self() { return static_cast<Derived&>(*this); }

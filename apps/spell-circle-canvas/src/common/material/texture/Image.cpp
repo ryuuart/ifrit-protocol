@@ -28,26 +28,11 @@ const std::shared_ptr<const Recipe>& imageRecipe() {
   return recipe;
 }
 
-SkTileMode tileOf(Repeat repeat) {
-  switch (repeat) {
-    case Repeat::Pad:
-      return SkTileMode::kClamp;
-    case Repeat::Repeat:
-      return SkTileMode::kRepeat;
-    case Repeat::Mirror:
-      return SkTileMode::kMirror;
-    case Repeat::None:
-      break;
-  }
-  return SkTileMode::kDecal;
-}
-
 }  // namespace
 
 Material image(media::PixelSource pixels, ImageOptions options) {
   Texture texture(std::move(pixels));
-  texture.tile(tileOf(options.repeat),
-               tileOf(options.repeatY.value_or(options.repeat)));
+  texture.tile(options.repeat, options.repeatY.value_or(options.repeat));
   Material material(imageRecipe(), ImageParameters{});
   material.slot("image", std::move(texture));
   return material;

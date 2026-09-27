@@ -317,7 +317,7 @@ TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {
 }
 
 TEST(ComposeStyles, AnOverlaySitsOverTheFillAndAStrokeOverBoth) {
-  // colorOverlay tints the shape through its blend; .stroke() is fill's
+  // A layer tints the fill beneath it at its opacity; .stroke() is fill's
   // ergonomic peer for dressing the outline.
   Host host;
   host.composer.render(box().children(
@@ -326,9 +326,8 @@ TEST(ComposeStyles, AnOverlaySitsOverTheFillAndAStrokeOverBoth) {
            .height(60)
            .inset(0, 140, 140, 0)
            .absolute()
-           .fill(Fill::color({0, 0, 1, 1}))
-           .foreground(
-               styles::colorOverlay({1, 0, 0, 1}, SkBlendMode::kSrcOver, 0.5f))
+           .fill(material::from(material::Color{0, 0, 1, 1})
+                     .layer(material::Color{1, 0, 0, 1}, {.opacity = 0.5f}))
            .stroke(sigil::compose::stroke(4, green()))}));
   host.frame();
   const SkColor c = host.pixel(30, 30);  // 50% red over blue

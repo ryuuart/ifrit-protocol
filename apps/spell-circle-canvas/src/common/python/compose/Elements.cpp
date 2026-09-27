@@ -573,24 +573,6 @@ void bindCompose(py::module_& module) {
       .def(py::self == py::self);
   py::implicitly_convertible<PathFormat, Decoration>();
   py::implicitly_convertible<Shadow, Decoration>();
-  py::class_<LayerStyle>(composition, "LayerStyle")
-      .def(py::init<>())
-      .def_property(
-          "under", [](const LayerStyle& self) { return self.under; },
-          [](LayerStyle& self, std::vector<Decoration> value) {
-            self.under = std::move(value);
-          })
-      .def_property(
-          "over", [](const LayerStyle& self) { return self.over; },
-          [](LayerStyle& self, std::vector<Decoration> value) {
-            self.over = std::move(value);
-          })
-      .def_static(
-          "echo",
-          [](py::object offset, py::object ink) {
-            return LayerStyle::echo(point(offset), color(ink));
-          },
-          py::arg("offset"), py::arg("ink"));
   py::class_<Spans>(composition, "Spans")
       .def(
           "__or__", [](const Spans& a, const Spans& b) { return a | b; },

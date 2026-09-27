@@ -351,8 +351,8 @@ struct ContourWalk {
  *  by recipe. A static wash prunes like any other decoration, and a wash
  *  over a live material declares itself animated so the node repaints.
  *
- *      .foreground(decorations::wash(patterns::grain(0.3f, 2, 7.0f),
- *                                    SkBlendMode::kSoftLight, 0.35f))
+ *      .foreground(decorations::wash(material::noise(0.3f, {.octaves = 2, .grain = true}),
+ *                                    material::BlendMode::SoftLight, 0.35f))
  */
 struct Wash {
   material::Paint material;
@@ -462,10 +462,11 @@ struct Border {
  *  with several fields can be started from the two or three that
  *  matter. */
 namespace decorations {
-inline Wash wash(material::Paint material,
-                 SkBlendMode blend = SkBlendMode::kSrcOver,
+inline Wash wash(const material::Material& material,
+                 material::BlendMode blend = material::BlendMode::Normal,
                  float amount = 1.0f) {
-  return Wash{std::move(material), blend, amount};
+  return Wash{material::skia::paint(material),
+              material::skia::toSkBlendMode(blend), amount};
 }
 
 /** A plain rule around the node's outline, `inset` px inside it. */
@@ -497,17 +498,17 @@ inline Border weightedCorners(float width, float cornerWidth, Fill fill,
                 .cornerAngleDeg = angleDeg};
 }
 
-/** DOUBLE BORDER with independent insets — two rules as one LayerStyle
- *  value, so both attach and prune together. The inner rule is often the
+/** DOUBLE BORDER with independent insets — two rules as one stack, so
+ *  both attach and prune together. The inner rule is often the
  *  dotted or lighter one; pass whatever you like.
  *
- *      .layerStyle(decorations::doubleBorder(
+ *      .stroke(decorations::doubleBorder(
  *          decorations::border(1.6f, ink),
  *          decorations::border(0.8f, ink, 6)))
  */
-inline LayerStyle doubleBorder(Border outer, Border inner) {
-  return LayerStyle{
-      {}, {Decoration(std::move(outer)), Decoration(std::move(inner))}};
+inline DecorationStack doubleBorder(Border outer, Border inner) {
+  return DecorationStack{
+      {Decoration(std::move(outer)), Decoration(std::move(inner))}};
 }
 
 /** Paints a decoration against geometry you built yourself, inside a

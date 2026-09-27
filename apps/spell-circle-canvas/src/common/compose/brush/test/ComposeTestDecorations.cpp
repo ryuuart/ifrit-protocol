@@ -589,8 +589,8 @@ TEST(ComposeDecorations, AWashThroughABlendModeRefusesItsNodeTheBake) {
                        .width(140)
                        .height(140)
                        .foreground(decorations::wash(
-                           material::Paint::solid({0.9f, 0.9f, 0.9f, 1}),
-                           SkBlendMode::kSoftLight, 0.8f))});
+                           material::Color{0.9f, 0.9f, 0.9f, 1},
+                           material::BlendMode::SoftLight, 0.8f))});
   };
   const auto render = [&](Composer::PromotionPolicy policy) {
     Host host;

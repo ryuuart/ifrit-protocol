@@ -3,36 +3,23 @@
 /** @file
  * @ingroup compose-brush
  *
- * SigilCompose layer styles — THE MECHANISMS an image editor builds a
- * rich surface out of: fake bevels, metallic sheens, inner shadows, glows
- * and overlays, made of gradients, blurs and blend modes and never of
- * shaders. This is the compositional peer to the SkSL route
- * (`material::sdf`, `material::skia::sksl`). It models no
- * lighting: a bevel is two opposed inner shadows, glass is a highlight
- * lens over a body ramp.
+ * SigilCompose style marks — the drawn pieces an ornament is built of:
+ * an inner shadow, an outer glow and a bevel as decorations a kit places
+ * on a chosen slot, made of gradients and blurs rather than shaders. A
+ * LOOK — a glow, a shadow, a bevel or an overlay dressing a node — is a
+ * material's effects and layers, stated with `fill(material)`; these marks
+ * are for a component that places one mark itself, beside its own fill.
  *
- * The LOOKS these are bundled into are the kit's — `kit/Gel.h`,
- * `kit/Chrome.h`, `kit/Gloss.h` — because a look is one era and a
- * mechanism is not.
- *
- * Every style here is a VALUE decoration with defaulted equality, so styled
- * chrome prunes and caches like any other static decoration — which is the
- * reason to reach for these before writing a shader.
- *
- * ATTACHMENT IS THE CONTRACT. `.background()` paints BENEATH the node's
- * fill, so anything attached there is hidden by an opaque fill: it is
- * where shadows and outer glows belong, and where a body ramp belongs on a
- * node with no fill of its own. `.foreground()` paints above the fill, the
- * content and the children. The order that reads correctly is the familiar
- * one — drop shadow, outer glow, fill, colour/gradient overlay, inner glow,
- * inner shadow, bevel planes, stroke — and it is produced by which slot
- * each style is attached to plus the order within that slot.
+ * Every mark here is a VALUE decoration with defaulted equality, so a
+ * node carrying one prunes and caches like any other static decoration.
+ * `.background()` paints beneath the node's fill, `.foreground()` above
+ * the fill, the content and the children.
  */
 
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>  // PathFormat keylines in the presets
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/LayerStyles.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
 
@@ -40,28 +27,9 @@
 
 #include "sigilcompose/Compose.h"
 
-/** THE SURFACE TREATMENTS an image editor is made of, as values: fake
- *  bevels, metallic sheens, inner shadows, glows and overlays, plus the
- *  pixel-grid family — dithers, halftones, scanlines and posterisation —
- *  that dress a surface by resampling it.
- *
- *  Each is built from gradients, blurs and blend modes rather than from
- *  a shader, and each is a comparable decoration value, so a node
- *  dressed in one prunes and caches like any static chrome. A whole
- *  bundle of them is a `LayerStyle`, which `Element::layerStyle()` takes in
- *  one call.
- *
- *  These are MECHANISMS. The LOOKS built out of them — aqua gel, y2k
- *  chrome, a gloss — are the kit's, because a look belongs to an era and
- *  a mechanism does not. */
+/** THE STYLE MARKS: drawn pieces a kit component places on one slot of
+ *  its own, beside the fill it paints. */
 namespace sigil::compose::styles {
-
-/** Drop shadow — `shadow` under the name it has in this family.
- *  Attach as the FIRST background, so everything else paints over it. */
-inline Shadow dropShadow(material::Color color = {0, 0, 0, 0.5f},
-                         SkVector offset = {3, 3}, float size = 6) {
-  return shadow(color, offset, size);
-}
 
 /** Inner shadow: a blurred band hugging the inner edges — the recessed,
  *  punched-in look, and one half of every fake bevel. `offset` is the
@@ -81,11 +49,6 @@ struct InnerShadow {
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
-
-/** Inner Glow: an inner shadow with no offset — edges light up inward. */
-inline InnerShadow innerGlow(material::Color color, float size) {
-  return InnerShadow{color, {0, 0}, size};
-}
 
 /** Outer Glow: the shape re-drawn blurred (optionally spread wider) —
  *  attach as a background; the fill covers the center. */
@@ -117,51 +80,6 @@ struct BevelEmboss {
 
   void paint(SkCanvas& c, const PaintContext& ctx) const;
 };
-
-/** Colour, gradient and pattern overlay in one value: any Material drawn
- *  over the shape with a blend mode and an opacity. They are not three
- *  styles here because a Material is already polymorphic.
- *
- *  **Overlay materials must be STATIC.** This scheme declares no volatility
- *  and resolves its material WITHOUT a paint context, and both halves of
- *  that bite silently: a LIVE material is sampled once, frozen into the
- *  cached picture, and never repaints; a geometry-dependent one resolves
- *  against a zero size, so anything scaled by the node's box degenerates.
- *  Use `decorations::wash` for either — it declares its animation and
- *  resolves against the real context. */
-struct Overlay {
-  material::Paint material;
-  SkBlendMode blend = SkBlendMode::kSrcOver;
-  float opacity = 1.0f;
-
-  bool operator==(const Overlay&) const = default;
-  /** An overlay through a blend mode resolves against what is under the
-   *  node, so its node cannot be baked into a layer of its own. */
-  bool blends() const { return blend != SkBlendMode::kSrcOver; }
-
-  void paint(SkCanvas& c, const PaintContext& ctx) const;
-};
-
-inline Overlay colorOverlay(material::Color color,
-                            SkBlendMode blend = SkBlendMode::kSrcOver,
-                            float opacity = 1.0f) {
-  return Overlay{material::Paint::solid(material::skia::toSkColor(color)),
-                 blend, opacity};
-}
-inline Overlay gradientOverlay(material::Paint gradient,
-                               SkBlendMode blend = SkBlendMode::kSrcOver,
-                               float opacity = 1.0f) {
-  return Overlay{std::move(gradient), blend, opacity};
-}
-
-/** Text (or any layer) glow: the node's rendered layer re-emitted blurred
- *  beneath itself — a drop shadow at zero offset, which keeps the content
- *  on top. Attach with `.filter()`, and chain with `.then()` for a tighter
- *  core over a wider halo: `text(...).filter(styles::textGlow(cyan, 6))`.
- *  The kernel's `Filter::glow`, under the name this family gives it. */
-inline material::Filter textGlow(material::Color color, float sigma) {
-  return material::Filter::glow(color, sigma);
-}
 
 /** The water/heat warp: the node's rendered layer resampled through a sine
  *  displacement field — y shifted by a sine of x, or with `vertical`, x by

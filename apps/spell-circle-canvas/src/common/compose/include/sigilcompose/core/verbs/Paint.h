@@ -51,11 +51,14 @@ class PaintVerbs {
    *  lane, so `Padding` is `Element` too. A text unit is refused, said
    *  once, and read as `Element`. */
   Derived& fill(material::Paint m, PaintBox box = PaintBox::Element);
-  /** Fill with a material recipe, which is a surface as a paint is: the
-   *  recipe as its paint, over @p box exactly as that paint would be. */
-  Derived& fill(material::Material recipe, PaintBox box = PaintBox::Element) {
-    return fill(material::Paint::recipe(std::move(recipe)), box);
-  }
+  /** FILL WITH A MATERIAL — the whole model: its base and layers paint
+   *  the box's region over @p box exactly as a paint would, and its
+   *  effects dress the node's own layer — shadows and glows beneath the
+   *  fill, strokes and bevels over it, a hard shadow as an echo of the
+   *  fill and the text; passes that read pixels run over the node and its
+   *  subtree as `filter` does. The surface is a 3D renderer's and is not
+   *  painted here. */
+  Derived& fill(material::Material material, PaintBox box = PaintBox::Element);
   /** A FILL, as a component property hands it on: a paint in it is
    *  placed over @p box exactly as `fill(material::Paint, box)` places
    *  it, and a colour, the ink in force or a custom property — which have

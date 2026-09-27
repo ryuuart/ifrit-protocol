@@ -52,7 +52,7 @@ Material program(io::Hub& hub, std::string_view uri,
                  const ProgramOptions& options = {}) {
   std::shared_ptr<const Recipe> recipe =
       programRecipe(hub, uri, schema<Parameters>(), options);
-  if (!recipe) return Material();
+  if (!recipe) return Color{0, 0, 0, 0};
   return Material(std::move(recipe), parameters);
 }
 
