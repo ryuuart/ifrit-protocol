@@ -9,7 +9,7 @@
 
 #include "sigilgeometry/path/Band.h"
 #include "sigilgeometry/path/Operations.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 

@@ -8,6 +8,7 @@
 
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/blend/Blend.h"
 
 using namespace sigil::geometry;

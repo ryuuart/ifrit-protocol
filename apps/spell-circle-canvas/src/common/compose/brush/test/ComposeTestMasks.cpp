@@ -4,7 +4,7 @@
 
 #include <sigildraw/Pen.h>
 #include "support/BrushTestSupport.h"
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmaterial/paint/Bases.h>
 

@@ -9,6 +9,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
+#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/kit/Shapers.h>
 
 using namespace sigil::geometry;
@@ -38,20 +39,21 @@ TEST(Shapers, EachOneActuallyMovesTheMarkItIsGiven) {
   b.moveTo(0, 50);
   b.lineTo(200, 50);
   const SkPath run = b.detach();
+  const path::Outline outline = path::fromSk(run);
   // A wave and a zigzag swing the run off its own axis.
   const shapers::Wave wave{.amplitude = 8, .wavelength = 40};
   const shapers::Zigzag zigzag{.amplitude = 8, .wavelength = 40};
   const shapers::Square square{.amplitude = 8, .wavelength = 40};
-  EXPECT_GT(wave.shape(run).getBounds().height(), 8.0f);
-  EXPECT_GT(zigzag.shape(run).getBounds().height(), 8.0f);
-  EXPECT_GT(square.shape(run).getBounds().height(), 8.0f);
+  EXPECT_GT(path::toSk(wave.shape(outline)).getBounds().height(), 8.0f);
+  EXPECT_GT(path::toSk(zigzag.shape(outline)).getBounds().height(), 8.0f);
+  EXPECT_GT(path::toSk(square.shape(outline)).getBounds().height(), 8.0f);
   // An offset moves it bodily, LEFT of travel, which on a west-to-east
   // run is upward on screen.
   const shapers::Offset rail{.px = 10};
-  EXPECT_NEAR(rail.shape(run).getBounds().centerY(), 40.0f, 1.5f);
+  EXPECT_NEAR(path::toSk(rail.shape(outline)).getBounds().centerY(), 40.0f, 1.5f);
   // A corner treatment over a straight run has no corner to treat.
   const shapers::Rounded rounded{.radius = 6};
-  EXPECT_EQ(rounded.shape(run).getBounds(), run.getBounds());
+  EXPECT_EQ(path::toSk(rounded.shape(outline)).getBounds(), run.getBounds());
 }
 
 TEST(Shapers, AChamferCutsEveryCornerOfAClosedRun) {
@@ -61,7 +63,8 @@ TEST(Shapers, AChamferCutsEveryCornerOfAClosedRun) {
   // the interior kept.
   SkPathBuilder sq;
   sq.moveTo(0, 0).lineTo(100, 0).lineTo(100, 100).lineTo(0, 100).close();
-  const SkPath oct = shapers::Chamfer{.cut = 30}.shape(sq.detach());
+  const SkPath oct = path::toSk(
+      shapers::Chamfer{.cut = 30}.shape(path::fromSk(sq.detach())));
   int vertices = 0, closes = 0;
   SkPath::Iter iter(oct, false);
   SkPoint pts[4];

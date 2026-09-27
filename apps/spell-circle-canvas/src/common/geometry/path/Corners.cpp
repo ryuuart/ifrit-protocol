@@ -23,7 +23,7 @@
 #include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Segments.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path::operations {
 
@@ -281,6 +281,15 @@ SkPath chamferCorners(const SkPath& path, float cut) {
   }
   flushContour();
   return out.detach();
+}
+
+Outline roundCorners(const Outline& outline, float radius,
+                     const CornerOptions& options) {
+  return fromSk(roundCorners(toSk(outline), radius, options));
+}
+
+Outline chamferCorners(const Outline& outline, float cut) {
+  return fromSk(chamferCorners(toSk(outline), cut));
 }
 
 }  // namespace sigil::geometry::path::operations

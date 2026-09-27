@@ -2,6 +2,7 @@
  * The transforms a symmetry stands for, and the groups that are stock
  * values over it.
  */
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Symmetry.h"
 
 #include <include/core/SkPathBuilder.h>
@@ -11,7 +12,7 @@
 
 namespace sigil::geometry::path {
 
-std::vector<SkMatrix> copies(const Symmetry& symmetry) {
+static std::vector<SkMatrix> matricesOf(const Symmetry& symmetry) {
   const int spokes = std::max(symmetry.order, 1);
   const int alongU = std::max(symmetry.repeatU, 1);
   const int alongV = std::max(symmetry.repeatV, 1);
@@ -58,7 +59,7 @@ std::vector<SkMatrix> copies(const Symmetry& symmetry) {
 }
 
 std::vector<Polyline> copies(const Symmetry& symmetry, const Polyline& line) {
-  const std::vector<SkMatrix> matrices = copies(symmetry);
+  const std::vector<SkMatrix> matrices = matricesOf(symmetry);
   std::vector<Polyline> lines;
   lines.reserve(matrices.size());
   for (const SkMatrix& matrix : matrices) {
@@ -74,7 +75,7 @@ std::vector<Polyline> copies(const Symmetry& symmetry, const Polyline& line) {
 
 std::vector<glm::vec2> copies(const Symmetry& symmetry,
                               std::span<const glm::vec2> points) {
-  const std::vector<SkMatrix> matrices = copies(symmetry);
+  const std::vector<SkMatrix> matrices = matricesOf(symmetry);
   std::vector<glm::vec2> mapped;
   mapped.reserve(matrices.size() * points.size());
   for (const SkMatrix& matrix : matrices)
@@ -87,7 +88,8 @@ std::vector<glm::vec2> copies(const Symmetry& symmetry,
 
 SkPath copies(const Symmetry& symmetry, const SkPath& path) {
   SkPathBuilder builder;
-  for (const SkMatrix& matrix : copies(symmetry)) builder.addPath(path, matrix);
+  for (const SkMatrix& matrix : matricesOf(symmetry))
+    builder.addPath(path, matrix);
   return builder.detach();
 }
 
@@ -131,6 +133,17 @@ Symmetry wallpaper(Wallpaper group, glm::vec2 cellU, glm::vec2 cellV,
       break;
   }
   return symmetry;
+}
+
+std::vector<Transform> copies(const Symmetry& symmetry) {
+  std::vector<Transform> transforms;
+  for (const SkMatrix& matrix : matricesOf(symmetry))
+    transforms.push_back(fromSk(matrix));
+  return transforms;
+}
+
+Outline copies(const Symmetry& symmetry, const Outline& outline) {
+  return fromSk(copies(symmetry, toSk(outline)));
 }
 
 }  // namespace sigil::geometry::path

@@ -14,7 +14,7 @@
 #include "SpanArithmetic.h"
 #include "SpanContours.h"
 #include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::compose {
 
@@ -29,7 +29,7 @@ glm::vec2 bandPointAt(const geometry::path::Outline& outline, float along,
   const float want = std::clamp(along, 0.0f, 1.0f) * total;
   float consumed = 0;
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(spine)) {
+       geometry::path::contoursOf(spine)) {
     const float len = contour.length();
     if (want <= consumed + len || consumed + len >= total - 1e-4f) {
       const float d = std::clamp(want - consumed, 0.0f, len);

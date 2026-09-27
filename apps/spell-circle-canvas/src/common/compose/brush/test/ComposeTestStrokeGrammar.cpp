@@ -5,7 +5,7 @@
 // own seam.
 
 #include "support/BrushTestSupport.h"
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 namespace {
 

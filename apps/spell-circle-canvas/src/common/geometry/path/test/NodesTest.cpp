@@ -15,6 +15,7 @@
 #include <glm/geometric.hpp>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Extremes.h"
 #include "sigilgeometry/path/Fit.h"
 #include "sigilgeometry/path/Interpolate.h"
@@ -252,7 +253,7 @@ TEST(PathFit, HoldsEveryPointOfAnArcWithinTheTolerance) {
     const float a = (float)i / 60.0f * kPi * 0.5f;
     arc.push_back({100.0f * std::cos(a), 100.0f * std::sin(a)});
   }
-  const SkPath fitted = fitCurve(arc, 0.5f);
+  const SkPath fitted = toSk(fitCurve(arc, 0.5f));
   EXPECT_LE(worstError(fitted, arc), 0.5f);
   // A quarter circle is one cubic; a fit that answered a node per point
   // would be a resampling rather than a fit.
@@ -265,19 +266,19 @@ TEST(PathFit, ATighterToleranceNeverNeedsFewerNodes) {
     const float x = (float)i;
     wave.push_back({x, 30.0f * std::sin(x * 0.08f)});
   }
-  const size_t loose = nodeCount(fitCurve(wave, 8.0f));
-  const size_t tight = nodeCount(fitCurve(wave, 0.2f));
+  const size_t loose = nodeCount(toSk(fitCurve(wave, 8.0f)));
+  const size_t tight = nodeCount(toSk(fitCurve(wave, 0.2f)));
   EXPECT_GE(tight, loose);
-  EXPECT_LE(worstError(fitCurve(wave, 0.2f), wave), 0.2f);
+  EXPECT_LE(worstError(toSk(fitCurve(wave, 0.2f)), wave), 0.2f);
 }
 
 TEST(PathFit, TwoPointsAreTheLineBetweenThemAndFewerAreNothing) {
   const std::vector<glm::vec2> two{{0, 0}, {10, 10}};
-  const std::vector<SegmentContour> read = segments(fitCurve(two, 1.0f));
+  const std::vector<SegmentContour> read = segments(toSk(fitCurve(two, 1.0f)));
   ASSERT_EQ(read.size(), 1u);
   ASSERT_EQ(read[0].segments.size(), 1u);
   EXPECT_EQ(read[0].segments[0].kind, SegmentKind::Line);
-  EXPECT_TRUE(fitCurve(std::vector<glm::vec2>{{0, 0}}, 1.0f).isEmpty());
+  EXPECT_TRUE(toSk(fitCurve(std::vector<glm::vec2>{{0, 0}}, 1.0f)).isEmpty());
 }
 
 // ---------------------------------------------------------------------------

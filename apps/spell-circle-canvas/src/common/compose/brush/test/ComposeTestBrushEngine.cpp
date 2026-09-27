@@ -2,6 +2,7 @@
 // restyled with, the art warp, the hatch and the contour bands the gloss
 // look is built from, and the pattern art a copy rebakes.
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/kit/Strokes.h>
 #include <sigilgeometry/path/Contour.h>
@@ -59,11 +60,13 @@ TEST(ComposeBrushEngine, SketchyKeepsOpenContoursOpen) {
   SkPathBuilder b;
   b.moveTo(0, 0);
   b.lineTo(300, 0);
-  const SkPath jittered = geometry::shapers::Jitter{8, 2, 11}.shape(b.detach());
+  const SkPath jittered = geometry::path::toSk(
+      geometry::shapers::Jitter{8, 2, 11}.shape(
+          geometry::path::fromSk(b.detach())));
   float total = 0;
   bool anyClosed = false;
   for (const geometry::path::Contour& c :
-       geometry::path::Contour::of(jittered)) {
+       geometry::path::contoursOf(jittered)) {
     total += c.length();
     anyClosed |= c.closed();
   }
@@ -89,12 +92,13 @@ TEST(ComposeBrushEngine, SquareWaveHoldsPlateausAndEndsOnAxis) {
   SkPathBuilder b;
   b.moveTo(0, 0);
   b.lineTo(320, 0);
-  const SkPath boxy = geometry::shapers::Square{8, 80}.shape(b.detach());
+  const SkPath boxy = geometry::path::toSk(geometry::shapers::Square{8, 80}.shape(
+      geometry::path::fromSk(b.detach())));
   // Plateaus hold ±8 for half-wavelength runs; endpoints return to 0.
   const SkRect bounds = boxy.getBounds();
   EXPECT_NEAR(bounds.top(), -8, 0.5f);
   EXPECT_NEAR(bounds.bottom(), 8, 0.5f);
-  const auto contours = geometry::path::Contour::of(boxy);
+  const auto contours = geometry::path::contoursOf(boxy);
   ASSERT_FALSE(contours.empty());
   const auto last = contours.front().at(contours.front().length());
   ASSERT_TRUE(last);
@@ -537,7 +541,7 @@ TEST(ComposeBrushEngine, ARestyleComparesByTheShaperItHolds) {
   const geometry::path::Shaper wider =
       carried(geometry::shapers::Wave{.amplitude = 12, .wavelength = 24});
   const geometry::path::Shaper raw = carried(geometry::path::Shaper::incomparable(
-      [](const SkPath& p) { return p; }, 3.0f));
+      [](const geometry::path::Outline& outline) { return outline; }, 3.0f));
   EXPECT_TRUE(wave == same);
   EXPECT_FALSE(wave == wider);
   EXPECT_FALSE(raw == raw);

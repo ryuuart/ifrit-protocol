@@ -12,6 +12,7 @@
 #include <numbers>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Cells.h"
 #include "sigilgeometry/path/Symmetry.h"
 #include "sigilgeometry/path/Trace.h"
@@ -74,7 +75,7 @@ TEST(Streamline, BoundsStopTheWalkAndTheSeedMustBeInside) {
   TraceOptions options;
   options.step = 1.0f;
   options.length = 1000.0f;
-  options.bounds = SkRect::MakeLTRB(0, -10, 40, 10);
+  options.bounds = fromSk(SkRect::MakeLTRB(0, -10, 40, 10));
   const Polyline line = streamline(uniformField({1, 0}), {0, 0}, options);
   EXPECT_LT(line.points.size(), 60u);
   EXPECT_LE(line.points.back().x, 41.0f);
@@ -145,9 +146,9 @@ TEST(Streamline, AnAngleFieldIsAUnitDirection) {
 // Symmetry
 
 TEST(Symmetry, TheDefaultIsOneCopyWhereTheFigureAlreadyIs) {
-  const std::vector<SkMatrix> matrices = copies(Symmetry{});
+  const std::vector<Transform> matrices = copies(Symmetry{});
   ASSERT_EQ(matrices.size(), 1u);
-  EXPECT_TRUE(matrices[0].isIdentity());
+  EXPECT_TRUE(toSk(matrices[0]).isIdentity());
 }
 
 TEST(Symmetry, RotationalOrderIsHowManyCopies) {

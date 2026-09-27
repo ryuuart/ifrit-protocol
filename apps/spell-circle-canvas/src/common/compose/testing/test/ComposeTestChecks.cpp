@@ -15,7 +15,7 @@
 // every one of them is handed.
 
 #include <sigilgeometry/path/Contour.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include "support/CoreTestSupport.h"
 
@@ -59,7 +59,7 @@ SkPath straightSpine() {
  *  which is what a width audit exists to find. */
 SkPath bandAlong(const SkPath& spine, float width, int steps, int pinch = -1) {
   SkPathBuilder b;
-  const auto contours = sigil::geometry::path::Contour::of(spine);
+  const auto contours = sigil::geometry::path::contoursOf(spine);
   if (contours.empty() || steps < 1) return b.detach();
   const sigil::geometry::path::Contour& contour = contours.front();
   const float len = contour.length();
@@ -240,7 +240,7 @@ TEST(ComposeChecks, WidthAlongFindsOneNarrowedStepInSevenHundred) {
   ASSERT_FALSE(audit.worst.empty());
   const test::WidthStation& worst = audit.worst.front();
   EXPECT_LT(worst.measured, 15.0f) << "the pinch was not measured";
-  const auto contours = sigil::geometry::path::Contour::of(spine);
+  const auto contours = sigil::geometry::path::contoursOf(spine);
   ASSERT_FALSE(contours.empty());
   const float pinchAt = contours.front().length() * (float)step / 719.0f;
   EXPECT_NEAR(worst.along, pinchAt, 20.0f) << "found in the wrong place";

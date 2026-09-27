@@ -1,7 +1,7 @@
 #include <pybind11/stl.h>
 #include <include/core/SkPath.h>
 #include <sigilgeometry/kit/Solids.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/mesh/Faces.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilgeometry/mesh/Vec.h>

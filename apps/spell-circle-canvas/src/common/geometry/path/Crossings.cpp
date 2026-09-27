@@ -19,7 +19,7 @@
 
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -327,7 +327,7 @@ std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands) {
           Crossing x;
           x.a = a;
           x.b = b;
-          x.at = hit;
+          x.at = fromSk(hit);
           x.alongA = fa.length > 0 ? sA / fa.length : 0.0f;
           x.alongB = fb.length > 0 ? sB / fb.length : 0.0f;
           // Sampling can report one meeting from two adjacent segment
@@ -338,8 +338,8 @@ std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands) {
           bool duplicate = false;
           for (const Crossing& seen : found)
             if (seen.a == x.a && seen.b == x.b &&
-                std::abs(seen.at.fX - x.at.fX) < merge &&
-                std::abs(seen.at.fY - x.at.fY) < merge) {
+                std::abs(seen.at.x - x.at.x) < merge &&
+                std::abs(seen.at.y - x.at.y) < merge) {
               duplicate = true;
               break;
             }
@@ -362,7 +362,8 @@ std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands) {
 }
 
 SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
-                     float reachB, SkPoint at, float maxRadius) {
+                     float reachB, glm::vec2 point, float maxRadius) {
+  const SkPoint at = toSk(point);
   const auto tube = [](const SkPath& path, float reach) {
     SkPaint p;
     p.setStyle(SkPaint::kStroke_Style);
@@ -448,6 +449,16 @@ SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
                  std::min(std::max({reachA, reachB, 3.0f}) + 1.0f,
                           std::max(maxRadius, 1.0f)));
   return disc.detach();
+}
+
+std::vector<Crossing> discoverCrossings(std::span<const Outline> strands) {
+  const std::vector<SkPath> paths = toSk(strands);
+  return discoverCrossings(std::span<const SkPath>(paths));
+}
+
+Outline crossingPatch(const Outline& a, float reachA, const Outline& b,
+                      float reachB, glm::vec2 at, float maxRadius) {
+  return fromSk(crossingPatch(toSk(a), reachA, toSk(b), reachB, at, maxRadius));
 }
 
 }  // namespace sigil::geometry::path

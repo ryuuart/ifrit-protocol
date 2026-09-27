@@ -8,7 +8,7 @@
 #include <sigilgeometry/path/Points.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Radial.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Through.h>
 #include <sigilgeometry/path/Transform.h>
 #include <sigilpython/Bindings.h>

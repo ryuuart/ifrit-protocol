@@ -20,7 +20,7 @@
 #include <limits>
 
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -119,7 +119,7 @@ float signedArea(std::span<const glm::vec2> ring) {
 
 float Polyline::signedArea() const { return path::signedArea(points); }
 
-SkRect Polyline::bounds() const {
+Rect Polyline::bounds() const {
   const Polyline* one = this;
   return path::bounds(std::span<const Polyline>(one, 1));
 }
@@ -144,7 +144,7 @@ void Polyline::reverse() {
   std::reverse(lane.begin(), lane.end());
 }
 
-SkRect bounds(std::span<const Polyline> lines) {
+Rect bounds(std::span<const Polyline> lines) {
   float left = std::numeric_limits<float>::infinity();
   float top = std::numeric_limits<float>::infinity();
   float right = -std::numeric_limits<float>::infinity();
@@ -156,8 +156,8 @@ SkRect bounds(std::span<const Polyline> lines) {
       right = std::max(right, point.x);
       bottom = std::max(bottom, point.y);
     }
-  if (!(left <= right) || !(top <= bottom)) return SkRect::MakeEmpty();
-  return SkRect::MakeLTRB(left, top, right, bottom);
+  if (!(left <= right) || !(top <= bottom)) return Rect{};
+  return Rect{{left, top}, {right, bottom}};
 }
 
 bool containsEvenOdd(std::span<const Polyline> rings, glm::vec2 point) {
@@ -345,7 +345,7 @@ Sampled applyAlignment(const Sampled& b, const Alignment& alignment) {
   return out;
 }
 
-SkPath toPath(const Sampled& samples, bool smooth) {
+static SkPath sampledSkPath(const Sampled& samples, bool smooth) {
   SkPathBuilder builder;
   const size_t n = samples.points.size();
   if (n < 2) return builder.detach();
@@ -372,7 +372,7 @@ SkPath toPath(const Sampled& samples, bool smooth) {
   return builder.detach();
 }
 
-SkPath toPath(const Polyline& line) {
+static SkPath polylineSkPath(const Polyline& line) {
   SkPathBuilder builder;
   if (line.points.empty()) return builder.detach();
   builder.moveTo(toSk(line.points[0]));
@@ -382,7 +382,8 @@ SkPath toPath(const Polyline& line) {
   return builder.detach();
 }
 
-SkPath smoothThrough(std::span<const glm::vec2> points, bool closed) {
+static SkPath smoothThroughSk(std::span<const glm::vec2> points,
+                              bool closed) {
   SkPathBuilder builder;
   const size_t n = points.size();
   if (n < 2) return builder.detach();
@@ -414,8 +415,8 @@ SkPath smoothThrough(std::span<const glm::vec2> points, bool closed) {
   return builder.detach();
 }
 
-SkPath smoothThrough(const Polyline& line) {
-  return smoothThrough(line.points, line.closed);
+Outline smoothThrough(const Polyline& line) {
+  return fromSk(smoothThroughSk(line.points, line.closed));
 }
 
 Polyline subdivide(const Polyline& line, float spacing) {
@@ -515,6 +516,25 @@ Sampled lerp(const Sampled& a, const Sampled& b, float t) {
     out.points.push_back(a.points[i] + (b.points[i] - a.points[i]) * t);
   out.sourceLength = a.sourceLength + (b.sourceLength - a.sourceLength) * t;
   return out;
+}
+
+std::vector<Polyline> flatten(const Outline& outline, float tolerance) {
+  return flatten(toSk(outline), tolerance);
+}
+
+std::vector<Sampled> resample(const Outline& outline, int count,
+                              float tolerance) {
+  return resample(toSk(outline), count, tolerance);
+}
+
+Outline toPath(const Sampled& samples, bool smooth) {
+  return fromSk(sampledSkPath(samples, smooth));
+}
+
+Outline toPath(const Polyline& line) { return fromSk(polylineSkPath(line)); }
+
+Outline smoothThrough(std::span<const glm::vec2> points, bool closed) {
+  return fromSk(smoothThroughSk(points, closed));
 }
 
 }  // namespace sigil::geometry::path

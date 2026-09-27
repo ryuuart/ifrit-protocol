@@ -18,7 +18,7 @@
 
 #include "BandScan.h"
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::weave {
 
@@ -222,7 +222,7 @@ bool LineSetFlow::lineIntervals(const LineRequest& request,
 PathFlow::PathFlow(const SkPath& path) { addPath(path); }
 
 void PathFlow::addPath(const SkPath& path) {
-  for (geometry::path::Contour& contour : geometry::path::Contour::of(path))
+  for (geometry::path::Contour& contour : geometry::path::contoursOf(path))
     m_contours.push_back(std::move(contour));
 }
 

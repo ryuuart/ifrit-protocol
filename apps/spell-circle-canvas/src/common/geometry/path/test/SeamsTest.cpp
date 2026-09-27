@@ -21,11 +21,13 @@
 #include <utility>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Band.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Profile.h"
 #include "sigilgeometry/path/Shaper.h"
+#include "sigilgeometry/path/Transform.h"
 
 using namespace sigil::geometry::path;
 
@@ -38,13 +40,13 @@ namespace {
 struct NudgeX {
   float dx = 0;
   float bleed() const { return std::abs(dx); }
-  SkPath shape(const SkPath& p) const {
-    return p.makeTransform(SkMatrix::Translate(dx, 0));
+  Outline shape(const Outline& outline) const {
+    return outline.transformed(Transform::translate({dx, 0}));
   }
   bool operator==(const NudgeX&) const = default;
 };
 struct Identity {
-  SkPath shape(const SkPath& p) const { return p; }
+  Outline shape(const Outline& outline) const { return outline; }
   bool operator==(const Identity&) const = default;
 };
 }  // namespace
@@ -61,11 +63,13 @@ TEST(PathShaper, ComparesByTheHeldSchemeAndItsParameters) {
 
 TEST(PathShaper, AnIncomparableShaperRunsItsCallableAndEqualsNothing) {
   const Shaper raw = Shaper::incomparable(
-      [](const SkPath& p) { return p.makeTransform(SkMatrix::Translate(4, 0)); },
+      [](const Outline& outline) {
+        return outline.transformed(Transform::translate({4, 0}));
+      },
       4.0f);
   SkPathBuilder b;
   b.addRect(SkRect::MakeWH(10, 10));
-  EXPECT_EQ(raw.shape(b.detach()).getBounds().left(), 4.0f);
+  EXPECT_EQ(raw.shape(fromSk(b.detach())).bounds().left(), 4.0f);
   EXPECT_FLOAT_EQ(raw.bleed(), 4.0f);
   // Not even itself: a closure carries no equality to be reflexive with.
   EXPECT_FALSE(raw == raw);
@@ -80,9 +84,9 @@ TEST(PathShaper, BleedIsReadOffTheSchemeAndIsZeroWhenNotDeclared) {
   // An empty shaper passes its path through untouched.
   SkPathBuilder b;
   b.addRect(SkRect::MakeWH(10, 10));
-  const SkPath src = b.detach();
+  const Outline src = fromSk(b.detach());
   EXPECT_EQ(Shaper().shape(src), src);
-  EXPECT_EQ(Shaper(NudgeX{2}).shape(src).getBounds().left(), 2.0f);
+  EXPECT_EQ(Shaper(NudgeX{2}).shape(src).bounds().left(), 2.0f);
 }
 
 // ---------------------------------------------------------------------------
@@ -220,7 +224,7 @@ int cornerLoops(const SkPath& rail, float shorterRunsAreOnePlace) {
  *  own resolution: a step of about two pixels, or an eighth of a short
  *  contour. */
 float railSampleStep(const SkPath& spine) {
-  const float len = Contour::of(spine).front().length();
+  const float len = contoursOf(spine).front().length();
   return len / (float)std::max(8, (int)std::ceil(len / 2.0f));
 }
 
@@ -323,7 +327,7 @@ TEST(Band, AVaryingRailJoinsAtTheRealVerticesInsteadOfLoopingAtACorner) {
   // …and the law still holds ALONG each edge: at every edge's midpoint the
   // rail stands the width the law says, on the side the frame says.
   const SkPath rail = profileOffset(hexagon, outward);
-  const std::vector<Contour> spine = Contour::of(hexagon);
+  const std::vector<Contour> spine = contoursOf(hexagon);
   ASSERT_EQ(spine.size(), 1u);
   const float len = spine.front().length();
   for (int edge = 0; edge < 6; ++edge) {
@@ -362,7 +366,7 @@ TEST(Band, AnOpenVaryingRailJoinsItsCornersAndLeavesItsEndsAlone) {
 
   // The ends are where the spine's ends are, displaced by the law there:
   // a corner join never moved them.
-  const std::vector<Contour> spine = Contour::of(zigzag);
+  const std::vector<Contour> spine = contoursOf(zigzag);
   ASSERT_EQ(spine.size(), 1u);
   const float len = spine.front().length();
   const std::vector<Polyline> rail = flatten(profileOffset(zigzag, left));
@@ -391,7 +395,7 @@ TEST(Band, ARailStandsItsWholeWidthOffEveryCornerItTurnsAround) {
   b.addRect(SkRect::MakeXYWH(0, 0, 300, 200));
   const SkPath spine = b.detach();
   ASSERT_GT(flatten(spine).front().signedArea(), 0.0f) << "clockwise";
-  const std::vector<Contour> contour = Contour::of(spine);
+  const std::vector<Contour> contour = contoursOf(spine);
   ASSERT_EQ(contour.size(), 1u);
   const float len = contour.front().length();
   // Positive across is LEFT of travel, which on a clockwise path is
@@ -494,7 +498,7 @@ TEST(Band, AFoldReachesNoFurtherThanTheCornerBesideIt) {
   b.lineTo(corner);
   b.lineTo(corner.fX + 140.0f, corner.fY);
   const SkPath spine = b.detach();
-  const std::vector<Contour> contour = Contour::of(spine);
+  const std::vector<Contour> contour = contoursOf(spine);
   ASSERT_EQ(contour.size(), 1u);
 
   // One side of travel turns into the first corner and the other into
@@ -524,7 +528,7 @@ TEST(Band, AFoldReachesNoFurtherThanTheCornerBesideIt) {
   stub.lineTo(80.0f + 140.0f * std::cos(turn),
               300.0f + 140.0f * std::sin(turn));
   const SkPath shortFirstEdge = stub.detach();
-  const std::vector<Contour> stubContour = Contour::of(shortFirstEdge);
+  const std::vector<Contour> stubContour = contoursOf(shortFirstEdge);
   ASSERT_EQ(stubContour.size(), 1u);
   for (const float across : {12.0f, -12.0f}) {
     const auto at = stubContour.front().at(0.0f);
@@ -636,7 +640,7 @@ TEST(Band, ASweptWidthMayBeKeyedOnDirectionWhereAProfileCannot) {
   // no profile keyed on arc length can say it. The elbow's two legs run at
   // right angles, so one is fat and the other thin.
   const SweepWidth nib = [](const SweepStation& at) {
-    const float a = std::atan2(at.tangent.y(), at.tangent.x());
+    const float a = std::atan2(at.tangent.y, at.tangent.x);
     return 4.0f + 20.0f * std::abs(std::sin(a));
   };
   const SkPath band = sweptRegion(elbow(), nib);

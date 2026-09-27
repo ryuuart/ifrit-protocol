@@ -13,7 +13,7 @@
  * pair of masters must never need. Ask here first; fall back there when
  * the answer is nothing.
  */
-#include <include/core/SkPath.h>
+#include "sigilgeometry/path/Outline.h"
 
 #include <optional>
 
@@ -23,6 +23,7 @@ namespace sigil::geometry::path {
  *  the pair does not pair — `compatible()` says which of the reasons it
  *  was. Values outside [0, 1] extrapolate, which is what a master pair
  *  pushed past its own extremes is. */
-std::optional<SkPath> interpolate(const SkPath& a, const SkPath& b, float t);
+std::optional<Outline> interpolate(const Outline& a, const Outline& b,
+                                   float t);
 
 }  // namespace sigil::geometry::path

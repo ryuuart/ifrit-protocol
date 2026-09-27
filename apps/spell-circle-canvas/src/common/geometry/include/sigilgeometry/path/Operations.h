@@ -6,16 +6,15 @@
  * SigilGeometry path operations — the Pathfinder panel and the Distort
  * menu, as values. Three families:
  *
- *  - BOOLEANS over Skia's pathops, with simplify and offset beside
- *    them, and the two POLYLINE corner treatments. All pure: SkPath in,
- *    SkPath out, and a pathops failure comes back empty.
+ *  - BOOLEANS, with simplify and offset beside them, and the two
+ *    POLYLINE corner treatments. All pure: an outline in, an outline
+ *    out, and a boolean that fails comes back empty.
  *  - STRIP JOINERY over pieces of stock — a segment cut to a width —
  *    mitred to the joints each piece stands in.
  *  - DISTORTS as parameter structs, each carrying its dials and
  *    applying on demand, so a recipe stays editable.
  */
 
-#include <include/core/SkPath.h>
 #include <sigilcore/compute/Chance.h>
 
 #include <concepts>
@@ -27,48 +26,49 @@
 #include <span>
 #include <vector>
 
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Stroke.h"
 
 /** THE PATHFINDER PANEL AND THE DISTORT MENU, as values: the booleans
  *  over two outlines, the self-intersection cleanup and the stroke
  *  expansion beside them, the corner treatments over a polyline, and the
  *  warps that bend an outline without changing its node count. Every one
- *  is a pure function — a path in, a path out — and a failure comes back
- *  as an empty path rather than an error. */
+ *  is a pure function — an outline in, an outline out — and a failure
+ *  comes back as an empty outline rather than an error. */
 namespace sigil::geometry::path::operations {
 
 /** Everything either shape covers. */
-SkPath unite(const SkPath& a, const SkPath& b);
+Outline unite(const Outline& a, const Outline& b);
 /** Minus Front: `a` with everything the front shape covers taken out. */
-SkPath subtract(const SkPath& a, const SkPath& b);
+Outline subtract(const Outline& a, const Outline& b);
 /** Only what both shapes cover. */
-SkPath intersect(const SkPath& a, const SkPath& b);
+Outline intersect(const Outline& a, const Outline& b);
 /** What one shape covers and the other does not. */
-SkPath exclude(const SkPath& a, const SkPath& b);
+Outline exclude(const Outline& a, const Outline& b);
 /** N-ary union — merge a whole stack at once, over any range of paths: a
  *  vector or a span as it stands, a brace list, or a view that builds them
  *  as it is walked (`lines | std::views::transform(expand)`). */
-SkPath unite(std::span<const SkPath> paths);
+Outline unite(std::span<const Outline> paths);
 /** The same union over a brace list. */
-inline SkPath unite(std::initializer_list<SkPath> paths) {
-  return unite(std::span<const SkPath>(paths.begin(), paths.size()));
+inline Outline unite(std::initializer_list<Outline> paths) {
+  return unite(std::span<const Outline>(paths.begin(), paths.size()));
 }
 /** The same union over any range of paths, including a view that
  *  builds them as it is walked. */
 template <std::ranges::input_range R>
-  requires(!std::convertible_to<R &&, std::span<const SkPath>> &&
-           std::convertible_to<std::ranges::range_reference_t<R>, SkPath>)
-SkPath unite(R&& paths) {
+  requires(!std::convertible_to<R &&, std::span<const Outline>> &&
+           std::convertible_to<std::ranges::range_reference_t<R>, Outline>)
+Outline unite(R&& paths) {
   // A range that is not already contiguous is walked into one, because the
   // union builder wants every path before it resolves any of them.
-  std::vector<SkPath> held;
+  std::vector<Outline> held;
   for (auto&& path : paths) held.push_back(path);
-  return unite(std::span<const SkPath>(held));
+  return unite(std::span<const Outline>(held));
 }
 
 /** Resolve self-intersections and redundant winding into a clean
  *  even-odd-equivalent outline (Pathfinder's Merge, roughly). */
-SkPath simplify(const SkPath& path);
+Outline simplify(const Outline& path);
 
 /** THE DIALS OF ONE OFFSET. `position` is what makes this a single
  *  operator rather than a family, and it is CONTINUOUS: 0 is the single
@@ -93,7 +93,7 @@ struct OffsetOptions {
    *  band and a walk, and this is the WHOLE offset when it is on. */
   bool keepCompatible = false;
   /** The stride the sideways walk takes where a walk is used — away
-   *  from `position` 0.5, where Skia's stroker answers instead. */
+   *  from `position` 0.5, where the renderer's stroker answers instead. */
   float step = 4.0f;
   bool operator==(const OffsetOptions&) const = default;
 };
@@ -105,13 +105,13 @@ struct OffsetOptions {
  *  at the default `position` is outward: the library-wide sign
  *  convention. A band that STRADDLES the source answers the source
  *  grown or shrunk; one that lies to a side is answered as itself. */
-SkPath offset(const SkPath& path, float distance,
+Outline offset(const Outline& path, float distance,
               const OffsetOptions& options = {});
 
 /** WHICH CORNERS A ROUNDING TAKES, AND HOW HARD.
  *
  *  Every dial here is off by default, and with all of them off the
- *  rounding is Skia's own corner effect over every corner of the path —
+ *  rounding is the renderer's own corner effect over every corner —
  *  which is the common case and stays exactly as cheap as it was. */
 struct CornerOptions {
   /** Only corners that turn by more than this many degrees. Zero rounds
@@ -133,19 +133,19 @@ struct CornerOptions {
  *  @p radius. A non-positive radius, and a path the effect refuses,
  *  come back unchanged rather than empty.
  *  @silent any option is set and a corner's legs are not both STRAIGHT:
- *  with options this is a polyline treatment, where Skia's own corner
- *  effect, which the default options use, has no such limit. */
-SkPath roundCorners(const SkPath& path, float radius,
+ *  with options this is a polyline treatment, where the renderer's own
+ *  corner effect, which the default options use, has no such limit. */
+Outline roundCorners(const Outline& path, float radius,
                     const CornerOptions& options = {});
 
 /** CUT EVERY LINE-LINE CORNER of @p path with a straight bevel @p cut px
  *  along each leg — the 45-degree face of the game-UI and PCB corner
- *  convention, which `SkCornerPathEffect` cannot spell because it only
- *  rounds. The cut clamps to half of each adjacent leg; a closed
+ *  convention, which a corner-rounding effect cannot spell because it
+ *  only rounds. The cut clamps to half of each adjacent leg; a closed
  *  polyline contour chamfers its closing vertex too.
  *  @silent the contour holds ANY curve segment: a chamfer over an arc
  *  or a rounded route copies that contour through untouched. */
-SkPath chamferCorners(const SkPath& path, float cut);
+Outline chamferCorners(const Outline& path, float cut);
 
 /** A SQUARE WAVE across the mark: the contour walked at a fixed
  *  wavelength and displaced by +/- @p amplitude on its normal with
@@ -153,7 +153,7 @@ SkPath chamferCorners(const SkPath& path, float cut);
  *  circuit trace. The wavelength is rounded so a whole number of periods
  *  fits the contour, which is what keeps a closed mark from meeting itself
  *  mid-step. */
-SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength);
+Outline displaceSquare(const Outline& src, float amplitude, float wavelength);
 
 // ---------------------------------------------------------------------------
 // Strip joinery: pieces of stock, and what happens where they meet.
@@ -201,13 +201,13 @@ struct StripOptions {
  *  two directions; an end that meets nothing is cut square across.
  *  @silent nothing here reads which piece is ON TOP — a lattice is one
  *  layer of stock at a time, and `stripLaps` is where layers cross. */
-std::vector<SkPath> stripOutlines(std::span<const Strip> pieces,
+std::vector<Outline> stripOutlines(std::span<const Strip> pieces,
                                   const StripOptions& options = {});
 
 /** THE WHOLE JOINED FIGURE: every piece's outline united into one path,
  *  which for a mitred set is the lattice as a single silhouette with its
  *  joints closed. */
-SkPath strips(std::span<const Strip> pieces, const StripOptions& options = {});
+Outline strips(std::span<const Strip> pieces, const StripOptions& options = {});
 
 /** WHERE TWO PIECES CROSS RATHER THAN MEET: the half-lap, the joint a
  *  lattice is held together by. */
@@ -260,8 +260,8 @@ struct Roughen {
    *  distort can be compared with the one the frame before held. */
   bool operator==(const Roughen&) const = default;
 
-  SkPath apply(const SkPath& path) const;
-  SkPath operator()(const SkPath& path) const { return apply(path); }
+  Outline apply(const Outline& path) const;
+  Outline operator()(const Outline& path) const { return apply(path); }
 };
 
 /** Zig Zag — a regular wave along the contour; `smooth` = sine ridges,
@@ -274,8 +274,8 @@ struct Zigzag {
   /** Value equality, dial for dial. */
   bool operator==(const Zigzag&) const = default;
 
-  SkPath apply(const SkPath& path) const;
-  SkPath operator()(const SkPath& path) const { return apply(path); }
+  Outline apply(const Outline& path) const;
+  Outline operator()(const Outline& path) const { return apply(path); }
 };
 
 /** Pucker (amount < 0) & Bloat (amount > 0) — the radial power warp,
@@ -290,8 +290,8 @@ struct PuckerBloat {
   /** Value equality, dial for dial. */
   bool operator==(const PuckerBloat&) const = default;
 
-  SkPath apply(const SkPath& path) const;
-  SkPath operator()(const SkPath& path) const { return apply(path); }
+  Outline apply(const Outline& path) const;
+  Outline operator()(const Outline& path) const { return apply(path); }
 };
 
 /** Twirl — rotation about EACH CONTOUR'S OWN centroid, strongest at the
@@ -303,12 +303,12 @@ struct Twirl {
   /** Value equality, dial for dial. */
   bool operator==(const Twirl&) const = default;
 
-  SkPath apply(const SkPath& path) const;
-  SkPath operator()(const SkPath& path) const { return apply(path); }
+  Outline apply(const Outline& path) const;
+  Outline operator()(const Outline& path) const { return apply(path); }
 };
 
 /** A step in a non-destructive recipe; every distort above converts. */
-using PathOperation = std::function<SkPath(const SkPath&)>;
+using PathOperation = std::function<Outline(const Outline&)>;
 
 /** Left-to-right composition: chain({offsetBy(4), Roughen{...}}). */
 PathOperation chain(std::vector<PathOperation> steps);
@@ -316,7 +316,9 @@ PathOperation chain(std::vector<PathOperation> steps);
 /** offset() as a recipe step. */
 inline PathOperation offsetBy(float delta, const OffsetOptions& options = {}) {
   return
-      [delta, options](const SkPath& p) { return offset(p, delta, options); };
+      [delta, options](const Outline& outline) {
+        return offset(outline, delta, options);
+      };
 }
 
 }  // namespace sigil::geometry::path::operations

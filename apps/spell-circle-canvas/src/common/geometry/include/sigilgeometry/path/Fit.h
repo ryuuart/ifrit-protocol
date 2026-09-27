@@ -22,7 +22,7 @@
  * count. Here the point count is the input and the node count is the
  * answer.
  */
-#include <include/core/SkPath.h>
+#include "sigilgeometry/path/Outline.h"
 
 #include <glm/vec2.hpp>
 #include <span>
@@ -35,12 +35,12 @@ namespace sigil::geometry::path {
  *  px of the curve. Fewer than two points is an empty path and exactly
  *  two is the line between them. Repeated points are one point: a run
  *  that stands still has no direction to fit. */
-SkPath fitCurve(std::span<const glm::vec2> points, float tolerance = 1.0f);
+Outline fitCurve(std::span<const glm::vec2> points, float tolerance = 1.0f);
 
 /** The same over a polyline, closed when it is. A closed run is fitted
  *  from its seam back round to its seam and then closed, so the seam is
  *  the one node the fit is pinned at: every other node falls where the
  *  tolerance puts it, and the seam is a corner. */
-SkPath fitCurve(const Polyline& line, float tolerance = 1.0f);
+Outline fitCurve(const Polyline& line, float tolerance = 1.0f);
 
 }  // namespace sigil::geometry::path

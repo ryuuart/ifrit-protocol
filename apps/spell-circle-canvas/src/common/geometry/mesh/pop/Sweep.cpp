@@ -11,6 +11,7 @@
  * about.
  */
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/pop/Sweep.h"
 
 #include <sigilcore/schedule/Parallel.h>

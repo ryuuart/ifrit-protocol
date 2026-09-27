@@ -8,7 +8,7 @@
 #include <sigilcompose/core/Element.h>
 #include <sigilcompose/core/Stroke.h>
 #include <sigilgeometry/path/Profile.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>

@@ -16,7 +16,7 @@
 
 #include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::shapes {
 
@@ -54,7 +54,7 @@ path::Outline translated(const path::Outline& outline, glm::vec2 offset) {
 }
 
 path::Outline shape(const path::Outline& outline, const path::Shaper& shaper) {
-  return path::fromSk(shaper.shape(path::toSk(outline)));
+  return shaper.shape(outline);
 }
 
 }  // namespace detail

@@ -4,7 +4,7 @@
 
 #include "sigilweave/kit/PaintLayers.h"
 
-#include <sigilgeometry/path/StrokeSkia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 #include <utility>

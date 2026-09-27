@@ -17,6 +17,7 @@
 #include <cmath>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/camera/Camera.h"
 #include "sigilgeometry/mesh/curve/Curve.h"

@@ -18,6 +18,7 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Operations.h"
@@ -50,14 +51,16 @@ SkPath overSamples(const SkPath& path, float segmentPx, bool smooth,
         std::max(8, (int)std::ceil(len / std::max(segmentPx, 0.5f)));
     Sampled samples = resample(contour, count);
     perContour(samples);
-    out.addPath(toPath(samples, smooth));
+    out.addPath(toSk(toPath(samples, smooth)));
   }
   return out.detach();
 }
 
 }  // namespace
 
-SkPath Roughen::apply(const SkPath& path) const {
+SkPath distort(const Roughen& roughen, const SkPath& path) {
+  const auto& [amplitude, segmentPx, seed, parameter, smooth, source] =
+      roughen;
   uint64_t contourIndex = 0;
   return overSamples(path, segmentPx, smooth, [&](Sampled& samples) {
     core::chance::Stream stream = core::chance::Stream::of(
@@ -69,7 +72,8 @@ SkPath Roughen::apply(const SkPath& path) const {
   });
 }
 
-SkPath Zigzag::apply(const SkPath& path) const {
+SkPath distort(const Zigzag& zigzag, const SkPath& path) {
+  const auto& [amplitude, wavelengthPx, smooth] = zigzag;
   // Sample at quarter wavelength so hard teeth land on their vertices.
   const float segment = std::max(wavelengthPx * 0.25f, 0.5f);
   return overSamples(path, segment, smooth, [&](Sampled& samples) {
@@ -95,8 +99,9 @@ SkPath Zigzag::apply(const SkPath& path) const {
   });
 }
 
-SkPath PuckerBloat::apply(const SkPath& path) const {
-  const float amount = std::clamp(this->amount, -1.0f, 1.0f);
+SkPath distort(const PuckerBloat& puckerBloat, const SkPath& path) {
+  const float segmentPx = puckerBloat.segmentPx;
+  const float amount = std::clamp(puckerBloat.amount, -1.0f, 1.0f);
   return overSamples(path, segmentPx, true, [&](Sampled& samples) {
     const glm::vec2 c = samples.centroid();
     float rMax = 1e-3f;
@@ -114,7 +119,8 @@ SkPath PuckerBloat::apply(const SkPath& path) const {
   });
 }
 
-SkPath Twirl::apply(const SkPath& path) const {
+SkPath distort(const Twirl& twirl, const SkPath& path) {
+  const auto& [angleDeg, segmentPx] = twirl;
   return overSamples(path, segmentPx, true, [&](Sampled& samples) {
     const glm::vec2 c = samples.centroid();
     float rMax = 1e-3f;
@@ -164,6 +170,27 @@ SkPath displaceSquare(const SkPath& src, float amplitude, float wavelength) {
     if (contour->isClosed()) out.close();
   }
   return out.detach();
+}
+
+Outline Roughen::apply(const Outline& outline) const {
+  return fromSk(distort(*this, toSk(outline)));
+}
+
+Outline Zigzag::apply(const Outline& outline) const {
+  return fromSk(distort(*this, toSk(outline)));
+}
+
+Outline PuckerBloat::apply(const Outline& outline) const {
+  return fromSk(distort(*this, toSk(outline)));
+}
+
+Outline Twirl::apply(const Outline& outline) const {
+  return fromSk(distort(*this, toSk(outline)));
+}
+
+Outline displaceSquare(const Outline& outline, float amplitude,
+                       float wavelength) {
+  return fromSk(displaceSquare(toSk(outline), amplitude, wavelength));
 }
 
 }  // namespace sigil::geometry::path::operations

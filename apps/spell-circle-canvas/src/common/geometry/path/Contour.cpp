@@ -20,7 +20,7 @@
 
 #include "OffsetInternal.h"
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -50,35 +50,54 @@ glm::vec2 beside(const Contour::Sample& s, float across) {
 
 }  // namespace
 
-Contour::Contour(std::shared_ptr<const SkContourMeasure> measure)
+/** The one door into a contour's measure, which the header holds
+ *  opaque. */
+struct ContourAccess {
+  static const SkContourMeasure* measure(const Contour& contour) {
+    return static_cast<const SkContourMeasure*>(contour.m_measure.get());
+  }
+  static Contour make(std::shared_ptr<const SkContourMeasure> measure) {
+    return Contour(std::move(measure));
+  }
+};
+
+Contour::Contour(std::shared_ptr<const void> measure)
     : m_measure(std::move(measure)) {}
 
-std::vector<Contour> Contour::of(const SkPath& path, bool forceClosed) {
+std::vector<Contour> contoursOf(const SkPath& path, bool forceClosed) {
   std::vector<Contour> out;
   SkContourMeasureIter iter(path, forceClosed);
   while (sk_sp<SkContourMeasure> m = iter.next())
     if (m->length() > 0)
-      out.push_back(Contour(std::shared_ptr<const SkContourMeasure>(
+      out.push_back(ContourAccess::make(std::shared_ptr<const SkContourMeasure>(
           m.release(), [](const SkContourMeasure* measure) {
             SkSafeUnref(measure);
           })));
   return out;
 }
 
-float Contour::lengthOf(const SkPath& path) {
+std::vector<Contour> Contour::of(const Outline& outline, bool forceClosed) {
+  return contoursOf(toSk(outline), forceClosed);
+}
+
+float lengthOf(const SkPath& path) {
   float total = 0;
   SkContourMeasureIter iter(path, false);
   while (sk_sp<SkContourMeasure> m = iter.next()) total += m->length();
   return total;
 }
 
-float Contour::length() const { return m_measure ? m_measure->length() : 0; }
+float Contour::lengthOf(const Outline& outline) {
+  return path::lengthOf(toSk(outline));
+}
 
-bool Contour::closed() const { return m_measure && m_measure->isClosed(); }
+float Contour::length() const { return m_measure ? ContourAccess::measure(*this)->length() : 0; }
+
+bool Contour::closed() const { return m_measure && ContourAccess::measure(*this)->isClosed(); }
 
 std::optional<Contour::Sample> Contour::at(float distance) const {
   if (!m_measure) return std::nullopt;
-  return sampleOf(*m_measure, std::clamp(distance, 0.0f, length()));
+  return sampleOf(*ContourAccess::measure(*this), std::clamp(distance, 0.0f, length()));
 }
 
 Contour::Sample Contour::around(float distance) const {
@@ -89,22 +108,32 @@ Contour::Sample Contour::around(float distance) const {
   return at(d).value_or(Sample{});
 }
 
-SkPath Contour::segment(float from, float to) const {
+SkPath segmentOf(const Contour& contour, float from, float to) {
   SkPathBuilder b;
-  appendSegment(b, from, to);
+  appendSegment(b, contour, from, to);
   return b.detach();
 }
 
-void Contour::appendSegment(SkPathBuilder& out, float from, float to,
-                            bool startWithMoveTo) const {
-  if (!m_measure) return;
-  (void)m_measure->getSegment(from, to, &out, startWithMoveTo);
+void appendSegment(SkPathBuilder& out, const Contour& contour, float from,
+                   float to, bool startWithMoveTo) {
+  const SkContourMeasure* measure = ContourAccess::measure(contour);
+  if (!measure) return;
+  (void)measure->getSegment(from, to, &out, startWithMoveTo);
 }
 
-std::pair<SkPath, SkPath> Contour::split(float distance) const {
-  const float len = length();
+std::pair<SkPath, SkPath> splitOf(const Contour& contour, float distance) {
+  const float len = contour.length();
   const float at = std::clamp(distance, 0.0f, len);
-  return {segment(0, at), segment(at, len)};
+  return {segmentOf(contour, 0, at), segmentOf(contour, at, len)};
+}
+
+Outline Contour::segment(float from, float to) const {
+  return fromSk(segmentOf(*this, from, to));
+}
+
+std::pair<Outline, Outline> Contour::split(float distance) const {
+  auto [before, after] = splitOf(*this, distance);
+  return {fromSk(std::move(before)), fromSk(std::move(after))};
 }
 
 Contour::Nearest Contour::nearest(glm::vec2 point, float step) const {
@@ -150,7 +179,7 @@ std::vector<Contour::Corner> Contour::corners(float angleDeg, float minSpacing,
   std::vector<Corner> corners;
   const float len = length();
   if (len <= 0) return corners;
-  const SkContourMeasure& m = *m_measure;
+  const SkContourMeasure& m = *ContourAccess::measure(*this);
   const float cosThresh = std::cos(angleDeg * kDegToRad);
   const float stride = std::max(step, 0.25f);
   float sharpestDot = 1.0f;
@@ -359,7 +388,7 @@ SkPath parallel(const SkPath& path, float across, float step) {
   const float side = -across;
   const float stride = std::isfinite(step) ? std::max(step, 0.5f) : 0.5f;
   SkPathBuilder out(path.getFillType());
-  for (const Contour& contour : Contour::of(path)) {
+  for (const Contour& contour : contoursOf(path)) {
     const float len = contour.length();
     const std::vector<OffsetJoin> joins =
         offsetJoins(contour, [across](float) { return across; }, stride);
@@ -384,7 +413,7 @@ SkPath parallel(const SkPath& path, float across, float step) {
 SkPath displace(const SkPath& path, float amplitude, float wavelength,
                 bool zigzag) {
   SkPathBuilder out(path.getFillType());
-  for (const Contour& contour : Contour::of(path)) {
+  for (const Contour& contour : contoursOf(path)) {
     const float len = contour.length();
     const float lambdaMax = std::max(wavelength, 2.0f);
     const float lambda = len / std::max(1.0f, std::round(len / lambdaMax));
@@ -422,7 +451,7 @@ SkPath displace(const SkPath& path, float amplitude, float wavelength,
 SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
                      float angleDeg) {
   SkPathBuilder out;
-  for (const Contour& contour : Contour::of(path)) {
+  for (const Contour& contour : contoursOf(path)) {
     const float len = contour.length();
     const bool closed = contour.closed();
     std::vector<float> corners;
@@ -433,7 +462,7 @@ SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
       corners.push_back(len);
     }
     if (corners.empty()) {
-      if (!keepNearCorners) contour.appendSegment(out, 0, len);
+      if (!keepNearCorners) appendSegment(out, contour, 0, len);
       continue;
     }
     std::vector<std::pair<float, float>> near;
@@ -464,18 +493,33 @@ SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
     }
     if (keepNearCorners) {
       for (const auto& window : merged)
-        contour.appendSegment(out, window.first, window.second);
+        appendSegment(out, contour, window.first, window.second);
     } else {
       float cursor = 0;
       for (const auto& window : merged) {
         if (window.first > cursor)
-          contour.appendSegment(out, cursor, window.first);
+          appendSegment(out, contour, cursor, window.first);
         cursor = std::max(cursor, window.second);
       }
-      if (cursor < len) contour.appendSegment(out, cursor, len);
+      if (cursor < len) appendSegment(out, contour, cursor, len);
     }
   }
   return out.detach();
+}
+
+Outline parallel(const Outline& outline, float across, float step) {
+  return fromSk(parallel(toSk(outline), across, step));
+}
+
+Outline displace(const Outline& outline, float amplitude, float wavelength,
+                 bool zigzag) {
+  return fromSk(displace(toSk(outline), amplitude, wavelength, zigzag));
+}
+
+Outline cornerWindows(const Outline& outline, float radius,
+                      bool keepNearCorners, float angleDeg) {
+  return fromSk(
+      cornerWindows(toSk(outline), radius, keepNearCorners, angleDeg));
 }
 
 }  // namespace sigil::geometry::path

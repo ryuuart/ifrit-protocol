@@ -10,7 +10,7 @@
 #include <sigilgeometry/kit/Hatches.h>
 #include <sigilgeometry/path/Polyline.h>
 #include <sigilgeometry/path/Segments.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <cmath>
 #include <glm/geometric.hpp>

@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Operations.h"
 
 namespace sigil::geometry::path::operations {
@@ -168,8 +169,8 @@ void crossEnd(SkPathBuilder& b, const End& e, Join join) {
 
 }  // namespace
 
-std::vector<SkPath> stripOutlines(std::span<const Strip> pieces,
-                                  const StripOptions& options) {
+static std::vector<SkPath> stripSkPaths(std::span<const Strip> pieces,
+                                        const StripOptions& options) {
   std::vector<SkPath> out((size_t)pieces.size());
   const std::vector<End> ends = readEnds(pieces, options);
   std::vector<const End*> byPiece(pieces.size() * 2, nullptr);
@@ -193,8 +194,13 @@ std::vector<SkPath> stripOutlines(std::span<const Strip> pieces,
   return out;
 }
 
-SkPath strips(std::span<const Strip> pieces, const StripOptions& options) {
-  return unite(stripOutlines(pieces, options));
+std::vector<Outline> stripOutlines(std::span<const Strip> pieces,
+                                   const StripOptions& options) {
+  return fromSk(stripSkPaths(pieces, options));
+}
+
+Outline strips(std::span<const Strip> pieces, const StripOptions& options) {
+  return fromSk(unite(stripSkPaths(pieces, options)));
 }
 
 std::vector<StripLap> stripLaps(std::span<const Strip> pieces,

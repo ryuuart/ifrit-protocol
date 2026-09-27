@@ -14,7 +14,7 @@
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
 #include <sigilcompose/Compose.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <sigilmotion/time/Duration.h>
 

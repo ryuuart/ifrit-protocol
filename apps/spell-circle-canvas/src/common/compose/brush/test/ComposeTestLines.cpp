@@ -2,6 +2,7 @@
 // dash -- with the stroke alignment and the decorations a node wears along
 // its own outline.
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Hatches.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilgeometry/path/Contour.h>
@@ -431,7 +432,7 @@ TEST(ComposeLines, RailsDashGeometryIsAngleExact) {
   auto spans = [](const SkPath& p) {
     std::vector<std::pair<double, double>> out;
     for (const sigil::geometry::path::Contour& c :
-         sigil::geometry::path::Contour::of(p)) {
+         sigil::geometry::path::contoursOf(p)) {
       const auto a = c.at(0);
       const auto b = c.at(c.length());
       if (a && b)

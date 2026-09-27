@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "sigilgeometry/path/Hull.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Triangulate.h"
 
 using namespace sigil::geometry::path;

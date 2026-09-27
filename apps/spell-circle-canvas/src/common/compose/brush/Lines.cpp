@@ -15,7 +15,7 @@
 #include <sigilcompose/brush/Lines.h>
 #include <sigilcompose/brush/Rails.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilgeometry/path/StrokeSkia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -26,7 +26,6 @@
 
 #include "sigilgeometry/path/Contour.h"  // the contour walkers: corners,
                                          // parallels, displacement, windows
-#include "sigilgeometry/path/Skia.h"
 #include "FillLowering.h"
 
 namespace sigil::compose::lines {
@@ -156,13 +155,13 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (headTrim > 0 || tailTrim > 0) {
     SkPathBuilder trimmed;
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(body)) {
+         geometry::path::contoursOf(body)) {
       const float len = contour.length();
       if (contour.closed()) {
         // Closed contours have no terminals — keep whole.
-        contour.appendSegment(trimmed, 0, len);
+        geometry::path::appendSegment(trimmed, contour, 0, len);
       } else {
-        contour.appendSegment(trimmed, std::min(tailTrim, len * 0.4f),
+        geometry::path::appendSegment(trimmed, contour, std::min(tailTrim, len * 0.4f),
                               len - std::min(headTrim, len * 0.4f));
       }
     }
@@ -202,13 +201,13 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
       return alongStops.back().color;
     };
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(body)) {
+         geometry::path::contoursOf(body)) {
       const float len = contour.length();
       const int chunks = std::clamp((int)(len / 6.0f), 8, 48);
       for (int i = 0; i < chunks; ++i) {
         const float a = len * (float)i / (float)chunks;
         const float b2 = len * (float)(i + 1) / (float)chunks;
-        const SkPath seg = contour.segment(a, b2);
+        const SkPath seg = geometry::path::segmentOf(contour, a, b2);
         chunk.setColor4f(material::skia::toSkColor(
                              rampAt(((float)i + 0.5f) / (float)chunks)),
                          nullptr);
@@ -274,7 +273,7 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (tickSpacing > 0 && tickLength > 0) {
     SkPathBuilder ties;
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(body)) {
+         geometry::path::contoursOf(body)) {
       const float len = contour.length();
       // the loop walks a distance; the accumulated float is the position
       // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
@@ -307,7 +306,7 @@ void Line::paint(draw::Pen& pen, const PaintContext& ctx) const {
     applyLineFill(*this, head, ctx);
     using geometry::path::toSk;
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(capPath)) {
+         geometry::path::contoursOf(capPath)) {
       const float len = contour.length();
       const bool closed = contour.closed();
       if (!closed) {

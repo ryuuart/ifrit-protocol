@@ -5,7 +5,7 @@
 
 #include <sigildraw/brush/Stroke.h>
 #include <sigilgeometry/path/Polyline.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 

@@ -2,7 +2,7 @@
 // box, and on the glyph boundary only where the letters are.
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "support/ParagraphTestSupport.h"
 
 TEST(ComposeBoundary, GlyphsHandTheDecorationsTheLettersInsteadOfTheBox) {

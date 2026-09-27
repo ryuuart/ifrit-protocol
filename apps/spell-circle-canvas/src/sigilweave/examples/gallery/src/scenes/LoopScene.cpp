@@ -1,6 +1,7 @@
 // Scene: infinite loop marquee on a closed figure-eight.
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcore/cache/Rebuild.h>
 #include <sigilmeasure/time/Stopwatch.h>
 
@@ -54,7 +55,7 @@ class LoopScene final : public Scene {
       Rail built;
       built.eight = pathBuilder.detach();
       std::vector<sigil::geometry::path::Contour> contours =
-          sigil::geometry::path::Contour::of(built.eight);
+          sigil::geometry::path::contoursOf(built.eight);
       if (!contours.empty()) built.contour = std::move(contours.front());
       return built;
     });

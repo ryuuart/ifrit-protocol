@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Band.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Edges.h"
@@ -428,20 +429,21 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         Distort{"Roughen",
                 [](const SkPath& p) {
-                  return operations::Roughen{6, 8, 42}.apply(p);
+                  return operations::distort(operations::Roughen{6, 8, 42}, p);
                 },
                 6.0f},
         Distort{"Twirl",
-                [](const SkPath& p) { return operations::Twirl{90}.apply(p); },
+                [](const SkPath& p) { return operations::distort(operations::Twirl{90}, p); },
                 0.0f},
         Distort{
             "Zigzag",
-            [](const SkPath& p) { return operations::Zigzag{4, 20}.apply(p); },
+            [](const SkPath& p) { return operations::distort(operations::Zigzag{4, 20}, p); },
             4.0f},
         Distort{"AChainOfTwo",
                 [](const SkPath& p) {
-                  return operations::chain(
-                      {operations::offsetBy(6), operations::Zigzag{4, 20}})(p);
+                  return toSk(operations::chain(
+                      {operations::offsetBy(6), operations::Zigzag{4, 20}})(
+                      fromSk(p)));
                 },
                 10.0f}),
     [](const ::testing::TestParamInfo<Distort>& info) {
@@ -451,7 +453,7 @@ INSTANTIATE_TEST_SUITE_P(
 TEST(PathOps, BloatPushesOutwardAndNeverInward) {
   const SkPath base = SkPath::Circle(100, 100, 60);
   const SkRect bloated =
-      operations::PuckerBloat{0.8f}.apply(base).computeTightBounds();
+      operations::distort(operations::PuckerBloat{0.8f}, base).computeTightBounds();
   EXPECT_GT(bloated.width(), 118);
 }
 
@@ -533,22 +535,20 @@ INSTANTIATE_TEST_SUITE_P(
         RebuildCase{
             "roughen",
             [](const SkPath& p) {
-              return operations::Roughen{.amplitude = 2, .segmentPx = 5}.apply(
-                  p);
+              return operations::distort(operations::Roughen{.amplitude = 2, .segmentPx = 5}, p);
             }},
         RebuildCase{"zigzag",
                     [](const SkPath& p) {
-                      return operations::Zigzag{.amplitude = 2,
-                                                .wavelengthPx = 20}
-                          .apply(p);
+                      return operations::distort(operations::Zigzag{.amplitude = 2,
+                                                .wavelengthPx = 20}, p);
                     }},
         RebuildCase{"puckerBloat",
                     [](const SkPath& p) {
-                      return operations::PuckerBloat{.amount = 0.2f}.apply(p);
+                      return operations::distort(operations::PuckerBloat{.amount = 0.2f}, p);
                     }},
         RebuildCase{"twirl",
                     [](const SkPath& p) {
-                      return operations::Twirl{.angleDeg = 10}.apply(p);
+                      return operations::distort(operations::Twirl{.angleDeg = 10}, p);
                     }},
         RebuildCase{"edges",
                     [](const SkPath& p) { return edges(p, Edge::All); }},
@@ -682,7 +682,8 @@ TEST(PathDistortEndpoints, ZigzagLeavesAnOpenContoursEndsWhereTheyWere) {
   b.lineTo(300, 0);
   const SkPath line = b.detach();
   const SkPath wave =
-      operations::Zigzag{.amplitude = 12, .wavelengthPx = 40}(line);
+      operations::distort(
+          operations::Zigzag{.amplitude = 12, .wavelengthPx = 40}, line);
   const std::vector<SkPoint> points = pointsOf(wave);
   ASSERT_GE(points.size(), 2u);
   EXPECT_NEAR(points.front().fY, 0.0f, 0.5f);
@@ -723,8 +724,8 @@ TEST(Operations, TheDistortsAreValues) {
   // Two equal distorts warp one outline the same way, which is the
   // property the comparison stands for.
   const SkPath star = SkPath::Circle(100, 100, 40);
-  EXPECT_TRUE(operations::Roughen{}.apply(star) ==
-              operations::Roughen{}.apply(star));
+  EXPECT_TRUE(operations::distort(operations::Roughen{}, star) ==
+              operations::distort(operations::Roughen{}, star));
 }
 
 // A station of a swept band and the dials the sweep is walked with are

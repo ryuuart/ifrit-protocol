@@ -21,8 +21,7 @@
 #include "OperationsInternal.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Segments.h"
-#include "sigilgeometry/path/Skia.h"
-#include "sigilgeometry/path/StrokeSkia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path::operations {
 
@@ -168,12 +167,36 @@ SkPath offset(const SkPath& path, float distance,
 }
 
 PathOperation chain(std::vector<PathOperation> steps) {
-  return [steps = std::move(steps)](const SkPath& path) {
-    SkPath current = path;
+  return [steps = std::move(steps)](const Outline& outline) {
+    Outline current = outline;
     for (const PathOperation& step : steps)
       if (step) current = step(current);
     return current;
   };
+}
+
+Outline unite(const Outline& a, const Outline& b) {
+  return fromSk(unite(toSk(a), toSk(b)));
+}
+Outline subtract(const Outline& a, const Outline& b) {
+  return fromSk(subtract(toSk(a), toSk(b)));
+}
+Outline intersect(const Outline& a, const Outline& b) {
+  return fromSk(intersect(toSk(a), toSk(b)));
+}
+Outline exclude(const Outline& a, const Outline& b) {
+  return fromSk(exclude(toSk(a), toSk(b)));
+}
+Outline unite(std::span<const Outline> outlines) {
+  const std::vector<SkPath> paths = toSk(outlines);
+  return fromSk(unite(std::span<const SkPath>(paths)));
+}
+Outline simplify(const Outline& outline) {
+  return fromSk(simplify(toSk(outline)));
+}
+Outline offset(const Outline& outline, float distance,
+               const OffsetOptions& options) {
+  return fromSk(offset(toSk(outline), distance, options));
 }
 
 }  // namespace sigil::geometry::path::operations

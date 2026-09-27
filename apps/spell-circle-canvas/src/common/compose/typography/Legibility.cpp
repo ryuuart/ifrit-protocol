@@ -6,7 +6,7 @@
 #include "sigilcompose/kit/Legibility.h"
 
 #include <include/core/SkPaint.h>
-#include <sigilgeometry/path/StrokeSkia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 
 #include <utility>

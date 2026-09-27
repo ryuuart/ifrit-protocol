@@ -6,7 +6,7 @@
 
 #include "sigilcompose/kit/Connect.h"
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <utility>
 

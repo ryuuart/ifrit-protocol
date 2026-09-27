@@ -17,7 +17,7 @@
 #include <glm/geometric.hpp>
 
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path::blend {
 
@@ -160,7 +160,7 @@ Step makeStep(const Prepared& a, const Prepared& b,
                               : b.contours[c])
                       : collapsed(a.contours[c], a.centroid);
     const Sampled blended = lerp(sa, sb, u);
-    builder.addPath(toPath(blended, options.smoothOutlines));
+    builder.addPath(toSk(toPath(blended, options.smoothOutlines)));
   }
   SkPath path = builder.detach();
 

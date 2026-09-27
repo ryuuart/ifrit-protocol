@@ -1,4 +1,4 @@
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkRect.h>
 #include <pybind11/operators.h>

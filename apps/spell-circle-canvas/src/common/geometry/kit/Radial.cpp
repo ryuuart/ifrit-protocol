@@ -13,7 +13,7 @@
 #include <cmath>
 
 #include "sigilgeometry/path/Numeric.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::shapes {
 

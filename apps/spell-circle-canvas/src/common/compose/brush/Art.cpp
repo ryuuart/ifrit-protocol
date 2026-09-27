@@ -7,7 +7,7 @@
 
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Contour.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkSurface.h>
 #include <include/core/SkVertices.h>
 #include <sigilcompose/brush/Ribbons.h>
@@ -67,7 +67,7 @@ void Art::paint(draw::Pen& pen, const PaintContext& ctx) const {
 
   std::vector<SkPoint> positions, texs;
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(geometry::path::toSk(ctx.outline))) {
+       geometry::path::Contour::of(ctx.outline)) {
     const float length = contour.length();
     if (length < 1.0f) continue;
     const int stations =

@@ -27,7 +27,7 @@
 #include "BakedArt.h"
 #include "StampCache.h"
 #include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::compose::brush {
 
@@ -44,7 +44,7 @@ std::vector<PathSample> placementSamples(const SkPath& path, const Placement& p,
   if (p.mode == Mode::Interval || p.mode == Mode::CentralPoint) {
     const float interval = p.interval.value_or(spacing);
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(path)) {
+         geometry::path::contoursOf(path)) {
       const float len = contour.length();
       const float step =
           interval <= 1.0f ? len * std::max(interval, 0.001f) : interval;
@@ -270,7 +270,7 @@ void Pattern::paint(draw::Pen& pen, const PaintContext& ctx) const {
   std::vector<std::pair<PathSample, const SkPicture*>> caps;
 
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(geometry::path::toSk(ctx.outline))) {
+       geometry::path::Contour::of(ctx.outline)) {
     const float len = contour.length();
     const bool closed = contour.closed();
 

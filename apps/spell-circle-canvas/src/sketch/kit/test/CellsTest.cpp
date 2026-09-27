@@ -3,7 +3,7 @@
  * and the runs and grids several of them are set in.
  */
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <gtest/gtest.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilmaterial/filter/Filter.h>

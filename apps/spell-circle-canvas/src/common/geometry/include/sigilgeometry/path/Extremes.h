@@ -16,7 +16,7 @@
  * move: a node is inserted by splitting a piece into two of its own
  * kind, which is exactly the same curve read in two halves.
  */
-#include <include/core/SkPath.h>
+#include "sigilgeometry/path/Outline.h"
 
 #include <cstdint>
 #include <glm/vec2.hpp>
@@ -66,12 +66,12 @@ struct ExtremeOptions {
  *  split into pieces of its own kind at those parameters, so the curve
  *  drawn is the curve that was drawn. A path holding no curve comes back
  *  as it was. */
-SkPath extremes(const SkPath& path, const ExtremeOptions& options = {});
+Outline extremes(const Outline& outline, const ExtremeOptions& options = {});
 
 /** WHERE THOSE NODES WOULD GO, without putting them there — what a
  *  caller marking up an outline, or explaining why it gained a node,
  *  reads. In path order, contour by contour. */
-std::vector<glm::vec2> extremeNodes(const SkPath& path,
+std::vector<glm::vec2> extremeNodes(const Outline& outline,
                                     const ExtremeOptions& options = {});
 
 }  // namespace sigil::geometry::path

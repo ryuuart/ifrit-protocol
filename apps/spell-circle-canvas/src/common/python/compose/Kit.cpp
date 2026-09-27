@@ -1,5 +1,5 @@
 #include <pybind11/operators.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Grid.h>
 #include <sigilcompose/kit/Board.h>
 #include <sigilcompose/kit/Frame.h>

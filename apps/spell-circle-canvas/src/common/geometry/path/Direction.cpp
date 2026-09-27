@@ -3,6 +3,7 @@
  * windings, its contour order and its start points right.
  */
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Direction.h"
 
 #include <algorithm>
@@ -109,6 +110,10 @@ SkPath direction(const SkPath& path, const DirectionOptions& options) {
     contours = std::move(sorted);
   }
   return toPath(contours, path.getFillType());
+}
+
+Outline direction(const Outline& outline, const DirectionOptions& options) {
+  return fromSk(direction(toSk(outline), options));
 }
 
 }  // namespace sigil::geometry::path

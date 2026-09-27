@@ -12,6 +12,7 @@
  * shortened bands as ordinary geometry.
  */
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/layout/InitialLetter.h"
 
 #include <hb.h>

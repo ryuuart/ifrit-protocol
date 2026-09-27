@@ -13,6 +13,7 @@
 #include <include/core/SkPoint.h>
 #include <include/core/SkRect.h>
 #include <include/core/SkRefCnt.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Contour.h>
 
 #include <algorithm>
@@ -471,7 +472,7 @@ TEST(SceneLabels, CircleContoursStartAtThreeOClock) {
   // contour begins at 3 o'clock and winds clockwise in y-down screen space,
   // which is why an anchor fraction of 0.75 centers a label at the top.
   const std::vector<sigil::geometry::path::Contour> rings =
-      sigil::geometry::path::Contour::of(SkPath::Circle(0.0f, 0.0f, 100.0f));
+      sigil::geometry::path::contoursOf(SkPath::Circle(0.0f, 0.0f, 100.0f));
   ASSERT_EQ(rings.size(), 1u);
 
   const auto start = rings[0].at(0.0f);

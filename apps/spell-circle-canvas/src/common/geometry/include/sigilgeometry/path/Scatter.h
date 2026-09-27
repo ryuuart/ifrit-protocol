@@ -21,9 +21,6 @@
  * NO DRAWING HAPPENS HERE. The answer is points, in the region's own
  * coordinates; what is stamped on them is the caller's.
  */
-#include <include/core/SkPath.h>
-#include <include/core/SkRect.h>
-
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <span>
@@ -39,17 +36,18 @@ namespace sigil::geometry::path {
  *  Inside is inside an odd number of rings, which makes a ring within a
  *  ring a hole and two rings side by side two islands — the rule
  *  `containsEvenOdd` answers a point with, and the rule a path filled
- *  with `SkPathFillType::kEvenOdd` is drawn by, so a point placed here
+ *  under `FillRule::EvenOdd` is drawn by, so a point placed here
  *  and a pixel painted there agree about what the shape is. A ring's own
  *  closure flag is not consulted: an area is being filled, so every ring
  *  joins its last point to its first. */
 struct Region {
   std::vector<Polyline> rings;
 
-  /** Every contour of `path`, flattened at `tolerance`. */
-  [[nodiscard]] static Region of(const SkPath& path, float tolerance = 0.25f);
+  /** Every contour of `outline`, flattened at `tolerance`. */
+  [[nodiscard]] static Region of(const Outline& outline,
+                                 float tolerance = 0.25f);
   /** The rect as one ring of four points. */
-  [[nodiscard]] static Region of(SkRect rect);
+  [[nodiscard]] static Region of(const Rect& rect);
   /** A disc as one ring of `segments` points. The ring is INSCRIBED, so
    *  it lies slightly inside the true circle; more segments close the
    *  gap. */
@@ -59,7 +57,7 @@ struct Region {
   [[nodiscard]] static Region of(std::span<const Polyline> rings);
 
   /** The rect every ring fits in. */
-  [[nodiscard]] SkRect bounds() const;
+  [[nodiscard]] Rect bounds() const;
   /** Whether the point is inside, by the even-odd rule. */
   [[nodiscard]] bool contains(glm::vec2 point) const;
   /** THE AREA ENCLOSED: the signed areas of the rings summed, taken

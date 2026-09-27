@@ -18,8 +18,8 @@
 # down, so a blob is the same blob in a stored render and in a resource
 # key.
 sigil_library(SigilGeometryKit
-  SOURCES Divisions.cpp Hatches.cpp Radial.cpp Sections.cpp Silhouettes.cpp
-          Solids.cpp
+  SOURCES Divisions.cpp Hatches.cpp Radial.cpp Sections.cpp Shapers.cpp
+          Silhouettes.cpp Solids.cpp
   HEADERS Corners.h Curves.h Divisions.h Generators.h Hatches.h Radial.h
           Sections.h
           Shapers.h Silhouettes.h Solids.h

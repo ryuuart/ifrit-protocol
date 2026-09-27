@@ -13,6 +13,7 @@
  */
 
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 
 #include <algorithm>
@@ -42,7 +43,7 @@ inline std::pair<sigil::geometry::path::Contour, float> circleContour(
   SkPathBuilder builder;
   builder.addCircle(0, 0, radius);
   std::vector<sigil::geometry::path::Contour> contours =
-      sigil::geometry::path::Contour::of(builder.detach());
+      sigil::geometry::path::contoursOf(builder.detach());
   if (contours.empty()) return {sigil::geometry::path::Contour{}, 0.0f};
   return {contours.front(), contours.front().length()};
 }

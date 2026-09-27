@@ -12,6 +12,7 @@
 #include <numbers>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Operations.h"
 #include "sigilgeometry/path/Polyline.h"
 
@@ -58,7 +59,7 @@ float areaOf(const SkPath& path) {
 
 TEST(StripJoinery, APieceThatMeetsNothingIsCutSquareAcross) {
   const Strip alone[1] = {{{10, 20}, {110, 20}, 8}};
-  const std::vector<SkPath> outlines = operations::stripOutlines(alone);
+  const std::vector<SkPath> outlines = toSk(operations::stripOutlines(alone));
   ASSERT_EQ(outlines.size(), 1u);
   const std::vector<glm::vec2> c = cornersOf(outlines[0]);
   EXPECT_EQ(c.size(), 4u);
@@ -72,7 +73,7 @@ TEST(StripJoinery, APieceThatMeetsNothingIsCutSquareAcross) {
 TEST(StripJoinery, ASetWithNoJointsIsEachPieceAsItsOwnRectangle) {
   const Strip apart[3] = {
       {{0, 0}, {40, 0}, 6}, {{0, 50}, {40, 50}, 10}, {{0, 100}, {30, 130}, 4}};
-  const std::vector<SkPath> outlines = operations::stripOutlines(apart);
+  const std::vector<SkPath> outlines = toSk(operations::stripOutlines(apart));
   ASSERT_EQ(outlines.size(), 3u);
   for (size_t i = 0; i < 3u; ++i) {
     const std::vector<glm::vec2> c = cornersOf(outlines[i]);
@@ -82,7 +83,7 @@ TEST(StripJoinery, ASetWithNoJointsIsEachPieceAsItsOwnRectangle) {
                 std::sqrt(d.x * d.x + d.y * d.y) * apart[i].width, 1e-2f);
   }
   // Nothing overlaps, so the joined figure is exactly the three of them.
-  EXPECT_NEAR(areaOf(operations::strips(apart)),
+  EXPECT_NEAR(areaOf(toSk(operations::strips(apart))),
               areaOf(outlines[0]) + areaOf(outlines[1]) + areaOf(outlines[2]),
               1e-1f);
 }
@@ -91,7 +92,7 @@ TEST(StripJoinery, TwoPiecesMeetingSquareAreMitredOnTheCornerDiagonal) {
   // A picture frame's corner: the seam is one straight face through the
   // node, so each piece stays a parallelogram.
   const Strip corner[2] = {spoke(0, 100, 20), spoke(90, 100, 20)};
-  const std::vector<SkPath> outlines = operations::stripOutlines(corner);
+  const std::vector<SkPath> outlines = toSk(operations::stripOutlines(corner));
   const std::vector<glm::vec2> c = cornersOf(outlines[0]);
   EXPECT_EQ(c.size(), 4u);
   EXPECT_TRUE(holds(c, {10, 10}));
@@ -103,7 +104,7 @@ TEST(StripJoinery, ThreePiecesMeetingAtSixtyDegreesTakeAWedgeEach) {
   // bisector it shares with the arm on either side of it.
   const Strip node[3] = {spoke(0, 80, 12), spoke(120, 80, 12),
                          spoke(240, 80, 12)};
-  const std::vector<SkPath> outlines = operations::stripOutlines(node);
+  const std::vector<SkPath> outlines = toSk(operations::stripOutlines(node));
   const std::vector<glm::vec2> c = cornersOf(outlines[0]);
   // Four along the piece plus the node itself, which is the apex of the
   // wedge cut out of its end.
@@ -124,13 +125,13 @@ TEST(StripJoinery, ThreePiecesMeetingAtSixtyDegreesTakeAWedgeEach) {
   // with nothing counted twice and nothing left over.
   float pieces = 0;
   for (const SkPath& p : outlines) pieces += areaOf(p);
-  EXPECT_NEAR(areaOf(operations::strips(node)), pieces, 1e-1f);
+  EXPECT_NEAR(areaOf(toSk(operations::strips(node))), pieces, 1e-1f);
 }
 
 TEST(StripJoinery, FourPiecesMeetingSquareNotchEachOtherOnTheDiagonals) {
   const Strip cross[4] = {spoke(0, 60, 16), spoke(90, 60, 16),
                           spoke(180, 60, 16), spoke(270, 60, 16)};
-  const std::vector<SkPath> outlines = operations::stripOutlines(cross);
+  const std::vector<SkPath> outlines = toSk(operations::stripOutlines(cross));
   const std::vector<glm::vec2> c = cornersOf(outlines[0]);
   EXPECT_EQ(c.size(), 5u);
   // Half a width is eight, and the bisectors run at forty-five degrees,
@@ -147,7 +148,7 @@ TEST(StripJoinery, TheMitreLimitBluntsANeedleAndBevelStopsEveryPointShort) {
   // page, so it is cut back at the limit.
   const Strip needle[2] = {spoke(0, 100, 10), spoke(6, 100, 10)};
   const std::vector<glm::vec2> mitred =
-      cornersOf(operations::stripOutlines(needle, {.miterLimit = 3.0f})[0]);
+      cornersOf(toSk(operations::stripOutlines(needle, {.miterLimit = 3.0f}))[0]);
   float reach = 0;
   for (glm::vec2 p : mitred) reach = std::max(reach, std::hypot(p.x, p.y));
   // The far end stands a hundred out; what matters is the near one.
@@ -158,7 +159,7 @@ TEST(StripJoinery, TheMitreLimitBluntsANeedleAndBevelStopsEveryPointShort) {
   EXPECT_NEAR(nearest, 3.0f * 5.0f, 1e-2f);
 
   const std::vector<glm::vec2> bevelled = cornersOf(
-      operations::stripOutlines(needle, {.join = Join::Bevel})[0]);
+      toSk(operations::stripOutlines(needle, {.join = Join::Bevel}))[0]);
   for (glm::vec2 p : bevelled)
     if (std::hypot(p.x, p.y) < 50.0f)
       EXPECT_NEAR(std::hypot(p.x, p.y), 5.0f, 1e-2f);
@@ -167,7 +168,7 @@ TEST(StripJoinery, TheMitreLimitBluntsANeedleAndBevelStopsEveryPointShort) {
 TEST(StripJoinery, ARoundJoinFinishesEachEndWithAnArcOfItsOwnHalfWidth) {
   const Strip alone[1] = {{{0, 0}, {50, 0}, 20}};
   const SkPath outline =
-      operations::stripOutlines(alone, {.join = Join::Round})[0];
+      toSk(operations::stripOutlines(alone, {.join = Join::Round}))[0];
   // A rectangle with a half-disc on either end: the arc stands its own
   // half-width past each node and nowhere else.
   const SkRect box = outline.getBounds();

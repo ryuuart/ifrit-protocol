@@ -8,7 +8,7 @@
 
 #include <sigildraw/Pen.h>
 #include "support/CoreTestSupport.h"
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 TEST(ComposeLayout, FlexRowPositionsAndFills) {
   Host host;

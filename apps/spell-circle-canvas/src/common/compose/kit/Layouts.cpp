@@ -11,7 +11,7 @@
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -70,8 +70,7 @@ void AlongPath::arrange(Arrangement& arrangement) const {
   const size_t n = arrangement.children.size();
   if (n == 0 || !path) return;
   const std::vector<geometry::path::Contour> contours =
-      geometry::path::Contour::of(
-          geometry::path::toSk(path(arrangement.box.size())));
+      geometry::path::Contour::of(path(arrangement.box.size()));
   if (contours.empty()) return;
   const geometry::path::Contour& contour = contours.front();
   const float length = contour.length();

@@ -10,7 +10,7 @@
  */
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Ribbons.h>
 #include <sigilgeometry/path/Band.h>
 #include <sigilgeometry/path/Numeric.h>
@@ -30,7 +30,7 @@ SkPath Ribbon::band(const SkPath& spine) const {
   const auto law = [this](const geometry::path::SweepStation& at) {
     if (hasProfile()) return width.acrossAt(at.fraction, at.length);
     if (nibAngleDeg >= 0) {
-      const float a = std::atan2(at.tangent.y(), at.tangent.x()) -
+      const float a = std::atan2(at.tangent.y, at.tangent.x) -
                       geometry::path::radians(nibAngleDeg);
       return widthStart *
              (nibContrast + (1 - nibContrast) * std::abs(std::sin(a)));

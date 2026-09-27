@@ -8,7 +8,7 @@
 // plane where the projection put it.
 
 #include <include/core/SkM44.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/effects/SkImageFilters.h>
 
 #include <functional>

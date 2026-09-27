@@ -2,7 +2,7 @@
  * The image leaf's own verb — the source region it draws.
  */
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "ComposeInternal.h"
 
 namespace sigil::compose {

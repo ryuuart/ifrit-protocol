@@ -7,7 +7,7 @@
 // operator keeps and a fact change breaks.
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <cmath>
 #include <numbers>

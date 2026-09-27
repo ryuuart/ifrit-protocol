@@ -10,7 +10,7 @@
 // anything a single case sets up.
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <functional>
 #include <vector>

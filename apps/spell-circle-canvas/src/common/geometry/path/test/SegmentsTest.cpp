@@ -12,6 +12,7 @@
 
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Direction.h"
 #include "sigilgeometry/path/Polyline.h"
 #include "sigilgeometry/path/Segments.h"

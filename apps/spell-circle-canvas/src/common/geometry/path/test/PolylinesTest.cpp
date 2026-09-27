@@ -17,7 +17,7 @@
 
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "support/Paths.h"
 
 using namespace sigil::geometry::path;
@@ -111,7 +111,7 @@ TEST(Polyline, ToPathRoundTripsThroughFlatten) {
   Polyline tri;
   tri.points = {{0, 0}, {10, 0}, {0, 10}};
   tri.closed = true;
-  const std::vector<Polyline> back = flatten(toPath(tri));
+  const std::vector<Polyline> back = flatten(toSk(toPath(tri)));
   ASSERT_EQ(back.size(), 1u);
   EXPECT_EQ(back[0].points.size(), 3u);
   EXPECT_TRUE(back[0].closed);
@@ -119,8 +119,8 @@ TEST(Polyline, ToPathRoundTripsThroughFlatten) {
 }
 
 TEST(Polyline, SmoothThroughTwoPointsIsALineAndFewerIsNothing) {
-  EXPECT_TRUE(smoothThrough(std::vector<glm::vec2>{{3, 4}}).isEmpty());
-  const SkPath line = smoothThrough(std::vector<glm::vec2>{{0, 0}, {10, 0}});
+  EXPECT_TRUE(toSk(smoothThrough(std::vector<glm::vec2>{{3, 4}})).isEmpty());
+  const SkPath line = toSk(smoothThrough(std::vector<glm::vec2>{{0, 0}, {10, 0}}));
   EXPECT_EQ(line.countVerbs(), 2);
   EXPECT_EQ(line.getPoint(0), SkPoint::Make(0, 0));
   EXPECT_EQ(line.getPoint(1), SkPoint::Make(10, 0));
@@ -129,7 +129,7 @@ TEST(Polyline, SmoothThroughTwoPointsIsALineAndFewerIsNothing) {
 
 TEST(Polyline, SmoothThroughIsOneQuadPerInteriorPointEndingOnTheNextMidpoint) {
   const std::vector<glm::vec2> points = {{0, 0}, {40, 0}, {40, 40}, {80, 40}};
-  const SkPath path = smoothThrough(points);
+  const SkPath path = toSk(smoothThrough(points));
   SkPath::Iter iter(path, false);
   SkPoint p[4];
   ASSERT_EQ(iter.next(p), SkPath::kMove_Verb);
@@ -159,7 +159,7 @@ TEST(Polyline, SmoothThroughClosedComesRoundFromTheSeamsMidpoint) {
   Polyline diamond;
   diamond.points = {{0, -10}, {10, 0}, {0, 10}, {-10, 0}};
   diamond.closed = true;
-  const SkPath loop = smoothThrough(diamond);
+  const SkPath loop = toSk(smoothThrough(diamond));
   EXPECT_TRUE(loop.isLastContourClosed());
   // Every point steers a quad, so a closed loop of n points is n quads,
   // starting where the seam edge — last point to first — is crossed.
@@ -246,7 +246,7 @@ TEST(Polyline, ContainsIsTheEvenOddRayTestAndBoundsSpanEveryPoint) {
   EXPECT_TRUE(ring.contains({5, 5}));
   EXPECT_FALSE(ring.contains({15, 5}));
   EXPECT_FALSE(ring.contains({5, -1}));
-  EXPECT_EQ(ring.bounds(), SkRect::MakeLTRB(0, 0, 10, 10));
+  EXPECT_EQ(toSk(ring.bounds()), SkRect::MakeLTRB(0, 0, 10, 10));
 
   // Fewer than three points bound nothing.
   Polyline thin;
@@ -258,8 +258,8 @@ TEST(Polyline, ContainsIsTheEvenOddRayTestAndBoundsSpanEveryPoint) {
   const std::vector<Polyline> rings = {ring, hole};
   EXPECT_TRUE(containsEvenOdd(rings, {1, 1}));
   EXPECT_FALSE(containsEvenOdd(rings, {5, 5}));
-  EXPECT_EQ(bounds(rings), SkRect::MakeLTRB(0, 0, 10, 10));
-  EXPECT_TRUE(bounds(std::span<const Polyline>{}).isEmpty());
+  EXPECT_EQ(toSk(bounds(rings)), SkRect::MakeLTRB(0, 0, 10, 10));
+  EXPECT_TRUE(bounds(std::span<const Polyline>{}).empty());
 }
 
 TEST(Polyline, EdgeCrossingsComeNearestTheStartFirst) {

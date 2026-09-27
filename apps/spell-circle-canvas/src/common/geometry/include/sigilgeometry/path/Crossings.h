@@ -15,8 +15,7 @@
  * back on top.
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkPoint.h>
+#include <glm/vec2.hpp>
 
 #include <algorithm>
 #include <any>
@@ -28,6 +27,8 @@
 #include <span>
 #include <utility>
 #include <vector>
+
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::path {
 
@@ -49,7 +50,7 @@ struct Crossing {
   /** Strand indices, always `a < b` — `b` is the one list order paints
    *  later, i.e. on top when nothing says otherwise. */
   size_t a = 0, b = 0;
-  SkPoint at{0, 0};
+  glm::vec2 at{0, 0};
   /** Where the crossing falls along each strand, as fractions of that
    *  strand's arc length. */
   float alongA = 0.0f, alongB = 0.0f;
@@ -259,12 +260,12 @@ inline CrossingRule alternateAlong() {
  *  involved). Only PROPER crossings count: coincident strands and
  *  endpoint touches, such as a shared polygon vertex, are meetings rather
  *  than crossings, and reporting them would put a knot at every corner. */
-std::vector<Crossing> discoverCrossings(std::span<const SkPath> strands);
+std::vector<Crossing> discoverCrossings(std::span<const Outline> strands);
 /** The same discovery over a brace list of strands. */
 inline std::vector<Crossing> discoverCrossings(
-    std::initializer_list<SkPath> strands) {
+    std::initializer_list<Outline> strands) {
   return discoverCrossings(
-      std::span<const SkPath>(strands.begin(), strands.size()));
+      std::span<const Outline>(strands.begin(), strands.size()));
 }
 
 /** THE REGION WHERE TWO STRANDS' MARKS OVERLAP at one crossing: the
@@ -275,7 +276,7 @@ inline std::vector<Crossing> discoverCrossings(
  *  @trap @p maxRadius is REQUIRED for correctness, not a margin: pass
  *  half the arc distance to the adjacent crossing, or touching lenses
  *  merge and one knot's patch owns the whole run. */
-SkPath crossingPatch(const SkPath& a, float reachA, const SkPath& b,
-                     float reachB, SkPoint at, float maxRadius);
+Outline crossingPatch(const Outline& a, float reachA, const Outline& b,
+                      float reachB, glm::vec2 at, float maxRadius);
 
 }  // namespace sigil::geometry::path

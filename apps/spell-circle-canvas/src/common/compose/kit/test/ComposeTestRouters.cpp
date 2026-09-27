@@ -6,7 +6,7 @@
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilgeometry/path/Contour.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include "support/ShapeTestSupport.h"
 
@@ -16,7 +16,7 @@ TEST(ComposeRouters, OrbitFollowsTheRing) {
   const glm::vec2 pts[2] = {{200, 100}, {100, 200}};
   const SkPath path =
       sigil::geometry::path::toSk(router(std::span<const glm::vec2>(pts, 2)));
-  const auto contours = sigil::geometry::path::Contour::of(path);
+  const auto contours = sigil::geometry::path::contoursOf(path);
   ASSERT_FALSE(contours.empty());
   const sigil::geometry::path::Contour& contour = contours.front();
   // Quarter circle r=100: length ~157 (a chord would be ~141), and the

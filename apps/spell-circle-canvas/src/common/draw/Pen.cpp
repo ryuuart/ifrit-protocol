@@ -17,7 +17,7 @@
 #include <sigildraw/Math.h>
 #include <sigildraw/Pen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilgeometry/path/StrokeSkia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <algorithm>

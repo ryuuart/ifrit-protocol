@@ -33,7 +33,7 @@
 #include "Profile.h"
 #include "Strokes.h"
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 namespace sigil::compose {
 

@@ -44,7 +44,7 @@
 #include <sigilcompose/testing/Index.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Profile.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmeasure/advanced/CheckFormat.h>
 #include <sigilmeasure/check/Check.h>
 
@@ -260,7 +260,7 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
   std::vector<SkPoint> edges;
   {
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(band)) {
+         geometry::path::contoursOf(band)) {
       const float len = contour.length();
       const auto start = contour.at(0);
       if (len <= 0 || !start) continue;
@@ -393,7 +393,7 @@ inline WidthAlong widthAlong(const SkPath& band, const SkPath& spine,
 
   double squared = 0;
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(spine)) {
+       geometry::path::contoursOf(spine)) {
     const float len = contour.length();
     const float margin = profile.max() * 0.55f + step;
     for (float d = std::max(step, margin); d < len - margin; d += step) {

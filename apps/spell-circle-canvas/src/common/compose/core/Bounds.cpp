@@ -205,7 +205,7 @@ std::optional<std::pair<SkPoint, float>> Composer::Impl::motionPathSample(
     cache.shape = spec.path;
     cache.size = frame;
     cache.contours =
-        geometry::path::Contour::of(skiaOutline(spec.path, frame));
+        geometry::path::contoursOf(skiaOutline(spec.path, frame));
     cache.total = geometry::path::totalLength(cache.contours);
     cache.closed = geometry::path::closedThroughout(cache.contours);
   }

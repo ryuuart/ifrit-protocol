@@ -11,6 +11,7 @@
 #include <benchmark/benchmark.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/path/blend/Blend.h>
 
 #include <cmath>

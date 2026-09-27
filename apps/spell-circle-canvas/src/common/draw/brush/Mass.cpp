@@ -8,7 +8,7 @@
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Mass.h>
 #include <sigilgeometry/path/Polyline.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 #include <array>
@@ -160,7 +160,7 @@ void mass(Pen& pen, const Tool& tool,
                            .continuous = layer.size() == 1};
     const std::vector<HatchSegment> segments =
         hatchLines(pen, layer, hatchStyle);
-    const SkRect extent = geometry::path::bounds(layer);
+    const SkRect extent = geometry::path::toSk(geometry::path::bounds(layer));
     const float size = std::hypot(extent.width(), extent.height());
     const float anchorDistance = size * pen.random(0.6f, 1.4f);
     const SkPoint anchor{extent.centerX() + pivotBias.fX * anchorDistance,

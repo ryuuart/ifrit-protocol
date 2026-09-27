@@ -15,8 +15,7 @@
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilgeometry/path/Numeric.h>
-#include <sigilgeometry/path/Skia.h>
-#include <sigilgeometry/path/StrokeSkia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Paint.h>
@@ -101,16 +100,16 @@ void PathFormat::paint(draw::Pen& pen, const PaintContext& ctx) const {
     const float e = e0 - std::floor(e0);
     SkPathBuilder window;
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(outline)) {
+         geometry::path::contoursOf(outline)) {
       const float len = contour.length();
       if (s < e) {
-        contour.appendSegment(window, s * len, e * len);
+        geometry::path::appendSegment(window, contour, s * len, e * len);
       } else if (s > e) {
-        contour.appendSegment(window, s * len, len);
+        geometry::path::appendSegment(window, contour, s * len, len);
         // A closed contour has a real seam, so joining both pieces avoids
         // doubled caps there. An open route has no seam: continuing without
         // a moveTo would invent a straight chord from its end to its start.
-        contour.appendSegment(window, 0, e * len, !contour.closed());
+        geometry::path::appendSegment(window, contour, 0, e * len, !contour.closed());
       }
     }
     windowed = window.detach();
@@ -175,7 +174,7 @@ void ContourWalk::paint(draw::Pen& pen, const PaintContext& ctx) const {
 
   size_t index = 0;  // runs across contours — the sequence's position
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(geometry::path::toSk(ctx.outline))) {
+       geometry::path::Contour::of(ctx.outline)) {
     const float length = contour.length();
     // the loop walks a distance; the accumulated float is the position
     // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)

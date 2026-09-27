@@ -15,6 +15,7 @@
 #include <numbers>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Neighbours.h"
 #include "sigilgeometry/path/Scatter.h"
 
@@ -43,7 +44,7 @@ Region annulus() {
   SkPathBuilder builder;
   builder.addRect(SkRect::MakeXYWH(0, 0, 200, 200));
   builder.addRect(SkRect::MakeXYWH(75, 75, 50, 50));
-  return Region::of(builder.detach());
+  return Region::of(fromSk(builder.detach()));
 }
 
 }  // namespace
@@ -52,7 +53,7 @@ Region annulus() {
 // Region
 
 TEST(Region, RectIsOneRingOfItsOwnArea) {
-  const Region region = Region::of(SkRect::MakeXYWH(10, 20, 40, 30));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(10, 20, 40, 30)));
   ASSERT_EQ(region.rings.size(), 1u);
   EXPECT_NEAR(region.area(), 1200.0f, 1e-3f);
   EXPECT_TRUE(region.contains({30, 35}));
@@ -77,14 +78,14 @@ TEST(Region, AHoleSubtractsFromTheArea) {
 // The rates
 
 TEST(Scatter, RandomAtACountAnswersExactlyThatCount) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 300, 300));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 300, 300)));
   EXPECT_EQ(sample(region, uniform(500)).size(), 500u);
   EXPECT_EQ(sample(region, uniform(1)).size(), 1u);
   EXPECT_TRUE(sample(region, uniform(0)).empty());
 }
 
 TEST(Scatter, DensityIsPointsPerUnitArea) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 100, 100));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 100, 100)));
   Distribution distribution;
   distribution.rate = Rate::Density;
   distribution.amount = 0.05f;  // 10000 units of area, so 500 points
@@ -92,7 +93,7 @@ TEST(Scatter, DensityIsPointsPerUnitArea) {
 }
 
 TEST(Scatter, SpacingIsTheSideOfTheSquareEachPointOwns) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 100, 100));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 100, 100)));
   Distribution distribution;
   distribution.rate = Rate::Spacing;
   distribution.amount = 10.0f;  // 10 x 10 squares over 100 x 100
@@ -100,7 +101,7 @@ TEST(Scatter, SpacingIsTheSideOfTheSquareEachPointOwns) {
 }
 
 TEST(Scatter, MaxPointsBoundsTheAnswer) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 1000, 1000));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 1000, 1000)));
   Distribution distribution;
   distribution.rate = Rate::Density;
   distribution.amount = 1.0f;  // a million points asked for
@@ -127,7 +128,7 @@ TEST(Scatter, EveryPointLandsInsideTheRegionAndNoneInTheHole) {
 }
 
 TEST(Scatter, PoissonKeepsItsRadiusApart) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 400, 400));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 400, 400)));
   const std::vector<glm::vec2> points = sample(region, poisson(12.0f));
   ASSERT_GT(points.size(), 200u);
   EXPECT_GE(minimumSpacing(points), 12.0f);
@@ -137,7 +138,7 @@ TEST(Scatter, PoissonKeepsItsRadiusApart) {
 }
 
 TEST(Scatter, AnExactLatticeIsAnExactLattice) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 100, 100));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 100, 100)));
   const std::vector<glm::vec2> points = sample(region, grid(10.0f));
   // Ten cells of ten units on each side, each holding its own centre — the
   // same count the spacing asks for, and no point on the boundary.
@@ -148,7 +149,7 @@ TEST(Scatter, AnExactLatticeIsAnExactLattice) {
 }
 
 TEST(Scatter, JitterMovesEachPointInsideItsOwnCellAndNoFurther) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 100, 100));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 100, 100)));
   const std::vector<glm::vec2> exact = sample(region, grid(10.0f));
   const std::vector<glm::vec2> moved = sample(region, jittered(10.0f, 1, 0.8f));
   // The lattice is the same lattice; the jitter is bounded by a fraction of
@@ -163,7 +164,7 @@ TEST(Scatter, JitterMovesEachPointInsideItsOwnCellAndNoFurther) {
 }
 
 TEST(Scatter, RelaxingSpreadsAnIndependentScatterOut) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 300, 300));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 300, 300)));
   const std::vector<glm::vec2> raw = sample(region, uniform(600));
   const std::vector<glm::vec2> even = sample(region, blueNoise(600));
   ASSERT_EQ(raw.size(), even.size());
@@ -185,13 +186,13 @@ TEST(Scatter, OneSeedIsOnePointSet) {
 }
 
 TEST(Scatter, AnotherSeedIsAnotherPointSet) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 200, 200));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 200, 200)));
   EXPECT_NE(sample(region, uniform(200, 1)), sample(region, uniform(200, 2)));
   EXPECT_NE(sample(region, poisson(9.0f, 1)), sample(region, poisson(9.0f, 2)));
 }
 
 TEST(Scatter, ALowDiscrepancySourceSpreadsBetterThanAMixer) {
-  const Region region = Region::of(SkRect::MakeXYWH(0, 0, 200, 200));
+  const Region region = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 200, 200)));
   Distribution halton = uniform(400);
   halton.source = sigil::core::chance::Source::Halton;
   halton.parameter = 2;
@@ -220,7 +221,7 @@ TEST(Scatter, ALatticeOverAThinDiagonalSliverAnswersFewerPointsNotNone) {
   b.lineTo(400, 400);
   b.lineTo(4, 4);
   b.close();
-  const Region sliver = Region::of(b.detach());
+  const Region sliver = Region::of(fromSk(b.detach()));
   const std::vector<glm::vec2> points =
       sample(sliver, Distribution{.spread = Spread::Lattice,
                                   .rate = Rate::Count,
@@ -234,14 +235,14 @@ TEST(Scatter, ALatticeOverAThinDiagonalSliverAnswersFewerPointsNotNone) {
 // a scatter fills can be compared rather than measured: Region::of is a
 // function of the path, and the same path answers the same region.
 TEST(Scatter, ARegionIsAValue) {
-  const Region rect = Region::of(SkRect::MakeXYWH(0, 0, 100, 60));
-  EXPECT_EQ(rect, Region::of(SkRect::MakeXYWH(0, 0, 100, 60)));
-  EXPECT_NE(rect, Region::of(SkRect::MakeXYWH(0, 0, 100, 61)));
+  const Region rect = Region::of(fromSk(SkRect::MakeXYWH(0, 0, 100, 60)));
+  EXPECT_EQ(rect, Region::of(fromSk(SkRect::MakeXYWH(0, 0, 100, 60))));
+  EXPECT_NE(rect, Region::of(fromSk(SkRect::MakeXYWH(0, 0, 100, 61))));
 
   SkPathBuilder builder;
   builder.addRect(SkRect::MakeXYWH(0, 0, 100, 60));
   const SkPath path = builder.detach();
-  EXPECT_EQ(Region::of(path), Region::of(path));
+  EXPECT_EQ(Region::of(fromSk(path)), Region::of(fromSk(path)));
 
   // A ring added is a ring of the region, so the two are not one area.
   Region islands = rect;

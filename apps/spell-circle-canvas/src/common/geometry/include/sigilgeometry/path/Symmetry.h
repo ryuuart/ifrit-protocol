@@ -16,16 +16,15 @@
  * type of its own. `wallpaper()` below spells the ones this value can
  * express exactly.
  */
-#include <include/core/SkMatrix.h>
-#include <include/core/SkPath.h>
-
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <span>
 #include <vector>
 
 #include "sigilgeometry/path/Numeric.h"
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Polyline.h"
+#include "sigilgeometry/path/Transform.h"
 
 namespace sigil::geometry::path {
 
@@ -73,7 +72,7 @@ struct Symmetry {
  *  The order is the lattice outermost, then the rotation, then the
  *  mirror, so a caller drawing them in order lays down one whole rosette
  *  per cell rather than one spoke across every cell. */
-[[nodiscard]] std::vector<SkMatrix> copies(const Symmetry& symmetry);
+[[nodiscard]] std::vector<Transform> copies(const Symmetry& symmetry);
 
 /** The polyline under each of those transforms, in the same order. */
 [[nodiscard]] std::vector<Polyline> copies(const Symmetry& symmetry,
@@ -82,9 +81,10 @@ struct Symmetry {
  *  end to end, so copy `c` of point `i` is at `c * points.size() + i`. */
 [[nodiscard]] std::vector<glm::vec2> copies(const Symmetry& symmetry,
                                             std::span<const glm::vec2> points);
-/** ONE PATH holding every copy, which is what a fill or a stroke of the
- *  whole figure wants. */
-[[nodiscard]] SkPath copies(const Symmetry& symmetry, const SkPath& path);
+/** ONE OUTLINE holding every copy, which is what a fill or a stroke of
+ *  the whole figure wants. */
+[[nodiscard]] Outline copies(const Symmetry& symmetry,
+                             const Outline& outline);
 
 /** THE PLANE SYMMETRY GROUPS this value expresses exactly: those whose
  *  point group is one rotation, or one rotation and one reflection,

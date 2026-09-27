@@ -3,7 +3,7 @@
 // the crossings, the strands themselves, and the names the brush kinds
 // answer to.
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <type_traits>
 
 #include "support/BrushTestSupport.h"
@@ -50,8 +50,8 @@ TEST(ComposeCrossings, ProperCrossingsAreFoundAndNumberedAlongTheBoundary) {
   ASSERT_EQ(one.size(), 1u);
   EXPECT_EQ(one[0].a, 0u);
   EXPECT_EQ(one[0].b, 1u);
-  EXPECT_NEAR(one[0].at.fX, 50.0f, 2.0f);
-  EXPECT_NEAR(one[0].at.fY, 50.0f, 2.0f);
+  EXPECT_NEAR(one[0].at.x, 50.0f, 2.0f);
+  EXPECT_NEAR(one[0].at.y, 50.0f, 2.0f);
   EXPECT_EQ(one[0].index, 0u);
 
   // Numbering is positional along the lowest-indexed strand, so a horizontal
@@ -560,11 +560,11 @@ TEST(ComposeComposites, ClosedStrandsWrapAtTheirSeam) {
   ASSERT_EQ(knots.size(), 2u) << "the two rings meet twice";
   // alternate(): ordinal 0 puts strand 0 (red) over, ordinal 1 puts strand
   // 1 (green) over. Both knots one colour is the defect.
-  EXPECT_EQ(host.pixel((int)std::lround(knots[0].at.fX),
-                       (int)std::lround(knots[0].at.fY)),
+  EXPECT_EQ(host.pixel((int)std::lround(knots[0].at.x),
+                       (int)std::lround(knots[0].at.y)),
             SK_ColorRED);
-  EXPECT_EQ(host.pixel((int)std::lround(knots[1].at.fX),
-                       (int)std::lround(knots[1].at.fY)),
+  EXPECT_EQ(host.pixel((int)std::lround(knots[1].at.x),
+                       (int)std::lround(knots[1].at.y)),
             SK_ColorGREEN)
       << "the second knot was swallowed by the first knot's patch";
 }

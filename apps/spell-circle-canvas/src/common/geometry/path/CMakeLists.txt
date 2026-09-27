@@ -41,6 +41,7 @@ sigil_library(SigilGeometryPath
           Radial.h
           Scatter.h
           Segments.h Shaper.h Skia.h Stride.h Stroke.h StrokeSkia.h
+          ../advanced/Skia.h
           Symmetry.h Through.h Tidy.h Trace.h Transform.h
           Triangulate.h
   PUBLIC unofficial::skia::skia glm::glm SigilCoreCompute
@@ -64,7 +65,7 @@ sigil_test(geometry_test
           test/OperationsTest.cpp test/SeamsTest.cpp test/CrossingsTest.cpp
           test/FramesTest.cpp test/ProjectionsTest.cpp test/BlendTest.cpp
           test/TilingsTest.cpp test/StripsTest.cpp test/OutlinesTest.cpp
-          test/ArrangeTest.cpp
+          test/ArrangeTest.cpp test/SkiaTest.cpp
   LIBRARIES SigilGeometryPath SigilGeometryPathBlend)
 
 # One file per subject, over the one figure in bench/Figures.h.

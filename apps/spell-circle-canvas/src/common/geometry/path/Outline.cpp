@@ -19,7 +19,7 @@
 #include "sigilgeometry/path/Pose.h"
 #include "sigilgeometry/path/Scatter.h"
 #include "sigilgeometry/path/Segments.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Transform.h"
 
 namespace sigil::geometry::path {
@@ -94,7 +94,7 @@ Outline Outline::segment(float from, float to) const {
   for (const Contour& contour : m_body->contours()) {
     const float length = contour.length();
     const float lower = std::max(from, start), upper = std::min(to, start + length);
-    if (upper > lower) contour.appendSegment(out, lower - start, upper - start);
+    if (upper > lower) appendSegment(out, contour, lower - start, upper - start);
     start += length;
   }
   return fromSk(out.detach());
@@ -141,7 +141,7 @@ bool Outline::contains(glm::vec2 point) const {
 float Outline::area() const {
   // Resolved into contours that do not overlap, the even-odd reading of
   // the rings is the area the fill rule encloses, whichever rule it is.
-  return Region::of(operations::simplify(m_body->path)).area();
+  return Region::of(fromSk(operations::simplify(m_body->path))).area();
 }
 
 Winding Outline::winding() const {
@@ -192,5 +192,19 @@ bool Outline::operator==(const Outline& other) const {
 SkPath toSk(const Outline& outline) { return OutlineAccess::path(outline); }
 
 Outline fromSk(SkPath path) { return OutlineAccess::make(std::move(path)); }
+
+std::vector<SkPath> toSk(std::span<const Outline> outlines) {
+  std::vector<SkPath> paths;
+  paths.reserve(outlines.size());
+  for (const Outline& outline : outlines) paths.push_back(toSk(outline));
+  return paths;
+}
+
+std::vector<Outline> fromSk(std::span<const SkPath> paths) {
+  std::vector<Outline> outlines;
+  outlines.reserve(paths.size());
+  for (const SkPath& path : paths) outlines.push_back(fromSk(path));
+  return outlines;
+}
 
 }  // namespace sigil::geometry::path

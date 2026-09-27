@@ -3,6 +3,7 @@
  * the outline moves when the node goes.
  */
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Tidy.h"
 
 #include <algorithm>
@@ -135,6 +136,11 @@ SkPath tidy(const SkPath& path, float tolerance, const TidyOptions& options) {
         break;
   }
   return toPath(contours, path.getFillType());
+}
+
+Outline tidy(const Outline& outline, float tolerance,
+             const TidyOptions& options) {
+  return fromSk(tidy(toSk(outline), tolerance, options));
 }
 
 }  // namespace sigil::geometry::path

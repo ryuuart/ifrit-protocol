@@ -7,7 +7,7 @@
 
 #include <sigilgeometry/path/Contour.h>  // the terminal gap
 #include <include/core/SkPathBuilder.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <glm/geometric.hpp>
 
@@ -41,14 +41,14 @@ geometry::path::Outline routeBetween(const Router& router,
     SkPathBuilder trimmed;
     bool touched = false;
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(path)) {
+         geometry::path::contoursOf(path)) {
       const float len = contour.length();
       if (contour.closed()) {  // no terminals to pull back
-        contour.appendSegment(trimmed, 0, len);
+        geometry::path::appendSegment(trimmed, contour, 0, len);
         continue;
       }
       const float pull = std::min(gap, len * 0.45f);
-      contour.appendSegment(trimmed, pull, len - pull);
+      geometry::path::appendSegment(trimmed, contour, pull, len - pull);
       touched = true;
     }
     if (touched) path = trimmed.detach();

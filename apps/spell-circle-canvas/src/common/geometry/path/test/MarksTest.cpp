@@ -12,6 +12,7 @@
 #include <glm/geometric.hpp>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Edges.h"
 #include "sigilgeometry/path/Lattice.h"
 #include "sigilgeometry/path/Numeric.h"

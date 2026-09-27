@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "ComposeInternal.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Contour.h"
 
 namespace sigil::compose {
@@ -77,7 +78,7 @@ std::vector<geometry::path::Contour::Corner> cornersOrWarn(
  *  construction that reports nothing itself. */
 void warnIfNoCorners(const SkPath& src, float angleDeg) {
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(src))
+       geometry::path::contoursOf(src))
     (void)cornersOrWarn(contour, angleDeg);
 }
 

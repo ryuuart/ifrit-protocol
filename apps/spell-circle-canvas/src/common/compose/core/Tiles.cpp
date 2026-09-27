@@ -5,7 +5,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include "ComposeRuntime.h"
 

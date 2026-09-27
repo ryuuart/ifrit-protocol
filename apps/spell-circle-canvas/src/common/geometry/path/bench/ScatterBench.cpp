@@ -6,6 +6,7 @@
 
 #include <benchmark/benchmark.h>
 #include <include/core/SkPathBuilder.h>
+#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/path/Scatter.h>
 
 #include <vector>
@@ -25,7 +26,7 @@ Region ringRegion() {
   SkPathBuilder builder;
   builder.addPath(rippledRing(64, 400.0f));
   builder.addPath(rippledRing(64, 160.0f));
-  return Region::of(builder.detach(), 0.5f);
+  return Region::of(fromSk(builder.detach()), 0.5f);
 }
 
 /** INDEPENDENT DRAWS: one containment test per accepted point plus the

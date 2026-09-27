@@ -13,7 +13,7 @@
 #include <sigilgeometry/path/Hull.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilgeometry/path/Polyline.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <vector>
 
@@ -45,7 +45,7 @@ void Hull::add(Scope& scope) const {
   if (rings.empty()) return;
   SkPathBuilder builder;
   for (const geometry::path::Polyline& ring : rings)
-    builder.addPath(geometry::path::toPath(ring));
+    builder.addPath(geometry::path::toSk(geometry::path::toPath(ring)));
   builder.setFillType(SkPathFillType::kEvenOdd);
   SkPath figure = builder.detach();
   if (margin > 0) figure = geometry::path::operations::offset(figure, margin);

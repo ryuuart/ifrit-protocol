@@ -17,7 +17,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilcompose/core/Composer.h>
 #include <sigilcompose/core/Element.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/ports/SystemFontManager.h>

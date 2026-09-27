@@ -7,7 +7,7 @@
  */
 
 #include <algorithm>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <cmath>
 #include <iterator>

@@ -5,7 +5,7 @@
  * authored children, after them, out of their flow.
  */
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkMatrix.h>
 
 #include <algorithm>

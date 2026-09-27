@@ -7,7 +7,7 @@
 #include <include/core/SkRect.h>
 #include <sigilgeometry/path/Hull.h>
 #include <sigilgeometry/path/Scatter.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Triangulate.h>
 
 #include <cmath>
@@ -24,7 +24,7 @@ namespace {
  *  measure the construction rather than the crowding. */
 std::vector<glm::vec2> sheet(int count) {
   const float edge = 20.0f * std::sqrt((float)count);
-  return sample(Region::of(SkRect::MakeWH(edge, edge)), uniform(count, 3));
+  return sample(Region::of(fromSk(SkRect::MakeWH(edge, edge))), uniform(count, 3));
 }
 
 /** THE TRIANGULATION. */

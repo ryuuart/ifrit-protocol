@@ -13,7 +13,7 @@
  */
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkMaskFilter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <include/core/SkPathBuilder.h>
@@ -143,7 +143,7 @@ void Weave::paint(draw::Pen& pen, const PaintContext& ctx) const {
     int contours = 0;
     bool lastClosed = false;
     for (const geometry::path::Contour& contour :
-         geometry::path::Contour::of(paths[i])) {
+         geometry::path::contoursOf(paths[i])) {
       lengths[i] += contour.length();
       lastClosed = contour.closed();
       ++contours;
@@ -223,14 +223,14 @@ Weave weave(std::vector<Strand> strands, geometry::path::CrossingRule rule) {
 
 void Brush::paint(draw::Pen& pen, const PaintContext& ctx) const {
   SkCanvas& c = *pen.canvas();
-  SkPath styled = geometry::path::toSk(ctx.outline);
+  geometry::path::Outline styled = ctx.outline;
   for (const geometry::path::Shaper& g : pipeline) styled = g.shape(styled);
   for (const Layer& l : layers) {
-    SkPath layerPath = styled;
+    geometry::path::Outline layerPath = styled;
     for (const geometry::path::Shaper& g : l.shapers)
       layerPath = g.shape(layerPath);
     PaintContext restyled = ctx;
-    restyled.outline = geometry::path::fromSk(std::move(layerPath));
+    restyled.outline = std::move(layerPath);
     l.decoration.paint(pen, restyled);
   }
 }
@@ -242,7 +242,7 @@ void Restyled::paint(draw::Pen& pen, const PaintContext& ctx) const {
   // No null check: a shaper passes the path through unchanged when it holds
   // nothing.
   PaintContext restyled = ctx;
-  restyled.outline = geometry::path::fromSk(operation.shape(geometry::path::toSk(ctx.outline)));
+  restyled.outline = operation.shape(ctx.outline);
   inner.paint(pen, restyled);
 }
 

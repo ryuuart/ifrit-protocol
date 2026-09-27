@@ -11,8 +11,7 @@
  * write one; the rest is plain vectors so it composes with any source of
  * points.
  */
-#include <include/core/SkPath.h>
-#include <include/core/SkRect.h>
+#include "sigilgeometry/path/Outline.h"
 
 #include <functional>
 #include <glm/vec2.hpp>
@@ -37,11 +36,11 @@ struct Polyline {
   float length() const;
   /** Length-weighted centroid of the edges. */
   glm::vec2 centroid() const;
-  /** Signed area (positive = clockwise in Skia's y-down space). Open
+  /** Signed area (positive = clockwise in y-down space). Open
    *  polylines are treated as if closed. */
   float signedArea() const;
   /** The rect every point fits in; no points at all is an empty rect. */
-  SkRect bounds() const;
+  Rect bounds() const;
   /** Whether `point` is inside, by the even-odd ray rule. The polyline
    *  is read as a RING — its last point joins its first whether or not
    *  `closed` is set — because containment is a question about an area,
@@ -68,12 +67,12 @@ struct Polyline {
 float signedArea(std::span<const glm::vec2> ring);
 
 /** The rect every point of every polyline fits in. */
-SkRect bounds(std::span<const Polyline> lines);
+Rect bounds(std::span<const Polyline> lines);
 
 /** Whether `point` is inside the EVEN-ODD union of the rings: inside an
  *  odd number of them. The first ring an outer boundary and the rest
  *  holes, or a set of islands — the rule is the same one, and it is the
- *  rule a filled path with `SkPathFillType::kEvenOdd` is drawn by, so a
+ *  rule an outline filled under `FillRule::EvenOdd` is drawn by, so a
  *  point tested here and a pixel painted there agree. */
 bool containsEvenOdd(std::span<const Polyline> rings, glm::vec2 point);
 
@@ -85,9 +84,10 @@ bool containsEvenOdd(std::span<const Polyline> rings, glm::vec2 point);
 std::vector<glm::vec2> edgeCrossings(const Polyline& line, glm::vec2 from,
                                      glm::vec2 to);
 
-/** Every contour of `path` as a polyline, curves subdivided until they
- *  deviate from the chord by at most `tolerance` pixels. */
-std::vector<Polyline> flatten(const SkPath& path, float tolerance = 0.25f);
+/** Every contour of `outline` as a polyline, curves subdivided until
+ *  they deviate from the chord by at most `tolerance` pixels. */
+std::vector<Polyline> flatten(const Outline& outline,
+                              float tolerance = 0.25f);
 
 /** `count + 1` points spaced evenly IN THE PARAMETER along a parametric
  *  curve `f: [t0, t1] → point` — `count` of them when `closed`, since the
@@ -120,10 +120,10 @@ struct Sampled {
  *  contour spreads them around the whole loop with no repeat of the seam;
  *  an open one puts the first and last points on its ends. */
 Sampled resample(const Polyline& contour, int count);
-/** Every contour of `path`, flattened at `tolerance` and resampled to the
- *  same `count` — which is what makes contours of two different paths
- *  pairable. */
-std::vector<Sampled> resample(const SkPath& path, int count,
+/** Every contour of `outline`, flattened at `tolerance` and resampled to
+ *  the same `count` — which is what makes contours of two different
+ *  outlines pairable. */
+std::vector<Sampled> resample(const Outline& outline, int count,
                               float tolerance = 0.25f);
 
 /** How to rotate and possibly reverse one sampled contour so it pairs
@@ -144,11 +144,11 @@ Alignment bestAlignment(const Sampled& a, const Sampled& b);
  *  source length are untouched — only which point is first changes. */
 Sampled applyAlignment(const Sampled& b, const Alignment& alignment);
 
-/** Back to a path: straight segments, or a Catmull-Rom cubic through
- *  the points when `smooth`. */
-SkPath toPath(const Sampled& samples, bool smooth = false);
+/** Back to an outline: straight segments, or a Catmull-Rom cubic
+ *  through the points when `smooth`. */
+Outline toPath(const Sampled& samples, bool smooth = false);
 /** Straight segments through the points, closed when the polyline is. */
-SkPath toPath(const Polyline& line);
+Outline toPath(const Polyline& line);
 
 /** A SMOOTH PATH STEERED BY THE POINTS: one quadratic per interior
  *  point, with that point as the control and the midpoint of the edge
@@ -165,9 +165,10 @@ SkPath toPath(const Polyline& line);
  *  the contract: its Catmull-Rom cubic PASSES THROUGH every point and may
  *  overshoot between two that turn sharply, while this one is bounded by
  *  the points and touches none of the interior ones. */
-SkPath smoothThrough(std::span<const glm::vec2> points, bool closed = false);
+Outline smoothThrough(std::span<const glm::vec2> points,
+                      bool closed = false);
 /** The same, over a polyline: its points, closed when it is. */
-SkPath smoothThrough(const Polyline& line);
+Outline smoothThrough(const Polyline& line);
 
 /** `line` SUBDIVIDED SO NO STEP IS LONGER THAN `spacing`: every edge cut
  *  into equal steps, as few as will keep each one within the spacing.
@@ -196,7 +197,7 @@ Polyline subdivide(const Polyline& line, float spacing);
  *
  *  The lane rides along, interpolated between the two controls the step
  *  lies between — the curve bends, the value does not. `toPath(sampled,
- *  smooth)` is the same basis written as an `SkPath` for drawing;
+ *  smooth)` is the same basis written as an `Outline` for drawing;
  *  this is the same basis as POINTS, for a caller that walks them. */
 Polyline catmullRom(const Polyline& controls, float spacing,
                     float curvature = 1.0f);

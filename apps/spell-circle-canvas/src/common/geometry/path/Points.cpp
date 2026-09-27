@@ -15,7 +15,7 @@
 #include "sigilgeometry/path/Numeric.h"
 #include "sigilgeometry/path/Pose.h"
 #include "sigilgeometry/path/Scatter.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -76,7 +76,7 @@ std::vector<glm::vec2> dealtIn(const Rect& bounds, const Pattern& pattern) {
 std::vector<glm::vec2> walked(const Outline& where, const Pattern& pattern) {
   std::vector<glm::vec2> out;
   if (!(pattern.spacing > 0)) return out;
-  const std::vector<Contour> contours = Contour::of(toSk(where));
+  const std::vector<Contour> contours = Contour::of(where);
   const float total = totalLength(contours);
   const float end = pattern.to < 0 ? total : std::min(pattern.to, total);
   for (float distance = std::max(0.0f, pattern.from); distance <= end + 1e-4f;
@@ -91,14 +91,14 @@ std::vector<glm::vec2> points(const Outline& where, const Pattern& pattern) {
   if (pattern.kind == Pattern::Kind::Along) return walked(where, pattern);
   if (pattern.kind == Pattern::Kind::Radial)
     return dealtIn(where.bounds(), pattern);
-  return scattered(Region::of(toSk(where)), pattern);
+  return scattered(Region::of(where), pattern);
 }
 
 std::vector<glm::vec2> points(const Rect& where, const Pattern& pattern) {
   if (pattern.kind == Pattern::Kind::Radial) return dealtIn(where, pattern);
   if (pattern.kind == Pattern::Kind::Along)
     return walked(Outline::rectangle(where), pattern);
-  return scattered(Region::of(toSk(where)), pattern);
+  return scattered(Region::of(where), pattern);
 }
 
 }  // namespace sigil::geometry::path

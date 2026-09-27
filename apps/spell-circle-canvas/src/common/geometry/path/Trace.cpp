@@ -27,7 +27,7 @@ void walk(const VectorField& field, glm::vec2 from, float sign,
   if (!(std::abs(step) > 0) || !(options.length > 0)) return;
   const auto steps = (size_t)std::max(
       0.0f, std::floor(options.length / std::abs(options.step)));
-  const bool bounded = !options.bounds.isEmpty();
+  const bool bounded = !options.bounds.empty();
 
   glm::vec2 at = from;
   for (size_t i = 0; i < steps; ++i) {
@@ -54,7 +54,7 @@ void walk(const VectorField& field, glm::vec2 from, float sign,
     // of the turn.
     if (glm::length(move) <= kMinAgreement) return;
     at += move * step;
-    if (bounded && !options.bounds.contains(at.x, at.y)) return;
+    if (bounded && !options.bounds.contains(glm::vec2(at.x, at.y))) return;
     out.push_back(at);
   }
 }
@@ -94,7 +94,8 @@ Polyline streamline(const VectorField& field, glm::vec2 seed,
                     const TraceOptions& options) {
   Polyline line;
   if (!field) return line;
-  if (!options.bounds.isEmpty() && !options.bounds.contains(seed.x, seed.y))
+  if (!options.bounds.empty() &&
+      !options.bounds.contains(glm::vec2(seed.x, seed.y)))
     return line;
 
   if (options.bothWays) {

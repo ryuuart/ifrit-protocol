@@ -4,7 +4,7 @@
 // reaches when its profile rather than its own defaults decides.
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "../../core/StampCache.h"
 #include <sigilmaterial/skia/Paint.h>
 #include <utility>
@@ -455,7 +455,7 @@ TEST(ComposeBrushes, ANestedBrushKeepsEverythingButTheOutline) {
   paintWithPen(brush::layers({woven}), canvas, ctx);
   paintWithPen(Brush{}.layer(layered), canvas, ctx);
   paintWithPen(brush::restyle(geometry::path::Shaper::incomparable(
-                                  [](const SkPath& p) { return p; }),
+                                  [](const geometry::path::Outline& outline) { return outline; }),
                               restyled),
                canvas, ctx);
 
@@ -477,7 +477,7 @@ TEST(ComposeBrushes, ACompositeBlendsWhenAnythingInsideItDoes) {
   EXPECT_TRUE(Decoration(Brush{}.layer(BlendingMark{})).blends());
   EXPECT_TRUE(
       Decoration(brush::restyle(geometry::path::Shaper::incomparable(
-                                    [](const SkPath& p) { return p; }),
+                                    [](const geometry::path::Outline& outline) { return outline; }),
                                 BlendingMark{}))
           .blends());
   EXPECT_TRUE(

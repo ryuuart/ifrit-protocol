@@ -6,7 +6,7 @@
  * the results where the kernel can draw them.
  */
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilweave/fonts/FontContext.h>
 #include <sigilweave/layout/Beside.h>
 #include <sigilweave/unicode/Unicode.h>

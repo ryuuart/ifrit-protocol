@@ -15,7 +15,7 @@
 #include <optional>
 #include <utility>
 
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -220,6 +220,26 @@ SkPath startAt(const SkPath& path, size_t contour, size_t at) {
   if (contour >= contours.size()) return path;
   contours[contour] = startedAt(contours[contour], at);
   return toPath(contours, path.getFillType());
+}
+
+std::vector<SegmentContour> segments(const Outline& outline) {
+  return segments(toSk(outline));
+}
+
+Outline toPath(std::span<const SegmentContour> contours, FillRule rule) {
+  return fromSk(toPath(contours, toSk(rule)));
+}
+
+Compatible compatible(const Outline& a, const Outline& b) {
+  return compatible(toSk(a), toSk(b));
+}
+
+Outline reverse(const Outline& outline) {
+  return fromSk(reverse(toSk(outline)));
+}
+
+Outline startAt(const Outline& outline, size_t contour, size_t at) {
+  return fromSk(startAt(toSk(outline), contour, at));
 }
 
 }  // namespace sigil::geometry::path

@@ -12,8 +12,6 @@
  * the contour through this type, so there is one definition of "distance
  * along" and one of "closed wraps around".
  */
-#include <include/core/SkPath.h>
-
 #include <glm/vec2.hpp>
 
 #include "sigilgeometry/path/Outline.h"
@@ -22,10 +20,7 @@
 #include <utility>
 #include <vector>
 
-class SkContourMeasure;
-class SkPathBuilder;
-
-/** THE 2D TIER. Its currency is an `SkPath`, and everything here either
+/** THE 2D TIER. Its currency is an `Outline`, and everything here either
  *  measures one, remakes one or bends one: contours addressed by arc
  *  length, polylines and segments an outline is flattened to, the
  *  boolean and distortion operators, the shapers and profiles a stroke
@@ -33,7 +28,7 @@ class SkPathBuilder;
  *  interpolation between two compatible outlines, and the scatters,
  *  lattices and traces that put points and lines where a shape says.
  *
- *  Numbers are glm vectors and Skia points, degrees where a human names
+ *  Numbers are glm vectors, degrees where a human names
  *  an angle, pixels everywhere else. The 3D tier is
  *  `sigil::geometry::mesh`; its currency is vertices and indices. */
 namespace sigil::geometry::path {
@@ -72,11 +67,12 @@ class Contour {
 
   /** Every contour of `path`, in path order. Degenerate (zero-length)
    *  contours are skipped. `forceClosed` treats each as closed. */
-  static std::vector<Contour> of(const SkPath& path, bool forceClosed = false);
+  static std::vector<Contour> of(const Outline& outline,
+                                 bool forceClosed = false);
 
-  /** The total length of every contour of `path` — the distance a walk
-   *  over the whole outline covers, seams not counted. */
-  static float lengthOf(const SkPath& path);
+  /** The total length of every contour of `outline` — the distance a
+   *  walk over the whole outline covers, seams not counted. */
+  static float lengthOf(const Outline& outline);
 
   Contour() = default;
 
@@ -96,20 +92,13 @@ class Contour {
    *  closed contour continues past its seam, an open one clamps. */
   Sample around(float distance) const;
 
-  /** The piece between two distances as its own path. Distances are
+  /** The piece between two distances as its own outline. Distances are
    *  clamped to [0, length]; an empty or inverted window adds nothing. */
-  SkPath segment(float from, float to) const;
-  /** The same piece appended to a builder. It opens with a moveTo unless
-   *  `startWithMoveTo` is false, in which case it continues the
-   *  builder's current contour from where that contour stands — which
-   *  is how the two pieces of a window across a closed contour's seam
-   *  join into one run. */
-  void appendSegment(SkPathBuilder& out, float from, float to,
-                     bool startWithMoveTo = true) const;
+  Outline segment(float from, float to) const;
 
   /** The contour cut in two at `distance` (clamped to [0, length]): the
-   *  piece before it and the piece after it, each its own open path. */
-  std::pair<SkPath, SkPath> split(float distance) const;
+   *  piece before it and the piece after it, each its own open outline. */
+  std::pair<Outline, Outline> split(float distance) const;
 
   /** The point on this contour nearest to `point`, found by walking the
    *  contour in `step`-length strides and refining around the closest
@@ -132,11 +121,12 @@ class Contour {
                               float* sharpestDeg = nullptr) const;
 
  private:
-  explicit Contour(std::shared_ptr<const SkContourMeasure> measure);
+  friend struct ContourAccess;
+  explicit Contour(std::shared_ptr<const void> measure);
   /** The measure itself is the renderer's; the header holds it as an
-   *  opaque shared pointer so a consumer measuring an outline links
-   *  Skia's path type and nothing of its measuring machinery. */
-  std::shared_ptr<const SkContourMeasure> m_measure;
+   *  opaque shared pointer so a consumer measuring an outline names
+   *  nothing of the renderer's measuring machinery. */
+  std::shared_ptr<const void> m_measure;
 };
 
 /** The curve a constant distance `across` to the side of every contour,
@@ -148,26 +138,26 @@ class Contour {
  *  vertex, and a corner the contour turns INTO for everything within
  *  the reach its two offset edges fold across, which below a right
  *  angle is further than the offset itself. Positive `across` is to the
- *  left of the direction of travel in Skia's y-down space.
+ *  left of the direction of travel in y-down space.
  *
  *  This is the RAIL — one curve, not a region — and it is the walk
  *  `operations::offset` performs at either end of its position dial, where the
  *  offset takes one side only. A caller that wants the band, the grown
  *  silhouette or a join it can name asks the operator; a caller that
  *  wants the curve beside this curve asks here. */
-SkPath parallel(const SkPath& path, float across, float step = 4.0f);
+Outline parallel(const Outline& outline, float across, float step = 4.0f);
 
 /** Every contour displaced sideways by a wave: sinusoidal, or a
  *  four-phase zigzag when `zigzag`. The wavelength is rounded so a whole
  *  number of cycles fits each contour and both ends sit on the original
  *  curve. */
-SkPath displace(const SkPath& path, float amplitude, float wavelength,
-                bool zigzag);
+Outline displace(const Outline& outline, float amplitude, float wavelength,
+                 bool zigzag);
 
 /** The pieces of every contour within `radius` of a corner sharper than
  *  `angleDeg` (`keepNearCorners`), or everything else (not). An open
  *  contour's endpoints count as corners. */
-SkPath cornerWindows(const SkPath& path, float radius, bool keepNearCorners,
-                     float angleDeg);
+Outline cornerWindows(const Outline& outline, float radius,
+                      bool keepNearCorners, float angleDeg);
 
 }  // namespace sigil::geometry::path

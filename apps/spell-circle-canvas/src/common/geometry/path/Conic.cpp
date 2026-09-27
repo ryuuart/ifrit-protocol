@@ -2,6 +2,7 @@
  * The conic evaluated and sampled.
  */
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Conic.h"
 
 #include <include/core/SkPathBuilder.h>
@@ -60,7 +61,7 @@ float Conic::asymptoteDeg() const {
   return std::acos(-1.0f / eccentricity) / kDegrees;
 }
 
-SkPath conicPath(const Conic& conic, const ConicSpan& span) {
+static SkPath conicSkPath(const Conic& conic, const ConicSpan& span) {
   SkPathBuilder built;
   const int steps = std::max(span.steps, 1);
   bool running = false;
@@ -86,6 +87,10 @@ SkPath conicPath(const Conic& conic, const ConicSpan& span) {
   if (conic.closes() && std::abs(span.toDeg - span.fromDeg) >= 359.5f)
     built.close();
   return built.detach();
+}
+
+Outline conicPath(const Conic& conic, const ConicSpan& span) {
+  return fromSk(conicSkPath(conic, span));
 }
 
 }  // namespace sigil::geometry::path

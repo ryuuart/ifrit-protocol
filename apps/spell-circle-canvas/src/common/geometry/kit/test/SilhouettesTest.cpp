@@ -12,7 +12,7 @@
 #include <include/core/SkRect.h>
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 #include <cmath>
@@ -409,7 +409,7 @@ TEST(Silhouettes, AShapedSilhouetteBendsOnceAtTheOutline) {
   // What comes out is an ordinary outline that already carries the
   // deviation, so every mark the consumer paints on it agrees.
   EXPECT_NE(drawn(ring), drawn(circle()));
-  EXPECT_EQ(drawn(ring), wobble.shape(drawn(circle())));
+  EXPECT_EQ(drawn(ring), path::toSk(wobble.shape(path::fromSk(drawn(circle())))));
 
   // It compares by its parameters, both of them, which is what keeps a
   // caching consumer from re-recording a figure that did not change.

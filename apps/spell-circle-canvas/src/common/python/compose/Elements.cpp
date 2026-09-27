@@ -1,6 +1,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Composer.h>

@@ -18,7 +18,7 @@
 #include <sigilcompose/core/Paint.h>
 #include <sigilcore/callable/Callable.h>
 #include <sigilgeometry/path/Outline.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/ease/Ease.h>

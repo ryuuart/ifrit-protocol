@@ -15,13 +15,13 @@
  * down is outside a clockwise path.
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkPoint.h>
 #include <sigilgeometry/path/Offset.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/path/Profile.h>
 
 #include <cstdint>
 #include <functional>
+#include <glm/vec2.hpp>
 
 namespace sigil::geometry::path {
 
@@ -38,7 +38,7 @@ namespace sigil::geometry::path {
  *  takes one number and this takes a function of arc length, so neither
  *  can be written as the other with a prop. Where the law is constant
  *  the two walk the same rail. */
-SkPath profileOffset(const SkPath& spine, const Profile& profile);
+Outline profileOffset(const Outline& spine, const Profile& profile);
 
 /** THE REGION a band occupies: the spine walked at both profile rails,
  *  per contour, through `profileOffset` — so corners get the real-vertex
@@ -49,8 +49,8 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile);
  *  Public because a varying-width MARK along a spine IS this region: a
  *  milled groove, or a ribbon, is this band filled. Sharing one geometry
  *  keeps the corner repair from being reimplemented per consumer. */
-SkPath bandRegion(const SkPath& spine, const Profile& width,
-                  Formation formation = Formation::Center);
+Outline bandRegion(const Outline& spine, const Profile& width,
+                   Formation formation = Formation::Center);
 
 /** ONE STATION OF A SWEPT BAND: where the spine is, which way it heads
  *  there, and how far along its contour that is. A width law reads
@@ -58,8 +58,8 @@ SkPath bandRegion(const SkPath& spine, const Profile& width,
  *  `Profile`, `tangent` for a pen nib, whose width peaks where the spine
  *  runs perpendicular to the nib. */
 struct SweepStation {
-  SkPoint position{0, 0};
-  SkVector tangent{1, 0};
+  glm::vec2 position{0, 0};
+  glm::vec2 tangent{1, 0};
   float distance = 0;  ///< arc length along this contour
   float fraction = 0;  ///< …as a fraction of `length`
   float length = 0;    ///< the contour's own arc length
@@ -70,8 +70,8 @@ struct SweepStation {
 };
 
 /** THE FULL WIDTH of a swept band at one station, in px. A non-finite
- *  answer PINCHES the band to the spine rather than poisoning it: Skia
- *  draws none of a path holding one non-finite vertex, so a law that
+ *  answer PINCHES the band to the spine rather than poisoning it: the
+ *  renderer draws none of a path holding one non-finite vertex, so a law that
  *  returns NaN at a single sample would delete the whole mark, silently
  *  and with nothing on screen to say why. */
 using SweepWidth = std::function<float(const SweepStation&)>;
@@ -85,7 +85,7 @@ enum class SweepJoin : uint8_t { Miter, Round, Bevel };
  *
  *  `stepPx` is the arc length between stations — the shorter it is the
  *  closer the band follows a curve, and the more pieces it is made of.
- *  `miterLimit` is Skia's, in Skia's units: how many half-widths a miter
+ *  `miterLimit` is in the renderer's units: how many half-widths a miter
  *  tip may reach before it is cut back to a bevel. It is the one join
  *  whose reach passes the band's own width. */
 struct Sweep {
@@ -115,8 +115,9 @@ struct Sweep {
  *  EVERY PIECE IS WOUND THE SAME WAY, which is load-bearing rather than
  *  tidy: under the winding fill a reversed piece laid over another cancels
  *  to zero and punches a hole through exactly the overlap the inside of a
- *  bend is made of. The result carries `kWinding` for the same reason. */
-SkPath sweptRegion(const SkPath& spine, const SweepWidth& width,
-                   const Sweep& sweep = {});
+ *  bend is made of. The result carries the non-zero rule for the same
+ *  reason. */
+Outline sweptRegion(const Outline& spine, const SweepWidth& width,
+                    const Sweep& sweep = {});
 
 }  // namespace sigil::geometry::path

@@ -18,7 +18,7 @@
 
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Pose.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "support/Paths.h"
 
 using namespace sigil::geometry::path;
@@ -76,7 +76,7 @@ SkPath twoContours() {
 }
 
 TEST(Pose, MatchesTheContourItIsTakenFrom) {
-  const std::vector<Contour> contours = Contour::of(square(100));
+  const std::vector<Contour> contours = contoursOf(square(100));
   ASSERT_EQ(contours.size(), 1u);
   const Pose pose = poseAlong(contours[0], 150.0f);
   const std::optional<Contour::Sample> sample = contours[0].at(150.0f);
@@ -87,7 +87,7 @@ TEST(Pose, MatchesTheContourItIsTakenFrom) {
 }
 
 TEST(Pose, NormalIsTheTangentTurnedTowardPositiveY) {
-  const std::vector<Contour> contours = Contour::of(square(100));
+  const std::vector<Contour> contours = contoursOf(square(100));
   const Pose pose = poseAlong(contours[0], 10.0f);
   EXPECT_NEAR(glm::dot(pose.tangent, pose.normal), 0.0f, 1e-6f);
   EXPECT_NEAR(pose.normal.x, -pose.tangent.y, 1e-6f);
@@ -95,7 +95,7 @@ TEST(Pose, NormalIsTheTangentTurnedTowardPositiveY) {
 }
 
 TEST(Pose, ClampParksAndAroundComesRoundOnAClosedContour) {
-  const std::vector<Contour> contours = Contour::of(square(100));
+  const std::vector<Contour> contours = contoursOf(square(100));
   const float len = contours[0].length();
   ASSERT_TRUE(contours[0].closed());
   EXPECT_EQ(poseAlong(contours[0], len + 30, Wrap::Clamp).distance, len);
@@ -108,14 +108,14 @@ TEST(Pose, ClampParksAndAroundComesRoundOnAClosedContour) {
   // way.
   SkPathBuilder open;
   open.moveTo(0, 0).lineTo(60, 0);
-  const std::vector<Contour> line = Contour::of(open.detach());
+  const std::vector<Contour> line = contoursOf(open.detach());
   ASSERT_EQ(line.size(), 1u);
   EXPECT_EQ(poseAlong(line[0], 90, Wrap::Around).distance, 60.0f);
 }
 
 TEST(Pose, EveryContourIsOneCoordinate) {
   const SkPath path = twoContours();
-  const std::vector<Contour> contours = Contour::of(path);
+  const std::vector<Contour> contours = contoursOf(path);
   ASSERT_EQ(contours.size(), 2u);
   const float total = totalLength(contours);
   EXPECT_FLOAT_EQ(total, contours[0].length() + contours[1].length());
@@ -130,7 +130,7 @@ TEST(Pose, EveryContourIsOneCoordinate) {
 
 TEST(Pose, ReproducesTheMotionPathWalkExactly) {
   for (const SkPath& path : {square(100), twoContours()}) {
-    const std::vector<Contour> contours = Contour::of(path);
+    const std::vector<Contour> contours = contoursOf(path);
     const float total = totalLength(contours);
     const bool closed = closedThroughout(contours);
     for (int step = -40; step <= 240; ++step) {
@@ -160,7 +160,7 @@ TEST(Contour, OfSkipsDegenerateContoursAndReportsLengthAndClosure) {
   b.moveTo(0, 0);  // a lone moveTo has no length
   b.moveTo(0, 0).lineTo(10, 0);
   b.addRect(SkRect::MakeWH(4, 4));
-  const std::vector<Contour> contours = Contour::of(b.detach());
+  const std::vector<Contour> contours = contoursOf(b.detach());
   ASSERT_EQ(contours.size(), 2u);
   EXPECT_FLOAT_EQ(contours[0].length(), 10.0f);
   EXPECT_FALSE(contours[0].closed());
@@ -169,7 +169,7 @@ TEST(Contour, OfSkipsDegenerateContoursAndReportsLengthAndClosure) {
 }
 
 TEST(Contour, AtClampsAndAroundWraps) {
-  const Contour c = Contour::of(square(10))[0];
+  const Contour c = contoursOf(square(10))[0];
   const auto end = c.at(100);
   ASSERT_TRUE(end);
   const auto start = c.at(0);
@@ -183,7 +183,7 @@ TEST(Contour, AtClampsAndAroundWraps) {
 }
 
 TEST(Contour, CornersOfASquareAreItsFourVertices) {
-  const Contour c = Contour::of(square(10))[0];
+  const Contour c = contoursOf(square(10))[0];
   float sharpest = 0;
   const std::vector<Contour::Corner> corners = c.corners(30, 3, 2, &sharpest);
   ASSERT_EQ(corners.size(), 4u);
@@ -198,7 +198,7 @@ TEST(Contour, CornersOfASquareAreItsFourVertices) {
 }
 
 TEST(Contour, NoCornersOnACircleButTheSharpestTurnIsReported) {
-  const Contour c = Contour::of(SkPath::Circle(0, 0, 50))[0];
+  const Contour c = contoursOf(SkPath::Circle(0, 0, 50))[0];
   float sharpest = -1;
   EXPECT_TRUE(c.corners(30, 3, 2, &sharpest).empty());
   EXPECT_GE(sharpest, 0);
@@ -206,8 +206,8 @@ TEST(Contour, NoCornersOnACircleButTheSharpestTurnIsReported) {
 }
 
 TEST(Contour, SegmentIsThePieceBetweenTwoDistances) {
-  const Contour c = Contour::of(square(10))[0];
-  const SkPath piece = c.segment(2, 8);
+  const Contour c = contoursOf(square(10))[0];
+  const SkPath piece = segmentOf(c, 2, 8);
   const SkRect bounds = piece.getBounds();
   EXPECT_NEAR(bounds.left(), 2, 1e-3f);
   EXPECT_NEAR(bounds.right(), 8, 1e-3f);
@@ -218,40 +218,40 @@ TEST(Contour, AWindowAcrossTheSeamJoinsIntoOneRunWithoutAMoveTo) {
   // The two pieces of a window that straddles a closed contour's seam,
   // the second appended without a moveTo, are one contour — the run a
   // marching trim draws with no cap at the seam.
-  const Contour c = Contour::of(square(10))[0];
+  const Contour c = contoursOf(square(10))[0];
   SkPathBuilder window;
-  c.appendSegment(window, 35, 40);
-  c.appendSegment(window, 0, 5, false);
-  EXPECT_EQ(Contour::of(window.detach()).size(), 1u);
+  appendSegment(window, c, 35, 40);
+  appendSegment(window, c, 0, 5, false);
+  EXPECT_EQ(contoursOf(window.detach()).size(), 1u);
   SkPathBuilder apart;
-  c.appendSegment(apart, 35, 40);
-  c.appendSegment(apart, 0, 5);
-  EXPECT_EQ(Contour::of(apart.detach()).size(), 2u);
+  appendSegment(apart, c, 35, 40);
+  appendSegment(apart, c, 0, 5);
+  EXPECT_EQ(contoursOf(apart.detach()).size(), 2u);
 }
 
 TEST(Contour, SplitCutsAtADistanceAndKeepsBothPieces) {
-  const Contour c = Contour::of(square(10))[0];
-  const auto [before, after] = c.split(15);
-  EXPECT_NEAR(Contour::lengthOf(before), 15, 1e-3f);
-  EXPECT_NEAR(Contour::lengthOf(after), 25, 1e-3f);
-  const auto [all, none] = c.split(99);
-  EXPECT_NEAR(Contour::lengthOf(all), 40, 1e-3f);
-  EXPECT_TRUE(none.isEmpty() || Contour::lengthOf(none) == 0);
+  const Contour c = contoursOf(square(10))[0];
+  const auto [before, after] = splitOf(c, 15);
+  EXPECT_NEAR(lengthOf(before), 15, 1e-3f);
+  EXPECT_NEAR(lengthOf(after), 25, 1e-3f);
+  const auto [all, none] = splitOf(c, 99);
+  EXPECT_NEAR(lengthOf(all), 40, 1e-3f);
+  EXPECT_TRUE(none.isEmpty() || lengthOf(none) == 0);
 }
 
 TEST(Contour, LengthOfIsEveryContourEndToEnd) {
-  EXPECT_NEAR(Contour::lengthOf(twoContours()),
-              Contour::of(twoContours())[0].length() +
-                  Contour::of(twoContours())[1].length(),
+  EXPECT_NEAR(lengthOf(twoContours()),
+              contoursOf(twoContours())[0].length() +
+                  contoursOf(twoContours())[1].length(),
               1e-3f);
-  EXPECT_EQ(Contour::lengthOf(SkPath()), 0.0f);
+  EXPECT_EQ(lengthOf(SkPath()), 0.0f);
 }
 
 TEST(Contour, NearestFindsThePointClosestToAQuery) {
   // A square from (0,0) to (10,10), walked from its top-left corner along
   // the top edge first: a point above the top edge lands on it, a point
   // right of the right edge on that one.
-  const Contour c = Contour::of(square(10))[0];
+  const Contour c = contoursOf(square(10))[0];
   const Contour::Nearest above = c.nearest({3.3f, -4});
   EXPECT_NEAR(above.position.x, 3.3f, 1e-2f);
   EXPECT_NEAR(above.position.y, 0, 1e-2f);
@@ -319,8 +319,8 @@ TEST(Contour, CornerWindowsPartitionTheOutline) {
   const SkPath near = cornerWindows(outline, 2, true, 30);
   const SkPath far = cornerWindows(outline, 2, false, 30);
   float nearLen = 0, farLen = 0;
-  for (const Contour& c : Contour::of(near)) nearLen += c.length();
-  for (const Contour& c : Contour::of(far)) farLen += c.length();
+  for (const Contour& c : contoursOf(near)) nearLen += c.length();
+  for (const Contour& c : contoursOf(far)) farLen += c.length();
   EXPECT_NEAR(nearLen, 4 * 4, 0.1f);  // four corners, radius 2 each side
   EXPECT_NEAR(farLen, 40 - 16, 0.1f);
 }
@@ -330,7 +330,7 @@ TEST(Contour, CornerWindowsPartitionTheOutline) {
 // Each reading is a function of the contour and the distance, so asking
 // twice answers the same thing.
 TEST(Contours, WhatIsReadOffAContourIsAValue) {
-  const std::vector<Contour> contours = Contour::of(square(100));
+  const std::vector<Contour> contours = contoursOf(square(100));
   ASSERT_FALSE(contours.empty());
   const Contour& edge = contours.front();
 

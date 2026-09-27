@@ -3,7 +3,7 @@
 /** @file
  * @ingroup geometry-path
  *
- * THE ONE WAY GEOMETRY DEVIATES: a comparable `SkPath -> SkPath` value.
+ * THE ONE WAY GEOMETRY DEVIATES: a comparable `Outline -> Outline` value.
  *
  * A shaper bends ONE CONTINUOUS MARK — a wave, a zigzag, a jitter, an
  * offset. Building a mark out of repeated CELLS instead is a pattern, a
@@ -17,16 +17,16 @@
  * the price of never comparing equal — the one door a raw callable has.
  */
 
-#include <include/core/SkPath.h>
-
 #include <any>
 #include <concepts>
 #include <functional>
 #include <utility>
 
+#include "sigilgeometry/path/Outline.h"
+
 namespace sigil::geometry::path {
 
-/** A shaper value: `SkPath shape(const SkPath &) const`, plus equality.
+/** A shaper value: `Outline shape(const Outline &) const`, plus equality.
  *
  *  It bends ONE CONTINUOUS MARK — a wave, a zigzag, a jitter, an offset —
  *  and that is the whole of the geometry-deviation vocabulary. Building a
@@ -34,8 +34,8 @@ namespace sigil::geometry::path {
  *  rather than a shaper; the two are named apart because they compose
  *  differently.
  *
- *  SkPath in, SkPath out: dash and width are path operations, so nothing
- *  richer is needed. `bleed()` is optional and declares how far the
+ *  An outline in, an outline out: dash and width are outline operations,
+ *  so nothing richer is needed. `bleed()` is optional and declares how far the
  *  deviation reaches (a wave's amplitude), so the paint cull can grow by
  *  it and a cached picture is not truncated.
  *
@@ -44,8 +44,9 @@ namespace sigil::geometry::path {
  *  seam is for. */
 template <typename S>
 concept ShaperScheme =
-    std::equality_comparable<S> && requires(const S& s, const SkPath& p) {
-      { s.shape(p) } -> std::convertible_to<SkPath>;
+    std::equality_comparable<S> &&
+    requires(const S& scheme, const Outline& outline) {
+      { scheme.shape(outline) } -> std::convertible_to<Outline>;
     };
 
 /** Type-erased comparable shaper. */
@@ -65,19 +66,21 @@ class Shaper {
     m_equals = [](const std::any& a, const std::any& b) {
       return std::any_cast<const S&>(a) == std::any_cast<const S&>(b);
     };
-    m_shape = [s = std::move(scheme)](const SkPath& p) { return s.shape(p); };
+    m_shape = [held = std::move(scheme)](const Outline& outline) {
+      return held.shape(outline);
+    };
   }
   Shaper() = default;
 
-  /** ANY PATH CALLABLE as a shaper — the escape hatch for a deviation no
+  /** ANY OUTLINE CALLABLE as a shaper — the escape hatch for a deviation no
    *  comparable value can say. A closure has no equality, so the result
    *  compares unequal to everything, ITSELF INCLUDED: a consumer that
    *  prunes on equality re-records whatever wears one, every time. That
    *  price is the point of the name; a shaper is a comparable struct with
-   *  `SkPath shape(const SkPath &) const`, and writing one is four lines.
+   *  `Outline shape(const Outline &) const`, and writing one is four lines.
    *  `bleed` is how far the callable's result reaches past its input,
    *  which only the caller knows. */
-  static Shaper incomparable(std::function<SkPath(const SkPath&)> operation,
+  static Shaper incomparable(std::function<Outline(const Outline&)> operation,
                              float bleed = 0.0f) {
     Shaper out;
     out.m_bleed = bleed;
@@ -86,7 +89,9 @@ class Shaper {
     return out;
   }
 
-  SkPath shape(const SkPath& p) const { return m_shape ? m_shape(p) : p; }
+  Outline shape(const Outline& outline) const {
+    return m_shape ? m_shape(outline) : outline;
+  }
   float bleed() const { return m_bleed; }
   /** Whether this shaper can ever compare equal — false only for one
    *  made by `incomparable`. */
@@ -100,7 +105,7 @@ class Shaper {
  private:
   float m_bleed = 0.0f;
   bool m_incomparable = false;
-  std::function<SkPath(const SkPath&)> m_shape;
+  std::function<Outline(const Outline&)> m_shape;
   std::any m_held;
   std::function<bool(const std::any&, const std::any&)> m_equals;
 };

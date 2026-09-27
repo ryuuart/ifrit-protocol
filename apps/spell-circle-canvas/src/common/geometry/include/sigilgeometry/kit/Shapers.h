@@ -14,14 +14,10 @@
  * which is the point of a seam.
  */
 
-#include <include/core/SkPath.h>
-#include <include/core/SkPathBuilder.h>
-#include <include/core/SkStrokeRec.h>
-#include <include/effects/SkCornerPathEffect.h>
-#include <include/effects/SkDiscretePathEffect.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Operations.h>
+#include <sigilgeometry/path/Outline.h>
 #include <sigilgeometry/path/Profile.h>
 #include <sigilgeometry/path/Shaper.h>
 
@@ -64,8 +60,8 @@ struct Wave {
                                 (along / wavelengthFraction() + phase));
   }
   /** As a SHAPER: displace the path itself. */
-  SkPath shape(const SkPath& p) const {
-    return path::displace(p, amplitude, wavelength, false);
+  path::Outline shape(const path::Outline& outline) const {
+    return path::displace(outline, amplitude, wavelength, false);
   }
 
  private:
@@ -78,7 +74,7 @@ struct Wave {
 /** A hand-drawn wobble: the mark resampled into short segments, each
  *  pushed off true by a seeded amount (the rough.js line).
  *
- *  ONE pass of SkDiscretePathEffect. The sketchy double-line those tools
+ *  ONE pass of the renderer's discrete path effect. The sketchy double-line those tools
  *  draw is TWO passes — full and half deviation at different seeds — so it
  *  is two brush layers or two restyles here, never one call. */
 struct Jitter {
@@ -86,19 +82,7 @@ struct Jitter {
   uint32_t seed = 7;
   bool operator==(const Jitter&) const = default;
   float bleed() const { return deviation * 2.0f; }
-  SkPath shape(const SkPath& p) const {
-    SkPathBuilder out;
-    // HAIRLINE rec is required: under a fill rec SkDiscretePathEffect
-    // force-CLOSES open contours, so an open mark gains a return chord
-    // from its end back to its start — which then jitters away from the
-    // real run and draws as a second, phantom line.
-    SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
-    if (sk_sp<SkPathEffect> fx =
-            SkDiscretePathEffect::Make(segmentLength, deviation, seed);
-        fx && fx->filterPath(&out, p, &rec))
-      return out.detach();
-    return p;
-  }
+  path::Outline shape(const path::Outline& outline) const;
 };
 
 /** A parallel displacement — the rail. Parallels never cross, which is
@@ -114,25 +98,26 @@ struct Offset {
   float step = 4.0f;
   bool operator==(const Offset&) const = default;
   float bleed() const { return std::abs(px); }
-  SkPath shape(const SkPath& p) const {
-    return path::operations::offset(p, px, {.position = 0, .step = step});
+  path::Outline shape(const path::Outline& outline) const {
+    return path::operations::offset(outline, px,
+                                    {.position = 0, .step = step});
   }
 };
 
-/** ROUND EVERY CORNER of the mark (SkCornerPathEffect). Not
+/** ROUND EVERY CORNER of the mark (the renderer's corner effect). Not
  *  `shapes::rounded()`, which rounds an OUTLINE GENERATOR's result: this
  *  rounds whatever path the brush pipeline is carrying, so it softens a
  *  displaced zigzag or an offset rail, not just a silhouette. */
 struct Rounded {
   float radius = 6.0f;
   bool operator==(const Rounded&) const = default;
-  SkPath shape(const SkPath& p) const {
-    return path::operations::roundCorners(p, radius);
+  path::Outline shape(const path::Outline& outline) const {
+    return path::operations::roundCorners(outline, radius);
   }
 };
 
 /** CUT EVERY CORNER of the mark at 45° — Rounded's
- *  machined sibling, and the treatment SkCornerPathEffect cannot give you
+ *  machined sibling, and the treatment a corner-rounding effect cannot give you
  *  because it only rounds. Not `shapes::chamfered()`, which cuts an
  *  OUTLINE GENERATOR's box: this cuts whatever polyline the brush pipeline
  *  is carrying — a routed wire, a displaced zigzag, an offset rail.
@@ -142,8 +127,8 @@ struct Rounded {
 struct Chamfer {
   float cut = 6.0f;
   bool operator==(const Chamfer&) const = default;
-  SkPath shape(const SkPath& p) const {
-    return path::operations::chamferCorners(p, cut);
+  path::Outline shape(const path::Outline& outline) const {
+    return path::operations::chamferCorners(outline, cut);
   }
 };
 
@@ -154,8 +139,8 @@ struct Square {
   float amplitude = 5.0f, wavelength = 32.0f;
   bool operator==(const Square&) const = default;
   float bleed() const { return std::abs(amplitude); }
-  SkPath shape(const SkPath& p) const {
-    return path::operations::displaceSquare(p, amplitude, wavelength);
+  path::Outline shape(const path::Outline& outline) const {
+    return path::operations::displaceSquare(outline, amplitude, wavelength);
   }
 };
 
@@ -171,8 +156,8 @@ struct Zigzag {
   float amplitude = 4.0f, wavelength = 24.0f;
   bool operator==(const Zigzag&) const = default;
   float bleed() const { return std::abs(amplitude); }
-  SkPath shape(const SkPath& p) const {
-    return path::displace(p, amplitude, wavelength, true);
+  path::Outline shape(const path::Outline& outline) const {
+    return path::displace(outline, amplitude, wavelength, true);
   }
 };
 

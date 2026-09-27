@@ -6,7 +6,7 @@
  * Region value and the `parts::` selections are the kernel's.
  */
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkPathBuilder.h>
 
 #include <memory>

@@ -7,6 +7,7 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkRect.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcore/compute/Intervals.h>
 
 #include <algorithm>
@@ -37,7 +38,7 @@ std::vector<ContourRun> measureContours(const SkPath& path, float* total) {
   std::vector<ContourRun> runs;
   float at = 0;
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(path)) {
+       geometry::path::contoursOf(path)) {
     const float len = contour.length();
     runs.push_back({at, len, contour.closed()});
     at += len;
@@ -80,7 +81,7 @@ std::vector<Span> cornerSpans(const SkPath& outline, float arm,
   if (total <= 0) return out;
   size_t i = 0;
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(outline)) {
+       geometry::path::contoursOf(outline)) {
     if (i >= runs.size()) break;
     for (const geometry::path::Contour::Corner& hit :
          detail::cornersOrWarn(contour, angleDeg))
@@ -103,7 +104,7 @@ std::vector<Span> fitSpans(const SkPath& outline, const SkRect& box,
   if (total <= 0) return out;
   size_t i = 0;
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(outline)) {
+       geometry::path::contoursOf(outline)) {
     if (i >= runs.size()) break;
     const ContourRun& run = runs[i++];
     const float step = std::max(1.0f, run.length / 512.0f);
@@ -178,7 +179,7 @@ SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
   if (total <= 0 || spans.empty()) return out.detach();
   size_t i = 0;
   for (const geometry::path::Contour& contour :
-       geometry::path::Contour::of(src)) {
+       geometry::path::contoursOf(src)) {
     if (i >= runs.size()) break;
     const ContourRun& run = runs[i++];
     // Emit one span against this contour. `stitch` appends WITHOUT a
@@ -197,10 +198,10 @@ SkPath spanPath(const SkPath& src, const std::vector<Span>& spans) {
       // small under a hairline and obvious under any wide or additive
       // brush.
       if (lo <= 1e-4f && hi >= run.length - 1e-4f) {
-        contour.appendSegment(out, 0, run.length, !stitch);
+        geometry::path::appendSegment(out, contour, 0, run.length, !stitch);
         if (run.closed && !stitch) out.close();
       } else
-        contour.appendSegment(out, lo, hi, !stitch);
+        geometry::path::appendSegment(out, contour, lo, hi, !stitch);
       return true;
     };
 

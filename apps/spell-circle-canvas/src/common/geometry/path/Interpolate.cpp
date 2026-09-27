@@ -3,6 +3,7 @@
  * point-array interpolation.
  */
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Interpolate.h"
 
 #include "sigilgeometry/path/Segments.h"
@@ -16,6 +17,13 @@ std::optional<SkPath> interpolate(const SkPath& a, const SkPath& b, float t) {
   // Skia's weight runs the other way: one is this path, zero the other.
   if (!a.interpolate(b, 1.0f - t, &out)) return std::nullopt;
   return out;
+}
+
+std::optional<Outline> interpolate(const Outline& a, const Outline& b,
+                                   float t) {
+  std::optional<SkPath> between = interpolate(toSk(a), toSk(b), t);
+  if (!between) return std::nullopt;
+  return fromSk(std::move(*between));
 }
 
 }  // namespace sigil::geometry::path

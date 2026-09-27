@@ -12,6 +12,7 @@
 
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/Mesh.h"
 #include "sigilgeometry/mesh/curve/Curve.h"
 #include "sigilgeometry/mesh/pop/Sweep.h"

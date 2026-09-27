@@ -23,7 +23,6 @@
  * what a caller most often has and turning one into a direction is a
  * choice worth spelling once.
  */
-#include <include/core/SkRect.h>
 #include <sigilcore/compute/Field.h>
 
 #include <cstdint>
@@ -32,6 +31,7 @@
 #include <span>
 #include <vector>
 
+#include "sigilgeometry/path/Outline.h"
 #include "sigilgeometry/path/Polyline.h"
 
 namespace sigil::geometry::path {
@@ -79,7 +79,7 @@ struct TraceOptions {
   float length = 200.0f;
   /** The walk stops on leaving this rect. An empty rect does not bound
    *  it, and then only the length and the field itself stop it. */
-  SkRect bounds = SkRect::MakeEmpty();
+  Rect bounds{};
   /** Walk backwards from the seed as well, and join the two halves into
    *  one line through it. What makes a seed the MIDDLE of a streamline
    *  rather than its start. */

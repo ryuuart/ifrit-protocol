@@ -15,7 +15,7 @@
  * what it is for.
  */
 
-#include <include/core/SkPath.h>
+#include "sigilgeometry/path/Outline.h"
 
 #include <cstdint>
 #include <glm/vec2.hpp>
@@ -46,10 +46,10 @@ constexpr bool has(Edge mask, Edge e) {
 /** Extracts the sub-contours of @p outline that face the selected box
  *  edges. Facing is classified against the outline's bounds center
  *  (diagonal split, so rounded-rect corner arcs divide naturally
- *  between their two edges). Exact geometry via SkContourMeasure
+ *  between their two edges). Exact geometry via the contour measure
  *  segment extraction; @p step is the classification sampling length
  *  in px. */
-SkPath edges(const SkPath& outline, Edge mask, float step = 3.0f);
+Outline edges(const Outline& outline, Edge mask, float step = 3.0f);
 
 /** A concentric copy of @p outline: positive @p px shrinks, negative
  *  grows. Implemented as a stroke-and-fill offset, so it follows any
@@ -59,7 +59,7 @@ SkPath edges(const SkPath& outline, Edge mask, float step = 3.0f);
  *  It is `operations::offset` mitred and butt-capped with the sign the other
  *  way round, and stands here rather than there because "the frame six
  *  pixels in" is the thing a caller asks for by name. */
-SkPath insetOutline(const SkPath& outline, float px);
+Outline insetOutline(const Outline& outline, float px);
 
 /** THE VERTICES OF A POLYGON MOVED INWARD by @p distance, one for one:
  *  every edge of the result is parallel to the edge it came from and

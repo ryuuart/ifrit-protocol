@@ -15,7 +15,7 @@
 #include <sigilcompose/testing/Checks.h>
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Profile.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <vector>
 
@@ -45,7 +45,7 @@ SkPath sCurve() {
  *  all in one path — the band a stroke grammar hands back. */
 SkPath bandAlong(const SkPath& spine, float width, int steps) {
   SkPathBuilder b;
-  const auto contours = sigil::geometry::path::Contour::of(spine);
+  const auto contours = sigil::geometry::path::contoursOf(spine);
   if (contours.empty() || steps < 1) return b.detach();
   const sigil::geometry::path::Contour& contour = contours.front();
   const float len = contour.length();

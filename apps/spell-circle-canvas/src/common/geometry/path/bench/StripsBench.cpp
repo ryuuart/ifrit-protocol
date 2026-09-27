@@ -5,6 +5,7 @@
  */
 
 #include <benchmark/benchmark.h>
+#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/path/Operations.h>
 
 #include <cmath>
@@ -37,7 +38,7 @@ std::vector<Strip> lattice(int count) {
 static void StripOutlines(benchmark::State& state) {
   const std::vector<Strip> pieces = lattice((int)state.range(0));
   for (auto _ : state) {
-    auto outlines = sigil::geometry::path::operations::stripOutlines(pieces);
+    auto outlines = toSk(sigil::geometry::path::operations::stripOutlines(pieces));
     benchmark::DoNotOptimize(outlines.data());
     benchmark::ClobberMemory();
   }
@@ -47,7 +48,7 @@ BENCHMARK(StripOutlines)->Arg(100)->Arg(500);
 static void StripsUnited(benchmark::State& state) {
   const std::vector<Strip> pieces = lattice((int)state.range(0));
   for (auto _ : state) {
-    SkPath joined = sigil::geometry::path::operations::strips(pieces);
+    SkPath joined = toSk(sigil::geometry::path::operations::strips(pieces));
     benchmark::DoNotOptimize(joined.isEmpty());
     benchmark::ClobberMemory();
   }

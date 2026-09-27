@@ -14,12 +14,10 @@
  * winding without fixing the other two leaves the outline still unable
  * to do the thing the winding was fixed for.
  *
- * The sign convention is Skia's y-down space, which `Polyline::signedArea`
+ * The sign convention is y-down space, which `Polyline::signedArea`
  * states: a positive area is a CLOCKWISE ring. A winding test copied from
  * a y-up source reads inverted here.
  */
-#include <include/core/SkPath.h>
-
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -63,6 +61,6 @@ struct DirectionOptions {
 /** `path` with its windings, its contour order and its start points put
  *  right. The drawn shape does not move; every one of the three changes
  *  is about which way the pen went. */
-SkPath direction(const SkPath& path, const DirectionOptions& options = {});
+Outline direction(const Outline& outline, const DirectionOptions& options = {});
 
 }  // namespace sigil::geometry::path

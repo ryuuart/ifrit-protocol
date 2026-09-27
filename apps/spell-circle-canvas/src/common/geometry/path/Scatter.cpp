@@ -2,6 +2,7 @@
  * The region, the three spreads, and the relaxation that turns any of
  * them into blue noise.
  */
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Scatter.h"
 
 #include <algorithm>
@@ -50,7 +51,7 @@ class Inside {
   /** Held BY REFERENCE, so the region has to outlive the table. */
   Inside(Region&&) = delete;
   explicit Inside(const Region& region) : m_region(&region) {
-    const SkRect box = region.bounds();
+    const SkRect box = toSk(region.bounds());
     size_t edges = 0;
     for (const Polyline& ring : region.rings)
       if (ring.points.size() >= 3) edges += ring.points.size();
@@ -192,7 +193,7 @@ float wantedSpacing(const Distribution& distribution, float area) {
 std::vector<glm::vec2> randomPoints(const Region& region, const Inside& inside,
                                     const Distribution& distribution,
                                     int count) {
-  const SkRect box = region.bounds();
+  const SkRect box = toSk(region.bounds());
   std::vector<glm::vec2> points;
   if (count <= 0 || box.isEmpty()) return points;
   points.reserve((size_t)count);
@@ -211,7 +212,7 @@ std::vector<glm::vec2> latticePoints(const Region& region, const Inside& inside,
                                      const Distribution& distribution,
                                      float spacing, int cap) {
   std::vector<glm::vec2> points;
-  const SkRect box = region.bounds();
+  const SkRect box = toSk(region.bounds());
   if (!(spacing > 0) || box.isEmpty() || cap <= 0) return points;
 
   // EVERY POINT SITS AT THE CENTRE OF A CELL IT OWNS, and the cells cover
@@ -268,7 +269,7 @@ std::vector<glm::vec2> poissonPoints(const Region& region, const Inside& inside,
                                      const Distribution& distribution,
                                      float radius, int cap) {
   std::vector<glm::vec2> points;
-  const SkRect box = region.bounds();
+  const SkRect box = toSk(region.bounds());
   if (!(radius > 0) || box.isEmpty() || cap <= 0) return points;
 
   const float cell = radius / std::numbers::sqrt2_v<float>;
@@ -346,11 +347,13 @@ std::vector<glm::vec2> poissonPoints(const Region& region, const Inside& inside,
 // ---------------------------------------------------------------------------
 // Region
 
-Region Region::of(const SkPath& path, float tolerance) {
+Region Region::of(const Outline& outline, float tolerance) {
+  const SkPath path = toSk(outline);
   return Region{flatten(path, tolerance)};
 }
 
-Region Region::of(SkRect rect) {
+Region Region::of(const Rect& bounds) {
+  const SkRect rect = toSk(bounds);
   Polyline ring;
   ring.closed = true;
   ring.points = {{rect.fLeft, rect.fTop},
@@ -378,7 +381,7 @@ Region Region::of(std::span<const Polyline> rings) {
   return Region{{rings.begin(), rings.end()}};
 }
 
-SkRect Region::bounds() const { return path::bounds(rings); }
+Rect Region::bounds() const { return path::bounds(rings); }
 
 bool Region::contains(glm::vec2 point) const {
   return containsEvenOdd(rings, point);
@@ -440,7 +443,7 @@ std::vector<glm::vec2> sample(const Region& region,
     std::vector<glm::vec3> lifted;
     lifted.reserve(points.size());
     for (const glm::vec2 point : points) lifted.emplace_back(point, 0.0f);
-    const SkRect box = region.bounds();
+    const SkRect box = toSk(region.bounds());
     relax(lifted, Relaxation{spacing, distribution.relaxIterations, 0.5f},
           [&](glm::vec3 moved) {
             const glm::vec2 flat{moved.x, moved.y};

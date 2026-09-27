@@ -6,7 +6,7 @@
 // inside it.
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkFontMetrics.h>
 
 #include <vector>

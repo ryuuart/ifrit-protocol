@@ -23,7 +23,7 @@
 #include "OffsetInternal.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -224,7 +224,8 @@ SkPath sweptRegion(const SkPath& spine, const SweepWidth& width,
       SkPoint here;
       SkVector tan;
       if (!contour->getPosTan(at, &here, &tan)) break;
-      float w = width(SweepStation{here, tan, at, len > 0 ? at / len : 0, len});
+      float w = width(SweepStation{fromSk(here), fromSk(tan), at,
+                                   len > 0 ? at / len : 0, len});
       // A NON-FINITE WIDTH PINCHES TO THE SPINE rather than poisoning the
       // band. Skia draws NONE of a path holding one non-finite vertex, so
       // a law that returns NaN at a single sample would delete the whole
@@ -336,7 +337,7 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
   }
   SkPathBuilder out(spine.getFillType());
   float consumed = 0;
-  for (const Contour& contour : Contour::of(spine)) {
+  for (const Contour& contour : contoursOf(spine)) {
     const float len = contour.length();
     const float base = consumed;
     consumed += len;
@@ -386,6 +387,20 @@ SkPath profileOffset(const SkPath& spine, const Profile& profile) {
     if (started && contour.closed()) out.close();
   }
   return out.detach();
+}
+
+Outline profileOffset(const Outline& spine, const Profile& profile) {
+  return fromSk(profileOffset(toSk(spine), profile));
+}
+
+Outline bandRegion(const Outline& spine, const Profile& width,
+                   Formation formation) {
+  return fromSk(bandRegion(toSk(spine), width, formation));
+}
+
+Outline sweptRegion(const Outline& spine, const SweepWidth& width,
+                    const Sweep& sweep) {
+  return fromSk(sweptRegion(toSk(spine), width, sweep));
 }
 
 }  // namespace sigil::geometry::path

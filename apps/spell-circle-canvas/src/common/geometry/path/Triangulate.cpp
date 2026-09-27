@@ -5,7 +5,7 @@
 
 #include <include/core/SkRect.h>
 
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 #include <CDT.h>
 

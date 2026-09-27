@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "sigilgeometry/path/Arrange.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 

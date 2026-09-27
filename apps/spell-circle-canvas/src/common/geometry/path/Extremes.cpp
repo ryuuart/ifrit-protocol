@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "sigilgeometry/path/Segments.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -222,6 +222,15 @@ std::vector<glm::vec2> extremeNodes(const SkPath& path,
       for (const float t : turnsOf(piece, options))
         nodes.push_back(fromSk(evalAt(piece, t)));
   return nodes;
+}
+
+Outline extremes(const Outline& outline, const ExtremeOptions& options) {
+  return fromSk(extremes(toSk(outline), options));
+}
+
+std::vector<glm::vec2> extremeNodes(const Outline& outline,
+                                    const ExtremeOptions& options) {
+  return extremeNodes(toSk(outline), options);
 }
 
 }  // namespace sigil::geometry::path

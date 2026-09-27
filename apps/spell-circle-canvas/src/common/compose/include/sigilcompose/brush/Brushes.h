@@ -264,7 +264,7 @@ struct Brush {
   std::vector<Layer> layers;
 
   /** Append to the shared geometry pipeline. A `Shaper` is any comparable
-   *  value with `SkPath shape(const SkPath &) const`; the stock ones
+   *  value with `Outline shape(const Outline &) const`; the stock ones
    *  (`geometry::shapes::wave/jitter/offset`) are peers of anything you
    *  write, which is why there is no shorthand for them here. */
   Brush& shaped(geometry::path::Shaper s) {

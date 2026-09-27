@@ -1,4 +1,4 @@
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Factories.h>

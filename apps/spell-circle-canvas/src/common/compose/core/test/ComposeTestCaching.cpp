@@ -6,7 +6,7 @@
 // overflowing its parent's box under each of the three.
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/kit/Generators.h>
 
 #include "support/CoreTestSupport.h"

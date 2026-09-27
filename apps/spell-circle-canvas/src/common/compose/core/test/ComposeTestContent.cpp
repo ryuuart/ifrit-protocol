@@ -7,7 +7,7 @@
 
 #include <sigilmaterial/paint/Bases.h>
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <cstring>  // memcmp — for the no-conversion control
 #include <utility>
 

@@ -6,7 +6,7 @@
  */
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "MaterialEffects.h"
 
 #include <include/core/SkCanvas.h>

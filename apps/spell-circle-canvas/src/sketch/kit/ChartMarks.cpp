@@ -4,7 +4,7 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilgeometry/kit/Generators.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilsketch/kit/Chart.h>
 
 #include <algorithm>

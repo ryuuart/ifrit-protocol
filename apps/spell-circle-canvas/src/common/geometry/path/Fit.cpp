@@ -15,7 +15,7 @@
 #include <glm/geometric.hpp>
 #include <vector>
 
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::geometry::path {
 
@@ -202,7 +202,7 @@ std::vector<glm::vec2> withoutRepeats(std::span<const glm::vec2> points) {
 
 }  // namespace
 
-SkPath fitCurve(std::span<const glm::vec2> points, float tolerance) {
+static SkPath fitCurveSk(std::span<const glm::vec2> points, float tolerance) {
   const std::vector<glm::vec2> run = withoutRepeats(points);
   SkPathBuilder out;
   if (run.size() < 2) return out.detach();
@@ -223,15 +223,23 @@ SkPath fitCurve(std::span<const glm::vec2> points, float tolerance) {
   return out.detach();
 }
 
-SkPath fitCurve(const Polyline& line, float tolerance) {
+static SkPath fitCurveSk(const Polyline& line, float tolerance) {
   if (!line.closed)
-    return fitCurve(std::span<const glm::vec2>(line.points), tolerance);
+    return fitCurveSk(std::span<const glm::vec2>(line.points), tolerance);
   std::vector<glm::vec2> loop = line.points;
   if (!loop.empty()) loop.push_back(loop.front());
-  SkPath open = fitCurve(std::span<const glm::vec2>(loop), tolerance);
+  SkPath open = fitCurveSk(std::span<const glm::vec2>(loop), tolerance);
   SkPathBuilder closed(open);
   closed.close();
   return closed.detach();
+}
+
+Outline fitCurve(std::span<const glm::vec2> points, float tolerance) {
+  return fromSk(fitCurveSk(points, tolerance));
+}
+
+Outline fitCurve(const Polyline& line, float tolerance) {
+  return fromSk(fitCurveSk(line, tolerance));
 }
 
 }  // namespace sigil::geometry::path

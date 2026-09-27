@@ -12,6 +12,7 @@
 #include <include/core/SkFont.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/kit/Kit.h>
 
 #include <cmath>
@@ -33,16 +34,17 @@ TEST(ComposeKitStrokes, ShapersSatisfyThePublicSeam) {
   SkPathBuilder b;
   b.moveTo(0, 50);
   b.lineTo(200, 50);
-  const SkPath straight = b.detach();
+  const geometry::path::Outline straight = geometry::path::fromSk(b.detach());
 
   const geometry::shapers::Wave wave{.amplitude = 6, .wavelength = 30};
-  const SkPath waved = wave.shape(straight);
+  const SkPath waved = geometry::path::toSk(wave.shape(straight));
   EXPECT_GT(waved.getBounds().height(), 6.0f) << "the wave did not deviate";
-  const SkPath jittered =
+  const SkPath jittered = geometry::path::toSk(
       geometry::shapers::Jitter{.segmentLength = 8, .deviation = 3, .seed = 5}
-          .shape(straight);
+          .shape(straight));
   EXPECT_GT(jittered.getBounds().height(), 1.0f);
-  const SkPath railed = geometry::shapers::Offset{.px = -12}.shape(straight);
+  const SkPath railed =
+      geometry::path::toSk(geometry::shapers::Offset{.px = -12}.shape(straight));
   EXPECT_NEAR(railed.getBounds().centerY(), 62.0f, 1.5f)
       << "positive offset is LEFT of travel — the one convention (R3's "
          "sign port), so travelling +x with y down a NEGATIVE offset goes "
@@ -255,8 +257,8 @@ TEST(ComposeKitStrokes, BraidAlternatesAlongTheWholeRun) {
     // (green) over at odd ones. Sample each knot and count disagreements.
     int wrong = 0, sampled = 0;
     for (const geometry::path::Crossing& k : knots) {
-      const int px = (int)std::lround(k.at.fX);
-      const int py = (int)std::lround(k.at.fY);
+      const int px = (int)std::lround(k.at.x);
+      const int py = (int)std::lround(k.at.y);
       // A knot bisected by the frame has no interior pixel to read — the
       // spine ends ON the last one, at x == width. Skip rather than count
       // the surface's out-of-bounds transparent black as a defect.
@@ -290,7 +292,7 @@ TEST(ComposeKitStrokes, TheThreeShapersAreOneValueEach) {
   b.lineTo(160, 120);
   b.lineTo(10, 120);
   b.close();
-  const SkPath src = b.detach();
+  const geometry::path::Outline src = geometry::path::fromSk(b.detach());
 
   // (Named locals rather than braced temporaries inline: a designated
   // aggregate inside EXPECT_* hands the macro its commas.)
@@ -439,8 +441,8 @@ TEST(ComposeKitStrokes, ABleedIsADISTANCEAndNeverNegative) {
   SkPathBuilder b;
   b.moveTo(10, 60);
   b.lineTo(190, 60);
-  const SkPath line = b.detach();
-  EXPECT_FALSE(kitWave.shape(line).isEmpty());
+  const geometry::path::Outline line = geometry::path::fromSk(b.detach());
+  EXPECT_FALSE(kitWave.shape(line).empty());
 }
 
 // ---------------------------------------------------------------------------

@@ -47,7 +47,7 @@ struct LineInterval {
   /// contour's arc length starting at `contourStart`; glyphs are rotated to
   /// the local tangent (rendered with RSXform runs). `origin`/`direction`
   /// are ignored. The contour is the geometry library's: build one with
-  /// `geometry::path::Contour::of(path)`; a default-constructed one is "no
+  /// `geometry::path::Contour::of(outline)`; a default-constructed one is "no
   /// contour" and leaves the interval straight.
   geometry::path::Contour contour;
   float contourStart = 0;  ///< arc length where the pen enters the contour

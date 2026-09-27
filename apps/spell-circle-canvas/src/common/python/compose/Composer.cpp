@@ -6,7 +6,7 @@
  */
 
 #include <include/core/SkCanvas.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkSize.h>
 #include <pybind11/stl.h>
 #include <sigilcompose/core/Composer.h>

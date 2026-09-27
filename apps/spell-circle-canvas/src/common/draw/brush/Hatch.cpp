@@ -6,7 +6,7 @@
 #include <sigildraw/brush/Deposit.h>
 #include <sigildraw/brush/Hatch.h>
 #include <sigilgeometry/kit/Hatches.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <algorithm>
 #include <array>

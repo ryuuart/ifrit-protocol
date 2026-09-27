@@ -12,7 +12,7 @@
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the renderSlot diagnostic
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmeasure/advanced/Laps.h>
 #include <sigilmeasure/time/Stopwatch.h>

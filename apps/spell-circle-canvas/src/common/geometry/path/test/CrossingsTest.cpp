@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Crossings.h"
 
 using namespace sigil::geometry::path;
@@ -62,7 +63,7 @@ TEST(Crossings, OnlyProperCrossingsAreReported) {
   ASSERT_EQ(found.size(), 1u);
   EXPECT_EQ(found[0].a, 0u);
   EXPECT_EQ(found[0].b, 1u);
-  EXPECT_NEAR(found[0].at.fX, 50.0f, 1.0f);
+  EXPECT_NEAR(found[0].at.x, 50.0f, 1.0f);
   EXPECT_NEAR(found[0].alongA, 0.5f, 0.02f);
 
   // A shared endpoint is a MEETING, not a crossing — otherwise every
@@ -86,9 +87,9 @@ TEST(Crossings, TheyAreNumberedAlongTheLowerIndexedStrand) {
   // Sorted by position on strand 0, then numbered — so the crossing at
   // x = 100 is index 0 even though its strand was added last.
   EXPECT_EQ(found[0].index, 0u);
-  EXPECT_NEAR(found[0].at.fX, 100.0f, 1.0f);
+  EXPECT_NEAR(found[0].at.x, 100.0f, 1.0f);
   EXPECT_EQ(found[1].index, 1u);
-  EXPECT_NEAR(found[1].at.fX, 200.0f, 1.0f);
+  EXPECT_NEAR(found[1].at.x, 200.0f, 1.0f);
 }
 
 TEST(CrossingRule, ListOrderDecidesUnlessAnotherRuleOrAPinDoes) {
@@ -274,7 +275,7 @@ TEST(Crossings, AChordThroughAClosedStrandsSeamCrossesItThere) {
   const std::vector<Crossing> knots =
       discoverCrossings({ring.detach(), segment(50, 200, 350, 200)});
   ASSERT_EQ(knots.size(), 2u) << "a chord through a ring enters and leaves";
-  std::vector<float> across{knots[0].at.fX, knots[1].at.fX};
+  std::vector<float> across{knots[0].at.x, knots[1].at.x};
   std::sort(across.begin(), across.end());
   EXPECT_NEAR(across[0], 100.0f, 0.5f);
   EXPECT_NEAR(across[1], 300.0f, 0.5f) << "the seam";
@@ -300,7 +301,7 @@ TEST(Crossings, TheChordBetweenTwoOfAStrandsContoursIsNotWalkedAsAStrand) {
       discoverCrossings({rings.detach(), segment(-20, -14, 170, 138)});
   ASSERT_EQ(knots.size(), 4u) << "two on each ring, none on the chord";
   std::vector<float> across;
-  for (const Crossing& knot : knots) across.push_back(knot.at.fX);
+  for (const Crossing& knot : knots) across.push_back(knot.at.x);
   std::sort(across.begin(), across.end());
   EXPECT_NEAR(across[0], 0.0f, 0.5f);    // the first ring, entering
   EXPECT_NEAR(across[1], 40.0f, 0.5f);   // and leaving

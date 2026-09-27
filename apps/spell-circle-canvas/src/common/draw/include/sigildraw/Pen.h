@@ -31,7 +31,7 @@
 #include <sigildraw/PenTypes.h>
 #include <sigildraw/Retained.h>
 #include <sigilgeometry/kit/Corners.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Stroke.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>

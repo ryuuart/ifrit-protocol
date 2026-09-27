@@ -16,14 +16,13 @@
  * implied by `closed` and drawn by `close()`, so a rectangle is three
  * segments and rebuilding it gives back the four points it came from.
  */
-#include <include/core/SkPath.h>
-#include <include/core/SkPathTypes.h>
-
 #include <array>
 #include <cstdint>
 #include <glm/vec2.hpp>
 #include <span>
 #include <vector>
+
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::path {
 
@@ -66,7 +65,7 @@ struct Segment {
 
 /** ONE CONTOUR AS ITS SEGMENTS. A closed contour's last segment arrives
  *  at whatever node it arrives at and the closure carries the path back
- *  to `start()`, exactly as `SkPath::close()` does. */
+ *  to `start()`, exactly as a path's `close` does. */
 struct SegmentContour {
   std::vector<Segment> segments;
   bool closed = false;
@@ -80,18 +79,18 @@ struct SegmentContour {
   }
 };
 
-/** Every contour of `path`, in path order, as its segments. A contour
+/** Every contour of `outline`, in order, as its segments. A contour
  *  holding no drawn piece is skipped, so what comes back is what the
- *  path draws. */
-std::vector<SegmentContour> segments(const SkPath& path);
+ *  outline draws. */
+std::vector<SegmentContour> segments(const Outline& outline);
 
-/** The contours back as a path, one `moveTo` per contour and a `close()`
- *  where the contour says it is closed. A path that went through
- *  `segments()` and came back through here is the path it started as,
- *  verb for verb and point for point, when it is rebuilt under the fill
- *  type it was read with. */
-SkPath toPath(std::span<const SegmentContour> contours,
-              SkPathFillType fill = SkPathFillType::kWinding);
+/** The contours back as an outline, one `moveTo` per contour and a
+ *  `close()` where the contour says it is closed. An outline that went
+ *  through `segments()` and came back through here is the outline it
+ *  started as, verb for verb and point for point, when it is rebuilt
+ *  under the fill rule it was read with. */
+Outline toPath(std::span<const SegmentContour> contours,
+               FillRule rule = FillRule::NonZero);
 
 /** WHETHER TWO OUTLINES HAVE THE SAME NODES IN THE SAME ORDER, and when
  *  they do not, the first reason they do not — which is what a caller
@@ -118,7 +117,7 @@ enum class Compatible : uint8_t {
 };
 
 /** The compatibility of `a` and `b`, contour by contour in path order. */
-Compatible compatible(const SkPath& a, const SkPath& b);
+Compatible compatible(const Outline& a, const Outline& b);
 
 /** ONE CONTOUR DRAWN THE OTHER WAY: its pieces in reverse order, each
  *  with its points reversed. A closed contour keeps the node it starts
@@ -136,13 +135,13 @@ SegmentContour startedAt(const SegmentContour& contour, size_t at);
  *  where a polyline reversal would have flattened them. A closed contour
  *  keeps the node it starts at and only its direction changes; an open
  *  one starts where it used to end. */
-SkPath reverse(const SkPath& path);
+Outline reverse(const Outline& outline);
 
 /** THE CONTOUR RESTARTED AT ANOTHER NODE: the segments of `contour` of
- *  `path` rolled so that segment `at` is drawn first. Only a closed
+ *  `outline` rolled so that segment `at` is drawn first. Only a closed
  *  contour can be restarted — an open one has ends, and moving its start
  *  would cut it — and an index past the end wraps. The drawn shape does
  *  not move; which node is first does. */
-SkPath startAt(const SkPath& path, size_t contour, size_t at);
+Outline startAt(const Outline& outline, size_t contour, size_t at);
 
 }  // namespace sigil::geometry::path

@@ -2,6 +2,7 @@
 
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkPath.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 namespace spellcircle {
 
@@ -15,7 +16,7 @@ const sigil::geometry::path::Contour& RingLabelGeometryCache::ringForRadius(
   auto measuredRing = m_rings.find(quantizedRadius);
   if (measuredRing == m_rings.end()) {
     std::vector<sigil::geometry::path::Contour> rings =
-        sigil::geometry::path::Contour::of(SkPath::Circle(0, 0, radius));
+        sigil::geometry::path::contoursOf(SkPath::Circle(0, 0, radius));
     // A radius that yields no contour produces nothing worth keeping: storing
     // the invalid contour would pin a permanently useless entry in its
     // bucket, so degenerate requests are answered without touching the cache

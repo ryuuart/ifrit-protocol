@@ -9,6 +9,7 @@
 #include <benchmark/benchmark.h>
 #include <sigilcore/compute/Chance.h>
 #include <sigilcore/compute/Noise.h>
+#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/path/Contour.h>
 #include <sigilgeometry/path/Lattice.h>
 #include <sigilgeometry/path/Noise.h>
@@ -51,7 +52,7 @@ SkPath sawtooth(int teeth) {
 
 float pathLength(const SkPath& path) {
   float total = 0;
-  for (const Contour& contour : Contour::of(path)) total += contour.length();
+  for (const Contour& contour : contoursOf(path)) total += contour.length();
   return total;
 }
 
@@ -177,7 +178,7 @@ BENCHMARK(BM_Lattice)
 
 void BM_ContourCorners(benchmark::State& state) {
   const SkPath path = sawtooth((int)state.range(0));
-  const std::vector<Contour> contours = Contour::of(path);
+  const std::vector<Contour> contours = contoursOf(path);
   const float length = pathLength(path);
   size_t found = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -268,7 +269,7 @@ BENCHMARK(BM_NoiseValue3);
 /** The read a motion path makes every frame: one pose at a fraction of
  *  the total arc length, over a path already measured into contours. */
 void BM_PoseAlong(benchmark::State& state) {
-  const std::vector<Contour> contours = Contour::of(rippledRing(64));
+  const std::vector<Contour> contours = contoursOf(rippledRing(64));
   const float total = totalLength(contours);
   float u = 0;
   for ([[maybe_unused]] auto iteration : state) {
@@ -287,7 +288,7 @@ void BM_PoseAlongManyContours(benchmark::State& state) {
   SkPathBuilder builder;
   for (int i = 0; i < 8; ++i)
     builder.addPath(rippledRing(16, 40.0f + 20.0f * (float)i));
-  const std::vector<Contour> contours = Contour::of(builder.detach());
+  const std::vector<Contour> contours = contoursOf(builder.detach());
   const float total = totalLength(contours);
   float u = 0;
   for ([[maybe_unused]] auto iteration : state) {

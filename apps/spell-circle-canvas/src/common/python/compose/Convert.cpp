@@ -8,7 +8,7 @@
 #include <pybind11/stl.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/kit/Radial.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Factories.h>

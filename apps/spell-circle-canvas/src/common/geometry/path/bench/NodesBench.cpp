@@ -6,6 +6,7 @@
  */
 
 #include <benchmark/benchmark.h>
+#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/path/Extremes.h>
 #include <sigilgeometry/path/Fit.h>
 #include <sigilgeometry/path/Interpolate.h>
@@ -91,7 +92,7 @@ void BM_FitCurve(benchmark::State& state) {
   for (int i = 0; i < count; ++i)
     wave.push_back({(float)i, 30.0f * std::sin((float)i * 0.08f)});
   for ([[maybe_unused]] auto iteration : state) {
-    SkPath fitted = fitCurve(wave, 0.5f);
+    SkPath fitted = toSk(fitCurve(wave, 0.5f));
     benchmark::DoNotOptimize(fitted);
   }
   state.counters["points/s"] =

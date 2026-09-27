@@ -5,6 +5,7 @@
 
 #include <benchmark/benchmark.h>
 #include <sigilcore/compute/Noise.h>
+#include "sigilgeometry/advanced/Skia.h"
 #include <sigilgeometry/path/Cells.h>
 #include <sigilgeometry/path/Symmetry.h>
 #include <sigilgeometry/path/Trace.h>

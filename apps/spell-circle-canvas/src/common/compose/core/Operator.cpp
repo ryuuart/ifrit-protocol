@@ -7,7 +7,7 @@
  */
 
 #include "sigilcompose/core/Operator.h"
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <sigilgeometry/path/Transform.h>
 

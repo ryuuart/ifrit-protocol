@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilgeometry/kit/Solids.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/mesh/Faces.h>
 
 #include <cmath>

@@ -19,7 +19,7 @@
 #include "TextEngine.h"
 #include "TextPose.h"
 #include "sigilgeometry/path/Contour.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::compose {
 
@@ -131,7 +131,7 @@ void detail::ensurePathLayout(Composer::Impl& impl, Instance& inst,
       });
 
   static thread_local std::vector<geometry::path::Contour> contours;
-  contours = geometry::path::Contour::of(baseline);
+  contours = geometry::path::contoursOf(baseline);
   if (contours.empty()) return;
   float length = 0;
   for (const geometry::path::Contour& contour : contours)

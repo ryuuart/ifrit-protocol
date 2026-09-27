@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "sigilgeometry/path/Frame.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 using namespace sigil::geometry::path;
 

@@ -3,7 +3,7 @@
 // leaves cost the hit test and the painter.
 
 #include <include/core/SkPathBuilder.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/kit/Layouts.h>

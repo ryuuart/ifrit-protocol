@@ -7,6 +7,7 @@
 #include <mutex>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Outline.h"
 
@@ -24,7 +25,7 @@ struct OutlineBody {
 
   const std::vector<Contour>& contours() const {
     std::call_once(measuredOnce, [this] {
-      measured = Contour::of(path);
+      measured = contoursOf(path);
       for (const Contour& contour : measured) measuredLength += contour.length();
     });
     return measured;

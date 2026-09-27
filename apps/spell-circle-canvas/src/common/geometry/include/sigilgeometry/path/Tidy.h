@@ -18,7 +18,7 @@
  * library carries a node type, and inventing one to serve one operator
  * would put a font editor's model into a drawing library.
  */
-#include <include/core/SkPath.h>
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::path {
 
@@ -41,7 +41,7 @@ struct TidyOptions {
  *  tolerance and one a little off it goes only once the tolerance covers
  *  the distance. A closed contour stays closed and the drawn shape stays
  *  within the tolerance of the one it came from. */
-SkPath tidy(const SkPath& path, float tolerance = 0.1f,
+Outline tidy(const Outline& outline, float tolerance = 0.1f,
             const TidyOptions& options = {});
 
 }  // namespace sigil::geometry::path

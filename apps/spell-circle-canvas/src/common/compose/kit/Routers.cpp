@@ -8,7 +8,7 @@
 #include <include/core/SkStrokeRec.h>
 #include <include/effects/SkCornerPathEffect.h>
 #include <sigilcompose/kit/Routers.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/path/Numeric.h>
 #include <sigilgeometry/path/Operations.h>
 

@@ -9,7 +9,7 @@
 #include <include/core/SkPath.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilgeometry/kit/Solids.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 #include <cmath>
 #include <numbers>

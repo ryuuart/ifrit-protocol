@@ -4,7 +4,7 @@
  * uses.
  */
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkTypes.h>  // SkDebugf — the empty-selector diagnostic
 #include <sigilweave/choreograph/Choreograph.h>
 

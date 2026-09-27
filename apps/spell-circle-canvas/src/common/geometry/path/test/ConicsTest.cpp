@@ -10,6 +10,7 @@
 #include <cmath>
 #include <glm/geometric.hpp>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/path/Conic.h"
 
 using namespace sigil::geometry::path;
@@ -42,7 +43,7 @@ TEST(Conics, AtZeroEccentricityItIsACircleAboutTheFocusItself) {
     EXPECT_NEAR(glm::dot(circle.alongAt(v), circle.outwardAt(v)), 0.0f, 1e-5f);
   }
   float nearest = 0, furthest = 0;
-  extremes(conicPath(circle, {.fromDeg = 0, .toDeg = 360}), {100, 50}, &nearest,
+  extremes(toSk(conicPath(circle, {.fromDeg = 0, .toDeg = 360})), {100, 50}, &nearest,
            &furthest);
   EXPECT_NEAR(nearest, 40.0f, 1e-3f);
   EXPECT_NEAR(furthest, 40.0f, 1e-3f);
@@ -58,7 +59,7 @@ TEST(Conics, AnEllipseStandsOffCentreBecauseTheFocusIsWhereItIsMeasuredFrom) {
   EXPECT_TRUE(ellipse.closes());
 
   float nearest = 0, furthest = 0;
-  extremes(conicPath(ellipse, {.fromDeg = 0, .toDeg = 360}), {0, 0}, &nearest,
+  extremes(toSk(conicPath(ellipse, {.fromDeg = 0, .toDeg = 360})), {0, 0}, &nearest,
            &furthest);
   EXPECT_NEAR(nearest, 100.0f / 1.5f, 1e-2f);
   EXPECT_NEAR(furthest, 100.0f / 0.5f, 1e-2f);
@@ -90,7 +91,7 @@ TEST(Conics, AtOneItIsAParabolaAndPastOneTheBranchHasAnAsymptote) {
   // Past the asymptote a caller is asking about a place the branch never
   // reaches; the answer is a distant point rather than an infinity, so a
   // path built over the whole sweep is still a path.
-  const SkPath swept = conicPath(hyperbola, {.fromDeg = -180, .toDeg = 180});
+  const SkPath swept = toSk(conicPath(hyperbola, {.fromDeg = -180, .toDeg = 180}));
   EXPECT_TRUE(std::isfinite(swept.getBounds().width()));
   EXPECT_FALSE(swept.isLastContourClosed());
 }
@@ -100,7 +101,7 @@ TEST(Conics, ASpanIsWhatComesBackAndReachBreaksTheContourRatherThanCloseIt) {
   // Held to what is near enough to draw, the arms are cut off and what is
   // left is one run through the near point.
   const SkPath held =
-      conicPath(hyperbola, {.fromDeg = -180, .toDeg = 180, .reach = 400});
+      toSk(conicPath(hyperbola, {.fromDeg = -180, .toDeg = 180, .reach = 400}));
   float nearest = 0, furthest = 0;
   extremes(held, {0, 0}, &nearest, &furthest);
   EXPECT_LE(furthest, 400.0f);
@@ -110,13 +111,13 @@ TEST(Conics, ASpanIsWhatComesBackAndReachBreaksTheContourRatherThanCloseIt) {
   // not, so a reveal or a label along it has two ends to work between.
   const Conic ellipse{.semiLatus = 100, .eccentricity = 0.4f};
   EXPECT_TRUE(
-      conicPath(ellipse, {.fromDeg = 0, .toDeg = 360}).isLastContourClosed());
+      toSk(conicPath(ellipse, {.fromDeg = 0, .toDeg = 360})).isLastContourClosed());
   EXPECT_FALSE(
-      conicPath(ellipse, {.fromDeg = -90, .toDeg = 90}).isLastContourClosed());
+      toSk(conicPath(ellipse, {.fromDeg = -90, .toDeg = 90})).isLastContourClosed());
 
   // The path starts where the span does, so a trim from the start of the
   // contour is a trim from there.
-  const SkPath part = conicPath(ellipse, {.fromDeg = -90, .toDeg = 90});
+  const SkPath part = toSk(conicPath(ellipse, {.fromDeg = -90, .toDeg = 90}));
   const glm::vec2 begins = ellipse.at(-90);
   EXPECT_NEAR(part.getPoint(0).fX, begins.x, 1e-3f);
   EXPECT_NEAR(part.getPoint(0).fY, begins.y, 1e-3f);

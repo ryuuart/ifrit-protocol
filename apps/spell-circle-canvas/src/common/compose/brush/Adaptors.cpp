@@ -4,7 +4,7 @@
  */
 
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/brush/Adaptors.h>
 
 namespace sigil::compose {

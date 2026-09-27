@@ -50,7 +50,7 @@ TEST(PathText, AGeometricallyClosedContourWrapsWhenItSaysSo) {
   SkPathBuilder arcBuilder;
   arcBuilder.addArc(SkRect::MakeLTRB(-100, -100, 100, 100), 0, 359.9f);
   const std::vector<sigil::geometry::path::Contour> contours =
-      sigil::geometry::path::Contour::of(arcBuilder.detach());
+      sigil::geometry::path::contoursOf(arcBuilder.detach());
   ASSERT_EQ(contours.size(), 1u);
   const sigil::geometry::path::Contour& contour = contours.front();
   ASSERT_FALSE(contour.closed());
@@ -167,7 +167,7 @@ TEST(PathText, APathFlowLaysEveryRunAlongTheContour) {
 TEST(PathText, AnAdvanceScaleCompressesTheArcTheTextSubtends) {
   FontContext& fontContext = sigil::test::fonts();
   const std::vector<sigil::geometry::path::Contour> rings =
-      sigil::geometry::path::Contour::of(SkPath::Circle(0, 0, 200));
+      sigil::geometry::path::contoursOf(SkPath::Circle(0, 0, 200));
   ASSERT_EQ(rings.size(), 1u);
   const sigil::geometry::path::Contour& ring = rings.front();
 

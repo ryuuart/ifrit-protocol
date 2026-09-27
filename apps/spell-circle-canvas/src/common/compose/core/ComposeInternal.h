@@ -9,7 +9,7 @@
  */
 
 #include <sigilcore/compute/Noise.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcore/reconcile/Memo.h>
 #include <sigilcore/reconcile/Reads.h>
 #include <sigilmaterial/skia/Filter.h>

@@ -5,6 +5,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigildraw/Pen.h>
 #include <sigildraw/brush/Wash.h>
 #include <sigilmaterial/color/Color.h>
@@ -83,7 +84,7 @@ void wash(Pen& pen, const Wash& pigment, std::span<const SkPoint> polygon) {
   if (!canvas || polygon.size() < 3 || !(pigment.opacity > 0.0f) ||
       pigment.layers <= 0)
     return;
-  const SkRect bounds = ring(polygon).bounds();
+  const SkRect bounds = geometry::path::toSk(ring(polygon).bounds());
   const SkPoint center = polygonCenter(polygon);
   const float scale = std::max(1.0f, std::min(bounds.width(), bounds.height()));
   const float bleed = std::clamp(pigment.bleed, 0.0f, 1.0f);

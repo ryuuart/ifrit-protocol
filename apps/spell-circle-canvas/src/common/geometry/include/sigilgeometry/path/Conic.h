@@ -25,9 +25,10 @@
  * convention `arrange::onEllipse` places a ring by.
  */
 
-#include <include/core/SkPath.h>
 
 #include <glm/vec2.hpp>
+
+#include "sigilgeometry/path/Outline.h"
 
 namespace sigil::geometry::path {
 
@@ -100,6 +101,6 @@ struct ConicSpan {
  *
  *  The path begins at `fromDeg`, so a trim from the start of the contour
  *  is a trim from there and needs no wrap arithmetic. */
-SkPath conicPath(const Conic& conic, const ConicSpan& span = {});
+Outline conicPath(const Conic& conic, const ConicSpan& span = {});
 
 }  // namespace sigil::geometry::path
