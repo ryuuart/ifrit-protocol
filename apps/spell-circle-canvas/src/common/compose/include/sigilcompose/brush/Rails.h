@@ -51,7 +51,7 @@ struct Rail {
   float width = 2.0f;
   Fill fill = Fill::color({1, 1, 1, 1});
   /** Empty → solid. Measured along the CENTRELINE, not this rail. */
-  std::vector<SkScalar> dash;
+  std::vector<float> dash;
   /** Added to the stroke's shared phase — the knob that slides ONE rail
    *  against its neighbours (staggered ties, a counter-dashed strand). */
   float dashPhase = 0.0f;

@@ -603,6 +603,7 @@ The kernel links `SigilCoreReconcile`, `SigilCoreCache`,
 `SigilCoreComparable`, `SigilCoreCompute`, `SigilGeometryPath`,
 `SigilMedia`, `SigilMaterial`, `SigilMeasure`, `SigilMotion`,
 `SigilSkiaDraw` (the direct draws the instanced leaf stamps through),
+`SigilDraw` (the pen every mark and program is drawn with),
 `SigilWeave` and Skia publicly, and Yoga and Boost's container and
 unordered targets privately. The brush tier adds `SigilGeometryKit`, the
 silhouette shelf a brush is applied to, and the typography tier, whose
@@ -734,6 +735,48 @@ What it refuses to be:
   be a breaking change rather than a setting.
 
 ---
+
+### Where Skia still shows
+
+Compose's public vocabulary is Geometry's, Material's, Media's, Weave's
+and Motion's: a box is a `geometry::path::Rect`, a point and a size a
+`glm::vec2`, a silhouette a `geometry::path::Outline` answered for a box,
+a fill a `material::Material`, a picture a `media::Image`. Skia is the
+executor behind them, and the crossing is spelled by
+`<sigilgeometry/path/Skia.h>` and Material's `skia::` helpers inside the
+library's sources, not in its headers.
+
+**The one door to the renderer is the pen's canvas.** A decoration, a
+`custom()` program and a contour walk's per-sample drawing are handed
+the draw executor's `draw::Pen`; a mark that draws past p5's verbs takes
+`pen.canvas()`, declared in SigilDraw's `Pen.h`. The painter begins a pen
+on its canvas for each mark and ends it after, so the canvas comes back
+as it was found. That is why the kernel links `SigilDraw`.
+
+What else the headers still spell, and why:
+
+- **The host's entrances.** `Composer::draw` takes the canvas a host owns;
+  `snapshot()` answers a recorded picture and `intrinsicSize()` a Skia
+  size; `picture()` and `image()` take a recording or an image a host
+  already holds; `texture()` and its scene speak the host's image and
+  pixel size. Each is where a host hands Skia work in or takes it out.
+- **Seams the painter implements.** `TextPainter`, the stroke and span
+  resolvers in `Stroke.h` and `MaskResolverOperations::clipRegion` are the
+  interfaces between the kernel and its brush and typography tiers, and
+  they pass the Skia paths both sides draw with.
+- **Skia's own effects, offered as escapes.** `PathFormat::effect` takes
+  any path effect, and `Lines.h` names the stroke record a dash needs.
+- **Bakes held inside values.** A contour walk's stamp, a stamp brush's
+  tiles and a ribbon's art keep the picture or image they baked, so a
+  rebuilt value finds its bake.
+- **The instanced leaf.** `Instances.h` is the sprite batch the direct
+  draw stamps through: its positions, sizes, windows and sheet are the
+  atlas call's own.
+- **Recipe bodies.** A material program's body is written in SkSL, and
+  `TextFx` names that language where a pass is authored.
+- **What has not yet moved.** The kit's placers and layouts, the tile
+  slicer's `sliceable()`, `TextEffect`'s glyph origin, the web view's
+  sampling and the kit's groove ramp still take Skia values.
 
 ## Build and test
 

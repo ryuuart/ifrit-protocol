@@ -26,7 +26,6 @@
  */
 
 #include <sigilmaterial/core/BlendMode.h>
-#include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/path/Edges.h>

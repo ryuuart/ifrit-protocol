@@ -7,7 +7,6 @@
  * outline they dress.
  */
 
-#include <include/core/SkPoint.h>
 #include <sigilcompose/core/Declarations.h>
 #include <sigilcompose/core/Shape.h>
 #include <sigilcompose/core/Stroke.h>

@@ -25,7 +25,6 @@
  *     panel.overlay(kit::ambientBevel());
  */
 
-#include <include/core/SkCanvas.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Paint.h>
