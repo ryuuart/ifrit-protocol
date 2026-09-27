@@ -15,7 +15,6 @@
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Transition.h>
 #include <sigilmotion/values/Tween.h>
 
 #include <array>
@@ -108,7 +107,7 @@ TEST(Held, AConstantTargetSnapsAndStopsTheRamp) {
 TEST(Held, ACallersDefaultTransitionRampsAConstantChange) {
   Engine engine;
   std::unique_ptr<HeldMotion> held;
-  const Transition spec{.duration = 1s, .ease = ease::linear};
+  const Tween<float> spec{.duration = 1s, .ease = ease::linear};
   EXPECT_TRUE(retarget(engine, held, 0.0f, 8.0f, spec));
   stepBy(engine, 500ms);
   EXPECT_NEAR(held->value(), 4.0f, 1e-4f);
@@ -278,11 +277,11 @@ TEST(Held, IsRunningIsALiveValueOrAHeldRampThatMoves) {
 }
 
 TEST(Held, ResolvePropertyTakesTheFallbackOnlyForAConstant) {
-  const std::optional<Transition> fallback = Transition{.duration = 700ms};
+  const std::optional<Tween<float>> fallback = Tween<float>{.duration = 700ms};
   const ResolvedProperty<float> constant = resolveProperty<float>(2.0f, fallback);
   EXPECT_EQ(constant.target, 2.0f);
   ASSERT_TRUE(constant.transition);
-  EXPECT_EQ(constant.transition->duration, 700ms);
+  EXPECT_EQ(constant.transition->duration.value(), 700ms);
 
   // A described motion keeps its own timing, resolved for its place.
   const Animatable<float> fan =
@@ -290,8 +289,8 @@ TEST(Held, ResolvePropertyTakesTheFallbackOnlyForAConstant) {
   const ResolvedProperty<float> third = resolveProperty(fan, fallback, {2, 4});
   EXPECT_EQ(third.target, 20.0f);
   ASSERT_TRUE(third.transition);
-  EXPECT_EQ(third.transition->duration, 300ms);
-  EXPECT_NEAR(third.transition->delay.count(), 0.080, 1e-9);
+  EXPECT_EQ(third.transition->duration.value(), 300ms);
+  EXPECT_NEAR(third.transition->delay.value().count(), 0.080, 1e-9);
 
   // A live value takes neither: it is already a running number.
   const Animatable<float> live = animatable(1.0f);

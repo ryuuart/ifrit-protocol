@@ -27,7 +27,7 @@
 #include "sigilmotion/clock/Engine.h"
 #include "sigilmotion/schedule/Stagger.h"
 #include "sigilmotion/values/Animatable.h"
-#include "sigilmotion/values/Transition.h"
+#include "sigilmotion/values/Tween.h"
 
 namespace sigil::motion {
 
@@ -66,30 +66,34 @@ struct ResolvedProperty {
    *  running number, so it takes no transition. */
   const Animatable<T>* live = nullptr;
   /** How a change to `target` eases: a described motion's own timing, or
-   *  the default for a constant; nothing where a change snaps. */
-  std::optional<Transition> transition;
+   *  the default for a constant — a tween read for its timing alone, with
+   *  every staggered field resolved; nothing where a change snaps. */
+  std::optional<Tween<float>> transition;
 };
 
 /** A described motion's timing as the transition a change eases by, for
- *  the child at @p place. */
+ *  the child at @p place: its duration and delay resolved there, its
+ *  curve and its composition, and no endpoints. */
 template <typename T>
-Transition transitionOf(const Tween<T>& tween, Place place = {}) {
-  return {tween.duration.at(place), tween.delay.at(place), tween.easing(),
-          tween.composition};
+Tween<float> transitionOf(const Tween<T>& tween, Place place = {}) {
+  return {.duration = tween.duration.at(place),
+          .delay = tween.delay.at(place),
+          .ease = tween.easing(),
+          .composition = tween.composition};
 }
 
 /** Reads one animatable against a transition the caller supplies as its
  *  default: a constant takes that default, a described motion keeps its
- *  own timing instead — resolved for the child at @p place — and a live
- *  value takes neither: it is already a running number. */
+ *  own timing instead — either resolved for the child at @p place — and
+ *  a live value takes neither: it is already a running number. */
 template <typename T>
 ResolvedProperty<T> resolveProperty(const Animatable<T>& property,
-                                    const std::optional<Transition>& fallback,
+                                    const std::optional<Tween<float>>& fallback,
                                     Place place = {}) {
   ResolvedProperty<T> out;
   if (const T* constant = property.constant()) {
     out.target = *constant;
-    out.transition = fallback;
+    if (fallback) out.transition = transitionOf(*fallback, place);
   } else if (const Tween<T>* described = property.described()) {
     out.target = described->resolved(place).rest();
     out.transition = transitionOf(*described, place);
@@ -113,7 +117,7 @@ float valueOf(const HeldMotion* animated, const Animatable<float>& property);
 bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
                        const Animatable<float>& previousValue,
                        const Animatable<float>& nextValue,
-                       const std::optional<Transition>& fallback,
+                       const std::optional<Tween<float>>& fallback,
                        Place place = {});
 
 /** An entrance: a tween that names `.from` plays from there — through its
@@ -145,7 +149,7 @@ bool isRunning(const HeldMotion* animated, const Animatable<float>& property);
  *  than at each such site, the mount and the retarget of one cannot drift
  *  apart. */
 void progress(Engine& engine, std::unique_ptr<HeldMotion>& held,
-                  const Transition& spec);
+                  const Tween<float>& spec);
 
 /** Where a lane's motion is held on the node. `Family` is the host's
  *  enumeration of its storages: one fixed slot array whose rows are a
@@ -194,7 +198,7 @@ void retargetFixed(Engine& engine,
                    std::span<std::unique_ptr<HeldMotion>> animated,
                    std::span<const Lane<Family>> previous,
                    std::span<const Lane<Family>> next,
-                   const std::optional<Transition>& nodeDefault,
+                   const std::optional<Tween<float>>& nodeDefault,
                    Place place = {}) {
   for (size_t i = 0; i < next.size(); ++i) {
     if (!previous[i].value && !next[i].value)
@@ -216,7 +220,7 @@ template <class Family>
 void retargetPositional(Engine& engine, HeldMotions& animated,
                     std::span<const Lane<Family>> previous,
                     std::span<const Lane<Family>> next,
-                    const std::optional<Transition>& nodeDefault,
+                    const std::optional<Tween<float>>& nodeDefault,
                     Place place = {}) {
   if (previous.size() != next.size()) {
     animated.clear();

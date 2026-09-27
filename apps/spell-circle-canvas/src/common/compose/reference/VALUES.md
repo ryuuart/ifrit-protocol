@@ -54,7 +54,7 @@ read before the four rows under *The surface*.
 |---|---|---|---|
 | `motion::Animatable` | A value at rest, a described motion, a live value somebody writes, or a live value followed through a binding. | Implicitly from the value; `motion::animate`, `motion::animatable`, `motion::bind` | `Element::fill`, `Element::opacity`, every transform lane |
 | `motion::Tween` | One description of a motion: where it starts and lands, the keyframes between, how long, after what delay, on what curve. | A braced list handed to `motion::animate` | Every property verb, through `motion::animate` |
-| `motion::Transition` | How a change to a plain value is eased: a duration, a delay, a curve. | A duration alone, or the struct | `Element::transition`, `Rule::transition` |
+| `motion::Tween<float>` as a transition | How a change to a plain value is eased: a duration, a delay, a curve; its endpoints are not read. | A duration alone, or the tween | `Element::transition`, `Rule::transition` |
 
 ## The custom properties
 

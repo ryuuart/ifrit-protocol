@@ -36,8 +36,8 @@ namespace {
 // custom layouts) compares unequal and re-patches every describe; the common
 // plain cases (boxes, fills, text runs, images) prune for free.
 
-// Transition, Binding and Animatable compare through SigilMotion's
-// comparators (transitionEqual, Binding's equality, propertyEqual), each
+// A transition, a Binding and an Animatable compare through SigilMotion's
+// comparators (tweenEqual, Binding's equality, propertyEqual), each
 // pinned beside its body there; the Effect and the blocks below are this
 // library's own.
 
@@ -491,10 +491,9 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
       (a.cascadeData->inkPaint->isRunning() ||
        b.cascadeData->inkPaint->isRunning()))
     return false;
-  if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
+  if (a.transition().has_value() != b.transition().has_value())
     return false;
-  if (a.nodeTransition &&
-      !transitionEqual(*a.nodeTransition, *b.nodeTransition))
+  if (a.transition() && !tweenEqual(*a.transition(), *b.transition()))
     return false;
   // Paint.
   const PaintProps &pa = a.fields.paint(), &pb = b.fields.paint();

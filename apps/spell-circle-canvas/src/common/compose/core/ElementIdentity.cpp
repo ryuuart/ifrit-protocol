@@ -58,8 +58,8 @@ Derived& StructureVerbs<Derived>::cacheScale(float factor) {
 }
 
 template <class Derived>
-Derived& StructureVerbs<Derived>::transition(motion::Transition transition) {
-  declarations()->nodeTransition = std::move(transition);
+Derived& StructureVerbs<Derived>::transition(motion::Tween<float> transition) {
+  declarations()->nodeTransition.ensure() = std::move(transition);
   return self();
 }
 

@@ -619,7 +619,14 @@ struct ElementNode {
   bool hitTestable = true;
   Cache cacheMode = Cache::Auto;
   float bakeScale = 1.0f;  // Texture-bake resolution multiplier (see Element)
-  std::optional<motion::Transition> nodeTransition;
+  // The node's own `transition()`, boxed: a tween is several times the
+  // size of the timing it carries here, and most nodes state none.
+  Box<std::optional<motion::Tween<float>>> nodeTransition;
+  /** The node's own transition, or none. */
+  [[nodiscard]] const std::optional<motion::Tween<float>>& transition() const {
+    static const std::optional<motion::Tween<float>> kNone;
+    return nodeTransition ? *nodeTransition : kNone;
+  }
 
   // Decoration layers (kernel seam; primitives live in Decorations.h)
   std::vector<Decoration> backgrounds;

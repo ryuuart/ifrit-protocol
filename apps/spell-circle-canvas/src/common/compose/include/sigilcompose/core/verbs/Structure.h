@@ -13,7 +13,7 @@
 #include <sigilcompose/core/Layout.h>  // Cache
 #include <sigilcompose/core/Operator.h>
 #include <sigilcompose/core/StyleSheet.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 
 #include <chrono>
 #include <concepts>
@@ -149,10 +149,16 @@ class StructureVerbs {
    *  is the node's default for the ones that do not. A node with no
    *  transition of its own shows an inherited ink as it arrives, so it
    *  follows an ancestor's ramp. A duration alone is the common case:
-   *  `.transition(320ms)` eases over that long on the house curve. */
-  Derived& transition(motion::Transition transition);
+   *  `.transition(320ms)` eases over that long on the house curve.
+   *
+   *  The timing is a tween's — `.transition({.duration = 320ms, .delay =
+   *  motion::stagger(40ms), .ease = motion::ease::outBack()})` — read for
+   *  its duration, its delay resolved for this node's place among its
+   *  siblings, its curve and its composition. Its `from`, `to`, keyframes
+   *  and repeat are not read: the endpoints are each value's old and new. */
+  Derived& transition(motion::Tween<float> transition);
   Derived& transition(motion::Duration duration) {
-    return transition(motion::Transition{.duration = duration});
+    return transition(motion::Tween<float>{.duration = duration});
   }
   /** @} */
 

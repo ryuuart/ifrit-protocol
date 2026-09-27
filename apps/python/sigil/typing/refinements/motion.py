@@ -28,7 +28,6 @@ FAMILIES = (
 
 def register(table: Table) -> None:
     """Record what pybind11 erased from the motion values' signatures."""
-    table.erased(MOTION + ".Transition", "__init__ ease", "_t.EaseLike")
     for prefix, value, reading, field_type in FAMILIES:
         keyframe = f"{MOTION}.{prefix}Keyframe"
         tween = f"{MOTION}.{prefix}Tween"

@@ -252,8 +252,8 @@ void bindWorld(py::module_& root) {
               },
               py::arg("transition"), fluent,
               "The node's default transition for the plain values on it: a "
-              "Transition, or a number of seconds for one of that "
-              "duration.");
+              "Tween, whose from_ and to are not read, or a number of "
+              "seconds for one of that duration.");
   using Lane = world::Element& (world::Element::*)(motion::Animatable<float>);
   for (const auto& [name, member] :
        std::initializer_list<std::pair<const char*, Lane>>{

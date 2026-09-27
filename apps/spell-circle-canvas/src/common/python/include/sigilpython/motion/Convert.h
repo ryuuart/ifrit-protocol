@@ -15,7 +15,7 @@
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/time/Duration.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Tween.h>
 
 #include <functional>
@@ -97,9 +97,10 @@ motion::Easing motionEase(pybind11::handle value);
 /** @p curve as Python reads it back: the `Easing` class, callable and
  *  comparable under the rule two held curves compare by. */
 pybind11::object easingReading(const motion::Easing& curve);
-/** A transition read from @p value: a transition, or a number of
- *  seconds for a transition of that duration. None is the default. */
-motion::Transition motionTransition(pybind11::handle value);
+/** A transition read from @p value: a tween, whose endpoints a
+ *  transition does not read, or a number of seconds for one of that
+ *  duration. None is the default. */
+motion::Tween<float> motionTransition(pybind11::handle value);
 /** A tween of a number read from @p value, which must be one. */
 motion::Tween<float> motionTween(pybind11::handle value);
 

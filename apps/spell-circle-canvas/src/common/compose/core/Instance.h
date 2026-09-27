@@ -410,7 +410,7 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   // THE TRANSITION A MATCHED RULE STATES for this node — the strongest of
   // the rules that matched it at the last cascade pass and state one —
   // which the node's own `transition()` stands over.
-  std::optional<motion::Transition> ruleTransition;
+  std::optional<motion::Tween<float>> ruleTransition;
   // WHAT THE MATCHED RULES STATE about the properties the computed style
   // carries, as the last cascade pass found them: the layer the patch and
   // the pass both fold between the parent's answers and the node's own
@@ -424,10 +424,10 @@ struct Instance : core::Node<Instance, std::shared_ptr<ElementNode>> {
   std::vector<std::shared_ptr<ElementNode>> ruleLayerSource;
   /** How this node's values change when a describe moves them: its own
    *  `transition()`, else the one a matched rule states, else none. */
-  [[nodiscard]] const std::optional<motion::Transition>& transitionInForce()
+  [[nodiscard]] const std::optional<motion::Tween<float>>& transitionInForce()
       const {
-    return description->nodeTransition ? description->nodeTransition
-                                       : ruleTransition;
+    return description->transition() ? description->transition()
+                                     : ruleTransition;
   }
 
   // Derive-phase state

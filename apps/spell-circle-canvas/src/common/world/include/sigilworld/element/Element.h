@@ -14,7 +14,7 @@
 #include <sigilmaterial/core/Backface.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilworld/element/Environment.h>
 #include <sigilworld/element/Geometry.h>
 #include <sigilworld/light/Light.h>
@@ -248,9 +248,9 @@ class Element {
   Element& cache(core::Cache c);
   /** The node's default transition, for the plain constants on it. A
    *  duration alone is the common case: `.transition(320ms)`. */
-  Element& transition(const motion::Transition& transition);
+  Element& transition(const motion::Tween<float>& transition);
   Element& transition(motion::Duration duration) {
-    return transition(motion::Transition{.duration = duration});
+    return transition(motion::Tween<float>{.duration = duration});
   }
   /** @} */
 

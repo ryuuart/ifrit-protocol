@@ -14,7 +14,7 @@
 
 #include <sigilcore/cache/Policy.h>
 #include <sigilmotion/values/Animatable.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilworld/element/Element.h>
 #include <sigilworld/element/Geometry.h>
 #include <sigilworld/element/Transform.h>
@@ -91,7 +91,7 @@ struct ElementNode {
   std::optional<SkyDials> sky;
   std::optional<geometry::mesh::camera::Camera> camera;
   core::Cache cachePolicy = core::Cache::Auto;
-  std::optional<motion::Transition> nodeTransition;
+  std::optional<motion::Tween<float>> nodeTransition;
   std::vector<Element> children;
   std::optional<Memo> memo;
 };

@@ -468,7 +468,8 @@ void bindNodeVerbs(py::class_<Node>& element) {
           },
           py::arg("transition"), fluent,
           "How the plain values on this node ease when they change: a "
-          "Transition, or a number of seconds for one of that duration.")
+          "Tween, whose from_ and to are not read, or a number of seconds "
+          "for one of that duration.")
       .def(
           "perspectiveOrigin",
           [](Node& self, py::object x, py::object y) -> Node& {

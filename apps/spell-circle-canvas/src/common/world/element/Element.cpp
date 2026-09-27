@@ -298,7 +298,7 @@ Element& Element::cache(core::Cache c) {
   return *this;
 }
 
-Element& Element::transition(const motion::Transition& transition) {
+Element& Element::transition(const motion::Tween<float>& transition) {
   m_node->nodeTransition = transition;
   return *this;
 }

@@ -6,7 +6,7 @@
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/core/Var.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/Extend.h>
 #include <sigilpython/compose/Convert.h>

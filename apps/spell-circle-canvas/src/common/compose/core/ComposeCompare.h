@@ -84,7 +84,7 @@ using ::sigil::motion::resolveProperty;
  *  node may prune. */
 using ::sigil::motion::easeEqual;
 /** Same duration, same delay, same curve under easeEqual. */
-using ::sigil::motion::transitionEqual;
+using ::sigil::motion::tweenEqual;
 /** Did the DESCRIBED transform change between two descriptions? The lanes
  *  mirror propertiesEqual's transform block plus travel(). Defined in
  *  Reconcile.cpp beside the comparators it is built from. */

@@ -28,7 +28,6 @@ from sigil.motion import (
     Staggered,
     StaggerFrom,
     Timing,
-    Transition,
     Tween,
     Wave,
     Wiggle,
@@ -60,7 +59,7 @@ class Motion(unittest.TestCase):
             opened.append(provider)
             return progress
 
-        curve = Transition(ease=easing).ease
+        curve = Tween(ease=easing).ease
         self.assertEqual(curve(0.5), 0.5)
         self.assertFalse(opened[-1].active)
         pressure = brush.Pressure(curve=easing, variation=None)
@@ -82,14 +81,17 @@ class Motion(unittest.TestCase):
 
     def test_descriptions_keep_native_identity_and_seconds(self):
         self.assertIs(Animatable, native.Animatable)
-        self.assertIs(Transition, native.Transition)
         self.assertIs(Tween, native.Tween)
-        spec = Transition(0.8, 0.2, ease.cubicBezier(0.25, 0.1, 0.25, 1))
+        spec = Tween(duration=0.8, delay=0.2, ease=ease.cubicBezier(0.25, 0.1, 0.25, 1))
         self.assertAlmostEqual(spec.duration, 0.8)
         self.assertAlmostEqual(spec.delay, 0.2)
         # A length of time is a number of seconds or a timedelta.
         self.assertEqual(
-            Transition(timedelta(milliseconds=800), timedelta(seconds=0.2), spec.ease),
+            Tween(
+                duration=timedelta(milliseconds=800),
+                delay=timedelta(seconds=0.2),
+                ease=spec.ease,
+            ),
             spec,
         )
         self.assertEqual(spec.copy(), spec)
@@ -108,8 +110,6 @@ class Motion(unittest.TestCase):
         self.assertFalse(changed.described.isEntrance())
         self.assertEqual(changed.value, 4)
         self.assertEqual(animate(Tween(to=4)), changed)
-        with self.assertRaises(ValueError):
-            Transition(-1)
         with self.assertRaises(ValueError):
             Tween(to=1, duration=-1)
         with self.assertRaises(ValueError):

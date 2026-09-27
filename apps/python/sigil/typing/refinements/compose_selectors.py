@@ -32,7 +32,7 @@ def register(table: Table) -> None:
         statements=f"collections.abc.Iterable[{STATEMENT}]",
     )
     table.returns(SHEET, "__iter__", f"collections.abc.Iterator[{RULE}]")
-    table.erased(RULE, "transition", "_sigil.motion.Transition | _t.DurationLike")
+    table.erased(RULE, "transition", "_sigil.motion.Tween | _t.DurationLike")
     # A plain selector converts to a relative one reached anywhere under
     # the element, so every slot that takes a relative selector takes a
     # plain one too.

@@ -37,10 +37,19 @@ using Easing = std::function<float(float)>;
  *  holding one cannot be inspected.
  *
  *  ONE BODY for every curve slot in the library — a binding's map and
- *  wave, a Transition's, a Spread's distribution — because a second
+ *  wave, a Tween's, a Spread's distribution — because a second
  *  spelling of this rule would let two comparators disagree about
  *  whether the value that holds a curve may prune. */
 bool easeEqual(const Easing& left, const Easing& right);
+
+/** A value held inside [0, 1] — the range every house curve is defined
+ *  on, and the one a caller computing its own progress out of two times
+ *  or two distances keeps stepping outside of. One body, because the
+ *  three-way `std::clamp` spelled by hand is where a NaN quietly becomes
+ *  the low end. */
+inline float clamp01(float value) {
+  return value < 0.0f ? 0.0f : (value > 1.0f ? 1.0f : value);
+}
 
 }  // namespace sigil::motion
 

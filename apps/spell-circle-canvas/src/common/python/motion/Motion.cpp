@@ -10,7 +10,7 @@
 #include <sigilmotion/ease/Ease.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/compose/Convert.h>
@@ -377,13 +377,13 @@ py::object easingReading(const motion::Easing& curve) {
   return py::cast(Easing{curve});
 }
 
-motion::Transition motionTransition(py::handle value) {
+motion::Tween<float> motionTransition(py::handle value) {
   if (value.is_none()) return {};
-  if (py::isinstance<motion::Transition>(value))
-    return py::cast<motion::Transition>(value);
-  motion::Transition transition;
-  transition.duration =
-      animationTime(py::cast<motion::Duration>(value), "A transition's duration");
+  if (py::isinstance<motion::Tween<float>>(value))
+    return py::cast<motion::Tween<float>>(value);
+  motion::Tween<float> transition;
+  transition.duration = animationTime(py::cast<motion::Duration>(value),
+                                      "A transition's duration");
   return transition;
 }
 
@@ -518,40 +518,6 @@ void bindMotion(py::module_& root) {
       "on top so the velocity carries through.")
       .value("Replace", motion::Composition::Replace)
       .value("Blend", motion::Composition::Blend);
-
-  auto transition = py::class_<motion::Transition>(module, "Transition");
-  transition
-      .def(py::init([](motion::Duration duration, motion::Duration delay,
-                       py::handle easing, motion::Composition composition) {
-             return motion::Transition{
-                 animationTime(duration, "A transition's duration"),
-                 animationTime(delay, "A transition's delay"),
-                 motionEase(easing), composition};
-           }),
-           py::arg("duration") = 0.25, py::arg("delay") = 0.0,
-           py::arg("ease") = py::none(),
-           py::arg("composition") = motion::Composition::Replace)
-      .def_property(
-          "duration",
-          [](const motion::Transition& spec) { return spec.duration; },
-          [](motion::Transition& spec, motion::Duration value) {
-            spec.duration = animationTime(value, "A transition's duration");
-          })
-      .def_property(
-          "delay", [](const motion::Transition& spec) { return spec.delay; },
-          [](motion::Transition& spec, motion::Duration value) {
-            spec.delay = animationTime(value, "A transition's delay");
-          })
-      .def_property(
-          "ease",
-          [](const motion::Transition& spec) { return Easing{spec.easing()}; },
-          [](motion::Transition& spec, py::handle value) {
-            spec.ease = motionEase(value);
-          })
-      .def_readwrite("composition", &motion::Transition::composition)
-      .def("copy", [](const motion::Transition& spec) { return spec; })
-      .def("__eq__", &motion::transitionEqual, py::arg("other"));
-  copyProtocol(transition);
 
   auto tween = bindTween<float>(module, "Tween", "Keyframe");
   tween.doc() =

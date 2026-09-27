@@ -13,7 +13,7 @@
 #include <include/core/SkImageInfo.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilworld/scene/Scene.h>
 
 #include <algorithm>

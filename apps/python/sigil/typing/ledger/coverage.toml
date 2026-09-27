@@ -1183,7 +1183,7 @@ bound = "`ease` curves and Python callables"
 python = ["motion.ease.inOutCubic", "motion.Curve"]
 
 [[section.surface.item]]
-bound = "`Tween` with `Keyframe` for numbers, colours and fills, read with no engine through `at`, `rest` and `resolved`; `animate` over a tween or its fields; `Transition` and `Composition`, with read-back"
+bound = "`Tween` with `Keyframe` for numbers, colours and fills, read with no engine through `at`, `rest` and `resolved`; `animate` over a tween or its fields, and a tween as the transition a node or rule eases by; `Composition`, with read-back"
 python = [
   "motion.Tween",
   "motion.Tween.at",
@@ -1192,7 +1192,6 @@ python = [
   "motion.ColorTween",
   "motion.FillTween",
   "motion.animate",
-  "motion.Transition",
   "motion.Composition",
 ]
 

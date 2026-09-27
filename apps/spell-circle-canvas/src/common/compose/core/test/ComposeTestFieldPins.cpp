@@ -102,8 +102,8 @@ void perturb(Shape& v) {
   v = Shape(skiaShape([](SkSize) { return SkPath(); }));  // the raw-callable escape hatch
 }
 
-void perturb(std::optional<sigil::motion::Transition>& v) {
-  v = motion::Transition{};
+void perturb(std::optional<sigil::motion::Tween<float>>& v) {
+  v = motion::Tween<float>{};
 }
 
 void perturb(motion::Easing& v) { v = motion::ease::inQuad; }

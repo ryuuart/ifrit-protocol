@@ -4,7 +4,7 @@
  * every copy, a bound value read lazily through its stages (and a bound
  * value followed in turn), the Tween a described motion is — read at a
  * time with no engine, through keyframes, passes and a stagger resolved
- * for a child — the Transition, the curve comparator, and the arithmetic
+ * for a child — a tween read as a transition, the curve comparator, and the arithmetic
  * over a clock reading.
  */
 
@@ -16,7 +16,6 @@
 #include <sigilmotion/schedule/Stagger.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
-#include <sigilmotion/values/Transition.h>
 #include <sigilmotion/values/Tween.h>
 
 #include <chrono>
@@ -440,27 +439,24 @@ TEST(Values, ATweenReadWithNoEngineDrivesABoundValue) {
 }
 
 // ---------------------------------------------------------------------------
-// The Transition and the curve comparator.
+// A tween read as a transition, and the curve comparator.
 
-TEST(Values, TransitionSurvivesAnEmptyEase) {
-  // `{360ms, 220ms, {}}` — the obvious way to name a delay and keep the
-  // house curve — leaves `ease` an EMPTY std::function. Reading it raw
-  // throws bad_function_call on the first frame; easing() is the fix.
-  const Transition named{360ms, 220ms, {}};
-  EXPECT_EQ(named.duration, 360ms);
-  EXPECT_EQ(named.delay, 220ms);
+TEST(Values, ATransitionSurvivesAnEmptyEase) {
+  // `{.duration = 360ms, .delay = 220ms, .ease = {}}` — the obvious way to
+  // name a delay and keep the house curve — leaves `ease` an EMPTY
+  // std::function. Reading it raw throws bad_function_call on the first
+  // frame; easing() is the fix.
+  const Tween<float> named{.duration = 360ms, .delay = 220ms, .ease = {}};
+  EXPECT_EQ(named.duration.value(), 360ms);
+  EXPECT_EQ(named.delay.value(), 220ms);
   EXPECT_FALSE((bool)named.ease);
   EXPECT_TRUE((bool)named.easing());
   EXPECT_NEAR(named.easing()(0.5f), ease::outQuad(0.5f), 1e-6f);
   EXPECT_EQ(named.composition, Composition::Replace);
 
-  const Transition spec{.duration = 200ms, .ease = ease::outBack()};
+  const Tween<float> spec{.duration = 200ms, .ease = ease::outBack()};
   EXPECT_GT(spec.easing()(0.8f), 1.0f);  // overshoot, then settle
   EXPECT_NEAR(spec.easing()(1.0f), 1.0f, 1e-5f);
-
-  // The same rule on a tween.
-  const Tween<float> tween{.to = 1.0f, .ease = {}};
-  EXPECT_NEAR(tween.easing()(0.5f), ease::outQuad(0.5f), 1e-6f);
 }
 
 TEST(Values, AShapedCurveComparesEqualAtTheSameSettings) {
@@ -492,11 +488,12 @@ TEST(Values, AShapedCurveComparesEqualAtTheSameSettings) {
   EXPECT_FLOAT_EQ(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)(1.0f), 1.0f);
   EXPECT_GT(ease::cubicBezier(0.25f, 0.1f, 0.25f, 1.0f)(0.5f), 0.5f);
   // A transition that only differs by a curve's SETTING must not prune.
-  EXPECT_TRUE(transitionEqual({.ease = ease::outBack(1.7f)},
-                              {.ease = ease::outBack(1.7f)}));
-  EXPECT_FALSE(transitionEqual({.ease = ease::outBack(1.7f)},
-                               {.ease = ease::outBack(3.0f)}));
-  EXPECT_FALSE(transitionEqual({}, {.composition = Composition::Blend}));
+  EXPECT_TRUE(tweenEqual(Tween<float>{.ease = ease::outBack(1.7f)},
+                         Tween<float>{.ease = ease::outBack(1.7f)}));
+  EXPECT_FALSE(tweenEqual(Tween<float>{.ease = ease::outBack(1.7f)},
+                          Tween<float>{.ease = ease::outBack(3.0f)}));
+  EXPECT_FALSE(
+      tweenEqual(Tween<float>{}, Tween<float>{.composition = Composition::Blend}));
 }
 
 // ---------------------------------------------------------------------------

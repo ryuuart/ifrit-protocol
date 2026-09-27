@@ -56,6 +56,14 @@ struct Keyframe {
  *      animate({.to = lifted ? -8.0f : 0.0f})                   // eases on change
  *      animate({.from = 0.8f, .keyframes = {{.to = 1.07f, .duration = 80ms},
  *                                           {.to = 1.0f}}})     // a path
+ *      element.transition({.duration = 320ms, .ease = ease::outBack()})
+ *
+ *  A TWEEN WITH NO ENDPOINTS IS A TRANSITION: the timing every plain value
+ *  on a node eases by when a later description changes it. A consumer
+ *  that takes a tween that way reads its `duration`, `delay` (a
+ *  `stagger()` resolved for the child), curve and `composition`, and
+ *  ignores `from`, `to`, the keyframes and the repeat, because the
+ *  endpoints are the value's own old and new.
  *
  *  TWO SHAPES, ONE STRUCT, and the difference is the whole grammar:
  *

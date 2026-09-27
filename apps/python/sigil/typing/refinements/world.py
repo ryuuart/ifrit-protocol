@@ -28,7 +28,7 @@ def children(self, *children: Element) -> Element: ...
         "_t.ScalarLike",
     )
     table.erased(ELEMENT, "emission", "_t.ScalarLike", "_t.ScalarLike", "_t.ScalarLike")
-    table.erased(ELEMENT, "transition", "_sigil.motion.Transition | _t.DurationLike")
+    table.erased(ELEMENT, "transition", "_sigil.motion.Tween | _t.DurationLike")
     table.parameters(ELEMENT + ".at", position="_t.Vec3Like")
     table.parameters(ELEMENT + ".transformOrigin", origin="_t.Vec3Like")
     table.parameters(ELEMENT + ".rotate", axis="_t.Vec3Like")

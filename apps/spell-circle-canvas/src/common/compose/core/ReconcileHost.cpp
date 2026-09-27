@@ -118,7 +118,7 @@ void detail::warnIgnoredMemoShellProps(const ElementNode& shell) {
        })},
       {"a decoration",
        !shell.backgrounds.empty() || !shell.foregrounds.empty()},
-      {"a transition", shell.nodeTransition.has_value()},
+      {"a transition", shell.transition().has_value()},
       {"a child", !shell.children.empty()},
       {"a mask, overlay or effect", (bool)shell.fxData},
       {"a stroke pass", (bool)shell.strokeData},

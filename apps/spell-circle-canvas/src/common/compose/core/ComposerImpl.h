@@ -579,7 +579,7 @@ struct Composer::Impl {
    *  from. */
   void retargetInk(detail::Instance& inst,
                    const std::optional<material::Color>& target,
-                   const std::optional<motion::Transition>& nodeTransition,
+                   const std::optional<motion::Tween<float>>& nodeTransition,
                    bool recordOnly);
   /** A patch: the property lanes, then the positional families a changed
    *  description brings. */

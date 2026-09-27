@@ -282,9 +282,9 @@ class Rules(unittest.TestCase):
         )
 
     def test_a_rule_states_the_transition_a_class_toggle_eases_over(self):
-        eased = compose.rule(".panel").transition(motion.Transition(0.2))
+        eased = compose.rule(".panel").transition(motion.Tween(duration=0.2))
         self.assertEqual(
-            eased, compose.rule(".panel").transition(motion.Transition(0.2))
+            eased, compose.rule(".panel").transition(motion.Tween(duration=0.2))
         )
         self.assertNotEqual(eased, compose.rule(".panel"))
 

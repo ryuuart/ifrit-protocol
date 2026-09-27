@@ -23,8 +23,8 @@ namespace sigil::compose {
 
 Rule::Rule(ElementSelector subject) : m_selector(std::move(subject)) {}
 
-Rule& Rule::transition(motion::Transition how) {
-  m_node->nodeTransition = std::move(how);
+Rule& Rule::transition(motion::Tween<float> how) {
+  m_node->nodeTransition.ensure() = std::move(how);
   return *this;
 }
 
@@ -77,8 +77,8 @@ const VarTable& Rule::vars() const {
   return cascade ? cascade->vars : none;
 }
 
-const std::optional<motion::Transition>& Rule::transition() const {
-  return node()->nodeTransition;
+const std::optional<motion::Tween<float>>& Rule::transition() const {
+  return node()->transition();
 }
 
 bool Rule::operator==(const Rule& other) const {

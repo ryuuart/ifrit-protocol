@@ -719,7 +719,7 @@ void Composer::Impl::resolveCascade(
   // with a lane of its own, over its own duration, as it eases a fill.
   const std::optional<material::Color> inkTarget =
       statesOwnInk ? font.color : parentInkTarget;
-  const std::optional<motion::Transition>& inkTransition =
+  const std::optional<motion::Tween<float>>& inkTransition =
       inst.transitionInForce();
   retargetInk(inst, inkTarget, inkTransition, first);
   // …and the colour this node shows is read here, so every node under it

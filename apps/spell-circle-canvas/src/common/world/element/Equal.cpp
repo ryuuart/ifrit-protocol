@@ -159,7 +159,7 @@ bool propertiesEqual(const ElementNode& a, const ElementNode& b) {
   if (a.nodeTransition.has_value() != b.nodeTransition.has_value())
     return false;
   if (a.nodeTransition &&
-      !motion::transitionEqual(*a.nodeTransition, *b.nodeTransition))
+      !motion::tweenEqual(*a.nodeTransition, *b.nodeTransition))
     return false;
   // `memo` is compared earlier and more strictly by the reconciler, and
   // `children` are reconciled by key rather than compared.

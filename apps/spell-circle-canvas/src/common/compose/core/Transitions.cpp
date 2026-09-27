@@ -260,7 +260,7 @@ void Composer::Impl::retargetProperties(Instance& inst, StyledNode prev,
 
 void Composer::Impl::retargetInk(
     Instance& inst, const std::optional<material::Color>& target,
-    const std::optional<motion::Transition>& nodeTransition, bool recordOnly) {
+    const std::optional<motion::Tween<float>>& nodeTransition, bool recordOnly) {
   const std::optional<material::Color> previous = inst.inkTarget;
   inst.inkTarget = target;
   auto& anim = inst.anims[Instance::kInkLerp];
@@ -287,7 +287,8 @@ void Composer::Impl::retargetInk(
     from = material::mixToward(a, b, t, a.a + (b.a - a.a) * t);
   }
   inst.inkFrom = from;
-  motion::progress(engine, anim, *nodeTransition);
+  motion::progress(engine, anim,
+                   motion::transitionOf(*nodeTransition, inst.mountPlace));
 }
 
 void Composer::Impl::applyTransitions(Instance& inst, StyledNode prev) {

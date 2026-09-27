@@ -64,8 +64,12 @@ duration divided by the number of keyframes; one with no curve takes the
 tween's. `Tween::rest()` is where it comes to rest, and `Composition`
 says what a change mid-flight does to the motion already running —
 `Replace` starts again from the value on screen, `Blend` adds the change
-on top so its velocity carries. `Transition` is the same timing for every
-plain value on a node, and a consumer's `.transition(320ms)` takes a
+on top so its velocity carries. A tween with no endpoints is a
+TRANSITION: the timing every plain value on a node eases by when a later
+description changes it, read for its duration, its delay (a `stagger()`
+resolved for the child), its curve and its composition — `from`, `to`,
+the keyframes and the repeat are not read, because the endpoints are the
+value's own old and new. A consumer's `.transition(320ms)` takes a
 duration alone.
 
 A tween moves between two values of `T` along ONE line, `interpolate()`
@@ -201,8 +205,8 @@ it is the signal a host sleeps on.
 
 ## Gotchas
 
-`Transition` and `Tween` are aggregates, so `.ease = {}` value-initialises
+`Tween` is an aggregate, so `.ease = {}` value-initialises
 the curve to an *empty* `Easing`, which compiles and then throws
 `bad_function_call` when called. Read the curve through
-`Transition::easing()` or `Tween::easing()`, which substitute the
+`Tween::easing()`, which substitutes the
 default; never read `ease` directly.

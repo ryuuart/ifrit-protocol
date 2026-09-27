@@ -28,7 +28,7 @@
 #include <sigilcompose/core/verbs/TextStyle.h>
 #include <sigilcompose/core/verbs/Transform.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/paragraph/Unit.h>
 #include <sigilweave/style/Type.h>
@@ -83,10 +83,12 @@ class Rule : public detail::Declaring,
    *  toggle that recolours or resizes an element eases rather than
    *  snapping. The element's own `transition()` stands over it, and
    *  among matched rules the strongest that states one wins. A duration
-   *  alone is the common case: `.transition(180ms)`. */
-  Rule& transition(motion::Transition how);
+   *  alone is the common case: `.transition(180ms)`. It is a tween read
+   *  for its timing, as the element's is: its `from`, `to`, keyframes and
+   *  repeat are not read. */
+  Rule& transition(motion::Tween<float> how);
   Rule& transition(motion::Duration duration) {
-    return transition(motion::Transition{.duration = duration});
+    return transition(motion::Tween<float>{.duration = duration});
   }
 
   // What a rule cannot carry, refused where it is written. Each is kept
@@ -120,7 +122,7 @@ class Rule : public detail::Declaring,
   /** The custom properties it sets. */
   [[nodiscard]] const VarTable& vars() const;
   /** The transition it states, where it states one. */
-  [[nodiscard]] const std::optional<motion::Transition>& transition() const;
+  [[nodiscard]] const std::optional<motion::Tween<float>>& transition() const;
 
   [[nodiscard]] bool operator==(const Rule& other) const;
 

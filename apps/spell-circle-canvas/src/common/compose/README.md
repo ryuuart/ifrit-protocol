@@ -139,14 +139,13 @@ the argument.
 #include <sigilcompose/Compose.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/typography/Typography.h>
-#include <sigilmotion/values/Keyframes.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 
 #include <ranges>
 #include <vector>
 
-// Compose re-exports nothing: the motion words (`animate`, `to`,
-// `Transition`, `bind`) are SigilMotion's and the text style is
+// Compose re-exports nothing: the motion words (`animate`, `Tween`,
+// `bind`) are SigilMotion's and the text style is
 // SigilWeave's, each spelled from its own library.
 using namespace sigil::compose;
 using namespace sigil::motion;

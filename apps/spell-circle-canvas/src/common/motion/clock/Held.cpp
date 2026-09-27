@@ -194,7 +194,7 @@ float valueOf(const HeldMotion* animated, const Animatable<float>& property) {
 bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
                        const Animatable<float>& previousValue,
                        const Animatable<float>& nextValue,
-                       const std::optional<Transition>& fallback,
+                       const std::optional<Tween<float>>& fallback,
                        Place place) {
   ResolvedProperty<float> prev = resolveProperty(previousValue, fallback, place);
   ResolvedProperty<float> next = resolveProperty(nextValue, fallback, place);
@@ -223,14 +223,14 @@ bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
   if (anim && anim->started && anim->isRunning() && anim->target == next.target)
     return true;
   const float current = anim && anim->started ? anim->value() : prev.target;
-  const Transition& how = *next.transition;
+  const Tween<float>& how = *next.transition;
   // BLEND: the change rides on top of the motion already running, so its
   // velocity carries through instead of stopping at the retarget.
   if (how.composition == Composition::Blend && anim && anim->started &&
       anim->isRunning() && anim->running) {
     auto& ramp = static_cast<Ramp&>(*anim->running);
-    ramp.blend(next.target - anim->target, segmentSeconds(how.delay),
-               segmentSeconds(how.duration), how.easing());
+    ramp.blend(next.target - anim->target, segmentSeconds(how.delay.value()),
+               segmentSeconds(how.duration.value()), how.easing());
     anim->target = next.target;
     return true;
   }
@@ -249,12 +249,12 @@ bool retarget(Engine& engine, std::unique_ptr<HeldMotion>& held,
   anim->live = current;  // seed the retarget start point
   anim->started = true;
   anim->target = next.target;
-  const float delay = segmentSeconds(how.delay);  // the stagger primitive
+  const float delay = segmentSeconds(how.delay.value());  // the stagger primitive
   start(engine, *anim,
         std::make_shared<Ramp>(
             anim->live.cell(), current, delay > 0 ? delay : 0.0,
             std::vector<Ramp::Segment>{{current, next.target,
-                                        segmentSeconds(how.duration),
+                                        segmentSeconds(how.duration.value()),
                                         how.easing()}},
             1, false));
   return true;
@@ -310,17 +310,17 @@ bool isRunning(const HeldMotion* animated, const Animatable<float>& property) {
 }
 
 void progress(Engine& engine, std::unique_ptr<HeldMotion>& held,
-                  const Transition& spec) {
+                  const Tween<float>& spec) {
   if (!held) held = std::make_unique<HeldMotion>();
   held->live = 0.0f;
   held->started = true;
   held->target = 1.0f;
-  const float delay = segmentSeconds(spec.delay);
+  const float delay = segmentSeconds(spec.delay.value());
   start(engine, *held,
         std::make_shared<Ramp>(
             held->live.cell(), 0.0f, delay > 0 ? delay : 0.0,
             std::vector<Ramp::Segment>{
-                {0.0f, 1.0f, segmentSeconds(spec.duration), spec.easing()}},
+                {0.0f, 1.0f, segmentSeconds(spec.duration.value()), spec.easing()}},
             1, false));
 }
 

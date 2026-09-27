@@ -26,7 +26,7 @@
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Tween.h>
-#include <sigilmotion/values/Transition.h>
+#include <sigilmotion/values/Tween.h>
 #include <sigilweave/layout/ParagraphBlock.h>
 #include <sigilweave/layout/ParagraphLayout.h>
 #include <sigilweave/style/Style.h>

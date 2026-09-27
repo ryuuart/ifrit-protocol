@@ -421,7 +421,7 @@ TEST(ComposeBindings, AFillCanBeBoundLive) {
 }
 
 TEST(ComposeMotion, AnEmptyEasingMeansTheDefaultRatherThanACrash) {
-  // motion::Transition is an aggregate, so `{360ms, {}, 220ms}` — the obvious
+  // motion::Tween<float> is an aggregate, so `{360ms, {}, 220ms}` — the obvious
   // way to write "default curve, but I need to name the delay" — initialises
   // `ease` to an EMPTY std::function. It compiles, so the only options are
   // throwing bad_function_call on the first frame or treating empty as "the

@@ -206,7 +206,7 @@ how a node's plain values change, never what moves.
 
 | Verb | What it says |
 |---|---|
-| `transition` | The node's default transition for the plain constants set on it — `.transition(320ms)`, or a whole `motion::Transition`. |
+| `transition` | The node's default transition for the plain constants set on it — `.transition(320ms)`, or a `motion::Tween<float>` read for its timing alone (its `from` and `to` are not read). |
 
 ## Caching
 

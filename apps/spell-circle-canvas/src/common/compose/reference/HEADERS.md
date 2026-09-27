@@ -296,8 +296,8 @@ sound model; nothing below them changes kernel semantics.
 
 **The animation vocabulary is SigilMotion's and is spelled that way.**
 `motion::Animatable` is the property slot every setter here takes,
-`motion::Transition` the eased change, `motion::animate` the one
-description of a motion (a `motion::Tween`), `motion::animatable` a live
+`motion::animate` the one description of a motion (a `motion::Tween`,
+which with no endpoints is also the eased change a `transition` takes), `motion::animatable` a live
 value, `motion::bind` a live value followed through a `motion::Binding`,
 and `motion::ease::` the curves — each from the SigilMotion header that
 declares it, under `<sigilmotion/values/>` and `<sigilmotion/bind/>`. A

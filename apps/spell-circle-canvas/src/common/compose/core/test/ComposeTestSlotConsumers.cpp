@@ -199,7 +199,7 @@ std::vector<uint32_t> pixels(Host& host, int w = 200, int h = 200) {
   return out;
 }
 
-const sigil::motion::Transition kSecondFlat{.duration = 1000ms, .ease = sigil::motion::ease::linear};
+const sigil::motion::Tween<float> kSecondFlat{.duration = 1000ms, .ease = sigil::motion::ease::linear};
 
 }  // namespace
 

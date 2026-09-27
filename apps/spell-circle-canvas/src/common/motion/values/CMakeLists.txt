@@ -1,6 +1,6 @@
 # The animation values: Tween and animate(), the one description of a
 # motion — readable at any time with no engine, so it reads the same in a
-# describe, in a bake and in a test — Transition, phase(), quantizeTime()
+# describe, in a bake and in a test — phase(), quantizeTime()
 # and the Oscillator; Animatable<T>, the one noun for a value that changes
 # over time, which can hold a shaped binding (hence it links the bind
 # leaf) and a staggered tween (hence the schedule). What RUNS a value is
@@ -12,9 +12,8 @@
 # leaves over the standard library (Boost.PFR aside): no kernel, no
 # device, nothing that draws.
 sigil_library(SigilMotionValues
-  SOURCES Transition.cpp
-  HEADERS Animatable.h Interpolate.h Oscillator.h Spring.h Tween.h Time.h Transition.h
-  PUBLIC SigilMotionBind SigilMotionSchedule SigilMotionTime SigilCoreComparable
+  HEADERS Animatable.h Interpolate.h Oscillator.h Spring.h Tween.h Time.h
+  INTERFACE SigilMotionBind SigilMotionSchedule SigilMotionTime SigilCoreComparable
          SigilCoreCompute)
 
 # Links the values alone, and nothing that
