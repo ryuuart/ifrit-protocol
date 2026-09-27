@@ -55,7 +55,7 @@ enum class InputType : uint8_t {
 
 /** The control the author asked for, for a tool that builds one. */
 enum class Widget : uint8_t {
-  None,
+  Unspecified,  ///< the author named no widget
   Slider,
   Angle,
   Color,
@@ -84,7 +84,7 @@ struct Input {
   std::string group;
   std::string description;
   InputType type = InputType::Other;
-  Widget widget = Widget::None;
+  Widget widget = Widget::Unspecified;
   std::vector<float> defaultValue;
   std::vector<float> minimum;
   std::vector<float> maximum;

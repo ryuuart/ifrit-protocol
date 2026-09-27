@@ -76,7 +76,7 @@ TEST(SketchGuest, WithNothingPublishingThereIsNoTextureToDressABodyWith) {
   // A body's answer is the page's: no picture, and a texture a scene
   // reads as empty rather than one naming nothing.
   EXPECT_FALSE(guest.texture().valid());
-  EXPECT_EQ(guest.texture().image(), nullptr);
+  EXPECT_FALSE(guest.texture().frameAt({}).image);
   EXPECT_FALSE(guest.publishing());
 
   // The read is what reconnects too, so it answers the same twice.

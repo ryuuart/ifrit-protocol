@@ -64,7 +64,7 @@ Widget widgetOf(air::InputWidget widget) {
     case air::Input_Position:
       return Widget::Position;
     default:
-      return Widget::None;
+      return Widget::Unspecified;
   }
 }
 

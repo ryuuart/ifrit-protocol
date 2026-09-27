@@ -94,7 +94,7 @@ void bindMaterialSubstance(py::module_& module) {
       .value("Text", InputType::Text)
       .value("Other", InputType::Other);
   py::enum_<Widget>(sbsar, "Widget")
-      .value("None", Widget::None)
+      .value("Unspecified", Widget::Unspecified)
       .value("Slider", Widget::Slider)
       .value("Angle", Widget::Angle)
       .value("Color", Widget::Color)

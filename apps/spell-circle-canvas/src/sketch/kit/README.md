@@ -705,8 +705,8 @@ sketch::kit::frame({.width = Dimension(275), .height = Dimension(116), .bezel = 
                     .plate = "MAIN WINDOW"}, tape);
 ```
 
-`Backdrop::over` is the canvas — a vignette is a fact about an extent,
-which is the one thing here a theme cannot carry. `Frame::keyline` unset
+`Backdrop::vignette` is measured out from the middle of the box the
+backdrop covers, so it needs no extent. `Frame::keyline` unset
 is the theme's rule and `Fill::none()` draws none, which is what a shell
 whose only rule runs round its OUTER edge asks for.
 
