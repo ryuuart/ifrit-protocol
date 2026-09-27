@@ -9,12 +9,11 @@
 
 #include <sigilcompose/core/Core.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Paint.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilsketch/canvas/Sketch.h>
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
-namespace skia = sigil::material::skia;
 
 using namespace sigil::compose;
 
@@ -27,13 +26,13 @@ constexpr material::Color kAsh = material::hexColor(0x7e8f9c);
 /** The chrome ramp, authored once in the unit square: the horizon sits
  *  where the ramp's middle stops meet, and lands on the capitals at
  *  whatever size the word is set. */
-material::Paint chrome() {
-  return material::Paint::linearGradient({0, 0}, {0, 1},
-                                     {{0.00f, material::hexColor(0xf2f6f8)},
-                                      {0.46f, material::hexColor(0x8fa6b4)},
-                                      {0.52f, material::hexColor(0x2b3d4a)},
-                                      {0.58f, material::hexColor(0xcfe0e8)},
-                                      {1.00f, material::hexColor(0x6d8593)}});
+material::Material chrome() {
+  return material::linearGradient({0, 0}, {0, 1},
+                                  {{0.00f, material::hexColor(0xf2f6f8)},
+                                   {0.46f, material::hexColor(0x8fa6b4)},
+                                   {0.52f, material::hexColor(0x2b3d4a)},
+                                   {0.58f, material::hexColor(0xcfe0e8)},
+                                   {1.00f, material::hexColor(0x6d8593)}});
 }
 
 }  // namespace
