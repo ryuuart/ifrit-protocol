@@ -3,7 +3,7 @@
  * and the environment as a mesh painter takes it.
  */
 
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilworld/frame/View.h>

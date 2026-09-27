@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup material-core
+ * @ingroup material-advanced
  *
  * Leaf — a child that no recipe computes: an image with its sampling, a
  * rendered frame, anything a backend binds into a slot directly rather

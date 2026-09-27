@@ -5,6 +5,7 @@
 // against Composer::beatsOf, because the pass and that query resolve one
 // TrackCascade and must never disagree.
 
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/skia/Paint.h>
 

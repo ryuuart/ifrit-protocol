@@ -16,7 +16,7 @@
  */
 
 #include <sigilmaterial/core/Gradient.h>
-#include <sigilmaterial/core/Leaf.h>
+#include <sigilmaterial/advanced/Leaf.h>
 #include <sigilmedia/core/Frame.h>
 #include <sigilmedia/core/PixelSource.h>
 

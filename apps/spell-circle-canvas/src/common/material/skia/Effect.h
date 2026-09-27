@@ -19,7 +19,7 @@
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 

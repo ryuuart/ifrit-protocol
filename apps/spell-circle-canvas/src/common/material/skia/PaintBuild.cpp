@@ -11,7 +11,7 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <algorithm>

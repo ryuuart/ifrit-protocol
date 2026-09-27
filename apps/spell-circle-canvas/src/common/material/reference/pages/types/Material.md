@@ -119,7 +119,7 @@ without a cache lookup.
 ## See also
 
 - `core/Material.h` — the header: `Material`
-- `core/Leaf.h` — the header: `Leaf`
+- `advanced/Leaf.h` — the header: `Leaf`
 - `surface/Surface.h` — the header the Python door comes from: `program`,
   `unlit`, `SurfaceParameters`
 - [Paint](value:sigil::material::Paint) — the paint model a

@@ -22,7 +22,7 @@
 #include <include/core/SkM44.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/render/Painter.h>
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilshaders/GeometryMeshRenderDevice.h>

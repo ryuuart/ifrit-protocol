@@ -10,7 +10,7 @@
 
 #include "sigilmaterial/mask/Mask.h"
 
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilshaders/MaterialMask.h>
 
 #include <string>

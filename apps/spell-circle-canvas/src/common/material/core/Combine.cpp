@@ -4,9 +4,9 @@
  * builder that fills the slots either way.
  */
 
-#include "sigilmaterial/core/Combine.h"
+#include "sigilmaterial/advanced/Combine.h"
 
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilshaders/MaterialCore.h>
 
 #include <boost/container/flat_map.hpp>

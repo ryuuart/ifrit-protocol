@@ -14,7 +14,7 @@
 #include <include/core/SkTypes.h>  // SkDebugf
 #include <include/effects/SkGradient.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/core/Program.h>  // reportOnce
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/MaterialSkia.h>
 

@@ -10,8 +10,8 @@
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
-#include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Combine.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>

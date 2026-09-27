@@ -33,9 +33,11 @@ find_package(glm CONFIG REQUIRED)
 sigil_library(SigilMaterialCore
   SOURCES BlendMode.cpp Combine.cpp Gradient.cpp Lighting.cpp Material.cpp Parameters.cpp Program.cpp Recipe.cpp Terms.cpp
           ${SIGIL_MATERIAL_SHADING_PROOF}
-  HEADERS Backface.h Bank.h BlendMode.h Combine.h FrameData.h Gradient.h Leaf.h Lighting.h
-          Material.h Parameters.h Program.h Recipe.h Target.h Terms.h
-          UniformBlock.h
+  HEADERS Backface.h BlendMode.h Gradient.h Lighting.h Material.h
+          Parameters.h Target.h
+          ../advanced/Bank.h ../advanced/Combine.h ../advanced/FrameData.h
+          ../advanced/Leaf.h ../advanced/Program.h ../advanced/Recipe.h
+          ../advanced/Terms.h ../advanced/UniformBlock.h
   PUBLIC SigilMaterialColor SigilMotionValues glm::glm Boost::pfr
          Boost::container
   PRIVATE Boost::unordered SigilCoreSchedule)

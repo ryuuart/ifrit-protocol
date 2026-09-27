@@ -12,7 +12,7 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcore/reconcile/Environment.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <memory>
 #include <sigilmaterial/skia/Paint.h>

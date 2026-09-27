@@ -7,6 +7,7 @@
 #include <include/core/SkCanvas.h>
 #include <sigilgeometry/mesh/pop/Pop.h>
 #include <sigilgeometry/mesh/render/Painter.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <glm/mat4x4.hpp>
 #include <utility>

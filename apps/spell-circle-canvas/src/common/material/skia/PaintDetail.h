@@ -19,8 +19,8 @@
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/FrameData.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <glm/mat3x3.hpp>
 

@@ -11,9 +11,9 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 
 #include <cstddef>
 #include <memory>

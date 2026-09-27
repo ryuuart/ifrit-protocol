@@ -53,11 +53,17 @@ built, each copying on write, has a page of its own.
 | [`bleed`](pages/verbs/bleed.md) | How far the node paints beyond its own box. | `skia/Paint.h` |
 | [`quantizeTime`](pages/verbs/quantizeTime.md) | The injected clock, stepped. | `skia/Paint.h` |
 
+## The shader
+
+| Function | What it does | Header |
+|---|---|---|
+| [`shader`](pages/functions/shader.md) | A shader's source over a parameter struct, as one material. | `program/Shader.h` |
+
 ## The combinator
 
 | Function | What it does | Header |
 |---|---|---|
-| [`over`](pages/functions/over.md) | One material stacked over another through a mask, as one material. | `core/Combine.h` |
+| [`over`](pages/functions/over.md) | One material stacked over another through a mask, as one material. | `advanced/Combine.h` |
 
 ## The headers these come from
 
@@ -70,7 +76,8 @@ built, each copying on write, has a page of its own.
 - `color/Extract.h` — `palette`, `closestEntry`, `PaletteOptions`
 - `core/Backface.h` — `Backface`
 - `core/Material.h` — `Material`
-- `core/Leaf.h` — `Leaf`
+- `program/Shader.h` — `shader`, `ShaderOptions`, `ShaderTexture`
+- `advanced/Leaf.h` — `Leaf`
 - `core/Gradient.h` — `ColorStops`, `GradientOptions`, `GradientUnits`,
   `RadialExtent`, `Repeat`
 - `skia/Paint.h` — `Paint`, `FrameData`, `Fit`

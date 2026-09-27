@@ -11,8 +11,8 @@
  * carries the `Portable` and `Shading` modules by name.
  */
 
-#include <sigilmaterial/core/Program.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Program.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <boost/container/map.hpp>
 #include <cstddef>

@@ -6,7 +6,7 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Board.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <memory>
 #include <sigilmaterial/skia/Paint.h>

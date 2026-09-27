@@ -7,7 +7,7 @@
 
 #include <utility>
 
-#include "sigilmaterial/core/Program.h"  // reportOnce
+#include "sigilmaterial/advanced/Program.h"  // reportOnce
 
 namespace sigil::material {
 

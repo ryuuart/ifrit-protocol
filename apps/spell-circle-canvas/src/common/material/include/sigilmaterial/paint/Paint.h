@@ -20,7 +20,7 @@
 #include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/core/Gradient.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <array>

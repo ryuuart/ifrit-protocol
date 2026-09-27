@@ -5,7 +5,7 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/surface/Surface.h>

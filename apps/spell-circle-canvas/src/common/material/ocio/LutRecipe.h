@@ -6,7 +6,7 @@
  * so a consumer never names either.
  */
 
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <memory>
 

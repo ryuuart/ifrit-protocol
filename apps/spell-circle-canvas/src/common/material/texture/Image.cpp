@@ -6,7 +6,7 @@
 
 #include "sigilmaterial/texture/Image.h"
 
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <memory>

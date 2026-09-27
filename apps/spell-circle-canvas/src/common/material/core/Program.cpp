@@ -3,7 +3,7 @@
  * once-per-key reporting of what could not be built.
  */
 
-#include "sigilmaterial/core/Program.h"
+#include "sigilmaterial/advanced/Program.h"
 
 #include <sigilcore/schedule/Parallel.h>
 

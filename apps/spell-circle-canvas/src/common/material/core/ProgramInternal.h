@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 
 namespace sigil::material::detail {
 

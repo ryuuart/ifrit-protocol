@@ -20,7 +20,7 @@
 #include <pxr/usd/usdShade/shader.h>
 #include <sigilmedia/image/Encode.h>
 #include <sigilio/source/Sink.h>
-#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/surface/Surface.h>
 
 #include <cmath>

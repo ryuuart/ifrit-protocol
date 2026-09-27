@@ -9,6 +9,7 @@
 
 #include <include/core/SkTypes.h>
 #include <sigilcompose/typography/TextEffect.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <utility>

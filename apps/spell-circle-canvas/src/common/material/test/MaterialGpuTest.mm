@@ -23,8 +23,8 @@
  */
 
 #include <sigilcore/hardware/GpuDevice.h>
-#include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/core/Terms.h>
+#include <sigilmaterial/advanced/Combine.h>
+#include <sigilmaterial/advanced/Terms.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/mask/Mask.h>

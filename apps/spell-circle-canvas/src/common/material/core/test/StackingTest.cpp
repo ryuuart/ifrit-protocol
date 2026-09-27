@@ -5,11 +5,11 @@
 
 #include <gtest/gtest.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Bank.h>
-#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/advanced/Bank.h>
+#include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Program.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Program.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Target.h>
 
 #include <cstddef>

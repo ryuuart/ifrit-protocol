@@ -15,7 +15,7 @@
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmaterial/paint/Paint.h>
 #include <sigilmotion/values/Animatable.h>
 

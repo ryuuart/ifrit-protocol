@@ -79,7 +79,7 @@ never combined.
 
 ## See also
 
-- `core/Combine.h` — the header: `over`, `under`, `stackDepth`,
+- `advanced/Combine.h` — the header: `over`, `under`, `stackDepth`,
   `OverParameters`, `overRecipe`, `stackName`; `core/BlendMode.h` —
   `BlendMode`, `name`
 - [Material](../types/Material.md) — what a stack is made of and answers

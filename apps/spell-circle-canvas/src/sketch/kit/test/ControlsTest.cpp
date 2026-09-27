@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/substance/Substance.h>
 #include <sigilsketch/kit/Kit.h>
 

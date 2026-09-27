@@ -1,14 +1,14 @@
 #pragma once
 
 /** @file
- * @ingroup material-core
+ * @ingroup material-advanced
  *
  * Program — a compiled recipe as a type-erased handle — and the one cache
  * that builds and keeps them, keyed by recipe identity, target and
  * variant, through the compilers renderers register per target.
  */
 
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Target.h>
 
 #include <functional>

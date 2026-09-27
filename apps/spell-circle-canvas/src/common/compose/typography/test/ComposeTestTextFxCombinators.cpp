@@ -4,6 +4,8 @@
 //
 // The text binary's share of the content suites, one file per subject.
 
+#include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <memory>

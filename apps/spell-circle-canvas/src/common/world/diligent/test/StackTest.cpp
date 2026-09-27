@@ -11,8 +11,8 @@
  */
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/core/Combine.h>
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/Combine.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilworld/diligent/Runtime.h>

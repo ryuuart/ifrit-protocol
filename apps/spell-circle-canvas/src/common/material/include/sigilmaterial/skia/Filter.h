@@ -15,7 +15,7 @@
 #include <include/core/SkImageInfo.h>
 #include <include/core/SkRefCnt.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 

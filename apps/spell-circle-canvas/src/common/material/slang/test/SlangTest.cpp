@@ -4,7 +4,7 @@
 // body compiles as the surface a device renderer asks it for.
 
 #include <gtest/gtest.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilshaders/MaterialSlang.h>
 

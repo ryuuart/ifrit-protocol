@@ -7,7 +7,7 @@
  * name of theirs is spelled `::slang::` here.
  */
 
-#include <sigilmaterial/core/Terms.h>
+#include <sigilmaterial/advanced/Terms.h>
 #include <sigilmaterial/slang/SlangCompiler.h>
 #include <sigilshaders/MaterialSlang.h>
 #include <slang-com-ptr.h>

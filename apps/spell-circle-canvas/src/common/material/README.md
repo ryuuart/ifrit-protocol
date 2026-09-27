@@ -19,7 +19,7 @@ and no named looks — a look belongs to the sketch that uses it.
 #include <sigilmaterial/field/Field.h>      // noise
 #include <sigilmaterial/filter/Filter.h>    // Filter
 #include <sigilmaterial/paint/Bases.h>      // linearGradient, radialGradient, conicGradient
-#include <sigilmaterial/program/Program.h>  // program
+#include <sigilmaterial/program/Shader.h>   // shader
 #include <sigilmaterial/texture/Image.h>    // image
 
 namespace material = sigil::material;
@@ -35,9 +35,12 @@ material::Material steel = material::from(material::hexColor(0xB8BDC4))
                  .then(Filter::stroke(rim, {.width = 1})));
 
 material::image(pixels, {.repeat = material::Repeat::Repeat});      // a media::PixelSource
-material::Material ember =
-    material::program(hub, "res://ember.sksl", Ember{.heat = 0.6f});  // a recipe body in a file
-ember.set("heat", 0.8f).bind("heat", flicker);                        // a program base's parameters
+
+// A shader: its source and a struct whose fields are its uniforms.
+struct Ember { float heat = 0.5f; material::Color ink = {1, 0.4f, 0.1f, 1}; };
+material::Material ember = material::shader(kEmberSkSL, Ember{0.6f});
+ember.set("heat", 0.8f).bind("heat", flicker);                        // its fields, by name
+material::shader(hub, "res://ember.sksl", Ember{});                   // the same body kept in a file
 
 // The designated form, through from(): the same value in one pair of braces.
 material::Material steelToo = material::from({
@@ -55,6 +58,23 @@ a World element's `fill(steel)`, which reads the base and the
 surface and ignores the effects; `material::skia::paint(steel)` for a raw
 canvas. Two materials built the same way compare equal, so a re-described
 node prunes.
+
+**A shader is one line.** `material::shader(source, Parameters{…})` is a
+material whose base is the body `source` over the uniforms the struct
+declares — its fields, by name, in declaration order — so it fills, inks,
+strokes and layers like any other base. The source is SkSL unless
+`.target` says Slang (drawn where a renderer compiles Slang); two shaders
+of one source are one definition, so a re-described node prunes, and the
+name a message calls it is derived from the source unless `.key` gives
+one. Its fields are written and followed exactly as a Substance graph's
+inputs are: `set(name, value)` writes one and `bind(name, animatable)`
+follows a `motion::Animatable<float>` — the struct itself holds plain
+values, because its memory IS the upload. The spelling takes the source
+first and the struct second; `material::shader(source).parameters(P{…})`
+is not it, because the struct's type decides the definition and a
+builder would stand a material with no uniforms between the two calls,
+and neither is `material::program<P>(…)`, because a program is the
+compiled form a renderer holds, not what an author writes.
 
 ### A lit surface in 2D
 
@@ -101,12 +121,77 @@ never painted again. The effects stage still reads coverage, and a World
 mesh shades the same surface under its own lights and ignores the effects.
 `material::skia::lit(material, lighting)` is the pass on a raw canvas.
 
+### Writing a shader
+
+```cpp
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmaterial/texture/Texture.h>   // Sampling
+
+// The struct IS the uniform block: every field a float, a glm::vec2, a
+// glm::vec4, a Color or a std::array<float, N>, declared to the body under
+// its own name.
+struct Ripple {
+  material::Color ink = {0.2f, 0.5f, 0.9f, 1};
+  float rings = 12;
+  float speed = 1.5f;
+};
+
+constexpr std::string_view kRipple = R"(
+half4 main(float2 p) {
+  float2 uv = p / uResolution;
+  float wave = 0.5 + 0.5 * sin(length(uv - 0.5) * rings * 6.2831 - uTime * speed);
+  return half4(ink.rgb * wave * ink.a, ink.a);
+}
+)";
+
+material::Material ripple = material::shader(kRipple, Ripple{});
+ripple.bind("speed", tempo);                           // a motion::Animatable<float>
+box().fill(material::from(ripple).layer(material::noise(0.6f),
+                                        {.blend = BlendMode::Overlay, .opacity = 0.2f}));
+
+// A picture the body samples, by the name it reads it as.
+material::Material lens = material::shader(
+    "half4 main(float2 p) { return photo.eval(p * 0.5); }",
+    {.key = "lens", .sampling = material::Sampling::Nearest,
+     .textures = {{"photo", pixels}}});
+```
+
+The body is written and the declarations are generated. In SkSL a body is
+`half4 main(float2 p)` returning PREMULTIPLIED colour at the point `p`, in
+the pixels of the box it fills; in Slang it is `float4 surface(float2 uv)`
+returning straight colour, for a renderer that compiles Slang. Before the
+body stand one uniform per field of the struct, one sampled texture per
+name in `.textures` (`uniform shader NAME` in SkSL, read as
+`NAME.eval(p)`), and each frame value the body spells: `uTime` (seconds,
+which makes the material live), `uResolution` (the box's pixels),
+`uContentScale` and `uWorld` (the box's placement in the root). A field of
+the struct named like one of those is the author's own and nothing is
+added for it.
+
+A shader is a material like any other: a base, a `layer()` source, a mask,
+a surface channel. Its fields are written and followed through the
+Material by name — `set("rings", 16.0f)`, `bind("speed", tempo)` for a
+`motion::Animatable<float>`, `bind("bars", block)` for a caller's table —
+so a bound field re-uploads its bytes each frame and nothing compiles
+again, while a layer over it that does not move stays one lowered paint.
+One source is one definition however often it is described: a sketch may
+call `material::shader` in every describe, and two calls with equal
+values compare equal and prune. `material::shader(hub, uri, Parameters{…})`
+is the same over a file read through SigilIO, its language told by the
+extension; an edited file compiles anew.
+
+What one source cannot say — a body in two languages at once, a slot an
+executor fills from the rendered layer through a filter, a channelwise
+claim, a bank of seeded instances — is the program model, in
+[ADVANCED.md](ADVANCED.md).
+
 ### Tier 2 — the options
 
 `GradientOptions` (units, extent, repeat, focus, the conic window),
 `ImageOptions` (`repeat`, `repeatY`), `NoiseOptions` (`octaves`, `seed`,
-`turbulence`, `grain`, `contrast`, `stretch`), `ProgramOptions` (the
-slots a body samples), `LayerOptions` (`blend`, `opacity`, `mask`), `Mask`
+`turbulence`, `grain`, `contrast`, `stretch`), `ShaderOptions` (`key`,
+`target`, `sampling`, and the `textures` a body samples by name, each a
+`ShaderTexture`), `LayerOptions` (`blend`, `opacity`, `mask`), `Mask`
 (`source`, `channel`, `low`, `high`, `invert`), `SurfaceOptions` (every
 channel a number or a material: `metallic`, `roughness`, `occlusion`,
 `normal`, `emission`, `clearcoat`, `transmission`, `unlit` …), and the
@@ -129,9 +214,16 @@ every frame; other materials filling its slots; and the settings a
 renderer reads off the instance. A renderer asks such a material to
 **resolve** against a frame and receives the compiled **program** for its
 shading language plus the bytes to upload — the same answer, memoised,
-until an input changes. `Recipe`, `Program`, the compilers and the
-executors (`skia/`: `material::skia::paint`, `material::skia::base`, the
-`Paint` a material lowers to on a Skia canvas; `slang/`) are tier 3.
+until an input changes. `shader()` builds exactly this: one recipe per
+source, with its frame inputs read off the names the body spells. The
+program model — `Recipe`, `Program` and the cache, `Leaf`, `Bank`,
+`termsSource`, `over()`, `UniformBlock`, `FrameData` — lives under
+`<sigilmaterial/advanced/…>`, and neither `core/Material.h` nor
+`program/Shader.h` includes any of it: a consumer that defines a recipe
+by hand, writes a leaf or runs a renderer includes the advanced header by
+name. The compilers and the executors (`skia/`: `material::skia::paint`,
+`material::skia::base`, the `Paint` a material lowers to on a Skia
+canvas; `slang/`) are tier 3 beside it.
 
 Beside the recipe model sits the image side: a **texture** is an image
 and how it is sampled, a comparable value that fills a recipe's child
@@ -179,267 +271,19 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore, SigilMaterialColor |
 | `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute and SigilMaterialSkia privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple` | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
+| `SigilMaterialProgram` | `shader()` and `ShaderOptions`, a shader from its source or from a file read through the hub, with the textures it samples placed in its slots | SigilMaterialCore, SigilMediaCore; SigilMaterialTexture and SigilIOHub privately |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::ShaderLeaf`, the leaf that yields its own Skia shader; a texture through Skia — `skia::image` and `skia::shader` over a `Texture`, `skia::toSkFilterMode`, `skia::toSkIRect` and `skia::toPixelRect`; `skia::painted`, a tile program painted into a canvas; `skia::bevelNormals`; `skia::fill`; a lit surface in 2D — `skia::isLit`, `skia::lightingFor`, `skia::lit`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
 | `SigilMaterialSlang` | the Slang compiler: `slang::compileModule` to SPIR-V, `slang::Compiled` with the reflected `slang::UniformSlot` per uniform, `slang::SlangProgram`, and `slang::Uniforms`, the buffer one draw is written into; `Portable.slang`, the subset a host and a device answer alike, loaded into every session by name | SigilMaterialCore, Boost.Container; Slang privately |
 | `SigilMaterialSurface` | `surface::` — the metallic-roughness program a lit renderer shades with: `SurfaceParameters`, `Reflection`, `surfaceRecipe`, `program` and `unlit`, `isSurface` and `isUnlit`, `map` and the seven slot names, the dressing of a decoded texture set, and `lower`, which turns a material's stated `surface({…})` response into the program | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
 
 `SigilMaterial` is the umbrella, an interface over all twelve. Headers live
 under `include/sigilmaterial/<feature>/` and are spelled that way —
-`<sigilmaterial/core/Recipe.h>`, `<sigilmaterial/texture/Texture.h>`,
-`<sigilmaterial/surface/Surface.h>`. The library holds no catalogue of
+`<sigilmaterial/core/Material.h>`, `<sigilmaterial/texture/Texture.h>`,
+`<sigilmaterial/surface/Surface.h>` — and the program model the core
+feature builds stands under `include/sigilmaterial/advanced/`
+(`<sigilmaterial/advanced/Recipe.h>`). The library holds no catalogue of
 looks: a named look — a grained stone, a chrome, a CRT tube, a text
 paint — is a material a sketch builds and keeps beside itself.
-
-## Using it
-
-```cpp
-#include <sigilio/hub/Hub.h>
-#include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/core/Target.h>
-#include <sigilmaterial/core/UniformBlock.h>
-#include <sigilmaterial/skia/SkiaCompiler.h>
-
-using namespace sigil::material;
-
-// The ABI: a plain aggregate of uniform fields. Names are read off the
-// type; there is nothing to register.
-struct Glow {
-  float uScale;
-  Color uTint;
-  std::array<float, 8> uBars;
-};
-
-// A shader YOU authored stays a shader file, so editors and shader tools see
-// the language, and reaches the program through SigilIO from wherever you
-// keep it. The Hub caches it; the lease makes its residency promise explicit
-// for as long as this material catalogue lives. The shaders this library
-// SHIPS are not read at run time at all — see "Where the stock shaders live".
-sigil::io::Hub shaders;
-shaders.mount("shader://", shaderDirectory);
-auto retainedShaders = shaders.retain("shader://");
-retainedShaders.preload();
-auto glowSource = shaders.text("shader://Glow.sksl");
-if (!glowSource) throw std::runtime_error("Glow.sksl is missing");
-
-// The definition, made once and shared. The loaded body follows the generated
-// declarations — the uniforms above, then uTime, then the slot.
-auto glow = std::make_shared<const Recipe>(
-    Recipe::of<Glow>("glow")
-        .frame(FrameInput::Time)
-        .slot("uSrc")
-        .body(Target::SkSL, std::move(*glowSource)));
-
-// An instance: values now, a bound clock and a live table later.
-Material m(glow, Glow{1.0f, {1, 0.8f, 0.2f, 1}, {}});
-m.bind("uScale", scale);              // a live motion::Animatable<float>
-m.bind("uBars", spectrumBlock);        // a shared_ptr<UniformBlock>, 8 floats
-m.slot("uSrc", Material(gradientRecipe, GradientParameters{...}));
-
-// A renderer, per frame:
-FrameData frame{.seconds = clock.now(), .resolution = {w, h}};
-sk_sp<SkShader> shader = skia::shader(m, frame);
-```
-
-`skia::shader` is the whole Skia path: it resolves the material, builds
-over the program's effect with every uniform set from the resolved bytes,
-binds each slot — a material resolved recursively, a texture
-leaf as its image shader — and makes the shader. The Skia backend prepares
-its compiler on first use; drawing needs no registration step. A renderer
-that fills some slots itself uses `skia::builder(m, frame, variant,
-leave)`, which prepares the same program and leaves the named slots for
-the caller. `skia::fill(canvas, path, m)`
-is the one-call draw: clip to the path, paint the shader across it.
-
-A renderer applying a recipe-backed paint to a layer calls
-`skia::resolvePass` with `skia::PassInputs` from
-`<sigilmaterial/skia/Pass.h>`. The inputs supply the content shader, unit
-rectangles, progress and seeds. The paint owns shader specialization and
-program reuse for each unit count.
-
-The surface program reads the same way, its slots filled with textures:
-
-```cpp
-#include <sigilmaterial/skia/Draw.h>
-#include <sigilmaterial/surface/Surface.h>
-
-// The map in the base-colour slot is multiplied by the factor, so a white
-// factor shows the image as it is.
-Material wall = surface::unlit({.baseColor = {1, 1, 1, 1}});
-wall.slot(surface::kBaseColorSlot, Texture(bricks));
-skia::fill(canvas, outline, wall);   // per frame; the program is cached
-```
-
-## Mental model
-
-**A parameter struct is the ABI, and the bytes are the upload.** Every field
-type is some count of floats with float alignment — `float`, `glm::vec2`,
-`glm::vec4`, `std::array<float, N>`, `Color` — so a struct of them has no
-padding and its memory image is exactly the uniform data in declaration
-order. `schema<P>()` proves this at compile time and refuses a struct with
-any other field type or with padding. The same walk emits the uniform
-declarations (`declare<P>(target)`), so the names in the shader are the
-names in the struct and cannot drift. A struct with NO fields is legal and
-is a recipe with no ABI of its own — a body over slots and frame
-inputs alone.
-
-**A layout can also be assembled while the library runs.**
-`packedSchema(fields)` lays a field list out by the rule `schema<P>()`
-applies to a struct — each float count read off the kind, each offset the
-running sum — and `Recipe::of(name, schema)` defines over the result. That
-is the door for an ABI no C++ type stands behind: a definition composed out
-of other definitions' fields, or one authored from outside C++ altogether.
-A repeated name and an array of no floats are each reported once and left
-out, so what comes back is a layout `find()` answers unambiguously and
-`declare()` can emit.
-
-**Writing to a field no body reads is reported at the write.** A dial
-that does nothing looks, from the call site, exactly like a dial set to
-the wrong value: the bytes go up and the picture does not change. So
-`Material::set(name, …)` asks the recipe — `Recipe::readsField(name)`,
-which is whether any body of it SPELLS the name as a whole identifier —
-and names the recipe and the field on stderr once per pair, beside the
-reports for an unknown field and a wrong float count. The value is still
-written; the report is about the picture, not the bytes.
-
-It is asked at the WRITE and not at the compile because a parameter struct
-carrying a field this recipe's kind has no use for is a shared ABI and
-not a mistake — the three `sdf` silhouettes are one struct whose `uP0..2`
-mean something different in each — and a struct poured in whole says
-nothing. What the compile side can still say is that a BACKEND discarded
-a uniform: `Program::keeps(name)` is that question, and the program cache
-names each dropped field once per (recipe, target). Skia's reflection
-keeps every declared uniform, so on SkSL that answer is always yes and
-the write-side check is the one that speaks.
-
-**A recipe's identity is the object.** Two recipes built from the same
-text are two definitions with two sets of programs; `operator==` compares
-definitions and is for tests, while the program cache and a material's
-equality use the pointer. Define a recipe once and hold it in a
-`shared_ptr<const Recipe>` beside the code that owns it.
-
-A definition a renderer can only finish at draw — a body rewritten around
-an array size or a constant nothing knew earlier — is a SPECIALIZATION:
-`m.withRecipe(r)` is the same instance over a second recipe of the same
-parameters layout, so the values, bindings and slots carry over and the two
-definitions compile and cache apart. Hold the specializations, one per
-distinct constant, or the cache fills with a definition per draw.
-
-**One body per target, and asking for a missing one is an error once.**
-`Recipe::body(Target, source)` stores the body for a language;
-`Recipe::source(target)` is the generated declarations followed by it.
-The two targets ask a body for the same thing in their own words:
-
-| target | what a body is | how it reads a slot |
-|---|---|---|
-| `Target::SkSL` | `half4 main(float2 p)`, returning premultiplied colour | `uniform shader NAME`, evaluated as `NAME.eval(p)` |
-| `Target::Slang` | `float4 surface(float2 uv)`, returning STRAIGHT colour — the renderer that compiles it puts the lighting and the premultiply around it | `uniform Sampler2D NAME`, read as `NAME.Sample(uv)` |
-
-A Slang body may also say what a colour cannot carry. A renderer that
-shades declares four variables the body MAY write —
-`gSurfaceNormal` (tangent space), `gSurfaceGloss` (a Blinn exponent),
-`gSurfaceMetal`, and `gSurfacePerPixel` to say it wrote any of them —
-and evaluates its shading again where those can be seen. A body that
-writes none of them costs nothing and changes nothing. It is an
-OPTIONAL half of the contract: a body that says only a colour is a
-complete body, and the four exist because a MAP that varies a surface
-across a face is a per-pixel answer no per-vertex shading can carry. A
-material resolved for a target its recipe has no body for — or one no
-compiler is registered for, or one whose body fails to compile — yields a
-null program, and the cache reports it to stderr exactly once per (recipe,
-target), naming both, so the mistake surfaces at the first describe rather
-than scrolling past every frame. A body that compiles but leaves a parameters
-field unread is reported the same way.
-
-**One program cache.** `ProgramCache::shared()` holds every compiled
-program in the process, keyed by (recipe identity, target, variant). A
-backend registers its compiler with `registerCompiler(Target, Compiler)`
-and the cache compiles on first use. Every Skia lowering entry prepares
-the built-in SkSL compiler automatically, including `skia::builder`,
-`skia::shader`, `skia::fill`, recipe-backed paints and recipe-backed effects.
-An explicitly registered SkSL compiler takes precedence for subsequent
-compilation, whether registered before or after the first draw. A device renderer registers the
-Slang compiler, since only that renderer knows the scaffold a body is
-appended to. `Variant` is a small ordered key the
-backend owns the meaning of — a premultiplied build, a debug view — and
-the default variant is the plain build.
-
-**Bindings are live, and equality is by identity.** `bind(name, animatable)`
-makes a float field read a `motion::Animatable<float>`'s current value at
-every resolve;
-`bind(name, shared_ptr<UniformBlock>)` does the same for an array field
-and a caller-owned table. A bound material `isRunning()`;
-`isBound(name)` is the other question — whether a field carries a binding
-at all, a live value or a number or a block, rather than only the bytes
-`set()` last wrote. Two materials
-bound to the same live value or block compare equal; bound to different ones,
-unequal; the values behind them never enter the comparison. A `UniformBlock`
-carries a revision (`commit()` advances it) so a caller can tell an edited
-frame from an untouched one, and its values are read live whether or not
-they were committed.
-
-**Frame inputs are declared, then injected.** `Recipe::frame(FrameInput)`
-declares that the body reads `uTime`, `uResolution`, `uContentScale` or
-`uWorld`; the declaration adds the uniform after the parameters and
-`resolve()` fills it from the `FrameData`. Time and content scale make a
-material `isRunning()`; resolution and the world transform make it
-`geometryDependent()`. `quantizeTime(rate)` snaps the time a material sees
-to a step, so a material that need not move every frame resolves only
-when the snapped clock advances.
-
-**Slots ride everything.** A recipe declares slots (`slot("uSrc")`,
-exposed to SkSL as `uniform shader uSrc`); a material fills them with other
-materials or with leaves. A live source makes the parent live, a
-geometry-dependent source makes it geometry-dependent, and a different
-child makes it unequal — which is required, not incidental: a child left
-out of equality would let a node prune while its second source had
-changed.
-
-**A slot an EXECUTOR fills comes from the layer.** A recipe run over a
-rendered layer reads that layer in a slot the executor fills; declaring
-one with `Recipe::slot(name, LayerFilter::Blurred, amountField)` says it
-is filled from the SAME layer put through a filter first, at the amount
-the named parameter carries. `Recipe::layerSlots()` is the list, and the
-declaration is additive: the slot is generated to a target exactly as
-any other is, and an author who fills the name himself keeps his source,
-which is how a recipe with one still paints as an ordinary fill. A body
-that needs a blurred copy of its input therefore reads one tap of it
-instead of gathering the blur itself, per pixel, for as long as the
-picture is on screen — and because the filter is Skia's, the cost of a
-wide reach is Skia's reduction rather than a fixed tap count.
-
-**A slot is declared to the target that samples it, and to no other.**
-A slot belongs to the recipe, but each target's generated declarations
-carry only the slots ITS body spells — `Recipe::samples(target, slot)` is
-that reading, the one `readsField` takes of a parameter field, and a target
-with no body answers yes. The two sets differ where one language reaches
-a child material and another cannot: a composed stack declares a slot per
-operand's own slot for the language handed one body per material, and the
-language whose slot is a shader samples the three operands
-themselves and needs none of them. It is not tidiness. A declared slot is
-an IMAGE SAMPLER in the compiled program whether anything reads it or
-not, a GPU backend inlines the whole tree of effects into one fragment
-program, and Metal binds fragment textures at sixteen indices — so a
-program carrying another language's slots spends a device's whole budget
-on samplers it never reads. `skia::samplerCount(material)` is what one
-lowering asks for, `skia::kSamplerLimit` is what a program may declare,
-and a tree over it is refused with both counts named rather than built
-into a pipeline the driver silently rejects.
-
-**A leaf is a child no recipe computes.** `Leaf` is the core's seam for
-an image with its sampling, a rendered frame, anything a backend binds
-into a slot directly: it compares by value (same dynamic type, then the
-type's own equality) and says whether it moves between frames.
-`Texture` is the leaf every renderer binds: the Skia executor as the
-image shader `skia::shader(texture, frame)` builds, a device renderer as
-a texture. `skia::ShaderLeaf` is the Skia-facing refinement for
-everything else — a leaf that yields the `SkShader` to bind, such as a
-renderer's own native sources (a gradient it built, a Perlin generator)
-— and the Skia executor binds any of them. A slot holds a material or a leaf,
-never both, and `Material::slot(name)` and `Material::leaf(name)` each
-answer null for the other kind.
 
 ## Textures
 
@@ -537,102 +381,6 @@ size and offset), deriving a sequence per name stem for TexturePacker
 `pack(images)` lays loose images into one power-of-two sheet.
 `region(name)` is the sheet texture cut to that region; `frame(sequence,
 index)` wraps past the end.
-
-## Stacking
-
-**`over(base, top, mask, blend, amount)` is a material.** The three
-operands
-fill its slots, so the stack compares, animates and resolves as one
-value, and applying `over` again builds a taller one. The MASK is any
-material whose red channel is read as a scalar; `blend` is `Mix`, `Add`
-or `Multiply`, one recipe each so a body carries no branch; `amount` is
-how strongly the top shows where the mask is fully on, which is the
-stack's own strength rather than a second answer about where it applies.
-It is a parameter of the call because a COMPOSED stack has no parameters
-struct to write afterwards — its ABI is its operands' fields — so a
-caller who did not know to write the field by name would get a stack at
-full strength and read it as a wrong mask. `under(m)`
-is the material a stack stands on — one step down, so walking it reaches
-the bottom — and `stackDepth(m)` counts the steps. A consumer that can
-only express one material (`UsdPreviewSurface`, say) writes the bottom
-and records the depth.
-
-**Two kinds of target read a stack, and only one of them can reach the
-operands.** A target whose slot is a SHADER — SkSL's is — samples
-each operand's own program, so one body over the three slots `base`,
-`top` and `mask` is the whole story. A target handed exactly ONE body per
-material cannot reach a child material at all; for it a stack is
-COMPOSED. `over()` builds a recipe out of its operands' own definitions:
-the parameters are theirs under a prefix per operand (`base_`, `top_`,
-`mask_`), the sampled slots are theirs under the same prefixes, the frame
-inputs are the union of theirs, and the body inlines all three of their
-bodies and mixes what they return. The renaming is the shading
-language's own preprocessor rather than a rewrite of the text — a body
-names its parameters and its slots exactly as its recipe declares them,
-and a macro maps each — and each operand's helpers stand in a namespace
-of its own, so three operands over one recipe are three bodies. **The one
-thing a composable body may not do is give a local the name of one of its
-own parameters.**
-
-A composed stack is the same material otherwise: the same three operands
-in its slots, the same walk down, and the same recipe NAME — which is what
-says a material is a stack, since a composed one carries a recipe built
-for its own operands rather than the shared one. The operands' values and
-their sampled slots are copied in at the moment of the call, so a later
-edit to an operand is not seen and a live binding on one does not reach
-the composed body; the operand still rides every query as a child, so the
-stack still reports itself animated. The composition costs one recipe and
-one program per distinct triple of definitions and buys nothing for a
-target that samples its operands, so it is built only where a compiler
-that needs it is installed. The triple is identified by the definitions
-themselves and the cache HOLDS them, so a definition that has been
-composed stands for as long as its composition does — which is what
-keeps a later recipe built at a freed one's address from inheriting a
-body it never wrote. `Target::Slang` is the one such target,
-and `stackName(blend)` is the name every stack of a blend carries.
-
-A composed stack therefore carries slots for two languages at once, and
-what keeps that from costing the sampling target anything is that a slot
-is declared only to the target whose body spells it: the composed
-recipe's SkSL program declares `base`, `top` and `mask` and none of the
-prefixed ones, so a stack asks a device for exactly its operands'
-samplers however many slots its operands DECLARE.
-
-## The Slang backend
-
-`slang::compileModule(source, vertexEntry, fragmentEntry, lit, &out,
-&error)` compiles a whole module — imports, both entry points and all —
-and hands back a `slang::Compiled`: the two stages' SPIR-V words, the
-sampled slots in their declared order, and a `slang::UniformSlot` per
-uniform saying where its bytes go. NOTHING GUESSES A LAYOUT: every offset
-is the one the compiler reported for the program it just built, so a body
-that declares one more parameter moves nothing a renderer has to be told
-about. `slang::Uniforms` is the buffer a draw writes into at those
-offsets — a matrix row by row and an array element by element where the
-layout put them apart, and a name the program does not carry skipped,
-since an optimiser that dropped an unused uniform is not a mistake to
-report.
-
-Both stages are linked as one program, because the layout is a property
-of the linked program: linking them apart would let an unused uniform be
-dropped from one and not the other, and the two would then read one
-buffer at two sets of offsets.
-
-Every session carries two modules by name, from the text the build embedded
-in the library each belongs to, so a shader's `import` resolves against the
-session rather than opening a file during compilation. `Portable` is the subset
-whose transcendentals a host and a device answer alike — a kernel compiled for
-both cannot afford two spellings of a square root. `Shading` is
-`termsSource`'s own text, so a renderer's shading and every material body
-compiled beside it call one definition of a term rather than a copy apiece.
-
-`lit` is the one axis a session specialises on: it defines `SIGIL_LIT`,
-so a renderer's scaffold can carry its lighting uniforms in one build and
-not the other. There are therefore two sessions, and a module is loaded
-into whichever one the caller asked for under a name no other module
-has — a session remembers a module by its name, so two recipes under one
-name would be one module and every material after the first would be
-drawn with the first one's program.
 
 ## Surfaces, masks and banks
 
@@ -796,6 +544,17 @@ snaps and injects the frame values, and compares the resulting bytes plus
 the target and variant against the previous call's; when they match, the
 previous program and bytes come back with no cache lookup.
 
+## The program model
+
+What a shader material is made of is its own chapter:
+**[ADVANCED.md](ADVANCED.md)** — a recipe defined by hand, with a body per
+language, the slots it samples and the frame values it reads; the one
+program cache and the compilers registered into it; resolving an instance
+against a frame; the leaf a backend binds; stacking one material over
+another and the composed stack a one-body target needs; the Slang
+backend's reflected layout; and warming every program before the first
+draw. Every header it names is under `<sigilmaterial/advanced/…>`.
+
 ## Colour
 
 The colour leaf is its own chapter: **[COLOUR.md](COLOUR.md)** — the
@@ -901,40 +660,6 @@ names its source rather than the value captured from it. Re-describe to sample
 those inputs again. Surface-specific lowering to a colour filter retains that
 filter's own identity.
 
-## Warming every program
-
-**Warming a list of materials.** `skia::warmup(materials)` prepares the
-backend and compiles the distinct programs of the materials a host
-hands it before the first draw — a host passes the materials it uses;
-omitting warm-up leaves compilation to first use.
-`material::warmup(materials, target, variant)` folds identical recipe,
-target and variant keys and compiles distinct keys concurrently into the
-shared cache; `ProgramCache::warmup` takes the requests themselves. A request arriving while the same key is compiling shares that
-in-flight result, and the cache's synchronization remains an implementation
-detail. A registered compiler can therefore receive concurrent calls for
-different keys; a backend with thread-affine work must marshal that work at
-its own executor seam.
-
-**Every body an effect is built out of, as one list.**
-`skia::everyFilterProgram()` in `<sigilmaterial/skia/Filter.h>` answers a
-`std::span<const sk_sp<SkRuntimeEffect>>` holding the compiled SkSL an
-`Filter` runs — the bright pass and phosphor halo a bloom gathers,
-the tap that lays that halo back, a light's deepening and whitening, and
-a parametric blur's mix. The recipes a `Paint` runs are not among
-them; those are reached through the program cache, one per recipe.
-
-They are the very objects the effects go on to use, not copies. A device
-backend can be asked to give a runtime effect a name that outlives the run,
-so a device program built over one can be written down and rebuilt at the
-next launch instead of compiled again — and the name is given to the OBJECT,
-so an effect compiled a second time from the same source is a stranger to
-it. An effect's place in the list is part of its name, which is why the
-order is fixed and why a body that would not compile is absent from the list
-rather than null in it: the list is what is really there, and a machine that
-loses a body offers a shorter one. Reach for this when declaring effects to
-such a backend. Asking compiles all of them, which is a handful of small
-programs beside the device programs they are inlined into.
-
 ## Where the stock shaders live
 
 Every body this library ships is a `.sksl` or `.slang` file in the
@@ -997,6 +722,7 @@ promises. What is only true of SigilMaterial:
 | `texture/test/` | the image side: the sources and their identity across the erasure, the sampling dials, the environment map, the bevel producer, the atlas readers and packer, and the tools' file names — one row per name, so a failure says which tool's spelling moved rather than that a list changed | — |
 | `mask/test/` | that a mask shapes what it reads, and that reshaping something that is not a mask changes nothing | — |
 | `surface/test/` | both surface programs compiled, an authored colour and a map texel one number, a program dressed from a decoded set, a stated response lowered with its numbers and maps in place, a stack shaded at both ends of its mask, every shading term against its closed form, and the sampler budget: a stack asks a device for its operands' samplers and no more, and a tree over the limit is refused with the count and the limit named rather than drawn | — |
+| `program/test/` | a shader as a material: it paints what its body returns from the struct's values, one source is one definition while a differing one is another, a bound field makes its own pass live and compiles nothing, a texture is sampled by the name the body reads, a file is read through a hub — and `MaterialTier`, that neither `core/Material.h` nor `program/Shader.h` reaches a header under `advanced/` | — |
 | `skia/test/` | the SkSL backend — a two-uniform recipe compiled through the cache shading a raster byte identical to the same SkSL compiled and filled by hand, the four parameter names a body may not redeclare and the three spellings that must still compile — and `SkiaPalette`, a picture's own colours coming back | — |
 | `slang/test/` | the Slang backend, with no device | — |
 | `MaterialGpu` | every body this library ships, on a device | `gpu` |

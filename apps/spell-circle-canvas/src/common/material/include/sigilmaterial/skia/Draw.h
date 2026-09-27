@@ -8,7 +8,7 @@
 
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
 
 namespace sigil::material::skia {

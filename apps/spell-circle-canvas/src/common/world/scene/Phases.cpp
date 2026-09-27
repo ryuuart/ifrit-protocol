@@ -7,7 +7,7 @@
 
 #include <sigilcore/cache/Cache.h>
 #include <sigilgeometry/mesh/curve/Pose.h>
-#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmotion/clock/Engine.h>
 #include <sigilmotion/advanced/Held.h>

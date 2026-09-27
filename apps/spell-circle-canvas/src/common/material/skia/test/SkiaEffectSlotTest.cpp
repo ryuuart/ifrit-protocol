@@ -13,6 +13,7 @@
 #include <include/core/SkString.h>
 #include <include/core/SkSurface.h>
 #include <include/effects/SkRuntimeEffect.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmaterial/texture/Texture.h>

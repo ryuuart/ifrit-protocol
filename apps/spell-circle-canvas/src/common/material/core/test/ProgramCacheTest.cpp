@@ -7,8 +7,8 @@
 
 #include <gtest/gtest.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Program.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Program.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Target.h>
 #include <sigilshaders/MaterialCore.h>
 

@@ -11,7 +11,7 @@
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <glm/vec2.hpp>
 #include <memory>

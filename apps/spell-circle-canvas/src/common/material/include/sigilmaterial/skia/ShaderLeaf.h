@@ -13,8 +13,8 @@
 
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkShader.h>
-#include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/core/Leaf.h>
+#include <sigilmaterial/advanced/FrameData.h>
+#include <sigilmaterial/advanced/Leaf.h>
 
 namespace sigil::material::skia {
 

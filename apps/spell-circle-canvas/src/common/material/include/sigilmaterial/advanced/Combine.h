@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup material-core
+ * @ingroup material-advanced
  *
  * Stacking one material over another through a mask — the combinator
  * that makes local variation (rust over steel, dirt in the crevices) a
@@ -13,7 +13,7 @@
 
 #include <sigilmaterial/core/BlendMode.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <cstdint>
 #include <memory>

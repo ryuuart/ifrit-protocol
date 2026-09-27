@@ -4,7 +4,7 @@
  * slot, and what a surface cannot carry said once.
  */
 
-#include <sigilmaterial/core/Program.h>  // reportOnce
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/filter/Filter.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/Texture.h>

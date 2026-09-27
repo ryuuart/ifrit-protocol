@@ -13,7 +13,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/skia/Texture.h>
-#include <sigilmaterial/core/Program.h>  // reportOnce
+#include <sigilmaterial/advanced/Program.h>  // reportOnce
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/Texture.h>

@@ -9,7 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilshaders/MaterialSurface.h>
 

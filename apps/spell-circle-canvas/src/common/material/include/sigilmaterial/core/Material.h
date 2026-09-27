@@ -18,13 +18,9 @@
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/BlendMode.h>
-#include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/core/Leaf.h>
 #include <sigilmaterial/core/Lighting.h>
 #include <sigilmaterial/core/Parameters.h>
-#include <sigilmaterial/core/Program.h>
-#include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmaterial/core/Target.h>
 #include <sigilmotion/values/Animatable.h>
 
 #include <concepts>
@@ -48,6 +44,11 @@
 namespace sigil::material {
 
 class Filter;
+class Leaf;
+class Program;
+class Recipe;
+class UniformBlock;
+struct FrameData;
 struct Layer;
 struct LayerOptions;
 struct MaterialParts;
@@ -229,9 +230,8 @@ class Material {
   template <Uniform T>
   T get(std::string_view name) const {
     T out{};
-    const Field* f = m_recipe ? m_recipe->parameters().find(name) : nullptr;
-    if (f && f->floats == UniformTraits<T>::floats)
-      std::memcpy(&out, m_bytes.data() + f->offset, sizeof(T));
+    if (const std::byte* bytes = fieldBytes(name, UniformTraits<T>::floats))
+      std::memcpy(&out, bytes, sizeof(T));
     return out;
   }
 
@@ -348,6 +348,9 @@ class Material {
   bool writePartInput(std::string_view name, std::span<const float> values);
   void write(std::string_view name, ParameterType kind, const void* floats,
              size_t count);
+  /** The bytes of the field @p name when it spans @p floats floats; null
+   *  otherwise. */
+  const std::byte* fieldBytes(std::string_view name, size_t floats) const;
   Binding* binding(std::string_view name);
   void place(std::string_view name, Slot slot);
 

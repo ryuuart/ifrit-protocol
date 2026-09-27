@@ -12,7 +12,7 @@
 #include <include/core/SkSurface.h>
 #include <sigilmedia/image/Decode.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilmaterial/texture/TextureSet.h>

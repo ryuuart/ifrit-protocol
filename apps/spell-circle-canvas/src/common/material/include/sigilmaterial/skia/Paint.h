@@ -18,7 +18,7 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkTileMode.h>
 #include <include/effects/SkRuntimeEffect.h>
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/paint/Paint.h>
 #include <sigilmaterial/skia/Pass.h>
 #include <sigilmaterial/skia/PixelBuffer.h>  // the source buffer() takes

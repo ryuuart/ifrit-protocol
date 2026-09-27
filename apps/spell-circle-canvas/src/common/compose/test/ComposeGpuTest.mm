@@ -14,6 +14,7 @@
 #include <sigilcompose/typography/Typography.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <sigilweave/choreograph/GlyphBatches.h>

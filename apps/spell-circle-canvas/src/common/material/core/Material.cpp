@@ -6,6 +6,11 @@
 
 #include "sigilmaterial/core/Material.h"
 
+#include <sigilmaterial/advanced/FrameData.h>
+#include <sigilmaterial/advanced/Leaf.h>
+#include <sigilmaterial/advanced/Program.h>
+#include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/advanced/UniformBlock.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
 
@@ -193,6 +198,13 @@ void Material::write(const void* parameters, size_t size,
     return;
   }
   std::memcpy(m_bytes.data(), parameters, size);
+}
+
+const std::byte* Material::fieldBytes(std::string_view name,
+                                      size_t floats) const {
+  const Field* field = m_recipe ? m_recipe->parameters().find(name) : nullptr;
+  if (!field || field->floats != floats) return nullptr;
+  return m_bytes.data() + field->offset;
 }
 
 void Material::write(std::string_view name, ParameterType kind,

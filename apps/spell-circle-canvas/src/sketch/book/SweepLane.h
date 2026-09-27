@@ -5,7 +5,7 @@
  * each.
  */
 
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 
 #include <future>
 

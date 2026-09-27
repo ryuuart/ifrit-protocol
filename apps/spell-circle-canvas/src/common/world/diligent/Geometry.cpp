@@ -13,7 +13,8 @@
  */
 
 #include <sigilgeometry/mesh/pop/Pop.h>
-#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/advanced/Combine.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Parameters.h>
 #include <sigilmaterial/surface/Surface.h>

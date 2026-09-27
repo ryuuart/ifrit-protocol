@@ -11,7 +11,7 @@
 
 #include <include/core/SkBitmap.h>
 #include <include/core/SkImageInfo.h>
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmedia/advanced/Device.h>
 
 #include <atomic>

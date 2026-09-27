@@ -20,7 +20,7 @@
 #include <sigilcore/callable/Callable.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Backface.h>
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilweave/style/Type.h>
 

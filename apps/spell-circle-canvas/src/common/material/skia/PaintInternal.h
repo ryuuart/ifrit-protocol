@@ -16,7 +16,7 @@
 #include <include/core/SkShader.h>
 #include <include/core/SkSize.h>
 #include <include/core/SkTypes.h>  // SkDebugf
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilmotion/values/Time.h>
 #include <sigilmaterial/skia/Paint.h>

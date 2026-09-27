@@ -5,7 +5,7 @@
  * over the protocol for as long as the process runs.
  */
 
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 
 #include <filesystem>
 #include <future>

@@ -7,13 +7,13 @@
 
 #include <gtest/gtest.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/FrameData.h>
-#include <sigilmaterial/core/Leaf.h>
+#include <sigilmaterial/advanced/FrameData.h>
+#include <sigilmaterial/advanced/Leaf.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Program.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Program.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Target.h>
-#include <sigilmaterial/core/UniformBlock.h>
+#include <sigilmaterial/advanced/UniformBlock.h>
 
 #include <array>
 #include <cstring>

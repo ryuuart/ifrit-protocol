@@ -9,7 +9,7 @@
  */
 
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #ifdef SIGILSKETCH_BOOK_SCRY
 #include <sigilsketch/scry/SharedEngine.h>
 #endif

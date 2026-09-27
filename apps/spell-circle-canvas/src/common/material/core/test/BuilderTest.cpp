@@ -5,6 +5,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
 
 #include <map>

@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Target.h>
 
 #include <memory>

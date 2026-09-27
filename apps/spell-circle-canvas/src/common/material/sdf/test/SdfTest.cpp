@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 #include <include/core/SkBitmap.h>
 #include <include/core/SkCanvas.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilshaders/MaterialSdf.h>

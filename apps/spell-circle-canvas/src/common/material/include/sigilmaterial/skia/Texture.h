@@ -14,7 +14,7 @@
 #include <include/core/SkRefCnt.h>
 #include <include/core/SkSamplingOptions.h>
 #include <include/core/SkShader.h>
-#include <sigilmaterial/core/FrameData.h>
+#include <sigilmaterial/advanced/FrameData.h>
 #include <sigilmaterial/texture/Texture.h>
 
 #include <chrono>

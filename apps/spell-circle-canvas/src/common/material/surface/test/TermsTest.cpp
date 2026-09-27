@@ -15,8 +15,8 @@
 #include <include/core/SkSurface.h>
 #include <sigilgeometry/mesh/render/Shading.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
-#include <sigilmaterial/core/Terms.h>
+#include <sigilmaterial/advanced/Recipe.h>
+#include <sigilmaterial/advanced/Terms.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 
 #include <cmath>

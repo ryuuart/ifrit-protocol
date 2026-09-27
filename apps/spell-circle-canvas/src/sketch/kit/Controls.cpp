@@ -5,6 +5,7 @@
 #include <sigilcompose/kit/Specimen.h>
 #include <sigildraw/Constants.h>
 #include <sigildraw/Pen.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/substance/Substance.h>
 #include <sigilsketch/kit/Controls.h>

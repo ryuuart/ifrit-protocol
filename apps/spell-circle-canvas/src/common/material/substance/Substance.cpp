@@ -8,7 +8,7 @@
  * cook it stands on answers empty without one.
  */
 
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/substance/Substance.h>
 #include <sigilmaterial/substance/advanced/Archive.h>
 #include <sigilmaterial/substance/advanced/Cook.h>

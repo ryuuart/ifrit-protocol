@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup material-core
+ * @ingroup material-advanced
  *
  * Recipe — a material's definition: the parameter struct that is its ABI,
  * one body per shading language, the slots it samples and the

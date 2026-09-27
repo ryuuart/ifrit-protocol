@@ -27,6 +27,7 @@
 sigil_library_root(SigilMaterial
   BRIEF "Materials as recipe instances: reflected parameters, per-target bodies, one program cache"
   DOCS ${CMAKE_CURRENT_SOURCE_DIR}/docs/Groups.dox
+       ${CMAKE_CURRENT_SOURCE_DIR}/ADVANCED.md
        ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
        ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
        ${CMAKE_CURRENT_SOURCE_DIR}/SUBSTANCE.md
@@ -79,7 +80,7 @@ sigil_test(material_test
   SUITES Ocio LABELS ocio)
 
 # Every API name the prose spells, compiled against the headers that own
-# it — README.md, both chapters, and the reference's value index and its
+# it — README.md, its chapters, and the reference's value index and its
 # pages, because a chapter and a value's own page are the same canon as
 # the page that links them. It links every library the prose names — the
 # resource hub the usage example opens shaders through, the cache policy
@@ -88,12 +89,14 @@ sigil_test(material_test
 # spells a name is claiming that name exists wherever it lives.
 sigil_doc_probes(material
   READMES ${CMAKE_CURRENT_SOURCE_DIR}/README.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/ADVANCED.md
           ${CMAKE_CURRENT_SOURCE_DIR}/COLOUR.md
           ${CMAKE_CURRENT_SOURCE_DIR}/PAINT.md
           ${CMAKE_CURRENT_SOURCE_DIR}/SUBSTANCE.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/VALUES.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/enums/Backface.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/over.md
+          ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/functions/shader.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Color.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Filter.md
           ${CMAKE_CURRENT_SOURCE_DIR}/reference/pages/types/Material.md

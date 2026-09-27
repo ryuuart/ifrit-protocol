@@ -2,7 +2,7 @@
  * The one term text, in each language a renderer speaks.
  */
 
-#include "sigilmaterial/core/Terms.h"
+#include "sigilmaterial/advanced/Terms.h"
 
 #include <sigilshaders/MaterialCore.h>
 

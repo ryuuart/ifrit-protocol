@@ -3,11 +3,11 @@
  * the upload layout that appends the frame inputs to the parameters.
  */
 
-#include "sigilmaterial/core/Recipe.h"
+#include "sigilmaterial/advanced/Recipe.h"
 
 #include <algorithm>
 
-#include "sigilmaterial/core/Program.h"  // reportOnce
+#include "sigilmaterial/advanced/Program.h"  // reportOnce
 
 namespace sigil::material {
 

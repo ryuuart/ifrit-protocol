@@ -21,7 +21,7 @@
 #include <include/core/SkSpan.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Program.h>
+#include <sigilmaterial/advanced/Program.h>
 #include <sigilmaterial/core/Target.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>

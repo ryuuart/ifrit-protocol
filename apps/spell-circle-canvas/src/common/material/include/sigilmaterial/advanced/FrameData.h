@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup material-core
+ * @ingroup material-advanced
  *
  * FrameData — the values a renderer injects into a material once per
  * frame, which no parameter struct carries because the author never sets

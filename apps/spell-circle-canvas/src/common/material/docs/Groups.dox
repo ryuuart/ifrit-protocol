@@ -2,12 +2,21 @@
 // library's headers, declared where no header has to include another to
 // reach them.
 
-/** @defgroup material-core The recipe seam
- *  A recipe is a material's definition — the parameter struct that is its
+/** @defgroup material-core The material
+ *  One material built up from a base, layers, a lit surface and effects;
+ *  the parameter struct a shader's uniforms are read off; and a shader
+ *  from its source as a material (core/Material.h, core/Parameters.h,
+ *  program/Shader.h). */
+/** @defgroup material-advanced The program model
+ *  What a shader material is made of, for renderers and program authors:
+ *  a recipe is a material's definition — the parameter struct that is its
  *  ABI, one shader body per language, the slots it samples and the frame
- *  values it reads. A material is one instance of it, and resolving an
- *  instance against a frame answers a compiled program plus the bytes to
- *  upload (core/Recipe.h, core/Material.h, core/Program.h). */
+ *  values it reads — and resolving an instance against a frame answers a
+ *  compiled program plus the bytes to upload; beside it the leaf a
+ *  backend binds, the bank, the shading terms, the stacking combinator,
+ *  the live uniform block and the frame data (advanced/Recipe.h,
+ *  advanced/Program.h, advanced/Leaf.h, advanced/Bank.h, advanced/Terms.h,
+ *  advanced/Combine.h, advanced/UniformBlock.h, advanced/FrameData.h). */
 /** @defgroup material-color Colour
  *  The leaf the rest is built over: the four-float colour a parameter
  *  struct holds, the OKLab, OKLCH and CIELAB round trips, the ramp as one

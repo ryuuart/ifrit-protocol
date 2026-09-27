@@ -9,7 +9,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkPath.h>
 #include <include/core/SkSurface.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/mask/Mask.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>

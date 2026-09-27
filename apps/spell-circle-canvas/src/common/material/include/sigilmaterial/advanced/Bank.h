@@ -1,7 +1,7 @@
 #pragma once
 
 /** @file
- * @ingroup material-core
+ * @ingroup material-advanced
  *
  * A bounded, seeded BANK of material instances: the N materials a paving
  * of a thousand pieces shares, keyed by the recipe, its parameters and
@@ -13,7 +13,7 @@
 
 #include <sigilmaterial/core/Material.h>
 #include <sigilmaterial/core/Parameters.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/advanced/Recipe.h>
 
 #include <boost/container/map.hpp>
 #include <concepts>
