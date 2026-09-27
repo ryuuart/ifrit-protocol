@@ -689,9 +689,20 @@ placed it; `typography/Selector.h` — `selectors::style` and
 this library; `typography/TextEffect.h` — `GlyphInfo`, `GlyphModifier`,
 `GlyphModifierFunction`, `TextEffect` and `Phase`, the value the seam is made
 of; `typography/TextFx.h` — the effects the runtime evaluates by structure:
-`textFx::scramble`, the `textFx::keys` keyframe table, the `textFx::pass`
+`textFx::scramble`, `textFx::tween` (Motion's keyframes over a
+`GlyphModifier`), `textFx::tint` (a colour tween), the `textFx::pass`
 shader pass, the `textFx::sequence`, `textFx::mix` and `textFx::hold`
-combinators, and the `textFx::effect` door; `typography/Track.h` — `Track`,
+combinators, and the `textFx::effect` door; `typography/Entrance.h` —
+`textFx::Displaced`, `textFx::enter` and `textFx::entrance`, the one
+entrance every unit-offset reveal is a setting of: ONE `motion::Tween` of the
+`textFx::Displaced` lanes (`.from` where a glyph starts, `.ease` any
+SigilMotion easing, `.duration`, `.delay` and `.loop` the track's schedule)
+made a `Track`, with `textFx::enter` the same path as an effect for the
+combinators; `typography/Presets.h` — the stock values over it,
+`textFx::rise`, `textFx::slide`, `textFx::pop`, `textFx::spinIn`,
+`textFx::scatter`, `textFx::typeOn` and `textFx::variableAxisSweep`, every one a
+`motion::Tween<textFx::Displaced>`, with `textFx::waveLoop` the one effect
+value; `typography/Track.h` — `Track`,
 `Beats` and `Beat`; `typography/Annotation.h` — `Annotation`;
 `typography/TextPath.h` — `TextPath`; and `typography/Typography.h`, the
 umbrella over them. The TEXT ITSELF is SigilWeave's and is included from there:
@@ -704,7 +715,7 @@ stores tracks, runs and readings — and every member it stores, compares or
 evaluates is defined in the header that declares it, so the kernel links
 no engine to do so; what the feature's archive holds is the members that
 carry a diagnostic and the engine behind dressed type. The stock effects
-over the seam are stock values, and so the kit's — `kit/Kinetic.h`, below.
+over the seam are plain values beside it, in `typography/Presets.h`.
 A text verb takes this vocabulary and a text query answers in it, and the
 kernel's own headers only name it: a call site that dresses its type, or
 reads a beat or a unit back, includes the header that spells the value —
@@ -850,16 +861,7 @@ hole), `kit::pixelSprite` presents it as nodes, `kit::spriteImage` bakes it,
 `kit::indexImage` bakes the INDICES instead for a shader that recolours per
 draw, and `kit::SpriteSheet` holds sprites under names and packs them onto one
 image, each handed the rectangle it occupies — `kit::Scrim` and the halo/shade
-legibility helpers, the stock text effects over the `Text::textFx` seam in
-`kit/Kinetic.h` — `textFx::entrance`, the one entrance every unit-offset reveal
-is a setting of: ONE `motion::Tween` of the `textFx::Displaced` lanes (`.from`
-where a glyph starts, `.ease` any SigilMotion easing, `.duration`, `.delay` and
-`.loop` the track's schedule) made a `Track`, with `textFx::enter` the same path
-as an effect for the combinators and `textFx::rise`, `textFx::slide`,
-`textFx::pop`, `textFx::spinIn` and `textFx::scatter` the stock tween values
-over it; and `textFx::typeOn`, `textFx::waveLoop`, `textFx::variableAxisSweep`
-and `textFx::tint` beside them, each a comparable `TextEffect` built from the
-constructor any caller may use —
+legibility helpers —
 with `kit/Marquee.h`'s `kit::marquee`, the seamless ticker built from a clipped
 strip and a wrapping phase, whose every dial is one options struct,
 `kit/Board.h`'s `kit::board`, the ground a placed drawing stands on — a `stack`

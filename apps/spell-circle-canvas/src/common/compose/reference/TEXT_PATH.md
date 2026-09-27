@@ -101,12 +101,13 @@ puts the run on the subpixel grid exactly as a turning ancestor does.
 **A track declares through two facts, and needs both.** Its progress must
 be live — bound, or mid-transition — and its effect must actually move
 glyphs, which is what `TextEffect::displaces` answers. That answer is
-*inferred* almost everywhere: a preset knows its own deviation (`textFx::rise`,
-`textFx::slide`, `textFx::pop`, `textFx::spinIn`, `textFx::scatter` and
-`textFx::waveLoop` move glyphs; `textFx::typeOn`, `textFx::variableAxisSweep`,
-`textFx::tint` and `textFx::scramble` touch coverage, colour or the outline and
-leave every pen position alone), `textFx::keys` reads its own table (any entry
-publishing an offset, a lean, a shear or a growth), and `textFx::sequence`,
+*inferred* almost everywhere: an entered tween reads its own stops
+(`textFx::rise`, `textFx::slide`, `textFx::pop`, `textFx::spinIn` and
+`textFx::scatter` move glyphs, and so does `textFx::waveLoop`;
+`textFx::typeOn` and `textFx::variableAxisSweep` move only the opacity and
+axis lanes, and `textFx::tint` and `textFx::scramble` touch colour or the
+outline, so they leave every pen position alone), `textFx::tween` reads its
+own stops (any stop publishing an offset, a lean, a shear or a growth), and `textFx::sequence`,
 `textFx::mix` and `textFx::hold` derive from their operands. `textFx::pass`
 does not displace — its shader runs over pixels already rasterized at the
 resting origins, so refining those origins says nothing about where the pass

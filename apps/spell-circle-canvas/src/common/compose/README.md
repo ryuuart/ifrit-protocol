@@ -473,7 +473,10 @@ checked against the headers by the same probe this page is.
 The shape of it in one paragraph: a text leaf holds an ordered list of
 `textFx()` TRACKS, each `(selector, effect, timing, progress)` — which
 glyphs, what deviation from rest, how their start times spread, what
-drives it — and the same `selectors::` vocabulary addresses glyphs for a track,
+drives it — where every motion inside a track, the timing, a keyframed
+deviation (`textFx::tween`), an entrance and a colour reveal alike, is
+one `motion::Tween` in Motion's one keyframe grammar, and the same
+`selectors::` vocabulary addresses glyphs for a track,
 characters for a `span`, and units for anything standing beside the
 passage. What a passage is SET like is `Text::paragraphStyles` and the
 layout setters beside it, which map onto
@@ -801,8 +804,9 @@ and what a label promises. What is only true of SigilCompose:
 the tier it draws with**: `SigilComposeCore` (`core/` — the kernel:
 elements, layout, paint, transitions, text, the feed and the instanced
 leaf, as the host of SigilCore's reconciler), `SigilComposeTypography`
-(`typography/` — the text vocabulary and the engine behind dressed
-type), `SigilComposeBrush` (`brush/` — decorations, lines, brushes, the
+(`typography/` — the text vocabulary, the entrance and the stock text
+effects as tween values, and the engine behind dressed type),
+`SigilComposeBrush` (`brush/` — decorations, lines, brushes, the
 stroke grammar's engine and the mask gates, with `kit/Plate.h` and
 `kit/Strokes.h`),
 `SigilComposeTexture` (`texture/` — a scene painted into a surface and
@@ -811,8 +815,8 @@ handed out as a texture value, a `media::PixelSource` built from a scene),
 `SigilComposeDraw` (`draw/` — the door to SigilDraw's pen, both ways),
 `SigilComposeTesting` (`testing/`) and `SigilComposeKit` (`kit/` — the
 shelves: the silhouette catalog spelled for a node, the layout schemes
-and the grid, the routers, the placers, the typesetting furniture and
-the kinetic type presets). Each directory holds the target's sources,
+and the grid, the routers, the placers and the typesetting furniture).
+Each directory holds the target's sources,
 its internal headers, its `test/` and its `bench/`; the public headers
 sit under `include/sigilcompose/<feature>/`. A harness several features
 compose against belongs to none of them, so the shared ones sit at the

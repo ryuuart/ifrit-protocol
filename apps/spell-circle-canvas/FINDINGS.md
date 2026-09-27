@@ -495,10 +495,11 @@ pass's to fix rather than a kit component's to paper over.
 
 ## `textFx::tint` takes its two colours as values, so a wipe cannot follow the sheet's ink
 
-`textFx::tint(from, to)` (`sigilcompose/kit/Kinetic.h`) computes its
-per-channel multiplier as `from / to` from two `material::Color` values
-when the effect is built. It must be used on a line whose ink IS `to`: the
-multiplier only ever takes the drawn colour down toward `from`. A sheet
+`textFx::tint({.from, .to})` (`sigilcompose/typography/TextFx.h`) computes
+its per-channel multiplier as each stop over the rest colour, from
+`material::Color` values in its `motion::Tween` when the effect is built. It
+must be used on a line whose ink IS the rest (`.to`): the multiplier only
+ever takes the drawn colour down toward `.from`. A sheet
 that states its palette as custom properties inks the line with
 `ink(var("sung"))`, but the effect cannot read that property, so the sketch
 states the sung colour twice — once on `:root` for the ink, once as the
@@ -519,11 +520,11 @@ A test should ink a leaf with `ink(var("sung"))` under a rule that sets
 local 1 draws the property's colour; then restate `--sung` on a class the
 leaf carries and assert local 0 still draws `from`.
 
-Wanted by `karaoke_wipe`, whose wipe is `textFx::tint(kPale, kSung)` over
+Wanted by `karaoke_wipe`, whose wipe is `textFx::tint({.from = kPale, .to = kSung})` over
 a lyric inked `var("sung")`.
 
-`elastic_type` meets the same constraint from `textFx::keys`: its blush
-table writes each stop's `GlyphModifier::colorMultiplier` from the two
+`elastic_type` meets the same constraint from `textFx::tween`: its blush
+keyframes write each stop's `GlyphModifier::colorMultiplier` from the two
 series colours the sheet also states as `--x` and `--y`, so the palette is
 stated twice, once as custom properties for the traces and once as
 constants for the glyphs. Whatever fixes `tint` (a `VarRef` end resolved
@@ -714,7 +715,7 @@ cascade could cache the deviated outline as a static one is), or the
 effect family carries `dropShadow(offset, sigma, colour)` so one filter on
 the leaf casts the drawn letters, deformed, without a copy.
 
-A test should lay `textFx::keys({{0, {}}, {1, {.scaleX = 2}}})` at
+A test should lay `textFx::tween({.to = GlyphModifier{.scaleX = 2}})` at
 progress 1 on a one-glyph leaf with `decorationOutline(Boundary::Glyphs)`
 and an `OuterGlow`, and assert the glow's painted bounds span the doubled
 glyph's width rather than the rest glyph's; and, for the effect, that a
@@ -732,13 +733,13 @@ and never reach a decoration drawn over `Boundary::Glyphs`
 `measuredRev` and hands the union to the decoration). So a text shadow or
 glow in the letters' own colour — CSS's `text-shadow` with no colour, which
 is `currentColor` per glyph — cannot follow a wipe: under
-`textFx::tint(pale, sung)` it glows the sung colour round letters not yet
+`textFx::tint({.from = pale, .to = sung})` it glows the sung colour round letters not yet
 sung. The fix that rebuilds the outline from the deviated glyphs should
 carry each glyph's modulated colour too, or a glyph-outline decoration
 should be able to say "the glyph's own colour".
 
 A test should tint a two-glyph leaf with a track holding glyph 0 at local 1
-and glyph 1 at local 0 (`tint(black, white)` on a white leaf), dress it with
+and glyph 1 at local 0 (`tint({.from = black, .to = white})` on a white leaf), dress it with
 `decorationOutline(Boundary::Glyphs)` and a zero-offset shadow in the ink
 in force, and assert pixels of the shadow beside glyph 0 are lit and beside
 glyph 1 are not.

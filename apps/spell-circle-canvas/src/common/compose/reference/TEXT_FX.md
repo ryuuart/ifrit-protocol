@@ -21,19 +21,23 @@ and scale and alpha multiplying. The seam is three headers:
   those two make, and `TextEffect` the comparable value one is wrapped
   in.
 - `typography/TextFx.h` — the `textFx::` catalogue: the effects the runtime
-  evaluates by STRUCTURE rather than by calling a body, and
-  `kNominalSizePx`, the display size a preset's reach is declared
-  against.
+  evaluates by STRUCTURE rather than by calling a body — `textFx::tween`
+  and `textFx::tint` among them — and `kNominalSizePx`, the display size a
+  preset's reach is declared against.
 - `typography/Track.h` — the schedule. `Track` is the five things above,
   and `Beats` is which list its beats are numbered against.
-- `kit/Kinetic.h` — the entrance a track is made of and the stock
-  effects an example reaches for. `textFx::entrance` is ONE
-  `motion::Tween` of a glyph's `textFx::Displaced` lanes — `.from` where
-  it starts, `.ease` how it comes home, `.duration`, `.delay` and `.loop`
-  the track's schedule — made a track; `textFx::enter` is the same path as
-  an effect, for the combinators, where the track around it says when.
-  The stock entrances `rise`, `slide`, `pop`, `spinIn` and `scatter` are
-  tween values; `waveLoop` and the rest are effect values over the seam.
+- `typography/Entrance.h` — the entrance a track is made of.
+  `textFx::entrance` is ONE `motion::Tween` of a glyph's
+  `textFx::Displaced` lanes — `.from` where it starts, `.ease` how it comes
+  home, `.duration`, `.delay` and `.loop` the track's schedule — made a
+  track; `textFx::enter` is the same path as an effect, for the
+  combinators, where the track around it says when.
+- `typography/Presets.h` — the stock values an example reaches for. Every
+  entrance there is a `motion::Tween<textFx::Displaced>` a caller may copy
+  and change: `rise`, `slide`, `pop`, `spinIn`, `scatter`, `typeOn` (the
+  opacity lane stepping at the middle of the beat) and `variableAxisSweep`
+  (the axis lane, straight). `waveLoop` is the one effect value, because
+  it reads each glyph's index and size, which a tween never sees.
 
 ```cpp
 text(u8"ONE LINE, TWO MOVES", display)
@@ -297,8 +301,9 @@ slot mounts — keyed `-rest` after the original, its ink the caller's.
 `kit::restGhost` is that copy under the moving one, set in one colour.
 
 **Effects are comparable values**, which is what lets text carrying tracks
-prune like any other static leaf. A preset compares by its name and its
-parameters; an ad-hoc body goes through `textFx::effect`, which takes the key
+prune like any other static leaf. An entered tween compares by its stops,
+their shares and its curves, a named effect by its name and its parameters;
+an ad-hoc body goes through `textFx::effect`, which takes the key
 its author gives it — two different bodies under one key compare equal and one
 of them silently never draws. The one declaration an ad-hoc body carries,
 `TextEffect::displacing`, joins those parameters rather than sitting beside
@@ -317,32 +322,39 @@ glyphs when any operand it may evaluate does, so a sequence whose second phase
 lifts is displacing from the moment it is built, and nobody has to remember to
 say so.
 
-**Keyframe tables.** Every published web or motion reference is a list of
-(position, value) entries, and `textFx::keys` is that list as an effect. A
-`textFx::Key` is a moment in local time, a `GlyphModifier` at it, and
-optionally a curve of its own:
+**Keyframes.** Every published web or motion reference is a list of
+(position, value) entries, and `textFx::tween` is that list as an effect —
+Motion's own keyframe grammar, a `motion::Tween<GlyphModifier>`, because
+`GlyphModifier` is `motion::Interpolable`. `.from` is where every unit
+starts (the glyph at rest when unset), and each `motion::Keyframe` is where
+it goes next, its share of the path and optionally a curve of its own:
 
 ```cpp
-const TextEffect rubberBand = textFx::keys({
-    {0.00f, {}},
-    {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
-    {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
-    {1.00f, {}},
-}, motion::ease::inOutCubic);
+const TextEffect rubberBand = textFx::tween({
+    .keyframes = {{.to = {.scaleX = 1.25f, .scaleY = 0.75f}, .duration = 300ms},
+                  {.to = {.scaleX = 1.15f, .scaleY = 0.85f}, .duration = 200ms},
+                  {.to = {}, .duration = 500ms}},
+    .ease = motion::ease::inOutCubic});
 ```
 
-The curve applies **per segment** — every pair of entries runs the whole curve
-over its own span, which is what a keyframe list means and what one curve
-stretched across the table would not be. `textFx::Key::ease` overrides it for
-the segment that *opens* at that entry; unset segments are linear.
-Interpolation is componentwise through the same arithmetic a `textFx::sequence`
-crossfade uses, so `codepoint` cuts at the middle of a segment and `axis` lerps
-only between entries naming the same tag. The table is the identity: two
-`textFx::keys` over the same numbers and the same named curves compare equal
-and prune, and a table declares its own reach from the offsets, growths and
-leans it publishes. A sequence is not a table over effects and neither is the
+A keyframe's `duration` is its SHARE of the path — one with none takes the
+tween's `duration` over the keyframe count, Motion's rule, so a list with no
+durations is equal shares — and the whole path is the unit's local progress,
+whatever it sums to; the track's own tween says when a unit runs. The curve
+applies **per segment** — every segment runs the whole curve over its own
+span, which is what a keyframe list means and what one curve stretched across
+the path would not be. A keyframe's `ease` overrides it for the segment that
+*arrives* at that keyframe; **unset, a segment is straight**, not Motion's
+`outQuad` default, because the stops are what the author placed.
+Interpolation is `compose::interpolate`, the same arithmetic a
+`textFx::sequence` crossfade uses, so `codepoint` and a differing `axis` tag
+cut at the middle of a segment and `axis` lerps only between stops naming the
+same tag. The stops are the identity: two `textFx::tween`s over the same
+numbers, the same shares and the same named curves compare equal and prune,
+and the effect declares its own reach from the offsets, growths and leans it
+publishes. A sequence is not a keyframed tween over effects and neither is the
 other's special case — a `Phase` is an effect re-clocked over its window, a
-`textFx::Key` is one deviation standing still.
+keyframe is one deviation standing still.
 
 **Holding a beat.** `textFx::hold` wraps an effect so a unit whose beat has not
 opened paints *nothing*: a schedule hands a waiting unit a local progress clamped
@@ -463,14 +475,17 @@ both. A pass is a whole-track statement: inside `textFx::sequence`,
 pass by driving its progress, and gate its onset in its own SkSL, which holds
 the whole schedule.
 
-**Colour as a staggered reveal.** `textFx::tint(from, to)` is the colour reveal — a
-karaoke wipe, a highlight sweeping a word — and it carries one inversion
-worth stating once. `GlyphModifier::colorMultiplier` MULTIPLIES, and a multiplier only
-takes a colour toward black, so **the element is set in `to` and the effect
-multiplies down toward `from`**. The arguments still read in time order and
-the division is done inside: `textFx::tint(pale, sung)` on a line set in `sung`
-wipes pale to sung, while setting the line in `pale` draws pale throughout
-with no diagnostic. Multiplying is also what lets it tint a gradient-filled
+**Colour as a staggered reveal.** `textFx::tint` takes a
+`motion::Tween<material::Color>` — `.from`, `.to`, any keyframes between —
+and is the colour reveal — a karaoke wipe, a highlight sweeping a word — and
+it carries one inversion worth stating once. `GlyphModifier::colorMultiplier`
+MULTIPLIES, and a multiplier only takes a colour toward black, so **the
+element is set in the colour the tween rests at, and the effect multiplies
+down toward every other stop**. The stops still read in time order and the
+division is done inside: `textFx::tint({.from = pale, .to = sung})` on a line
+set in `sung` wipes pale to sung, while setting the line in `pale` draws pale
+throughout with no diagnostic. Unset, its curve is a smoothstep, because a
+hard edge at display size flickers. Multiplying is also what lets it tint a gradient-filled
 line without knowing what fills it, and why a destination channel of zero
 cannot be departed from.
 
@@ -483,8 +498,8 @@ the painted colour c becomes 1 − (1 − c)(1 − s), lifting each channel in
 proportion to its headroom, and screens combine *commutatively* across
 tracks — stacked glows compose order-free. Both are RGB-only (coverage
 stays the multiplicative lane's — `alpha` and the multiplier's own alpha),
-both lerp componentwise in a `textFx::keys` table like every other continuous
-field, and both are usually spoken through one: a keys table that opens
+both lerp componentwise in a `textFx::tween` like every other continuous
+field, and both are usually spoken through one: a tween that opens
 bright and decays to zero is the flash-then-settle an entrance wants.
 Because screening against a constant is affine per channel, multiply, add
 and screen ride *one* memoized colour-matrix filter on a shader-filled
@@ -516,7 +531,7 @@ replacement has the original's advance ALONG THE AXIS ITS RUN ADVANCES ON — th
 width along a line, the height down an upright column; a swap that differs
 there would move every letter after it, which is a reshape and not a redraw.
 `textFx::variableAxis` holds a coordinate and `textFx::variableAxisSweep`
-sweeps between two across local progress and `textFx::scramble` is the
+is the stock tween sweeping between two across local progress and `textFx::scramble` is the
 decoding-text preset built on the substitution: each glyph churns through a
 charset and resolves to the true letter by `t = 1`, seeded per glyph so it is
 the same churn on every frame.
