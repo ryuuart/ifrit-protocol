@@ -14,7 +14,6 @@
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -27,13 +26,15 @@
 #include <utility>
 #include <vector>
 
+#include "Ornament.h"
+
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
-using namespace sigil::compose::kit::ornament;
+using namespace nine_slice;
 
 namespace {
 

@@ -31,10 +31,8 @@
 #include <sigilcompose/draw/Draw.h>
 #include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Layouts.h>
-#include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Routers.h>
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -51,6 +49,9 @@
 #include <vector>
 #include <sigilmotion/ease/Ease.h>
 
+#include "GiltBorder.h"
+#include "Ornament.h"
+
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
@@ -62,8 +63,7 @@ using namespace sigil::compose;
 using sigil::draw::Pen;
 using sigil::material::Paint;
 using namespace std::chrono_literals;
-using namespace sigil::compose::kit::ornament;
-using namespace sigil::compose::kit::flourish;
+using namespace flourish;
 
 namespace {
 /** The canvas this piece was drawn against, which is also the default a

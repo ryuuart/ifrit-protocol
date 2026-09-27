@@ -57,7 +57,6 @@
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
-#include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/kit/Typeset.h>
 #include <sigilcompose/typography/Typography.h>
@@ -75,13 +74,15 @@
 #include <string>
 #include <utility>
 
+#include "Ornament.h"
+
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace weave = sigil::weave;
 
 using namespace sigil::compose;
 using namespace std::chrono_literals;
-using namespace sigil::compose::kit::ornament;
+using namespace manuscript;
 
 namespace {
 

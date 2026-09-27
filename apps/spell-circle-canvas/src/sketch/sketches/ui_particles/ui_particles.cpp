@@ -26,10 +26,8 @@
 
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/kit/Document.h>
-#include <sigilcompose/kit/Flourish.h>
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Legibility.h>
-#include <sigilcompose/kit/Ornament.h>
 #include <sigilcompose/typography/Typography.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Color.h>
@@ -43,14 +41,16 @@
 #include <memory>
 #include <random>
 
+#include "GiltBorder.h"
+#include "Ornament.h"
+
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
 
 using namespace sigil::compose;
 using sigil::material::hexColor;
 using namespace std::chrono_literals;
-using namespace sigil::compose::kit::ornament;
-using namespace sigil::compose::kit::flourish;
+using namespace ui_particles;
 
 namespace {
 /** The canvas this piece was drawn against, which is also the default a
