@@ -13,7 +13,7 @@ def register(table: Table) -> None:
     table.erased(BRUSH + ".Direction", "__init__", "_t.DirectionLike")
     for record in ("Input", "Sample"):
         table.erased(BRUSH + "." + record, "__init__", "_t.PointLike")
-    table.erased(BRUSH + ".Line", "__init__", "_t.PointLike", "_t.PointLike")
+    table.erased(BRUSH + ".Polygon", "intersect", "_t.PointLike", "_t.PointLike")
     table.erased(BRUSH + ".Plot", "path", "_t.PointLike")
     table.erased(
         BRUSH + ".Position", "__init__", "_t.DirectionLike", "_t.RectLike | None"
