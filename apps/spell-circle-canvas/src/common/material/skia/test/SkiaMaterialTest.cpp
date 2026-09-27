@@ -74,3 +74,29 @@ TEST(SkiaMaterial, EffectsAreReadBackAndPartOfTheValue) {
   EXPECT_TRUE(raised.effects()->withoutCoverage().isNone());
   EXPECT_NE(raised, raised.base());
 }
+
+TEST(SkiaMaterial, TheDesignatedFormIsTheChainInOnePairOfBraces) {
+  const Filter shadow = Filter::shadow(Color{0, 0, 0, 0.5f}, {.blur = 4});
+  const Material chained = from(Color{0.2f, 0.3f, 0.4f, 1})
+                               .layer(Color{1, 1, 1, 0.5f},
+                                      {.blend = BlendMode::Screen})
+                               .surface({.metallic = 1.0f})
+                               .effects(shadow);
+  const Material designated =
+      from({.base = Color{0.2f, 0.3f, 0.4f, 1},
+            .layers = {{Color{1, 1, 1, 0.5f}, {.blend = BlendMode::Screen}}},
+            .surface = SurfaceOptions{.metallic = 1.0f},
+            .effects = shadow});
+  EXPECT_EQ(chained, designated);
+  ASSERT_TRUE(designated.effects());
+  EXPECT_EQ(shadow, *designated.effects());
+  EXPECT_FALSE(from({.base = Color{1, 0, 0, 1}}).effects())
+      << "no effects stated, none held";
+}
+
+TEST(SkiaMaterial, ABlurMapIsWrittenAsAMaterial) {
+  const Material falloff =
+      linearGradient({0, 0}, {1, 0}, {{0, {0, 0, 0, 1}}, {1, {1, 1, 1, 1}}});
+  EXPECT_EQ(Filter::blur(skia::paint(falloff), 12.0f),
+            Filter::blur(falloff, 12.0f));
+}

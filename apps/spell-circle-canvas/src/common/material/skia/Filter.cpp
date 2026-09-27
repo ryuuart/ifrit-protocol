@@ -9,6 +9,7 @@
 #include <include/effects/SkImageFilters.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Filter.h>
+#include <sigilmaterial/skia/Paint.h>
 
 #include <cmath>
 #include <memory>
