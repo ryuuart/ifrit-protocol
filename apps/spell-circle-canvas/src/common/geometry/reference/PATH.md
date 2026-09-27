@@ -320,20 +320,33 @@ in no header.
   `radians()`/`degrees()` over them (one rounding, where a hand-written
   `deg * 3.14159f / 180.0f` rounds twice), `bisect()` over a predicate
   and `wrap()` into a period.
-- **`path/Arrange.h`** — namespace `arrange`. Where item i of n goes when
-  a run of things is spread out: `Turn` (`Open` occupies both ends of an
-  extent in n−1 steps, `Closed` takes n steps so the last stops short of
-  the first), `step()` and `along()` over an extent in the caller's own
-  unit — radians round a ring, arc length along a contour — and
-  `onEllipse()`, the point at an angle on the ellipse at a centre with a
-  radius per axis, with `onRing()` over it for item i's centre. The grid half is `Cell`, `cellAt()` (row-major index to column and
-  row), `moduleSize()` (the module that fits columns by rows of itself and
-  the gaps between them exactly into a container) and `cellRect()` (the
-  rect a block of cells covers, swallowing the gaps it crosses; nothing is
-  clamped to a column or row count, because whether landing outside is an
-  error or a bleed is the caller's to know). Here rather than in a
-  catalog of placements because a catalog is where this arithmetic gets
-  spelled a second time, and two spellings of one ring round apart.
+- **`path/Arrange.h`** — namespace `arrange`. Where item i of n goes,
+  and which way it faces there: the one place in the tree an angle
+  becomes a point, over glm and `Rect` with no renderer type. `Turn`
+  (`Open` occupies both ends of an extent in n−1 steps, `Closed` takes n
+  steps so the last stops short of the first), `step()` and `along()`
+  over an extent in the caller's own unit — radians round a ring,
+  degrees on a dial, arc length along a contour. `direction()` is the
+  unit vector at a screen angle, `heading()` the degrees a vector points
+  along, and `onEllipse()` the point at a screen angle on the ellipse at
+  a centre with a radius per axis. `Ring` states a ring as options —
+  `center`, `radii`, `fromDegrees` (−90 is twelve o'clock), `sweepDegrees`,
+  `turn` — read by `radiansOnRing()`, `radiansAt()` (a fraction of the
+  sweep, for an item placed by a quantity of its own), `onRing()` and
+  `placeOnRing()`. `Placement` is the pair a facing layout reads, a
+  `position` and a `headingDegrees`: `placeOnEllipse()` faces an item
+  along its spoke turned a quarter, so it stands upright at twelve
+  o'clock, and `placeAlong()` along a run's tangent. The grid half is
+  `Cell`, `cellAt()` (row-major index to column and row), `moduleSize()`
+  (the module that fits columns by rows of itself and the gaps between
+  them exactly into a container) and `cellRect()` (the rect a block of
+  cells covers, laid by a `CellBlock` of `gap`, `origin`, `columnSpan` and
+  `rowSpan`, swallowing the gaps it crosses; nothing is clamped to a
+  column or row count, because whether landing outside is an error or a
+  bleed is the caller's to know). The polar frame, the radial arrangement and
+  the kit's layouts and placers all step through these bodies, because a
+  catalog of placements is where this arithmetic gets spelled a second
+  time, and two spellings of one ring round apart.
 - **`path/Conic.h`** — the one curve family measured from a FOCUS rather
   than centred on a box: `r(v) = p / (1 + e cos v)`, with `Conic` carrying
   the focus, the semi-latus rectum, the eccentricity and where the near

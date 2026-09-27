@@ -783,11 +783,12 @@ pattern's bake and a ribbon's surface are a `material::Material`; a
 retained guest's box is a `geometry::path::Rect`, a glyph's origin and a
 placer's points `glm::vec2`, the web view's sampling a
 `material::Sampling`. The executor's paint a material lowers to is the
-painter's own business, read in the sources and never in a header. Two
-answers Compose reads are still Skia-typed in SigilGeometry itself —
-`geometry::arrange`'s cells and rings, which the kit's layouts and placers
-step through in their sources, and the `geometry::path::Shaper` protocol a
-brush's geometry pipeline holds — and move when Geometry's do.
+painter's own business, read in the sources and never in a header.
+`geometry::arrange`, whose rings, placements and cells the kit's layouts
+and placers step through, answers in `glm::vec2` and
+`geometry::path::Rect`. One answer Compose reads is still Skia-typed in
+SigilGeometry itself — the `geometry::path::Shaper` protocol a brush's
+geometry pipeline holds — and moves when Geometry's does.
 
 ## Build and test
 

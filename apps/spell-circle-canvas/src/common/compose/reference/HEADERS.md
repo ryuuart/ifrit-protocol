@@ -526,7 +526,15 @@ Neither the schemes nor the pool fillers of `kit/Placers.h` derive a ring
 or a grid for themselves. Where item i of n falls on a ring, and which
 cell of a grid of modules it occupies, are functions of numbers alone —
 they belong to SigilGeometry, in `<sigilgeometry/path/Arrange.h>`, and
-both shelves step through those bodies. **One arithmetic, one place**: a
+both shelves step through those bodies. `layouts::Radial` states its ring
+as a `geometry::arrange::Ring` — the box's centre, radii of the fraction
+times each half-extent, the author's start and sweep, the turn the sweep
+implies — and reads each child's position and facing from
+`geometry::arrange::placeOnRing`, or from `placeOnEllipse` at
+`radiansAt` for a child placed by a fact; `AlongPath` faces a child by
+`geometry::arrange::placeAlong` on the contour's tangent; `Jittered` and
+`place::grid` read `moduleSize` and `cellRect`, `place::ring` reads
+`onEllipse`. **One arithmetic, one place**: a
 ring is one ring whether its items are measured children or sprite
 positions in a buffer, and a second spelling would round its own way and
 put the same ring a pixel off itself with nothing in either file to say

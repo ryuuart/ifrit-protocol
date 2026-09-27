@@ -118,9 +118,14 @@ path::offset(outline, width, path::OffsetOptions)   // a rail at a width law, or
 path::band(spine, width, path::BandOptions)         // the region between a spine and its rail
 path::Transform::rotate(degrees, about)  * path::Transform::translate(offset)
 
+// Where item i of n goes — the one trigonometry in the tree
+arrange::placeOnRing(index, count, arrange::Ring)   // position and heading on a ring or an ellipse
+arrange::onRing(index, count, arrange::Ring)  arrange::onEllipse(center, radii, radians)
+arrange::placeAlong(position, tangent)  arrange::heading(vector)
+arrange::cellRect(arrange::cellAt(index, columns), module, arrange::CellBlock)
+
 // Points and projection
 path::points(where, pattern)                   // random, poisson, grid, radial, along
-arrange::heading(vector)                       // the degrees a mark laid along a vector turns by
 path::projection::stereographic(options)  .at(direction)  .from(point)   // any ProjectionScheme
 
 // Bodies
