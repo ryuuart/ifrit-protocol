@@ -27,7 +27,7 @@
 find_package(yoga CONFIG REQUIRED)
 sigil_library(SigilComposeBrush
   SOURCES Adaptors.cpp Decorations.cpp Lines.cpp
-          PixelStyles.cpp
+          PixelStyles.cpp Ink.h
           Composites.cpp Stamps.cpp Ribbon.cpp Art.cpp BakedArt.h
           # the stroke grammar's engine and the mask gates, behind the
           # kernel's StrokeResolver and MaskResolver seams

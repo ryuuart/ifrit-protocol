@@ -1,6 +1,7 @@
 /** @file
  * The stock tile programs: each draws one seamless tile with wraparound
- * copies where a mark crosses the edge.
+ * copies where a mark crosses the edge. And the two lattice sources,
+ * scanlines and the stipple, as programs read per pixel.
  */
 
 #include "sigilmaterial/pattern/Patterns.h"
@@ -8,10 +9,14 @@
 #include <include/core/SkPaint.h>
 #include <include/core/SkRect.h>
 #include <sigilcore/compute/Noise.h>  // core::noise::hash
+#include <sigilmaterial/advanced/Recipe.h>
 #include <sigilmaterial/skia/Painted.h>
+#include <sigilshaders/MaterialPattern.h>
 
 #include <algorithm>
 #include <cmath>
+#include <glm/vec4.hpp>
+#include <string>
 
 namespace sigil::material::pattern {
 
@@ -123,6 +128,87 @@ Tile speckle(float tileSize, int count, float minimumRadius, float maximumRadius
           c.drawCircle(x + (float)dx * s, y + (float)dy * s, r, p);
     }
   });
+}
+
+namespace {
+
+/** The scanlines' uniforms, by the names the body reads. */
+struct ScanlineParameters {
+  Color ink;
+  float period;
+  float on;
+  float phase;
+};
+
+/** The stipple's uniforms: the mask as four sixteen-bit words, each a
+ *  whole float, which every shading language holds exactly. */
+struct StippleParameters {
+  Color ink;
+  glm::vec4 words;
+  float size;
+  float cell;
+};
+
+const std::shared_ptr<const Recipe>& scanlineRecipe() {
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<ScanlineParameters>("pattern.scanlines")
+          .body(Target::SkSL, std::string(shaderSource("Scanlines.sksl"))));
+  return recipe;
+}
+
+const std::shared_ptr<const Recipe>& stippleRecipe() {
+  static const auto recipe = std::make_shared<const Recipe>(
+      Recipe::of<StippleParameters>("pattern.stipple")
+          .body(Target::SkSL, std::string(shaderSource("Stipple.sksl"))));
+  return recipe;
+}
+
+}  // namespace
+
+Material scanlines(const ScanlineOptions& options) {
+  if (options.period <= 0.0f || options.on <= 0.0f)
+    return Color{0, 0, 0, 0};
+  return Material(scanlineRecipe(),
+                  ScanlineParameters{options.color, options.period,
+                                     options.on, options.phase});
+}
+
+Material stipple(const StippleOptions& options) {
+  if (options.bits == 0 || options.size <= 0 || options.size > 8 ||
+      options.cell <= 0.0f)
+    return Color{0, 0, 0, 0};
+  const auto word = [&](int index) {
+    return (float)((options.bits >> (16 * index)) & 0xFFFFu);
+  };
+  return Material(stippleRecipe(),
+                  StippleParameters{options.color,
+                                    {word(0), word(1), word(2), word(3)},
+                                    (float)options.size, options.cell});
+}
+
+uint64_t ditherBits(int on, int size) {
+  size = std::clamp(size, 1, 8);
+  // The Bayer threshold matrix, built by the recursion that defines it:
+  // each step quadruples the lattice, the four quadrants offset by 0, 2,
+  // 3 and 1 quarters of the range.
+  int threshold[8][8] = {{0}};
+  int side = 1;
+  while (side < size) {
+    for (int y = 0; y < side; ++y)
+      for (int x = 0; x < side; ++x) {
+        const int base = threshold[y][x] * 4;
+        threshold[y][x] = base;
+        threshold[y][x + side] = base + 2;
+        threshold[y + side][x] = base + 3;
+        threshold[y + side][x + side] = base + 1;
+      }
+    side *= 2;
+  }
+  uint64_t bits = 0;
+  for (int y = 0; y < size; ++y)
+    for (int x = 0; x < size; ++x)
+      if (threshold[y][x] < on) bits |= uint64_t{1} << (y * size + x);
+  return bits;
 }
 
 }  // namespace sigil::material::pattern

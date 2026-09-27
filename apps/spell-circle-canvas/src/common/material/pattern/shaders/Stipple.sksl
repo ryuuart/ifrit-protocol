@@ -1,0 +1,19 @@
+// One ink through a 1-bit mask on the pixel lattice. The mask is up to
+// sixty-four cells, four words of sixteen bits held as whole floats, and
+// cell (x, y) is bit y * size + x. The bit is read by halving the word,
+// which is exact in a float where a power of two from exp2 need not be.
+half4 main(float2 p) {
+  float x = mod(floor(p.x / cell), size);
+  float y = mod(floor(p.y / cell), size);
+  float index = y * size + x;
+  float word = index < 16.0 ? words.x
+             : index < 32.0 ? words.y
+             : index < 48.0 ? words.z
+                            : words.w;
+  float shift = mod(index, 16.0);
+  for (int step = 0; step < 16; ++step) {
+    if (float(step) < shift) word = floor(word * 0.5);
+  }
+  if (word - 2.0 * floor(word * 0.5) < 0.5) return half4(0);
+  return half4(half3(ink.rgb) * half(ink.a), half(ink.a));
+}

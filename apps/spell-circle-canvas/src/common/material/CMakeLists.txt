@@ -75,6 +75,7 @@ sigil_test(material_test
   SUPPORT_DIRS ${SIGIL_SHADER_GENERATED_DIR}
   DEFINITIONS SIGIL_MATERIAL_SDF_SHADER_DIR="${SIGIL_MATERIAL_SDF_SHADER_DIR}"
               SIGIL_MATERIAL_FIELD_SHADER_DIR="${SIGIL_MATERIAL_FIELD_SHADER_DIR}"
+              SIGIL_MATERIAL_PATTERN_SHADER_DIR="${SIGIL_MATERIAL_PATTERN_SHADER_DIR}"
   LIBRARIES SigilMaterialColor SigilMaterialField SigilMaterialOcio
             SigilMaterialPattern SigilMaterialSdf SigilMaterialSkia
   SUITES Ocio LABELS ocio)

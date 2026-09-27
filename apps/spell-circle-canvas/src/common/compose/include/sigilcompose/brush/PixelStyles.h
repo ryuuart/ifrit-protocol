@@ -3,36 +3,40 @@
 /** @file
  * @ingroup compose-brush
  *
- * SigilCompose PIXEL STYLES — the hard-edged interface vocabulary a
- * bitmap-era panel is dressed with, as value decorations beside the
- * blurred ones in `LayerStyles.h`: the BEVEL PAIR (a light edge and a
- * dark edge, raised or sunken as one value), corner BRACKETS standing
- * off a box, a TICK RAIL along one of its edges, SCANLINES over it, and
- * the STIPPLE a colour is laid through.
+ * SigilCompose PIXEL STYLES — the hard-edged marks a kit places on a
+ * bitmap-era panel: the BEVEL PAIR (a light edge and a dark edge, raised
+ * or sunken as one value), corner BRACKETS standing off a box and a TICK
+ * RAIL along one of its edges. The raster laid OVER a panel — scanlines,
+ * a stipple — is not a mark but a material layer,
+ * `material::pattern::scanlines` and `material::pattern::stipple`.
  *
  * Every one is made of strokes and rectangles on the pixel lattice and
- * never of a blur or a shader, which is what the era looked like: a 1 px
- * highlight and a 1 px shadow, a reticle's four L's, a ruler nobody
- * reads, the raster of the tube the interface was shot on. Every one is
- * a VALUE with defaulted equality, so a panel wearing them prunes and
- * caches like any other static decoration.
+ * never of a blur, which is what the era looked like: a 1 px highlight
+ * and a 1 px shadow, a reticle's four L's, a ruler nobody reads. Every
+ * one is a VALUE with defaulted equality, so a panel wearing them prunes
+ * and caches like any other static decoration.
+ *
+ * THE INK IS A MATERIAL. A colour converts to one implicitly, so a stated
+ * tone is written as a colour; a gradient, a pattern or a program inks
+ * the same marks, laid across the node's box.
  *
  * ATTACHMENT IS THE CONTRACT, as for every decoration: `.overlay()` is
  * the slot a bevel wants — over the fill, under the content and the
  * children — because a bevel put in `.background()` is painted and then
  * covered by the surface it was meant to sit on, and one in
- * `.foreground()` rides over the panel's own label. Brackets, rails and
- * scanlines are usually foregrounds.
+ * `.foreground()` rides over the panel's own label. Brackets and rails
+ * are usually foregrounds.
  */
 
-#include <sigilmaterial/core/BlendMode.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilgeometry/kit/Corners.h>
 #include <sigilgeometry/path/Edges.h>
 #include <sigilmaterial/color/Color.h>
+#include <sigilmaterial/core/Material.h>
 
 #include <algorithm>
 #include <cstdint>
+#include <utility>
 
 namespace sigil::compose::styles {
 
@@ -102,8 +106,8 @@ enum class BevelEnds : uint8_t {
  *  a 3 px lift over a 2 px drop is one common spelling, 1 px over 1 px
  *  the other. */
 struct BevelPair {
-  material::Color light = {1, 1, 1, 0.6f};
-  material::Color dark = {0, 0, 0, 0.5f};
+  material::Material light = material::Color{1, 1, 1, 0.6f};
+  material::Material dark = material::Color{0, 0, 0, 0.5f};
   float lightWidth = 1.0f;
   float darkWidth = 1.0f;
   /** Light on the far edges, dark on the near ones. */
@@ -141,10 +145,10 @@ struct BevelPair {
   void paint(draw::Pen& pen, const PaintContext& ctx) const;
 };
 
-/** A bevel pair in two stated tones, @p width px each. */
-inline BevelPair bevelPair(material::Color light, material::Color dark,
+/** A bevel pair in two stated inks, @p width px each. */
+inline BevelPair bevelPair(material::Material light, material::Material dark,
                            float width = 1.0f, bool sunken = false) {
-  return BevelPair{light, dark, width, width, sunken};
+  return BevelPair{std::move(light), std::move(dark), width, width, sunken};
 }
 
 /** A bevel pair DERIVED from the face it sits on: the light edge is
@@ -172,7 +176,7 @@ inline BevelPair bevelPair(material::Color base, float lift, float drop,
  *  stands the brackets outside the box, and the decoration declares that
  *  reach. */
 struct Brackets {
-  material::Color color = {1, 1, 1, 1};
+  material::Material ink = material::Color{1, 1, 1, 1};
   float arm = 18.0f;
   float width = 2.0f;
   float gap = 0.0f;
@@ -188,10 +192,10 @@ struct Brackets {
 };
 
 inline Brackets brackets(
-    material::Color color, float arm = 18.0f, float width = 2.0f,
+    material::Material ink, float arm = 18.0f, float width = 2.0f,
     float gap = 0.0f,
     geometry::shapes::Corner corners = geometry::shapes::Corner::All) {
-  return Brackets{color, arm, width, gap, corners};
+  return Brackets{std::move(ink), arm, width, gap, corners};
 }
 
 /** A TICK RAIL along one edge of the box: a mark every @p pitch px,
@@ -207,7 +211,7 @@ inline Brackets brackets(
  *  value. The radial ladder is SigilGeometry's `shapes::ticks`, which
  *  states the angle convention this rail has no use for. */
 struct TickRail {
-  material::Color color = {1, 1, 1, 0.5f};
+  material::Material ink = material::Color{1, 1, 1, 0.5f};
   float pitch = 8.0f;
   float minor = 4.0f;
   float major = 9.0f;
@@ -226,86 +230,11 @@ struct TickRail {
 };
 
 inline TickRail tickRail(
-    material::Color color, float pitch = 8.0f, float minor = 4.0f,
+    material::Material ink, float pitch = 8.0f, float minor = 4.0f,
     float major = 9.0f, int majorEvery = 4,
     geometry::path::Edge edge = geometry::path::Edge::Top) {
-  return TickRail{color, pitch, minor, major, 1.0f, majorEvery, 0.5f, edge};
+  return TickRail{std::move(ink), pitch, minor, major, 1.0f, majorEvery, 0.5f,
+                  edge};
 }
-
-/** SCANLINES over the outline: a band @p on px tall every @p period px,
- *  in @p color through @p blend, clipped inside the shape — the raster of
- *  the tube, laid over a panel as the last thing on it.
- *
- *  Hard rows, deliberately: a 3 px period with a 1 px band is the house
- *  spelling of an interface shot off a monitor, and a raised-cosine beam
- *  is a different picture, a program a sketch writes, which also
- *  carries the tube's corner falloff. `kPlus` in a tint is the phosphor
- *  reading; source-over in a low black alpha is the print reading.
- *  @p phase slides the rows, in px. */
-struct Scanlines {
-  material::Color color = {0, 0, 0, 0.2f};
-  float period = 4.0f;
-  float on = 2.0f;
-  float phase = 0.0f;
-  material::BlendMode blend = material::BlendMode::Normal;
-
-  bool operator==(const Scanlines&) const = default;
-  /** The CRT reading composites with the picture beneath the rows; only
-   *  the print reading (source-over black) draws over itself alone. */
-  bool blends() const { return blend != material::BlendMode::Normal; }
-
-  void paint(draw::Pen& pen, const PaintContext& ctx) const;
-};
-
-inline Scanlines scanlines(material::Color color, float period = 4.0f,
-                           float on = 2.0f,
-                           material::BlendMode blend = material::BlendMode::Normal) {
-  return Scanlines{color, period, on, 0.0f, blend};
-}
-
-/** THE STIPPLE: one colour laid through a repeating 1-BIT MASK on the
- *  pixel lattice, clipped inside the outline — the insensitive control of
- *  a toolkit that had no alpha, the 50 % dither a ramp was made of before
- *  there were gradients, the screen a monochrome printer shaded with.
- *
- *  THE MASK IS BITS, NOT AN IMAGE, and must be. A decoration is compared
- *  by value and an image inside one compares by POINTER, so a node whose
- *  stipple carries a tile cut where it is asked for never compares equal
- *  to itself and is re-recorded on every describe, forever. Bits compare
- *  like the numbers they are, and the tile they name is cut once for the
- *  process.
- *
- *  Bit `y * size + x`, counting from the low bit, is the cell at (x, y):
- *  set takes the colour, clear leaves what is under it. `size` is at most
- *  eight, which is every screen a bitmap toolkit ever shipped.
- *
- *  It is a TINT through a mask rather than a `Pattern`, and that is the
- *  distinction: a Pattern bakes its colours into its tile, so a themed
- *  stipple would need one tile per palette per colour, where one mask
- *  serves every colour it is ever drawn in. */
-struct Stipple {
-  material::Color color = {0, 0, 0, 1};
-  /** The 50 % checkerboard: cells (0,0) and (1,1) of a 2 × 2 lattice. */
-  uint64_t bits = 0b1001;
-  int size = 2;
-  /** Px per cell. Whole numbers keep the mask on the lattice. */
-  float cell = 1.0f;
-
-  bool operator==(const Stipple&) const = default;
-
-  void paint(draw::Pen& pen, const PaintContext& ctx) const;
-};
-
-/** The 50 % checkerboard in @p color — `stipple(x, y) = (x + y) & 1`,
- *  which is the one every toolkit greyed a dead control out with. */
-inline Stipple stipple(material::Color color, float cell = 1.0f) {
-  return Stipple{color, 0b1001, 2, cell};
-}
-
-/** A stipple of @p on cells in every `size × size` block, filled in the
- *  order a Bayer threshold matrix fills them — the ordered dither, one
- *  tone of it. @p size is 2, 4 or 8; @p on runs from 0 (nothing) to
- *  `size * size` (solid). */
-Stipple dither(material::Color color, int on, int size = 4, float cell = 1.0f);
 
 }  // namespace sigil::compose::styles

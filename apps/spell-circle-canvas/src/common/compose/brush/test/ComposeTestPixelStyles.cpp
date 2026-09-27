@@ -1,10 +1,12 @@
 // The pixel styles: the bevel pair's tones land on the edges it names and
 // swap when it is sunken, the brackets stand off the box at the corners
 // they were asked for, the tick rail's ladder walks one edge with every
-// n-th mark long, and the scanlines are rows inside the outline. Every
+// n-th mark long, and the scanlines are rows inside the outline, laid as
+// a layer of the fill's material. Every
 // claim is about WHERE INK LANDS, so every case reads pixels back.
 
 #include <sigilcompose/brush/PixelStyles.h>
+#include <sigilmaterial/pattern/Patterns.h>
 
 #include "support/BrushTestSupport.h"
 
@@ -136,8 +138,9 @@ TEST(ComposePixelStyles, ScanlinesAreRowsInsideTheOutline) {
       box().children({box()
                           .width(20)
                           .height(20)
-                          .fill(Fill::color({1, 1, 1, 1}))
-                          .overlay(styles::scanlines({0, 0, 0, 1}, 4, 2))}));
+                          .fill(material::from(material::Color{1, 1, 1, 1})
+                                    .layer(material::pattern::scanlines(
+                                        {.color = {0, 0, 0, 1}, .period = 4, .on = 2})))}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 0), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(10, 1), SK_ColorBLACK);
@@ -150,14 +153,14 @@ TEST(ComposePixelStyles, ScanlinesAreRowsInsideTheOutline) {
   EXPECT_EQ(host.pixel(25, 2), SK_ColorBLACK);
 
   // A phase slides the rows, and a plus blend adds a tint to the ground.
-  styles::Scanlines shifted =
-      styles::scanlines({1, 0, 0, 1}, 4, 2, material::BlendMode::PlusLighter);
-  shifted.phase = 2.0f;
-  host.composer.render(box().children({box()
-                                           .width(20)
-                                           .height(20)
-                                           .fill(Fill::color({0, 0, 0, 1}))
-                                           .overlay(shifted)}));
+  host.composer.render(box().children(
+      {box().width(20).height(20).fill(
+          material::from(material::Color{0, 0, 0, 1})
+              .layer(material::pattern::scanlines({.color = {1, 0, 0, 1},
+                                                   .period = 4,
+                                                   .on = 2,
+                                                   .phase = 2}),
+                     {.blend = material::BlendMode::PlusLighter}))}));
   host.frame();
   EXPECT_EQ(host.pixel(10, 0), SK_ColorBLACK);
   EXPECT_EQ(host.pixel(10, 2), SK_ColorRED);

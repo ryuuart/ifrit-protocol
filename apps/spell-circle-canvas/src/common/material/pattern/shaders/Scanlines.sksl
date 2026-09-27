@@ -1,0 +1,7 @@
+// Hard rows: a pixel whose centre lies in the first `on` px of a period
+// takes the ink, and every other pixel is left clear.
+half4 main(float2 p) {
+  float row = mod(p.y - phase, max(period, 0.0001));
+  if (row >= on) return half4(0);
+  return half4(half3(ink.rgb) * half(ink.a), half(ink.a));
+}

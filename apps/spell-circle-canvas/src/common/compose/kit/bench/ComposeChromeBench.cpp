@@ -2,6 +2,7 @@
 // takes, and a sheet of them at the density a reconstructed desktop has.
 
 #include <sigilcompose/kit/Chrome.h>
+#include <sigilmaterial/pattern/Patterns.h>
 #include <sigilcore/reconcile/Environment.h>
 
 #include <string>
@@ -93,8 +94,9 @@ static void BM_Chrome_Stipple(benchmark::State& state) {
     return box().padding(20).children({box()
                                            .width(Dimension(180))
                                            .height(Dimension(40))
-                                           .fill(kFace)
-                                           .overlay(styles::stipple(kShade))
+                                           .fill(sigil::material::from(sigil::material::Color{kFace.fR, kFace.fG, kFace.fB, kFace.fA})
+                                                     .layer(sigil::material::pattern::stipple(
+                                                         {.color = {kShade.fR, kShade.fG, kShade.fB, kShade.fA}})))
                                            .key("stippled")});
   };
   host.composer.render(tree());

@@ -1,31 +1,20 @@
 /** @file
  * The pixel styles' paint: the bevel pair as four edge strokes in a
- * stated order (or as a mitred ring), the brackets as L's on the box, the
- * tick rail as a walk along an edge, the scanlines as rows clipped to the
- * outline, and the stipple as a tint through a mask tile.
+ * stated order (or as a mitred ring), the brackets as L's on the box and
+ * the tick rail as a walk along an edge, each in the ink it names.
  */
 
 #include <sigildraw/Pen.h>
 #include <sigilgeometry/path/Skia.h>
-#include <include/core/SkBitmap.h>
-#include <sigilmaterial/skia/Paint.h>
-#include <include/core/SkColorFilter.h>
-#include <include/core/SkImage.h>
-#include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkPathUtils.h>
 #include <include/core/SkRect.h>
-#include <include/core/SkSamplingOptions.h>
-#include <include/core/SkShader.h>
-#include <include/core/SkTileMode.h>
 #include <sigilcompose/brush/PixelStyles.h>
-#include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/skia/Color.h>
 
 #include <cmath>
-#include <map>
-#include <mutex>
+
+#include "Ink.h"
 
 namespace sigil::compose::styles {
 namespace {
@@ -41,8 +30,8 @@ namespace {
  *  negative one to the far band. It is half a pixel because that is the
  *  distance from a corner to the centre of the pixel the corner names.
  */
-void paintMitredRing(SkCanvas& c, SkRect box, const material::Color& near,
-                     const material::Color& far, float nearWidth,
+void paintMitredRing(SkCanvas& c, SkRect box, const Fill& near,
+                     const Fill& far, float nearWidth,
                      float farWidth, float bias, bool antiAlias) {
   // A bevel deeper than half the box is the whole box; the far band would
   // otherwise cross the near one and the ring would turn inside out.
@@ -61,14 +50,16 @@ void paintMitredRing(SkCanvas& c, SkRect box, const material::Color& near,
   ring.addRect(box);
   ring.addRect(SkRect::MakeLTRB(l + wn, t + wn, r - wf, b - wf),
                SkPathDirection::kCCW);
-  if (far.a > 0.0f && wf > 0.0f) {
-    p.setColor4f(material::skia::toSkColor(far), nullptr);
+  if (wf > 0.0f && detail::layInk(p, far)) {
     c.drawPath(ring.detach(), p);
   } else {
     ring.reset();
   }
 
-  if (near.a <= 0.0f || wn <= 0.0f) return;
+  if (wn <= 0.0f) return;
+  SkPaint nearPaint = p;
+  nearPaint.setShader(nullptr);
+  if (!detail::layInk(nearPaint, near)) return;
   // The near region: the top and left bands, cut at the top-right and the
   // bottom-left by the two diagonals. Each diagonal is clamped where it
   // leaves the box, which is what the bias moves it past.
@@ -90,8 +81,7 @@ void paintMitredRing(SkCanvas& c, SkRect box, const material::Color& near,
     n.lineTo(l, b + bias);
   }
   n.close();
-  p.setColor4f(material::skia::toSkColor(near), nullptr);
-  c.drawPath(n.detach(), p);
+  c.drawPath(n.detach(), nearPaint);
 }
 
 /** THE STRIP one side of a masked ring occupies in the ring's box, cut
@@ -138,27 +128,6 @@ SkRect band(geometry::path::Edge which, const SkRect& box,
   return strip;
 }
 
-/** The mask tile a stipple is drawn through, cut once for the process.
- *  Every stipple of the same lattice shares one image, so a desktop of
- *  greyed-out controls holds one 2 × 2 bitmap between them. */
-sk_sp<SkImage> maskTile(uint64_t bits, int size) {
-  static std::mutex lock;
-  static std::map<std::pair<uint64_t, int>, sk_sp<SkImage>> cut;
-  const std::lock_guard held(lock);
-  auto [at, fresh] = cut.try_emplace({bits, size}, nullptr);
-  if (fresh) {
-    SkBitmap bm;
-    bm.allocPixels(SkImageInfo::MakeN32Premul(size, size));
-    bm.eraseColor(SK_ColorTRANSPARENT);
-    for (int y = 0; y < size; ++y)
-      for (int x = 0; x < size; ++x)
-        if ((bits >> (y * size + x)) & 1u) *bm.getAddr32(x, y) = 0xFFFFFFFFu;
-    bm.setImmutable();
-    at->second = bm.asImage();
-  }
-  return at->second;
-}
-
 }  // namespace
 
 void BevelPair::paint(draw::Pen& pen, const PaintContext& ctx) const {
@@ -167,8 +136,10 @@ void BevelPair::paint(draw::Pen& pen, const PaintContext& ctx) const {
   using geometry::path::has;
   // The near edges are the top and the left; sunken swaps the tones (and
   // their widths) onto the far ones and changes nothing else.
-  const material::Color& near = sunken ? dark : light;
-  const material::Color& far = sunken ? light : dark;
+  const Fill lit = resolveFill(light, ctx);
+  const Fill shaded = resolveFill(dark, ctx);
+  const Fill& near = sunken ? shaded : lit;
+  const Fill& far = sunken ? lit : shaded;
   const float nearWidth = sunken ? darkWidth : lightWidth;
   const float farWidth = sunken ? lightWidth : darkWidth;
   // A full ring is drawn exactly as it was before there was a mask to
@@ -234,10 +205,11 @@ void BevelPair::paint(draw::Pen& pen, const PaintContext& ctx) const {
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeCap(SkPaint::kButt_Cap);
   p.setStrokeJoin(SkPaint::kMiter_Join);
-  const auto edge = [&](Edge which, const material::Color& tone, float width) {
-    if (width <= 0.0f || tone.a <= 0.0f || !has(edges, which)) return;
+  const auto edge = [&](Edge which, const Fill& tone, float width) {
+    if (width <= 0.0f || !has(edges, which)) return;
+    p.setShader(nullptr);
+    if (!detail::layInk(p, tone)) return;
     p.setStrokeWidth(width * 2.0f);
-    p.setColor4f(material::skia::toSkColor(tone), nullptr);
     if (whole) {
       c.drawPath(geometry::path::edges(shape, which, step), p);
       return;
@@ -275,7 +247,7 @@ void Brackets::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (arm <= 0.0f || width <= 0.0f) return;
   SkPaint p;
   p.setAntiAlias(antiAlias);
-  p.setColor4f(material::skia::toSkColor(color), nullptr);
+  if (!detail::layInk(p, resolveFill(ink, ctx))) return;
   p.setStyle(SkPaint::kStroke_Style);
   p.setStrokeWidth(width);
   p.setStrokeCap(SkPaint::kButt_Cap);
@@ -304,7 +276,7 @@ void TickRail::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (pitch <= 0.0f || width <= 0.0f) return;
   SkPaint p;
   p.setAntiAlias(antiAlias);
-  p.setColor4f(material::skia::toSkColor(color), nullptr);
+  if (!detail::layInk(p, resolveFill(ink, ctx))) return;
   const float w = ctx.size.x, h = ctx.size.y;
   const auto rail = [&](Edge which) {
     const bool vertical = which == Edge::Left || which == Edge::Right;
@@ -338,72 +310,6 @@ void TickRail::paint(draw::Pen& pen, const PaintContext& ctx) const {
   if (has(edge, Edge::Bottom)) rail(Edge::Bottom);
   if (has(edge, Edge::Left)) rail(Edge::Left);
   if (has(edge, Edge::Right)) rail(Edge::Right);
-}
-
-void Scanlines::paint(draw::Pen& pen, const PaintContext& ctx) const {
-  SkCanvas& c = *pen.canvas();
-  if (period <= 0.0f || on <= 0.0f) return;
-  c.save();
-  c.clipPath(geometry::path::toSk(ctx.outline), false);
-  SkPaint p;
-  p.setAntiAlias(false);
-  p.setColor4f(material::skia::toSkColor(color), nullptr);
-  p.setBlendMode(material::skia::toSkBlendMode(blend));
-  const float w = ctx.size.x, h = ctx.size.y;
-  // Start one period above the top so a phase in either direction keeps
-  // the first row whole.
-  const float start = std::fmod(phase, period) - period;
-  // NOLINTNEXTLINE(clang-analyzer-security.FloatLoopCounter,bugprone-float-loop-counter)
-  for (float y = start; y < h; y += period)
-    c.drawRect(SkRect::MakeXYWH(0, y, w, on), p);
-  c.restore();
-}
-
-void Stipple::paint(draw::Pen& pen, const PaintContext& ctx) const {
-  SkCanvas& c = *pen.canvas();
-  if (bits == 0 || size <= 0 || size > 8 || cell <= 0.0f) return;
-  const sk_sp<SkImage> tile = maskTile(bits, size);
-  if (!tile) return;
-  SkPaint p;
-  p.setAntiAlias(false);
-  SkMatrix local;
-  local.setScale(cell, cell);
-  p.setShader(tile->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat,
-                               SkSamplingOptions(SkFilterMode::kNearest),
-                               &local));
-  // The mask carries coverage, not colour: kSrcIn stamps the one colour
-  // into every set cell and leaves the clear ones alone.
-  p.setColorFilter(SkColorFilters::Blend(
-      material::skia::toSkColor(color).toSkColor(), SkBlendMode::kSrcIn));
-  c.save();
-  c.clipPath(geometry::path::toSk(ctx.outline), SkClipOp::kIntersect, false);
-  c.drawRect(geometry::path::toSk(ctx.outline).getBounds(), p);
-  c.restore();
-}
-
-Stipple dither(material::Color color, int on, int size, float cell) {
-  // The Bayer threshold matrix, built by the recursion that defines it:
-  // each step quadruples the lattice, the four quadrants offset by
-  // 0, 2, 3, 1 quarters of the range, which is what spreads a tone's
-  // cells as far from each other as the lattice allows.
-  int b[8][8] = {{0}};
-  int n = 1;
-  while (n < size) {
-    for (int y = 0; y < n; ++y)
-      for (int x = 0; x < n; ++x) {
-        const int v = b[y][x] * 4;
-        b[y][x] = v;
-        b[y][x + n] = v + 2;
-        b[y + n][x] = v + 3;
-        b[y + n][x + n] = v + 1;
-      }
-    n *= 2;
-  }
-  uint64_t bits = 0;
-  for (int y = 0; y < size; ++y)
-    for (int x = 0; x < size; ++x)
-      if (b[y][x] < on) bits |= uint64_t{1} << (y * size + x);
-  return Stipple{color, bits, size, cell};
 }
 
 }  // namespace sigil::compose::styles

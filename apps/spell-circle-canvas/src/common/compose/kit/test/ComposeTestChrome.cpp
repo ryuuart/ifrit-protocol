@@ -5,6 +5,7 @@
 
 #include <include/core/SkColor.h>
 #include <sigilcompose/brush/PixelStyles.h>
+#include <sigilmaterial/pattern/Patterns.h>
 #include <sigilcompose/kit/Chrome.h>
 #include <sigilcore/reconcile/Environment.h>
 
@@ -307,8 +308,8 @@ TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
       {box()
            .width(kW)
            .height(kH)
-           .fill(kFace)
-           .overlay(styles::stipple({1, 0, 0, 1}))}));
+           .fill(sigil::material::from(kFace).layer(
+               sigil::material::pattern::stipple({.color = {1, 0, 0, 1}})))}));
   host.frame();
   // stipple(x, y) = (x + y) is even, at one pixel per cell.
   for (int y = 0; y < 4; ++y)
@@ -319,17 +320,13 @@ TEST(KitChrome, AStippleTakesEveryOtherCellAndLeavesTheRest) {
 }
 
 TEST(KitChrome, ADitherTakesAsManyCellsAsItsToneAsksFor) {
-  // The ordered dither's tones are counts: eight of the sixteen cells of
-  // a 4 × 4 lattice is half, and no two of them are the same cell.
-  const styles::Stipple half = styles::dither({1, 0, 0, 1}, 8, 4);
-  EXPECT_EQ(half.size, 4);
-  EXPECT_EQ(std::popcount(half.bits), 8);
-  EXPECT_EQ(std::popcount(styles::dither({1, 0, 0, 1}, 0, 4).bits), 0u);
-  EXPECT_EQ(std::popcount(styles::dither({1, 0, 0, 1}, 16, 4).bits), 16u);
-  // A darker tone's cells are a SUBSET of a lighter one's, which is what
-  // keeps a ramp built out of them from crawling.
-  const styles::Stipple quarter = styles::dither({1, 0, 0, 1}, 4, 4);
-  EXPECT_EQ(quarter.bits & half.bits, quarter.bits);
+  // The ordered dither's tones are counts, and a darker tone's cells are
+  // a SUBSET of a lighter one's, which is what keeps a ramp built out of
+  // them from crawling.
+  const uint64_t half = sigil::material::pattern::ditherBits(8, 4);
+  const uint64_t quarter = sigil::material::pattern::ditherBits(4, 4);
+  EXPECT_EQ(std::popcount(half), 8);
+  EXPECT_EQ(quarter & half, quarter);
 }
 
 TEST(KitChrome, ThePixelLatticeStippleDrawsInsideTheOutline) {
@@ -338,8 +335,8 @@ TEST(KitChrome, ThePixelLatticeStippleDrawsInsideTheOutline) {
       {box()
            .width(kW)
            .height(kH)
-           .fill(kFace)
-           .overlay(styles::stipple({1, 0, 0, 1}))}));
+           .fill(sigil::material::from(kFace).layer(
+               sigil::material::pattern::stipple({.color = {1, 0, 0, 1}})))}));
   host.frame();
   // Nothing outside the face: a tile drawn over the bounds and clipped to
   // nothing would flood the host.

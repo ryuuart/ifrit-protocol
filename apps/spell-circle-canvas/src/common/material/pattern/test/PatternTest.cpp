@@ -12,6 +12,12 @@
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Painted.h>
 #include <sigilmaterial/skia/Texture.h>
+#include <sigilshaders/MaterialPattern.h>
+
+#include <bit>
+
+#include "ShaderTable.h"
+#include "support/Shade.h"
 
 using namespace sigil::material;
 
@@ -142,4 +148,54 @@ TEST(StockTiles, GridLinesTakeATwoAxisPitchAndSpeckleReseeds) {
   EXPECT_NE(a.get(), b.get());
   EXPECT_TRUE(skia::image(pattern::halftone(6, 2, {0, 0, 0, 1}).texture()));
   EXPECT_TRUE(skia::image(pattern::stripes(2, 2, {0, 0, 0, 1}).texture()));
+}
+
+TEST(PatternLattice, ScanlinesPaintTheFirstPixelsOfEveryPeriod) {
+  const SkBitmap rows = test::render(
+      pattern::scanlines({.color = {1, 0, 0, 1}, .period = 4, .on = 2}), 4, 8);
+  for (int y = 0; y < 8; ++y)
+    EXPECT_EQ(rows.getColor(1, y), y % 4 < 2 ? SK_ColorRED : SK_ColorTRANSPARENT)
+        << "row " << y;
+  // The phase slides the rows down.
+  const SkBitmap slid = test::render(
+      pattern::scanlines({.color = {1, 0, 0, 1}, .period = 4, .on = 2, .phase = 1}),
+      4, 8);
+  EXPECT_EQ(slid.getColor(1, 0), SK_ColorTRANSPARENT);
+  EXPECT_EQ(slid.getColor(1, 1), SK_ColorRED);
+  EXPECT_EQ(slid.getColor(1, 2), SK_ColorRED);
+  EXPECT_EQ(slid.getColor(1, 3), SK_ColorTRANSPARENT);
+}
+
+TEST(PatternLattice, AStippleLaysItsColourThroughTheBits) {
+  const SkBitmap checker = test::render(pattern::stipple({.color = {1, 0, 0, 1}}), 4, 4);
+  for (int y = 0; y < 4; ++y)
+    for (int x = 0; x < 4; ++x)
+      EXPECT_EQ(checker.getColor(x, y),
+                (x + y) % 2 == 0 ? SK_ColorRED : SK_ColorTRANSPARENT)
+          << x << "," << y;
+  // A bit in the last word, read at a cell two px wide: only cell (7, 7).
+  const SkBitmap corner = test::render(
+      pattern::stipple({.color = {1, 0, 0, 1}, .bits = uint64_t{1} << 63, .size = 8, .cell = 2}),
+      16, 16);
+  EXPECT_EQ(corner.getColor(15, 15), SK_ColorRED);
+  EXPECT_EQ(corner.getColor(14, 14), SK_ColorRED);
+  EXPECT_EQ(corner.getColor(13, 15), SK_ColorTRANSPARENT);
+  EXPECT_EQ(corner.getColor(0, 0), SK_ColorTRANSPARENT);
+}
+
+TEST(PatternLattice, TheDitherMaskHoldsTheCellsItIsAskedFor) {
+  EXPECT_EQ(std::popcount(pattern::ditherBits(0, 4)), 0);
+  EXPECT_EQ(std::popcount(pattern::ditherBits(8, 4)), 8);
+  EXPECT_EQ(std::popcount(pattern::ditherBits(16, 4)), 16);
+  // A quarter of a 4 x 4 block is every other cell of every other row.
+  EXPECT_EQ(pattern::ditherBits(4, 4), uint64_t{0b0000'0101'0000'0101});
+  // Two equal sources are one material; a differing one is another.
+  EXPECT_EQ(pattern::stipple({.bits = pattern::ditherBits(8)}),
+            pattern::stipple({.bits = pattern::ditherBits(8)}));
+  EXPECT_FALSE(pattern::scanlines({.period = 3}) == pattern::scanlines({.period = 4}));
+}
+
+TEST(PatternLattice, TheShaderTableHoldsEveryFileTheDirectoryDoes) {
+  sigil::test::expectShaderTableIsWholeDirectory(
+      pattern::shaderSources(), SIGIL_MATERIAL_PATTERN_SHADER_DIR);
 }

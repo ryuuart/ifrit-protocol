@@ -59,6 +59,15 @@ surface and ignores the effects; `material::skia::paint(steel)` for a raw
 canvas. Two materials built the same way compare equal, so a re-described
 node prunes.
 
+**The effects are an image editor's layer styles.** Each reads the
+coverage of what the material fills: `Filter::shadow(c, {.inside = true})`
+is an inner shadow, cast along its offset and hugging the opposite inner
+edge; `Filter::shadow(c, {.blur, .spread})` with no offset is an outer
+glow; `Filter::bevel({.depth, .size, .angleDegrees, .highlight,
+.shadow})` is the lit edge and the shaded one; `Filter::stroke` is a
+keyline. No consumer draws these as marks of its own: a look that wants
+one fills with a material that carries it.
+
 **A shader is one line.** `material::shader(source, Parameters{…})` is a
 material whose base is the body `source` over the uniforms the struct
 declares — its fields, by name, in declaration order — so it fills, inks,
@@ -269,7 +278,7 @@ directory, each a static archive that links only what sits beneath it:
 | `SigilMaterialMask` | the third operand of `over()`: `maskConstant`, `maskMap`, `maskSlope`, `maskHeight`, and `fitMask` / `invertMask`, which reshape a mask and nothing else | SigilMaterialTexture, glm |
 | `SigilMaterialOcio` | `ocio::` — `available()`, and the OCIO `viewTransform`, `convert`, `exponent` as baked materials, applied through a private 3D-LUT recipe or a per-channel response recipe | SigilMaterialTexture; OpenColorIO privately, when found |
 | `SigilMaterialSdf` | `sdf::` — `Shape`, `Style`, `pad`, `material` | SigilMaterialCore, SigilMaterialColor |
-| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute and SigilMaterialSkia privately |
+| `SigilMaterialPattern` | `pattern::Tile` and the stock tiles; the lattice sources `pattern::scanlines` and `pattern::stipple` with `pattern::ditherBits`; `pattern::Cloth`, the woven cloth, with `threadcount`, `pivots`, `Weave` and `warpUp` under it | SigilMaterialTexture, SigilMaterialColor; SigilCoreCompute and SigilMaterialSkia privately |
 | `SigilMaterialField` | `field::` — `halftoneRamp`, `noise`, `grain`, `ripple` | SigilMaterialTexture, SigilMaterialColor; SigilMaterialSkia privately |
 | `SigilMaterialProgram` | `shader()` and `ShaderOptions`, a shader from its source or from a file read through the hub, with the textures it samples placed in its slots | SigilMaterialCore, SigilMediaCore; SigilMaterialTexture and SigilIOHub privately |
 | `SigilMaterialSkia` | the SkSL compiler and `SkiaProgram`, whose builder uploads resolved bytes; `skia::builder` and `skia::shader` binding leaves into slots; `skia::ShaderLeaf`, the leaf that yields its own Skia shader; a texture through Skia — `skia::image` and `skia::shader` over a `Texture`, `skia::toSkFilterMode`, `skia::toSkIRect` and `skia::toPixelRect`; `skia::painted`, a tile program painted into a canvas; `skia::bevelNormals`; `skia::fill`; a lit surface in 2D — `skia::isLit`, `skia::lightingFor`, `skia::lit`; the colour bridge `skia::toColor` / `skia::toSkColor`; `skia::paletteImage` and `skia::paletteLookup`, the palette's two crossings; `skia::palette`, the picture read down to the table it is made of; `Paint`, the model as ONE shader, with its three gradients `linearGradient`, `radialGradient` and `conicGradient` over `ColorStops`, with `skia::PassInputs` for a pass over a layer; and `Filter`, the post-processing recipe over a rendered layer | SigilMaterialTexture, SigilMaterialColor, SigilMotionValues |
@@ -597,6 +606,17 @@ each takes its colours as `Color`, which an `SkColor4f` converts to.
 `Axis::V` down) rather than leaving it to `rotate(90)`: rotating remaps
 the sampling of a tile whose repeat is one period by an arbitrary eight
 pixels, which reads right only while the other direction is constant.
+
+Beside the tiles stand two **lattice sources**, read per pixel rather than
+baked, so each compares by its numbers and one described afresh prunes:
+`pattern::scanlines(ScanlineOptions)` — a row `on` px tall every `period`
+px, slid by `phase`, clear between — and `pattern::stipple(StippleOptions)`
+— one colour through a repeating 1-bit mask of up to eight cells a side,
+bit `y * size + x` the cell at (x, y), `cell` px each —, with
+`pattern::ditherBits(on, size)` the mask of one ordered-dither tone. Each
+is a material a `layer()` blends over a base through its own `blend`,
+`opacity` and `mask`: the phosphor scanline is a `Plus` layer, the
+printed one a low black alpha through `Normal`.
 
 **A woven cloth is two threadcounts and one interlacing.** `ThreadRun`
 is a run of consecutive threads of one shade — "18 black" is one — and

@@ -632,21 +632,22 @@ offset) and `material::Filter::bevel` on the material a node is filled or
 inked with, and a ripple is `material::Filter::of(material::field::ripple(…))`
 on the node's `filter()`.
 `brush/PixelStyles.h` is the other route, the bitmap era's — strokes and
-rectangles on the pixel lattice, never a blur: `styles::BevelPair`, a
+rectangles on the pixel lattice, never a blur, each inked with a
+`material::Material` (a colour converts to one): `styles::BevelPair`, a
 light edge and a dark edge kept inside the silhouette, raised or sunken
-as one value (`styles::bevelPair` states the two tones or derives them
-from the face), meeting at the two corners they collide on as
+as one value (`styles::bevelPair` states the two inks or derives two
+tones from the face), meeting at the two corners they collide on as
 `styles::BevelCorner` says — `Square` (the near band full width, the far
 band under it), `Mitre` (the 45° step, the corner pixel to the near band)
 or `MitreFar` (the same diagonal one pixel over, which is what an inner
 ring wants so a groove closes); `styles::Brackets`, the reticle's L's
-standing off a box at the corners asked for; `styles::TickRail`, a ruler
-of marks along one edge with every n-th one long; `styles::Scanlines`,
-hard rows over the outline through a blend mode; and `styles::Stipple`,
-one colour laid through a repeating 1-bit mask — the mask as BITS rather
-than an image, so a stippled node compares equal to itself, with
-`styles::stipple` for the 50 % checkerboard and `styles::dither` for one
-tone of an ordered dither.
+standing off a box at the corners asked for; and `styles::TickRail`, a
+ruler of marks along one edge with every n-th one long. The raster laid
+over a panel is a layer of its material rather than a mark:
+`material::pattern::scanlines` for hard rows and
+`material::pattern::stipple` for one colour through a repeating 1-bit
+mask, with `material::pattern::ditherBits` for one tone of an ordered
+dither, each blended by the layer's own options.
 
 A ring can also be drawn on SOME of its sides: `BevelPair::edges` is the
 edge mask, and `BevelPair::ends` says what a band does at a corner the
