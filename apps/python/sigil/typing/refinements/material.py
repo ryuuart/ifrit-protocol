@@ -34,6 +34,12 @@ def register(table: Table) -> None:
         engine="_sigil.material.sbsar.Engine | None",
         kwargs="float | int | bool",
     )
+    table.parameters(
+        "_sigil.material.shader",
+        hub="_sigil.io.Hub",
+        parameters="collections.abc.Mapping[str, _t.UniformValue] | tuple[_t.UniformValue, ...] | None",
+        textures="collections.abc.Mapping[str, _sigil.media.Image | _sigil.skia.Image] | None",
+    )
     table.parameters("_sigil.material.skia.Filter.blur", sigmaMap="Paint")
     table.erased("_sigil.material.skia.Filter", "set", "_t.UniformValue")
     table.erased("_sigil.material.skia.Filter", "bind", "_t.ScalarLike")

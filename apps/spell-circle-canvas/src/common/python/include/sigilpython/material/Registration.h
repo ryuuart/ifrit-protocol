@@ -43,6 +43,10 @@ void bindMaterialSubstance(pybind11::module_& module);
 /** Registers signed-distance shapes and styles, OpenColorIO view
  *  transforms, and the Slang compiler on @p module. */
 void bindMaterialShading(pybind11::module_& module);
+/** Registers `material.shader`, a shader from its source or a file over
+ *  the parameters a dict or a NamedTuple states, with `Target` and
+ *  `Sampling`, on @p module. */
+void bindMaterialShader(pybind11::module_& module);
 /** Registers textures, their three sources, leaves in material slots,
  *  bevel normals and masks on @p module. */
 void bindMaterialTexture(pybind11::module_& module);

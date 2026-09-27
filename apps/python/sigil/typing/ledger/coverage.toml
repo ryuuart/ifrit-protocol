@@ -1724,6 +1724,10 @@ bound = "`hexColor`"
 python = ["material.hexColor"]
 
 [[section.surface.item]]
+bound = "`shader`, a shader's source over a dict or NamedTuple of uniforms, with `key`, `target` (`Target`), `sampling` (`Sampling`) and the `textures` it samples, and the same over a file read through a hub"
+python = ["material.shader", "material.Target", "material.Sampling"]
+
+[[section.surface.item]]
 bound = "a recipe `Material` stands where a paint does, on an element's fills and glyph paints and on the pen's fills, strokes and grounds"
 python = ["material.Material"]
 
