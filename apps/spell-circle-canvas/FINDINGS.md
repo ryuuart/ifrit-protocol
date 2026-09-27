@@ -1061,3 +1061,16 @@ The cases are evidently meant to assert the refusal whatever ran before
 them. A test should reset the warn-once state it reads (or read a
 per-composer report), so that `compose_test` run whole and each case run
 alone give the same answer.
+
+## An escaped Python connection may keep its door open after the session closes
+
+`src/common/python/data/Connection.cpp`'s `ConnectionHandle` owns its
+`data::Connection` outright, the way the feed wrapper in
+`src/common/python/io/Resources.cpp` owned its `io::Feed` until that wrapper
+was made to hold only a weak reference to the session's lease. A connection
+wrapper a study stores in `builtins` therefore outlives the session and, with
+it, the feed's door and inlet. The session evidently means to end every door it
+opened when it closes, whatever Python still holds. A test should store a
+connection wrapper in `builtins`, close the session, and assert the feed's state
+is closed and its inlet expired, as `SketchPython.ASessionClosesFeedsDespiteEscapedPythonWrappers`
+asserts for a feed.
