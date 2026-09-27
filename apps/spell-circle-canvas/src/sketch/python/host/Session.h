@@ -41,14 +41,14 @@ struct State {
   Assets* assets = nullptr;
   weave::FontContext* fonts = nullptr;
   std::vector<std::shared_ptr<compose::TextureScene>>* scenes = nullptr;
-  std::unordered_map<io::Feed, std::shared_ptr<void>> feedLeases;
+  std::unordered_map<io::Feed, std::shared_ptr<io::Feed>> feedLeases;
   std::thread::id thread;
   std::string key;
   bool deterministic = false;
   bool valid = false;
   bool failed = false;
 
-  std::shared_ptr<void> retainFeed(io::Feed feed) {
+  std::shared_ptr<io::Feed> retainFeed(io::Feed feed) {
     auto held = feedLeases.find(feed);
     if (held == feedLeases.end())
       held = feedLeases.emplace(feed, sigil::python::retainSessionFeed(feed))

@@ -1061,18 +1061,3 @@ The cases are evidently meant to assert the refusal whatever ran before
 them. A test should reset the warn-once state it reads (or read a
 per-composer report), so that `compose_test` run whole and each case run
 alone give the same answer.
-
-## A feed a Python study lets escape outlives its session
-
-`SketchPython.ASessionClosesFeedsDespiteEscapedPythonWrappers`
-(`sketch/python/test/PythonTest.cpp:109`) fails alone and in the whole
-run: after `session.reset()`, both feeds report closed, but the inlet
-behind `fixture://input` — the feed the study stored in `builtins` —
-has not expired. So something still holds that feed's door after the
-session closed it, most likely the escaped Python wrapper keeping a
-strong handle.
-
-The intent is that closing a session releases every feed it opened,
-whatever Python kept a reference to. The case already asserts the right
-thing (`feeds["fixture://input"].expired()`); it should pass once the
-escaped wrapper holds nothing that keeps the door alive after close.

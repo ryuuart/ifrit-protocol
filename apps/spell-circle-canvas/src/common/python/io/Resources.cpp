@@ -106,8 +106,13 @@ class FeedHandle {
   FeedHandle(std::string uri, io::ListenOptions options)
       : m_feed(std::move(uri), std::move(options)) {}
   FeedHandle(io::Feed feed, const HubHandle& hub)
-      : m_hub(hub.owner()), m_check(hub.access()), m_feed(std::move(feed)) {
-    if (m_check) m_lease = hub.retain(m_feed);
+      : m_hub(hub.owner()), m_check(hub.access()) {
+    // A borrowed feed is held by the session's lease alone: a wrapper that
+    // outlives its session must not keep the door answering.
+    if (m_check)
+      m_lease = hub.retain(feed);
+    else
+      m_feed = std::move(feed);
   }
   ~FeedHandle() {
     // Letting go of the last handle closes the door, which may join a
@@ -120,8 +125,10 @@ class FeedHandle {
   io::Feed get() const {
     if (m_check) {
       (void)m_check();
-      if (m_lease.expired())
+      const std::shared_ptr<io::Feed> leased = m_lease.lock();
+      if (!leased)
         throw std::runtime_error("This feed belongs to a closed session");
+      return *leased;
     }
     return m_feed;
   }
@@ -129,9 +136,10 @@ class FeedHandle {
  private:
   std::shared_ptr<io::Hub> m_hub;
   std::function<io::Hub&()> m_check;
+  /** The feed an owned hub opened; empty for a borrowed one. */
   io::Feed m_feed;
   /** The session's lease on a borrowed feed; it expires with the session. */
-  std::weak_ptr<void> m_lease;
+  std::weak_ptr<io::Feed> m_lease;
 };
 
 struct FeedLease;
@@ -182,24 +190,26 @@ HubHandle::HubHandle() : m_owner(std::make_shared<io::Hub>()) {}
 HubHandle::HubHandle(io::HubOptions options)
     : m_owner(std::make_shared<io::Hub>(std::move(options))) {}
 HubHandle::HubHandle(std::function<io::Hub&()> access,
-                     std::function<std::shared_ptr<void>(io::Feed)> retainFeed)
+                     std::function<std::shared_ptr<io::Feed>(io::Feed)> retainFeed)
     : m_access(std::move(access)), m_retainFeed(std::move(retainFeed)) {}
 HubHandle::~HubHandle() {
   unlocked([&] { m_owner.reset(); });
 }
 io::Hub& HubHandle::get() const { return m_access ? m_access() : *m_owner; }
-std::shared_ptr<void> HubHandle::retain(const io::Feed& feed) const {
+std::shared_ptr<io::Feed> HubHandle::retain(const io::Feed& feed) const {
   return m_retainFeed ? m_retainFeed(feed) : nullptr;
 }
 
-std::shared_ptr<void> retainSessionFeed(io::Feed feed) {
+std::shared_ptr<io::Feed> retainSessionFeed(io::Feed feed) {
   auto& leases = feedLeases();
   const std::lock_guard lock(leases.mutex);
   auto& entry = leases.entries[feed];
-  if (auto lease = entry.lock()) return lease;
-  auto lease = std::make_shared<FeedLease>(std::move(feed));
-  entry = lease;
-  return lease;
+  auto lease = entry.lock();
+  if (!lease) {
+    lease = std::make_shared<FeedLease>(std::move(feed));
+    entry = lease;
+  }
+  return std::shared_ptr<io::Feed>(lease, &lease->feed);
 }
 
 void bindIO(py::module_& module) {
