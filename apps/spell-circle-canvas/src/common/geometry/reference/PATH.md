@@ -34,7 +34,7 @@ in no header.
   `Transform`. The measurement is taken once, the first time a query asks,
   and every copy shares it. Nothing in the header names the renderer
   that executes the outline — Skia's path, its path operations and its
-  contour measure; `path/Skia.h` is the crossing.
+  contour measure; `advanced/Skia.h` is the crossing.
 - **`path/Polyline.h`** — the resampling core. `Polyline` (its points, its
   closure and its `lane`, one scalar riding each vertex) with `length()`,
   `centroid()` (length-weighted over the edges), `signedArea()` and
@@ -152,7 +152,7 @@ in no header.
   what stops a fill crawling as the shape it fills animates; unset lays
   the first line half a gap inside the rings, which is what fills a shape
   whose place is not fixed. `shapes::hatchOutline` is the stock value
-  over this and the offset, for a caller holding an `SkPath` rather than
+  over this and the offset, for a caller holding an outline rather than
   a set of rings.
 
   **`multigrid(families, MultigridOptions)` is the other reading of the
@@ -290,11 +290,10 @@ in no header.
 - **`path/Contour.h`** — a path's sub-paths by arc length, and the one
   place anything above this library measures an outline: the measure is
   held opaquely, so the header names no measuring type. `Contour::of()`
-  splits a path (skipping zero-length contours) and `Contour::lengthOf()`
-  totals every contour; `length()`, `closed()`, `at()`, `around()`,
-  `segment()`/`appendSegment()` (whose `startWithMoveTo` false continues
-  the run in flight, so the two pieces of a window across a closed seam
-  join), `split()` into the pieces before and after a distance,
+  splits an outline (skipping zero-length contours) and
+  `Contour::lengthOf()` totals every contour; `length()`, `closed()`,
+  `at()`, `around()`, `segment()` (the piece between two distances, as an
+  outline), `split()` into the pieces before and after a distance,
   `nearest()` (the distance, point and gap closest to a query point), and
   `corners()`, which walks the contour in strides and bisects to each turn
   sharper than a threshold. Three constructions walk every contour of a path:
@@ -364,21 +363,12 @@ in no header.
   than on the kit's shelf because it is not a silhouette in a box: what it
   is measured from is off centre, and a drawing that puts the thing at the
   focus in the middle of the ellipse has said something false.
-- **`path/Skia.h`** — the bridge to the executor: `toSk()` and `fromSk()`
-  between `glm::vec2` and `SkPoint`, between `Rect` and `SkRect`, and
-  between `Outline` and the `SkPath` behind it (sharing, not copying),
-  `toSkSize()` for a size, the `Winding` as Skia's path direction, and
-  `centre()` of an `SkRect`.
 - **`path/Stroke.h`** — the two words every widened mark decides:
   `Join` (`Round`, `Miter`, `Bevel`) at a corner and `Cap` (`Butt`,
   `Round`, `Square`) at an end. They are the library's, not a drawing
   library's: the offset that straddles a contour, the joinery that cuts
   a set of strips and a stroke laid over an outline all state the same
   two things, so a consumer says which it wants without naming a paint.
-- **`path/StrokeSkia.h`** — `toSk()` from either of those onto
-  `SkPaint`'s nested enumerations, for the moment a paint is filled in.
-  It is a header of its own because naming `SkPaint::Join` needs the
-  paint's definition.
 - **`path/Edges.h`** — narrowing an outline before something is drawn on
   it. `Edge` and `has()`, `edges()` (the sub-contours facing chosen box
   edges, classified against the bounds centre and cut by bisection at
@@ -391,8 +381,9 @@ in no header.
   on a plinth) keeps the correspondence an outline offset cannot give;
   a needle-sharp corner's mitre is capped at a stated number of
   distances, blunting the corner rather than dropping the vertex.
-- **`path/Operations.h`** — path operators. Booleans over Skia's pathops
-  (`unite` over a pair or over a whole stack — any range of paths: a
+- **`path/Operations.h`** — outline operators, each an outline in and an
+  outline out. Booleans (`unite` over a pair or over a whole stack — any
+  range of outlines: a
   vector, an array, a brace list, or a view that builds them as it is
   walked — `subtract`, `intersect`,
   `exclude`, `simplify`), the OFFSET and the CORNER ROUNDING — one
@@ -478,14 +469,14 @@ in no header.
   the same number. With a dial set it is a POLYLINE treatment: the
   selection and the correction are read off two straight legs, so a joint
   where either side is a curve passes through untouched.
-- **`path/Shaper.h`** — `Shaper`, the COMPARABLE `SkPath -> SkPath` value,
+- **`path/Shaper.h`** — `Shaper`, the COMPARABLE `Outline -> Outline` value,
   over the `ShaperScheme` concept (`shape()`, equality, an optional
   `bleed()` declaring how far the deviation reaches). It bends one
   continuous mark — a wave, a zigzag, a jitter, an offset. Comparable is
   the point: a consumer that caches drawings proves two frames asked for
   the same deviation and keeps the recording it has, which `operations::PathOperation`
   cannot answer. `Shaper::incomparable(callable, bleed)` is the one door a
-  raw path callable has into the seam, and it pays for it by comparing
+  raw outline callable has into the seam, and it pays for it by comparing
   equal to nothing, itself included.
 - **`path/Profile.h`** — `Profile`, the comparable WIDTH LAW, over the
   `ProfileScheme` concept (`across(along)`, `max()`, equality); a bare
@@ -648,6 +639,23 @@ in no header.
 
 **`path/blend`** — `SigilGeometryPathBlend`, needs `path`.
 
+- **`advanced/Skia.h`** — THE ESCAPE HATCH, the one header of this
+  library that names the renderer, included by name and by nothing else
+  under `sigilgeometry/`. The conversions — `toSk()` and `fromSk()`
+  between `glm::vec2` and Skia's point, `Rect` and its rect, `Transform`
+  and its matrix, `Outline` and the path behind it (sharing, not
+  copying), a run of outlines and a run of paths, and from `FillRule`,
+  `Winding`, `Join` and `Cap` onto the fill type, the path direction and
+  a paint's join and cap; `toSkSize()` for a size and `centre()` of a
+  rect. Beside them the SKIA FORM of each operator, over the same body its
+  outline form wraps, for a caller already holding a Skia path: the
+  contour walk (`contoursOf()`, `lengthOf()`, `segmentOf()`, `splitOf()`,
+  and `appendSegment()`, whose `startWithMoveTo` false continues the run
+  in flight so the two pieces of a window across a closed seam join), the
+  bands, crossings, node arithmetic, booleans, offset and corner
+  treatments, and `operations::distort()` for each of the four distorts.
+  An operator whose outline form differs only in what it answers has no
+  Skia form; its answer converts with `toSk()`.
 - **`path/blend/Blend.h`** — shape interpolation modelled on Illustrator's
   blend tool: `Key`s expand into drawable `Step`s under `Options`
   controlling spacing (`Steps`, `Distance`, `SmoothColor`), an optional

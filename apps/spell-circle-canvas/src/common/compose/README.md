@@ -787,7 +787,7 @@ and Motion's: a box is a `geometry::path::Rect`, a point and a size a
 `glm::vec2`, a silhouette a `geometry::path::Outline` answered for a box,
 a fill a `material::Material`, a picture a `media::Image`. Skia is the
 executor behind them, and the crossing is spelled by
-`<sigilgeometry/path/Skia.h>` and Material's `skia::` helpers inside the
+`<sigilgeometry/advanced/Skia.h>` and Material's `skia::` helpers inside the
 library's sources, not in its headers.
 
 **The one door to the renderer is the pen's canvas.** A decoration, a
@@ -832,9 +832,9 @@ placer's points `glm::vec2`, the web view's sampling a
 painter's own business, read in the sources and never in a header.
 `geometry::arrange`, whose rings, placements and cells the kit's layouts
 and placers step through, answers in `glm::vec2` and
-`geometry::path::Rect`. One answer Compose reads is still Skia-typed in
-SigilGeometry itself — the `geometry::path::Shaper` protocol a brush's
-geometry pipeline holds — and moves when Geometry's does.
+`geometry::path::Rect`. A brush's geometry pipeline holds
+`geometry::path::Shaper` values, which take and answer a
+`geometry::path::Outline`.
 
 ## Build and test
 

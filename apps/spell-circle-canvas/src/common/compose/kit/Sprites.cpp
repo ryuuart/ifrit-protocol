@@ -14,7 +14,7 @@
 #include <sigilcompose/core/Shelf.h>
 #include <sigilcompose/kit/Sprites.h>
 #include <sigildraw/Pen.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/skia/Paint.h>

@@ -3,7 +3,7 @@
 #include <include/core/SkPath.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/core/Cascade.h>
 #include <sigilcompose/core/Factories.h>
 #include <sigilcompose/core/Paint.h>

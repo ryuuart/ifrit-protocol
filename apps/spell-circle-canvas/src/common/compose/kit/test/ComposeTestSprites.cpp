@@ -3,7 +3,7 @@
 // shader reads, the sheet that packs many sprites under their names, and
 // the round stamp a point sink draws with.
 
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilcompose/kit/Sprites.h>
 #include <sigilmedia/advanced/Skia.h>
 

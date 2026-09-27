@@ -28,7 +28,7 @@
 
 #include "BandScan.h"
 #include "sigilgeometry/path/Polyline.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilmedia/advanced/Skia.h"
 #include "sigilmedia/field/DistanceField.h"
 #include "sigilweave/layout/Flow.h"

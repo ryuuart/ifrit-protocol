@@ -40,7 +40,7 @@ sigil_library(SigilGeometryPath
           Noise.h Numeric.h Offset.h Operations.h Outline.h Points.h Polyline.h Pose.h Profile.h Projection.h
           Radial.h
           Scatter.h
-          Segments.h Shaper.h Skia.h Stride.h Stroke.h StrokeSkia.h
+          Segments.h Shaper.h Stride.h Stroke.h
           ../advanced/Skia.h
           Symmetry.h Through.h Tidy.h Trace.h Transform.h
           Triangulate.h

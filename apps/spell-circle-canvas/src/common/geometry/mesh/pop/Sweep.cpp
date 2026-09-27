@@ -107,7 +107,7 @@ namespace sigil::geometry::mesh::pop {
 
 namespace profile {
 
-path::Polyline fromPath(const SkPath& outline, float tolerance) {
+path::Polyline fromPath(const path::Outline& outline, float tolerance) {
   const std::vector<path::Polyline> contours =
       path::flatten(outline, tolerance);
   if (contours.empty()) return {};

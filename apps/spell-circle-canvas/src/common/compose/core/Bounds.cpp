@@ -35,7 +35,7 @@
 #include "PaintInternal.h"
 #include "sigilgeometry/path/Contour.h"
 #include "sigilgeometry/path/Pose.h"
-#include "sigilgeometry/path/Skia.h"
+#include "sigilgeometry/advanced/Skia.h"
 
 namespace sigil::compose {
 

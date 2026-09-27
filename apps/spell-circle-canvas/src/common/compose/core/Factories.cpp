@@ -7,7 +7,7 @@
 
 #include <sigildraw/Pen.h>
 #include <include/core/SkCanvas.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPicture.h>
 #include <sigilcore/reconcile/Environment.h>

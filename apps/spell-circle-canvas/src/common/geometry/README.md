@@ -84,16 +84,18 @@ it is the SHELF over the tiers, holding the stock values anybody could
 have written, and nothing beneath it may reach back up into it. A
 consumer that brings its own generators links a tier and not the kit.
 
-Every signature on the first screen speaks glm and the library's own
-values — `glm::vec2` for a point on an outline as much as `glm::vec3` for
-a vertex, `path::Outline` for a figure — and Skia types appear only where
-the object *is* a Skia path, image, canvas or paint: the tier below the
-first screen, where an operator is written over the executor's own path.
-`path/Skia.h` holds the conversions, `toSk()` and `fromSk()`, so a caller
-drawing a result never spells the swizzle itself. A DECISION a drawing makes is
-not a Skia type either: `path/Stroke.h` owns `Join` and `Cap`, the words
-an offset, a set of mitred strips and a stroke over an outline all
-state, and `path/StrokeSkia.h` carries them onto a paint.
+Every signature under `path/` and on the kit's shaper shelf speaks glm
+and the library's own values — `glm::vec2` for a point on an outline as
+much as `glm::vec3` for a vertex, `path::Outline` for a figure,
+`path::Rect` for a box and `path::Transform` for a 2D map — and no
+default include of the path tier reaches Skia. `advanced/Skia.h` is the
+escape hatch, included by name: it holds the conversions, `toSk()` and
+`fromSk()`, so a caller drawing a result never spells the swizzle itself,
+and the Skia form of each operator for a caller already holding a Skia
+path. A DECISION a drawing makes is not a Skia type either:
+`path/Stroke.h` owns `Join` and `Cap`, the words an offset, a set of
+mitred strips and a stroke over an outline all state, and the escape
+hatch carries them onto a paint.
 
 ## Using it
 
@@ -149,7 +151,7 @@ and `path::curveThrough(points)`.
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/path/Points.h>
-#include <sigilgeometry/path/Skia.h>
+#include <sigilgeometry/advanced/Skia.h>
 
 using namespace sigil::geometry;
 
@@ -165,7 +167,7 @@ void paint(SkCanvas& canvas) {
   // The outline measured: a mark every 40 px along the rim.
   for (float at = 0; at < bezel.length(); at += 40)
     canvas.drawCircle(bezel.pointAt(at).x, bezel.pointAt(at).y, 3, SkPaint());
-  // Skia draws it; the one crossing is path/Skia.h.
+  // Skia draws it; the one crossing is advanced/Skia.h.
   canvas.drawPath(path::toSk(bezel.subtracted(shapes::circle().at({160, 160}, 40))),
                   SkPaint());
   // And the same outline lifted into a body.
@@ -187,7 +189,7 @@ cloud positions, flattened path points — is glm (`vec2`, `vec3`, `vec4`,
 `path::Outline`, whose header names no renderer. Skia EXECUTES an outline
 — its path, its path operations and its contour measure stand behind the
 value — and what is drawn still speaks Skia: `SkColor4f` paint, `SkImage`
-textures, `SkCanvas`. `path/Skia.h` is the crossing for an outline, a
+textures, `SkCanvas`. `advanced/Skia.h` is the crossing for an outline, a
 rectangle, a transform and a point (`toSk()`, `fromSk()`);
 `mesh/camera/Camera.h` is the declared bridge for matrices, and
 `camera::toSkM44()` is the seam. Because glm's `mat4` and
@@ -234,7 +236,7 @@ seam are the contour's too.
 **An AREA is a set of rings under the even-odd rule.** `Polyline::contains`
 is the ray test on one ring and `containsEvenOdd` the rule over a set of
 them — inside an odd number is inside — which is the rule a path filled
-with `SkPathFillType::kEvenOdd` is drawn by, so a point tested and a pixel
+under `path::FillRule::EvenOdd` is drawn by, so a point tested and a pixel
 painted agree. `path::lattice` fills such an interior with parallel lines
 cut to it, and what it answers with are CENTRELINES: a mark that can be
 walked, drawn along with a tool, split or joined to the next, which is
@@ -484,6 +486,37 @@ of the GPU uploader, and `pop::cook()` is the definition a GPU chain
 executor must reproduce. When the two disagree, this side is right — and
 for the operators that have a kernel they cannot disagree about a
 formula, because there is one formula and this side compiled it.
+
+### Where Skia still shows
+
+The path tier's vocabulary is the library's own: an outline is a
+`path::Outline`, a box a `path::Rect`, a point a `glm::vec2`, a 2D map a
+`path::Transform`, and a deviation a `path::Shaper` from outline to
+outline. Skia is the executor behind them, and the crossing is spelled
+by `<sigilgeometry/advanced/Skia.h>` — the conversions and the Skia form
+of each operator — inside the library's sources and in any consumer that
+draws with Skia, never in a header that a default include reaches.
+
+What else the headers still spell, and why:
+
+- **The mesh tier's drawing entrances.** A mesh, a panel, a point
+  cloud's billboards and a cooked chain are drawn onto the canvas a host
+  owns: `render::Runtime` is the seam the CPU and device painters
+  implement, and `points::drawBillboards`, `pop::cookBillboards` and
+  `pop::Builder::billboards` take that canvas and a sprite image. Each is
+  where a host hands a picture in or takes one out.
+- **The camera's viewport.** `camera::Camera` answers its viewport
+  matrices, frustum extent and projected points in Skia's size and point,
+  and `camera::toSkM44()` is the matrix crossing, because the mesh
+  painter draws through a Skia canvas.
+- **A spline projected.** `curve::project` answers the Skia path a
+  painter strokes, under the camera's viewport.
+- **The blend's drawn steps.** `blend::Step` holds the path and the
+  colours a blend's in-between is painted with, and `blend::draw` paints
+  them.
+
+The first two are the boundary a painter needs; the last two move to
+the path tier's vocabulary when their consumers do.
 
 ## Build and test
 

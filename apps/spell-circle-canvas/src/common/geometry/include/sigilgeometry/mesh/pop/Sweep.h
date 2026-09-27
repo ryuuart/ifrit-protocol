@@ -28,7 +28,6 @@
  * than to a tolerance.
  */
 
-#include <include/core/SkPath.h>
 #include <sigilcore/comparable/Erased.h>
 
 #include <cstdint>
@@ -58,7 +57,7 @@ namespace profile {
  *  shape vocabulary: a star, a squircle, an `operations::PathOperation`
  * recipe's result. A closed outline sweeps as a wrapped ring; an open one
  *  sweeps as a strip. */
-path::Polyline fromPath(const SkPath& outline, float tolerance = 0.4f);
+path::Polyline fromPath(const path::Outline& outline, float tolerance = 0.4f);
 
 }  // namespace profile
 

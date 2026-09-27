@@ -80,7 +80,7 @@ TEST(Pop, SweepCarriesAnyProfileAlongTheChain) {
   }
   starProfile.close();
   const Mesh swept = pop::on(loop).count(60).smooth(0.4f).sweep(
-      pop::profile::fromPath(starProfile.detach()), true,
+      pop::profile::fromPath(path::fromSk(starProfile.detach())), true,
       {.segments = 120, .normals = pop::SweepOptions::Normals::Geometric});
   EXPECT_GT(swept.triangleCount(), 1500u);
   glm::vec3 lo, hi;
@@ -220,7 +220,7 @@ TEST(Pop, SweptSinkForwardsToTheSweptPrimitive) {
 
   for (const bool closed : {false, true}) {
     const Mesh made = pop::cookSweep(
-        chain, pop::profile::fromPath(starProfile()), closed,
+        chain, pop::profile::fromPath(path::fromSk(starProfile())), closed,
         {.segments = 120, .normals = pop::SweepOptions::Normals::Geometric});
     const Mesh want = referenceSweep(chain, starProfile(), closed, 120);
     ASSERT_EQ(made.positions.size(), want.positions.size());

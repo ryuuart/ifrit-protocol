@@ -51,7 +51,7 @@ TEST(MeshSweep, AnyFlattenedOutlineIsAProfile) {
   SkPathBuilder square;
   square.moveTo(-10, -10).lineTo(10, -10).lineTo(10, 10).lineTo(-10, 10);
   square.close();
-  const path::Polyline outline = pop::profile::fromPath(square.detach());
+  const path::Polyline outline = pop::profile::fromPath(path::fromSk(square.detach()));
   EXPECT_TRUE(outline.closed);
   const Mesh box = pop::sweep(
       arc, outline,
