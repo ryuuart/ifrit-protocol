@@ -16,7 +16,9 @@
 # a parameter struct holds and the OKLab round trip, linking nothing. The
 # sdf, pattern and field features are the primitives — fully
 # parameterised generators — the ocio feature bakes OpenColorIO's view
-# transforms to LUT materials over the texture feature, and the kit
+# transforms to LUT materials over the texture feature, the substance
+# feature cooks an Adobe Substance 3D archive into a material where the
+# SDK is installed and answers an empty one where it is not, and the kit
 # holds the presets over them. The stock feature gathers every catalogue
 # into the one list a host warms in one call, which is why it is the one
 # target that links the primitives and the kit together.
@@ -35,6 +37,7 @@ add_subdirectory(core)
 add_subdirectory(texture)
 add_subdirectory(mask)
 add_subdirectory(ocio)
+add_subdirectory(substance)
 add_subdirectory(sdf)
 add_subdirectory(pattern)
 add_subdirectory(field)

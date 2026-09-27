@@ -10,9 +10,8 @@
 #                (SigilGeometry), material/ (SigilMaterial), draw/
 #                (SigilDraw), world/ (SigilWorldElement, SigilWorldFrame,
 #                SigilWorldGraph, SigilWorldScene, SigilWorldLight,
-#                SigilWorldKit, SigilWorldDiligent), substance/
-#                (SigilSubstance) and usd/ (SigilUsd), each of which
-#                leaves itself out where its SDK is not installed, and
+#                SigilWorldKit, SigilWorldDiligent) and usd/ (SigilUsd),
+#                which leaves itself out where its SDK is not installed, and
 #                compose/ (SigilCompose) last. Each library carries its
 #                own features as its own archives, and a build module
 #                only one library needs stands in that library's cmake/.
@@ -60,7 +59,6 @@ add_subdirectory(common/material)
 # mixers, and beneath compose, which hosts a pen program in a node.
 add_subdirectory(common/draw)
 add_subdirectory(common/world)
-add_subdirectory(common/substance)
 add_subdirectory(common/usd)
 add_subdirectory(common/compose)
 add_subdirectory(common/python)
