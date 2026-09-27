@@ -125,7 +125,7 @@ class GalleryView : public QQuickRhiItem {
   /** Returns the latest formatted rendering statistics. */
   QString stats() const { return m_stats; }
 
- signals:
+ Q_SIGNALS:
   void sceneIndexChanged();
   void animatingChanged();
   void sceneTextChanged();

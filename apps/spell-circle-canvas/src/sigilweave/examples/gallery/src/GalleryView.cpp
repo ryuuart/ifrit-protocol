@@ -67,9 +67,9 @@ void GalleryView::setSceneIndex(int index) {
   m_sceneIndex = index;
   m_sceneText.clear();
   ++m_sceneParameterRevision;  // renderer re-pulls the new scene's values
-  emit sceneIndexChanged();
-  emit sceneTextChanged();
-  emit sceneParameterValuesChanged();
+  Q_EMIT sceneIndexChanged();
+  Q_EMIT sceneTextChanged();
+  Q_EMIT sceneParameterValuesChanged();
   update();
 }
 
@@ -80,7 +80,7 @@ void GalleryView::setAnimating(bool enabled) {
     m_timer.start();
   else
     m_timer.stop();
-  emit animatingChanged();
+  Q_EMIT animatingChanged();
   update();
 }
 
@@ -192,14 +192,14 @@ void GalleryView::setSceneParameter(const QString& id, const QVariant& value) {
   if (values.value(id) == clampedValue) return;
   values.insert(id, clampedValue);
   ++m_sceneParameterRevision;
-  emit sceneParameterValuesChanged();
+  Q_EMIT sceneParameterValuesChanged();
   update();
 }
 
 void GalleryView::setSceneText(const QString& text) {
   if (text == m_sceneText) return;
   m_sceneText = text;
-  emit sceneTextChanged();
+  Q_EMIT sceneTextChanged();
   update();
 }
 
@@ -207,7 +207,7 @@ void GalleryView::setFontFamily(const QString& family) {
   if (family == m_fontFamily) return;
   m_fontFamily = family;
   refreshFontAxes();
-  emit fontFamilyChanged();
+  Q_EMIT fontFamilyChanged();
   update();
 }
 
@@ -215,7 +215,7 @@ void GalleryView::setFontSize(qreal size) {
   const qreal clampedSize = std::clamp(size, 8.0, 200.0);
   if (clampedSize == m_fontSize) return;
   m_fontSize = clampedSize;
-  emit fontSizeChanged();
+  Q_EMIT fontSizeChanged();
   update();
 }
 
@@ -249,7 +249,7 @@ void GalleryView::setFontAxisValue(const QString& tag, qreal value) {
     if (clampedValue == axis.value) return;
     axis.value = clampedValue;
     ++m_fontAxesRevision;
-    emit fontAxisValuesChanged();
+    Q_EMIT fontAxisValuesChanged();
     update();
     return;
   }
@@ -298,8 +298,8 @@ void GalleryView::refreshFontAxes() {
   }
   m_fontAxes = std::move(axes);
   ++m_fontAxesRevision;
-  emit fontAxesChanged();
-  emit fontAxisValuesChanged();
+  Q_EMIT fontAxesChanged();
+  Q_EMIT fontAxisValuesChanged();
   update();
 }
 
@@ -307,7 +307,7 @@ void GalleryView::setAlignmentIndex(int index) {
   index = std::clamp(index, 0, 3);
   if (index == m_alignmentIndex) return;
   m_alignmentIndex = index;
-  emit alignmentIndexChanged();
+  Q_EMIT alignmentIndexChanged();
   update();
 }
 
@@ -315,7 +315,7 @@ void GalleryView::setLineBreakStrategyIndex(int index) {
   index = std::clamp(index, 0, 1);
   if (index == m_lineBreakStrategyIndex) return;
   m_lineBreakStrategyIndex = index;
-  emit lineBreakStrategyIndexChanged();
+  Q_EMIT lineBreakStrategyIndexChanged();
   update();
 }
 
@@ -330,7 +330,7 @@ bool GalleryView::gpuAvailable() const {
 void GalleryView::setGpu(bool enabled) {
   if (enabled == m_gpu) return;
   m_gpu = enabled;
-  emit gpuChanged();
+  Q_EMIT gpuChanged();
   update();
 }
 
