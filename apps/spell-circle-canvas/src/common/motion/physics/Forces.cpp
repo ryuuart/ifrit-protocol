@@ -3,6 +3,8 @@
  * steerings of a flock over the neighbours a point has.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include "sigilmotion/physics/Forces.h"
 
 #include <cmath>
@@ -35,8 +37,8 @@ void applyAttract(Points& points, const Force& force) {
   const float reach = force.radius;
   for (size_t i = 0; i < points.size(); ++i) {
     if (!points.movable(i)) continue;
-    const Vec2 toward = force.point - points.position[i];
-    const float distance = toward.length();
+    const glm::vec2 toward = force.point - points.position[i];
+    const float distance = glm::length(toward);
     if (distance <= 0.0f) continue;
     if (reach > 0.0f && distance > reach) continue;
     // Falling off with distance rather than with its square: the square
@@ -53,7 +55,7 @@ void applyAttract(Points& points, const Force& force) {
     float falloff = 1.0f / reached;
     if (reach > 0.0f) falloff *= 1.0f - distance / reach;
     points.force[i] +=
-        toward.normalized() * (force.strength * falloff * points.mass[i]);
+        (toward / distance) * (force.strength * falloff * points.mass[i]);
   }
 }
 
@@ -63,7 +65,7 @@ void applyWind(Points& points, const Force& force) {
     if (!points.movable(i)) continue;
     const float angle =
         force.field.at(points.position[i].x, points.position[i].y) * kTurn;
-    points.force[i] += Vec2{std::cos(angle), std::sin(angle)} *
+    points.force[i] += glm::vec2{std::cos(angle), std::sin(angle)} *
                        (force.strength * points.mass[i]);
   }
 }
@@ -82,7 +84,7 @@ void applyFlock(Points& points, const Force& force) {
   std::vector<uint32_t> found;
   for (size_t i = 0; i < count; ++i) {
     if (!points.movable(i)) continue;
-    Vec2 away{}, heading{}, centre{};
+    glm::vec2 away{}, heading{}, centre{};
     int neighbours = 0;
     // The answer arrives in index order, so this sum is the sum a walk
     // over every pair makes and a flock does not move because it was
@@ -91,8 +93,8 @@ void applyFlock(Points& points, const Force& force) {
     near.within(points.position[i], force.radius, found);
     for (const uint32_t j : found) {
       if ((size_t)j == i) continue;
-      const Vec2 offset = points.position[j] - points.position[i];
-      const float distanceSquared = offset.lengthSquared();
+      const glm::vec2 offset = points.position[j] - points.position[i];
+      const float distanceSquared = glm::dot(offset, offset);
       if (distanceSquared > reachSquared || distanceSquared <= 0.0f) continue;
       ++neighbours;
       heading += points.velocity[j];
@@ -103,9 +105,9 @@ void applyFlock(Points& points, const Force& force) {
     }
     if (neighbours == 0) continue;
     const float share = 1.0f / (float)neighbours;
-    const Vec2 alignment = heading * share - points.velocity[i];
-    const Vec2 cohesion = centre * share - points.position[i];
-    const Vec2 steering = away * force.flock.separation +
+    const glm::vec2 alignment = heading * share - points.velocity[i];
+    const glm::vec2 cohesion = centre * share - points.position[i];
+    const glm::vec2 steering = away * force.flock.separation +
                           alignment * force.flock.alignment +
                           cohesion * force.flock.cohesion;
     points.force[i] += steering * (force.strength * points.mass[i]);

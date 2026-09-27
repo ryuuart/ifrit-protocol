@@ -15,6 +15,8 @@
  * when its time is up. Those three are here, and nothing else is.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <sigilcore/compute/Chance.h>
 #include <sigilmotion/physics/Points.h>
 
@@ -151,7 +153,7 @@ struct Particles {
 
   /** A particle at @p at, moving at @p startingVelocity, allowed
    *  @p lifetime, and its index. Every attribute grows with it, at zero. */
-  size_t add(Vec2 at, Vec2 startingVelocity = {}, Duration lifetime = {},
+  size_t add(glm::vec2 at, glm::vec2 startingVelocity = {}, Duration lifetime = {},
              float startingMass = 1.0f);
 
   /** Drop the particle at @p index by moving the LAST one into its
@@ -284,15 +286,15 @@ struct Emitter {
   /** The shape of the mouth. */
   EmitFrom from = EmitFrom::Point;
   /** Where the mouth is. */
-  Vec2 at{};
+  glm::vec2 at{};
   /** The mouth's own first axis, at length one. A segment lies along it
    *  and a box's first half extent measures along it. */
-  Vec2 along{1.0f, 0.0f};
+  glm::vec2 along{1.0f, 0.0f};
   /** How big the mouth is: along the first axis and across it, or a
    *  radius in the first number for the two round mouths. */
-  Vec2 size{};
+  glm::vec2 size{};
   /** The direction a birth is thrown in, at length one. */
-  Vec2 aim{0.0f, -1.0f};
+  glm::vec2 aim{0.0f, -1.0f};
   /** How far off the aim a birth may be thrown, in radians — the half
    *  angle of the ejection cone. Zero throws everything straight along
    *  the aim. */

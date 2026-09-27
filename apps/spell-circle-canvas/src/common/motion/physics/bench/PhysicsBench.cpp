@@ -5,6 +5,8 @@
  * constraint passes.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <benchmark/benchmark.h>
 #include <sigilmotion/physics/Constraints.h>
 #include <sigilmotion/physics/Forces.h>
@@ -86,12 +88,12 @@ void flockByWalking(Points& points, float, const Force& force) {
   const size_t count = points.size();
   for (size_t i = 0; i < count; ++i) {
     if (!points.movable(i)) continue;
-    Vec2 away{}, heading{}, centre{};
+    glm::vec2 away{}, heading{}, centre{};
     int neighbours = 0;
     for (size_t j = 0; j < count; ++j) {
       if (j == i) continue;
-      const Vec2 offset = points.position[j] - points.position[i];
-      const float distanceSquared = offset.lengthSquared();
+      const glm::vec2 offset = points.position[j] - points.position[i];
+      const float distanceSquared = glm::dot(offset, offset);
       if (distanceSquared > reachSquared || distanceSquared <= 0.0f) continue;
       ++neighbours;
       heading += points.velocity[j];
@@ -100,9 +102,9 @@ void flockByWalking(Points& points, float, const Force& force) {
     }
     if (neighbours == 0) continue;
     const float share = 1.0f / (float)neighbours;
-    const Vec2 alignment = heading * share - points.velocity[i];
-    const Vec2 cohesion = centre * share - points.position[i];
-    const Vec2 steering = away * force.flock.separation +
+    const glm::vec2 alignment = heading * share - points.velocity[i];
+    const glm::vec2 cohesion = centre * share - points.position[i];
+    const glm::vec2 steering = away * force.flock.separation +
                           alignment * force.flock.alignment +
                           cohesion * force.flock.cohesion;
     points.force[i] += steering * (force.strength * points.mass[i]);
@@ -141,7 +143,7 @@ void NeighbourhoodQuery(benchmark::State& state) {
   std::vector<uint32_t> found;
   for ([[maybe_unused]] auto iteration : state) {
     size_t total = 0;
-    for (const Vec2 at : points.position) {
+    for (const glm::vec2 at : points.position) {
       near.within(at, 80.0f, found);
       total += found.size();
     }

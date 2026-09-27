@@ -15,6 +15,8 @@
  * took, and no force said so.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <sigilmotion/physics/Points.h>
 
 #include <cstdint>
@@ -58,7 +60,7 @@ struct Constraint {
    *  taking less than none would widen it. */
   float stiffness = 1.0f;
   /** `Pin`: where `first` is held. */
-  Vec2 at{};
+  glm::vec2 at{};
   /** `Distance`: solve the band by the SQUARE-ROOT-FREE APPROXIMATION
    *  instead of by the exact length.
    *
@@ -127,7 +129,7 @@ struct Constraint {
 }
 
 /** A POINT HELD AT @p at. */
-[[nodiscard]] inline Constraint pin(size_t index, Vec2 at) {
+[[nodiscard]] inline Constraint pin(size_t index, glm::vec2 at) {
   return {.kind = ConstraintKind::Pin, .first = index, .at = at};
 }
 

@@ -10,6 +10,8 @@
  * it) answer rather than dividing.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include "support/StandsAlone.h"
 
 #include <gtest/gtest.h>
@@ -31,7 +33,7 @@ namespace {
 
 /** How far apart two points are. */
 float apart(const Points& points, size_t a, size_t b) {
-  return (points.position[b] - points.position[a]).length();
+  return glm::length((points.position[b] - points.position[a]));
 }
 
 }  // namespace
@@ -85,7 +87,7 @@ TEST(Physics, APinnedSpringSettlesOnItsRestLength) {
     stepper.step(points, forces, sticks);
   EXPECT_NEAR(apart(points, 0, 1), 50.0f, 0.5f);
   // The pinned end never moved, whatever was pulling on it.
-  EXPECT_EQ(points.position[0], (Vec2{0, 0}));
+  EXPECT_EQ(points.position[0], (glm::vec2{0, 0}));
   // And it hangs below the anchor, because that is where the gravity is.
   EXPECT_GT(points.position[1].y, 40.0f);
 }
@@ -109,7 +111,7 @@ TEST(Physics, ABandDoesNothingUntilItIsTaut) {
   EXPECT_NEAR(apart(points, 0, 1), 100.0f, 1e-2f);
   // Which means the speed it had is gone: the rope took it, and no
   // force said so.
-  EXPECT_LT(points.velocity[1].length(), 5.0f);
+  EXPECT_LT(glm::length(points.velocity[1]), 5.0f);
   stepper.step(points, none, rope);
   EXPECT_NEAR(apart(points, 0, 1), 100.0f, 1e-2f);
 }
@@ -156,7 +158,7 @@ TEST(Physics, AnImmovablePointTakesNoneOfTheCorrection) {
   points.add({10, 0});
   const std::vector<Constraint> stick{distance(0, 1, 40.0f)};
   for (int frame = 0; frame < 20; ++frame) stepper.step(points, {}, stick);
-  EXPECT_EQ(points.position[0], (Vec2{0, 0}));
+  EXPECT_EQ(points.position[0], (glm::vec2{0, 0}));
   EXPECT_NEAR(apart(points, 0, 1), 40.0f, 1e-3f);
 }
 
@@ -167,10 +169,10 @@ TEST(Physics, APinIsWhereTheCallerPutsItThisFrame) {
   std::vector<Constraint> held{pin(0, {12, -7})};
   const std::vector<Force> forces{gravity({0, 500})};
   stepper.step(points, forces, held);
-  EXPECT_EQ(points.position[0], (Vec2{12, -7}));
+  EXPECT_EQ(points.position[0], (glm::vec2{12, -7}));
   held[0].at = {60, 5};
   stepper.step(points, forces, held);
-  EXPECT_EQ(points.position[0], (Vec2{60, 5}));
+  EXPECT_EQ(points.position[0], (glm::vec2{60, 5}));
 }
 
 TEST(Physics, AFlockKeepsEveryBirdAndStaysWhereItCanBeDrawn) {
@@ -188,7 +190,7 @@ TEST(Physics, AFlockKeepsEveryBirdAndStaysWhereItCanBeDrawn) {
   const size_t before = points.size();
   float spreadBefore = 0.0f;
   for (size_t i = 0; i < points.size(); ++i)
-    spreadBefore = std::max(spreadBefore, points.position[i].length());
+    spreadBefore = std::max(spreadBefore, glm::length(points.position[i]));
 
   for (int frame = 0; frame < 600; ++frame) stepper.step(points, forces);
 
@@ -199,7 +201,7 @@ TEST(Physics, AFlockKeepsEveryBirdAndStaysWhereItCanBeDrawn) {
   for (size_t i = 0; i < points.size(); ++i) {
     EXPECT_TRUE(std::isfinite(points.position[i].x));
     EXPECT_TRUE(std::isfinite(points.position[i].y));
-    spreadAfter = std::max(spreadAfter, points.position[i].length());
+    spreadAfter = std::max(spreadAfter, glm::length(points.position[i]));
   }
   // Cohesion beat separation over that many frames, so the flock is
   // together rather than scattered — which is the one thing the three
@@ -221,7 +223,7 @@ TEST(Physics, TheLanesStayTheSameLengthAndRemovingRenumbers) {
   const size_t middle = points.add({1, 1}, {2, 2}, 3.0f);
   points.add({9, 9});
   EXPECT_EQ(points.size(), 3u);
-  EXPECT_EQ(points.previous[middle], (Vec2{1, 1}));
+  EXPECT_EQ(points.previous[middle], (glm::vec2{1, 1}));
   EXPECT_FLOAT_EQ(points.inverseMass(middle), 1.0f / 3.0f);
 
   points.remove(middle);
@@ -231,7 +233,7 @@ TEST(Physics, TheLanesStayTheSameLengthAndRemovingRenumbers) {
   EXPECT_EQ(points.pinned.size(), 2u);
   // The last one moved into the hole, which is why anything holding an
   // index into a set is holding the wrong point after a removal.
-  EXPECT_EQ(points.position[middle], (Vec2{9, 9}));
+  EXPECT_EQ(points.position[middle], (glm::vec2{9, 9}));
 
   points.clear();
   EXPECT_TRUE(points.empty());
@@ -241,7 +243,7 @@ TEST(Physics, ACallersOwnForceIsAValueLikeTheOthers) {
   Force custom{.kind = ForceKind::Body, .strength = 25.0f};
   custom.body = [](Points& points, float, const Force& force) {
     for (size_t i = 0; i < points.size(); ++i)
-      points.force[i] += Vec2{force.strength, 0};
+      points.force[i] += glm::vec2{force.strength, 0};
   };
   Points points;
   points.add({0, 0});
@@ -277,8 +279,8 @@ TEST(Physics, APreLoadedForceMovesThePointItWasWrittenOn) {
   EXPECT_FLOAT_EQ(points.position[1].x, 0.0f);
   EXPECT_FLOAT_EQ(points.velocity[1].x, 0.0f);
   // And the lane is empty again, so the push is not spent a second time.
-  EXPECT_EQ(points.force[0], Vec2{});
-  const Vec2 carried = points.velocity[0];
+  EXPECT_EQ(points.force[0], glm::vec2{});
+  const glm::vec2 carried = points.velocity[0];
   stepper.step(points, {});
   EXPECT_FLOAT_EQ(points.velocity[0].x, carried.x);
 }
@@ -292,8 +294,8 @@ TEST(Physics, AStepOfNoTimeMovesNothing) {
   Points points;
   points.add({0, 0}, {7, -3});
   points.add({40, 0}, {-2, 1});
-  const std::vector<Vec2> before = points.position;
-  const std::vector<Vec2> speeds = points.velocity;
+  const std::vector<glm::vec2> before = points.position;
+  const std::vector<glm::vec2> speeds = points.velocity;
 
   for (Duration step : {Duration{}, -1s / 60.0}) {
     const Verlet stepper{.timeStep = step};
@@ -317,7 +319,7 @@ TEST(Physics, AStepAsLongAsTheClocksCeilingIsCoarseAndNotExploded) {
   pair.add({20, 0});
   for (int frame = 0; frame < 20; ++frame) stepper.step(pair, forces, stick);
   EXPECT_NEAR(apart(pair, 0, 1), 20.0f, 1e-3f);
-  EXPECT_EQ(pair.position[0], (Vec2{0, 0}));
+  EXPECT_EQ(pair.position[0], (glm::vec2{0, 0}));
 
   // A CHAIN of them at that step is coarse — a walk of the list only
   // carries a correction one link along, so a long chain under a step
@@ -356,7 +358,7 @@ TEST(Physics, NoIterationsIsStillOnePassOverTheList) {
     return points.position[1];
   };
   EXPECT_EQ(run(0), run(1));
-  EXPECT_NEAR((run(0) - Vec2{0, 0}).length(), 40.0f, 1e-3f);
+  EXPECT_NEAR(glm::length((run(0) - glm::vec2{0, 0})), 40.0f, 1e-3f);
 }
 
 TEST(Physics, AStiffnessAboveOneIsHeldAtRigidRatherThanOvershooting) {
@@ -391,7 +393,7 @@ TEST(Physics, AnAttractorPullsNoHarderThanItsStrengthAtTheCentre) {
   // the speed it bought: a unit mass gains the push times the step, and
   // nothing here takes any of it back.
   const auto pushOn = [&](const Points& points) {
-    return points.velocity[0].length() / (float)stepper.timeStep.count();
+    return glm::length(points.velocity[0]) / (float)stepper.timeStep.count();
   };
   for (float away : {1e-6f, 1e-3f, 0.5f, 1.0f}) {
     Points points;
@@ -416,11 +418,11 @@ TEST(Physics, ABodyForceWithNothingInItPushesNothing) {
   ASSERT_EQ(empty.body, nullptr);
   Points points;
   points.add({3, 4}, {1, 1});
-  const std::vector<Vec2> before = points.position;
+  const std::vector<glm::vec2> before = points.position;
   const Verlet stepper{.timeStep = 1s / 60.0};
   const std::vector<Force> forces{empty};
   stepper.step(points, forces);
-  EXPECT_EQ(points.force[0], (Vec2{0, 0}));
+  EXPECT_EQ(points.force[0], (glm::vec2{0, 0}));
   // It coasts on the speed it had and nothing else touched it.
-  EXPECT_EQ(points.position[0], (before[0] + Vec2{1, 1} * (float)stepper.timeStep.count()));
+  EXPECT_EQ(points.position[0], (before[0] + glm::vec2{1, 1} * (float)stepper.timeStep.count()));
 }

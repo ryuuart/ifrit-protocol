@@ -2,11 +2,13 @@
  * The three operations that keep the lanes the same length.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include "sigilmotion/physics/Points.h"
 
 namespace sigil::motion::physics {
 
-size_t Points::add(Vec2 at, Vec2 startingVelocity, float startingMass,
+size_t Points::add(glm::vec2 at, glm::vec2 startingVelocity, float startingMass,
                    bool held) {
   position.push_back(at);
   // Where it was when the step began is where it is: a point that has

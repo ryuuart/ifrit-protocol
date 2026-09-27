@@ -8,6 +8,8 @@
  * radius, and the same run twice.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include "support/StandsAlone.h"
 
 #include <gtest/gtest.h>
@@ -31,9 +33,9 @@ using namespace std::chrono_literals;
 namespace {
 
 /** A cloud of `count` points spread over a box, from a seed. */
-std::vector<Vec2> cloud(int count, uint64_t seed, float spread = 400.0f) {
+std::vector<glm::vec2> cloud(int count, uint64_t seed, float spread = 400.0f) {
   sigil::core::chance::Stream stream = sigil::core::chance::Stream::pcg(seed);
-  std::vector<Vec2> points;
+  std::vector<glm::vec2> points;
   points.reserve((size_t)count);
   for (int i = 0; i < count; ++i)
     points.push_back(
@@ -42,27 +44,27 @@ std::vector<Vec2> cloud(int count, uint64_t seed, float spread = 400.0f) {
 }
 
 /** Every index within `radius` of `at`, found by asking all of them. */
-std::vector<uint32_t> byWalking(const std::vector<Vec2>& points, Vec2 at,
+std::vector<uint32_t> byWalking(const std::vector<glm::vec2>& points, glm::vec2 at,
                                 float radius) {
   std::vector<uint32_t> found;
   const float reachSquared = radius * radius;
   for (size_t i = 0; i < points.size(); ++i)
-    if ((points[i] - at).lengthSquared() <= reachSquared)
+    if (glm::dot((points[i] - at), (points[i] - at)) <= reachSquared)
       found.push_back((uint32_t)i);
   return found;
 }
 
 /** A point set standing where `at` says, at rest. */
-Points restingAt(const std::vector<Vec2>& at) {
+Points restingAt(const std::vector<glm::vec2>& at) {
   Points points;
-  for (const Vec2 place : at) points.add(place);
+  for (const glm::vec2 place : at) points.add(place);
   return points;
 }
 
 }  // namespace
 
 TEST(Neighbourhood, AnswersWhatTheWalkOverEveryPairAnswers) {
-  const std::vector<Vec2> points = cloud(2000, 71);
+  const std::vector<glm::vec2> points = cloud(2000, 71);
   // Three cell sizes against one radius: the size the queries will use,
   // one far finer and one far coarser. A grid that swept a cell too few
   // would lose a neighbour at exactly one of these.
@@ -83,7 +85,7 @@ TEST(Neighbourhood, AnswersWhatTheWalkOverEveryPairAnswers) {
 }
 
 TEST(Neighbourhood, TheAnswerIsInIndexOrder) {
-  const std::vector<Vec2> points = cloud(1500, 12);
+  const std::vector<glm::vec2> points = cloud(1500, 12);
   const Neighbourhood near(points);
   std::vector<uint32_t> found;
   size_t crowded = 0;
@@ -106,7 +108,7 @@ TEST(Neighbourhood, ARadiusOfNothingAndAnEmptyIndexAnswerNothing) {
   EXPECT_EQ(nothing.size(), 0u);
   EXPECT_TRUE(nothing.within({0, 0}, 100.0f).empty());
 
-  const std::vector<Vec2> points = cloud(64, 5);
+  const std::vector<glm::vec2> points = cloud(64, 5);
   const Neighbourhood near(points);
   EXPECT_TRUE(near.within(points[0], 0.0f).empty());
   EXPECT_TRUE(near.within(points[0], -1.0f).empty());
@@ -115,14 +117,14 @@ TEST(Neighbourhood, ARadiusOfNothingAndAnEmptyIndexAnswerNothing) {
 TEST(Neighbourhood, TheSetsAGridCannotSpaceItselfOverStillAnswer) {
   // One point: no extent on either axis, so no cell size can be derived
   // from the set and the grid falls back to one cell.
-  const std::vector<Vec2> alone{{3.0f, -7.0f}};
+  const std::vector<glm::vec2> alone{{3.0f, -7.0f}};
   const Neighbourhood one(alone);
   EXPECT_EQ(one.within({3.0f, -7.0f}, 1.0f), std::vector<uint32_t>{0u});
   EXPECT_TRUE(one.within({300.0f, -7.0f}, 1.0f).empty());
 
   // A line: one axis has no extent at all, and a cell size taken off the
   // area of that box would be zero.
-  std::vector<Vec2> line;
+  std::vector<glm::vec2> line;
   for (int i = 0; i < 500; ++i) line.push_back({(float)i * 2.0f, 0.0f});
   const Neighbourhood strung(line);
   EXPECT_EQ(strung.within({100.0f, 0.0f}, 5.0f),
@@ -130,14 +132,14 @@ TEST(Neighbourhood, TheSetsAGridCannotSpaceItselfOverStillAnswer) {
 
   // A heap: every point in one place, which is one bucket however fine
   // the grid is asked to be.
-  const std::vector<Vec2> heap(300, Vec2{12.0f, 12.0f});
+  const std::vector<glm::vec2> heap(300, glm::vec2{12.0f, 12.0f});
   const Neighbourhood piled(heap, 0.001f);
   EXPECT_EQ(piled.within({12.0f, 12.0f}, 0.5f).size(), heap.size());
 
   // A coordinate that is not a number takes no part in the bounds and
   // still has a bucket, so every index the caller handed in is
   // answerable rather than lost.
-  std::vector<Vec2> withNaN = cloud(200, 9);
+  std::vector<glm::vec2> withNaN = cloud(200, 9);
   withNaN.push_back({std::numeric_limits<float>::quiet_NaN(), 0.0f});
   const Neighbourhood ragged(withNaN);
   EXPECT_EQ(ragged.size(), withNaN.size());
@@ -146,7 +148,7 @@ TEST(Neighbourhood, TheSetsAGridCannotSpaceItselfOverStillAnswer) {
 }
 
 TEST(Neighbourhood, TheCellsHoldEveryIndexOnceAndCanBeRead) {
-  const std::vector<Vec2> points = cloud(800, 1597);
+  const std::vector<glm::vec2> points = cloud(800, 1597);
   const Neighbourhood near(points, 50.0f);
   ASSERT_GT(near.columns(), 1);
   ASSERT_GT(near.rows(), 1);
@@ -171,7 +173,7 @@ TEST(Neighbourhood, TheCellsHoldEveryIndexOnceAndCanBeRead) {
         // diagonal of itself: the run really is the neighbourhood the
         // grid grouped, not a relabelling of the whole set.
         for (const uint32_t other : held)
-          ASSERT_LE((points[index] - points[other]).length(), diagonal + 1e-3f);
+          ASSERT_LE(glm::length((points[index] - points[other])), diagonal + 1e-3f);
       }
     }
   EXPECT_EQ(counted, points.size());
@@ -188,12 +190,12 @@ TEST(Neighbourhood, TheCellsHoldEveryIndexOnceAndCanBeRead) {
 }
 
 TEST(Neighbourhood, ARebuiltIndexAnswersAboutWhereThePointsAreNow) {
-  std::vector<Vec2> points = cloud(400, 33);
+  std::vector<glm::vec2> points = cloud(400, 33);
   Neighbourhood near(points);
   const std::vector<uint32_t> before = near.within({0, 0}, 50.0f);
 
   // A snapshot: moving the caller's points does not move the answer.
-  for (Vec2& at : points) at += Vec2{1000.0f, 0.0f};
+  for (glm::vec2& at : points) at += glm::vec2{1000.0f, 0.0f};
   EXPECT_EQ(near.within({0, 0}, 50.0f), before);
 
   near.build(points);
@@ -203,7 +205,7 @@ TEST(Neighbourhood, ARebuiltIndexAnswersAboutWhereThePointsAreNow) {
 }
 
 TEST(Neighbourhood, AFlockSteersOnTheSameSumTheWalkOverEveryPairMakes) {
-  const std::vector<Vec2> places = cloud(600, 4181);
+  const std::vector<glm::vec2> places = cloud(600, 4181);
   const Flocking weights{
       .separation = 1.5f, .alignment = 0.8f, .cohesion = 1.2f};
   const float reach = 55.0f;
@@ -219,12 +221,12 @@ TEST(Neighbourhood, AFlockSteersOnTheSameSumTheWalkOverEveryPairMakes) {
   // the body the force had before there was a grid to ask.
   const float reachSquared = reach * reach;
   for (size_t i = 0; i < walked.size(); ++i) {
-    Vec2 away{}, heading{}, centre{};
+    glm::vec2 away{}, heading{}, centre{};
     int neighbours = 0;
     for (size_t j = 0; j < walked.size(); ++j) {
       if (j == i) continue;
-      const Vec2 offset = walked.position[j] - walked.position[i];
-      const float distanceSquared = offset.lengthSquared();
+      const glm::vec2 offset = walked.position[j] - walked.position[i];
+      const float distanceSquared = glm::dot(offset, offset);
       if (distanceSquared > reachSquared || distanceSquared <= 0.0f) continue;
       ++neighbours;
       heading += walked.velocity[j];
@@ -233,8 +235,8 @@ TEST(Neighbourhood, AFlockSteersOnTheSameSumTheWalkOverEveryPairMakes) {
     }
     if (neighbours == 0) continue;
     const float share = 1.0f / (float)neighbours;
-    const Vec2 alignment = heading * share - walked.velocity[i];
-    const Vec2 cohesion = centre * share - walked.position[i];
+    const glm::vec2 alignment = heading * share - walked.velocity[i];
+    const glm::vec2 cohesion = centre * share - walked.position[i];
     walked.force[i] +=
         (away * weights.separation + alignment * weights.alignment +
          cohesion * weights.cohesion) *
@@ -245,7 +247,7 @@ TEST(Neighbourhood, AFlockSteersOnTheSameSumTheWalkOverEveryPairMakes) {
   for (size_t i = 0; i < indexed.size(); ++i) {
     EXPECT_FLOAT_EQ(indexed.force[i].x, walked.force[i].x) << "point " << i;
     EXPECT_FLOAT_EQ(indexed.force[i].y, walked.force[i].y) << "point " << i;
-    if (indexed.force[i].lengthSquared() > 0.0f) ++pushed;
+    if (glm::dot(indexed.force[i], indexed.force[i]) > 0.0f) ++pushed;
   }
   EXPECT_GT(pushed, indexed.size() / 2);
 }
@@ -261,19 +263,19 @@ TEST(Neighbourhood, AFlockReachesNoFurtherThanItsRadius) {
 
   // The pair inside the radius sees each other and is pushed; the loner
   // is outside every reach and is not touched at all.
-  EXPECT_GT(points.force[left].lengthSquared(), 0.0f);
-  EXPECT_GT(points.force[beside].lengthSquared(), 0.0f);
-  EXPECT_EQ(points.force[away], Vec2{});
+  EXPECT_GT(glm::dot(points.force[left], points.force[left]), 0.0f);
+  EXPECT_GT(glm::dot(points.force[beside], points.force[beside]), 0.0f);
+  EXPECT_EQ(points.force[away], glm::vec2{});
 
   // And a radius that reaches nobody pushes nobody, however many points
   // there are.
   Points tight = restingAt(cloud(300, 8));
   boids({}, 0.001f, 1.0f).apply(tight, 1s / 60.0);
-  for (size_t i = 0; i < tight.size(); ++i) EXPECT_EQ(tight.force[i], Vec2{});
+  for (size_t i = 0; i < tight.size(); ++i) EXPECT_EQ(tight.force[i], glm::vec2{});
 }
 
 TEST(Neighbourhood, TheSameCloudFlocksTheSameWayTwice) {
-  const std::vector<Vec2> places = cloud(500, 2718);
+  const std::vector<glm::vec2> places = cloud(500, 2718);
   const std::vector<Force> forces{boids({}, 70.0f), drag(0.3f)};
   const Verlet stepper{.timeStep = 1s / 60.0, .damping = 0.2f};
 
@@ -285,8 +287,8 @@ TEST(Neighbourhood, TheSameCloudFlocksTheSameWayTwice) {
     return points.position;
   };
 
-  const std::vector<Vec2> once = run();
-  const std::vector<Vec2> twice = run();
+  const std::vector<glm::vec2> once = run();
+  const std::vector<glm::vec2> twice = run();
   ASSERT_EQ(once.size(), twice.size());
   for (size_t i = 0; i < once.size(); ++i) EXPECT_EQ(once[i], twice[i]);
 }

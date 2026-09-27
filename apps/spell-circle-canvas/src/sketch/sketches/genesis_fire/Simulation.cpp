@@ -1,5 +1,7 @@
 // Particle emission, fixed steps and streak geometry.
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include "GenesisFire.h"
 #include <sigilmotion/physics/Points.h>
 
@@ -53,14 +55,14 @@ void GenesisFire::advance(physics::Particles& cloud,
 
   for (size_t i = 0; i < cloud.size(); ++i) {
     const Site& s = ss[(size_t)which[i]];
-    cloud.points.velocity[i] -= physics::Vec2(s.n) * gravity;
+    cloud.points.velocity[i] -= glm::vec2(s.n) * gravity;
     cloud.points.position[i] += cloud.points.velocity[i];
   }
   // One film frame older, and every attribute moved by its own rate.
   cloud.live(1.0f);
 
   cloud.reap([&](size_t i) {
-    const physics::Vec2 at = cloud.points.position[i];
+    const glm::vec2 at = cloud.points.position[i];
     return cloud.expired(i) || (red[i] + green[i] + blue[i]) < kMinIntensity ||
            (killBelowSurface ? at.y > limbY(at.x) + 1.5f
                              : at.y > ss[(size_t)which[i]].p.fY + 2.0f);
@@ -127,8 +129,8 @@ void GenesisFire::buildStreaks(physics::Particles& cloud,
     idx.reserve(cnt * 18);
     for (size_t i = 0; i < cnt; ++i) {
       const size_t at = base + i;
-      const physics::Vec2 velocity = cloud.points.velocity[at];
-      const float speed = velocity.length();
+      const glm::vec2 velocity = cloud.points.velocity[at];
+      const float speed = glm::length(velocity);
       const SkVector d = speed > 1e-4f
                              ? SkVector{velocity.x / speed, velocity.y / speed}
                              : SkVector{0.0f, -1.0f};
@@ -201,8 +203,8 @@ void GenesisFire::writeBenchPool() {
   const std::vector<float>& blue = abParts.attribute(kBlue).values;
   for (size_t i = 0; i < kAbCount; ++i) {
     if (i < abParts.size()) {
-      const physics::Vec2 velocity = abParts.points.velocity[i];
-      const float speed = velocity.length();
+      const glm::vec2 velocity = abParts.points.velocity[i];
+      const float speed = glm::length(velocity);
       // The same two numbers the field's own quads are built from, so
       // the bench is a picture of the field's shape rather than of a
       // second one.

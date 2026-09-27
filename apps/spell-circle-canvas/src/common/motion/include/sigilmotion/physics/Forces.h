@@ -15,6 +15,8 @@
  * of near-identical structs.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <sigilcore/compute/Field.h>
 #include <sigilmotion/physics/Points.h>
 
@@ -92,9 +94,9 @@ using ForceBody = void (*)(Points& points, float seconds, const Force& force);
 struct Force {
   ForceKind kind = ForceKind::Uniform;
   /** `Uniform`: the acceleration, in units per second squared. */
-  Vec2 vector{};
+  glm::vec2 vector{};
   /** `Attract`: what it pulls towards. */
-  Vec2 point{};
+  glm::vec2 point{};
   /** How hard, in the units its kind is stated in: `Drag`'s per-second
    *  fraction of speed, `Attract`'s pull at one unit away and its
    *  strongest pull anywhere (negative pushes), `Wind`'s push, `Flock`'s
@@ -125,7 +127,7 @@ struct Force {
 
 /** THE SAME PULL ON EVERYTHING: an acceleration, so weight does not
  *  enter it. Down is whichever way the caller's coordinates go down. */
-[[nodiscard]] inline Force gravity(Vec2 acceleration) {
+[[nodiscard]] inline Force gravity(glm::vec2 acceleration) {
   return {.kind = ForceKind::Uniform, .vector = acceleration};
 }
 
@@ -140,7 +142,7 @@ struct Force {
  *  with distance and reaching nothing past @p radius. Zero radius
  *  reaches everywhere, and nothing inside one unit of the centre is
  *  pulled harder than @p strength. */
-[[nodiscard]] inline Force attract(Vec2 centre, float strength,
+[[nodiscard]] inline Force attract(glm::vec2 centre, float strength,
                                    float radius = 0.0f) {
   return {.kind = ForceKind::Attract,
           .point = centre,
@@ -151,7 +153,7 @@ struct Force {
 /** THE SAME THING PUSHING: an attraction with the sign turned over, so
  *  the two are one value and a scene can flip a cursor from pulling to
  *  pushing by negating a number rather than by swapping a type. */
-[[nodiscard]] inline Force repel(Vec2 centre, float strength,
+[[nodiscard]] inline Force repel(glm::vec2 centre, float strength,
                                  float radius = 0.0f) {
   return attract(centre, -strength, radius);
 }

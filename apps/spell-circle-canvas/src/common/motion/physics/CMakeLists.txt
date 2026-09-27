@@ -13,13 +13,14 @@
 # to disk and a test stepping a hundred times in a loop all drive the
 # same body. SigilCoreCompute is the noise field a wind reads and is a
 # header-only leaf over the standard library — the same kind of edge out
-# of this library the comparable pin is.
+# of this library the comparable pin is. glm is the vector type every
+# position, velocity and force lane holds, header-only and public.
 sigil_library(SigilMotionPhysics
   SOURCES Constraints.cpp Forces.cpp Neighbourhood.cpp Particles.cpp Points.cpp
           Verlet.cpp
   HEADERS Constraints.h Forces.h Neighbourhood.h Particles.h Points.h
           Verlet.h
-  PUBLIC SigilMotionTime SigilCoreCompute)
+  PUBLIC SigilMotionTime SigilCoreCompute glm::glm)
 
 # Links the feature alone: nothing here reads a clock, and a link edge
 # that pulled one in would show up as a build failure here.

@@ -26,6 +26,8 @@
  * ask for a table larger than itself.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <sigilmotion/physics/Points.h>
 
 #include <cstddef>
@@ -71,11 +73,11 @@ class Neighbourhood {
   Neighbourhood() = default;
 
   /** The index over @p positions, at @p cell (zero chooses one). */
-  explicit Neighbourhood(std::span<const Vec2> positions, float cell = 0.0f);
+  explicit Neighbourhood(std::span<const glm::vec2> positions, float cell = 0.0f);
 
   /** The same index built again over @p positions, reusing whatever this
    *  one already holds. Every answer it gave before is void. */
-  void build(std::span<const Vec2> positions, float cell = 0.0f);
+  void build(std::span<const glm::vec2> positions, float cell = 0.0f);
 
   [[nodiscard]] size_t size() const { return m_ordered.size(); }
   [[nodiscard]] bool empty() const { return m_ordered.empty(); }
@@ -94,9 +96,9 @@ class Neighbourhood {
    *  drops it by index — which is what a pair walk's `j == i` does, and
    *  is left to the caller because a coincident pair means different
    *  things to a flock and to a collision. */
-  void within(Vec2 at, float radius, std::vector<uint32_t>& out) const;
+  void within(glm::vec2 at, float radius, std::vector<uint32_t>& out) const;
   /** The same, allocating its own answer. */
-  [[nodiscard]] std::vector<uint32_t> within(Vec2 at, float radius) const;
+  [[nodiscard]] std::vector<uint32_t> within(glm::vec2 at, float radius) const;
 
   /** WHAT THE CELL AT @p column, @p row HOLDS, lowest index first, and
    *  nothing at all for a cell outside the grid.
@@ -114,8 +116,8 @@ class Neighbourhood {
  private:
   /** Which column and row a position falls in, clamped to the grid, and
    *  which bucket that is. */
-  void cellOf(Vec2 at, int& column, int& row) const;
-  [[nodiscard]] size_t bucketOf(Vec2 at) const;
+  void cellOf(glm::vec2 at, int& column, int& row) const;
+  [[nodiscard]] size_t bucketOf(glm::vec2 at) const;
   [[nodiscard]] size_t linear(int column, int row) const {
     return (size_t)row * (size_t)m_columns + (size_t)column;
   }
@@ -128,12 +130,12 @@ class Neighbourhood {
   /** The positions in the same order, so a query tests a run of
    *  coordinates that sit together rather than reaching back into the
    *  caller's order for each one. This is the snapshot. */
-  std::vector<Vec2> m_placed;
+  std::vector<glm::vec2> m_placed;
   std::vector<uint32_t> m_starts;
   /** Scratch for the second counting pass, kept so a rebuild allocates
    *  nothing. */
   std::vector<uint32_t> m_cursor;
-  Vec2 m_origin{};
+  glm::vec2 m_origin{};
   int m_columns = 0, m_rows = 0;
   float m_cell = 1.0f;
   float m_inverseCell = 1.0f;

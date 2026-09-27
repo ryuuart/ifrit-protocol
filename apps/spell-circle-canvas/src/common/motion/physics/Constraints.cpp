@@ -3,6 +3,8 @@
  * point is held at.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include "sigilmotion/physics/Constraints.h"
 
 namespace sigil::motion::physics {
@@ -25,8 +27,8 @@ void Constraint::project(Points& points) const {
   // total weight would say so with a NaN instead of by doing nothing.
   if (!(total > 0.0f)) return;
 
-  const Vec2 offset = points.position[second] - points.position[first];
-  const float length = offset.length();
+  const glm::vec2 offset = points.position[second] - points.position[first];
+  const float length = glm::length(offset);
   const float longest = rest + (slack > 0.0f ? slack : 0.0f);
   // Held to [0, 1]: the fraction of the error one pass takes out. Above
   // one a pass would move the pair PAST the band and the next pass would
@@ -46,8 +48,8 @@ void Constraint::project(Points& points) const {
     // band of no length has nothing to hold.
     if (!(restSquared > 0.0f)) return;
     const float share =
-        restSquared / (offset.lengthSquared() + restSquared) - 0.5f;
-    const Vec2 push = offset * (share * taken);
+        restSquared / (glm::dot(offset, offset) + restSquared) - 0.5f;
+    const glm::vec2 push = offset * (share * taken);
     points.position[first] -= push * (2.0f * weightFirst / total);
     points.position[second] += push * (2.0f * weightSecond / total);
     return;
@@ -64,7 +66,7 @@ void Constraint::project(Points& points) const {
   // direction here would make the answer depend on the arithmetic.
   if (!(length > 0.0f)) return;
 
-  const Vec2 direction = offset * (1.0f / length);
+  const glm::vec2 direction = offset * (1.0f / length);
   const float correction = (length - target) * taken;
   points.position[first] += direction * (correction * weightFirst / total);
   points.position[second] -= direction * (correction * weightSecond / total);

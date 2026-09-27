@@ -8,8 +8,8 @@ a motion, the `Engine` animations, timelines and timers run on and that
 tells a host whether anything is still moving, `stagger()` and the
 schedule saying how a run of units shares one progress, and a point set
 that is stepped rather than read. It links
-two header-only SigilCore leaves and nothing else outside the tree but a
-private Boost table, so anything can use it without dragging in a
+two header-only SigilCore leaves and nothing else outside the tree but
+glm, the vector type, and a private Boost table, so anything can use it without dragging in a
 graphics stack.
 
 ## The first screen
@@ -65,7 +65,7 @@ what a consumer uses; every public header lives under
 | `SigilMotionValues` | `values/Tween.h`, `values/Interpolate.h`, `values/Transition.h`, `values/Animatable.h`, `values/Oscillator.h`, `values/Spring.h`, `values/Time.h` | `Tween`, `Keyframe`, `Composition`, `animate()` and `tweenEqual()`; `interpolate()`, the one line a value of any type moves along, with `Additive` and `Interpolable`; `Transition`, `clamp01()` and `transitionEqual()`; `Animatable<T>`, `animatable()`, `bind()` and `propertyEqual()`; `quantizeTime()`, `stepIndex()`, `phase()`, `decay()` and `flash()`; `Spring`, `SpringParameters`, `Spring::step` and `Spring::isSettled`; `Oscillator` and `Wave`, the repeating signal |
 | `SigilMotionClock`  | `clock/Engine.h`, `clock/Playback.h`, `clock/Animation.h`, `advanced/ClockPolicy.h`, `advanced/Held.h` | `Engine`, with `Playback`, `Animation`, `Timeline`, `Timer`, `Position` and its `at()`, `afterEnd()`, `afterPrevious()`, `withPrevious()` and `atLabel()`, `TimerOptions` and `EngineOptions`; `ClockPolicy`, who moves it; `HeldMotion`, `valueOf()`, `retarget()`, `enter()`, `progress()`, `Lane`, `LaneSlot`, `familyLanes()`, `retargetFixed()` and `retargetPositional()`, the reconciler's seam |
 | `SigilMotionSchedule` | `schedule/Stagger.h`, `schedule/Schedule.h` | `stagger()`, `cues()` and `Staggered<V>`, a value that differs per child, with `StaggerOptions`, `StaggerFrom`, `StaggerAxis` and `Place`; `staggerSteps()`, the orderings; `Timing`, and `Schedule` and `Beat`, a timing resolved against a frame's counts |
-| `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Neighbourhood.h`, `physics/Constraints.h`, `physics/Verlet.h`, `physics/Particles.h` | `Vec2` and `Points`, the lanes a simulation is; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Neighbourhood`, the grid a flock and everything else that reads more than one point at a time asks what is near what; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper; `Particles` and `Attribute`, a point set that is born, ages and dies, with `Emitter`, `EmitFrom`, `Roughly`, `BirthAttribute` and `FixedAttribute`, what puts particles into one |
+| `SigilMotionPhysics` | `physics/Points.h`, `physics/Forces.h`, `physics/Neighbourhood.h`, `physics/Constraints.h`, `physics/Verlet.h`, `physics/Particles.h` | `Points`, the lanes a simulation is, in `glm::vec2`; `Force` with `gravity()`, `drag()`, `attract()`/`repel()`, `wind()` and `boids()`; `Neighbourhood`, the grid a flock and everything else that reads more than one point at a time asks what is near what; `Constraint` with `distance()`, `stick()`, `spring()`, `range()` and `pin()`; `Verlet`, the stepper; `Particles` and `Attribute`, a point set that is born, ages and dies, with `Emitter`, `EmitFrom`, `Roughly`, `BirthAttribute` and `FixedAttribute`, what puts particles into one |
 
 `SigilMotion` is the umbrella target over all seven, so a consumer of
 every value and binding names one link. Time is the floor, a header over

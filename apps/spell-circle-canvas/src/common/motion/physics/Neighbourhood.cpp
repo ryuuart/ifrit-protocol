@@ -5,6 +5,8 @@
 
 #include "sigilmotion/physics/Neighbourhood.h"
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <algorithm>
 #include <cmath>
 
@@ -24,11 +26,11 @@ constexpr size_t kCellsPerPoint = 4;
 
 }  // namespace
 
-Neighbourhood::Neighbourhood(std::span<const Vec2> positions, float cell) {
+Neighbourhood::Neighbourhood(std::span<const glm::vec2> positions, float cell) {
   build(positions, cell);
 }
 
-void Neighbourhood::build(std::span<const Vec2> positions, float cell) {
+void Neighbourhood::build(std::span<const glm::vec2> positions, float cell) {
   const size_t count = positions.size();
   if (count == 0) {
     m_columns = m_rows = 0;
@@ -43,15 +45,15 @@ void Neighbourhood::build(std::span<const Vec2> positions, float cell) {
   // division by it — undefined rather than merely wrong. Such a point
   // still gets a bucket: `cellOf` puts anything it cannot place in the
   // first cell, so every index the caller handed in is still answerable.
-  Vec2 lo{}, hi{};
+  glm::vec2 lo{}, hi{};
   bool anyFinite = false;
-  for (const Vec2 at : positions) {
+  for (const glm::vec2 at : positions) {
     if (!std::isfinite(at.x) || !std::isfinite(at.y)) continue;
-    lo = anyFinite ? Vec2{std::min(lo.x, at.x), std::min(lo.y, at.y)} : at;
-    hi = anyFinite ? Vec2{std::max(hi.x, at.x), std::max(hi.y, at.y)} : at;
+    lo = anyFinite ? glm::vec2{std::min(lo.x, at.x), std::min(lo.y, at.y)} : at;
+    hi = anyFinite ? glm::vec2{std::max(hi.x, at.x), std::max(hi.y, at.y)} : at;
     anyFinite = true;
   }
-  const Vec2 extent = anyFinite ? hi - lo : Vec2{};
+  const glm::vec2 extent = anyFinite ? hi - lo : glm::vec2{};
 
   // A cell size nobody asked for: the edge of the square that would hold
   // `kPointsPerCell` points if the set filled its own bounding box
@@ -93,13 +95,13 @@ void Neighbourhood::build(std::span<const Vec2> positions, float cell) {
 
   m_cell = cell;
   m_inverseCell = 1.0f / cell;
-  m_origin = anyFinite ? lo : Vec2{};
+  m_origin = anyFinite ? lo : glm::vec2{};
   m_columns = columns;
   m_rows = rows;
 
   const size_t cells = (size_t)columns * (size_t)rows;
   m_starts.assign(cells + 1, 0);
-  for (const Vec2 at : positions) ++m_starts[bucketOf(at) + 1];
+  for (const glm::vec2 at : positions) ++m_starts[bucketOf(at) + 1];
   for (size_t i = 1; i < m_starts.size(); ++i) m_starts[i] += m_starts[i - 1];
 
   // THE POSITIONS ARE STORED IN BUCKET ORDER BESIDE THE INDICES, so a
@@ -120,13 +122,13 @@ void Neighbourhood::build(std::span<const Vec2> positions, float cell) {
   }
 }
 
-size_t Neighbourhood::bucketOf(Vec2 at) const {
+size_t Neighbourhood::bucketOf(glm::vec2 at) const {
   int column = 0, row = 0;
   cellOf(at, column, row);
   return linear(column, row);
 }
 
-void Neighbourhood::cellOf(Vec2 at, int& column, int& row) const {
+void Neighbourhood::cellOf(glm::vec2 at, int& column, int& row) const {
   const float across = (at.x - m_origin.x) * m_inverseCell;
   const float down = (at.y - m_origin.y) * m_inverseCell;
   column = std::clamp(std::isfinite(across) ? (int)std::floor(across) : 0, 0,
@@ -135,7 +137,7 @@ void Neighbourhood::cellOf(Vec2 at, int& column, int& row) const {
                    m_rows - 1);
 }
 
-void Neighbourhood::within(Vec2 at, float radius,
+void Neighbourhood::within(glm::vec2 at, float radius,
                            std::vector<uint32_t>& out) const {
   out.clear();
   if (m_ordered.empty() || !(radius > 0.0f)) return;
@@ -165,9 +167,9 @@ void Neighbourhood::within(Vec2 at, float radius,
       // The same subtraction and the same squared length a caller
       // comparing every pair writes, so the set that comes back is the
       // set that walk keeps rather than one rounded differently.
-      const Vec2 offset = m_placed[slot] - at;
+      const glm::vec2 offset = m_placed[slot] - at;
       out[kept] = m_ordered[slot];
-      kept += offset.lengthSquared() <= reachSquared ? 1u : 0u;
+      kept += glm::dot(offset, offset) <= reachSquared ? 1u : 0u;
     }
   }
   out.resize(kept);
@@ -179,7 +181,7 @@ void Neighbourhood::within(Vec2 at, float radius,
   std::sort(out.begin(), out.end());
 }
 
-std::vector<uint32_t> Neighbourhood::within(Vec2 at, float radius) const {
+std::vector<uint32_t> Neighbourhood::within(glm::vec2 at, float radius) const {
   std::vector<uint32_t> out;
   within(at, radius, out);
   return out;

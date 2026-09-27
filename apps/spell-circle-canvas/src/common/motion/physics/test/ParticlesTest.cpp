@@ -9,6 +9,8 @@
  * cloud.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include "support/StandsAlone.h"
 
 #include <gtest/gtest.h>
@@ -112,7 +114,7 @@ TEST(Particles, EveryBirthAttributeLandsInsideItsOwnRange) {
     EXPECT_LE(heat[i], 1.0f);
     EXPECT_EQ(cloud.age[i], 0.0f);
 
-    const float speed = cloud.points.velocity[i].length();
+    const float speed = glm::length(cloud.points.velocity[i]);
     slowest = std::min(slowest, speed);
     fastest = std::max(fastest, speed);
     // Every birth is inside the cone: the angle off the aim, which
@@ -168,14 +170,14 @@ TEST(Particles, EachMouthPutsItsBirthsWhereItsShapeSays) {
   Particles shell;
   ring.burst(shell, stream, 500);
   for (size_t i = 0; i < shell.size(); ++i)
-    EXPECT_NEAR(shell.points.position[i].length(), 40.0f, 0.01f);
+    EXPECT_NEAR(glm::length(shell.points.position[i]), 40.0f, 0.01f);
 
   Emitter disc{.from = EmitFrom::Disc, .size = {40.0f, 0.0f}};
   Particles filled;
   disc.burst(filled, stream, 4000);
   size_t outer = 0;
   for (size_t i = 0; i < filled.size(); ++i) {
-    const float reach = filled.points.position[i].length();
+    const float reach = glm::length(filled.points.position[i]);
     EXPECT_LE(reach, 40.0f);
     if (reach > 40.0f / std::sqrt(2.0f)) ++outer;
   }
@@ -445,7 +447,7 @@ TEST(Particles, AHeavierParticleMovesLessUnderTheSamePush) {
   // The same PUSH on every one of them — a force lane the caller loads,
   // not an acceleration, since an acceleration is what weight is taken
   // out of.
-  for (Vec2& push : cloud.points.force) push = {0.0f, 600.0f};
+  for (glm::vec2& push : cloud.points.force) push = {0.0f, 600.0f};
   const Verlet stepper{.timeStep = 1s / 60.0};
   stepper.step(cloud.points, {});
 

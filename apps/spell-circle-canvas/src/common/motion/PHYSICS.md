@@ -53,9 +53,11 @@ into the pool's position attribute and takes whatever else it draws from —
 a rotation off the velocity's angle, a scale off the mass, an alpha off
 an age the caller keeps beside these attributes. Nothing here holds a colour,
 an age or a size: what a point IS on screen is the drawing's business,
-and a simulation that carried it would have to name a renderer. `Vec2`
-converts from any two-float point by SHAPE (`fX`, `fY`), so a renderer's
-point crosses in without this library including a renderer's header.
+and a simulation that carried it would have to name a renderer. Every
+position, velocity and force is a `glm::vec2`, the vector type the rest
+of the tree speaks, so a lane crosses into geometry and drawing code
+unconverted; its length is `glm::length(v)` — the member `length()` is
+glm's component count, never a distance.
 
 **`timeStep` is a prop of the stepper, not an argument.** That is the whole
 determinism claim: a simulation stepped by a frame's delta is a

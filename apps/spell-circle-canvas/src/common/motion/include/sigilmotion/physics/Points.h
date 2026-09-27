@@ -4,7 +4,7 @@
  * @ingroup motion-physics
  *
  * THE POINT SET A SIMULATION IS: one value holding a lane per property,
- * and the two-number position those lanes are written in.
+ * written in `glm::vec2` positions.
  *
  * Lanes rather than a vector of particles because everything that reads
  * a simulation reads one property of all of it — a stepper walks the
@@ -15,8 +15,10 @@
 
 #include <sigilmotion/time/Duration.h>
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
+
 #include <cmath>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -30,83 +32,13 @@
  *  a set whose members are born, age and die. */
 namespace sigil::motion::physics {
 
-/** A TWO-FLOAT POINT SOMEONE ELSE'S LIBRARY SPELLS: the members Skia
- *  names its point's. Matching it by shape rather than by name is what
- *  lets a position be built from a renderer's point without this library
- *  including a renderer's header — the same crossing the colour leaf
- *  makes for a four-float colour. */
-template <class P>
-concept TwoFloatPoint = requires(const P& point) {
-  { point.fX } -> std::convertible_to<float>;
-  { point.fY } -> std::convertible_to<float>;
-};
-
-/** A POSITION OR A DISPLACEMENT, in whatever units the caller is
- *  simulating in.
- *
- *  This library states no unit: a simulation is in pixels for a screen,
- *  in metres for a model of something, in whatever a sketch is drawing
- *  in. Every number below — a gravity, a stiffness, a radius — is in
- *  those units and the seconds the stepper is given, and nothing here
- *  converts between two of them. */
-struct Vec2 {
-  float x = 0.0f, y = 0.0f;
-
-  constexpr Vec2() = default;
-  constexpr Vec2(float first, float second) : x(first), y(second) {}
-  /** A two-float point, field for field. Implicit because a conversion
-   *  spelled by hand at each call site is a place where an axis order
-   *  drifts silently; this is the one place the mapping is written. */
-  template <TwoFloatPoint P>
-  constexpr Vec2(const P& point)  // NOLINT: the crossing is the point
-      : x((float)point.fX), y((float)point.fY) {}
-
-  bool operator==(const Vec2&) const = default;
-
-  constexpr Vec2 operator+(const Vec2& other) const {
-    return {x + other.x, y + other.y};
-  }
-  constexpr Vec2 operator-(const Vec2& other) const {
-    return {x - other.x, y - other.y};
-  }
-  constexpr Vec2 operator*(float scalar) const {
-    return {x * scalar, y * scalar};
-  }
-  constexpr Vec2 operator-() const { return {-x, -y}; }
-  constexpr Vec2& operator+=(const Vec2& other) {
-    x += other.x;
-    y += other.y;
-    return *this;
-  }
-  constexpr Vec2& operator-=(const Vec2& other) {
-    x -= other.x;
-    y -= other.y;
-    return *this;
-  }
-  constexpr Vec2& operator*=(float scalar) {
-    x *= scalar;
-    y *= scalar;
-    return *this;
-  }
-
-  /** How long it is, and its length SQUARED — the second because every
-   *  comparison of two distances answers the same either way and the
-   *  square root is the expensive half of a neighbour search. */
-  [[nodiscard]] float lengthSquared() const { return x * x + y * y; }
-  [[nodiscard]] float length() const { return std::sqrt(lengthSquared()); }
-  /** The same direction at length one, or the zero vector when there is
-   *  no direction to answer — which is what a pair of points sitting on
-   *  each other hands every force below. */
-  [[nodiscard]] Vec2 normalized() const {
-    const float len = length();
-    return len > 0.0f ? Vec2{x / len, y / len} : Vec2{};
-  }
-};
-
-/** A scalar times a vector, so the factor may be written first. */
-inline constexpr Vec2 operator*(float scalar, const Vec2& vector) {
-  return vector * scalar;
-}
+/* A POSITION OR A DISPLACEMENT is a `glm::vec2`, in whatever units the
+ * caller is simulating in. This library states no unit: a simulation is in
+ * pixels for a screen, in metres for a model of something, in whatever a
+ * sketch is drawing in. Every number below — a gravity, a stiffness, a
+ * radius — is in those units and the seconds the stepper is given, and
+ * nothing here converts between two of them. `glm::length` is a vector's
+ * length; its member `length()` is the component count, never a distance. */
 
 /** THE POINT SET: one lane per property, all the same length.
  *
@@ -127,24 +59,24 @@ inline constexpr Vec2 operator*(float scalar, const Vec2& vector) {
  *  name a renderer. */
 struct Points {
   /** Where each point is now. */
-  std::vector<Vec2> position;
+  std::vector<glm::vec2> position;
   /** Where it was when the current step began — the position the
    *  constraint passes moved it away from, which is what turns a
    *  position correction back into a velocity. */
-  std::vector<Vec2> previous;
+  std::vector<glm::vec2> previous;
   /** How fast it is going, in units per second. It is the lane the
    *  stepper carries motion in and the one a drag, a wind and a flock
    *  read; the stepper rewrites it from the movement a step actually
    *  achieved, so a point stopped by a constraint loses the speed the
    *  constraint took. */
-  std::vector<Vec2> velocity;
+  std::vector<glm::vec2> velocity;
   /** What is pushing on it this step, in mass times units per second
    *  squared. The lane is the CALLER'S to pre-load: a step accumulates
    *  its forces onto whatever the lane already holds and clears it once
    *  it has integrated, so a push written here between two steps is
    *  spent exactly once and one written before a step that is never
    *  taken is still there for the next one. */
-  std::vector<Vec2> force;
+  std::vector<glm::vec2> force;
   /** How much of it there is. Zero or less is IMMOVABLE — infinitely
    *  heavy — which is the same answer `pinned` gives and is reached by a
    *  different road: a mass of zero is a wall, a pin is a point held
@@ -159,7 +91,7 @@ struct Points {
   [[nodiscard]] bool empty() const { return position.empty(); }
 
   /** A point at @p at, moving at @p velocity, and its index. */
-  size_t add(Vec2 at, Vec2 startingVelocity = {}, float startingMass = 1.0f,
+  size_t add(glm::vec2 at, glm::vec2 startingVelocity = {}, float startingMass = 1.0f,
              bool held = false);
 
   /** Drop the point at @p index by moving the LAST one into its place —

@@ -4,6 +4,8 @@
  * make one particle.
  */
 
+#include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include "sigilmotion/physics/Particles.h"
 
 namespace sigil::motion::physics {
@@ -15,7 +17,7 @@ constexpr float kTurn = 6.28318530717958647692f;
 
 }  // namespace
 
-size_t Particles::add(Vec2 at, Vec2 startingVelocity, Duration lifetime,
+size_t Particles::add(glm::vec2 at, glm::vec2 startingVelocity, Duration lifetime,
                       float startingMass) {
   const size_t index = points.add(at, startingVelocity, startingMass);
   age.push_back(0.0f);
@@ -106,11 +108,11 @@ size_t Emitter::burst(Particles& particles, core::chance::Stream& stream,
   for (const FixedAttribute& held : fixed)
     heldInto.push_back(vectorFor(held.name));
 
-  const Vec2 across{-along.y, along.x};
-  const Vec2 sideways{-aim.y, aim.x};
+  const glm::vec2 across{-along.y, along.x};
+  const glm::vec2 sideways{-aim.y, aim.x};
 
   for (size_t born = 0; born < count; ++born) {
-    Vec2 place = at;
+    glm::vec2 place = at;
     switch (from) {
       case EmitFrom::Point:
         break;
@@ -127,12 +129,12 @@ size_t Emitter::burst(Particles& particles, core::chance::Stream& stream,
         // instead of over the radius, where half of them would land in
         // the inner quarter of the disc.
         const float reach = size.x * std::sqrt(stream.unit());
-        place += Vec2{std::cos(turn), std::sin(turn)} * reach;
+        place += glm::vec2{std::cos(turn), std::sin(turn)} * reach;
         break;
       }
       case EmitFrom::Ring: {
         const float turn = stream.unit() * kTurn;
-        place += Vec2{std::cos(turn), std::sin(turn)} * size.x;
+        place += glm::vec2{std::cos(turn), std::sin(turn)} * size.x;
         break;
       }
     }
@@ -143,13 +145,13 @@ size_t Emitter::burst(Particles& particles, core::chance::Stream& stream,
     // shape.
     const float off = cone * stream.unit();
     const float side = stream.unit() < 0.5f ? -1.0f : 1.0f;
-    const Vec2 heading =
+    const glm::vec2 heading =
         aim * std::cos(off) + sideways * (std::sin(off) * side);
 
     // Sequenced, not two draws inside one call: which argument of a call
     // is evaluated first is nobody's promise, and a cloud a seed replays
     // would then depend on which compiler built the library.
-    const Vec2 thrown = heading * speed.draw(stream);
+    const glm::vec2 thrown = heading * speed.draw(stream);
     // A WEIGHT STATED AS ONE NUMBER IS STAMPED RATHER THAN DRAWN, and
     // costs no word — the answer is the same either way, and spending
     // one would put a range nobody uses between a cloud and the seed
