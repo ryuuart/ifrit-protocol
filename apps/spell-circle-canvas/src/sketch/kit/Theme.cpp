@@ -92,12 +92,14 @@ weave::TextStyle Theme::style(const Register& line,
     case compose::Fill::Kind::Color:
       return style(line, ink.colorValue);
     case compose::Fill::Kind::Paint: {
-      if (sigil::compose::detail::paintOf(ink).isSolid())
-        return style(line, sigil::compose::detail::paintOf(ink).solidColor());
+      const material::Material* held = ink.material();
+      if (held == nullptr) break;
+      const material::Paint lowered = material::skia::paint(*held);
+      if (lowered.isSolid()) return style(line, lowered.solidColor());
       // The glyphs are painted through the shader itself; the colour
       // under it only has to be opaque for the shader to show.
       weave::TextStyle word = style(line, SkColors::kWhite);
-      word.paint.foreground.setShader(material::skia::staticShader(sigil::compose::detail::paintOf(ink)));
+      word.paint.foreground.setShader(material::skia::staticShader(lowered));
       return word;
     }
     case compose::Fill::Kind::None:

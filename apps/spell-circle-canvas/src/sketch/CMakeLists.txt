@@ -220,6 +220,7 @@ sigil_doc_probes(sketch
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/world/include/sigilworld
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/material/include/sigilmaterial
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/media/include/sigilmedia
+           ${CMAKE_CURRENT_SOURCE_DIR}/../common/measure/include/sigilmeasure
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/scry/include/sigilscry
            ${CMAKE_CURRENT_SOURCE_DIR}/../common/draw/include/sigildraw
            ${CMAKE_CURRENT_SOURCE_DIR}/../sigilweave/include/sigilweave
