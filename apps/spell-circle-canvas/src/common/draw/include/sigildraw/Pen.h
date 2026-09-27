@@ -195,8 +195,8 @@ class Pen {
   void background(material::Color color);
   /** A material as the ground: a gradient, a shader, a recipe. */
   void background(const material::Paint& paint);
-  /** A recipe instance as the ground, as the fill and the stroke take
-   *  one: the three ground verbs accept the same set. */
+  /** A material as the ground — its base and layers, as the fill and the
+   *  stroke take one: the three ground verbs accept the same set. */
   void background(const material::Material& material);
   /** Every pixel to transparent. */
   void clear();
@@ -217,7 +217,8 @@ class Pen {
    *  @trap Text, images and `background` are always the canvas, being no
    *  shape; a box with no width or no height falls back to it too. */
   void fill(const material::Paint& paint, Constant fit);
-  /** A recipe instance as the fill: a shader. */
+  /** A material as the fill: its base with each layer blended over it.
+   *  Its surface and effects are not a pen's. */
   void fill(const material::Material& material);
   void noFill();
 
