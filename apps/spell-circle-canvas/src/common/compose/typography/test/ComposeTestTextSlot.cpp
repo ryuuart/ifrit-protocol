@@ -10,7 +10,7 @@ namespace {
 
 /** A caption with one reserved slot, and a pill child keyed for it. */
 Element pillCaption(const std::string& childKey, float width,
-                    SkSize size = {34, 16}) {
+                    glm::vec2 size = {34, 16}) {
   // The width lives on an inner box: the render root is always resized to
   // the composer's own size, so a width written there is overwritten.
   return box().children({box().padding(8).width(width).children(
@@ -29,7 +29,7 @@ TEST(TextSlot, ASlotTallerThanTheTypeOpensTheLinesItSitsIn) {
   // reaches further above the baseline than the face does is a fact about
   // the strut: the band is deep enough BEFORE a break is decided, and the
   // pill has room rather than being drawn over the line above it.
-  const auto baselinesWithSlot = [](SkSize size) {
+  const auto baselinesWithSlot = [](glm::vec2 size) {
     Host host(300, 260);
     host.composer.render(pillCaption("pill", 280, size));
     host.frame();

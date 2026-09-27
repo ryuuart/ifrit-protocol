@@ -14,6 +14,7 @@
 #include <ranges>
 #include <span>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "ComposeRuntime.h"
 
 namespace sigil::compose {
@@ -251,7 +252,8 @@ void Composer::Impl::layoutText(Instance& inst, float constraint,
          inst.textLayout.placeholderRects(*inst.paragraph)) {
       const size_t index = (size_t)placed.index;
       if (index < inst.textSlotKeys.size())
-        inst.textSlotRects.emplace_back(inst.textSlotKeys[index], placed.rect);
+        inst.textSlotRects.emplace_back(inst.textSlotKeys[index],
+                                      geometry::path::toSk(placed.rect));
     }
   }
   // textAttach(): where each anchored child's selector landed, resolved here

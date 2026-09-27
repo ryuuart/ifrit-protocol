@@ -95,7 +95,7 @@ TEST(RichText, ASlotIsOneCodePointOfContent) {
   ASSERT_EQ(value.runs().size(), 2u);
   const RichText::Run& slot = value.runs()[1];
   EXPECT_EQ(slot.slotName, "key");
-  EXPECT_EQ(slot.slotSize.width(), 28);
+  EXPECT_EQ(slot.slotSize.x, 28);
   EXPECT_EQ(slot.slotBaselineDrop, 4);
   EXPECT_TRUE(slot.utf8 == std::u8string(u8"￼"))
       << "one object-replacement character, so it counts as a cluster";

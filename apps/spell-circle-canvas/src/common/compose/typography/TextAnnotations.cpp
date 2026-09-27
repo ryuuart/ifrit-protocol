@@ -82,7 +82,7 @@ void detail::resolveTextAnnotations(Composer::Impl& impl, Instance& inst) {
       Instance::PlacedAnnotation placed;
       placed.layout = sigil::weave::layoutBeside(
           impl.fonts, *reading,
-          {.base = geometry::path::toSk(unit.rect),
+          {.base = unit.rect,
            .writingMode = mode,
            .side = annotation.side == Annotation::Side::Before
                        ? sigil::weave::Beside::Side::Before

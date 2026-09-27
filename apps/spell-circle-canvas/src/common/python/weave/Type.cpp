@@ -503,8 +503,8 @@ void bindWeave(py::module_& module) {
       .def_readonly("slotName", &RichText::Run::slotName)
       .def_property_readonly("slotSize",
                              [](const RichText::Run& run) {
-                               return std::make_pair(run.slotSize.width(),
-                                                     run.slotSize.height());
+                               return std::make_pair(run.slotSize.x,
+                                                     run.slotSize.y);
                              })
       .def_readonly("slotBaselineDrop", &RichText::Run::slotBaselineDrop)
       .def(py::self == py::self);
@@ -525,7 +525,7 @@ void bindWeave(py::module_& module) {
           "slot",
           [](RichText& self, const std::string& name,
              std::pair<float, float> size, float baselineDrop) -> RichText& {
-            return self.slot(name, SkSize::Make(size.first, size.second),
+            return self.slot(name, glm::vec2{size.first, size.second},
                              baselineDrop);
           },
           py::arg("name"), py::arg("size"), py::arg("baselineDrop") = 0.0f,

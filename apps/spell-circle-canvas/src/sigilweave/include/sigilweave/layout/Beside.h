@@ -10,7 +10,7 @@
  * reading's size is its own style's.
  */
 
-#include <include/core/SkRect.h>
+#include "sigilgeometry/path/Outline.h"
 
 #include <string>
 #include <string_view>
@@ -29,7 +29,7 @@ class FontContext;
  *  extent and stands `gap` px clear of its band across it.
  */
 struct Beside {
-  SkRect base = SkRect::MakeEmpty();  ///< the extent the base occupied
+  geometry::path::Rect base;  ///< the extent the base occupied
   WritingMode writingMode = WritingMode::kHorizontal;
   /** Which side of the base the reading stands on, named by the reading
    *  direction rather than by the screen. */
@@ -91,7 +91,8 @@ struct WarichuSplit {
  *  the note is the caller's to size.
  */
 [[nodiscard]] ParagraphLayout layoutWarichu(FontContext& fontContext,
-                                            Paragraph& note, const SkRect& slot,
+                                            Paragraph& note,
+                                            const geometry::path::Rect& slot,
                                             WritingMode writingMode);
 
 }  // namespace sigil::weave

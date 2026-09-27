@@ -96,10 +96,10 @@ class TextContext {
 
   /** Places one unconstrained horizontal line at the supplied baseline. */
   [[nodiscard]] TextLayout singleLine(std::u8string_view text,
-                                      const TextStyle& style, SkPoint baseline,
+                                      const TextStyle& style, glm::vec2 baseline,
                                       const PathTextOptions& options = {});
   [[nodiscard]] TextLayout singleLine(std::u16string_view text,
-                                      const TextStyle& style, SkPoint baseline,
+                                      const TextStyle& style, glm::vec2 baseline,
                                       const PathTextOptions& options = {});
 
   /** Releases retained paragraphs; outstanding results remain valid.

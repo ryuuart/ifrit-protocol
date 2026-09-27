@@ -93,7 +93,7 @@ WarichuSplit warichuSplit(FontContext& fontContext, Paragraph& note) {
 }
 
 ParagraphLayout layoutWarichu(FontContext& fontContext, Paragraph& note,
-                              const SkRect& slot, WritingMode writingMode) {
+                              const geometry::path::Rect& slot, WritingMode writingMode) {
   note.setWritingMode(writingMode);
   const WarichuSplit split = warichuSplit(fontContext, note);
   const float pitch = note.strut(fontContext).height;

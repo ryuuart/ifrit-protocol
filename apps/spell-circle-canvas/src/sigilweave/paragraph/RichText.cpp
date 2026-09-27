@@ -79,7 +79,7 @@ RichText& RichText::add(std::string_view utf8, std::string_view styleName) {
   return add(asUtf8(utf8), styleName);
 }
 
-RichText& RichText::slot(std::string name, SkSize size, float baselineDrop) {
+RichText& RichText::slot(std::string name, glm::vec2 size, float baselineDrop) {
   Run run;
   // U+FFFC OBJECT REPLACEMENT CHARACTER. The slot is CONTENT: it occupies
   // one code point, so it counts as a cluster, falls inside the ranges a

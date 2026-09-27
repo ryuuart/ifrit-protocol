@@ -178,7 +178,7 @@ struct ParagraphLayout {
   /// Where every inline placeholder landed, ready to draw pills/images into.
   struct PlacedPlaceholder {
     int index = 0;                      ///< into Paragraph::placeholders()
-    SkRect rect = SkRect::MakeEmpty();  ///< where to draw the inline object
+    geometry::path::Rect rect;  ///< where to draw the inline object
     int lineIndex = 0;                  ///< 0-based line it landed on
   };
   /** Returns physical rectangles for inline objects in the paragraph.
@@ -250,7 +250,7 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
  * paragraph width.
  */
 ParagraphLayout layoutSingleLine(FontContext& fontContext, Paragraph& paragraph,
-                                 SkPoint baselineOrigin,
+                                 glm::vec2 baselineOrigin,
                                  const PathTextOptions& pathText = {});
 
 }  // namespace sigil::weave

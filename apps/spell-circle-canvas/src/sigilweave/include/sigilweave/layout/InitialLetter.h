@@ -10,12 +10,12 @@
  * and reports where it put them in ParagraphLayout::initial.
  */
 
-#include <include/core/SkPoint.h>
-#include <include/core/SkRect.h>
+#include <glm/vec2.hpp>
 
 #include <cstdint>
 #include <optional>
 
+#include "sigilgeometry/path/Outline.h"
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/style/TextStyle.h"
 #include "sigilweave/style/Type.h"
@@ -82,9 +82,9 @@ struct InitialLetter {
  */
 struct PlacedInitial {
   bool placed = false;               ///< false when the block declared none
-  SkRect box = SkRect::MakeEmpty();  ///< the initial's advance box, margin
+  geometry::path::Rect box;  ///< the initial's advance box, margin
                                      ///< excluded, in flow coordinates
-  SkPoint baseline = {0, 0};         ///< where the initial's pen sat
+  glm::vec2 baseline{0, 0};         ///< where the initial's pen sat
   float fontSize = 0;                ///< the size the rule derived
   int bands = 0;    ///< how many bands the notch cut, which runs on into
                     ///< the block after this one when this one is shorter

@@ -94,7 +94,7 @@ void Composer::Impl::materializeText(
         // matches its placeholder records to the U+FFFCs in the text.
         inst.textSlotKeys.push_back(run.slotName);
         inst.paragraph->appendPlaceholder(
-            {run.slotSize.width(), run.slotSize.height(), run.slotBaselineDrop},
+            {run.slotSize.x, run.slotSize.y, run.slotBaselineDrop},
             style);
         continue;
       }

@@ -11,7 +11,7 @@
  * value; appending a rich text's runs in order is the whole conversion.
  */
 
-#include <include/core/SkSize.h>
+#include <glm/vec2.hpp>
 
 #include <optional>
 #include <span>
@@ -58,7 +58,7 @@ class RichText {
     /** Non-empty on a SLOT run: the name whatever fills the reserved box
      *  answers to. */
     std::string slotName;
-    SkSize slotSize = {0, 0};    ///< the box the breakers reserve
+    glm::vec2 slotSize{0, 0};    ///< the box the breakers reserve
     float slotBaselineDrop = 0;  ///< the box's bottom, below the baseline
     bool operator==(const Run&) const = default;
   };
@@ -91,7 +91,7 @@ class RichText {
    *  the baseline, 0 standing it on the baseline like an inline image.
    *  @trap @p size is LOGICAL, so a vertical passage reports the rectangle
    *  the other way round, and @p baselineDrop applies only horizontally. */
-  RichText& slot(std::string name, SkSize size, float baselineDrop = 0);
+  RichText& slot(std::string name, glm::vec2 size, float baselineDrop = 0);
   /** Supplies the style sheet names resolve through, and re-resolves every
    *  named run already added. */
   RichText& styles(TypeSheet sheet);

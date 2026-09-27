@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 
 using namespace sigil::weave;
@@ -55,7 +56,7 @@ const std::u8string& opening() {
 const PositionedRun* remainderRun(const ParagraphLayout& layout,
                                   uint32_t openingWord) {
   for (const PositionedRun& run : layout.runs)
-    if (run.wordIndex == openingWord && run.origin != layout.initial.baseline)
+    if (run.wordIndex == openingWord && sigil::geometry::path::fromSk(run.origin) != layout.initial.baseline)
       return &run;
   return nullptr;
 }
@@ -140,7 +141,7 @@ TEST(InitialLetter, ThreeLinesOfCapReachFromTheFirstCapTopToTheThirdBaseline) {
   const std::vector<float> lines = baselines(layout);
   ASSERT_GE(lines.size(), 3u);
   EXPECT_NEAR(
-      layout.initial.baseline.y() - capHeightAt(layout.initial.fontSize),
+      layout.initial.baseline.y - capHeightAt(layout.initial.fontSize),
       lines.front() - strut.capHeight, 0.5f);
 }
 
@@ -160,7 +161,7 @@ TEST(InitialLetter, ASinkOfOnePutsTheInitialsBaselineOnTheSecondLine) {
   ASSERT_GE(lines.size(), 2u);
   // Sunk by one, so it sits on the second line's baseline and the notch it
   // cuts is two bands deep — a raised cap, its top a line above the first.
-  EXPECT_NEAR(layout.initial.baseline.y(), lines[1], 0.5f);
+  EXPECT_NEAR(layout.initial.baseline.y, lines[1], 0.5f);
   EXPECT_EQ(layout.initial.bands, 2);
 }
 
@@ -223,7 +224,7 @@ TEST(InitialLetter, AnInitialOnALaterBlockOpensThatBlockAndNotTheFirst) {
   ASSERT_GE(lines.size(), 3u);
   // The initial belongs to the second block, so it sits on that block's
   // first baseline and not on the paragraph's.
-  EXPECT_GT(layout.initial.baseline.y(), lines.front() + 1.0f);
+  EXPECT_GT(layout.initial.baseline.y, lines.front() + 1.0f);
 
   // The runs stay in logical order: the second block's cap never stands
   // before the first block's words.
@@ -236,7 +237,7 @@ TEST(InitialLetter, AnInitialOnALaterBlockOpensThatBlockAndNotTheFirst) {
   // And it reports the line it is on, which is a line of its own block.
   int capLine = -1;
   for (const PositionedRun& run : layout.runs)
-    if (run.origin == layout.initial.baseline) capLine = run.lineIndex;
+    if (sigil::geometry::path::fromSk(run.origin) == layout.initial.baseline) capLine = run.lineIndex;
   ASSERT_GE(capLine, 1) << "the cap is not on the paragraph's first line";
 }
 
@@ -299,7 +300,7 @@ TEST_P(InitialTakingItsBlock, TheBlockAfterItOpensInTheCapsBand) {
   std::vector<float> starts;
   std::vector<float> lines;
   for (const PositionedRun& run : layout.runs) {
-    if (run.origin == layout.initial.baseline || run.lineIndex < 0) continue;
+    if (sigil::geometry::path::fromSk(run.origin) == layout.initial.baseline || run.lineIndex < 0) continue;
     const size_t line = static_cast<size_t>(run.lineIndex);
     if (starts.size() <= line) {
       starts.resize(line + 1, 1e9f);
@@ -368,7 +369,7 @@ TEST(InitialLetter, ANegativeSinkLeavesTheCapOnTheFirstBaseline) {
   ASSERT_FALSE(lines.empty());
   // Nothing sits above the first baseline: a sink is how far DOWN the cap
   // goes, and the first line is as high as the frame goes.
-  EXPECT_NEAR(layout.initial.baseline.y(), lines.front(), 0.5f);
+  EXPECT_NEAR(layout.initial.baseline.y, lines.front(), 0.5f);
   EXPECT_EQ(layout.initial.bands, 1);
 }
 
@@ -434,7 +435,7 @@ TEST(InitialLetter, AColumnsInitialStandsUprightAtTheHeadOfItsColumn) {
   // the page.
   const PositionedRun* cap = nullptr;
   for (const PositionedRun& run : layout.runs)
-    if (run.origin == layout.initial.baseline) cap = &run;
+    if (sigil::geometry::path::fromSk(run.origin) == layout.initial.baseline) cap = &run;
   ASSERT_NE(cap, nullptr);
   ASSERT_NE(cap->shaped, nullptr);
   EXPECT_TRUE(cap->shaped->vertical);
@@ -575,7 +576,7 @@ TEST(InitialLetter, TheCapTakesTheStyleItsOwnWordIsSetIn) {
   ASSERT_TRUE(layout.initial.placed);
   const PositionedRun* cap = nullptr;
   for (const PositionedRun& run : layout.runs)
-    if (run.origin == layout.initial.baseline) cap = &run;
+    if (sigil::geometry::path::fromSk(run.origin) == layout.initial.baseline) cap = &run;
   ASSERT_NE(cap, nullptr);
   // The cap is set in the voice of the word it was taken from, which is
   // the second span here and the first span in every single-voice text.

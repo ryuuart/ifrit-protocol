@@ -173,12 +173,12 @@ TextLayout TextContext::layout(std::u16string_view text, const TextStyle& style,
 }
 
 TextLayout TextContext::singleLine(std::u8string_view text,
-                                   const TextStyle& style, SkPoint baseline,
+                                   const TextStyle& style, glm::vec2 baseline,
                                    const PathTextOptions& options) {
   return singleLine(unicode::toUtf16(text), style, baseline, options);
 }
 TextLayout TextContext::singleLine(std::u16string_view text,
-                                   const TextStyle& style, SkPoint baseline,
+                                   const TextStyle& style, glm::vec2 baseline,
                                    const PathTextOptions& options) {
   auto paragraph = m_impl->acquire(text, style);
   paragraph->setSoftHyphenBreaks(true);

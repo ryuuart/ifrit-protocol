@@ -1,5 +1,6 @@
 #include <pybind11/stl.h>
 #include <sigildraw/Pen.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilpython/Bindings.h>
 #include <sigilpython/skia/Values.h>
 #include <sigilpython/weave/Registration.h>
@@ -520,7 +521,8 @@ void bindWeaveLayout(py::module_& root) {
       [](Fonts& fonts, Paragraph& p, py::handle origin,
          const PathTextOptions& path) {
         return OwnedLayout(
-            p, layoutSingleLine(fonts.get(), p, point(origin), path));
+            p, layoutSingleLine(fonts.get(), p,
+                             geometry::path::fromSk(point(origin)), path));
       },
       py::arg("fonts"), py::arg("paragraph"), py::arg("baselineOrigin"),
       py::arg("pathText") = PathTextOptions{});
@@ -574,7 +576,9 @@ void bindWeaveLayout(py::module_& root) {
   beside
       .def_property(
           "base", [](const Beside& b) { return b.base; },
-          [](Beside& b, py::handle value) { b.base = rect(value); })
+          [](Beside& b, py::handle value) {
+            b.base = geometry::path::fromSk(rect(value));
+          })
       .def_readwrite("writingMode", &Beside::writingMode)
       .def_readwrite("side", &Beside::side)
       .def_readwrite("gap", &Beside::gap);
@@ -606,7 +610,8 @@ void bindWeaveLayout(py::module_& root) {
       "layoutWarichu",
       [](Fonts& fonts, Paragraph& note, py::handle slot, WritingMode mode) {
         return OwnedLayout(note,
-                           layoutWarichu(fonts.get(), note, rect(slot), mode));
+                           layoutWarichu(fonts.get(), note,
+                                         geometry::path::fromSk(rect(slot)), mode));
       },
       py::arg("fonts"), py::arg("note"), py::arg("slot"),
       py::arg("writingMode") = WritingMode::kHorizontal);

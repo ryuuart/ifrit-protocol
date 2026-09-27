@@ -8,6 +8,7 @@
 
 #include <cmath>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "SceneRegistry.h"
 #include "SceneSupport.h"
 
@@ -69,7 +70,8 @@ class SlotsScene final : public Scene {
         SkPaint backgroundPaint;
         backgroundPaint.setAntiAlias(true);
         backgroundPaint.setColor(placed.index == 0 ? kAccent : kBlue);
-        canvas->drawRoundRect(placed.rect, placed.rect.height() * 0.5f,
+        canvas->drawRoundRect(sigil::geometry::path::toSk(placed.rect),
+                              placed.rect.height() * 0.5f,
                               placed.rect.height() * 0.5f, backgroundPaint);
         const auto text = m_pillTexts[static_cast<size_t>(placed.index)];
         const auto style =
@@ -78,15 +80,15 @@ class SlotsScene final : public Scene {
         m_text
             ->singleLine(
                 text, style,
-                {placed.rect.centerX() - textWidth * 0.5f,
-                 placed.rect.centerY() -
+                {placed.rect.centre().x - textWidth * 0.5f,
+                 placed.rect.centre().y -
                      (pillMetrics.fAscent + pillMetrics.fDescent) * 0.5f})
             .draw(canvas);
       } else {
         SkPaint fill;
         fill.setAntiAlias(true);
         fill.setColor(kShape);
-        canvas->drawRoundRect(placed.rect, 6, 6, fill);
+        canvas->drawRoundRect(sigil::geometry::path::toSk(placed.rect), 6, 6, fill);
         SkPaint line;
         line.setAntiAlias(true);
         line.setStyle(SkPaint::kStroke_Style);
@@ -97,7 +99,7 @@ class SlotsScene final : public Scene {
         for (int pointIndex = 0; pointIndex <= 16; ++pointIndex) {
           const float pointX =
               placed.rect.left() + placed.rect.width() * pointIndex / 16.0f;
-          const float pointY = placed.rect.centerY() -
+          const float pointY = placed.rect.centre().y -
                                placed.rect.height() * 0.3f *
                                    std::sin(pointIndex * 0.7f +
                                             static_cast<float>(elapsedSeconds));

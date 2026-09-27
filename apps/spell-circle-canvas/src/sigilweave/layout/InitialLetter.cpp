@@ -421,7 +421,7 @@ void placeInitialLetter(const InitialLetterPlan& plan,
   }
 
   layout.initial.placed = true;
-  layout.initial.baseline = origin;
+  layout.initial.baseline = geometry::path::fromSk(origin);
   layout.initial.fontSize = plan.fontSize;
   layout.initial.bands = plan.bands;
   layout.initial.notch = plan.notch;
@@ -429,17 +429,17 @@ void placeInitialLetter(const InitialLetterPlan& plan,
   if (plan.glyphs->vertical) {
     // A vertical cap hangs from its origin: the em box across the column,
     // its own pen travel down it.
-    layout.initial.box =
+    layout.initial.box = geometry::path::fromSk(
         SkRect::MakeXYWH(origin.x() - plan.fontSize * 0.5f, origin.y(),
-                         plan.fontSize, plan.glyphs->advance);
+                         plan.fontSize, plan.glyphs->advance));
   } else {
     const SkFont font = makeFont(plan.glyphs->typeface, plan.glyphs->fontSize,
                                  plan.glyphs->scaleX, plan.glyphs->aliased);
     SkFontMetrics metrics;
     font.getMetrics(&metrics);
-    layout.initial.box = SkRect::MakeXYWH(
+    layout.initial.box = geometry::path::fromSk(SkRect::MakeXYWH(
         origin.x(), origin.y() + metrics.fAscent, plan.glyphs->advance,
-        -metrics.fAscent + metrics.fDescent);
+        -metrics.fAscent + metrics.fDescent));
   }
 }
 

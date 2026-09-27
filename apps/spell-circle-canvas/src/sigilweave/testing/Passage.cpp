@@ -13,7 +13,7 @@ Passage lay(FontContext& fonts, Paragraph paragraph, FlowGeometry& geometry,
 }
 
 Passage layLine(FontContext& fonts, Paragraph paragraph,
-                SkPoint baselineOrigin) {
+                glm::vec2 baselineOrigin) {
   Passage passage{std::move(paragraph), {}, {}};
   passage.layout = layoutSingleLine(fonts, passage.paragraph, baselineOrigin);
   return passage;

@@ -8,7 +8,7 @@
  * borrows the paragraph's glyphs and reads nothing without it.
  */
 
-#include <include/core/SkPoint.h>
+#include <glm/vec2.hpp>
 
 #include "sigilweave/layout/Flow.h"
 #include "sigilweave/layout/LayoutOptions.h"
@@ -53,6 +53,6 @@ struct Passage {
 /** Lays @p paragraph as one unconstrained line whose baseline begins at
  *  @p baselineOrigin, as layoutSingleLine does. */
 [[nodiscard]] Passage layLine(FontContext& fonts, Paragraph paragraph,
-                              SkPoint baselineOrigin);
+                              glm::vec2 baselineOrigin);
 
 }  // namespace sigil::weave::testing

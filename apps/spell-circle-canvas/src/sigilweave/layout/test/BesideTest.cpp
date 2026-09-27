@@ -29,7 +29,7 @@ TEST(Beside, TheBandAReadingNeedsIsItsOwnStrutPlusTheGap) {
 TEST(Beside, AReadingStandsCentredOnItsBaseAndClearOfIt) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph reading = makeParagraph(u8"note", 9.0f);
-  const SkRect base = SkRect::MakeXYWH(100, 200, 60, 20);
+  const sigil::geometry::path::Rect base = sigil::geometry::path::Rect::of({100, 200}, {60, 20});
   const ParagraphLayout above =
       layoutBeside(fonts, reading,
                    {.base = base,
@@ -38,7 +38,7 @@ TEST(Beside, AReadingStandsCentredOnItsBaseAndClearOfIt) {
                     .gap = 3.0f});
   ASSERT_FALSE(above.runs.empty());
   const float width = reading.naturalWidth(fonts);
-  EXPECT_NEAR(above.runs.front().origin.x(), base.centerX() - width * 0.5f,
+  EXPECT_NEAR(above.runs.front().origin.x(), base.centre().x - width * 0.5f,
               0.5f);
   EXPECT_NEAR(above.runs.front().origin.y(), base.top() - 3.0f, 0.5f);
 }
@@ -46,7 +46,7 @@ TEST(Beside, AReadingStandsCentredOnItsBaseAndClearOfIt) {
 TEST(Beside, AColumnReadsItsFurnitureOnTheRight) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph reading = makeParagraph(u8"\xe3\x81\xbb", 9.0f);
-  const SkRect base = SkRect::MakeXYWH(100, 200, 24, 60);
+  const sigil::geometry::path::Rect base = sigil::geometry::path::Rect::of({100, 200}, {24, 60});
   const ParagraphLayout beside =
       layoutBeside(fonts, reading,
                    {.base = base,
@@ -103,7 +103,7 @@ TEST(Warichu, TheTwoLinesStackInsideTheSlotTheBaseReserved) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph note = makeParagraph(u8"one two three four", 8.0f);
   const WarichuSplit split = warichuSplit(fonts, note);
-  const SkRect slot = SkRect::MakeXYWH(100, 200, split.advance, split.band);
+  const sigil::geometry::path::Rect slot = sigil::geometry::path::Rect::of({100, 200}, {split.advance, split.band});
   const ParagraphLayout layout =
       layoutWarichu(fonts, note, slot, WritingMode::kHorizontal);
   ASSERT_FALSE(layout.runs.empty());
@@ -123,7 +123,7 @@ TEST(Warichu, AColumnSetsItsTwoLinesSideBySideAcrossTheSlot) {
   FontContext& fonts = sigil::test::fonts();
   Paragraph note =
       makeParagraph(u8"\xe3\x81\xbb\xe3\x82\x93\xe3\x81\xa8", 8.0f);
-  const SkRect slot = SkRect::MakeXYWH(100, 200, 24, 60);
+  const sigil::geometry::path::Rect slot = sigil::geometry::path::Rect::of({100, 200}, {24, 60});
   const ParagraphLayout layout =
       layoutWarichu(fonts, note, slot, WritingMode::kVerticalRL);
   ASSERT_FALSE(layout.runs.empty());

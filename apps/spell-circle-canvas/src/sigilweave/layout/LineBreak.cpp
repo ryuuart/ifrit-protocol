@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "ParagraphLayoutInternal.h"
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/fonts/FontContext.h"
 #include "sigilweave/layout/ParagraphLayout.h"
 
@@ -335,10 +336,11 @@ ParagraphLayout layoutParagraph(FontContext& fontContext, Paragraph& paragraph,
 }
 
 ParagraphLayout layoutSingleLine(FontContext& fontContext, Paragraph& paragraph,
-                                 SkPoint baselineOrigin,
+                                 glm::vec2 baselineOrigin,
                                  const PathTextOptions& pathText) {
   const float availableWidth = paragraph.naturalWidth(fontContext) + 1.0f;
-  LineSetFlow singleLineFlow({{{baselineOrigin, {1, 0}, availableWidth}}});
+  LineSetFlow singleLineFlow(
+      {{{geometry::path::toSk(baselineOrigin), {1, 0}, availableWidth}}});
   ParagraphLayoutOptions options;
   options.pathText = pathText;
   return layoutParagraph(fontContext, paragraph, singleLineFlow, options);

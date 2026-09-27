@@ -13,6 +13,7 @@
 #include <optional>
 #include <vector>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilweave/fonts/Shaper.h"
 #include "sigilweave/layout/ParagraphLayout.h"
 
@@ -35,7 +36,7 @@ std::vector<LineMetrics> ParagraphLayout::lineMetrics(
   const auto isTheInitial = [&](const PositionedRun& run) {
     return initial.placed && run.shaped &&
            run.shaped->fontSize == initial.fontSize &&
-           run.origin == initial.baseline;
+           geometry::path::fromSk(run.origin) == initial.baseline;
   };
 
   for (const PositionedRun& run : runs) {
@@ -258,7 +259,8 @@ ParagraphLayout::placeholderRects(const Paragraph& paragraph) const {
                                run.origin.y() - placeholder.height +
                                    placeholder.baselineDrop,
                                placeholder.width, placeholder.height);
-    placedPlaceholders.push_back({run.placeholderIndex, rect, run.lineIndex});
+    placedPlaceholders.push_back(
+        {run.placeholderIndex, geometry::path::fromSk(rect), run.lineIndex});
   }
   return placedPlaceholders;
 }

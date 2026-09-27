@@ -9,6 +9,7 @@
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <string>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "support/LayoutSupport.h"
 using namespace sigil::weave;
 using namespace sigil::weave::test;
@@ -108,12 +109,12 @@ TEST(Placeholders, VerticalSlotsReserveLogicalAdvanceAndReportPhysicalRects) {
   const ParagraphLayout layout = layoutParagraph(fonts, paragraph, flow);
   const auto slots = layout.placeholderRects(paragraph);
   ASSERT_EQ(slots.size(), 1u);
-  const SkRect rect = slots.front().rect;
+  const sigil::geometry::path::Rect rect = slots.front().rect;
   EXPECT_FLOAT_EQ(rect.width(), 26);
   EXPECT_FLOAT_EQ(rect.height(), 72);
   const auto columns = layout.columnMetrics(paragraph);
   ASSERT_EQ(columns.size(), 1u);
-  EXPECT_FLOAT_EQ(rect.centerX(), columns.front().axis);
+  EXPECT_FLOAT_EQ(rect.centre().x, columns.front().axis);
   EXPECT_TRUE(layout.lineMetrics(paragraph).empty());
   bool before = false, after = false;
   for (const PositionedRun& run : layout.runs) {
@@ -146,7 +147,8 @@ TEST(Placeholders, VerticalCrossSizeOpensColumnsWithoutHorizontalDrop) {
     const auto columns = layout.columnMetrics(paragraph);
     ASSERT_EQ(columns.size(), 1u);
     EXPECT_FLOAT_EQ(layout.linePitch, 54);
-    EXPECT_TRUE(columns.front().rect().contains(slots.front().rect));
+    EXPECT_TRUE(sigil::geometry::path::fromSk(columns.front().rect())
+                    .contains(slots.front().rect));
   }
 }
 
@@ -171,7 +173,7 @@ TEST(Placeholders, VerticalSlotsWrapByTheirLogicalAdvance) {
       EXPECT_GE(slots[index].rect.top(), 0);
       EXPECT_LE(slots[index].rect.bottom(), 150);
       if (index > 0)
-        EXPECT_LT(slots[index].rect.centerX(), slots[index - 1].rect.centerX());
+        EXPECT_LT(slots[index].rect.centre().x, slots[index - 1].rect.centre().x);
     }
   }
 }

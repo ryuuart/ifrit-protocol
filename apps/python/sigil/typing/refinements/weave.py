@@ -47,6 +47,7 @@ def {field}(self, value: Length | float | int | None) -> None: ...
         "_sigil.weave.flowshape", "rectangle circle ellipse coverage", "_t.RectLike"
     )
     table.erased("_sigil.weave.Beside", "base", "_t.RectLike")
+    table.accessor("_sigil.weave.PlacedInitial", "baseline", "_t.Vec2", "_t.Vec2Like")
     table.erased("_sigil.weave.Exclusion", "offset", "_t.PointLike")
     table.erased("_sigil.weave.LineInterval", "origin direction", "_t.PointLike")
     table.erased("_sigil.weave", "layoutSingleLine", "_t.PointLike")
