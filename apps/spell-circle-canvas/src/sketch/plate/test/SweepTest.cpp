@@ -413,8 +413,8 @@ TEST(Story, EncodesASelectedSketchAsVerticalMp4) {
   const sigil::media::Frame last = clip->decodeAt(std::chrono::duration<double>(0.2));
   ASSERT_TRUE(first.image);
   ASSERT_TRUE(last.image);
-  const PixelBounds firstBounds = greenBounds(*first.image);
-  const PixelBounds lastBounds = greenBounds(*last.image);
+  const PixelBounds firstBounds = greenBounds(*sigil::media::toSk(first.image));
+  const PixelBounds lastBounds = greenBounds(*sigil::media::toSk(last.image));
   EXPECT_GE(firstBounds.right, firstBounds.left)
       << "the first video frame was captured before the declared moment";
   EXPECT_EQ(firstBounds, lastBounds)
@@ -450,7 +450,7 @@ TEST(Story, AKeptCanvasSurvivesThePreRoll) {
   ASSERT_TRUE(clip);
   const sigil::media::Frame first = clip->decodeAt({});
   ASSERT_TRUE(first.image);
-  const PixelBounds trail = greenBounds(*first.image);
+  const PixelBounds trail = greenBounds(*sigil::media::toSk(first.image));
   ASSERT_GE(trail.right, trail.left);
   // Several squares' worth of march, not the one square the last frame
   // drew: the trail spans most of the fitted canvas's width.

@@ -61,7 +61,7 @@ void bindMediaVideo(py::module_& module) {
       .def(
           "append",
           [](media::Encoder& encoder, const SkImage& picture) {
-            return encoder.append(picture);
+            return encoder.append(media::fromSk(sk_ref_sp(&picture)));
           },
           py::arg("picture"))
       .def(

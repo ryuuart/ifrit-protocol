@@ -137,7 +137,8 @@ void bindMediaImages(py::module_& module) {
   media.def(
       "encode",
       [](const SkImage& image, media::Format format, int quality) {
-        auto data = media::encode(image, format, {.quality = quality});
+        auto data = media::encode(media::fromSk(sk_ref_sp(&image)), format,
+                                  {.quality = quality});
         if (data.empty())
           throw py::value_error("The image could not be encoded.");
         return pythonBytes(data);
@@ -163,7 +164,8 @@ void bindMediaImages(py::module_& module) {
   media.def(
       "difference",
       [](const SkImage& actual, const SkImage& expected) {
-        return media::difference(actual, expected);
+        return media::difference(media::fromSk(sk_ref_sp(&actual)),
+                                 media::fromSk(sk_ref_sp(&expected)));
       },
       py::arg("actual"), py::arg("expected"));
   media.def(
