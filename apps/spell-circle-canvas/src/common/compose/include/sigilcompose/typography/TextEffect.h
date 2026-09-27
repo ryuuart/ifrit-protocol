@@ -89,8 +89,8 @@ struct GlyphInfo {
  *  progress t ∈ [0,1]. alpha 0 skips the glyph entirely.
  *
  *  This is the type the composition algebra operates on: stacked tracks,
- *  `textFx::mix`, a `textFx::sequence` crossfade and a `textFx::keys` segment
- *  all combine GlyphModifiers the same way — dx/dy, rotateDeg, skewXDeg and
+ *  `textFx::mix`, a `textFx::sequence` crossfade and a `textFx::tween`
+ *  keyframe segment all combine GlyphModifiers the same way — dx/dy, rotateDeg, skewXDeg and
  *  skewYDeg ADD; scale, scaleX, scaleY, alpha and colorMultiplier MULTIPLY;
  *  colorAdd ADDS and colorScreen SCREENS, each channelwise; and the two
  *  SUBSTITUTIONS, `axis` and `codepoint`, are last-one-wins. Substitutions do
@@ -158,7 +158,37 @@ struct GlyphModifier {
    *  a redraw — so the runtime measures both and refuses the ones that
    *  differ, drawing the original. 0 is no substitution. */
   char32_t codepoint = 0;
+
+  /** Every lane, compared exactly: what lets a keyframe table of these
+   *  compare by value, so an unchanged table prunes. */
+  bool operator==(const GlyphModifier&) const = default;
 };
+
+/** WHERE A DEVIATION STANDS a fraction @p amount of the way from @p start
+ *  to @p end — the line SigilMotion's `motion::interpolate` finds for this
+ *  type, so a `motion::Tween<GlyphModifier>` moves through its keyframes
+ *  with it, and the one a `textFx::sequence` crossfade runs.
+ *
+ *  COMPONENTWISE for every continuous lane: offsets, angles, scales,
+ *  alpha and the three colour terms each move on their own straight line.
+ *  The two SUBSTITUTIONS do not: `codepoint` CUTS from @p start's to
+ *  @p end's at the middle of the segment (amount 0.5), because there is no
+ *  half-way glyph between two outlines and a lerped code point would draw
+ *  whatever letter sits between them in the encoding; `axis` lerps its
+ *  value only when both ends name the SAME tag, since the face has a
+ *  continuum along one axis, and otherwise cuts at the middle the same way.
+ *  The amount is the eased one, so the cut lands where the curve crosses
+ *  half. */
+GlyphModifier interpolate(const GlyphModifier& start, const GlyphModifier& end,
+                          float amount);
+
+namespace detail {
+/** The axis rule above, alone — the same-tag lerp and the differing-tag cut
+ *  — for every value that carries a variable-font coordinate. */
+std::optional<sigil::weave::FontVariation> interpolateAxis(
+    const std::optional<sigil::weave::FontVariation>& start,
+    const std::optional<sigil::weave::FontVariation>& end, float amount);
+}  // namespace detail
 
 /** The raw callable behind an effect: (glyph, local progress, random
  *  stream) → deviation. Wrap one in a named `TextEffect` — the seam never
@@ -385,7 +415,7 @@ class TextEffect {
    *  promise is exactly the tick the grid exists to remove.
    *
    *  Every effect the library builds ANSWERS FOR ITSELF and needs no call
-   *  here: a preset knows its own deviation, `textFx::keys` reads its table,
+   *  here: a preset knows its own deviation, `textFx::tween` reads its stops,
    *  and `textFx::sequence`, `textFx::mix` and `textFx::hold` derive from
    *  their operands. The declaration rides the effect's parameters, so two
    *  bodies under one key that disagree about placement compare unequal and

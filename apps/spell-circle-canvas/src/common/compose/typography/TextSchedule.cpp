@@ -119,7 +119,7 @@ void TrackBeats::build(const Track& track, const GlyphStructure& structure,
 // ---------------------------------------------------------------------------
 // Composition
 
-/** FIELD PIN. `compose()` and `lerpModifier()` below are hand-written
+/** FIELD PIN. `compose()` below and `interpolate()` after it are hand-written
  * exhaustive lists over GlyphModifier's members, and so is the routing decision
  * in TextFxPainting.cpp that sends a glyph down the matrix path. All three fail
  * the same way when a field is added and one of them is not told: silently, by
@@ -132,10 +132,10 @@ void glyphModifierFieldPin(GlyphModifier& v) {
                                           colorMultiplier, colorAdd,
                                           colorScreen, scaleX, scaleY, skewXDeg,
                                           skewYDeg, axis, codepoint))> == 14,
-      "GlyphModifier gained or lost a field — rule on it in compose() and "
-      "lerpModifier() below, in appendKeyParameters() (a field a keys table "
-      "cannot "
-      "spell makes two different tables compare equal), and in the matrix "
+      "GlyphModifier gained or lost a field — rule on it in compose() below, "
+      "in compose::interpolate() after it, in appendStopParameters() in "
+      "TextFx.cpp (a field a tween's stops cannot spell makes two different "
+      "tweens compare equal), and in the matrix "
       "ROUTING in TextFxPainting.cpp (a field an RSXform cannot carry has to "
       "send "
       "its glyph down the matrix path), then bump this count.");
@@ -175,8 +175,10 @@ void compose(GlyphModifier& into, const GlyphModifier& next) {
   if (next.codepoint) into.codepoint = next.codepoint;
 }
 
-GlyphModifier lerpModifier(const GlyphModifier& a, const GlyphModifier& b,
-                           float w) {
+}  // namespace detail
+
+GlyphModifier interpolate(const GlyphModifier& a, const GlyphModifier& b,
+                          float w) {
   GlyphModifier out;
   out.dx = a.dx + (b.dx - a.dx) * w;
   out.dy = a.dy + (b.dy - a.dy) * w;
@@ -187,34 +189,36 @@ GlyphModifier lerpModifier(const GlyphModifier& a, const GlyphModifier& b,
   out.scaleX = a.scaleX + (b.scaleX - a.scaleX) * w;
   out.scaleY = a.scaleY + (b.scaleY - a.scaleY) * w;
   out.alpha = a.alpha + (b.alpha - a.alpha) * w;
-  out.colorMultiplier = {
-      a.colorMultiplier.r + (b.colorMultiplier.r - a.colorMultiplier.r) * w,
-      a.colorMultiplier.g + (b.colorMultiplier.g - a.colorMultiplier.g) * w,
-      a.colorMultiplier.b + (b.colorMultiplier.b - a.colorMultiplier.b) * w,
-      a.colorMultiplier.a + (b.colorMultiplier.a - a.colorMultiplier.a) * w};
-  // The two colour terms lerp componentwise like every other continuous
+  // The three colour terms lerp componentwise like every other continuous
   // field — a flash decays through straight interpolation of its own
   // channels, not through the compose() arithmetic, which is for stacking.
-  const auto lerpColor = [w](const material::Color& x,
-                             const material::Color& y) {
-    return material::Color{x.r + (y.r - x.r) * w, x.g + (y.g - x.g) * w,
-                           x.b + (y.b - x.b) * w, x.a + (y.a - x.a) * w};
-  };
-  out.colorAdd = lerpColor(a.colorAdd, b.colorAdd);
-  out.colorScreen = lerpColor(a.colorScreen, b.colorScreen);
-  // An axis coordinate is the one substitution with a continuum: two
-  // phases driving the SAME axis blend their values and the face
-  // interpolates between them. Everything else CUTS at the middle of the
-  // window — there is no half-way glyph between two outlines, and lerping
-  // a code point would draw whatever letter happened to sit between them
+  out.colorMultiplier = material::interpolate(a.colorMultiplier,
+                                              b.colorMultiplier, w);
+  out.colorAdd = material::interpolate(a.colorAdd, b.colorAdd, w);
+  out.colorScreen = material::interpolate(a.colorScreen, b.colorScreen, w);
+  out.axis = detail::interpolateAxis(a.axis, b.axis, w);
+  // Every other substitution CUTS at the middle of the segment: lerping a
+  // code point would draw whatever letter happened to sit between the two
   // in the font's encoding.
-  out.axis = a.axis;
-  if (a.axis && b.axis && std::memcmp(a.axis->tag, b.axis->tag, 4) == 0)
-    out.axis->value = a.axis->value + (b.axis->value - a.axis->value) * w;
-  else if (w >= 0.5f)
-    out.axis = b.axis;
   out.codepoint = w >= 0.5f ? b.codepoint : a.codepoint;
   return out;
+}
+
+namespace detail {
+
+std::optional<sigil::weave::FontVariation> interpolateAxis(
+    const std::optional<sigil::weave::FontVariation>& a,
+    const std::optional<sigil::weave::FontVariation>& b, float w) {
+  // An axis coordinate is the one substitution with a continuum: two ends
+  // driving the SAME axis blend their values and the face interpolates
+  // between them. Two different axes, or one end naming none, CUT at the
+  // middle — a coordinate averaged across two axes names a place on neither.
+  if (a && b && std::memcmp(a->tag, b->tag, 4) == 0) {
+    std::optional<sigil::weave::FontVariation> out = a;
+    out->value = a->value + (b->value - a->value) * w;
+    return out;
+  }
+  return w >= 0.5f ? b : a;
 }
 
 uint64_t glyphSeed(const GlyphInfo& g, uint32_t lane) {

@@ -1,5 +1,5 @@
 // THE COLOUR TERMS a deviation carries: the multiplier, the additive and the
-// screen term across stacked tracks and inside a keys table, the snap ladder
+// screen term across stacked tracks and inside a keyframed tween, the snap ladder
 // that bounds them, and the two paths — flat colour and filter — agreeing.
 //
 // The text binary's share of the content suites, one file per subject.
@@ -124,12 +124,12 @@ TEST(ComposeTextFx, ColorScreenScreensCommutativelyAcrossTracks) {
       << "two half screens must compose to one three-quarter screen";
 }
 
-TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInAKeysTable) {
-  // A keys segment interpolates the two terms channel by channel, so the
-  // table's midpoint draws exactly as a constant half-strength term does.
+TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInATween) {
+  // A tween segment interpolates the two terms channel by channel, so the
+  // tween's midpoint draws exactly as a constant half-strength term does.
   // Local t is pinned at 0.5 by a zero-spread cascade and progress 0.5;
   // 0.5 sits on the snap ladder, so the compare is byte-exact.
-  const auto renderKeysAt = [](TextEffect effect) {
+  const auto renderTweenAt = [](TextEffect effect) {
     Host host(140, 140);
     host.composer.render(
         box().padding(10).children({text(u8"I", greyStyle(52, 0.25f))
@@ -144,23 +144,23 @@ TEST(ComposeTextFx, TheColourTermsLerpComponentwiseInAKeysTable) {
   fullAdd.colorAdd = {1.0f, 0, 0, 0};
   GlyphModifier halfAdd;
   halfAdd.colorAdd = {0.5f, 0, 0, 0};
-  EXPECT_EQ(renderKeysAt(textFx::keys({{0.0f, {}}, {1.0f, fullAdd}})),
-            renderKeysAt(fixed("halfAddK", halfAdd)))
-      << "colorAdd did not lerp componentwise across a keys segment";
+  EXPECT_EQ(renderTweenAt(textFx::tween({.to = fullAdd})),
+            renderTweenAt(fixed("halfAddK", halfAdd)))
+      << "colorAdd did not lerp componentwise across a tween segment";
   GlyphModifier fullScreen;
   fullScreen.colorScreen = {0, 1.0f, 0, 0};
   GlyphModifier halfScreen;
   halfScreen.colorScreen = {0, 0.5f, 0, 0};
-  EXPECT_EQ(renderKeysAt(textFx::keys({{0.0f, {}}, {1.0f, fullScreen}})),
-            renderKeysAt(fixed("halfScreenK", halfScreen)))
-      << "colorScreen did not lerp componentwise across a keys segment";
-  // The terms are part of a table's identity: two tables differing only in
+  EXPECT_EQ(renderTweenAt(textFx::tween({.to = fullScreen})),
+            renderTweenAt(fixed("halfScreenK", halfScreen)))
+      << "colorScreen did not lerp componentwise across a tween segment";
+  // The terms are part of a tween's identity: two tweens differing only in
   // a colour term are two different effects, and must not prune onto each
   // other.
-  EXPECT_FALSE(textFx::keys({{0.0f, {}}, {1.0f, fullAdd}}) ==
-               textFx::keys({{0.0f, {}}, {1.0f, halfAdd}}));
-  EXPECT_FALSE(textFx::keys({{0.0f, {}}, {1.0f, fullScreen}}) ==
-               textFx::keys({{0.0f, {}}, {1.0f, halfScreen}}));
+  EXPECT_FALSE(textFx::tween({.to = fullAdd}) ==
+               textFx::tween({.to = halfAdd}));
+  EXPECT_FALSE(textFx::tween({.to = fullScreen}) ==
+               textFx::tween({.to = halfScreen}));
 }
 
 TEST(ComposeTextFx, NeutralColourTermsKeepTheFastPathByteIdentical) {

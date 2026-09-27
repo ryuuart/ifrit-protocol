@@ -1,5 +1,5 @@
 // THE COMBINATORS OVER WHOLE EFFECTS: textFx::sequence's phases and crossfades,
-// textFx::mix's composition, textFx::keys' table and its curves, textFx::hold's
+// textFx::mix's composition, textFx::tween's keyframes and its curves, textFx::hold's
 // veto, and what each answers about displacing its glyphs.
 //
 // The text binary's share of the content suites, one file per subject.
@@ -124,23 +124,22 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
   EXPECT_FALSE(textFx::tint(SkColors::kGray, SkColors::kWhite).displaces());
   EXPECT_FALSE(textFx::scramble().displaces());
 
-  // A TABLE ANSWERS FROM ITS OWN ENTRIES. Colour and coverage are not
+  // A TWEEN ANSWERS FROM ITS OWN STOPS. Colour and coverage are not
   // placement…
-  EXPECT_FALSE(textFx::keys({{0.0f, {.alpha = 0.0f}}, {1.0f, {}}}).displaces());
-  EXPECT_FALSE(textFx::keys({{0.0f, {.colorMultiplier = {0.2f, 0.2f, 0.2f, 1}}},
-                             {1.0f, {}}})
+  EXPECT_FALSE(textFx::tween({.from = GlyphModifier{.alpha = 0.0f}}).displaces());
+  EXPECT_FALSE(textFx::tween({.from = GlyphModifier{.colorMultiplier = {0.2f, 0.2f, 0.2f, 1}}})
                    .displaces());
   // …and every lane that is.
-  EXPECT_TRUE(textFx::keys({{0.0f, {.dx = 12.0f}}, {1.0f, {}}}).displaces());
-  EXPECT_TRUE(textFx::keys({{0.0f, {.dy = 12.0f}}, {1.0f, {}}}).displaces());
-  EXPECT_TRUE(textFx::keys({{0.0f, {.scale = 1.4f}}, {1.0f, {}}}).displaces());
+  EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.dx = 12.0f}}).displaces());
+  EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.dy = 12.0f}}).displaces());
+  EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.scale = 1.4f}}).displaces());
   EXPECT_TRUE(
-      textFx::keys({{0.0f, {.rotateDeg = 8.0f}}, {1.0f, {}}}).displaces());
-  EXPECT_TRUE(textFx::keys({{0.0f, {.scaleX = 1.2f}}, {1.0f, {}}}).displaces());
+      textFx::tween({.from = GlyphModifier{.rotateDeg = 8.0f}}).displaces());
+  EXPECT_TRUE(textFx::tween({.from = GlyphModifier{.scaleX = 1.2f}}).displaces());
   EXPECT_TRUE(
-      textFx::keys({{0.0f, {.skewXDeg = 6.0f}}, {1.0f, {}}}).displaces());
+      textFx::tween({.from = GlyphModifier{.skewXDeg = 6.0f}}).displaces());
   EXPECT_TRUE(
-      textFx::keys({{0.0f, {.skewYDeg = 6.0f}}, {1.0f, {}}}).displaces());
+      textFx::tween({.from = GlyphModifier{.skewYDeg = 6.0f}}).displaces());
 
   // A COMBINATOR DERIVES: any operand it may evaluate moving is enough, and
   // none of them moving is enough the other way. `textFx::hold` vetoes with
@@ -187,38 +186,61 @@ TEST(ComposeTextFx, EveryEffectAnswersWhetherItMovesItsGlyphs) {
               textFx::effect("opaque", still).displacing(false));
 }
 
-TEST(ComposeTextFx, KeysReproducesEveryEntryAtItsOwnPosition) {
-  // A published table is a promise about the moments it names. Whatever the
-  // curve between them, the deviation AT an entry is the entry.
-  const std::vector<textFx::Key> table = {
-      {0.00f, {}},
-      {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
-      {0.65f, {.scaleX = 0.95f, .scaleY = 1.05f}},
-      {1.00f, {}}};
-  const TextEffect rubber = textFx::keys(table, sigil::motion::ease::inOutCubic);
-  for (const textFx::Key& key : table) {
-    EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleX, key.modifier.scaleX)
-        << "scaleX at " << key.at;
-    EXPECT_FLOAT_EQ(evaluate(rubber, key.at).scaleY, key.modifier.scaleY)
-        << "scaleY at " << key.at;
+TEST(ComposeTextFx, ATweenReproducesEveryStopAtItsOwnShare) {
+  // A published path is a promise about the moments it names. Whatever the
+  // curve between them, the deviation AT a stop is the stop, and a stop
+  // lands where the shares before it sum to.
+  const GlyphModifier squash{.scaleX = 1.25f, .scaleY = 0.75f};
+  const GlyphModifier stretch{.scaleX = 0.95f, .scaleY = 1.05f};
+  const TextEffect rubber = textFx::tween(
+      {.keyframes = {{.to = squash, .duration = 300ms},
+                     {.to = stretch, .duration = 350ms},
+                     {.to = {}, .duration = 350ms}},
+       .ease = sigil::motion::ease::inOutCubic});
+  const std::vector<std::pair<float, GlyphModifier>> stops = {
+      {0.00f, {}}, {0.30f, squash}, {0.65f, stretch}, {1.00f, {}}};
+  for (const auto& [at, stop] : stops) {
+    EXPECT_NEAR(evaluate(rubber, at).scaleX, stop.scaleX, 1e-5f)
+        << "scaleX at " << at;
+    EXPECT_NEAR(evaluate(rubber, at).scaleY, stop.scaleY, 1e-5f)
+        << "scaleY at " << at;
   }
-  // Outside the table's own span it HOLDS at the ends rather than
-  // extrapolating numbers nobody published.
+  // Outside local time it HOLDS at the ends rather than extrapolating
+  // numbers nobody published.
   EXPECT_FLOAT_EQ(evaluate(rubber, -0.5f).scaleX, 1.0f);
   EXPECT_FLOAT_EQ(evaluate(rubber, 2.0f).scaleX, 1.0f);
+  // Keyframes with no duration take EQUAL shares, Motion's rule.
+  const TextEffect even = textFx::tween(
+      {.keyframes = {{.to = squash}, {.to = stretch}, {.to = {}}}});
+  EXPECT_NEAR(evaluate(even, 1.0f / 3.0f).scaleX, squash.scaleX, 1e-5f);
+  EXPECT_NEAR(evaluate(even, 2.0f / 3.0f).scaleX, stretch.scaleX, 1e-5f);
 }
 
-TEST(ComposeTextFx, KeysEasesEachSegmentOnItsOwn) {
+TEST(ComposeTextFx, ATweenWithNoCurveIsStraightNotMotionsDefault) {
+  // Motion's own default curve is outQuad; a tween over glyph deviations
+  // reads an unnamed curve as STRAIGHT, because the stops are what the
+  // author placed. A quarter of the way along is a quarter of the offset.
+  const TextEffect straight =
+      textFx::tween({.to = GlyphModifier{.dx = 100.0f}});
+  EXPECT_FLOAT_EQ(evaluate(straight, 0.25f).dx, 25.0f)
+      << "an unnamed curve bent the segment — outQuad reads 43.75 here";
+  EXPECT_FLOAT_EQ(evaluate(straight, 0.0f).dx, 0.0f);
+  EXPECT_FLOAT_EQ(evaluate(straight, 1.0f).dx, 100.0f);
+}
+
+TEST(ComposeTextFx, ATweenEasesEachSegmentOnItsOwn) {
   // THE WHOLE CURVE, EVERY SEGMENT — which is what a keyframe list means
-  // and what one curve stretched across the table would not be. Three
-  // entries are the fewest that can tell the two apart.
-  const std::vector<textFx::Key> ramp = {
-      {0.0f, {}}, {0.5f, {.dy = 10.0f}}, {1.0f, {}}};
-  const TextEffect linear = textFx::keys(ramp);
+  // and what one curve stretched across the path would not be. Two
+  // segments are the fewest that can tell the two apart.
+  const GlyphModifier peak{.dy = 10.0f};
+  const TextEffect linear =
+      textFx::tween({.keyframes = {{.to = peak}, {.to = {}}}});
   EXPECT_FLOAT_EQ(evaluate(linear, 0.125f).dy, 2.5f);
 
-  const TextEffect eased = textFx::keys(ramp, sigil::motion::ease::inOutCubic);
-  EXPECT_FLOAT_EQ(evaluate(eased, 0.5f).dy, 10.0f);  // the entry is still exact
+  const TextEffect eased =
+      textFx::tween({.keyframes = {{.to = peak}, {.to = {}}},
+                     .ease = sigil::motion::ease::inOutCubic});
+  EXPECT_FLOAT_EQ(evaluate(eased, 0.5f).dy, 10.0f);  // the stop is still exact
   EXPECT_LT(evaluate(eased, 0.125f).dy, 1.5f)  // …the middle is not linear
       << "a quarter of the way into the first segment the reading is the "
          "linear one, so the curve was not applied to the segment";
@@ -226,89 +248,108 @@ TEST(ComposeTextFx, KeysEasesEachSegmentOnItsOwn) {
   // and a quarter from the end of the two segments are mirror readings.
   EXPECT_NEAR(evaluate(eased, 0.375f).dy, evaluate(eased, 0.625f).dy, 1e-4f);
 
-  // A per-entry curve governs the segment that OPENS at that entry, and no
+  // A keyframe's own curve governs the segment that ARRIVES at it, and no
   // other.
-  std::vector<textFx::Key> mixed = ramp;
-  mixed[0].ease = sigil::motion::ease::linear;
-  const TextEffect part = textFx::keys(mixed, sigil::motion::ease::inOutCubic);
+  const TextEffect part = textFx::tween(
+      {.keyframes = {{.to = peak, .ease = sigil::motion::ease::linear},
+                     {.to = {}}},
+       .ease = sigil::motion::ease::inOutCubic});
   EXPECT_FLOAT_EQ(evaluate(part, 0.125f).dy, 2.5f);
   EXPECT_NEAR(evaluate(part, 0.625f).dy, evaluate(eased, 0.625f).dy, 1e-4f);
 }
 
-TEST(ComposeTextFx, KeysCutsASubstitutionAndLerpsAMatchingAxis) {
+TEST(ComposeTextFx, ATweenCutsASubstitutionAndLerpsAMatchingAxis) {
   // The sequence crossfade's rules, because it is the same arithmetic: there is
   // no half-way glyph between two outlines, and an axis is the one
-  // substitution with a continuum — and only between two entries naming the
+  // substitution with a continuum — and only between two stops naming the
   // SAME axis.
   const TextEffect letters =
-      textFx::keys({{0.0f, {.codepoint = U'A'}}, {1.0f, {.codepoint = U'B'}}});
-  EXPECT_EQ(evaluate(letters, 0.40f).codepoint, U'A');
-  EXPECT_EQ(evaluate(letters, 0.60f).codepoint, U'B');
+      textFx::tween({.from = GlyphModifier{.codepoint = U'A'},
+                     .to = GlyphModifier{.codepoint = U'B'}});
+  EXPECT_EQ(evaluate(letters, 0.49f).codepoint, U'A');
+  EXPECT_EQ(evaluate(letters, 0.51f).codepoint, U'B')
+      << "a code point was not cut at the middle of its segment";
 
   const sigil::weave::FontVariation light("GRAD", 400.0f);
   const sigil::weave::FontVariation heavy("GRAD", 800.0f);
-  const TextEffect swept =
-      textFx::keys({{0.0f, {.axis = light}}, {1.0f, {.axis = heavy}}});
+  const TextEffect swept = textFx::tween(
+      {.from = GlyphModifier{.axis = light}, .to = GlyphModifier{.axis = heavy}});
   const GlyphModifier midway = evaluate(swept, 0.5f);
   ASSERT_TRUE(midway.axis.has_value());
   EXPECT_FLOAT_EQ(midway.axis.value_or(sigil::weave::FontVariation()).value,
                   600.0f);
 
   const sigil::weave::FontVariation slant("slnt", -10.0f);
-  const TextEffect crossed =
-      textFx::keys({{0.0f, {.axis = light}}, {1.0f, {.axis = slant}}});
+  const TextEffect crossed = textFx::tween(
+      {.from = GlyphModifier{.axis = light}, .to = GlyphModifier{.axis = slant}});
   const auto tagOf = [](const GlyphModifier& mod) {
     return mod.axis ? std::string(mod.axis->tag, 4) : std::string("(unset)");
   };
-  EXPECT_EQ(tagOf(evaluate(crossed, 0.4f)), "GRAD");
-  EXPECT_EQ(tagOf(evaluate(crossed, 0.6f)), "slnt")
+  EXPECT_EQ(tagOf(evaluate(crossed, 0.49f)), "GRAD");
+  EXPECT_FLOAT_EQ(evaluate(crossed, 0.49f).axis->value, 400.0f)
+      << "a differing axis was lerped rather than held until the cut";
+  EXPECT_EQ(tagOf(evaluate(crossed, 0.51f)), "slnt")
       << "two different axes were averaged, which names a coordinate on "
          "neither of them";
+
+  // The cut is Motion's too: the same line `motion::interpolate` finds.
+  EXPECT_EQ(sigil::motion::interpolate(GlyphModifier{.codepoint = U'A'},
+                                       GlyphModifier{.codepoint = U'B'}, 0.5f)
+                .codepoint,
+            U'B');
+  static_assert(sigil::motion::Interpolable<GlyphModifier>);
 }
 
-TEST(ComposeTextFx, AKeyTableIsComparableByItsNumbersAndItsCurves) {
-  const auto table = [](float peak) {
-    return std::vector<textFx::Key>{
-        {0.0f, {}}, {0.5f, {.scaleY = peak}}, {1.0f, {}}};
+TEST(ComposeTextFx, ATweenIsComparableByItsStopsAndItsCurves) {
+  const auto path = [](float peak) {
+    return sigil::motion::Tween<GlyphModifier>{
+        .keyframes = {{.to = GlyphModifier{.scaleY = peak}}, {.to = {}}}};
   };
-  EXPECT_TRUE(textFx::keys(table(1.25f)) == textFx::keys(table(1.25f)));
-  EXPECT_FALSE(textFx::keys(table(1.25f)) == textFx::keys(table(1.30f)));
-  // The curve is part of the identity. A table re-eased is a different
+  const auto eased = [&path](float peak, sigil::motion::Easing ease) {
+    sigil::motion::Tween<GlyphModifier> out = path(peak);
+    out.ease = std::move(ease);
+    return out;
+  };
+  EXPECT_TRUE(textFx::tween(path(1.25f)) == textFx::tween(path(1.25f)));
+  EXPECT_FALSE(textFx::tween(path(1.25f)) == textFx::tween(path(1.30f)));
+  // Where a stop falls is part of it.
+  sigil::motion::Tween<GlyphModifier> early = path(1.25f);
+  early.keyframes[0].duration = 50ms;
+  EXPECT_FALSE(textFx::tween(path(1.25f)) == textFx::tween(early));
+  // The curve is part of the identity. A path re-eased is a different
   // motion, and an effect comparing equal to the one it replaced would go
   // on drawing the old one with no diagnostic.
-  EXPECT_FALSE(textFx::keys(table(1.25f)) ==
-               textFx::keys(table(1.25f), sigil::motion::ease::inOutCubic));
-  EXPECT_FALSE(textFx::keys(table(1.25f), sigil::motion::ease::outQuad) ==
-               textFx::keys(table(1.25f), sigil::motion::ease::inOutCubic));
-  EXPECT_TRUE(textFx::keys(table(1.25f), sigil::motion::ease::inOutCubic) ==
-              textFx::keys(table(1.25f), sigil::motion::ease::inOutCubic));
+  EXPECT_FALSE(textFx::tween(path(1.25f)) ==
+               textFx::tween(eased(1.25f, sigil::motion::ease::inOutCubic)));
+  EXPECT_FALSE(textFx::tween(eased(1.25f, sigil::motion::ease::outQuad)) ==
+               textFx::tween(eased(1.25f, sigil::motion::ease::inOutCubic)));
+  EXPECT_TRUE(textFx::tween(eased(1.25f, sigil::motion::ease::inOutCubic)) ==
+              textFx::tween(eased(1.25f, sigil::motion::ease::inOutCubic)));
 }
 
-TEST(ComposeTextFx, AKeyedTrackPrunesWhenItsTableIsUnchanged) {
+TEST(ComposeTextFx, ATweenedTrackPrunesWhenItsStopsAreUnchanged) {
+  // EQUALITY BY VALUE: two tweens built apart from equal stops are one
+  // effect, so a re-described node with an unchanged path prunes.
   Host host;
-  const auto tree = [] {
+  const auto tree = [](float lift) {
     return box().padding(10).children(
         {text(u8"KEYS", whiteStyle(28))
              .key("k")
-             .textFx({.effect = textFx::keys(
-                          {{0.0f, {}}, {0.5f, {.dy = -8.0f}}, {1.0f, {}}},
-                          sigil::motion::ease::inOutCubic)})});
+             .textFx({.effect = textFx::tween(
+                          {.keyframes = {{.to = GlyphModifier{.dy = lift}},
+                                         {.to = {}}},
+                           .ease = sigil::motion::ease::inOutCubic})})});
   };
-  host.composer.render(tree());
+  host.composer.render(tree(-8.0f));
   for (int i = 0; i < 4; ++i) host.frame(0.016);
-  host.composer.render(tree());  // fresh Elements, an identical table
+  host.composer.render(tree(-8.0f));  // fresh Elements, an identical path
   EXPECT_EQ(host.composer.stats().patchedNodes, 0u);
   host.frame(0.016);
   EXPECT_EQ(host.composer.stats().picturesRecorded, 0u);
 
-  // The control: a table with one number moved is a different value, and
+  // The control: a path with one number moved is a different value, and
   // the node it describes has to be patched.
-  host.composer.render(box().padding(10).children(
-      {text(u8"KEYS", whiteStyle(28))
-           .key("k")
-           .textFx({.effect = textFx::keys(
-                        {{0.0f, {}}, {0.5f, {.dy = -9.0f}}, {1.0f, {}}},
-                        sigil::motion::ease::inOutCubic)})}));
+  host.composer.render(tree(-9.0f));
   EXPECT_GT(host.composer.stats().patchedNodes, 0u);
 }
 

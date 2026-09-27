@@ -5,7 +5,7 @@
  *
  * SigilCompose typography — THE `textFx::` CATALOGUE: the effects the runtime
  * evaluates by STRUCTURE rather than by calling a preset's body. The
- * substitution, the shader pass, the keyframe table, the hold, the two
+ * substitution, the shader pass, the keyframed tween, the hold, the two
  * combinators, and the escape hatch an ad-hoc body goes through.
  *
  * The value they are all built as is <sigilcompose/typography/TextEffect.h>;
@@ -16,6 +16,7 @@
  */
 
 #include <sigilcompose/typography/TextEffect.h>
+#include <sigilmotion/values/Tween.h>
 
 #include <initializer_list>
 #include <string>
@@ -26,12 +27,12 @@ namespace sigil::compose {
 
 // ---------------------------------------------------------------------------
 // The effects the RUNTIME evaluates by structure rather than by calling a
-// preset's body: the substitution, the shader pass, the keyframe table and
+// preset's body: the substitution, the shader pass, the keyframed tween and
 // the combinators over whole effects. Their bodies are the engine's; the
 // presets that are plain values are the kit's, in kit/Kinetic.h.
 
 /** THE TEXT-EFFECT CATALOGUE: what one `textFx()` track does to each glyph
- *  it addresses — a substitution, a shader pass, a keyframe table, a
+ *  it addresses — a substitution, a shader pass, a keyframed tween, a
  *  hold, the two combinators that compose whole effects, and the escape
  *  hatch an ad-hoc body goes through.
  *
@@ -46,7 +47,7 @@ namespace textFx {
 /** THE DISPLAY SIZE A REACH IS DECLARED AGAINST when no effect knows the
  *  font size at construction: a glyph grown by a factor about its own
  *  centre escapes its box by half the excess of this many pixels in each
- *  direction, and a keyframe table's growths and leans are read against
+ *  direction, and a keyframed tween's growths and leans are read against
  *  it the same way. Over-reporting is safe, so a preset drawn smaller than
  *  this reserves more than it needs and one drawn larger declares its own
  *  `Track::reach`. */
@@ -194,7 +195,7 @@ inline constexpr float kNominalSizePx = 96.0f;
  *
  *  THE ONE PLACEMENT FACT THE LIBRARY CANNOT INFER lives here too. Every other
  *  effect answers `TextEffect::displaces` for itself — a preset knows its own
- *  deviation, `textFx::keys` reads its table, `textFx::sequence`,
+ *  deviation, `textFx::tween` reads its stops, `textFx::sequence`,
  *  `textFx::mix` and `textFx::hold` derive from their operands — but a lambda
  *  is opaque until it runs, so this door assumes the moving answer and takes
  *  `.displacing(false)` as the promise that the body leaves every pen position
@@ -207,51 +208,51 @@ inline constexpr float kNominalSizePx = 96.0f;
                     reach);
 }
 
-/** ONE ENTRY OF A `textFx::keys` TABLE: where it sits in local time, the
- *  deviation there, and — optionally — the curve for the segment that
- *  STARTS at it. */
-struct Key {
-  float at = 0;            ///< local time, 0→1
-  GlyphModifier modifier;  ///< the deviation at that moment
-  /** The curve this entry's own segment is interpolated with, overriding
-   *  the table's. Unset takes the table's; the LAST entry's is never read,
-   *  because no segment starts there. */
-  motion::Easing ease;
-};
-
-/** THE KEYFRAME TABLE: a list of (local time, deviation) entries, and the
- *  curve between them.
+/** A KEYFRAMED DEVIATION: Motion's one keyframe grammar over the
+ *  `GlyphModifier` a track returns — `.from` where every unit starts,
+ *  `.keyframes` the stops it passes through (`motion::Keyframe`: where it
+ *  goes, its share of the path, its curve), or `.to` alone — run over one
+ *  unit of local progress.
  *
- *      const TextEffect rubberBand = textFx::keys({
- *          {0.00f, {}},
- *          {0.30f, {.scaleX = 1.25f, .scaleY = 0.75f}},
- *          {0.50f, {.scaleX = 1.15f, .scaleY = 0.85f}},
- *          {1.00f, {}},
- *      }, motion::ease::inOutCubic);
+ *      const TextEffect rubberBand = textFx::tween({
+ *          .keyframes = {{.to = {.scaleX = 1.25f, .scaleY = 0.75f}, .duration = 300ms},
+ *                        {.to = {.scaleX = 1.15f, .scaleY = 0.85f}, .duration = 200ms},
+ *                        {.to = {}, .duration = 500ms}},
+ *          .ease = motion::ease::inOutCubic});
  *
- *  Entries are read IN ORDER and each pair is one segment; local time
- *  before the first entry holds the first entry's deviation and time after
- *  the last holds the last's. Two entries at the same moment are a STEP,
- *  and the later one is what the step lands on.
+ *  THE SPELLING IS `tween`, beside `textFx::enter`, because the two read
+ *  different values: `enter` walks a glyph HOME along a `Displaced` path,
+ *  and this walks any deviation — a squash, a flash, a pulse that returns —
+ *  which is no arrival. One name for both would also make a braced
+ *  argument, which names no type, ambiguous between them.
  *
- *  THE CURVE APPLIES PER SEGMENT, not across the table: `at` says where a
- *  segment ends, the curve says how it is crossed, and every segment runs
- *  the whole curve. That is what a published keyframe list means — a table
- *  crossed by one curve end to end would ease into the first entry and out
- *  of the last and run the middle at whatever slope the curve happened to
- *  have there. Unset, a segment is linear.
+ *  WHERE A UNIT RUNS is the track's tween; this one says only the path.
+ *  `.from` unset is the glyph at rest (`GlyphModifier{}`), and so is `.to`
+ *  when neither it nor a keyframe is named. A keyframe's `duration` is its
+ *  SHARE of the path, the way Motion resolves a step's length — one with
+ *  none takes the tween's `duration` over the keyframe count, so a list
+ *  with no durations is equal shares — and the whole path, however long it
+ *  sums to, is the unit's local progress 0→1. Local time outside [0,1]
+ *  holds the ends.
  *
- *  Interpolation is COMPONENTWISE and follows the `textFx::sequence` crossfade
- *  exactly, because it is the same arithmetic: `codepoint` cuts at the
- *  middle of the segment rather than lerping, since there is no half-way
- *  glyph between two outlines; `axis` lerps only when the two entries name
- *  the SAME tag, and otherwise cuts the same way.
+ *  THE CURVE APPLIES PER SEGMENT, as Motion's keyframes do: every segment
+ *  runs the whole curve — a keyframe's own `ease`, else the tween's — so
+ *  the deviation AT a stop is exactly the stop. UNSET, A SEGMENT IS
+ *  STRAIGHT (`motion::ease::linear`), not Motion's `outQuad` default: a
+ *  collective running a unit's progress reads an empty curve as straight,
+ *  and the stops are what the author placed.
  *
- *  The table IS the identity — two `keys` over the same numbers and the
- *  same named curves compare equal and prune — and it declares its own
- *  reach from the offsets, growths and leans it publishes. */
-[[nodiscard]] TextEffect keys(std::vector<Key> table,
-                              motion::Easing ease = nullptr);
+ *  Interpolation is `compose::interpolate` over `GlyphModifier` — the
+ *  `textFx::sequence` crossfade's arithmetic: componentwise, with
+ *  `codepoint` and a DIFFERING `axis` tag CUT at the middle of the segment
+ *  rather than lerped, since there is no half-way glyph between two
+ *  outlines; an `axis` lerps only between two stops naming the SAME tag.
+ *
+ *  The stops ARE the identity — two tweens over the same numbers, the same
+ *  shares and the same named curves compare equal and prune — and the
+ *  effect declares its own reach, and whether it displaces, from the
+ *  offsets, growths and leans its stops publish. */
+[[nodiscard]] TextEffect tween(motion::Tween<GlyphModifier> description);
 
 /** NOTHING UNTIL THE BEAT OPENS: `effect` as it is, except that a unit
  *  whose beat has not begun paints nothing at all.
@@ -289,9 +290,9 @@ struct Key {
  *  its deviation into the next one's, componentwise, over the last `f` of
  *  local time before the joint.
  *
- *  A sequence is NOT a keyframe table over effects, and neither combinator
+ *  A sequence is NOT a keyframed tween over effects, and neither combinator
  *  is the other's special case: a phase is an EFFECT re-clocked over its
- *  window and free to move throughout it, where a key is one deviation
+ *  window and free to move throughout it, where a stop is one deviation
  *  standing still and lerped toward. What they do share is the
  *  componentwise interpolation — the crossfade here and a segment there run
  *  the same arithmetic, so the substitutions cut the same way in both. */

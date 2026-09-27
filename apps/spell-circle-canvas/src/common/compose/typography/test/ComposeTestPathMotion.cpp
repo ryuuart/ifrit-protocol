@@ -313,7 +313,7 @@ TEST(ComposePathMotion, TypeAtRestKeepsWholePixelOrigins) {
 TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
   Host host(kField, kField);
   sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.5f);  // bound: the track IS live
-  const TextEffect fade = textFx::keys({{0.0f, {.alpha = 0.0f}}, {1.0f, {}}});
+  const TextEffect fade = textFx::tween({.from = GlyphModifier{.alpha = 0.0f}});
   const int distinct = distinctFramesAcrossOnePixel(host, [&](float at) {
     return ringWith(at, 44.0f, {.effect = fade, .progress = progress});
   });
@@ -321,15 +321,14 @@ TEST(ComposePathMotion, AFadeOnlyTrackKeepsWholePixelOrigins) {
       << "a fade-only track is paying for the subpixel grid";
 }
 
-// A TABLE IS ANSWERED BY ITS OWN ENTRIES, and the two verdicts are measured
+// A TWEEN IS ANSWERED BY ITS OWN STOPS, and the two verdicts are measured
 // the same way so neither can be an accident of the measurement: the same
 // ring, the same live progress, the same slide of a pixel and a half — only
-// the lane the table publishes into differs.
-TEST(ComposePathMotion, AKeysTableEngagesTheGridOnlyWhereItMovesGlyphs) {
+// the lane the tween publishes into differs.
+TEST(ComposePathMotion, ATweenEngagesTheGridOnlyWhereItMovesGlyphs) {
   sigil::motion::Animatable<float> progress = sigil::motion::animatable(0.5f);
-  const TextEffect colourOnly = textFx::keys(
-      {{0.0f, {.colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}}, {1.0f, {}}});
-  const TextEffect offset = textFx::keys({{0.0f, {.dx = 9.0f}}, {1.0f, {}}});
+  const TextEffect colourOnly = textFx::tween({.from = GlyphModifier{.colorMultiplier = {0.3f, 0.3f, 0.3f, 1.0f}}});
+  const TextEffect offset = textFx::tween({.from = GlyphModifier{.dx = 9.0f}});
 
   Host cheapHost(kField, kField);
   const int cheap = distinctFramesAcrossOnePixel(cheapHost, [&](float at) {
@@ -341,9 +340,9 @@ TEST(ComposePathMotion, AKeysTableEngagesTheGridOnlyWhereItMovesGlyphs) {
   });
 
   EXPECT_LE(cheap, kWholePixelCeiling)
-      << "a colour-only table is paying for the subpixel grid";
+      << "a colour-only tween is paying for the subpixel grid";
   EXPECT_GT(moving, kWholePixelCeiling)
-      << "a table with an offset is rounding to whole pixels";
+      << "a tween with an offset is rounding to whole pixels";
 }
 
 // A SETTLED TRACK IS TYPE AT REST, whatever it does while it runs. Its

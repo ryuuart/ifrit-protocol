@@ -181,16 +181,15 @@ struct TrackBeats {
 
 /** The composition algebra, in one place: offsets, rotations and shears ADD,
  *  scale, alpha and the colour multiplier MULTIPLY, the additive colour term
- *  ADDS and the screen term SCREENS. Stacked tracks, textFx::mix, a sequence
- *  crossfade and a keys segment all go through these two, so they cannot
- *  drift apart. */
+ *  ADDS and the screen term SCREENS. Stacked tracks and textFx::mix go
+ *  through this; a sequence crossfade and a tween's keyframe segment go
+ *  through `compose::interpolate`, declared with the value, so none of them
+ *  can drift apart. */
 void compose(GlyphModifier& into, const GlyphModifier& next);
-GlyphModifier lerpModifier(const GlyphModifier& a, const GlyphModifier& b,
-                           float w);
 /** FIELD PIN for GlyphModifier: A FIELD ADDED TO IT IS A BUILD FAILURE until
- * the two functions above carry it. The definition binds every member by name,
+ * `compose` above and `compose::interpolate` carry it. The definition binds every member by name,
  *  so a new one breaks the count. What it closes is invisible otherwise — a
- *  field left out of `compose` or `lerpModifier` reads at rest for every
+ *  field left out of `compose` or `interpolate` reads at rest for every
  * stacked track and never interpolates, so the effect appears to work and then
  *  quietly does not move. Defined beside the two, never called. */
 void glyphModifierFieldPin(GlyphModifier& v);

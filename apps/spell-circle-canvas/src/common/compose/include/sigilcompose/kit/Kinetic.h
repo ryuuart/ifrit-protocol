@@ -27,7 +27,7 @@
  *            .effect = textFx::waveLoop(),
  *            .progress = &phase});
  *
- * The effects the runtime itself evaluates — `textFx::keys`,
+ * The effects the runtime itself evaluates — `textFx::tween`,
  * `textFx::sequence`, `textFx::mix`, `textFx::hold`, `textFx::scramble`,
  * `textFx::pass` and the `textFx::effect` door — are the seam's, declared with
  * it in <sigilcompose/typography/TextEffect.h>, with the structural catalogue
@@ -389,7 +389,7 @@ inline constexpr std::chrono::milliseconds kEntranceStep{30};
  *  whatever @p from says there. The way UP is the other two colour terms:
  *  `GlyphModifier::colorAdd` is the hard flash over whatever the style paints,
  *  `GlyphModifier::colorScreen` the glow that brightens toward white without
- *  clipping — both usually spoken through a `textFx::keys` table.
+ *  clipping — both usually spoken through a `textFx::tween`.
  *
  *  Alpha is untouched: a reveal that also fades wants an alpha track, which
  *  composes with this one. The ramp is a smoothstep because a hard cut at

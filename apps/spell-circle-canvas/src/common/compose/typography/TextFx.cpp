@@ -1,6 +1,6 @@
 /** @file
  * THE EFFECTS THE RUNTIME EVALUATES BY STRUCTURE — the sequence, the
- * keyframe table, the hold, the scramble, the mix and the pass. Each is a
+ * keyframed tween, the hold, the scramble, the mix and the pass. Each is a
  * comparable `TextEffect` carrying its operands, so a composite compares
  * by structure and a re-described track prunes; the value type itself is
  * defined with its header.
@@ -12,7 +12,7 @@
  */
 
 #include <sigilcompose/typography/TextEffect.h>
-#include <sigilweave/choreograph/Choreograph.h>  // the ease the tables take
+#include <sigilmotion/values/Tween.h>
 
 #include <algorithm>
 #include <cmath>
@@ -92,7 +92,7 @@ TextEffect sequence(std::vector<Phase> phases) {
               compose::detail::glyphSeed(g, (uint32_t)index + 1));
           const GlyphModifier next =
               phases[index + 1].effect()(g, 0.0f, nextRng);
-          modifier = compose::detail::lerpModifier(modifier, next, w);
+          modifier = compose::interpolate(modifier, next, w);
         }
         return modifier;
       },
@@ -101,15 +101,14 @@ TextEffect sequence(std::vector<Phase> phases) {
 
 namespace {
 
-/** One entry's numbers, laid end to end. Every field of a GlyphModifier is
- * here, at a fixed stride, so two tables compare exactly when they say the same
- *  thing — structural equality over the whole table rather than a digest of
- *  it. The two substitutions ride along as numbers: a code point IS one, and
- *  an axis is its four tag bytes, its value, and whether it was set at all. */
-void appendKeyParameters(std::vector<float>& out, const Key& key) {
-  const GlyphModifier& m = key.modifier;
-  out.insert(out.end(), {key.at,
-                         m.dx,
+/** One stop's numbers, laid end to end. Every field of a GlyphModifier is
+ *  here, at a fixed stride, so two tweens compare exactly when they say the
+ *  same thing — structural equality over every stop rather than a digest of
+ *  them. The two substitutions ride along as numbers: a code point IS one,
+ *  and an axis is its four tag bytes, its value, and whether it was set at
+ *  all. */
+void appendStopParameters(std::vector<float>& out, const GlyphModifier& m) {
+  out.insert(out.end(), {m.dx,
                          m.dy,
                          m.scale,
                          m.rotateDeg,
@@ -138,82 +137,87 @@ void appendKeyParameters(std::vector<float>& out, const Key& key) {
   out.push_back(axis.value);
 }
 
-/** How far past its box a table may throw a glyph. Every published entry is
- *  read: the offsets outright, and a growth or a lean as the fraction of the
- *  glyph it displaces, against the nominal display size no effect knows at
- *  construction. Over-reporting is safe, so the two are added rather than
- *  reasoned about. */
-float keysReach(const std::vector<Key>& table) {
-  float reach = 0;
-  for (const Key& key : table) {
-    const GlyphModifier& m = key.modifier;
-    const float grown = std::max({std::abs(m.scale * m.scaleX),
-                                  std::abs(m.scale * m.scaleY), 1.0f}) -
-                        1.0f;
-    const bool leans = m.rotateDeg != 0 || m.skewXDeg != 0 || m.skewYDeg != 0;
-    reach = std::max(
-        reach, std::abs(m.dx) + std::abs(m.dy) +
-                   (grown + (leans ? 0.5f : 0.0f)) * textFx::kNominalSizePx);
-  }
-  return reach;
+/** How far past its box a stop may throw a glyph: the offsets outright, and
+ *  a growth or a lean as the fraction of the glyph it displaces, against the
+ *  nominal display size no effect knows at construction. Over-reporting is
+ *  safe, so the two are added rather than reasoned about. */
+float stopReach(const GlyphModifier& m) {
+  const float grown = std::max({std::abs(m.scale * m.scaleX),
+                                std::abs(m.scale * m.scaleY), 1.0f}) -
+                      1.0f;
+  const bool leans = m.rotateDeg != 0 || m.skewXDeg != 0 || m.skewYDeg != 0;
+  return std::abs(m.dx) + std::abs(m.dy) +
+         (grown + (leans ? 0.5f : 0.0f)) * textFx::kNominalSizePx;
 }
 
-/** Whether a table moves its glyphs off their pen positions — read off the
- *  entries, because the mods ARE the data here and no author needs to say
- *  twice what the table already says. Any offset, any lean, any growth: a
- *  glyph under it lands somewhere other than where the layout put it, and
- *  interpolation between two such entries only ever lands between them, so
- *  a table of entries that all leave the pen alone can never move it. The
- *  colour terms, the fade and the two substitutions are not placement. */
-bool keysDisplace(const std::vector<Key>& table) {
-  for (const Key& key : table) {
-    const GlyphModifier& m = key.modifier;
-    if (m.dx != 0 || m.dy != 0 || m.rotateDeg != 0 || m.skewXDeg != 0 ||
-        m.skewYDeg != 0 || m.scale != 1 || m.scaleX != 1 || m.scaleY != 1)
-      return true;
-  }
-  return false;
+/** Whether a stop moves its glyph off its pen position — read off the stop,
+ *  because the stops ARE the data here and no author needs to say twice
+ *  what they already say. Any offset, any lean, any growth; interpolation
+ *  between two stops only ever lands between them, so stops that all leave
+ *  the pen alone can never move it. The colour terms, the fade and the two
+ *  substitutions are not placement. */
+bool stopDisplaces(const GlyphModifier& m) {
+  return m.dx != 0 || m.dy != 0 || m.rotateDeg != 0 || m.skewXDeg != 0 ||
+         m.skewYDeg != 0 || m.scale != 1 || m.scaleX != 1 || m.scaleY != 1;
 }
 
 }  // namespace
 
-TextEffect keys(std::vector<Key> table, motion::Easing ease) {
-  if (table.empty()) return TextEffect();
-  std::vector<float> parameters;
-  parameters.reserve(table.size() * 29);
-  // The table-wide curve first, then one slot per entry whether or not that
-  // entry overrode it: equal tables then always compare curve lists of equal
-  // length, and a curve moved from one entry to another is a difference.
-  std::vector<motion::Easing> curves;
-  curves.reserve(table.size() + 1);
-  curves.push_back(ease);
-  for (const Key& key : table) {
-    appendKeyParameters(parameters, key);
-    curves.push_back(key.ease);
+TextEffect tween(motion::Tween<GlyphModifier> description) {
+  // The deviation a track starts from, and comes home to when nothing else
+  // is named, is the glyph at rest.
+  if (!description.from) description.from = GlyphModifier{};
+  if (!description.to && description.keyframes.empty())
+    description.to = GlyphModifier{};
+
+  // The path as Motion walks it: `from`, then one step per keyframe — or one
+  // step to `to` — each with its length resolved by Motion's rule (a step
+  // with none takes the tween's duration over the step count).
+  motion::Tween<GlyphModifier> shape;
+  shape.from = description.from->value();
+  const motion::Duration length = description.duration.value();
+  if (description.keyframes.empty()) {
+    shape.keyframes.push_back({description.to->value(), length, {}});
+  } else {
+    const motion::Duration share =
+        length / (double)description.keyframes.size();
+    for (const motion::Keyframe<GlyphModifier>& step : description.keyframes)
+      shape.keyframes.push_back(
+          {step.to, step.duration.value_or(share), step.ease});
   }
-  const float reach = keysReach(table);
-  const bool displaces = keysDisplace(table);
+  motion::Duration total{};
+  for (const motion::Keyframe<GlyphModifier>& step : shape.keyframes)
+    total += *step.duration;
+  shape.duration = total;
+  // Every segment runs the whole curve, and an unnamed one is STRAIGHT:
+  // the stops are what the author placed, and a default curve would bend
+  // every table nobody asked to bend.
+  shape.ease = description.ease ? description.ease : motion::ease::linear;
+
+  // What two tweens compare by: every stop's lanes, each step's share of
+  // the path, and the curves as written.
+  std::vector<float> parameters;
+  std::vector<motion::Easing> curves{description.ease};
+  float reach = stopReach(shape.from->value());
+  bool displaces = stopDisplaces(shape.from->value());
+  appendStopParameters(parameters, shape.from->value());
+  for (const motion::Keyframe<GlyphModifier>& step : shape.keyframes) {
+    appendStopParameters(parameters, step.to);
+    parameters.push_back(total > motion::Duration{}
+                             ? (float)(*step.duration / total)
+                             : 0.0f);
+    curves.push_back(step.ease);
+    reach = std::max(reach, stopReach(step.to));
+    displaces |= stopDisplaces(step.to);
+  }
+
   return TextEffect(
-      "keys", std::move(parameters),
-      [table = std::move(table), ease = std::move(ease)](
-          const GlyphInfo&, float t, core::noise::Mix64Stream&) {
-        t = std::clamp(t, 0.0f, 1.0f);
-        if (t <= table.front().at) return table.front().modifier;
-        for (size_t i = 1; i < table.size(); ++i) {
-          if (t > table[i].at) continue;
-          const Key& from = table[i - 1];
-          const Key& to = table[i];
-          const float span = to.at - from.at;
-          // A zero-width segment is a STEP, and the later entry is what a
-          // step lands on.
-          const float u = span > 0 ? (t - from.at) / span : 1.0f;
-          // The curve is the one named on the segment's OPENING entry, which
-          // is where a keyframe list states it.
-          const motion::Easing& curve = from.ease ? from.ease : ease;
-          return compose::detail::lerpModifier(from.modifier, to.modifier,
-                                               curve ? curve(u) : u);
-        }
-        return table.back().modifier;
+      "tween", std::move(parameters),
+      [shape = std::move(shape), total](const GlyphInfo&, float t,
+                                        core::noise::Mix64Stream&) {
+        // The whole path is one unit of local progress, whatever the
+        // tween's own length: the track's schedule says when a unit runs.
+        return shape.at(total * (double)std::clamp(t, 0.0f, 1.0f));
       },
       reach, std::move(curves), displaces);
 }
