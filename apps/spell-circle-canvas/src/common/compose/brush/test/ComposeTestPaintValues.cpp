@@ -264,35 +264,6 @@ TEST(ComposePattern, AnElementTreeIsATile) {
   EXPECT_EQ(host.pixel(25, 5), SK_ColorRED);  // the repeat
 }
 
-TEST(ComposePattern, TheGirihEightTileIsAStarAndACross) {
-  // The construction is Hankin's polygons-in-contact method on a 4.8.8
-  // tiling at θ=45: a khatam star at the tile centre in the star colour, the
-  // cross ground at the flanks of each edge midpoint, and the strap ribbon
-  // running along the khatam chord. The pixel probes below name those three
-  // places, so a pattern that merely looks ornamental will not pass.
-  material::kit::GirihPalette pal = material::kit::fezPalette();
-  Pattern zellige = material::kit::girih8(24, pal);
-  const float s = 24 * (1 + 1.41421356f);  // tile spacing ≈ 57.9
-  Host host;
-  host.composer.render(box().children(
-      {box()
-           .width(120)
-           .height(120)
-           .inset(0, 80, 80, 0)
-           .absolute()
-           .fill(zellige.material())}));
-  host.frame();
-  // Tile center = khatam star fill (blue).
-  const SkColor center = host.pixel((int)(s / 2), (int)(s / 2));
-  EXPECT_GT(SkColorGetB(center), 100u);
-  EXPECT_LT(SkColorGetR(center), 80u);
-  // Near the tile corner (inside the corner filler) = ground (teal).
-  const SkColor corner = host.pixel(3, 3);
-  EXPECT_GT(SkColorGetG(corner), 80u);
-  EXPECT_LT(SkColorGetR(corner), 80u);
-  EXPECT_LT(SkColorGetB(corner), SkColorGetG(corner));  // teal, not blue
-}
-
 // ---- layer styles: the Photoshop route --------------------------------------
 
 TEST(ComposeStyles, BevelLightsAndShadesOpposedEdges) {

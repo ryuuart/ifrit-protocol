@@ -21,7 +21,6 @@
 #include <sigilgeometry/kit/Shapers.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilmaterial/field/Field.h>
-#include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/sdf/Sdf.h>
 #include <sigilmaterial/skia/Paint.h>

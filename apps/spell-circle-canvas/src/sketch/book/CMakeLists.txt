@@ -289,7 +289,7 @@ add_test(NAME sketch_reload_materials
 # hello nor stock_materials can, because neither names one.
 add_test(NAME sketch_reload_surface
   COMMAND Sketchbook
-    ${SIGIL_SKETCH_DIR}/shapeworks_lab.cpp
+    ${SIGIL_SKETCH_DIR}/shapeworks_lab/shapeworks_lab.cpp
     --frame ${CMAKE_BINARY_DIR}/sketch_reload_surface.png)
 
 # The video leaf reaches both an adapter header and codec archives that no

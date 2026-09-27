@@ -5,7 +5,7 @@
 
 // A wall of zellige panels, generated rather than drawn.
 //
-// kit::girih8 runs Hankin's polygons-in-contact construction on the real
+// zellige::girih8 (Girih.h) runs Hankin's polygons-in-contact construction on the real
 // 4.8.8 tiling: two rays leave every octagon edge's midpoint at the
 // CONTACT ANGLE θ to that edge, and where neighbouring rays meet is a
 // vertex of the star. θ is the whole parameter of the construction, and
@@ -35,7 +35,6 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -44,6 +43,8 @@
 
 #include <array>
 #include <string>
+
+#include "Girih.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -69,19 +70,19 @@ constexpr material::Color kPlaster{0.885f, 0.850f, 0.775f, 1};
 // bone on the strap, which is the reading turned inside out. These three
 // are the wall's own: one white ground, one hue in the star and one in
 // the strap, black in the joint.
-inline material::kit::GirihPalette fesCobalt() {
+inline zellige::GirihPalette fesCobalt() {
   return {{0.949f, 0.937f, 0.906f, 1},   // the white ground
           {0.118f, 0.310f, 0.627f, 1},   // cobalt star
           {0.118f, 0.557f, 0.525f, 1},   // turquoise strap
           {0.102f, 0.090f, 0.078f, 1}};  // the black joint
 }
-inline material::kit::GirihPalette fesTurquoise() {
+inline zellige::GirihPalette fesTurquoise() {
   return {{0.949f, 0.937f, 0.906f, 1},
           {0.118f, 0.557f, 0.525f, 1},
           {0.647f, 0.251f, 0.169f, 1},  // brick red
           {0.102f, 0.090f, 0.078f, 1}};
 }
-inline material::kit::GirihPalette fesOchre() {
+inline zellige::GirihPalette fesOchre() {
   return {{0.949f, 0.937f, 0.906f, 1},
           {0.788f, 0.541f, 0.180f, 1},  // ochre
           {0.180f, 0.431f, 0.290f, 1},  // green
@@ -99,9 +100,9 @@ constexpr float kContact[3] = {30.0f, 45.0f, 60.0f};
 
 /** One panel's tile: the kit's generator at this panel's contact angle,
  *  with the strap left at the generator's own width. */
-inline Pattern girih(float edge, const material::kit::GirihPalette& palette,
+inline Pattern girih(float edge, const zellige::GirihPalette& palette,
                      float contactDeg) {
-  return material::kit::girih8(edge, palette, 0.0f, contactDeg);
+  return zellige::girih8(edge, palette, 0.0f, contactDeg);
 }
 
 inline std::string caption(const char* palette, float edge, float contactDeg,
@@ -147,7 +148,7 @@ struct Zellige {
     const bool swapped = (phase % 2) != 0;
     const char* names[3] = {swapped ? "turquoise" : "cobalt",
                             swapped ? "cobalt" : "turquoise", "ochre"};
-    const material::kit::GirihPalette palettes[3] = {
+    const zellige::GirihPalette palettes[3] = {
         swapped ? zw::fesTurquoise() : zw::fesCobalt(),
         swapped ? zw::fesCobalt() : zw::fesTurquoise(), zw::fesOchre()};
     const bool rotated = (phase % 8) != 0;

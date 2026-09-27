@@ -14,7 +14,6 @@
 #include <sigilcompose/kit/Layouts.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Patterns.h>
 #include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>

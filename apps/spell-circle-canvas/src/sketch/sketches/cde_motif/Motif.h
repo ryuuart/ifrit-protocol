@@ -21,7 +21,6 @@
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilgeometry/path/Arrange.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Patterns.h>
 #include <sigilmotion/values/Animatable.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
