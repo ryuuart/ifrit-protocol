@@ -24,7 +24,7 @@
  *      mode. The clear colour is the FLAT normal (0,0,1) encoded, so
  *      pixels outside the silhouette read as facing the viewer rather
  *      than as garbage.
- *   2. RECIPE. `material::kit::chrome` / `material::kit::gold` over that
+ *   2. RECIPE. `shapeworks_lab::chrome` / `shapeworks_lab::gold` over that
  *      map and an environment. Nothing in the recipe knows it is looking
  *      at a mesh.
  *   3. COVERAGE. The mesh is rasterised a second time in any opaque mode
@@ -53,6 +53,7 @@
 
 #include <include/core/SkColor.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilgeometry/kit/Silhouettes.h>
 #include <sigilgeometry/kit/Solids.h>
@@ -60,15 +61,16 @@
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/skia/Bevel.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 #include <sigilweave/style/Type.h>
+
+#include "shapeworks_lab/Environments.h"
+#include "shapeworks_lab/Reflections.h"
 
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
@@ -145,8 +147,8 @@ struct MeshNormalBridge {
       shadeThroughCoverage(
           canvas, blob, model, view,
           material::skia::shader(
-              material::kit::chrome(
-                  material::Texture::of(normalPass(blob, model, view)), sunset,
+              shapeworks_lab::chrome(
+                  material::Texture(normalPass(blob, model, view)), sunset,
                   {.contrast = 1.35f}),
               {}));
     }
@@ -155,8 +157,8 @@ struct MeshNormalBridge {
       shadeThroughCoverage(
           canvas, ring, model, view,
           material::skia::shader(
-              material::kit::gold(
-                  material::Texture::of(normalPass(ring, model, view)), studio,
+              shapeworks_lab::gold(
+                  material::Texture(normalPass(ring, model, view)), studio,
                   {.crinkle = 0.12f}),
               {}));
     }
@@ -168,7 +170,7 @@ struct MeshNormalBridge {
       SkPaint shade;
       shade.setAntiAlias(true);
       shade.setShader(material::skia::shader(
-          material::kit::chrome(material::bevelNormals(outline, kBevelPx),
+          shapeworks_lab::chrome(material::skia::bevelNormals(outline, kBevelPx),
                                 sunset, {.contrast = 1.35f}),
           {}));
       canvas.drawPath(outline, shade);
@@ -182,8 +184,8 @@ struct MeshNormalBridge {
                        {.size = SkSize::Make(kCanvas.width(), kCanvas.height()),
                         .captureAt = 1.0,
                         .background = sketch::kit::theme().palette.ground});
-    studio = material::kit::studioEnvironment();
-    sunset = material::kit::sunsetEnvironment();
+    studio = shapeworks_lab::studioEnvironment();
+    sunset = shapeworks_lab::sunsetEnvironment();
     blob = mesh::superellipsoid({150, 138, 90}, 2.6f, 64, 48);
     ring = mesh::torus(116, 40);
     const auto caption = [&](const char* call, const char* note, float x) {

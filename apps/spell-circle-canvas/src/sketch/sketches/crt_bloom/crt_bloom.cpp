@@ -26,7 +26,7 @@
  * A shadow does not. Everything else about the two is identical, which is
  * what makes the comparison worth drawing rather than describing.
  *
- * THE TUBE is `field::crtOverlay`: hard scanlines at a stated pitch and a
+ * THE TUBE is `crtOverlay`: hard scanlines at a stated pitch and a
  * corner falloff, in black, with the alpha carrying both, laid over each
  * panel as the last layer. It is the library's own tube — the sheet does
  * not draw one — so each construction is judged through the same glass.
@@ -49,7 +49,6 @@
 #include <sigilcompose/kit/Frame.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -58,6 +57,8 @@
 
 #include <utility>
 #include <vector>
+
+#include "CrtOverlay.h"
 
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
@@ -105,7 +106,7 @@ Element headline(material::Color color) {
  *  glass. */
 Element tube() {
   return box().cover().zIndex(9).fill(
-      field::crtOverlay({.uScanPitch = kPitch, .uScanStrength = 0.10f}));
+      crt_bloom::crtOverlay({.uScanPitch = kPitch, .uScanStrength = 0.10f}));
 }
 
 /** A panel: the ground, the construction, the tube. Both panels are laid
@@ -202,4 +203,4 @@ struct CrtBloom {
 SIGIL_SKETCH(
     CrtBloom, "Kit · API",
     "Effect::glow beside the stack it names — one node "
-    "against two on identical content, under the same field::crtOverlay tube")
+    "against two on identical content, under the same crtOverlay tube")

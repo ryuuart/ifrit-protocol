@@ -36,7 +36,6 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -48,6 +47,8 @@
 
 #include <string>
 #include <utility>
+
+#include "shapeworks_lab/Environments.h"
 
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
@@ -129,8 +130,8 @@ struct EnvLanes {
     // every bake has already been taken
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
-    const material::EnvironmentMap studio = material::kit::studioEnvironment();
-    const material::EnvironmentMap sunset = material::kit::sunsetEnvironment();
+    const material::EnvironmentMap studio = shapeworks_lab::studioEnvironment();
+    const material::EnvironmentMap sunset = shapeworks_lab::sunsetEnvironment();
 
     /** One frame: the subject under an environment node carrying the
      *  cell's own dials, and nothing else different. */

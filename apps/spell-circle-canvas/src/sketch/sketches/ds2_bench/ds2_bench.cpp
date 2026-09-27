@@ -37,6 +37,8 @@
 #include <string>
 #include <vector>
 
+#include "CrtOverlay.h"
+
 namespace material = sigil::material;
 namespace sketch = sigil::sketch;
 namespace shapes = sigil::geometry::shapes;
@@ -498,7 +500,7 @@ struct Ds2Bench {
             hints(),
             // The tube the hologram is seen through: fine scanlines and a
             // falloff into the corners, laid over everything.
-            box().inset(0).fill(field::crtOverlay({.uScanPitch = 3,
+            box().inset(0).fill(ds2_bench::crtOverlay({.uScanPitch = 3,
                                                    .uScanStrength = 0.09f,
                                                    .uVigInner = 1.0f,
                                                    .uVigOuter = 1.9f,

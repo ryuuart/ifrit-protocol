@@ -127,7 +127,6 @@
 #include <sigildata/decode/Json.h>
 #include <sigilgeometry/kit/Generators.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Filter.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/schedule/Stagger.h>
@@ -144,6 +143,8 @@
 #include <limits>
 #include <string>
 #include <vector>
+
+#include "CrtOverlay.h"
 
 using namespace std::chrono_literals;
 
@@ -469,7 +470,7 @@ Element tube() {
   return box()
       .cover()
       .fill(
-          material::field::crtOverlay({.uScanPitch = 3.0f,
+          karaoke_wipe::crtOverlay({.uScanPitch = 3.0f,
                                        .uScanStrength = 0.10f,
                                        .uVigInner = 1.05f,
                                        .uVigOuter = 2.05f,

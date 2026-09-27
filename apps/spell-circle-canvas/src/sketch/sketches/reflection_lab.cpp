@@ -47,7 +47,6 @@
 #include <sigilgeometry/kit/Solids.h>
 #include <sigilgeometry/mesh/Mesh.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Environments.h>
 #include <sigilmaterial/surface/Surface.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
 #include <sigilsketch/kit/Page.h>
@@ -57,12 +56,46 @@
 #include <glm/vec3.hpp>
 #include <string_view>
 
+#include "shapeworks_lab/Environments.h"
+
 namespace sketch = sigil::sketch;
 namespace world = sigil::world;
 namespace material = sigil::material;
 namespace gm = sigil::geometry::mesh;
 
 namespace {
+
+/** A polished mirror: metal, and rough enough to be a real object. Steel
+ *  is not a mirror and not white: a slight cool bias. */
+material::Material chrome() {
+  return material::from(material::Color{0.92f, 0.95f, 1.0f, 1})
+      .surface({.metallic = 1.0f, .roughness = 0.04f});
+}
+
+/** A metal at @p roughness — the study between a mirror and a matte
+ *  casting. */
+material::Material metal(material::Color tint, float roughness) {
+  return material::from(tint).surface({.metallic = 1.0f, .roughness = roughness});
+}
+
+/** A dielectric: not a metal, so it reflects a few per cent head on and
+ *  much more at the rim, and keeps its colour in the diffuse. */
+material::Material dielectric(material::Color base, float roughness) {
+  return material::from(base).surface({.metallic = 0.0f, .roughness = roughness});
+}
+
+/** Clear glass: what is behind it, refracted, with a reflection over the
+ *  top, and a faint green cast in a thick edge, which is what soda-lime
+ *  glass does and what tells an eye it is glass rather than a hole. */
+material::Material glass() {
+  return material::from(material::Color{1, 1, 1, 1})
+      .surface({.metallic = 0.0f,
+                .roughness = 0.02f,
+                .transmission = 1,
+                .ior = 1.5f,
+                .thickness = 0.35f,
+                .absorption = {0.55f, 0.12f, 0.35f, 1}});
+}
 
 constexpr float kRadius = 52.0f;
 constexpr float kGap = 132.0f;
@@ -97,19 +130,11 @@ world::Element balls() {
       // along it, so all four are seen face on.
       .rotateY(90.0f)
       .children(
-          {ball("chrome", left,
-                material::surface::program(
-                    material::surface::SurfaceParameters::chrome())),
-           ball("rough", left + kGap,
-                material::surface::program(material::surface::SurfaceParameters::metal(
-                    {0.85f, 0.86f, 0.88f, 1}, 0.35f))),
+          {ball("chrome", left, chrome()),
+           ball("rough", left + kGap, metal({0.85f, 0.86f, 0.88f, 1}, 0.35f)),
            ball("dielectric", left + 2.0f * kGap,
-                material::surface::program(
-                    material::surface::SurfaceParameters::dielectric(
-                        {0.14f, 0.30f, 0.42f, 1}, 0.15f))),
-           ball("glass", left + 3.0f * kGap,
-                material::surface::program(
-                    material::surface::SurfaceParameters::glass()))});
+                dielectric({0.14f, 0.30f, 0.42f, 1}, 0.15f)),
+           ball("glass", left + 3.0f * kGap, glass())});
 }
 
 }  // namespace
@@ -137,9 +162,9 @@ struct ReflectionLab {
     // The lower half of a bake is a floor, and a sphere reflects it
     // straight down where nothing interesting is; a flat ground colour
     // there keeps the reflections about the sky.
-    studio = material::kit::studioEnvironment(512).withGround(
+    studio = shapeworks_lab::studioEnvironment(512).withGround(
         {0.06f, 0.065f, 0.08f, 1});
-    sunset = material::kit::sunsetEnvironment(512).withGround(
+    sunset = shapeworks_lab::sunsetEnvironment(512).withGround(
         {0.05f, 0.03f, 0.05f, 1});
   }
 

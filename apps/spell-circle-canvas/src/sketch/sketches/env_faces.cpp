@@ -37,18 +37,21 @@
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
+#include <sigilmaterial/skia/Texture.h>
+#include <sigilmaterial/skia/Color.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/skia/Bevel.h>
 #include <sigilmaterial/texture/Texture.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Kit.h>
 
 #include <array>
 #include <string>
+
+#include "shapeworks_lab/Environments.h"
+#include "shapeworks_lab/Reflections.h"
 
 namespace sketch = sigil::sketch;
 namespace material = sigil::material;
@@ -117,7 +120,7 @@ SkPath disc() {
       .detach();
 }
 
-material::Texture shoulder() { return material::bevelNormals(disc(), kBevel); }
+material::Texture shoulder() { return material::skia::bevelNormals(disc(), kBevel); }
 
 sketch::kit::ComparisonCase cell(
     const char* caseTitle, const char* call, const std::string& note,
@@ -142,7 +145,8 @@ sketch::kit::ComparisonCase panorama(
   return cell(
       caseTitle, call, note,
       [environment, roughness](SkCanvas& canvas, const material::FrameData&) {
-        const sk_sp<SkImage> image = environment.image(roughness);
+        const sk_sp<SkImage> image =
+            material::skia::image(environment.texture(roughness));
         if (!image) return;
         const float w = kCell - 16;
         const float h = w * 0.5f;
@@ -160,7 +164,7 @@ sketch::kit::ComparisonCase reflector(
   // long after the frame that described it.
   return cell(
       caseTitle, call, note,
-      [paint = material::kit::chrome(
+      [paint = shapeworks_lab::chrome(
            shoulder(), environment, {.roughness = roughness, .contrast = 1.5f}),
        face = disc()](SkCanvas& canvas, const material::FrameData& frame) {
         material::skia::fill(canvas, face, paint, frame);
@@ -177,7 +181,7 @@ struct EnvFaces {
     sketch::kit::stage(ctx, {.size = kCanvas, .captureAt = 0.05});
 
     const material::EnvironmentMap studio =
-        material::kit::studioEnvironment(384);
+        shapeworks_lab::studioEnvironment(384);
     // The six faces are baked ONCE and read twice — once as faces, once
     // laid into the 6:1 row the cube-map layout is named by.
     const material::EnvironmentMap::Faces six = faces();
@@ -186,7 +190,8 @@ struct EnvFaces {
     const material::EnvironmentMap unpacked =
         material::EnvironmentMap::fromCubeMap(row(six));
     const material::EnvironmentMap rewrapped =
-        material::EnvironmentMap::fromEquirectangular(resampled.image(0));
+        material::EnvironmentMap::fromEquirectangular(
+            resampled.texture(0).source());
     const material::EnvironmentMap grounded =
         resampled.withGround(material::skia::toSkColor(kGroundColour));
     const material::Color mean = material::skia::toColor(resampled.average());
@@ -203,7 +208,7 @@ struct EnvFaces {
                           "read directly below."},
                  sketch::kit::comparison(
                      {.cases = {panorama(
-                                    "STUDIO", "kit::studioEnvironment(384)",
+                                    "STUDIO", "studioEnvironment(384)",
                                     "Procedural studio: sky, floor bounce and "
                                     "three softboxes.",
                                     studio),
@@ -223,17 +228,17 @@ struct EnvFaces {
                  sketch::kit::comparison(
                      {.cases =
                           {reflector(
-                               "SOFTBOXES", "kit::chrome(bevel, studio)",
+                               "SOFTBOXES", "chrome(bevel, studio)",
                                "A bevel normal and the studio panorama shade "
                                "this disc.",
                                studio),
                            reflector("DIRECTIONAL COLOUR",
-                                     "kit::chrome(bevel, fromFaces)",
+                                     "chrome(bevel, fromFaces)",
                                      "The same bevel reflects the coloured "
                                      "cube faces.",
                                      resampled),
                            reflector("WARM LOWER HEMISPHERE",
-                                     "kit::chrome(bevel, withGround)",
+                                     "chrome(bevel, withGround)",
                                      "The warm lower hemisphere is visible in "
                                      "the rim.",
                                      grounded)},

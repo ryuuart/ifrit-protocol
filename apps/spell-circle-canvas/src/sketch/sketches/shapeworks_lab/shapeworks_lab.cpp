@@ -36,7 +36,7 @@
 //
 // EDIT THESE FIRST
 //   the outline recipe — swap Roughen for operations::Twirl{40}, raise the
-//                        bloat, hand the result to kit::chrome instead.
+//                        bloat, hand the result to chrome() instead.
 //   ChromeParameters::brushed / GoldParameters::sparkle — the surfaces row.
 //   the chain on the wire — .count(), .noise(), the two ramp stops.
 
@@ -44,6 +44,7 @@
 
 #include <include/core/SkPathBuilder.h>
 #include <include/core/SkSurface.h>
+#include <sigilmaterial/skia/Texture.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilgeometry/kit/Sections.h>
 #include <sigilgeometry/kit/Silhouettes.h>
@@ -54,14 +55,12 @@
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilgeometry/path/Operations.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/kit/Environments.h>
-#include <sigilmaterial/kit/Reflections.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilmaterial/pattern/Tile.h>
 #include <sigilmaterial/skia/Draw.h>
 #include <sigilmaterial/skia/SkiaCompiler.h>
 #include <sigilmaterial/texture/EnvironmentMap.h>
-#include <sigilmaterial/texture/Surface.h>
+#include <sigilmaterial/skia/Bevel.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Page.h>
 
@@ -69,6 +68,9 @@
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "Environments.h"
+#include "Reflections.h"
 
 namespace sketch = sigil::sketch;
 
@@ -167,7 +169,7 @@ sk_sp<SkImage> fibonacciStrip(int width, int height) {
   // The shelf lays its runs along +x and the band reads its texture down
   // v, so the strip is that row turned a quarter turn into the size the
   // sweep asks for.
-  const sk_sp<SkImage> row = material::pattern::sequence(runs).image();
+  const sk_sp<SkImage> row = material::skia::image(material::pattern::sequence(runs).texture());
   if (!row) return nullptr;
   sk_sp<SkSurface> surface =
       SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
@@ -337,7 +339,7 @@ struct ShapeworksLab {
                         .captureAt = 2.6,
                         .background = sketch::kit::theme().palette.ground});
 
-    studio = material::kit::studioEnvironment();
+    studio = shapeworks_lab::studioEnvironment();
 
     // The recipe, cooked once. A path operator chain is a DESCRIPTION —
     // the outline it produces is a constant of this file, and so is the
@@ -351,7 +353,7 @@ struct ShapeworksLab {
     });
     cookedPath = recipe(star(7, 152, 84, {0, 0}));
     cooked =
-        material::kit::gold(material::bevelNormals(cookedPath, 9), studio, {});
+        shapeworks_lab::gold(material::skia::bevelNormals(cookedPath, 9), studio, {});
 
     // Badge geometry lives in the surfaces leaf's LOCAL space (540 x 300);
     // bevelNormals() places each normal map at its outline's bounds, so
@@ -360,15 +362,15 @@ struct ShapeworksLab {
     chromePath = SkPath::Circle(270, 150, 74);
     glassPath = SkPath::Circle(445, 150, 78);
     backdrop = bakeChecker(540, 300);
-    gold = material::kit::gold(material::bevelNormals(goldPath, 9), studio,
+    gold = shapeworks_lab::gold(material::skia::bevelNormals(goldPath, 9), studio,
                                {.crinkle = 0.4f, .sparkle = 0.7f});
     // studio, not sunset: a flat face reflects whatever sits dead ahead on
     // the equirect, and the sunset parks its sun there.
     chrome =
-        material::kit::chrome(material::bevelNormals(chromePath, 12), studio,
+        shapeworks_lab::chrome(material::skia::bevelNormals(chromePath, 12), studio,
                               {.roughness = 0.2f, .brushed = 0.6f});
-    glass = material::kit::glass(material::bevelNormals(glassPath, 14), studio,
-                                 material::Texture::of(backdrop));
+    glass = shapeworks_lab::glass(material::skia::bevelNormals(glassPath, 14), studio,
+                                 material::Texture(backdrop));
 
     marqueeStrip = fibonacciStrip(96, 1024);
 
