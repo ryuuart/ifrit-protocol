@@ -239,9 +239,11 @@ sigil_doc_probes(sketch
            "<sigilworld/diligent/Import.h>"
            "<sigilweave/ports/SystemFontManager.h>"
            "<sigilmedia/video/Video.h>"
+           "<sigilmaterial/substance/Substance.h>"
   ALIASES ${SIGIL_SKETCH_DOC_SCRY_ALIASES}
   SKIP_HEADERS ${SIGIL_SKETCH_DOC_SKIP_HEADERS}
   EXCLUDE ${SIGIL_SKETCH_DOC_EXCLUDE}
   FLOORS 50,10,10,0,0
   LIBRARIES SigilSketch SigilIOFrames SigilDataDecode SigilDataScale
-            SigilSketchSessionAgent SigilSketchTestingHarness)
+            SigilSketchSessionAgent SigilSketchTestingHarness
+            SigilMaterialSubstance)
