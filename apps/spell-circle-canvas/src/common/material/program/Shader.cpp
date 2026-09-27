@@ -17,6 +17,7 @@
 #include <map>
 #include <mutex>
 #include <regex>
+#include <string>
 #include <tuple>
 
 namespace sigil::material {
@@ -51,12 +52,19 @@ std::shared_ptr<const Recipe> define(std::string name, std::string_view source,
   textures.reserve(options.textures.size());
   for (const ShaderTexture& texture : options.textures)
     textures.push_back(texture.name);
-  using Key = std::tuple<std::string, std::string, Target, const Schema*,
+  // The layout is keyed by its fields rather than its address: a parameter
+  // struct's layout lives in whichever binary instantiated it, and a
+  // reloaded one may put a different struct at the same address.
+  std::string layout;
+  for (const Field& field : parameters.fields)
+    layout += field.name + ":" + std::to_string((int)field.kind) + ":" +
+              std::to_string(field.floats) + ";";
+  using Key = std::tuple<std::string, std::string, Target, std::string,
                          std::vector<std::string>>;
   static std::mutex mutex;
   static std::map<Key, std::shared_ptr<const Recipe>> definitions;
   const std::lock_guard lock(mutex);
-  Key key{std::move(name), std::string(source), target, &parameters,
+  Key key{std::move(name), std::string(source), target, std::move(layout),
           std::move(textures)};
   if (auto found = definitions.find(key); found != definitions.end())
     return found->second;

@@ -68,9 +68,9 @@ struct ShaderOptions {
 
 namespace detail {
 /** The definition `shader()` instances: one per distinct source, key,
- *  language, parameter layout and texture names, so describing the same
- *  shader again answers the same definition and a node over it prunes.
- *  Null when @p source is empty. */
+ *  language, parameter layout and texture names, held for the life of the
+ *  process, so describing the same shader again answers the same
+ *  definition and a node over it prunes. Null when @p source is empty. */
 std::shared_ptr<const Recipe> shaderDefinition(std::string_view source,
                                                const Schema& parameters,
                                                const ShaderOptions& options);
