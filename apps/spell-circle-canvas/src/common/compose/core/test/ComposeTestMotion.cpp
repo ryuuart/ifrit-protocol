@@ -543,3 +543,26 @@ TEST(ComposeMotion, AnimateColorSweepsOnMount) {
   host.frame(0.3);
   EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
 }
+
+TEST(ComposeMotion, AFillWrittenAsFlatColourMaterialsSweepsBetweenThem) {
+  // A fill holds a material, and a material that is one flat colour is a
+  // colour fill, so a tween whose endpoints are written as materials mixes
+  // through the colours between them rather than snapping at the end.
+  Host host;
+  const material::Material blue(material::Color{0, 0, 1, 1});
+  const material::Material scarlet(material::Color{1, 0, 0, 1});
+  host.composer.render(
+      box().children({box().width(80).height(80).fill(motion::animate<Fill>(
+          {.from = Fill(blue), .to = Fill(scarlet), .duration = 200ms,
+           .ease = motion::ease::linear}))}));
+  host.frame();
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorBLUE);  // the declared "from"
+  host.frame(0.1);                              // half the linear ramp
+  const SkColor middle = host.pixel(40, 40);
+  EXPECT_GT(SkColorGetR(middle), 90u);
+  EXPECT_LT(SkColorGetR(middle), 165u);
+  EXPECT_GT(SkColorGetB(middle), 90u);
+  EXPECT_LT(SkColorGetB(middle), 165u);
+  host.frame(0.3);
+  EXPECT_EQ(host.pixel(40, 40), SK_ColorRED);
+}
