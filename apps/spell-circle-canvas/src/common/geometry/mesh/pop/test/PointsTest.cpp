@@ -356,9 +356,9 @@ TEST(Points, EverySplatTakesItsOwnTintFromTheLane) {
   style.perspective = false;
   style.tintLane = "tint";
 
-  const std::optional<SkPoint> left =
+  const std::optional<glm::vec2> left =
       camera.project(cloud.positions[0], {200, 200});
-  const std::optional<SkPoint> right =
+  const std::optional<glm::vec2> right =
       camera.project(cloud.positions[1], {200, 200});
   ASSERT_TRUE(left && right);
   const auto splatted = [&]() {
@@ -366,9 +366,9 @@ TEST(Points, EverySplatTakesItsOwnTintFromTheLane) {
     points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
     const SkBitmap pixels = plate.pixels();
     return std::pair{
-        pixels.getColor((int)std::lround(left->fX), (int)std::lround(left->fY)),
-        pixels.getColor((int)std::lround(right->fX),
-                        (int)std::lround(right->fY))};
+        pixels.getColor((int)std::lround(left->x), (int)std::lround(left->y)),
+        pixels.getColor((int)std::lround(right->x),
+                        (int)std::lround(right->y))};
   };
 
   cloud.color("tint") = {{1, 0, 0, 1}, {0, 0, 1, 1}};
@@ -400,20 +400,20 @@ TEST(Points, EverySplatTakesItsOwnSizeFromTheLane) {
 
   Plate plate;
   points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
-  const std::optional<SkPoint> narrowAt =
+  const std::optional<glm::vec2> narrowAt =
       camera.project(cloud.positions[0], {200, 200});
-  const std::optional<SkPoint> wideAt =
+  const std::optional<glm::vec2> wideAt =
       camera.project(cloud.positions[1], {200, 200});
   ASSERT_TRUE(narrowAt && wideAt);
   const SkBitmap pixels = plate.pixels();
-  const int row = (int)std::lround(narrowAt->fY);
+  const int row = (int)std::lround(narrowAt->y);
   int narrow = 0, wide = 0;
   for (int x = 0; x < 200; ++x)
     if (SkColorGetR(pixels.getColor(x, row)) > 128) ++(x < 100 ? narrow : wide);
-  const auto down = [&](const SkPoint& at) {
+  const auto down = [&](const glm::vec2& at) {
     int lit = 0;
     for (int y = 0; y < 200; ++y)
-      if (SkColorGetR(pixels.getColor((int)std::lround(at.fX), y)) > 128) ++lit;
+      if (SkColorGetR(pixels.getColor((int)std::lround(at.x), y)) > 128) ++lit;
     return lit;
   };
   // BOTH AXES, because the lane scales a splat as a square: a width read
@@ -514,16 +514,16 @@ TEST(Points, EverySplatSurvivesTheBatchChunkBoundary) {
 
   Plate plate;
   points::drawBillboards(plate.canvas(), cloud, camera, {200, 200}, style);
-  const std::optional<SkPoint> pile = camera.project({-20, 0, 0}, {200, 200});
-  const std::optional<SkPoint> tail = camera.project({20, 0, 0}, {200, 200});
+  const std::optional<glm::vec2> pile = camera.project({-20, 0, 0}, {200, 200});
+  const std::optional<glm::vec2> tail = camera.project({20, 0, 0}, {200, 200});
   ASSERT_TRUE(pile && tail);
   const SkBitmap pixels = plate.pixels();
   EXPECT_EQ(
-      pixels.getColor((int)std::lround(pile->fX), (int)std::lround(pile->fY)),
+      pixels.getColor((int)std::lround(pile->x), (int)std::lround(pile->y)),
       SK_ColorWHITE)
       << "the first chunk";
   EXPECT_EQ(
-      pixels.getColor((int)std::lround(tail->fX), (int)std::lround(tail->fY)),
+      pixels.getColor((int)std::lround(tail->x), (int)std::lround(tail->y)),
       SK_ColorWHITE)
       << "…and the tail";
 }

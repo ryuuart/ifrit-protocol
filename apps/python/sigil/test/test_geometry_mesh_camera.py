@@ -11,7 +11,6 @@ import gc
 import math
 import unittest
 
-from sigil import skia
 from sigil.geometry.mesh import camera
 
 ASPECT = 640 / 480
@@ -88,15 +87,11 @@ class Lens(unittest.TestCase):
         lens = camera.Camera()
         clip = lens.viewProjection((640, 480)) @ (0, 0, 0, 1)
         pixel = lens.project((0, 0, 0), (640, 480))
-        self.assertAlmostEqual(clip[0] / clip[3], pixel.x, delta=0.5)
-        self.assertAlmostEqual(clip[1] / clip[3], pixel.y, delta=0.5)
+        self.assertAlmostEqual(clip[0] / clip[3], pixel[0], delta=0.5)
+        self.assertAlmostEqual(clip[1] / clip[3], pixel[1], delta=0.5)
 
-    def test_a_viewport_is_a_size_or_two_numbers(self):
+    def test_a_viewport_is_two_numbers(self):
         lens = camera.Camera()
-        self.assertEqual(
-            lens.viewProjection(skia.Size(640, 480)),
-            lens.viewProjection((640, 480)),
-        )
         self.assertEqual(
             lens.viewProjection([640, 480]), lens.viewProjection((640, 480))
         )
@@ -125,12 +120,12 @@ class Lens(unittest.TestCase):
     def test_the_frustum_extent_fills_the_frame_exactly(self):
         lens = camera.Camera()
         extent = lens.extentAt(400, ASPECT)
-        self.assertAlmostEqual(extent.width() / extent.height(), ASPECT, places=5)
+        self.assertAlmostEqual(extent[0] / extent[1], ASPECT, places=5)
         corner = lens.project(
-            (extent.width() / 2, extent.height() / 2, lens.eye[2] - 400), (640, 480)
+            (extent[0] / 2, extent[1] / 2, lens.eye[2] - 400), (640, 480)
         )
-        self.assertAlmostEqual(corner.x, 640, delta=0.05)
-        self.assertAlmostEqual(corner.y, 0, delta=0.05)
+        self.assertAlmostEqual(corner[0], 640, delta=0.05)
+        self.assertAlmostEqual(corner[1], 0, delta=0.05)
 
     def test_nothing_behind_the_eye_projects(self):
         lens = camera.Camera()

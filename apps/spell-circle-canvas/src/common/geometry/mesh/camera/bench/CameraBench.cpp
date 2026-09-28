@@ -9,6 +9,7 @@
 // Release build; Debug numbers say nothing.
 
 #include <benchmark/benchmark.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/mesh/camera/Camera.h>
 
 #include <glm/glm.hpp>

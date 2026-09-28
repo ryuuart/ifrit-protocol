@@ -22,11 +22,11 @@ is silently, plausibly wrong rather than obviously broken.
   inverted. Open polylines are treated as if closed.
 - **`camera::Camera` is right-handed and y-up, and `fovYDeg` is the
   *vertical* field of view.** `viewProjection()` carries normalized device
-  coordinates through to viewport pixels and flips y back to Skia's y-down
-  at that last step, so screen-space results are already in canvas
+  coordinates through to viewport pixels and flips y to count down the
+  canvas at that last step, so screen-space results are already in canvas
   coordinates.
 - **glm and Skia matrices are both column-major**, which is why
-  `camera::toSkM44()` is a raw pour. Remember that glm indexes
+  `camera::toSkM44()` in `<sigilgeometry/advanced/Skia.h>` is a raw pour. Remember that glm indexes
   column-then-row: `m[0][1]` is column 0, row 1 — not the transpose you may
   expect from a row-major API.
 - **`glm::vec3::length()` returns 3.** It is the component count, a static

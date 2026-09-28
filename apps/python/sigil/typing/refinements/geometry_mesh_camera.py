@@ -69,8 +69,8 @@ def register(table: Table) -> None:
         "def __release_buffer__(self, buffer: memoryview) -> None:\n"
         '    """Gives back a view taken over the matrix\'s own floats."""\n',
     )
-    table.parameters(CAMERA + ".project", point="_t.Vec3Like", viewport="_t.SizeLike")
-    table.parameters(CAMERA + ".viewProjection", viewport="_t.SizeLike")
+    table.parameters(CAMERA + ".project", point="_t.Vec3Like", viewport="_t.Vec2Like")
+    table.parameters(CAMERA + ".viewProjection", viewport="_t.Vec2Like")
     table.parameters(MODULE + ".place", position="_t.Vec3Like")
     table.parameters(
         MODULE + ".faceCamera",

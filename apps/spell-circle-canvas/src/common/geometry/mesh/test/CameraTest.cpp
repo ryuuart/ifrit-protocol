@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <glm/glm.hpp>
+#include <optional>
 
 #include "sigilgeometry/mesh/camera/Camera.h"
 
@@ -175,27 +176,27 @@ TEST(Camera, TheFrustumExtentIsWhatFillsTheFrameAtThatDistance) {
   cam.eye = {0, 0, 0};
   cam.target = {0, 0, -1};
   cam.fovYDeg = 90.0f;  // half-angle 45 degrees: the height is twice the run
-  const SkSize at100 = cam.extentAt(100.0f, 2.0f);
-  EXPECT_NEAR(at100.height(), 202.0f, 1e-2f);
-  EXPECT_NEAR(at100.width(), 404.0f, 1e-2f);  // the aspect is the width's
+  const glm::vec2 at100 = cam.extentAt(100.0f, 2.0f);
+  EXPECT_NEAR(at100.y, 202.0f, 1e-2f);
+  EXPECT_NEAR(at100.x, 404.0f, 1e-2f);  // the aspect is the width's
 
   // The claim it makes is the one worth checking: a point half that
   // height above the axis lands exactly on the top edge of the viewport,
   // and half that width across lands exactly on the right edge.
-  const SkSize viewport{800, 400};
-  const std::optional<SkPoint> top =
-      cam.project({0, at100.height() * 0.5f, -100.0f}, viewport);
+  const glm::vec2 viewport{800, 400};
+  const std::optional<glm::vec2> top =
+      cam.project({0, at100.y * 0.5f, -100.0f}, viewport);
   ASSERT_TRUE(top.has_value());
-  EXPECT_NEAR(top->fY, 0.0f, 1e-2f);
-  const std::optional<SkPoint> right =
-      cam.project({at100.width() * 0.5f, 0, -100.0f}, viewport);
+  EXPECT_NEAR(top->y, 0.0f, 1e-2f);
+  const std::optional<glm::vec2> right =
+      cam.project({at100.x * 0.5f, 0, -100.0f}, viewport);
   ASSERT_TRUE(right.has_value());
-  EXPECT_NEAR(right->fX, 800.0f, 1e-2f);
+  EXPECT_NEAR(right->x, 800.0f, 1e-2f);
 
   // Twice as far is very nearly twice as wide, and the shortfall is the
   // projection's, not the field of view's.
-  const SkSize at200 = cam.extentAt(200.0f, 2.0f);
-  EXPECT_NEAR(at200.height(), 402.0f, 1e-2f);
+  const glm::vec2 at200 = cam.extentAt(200.0f, 2.0f);
+  EXPECT_NEAR(at200.y, 402.0f, 1e-2f);
 }
 
 // Projection is the vertex's own path to the canvas, so a mark placed by
@@ -205,22 +206,22 @@ TEST(Camera, ProjectFollowsTheVertexAndDeclinesWhatIsBehindTheEye) {
   camera::Camera cam;
   cam.eye = {0, 0, 100};
   cam.target = {0, 0, 0};
-  const SkSize viewport{800, 600};
+  const glm::vec2 viewport{800, 600};
 
-  const std::optional<SkPoint> center = cam.project({0, 0, 0}, viewport);
+  const std::optional<glm::vec2> center = cam.project({0, 0, 0}, viewport);
   ASSERT_TRUE(center.has_value());
-  EXPECT_NEAR(center->fX, 400.0f, 1e-2f);
-  EXPECT_NEAR(center->fY, 300.0f, 1e-2f);
+  EXPECT_NEAR(center->x, 400.0f, 1e-2f);
+  EXPECT_NEAR(center->y, 300.0f, 1e-2f);
 
   // The same answer the matrix gives, because it is the same matrix.
   const glm::vec4 clip =
       cam.viewProjection(viewport) * glm::vec4{40, 25, -60, 1};
-  const std::optional<SkPoint> p = cam.project({40, 25, -60}, viewport);
+  const std::optional<glm::vec2> p = cam.project({40, 25, -60}, viewport);
   ASSERT_TRUE(p.has_value());
-  EXPECT_NEAR(p->fX, clip.x / clip.w, 1e-3f);
-  EXPECT_NEAR(p->fY, clip.y / clip.w, 1e-3f);
+  EXPECT_NEAR(p->x, clip.x / clip.w, 1e-3f);
+  EXPECT_NEAR(p->y, clip.y / clip.w, 1e-3f);
   // y counts down the canvas: something above the target is nearer the top.
-  EXPECT_LT(p->fY, center->fY);
+  EXPECT_LT(p->y, center->y);
 
   // The eye plane is the boundary: on it and behind it there is no answer,
   // even where the divide would still hand one back.
@@ -256,4 +257,25 @@ TEST(Camera, ACameraIsAValueAndAnOrbitMovesOnlyTheEye) {
   EXPECT_EQ(orbit, turned);
   turned.yawDeg += 1;
   EXPECT_NE(orbit, turned);
+}
+
+// The camera's answers are pinned to the bit: the viewport, the extent and
+// the projected point changed their spelling, never their arithmetic, so
+// a camera placed off every axis answers exactly what it always did.
+TEST(Camera, AProjectedPointAndAnExtentKeepTheirExactValues) {
+  camera::Camera cam;
+  cam.eye = {30, -20, 250};
+  cam.target = {5, 10, -40};
+  cam.fovYDeg = 52;
+  const std::optional<glm::vec2> point =
+      cam.project({40, 25, -60}, glm::vec2{800, 600});
+  ASSERT_TRUE(point.has_value());
+  EXPECT_EQ(point->x, 0x1.d822a6p+8f);
+  EXPECT_EQ(point->y, 0x1.1200bap+8f);
+  const glm::vec2 extent = cam.extentAt(137.5f, 1.6f);
+  EXPECT_EQ(extent.x, 0x1.b0538p+7f);
+  EXPECT_EQ(extent.y, 0x1.0e342ep+7f);
+  const glm::mat4 clip = cam.clipProjection(glm::ivec2{800, 600});
+  EXPECT_EQ(clip[0][0], 0x1.883426p+0f);
+  EXPECT_EQ(clip[2][2], -0x1.fbea86p-1f);
 }

@@ -192,8 +192,8 @@ cloud positions, flattened path points — is glm (`vec2`, `vec3`, `vec4`,
 value — and what is drawn still speaks Skia: `SkColor4f` paint, `SkImage`
 textures, `SkCanvas`. `advanced/Skia.h` is the crossing for an outline, a
 rectangle, a transform and a point (`toSk()`, `fromSk()`);
-`mesh/camera/Camera.h` is the declared bridge for matrices, and
-`camera::toSkM44()` is the seam. Because glm's `mat4` and
+a camera's matrices cross with `camera::toSkM44()` from the same
+header. Because glm's `mat4` and
 Skia's `SkM44` are both column-major, that conversion is a straight memory
 pour with no transpose.
 
@@ -506,18 +506,14 @@ What else the headers still spell, and why:
   implement, and `points::drawBillboards`, `pop::cookBillboards` and
   `pop::Builder::billboards` take that canvas and a sprite image. Each is
   where a host hands a picture in or takes one out.
-- **The camera's viewport.** `camera::Camera` answers its viewport
-  matrices, frustum extent and projected points in Skia's size and point,
-  and `camera::toSkM44()` is the matrix crossing, because the mesh
-  painter draws through a Skia canvas.
 - **The blend's drawn steps.** `blend::Step` holds the path and the
   colours a blend's in-between is painted with, and `blend::draw` paints
   them: the colour value is SigilMaterial's, and the blend links it
   privately, so naming that value in the header is a boundary change of
   its own.
 
-The first two are the boundary a painter needs; the blend's steps move
-to the library's vocabulary when its colour link does.
+The first is the boundary a painter needs; the blend's steps move to
+the library's vocabulary when its colour link does.
 
 ## Build and test
 

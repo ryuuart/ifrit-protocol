@@ -27,7 +27,7 @@ void drawBillboards(SkCanvas& canvas, const Cloud& cloud,
                     const BillboardStyle& style) {
   const size_t n = cloud.size();
   if (n == 0) return;
-  const glm::mat4 vp = camera.viewProjection(viewport);
+  const glm::mat4 vp = camera.viewProjection({viewport.width(), viewport.height()});
   const glm::mat4 view = camera.view();
 
   struct Splat {

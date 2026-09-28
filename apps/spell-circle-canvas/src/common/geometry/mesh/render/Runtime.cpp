@@ -16,6 +16,7 @@
 #include <glm/mat3x3.hpp>
 #include <numeric>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/Vec.h"
 #include "sigilgeometry/mesh/render/Painter.h"
 
@@ -75,7 +76,7 @@ struct CpuExecutor : Executor {
 
     SkM44 viewModel = toSkM44(camera.view());
     viewModel.preConcat(toSkM44(model));
-    SkM44 full = toSkM44(camera.viewProjection(viewport));
+    SkM44 full = toSkM44(camera.viewProjection(path::fromSk(viewport)));
     full.preConcat(toSkM44(model));
     const glm::mat3 normalM = normalMatrix(camera.view() * model);
     const glm::mat3 lightM = normalMatrix(camera.view());
@@ -304,7 +305,7 @@ struct CpuExecutor : Executor {
                  const camera::Camera& camera, SkSize viewport,
                  const std::function<void(SkCanvas&)>& draw) const override {
     canvas.save();
-    SkM44 full = toSkM44(camera.viewProjection(viewport));
+    SkM44 full = toSkM44(camera.viewProjection(path::fromSk(viewport)));
     full.preConcat(toSkM44(model));
     // Panel-local drawing keeps Skia's y-down convention; the flip makes
     // local content upright in the y-up world.

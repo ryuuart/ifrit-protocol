@@ -18,7 +18,12 @@
  * Skia path skips the crossing. An operator whose outline form differs
  * only in what it answers has no Skia form here; convert its answer with
  * `toSk`.
+ *
+ * The mesh tier crosses here too: a camera's matrices are glm, and
+ * `mesh::camera::toSkM44` is the form a painter concatenates onto a
+ * canvas.
  */
+#include <include/core/SkM44.h>
 #include <include/core/SkMatrix.h>
 #include <include/core/SkPaint.h>
 #include <include/core/SkPath.h>
@@ -36,6 +41,7 @@
 #include <utility>
 #include <vector>
 
+#include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
 
 #include "sigilgeometry/path/Band.h"
@@ -264,3 +270,13 @@ SkPath distort(const Twirl& twirl, const SkPath& path);
 /** @} */
 
 }  // namespace sigil::geometry::path::operations
+
+namespace sigil::geometry::mesh::camera {
+
+/** A glm matrix as Skia's 4x4: both are column-major, so the conversion
+ *  is a straight pour of the same sixteen numbers. */
+inline SkM44 toSkM44(const glm::mat4& matrix) {
+  return SkM44::ColMajor(&matrix[0][0]);
+}
+
+}  // namespace sigil::geometry::mesh::camera

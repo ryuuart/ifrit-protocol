@@ -35,27 +35,26 @@ glm::length_t matrixIndex(glm::length_t index, const char* axis) {
   return within;
 }
 
-/** A viewport read from @p value. The frustum extent a camera answers is
- *  a size, so a size passes straight back into the calls that take one;
- *  two numbers are the shorter spelling of the same thing. */
-SkSize viewportSize(py::handle value) {
-  if (py::isinstance<SkSize>(value)) return py::cast<SkSize>(value);
+/** A viewport read from @p value: two numbers, its width and its
+ *  height. The frustum extent a camera answers is the same pair, so it
+ *  passes straight back into the calls that take one. */
+glm::vec2 viewportSize(py::handle value) {
   try {
     const auto pair = py::cast<std::array<float, 2>>(value);
-    return SkSize{pair[0], pair[1]};
+    return glm::vec2{pair[0], pair[1]};
   } catch (const py::cast_error&) {
     throw py::type_error(
-        "A viewport is a size or two numbers: its width and its height.");
+        "A viewport is two numbers: its width and its height.");
   }
 }
 
 /** A device's target extent read from @p value, which is whole pixels
  *  and at least one of them along each axis: a projection onto no
  *  pixels has no answer. */
-SkISize clipExtent(std::array<int, 2> value) {
+glm::ivec2 clipExtent(std::array<int, 2> value) {
   if (value[0] <= 0 || value[1] <= 0)
     throw py::value_error("A clip extent is positive along both axes.");
-  return SkISize{value[0], value[1]};
+  return glm::ivec2{value[0], value[1]};
 }
 
 /** The sixteen floats of @p value, in the order they stand in memory. */

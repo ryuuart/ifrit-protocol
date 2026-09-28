@@ -7,34 +7,26 @@
  * right-handed, y-up view with a vertical field of view, the model
  * matrix helper `place()`, and the billboard transform `faceCamera()`.
  *
- * Camera vectors and the matrices they produce speak glm; `toSkM44()`
- * is the seam where a matrix crosses into Skia. The view and projection
- * are built with Skia's own matrix factories so a point projected here
- * lands exactly where Skia's canvas concat would put it.
+ * Camera vectors, sizes, points and the matrices they produce speak
+ * glm; `<sigilgeometry/advanced/Skia.h>` carries a matrix into Skia's
+ * form for a painter that concatenates it onto a canvas.
  */
-
-#include <include/core/SkM44.h>
-#include <include/core/SkPoint.h>
-#include <include/core/SkSize.h>
 
 // A camera stores vectors and names matrices: the vectors are members,
 // so their definition is needed here, and every matrix is a return type
 // a declaration only has to name. A file that does arithmetic on one
 // includes the matrix header itself.
 #include <glm/fwd.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <optional>
 
 /** THE CAMERA AND THE TRANSFORMS THAT PLACE THINGS IN FRONT OF IT: a
  *  right-handed, y-up view with a vertical field of view, the model
  *  matrix a body is placed by, and the billboard transform that turns a
- *  body to face the viewer. Vectors and matrices speak glm, and the
- *  conversion to Skia's matrix is the one seam where they cross. */
+ *  body to face the viewer. Vectors, sizes, points and matrices all
+ *  speak glm. */
 namespace sigil::geometry::mesh::camera {
-
-/** The glm -> Skia seam: both are column-major, so the conversion is a
- *  straight pour. */
-SkM44 toSkM44(const glm::mat4& m);
 
 /** Right-handed, y-up camera. Field of view is vertical. */
 struct Camera {
@@ -47,21 +39,23 @@ struct Camera {
 
   glm::mat4 view() const;
   glm::mat4 projection(float aspect) const;
-  /** view -> NDC -> viewport pixels (y flipped back to Skia's y-down). */
-  glm::mat4 viewProjection(SkSize viewport) const;
+  /** view -> NDC -> viewport pixels, y counting down the canvas as a
+   *  2D drawing's does. @p viewport is the width and height in pixels. */
+  glm::mat4 viewProjection(glm::vec2 viewport) const;
   /** view -> CLIP SPACE, which is what a device wants: the projection
    *  and the view composed without the viewport step `viewProjection`
    *  ends with, and depth put where a device reads it — the projection
    *  runs z from one at the near plane to minus one at the far one, and
    *  a device wants zero to one the other way about. The x and y already
    *  agree, both counting y upward, so nothing turns them over. The
-   *  aspect is @p extent's; a device's target is whole pixels. */
-  glm::mat4 clipProjection(SkISize extent) const;
+   *  aspect is @p extent's width over its height; a device's target is
+   *  whole pixels. */
+  glm::mat4 clipProjection(glm::ivec2 extent) const;
 
   /** HOW BIG THE FRUSTUM IS at @p distance in front of the eye, for a
-   *  viewport of @p aspect (width over height): the width and height a
-   *  plane standing square to the view there has to be to fill the
-   *  frame exactly.
+   *  viewport of @p aspect (width over height): the width (x) and the
+   *  height (y) a plane standing square to the view there has to be to
+   *  fill the frame exactly.
    *
    *  It is what a head-up overlay is measured with — a quad this size,
    *  at this distance, put in front of the eye by `faceCamera()`, maps
@@ -75,7 +69,7 @@ struct Camera {
    *  the near and far planes do not enter it, so it answers for a
    *  distance outside them too. Nothing sensible stands at or behind the
    *  eye, and the extent there is empty. */
-  [[nodiscard]] SkSize extentAt(float distance, float aspect) const;
+  [[nodiscard]] glm::vec2 extentAt(float distance, float aspect) const;
 
   /** @p point through the view, the projection and the viewport, to the
    *  pixel it lands on — exactly what a vertex does on its way to the
@@ -87,8 +81,8 @@ struct Camera {
    *  caller that took one anyway would get a point mirrored through the
    *  centre of the frame. Depth is dropped — this is where a thing is on
    *  the canvas, not how far away it is. */
-  [[nodiscard]] std::optional<SkPoint> project(glm::vec3 point,
-                                               SkSize viewport) const;
+  [[nodiscard]] std::optional<glm::vec2> project(glm::vec3 point,
+                                                 glm::vec2 viewport) const;
 
   /** Value equality: where the camera stands, what it looks at, and the
    *  lens it looks through. Every matrix here is a function of those, so

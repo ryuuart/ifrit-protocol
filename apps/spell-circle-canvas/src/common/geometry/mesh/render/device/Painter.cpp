@@ -20,6 +20,7 @@
 #include <include/core/SkCanvas.h>
 #include <include/core/SkImage.h>
 #include <include/core/SkM44.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilgeometry/device/Device.h>
 #include <sigilgeometry/mesh/render/Painter.h>
 #include <sigilmaterial/advanced/Program.h>
@@ -275,7 +276,7 @@ class PainterExecutor : public Executor {
     // panel on a GPU-backed canvas is already on the GPU, and a device
     // that took it away and gave it back would only cost a crossing.
     canvas.save();
-    SkM44 full = camera::toSkM44(cam.viewProjection(viewport));
+    SkM44 full = camera::toSkM44(cam.viewProjection(path::fromSk(viewport)));
     full.preConcat(camera::toSkM44(model));
     // Panel-local drawing keeps Skia's y-down convention; the flip makes
     // local content upright in the y-up world.
@@ -304,7 +305,8 @@ class PainterExecutor : public Executor {
                             float environmentLevels, bool irradiance) {
     const glm::mat4 view = cam.view();
     const glm::mat4 modelView = view * model;
-    uniforms.set("uViewProj", cam.clipProjection(extent));
+    uniforms.set("uViewProj",
+                 cam.clipProjection({extent.width(), extent.height()}));
     uniforms.set("uModel", model);
     uniforms.set("uModelView", modelView);
     uniforms.set("uNormalMatrix",

@@ -420,11 +420,11 @@ class Panels(unittest.TestCase):
                 face.fill('#ff0000')
                 face.rect(-face.width / 2, -face.height / 2, face.width, face.height)
             render.drawPanel(pen, camera.Matrix(), camera.Camera(), body,
-                             width=extent.width(), height=extent.height())
+                             width=extent[0], height=extent[1])
         """)
         extent = frustum()
-        self.assertAlmostEqual(self.results["size"][0], extent.width(), places=3)
-        self.assertAlmostEqual(self.results["size"][1], extent.height(), places=3)
+        self.assertAlmostEqual(self.results["size"][0], extent[0], places=3)
+        self.assertAlmostEqual(self.results["size"][1], extent[1], places=3)
         for spot in ((PLATE // 2, PLATE // 2), (4, 4), (PLATE - 5, PLATE - 5)):
             red = self.pixel(picture, *spot)
             self.assertGreater(red[0], 200, spot)
@@ -466,7 +466,7 @@ class Panels(unittest.TestCase):
         picture = self.render("""
             extent = frustum()
             texture = media.fromRgba(bytes([255, 0, 0, 255] * 4), 2, 2)
-            render.drawImagePanel(pen, texture, extent.width(), extent.height(),
+            render.drawImagePanel(pen, texture, extent[0], extent[1],
                                   camera.Matrix(), camera.Camera(),
                                   runtime=render.Runtime.cpu())
         """)
@@ -518,7 +518,7 @@ class Panels(unittest.TestCase):
         # stand one in each.
         drawing = """
             extent = frustum()
-            face = mesh.quad(extent.width(), extent.height())
+            face = mesh.quad(extent[0], extent[1])
             face.setPrimitive('Color', [(1, 0, 0, 1), (0, 0, 1, 1)])
             style = render.MeshStyle(lit=False, baseColor='#ffffff',
                                      backfaceCull=False,
@@ -543,7 +543,7 @@ class Panels(unittest.TestCase):
         # the texel itself under a nearest one.
         drawing = """
             extent = frustum()
-            face = mesh.quad(extent.width(), extent.height())
+            face = mesh.quad(extent[0], extent[1])
             style = render.MeshStyle(lit=False, baseColor='#ffffff',
                                      backfaceCull=False,
                                      texture=media.fromRgba(results['texels'], 2, 2),

@@ -46,10 +46,14 @@ own repertoire here rather than inside whatever draws through it.
 
 - **`mesh/camera/Camera.h`** — a right-handed, y-up `Camera` with a
   vertical field of view, `view()`/`projection()`/`viewProjection()`,
-  and the transform helpers `place()` and `faceCamera()`. `toSkM44()` is
-  the glm-to-Skia seam. The view and projection are built with Skia's own
-  matrix factories, so a point projected here lands where a canvas concat
-  would put it.
+  and the transform helpers `place()` and `faceCamera()`. Everything it
+  takes and answers is glm: a viewport is a `glm::vec2` of pixels, a
+  device extent a `glm::ivec2`, a projected point a `glm::vec2`, every
+  matrix a `glm::mat4`. The view and projection are built with Skia's own
+  matrix factories behind that, so a point projected here lands where a
+  canvas concat would put it; a painter that concatenates a camera's
+  matrix onto a canvas converts it with `camera::toSkM44()` from
+  `<sigilgeometry/advanced/Skia.h>`.
 
   `clipProjection(extent)` is the same view for a DEVICE: the projection
   and the view composed without the viewport step `viewProjection()` ends

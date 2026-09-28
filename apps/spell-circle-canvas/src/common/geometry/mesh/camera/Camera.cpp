@@ -5,10 +5,13 @@
 
 #include "sigilgeometry/mesh/camera/Camera.h"
 
+#include <include/core/SkM44.h>
+
 #include <algorithm>
 #include <cmath>
 #include <glm/gtc/type_ptr.hpp>
 
+#include "sigilgeometry/advanced/Skia.h"
 #include "sigilgeometry/mesh/Vec.h"
 
 namespace sigil::geometry::mesh::camera {
@@ -27,8 +30,6 @@ glm::mat4 toGlm(const SkM44& m) {
 
 }  // namespace
 
-SkM44 toSkM44(const glm::mat4& m) { return SkM44::ColMajor(&m[0][0]); }
-
 glm::mat4 Camera::view() const {
   return toGlm(SkM44::LookAt({eye.x, eye.y, eye.z},
                              {target.x, target.y, target.z},
@@ -41,10 +42,10 @@ glm::mat4 Camera::projection(float aspect) const {
   return toGlm(m);
 }
 
-glm::mat4 Camera::viewProjection(SkSize viewport) const {
-  const float w = viewport.width(), h = viewport.height();
+glm::mat4 Camera::viewProjection(glm::vec2 viewport) const {
+  const float w = viewport.x, h = viewport.y;
   const float aspect = h > 0 ? w / h : 1;
-  // NDC -> pixels, y flipped back to Skia's y-down.
+  // NDC -> pixels, y flipped to count down the canvas.
   SkM44 vp = SkM44::Translate(w * 0.5f, h * 0.5f, 0);
   vp.preScale(w * 0.5f, -h * 0.5f, 1);
   SkM44 out = vp;
@@ -53,17 +54,16 @@ glm::mat4 Camera::viewProjection(SkSize viewport) const {
   return toGlm(out);
 }
 
-glm::mat4 Camera::clipProjection(SkISize extent) const {
-  const float aspect = extent.height() > 0
-                           ? (float)extent.width() / (float)extent.height()
-                           : 1.0f;
+glm::mat4 Camera::clipProjection(glm::ivec2 extent) const {
+  const float aspect =
+      extent.y > 0 ? (float)extent.x / (float)extent.y : 1.0f;
   glm::mat4 depth(1.0f);
   depth[2][2] = -0.5f;
   depth[3][2] = 0.5f;
   return depth * projection(aspect) * view();
 }
 
-SkSize Camera::extentAt(float distance, float aspect) const {
+glm::vec2 Camera::extentAt(float distance, float aspect) const {
   // Asked of the projection rather than of the field of view, because
   // the frustum is what the projection opens and the two do not quite
   // agree: this one's centre of projection stands a unit behind the eye,
@@ -78,7 +78,8 @@ SkSize Camera::extentAt(float distance, float aspect) const {
   return {width, height};
 }
 
-std::optional<SkPoint> Camera::project(glm::vec3 point, SkSize viewport) const {
+std::optional<glm::vec2> Camera::project(glm::vec3 point,
+                                         glm::vec2 viewport) const {
   // In front of the eye is negative z in a right-handed view. The
   // perspective divide answers for a little way behind the eye plane as
   // well, and the answer is the point mirrored through the middle of the
@@ -87,7 +88,7 @@ std::optional<SkPoint> Camera::project(glm::vec3 point, SkSize viewport) const {
   if (!((view() * glm::vec4{point, 1.0f}).z < 0.0f)) return std::nullopt;
   const glm::vec4 clip = viewProjection(viewport) * glm::vec4{point, 1.0f};
   if (!(clip.w > 0)) return std::nullopt;
-  return SkPoint{clip.x / clip.w, clip.y / clip.w};
+  return glm::vec2{clip.x / clip.w, clip.y / clip.w};
 }
 
 Orbit orbitOf(const Camera& camera) {

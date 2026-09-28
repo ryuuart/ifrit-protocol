@@ -262,7 +262,7 @@ std::vector<Frame3> hangFrames(const Spline3& spline, int sections, float head,
 }
 
 static SkPath projectedPath(const Spline3& spline,
-                            const camera::Camera& camera, SkSize viewport,
+                            const camera::Camera& camera, glm::vec2 viewport,
                             int samples) {
   SkPathBuilder out;
   samples = std::max(samples, 2);
@@ -292,7 +292,7 @@ static SkPath projectedPath(const Spline3& spline,
 path::Outline project(const Spline3& spline, const camera::Camera& camera,
                       glm::vec2 viewport, int samples) {
   return path::fromSk(
-      projectedPath(spline, camera, path::toSkSize(viewport), samples));
+      projectedPath(spline, camera, viewport, samples));
 }
 
 }  // namespace sigil::geometry::mesh::curve
