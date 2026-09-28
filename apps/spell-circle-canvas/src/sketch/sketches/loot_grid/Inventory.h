@@ -1,8 +1,10 @@
 #pragma once
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Instances.h>
 #include <sigilcompose/core/Pattern.h>
@@ -107,9 +109,9 @@ enum class Art {
 
 /** Normalised item silhouette: the path is authored in the box it is
  *  handed, so one function serves the grid cell and the tooltip swatch. */
-inline std::function<SkPath(SkSize)> artPath(Art art) {
-  return [art](SkSize s) {
-    const float w = s.width(), h = s.height();
+inline std::function<sigil::geometry::path::Outline(glm::vec2)> artPath(Art art) {
+  return [art](glm::vec2 s) {
+    const float w = s.x, h = s.y;
     SkPathBuilder b;
     auto rect = [&](float x, float y, float rw, float rh) {
       b.addRect(SkRect::MakeXYWH(x, y, rw, rh));
@@ -235,7 +237,7 @@ inline std::function<SkPath(SkSize)> artPath(Art art) {
         break;
       }
     }
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
@@ -252,7 +254,7 @@ inline Element artwork(Art art, float w, float h, material::Color tint,
       .width(w)
       .height(h)
       .shape(artPath(art))
-      .fill(Paint::linearGradient({0, 0}, {w * 0.35f, h},
+      .fill(sigil::material::linearGradient({0, 0}, {w * 0.35f, h},
                                   {{0.0f, hi}, {0.55f, tint}, {1.0f, lo}},
                                   {.units = material::GradientUnits::Pixels}))
       .stroke(stroke(1.1f, Fill::color({0.03f, 0.03f, 0.03f, 0.85f})));
@@ -315,8 +317,8 @@ struct Socket {
  *  three readings below are the four numbers it answers, taken one at a
  *  time. */
 inline SkRect cellRect(int col, int row, int cols = 1, int rows = 1) {
-  return sigil::geometry::arrange::cellRect({col, row}, {kCell, kCell},
-                                            {kGap, kGap}, {0, 0}, cols, rows);
+  return sigil::geometry::path::toSk(sigil::geometry::arrange::cellRect({col, row}, {kCell, kCell},
+        {.gap = {kGap, kGap}, .columnSpan = cols, .rowSpan = rows}));
 }
 inline float cellX(int c) { return cellRect(c, 0).fLeft; }
 inline float cellY(int r) { return cellRect(0, r).fTop; }
@@ -329,7 +331,7 @@ inline Element well(float w, float h, float alpha = 1.0f) {
   return sketch::kit::well(
       {.width = Dimension(w),
        .height = Dimension(h),
-       .ground = Paint::linearGradient(
+       .ground = sigil::material::linearGradient(
            {0, 0}, {0, h},
            {{0.0f, {kWellLo.r, kWellLo.g, kWellLo.b, alpha}},
             {1.0f, {kWellHi.r, kWellHi.g, kWellHi.b, alpha}}},
@@ -347,10 +349,10 @@ inline Element panel(float w, float h) {
       .width(w)
       .height(h)
       .borderRadius({4})
-      .background(styles::dropShadow({0, 0, 0, 0.65f}, {0, 7}, 16))
-      .fill(Paint::linearGradient({0, 0}, {0, h},
+      
+      .fill(sigil::material::from(sigil::material::linearGradient({0, 0}, {0, h},
                                   {{0.0f, kStoneHi}, {1.0f, kStoneLo}},
-                                  {.units = material::GradientUnits::Pixels}))
+                                  {.units = material::GradientUnits::Pixels})).effects(sigil::material::Filter::shadow({0, 0, 0, 0.65f}, {.blur = 16, .offset = {0, 7}}).then(sigil::material::Filter::bevel({.depth = 2.5f, .size = 4.0f, .angleDegrees = 120, .highlight = {kBronzeLit.r, kBronzeLit.g, kBronzeLit.b, 0.35f}, .shadow = {0, 0, 0, 0.7f}}))))
       .overflow(Overflow::Clip)
       // quarried, not smooth: the grain is generated, never a texture file
       .children({box()
@@ -358,12 +360,7 @@ inline Element panel(float w, float h) {
                      .fill(field::noise(0.06f, 4, 7.0f))
                      .opacity(0.16f)
                      .blendMode(material::BlendMode::Overlay)})
-      .foreground(
-          styles::BevelEmboss{2.5f,
-                              4.0f,
-                              120,
-                              {kBronzeLit.r, kBronzeLit.g, kBronzeLit.b, 0.35f},
-                              {0, 0, 0, 0.7f}})
+      
       .foreground(stroke(2.0f, Fill::color(kBronze)))
       .foreground(
           stroke(1.0f, Fill::color(kBronzeDim), PathFormat::Align::Inner))
@@ -383,7 +380,7 @@ inline Element rivets(float w, float h, float inset = 11) {
         .height(6.0f)
         .borderRadius({3})
         .at({x - 3, y - 3})
-        .fill(Paint::radialGradient(
+        .fill(sigil::material::radialGradient(
             {3, 3}, 3.4f,
             {{0.0f, kBronzeLit}, {0.7f, kBronze}, {1.0f, kBronzeDim}},
             {.units = material::GradientUnits::Pixels}));

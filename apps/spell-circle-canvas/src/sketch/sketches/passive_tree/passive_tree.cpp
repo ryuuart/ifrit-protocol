@@ -53,10 +53,12 @@
 
 // TAGS: Geometry/Diagrams, Interfaces/Game
 
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkPathBuilder.h>
 #include <sigilcompose/brush/Adaptors.h>
 #include <sigilcompose/brush/Brushes.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/kit/Connect.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Routers.h>
@@ -163,42 +165,42 @@ inline material::Color ringColor(data::State s) {
 }
 
 /** Full-circle outline for orbit guide rings, centered in the node. */
-inline std::function<SkPath(SkSize)> circleOutline() {
-  return [](SkSize s) {
+inline std::function<sigil::geometry::path::Outline(glm::vec2)> circleOutline() {
+  return [](glm::vec2 s) {
     SkPathBuilder b;
-    b.addCircle(s.width() * 0.5f, s.height() * 0.5f, s.width() * 0.5f);
-    return b.detach();
+    b.addCircle(s.x * 0.5f, s.y * 0.5f, s.x * 0.5f);
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
 /** Horizontal line outline for the legend swatches. */
-inline std::function<SkPath(SkSize)> hline() {
-  return [](SkSize s) {
+inline std::function<sigil::geometry::path::Outline(glm::vec2)> hline() {
+  return [](glm::vec2 s) {
     SkPathBuilder b;
-    b.moveTo(0, s.height() * 0.5f);
-    b.lineTo(s.width(), s.height() * 0.5f);
-    return b.detach();
+    b.moveTo(0, s.y * 0.5f);
+    b.lineTo(s.x, s.y * 0.5f);
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
 /** The notch rosette a notable frame wears: `count` short radial ticks on
  *  the ring, the cheap analogue of PoE's cast-metal notable art. */
-inline std::function<SkPath(SkSize)> notchRing(int count, float innerFrac,
+inline std::function<sigil::geometry::path::Outline(glm::vec2)> notchRing(int count, float innerFrac,
                                                float outerFrac) {
-  return [count, innerFrac, outerFrac](SkSize s) {
+  return [count, innerFrac, outerFrac](glm::vec2 s) {
     SkPathBuilder b;
-    const float cx = s.width() * 0.5f, cy = s.height() * 0.5f;
-    const float half = s.width() * 0.5f;
+    const float cx = s.x * 0.5f, cy = s.y * 0.5f;
+    const float half = s.x * 0.5f;
     for (int i = 0; i < count; ++i) {
       const float a = arrange::along(0.0f, 6.2831853f, (size_t)i, (size_t)count,
                                      arrange::Turn::Closed);
       const SkPoint inner =
-          arrange::onEllipse({cx, cy}, {half * innerFrac, half * innerFrac}, a);
+          sigil::geometry::path::toSk(arrange::onEllipse({cx, cy}, {half * innerFrac, half * innerFrac}, a));
       const SkPoint outer =
-          arrange::onEllipse({cx, cy}, {half * outerFrac, half * outerFrac}, a);
+          sigil::geometry::path::toSk(arrange::onEllipse({cx, cy}, {half * outerFrac, half * outerFrac}, a));
       b.moveTo(inner).lineTo(outer);
     }
-    return b.detach();
+    return sigil::geometry::path::fromSk(b.detach());
   };
 }
 
@@ -207,15 +209,15 @@ inline std::function<SkPath(SkSize)> notchRing(int count, float innerFrac,
  *  clips, and centerAt() pins the measured box on the tree position. */
 inline Element socket(const char* key, SkPoint at, float dia,
                       const sdf::Style& st,
-                      const motion::Animatable<float>& breathingGlow = nullptr,
+                      std::optional<motion::Animatable<float>> breathingGlow = std::nullopt,
                       int z = 3) {
   const float boxSize = sdf::minBoxFor(st, dia);
-  Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
-  if (breathingGlow) m.set("uGlowR", breathingGlow);
+  auto m = sdf::material(sdf::circle(), st);
+  if (breathingGlow) m.bind("uGlowR", *breathingGlow);
   Element e = box()
                   .width(boxSize)
                   .height(boxSize)
-                  .centerAt(at)
+                  .centerAt(sigil::geometry::path::fromSk(at))
                   .fill(std::move(m))
                   .zIndex(z);
   if (key) e.key(key);
@@ -250,13 +252,13 @@ struct PassiveTree {
     // sweeping the allocated spine in 1.1 s then resting out a 2.8 s
     // cycle); the wrap comet at 0.5 rev/s; the search sin; the selection
     // ring's slow rotation.
-    ticker.add([this, &ticker] {
-      const double t = ticker.elapsed();
+    ticker.timer([this, &ticker] {
+      const double t = ticker.elapsed().count();
       breath = 5.5f + 3.5f * (float)std::sin(t * 2.1);
       const float cycle = (float)std::fmod(t, 2.8);
       const float u = (cycle - 1.1f) / 1.1f;
       pulseS = -0.12f + u * 1.12f;
-      pulseE = pulseS + 0.12f;
+      pulseE = pulseS.value() + 0.12f;
       ringPhase = (float)std::fmod(t * 0.5, 1.0);
       searchPulse = 0.5f + 0.5f * (float)std::sin(t * 3.0);
       selectSpin = (float)std::fmod(t * 22.0, 360.0);
@@ -304,9 +306,9 @@ struct PassiveTree {
     // The declared glowRadius reserves the box pad (exp falloff reaches ~0
     // before the edge); the ACTUAL halo runs shorter, via a uniform.
     Element e =
-        pt::socket(nullptr, {n.x, n.y}, dia, st, can ? breath : nullptr);
+        pt::socket(nullptr, {n.x, n.y}, dia, st, can ? std::optional{breath} : std::nullopt);
     if (alloc) {
-      Paint m = Paint::recipe(sdf::material(sdf::circle(), st));
+      auto m = sdf::material(sdf::circle(), st);
       m.set("uGlowR", 5.5f);
       e.fill(std::move(m));
     }
@@ -331,11 +333,11 @@ struct PassiveTree {
                                                : 0.0f}};
     const std::string key = nodeKey(i);
     Element frame =
-        pt::socket(key.c_str(), at, dia, outer, can ? breath : nullptr);
+        pt::socket(key.c_str(), at, dia, outer, can ? std::optional{breath} : std::nullopt);
     if (alloc) {
       Paint m = Paint::recipe(sdf::material(sdf::circle(), outer));
       m.set("uGlowR", 7.0f);
-      frame.fill(std::move(m));
+      frame.fill(sigil::material::skia::base(std::move(m)));
     }
     // the inner ring and the notch rosette that make it read "notable"
     // The well is never empty in the real thing — a cast sigil sits in it.
@@ -344,11 +346,11 @@ struct PassiveTree {
          pt::socket(
              nullptr, at, dia - 11,
              {.fill = {0, 0, 0, 0}, .borderWidth = 1.6f, .borderColor = ring},
-             nullptr, 4),
+             std::nullopt, 4),
          box()
              .width(dia + 10)
              .height(dia + 10)
-             .centerAt(at)
+             .centerAt(sigil::geometry::path::fromSk(at))
              // THE NOTCH ROSETTE IS THE NOTABLE'S METALWORK. PoE carries
              // the node hierarchy in the frame art, not in the radius, and
              // a rosette at a pixel and a half beside a plain minor circle
@@ -361,7 +363,7 @@ struct PassiveTree {
          box()
              .width(dia * 0.50f)
              .height(dia * 0.50f)
-             .centerAt(at)
+             .centerAt(sigil::geometry::path::fromSk(at))
              .shape(shapes::star(4, 0.34f))
              .fill({ring.r, ring.g, ring.b, alloc ? 0.95f : 0.6f})
              .zIndex(4)});
@@ -377,7 +379,7 @@ struct PassiveTree {
     parent.children({box()
                          .width(dia)
                          .height(dia)
-                         .centerAt(at)
+                         .centerAt(sigil::geometry::path::fromSk(at))
                          .key(nodeKey(i))
                          .shape(shapes::polygon(4))
                          .fill(pt::kSocket)
@@ -386,7 +388,7 @@ struct PassiveTree {
                      box()
                          .width(dia * 0.42f)
                          .height(dia * 0.42f)
-                         .centerAt(at)
+                         .centerAt(sigil::geometry::path::fromSk(at))
                          .shape(shapes::polygon(4))
                          .fill({ring.r, ring.g, ring.b, 0.75f})
                          .zIndex(4)});
@@ -408,14 +410,14 @@ struct PassiveTree {
                      .glowRadius = 22,
                      .glowColor = {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
                                    alloc ? 0.42f : 0.12f}},
-                    nullptr, 2),
+                    std::nullopt, 2),
          box()
              .width(dia)
              .height(dia)
-             .centerAt(at)
+             .centerAt(sigil::geometry::path::fromSk(at))
              .key(nodeKey(i))
              .shape(shapes::polygon(8, 22.5f))
-             .fill(Paint::radialGradient(
+             .fill(sigil::material::radialGradient(
                  {dia * 0.5f, dia * 0.5f}, dia * 0.62f,
                  {{0.0f, {0.20f, 0.16f, 0.12f, 1}},
                   {1.0f, {0.07f, 0.06f, 0.05f, 1}}},
@@ -425,23 +427,23 @@ struct PassiveTree {
          box()
              .width(dia - 11)
              .height(dia - 11)
-             .centerAt(at)
+             .centerAt(sigil::geometry::path::fromSk(at))
              .shape(shapes::polygon(8, 22.5f))
              .stroke(stroke(1.2f, Fill::color({ring.r, ring.g, ring.b, 0.6f})))
              .zIndex(4),
          box()
              .width(dia + 16)
              .height(dia + 16)
-             .centerAt(at)
+             .centerAt(sigil::geometry::path::fromSk(at))
              .shape(pt::notchRing(16, 0.86f, 1.0f))
              .stroke(stroke(1.3f, Fill::color({ring.r, ring.g, ring.b, 0.55f})))
              .zIndex(4),
          box()
              .width(dia * 0.60f)
              .height(dia * 0.60f)
-             .centerAt(at)
+             .centerAt(sigil::geometry::path::fromSk(at))
              .shape(shapes::star(6, 0.40f))
-             .fill(Paint::radialGradient(
+             .fill(sigil::material::radialGradient(
                  {dia * 0.30f, dia * 0.30f}, dia * 0.34f,
                  {{0.0f,
                    {pt::kHalo.r, pt::kHalo.g, pt::kHalo.b,
@@ -460,7 +462,7 @@ struct PassiveTree {
     parent.children({box()
                          .width(dia)
                          .height(dia)
-                         .centerAt(at)
+                         .centerAt(sigil::geometry::path::fromSk(at))
                          .key(nodeKey(i))
                          .shape(shapes::polygon(4))
                          .stroke(stroke(2.0f, Fill::color(ring)))
@@ -489,7 +491,7 @@ struct PassiveTree {
                // and at half a stop over the ground it is invisible: the
                // rosettes then float on flat charcoal and the tree loses
                // the one cue that says which nodes belong together.
-               .fill(Paint::radialGradient(
+               .fill(sigil::material::radialGradient(
                    {discR, discR}, discR,
                    {{0.00f, {0.30f, 0.24f, 0.18f, 0.85f}},
                     {0.55f, {0.22f, 0.18f, 0.14f, 0.62f}},
@@ -713,12 +715,12 @@ struct PassiveTree {
             .padding(13, 16)
             .gap(0)
             .borderRadius({3})
-            .fill(Paint::linearGradient(
+            .fill(sigil::material::from(sigil::material::linearGradient(
                 {0, 0}, {0, 170},
                 {{0.0f, {0.075f, 0.063f, 0.051f, 0.96f}},
                  {1.0f, {0.043f, 0.036f, 0.031f, 0.96f}}},
-                {.units = material::GradientUnits::Pixels}))
-            .background(styles::dropShadow({0, 0, 0, 0.6f}, {0, 6}, 14))
+                {.units = material::GradientUnits::Pixels})).effects(sigil::material::Filter::shadow({0, 0, 0, 0.6f}, {.blur = 14, .offset = {0, 6}})))
+            
             .foreground(stroke(1.2f, Fill::color({pt::kGold.r, pt::kGold.g,
                                                   pt::kGold.b, 0.45f})))
             .zIndex(7)
@@ -734,7 +736,7 @@ struct PassiveTree {
                      .width(kCardW - 32)
                      .height(1.0f)
                      .margin(9, 0)
-                     .fill(Paint::linearGradient(
+                     .fill(sigil::material::linearGradient(
                          {0, 0}, {kCardW - 32, 0},
                          {{0.0f,
                            {pt::kGold.r, pt::kGold.g, pt::kGold.b, 0.55f}},
@@ -875,7 +877,7 @@ struct PassiveTree {
 
     auto root =
         stack()
-            .fill(Paint::radialGradient(
+            .fill(sigil::material::radialGradient(
                 {pt::kW * 0.5f, pt::kH * 0.48f}, 600,
                 {{0.0f, pt::kBgLift}, {0.55f, pt::kBg}, {1.0f, pt::kBgSink}},
                 {.units = material::GradientUnits::Pixels}))

@@ -2,6 +2,10 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -54,7 +58,7 @@ struct LootGrid {
    *  a blackletter-derived type; the fallback chain walks from the
    *  closest thing a system carries down to a serif, and the grotesque
    *  the rest of the sheet is set in is never reached. */
-  sk_sp<SkTypeface> displayFace;
+  sigil::weave::Face displayFace;
 
   void setup(sketch::SketchContext& ctx) {
     sketch::kit::stage(ctx, {.size = kSceneSize,
@@ -86,8 +90,8 @@ struct LootGrid {
                             lt::kCols, {lt::kCell, lt::kCell}, {0, 0},
                             {lt::kGap, lt::kGap});
 
-    ticker.add([this, &ticker] {
-      const double t = ticker.elapsed();
+    ticker.timer([this, &ticker] {
+      const double t = ticker.elapsed().count();
       // 4.4 s round trip: rest blocked, slide, rest free, slide back.
       const double cycle = std::fmod(t, 4.4);
       double u = 0;  // 0 = blocked slot, 1 = free slot
@@ -133,6 +137,14 @@ struct LootGrid {
       const sigil::material::Color rc = lt::rarityColor(item.rarity);
       const bool lit =
           item.rarity == lt::Rarity::Unique || item.rarity == lt::Rarity::Set;
+      auto cellMaterial = sigil::material::linearGradient(
+                  {0, 0}, {0, h},
+                  {{0.0f, {0.10f, 0.095f, 0.082f, 0.92f}},
+                   {1.0f, {0.05f, 0.048f, 0.042f, 0.92f}}},
+                  {.units = material::GradientUnits::Pixels});
+      if (lit)
+        cellMaterial.effects(sigil::material::Filter::shadow(
+            {rc.r, rc.g, rc.b, 0.62f}, {.blur = 13}));
       Element cell =
           box()
               .width(w)
@@ -146,11 +158,7 @@ struct LootGrid {
               // loudest thing on the screen and turns a hoard into a
               // status grid, so what quality carries here is a hairline
               // and, for the two lit ranks, a bloom.
-              .fill(Paint::linearGradient(
-                  {0, 0}, {0, h},
-                  {{0.0f, {0.10f, 0.095f, 0.082f, 0.92f}},
-                   {1.0f, {0.05f, 0.048f, 0.042f, 0.92f}}},
-                  {.units = material::GradientUnits::Pixels}))
+              .fill(cellMaterial)
               .foreground(stroke(
                   1.0f, Fill::color({rc.r, rc.g, rc.b, lit ? 0.8f : 0.34f})))
               .row()
@@ -158,11 +166,6 @@ struct LootGrid {
               .justifyContent(Justify::Center)
               .children({lt::artwork(item.art, w * 0.76f, h * 0.80f, item.tint,
                                      item.art == lt::Art::Potion)});
-      // A set or a unique GLOWS — the one thing besides the tooltip's
-      // name that says what a thing is worth.
-      if (lit)
-        cell.background(
-            styles::dropShadow({rc.r, rc.g, rc.b, 0.62f}, {0, 0}, 13));
       // uniques catch a light band that sweeps them
       if (item.rarity == lt::Rarity::Unique)
         cell.children(
@@ -176,7 +179,7 @@ struct LootGrid {
                           .at({-w * 0.4f, -h * 0.4f})
                           .translateX(motion::bind(shimmer, {.to = {-70.0f, 170.0f}}))
                           .rotate(18.0f)
-                          .fill(Paint::linearGradient(
+                          .fill(sigil::material::linearGradient(
                               {0, 0}, {w * 0.35f, 0},
                               {{0.0f, {1, 1, 1, 0.0f}},
                                {0.5f, {1, 1, 1, 0.30f}},
@@ -305,7 +308,7 @@ struct LootGrid {
                  .borderRadius({2})
                  // The same rule as the hoard's cells: the socket is a dark
                  // well whatever is worn in it, and quality is a hairline.
-                 .fill(Paint::linearGradient(
+                 .fill(sigil::material::linearGradient(
                      {0, 0}, {0, h},
                      {{0.0f, {0.10f, 0.095f, 0.082f, 0.95f}},
                       {1.0f, {0.05f, 0.048f, 0.042f, 0.95f}}},
@@ -419,9 +422,9 @@ struct LootGrid {
         .padding(11, 14)
         .gap(2)
         .borderRadius({2})
-        .fill({0.02f, 0.02f, 0.02f, 0.90f})
+        .fill(sigil::material::from(sigil::material::Color{0.02f, 0.02f, 0.02f, 0.90f}).effects(sigil::material::Filter::shadow({0, 0, 0, 0.7f}, {.blur = 12, .offset = {0, 5}})))
         .foreground(stroke(1.0f, Fill::color({rc.r, rc.g, rc.b, 0.45f})))
-        .background(styles::dropShadow({0, 0, 0, 0.7f}, {0, 5}, 12))
+        
         .key("tooltip")
         .opacity(motion::animate({.from = 0.0f, .to = 1.0f, .duration = 380ms}))
         .translateY(motion::animate({.from = 8.0f, .to = 0.0f, .duration = 460ms}))
@@ -452,7 +455,7 @@ struct LootGrid {
                        .width(180.0f)
                        .height(1.0f)
                        .margin(7, 0, 5, 0)
-                       .fill(Paint::linearGradient(
+                       .fill(sigil::material::linearGradient(
                            {0, 0}, {180, 0},
                            {{0.0f, {rc.r, rc.g, rc.b, 0.0f}},
                             {0.5f, {rc.r, rc.g, rc.b, 0.5f}},
@@ -576,7 +579,7 @@ struct LootGrid {
     auto root = stack()
                     .applyStyleSheet(classes(look))
                     .ink(lt::kAsh)
-                    .fill(Paint::linearGradient(
+                    .fill(sigil::material::linearGradient(
                         {0, 0}, {0, lt::kH},
                         {{0.0f, hexColor(0x0D0C0A)},
                          {0.5f, hexColor(0x14120F)},
@@ -641,13 +644,13 @@ struct LootGrid {
              .top(38)
              .padding(7, 13)
              .borderRadius({3})
-             .fill(Paint::linearGradient(
+             .fill(sigil::material::linearGradient(
                  {0, 0}, {0, 32}, {{0.0f, lt::kStoneHi}, {1.0f, lt::kStoneLo}},
                  {.units = material::GradientUnits::Pixels}))
              .foreground(stroke(1.0f, Fill::color(lt::kBronzeDim)))
              .children(
                  {box().width(13.0f).height(13.0f).borderRadius({6.5f}).fill(
-                      Paint::radialGradient(
+                      sigil::material::radialGradient(
                           {5, 4}, 9,
                           {{0.0f, hexColor(0xFFE9A8)},
                            {0.6f, hexColor(0xD8A93C)},
