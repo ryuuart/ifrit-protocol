@@ -38,6 +38,7 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -89,14 +90,14 @@ std::shared_ptr<const sigil::weave::Hyphenator> hyphenator() {
   return table;
 }
 
-sk_sp<SkTypeface> serif() {
+sigil::weave::Face serif() {
   return weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
 }
-sk_sp<SkTypeface> grotesque() {
+sigil::weave::Face grotesque() {
   return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
-sk_sp<SkTypeface> mono() {
+sigil::weave::Face mono() {
   return weave::ports::face({"SF Mono", "Menlo", "Courier New"});
 }
 

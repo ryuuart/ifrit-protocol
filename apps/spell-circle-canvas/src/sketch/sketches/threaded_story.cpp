@@ -39,6 +39,7 @@
 
 // TAGS: Typography/Paragraph, Motion/Transitions
 
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Document.h>
 #include <sigilcompose/kit/Frame.h>
@@ -84,11 +85,11 @@ const material::Color kFaint{0.098f, 0.106f, 0.118f, 0.65f};
 const material::Color kMark{0.643f, 0.310f, 0.157f, 1};
 const material::Color kDisc{0.643f, 0.310f, 0.157f, 0.16f};
 
-sk_sp<SkTypeface> serif() {
+sigil::weave::Face serif() {
   return weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
 }
-sk_sp<SkTypeface> grotesque() {
+sigil::weave::Face grotesque() {
   return weave::ports::face({"Helvetica Neue", "Inter", "Helvetica", "Arial"});
 }
 

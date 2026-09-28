@@ -22,6 +22,7 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/LineSetting.h>
 #include <sigilcompose/kit/Document.h>
@@ -54,7 +55,7 @@ const material::Color kPaper{0.965f, 0.957f, 0.937f, 1};
 const material::Color kInk{0.114f, 0.106f, 0.098f, 1};
 const material::Color kMeasureTint{0.78f, 0.30f, 0.20f, 0.08f};
 
-sk_sp<SkTypeface> serif() {
+sigil::weave::Face serif() {
   return weave::ports::face(
       {"Iowan Old Style", "Palatino", "Georgia", "Times New Roman"});
 }

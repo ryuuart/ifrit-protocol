@@ -44,6 +44,7 @@
 
 // TAGS: Typography/Paragraph
 
+#include <sigilweave/style/Face.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilcompose/typography/Typography.h>
@@ -76,7 +77,7 @@ constexpr float kGlyphScale = 0.92f;     // what the third pass scales across
 constexpr material::Color kBody{0.86f, 0.87f, 0.90f, 1};
 
 weave::TextStyle body() {
-  const sk_sp<SkTypeface> face = weave::ports::face(
+  const sigil::weave::Face face = weave::ports::face(
       {"Iowan Old Style", "Georgia", "Times New Roman", "serif"});
   return weave::textStyle({.face = face, .size = 12, .color = kBody});
 }
