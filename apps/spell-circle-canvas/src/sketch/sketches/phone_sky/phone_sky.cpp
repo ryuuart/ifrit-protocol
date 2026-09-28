@@ -307,8 +307,7 @@ struct PhoneSky {
   void blow(const data::Json& message) {
     if (!ticker) return;
     gust = (float)message["strength"].number(kGustStrength);
-    ticker->timeline().apply(gust).then<ch::RampTo>(
-        0.0f, (float)message["seconds"].number(kGustFall), motion::ease::outQuad);
+    ticker->animate(gust, {.to = 0.0f, .duration = sigil::motion::Duration((float)message["seconds"].number(kGustFall)), .ease = motion::ease::outQuad});
   }
 
   /** THE SKY AS ONE MESSAGE: what the wall is drawing, in the wall's own

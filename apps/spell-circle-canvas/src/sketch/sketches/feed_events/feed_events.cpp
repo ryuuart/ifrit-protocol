@@ -242,8 +242,7 @@ struct FeedEvents {
    *  so a sender stepping in whole numbers still drifts smoothly. */
   void blow(const data::Json& message) {
     if (!ticker) return;
-    ticker->timeline().apply(wind).then<ch::RampTo>(
-        (float)message["value"].number(), kWindEase, motion::ease::outQuad);
+    ticker->animate(wind, {.to = (float)message["value"].number(), .duration = sigil::motion::Duration(kWindEase), .ease = motion::ease::outQuad});
   }
 
   /** AN EVENT: the gust is over, and what is left of it is a wave
@@ -255,10 +254,7 @@ struct FeedEvents {
     nextWave = (nextWave + 1) % kWaves;
     wave.strength = (float)message["strength"].number();
     wave.travel = 0.0f;
-    ticker->timeline()
-        .apply(wave.travel)
-        .then<ch::RampTo>(1.0f, (float)message["seconds"].number(kWaveFall),
-                          motion::ease::outQuad);
+    ticker->animate(wave.travel, {.to = 1.0f, .duration = sigil::motion::Duration((float)message["seconds"].number(kWaveFall)), .ease = motion::ease::outQuad});
   }
 
   /** STATE: the colours the bands are tinted from. A message carrying
@@ -356,7 +352,7 @@ struct FeedEvents {
   void crossings(Pen& pen, material::Color crest) {
     pen.noStroke();
     for (const Wave& wave : waves) {
-      const float across = wave.travel();
+      const float across = wave.travel.value();
       if (across >= 1.0f || wave.strength <= 0) continue;
       const float lead = across * (pen.width + kWaveWidth);
       const float fading = wave.strength * (1.0f - across);

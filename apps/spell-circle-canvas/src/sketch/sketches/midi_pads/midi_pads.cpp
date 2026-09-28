@@ -300,9 +300,7 @@ struct MidiPads {
     Cell& cell = cells[cellOf((int)message["note"].number())];
     cell.strike =
         std::clamp((float)message["velocity"].number() / 127.0f, 0.0f, 1.0f);
-    ticker->timeline()
-        .apply(cell.glow)
-        .then<ch::RampTo>(cell.strike, kStrike, motion::ease::outQuad);
+    ticker->animate(cell.glow, {.to = cell.strike, .duration = sigil::motion::Duration(kStrike), .ease = motion::ease::outQuad});
   }
 
   /** THE PAD CAME UP, and the cell falls away over kFade. A keyboard
@@ -311,9 +309,7 @@ struct MidiPads {
   void release(const data::Json& message) {
     if (!ticker) return;
     Cell& cell = cells[cellOf((int)message["note"].number())];
-    ticker->timeline()
-        .apply(cell.glow)
-        .then<ch::RampTo>(0.0f, kFade, motion::ease::inQuad);
+    ticker->animate(cell.glow, {.to = 0.0f, .duration = sigil::motion::Duration(kFade), .ease = motion::ease::inQuad});
   }
 
   /** STATE: the knob stands where it stands, and the sky eases to it.
@@ -326,8 +322,7 @@ struct MidiPads {
     const float across = (float)message["value"].number() / 127.0f;
     // The knob runs either side of still air, because a sky that only
     // drifts one way is a knob with half its travel wasted.
-    ticker->timeline().apply(wind).then<ch::RampTo>(
-        (across * 2.0f - 1.0f) * kWindSpan, kWindEase, motion::ease::outQuad);
+    ticker->animate(wind, {.to = (across * 2.0f - 1.0f) * kWindSpan, .duration = sigil::motion::Duration(kWindEase), .ease = motion::ease::outQuad});
   }
 
   /** THE LIGHTS, AND THE DIFFERENCE ALONE. An LED follows the scene, so
@@ -339,7 +334,7 @@ struct MidiPads {
   void relight() {
     for (size_t index = 0; index != kCells; ++index) {
       Cell& cell = cells[index];
-      const bool now = cell.glow() >= kLitAt;
+      const bool now = cell.glow.value() >= kLitAt;
       if (now == cell.shown) continue;
       cell.shown = now;
       const bool wrote = lights.send(data::Json(data::Json::Object{
@@ -453,7 +448,7 @@ struct MidiPads {
     for (size_t index = 0; index != kCells; ++index) {
       const float x = left + (float)(index % kColumns) * (tile + kTileGap);
       const float y = top + (float)(index / kColumns) * (height + kTileGap);
-      const float glow = std::clamp(cells[index].glow(), 0.0f, 1.0f);
+      const float glow = std::clamp(cells[index].glow.value(), 0.0f, 1.0f);
       // The tile itself, which stands whether or not anybody is playing:
       // a grid with nothing lit is still a grid, and eight of them are
       // what says how many pads there are to strike. It is laid over

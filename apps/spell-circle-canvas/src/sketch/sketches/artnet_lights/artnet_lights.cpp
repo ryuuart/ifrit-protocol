@@ -339,8 +339,7 @@ struct ArtNetLights {
   }
 
   void fade(motion::Animatable<float>& value, float to) {
-    ticker->timeline().apply(value).then<ch::RampTo>(to, kFade,
-                                                     motion::ease::outQuad);
+    ticker->animate(value, {.to = to, .duration = sigil::motion::Duration(kFade), .ease = motion::ease::outQuad});
   }
 
   /** WHAT A BAND IS LIT IN THIS INSTANT: the wash at the band's own

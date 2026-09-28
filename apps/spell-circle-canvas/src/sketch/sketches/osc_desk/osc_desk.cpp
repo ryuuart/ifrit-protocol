@@ -246,8 +246,7 @@ struct OscDesk {
   void fader(const data::Json& message) {
     if (desk.reply(data::oscMessage("/sky/state", data::Json::Array{(double)wind.value()}))) ++replies;
     if (!ticker) return;
-    ticker->timeline().apply(wind).then<ch::RampTo>(
-        (float)message["arguments"][0].number(), kWindEase, motion::ease::outQuad);
+    ticker->animate(wind, {.to = (float)message["arguments"][0].number(), .duration = sigil::motion::Duration(kWindEase), .ease = motion::ease::outQuad});
   }
 
   /** A GUST IS AN EVENT: it rises to the strength the desk asked for
@@ -260,9 +259,8 @@ struct OscDesk {
     const float strength = (float)message["arguments"][0].number();
     const float falls = (float)message["arguments"][1].number(kGustFall);
     ticker->timeline()
-        .apply(gust)
-        .then<ch::RampTo>(strength, kGustRise, motion::ease::outQuad)
-        .then<ch::RampTo>(0.0f, std::max(falls, kGustRise), motion::ease::inQuad);
+        .add(gust, {.to = strength, .duration = sigil::motion::Duration(kGustRise), .ease = motion::ease::outQuad})
+        .add(gust, {.to = 0.0f, .duration = sigil::motion::Duration(std::max(falls, kGustRise)), .ease = motion::ease::inQuad});
   }
 
   /** NINE FLOATS ARE THREE COLOURS. Where one colour stops and the next
