@@ -46,12 +46,14 @@
 
 // TAGS: Materials/Shaders
 
+#include <sigilmaterial/program/Shader.h>
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkBitmap.h>
 #include <include/effects/SkRuntimeEffect.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
 #include <sigilmaterial/color/Color.h>
-#include <sigilmaterial/core/Combine.h>
+#include <sigilmaterial/advanced/Combine.h>
 #include <sigilmaterial/field/Field.h>
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilsketch/canvas/Sketch.h>
@@ -155,7 +157,7 @@ enum Table : size_t { Grey, Fire, Ice, TableCount };
 struct Tables {
   sk_sp<SkImage> index = indexChart();
   std::array<sk_sp<SkImage>, TableCount> luts{greyLut(), fireLut(), iceLut()};
-  sk_sp<SkRuntimeEffect> effect;
+  material::Material effect = material::Color{0, 0, 0, 0};
 };
 
 material::Paint indexSource(const Tables& tables) {
@@ -173,12 +175,12 @@ material::Paint lutSource(const sk_sp<SkImage>& table) {
 
 /** THE CALL SITE, in one place: one effect, two children, one uniform.
  *  Everything compiles to ONE shader — no saveLayer, no second node. */
-material::Paint paletted(const Tables& tables, const sk_sp<SkImage>& table,
+material::Material paletted(const Tables& tables, const sk_sp<SkImage>& table,
                       float shade) {
-  return material::skia::sksl(tables.effect)
+  return material::Material(tables.effect)
       .set("uShade", shade)
-      .slot("uIndex", indexSource(tables))
-      .slot("uPalette", lutSource(table));
+      .slot("uIndex", material::skia::base(indexSource(tables)))
+      .slot("uPalette", material::skia::base(lutSource(table)));
 }
 
 /** The LUT itself, shown as the 16-swatch strip it is. */
@@ -332,7 +334,10 @@ struct MaterialChild {
   }
 
   void setup(sketch::SketchContext& ctx) {
-    tables.effect = ctx.assets.shader(ctx.local("palette.sksl"));
+    struct PaletteParameters { float uShade = 0; };
+    tables.effect = material::shader(
+        ctx.assets.hub(), ctx.local("palette.sksl"), PaletteParameters{},
+        {.textures = {{"uIndex", {}}, {"uPalette", {}}}});
     const sketch::kit::Provide look(sheetTheme());
     // the live panel is on the fire LUT here
     sketch::kit::stage(ctx, {.size = {1100, 930}, .captureAt = 1.0});

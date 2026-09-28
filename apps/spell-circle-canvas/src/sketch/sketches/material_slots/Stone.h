@@ -7,10 +7,9 @@
 
 #include <sigilmaterial/color/Color.h>
 #include <sigilmaterial/core/Material.h>
-#include <sigilmaterial/core/Recipe.h>
+#include <sigilmaterial/program/Shader.h>
 
 #include <glm/vec2.hpp>
-#include <memory>
 #include <string>
 #include <string_view>
 
@@ -58,19 +57,9 @@ half4 main(float2 p) {
 }
 )SHADER";
 
-inline const std::shared_ptr<const sigil::material::Recipe>& stoneRecipe() {
-  using sigil::material::Recipe;
-  using sigil::material::Target;
-  static const std::shared_ptr<const Recipe> recipe =
-      std::make_shared<const Recipe>(
-          Recipe::of<StoneParameters>("material_slots.stone")
-              .body(Target::SkSL, std::string(grainNoise(Target::SkSL))
-                                      .append(kStoneSkSL)));
-  return recipe;
-}
-
 inline sigil::material::Material stone(const StoneParameters& parameters = {}) {
-  return sigil::material::Material(stoneRecipe(), parameters);
+  return sigil::material::shader(
+      std::string(grainNoise(sigil::material::Target::SkSL)).append(kStoneSkSL), parameters, {.key = "material_slots.stone"});
 }
 
 }  // namespace material_slots

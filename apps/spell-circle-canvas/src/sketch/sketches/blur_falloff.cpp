@@ -38,6 +38,7 @@
 
 // TAGS: Materials/Compositing
 
+#include <sigilmaterial/skia/Texture.h>
 #include <include/effects/SkImageFilters.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
@@ -81,26 +82,24 @@ sketch::kit::Theme sheetTheme() {
  *  rules 7 px apart (detail a blur destroys visibly) under three discs.
  *  The tile is baked once and repeated; the rotation only remaps the
  *  sampling, so the run stays seamless. */
-material::Paint rules() {
-  return material::skia::paint(
-      material::pattern::sequence({{3.5f, material::hexColor(0x293147)}, {3.5f, material::hexColor(0x9eb3db)}})
+material::Material rules() {
+  return material::skia::base(material::skia::paint(material::skia::shader(material::pattern::sequence({{3.5f, material::hexColor(0x293147)}, {3.5f, material::hexColor(0x9eb3db)}})
           .rotate(90)
-          .texture()
-          .shader());
+          .texture())));
 }
 
 Element subject() {
   return stack().width(kPanel).height(kPanel).fill(rules()).children(
-      {kit::dot({64, 68}, 38, material::Paint::solid({0.98f, 0.44f, 0.34f, 1})),
-       kit::dot({122, 122}, 26, material::Paint::solid({0.42f, 0.86f, 0.72f, 1})),
+      {kit::dot({64, 68}, 38, Fill::color({0.98f, 0.44f, 0.34f, 1})),
+       kit::dot({122, 122}, 26, Fill::color({0.42f, 0.86f, 0.72f, 1})),
        kit::dot({166, 180}, 48,
-                material::Paint::solid({0.96f, 0.82f, 0.36f, 1}))});
+                Fill::color({0.96f, 0.82f, 0.36f, 1}))});
 }
 
 /** DEPTH OF FIELD: three stops down the unit square — max sigma at the
  *  top edge, zero at the focal line, max again at the bottom. */
-material::Paint dofMap() {
-  return material::Paint::linearGradient(
+material::Material dofMap() {
+  return sigil::material::linearGradient(
       {0, 0}, {0, 1},
       {{0.0f, {1, 1, 1, 1}}, {kFocal, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}});
 }
@@ -108,14 +107,14 @@ material::Paint dofMap() {
 /** A LENS EDGE: zero on axis, max at the inscribed circle. The closest
  *  side is the extent that means "fills this box" (the farthest corner
  *  reaches the corners). */
-material::Paint lensMap() {
-  return material::Paint::radialGradient(
+material::Material lensMap() {
+  return sigil::material::radialGradient(
       {0.5f, 0.5f}, 1.0f, {{0.0f, {0, 0, 0, 1}}, {1.0f, {1, 1, 1, 1}}},
       {.extent = material::RadialExtent::ClosestSide});
 }
 
 sketch::kit::ComparisonCase panel(const char* caseTitle, const char* call,
-                                  const char* note, material::Paint map,
+                                  const char* note, material::Material map,
                                   material::Filter e, std::string key) {
   return {.title = caseTitle,
           .control = call,
@@ -182,7 +181,7 @@ struct BlurFalloff {
                  {.cases =
                       {panel("UNIFORM", "filter(Blur(14, 14))",
                              "Every position receives the same blur.",
-                             material::Paint::solid({1, 1, 1, 1}),
+                             material::Color{1, 1, 1, 1},
                              material::skia::filter(
                                  SkImageFilters::Blur(kMaxSigma,
                                                       kMaxSigma, nullptr)),

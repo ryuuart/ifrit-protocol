@@ -32,6 +32,7 @@
 
 // TAGS: Materials/Shaders
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Specimen.h>
@@ -76,7 +77,7 @@ sketch::kit::Theme sheetTheme() {
 
 /** The one voice: the recipe's name under the swatch, the call that made
  *  it under that, both ranged left at the cell's width. */
-Element swatch(Utf8 name, const char* call, material::Paint paint) {
+Element swatch(Utf8 name, const char* call, material::Material paint) {
   return sketch::kit::caption(
       kCell, std::move(name), call,
       box()
@@ -89,13 +90,13 @@ Element swatch(Utf8 name, const char* call, material::Paint paint) {
 /** A material's own recipe names the cell — nothing here retypes it. */
 Element painted(const char* call, material::Material material) {
   const std::string name = material.recipe().name();
-  return swatch(name, call, material::Paint::recipe(std::move(material)));
+  return swatch(name, call, std::move(material));
 }
 
 /** A tile names itself by its generator, since a baked tile has no recipe
  *  of its own: what repeats is an image, sampled through the mapping. */
 Element tiled(const char* name, const char* call, material::pattern::Tile tile) {
-  return swatch(name, call, material::skia::paint(material::skia::shader(tile.texture())));
+  return swatch(name, call, material::skia::base(material::skia::paint(material::skia::shader(tile.texture()))));
 }
 
 Element row(std::vector<Element> cells) {
@@ -119,8 +120,8 @@ struct StockMaterialsSheet {
 
     // The tile the two content-reading fields are shown over, so the
     // warp has something to displace and the tube something to darken.
-    const material::Paint under = material::skia::paint(
-        material::skia::shader(material::pattern::checker(14, material::hexColor(0x2b3a54), material::hexColor(0x8fa6c8)).texture()));
+    const material::Material under = material::skia::base(material::skia::paint(
+        material::skia::shader(material::pattern::checker(14, material::hexColor(0x2b3a54), material::hexColor(0x8fa6c8)).texture())));
 
     Element fields = row(
         {painted("field::halftoneRamp(9, 1, 3.6, gold)",
@@ -130,7 +131,7 @@ struct StockMaterialsSheet {
                  field::grain(0.35f, 4, 3.0f, 1.0f, 2.4f)),
          swatch(field::rippleRecipe()->name(),
                 "field::ripple(7 px, 46 px) over a checker child",
-                material::Paint::recipe(field::ripple(7.0f, 46.0f, 0.6f))
+                field::ripple(7.0f, 46.0f, 0.6f)
                     .slot("content", under)),
          painted("field::noise(0.02, 5, turbulence)",
                  field::noise(0.02f, 5, 9.0f, true))});
@@ -175,12 +176,12 @@ struct StockMaterialsSheet {
                  sdf::material(sdf::star(6, 2.6f),
                                {.fill = material::hexColor(0xf2cc4d)})),
          swatch(u8"linearUnit", "Paint::linearUnit({0,0}, {1,1}, ramp)",
-                material::Paint::linearGradient({0, 0}, {1, 1}, ramp)),
+                sigil::material::linearGradient({0, 0}, {1, 1}, ramp)),
          swatch(
              u8"radialUnit", "Paint::radialUnit({0.5,0.5}, 1, ramp)",
-             material::Paint::radialGradient({0.5f, 0.5f}, 1.0f, ramp)),
+             sigil::material::radialGradient({0.5f, 0.5f}, 1.0f, ramp)),
          swatch(u8"glowUnit", "Paint::glowUnit({0.5,0.5}, 1, ramp)",
-                material::Paint::radialGradient(
+                sigil::material::radialGradient(
                     {0.5f, 0.5f}, 1.0f, ramp,
                     {.extent = material::RadialExtent::ClosestSide}))});
 

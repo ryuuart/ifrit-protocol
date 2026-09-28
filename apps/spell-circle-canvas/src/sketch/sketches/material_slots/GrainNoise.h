@@ -6,7 +6,7 @@
 // cannot mean two different noises on two backends.
 
 #include <sigilmaterial/core/Target.h>
-#include <sigilmaterial/core/Terms.h>
+#include <sigilmaterial/advanced/Terms.h>
 
 #include <string>
 #include <string_view>

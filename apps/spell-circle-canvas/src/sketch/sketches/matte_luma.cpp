@@ -40,6 +40,7 @@
 
 // TAGS: Materials/Compositing
 
+#include <sigilmedia/advanced/Skia.h>
 #include <include/core/SkCanvas.h>
 #include <include/core/SkSurface.h>
 #include <sigilmaterial/skia/Texture.h>
@@ -101,19 +102,19 @@ sketch::kit::Theme sheetTheme() {
 }
 
 /** The "is it there?" backdrop — the stock checker tile, 8 px cells. */
-material::Paint checker() {
-  return material::skia::paint(
-      material::skia::shader(material::pattern::checker(8, material::hexColor(0x1a1c24), material::hexColor(0x282c38)).texture()));
+material::Material checker() {
+  return material::skia::base(material::skia::paint(
+      material::skia::shader(material::pattern::checker(8, material::hexColor(0x1a1c24), material::hexColor(0x282c38)).texture())));
 }
 
 /** The eight bands as one repeating run along +x — the generator the
  *  strip is, rather than eight rectangles drawn into a bitmap. */
-material::Paint bandStrip(float width) {
+material::Material bandStrip(float width) {
   const float bandWidth = width / (float)kBands.size();
   std::vector<std::pair<float, material::Color>> runs;
   runs.reserve(kBands.size());
   for (const Band& band : kBands) runs.emplace_back(bandWidth, band.color);
-  return material::skia::paint(material::skia::shader(material::pattern::sequence(runs).texture()));
+  return material::skia::base(material::skia::paint(material::skia::shader(material::pattern::sequence(runs).texture())));
 }
 
 /** THE MATTE, baked at panel size so its local matrix is the identity.
@@ -127,13 +128,13 @@ sk_sp<SkImage> matte() {
   canvas->clear(SK_ColorTRANSPARENT);
   const float mid = kPanel * kSplit;
   SkPaint pen;
-  pen.setShader(sigil::material::skia::shader(material::Paint::linearGradient(
+  pen.setShader(sigil::material::skia::shader(sigil::material::skia::paint(sigil::material::linearGradient(
                     {0, 0}, {0, kPanel}, {{0, {1, 1, 1, 1}}, {1, {0, 0, 0, 1}}},
-                    {.units = material::GradientUnits::Pixels})));
+                    {.units = material::GradientUnits::Pixels}))));
   canvas->drawRect(SkRect::MakeWH(mid, kPanel), pen);
-  pen.setShader(sigil::material::skia::shader(material::Paint::linearGradient(
+  pen.setShader(sigil::material::skia::shader(sigil::material::skia::paint(sigil::material::linearGradient(
                     {0, 0}, {0, kPanel}, {{0, {1, 1, 1, 1}}, {1, {1, 1, 1, 0}}},
-                    {.units = material::GradientUnits::Pixels})));
+                    {.units = material::GradientUnits::Pixels}))));
   canvas->drawRect(SkRect::MakeXYWH(mid, 0, kPanel - mid, kPanel), pen);
   return surface->makeImageSnapshot();
 }
@@ -191,7 +192,7 @@ struct MatteLuma {
     ctx.captureAt(0.05);
 
     // ONE coverage paint, handed to all four gates.
-    const material::Paint coverage = material::skia::image(matte());
+    const material::Material coverage = material::skia::base(material::skia::image(matte()));
 
     const auto gated = [&](Gate gate) {
       Element inner = content(kPanel, kPanel);
@@ -209,7 +210,7 @@ struct MatteLuma {
 
     // The bottom row: the run as a picture, and the run as a matte.
     const float stripW = 1020;
-    const material::Paint bands = bandStrip(stripW);
+    const material::Material bands = bandStrip(stripW);
     Element bandMatted = content(stripW, 64);
     bandMatted.mask(by::luma(bands));
 

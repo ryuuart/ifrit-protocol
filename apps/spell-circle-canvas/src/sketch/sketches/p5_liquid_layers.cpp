@@ -9,6 +9,7 @@
 
 // TAGS: Drawing/Brushes, Drawing/Generative
 
+#include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Texture.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/draw/Draw.h>
@@ -42,12 +43,12 @@ constexpr std::array<material::Color, 4> kPigment{{
     {0.96f, 0.72f, 0.14f, 1.0f},
 }};
 
-material::Paint graphPaper() {
+material::Material graphPaper() {
   pattern::Tile fine =
       pattern::gridLines(34.0f, 1.15f, {0.18f, 0.46f, 0.58f, 0.34f});
   pattern::Tile coarse =
       pattern::gridLines(136.0f, 2.2f, {0.70f, 0.82f, 0.88f, 0.22f});
-  return material::from({0.018f, 0.035f, 0.070f, 1.0f}).layer(material::skia::paint(material::skia::shader(fine.texture()))).layer(material::skia::paint(material::skia::shader(coarse.texture())));
+  return material::from(sigil::material::Color{0.018f, 0.035f, 0.070f, 1.0f}).layer(material::skia::base(material::skia::paint(material::skia::shader(fine.texture())))).layer(material::skia::base(material::skia::paint(material::skia::shader(coarse.texture()))));
 }
 
 brush::Tool liquidNib(material::Color colour, float width) {
@@ -66,7 +67,7 @@ brush::Tool liquidNib(material::Color colour, float width) {
 }
 
 struct P5LiquidLayers {
-  const material::Paint ground = graphPaper();
+  const material::Material ground = graphPaper();
 
   void setup(sketch::SketchContext& context) {
     context.canvas(720, 560);
@@ -117,8 +118,8 @@ struct P5LiquidLayers {
     for (int point = 0; point < 12; ++point) {
       const float radius = point % 2 == 0 ? 234.0f : 82.0f;
       const SkPoint at =
-          arrange::onRing((size_t)point, 12, centre, {radius, radius},
-                          clock * 0.08f, TAU, arrange::Turn::Closed);
+          sigil::geometry::path::toSk(arrange::onRing((size_t)point, 12,
+          {.center = sigil::geometry::path::fromSk(centre), .radii = {radius, radius}, .fromDegrees = (clock * 0.08f) * sigil::geometry::path::kRadToDeg, .sweepDegrees = (TAU) * sigil::geometry::path::kRadToDeg, .turn = arrange::Turn::Closed}));
       pen.vertex(at.fX, at.fY);
     }
     pen.endShape(CLOSE);
@@ -149,8 +150,8 @@ struct P5LiquidLayers {
       // wanted as well as the point it starts from.
       const float angle = arrange::along(clock * 0.12f, TAU, (size_t)mark, 14,
                                          arrange::Turn::Closed);
-      const SkPoint at = arrange::onEllipse(centre, {168.0f, 130.0f}, angle);
-      brush::line(pen, bloom, at, arrange::onEllipse(at, {8.0f, 8.0f}, angle));
+      const SkPoint at = sigil::geometry::path::toSk(arrange::onEllipse(sigil::geometry::path::fromSk(centre), {168.0f, 130.0f}, angle));
+      brush::line(pen, bloom, at, sigil::geometry::path::toSk(arrange::onEllipse(sigil::geometry::path::fromSk(at), {8.0f, 8.0f}, angle)));
     }
   }
 };

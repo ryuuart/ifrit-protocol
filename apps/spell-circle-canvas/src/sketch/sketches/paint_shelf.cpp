@@ -32,6 +32,8 @@
 
 // TAGS: Materials/Color
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <include/core/SkCanvas.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/kit/Document.h>
@@ -59,7 +61,7 @@ constexpr float kFocus = 44;       // the focus's hot spot displacement, px
 constexpr float kWindowFrom = 45;  // the sweep window that does not fill a turn
 constexpr float kWindowTo = 315;
 
-SkPoint middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
+glm::vec2 middle() { return {kCell * 0.5f, kPicture * 0.5f}; }
 
 /** The one ramp every radial cell runs, so what differs between them is
  *  the geometry of the falloff and never the colours. */
@@ -90,7 +92,7 @@ sketch::kit::ComparisonCase cell(const char* caseTitle, const char* call,
 
 /** One paint across the whole cell. */
 sketch::kit::ComparisonCase swatch(const char* caseTitle, const char* call,
-                                   const char* note, material::Paint fill) {
+                                   const char* note, material::Material fill) {
   return cell(caseTitle, call, note,
               box().children({box().cover().fill(std::move(fill))}));
 }
@@ -127,7 +129,7 @@ struct PaintShelf {
     // "the node's own box" and "the root's box" are two visibly
     // different readings of the same description.
     const auto field = [](bool world) {
-      material::Paint p = material::Paint::linearGradient(
+      material::Material p = sigil::material::linearGradient(
           {0, 0}, {1, 1},
           {{0.0f, {0.16f, 0.20f, 0.34f, 1}},
            {0.5f, {0.44f, 0.78f, 0.86f, 1}},
@@ -160,7 +162,7 @@ struct PaintShelf {
                                "Paint::radial(centre, 92, ember)",
                                "The hot spot and the outer circle share a "
                                "centre.",
-                               material::Paint::radialGradient(
+                               sigil::material::radialGradient(
                                    middle(), 92, ember(),
                                    {.units = material::GradientUnits::Pixels})),
                            swatch(
@@ -168,11 +170,11 @@ struct PaintShelf {
                                "conical(focus, 0, centre, 92, ember)",
                                "Move the focus while keeping the outer circle "
                                "fixed.",
-                               material::Paint::radialGradient(
+                               sigil::material::radialGradient(
                                    middle(), 92, ember(),
                                    {.units = material::GradientUnits::Pixels,
-                                    .focus = glm::vec2{middle().fX - kFocus,
-                                                       middle().fY -
+                                    .focus = glm::vec2{middle().x - kFocus,
+                                                       middle().y -
                                                            kFocus * 0.6f}})),
                            swatch(
                                "CONICAL · RIGHT",
@@ -180,12 +182,12 @@ struct PaintShelf {
                                "with the focus moved "
                                "across",
                                "Move the focus across the same fixed circle.",
-                               material::Paint::radialGradient(
+                               sigil::material::radialGradient(
                                    middle(), 92, ember(),
                                    {.units = material::GradientUnits::Pixels,
-                                    .focus = glm::vec2{middle().fX +
+                                    .focus = glm::vec2{middle().x +
                                                            1.3f * kFocus,
-                                                       middle().fY +
+                                                       middle().y +
                                                            0.8f * kFocus}}))},
                       .measure = 1020,
                       .gap = 18})),
@@ -202,7 +204,7 @@ struct PaintShelf {
                                            "Paint::sweep(centre, wheel)",
                                            "The colour ramp completes a "
                                            "full turn.",
-                                           material::Paint::conicGradient(
+                                           sigil::material::conicGradient(
                                                middle(), wheel(),
                                                {.units = material::
                                                     GradientUnits::Pixels})),
@@ -210,7 +212,7 @@ struct PaintShelf {
                                            "sweep(centre, wheel, 45, 315)",
                                            "Angles outside 45°–315° clamp "
                                            "to the nearest stop.",
-                                           material::Paint::conicGradient(
+                                           sigil::material::conicGradient(
                                                middle(), wheel(),
                                                {.units = material::
                                                     GradientUnits::Pixels,
@@ -225,9 +227,9 @@ struct PaintShelf {
                                    "RASTER BUFFER", "Paint::buffer(pixels)",
                                    "Caller-owned pixels, published by "
                                    "commit().",
-                                   material::skia::buffer(
+                                   material::skia::base(material::skia::buffer(
                                        pixels, material::Repeat::Repeat,
-                                       material::Repeat::Repeat))},
+                                       material::Repeat::Repeat)))},
                                .measure = 328,
                                .gap = 18}))}),
              box()
