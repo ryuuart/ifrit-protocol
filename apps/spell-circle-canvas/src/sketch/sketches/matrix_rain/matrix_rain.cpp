@@ -44,17 +44,19 @@
  *     by a selector into its two advance classes; the record's mirror and
  *     a seeded phosphor lift ride a third and fourth.
  *   - THE LOAD, deliberately: per-glyph alpha and tint every frame, a
- *     matrix draw per mirrored glyph, and blurred glow underlays beneath
- *     two planes that per-glyph fades split into fade classes. Every
- *     underlay must land beneath every foreground; a halo drawn over a
- *     neighbouring glyph's body is this study failing.
+ *     matrix draw per mirrored glyph, and a blurred alpha underlay beneath
+ *     each of the two nearest planes. Each underlay lands beneath its
+ *     whole plane, so its halo cannot cover a neighbouring glyph's body.
  *
  * The words, the charsets and every plane's clock stand in
- * `data/rain.json`; how each plane looks stands in `screen()`.
+ * `data/rain.json`; the sheet sets each plane's type, and its ink carries
+ * the halation over the rendered glyphs.
  */
 // TAGS: Typography/Effects, Motion/Particles
 
 #include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/skia/Filter.h>
+#include <include/core/SkColorFilter.h>
 #include <sigilmaterial/pattern/Patterns.h>
 #include <sigilcompose/brush/PixelStyles.h>
 #include <sigilcompose/core/Core.h>
@@ -117,15 +119,18 @@ constexpr material::Color kVoid = {0.004f, 0.012f, 0.006f, 1};
  *  moment of a streak is the one the sheet owns. A plane's class is its
  *  depth: its size, its haze, and its halation. A phosphor screen excites
  *  a spot rather than drawing a glyph, and the spot spreads into a green
- *  bloom heavy enough to fill a glyph's counters; the far plane takes none,
- *  because a blurred underlay is a second pass over every glyph and at
- *  sixteen pixels it does not change the picture. */
+ *  bloom heavy enough to fill a glyph's counters. The far plane has no
+ *  halation, keeping its sixteen-pixel forms distinct behind the others. */
+material::Material halation(float sigma) {
+  const auto glow = material::Filter::dilate(0.95f)
+      .then(material::skia::filter(SkColorFilters::Blend(
+          0xFF44FF74, SkBlendMode::kSrcIn)))
+      .then(material::Filter::blur(sigma));
+  return material::from(material::Color{0.97f, 1.0f, 0.98f, 1}).effects(
+      material::Filter{}.emit(glow, material::BlendMode::DestinationOver));
+}
+
 StyleSheet screen() {
-  const auto halation = [](float sigma) {
-    return material::from(material::Color{0.97f, 1.0f, 0.98f, 1}).effects(
-        material::Filter::shadow(material::hexColor(0x44FF74),
-                                 {.blur = sigma, .spread = 1.9f}));
-  };
   return StyleSheet{
       rule("plane")
           .fontFamily(
@@ -136,8 +141,8 @@ StyleSheet screen() {
       rule("screen > plane").inset(0).overflow(Overflow::Clip),
       rule(".bed").fontSize(20).ink({0.026f, 0.090f, 0.050f, 1}),
       rule(".far").fontSize(16).opacity(0.55f).ink({0.62f, 0.94f, 1.0f, 1}),
-      rule(".mid").fontSize(23).opacity(0.80f).ink(halation(5.5f)),
-      rule(".near").fontSize(32).ink(halation(9)),
+      rule(".mid").fontSize(23).opacity(0.80f),
+      rule(".near").fontSize(32),
       rule("caption, eyebrow")
           .fontFamily("Helvetica Neue, Arial, sans-serif")
           .fontWeight(500)
@@ -385,7 +390,7 @@ struct MatrixRain {
             {.from = motion::StaggerFrom::Random, .seed = plane.seed}),
         .loop = -1,
         .loopDelay = std::chrono::duration<double, std::milli>(plane.loopMs - plane.durationMs)};
-    return churning(
+    auto leaf = churning(
         text(plane.text)
             .role("plane")
             .styleClass(plane.name)
@@ -397,6 +402,11 @@ struct MatrixRain {
                      .innerUnit = weave::Unit::Cluster,
                      .progress = motion::bind(seconds, {.to = {0.0f, 1000.0f / plane.loopMs}, .wrap = 1.0f})}),
         plane);
+    // Material effects belong to the rendered leaf; the sheet carries
+    // only the inherited type and ink.
+    if (plane.name == "mid") leaf.ink(halation(5.5f));
+    if (plane.name == "near") leaf.ink(halation(9));
+    return leaf;
   }
 
   /** THE OPERATOR'S LINE across the top of the glass. One looping

@@ -126,6 +126,8 @@
 // TAGS: Motion/Trajectories
 
 #include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/skia/Filter.h>
+#include <include/core/SkColorFilter.h>
 #include <sigilgeometry/advanced/Skia.h>
 #include <sigilmaterial/skia/Color.h>
 #include <include/core/SkFontMgr.h>
@@ -274,22 +276,25 @@ Element figureBox(SkPoint centre, float radius) {
 
 /** The outline register keeps its face and spacing while its ink draws the contour. */
 weave::TextStyle hollow(sigil::weave::Face face, float size,
-                        material::Color color, float width,
                         float tracking = 0) {
   return weave::textStyle({.face = std::move(face), .size = size,
-                            .color = color, .track = tracking});
+                            .color = material::Color{0, 0, 0, 0}, .track = tracking});
 }
 
 /** An open capital: only its contour carries ink. */
 material::Material hollowInk(material::Color color, float width, bool halo = false) {
   material::Material ink{material::Color{0, 0, 0, 0}};
-  if (halo)
-    ink.layer(material::from(material::Color{0, 0, 0, 0}).effects(
-        material::Filter::stroke(material::hexColor(0x000000, 0x59 / 255.0f),
-                                  {.width = 4, .position = material::StrokePosition::Center})
-            .then(material::Filter::blur(2.4f))));
-  return ink.effects(material::Filter::stroke(
-      color, {.width = width, .position = material::StrokePosition::Center}));
+  auto effects = material::Filter::stroke(
+      color, {.width = width, .position = material::StrokePosition::Center});
+  if (halo) {
+    const auto softEdge = material::Filter::dilate((4.0f - width) * 0.5f)
+        .then(material::skia::filter(SkColorFilters::Blend(
+            SkColorSetARGB(0x59, 0, 0, 0), SkBlendMode::kSrcIn)))
+        .then(material::Filter::blur(2.4f));
+    effects = effects.then(material::Filter{}.emit(
+        softEdge, material::BlendMode::DestinationOver));
+  }
+  return ink.effects(effects);
 }
 
 /** THE RING BASELINE for the textOnPath() legends: a clockwise circle
@@ -426,18 +431,17 @@ struct VertigoTitles {
 
     // VERTIGO — hollow Clarendon expanding out of the pupil: one text
     // node, one textFx::enter(textFx::pop()) track cascading the capitals 30 ms apart. The
-    // track's batched draw carries the style's whole paint — the blurred
-    // stroke underlay stays beneath the hollow stroke while the letters
-    // pop. The 3 px between capitals is tracking, not a gap: with one text
+    // glyph contours carry the hollow ink and its blurred underlay.
+    // The 3 px between capitals is tracking, not a gap: with one text
     // node the spacing IS letterspacing.
     {
-      auto face = hollow(faceDisplay, 76, kBone, 2.2f, 3.0f);
+      auto face = hollow(faceDisplay, 76, 3.0f);
       // The entrance ramp covers the cascade's own span, so the last
       // capital lands exactly when the master progress does.
       const sigil::motion::Tween<float> cascade{.duration = std::chrono::duration<double, std::milli>(480), .delay = sigil::motion::stagger(std::chrono::duration<double, std::milli>(30))};
       panel.children(
           {text("VERTIGO", face)
-               .ink(hollowInk(kBone, 2.2f, true))
+               .decorationOutline(Boundary::Glyphs).ink(hollowInk(kBone, 2.2f, true))
                .key("vertigo")
                .centerAt(sigil::geometry::path::fromSk(kEye))
                .textFx({.effect = textFx::enter(textFx::pop(0.30f)),
@@ -553,8 +557,8 @@ struct VertigoTitles {
              .shape(figure(kCards[2], 700))
              .stroke(stroke(0.8f, Fill::color(hexColor(0x2E5C9E, 0.55f))))
              .rotate(turntable()),
-         text("VERTIGO", hollow(faceDisplay, 34, kBone, 1.1f, 4.0f))
-             .ink(hollowInk(kBone, 1.1f))
+         text("VERTIGO", hollow(faceDisplay, 34, 4.0f))
+             .decorationOutline(Boundary::Glyphs).ink(hollowInk(kBone, 1.1f))
              .key("spec-outline"),
          text("SAUL BASS · JOHN WHITNEY")
              .font({.face = faceDisplay, .size = 14, .track = 2.0f})
