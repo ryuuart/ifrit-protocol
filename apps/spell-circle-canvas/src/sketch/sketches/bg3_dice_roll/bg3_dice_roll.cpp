@@ -14,6 +14,7 @@
 
 // TAGS: Interfaces/Game
 
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/brush/Decorations.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
@@ -25,7 +26,6 @@
 #include <sigilmaterial/skia/Paint.h>
 #include <sigilmotion/values/Tween.h>
 #include <sigilmotion/ease/Ease.h>
-#include <sigilmotion/values/Transition.h>
 #include <sigilsketch/canvas/Sketch.h>
 #include <sigilsketch/kit/Document.h>
 #include <sigilweave/ports/SystemFontManager.h>
@@ -135,7 +135,7 @@ struct Bg3DiceRoll {
     return box().inset(0).children({
         // A warm light under the ring, so it stands out of the scrim.
         circle(kRing + 120)
-            .fill(Paint::radialGradient(
+            .fill(sigil::material::radialGradient(
                 {0.5f, 0.5f}, 1.0f,
                 {{0.0f, material::withAlpha(kGilt, 0.16f)},
                  {1.0f, material::withAlpha(kGilt, 0.0f)}},
@@ -145,7 +145,7 @@ struct Bg3DiceRoll {
             .foreground(decorations::border(0.8f, Fill::color(kBronze))),
         circle(kRing)
             .shape(shapes::annulus(1 - kBand / kRing))
-            .fill(Paint::linearGradient({0.2f, 0.0f}, {0.8f, 1.0f},
+            .fill(sigil::material::linearGradient({0.2f, 0.0f}, {0.8f, 1.0f},
                                         {{0.0f, hexColor(0x6B5218)},
                                          {0.5f, kUmber},
                                          {1.0f, hexColor(0x5E4714)}}))
@@ -161,7 +161,7 @@ struct Bg3DiceRoll {
                    .fill(Fill::color(kGilt));
              }),
         circle(kRing - kBand)
-            .fill(Paint::radialGradient(
+            .fill(sigil::material::radialGradient(
                 {0.5f, 0.42f}, 0.72f,
                 {{0.0f, hexColor(0x241B10)}, {1.0f, hexColor(0x0C0906)}}))
             .foreground(decorations::border(1.0f, Fill::color(kBronze), 6)),
@@ -216,7 +216,7 @@ struct Bg3DiceRoll {
                                   face.corners[2]},
                        .closed = true};
                    return pathFigure(path::toPath(outline))
-                       .fill(Paint::linearGradient(
+                       .fill(sigil::material::linearGradient(
                            {0.3f, 0.0f}, {0.7f, 1.0f},
                            {{0.0f, material::scale(tone, 1.06f)},
                             {1.0f, material::scale(tone, 0.88f)}}));
@@ -265,7 +265,7 @@ struct Bg3DiceRoll {
                     .height(84)
                     .shape(shapes::notched(26, 10))
                     .fill(Fill::color(hexColor(0x16110B)))
-                    .layerStyle(decorations::doubleBorder(
+                    .foreground(decorations::doubleBorder(
                         decorations::border(1.8f, Fill::color(kBone)),
                         decorations::border(0.8f, Fill::color(kGilt), 5)))
                     .alignItems(Align::Center)
@@ -289,10 +289,10 @@ struct Bg3DiceRoll {
                 .width(60)
                 .height(60)
                 .shape(shapes::circle())
-                .fill(Paint::radialGradient(
+                .fill(sigil::material::radialGradient(
                     {0.5f, 0.35f}, 0.8f,
                     {{0.0f, hexColor(0x3A2C12)}, {1.0f, hexColor(0x120D07)}}))
-                .layerStyle(decorations::doubleBorder(
+                .foreground(decorations::doubleBorder(
                     decorations::border(1.6f, Fill::color(kGilt)),
                     decorations::border(0.7f, Fill::color(kBronze), 4)))
                 .alignItems(Align::Center)
@@ -309,8 +309,8 @@ struct Bg3DiceRoll {
         .alignItems(Align::Center)
         .gap(16)
         .height(50)
-        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms, .ease = sigil::motion::ease::outQuad}))
-        .translateX(sigil::motion::animate({.from = 18.0f, .to = 0.0f, .duration = 300ms, .ease = sigil::motion::ease::outQuad}))
+        .opacity(sigil::motion::animate({.from = 0.0f, .to = 1.0f, .duration = 260ms, .delay = sigil::motion::stagger(110ms), .ease = sigil::motion::ease::outQuad}))
+        .translateX(sigil::motion::animate({.from = 18.0f, .to = 0.0f, .duration = 300ms, .delay = sigil::motion::stagger(110ms), .ease = sigil::motion::ease::outQuad}))
         .children({
             box().column().flexGrow().gap(2).children({
                 text(bonus.name).styleClass("bonus"),
@@ -343,7 +343,6 @@ struct Bg3DiceRoll {
                 .height(150)
                 .marginTop(20)
                 .column()
-                .staggerChildren(110ms)
                 .children({counting ? each(check.bonuses, bonusLine)
                                     : std::vector<Element>{}}),
             kit::line({.length = Dimension(560),
@@ -391,7 +390,7 @@ struct Bg3DiceRoll {
   Element describe() const {
     return box()
         .inset(0)
-        .fill(Paint::radialGradient({0.5f, 0.36f}, 0.85f,
+        .fill(sigil::material::radialGradient({0.5f, 0.36f}, 0.85f,
                                     {{0.0f, hexColor(0x1C150D)},
                                      {0.6f, kScrim},
                                      {1.0f, hexColor(0x020201)}}))

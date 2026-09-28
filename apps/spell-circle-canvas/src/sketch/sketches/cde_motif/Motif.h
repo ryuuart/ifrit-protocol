@@ -1,5 +1,8 @@
 #pragma once
 
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilmaterial/skia/Color.h>
+#include <sigilweave/style/Face.h>
 #include <include/core/SkFontMetrics.h>
 #include <include/core/SkFontMgr.h>
 #include <include/core/SkPaint.h>
@@ -388,7 +391,9 @@ inline PathFormat highlight(float T) {
  *  a Pattern BAKES its colours into the tile, so a themed stipple would
  *  need one Pattern per palette per colour. The kit's stipple is a mask
  *  the colour is laid THROUGH, which is one lattice for all of them. */
-inline styles::Stipple stipple() { return styles::stipple(ambient().bg); }
+inline material::Material stipple() {
+  return material::pattern::stipple({.color = ambient().bg});
+}
 
 // ===========================================================================
 // 5. THE BACKDROP — cde/programs/backdrops/PinStripe.pm, 28 x 52, 2 colours.
@@ -431,7 +436,7 @@ inline material::skia::Painter pinStripeTile(material::Color light,
 //    the same 13 px run [MEAS]. That restraint is the reference.
 // ===========================================================================
 
-inline sk_sp<SkTypeface> uiFace() {
+inline sigil::weave::Face uiFace() {
   return weave::ports::face({"Helvetica", "Arial"});
 }
 
@@ -536,7 +541,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
                    .padding(2, 6)
 
                    .children({label(t)})});
-  if (insensitive) inner.foreground(stipple());
+  if (insensitive) inner.foreground(decorations::wash(stipple()));
   Element ring = box().padding(2).children({std::move(inner)});
   if (defaulted) ring.overlay(bevel(1, true, false));
   return ring;
@@ -546,7 +551,7 @@ inline Element pushButton(std::string_view t, bool armed = false,
  *  that is ever near-white, and therefore the only one that ever takes
  *  the LITE branch. */
 inline Element textField(const Utf8& t, float w, bool caret = false,
-                         const motion::Animatable<float>& caretOut = nullptr) {
+                         std::optional<motion::Animatable<float>> caretOut = std::nullopt) {
   const ColorSet s = ambient();
   Element inner = box()
                       .row()
@@ -556,7 +561,7 @@ inline Element textField(const Utf8& t, float w, bool caret = false,
                       .children({label(t)});
   if (caret && caretOut)
     inner.children({box().width(1).height(13).fill(s.fg).opacity(
-        motion::bind(caretOut, {.quantize = 2}))});
+        motion::bind(*caretOut, {.quantize = 2}))});
   Element field = surface(s)
                       .overlay(bevel(2, true, false))
                       .padding(2)

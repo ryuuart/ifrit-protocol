@@ -2,6 +2,8 @@
 
 // TAGS: Interfaces/Desktop
 
+#include <sigilmaterial/pattern/Patterns.h>
+#include <sigilgeometry/advanced/Skia.h>
 #include "Motif.h"
 #include <sigilmeasure/advanced/CheckFormat.h>
 #include <sigilmotion/values/Animatable.h>
@@ -392,7 +394,7 @@ struct CdeMotifSketch {
       if (cascade)
         row.children({box().width(9).height(9).fill(s.bg).overlay(
             cde::bevel(2, false, false))});
-      if (insensitive) row.foreground(cde::stipple());
+      if (insensitive) row.foreground(decorations::wash(cde::stipple()));
       return row;
     };
     // XmSHADOW_ETCHED_IN at T = 2 — a two-pass etched shadow, and the only
@@ -502,7 +504,7 @@ struct CdeMotifSketch {
         .width(18)
 
         .children({box().width(18).height(31).fill(s.bs).overlay(
-            styles::Scanlines{s.ts, 2, 1, 1})});
+            decorations::wash(sigil::material::pattern::scanlines({.color = s.ts, .period = 2, .on = 1, .phase = 1})))});
   }
 
   Element panelSeparator() {
@@ -552,9 +554,8 @@ struct CdeMotifSketch {
     // round. `arrange::onRing` is the ring arithmetic's origin; a sketch
     // that respells it with its own sin and cos rounds differently.
     for (int i = 0; i < 12; ++i) {
-      const SkPoint c = arrange::onRing(
-          (size_t)i, 12, {24.0f, 24.0f}, {18.0f, 18.0f}, -(float)M_PI * 0.5f,
-          2.0f * (float)M_PI, arrange::Turn::Closed);
+      const SkPoint c = sigil::geometry::path::toSk(arrange::onRing((size_t)i, 12,
+          {.center = {24.0f, 24.0f}, .radii = {18.0f, 18.0f}, .fromDegrees = (-(float)M_PI * 0.5f) * sigil::geometry::path::kRadToDeg, .sweepDegrees = (2.0f * (float)M_PI) * sigil::geometry::path::kRadToDeg, .turn = arrange::Turn::Closed}));
       const float cx = c.fX, cy = c.fY;
       const float sz = (i % 3 == 0) ? 4.0f : 2.0f;
       face.children({box()
@@ -839,8 +840,8 @@ struct CdeMotifSketch {
 
     // The clock: 60x, so a minute passes every second and the hand
     // visibly steps.
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      const double t = ticker.elapsed();
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      const double t = ticker.elapsed().count();
       clockT = (float)std::fmod(t / 60.0 + 0.42, 1.0);
       busy = (std::fmod(t, 0.5) < 0.25) ? 1.0f : 0.0f;
       caret = (std::fmod(t, 1.0) < 0.5) ? 1.0f : 0.0f;

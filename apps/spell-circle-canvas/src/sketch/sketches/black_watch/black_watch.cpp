@@ -13,10 +13,12 @@
  */
 // TAGS: Patterns/Tiling
 
-#include <choreograph/Easing.h>
+#include <span>
+#include <array>
+#include <sigilcompose/kit/Rows.h>
+#include <sigilmaterial/filter/Filter.h>
 #include <sigilmotion/ease/Ease.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/Paint.h>
 #include <sigilcompose/core/Pattern.h>
@@ -135,7 +137,7 @@ float thrown(float weave) {
 }
 
 /** A layer filling the box it stands in. */
-Element layer(material::Paint paint) {
+Element layer(material::Material paint) {
   return box().cover().fill(std::move(paint));
 }
 
@@ -170,7 +172,8 @@ struct BlackWatch {
   std::array<Pattern, 9> blends;
   /** One wound card per shade card, a wrap of yarn per shade. */
   std::vector<std::array<Pattern, 3>> wraps;
-  material::Paint board, yarn;
+  material::Material board = material::Color{0, 0, 0, 0};
+  material::Material yarn = material::Color{0, 0, 0, 0};
 
   sigil::motion::Animatable<float> loom = sigil::motion::animatable(0.0f);
 
@@ -220,15 +223,13 @@ struct BlackWatch {
     // A mount board reads as one even card: a fine tooth the eye takes
     // as paper and almost no wear, since any slow blotch on a light card
     // reads as marble rather than as board.
-    board = material::Paint::recipe(
-        black_watch::board({.paint = colours.ground,
+    board = black_watch::board({.paint = colours.ground,
                               .tooth = 0.05f,
                               .toothScale = 0.06f,
                               .wear = 0.004f,
                               .wearScale = 0.004f,
-                              .seed = 7.0f}));
-    yarn = material::Paint::recipe(
-        material::field::grain(0.09f, 3, 3.0f, 0.75f));
+                              .seed = 7.0f});
+    yarn = material::field::grain(0.09f, 3, 3.0f, 0.75f);
     // A shade card is yarn wound round a board: each turn a lit crown and
     // a shadowed valley where it presses on the next.
     for (const ShadeCard& card : cards) {
@@ -340,8 +341,9 @@ struct BlackWatch {
              // along the lower lip of every glyph's bite.
              {document::h1(doc.phrase(words["title"]))
                   .decorationOutline(Boundary::Glyphs)
-                  .background(styles::dropShadow({1, 1, 1, 0.8f}, {0, 1.2f}, 0.4f))
-                  .foreground(styles::InnerShadow{{0, 0, 0, 0.55f}, {0, 1.5f}, 1.5f}),
+                  .ink(sigil::material::from(colours.ink).effects(
+                      sigil::material::Filter::shadow({1, 1, 1, 0.8f}, {.blur = 0.4f, .offset = {0, 1.2f}})
+                          .then(sigil::material::Filter::shadow({0, 0, 0, 0.55f}, {.blur = 1.5f, .offset = {0, 1.5f}, .inside = true})))),
               document::lead(doc.phrase(words["registration"]))}),
          box().row().gap(13).width(440).styleClass("ticket").children(
              {kit::line({.thickness = 1, .column = true,
@@ -428,9 +430,8 @@ struct BlackWatch {
             .height(height)
             .marginTop(14)
             .overflow(Overflow::Clip)
-            .background(styles::dropShadow(faded(colours.shadow, 0.55f),
-                                           {3, 4}, 10))
-            .fill(Fill::var("well"))
+            
+            .fill(sigil::material::from(colours.well).effects(sigil::material::Filter::shadow(faded(colours.shadow, 0.55f), {.blur = 10, .offset = {3, 4}})))
             .children({
                 layer(cloths.front().material()),
                 // The warp alone covers the woven cloth and withdraws
@@ -506,15 +507,14 @@ struct BlackWatch {
              .width(58)
              .height(11)
              .shape(shapes::svg("M0 5.5 C9 0 49 0 58 5.5 C49 11 9 11 0 5.5 Z"))
-             .fill(material::linearGradient(
+             .fill(sigil::material::from(material::linearGradient(
                  {0, 0}, {0, 11},
                  {{0, colourOf("#E0B878")},
                   {0.45f, colourOf("#B98A4E")},
                   {1, colourOf("#6E4A26")}},
-                 {.units = material::GradientUnits::Pixels}))
+                 {.units = material::GradientUnits::Pixels})).effects(sigil::material::Filter::shadow(faded(colours.shadow, 0.6f), {.blur = 3, .offset = {1, 3}})))
              .stroke(stroke(0.8f, Fill::var("ink"), PathFormat::Align::Inner))
-             .background(
-                 styles::dropShadow(faded(colours.shadow, 0.6f), {1, 3}, 3))
+             
              .children({box()
                             .left(17)
                             .top(3.5f)
@@ -546,9 +546,8 @@ struct BlackWatch {
                  .width(width)
                  .height(fringe.height)
                  .shape(shapes::svg(fringe.outline.c_str()))
-                 .fill(warpOnBeam.material())
-                 .background(styles::dropShadow(faded(colours.shadow, 0.5f),
-                                                {0.6f, 1.4f}, 1.2f))
+                 .fill(sigil::material::from(warpOnBeam.material()).effects(sigil::material::Filter::shadow(faded(colours.shadow, 0.5f), {.blur = 1.2f, .offset = {0.6f, 1.4f}})))
+                 
                  .transformOrigin(pct(0), pct(50))
                  .scaleX(sigil::motion::bind(loom, {.from = {0, kBeamEnd}, .clampFrom = true})),
              clothPanel()});
@@ -684,7 +683,7 @@ struct BlackWatch {
     std::vector<Element> rows;
     for (size_t index = 0; index < cards.size(); ++index) {
       const ShadeCard& card = cards[index];
-      std::vector<SurfacePaint> swatches;
+      std::vector<Fill> swatches;
       std::vector<Utf8> labels;
       for (int shade : {K, B, G}) {
         swatches.push_back(wraps[index][(size_t)shade].material());
@@ -723,7 +722,7 @@ struct BlackWatch {
   // The argument: the same crop of the same cloth under four clan names,
   // and the cloth that carries one of those names honestly.
 
-  Element swatch(const Pattern& cloth, SkPoint crop, SurfacePaint edge,
+  Element swatch(const Pattern& cloth, SkPoint crop, Fill edge,
                  float edgeWidth) const {
     Pattern cut = cloth;
     cut.offset({-crop.x() * kThread, -crop.y() * kThread});
@@ -735,9 +734,8 @@ struct BlackWatch {
         .shape(shapes::shaped(shapes::chamfered(0),
                               shapers::Zigzag{.amplitude = 2, .wavelength = 7}))
         .overflow(Overflow::Clip)
-        .background(
-            styles::dropShadow(faded(colours.shadow, 0.45f), {2, 3}, 7))
-        .fill(cut.material())
+        
+        .fill(sigil::material::from(cut.material()).effects(sigil::material::Filter::shadow(faded(colours.shadow, 0.45f), {.blur = 7, .offset = {2, 3}})))
         .stroke(stroke(edgeWidth, std::move(edge), PathFormat::Align::Outer))
         .children({layer(grooves.material())
                        .blendMode(material::BlendMode::Multiply)
@@ -843,18 +841,21 @@ struct BlackWatch {
   /** Each check is a row: its name, its evidence, the figure it computed
    *  and the verdict. A reading has no verdict, and says so with a dash. */
   Element verification() const {
-    std::vector<sketch::kit::Row> rows;
+    std::vector<std::array<Utf8, 4>> rows;
+    std::vector<Fill> swatches;
     for (const Proof& proof : proofs) {
       const measure::Check& check = proof.check;
       rows.push_back(
-          {.cells = {proof.name, check.label, check.actual,
+          {proof.name, check.label, check.actual,
                      check.judged()
                          ? (check.pass ? "PASS" : "FAIL want " + check.expected)
-                         : "—"},
-           .swatch = Fill::var(!check.judged() ? "rule"
+                         : "—"});
+      swatches.push_back(Fill::var(!check.judged() ? "rule"
                                : check.pass    ? "ink"
-                                               : "proof")});
+                                               : "proof"));
     }
+    std::vector<std::span<const Utf8>> tableRows;
+    for (const auto& row : rows) tableRows.emplace_back(row);
     const float reveal = (float)rows.size() * 0.0092f + 0.011f;
     return titled(
         doc.phrase(doc["verification"]["heading"]),
@@ -862,12 +863,15 @@ struct BlackWatch {
              .padding(8, 12)
              .fill(faded(colours.well, 0.8f))
              .stroke(stroke(1, Fill::var("rule"), PathFormat::Align::Inner))
-             .children({sketch::kit::table(
-                            std::move(rows),
+             .children({sigil::compose::kit::table(
+                            tableRows,
                             {.columns = {{.width = 104},
                                          {.width = 200},
                                          {.width = 56, .figure = true},
-                                         {}}})
+                                         {}},
+                             .gap = sketch::kit::theme().spacing.labelGap,
+                             .rowGap = sketch::kit::theme().spacing.rowGap,
+                             .swatches = swatches})
                             .opacity(sigil::motion::bind(loom, {.from = {kWeaveEnd, kWeaveEnd + reveal}, .clampFrom = true}))})})
         .flexGrow(1);
   }
@@ -958,8 +962,8 @@ struct BlackWatch {
     sketch::kit::stage(ctx, {.size = kCanvas,
                              .captureAt = 7.2,
                              .background = colours.ground});
-    ctx.engine.add([this, &ticker = ctx.engine] {
-      loom = phase(ticker.elapsed(), kCycle);
+    ctx.engine.timer([this, &ticker = ctx.engine] {
+      loom = phase(ticker.elapsed(), sigil::motion::Duration(kCycle));
     });
     const sketch::kit::Provide look(cardTheme(colours));
     ctx.composer.render(describe());

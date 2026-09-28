@@ -16,8 +16,10 @@
 //
 // TAGS: Interfaces/Game
 
+#include <sigilgeometry/advanced/Skia.h>
+#include <sigilmaterial/filter/Filter.h>
+#include <sigilmaterial/paint/Bases.h>
 #include <sigilcompose/brush/Decorations.h>
-#include <sigilcompose/brush/LayerStyles.h>
 #include <sigilcompose/core/Core.h>
 #include <sigilcompose/core/StyleSheet.h>
 #include <sigilcompose/kit/Chrome.h>
@@ -76,33 +78,33 @@ const material::Color kBevelShade = hexColor(0x0C0906, 0.65f);
 const material::Color kParchmentGold = hexColor(0xBC9054);
 
 /** The cast plate, the recesses cut into it and the card stuck on it. */
-const Paint kPlate = Paint::linearGradient({0, 0}, {0.15f, 1},
+const sigil::material::Material kPlate = sigil::material::linearGradient({0, 0}, {0.15f, 1},
                                            {{0.0f, hexColor(0x483828)},
                                             {0.4f, hexColor(0x383020)},
                                             {1.0f, hexColor(0x302820)}});
 const material::Material kPlateTooth = field::grain(0.22f, 3, 11.0f, 0.65f);
-const Paint kRust =
+const sigil::material::Material kRust =
     material::from(hexColor(0x7C581C)).layer(field::grain(0.0075f, 3, 5.0f, 1.35f), {.blend = material::BlendMode::Multiply});
-const Paint kRaised = Paint::linearGradient({0, 0}, {0, 1},
+const sigil::material::Material kRaised = sigil::material::linearGradient({0, 0}, {0, 1},
                                             {{0.0f, hexColor(0x483828)},
                                              {0.55f, hexColor(0x383020)},
                                              {1.0f, hexColor(0x302820)}});
-const Paint kWheel = Paint::linearGradient({0, 0}, {0, 1},
+const sigil::material::Material kWheel = sigil::material::linearGradient({0, 0}, {0, 1},
                                            {{0.0f, hexColor(0x3C3C3C)},
                                             {0.22f, hexColor(0x545454)},
                                             {0.58f, hexColor(0x282828)},
                                             {1.0f, hexColor(0x1C1C1C)}});
-const Paint kParchment =
+const sigil::material::Material kParchment =
     material::from(material::linearGradient({0.1f, 0}, {0.9f, 1},
                                          {{0.0f, kParchmentGold},
                                           {0.3f, hexColor(0xAC8044)},
                                           {0.66f, hexColor(0x9C7434)},
                                           {1.0f, hexColor(0x8C6428)}})).layer(field::grain(0.013f, 4, 21.0f, 0.62f, 1.4f), {.blend = material::BlendMode::Overlay});
-const Paint kRivet = Paint::radialGradient({0.34f, 0.3f}, 1.15f,
+const sigil::material::Material kRivet = sigil::material::radialGradient({0.34f, 0.3f}, 1.15f,
                                            {{0.0f, hexColor(0x6A5838)},
                                             {0.55f, hexColor(0x3A3020)},
                                             {1.0f, hexColor(0x140F08)}});
-const Paint kLamp = Paint::radialGradient({0.35f, 0.3f}, 1.1f,
+const sigil::material::Material kLamp = sigil::material::radialGradient({0.35f, 0.3f}, 1.1f,
                                           {{0.0f, hexColor(0xFF6A4A)},
                                            {0.45f, hexColor(0xF80000)},
                                            {1.0f, hexColor(0x600000)}});
@@ -126,7 +128,8 @@ Element engraved(const std::string& words, float size) {
   return text(words)
       .styleClass("engraved")
       .font({.size = px(size)})
-      .layerStyle(LayerStyle::echo({px(1), px(1)}, kGoldShadow));
+      .ink(material::from(kGold).effects(material::Filter::shadow(
+          kGoldShadow, {.offset = {px(1), px(1)}})));
 }
 
 /** A recess cut into the plate: near-black with a green cast, a hard
@@ -199,7 +202,7 @@ struct Sheet {
 
   void read(sketch::SketchContext& context) {
     const auto file = [&](const char* name) {
-      return context.assets.json(context.local(std::string("data/") + name));
+      return context.assets.hub().load<sigil::data::Json>(context.local(std::string("data/") + name));
     };
     if (const auto found = file("character.json")) character = *found;
     const auto art = file("art.json");
@@ -266,7 +269,7 @@ struct Fallout2CharSheet {
     std::vector<Element> panel;
     panel.push_back(
         screen(x, y, width, height)
-            .fill(Paint::linearGradient({0, 0}, {0.2f, 1},
+            .fill(sigil::material::linearGradient({0, 0}, {0.2f, 1},
                                         {{0.0f, hexColor(0x54462E)},
                                          {0.35f, hexColor(0x483828)},
                                          {1.0f, hexColor(0x3A3020)}}))
@@ -288,13 +291,12 @@ struct Fallout2CharSheet {
       panel.push_back(counter(58, top, (int)stat["value"].number()));
       panel.push_back(
           screen(text(std::string(stat["grade"].string())), 100, top + 4, 58, 17)
-              .fill(kWell)
+              .fill(sigil::material::from(kWell).effects(sigil::material::Filter::shadow(kParchmentGold, {.blur = 0, .offset = {px(-3), px(2)}}).then(sigil::material::Filter::shadow(hexColor(0x000000, 0.75f), {.blur = px(2), .offset = {0, px(1.2f)}, .inside = true}))))
               .borderRadius(Corners{px(1.5f)})
               .paddingLeft(px(3))
               .justifyContent(Justify::Center)
-              .background(styles::dropShadow(kParchmentGold, {px(-3), px(2)}, 0))
-              .foreground(styles::InnerShadow{hexColor(0x000000, 0.75f),
-                                              {0, px(1.2f)}, px(2)}));
+              
+              );
     }
     return box().inset(0).children({panel});
   }
@@ -421,8 +423,7 @@ struct Fallout2CharSheet {
                        .gap(px(8))
                        .alignItems(Align::Baseline)
                        .children({engraved(std::string(skill["name"].string()), 26)
-                                      .ink(hexColor(0x000000))
-                                      .layerStyle(LayerStyle{}),
+                                      .ink(material::from(hexColor(0x000000))),
                                   text(std::string(skill["formula"].string()))}),
                    kit::line({.length = Dimension(px(265)), .thickness = px(2)})
                        .marginTop(px(2)),
@@ -449,8 +450,8 @@ struct Fallout2CharSheet {
     const auto seam = [](float x, float y, float width, float height,
                          bool down) {
       return screen(x, y, width, height)
-          .fill(Paint::linearGradient(
-              {0, 0}, down ? SkPoint{0, 1} : SkPoint{1, 0},
+          .fill(sigil::material::linearGradient(
+              {0, 0}, sigil::geometry::path::fromSk(down ? SkPoint{0, 1} : SkPoint{1, 0}),
               {{0.0f, hexColor(0x554430)}, {1.0f, hexColor(0x241D12)}}));
     };
     static constexpr std::array<std::pair<const char*, std::array<float, 2>>, 3> kPlaques{
